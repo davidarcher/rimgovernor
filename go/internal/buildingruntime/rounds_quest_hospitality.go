@@ -26,7 +26,7 @@ func (r *RoundsPopulationJoinerPlanner) admitHospitality(call, epoch context.Con
 		}
 	}
 	if work.Waiting {
-		return RoundsPopulationJoinerResult{Verdict: waitFor(WaitMethodUsed, "quest_hosting"), NativeWorkTicks: stockWaitTicks}, false, nil
+		return RoundsPopulationJoinerResult{Verdict: waitFor(policy.CauseMethodUsed, "quest_hosting"), NativeWorkTicks: stockWaitTicks}, false, nil
 	}
 	id := domain.MintPlanID()
 	var action domain.Action
@@ -54,7 +54,7 @@ func (r *RoundsPopulationJoinerPlanner) admitHospitality(call, epoch context.Con
 		return RoundsPopulationJoinerResult{Verdict: verdict}, true, nil
 	}
 	if !arbiter.tryClaim(nil, "quest:"+string(work.Quest)) {
-		return RoundsPopulationJoinerResult{Verdict: waitFor(WaitClaim, "quest_hosting")}, true, nil
+		return RoundsPopulationJoinerResult{Verdict: waitFor(policy.CauseClaim, "quest_hosting")}, true, nil
 	}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
 	if err != nil {

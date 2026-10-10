@@ -262,7 +262,7 @@ func (r *RoundsResearchPlanner) step(call, epoch context.Context, arbiter *stepA
 				return result, err
 			}
 		}
-		return RoundsResearchResult{Verdict: waitFor(WaitMethodUsed, "current_research_project"), NativeWorkTicks: researchNativeWorkTicks}, nil
+		return RoundsResearchResult{Verdict: waitFor(policy.CauseMethodUsed, "current_research_project"), NativeWorkTicks: researchNativeWorkTicks}, nil
 	}
 	if !deficit {
 		return RoundsResearchResult{Verdict: BuildingReasonNoDeficit}, nil
@@ -310,7 +310,7 @@ func (r *RoundsResearchPlanner) admit(call, epoch context.Context, state Control
 	digestNext := sha256.Sum256([]byte(next))
 	method := domain.MethodID(fmt.Sprintf("research-%x", digestNext[:16]))
 	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
-		return RoundsResearchResult{Verdict: waitFor(WaitMethodUsed, "research_selection")}, nil
+		return RoundsResearchResult{Verdict: waitFor(policy.CauseMethodUsed, "research_selection")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoundsResearchResult{}, err
 	}
@@ -356,7 +356,7 @@ func researchKnowledgeNext(in snap.ResearchCall) (string, Verdict) {
 					continue
 				}
 				if slot.Current != "" {
-					return "", waitFor(WaitMethodUsed, "knowledge_slot")
+					return "", waitFor(policy.CauseMethodUsed, "knowledge_slot")
 				}
 				if !row.Census || len(row.LockReasons) != 0 {
 					return "", fieldUnavailable("research_knowledge_project")

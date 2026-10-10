@@ -165,10 +165,10 @@ func (r *RoundsPsylinkPlanner) step(call, epoch context.Context, arbiter *stepAr
 		if barred != (Verdict{}) {
 			return RoundsPsylinkResult{Verdict: barred}, nil
 		}
-		return RoundsPsylinkResult{Verdict: waitFor(WaitMethodUsed, "psylink_item")}, nil
+		return RoundsPsylinkResult{Verdict: waitFor(policy.CauseMethodUsed, "psylink_item")}, nil
 	}
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Pawn)}) {
-		return RoundsPsylinkResult{Verdict: waitFor(WaitMethodUsed, "psylink_pawn_claim")}, nil
+		return RoundsPsylinkResult{Verdict: waitFor(policy.CauseMethodUsed, "psylink_pawn_claim")}, nil
 	}
 	prefix := fmt.Sprintf("%s%s-", psylinkPrefix, choice.Pawn)
 	use, err := domain.NewUseItem(domain.PawnID(choice.Pawn), choice.Item, domain.PawnID(choice.Pawn))

@@ -77,7 +77,7 @@ func (r *RoundsPermitsPlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	choice, ok := policy.NextPermitOf(read.Projection.Facts.Royalty)
 	if !ok {
-		return RoundsPermitsResult{Verdict: waitFor(WaitMethodUsed, "permit")}, nil
+		return RoundsPermitsResult{Verdict: waitFor(policy.CauseMethodUsed, "permit")}, nil
 	}
 	intent := choice.Intent()
 	method, verdict, admitted, err := admitStandardMethod(call, p.journal, goal, permitMethodPrefix(intent), state.Snapshot)
@@ -92,7 +92,7 @@ func (r *RoundsPermitsPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoundsPermitsResult{}, err
 	}
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(intent.Holder)}) {
-		return RoundsPermitsResult{Verdict: waitFor(WaitMethodUsed, "pawn_claim")}, nil
+		return RoundsPermitsResult{Verdict: waitFor(policy.CauseMethodUsed, "pawn_claim")}, nil
 	}
 	if err = p.current(call, epoch); err != nil {
 		return RoundsPermitsResult{}, err

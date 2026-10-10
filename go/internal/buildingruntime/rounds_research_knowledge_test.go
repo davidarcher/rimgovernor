@@ -2,8 +2,9 @@ package buildingruntime
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -74,7 +75,7 @@ func TestResearchKnowledgeNextFollowsTheQueueHead(t *testing.T) {
 		t.Fatal("the prerequisite is the head", got, reason)
 	}
 	in.Read.Knowledge = []policy.KnowledgeSlot{{Category: "Basic", Current: "BioferriteExtraction"}}
-	if got, reason := researchKnowledgeNext(in); got != "" || !reason.Is(WaitMethodUsed) {
+	if got, reason := researchKnowledgeNext(in); got != "" || !reason.Is(policy.CauseMethodUsed) {
 		t.Fatal("a held slot is never replaced", got, reason)
 	}
 	locked := in.Read.Projects["BioferriteExtraction"]
@@ -82,7 +83,7 @@ func TestResearchKnowledgeNextFollowsTheQueueHead(t *testing.T) {
 	in.Read.Projects = map[string]policy.ResearchProjectFacts{"BioferriteExtraction": locked}
 	in.Read.Knowledge = []policy.KnowledgeSlot{{Category: "Basic"}}
 	in.Needs = []string{"BioferriteExtraction"}
-	if got, reason := researchKnowledgeNext(in); got != "" || !reason.Is(RefusalFieldUnavailable) {
+	if got, reason := researchKnowledgeNext(in); got != "" || !reason.Is(policy.CauseFieldUnavailable) {
 		t.Fatal("a locked head is unavailable, not selected", got, reason)
 	}
 }

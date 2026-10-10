@@ -3,11 +3,12 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"time"
 )
 
 func (r *RoundsPopulationJoinerPlanner) admitGravInspection(call, epoch context.Context, state ControlState, goal store.StandardState, read observation.RoundsReading, arbiter *stepArbiter, started time.Time) (RoundsPopulationJoinerResult, bool, error) {
@@ -26,7 +27,7 @@ func (r *RoundsPopulationJoinerPlanner) admitGravInspection(call, epoch context.
 	}
 	service := *work.Service
 	if !arbiter.tryClaim([]domain.PawnID{service.Pawn()}, "service:"+service.Thing()) {
-		return RoundsPopulationJoinerResult{Verdict: waitFor(WaitClaim, "grav_inspection")}, true, nil
+		return RoundsPopulationJoinerResult{Verdict: waitFor(policy.CauseClaim, "grav_inspection")}, true, nil
 	}
 	id := domain.MintPlanID()
 	action, err := domain.NewRecoveryServiceAction(domain.ActionID(string(id)+"-0"), service)

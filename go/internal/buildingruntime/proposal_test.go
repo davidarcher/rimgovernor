@@ -128,7 +128,7 @@ func TestCoordinateIsolatesCommitFailure(t *testing.T) {
 	var committed []string
 	a.propose("second", PlanResult{Kind: PlanProposed, Proposal: testProposal("second", plannerFoothold, 3, ResourceClaims{Pawns: []domain.PawnID{"q"}}, &committed)}, nil)
 	outcomes, failures := a.coordinate(context.Background(), stepBudget{}, proposalScope{})
-	if len(failures) != 1 || !errors.Is(failures[0], broken) || len(outcomes) != 2 || outcomes[0].Admitted || !outcomes[0].Verdict.Is(RefusalSharedAdmission) || !outcomes[1].Admitted {
+	if len(failures) != 1 || !errors.Is(failures[0], broken) || len(outcomes) != 2 || outcomes[0].Admitted || !outcomes[0].Verdict.Is(policy.CauseSharedAdmission) || !outcomes[1].Admitted {
 		t.Fatalf("%+v %v", outcomes, failures)
 	}
 }

@@ -76,7 +76,7 @@ func (r *RoundsArtPlanner) step(call, _ context.Context, _ *stepArbiter) (Rounds
 	if !workable || !sculpting {
 		return RoundsBillResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	return RoundsBillResult{Verdict: waitFor(WaitExistingWork, "sculpture"), NativeWorkTicks: artNativeWorkTicks}, nil
+	return RoundsBillResult{Verdict: waitFor(policy.CauseExistingWork, "sculpture"), NativeWorkTicks: artNativeWorkTicks}, nil
 }
 
 // artDemand sizes the art bills from the same bedroom census as

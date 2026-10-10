@@ -32,7 +32,7 @@ func plannerRecordReason(v Verdict) (policy.PlannerNote, bool) {
 	case OutcomeNoReview, OutcomeExpired:
 		return policy.PlannerNote{}, false
 	}
-	s := v.Text()
+	s := outcomeSentence(v)
 	if len(s) > 96 {
 		s = s[:96]
 	}
@@ -42,6 +42,19 @@ func plannerRecordReason(v Verdict) (policy.PlannerNote, bool) {
 		}
 	}
 	return policy.PlannerNote{Text: s, Waiting: v.Outcome != OutcomeRefused}, true
+}
+
+// outcomeSentence is the sentence a verdict files: a refusal or wait reads its
+// cause's wording naming the subject; the two fight outcomes, which are waits
+// in all but name, read their own sentence.
+func outcomeSentence(v Verdict) string {
+	switch v.Outcome {
+	case OutcomeOrdersSent:
+		return "combat orders are running"
+	case OutcomeHoldFallback:
+		return "the hold line fell back to squad defense"
+	}
+	return policy.Wording(v.Refusal.Kind, v.Refusal.Subject)
 }
 
 // noteRank orders the notes sibling planners file on one goal: a refusal

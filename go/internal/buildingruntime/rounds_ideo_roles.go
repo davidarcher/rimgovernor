@@ -77,7 +77,7 @@ func (r *RoundsIdeoRolesPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	owed, known := policy.RoleAssignments(read.Projection.Facts.Ideology, read.Projection.WorkPawns).Value()
 	if !known || len(owed) == 0 {
-		return RoundsIdeoRolesResult{Verdict: waitFor(WaitMethodUsed, "ideology_roles")}, nil
+		return RoundsIdeoRolesResult{Verdict: waitFor(policy.CauseMethodUsed, "ideology_roles")}, nil
 	}
 	// The first assignment the refusal budget admits; one in flight per
 	// step keeps a role with several places filling one believer at a time.
@@ -94,7 +94,7 @@ func (r *RoundsIdeoRolesPlanner) step(call, epoch context.Context, arbiter *step
 			continue
 		}
 		if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Pawn)}) {
-			return RoundsIdeoRolesResult{Verdict: waitFor(WaitMethodUsed, "pawn_claim")}, nil
+			return RoundsIdeoRolesResult{Verdict: waitFor(policy.CauseMethodUsed, "pawn_claim")}, nil
 		}
 		assign, err := domain.NewAssign(domain.PawnID(choice.Pawn), choice.Role, domain.ClearPrevious())
 		if err != nil {

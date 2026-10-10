@@ -73,7 +73,7 @@ func (r *RoundsTendPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoundsTendResult{Verdict: waitFor(WaitMethodUsed, "colonist_census")}, nil
+		return RoundsTendResult{Verdict: waitFor(policy.CauseMethodUsed, "colonist_census")}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -113,7 +113,7 @@ func (r *RoundsTendPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		// No pair to order: the patient is up and out of bed, or every
 		// doctor is ineligible, busy or walled off from the patients. Only game time changes that, so
 		// the step lends a window rather than reporting no work.
-		return RoundsTendResult{Verdict: waitFor(WaitMethodUsed, "medical_pair"), NativeWorkTicks: medicalWaitTicks}, nil
+		return RoundsTendResult{Verdict: waitFor(policy.CauseMethodUsed, "medical_pair"), NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	tend, err := domain.NewTend(doctor, patient)
 	if err != nil {

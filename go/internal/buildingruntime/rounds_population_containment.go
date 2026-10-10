@@ -86,7 +86,7 @@ func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Con
 	}
 	patient, ok := policy.EntityTendTarget(containment)
 	if !ok {
-		return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "entity_tend_target")}, nil
+		return RoundsPopulationCustodyResult{Verdict: waitFor(policy.CauseMethodUsed, "entity_tend_target")}, nil
 	}
 	review, err := p.journal.LoadRounds(call)
 	if err != nil {
@@ -102,7 +102,7 @@ func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Con
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "colonists_complete")}, nil
+		return RoundsPopulationCustodyResult{Verdict: waitFor(policy.CauseMethodUsed, "colonists_complete")}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists)+1)
 	for _, pawn := range emergency.Facts.Colonists {
@@ -142,11 +142,11 @@ func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Con
 	}
 	doctor, target, ok := policy.SelectTend(doctors, patients, tend.TendReachability(observed.Pawns))
 	if ok && !arbiter.tryClaim([]domain.PawnID{doctor, target}) {
-		return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "pawn_claim")}, nil
+		return RoundsPopulationCustodyResult{Verdict: waitFor(policy.CauseMethodUsed, "pawn_claim")}, nil
 	}
 	if !ok {
 		defenseAction(call, "routine-population-custody", slog.LevelWarn, "waiting", "entity_tend_unavailable", string(patient), nil)
-		return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "entity_tend_doctor")}, nil
+		return RoundsPopulationCustodyResult{Verdict: waitFor(policy.CauseMethodUsed, "entity_tend_doctor")}, nil
 	}
 	value, err := domain.NewTend(doctor, target)
 	if err != nil {

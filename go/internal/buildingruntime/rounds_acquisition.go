@@ -239,7 +239,7 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 	}
 	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
-		return RoundsAcquisitionResult{Verdict: waitFor(WaitMethodUsed, "acquisition_method")}, nil
+		return RoundsAcquisitionResult{Verdict: waitFor(policy.CauseMethodUsed, "acquisition_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoundsAcquisitionResult{}, err
 	}

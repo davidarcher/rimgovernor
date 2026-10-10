@@ -60,7 +60,7 @@ func (r *RoundsBuildingPlanner) controlRoomDoor(call, epoch context.Context, sta
 			}
 		}
 		if held == change.HoldOpen && opener == "" {
-			return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "door_passage_pending"), NativeWorkTicks: stockWaitTicks}, true, nil
+			return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "door_passage_pending"), NativeWorkTicks: stockWaitTicks}, true, nil
 		}
 		id := domain.MintPlanID()
 		var actions []domain.Action

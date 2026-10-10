@@ -2,8 +2,9 @@ package buildingruntime
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -100,7 +101,7 @@ func TestDigGeothermalRefusesWithoutAccessOrOnProtectedCell(t *testing.T) {
 		s.facts.Cells[i].Walkable = domain.Known(false)
 	}
 	result, handled, err = p.digGeothermal(ctx, ctx, s, nil, func() error { return nil })
-	if err != nil || !handled || !result.Verdict.Is(RefusalRockNotDug) {
+	if err != nil || !handled || !result.Verdict.Is(policy.CauseRockNotDug) {
 		t.Fatal(result, handled, err)
 	}
 }

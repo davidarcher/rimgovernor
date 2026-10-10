@@ -92,7 +92,7 @@ func TestRulesWindowRequiresSuccessfulCurrentReceipt(t *testing.T) {
 }
 
 func TestRulesDispatchTurnOnlyYieldsForNewAdmission(t *testing.T) {
-	for _, v := range []Verdict{BuildingReasonAdmitted, fieldUnavailable("hunt_census"), BuildingReasonNoDeficit, waitFor(WaitMethodUsed, "rules_method"), BuildingReasonDisabled} {
+	for _, v := range []Verdict{BuildingReasonAdmitted, fieldUnavailable("hunt_census"), BuildingReasonNoDeficit, waitFor(policy.CauseMethodUsed, "rules_method"), BuildingReasonDisabled} {
 		if got := rulesDispatchTurn(true, &RoundsRulesResult{Verdict: v}); got != (v == BuildingReasonAdmitted) {
 			t.Fatalf("verdict=%+v deferred=%v", v, got)
 		}

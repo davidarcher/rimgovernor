@@ -103,13 +103,13 @@ func (r *RoundsDialogPlanner) step(call, epoch context.Context, arbiter *stepArb
 		// Every option is disabled, a hyperlink or opens another window:
 		// nothing the controller can activate answers this dialog, so the
 		// hold stays with the player.
-		return RoundsDialogResult{Verdict: waitFor(WaitMethodUsed, "no_selectable_dialog_option")}, nil
+		return RoundsDialogResult{Verdict: waitFor(policy.CauseMethodUsed, "no_selectable_dialog_option")}, nil
 	}
 	windowID := dialog.GetWindowId()
 	digestNext := sha256.Sum256([]byte(fmt.Sprintf("%d/%d/%s", windowID, chosen.Index, chosen.Label)))
 	method := domain.MethodID(fmt.Sprintf("dialog-%x", digestNext[:16]))
 	if slices.ContainsFunc(incident.Methods, func(m store.IncidentMethod) bool { return m.Method == method }) {
-		return RoundsDialogResult{Verdict: waitFor(WaitMethodUsed, "dialog_method")}, nil
+		return RoundsDialogResult{Verdict: waitFor(policy.CauseMethodUsed, "dialog_method")}, nil
 	}
 	id := domain.MintPlanID()
 	value, err := domain.NewDialogAnswer(windowID, chosen.Index, chosen.Label)

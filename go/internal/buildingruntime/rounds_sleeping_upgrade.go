@@ -176,7 +176,7 @@ func (r *RoundsSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context, 
 	bed := sha256.Sum256([]byte(rep.Bed))
 	method := domain.MethodID(fmt.Sprintf("bedroom-replace-remove-%x", bed[:8]))
 	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "old_bed_removal")}, nil
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "old_bed_removal")}, nil
 	}
 	// A real bed is packed, not deconstructed: the stored bed furnishes the
 	// next bedroom or bed spot (packShellBed, reinstallStoredBed).
@@ -204,7 +204,7 @@ func (r *RoundsSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Context
 	room := sha256.Sum256([]byte(u.Room))
 	method := domain.MethodID(fmt.Sprintf("bedroom-upgrade-%s-%x", u.Slot, room[:8]))
 	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "bedroom_upgrade")}, nil
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "bedroom_upgrade")}, nil
 	}
 	stuff := u.Stuff
 	if stuff == "" {

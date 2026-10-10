@@ -2,8 +2,9 @@ package buildingruntime
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -340,7 +341,7 @@ func TestRefrigerationUsedSetpointPatchLendsCoolingTime(t *testing.T) {
 	}
 	// The census still reads the warm target: the same patch is used.
 	next, err := p.Step(ctx)
-	if err != nil || !next.Verdict.Is(WaitMethodUsed) || next.NativeWorkTicks == 0 {
+	if err != nil || !next.Verdict.Is(policy.CauseMethodUsed) || next.NativeWorkTicks == 0 {
 		t.Fatal(next, err)
 	}
 }

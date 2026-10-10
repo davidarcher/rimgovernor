@@ -69,7 +69,7 @@ func (r *RoundsPopulationCustodyPlanner) stepMonolith(call, epoch context.Contex
 	} else {
 		complete, known := emergency.Facts.ColonistsComplete.Value()
 		if !known || !complete {
-			return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "colonists_complete")}, true, nil
+			return RoundsPopulationCustodyResult{Verdict: waitFor(policy.CauseMethodUsed, "colonists_complete")}, true, nil
 		}
 		for _, pawn := range emergency.Facts.Colonists {
 			dead, dk := pawn.Dead.Value()
@@ -91,11 +91,11 @@ func (r *RoundsPopulationCustodyPlanner) stepMonolith(call, epoch context.Contex
 		return RoundsPopulationCustodyResult{Verdict: verdict}, true, nil
 	}
 	if len(able) == 0 {
-		return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "monolith_performer")}, true, nil
+		return RoundsPopulationCustodyResult{Verdict: waitFor(policy.CauseMethodUsed, "monolith_performer")}, true, nil
 	}
 	pawn := able[len(standardMethodPlans(goal.History, goal.Standard.Episode, prefix))%len(able)]
 	if !arbiter.tryClaim([]domain.PawnID{pawn}) {
-		return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "pawn_claim")}, true, nil
+		return RoundsPopulationCustodyResult{Verdict: waitFor(policy.CauseMethodUsed, "pawn_claim")}, true, nil
 	}
 	service, err := domain.NewRecoveryService(pawn, target, method)
 	if err != nil {

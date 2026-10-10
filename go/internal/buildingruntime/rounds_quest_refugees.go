@@ -3,14 +3,15 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"sort"
+	"time"
+
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"sort"
-	"time"
 )
 
 func (r *RoundsPopulationJoinerPlanner) admitRefugeeTend(call, epoch context.Context, state ControlState, goal store.StandardState, review store.Rounds, read observation.RoundsReading, arbiter *stepArbiter, started time.Time) (RoundsPopulationJoinerResult, bool, error) {
@@ -81,10 +82,10 @@ func (r *RoundsPopulationJoinerPlanner) admitRefugeeTend(call, epoch context.Con
 	}
 	doctor, patient, ok := policy.SelectTend(doctors, patients, tend.TendReachability(observed.Pawns))
 	if !ok {
-		return RoundsPopulationJoinerResult{Verdict: waitFor(WaitMethodUsed, "refugee_care"), NativeWorkTicks: medicalWaitTicks}, false, nil
+		return RoundsPopulationJoinerResult{Verdict: waitFor(policy.CauseMethodUsed, "refugee_care"), NativeWorkTicks: medicalWaitTicks}, false, nil
 	}
 	if !arbiter.tryClaim([]domain.PawnID{doctor, patient}) {
-		return RoundsPopulationJoinerResult{Verdict: waitFor(WaitClaim, "refugee_care")}, true, nil
+		return RoundsPopulationJoinerResult{Verdict: waitFor(policy.CauseClaim, "refugee_care")}, true, nil
 	}
 	value, err := domain.NewTend(doctor, patient)
 	if err != nil {

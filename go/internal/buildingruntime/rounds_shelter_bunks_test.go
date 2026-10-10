@@ -173,7 +173,7 @@ func TestRoundsShelterBedRungWaitsForSpotsAndDeletion(t *testing.T) {
 	if err != nil || spots.Verdict != BuildingReasonAdmitted {
 		t.Fatal(spots, err)
 	}
-	if held, err := r.Step(ctx); err != nil || !held.Verdict.Is(WaitBunksOpen) {
+	if held, err := r.Step(ctx); err != nil || !held.Verdict.Is(policy.CauseBunksOpen) {
 		t.Fatal("open spots did not hold the bed rung", held, err)
 	}
 	completeRoundsBuildingMethod(t, db, spots)
@@ -183,7 +183,7 @@ func TestRoundsShelterBedRungWaitsForSpotsAndDeletion(t *testing.T) {
 	if err != nil || clearing.Verdict != BuildingReasonAdmitted {
 		t.Fatal(clearing, err)
 	}
-	if held, err := r.Step(ctx); err != nil || !held.Verdict.Is(WaitBunksOpen) {
+	if held, err := r.Step(ctx); err != nil || !held.Verdict.Is(policy.CauseBunksOpen) {
 		t.Fatal("an open deletion did not hold the bed rung", held, err)
 	}
 	if n.overlays != 0 {

@@ -29,7 +29,7 @@ func TestMedicalReasonsNameTheMissingThing(t *testing.T) {
 		{policy.MedicineRecovered, BuildingReasonNoDeficit},
 		{policy.MedicineUnknown, fieldUnavailable("bench_recipes")},
 		{policy.MedicineBlocked, awaitingPlan("production_bench", "MedicineHerbal")},
-		{policy.MedicineWait, waitFor(WaitMethodUsed, "medicine_method")},
+		{policy.MedicineWait, waitFor(policy.CauseMethodUsed, "medicine_method")},
 	} {
 		if got := medicineChoiceVerdict(test.kind, "MedicineHerbal"); got != test.want {
 			t.Fatalf("%s reads %v, want %v", test.kind, got, test.want)
@@ -41,7 +41,7 @@ func TestFoodStorageChoiceReasons(t *testing.T) {
 	for kind, want := range map[policy.FoodStorageMethodKind]Verdict{
 		policy.FoodStorageRecovered: BuildingReasonNoDeficit,
 		policy.FoodStorageUnknown:   fieldUnavailable("food_storage_capacity"),
-		policy.FoodStorageBlocked:   waitFor(WaitMethodUsed, "food_storage_method"),
+		policy.FoodStorageBlocked:   waitFor(policy.CauseMethodUsed, "food_storage_method"),
 	} {
 		if got := foodStorageChoiceVerdict(kind); got != want {
 			t.Fatalf("%s reads %v, want %v", kind, got, want)
@@ -49,15 +49,15 @@ func TestFoodStorageChoiceReasons(t *testing.T) {
 	}
 }
 
-func TestContainmentWaitsReadInPlainEnglish(t *testing.T) {
+func TestContainmentWaitsNameTheirCause(t *testing.T) {
 	for reason, text := range map[policy.AnimalContainmentReason]string{
-		policy.ContainmentWaitingHandler:   "no colonist free to do it (animal handler)",
-		policy.ContainmentWaitingNativePen: "waiting on native pen (delivery)",
-		policy.ContainmentMarkerExhausted:  "waiting on native pen (marker placed)",
-		policy.ContainmentAwaitingShell:    "waiting on paddock (wall closed)",
-		policy.ContainmentBuildShell:       "waiting on paddock (wall closed)",
+		policy.ContainmentWaitingHandler:   "no_worker:animal_handler",
+		policy.ContainmentWaitingNativePen: "awaiting_plan:native_pen:delivery",
+		policy.ContainmentMarkerExhausted:  "awaiting_plan:native_pen:marker_placed",
+		policy.ContainmentAwaitingShell:    "awaiting_plan:paddock:wall_closed",
+		policy.ContainmentBuildShell:       "awaiting_plan:paddock:wall_closed",
 	} {
-		if got := containmentWait(reason).Text(); got != text {
+		if got := containmentWait(reason).String(); got != text {
 			t.Fatalf("%s reads %q, want %q", reason, got, text)
 		}
 	}

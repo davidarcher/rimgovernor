@@ -240,7 +240,7 @@ func (r *RoundsBuildingPlanner) commitRefrigerationTarget(call context.Context, 
 	}
 	method := proposal.Key
 	if _, loadErr := p.journal.LoadOwnerMethod(call, goal, method); loadErr == nil {
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "refrigeration_target")}, nil
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "refrigeration_target")}, nil
 	} else if !errors.Is(loadErr, store.ErrNotFound) {
 		return RoundsBuildingResult{}, loadErr
 	}

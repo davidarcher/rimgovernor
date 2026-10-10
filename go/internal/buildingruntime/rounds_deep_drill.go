@@ -325,7 +325,7 @@ func (r *RoundsResourcePlanner) deepDrill(call, epoch context.Context, state Con
 			continue
 		}
 		if _, err := r.reviewer.player.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, domain.MethodID(place.id)); err == nil {
-			return RoundsResourceResult{Verdict: waitFor(WaitMethodUsed, "deep_drill_method")}, true, nil
+			return RoundsResourceResult{Verdict: waitFor(policy.CauseMethodUsed, "deep_drill_method")}, true, nil
 		} else if !errors.Is(err, store.ErrNotFound) {
 			return RoundsResourceResult{}, true, err
 		}

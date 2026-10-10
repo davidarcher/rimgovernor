@@ -93,7 +93,7 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 	}
 	census, known := read.Value()
 	if !known {
-		return RoundsClearanceResult{Verdict: waitFor(WaitMethodUsed, "clearance_census_unknown")}, nil
+		return RoundsClearanceResult{Verdict: waitFor(policy.CauseMethodUsed, "clearance_census_unknown")}, nil
 	}
 	// The review's recovery queue ranks and admits; the planner executes its
 	// removals as one roof-first batch against the fresh census, whose own
@@ -330,7 +330,7 @@ func groundActions(id domain.PlanID, step policy.GroundStep) ([]domain.Action, e
 // always haulable (#2513), so no designation is ordered.
 func (r *RoundsClearancePlanner) dump(census policy.ClearanceCensus) RoundsClearanceResult {
 	if len(policy.PendingChunks(census.Chunks)) == 0 {
-		return RoundsClearanceResult{Verdict: waitFor(WaitMethodUsed, "chunk_haul_chunks")}
+		return RoundsClearanceResult{Verdict: waitFor(policy.CauseMethodUsed, "chunk_haul_chunks")}
 	}
 	return RoundsClearanceResult{Verdict: noSpace("chunk_dump_site")}
 }

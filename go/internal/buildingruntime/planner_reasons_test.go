@@ -21,16 +21,16 @@ func TestWavePlannerReasonsFilesRefusalsPerGoal(t *testing.T) {
 	verdicts := map[string]Verdict{
 		"power":    noSpace("power_route"),
 		"equip":    BuildingReasonAdmitted,
-		"gear":     refuse(RefusalRetriesSpent, "gear_craft", ""),
+		"gear":     refuse(policy.CauseRetriesSpent, "gear_craft", ""),
 		"research": BuildingReasonNoReview,
 		"clean":    BuildingReasonExistingWork,
-		"naming":   refuse(RefusalSharedAdmission, "already_reserved", "wood"),
+		"naming":   refuse(policy.CauseSharedAdmission, "already_reserved", "wood"),
 	}
 	got := wavePlannerReasons([]string{"power", "equip", "gear", "research", "clean", "naming"}, filingOf(goals, verdicts))
 	want := map[policy.ConcernID]policy.PlannerNote{
-		policy.EnsureBasicPower:        {Text: "no space found for it (power route)"},
-		policy.MaintainEquipment:       {Text: "tried as often as it may (gear craft)"},
-		policy.MaintainCleanFacilities: {Text: "already working on it", Waiting: true},
+		policy.EnsureBasicPower:        {Text: policy.Wording(policy.CauseNoSpace, "power_route")},
+		policy.MaintainEquipment:       {Text: policy.Wording(policy.CauseRetriesSpent, "gear_craft")},
+		policy.MaintainCleanFacilities: {Text: policy.Wording(policy.CauseExistingWork, ""), Waiting: true},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("%v", got)
@@ -50,7 +50,7 @@ func TestWavePlannerReasonsFilesSleepingRefusalOnHousing(t *testing.T) {
 	goals := map[string]policy.ConcernID{"expansion": policy.MaintainHousing, "sleepingUpkeep": policy.MaintainHousing}
 	verdicts := map[string]Verdict{"expansion": BuildingReasonNoDeficit, "sleepingUpkeep": BuildingSleepingUnavailable}
 	got := wavePlannerReasons([]string{"expansion", "sleepingUpkeep"}, filingOf(goals, verdicts))
-	if got[policy.MaintainHousing].Text != "waiting on buildable bed" || got[policy.MaintainHousing].Waiting {
+	if got[policy.MaintainHousing].Text != policy.Wording(policy.CauseAwaitingPlan, "buildable_bed") || got[policy.MaintainHousing].Waiting {
 		t.Fatalf("%v", got)
 	}
 }
@@ -69,9 +69,9 @@ func TestWavePlannerReasonsFilesWaitsAndClearsThem(t *testing.T) {
 	names := []string{"shelter", "housing", "sibling", "comfort", "off", "on"}
 	got := wavePlannerReasons(names, filingOf(goals, verdicts))
 	want := map[policy.ConcernID]policy.PlannerNote{
-		policy.MaintainShelter:    {Text: "waiting on the shelter's open bunks", Waiting: true},
-		policy.MaintainHousing:    {Text: "waiting for colonists to use the beds provided", Waiting: true},
-		policy.EnsureComfort:      {Text: "waiting for colonists to use the comfort already provided", Waiting: true},
+		policy.MaintainShelter:    {Text: policy.Wording(policy.CauseBunksOpen, ""), Waiting: true},
+		policy.MaintainHousing:    {Text: policy.Wording(policy.CauseSleepingUse, ""), Waiting: true},
+		policy.EnsureComfort:      {Text: policy.Wording(policy.CauseComfortUse, ""), Waiting: true},
 		policy.MaintainFireSafety: {},
 	}
 	if len(got) != len(want) {
@@ -88,7 +88,7 @@ func TestWavePlannerReasonsFilesWaitsAndClearsThem(t *testing.T) {
 		t.Fatalf("waits not cleared: %v", cleared)
 	}
 	verdicts["shelter"] = BuildingReasonExistingWork
-	if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainShelter] != (policy.PlannerNote{Text: "already working on it", Waiting: true}) {
+	if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainShelter] != (policy.PlannerNote{Text: policy.Wording(policy.CauseExistingWork, ""), Waiting: true}) {
 		t.Fatalf("existing work not filed as a wait: %v", got)
 	}
 	verdicts["shelter"] = BuildingReasonNoDeficit

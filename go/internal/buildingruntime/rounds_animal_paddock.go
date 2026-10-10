@@ -130,7 +130,7 @@ func (r *RoundsAnimalContainmentPlanner) stagePaddock(call, epoch context.Contex
 			rr:  roomReconcile{room: room, name: "paddock-marker", reason: string(policy.PlannedPen)},
 			ops: []policy.Operation{{Kind: policy.OpBuild, Pieces: []policy.WantedPiece{piece}}},
 		})
-		if err != nil || result.Verdict.Refusal.Kind != WaitExistingWork {
+		if err != nil || result.Verdict.Refusal.Kind != policy.CauseExistingWork {
 			return RoundsAnimalContainmentResult{Verdict: result.Verdict}, err
 		}
 	}

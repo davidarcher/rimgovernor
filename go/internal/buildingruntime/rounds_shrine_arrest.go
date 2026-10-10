@@ -34,7 +34,7 @@ func (r *RoundsPopulationCustodyPlanner) commitArrest(call, epoch context.Contex
 	bed := policy.ShrineArrestBed(facts.Sleeping)
 	performer := policy.ShrineArrester(squad)
 	if bed == "" || performer == "" || performer == target {
-		return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "shrine_arrest")}, nil
+		return RoundsPopulationCustodyResult{Verdict: waitFor(policy.CauseMethodUsed, "shrine_arrest")}, nil
 	}
 	prefix := fmt.Sprintf("population-arrest-%s-", target)
 	method, verdict, ok, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
@@ -50,7 +50,7 @@ func (r *RoundsPopulationCustodyPlanner) commitArrest(call, epoch context.Contex
 		return RoundsPopulationCustodyResult{}, err
 	}
 	if !arbiter.tryClaim([]domain.PawnID{performer, target}, "bed:"+bed) {
-		return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "arrest_claim")}, nil
+		return RoundsPopulationCustodyResult{Verdict: waitFor(policy.CauseMethodUsed, "arrest_claim")}, nil
 	}
 	if err = p.current(call, epoch); err != nil {
 		return RoundsPopulationCustodyResult{}, err

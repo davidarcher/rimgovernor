@@ -3,10 +3,11 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -233,7 +234,7 @@ func TestRoundsSleepingReproposesSpotsAfterSpentMethod(t *testing.T) {
 	}
 	// No census shows the spots gone: they may stand uncounted (an open
 	// roof), so the method stays used.
-	if held, err := r.Step(context.Background()); err != nil || !held.Verdict.Is(WaitMethodUsed) {
+	if held, err := r.Step(context.Background()); err != nil || !held.Verdict.Is(policy.CauseMethodUsed) {
 		t.Fatal(held, err)
 	}
 	// Three colonists, three spots, two of them converted to medical beds.

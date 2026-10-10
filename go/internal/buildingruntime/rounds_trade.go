@@ -269,9 +269,9 @@ func (r *RoundsTradePlanner) step(call, epoch context.Context, arbiter *stepArbi
 	trader, ok := policy.SelectTrader(traders, settled)
 	if !ok {
 		if waiting {
-			return RoundsTradeResult{Verdict: waitFor(WaitExistingWork, "caravan_departure"), NativeWorkTicks: tradeArrivalTicks}, nil
+			return RoundsTradeResult{Verdict: waitFor(policy.CauseExistingWork, "caravan_departure"), NativeWorkTicks: tradeArrivalTicks}, nil
 		}
-		return RoundsTradeResult{Verdict: waitFor(WaitMethodUsed, "caravan_trade")}, nil
+		return RoundsTradeResult{Verdict: waitFor(policy.CauseMethodUsed, "caravan_trade")}, nil
 	}
 	if len(census.Negotiators) == 0 {
 		return RoundsTradeResult{Verdict: noWorker("negotiator")}, nil
@@ -333,7 +333,7 @@ func (r *RoundsTradePlanner) negotiator(call context.Context, state ControlState
 // reachability when the open applies and walks the negotiator over.
 func (r *RoundsTradePlanner) open(call, epoch context.Context, state ControlState, incident store.IncidentState, trader string, negotiator bridge.NegotiatorRead, attempt int, arbiter *stepArbiter, started time.Time, participant domain.TradeParticipant) (RoundsTradeResult, error) {
 	if !arbiter.tryClaim(nil, "pawn:"+negotiator.ID) {
-		return RoundsTradeResult{Verdict: waitFor(WaitMethodUsed, "negotiator_claim")}, nil
+		return RoundsTradeResult{Verdict: waitFor(policy.CauseMethodUsed, "negotiator_claim")}, nil
 	}
 	value, err := domain.NewTradeOpen(trader, domain.PawnID(negotiator.ID), false)
 	if err != nil {
@@ -363,7 +363,7 @@ func (r *RoundsTradePlanner) drive(call, epoch context.Context, state ControlSta
 		// An end that failed leaves native holding the session; there is
 		// nothing further to propose, and tradeSettled already reads it as
 		// over.
-		return RoundsTradeResult{Verdict: refuse(RefusalRetriesSpent, "trade_end", ""), Trader: trader, Phase: domain.TradeEnd}, nil
+		return RoundsTradeResult{Verdict: refuse(policy.CauseRetriesSpent, "trade_end", ""), Trader: trader, Phase: domain.TradeEnd}, nil
 	}
 	accept, err := r.phase(call, incident, domain.TradeAccept, trader)
 	if err != nil {

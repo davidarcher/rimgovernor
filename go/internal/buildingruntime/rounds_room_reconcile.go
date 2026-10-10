@@ -139,7 +139,7 @@ func roomWaiting(name string, refused ...refusedPlacement) RoundsBuildingResult 
 	if len(refused) > 0 {
 		subject += ":blocked:" + refused[0].key()
 	}
-	return RoundsBuildingResult{Verdict: waitFor(WaitExistingWork, subject)}
+	return RoundsBuildingResult{Verdict: waitFor(policy.CauseExistingWork, subject)}
 }
 
 // refusedPlacement is a furniture cell the native preview refused and the
@@ -208,7 +208,7 @@ func holdKey(ctx context.Context, w roomWork) string {
 func waitingHeld(ctx context.Context, name string, w roomWork, refused ...refusedPlacement) RoundsBuildingResult {
 	result := roomWaiting(name, refused...)
 	if hold := holdKey(ctx, w); hold != "" && len(refused) == 0 {
-		result.Verdict = waitFor(WaitExistingWork, name+"_reconcile:held:"+hold)
+		result.Verdict = waitFor(policy.CauseExistingWork, name+"_reconcile:held:"+hold)
 	}
 	return result
 }
@@ -333,7 +333,7 @@ func (b *RoundsBuildingPlanner) commitRemoval(call, epoch context.Context, state
 	}
 	method := domain.MethodID(rr.name + "-" + strings.TrimSuffix(prefix, "-"))
 	if once, err := b.methodOnce(call, goal, method); err != nil || !once {
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, rr.name+"_removal")}, err
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, rr.name+"_removal")}, err
 	}
 	return b.commitOwnerActions(call, epoch, state, goal, method, id, actions)
 }
@@ -449,7 +449,7 @@ func (b *RoundsBuildingPlanner) commitInstalls(call, epoch context.Context, stat
 	digest := sha256.Sum256([]byte(key.String()))
 	method := domain.MethodID(fmt.Sprintf("%s-install-%x", rr.name, digest[:8]))
 	if once, err := b.methodOnce(call, goal, method); err != nil || !once {
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, rr.name+"_install")}, true, err
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, rr.name+"_install")}, true, err
 	}
 	result, err := b.commitOwnerActions(call, epoch, state, goal, method, id, actions)
 	return result, true, err
@@ -605,7 +605,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 	digest := sha256.Sum256([]byte(key.String()))
 	method := domain.MethodID(fmt.Sprintf("%s-build-%x", rr.name, digest[:8]))
 	if once, err := b.methodOnce(call, goal, method); err != nil || !once {
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, rr.name+"_build")}, err
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, rr.name+"_build")}, err
 	}
 	return b.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, reason: rr.reason, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter})
 }

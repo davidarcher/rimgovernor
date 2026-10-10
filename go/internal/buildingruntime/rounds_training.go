@@ -110,7 +110,7 @@ func (r *RoundsTrainingPlanner) step(call, epoch context.Context, _ *stepArbiter
 	ranges := plan.RangeRooms()
 	if len(ranges) == 0 {
 		// The layout review grows the range from RoomDemand.Ranges.
-		return RoundsTrainingResult{Verdict: waitFor(WaitMethodUsed, "range_room")}, nil
+		return RoundsTrainingResult{Verdict: waitFor(policy.CauseMethodUsed, "range_room")}, nil
 	}
 	stock := newPackedStock(r.reviewer.native, boundary.Identity(state.Snapshot))
 	room := ranges[0]

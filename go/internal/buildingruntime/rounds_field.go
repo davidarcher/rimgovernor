@@ -305,7 +305,7 @@ func (r *RoundsFieldPlanner) enact(call, epoch context.Context, state ControlSta
 	fmt.Fprintf(hash, "%s/%s/%v/%v", candidate.Kind, crop.Name, candidate.Sites.Patches, candidate.Buildings)
 	method := domain.MethodID(fmt.Sprintf("fields-%x", hash.Sum(nil)[:16]))
 	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
-		return RoundsFieldResult{Verdict: waitFor(WaitMethodUsed, "field_method"), NativeWorkTicks: wait}, true, nil
+		return RoundsFieldResult{Verdict: waitFor(policy.CauseMethodUsed, "field_method"), NativeWorkTicks: wait}, true, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoundsFieldResult{}, false, err
 	}
@@ -458,7 +458,7 @@ func (r *RoundsFieldPlanner) enactBlock(call, epoch context.Context, state Contr
 	fmt.Fprintf(hash, "block/%s/%s/%v", edit.Zone, edit.Crop, edit.Cells)
 	method := domain.MethodID(fmt.Sprintf("fields-%x", hash.Sum(nil)[:16]))
 	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
-		return RoundsFieldResult{Verdict: waitFor(WaitMethodUsed, "field_block_method"), NativeWorkTicks: wait}, true, nil
+		return RoundsFieldResult{Verdict: waitFor(policy.CauseMethodUsed, "field_block_method"), NativeWorkTicks: wait}, true, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoundsFieldResult{}, false, err
 	}
@@ -535,7 +535,7 @@ func (r *RoundsFieldPlanner) recrop(call, epoch context.Context, state ControlSt
 	p := r.reviewer.player
 	method := domain.MethodID("fields-recrop-" + choice.Grower)
 	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
-		return RoundsFieldResult{Verdict: waitFor(WaitMethodUsed, "recrop_method"), NativeWorkTicks: wait}, false, nil
+		return RoundsFieldResult{Verdict: waitFor(policy.CauseMethodUsed, "recrop_method"), NativeWorkTicks: wait}, false, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoundsFieldResult{}, false, err
 	}
@@ -556,7 +556,7 @@ func (r *RoundsFieldPlanner) recrop(call, epoch context.Context, state ControlSt
 	// Native checks the grower and crop live when the BuildingPatchIntent
 	// applies; a refusal comes back on the plan, not here.
 	if !arbiter.tryClaim(nil, "grower:"+choice.Grower) {
-		return RoundsFieldResult{Verdict: waitFor(WaitMethodUsed, "grower_claim"), NativeWorkTicks: wait}, false, nil
+		return RoundsFieldResult{Verdict: waitFor(policy.CauseMethodUsed, "grower_claim"), NativeWorkTicks: wait}, false, nil
 	}
 	id := domain.MintPlanID()
 	action, err := domain.NewGrowerCropAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)

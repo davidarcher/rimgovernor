@@ -58,7 +58,7 @@ func (r *RoundsSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context,
 	digest := sha256.Sum256([]byte(step.Packed))
 	method := domain.MethodID(fmt.Sprintf("bedroom-sculpture-install-%x", digest[:8]))
 	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "sculpture_install")}, true, nil
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "sculpture_install")}, true, nil
 	}
 	item := inner[step.Packed]
 	id := domain.MintPlanID()

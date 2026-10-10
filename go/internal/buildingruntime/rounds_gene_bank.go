@@ -150,7 +150,7 @@ func (r *RoundsGeneBankPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	method := domain.MethodID(fmt.Sprintf("gene-bank-%s-%d", definition, len(biotech.GeneBanks)))
 	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "gene_bank_method")}, nil
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "gene_bank_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoundsBuildingResult{}, err
 	}

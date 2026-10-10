@@ -217,7 +217,7 @@ func (r *RoundsFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbit
 	} else if !ok {
 		return RoundsFoodStorageUpkeepResult{Verdict: medicineChoiceVerdict(kind, choice.Resource)}, nil
 	}
-	return RoundsFoodStorageUpkeepResult{Verdict: waitFor(WaitMethodUsed, "ledger_bill")}, nil
+	return RoundsFoodStorageUpkeepResult{Verdict: waitFor(policy.CauseMethodUsed, "ledger_bill")}, nil
 }
 
 // gearBenches is the bench census with its bills, the ledger's readback.
@@ -327,5 +327,5 @@ func foodStorageChoiceVerdict(kind policy.FoodStorageMethodKind) Verdict {
 	case policy.FoodStorageUnknown:
 		return fieldUnavailable("food_storage_capacity")
 	}
-	return waitFor(WaitMethodUsed, "food_storage_method")
+	return waitFor(policy.CauseMethodUsed, "food_storage_method")
 }

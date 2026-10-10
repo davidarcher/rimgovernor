@@ -2,8 +2,9 @@ package buildingruntime
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -118,7 +119,7 @@ func TestRoundsResearchWalksTheLadderAndLendsTicks(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err = planner.Step(context.Background())
-	if err != nil || !result.Verdict.Is(WaitMethodUsed) || result.NativeWorkTicks != researchNativeWorkTicks {
+	if err != nil || !result.Verdict.Is(policy.CauseMethodUsed) || result.NativeWorkTicks != researchNativeWorkTicks {
 		t.Fatal(result, err)
 	}
 	// An empty ladder with no target composes nothing.

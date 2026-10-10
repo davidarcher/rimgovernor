@@ -75,7 +75,7 @@ func (r *RoundsRescuePlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoundsRescueResult{Verdict: waitFor(WaitMethodUsed, "colonist_census")}, nil
+		return RoundsRescueResult{Verdict: waitFor(policy.CauseMethodUsed, "colonist_census")}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -114,7 +114,7 @@ func (r *RoundsRescuePlanner) step(call, epoch context.Context, arbiter *stepArb
 	if !ok {
 		// No pair to order: only game time frees a rescuer or resolves
 		// the casualty, so the step lends a window.
-		return RoundsRescueResult{Verdict: waitFor(WaitMethodUsed, "rescue_pairing"), NativeWorkTicks: medicalWaitTicks}, nil
+		return RoundsRescueResult{Verdict: waitFor(policy.CauseMethodUsed, "rescue_pairing"), NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	rescue, err := domain.NewRescue(rescuer, patient)
 	if err != nil {

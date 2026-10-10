@@ -1,8 +1,9 @@
 package buildingruntime
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 func TestRecoveryContinuationReasonsRemainDistinct(t *testing.T) {
@@ -14,7 +15,7 @@ func TestRecoveryContinuationReasonsRemainDistinct(t *testing.T) {
 		{policy.RecoveryNoWorker, noWorker("recovery_service")},
 		{policy.RecoveryTrackedMissing, siteBlocked("recovery_infrastructure", string(policy.RecoveryTrackedMissing))},
 		{policy.RecoveryNoWork, BuildingReasonNoDeficit},
-		{policy.RecoveryMethodsSeen, waitFor(WaitMethodUsed, "recovery_service_proposal")},
+		{policy.RecoveryMethodsSeen, waitFor(policy.CauseMethodUsed, "recovery_service_proposal")},
 	}
 	for _, tc := range cases {
 		if got := recoverySelectionVerdict(tc.reason); got != tc.want || got.Validate() != nil {

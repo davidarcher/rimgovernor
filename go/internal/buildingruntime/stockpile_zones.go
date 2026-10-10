@@ -180,7 +180,7 @@ func (z stockpileZones) create(call, epoch context.Context, state ControlState, 
 	id := domain.MintPlanID()
 	method := domain.MethodID(fmt.Sprintf("stockpile-create-%x", digest[:8]))
 	if _, err := p.journal.LoadMethod(call, owner.Standard.ID, owner.Standard.Episode, method); err == nil {
-		return RoundsStockpileResult{Verdict: waitFor(WaitMethodUsed, "stockpile_create")}, nil
+		return RoundsStockpileResult{Verdict: waitFor(policy.CauseMethodUsed, "stockpile_create")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoundsStockpileResult{}, err
 	}

@@ -65,7 +65,7 @@ func (r *RoundsDefensePlanner) admitFight(call, epoch context.Context, incident 
 		fmt.Fprintf(hash, "%s/%s\n", role.Pawn, role.Target)
 	}
 	if !arbiter.tryClaim(pawns) {
-		return RoundsDefenseResult{Verdict: waitFor(WaitMethodUsed, "combat_pawn_claim")}, nil
+		return RoundsDefenseResult{Verdict: waitFor(policy.CauseMethodUsed, "combat_pawn_claim")}, nil
 	}
 	// The threat loadout is the fight plan's own equip and wear
 	// actions, committed before the first combat.orders batch; its pawns

@@ -93,7 +93,7 @@ func budgetVerdict(budget policy.RefusalBudget, subject string, world domain.Gen
 	if why.Code == policy.BudgetWaiting {
 		return retryBudgetWait(subject, reasonToken(why.Reason)), false
 	}
-	return refuse(RefusalRetriesSpent, subject, reasonToken(why.Reason)), false
+	return refuse(policy.CauseRetriesSpent, subject, reasonToken(why.Reason)), false
 }
 
 // reasonToken is native's reason text as one verdict token: no spaces.

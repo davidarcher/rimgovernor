@@ -123,7 +123,7 @@ func TestShelterSlotRefusedOnAPlantLeavesItsCutWave(t *testing.T) {
 	}
 	if got == (domain.Cell{}) {
 		want := "shelter_slot:blocked:Campfire@"
-		if !wait.Is(WaitExistingWork) || !strings.HasPrefix(wait.Refusal.Subject, want) {
+		if !wait.Is(policy.CauseExistingWork) || !strings.HasPrefix(wait.Refusal.Subject, want) {
 			t.Fatalf("wait %+v, want an existing-work wait naming %q", wait, want)
 		}
 	}
@@ -163,7 +163,7 @@ func TestCookingCampfireWaitsOnARefusedShelterSlot(t *testing.T) {
 		t.Fatalf("campfire placed at %v despite every slot refused", got)
 	}
 	want := "shelter_slot:blocked:Campfire@"
-	if !wait.Is(WaitExistingWork) || !strings.HasPrefix(wait.Refusal.Subject, want) {
+	if !wait.Is(policy.CauseExistingWork) || !strings.HasPrefix(wait.Refusal.Subject, want) {
 		t.Fatalf("wait %+v, want an existing-work wait naming %q", wait, want)
 	}
 	// One slot refused and the other free: the free slot is taken.

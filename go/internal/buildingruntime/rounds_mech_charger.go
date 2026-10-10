@@ -128,7 +128,7 @@ func (r *RoundsMechChargerPlanner) step(call, epoch context.Context, arbiter *st
 	}
 	method := domain.MethodID(fmt.Sprintf("mech-charger-%s-%d", definition, len(biotech.Chargers)))
 	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "mech_charger_method")}, nil
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "mech_charger_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoundsBuildingResult{}, err
 	}

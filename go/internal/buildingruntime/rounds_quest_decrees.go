@@ -147,7 +147,7 @@ func (r *RoundsPopulationJoinerPlanner) admitDecree(call, epoch context.Context,
 			}
 		}
 		if !arbiter.tryClaim(nil, claims...) {
-			return RoundsPopulationJoinerResult{Verdict: waitFor(WaitClaim, "decree_work")}, true, nil
+			return RoundsPopulationJoinerResult{Verdict: waitFor(policy.CauseClaim, "decree_work")}, true, nil
 		}
 		plan, err := domain.NewPlan(id, 1, actions)
 		if err != nil {

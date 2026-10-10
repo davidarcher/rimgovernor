@@ -141,7 +141,7 @@ func (r *RoundsSurgeryPlanner) step(call, epoch context.Context, arbiter *stepAr
 		case len(selection.Wants) > 0:
 			result.Verdict = awaitingMethod(selection.Wants[0].Reason)
 		default:
-			result.Verdict = waitFor(WaitMethodUsed, "restore_queue")
+			result.Verdict = waitFor(policy.CauseMethodUsed, "restore_queue")
 		}
 		return result, nil
 	}
@@ -158,7 +158,7 @@ func (r *RoundsSurgeryPlanner) step(call, epoch context.Context, arbiter *stepAr
 	method := domain.MethodID(fmt.Sprintf("restore-%x", hash.Sum(nil)[:16]))
 	for _, previous := range goal.Methods {
 		if previous.Method == method {
-			result.Verdict = waitFor(WaitMethodUsed, "restore_method")
+			result.Verdict = waitFor(policy.CauseMethodUsed, "restore_method")
 			return result, nil
 		}
 	}

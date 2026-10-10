@@ -2,8 +2,9 @@ package buildingruntime
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -36,7 +37,7 @@ func TestAdmitRockStepDigsThenUnroofsWithoutBuilding(t *testing.T) {
 	setRoof(&s, "RoofRockThick", shaft)
 	setRoof(&s, "RoofRockThin", site.Cell)
 	result, handled, err := p.admitRockStep(ctx, ctx, s, planned, cold, "plan-dig-sky-thick", nil, check)
-	if err != nil || !handled || !result.Verdict.Is(RefusalRockNotDug) {
+	if err != nil || !handled || !result.Verdict.Is(policy.CauseRockNotDug) {
 		t.Fatal("thick roof not refused", result, handled, err)
 	}
 

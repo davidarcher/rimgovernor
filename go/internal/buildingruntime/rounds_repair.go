@@ -102,7 +102,7 @@ func (r *RoundsRepairPlanner) step(call, epoch context.Context, arbiter *stepArb
 		}
 	}
 	if len(targetIDs) == 0 {
-		return RoundsRepairResult{Verdict: waitFor(WaitMethodUsed, "essential_repairs")}, nil
+		return RoundsRepairResult{Verdict: waitFor(policy.CauseMethodUsed, "essential_repairs")}, nil
 	}
 	byID := map[string]policy.UpkeepStructure{}
 	if rows, known := reading.Projection.Facts.Upkeep.Structures.Value(); known {
@@ -129,7 +129,7 @@ func (r *RoundsRepairPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoundsRepairResult{Verdict: waitFor(WaitMethodUsed, "colonist_census")}, nil
+		return RoundsRepairResult{Verdict: waitFor(policy.CauseMethodUsed, "colonist_census")}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -165,7 +165,7 @@ func (r *RoundsRepairPlanner) step(call, epoch context.Context, arbiter *stepArb
 		ok = false
 	}
 	if !ok {
-		return RoundsRepairResult{Verdict: waitFor(WaitMethodUsed, "repair_pairing")}, nil
+		return RoundsRepairResult{Verdict: waitFor(policy.CauseMethodUsed, "repair_pairing")}, nil
 	}
 	repair, err := domain.NewRepair(pawn, structure.ID, structure.Cell)
 	if err != nil {

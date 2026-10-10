@@ -65,10 +65,10 @@ func TestDefenseAndFirebreakFollowTheSharedRefusalBudget(t *testing.T) {
 			if err != nil || ok {
 				t.Fatal("a refusal must bar the subject in this world", verdict, ok, err)
 			}
-			if tc.spent && (!verdict.Is(RefusalRetriesSpent) || verdict.Refusal.Detail == "") {
+			if tc.spent && (!verdict.Is(policy.CauseRetriesSpent) || verdict.Refusal.Detail == "") {
 				t.Fatal(verdict)
 			}
-			if !tc.spent && !verdict.Is(WaitRetryBudget) {
+			if !tc.spent && !verdict.Is(policy.CauseRetryBudgetWait) {
 				t.Fatal(verdict)
 			}
 			if _, ok, err = admitProjectSubject(ctx, db, project, tc.other, world); err != nil || !ok {

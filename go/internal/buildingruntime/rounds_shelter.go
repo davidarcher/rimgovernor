@@ -103,7 +103,7 @@ func definitionsGate(facts observation.ColonyProjection, names []string, shell b
 			return fieldUnavailable(name + "_construction_skill")
 		}
 		if skill != 0 {
-			return refuse(RefusalNoWorker, "builder_for_"+name, fmt.Sprintf("construction_skill_%d", skill))
+			return refuse(policy.CauseNoWorker, "builder_for_"+name, fmt.Sprintf("construction_skill_%d", skill))
 		}
 		if shell {
 			size, known := def.Size.Value()

@@ -52,7 +52,7 @@ func blockedPlanner(name string, class plannerClass, released chan<- error) plan
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			<-ctx.Done()
 			released <- ctx.Err()
-			out.Lighting = &RoundsBuildingResult{Verdict: refuse(RefusalSharedAdmission, "already_reserved", "")}
+			out.Lighting = &RoundsBuildingResult{Verdict: refuse(policy.CauseSharedAdmission, "already_reserved", "")}
 			return Verdict{}, ctx.Err()
 		}}
 }

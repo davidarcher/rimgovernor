@@ -405,5 +405,5 @@ func (r *RoundsTradeExportPlanner) step(call, _ context.Context, _ *stepArbiter)
 	if !workable || !working {
 		return RoundsBillResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	return RoundsBillResult{Verdict: waitFor(WaitExistingWork, "export"), NativeWorkTicks: exportNativeWorkTicks}, nil
+	return RoundsBillResult{Verdict: waitFor(policy.CauseExistingWork, "export"), NativeWorkTicks: exportNativeWorkTicks}, nil
 }

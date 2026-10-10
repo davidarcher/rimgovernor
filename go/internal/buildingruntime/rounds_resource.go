@@ -117,7 +117,7 @@ func noResourceSource(resource policy.Resource) Verdict {
 // stands. The next demanded resource then gets its turn.
 func (r RoundsResourceResult) undispatched() bool {
 	v := r.Verdict
-	return v.Is(WaitMethodUsed) || v.Is(WaitClaim) || v.Is(RefusalAwaitingPlan) && v.Refusal.Subject == resourceSourceSubject
+	return v.Is(policy.CauseMethodUsed) || v.Is(policy.CauseClaim) || v.Is(policy.CauseAwaitingPlan) && v.Refusal.Subject == resourceSourceSubject
 }
 
 func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoundsResourceResult, error) {
@@ -501,7 +501,7 @@ func materialStorageBlocked(selected []policy.ResourceSource, storage policy.Res
 // observability-only Sources reporting. The caller only reaches this once
 // materialStorageBlocked reports handled=false. dispatched is
 // false, with a zero result and nil error, when there is nothing to dispatch
-// -- the caller then falls back to its own WaitMethodUsed reporting.
+// -- the caller then falls back to its own policy.CauseMethodUsed reporting.
 func (r *RoundsResourcePlanner) dispatchMineSource(call, epoch context.Context, state ControlState, goal store.StandardState, resource policy.Resource, sources []policy.ResourceSource, started time.Time) (RoundsResourceResult, bool, error) {
 	for _, source := range sources {
 		if source.Method != policy.ResourceSourceMine {

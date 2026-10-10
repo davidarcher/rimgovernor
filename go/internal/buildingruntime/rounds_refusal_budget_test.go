@@ -44,10 +44,10 @@ func TestRoundsClearanceFollowsTheSharedRefusalBudget(t *testing.T) {
 		check  func(Verdict) bool
 	}{
 		{"permanent gives up with the real reason", domain.RefusalPermanent, "cannot reach", func(v Verdict) bool {
-			return v.Is(RefusalRetriesSpent) && v.Refusal.Detail == "cannot_reach"
+			return v.Is(policy.CauseRetriesSpent) && v.Refusal.Detail == "cannot_reach"
 		}},
 		{"transient waits in the same world", domain.RefusalTransient, "no worker", func(v Verdict) bool {
-			return v.Is(WaitRetryBudget) && v.Refusal.Detail == "no_worker"
+			return v.Is(policy.CauseRetryBudgetWait) && v.Refusal.Detail == "no_worker"
 		}},
 		{"unknown retries", domain.RefusalUnknown, "odd", func(v Verdict) bool { return v == BuildingReasonAdmitted }},
 	} {
@@ -119,7 +119,7 @@ func TestRefusalLedgerCountsOnlyNativeRefusals(t *testing.T) {
 	}
 	add(12, domain.ReceiptRefused, domain.RefusalTransient, "no worker")
 	verdict, ok, err := admitSubject(ctx, db, "train-warg-", plans, world)
-	if err != nil || ok || !verdict.Is(WaitRetryBudget) {
+	if err != nil || ok || !verdict.Is(policy.CauseRetryBudgetWait) {
 		t.Fatal("a transient refusal in the same world must wait", verdict, ok, err)
 	}
 	// The world moved on (a new native generation): the same request may
@@ -132,7 +132,7 @@ func TestRefusalLedgerCountsOnlyNativeRefusals(t *testing.T) {
 	add(13, domain.ReceiptRefused, domain.RefusalPermanent, "not a trainable")
 	for _, w := range []domain.GenerationSnapshot{world, moved} {
 		verdict, ok, err = admitSubject(ctx, db, "train-warg-", plans, w)
-		if err != nil || ok || !verdict.Is(RefusalRetriesSpent) || verdict.Refusal.Subject != "train-warg" || verdict.Refusal.Detail != "not_a_trainable" {
+		if err != nil || ok || !verdict.Is(policy.CauseRetriesSpent) || verdict.Refusal.Subject != "train-warg" || verdict.Refusal.Detail != "not_a_trainable" {
 			t.Fatal("a permanent refusal must give up under its real reason", verdict, ok, err)
 		}
 	}
@@ -143,7 +143,7 @@ func TestRefusalLedgerCountsOnlyNativeRefusals(t *testing.T) {
 
 func TestEquipRefusalsAreKeyedByPawn(t *testing.T) {
 	budget := policy.RefusalBudget{}.Record("equip-alice", "no path", domain.RefusalPermanent, domain.GenerationSnapshot{})
-	if verdict, ok := budgetVerdict(budget, "equip-alice", domain.GenerationSnapshot{}); ok || !verdict.Is(RefusalRetriesSpent) {
+	if verdict, ok := budgetVerdict(budget, "equip-alice", domain.GenerationSnapshot{}); ok || !verdict.Is(policy.CauseRetriesSpent) {
 		t.Fatal(verdict, ok)
 	}
 	if _, ok := budgetVerdict(budget, "equip-bob", domain.GenerationSnapshot{}); !ok {

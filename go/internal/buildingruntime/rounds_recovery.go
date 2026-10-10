@@ -170,7 +170,7 @@ func (r *RoundsRecoveryPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoundsRecoveryResult{Verdict: recoverySelectionVerdict(selection.Reason)}, nil
 	}
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(chosen.Pawn)}) {
-		return RoundsRecoveryResult{Verdict: waitFor(WaitMethodUsed, "recovery_pawn_claim")}, nil
+		return RoundsRecoveryResult{Verdict: waitFor(policy.CauseMethodUsed, "recovery_pawn_claim")}, nil
 	}
 	id := domain.MintPlanID()
 	method, ok := recoveryServiceMethod(chosen.Method)
@@ -214,7 +214,7 @@ func recoverySelectionVerdict(reason policy.RecoverySelectionReason) Verdict {
 	case policy.RecoveryNoWork:
 		return BuildingReasonNoDeficit
 	default:
-		return waitFor(WaitMethodUsed, "recovery_service_proposal")
+		return waitFor(policy.CauseMethodUsed, "recovery_service_proposal")
 	}
 }
 

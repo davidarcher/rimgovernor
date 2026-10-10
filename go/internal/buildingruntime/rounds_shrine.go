@@ -301,7 +301,7 @@ func (r *RoundsShrinePlanner) breach(call, epoch context.Context, state ControlS
 	}
 	drafted := policy.ShrineBreachDrafts(report.Readiness.Squad, int(colonists))
 	if !arbiter.tryClaim(drafted) {
-		return RoundsShrineResult{Verdict: waitFor(WaitMethodUsed, "breach_defenders")}, nil
+		return RoundsShrineResult{Verdict: waitFor(policy.CauseMethodUsed, "breach_defenders")}, nil
 	}
 	positions := policy.ShrineBreachPositions(wall, drafted, report.Standing, report.Traps)
 	prefix := fmt.Sprintf("breach-%s-%s-", shrine.ID, wall.EntityID)
@@ -390,7 +390,7 @@ func (r *RoundsShrinePlanner) open(call, epoch context.Context, state ControlSta
 		lockers = append(lockers, lock.Lockers[casket.EntityID])
 	}
 	if !arbiter.tryClaim(lockers) {
-		return RoundsShrineResult{Verdict: waitFor(WaitMethodUsed, "casket_lockers")}, nil
+		return RoundsShrineResult{Verdict: waitFor(policy.CauseMethodUsed, "casket_lockers")}, nil
 	}
 	prefix := fmt.Sprintf("open-%s-", shrine.ID)
 	method, verdict, ok, err := admitProjectMethod(call, p.journal, goal, prefix, state.Snapshot)

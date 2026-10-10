@@ -67,8 +67,8 @@ func refusalSummary(refused []policy.Refusal) string {
 // was given without refusing any; that names itself.
 func admissionRefused(decision store.BuildingMethodDecision) Verdict {
 	if len(decision.Refused) == 0 {
-		return refuse(RefusalSharedAdmission, "candidates_left_unadmitted", "")
+		return refuse(policy.CauseSharedAdmission, "candidates_left_unadmitted", "")
 	}
 	first := decision.Refused[0]
-	return refuse(RefusalSharedAdmission, string(first.Reason), string(first.Resource))
+	return refuse(policy.CauseSharedAdmission, string(first.Reason), string(first.Resource))
 }

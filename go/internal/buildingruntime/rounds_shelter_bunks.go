@@ -220,10 +220,10 @@ func (r *RoundsBuildingPlanner) stepShelterRoom(call, epoch context.Context, s s
 		if err := s.check(); err != nil {
 			return RoundsBuildingResult{}, err
 		}
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "shelter_method"), NativeWorkTicks: ticks}, nil
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "shelter_method"), NativeWorkTicks: ticks}, nil
 	}
 	if roofingOnly {
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "roofing_method")}, nil
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "roofing_method")}, nil
 	}
 	// The bunks stand on the room once its rock is dug (the ring's reconcile
 	// mines it before any wall).

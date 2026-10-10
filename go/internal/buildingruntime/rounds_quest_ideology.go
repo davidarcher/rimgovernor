@@ -47,7 +47,7 @@ func (r *RoundsPopulationJoinerPlanner) admitIdeologyQuestWork(call, epoch conte
 		return RoundsPopulationJoinerResult{}, false, err
 	}
 	if len(crew) > 0 && !arbiter.tryClaim(crew, "quest:"+string(quest)) {
-		return RoundsPopulationJoinerResult{Verdict: waitFor(WaitClaim, "quest_ideology")}, true, nil
+		return RoundsPopulationJoinerResult{Verdict: waitFor(policy.CauseClaim, "quest_ideology")}, true, nil
 	}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
 	if err != nil {

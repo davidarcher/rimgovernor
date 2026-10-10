@@ -3,12 +3,13 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"time"
 )
 
 func (r *RoundsPopulationJoinerPlanner) admitMonument(call, epoch context.Context, state ControlState, goal store.StandardState, review store.Rounds, read observation.RoundsReading, arbiter *stepArbiter, started time.Time) (RoundsPopulationJoinerResult, bool, error) {
@@ -48,12 +49,12 @@ func (r *RoundsPopulationJoinerPlanner) admitMonument(call, epoch context.Contex
 	case "install":
 		action, err = domain.NewMoveBuildingAction(aid, choice.Move)
 		if !arbiter.tryClaim(nil, "move-building:"+choice.Move.Thing()) {
-			return RoundsPopulationJoinerResult{Verdict: waitFor(WaitClaim, "monument_install")}, true, nil
+			return RoundsPopulationJoinerResult{Verdict: waitFor(policy.CauseClaim, "monument_install")}, true, nil
 		}
 	case "haul":
 		action, err = domain.NewHaulAction(aid, choice.Haul)
 		if !arbiter.tryClaim([]domain.PawnID{choice.Haul.Pawn()}, "haul-item:"+choice.Haul.Thing()) {
-			return RoundsPopulationJoinerResult{Verdict: waitFor(WaitClaim, "monument_haul")}, true, nil
+			return RoundsPopulationJoinerResult{Verdict: waitFor(policy.CauseClaim, "monument_haul")}, true, nil
 		}
 	case "build":
 		action, err = domain.NewBuildingAction(aid, choice.Build, domain.TierExpand)

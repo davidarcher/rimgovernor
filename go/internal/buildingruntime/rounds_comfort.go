@@ -93,7 +93,7 @@ func comfortBuilderGate(facts observation.ColonyProjection, definition string) V
 	if minimum > 0 {
 		need = fmt.Sprintf("construction_skill_%d", minimum)
 	}
-	return refuse(RefusalNoWorker, "builder_for_"+definition, need)
+	return refuse(policy.CauseNoWorker, "builder_for_"+definition, need)
 }
 
 // comfortAccessWait is the wait of a comfort facility that stands out of
@@ -101,9 +101,9 @@ func comfortBuilderGate(facts observation.ColonyProjection, definition string) V
 // recreation (the order both selectors check in).
 func comfortAccessWait(dining policy.ComfortNeed) Verdict {
 	if dining == policy.ComfortCapacity {
-		return waitFor(WaitFacilityAccess, "dining")
+		return waitFor(policy.CauseFacilityAccess, "dining")
 	}
-	return waitFor(WaitFacilityAccess, "recreation")
+	return waitFor(policy.CauseFacilityAccess, "recreation")
 }
 
 func (r *RoundsBuildingPlanner) selectComfort(facts observation.ColonyProjection, history policy.ComfortHistory) (*RoundsBuildingPlanner, Verdict, error) {

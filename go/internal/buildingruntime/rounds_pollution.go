@@ -93,7 +93,7 @@ func (r *RoundsPollutionPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	work := policy.SelectPollutionWork(facts, claimed, policy.PollutedWindowCells(read.Projection.Cells))
 	if work.Empty() {
-		return RoundsPollutionResult{Verdict: waitFor(WaitMethodUsed, "pollution_work")}, nil
+		return RoundsPollutionResult{Verdict: waitFor(policy.CauseMethodUsed, "pollution_work")}, nil
 	}
 	hash := sha256.New()
 	for _, w := range work.Allow {
@@ -108,7 +108,7 @@ func (r *RoundsPollutionPlanner) step(call, epoch context.Context, arbiter *step
 	method := domain.MethodID(fmt.Sprintf("pollution-%x", hash.Sum(nil)[:16]))
 	for _, seen := range goal.Methods {
 		if seen.Method == method {
-			return RoundsPollutionResult{Verdict: waitFor(WaitMethodUsed, "pollution_method")}, nil
+			return RoundsPollutionResult{Verdict: waitFor(policy.CauseMethodUsed, "pollution_method")}, nil
 		}
 	}
 	id := domain.MintPlanID()

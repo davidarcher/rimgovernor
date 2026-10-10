@@ -527,7 +527,7 @@ func (r *RoundsDefenseLayoutPlanner) rearm(call, epoch context.Context, goal sto
 		return RoundsDefenseLayoutResult{Verdict: verdict, Tier: policy.TierTurrets}, nil
 	}
 	if arbiter == nil || !arbiter.tryClaim([]domain.PawnID{domain.PawnID(order.Pawn)}, "defense-rearm:"+order.Turret) {
-		return RoundsDefenseLayoutResult{Verdict: waitFor(WaitMethodUsed, "defense_rearm_claim"), Tier: policy.TierTurrets}, nil
+		return RoundsDefenseLayoutResult{Verdict: waitFor(policy.CauseMethodUsed, "defense_rearm_claim"), Tier: policy.TierTurrets}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", defenseRearmPrefix(order.Turret), tick))
 	id := domain.MintPlanID()

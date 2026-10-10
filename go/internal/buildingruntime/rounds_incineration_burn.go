@@ -65,7 +65,7 @@ func (r *RoundsIncinerationPlanner) stageBurn(call, epoch context.Context, state
 		return RoundsIncinerationResult{}, true, err
 	}
 	if !ok {
-		return RoundsIncinerationResult{Verdict: waitFor(WaitMethodUsed, "colonist_rows")}, true, nil
+		return RoundsIncinerationResult{Verdict: waitFor(policy.CauseMethodUsed, "colonist_rows")}, true, nil
 	}
 	if cleaning {
 		return r.cleanAsh(call, epoch, state, goal, arbiter, ash, rows)
@@ -87,7 +87,7 @@ func (r *RoundsIncinerationPlanner) cleanAsh(call, epoch context.Context, state 
 		ok = false
 	}
 	if !ok {
-		return RoundsIncinerationResult{Verdict: waitFor(WaitMethodUsed, "clean_target")}, true, nil
+		return RoundsIncinerationResult{Verdict: waitFor(policy.CauseMethodUsed, "clean_target")}, true, nil
 	}
 	clean, err := domain.NewClean(pawn, target.ID, target.Cell)
 	if err != nil {
@@ -149,14 +149,14 @@ func (r *RoundsIncinerationPlanner) burnRoom(call, epoch context.Context, state 
 	}
 	order, verdict := policy.PlanBurn(request)
 	if verdict != policy.BurnReady {
-		return RoundsIncinerationResult{Verdict: refuse(RefusalNoWorker, "incinerator_"+string(verdict), "")}, true, nil
+		return RoundsIncinerationResult{Verdict: refuse(policy.CauseNoWorker, "incinerator_"+string(verdict), "")}, true, nil
 	}
 	var claims []string
 	if order.Molotov != nil {
 		claims = append(claims, "equip-weapon:"+order.Molotov.Thing)
 	}
 	if !arbiter.tryClaim([]domain.PawnID{order.Burner}, claims...) {
-		return RoundsIncinerationResult{Verdict: waitFor(WaitMethodUsed, "burn_claim")}, true, nil
+		return RoundsIncinerationResult{Verdict: waitFor(policy.CauseMethodUsed, "burn_claim")}, true, nil
 	}
 	id := domain.MintPlanID()
 	var actions []domain.Action

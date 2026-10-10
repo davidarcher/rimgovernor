@@ -219,7 +219,7 @@ func TestDigPlannedRefusesLoudlyWhenADigSettlesWithRockStanding(t *testing.T) {
 	if first.Verdict != BuildingReasonAdmitted {
 		t.Fatal(first.Verdict)
 	}
-	if again := dig(); !again.Verdict.Is(WaitMethodUsed) {
+	if again := dig(); !again.Verdict.Is(policy.CauseMethodUsed) {
 		t.Fatal("the open dig plan must be waited on, not doubled", again.Verdict)
 	}
 	completeRoundsBuildingMethod(t, db, first)
@@ -233,10 +233,10 @@ func TestDigPlannedRefusesLoudlyWhenADigSettlesWithRockStanding(t *testing.T) {
 		completeRoundsBuildingMethod(t, db, last)
 	}
 	stuck := dig()
-	if !stuck.Verdict.Is(RefusalRockNotDug) || stuck.Verdict.Outcome != OutcomeRefused {
+	if !stuck.Verdict.Is(policy.CauseRockNotDug) || stuck.Verdict.Outcome != OutcomeRefused {
 		t.Fatal(stuck.Verdict)
 	}
-	if text := stuck.Verdict.Text(); !strings.Contains(text, "still standing") || !strings.Contains(text, "plan dig test") {
+	if text := outcomeSentence(stuck.Verdict); !strings.Contains(text, "Rock still stands") || !strings.Contains(text, "plan-dig-test") {
 		t.Fatal(text)
 	}
 }

@@ -384,7 +384,7 @@ func combatFrameInputs(combat bridge.Combat, huntPrey []domain.PawnID) (combatIn
 	facts := combat.Emergency.Facts
 	colonistsComplete, ck := facts.ColonistsComplete.Value()
 	if !ck || !colonistsComplete {
-		return combatInputs{}, waitFor(WaitMethodUsed, "colonist_census_incomplete"), nil
+		return combatInputs{}, waitFor(policy.CauseMethodUsed, "colonist_census_incomplete"), nil
 	}
 	var in combatInputs
 	in.hostileIDs, in.hunting, in.buildings = defenseTargets(facts.Threats)
@@ -400,7 +400,7 @@ func combatFrameInputs(combat bridge.Combat, huntPrey []domain.PawnID) (combatIn
 	// Raiders still in their pods are a fight with no hostile yet:
 	// the pods tactic drafts the nearest armed before the open.
 	if len(facts.Colonists) == 0 || len(in.hostileIDs)+len(in.buildings)+len(in.prey) == 0 && !hasAggressiveBreak(facts) && facts.PodsOpen == 0 {
-		return combatInputs{}, waitFor(WaitMethodUsed, "no_fight"), nil
+		return combatInputs{}, waitFor(policy.CauseMethodUsed, "no_fight"), nil
 	}
 	in.rows = map[string]*n.PawnState{}
 	for _, pawn := range facts.Colonists {

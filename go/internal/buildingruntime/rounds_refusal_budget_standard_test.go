@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -57,16 +58,16 @@ func TestStandardMethodsFollowTheSharedRefusalBudget(t *testing.T) {
 		check  func(Verdict, domain.MethodID, bool) bool
 	}{
 		{"permanent population write", "population-tend-alice-", domain.RefusalPermanent, "not downed", func(v Verdict, _ domain.MethodID, ok bool) bool {
-			return !ok && v.Is(RefusalRetriesSpent) && v.Refusal.Subject == "population-tend-alice" && v.Refusal.Detail == "not_downed"
+			return !ok && v.Is(policy.CauseRetriesSpent) && v.Refusal.Subject == "population-tend-alice" && v.Refusal.Detail == "not_downed"
 		}},
 		{"permanent quest write", "quest-expedition-q1-site-", domain.RefusalPermanent, "quest expired", func(v Verdict, _ domain.MethodID, ok bool) bool {
-			return !ok && v.Is(RefusalRetriesSpent) && v.Refusal.Detail == "quest_expired"
+			return !ok && v.Is(policy.CauseRetriesSpent) && v.Refusal.Detail == "quest_expired"
 		}},
 		{"transient ideology role waits", "ideorole-alice-leader-", domain.RefusalTransient, "no slot", func(v Verdict, _ domain.MethodID, ok bool) bool {
-			return !ok && v.Is(WaitRetryBudget) && v.Refusal.Detail == "no_slot"
+			return !ok && v.Is(policy.CauseRetryBudgetWait) && v.Refusal.Detail == "no_slot"
 		}},
 		{"transient ritual waits", "ritual-Funeral-3-4-", domain.RefusalTransient, "not ready", func(v Verdict, _ domain.MethodID, ok bool) bool {
-			return !ok && v.Is(WaitRetryBudget) && v.Refusal.Detail == "not_ready"
+			return !ok && v.Is(policy.CauseRetryBudgetWait) && v.Refusal.Detail == "not_ready"
 		}},
 		{"unknown permit retries with the next ordinal", "permit-alice-TradeSettlement-", domain.RefusalUnknown, "odd", func(v Verdict, m domain.MethodID, ok bool) bool {
 			return ok && v == (Verdict{}) && m == "permit-alice-TradeSettlement-12"
@@ -108,7 +109,7 @@ func TestProjectMethodsFollowTheSharedRefusalBudget(t *testing.T) {
 	goal := journalRefusedMethod(t, db, world, store.StandardState{}, "breach-s1-w1-0", domain.RefusalPermanent, "not diggable")
 	project := store.ProjectState{History: []store.ProjectMethod{{Method: goal.History[0].Method, Plan: goal.History[0].Plan}}}
 	_, verdict, ok, err := admitProjectMethod(ctx, db, project, "breach-s1-w1-", world)
-	if err != nil || ok || !verdict.Is(RefusalRetriesSpent) || verdict.Refusal.Detail != "not_diggable" {
+	if err != nil || ok || !verdict.Is(policy.CauseRetriesSpent) || verdict.Refusal.Detail != "not_diggable" {
 		t.Fatal(verdict, ok, err)
 	}
 	method, _, ok, err := admitProjectMethod(ctx, db, project, "breach-s1-w2-", world)

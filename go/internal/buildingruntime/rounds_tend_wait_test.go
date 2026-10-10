@@ -62,7 +62,7 @@ func TestRoundsTendLendsClockTicksWithoutAnEligiblePair(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !result.Verdict.Is(WaitMethodUsed) || result.Plan != "" {
+	if !result.Verdict.Is(policy.CauseMethodUsed) || result.Plan != "" {
 		t.Fatal(result)
 	}
 	if result.NativeWorkTicks != medicalWaitTicks {

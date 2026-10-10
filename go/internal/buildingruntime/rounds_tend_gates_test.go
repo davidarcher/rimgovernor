@@ -124,7 +124,7 @@ func TestRoundsTendRequiresTheNativeDoctorGates(t *testing.T) {
 				}
 				return
 			}
-			if !result.Verdict.Is(WaitMethodUsed) || result.Plan != "" || result.NativeWorkTicks != medicalWaitTicks {
+			if !result.Verdict.Is(policy.CauseMethodUsed) || result.Plan != "" || result.NativeWorkTicks != medicalWaitTicks {
 				t.Fatal(result)
 			}
 		})

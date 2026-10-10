@@ -2,8 +2,9 @@ package buildingruntime
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -138,7 +139,7 @@ func TestHospitalConvertsSpareHostedBedOncePerEpoch(t *testing.T) {
 	if _, err = db.Cancel(ctx, plan.Spec.ID(), plan.Progress[0].Action().ID()); err != nil {
 		t.Fatal(err)
 	}
-	if result, err = planner.Step(ctx); err != nil || !result.Verdict.Is(WaitMethodUsed) {
+	if result, err = planner.Step(ctx); err != nil || !result.Verdict.Is(policy.CauseMethodUsed) {
 		t.Fatal(result, err)
 	}
 }

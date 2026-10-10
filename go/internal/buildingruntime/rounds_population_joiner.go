@@ -146,7 +146,7 @@ func (r *RoundsPopulationJoinerPlanner) step(call, epoch context.Context, arbite
 		if hosting.NativeWorkTicks > 0 {
 			return hosting, nil
 		}
-		return RoundsPopulationJoinerResult{Verdict: waitFor(WaitMethodUsed, "joiner_offers")}, nil
+		return RoundsPopulationJoinerResult{Verdict: waitFor(policy.CauseMethodUsed, "joiner_offers")}, nil
 	case policy.JoinerCensusUnknown:
 		return RoundsPopulationJoinerResult{Verdict: fieldUnavailable("joiner_census")}, nil
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -223,7 +224,7 @@ func (r *RoundsIdeoligionPlanner) step(call, epoch context.Context, arbiter *ste
 	}
 	choice, known := r.reviewer.reformChoice(read, state.Snapshot).Value()
 	if !known || len(choice.Design.Memes) == 0 {
-		return RoundsIdeoligionResult{Verdict: waitFor(WaitMethodUsed, "ideoligion_design"), Comparison: choice.Comparison}, nil
+		return RoundsIdeoligionResult{Verdict: waitFor(policy.CauseMethodUsed, "ideoligion_design"), Comparison: choice.Comparison}, nil
 	}
 	ideo, _ := read.Projection.Facts.Ideology.Value()
 	development, _ := ideo.Facts.Development.Value()

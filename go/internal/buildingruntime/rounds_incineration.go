@@ -105,7 +105,7 @@ func (r *RoundsIncinerationPlanner) step(call, epoch context.Context, arbiter *s
 	if err != nil || handled {
 		return result, err
 	}
-	return RoundsIncinerationResult{Verdict: waitFor(WaitMethodUsed, "incineration")}, nil
+	return RoundsIncinerationResult{Verdict: waitFor(policy.CauseMethodUsed, "incineration")}, nil
 }
 
 // RoundsIncinerationSource reuses the generic colony read for the waste census

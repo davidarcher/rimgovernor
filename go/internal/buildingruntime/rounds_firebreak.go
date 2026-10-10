@@ -391,7 +391,7 @@ func (r *RoundsFirebreakPlanner) step(call, epoch context.Context, arbiter *step
 		return RoundsFirebreakResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	if !work.Owed() {
-		return RoundsFirebreakResult{Verdict: waitFor(WaitMethodUsed, "firebreak_work")}, nil
+		return RoundsFirebreakResult{Verdict: waitFor(policy.CauseMethodUsed, "firebreak_work")}, nil
 	}
 	if verdict, ok, err := admitSubject(call, p.journal, firebreakPrefix, standardMethodPlans(goal.History, goal.Standard.Episode, firebreakPrefix), state.Snapshot); err != nil {
 		return RoundsFirebreakResult{}, err

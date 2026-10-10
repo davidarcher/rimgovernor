@@ -25,14 +25,14 @@ func TestPlannerStepDecisionOnePerRunShape(t *testing.T) {
 		wantAttr, value string
 	}{
 		{name: "admitted", verdict: Verdict{Outcome: OutcomeAdmitted}, wantVerdict: "admitted", wantReason: "plan_admitted"},
-		{name: "refused", verdict: refuse(RefusalNoSpace, "", ""), wantVerdict: "refused", wantReason: "no_space"},
-		{name: "refused subject", verdict: refuse(RefusalSharedAdmission, "already_reserved", "wood"), wantVerdict: "refused", wantReason: "shared_admission_refused", wantAttr: "subject", value: "already_reserved"},
-		{name: "waiting", verdict: waitOn(WaitExistingWork), wantVerdict: "waiting", wantReason: "already_working_on_it"},
+		{name: "refused", verdict: refuse(policy.CauseNoSpace, "", ""), wantVerdict: "refused", wantReason: "no_space"},
+		{name: "refused subject", verdict: refuse(policy.CauseSharedAdmission, "already_reserved", "wood"), wantVerdict: "refused", wantReason: "shared_admission_refused", wantAttr: "subject", value: "already_reserved"},
+		{name: "waiting", verdict: waitOn(policy.CauseExistingWork), wantVerdict: "waiting", wantReason: "already_working_on_it"},
 		{name: "nothing to do", verdict: Verdict{Outcome: OutcomeNothingToDo}, wantVerdict: "ok", wantReason: "nothing_to_do"},
 		{name: "no verdict", wantVerdict: "ok", wantReason: "no_verdict"},
 		{name: "failed", err: errors.New("boom"), wantVerdict: "failed", wantReason: "error", wantLevel: slog.LevelWarn, wantAttr: "error", value: "boom"},
 		{name: "late", verdict: Verdict{Outcome: OutcomeAdmitted}, late: true, wantVerdict: "admitted", wantReason: "plan_admitted", wantAttr: "late", value: "true"},
-		{name: "optional cutoff", err: context.Canceled, late: true, wantVerdict: "refused", wantReason: "awaiting_plan", wantAttr: "detail", value: "cutoff"},
+		{name: "optional cutoff", err: context.Canceled, late: true, wantVerdict: "refused", wantReason: "awaiting_plan", wantAttr: "subject", value: "planner"},
 		{name: "early cancellation", err: context.Canceled, wantVerdict: "failed", wantReason: "error", wantLevel: slog.LevelWarn},
 	}
 	for _, c := range cases {

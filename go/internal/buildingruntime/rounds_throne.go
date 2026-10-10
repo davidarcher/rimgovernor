@@ -240,7 +240,7 @@ func (r *RoundsSleepingUpkeepPlanner) assignThrone(call, epoch context.Context, 
 		return RoundsBuildingResult{Verdict: barred}, nil
 	}
 	if method == "" {
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "throne_assignment")}, nil
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "throne_assignment")}, nil
 	}
 	previous := domain.ClearPrevious()
 	if step.PreviousThrone != "" {

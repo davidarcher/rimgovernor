@@ -19,7 +19,7 @@ func TestCombatFrameInputsPendingPodsIsAFight(t *testing.T) {
 		Emergency: bridge.EmergencyObservation{Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "rifle"}}}},
 		Detail:    bridge.PawnsFromMap(map[string]*n.PawnState{"rifle": {}}),
 	}
-	if _, reason, err := combatFrameInputs(combat, nil); err != nil || !reason.Is(WaitMethodUsed) {
+	if _, reason, err := combatFrameInputs(combat, nil); err != nil || !reason.Is(policy.CauseMethodUsed) {
 		t.Fatalf("no pods: reason %q err %v", reason, err)
 	}
 	combat.Emergency.Facts.PodsOpen = 530

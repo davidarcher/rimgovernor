@@ -214,7 +214,7 @@ func (r *RoundsBuildingPlanner) stepExcavation(call, epoch context.Context, s ex
 	}
 	review, reason, door := excavationNext(s.target, site)
 	if door {
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "excavation_door")}, nil
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "excavation_door")}, nil
 	}
 	if !reason.IsZero() {
 		return RoundsBuildingResult{Verdict: reason}, nil

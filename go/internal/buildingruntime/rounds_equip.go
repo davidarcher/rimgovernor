@@ -119,7 +119,7 @@ func (r *RoundsEquipPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoundsEquipResult{Verdict: waitFor(WaitMethodUsed, "colonist_census_incomplete")}, nil
+		return RoundsEquipResult{Verdict: waitFor(policy.CauseMethodUsed, "colonist_census_incomplete")}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -234,10 +234,10 @@ func (r *RoundsEquipPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		// Every colonist left is held back from arms (a creepjoiner whose
 		// downside has not shown): no weapon is owed until it does.
 		if len(held) > 0 && len(pool) == 0 {
-			return RoundsEquipResult{Verdict: refuse(RefusalNoWorker, "creepjoiner_downside_unrevealed", string(held[0]))}, nil
+			return RoundsEquipResult{Verdict: refuse(policy.CauseNoWorker, "creepjoiner_downside_unrevealed", string(held[0]))}, nil
 		}
 		// No loose weapon fits an unarmed fighter: the armory crafts one.
-		return RoundsEquipResult{Verdict: waitFor(WaitMethodUsed, "armory_crafts_weapon")}, nil
+		return RoundsEquipResult{Verdict: waitFor(policy.CauseMethodUsed, "armory_crafts_weapon")}, nil
 	}
 	// A single plan contains independent equip actions: no pawn waits for a
 	// preceding pawn's native postcondition before its order can dispatch.

@@ -102,7 +102,7 @@ func (r *RoundsBuildingPlanner) commitCampfireRefuel(call context.Context, goal 
 		return RoundsBuildingResult{}, fmt.Errorf("%w: commitCampfireRefuel: not a refuel proposal", ErrControl)
 	}
 	if _, err := p.journal.LoadOwnerMethod(call, goal, proposal.Key); err == nil {
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "campfire_refuel_method")}, nil
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "campfire_refuel_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoundsBuildingResult{}, err
 	}
@@ -154,7 +154,7 @@ func (r *RoundsBuildingPlanner) retireBuilding(call, epoch context.Context, stat
 	p := r.reviewer.player
 	method := retireMethodID(prefix, id)
 	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, reason)}, nil
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, reason)}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoundsBuildingResult{}, err
 	}

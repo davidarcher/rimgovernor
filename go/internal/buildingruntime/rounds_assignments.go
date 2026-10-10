@@ -341,7 +341,7 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	}
 	method := domain.MethodID(fmt.Sprintf("work-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadOwnerMethod(call, goal, method); err == nil {
-		return RoundsWorkResult{Verdict: waitFor(WaitMethodUsed, "work_method")}, nil
+		return RoundsWorkResult{Verdict: waitFor(policy.CauseMethodUsed, "work_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoundsWorkResult{}, err
 	}

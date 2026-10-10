@@ -291,12 +291,12 @@ func (r *RoundsCreepJoinerPlanner) step(call, epoch context.Context, arbiter *st
 			if _, err = p.journal.RecordStandard(call, goal.Standard.ID, goal.Revision, ordered.Encode()); err != nil {
 				return RoundsCreepJoinerResult{}, err
 			}
-			return RoundsCreepJoinerResult{Verdict: waitFor(WaitMethodUsed, "creepjoiner_order_recorded")}, nil
+			return RoundsCreepJoinerResult{Verdict: waitFor(policy.CauseMethodUsed, "creepjoiner_order_recorded")}, nil
 		}
 		if len(work.inspections.Waiting) > 0 {
 			return RoundsCreepJoinerResult{Verdict: awaitingPlan("creepjoiner_inspection", "")}, nil
 		}
-		return RoundsCreepJoinerResult{Verdict: waitFor(WaitMethodUsed, "creepjoiner_order")}, nil
+		return RoundsCreepJoinerResult{Verdict: waitFor(policy.CauseMethodUsed, "creepjoiner_order")}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {

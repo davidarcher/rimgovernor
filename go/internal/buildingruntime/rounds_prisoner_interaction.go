@@ -89,7 +89,7 @@ func (r *RoundsPrisonerInteractionPlanner) step(call, epoch context.Context, arb
 	choice := policy.SelectPrisonerInteractionMethod(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, read.Projection.Facts.FoodDays, r.reviewer.policy.Prisoners())
 	switch choice.Reason {
 	case policy.PrisonerNoDeficit:
-		return RoundsPrisonerInteractionResult{Verdict: waitFor(WaitMethodUsed, "prisoner_interaction")}, nil
+		return RoundsPrisonerInteractionResult{Verdict: waitFor(policy.CauseMethodUsed, "prisoner_interaction")}, nil
 	case policy.PrisonerUnknown:
 		return RoundsPrisonerInteractionResult{Verdict: fieldUnavailable("prisoners")}, nil
 	}
@@ -158,7 +158,7 @@ func (r *RoundsPrisonerInteractionPlanner) stageJail(call, epoch context.Context
 	case policy.JailMark:
 		result, err = r.markJailBed(call, epoch, state, goal, reading.Projection, step.Bed)
 	}
-	if err != nil || result.Verdict.Is(WaitMethodUsed) || result.Verdict.Is(WaitExistingWork) || result.Verdict.Is(RefusalNoSpace) || result.Verdict.Is(RefusalFieldUnavailable) || result.Verdict.Is(RefusalSharedAdmission) {
+	if err != nil || result.Verdict.Is(policy.CauseMethodUsed) || result.Verdict.Is(policy.CauseExistingWork) || result.Verdict.Is(policy.CauseNoSpace) || result.Verdict.Is(policy.CauseFieldUnavailable) || result.Verdict.Is(policy.CauseSharedAdmission) {
 		return RoundsPrisonerInteractionResult{}, false, err
 	}
 	return RoundsPrisonerInteractionResult{Verdict: result.Verdict}, true, nil
@@ -187,7 +187,7 @@ func (r *RoundsPrisonerInteractionPlanner) markJailBed(call, epoch context.Conte
 	}
 	method := domain.MethodID("jail-mark-" + bed)
 	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "jail_bed_method")}, nil
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "jail_bed_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoundsBuildingResult{}, err
 	}
@@ -199,7 +199,7 @@ func (r *RoundsPrisonerInteractionPlanner) markJailBed(call, epoch context.Conte
 		return RoundsBuildingResult{}, fmt.Errorf("%w: markJailBed: err != nil || target.Context.GetTick() < int64(facts.Identity.Tick)", ErrControl)
 	}
 	if target.Prisoners {
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "jail_bed_prisoners")}, nil
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "jail_bed_prisoners")}, nil
 	}
 	patch, err := domain.NewBedPrisoners(bed)
 	if err != nil {

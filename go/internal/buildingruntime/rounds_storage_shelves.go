@@ -151,7 +151,7 @@ func (r *RoundsStorageShelvesPlanner) step(call, epoch context.Context) (RoundsS
 	if step.Kind == policy.ShelfBuild {
 		z := owner[step.Zone.Zone]
 		if next[z.ID] >= maxShelvesPerZone {
-			return RoundsStorageShelvesResult{Verdict: refuse(RefusalRetriesSpent, "maxShelvesPerZone", "")}, nil
+			return RoundsStorageShelvesResult{Verdict: refuse(policy.CauseRetriesSpent, "maxShelvesPerZone", "")}, nil
 		}
 		return r.build(call, epoch, state, review, goals[z.Concern], selected[z.Concern], reading, step, next[z.ID])
 	}

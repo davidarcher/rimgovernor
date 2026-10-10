@@ -86,7 +86,7 @@ func commitFurniture(t *testing.T, refuse string) (RoundsBuildingResult, string)
 // the def, the cell and the blocking thing.
 func TestRefusedFurnitureCellNamesItsBlocker(t *testing.T) {
 	result, logs := commitFurniture(t, "PenMarker")
-	if result.Verdict.Refusal.Kind != WaitExistingWork || result.Verdict.Refusal.Subject != "kitchen_reconcile:blocked:PenMarker@1,1" {
+	if result.Verdict.Refusal.Kind != policy.CauseExistingWork || result.Verdict.Refusal.Subject != "kitchen_reconcile:blocked:PenMarker@1,1" {
 		t.Fatalf("verdict = %+v, want the wait naming PenMarker@1,1", result.Verdict)
 	}
 	if !strings.Contains(logs, "PenMarker@1,1") || !strings.Contains(logs, "Wall blueprint") {
@@ -100,7 +100,7 @@ func TestAllClearRoomWaitUnchanged(t *testing.T) {
 		t.Fatalf("subject = %q", got)
 	}
 	result, logs := commitFurniture(t, "NoSuchDef")
-	if result.Verdict.Refusal.Kind == WaitExistingWork || strings.Contains(logs, "refused") {
+	if result.Verdict.Refusal.Kind == policy.CauseExistingWork || strings.Contains(logs, "refused") {
 		t.Fatalf("an all-clear room waited: %+v, log %q", result.Verdict, logs)
 	}
 }

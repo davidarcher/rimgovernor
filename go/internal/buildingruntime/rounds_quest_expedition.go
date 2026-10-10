@@ -3,12 +3,13 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"slices"
+	"time"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"slices"
-	"time"
 )
 
 func (r *RoundsPopulationJoinerPlanner) admitExpedition(call, epoch context.Context, state ControlState, goal store.StandardState, read observation.RoundsReading, arbiter *stepArbiter, started time.Time) (RoundsPopulationJoinerResult, bool, error) {
@@ -59,7 +60,7 @@ func (r *RoundsPopulationJoinerPlanner) admitExpedition(call, epoch context.Cont
 		return RoundsPopulationJoinerResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: stockWaitTicks}, false, nil
 	}
 	if !arbiter.tryClaim(work.Departure.Crew(), "quest:"+string(work.Quest)) {
-		return RoundsPopulationJoinerResult{Verdict: waitFor(WaitClaim, "quest_expedition")}, true, nil
+		return RoundsPopulationJoinerResult{Verdict: waitFor(policy.CauseClaim, "quest_expedition")}, true, nil
 	}
 	id := domain.MintPlanID()
 	action, err := domain.NewCaravanDepartureAction(domain.ActionID(string(id)+"-0"), *work.Departure)

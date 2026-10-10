@@ -193,7 +193,7 @@ func (r *RoundsMedicalPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoundsMedicalResult{Verdict: medicineChoiceVerdict(choice.Kind, medicineResource)}, nil
 	}
 	// The medicine bill is the ledger's (DeclareOrders).
-	return RoundsMedicalResult{Verdict: waitFor(WaitMethodUsed, "medicine_bill")}, nil
+	return RoundsMedicalResult{Verdict: waitFor(policy.CauseMethodUsed, "medicine_bill")}, nil
 }
 
 // DeclareOrders is the declaration owned by policy.MaintainMedicalReserves.
@@ -274,7 +274,7 @@ func (r *RoundsMedicalPlanner) harvestMedicine(call, epoch context.Context, stat
 			return RoundsMedicalResult{}, err
 		}
 		if supply.fieldRoute(medicineResource) {
-			return RoundsMedicalResult{Verdict: waitFor(WaitMethodUsed, "medicine_field")}, nil
+			return RoundsMedicalResult{Verdict: waitFor(policy.CauseMethodUsed, "medicine_field")}, nil
 		}
 	}
 	sources := observation.ColonyAcquisition(observed, tables)
@@ -319,7 +319,7 @@ func (r *RoundsMedicalPlanner) harvestMedicine(call, epoch context.Context, stat
 	}
 	method := domain.MethodID(fmt.Sprintf("acquire-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
-		return RoundsMedicalResult{Verdict: waitFor(WaitMethodUsed, "acquire_method")}, nil
+		return RoundsMedicalResult{Verdict: waitFor(policy.CauseMethodUsed, "acquire_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoundsMedicalResult{}, err
 	}
@@ -379,7 +379,7 @@ func medicineChoiceVerdict(kind policy.MedicineMethodKind, resource policy.Resou
 	case policy.MedicineBlocked:
 		return awaitingPlan("production_bench", string(resource))
 	}
-	return waitFor(WaitMethodUsed, "medicine_method")
+	return waitFor(policy.CauseMethodUsed, "medicine_method")
 }
 
 // planAmputation is CriticalMedical's life-saving amputation: while

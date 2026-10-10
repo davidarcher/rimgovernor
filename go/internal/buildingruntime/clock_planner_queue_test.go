@@ -9,6 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"google.golang.org/protobuf/proto"
 )
@@ -185,7 +186,7 @@ func TestSelectPlannersDropsWaitsOnStoppedClock(t *testing.T) {
 	t.Parallel()
 	// The verdict may carry the admission decision's real reason:
 	// recovery keys on the kind, not the whole verdict.
-	for _, refused := range []Verdict{refuse(RefusalSharedAdmission, "candidates_left_unadmitted", ""), refuse(RefusalSharedAdmission, "already_reserved", "wood")} {
+	for _, refused := range []Verdict{refuse(policy.CauseSharedAdmission, "candidates_left_unadmitted", ""), refuse(policy.CauseSharedAdmission, "already_reserved", "wood")} {
 		t.Run(refused.String(), func(t *testing.T) { stoppedClockRecovers(t, refused) })
 	}
 }

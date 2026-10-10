@@ -347,7 +347,7 @@ func (r *RoundsStockpilePlanner) raiseRoom(call, epoch context.Context, state Co
 	}
 	room, owed := plannedRoomOwed(read.Projection, module)
 	if !owed {
-		return RoundsStockpileResult{Verdict: waitFor(WaitMethodUsed, "stockpile_room_built")}, false, nil
+		return RoundsStockpileResult{Verdict: waitFor(policy.CauseMethodUsed, "stockpile_room_built")}, false, nil
 	}
 	result, err := r.building.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: read.ColonyReading}, nil, roomReconcile{ringOnly: true, room: room, name: string(plannedRoomMethod(room)), reason: "storage-planner room"})
 	telemetry.Decide(call, stockpileEditDecision("proposed", fmt.Sprint(result.Verdict), string(module), map[string]any{"kind": "room"}))
@@ -433,7 +433,7 @@ func (r *RoundsStockpilePlanner) step(call, epoch context.Context, _ *stepArbite
 	method := domain.MethodID(fmt.Sprintf("stockpiles-%d", tick))
 	id := domain.MintPlanID()
 	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
-		return RoundsStockpileResult{Verdict: waitFor(WaitMethodUsed, "stockpile_edits")}, nil
+		return RoundsStockpileResult{Verdict: waitFor(policy.CauseMethodUsed, "stockpile_edits")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoundsStockpileResult{}, err
 	}

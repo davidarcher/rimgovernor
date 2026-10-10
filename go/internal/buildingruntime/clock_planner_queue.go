@@ -6,6 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -275,7 +276,7 @@ func (q *plannerQueue) ran(sel plannerSelectionResult, names []string, reasonOf 
 			delete(q.dirty, name)
 		}
 		reason, finished := reasonOf(name)
-		if finished && reason.Is(RefusalSharedAdmission) {
+		if finished && reason.Is(policy.CauseSharedAdmission) {
 			q.refused[name] = true
 		} else {
 			delete(q.refused, name)

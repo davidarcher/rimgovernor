@@ -151,7 +151,7 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	case policy.FoodOrderNoBill:
 		return r.lendReserveWork(RoundsBillResult{Verdict: r.noBill(projection.ProductionBenches, projection.Facts.Colonists)}, reserveRunning), nil
 	}
-	return r.lendReserveWork(RoundsBillResult{Verdict: waitFor(WaitMethodUsed, "ledger_bill")}, reserveRunning), nil
+	return r.lendReserveWork(RoundsBillResult{Verdict: waitFor(policy.CauseMethodUsed, "ledger_bill")}, reserveRunning), nil
 }
 
 // foodRequest is the food purpose's reviewed inputs: the declaration and the
@@ -199,7 +199,7 @@ func billGapVerdict(gap policy.BillGap, subject string) Verdict {
 	case policy.BillGapNothingWanted:
 		return BuildingReasonNoDeficit
 	case policy.BillGapInProduction:
-		return waitFor(WaitExistingWork, subject)
+		return waitFor(policy.CauseExistingWork, subject)
 	case policy.BillGapNoRecipe:
 		return awaitingPlan(subject, string(gap))
 	case policy.BillGapBenchFull:

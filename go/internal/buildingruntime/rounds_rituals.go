@@ -102,7 +102,7 @@ func (r *RoundsRitualsPlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	plans, known := read.Projection.Facts.RitualPlans.Value()
 	if !known || len(plans) == 0 {
-		return RoundsRitualsResult{Verdict: waitFor(WaitMethodUsed, "ritual_plans")}, nil
+		return RoundsRitualsResult{Verdict: waitFor(policy.CauseMethodUsed, "ritual_plans")}, nil
 	}
 	// The first ritual and site the refusal budget admits; one ritual begins
 	// per step. When every site is held, the last hold is the verdict.
@@ -168,5 +168,5 @@ func (r *RoundsRitualsPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if blocked {
 		return RoundsRitualsResult{Verdict: held}, nil
 	}
-	return RoundsRitualsResult{Verdict: waitFor(WaitMethodUsed, "ritual_sites")}, nil
+	return RoundsRitualsResult{Verdict: waitFor(policy.CauseMethodUsed, "ritual_sites")}, nil
 }

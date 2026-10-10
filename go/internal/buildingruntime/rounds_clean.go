@@ -107,7 +107,7 @@ func (r *RoundsCleanPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 	}
 	if len(targetIDs) == 0 {
-		return RoundsCleanResult{Verdict: waitFor(WaitMethodUsed, "clean_targets")}, nil
+		return RoundsCleanResult{Verdict: waitFor(policy.CauseMethodUsed, "clean_targets")}, nil
 	}
 	byID := map[string]policy.UpkeepFilth{}
 	if rows, known := reading.Projection.Facts.Upkeep.Filth.Value(); known {
@@ -134,7 +134,7 @@ func (r *RoundsCleanPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoundsCleanResult{Verdict: waitFor(WaitMethodUsed, "colonist_census_incomplete")}, nil
+		return RoundsCleanResult{Verdict: waitFor(policy.CauseMethodUsed, "colonist_census_incomplete")}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -170,7 +170,7 @@ func (r *RoundsCleanPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		ok = false
 	}
 	if !ok {
-		return RoundsCleanResult{Verdict: waitFor(WaitMethodUsed, "clean_target_claim")}, nil
+		return RoundsCleanResult{Verdict: waitFor(policy.CauseMethodUsed, "clean_target_claim")}, nil
 	}
 	clean, err := domain.NewClean(pawn, target.ID, target.Cell)
 	if err != nil {

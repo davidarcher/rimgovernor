@@ -155,8 +155,8 @@ func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbi
 // plannerStepDecision is the planner_step row of one planner run: the planner
 // (target), its verdict word and cause, wall time, concern, class and, for a
 // failure, the error. A run that returned after the cutoff is marked late.
-// A refused or waiting verdict's reason is its refusal kind (the subject and
-// detail ride in attrs); any other outcome beyond admitted reads as ok with
+// A refused or waiting verdict's reason is its cause (the subject rides
+// in attrs); any other outcome beyond admitted reads as ok with
 // the outcome as the reason; a run with no verdict reads ok/no_verdict.
 func plannerStepDecision(entry plannerEntry, v Verdict, err error, took time.Duration, late bool) telemetry.Decision {
 	if late && entry.class == classOptional && errors.Is(err, context.Canceled) {
@@ -180,9 +180,6 @@ func plannerStepDecision(entry plannerEntry, v Verdict, err error, took time.Dur
 	}
 	if v.Refusal.Subject != "" {
 		d.Attrs["subject"] = v.Refusal.Subject
-	}
-	if v.Refusal.Detail != "" {
-		d.Attrs["detail"] = v.Refusal.Detail
 	}
 	if late {
 		d.Attrs["late"] = true

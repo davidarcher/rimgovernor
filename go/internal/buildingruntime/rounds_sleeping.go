@@ -98,10 +98,10 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		indoor := *r
 		indoor.shelter, indoor.definition = false, "SleepingSpot"
 		result, err := indoor.step(call, epoch, arbiter)
-		if err != nil || !result.Verdict.Is(RefusalNoSpace) && !result.Verdict.Is(WaitMethodUsed) && !result.Verdict.Is(WaitBunksOpen) {
+		if err != nil || !result.Verdict.Is(policy.CauseNoSpace) && !result.Verdict.Is(policy.CauseMethodUsed) && !result.Verdict.Is(policy.CauseBunksOpen) {
 			return result, err
 		}
-		roofingOnly = result.Verdict.Is(WaitMethodUsed)
+		roofingOnly = result.Verdict.Is(policy.CauseMethodUsed)
 	}
 	p := r.reviewer.player
 	state := p.session.State()
@@ -333,7 +333,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		if known, ok := claims.Value(); ok {
 			if campfire, owed := campfireRetirement(facts, known); owed {
 				result, err := r.retireCampfire(call, epoch, state, review, goal, reading, campfire)
-				if err != nil || !result.Verdict.Is(WaitMethodUsed) {
+				if err != nil || !result.Verdict.Is(policy.CauseMethodUsed) {
 					return result, err
 				}
 			}
@@ -393,7 +393,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		}
 		if !reason.IsZero() {
 			result := RoundsBuildingResult{Verdict: reason}
-			if r.concern == policy.EnsureBasicPower && reason.Is(RefusalNoSpace) {
+			if r.concern == policy.EnsureBasicPower && reason.Is(policy.CauseNoSpace) {
 				result.NativeWorkTicks, err = powerOutputAllowance(call, p.journal, goal, state.Snapshot, facts.Identity.Tick)
 				return result, err
 			}
@@ -480,7 +480,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		// on tick advance), so the same patch is proposed again and found
 		// used. Lend the cooling allowance anyway: the clock then runs, the
 		// census refreshes and the room cools.
-		if err == nil && result.Verdict.Is(WaitMethodUsed) {
+		if err == nil && result.Verdict.Is(policy.CauseMethodUsed) {
 			result.NativeWorkTicks = coolingAllowance
 		}
 		return result, err
@@ -500,7 +500,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		if module, ok := r.plannedRoomModule(); ok {
 			if room, owed := plannedRoomOwed(facts, module); owed {
 				result, err := r.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: reading}, nil, roomReconcile{ringOnly: true, room: room, name: string(plannedRoomMethod(room))})
-				if err != nil || result.Verdict.Is(WaitMethodUsed) {
+				if err != nil || result.Verdict.Is(policy.CauseMethodUsed) {
 					return result, err
 				}
 			}
@@ -617,7 +617,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 				return result, err
 			}
 		}
-		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "sleeping_method")}, nil
+		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "sleeping_method")}, nil
 	} else if !errors.Is(loadErr, store.ErrNotFound) {
 		return RoundsBuildingResult{}, loadErr
 	}
@@ -713,7 +713,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		}
 	}
 	selected, stock, reason, err := r.previewMethod(call, snapshot, facts, protected, missing, check)
-	if err == nil && r.routes != nil && reason.Is(RefusalNoSpace) {
+	if err == nil && r.routes != nil && reason.Is(policy.CauseNoSpace) {
 		if result, handled, digErr := r.digBreach(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading}, protected, check); digErr != nil || handled {
 			return result, digErr
 		}
@@ -838,7 +838,7 @@ func (r *RoundsBuildingPlanner) previewMethod(call context.Context, snapshot dom
 		// turbine whose every catch zone is obstructed) yields to the next
 		// ranked definition under the same method.
 		for _, name := range r.power.Alternatives {
-			if err != nil || !reason.Is(RefusalNoSpace) {
+			if err != nil || !reason.Is(policy.CauseNoSpace) {
 				break
 			}
 			next := *r
@@ -1285,7 +1285,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		if refusedSlot != nil {
 			subject = "shelter_slot:blocked:" + refusedSlot.key()
 		}
-		return nil, policy.StockObservation{}, waitFor(WaitExistingWork, subject), nil
+		return nil, policy.StockObservation{}, waitFor(policy.CauseExistingWork, subject), nil
 	}
 	if int64(len(selected)) < missing {
 		if reason, err := pass(search, ""); err != nil || !reason.IsZero() {

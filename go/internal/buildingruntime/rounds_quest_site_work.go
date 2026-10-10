@@ -108,7 +108,7 @@ func (r *RoundsPopulationJoinerPlanner) admitSiteWork(call, epoch context.Contex
 				return RoundsPopulationJoinerResult{}, false, err
 			}
 			if len(crew) > 0 && !arbiter.tryClaim(crew, "quest:"+string(offer.Quest)) {
-				return RoundsPopulationJoinerResult{Verdict: waitFor(WaitClaim, "quest_site")}, true, nil
+				return RoundsPopulationJoinerResult{Verdict: waitFor(policy.CauseClaim, "quest_site")}, true, nil
 			}
 			plan, err := domain.NewPlan(id, 1, []domain.Action{action})
 			if err != nil {

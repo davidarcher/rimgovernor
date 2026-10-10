@@ -112,7 +112,7 @@ func (r *RoundsResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, s
 		if err != nil {
 			return RoundsBuildingResult{}, false, err
 		}
-		return result, result.Verdict.Is(WaitMethodUsed) || result.Verdict.Is(RefusalSiteBlocked), nil
+		return result, result.Verdict.Is(policy.CauseMethodUsed) || result.Verdict.Is(policy.CauseSiteBlocked), nil
 	}
 	project, err := dig.excavationProject(call, goal)
 	if err != nil {

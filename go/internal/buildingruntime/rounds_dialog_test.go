@@ -2,8 +2,9 @@ package buildingruntime
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -115,7 +116,7 @@ func TestRoundsDialogPlannerHoldsWithoutSelectableOption(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || !result.Verdict.Is(RefusalRetriesSpent) {
+	if err != nil || !result.Verdict.Is(policy.CauseRetriesSpent) {
 		t.Fatal(result, err)
 	}
 }

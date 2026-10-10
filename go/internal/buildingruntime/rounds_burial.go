@@ -117,7 +117,7 @@ func (r *RoundsBurialPlanner) step(call, epoch context.Context, _ *stepArbiter) 
 		result, err = r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{room: step.Room, template: step.Template, name: roomName(role, step.Room), reason: role})
 	case policy.TombFull:
 		// The layout review grows another tomb.
-		return RoundsBurialResult{Verdict: waitFor(WaitMethodUsed, "tomb_room")}, nil
+		return RoundsBurialResult{Verdict: waitFor(policy.CauseMethodUsed, "tomb_room")}, nil
 	}
 	return RoundsBurialResult{Verdict: result.Verdict}, err
 }

@@ -109,7 +109,7 @@ func (r *RoundsPopulationCustodyPlanner) step(call, epoch context.Context, arbit
 	}
 	switch choice.Reason {
 	case policy.CustodyNoDeficit:
-		return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "custody_deficit")}, nil
+		return RoundsPopulationCustodyResult{Verdict: waitFor(policy.CauseMethodUsed, "custody_deficit")}, nil
 	case policy.CustodyUnknown:
 		return RoundsPopulationCustodyResult{Verdict: fieldUnavailable("custody")}, nil
 	}
@@ -123,7 +123,7 @@ func (r *RoundsPopulationCustodyPlanner) step(call, epoch context.Context, arbit
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "colonists_complete")}, nil
+		return RoundsPopulationCustodyResult{Verdict: waitFor(policy.CauseMethodUsed, "colonists_complete")}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists)+1)
 	for _, pawn := range emergency.Facts.Colonists {
@@ -199,7 +199,7 @@ func (r *RoundsPopulationCustodyPlanner) step(call, epoch context.Context, arbit
 			ok = false
 		}
 		if !ok {
-			return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "rescue_claim")}, nil
+			return RoundsPopulationCustodyResult{Verdict: waitFor(policy.CauseMethodUsed, "rescue_claim")}, nil
 		}
 		value, err := domain.NewRescue(performer, target)
 		if err != nil {
@@ -229,7 +229,7 @@ func (r *RoundsPopulationCustodyPlanner) step(call, epoch context.Context, arbit
 			ok = false
 		}
 		if !ok {
-			return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "capture_claim")}, nil
+			return RoundsPopulationCustodyResult{Verdict: waitFor(policy.CauseMethodUsed, "capture_claim")}, nil
 		}
 		value, err := domain.NewCapture(performer, target)
 		if err != nil {

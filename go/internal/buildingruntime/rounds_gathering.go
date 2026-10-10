@@ -96,7 +96,7 @@ func (r *RoundsGatheringPlanner) step(call, epoch context.Context, arbiter *step
 		}
 	}
 	if lastStart >= 0 && policy.GatheringRunning(lastStart, review.Tick) {
-		return RoundsGatheringResult{Verdict: waitFor(WaitMethodUsed, "gathering_running")}, nil
+		return RoundsGatheringResult{Verdict: waitFor(policy.CauseMethodUsed, "gathering_running")}, nil
 	}
 	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
@@ -112,7 +112,7 @@ func (r *RoundsGatheringPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	party, known := read.Projection.Facts.GatheringPlan.Value()
 	if !known || party.Organizer == "" {
-		return RoundsGatheringResult{Verdict: waitFor(WaitMethodUsed, "gathering_plan")}, nil
+		return RoundsGatheringResult{Verdict: waitFor(policy.CauseMethodUsed, "gathering_plan")}, nil
 	}
 	method, verdict, ok, err := admitStandardMethod(call, p.journal, goal, gatheringMethodPrefix, state.Snapshot)
 	if err != nil {

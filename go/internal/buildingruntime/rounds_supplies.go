@@ -155,7 +155,7 @@ func (r *RoundsSupplyPlanner) step(call, epoch context.Context, arbiter *stepArb
 		}
 	}
 	if len(targets) == 0 {
-		return RoundsSupplyResult{Verdict: waitFor(WaitMethodUsed, "supply_targets")}, nil
+		return RoundsSupplyResult{Verdict: waitFor(policy.CauseMethodUsed, "supply_targets")}, nil
 	}
 	sort.Slice(targets, func(i, j int) bool { return targets[i].Thing() < targets[j].Thing() })
 	if len(targets) > 8 {

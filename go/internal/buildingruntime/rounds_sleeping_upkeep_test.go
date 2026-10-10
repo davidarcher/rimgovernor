@@ -2,8 +2,9 @@ package buildingruntime
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -143,7 +144,7 @@ func TestSleepingUpkeepAssignsVacantBedOncePerEpoch(t *testing.T) {
 	if _, err = db.Cancel(ctx, plan.Spec.ID(), plan.Progress[0].Action().ID()); err != nil {
 		t.Fatal(err)
 	}
-	if result, err = planner.Step(ctx); err != nil || !result.Verdict.Is(WaitMethodUsed) {
+	if result, err = planner.Step(ctx); err != nil || !result.Verdict.Is(policy.CauseMethodUsed) {
 		t.Fatal(result, err)
 	}
 }
@@ -207,7 +208,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 		}
 		settle(method, domain.ReceiptRefused, class)
 	}
-	if result, err := planner.Step(ctx); err != nil || !result.Verdict.Is(RefusalRetriesSpent) || result.Verdict.Refusal.Detail != "bed_taken" || result.NativeWorkTicks != 0 {
+	if result, err := planner.Step(ctx); err != nil || !result.Verdict.Is(policy.CauseRetriesSpent) || result.Verdict.Refusal.Detail != "bed_taken" || result.NativeWorkTicks != 0 {
 		t.Fatal("after a permanent refusal", result, err)
 	}
 	// A completed (admitted) attempt is final for the epoch even when the
@@ -223,7 +224,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 	// Only observed sleep completes the goal, so the completed assignment
 	// earns a bounded clock window; the refused attempts above earned
 	// none.
-	if result, err := planner.Step(ctx); err != nil || !result.Verdict.Is(WaitMethodUsed) || result.NativeWorkTicks != sleepingObservationSlice {
+	if result, err := planner.Step(ctx); err != nil || !result.Verdict.Is(policy.CauseMethodUsed) || result.NativeWorkTicks != sleepingObservationSlice {
 		t.Fatal(result, err)
 	}
 	// The next review retires the settled plan from the goal's active
@@ -235,7 +236,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 	if goal := sleepingGoal(t, db); len(goal.Methods) != 0 {
 		t.Fatal("completed assignment still active", goal.Methods)
 	}
-	if result, err := planner.Step(ctx); err != nil || !result.Verdict.Is(WaitMethodUsed) || result.NativeWorkTicks != sleepingObservationSlice {
+	if result, err := planner.Step(ctx); err != nil || !result.Verdict.Is(policy.CauseMethodUsed) || result.NativeWorkTicks != sleepingObservationSlice {
 		t.Fatal("after retirement", result, err)
 	}
 }
@@ -358,7 +359,7 @@ func TestSleepingUpkeepDoesNotBuildOutsideComfortBand(t *testing.T) {
 	native.rooms.GetObserved().Rooms[0].TemperatureC = proto.Float64(-5)
 	planner.reviewer.census.invalidate()
 	result, err := planner.Step(ctx)
-	if err != nil || (!result.Verdict.Is(RefusalNoSpace) && !result.Verdict.Is(RefusalFieldUnavailable)) || native.previews != 0 {
+	if err != nil || (!result.Verdict.Is(policy.CauseNoSpace) && !result.Verdict.Is(policy.CauseFieldUnavailable)) || native.previews != 0 {
 		t.Fatalf("%+v %v %d", result, err, native.previews)
 	}
 }

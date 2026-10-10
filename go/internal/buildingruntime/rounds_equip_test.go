@@ -2,8 +2,9 @@ package buildingruntime
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -104,7 +105,7 @@ func TestEquipPlannerBiocodeOwnerOnly(t *testing.T) {
 				t.Fatal(err)
 			}
 			if tc.want == "" {
-				if !result.Verdict.Is(WaitMethodUsed) {
+				if !result.Verdict.Is(policy.CauseMethodUsed) {
 					t.Fatal(result)
 				}
 				return
@@ -181,7 +182,7 @@ func TestEquipPlannerPreservesCompletedBiocodedPrimary(t *testing.T) {
 			if err != nil {
 				t.Fatal(next, err)
 			}
-			if tc.coded && !next.Verdict.Is(WaitMethodUsed) || !tc.coded && next.Verdict != BuildingReasonAdmitted {
+			if tc.coded && !next.Verdict.Is(policy.CauseMethodUsed) || !tc.coded && next.Verdict != BuildingReasonAdmitted {
 				t.Fatal(next)
 			}
 		})

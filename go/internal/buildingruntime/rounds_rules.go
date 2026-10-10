@@ -100,7 +100,7 @@ func (r *RoundsRulesPlanner) attach(call, epoch context.Context, state ControlSt
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%012d", rulesMethodPrefix, int64(tick)))
 	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
-		return RoundsRulesResult{Verdict: waitFor(WaitMethodUsed, "rules_method")}, nil
+		return RoundsRulesResult{Verdict: waitFor(policy.CauseMethodUsed, "rules_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoundsRulesResult{}, err
 	}

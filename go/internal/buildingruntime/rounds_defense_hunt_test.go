@@ -48,7 +48,7 @@ func TestCombatFrameInputsHuntOriginTargetsPrey(t *testing.T) {
 		t.Fatalf("prey cells = %v", cells)
 	}
 	// With no live prey the origin has no fight to decide.
-	if _, reason, _ = combatFrameInputs(combat, []domain.PawnID{"dead", "gone"}); !reason.Is(WaitMethodUsed) {
+	if _, reason, _ = combatFrameInputs(combat, []domain.PawnID{"dead", "gone"}); !reason.Is(policy.CauseMethodUsed) {
 		t.Fatalf("no live prey: reason %q", reason)
 	}
 }

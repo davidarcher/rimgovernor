@@ -58,7 +58,7 @@ func (r *RoundsSleepingUpkeepPlanner) packShellBed(call, epoch context.Context, 
 		if m, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
 			// Packing is under way: wait for it rather than build a second bed.
 			if prior, err := p.journal.LoadPlan(call, m.Plan); err == nil && domain.StandardWorkOpen(prior.Progress) {
-				return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "shell_bed_pack")}, true, nil
+				return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "shell_bed_pack")}, true, nil
 			}
 			continue
 		} else if !errors.Is(err, store.ErrNotFound) {

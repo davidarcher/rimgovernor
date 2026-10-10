@@ -85,12 +85,12 @@ func (r *RoundsHomeCoveragePlanner) step(call, epoch context.Context, arbiter *s
 		return RoundsHomeCoverageResult{Verdict: fieldUnavailable("home_coverage")}, nil
 	}
 	if diff.Empty() {
-		return RoundsHomeCoverageResult{Verdict: waitFor(WaitMethodUsed, "home_coverage_diff")}, nil
+		return RoundsHomeCoverageResult{Verdict: waitFor(policy.CauseMethodUsed, "home_coverage_diff")}, nil
 	}
 	method := diff.MethodID()
 	for _, seen := range goal.Methods {
 		if seen.Method == method {
-			return RoundsHomeCoverageResult{Verdict: waitFor(WaitMethodUsed, "home_coverage_method")}, nil
+			return RoundsHomeCoverageResult{Verdict: waitFor(policy.CauseMethodUsed, "home_coverage_method")}, nil
 		}
 	}
 	id := domain.MintPlanID()

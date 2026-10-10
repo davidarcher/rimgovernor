@@ -143,7 +143,7 @@ func (b *RoundsBuildingPlanner) digPlannedSky(call, epoch context.Context, s exc
 			return RoundsBuildingResult{}, false, err
 		}
 		if domain.StandardWorkOpen(plan.Progress) {
-			return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "dig_plan")}, true, nil
+			return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "dig_plan")}, true, nil
 		}
 		if len(excavations) == 0 {
 			return RoundsBuildingResult{Verdict: rockNotDug(string(method), fmt.Sprintf("roof_standing_%d_cells", len(unroof)))}, true, nil

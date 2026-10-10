@@ -31,13 +31,13 @@ func TestFireproofShellStuffRejectsFlammable(t *testing.T) {
 		"wooden door": {wall, stuffRow("Door", burning("WoodLog", 1))},
 	} {
 		_, _, refusal, ok := fireproofShellStuff(pair[0], pair[1])
-		if ok || !refusal.Is(RefusalSiteBlocked) {
+		if ok || !refusal.Is(policy.CauseSiteBlocked) {
 			t.Errorf("%s: %v %v", name, refusal, ok)
 		}
 	}
 	// A row with no flammability is unread data, not a pass.
 	bare := stuffRow("Wall", observation.StuffOption{Stuff: "Steel", Stats: map[string]float64{}})
-	if _, _, refusal, ok := fireproofShellStuff(bare, door); ok || !refusal.Is(RefusalFieldUnavailable) {
+	if _, _, refusal, ok := fireproofShellStuff(bare, door); ok || !refusal.Is(policy.CauseFieldUnavailable) {
 		t.Fatal(refusal, ok)
 	}
 }
