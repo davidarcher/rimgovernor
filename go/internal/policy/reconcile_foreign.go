@@ -93,10 +93,10 @@ func foreignThings(in ReconcileInput, ring Rectangle, wallDef string, doorWanted
 		if t.ID == 0 {
 			k.cell = c
 		}
-		// A stack on a ring cell is cleanup: the native preview, not the diff,
-		// decides whether the wall or door goes up over it, so a room is never
+		// A stack on the door cell is cleanup (vanilla hauling takes it): the native preview, not the diff,
+		// decides whether the door goes up over it, so a room is never
 		// held unfinished (or unreachable, door unbuilt) by an item.
-		if kind != OpHaulOut || !onRing(c, ring) {
+		if kind != OpHaulOut || !doorWanted[c] {
 			w.blocked[c] = true
 		}
 		if i, ok := index[k]; ok {
