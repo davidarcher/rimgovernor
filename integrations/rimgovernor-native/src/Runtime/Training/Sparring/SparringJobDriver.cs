@@ -223,7 +223,12 @@ namespace RimGovernor.Runtime
             var inventory = pawn.inventory?.innerContainer;
             foreach (var worn in setAside)
             {
-                if (!worn.Destroyed && inventory != null && inventory.Contains(worn) && pawn.apparel != null) pawn.apparel.Wear(worn, false);
+                if (worn.Destroyed || inventory == null || !inventory.Contains(worn) || pawn.apparel == null) continue;
+                // Wear does not take the piece out of the container that holds it: it logs an error and
+                // leaves the piece in the inventory (the pawn then stays unclothed).
+                inventory.Remove(worn);
+                pawn.apparel.Wear(worn, false);
+                if (!pawn.apparel.Contains(worn)) inventory.TryAdd(worn);
             }
             setAside.Clear();
             if (realWeapon != null)

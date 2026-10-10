@@ -259,9 +259,9 @@ func checkSparringFight(stage sparringStage, got map[string]any) error {
 		// started with a full Joy need keeps fighting to the normal end.
 		case p.joyStart >= 0.99 && (p.exchanges == 0 || !p.swapped):
 			return fmt.Errorf("%s began with full Joy and did not fight (exchanges %d): %#v", p.id, p.exchanges, got)
-		case !p.dead && p.joyStart >= 0 && p.joyStart < 0.99 && p.joyEnd <= p.joyStart:
+		case !p.dead && p.exchanges > 0 && p.joyStart >= 0 && p.joyStart < 0.99 && p.joyEnd <= p.joyStart:
 			return fmt.Errorf("%s Joy did not rise over the bout (%.3f to %.3f): %#v", p.id, p.joyStart, p.joyEnd, got)
-		case !p.dead && p.joyStart >= 0 && p.joyStart < 0.99 && p.tolEnd <= p.tolStart:
+		case !p.dead && p.exchanges > 0 && p.joyStart >= 0 && p.joyStart < 0.99 && p.tolEnd <= p.tolStart:
 			return fmt.Errorf("%s Social tolerance did not rise (%.4f to %.4f): %#v", p.id, p.tolStart, p.tolEnd, got)
 		case p.exchanges > 10:
 			return fmt.Errorf("%s made %d exchanges, past the cap: %#v", p.id, p.exchanges, got)

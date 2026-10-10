@@ -42,6 +42,9 @@ namespace HomeBridge.BridgeTools
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
                 var registry = SparringBouts.For(map);
                 foreach (var bout in registry.Bouts.ToList()) foreach (var slot in bout.Slots.ToList()) registry.Leave(slot.Pawn);
+                // The colonists the last stage left free form a bout of their own once it is over, and one
+                // that nobody reaches puts its members on a no-show cooldown that would carry into this stage.
+                SparringWatcher.SitOut(map).Clear();
                 foreach (var old in map.components.OfType<SparringWatcher>().ToList()) map.components.Remove(old);
                 foreach (var old in map.listerThings.ThingsOfDef(SparringBouts.MarkerDef).ToList()) old.Destroy();
 
@@ -74,7 +77,10 @@ namespace HomeBridge.BridgeTools
                 void Stage(Pawn p, int at, int level, bool trains, bool drafted, int shooting = 0)
                 {
                     p.Position = new IntVec3(x + at, 0, z - far);
-                    p.Notify_Teleported(true, true);
+                    // The job is not ended here: a pawn that ends its job looks for work at once, and
+                    // with the ring half staged it would pick a long joy job (Skygaze) that the
+                    // bout's invite window then outlasts. Every job ends together once all is staged.
+                    p.Notify_Teleported(false, true);
                     // Earlier stages leave bruises and pain: every stage starts unhurt.
                     foreach (var hediff in p.health.hediffSet.hediffs.Where(h => SparringWatcher.IsHurt(h) || h.def == painstopper).ToList()) p.health.RemoveHediff(hediff);
                     if (p.Dead) ResurrectionUtility.TryResurrect(p);
@@ -98,6 +104,10 @@ namespace HomeBridge.BridgeTools
                     shot.passion = Passion.None;
                     var brawler = p.story.traits.GetTrait(TraitDefOf.Brawler);
                     if (brawler != null) p.story.traits.RemoveTrait(brawler);
+                    // A colonist under 35% Joy (95% in joy hours) after the first 5000 ticks does a joy job
+                    // before any work (ThinkNode_Priority_GetJoy), and one that started Skygaze never
+                    // reaches the marker inside the invite window. A bout leaves Joy low, so every stage refills it.
+                    if (p.needs?.joy != null) p.needs.joy.CurLevel = 1f;
                     if (trains) p.workSettings.SetPriority(training, 1);
                     p.drafter.Drafted = drafted;
                 }
@@ -158,6 +168,9 @@ namespace HomeBridge.BridgeTools
                     titled = tracked[0].GetUniqueLoadID();
                 }
                 map.components.Add(new SparringWatcher(map, tracked, scenario) { DraftOnGather = draftOnGather, Measure = measure, XpDay = xpDay });
+                // Now every colonist is staged: each pawn looks for work as its job ends, and the
+                // first to ask forms the bouts from all of the free, eligible ones.
+                foreach (var p in capable.Where(c => !c.Drafted)) p.jobs.EndCurrentJob(JobCondition.InterruptForced);
                 return new
                 {
                     success = true, eligible = eligibleIds, ineligible = ineligibleIds, shooter = shooterIds, markers = markerIds,
@@ -223,6 +236,10 @@ namespace HomeBridge.BridgeTools
         public bool Dead;
         public bool Drafted;
         public bool Restored;
+        // Each change of the pawn's job (tick, job, whether it held a bout place): why a pawn never reached its marker.
+        public readonly List<string> Trail = new List<string>();
+        public string LastJob = "";
+        public string GearDiff = "";
         public bool NoPractice;
         public bool Originals;
         public bool ThreatNull;
@@ -330,6 +347,14 @@ namespace HomeBridge.BridgeTools
         private static bool WearsPracticeSet(Pawn p) =>
             p.equipment.Primary != null && IsPractice(p.equipment.Primary.def) && p.apparel.WornApparel.Count > 0 && p.apparel.WornApparel.All(a => IsPractice(a.def));
 
+        // The registry's no-show cooldowns (pawn id -> tick until which it sits out): private to the
+        // registry, read here because a cooldown left by one stage must not outlast it.
+        public static Dictionary<int, int> SitOut(Map map) =>
+            (Dictionary<int, int>)typeof(SparringBouts).GetField("sitOutUntil", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                .GetValue(SparringBouts.For(map));
+
+        private int SitOutLeft(Pawn p) => SitOut(map).TryGetValue(p.thingIDNumber, out var until) ? until - Find.TickManager.TicksGame : 0;
+
         public object Report(Pawn p)
         {
             var g = gear[p.thingIDNumber];
@@ -339,7 +364,8 @@ namespace HomeBridge.BridgeTools
                 id = p.GetUniqueLoadID(), startMelee = g.StartLevel, melee = melee.Level, xp = melee.Level > g.StartLevel || melee.xpSinceLastLevel > 0f,
                 swapSeen = g.SwapSeen, swapAtMarker = g.SwapAtMarker, originalsHeld = g.OriginalsHeld,
                 ended = g.Ended, stop = g.Stop, condition = g.Condition, exchanges = g.Exchanges, swapped = g.Swapped, dead = g.Dead, drafted = g.Drafted,
-                restored = g.Restored, noPractice = g.NoPractice, originals = g.Originals, threatNull = g.ThreatNull, trainedWith = g.Thought, endedTick = g.EndedTick,
+                restored = g.Restored, gearDiff = g.GearDiff, job = p.CurJobDef?.defName ?? "none", sitOutLeft = SitOutLeft(p), trail = string.Join(" ", g.Trail),
+                eligibleNow = SparringBouts.Eligible(p), at = p.Position.ToString(), noPractice = g.NoPractice, originals = g.Originals, threatNull = g.ThreatNull, trainedWith = g.Thought, endedTick = g.EndedTick,
                 joyStart = g.JoyStart, joyEnd = g.JoyEnd, toleranceStart = g.ToleranceStart, toleranceEnd = g.ToleranceEnd,
             };
         }
@@ -396,6 +422,13 @@ namespace HomeBridge.BridgeTools
             }
             foreach (var p in Tracked)
             {
+                var trail = gear[p.thingIDNumber];
+                var job = (p.CurJobDef?.defName ?? "none") + (registry.BoutOf(p) != null ? "+bout" : "");
+                if (job != trail.LastJob && trail.Trail.Count < 40)
+                {
+                    trail.LastJob = job;
+                    trail.Trail.Add((Find.TickManager.TicksGame - startTick) + ":" + job);
+                }
                 if (Measure) MeasureSession(registry, p); else Capture(registry, p);
             }
             if (scenario == "raid") RaidTick(registry);
@@ -659,6 +692,12 @@ namespace HomeBridge.BridgeTools
             var weaponBack = g.WeaponId < 0 ? p.equipment.Primary == null : p.equipment.Primary != null && p.equipment.Primary.thingIDNumber == g.WeaponId;
             var held = p.inventory.innerContainer.Select(t => t.thingIDNumber).ToHashSet();
             g.Restored = worn.SetEquals(g.ApparelIds) && !g.ApparelIds.Any(held.Contains) && weaponBack;
+            if (!g.Restored)
+            {
+                g.GearDiff = "wornNow=" + string.Join(",", p.apparel.WornApparel.Select(a => a.def.defName + "#" + a.thingIDNumber)) + " want=" + string.Join(",", g.ApparelIds)
+                    + " held=" + string.Join(",", p.inventory.innerContainer.Select(t => t.def.defName + "#" + t.thingIDNumber))
+                    + " weaponNow=" + (p.equipment.Primary?.thingIDNumber ?? -1) + " want=" + g.WeaponId;
+            }
         }
 
         // Joy while fighting (#2731): the Joy level and the Social tolerance, -1 and 0 without a need.
