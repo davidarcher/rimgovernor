@@ -102,6 +102,7 @@ var endToEnd = map[string]bool{
 	"sustained/colony-stable": true, "sustained/winter": true, "upkeep/campaign": true, "sleeping/suites": true,
 	"layout/ring": true, "layout/rich-soil": true,
 	"mood/headroom": true, "mood/ledger": true, "mood/gathering": true,
+	"explain/every-concern": true,
 }
 
 // offTier names the cases no tier runs: fixture generators, which
