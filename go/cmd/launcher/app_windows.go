@@ -78,6 +78,7 @@ type app struct {
 	cmd        *exec.Cmd
 	tail       *logTail      // the Log panel: the newest run's collapsed flight rows
 	recorder   *recorderTail // the Problems tab's reader of the flight recorder
+	explain    *explainTail  // per-concern timelines from explain.jsonl (Now tab, Ledger)
 	colony     *colonyRunner // new-colony generation
 	loading    loadSlot      // the save load in flight (one at a time)
 	accept     *acceptRunner // the Acceptance tab's case runs
@@ -87,6 +88,7 @@ func newApp(repo string) *app {
 	a := &app{repo: repo, private: filepath.Join(repo, ".rimgovernor"), layout: setup.NewLayout(repo), ctrl: ctrlStopped,
 		busy: map[string]bool{}, failed: map[string]bool{}}
 	a.recorder = newRecorderTail(filepath.Join(a.layout.Root, "profile", "flight", "flight.jsonl"))
+	a.explain = newExplainTail(filepath.Join(a.layout.Root, "profile", "flight", "flight.jsonl"))
 	a.tail = &logTail{recorder: a.recorder}
 	for _, n := range []string{artLayout, artMod, artController} {
 		a.artifacts = append(a.artifacts, Artifact{Name: n, State: StateBuilding, Detail: "Checking"})
