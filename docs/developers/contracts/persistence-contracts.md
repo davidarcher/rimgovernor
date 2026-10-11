@@ -22,7 +22,7 @@ copy of a fact is a bug, not a cache.
 | User cache directory, `rimgovernor/defcatalog/<fingerprint>-<schema>.pb.gz` | The static part of the definition catalog (def rows, class chains, game constants, derived and race facts) for one game fingerprint, shared by every process of the user; newest 4 kept. Best effort: written after a full read, never required | A fresh Client sends the newest file's fingerprint; a match reads only the per-load part, a mismatch or an undecodable file (deleted) reads the game |
 | Refusal budget ledger (`policy.RefusalBudget.Entries`) | A planner's refusals by subject and reason, each with its class and the `GenerationSnapshot` it was met in. A pure value: the store that owns the subject persists it. Every planner that retries a refused write (medical, repair, clean, equip, mood, drill, clearance, husbandry, population, quest, ideology, ritual, shrine, permit, defense, firebreak, mine, sleeping, trade and psylink) derives its ledger from the refusals journaled on its plans each step and keeps nothing of its own | With its owner: Standards' and Projects' records follow the save, a session-scoped planner's ledger is derived and rebuilt |
 | `flight.jsonl` | All controller telemetry, one row per thing that happened ([flight rows](flight-rows.md), schema v2), the only log: always on for `serve`, nothing else is written to stderr but the startup banner, fatals and panics; snapshot dumps and the acceptance harness's replay transcript are opt-in recordings | Diagnostics only |
-| SQLite table `concern_transitions` (session journal) | Player-facing explanation history: one row per change of a concern's winning typed cause ([below](#concern_transitions)). Not telemetry, so it is not a flight row | Not restored; read by the launcher and the nightly `explain/every-concern` case |
+| SQLite table `concern_transitions` (session journal) | Player-facing explanation history: one row per change of a concern's winning typed cause ([below](#concern_transitions)). Not telemetry, so it is not a flight row | Not restored; read by the Grafana dashboards (snapshot copy) and the nightly `explain/every-concern` case |
 
 ### concern_transitions
 
@@ -30,9 +30,9 @@ The player-facing explanation history lives in the session SQLite store, not in
 telemetry (epic #2778, #2788). `recordPlannerReasons`
 (`buildingruntime/planner_reasons.go`) appends one row per change of a
 concern's winning typed cause, in the same step that files the goal's planner
-note; `store.RecordConcernTransitions` writes them and `store.ConcernTransitions` /
-`store.ReadConcernTransitions` (read-only handle, for a process that does not
-own the store) read them. The table is `concern_transitions` (schema version 211;
+note; `store.RecordConcernTransitions` writes them and `store.ConcernTransitions` reads them. The
+Grafana dashboards read the `--observe-snapshot` copy; the launcher's read-only
+reader was removed in #2803. The table is `concern_transitions` (schema version 211;
 a database of another version is moved aside, never migrated):
 
 | Column | Meaning |
@@ -55,12 +55,12 @@ also `NULL` when the game clock went backwards (a save load). No free text.
 Retention is a ring by count: each insert deletes rows more than
 `store.ConcernTransitionRetention` (8192) sequences behind the newest, in the same
 transaction. The history lasts as long as the `state-*.sqlite` file; a launch that
-continues a state keeps it, a fresh state starts empty. Readers: the launcher's
-Explain drill-down (`cmd/launcher/explaintail.go`, newest `state-*.sqlite`, read-only,
-opened per view and closed so the file can still be moved aside) and the nightly
-case `explain/every-concern` (#2702, through the case's own store handle). The
-Now and Problems pages read spectator and flight data, which carry no explanation
-rows.
+continues a state keeps it, a fresh state starts empty. Readers: the Grafana
+Now and Concern transitions dashboards (SQLite data source over the
+`--observe-snapshot` copy, read-only) and the nightly case
+`explain/every-concern` (#2702, through the case's own store handle). The
+Problems and Log dashboards read Loki rows and Prometheus metrics, which carry
+no explanation rows.
 
 The derived `rounds` payload records its last inspection scope (`Immediate`) and
 last full enabled inspection time (`OrdinaryTick`) separately from the latest

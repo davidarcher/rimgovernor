@@ -1,0 +1,544 @@
+{
+  "editable": false,
+  "links": [
+    {
+      "asDropdown": true,
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [
+        "rimgovernor"
+      ],
+      "title": "RimGovernor dashboards",
+      "type": "dashboards"
+    }
+  ],
+  "panels": [
+    {
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "content": "Replaces the launcher's Now tab. Sources: Loki (decision and event rows from `serve`, needs the launcher's telemetry toggle), Prometheus (OTLP metrics) and the `RimGovernor state` SQLite snapshot (`serve --observe-snapshot`, up to 5 s stale). Panel-to-source map: `tools/observability/dashboards/README.md`.",
+        "mode": "markdown"
+      },
+      "title": "About",
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "Source: Loki, the newest `rimgovernor.tick` (the last game tick the controller observed) in the dashboard range.",
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "none",
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 3
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "max(max_over_time({service_name=\"rimgovernor-serve\", service_instance_id=~\"$run\"} | unwrap rimgovernor_tick [$__range]))",
+          "instant": true,
+          "queryType": "instant",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Game tick",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Source: gauge rimgovernor.game.ticks_per_second (effective clock rate read by each step).",
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "none",
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 3
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "avg({__name__=~\"rimgovernor_game_ticks_per_second.*\"})",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Ticks per second now",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "rimgovernor-state"
+      },
+      "description": "Source: concern_transitions. Concerns whose latest transition carries a cause (refused or waiting).",
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 3
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "rimgovernor-state"
+          },
+          "queryText": "SELECT count(*) AS waiting FROM (SELECT t.concern, t.verdict, t.cause, t.subject, t.method, t.tick, datetime(t.wall_ms/1000, 'unixepoch') AS \"changed (UTC)\" FROM concern_transitions t JOIN (SELECT concern, max(sequence) AS s FROM concern_transitions GROUP BY concern) m ON t.sequence = m.s) WHERE cause <> ''",
+          "queryType": "table",
+          "rawQueryText": "SELECT count(*) AS waiting FROM (SELECT t.concern, t.verdict, t.cause, t.subject, t.method, t.tick, datetime(t.wall_ms/1000, 'unixepoch') AS \"changed (UTC)\" FROM concern_transitions t JOIN (SELECT concern, max(sequence) AS s FROM concern_transitions GROUP BY concern) m ON t.sequence = m.s) WHERE cause <> ''",
+          "refId": "A"
+        }
+      ],
+      "title": "Concerns waiting",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "rimgovernor-state"
+      },
+      "description": "Source: concern_transitions. Concerns whose latest transition cleared (admitted, nothing to do).",
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 3
+      },
+      "id": 5,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "rimgovernor-state"
+          },
+          "queryText": "SELECT count(*) AS progressing FROM (SELECT t.concern, t.verdict, t.cause, t.subject, t.method, t.tick, datetime(t.wall_ms/1000, 'unixepoch') AS \"changed (UTC)\" FROM concern_transitions t JOIN (SELECT concern, max(sequence) AS s FROM concern_transitions GROUP BY concern) m ON t.sequence = m.s) WHERE cause = ''",
+          "queryType": "table",
+          "rawQueryText": "SELECT count(*) AS progressing FROM (SELECT t.concern, t.verdict, t.cause, t.subject, t.method, t.tick, datetime(t.wall_ms/1000, 'unixepoch') AS \"changed (UTC)\" FROM concern_transitions t JOIN (SELECT concern, max(sequence) AS s FROM concern_transitions GROUP BY concern) m ON t.sequence = m.s) WHERE cause = ''",
+          "refId": "A"
+        }
+      ],
+      "title": "Concerns progressing",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "Source: Loki `colony_stage` rows: stage, since which tick, and what blocks the next stage.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 7
+      },
+      "id": 6,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "{service_name=\"rimgovernor-serve\", service_instance_id=~\"$run\"} | rimgovernor_kind=\"colony_stage\" | line_format \"tick={{.rimgovernor_tick}} stage {{.rimgovernor_attr_stage}} since tick {{.rimgovernor_attr_since}}; next stage waits on {{.rimgovernor_attr_blocker}} {{.rimgovernor_attr_reason}}\"",
+          "instant": false,
+          "maxLines": 20,
+          "queryType": "range",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Colony stage",
+      "type": "logs"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "Source: Loki `rounds_review` rows: revision, active concerns and the emergency in force (if any).",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 7
+      },
+      "id": 7,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "{service_name=\"rimgovernor-serve\", service_instance_id=~\"$run\"} | rimgovernor_kind=\"rounds_review\" | line_format \"tick={{.rimgovernor_tick}} revision {{.rimgovernor_attr_revision}} concerns {{.rimgovernor_attr_concerns}} emergency {{.rimgovernor_attr_emergency}} stage {{.rimgovernor_attr_stage}}\"",
+          "instant": false,
+          "maxLines": 20,
+          "queryType": "range",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Latest rounds review",
+      "type": "logs"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "rimgovernor-state"
+      },
+      "description": "Source: concern_transitions, the newest row per concern: what it is doing (verdict, method) and what holds it up (cause). Waiting concerns first.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
+      "id": 8,
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "rimgovernor-state"
+          },
+          "queryText": "SELECT t.concern, t.verdict, t.cause, t.subject, t.method, t.tick, datetime(t.wall_ms/1000, 'unixepoch') AS \"changed (UTC)\" FROM concern_transitions t JOIN (SELECT concern, max(sequence) AS s FROM concern_transitions GROUP BY concern) m ON t.sequence = m.s ORDER BY (t.cause <> '') DESC, t.wall_ms DESC",
+          "queryType": "table",
+          "rawQueryText": "SELECT t.concern, t.verdict, t.cause, t.subject, t.method, t.tick, datetime(t.wall_ms/1000, 'unixepoch') AS \"changed (UTC)\" FROM concern_transitions t JOIN (SELECT concern, max(sequence) AS s FROM concern_transitions GROUP BY concern) m ON t.sequence = m.s ORDER BY (t.cause <> '') DESC, t.wall_ms DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Concerns: current state",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "Source: Loki `clock_step` decision rows: step outcome, why a window was admitted or refused, the step cause and the window size.",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "id": 9,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "{service_name=\"rimgovernor-serve\", service_instance_id=~\"$run\"} | rimgovernor_kind=\"clock_step\" | line_format \"tick={{.rimgovernor_tick}} {{.rimgovernor_verdict}} {{.rimgovernor_reason}} cause={{.rimgovernor_target}} window_ticks={{.rimgovernor_attr_window_ticks}} stop={{.rimgovernor_attr_stop}} {{.rimgovernor_dur_ms}} ms\"",
+          "instant": false,
+          "maxLines": 30,
+          "queryType": "range",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Pace: newest clock steps",
+      "type": "logs"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "Source: Loki `clock_stop` event rows: the reason, evidence, whether the controller's own stop (`benign`) and the detect and stop legs in game ticks.",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "id": 10,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "{service_name=\"rimgovernor-serve\", service_instance_id=~\"$run\"} | rimgovernor_kind=\"clock_stop\" | line_format \"tick={{.rimgovernor_tick}} {{.rimgovernor_attr_reason}} ({{.rimgovernor_attr_evidence}}) benign={{.rimgovernor_attr_benign}} detect_ticks={{.rimgovernor_attr_detect_ticks}} stop_ticks={{.rimgovernor_attr_stop_ticks}}\"",
+          "instant": false,
+          "maxLines": 30,
+          "queryType": "range",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Last window stops",
+      "type": "logs"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "Source: Loki `clock_stop` rows counted by reason and benign flag over the dashboard range.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 33
+      },
+      "id": 11,
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "sum by (rimgovernor_attr_reason, rimgovernor_attr_benign) (count_over_time({service_name=\"rimgovernor-serve\", service_instance_id=~\"$run\"} | rimgovernor_kind=\"clock_stop\" [$__range]))",
+          "instant": true,
+          "queryType": "instant",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Window stops by reason",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value": "count",
+              "Value #A": "count"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "desc": true,
+                "field": "count"
+              }
+            ]
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "Source: Loki `authority` rows: native clock authority changed, lost or retaken, with the generation.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 33
+      },
+      "id": 12,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "{service_name=\"rimgovernor-serve\", service_instance_id=~\"$run\"} | rimgovernor_kind=\"authority\" | line_format \"tick={{.rimgovernor_tick}} {{.rimgovernor_attr_change}} {{.rimgovernor_attr_reason}} generation {{.rimgovernor_attr_generation}} paused={{.rimgovernor_attr_paused}} pace={{.rimgovernor_attr_pace}}\"",
+          "instant": false,
+          "maxLines": 20,
+          "queryType": "range",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Authority changes",
+      "type": "logs"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": [
+    "rimgovernor"
+  ],
+  "templating": {
+    "list": [
+      {
+        "allValue": ".+",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "includeAll": true,
+        "label": "Run",
+        "multi": false,
+        "name": "run",
+        "query": {
+          "label": "service_instance_id",
+          "refId": "LokiVariableQueryEditor-VariableQuery",
+          "stream": "{service_name=\"rimgovernor-serve\"}",
+          "type": 1
+        },
+        "refresh": 2,
+        "sort": 2,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "title": "RimGovernor: now",
+  "uid": "rg-now",
+  "version": 1
+}

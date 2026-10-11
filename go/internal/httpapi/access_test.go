@@ -68,7 +68,6 @@ func TestAccessDenylist(t *testing.T) {
 		kept         bool
 	}{
 		{"fast state poll dropped", ok, "GET", "/api/state", false},
-		{"spectator dropped", ok, "GET", "/api/spectator/now", false},
 		{"presentation dropped", ok, "GET", "/api/presentation/notifications", false},
 		{"poll error kept", fail, "GET", "/api/routines", true},
 		{"slow poll kept", slow, "GET", "/api/state", true},

@@ -4,9 +4,6 @@ cmd/colonyreview/report.go|Load|60000
 cmd/colonyreview/score.go|stageComponents|60000
 cmd/issue/main.go|main|25000
 cmd/launcher/app_windows.go|app.Write|3000
-cmd/launcher/now.go|-|2500
-cmd/launcher/now.go|-|60000
-cmd/launcher/serveclient.go|-|1500
 cmd/launcher/settings.go|ReloadSave|30000
 cmd/rimgovernor/serve_autosave.go|-|60000
 cmd/rimgovernor/serve_clock.go|-|1.8e+06

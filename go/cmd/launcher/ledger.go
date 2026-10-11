@@ -14,6 +14,43 @@ import (
 // the ledger is the controller's memory and the bot stays authoritative; the
 // tab has no control that changes it.
 
+// Feed says how current a panel is. Notice is empty for a fresh reading.
+type Feed struct {
+	HasValue  bool
+	Stale     bool
+	NotServed bool
+	Notice    string
+}
+
+func feedOf[T any](r Reading[T], what string) Feed {
+	f := Feed{HasValue: r.Value != nil, Stale: r.Stale, NotServed: r.NotServed}
+	switch {
+	case r.NotServed:
+		f.Notice = what + " is not served: the controller is in Observe mode, which serves no colony readings."
+	case r.Stale:
+		f.Notice = "Stale: the last good reading, from " + r.At.Format("15:04:05") + ". " + r.Error
+	case r.Value == nil && r.Error != "":
+		f.Notice = "Unavailable: " + r.Error
+	case r.Value == nil:
+		f.Notice = "Waiting for the controller."
+	}
+	return f
+}
+
+// group formats n with thousands separators.
+func group(n int64) string {
+	s := strconv.FormatInt(n, 10)
+	neg := strings.HasPrefix(s, "-")
+	s = strings.TrimPrefix(s, "-")
+	for i := len(s) - 3; i > 0; i -= 3 {
+		s = s[:i] + "," + s[i:]
+	}
+	if neg {
+		s = "-" + s
+	}
+	return s
+}
+
 // LedgerRow is one table row; Flag is "warn" for a row that needs a look.
 type LedgerRow struct {
 	Cells []string

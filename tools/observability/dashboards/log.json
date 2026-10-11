@@ -1,0 +1,263 @@
+{
+  "editable": false,
+  "links": [
+    {
+      "asDropdown": true,
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [
+        "rimgovernor"
+      ],
+      "title": "RimGovernor dashboards",
+      "type": "dashboards"
+    }
+  ],
+  "panels": [
+    {
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "content": "Replaces the launcher's Log tab: every decision and event row `serve` sends to Loki (the launcher's telemetry toggle must be on). Filter by Level, Kind (a regex on the row kind) and Search (a case-insensitive match on the printed line: kind, component, tick, verdict, reason, target, message and trace id). Expand a row for its other attributes. Panel-to-source map: `tools/observability/dashboards/README.md`.",
+        "mode": "markdown"
+      },
+      "title": "About",
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "Source: Loki rows matching the variables, counted per interval by kind.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 3
+      },
+      "id": 2,
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "sum by (rimgovernor_kind) (count_over_time({service_name=\"rimgovernor-serve\", service_instance_id=~\"$run\"} | severity_text=~\"${level:regex}\" | rimgovernor_kind=~\"$kind\" [$__interval]))",
+          "instant": false,
+          "queryType": "range",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Rows by kind",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "Source: Loki rows matching Level, Kind and Search, newest first (500 rows).",
+      "gridPos": {
+        "h": 16,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 3,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "{service_name=\"rimgovernor-serve\", service_instance_id=~\"$run\"} | severity_text=~\"${level:regex}\" | rimgovernor_kind=~\"$kind\" | line_format \"{{.rimgovernor_kind}} [{{.rimgovernor_component}}] tick={{.rimgovernor_tick}} {{.rimgovernor_verdict}} {{.rimgovernor_reason}} {{.rimgovernor_target}} {{__line__}} trace={{.trace_id}}\" |~ \"(?i)$search\"",
+          "instant": false,
+          "maxLines": 500,
+          "queryType": "range",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Log",
+      "type": "logs"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "Source: Loki rows of the kinds a player reads: combat summaries, defense actions, colony stage and tech tier changes, clock authority changes and native rule firings.",
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      },
+      "id": 4,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "{service_name=\"rimgovernor-serve\", service_instance_id=~\"$run\"} | rimgovernor_kind=~\"combat_summary|defense_action|colony_stage|tech_tier|authority|rule\" | line_format \"{{.rimgovernor_kind}} [{{.rimgovernor_component}}] tick={{.rimgovernor_tick}} {{.rimgovernor_verdict}} {{.rimgovernor_reason}} {{.rimgovernor_target}} {{__line__}}\"",
+          "instant": false,
+          "maxLines": 200,
+          "queryType": "range",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Player events",
+      "type": "logs"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": [
+    "rimgovernor"
+  ],
+  "templating": {
+    "list": [
+      {
+        "allValue": ".+",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "includeAll": true,
+        "label": "Run",
+        "multi": false,
+        "name": "run",
+        "query": {
+          "label": "service_instance_id",
+          "refId": "LokiVariableQueryEditor-VariableQuery",
+          "stream": "{service_name=\"rimgovernor-serve\"}",
+          "type": 1
+        },
+        "refresh": 2,
+        "sort": 2,
+        "type": "query"
+      },
+      {
+        "current": {
+          "text": [
+            "WARN",
+            "ERROR"
+          ],
+          "value": [
+            "WARN",
+            "ERROR"
+          ]
+        },
+        "includeAll": false,
+        "label": "Level",
+        "multi": true,
+        "name": "level",
+        "options": [
+          {
+            "selected": true,
+            "text": "WARN",
+            "value": "WARN"
+          },
+          {
+            "selected": true,
+            "text": "ERROR",
+            "value": "ERROR"
+          },
+          {
+            "selected": false,
+            "text": "INFO",
+            "value": "INFO"
+          }
+        ],
+        "query": "WARN,ERROR,INFO",
+        "type": "custom"
+      },
+      {
+        "current": {
+          "text": ".+",
+          "value": ".+"
+        },
+        "label": "Kind (regex)",
+        "name": "kind",
+        "options": [
+          {
+            "selected": true,
+            "text": ".+",
+            "value": ".+"
+          }
+        ],
+        "query": ".+",
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "label": "Search",
+        "name": "search",
+        "options": [
+          {
+            "selected": true,
+            "text": "",
+            "value": ""
+          }
+        ],
+        "query": "",
+        "type": "textbox"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "title": "RimGovernor: log",
+  "uid": "rg-log",
+  "version": 1
+}

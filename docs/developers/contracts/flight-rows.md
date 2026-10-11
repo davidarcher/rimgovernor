@@ -90,7 +90,7 @@ the first native protective effect.
 | Kind | Shape and fields |
 |---|---|
 | `rounds_review` | event row. `revision`, `previous_revision`, `concerns`, `emergency`, the stage and food attrs of `roundsStageAttrs` and `roundsFoodAttrs` |
-| `gear_search` (decision) | `verdict` `ok`, `reason` `best_found_within_budget`, `target` the pawn, level `WARN`; attr `budget_nodes` (`policy.GearSearchBudget`). One per pawn per rounds review whose loadout search spent its node budget and kept the best ensemble found. Reader: the launcher Problems and Log tabs (every WARN) and `rimgovernor log` |
+| `gear_search` (decision) | `verdict` `ok`, `reason` `best_found_within_budget`, `target` the pawn, level `WARN`; attr `budget_nodes` (`policy.GearSearchBudget`). One per pawn per rounds review whose loadout search spent its node budget and kept the best ensemble found. Reader: the Grafana Problems and Log dashboards (every WARN) and `rimgovernor log` |
 | `colony_stage` | event row. `stage`, `since`, `blocker`, `reason`, `held` |
 | `tech_tier` | event row. `tier`, `evidence` |
 | `layout_plan` (decision) | `verdict` `planned`/`replanned`/`claimed`/`refused` (`reason` `no_room`: a replan left rooms unplaced, attr `unplaced`, once per distinct set), `reason` replan reason, attrs `colonists`, `summary`, `claims`, and on a replan `tomb_short`; `skipped`/`no_core` when the survey holds no core; a suite-claims change is `claimed` with target `suites`. |
@@ -110,14 +110,14 @@ the first native protective effect.
 
 | Kind | Shape and fields |
 |---|---|
-| `http_access` | event row, one per HTTP request. `method`, `path`, `status`, `dur_ms`, `bytes`, `long_lived`; 2xx GETs of `/api/state`, `/api/spectator/now`, `/api/routines`, `/api/health` and `/api/presentation/*` under 250 ms are dropped; errors, slow calls and every non-GET are kept. Pprof rows are written at finish with `long_lived: true` (`dur_ms` is the capture, not latency). Written by `httpapi.Config.Access`; component `httpapi`; level `WARN` for a 5xx |
+| `http_access` | event row, one per HTTP request. `method`, `path`, `status`, `dur_ms`, `bytes`, `long_lived`; 2xx GETs of `/api/state`, `/api/routines`, `/api/ledger`, `/api/health` and `/api/presentation/*` under 250 ms are dropped; errors, slow calls and every non-GET are kept. Pprof rows are written at finish with `long_lived: true` (`dur_ms` is the capture, not latency). Written by `httpapi.Config.Access`; component `httpapi`; level `WARN` for a 5xx |
 | `fields_select` | decision, one per farm site-type selection (`RoundsFieldPlanner`). `target` the winning crop, `verdict` `selected`, `reason` the winning site kind (`outdoor`, `greenhouse-new`, `greenhouse-reuse`, `hydroponics`); attrs `cells`, `buildings`, `needed`, `urgent`, `candidates` (each `kind`, `crop`, `needed`, `cells`, `score`, `terms` {name: value}, `reason` for an unplantable one). Read by `nativeaccept/farmselect`. Component `clock-scheduler` |
 | `recovery_batch` | decision, one per clearance planner step with queued recovery removals (`RoundsClearancePlanner`); it journals the batch the planner executes. `target` `clearance`, `verdict` `planned`/`held`/`failed`, `reason` the stage (`roof`, `removal`, `none`, or `roof_rules` for a failed row); attrs `targets`, `roof_cells`, `batch` (load ids), `held` (each `id`, `reason` a `RemoteHoldReason` word), `blocker` (the first joint roof-check word), `error`. Component `clock-scheduler` |
 | `food_credit` | decision, one per ledger counter group when the credit factor moves by 0.1 or more or the group's state changes. `target` the group (`crop:<zone>`, `fish:<x,z>`, `forage:<def>`, `animal_product:<race>`), `verdict` `credited`, `reason` `window` (the trailing window moved it) or `rebaseline` (a load held it); attrs `expected`, `observed` (nutrition over the window), `factor`, `window_days`, `state` (`designated`, `delivering`). Component `routine`. Written by the food review (`rounds_food_plan.go`); `logview` prints the factor and state |
 | `mod_log` | event row for each `rimgovernor.log` event from the mod, written by `bridge/modlog.go`. Row context: `component` `mod`, the mod's `tick`, `at` (the mod's time, so a replayed line keeps it) and `trace_id`/`span_id` from the event's `trace` (a W3C `traceparent`, or the older `<trace_id>/<span_id>`: the controller span a main-thread hop carried); `level` `WARN`/`ERROR` for mod `warn`/`error`. Payload `seq` (mod ring order), `level`, `source` (the mod component, e.g. `watchdog`), `msg`, and when set `late` (written while nothing was subscribed, replayed on subscribe) and `suppressed` (lines the call site's rate limit dropped before this one). The C# helper is `RimGovernor.Host.Sdk.ModLog`: bounded ring of 512, 5 lines per call site per 10 s, reentrant writes dropped, never `Log.Error`, never blocks the game thread |
 | `build_stalled` | decision, level `WARN`, component `building-planner` (`rounds_room_stall.go`): a room whose blueprints or frames have stood unfinished for `roomBuildStallTicks` (30000), repeated every window while it lasts. `target` the room, `verdict` `waiting`, `reason` the most common census reason (`awaiting_materials`, `no_eligible_builder`, a native `FinishingBlocker` word, `unreported`); attrs `blueprints`, `frames`, `reasons` {reason: count}, `tiers` {tier: count}, `eligible_finishers`, `max_min_skill`, `stalled_ticks`, `sites` (up to 8 `<def>@<x>,<z>`), `obstructions` (`<op>:<def>(<count>)@<x>,<z>` for pending claim, cut and haul targets; with no site standing `reason` is `obstructed`). The room wait key meanwhile reads `<room>_reconcile:obstructed:<first obstruction>` or `<room>_reconcile:awaiting_build:<n>_blueprints,<n>_frames:<reason>`. Reader: `rimgovernor log` (`logview.Entry.Words`) and the launcher Log panel (WARN) |
 | `rule` | decision, one per native rule event ingested from the clock inbox (`clockPollEvents`, #2154). A firing: `verdict` `fired`, `reason` `prey_killed`, `target` the actor pawn; attrs `rule`, `target` (the prey), `params` (`job`, `radius`), `tick`, `cursor`. A lapsed lease: `verdict` `expired`, `reason` `lease_expired`, `target` `rules`; attrs `expires_at_tick`, `deactivated`, `cursor`. Reader: the launcher Log panel (`infoLogKinds`) and `rimgovernor log` |
-| `telemetry_drop` | event row, level `WARN`, component `otel`: the OTEL pipeline lost items (at most one per pipeline per 10 s). `signal` (`trace`/`log`/`metric`), `sink` (`file`/`collector`), `reason` (`queue_full`/`export_failed`), `dropped_since_last_warning`. The cumulative count is the `rimgovernor.telemetry.dropped` metric ([OTEL core](otel-core.md)). Reader: the launcher Problems and Log tabs (every WARN) and `rimgovernor log` |
+| `telemetry_drop` | event row, level `WARN`, component `otel`: the OTEL pipeline lost items (at most one per pipeline per 10 s). `signal` (`trace`/`log`/`metric`), `sink` (`file`/`collector`), `reason` (`queue_full`/`export_failed`), `dropped_since_last_warning`. The cumulative count is the `rimgovernor.telemetry.dropped` metric ([OTEL core](otel-core.md)). Reader: the Grafana Problems and Log dashboards (every WARN) and `rimgovernor log` |
 | `log_overflow` | event row, level `WARN`: one summary of dropped diagnostics. `dropped`, `side` `mod` (the mod's ring overflowed while nothing was subscribed or the publisher lagged; `seq` is where the lines were) or `controller` (the reader goroutine's hand-off queue of 1024 was full) |
 
 ### Session and reader events
@@ -183,15 +183,16 @@ While the readers still parse `flight.jsonl`, rows are written to both. The
 recorder write is behind `telemetry.SetLegacyRows` / `serve --legacy-flight-rows`
 (default on). The acceptance harness (#2789) has cut over: `nativeaccept.ServeArgs`
 passes `--legacy-flight-rows=false` and every oracle reads the log ring. The
-launcher, CLI, spectator and HTTP API readers (#2790) still read `flight.jsonl`
+CLI and HTTP API readers (#2790) still read `flight.jsonl`
 and turn the flag off when they cut over; Retire (#2793) deletes the flag, the
 recorder rows and the `trace_id` stamping. There is no permanent dual write.
 Never gate the OTEL write on it.
 
 ## Readers
 
-`rimgovernor log`, `phases` and `trace` (read from the OTLP rings), the launcher's Problems and Log tabs,
-spectator views and acceptance diagnostics consume these kinds.
+`rimgovernor log`, `phases` and `trace` (read from the OTLP rings), the Grafana
+Problems, Log and Now dashboards (Loki, [README](../../../tools/observability/dashboards/README.md))
+and acceptance diagnostics consume these kinds.
 `bridge.IsWorkerStep`, `bridge.IsWindowStop` and `bridge.StepFields` centralize
 clock/worker interpretation. Combat `clock_stop` rows carry `event`; ordinary
 stop-event rows do not. Acceptance readers use the case's OTLP log ring

@@ -138,9 +138,9 @@ Draft and undraft through the draft intent are covered by native acceptance `dra
 
 Read routes name the watched kind `concern` (a Concern id string such as `EnsureFoodSupply`):
 `GET /api/routines` carries `progress[].concern` and `noOps[].concern`;
-`GET /api/spectator/now` carries `concerns[]` with `concerns[].concern`. Other fields (`method`,
+Other fields (`method`,
 `expected`, `lastProgress`, `nextReview`, `blocked`, `cooldowns`, `prerequisite`, ...) are as named.
-`blocked` is a `policy.Cause` wire value (or `prerequisite:<concern>`); `subject` (`blockedSubject` on the spectator) is its optional bounded subject, and the client renders both through `policy.Wording`.
+`blocked` is a `policy.Cause` wire value (or `prerequisite:<concern>`); `subject` is its optional bounded subject, and the client renders both through `policy.Wording`.
 
 ## Finding value strings
 
@@ -149,7 +149,7 @@ Read routes name the watched kind `concern` (a Concern id string such as `Ensure
 | `domain.Finding` (Standard / Project `Finding`, disaster service `Need`, acceptance and colony-review `need` samples) | `unclear` / `unmet` / `met` |
 | `domain.Situation` (Incident bindings) | `unclear` / `active` / `clear` |
 
-The HTTP read routes (`/api/routines`, `/api/spectator/now`) carry no finding string; the values reach
+The HTTP read route `/api/routines` carries no finding string; the values reach
 clients through the colony-review timeline (`need` per concern) and the acceptance reports.
 
 ## New colony scenario parts

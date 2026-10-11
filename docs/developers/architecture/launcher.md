@@ -13,7 +13,6 @@ flowchart LR
     UI[Embedded WebView2 page] --> Bind[Go bindings and view models]
     Bind --> Client[ServeClient]
     Client --> API[Controller API]
-    Bind --> Flight[Local flight recorder]
     Bind --> Process[Build and process lifecycle]
 ```
 
@@ -23,31 +22,25 @@ retains its last good reading and marks failures stale. A 404 means the route
 is not served, as in Observe mode.
 
 Poll cadences live in the client. The page polls only its visible tab and skips
-a tick while a request is in flight.
+a tick while a request is in flight. The only controller feed is the work ledger.
 
 ## Views
 
 | Tab | Source and purpose |
 | --- | --- |
-| Launch | Launcher process/build state, saved games, settings and colony generation |
-| Now | `/api/state`, `/api/spectator/now` and `/api/routines`, composed into Doing, Pursuing, Concerns and Waiting |
+| Launch | Launcher process/build state, saved games, settings and colony generation; the Details log of build and start diagnostics; the observability stack toggle and dashboard links |
 | Ledger | `/api/ledger`: the work ledger's declared orders (owners, abstain reasons, journaled placement outcomes), orphans, unmet throughput and silver gap with dropped export candidates, read-only ([ledger.go](../../../go/cmd/launcher/ledger.go) builds the tables) |
 | Acceptance | Registered case list and one visible native run |
-| Problems | Local flight recorder, grouped and filtered |
-| Log | Current run's warnings, errors and selected informational events; build/start diagnostics |
 
-[now.go](../../../go/cmd/launcher/now.go) builds the report; the page does not
-rank Concerns or infer planner state. The Now tab's "Why is the bot doing
-this?" drill-down binds `getExplain`: [explainpage.go](../../../go/cmd/launcher/explainpage.go)
-turns the session store's `concern_transitions` timelines ([explaintail.go](../../../go/cmd/launcher/explaintail.go),
-read in-process and read-only, no HTTP route; [table](../contracts/persistence-contracts.md#concern_transitions)) into newest-first entries. Targets are concern
-ids or planner names; `plannerLabels` is the closed table naming the latter,
-and an unknown target prints as written. Spectator/routine reads use retained
-review data and issue no native calls.
-
-Problems refreshes asynchronously and retains its completed feed even after
-the controller exits. [logview](../../../go/internal/logview) collapses repeated
-events for Log. Telemetry remains local; it is not served through HTTP.
+The launcher is the control surface; Grafana is the observation surface. The
+Now, Explain, Problems and Log tabs were removed (#2803) and their questions
+moved to provisioned dashboards (tab-to-panel map in the
+[dashboards README](../../../tools/observability/dashboards/README.md)).
+While the stack is healthy the observability section shows one button per
+dashboard (`dashboardLinks` in [links.go](../../../go/cmd/launcher/links.go));
+`openLink` accepts only those exact URLs, the player guide and the Grafana root.
+While the stack is stopped it shows a one-line hint instead. The launcher no
+longer reads the flight recorder or the session store.
 
 ## Controls
 
@@ -91,5 +84,5 @@ page selects it in Saved game. Generation and cancellation behavior are in
 
 The recorder defaults to `<profile>/flight/flight.jsonl`, a 16 × 32 MiB ring.
 Observe mode places its recorder beside the state path; `--flight-recorder`
-overrides the location. Launcher and acceptance readers use
+overrides the location. Acceptance readers use
 `bridge.TimelineReader`; see [flight rows](../contracts/flight-rows.md).

@@ -72,6 +72,12 @@ func TestGrafanaDashboardsAreWellFormed(t *testing.T) {
 					}
 					continue
 				}
+				if tg.Source.Type == "loki" {
+					if !strings.Contains(tg.Expr, `service_name="rimgovernor-serve"`) {
+						t.Errorf("%s: panel %q: Loki target must select service_name=\"rimgovernor-serve\"", f, p.Title)
+					}
+					continue
+				}
 				for _, m := range name.FindAllString(tg.Expr, -1) {
 					if !known.MatchString(m) {
 						t.Errorf("%s: panel %q queries unknown metric %q", f, p.Title, m)

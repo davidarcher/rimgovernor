@@ -2,9 +2,9 @@
 
 Provisioned read-only into the `RimGovernor` folder by `../dashboards.yaml`
 (restart the `lgtm` service to pick up edits). Source instruments are defined in
-[OTEL metrics](../../../docs/developers/contracts/otel-metrics.md). All panels
-query the Prometheus data source (one panel excepted, below); no panel uses the Tempo or Loki data sources
-yet, except `concern-transitions.json` (SQLite, last section). Colony quality is deliberately not charted. The JSON files are checked by
+[OTEL metrics](../../../docs/developers/contracts/otel-metrics.md). The first
+three dashboards query Prometheus; the observation dashboards (last sections)
+also use Loki and SQLite. No panel uses Tempo. Colony quality is deliberately not charted. The JSON files are checked by
 `go/internal/telemetry/dashboards_test.go` (valid JSON, unique ids, known metric
 names, every panel listed here).
 
@@ -75,15 +75,102 @@ Variable `phase` (default `call`) is read from the `phase` label values.
 Quantiles are estimated from the explicit histogram buckets in the contract, so
 they are bucket-resolution values.
 
+## Observation dashboards (replaced the launcher tabs, #2803)
+
+Grafana is the read-only observation surface; the launcher only controls. These
+four dashboards answer what the launcher's Now, Explain, Problems and Log tabs
+answered. They need the launcher's telemetry toggle on (serve then sends OTLP
+logs to Loki and writes the 5 s `--observe-snapshot` copy). Every dashboard has
+a `Run` variable (Loki label `service_instance_id`, one launch of `serve`) and a
+`RimGovernor dashboards` link menu.
+
+| Launcher tab | Dashboard | uid |
+| --- | --- | --- |
+| Now | `now.json` | `rg-now` |
+| Explain | `concern-transitions.json` | `rg-concern-transitions` |
+| Problems | `problems.json` | `rg-problems` |
+| Log | `log.json` | `rg-log` |
+
+The launcher's observability section links to these by exact URL
+(`go/cmd/launcher/links.go`; a test ties each uid to a dashboard file).
+
+### Loki names (verified vs assumed)
+
+- Verified against a running `grafana/otel-lgtm:0.36.0` with synthetic OTLP
+  records: the index labels are only `service_name` and `service_instance_id`;
+  every other OTLP attribute is structured metadata with dots turned into
+  underscores (`rimgovernor.kind` is `rimgovernor_kind`) and is filtered after
+  the selector with `| name=...`. Body-less event rows print through
+  `line_format`. `label_values` does not list structured metadata, so the Log
+  dashboard's Kind is a regex textbox.
+- Verified: the SQLite data source reads the snapshot copy; the panel queries
+  returned rows for a hand-built snapshot.
+- Assumed, not verified: that the real controller's rows carry exactly the
+  attribute names in `docs/developers/contracts/flight-rows.md` (the panels use
+  `rimgovernor_kind`, `_component`, `_verdict`, `_reason`, `_target`, `_tick`),
+  and that the Prometheus panels render on real data. No real controller was
+  run against the stack for this change.
+
+### now.json: "RimGovernor: now"
+
+| Panel | Source |
+| --- | --- |
+| Game tick | Loki, newest `rimgovernor_tick` |
+| Ticks per second now | Prometheus `game.ticks_per_second` |
+| Concerns waiting | SQLite `concern_transitions`, latest row per concern that has a cause |
+| Concerns progressing | SQLite `concern_transitions`, latest row per concern without a cause |
+| Colony stage | Loki `colony_stage` rows |
+| Latest rounds review | Loki `rounds_review` rows |
+| Concerns: current state | SQLite `concern_transitions`, latest row per concern |
+| Pace: newest clock steps | Loki `clock_step` rows |
+| Last window stops | Loki `clock_stop` rows (reason, evidence, benign, detect and stop ticks) |
+| Window stops by reason | Loki `clock_stop` rows counted by reason |
+| Authority changes | Loki `authority` rows |
+
 ### concern-transitions.json: "RimGovernor: concern transitions"
 
 Queries the `RimGovernor state` SQLite data source (`../datasources.yaml`,
-plugin `frser-sqlite-datasource`), not Prometheus. It reads
-`<profile>/observe/current.sqlite`, the derived read-only copy of the session
-store that `serve --observe-snapshot` rewrites every 5 s (the launcher passes the
-flag when the telemetry toggle is on). It is empty until a controller has run
-with the flag, and the plugin installs a short while after Grafana reports up.
+plugin `frser-sqlite-datasource`). It reads `<profile>/observe/current.sqlite`,
+the derived read-only copy of the session store that `serve --observe-snapshot`
+rewrites every 5 s. It is empty until a controller has run with the flag, and
+the plugin installs a short while after Grafana reports up. Variable `concern`
+filters the timeline. Times are UTC (the plugin container has no local zone).
 
-| Panel | Source table |
+| Panel | Source |
 | --- | --- |
+| Concern timeline | `concern_transitions`, every change of the selected concern |
+| Concerns by latest change | `concern_transitions`, newest row per concern |
 | Concern transitions by cause | `concern_transitions` grouped by concern, verdict and cause |
+
+### problems.json: "RimGovernor: problems"
+
+| Panel | Source |
+| --- | --- |
+| WARN rows | Loki, WARN row count over the range |
+| ERROR rows | Loki, ERROR row count over the range |
+| Native errors | Prometheus `native.calls`, `outcome=error` |
+| Native calls | Prometheus `native.calls` |
+| Native calls per scheduler step | Prometheus `native.calls` over the `scheduler.step.duration` count |
+| WARN and ERROR rows by kind | Loki, WARN and ERROR counts by kind |
+| Problem rows collapsed | Loki, WARN and ERROR rows grouped by kind, component, verdict, reason and target |
+| WARN and ERROR rows | Loki, the rows themselves |
+| Refusals | Loki, rows with `verdict=refused` |
+| Authority changes | Loki `authority` rows |
+
+### log.json: "RimGovernor: log"
+
+Variables: `Level` (default WARN and ERROR), `Kind` (regex), `Search`
+(case-insensitive match on the printed line).
+
+| Panel | Source |
+| --- | --- |
+| Rows by kind | Loki, row counts by kind for the selected filters |
+| Log | Loki, every decision and event row, filtered |
+| Player events | Loki, `combat_summary`, `defense_action`, `colony_stage`, `tech_tier`, `authority` and `rule` rows |
+
+### Not carried over
+
+The old tabs also showed a few things these dashboards do not answer: the
+resource deficit percentage and the review deadline on Now, the cache hit ratio
+on Problems, and the plain-English wording of each cause on Explain (the
+dashboards show the cause identifier).

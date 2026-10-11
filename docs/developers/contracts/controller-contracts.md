@@ -92,8 +92,8 @@ Stable and 2x at Development. A Foothold colony with shelter unmet promotes shel
 planning into the critical planner wave. The stage
 adds no action kind; the `rounds_review` timeline event carries
 `stage`/`stage_blocker`/`stage_reason`/`stage_held` and `colony_stage` records each
-change. `GET /api/spectator/now` (a pure read: no journal row, no speed request) adds
-the pacing reason, effective TPS and last clock-stop latency split.
+change. The `clock_step` row carries
+the pacing reason, effective TPS and last clock-stop latency split (shown by the Grafana Now dashboard).
 
 ## Method compilation and work allocation
 

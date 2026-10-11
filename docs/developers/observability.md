@@ -37,11 +37,27 @@ ready.
 | Grafana | `http://127.0.0.1:3000` (default login `admin` / `admin`) |
 | Data | named volume `lgtm-data`, mounted at `/data`; survives `down` |
 | Dashboards | JSON files in `tools/observability/dashboards/` (panel list: its README) are provisioned read-only into the `RimGovernor` folder by `dashboards.yaml`; restart the service to pick up new files |
-
 | SQLite data source | plugin `frser-sqlite-datasource@4.0.6` (`GF_PLUGINS_PREINSTALL`), data source uid `rimgovernor-state` provisioned from `datasources.yaml`, reading `/rimgovernor-state/current.sqlite` with `immutable=1` |
 | Snapshot mount | host `<profile>/observe` (default `../../.rimgovernor/go/profile/observe` relative to the compose file; override with `RIMGOVERNOR_OBSERVE_DIR`) mounted read-only at `/rimgovernor-state` |
 
 Ports bind to loopback only.
+
+## Observation dashboards replace the launcher tabs
+
+Grafana is the read-only observation surface; the launcher is control only
+(#2803). The launcher's former Now, Explain, Problems and Log tabs are the
+dashboards `rg-now`, `rg-concern-transitions`, `rg-problems` and `rg-log`; the
+tab-to-panel map and which Loki and Prometheus names were verified is in the
+[dashboards README](../../tools/observability/dashboards/README.md). Their
+sources are Loki (decision and event rows, which `serve` exports as OTLP logs),
+Prometheus (native call and pace instruments) and the SQLite snapshot
+(`concern_transitions`). They are empty until `serve` runs with the telemetry
+toggle on. The launcher's Observability section links to them by exact URL
+(`go/cmd/launcher/links.go`) and shows a one-line hint while the stack is down.
+
+Loki detail: only `service_name` and `service_instance_id` are index labels;
+the other OTLP attributes are structured metadata named with underscores
+(`rimgovernor_kind`) and are filtered with `| name=...` after the selector.
 
 ## SQLite panels
 

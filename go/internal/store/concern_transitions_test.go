@@ -2,8 +2,6 @@ package store
 
 import (
 	"context"
-	"errors"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -37,15 +35,6 @@ func TestConcernTransitionsRoundTripAndRetention(t *testing.T) {
 	}
 	if got[0].Sequence >= got[1].Sequence {
 		t.Fatalf("sequence not increasing: %+v", got)
-	}
-
-	// A process that does not own the store reads the same rows read-only.
-	ro, err := ReadConcernTransitions(ctx, path)
-	if err != nil || len(ro) != 2 || ro[1].Sequence != got[1].Sequence {
-		t.Fatalf("read-only %+v err %v", ro, err)
-	}
-	if _, err = ReadConcernTransitions(ctx, filepath.Join(t.TempDir(), "absent.sqlite")); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("absent store: %v", err)
 	}
 
 	bad := first

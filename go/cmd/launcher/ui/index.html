@@ -89,24 +89,12 @@
   .tabs button { background: transparent; border: none; border-bottom: 2px solid transparent; border-radius: 0; color: var(--muted); }
   .tabs button[aria-selected=true] { color: var(--text); border-bottom-color: var(--accent); }
   .view[hidden], #view-launch[hidden] { display: none; }
-  .health { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
-  .health div { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
-  .health b { display: block; font-size: 16px; font-weight: 600; }
-  .health small { color: var(--muted); font-size: 12px; }
-  .health .bad b { color: var(--bad); }
   .pbbar { display: flex; gap: 6px; margin-bottom: 8px; }
   .pbbar input { flex: 1; width: auto; min-width: 0; user-select: text; }
-  .kinds { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 8px; font-size: 12px; color: var(--muted); }
-  .kinds label { display: inline-flex; align-items: center; gap: 4px; }
-  .kinds input { width: 13px; height: 13px; }
   .pbstatus { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
-  #pbList { max-height: none; }
-  .ev.problem .dot { background: var(--bad); }
   .ev .dot { background: var(--muted); }
   .ev.open .evhead .msg { white-space: normal; }
   a { color: var(--accent); }
-  .nowhead { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 8px; color: var(--muted); }
-  .nowhead b { color: var(--text); font-weight: 600; }
   .nowsec { margin-top: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; user-select: text; }
   .nowsec h2 { font-size: 15px; margin: 14px 0 6px; }
   .nowsec p.nowline { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
@@ -179,33 +167,9 @@
 
   <nav class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-launch" data-tab="launch" aria-selected="true">Launch</button>
-    <button role="tab" id="tab-now" data-tab="now" aria-selected="false">Now</button>
     <button role="tab" id="tab-ledger" data-tab="ledger" aria-selected="false">Ledger</button>
     <button role="tab" id="tab-acceptance" data-tab="acceptance" aria-selected="false">Acceptance</button>
-    <button role="tab" id="tab-problems" data-tab="problems" aria-selected="false">Problems</button>
-    <button role="tab" id="tab-log" data-tab="log" aria-selected="false">Log</button>
   </nav>
-  <div class="view" id="view-now" role="tabpanel" aria-labelledby="tab-now" hidden>
-    <div class="nowhead" id="nowHeader" aria-label="Connection"></div>
-    <div class="nownotice" id="nowHeaderNote" role="status" hidden></div>
-    <section class="nowsec" aria-label="Colony report">
-      <div class="nownotice" id="nowNote" role="status" hidden></div>
-      <div id="nowBody" hidden>
-        <p class="nowline" id="nowHeadline"></p>
-        <div id="nowSections"></div>
-      </div>
-    </section>
-    <section class="nowsec" aria-label="Why the bot did what it did">
-      <h2 style="margin-top:0">Why is the bot doing this?</h2>
-      <div class="nownotice" id="exNote" role="status" hidden></div>
-      <div id="exBody" hidden>
-        <label for="exSel">Pick a concern</label>
-        <select id="exSel"></select>
-        <p class="nowline" id="exCurrent"></p>
-        <div id="exTimeline"></div>
-      </div>
-    </section>
-  </div>
   <div class="view" id="view-ledger" role="tabpanel" aria-labelledby="tab-ledger" hidden>
     <section class="nowsec" aria-label="Work ledger">
       <div class="nownotice" id="ledNote" role="status" hidden></div>
@@ -234,40 +198,6 @@
       <div class="evlist" id="acList"></div>
     </section>
   </div>
-  <div class="view" id="view-problems" role="tabpanel" aria-labelledby="tab-problems" hidden>
-    <div class="evempty" id="pbEmpty" hidden></div>
-    <div id="pbBody" hidden>
-      <div class="health" id="pbHealth" aria-label="Health"></div>
-      <div class="pbbar">
-        <input type="text" id="pbNeedle" placeholder="Filter: goal, plan, action or trace id" spellcheck="false">
-        <button id="pbCopyShown" title="Copy the rows shown">Copy shown</button>
-        <button id="pbCopyAll" title="Copy every problem row">Copy problems</button>
-      </div>
-      <div class="kinds" id="pbKinds" aria-label="Kinds"></div>
-      <div class="pbstatus" id="pbStatus" role="status"></div>
-      <div class="evlist" id="pbList"></div>
-    </div>
-    <p class="note">The controller's own log and the build output are on the <a href="#" id="toLog">Log tab</a>.</p>
-  </div>
-
-  <div class="view" id="view-log" role="tabpanel" aria-labelledby="tab-log" hidden>
-  <section class="events" id="events" aria-label="Log">
-    <div class="evbar">
-      <h2>Log</h2>
-      <span class="seg" role="radiogroup" aria-label="Show">
-        <input type="radio" name="evshow" id="showProblems" value="problems" checked><label for="showProblems">Problems</label>
-        <input type="radio" name="evshow" id="showAll" value="all"><label for="showAll">Events too</label>
-      </span>
-      <button id="copyProblems" title="Copy every problem to the clipboard">Copy problems</button>
-    </div>
-    <div class="evlist" id="evlist"></div>
-  </section>
-  <details class="log" id="logbox" open>
-    <summary>Details</summary>
-    <pre id="log"></pre>
-  </details>
-  </div>
-
   <div id="view-launch" role="tabpanel" aria-labelledby="tab-launch">
   <div class="hero">
     <p class="headline" id="headline" aria-live="polite">Getting ready</p>
@@ -286,14 +216,19 @@
     <ul class="status" id="status" aria-label="Components"></ul>
     <section class="obs" aria-label="Observability">
       <h2>Observability <span class="pbstatus" id="obsState"></span></h2>
-      <p class="note">Optional local Grafana stack (needs Docker). Turn on "Send telemetry to local collector" in Settings to feed it on the next Play.</p>
+      <p class="note" id="obsHint">What the bot is doing, why, its problems and its log are read in Grafana (needs Docker): press Start, and turn on "Send telemetry to local collector" in Settings before Play.</p>
       <div class="secondary">
         <button id="obsStart">Start</button>
         <button id="obsStop">Stop</button>
         <button id="obsOpen">Open Grafana</button>
       </div>
+      <div class="secondary" id="obsLinks" hidden></div>
       <div class="alert" id="obsProblem" role="alert" hidden></div>
     </section>
+    <details class="log" id="logbox" open>
+      <summary>Details</summary>
+      <pre id="log"></pre>
+    </details>
     <p class="note">Player guide: <a id="guideLink" href="https://github.com/davidarcher/rimgovernor/blob/main/docs/players/README.md">https://github.com/davidarcher/rimgovernor/blob/main/docs/players/README.md</a> (or <code>docs/players/README.md</code> in this checkout)</p>
   </div>
 
@@ -485,9 +420,21 @@ async function refreshObs() {
   $('obsStart').disabled = o.state !== 'stopped';
   $('obsStop').disabled = o.state === 'stopped';
   $('obsOpen').disabled = o.state !== 'healthy';
+  // Observation lives in Grafana: the deep links show while it answers,
+  // the one-line hint while it does not.
+  const up = o.state === 'healthy';
+  $('obsHint').hidden = up;
+  $('obsLinks').hidden = !up;
+  if (up && !$('obsLinks').children.length) {
+    $('obsLinks').innerHTML = o.dashboards.map(d => `<button data-url="${esc(d.url)}">${esc(d.name)}</button>`).join('');
+  }
   $('obsProblem').hidden = !o.problem;
   $('obsProblem').textContent = o.problem;
 }
+$('obsLinks').onclick = e => {
+  const url = e.target.dataset && e.target.dataset.url;
+  if (url) openLink(url).catch(() => {});
+};
 $('obsStart').onclick = () => { startObservability(); setTimeout(refreshObs, 300); };
 $('obsStop').onclick = () => { stopObservability(); setTimeout(refreshObs, 300); };
 $('obsOpen').onclick = () => openLink('http://localhost:3000').catch(() => {});
@@ -505,147 +452,10 @@ $('stop').onclick = () => act(stopController);
 $('guideLink').addEventListener('click', e => { e.preventDefault(); openLink(e.currentTarget.href).catch(() => {}); });
 $('closeGame').onclick = () => act(closeGame);
 
-let events = [], openRows = new Set();
-function showing() { return events.filter(r => r.Problem || $('showAll').checked); }
-function rowKey(r) { return r.Level + '|' + r.Component + '|' + r.FirstTime; }
-function renderEvents() {
-  const rows = showing();
-  const list = $('evlist');
-  if (!rows.length) { list.innerHTML = '<div class="evempty">Nothing to report.</div>'; return; }
-  list.innerHTML = rows.map((r, i) => {
-    const k = rowKey(r), range = r.Count > 1 ? r.FirstTime + ' .. ' + r.LastTime : r.FirstTime;
-    return '<div class="ev ' + esc(r.Level) + (openRows.has(k) ? ' open' : '') + '" data-i="' + i + '" data-k="' + esc(k) + '">' +
-      '<div class="evhead"><span class="dot" aria-hidden="true"></span><span class="badge">' + (r.Count > 1 ? '&times;' + r.Count : '') + '</span>' +
-      '<span class="msg">[' + esc(r.Component) + '] ' + esc(r.Message) + '</span><button class="copy" data-copy="' + i + '">Copy</button></div>' +
-      '<div class="evmeta">' + esc(r.Level) + ' &middot; ' + esc(range) + ' &middot; tick ' + r.FirstTick + (r.Count > 1 ? '..' + r.LastTick : '') + '</div>' +
-      '<pre class="evdetail">' + esc(r.Detail) + '</pre></div>';
-  }).join('');
-}
-async function pollEvents() {
-  if ($('view-log').hidden) return;
-  try { events = await getEvents(); } catch (e) { return; }
-  const list = $('evlist'), top = list.scrollTop;
-  renderEvents();
-  list.scrollTop = top;
-}
-function copyText(text) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    return navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
-  }
-  return fallbackCopy(text);
-}
-function fallbackCopy(text) {
-  const t = document.createElement('textarea');
-  t.value = text; document.body.appendChild(t); t.select();
-  try { document.execCommand('copy'); } finally { t.remove(); }
-}
-function flash(btn, text) {
-  const old = btn.textContent; btn.textContent = text;
-  setTimeout(() => { btn.textContent = old; }, 900);
-}
-$('evlist').addEventListener('click', e => {
-  const copy = e.target.closest('[data-copy]');
-  if (copy) {
-    e.stopPropagation();
-    copyText(showing()[Number(copy.dataset.copy)].Text);
-    flash(copy, 'Copied');
-    return;
-  }
-  const row = e.target.closest('.ev');
-  if (row) { row.classList.toggle('open'); (row.classList.contains('open') ? openRows.add(row.dataset.k) : openRows.delete(row.dataset.k)); }
-});
-$('copyProblems').onclick = () => {
-  const text = events.filter(r => r.Problem).map(r => r.Text).join('\n\n');
-  copyText(text || 'No problems.');
-  flash($('copyProblems'), 'Copied');
-};
-document.querySelectorAll('input[name=evshow]').forEach(i => i.onchange = renderEvents);
-document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', pollEvents));
-setInterval(pollEvents, 1500);
-
-// Problems tab: the flight recorder, read by the launcher itself.
-let pbHidden = new Set(), pbShown = [], pbKindsKey = '', pbOpen = new Set();
-const num = (v, d = 1) => Number.isFinite(v) ? (Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(d)) : '-';
-function renderHealth(h) {
-  if (!h.Known) { $('pbHealth').innerHTML = ''; return; }
-  const cell = (label, value, note, bad) => `<div class="${bad ? 'bad' : ''}"><small>${esc(label)}</small><b>${esc(value)}</b><small>${esc(note || '')}</small></div>`;
-  $('pbHealth').innerHTML =
-    cell('Tick', h.HasTick ? h.Tick.toLocaleString() : '-', num(h.TPS) + ' TPS') +
-    cell('Last step', num(h.LastStepMs) + ' ms', '') +
-    cell('Native errors', String(h.NativeErrors), 'of ' + h.NativeCalls + ' calls', h.NativeErrors > 0) +
-    cell('Reads per step', num(h.ReadsPerStep, 2), 'cache hit ' + num(h.CacheHitRatio * 100) + '%') +
-    cell('Authority', h.Authority || 'none seen', 'run ' + (h.Run || '').slice(0, 8));
-}
-function renderKinds(v) {
-  const key = v.Kinds.map(k => k.Kind + k.Count).join(',') + '|' + [...pbHidden].join(',');
-  if (key === pbKindsKey) return;
-  pbKindsKey = key;
-  $('pbKinds').innerHTML = v.Kinds.map(k =>
-    `<label><input type="checkbox" data-kind="${esc(k.Kind)}"${pbHidden.has(k.Kind) ? '' : ' checked'}>${esc(k.Kind)} <small>${k.Count}</small></label>`).join('');
-}
-function rowKey2(e) { return e.Seq + '|' + e.Kind; }
-async function pollProblems() {
-  if ($('view-problems').hidden) return;
-  let v;
-  try { v = await getProblems([...pbHidden], $('pbNeedle').value); } catch (e) { return; }
-  $('pbEmpty').hidden = v.Available;
-  $('pbBody').hidden = !v.Available;
-  if (!v.Available) { $('pbEmpty').textContent = v.Empty; return; }
-  renderHealth(v.Health);
-  renderKinds(v);
-  pbShown = v.Events;
-  $('pbStatus').textContent = v.Rows.toLocaleString() + ' rows held, ' + pbShown.length + ' shown' + (pbShown.length >= 200 ? ' (newest 200; narrow the filter for older ones)' : '');
-  const list = $('pbList'), top = list.scrollTop;
-  list.innerHTML = pbShown.length ? pbShown.map((e, i) => {
-    const k = rowKey2(e);
-    return `<div class="ev${e.Problem ? ' problem' : ''}${pbOpen.has(k) ? ' open' : ''}" data-k="${esc(k)}">` +
-      `<div class="evhead"><span class="dot" aria-hidden="true"></span><span class="badge">${e.Seq || '-'}</span>` +
-      `<span class="msg"><code>${esc(e.Kind)}</code> ${esc(e.Summary)}</span><button class="copy" data-copy="${i}">Copy</button></div>` +
-      `<div class="evmeta">${e.HasTick ? 'tick ' + e.Tick.toLocaleString() : 'no tick'}${e.Trace ? ' &middot; trace ' + esc(e.Trace) : ''}</div>` +
-      `<pre class="evdetail">${esc(e.Text)}</pre></div>`;
-  }).join('') : '<div class="evempty">No rows match.</div>';
-  list.scrollTop = top;
-}
-$('pbKinds').addEventListener('change', e => {
-  const k = e.target.dataset.kind;
-  if (k === undefined) return;
-  if (e.target.checked) pbHidden.delete(k); else pbHidden.add(k);
-  pollProblems();
-});
-$('pbNeedle').addEventListener('input', pollProblems);
-$('pbList').addEventListener('click', e => {
-  const copy = e.target.closest('[data-copy]');
-  if (copy) { e.stopPropagation(); copyText(pbShown[Number(copy.dataset.copy)].Text); flash(copy, 'Copied'); return; }
-  const row = e.target.closest('.ev');
-  if (row) { row.classList.toggle('open'); (row.classList.contains('open') ? pbOpen.add(row.dataset.k) : pbOpen.delete(row.dataset.k)); }
-});
-$('pbCopyShown').onclick = () => { copyText(pbShown.map(e => e.Text).join('\n\n') || 'No rows.'); flash($('pbCopyShown'), 'Copied'); };
-$('pbCopyAll').onclick = async () => { copyText((await allProblems()) || 'No problems.'); flash($('pbCopyAll'), 'Copied'); };
-$('toLog').onclick = e => { e.preventDefault(); $('tab-log').click(); };
-document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', pollProblems));
-setInterval(pollProblems, 1500);
-// Now tab: the header and the report poll their own Binds at the
-// serve client's cadences while the tab is showing. A call still in flight skips the tick.
+// A tab polls its own Bind while it shows; a call still in flight skips the tick.
 function setNote(id, f) {
   $(id).hidden = !f.Notice;
   $(id).textContent = f.Notice || '';
-}
-async function pollNowHeader() {
-  const h = await getNowHeader();
-  setNote('nowHeaderNote', h);
-  $('nowHeader').innerHTML = h.HasValue
-    ? [h.Connection, h.Tick ? 'tick ' + h.Tick : '', h.Paused, h.Colony, h.Mode].filter(Boolean).map(s => `<span>${esc(s)}</span>`).join('')
-    : '';
-}
-async function pollNowReport() {
-  const r = await getNowReport();
-  setNote('nowNote', r);
-  $('nowBody').hidden = !r.HasValue;
-  if (!r.HasValue) return;
-  $('nowHeadline').textContent = r.Headline;
-  $('nowSections').innerHTML = r.Sections.map(s =>
-    `<h2>${esc(s.Title)}</h2>` + (s.Note ? `<div class="nownotice">${esc(s.Note)}</div>` : '') +
-    s.Lines.map(l => `<p class="${esc(l.Flag)}">${esc(l.Text)}</p>`).join('')).join('');
 }
 function everyWhile(viewId, poll, ms) {
   let busy = false;
@@ -657,30 +467,6 @@ function everyWhile(viewId, poll, ms) {
   setInterval(run, ms);
   document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', run));
 }
-everyWhile('view-now', pollNowHeader, 1500);
-everyWhile('view-now', pollNowReport, 3000);
-// Per-concern drill-down: newest first, plain language as the Go side wrote it.
-let exChosen = '';
-async function pollExplain() {
-  const p = await getExplain(exChosen);
-  $('exNote').hidden = p.Available;
-  $('exNote').textContent = p.Available ? '' : p.Notice;
-  $('exBody').hidden = !p.Available;
-  if (!p.Available) return;
-  if (!p.Concerns.some(c => c.ID === exChosen)) exChosen = p.Concerns[0].ID;
-  if (!p.Selected || p.Selected.ID !== exChosen) return pollExplain();
-  const sel = $('exSel');
-  sel.innerHTML = p.Concerns.map(c => `<option value="${esc(c.ID)}">${esc(c.Label)} (${esc(c.When)})</option>`).join('');
-  sel.value = exChosen;
-  $('exCurrent').textContent = p.Selected.Label + ': ' + p.Selected.Current;
-  $('exTimeline').innerHTML = p.Selected.Entries.map(e =>
-    `<p><b>${esc(e.When)}</b>${e.Tick ? ' (tick ' + esc(e.Tick) + ')' : ''} ${esc(e.Text)}` +
-    (e.Before ? `<br><span class="muted">Before: ${esc(e.Before)}${e.Held ? ' (' + esc(e.Held) + ')' : ''}</span>` : '') +
-    (e.Method ? `<br><span class="muted">${esc(e.Method)}</span>` : '') + '</p>').join('');
-}
-$('exSel').onchange = () => { exChosen = $('exSel').value; pollExplain(); };
-everyWhile('view-now', pollExplain, 3000);
-
 // Ledger tab: the work ledger's tables, read-only, as the Go side built them.
 async function pollLedger() {
   const l = await getLedger();

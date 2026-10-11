@@ -12,24 +12,17 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/spectator"
 )
 
-// The launcher's client for serve's read API. The page never
+// The launcher's client for serve's read API; today only the work ledger
+// (the one observation view without a Grafana equivalent). The page never
 // fetches serve itself (its SetHtml origin is opaque and serve rejects a
-// foreign Origin), so the views read these Readings through Bind. Each feed
+// foreign Origin), so the view reads this Reading through Bind. The feed
 // keeps its last good value: a failed refresh returns that value marked
 // stale with the error, and a 404 is "not served" (Observe mode serves no
-// routines, spectator or player routes), not an error.
+// ledger), not an error.
 
-// The views drive the fetch methods at these.
 const (
-	StateEvery    = 1500 * time.Millisecond
-	NowEvery      = 2 * time.Second
-	RoutinesEvery = 3 * time.Second
-	ClockEvery    = 3 * time.Second
-	ControlEvery  = 1500 * time.Millisecond
-
 	serveRequestTimeout = 5 * time.Second
 	serveBodyLimit      = 4 << 20
 )
@@ -46,20 +39,6 @@ type Reading[T any] struct {
 	At        time.Time `json:"at"`
 }
 
-// RoundsView is the report's review tick, emergency needs and progress.
-type RoundsView struct {
-	Tick      *int64         `json:"lastReviewTick"`
-	Emergency []string       `json:"emergency"`
-	Progress  []ConcernBlock `json:"progress"`
-}
-
-// ConcernBlock is a concern's blocked-by reason, empty when not blocked.
-type ConcernBlock struct {
-	Concern string `json:"concern"`
-	Blocked string `json:"blocked"`
-	Subject string `json:"subject,omitempty"`
-}
-
 // feed holds one endpoint's last good value behind its own lock, so a slow
 // feed never blocks another.
 type feed[T any] struct {
@@ -71,35 +50,20 @@ type feed[T any] struct {
 // ServeClient reads serve's API at the controller URL base returns (the
 // launcher passes app.activePort). It is safe for concurrent use.
 type ServeClient struct {
-	base     func() string
-	http     *http.Client
-	state    feed[httpapi.State]
-	now      feed[spectator.Now]
-	routines feed[RoundsView]
-	ledger   feed[policy.LedgerView]
+	base   func() string
+	http   *http.Client
+	ledger feed[policy.LedgerView]
 }
 
 func NewServeClient(base func() string) *ServeClient {
 	c := &ServeClient{base: base, http: &http.Client{Timeout: serveRequestTimeout}}
-	c.state.path = "/api/state"
-	c.now.path = "/api/spectator/now"
-	c.routines.path = "/api/routines"
 	c.ledger.path = "/api/ledger"
 	return c
 }
 
-// Each method fetches its endpoint once and returns the feed's Reading.
-func (c *ServeClient) State(ctx context.Context) Reading[httpapi.State] {
-	return refresh(ctx, c, &c.state)
-}
-func (c *ServeClient) Now(ctx context.Context) Reading[spectator.Now] {
-	return refresh(ctx, c, &c.now)
-}
+// Ledger fetches the work ledger once and returns the feed's Reading.
 func (c *ServeClient) Ledger(ctx context.Context) Reading[policy.LedgerView] {
 	return refresh(ctx, c, &c.ledger)
-}
-func (c *ServeClient) Routines(ctx context.Context) Reading[RoundsView] {
-	return refresh(ctx, c, &c.routines)
 }
 
 func refresh[T any](ctx context.Context, c *ServeClient, f *feed[T]) Reading[T] {

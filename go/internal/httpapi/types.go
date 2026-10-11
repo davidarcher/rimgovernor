@@ -56,8 +56,8 @@ type Config struct {
 	// Pprof mounts net/http/pprof under /debug/pprof/ (see pprof.go); off,
 	// the routes answer 404.
 	Pprof bool
-	// FlightRecorder is the absolute path of the flight-recorder ring the
-	// spectator route reads; empty, the route projects no rows.
+	// FlightRecorder is unused: the spectator route that read this ring was removed
+	// with the launcher tabs (#2803); delete it with its serve wiring.
 	FlightRecorder string
 	// Access, when set, receives one http_access row per request (access.go);
 	// nil records nothing.

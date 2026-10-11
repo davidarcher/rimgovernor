@@ -78,7 +78,6 @@ func main() {
 		fatal("Could not open a WebView2 window. Install the Microsoft Edge WebView2 Runtime and try again.")
 	}
 	defer w.Destroy()
-	problems := newProblemsRefresh(a.recorder)
 	for name, f := range map[string]any{
 		"getState":           a.view,
 		"saveSettings":       a.saveSettings,
@@ -87,9 +86,6 @@ func main() {
 		"stopController":     func() { go a.stop() },
 		"restart":            func() { go a.restart() },
 		"closeGame":          func() { go a.closeGame() },
-		"getEvents":          a.tail.rows,
-		"getProblems":        problems.poll,
-		"allProblems":        problems.allProblems,
 		"getNewColony":       a.colony.View,
 		"generateNewColony":  a.colony.Generate,
 		"cancelNewColony":    func() { go a.colony.Cancel() },
@@ -106,20 +102,11 @@ func main() {
 			fatal(err.Error())
 		}
 	}
-	// The Now tab: the page polls these at the serve client's
-	// cadences while the tab is visible; no timer lives here.
+	// The Ledger tab: the page polls this while the tab is visible; no timer
+	// lives here.
 	serve := NewServeClient(a.serveURL)
-	for name, f := range map[string]any{
-		"getNowHeader": func() HeaderView { return headerView(serve.State(context.Background())) },
-		"getExplain":   func(concern string) ExplainPage { return explainPage(a.explain.view(), concern) },
-		"getLedger":    func() LedgerPage { return ledgerPage(serve.Ledger(context.Background())) },
-		"getNowReport": func() ReportView {
-			return reportView(serve.Now(context.Background()), serve.Routines(context.Background()))
-		},
-	} {
-		if err := w.Bind(name, f); err != nil {
-			fatal(err.Error())
-		}
+	if err := w.Bind("getLedger", func() LedgerPage { return ledgerPage(serve.Ledger(context.Background())) }); err != nil {
+		fatal(err.Error())
 	}
 	if hwnd := uintptr(w.Window()); hwnd != 0 {
 		placement := filepath.Join(repo, ".rimgovernor", "launcher-window.json")

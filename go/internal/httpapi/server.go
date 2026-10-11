@@ -15,7 +15,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -27,7 +26,6 @@ type Server struct {
 	config      Config
 	snapshots   SnapshotProvider
 	plans       PlanReader
-	telemetry   *bridge.TimelineReader // the profile's ring, decoded once per byte
 }
 
 func New(config Config, snapshots SnapshotProvider, plans PlanReader) (*Server, error) {
@@ -35,9 +33,6 @@ func New(config Config, snapshots SnapshotProvider, plans PlanReader) (*Server, 
 		return nil, errors.New("read timeout, shutdown timeout, response bound and read providers required")
 	}
 	server := &Server{config: config, snapshots: snapshots, plans: plans}
-	if config.FlightRecorder != "" {
-		server.telemetry = bridge.NewTimelineReader(config.FlightRecorder)
-	}
 	return server, nil
 }
 
@@ -118,9 +113,6 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.handleLedger(w, r) {
-		return
-	}
-	if s.handleSpectator(w, r) {
 		return
 	}
 	if s.handleNotifications(w, r) {

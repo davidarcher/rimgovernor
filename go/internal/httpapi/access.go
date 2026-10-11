@@ -25,13 +25,12 @@ const accessComponent = "httpapi"
 // request holds the connection for the whole capture, so its row carries
 // long_lived and its dur_ms is not request latency.
 
-// polledPaths are the exact paths the launcher and spectator poll.
+// polledPaths are the exact paths the launcher polls.
 var polledPaths = map[string]bool{
-	"/api/state":         true,
-	"/api/spectator/now": true,
-	"/api/routines":      true,
-	"/api/ledger":        true,
-	"/api/health":        true,
+	"/api/state":    true,
+	"/api/routines": true,
+	"/api/ledger":   true,
+	"/api/health":   true,
 }
 
 // polledPrefixes cover the presentation reads and the notifications feed.

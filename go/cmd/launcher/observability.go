@@ -44,6 +44,8 @@ type ObsView struct {
 	// Problem is a plain line when Docker is missing, its daemon is down or
 	// the last Start/Stop failed; "" otherwise.
 	Problem string `json:"problem"`
+	// Dashboards are the deep links the page shows while the stack is healthy.
+	Dashboards []DashboardLink `json:"dashboards"`
 }
 
 // cmdRunner runs a command to completion and returns its combined output.
@@ -118,7 +120,7 @@ func (o *obsController) View() ObsView {
 	healthy := o.probe()
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	v := ObsView{State: obsStopped, Problem: o.problem}
+	v := ObsView{State: obsStopped, Problem: o.problem, Dashboards: dashboardLinks}
 	switch {
 	case healthy:
 		v.State = obsHealthy

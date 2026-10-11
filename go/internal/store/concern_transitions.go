@@ -4,10 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net/url"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
@@ -18,7 +14,7 @@ import (
 const ConcernTransitionRetention = 8192
 
 // ConcernTransition is one change of a concern's winning typed cause, the
-// player-facing explanation history the launcher's Explain page reads. Every
+// player-facing explanation history the Grafana concern-transitions dashboard reads. Every
 // text field is a bounded vocabulary value (concern id or planner name,
 // verdict outcome, policy.Cause wire value, bounded subject, method id), never
 // free text.
@@ -105,39 +101,6 @@ func (s *Store) RecordConcernTransitions(ctx context.Context, rows []ConcernTran
 // ConcernTransitions is every retained row, oldest first.
 func (s *Store) ConcernTransitions(ctx context.Context) ([]ConcernTransition, error) {
 	return queryConcernTransitions(ctx, s.db)
-}
-
-// ReadConcernTransitions reads the retained rows of the database at path
-// through a read-only handle, for a process that does not own the store (the
-// launcher beside a running controller): it creates nothing, takes no write
-// lock and refuses a database of another schema version. A missing file is
-// os.ErrNotExist.
-func ReadConcernTransitions(ctx context.Context, path string) ([]ConcernTransition, error) {
-	if _, err := os.Stat(path); err != nil {
-		return nil, err
-	}
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return nil, err
-	}
-	uriPath := filepath.ToSlash(abs)
-	if !strings.HasPrefix(uriPath, "/") {
-		uriPath = "/" + uriPath
-	}
-	u := &url.URL{Scheme: "file", Path: uriPath, RawQuery: "mode=ro&_busy_timeout=2000"}
-	db, err := sql.Open(DriverName, u.String())
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-	var version int
-	if err = db.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version); err != nil {
-		return nil, err
-	}
-	if version != schemaVersion {
-		return nil, fmt.Errorf("%w: schema version %d, want %d", ErrIncompatible, version, schemaVersion)
-	}
-	return queryConcernTransitions(ctx, db)
 }
 
 type rowQuerier interface {

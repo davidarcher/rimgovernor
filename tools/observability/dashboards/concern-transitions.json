@@ -1,5 +1,17 @@
 {
   "editable": false,
+  "links": [
+    {
+      "asDropdown": true,
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [
+        "rimgovernor"
+      ],
+      "title": "RimGovernor dashboards",
+      "type": "dashboards"
+    }
+  ],
   "panels": [
     {
       "gridPos": {
@@ -10,11 +22,75 @@
       },
       "id": 1,
       "options": {
-        "content": "Source: the session store's `concern_transitions` table, read from the derived copy `serve --observe-snapshot` rewrites every 5 s (docs/developers/observability.md). The copy is read-only and never read by the controller. Panel-to-table map: `tools/observability/dashboards/README.md`.",
+        "content": "Source: the session store's `concern_transitions` table, read from the derived copy `serve --observe-snapshot` rewrites every 5 s (docs/developers/observability.md). The copy is read-only and never read by the controller. Panel-to-table map: `tools/observability/dashboards/README.md`. Causes are the closed `policy.Cause` wire values; `previous` and `held (game hours)` read `unknown` when the controller restarted or the clock went back.",
         "mode": "markdown"
       },
       "title": "About",
       "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "rimgovernor-state"
+      },
+      "description": "Source: concern_transitions for the selected concern, newest first: each change of its winning cause, what it was before and how long that stood in game time (2,500 ticks to the hour).",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 3
+      },
+      "id": 2,
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "rimgovernor-state"
+          },
+          "queryText": "SELECT datetime(wall_ms/1000, 'unixepoch') AS \"time (UTC)\", tick, verdict, cause, subject, method, CASE WHEN previous_cause IS NULL THEN 'unknown' WHEN previous_cause = '' THEN '(clear)' ELSE previous_cause END AS previous, CASE WHEN held_ticks IS NULL THEN NULL ELSE round(held_ticks / 2500.0, 1) END AS \"held (game hours)\" FROM concern_transitions WHERE concern = '$concern' ORDER BY sequence DESC LIMIT 500",
+          "queryType": "table",
+          "rawQueryText": "SELECT datetime(wall_ms/1000, 'unixepoch') AS \"time (UTC)\", tick, verdict, cause, subject, method, CASE WHEN previous_cause IS NULL THEN 'unknown' WHEN previous_cause = '' THEN '(clear)' ELSE previous_cause END AS previous, CASE WHEN held_ticks IS NULL THEN NULL ELSE round(held_ticks / 2500.0, 1) END AS \"held (game hours)\" FROM concern_transitions WHERE concern = '$concern' ORDER BY sequence DESC LIMIT 500",
+          "refId": "A"
+        }
+      ],
+      "title": "Concern timeline",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "rimgovernor-state"
+      },
+      "description": "Source: concern_transitions, the newest row per concern with its change count (the table keeps the newest 8192 rows). Pick one in the Concern variable above.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "id": 3,
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "rimgovernor-state"
+          },
+          "queryText": "SELECT t.concern, t.verdict, t.cause, t.subject, t.method, t.tick, datetime(t.wall_ms/1000, 'unixepoch') AS \"changed (UTC)\", m.changes FROM concern_transitions t JOIN (SELECT concern, max(sequence) AS s, count(*) AS changes FROM concern_transitions GROUP BY concern) m ON t.sequence = m.s ORDER BY t.wall_ms DESC",
+          "queryType": "table",
+          "rawQueryText": "SELECT t.concern, t.verdict, t.cause, t.subject, t.method, t.tick, datetime(t.wall_ms/1000, 'unixepoch') AS \"changed (UTC)\", m.changes FROM concern_transitions t JOIN (SELECT concern, max(sequence) AS s, count(*) AS changes FROM concern_transitions GROUP BY concern) m ON t.sequence = m.s ORDER BY t.wall_ms DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Concerns by latest change",
+      "type": "table"
     },
     {
       "datasource": {
@@ -30,9 +106,9 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 3
+        "y": 25
       },
-      "id": 2,
+      "id": 4,
       "targets": [
         {
           "datasource": {
@@ -55,10 +131,26 @@
     "rimgovernor"
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {},
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "rimgovernor-state"
+        },
+        "includeAll": false,
+        "label": "Concern",
+        "multi": false,
+        "name": "concern",
+        "query": "SELECT concern FROM concern_transitions GROUP BY concern ORDER BY max(sequence) DESC",
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-6h",
     "to": "now"
   },
   "title": "RimGovernor: concern transitions",
