@@ -34,6 +34,10 @@ type Settings struct {
 
 	LayoutOverlay bool `json:"layoutOverlay"`
 
+	// Telemetry sends serve --otlp-endpoint to the local observability stack
+	// (see observability.go); the stack itself is started separately.
+	Telemetry bool `json:"telemetry"`
+
 	ExtraArgs string `json:"extraArgs"`
 
 	// NewColony is the last New colony form; nil until one is
@@ -118,6 +122,9 @@ func ServeArgs(s Settings, p Paths, port int) ([]string, error) {
 		if !s.LayoutOverlay {
 			args = append(args, "--layout-overlay=false")
 		}
+	}
+	if s.Telemetry {
+		args = append(args, "--otlp-endpoint", obsOTLPEndpoint)
 	}
 	extra, _ := SplitArgs(s.ExtraArgs)
 	return append(args, extra...), nil

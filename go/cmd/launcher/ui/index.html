@@ -278,6 +278,16 @@
     </div>
     <div class="alert" id="alert" role="alert" hidden></div>
     <ul class="status" id="status" aria-label="Components"></ul>
+    <section class="obs" aria-label="Observability">
+      <h2>Observability <span class="pbstatus" id="obsState"></span></h2>
+      <p class="note">Optional local Grafana stack (needs Docker). Turn on "Send telemetry to local collector" in Settings to feed it on the next Play.</p>
+      <div class="secondary">
+        <button id="obsStart">Start</button>
+        <button id="obsStop">Stop</button>
+        <button id="obsOpen">Open Grafana</button>
+      </div>
+      <div class="alert" id="obsProblem" role="alert" hidden></div>
+    </section>
     <p class="note">Player guide: <a id="guideLink" href="https://github.com/davidarcher/rimgovernor/blob/main/docs/players/README.md">https://github.com/davidarcher/rimgovernor/blob/main/docs/players/README.md</a> (or <code>docs/players/README.md</code> in this checkout)</p>
   </div>
 
@@ -343,6 +353,8 @@
       <div class="check"><input type="checkbox" id="layoutOverlay"><label for="layoutOverlay">Show the layout plan in game</label></div>
     </details>
 
+    <div class="check"><input type="checkbox" id="telemetry"><label for="telemetry">Send telemetry to local collector</label></div>
+
     <details>
       <summary>Advanced</summary>
       <div class="field"><label for="extraArgs">Extra serve arguments</label><input type="text" id="extraArgs" spellcheck="false"></div>
@@ -355,7 +367,7 @@
 
 <script>
 const $ = id => document.getElementById(id);
-const bools = ['layoutOverlay'];
+const bools = ['layoutOverlay', 'telemetry'];
 const texts = ['extraArgs', 'loadSave'];
 let view = null, loaded = false, busyAction = false;
 
@@ -451,6 +463,20 @@ async function refresh() {
   fillSaves(v.saves || [], loaded ? read().loadSave : v.settings.loadSave);
   if (!loaded) { fill(v.settings); loaded = true; }
 }
+
+async function refreshObs() {
+  let o;
+  try { o = await getObservability(); } catch (e) { return; }
+  $('obsState').textContent = o.state;
+  $('obsStart').disabled = o.state !== 'stopped';
+  $('obsStop').disabled = o.state === 'stopped';
+  $('obsOpen').disabled = o.state !== 'healthy';
+  $('obsProblem').hidden = !o.problem;
+  $('obsProblem').textContent = o.problem;
+}
+$('obsStart').onclick = () => { startObservability(); setTimeout(refreshObs, 300); };
+$('obsStop').onclick = () => { stopObservability(); setTimeout(refreshObs, 300); };
+$('obsOpen').onclick = () => openLink('http://localhost:3000').catch(() => {});
 
 function esc(t) { return String(t).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c])); }
 
@@ -847,6 +873,8 @@ $('ncCancel').onclick = async () => {
 };
 window.addEventListener('focus', () => focused());
 setInterval(refresh, 600);
+setInterval(refreshObs, 2000);
+refreshObs();
 refresh().then(() => $('primary').focus());
 </script>
 </body>

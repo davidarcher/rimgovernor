@@ -76,12 +76,13 @@ type app struct {
 	settings   Settings
 	port       int // the port the running controller listens on; 0 = recorded or firstPort
 	cmd        *exec.Cmd
-	tail       *logTail      // the Log panel: the newest run's collapsed flight rows
-	recorder   *recorderTail // the Problems tab's reader of the flight recorder
-	explain    *explainTail  // per-concern timelines from the session store (Now tab, Ledger)
-	colony     *colonyRunner // new-colony generation
-	loading    loadSlot      // the save load in flight (one at a time)
-	accept     *acceptRunner // the Acceptance tab's case runs
+	tail       *logTail       // the Log panel: the newest run's collapsed flight rows
+	recorder   *recorderTail  // the Problems tab's reader of the flight recorder
+	explain    *explainTail   // per-concern timelines from the session store (Now tab, Ledger)
+	colony     *colonyRunner  // new-colony generation
+	loading    loadSlot       // the save load in flight (one at a time)
+	obs        *obsController // the optional Docker observability stack
+	accept     *acceptRunner  // the Acceptance tab's case runs
 }
 
 func newApp(repo string) *app {
@@ -104,6 +105,7 @@ func newApp(repo string) *app {
 	}
 	a.colony = newColonyRunner(colonyApp{a}, spec)
 	a.accept = newAcceptRunner(acceptHostApp{a})
+	a.obs = newObsController(repo, execRunner{}, a.logf)
 	return a
 }
 

@@ -57,6 +57,11 @@ Settings persist to `.rimgovernor/launcher.json`.
   runs at Ultrafast (adaptive: paces ticks to your frame rate).
 - **Colony policy**: allow slaughter or release of surplus animals, the layout
   overlay, and food reserve days.
+- **Send telemetry to local collector**: Play passes `--otlp-endpoint` to the
+  controller. The launcher page's **Observability** section starts and stops the
+  optional Docker stack ([developer guide](../developers/observability.md)),
+  shows stopped/starting/healthy, and opens Grafana. It needs Docker; without it
+  the section says so and Play is unaffected.
 - **Advanced**: extra `rimgovernor serve` arguments
   (`rimgovernor serve -h` lists them).
 
