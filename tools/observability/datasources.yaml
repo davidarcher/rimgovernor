@@ -1,0 +1,14 @@
+apiVersion: 1
+datasources:
+  - name: RimGovernor state
+    uid: rimgovernor-state
+    type: frser-sqlite-datasource
+    access: proxy
+    editable: false
+    jsonData:
+      # The derived copy serve --observe-snapshot rewrites (mounted read-only).
+      # immutable=1: the file is replaced by rename, never modified in place, so
+      # no locks or -shm file are needed on the read-only mount.
+      path: /rimgovernor-state/current.sqlite
+      pathPrefix: "file:"
+      pathOptions: immutable=1

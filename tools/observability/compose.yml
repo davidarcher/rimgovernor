@@ -16,6 +16,16 @@ services:
       - lgtm-data:/data
       - ./dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/rimgovernor.yaml:ro
       - ./dashboards:/rimgovernor-dashboards:ro
+      - ./datasources.yaml:/otel-lgtm/grafana/conf/provisioning/datasources/rimgovernor.yaml:ro
+      # serve --observe-snapshot writes <profile>/observe/current.sqlite (the
+      # launcher's profile is <repo>/.rimgovernor/go/profile); override the host
+      # directory with RIMGOVERNOR_OBSERVE_DIR.
+      - ${RIMGOVERNOR_OBSERVE_DIR:-../../.rimgovernor/go/profile/observe}:/rimgovernor-state:ro
+    environment:
+      # The image ignores GF_INSTALL_PLUGINS; its run-grafana.sh honours this.
+      # The plugin installs after Grafana reports healthy, so early queries on
+      # the SQLite data source say "Plugin not registered" for a short while.
+      GF_PLUGINS_PREINSTALL: frser-sqlite-datasource@4.0.6
     restart: unless-stopped
 
 volumes:

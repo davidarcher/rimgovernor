@@ -371,3 +371,19 @@ func TestServeClockWindowTicksFlag(t *testing.T) {
 		}
 	}
 }
+
+func TestServeObserveSnapshotFlag(t *testing.T) {
+	dir := t.TempDir()
+	base := []string{"--observe", "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
+	config, err := parseServe(base, io.Discard)
+	if err != nil || config.observeSnapshot != "" {
+		t.Fatalf("default: %q %v", config.observeSnapshot, err)
+	}
+	want := filepath.Join(dir, "observe", "current.sqlite")
+	if config, err = parseServe(append(base, "--observe-snapshot", want), io.Discard); err != nil || config.observeSnapshot != want {
+		t.Fatalf("set: %q %v", config.observeSnapshot, err)
+	}
+	if _, err = parseServe(append(base, "--observe-snapshot", "rel.sqlite"), io.Discard); err == nil {
+		t.Fatal("relative path accepted")
+	}
+}

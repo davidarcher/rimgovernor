@@ -124,7 +124,8 @@ func ServeArgs(s Settings, p Paths, port int) ([]string, error) {
 		}
 	}
 	if s.Telemetry {
-		args = append(args, "--otlp-endpoint", obsOTLPEndpoint)
+		args = append(args, "--otlp-endpoint", obsOTLPEndpoint,
+			"--observe-snapshot", filepath.Join(p.Profile, obsSnapshotDir, obsSnapshotFile))
 	}
 	extra, _ := SplitArgs(s.ExtraArgs)
 	return append(args, extra...), nil

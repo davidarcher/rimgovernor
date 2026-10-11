@@ -217,6 +217,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		return err
 	}
 	defer func() { result = errors.Join(result, database.Close()) }()
+	defer startObserveSnapshots(lifetime, config, database)()
 	callTimeout := min(config.bridge.Timeout, 10*time.Second)
 	var clockCapabilities *buildingruntime.ClockCapabilities
 	if config.clockControl {

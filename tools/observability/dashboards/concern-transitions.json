@@ -1,0 +1,67 @@
+{
+  "editable": false,
+  "panels": [
+    {
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "content": "Source: the session store's `concern_transitions` table, read from the derived copy `serve --observe-snapshot` rewrites every 5 s (docs/developers/observability.md). The copy is read-only and never read by the controller. Panel-to-table map: `tools/observability/dashboards/README.md`.",
+        "mode": "markdown"
+      },
+      "title": "About",
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "rimgovernor-state"
+      },
+      "description": "Source: concern_transitions (one row per change of a concern's winning cause; the table keeps the newest 8192 rows). Counted by concern and cause.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 3
+      },
+      "id": 2,
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "rimgovernor-state"
+          },
+          "queryText": "SELECT concern, verdict, cause, count(*) AS transitions, max(tick) AS last_tick FROM concern_transitions GROUP BY concern, verdict, cause ORDER BY transitions DESC",
+          "queryType": "table",
+          "rawQueryText": "SELECT concern, verdict, cause, count(*) AS transitions, max(tick) AS last_tick FROM concern_transitions GROUP BY concern, verdict, cause ORDER BY transitions DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Concern transitions by cause",
+      "type": "table"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": [
+    "rimgovernor"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "title": "RimGovernor: concern transitions",
+  "uid": "rg-concern-transitions",
+  "version": 1
+}

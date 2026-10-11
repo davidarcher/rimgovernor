@@ -17,6 +17,10 @@ func TestGrafanaDashboardsAreWellFormed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sources, err := os.ReadFile(filepath.Join(dir, "..", "datasources.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	files, _ := filepath.Glob(filepath.Join(dir, "*.json"))
 	if len(files) == 0 {
 		t.Fatal("no dashboards found")
@@ -36,7 +40,12 @@ func TestGrafanaDashboardsAreWellFormed(t *testing.T) {
 				Title   string `json:"title"`
 				Type    string `json:"type"`
 				Targets []struct {
-					Expr string `json:"expr"`
+					Expr      string `json:"expr"`
+					QueryText string `json:"queryText"`
+					Source    struct {
+						Type string `json:"type"`
+						UID  string `json:"uid"`
+					} `json:"datasource"`
 				} `json:"targets"`
 			} `json:"panels"`
 		}
@@ -57,6 +66,12 @@ func TestGrafanaDashboardsAreWellFormed(t *testing.T) {
 				t.Errorf("%s: panel %q is not listed in README.md", f, p.Title)
 			}
 			for _, tg := range p.Targets {
+				if tg.Source.Type == "frser-sqlite-datasource" {
+					if !strings.Contains(string(sources), "uid: "+tg.Source.UID) || !strings.Contains(tg.QueryText, "concern_transitions") {
+						t.Errorf("%s: panel %q: SQLite target needs a provisioned uid and a concern_transitions query", f, p.Title)
+					}
+					continue
+				}
 				for _, m := range name.FindAllString(tg.Expr, -1) {
 					if !known.MatchString(m) {
 						t.Errorf("%s: panel %q queries unknown metric %q", f, p.Title, m)

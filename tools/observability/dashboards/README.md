@@ -3,8 +3,8 @@
 Provisioned read-only into the `RimGovernor` folder by `../dashboards.yaml`
 (restart the `lgtm` service to pick up edits). Source instruments are defined in
 [OTEL metrics](../../../docs/developers/contracts/otel-metrics.md). All panels
-query the Prometheus data source; no panel uses the Tempo or Loki data sources
-yet. Colony quality is deliberately not charted. The JSON files are checked by
+query the Prometheus data source (one panel excepted, below); no panel uses the Tempo or Loki data sources
+yet, except `concern-transitions.json` (SQLite, last section). Colony quality is deliberately not charted. The JSON files are checked by
 `go/internal/telemetry/dashboards_test.go` (valid JSON, unique ids, known metric
 names, every panel listed here).
 
@@ -74,3 +74,16 @@ Variable `phase` (default `call`) is read from the `phase` label values.
 
 Quantiles are estimated from the explicit histogram buckets in the contract, so
 they are bucket-resolution values.
+
+### concern-transitions.json: "RimGovernor: concern transitions"
+
+Queries the `RimGovernor state` SQLite data source (`../datasources.yaml`,
+plugin `frser-sqlite-datasource`), not Prometheus. It reads
+`<profile>/observe/current.sqlite`, the derived read-only copy of the session
+store that `serve --observe-snapshot` rewrites every 5 s (the launcher passes the
+flag when the telemetry toggle is on). It is empty until a controller has run
+with the flag, and the plugin installs a short while after Grafana reports up.
+
+| Panel | Source table |
+| --- | --- |
+| Concern transitions by cause | `concern_transitions` grouped by concern, verdict and cause |

@@ -34,6 +34,7 @@ type serveConfig struct {
 	bridge                         bridge.ProcessConfig
 	flightRecorder                 string
 	otlpEndpoint, otlpProtocol     string
+	observeSnapshot                string
 	legacyRows                     bool
 	state, listen                  string
 	profile                        string
@@ -147,6 +148,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.pprof, "pprof", false, "serve net/http/pprof under /debug/pprof/ on the listener (CPU profile, heap, trace); off by default")
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path of the flight-recorder ring (every native request/response/error and service event; read back by /api/telemetry); default <profile>/flight/flight.jsonl, or flight/flight.jsonl beside --state under --observe; always on")
 	flags.StringVar(&c.otlpEndpoint, "otlp-endpoint", "", "export telemetry to this OTLP collector, for example http://localhost:4317 (the docs/developers/observability.md stack); empty falls back to OTEL_EXPORTER_OTLP_ENDPOINT, and with neither only the local OTLP/JSON files are written")
+	flags.StringVar(&c.observeSnapshot, "observe-snapshot", "", "absolute path of a derived read-only copy of the whole state database, rewritten every 5 s through a temporary file and an atomic rename (the Grafana SQLite panels in docs/developers/observability.md); empty (default) writes none")
 	flags.StringVar(&c.otlpProtocol, "otlp-protocol", "", "collector protocol: grpc (default) or http/protobuf; empty falls back to OTEL_EXPORTER_OTLP_PROTOCOL")
 	flags.BoolVar(&c.legacyRows, "legacy-flight-rows", true, "also write decision and event rows to flight.jsonl, beside their OTEL log records; transitional (#2787), the reader children turn it off and #2793 deletes it and the recorder rows")
 	flags.BoolVar(&c.layoutOverlay, "layout-overlay", true, "draw the colony layout plan as a color-coded native overlay with role labels (#817); false deletes the overlay")
@@ -192,6 +194,9 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if c.bridge.Timeout < time.Second || c.bridge.Timeout > time.Minute {
 		return c, errors.New("--timeout must be 1s..1m")
+	}
+	if c.observeSnapshot != "" && !filepath.IsAbs(c.observeSnapshot) {
+		return c, errors.New("--observe-snapshot requires an absolute path")
 	}
 	if c.flightRecorder != "" && !filepath.IsAbs(c.flightRecorder) {
 		return c, errors.New("--flight-recorder requires an absolute path")
@@ -461,6 +466,7 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 		return err
 	}
 	defer func() { result = errors.Join(result, database.Close()) }()
+	defer startObserveSnapshots(ctx, config, database)()
 	var random [16]byte
 	if _, err = rand.Read(random[:]); err != nil {
 		return err

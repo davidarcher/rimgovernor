@@ -38,7 +38,36 @@ ready.
 | Data | named volume `lgtm-data`, mounted at `/data`; survives `down` |
 | Dashboards | JSON files in `tools/observability/dashboards/` (panel list: its README) are provisioned read-only into the `RimGovernor` folder by `dashboards.yaml`; restart the service to pick up new files |
 
+| SQLite data source | plugin `frser-sqlite-datasource@4.0.6` (`GF_PLUGINS_PREINSTALL`), data source uid `rimgovernor-state` provisioned from `datasources.yaml`, reading `/rimgovernor-state/current.sqlite` with `immutable=1` |
+| Snapshot mount | host `<profile>/observe` (default `../../.rimgovernor/go/profile/observe` relative to the compose file; override with `RIMGOVERNOR_OBSERVE_DIR`) mounted read-only at `/rimgovernor-state` |
+
 Ports bind to loopback only.
+
+## SQLite panels
+
+Grafana can chart the session store (for example `concern_transitions`) next to
+traces and metrics. It never opens the live store: `serve --observe-snapshot
+<absolute path>` (off by default; the launcher passes
+`<profile>/observe/current.sqlite` when the Settings telemetry toggle is on)
+copies the whole store every 5 s through SQLite's online backup into
+`<path>.tmp` and renames it over `<path>`. The copy is derived and read-only:
+nothing in the controller reads it, and it is never authoritative
+([persistence contracts](contracts/persistence-contracts.md)). Because the name is
+fixed, it survives the per-launch `state-*.sqlite` files and the schema-change
+rename, and it stays queryable after the controller exits. A failed copy is logged
+and retried.
+
+Cost: the backup holds the store's single connection for its duration, so
+journal writes wait that long once per 5 s. Measured on a synthetic 30 MB store
+(about the largest real state file seen): 90-140 ms per copy, so about 30 ms for
+a typical 9 MB store; it grows linearly with the store.
+
+Why a copy and not a bind mount of the live file: a read-only mount of a WAL
+database works only while a writer holds the WAL (the reader cannot create
+`-shm`), and a writable mount would let a Linux reader touch a file a Windows
+process holds. The plugin installs after Grafana reports up, so queries return
+`Plugin not registered` for a short while after `up`. The `GF_INSTALL_PLUGINS`
+variable is ignored by this image.
 
 ## Pointing serve at it
 

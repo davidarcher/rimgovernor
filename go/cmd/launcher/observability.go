@@ -19,6 +19,10 @@ const (
 	// obsOTLPEndpoint is the stack's OTLP gRPC port, serve's default protocol.
 	obsOTLPEndpoint = "http://localhost:4317"
 	grafanaHealth   = grafanaURL + "/api/health"
+	// obsSnapshotDir/obsSnapshotFile place serve's --observe-snapshot copy at
+	// <profile>/observe/current.sqlite, the directory compose.yml mounts.
+	obsSnapshotDir  = "observe"
+	obsSnapshotFile = "current.sqlite"
 	// obsStartWindow is how long after Start the stack may still be coming up
 	// (an image pull included) before status falls back to stopped.
 	obsStartWindow = 5 * time.Minute

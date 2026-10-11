@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"os/exec"
+	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -146,5 +148,9 @@ func TestServeArgsTelemetryEndpoint(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("no endpoint with telemetry on: %v", on)
+	}
+	snapshot := filepath.Join("p", obsSnapshotDir, obsSnapshotFile)
+	if !slices.Contains(on, snapshot) || slices.Contains(off, "--observe-snapshot") {
+		t.Fatalf("snapshot path %q: on=%v off=%v", snapshot, on, off)
 	}
 }

@@ -127,6 +127,7 @@ the first native protective effect.
 | `coverage` | First row of each run; free text by design. |
 | `recording_gap` | Synthetic, produced by `TimelineReader` for a corrupt line or sequence discontinuity; never written. Fields `reason`, `file`, `line`, `before`, `after`. |
 | `state_reset` | event row, level `WARN`, component `serve`: the service database came from another schema version and was moved aside (`path`, `aside`). Written once at startup. |
+| `observe_snapshot_failed` | event row, level `WARN`, component `serve`: `--observe-snapshot` could not create its directory (copies disabled) or one 5 s copy failed (retried next tick); `path`, `err`. Reader: `rimgovernor log` and the Grafana Loki logs. |
 
 The flight recorder is the only log: the telemetry handler writes a row for a record that names a `kind`
 and drops one that does not, there is no Debug level, and `telemetry/kinds_test.go` fails any `slog` call in
