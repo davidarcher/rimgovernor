@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"sync/atomic"
@@ -89,7 +90,7 @@ func (s *modLogSink) run(done <-chan struct{}) {
 
 func (s *modLogSink) flushDropped() {
 	if n := s.dropped.Swap(0); n > 0 {
-		_, _ = s.recorder.Event("log_overflow", map[string]any{"level": "WARN", "component": "mod-log"}, false,
+		emitRow(context.Background(), s.recorder, "log_overflow", map[string]any{"level": "WARN", "component": "mod-log"},
 			map[string]any{"dropped": n, "side": "controller"})
 	}
 }
@@ -99,26 +100,30 @@ func (s *modLogSink) write(payload json.RawMessage) {
 	if json.Unmarshal(payload, &e) != nil {
 		return
 	}
-	context := map[string]any{"component": "mod"}
+	rowContext := map[string]any{"component": "mod"}
 	if e.Tick != nil {
-		context["tick"] = *e.Tick
+		rowContext["tick"] = *e.Tick
 	}
 	if e.AtUnixMs > 0 {
-		context["at"] = time.UnixMilli(e.AtUnixMs).UTC().Format(time.RFC3339Nano)
+		rowContext["at"] = time.UnixMilli(e.AtUnixMs).UTC().Format(time.RFC3339Nano)
 	}
+	// The record joins the controller span the mod echoed (the span lives in
+	// another process's context, so it is a remote parent).
+	ctx := context.Background()
 	if trace, span, ok := telemetry.ParseWireTrace(e.Trace); ok {
-		context[telemetry.TraceIDKey], context[telemetry.SpanIDKey] = trace, span
+		rowContext[telemetry.TraceIDKey], rowContext[telemetry.SpanIDKey] = trace, span
+		ctx = telemetry.RemoteHex(ctx, trace, span)
 	}
 	if e.Type == "overflow" {
-		context["level"] = "WARN"
-		_, _ = s.recorder.Event("log_overflow", context, false, map[string]any{"seq": e.Seq, "dropped": e.Dropped, "side": "mod"})
+		rowContext["level"] = "WARN"
+		emitRow(ctx, s.recorder, "log_overflow", rowContext, map[string]any{"seq": e.Seq, "dropped": e.Dropped, "side": "mod"})
 		return
 	}
 	switch strings.ToLower(e.Level) {
 	case "error":
-		context["level"] = "ERROR"
+		rowContext["level"] = "ERROR"
 	case "warn", "warning":
-		context["level"] = "WARN"
+		rowContext["level"] = "WARN"
 	}
 	row := map[string]any{"seq": e.Seq, "level": strings.ToLower(e.Level), "source": e.Component, "msg": e.Msg}
 	if e.Late {
@@ -127,5 +132,5 @@ func (s *modLogSink) write(payload json.RawMessage) {
 	if e.Suppressed > 0 {
 		row["suppressed"] = e.Suppressed
 	}
-	_, _ = s.recorder.Event("mod_log", context, false, row)
+	emitRow(ctx, s.recorder, "mod_log", rowContext, row)
 }

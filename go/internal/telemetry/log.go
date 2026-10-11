@@ -1,10 +1,10 @@
 // Package telemetry is the service's structured event substrate: one
-// slog.Handler that turns every record naming an event kind into a
-// flight-recorder row of that kind, stamped with the scheduler's last-known
-// game tick, in sequence with the bridge's native_call rows. The flight
-// recorder is the only log: the handler writes nothing to stderr, and a
-// record with no kind is dropped (a programming error the source scan in
-// kinds_test.go catches).
+// slog.Handler that turns every record naming an event kind into an OTEL log
+// record (and span event) of that kind, stamped with the scheduler's last-known
+// game tick (EmitRow, mapping in flight-rows.md), and, while LegacyRows is on,
+// a flight-recorder row in sequence with the bridge's native_call rows. The
+// handler writes nothing to stderr, and a record with no kind is dropped (a
+// programming error the source scan in kinds_test.go catches).
 //
 // Call sites log through slog.Default(); serve installs the handler. A
 // process that never installs one (tests, smoke binaries) keeps Go's
@@ -133,7 +133,7 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 			rest = append(rest, a)
 		}
 	}
-	if kind == "" || h.recorder == nil {
+	if kind == "" {
 		return nil
 	}
 	tick, known := Tick()
@@ -157,6 +157,10 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 		for _, a := range rest {
 			payload[a.Key] = jsonValue(a.Value)
 		}
+	}
+	EmitRow(ctx, kind, rowContext, payload)
+	if h.recorder == nil || !LegacyRows() {
+		return nil
 	}
 	_, err := h.recorder.Event(kind, rowContext, false, payload)
 	return err

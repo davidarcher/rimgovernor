@@ -134,6 +134,52 @@ non-test code with no `kind`. stderr carries only the startup banner, parse erro
 `Go service:` failures, the clock fault-injection notice and Go panics. A new emission adds its kind here with
 a reader, or it is not added.
 
+## OTEL mapping
+
+Epic #2778 moves the stream to OpenTelemetry. Every decision and event row below
+is also an OTEL log record in `otlp/logs.jsonl` ([OTEL core](otel-core.md)) and,
+when the emitter runs under a recording span, an event on that span. The code is
+`telemetry.EmitRow` (`internal/telemetry/otelrow.go`): `telemetry.Decide`, every
+`slog` call with a `kind`, and the direct emitters (`mod_log`, `log_overflow`,
+`http_access`, `ReadTally.Publish`) all reach it, so the kinds registry and the
+consuming-reader rule above apply unchanged: a kind is the record's `eventName`.
+The bridge's own `native_call`, `native_request`, `native_frame` and `native_poll`
+rows are not mapped yet (spans and metrics cover the calls); they stay recorder-only.
+
+This attribute schema is what log readers parse. Changing it is a contract change.
+
+| OTEL field | Content |
+| --- | --- |
+| `eventName` | the row kind |
+| `timeUnixNano` | the row's `at` |
+| `severityNumber` / `severityText` | `INFO` 9, `WARN` 13, `ERROR` 17, from the row's `level` |
+| `body` | a decision: `"<kind> <verdict> <reason> <target>"` (derived, never parse it); an event: its `msg`; absent when an event has none |
+| `traceId`, `spanId` | the span the emitter ran under (`mod_log`: the controller span the mod echoed) |
+| `rimgovernor.kind`, `rimgovernor.component` | strings, as the row context |
+| `rimgovernor.tick` | int, the last observed game tick; absent before one was observed |
+| `rimgovernor.row` | `decision` or `event` |
+| `rimgovernor.verdict`, `.reason`, `.target` | strings, decisions only, always present (possibly `""`) |
+| `rimgovernor.dur_ms` | double, decisions only, `0` when untimed |
+| `rimgovernor.attr.<key>` | one attribute per decision `attrs` key, or per event payload key except `msg`. Native types: string, bool, int, double (durations in ms); slices and maps as OTLP `arrayValue` and `kvlistValue`; errors as text. Absent for a null value |
+| `rimgovernor.truncated`, `.original_bytes`, `.sha256`, `.preview` | payload cap: when the encoded fields exceed 64 KiB (`telemetry.PayloadCapBytes`) they are dropped, the record carries these four (a 4 KiB preview) and only the small correlation fields `request`, `tool`, `native_tool`, `category`, `timing`. The fixed decision attributes always survive |
+
+A span event is named after the kind and carries the same attributes. Logs are
+emitted whether or not the trace is sampled, so a decision stays searchable when
+its span is dropped.
+
+Vocabulary, the no-free-text rule for decisions and the collapse key
+`(kind, component, verdict, reason, target)` are unchanged; collapsing stays a
+reader operation, now over the `rimgovernor.*` attributes.
+
+### Transition flag
+
+While the readers still parse `flight.jsonl`, rows are written to both. The
+recorder write is behind `telemetry.SetLegacyRows` / `serve --legacy-flight-rows`
+(default on). The Oracles and Readers children (#2789, #2790) turn it off when
+they cut over; Retire (#2793) deletes the flag, the recorder rows and the
+`trace_id` stamping. There is no permanent dual write. Never gate the OTEL write
+on it.
+
 ## Readers
 
 `rimgovernor log`, `phases` and `trace`, the launcher's Problems and Log tabs,

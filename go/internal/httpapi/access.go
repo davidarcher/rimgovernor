@@ -126,13 +126,17 @@ func accessHandler(next http.Handler, recorder telemetry.Recorder) http.Handler 
 		if tick, ok := telemetry.Tick(); ok {
 			rowContext["tick"] = tick
 		}
-		_, _ = recorder.Event(AccessKind, rowContext, false, map[string]any{
+		payload := map[string]any{
 			"method":     r.Method,
 			"path":       r.URL.Path,
 			"status":     status,
 			"dur_ms":     float64(dur) / float64(time.Millisecond),
 			"bytes":      rec.bytes,
 			"long_lived": isLongLived(r.URL.Path),
-		})
+		}
+		telemetry.EmitRow(r.Context(), AccessKind, rowContext, payload)
+		if telemetry.LegacyRows() {
+			_, _ = recorder.Event(AccessKind, rowContext, false, payload)
+		}
 	})
 }

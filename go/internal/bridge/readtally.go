@@ -129,7 +129,7 @@ func (t *ReadTally) String() string {
 // Publish writes the tally as one decision row of d's kind (a "clock_step" or
 // a "dispatch") on the recorder of the Client that served the tallied calls:
 // d's verdict, reason, target and duration, with its attrs plus the tally's
-// reads, tools and schema_fetches. Without a recorder it is a no-op; the
+// reads, tools and schema_fetches. Without a client it is a no-op; the
 // profiler (SummarizePhases) aggregates the rows.
 func (t *ReadTally) Publish(ctx context.Context, d telemetry.Decision) {
 	if t == nil {
@@ -138,7 +138,7 @@ func (t *ReadTally) Publish(ctx context.Context, d telemetry.Decision) {
 	t.mu.Lock()
 	client := t.client
 	t.mu.Unlock()
-	if client == nil || client.recorder == nil {
+	if client == nil {
 		return
 	}
 	tools := map[string]any{}
@@ -158,5 +158,5 @@ func (t *ReadTally) Publish(ctx context.Context, d telemetry.Decision) {
 	if d.Level >= slog.LevelWarn {
 		rowContext["level"] = d.Level.String()
 	}
-	client.recorder.Event(d.Kind, rowContext, false, d.Payload())
+	emitRow(ctx, client.recorder, d.Kind, rowContext, d.Payload())
 }

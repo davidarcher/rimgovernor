@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
@@ -100,6 +101,16 @@ func WindowRefusal(row TimelineRecord) bool {
 	verdict, _ := row.Payload[telemetry.VerdictKey].(string)
 	target, _ := row.Payload[telemetry.TargetKey].(string)
 	return target == "window" && (verdict == "refused" || verdict == "held")
+}
+
+// emitRow writes a decision or event row as OTEL telemetry and, while
+// telemetry.LegacyRows is on, to the flight recorder too. A nil recorder skips
+// only the recorder; ctx carries the row's span.
+func emitRow(ctx context.Context, recorder *FlightRecorder, kind string, rowContext, payload map[string]any) {
+	telemetry.EmitRow(ctx, kind, rowContext, payload)
+	if recorder != nil && telemetry.LegacyRows() {
+		_, _ = recorder.Event(kind, rowContext, false, payload)
+	}
 }
 
 // DecodeFlightLine decodes one flight.jsonl line. It is the one decoder of a

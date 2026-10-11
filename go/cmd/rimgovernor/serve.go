@@ -34,6 +34,7 @@ type serveConfig struct {
 	bridge                         bridge.ProcessConfig
 	flightRecorder                 string
 	otlpEndpoint, otlpProtocol     string
+	legacyRows                     bool
 	state, listen                  string
 	profile                        string
 	playerControl                  bool
@@ -147,6 +148,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path of the flight-recorder ring (every native request/response/error and service event; read back by /api/telemetry); default <profile>/flight/flight.jsonl, or flight/flight.jsonl beside --state under --observe; always on")
 	flags.StringVar(&c.otlpEndpoint, "otlp-endpoint", "", "export telemetry to this OTLP collector, for example http://localhost:4317 (the docs/developers/observability.md stack); empty falls back to OTEL_EXPORTER_OTLP_ENDPOINT, and with neither only the local OTLP/JSON files are written")
 	flags.StringVar(&c.otlpProtocol, "otlp-protocol", "", "collector protocol: grpc (default) or http/protobuf; empty falls back to OTEL_EXPORTER_OTLP_PROTOCOL")
+	flags.BoolVar(&c.legacyRows, "legacy-flight-rows", true, "also write decision and event rows to flight.jsonl, beside their OTEL log records; transitional (#2787), the reader children turn it off and #2793 deletes it and the recorder rows")
 	flags.BoolVar(&c.layoutOverlay, "layout-overlay", true, "draw the colony layout plan as a color-coded native overlay with role labels (#817); false deletes the overlay")
 	flags.BoolVar(&c.resume, "resume", false, "run the bot for the observed world at startup and again after every native load, without a launcher Resume")
 	if err := flags.Parse(args); err != nil {
@@ -391,6 +393,7 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 			_ = tel.Shutdown(flush)
 		}()
 	}
+	telemetry.SetLegacyRows(config.legacyRows)
 	slog.SetDefault(telemetry.New(recorder))
 	defer snapshot.Flush()
 	if config.playerControl {
