@@ -3,13 +3,58 @@ package buildingruntime
 import (
 	"context"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/testkit"
 )
+
+// defenseHoldSource refuses every native read: a layout step that is not held
+// reaches it and fails, which is enough to tell a hold from a release.
+type defenseHoldSource struct{ RoundsDefenseLayoutSource }
+
+// The defense layout's killbox digs wait for the initial shelter (#2818): the
+// held step reports the shelter pending, the released one goes on to read.
+func TestRoundsDefenseLayoutWaitsForInitialShelter(t *testing.T) {
+	p, _, _, _ := playerFixture(t)
+	request := playerAcquire(t, p)
+	ctx := context.Background()
+	if _, err := p.Resume(ctx, request); err != nil {
+		t.Fatal(err)
+	}
+	native := colonyCoreNative(t)
+	layout := policy.DefaultRoundsPolicy()
+	layout.DefensiveLayout = true
+	reviewer, err := NewRounder(p, native, testkit.NewManualClock(time.Now()), layout, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := native.reply.GetObserved()
+	v.ColonistCount, v.WorkerCount = proto.Uint32(2), proto.Uint32(2)
+	v.BedCapacity, v.IndoorSleepingCapacity = proto.Uint32(0), proto.Uint32(0)
+	if _, err := reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	planner := &RoundsDefenseLayoutPlanner{reviewer: reviewer, native: defenseHoldSource{}}
+	held, err := planner.step(ctx, ctx, nil)
+	if err != nil || held.Verdict != BuildingShelterPending {
+		t.Fatal("the layout ran while the shelter was owed:", held.Verdict, err)
+	}
+	v.BedCapacity, v.IndoorSleepingCapacity = proto.Uint32(2), proto.Uint32(2)
+	if _, err := reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	func() {
+		defer func() { _ = recover() }() // a release reaches the refusing source
+		if released, _ := planner.step(ctx, ctx, nil); released.Verdict == BuildingShelterPending {
+			t.Fatal("the layout stayed held after the shelter stood")
+		}
+	}()
+}
 
 // While the initial shelter is owed, map-wide clearance waits; the review that
 // sees the shelter stand releases it (#2814).

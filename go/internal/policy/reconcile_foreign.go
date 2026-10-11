@@ -128,6 +128,13 @@ func foreignThings(in ReconcileInput, ring Rectangle, wallDef string, doorWanted
 					place(OpCut, t, c, false)
 				}
 			case t.Category == ThingItem:
+				if onRing(c, ring) && !doorWanted[c] {
+					// The builder hauls any item aside once the wall's blueprint is
+					// placed over it (GenConstruct.HandleBlockingThingJob): a ring
+					// cell never waits on an item, and the native preview stays the
+					// legality authority.
+					continue
+				}
 				if t.Has(FlagHaulable) && !t.Has(FlagForbidden) {
 					place(OpHaulOut, t, c, false)
 				} else if t.Has(FlagHaulable) && doorWanted[c] {

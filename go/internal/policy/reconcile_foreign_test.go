@@ -100,6 +100,24 @@ func TestReconcileForeignHaulableItemMoves(t *testing.T) {
 	}
 }
 
+// An item on a ring cell is no obstruction: the builder hauls it aside when
+// the wall goes up over it, so no haul is queued and the wall is not held. A
+// chunk inside the room, off the ring, is still moved.
+func TestReconcileRingCellChunkIsNotAnObstruction(t *testing.T) {
+	in, room := reconFixture()
+	ringCell := domain.Cell{X: room.Interior.X - 1, Z: room.Interior.Z - 1}
+	inner := domain.Cell{X: room.Interior.X, Z: room.Interior.Z}
+	chunk := func(id uint64) Thing {
+		return Thing{ID: id, Def: "ChunkSandstone", Category: ThingItem, Flags: FlagHaulable, Count: 1}
+	}
+	in.Cells = []SiteCell{foreignCell(ringCell, chunk(7)), foreignCell(inner, chunk(8))}
+	rec := Reconcile(in)
+	op := readyOp(t, rec, OpHaulOut)
+	if len(op.Targets) != 1 || op.Targets[0].EntityID != "Thing_ChunkSandstone8" {
+		t.Fatalf("only the interior chunk is hauled: %+v", rec.Ready)
+	}
+}
+
 func TestReconcileForeignHoldsNameTheirReason(t *testing.T) {
 	in, _ := reconFixture()
 	danger := ruinThing(1, "AncientTurret", FlagClaimable|FlagAncientDanger)

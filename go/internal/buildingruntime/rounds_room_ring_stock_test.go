@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func TestStorageRingLeavesInteriorStockAndClearsRingObstructions(t *testing.T) {
+func TestStorageRingLeavesInteriorAndRingStockAlone(t *testing.T) {
 	room := policy.PlannedRoom{Role: policy.PlannedStorage, Interior: policy.Rectangle{X: 10, Z: 10, Width: 3, Height: 3}}
 	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{room}}
 	stock := policy.Thing{ID: 1, Def: "Meat_Gazelle", Category: policy.ThingItem, Flags: policy.FlagHaulable}
@@ -38,12 +38,11 @@ func TestStorageRingLeavesInteriorStockAndClearsRingObstructions(t *testing.T) {
 					}
 				}
 			}
-			wantWalls, wantHauled := 16, 0
-			if obstructRing {
-				wantWalls, wantHauled = 15, 1
-			}
-			if walls != wantWalls || hauled != wantHauled {
-				t.Fatalf("walls=%d hauled=%d, want %d/%d", walls, hauled, wantWalls, wantHauled)
+			// A stack on a ring cell is no obstruction: the builder hauls it
+			// aside once the wall's blueprint is over it, so every wall goes
+			// in and nothing is hauled ahead.
+			if walls != 16 || hauled != 0 {
+				t.Fatalf("walls=%d hauled=%d, want 16/0", walls, hauled)
 			}
 			if len(facts.Cells[0].Things) != 1 {
 				t.Fatal("ring input changed the shared observation")

@@ -242,6 +242,11 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	if wait != nil {
 		return r.fight(call, epoch, goal, state, *wait)
 	}
+	// The lone builder raises the initial shelter first: the killbox's rock
+	// is not mined while it is owed (#2818).
+	if owed, err := initialShelterOwed(call, p, review); err != nil || owed {
+		return RoundsDefenseLayoutResult{Verdict: BuildingShelterPending}, err
+	}
 	record, stored, err := p.journal.LoadDefenseLayout(call, world)
 	if err != nil {
 		return RoundsDefenseLayoutResult{}, err
