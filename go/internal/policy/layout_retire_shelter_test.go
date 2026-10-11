@@ -75,7 +75,7 @@ func (f shelterRetireFixture) replan(t *testing.T, retire bool, inFlight map[Rec
 // a bed in a built bedroom and the workshop and laboratory stand.
 func TestShelterRetiresWhenBedroomsWorkshopAndLabStand(t *testing.T) {
 	f := newShelterRetireFixture(t)
-	if !ShelterRetirable(f.plan, f.rooms, f.sleeping) {
+	if !ShelterRetirable(f.plan, f.rooms, f.sleeping, nil) {
 		t.Fatal("a housed colony with workshop and lab standing is not retirable")
 	}
 	next, changed := f.replan(t, true, nil)
@@ -97,21 +97,21 @@ func TestShelterRetirementGates(t *testing.T) {
 		s := f.sleeping
 		s.Colonists = 3
 		s.People = append(append([]SleepingPerson(nil), s.People...), SleepingPerson{ID: "c", OwnedBed: domain.Known("")})
-		if ShelterRetirable(f.plan, f.rooms, s) {
+		if ShelterRetirable(f.plan, f.rooms, s, nil) {
 			t.Fatal("retirable with a bedless colonist")
 		}
 	})
 	t.Run("bed only in the shelter", func(t *testing.T) {
 		s := f.sleeping
 		s.People = []SleepingPerson{{ID: "a", OwnedBed: domain.Known("spot1")}, {ID: "b", OwnedBed: domain.Known("bed2")}}
-		if ShelterRetirable(f.plan, f.rooms, s) {
+		if ShelterRetirable(f.plan, f.rooms, s, nil) {
 			t.Fatal("a shelter spot counted as a built bedroom bed")
 		}
 	})
 	t.Run("unknown bed", func(t *testing.T) {
 		s := f.sleeping
 		s.People = []SleepingPerson{{ID: "a", OwnedBed: domain.Unknown[string]()}, {ID: "b", OwnedBed: domain.Known("bed2")}}
-		if ShelterRetirable(f.plan, f.rooms, s) {
+		if ShelterRetirable(f.plan, f.rooms, s, nil) {
 			t.Fatal("retirable on an unknown bed")
 		}
 	})
@@ -126,7 +126,7 @@ func TestShelterRetirementGates(t *testing.T) {
 				}
 				rooms := f.rooms
 				rooms.Rooms = kept
-				if ShelterRetirable(f.plan, rooms, f.sleeping) {
+				if ShelterRetirable(f.plan, rooms, f.sleeping, nil) {
 					t.Fatalf("retirable with a %s not standing", role)
 				}
 			}
@@ -138,6 +138,52 @@ func TestShelterRetirementGates(t *testing.T) {
 			t.Fatalf("a shelter with open work was dropped (changed=%v)", changed)
 		}
 	})
+}
+
+// A solo colony plans no laboratory room: its shelter retires once the
+// colonist sleeps in a built bedroom, a workshop stands and the research bench
+// stands in a built room outside the shelter, and stays otherwise.
+func TestShelterRetiresForSoloColonyWithBenchInBedroom(t *testing.T) {
+	shelter := PlannedRoom{Role: PlannedShelter, Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 4}}
+	workshop := PlannedRoom{Role: PlannedWorkshop, Interior: Rectangle{X: 10, Z: 0, Width: 5, Height: 4}}
+	bedroom := PlannedRoom{Role: PlannedBedroom, Interior: Rectangle{X: 20, Z: 0, Width: 5, Height: 4}}
+	plan := LayoutPlan{Rooms: []PlannedRoom{shelter, workshop, bedroom}}
+	room := func(id string, r PlannedRoom, role RoomRole, beds ...string) Room {
+		return Room{ID: id, Role: domain.Known(role), Enclosed: domain.Known(true), Cells: rectCells(r.Interior), Beds: beds}
+	}
+	rooms := RoomObservation{Rooms: []Room{
+		room("s", shelter, RoomRoleBedroom, "spot"),
+		room("w", workshop, RoomRoleWorkshop),
+		room("b", bedroom, RoomRoleBedroom, "bed"),
+	}}
+	sleeping := SleepingObservation{Colonists: 1, People: []SleepingPerson{{ID: "a", OwnedBed: domain.Known("bed")}}}
+	bench, err := domain.NewBuilding("SimpleResearchBench", domain.Cell{X: 21, Z: 1}, domain.North, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	inBedroom := []CurrentBuilding{{ID: "t", Building: bench, Cells: []domain.Cell{{X: 21, Z: 1}, {X: 22, Z: 1}}}}
+	if !ShelterRetirable(plan, rooms, sleeping, inBedroom) {
+		t.Fatal("solo colony with its bench in the bedroom keeps the shelter")
+	}
+	inShelter := []CurrentBuilding{{ID: "t", Building: bench, Cells: []domain.Cell{{X: 1, Z: 1}}}}
+	if ShelterRetirable(plan, rooms, sleeping, inShelter) {
+		t.Fatal("retired while the bench still stands in the shelter")
+	}
+	if ShelterRetirable(plan, rooms, sleeping, nil) {
+		t.Fatal("retired with no bench outside the shelter")
+	}
+	cold := plan
+	cold.Cold = true
+	if ShelterRetirable(cold, rooms, sleeping, inBedroom) {
+		t.Fatal("cold map retired into a bedroom that holds no temperature")
+	}
+	rooms.Rooms[2].TemperatureControl = domain.Known(true)
+	if !ShelterRetirable(cold, rooms, sleeping, inBedroom) {
+		t.Fatal("cold map with a heated bedroom keeps the shelter")
+	}
+	if ShelterRetirable(LayoutPlan{Rooms: []PlannedRoom{shelter}}, RoomObservation{Rooms: rooms.Rooms[:1]}, sleeping, nil) {
+		t.Fatal("nothing else built must keep the shelter")
+	}
 }
 
 func containsCell(cells []domain.Cell, c domain.Cell) bool {

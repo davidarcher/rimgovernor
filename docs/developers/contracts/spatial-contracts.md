@@ -258,6 +258,14 @@ in place, floors are replaced. Standing census rooms are reconciled too. The pla
 and furniture come down, a research table packed to stock for the laboratory to install,
 and the entry drops once nothing of ours stands on it.
 
+The shelter retires (`policy.ShelterRetirable`, re-read every review, no latch) when every
+capability it hosts has a better home: every colonist owns a bed in a built bedroom, a
+planned workshop stands, a research bench stands in a built room outside the shelter (or a
+planned laboratory stands to take the packed table; research is a capability of whichever
+room holds the bench, so a solo colony needs no laboratory) and, on a cold map, those
+bedrooms hold temperature. Unknown facts never retire it, and a colony with nothing else
+built keeps the shelter as its permanent home.
+
 ### Stockpile maintenance
 
 `MaintainStockpiles` (family `stockpiles`) applies the stores the departments declare
