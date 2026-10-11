@@ -20,7 +20,7 @@ func TestColdShelterHasAPorchTemperateNone(t *testing.T) {
 		t.Fatalf("porch slots %d", got)
 	}
 	// The strip lies against the ring on the side opposite the door.
-	ring := Rectangle{X: s.Interior.X - 1, Z: s.Interior.Z - 1, Width: s.Interior.Width + 2, Height: s.Interior.Height + 2}
+	ring := Rectangle{X: s.Region.Bounds().X - 1, Z: s.Region.Bounds().Z - 1, Width: s.Region.Bounds().Width + 2, Height: s.Region.Bounds().Height + 2}
 	if rectsOverlap(s.Porch.Strip, ring) || !rectsOverlap(pad(s.Porch.Strip, 1), ring) {
 		t.Fatalf("porch %+v not beside ring %+v", s.Porch.Strip, ring)
 	}
@@ -44,7 +44,7 @@ func TestPorchHoldsBatteriesUntilTheBatteryRoomIsPlanned(t *testing.T) {
 	if got := PlannedPowerSites(coldCorePlan(false), BatteryDefinition); len(got) != 0 {
 		t.Fatalf("temperate map lists battery sites %+v", got)
 	}
-	plan.Rooms = append(plan.Rooms, PlannedRoom{Role: PlannedBattery, Interior: Rectangle{X: 100, Z: 100, Width: 5, Height: 7}, Door: domain.Cell{X: 102, Z: 99}, DoorRot: domain.South})
+	plan.Rooms = append(plan.Rooms, PlannedRoom{Role: PlannedBattery, Region: RectRegion(Rectangle{X: 100, Z: 100, Width: 5, Height: 7}), Door: domain.Cell{X: 102, Z: 99}, DoorRot: domain.South})
 	for _, site := range PlannedPowerSites(plan, BatteryDefinition) {
 		if slices.Contains(PorchRoofCells(plan), domain.Cell{X: site.Area.X, Z: site.Area.Z}) {
 			t.Fatalf("porch site %+v listed beside a battery room", site)

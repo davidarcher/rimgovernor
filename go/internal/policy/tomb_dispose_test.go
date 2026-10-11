@@ -56,7 +56,7 @@ func TestNoDisposalOfAColonistsSarcophagusOrAGrave(t *testing.T) {
 	}
 	// A sarcophagus outside the planned tomb is the player's.
 	_, _, built, waste = filledTomb(t, WasteItem{ID: "Corpse_s1", Kind: "corpse", CorpseOf: domain.CorpseStranger})
-	other := LayoutPlan{Rooms: []PlannedRoom{{Role: PlannedTomb, Interior: Rectangle{X: 40, Z: 40, Width: 5, Height: 5}, Door: domain.Cell{X: 42, Z: 39}, DoorRot: domain.North}}}
+	other := LayoutPlan{Rooms: []PlannedRoom{{Role: PlannedTomb, Region: RectRegion(Rectangle{X: 40, Z: 40, Width: 5, Height: 5}), Door: domain.Cell{X: 42, Z: 39}, DoorRot: domain.North}}}
 	if got := StrangerDisposals(other, waste, built, testSarcophagus, live); len(got) != 0 {
 		t.Fatalf("outside the plan: %+v", got)
 	}

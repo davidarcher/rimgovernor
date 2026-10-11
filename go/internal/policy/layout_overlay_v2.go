@@ -140,13 +140,13 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 		if !ok {
 			continue
 		}
-		walls := Rectangle{X: r.Interior.X - 1, Z: r.Interior.Z - 1, Width: r.Interior.Width + 2, Height: r.Interior.Height + 2}
+		walls := Rectangle{X: r.Region.Bounds().X - 1, Z: r.Region.Bounds().Z - 1, Width: r.Region.Bounds().Width + 2, Height: r.Region.Bounds().Height + 2}
 		if r.Unfenced() {
 			// No ring: outline the rows and the lane between them.
-			walls = r.Interior
+			walls = r.Region.Bounds()
 		}
 		if add(style, OverlayOutline, []Rectangle{walls}, nil) {
-			label(style.label, centre(r.Interior))
+			label(style.label, centre(r.Region.Bounds()))
 		}
 	}
 	var doors []domain.Cell

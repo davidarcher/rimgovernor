@@ -88,7 +88,7 @@ func (p LayoutPlan) IsolationRoomCells() []domain.Cell {
 		if room.Role != PlannedIsolationRoom {
 			continue
 		}
-		for _, c := range rectCells(room.Interior) {
+		for _, c := range rectCells(room.Region.Bounds()) {
 			set[c] = true
 		}
 	}

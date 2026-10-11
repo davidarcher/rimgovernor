@@ -45,7 +45,7 @@ func TestFireproofShellStuffRejectsFlammable(t *testing.T) {
 // A planned incinerator is owed its shell until every wall and the door
 // stand, and is then the room the dump zone fills.
 func TestIncineratorStepFollowsTheRing(t *testing.T) {
-	room := policy.PlannedRoom{Role: policy.PlannedIncinerator, Interior: policy.Rectangle{X: 11, Z: 11, Width: 3, Height: 3}, Door: domain.Cell{X: 10, Z: 12}, DoorRot: domain.West}
+	room := policy.PlannedRoom{Role: policy.PlannedIncinerator, Region: policy.RectRegion(policy.Rectangle{X: 11, Z: 11, Width: 3, Height: 3}), Door: domain.Cell{X: 10, Z: 12}, DoorRot: domain.West}
 	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{room}}
 	facts := observation.ColonyProjection{LayoutPlan: domain.Known(plan)}
 	if owed, known := incineratorOwed(facts).Value(); known || owed {
@@ -59,7 +59,7 @@ func TestIncineratorStepFollowsTheRing(t *testing.T) {
 		t.Fatal("standing with no walls")
 	}
 	var built []policy.CurrentBuilding
-	in := room.Interior
+	in := room.Region.Bounds()
 	var ring []domain.Cell
 	for x := in.X - 1; x <= in.X+in.Width; x++ {
 		for z := in.Z - 1; z <= in.Z+in.Height; z++ {
@@ -86,7 +86,7 @@ func TestIncineratorStepFollowsTheRing(t *testing.T) {
 	if owed, known := incineratorOwed(facts).Value(); !known || owed {
 		t.Fatal("owed with the ring standing")
 	}
-	if got := standingIncinerator(facts); got == nil || got.Interior != room.Interior {
+	if got := standingIncinerator(facts); got == nil || got.Region.Bounds() != room.Region.Bounds() {
 		t.Fatal("ring standing but not the dump zone's room", got)
 	}
 }

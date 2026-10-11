@@ -9,7 +9,7 @@ import (
 
 func TestPlannedSiteStandsOnThePlannedShelter(t *testing.T) {
 	bounds := policy.Bounds{Width: 50, Height: 50}
-	store := policy.PlannedRoom{Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 11, Z: 11, Width: 7, Height: 7}, Door: domain.Cell{X: 14, Z: 10}, DoorRot: domain.South}
+	store := policy.PlannedRoom{Role: policy.PlannedShelter, Region: policy.RectRegion(policy.Rectangle{X: 11, Z: 11, Width: 7, Height: 7}), Door: domain.Cell{X: 14, Z: 10}, DoorRot: domain.South}
 	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{store}}
 	// The 9x9 hut is the shelter's ring: its door is kept.
 	site, door, ok := plannedSite(plan, bounds, 9)

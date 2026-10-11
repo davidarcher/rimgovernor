@@ -23,8 +23,8 @@ type Door struct {
 // PlannedRoom is one planned room.
 type PlannedRoom struct {
 	Role PlannedRole
-	// Interior is the room's floor, walls excluded.
-	Interior Rectangle
+	// Region is the room's floor, walls excluded.
+	Region Region
 	// Door is the primary door: the one furniture frames and rock planning
 	// use.
 	Door    domain.Cell
@@ -145,8 +145,8 @@ type LayoutPlan struct {
 func (p LayoutPlan) Anchor(want PlannedRole, free func(room Rectangle) bool) (domain.Cell, bool) {
 	for _, role := range []PlannedRole{want, PlannedReserve} {
 		for _, r := range p.AllRooms() {
-			if r.Role == role && (free == nil || free(r.Interior)) {
-				return domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}, true
+			if r.Role == role && (free == nil || free(r.Region.Bounds())) {
+				return domain.Cell{X: r.Region.Bounds().X + r.Region.Bounds().Width/2, Z: r.Region.Bounds().Z + r.Region.Bounds().Height/2}, true
 			}
 		}
 	}
@@ -161,7 +161,7 @@ func (p LayoutPlan) Anchor(want PlannedRole, free func(room Rectangle) bool) (do
 func (p LayoutPlan) Core() (domain.Cell, bool) {
 	for _, r := range p.AllRooms() {
 		if r.Role == PlannedStorage {
-			return domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}, true
+			return domain.Cell{X: r.Region.Bounds().X + r.Region.Bounds().Width/2, Z: r.Region.Bounds().Z + r.Region.Bounds().Height/2}, true
 		}
 	}
 	return p.Center()
@@ -217,7 +217,7 @@ func (p LayoutPlan) Valid() bool {
 		}
 	}
 	for _, r := range p.AllRooms() {
-		if r.Role == "" || r.Interior.Width < 1 || r.Interior.Height < 1 {
+		if r.Role == "" || r.Region.Empty() {
 			return false
 		}
 		switch r.DoorRot {
@@ -257,7 +257,7 @@ func (p LayoutPlan) Valid() bool {
 func (p LayoutPlan) Extent() (Rectangle, bool) {
 	var rects []Rectangle
 	for _, r := range p.AllRooms() {
-		rects = append(rects, Rectangle{X: r.Interior.X - 1, Z: r.Interior.Z - 1, Width: r.Interior.Width + 2, Height: r.Interior.Height + 2})
+		rects = append(rects, Rectangle{X: r.Region.Bounds().X - 1, Z: r.Region.Bounds().Z - 1, Width: r.Region.Bounds().Width + 2, Height: r.Region.Bounds().Height + 2})
 	}
 	rects = append(rects, spineRects(p.Hallways())...)
 	for _, r := range p.Reservations {
@@ -297,7 +297,7 @@ func (r PlannedRoom) Same(o PlannedRoom) bool {
 			return false
 		}
 	}
-	return r.Role == o.Role && r.Interior == o.Interior && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing && r.Markers == o.Markers && (r.Airlock == nil) == (o.Airlock == nil) && (r.Airlock == nil || *r.Airlock == *o.Airlock) && (r.Porch == nil) == (o.Porch == nil) && (r.Porch == nil || *r.Porch == *o.Porch)
+	return r.Role == o.Role && r.Region.Bounds() == o.Region.Bounds() && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing && r.Markers == o.Markers && (r.Airlock == nil) == (o.Airlock == nil) && (r.Airlock == nil || *r.Airlock == *o.Airlock) && (r.Porch == nil) == (o.Porch == nil) && (r.Porch == nil || *r.Porch == *o.Porch)
 }
 
 // NearestAnchor is the interior centre of the free planned room of role want
@@ -309,10 +309,10 @@ func (p LayoutPlan) NearestAnchor(want PlannedRole, to domain.Cell, free func(ro
 	for _, role := range []PlannedRole{want, PlannedReserve} {
 		best, bestD, found := domain.Cell{}, int64(0), false
 		for _, r := range p.AllRooms() {
-			if r.Role != role || free != nil && !free(r.Interior) {
+			if r.Role != role || free != nil && !free(r.Region.Bounds()) {
 				continue
 			}
-			c := domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}
+			c := domain.Cell{X: r.Region.Bounds().X + r.Region.Bounds().Width/2, Z: r.Region.Bounds().Z + r.Region.Bounds().Height/2}
 			dx, dz := int64(c.X-to.X), int64(c.Z-to.Z)
 			if d := dx*dx + dz*dz; !found || d < bestD {
 				best, bestD, found = c, d, true

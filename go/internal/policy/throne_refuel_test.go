@@ -11,7 +11,7 @@ func TestThroneRefuelOrdersUnlitEmptyBrazier(t *testing.T) {
 	need.AnyOfCounts = []ThingAnyOfCount{{Things: []string{"Brazier"}, Count: 2}}
 	need.Glowing = [][]string{{"Brazier"}}
 	standing := tombStanding(room)
-	in := room.Interior
+	in := room.Region.Bounds()
 	inside := domain.Cell{X: in.X, Z: in.Z}
 	outside := domain.Cell{X: in.X + in.Width + 5, Z: in.Z}
 	hauler := WorkPawn{ID: "p1", Available: domain.Known(true), Applies: domain.Known(true),

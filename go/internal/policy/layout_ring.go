@@ -40,12 +40,12 @@ func RingMarkersFor(capable int) int {
 func (p LayoutPlan) RingRooms() []PlannedRoom { return p.roomsOf(PlannedSparringRing) }
 
 // ringBlock is the footprint a ring blocks: its interior with a one-cell margin.
-func ringBlock(r PlannedRoom) Rectangle { return pad(r.Interior, 1) }
+func ringBlock(r PlannedRoom) Rectangle { return pad(r.Region.Bounds(), 1) }
 
 // ringFromBlock is the planned ring whose blocked footprint is block.
 func ringFromBlock(block Rectangle, markers int) PlannedRoom {
 	in := Rectangle{X: block.X + 1, Z: block.Z + 1, Width: RingSide, Height: RingSide}
-	return PlannedRoom{Role: PlannedSparringRing, Interior: in, Outdoor: true, Markers: markers}
+	return PlannedRoom{Role: PlannedSparringRing, Region: RectRegion(in), Outdoor: true, Markers: markers}
 }
 
 // RingSlot is the cell of marker slot n on the inner edge of a ring whose
@@ -70,7 +70,7 @@ func RingSlot(in Rectangle, n int) domain.Cell {
 func RingTemplate(room PlannedRoom) []WantedPiece {
 	out := make([]WantedPiece, 0, room.Markers)
 	for n := range min(room.Markers, RingMaxMarkers) {
-		c := RingSlot(room.Interior, n)
+		c := RingSlot(room.Region.Bounds(), n)
 		out = append(out, WantedPiece{DefName: RingMarkerDef, Minimum: c, Maximum: c, Slot: fmt.Sprintf("marker-%d", n), Size: domain.Cell{X: 1, Z: 1}, Rot: domain.North})
 	}
 	return out

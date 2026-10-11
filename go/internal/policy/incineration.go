@@ -39,7 +39,7 @@ func (incinerationOwner) Stores(v StoreView) []Store {
 		out = append(out, Store{StoreSite: dump})
 	}
 	if v.Incinerator != nil {
-		out = append(out, Store{StoreSite: StoreSite{Role: domain.IncineratorRole, Interior: v.Incinerator.Interior, Filter: domain.IncineratorFilter(), Priority: domain.PreferredPriority, exact: true}})
+		out = append(out, Store{StoreSite: StoreSite{Role: domain.IncineratorRole, Interior: v.Incinerator.Region.Bounds(), Filter: domain.IncineratorFilter(), Priority: domain.PreferredPriority, exact: true}})
 	}
 	return out
 }
@@ -55,10 +55,10 @@ func wasteDumpSite(plan *LayoutPlan) (StoreSite, bool) {
 	if len(yards) == 0 {
 		return StoreSite{}, false
 	}
-	yard := yards[0].Interior
+	yard := yards[0].Region.Bounds()
 	cells := rectCells(yard)
 	for _, inc := range plan.roomsOf(PlannedIncinerator) {
-		outline := cellSet(rectCells(pad(inc.Interior, 1)))
+		outline := cellSet(rectCells(pad(inc.Region.Bounds(), 1)))
 		cells = slices.DeleteFunc(cells, func(c domain.Cell) bool { return outline[c] })
 	}
 	return StoreSite{Role: domain.DumpRole, Interior: yard, Filter: domain.DumpFilter(), Priority: domain.LowPriority, regions: cellRects(cellSet(cells)), exact: true}, true

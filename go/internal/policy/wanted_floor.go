@@ -50,7 +50,7 @@ func roomFloorDeficit(room PlannedRoom, tags []string) (FloorDeficit, bool) {
 	if len(tags) > 0 && role == RoomRoleThroneRoom {
 		tier, ok = FloorTierThrone, true
 	}
-	d := FloorDeficit{Tier: tier, Role: role, Cells: rectCells(room.Interior)}
+	d := FloorDeficit{Tier: tier, Role: role, Cells: rectCells(room.Region.Bounds())}
 	if tier == FloorTierThrone {
 		d.Tags = tags
 	}

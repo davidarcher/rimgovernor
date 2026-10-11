@@ -105,7 +105,7 @@ func TestCourtyardPatchIsNotYardRoom(t *testing.T) {
 		t.Fatal("no yard room")
 	}
 	for _, yard := range yards {
-		for _, c := range rectCells(yard.Interior) {
+		for _, c := range rectCells(yard.Region.Bounds()) {
 			if rich[c] {
 				t.Fatalf("yard room on the farmed patch at %v", c)
 			}

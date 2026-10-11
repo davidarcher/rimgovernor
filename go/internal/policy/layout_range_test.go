@@ -42,8 +42,8 @@ func TestRangeIsAnUnfencedOutdoorRoomNearTheColonyFacingAwayFromTheCore(t *testi
 	if RangeStandCount(room) != 4 {
 		t.Fatalf("stands %d", RangeStandCount(room))
 	}
-	if room.rangeHorizontal() && room.Interior.Height != RangeDistance+1 || !room.rangeHorizontal() && room.Interior.Width != RangeDistance+1 {
-		t.Fatalf("lane %+v", room.Interior)
+	if room.rangeHorizontal() && room.Region.Bounds().Height != RangeDistance+1 || !room.rangeHorizontal() && room.Region.Bounds().Width != RangeDistance+1 {
+		t.Fatalf("lane %+v", room.Region.Bounds())
 	}
 	ext, _ := outskirtsPlan(150).CoreBounds() // before the range joined the plan
 	side, _, beyond := sideOf(ext, rangeBlock(room))
@@ -104,7 +104,7 @@ func TestRangeLayoutIsOneRowOfStandsAndADummyRowFacingThem(t *testing.T) {
 		seen := map[domain.Cell]bool{}
 		var stands, dummies []domain.Cell
 		for _, p := range pieces {
-			if seen[p.Cell] || !contains(room.Interior, p.Cell) {
+			if seen[p.Cell] || !contains(room.Region.Bounds(), p.Cell) {
 				t.Fatalf("%s: piece off the interior or doubled: %+v", facing, p)
 			}
 			seen[p.Cell] = true
@@ -259,8 +259,8 @@ func TestRangeRendersInTheOverlayWithoutADoor(t *testing.T) {
 			outline = &overlay.Layers[i]
 		}
 	}
-	if outline == nil || len(outline.Rects) != 1 || outline.Rects[0] != room.Interior {
-		t.Fatalf("range outline %+v, want the interior %+v", outline, room.Interior)
+	if outline == nil || len(outline.Rects) != 1 || outline.Rects[0] != room.Region.Bounds() {
+		t.Fatalf("range outline %+v, want the interior %+v", outline, room.Region.Bounds())
 	}
 	for _, l := range overlay.Layers {
 		if l.Label == "door" {

@@ -53,7 +53,7 @@ func TestRoundsShelterDigsADugPlannedStoreroom(t *testing.T) {
 	}
 	n := &dugShelterNative{sleepingNative: base, rock: rock}
 	r.native = n
-	room := policy.PlannedRoom{Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}, Door: domain.Cell{X: 4, Z: 0}, DoorRot: domain.South, Dug: true}
+	room := policy.PlannedRoom{Role: policy.PlannedShelter, Region: policy.RectRegion(policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}), Door: domain.Cell{X: 4, Z: 0}, DoorRot: domain.South, Dug: true}
 	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.PlannedRoom{room}})
 	result, err := r.Step(context.Background())
 	if err != nil || result.Verdict != BuildingReasonAdmitted {

@@ -19,7 +19,7 @@ func coreTestZones() []LayoutZone {
 
 // roomRect is a room with its walls.
 func roomRect(r PlannedRoom) Rectangle {
-	in := r.Interior
+	in := r.Region.Bounds()
 	return Rectangle{X: in.X - 1, Z: in.Z - 1, Width: in.Width + 2, Height: in.Height + 2}
 }
 
@@ -51,7 +51,7 @@ func checkCore(t *testing.T, p LayoutPlan, pawns int) {
 			if i == j {
 				continue
 			}
-			ra, rb := a.Interior, roomRect(b)
+			ra, rb := a.Region.Bounds(), roomRect(b)
 			// Interiors never overlap another room's walls or floor.
 			if ra.X < rb.X+rb.Width && rb.X < ra.X+ra.Width && ra.Z < rb.Z+rb.Height && rb.Z < ra.Z+ra.Height {
 				t.Fatal("overlap", a, b)
@@ -101,7 +101,7 @@ func TestGrowStopsAtEdge(t *testing.T) {
 		t.Fatal("rooms", len(g.AllRooms()))
 	}
 	for _, r := range g.Rooms {
-		if r.Interior.X < LayoutEdgeMargin || r.Interior.X+r.Interior.Width > 120-LayoutEdgeMargin {
+		if r.Region.Bounds().X < LayoutEdgeMargin || r.Region.Bounds().X+r.Region.Bounds().Width > 120-LayoutEdgeMargin {
 			t.Fatal("off the core", r)
 		}
 	}
@@ -120,7 +120,7 @@ func TestFreezerLinksToTheKitchen(t *testing.T) {
 			freezer = r
 		}
 	}
-	k, f := kitchen.Interior, freezer.Interior
+	k, f := kitchen.Region.Bounds(), freezer.Region.Bounds()
 	if freezer.Link == nil {
 		t.Fatalf("freezer %+v has no kitchen door", freezer)
 	}
@@ -182,11 +182,11 @@ func TestMealClosetBehindTheDiningRoom(t *testing.T) {
 			closet = r
 		}
 	}
-	if closet.Role == "" || closet.Interior.Width != 2 || closet.Interior.Height != 2 {
+	if closet.Role == "" || closet.Region.Bounds().Width != 2 || closet.Region.Bounds().Height != 2 {
 		t.Fatalf("closet %+v", closet)
 	}
-	d := dining.Interior
-	if !inWall(d, closet.Door) || !inWall(closet.Interior, closet.Door) || closet.DoorRot != dining.DoorRot {
+	d := dining.Region.Bounds()
+	if !inWall(d, closet.Door) || !inWall(closet.Region.Bounds(), closet.Door) || closet.DoorRot != dining.DoorRot {
 		t.Fatalf("closet door %v not in the wall shared with dining %+v", closet.Door, d)
 	}
 	back := d.Z + d.Height
@@ -201,7 +201,7 @@ func TestMealClosetBehindTheDiningRoom(t *testing.T) {
 	}
 	withExhaust := PlanUtilities(grown, UtilityWants{})
 	site, _, ok := withExhaust.CoolerExhaust(closet)
-	if !ok || !inWall(closet.Interior, site.Cell) || inWall(d, site.Cell) {
+	if !ok || !inWall(closet.Region.Bounds(), site.Cell) || inWall(d, site.Cell) {
 		t.Fatalf("closet cooler site %+v %v", site, ok)
 	}
 }
@@ -263,8 +263,8 @@ func TestGrowBranchesIntoCrossings(t *testing.T) {
 		north, south := false, false
 		for _, r := range p.Rooms {
 			if onSegment(r, s) {
-				north = north || r.Interior.Z > z0
-				south = south || r.Interior.Z < z0
+				north = north || r.Region.Bounds().Z > z0
+				south = south || r.Region.Bounds().Z < z0
 			}
 		}
 		if lo, hi := min(s.From.Z, s.To.Z), max(s.From.Z, s.To.Z); lo > z0-SpineWidth || hi < z0+SpineWidth {

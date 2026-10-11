@@ -36,8 +36,8 @@ func coupleBedFixture() (SleepingObservation, []FurnitureRoom) {
 
 // coupleBedPlan plans the fixture's two bedrooms.
 var coupleBedPlan = LayoutPlan{Rooms: []PlannedRoom{
-	{Role: PlannedBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 4}, Door: domain.Cell{X: 0, Z: -1}},
-	{Role: PlannedBedroom, Interior: Rectangle{X: 10, Z: 0, Width: 5, Height: 4}, Door: domain.Cell{X: 10, Z: -1}},
+	{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 0, Z: 0, Width: 5, Height: 4}), Door: domain.Cell{X: 0, Z: -1}},
+	{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 10, Z: 0, Width: 5, Height: 4}), Door: domain.Cell{X: 10, Z: -1}},
 }}
 
 func TestCoupleBedPacksThenInstallsInTheBedSlot(t *testing.T) {
@@ -60,7 +60,7 @@ func TestCoupleBedPacksThenInstallsInTheBedSlot(t *testing.T) {
 	obs.Beds = nil
 	rooms[0].Pieces, rooms[1].Pieces = nil, nil
 	install, ok := NextCoupleBed(obs, coupleBedPlan, rooms, []domain.Cell{packedAt}, false)
-	if !ok || install.Kind != CoupleInstall || install.Room != "Room_1" || install.Planned.Interior != rooms[0].Room.Interior || len(install.Template) != 1 {
+	if !ok || install.Kind != CoupleInstall || install.Room != "Room_1" || install.Planned.Region.Bounds() != rooms[0].Room.Interior || len(install.Template) != 1 {
 		t.Fatalf("install = %+v %v", install, ok)
 	}
 	// The template is the bedroom template's DoubleBed bed slot.
@@ -109,7 +109,7 @@ func TestCoupleBedInstallsInTheRoomPackingEmptied(t *testing.T) {
 		return SleepingPerson{ID: id, OwnedBed: domain.Known(""), Partners: []PawnID{partner}, BedSharingAllowed: domain.Known(true)}
 	}
 	obs := SleepingObservation{Colonists: 2, People: []SleepingPerson{person("a", "b"), person("b", "a")}}
-	install, ok := NextCoupleBed(obs, LayoutPlan{Rooms: []PlannedRoom{{Role: PlannedBedroom, Interior: interior, Door: door}}}, CoupleBedRooms(rooms, census, cells), []domain.Cell{{X: 1, Z: 1}}, true)
+	install, ok := NextCoupleBed(obs, LayoutPlan{Rooms: []PlannedRoom{{Role: PlannedBedroom, Region: RectRegion(interior), Door: door}}}, CoupleBedRooms(rooms, census, cells), []domain.Cell{{X: 1, Z: 1}}, true)
 	if !ok || install.Kind != CoupleInstall || install.Room != "Room_1" {
 		t.Fatalf("install = %+v %v", install, ok)
 	}

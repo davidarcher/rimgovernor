@@ -8,7 +8,7 @@ import (
 )
 
 func morgueFixture() (LayoutPlan, PlannedRoom) {
-	room := PlannedRoom{Role: PlannedMorgue, Interior: Rectangle{X: 10, Z: 20, Width: 5, Height: 4}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
+	room := PlannedRoom{Role: PlannedMorgue, Region: RectRegion(Rectangle{X: 10, Z: 20, Width: 5, Height: 4}), Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
 	return LayoutPlan{Rooms: []PlannedRoom{room}}, room
 }
 
@@ -38,7 +38,7 @@ func TestMorgueReconciledForAnyHumanCorpse(t *testing.T) {
 
 func TestMorgueIsCooledOnceStanding(t *testing.T) {
 	plan, room := morgueFixture()
-	rooms := tombStanding(PlannedRoom{Interior: room.Interior})
+	rooms := tombStanding(PlannedRoom{Region: RectRegion(room.Region.Bounds())})
 	rooms.Rooms[0].Temperature = domain.Known(18.0)
 	if got, known := WarmCoolingRooms(domain.Known(true), domain.Known(plan), domain.Known(rooms)).Value(); !known || !reflect.DeepEqual(got, []string{"r1"}) {
 		t.Fatalf("a standing warm morgue owes cooling: %v %v", got, known)
@@ -52,7 +52,7 @@ func TestMorgueIsCooledOnceStanding(t *testing.T) {
 func TestMorgueStoreHoldsEveryHumanCorpseBelowGraves(t *testing.T) {
 	plan, room := morgueFixture()
 	stores := burialOwner{}.Stores(StoreView{Layout: &plan})
-	if len(stores) != 1 || stores[0].Role != domain.MorgueRolePrefix+"10_20" || stores[0].Interior != room.Interior || stores[0].Filter != domain.MorgueCorpsesFilter() {
+	if len(stores) != 1 || stores[0].Role != domain.MorgueRolePrefix+"10_20" || stores[0].Interior != room.Region.Bounds() || stores[0].Filter != domain.MorgueCorpsesFilter() {
 		t.Fatalf("stores %+v", stores)
 	}
 	if stores[0].Priority != MorguePriority || MorguePriority == domain.CriticalPriority {

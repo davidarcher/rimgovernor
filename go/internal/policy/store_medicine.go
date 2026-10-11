@@ -21,7 +21,7 @@ func (r StoreView) medicineStore() (Store, bool) {
 			break
 		}
 	}
-	if hospital.Interior.Width <= 0 {
+	if hospital.Region.Bounds().Width <= 0 {
 		return Store{}, false
 	}
 	var avoid, beds []domain.Cell
@@ -36,8 +36,8 @@ func (r StoreView) medicineStore() (Store, bool) {
 		}
 	}
 	open := newStockpileOpen(StockpileRequest{Bounds: r.Bounds, Cells: r.Cells, Protected: r.Protected})
-	open.only = cellSet(withoutCells(rectCells(hospital.Interior), avoid))
-	rects := rectangleSites(open, hospital.Door, 2, 2, nil, int(hospital.Interior.Width*hospital.Interior.Height))
+	open.only = cellSet(withoutCells(rectCells(hospital.Region.Bounds()), avoid))
+	rects := rectangleSites(open, hospital.Door, 2, 2, nil, int(hospital.Region.Bounds().Width*hospital.Region.Bounds().Height))
 	if len(rects) == 0 {
 		return Store{}, false
 	}
@@ -56,7 +56,7 @@ func (r StoreView) medicineStore() (Store, bool) {
 	}
 	// The anchor is the best patch's centre: the store takes that patch, else
 	// the free one nearest it.
-	return Store{StoreSite: StoreSite{Role: plannedKey(domain.MedicineRolePrefix, hospital.Interior), Interior: hospital.Interior, Width: 2, Height: 2,
+	return Store{StoreSite: StoreSite{Role: plannedKey(domain.MedicineRolePrefix, hospital.Region.Bounds()), Interior: hospital.Region.Bounds(), Width: 2, Height: 2,
 		Anchor: domain.Cell{X: best.X + best.Width/2, Z: best.Z + best.Height/2}, Avoid: avoid,
 		Filter: domain.MedicineFilter(), Priority: domain.ImportantPriority}}, true
 }

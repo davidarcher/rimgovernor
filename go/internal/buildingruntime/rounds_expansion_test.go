@@ -106,7 +106,7 @@ func TestExpansionAdmitsWholeShellWhenExistingRoomsAreFull(t *testing.T) {
 	}
 	// The expansion builds the planned barracks.
 	barracks, _ := policy.PlannedRoleFor(policy.RoomRoleShelter)
-	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: barracks, Interior: policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}, Door: domain.Cell{X: 4, Z: 0}, DoorRot: domain.South}}})
+	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: barracks, Region: policy.RectRegion(policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}), Door: domain.Cell{X: 4, Z: 0}, DoorRot: domain.South}}})
 	got, err := r.Step(context.Background())
 	if err != nil || got.Verdict != BuildingReasonAdmitted {
 		t.Fatal(got, err)

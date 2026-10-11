@@ -199,7 +199,7 @@ func (g coreGrid) seed() (domain.Cell, bool) {
 }
 
 func (g coreGrid) dug(r PlannedRoom) bool {
-	in := r.Interior
+	in := r.Region.Bounds()
 	for x := in.X; x < in.X+in.Width; x++ {
 		for z := in.Z; z < in.Z+in.Height; z++ {
 			if g.rock[domain.Cell{X: x, Z: z}] {

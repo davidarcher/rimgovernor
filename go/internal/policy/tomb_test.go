@@ -7,14 +7,14 @@ import (
 )
 
 func tombFixture() (LayoutPlan, PlannedRoom) {
-	room := PlannedRoom{Role: PlannedTomb, Interior: Rectangle{X: 10, Z: 20, Width: 5, Height: 5}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
+	room := PlannedRoom{Role: PlannedTomb, Region: RectRegion(Rectangle{X: 10, Z: 20, Width: 5, Height: 5}), Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
 	return LayoutPlan{Rooms: []PlannedRoom{room}}, room
 }
 
 func tombStanding(room PlannedRoom) RoomObservation {
 	var cells []domain.Cell
-	for z := room.Interior.Z; z < room.Interior.Z+room.Interior.Height; z++ {
-		for x := room.Interior.X; x < room.Interior.X+room.Interior.Width; x++ {
+	for z := room.Region.Bounds().Z; z < room.Region.Bounds().Z+room.Region.Bounds().Height; z++ {
+		for x := room.Region.Bounds().X; x < room.Region.Bounds().X+room.Region.Bounds().Width; x++ {
 			cells = append(cells, domain.Cell{X: x, Z: z})
 		}
 	}
@@ -128,7 +128,7 @@ func TestTombStepGrowsAnotherTombWhenFull(t *testing.T) {
 	if step := NextTombStep(plan, waste, built, testShapes, true, StrangerTomb{}); step.Kind != TombFull {
 		t.Fatalf("every slot filled: %+v", step)
 	}
-	second := PlannedRoom{Role: PlannedTomb, Interior: Rectangle{X: 16, Z: 20, Width: 5, Height: 5}, Door: domain.Cell{X: 18, Z: 19}, DoorRot: domain.North}
+	second := PlannedRoom{Role: PlannedTomb, Region: RectRegion(Rectangle{X: 16, Z: 20, Width: 5, Height: 5}), Door: domain.Cell{X: 18, Z: 19}, DoorRot: domain.North}
 	plan.Rooms = append(plan.Rooms, second)
 	if step := NextTombStep(plan, waste, built, testShapes, true, StrangerTomb{}); step.Kind != TombReconcile || !step.Room.Same(second) {
 		t.Fatalf("second tomb: %+v", step)
@@ -142,7 +142,7 @@ func TestTombStepGravesInTheGraveyardWithoutASarcophagus(t *testing.T) {
 	plan, yard := graveyardPlan(t)
 	dead := []WasteItem{{ID: "Corpse_1", State: WasteExposed, CorpseOf: domain.CorpseColonist}}
 	step := NextTombStep(plan, dead, nil, testShapes, false, StrangerTomb{})
-	slots := GraveyardSlots(yard.Interior)
+	slots := GraveyardSlots(yard.Region.Bounds())
 	if step.Kind != TombReconcile || !step.Room.Same(yard) || len(step.Template) != 1 || step.Template[0].DefName != GraveDefinition || step.Template[0].Minimum != (domain.Cell{X: slots[0].X, Z: slots[0].Z}) {
 		t.Fatalf("no sarcophagus: %+v", step)
 	}
@@ -177,7 +177,7 @@ func TestNoGraveOutsideTheGraveyard(t *testing.T) {
 	}
 	plan, yard := graveyardPlan(t)
 	var built []CurrentBuilding
-	for i, slot := range GraveyardSlots(yard.Interior) {
+	for i, slot := range GraveyardSlots(yard.Region.Bounds()) {
 		g, err := domain.NewBuilding(GraveDefinition, domain.Cell{X: slot.X, Z: slot.Z}, domain.North, "")
 		if err != nil {
 			t.Fatal(err)
@@ -197,7 +197,7 @@ func TestNoGraveOutsideTheGraveyard(t *testing.T) {
 // graveyard is 0.85 used, and only while no sarcophagus can be had.
 func TestFurtherGraveyardWhenEmptyGravesRunOut(t *testing.T) {
 	plan, yard := graveyardPlan(t)
-	slots := GraveyardSlots(yard.Interior)
+	slots := GraveyardSlots(yard.Region.Bounds())
 	graves := func(n int) ([]CurrentBuilding, []WasteItem) {
 		var built []CurrentBuilding
 		var waste []WasteItem

@@ -10,9 +10,9 @@ import (
 
 func TestLayoutPlanAnchorFallsBackToReserve(t *testing.T) {
 	p := LayoutPlan{Rooms: []PlannedRoom{
-		{Role: PlannedKitchen, Interior: Rectangle{X: 0, Z: 0, Width: 4, Height: 4}},
-		{Role: PlannedKitchen, Interior: Rectangle{X: 10, Z: 0, Width: 6, Height: 4}},
-		{Role: PlannedReserve, Interior: Rectangle{X: 20, Z: 0, Width: 2, Height: 2}},
+		{Role: PlannedKitchen, Region: RectRegion(Rectangle{X: 0, Z: 0, Width: 4, Height: 4})},
+		{Role: PlannedKitchen, Region: RectRegion(Rectangle{X: 10, Z: 0, Width: 6, Height: 4})},
+		{Role: PlannedReserve, Region: RectRegion(Rectangle{X: 20, Z: 0, Width: 2, Height: 2})},
 	}}
 	if c, ok := p.Anchor(PlannedKitchen, nil); !ok || c != (domain.Cell{X: 2, Z: 2}) {
 		t.Fatal(c, ok)
@@ -28,10 +28,9 @@ func TestLayoutPlanAnchorFallsBackToReserve(t *testing.T) {
 	}
 }
 
-// A plan saved before the PlannedRoom rename loads and saves with the
-// same field names and role strings: the rename is type-level only.
+// A saved plan loads and saves with the same field names and role strings.
 func TestPlannedRoomJSONRoundTripsSavedPlan(t *testing.T) {
-	const saved = `{"Role":"kitchen","Interior":{"X":1,"Z":2,"Width":4,"Height":3},"Door":{"X":5,"Z":3},"DoorRot":"east","Link":null,"Dug":true}`
+	const saved = `{"Role":"kitchen","Region":{"Runs":[{"Z":2,"X":1,"Length":4},{"Z":3,"X":1,"Length":4},{"Z":4,"X":1,"Length":4}]},"Door":{"X":5,"Z":3},"DoorRot":"east","Link":null,"Dug":true}`
 	var r PlannedRoom
 	if err := json.Unmarshal([]byte(saved), &r); err != nil {
 		t.Fatal(err)

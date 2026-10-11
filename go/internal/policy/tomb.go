@@ -138,7 +138,7 @@ func StrangerDisposals(plan LayoutPlan, waste []WasteItem, built []CurrentBuildi
 	}
 	tomb := map[domain.Cell]bool{}
 	for _, r := range plan.roomsOf(PlannedTomb) {
-		for _, c := range rectCells(r.Interior) {
+		for _, c := range rectCells(r.Region.Bounds()) {
 			tomb[c] = true
 		}
 	}

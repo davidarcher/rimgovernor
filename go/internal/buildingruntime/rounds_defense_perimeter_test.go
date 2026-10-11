@@ -70,7 +70,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 		t.Fatal("no plan")
 	}
 	record := perimeterRecord(t, plan)
-	transmitters := []domain.Cell{{X: plan.Rooms[0].Interior.X, Z: plan.Rooms[0].Interior.Z}}
+	transmitters := []domain.Cell{{X: plan.Rooms[0].Region.Bounds().X, Z: plan.Rooms[0].Region.Bounds().Z}}
 	if changed, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, 1e6); err != nil || !changed || record.PerimeterRevision != 0 || record.PerimeterKey == "" {
 		t.Fatal("anchor", changed, err)
 	}
@@ -157,7 +157,7 @@ func TestDefenseRecutPerimeterPumpPower(t *testing.T) {
 	if !ok {
 		t.Fatal("no plan")
 	}
-	transmitters := []domain.Cell{{X: plan.Rooms[0].Interior.X, Z: plan.Rooms[0].Interior.Z}}
+	transmitters := []domain.Cell{{X: plan.Rooms[0].Region.Bounds().X, Z: plan.Rooms[0].Region.Bounds().Z}}
 	pumps := func(r store.DefenseLayoutRecord) (n int) {
 		for k := range tierBuildings(r, func(t store.DefenseTierRecord) bool { return !t.Remove }) {
 			if strings.HasPrefix(k, defenseMoisturePump+"@") {

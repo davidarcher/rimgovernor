@@ -14,12 +14,12 @@ func wantedFloorFacts() FlooringFacts {
 }
 
 func wantedFloorRoom(role PlannedRole) PlannedRoom {
-	return PlannedRoom{Role: role, Interior: Rectangle{X: 10, Z: 10, Width: 3, Height: 2}}
+	return PlannedRoom{Role: role, Region: RectRegion(Rectangle{X: 10, Z: 10, Width: 3, Height: 2})}
 }
 
 func TestWantedFloorsThroneRoomTakesTheTitleTaggedFloor(t *testing.T) {
 	want := WantedFloors(wantedFloorRoom(PlannedThrone), []string{"FineFloor"}, wantedFloorFacts(), flooringPolicy())
-	for _, c := range rectCells(wantedFloorRoom(PlannedThrone).Interior) {
+	for _, c := range rectCells(wantedFloorRoom(PlannedThrone).Region.Bounds()) {
 		if got := want(c); got != "TileGranite" {
 			t.Fatal(c, got)
 		}

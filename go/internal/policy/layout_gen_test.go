@@ -38,7 +38,7 @@ func linksKeepWall(t *testing.T, p LayoutPlan) {
 		}
 		shared := false
 		for _, o := range rooms {
-			if o.Interior != r.Interior && inWall(r.Interior, *r.Link) && inWall(o.Interior, *r.Link) && sharesWall(r.Interior, o.Interior) {
+			if o.Region.Bounds() != r.Region.Bounds() && inWall(r.Region.Bounds(), *r.Link) && inWall(o.Region.Bounds(), *r.Link) && sharesWall(r.Region.Bounds(), o.Region.Bounds()) {
 				shared = true
 			}
 		}

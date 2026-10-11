@@ -29,7 +29,7 @@ func centrePlan(c domain.Cell) policy.LayoutPlan {
 // planned colony: the fixtures' colonies are planned, so nothing waits on a
 // plan. The plan is a single containment cell, a role no fixture plans for.
 func centreOn(r *Rounder, c domain.Cell) {
-	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedContainmentCell, Interior: policy.Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1}, DoorRot: domain.South}}}
+	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedContainmentCell, Region: policy.RectRegion(policy.Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1}), DoorRot: domain.South}}}
 	if err := r.player.journal.RecordLayoutPlan(context.Background(), r.player.session.State().Snapshot, 0, plan); err != nil {
 		panic(err)
 	}
@@ -41,7 +41,7 @@ func centreOn(r *Rounder, c domain.Cell) {
 // signature; the bedroom, not c, is the plan's centre.
 func sleepingSite(r *Rounder, _ domain.Cell) {
 	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{
-		{Role: policy.PlannedBedroom, Interior: policy.Rectangle{Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: -1}, DoorRot: domain.South},
+		{Role: policy.PlannedBedroom, Region: policy.RectRegion(policy.Rectangle{Width: 5, Height: 5}), Door: domain.Cell{X: 2, Z: -1}, DoorRot: domain.South},
 	}}
 	if err := r.player.journal.RecordLayoutPlan(context.Background(), r.player.session.State().Snapshot, 0, plan); err != nil {
 		panic(err)
@@ -52,7 +52,7 @@ func sleepingSite(r *Rounder, _ domain.Cell) {
 // shelter, whose template slot holds the cooking campfire.
 func coldShelterSite(r *Rounder, _ domain.Cell) {
 	plan := policy.LayoutPlan{Cold: true, Rooms: []policy.PlannedRoom{
-		{Role: policy.PlannedShelter, Interior: policy.Rectangle{Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: 5}, DoorRot: domain.North},
+		{Role: policy.PlannedShelter, Region: policy.RectRegion(policy.Rectangle{Width: 5, Height: 5}), Door: domain.Cell{X: 2, Z: 5}, DoorRot: domain.North},
 	}}
 	if err := r.player.journal.RecordLayoutPlan(context.Background(), r.player.session.State().Snapshot, 0, plan); err != nil {
 		panic(err)
@@ -64,7 +64,7 @@ func coldShelterSite(r *Rounder, _ domain.Cell) {
 func roomSite(role policy.PlannedRole) func(*Rounder, domain.Cell) {
 	return func(r *Rounder, _ domain.Cell) {
 		plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{
-			{Role: role, Interior: policy.Rectangle{Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: -1}, DoorRot: domain.South},
+			{Role: role, Region: policy.RectRegion(policy.Rectangle{Width: 5, Height: 5}), Door: domain.Cell{X: 2, Z: -1}, DoorRot: domain.South},
 		}}
 		if err := r.player.journal.RecordLayoutPlan(context.Background(), r.player.session.State().Snapshot, 0, plan); err != nil {
 			panic(err)
@@ -75,9 +75,9 @@ func roomSite(role policy.PlannedRole) func(*Rounder, domain.Cell) {
 func anchorPlan() policy.LayoutPlan {
 	return policy.LayoutPlan{
 		Rooms: []policy.PlannedRoom{
-			{Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 10, Z: 10, Width: 5, Height: 5}},
-			{Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 20, Z: 10, Width: 5, Height: 5}},
-			{Role: policy.PlannedStorage, Interior: policy.Rectangle{X: 30, Z: 10, Width: 4, Height: 4}},
+			{Role: policy.PlannedShelter, Region: policy.RectRegion(policy.Rectangle{X: 10, Z: 10, Width: 5, Height: 5})},
+			{Role: policy.PlannedShelter, Region: policy.RectRegion(policy.Rectangle{X: 20, Z: 10, Width: 5, Height: 5})},
+			{Role: policy.PlannedStorage, Region: policy.RectRegion(policy.Rectangle{X: 30, Z: 10, Width: 4, Height: 4})},
 		},
 		Zones: []policy.LayoutZone{{Kind: policy.ZoneField, Runs: []policy.RowRun{{Z: 70, X: 60, Length: 10}}}},
 	}
@@ -111,7 +111,7 @@ func TestRoomAnchorIsTheNearestFreeRoomOfTheRole(t *testing.T) {
 func TestRoomAnchorFallsBackToReserveRooms(t *testing.T) {
 	p := anchorProjection(policy.TechTierMasonry)
 	plan := anchorPlan()
-	plan.Rooms = append(plan.Rooms, policy.PlannedRoom{Role: policy.PlannedReserve, Interior: policy.Rectangle{X: 50, Z: 50, Width: 4, Height: 4}})
+	plan.Rooms = append(plan.Rooms, policy.PlannedRoom{Role: policy.PlannedReserve, Region: policy.RectRegion(policy.Rectangle{X: 50, Z: 50, Width: 4, Height: 4})})
 	p.LayoutPlan = domain.Known(plan)
 	if c, _ := roomAnchor(p, policy.PlannedWorkshop, domain.Cell{}); c != (domain.Cell{X: 52, Z: 52}) {
 		t.Fatalf("reserve fallback %v", c)

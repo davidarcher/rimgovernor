@@ -90,7 +90,7 @@ func TestPlannedGroundStepOrder(t *testing.T) {
 // roof before it takes a wall out, so the enclosure is never opened early.
 func TestPlannedGroundStepReconcilesAStandingRoom(t *testing.T) {
 	plan, rooms := groundFixture()
-	rooms.Rooms = []Room{{ID: "r", Enclosed: domain.Known(true), Cells: rectCells(plan.Rooms[0].Interior)}}
+	rooms.Rooms = []Room{{ID: "r", Enclosed: domain.Known(true), Cells: rectCells(plan.Rooms[0].Region.Bounds())}}
 	rg := RetiredGroundOf(plan)
 	// The plan wants a second door where a wall stands, and a bed sits on a
 	// ring cell.
@@ -123,7 +123,7 @@ func TestPlannedGroundStepReconcilesAStandingRoom(t *testing.T) {
 // every room is one batch.
 func TestPlannedGroundStepBatchesRoomsAndCells(t *testing.T) {
 	plan, rooms := groundFixture()
-	plan.Rooms = append(plan.Rooms, PlannedRoom{Role: PlannedBedroom, Interior: Rectangle{X: 20, Z: 10, Width: 3, Height: 3}, Door: domain.Cell{X: 21, Z: 9}, DoorRot: domain.South})
+	plan.Rooms = append(plan.Rooms, PlannedRoom{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 20, Z: 10, Width: 3, Height: 3}), Door: domain.Cell{X: 21, Z: 9}, DoorRot: domain.South})
 	g := GroundCensus{walls: map[domain.Cell]bool{}, doors: map[domain.Cell]bool{}}
 	rg := RetiredGroundOf(plan)
 	piece := func(id string, x, z int32, inUse bool) ClearanceTarget {
@@ -142,7 +142,7 @@ func TestPlannedGroundStepBatchesRoomsAndCells(t *testing.T) {
 	}
 	var floors []ClearanceFloor
 	for _, r := range plan.Rooms {
-		for _, c := range rectCells(r.Interior) {
+		for _, c := range rectCells(r.Region.Bounds()) {
 			floors = append(floors, ClearanceFloor{Cell: c, DefName: "WoodPlankFloor"})
 		}
 	}
@@ -214,7 +214,7 @@ func TestPlannedGroundStepLeavesTheBarnsOwnSpots(t *testing.T) {
 	barn := plan.HerdRooms(PlannedBarn)[0]
 	rooms := RoomObservation{Shapes: testShapes}
 	spotDef := testFurniture.AnimalSpot
-	cell := domain.Cell{X: barn.Interior.X, Z: barn.Interior.Z}
+	cell := domain.Cell{X: barn.Region.Bounds().X, Z: barn.Region.Bounds().Z}
 	spot := playerRow("spot", spotDef, "other", cell, cell, false)
 	table := playerRow("table", "Table", "other", domain.Cell{X: cell.X + 1, Z: cell.Z}, domain.Cell{X: cell.X + 1, Z: cell.Z}, false)
 	step, ok := PlannedGroundStep(plan, GroundCensus{}, []ClearanceTarget{spot, table}, nil, rooms, RetiredGroundOf(plan), wantsAll)

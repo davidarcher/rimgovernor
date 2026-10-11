@@ -7,7 +7,7 @@ import (
 )
 
 func hospitalView(shapes PieceShapes) (StoreView, PlannedRoom) {
-	hospital := PlannedRoom{Role: PlannedHospital, Interior: Rectangle{X: 10, Z: 10, Width: 7, Height: 5}, Door: domain.Cell{X: 13, Z: 15}, DoorRot: domain.South}
+	hospital := PlannedRoom{Role: PlannedHospital, Region: RectRegion(Rectangle{X: 10, Z: 10, Width: 7, Height: 5}), Door: domain.Cell{X: 13, Z: 15}, DoorRot: domain.South}
 	return StoreView{Layout: &LayoutPlan{Rooms: []PlannedRoom{hospital}}, Shapes: shapes}, hospital
 }
 
@@ -17,8 +17,8 @@ func hospitalView(shapes PieceShapes) (StoreView, PlannedRoom) {
 func TestMedicalStoreBesideThePlannedBeds(t *testing.T) {
 	t.Parallel()
 	view, hospital := hospitalView(testShapes)
-	edit, ok := storeCreates(view)[plannedKey(domain.MedicineRolePrefix, hospital.Interior)]
-	if !ok || len(edit.Cells()) != 4 || edit.Priority != domain.ImportantPriority || edit.Filter != domain.MedicineFilter() || !withinRect(edit.Cells(), hospital.Interior) {
+	edit, ok := storeCreates(view)[plannedKey(domain.MedicineRolePrefix, hospital.Region.Bounds())]
+	if !ok || len(edit.Cells()) != 4 || edit.Priority != domain.ImportantPriority || edit.Filter != domain.MedicineFilter() || !withinRect(edit.Cells(), hospital.Region.Bounds()) {
 		t.Fatalf("%+v", edit)
 	}
 	in, ok := InteriorRoomFromLayout(hospital, testShapes)
@@ -53,8 +53,8 @@ func TestMedicalStoreBesideThePlannedBeds(t *testing.T) {
 func TestMedicalStoreFallsBackToTheDoorAndNeedsAHospital(t *testing.T) {
 	t.Parallel()
 	view, hospital := hospitalView(PieceShapes{})
-	edit, ok := storeCreates(view)[plannedKey(domain.MedicineRolePrefix, hospital.Interior)]
-	if !ok || len(edit.Cells()) != 4 || !withinRect(edit.Cells(), hospital.Interior) {
+	edit, ok := storeCreates(view)[plannedKey(domain.MedicineRolePrefix, hospital.Region.Bounds())]
+	if !ok || len(edit.Cells()) != 4 || !withinRect(edit.Cells(), hospital.Region.Bounds()) {
 		t.Fatalf("%+v", edit)
 	}
 	for _, c := range edit.Cells() {

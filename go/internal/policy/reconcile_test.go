@@ -72,7 +72,7 @@ func TestReconcileEmptyGroundWavesRingFloorFurniture(t *testing.T) {
 		t.Fatalf("wave 2 = %+v", rec.Ready)
 	}
 	// Wave 3: floors laid; the bed builds.
-	for _, c := range rectCells(in.Room.Interior) {
+	for _, c := range rectCells(in.Room.Region.Bounds()) {
 		in.Floors = append(in.Floors, ClearanceFloor{Cell: c, DefName: "WoodPlankFloor"})
 	}
 	rec = Reconcile(in)
@@ -94,7 +94,7 @@ func TestReconcileEmptyGroundWavesRingFloorFurniture(t *testing.T) {
 func TestReconcileWrongFloorOutBeforeIn(t *testing.T) {
 	in, _ := reconFixture()
 	in.WantedFloor = func(domain.Cell) string { return "StoneTile" }
-	for _, c := range rectCells(in.Room.Interior) {
+	for _, c := range rectCells(in.Room.Region.Bounds()) {
 		in.Floors = append(in.Floors, ClearanceFloor{Cell: c, DefName: "WoodPlankFloor"})
 	}
 	rec := Reconcile(in)
@@ -113,7 +113,7 @@ func TestReconcileWrongFloorOutBeforeIn(t *testing.T) {
 
 func TestReconcileTwelveFloorsAreOneBatch(t *testing.T) {
 	in, room := reconFixture()
-	room.Interior = Rectangle{X: 10, Z: 10, Width: 4, Height: 3}
+	room.Region = RectRegion(Rectangle{X: 10, Z: 10, Width: 4, Height: 3})
 	room.Door = domain.Cell{X: 11, Z: 9}
 	in.Plan = LayoutPlan{Rooms: []PlannedRoom{room}}
 	in.Room, in.Ground = room, ringWalls(in.Plan, room)
@@ -169,7 +169,7 @@ func TestReconcileInUsePieceLast(t *testing.T) {
 
 func TestReconcileStandingRoomKeepsItsRing(t *testing.T) {
 	in, room := reconFixture()
-	in.Rooms.Rooms = []Room{{ID: "r", Enclosed: domain.Known(true), Cells: rectCells(room.Interior)}}
+	in.Rooms.Rooms = []Room{{ID: "r", Enclosed: domain.Known(true), Cells: rectCells(room.Region.Bounds())}}
 	// A door the plan lacks is swapped for a wall in place, roof untouched.
 	swap := domain.Cell{X: 9, Z: 10}
 	in.Ground.walls[swap], in.Ground.doors[swap] = false, true

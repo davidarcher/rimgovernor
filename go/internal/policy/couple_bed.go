@@ -48,7 +48,7 @@ type CoupleBed struct {
 // and the planned room of plan that room stands in; false when plan has none.
 func coupleBedSlot(plan LayoutPlan, room FurnitureRoom) (PlannedRoom, []WantedPiece, bool) {
 	for _, planned := range plan.AllRooms() {
-		if planned.Interior != room.Room.Interior {
+		if planned.Region.Bounds() != room.Room.Interior {
 			continue
 		}
 		template, ok := BedroomTemplate(planned, room.Room.Shapes, SleepingCoupleBedDefinition)

@@ -277,7 +277,7 @@ func NextChildRoomStep(plan LayoutPlan, rooms RoomObservation, ground GroundCens
 		for _, p := range pieces {
 			count := 0
 			for _, b := range built {
-				if count < p.Count && len(b.Cells) > 0 && rectInside(room.Interior, cellsRectangle(b.Cells)) && slices.Contains(p.Defs, b.Building.Definition()) {
+				if count < p.Count && len(b.Cells) > 0 && rectInside(room.Region.Bounds(), cellsRectangle(b.Cells)) && slices.Contains(p.Defs, b.Building.Definition()) {
 					r := cellsRectangle(b.Cells)
 					template = append(template, WantedPiece{DefName: b.Building.Definition(), Minimum: domain.Cell{X: r.X, Z: r.Z}, Maximum: domain.Cell{X: r.X + r.Width - 1, Z: r.Z + r.Height - 1}})
 					count++
@@ -323,7 +323,7 @@ func cellsTaken(r Rectangle, taken map[domain.Cell]bool) bool {
 func standingChildPieces(r PlannedRoom, defs []string, built []CurrentBuilding) int {
 	n := 0
 	for _, b := range built {
-		if len(b.Cells) > 0 && rectInside(r.Interior, cellsRectangle(b.Cells)) && slices.Contains(defs, b.Building.Definition()) {
+		if len(b.Cells) > 0 && rectInside(r.Region.Bounds(), cellsRectangle(b.Cells)) && slices.Contains(defs, b.Building.Definition()) {
 			n++
 		}
 	}

@@ -350,7 +350,7 @@ func planInterior(plan LayoutPlan, grow int32) (wi wallInterior, ok bool) {
 		}
 	}
 	for _, r := range plan.AllRooms() {
-		for _, c := range rectCells(r.Interior) {
+		for _, c := range rectCells(r.Region.Bounds()) {
 			seed(c)
 		}
 	}

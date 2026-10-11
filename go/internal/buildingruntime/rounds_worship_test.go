@@ -11,12 +11,12 @@ import (
 // Recorded ideology read: one building precept that took an altar. The def
 // names are fixture data; the planner reads whatever the game names.
 func worshipProjection(standing bool) (observation.ColonyProjection, policy.PlannedRoom) {
-	room := policy.PlannedRoom{Role: policy.PlannedWorship, Interior: policy.Rectangle{X: 10, Z: 20, Width: 4, Height: 4}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
+	room := policy.PlannedRoom{Role: policy.PlannedWorship, Region: policy.RectRegion(policy.Rectangle{X: 10, Z: 20, Width: 4, Height: 4}), Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
 	var rooms policy.RoomObservation
 	if standing {
 		var cells []domain.Cell
-		for z := room.Interior.Z; z < room.Interior.Z+room.Interior.Height; z++ {
-			for x := room.Interior.X; x < room.Interior.X+room.Interior.Width; x++ {
+		for z := room.Region.Bounds().Z; z < room.Region.Bounds().Z+room.Region.Bounds().Height; z++ {
+			for x := room.Region.Bounds().X; x < room.Region.Bounds().X+room.Region.Bounds().Width; x++ {
 				cells = append(cells, domain.Cell{X: x, Z: z})
 			}
 		}

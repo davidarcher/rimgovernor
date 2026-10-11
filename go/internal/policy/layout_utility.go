@@ -229,7 +229,7 @@ func BatterySlots(r PlannedRoom) []Rectangle {
 		}
 		return out
 	}
-	in := r.Interior
+	in := r.Region.Bounds()
 	var out []Rectangle
 	for _, i := range AisleRows(in.Height, 2) {
 		z := in.Z + i
@@ -351,7 +351,7 @@ func PlannedCoolerSites(plan LayoutPlan) []PlannedCoolerSite {
 // backWall is room's back wall cell (the middle of the wall facing away
 // from its hallway), the step pointing out through it, and that direction.
 func backWall(room PlannedRoom) (domain.Cell, domain.Cell, domain.Rotation) {
-	in := room.Interior
+	in := room.Region.Bounds()
 	switch room.DoorRot {
 	case domain.North: // room south of an east-west hallway
 		return domain.Cell{X: in.X + in.Width/2, Z: in.Z - 1}, domain.Cell{Z: -1}, domain.South
@@ -471,9 +471,9 @@ func roomWalls(r PlannedRoom) Rectangle {
 		if r.Role == PlannedTrainingRange {
 			return rangeBlock(r)
 		}
-		return r.Interior
+		return r.Region.Bounds()
 	}
-	in := r.Interior
+	in := r.Region.Bounds()
 	return Rectangle{X: in.X - 1, Z: in.Z - 1, Width: in.Width + 2, Height: in.Height + 2}
 }
 

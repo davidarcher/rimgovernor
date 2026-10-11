@@ -12,7 +12,7 @@ import (
 func richUnderRooms(g coreGrid, p LayoutPlan) int {
 	n := 0
 	for _, r := range p.AllRooms() {
-		for _, c := range rectCells(r.Interior) {
+		for _, c := range rectCells(r.Region.Bounds()) {
 			if g.soil[c] == soilCostRich {
 				n++
 			}
@@ -105,7 +105,7 @@ func TestSiteCoreKeepsOffMapEdge(t *testing.T) {
 		t.Fatal("no rooms")
 	}
 	for _, r := range p.AllRooms() {
-		for _, c := range rectCells(r.Interior) {
+		for _, c := range rectCells(r.Region.Bounds()) {
 			if d := min(c.X, c.Z, s.Bounds.Width-1-c.X, s.Bounds.Height-1-c.Z); d < LayoutEdgeMargin+2*perimeterThick {
 				t.Fatal(r.Role, "room cell", c, "is", d, "cells from the map edge")
 			}
@@ -122,7 +122,7 @@ func TestSiteCoreAndGrowAvoidProps(t *testing.T) {
 	first := SiteCore(LayoutPlan{Zones: Zone(zoningSurvey(140, plain))}, zoningSurvey(140, plain), 3, 1, TechTierCamp)
 	prop := map[domain.Cell]bool{}
 	for _, r := range first.AllRooms() {
-		for _, c := range rectCells(r.Interior) {
+		for _, c := range rectCells(r.Region.Bounds()) {
 			prop[c] = true
 		}
 	}
@@ -142,7 +142,7 @@ func TestSiteCoreAndGrowAvoidProps(t *testing.T) {
 		}
 		for _, r := range p.AllRooms() {
 			if rectHits(roomWalls(r), prop) {
-				t.Fatal(name, r.Role, "room", r.Interior, "covers a prop")
+				t.Fatal(name, r.Role, "room", r.Region.Bounds(), "covers a prop")
 			}
 		}
 		for _, h := range spineRects(p.Hallways()) {
@@ -159,7 +159,7 @@ func TestSiteCoreAndGrowAvoidProps(t *testing.T) {
 func TestSiteEdgeCostIsWalkingDistance(t *testing.T) {
 	b := Bounds{Width: 200, Height: 200}
 	room := func(x int32) LayoutPlan {
-		return LayoutPlan{Rooms: []PlannedRoom{{Role: PlannedStorage, Interior: Rectangle{X: x, Z: 100, Width: 3, Height: 3}}}}
+		return LayoutPlan{Rooms: []PlannedRoom{{Role: PlannedStorage, Region: RectRegion(Rectangle{X: x, Z: 100, Width: 3, Height: 3})}}}
 	}
 	// A rock band at x=10..15 spanning the whole west side except a gap at
 	// the top and bottom of the map, so the walk from the west edge is long.

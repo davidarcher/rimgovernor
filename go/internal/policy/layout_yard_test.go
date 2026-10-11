@@ -17,14 +17,14 @@ func TestYardIsAPlannedOutdoorRoomInsideTheRing(t *testing.T) {
 		t.Fatalf("%d yards, want 1", len(yards))
 	}
 	yard := yards[0]
-	if yard.Role != PlannedYard || !yard.Outdoor || yard.Interior.Width != YardW || yard.Interior.Height != YardH || len(rectCells(yard.Interior)) != 117 {
+	if yard.Role != PlannedYard || !yard.Outdoor || yard.Region.Bounds().Width != YardW || yard.Region.Bounds().Height != YardH || len(rectCells(yard.Region.Bounds())) != 117 {
 		t.Fatalf("yard %+v", yard)
 	}
 	if !innerEnclosed[ReserveYard] || !PlannedYard.IsOutdoor() {
 		t.Fatal("the yard is not enclosed by the core ring as an Outdoor room")
 	}
 	enclosure := coreEnclosure(plan, 160, 160)
-	for _, c := range rectCells(pad(yard.Interior, 1)) {
+	for _, c := range rectCells(pad(yard.Region.Bounds(), 1)) {
 		if !enclosure.inside(c) {
 			t.Fatalf("yard cell %v outside the core enclosure", c)
 		}
@@ -33,7 +33,7 @@ func TestYardIsAPlannedOutdoorRoomInsideTheRing(t *testing.T) {
 		t.Fatal("a yard the plan holds is added again")
 	}
 	two := PlanYardSites(plan, 2)
-	if len(two.YardRooms()) != 2 || two.YardRooms()[0].Interior != yard.Interior {
+	if len(two.YardRooms()) != 2 || two.YardRooms()[0].Region.Bounds() != yard.Region.Bounds() {
 		t.Fatalf("further yard moved the first: %+v", two.YardRooms())
 	}
 	if owed := YardRoomsOwed(plan, RoomDemand{Yard: 2}); owed != 1 {
@@ -58,7 +58,7 @@ func TestYardStoreCoversItsWholeRoom(t *testing.T) {
 			yard = s
 		}
 	}
-	if yard.Role == "" || yard.Interior != plan.YardRooms()[0].Interior || yard.Filter != domain.YardFilter() || yard.Priority != domain.LowPriority || yard.Further != PlannedYard {
+	if yard.Role == "" || yard.Interior != plan.YardRooms()[0].Region.Bounds() || yard.Filter != domain.YardFilter() || yard.Priority != domain.LowPriority || yard.Further != PlannedYard {
 		t.Fatalf("yard store %+v", yard)
 	}
 	created := createdRoles(PlanStockpileMaintenance(stockpileOf(req)))

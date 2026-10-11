@@ -86,8 +86,8 @@ func (burialOwner) Stores(v StoreView) []Store {
 	} {
 		// The first planned room of the role holds the store.
 		for _, room := range v.Layout.roomsOf(s.role) {
-			key := fmt.Sprintf("%d_%d", room.Interior.X, room.Interior.Z)
-			out = append(out, Store{StoreSite: StoreSite{Role: s.prefix + key, Interior: room.Interior, Filter: s.filter, Priority: s.priority}})
+			key := fmt.Sprintf("%d_%d", room.Region.Bounds().X, room.Region.Bounds().Z)
+			out = append(out, Store{StoreSite: StoreSite{Role: s.prefix + key, Interior: room.Region.Bounds(), Filter: s.filter, Priority: s.priority}})
 			break
 		}
 	}

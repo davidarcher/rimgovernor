@@ -103,7 +103,7 @@ func (r *RoundsSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, sto
 	case policy.CoupleInstall:
 		// The couple's room is reconciled to the DoubleBed in its bed slot: a
 		// stored one is installed, else one is built.
-		in := step.Planned.Interior
+		in := step.Planned.Region.Bounds()
 		result, err := r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{
 			room: step.Planned, template: step.Template,
 			name: fmt.Sprintf("sleeping-couple-install-%d-%d", in.X, in.Z), reason: "couple's double bed",

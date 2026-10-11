@@ -63,9 +63,9 @@ func stageRooms(ctx context.Context, h *na.Harness, label string, rooms ...polic
 	parts := make([]string, 0, len(rooms))
 	for _, r := range rooms {
 		if r.Dug {
-			return nil, fmt.Errorf("planned %s room %+v is dug from rock: the stage raises open-ground rooms only", r.Role, r.Interior)
+			return nil, fmt.Errorf("planned %s room %+v is dug from rock: the stage raises open-ground rooms only", r.Role, r.Region.Bounds())
 		}
-		in := r.Interior
+		in := r.Region.Bounds()
 		parts = append(parts, fmt.Sprintf("%d,%d,%d,%d,%d,%d", in.X, in.Z, in.Width, in.Height, r.Door.X, r.Door.Z))
 	}
 	reply, err := h.Call(ctx, label, stageRoomsOp, map[string]any{"rooms": strings.Join(parts, ";")})

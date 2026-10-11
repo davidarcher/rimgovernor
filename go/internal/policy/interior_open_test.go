@@ -83,9 +83,9 @@ func TestKeptCellsThatSplitTheStoreRetainBothParts(t *testing.T) {
 func TestDugStoreRoomDigsAheadOfOtherDugRoomsAndStone(t *testing.T) {
 	t.Parallel()
 	plan := LayoutPlan{Rooms: []PlannedRoom{
-		{Role: PlannedKitchen, Interior: Rectangle{X: 10, Z: 10, Width: 5, Height: 5}, Dug: true},
-		{Role: PlannedStorage, Interior: Rectangle{X: 30, Z: 10, Width: 15, Height: 7}, Dug: true},
-		{Role: PlannedStorage, Interior: Rectangle{X: 60, Z: 10, Width: 15, Height: 7}},
+		{Role: PlannedKitchen, Region: RectRegion(Rectangle{X: 10, Z: 10, Width: 5, Height: 5}), Dug: true},
+		{Role: PlannedStorage, Region: RectRegion(Rectangle{X: 30, Z: 10, Width: 15, Height: 7}), Dug: true},
+		{Role: PlannedStorage, Region: RectRegion(Rectangle{X: 60, Z: 10, Width: 15, Height: 7})},
 	}}
 	store, other, open, stone := domain.Cell{X: 31, Z: 11}, domain.Cell{X: 11, Z: 11}, domain.Cell{X: 61, Z: 11}, domain.Cell{X: 0, Z: 0}
 	if plan.MineTier(store) >= plan.MineTier(other) || plan.MineTier(other) >= plan.MineTier(stone) {

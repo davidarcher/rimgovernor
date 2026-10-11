@@ -50,7 +50,7 @@ func TestWorshipRoomIsGrownShelledAndFurnishedLikeAChildRoom(t *testing.T) {
 	if len(sizes) == 0 {
 		t.Fatal("no room holds the buildings")
 	}
-	room := PlannedRoom{Role: PlannedWorship, Interior: Rectangle{X: 10, Z: 20, Width: sizes[0][0], Height: sizes[0][1]}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
+	room := PlannedRoom{Role: PlannedWorship, Region: RectRegion(Rectangle{X: 10, Z: 20, Width: sizes[0][0], Height: sizes[0][1]}), Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
 	plan := LayoutPlan{Rooms: []PlannedRoom{room}}
 	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, GroundCensus{}, nil, []ChildRoomNeed{need}, defs); step.Kind != ChildRoomReconcile || !step.Room.Same(room) {
 		t.Fatalf("unbuilt room: %+v", step)

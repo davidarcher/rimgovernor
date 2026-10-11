@@ -235,7 +235,7 @@ func distanceToRect(c domain.Cell, r Rectangle) int32 {
 func shelterRoom(in Rectangle, seed domain.Cell, airlock, porch bool) PlannedRoom {
 	cx, cz := in.X+in.Width/2, in.Z+in.Height/2
 	dx, dz := seed.X-cx, seed.Z-cz
-	r := PlannedRoom{Role: PlannedShelter, Interior: in}
+	r := PlannedRoom{Role: PlannedShelter, Region: RectRegion(in)}
 	switch {
 	case abs32(dx) > abs32(dz) && dx > 0:
 		r.Door, r.DoorRot = domain.Cell{X: in.X + in.Width, Z: cz}, domain.East

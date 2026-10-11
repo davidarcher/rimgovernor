@@ -24,7 +24,7 @@ func TestSiteCoreStaysOffBorderMountain(t *testing.T) {
 	}
 	sum, n := 0, 0
 	for _, r := range p.AllRooms() {
-		for _, c := range rectCells(r.Interior) {
+		for _, c := range rectCells(r.Region.Bounds()) {
 			sum += int(c.Z)
 			n++
 		}

@@ -115,7 +115,7 @@ func childRoomStep(facts observation.ColonyProjection) policy.ChildRoomStep {
 // (reconcileRoom): the ring, floor and furniture the plan and the template
 // still owe, installed from packed stock first.
 func (r *RoundsSleepingUpkeepPlanner) stageChildRoom(call, epoch context.Context, stock *packedStock, state ControlState, review store.Rounds, goal store.StandardState, reading observation.RoundsReading, step policy.ChildRoomStep) (RoundsBuildingResult, error) {
-	in := step.Room.Interior
+	in := step.Room.Region.Bounds()
 	return r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{
 		room: step.Room, template: step.Template,
 		name: fmt.Sprintf("child-room-%d-%d", in.X, in.Z), reason: string(step.Need.Role),

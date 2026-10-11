@@ -75,7 +75,7 @@ func siting(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("the plan holds %d shelter rooms, want 1", len(shelters))
 	}
 	shelter := shelters[0]
-	in := shelter.Interior
+	in := shelter.Region.Bounds()
 	campfires, coolers := policy.ShelterCampfires(plan.Cold), policy.ShelterCoolers(plan.Hot)
 	want := policy.ShelterInteriorArea(colonists, campfires, coolers)
 	if got := int(in.Width * in.Height); got < want {
@@ -86,7 +86,7 @@ func siting(ctx context.Context, s cases.Session) error {
 		if r.Role == policy.PlannedShelter {
 			continue
 		}
-		o := r.Interior
+		o := r.Region.Bounds()
 		dx := max(o.X-(in.X+in.Width-1), in.X-(o.X+o.Width-1)) - 1
 		dz := max(o.Z-(in.Z+in.Height-1), in.Z-(o.Z+o.Height-1)) - 1
 		d := max(dx, dz)

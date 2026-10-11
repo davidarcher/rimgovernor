@@ -11,8 +11,8 @@ import (
 func prisonPlan() LayoutPlan {
 	return LayoutPlan{
 		Rooms: []PlannedRoom{
-			{Role: PlannedPrison, Interior: Rectangle{X: 20, Z: 21, Width: 5, Height: 5}, Door: domain.Cell{X: 22, Z: 20}, DoorRot: domain.South},
-			{Role: PlannedBedroom, Interior: Rectangle{X: 26, Z: 21, Width: 4, Height: 4}, Door: domain.Cell{X: 27, Z: 20}, DoorRot: domain.South},
+			{Role: PlannedPrison, Region: RectRegion(Rectangle{X: 20, Z: 21, Width: 5, Height: 5}), Door: domain.Cell{X: 22, Z: 20}, DoorRot: domain.South},
+			{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 26, Z: 21, Width: 4, Height: 4}), Door: domain.Cell{X: 27, Z: 20}, DoorRot: domain.South},
 		},
 		Reservations: []LayoutReservation{
 			{Kind: ReservePerimeter, Area: Rectangle{X: 7, Z: 7, Width: 86, Height: 3}},
@@ -36,7 +36,7 @@ func TestPrisonTurrets(t *testing.T) {
 		}
 	}
 	// A second prison adds its own sites: the count follows the doors, not a cap.
-	p.Rooms = append(p.Rooms, PlannedRoom{Role: PlannedPrison, Interior: Rectangle{X: 40, Z: 21, Width: 5, Height: 5}, Door: domain.Cell{X: 42, Z: 20}, DoorRot: domain.South})
+	p.Rooms = append(p.Rooms, PlannedRoom{Role: PlannedPrison, Region: RectRegion(Rectangle{X: 40, Z: 21, Width: 5, Height: 5}), Door: domain.Cell{X: 42, Z: 20}, DoorRot: domain.South})
 	if n := len(PrisonTurretSites(p)); n != 4 {
 		t.Fatal("sites follow doors", n)
 	}
@@ -92,7 +92,7 @@ func TestGrowGearRoomsKeepsTheArmoryClearOfPrisons(t *testing.T) {
 		t.Fatalf("armory added=%v err=%v", added, err)
 	}
 	armory, _ := roomOf(grown, PlannedArmory)
-	if nearPrison(rectCells(pad(armory.Interior, 1)), PrisonCells(grown)) {
-		t.Fatalf("armory %+v within the weapon clearance of a prison", armory.Interior)
+	if nearPrison(rectCells(pad(armory.Region.Bounds(), 1)), PrisonCells(grown)) {
+		t.Fatalf("armory %+v within the weapon clearance of a prison", armory.Region.Bounds())
 	}
 }

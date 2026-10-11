@@ -29,7 +29,7 @@ func BuiltRooms(plan LayoutPlan, ground GroundCensus) map[Rectangle]bool {
 	built := map[Rectangle]bool{}
 	for _, r := range plan.AllRooms() {
 		if plan.GroundMatches(r, ground) {
-			built[r.Interior] = true
+			built[r.Region.Bounds()] = true
 		}
 	}
 	return built
@@ -43,8 +43,8 @@ func BuiltRooms(plan LayoutPlan, ground GroundCensus) map[Rectangle]bool {
 func FixedRooms(plan LayoutPlan, ground GroundCensus, occupied map[domain.Cell]bool) map[Rectangle]bool {
 	fixed := BuiltRooms(plan, ground)
 	for _, r := range plan.AllRooms() {
-		if !fixed[r.Interior] && rectHits(roomWalls(r), occupied) {
-			fixed[r.Interior] = true
+		if !fixed[r.Region.Bounds()] && rectHits(roomWalls(r), occupied) {
+			fixed[r.Region.Bounds()] = true
 		}
 	}
 	return fixed
@@ -57,7 +57,7 @@ func FixedRooms(plan LayoutPlan, ground GroundCensus, occupied map[domain.Cell]b
 func InFlightRoomCells(plan LayoutPlan, origins map[domain.Cell]bool) map[domain.Cell]bool {
 	out := map[domain.Cell]bool{}
 	for _, r := range plan.AllRooms() {
-		if origins[domain.Cell{X: r.Interior.X, Z: r.Interior.Z}] {
+		if origins[domain.Cell{X: r.Region.Bounds().X, Z: r.Region.Bounds().Z}] {
 			for _, c := range rectCells(roomWalls(r)) {
 				out[c] = true
 			}
@@ -110,7 +110,7 @@ func duplicateRooms(plan LayoutPlan, shapes []ChildRoomShape, built map[Rectangl
 		}
 		keep := -1
 		for i, r := range rooms {
-			if built[r.Interior] {
+			if built[r.Region.Bounds()] {
 				keep = i
 				break
 			}
@@ -120,7 +120,7 @@ func duplicateRooms(plan LayoutPlan, shapes []ChildRoomShape, built map[Rectangl
 		}
 		for i, r := range rooms {
 			if i != keep {
-				drop[r.Interior] = true
+				drop[r.Region.Bounds()] = true
 			}
 		}
 	}
@@ -146,7 +146,7 @@ func smallestRoom(rooms []PlannedRoom, shape *ChildRoomShape) int {
 			best, bestHolds = 0, holds
 			continue
 		}
-		if holds && !bestHolds || holds == bestHolds && r.Interior.Width*r.Interior.Height < rooms[best].Interior.Width*rooms[best].Interior.Height {
+		if holds && !bestHolds || holds == bestHolds && r.Region.Bounds().Width*r.Region.Bounds().Height < rooms[best].Region.Bounds().Width*rooms[best].Region.Bounds().Height {
 			best, bestHolds = i, holds
 		}
 	}
@@ -156,7 +156,7 @@ func smallestRoom(rooms []PlannedRoom, shape *ChildRoomShape) int {
 func withoutRooms(rooms []PlannedRoom, drop map[Rectangle]bool) []PlannedRoom {
 	var out []PlannedRoom
 	for _, r := range rooms {
-		if !drop[r.Interior] {
+		if !drop[r.Region.Bounds()] {
 			out = append(out, r)
 		}
 	}
@@ -221,8 +221,8 @@ func RoomsInUse(plan LayoutPlan, built []CurrentBuilding, furniture []FurnitureD
 		names = append(names, d.Name)
 	}
 	for _, r := range plan.AllRooms() {
-		if !inUse[r.Interior] && standingChildPieces(r, names, built) > 0 {
-			inUse[r.Interior] = true
+		if !inUse[r.Region.Bounds()] && standingChildPieces(r, names, built) > 0 {
+			inUse[r.Region.Bounds()] = true
 		}
 	}
 	return inUse
@@ -233,8 +233,8 @@ func RoomsInUse(plan LayoutPlan, built []CurrentBuilding, furniture []FurnitureD
 func endedRooms(plan LayoutPlan, ended []PlannedRole, inUse map[Rectangle]bool, drop map[Rectangle]bool) {
 	for _, role := range ended {
 		for _, r := range plan.roomsOf(role) {
-			if !inUse[r.Interior] {
-				drop[r.Interior] = true
+			if !inUse[r.Region.Bounds()] {
+				drop[r.Region.Bounds()] = true
 			}
 		}
 	}
@@ -278,25 +278,25 @@ func SurplusRoomsPossible(plan LayoutPlan, throneMin int, demand RoomDemand) boo
 // dropped any.
 func retireSurplusRooms(plan LayoutPlan, growth RoomGrowth, built map[Rectangle]bool) (LayoutPlan, bool) {
 	drop := map[Rectangle]bool{}
-	area := func(r PlannedRoom) int { return int(r.Interior.Width) * int(r.Interior.Height) }
+	area := func(r PlannedRoom) int { return int(r.Region.Bounds().Width) * int(r.Region.Bounds().Height) }
 	if thrones := plan.roomsOf(PlannedThrone); growth.ThroneMin > 0 && len(thrones) > 1 {
 		// Keep a built room that holds the title's area, else the smallest.
 		keep := -1
 		for i, r := range thrones {
 			switch {
 			case area(r) < growth.ThroneMin:
-			case built[r.Interior]:
-				if keep < 0 || !built[thrones[keep].Interior] {
+			case built[r.Region.Bounds()]:
+				if keep < 0 || !built[thrones[keep].Region.Bounds()] {
 					keep = i
 				}
-			case keep < 0 || !built[thrones[keep].Interior] && area(r) < area(thrones[keep]):
+			case keep < 0 || !built[thrones[keep].Region.Bounds()] && area(r) < area(thrones[keep]):
 				keep = i
 			}
 		}
 		if keep >= 0 {
 			for i, r := range thrones {
-				if i != keep && (built[thrones[keep].Interior] || !built[r.Interior]) {
-					drop[r.Interior] = true
+				if i != keep && (built[thrones[keep].Region.Bounds()] || !built[r.Region.Bounds()]) {
+					drop[r.Region.Bounds()] = true
 				}
 			}
 		}
@@ -307,16 +307,16 @@ func retireSurplusRooms(plan LayoutPlan, growth RoomGrowth, built map[Rectangle]
 				continue
 			}
 			for _, r := range plan.roomsOf(role) {
-				if !built[r.Interior] {
-					drop[r.Interior] = true
+				if !built[r.Region.Bounds()] {
+					drop[r.Region.Bounds()] = true
 				}
 			}
 		}
 	}
 	if growth.Demand.StorageIdle {
 		for i, r := range plan.roomsOf(PlannedStorage) {
-			if i > 0 && !built[r.Interior] {
-				drop[r.Interior] = true
+			if i > 0 && !built[r.Region.Bounds()] {
+				drop[r.Region.Bounds()] = true
 			}
 		}
 	}

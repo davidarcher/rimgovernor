@@ -96,7 +96,7 @@ func TestThroneRoomSizeMeetsTheArea(t *testing.T) {
 }
 
 func throneFixture() (LayoutPlan, PlannedRoom, ThroneNeed) {
-	room := PlannedRoom{Role: PlannedThrone, Interior: Rectangle{X: 10, Z: 20, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
+	room := PlannedRoom{Role: PlannedThrone, Region: RectRegion(Rectangle{X: 10, Z: 20, Width: 6, Height: 5}), Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
 	need := ThroneNeed{Holder: "Alice", Title: "Knight", ThroneRequirements: ThroneRequirements{MinArea: 30, MinImpressiveness: 55, Things: []string{"Throne"}, Assigned: true}}
 	return LayoutPlan{Rooms: []PlannedRoom{room}}, room, need
 }
@@ -292,7 +292,7 @@ func TestGrowThroneRoomAddsOneAndKeepsTheRest(t *testing.T) {
 		}
 	}
 	room, ok := grown.ThroneRoomFor(30)
-	if !ok || room.Interior.Width*room.Interior.Height < 30 {
+	if !ok || room.Region.Bounds().Width*room.Region.Bounds().Height < 30 {
 		t.Fatalf("no throne room of 30 cells: %+v", room)
 	}
 	if _, err := CheckRoutes(grown); err != nil {

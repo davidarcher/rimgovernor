@@ -33,12 +33,12 @@ func TestTierBumpRetiresWingAndSitesNewOne(t *testing.T) {
 		t.Fatalf("active wings %+v, want one full wing", active)
 	}
 	for _, r := range active[0].Rooms {
-		if r.Interior.Width*r.Interior.Height != 16 {
-			t.Fatal("new wing room not 4x4", r.Interior)
+		if r.Region.Bounds().Width*r.Region.Bounds().Height != 16 {
+			t.Fatal("new wing room not 4x4", r.Region.Bounds())
 		}
 		for _, o := range old.Rooms {
-			if rectsOverlap(r.Interior, roomWalls(o)) {
-				t.Fatal("new room on retiring room", r.Interior, o.Interior)
+			if rectsOverlap(r.Region.Bounds(), roomWalls(o)) {
+				t.Fatal("new room on retiring room", r.Region.Bounds(), o.Region.Bounds())
 			}
 		}
 	}
@@ -55,7 +55,7 @@ func TestTierBumpRetiresWingAndSitesNewOne(t *testing.T) {
 
 func migrateFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 	room := func(x int32) PlannedRoom {
-		return PlannedRoom{Role: PlannedBedroom, Interior: Rectangle{X: x, Z: 0, Width: 4, Height: 4}}
+		return PlannedRoom{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: x, Z: 0, Width: 4, Height: 4})}
 	}
 	plan := LayoutPlan{Wings: []Wing{
 		{Purpose: WingBedroomsRetiring, Rooms: []PlannedRoom{room(0), room(10)}},
@@ -81,7 +81,7 @@ func TestMigrateStepMovesOnePawnAtATime(t *testing.T) {
 	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomNone || got.Unhoused != 0 {
 		t.Fatalf("bedroom step %+v, want none: retiring rooms house their pawns", got)
 	}
-	if got := NextMigrateStep(plan, rooms, sleeping); got.Kind != BedroomReconcile || got.Room.Interior.X != 20 {
+	if got := NextMigrateStep(plan, rooms, sleeping); got.Kind != BedroomReconcile || got.Room.Region.Bounds().X != 20 {
 		t.Fatalf("empty active room = %+v, want furnish", got)
 	}
 	rooms.Rooms[2].Beds = []string{"nb1"}
@@ -92,7 +92,7 @@ func TestMigrateStepMovesOnePawnAtATime(t *testing.T) {
 	}
 	sleeping.People[0].OwnedBed = domain.Known("nb1")
 	sleeping.Beds[2].Owners, sleeping.Beds[0].Owners = []PawnID{"a"}, nil
-	if got := NextMigrateStep(plan, rooms, sleeping); got.Kind != BedroomReconcile || got.Room.Interior.X != 30 {
+	if got := NextMigrateStep(plan, rooms, sleeping); got.Kind != BedroomReconcile || got.Room.Region.Bounds().X != 30 {
 		t.Fatalf("next mover = %+v, want the next active room's shell", got)
 	}
 	// A vacated retiring bed takes no one new.

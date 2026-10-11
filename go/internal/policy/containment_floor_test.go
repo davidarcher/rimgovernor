@@ -54,7 +54,7 @@ func TestContainmentCellCountsTheBioferriteFloorWhenStockPaysForIt(t *testing.T)
 			t.Fatalf("%s: %+v", name, v)
 		}
 	}
-	room := PlannedRoom{Role: PlannedContainmentCell, Interior: Rectangle{Width: size[0], Height: size[1]}}
+	room := PlannedRoom{Role: PlannedContainmentCell, Region: RectRegion(Rectangle{Width: size[0], Height: size[1]})}
 	cell := domain.Cell{}
 	policy := DefaultFlooringPolicy()
 	if got := WantedFloors(room, nil, floors(4*tiles, true), policy)(cell); got != "BioferritePlate" {
@@ -77,8 +77,8 @@ func TestContainmentCellRetainsFloorAfterStockSpent(t *testing.T) {
 	p.Defs = domain.Known(defs)
 	shape, _ := ChildRoomNeed{Module: PlannedContainmentCell, Furniture: []ChildFurniture{{Defs: []string{"HoldingPlatform"}, Count: 1}}}.shape(platformFurniture())
 	size := ChildRoomSizes(shape)[0]
-	room := PlannedRoom{Role: PlannedContainmentCell, Interior: Rectangle{X: 10, Z: 20, Width: size[0], Height: size[1]}}
-	cells := rectCells(room.Interior)
+	room := PlannedRoom{Role: PlannedContainmentCell, Region: RectRegion(Rectangle{X: 10, Z: 20, Width: size[0], Height: size[1]})}
+	cells := rectCells(room.Region.Bounds())
 	for _, tc := range []struct {
 		name                        string
 		laid, pending               int

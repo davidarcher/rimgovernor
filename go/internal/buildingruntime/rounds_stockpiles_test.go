@@ -129,11 +129,11 @@ func TestIsStockpileEditPlan(t *testing.T) {
 // carves up the warehouse zone.
 func TestNonSleepingPlannedCellsCloseStorage(t *testing.T) {
 	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{
-		{Role: policy.PlannedStorage, Interior: policy.Rectangle{X: 10, Z: 10, Width: 3, Height: 3}},
-		{Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 30, Z: 30, Width: 3, Height: 3}},
-		{Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 50, Z: 50, Width: 3, Height: 3}},
-		{Role: policy.PlannedBarn, Interior: policy.Rectangle{X: 70, Z: 70, Width: 3, Height: 3}},
-		{Role: policy.PlannedVetRoom, Interior: policy.Rectangle{X: 90, Z: 90, Width: 3, Height: 3}},
+		{Role: policy.PlannedStorage, Region: policy.RectRegion(policy.Rectangle{X: 10, Z: 10, Width: 3, Height: 3})},
+		{Role: policy.PlannedShelter, Region: policy.RectRegion(policy.Rectangle{X: 30, Z: 30, Width: 3, Height: 3})},
+		{Role: policy.PlannedShelter, Region: policy.RectRegion(policy.Rectangle{X: 50, Z: 50, Width: 3, Height: 3})},
+		{Role: policy.PlannedBarn, Region: policy.RectRegion(policy.Rectangle{X: 70, Z: 70, Width: 3, Height: 3})},
+		{Role: policy.PlannedVetRoom, Region: policy.RectRegion(policy.Rectangle{X: 90, Z: 90, Width: 3, Height: 3})},
 	}}
 	facts := observation.ColonyProjection{LayoutPlan: domain.Known(plan)}
 	cells := map[domain.Cell]bool{}
@@ -158,7 +158,7 @@ func TestNonSleepingPlannedCellsCloseStorage(t *testing.T) {
 // suites are open to them, every other planned room is not.
 func TestSleepingPlannedCellsAllowlist(t *testing.T) {
 	at := func(role policy.PlannedRole, x int32) policy.PlannedRoom {
-		return policy.PlannedRoom{Role: role, Interior: policy.Rectangle{X: x, Z: 10, Width: 3, Height: 3}}
+		return policy.PlannedRoom{Role: role, Region: policy.RectRegion(policy.Rectangle{X: x, Z: 10, Width: 3, Height: 3})}
 	}
 	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{
 		at(policy.PlannedShelter, 10), at(policy.PlannedBedroom, 20), at(policy.PlannedSuite, 30),

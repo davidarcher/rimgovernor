@@ -7,7 +7,7 @@ import (
 )
 
 func shelterView() (StoreView, PlannedRoom) {
-	shelter := PlannedRoom{Role: PlannedShelter, Interior: Rectangle{X: 4, Z: 4, Width: 5, Height: 4}, Door: domain.Cell{X: 6, Z: 8}}
+	shelter := PlannedRoom{Role: PlannedShelter, Region: RectRegion(Rectangle{X: 4, Z: 4, Width: 5, Height: 4}), Door: domain.Cell{X: 6, Z: 8}}
 	view := StoreView{Bounds: Bounds{Width: 40, Height: 40}, Cells: unroofedGround(), Layout: &LayoutPlan{Rooms: []PlannedRoom{shelter}}}
 	return view, shelter
 }
@@ -32,7 +32,7 @@ func TestShelterStoreCoversTheShelterFloor(t *testing.T) {
 	t.Parallel()
 	view, shelter := shelterView()
 	edit, ok := storeCreates(view)[domain.ShelterRole]
-	if !ok || edit.Priority != domain.LowPriority || edit.Filter != domain.GeneralFilter() || len(edit.Cells()) != int(shelter.Interior.Width*shelter.Interior.Height) || !withinRect(edit.Cells(), shelter.Interior) {
+	if !ok || edit.Priority != domain.LowPriority || edit.Filter != domain.GeneralFilter() || len(edit.Cells()) != int(shelter.Region.Bounds().Width*shelter.Region.Bounds().Height) || !withinRect(edit.Cells(), shelter.Region.Bounds()) {
 		t.Fatalf("shelter store: %+v", edit)
 	}
 	if live, retired := shelterStores(view); live != 1 || retired != 0 {
@@ -49,15 +49,15 @@ func TestShelterStoreRetiresOnceAStorageRoomStands(t *testing.T) {
 	t.Parallel()
 	for _, role := range []PlannedRole{PlannedStorage, PlannedFreezer} {
 		view, shelter := shelterView()
-		room := PlannedRoom{Role: role, Interior: Rectangle{X: 20, Z: 4, Width: 5, Height: 5}, Door: domain.Cell{X: 22, Z: 3}}
+		room := PlannedRoom{Role: role, Region: RectRegion(Rectangle{X: 20, Z: 4, Width: 5, Height: 5}), Door: domain.Cell{X: 22, Z: 3}}
 		view.Layout.Rooms = append(view.Layout.Rooms, room)
 		view.Rooms = &RoomObservation{}
-		zone := StockpileZone{ID: "Zone_1", Role: domain.ShelterRole, Cells: rectCells(shelter.Interior), Filter: domain.GeneralFilter(), Priority: domain.LowPriority}
+		zone := StockpileZone{ID: "Zone_1", Role: domain.ShelterRole, Cells: rectCells(shelter.Region.Bounds()), Filter: domain.GeneralFilter(), Priority: domain.LowPriority}
 		view.Zones = []StockpileZone{zone}
 		if live, retired := shelterStores(view); live != 1 || retired != 0 {
 			t.Fatalf("%s planned, not standing: live %d retired %d", role, live, retired)
 		}
-		view.Rooms.Rooms = []Room{{ID: "r", Enclosed: domain.Known(true), Cells: rectCells(room.Interior)}}
+		view.Rooms.Rooms = []Room{{ID: "r", Enclosed: domain.Known(true), Cells: rectCells(room.Region.Bounds())}}
 		if live, retired := shelterStores(view); live != 0 || retired != 1 {
 			t.Fatalf("%s standing: live %d retired %d", role, live, retired)
 		}
@@ -84,7 +84,7 @@ func TestShelterStoreRetiresOnceAStorageRoomStands(t *testing.T) {
 func TestShelterStoreIsTheLowestPriority(t *testing.T) {
 	t.Parallel()
 	view, _ := freezerView()
-	view.Layout.Rooms = append(view.Layout.Rooms, PlannedRoom{Role: PlannedShelter, Interior: Rectangle{X: 4, Z: 4, Width: 5, Height: 4}})
+	view.Layout.Rooms = append(view.Layout.Rooms, PlannedRoom{Role: PlannedShelter, Region: RectRegion(Rectangle{X: 4, Z: 4, Width: 5, Height: 4})})
 	rank := map[domain.StockpilePriority]int{domain.LowPriority: 0, domain.NormalPriority: 1, domain.PreferredPriority: 2, domain.ImportantPriority: 3, domain.CriticalPriority: 4}
 	for _, s := range DeclareStores(view).Stores {
 		if s.Role != domain.ShelterRole && rank[s.Priority] < rank[domain.LowPriority] {

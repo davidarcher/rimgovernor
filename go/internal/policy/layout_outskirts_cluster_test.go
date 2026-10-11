@@ -74,10 +74,10 @@ func TestOutskirtsPlanHoldsTombAndMorgueFromTheStart(t *testing.T) {
 	area, _ := plan.OutskirtsArea()
 	l, _ := OutskirtsSlots(area)
 	tombs, morgues := plan.roomsOf(PlannedTomb), plan.roomsOf(PlannedMorgue)
-	if len(tombs) != 1 || tombs[0].Interior != l.Tomb.Interior || tombs[0].Door != l.Tomb.Door {
+	if len(tombs) != 1 || tombs[0].Region.Bounds() != l.Tomb.Interior || tombs[0].Door != l.Tomb.Door {
 		t.Fatalf("tomb %+v want slot %+v", tombs, l.Tomb)
 	}
-	if len(morgues) != 1 || morgues[0].Interior != l.Morgue.Interior {
+	if len(morgues) != 1 || morgues[0].Region.Bounds() != l.Morgue.Interior {
 		t.Fatalf("morgue %+v want slot %+v", morgues, l.Morgue)
 	}
 	for _, r := range []PlannedRoom{tombs[0], morgues[0]} {
@@ -95,7 +95,7 @@ func TestOutskirtsPlanHoldsTombAndMorgueFromTheStart(t *testing.T) {
 	}
 	// A plan that already holds a tomb elsewhere is owed no second one.
 	core := outskirtsPlan(150)
-	core.Rooms = append(core.Rooms, PlannedRoom{Role: PlannedTomb, Interior: Rectangle{X: 1, Z: 1, Width: 5, Height: 5}})
+	core.Rooms = append(core.Rooms, PlannedRoom{Role: PlannedTomb, Region: RectRegion(Rectangle{X: 1, Z: 1, Width: 5, Height: 5})})
 	core, _ = growOutskirts(core, size)
 	core, _ = growOutskirtsRooms(core, nil)
 	if got := len(core.roomsOf(PlannedTomb)); got != 1 {
@@ -116,20 +116,20 @@ func TestOutskirtsPlanHoldsWasteYardWithIncineratorInside(t *testing.T) {
 		t.Fatalf("yards %d incinerators %d", len(yards), len(incs))
 	}
 	yard, inc := yards[0], incs[0]
-	if !yard.Outdoor || !yard.Unfenced() || yard.Interior != l.WasteYard.Interior || yard.Door != (domain.Cell{}) {
+	if !yard.Outdoor || !yard.Unfenced() || yard.Region.Bounds() != l.WasteYard.Interior || yard.Door != (domain.Cell{}) {
 		t.Errorf("yard %+v want unfenced slot %+v", yard, l.WasteYard)
 	}
-	if inc.Outdoor || inc.Interior.Width != 3 || inc.Interior.Height != 3 || roomWalls(inc) != l.Incinerator {
+	if inc.Outdoor || inc.Region.Bounds().Width != 3 || inc.Region.Bounds().Height != 3 || roomWalls(inc) != l.Incinerator {
 		t.Errorf("incinerator %+v outline %+v", inc, l.Incinerator)
 	}
 	if wall, door := inc.RingDefs(); wall != ShellWallDefinition || door != ShellDoorDefinition {
 		t.Errorf("incinerator ring %s %s", wall, door)
 	}
-	if !contains(yard.Interior, inc.Door) || !onRing(inc.Door, roomWalls(inc)) {
+	if !contains(yard.Region.Bounds(), inc.Door) || !onRing(inc.Door, roomWalls(inc)) {
 		t.Errorf("incinerator door %+v not inside the yard", inc.Door)
 	}
 	free := 0
-	for _, c := range rectCells(yard.Interior) {
+	for _, c := range rectCells(yard.Region.Bounds()) {
 		if !contains(roomWalls(inc), c) {
 			free++
 		}

@@ -9,7 +9,7 @@ import (
 )
 
 func TestStorageRingLeavesInteriorAndRingStockAlone(t *testing.T) {
-	room := policy.PlannedRoom{Role: policy.PlannedStorage, Interior: policy.Rectangle{X: 10, Z: 10, Width: 3, Height: 3}}
+	room := policy.PlannedRoom{Role: policy.PlannedStorage, Region: policy.RectRegion(policy.Rectangle{X: 10, Z: 10, Width: 3, Height: 3})}
 	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{room}}
 	stock := policy.Thing{ID: 1, Def: "Meat_Gazelle", Category: policy.ThingItem, Flags: policy.FlagHaulable}
 	ringStock := policy.Thing{ID: 2, Def: "Leather_Plain", Category: policy.ThingItem, Flags: policy.FlagHaulable}

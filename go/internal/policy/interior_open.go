@@ -101,7 +101,7 @@ func largestComponent(cells []domain.Cell) []domain.Cell {
 
 // InteriorOpen is the planned room's interior reading against the census.
 func (r PlannedRoom) InteriorOpen(cells []SiteCell) InteriorReading {
-	return InteriorOf(r.Interior, cells)
+	return InteriorOf(r.Region.Bounds(), cells)
 }
 
 // IsStoreRoom reports whether role is a room whose purpose is a store, the dug

@@ -47,15 +47,15 @@ func TestBedroomWingsPlannedAtFullSize(t *testing.T) {
 			}
 			for _, r := range p.Wings[j].Rooms {
 				if rectsOverlap(roomWalls(r), res) {
-					t.Fatalf("wing %d room %+v on wing %d reserve %+v", j, r.Interior, i, res)
+					t.Fatalf("wing %d room %+v on wing %d reserve %+v", j, r.Region.Bounds(), i, res)
 				}
 			}
 		}
 		for _, r := range w.Rooms {
-			if all[r.Interior] {
-				t.Fatal("room in two wings", r.Interior)
+			if all[r.Region.Bounds()] {
+				t.Fatal("room in two wings", r.Region.Bounds())
 			}
-			all[r.Interior] = true
+			all[r.Region.Bounds()] = true
 		}
 	}
 	// One pawn past capacity sites a fourth wing and leaves every existing
@@ -103,10 +103,10 @@ func checkWing(t *testing.T, p LayoutPlan) Wing {
 		}
 		shared := false
 		for _, o := range w.Rooms {
-			if o.Interior == r.Interior {
+			if o.Region.Bounds() == r.Region.Bounds() {
 				continue
 			}
-			if rectsOverlap(r.Interior, roomWalls(o)) {
+			if rectsOverlap(r.Region.Bounds(), roomWalls(o)) {
 				t.Fatal("overlap", r, o)
 			}
 			// A neighbour's wall row is this room's wall row.
@@ -171,8 +171,8 @@ func TestBedroomWingRoomSizeByTier(t *testing.T) {
 	size := func(t *testing.T, w Wing, want [2]int32) {
 		t.Helper()
 		for _, r := range w.Rooms {
-			if got := [2]int32{r.Interior.Height, r.Interior.Width}; got != want {
-				t.Fatalf("room %+v is %v, want %v", r.Interior, got, want)
+			if got := [2]int32{r.Region.Bounds().Height, r.Region.Bounds().Width}; got != want {
+				t.Fatalf("room %+v is %v, want %v", r.Region.Bounds(), got, want)
 			}
 		}
 	}
@@ -198,7 +198,7 @@ func TestKeepWingRoomsTrimsTheCorridor(t *testing.T) {
 	w := testBedroomWing(t, p)
 	last := w.Rooms[len(w.Rooms)-1]
 	kept := keepWingRooms(p.Wings, func(r PlannedRoom) bool {
-		return r.Interior != last.Interior && r.Interior != w.Rooms[len(w.Rooms)-2].Interior
+		return r.Region.Bounds() != last.Region.Bounds() && r.Region.Bounds() != w.Rooms[len(w.Rooms)-2].Region.Bounds()
 	})
 	if len(kept) != 1 || len(kept[0].Rooms) != 8 || kept[0].Corridor.To == w.Corridor.To {
 		t.Fatalf("kept %+v", kept)

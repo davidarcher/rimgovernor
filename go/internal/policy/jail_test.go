@@ -12,10 +12,10 @@ func TestNextJailStepReconcilesAndMarks(t *testing.T) {
 	if s := NextJailStep(plan, RoomObservation{Shapes: testShapes}, 0, nil, nil); s.Kind != JailNone {
 		t.Fatalf("no prisoner: %+v", s)
 	}
-	if s := NextJailStep(plan, RoomObservation{Shapes: testShapes}, 1, nil, nil); s.Kind != JailReconcile || s.Room.Interior != jail.Interior || len(s.Template) != 1 {
+	if s := NextJailStep(plan, RoomObservation{Shapes: testShapes}, 1, nil, nil); s.Kind != JailReconcile || s.Room.Region.Bounds() != jail.Region.Bounds() || len(s.Template) != 1 {
 		t.Fatalf("unbuilt jail: %+v", s)
 	}
-	centre := domain.Cell{X: jail.Interior.X + 2, Z: jail.Interior.Z + 2}
+	centre := domain.Cell{X: jail.Region.Bounds().X + 2, Z: jail.Region.Bounds().Z + 2}
 	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "j", Cells: []domain.Cell{centre}, Enclosed: domain.Known(true)}}}
 	plain := SleepingBed{ID: "bed1", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), Room: domain.Known("j")}
 	if s := NextJailStep(plan, rooms, 1, []SleepingBed{plain}, nil); s.Kind != JailMark || s.Bed != "bed1" {

@@ -152,7 +152,7 @@ func coreFootprint(plan LayoutPlan, w, h int32) []bool {
 func coreBaseFootprint(plan LayoutPlan, w, h int32) []bool {
 	fp := make([]bool, max(w, 0)*max(h, 0))
 	for _, r := range plan.AllRooms() {
-		markRect(fp, w, h, pad(r.Interior, 1))
+		markRect(fp, w, h, pad(r.Region.Bounds(), 1))
 	}
 	for _, sg := range plan.Hallways() {
 		markRect(fp, w, h, pad(rectOf(sg.From, sg.To), SpineWidth/2))

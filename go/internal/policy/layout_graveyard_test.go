@@ -23,10 +23,10 @@ func TestGraveyardIsAnOutdoorRoomInTheOutskirtsSlot(t *testing.T) {
 	plan, room := graveyardPlan(t)
 	area, _ := plan.OutskirtsArea()
 	l, _ := OutskirtsSlots(area)
-	if room.Interior != l.Graveyard.Interior || !room.Outdoor || !room.Unfenced() || room.Door != (domain.Cell{}) {
+	if room.Region.Bounds() != l.Graveyard.Interior || !room.Outdoor || !room.Unfenced() || room.Door != (domain.Cell{}) {
 		t.Fatalf("graveyard %+v want unfenced slot %+v", room, l.Graveyard)
 	}
-	if !contains(area, domain.Cell{X: room.Interior.X, Z: room.Interior.Z}) {
+	if !contains(area, domain.Cell{X: room.Region.Bounds().X, Z: room.Region.Bounds().Z}) {
 		t.Fatal("graveyard off the cluster")
 	}
 	if again, added := growOutskirtsRooms(plan, nil); added || len(again.Rooms) != len(plan.Rooms) {
@@ -56,7 +56,7 @@ func TestGraveyardOwesNoRingGateOrFloor(t *testing.T) {
 
 func TestGraveyardTemplateHolds12ReachableGraves(t *testing.T) {
 	_, room := graveyardPlan(t)
-	slots := GraveyardSlots(room.Interior)
+	slots := GraveyardSlots(room.Region.Bounds())
 	if len(slots) != GraveyardGraves {
 		t.Fatalf("slots %d", len(slots))
 	}
@@ -66,7 +66,7 @@ func TestGraveyardTemplateHolds12ReachableGraves(t *testing.T) {
 			t.Fatalf("grave %+v is not 1x2", s)
 		}
 		for _, c := range rectCells(s) {
-			if !contains(room.Interior, c) {
+			if !contains(room.Region.Bounds(), c) {
 				t.Fatalf("grave %+v off the interior", s)
 			}
 			if _, taken := grave[c]; taken {
@@ -77,13 +77,13 @@ func TestGraveyardTemplateHolds12ReachableGraves(t *testing.T) {
 	}
 	// Flood the open interior from its south-west corner (an aisle cell).
 	open := map[domain.Cell]bool{}
-	queue := []domain.Cell{{X: room.Interior.X, Z: room.Interior.Z}}
+	queue := []domain.Cell{{X: room.Region.Bounds().X, Z: room.Region.Bounds().Z}}
 	open[queue[0]] = true
 	for len(queue) > 0 {
 		c := queue[0]
 		queue = queue[1:]
 		for _, n := range []domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}} {
-			if _, taken := grave[n]; contains(room.Interior, n) && !taken && !open[n] {
+			if _, taken := grave[n]; contains(room.Region.Bounds(), n) && !taken && !open[n] {
 				open[n] = true
 				queue = append(queue, n)
 			}
@@ -114,11 +114,11 @@ func TestFurtherGraveyardIsSitedOffCoreClearOfLivingRooms(t *testing.T) {
 	if !added || len(next.roomsOf(PlannedGraveyard)) != 2 {
 		t.Fatalf("further graveyard not sited: %d", len(next.roomsOf(PlannedGraveyard)))
 	}
-	if !reflect.DeepEqual(before, next.Rooms[:len(before)]) || next.roomsOf(PlannedGraveyard)[0].Interior != first.Interior {
+	if !reflect.DeepEqual(before, next.Rooms[:len(before)]) || next.roomsOf(PlannedGraveyard)[0].Region.Bounds() != first.Region.Bounds() {
 		t.Fatal("an existing room moved")
 	}
 	room := next.roomsOf(PlannedGraveyard)[1]
-	if !room.Outdoor || room.Interior.Width != GraveyardW || room.Interior.Height != GraveyardH || len(GraveyardSlots(room.Interior)) != GraveyardGraves {
+	if !room.Outdoor || room.Region.Bounds().Width != GraveyardW || room.Region.Bounds().Height != GraveyardH || len(GraveyardSlots(room.Region.Bounds())) != GraveyardGraves {
 		t.Fatalf("further graveyard %+v", room)
 	}
 	if !room.Unfenced() {

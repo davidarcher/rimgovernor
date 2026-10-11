@@ -8,7 +8,7 @@ import (
 
 func TestMiningFollowsTheLayoutPlanTiers(t *testing.T) {
 	plan := LayoutPlan{
-		Rooms: []PlannedRoom{{Role: PlannedReserve, Interior: Rectangle{X: 10, Z: 10, Width: 5, Height: 5}, Dug: true}},
+		Rooms: []PlannedRoom{{Role: PlannedReserve, Region: RectRegion(Rectangle{X: 10, Z: 10, Width: 5, Height: 5}), Dug: true}},
 		Zones: []LayoutZone{
 			{Kind: ZoneMining, Runs: []RowRun{{Z: 1, X: 0, Length: 2}}, Ore: true},
 			{Kind: ZoneMining, Runs: []RowRun{{Z: 9, X: 9, Length: 7}, {Z: 2, X: 2, Length: 3}}},
@@ -58,7 +58,7 @@ func TestPlannedDig(t *testing.T) {
 	if got := p.MineTier(domain.Cell{X: shaft.X, Z: shaft.Z}); got != MineTierCore {
 		t.Fatalf("shaft tier %d", got)
 	}
-	in := freezer.Interior
+	in := freezer.Region.Bounds()
 	var cells []SiteCell
 	for x := in.X - 2; x <= in.X+in.Width+1; x++ {
 		for z := in.Z - 2 - shaft.Height; z <= in.Z+in.Height+1+shaft.Height; z++ {
@@ -105,7 +105,7 @@ func TestRoomDigIncludesFoggedCells(t *testing.T) {
 		room = r
 		break
 	}
-	open := room.Interior
+	open := room.Region.Bounds()
 	cells := []SiteCell{openSite(open.X, open.Z)}
 	dig := map[domain.Cell]bool{}
 	for _, c := range p.RoomRock(room, cells).Dig {
@@ -128,14 +128,14 @@ func TestRoomDigIncludesFoggedCells(t *testing.T) {
 // the butchery's door unreachable).
 func TestRoomDigThroughLinkedNeighbour(t *testing.T) {
 	link := domain.Cell{X: 96, Z: 36}
-	freezer := PlannedRoom{Role: PlannedFreezer, Interior: Rectangle{X: 96, Z: 37, Width: 5, Height: 5}, Door: domain.Cell{X: 98, Z: 42}, DoorRot: domain.North}
-	butchery := PlannedRoom{Role: PlannedButchery, Interior: Rectangle{X: 93, Z: 32, Width: 4, Height: 4}, Door: link, Link: &link, DoorRot: domain.North}
+	freezer := PlannedRoom{Role: PlannedFreezer, Region: RectRegion(Rectangle{X: 96, Z: 37, Width: 5, Height: 5}), Door: domain.Cell{X: 98, Z: 42}, DoorRot: domain.North}
+	butchery := PlannedRoom{Role: PlannedButchery, Region: RectRegion(Rectangle{X: 93, Z: 32, Width: 4, Height: 4}), Door: link, Link: &link, DoorRot: domain.North}
 	p := LayoutPlan{Rooms: []PlannedRoom{freezer, butchery}}
 	dig := map[domain.Cell]bool{}
 	for _, c := range p.RoomRock(butchery, nil).Dig {
 		dig[c] = true
 	}
-	for _, c := range append(RectangleCells(freezer.Interior), freezer.Door) {
+	for _, c := range append(RectangleCells(freezer.Region.Bounds()), freezer.Door) {
 		if !dig[c] {
 			t.Fatalf("%v of the freezer the butchery is entered through is not dug", c)
 		}

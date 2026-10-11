@@ -172,9 +172,9 @@ func (p LayoutPlan) GroundMatches(r PlannedRoom, g GroundCensus) bool {
 // room's role, quality and temperature. Whether the room is built is
 // GroundMatches.
 func CensusRoomIn(r PlannedRoom, rooms RoomObservation) (Room, bool) {
-	centre := domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}
+	centre := domain.Cell{X: r.Region.Bounds().X + r.Region.Bounds().Width/2, Z: r.Region.Bounds().Z + r.Region.Bounds().Height/2}
 	for _, room := range rooms.Rooms {
-		if len(room.Cells) > int(r.Interior.Width*r.Interior.Height) {
+		if len(room.Cells) > int(r.Region.Bounds().Width*r.Region.Bounds().Height) {
 			continue
 		}
 		if enclosed, known := room.Enclosed.Value(); !known || !enclosed {
@@ -192,7 +192,7 @@ func CensusRoomIn(r PlannedRoom, rooms RoomObservation) (Room, bool) {
 // Footprint is the room's shell: its interior walled round, the door where
 // the plan put it.
 func (r PlannedRoom) Footprint() (domain.RoomFootprint, error) {
-	in := r.Interior
+	in := r.Region.Bounds()
 	cells := make([]domain.Cell, 0, int(in.Width*in.Height))
 	for z := in.Z; z < in.Z+in.Height; z++ {
 		for x := in.X; x < in.X+in.Width; x++ {
@@ -264,9 +264,9 @@ func (p LayoutPlan) ShellDoors(r PlannedRoom) []domain.Cell {
 		doors = append(doors, r.Airlock.Outer)
 	}
 	doors = append(doors, p.FlapCells(r)...)
-	in := r.Interior
+	in := r.Region.Bounds()
 	for _, o := range p.roomsWithHerd() {
-		if o.Link == nil || o.Interior == in {
+		if o.Link == nil || o.Region.Bounds() == in {
 			continue
 		}
 		l := *o.Link

@@ -56,7 +56,7 @@ func roomRingInput(facts observation.ColonyProjection, plan policy.LayoutPlan, r
 		return policy.ReconcileInput{}, false
 	}
 	cells := cellsOn(facts.Cells, room.RoomGround())
-	in := room.Interior
+	in := room.Region.Bounds()
 	cells = slices.DeleteFunc(cells, func(c policy.SiteCell) bool {
 		return c.Cell.X >= in.X && c.Cell.X < in.X+in.Width && c.Cell.Z >= in.Z && c.Cell.Z < in.Z+in.Height
 	})

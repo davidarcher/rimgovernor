@@ -116,7 +116,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	ringBox := pad(enc.bbox, perimeterThick) // built is a cell the core's rooms or hallway hold.
 	built := func(c domain.Cell) bool {
 		for _, r := range plan.AllRooms() {
-			if contains(pad(r.Interior, 1), c) {
+			if contains(pad(r.Region.Bounds(), 1), c) {
 				return true
 			}
 		}

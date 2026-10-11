@@ -24,12 +24,12 @@ func throneRoyalty() domain.Fact[policy.RoyaltyFacts] {
 }
 
 func throneProjection(standing bool) (observation.ColonyProjection, policy.PlannedRoom) {
-	room := policy.PlannedRoom{Role: policy.PlannedThrone, Interior: policy.Rectangle{X: 10, Z: 20, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
+	room := policy.PlannedRoom{Role: policy.PlannedThrone, Region: policy.RectRegion(policy.Rectangle{X: 10, Z: 20, Width: 6, Height: 5}), Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
 	rooms := policy.RoomObservation{Shapes: testPieceShapes}
 	if standing {
 		var cells []domain.Cell
-		for z := room.Interior.Z; z < room.Interior.Z+room.Interior.Height; z++ {
-			for x := room.Interior.X; x < room.Interior.X+room.Interior.Width; x++ {
+		for z := room.Region.Bounds().Z; z < room.Region.Bounds().Z+room.Region.Bounds().Height; z++ {
+			for x := room.Region.Bounds().X; x < room.Region.Bounds().X+room.Region.Bounds().Width; x++ {
 				cells = append(cells, domain.Cell{X: x, Z: z})
 			}
 		}
@@ -60,7 +60,7 @@ func ringBuildings(plan policy.LayoutPlan, _ bool) []policy.CurrentBuilding {
 	for _, d := range plan.ShellDoors(room) {
 		doors[d] = true
 	}
-	in := room.Interior
+	in := room.Region.Bounds()
 	var out []policy.CurrentBuilding
 	for x := in.X - 1; x <= in.X+in.Width; x++ {
 		for z := in.Z - 1; z <= in.Z+in.Height; z++ {
@@ -228,7 +228,7 @@ func TestLayoutGrowsAThroneRoomForTheNextTitle(t *testing.T) {
 	if !ok {
 		t.Fatal("no throne room grown for the Knight rung")
 	}
-	if got := room.Interior.Width * room.Interior.Height; got < 30 {
+	if got := room.Region.Bounds().Width * room.Region.Bounds().Height; got < 30 {
 		t.Fatalf("throne room of %d cells", got)
 	}
 	royalty, _ := projection.Royalty.Value()

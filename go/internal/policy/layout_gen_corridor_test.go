@@ -31,13 +31,13 @@ func ringPlan(farApart bool) LayoutPlan {
 		{From: domain.Cell{X: 40, Z: -30}, To: domain.Cell{X: 40, Z: 30}},
 	}
 	p := LayoutPlan{Spine: spine, Rooms: []PlannedRoom{
-		{Role: PlannedKitchen, Interior: Rectangle{X: 3, Z: z, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: z + 2}, DoorRot: domain.West},
-		{Role: PlannedFreezer, Interior: Rectangle{X: 33, Z: z, Width: 5, Height: 5}, Door: domain.Cell{X: 38, Z: z + 2}, DoorRot: domain.East},
+		{Role: PlannedKitchen, Region: RectRegion(Rectangle{X: 3, Z: z, Width: 5, Height: 5}), Door: domain.Cell{X: 2, Z: z + 2}, DoorRot: domain.West},
+		{Role: PlannedFreezer, Region: RectRegion(Rectangle{X: 33, Z: z, Width: 5, Height: 5}), Door: domain.Cell{X: 38, Z: z + 2}, DoorRot: domain.East},
 	}}
 	if farApart {
 		// More kitchens up the same crossing, each walking to the freezer.
 		for _, kz := range []int32{16, 10} {
-			p.Rooms = append(p.Rooms, PlannedRoom{Role: PlannedKitchen, Interior: Rectangle{X: 3, Z: kz, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: kz + 2}, DoorRot: domain.West})
+			p.Rooms = append(p.Rooms, PlannedRoom{Role: PlannedKitchen, Region: RectRegion(Rectangle{X: 3, Z: kz, Width: 5, Height: 5}), Door: domain.Cell{X: 2, Z: kz + 2}, DoorRot: domain.West})
 		}
 	}
 	p.Entrances = hallEntrances(spine)
@@ -125,7 +125,7 @@ func TestAddSecondDoorsOnlyForPassThroughRooms(t *testing.T) {
 			if _, err := CheckRoutes(got); err != nil {
 				t.Fatal(err)
 			}
-			if side, ok := doorSide(got.Rooms[0].Interior, got.Rooms[0].Doors[0].Cell); !ok || side != got.Rooms[0].Doors[0].Rot {
+			if side, ok := doorSide(got.Rooms[0].Region.Bounds(), got.Rooms[0].Doors[0].Cell); !ok || side != got.Rooms[0].Doors[0].Rot {
 				t.Fatal("door rotation", got.Rooms[0].Doors[0])
 			}
 		}

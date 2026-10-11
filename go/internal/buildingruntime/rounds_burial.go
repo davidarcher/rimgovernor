@@ -22,7 +22,7 @@ import (
 
 // roomName prefixes a room's reconcile methods: its role and interior corner.
 func roomName(role string, room policy.PlannedRoom) string {
-	return fmt.Sprintf("%s-%d-%d", role, room.Interior.X, room.Interior.Z)
+	return fmt.Sprintf("%s-%d-%d", role, room.Region.Bounds().X, room.Region.Bounds().Z)
 }
 
 // RoundsBurialPlanner stages the burial rooms of MaintainBurial.

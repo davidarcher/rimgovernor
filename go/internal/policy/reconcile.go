@@ -142,7 +142,7 @@ type reconcileItem struct {
 // Reconcile diffs the room against the ground.
 func Reconcile(in ReconcileInput) Reconciliation {
 	r := in.Room
-	ring, interior := roomWalls(r), r.Interior
+	ring, interior := roomWalls(r), r.Region.Bounds()
 	if r.Unfenced() {
 		// No ring is owed: only the template and the foreign things on the interior.
 		ring = Rectangle{}

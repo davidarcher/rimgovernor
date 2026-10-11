@@ -77,21 +77,21 @@ func replanNeverChangesFixedRooms(t *testing.T) {
 			// Something is built on a few more rooms: a wall cell each.
 			for _, r := range plan.AllRooms() {
 				if rng.Intn(4) == 0 {
-					occupied[domain.Cell{X: r.Interior.X - 1, Z: r.Interior.Z - 1}] = true
+					occupied[domain.Cell{X: r.Region.Bounds().X - 1, Z: r.Region.Bounds().Z - 1}] = true
 				}
 			}
 			growth := RoomGrowth{Fixed: FixedRooms(plan, GroundCensus{}, occupied), Occupied: occupied}
 			for _, r := range plan.AllRooms() {
-				if growth.Fixed[r.Interior] {
-					if _, ok := fixed[r.Interior]; !ok {
-						fixed[r.Interior] = fixedRoom{door: r.Door, doors: r.Doors, link: r.Link}
+				if growth.Fixed[r.Region.Bounds()] {
+					if _, ok := fixed[r.Region.Bounds()]; !ok {
+						fixed[r.Region.Bounds()] = fixedRoom{door: r.Door, doors: r.Doors, link: r.Link}
 					}
 				}
 			}
 			next, _, _ := ReplanLayoutWithRooms(plan, s, growth, 0, pawns, 0, tier, nil, nil)
 			have := map[Rectangle]PlannedRoom{}
 			for _, r := range next.AllRooms() {
-				have[r.Interior] = r
+				have[r.Region.Bounds()] = r
 			}
 			for in, was := range fixed {
 				got, ok := have[in]
@@ -109,15 +109,15 @@ func replanNeverChangesFixedRooms(t *testing.T) {
 				foreign[c] = true
 			}
 			for _, r := range next.AllRooms() {
-				if _, isFixed := fixed[r.Interior]; isFixed {
+				if _, isFixed := fixed[r.Region.Bounds()]; isFixed {
 					for _, c := range rectCells(roomWalls(r)) {
 						delete(foreign, c)
 					}
 				}
 			}
 			for _, r := range next.AllRooms() {
-				if _, isFixed := fixed[r.Interior]; !isFixed && rectHits(roomWalls(r), foreign) {
-					t.Fatalf("seed %d step %d: planned %s %v holds a built cell", seed, step, r.Role, r.Interior)
+				if _, isFixed := fixed[r.Region.Bounds()]; !isFixed && rectHits(roomWalls(r), foreign) {
+					t.Fatalf("seed %d step %d: planned %s %v holds a built cell", seed, step, r.Role, r.Region.Bounds())
 				}
 			}
 			plan = next
@@ -151,7 +151,7 @@ func TestReplanAboveThresholdMovesOnlyUnbuiltRooms(t *testing.T) {
 	built := map[Rectangle]bool{}
 	for i, r := range plan.Rooms {
 		if i%2 == 0 {
-			built[r.Interior] = true
+			built[r.Region.Bounds()] = true
 		}
 	}
 	next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: built}, 0, 3, 0, TechTierCamp, nil, nil)
@@ -160,11 +160,11 @@ func TestReplanAboveThresholdMovesOnlyUnbuiltRooms(t *testing.T) {
 	}
 	have := map[Rectangle]PlannedRoom{}
 	for _, r := range next.AllRooms() {
-		have[r.Interior] = r
+		have[r.Region.Bounds()] = r
 	}
 	for _, r := range plan.Rooms {
-		if got, ok := have[r.Interior]; built[r.Interior] && (!ok || got.Door != r.Door) {
-			t.Fatalf("built room %v moved", r.Interior)
+		if got, ok := have[r.Region.Bounds()]; built[r.Region.Bounds()] && (!ok || got.Door != r.Door) {
+			t.Fatalf("built room %v moved", r.Region.Bounds())
 		}
 	}
 	if !next.Valid() {
@@ -198,7 +198,7 @@ func BenchmarkReplanHourly(b *testing.B) {
 	built := map[Rectangle]bool{}
 	for i, r := range plan.Rooms {
 		if i%2 == 0 {
-			built[r.Interior] = true
+			built[r.Region.Bounds()] = true
 		}
 	}
 	b.ResetTimer()

@@ -157,14 +157,14 @@ func outskirtsRooms(l OutskirtsLayout) []PlannedRoom {
 // and gate ring (no roof, no floor owed). Every Outdoor room of the cluster
 // (the waste yard, the graveyard) is made through it.
 func slotRoom(role PlannedRole, slot OutskirtsSlot) PlannedRoom {
-	return PlannedRoom{Role: role, Interior: slot.Interior, Door: slot.Door, DoorRot: slot.DoorRot, Outdoor: role.IsOutdoor()}
+	return PlannedRoom{Role: role, Region: RectRegion(slot.Interior), Door: slot.Door, DoorRot: slot.DoorRot, Outdoor: role.IsOutdoor()}
 }
 
 // incineratorRoom is the walled 3x3 room in outline, its door on the west wall
 // facing into the yard it stands in.
 func incineratorRoom(outline Rectangle) PlannedRoom {
 	in := Rectangle{X: outline.X + 1, Z: outline.Z + 1, Width: outline.Width - 2, Height: outline.Height - 2}
-	return PlannedRoom{Role: PlannedIncinerator, Interior: in, Door: domain.Cell{X: in.X - 1, Z: in.Z + in.Height/2}, DoorRot: domain.West}
+	return PlannedRoom{Role: PlannedIncinerator, Region: RectRegion(in), Door: domain.Cell{X: in.X - 1, Z: in.Z + in.Height/2}, DoorRot: domain.West}
 }
 
 // growOutskirtsRooms places the tomb, the morgue, the graveyard, the waste yard and the

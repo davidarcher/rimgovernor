@@ -82,9 +82,9 @@ func (p LayoutPlan) GroundWithRock(g GroundCensus, rock []domain.Cell) GroundCen
 // ground an owner reads the census on.
 func (r PlannedRoom) RoomGround() Rectangle {
 	if r.Unfenced() {
-		return r.Interior
+		return r.Region.Bounds()
 	}
-	return roomGround(r.Interior)
+	return roomGround(r.Region.Bounds())
 }
 
 // Wanted is the template piece for p: its slot's cells, size and rotation.

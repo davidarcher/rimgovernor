@@ -261,7 +261,7 @@ func sameInteriors(a, b []PlannedRoom) bool {
 		return false
 	}
 	for i := range a {
-		if a[i].Interior != b[i].Interior {
+		if a[i].Region.Bounds() != b[i].Region.Bounds() {
 			return false
 		}
 	}

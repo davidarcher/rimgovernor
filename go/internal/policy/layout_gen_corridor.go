@@ -262,11 +262,11 @@ func (p LayoutPlan) addSecondDoors(fixed map[Rectangle]bool) LayoutPlan {
 	p.Rooms = rooms
 	for i := range rooms {
 		r := rooms[i]
-		if noThroughfare[r.Role] || fixed[r.Interior] {
+		if noThroughfare[r.Role] || fixed[r.Region.Bounds()] {
 			continue
 		}
 		primary := -1
-		if side, ok := doorSide(r.Interior, r.Door); ok {
+		if side, ok := doorSide(r.Region.Bounds(), r.Door); ok {
 			primary = hallAt(outside(r.Door, side))
 		}
 		for _, cand := range secondDoorCandidates(r, hallAt, primary) {
@@ -306,7 +306,7 @@ func outside(d domain.Cell, side domain.Rotation) domain.Cell {
 // of the stretch beside that hallway. A corner, and a cell holding a door
 // or the link already, is never a door.
 func secondDoorCandidates(r PlannedRoom, hallAt func(domain.Cell) int, primary int) []Door {
-	in := r.Interior
+	in := r.Region.Bounds()
 	taken := map[domain.Cell]bool{r.Door: true}
 	for _, d := range r.Doors {
 		taken[d.Cell] = true

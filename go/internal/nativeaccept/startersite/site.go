@@ -39,7 +39,7 @@ func plannedBedrooms(plan policy.LayoutPlan) string {
 		if r.Role != policy.PlannedBedroom {
 			continue
 		}
-		in := r.Interior
+		in := r.Region.Bounds()
 		rooms = append(rooms, fmt.Sprintf("%d,%d,%d,%d,%d,%d", in.X, in.Z, in.Width, in.Height, r.Door.X, r.Door.Z))
 	}
 	return strings.Join(rooms, ";")

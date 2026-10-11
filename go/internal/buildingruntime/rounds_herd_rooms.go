@@ -139,7 +139,7 @@ func (r *RoundsAnimalContainmentPlanner) stageHerdRooms(call, epoch context.Cont
 	case policy.HerdMedical:
 		result, err = r.markHerdBedMedical(call, epoch, state, goal, reading.Projection, step.Bed)
 	default:
-		in := step.Room.Interior
+		in := step.Room.Region.Bounds()
 		stock := newPackedStock(r.reviewer.native, boundary.Identity(state.Snapshot))
 		result, err = r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{
 			room: step.Room, template: step.Template,

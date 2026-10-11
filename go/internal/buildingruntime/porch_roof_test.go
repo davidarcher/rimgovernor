@@ -13,7 +13,7 @@ import (
 func TestPorchRoofActionAccompaniesAPorchBattery(t *testing.T) {
 	t.Parallel()
 	plan := policy.LayoutPlan{Cold: true, Rooms: []policy.PlannedRoom{{
-		Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 10, Z: 10, Width: 5, Height: 4},
+		Role: policy.PlannedShelter, Region: policy.RectRegion(policy.Rectangle{X: 10, Z: 10, Width: 5, Height: 4}),
 		Door: domain.Cell{X: 15, Z: 12}, DoorRot: domain.East,
 		Porch: &policy.Porch{Strip: policy.Rectangle{X: 8, Z: 10, Width: 1, Height: 4}},
 	}}}

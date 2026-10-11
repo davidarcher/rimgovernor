@@ -11,7 +11,7 @@ import (
 // without a panic, and its utility sites stay off the hallway clearance.
 func TestRingHallwaysNeedNoMainSpine(t *testing.T) {
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	storage := PlannedRoom{Role: PlannedStorage, Interior: Rectangle{X: 90, Z: 90, Width: 6, Height: 6}, Door: domain.Cell{X: 82, Z: 93}, DoorRot: domain.West}
+	storage := PlannedRoom{Role: PlannedStorage, Region: RectRegion(Rectangle{X: 90, Z: 90, Width: 6, Height: 6}), Door: domain.Cell{X: 82, Z: 93}, DoorRot: domain.West}
 	plan := LayoutPlan{
 		Zones: Zone(s),
 		Spine: []SpineSegment{

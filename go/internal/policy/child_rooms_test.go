@@ -152,7 +152,7 @@ func TestChildRoomSizesHoldTheirFurniture(t *testing.T) {
 }
 
 func childRoomFixture(role PlannedRole) (LayoutPlan, PlannedRoom) {
-	room := PlannedRoom{Role: role, Interior: Rectangle{X: 10, Z: 20, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
+	room := PlannedRoom{Role: role, Region: RectRegion(Rectangle{X: 10, Z: 20, Width: 6, Height: 5}), Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
 	return LayoutPlan{Rooms: []PlannedRoom{room}}, room
 }
 
@@ -188,7 +188,7 @@ func TestNextChildRoomStepReconcilesTheNursery(t *testing.T) {
 	if step.Kind != ChildRoomReconcile || len(step.Template) != 2 || !step.Owed() {
 		t.Fatalf("two cribs wanted: %+v", step)
 	}
-	in := room.Interior
+	in := room.Region.Bounds()
 	cells := map[domain.Cell]bool{}
 	for _, p := range step.Template {
 		if p.DefName != "Crib" || p.Minimum.X < in.X || p.Minimum.Z < in.Z || p.Maximum.X >= in.X+in.Width || p.Maximum.Z >= in.Z+in.Height {
@@ -314,7 +314,7 @@ func TestChildRoomForTransposedRoom(t *testing.T) {
 	if size == ([2]int32{}) {
 		t.Skip("every size holding the shape is square")
 	}
-	room := PlannedRoom{Role: PlannedWorship, Interior: Rectangle{X: 10, Z: 20, Width: size[1], Height: size[0]}, Door: domain.Cell{X: 9, Z: 21}, DoorRot: domain.East}
+	room := PlannedRoom{Role: PlannedWorship, Region: RectRegion(Rectangle{X: 10, Z: 20, Width: size[1], Height: size[0]}), Door: domain.Cell{X: 9, Z: 21}, DoorRot: domain.East}
 	if _, ok := (LayoutPlan{Rooms: []PlannedRoom{room}}).ChildRoomFor(shape); !ok {
 		t.Fatalf("transposed %v room does not hold the shape", size)
 	}

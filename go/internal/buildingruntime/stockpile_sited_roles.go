@@ -50,12 +50,12 @@ func tableMeal(projection *observation.ColonyProjection) *policy.MealStore {
 	if len(dining) == 0 {
 		return nil
 	}
-	retired := &policy.MealStore{Dining: dining[0].Interior, Retired: true}
+	retired := &policy.MealStore{Dining: dining[0].Region.Bounds(), Retired: true}
 	var room policy.PlannedRoom
 	var adjacent []domain.Cell
 	for _, planned := range dining {
 		for _, s := range comfort.Surfaces {
-			if len(s.Adjacent) > 0 && inRectangle(planned.Interior, s.Adjacent[0]) {
+			if len(s.Adjacent) > 0 && inRectangle(planned.Region.Bounds(), s.Adjacent[0]) {
 				room, adjacent = planned, s.Adjacent
 				break
 			}
@@ -83,7 +83,7 @@ func tableMeal(projection *observation.ColonyProjection) *policy.MealStore {
 	if perDay < mealSpotMinPerDay {
 		return retired
 	}
-	return &policy.MealStore{Dining: room.Interior, Filter: allowOnly(meal), Anchor: centroid(adjacent), Avoid: adjacent}
+	return &policy.MealStore{Dining: room.Region.Bounds(), Filter: allowOnly(meal), Anchor: centroid(adjacent), Avoid: adjacent}
 }
 
 // mealsPerDay is the meals the colonists eat a day: their nutrition need

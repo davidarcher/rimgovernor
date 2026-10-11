@@ -84,7 +84,7 @@ func checkPerimeter(t *testing.T, p LayoutPlan) (killbox Rectangle) {
 		t.Fatal("mortar", m)
 	}
 	for _, r := range p.Rooms {
-		if contains(pad(r.Interior, 1), domain.Cell{X: m[0].X, Z: m[0].Z}) {
+		if contains(pad(r.Region.Bounds(), 1), domain.Cell{X: m[0].X, Z: m[0].Z}) {
 			t.Fatal("mortar in a room")
 		}
 	}
@@ -206,7 +206,7 @@ func perimeterLeak(p LayoutPlan, s MapSurvey) (domain.Cell, bool) {
 		c := queue[0]
 		queue = queue[1:]
 		for _, r := range p.Rooms {
-			if contains(r.Interior, c) {
+			if contains(r.Region.Bounds(), c) {
 				return c, true
 			}
 		}
@@ -379,7 +379,7 @@ func TestPerimeterPumpsCoverDryingRing(t *testing.T) {
 	}
 	// Each pump section is the pump and a conduit run joining the network
 	// cardinally, ending within connector reach of the pump.
-	core := p.Rooms[0].Interior
+	core := p.Rooms[0].Region.Bounds()
 	transmitter := domain.Cell{X: core.X, Z: core.Z}
 	if none, _ := PerimeterPumps(p, "MoisturePump", "HiddenConduit", nil); len(none) != 0 {
 		t.Fatal("pumps without a network")
@@ -623,7 +623,7 @@ func TestPerimeterPlainSoilStaysNearCore(t *testing.T) {
 	}
 	var rooms, ring Rectangle
 	for _, r := range p.AllRooms() {
-		rooms = unionRect(rooms, r.Interior)
+		rooms = unionRect(rooms, r.Region.Bounds())
 	}
 	// The herd sites sit inside the ring beside the few essential rooms.
 	for _, r := range p.Reservations {

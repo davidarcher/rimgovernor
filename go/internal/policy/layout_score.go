@@ -144,7 +144,7 @@ func (sc planScorer) core(p LayoutPlan) PlanScore {
 
 	under := map[domain.Cell]bool{}
 	for _, r := range rooms {
-		for _, c := range rectCells(r.Interior) {
+		for _, c := range rectCells(r.Region.Bounds()) {
 			under[c] = true
 		}
 	}
@@ -307,7 +307,7 @@ func (sc planScorer) edgeCost(rooms []PlannedRoom, under map[domain.Cell]bool) i
 	}
 	seen := map[domain.Cell]bool{}
 	for _, r := range rooms {
-		for _, c := range rectCells(pad(r.Interior, 1)) {
+		for _, c := range rectCells(pad(r.Region.Bounds(), 1)) {
 			if seen[c] {
 				continue
 			}
@@ -331,7 +331,7 @@ func (sc planScorer) centreCost(rooms []PlannedRoom) int {
 	clear := min(planWeights.CentreClear, int(min(b.Width, b.Height))/3)
 	cost := 0
 	for _, r := range rooms {
-		for _, c := range rectCells(r.Interior) {
+		for _, c := range rectCells(r.Region.Bounds()) {
 			d := int(min(c.X, c.Z, b.Width-1-c.X, b.Height-1-c.Z))
 			if d < clear {
 				cost += planWeights.Centre * (clear - d)
@@ -347,7 +347,7 @@ func (sc planScorer) centreCost(rooms []PlannedRoom) int {
 func (sc planScorer) expansion(rooms []PlannedRoom, under map[domain.Cell]bool) int {
 	near := map[domain.Cell]bool{}
 	for _, r := range rooms {
-		for _, c := range rectCells(pad(r.Interior, int32(planWeights.ExpansionReach))) {
+		for _, c := range rectCells(pad(r.Region.Bounds(), int32(planWeights.ExpansionReach))) {
 			if sc.g.core[c] && !under[c] && !sc.g.rock[c] && sc.g.soil[c] != soilCostRich {
 				near[c] = true
 			}

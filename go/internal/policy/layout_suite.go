@@ -90,7 +90,7 @@ func suiteWingGround(w Wing) Rectangle {
 	f := frameOf(w)
 	depth := int32(0)
 	for _, r := range w.Rooms {
-		in := f.orientRoom(r).Interior
+		in := f.orientRoom(r).Region.Bounds()
 		depth = max(depth, in.Width)
 	}
 	return f.ground(f.reachV(w.Rooms)-1, depth)

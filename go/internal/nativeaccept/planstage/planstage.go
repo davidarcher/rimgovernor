@@ -198,7 +198,7 @@ type Ring struct {
 // RingOf is room's ring, its doors the plan's shell doors. The primary door
 // keeps the planned rotation; any other faces by the wall it stands in.
 func RingOf(plan policy.LayoutPlan, room policy.PlannedRoom) Ring {
-	in := room.Interior
+	in := room.Region.Bounds()
 	doors := map[domain.Cell]int{}
 	for _, d := range plan.ShellDoors(room) {
 		doors[d] = -1
@@ -422,7 +422,7 @@ func FirstRoom(plan policy.LayoutPlan, role policy.PlannedRole) (policy.PlannedR
 func FreeRect(plan policy.LayoutPlan, centre Cell, width, height int32) (Rect, bool) {
 	blocked := func(x, z int32) bool {
 		for _, r := range plan.AllRooms() {
-			in := r.Interior
+			in := r.Region.Bounds()
 			if x >= in.X-3 && x <= in.X+in.Width+2 && z >= in.Z-3 && z <= in.Z+in.Height+2 {
 				return true
 			}

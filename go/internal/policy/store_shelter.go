@@ -30,7 +30,7 @@ func (shelterOwner) Stores(v StoreView) []Store {
 	var out []Store
 	for _, room := range v.Layout.AllRooms() {
 		if room.Role == PlannedShelter {
-			out = append(out, Store{StoreSite: StoreSite{Role: domain.ShelterRole, Interior: room.Interior, Filter: domain.GeneralFilter(), Priority: domain.LowPriority}})
+			out = append(out, Store{StoreSite: StoreSite{Role: domain.ShelterRole, Interior: room.Region.Bounds(), Filter: domain.GeneralFilter(), Priority: domain.LowPriority}})
 		}
 	}
 	if len(out) == 0 {

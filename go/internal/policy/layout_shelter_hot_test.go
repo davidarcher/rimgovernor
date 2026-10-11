@@ -40,12 +40,12 @@ func TestHotMapShelterHoldsAPassiveCoolerSlot(t *testing.T) {
 			t.Fatalf("survey hot=%v: plan ok=%v hot=%v", hot, ok, plan.Hot)
 		}
 		shelter := shelterOf(t, plan)
-		got, want := shelter.Interior, ShelterSizes(3, 0, ShelterCoolers(hot))[0]
+		got, want := shelter.Region.Bounds(), ShelterSizes(3, 0, ShelterCoolers(hot))[0]
 		if got.Width != want[0] || got.Height != want[1] {
 			t.Errorf("survey hot=%v: shelter %dx%d, want %v", hot, got.Width, got.Height, want)
 		}
 		plans[hot] = plan
-		room := InteriorRoom{Role: RoomRoleShelter, Shapes: testShapes, Interior: shelter.Interior, Doors: []domain.Cell{shelter.Door}, Occupants: 3, Coolers: ShelterCoolers(plan.Hot), Capabilities: CapabilitiesOf(PlannedShelter)}
+		room := InteriorRoom{Role: RoomRoleShelter, Shapes: testShapes, Interior: shelter.Region.Bounds(), Doors: []domain.Cell{shelter.Door}, Occupants: 3, Coolers: ShelterCoolers(plan.Hot), Capabilities: CapabilitiesOf(PlannedShelter)}
 		planned, ok := PlanInterior(room, InteriorPieceDef{})
 		if !ok {
 			t.Fatalf("hot=%v: no interior plan", hot)

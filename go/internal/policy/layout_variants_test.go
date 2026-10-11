@@ -71,7 +71,7 @@ func TestMoveClusterReproportionsRooms(t *testing.T) {
 		}
 		for _, r := range cand.Rooms {
 			if r.Role == PlannedKitchen {
-				shapes[[2]int32{r.Interior.Width, r.Interior.Height}] = true
+				shapes[[2]int32{r.Region.Bounds().Width, r.Region.Bounds().Height}] = true
 			}
 		}
 		if _, err := CheckRoutes(finishForTest(g, cand)); err != nil {

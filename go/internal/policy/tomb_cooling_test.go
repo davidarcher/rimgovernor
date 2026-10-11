@@ -36,8 +36,8 @@ func TestWarmCoolingRoomsOweCoolingEmptyOrNot(t *testing.T) {
 // The meal closet is owed a shell while its dining room stands, and
 // once it stands it is cooled like a filled tomb, empty or not.
 func TestMealClosetOwedThenCooled(t *testing.T) {
-	dining := PlannedRoom{Role: PlannedDining, Interior: Rectangle{X: 10, Z: 20, Width: 9, Height: 7}, Door: domain.Cell{X: 14, Z: 19}, DoorRot: domain.North}
-	closet := PlannedRoom{Role: PlannedMealCloset, Interior: Rectangle{X: 13, Z: 28, Width: 2, Height: 2}, Door: domain.Cell{X: 14, Z: 27}, DoorRot: domain.North}
+	dining := PlannedRoom{Role: PlannedDining, Region: RectRegion(Rectangle{X: 10, Z: 20, Width: 9, Height: 7}), Door: domain.Cell{X: 14, Z: 19}, DoorRot: domain.North}
+	closet := PlannedRoom{Role: PlannedMealCloset, Region: RectRegion(Rectangle{X: 13, Z: 28, Width: 2, Height: 2}), Door: domain.Cell{X: 14, Z: 27}, DoorRot: domain.North}
 	plan := LayoutPlan{Rooms: []PlannedRoom{dining, closet}}
 	if _, owed := plan.MealClosetOwed(RoomObservation{Shapes: testShapes}); owed {
 		t.Fatal("closet owed before its dining room stands")

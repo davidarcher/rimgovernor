@@ -213,7 +213,7 @@ func throneFloorTerrains(catalog *bridge.DefinitionCatalog, f policy.RoyaltyFact
 func (r *RoundsSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, arbiter *stepArbiter, stock *packedStock, state ControlState, review store.Rounds, goal store.StandardState, reading observation.RoundsReading, step policy.ThroneStep) (RoundsBuildingResult, error) {
 	switch step.Kind {
 	case policy.ThroneReconcile:
-		in := step.Room.Interior
+		in := step.Room.Region.Bounds()
 		return r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{
 			room: step.Room, template: step.Template, forbidden: step.Need.Forbids, tags: step.Need.FloorTags,
 			name: fmt.Sprintf("throne-%d-%d", in.X, in.Z), reason: "throne room",

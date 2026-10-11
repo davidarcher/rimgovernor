@@ -165,7 +165,7 @@ func (g coreGrid) placeCluster(spine []SpineSegment, rooms []PlannedRoom, wings 
 func splitPairs(placed []PlannedRoom, c roleCluster) int {
 	at := map[PlannedRole]Rectangle{}
 	for _, r := range placed {
-		at[r.Role] = r.Interior
+		at[r.Role] = r.Region.Bounds()
 	}
 	n := 0
 	for _, role := range c.roles {

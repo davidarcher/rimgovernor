@@ -1028,7 +1028,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 			}
 			interiorRooms = plannedInteriorRooms(facts, func(planned policy.PlannedRoom) bool {
 				return slices.ContainsFunc(r.cells, func(c domain.Cell) bool {
-					in := planned.Interior
+					in := planned.Region.Bounds()
 					return c.X >= in.X && c.X < in.X+in.Width && c.Z >= in.Z && c.Z < in.Z+in.Height
 				})
 			})

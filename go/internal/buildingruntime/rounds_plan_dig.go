@@ -255,7 +255,7 @@ func exposedFirst(excavations []domain.Excavation, cells []policy.SiteCell) []do
 
 // digMethod is the per-epoch method that mines what for room.
 func digMethod(what string, room policy.PlannedRoom) domain.MethodID {
-	return domain.MethodID(fmt.Sprintf("plan-dig-%s-%s-%d-%d", what, room.Role, room.Interior.X, room.Interior.Z))
+	return domain.MethodID(fmt.Sprintf("plan-dig-%s-%s-%d-%d", what, room.Role, room.Region.Bounds().X, room.Region.Bounds().Z))
 }
 
 // roomDigMethodPrefix starts every digMethod("room", ...) id.

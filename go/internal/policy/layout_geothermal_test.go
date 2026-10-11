@@ -76,7 +76,7 @@ func TestPlannedRoomsKeepOffGeysers(t *testing.T) {
 	s := zoningSurvey(200, open)
 	base, _ := DeriveLayoutPlan(s, 5, TechTierCamp, nil, 30, 0).Value()
 	for _, r := range base.AllRooms() {
-		at := domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}
+		at := domain.Cell{X: r.Region.Bounds().X + r.Region.Bounds().Width/2, Z: r.Region.Bounds().Z + r.Region.Bounds().Height/2}
 		g := []PowerGeyser{{ID: "g", Cell: at, Cells: []domain.Cell{at, {X: at.X + 1, Z: at.Z}, {X: at.X, Z: at.Z + 1}, {X: at.X + 1, Z: at.Z + 1}}}}
 		vents := geothermalCells(geyserFootprints(g))
 		plan, ok := DeriveLayoutPlan(s, 5, TechTierCamp, g, 30, 0).Value()

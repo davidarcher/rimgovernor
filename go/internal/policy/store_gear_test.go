@@ -15,9 +15,9 @@ var gearTestItems = ItemFacts{Armor: []Resource{"Apparel_FlakVest", "Apparel_Pla
 func gearField(t *testing.T, prison *PlannedRoom) StoreView {
 	t.Helper()
 	layout := LayoutPlan{Rooms: []PlannedRoom{
-		{Role: PlannedShelter, Interior: Rectangle{X: 40, Z: 40, Width: 7, Height: 5}},
-		{Role: PlannedArmory, Interior: Rectangle{X: 52, Z: 40, Width: 5, Height: 5}},
-		{Role: PlannedWardrobe, Interior: Rectangle{X: 40, Z: 50, Width: 5, Height: 5}},
+		{Role: PlannedShelter, Region: RectRegion(Rectangle{X: 40, Z: 40, Width: 7, Height: 5})},
+		{Role: PlannedArmory, Region: RectRegion(Rectangle{X: 52, Z: 40, Width: 5, Height: 5})},
+		{Role: PlannedWardrobe, Region: RectRegion(Rectangle{X: 40, Z: 50, Width: 5, Height: 5})},
 	}}
 	if prison != nil {
 		layout.Rooms = append(layout.Rooms, *prison)
@@ -25,8 +25,8 @@ func gearField(t *testing.T, prison *PlannedRoom) StoreView {
 	rooms := RoomObservation{Shapes: testShapes}
 	roofed := map[domain.Cell]bool{}
 	for i, r := range layout.Rooms {
-		rooms.Rooms = append(rooms.Rooms, Room{ID: string(rune('a' + i)), Enclosed: domain.Known(true), Cells: rectCells(r.Interior)})
-		for _, c := range rectCells(r.Interior) {
+		rooms.Rooms = append(rooms.Rooms, Room{ID: string(rune('a' + i)), Enclosed: domain.Known(true), Cells: rectCells(r.Region.Bounds())})
+		for _, c := range rectCells(r.Region.Bounds()) {
 			roofed[c] = true
 		}
 	}
@@ -126,7 +126,7 @@ func TestGearFiltersSplitArmorFromClothingAndKeepTheFloors(t *testing.T) {
 // cell within the weapon clearance of a prison; the wardrobe is unaffected.
 func TestStoresArmoryKeepsAwayFromPrisons(t *testing.T) {
 	t.Parallel()
-	prison := PlannedRoom{Role: PlannedPrison, Interior: Rectangle{X: 60, Z: 40, Width: 3, Height: 3}}
+	prison := PlannedRoom{Role: PlannedPrison, Region: RectRegion(Rectangle{X: 60, Z: 40, Width: 3, Height: 3})}
 	r := gearField(t, &prison)
 	armory, ok := gearSite(r, domain.ArmoryRolePrefix)
 	if !ok {
@@ -149,7 +149,7 @@ func TestStoresArmoryKeepsAwayFromPrisons(t *testing.T) {
 // is a named failure of the plan, not a silent absence of the zone.
 func TestStoresNamesAnArmoryNearAPrison(t *testing.T) {
 	t.Parallel()
-	prison := PlannedRoom{Role: PlannedPrison, Interior: Rectangle{X: 58, Z: 40, Width: 3, Height: 3}}
+	prison := PlannedRoom{Role: PlannedPrison, Region: RectRegion(Rectangle{X: 58, Z: 40, Width: 3, Height: 3})}
 	r := gearField(t, &prison)
 	if err := (militaryOwner{}).StoreErr(r); !errors.Is(err, ErrArmoryNearPrison) {
 		t.Fatalf("plan error %v", err)

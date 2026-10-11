@@ -100,7 +100,7 @@ func SuiteClaims(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObserv
 		// A suite below its owner's target is left for a larger new one; a
 		// built suite never grows.
 		if r, ok := suites[s.room]; ok {
-			area := r.Interior.Width * r.Interior.Height
+			area := r.Region.Bounds().Width * r.Region.Bounds().Height
 			w, d := SuiteSize(t.Min)
 			if suiteCells(t.Min) <= area || w*d <= area {
 				continue
@@ -116,7 +116,7 @@ func SuiteClaims(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObserv
 		// Only a trait or title raises a target past what space alone must
 		// reach in a standard room; a tier-only target upgrades in
 		// place and claims only when space is its weakest stat.
-		if raisedTarget(t) && suiteCells(t.Min) > r.Interior.Width*r.Interior.Height {
+		if raisedTarget(t) && suiteCells(t.Min) > r.Region.Bounds().Width*r.Region.Bounds().Height {
 			reason = SuiteClaimFloor
 		} else if WeakestRoomStat(q) != RoomStatSpace {
 			continue

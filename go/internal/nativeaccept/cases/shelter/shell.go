@@ -166,14 +166,14 @@ func waitShell(ctx context.Context, st *store.Store, w na.Wait) (*shell, error) 
 		room := rooms[0]
 		footprint, err := room.Footprint()
 		if err != nil {
-			return "", false, fmt.Errorf("the planned shelter %+v is no room footprint: %w", room.Interior, err)
+			return "", false, fmt.Errorf("the planned shelter %+v is no room footprint: %w", room.Region.Bounds(), err)
 		}
 		cells := map[domain.Cell]bool{footprint.Door(): true}
 		for _, c := range footprint.Walls() {
 			cells[c] = true
 		}
 		found = &shell{footprint: footprint, cells: cells,
-			pattern: fmt.Sprintf("%s-shell-%d-%d-build-*", room.Role, room.Interior.X, room.Interior.Z)}
+			pattern: fmt.Sprintf("%s-shell-%d-%d-build-*", room.Role, room.Region.Bounds().X, room.Region.Bounds().Z)}
 		return "", true, nil
 	})
 	if err != nil {

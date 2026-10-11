@@ -17,7 +17,7 @@ func retiringRooms(plan LayoutPlan) map[Rectangle]bool {
 	for _, w := range plan.Wings {
 		if w.Purpose == WingBedroomsRetiring {
 			for _, r := range w.Rooms {
-				out[r.Interior] = true
+				out[r.Region.Bounds()] = true
 			}
 		}
 	}

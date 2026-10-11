@@ -24,7 +24,7 @@ func TestIncinerationOwnerDeclaresTheZoneOnceWallsStand(t *testing.T) {
 			zone = &stores[i]
 		}
 	}
-	if zone == nil || zone.Interior != room.Interior || zone.Width != 0 || zone.Retired {
+	if zone == nil || zone.Interior != room.Region.Bounds() || zone.Width != 0 || zone.Retired {
 		t.Fatalf("incinerator store: %+v", zone)
 	}
 	if zone.Priority != domain.PreferredPriority || zone.Filter != domain.IncineratorFilter() {
@@ -36,7 +36,7 @@ func TestIncinerationOwnerDeclaresTheZoneOnceWallsStand(t *testing.T) {
 // yard: it is never owed again once the plan holds one, and keeps its place.
 func TestIncineratorRoomIsPlannedOnceAndInTheYard(t *testing.T) {
 	room := incineratorRoom(Rectangle{X: 30, Z: 4, Width: 5, Height: 5})
-	if room.Interior != (Rectangle{X: 31, Z: 5, Width: 3, Height: 3}) || room.Door != (domain.Cell{X: 30, Z: 6}) || room.DoorRot != domain.West || room.Outdoor {
+	if room.Region.Bounds() != (Rectangle{X: 31, Z: 5, Width: 3, Height: 3}) || room.Door != (domain.Cell{X: 30, Z: 6}) || room.DoorRot != domain.West || room.Outdoor {
 		t.Fatal(room)
 	}
 	plan := LayoutPlan{Rooms: []PlannedRoom{room}}
@@ -94,9 +94,9 @@ func TestStockpileCreatesWithSplitWasteYard(t *testing.T) {
 	yard := Rectangle{X: 4, Z: 4, Width: 7, Height: 7}
 	incinerator := Rectangle{X: 6, Z: 6, Width: 3, Height: 3}
 	plan := LayoutPlan{Rooms: []PlannedRoom{
-		{Role: PlannedWasteYard, Interior: yard},
-		{Role: PlannedIncinerator, Interior: incinerator},
-		{Role: PlannedStorage, Interior: Rectangle{X: 14, Z: 4, Width: 3, Height: 3}},
+		{Role: PlannedWasteYard, Region: RectRegion(yard)},
+		{Role: PlannedIncinerator, Region: RectRegion(incinerator)},
+		{Role: PlannedStorage, Region: RectRegion(Rectangle{X: 14, Z: 4, Width: 3, Height: 3})},
 	}}
 	blocked := []domain.Cell{{X: 4, Z: 7}, {X: 10, Z: 7}}
 	open := sitingOpen(blocked...)

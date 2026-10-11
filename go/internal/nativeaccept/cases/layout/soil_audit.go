@@ -103,7 +103,7 @@ func connected(set map[domain.Cell]bool) bool {
 func builtCells(plan policy.LayoutPlan) map[domain.Cell]string {
 	out := map[domain.Cell]string{}
 	for _, r := range plan.AllRooms() {
-		in := r.Interior
+		in := r.Region.Bounds()
 		for _, c := range rectCells(policy.Rectangle{X: in.X - 1, Z: in.Z - 1, Width: in.Width + 2, Height: in.Height + 2}) {
 			out[c] = "room " + string(r.Role)
 		}

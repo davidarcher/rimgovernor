@@ -117,7 +117,7 @@ func tripCells(p LayoutPlan, rooms []PlannedRoom) func(PlannedRole) [][]domain.C
 		var out [][]domain.Cell
 		for _, r := range rooms {
 			if r.Role == role {
-				out = append(out, []domain.Cell{{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}})
+				out = append(out, []domain.Cell{{X: r.Region.Bounds().X + r.Region.Bounds().Width/2, Z: r.Region.Bounds().Z + r.Region.Bounds().Height/2}})
 			}
 		}
 		return out
@@ -148,7 +148,7 @@ func routeWalk(p LayoutPlan) (map[domain.Cell]int, []PlannedRoom) {
 		}
 	}
 	for i, r := range rooms {
-		in := r.Interior
+		in := r.Region.Bounds()
 		for x := in.X; x < in.X+in.Width; x++ {
 			for z := in.Z; z < in.Z+in.Height; z++ {
 				walk[domain.Cell{X: x, Z: z}] = i

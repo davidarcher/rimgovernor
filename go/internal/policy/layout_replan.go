@@ -99,7 +99,7 @@ func bedroomCount(p LayoutPlan) int {
 func allPins(plan LayoutPlan) map[Rectangle]bool {
 	pins := map[Rectangle]bool{}
 	for _, r := range plan.AllRooms() {
-		pins[r.Interior] = true
+		pins[r.Region.Bounds()] = true
 	}
 	return pins
 }
@@ -120,8 +120,8 @@ func replanPins(plan LayoutPlan, fixed map[Rectangle]bool, emptied map[domain.Ce
 		changed = false
 		for _, r := range plan.Rooms {
 			for _, o := range plan.Rooms {
-				if pins[r.Interior] && !pins[o.Interior] && linked(r, o) || pins[o.Interior] && !pins[r.Interior] && linked(o, r) {
-					pins[r.Interior], pins[o.Interior] = true, true
+				if pins[r.Region.Bounds()] && !pins[o.Region.Bounds()] && linked(r, o) || pins[o.Region.Bounds()] && !pins[r.Region.Bounds()] && linked(o, r) {
+					pins[r.Region.Bounds()], pins[o.Region.Bounds()] = true, true
 					changed = true
 				}
 			}
@@ -130,13 +130,13 @@ func replanPins(plan LayoutPlan, fixed map[Rectangle]bool, emptied map[domain.Ce
 	for _, w := range plan.Wings {
 		if emptied[w.Corridor.From] && retireWings([]Wing{w}, tier)[0].Purpose == WingBedroomsRetiring {
 			for _, r := range w.Rooms {
-				delete(pins, r.Interior)
+				delete(pins, r.Region.Bounds())
 			}
 			continue
 		}
 		if w.Purpose == WingSuites || wingPinned(w, pins) {
 			for _, r := range w.Rooms {
-				pins[r.Interior] = true
+				pins[r.Region.Bounds()] = true
 			}
 		}
 	}
@@ -145,13 +145,13 @@ func replanPins(plan LayoutPlan, fixed map[Rectangle]bool, emptied map[domain.Ce
 
 // linked reports a's Link door on b's walls.
 func linked(a, b PlannedRoom) bool {
-	return a.Link != nil && a.Interior != b.Interior && contains(roomWalls(b), *a.Link)
+	return a.Link != nil && a.Region.Bounds() != b.Region.Bounds() && contains(roomWalls(b), *a.Link)
 }
 
 // wingPinned reports a pinned room in w: the wing stays as sited.
 func wingPinned(w Wing, pins map[Rectangle]bool) bool {
 	for _, r := range w.Rooms {
-		if pins[r.Interior] {
+		if pins[r.Region.Bounds()] {
 			return true
 		}
 	}
@@ -164,7 +164,7 @@ func wingPinned(w Wing, pins map[Rectangle]bool) bool {
 func resiteInput(plan LayoutPlan, pins map[Rectangle]bool) LayoutPlan {
 	var rooms []PlannedRoom
 	for _, r := range plan.Rooms {
-		if pins[r.Interior] || !searchRole(r.Role) {
+		if pins[r.Region.Bounds()] || !searchRole(r.Role) {
 			rooms = append(rooms, r)
 		}
 	}
@@ -181,7 +181,7 @@ func resiteInput(plan LayoutPlan, pins map[Rectangle]bool) LayoutPlan {
 // canResite reports a room or bedroom wing of plan that pins leave free.
 func canResite(plan LayoutPlan, pins map[Rectangle]bool) bool {
 	for _, r := range plan.Rooms {
-		if !pins[r.Interior] && searchRole(r.Role) {
+		if !pins[r.Region.Bounds()] && searchRole(r.Role) {
 			return true
 		}
 	}

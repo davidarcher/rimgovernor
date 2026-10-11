@@ -47,7 +47,7 @@ func TestFacilityBedTakesTheInteriorTemplateSlot(t *testing.T) {
 	search := func(occupied domain.Cell) policy.Preview {
 		t.Helper()
 		facts := reading.Projection
-		facts.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedBedroom, Interior: policy.Rectangle{X: 0, Z: 0, Width: 4, Height: 4}, Door: domain.Cell{X: 2, Z: 4}, DoorRot: domain.South}}})
+		facts.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedBedroom, Region: policy.RectRegion(policy.Rectangle{X: 0, Z: 0, Width: 4, Height: 4}), Door: domain.Cell{X: 2, Z: 4}, DoorRot: domain.South}}})
 		facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{room}})
 		facts.Cells = append([]policy.SiteCell(nil), facts.Cells...)
 		for i := range facts.Cells {

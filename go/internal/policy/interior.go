@@ -294,20 +294,20 @@ var moduleRoomRoles = map[PlannedRole]RoomRole{
 // InteriorRoomFromLayout reads a layout room as a plan input.
 func InteriorRoomFromLayout(r PlannedRoom, shapes PieceShapes) (InteriorRoom, bool) {
 	role, ok := moduleRoomRoles[r.Role]
-	if !ok || r.Interior.Width <= 0 || r.Interior.Height <= 0 {
+	if !ok || r.Region.Bounds().Width <= 0 || r.Region.Bounds().Height <= 0 {
 		return InteriorRoom{}, false
 	}
-	if _, ok := doorSide(r.Interior, r.Door); !ok {
+	if _, ok := doorSide(r.Region.Bounds(), r.Door); !ok {
 		return InteriorRoom{}, false
 	}
 	doors := []domain.Cell{r.Door}
 	for _, d := range r.Doors {
-		if _, ok := doorSide(r.Interior, d.Cell); !ok {
+		if _, ok := doorSide(r.Region.Bounds(), d.Cell); !ok {
 			return InteriorRoom{}, false
 		}
 		doors = append(doors, d.Cell)
 	}
-	return InteriorRoom{Role: role, Interior: r.Interior, Doors: doors, Shapes: shapes, Capabilities: CapabilitiesOf(r.Role)}, true
+	return InteriorRoom{Role: role, Interior: r.Region.Bounds(), Doors: doors, Shapes: shapes, Capabilities: CapabilitiesOf(r.Role)}, true
 }
 
 // doorSide is the direction from the room to a door in one of its walls

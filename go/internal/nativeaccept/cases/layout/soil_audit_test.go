@@ -69,7 +69,7 @@ func TestRichOverlapBudget(t *testing.T) {
 	}
 	room := func(w int32) policy.LayoutPlan {
 		return policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedStorage,
-			Interior: policy.Rectangle{X: 4, Z: 9, Width: w, Height: 1}}}}
+			Region: policy.RectRegion(policy.Rectangle{X: 4, Z: 9, Width: w, Height: 1})}}}
 	}
 	if a := auditSoil(room(2), s, nil); a.RichBuiltN != 4 || a.err() != nil {
 		t.Fatalf("2%% overlap failed: %s %v", a.richOverlap(), a.err())
@@ -102,7 +102,7 @@ func TestAuditSoilCatchesSplitsAndGaps(t *testing.T) {
 		zone.Runs = append(zone.Runs, policy.RowRun{Z: z, X: 20, Length: 10})
 	}
 	plan := policy.LayoutPlan{
-		Rooms: []policy.PlannedRoom{{Role: policy.PlannedStorage, Interior: policy.Rectangle{X: 22, Z: 22, Width: 2, Height: 2}}},
+		Rooms: []policy.PlannedRoom{{Role: policy.PlannedStorage, Region: policy.RectRegion(policy.Rectangle{X: 22, Z: 22, Width: 2, Height: 2})}},
 		Zones: []policy.LayoutZone{north, south},
 	}
 	a := auditSoil(plan, s, [][]domain.Cell{{{X: 20, Z: 20}}, {{X: 22, Z: 20}}})
@@ -172,7 +172,7 @@ func TestAuditSoilCatchesPatchSplitByARoom(t *testing.T) {
 				if !rich(x, z) {
 					continue
 				}
-				if room != nil && x >= room.Interior.X-1 && x <= room.Interior.X+1 && z >= room.Interior.Z-1 && z <= room.Interior.Z+1 {
+				if room != nil && x >= room.Region.Bounds().X-1 && x <= room.Region.Bounds().X+1 && z >= room.Region.Bounds().Z-1 && z <= room.Region.Bounds().Z+1 {
 					continue
 				}
 				zone.Runs = append(zone.Runs, policy.RowRun{Z: z, X: x, Length: 1})
@@ -187,7 +187,7 @@ func TestAuditSoilCatchesPatchSplitByARoom(t *testing.T) {
 	if a := auditSoil(farm(nil), s, nil); a.err() != nil {
 		t.Fatalf("the whole patch failed: %v", a.err())
 	}
-	room := policy.PlannedRoom{Role: policy.PlannedStorage, Interior: policy.Rectangle{X: 31, Z: 20, Width: 1, Height: 1}}
+	room := policy.PlannedRoom{Role: policy.PlannedStorage, Region: policy.RectRegion(policy.Rectangle{X: 31, Z: 20, Width: 1, Height: 1})}
 	a := auditSoil(farm(&room), s, nil)
 	if a.RichOverlap > richOverlapBudget {
 		t.Fatalf("the room is meant to stay inside the budget: %s", a.richOverlap())

@@ -119,8 +119,8 @@ func benchOutside(built []CurrentBuilding, rooms RoomObservation, shelterRoom ma
 func InFlightRooms(plan LayoutPlan, origins map[domain.Cell]bool) map[Rectangle]bool {
 	out := map[Rectangle]bool{}
 	for _, r := range plan.AllRooms() {
-		if origins[domain.Cell{X: r.Interior.X, Z: r.Interior.Z}] {
-			out[r.Interior] = true
+		if origins[domain.Cell{X: r.Region.Bounds().X, Z: r.Region.Bounds().Z}] {
+			out[r.Region.Bounds()] = true
 		}
 	}
 	return out
@@ -135,9 +135,9 @@ func retireShelter(plan LayoutPlan, growth RoomGrowth) (LayoutPlan, bool) {
 	drop := map[Rectangle]bool{}
 	var ground []Rectangle
 	for _, r := range plan.roomsOf(PlannedShelter) {
-		if !growth.InFlight[r.Interior] {
-			drop[r.Interior] = true
-			ground = append(ground, roomGround(r.Interior))
+		if !growth.InFlight[r.Region.Bounds()] {
+			drop[r.Region.Bounds()] = true
+			ground = append(ground, roomGround(r.Region.Bounds()))
 			if r.Airlock != nil {
 				ground = append(ground, r.AirlockGround())
 			}

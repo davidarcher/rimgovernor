@@ -78,7 +78,7 @@ func (animalOwner) Stores(v StoreView) []Store {
 				}
 			}
 		}
-		out = append(out, Store{StoreSite: StoreSite{Role: plannedKey(FeedRolePrefix, barn.Interior), Interior: barn.Interior, Width: FeedStoreWidth, Height: FeedStoreHeight,
+		out = append(out, Store{StoreSite: StoreSite{Role: plannedKey(FeedRolePrefix, barn.Region.Bounds()), Interior: barn.Region.Bounds(), Width: FeedStoreWidth, Height: FeedStoreHeight,
 			Anchor: barn.Door, Avoid: avoid, Filter: filter, Priority: domain.ImportantPriority}})
 	}
 	return out

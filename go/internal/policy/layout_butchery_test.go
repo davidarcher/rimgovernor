@@ -25,5 +25,5 @@ func TestPlanCorePlansButcheryApartFromKitchen(t *testing.T) {
 	if overlapsRooms(*butchery, []PlannedRoom{*kitchen}) {
 		t.Fatal("butchery crowds the kitchen")
 	}
-	t.Logf("butchery %+v link %v", butchery.Interior, butchery.Link)
+	t.Logf("butchery %+v link %v", butchery.Region.Bounds(), butchery.Link)
 }

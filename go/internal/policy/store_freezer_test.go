@@ -7,9 +7,9 @@ import (
 )
 
 func freezerView() (StoreView, PlannedRoom) {
-	kitchen := PlannedRoom{Role: PlannedKitchen, Interior: Rectangle{X: 20, Z: 10, Width: 5, Height: 5}, Door: domain.Cell{X: 22, Z: 15}, DoorRot: domain.South}
+	kitchen := PlannedRoom{Role: PlannedKitchen, Region: RectRegion(Rectangle{X: 20, Z: 10, Width: 5, Height: 5}), Door: domain.Cell{X: 22, Z: 15}, DoorRot: domain.South}
 	link := domain.Cell{X: 19, Z: 12}
-	freezer := PlannedRoom{Role: PlannedFreezer, Interior: Rectangle{X: 12, Z: 10, Width: 6, Height: 5}, Door: domain.Cell{X: 14, Z: 15}, DoorRot: domain.South, Link: &link}
+	freezer := PlannedRoom{Role: PlannedFreezer, Region: RectRegion(Rectangle{X: 12, Z: 10, Width: 6, Height: 5}), Door: domain.Cell{X: 14, Z: 15}, DoorRot: domain.South, Link: &link}
 	return StoreView{Layout: &LayoutPlan{Rooms: []PlannedRoom{kitchen, freezer}}}, freezer
 }
 
@@ -21,13 +21,13 @@ func TestFreezerStoresDeclaredFromThePlannedRoom(t *testing.T) {
 	view, freezer := freezerView()
 	creates := storeCreates(view)
 	for _, prefix := range []string{domain.RawMeatRolePrefix, domain.RawVegRolePrefix, domain.CorpsesRolePrefix} {
-		edit, ok := creates[plannedKey(prefix, freezer.Interior)]
-		if !ok || len(edit.Cells()) != 4 || edit.Priority != domain.CriticalPriority || !withinRect(edit.Cells(), freezer.Interior) {
+		edit, ok := creates[plannedKey(prefix, freezer.Region.Bounds())]
+		if !ok || len(edit.Cells()) != 4 || edit.Priority != domain.CriticalPriority || !withinRect(edit.Cells(), freezer.Region.Bounds()) {
 			t.Fatalf("%s shelf: %+v", prefix, edit)
 		}
 	}
-	perishables, ok := creates[plannedKey(domain.PerishablesRolePrefix, freezer.Interior)]
-	if !ok || perishables.Priority != domain.PreferredPriority || !withinRect(perishables.Cells(), freezer.Interior) {
+	perishables, ok := creates[plannedKey(domain.PerishablesRolePrefix, freezer.Region.Bounds())]
+	if !ok || perishables.Priority != domain.PreferredPriority || !withinRect(perishables.Cells(), freezer.Region.Bounds()) {
 		t.Fatalf("perishables: %+v", perishables)
 	}
 	if got := storeCreates(StoreView{Layout: &LayoutPlan{}}); len(got) != 0 {
@@ -54,7 +54,7 @@ func TestFreezerStoresDeferWhileTheInteriorIsNotOpen(t *testing.T) {
 	freezerCreate := func(edits []StockpileEdit) (n int) {
 		roles := map[string]bool{}
 		for _, e := range edits {
-			if e.Kind == StockpileCreate && withinRect(e.Cells(), freezer.Interior) {
+			if e.Kind == StockpileCreate && withinRect(e.Cells(), freezer.Region.Bounds()) {
 				roles[e.Role] = true
 			}
 		}

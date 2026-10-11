@@ -17,8 +17,8 @@ func barnFeedView(t *testing.T) (StoreView, PlannedRoom) {
 // the planned sleeping spots, filtered to the herd's feed.
 func TestAnimalFeedStoreInThePlannedBarn(t *testing.T) {
 	view, barn := barnFeedView(t)
-	edit, ok := barnStoreCreates(view)[plannedKey(FeedRolePrefix, barn.Interior)]
-	if !ok || len(edit.Cells()) != FeedStoreWidth*FeedStoreHeight || edit.Priority != domain.ImportantPriority || !withinRect(edit.Cells(), barn.Interior) {
+	edit, ok := barnStoreCreates(view)[plannedKey(FeedRolePrefix, barn.Region.Bounds())]
+	if !ok || len(edit.Cells()) != FeedStoreWidth*FeedStoreHeight || edit.Priority != domain.ImportantPriority || !withinRect(edit.Cells(), barn.Region.Bounds()) {
 		t.Fatalf("%+v", edit)
 	}
 	if f := edit.Filter; f.Base() != domain.BaseNothing || len(f.Allow()) != 2 {

@@ -85,7 +85,7 @@ func commitOps(t *testing.T, refuse string, blocker policy.PlacementBlocker, op 
 	player.mu.Lock()
 	epoch := player.epoch
 	player.mu.Unlock()
-	room := policy.PlannedRoom{Role: policy.PlannedPen, Interior: policy.Rectangle{X: 1, Z: 1, Width: 2, Height: 2}, Outdoor: op.Kind == policy.OpBuild}
+	room := policy.PlannedRoom{Role: policy.PlannedPen, Region: policy.RectRegion(policy.Rectangle{X: 1, Z: 1, Width: 2, Height: 2}), Outdoor: op.Kind == policy.OpBuild}
 	work := roomWork{rr: roomReconcile{room: room, name: "kitchen", reason: "kitchen", stuff: func(_, _ observation.PlanningDefinition) (string, string, Verdict, bool) {
 		return "", "", Verdict{}, true
 	}}, ops: []policy.Operation{op}}

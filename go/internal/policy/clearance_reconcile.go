@@ -61,7 +61,7 @@ func herdOwnFurnitureLeft(room PlannedRoom, rows []ClearanceTarget, f RoomFurnit
 	var out []ClearanceTarget
 	for _, row := range rows {
 		own := row.DefName != "" && (row.DefName == f.AnimalSpot || row.DefName == f.AnimalBed || row.DefName == f.Heater)
-		if own && rectInside(room.Interior, Rectangle{X: row.Minimum.X, Z: row.Minimum.Z, Width: row.Maximum.X - row.Minimum.X + 1, Height: row.Maximum.Z - row.Minimum.Z + 1}) {
+		if own && rectInside(room.Region.Bounds(), Rectangle{X: row.Minimum.X, Z: row.Minimum.Z, Width: row.Maximum.X - row.Minimum.X + 1, Height: row.Maximum.Z - row.Minimum.Z + 1}) {
 			continue
 		}
 		out = append(out, row)

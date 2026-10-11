@@ -227,7 +227,7 @@ func (s ThroneStep) Failed() bool { return s.Kind == ThroneUnavailable }
 // Detail names a failed step: the title, the room and each requirement without
 // an available definition.
 func (s ThroneStep) Detail() string {
-	return fmt.Sprintf("the %s throne room at (%d,%d) needs definitions the catalog does not make available with a known size: %s", s.Need.Title, s.Room.Interior.X, s.Room.Interior.Z, strings.Join(s.Missing, "; "))
+	return fmt.Sprintf("the %s throne room at (%d,%d) needs definitions the catalog does not make available with a known size: %s", s.Need.Title, s.Room.Region.Bounds().X, s.Room.Region.Bounds().Z, strings.Join(s.Missing, "; "))
 }
 
 // throneIntruders are the standing buildings of a class need forbids with a
@@ -237,7 +237,7 @@ func throneIntruders(room PlannedRoom, need ThroneNeed, built []CurrentBuilding)
 		return nil
 	}
 	inside := map[domain.Cell]bool{}
-	for _, c := range rectCells(room.Interior) {
+	for _, c := range rectCells(room.Region.Bounds()) {
 		inside[c] = true
 	}
 	var out []CurrentBuilding
@@ -318,7 +318,7 @@ func availableDefinition(things []string, defs []FurnitureDefinition) (InteriorP
 // standingThroneIn is the standing throne of need inside r's interior.
 func standingThroneIn(r PlannedRoom, need ThroneNeed, built []CurrentBuilding) (CurrentBuilding, bool) {
 	for _, b := range built {
-		if len(b.Cells) == 0 || !rectInside(r.Interior, cellsRectangle(b.Cells)) {
+		if len(b.Cells) == 0 || !rectInside(r.Region.Bounds(), cellsRectangle(b.Cells)) {
 			continue
 		}
 		for _, thing := range need.Things {
@@ -465,7 +465,7 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, ground GroundCensus,
 	for _, w := range need.wants() {
 		count := 0
 		for _, b := range built {
-			if count < w.Count && len(b.Cells) > 0 && rectInside(room.Interior, cellsRectangle(b.Cells)) && slices.Contains(w.Things, b.Building.Definition()) {
+			if count < w.Count && len(b.Cells) > 0 && rectInside(room.Region.Bounds(), cellsRectangle(b.Cells)) && slices.Contains(w.Things, b.Building.Definition()) {
 				template = append(template, standingPiece(b))
 				count++
 			}
@@ -491,7 +491,7 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, ground GroundCensus,
 func standingCount(r PlannedRoom, things []string, built []CurrentBuilding) int {
 	n := 0
 	for _, b := range built {
-		if len(b.Cells) > 0 && rectInside(r.Interior, cellsRectangle(b.Cells)) && slices.Contains(things, b.Building.Definition()) {
+		if len(b.Cells) > 0 && rectInside(r.Region.Bounds(), cellsRectangle(b.Cells)) && slices.Contains(things, b.Building.Definition()) {
 			n++
 		}
 	}

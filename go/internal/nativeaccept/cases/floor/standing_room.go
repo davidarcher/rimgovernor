@@ -103,7 +103,7 @@ func runStandingRoom(ctx context.Context, s cases.Session) error {
 	if err := ring.Sealed(before); err != nil {
 		return fmt.Errorf("the staged bedroom is not a standing room: %w", err)
 	}
-	report["staged"] = map[string]any{"interior": bedroom.Interior, "walls": len(staged.Walls), "doors": len(staged.Doors), "stockpile": pile}
+	report["staged"] = map[string]any{"interior": bedroom.Region.Bounds(), "walls": len(staged.Walls), "doors": len(staged.Doors), "stockpile": pile}
 
 	protected := map[string]bool{}
 	for _, id := range staticIDs {

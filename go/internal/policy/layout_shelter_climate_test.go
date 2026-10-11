@@ -45,7 +45,7 @@ func TestShelterIsSizedByTheLatchedClimate(t *testing.T) {
 		plan LayoutPlan
 		cold bool
 	}{{"cold", cold, true}, {"warm", warm, false}} {
-		got, want := shelterOf(t, c.plan).Interior, ShelterSizes(3, ShelterCampfires(c.cold), 0)[0]
+		got, want := shelterOf(t, c.plan).Region.Bounds(), ShelterSizes(3, ShelterCampfires(c.cold), 0)[0]
 		if got.Width != want[0] || got.Height != want[1] {
 			t.Errorf("%s shelter %dx%d, want %v", c.name, got.Width, got.Height, want)
 		}
@@ -68,7 +68,7 @@ func TestTemperaturePlannerCoolsTheShelter(t *testing.T) {
 	t.Parallel()
 	plan := corePlan(coreTestZones(), 3, TechTierCamp)
 	shelter := shelterOf(t, plan)
-	in := shelter.Interior
+	in := shelter.Region.Bounds()
 	walls := pad(in, 1)
 	room := Room{ID: "shelter", Beds: []string{"bed1", "bed2", "bed3"}, Temperature: domain.Known(36.0), Enclosed: domain.Known(true), Contents: domain.Known([]Amount{})}
 	var cells []SiteCell
@@ -115,7 +115,7 @@ func TestDeriveLatchesTheSurveyClimate(t *testing.T) {
 		if !ok || plan.Cold != cold {
 			t.Fatalf("survey cold=%v: plan ok=%v cold=%v", cold, ok, plan.Cold)
 		}
-		got, want := shelterOf(t, plan).Interior, ShelterSizes(3, ShelterCampfires(cold), 0)[0]
+		got, want := shelterOf(t, plan).Region.Bounds(), ShelterSizes(3, ShelterCampfires(cold), 0)[0]
 		if got.Width != want[0] || got.Height != want[1] {
 			t.Errorf("survey cold=%v: shelter %dx%d, want %v", cold, got.Width, got.Height, want)
 		}

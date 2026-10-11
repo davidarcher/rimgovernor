@@ -11,11 +11,11 @@ import (
 // holds one suite not built yet, and the barracks has a spare bed.
 func suiteFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 	standard := func(x int32) PlannedRoom {
-		return PlannedRoom{Role: PlannedBedroom, Interior: Rectangle{X: x, Z: 0, Width: 3, Height: 4}, Door: domain.Cell{X: x + 1, Z: 4}, DoorRot: domain.North}
+		return PlannedRoom{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: x, Z: 0, Width: 3, Height: 4}), Door: domain.Cell{X: x + 1, Z: 4}, DoorRot: domain.North}
 	}
-	suite := PlannedRoom{Role: PlannedSuite, Interior: Rectangle{X: 30, Z: 0, Width: 7, Height: 8}, Door: domain.Cell{X: 33, Z: 8}, DoorRot: domain.North}
+	suite := PlannedRoom{Role: PlannedSuite, Region: RectRegion(Rectangle{X: 30, Z: 0, Width: 7, Height: 8}), Door: domain.Cell{X: 33, Z: 8}, DoorRot: domain.North}
 	plan := LayoutPlan{
-		Rooms: []PlannedRoom{{Role: PlannedShelter, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 7}, DoorRot: domain.North}},
+		Rooms: []PlannedRoom{{Role: PlannedShelter, Region: RectRegion(Rectangle{X: 0, Z: 0, Width: 7, Height: 7}), DoorRot: domain.North}},
 		Wings: []Wing{
 			{Purpose: WingBedrooms, Rooms: []PlannedRoom{standard(10), standard(14)}},
 			{Purpose: WingSuites, Rooms: []PlannedRoom{suite}},

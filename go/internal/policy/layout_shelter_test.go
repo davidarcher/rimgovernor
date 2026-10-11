@@ -42,11 +42,11 @@ func TestPlanHoldsOneShelterFiveTilesClearOnOpenGround(t *testing.T) {
 	p := corePlan(coreTestZones(), 3, TechTierCamp)
 	s := shelterOf(t, p)
 	if gap := shelterGapTo(p, s); gap < shelterGap {
-		t.Fatalf("shelter %v is %d tiles from the nearest room, want at least %d", s.Interior, gap, shelterGap)
+		t.Fatalf("shelter %v is %d tiles from the nearest room, want at least %d", s.Region.Bounds(), gap, shelterGap)
 	}
 	want := ShelterSizes(3, ShelterCampfires(false), 0)[0]
-	if s.Interior.Width != want[0] || s.Interior.Height != want[1] {
-		t.Fatalf("shelter interior %dx%d, sized %v", s.Interior.Width, s.Interior.Height, want)
+	if s.Region.Bounds().Width != want[0] || s.Region.Bounds().Height != want[1] {
+		t.Fatalf("shelter interior %dx%d, sized %v", s.Region.Bounds().Width, s.Region.Bounds().Height, want)
 	}
 	if _, err := CheckRoutes(p); err != nil {
 		t.Fatal(err)

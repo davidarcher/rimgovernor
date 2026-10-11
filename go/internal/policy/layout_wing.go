@@ -110,7 +110,7 @@ func frameOf(w Wing) wingFrame {
 	c := w.Corridor
 	f := wingFrame{sign: 1, size: WingRoomSize(TechTierCamp)}
 	if (w.Purpose == WingBedrooms || w.Purpose == WingBedroomsRetiring) && len(w.Rooms) > 0 {
-		in := w.Rooms[0].Interior
+		in := w.Rooms[0].Region.Bounds()
 		f.size = [2]int32{in.Height, in.Width}
 		if c.From.X != c.To.X {
 			f.size = [2]int32{in.Width, in.Height}
@@ -183,10 +183,10 @@ func (f wingFrame) roomAt(east bool, v0, w, d int32, role PlannedRole) PlannedRo
 	door := domain.Cell{Z: f.z(v0 + w/2)}
 	r := PlannedRoom{Role: role}
 	if east {
-		r.Interior = Rectangle{X: f.cx + 3, Z: z, Width: d, Height: h}
+		r.Region = RectRegion(Rectangle{X: f.cx + 3, Z: z, Width: d, Height: h})
 		door.X, r.DoorRot = f.cx+2, domain.West
 	} else {
-		r.Interior = Rectangle{X: f.cx - 2 - d, Z: z, Width: d, Height: h}
+		r.Region = RectRegion(Rectangle{X: f.cx - 2 - d, Z: z, Width: d, Height: h})
 		door.X, r.DoorRot = f.cx-2, domain.East
 	}
 	r.Door = door
@@ -197,9 +197,9 @@ func (f wingFrame) roomAt(east bool, v0, w, d int32, role PlannedRole) PlannedRo
 func (f wingFrame) along(r PlannedRoom) (int32, int32) {
 	r = f.orientRoom(r)
 	if f.sign > 0 {
-		return r.Interior.Z - f.z0, r.Interior.Height
+		return r.Region.Bounds().Z - f.z0, r.Region.Bounds().Height
 	}
-	return f.z0 - (r.Interior.Z + r.Interior.Height - 1), r.Interior.Height
+	return f.z0 - (r.Region.Bounds().Z + r.Region.Bounds().Height - 1), r.Region.Bounds().Height
 }
 
 // reach is the corridor's open end serving rooms: the wall row past the

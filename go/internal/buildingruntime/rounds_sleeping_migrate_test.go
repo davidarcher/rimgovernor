@@ -12,7 +12,7 @@ import (
 // BedroomsOwed counts no deficit.
 func TestPendingMigrationKeepsHousingOwed(t *testing.T) {
 	room := func(x int32) policy.PlannedRoom {
-		return policy.PlannedRoom{Role: policy.PlannedBedroom, Interior: policy.Rectangle{X: x, Z: 0, Width: 4, Height: 4}}
+		return policy.PlannedRoom{Role: policy.PlannedBedroom, Region: policy.RectRegion(policy.Rectangle{X: x, Z: 0, Width: 4, Height: 4})}
 	}
 	plan := policy.LayoutPlan{Wings: []policy.Wing{
 		{Purpose: policy.WingBedroomsRetiring, Rooms: []policy.PlannedRoom{room(0)}},
@@ -29,7 +29,7 @@ func TestPendingMigrationKeepsHousingOwed(t *testing.T) {
 		Rooms:      domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{standing("o1", 0, "ob1"), standing("n1", 20)}}),
 	}
 	facts.Facts.Sleeping = domain.Known(sleeping)
-	if step := migrateStep(facts); step.Kind != policy.BedroomReconcile || step.Room.Interior.X != 20 {
+	if step := migrateStep(facts); step.Kind != policy.BedroomReconcile || step.Room.Region.Bounds().X != 20 {
 		t.Fatalf("migrate step = %+v, want the active room furnished", step)
 	}
 	if owed, known := bedroomsOwed(facts, policy.StageReserves).Value(); !known || !owed {

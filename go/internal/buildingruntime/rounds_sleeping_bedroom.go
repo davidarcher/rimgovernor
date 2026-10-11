@@ -109,7 +109,7 @@ func bedroomsOwed(facts observation.ColonyProjection, stage policy.ColonyStage) 
 // "bedroom-shell-<x>-<z>" stem is the one the sleeping acceptance cases read
 // the journal by; the build side appends the wave (removal, install, build).
 func bedroomReconcileName(room policy.PlannedRoom) string {
-	return fmt.Sprintf("bedroom-shell-%d-%d", room.Interior.X, room.Interior.Z)
+	return fmt.Sprintf("bedroom-shell-%d-%d", room.Region.Bounds().X, room.Region.Bounds().Z)
 }
 
 // reconcileBedroom answers a BedroomReconcile through the shared build side:
@@ -121,7 +121,7 @@ func (r *RoundsSleepingUpkeepPlanner) reconcileBedroom(call, epoch context.Conte
 	facts := reading.Projection
 	// A suite is only started with its whole ring in stock.
 	if step.Room.Role == policy.PlannedSuite {
-		in := step.Room.Interior
+		in := step.Room.Region.Bounds()
 		_, walls, _ := facts.StockedStuff("Wall")
 		if walls < int64(2*(in.Width+in.Height)+4) {
 			return RoundsBuildingResult{Verdict: BuildingSuiteStock}, nil

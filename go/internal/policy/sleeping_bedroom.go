@@ -189,7 +189,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	retiring := retiringRooms(plan)
 	for _, r := range plan.AllRooms() {
 		// A Retiring wing is never built out further.
-		if r.Role != PlannedBedroom || retiring[r.Interior] {
+		if r.Role != PlannedBedroom || retiring[r.Region.Bounds()] {
 			continue
 		}
 		room, ok := standing(r)

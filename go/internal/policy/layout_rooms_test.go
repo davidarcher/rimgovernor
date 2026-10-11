@@ -24,7 +24,7 @@ func TestPlannedShellsKeepThePlanRectangleAndDoor(t *testing.T) {
 	for i, r := range []PlannedRoom{north, south} {
 		s := shells[i]
 		b := s.Bounds()
-		if s.Door() != r.Door || s.Entrance() != r.DoorRot || b.X != r.Interior.X-1 || b.Z != r.Interior.Z-1 || b.Width != r.Interior.Width+2 || b.Height != r.Interior.Height+2 {
+		if s.Door() != r.Door || s.Entrance() != r.DoorRot || b.X != r.Region.Bounds().X-1 || b.Z != r.Region.Bounds().Z-1 || b.Width != r.Region.Bounds().Width+2 || b.Height != r.Region.Bounds().Height+2 {
 			t.Fatalf("shell %d: door %v %v bounds %+v, room %+v", i, s.Door(), s.Entrance(), b, r)
 		}
 	}
@@ -54,7 +54,7 @@ func TestShelterBunksStandInThePlannedStoreroomClearOfTheDoorAisle(t *testing.T)
 func TestShellDoorsPutTheFreezerLinkInBothRings(t *testing.T) {
 	kitchen := hallRoom(PlannedKitchen, 10, 30, 6, 5, true)
 	freezer := hallRoom(PlannedFreezer, 17, 30, 5, 5, true)
-	link := domain.Cell{X: 16, Z: kitchen.Interior.Z + 2}
+	link := domain.Cell{X: 16, Z: kitchen.Region.Bounds().Z + 2}
 	freezer.Link = &link
 	jail := hallRoom(PlannedPrison, 40, 30, 5, 5, true)
 	plan := LayoutPlan{Rooms: []PlannedRoom{kitchen, freezer, jail}}
@@ -82,7 +82,7 @@ func TestNextPlannedRoomSkipsStandingRooms(t *testing.T) {
 	open := hallRoom(PlannedPrison, 30, 30, 5, 5, true)
 	plan := LayoutPlan{Rooms: []PlannedRoom{built, open}}
 	ground := ringWalls(plan, built)
-	if r, ok := plan.NextPlannedRoom(PlannedPrison, ground); !ok || r.Interior != open.Interior {
+	if r, ok := plan.NextPlannedRoom(PlannedPrison, ground); !ok || r.Region.Bounds() != open.Region.Bounds() {
 		t.Fatalf("next %+v %v", r, ok)
 	}
 	if _, ok := plan.NextPlannedRoom(PlannedKitchen, ground); ok {
@@ -128,11 +128,11 @@ func TestGroundMatches(t *testing.T) {
 		t.Fatal("empty ground does not match")
 	}
 	missing := ring()
-	delete(missing.walls, domain.Cell{X: room.Interior.X - 1, Z: room.Interior.Z + 1})
+	delete(missing.walls, domain.Cell{X: room.Region.Bounds().X - 1, Z: room.Region.Bounds().Z + 1})
 	if plan.GroundMatches(room, missing) {
 		t.Fatal("a missing wall cell does not match")
 	}
-	extra, c := ring(), domain.Cell{X: room.Interior.X - 1, Z: room.Interior.Z + 1}
+	extra, c := ring(), domain.Cell{X: room.Region.Bounds().X - 1, Z: room.Region.Bounds().Z + 1}
 	delete(extra.walls, c)
 	extra.doors[c] = true
 	if plan.GroundMatches(room, extra) {

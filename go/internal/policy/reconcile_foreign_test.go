@@ -105,8 +105,8 @@ func TestReconcileForeignHaulableItemMoves(t *testing.T) {
 // chunk inside the room, off the ring, is still moved.
 func TestReconcileRingCellChunkIsNotAnObstruction(t *testing.T) {
 	in, room := reconFixture()
-	ringCell := domain.Cell{X: room.Interior.X - 1, Z: room.Interior.Z - 1}
-	inner := domain.Cell{X: room.Interior.X, Z: room.Interior.Z}
+	ringCell := domain.Cell{X: room.Region.Bounds().X - 1, Z: room.Region.Bounds().Z - 1}
+	inner := domain.Cell{X: room.Region.Bounds().X, Z: room.Region.Bounds().Z}
 	chunk := func(id uint64) Thing {
 		return Thing{ID: id, Def: "ChunkSandstone", Category: ThingItem, Flags: FlagHaulable, Count: 1}
 	}
@@ -174,7 +174,7 @@ func TestReconcileDoorCellStackIsCleanupNotABlock(t *testing.T) {
 	doors := in.Plan.ShellDoors(room)
 	door := doors[0]
 	in.Ground.doors[door] = false
-	at := domain.Cell{X: room.Interior.X, Z: room.Interior.Z}
+	at := domain.Cell{X: room.Region.Bounds().X, Z: room.Region.Bounds().Z}
 	in.Furniture = []WantedPiece{{DefName: "Bed", Minimum: at, Maximum: at, Size: domain.Cell{X: 1, Z: 1}, Rot: domain.North}}
 	steel := Thing{ID: 5, Def: "Steel", Category: ThingItem, Flags: FlagHaulable, Count: 40}
 	in.Cells = []SiteCell{foreignCell(door, steel)}

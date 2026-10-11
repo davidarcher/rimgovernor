@@ -112,7 +112,7 @@ func TestIsolationRoomNeedAndStanding(t *testing.T) {
 	if !IsolationRoomStanding(plan, ringWalls(plan, room), built, need, defs) {
 		t.Fatal("a furnished enclosed room does not stand")
 	}
-	if cells := plan.IsolationRoomCells(); len(cells) != int(room.Interior.Width*room.Interior.Height) {
+	if cells := plan.IsolationRoomCells(); len(cells) != int(room.Region.Bounds().Width*room.Region.Bounds().Height) {
 		t.Fatalf("area cells = %d", len(cells))
 	}
 }

@@ -17,7 +17,7 @@ func TestArmoryShellsThenFillsItsRoom(t *testing.T) {
 	t.Parallel()
 	projection, _ := mealSpotColony(1.6)
 	projection.Facts.Items = policy.ItemFacts{Armor: []policy.Resource{"Apparel_FlakVest"}}
-	armory := policy.PlannedRoom{Role: policy.PlannedArmory, Interior: policy.Rectangle{X: 2, Z: 2, Width: 5, Height: 5}, Door: domain.Cell{X: 7, Z: 4}}
+	armory := policy.PlannedRoom{Role: policy.PlannedArmory, Region: policy.RectRegion(policy.Rectangle{X: 2, Z: 2, Width: 5, Height: 5}), Door: domain.Cell{X: 7, Z: 4}}
 	projection.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{armory}})
 	projection.Facts.CurrentConstruction = ringConstruction(nil)
 	gear, err := policy.NewGearStore(projection.Facts.Items, nil, 0)

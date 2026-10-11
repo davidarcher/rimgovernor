@@ -30,7 +30,7 @@ func TestThroneRoomMissingPiecesPlansThem(t *testing.T) {
 	counts := map[string]int{}
 	for _, p := range step.Template {
 		counts[p.DefName]++
-		if !rectInside(room.Interior, rect(p)) {
+		if !rectInside(room.Region.Bounds(), rect(p)) {
 			t.Fatalf("piece outside the room: %+v", p)
 		}
 	}

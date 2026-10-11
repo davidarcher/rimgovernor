@@ -24,16 +24,16 @@ func (g coreGrid) mealCloset(rooms []PlannedRoom) (PlannedRoom, bool) {
 	if dining == nil || (LayoutPlan{Rooms: rooms}).FreezerOpensInto(*dining) {
 		return PlannedRoom{}, false
 	}
-	d := dining.Interior
+	d := dining.Region.Bounds()
 	for _, size := range mealClosetSizes {
 		w, h := size[0], size[1]
 		ix := d.X + d.Width/2 - w/2
 		room := PlannedRoom{Role: PlannedMealCloset, DoorRot: dining.DoorRot}
 		if dining.DoorRot == domain.North {
-			room.Interior = Rectangle{X: ix, Z: d.Z - 1 - h, Width: w, Height: h}
+			room.Region = RectRegion(Rectangle{X: ix, Z: d.Z - 1 - h, Width: w, Height: h})
 			room.Door = domain.Cell{X: ix + w/2, Z: d.Z - 1}
 		} else {
-			room.Interior = Rectangle{X: ix, Z: d.Z + d.Height + 1, Width: w, Height: h}
+			room.Region = RectRegion(Rectangle{X: ix, Z: d.Z + d.Height + 1, Width: w, Height: h})
 			room.Door = domain.Cell{X: ix + w/2, Z: d.Z + d.Height}
 		}
 		walls := roomWalls(room)

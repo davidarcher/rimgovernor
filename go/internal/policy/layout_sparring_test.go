@@ -40,7 +40,7 @@ func TestRingIsAFixedUnfencedSquareBesideTheRange(t *testing.T) {
 		t.Fatal("ring not sited")
 	}
 	ring := next.RingRooms()[0]
-	if !ring.Outdoor || !ring.Unfenced() || ring.Interior.Width != RingSide || ring.Interior.Height != RingSide || ring.Markers != 6 {
+	if !ring.Outdoor || !ring.Unfenced() || ring.Region.Bounds().Width != RingSide || ring.Region.Bounds().Height != RingSide || ring.Markers != 6 {
 		t.Fatalf("ring %+v", ring)
 	}
 	if rectsOverlap(ringBlock(ring), rangeBlock(rng)) {
@@ -74,7 +74,7 @@ func TestRingGrowsByMarkersWithoutMoving(t *testing.T) {
 		t.Fatal("ring not grown")
 	}
 	after := grown.RingRooms()[0]
-	if after.Markers != 9 || after.Interior != ring.Interior {
+	if after.Markers != 9 || after.Region.Bounds() != ring.Region.Bounds() {
 		t.Fatalf("grown ring %+v from %+v", after, ring)
 	}
 	for i, r := range before {
@@ -103,7 +103,7 @@ func TestRingTemplatePlacesOneMarkerPerSlotOnTheInnerEdge(t *testing.T) {
 	}
 	seen := map[domain.Cell]bool{}
 	slots := map[string]bool{}
-	in := room.Interior
+	in := room.Region.Bounds()
 	for _, p := range pieces {
 		c := p.Minimum
 		onEdge := c.X == in.X || c.X == in.X+in.Width-1 || c.Z == in.Z || c.Z == in.Z+in.Height-1
@@ -113,14 +113,14 @@ func TestRingTemplatePlacesOneMarkerPerSlotOnTheInnerEdge(t *testing.T) {
 		}
 		seen[c], slots[p.Slot] = true, true
 	}
-	if len(RingTemplate(PlannedRoom{Role: PlannedSparringRing, Interior: in, Markers: 5})) != 5 {
+	if len(RingTemplate(PlannedRoom{Role: PlannedSparringRing, Region: RectRegion(in), Markers: 5})) != 5 {
 		t.Fatal("template ignores Markers")
 	}
 }
 
 func TestRingIsLeftOutWhenNothingFits(t *testing.T) {
 	plan := outskirtsPlan(150)
-	plan.Rooms = append(slices.Clone(plan.Rooms), PlannedRoom{Role: PlannedWorkshop, Interior: Rectangle{X: 0, Z: 0, Width: 400, Height: 400}})
+	plan.Rooms = append(slices.Clone(plan.Rooms), PlannedRoom{Role: PlannedWorkshop, Region: RectRegion(Rectangle{X: 0, Z: 0, Width: 400, Height: 400})})
 	if next, added := growRings(plan, RoomDemand{Rings: 5}); added || len(next.RingRooms()) != 0 {
 		t.Fatal("a ring sited with no room left")
 	}

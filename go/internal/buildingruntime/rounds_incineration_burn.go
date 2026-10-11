@@ -53,9 +53,9 @@ func (r *RoundsIncinerationPlanner) stageBurn(call, epoch context.Context, state
 		return RoundsIncinerationResult{}, false, nil
 	}
 	filth, _ := reading.Projection.Facts.Upkeep.Filth.Value()
-	ash := policy.IncineratorAsh(filth, room.Interior)
+	ash := policy.IncineratorAsh(filth, room.Region.Bounds())
 	burning := fireBurning(reading.Projection)
-	stored := incineratorStored(reading.Projection, room.Interior)
+	stored := incineratorStored(reading.Projection, room.Region.Bounds())
 	cleaning := len(ash) > 0 && !burning
 	if !cleaning && (stored < policy.BurnStoredCells || burning) {
 		return RoundsIncinerationResult{}, false, nil
@@ -118,7 +118,7 @@ func (r *RoundsIncinerationPlanner) burnRoom(call, epoch context.Context, state 
 	if err != nil {
 		return RoundsIncinerationResult{}, true, err
 	}
-	request := policy.BurnRequest{Interior: room.Interior, Stored: stored}
+	request := policy.BurnRequest{Interior: room.Region.Bounds(), Stored: stored}
 	for _, row := range rows {
 		if row == nil || row.Pawn == nil {
 			return RoundsIncinerationResult{}, true, fmt.Errorf("%w: burnRoom: row == nil || row.Pawn == nil", ErrControl)

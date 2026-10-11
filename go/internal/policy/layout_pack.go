@@ -79,7 +79,7 @@ func (h hallFrame) room(role PlannedRole, u, w, d int32, pos bool) PlannedRoom {
 	if pos {
 		a, wall = h.line+3, h.line+2
 	}
-	return PlannedRoom{Role: role, Interior: h.rect(u, a, w, d), Door: h.cell(u+w/2, wall), DoorRot: h.facing(pos)}
+	return PlannedRoom{Role: role, Region: RectRegion(h.rect(u, a, w, d)), Door: h.cell(u+w/2, wall), DoorRot: h.facing(pos)}
 }
 
 // packer is the core as one hallway sees it: the other hallways' bands (their
@@ -173,12 +173,12 @@ func (p packer) open(r Rectangle) bool {
 // fits reports the room with its walls, and the hallway beside it, open
 // ground, and its interior not a slot SiteRoom has scored.
 func (p packer) fits(room PlannedRoom) bool {
-	if p.g.skip[room.Interior] || !p.open(roomWalls(room)) {
+	if p.g.skip[room.Region.Bounds()] || !p.open(roomWalls(room)) {
 		return false
 	}
 	// The hallway between the room and the hallway's current extent must
 	// be continuous.
-	u, w, _, _ := p.h.extent(room.Interior)
+	u, w, _, _ := p.h.extent(room.Region.Bounds())
 	a, b := u-1, u+w
 	if b < p.h.lo {
 		b = p.h.lo
@@ -195,7 +195,7 @@ func (h *hallFrame) extend(a, b int32) {
 
 // finish dresses a placed room: rock to dig, and the hallway grown over it.
 func (p *packer) finish(room PlannedRoom) PlannedRoom {
-	u, w, _, _ := p.h.extent(room.Interior)
+	u, w, _, _ := p.h.extent(room.Region.Bounds())
 	p.h.extend(u-1, u+w)
 	room.Dug = p.g.dug(room)
 	return room
@@ -214,10 +214,10 @@ func (p *packer) slot(role PlannedRole, w, d int32) (PlannedRoom, bool) {
 			// room's far wall (shared).
 			edge, any := p.h.lo-1, false
 			for _, r := range p.mine {
-				if p.h.positive(r.Interior) != pos {
+				if p.h.positive(r.Region.Bounds()) != pos {
 					continue
 				}
-				u, rw, _, _ := p.h.extent(r.Interior)
+				u, rw, _, _ := p.h.extent(r.Region.Bounds())
 				if east && (!any || u+rw > edge) {
 					edge = u + rw
 				}
@@ -276,7 +276,7 @@ func (p *packer) against(rooms []PlannedRoom, role PlannedRole, size [2]int32) (
 	found := false
 	for _, r := range rooms {
 		if r.Role == rule.neighbour {
-			k, found = r.Interior, true
+			k, found = r.Region.Bounds(), true
 			break
 		}
 	}
@@ -300,7 +300,7 @@ func (p *packer) against(rooms []PlannedRoom, role PlannedRole, size [2]int32) (
 		if !p.fits(room) || overlapsRooms(room, rooms) {
 			continue
 		}
-		_, _, ra, rd := p.h.extent(room.Interior)
+		_, _, ra, rd := p.h.extent(room.Region.Bounds())
 		lo, hi := max(ra, ka), min(ra+rd, ka+kd)
 		if lo >= hi {
 			continue
@@ -338,7 +338,7 @@ func (p *packer) behind(rooms []PlannedRoom, k Rectangle, role PlannedRole, rule
 		columns = []int32{ku + kw - 1, ku - w + 1}
 	}
 	for _, u := range columns {
-		room := PlannedRoom{Role: role, Interior: p.h.rect(u, a, w, d), DoorRot: p.h.facing(pos)}
+		room := PlannedRoom{Role: role, Region: RectRegion(p.h.rect(u, a, w, d)), DoorRot: p.h.facing(pos)}
 		if !p.fits(room) || overlapsRooms(room, rooms) {
 			continue
 		}

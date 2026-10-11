@@ -38,7 +38,7 @@ func planStandsClean(t *testing.T, g coreGrid, p LayoutPlan) {
 			}
 		}
 		for _, o := range rooms[i+1:] {
-			if rectsOverlap(roomWalls(r), o.Interior) || rectsOverlap(r.Interior, roomWalls(o)) {
+			if rectsOverlap(roomWalls(r), o.Region.Bounds()) || rectsOverlap(r.Region.Bounds(), roomWalls(o)) {
 				t.Fatalf("%s and %s overlap", r.Role, o.Role)
 			}
 		}

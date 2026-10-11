@@ -220,7 +220,7 @@ func (p LayoutPlan) barnFlap(area Rectangle) (domain.Cell, bool) {
 	default:
 		step, along = domain.Cell{Z: -1}, domain.Cell{X: 1}
 	}
-	in := room.Interior
+	in := room.Region.Bounds()
 	for _, sign := range []int32{1, -1} {
 		c := domain.Cell{X: room.Door.X + sign*along.X, Z: room.Door.Z + sign*along.Z}
 		if along.X != 0 && (c.X < in.X || c.X >= in.X+in.Width) || along.Z != 0 && (c.Z < in.Z || c.Z >= in.Z+in.Height) {
@@ -273,7 +273,7 @@ func (p LayoutPlan) ringCells(r PlannedRoom, cells []domain.Cell) []domain.Cell 
 // (vet room; the barn's centre when the plan has no core).
 func (p LayoutPlan) herdRoom(area Rectangle, role PlannedRole) PlannedRoom {
 	in := Rectangle{X: area.X + 1, Z: area.Z + 1, Width: area.Width - 2, Height: area.Height - 2}
-	room := PlannedRoom{Role: role, Interior: in, Outdoor: role.IsOutdoor()}
+	room := PlannedRoom{Role: role, Region: RectRegion(in), Outdoor: role.IsOutdoor()}
 	cx, cz := float64(in.X)+float64(in.Width)/2, float64(in.Z)+float64(in.Height)/2
 	tx, tz, ok := p.herdTarget()
 	if !ok {
@@ -504,7 +504,7 @@ func NextHerdStep(plan LayoutPlan, rooms RoomObservation, ground GroundCensus, b
 // heater that is not buildable yet (no def) is no part of the template.
 func herdTemplate(role PlannedRole, def, heater InteriorPieceDef, pieces []InteriorPiece, quota int, room PlannedRoom, built []CurrentBuilding, taken map[domain.Cell]bool) (template []WantedPiece, absent bool) {
 	inside := func(b CurrentBuilding, name string) bool {
-		return b.Building.Definition() == name && len(b.Cells) > 0 && rectInside(room.Interior, cellsRectangle(b.Cells))
+		return b.Building.Definition() == name && len(b.Cells) > 0 && rectInside(room.Region.Bounds(), cellsRectangle(b.Cells))
 	}
 	standing := func(b CurrentBuilding) WantedPiece {
 		r := cellsRectangle(b.Cells)
@@ -556,7 +556,7 @@ func herdTemplate(role PlannedRole, def, heater InteriorPieceDef, pieces []Inter
 // due yet.
 func unflaggedVetBed(room PlannedRoom, built []CurrentBuilding, sleeping []SleepingBed, def string) (string, bool) {
 	for _, b := range built {
-		if b.Building.Definition() != def || len(b.Cells) == 0 || !rectInside(room.Interior, cellsRectangle(b.Cells)) {
+		if b.Building.Definition() != def || len(b.Cells) == 0 || !rectInside(room.Region.Bounds(), cellsRectangle(b.Cells)) {
 			continue
 		}
 		for _, s := range sleeping {

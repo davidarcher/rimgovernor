@@ -62,7 +62,7 @@ func (r PlannedRole) IsOutdoor() bool { return outdoorRoles[r] }
 // graveSlot is the graveyard's first template slot no building stands on.
 func graveSlot(r PlannedRoom, taken map[domain.Cell]bool) (InteriorPiece, bool) {
 slots:
-	for i, slot := range GraveyardSlots(r.Interior) {
+	for i, slot := range GraveyardSlots(r.Region.Bounds()) {
 		for _, c := range rectCells(slot) {
 			if taken[c] {
 				continue slots
@@ -83,14 +83,14 @@ func GravesStanding(plan LayoutPlan, built []CurrentBuilding) (standing, slots i
 			continue
 		}
 		for _, r := range rooms {
-			if len(b.Cells) > 0 && rectContains(r.Interior, b.Cells[0]) {
+			if len(b.Cells) > 0 && rectContains(r.Region.Bounds(), b.Cells[0]) {
 				standing++
 				break
 			}
 		}
 	}
 	for _, r := range rooms {
-		slots += len(GraveyardSlots(r.Interior))
+		slots += len(GraveyardSlots(r.Region.Bounds()))
 	}
 	return standing, slots
 }

@@ -84,7 +84,7 @@ func (militaryOwner) gearStores(r StoreView) ([]Store, error) {
 			if !ok || len(room.Cells) == 0 {
 				continue
 			}
-			site := StoreSite{Role: gear.prefix + room.ID, Interior: planned.Interior, Filter: gear.filter, Priority: domain.PreferredPriority}
+			site := StoreSite{Role: gear.prefix + room.ID, Interior: planned.Region.Bounds(), Filter: gear.filter, Priority: domain.PreferredPriority}
 			if gear.module == PlannedArmory {
 				free := roomPool(room.Cells, r.Cells, r.Protected)
 				var pool []domain.Cell

@@ -30,10 +30,10 @@ func BunkCells(anchor domain.Cell, rot domain.Rotation) []domain.Cell {
 // interior is not a rectangle the door opens onto.
 func ShelterRoom(room PlannedRoom, mined []domain.Cell, shapes PieceShapes, occupants, campfires, coolers int, reserved []domain.Cell) (InteriorRoom, bool) {
 	shell, err := room.Footprint()
-	if err != nil || room.Interior.Width <= 0 || room.Interior.Height <= 0 {
+	if err != nil || room.Region.Bounds().Width <= 0 || room.Region.Bounds().Height <= 0 {
 		return InteriorRoom{}, false
 	}
-	interior := InteriorRoom{Role: RoomRoleShelter, Interior: room.Interior, Doors: []domain.Cell{room.Door}, Shapes: shapes, Occupants: occupants, Campfires: campfires, Coolers: coolers, Capabilities: CapabilitiesOf(PlannedShelter)}
+	interior := InteriorRoom{Role: RoomRoleShelter, Interior: room.Region.Bounds(), Doors: []domain.Cell{room.Door}, Shapes: shapes, Occupants: occupants, Campfires: campfires, Coolers: coolers, Capabilities: CapabilitiesOf(PlannedShelter)}
 	if _, ok := doorSide(interior.Interior, room.Door); !ok {
 		return InteriorRoom{}, false
 	}

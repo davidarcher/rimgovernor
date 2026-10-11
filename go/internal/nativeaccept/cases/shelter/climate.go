@@ -92,7 +92,7 @@ func runClimate(ctx context.Context, s cases.Session, c climate) error {
 	plan := record.Plan
 	shelter := roomsOf(plan, policy.PlannedShelter)[0]
 	owner := roomsOf(plan, c.room)[0]
-	report["plan"] = map[string]any{"tick": record.Tick, "cold": plan.Cold, "hot": plan.Hot, "shelter": shelter.Interior, "owner": owner.Interior,
+	report["plan"] = map[string]any{"tick": record.Tick, "cold": plan.Cold, "hot": plan.Hot, "shelter": shelter.Region.Bounds(), "owner": owner.Region.Bounds(),
 		"campfire_slots": policy.ShelterCampfires(plan.Cold), "cooler_slots": policy.ShelterCoolers(plan.Hot)}
 	// A desert's winter can dip below freezing, so the hot map need not be
 	// warm all year: it must latch Hot, and its Cold latch is not asserted.
@@ -109,11 +109,11 @@ func runClimate(ctx context.Context, s cases.Session, c climate) error {
 	if err != nil {
 		return err
 	}
-	cell, seen, err := waitBuilding(ctx, service, c.build, func(cell domain.Cell) bool { return inside(owner.Interior, cell) })
+	cell, seen, err := waitBuilding(ctx, service, c.build, func(cell domain.Cell) bool { return inside(owner.Region.Bounds(), cell) })
 	report["placements"] = seen
 	if err != nil {
 		core, _ := plan.CoreBounds()
-		return fmt.Errorf("%w (%s %+v, core %+v, placements %v)", err, c.room, owner.Interior, core, seen)
+		return fmt.Errorf("%w (%s %+v, core %+v, placements %v)", err, c.room, owner.Region.Bounds(), core, seen)
 	}
 	report["placement"] = map[string]any{"definition": c.build, "cell": cell}
 	if c.cold {
@@ -125,8 +125,8 @@ func runClimate(ctx context.Context, s cases.Session, c climate) error {
 		}
 		report["crafting_spots"] = spots
 		for _, spot := range spots {
-			if !inside(shelter.Interior, spot) {
-				return fmt.Errorf("%s placed at %v outside the planned shelter %+v", craftingSpot, spot, shelter.Interior)
+			if !inside(shelter.Region.Bounds(), spot) {
+				return fmt.Errorf("%s placed at %v outside the planned shelter %+v", craftingSpot, spot, shelter.Region.Bounds())
 			}
 		}
 	}

@@ -51,7 +51,7 @@ func (r *RoundsBuildingPlanner) incineratorFloor(call context.Context, current d
 	if room == nil || !ok {
 		return nil, nil
 	}
-	in := room.Interior
+	in := room.Region.Bounds()
 	region := bridge.CellRect{Min: domain.Cell{X: in.X, Z: in.Z}, Max: domain.Cell{X: in.X + in.Width - 1, Z: in.Z + in.Height - 1}}
 	site, _, err := reader.ReadDefenseSite(call, boundary.Identity(current), region)
 	if err != nil {

@@ -45,7 +45,7 @@ type RangePiece struct {
 // column by column (stand, dummy). A room whose Facing is not a direction has
 // none.
 func RangeLayout(room PlannedRoom) []RangePiece {
-	in := room.Interior
+	in := room.Region.Bounds()
 	n := int(RangeStandCount(room))
 	pieces := make([]RangePiece, 0, 2*n)
 	for i := 0; i < n; i++ {

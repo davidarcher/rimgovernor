@@ -105,11 +105,11 @@ func incinerationOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 		return domain.Known(false)
 	}
 	filth, _ := facts.Facts.Upkeep.Filth.Value()
-	return domain.Known(len(policy.IncineratorAsh(filth, room.Interior)) > 0 || incineratorStored(facts, room.Interior) >= policy.BurnStoredCells)
+	return domain.Known(len(policy.IncineratorAsh(filth, room.Region.Bounds())) > 0 || incineratorStored(facts, room.Region.Bounds()) >= policy.BurnStoredCells)
 }
 
 func incineratorMethod(room policy.PlannedRoom) domain.MethodID {
-	return domain.MethodID(fmt.Sprintf("incinerator-shell-%d-%d", room.Interior.X, room.Interior.Z))
+	return domain.MethodID(fmt.Sprintf("incinerator-shell-%d-%d", room.Region.Bounds().X, room.Region.Bounds().Z))
 }
 
 // stageDisposal answers a due burn, else the incinerator's shell; handled is

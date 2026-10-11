@@ -113,10 +113,10 @@ func (p LayoutPlan) ChildRoomFor(s ChildRoomShape) (PlannedRoom, bool) {
 // hallway is stored transposed, so its door faces east or west and the
 // frame's width is the interior's height.
 func frameDims(r PlannedRoom) (width, depth int32) {
-	if side, ok := doorSide(r.Interior, r.Door); ok && (side == domain.East || side == domain.West) {
-		return r.Interior.Height, r.Interior.Width
+	if side, ok := doorSide(r.Region.Bounds(), r.Door); ok && (side == domain.East || side == domain.West) {
+		return r.Region.Bounds().Height, r.Region.Bounds().Width
 	}
-	return r.Interior.Width, r.Interior.Height
+	return r.Region.Bounds().Width, r.Region.Bounds().Height
 }
 
 // growChildRoom adds a room holding the shape to plan unless it has one, at

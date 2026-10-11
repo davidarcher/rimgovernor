@@ -78,7 +78,7 @@ func TestScoreHardTierRanksBelowAnyPass(t *testing.T) {
 
 	// Rich soil under a room: the same plan over a survey whose cells
 	// under one room are rich.
-	room := p.Rooms[0].Interior
+	room := p.Rooms[0].Region.Bounds()
 	rich := zoningSurvey(140, func(x, z int32) SurveyCell {
 		if contains(room, domain.Cell{X: x, Z: z}) {
 			return SurveyCell{Walkable: true, Fertility: 1.4}
@@ -101,7 +101,7 @@ func TestScoreHardTierRanksBelowAnyPass(t *testing.T) {
 // below it, the freezer at fx, each opening onto the hallway.
 func handPlan(fx int32) LayoutPlan {
 	room := func(role PlannedRole, x int32) PlannedRoom {
-		return PlannedRoom{Role: role, Interior: Rectangle{X: x, Z: 13, Width: 3, Height: 3}, Door: domain.Cell{X: x + 1, Z: 12}}
+		return PlannedRoom{Role: role, Region: RectRegion(Rectangle{X: x, Z: 13, Width: 3, Height: 3}), Door: domain.Cell{X: x + 1, Z: 12}}
 	}
 	spine := []SpineSegment{{From: domain.Cell{X: 0, Z: 10}, To: domain.Cell{X: 60, Z: 10}}}
 	return LayoutPlan{Spine: spine, Entrances: spineEntrances(spine), Rooms: []PlannedRoom{room(PlannedKitchen, 5), room(PlannedFreezer, fx)}}
@@ -118,7 +118,7 @@ func TestScoreWallAndFootprintShrinkWithTheRing(t *testing.T) {
 	p, s := scoredPlan(t)
 	base := Score(p, s)
 	spread := p
-	spread.Rooms = append(append([]PlannedRoom{}, p.Rooms...), PlannedRoom{Role: PlannedStorage, Interior: Rectangle{X: p.Rooms[0].Interior.X + 40, Z: p.Rooms[0].Interior.Z + 40, Width: 3, Height: 3}})
+	spread.Rooms = append(append([]PlannedRoom{}, p.Rooms...), PlannedRoom{Role: PlannedStorage, Region: RectRegion(Rectangle{X: p.Rooms[0].Region.Bounds().X + 40, Z: p.Rooms[0].Region.Bounds().Z + 40, Width: 3, Height: 3})})
 	wide := Score(spread, s)
 	if wide.Wall >= base.Wall || wide.Footprint >= base.Footprint {
 		t.Fatal("a longer ring should cost more: wall", base.Wall, wide.Wall, "footprint", base.Footprint, wide.Footprint)
@@ -145,7 +145,7 @@ func TestScoreSoilExpansionAndDefenseTerms(t *testing.T) {
 	}
 	// Soil and rock under the plan are costs.
 	onRock := newPlanScorer(p.Zones, p.Reservations, s)
-	onRock.g.rock[domain.Cell{X: p.Rooms[0].Interior.X, Z: p.Rooms[0].Interior.Z}] = true
+	onRock.g.rock[domain.Cell{X: p.Rooms[0].Region.Bounds().X, Z: p.Rooms[0].Region.Bounds().Z}] = true
 	if got := onRock.core(p).Soil; got >= sc.core(p).Soil {
 		t.Fatal("rock under a room did not lower the soil term:", got)
 	}

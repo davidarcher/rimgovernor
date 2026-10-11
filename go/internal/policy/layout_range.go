@@ -58,9 +58,9 @@ func (r PlannedRoom) rangeHorizontal() bool {
 func RangeStandCount(r PlannedRoom) int32 {
 	switch r.Facing {
 	case domain.North, domain.South:
-		return r.Interior.Width
+		return r.Region.Bounds().Width
 	case domain.East, domain.West:
-		return r.Interior.Height
+		return r.Region.Bounds().Height
 	}
 	return 0
 }
@@ -68,7 +68,7 @@ func RangeStandCount(r PlannedRoom) int32 {
 // rangeBlock is the footprint an unfenced range blocks: its interior with a
 // one-cell margin and RangeBackdrop cells more behind the dummies.
 func rangeBlock(r PlannedRoom) Rectangle {
-	b := pad(r.Interior, 1)
+	b := pad(r.Region.Bounds(), 1)
 	switch r.Facing {
 	case domain.North:
 		b.Height += RangeBackdrop
@@ -106,7 +106,7 @@ func rangeFromBlock(block Rectangle, facing domain.Rotation, stands int32) Plann
 			in.X += RangeBackdrop
 		}
 	}
-	return PlannedRoom{Role: PlannedTrainingRange, Interior: in, Outdoor: true, Facing: facing}
+	return PlannedRoom{Role: PlannedTrainingRange, Region: RectRegion(in), Outdoor: true, Facing: facing}
 }
 
 // RangeRooms are the plan's training ranges.
@@ -236,21 +236,22 @@ func widenRange(plan LayoutPlan, room PlannedRoom, extra int32) (PlannedRoom, bo
 	horizontal := room.rangeHorizontal()
 	for k := min(extra, int32(RangeMaxStands)-RangeStandCount(room)); k > 0; k-- {
 		for _, plus := range []bool{true, false} {
-			strip, grown := block, room
+			strip, grown, gr := block, room, room.Region.Bounds()
 			switch {
 			case horizontal && plus:
 				strip.X, strip.Width = block.X+block.Width, k
-				grown.Interior.Width += k
+				gr.Width += k
 			case horizontal:
 				strip.X, strip.Width = block.X-k, k
-				grown.Interior.X, grown.Interior.Width = room.Interior.X-k, room.Interior.Width+k
+				gr.X, gr.Width = gr.X-k, gr.Width+k
 			case plus:
 				strip.Z, strip.Height = block.Z+block.Height, k
-				grown.Interior.Height += k
+				gr.Height += k
 			default:
 				strip.Z, strip.Height = block.Z-k, k
-				grown.Interior.Z, grown.Interior.Height = room.Interior.Z-k, room.Interior.Height+k
+				gr.Z, gr.Height = gr.Z-k, gr.Height+k
 			}
+			grown.Region = RectRegion(gr)
 			if u.free(strip, false) && u.inset(strip) {
 				return grown, true
 			}

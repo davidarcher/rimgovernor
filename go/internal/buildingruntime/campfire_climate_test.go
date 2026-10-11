@@ -61,7 +61,7 @@ func campfireSearchBlocked(t *testing.T, cold bool, refused func(domain.Cell) bo
 	interior = policy.Rectangle{X: 0, Z: 0, Width: 4, Height: 4}
 	door := domain.Cell{X: 2, Z: 4}
 	facts := reading.Projection
-	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Cold: cold, Rooms: []policy.PlannedRoom{{Role: policy.PlannedShelter, Interior: interior, Door: door, DoorRot: domain.North}}})
+	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Cold: cold, Rooms: []policy.PlannedRoom{{Role: policy.PlannedShelter, Region: policy.RectRegion(interior), Door: door, DoorRot: domain.North}}})
 	// No wall stands: the planned interior alone holds the slots.
 	facts.Shapes = testPieceShapes
 	facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes})
@@ -192,7 +192,7 @@ func TestShelterFurnitureCellsCoverTheCampfireSlotsNotTheBunks(t *testing.T) {
 	t.Parallel()
 	facts := observation.ColonyProjection{}
 	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Cold: true, Rooms: []policy.PlannedRoom{{Role: policy.PlannedShelter,
-		Interior: policy.Rectangle{X: 62, Z: 79, Width: 6, Height: 4}, Door: domain.Cell{X: 65, Z: 78}, DoorRot: domain.South}}})
+		Region: policy.RectRegion(policy.Rectangle{X: 62, Z: 79, Width: 6, Height: 4}), Door: domain.Cell{X: 65, Z: 78}, DoorRot: domain.South}}})
 	facts.Shapes = testPieceShapes
 	facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes})
 	cells := shelterFurnitureCells(facts)

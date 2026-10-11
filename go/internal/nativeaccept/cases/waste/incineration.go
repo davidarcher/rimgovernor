@@ -82,14 +82,14 @@ func disposal(ctx context.Context, s cases.Session) error {
 				return err
 			}
 			report["incinerator"] = fmt.Sprintf("%+v", room)
-			if err := checkDump(ctx, s, h, report, animalDef, yard.Interior, room.Interior); err != nil {
+			if err := checkDump(ctx, s, h, report, animalDef, yard.Region.Bounds(), room.Region.Bounds()); err != nil {
 				return err
 			}
 			read, err := readDisposal(ctx, h, ids, room)
 			if err != nil {
 				return err
 			}
-			if err := checkIncineratorZone(ctx, s, h, report, room.Interior); err != nil {
+			if err := checkIncineratorZone(ctx, s, h, report, room.Region.Bounds()); err != nil {
 				return err
 			}
 			return checkFreshStranger(read, staged["freshStranger"], report, "shelled")
@@ -104,9 +104,9 @@ func disposal(ctx context.Context, s cases.Session) error {
 	_, err = sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 		WatchConfig: sustainedfood.WatchConfig{Watch: disposalWindow, Concern: policy.MaintainIncineration, Until: func(sample map[string]any) bool { return methodCompleted(sample, "burn-ash-") }},
 		Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
-			cells := policy.RectangleCells(room.Interior)
+			cells := policy.RectangleCells(room.Region.Bounds())
 			if len(cells) < disposalSeeded {
-				return fmt.Errorf("incinerator interior %+v holds fewer than %d cells", room.Interior, disposalSeeded)
+				return fmt.Errorf("incinerator interior %+v holds fewer than %d cells", room.Region.Bounds(), disposalSeeded)
 			}
 			var spots []string
 			for _, c := range cells[:disposalSeeded] {
@@ -315,7 +315,7 @@ type disposalReading struct {
 }
 
 func readDisposal(ctx context.Context, h *na.Harness, ids []string, room policy.PlannedRoom) (disposalReading, error) {
-	in := room.Interior
+	in := room.Region.Bounds()
 	reply, err := h.Call(ctx, "disposal-read", disposalRead, map[string]any{
 		"ids": strings.Join(ids, ","), "minX": in.X, "minZ": in.Z, "maxX": in.X + in.Width - 1, "maxZ": in.Z + in.Height - 1,
 		"doorX": room.Door.X, "doorZ": room.Door.Z,
@@ -411,7 +411,7 @@ func checkRoom(read disposalReading, room policy.PlannedRoom) error {
 	if read.beyond == id || read.door == id {
 		return fmt.Errorf("the room %d continues past the door: door %d, beyond %d", id, read.door, read.beyond)
 	}
-	in := room.Interior
+	in := room.Region.Bounds()
 	var doors int
 	for _, e := range read.ring {
 		x, z := int32(na.AsNumber(e["x"])), int32(na.AsNumber(e["z"]))

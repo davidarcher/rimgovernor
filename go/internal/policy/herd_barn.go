@@ -25,7 +25,7 @@ func (p LayoutPlan) BarnCells(rooms RoomObservation) []domain.Cell {
 		if _, standing := CensusRoomIn(room, rooms); !standing {
 			continue
 		}
-		for _, c := range rectCells(room.Interior) {
+		for _, c := range rectCells(room.Region.Bounds()) {
 			set[c] = true
 		}
 	}

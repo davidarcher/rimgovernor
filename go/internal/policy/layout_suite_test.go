@@ -69,15 +69,15 @@ func TestSuiteWingIsSeparateFromTheStandardWing(t *testing.T) {
 			t.Fatal("suite role", r.Role)
 		}
 		// Sized by target; width runs along the (north-south) corridor.
-		if w, d := SuiteSize(targets[i]); r.Interior.Height != w || r.Interior.Width != d {
-			t.Fatalf("suite %d is %dx%d, want %dx%d", i, r.Interior.Height, r.Interior.Width, w, d)
+		if w, d := SuiteSize(targets[i]); r.Region.Bounds().Height != w || r.Region.Bounds().Width != d {
+			t.Fatalf("suite %d is %dx%d, want %dx%d", i, r.Region.Bounds().Height, r.Region.Bounds().Width, w, d)
 		}
 		s := step[r.DoorRot]
 		if !contains(corridor, domain.Cell{X: r.Door.X + s.X, Z: r.Door.Z + s.Z}) {
 			t.Fatalf("suite door %v off the corridor %+v", r.Door, corridor)
 		}
 		for _, o := range std.Rooms {
-			if rectsOverlap(roomWalls(r), o.Interior) {
+			if rectsOverlap(roomWalls(r), o.Region.Bounds()) {
 				t.Fatal("suite overlaps a standard room", r, o)
 			}
 		}

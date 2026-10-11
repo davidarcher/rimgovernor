@@ -46,7 +46,7 @@ func TestVetRoomAreaCoversTheInteriorAndNotTheBarns(t *testing.T) {
 	plan := herdTestPlan(t, 20)
 	vet := plan.HerdRooms(PlannedVetRoom)[0]
 	cells := plan.VetRoomCells()
-	if len(cells) != len(rectCells(vet.Interior)) {
+	if len(cells) != len(rectCells(vet.Region.Bounds())) {
 		t.Fatal("the area is the vet room interior", len(cells))
 	}
 	for _, r := range plan.Reservations {

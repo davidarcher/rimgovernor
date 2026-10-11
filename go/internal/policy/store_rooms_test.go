@@ -55,7 +55,7 @@ func TestStorageRoomAddedOnDemandKeepsTheCore(t *testing.T) {
 		}
 	}
 	rooms := storageRooms(grown)
-	if len(rooms) != 2 || rooms[1].Interior.Width*rooms[1].Interior.Height != coreRoomSize[PlannedStorage][0]*coreRoomSize[PlannedStorage][1] {
+	if len(rooms) != 2 || rooms[1].Region.Bounds().Width*rooms[1].Region.Bounds().Height != coreRoomSize[PlannedStorage][0]*coreRoomSize[PlannedStorage][1] {
 		t.Fatalf("storage rooms %+v", rooms)
 	}
 	if after, _ := grown.Core(); after != core {
@@ -81,7 +81,7 @@ func storeRequest(rooms int, stands int, zones ...StockpileZone) StoreView {
 	var census RoomObservation
 	for i := range rooms {
 		in := Rectangle{X: int32(10 + 10*i), Z: 10, Width: 3, Height: 3}
-		layout.Rooms = append(layout.Rooms, PlannedRoom{Role: PlannedStorage, Interior: in, Door: domain.Cell{X: in.X + 1, Z: 9}})
+		layout.Rooms = append(layout.Rooms, PlannedRoom{Role: PlannedStorage, Region: RectRegion(in), Door: domain.Cell{X: in.X + 1, Z: 9}})
 		if i < stands {
 			census.Rooms = append(census.Rooms, Room{ID: []string{"first", "second"}[i], Enclosed: domain.Known(true), Cells: rectCells(in)})
 		}

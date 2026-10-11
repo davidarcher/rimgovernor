@@ -39,12 +39,12 @@ func craftingSpotSearch(t *testing.T, shelterPlanned bool) (chosen, slot domain.
 	door := domain.Cell{X: 2, Z: 4}
 	facts := reading.Projection
 	if shelterPlanned {
-		facts.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedShelter, Interior: interior, Door: door, DoorRot: domain.North}}})
+		facts.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedShelter, Region: policy.RectRegion(interior), Door: door, DoorRot: domain.North}}})
 	}
 	// No wall stands: the planned interior alone holds the slot.
 	facts.Shapes = testPieceShapes
 	facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes})
-	interiorRoom, ok := policy.InteriorRoomFromLayout(policy.PlannedRoom{Role: policy.PlannedShelter, Interior: interior, Door: door, DoorRot: domain.North}, testPieceShapes)
+	interiorRoom, ok := policy.InteriorRoomFromLayout(policy.PlannedRoom{Role: policy.PlannedShelter, Region: policy.RectRegion(interior), Door: door, DoorRot: domain.North}, testPieceShapes)
 	if !ok {
 		t.Fatal("the room has no interior")
 	}

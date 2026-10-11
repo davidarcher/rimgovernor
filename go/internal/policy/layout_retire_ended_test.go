@@ -79,7 +79,7 @@ func TestReplanRetiresUnbuiltEndedRooms(t *testing.T) {
 	var added []PlannedRoom
 	for i, role := range roles {
 		in := Rectangle{X: 20 + 12*int32(i%3), Z: 20 + 12*int32(i/3), Width: 4, Height: 4}
-		r := PlannedRoom{Role: role, Interior: in, Door: domain.Cell{X: in.X + 1, Z: in.Z - 1}, DoorRot: domain.South}
+		r := PlannedRoom{Role: role, Region: RectRegion(in), Door: domain.Cell{X: in.X + 1, Z: in.Z - 1}, DoorRot: domain.South}
 		added = append(added, r)
 		plan.Rooms = append(plan.Rooms, r)
 	}
@@ -98,7 +98,7 @@ func TestReplanRetiresUnbuiltEndedRooms(t *testing.T) {
 				t.Errorf("%s ended dropped %s", role, other)
 			}
 		}
-		if count(replan(RoomGrowth{Ended: []PlannedRole{role}, InUse: map[Rectangle]bool{added[i].Interior: true}}), role) != 1 {
+		if count(replan(RoomGrowth{Ended: []PlannedRole{role}, InUse: map[Rectangle]bool{added[i].Region.Bounds(): true}}), role) != 1 {
 			t.Errorf("%s: in-use room dropped", role)
 		}
 		if count(replan(RoomGrowth{}), role) != 1 {
@@ -111,7 +111,7 @@ func TestReplanRetiresUnbuiltEndedRooms(t *testing.T) {
 // the furniture stands inside it.
 func TestRoomsInUseCountsFurnitureInside(t *testing.T) {
 	in := Rectangle{X: 20, Z: 20, Width: 4, Height: 4}
-	plan := LayoutPlan{Rooms: []PlannedRoom{{Role: PlannedNursery, Interior: in, Door: domain.Cell{X: 21, Z: 19}, DoorRot: domain.South}}}
+	plan := LayoutPlan{Rooms: []PlannedRoom{{Role: PlannedNursery, Region: RectRegion(in), Door: domain.Cell{X: 21, Z: 19}, DoorRot: domain.South}}}
 	defs := furnitureDefs(map[string]Bounds{"Crib": {Width: 1, Height: 1}})
 	b, err := domain.NewBuilding("Crib", domain.Cell{X: 21, Z: 21}, domain.South, "")
 	if err != nil {

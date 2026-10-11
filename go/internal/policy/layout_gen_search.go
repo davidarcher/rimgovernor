@@ -90,7 +90,7 @@ func (g coreGrid) moveCluster(plan LayoutPlan, rng *searchRand) (LayoutPlan, boo
 	var roles []PlannedRole
 	seen := map[PlannedRole]bool{}
 	for _, r := range plan.Rooms {
-		if searchRole(r.Role) && !seen[r.Role] && !g.fixed[r.Interior] {
+		if searchRole(r.Role) && !seen[r.Role] && !g.fixed[r.Region.Bounds()] {
 			seen[r.Role] = true
 			roles = append(roles, r.Role)
 		}
@@ -108,7 +108,7 @@ func (g coreGrid) moveCluster(plan LayoutPlan, rng *searchRand) (LayoutPlan, boo
 		in[role] = true
 	}
 	for _, r := range plan.Rooms {
-		if in[r.Role] && !taken[r.Role] && !g.fixed[r.Interior] {
+		if in[r.Role] && !taken[r.Role] && !g.fixed[r.Region.Bounds()] {
 			taken[r.Role] = true
 			if first == nil {
 				r := r
@@ -202,7 +202,7 @@ func trimSpine(plan LayoutPlan) []SpineSegment {
 		}
 		for _, r := range plan.Rooms {
 			if onSegment(r, s) {
-				reach(r.Interior.X-1, r.Interior.X+r.Interior.Width)
+				reach(r.Region.Bounds().X-1, r.Region.Bounds().X+r.Region.Bounds().Width)
 			}
 		}
 		for _, w := range plan.Wings {

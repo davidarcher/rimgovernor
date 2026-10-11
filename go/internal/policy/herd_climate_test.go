@@ -67,7 +67,7 @@ func TestHerdStepWantsTheBarnHeaterInItsSlot(t *testing.T) {
 		}
 		built = append(built, bedAt(t, p.DefName, piece))
 	}
-	if heater.Slot != herdHeaterSlot || !rectInside(barn.Interior, Rectangle{X: heater.Minimum.X, Z: heater.Minimum.Z, Width: 1, Height: 1}) {
+	if heater.Slot != herdHeaterSlot || !rectInside(barn.Region.Bounds(), Rectangle{X: heater.Minimum.X, Z: heater.Minimum.Z, Width: 1, Height: 1}) {
 		t.Fatal("heater in the climate slot", heater)
 	}
 	// The beds stand: only the heater is owed.

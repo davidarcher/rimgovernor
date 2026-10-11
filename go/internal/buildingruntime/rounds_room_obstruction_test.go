@@ -57,7 +57,7 @@ func TestCommitObstructionsCommitsTheFirstKindOwed(t *testing.T) {
 			player.mu.Lock()
 			epoch := player.epoch
 			player.mu.Unlock()
-			work := roomWork{rr: roomReconcile{room: policy.PlannedRoom{Interior: policy.Rectangle{X: 1, Z: 1, Width: 2, Height: 2}}, name: "bunk", reason: "bunk"}, ops: tc.ops}
+			work := roomWork{rr: roomReconcile{room: policy.PlannedRoom{Region: policy.RectRegion(policy.Rectangle{X: 1, Z: 1, Width: 2, Height: 2})}, name: "bunk", reason: "bunk"}, ops: tc.ops}
 			result, done, err := p.commitObstructions(ctx, epoch, state, owner, work)
 			if err != nil || !done || result.Verdict != BuildingReasonAdmitted {
 				t.Fatalf("wave = %+v done=%v, %v", result.Verdict, done, err)

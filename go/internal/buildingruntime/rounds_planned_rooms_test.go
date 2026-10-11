@@ -15,7 +15,7 @@ import (
 func ringConstruction(room *policy.PlannedRoom) domain.Fact[policy.CurrentConstruction] {
 	census := policy.CurrentConstruction{Colony: true}
 	if room != nil {
-		in := room.Interior
+		in := room.Region.Bounds()
 		for x := in.X - 1; x <= in.X+in.Width; x++ {
 			for z := in.Z - 1; z <= in.Z+in.Height; z++ {
 				if x != in.X-1 && x != in.X+in.Width && z != in.Z-1 && z != in.Z+in.Height {
@@ -37,12 +37,12 @@ func ringConstruction(room *policy.PlannedRoom) domain.Fact[policy.CurrentConstr
 }
 
 func TestPlannedRoomOwedAtAnyTierUntilTheRoomStands(t *testing.T) {
-	kitchen := policy.PlannedRoom{Role: policy.PlannedKitchen, Interior: policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 9}}
+	kitchen := policy.PlannedRoom{Role: policy.PlannedKitchen, Region: policy.RectRegion(policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5}), Door: domain.Cell{X: 12, Z: 9}}
 	facts := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{kitchen}}), Rooms: domain.Known(policy.RoomObservation{Shapes: testPieceShapes}), TechTier: domain.Known(policy.TechTierCamp)}
 	facts.Facts.CurrentConstruction = ringConstruction(nil)
 	for _, tier := range []policy.TechTier{policy.TechTierCamp, policy.TechTierMasonry} {
 		facts.TechTier = domain.Known(tier)
-		if r, owed := plannedRoomOwed(facts, policy.PlannedKitchen); !owed || r.Interior != kitchen.Interior {
+		if r, owed := plannedRoomOwed(facts, policy.PlannedKitchen); !owed || r.Region.Bounds() != kitchen.Region.Bounds() {
 			t.Fatal("the planned kitchen is not owed at tier", tier, r, owed)
 		}
 	}
@@ -60,7 +60,7 @@ func TestPlannedRoomOwedAtAnyTierUntilTheRoomStands(t *testing.T) {
 }
 
 func TestPlannedRoomInteriorIsTheWholeRoom(t *testing.T) {
-	room := policy.PlannedRoom{Role: policy.PlannedKitchen, Interior: policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5}}
+	room := policy.PlannedRoom{Role: policy.PlannedKitchen, Region: policy.RectRegion(policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5})}
 	if cells := plannedRoomInterior(room); len(cells) != 30 || cells[0] != (domain.Cell{X: 10, Z: 10}) || cells[29] != (domain.Cell{X: 15, Z: 14}) {
 		t.Fatal(cells)
 	}
@@ -90,7 +90,7 @@ func TestPlannedFacilityFurnishingUsesThePlannedRoom(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		room := policy.PlannedRoom{Role: tc.planned, Interior: policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 9}}
+		room := policy.PlannedRoom{Role: tc.planned, Region: policy.RectRegion(policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5}), Door: domain.Cell{X: 12, Z: 9}}
 		facts := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{room}}), TechTier: domain.Known(policy.TechTierCamp)}
 		facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "r", Cells: []domain.Cell{{X: 13, Z: 12}}, Enclosed: domain.Known(true)}}})
 		facts.Facts.CurrentConstruction = ringConstruction(&room)

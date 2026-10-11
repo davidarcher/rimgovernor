@@ -77,7 +77,7 @@ func shelterSiteFixture(t *testing.T) (*RoundsBuildingPlanner, *store.Store, *sl
 // planned room.
 func recordStoreroom(t *testing.T, r *RoundsBuildingPlanner, db *store.Store, interior policy.Rectangle) policy.PlannedRoom {
 	t.Helper()
-	room := policy.PlannedRoom{Role: policy.PlannedShelter, Interior: interior, Door: domain.Cell{X: interior.X + interior.Width/2, Z: interior.Z - 1}, DoorRot: domain.South}
+	room := policy.PlannedRoom{Role: policy.PlannedShelter, Region: policy.RectRegion(interior), Door: domain.Cell{X: interior.X + interior.Width/2, Z: interior.Z - 1}, DoorRot: domain.South}
 	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.PlannedRoom{room}})
 	return room
 }

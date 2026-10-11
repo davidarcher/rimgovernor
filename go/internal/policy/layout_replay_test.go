@@ -102,7 +102,7 @@ func TestReplayScoreFixtures(t *testing.T) {
 				t.Fatal("Score is not deterministic")
 			}
 			for _, r := range plan.AllRooms() {
-				for _, c := range rectCells(r.Interior) {
+				for _, c := range rectCells(r.Region.Bounds()) {
 					if c.X < 0 || c.Z < 0 || c.X >= s.Bounds.Width || c.Z >= s.Bounds.Height {
 						t.Fatal("room cell off the map", r.Role, domain.Cell{X: c.X, Z: c.Z})
 					}

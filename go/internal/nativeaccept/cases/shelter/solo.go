@@ -48,17 +48,17 @@ func runSolo(ctx context.Context, s cases.Session) error {
 	}
 	plan := record.Plan
 	shelter := roomsOf(plan, policy.PlannedShelter)[0]
-	report["plan"] = map[string]any{"tick": record.Tick, "cold": plan.Cold, "shelter": shelter.Interior, "labs": len(roomsOf(plan, policy.PlannedLab))}
+	report["plan"] = map[string]any{"tick": record.Tick, "cold": plan.Cold, "shelter": shelter.Region.Bounds(), "labs": len(roomsOf(plan, policy.PlannedLab))}
 	if !plan.Cold {
 		return fmt.Errorf("the plan did not latch Cold on an ice sheet")
 	}
 	if n := len(roomsOf(plan, policy.PlannedLab)); n != 0 {
 		return fmt.Errorf("a solo colony's plan holds %d laboratories; the shelter hosts research", n)
 	}
-	cell, seen, err := waitBuilding(ctx, service, policy.ShelterHeatDef, func(c domain.Cell) bool { return inside(shelter.Interior, c) })
+	cell, seen, err := waitBuilding(ctx, service, policy.ShelterHeatDef, func(c domain.Cell) bool { return inside(shelter.Region.Bounds(), c) })
 	report["placements"] = seen
 	if err != nil {
-		return fmt.Errorf("%w (shelter %+v, placements %v)", err, shelter.Interior, seen)
+		return fmt.Errorf("%w (shelter %+v, placements %v)", err, shelter.Region.Bounds(), seen)
 	}
 	report["placement"] = map[string]any{"definition": policy.ShelterHeatDef, "cell": cell}
 	refused, err := na.RefusalsNameBlockers(service.LogPath)

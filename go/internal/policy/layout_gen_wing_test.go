@@ -36,8 +36,8 @@ func checkWingInvariants(t *testing.T, plan LayoutPlan) {
 				t.Fatalf("room %d door %v is off the corridor", i, r.Door)
 			}
 			for _, o := range w.Rooms[i+1:] {
-				if rectsOverlap(r.Interior, o.Interior) {
-					t.Fatalf("rooms overlap: %v %v", r.Interior, o.Interior)
+				if rectsOverlap(r.Region.Bounds(), o.Region.Bounds()) {
+					t.Fatalf("rooms overlap: %v %v", r.Region.Bounds(), o.Region.Bounds())
 				}
 			}
 		}

@@ -97,7 +97,7 @@ func roomAt(plan policy.LayoutPlan, purpose policy.WingPurpose, x, z int32) (pol
 			continue
 		}
 		for _, r := range w.Rooms {
-			if r.Interior.X == x && r.Interior.Z == z {
+			if r.Region.Bounds().X == x && r.Region.Bounds().Z == z {
 				return r, true
 			}
 		}
@@ -212,7 +212,7 @@ func suites(ctx context.Context, s cases.Session) error {
 			if move.standard == 0 {
 				return fmt.Errorf("no standard bedroom-wing shell completed before the suite move")
 			}
-			in := move.room.Interior
+			in := move.room.Region.Bounds()
 			report["suite_move"] = map[string]any{"pawn": string(pawn), "bed": move.assign.Thing(), "previous": move.assign.Previous().ID(),
 				"suite": fmt.Sprintf("%d,%d %dx%d", in.X, in.Z, in.Width, in.Height), "standard_shells": move.standard}
 			return ownsBed(ctx, h, s.Identity(), pawn, move.assign.Thing(), "after the move")
@@ -282,7 +282,7 @@ func newSuiteShelled(ctx context.Context, journal *store.Store, first policy.Pla
 	}
 	for _, plan := range plans {
 		var x, z int32
-		if _, err := fmt.Sscanf(string(plan.Method), "bedroom-shell-%d-%d", &x, &z); err != nil || (x == first.Interior.X && z == first.Interior.Z) {
+		if _, err := fmt.Sscanf(string(plan.Method), "bedroom-shell-%d-%d", &x, &z); err != nil || (x == first.Region.Bounds().X && z == first.Region.Bounds().Z) {
 			continue
 		}
 		if room, ok := roomAt(layout.Plan, policy.WingSuites, x, z); ok {
@@ -313,9 +313,9 @@ func auditNewSuite(ctx context.Context, journal *store.Store, report na.Report, 
 	if err != nil {
 		return err
 	}
-	kept, ok := roomAt(layout.Plan, policy.WingSuites, first.room.Interior.X, first.room.Interior.Z)
+	kept, ok := roomAt(layout.Plan, policy.WingSuites, first.room.Region.Bounds().X, first.room.Region.Bounds().Z)
 	if !ok || !kept.Same(first.room) {
-		return fmt.Errorf("the first suite %+v changed or left the plan (now %+v)", first.room.Interior, kept.Interior)
+		return fmt.Errorf("the first suite %+v changed or left the plan (now %+v)", first.room.Region.Bounds(), kept.Region.Bounds())
 	}
 	plans, err := history(ctx, journal)
 	if err != nil {
@@ -326,7 +326,7 @@ func auditNewSuite(ctx context.Context, journal *store.Store, report na.Report, 
 			return fmt.Errorf("a suite was grown in place: %s", plan.Method)
 		}
 	}
-	in := second.Interior
+	in := second.Region.Bounds()
 	report["new_suite"] = fmt.Sprintf("%d,%d %dx%d", in.X, in.Z, in.Width, in.Height)
 	return nil
 }

@@ -53,7 +53,7 @@ func SiteRoom(plan LayoutPlan, sc *planScorer, role PlannedRole, sizes ...[2]int
 		}
 		cand := plan
 		cand.Spine, cand.Rooms = spine, rooms
-		g.skip[rooms[len(rooms)-1].Interior] = true
+		g.skip[rooms[len(rooms)-1].Region.Bounds()] = true
 		if sc == nil {
 			return cand, true, nil
 		}

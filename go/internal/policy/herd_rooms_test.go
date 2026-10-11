@@ -50,7 +50,7 @@ func boxedInHerdPlan(t *testing.T, animals int) LayoutPlan {
 func standing(rooms ...PlannedRoom) RoomObservation {
 	var out RoomObservation
 	for i, r := range rooms {
-		out.Rooms = append(out.Rooms, Room{ID: strconv.Itoa(i), Enclosed: domain.Known(true), Cells: rectCells(r.Interior)})
+		out.Rooms = append(out.Rooms, Room{ID: strconv.Itoa(i), Enclosed: domain.Known(true), Cells: rectCells(r.Region.Bounds())})
 	}
 	return out
 }
@@ -73,7 +73,7 @@ func TestHerdRoomsHaveADoorAndHoldTheirBeds(t *testing.T) {
 			t.Fatal("want one barn and one vet room", animals, len(barns), len(vets))
 		}
 		for _, room := range append(barns, vets...) {
-			if _, ok := doorSide(room.Interior, room.Door); !ok {
+			if _, ok := doorSide(room.Region.Bounds(), room.Door); !ok {
 				t.Fatal("door is not in the room's ring", room)
 			}
 			if _, ok := InteriorRoomFromLayout(room, testShapes); !ok {
@@ -135,7 +135,7 @@ func TestHerdStepReconcilesBarnThenVetRoom(t *testing.T) {
 		t.Fatal("barn sleeping spots", step)
 	}
 	for _, p := range step.Template {
-		if !rectInside(barn.Interior, Rectangle{X: p.Minimum.X, Z: p.Minimum.Z, Width: 1, Height: 1}) {
+		if !rectInside(barn.Region.Bounds(), Rectangle{X: p.Minimum.X, Z: p.Minimum.Z, Width: 1, Height: 1}) {
 			t.Fatal("spot outside the barn", p)
 		}
 	}
@@ -158,7 +158,7 @@ func TestHerdStepReconcilesBarnThenVetRoom(t *testing.T) {
 	rooms := standing(barn, vet)
 	ground = herdGround(plan, barn, vet)
 	step = NextHerdStep(plan, rooms, ground, built, nil, animals, testHerdFurniture)
-	if step.Kind != HerdReconcile || step.Role != PlannedVetRoom || herdTemplateCount(step, testAnimalBed) != VetBeds(animals) || !rectInside(vet.Interior, Rectangle{X: step.Template[0].Minimum.X, Z: step.Template[0].Minimum.Z, Width: 1, Height: 1}) {
+	if step.Kind != HerdReconcile || step.Role != PlannedVetRoom || herdTemplateCount(step, testAnimalBed) != VetBeds(animals) || !rectInside(vet.Region.Bounds(), Rectangle{X: step.Template[0].Minimum.X, Z: step.Template[0].Minimum.Z, Width: 1, Height: 1}) {
 		t.Fatal("vet animal beds", step)
 	}
 	for _, p := range step.Template {
@@ -334,7 +334,7 @@ func TestVetRoomSharesTheBarnWall(t *testing.T) {
 	}
 	vet := vets[0]
 	if vet.Link == nil {
-		t.Fatalf("vet room %v has no door into the barn %v", vet.Interior, barns[0].Interior)
+		t.Fatalf("vet room %v has no door into the barn %v", vet.Region.Bounds(), barns[0].Region.Bounds())
 	}
 	if !contains(roomWalls(vet), *vet.Link) || !contains(roomWalls(barns[0]), *vet.Link) {
 		t.Fatalf("link %v is not on both walls", *vet.Link)

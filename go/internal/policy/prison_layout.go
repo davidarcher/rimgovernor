@@ -24,7 +24,7 @@ const (
 // direction out; false when the door does not border the interior.
 func prisonDoorOutside(r PlannedRoom) (domain.Cell, domain.Cell, bool) {
 	for _, d := range directions {
-		if contains(r.Interior, addCell(r.Door, d)) {
+		if contains(r.Region.Bounds(), addCell(r.Door, d)) {
 			out := domain.Cell{X: -d.X, Z: -d.Z}
 			return addCell(r.Door, out), out, true
 		}
@@ -38,7 +38,7 @@ func prisonDoorOutside(r PlannedRoom) (domain.Cell, domain.Cell, bool) {
 func PrisonTurretSites(plan LayoutPlan) []domain.Cell {
 	blocked := map[domain.Cell]bool{}
 	for _, r := range plan.AllRooms() {
-		for _, c := range rectCells(pad(r.Interior, 1)) {
+		for _, c := range rectCells(pad(r.Region.Bounds(), 1)) {
 			blocked[c] = true
 		}
 	}
@@ -123,7 +123,7 @@ func PrisonCells(plan LayoutPlan) []domain.Cell {
 	var out []domain.Cell
 	for _, r := range plan.AllRooms() {
 		if r.Role == PlannedPrison {
-			out = append(out, rectCells(pad(r.Interior, 1))...)
+			out = append(out, rectCells(pad(r.Region.Bounds(), 1))...)
 		}
 	}
 	return out
@@ -138,9 +138,9 @@ func weaponClearance(plan LayoutPlan, role PlannedRole) []Rectangle {
 	for _, r := range plan.AllRooms() {
 		switch {
 		case role == PlannedArmory && r.Role == PlannedPrison:
-			out = append(out, pad(r.Interior, 1+prisonWeaponClearance))
+			out = append(out, pad(r.Region.Bounds(), 1+prisonWeaponClearance))
 		case role == PlannedPrison && r.Role == PlannedArmory:
-			out = append(out, pad(r.Interior, prisonWeaponClearance))
+			out = append(out, pad(r.Region.Bounds(), prisonWeaponClearance))
 		}
 	}
 	return out

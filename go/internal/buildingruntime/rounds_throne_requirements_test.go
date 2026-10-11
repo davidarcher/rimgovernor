@@ -210,7 +210,7 @@ func TestThroneRoomFloorTierPlansTheRequiredTerrain(t *testing.T) {
 func TestThroneRoomForbiddenBuildingIsPackedNotBlocking(t *testing.T) {
 	facts, room, _ := knightSnapshot(t)
 	furnish(t, &facts)
-	inside := domain.Cell{X: room.Interior.X, Z: room.Interior.Z}
+	inside := domain.Cell{X: room.Region.Bounds().X, Z: room.Region.Bounds().Z}
 	standing(t, &facts, "TableButcher_9", "TableButcher", inside)
 	step := throneStep(facts)
 	if step.Kind != policy.ThroneReconcile || !step.Owed() || step.Failed() {
@@ -231,7 +231,7 @@ func TestThroneRoomForbiddenBuildingIsPackedNotBlocking(t *testing.T) {
 func TestThroneRoomUnlitBrazierPlansARefuel(t *testing.T) {
 	facts, room, _ := knightSnapshot(t)
 	furnish(t, &facts)
-	in := room.Interior
+	in := room.Region.Bounds()
 	lamp := func(id string, lit bool, empty bool) policy.Lamp {
 		return policy.Lamp{ID: id, Definition: "Brazier", Cell: domain.Cell{X: in.X, Z: in.Z}, Lit: lit, OutOfFuel: domain.Known(empty)}
 	}

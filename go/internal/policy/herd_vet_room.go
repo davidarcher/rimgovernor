@@ -14,7 +14,7 @@ const VetRoomAreaLabel = VetRoomAreaKey
 func (p LayoutPlan) VetRoomCells() []domain.Cell {
 	set := map[domain.Cell]bool{}
 	for _, room := range p.HerdRooms(PlannedVetRoom) {
-		for _, c := range rectCells(room.Interior) {
+		for _, c := range rectCells(room.Region.Bounds()) {
 			set[c] = true
 		}
 	}
@@ -35,7 +35,7 @@ func VetRoomReady(plan LayoutPlan, rooms RoomObservation, built []CurrentBuildin
 			continue
 		}
 		for _, b := range built {
-			if b.Building.Definition() != animalBed || len(b.Cells) == 0 || !rectInside(room.Interior, cellsRectangle(b.Cells)) {
+			if b.Building.Definition() != animalBed || len(b.Cells) == 0 || !rectInside(room.Region.Bounds(), cellsRectangle(b.Cells)) {
 				continue
 			}
 			read := false

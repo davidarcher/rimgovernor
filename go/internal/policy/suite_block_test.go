@@ -17,7 +17,7 @@ func suiteOwnerCase(t *testing.T) (LayoutPlan, RoomObservation, SleepingObservat
 		t.Fatal("no suite wing")
 	}
 	s := plan.Wings[i].Rooms[0]
-	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "s1", Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: []string{"sb"}, Cells: rectCells(s.Interior)}}}
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "s1", Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: []string{"sb"}, Cells: rectCells(s.Region.Bounds())}}}
 	sleeping := SleepingObservation{Colonists: 1,
 		People: []SleepingPerson{{ID: "a", OwnedBed: domain.Known("sb")}},
 		Beds:   []SleepingBed{{ID: "sb", Definition: "Bed", Room: domain.Known("s1"), Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), Owners: []PawnID{"a"}, AccessibleTo: []PawnID{"a"}}},
@@ -42,7 +42,7 @@ func TestSitedSuiteBlockStaysPutAndKeepsItsGround(t *testing.T) {
 	ground := suiteWingGround(after)
 	for _, o := range g.AllRooms() {
 		if o.Role != PlannedSuite && rectsOverlap(ground, roomWalls(o)) {
-			t.Fatal("block ground taken by", o.Role, o.Interior)
+			t.Fatal("block ground taken by", o.Role, o.Region.Bounds())
 		}
 	}
 	for _, h := range g.Spine {
@@ -84,8 +84,8 @@ func TestRisingTargetSitesANewSuiteAndKeepsTheBuiltOne(t *testing.T) {
 	for _, r := range grown.AllRooms() {
 		if r.Role == PlannedSuite && !slices.ContainsFunc(built, r.Same) {
 			found = true
-			if r.Interior.Height != w || r.Interior.Width != d {
-				t.Fatalf("new suite %+v, want %dx%d", r.Interior, w, d)
+			if r.Region.Bounds().Height != w || r.Region.Bounds().Width != d {
+				t.Fatalf("new suite %+v, want %dx%d", r.Region.Bounds(), w, d)
 			}
 		}
 	}
@@ -123,7 +123,7 @@ func TestSuitesArePlannedInCappedBlocks(t *testing.T) {
 		f := frameOf(p.Wings[i])
 		for _, r := range p.Wings[i].Rooms {
 			w, d := SuiteSize(targets[len(suites)])
-			if in := f.orientRoom(r).Interior; in.Height != w || in.Width != d {
+			if in := f.orientRoom(r).Region.Bounds(); in.Height != w || in.Width != d {
 				t.Fatalf("suite %d is %dx%d, want %dx%d", len(suites), in.Height, in.Width, w, d)
 			}
 			suites = append(suites, r)
@@ -141,11 +141,11 @@ func TestSuitesArePlannedInCappedBlocks(t *testing.T) {
 		corridor := f.corridorTo(f.reachV(p.Wings[i].Rooms))
 		for _, o := range p.Rooms {
 			if rectsOverlap(corridor, roomWalls(o)) {
-				t.Fatal("block corridor taken by", o.Role, o.Interior)
+				t.Fatal("block corridor taken by", o.Role, o.Region.Bounds())
 			}
 			for _, s := range p.Wings[i].Rooms {
-				if rectsOverlap(roomWalls(s), o.Interior) {
-					t.Fatal("suite on", o.Role, o.Interior)
+				if rectsOverlap(roomWalls(s), o.Region.Bounds()) {
+					t.Fatal("suite on", o.Role, o.Region.Bounds())
 				}
 			}
 		}

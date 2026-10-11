@@ -80,7 +80,7 @@ func plannedRoomCells(facts observation.ColonyProjection, module policy.PlannedR
 		if _, ok := policy.CensusRoomIn(r, rooms); !ok {
 			continue
 		}
-		in := r.Interior
+		in := r.Region.Bounds()
 		cells := make([]domain.Cell, 0, int(in.Width*in.Height))
 		for z := in.Z; z < in.Z+in.Height; z++ {
 			for x := in.X; x < in.X+in.Width; x++ {
@@ -94,7 +94,7 @@ func plannedRoomCells(facts observation.ColonyProjection, module policy.PlannedR
 
 // plannedRoomInterior is the room's interior cells.
 func plannedRoomInterior(room policy.PlannedRoom) []domain.Cell {
-	return rectCells(room.Interior)
+	return rectCells(room.Region.Bounds())
 }
 
 // rectCells are the cells of a rectangle.
@@ -126,7 +126,7 @@ func plannedInteriorSiteCells(facts observation.ColonyProjection, rooms []policy
 
 // plannedRoomMethod names a planned room's shell: once per room per epoch.
 func plannedRoomMethod(room policy.PlannedRoom) domain.MethodID {
-	return domain.MethodID(fmt.Sprintf("%s-shell-%d-%d", room.Role, room.Interior.X, room.Interior.Z))
+	return domain.MethodID(fmt.Sprintf("%s-shell-%d-%d", room.Role, room.Region.Bounds().X, room.Region.Bounds().Z))
 }
 
 // facilityFurnishingRoles are the facility roles whose furniture stands in the

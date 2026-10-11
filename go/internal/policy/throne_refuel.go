@@ -35,7 +35,7 @@ func NextThroneRefuel(plan LayoutPlan, rooms RoomObservation, need ThroneNeed, l
 	glow := need.GlowDefNames()
 	best := ""
 	for _, l := range lamps {
-		if !slices.Contains(glow, l.Definition) || !cellInRect(room.Interior, l.Cell) || l.Lit {
+		if !slices.Contains(glow, l.Definition) || !cellInRect(room.Region.Bounds(), l.Cell) || l.Lit {
 			continue
 		}
 		if empty, known := l.OutOfFuel.Value(); !known || !empty {

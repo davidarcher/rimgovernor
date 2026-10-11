@@ -22,7 +22,7 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 	var worship []PlannedRoom
 	for i := int32(0); i < 9; i++ {
 		in := Rectangle{X: 20 + 12*(i%3), Z: 20 + 12*(i/3), Width: 3 + i%4, Height: 3 + i%3}
-		r := PlannedRoom{Role: PlannedWorship, Interior: in, Door: domain.Cell{X: in.X + 1, Z: in.Z - 1}, DoorRot: domain.South}
+		r := PlannedRoom{Role: PlannedWorship, Region: RectRegion(in), Door: domain.Cell{X: in.X + 1, Z: in.Z - 1}, DoorRot: domain.South}
 		if i%2 == 1 {
 			r.Door, r.DoorRot = domain.Cell{X: in.X + in.Width, Z: in.Z + 1}, domain.East
 		}
@@ -51,8 +51,8 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 		t.Fatalf("kept room %+v does not hold the shape", kept)
 	}
 	for _, r := range worship {
-		if w, d := frameDims(r); shape.holds(w, d) && r.Interior.Width*r.Interior.Height < kept.Interior.Width*kept.Interior.Height {
-			t.Fatalf("kept %+v, smaller room %+v holds the shape", kept.Interior, r.Interior)
+		if w, d := frameDims(r); shape.holds(w, d) && r.Region.Bounds().Width*r.Region.Bounds().Height < kept.Region.Bounds().Width*kept.Region.Bounds().Height {
+			t.Fatalf("kept %+v, smaller room %+v holds the shape", kept.Region.Bounds(), r.Region.Bounds())
 		}
 	}
 	if again, changed, _ := ReplanLayoutWithRooms(next, s, growth, 0, 3, 0, TechTierCamp, nil, nil); changed || count(again) != 1 {
@@ -62,25 +62,25 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 	// A built room wins, whatever its size, and the dropped built one is
 	// no longer planned ground.
 	built := worship[8]
-	growth.Built = map[Rectangle]bool{built.Interior: true}
+	growth.Built = map[Rectangle]bool{built.Region.Bounds(): true}
 	next, _, _ = ReplanLayoutWithRooms(plan, s, growth, 0, 3, 0, TechTierCamp, nil, nil)
-	if got := next.roomsOf(PlannedWorship); len(got) != 1 || got[0].Interior != built.Interior {
+	if got := next.roomsOf(PlannedWorship); len(got) != 1 || got[0].Region.Bounds() != built.Region.Bounds() {
 		t.Fatalf("built room not kept: %+v", got)
 	}
-	growth.Built = map[Rectangle]bool{worship[0].Interior: true}
+	growth.Built = map[Rectangle]bool{worship[0].Region.Bounds(): true}
 	next, _, _ = ReplanLayoutWithRooms(plan, s, growth, 0, 3, 0, TechTierCamp, nil, nil)
 	// The sited core may legitimately plan another room over the spot.
 	planned := map[Rectangle]bool{}
 	for _, r := range next.AllRooms() {
 		if r.Role != PlannedWorship {
-			planned[pad(r.Interior, 1)] = true
+			planned[pad(r.Region.Bounds(), 1)] = true
 		}
 	}
 	for _, g := range PlannedGround(next, GroundCensus{}) {
 		if planned[g] {
 			continue
 		}
-		if g.X <= built.Interior.X && built.Interior.X < g.X+g.Width && g.Z <= built.Interior.Z && built.Interior.Z < g.Z+g.Height {
+		if g.X <= built.Region.Bounds().X && built.Region.Bounds().X < g.X+g.Width && g.Z <= built.Region.Bounds().Z && built.Region.Bounds().Z < g.Z+g.Height {
 			t.Fatal("a dropped room is still planned ground", g)
 		}
 	}

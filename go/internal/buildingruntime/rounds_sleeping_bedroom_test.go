@@ -14,8 +14,8 @@ import (
 // answers it ahead of any barracks bed.
 func TestTribalSpotOwnersShellABedroom(t *testing.T) {
 	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{
-		{Role: policy.PlannedShelter, Interior: policy.Rectangle{X: 0, Z: 0, Width: 9, Height: 7}, DoorRot: domain.North},
-		{Role: policy.PlannedBedroom, Interior: policy.Rectangle{X: 10, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: 12, Z: 5}, DoorRot: domain.North},
+		{Role: policy.PlannedShelter, Region: policy.RectRegion(policy.Rectangle{X: 0, Z: 0, Width: 9, Height: 7}), DoorRot: domain.North},
+		{Role: policy.PlannedBedroom, Region: policy.RectRegion(policy.Rectangle{X: 10, Z: 0, Width: 5, Height: 5}), Door: domain.Cell{X: 12, Z: 5}, DoorRot: domain.North},
 	}}
 	sleeping := policy.SleepingObservation{Colonists: 5, BedBuildable: domain.Known(false)}
 	shell := policy.Room{ID: "shell", Role: domain.Known(policy.RoomRoleBarracks), Enclosed: domain.Known(true), Cells: []domain.Cell{{X: 4, Z: 3}}}

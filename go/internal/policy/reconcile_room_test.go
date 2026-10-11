@@ -41,7 +41,7 @@ func TestPlannedGroundStepKeepsTheWantedAndAdequateFloors(t *testing.T) {
 func TestReconcileKeepsAnAdequateFloorUnlessTheTitleTagsIt(t *testing.T) {
 	in, room := reconFixture()
 	in.WantedFloor = func(domain.Cell) string { return "TileGranite" }
-	for _, c := range rectCells(room.Interior) {
+	for _, c := range rectCells(room.Region.Bounds()) {
 		in.Floors = append(in.Floors, ClearanceFloor{Cell: c, DefName: "WoodPlankFloor"})
 	}
 	// Exact match only: the wood floor is torn up for the tile.
@@ -76,12 +76,12 @@ func TestReconcileReadsRoofStateFromTheCensusRoom(t *testing.T) {
 	a := domain.Cell{X: 9, Z: 11}
 	in.Room.Doors = []Door{{Cell: a, Rot: domain.West}}
 	in.Plan = LayoutPlan{Rooms: []PlannedRoom{in.Room}}
-	in.Rooms.Rooms = []Room{{ID: "r", Enclosed: domain.Known(true), Cells: rectCells(room.Interior)}}
+	in.Rooms.Rooms = []Room{{ID: "r", Enclosed: domain.Known(true), Cells: rectCells(room.Region.Bounds())}}
 	if k := readyKinds(Reconcile(in)); !kindsEqual(k, OpRoofOff) {
 		t.Fatal("an enclosed census room owes its roof off first", k)
 	}
 	for name, rooms := range map[string][]Room{
-		"not enclosed": {{ID: "r", Enclosed: domain.Known(false), Cells: rectCells(room.Interior)}},
+		"not enclosed": {{ID: "r", Enclosed: domain.Known(false), Cells: rectCells(room.Region.Bounds())}},
 		"gone":         nil,
 	} {
 		in.Rooms.Rooms = rooms

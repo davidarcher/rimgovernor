@@ -185,7 +185,7 @@ func TestButcherBenchesStandInThePlannedButchery(t *testing.T) {
 	if cells := plannedRoomPlanCells(f, policy.PlannedButchery); cells != nil {
 		t.Fatal("an unread plan yielded cells", cells)
 	}
-	f.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedButchery, Interior: policy.Rectangle{X: 10, Z: 20, Width: 4, Height: 4}}}})
+	f.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedButchery, Region: policy.RectRegion(policy.Rectangle{X: 10, Z: 20, Width: 4, Height: 4})}}})
 	if cells := plannedRoomPlanCells(f, policy.PlannedButchery); len(cells) != 16 {
 		t.Fatal("the plan's butchery interior was not returned", len(cells))
 	}

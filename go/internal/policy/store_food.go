@@ -48,7 +48,7 @@ func (r StoreView) mealClosets() []Store {
 	var out []Store
 	for _, closet := range r.Layout.AllRooms() {
 		if closet.Role == PlannedMealCloset {
-			out = append(out, Store{StoreSite: StoreSite{Role: plannedKey(domain.MealsRolePrefix, closet.Interior), Interior: closet.Interior,
+			out = append(out, Store{StoreSite: StoreSite{Role: plannedKey(domain.MealsRolePrefix, closet.Region.Bounds()), Interior: closet.Region.Bounds(),
 				Filter: domain.MealShelfFilter(), Priority: domain.CriticalPriority}})
 		}
 	}
@@ -93,7 +93,7 @@ func (r StoreView) freezerMealShelf() []Store {
 			continue
 		}
 		if freezer, door, ok := r.Layout.FreezerDoorInto(dining); ok {
-			return []Store{{StoreSite: StoreSite{Role: plannedKey(domain.MealsRolePrefix, freezer.Interior), Interior: freezer.Interior, Width: 2, Height: 2, Anchor: door,
+			return []Store{{StoreSite: StoreSite{Role: plannedKey(domain.MealsRolePrefix, freezer.Region.Bounds()), Interior: freezer.Region.Bounds(), Width: 2, Height: 2, Anchor: door,
 				Filter: domain.MealShelfFilter(), Priority: domain.CriticalPriority}}}
 		}
 		return nil
@@ -124,9 +124,9 @@ func (r StoreView) freezerStores() []Store {
 				at = door
 			}
 		}
-		out = append(out, Store{StoreSite: StoreSite{Role: plannedKey(shelf.prefix, freezer.Interior), Interior: freezer.Interior, Width: 2, Height: 2, Anchor: at,
+		out = append(out, Store{StoreSite: StoreSite{Role: plannedKey(shelf.prefix, freezer.Region.Bounds()), Interior: freezer.Region.Bounds(), Width: 2, Height: 2, Anchor: at,
 			Filter: shelf.filter, Priority: domain.CriticalPriority}})
 	}
-	return append(out, Store{StoreSite: StoreSite{Role: plannedKey(domain.PerishablesRolePrefix, freezer.Interior), Interior: freezer.Interior,
+	return append(out, Store{StoreSite: StoreSite{Role: plannedKey(domain.PerishablesRolePrefix, freezer.Region.Bounds()), Interior: freezer.Region.Bounds(),
 		Filter: domain.PerishablesFilter(), Priority: domain.PreferredPriority}})
 }

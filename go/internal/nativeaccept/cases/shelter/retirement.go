@@ -74,7 +74,7 @@ func retirement(ctx context.Context, s cases.Session) error {
 	plan := record.Plan
 	shelter := roomsOf(plan, policy.PlannedShelter)[0]
 	labs := roomsOf(plan, policy.PlannedLab)
-	report["plan"] = map[string]any{"tick": record.Tick, "shelter": shelter.Interior, "workshops": len(roomsOf(plan, policy.PlannedWorkshop)), "labs": len(labs)}
+	report["plan"] = map[string]any{"tick": record.Tick, "shelter": shelter.Region.Bounds(), "workshops": len(roomsOf(plan, policy.PlannedWorkshop)), "labs": len(labs)}
 
 	// 2. Stage the work rooms and leave a table and spots in the hut.
 	h, err := s.Reattach(ctx)
@@ -87,7 +87,7 @@ func retirement(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["staged_rooms"] = staged
-	table, spots, err := furnishShelter(ctx, s, h, prepared, shelter.Interior)
+	table, spots, err := furnishShelter(ctx, s, h, prepared, shelter.Region.Bounds())
 	if err != nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func retirement(ctx context.Context, s cases.Session) error {
 	report["table_after"] = cells
 	if found {
 		for _, c := range cells {
-			if inside(shelter.Interior, c) {
+			if inside(shelter.Region.Bounds(), c) {
 				return fmt.Errorf("research table %s still stands in the retired shelter at %v", table.id, cells)
 			}
 		}
@@ -184,7 +184,7 @@ func retirement(ctx context.Context, s cases.Session) error {
 // keptByRoom reports whether c is on a planned room's interior or wall ring.
 func keptByRoom(plan policy.LayoutPlan, c domain.Cell) bool {
 	for _, r := range plan.AllRooms() {
-		in := r.Interior
+		in := r.Region.Bounds()
 		if inside(policy.Rectangle{X: in.X - 1, Z: in.Z - 1, Width: in.Width + 2, Height: in.Height + 2}, c) {
 			return true
 		}

@@ -74,11 +74,11 @@ func TestBatteryRoomOnCrossing(t *testing.T) {
 	}
 	for _, b := range batteries {
 		for _, c := range RectangleCells(b.Area) {
-			if !inRect(room.Interior, c) {
+			if !inRect(room.Region.Bounds(), c) {
 				t.Fatal("battery outside the room", room, b)
 			}
 		}
-		if b.Block != (Rectangle{}) && !inRect(room.Interior, domain.Cell{X: b.Block.X, Z: b.Block.Z}) {
+		if b.Block != (Rectangle{}) && !inRect(room.Region.Bounds(), domain.Cell{X: b.Block.X, Z: b.Block.Z}) {
 			t.Fatal("block outside the room", room, b)
 		}
 	}
@@ -87,7 +87,7 @@ func TestBatteryRoomOnCrossing(t *testing.T) {
 // TestBatterySlotsCrossing: an east-door room's slots are the north-door
 // room's transposed, 1x2 along z, and plan north-facing batteries.
 func TestBatterySlotsCrossing(t *testing.T) {
-	room := PlannedRoom{Role: PlannedBattery, Interior: Rectangle{X: 10, Z: 20, Width: 7, Height: 5}, Door: domain.Cell{X: 17, Z: 22}, DoorRot: domain.East}
+	room := PlannedRoom{Role: PlannedBattery, Region: RectRegion(Rectangle{X: 10, Z: 20, Width: 7, Height: 5}), Door: domain.Cell{X: 17, Z: 22}, DoorRot: domain.East}
 	slots := BatterySlots(room)
 	if len(slots) != 8 || slots[0] != (Rectangle{X: 16, Z: 20, Width: 1, Height: 2}) || slots[1] != (Rectangle{X: 16, Z: 23, Width: 1, Height: 2}) || slots[2].X != 14 {
 		t.Fatal(slots)
@@ -111,7 +111,7 @@ func TestPlannedCoolerSites(t *testing.T) {
 		c := RefrigerationCooler{Position: s.Cell, Rotation: s.Rotation}
 		var room *PlannedRoom
 		for i, r := range p.Rooms {
-			if inRect(r.Interior, c.Cold()) {
+			if inRect(r.Region.Bounds(), c.Cold()) {
 				room = &p.Rooms[i]
 			}
 		}
@@ -239,7 +239,7 @@ func TestPlanUtilities(t *testing.T) {
 			battery = &p.Rooms[i]
 		}
 	}
-	if battery == nil || battery.Interior.Width != 5 || battery.Door.X != battery.Interior.X+2 {
+	if battery == nil || battery.Region.Bounds().Width != 5 || battery.Door.X != battery.Region.Bounds().X+2 {
 		t.Fatal("battery", battery)
 	}
 	if n := len(BatterySlots(*battery)); n != 8 {

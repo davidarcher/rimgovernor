@@ -172,7 +172,7 @@ func containmentRoomFloorLaid(floor ContainmentFloor, facts FlooringFacts, room 
 		return false
 	}
 	remaining := map[domain.Cell]bool{}
-	for _, cell := range rectCells(room.Interior) {
+	for _, cell := range rectCells(room.Region.Bounds()) {
 		remaining[cell] = true
 	}
 	if len(remaining) == 0 {

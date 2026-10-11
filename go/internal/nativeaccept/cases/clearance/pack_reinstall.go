@@ -99,7 +99,7 @@ func runPackReinstall(ctx context.Context, s cases.Session) error {
 	}
 	spec := shellRing.Spec("WoodLog", "")
 	merge(&spec, bedRing.Spec("WoodLog", ""))
-	bedRot, in := 0, shelter.Interior
+	bedRot, in := 0, shelter.Region.Bounds()
 	if in.Height < 2 {
 		bedRot = 1
 	}
@@ -120,7 +120,7 @@ func runPackReinstall(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	start := before.Things[bed]
-	report["staged"] = map[string]any{"shelter": shelter.Interior, "bedroom": bedroom.Interior, "bed": start, "stockpile": pile}
+	report["staged"] = map[string]any{"shelter": shelter.Region.Bounds(), "bedroom": bedroom.Region.Bounds(), "bed": start, "stockpile": pile}
 	if !start.Found || start.Def != "Bed" || start.Quality != packQuality || start.HitPoints >= start.MaxHP {
 		return fmt.Errorf("the staged bed is not a damaged Excellent Bed: %+v", start)
 	}
@@ -178,8 +178,8 @@ func runPackReinstall(ctx context.Context, s cases.Session) error {
 	if end.Quality != start.Quality || end.HitPoints != start.HitPoints {
 		return fmt.Errorf("the round trip changed the bed: quality %d -> %d, hit points %d -> %d", start.Quality, end.Quality, start.HitPoints, end.HitPoints)
 	}
-	if !inside(bedroom.Interior, end.X, end.Z) || inside(shelter.Interior, end.X, end.Z) {
-		return fmt.Errorf("the bed stands at %d,%d, not in the planned bedroom %v (shelter %v)", end.X, end.Z, bedroom.Interior, shelter.Interior)
+	if !inside(bedroom.Region.Bounds(), end.X, end.Z) || inside(shelter.Region.Bounds(), end.X, end.Z) {
+		return fmt.Errorf("the bed stands at %d,%d, not in the planned bedroom %v (shelter %v)", end.X, end.Z, bedroom.Region.Bounds(), shelter.Region.Bounds())
 	}
 	if role := after.Cells[planstage.Cell{X: end.X, Z: end.Z}].Role; role != "Bedroom" {
 		return fmt.Errorf("the bed's room reads %q, not Bedroom", role)

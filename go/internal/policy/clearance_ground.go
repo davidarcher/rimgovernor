@@ -41,7 +41,7 @@ const (
 func PlannedGround(plan LayoutPlan, ground GroundCensus) []Rectangle {
 	var out []Rectangle
 	for _, r := range plan.groundRooms(ground) {
-		out = append(out, roomGround(r.Interior))
+		out = append(out, roomGround(r.Region.Bounds()))
 		if r.Airlock != nil {
 			out = append(out, r.AirlockGround())
 		}

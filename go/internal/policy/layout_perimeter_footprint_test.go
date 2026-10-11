@@ -28,7 +28,7 @@ func countCells(v []bool) int {
 }
 
 func footprintRoom(role PlannedRole, x, z, w, h int32) PlannedRoom {
-	return PlannedRoom{Role: role, Interior: Rectangle{X: x, Z: z, Width: w, Height: h}}
+	return PlannedRoom{Role: role, Region: RectRegion(Rectangle{X: x, Z: z, Width: w, Height: h})}
 }
 
 // A rectangular core encloses its bounding box and yard, as before.

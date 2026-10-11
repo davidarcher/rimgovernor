@@ -8,9 +8,9 @@ import (
 
 func bedroomFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 	plan := LayoutPlan{Rooms: []PlannedRoom{
-		{Role: PlannedShelter, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 7}, DoorRot: domain.North},
-		{Role: PlannedBedroom, Interior: Rectangle{X: 10, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: 12, Z: 5}, DoorRot: domain.North},
-		{Role: PlannedBedroom, Interior: Rectangle{X: 16, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: 18, Z: 5}, DoorRot: domain.North},
+		{Role: PlannedShelter, Region: RectRegion(Rectangle{X: 0, Z: 0, Width: 7, Height: 7}), DoorRot: domain.North},
+		{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 10, Z: 0, Width: 5, Height: 5}), Door: domain.Cell{X: 12, Z: 5}, DoorRot: domain.North},
+		{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 16, Z: 0, Width: 5, Height: 5}), Door: domain.Cell{X: 18, Z: 5}, DoorRot: domain.North},
 	}}
 	bed := func(id string, owners ...PawnID) SleepingBed {
 		return SleepingBed{ID: id, Definition: "Bed", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), Roofed: domain.Known(true), Owners: owners, AccessibleTo: []PawnID{"a", "b"}}
@@ -24,7 +24,7 @@ func bedroomFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 
 func TestBedroomStepShellsFurnishesThenMoves(t *testing.T) {
 	plan, rooms, sleeping := bedroomFixture()
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomReconcile || got.Room.Interior.X != 10 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomReconcile || got.Room.Region.Bounds().X != 10 {
 		t.Fatalf("first step = %+v, want the first slot's shell", got)
 	}
 	var cells []domain.Cell
@@ -45,7 +45,7 @@ func TestBedroomStepShellsFurnishesThenMoves(t *testing.T) {
 	}
 	sleeping.People[0].OwnedBed = domain.Known("r1bed")
 	sleeping.Beds[3].Owners = []PawnID{"a"}
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomReconcile || got.Room.Interior.X != 16 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomReconcile || got.Room.Region.Bounds().X != 16 {
 		t.Fatalf("second colonist = %+v, want the second slot's shell", got)
 	}
 }
@@ -58,7 +58,7 @@ func TestBedroomStepHousesABedlessJoiner(t *testing.T) {
 	sleeping := SleepingObservation{Colonists: 6, BedBuildable: domain.Known(false)}
 	for i := int32(0); i < 6; i++ {
 		x := i * 6
-		plan.Rooms = append(plan.Rooms, PlannedRoom{Role: PlannedBedroom, Interior: Rectangle{X: x, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: x + 2, Z: 5}, DoorRot: domain.North})
+		plan.Rooms = append(plan.Rooms, PlannedRoom{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: x, Z: 0, Width: 5, Height: 5}), Door: domain.Cell{X: x + 2, Z: 5}, DoorRot: domain.North})
 		if i == 5 {
 			continue
 		}
@@ -69,7 +69,7 @@ func TestBedroomStepHousesABedlessJoiner(t *testing.T) {
 	}
 	sleeping.People = append(sleeping.People, SleepingPerson{ID: "joiner", OwnedBed: domain.Known("")})
 	got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{})
-	if got.Kind != BedroomReconcile || got.Room.Interior.X != 30 || got.Unhoused != 1 {
+	if got.Kind != BedroomReconcile || got.Room.Region.Bounds().X != 30 || got.Unhoused != 1 {
 		t.Fatalf("bedless joiner = %+v, want the sixth slot's shell", got)
 	}
 	rooms.Rooms = append(rooms.Rooms, Room{ID: "r6", Role: domain.Known(RoomRole("None")), Enclosed: domain.Known(true), Cells: roomCells(30, 0, 5, 5)})
@@ -123,7 +123,7 @@ func TestBedroomStepNeverSplitsACouple(t *testing.T) {
 // last spot in the shell never reads as a bedroom.
 func TestBedroomStepMovesSpotOwnersOutOfTheShell(t *testing.T) {
 	plan, _, sleeping := bedroomFixture()
-	plan.Rooms[0] = PlannedRoom{Role: PlannedShelter, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 7}, DoorRot: domain.North}
+	plan.Rooms[0] = PlannedRoom{Role: PlannedShelter, Region: RectRegion(Rectangle{X: 0, Z: 0, Width: 7, Height: 7}), DoorRot: domain.North}
 	room := func(id string, x int32, beds ...string) Room {
 		var cells []domain.Cell
 		for cx := x; cx < x+5; cx++ {
@@ -142,7 +142,7 @@ func TestBedroomStepMovesSpotOwnersOutOfTheShell(t *testing.T) {
 	}
 	sleeping.Beds = []SleepingBed{spot("b1", "a"), spot("b2", "b")}
 	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "shell", Role: domain.Known(RoomRoleBarracks), Enclosed: domain.Known(true), Beds: []string{"b1", "b2"}, Cells: []domain.Cell{{X: 3, Z: 3}}}}}
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomReconcile || got.Room.Interior.X != 10 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomReconcile || got.Room.Region.Bounds().X != 10 {
 		t.Fatalf("spot owners = %+v, want the first bedroom shelled", got)
 	}
 	rooms.Rooms = append(rooms.Rooms, room("r1", 10))
@@ -163,7 +163,7 @@ func TestBedroomStepMovesSpotOwnersOutOfTheShell(t *testing.T) {
 	}
 	rooms.Rooms[0].Beds = []string{"b2"}
 	sleeping.Beds = sleeping.Beds[1:]
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomReconcile || got.Room.Interior.X != 16 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomReconcile || got.Room.Region.Bounds().X != 16 {
 		t.Fatalf("last shell spot owner = %+v, want the second bedroom shelled", got)
 	}
 }

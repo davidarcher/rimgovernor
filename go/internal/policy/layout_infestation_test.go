@@ -10,7 +10,7 @@ import (
 
 func TestWallOffMountainPocket(t *testing.T) {
 	plan := LayoutPlan{
-		Rooms:        []PlannedRoom{{Role: PlannedBedroom, Interior: Rectangle{X: 40, Z: 40, Width: 5, Height: 5}, DoorRot: domain.North}},
+		Rooms:        []PlannedRoom{{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 40, Z: 40, Width: 5, Height: 5}), DoorRot: domain.North}},
 		Reservations: []LayoutReservation{{Kind: ReservePerimeter, Area: Rectangle{X: 30, Z: 30, Width: 30, Height: 3}}, {Kind: ReservePocketWall, Area: Rectangle{X: 1, Z: 1, Width: 1, Height: 1}}},
 	}
 	var cells []SurveyCell
@@ -58,16 +58,16 @@ func TestWallOffMountainPocket(t *testing.T) {
 
 func TestLightBaseRooms(t *testing.T) {
 	plan := LayoutPlan{Rooms: []PlannedRoom{
-		{Role: PlannedBedroom, Interior: Rectangle{X: 10, Z: 10, Width: 4, Height: 4}},
-		{Role: PlannedWorkshop, Interior: Rectangle{X: 20, Z: 10, Width: 15, Height: 7}},
-		{Role: PlannedReserve, Interior: Rectangle{X: 40, Z: 10, Width: 6, Height: 6}},
+		{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 10, Z: 10, Width: 4, Height: 4})},
+		{Role: PlannedWorkshop, Region: RectRegion(Rectangle{X: 20, Z: 10, Width: 15, Height: 7})},
+		{Role: PlannedReserve, Region: RectRegion(Rectangle{X: 40, Z: 10, Width: 6, Height: 6})},
 	}}
 	lamps := BaseRoomLamps(plan)
 	if len(lamps) != 3 {
 		t.Fatalf("lamps %v, want one in the bedroom and two in the workshop", lamps)
 	}
 	for _, r := range plan.Rooms {
-		for _, c := range rectCells(r.Interior) {
+		for _, c := range rectCells(r.Region.Bounds()) {
 			best := math.Inf(1)
 			for _, l := range lamps {
 				best = min(best, distance(l, c))

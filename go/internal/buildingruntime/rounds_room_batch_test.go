@@ -26,7 +26,7 @@ func (n *pricedNative) PreviewBuilding(ctx context.Context, action domain.Action
 
 // ringRoom is one room owing a door and three walls.
 func ringRoom() roomWork {
-	room := policy.PlannedRoom{Role: policy.PlannedPen, Interior: policy.Rectangle{X: 1, Z: 1, Width: 2, Height: 2}, Door: domain.Cell{X: 2, Z: 0}, DoorRot: domain.North, Outdoor: true}
+	room := policy.PlannedRoom{Role: policy.PlannedPen, Region: policy.RectRegion(policy.Rectangle{X: 1, Z: 1, Width: 2, Height: 2}), Door: domain.Cell{X: 2, Z: 0}, DoorRot: domain.North, Outdoor: true}
 	return roomWork{
 		rr: roomReconcile{room: room, name: "pen", reason: "pen"},
 		ops: []policy.Operation{

@@ -104,7 +104,7 @@ func firebreakRequest(projection observation.ColonyProjection) policy.FirebreakR
 func layoutFootprint(plan policy.LayoutPlan) []domain.Cell {
 	var out []domain.Cell
 	for _, room := range plan.AllRooms() {
-		in := room.Interior
+		in := room.Region.Bounds()
 		for x := in.X - 1; x <= in.X+in.Width; x++ {
 			for z := in.Z - 1; z <= in.Z+in.Height; z++ {
 				out = append(out, domain.Cell{X: x, Z: z})

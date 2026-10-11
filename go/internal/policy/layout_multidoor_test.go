@@ -17,10 +17,10 @@ func bridgedHallways(bridge PlannedRole) LayoutPlan {
 		Spine:     append(lower, upper),
 		Entrances: spineEntrances(lower),
 		Rooms: []PlannedRoom{
-			{Role: bridge, Interior: Rectangle{X: 10, Z: 3, Width: 5, Height: 7},
+			{Role: bridge, Region: RectRegion(Rectangle{X: 10, Z: 3, Width: 5, Height: 7}),
 				Door: domain.Cell{X: 12, Z: 2}, DoorRot: domain.South,
 				Doors: []Door{{Cell: domain.Cell{X: 12, Z: 10}, Rot: domain.North}}},
-			{Role: PlannedStorage, Interior: Rectangle{X: 20, Z: 14, Width: 5, Height: 5},
+			{Role: PlannedStorage, Region: RectRegion(Rectangle{X: 20, Z: 14, Width: 5, Height: 5}),
 				Door: domain.Cell{X: 22, Z: 13}, DoorRot: domain.South},
 		},
 	}
@@ -58,9 +58,9 @@ func TestCheckRoutesTripsConsiderEveryRoomOfTheTargetRole(t *testing.T) {
 		Spine:     []SpineSegment{{From: domain.Cell{X: 0, Z: 0}, To: domain.Cell{X: 20, Z: 0}}},
 		Entrances: spineEntrances([]SpineSegment{{From: domain.Cell{X: 0, Z: 0}, To: domain.Cell{X: 20, Z: 0}}}),
 		Rooms: []PlannedRoom{
-			{Role: PlannedBedroom, Interior: Rectangle{X: 0, Z: 3, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: 2}, DoorRot: domain.South},
-			{Role: PlannedStorage, Interior: Rectangle{X: 0, Z: 20, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: 19}, DoorRot: domain.South}, // walled off: no hallway or room touches its door
-			{Role: PlannedStorage, Interior: Rectangle{X: 8, Z: 3, Width: 5, Height: 5}, Door: domain.Cell{X: 10, Z: 2}, DoorRot: domain.South},
+			{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 0, Z: 3, Width: 5, Height: 5}), Door: domain.Cell{X: 2, Z: 2}, DoorRot: domain.South},
+			{Role: PlannedStorage, Region: RectRegion(Rectangle{X: 0, Z: 20, Width: 5, Height: 5}), Door: domain.Cell{X: 2, Z: 19}, DoorRot: domain.South}, // walled off: no hallway or room touches its door
+			{Role: PlannedStorage, Region: RectRegion(Rectangle{X: 8, Z: 3, Width: 5, Height: 5}), Door: domain.Cell{X: 10, Z: 2}, DoorRot: domain.South},
 		},
 	}
 	if _, err := CheckRoutes(p); err != nil {
@@ -86,7 +86,7 @@ func TestInteriorRoomFromLayoutKeepsExtraDoors(t *testing.T) {
 	// No piece stands on the cell just inside any door.
 	inside := map[domain.Cell]bool{}
 	for d := range doors {
-		switch side, _ := doorSide(r.Interior, d); side {
+		switch side, _ := doorSide(r.Region.Bounds(), d); side {
 		case domain.South:
 			inside[domain.Cell{X: d.X, Z: d.Z + 1}] = true
 		case domain.North:

@@ -28,12 +28,12 @@ func (p LayoutPlan) MineTier(cell domain.Cell) int {
 		}
 	}
 	for _, r := range p.AllRooms() {
-		if r.Dug && IsStoreRoom(r.Role) && inRoomRing(r.Interior, cell) {
+		if r.Dug && IsStoreRoom(r.Role) && inRoomRing(r.Region.Bounds(), cell) {
 			return MineTierStore
 		}
 	}
 	for _, r := range p.AllRooms() {
-		in := r.Interior
+		in := r.Region.Bounds()
 		if r.Dug && cell.X >= in.X-1 && cell.X <= in.X+in.Width && cell.Z >= in.Z-1 && cell.Z <= in.Z+in.Height {
 			return MineTierCore
 		}
@@ -64,7 +64,7 @@ func (p LayoutPlan) RoomRock(room PlannedRoom, cells []SiteCell) RockStepResult 
 	for _, d := range room.Doors {
 		add(d.Cell)
 	}
-	for _, c := range RectangleCells(room.Interior) {
+	for _, c := range RectangleCells(room.Region.Bounds()) {
 		add(c)
 	}
 	if site, area, ok := p.CoolerExhaust(room); ok {
@@ -80,7 +80,7 @@ func (p LayoutPlan) RoomRock(room PlannedRoom, cells []SiteCell) RockStepResult 
 		// door and the corridor from its own threshold are mined too, or the
 		// miners have no way in to the link.
 		if through, ok := p.linkedNeighbour(room); ok {
-			for _, c := range RectangleCells(through.Interior) {
+			for _, c := range RectangleCells(through.Region.Bounds()) {
 				add(c)
 			}
 			add(through.Door)
@@ -120,7 +120,7 @@ func (p LayoutPlan) linkedNeighbour(room PlannedRoom) (PlannedRoom, bool) {
 		return PlannedRoom{}, false
 	}
 	for _, o := range p.AllRooms() {
-		if o.Interior != room.Interior && inWall(o.Interior, *room.Link) {
+		if o.Region.Bounds() != room.Region.Bounds() && inWall(o.Region.Bounds(), *room.Link) {
 			return o, true
 		}
 	}

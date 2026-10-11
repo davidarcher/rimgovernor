@@ -162,7 +162,7 @@ func BaseRoomLamps(plan LayoutPlan) []domain.Cell {
 		if r.Role == PlannedReserve {
 			continue
 		}
-		in := r.Interior
+		in := r.Region.Bounds()
 		// A lamp covers a square of side lampReach*sqrt2 around it.
 		span := int32(math.Floor(lampReach * math.Sqrt2))
 		nx, nz := (in.Width+span-1)/span, (in.Height+span-1)/span

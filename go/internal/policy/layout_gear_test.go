@@ -81,10 +81,10 @@ func TestGearRoomsSitBesideTheirAnchorAndRoute(t *testing.T) {
 		if !ok || !hok {
 			t.Fatalf("%s %v %s %v", role, ok, anchor, hok)
 		}
-		if !touches(room.Interior, host.Interior) {
-			t.Errorf("%s %+v not beside %s %+v", role, room.Interior, anchor, host.Interior)
+		if !touches(room.Region.Bounds(), host.Region.Bounds()) {
+			t.Errorf("%s %+v not beside %s %+v", role, room.Region.Bounds(), anchor, host.Region.Bounds())
 		}
-		if room.Link != nil && !inWall(host.Interior, *room.Link) {
+		if room.Link != nil && !inWall(host.Region.Bounds(), *room.Link) {
 			t.Errorf("%s link %v is not in the %s wall", role, *room.Link, anchor)
 		}
 	}
@@ -188,7 +188,7 @@ func TestGearRoomPendingHoldsBackAnotherStorageRoom(t *testing.T) {
 	first := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}
 	req := storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, first, 8))
 	req.Gear = &gear
-	req.Layout.Rooms = append(req.Layout.Rooms, PlannedRoom{Role: PlannedArmory, Interior: Rectangle{X: 30, Z: 10, Width: 3, Height: 3}, Door: domain.Cell{X: 31, Z: 9}})
+	req.Layout.Rooms = append(req.Layout.Rooms, PlannedRoom{Role: PlannedArmory, Region: RectRegion(Rectangle{X: 30, Z: 10, Width: 3, Height: 3}), Door: domain.Cell{X: 31, Z: 9}})
 	if got := storageDemand(req); got.Storage != 0 {
 		t.Fatalf("armory planned, not standing: %+v", got)
 	}

@@ -30,7 +30,7 @@ func mealSpotColony(needs ...float64) (*observation.ColonyProjection, []domain.C
 		}
 	}
 	projection.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "Room_4", Role: domain.Known(policy.RoomRoleDiningRoom), Enclosed: domain.Known(true), Cells: roomCells}}})
-	projection.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedDining, Interior: policy.Rectangle{X: 10, Z: 10, Width: 10, Height: 10}, Door: domain.Cell{X: 15, Z: 9}, DoorRot: domain.North}}})
+	projection.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedDining, Region: policy.RectRegion(policy.Rectangle{X: 10, Z: 10, Width: 10, Height: 10}), Door: domain.Cell{X: 15, Z: 9}, DoorRot: domain.North}}})
 	projection.Facts.Comfort = domain.Known(policy.ComfortObservation{Surfaces: []policy.DiningSurface{{ID: "Table_1", RoomID: "Room_4", Adjacent: adjacent}}})
 	var consumers []policy.FoodConsumer
 	for i, need := range needs {
@@ -118,8 +118,8 @@ func TestMealSpotByTheTableIsOneCellOfOneMeal(t *testing.T) {
 func TestMealClosetIsZonedFromThePlan(t *testing.T) {
 	t.Parallel()
 	projection, _ := mealSpotColony(1.6)
-	dining := policy.PlannedRoom{Role: policy.PlannedDining, Interior: policy.Rectangle{X: 10, Z: 10, Width: 10, Height: 10}, Door: domain.Cell{X: 15, Z: 9}, DoorRot: domain.North}
-	closet := policy.PlannedRoom{Role: policy.PlannedMealCloset, Interior: policy.Rectangle{X: 14, Z: 21, Width: 2, Height: 2}, Door: domain.Cell{X: 15, Z: 20}, DoorRot: domain.North}
+	dining := policy.PlannedRoom{Role: policy.PlannedDining, Region: policy.RectRegion(policy.Rectangle{X: 10, Z: 10, Width: 10, Height: 10}), Door: domain.Cell{X: 15, Z: 9}, DoorRot: domain.North}
+	closet := policy.PlannedRoom{Role: policy.PlannedMealCloset, Region: policy.RectRegion(policy.Rectangle{X: 14, Z: 21, Width: 2, Height: 2}), Door: domain.Cell{X: 15, Z: 20}, DoorRot: domain.North}
 	projection.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{dining, closet}})
 	zoneOn(projection, "Zone_7", true, domain.Cell{X: 13, Z: 15})
 	owned := []store.OwnedZone{{ID: "Zone_7", Kind: domain.StockpileZone, Role: "meals:10_10", Filter: allowOnly("MealSimple"), Priority: domain.CriticalPriority}}
