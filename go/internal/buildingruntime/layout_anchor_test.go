@@ -29,8 +29,8 @@ func centrePlan(c domain.Cell) policy.LayoutPlan {
 // planned colony: the fixtures' colonies are planned, so nothing waits on a
 // plan. The plan is a single containment cell, a role no fixture plans for.
 func centreOn(r *Rounder, c domain.Cell) {
-	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedContainmentCell, Region: policy.RectRegion(policy.Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1}), DoorRot: domain.South}}}
-	if err := r.player.journal.RecordLayoutPlan(context.Background(), r.player.session.State().Snapshot, 0, plan); err != nil {
+	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedContainmentCell, Region: policy.RectRegion(policy.Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1}), DoorRot: domain.South}}}.WithRoomIDs()
+	if err := r.player.journal.RecordLayoutPlan(context.Background(), r.player.session.State().Snapshot, 0, plan.WithRoomIDs()); err != nil {
 		panic(err)
 	}
 }
@@ -43,7 +43,7 @@ func sleepingSite(r *Rounder, _ domain.Cell) {
 	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{
 		{Role: policy.PlannedBedroom, Region: policy.RectRegion(policy.Rectangle{Width: 5, Height: 5}), Door: domain.Cell{X: 2, Z: -1}, DoorRot: domain.South},
 	}}
-	if err := r.player.journal.RecordLayoutPlan(context.Background(), r.player.session.State().Snapshot, 0, plan); err != nil {
+	if err := r.player.journal.RecordLayoutPlan(context.Background(), r.player.session.State().Snapshot, 0, plan.WithRoomIDs()); err != nil {
 		panic(err)
 	}
 }
@@ -54,7 +54,7 @@ func coldShelterSite(r *Rounder, _ domain.Cell) {
 	plan := policy.LayoutPlan{Cold: true, Rooms: []policy.PlannedRoom{
 		{Role: policy.PlannedShelter, Region: policy.RectRegion(policy.Rectangle{Width: 5, Height: 5}), Door: domain.Cell{X: 2, Z: 5}, DoorRot: domain.North},
 	}}
-	if err := r.player.journal.RecordLayoutPlan(context.Background(), r.player.session.State().Snapshot, 0, plan); err != nil {
+	if err := r.player.journal.RecordLayoutPlan(context.Background(), r.player.session.State().Snapshot, 0, plan.WithRoomIDs()); err != nil {
 		panic(err)
 	}
 }
@@ -66,7 +66,7 @@ func roomSite(role policy.PlannedRole) func(*Rounder, domain.Cell) {
 		plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{
 			{Role: role, Region: policy.RectRegion(policy.Rectangle{Width: 5, Height: 5}), Door: domain.Cell{X: 2, Z: -1}, DoorRot: domain.South},
 		}}
-		if err := r.player.journal.RecordLayoutPlan(context.Background(), r.player.session.State().Snapshot, 0, plan); err != nil {
+		if err := r.player.journal.RecordLayoutPlan(context.Background(), r.player.session.State().Snapshot, 0, plan.WithRoomIDs()); err != nil {
 			panic(err)
 		}
 	}

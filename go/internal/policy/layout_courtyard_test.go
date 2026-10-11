@@ -42,7 +42,7 @@ func TestCourtyardPlusPatchStaysOneFarmedFieldEnclosedWhole(t *testing.T) {
 	s := plusSurvey(140, 0)
 	rich := richSet(s)
 	plan, ok := DeriveLayoutPlan(s, 8, TechTierCamp, nil, 30, 0).Value()
-	if !ok || !plan.Valid() {
+	if !ok || !plan.WithRoomIDs().Valid() {
 		t.Fatal("no valid plan")
 	}
 	if _, err := CheckRoutes(plan); err != nil {
@@ -133,7 +133,7 @@ func TestCourtyardHundredColonistsCappedAndReachable(t *testing.T) {
 		targets[i] = 60 + float64(i)
 	}
 	plan := lg.generate(LayoutPlan{Zones: zones}, seed, 100, 1, TechTierCamp, targets...)
-	if !plan.Valid() {
+	if !plan.WithRoomIDs().Valid() {
 		t.Fatal("invalid")
 	}
 	if _, err := CheckRoutes(plan); err != nil {

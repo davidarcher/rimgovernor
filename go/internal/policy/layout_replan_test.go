@@ -82,7 +82,7 @@ func replanNeverChangesFixedRooms(t *testing.T) {
 			}
 			growth := RoomGrowth{Fixed: FixedRooms(plan, GroundCensus{}, occupied), Occupied: occupied}
 			for _, r := range plan.AllRooms() {
-				if growth.Fixed[r.Region.Bounds()] {
+				if growth.Fixed[r.ID] {
 					if _, ok := fixed[r.Region.Bounds()]; !ok {
 						fixed[r.Region.Bounds()] = fixedRoom{door: r.Door, doors: r.Doors, link: r.Link}
 					}
@@ -134,7 +134,7 @@ func TestReplanHysteresisKeepsThePlan(t *testing.T) {
 	t.Cleanup(func() { planWeights.ReplanGain = was })
 	planWeights.ReplanGain = 1 << 30
 	for range 2 {
-		next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: map[Rectangle]bool{}}, 0, 3, 0, TechTierCamp, nil, nil)
+		next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: map[int32]bool{}}, 0, 3, 0, TechTierCamp, nil, nil)
 		if changed || !reflect.DeepEqual(next, plan) {
 			t.Fatalf("a gain under the threshold changed the plan: %s -> %s", plan.Summary(), next.Summary())
 		}
@@ -148,10 +148,10 @@ func TestReplanAboveThresholdMovesOnlyUnbuiltRooms(t *testing.T) {
 	was := planWeights.ReplanGain
 	t.Cleanup(func() { planWeights.ReplanGain = was })
 	planWeights.ReplanGain = -1 << 30
-	built := map[Rectangle]bool{}
+	built := map[int32]bool{}
 	for i, r := range plan.Rooms {
 		if i%2 == 0 {
-			built[r.Region.Bounds()] = true
+			built[r.ID] = true
 		}
 	}
 	next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: built}, 0, 3, 0, TechTierCamp, nil, nil)
@@ -163,7 +163,7 @@ func TestReplanAboveThresholdMovesOnlyUnbuiltRooms(t *testing.T) {
 		have[r.Region.Bounds()] = r
 	}
 	for _, r := range plan.Rooms {
-		if got, ok := have[r.Region.Bounds()]; built[r.Region.Bounds()] && (!ok || got.Door != r.Door) {
+		if got, ok := have[r.Region.Bounds()]; built[r.ID] && (!ok || got.Door != r.Door) {
 			t.Fatalf("built room %v moved", r.Region.Bounds())
 		}
 	}
@@ -195,10 +195,10 @@ func BenchmarkReplanHourly(b *testing.B) {
 	if !ok {
 		b.Fatal("no plan")
 	}
-	built := map[Rectangle]bool{}
+	built := map[int32]bool{}
 	for i, r := range plan.Rooms {
 		if i%2 == 0 {
-			built[r.Region.Bounds()] = true
+			built[r.ID] = true
 		}
 	}
 	b.ResetTimer()

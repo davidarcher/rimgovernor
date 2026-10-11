@@ -214,7 +214,7 @@ func TestPlanUtilities(t *testing.T) {
 	zones := utilityTestZones()
 	core := withRooms(growPlan(corePlan(zones, 0, TechTierCamp), 0, 1, TechTierCamp), PlannedBattery)
 	p := PlanUtilities(core, UtilityWants{TurbinePairs: 2, Solar: 2, Geysers: []Rectangle{{X: 20, Z: 190, Width: 2, Height: 2}}})
-	if !p.Valid() {
+	if !p.WithRoomIDs().Valid() {
 		t.Fatal("invalid")
 	}
 	g := newCoreGrid(zones, nil)

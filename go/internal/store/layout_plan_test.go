@@ -28,8 +28,10 @@ func TestLayoutPlanRoundTripsAndForgetsOnRewind(t *testing.T) {
 			{Kind: policy.ReserveMortar, Area: policy.RectRegion(policy.Rectangle{X: 30, Z: 30, Width: 1, Height: 1})},
 		},
 	}
+	first = first.WithRoomIDs()
 	grown := first
 	grown.Rooms = append(append([]policy.PlannedRoom(nil), first.Rooms...), policy.PlannedRoom{Role: policy.PlannedBedroom, Region: policy.RectRegion(policy.Rectangle{X: 20, Z: 22, Width: 4, Height: 4}), DoorRot: domain.North})
+	grown = grown.WithRoomIDs()
 	if err := db.RecordLayoutPlan(ctx, w, 100, first); err != nil {
 		t.Fatal(err)
 	}

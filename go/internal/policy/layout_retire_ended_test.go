@@ -82,6 +82,8 @@ func TestReplanRetiresUnbuiltEndedRooms(t *testing.T) {
 		r := PlannedRoom{Role: role, Region: RectRegion(in), Door: domain.Cell{X: in.X + 1, Z: in.Z - 1}, DoorRot: domain.South}
 		added = append(added, r)
 		plan.Rooms = append(plan.Rooms, r)
+		plan = plan.WithRoomIDs()
+		added[len(added)-1] = plan.Rooms[len(plan.Rooms)-1]
 	}
 	count := func(p LayoutPlan, role PlannedRole) int { return len(p.roomsOf(role)) }
 	replan := func(g RoomGrowth) LayoutPlan {
@@ -89,7 +91,7 @@ func TestReplanRetiresUnbuiltEndedRooms(t *testing.T) {
 		return next
 	}
 	for i, role := range roles {
-		next := replan(RoomGrowth{Ended: []PlannedRole{role}, InUse: map[Rectangle]bool{}})
+		next := replan(RoomGrowth{Ended: []PlannedRole{role}, InUse: map[int32]bool{}})
 		if count(next, role) != 0 {
 			t.Errorf("%s: unbuilt ended room kept", role)
 		}
@@ -98,7 +100,7 @@ func TestReplanRetiresUnbuiltEndedRooms(t *testing.T) {
 				t.Errorf("%s ended dropped %s", role, other)
 			}
 		}
-		if count(replan(RoomGrowth{Ended: []PlannedRole{role}, InUse: map[Rectangle]bool{added[i].Region.Bounds(): true}}), role) != 1 {
+		if count(replan(RoomGrowth{Ended: []PlannedRole{role}, InUse: map[int32]bool{added[i].ID: true}}), role) != 1 {
 			t.Errorf("%s: in-use room dropped", role)
 		}
 		if count(replan(RoomGrowth{}), role) != 1 {
@@ -111,17 +113,17 @@ func TestReplanRetiresUnbuiltEndedRooms(t *testing.T) {
 // the furniture stands inside it.
 func TestRoomsInUseCountsFurnitureInside(t *testing.T) {
 	in := Rectangle{X: 20, Z: 20, Width: 4, Height: 4}
-	plan := LayoutPlan{Rooms: []PlannedRoom{{Role: PlannedNursery, Region: RectRegion(in), Door: domain.Cell{X: 21, Z: 19}, DoorRot: domain.South}}}
+	plan := LayoutPlan{Rooms: []PlannedRoom{{ID: 1, Role: PlannedNursery, Region: RectRegion(in), Door: domain.Cell{X: 21, Z: 19}, DoorRot: domain.South}}}
 	defs := furnitureDefs(map[string]Bounds{"Crib": {Width: 1, Height: 1}})
 	b, err := domain.NewBuilding("Crib", domain.Cell{X: 21, Z: 21}, domain.South, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	crib := CurrentBuilding{ID: "1", Building: b, Cells: []domain.Cell{{X: 21, Z: 21}}}
-	if RoomsInUse(plan, nil, defs)[in] {
+	if RoomsInUse(plan, nil, defs)[1] {
 		t.Fatal("an empty planned room is in use")
 	}
-	if !RoomsInUse(plan, []CurrentBuilding{crib}, defs)[in] {
+	if !RoomsInUse(plan, []CurrentBuilding{crib}, defs)[1] {
 		t.Fatal("a furnished room is not in use")
 	}
 }

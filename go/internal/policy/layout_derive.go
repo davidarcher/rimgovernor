@@ -40,7 +40,7 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier TechTier, geysers []PowerGeys
 	plan, _ = growOutskirts(plan, OutskirtsSize())
 	plan, _ = growOutskirtsRooms(plan, want.ThickRoof)
 	plan = PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s)
-	return domain.Known(withoutCore(plan))
+	return domain.Known(withoutCore(plan).WithRoomIDs())
 }
 
 // RoomGrowth is the rooms the plan is asked to add beyond the core: a throne
@@ -61,17 +61,17 @@ type RoomGrowth struct {
 	// standing: the duplicates of one role reduce to one once Built is
 	// set (the census is known).
 	Shapes []ChildRoomShape
-	Built  map[Rectangle]bool
+	Built  map[int32]bool
 	// Ended are the roles whose need is gone and InUse the planned rooms
 	// standing or furnished: an ended role's rooms outside InUse leave the
 	// plan. InUse is set only when an ended role has a room.
 	Ended []PlannedRole
-	InUse map[Rectangle]bool
+	InUse map[int32]bool
 	// Fixed are the interiors of every planned room with anything of ours
 	// on it (FixedRooms), set on every replan once the census is
 	// known (nil while it is not: every room is then kept). A replan
 	// re-sites only the rooms outside it.
-	Fixed map[Rectangle]bool
+	Fixed map[int32]bool
 	// Occupied are the cells of ours a new or re-sited room must stay off
 	// (the census, sites, claims and in-flight rooms' walls).
 	Occupied map[domain.Cell]bool
@@ -79,7 +79,7 @@ type RoomGrowth struct {
 	// the planned rooms an open journal plan works on, which a retirement
 	// leaves in the plan.
 	RetireShelter bool
-	InFlight      map[Rectangle]bool
+	InFlight      map[int32]bool
 	// HerdUnits are the herds' units (HerdPlan.HerdUnits): each gets a
 	// pen, barn and vet area of its own beside the misc unit's.
 	HerdUnits []HerdCeiling
@@ -107,6 +107,12 @@ type RoomGrowth struct {
 // joins the rooms growth asked for that no core slot took; the plan
 // returned is still the best one, so the caller reports it and carries on.
 func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawns, tombs int, tier TechTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool, error) {
+	plan = plan.WithRoomIDs()
+	next, changed, err := replanLayout(plan, s, growth, animals, pawns, tombs, tier, geysers, emptied, suites...)
+	return next.WithRoomIDs(), changed, err
+}
+
+func replanLayout(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawns, tombs int, tier TechTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool, error) {
 	zones := Zone(s)
 	vents := geothermalCells(geyserFootprints(geysers))
 	noGo := map[domain.Cell]bool{}

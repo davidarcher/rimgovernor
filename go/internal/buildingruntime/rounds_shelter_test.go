@@ -86,7 +86,7 @@ func recordStoreroom(t *testing.T, r *RoundsBuildingPlanner, db *store.Store, in
 // fixture's review already ran without one.
 func recordLayout(t *testing.T, r *RoundsBuildingPlanner, db *store.Store, plan policy.LayoutPlan) {
 	t.Helper()
-	if err := db.RecordLayoutPlan(context.Background(), r.reviewer.player.session.State().Snapshot, 0, plan); err != nil {
+	if err := db.RecordLayoutPlan(context.Background(), r.reviewer.player.session.State().Snapshot, 0, plan.WithRoomIDs()); err != nil {
 		t.Fatal(err)
 	}
 	census := &r.reviewer.census

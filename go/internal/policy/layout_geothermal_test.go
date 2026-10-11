@@ -40,7 +40,7 @@ func TestDeriveLayoutPlanGeothermal(t *testing.T) {
 			if enclosure.Width == 0 || unionRect(wallable, enclosure) != wallable {
 				continue
 			}
-			if !plan.Valid() {
+			if !plan.WithRoomIDs().Valid() {
 				t.Fatal("invalid plan with geothermal")
 			}
 			inner := pad(ring, -perimeterThick)

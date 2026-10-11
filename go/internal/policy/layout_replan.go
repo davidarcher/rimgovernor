@@ -53,7 +53,7 @@ func newReplanner(plan LayoutPlan, s MapSurvey, blocked map[domain.Cell]bool, pa
 // site generates plan again with pins kept where they are, searched for
 // iters operators. A plan with no hallway and no core ground to seed one is
 // returned as it is.
-func (rp replanner) site(plan LayoutPlan, pins map[Rectangle]bool, iters int) LayoutPlan {
+func (rp replanner) site(plan LayoutPlan, pins map[int32]bool, iters int) LayoutPlan {
 	g := rp.g
 	g.fixed, g.noShelter = pins, true
 	var seed domain.Cell
@@ -96,10 +96,10 @@ func bedroomCount(p LayoutPlan) int {
 }
 
 // allPins is every room of plan, wings included.
-func allPins(plan LayoutPlan) map[Rectangle]bool {
-	pins := map[Rectangle]bool{}
+func allPins(plan LayoutPlan) map[int32]bool {
+	pins := map[int32]bool{}
 	for _, r := range plan.AllRooms() {
-		pins[r.Region.Bounds()] = true
+		pins[r.ID] = true
 	}
 	return pins
 }
@@ -110,7 +110,7 @@ func allPins(plan LayoutPlan) map[Rectangle]bool {
 // bedroom wing with a fixed room (a wing is sited as one block), and every
 // suite block (existing suites never move). An emptied Retiring wing is
 // never pinned, built or not: it is the ground a replan may reclaim.
-func replanPins(plan LayoutPlan, fixed map[Rectangle]bool, emptied map[domain.Cell]bool, tier TechTier) map[Rectangle]bool {
+func replanPins(plan LayoutPlan, fixed map[int32]bool, emptied map[domain.Cell]bool, tier TechTier) map[int32]bool {
 	if fixed == nil {
 		// The census is unknown, so nothing is known to be unbuilt.
 		return allPins(plan)
@@ -120,8 +120,8 @@ func replanPins(plan LayoutPlan, fixed map[Rectangle]bool, emptied map[domain.Ce
 		changed = false
 		for _, r := range plan.Rooms {
 			for _, o := range plan.Rooms {
-				if pins[r.Region.Bounds()] && !pins[o.Region.Bounds()] && linked(r, o) || pins[o.Region.Bounds()] && !pins[r.Region.Bounds()] && linked(o, r) {
-					pins[r.Region.Bounds()], pins[o.Region.Bounds()] = true, true
+				if pins[r.ID] && !pins[o.ID] && linked(r, o) || pins[o.ID] && !pins[r.ID] && linked(o, r) {
+					pins[r.ID], pins[o.ID] = true, true
 					changed = true
 				}
 			}
@@ -130,13 +130,13 @@ func replanPins(plan LayoutPlan, fixed map[Rectangle]bool, emptied map[domain.Ce
 	for _, w := range plan.Wings {
 		if emptied[w.Corridor.From] && retireWings([]Wing{w}, tier)[0].Purpose == WingBedroomsRetiring {
 			for _, r := range w.Rooms {
-				delete(pins, r.Region.Bounds())
+				delete(pins, r.ID)
 			}
 			continue
 		}
 		if w.Purpose == WingSuites || wingPinned(w, pins) {
 			for _, r := range w.Rooms {
-				pins[r.Region.Bounds()] = true
+				pins[r.ID] = true
 			}
 		}
 	}
@@ -149,9 +149,9 @@ func linked(a, b PlannedRoom) bool {
 }
 
 // wingPinned reports a pinned room in w: the wing stays as sited.
-func wingPinned(w Wing, pins map[Rectangle]bool) bool {
+func wingPinned(w Wing, pins map[int32]bool) bool {
 	for _, r := range w.Rooms {
-		if pins[r.Region.Bounds()] {
+		if pins[r.ID] {
 			return true
 		}
 	}
@@ -161,10 +161,10 @@ func wingPinned(w Wing, pins map[Rectangle]bool) bool {
 // resiteInput is plan with the rooms a replan may move lifted out: the
 // unpinned base rooms and the bedroom wings without a pinned room. Add-on
 // rooms and suite blocks stay where they are.
-func resiteInput(plan LayoutPlan, pins map[Rectangle]bool) LayoutPlan {
+func resiteInput(plan LayoutPlan, pins map[int32]bool) LayoutPlan {
 	var rooms []PlannedRoom
 	for _, r := range plan.Rooms {
-		if pins[r.Region.Bounds()] || !searchRole(r.Role) {
+		if pins[r.ID] || !searchRole(r.Role) {
 			rooms = append(rooms, r)
 		}
 	}
@@ -179,9 +179,9 @@ func resiteInput(plan LayoutPlan, pins map[Rectangle]bool) LayoutPlan {
 }
 
 // canResite reports a room or bedroom wing of plan that pins leave free.
-func canResite(plan LayoutPlan, pins map[Rectangle]bool) bool {
+func canResite(plan LayoutPlan, pins map[int32]bool) bool {
 	for _, r := range plan.Rooms {
-		if !pins[r.Region.Bounds()] && searchRole(r.Role) {
+		if !pins[r.ID] && searchRole(r.Role) {
 			return true
 		}
 	}
@@ -195,7 +195,7 @@ func canResite(plan LayoutPlan, pins map[Rectangle]bool) bool {
 
 // replanCore grows plan around every room it holds, then re-sites the
 // unpinned ones (see the file comment). It reports whether the plan changed.
-func (rp replanner) replanCore(plan LayoutPlan, pins map[Rectangle]bool) (LayoutPlan, bool) {
+func (rp replanner) replanCore(plan LayoutPlan, pins map[int32]bool) (LayoutPlan, bool) {
 	changed := false
 	grown := rp.site(plan, allPins(plan), 0)
 	if len(grown.AllRooms()) != len(plan.AllRooms()) || len(grown.Wings) != len(plan.Wings) {

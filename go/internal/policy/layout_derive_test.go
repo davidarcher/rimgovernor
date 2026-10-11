@@ -13,8 +13,8 @@ func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	s := zoningSurvey(200, open)
 	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 30, 0).Value()
-	if !ok || !plan.Valid() || plan.LayoutOutgrown(3) {
-		t.Fatal(ok, plan.Valid())
+	if !ok || !plan.WithRoomIDs().Valid() || plan.LayoutOutgrown(3) {
+		t.Fatal(ok, plan.WithRoomIDs().Valid())
 	}
 	for _, z := range plan.Zones {
 		if z.Kind == ZoneCore {

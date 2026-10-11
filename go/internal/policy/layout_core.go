@@ -75,7 +75,7 @@ type coreGrid struct {
 	soil map[domain.Cell]int
 	// fixed are the interiors of the rooms a replan must not move or change:
 	// the search operators and the second-door pass leave them be.
-	fixed map[Rectangle]bool
+	fixed map[int32]bool
 	// skip are the room interiors the packer refuses: the slots SiteRoom has scored.
 	skip map[Rectangle]bool
 	// sizes picks a variant (coreRoomVariants) per role; a role absent keeps

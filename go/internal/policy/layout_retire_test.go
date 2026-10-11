@@ -29,6 +29,8 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 		worship = append(worship, r)
 	}
 	plan.Rooms = append(plan.Rooms, worship...)
+	plan = plan.WithRoomIDs()
+	worship = plan.roomsOf(PlannedWorship)
 	other := len(plan.Rooms) - len(worship)
 	if DuplicateRooms(plan) != 8 {
 		t.Fatal("duplicates", DuplicateRooms(plan))
@@ -41,7 +43,7 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 		}
 		return n
 	}
-	growth := RoomGrowth{Shapes: []ChildRoomShape{shape}, Built: map[Rectangle]bool{}}
+	growth := RoomGrowth{Shapes: []ChildRoomShape{shape}, Built: map[int32]bool{}}
 	next, changed, _ := ReplanLayoutWithRooms(plan, s, growth, 0, 3, 0, TechTierCamp, nil, nil)
 	if !changed || count(next) != 1 || len(next.Rooms) != other+1 {
 		t.Fatalf("changed=%v worship=%d rooms=%d", changed, count(next), len(next.Rooms))
@@ -62,12 +64,12 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 	// A built room wins, whatever its size, and the dropped built one is
 	// no longer planned ground.
 	built := worship[8]
-	growth.Built = map[Rectangle]bool{built.Region.Bounds(): true}
+	growth.Built = map[int32]bool{built.ID: true}
 	next, _, _ = ReplanLayoutWithRooms(plan, s, growth, 0, 3, 0, TechTierCamp, nil, nil)
 	if got := next.roomsOf(PlannedWorship); len(got) != 1 || got[0].Region.Bounds() != built.Region.Bounds() {
 		t.Fatalf("built room not kept: %+v", got)
 	}
-	growth.Built = map[Rectangle]bool{worship[0].Region.Bounds(): true}
+	growth.Built = map[int32]bool{worship[0].ID: true}
 	next, _, _ = ReplanLayoutWithRooms(plan, s, growth, 0, 3, 0, TechTierCamp, nil, nil)
 	// The sited core may legitimately plan another room over the spot.
 	planned := map[Rectangle]bool{}

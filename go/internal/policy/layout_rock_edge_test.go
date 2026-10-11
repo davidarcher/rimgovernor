@@ -78,7 +78,7 @@ func TestRockEdgeMapsPlanWalkableAndBuildableLayouts(t *testing.T) {
 				t.Fatal("site scorer placed no rooms")
 			}
 			plan := PlanPerimeter(sited, s)
-			if !plan.Valid() {
+			if !plan.WithRoomIDs().Valid() {
 				t.Fatal("invalid layout plan")
 			}
 			if c, leak := perimeterLeak(plan, s); leak {

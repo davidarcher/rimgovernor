@@ -25,7 +25,7 @@ func roomRect(r PlannedRoom) Rectangle {
 
 func checkCore(t *testing.T, p LayoutPlan, pawns int) {
 	t.Helper()
-	if len(p.Spine) == 0 || !p.Valid() {
+	if len(p.Spine) == 0 || !p.WithRoomIDs().Valid() {
 		t.Fatalf("plan %+v", p)
 	}
 	halls := spineRects(p.Hallways())

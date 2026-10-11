@@ -116,11 +116,11 @@ func benchOutside(built []CurrentBuilding, rooms RoomObservation, shelterRoom ma
 
 // InFlightRooms are the interiors of the plan's rooms an open journal plan is
 // working on, keyed by origin as InFlightRoomCells is.
-func InFlightRooms(plan LayoutPlan, origins map[domain.Cell]bool) map[Rectangle]bool {
-	out := map[Rectangle]bool{}
+func InFlightRooms(plan LayoutPlan, origins map[domain.Cell]bool) map[int32]bool {
+	out := map[int32]bool{}
 	for _, r := range plan.AllRooms() {
 		if origins[domain.Cell{X: r.Region.Bounds().X, Z: r.Region.Bounds().Z}] {
-			out[r.Region.Bounds()] = true
+			out[r.ID] = true
 		}
 	}
 	return out
@@ -132,11 +132,11 @@ func retireShelter(plan LayoutPlan, growth RoomGrowth) (LayoutPlan, bool) {
 	if !growth.RetireShelter {
 		return plan, false
 	}
-	drop := map[Rectangle]bool{}
+	drop := map[int32]bool{}
 	var ground []Region
 	for _, r := range plan.roomsOf(PlannedShelter) {
-		if !growth.InFlight[r.Region.Bounds()] {
-			drop[r.Region.Bounds()] = true
+		if !growth.InFlight[r.ID] {
+			drop[r.ID] = true
 			ground = append(ground, RectRegion(roomGround(r.Region.Bounds())))
 			if r.Airlock != nil {
 				ground = append(ground, RectRegion(r.AirlockGround()))

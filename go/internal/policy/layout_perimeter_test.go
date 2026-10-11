@@ -24,7 +24,7 @@ func perimeterPlanAt(t *testing.T, seed *domain.Cell, cell func(x, z int32) Surv
 		plan = newCoreGrid(Zone(s), nil).generate(LayoutPlan{Zones: Zone(s)}, *seed, 3, 1, TechTierCamp)
 	}
 	p := PlanPerimeter(plan, s)
-	if !p.Valid() {
+	if !p.WithRoomIDs().Valid() {
 		t.Fatal("invalid plan")
 	}
 	if c, leak := perimeterLeak(p, s); leak {
@@ -247,7 +247,7 @@ func wetPerimeter(t *testing.T, soft func(x, z int32) (SurveyCell, bool)) (Layou
 	}
 	s := zoningSurvey(200, cell)
 	p := PlanPerimeter(corePlan(Zone(s), 3, TechTierCamp), s)
-	if !p.Valid() {
+	if !p.WithRoomIDs().Valid() {
 		t.Fatal("invalid plan")
 	}
 	checkPerimeter(t, p)

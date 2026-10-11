@@ -1,6 +1,10 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
+import (
+	"slices"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 // LayoutPlan combines hallway spines, concrete rooms, whole-map zones and
 // reserved infrastructure sites.
@@ -22,7 +26,13 @@ type Door struct {
 
 // PlannedRoom is one planned room.
 type PlannedRoom struct {
-	Role PlannedRole
+	// ID names the room for as long as the plan lives: handed out by
+	// LayoutPlan.NextRoomID, never reused, kept through reshape, shrink and
+	// replans that pin the room. Never zero in a plan a store holds.
+	ID int32
+	// Replaces is the ID of the room this one supersedes; 0 for none.
+	Replaces int32 `json:",omitempty"`
+	Role     PlannedRole
 	// Region is the room's floor, walls excluded.
 	Region Region
 	// Door is the primary door: the one furniture frames and rock planning
@@ -135,6 +145,39 @@ type LayoutPlan struct {
 	// plan is derived (YardCells(herd)); 0 keeps the floor, perimeterGap.
 	// A replan never resizes the yard.
 	YardCells int32 `json:",omitempty"`
+	// NextRoomID is the counter room ids come from: the next id handed out,
+	// latched in the plan so an id is never reused after its room leaves.
+	NextRoomID int32 `json:",omitempty"`
+}
+
+// WithRoomIDs hands every room without an id the next one from NextRoomID,
+// in plan order (rooms, then each wing's rooms). The counter first moves
+// past every id the plan already holds, so ids stay unique and a dropped
+// room's id is not handed out again.
+func (p LayoutPlan) WithRoomIDs() LayoutPlan {
+	next := max(p.NextRoomID, 1)
+	for _, r := range p.AllRooms() {
+		next = max(next, r.ID+1, r.Replaces+1)
+	}
+	p.Rooms = slices.Clone(p.Rooms)
+	for i := range p.Rooms {
+		if p.Rooms[i].ID == 0 {
+			p.Rooms[i].ID, next = next, next+1
+		}
+	}
+	if len(p.Wings) > 0 {
+		p.Wings = slices.Clone(p.Wings)
+		for i := range p.Wings {
+			p.Wings[i].Rooms = slices.Clone(p.Wings[i].Rooms)
+			for j := range p.Wings[i].Rooms {
+				if p.Wings[i].Rooms[j].ID == 0 {
+					p.Wings[i].Rooms[j].ID, next = next, next+1
+				}
+			}
+		}
+	}
+	p.NextRoomID = next
+	return p
 }
 
 // Anchor is the interior centre of the
@@ -216,10 +259,15 @@ func (p LayoutPlan) Valid() bool {
 			return false
 		}
 	}
+	ids := map[int32]bool{}
 	for _, r := range p.AllRooms() {
 		if r.Role == "" || r.Region.Empty() {
 			return false
 		}
+		if r.ID < 1 || ids[r.ID] || r.ID >= p.NextRoomID || r.Replaces == r.ID {
+			return false
+		}
+		ids[r.ID] = true
 		switch r.DoorRot {
 		case domain.North, domain.East, domain.South, domain.West:
 		default:
@@ -297,7 +345,7 @@ func (r PlannedRoom) Same(o PlannedRoom) bool {
 			return false
 		}
 	}
-	return r.Role == o.Role && r.Region.Bounds() == o.Region.Bounds() && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing && r.Markers == o.Markers && (r.Airlock == nil) == (o.Airlock == nil) && (r.Airlock == nil || *r.Airlock == *o.Airlock) && (r.Porch == nil) == (o.Porch == nil) && (r.Porch == nil || *r.Porch == *o.Porch)
+	return r.ID == o.ID && r.Replaces == o.Replaces && r.Role == o.Role && r.Region.Bounds() == o.Region.Bounds() && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing && r.Markers == o.Markers && (r.Airlock == nil) == (o.Airlock == nil) && (r.Airlock == nil || *r.Airlock == *o.Airlock) && (r.Porch == nil) == (o.Porch == nil) && (r.Porch == nil || *r.Porch == *o.Porch)
 }
 
 // NearestAnchor is the interior centre of the free planned room of role want

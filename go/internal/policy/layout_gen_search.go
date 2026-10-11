@@ -90,7 +90,7 @@ func (g coreGrid) moveCluster(plan LayoutPlan, rng *searchRand) (LayoutPlan, boo
 	var roles []PlannedRole
 	seen := map[PlannedRole]bool{}
 	for _, r := range plan.Rooms {
-		if searchRole(r.Role) && !seen[r.Role] && !g.fixed[r.Region.Bounds()] {
+		if searchRole(r.Role) && !seen[r.Role] && !g.fixed[r.ID] {
 			seen[r.Role] = true
 			roles = append(roles, r.Role)
 		}
@@ -108,7 +108,7 @@ func (g coreGrid) moveCluster(plan LayoutPlan, rng *searchRand) (LayoutPlan, boo
 		in[role] = true
 	}
 	for _, r := range plan.Rooms {
-		if in[r.Role] && !taken[r.Role] && !g.fixed[r.Region.Bounds()] {
+		if in[r.Role] && !taken[r.Role] && !g.fixed[r.ID] {
 			taken[r.Role] = true
 			if first == nil {
 				r := r

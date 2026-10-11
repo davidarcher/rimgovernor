@@ -3,7 +3,7 @@ package policy
 import "testing"
 
 func surplusRoom(role PlannedRole, x, w, h int32) PlannedRoom {
-	return PlannedRoom{Role: role, Region: RectRegion(Rectangle{X: x, Z: 10, Width: w, Height: h})}
+	return PlannedRoom{ID: x + 1, Role: role, Region: RectRegion(Rectangle{X: x, Z: 10, Width: w, Height: h})}
 }
 
 func surplusRoles(p LayoutPlan, role PlannedRole) []int32 {
@@ -22,21 +22,21 @@ func TestRetireSurplusThroneRooms(t *testing.T) {
 	growth := RoomGrowth{ThroneMin: 30}
 	plan := LayoutPlan{Rooms: []PlannedRoom{small, bigger, big}}
 
-	got, changed := retireSurplusRooms(plan, growth, map[Rectangle]bool{})
+	got, changed := retireSurplusRooms(plan, growth, map[int32]bool{})
 	if xs := surplusRoles(got, PlannedThrone); !changed || len(xs) != 1 || xs[0] != big.Region.Bounds().X {
 		t.Fatalf("unbuilt: kept %v, want the smallest holder", xs)
 	}
-	if _, changed := retireSurplusRooms(got, growth, map[Rectangle]bool{}); changed {
+	if _, changed := retireSurplusRooms(got, growth, map[int32]bool{}); changed {
 		t.Fatal("a reconciled plan changed")
 	}
 
-	built := map[Rectangle]bool{small.Region.Bounds(): true}
+	built := map[int32]bool{small.ID: true}
 	got, _ = retireSurplusRooms(plan, growth, built)
 	if xs := surplusRoles(got, PlannedThrone); len(xs) != 2 || xs[0] != small.Region.Bounds().X || xs[1] != big.Region.Bounds().X {
 		t.Fatalf("built small room: kept %v, want small and the smallest holder", xs)
 	}
 
-	built[bigger.Region.Bounds()] = true
+	built[bigger.ID] = true
 	got, _ = retireSurplusRooms(plan, growth, built)
 	if xs := surplusRoles(got, PlannedThrone); len(xs) != 1 || xs[0] != bigger.Region.Bounds().X {
 		t.Fatalf("built holder: kept %v, want it alone", xs)
@@ -58,11 +58,11 @@ func TestRetireSurplusGearRooms(t *testing.T) {
 	if _, changed := retireSurplusRooms(plan, RoomGrowth{Demand: RoomDemand{}}, nil); changed {
 		t.Fatal("an unread demand retired rooms")
 	}
-	got, changed := retireSurplusRooms(plan, RoomGrowth{Demand: RoomDemand{Known: true, Armory: true}}, map[Rectangle]bool{})
+	got, changed := retireSurplusRooms(plan, RoomGrowth{Demand: RoomDemand{Known: true, Armory: true}}, map[int32]bool{})
 	if !changed || len(surplusRoles(got, PlannedArmory)) != 1 || len(surplusRoles(got, PlannedWardrobe)) != 0 {
 		t.Fatalf("armory demanded: %+v", got.Rooms)
 	}
-	got, _ = retireSurplusRooms(plan, RoomGrowth{Demand: RoomDemand{Known: true}}, map[Rectangle]bool{wardrobe.Region.Bounds(): true})
+	got, _ = retireSurplusRooms(plan, RoomGrowth{Demand: RoomDemand{Known: true}}, map[int32]bool{wardrobe.ID: true})
 	if len(surplusRoles(got, PlannedArmory)) != 0 || len(surplusRoles(got, PlannedWardrobe)) != 1 {
 		t.Fatalf("built wardrobe must stay: %+v", got.Rooms)
 	}
@@ -73,7 +73,7 @@ func TestRetireSurplusGearRooms(t *testing.T) {
 func TestRetireSurplusStorageRooms(t *testing.T) {
 	core, built, spare := surplusRoom(PlannedStorage, 0, 3, 3), surplusRoom(PlannedStorage, 10, 3, 3), surplusRoom(PlannedStorage, 20, 3, 3)
 	plan := LayoutPlan{Rooms: []PlannedRoom{core, built, spare}}
-	standing := map[Rectangle]bool{built.Region.Bounds(): true}
+	standing := map[int32]bool{built.ID: true}
 	if _, changed := retireSurplusRooms(plan, RoomGrowth{Demand: RoomDemand{Known: true, Storage: 0}}, standing); changed {
 		t.Fatal("a pending reading retired storage")
 	}
@@ -81,7 +81,7 @@ func TestRetireSurplusStorageRooms(t *testing.T) {
 	if xs := surplusRoles(got, PlannedStorage); len(xs) != 2 || xs[0] != 0 || xs[1] != 10 {
 		t.Fatalf("kept %v, want the core and the built room", xs)
 	}
-	got, _ = retireSurplusRooms(plan, RoomGrowth{Demand: RoomDemand{StorageIdle: true}}, map[Rectangle]bool{})
+	got, _ = retireSurplusRooms(plan, RoomGrowth{Demand: RoomDemand{StorageIdle: true}}, map[int32]bool{})
 	if xs := surplusRoles(got, PlannedStorage); len(xs) != 1 || xs[0] != 0 {
 		t.Fatalf("kept %v, want the core alone (an unbuilt core stays too)", xs)
 	}

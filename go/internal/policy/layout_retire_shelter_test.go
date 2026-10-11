@@ -64,7 +64,7 @@ func newShelterRetireFixture(t *testing.T) shelterRetireFixture {
 	return f
 }
 
-func (f shelterRetireFixture) replan(t *testing.T, retire bool, inFlight map[Rectangle]bool) (LayoutPlan, bool) {
+func (f shelterRetireFixture) replan(t *testing.T, retire bool, inFlight map[int32]bool) (LayoutPlan, bool) {
 	t.Helper()
 	growth := RoomGrowth{RetireShelter: retire, InFlight: inFlight}
 	next, changed, _ := ReplanLayoutWithRooms(f.plan, f.survey, growth, 0, 2, 0, TechTierCamp, nil, nil)
@@ -133,7 +133,7 @@ func TestShelterRetirementGates(t *testing.T) {
 		}
 	})
 	t.Run("work in flight", func(t *testing.T) {
-		next, changed := f.replan(t, true, map[Rectangle]bool{f.shelter.Region.Bounds(): true})
+		next, changed := f.replan(t, true, map[int32]bool{f.shelter.ID: true})
 		if len(next.roomsOf(PlannedShelter)) != 1 {
 			t.Fatalf("a shelter with open work was dropped (changed=%v)", changed)
 		}
@@ -196,10 +196,10 @@ func containsCell(cells []domain.Cell, c domain.Cell) bool {
 }
 
 func TestInFlightRoomsKeysByInteriorOrigin(t *testing.T) {
-	a := PlannedRoom{Role: PlannedShelter, Region: RectRegion(Rectangle{X: 4, Z: 5, Width: 5, Height: 4})}
-	b := PlannedRoom{Role: PlannedLab, Region: RectRegion(Rectangle{X: 20, Z: 5, Width: 5, Height: 4})}
+	a := PlannedRoom{ID: 1, Role: PlannedShelter, Region: RectRegion(Rectangle{X: 4, Z: 5, Width: 5, Height: 4})}
+	b := PlannedRoom{ID: 2, Role: PlannedLab, Region: RectRegion(Rectangle{X: 20, Z: 5, Width: 5, Height: 4})}
 	got := InFlightRooms(LayoutPlan{Rooms: []PlannedRoom{a, b}}, map[domain.Cell]bool{{X: 4, Z: 5}: true})
-	if len(got) != 1 || !got[a.Region.Bounds()] {
+	if len(got) != 1 || !got[a.ID] {
 		t.Fatal(got)
 	}
 }

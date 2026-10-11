@@ -10,7 +10,7 @@ import (
 // ring or floor is fixed; an untouched one is not.
 func TestFixedRoomsAreTheTouchedOnes(t *testing.T) {
 	room := func(x int32) PlannedRoom {
-		return PlannedRoom{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: x, Z: 10, Width: 5, Height: 5})}
+		return PlannedRoom{ID: x / 10, Role: PlannedBedroom, Region: RectRegion(Rectangle{X: x, Z: 10, Width: 5, Height: 5})}
 	}
 	standing, onRing, onFloor, untouched := room(10), room(20), room(30), room(40)
 	plan := LayoutPlan{Rooms: []PlannedRoom{standing, onRing, untouched}, Wings: []Wing{{Rooms: []PlannedRoom{onFloor}}}}
@@ -21,11 +21,11 @@ func TestFixedRoomsAreTheTouchedOnes(t *testing.T) {
 	}
 	fixed := FixedRooms(plan, ringWalls(plan, standing), occupied)
 	for _, r := range []PlannedRoom{standing, onRing, onFloor} {
-		if !fixed[r.Region.Bounds()] {
+		if !fixed[r.ID] {
 			t.Fatalf("room at x=%d is not fixed", r.Region.Bounds().X)
 		}
 	}
-	if fixed[untouched.Region.Bounds()] || len(fixed) != 3 {
+	if fixed[untouched.ID] || len(fixed) != 3 {
 		t.Fatalf("fixed = %v", fixed)
 	}
 }

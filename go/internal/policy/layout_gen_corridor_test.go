@@ -55,7 +55,7 @@ func TestHallEntrancesAreTheFreeEnds(t *testing.T) {
 	if len(p.Entrances) != 12 {
 		t.Fatal("entrances", len(p.Entrances))
 	}
-	if !(LayoutPlan{Spine: p.Spine, Entrances: p.Entrances, Rooms: p.Rooms}).Valid() {
+	if !(LayoutPlan{Spine: p.Spine, Entrances: p.Entrances, Rooms: p.Rooms}).WithRoomIDs().Valid() {
 		t.Fatal("invalid")
 	}
 }
@@ -74,7 +74,7 @@ func TestRouteRingsKeepsARingOnlyWhereItShortensAWalk(t *testing.T) {
 	if _, err := CheckRoutes(ringed); err != nil {
 		t.Fatal(err)
 	}
-	if !ringed.Valid() {
+	if !ringed.WithRoomIDs().Valid() {
 		t.Fatal("invalid ring plan")
 	}
 	// The same H with both rooms beside the main hallway gains nothing.
@@ -148,7 +148,7 @@ func housingFixture(t *testing.T, pawns int, suites ...float64) (LayoutPlan, Map
 func TestGenerateHundredColonistsGetTenFullWings(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	plan, s := housingFixture(t, 100)
-	if !plan.Valid() {
+	if !plan.WithRoomIDs().Valid() {
 		t.Fatal("invalid")
 	}
 	if _, err := CheckRoutes(plan); err != nil {
@@ -210,7 +210,7 @@ func TestGenerateSuiteBlocksAreCappedAndReachable(t *testing.T) {
 	if _, err := CheckRoutes(plan); err != nil {
 		t.Fatal(err)
 	}
-	if !plan.Valid() {
+	if !plan.WithRoomIDs().Valid() {
 		t.Fatal("invalid")
 	}
 }
@@ -219,7 +219,7 @@ func TestSiteCoreCourtyardNetworkKeepsOffThePatch(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := courtyardSurvey()
 	plan := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, TechTierCamp)
-	if !plan.Valid() {
+	if !plan.WithRoomIDs().Valid() {
 		t.Fatal("invalid")
 	}
 	if _, err := CheckRoutes(plan); err != nil {

@@ -27,7 +27,7 @@ func searchFixture(t *testing.T) (coreGrid, planScorer, LayoutPlan, domain.Cell)
 // wings capped, routes valid.
 func planStandsClean(t *testing.T, g coreGrid, p LayoutPlan) {
 	t.Helper()
-	if !p.Valid() {
+	if !p.WithRoomIDs().Valid() {
 		t.Fatal("plan is not Valid")
 	}
 	rooms := p.AllRooms()

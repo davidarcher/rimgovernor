@@ -15,7 +15,7 @@ func wingTestPlan(spine []SpineSegment, wings []Wing) LayoutPlan {
 // rooms apart, every door on the corridor, the plan valid and routable.
 func checkWingInvariants(t *testing.T, plan LayoutPlan) {
 	t.Helper()
-	if !plan.Valid() {
+	if !plan.WithRoomIDs().Valid() {
 		t.Fatal("plan invalid")
 	}
 	if _, err := CheckRoutes(plan); err != nil {

@@ -25,11 +25,11 @@ func ChildRoomShapes(needs []ChildRoomNeed, defs []FurnitureDefinition) []ChildR
 
 // BuiltRooms are the interiors of the plan's rooms whose ring stands as
 // planned (GroundMatches).
-func BuiltRooms(plan LayoutPlan, ground GroundCensus) map[Rectangle]bool {
-	built := map[Rectangle]bool{}
+func BuiltRooms(plan LayoutPlan, ground GroundCensus) map[int32]bool {
+	built := map[int32]bool{}
 	for _, r := range plan.AllRooms() {
 		if plan.GroundMatches(r, ground) {
-			built[r.Region.Bounds()] = true
+			built[r.ID] = true
 		}
 	}
 	return built
@@ -40,11 +40,11 @@ func BuiltRooms(plan LayoutPlan, ground GroundCensus) map[Rectangle]bool {
 // blueprint, frame, edifice, doorway or journal claim) on its walls or
 // floor. A replan must not move a fixed room; an untouched planned room is
 // not fixed.
-func FixedRooms(plan LayoutPlan, ground GroundCensus, occupied map[domain.Cell]bool) map[Rectangle]bool {
+func FixedRooms(plan LayoutPlan, ground GroundCensus, occupied map[domain.Cell]bool) map[int32]bool {
 	fixed := BuiltRooms(plan, ground)
 	for _, r := range plan.AllRooms() {
-		if !fixed[r.Region.Bounds()] && rectHits(roomWalls(r), occupied) {
-			fixed[r.Region.Bounds()] = true
+		if !fixed[r.ID] && rectHits(roomWalls(r), occupied) {
+			fixed[r.ID] = true
 		}
 	}
 	return fixed
@@ -89,7 +89,7 @@ func (p LayoutPlan) roomsOf(role PlannedRole) []PlannedRoom {
 // duplicates beyond one per role (when built is known) and the unbuilt rooms
 // of an ended role (when inUse is known). It reports whether it dropped any.
 func retireAddOnRooms(plan LayoutPlan, growth RoomGrowth) (LayoutPlan, bool) {
-	drop := map[Rectangle]bool{}
+	drop := map[int32]bool{}
 	if growth.Built != nil {
 		duplicateRooms(plan, growth.Shapes, growth.Built, drop)
 	}
@@ -102,7 +102,7 @@ func retireAddOnRooms(plan LayoutPlan, growth RoomGrowth) (LayoutPlan, bool) {
 // duplicateRooms adds to drop all but one room of each add-on role: a built
 // room first, else the smallest that holds the role.s shape (shapes), else
 // the smallest.
-func duplicateRooms(plan LayoutPlan, shapes []ChildRoomShape, built map[Rectangle]bool, drop map[Rectangle]bool) {
+func duplicateRooms(plan LayoutPlan, shapes []ChildRoomShape, built map[int32]bool, drop map[int32]bool) {
 	for _, role := range addOnRoomRoles {
 		rooms := plan.roomsOf(role)
 		if len(rooms) < 2 {
@@ -110,7 +110,7 @@ func duplicateRooms(plan LayoutPlan, shapes []ChildRoomShape, built map[Rectangl
 		}
 		keep := -1
 		for i, r := range rooms {
-			if built[r.Region.Bounds()] {
+			if built[r.ID] {
 				keep = i
 				break
 			}
@@ -120,7 +120,7 @@ func duplicateRooms(plan LayoutPlan, shapes []ChildRoomShape, built map[Rectangl
 		}
 		for i, r := range rooms {
 			if i != keep {
-				drop[r.Region.Bounds()] = true
+				drop[r.ID] = true
 			}
 		}
 	}
@@ -153,10 +153,10 @@ func smallestRoom(rooms []PlannedRoom, shape *ChildRoomShape) int {
 	return best
 }
 
-func withoutRooms(rooms []PlannedRoom, drop map[Rectangle]bool) []PlannedRoom {
+func withoutRooms(rooms []PlannedRoom, drop map[int32]bool) []PlannedRoom {
 	var out []PlannedRoom
 	for _, r := range rooms {
-		if !drop[r.Region.Bounds()] {
+		if !drop[r.ID] {
 			out = append(out, r)
 		}
 	}
@@ -214,15 +214,15 @@ func EndedRoomRoles(pawns domain.Fact[[]WorkPawn], ideology domain.Fact[Ideoligi
 
 // RoomsInUse are the interiors of the plan's rooms that stand as planned or
 // hold a building of furniture's definitions.
-func RoomsInUse(plan LayoutPlan, built []CurrentBuilding, furniture []FurnitureDefinition) map[Rectangle]bool {
+func RoomsInUse(plan LayoutPlan, built []CurrentBuilding, furniture []FurnitureDefinition) map[int32]bool {
 	inUse := BuiltRooms(plan, GroundOf(built))
 	var names []string
 	for _, d := range furniture {
 		names = append(names, d.Name)
 	}
 	for _, r := range plan.AllRooms() {
-		if !inUse[r.Region.Bounds()] && standingChildPieces(r, names, built) > 0 {
-			inUse[r.Region.Bounds()] = true
+		if !inUse[r.ID] && standingChildPieces(r, names, built) > 0 {
+			inUse[r.ID] = true
 		}
 	}
 	return inUse
@@ -230,11 +230,11 @@ func RoomsInUse(plan LayoutPlan, built []CurrentBuilding, furniture []FurnitureD
 
 // endedRooms adds to drop each planned room of an ended role that is not in
 // use.
-func endedRooms(plan LayoutPlan, ended []PlannedRole, inUse map[Rectangle]bool, drop map[Rectangle]bool) {
+func endedRooms(plan LayoutPlan, ended []PlannedRole, inUse map[int32]bool, drop map[int32]bool) {
 	for _, role := range ended {
 		for _, r := range plan.roomsOf(role) {
-			if !inUse[r.Region.Bounds()] {
-				drop[r.Region.Bounds()] = true
+			if !inUse[r.ID] {
+				drop[r.ID] = true
 			}
 		}
 	}
@@ -242,7 +242,7 @@ func endedRooms(plan LayoutPlan, ended []PlannedRole, inUse map[Rectangle]bool, 
 
 // dropRooms removes the rooms with the interiors in drop from plan and its
 // wings. It reports whether there was any.
-func dropRooms(plan LayoutPlan, drop map[Rectangle]bool) (LayoutPlan, bool) {
+func dropRooms(plan LayoutPlan, drop map[int32]bool) (LayoutPlan, bool) {
 	if len(drop) == 0 {
 		return plan, false
 	}
@@ -276,8 +276,8 @@ func SurplusRoomsPossible(plan LayoutPlan, throneMin int, demand RoomDemand) boo
 // retireSurplusRooms drops the surplus rooms of growth that are unbuilt, plus
 // the built throne rooms a built larger one replaces. It reports whether it
 // dropped any.
-func retireSurplusRooms(plan LayoutPlan, growth RoomGrowth, built map[Rectangle]bool) (LayoutPlan, bool) {
-	drop := map[Rectangle]bool{}
+func retireSurplusRooms(plan LayoutPlan, growth RoomGrowth, built map[int32]bool) (LayoutPlan, bool) {
+	drop := map[int32]bool{}
 	area := func(r PlannedRoom) int { return int(r.Region.Bounds().Width) * int(r.Region.Bounds().Height) }
 	if thrones := plan.roomsOf(PlannedThrone); growth.ThroneMin > 0 && len(thrones) > 1 {
 		// Keep a built room that holds the title's area, else the smallest.
@@ -285,18 +285,18 @@ func retireSurplusRooms(plan LayoutPlan, growth RoomGrowth, built map[Rectangle]
 		for i, r := range thrones {
 			switch {
 			case area(r) < growth.ThroneMin:
-			case built[r.Region.Bounds()]:
-				if keep < 0 || !built[thrones[keep].Region.Bounds()] {
+			case built[r.ID]:
+				if keep < 0 || !built[thrones[keep].ID] {
 					keep = i
 				}
-			case keep < 0 || !built[thrones[keep].Region.Bounds()] && area(r) < area(thrones[keep]):
+			case keep < 0 || !built[thrones[keep].ID] && area(r) < area(thrones[keep]):
 				keep = i
 			}
 		}
 		if keep >= 0 {
 			for i, r := range thrones {
-				if i != keep && (built[thrones[keep].Region.Bounds()] || !built[r.Region.Bounds()]) {
-					drop[r.Region.Bounds()] = true
+				if i != keep && (built[thrones[keep].ID] || !built[r.ID]) {
+					drop[r.ID] = true
 				}
 			}
 		}
@@ -307,16 +307,16 @@ func retireSurplusRooms(plan LayoutPlan, growth RoomGrowth, built map[Rectangle]
 				continue
 			}
 			for _, r := range plan.roomsOf(role) {
-				if !built[r.Region.Bounds()] {
-					drop[r.Region.Bounds()] = true
+				if !built[r.ID] {
+					drop[r.ID] = true
 				}
 			}
 		}
 	}
 	if growth.Demand.StorageIdle {
 		for i, r := range plan.roomsOf(PlannedStorage) {
-			if i > 0 && !built[r.Region.Bounds()] {
-				drop[r.Region.Bounds()] = true
+			if i > 0 && !built[r.ID] {
+				drop[r.ID] = true
 			}
 		}
 	}
