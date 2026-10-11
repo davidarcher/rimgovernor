@@ -49,14 +49,14 @@ func TestFoodPlanTribalBridge(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, e := range p.Portfolio {
-				want := FoodPlanOpen
+				// A slow crop is a little labor and then time, so it opens
+				// alongside the fast channels; its lead only orders it last.
 				if e.Channel.Kind == CandidateCrop {
-					want = FoodPlanHold
 					if lead, _ := e.Channel.LeadDays.Value(); lead != 4.5 {
 						t.Fatal(lead)
 					}
 				}
-				if e.Decision != want {
+				if e.Decision != FoodPlanOpen {
 					t.Fatalf("%s", p.Explain())
 				}
 			}
@@ -221,16 +221,19 @@ func TestFoodPlanEmergencyOpensChannelsInParallel(t *testing.T) {
 	}
 }
 
+// Lead orders a flow's channels and never excludes one: a channel that arrives
+// after the runway still closes the daily gap from then on.
 func TestFoodPlanReserveAndLeadHorizon(t *testing.T) {
 	for _, tc := range []struct {
 		runway, reserve, lead, wantGap float64
 		decision                       FoodPlanDecision
 	}{
 		{4, 0, 4, 0, FoodPlanOpen},
-		{4, 3, 4, 17.5, FoodPlanHold},
+		{4, 3, 4, 7.5, FoodPlanOpen},
 		{1, 2, 0, 10, FoodPlanOpen},
 		{1, 0, 1, 7.5, FoodPlanOpen},
-		{1, 0, 1.01, 17.5, FoodPlanHold},
+		{1, 0, 1.01, 7.5, FoodPlanOpen},
+		{0.5, 0, 3, 8.75, FoodPlanOpen},
 	} {
 		r := foodPlanRequest(foodPlanChannel("crop", 10, 1, tc.lead, false))
 		r.Demand.RunwayDays = domain.Known(tc.runway)

@@ -43,6 +43,10 @@ var ErrNotFound = core.ErrNotFound
 type Store struct {
 	db     *sql.DB
 	floors *retirementFloors
+	// plans and dsn: the decoded-plan cache and the database URL it is
+	// registered under (see planCache).
+	plans *planCache
+	dsn   string
 }
 
 // ControllerSessionID identifies one persistent controller execution namespace.
@@ -93,6 +97,14 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	q.Add("_pragma", "foreign_keys(1)")
 	q.Add("_pragma", "synchronous("+syncMode()+")")
 	u.RawQuery = q.Encode()
+	cache := newPlanCache()
+	planCaches.Store(u.String(), cache)
+	opened := false
+	defer func() {
+		if !opened {
+			planCaches.CompareAndDelete(u.String(), cache)
+		}
+	}()
 	db, err := sql.Open(DriverName, u.String())
 	if err != nil {
 		return nil, err
@@ -115,14 +127,18 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("journal mode %q, want %s", journal, want)
 	}
-	s := &Store{db: db, floors: floorsFor(path)}
+	s := &Store{db: db, floors: floorsFor(path), plans: cache, dsn: u.String()}
 	if err = s.initialize(ctx); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
+	opened = true
 	return s, nil
 }
-func (s *Store) Close() error { return s.db.Close() }
+func (s *Store) Close() error {
+	planCaches.CompareAndDelete(s.dsn, s.plans)
+	return s.db.Close()
+}
 
 // ErrIncompatible is Open's refusal of a database another schema version
 // or application wrote.

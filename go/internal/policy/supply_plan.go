@@ -202,7 +202,7 @@ type supplyCand struct {
 	lead, work, upfront, risk, dist float64
 	distSq                          domain.Fact[float64]
 	full                            supplyShare // priced against the full demands
-	ok                              []bool      // per demand: lead within horizon
+	ok                              []bool      // per demand: a flow, or lead within the stock demand's horizon
 	flow                            bool        // matches a flow demand
 	priority                        int
 	laborNew                        float64
@@ -265,8 +265,9 @@ func supplyLess(a, b SupplyCandidate) bool {
 // budgets projected rates and unit deficits, never stored goods or completed
 // work.
 //
-// A candidate serves a demand when a yield matches it and the candidate's lead
-// is within the demand's horizon. Its contribution to a flow is its
+// A candidate serves a demand when a yield matches it and, for a stock demand,
+// the candidate's lead is within the demand's horizon; a flow demand takes any
+// lead. Its contribution to a flow is its
 // risk-adjusted rate, `rate * max(0, 1 - sum(risk))`, bounded by its stock cap
 // spread over the demand's window; to a stock demand a one-shot source
 // contributes min(stock cap, storage headroom when hauled, remaining deficit).
@@ -568,7 +569,10 @@ func (c *supplyCand) price(demands []SupplyDemand) {
 	c.ok = make([]bool, len(demands))
 	window, covered := 1.0, 0.0
 	for i, d := range demands {
-		c.ok[i] = c.lead <= d.HorizonDays
+		// A flow has no deadline: a slow channel costs a little labor now and then
+		// only time, so lead orders the candidates (fast first) and the labor
+		// budget limits them, instead of a horizon shutting the slow ones out.
+		c.ok[i] = d.flow() || c.lead <= d.HorizonDays
 		if !c.full.matched[i] {
 			continue
 		}

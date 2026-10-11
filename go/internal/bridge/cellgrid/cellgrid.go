@@ -113,6 +113,7 @@ func strArray(slot func(*mp.CellGrid) **mp.FieldArray, field func(*policy.SiteCe
 const (
 	presenceArray = 0
 	roofedArray   = 3
+	roomArray     = 12
 )
 
 var arrays = []array{
@@ -542,9 +543,9 @@ func (g *Grid) Cells() []policy.SiteCell {
 
 // Window is the held cells inside rect (clipped to the grid), row-major,
 // and the count of rect's cells the grid does not hold (fogged). Glow is
-// total light: a cell's glow, raised on an unroofed cell to sky (a frame's
-// sky_glow; the grid's glow is artificial light only).
-func (g *Grid) Window(rect policy.Rectangle, sky float64) ([]policy.SiteCell, uint64) {
+// artificial light only; the sky's light is not in the cells, since it moves
+// every cell of the open map together and belongs to no one cell.
+func (g *Grid) Window(rect policy.Rectangle) ([]policy.SiteCell, uint64) {
 	minX, minZ := max(rect.X, g.Rect.X), max(rect.Z, g.Rect.Z)
 	maxX, maxZ := min(rect.X+rect.Width, g.Rect.X+g.Rect.Width), min(rect.Z+rect.Height, g.Rect.Z+g.Rect.Height)
 	var out []policy.SiteCell
@@ -556,12 +557,28 @@ func (g *Grid) Window(rect policy.Rectangle, sky float64) ([]policy.SiteCell, ui
 				fogged++
 				continue
 			}
-			cell := g.cell(j)
-			if glow, known := cell.Glow.Value(); known && g.cols[roofedArray].codes[j] == 1 && sky > glow {
-				cell.Glow = domain.Known(sky)
-			}
-			out = append(out, cell)
+			out = append(out, g.cell(j))
 		}
 	}
 	return out, fogged
+}
+
+// CellsByRoom groups the held cells by their grid_room key, row-major within
+// a key. It reads the room column alone; Cells would build every cell's
+// whole record only to look at this one field.
+func (g *Grid) CellsByRoom() map[string][]domain.Cell {
+	out := map[string][]domain.Cell{}
+	if g == nil {
+		return out
+	}
+	presence, rooms := g.cols[presenceArray].codes, g.cols[roomArray].idx
+	for j, code := range presence {
+		if code != 1 {
+			continue
+		}
+		if key, known := g.str(rooms[j]); known {
+			out[key] = append(out[key], domain.Cell{X: g.Rect.X + int32(j%int(g.Rect.Width)), Z: g.Rect.Z + int32(j/int(g.Rect.Width))})
+		}
+	}
+	return out
 }

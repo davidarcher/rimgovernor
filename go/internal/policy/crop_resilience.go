@@ -64,8 +64,11 @@ func cropChoiceTerms(r FieldRequest, crop CropChoice, cells int) []FarmSiteTerm 
 
 func cropSoilCompatible(crop CropChoice, cell SiteCell) bool {
 	if GrowsInDark(crop) {
+		// Dark is a roofed cell with no lamp: an open cell is lit by the sky
+		// for part of every day, whatever hour the cells were read.
 		glow, known := cell.Glow.Value()
-		if !known || glow != 0 {
+		roofed, roofKnown := cell.Roofed.Value()
+		if !known || glow != 0 || !roofKnown || !roofed {
 			return false
 		}
 	}

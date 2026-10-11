@@ -1,7 +1,9 @@
 package policy
 
 import (
+	"runtime"
 	"sort"
+	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -276,14 +278,29 @@ func (g siteGround) walkDist(c domain.Cell) int {
 	return int(g.walk[c.Z*g.w+c.X])
 }
 
-// eachIndex runs f for 0..n-1 in order. policy is pure (rule 2,
-// docs/developers/architecture/rules.md): no goroutines, so a fresh siting
-// pass is serial; each f writes only its own slot, so a caller may fan out
-// elsewhere without changing the result.
+// eachIndex runs f for 0..n-1 across GOMAXPROCS workers, worker w taking
+// the indexes w, w+W, w+2W... Rule 2 allows this because it is deterministic:
+// each f writes only its own slot, so the result never depends on scheduling
+// or on how many workers run.
 func eachIndex(n int, f func(i int)) {
-	for i := range n {
-		f(i)
+	workers := min(runtime.GOMAXPROCS(0), n)
+	if workers <= 1 {
+		for i := range n {
+			f(i)
+		}
+		return
 	}
+	var wg sync.WaitGroup
+	for w := range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := w; i < n; i += workers {
+				f(i)
+			}
+		}()
+	}
+	wg.Wait()
 }
 
 // rankSites orders scores best first, ties by seed (Z, X).

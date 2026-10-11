@@ -363,6 +363,9 @@ func colonyFacts(ctx context.Context, h *na.Harness, s cases.Session, label stri
 		return nil, fmt.Errorf("%s: colony facts unavailable", label)
 	}
 	id := v.Context.Identity
+	if _, err := h.Client.DefinitionCatalog(ctx, id); err != nil {
+		return nil, err
+	}
 	tables, err := h.Client.FrameTables(ctx, id)
 	if err != nil {
 		return nil, err

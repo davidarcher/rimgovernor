@@ -26,6 +26,11 @@ namespace HomeBridge.BridgeTools
     // debug action) so the days-long gestation fits the case's budget.
     public sealed class MechGestationFixture
     {
+        // The mech's PawnKindDef when the recipe gestates a mechanoid race; the
+        // controller derives the same from the recipe and race rows (#2655).
+        private static string MechKind(RecipeDef recipe) =>
+            recipe.mechResurrection || recipe.ProducedThingDef?.race?.IsMechanoid != true ? null : recipe.ProducedThingDef.race.AnyPawnKind?.defName;
+
         [Tool("test/mech_gestation_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture (#1692): make one colonist a mechanitor, build a mech gestator on a fueled generator's conduit line, stock the ingredients of the gestation recipes its free bandwidth affords, finish their research and skills, and park the mechanitor's first control group in a mode the controller never writes. Requires Biotech.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
@@ -54,7 +59,7 @@ namespace HomeBridge.BridgeTools
 
                 // The mechanitor: the first adult colonist who can do the work of
                 // every gestation recipe the gestator offers.
-                var recipes = gestatorDef.AllRecipes.Where(r => NativeMechBills.Kind(r) != null).ToList();
+                var recipes = gestatorDef.AllRecipes.Where(r => MechKind(r) != null).ToList();
                 if (recipes.Count == 0) return Refuse("The gestator offers no mech gestation recipe.");
                 bool Able(Pawn p, RecipeDef r) {
                     var work = NativeBillsObservationTools.WorkType(gestatorDef, r);
@@ -169,7 +174,7 @@ namespace HomeBridge.BridgeTools
                     mechanitorId = overseer.GetUniqueLoadID(), gestatorId = gestator.GetUniqueLoadID(), chargerId = charger.GetUniqueLoadID(), generatorId = generator.GetUniqueLoadID(),
                     totalBandwidth = tracker.TotalBandwidth, usedBandwidth = tracker.UsedBandwidth, freeBandwidth = free,
                     parkedMode = tracker.controlGroups[0].WorkMode.defName,
-                    recipes = affordable.Select(r => (object)new { recipe = r.defName, mechKind = NativeMechBills.Kind(r), bandwidth = Cost(r), gestationCycles = r.gestationCycles }).ToList(),
+                    recipes = affordable.Select(r => (object)new { recipe = r.defName, mechKind = MechKind(r), bandwidth = Cost(r), gestationCycles = r.gestationCycles }).ToList(),
                     stock = seeded,
                 };
             }, cancellationToken).ConfigureAwait(false);
@@ -208,7 +213,7 @@ namespace HomeBridge.BridgeTools
                     bandwidthCost = m.GetStatValue(StatDefOf.BandwidthCost),
                 }).ToList();
                 var bills = gestator == null ? new List<object>() : gestator.BillStack.Bills.OfType<Bill_Mech>()
-                    .Select(b => (object)new { recipe = b.recipe.defName, mechKind = NativeMechBills.Kind(b.recipe), suspended = b.suspended, finished = BillCommon.IsFinished(b) }).ToList();
+                    .Select(b => (object)new { recipe = b.recipe.defName, mechKind = MechKind(b.recipe), suspended = b.suspended, finished = BillCommon.IsFinished(b) }).ToList();
                 return new {
                     success = true, tick = Find.TickManager.TicksGame, mechanitorDead = overseer.Dead,
                     totalBandwidth = tracker.TotalBandwidth, usedBandwidth = tracker.UsedBandwidth, usedBandwidthFromGestation = tracker.UsedBandwidthFromGestation,

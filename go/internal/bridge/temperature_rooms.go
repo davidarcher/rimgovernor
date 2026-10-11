@@ -18,12 +18,7 @@ func RoomCells(v *o.RoomsSnapshot, grid *cellgrid.Grid) map[string][]domain.Cell
 	if v == nil || grid == nil {
 		return out
 	}
-	byKey := map[string][]domain.Cell{}
-	for _, cell := range grid.Cells() {
-		if key, known := cell.Room.Value(); known {
-			byKey[key] = append(byKey[key], cell.Cell)
-		}
-	}
+	byKey := grid.CellsByRoom()
 	for _, room := range v.Rooms {
 		if cells := byKey[room.GetGridRoom()]; room.GridRoom != nil && len(cells) > 0 {
 			out[room.GetId()] = cells

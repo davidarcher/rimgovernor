@@ -64,14 +64,64 @@ namespace HomeBridge.BridgeTools
             Watch(harmony, pre, post, typeof(Thing), "DeSpawn", "despawn");
             Watch(harmony, pre, post, typeof(GenSpawn), "Spawn", "spawn", new[] { typeof(Thing), typeof(IntVec3), typeof(Map), typeof(Rot4), typeof(WipeMode), typeof(bool), typeof(bool) });
 
+            WatchGivers(harmony, pre, post);
+            var driverTick = AccessTools.Method(typeof(JobDriver), "DriverTick");
+            if (driverTick != null)
+                harmony.Patch(driverTick, prefix: new HarmonyMethod(typeof(TickProfile), nameof(BeginList)), postfix: new HarmonyMethod(typeof(TickProfile), nameof(EndDriver)));
+
             _listType = AccessTools.Field(typeof(TickList), "tickType");
             var listTick = AccessTools.Method(typeof(TickList), "Tick");
             if (listTick != null && _listType != null)
                 harmony.Patch(listTick, prefix: new HarmonyMethod(typeof(TickProfile), nameof(BeginList)), postfix: new HarmonyMethod(typeof(TickProfile), nameof(EndList)));
 
             var names = new List<string>();
-            foreach (var b in Methods.Values) names.Add(b.Name);
+            foreach (var b in Methods.Values) if (b.Name.IndexOf(':') < 0) names.Add(b.Name);
             ModLog.Info("clock", "RimGovernor tick profile watching: " + string.Join(",", names) + (listTick != null ? ",ticker-lists" : ""));
+        }
+
+        // Per-giver attribution of find-job: every WorkGiver_Scanner subclass's declared
+        // scan methods and every ThinkNode subclass's TryIssueJobPackage, named
+        // "wg:<Type>.<Method>" / "think:<Type>". A scanner's PotentialWorkThingsGlobal is
+        // an iterator, so its bucket is the cost of creating it, not of walking it; the
+        // walk lands in the parent think node.
+        private static readonly string[] ScannerMethods = { "ShouldSkip", "HasJobOnThing", "JobOnThing", "HasJobOnCell", "JobOnCell", "PotentialWorkThingsGlobal", "PotentialWorkCellsGlobal" };
+
+        private static void WatchGivers(Harmony harmony, HarmonyMethod pre, HarmonyMethod post)
+        {
+            const BindingFlags declared = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+            var count = 0;
+            foreach (var type in typeof(WorkGiver_Scanner).AllSubclassesNonAbstract())
+            {
+                foreach (var name in ScannerMethods)
+                {
+                    var m = type.GetMethod(name, declared);
+                    if (m == null || m.IsAbstract || m.ContainsGenericParameters) continue;
+                    Watch(harmony, pre, post, m, "wg:" + type.Name + "." + name);
+                    count++;
+                }
+            }
+            foreach (var type in typeof(ThinkNode).AllSubclassesNonAbstract())
+            {
+                var m = type.GetMethod("TryIssueJobPackage", declared);
+                if (m == null || m.IsAbstract || m.ContainsGenericParameters) continue;
+                Watch(harmony, pre, post, m, "think:" + type.Name);
+                count++;
+            }
+            ModLog.Info("clock", "RimGovernor tick profile giver buckets: " + count.ToString(CultureInfo.InvariantCulture));
+        }
+
+        private static void Watch(Harmony harmony, HarmonyMethod pre, HarmonyMethod post, MethodBase target, string name)
+        {
+            if (Methods.ContainsKey(target)) return;
+            try
+            {
+                harmony.Patch(target, prefix: pre, postfix: post);
+                Methods[target] = new Bucket { Name = name };
+            }
+            catch (Exception ex)
+            {
+                ModLog.Info("clock", "RimGovernor tick profile skipped " + name + ": " + ex.GetType().Name);
+            }
         }
 
         private static void Watch(Harmony harmony, HarmonyMethod pre, HarmonyMethod post, Type type, string method, string name, Type[]? args = null)
@@ -117,6 +167,41 @@ namespace HomeBridge.BridgeTools
 
         private static void BeginList(out long __state) => __state = System.Diagnostics.Stopwatch.GetTimestamp();
 
+        // Per-driver-type inclusive time of JobDriver.DriverTick, named "driver:<Type>": the
+        // pawns' current jobs ticking, which is most of job-tracker once find-job is subtracted.
+        private static readonly Dictionary<Type, Bucket> Drivers = new Dictionary<Type, Bucket>();
+
+        private static void EndDriver(JobDriver __instance, long __state)
+        {
+            var type = __instance.GetType();
+            Bucket? b;
+            lock (Drivers)
+            {
+                if (!Drivers.TryGetValue(type, out b)) Drivers[type] = b = new Bucket { Name = "driver:" + type.Name };
+            }
+            Interlocked.Add(ref b.Elapsed, System.Diagnostics.Stopwatch.GetTimestamp() - __state);
+            Interlocked.Increment(ref b.Calls);
+        }
+
+        // Start/Stop time one of the mod's own code paths into a named bucket ("guard:<name>"),
+        // so its cost reads beside the vanilla method it hangs off. Start is 0 (and Stop a
+        // no-op) unless the profile is installed.
+        private static readonly Dictionary<string, Bucket> Custom = new Dictionary<string, Bucket>();
+
+        internal static long Start() => _installed == 0 ? 0 : System.Diagnostics.Stopwatch.GetTimestamp();
+
+        internal static void Stop(string name, long start)
+        {
+            if (start == 0) return;
+            Bucket? b;
+            lock (Custom)
+            {
+                if (!Custom.TryGetValue(name, out b)) Custom[name] = b = new Bucket { Name = name };
+            }
+            Interlocked.Add(ref b.Elapsed, System.Diagnostics.Stopwatch.GetTimestamp() - start);
+            Interlocked.Increment(ref b.Calls);
+        }
+
         private static void EndList(TickList __instance, long __state)
         {
             var type = Convert.ToInt32(_listType!.GetValue(__instance), CultureInfo.InvariantCulture);
@@ -136,6 +221,8 @@ namespace HomeBridge.BridgeTools
             var sb = new StringBuilder();
             foreach (var b in Methods.Values) Append(sb, b);
             lock (Lists) foreach (var b in Lists.Values) Append(sb, b);
+            lock (Drivers) foreach (var b in Drivers.Values) Append(sb, b);
+            lock (Custom) foreach (var b in Custom.Values) Append(sb, b);
             lock (Callers) { foreach (var c in Callers) sb.Append(" caller[").Append(c.Value).Append("]=").Append(c.Key); Callers.Clear(); }
             return sb.ToString();
         }

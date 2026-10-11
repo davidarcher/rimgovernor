@@ -60,8 +60,8 @@ func gridTestMap() []nativeCell {
 }
 
 // gridBand is the site cells over rect a planner reads from native's
-// cells, row-major, and the count of fogged cells, glow total at sky.
-func gridBand(cells []nativeCell, rect policy.Rectangle, sky float64) ([]policy.SiteCell, uint64) {
+// cells, row-major, and the count of fogged cells.
+func gridBand(cells []nativeCell, rect policy.Rectangle) ([]policy.SiteCell, uint64) {
 	var out []policy.SiteCell
 	var fogged uint64
 	named := func(s string) domain.Fact[string] {
@@ -77,13 +77,9 @@ func gridBand(cells []nativeCell, rect policy.Rectangle, sky float64) ([]policy.
 				fogged++
 				continue
 			}
-			glow := n.glow
-			if n.roof == "" {
-				glow = math.Max(glow, sky)
-			}
 			cell := policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(n.walkable), Doorway: domain.Known(n.doorway),
 				StorageEmpty: domain.Known(n.storageEmpty),
-				Indoors:      domain.Known(n.indoors), Polluted: domain.Known(n.polluted), Glow: domain.Known(glow), Zone: domain.Known(n.zone != ""), Roofed: domain.Known(n.roof != ""),
+				Indoors:      domain.Known(n.indoors), Polluted: domain.Known(n.polluted), Glow: domain.Known(n.glow), Zone: domain.Known(n.zone != ""), Roofed: domain.Known(n.roof != ""),
 				Roof: named(n.roof), ZoneID: named(n.zone), Room: named(n.room),
 				Terrain: named(n.terrain), InHome: domain.Known(n.inHome), BaseTerrain: named(n.baseTerrain), SnowDepth: domain.Known(n.snow), TopLayerRemovable: domain.Known(n.topRemovable), Things: n.things}
 			if n.fertility > 0 {
@@ -208,7 +204,7 @@ func gridFrame(base *o.BundleSnapshot, tick int64, grid *mp.CellGrid, seq uint64
 // TestFrameGridMatchesTheBand checks that the planning window
 // served from a frame's grid, keyframe and then a cumulative delta, is
 // the site cells native's cells hold over the window's rect,
-// glow compared as artificial light raised to the sky on unroofed cells.
+// glow compared as artificial light, whatever the frame's sky.
 func TestFrameGridMatchesTheBand(t *testing.T) {
 	client, server, ring := frameClient(t)
 	rect := policy.Rectangle{X: 1, Z: 0, Width: 3, Height: 3}
@@ -219,7 +215,7 @@ func TestFrameGridMatchesTheBand(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", label, err)
 		}
-		want, filtered := gridBand(cells, rect, sky)
+		want, filtered := gridBand(cells, rect)
 		if window.Filtered != filtered || len(window.Cells) != len(want) {
 			t.Fatalf("%s: %d cells %d fogged, band %d cells %d fogged", label, len(window.Cells), window.Filtered, len(want), filtered)
 		}

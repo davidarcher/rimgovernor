@@ -69,7 +69,7 @@ namespace HomeBridge.BridgeTools
             if (cacheTick != now) { cache.Clear(); cacheTick = now; }
             if (cache.TryGetValue(map, out var cached)) return cached;
             var list = new List<Site>();
-            foreach (var setting in Current.Game.GetComponent<ConstructionSkillState>().Settings)
+            foreach (var setting in Current.Game.GetComponent<ConstructionSkillState>().Settings) // all settings: the cache makes this once per tick
             {
                 var t = setting.Target;
                 if (setting.Tier == ConstructionSkillSetting.None || t == null || t.Destroyed || !t.Spawned

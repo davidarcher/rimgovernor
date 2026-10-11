@@ -471,7 +471,7 @@ namespace HomeBridge.BridgeTools
                         var reply = NativeResourceSourcesTool.Read(map, new RimGovernor.Protocol.Observations.ResourceSourcesRequest { Resource = resource }, context);
                         ms += (System.Diagnostics.Stopwatch.GetTimestamp() - began) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
                         foreach (var row in reply.Observed?.Sources ?? new Google.Protobuf.Collections.RepeatedField<RimGovernor.Protocol.Observations.ResourceSource>())
-                            if (row.Method != "mine") row.Yield = 0;
+                            if (DefDatabase<ThingDef>.GetNamedSilentFail(row.DefName)?.mineable != true) row.Yield = 0;
                         return Google.Protobuf.MessageExtensions.ToByteArray(reply);
                     }
                     finally { NativeResourceSourcesTool.Cheap = true; ExcavationSafety.Shortcut = true; }

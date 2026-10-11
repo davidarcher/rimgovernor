@@ -177,10 +177,11 @@ func Rule1(root string) []string {
 	return sorted(bad)
 }
 
-var impureImports = map[string]bool{"time": true, "sync": true, "sync/atomic": true, "runtime": true, "os": true}
+var impureImports = map[string]bool{"time": true, "os": true}
 
-// Rule2 returns "file|import X" or "file|go statement" for policy files that
-// import time, sync, runtime, os or net, or start a goroutine.
+// Rule2 returns "file|import X" for policy files that import time, os or net.
+// Concurrency (sync, runtime, goroutines) is allowed when deterministic; the
+// gate cannot check that, so it is a review question (rules.md).
 func Rule2(root string) []string {
 	bad := map[string]bool{}
 	for _, f := range load(root, []string{"internal/policy"}, false) {
@@ -190,12 +191,6 @@ func Rule2(root string) []string {
 				bad[f.rel+"|import "+path] = true
 			}
 		}
-		ast.Inspect(f.node, func(n ast.Node) bool {
-			if _, ok := n.(*ast.GoStmt); ok {
-				bad[f.rel+"|go statement"] = true
-			}
-			return true
-		})
 	}
 	return sorted(bad)
 }

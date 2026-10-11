@@ -18,7 +18,8 @@ import (
 // whose keyframe_seq is not the held keyframe's follows a keyframe this
 // reader skipped: the frame serves no grid and the stream asks for a
 // keyframe. Grid glow is artificial light only; the frame's sky_glow is
-// added back where a planner reads total light (cellgrid.Grid.Window).
+// validated but kept out of the cells, which would otherwise change with
+// every hour of the day.
 
 // gridFrameMethod keys a frame's grid in its table, frames-only like
 // roundsFrameMethod; the reply is the frame's context.
@@ -37,7 +38,6 @@ type gridHold struct {
 type frameGrid struct {
 	context *c.ObservationContext
 	grid    *cellgrid.Grid
-	sky     float64
 }
 
 // apply decodes v's grid against the hold: the map as of v, or nil when v
@@ -86,6 +86,6 @@ func (client *Client) frameWindow(ctx context.Context, identity *c.Identity, rec
 	if held.grid == nil || !sameIdentity(held.context.GetIdentity(), identity) {
 		return PlanningWindow{}, fmt.Errorf("%w: no snapshot frame grid for this world", ErrUnavailable)
 	}
-	cells, fogged := held.grid.Window(rect, held.sky)
+	cells, fogged := held.grid.Window(rect)
 	return PlanningWindow{Context: held.context, Region: rect, Cells: cells, Filtered: fogged}, nil
 }

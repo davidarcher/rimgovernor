@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
@@ -142,7 +143,7 @@ func stableTimeline(report na.Report) string {
 }
 
 func auditStableFood(ctx context.Context, h *na.Harness, s cases.Session, report na.Report) error {
-	facts, err := h.Wire(ctx, "stable-food", "observations_read_colony_facts", map[string]any{"scope": map[string]any{"expectedIdentity": s.Identity()}})
+	facts, err := h.Wire(ctx, "stable-food", "observations_read_colony_facts", map[string]any{"scope": map[string]any{"expectedIdentity": s.Identity()}, "herdRadius": bridge.HerdRadius, "huntRouteBudgetMs": bridge.HuntRouteBudgetMS, "huntPredatorMarginCells": policy.HuntPredatorMarginCells})
 	if err != nil {
 		return err
 	}
@@ -159,6 +160,9 @@ func auditStableFood(ctx context.Context, h *na.Harness, s cases.Session, report
 		return fmt.Errorf("final colony facts unavailable")
 	}
 	id := v.Context.Identity
+	if _, err := h.Client.DefinitionCatalog(ctx, id); err != nil {
+		return err
+	}
 	tables, err := h.Client.FrameTables(ctx, id)
 	if err != nil {
 		return err

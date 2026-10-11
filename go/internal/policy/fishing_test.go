@@ -139,12 +139,10 @@ func TestFishingResearchAdmission(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := ""
-		if runway == 4 {
-			want = "Fishing"
-		}
-		if got := FishingResearchRequest(plan, r.Researched); got != want {
-			t.Fatalf("got %q want %q: %s", got, want, plan.Explain())
+		// Research that lands after the runway still starts: lead orders a
+		// flow's channels and never excludes one.
+		if got := FishingResearchRequest(plan, r.Researched); got != "Fishing" {
+			t.Fatalf("runway %v: got %q want Fishing: %s", runway, got, plan.Explain())
 		}
 		if FishingResearchRequest(plan, domain.Known(true)) != "" || FishingResearchRequest(plan, domain.Unknown[bool]()) != "" {
 			t.Fatal("known completion or unknown research requested a project")

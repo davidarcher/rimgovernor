@@ -16,7 +16,7 @@ func (s *Store) LoadPlans(ctx context.Context) ([]PlanState, error) {
 		return nil, err
 	}
 	defer tx.Rollback()
-	states, err := loadPlans(ctx, tx)
+	states, err := loadPlans(ctx, tx, s.plans)
 	if err != nil {
 		return nil, err
 	}
@@ -26,7 +26,7 @@ func (s *Store) LoadPlans(ctx context.Context) ([]PlanState, error) {
 	return states, nil
 }
 
-func loadPlans(ctx context.Context, tx *sql.Tx) ([]PlanState, error) {
+func loadPlans(ctx context.Context, tx *sql.Tx, cache *planCache) ([]PlanState, error) {
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM plans WHERE retired=0 ORDER BY id")
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func loadPlans(ctx context.Context, tx *sql.Tx) ([]PlanState, error) {
 	}
 	states := make([]PlanState, 0, len(ids))
 	for _, id := range ids {
-		state, err := load(ctx, tx, id)
+		state, err := cache.load(ctx, tx, id)
 		if err != nil {
 			return nil, err
 		}

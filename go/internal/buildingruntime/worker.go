@@ -822,14 +822,8 @@ func workerHeldStale(after domain.ProgressView, result executor.Result, err erro
 }
 
 func workerEligible(plan store.PlanState, v domain.ProgressView, scope ControlState, world store.World) bool {
-	supported := false
-	for _, action := range plan.Spec.Actions() {
-		if action.ID() == v.Action && roundsExecutableKind(action.Kind()) {
-			supported = true
-			break
-		}
-	}
-	if !supported {
+	action, found := plan.Spec.Action(v.Action)
+	if !found || !roundsExecutableKind(action.Kind()) {
 		return false
 	}
 	if scope.Enabled {

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
@@ -53,22 +54,40 @@ func CheckInboxSchema(ctx context.Context, tx *sql.Tx) error {
 	}
 	return nil
 }
+
+// canonicalProfiles remembers each profile path's resolved form. Resolving
+// symlinks stats every path component, and the poll loop and every review
+// read resolve the same profile inside a store transaction, so on Windows it
+// was 11% of the service's CPU. A profile directory is not re-linked while the
+// service runs; the directory check below still runs on every call.
+var canonicalProfiles sync.Map
+
 func canonicalClockProfile(profile string) (string, error) {
 	if !filepath.IsAbs(profile) {
 		return "", errors.New("clock profile must be absolute")
 	}
-	result, err := filepath.EvalSymlinks(profile)
-	if err != nil {
-		return "", err
+	var result string
+	if held, ok := canonicalProfiles.Load(profile); ok {
+		result = held.(string)
+	} else {
+		resolved, err := filepath.EvalSymlinks(profile)
+		if err != nil {
+			return "", err
+		}
+		result = resolved
 	}
 	info, err := os.Stat(result)
 	if err != nil {
+		canonicalProfiles.Delete(profile)
 		return "", err
 	}
 	if !info.IsDir() {
+		canonicalProfiles.Delete(profile)
 		return "", errors.New("clock profile must be a directory")
 	}
-	return filepath.Clean(result), nil
+	result = filepath.Clean(result)
+	canonicalProfiles.Store(profile, result)
+	return result, nil
 }
 func sameClockProfile(a, b string) bool {
 	if runtime.GOOS == "windows" {

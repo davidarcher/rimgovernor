@@ -8,7 +8,6 @@ package buildingruntime
 
 import (
 	"math"
-	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -269,7 +268,8 @@ func TestFoodCalibrationTradeRoutine(t *testing.T) {
 
 // The recorded plans (#2141 and the ledger, larder and trade snapshots) are the
 // seeds: given the rows each recorded, the adapter's real planner opens the
-// same kinds of source on day 0.
+// same kinds of source on day 0 (the starving tribal recording opened nothing
+// and starved; its seed expects the crop the horizon used to shut out).
 func TestFoodSeedsOpenWhatSnapshotsOpened(t *testing.T) {
 	recorded := map[string]map[policy.CandidateKind]bool{}
 	for _, sc := range seedScenarios(t) {
@@ -280,7 +280,10 @@ func TestFoodSeedsOpenWhatSnapshotsOpened(t *testing.T) {
 		"seed/food-corpse-larder-release":       {policy.CandidateForage, policy.CandidateHunt},
 		"seed/trade-food-bridge-one-day":        {policy.CandidateForage},
 		"seed/trade-food-crop-surplus-for-meat": {policy.CandidateForage},
-		"seed/food-starving-tribal-no-hunt-row": nil,
+		// The recording opened nothing: the old horizon shut the crops out of a
+		// colony with under a day of food, and it starved. A crop is a little
+		// labor and then time, so the planner now opens one.
+		"seed/food-starving-tribal-no-hunt-row": {policy.CandidateCrop},
 	} {
 		for _, k := range opened {
 			recorded[name][k] = true
@@ -296,9 +299,6 @@ func TestFoodSeedsOpenWhatSnapshotsOpened(t *testing.T) {
 			if !got[kind] {
 				t.Errorf("%s: the recorded plan opened %s, the adapter's planner did not", sc.name, kind)
 			}
-		}
-		if strings.Contains(sc.name, "starving") && len(got) != 0 {
-			t.Errorf("%s: the recorded plan opened nothing, the adapter's planner opened %v", sc.name, got)
 		}
 	}
 }

@@ -11,6 +11,22 @@ namespace HomeBridge.BridgeTools
     {
         public List<ConstructionSkillSetting> Settings = new List<ConstructionSkillSetting>();
         public ConstructionSkillState(Game game) { }
+
+        // Setting lookup by target is on the work-giver scan path (every candidate frame, per
+        // pawn, per giver), so it is a dictionary rebuilt lazily after any change to Settings
+        // or to a setting's Target (Invalidate), never a list scan.
+        private Dictionary<Thing, ConstructionSkillSetting>? index;
+        public void Invalidate() => index = null;
+        public ConstructionSkillSetting? Find(Thing t)
+        {
+            if (index == null)
+            {
+                index = new Dictionary<Thing, ConstructionSkillSetting>();
+                foreach (var setting in Settings)
+                    if (setting.Target != null && !index.ContainsKey(setting.Target)) index[setting.Target] = setting;
+            }
+            return index.TryGetValue(t, out var found) ? found : null;
+        }
         public override void ExposeData()
         {
             if (Scribe.mode == LoadSaveMode.Saving)

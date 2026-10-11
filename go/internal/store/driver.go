@@ -29,12 +29,19 @@ func init() {
 	sql.Register(DriverName, cachingDriver{})
 }
 
+// planCaches maps a database URL to the plan cache of the Store opened on it,
+// so each new connection to it installs that cache's write hooks.
+var planCaches sync.Map
+
 type cachingDriver struct{}
 
 func (cachingDriver) Open(name string) (driver.Conn, error) {
 	c, err := (&sqlite.Driver{}).Open(name)
 	if err != nil {
 		return nil, err
+	}
+	if cache, ok := planCaches.Load(name); ok {
+		cache.(*planCache).install(c)
 	}
 	return &cachingConn{Conn: c, stmts: map[string]*cachedStmt{}}, nil
 }

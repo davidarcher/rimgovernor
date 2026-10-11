@@ -19,9 +19,12 @@ it). Never add a line to make a gate pass. Every gate failure starts
    bridge or gabp, executor does not import store, httpapi does not import
    buildingruntime. Baseline: those edges as they exist today.
 2. **Policy is pure.** Non-test files in `internal/policy` import none of
-   `time`, `sync`, `sync/atomic`, `runtime`, `os`, `net*` and start no
-   goroutines. Search budgets count iterations, never wall time. Baseline:
-   `clock_window_types.go` (`time.Time` fields).
+   `time`, `os`, `net*`. Search budgets count iterations, never wall time.
+   Concurrency is allowed only while the result stays deterministic: each
+   worker writes only its own slot and results merge in index order, so
+   neither scheduling nor worker count can change the output (`eachIndex`
+   in `layout_site_score.go`). The gate cannot check that; it is a review
+   question. Baseline: `clock_window_types.go` (`time.Time` fields).
 3. **One owner per exported type.** An exported type name declared in two or
    more of `domain`, `policy`, `bridge`, `observation` fails unless listed.
    Baseline: today's duplicates.

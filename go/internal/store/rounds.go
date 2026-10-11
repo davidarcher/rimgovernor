@@ -343,7 +343,7 @@ func (s *Store) ReviewRounds(ctx context.Context, request RoundsRequest) (Rounds
 	}
 	defer tx.Rollback()
 	settled := map[retirementWorld]domain.Tick{}
-	result, err := reviewRoundsTx(ctx, tx, request, settled)
+	result, err := reviewRoundsTx(ctx, tx, s.plans, request, settled)
 	if err != nil {
 		return RoundsResult{}, err
 	}
@@ -354,7 +354,7 @@ func (s *Store) ReviewRounds(ctx context.Context, request RoundsRequest) (Rounds
 	return result, nil
 }
 
-func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, settled map[retirementWorld]domain.Tick) (RoundsResult, error) {
+func reviewRoundsTx(ctx context.Context, tx *sql.Tx, cache *planCache, request RoundsRequest, settled map[retirementWorld]domain.Tick) (RoundsResult, error) {
 	previous, err := loadRounds(ctx, tx)
 	if err != nil {
 		return RoundsResult{}, err
@@ -404,7 +404,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 		if err != nil {
 			return RoundsResult{}, err
 		}
-		request.Facts.UpkeepIssued, err = roundsUpkeepIssued(ctx, tx, request.Current)
+		request.Facts.UpkeepIssued, err = roundsUpkeepIssued(ctx, tx, cache, request.Current)
 		if err != nil {
 			return RoundsResult{}, err
 		}
@@ -769,7 +769,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 		if !reset {
 			records = previous.Dependencies
 		}
-		ready, r.Dependencies, err = reviewWork(ctx, tx, request, needs, states, records)
+		ready, r.Dependencies, err = reviewWork(ctx, tx, cache, request, needs, states, records)
 		if err != nil {
 			return RoundsResult{}, err
 		}

@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
         private static bool installed;
         private static ConstructionSkillState State => Current.Game.GetComponent<ConstructionSkillState>();
         internal static bool Quality(Thing t) => t.def.entityDefToBuild is ThingDef d && d.HasComp(typeof(CompQuality));
-        internal static ConstructionSkillSetting? Setting(Thing t) => Current.Game == null ? null : State.Settings.FirstOrDefault(s => s.Target == t);
+        internal static ConstructionSkillSetting? Setting(Thing t) => Current.Game == null ? null : State.Find(t);
         internal static void Set(Thing t, int minimum)
         {
             if (!(t is Blueprint_Build || t is Frame) || !Quality(t) || t.Faction != Faction.OfPlayer || minimum < 0 || minimum > 1000)
@@ -87,7 +87,11 @@ namespace HomeBridge.BridgeTools
         // WorkGiver_ConstructFinishFrames inherits HasJobOnThing, and Harmony only
         // patches a declared virtual, so the base method is patched and filtered.
         private static void Eligible(WorkGiver_Scanner __instance, Pawn pawn, Thing t, ref bool __result)
-        { if (__result && __instance is WorkGiver_ConstructFinishFrames && !Allows(t, pawn)) { __result = false; JobFailReason.Is("construction finishing skill below target minimum"); } }
+        {
+            var start = TickProfile.Start();
+            if (__result && __instance is WorkGiver_ConstructFinishFrames && !Allows(t, pawn)) { __result = false; JobFailReason.Is("construction finishing skill below target minimum"); }
+            TickProfile.Stop("guard:skill-eligible", start);
+        }
         private static bool Complete(Frame __instance, Pawn worker)
         {
             if (Allows(__instance, worker)) return true;
@@ -97,7 +101,9 @@ namespace HomeBridge.BridgeTools
         private static void Transfer(Blueprint_Build __instance, Thing __result)
         {
             var setting = Setting(__instance);
-            if (setting != null) setting.Target = __result;
+            if (setting == null) return;
+            setting.Target = __result;
+            State.Invalidate();
         }
         private static void Inspect(Thing __instance, ref string __result)
         {

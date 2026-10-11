@@ -50,7 +50,7 @@ func (s *Store) AuthorizeRoundsPlan(ctx context.Context, root, target domain.Gen
 		if err != nil {
 			return err
 		}
-		if err = authorizeStandardPlan(ctx, tx, review, project, root, target); err != nil {
+		if err = authorizeStandardPlan(ctx, tx, s.plans, review, project, root, target); err != nil {
 			return err
 		}
 		return tx.Commit()
@@ -65,7 +65,7 @@ func (s *Store) AuthorizeRoundsPlan(ctx context.Context, root, target domain.Gen
 	if err != nil {
 		return err
 	}
-	if err = authorizeStandardPlan(ctx, tx, review, goal, root, target); err != nil {
+	if err = authorizeStandardPlan(ctx, tx, s.plans, review, goal, root, target); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -103,7 +103,7 @@ func authorizeIncidentPlan(ctx context.Context, tx *sql.Tx, review Rounds, id do
 	return roundsActionsSupported(p.Spec)
 }
 
-func authorizeStandardPlan(ctx context.Context, tx *sql.Tx, review Rounds, owner WorkOwner, root, target domain.GenerationSnapshot) error {
+func authorizeStandardPlan(ctx context.Context, tx *sql.Tx, cache *planCache, review Rounds, owner WorkOwner, root, target domain.GenerationSnapshot) error {
 	if _, bound := owner.ownerNeed(review); !bound {
 		return ErrConflict
 	}
@@ -124,7 +124,7 @@ func authorizeStandardPlan(ctx context.Context, tx *sql.Tx, review Rounds, owner
 	if !bound {
 		return ErrConflict
 	}
-	p, err := load(ctx, tx, target.Plan)
+	p, err := cache.load(ctx, tx, target.Plan)
 	if err != nil {
 		return err
 	}

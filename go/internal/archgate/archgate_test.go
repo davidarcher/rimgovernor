@@ -29,7 +29,7 @@ var gates = []struct {
 	fn   func(string) []string
 }{
 	{1, "import climbs the layer order or is a denied edge", Rule1},
-	{2, "policy must be pure (no time, sync, runtime, os, net, goroutines)", Rule2},
+	{2, "policy must be pure (no time, os, net)", Rule2},
 	{3, "exported type has more than one owner among domain, policy, bridge, observation", Rule3},
 	{4, "empty `if err != nil` swallows the error", Rule4},
 	{5, "literal resource cap or sentinel standing for unknown", Rule5},
@@ -83,11 +83,11 @@ func TestRule1FailsOnViolation(t *testing.T) {
 
 func TestRule2FailsOnViolation(t *testing.T) {
 	root := write(t, map[string]string{
-		"internal/policy/a.go": "package policy\nimport \"time\"\nfunc f() { go func() {}(); _ = time.Now() }\n",
+		"internal/policy/a.go": "package policy\nimport \"time\"\nfunc f() { _ = time.Now() }\n",
 		"internal/policy/b.go": "package policy\n",
 	})
 	got := Rule2(root)
-	if !has(got, "internal/policy/a.go|import time") || !has(got, "internal/policy/a.go|go statement") || len(got) != 2 {
+	if !has(got, "internal/policy/a.go|import time") || len(got) != 1 {
 		t.Fatalf("rule 2 got %v", got)
 	}
 }

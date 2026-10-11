@@ -437,6 +437,16 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 func (p PlanSpec) ID() PlanID             { return p.id }
 func (p PlanSpec) Revision() PlanRevision { return p.revision }
 func (p PlanSpec) Actions() []Action      { return append([]Action(nil), p.actions...) }
+
+// Action returns the plan action with the id, without copying the action list.
+func (p PlanSpec) Action(id ActionID) (Action, bool) {
+	for _, a := range p.actions {
+		if a.id == id {
+			return a, true
+		}
+	}
+	return Action{}, false
+}
 func (p PlanSpec) Dependencies() []ActionDependency {
 	return append([]ActionDependency(nil), p.dependencies...)
 }

@@ -127,7 +127,7 @@ func TestThingsKeyframeAndDeltaRoundTrip(t *testing.T) {
 		t.Fatalf("terrain = %v", got)
 	}
 	// The window serves the same lists.
-	window, fogged := applied.Window(policy.Rectangle{X: 6, Z: 7, Width: 2, Height: 2}, 0)
+	window, fogged := applied.Window(policy.Rectangle{X: 6, Z: 7, Width: 2, Height: 2})
 	if fogged != 0 || len(window) != 4 || len(window[0].Things) != 3 {
 		t.Fatalf("window %d cells, %d fogged, first things %d", len(window), fogged, len(window[0].Things))
 	}
@@ -144,7 +144,7 @@ func TestThingsFoggedIsNotEmpty(t *testing.T) {
 	if len(cells) != 1 || cells[0].Things != nil {
 		t.Fatalf("cells = %+v: want the held cell with an empty list and the fogged one absent", cells)
 	}
-	if w, fogged := grid.Window(grid.Rect, 0); len(w) != 1 || fogged != 1 {
+	if w, fogged := grid.Window(grid.Rect); len(w) != 1 || fogged != 1 {
 		t.Fatalf("window %d cells %d fogged", len(w), fogged)
 	}
 }

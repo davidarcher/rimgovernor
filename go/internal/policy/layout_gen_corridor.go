@@ -1,21 +1,16 @@
 package policy
 
 import (
+	"sync/atomic"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // layoutCounters tally growth events for the replay score gate, which
 // logs them per fixture. They only count and never steer the plan.
 var layoutCounters struct {
-	routed, spineFallbacks, rings, secondDoors layoutCounter
+	routed, spineFallbacks, rings, secondDoors atomic.Int64
 }
-
-// layoutCounter is a plain count: siting is serial (rule 2), so no atomics.
-type layoutCounter int64
-
-func (c *layoutCounter) Add(n int64)   { *c += layoutCounter(n) }
-func (c *layoutCounter) Store(n int64) { *c = layoutCounter(n) }
-func (c *layoutCounter) Load() int64   { return int64(*c) }
 
 // Layout corridors. Once the rooms and
 // housing blocks stand, the hallway network is finished in three passes,

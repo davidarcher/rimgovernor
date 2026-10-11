@@ -128,7 +128,7 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 	}
 	var decision policy.Decision
 	if len(candidates) != 0 {
-		held, err := buildingMethodHolds(ctx, tx, r.Current)
+		held, err := buildingMethodHolds(ctx, tx, s.plans, r.Current)
 		if err != nil {
 			return BuildingMethodDecision{}, err
 		}
@@ -177,7 +177,7 @@ func (s *Store) BuildingReservations(ctx context.Context, current domain.Generat
 		return nil, err
 	}
 	defer tx.Rollback()
-	held, err := buildingMethodHolds(ctx, tx, current)
+	held, err := buildingMethodHolds(ctx, tx, s.plans, current)
 	if err != nil {
 		return nil, err
 	}
@@ -188,8 +188,8 @@ func (s *Store) BuildingReservations(ctx context.Context, current domain.Generat
 }
 
 // The admission transaction repeats this read after spatial proposal generation.
-func buildingMethodHolds(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot) ([]policy.Reservation, error) {
-	plans, err := loadPlans(ctx, tx)
+func buildingMethodHolds(ctx context.Context, tx *sql.Tx, cache *planCache, current domain.GenerationSnapshot) ([]policy.Reservation, error) {
+	plans, err := loadPlans(ctx, tx, cache)
 	if err != nil {
 		return nil, err
 	}
