@@ -22,8 +22,13 @@ policy, distinguish actual attack intent from job targets, replace geometric
 breach guesses with observed intent where available, and selectively coordinate
 fire when the expected benefit exceeds the cost of interrupting native combat.
 These changes should extend the existing pure policy and Hands execution path.
-A bounded forecast, checked against subsequent native events, is a better first
-investment than a duplicate combat simulator or a larger catalogue of tricks.
+A bounded forecast supplies the first observations and validation cases for a
+second research track: a fast, mechanics-faithful Go combat simulator. Thousands
+of simulated trials per second would enable tactical search and policy tuning
+that live-game experimentation cannot practically supply at that scale. This is
+a throughput objective to benchmark, not a measured capability. RimWorld remains
+the reference for legality and outcomes; simulator fidelity is an engineering
+problem to measure and improve, not a reason to reject the approach.
 
 ## 1. Method and scope
 
@@ -220,7 +225,8 @@ reobserve after meaningful effects.
 
 ## 5. A bounded forecast inside the existing architecture
 
-The proposal is a small pure policy extension, not another combat service.
+The initial forecast extends pure policy. The simulator in section 5.1 expands
+that forecast into sampled futures while retaining the same execution owner.
 
 ```mermaid
 flowchart LR
@@ -247,6 +253,9 @@ the game or create unsafe reentrancy. Do not clone RNG state to peek at future
 shots, write fake positions, or run speculative native jobs. Derive a bounded
 candidate distribution from inspected semantics only where that read can be
 made pure and versioned; otherwise report alternatives without probabilities.
+An isolated simulator can implement those inspected selection rules using its
+own explicitly seeded RNG. It must not call a stateful native picker during
+rollouts or advance the live game's random stream.
 
 Use existing geometry batching and named limits. If a candidate budget is
 insufficient, expose that incompleteness; omitted enemies are not harmless.
@@ -267,13 +276,122 @@ an identified coordination or safety benefit and return to the role when it
 ends. Do not introduce draft-capable native reflex rules: the closed
 [native-rule whitelist](../contracts/native-rules.md) remains authoritative.
 
+### 5.1 Fast combat simulation for search and policy development
+
+**Research hypothesis:** a mechanics-faithful simulator can evaluate thousands
+of trials per second and rank tactical choices accurately enough to improve
+native outcomes. Both throughput and decision quality require evidence. The
+existing [simulator epic #2830](https://github.com/davidarcher/rimgovernor/issues/2830)
+owns this work, including real-game sweeps for calibration.
+
+There are two useful workloads:
+
+| Workload | Simulated experiment | How a result is used |
+| --- | --- | --- |
+| Offline policy development | Complete bounded fights across seeds, layouts, loadouts and policy variants, driving the production `DecideCombat` through simulated observations | Tune parameters or compare policy changes; confirm selected variants in native sweeps before adoption |
+| Online tactical search | Short futures from the current native snapshot for candidate positions, targets, retreats or ability sequences | Propose the first action of the best supported plan through existing policy/Hands, then reobserve and search again |
+
+Start with offline experiments. Online use adds response latency, stale-state
+and action-admission constraints; it is a later integration gate, not an
+automatic consequence of a fast offline runner. A simulator can be valuable
+for discovering better policy even if online search never pays for itself.
+
+**State and mechanics.** Initialize an isolated world from versioned native
+snapshots: terrain and obstacles, cover, pawn positions and capabilities,
+weapons, health, jobs, aim targets, remaining attack timing and relevant
+projectiles. Missing required state marks the scenario unsupported or carries
+explicit uncertainty. Never reconstruct a guaranteed safe future from absent
+facts. Read definition values from the shared native catalog; version algorithm
+ports against the inspected game assembly and document each approximation.
+
+Build a pure Go `Reset`/`Step` core and adapters for `CombatView` and
+`GeometryReply`, so the simulator exercises production decisions rather than a
+second tactics implementation. Geometry must evolve with the simulated world:
+initial native hit/cover/path answers cannot remain authoritative after a pawn
+moves or a wall changes. Validate simulated line of fire, cover and travel
+against native queries at matched states. This deliberate mechanics model is
+justified by counterfactual search; it does not replace live native legality.
+
+The first qualification slice should cover ordinary ranged engagements,
+movement, obstacles/cover, warmup, bursts/cooldown and target selection.
+Include enough damage, armor and injury feedback to preserve tactical rankings;
+label simplified health or mobility explicitly. Exclude unsupported melee,
+explosives, specialist abilities and dynamic breaches from v1 claims, then add
+them in separate calibrated slices. Do not report performance on this subset
+as thousands of arbitrary full RimWorld battles per second.
+
+**Enemy behavior and randomness.** Port the relevant decision structure,
+including weighted targeting, retention conditions and job/stance transitions.
+Sample enemy choices and physical outcomes from simulator-owned random streams.
+Repeat candidate comparisons over seed schedules; paired simulator seeds reduce
+some comparison noise but do not reproduce native draws. Separate randomness
+from uncertainty about missing state or model parameters. More trials reduce
+sampling error; they do not repair a systematically wrong mechanic.
+
+**Search.** Begin with a bounded enumeration of existing tactical alternatives
+and Monte Carlo evaluation. Compare retain/native hold, target assignments,
+validated destination candidates and retreat choices. Later experiments can
+compare beam search, tree search or parameter optimization if simpler search
+leaves useful decisions unexplored. Keep survival, injury and objective costs
+visible separately. Include terminal exposure and escape feasibility so a
+short horizon cannot make a doomed charge attractive merely by ending before
+retaliation. Execute only the first admitted action before replanning.
+
+**Throughput.** Define a trial before measuring it. Report completed fights/s
+and short rollouts/s separately, along with simulated ticks/s, horizon, pawn
+count, map size, event count, supported mechanics, worker count, hardware,
+allocations and peak memory. Benchmark representative 4-v-4, 12-v-12 and
+30-v-30 scenes with both open ground and obstacle-rich routes. These are
+proposed workload sizes, not validated performance figures. Include snapshot
+conversion and geometry costs in end-to-end online decision latency; report
+core-only throughput separately. Target at least 1,000 completed trials/s on
+a declared representative workload, then publish the scaling curve and the
+fidelity achieved at that rate instead of silently shortening the trial.
+
+An event-driven core that advances between meaningful movement/attack events,
+compact state copies and reused immutable map/catalog data are hypotheses for
+achieving that budget; profile before committing to them. Preserve native tick
+ordering where it matters. Parallel trials use explicit seeds, isolated state,
+fixed iteration budgets and stable result reduction so worker scheduling cannot
+change policy output. Wall time measures speed and guards hangs; it does not
+silently choose how many policy trials execute.
+
+**Fidelity and transfer.** Validate individual transitions against native
+microcases, then compare outcome distributions and the ranking of tactical
+variants in repeated native sweeps. The primary utility test is whether the
+simulator selects a better action, not whether every projectile matches.
+Measure pairwise rank agreement, native regret (the native outcome lost by
+selecting the simulator's preferred candidate), injury/death-rate error and
+false-safe retreats. Rank agreement alone is insufficient: a small set of
+survival-critical misrankings can dominate the benefit.
+
+Keep calibration scenes separate from held-out evaluation. Search can exploit
+model errors, so validate search-selected winners, not only handpicked ordinary
+actions. Vary collision/door delays, enemy retargeting, injury effects and
+horizons to expose brittle plans. Fix tolerances and survival criteria before
+qualification. Expand supported mechanics only when their native comparisons
+pass; restrict online use to qualified scenarios. The existing native-hold and
+reactive policies remain the comparison and continuation behavior outside that
+scope, rather than introducing another writer or control service.
+
+**Ownership and maintenance.** E1 and the simulator share typed observed facts
+and, where validated, pure forecast functions. They must not maintain separate
+copies of game constants or tactical policy. Native engine calls remain native;
+simulation advances only private derived state. Rollouts and derived forecasts
+are in memory, while benchmark artifacts follow the existing test-output
+lifecycle. New persisted parameters or evidence stores require an explicit
+persistence-contract decision. Each game update invalidates affected fidelity
+claims until requalification. Simulator results support selection; only native
+results establish that the selected tactic improves real combat.
+
 ## 6. Research epics and ordering
 
 The following scopes are proposals for prioritization, tracked in
 [E1 / #2822](https://github.com/davidarcher/rimgovernor/issues/2822),
 [E2 / #2823](https://github.com/davidarcher/rimgovernor/issues/2823),
-[E3 / #2824](https://github.com/davidarcher/rimgovernor/issues/2824) and
-[E4 / #2825](https://github.com/davidarcher/rimgovernor/issues/2825). Their acceptance is
+[E3 / #2824](https://github.com/davidarcher/rimgovernor/issues/2824),
+[E4 / #2825](https://github.com/davidarcher/rimgovernor/issues/2825) and
+[E5 / #2830](https://github.com/davidarcher/rimgovernor/issues/2830). Their acceptance is
 evidence of the named capability, not a promise to implement every hypothesis.
 
 | Epic | Deliverable and completion condition | Dependencies and deletion candidate |
@@ -282,13 +400,16 @@ evidence of the named capability, not a promise to implement every hypothesis.
 | E2: Breach intent and interception | Prefer valid observed breach intent over the centroid guess, separate hostile groups and invalidate on changed intent. Prepared asymmetric native cases show actual wall and formation timing; snapshot tests cover unknown/refused facts | May start after the relevant E1 target contract. Extend completed #913/#915. Delete the centroid guess where native intent supersedes it, retaining explicit uncertainty before intent exists |
 | E3: Selective fire coordination | Compare retain/native hold with bounded target reassignment, accounting for committed shots and interruptions. Paired experiments demonstrate benefit on urgent mixed threats without hiding survival regressions | E1 timing/intent and native hit semantics. Extend completed #863/#2491; replace competing target decisions rather than stacking a new postprocessor |
 | E4: Tactical qualification matrix | Extend existing combatlab reports with prediction accuracy, conservative-timing failures and objective outcomes; produce current baseline, repeated paired comparisons, ablations and held-out scenarios | Starts with E1. Extend #855/#869 rather than build a new benchmark runner; stop presenting historical baseline values as present playing strength |
+| E5: Fast combat simulation and search | Build a pure Go mechanics model driving production policy, benchmark the thousands-of-trials/s objective on declared workloads, qualify tactical rankings and outcome errors against held-out native sweeps, and confirm search-selected improvements in the game. Gate online short-horizon search separately | Existing #2830; reuse E1 facts and E4/native sweeps. Start ranged, then qualify melee and specialists. Replace superseded forecast approximations and duplicate parameter owners when the shared model is adopted |
 
 The highest-value first slice is E1: timing is already captured, source-level
 semantics are concrete, and the experiment can falsify the premise cheaply.
 E2 has an unusually clear comparison against a known heuristic. E3 offers
 potentially larger gains but has greater modeling and order-churn risk. Target
-attraction, advanced control chains and layout optimization should stay
-brainstorm candidates until these measurements justify them.
+attraction, advanced control chains and layout optimization are candidate
+search workloads. E5's offline core and E4's native calibration can be developed
+alongside E1, with a shared fact contract; simulator tuning and online decisions
+must wait for evidence that tactical rankings transfer to the game.
 
 ## 7. Experimental design
 
@@ -325,6 +446,8 @@ future random draws. Use held-out layouts, arrival directions and mixed threats.
 | Lost warmups, orders/refusals and oscillating role changes | Whether micromanagement consumes its own advantage |
 | Onset → detection → decision → dispatch → native effect | Whether the full response arrives in time; measure simulation ticks separately from wall time |
 | Capture cost, pause fraction and governed throughput | Whether tactical gains preserve usable execution speed |
+| Completed simulated fights/s and short rollouts/s at declared fidelity | Whether E5 meets the throughput objective without disguising smaller horizons or simpler mechanics |
+| Sim/native rank agreement, regret and outcome-distribution error | Whether simulator-selected actions transfer, including survival-critical misrankings on held-out scenes |
 
 As a proposed pilot, use 20 paired seeds per small scenario, then determine
 needed replication from the observed noise and a predeclared minimum useful
@@ -350,9 +473,12 @@ an earlier governor.
 - Is a retreat, interruption or additional shot the cheapest way to remove the
   next threat, including medical and recovery costs?
 - What observation would falsify the prediction early enough to act?
+- Which decisions improve when evaluated over thousands of sampled futures,
+  and which simulator errors could reverse their ranking in the game?
 
-The recommended research direction is **conditional prediction plus selective
-coordination**. Knowing the AI is valuable because it narrows plausible futures
-and reveals useful timing and target biases. The near-term engineering task is
-to expose that information faithfully and measure whether decisions improve,
-while retaining native execution for the fast local behavior it already handles.
+The recommended research direction is **conditional prediction, fast combat
+simulation and selective coordination**. Knowing the AI narrows plausible
+futures and reveals useful timing and target biases. Faithful observations
+support both immediate forecasts and thousands of isolated tactical trials.
+Use the simulator to explore and rank choices, native sweeps to establish
+transfer, and the existing policy/Hands path to execute qualified decisions.
