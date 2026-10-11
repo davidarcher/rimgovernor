@@ -43,6 +43,15 @@ func TestStartSavesDriveExpansions(t *testing.T) {
 	}
 }
 
+func TestResumedSaveRestoresQuietWithoutRemovingPawns(t *testing.T) {
+	if got := (Save{Name: "colony"}).quietAction(); got != "apply" {
+		t.Fatalf("a plain save applies the quiet op, got %q", got)
+	}
+	if got := (Save{Name: "bundle", Resumed: true}).quietAction(); got != "restore" {
+		t.Fatalf("a resumed bundle must not purge its staged hostiles (#2854), got %q", got)
+	}
+}
+
 func TestLoadSaveIssuesLoadGameReady(t *testing.T) {
 	c := &fakeCaller{}
 	if err := loadSaveMods(context.Background(), c, "colony", 0, false); err != nil {

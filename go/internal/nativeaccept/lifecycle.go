@@ -73,6 +73,19 @@ type Save struct {
 	// active: a downloaded CI bundle predates mods the build has since dropped
 	// (the retired RimBridgeServer).
 	IgnoreModCompatibility bool
+	// Resumed marks a bundle captured by this harness after the quiet op
+	// ran (a ring or stage bundle): the quiet op is restored on it without
+	// removing the pawns and hives the capture holds, which a staged
+	// fight's raiders are.
+	Resumed bool
+}
+
+// quietAction is the quiet op action a load of this save ends with.
+func (v Save) quietAction() string {
+	if v.Resumed {
+		return "restore"
+	}
+	return "apply"
 }
 
 func (v Save) saves() []string      { return []string{v.Name} }
@@ -90,7 +103,7 @@ func (v Save) load(ctx context.Context, s *Session, quiet QuietMode) (map[string
 	if err != nil {
 		return nil, err
 	}
-	quietReply, err := applyQuiet(ctx, s.Harness, apply)
+	quietReply, err := applyQuiet(ctx, s.Harness, apply, v.quietAction())
 	if err != nil {
 		return nil, err
 	}

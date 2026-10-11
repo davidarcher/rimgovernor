@@ -392,7 +392,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		if err != nil {
 			return fmt.Errorf("stage checkpoint: %w", err)
 		}
-		start = na.Save{Name: save}
+		start = na.Save{Name: save, Resumed: true}
 		cfg.Resumed = true
 		if entry.Store && entry.ServiceProfile != "" {
 			cfg.ServiceProfile = entry.ServiceProfile
@@ -410,7 +410,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		if err != nil {
 			return fmt.Errorf("stage bundle: %w", err)
 		}
-		start = na.Save{Name: save}
+		start = na.Save{Name: save, Resumed: true}
 		cfg.Resumed = true
 		if entry.Store && entry.ServiceProfile != "" {
 			cfg.ServiceProfile = entry.ServiceProfile
@@ -574,7 +574,7 @@ func executePostmortem(ctx context.Context, c Case, opts Options, output string,
 	if err := stopOtherProfile(ctx, c, opts, report); err != nil {
 		return err
 	}
-	opened, err := na.OpenSession(ctx, cfg, report, na.Save{Name: save}, c.Quiet, c.keepNeeds()...)
+	opened, err := na.OpenSession(ctx, cfg, report, na.Save{Name: save, Resumed: true}, c.Quiet, c.keepNeeds()...)
 	if err != nil {
 		return err
 	}

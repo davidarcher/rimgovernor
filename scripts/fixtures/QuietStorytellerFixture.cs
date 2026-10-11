@@ -147,7 +147,7 @@ namespace HomeBridge.BridgeTools
 
         [Tool("test/quiet_storyteller", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: Custom difficulty at zero threat scale with no big/intro threats, violent quests or humanlike-hunting predators, no storyteller comps, queued incidents or storyteller ticks, and every non-colony pawn and insect hive removed from the current map. Persists across save and reload. Interruption harnesses must not call it.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "apply (default) or inspect, which only reads the current storyteller state.")] string action = "apply")
+            [ToolParameter(Description = "apply (default), restore (re-apply the quiet difficulty on a resumed checkpoint bundle without removing its pawns or hives) or inspect, which only reads the current storyteller state.")] string action = "apply")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (Current.Game == null || Find.Storyteller == null) throw new InvalidOperationException("A loaded game is required.");
@@ -159,6 +159,13 @@ namespace HomeBridge.BridgeTools
                         allowBigThreats = teller.difficulty.allowBigThreats, comps = teller.storytellerComps.Count,
                         strangers = Find.CurrentMap?.mapPawns.AllPawnsSpawned.Count(p => p.Faction != Faction.OfPlayer) ?? 0,
                         hives = Find.CurrentMap?.listerThings.AllThings.OfType<Hive>().Count() ?? 0 };
+                }
+                if (action == "restore")
+                {
+                    // A resumed checkpoint bundle: the quiet state is already in the
+                    // save, so keep the pawns and hives it holds (a staged fight's raiders).
+                    QuietStoryteller.ApplyDifficulty(Find.Storyteller);
+                    return new { success = true, storyteller = Find.Storyteller.def.defName, difficulty = Find.Storyteller.difficultyDef?.defName };
                 }
                 if (action != "apply") throw new ArgumentException("Unknown action.");
                 return QuietStoryteller.Apply(Find.CurrentMap);

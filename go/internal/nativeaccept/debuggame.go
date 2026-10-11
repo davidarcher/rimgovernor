@@ -228,7 +228,7 @@ func StartDebugGameSized(ctx context.Context, h *Harness, names []string, mode Q
 				return nil, err
 			}
 			startCache.save = name
-			return applyQuiet(ctx, h, apply)
+			return applyQuiet(ctx, h, apply, "apply")
 		}
 	}
 	if err := generateDebugStart(ctx, h, start, quietDef, name); err != nil {
@@ -241,7 +241,7 @@ func StartDebugGameSized(ctx context.Context, h *Harness, names []string, mode Q
 		}
 		startCache.save = name
 	}
-	return applyQuiet(ctx, h, apply)
+	return applyQuiet(ctx, h, apply, "apply")
 }
 
 // The colony the acceptance debug start asks the op for.
@@ -292,12 +292,12 @@ func ApplyQuietWorld(ctx context.Context, h *Harness) (map[string]any, error) {
 }
 
 // applyQuiet applies the quiet storyteller when the mode asked for it.
-func applyQuiet(ctx context.Context, h *Harness, apply bool) (map[string]any, error) {
+func applyQuiet(ctx context.Context, h *Harness, apply bool, action string) (map[string]any, error) {
 	h.quiet = false
 	if !apply {
 		return nil, nil
 	}
-	quiet, err := h.Call(ctx, "quiet-storyteller", QuietStorytellerTool, map[string]any{"action": "apply"})
+	quiet, err := h.Call(ctx, "quiet-storyteller", QuietStorytellerTool, map[string]any{"action": action})
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", QuietStorytellerTool, err)
 	}

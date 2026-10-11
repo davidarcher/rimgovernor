@@ -183,7 +183,7 @@ func (l LabStart) load(ctx context.Context, s *Session, quiet QuietMode) (map[st
 	// The lab is quiet by construction and the save persists it; applying
 	// again marks the harness quiet and covers a lab made before a change
 	// to the quiet op.
-	if _, err := applyQuiet(ctx, h, Contains(s.Names, QuietStorytellerTool)); err != nil {
+	if _, err := applyQuiet(ctx, h, Contains(s.Names, QuietStorytellerTool), "apply"); err != nil {
 		return nil, err
 	}
 	s.Report["quiet"] = h.quiet

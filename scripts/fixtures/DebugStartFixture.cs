@@ -573,6 +573,13 @@ namespace HomeBridge.BridgeTools
         {
             rows.Clear();
             Dropped = 0;
+            EnsurePatched();
+        }
+
+        // Installed when the bridge discovers test/lab_stage, so a run that
+        // resumes a staged bundle records damage without staging (#2854).
+        public static void EnsurePatched()
+        {
             if (patched) return;
             new Harmony("rimgovernor.fixture.lab-damage").Patch(AccessTools.Method(typeof(Thing), nameof(Thing.TakeDamage), new[] { typeof(DamageInfo) }),
                 postfix: new HarmonyMethod(typeof(LabDamageLedger), nameof(Postfix)));
@@ -598,6 +605,8 @@ namespace HomeBridge.BridgeTools
         // A tick call holds the main thread; 2000 ticks of a lab skirmish is
         // well under the call ceiling.
         private const int MaxTicks = 2000;
+        static LabStageFixture() { LabDamageLedger.EnsurePatched(); }
+        public LabStageFixture() { LabDamageLedger.EnsurePatched(); }
 
         [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile,hitPoints}], pawns:[{side:colonist|hostile|animal|manhunter|prisoner|insect, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, injured, trained (animal TrainableDefs), apparel, hediffs:[HediffDef], inventory:[ThingDef]}], roof:{def,minX,minZ,maxX,maxZ}, prisonBreak, sappers, seed (non-zero varies hostile skills and jitters hostiles that declare jitter, then reseeds Rand after staging; 0 or absent is the pinned staging; the reply echoes it), pawns also take jitter (cells)}. Hostiles get fixed skills, only the named apparel and an assault lord (a sapper one with sappers, #1149). Replies each staged pawn read back from the map (with worn apparel ids) and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, hediff defs, every player door's hold-open and forbidden flag, and the tick.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
