@@ -77,9 +77,9 @@ func SlotPlantCuts(cells []SiteCell, piece InteriorPiece, blockers []PlacementBl
 	return out
 }
 
-func foreignThings(in ReconcileInput, ring Rectangle, wallDef string, doorWanted map[domain.Cell]bool) foreignWork {
+func foreignThings(in ReconcileInput, ring Region, wallDef string, doorWanted map[domain.Cell]bool) foreignWork {
 	w := foreignWork{blocked: map[domain.Cell]bool{}, claimed: map[domain.Cell]bool{}}
-	ground := in.Room.RoomGround()
+	ground := in.Room.groundRegion()
 	type key struct {
 		id   uint64
 		def  string
@@ -117,10 +117,10 @@ func foreignThings(in ReconcileInput, ring Rectangle, wallDef string, doorWanted
 	}
 	for _, sc := range in.Cells {
 		c := sc.Cell
-		if !inside(c, ground) {
+		if !ground.Contains(c) {
 			continue
 		}
-		claimCell := wallDef != "" && onRing(c, ring) && !doorWanted[c] && !in.Room.Outdoor && sc.ClaimableRuin() == wallDef && sc.RuinHold() == ""
+		claimCell := wallDef != "" && ring.Contains(c) && !doorWanted[c] && !in.Room.Outdoor && sc.ClaimableRuin() == wallDef && sc.RuinHold() == ""
 		for _, t := range sc.Things {
 			switch {
 			case t.Category == ThingPlant:
@@ -128,7 +128,7 @@ func foreignThings(in ReconcileInput, ring Rectangle, wallDef string, doorWanted
 					place(OpCut, t, c, false)
 				}
 			case t.Category == ThingItem:
-				if onRing(c, ring) && !doorWanted[c] {
+				if ring.Contains(c) && !doorWanted[c] {
 					// The builder hauls any item aside once the wall's blueprint is
 					// placed over it (GenConstruct.HandleBlockingThingJob): a ring
 					// cell never waits on an item, and the native preview stays the

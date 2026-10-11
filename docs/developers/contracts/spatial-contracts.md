@@ -280,6 +280,13 @@ in place, floors are replaced. Standing census rooms are reconciled too. The pla
 and furniture come down, a research table packed to stock for the laboratory to install,
 and the entry drops once nothing of ours stands on it.
 
+Reshape order: the diff runs over the room's `Region` (an L's notch is no ground, floors
+lay on region cells only). A standing wall now inside the region (a column added) is owed
+but not ready, and brings no roof off, until the new ring stands (no wall or door in
+owed). A retired wall that still bounds an enclosed census room reaching outside the
+retired ground (a row shrunk away) waits until the new ring has split that room off.
+No new OpKind; the native ClearanceTargets request stays rectangles.
+
 The shelter retires (`policy.ShelterRetirable`, re-read every review, no latch) when every
 capability it hosts has a better home: every colonist owns a bed in a built bedroom, a
 planned workshop stands, a research bench stands in a built room outside the shelter (or a

@@ -91,3 +91,13 @@ func (r PlannedRoom) RoomGround() Rectangle {
 func (p InteriorPiece) Wanted() WantedPiece {
 	return WantedPiece{DefName: p.Def, Minimum: domain.Cell{X: p.Rect.X, Z: p.Rect.Z}, Maximum: domain.Cell{X: p.Rect.X + p.Rect.Width - 1, Z: p.Rect.Z + p.Rect.Height - 1}, Slot: p.Slot, Size: p.Size, Rot: p.Rot}
 }
+
+// groundRegion is the cells a planned room's ring and interior cover: the
+// region and its wall ring, so an L's notch is no ground; an unfenced room's
+// block.
+func (r PlannedRoom) groundRegion() Region {
+	if r.Unfenced() {
+		return r.Region
+	}
+	return RegionOf(append(r.Region.Cells(), r.Region.Walls().Cells()...))
+}

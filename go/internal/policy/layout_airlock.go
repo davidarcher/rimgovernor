@@ -54,17 +54,6 @@ func (r PlannedRoom) airlockCells() []domain.Cell {
 	return append(r.AirlockWalls(), r.Airlock.Outer)
 }
 
-// ringOf is the cells of the rectangle's outer ring.
-func ringOf(ring Rectangle) []domain.Cell {
-	var out []domain.Cell
-	for _, c := range rectCells(ring) {
-		if onRing(c, ring) {
-			out = append(out, c)
-		}
-	}
-	return out
-}
-
 // airlockPasses are the sitings tried for a shelter: with an airlock then
 // without on a cold map, without alone elsewhere.
 func airlockPasses(cold bool) []bool {

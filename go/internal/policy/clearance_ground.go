@@ -218,6 +218,10 @@ func retiredGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground [
 			return GroundStep{Ground: g, Phase: GroundFurniture, Targets: furniture}, true
 		case len(packs) > 0:
 			return GroundStep{Ground: g, Phase: GroundPack, Targets: packs}, true
+		case len(walls) > 0 && holdsStandingRoom(walls, ground, rooms):
+			// A reshaped room's old wall still bounds the room that stands: it
+			// comes down once the new ring has split it off. Floors wait too.
+			continue
 		case len(walls) > 0:
 			return GroundStep{Ground: g, Phase: GroundWalls, Targets: walls, Roof: enclosedRoof(walls, ground, rooms)}, true
 		}
@@ -307,6 +311,33 @@ func enclosedRoof(walls []ClearanceTarget, ground []Region, rooms RoomObservatio
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].X < out[j].X || out[i].X == out[j].X && out[i].Z < out[j].Z })
 	return out
+}
+
+// holdsStandingRoom reports a wall target bounding an enclosed census room that
+// reaches outside the cleared ground: opening it would expose a room that
+// stays (the old footprint of a room the plan shrank or reshaped, until its
+// new ring stands and splits it off).
+func holdsStandingRoom(walls []ClearanceTarget, ground []Region, rooms RoomObservation) bool {
+	for _, room := range rooms.Rooms {
+		if enclosed, known := room.Enclosed.Value(); known && !enclosed || len(room.Cells) == 0 {
+			continue
+		}
+		within, bounded := true, false
+		for _, c := range room.Cells {
+			in := false
+			for _, g := range ground {
+				in = in || g.Contains(c)
+			}
+			within = within && in
+			for _, w := range walls {
+				bounded = bounded || c.X >= w.Minimum.X-1 && c.X <= w.Maximum.X+1 && c.Z >= w.Minimum.Z-1 && c.Z <= w.Maximum.Z+1
+			}
+		}
+		if !within && bounded {
+			return true
+		}
+	}
+	return false
 }
 
 func inside(c domain.Cell, g Rectangle) bool {

@@ -142,10 +142,10 @@ type reconcileItem struct {
 // Reconcile diffs the room against the ground.
 func Reconcile(in ReconcileInput) Reconciliation {
 	r := in.Room
-	ring, interior := roomWalls(r), r.Region.Bounds()
+	ring, interior := r.wallRing(), r.Region
 	if r.Unfenced() {
 		// No ring is owed: only the template and the foreign things on the interior.
-		ring = Rectangle{}
+		ring = Region{}
 	}
 	doorWanted := map[domain.Cell]bool{}
 	for _, d := range in.Plan.ShellDoors(r) {
@@ -163,7 +163,7 @@ func Reconcile(in ReconcileInput) Reconciliation {
 	rows := append([]ClearanceTarget(nil), in.Rows...)
 	sort.Slice(rows, func(i, j int) bool { return rows[i].EntityID < rows[j].EntityID })
 	var removedRows []ClearanceTarget
-	ground := r.RoomGround()
+	ground := r.groundRegion()
 	var innerWalls []ClearanceTarget
 	cover := func(row ClearanceTarget) {
 		for _, c := range rectCells(Rectangle{X: row.Minimum.X, Z: row.Minimum.Z, Width: row.Maximum.X - row.Minimum.X + 1, Height: row.Maximum.Z - row.Minimum.Z + 1}) {
@@ -171,11 +171,11 @@ func Reconcile(in ReconcileInput) Reconciliation {
 		}
 	}
 	for _, row := range rows {
-		if !row.Player || !overlaps(row, RectRegion(ground)) {
+		if !row.Player || !overlaps(row, ground) {
 			continue
 		}
 		if row.Class == "ancient_wall_door" {
-			if overlaps(row, RectRegion(interior)) {
+			if overlaps(row, interior) {
 				innerWalls = append(innerWalls, row)
 			}
 			continue
@@ -225,7 +225,7 @@ func Reconcile(in ReconcileInput) Reconciliation {
 	// Ring: walls and doors by cell.
 	ringStart := len(items)
 	var allWallOut []domain.Cell
-	ringList := append(ringOf(ring), r.airlockCells()...)
+	ringList := append(ring.Cells(), r.airlockCells()...)
 	for _, c := range ringList {
 		switch {
 		case doorWanted[c] && doors[c]:
@@ -245,8 +245,8 @@ func Reconcile(in ReconcileInput) Reconciliation {
 	// the swaps never open two cells (adjacent or not) at once. The placement
 	// preview reports a stuff swap safe, so the diff itself finds it.
 	if in.WallUpgrade != nil && !r.Outdoor && len(items) == ringStart {
-		for _, c := range rectCells(ring) {
-			if have := in.Ground.stuff[c]; onRing(c, ring) && !covered[c] && !doorWanted[c] && in.Ground.walls[c] && have != "" && in.WallUpgrade(have) {
+		for _, c := range ring.Cells() {
+			if have := in.Ground.stuff[c]; !covered[c] && !doorWanted[c] && in.Ground.walls[c] && have != "" && in.WallUpgrade(have) {
 				add(reconcileItem{kind: OpWallUp, cell: c, ready: true})
 				break
 			}
@@ -266,21 +266,31 @@ func Reconcile(in ReconcileInput) Reconciliation {
 	if closed {
 		wallOutCells = wallOutCells[:min(len(wallOutCells), max(0, 1-gaps))]
 	}
-	// Walls standing inside the interior are no part of the ring and come down.
+	// Walls standing inside the interior are no part of the ring and come down,
+	// but only once the new ring stands: a reshaped room (a column more, an L)
+	// is never opened to the weather or walled off from its pawns while its
+	// new wall is still owed. Until then they are owed, not ready, and bring
+	// no roof off.
+	ringStands := !slices.ContainsFunc(items[ringStart:], func(it *reconcileItem) bool {
+		return it.kind == OpWallIn || it.kind == OpDoorIn && !walls[it.cell]
+	})
 	wallTargets := slices.Clone(innerWalls)
+	if !ringStands {
+		wallTargets = nil
+	}
 	for _, c := range wallOutCells {
 		wallTargets = append(wallTargets, ringTarget(rows, c, wallDef))
 	}
 	// An outdoor ring has no roof to take off.
 	var roof []domain.Cell
 	if len(wallTargets) > 0 && !r.Outdoor {
-		roof = enclosedRoof(wallTargets, []Region{RectRegion(roomGround(interior))}, in.Rooms)
+		roof = enclosedRoof(wallTargets, []Region{ground}, in.Rooms)
 	}
 	for _, c := range allWallOut {
 		add(reconcileItem{kind: OpWallOut, cell: c, target: ringTarget(rows, c, wallDef), ready: len(roof) == 0 && slices.Contains(wallOutCells, c)})
 	}
 	for _, w := range innerWalls {
-		add(reconcileItem{kind: OpWallOut, cell: w.Minimum, target: w, ready: len(roof) == 0})
+		add(reconcileItem{kind: OpWallOut, cell: w.Minimum, target: w, ready: len(roof) == 0 && ringStands})
 	}
 	for _, c := range roof {
 		add(reconcileItem{kind: OpRoofOff, cell: c, ready: true})
@@ -293,7 +303,7 @@ func Reconcile(in ReconcileInput) Reconciliation {
 	}
 	var floorOut, floorIn []*reconcileItem
 	if in.WantedFloor != nil && !r.Outdoor {
-		for _, c := range rectCells(interior) {
+		for _, c := range interior.Cells() {
 			want := in.WantedFloor(c)
 			have, has := actual[c]
 			if want == "" || covered[c] || has && (have == want || in.FloorKept != nil && in.FloorKept(have, want)) {

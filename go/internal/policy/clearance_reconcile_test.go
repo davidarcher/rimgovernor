@@ -15,6 +15,16 @@ func gapGround(plan LayoutPlan) GroundCensus {
 	return g
 }
 
+// wallForDoorGround is the fixture room's ring complete but with a wall where
+// the plan wants its door (11,9): the ground is reconciled and owes no wall in,
+// so walls inside the interior may come down.
+func wallForDoorGround(plan LayoutPlan) GroundCensus {
+	g := ringWalls(plan, plan.Rooms[0])
+	door := domain.Cell{X: 11, Z: 9}
+	g.doors[door], g.walls[door] = false, true
+	return g
+}
+
 func TestPlannedGroundWorkOwesWhatTheRingDoesNotHold(t *testing.T) {
 	plan, rooms := groundFixture()
 	g := ringWalls(plan, plan.Rooms[0])
@@ -67,12 +77,12 @@ func TestPlannedGroundStepOrder(t *testing.T) {
 		t.Fatalf("ring door swap after furniture: %+v", step)
 	}
 	// The roof of the rooms inside the ground comes off before the wall.
-	step, ok = PlannedGroundStep(plan, gap, []ClearanceTarget{wall}, floors, rooms, rg, wantsAll)
+	step, ok = PlannedGroundStep(plan, wallForDoorGround(plan), []ClearanceTarget{wall}, floors, rooms, rg, wantsAll)
 	if want := []domain.Cell{{X: 12, Z: 11}, {X: 12, Z: 12}}; !ok || step.Phase != GroundWalls || len(step.Targets) != 0 || !reflect.DeepEqual(step.Roof, want) {
 		t.Fatalf("roof off before the wall: %+v", step)
 	}
 	rooms.Rooms = nil
-	step, ok = PlannedGroundStep(plan, gap, []ClearanceTarget{wall}, floors, rooms, rg, wantsAll)
+	step, ok = PlannedGroundStep(plan, wallForDoorGround(plan), []ClearanceTarget{wall}, floors, rooms, rg, wantsAll)
 	if !ok || step.Phase != GroundWalls || step.Targets[0].EntityID != "wall" {
 		t.Fatalf("wall on the ground: %+v", step)
 	}
@@ -181,7 +191,7 @@ func TestPlannedGroundStepPacksPackableFurniture(t *testing.T) {
 	}
 	wall := playerRow("wall", "Wall", "ancient_wall_door", domain.Cell{X: 11, Z: 11}, domain.Cell{X: 11, Z: 11}, true)
 	wall.Packable = true
-	if step, ok = PlannedGroundStep(plan, g, []ClearanceTarget{wall}, nil, rooms, rg, wantsAll); !ok || step.Phase != GroundWalls {
+	if step, ok = PlannedGroundStep(plan, wallForDoorGround(plan), []ClearanceTarget{wall}, nil, rooms, rg, wantsAll); !ok || step.Phase != GroundWalls {
 		t.Fatalf("a wall is never packed: %+v", step)
 	}
 	table.Designated = true
