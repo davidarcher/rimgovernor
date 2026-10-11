@@ -85,6 +85,8 @@ func (s *Sim) apply(o Order) error {
 	switch o.Kind {
 	case OrderAttack:
 		return s.startAttack(i, o)
+	case OrderLeave:
+		s.leaveMap(i)
 	case OrderStop:
 		p.cancelAttack()
 		if p.moving {
@@ -205,4 +207,26 @@ func (p *pawn) tick(s *Sim, self int) {
 		return
 	}
 	s.setupNext(p)
+}
+
+// leaveMap takes pawn i off the map: it frees its cell, stops any attack and
+// movement, ends other pawns' attacks on it and stops it being a combatant.
+// Metrics still counts it, as a hostile that was neither downed nor killed.
+func (s *Sim) leaveMap(i int) {
+	p := &s.pawns[i]
+	if !p.has || p.dead {
+		return
+	}
+	p.halt()
+	p.cancelAttack()
+	p.stance, p.burstLeft = stanceIdle, 0
+	s.occ[s.g.idx(p.pos)] = 0
+	p.has, p.left = false, true
+	for j := range s.pawns {
+		if o := &s.pawns[j]; o.has && o.target == i {
+			s.emit(Event{Kind: EventAttackEnded, Pawn: o.id, Target: p.id})
+			o.target, o.once = -1, false
+		}
+	}
+	s.emit(Event{Kind: EventLeftMap, Pawn: p.id, Cell: p.pos})
 }

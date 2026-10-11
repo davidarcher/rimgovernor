@@ -25,9 +25,12 @@ type Fight struct {
 	Layout domain.Fact[policy.CombatLayout]
 	// Facts are per-pawn static facts by pawn id.
 	Facts map[domain.PawnID]PawnFacts
-	// Enemy, when set, gives the hostiles their orders each Step. Enemy
-	// choice is a later child of epic #2830; nothing in the adapter decides
-	// for a hostile.
+	// EnemyAI, when set, drives the hostile ranged pawns with the ported
+	// raider decisions (enemy.go); RunFight builds a fresh EnemyAI from it for
+	// each run, so the Fight can be reused across seeds.
+	EnemyAI *EnemyConfig
+	// Enemy, when set, also gives orders each Step from the sim state, for
+	// scripted opponents. The adapter itself never decides for a hostile.
 	Enemy func(State) []Order
 	// BackstopTicks is how many ticks pass without a stop before the policy
 	// is asked again, the native tick budget's role. Zero means 120 (two

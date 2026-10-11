@@ -81,7 +81,8 @@ is a candidate to replace by a faithful port. Game sources are in
 - **A21. A holder shoots on its own.** `hold_position` is Wait_Combat in the game,
   whose auto-attack picks a hostile in reach. `Autonomy` gives an idle holder
   that is not on hold fire an attack on the nearest hostile it can hit (ties to
-  the earlier scenario pawn). The game's target scoring is not ported.
+  the earlier scenario pawn). The game's target scoring is not ported for
+  colonists (the hostiles' is, E1-E8).
 - **A22. Only two stop kinds are raised.** `downed` (a colonist downed or
   killed) and `entered_range` (a hostile came within a colonist's weapon range,
   or a colonist's weapon reached it; distance only, no sight, once per hostile
@@ -96,6 +97,73 @@ is a candidate to replace by a faithful port. Game sources are in
   `hold_position` and `fire_mode` orders execute; every other kind is refused
   `native_refused`. Unknown pawn facts (kind, melee power, colonist armor) make
   the fight unsupported rather than being defaulted.
+
+## Enemy AI for ranged raiders (`enemy.go`)
+
+Ported from the pinned assembly (hash and per-method sources in `enemy.go` and
+`rules_version.go`): `AttackTargetFinder` scoring and the weighted draw,
+`JobGiver_AIFightEnemy` (target retention, shooting position, wait vs. goto),
+`CastPositionFinder`, `JobGiver_AIGotoNearestHostile`, the Wait_Combat
+auto-attack, and the `LordJob_AssaultColony` give-up and damage-fraction
+transitions. Every draw comes from the enemy stream (E6 lists what is drawn).
+
+- **E1. Decisions happen at Step boundaries.** `EnemyAI.Orders` runs before
+  each Step. A job that ends mid-Step is replaced at the next boundary, and the
+  auto-attack's four-tick search (staggered by `thingIDNumber` in the game) runs
+  at the first boundary at or after four ticks since the last, or at once when a
+  burst's cooldown has just ended (`Notify_StanceChanged`). With the usual small
+  `StepTicks` the difference is a few ticks.
+- **E2. A self-started attack is one burst.** `Order.Once` models
+  `Pawn.TryStartAttack`: after the cooldown the pawn drops its target and the
+  AI scores again. Only the raider AI uses it.
+- **E3. Targets are colonist combatants that stand.** The game's candidates
+  also include buildings, turrets, animals and non-combatants (no sim state), and
+  downed pawns (score minus 50). The sim cannot shoot a downed pawn (A18), so
+  downed pawns are not candidates and a downed target is lost at once
+  (`ThreatDisabled`); the downed term, `NonCombatantScore`, juvenile and
+  blast-radius friendly-fire terms (`ai_AvoidFriendlyFireRadius`) are not
+  ported. `TargetPriorityFactor` is 1 for pawns. Candidates are listed in
+  scenario order, which fixes the weighted draw's walk (the game uses
+  attack-target cache order).
+- **E4. Sight and the shot line are cell to cell.** `CanSee` is
+  `CellCanSeeCell` (no multi-cell `CalcShootableCellsOf`); the friendly-fire cone
+  uses the shooter's cell as the shot line's source (the game uses the lean cell)
+  and `GenSight.PointsOnLineOfSight` for the line. Fog, gas, darkness, roofs'
+  thickness and `NeedReachable` door bashing are absent. Reachability is a
+  flood of walkable cells with the pathfinder's neighbour rules, ignoring pawns
+  and `Danger`.
+- **E5. Shooting-position search drops what the sim lacks.** No avoid grid,
+  allowed area, region radius, `KnownDangerAt`, fire, or `aiAvoidCover` (false
+  for humanlike raiders). `CanReserve` is "no other pawn stands there and no
+  other raider is walking there". The game's `CastPositionPreference` multiplies
+  by 0.4 when `rangeFromCasterToCellSquared` exceeds the caster-to-target
+  distance, but that static is only set by requests with `maxRangeFromCaster`,
+  which AIFightEnemies does not use, so it holds a stale value from an earlier
+  request; the port treats it as 0 (factor not applied). Single precision is used
+  only for the `CellLine` side test, where it decides ties.
+- **E6. Jobs are three kinds, with the game's lengths.** `Wait_Combat` and the
+  shooting-position `Goto` last 450-550 ticks (inclusive, uniform); the
+  nearest-hostile `Goto` expires by the distance curve (30/120/600 ticks at
+  0/50/100 Manhattan cells, linear between) and ends on arrival. The lord's
+  thresholds are drawn once in `NewEnemyAI` (give-up ticks, then damage
+  fraction), and each Wait/Goto length when the job starts. The expiry's
+  `IsHashIntervalTick` alignment, `expireRequiresEnemiesNearby`, damage-driven
+  think overrides (`checkOverrideOnDamage`), job queues, weapon swaps, drugs,
+  abilities, trashing buildings, sapping, kidnapping and stealing are not
+  modelled; the raid is a plain `AssaultColony` duty with `JobGiver_AIFightEnemies`
+  radii 65 (acquire) and 72 (keep), and no `chaseTarget`.
+- **E7. The raid flees on two triggers, as one lord.** After
+  `AssaultTimeBeforeGiveUp` (26000-38000 ticks) or when the colonists' summed
+  post-armor damage exceeds `max(initialColonyHealthTotal x U(0.25, 0.35), 900)`
+  (`Trigger_FractionColonyDamageTaken`), every raider walks to `Exit` at a jog and
+  leaves the map (`OrderLeave`; counted as fled in the metrics). The game's
+  damage is `DamageWatcher.DamageTakenEver`, which counts every damaged player
+  thing; the sim counts colonist pawns only, and `ColonyHealthTotal` is the
+  caller's value (`WealthWatcher.HealthTotal` is not derivable here). Fleeing
+  raiders do not fight back, and no individual morale or mental-break flee
+  exists. `Trigger_TicksPassed` is tested with `>=`.
+- **E8. Unarmed hostiles and melee do nothing.** A hostile without a ranged
+  weapon gets no orders from the AI.
 
 ## Scenario importer (`simimport/`)
 
@@ -138,5 +206,6 @@ DefinitionCatalog; every derived value is listed with its source in
 ## Out of scope for this slice
 
 Melee, explosives and grenades, specialist abilities, breaches, turrets,
-mechs, enemy target choice, downed/carried movement, doors closing, repathing,
-fire, snow and sand path costs (see the package comment).
+mechs, sieges, drop pods, non-ranged raider behavior, downed/carried movement,
+doors closing, repathing, fire, snow and sand path costs (see the package
+comment).

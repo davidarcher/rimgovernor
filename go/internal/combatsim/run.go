@@ -86,6 +86,8 @@ type FightResult struct {
 	Winner   string
 	// Ticks is the sim tick the fight ended on.
 	Ticks int
+	// Left counts the raiders that left the map (fled).
+	Left int
 	// Decisions counts DecideCombat stops (the first decision and the
 	// backstops included); Orders and Refused count the policy's orders and
 	// the sim's refusals of them.
@@ -120,6 +122,12 @@ func RunFight(f Fight, seed uint64, tuning policy.CombatTuning) (FightResult, er
 	if err != nil {
 		return FightResult{}, err
 	}
+	var ai *EnemyAI
+	if f.EnemyAI != nil {
+		if ai, err = NewEnemyAI(&sim, *f.EnemyAI); err != nil {
+			return FightResult{}, err
+		}
+	}
 	a.scanRange() // the first scan only records who is already in range
 	res := FightResult{Refusals: map[string]int{}}
 	memory := policy.CombatMemory{Tuning: &tuning}
@@ -143,6 +151,9 @@ func RunFight(f Fight, seed uint64, tuning policy.CombatTuning) (FightResult, er
 			last, due = sim.tick, false
 		}
 		orders := append(carried, a.Autonomy()...)
+		if ai != nil {
+			orders = append(orders, ai.Orders()...)
+		}
 		if f.Enemy != nil {
 			orders = append(orders, f.Enemy(sim.snapshot())...)
 		}
@@ -160,6 +171,11 @@ func RunFight(f Fight, seed uint64, tuning policy.CombatTuning) (FightResult, er
 		}
 	}
 	res.Ticks = sim.tick
+	for i := range sim.pawns {
+		if sim.pawns[i].left {
+			res.Left++
+		}
+	}
 	res.Memory = memory
 	res.Metrics = sim.Metrics(f.Name)
 	return res, nil

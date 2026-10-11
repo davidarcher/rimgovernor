@@ -291,7 +291,7 @@ func (s *Sim) landProjectiles() {
 			continue
 		}
 		v := &s.pawns[pr.victim]
-		if v.dead {
+		if v.dead || !v.has {
 			continue
 		}
 		// Projectile.ImpactSomething: a lying target is missed half the time

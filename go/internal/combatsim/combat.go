@@ -36,6 +36,10 @@ type WeaponDef struct {
 	// ForcedMissRadius is VerbProperties.ForcedMissRadius; above 0.5 (mortars
 	// and the like) the weapon is not ordinary ranged fire and is unsupported.
 	ForcedMissRadius float64
+	// TargetHasRangedAttackScoreOffset is VerbProperties.ai_TargetHasRangedAttackScoreOffset,
+	// the bonus the enemy AI's target score gives a target that carries a
+	// ranged weapon. Zero for most weapons.
+	TargetHasRangedAttackScoreOffset float64
 }
 
 // ShooterStats are the pawn stats ShotReport and the verb read from the
@@ -96,10 +100,18 @@ type combatant struct {
 	target     int // pawn index of the attack order, -1 none
 	burstLeft  int
 	nextShot   int // ticks until the next burst shot
+	// once drops the attack order's target when the cooldown ends (Order.Once).
+	once bool
+	// lastAttacked and lastAttackTick are Pawn_MindState.lastAttackedTarget
+	// and lastAttackTargetTick: the pawn index of the last shot's target and
+	// the tick it was fired.
+	lastAttacked, lastAttackTick int
+	// left marks a pawn that left the map; it no longer has a combat role.
+	left bool
 }
 
 func (c *combatant) cancelAttack() {
-	c.target = -1
+	c.target, c.once = -1, false
 	if c.stance == stanceWarmup {
 		c.stance = stanceIdle
 	}
@@ -123,7 +135,7 @@ func (p *pawn) loadCombat(ps PawnSpec) error {
 	c := &p.combatant
 	c.has = true
 	c.cover = cs.CanBenefitFromCover
-	c.target = -1
+	c.target, c.lastAttacked, c.lastAttackTick = -1, -1, noTick
 	if c.bodySize, err = need(cs.BodySize, "BodySize", id); err != nil {
 		return err
 	}
@@ -212,20 +224,28 @@ func (s *Sim) startAttack(i int, o Order) error {
 	if p.target != ti {
 		p.cancelAttack()
 	}
-	p.target = ti
+	p.target, p.once = ti, o.Once
 	return nil
 }
+
+// noTick is a tick that never happened (Pawn_MindState starts its tick fields far in the past).
+const noTick = math.MinInt32
 
 // canHitFrom ports Verb.CanHitTargetFrom for a pawn at its own cell: the
 // target within [min range, range] and in line of fire.
 func (s *Sim) canHitFrom(si, ti int) bool {
-	a, b := &s.pawns[si], &s.pawns[ti]
-	dx, dz := float64(b.pos.X-a.pos.X), float64(b.pos.Z-a.pos.Z)
+	return s.cellCanHit(&s.pawns[si].weapon, s.pawns[si].pos, s.pawns[ti].pos)
+}
+
+// cellCanHit is Verb.CanHitTargetFrom for a shooter of weapon w standing on
+// from and a target on to.
+func (s *Sim) cellCanHit(w *WeaponDef, from, to domain.Cell) bool {
+	dx, dz := float64(to.X-from.X), float64(to.Z-from.Z)
 	d2 := dx*dx + dz*dz
-	if d2 > a.weapon.Range*a.weapon.Range || d2 < a.weapon.MinRange*a.weapon.MinRange {
+	if d2 > w.Range*w.Range || d2 < w.MinRange*w.MinRange {
 		return false
 	}
-	return s.CellCanSeeCell(a.pos, b.pos)
+	return s.CellCanSeeCell(from, to)
 }
 
 // combatTick runs one pawn's stance, job and verb phases in the order
@@ -233,14 +253,14 @@ func (s *Sim) canHitFrom(si, ti int) bool {
 // equipment's verbs.
 func (s *Sim) combatTick(i int) {
 	p := &s.pawns[i]
-	if !p.armed || p.dead || p.downed {
+	if !p.armed || !p.has || p.dead || p.downed {
 		return
 	}
 	// Stance_Warmup.StanceTick and Stance_Cooldown/Stance_Busy.StanceTick.
 	switch p.stance {
 	case stanceWarmup:
 		t := &s.pawns[p.cast]
-		if t.downed || t.dead || !s.canHitFrom(i, p.cast) {
+		if t.downed || t.dead || !t.has || !s.canHitFrom(i, p.cast) {
 			p.stance = stanceIdle
 			break
 		}
@@ -250,12 +270,15 @@ func (s *Sim) combatTick(i int) {
 	case stanceCooldown:
 		if p.stanceLeft--; p.stanceLeft <= 0 {
 			p.stance = stanceIdle
+			if p.once {
+				p.target, p.once = -1, false
+			}
 		}
 	}
 	// JobDriver_AttackStatic: start the verb whenever the pawn is not busy.
 	if p.stance == stanceIdle && p.target >= 0 {
 		t := &s.pawns[p.target]
-		if t.downed || t.dead {
+		if t.downed || t.dead || !t.has {
 			s.emit(Event{Kind: EventAttackEnded, Pawn: p.id, Target: t.id})
 			p.target = -1
 		} else if s.canHitFrom(i, p.target) {
@@ -288,9 +311,10 @@ func (s *Sim) warmupComplete(i int) {
 func (s *Sim) castBurstShot(i int) {
 	p := &s.pawns[i]
 	t := &s.pawns[p.cast]
-	if !t.dead && s.CellCanSeeCell(p.pos, t.pos) { // Verb_LaunchProjectile.TryCastShot: stopBurstWithoutLos
+	if !t.dead && t.has && s.CellCanSeeCell(p.pos, t.pos) { // Verb_LaunchProjectile.TryCastShot: stopBurstWithoutLos
 		s.launch(i, p.cast)
 		p.burstLeft--
+		p.lastAttacked, p.lastAttackTick = p.cast, s.tick // Verb.TryCastNextBurstShot: Notify_AttackedTarget
 	} else {
 		p.burstLeft = 0
 	}
@@ -339,12 +363,12 @@ func (s *Sim) Metrics(fixture string) combatmetrics.Metrics {
 	end := combatmetrics.Read{Tick: s.tick, Damage: s.ledger}
 	for i := range s.pawns {
 		p := &s.pawns[i]
-		if !p.has {
+		if !p.has && !p.left {
 			continue
 		}
 		staged[string(p.id)] = p.side
 		start.Pawns = append(start.Pawns, combatmetrics.Pawn{ID: string(p.id)})
-		end.Pawns = append(end.Pawns, combatmetrics.Pawn{ID: string(p.id), Dead: p.dead, Downed: p.downed && !p.dead})
+		end.Pawns = append(end.Pawns, combatmetrics.Pawn{ID: string(p.id), Dead: p.dead, Downed: p.downed && !p.dead, Fleeing: p.left})
 	}
 	return combatmetrics.Aggregate(fixture, staged, []combatmetrics.Read{start, end})
 }

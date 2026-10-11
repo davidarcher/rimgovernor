@@ -5,7 +5,9 @@
 // armor, an injury approximation) behind a Reset/Step seam. Adapter and
 // RunFight let the unchanged policy.DecideCombat drive a fight: they build its
 // CombatView, StopEvent and GeometryReply from sim state and apply its orders.
-// Enemy choice and melee come in later children of epic #2830. Every
+// EnemyAI (Fight.EnemyAI) drives the hostile ranged raiders: target scoring
+// and choice, positioning, and the raid's flee triggers, all drawn from the
+// enemy stream. Melee comes in a later child of epic #2830. Every
 // simplification is listed in approximations.md.
 //
 // Time is the game tick. Reset(scenario, seed) builds the world and the two
@@ -100,6 +102,10 @@ const (
 	// pawn is given another order. It stands and waits while Target is out of
 	// range or sight.
 	OrderAttack
+	// OrderLeave takes the pawn off the map (the enemy AI orders it on its
+	// exit cell). The pawn stops being a combatant: shots pass through it and
+	// it is no longer a target.
+	OrderLeave
 )
 
 // Order is one pawn command applied at the start of a Step.
@@ -110,6 +116,10 @@ type Order struct {
 	Urgency Urgency
 	// Target is the pawn an OrderAttack shoots at.
 	Target domain.PawnID
+	// Once makes an OrderAttack one burst: the pawn drops its target when the
+	// burst's cooldown ends, as a verb started with Pawn.TryStartAttack does,
+	// so whoever chooses targets chooses again.
+	Once bool
 }
 
 // EventKind names what happened.
@@ -141,6 +151,8 @@ const (
 	EventDied
 	// EventAttackEnded: Pawn's attack order ended because Target is down or dead.
 	EventAttackEnded
+	// EventLeftMap: Pawn left the map (OrderLeave); Cell is where it stood.
+	EventLeftMap
 )
 
 // ShotOutcome is what a fired shot is already decided to do.
