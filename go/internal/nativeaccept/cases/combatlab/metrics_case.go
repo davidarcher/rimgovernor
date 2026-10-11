@@ -36,6 +36,12 @@ const (
 	pauseModeTool = "test/letter_pause_mode"
 )
 
+// smokeOnly marks lab-open's metrics: the fixture is the smoke scaffold for the
+// clock, orders and recorder (#854), not a tactics benchmark, and its outcome
+// swings run to run. Read its baseline as "the pipeline ran a fight", and judge
+// tactics on the structured fixtures (choke, ranged, breach, ...).
+const smokeOnly = " Smoke only: lab-open is an unstructured 3v3 whose outcome is not a tactics signal."
+
 // metricsFamilies is today's autopilot answer to a fight: the routine
 // defense planner (hold-the-line / squad defense), with the rescue and
 // tend families it hands downed colonists to.
@@ -68,9 +74,13 @@ func Baseline(name string) (Metrics, error) {
 func init() {
 	for _, name := range Names {
 		probe, _ := Build(name, 0, 0)
+		scope := fmt.Sprintf("Combat metrics (#855, #869): stage %s, serve the routine defense planner on it for up to %d game ticks, and record the reads before and after to %s and the aggregate (damage, downs, deaths, fled, contact-to-resolution, friendly fire, orders, step latency) to %s. Evidence, not a gate: native because the metrics are vanilla combat outcomes under the live planner.", name, metricsTicks, ReadsFile, MetricsFile)
+		if name == "lab-open" {
+			scope += smokeOnly
+		}
 		cases.Register(cases.Case{
 			Name:        "combatlab/metrics-" + name,
-			Scope:       fmt.Sprintf("Combat metrics (#855, #869): stage %s, serve the routine defense planner on it for up to %d game ticks, and record the reads before and after to %s and the aggregate (damage, downs, deaths, fled, contact-to-resolution, friendly fire, orders, step latency) to %s. Evidence, not a gate: native because the metrics are vanilla combat outcomes under the live planner.", name, metricsTicks, ReadsFile, MetricsFile),
+			Scope:       scope,
 			Start:       cases.Lab{Colonists: probe.Colonists},
 			RequiredOps: []string{na.LabStartTool, StageTool, pauseModeTool},
 			QuietWorld:  false,
