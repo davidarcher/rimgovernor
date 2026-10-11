@@ -543,6 +543,10 @@ wave files its verdict there:
 - a refusal files its cause as the block;
 - a wait files its wait cause (`Cause.Waiting`; no warning);
 - a disabled planner files the opt-out hold (`held:opt-in`);
+- a `MaintainResource` floor whose resource has an empty source census (`ReadResourceSources`
+  returns no deposit, tree or plant) files `held:no_source`, naming the resources
+  comma-joined; the hold is not a production block, and the colony stage waives the wood floor
+  while it names `WoodLog`, so Reserves exits on stock;
 - `already_working_on_it` waits on the earlier work;
 - `combat_orders` and `hold_fallback` file their own wait causes (nothing failed);
 - an admitted or nothing-to-do verdict clears the concern's refusal or wait;

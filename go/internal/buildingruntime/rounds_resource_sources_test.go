@@ -190,3 +190,26 @@ func TestResourceIngredientNamesFundOnlyTheProducingRecipes(t *testing.T) {
 func (f *fakeResourceSourceNative) Tick(context.Context) (*l.TickReply, bridge.Result, error) {
 	panic("unused")
 }
+
+// A resource nothing on the map yields reads as an empty census: the hold is
+// the named, closed cause, not an awaiting_plan refusal, and the step goes on
+// to the next demanded resource.
+func TestSourcesForDeficitMarksAnEmptyCensus(t *testing.T) {
+	planner := &RoundsResourcePlanner{native: &fakeResourceSourceNative{}}
+	stock := domain.Known([]policy.Amount{{Resource: "WoodLog", Count: 10}})
+	sel, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "WoodLog", 350, stock, sourceTestReach())
+	if !ok || !sel.none || len(sel.selected) != 0 {
+		t.Fatalf("empty census: %+v %v", sel, ok)
+	}
+	v := noSource("WoodLog", "Steel")
+	if err := v.Validate(); err != nil || !v.Is(policy.CauseHeldNoSource) || v.Refusal.Subject != "WoodLog,Steel" {
+		t.Fatalf("hold: %+v %v", v, err)
+	}
+	if !(RoundsResourceResult{Verdict: v}).undispatched() {
+		t.Fatal("a sourceless target starves the next demanded resource")
+	}
+	note, filed := plannerRecordReason(v)
+	if !filed || note.Cause != policy.CauseHeldNoSource || note.Subject != "WoodLog,Steel" {
+		t.Fatalf("filed note: %+v", note)
+	}
+}

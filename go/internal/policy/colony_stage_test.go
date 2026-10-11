@@ -224,3 +224,23 @@ func TestStageRoundsPolicyBudgets(t *testing.T) {
 		t.Fatal("unordered thresholds accepted")
 	}
 }
+
+// A wood floor with no tree anywhere on the map never refills: the resource
+// planner's held:no_source note waives it so Reserves can exit on the rest.
+func TestStageWaivesTheWoodFloorWhenWoodHasNoSource(t *testing.T) {
+	needs := RoundsFindings{Latches: RoundsLatches{Wood: true}}
+	held := []ConcernProgress{{Concern: MaintainResource, Blocked: HeldNoSource, Planner: CauseHeldNoSource, PlannerSubject: "Steel,WoodLog"}}
+	if !StageColonyFacts(needs, RoundsFacts{}, DefaultRoundsPolicy(), nil).WoodShort {
+		t.Fatal("a latched wood floor is short")
+	}
+	if StageColonyFacts(needs, RoundsFacts{}, DefaultRoundsPolicy(), held).WoodShort {
+		t.Fatal("a sourceless wood floor still holds the stage")
+	}
+	steelOnly := []ConcernProgress{{Concern: MaintainResource, Planner: CauseHeldNoSource, PlannerSubject: "Steel"}}
+	if !StageColonyFacts(needs, RoundsFacts{}, DefaultRoundsPolicy(), steelOnly).WoodShort {
+		t.Fatal("only the named resource is waived")
+	}
+	if goal, _ := ProductionBlockedConcern(held); goal != "" {
+		t.Fatalf("the hold blocks production: %s", goal)
+	}
+}

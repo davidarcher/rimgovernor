@@ -2,7 +2,7 @@ package policy
 
 import (
 	"errors"
-
+	"slices"
 	"sort"
 	"strings"
 
@@ -73,6 +73,7 @@ const (
 	// Held reasons: the goal is intentionally not worked (HoldProgress).
 	HeldUnavailable BlockedReason = BlockedReason(CauseHeldUnavailable)
 	HeldOptIn       BlockedReason = BlockedReason(CauseHeldOptIn)
+	HeldNoSource    BlockedReason = BlockedReason(CauseHeldNoSource)
 )
 
 // Waiting reports a planner wait.
@@ -116,6 +117,12 @@ func (p ConcernProgress) BlockedSubject() string {
 		return p.PlannerSubject
 	}
 	return ""
+}
+
+// SourcelessResource reports a resource the record's filed planner note holds
+// as having no source (CauseHeldNoSource names the resources, comma-joined).
+func (p ConcernProgress) SourcelessResource(resource Resource) bool {
+	return p.Planner == CauseHeldNoSource && slices.Contains(strings.Split(p.PlannerSubject, ","), string(resource))
 }
 
 // Held reports a goal intentionally not worked: a held: reason or a

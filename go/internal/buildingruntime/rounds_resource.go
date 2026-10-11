@@ -117,7 +117,7 @@ func noResourceSource(resource policy.Resource) Verdict {
 // stands. The next demanded resource then gets its turn.
 func (r RoundsResourceResult) undispatched() bool {
 	v := r.Verdict
-	return v.Is(policy.CauseMethodUsed) || v.Is(policy.CauseClaim) || v.Is(policy.CauseAwaitingPlan) && v.Refusal.Subject == resourceSourceSubject
+	return v.Is(policy.CauseMethodUsed) || v.Is(policy.CauseClaim) || v.Is(policy.CauseHeldNoSource) || v.Is(policy.CauseAwaitingPlan) && v.Refusal.Subject == resourceSourceSubject
 }
 
 func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoundsResourceResult, error) {
@@ -207,6 +207,7 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 	// target's outcome stands, so its selected sources stay observable.
 	have := policy.StockReader{Resources: stock}
 	var first *RoundsResourceResult
+	var sourceless []policy.Resource
 	for _, row := range ranked {
 		var result RoundsResourceResult
 		if row.Resource == "Beer" {
@@ -222,12 +223,20 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 		if !result.undispatched() || result.Plan != "" || result.NativeWorkTicks != 0 {
 			return result, nil
 		}
+		if result.Is(policy.CauseHeldNoSource) {
+			sourceless = append(sourceless, row.Resource)
+		}
 		if first == nil {
 			first = &result
 		}
 	}
 	if first == nil {
 		return RoundsResourceResult{Verdict: BuildingReasonNoDeficit}, nil
+	}
+	// The hold names every resource with an empty source census, not only
+	// the worst covered one, so the stage waives each floor.
+	if len(sourceless) > 0 {
+		first.Verdict = noSource(sourceless...)
 	}
 	return *first, nil
 }
@@ -340,6 +349,9 @@ type sourceSelection struct {
 	// designated: a mine source already carries a designation that no
 	// colonist has finished yet.
 	designated bool
+	// none: the resource's source census is empty (no deposit, tree or plant
+	// yields it anywhere), so no later step can supply it.
+	none bool
 }
 
 // acquireFromSources is the mine/harvest branch of dispatchResourceConcern:
@@ -387,6 +399,9 @@ func (r *RoundsResourcePlanner) acquireFromSources(call, epoch context.Context, 
 	if pre.designated {
 		return RoundsResourceResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: stockWaitTicks, Sources: selected}, false, nil
 	}
+	if pre.none {
+		return RoundsResourceResult{Verdict: noSource(resource)}, false, nil
+	}
 	return RoundsResourceResult{Verdict: noResourceSource(resource), Sources: selected}, false, nil
 }
 
@@ -422,7 +437,7 @@ func (r *RoundsResourcePlanner) sourcesForDeficit(ctx context.Context, identity 
 	}
 	remote.Reach.StorageHeadroom = domain.Known(storage.Capacity)
 	selected, _ := policy.SelectReachableResourceSources(sources, target, have, remote)
-	out := sourceSelection{selected: selected, storage: storage}
+	out := sourceSelection{selected: selected, storage: storage, none: len(sources) == 0}
 	for _, s := range sources {
 		out.designated = out.designated || s.Method == policy.ResourceSourceMine && s.Designated
 	}

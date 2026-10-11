@@ -36,8 +36,13 @@ func DefTables() []DefTable {
 		{"NonFleshMeatDefs", "Verse.ThingDef", slices.Clone(NonFleshMeatDefs)},
 		{"MortarProbeShells", "Verse.ThingDef", slices.Clone(MortarProbeShells)},
 		{"QuestGiftDefs", "Verse.ThingDef", slices.Clone(QuestGiftDefs)},
+		{"WoodLatchDefs", "Verse.ThingDef", slices.Clone(WoodLatchDefs)},
 	}
 }
+
+// WoodLatchDefs are the stock defs the wood latch (WoodMin, WoodTarget) floors:
+// the colony stage waives the latch while every one has no source.
+var WoodLatchDefs = []string{"WoodLog"}
 
 // MortarProbeShells is the one shell def BuildingProperties.IsMortar tests a
 // loadable turret gun's fixed storage filter against (ThingDefOf.Shell_HighExplosive).

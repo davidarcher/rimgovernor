@@ -31,6 +31,7 @@ const (
 	CauseNoMethod         Cause = "no_method"
 	CauseHeldUnavailable  Cause = "held:unavailable"
 	CauseHeldOptIn        Cause = "held:opt-in"
+	CauseHeldNoSource     Cause = "held:no_source"
 )
 
 // Wait kinds.
@@ -120,7 +121,7 @@ const (
 var Causes = []Cause{
 	CauseCollapsePending, CauseNoWorker, CauseAwaitingPlan, CauseFieldUnavailable, CauseNoSpace, CauseSharedAdmission,
 	CauseRetriesSpent, CauseRockNotDug, CauseSiteBlocked, CauseNativeIneligible, CauseReconcileWrite, CauseCooldown,
-	CauseNoMethod, CauseHeldUnavailable, CauseHeldOptIn,
+	CauseNoMethod, CauseHeldUnavailable, CauseHeldOptIn, CauseHeldNoSource,
 	CauseMethodUsed, CauseExistingWork, CauseBunksOpen, CauseBreachHeld, CauseComfortUse, CauseFacility, CauseHospitalConvert,
 	CauseSleepingUse, CauseSeparation, CauseDialog, CauseClaim, CauseFacilityAccess, CauseRoomTemperature, CauseRetryBudgetWait,
 	CauseCombatOrders, CauseHoldFallback,
@@ -141,7 +142,7 @@ var Causes = []Cause{
 // map are untouched; a test fails when a declared Reason is not a Cause.
 func CauseOfReason(r Reason) Cause { return Cause(r) }
 
-var fixedBlocked = []BlockedReason{BlockedNoWorker, BlockedNativeIneligible, BlockedReconciling, BlockedCooldown, BlockedNoMethod, HeldUnavailable, HeldOptIn}
+var fixedBlocked = []BlockedReason{BlockedNoWorker, BlockedNativeIneligible, BlockedReconciling, BlockedCooldown, BlockedNoMethod, HeldUnavailable, HeldOptIn, HeldNoSource}
 
 // CauseOfBlocked is the Cause of a fixed BlockedReason; ok is false for the
 // prerequisite form.
@@ -223,6 +224,7 @@ var causeWording = map[Cause]string{
 	CauseNoMethod:         "No way of doing this is open right now.",
 	CauseHeldUnavailable:  "Held on purpose because the work is not available.",
 	CauseHeldOptIn:        "Held on purpose until it is switched on.",
+	CauseHeldNoSource:     "Held on purpose because the map has no source of the resource.",
 
 	CauseMethodUsed:      "The bot already did its part and is waiting for the work to finish.",
 	CauseExistingWork:    "Earlier work is still standing and the goal moves with it.",

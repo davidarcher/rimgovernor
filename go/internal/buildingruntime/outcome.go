@@ -41,7 +41,7 @@ const (
 // of the first and an OutcomeWaiting verdict one of the second; there is no
 // catch-all. English for them lives in policy.Wording.
 var (
-	refusalKinds = []policy.Cause{policy.CauseCollapsePending, policy.CauseNoWorker, policy.CauseAwaitingPlan, policy.CauseFieldUnavailable, policy.CauseNoSpace, policy.CauseSharedAdmission, policy.CauseRetriesSpent, policy.CauseRockNotDug, policy.CauseSiteBlocked}
+	refusalKinds = []policy.Cause{policy.CauseCollapsePending, policy.CauseNoWorker, policy.CauseAwaitingPlan, policy.CauseFieldUnavailable, policy.CauseNoSpace, policy.CauseSharedAdmission, policy.CauseRetriesSpent, policy.CauseRockNotDug, policy.CauseSiteBlocked, policy.CauseHeldNoSource}
 	waitKinds    = policy.WaitCauses
 )
 
@@ -100,6 +100,16 @@ func collapsePending(subject string) Verdict {
 }
 func awaitingPlan(subject, detail string) Verdict {
 	return refuse(policy.CauseAwaitingPlan, subject, detail)
+}
+
+// noSource is the reasoned hold of resources whose source census is empty (no
+// rock, tree or plant yields them): the subject names them, comma-joined.
+func noSource(resources ...policy.Resource) Verdict {
+	names := make([]string, len(resources))
+	for i, r := range resources {
+		names[i] = string(r)
+	}
+	return refuse(policy.CauseHeldNoSource, strings.Join(names, ","), "")
 }
 
 // claimHeld is the wait of a step whose claim another planner already holds

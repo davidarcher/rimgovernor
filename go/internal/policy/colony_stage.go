@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -383,11 +384,20 @@ func StageColonyFacts(needs RoundsFindings, f RoundsFacts, p RoundsPolicy, progr
 		Shelter: allFacts(footholdShelter(f), footholdSleeping(f)), Cooking: f.Cooking, FoodStorage: FoodStorageStanding(f), Armed: footholdArmed(f),
 		FoodDays:  f.FoodDays,
 		FieldSown: allFacts(footholdProduction(f), measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 })),
-		WoodShort: needs.Latches.Wood, ResearchBench: ResearchBenchBuilt(f.CurrentConstruction),
+		WoodShort: needs.Latches.Wood && !sourceless(progress, WoodLatchDefs), ResearchBench: ResearchBenchBuilt(f.CurrentConstruction),
 		Power: footholdPower(f), Climate: SeasonalClimate(f.Calendar, footholdTemperature(f, p), needs.Latches.Refrigeration), Doctor: DoctorCapable(f.WorkProfiles),
 	}
 	facts.ProductionBlocked, facts.Blocked = ProductionBlockedConcern(progress)
 	return facts
+}
+
+// sourceless reports that the resource floor's planner holds every one of the
+// resources as having no source (held:no_source): the floor can never be
+// reached, so the stage works from stock instead of waiting on it.
+func sourceless(progress []ConcernProgress, resources []string) bool {
+	return slices.ContainsFunc(progress, func(p ConcernProgress) bool {
+		return p.Concern == MaintainResource && !slices.ContainsFunc(resources, func(r string) bool { return !p.SourcelessResource(Resource(r)) })
+	})
 }
 
 // ResearchBenchBuilt reports a built research bench of the colony's own.

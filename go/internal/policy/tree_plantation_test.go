@@ -144,3 +144,16 @@ func TestGrowerSkill(t *testing.T) {
 		t.Fatal("an unread pawn must leave the skill unknown")
 	}
 }
+
+// An ice sheet grows no native tree, so no species is sowable there: wood on
+// ice comes from stock, not a plantation.
+func TestTreeNotSowableOnIceSheet(t *testing.T) {
+	oak := treeCrop("Plant_TreeOak", 30, 46)
+	skill := domain.Known(int32(8))
+	if reason := treeSowable(oak, domain.Known("IceSheet"), skill); reason != "not native to the biome" {
+		t.Fatalf("ice sheet: %q", reason)
+	}
+	if reason := treeSowable(oak, domain.Known("TemperateForest"), skill); reason != "" {
+		t.Fatalf("forest: %q", reason)
+	}
+}

@@ -8,8 +8,8 @@ import (
 
 // Every refusal and wait cause is a member of the closed policy.Cause enum.
 func TestEveryRefusalAndWaitKindIsACause(t *testing.T) {
-	if len(refusalKinds)+len(waitKinds) != 23 {
-		t.Fatalf("%d kinds, want 23", len(refusalKinds)+len(waitKinds))
+	if len(refusalKinds)+len(waitKinds) != 24 {
+		t.Fatalf("%d kinds, want 24", len(refusalKinds)+len(waitKinds))
 	}
 	for _, k := range append(append([]policy.Cause{}, refusalKinds...), waitKinds...) {
 		if err := k.Validate(); err != nil {
@@ -30,7 +30,7 @@ func TestEveryConstructorYieldsAValidCause(t *testing.T) {
 	}
 	verdicts = append(verdicts,
 		fieldUnavailable("field"), noSpace("cells"), rockNotDug("dig", "2"), noWorker("squad"),
-		siteBlocked("site", "why"), collapsePending("roof"), awaitingPlan("plan", ""),
+		siteBlocked("site", "why"), collapsePending("roof"), awaitingPlan("plan", ""), noSource("Steel"),
 		claimHeld("bench"), retryBudgetWait("step", "why"), awaitingMethod("method"),
 		researchWait("project"), awaitingFoodPlan("capacity"),
 		BuildingReasonExistingWork, BuildingBunksOpen, BuildingReasonSeparation, BuildingReasonNotInteractive,
