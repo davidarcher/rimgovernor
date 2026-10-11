@@ -305,11 +305,14 @@ func TestRankGeneratorsByStorageStockAndShortfallShape(t *testing.T) {
 		ranking GeneratorRanking
 		want    []string
 	}{
-		// Wood is under its floor, so chemfuel leads the fuel tier.
-		{"battery", GeneratorRanking{BatteryAvailable: battery}, []string{"SolarGenerator", "WindTurbine", "ChemfuelPoweredGenerator", "WoodFiredGenerator"}},
-		{"no-battery", GeneratorRanking{}, []string{"ChemfuelPoweredGenerator", "WoodFiredGenerator", "SolarGenerator", "WindTurbine"}},
+		// Wood is under its floor, so chemfuel leads the fuel tier. With the
+		// component recipe unknown nothing is priced and list order breaks ties.
+		{"battery-unpriced", GeneratorRanking{BatteryAvailable: battery}, []string{"SolarGenerator", "WindTurbine", "ChemfuelPoweredGenerator", "WoodFiredGenerator"}},
+		// Priced, the turbine delivers more watts per steel than the panel.
+		{"battery", GeneratorRanking{BatteryAvailable: battery, ComponentSteel: testComponentSteel}, []string{"WindTurbine", "SolarGenerator", "ChemfuelPoweredGenerator", "WoodFiredGenerator"}},
+		{"no-battery", GeneratorRanking{ComponentSteel: testComponentSteel}, []string{"ChemfuelPoweredGenerator", "WoodFiredGenerator", "WindTurbine", "SolarGenerator"}},
 		// A turbine still turns at night, so only the solar panel is last.
-		{"night-only", GeneratorRanking{BatteryAvailable: battery, NightOnly: true}, []string{"WindTurbine", "ChemfuelPoweredGenerator", "WoodFiredGenerator", "SolarGenerator"}},
+		{"night-only", GeneratorRanking{BatteryAvailable: battery, NightOnly: true, ComponentSteel: testComponentSteel}, []string{"WindTurbine", "ChemfuelPoweredGenerator", "WoodFiredGenerator", "SolarGenerator"}},
 	} {
 		if got := RankGenerators(options, tc.ranking); !reflect.DeepEqual(got, tc.want) {
 			t.Fatal(tc.name, got)
@@ -327,6 +330,66 @@ func TestRankGeneratorsByStorageStockAndShortfallShape(t *testing.T) {
 	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, nil, nil, planning)
 	if err != nil || p.Method != PowerGenerate || p.Definition != "WindTurbine" || !reflect.DeepEqual(p.Alternatives, []string{"ChemfuelPoweredGenerator", "WoodFiredGenerator", "SolarGenerator"}) || p.Budget.GenerationShortfallW <= 0 || p.Budget.DaySurplusWD <= 0 {
 		t.Fatal(p, err)
+	}
+}
+
+// A finite fuel is never chosen while a renewable can serve the deficit, and
+// a grown fuel ranks ahead of a finite one; the wind turbine outranks the panel
+// on steel and components alike (450 steel, 30 components in the sea ice start).
+func TestRankGeneratorsFuelRenewabilityAndCost(t *testing.T) {
+	available := func(string) domain.Fact[bool] { return domain.Known(true) }
+	stocked := func(Resource) domain.Fact[int64] { return domain.Known(int64(300)) }
+	battery := domain.Known(true)
+	ranking := GeneratorRanking{BatteryAvailable: battery, ComponentSteel: testComponentSteel}
+	finite := testGeneratorOptionsFuel(available, stocked, func(Resource) bool { return false })
+	if got := RankGenerators(finite, ranking); !reflect.DeepEqual(got, []string{"WindTurbine", "SolarGenerator", "WoodFiredGenerator", "ChemfuelPoweredGenerator"}) {
+		t.Fatal("finite fuel", got)
+	}
+	// Without a battery neither renewable serves the night, so the finite
+	// fuel leads.
+	if got := RankGenerators(finite, GeneratorRanking{ComponentSteel: testComponentSteel}); !reflect.DeepEqual(got, []string{"WoodFiredGenerator", "ChemfuelPoweredGenerator", "WindTurbine", "SolarGenerator"}) {
+		t.Fatal("finite fuel, no battery", got)
+	}
+	// Only wood can be grown: it leads the fuel tier, chemfuel follows.
+	woodGrown := testGeneratorOptionsFuel(available, stocked, func(r Resource) bool { return r == "WoodLog" })
+	if got := RankGenerators(woodGrown, GeneratorRanking{ComponentSteel: testComponentSteel}); !reflect.DeepEqual(got, []string{"WoodFiredGenerator", "ChemfuelPoweredGenerator", "WindTurbine", "SolarGenerator"}) {
+		t.Fatal("grown wood", got)
+	}
+	chemGrown := testGeneratorOptionsFuel(available, stocked, func(r Resource) bool { return r == "Chemfuel" })
+	if got := RankGenerators(chemGrown, GeneratorRanking{ComponentSteel: testComponentSteel}); !reflect.DeepEqual(got, []string{"ChemfuelPoweredGenerator", "WoodFiredGenerator", "WindTurbine", "SolarGenerator"}) {
+		t.Fatal("grown chemfuel", got)
+	}
+	// The yield is watts per steel with components at their recipe's steel.
+	byDef := map[string]GeneratorOption{}
+	for _, o := range finite {
+		byDef[o.Definition] = o
+	}
+	wind, solar := generatorYield(byDef[WindTurbineDefinition], testComponentSteel), generatorYield(byDef["SolarGenerator"], testComponentSteel)
+	if math.Abs(wind-2300*testWindProfile.Daily/(100+2*12)) > 1e-9 || math.Abs(solar-1700*SolarDailyFraction/(100+3*12)) > 1e-9 || wind <= solar {
+		t.Fatal(wind, solar)
+	}
+	if generatorYield(byDef[WindTurbineDefinition], domain.Unknown[float64]()) != 0 {
+		t.Fatal("an unpriced component gave a yield")
+	}
+}
+
+func TestWindProfileFromTheCatalogSpeedRange(t *testing.T) {
+	// Core's clear weather: speed 0.04-2 times 1, capped at 1.5 -> 2199 W of 2300 W.
+	if w := WindProfile(0.04, 2, 1); math.Abs(w.Daily*2300-2199) > 1 || w.Daily != w.Night {
+		t.Fatal(w)
+	}
+	// A weather whose factor lifts every speed past the cap pins the turbine at it.
+	if w := WindProfile(0.04, 2, 100); w.Daily != WindUsableMax {
+		t.Fatal(w)
+	}
+	// Wind never beyond the range: a calm-only range averages its midpoint.
+	if w := WindProfile(0.2, 0.4, 1); math.Abs(w.Daily-0.3) > 1e-12 {
+		t.Fatal(w)
+	}
+	for _, bad := range []PowerSourceProfile{WindProfile(0.5, 0.5, 1), WindProfile(0, 2, 0), WindProfile(-1, 2, 1)} {
+		if bad != (PowerSourceProfile{}) {
+			t.Fatal(bad)
+		}
 	}
 }
 

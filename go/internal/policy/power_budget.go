@@ -14,9 +14,10 @@ const (
 	// day relative to its nominal wattage: ~9 h at full output and ~7 h at
 	// partial output, none at night.
 	SolarDailyFraction = (9.0 + 7.0*0.5) / 24.0
-	// WindAverageFraction is a wind turbine's average output relative to its
-	// nominal 2300 W across ordinary weather (~1200 W).
-	WindAverageFraction = 1200.0 / 2300.0
+	// WindUsableMax is the wind speed above which a turbine makes no more
+	// (CompPowerPlantWind.MaxUsableWindIntensity, a private game constant the
+	// catalog does not carry).
+	WindUsableMax = 1.5
 	// BatteryDefinition is the storage definition the power family compiles.
 	BatteryDefinition = "Battery"
 )
@@ -42,9 +43,33 @@ type PowerSourceProfile struct {
 // around the clock while served.
 var (
 	SolarPowerProfile    = PowerSourceProfile{Daily: SolarDailyFraction, Night: 0, Solar: true}
-	WindPowerProfile     = PowerSourceProfile{Daily: WindAverageFraction, Night: WindAverageFraction}
 	ConstantPowerProfile = PowerSourceProfile{Daily: 1, Night: 1}
 )
+
+// WindProfile is a wind turbine's delivery profile in a weather whose wind
+// factor is factor, from the catalog's WindManager speed range
+// [speedMin, speedMax]: the turbine makes nominal times the wind speed up to
+// WindUsableMax (CompPowerPlantWind), and the speed is taken as uniform over
+// the range scaled by the weather factor (the noise distribution is game
+// code, not catalog). For Core's clear weather (range 0.04-2, factor 1) the
+// average is 0.956 of nominal, 2199 W of the turbine's 2300 W, which matches
+// the wiki's measured clear-weather figure; snow and storms deliver more, so
+// the clear figure is the conservative planning value. A degenerate range or
+// factor is the zero profile.
+func WindProfile(speedMin, speedMax, factor float64) PowerSourceProfile {
+	lo, hi := speedMin*factor, speedMax*factor
+	if !(speedMin >= 0 && speedMax > speedMin && factor > 0) || math.IsInf(hi, 0) {
+		return PowerSourceProfile{}
+	}
+	mean := (lo + hi) / 2
+	if hi > WindUsableMax {
+		mean = (WindUsableMax*WindUsableMax/2 - lo*lo/2 + WindUsableMax*(hi-WindUsableMax)) / (hi - lo)
+		if lo >= WindUsableMax {
+			mean = WindUsableMax
+		}
+	}
+	return PowerSourceProfile{Daily: mean, Night: mean}
+}
 
 // PowerProducer is one producer's nominal wattage and delivery profile as the
 // budget sees it.

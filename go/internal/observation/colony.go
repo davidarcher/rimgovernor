@@ -148,6 +148,11 @@ type ColonyProjection struct {
 	// PowerBattery); the power planner refuses a projection without them.
 	PowerSources map[string]policy.PowerSourceProfile
 	PowerBattery policy.PowerBattery
+	// GeneratorRows are the catalog rows of the ranked generator definitions
+	// (DefinitionCatalog.GeneratorRow) and ComponentSteel the steel a
+	// component costs by the game's recipe (ProductInputCost).
+	GeneratorRows  map[string]policy.GeneratorRow
+	ComponentSteel domain.Fact[float64]
 	// LightTerrains are the terrain defs affording Light (DefinitionCatalog.LightTerrains).
 	LightTerrains policy.LightTerrains
 	// RoofSupport is the game's roof support radius (the catalog constant
@@ -297,7 +302,7 @@ func (r ColonyProjection) DefinitionAvailable(name string) domain.Fact[bool] {
 
 // GeneratorOptions pairs the power family's generator definitions with their
 // native availability, observed fuel stock and catalog delivery profile.
-func (r ColonyProjection) GeneratorOptions() ([]policy.GeneratorOption, error) {
+func (r ColonyProjection) GeneratorOptions(renewable func(policy.Resource) bool) ([]policy.GeneratorOption, error) {
 	available := map[string]domain.Fact[bool]{}
 	for _, d := range r.Definitions {
 		available[d.Name] = d.Available
@@ -307,7 +312,7 @@ func (r ColonyProjection) GeneratorOptions() ([]policy.GeneratorOption, error) {
 			return fact
 		}
 		return domain.Unknown[bool]()
-	}, r.ResourceStock, r.PowerSources)
+	}, r.ResourceStock, renewable, r.PowerSources, r.GeneratorRows)
 }
 
 type FarmZoneFact struct {
@@ -470,6 +475,18 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 			return ColonyProjection{}, err
 		}
 		if r.PowerSources, err = tables.Catalog.PowerSources(); err != nil {
+			return ColonyProjection{}, err
+		}
+		r.GeneratorRows = map[string]policy.GeneratorRow{}
+		for _, name := range policy.GeneratorDefinitions {
+			if tables.Catalog.ThingDef(name) == nil {
+				continue
+			}
+			if r.GeneratorRows[name], err = tables.Catalog.GeneratorRow(name); err != nil {
+				return ColonyProjection{}, err
+			}
+		}
+		if r.ComponentSteel, err = tables.Catalog.ProductInputCost(string(policy.ComponentResource), string(policy.SteelResource)); err != nil {
 			return ColonyProjection{}, err
 		}
 		if tables.Catalog.ThingDef(policy.BatteryDefinition) != nil {

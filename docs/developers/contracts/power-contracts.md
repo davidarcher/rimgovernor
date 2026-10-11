@@ -28,7 +28,12 @@ whose known stored reserve is under the coming night's deficit (a solar-only net
   in other concerns' held reservations, so a workbench about to be built is priced before it turns on.
 - **Supply:** each producer's nominal wattage spread over the day by its profile: constant for
   fuel-burning, geothermal and watermill generators; a daylight curve for `SolarGenerator` (zero for a
-  third of the day and throughout an `Eclipse`); ~1200 W of 2300 W average for `WindTurbine`.
+  third of the day and throughout an `Eclipse`); for `WindTurbine`, `policy.WindProfile` over the
+  catalog's `WindManager.WindSpeedRange` (0.04-2) and the `Clear` weather's `windSpeedFactor` (1):
+  output is nominal times wind speed capped at 1.5 (`CompPowerPlantWind`, a game constant the catalog
+  lacks), the speed taken as uniform over the range. That is 0.956 of 2300 W, 2199 W, matching the
+  wiki's measured clear-weather average (snow 2622 W and blizzard 3409 W are higher, so clear is the
+  conservative figure). The earlier 1200 W figure was about half the catalog's.
 - **Storage:** the summed battery capacity. The wiki figures behind the profiles and the battery
   (600 Wd, 50 % charge efficiency, 5 Wd/day self-discharge) are constants in `power_budget.go`.
 
@@ -63,11 +68,19 @@ check on the model: a consumer that actually loses power is a deficit whatever t
     cell occupied) and admitted on the native preview's legality and safety alone.
   - Otherwise one generator chosen by `RankGenerators` over `GeneratorDefinitions` (`SolarGenerator`,
     `WindTurbine`, `WoodFiredGenerator`, `ChemfuelPoweredGenerator`), natively unavailable ones
-    skipped, by cost per delivered day of energy: a fuel-free generator first once a `Battery` can bank
-    its surplus; then fuel-burning generators whose stock meets the floor (75 wood, 30 chemfuel) in
-    list order; fuel-short ones after; a renewable last when no battery can be built or (solar) the
-    shortfall is night-only. Ranked runners-up travel as `Alternatives`: a definition no site accepts
-    yields to the next under the same method key.
+    skipped. Tiers: a fuel-free generator first once a `Battery` can bank its surplus; then a
+    generator burning a fuel the colony can grow, stocked to the fuel tank (`fuelCapacity` of its
+    refuelable comp; a crop that harvests the fuel is sowable now, `policy.ResourceGrowable`, so a
+    tree plantation counts and wild trees or chemfuel do not); then one burning a finite fuel,
+    stocked; fuel-short ones; a renewable last when no battery can be built or (solar) the
+    shortfall is night-only. Within a tier the higher average watts per steel of build cost goes
+    first, components priced at the game recipe's steel (`Make_ComponentIndustrial`: 12 steel each,
+    `DefinitionCatalog.ProductInputCost`); an unknown recipe prices nothing and list order breaks
+    ties. Cost, nominal watts and fuel come from the catalog (`DefinitionCatalog.GeneratorRow`).
+    Renewability is read from the colony's sowable crops rather than the Round's supply plan: that
+    plan holds rows only for unmet `MaintainResource` floors, so a stocked fuel has none. Ranked
+    runners-up travel as `Alternatives`: a definition no site accepts yields to the next under the
+    same method key.
   - A `WindTurbine` site is searched within twelve cells of the consumer and accepted only when the
     placement preview's `wind_blocked_cells` (native `WindTurbineUtility.CalculateWindCells`
     catch-zone cells that are roofed, off-map or hold a wind-blocking thing) is known and zero.

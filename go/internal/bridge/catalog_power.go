@@ -73,12 +73,113 @@ func (catalog *DefinitionCatalog) buildPowerSources() (map[string]policy.PowerSo
 			case solar:
 				profile = policy.SolarPowerProfile
 			case wind:
-				profile = policy.WindPowerProfile
+				if profile, err = catalog.windProfile(); err != nil {
+					return nil, err
+				}
 			}
 		}
 		out[name] = profile
 	}
 	return out, nil
+}
+
+// clearWeather is the weather the wind profile is priced in: the baseline
+// that storms and snow only improve on.
+const clearWeather = "Clear"
+
+// windProfile is the wind turbine profile the catalog states: the WindManager
+// speed range and the clear weather's wind factor (policy.WindProfile).
+func (catalog *DefinitionCatalog) windProfile() (policy.PowerSourceProfile, error) {
+	constants, err := catalog.GameConstants()
+	if err != nil {
+		return policy.PowerSourceProfile{}, err
+	}
+	speeds := constants.GetWindManager().GetWindSpeedRange()
+	weather := DefRow[*d.WeatherDef](catalog, clearWeather)
+	if speeds == nil || weather == nil {
+		return policy.PowerSourceProfile{}, contract("catalog has no wind speed range or %s weather row", clearWeather)
+	}
+	profile := policy.WindProfile(float64(speeds.GetMin()), float64(speeds.GetMax()), float64(weather.GetWindSpeedFactor()))
+	if profile == (policy.PowerSourceProfile{}) {
+		return profile, contract("wind speed range %v-%v and %s factor %v give no wind profile", speeds.GetMin(), speeds.GetMax(), clearWeather, weather.GetWindSpeedFactor())
+	}
+	return profile, nil
+}
+
+// GeneratorRow is the named generator def's nominal watts (its power comp's
+// negative draw), build cost and, for a refuelable one, the single fuel its
+// filter accepts and the tank a full load takes (policy.GeneratorRow).
+func (catalog *DefinitionCatalog) GeneratorRow(name string) (policy.GeneratorRow, error) {
+	row, err := catalog.thingRow(name)
+	if err != nil {
+		return policy.GeneratorRow{}, err
+	}
+	watts, powered, err := catalog.PowerDraw(row)
+	if err != nil {
+		return policy.GeneratorRow{}, err
+	}
+	if !powered || watts >= 0 {
+		return policy.GeneratorRow{}, contract("def %s is not a generator", name)
+	}
+	costs, err := catalog.AdjustedCosts(name, "")
+	if err != nil {
+		return policy.GeneratorRow{}, err
+	}
+	out := policy.GeneratorRow{NominalW: -watts}
+	for _, q := range costs {
+		out.Costs = append(out.Costs, policy.Amount{Resource: policy.Resource(q.GetDefName()), Count: q.GetUnits()})
+	}
+	fuels, err := catalog.RefuelFuels(name)
+	if err != nil {
+		return policy.GeneratorRow{}, err
+	}
+	switch len(fuels) {
+	case 0:
+	case 1:
+		out.Fuel = policy.Resource(fuels[0])
+		out.FuelCapacity = int64(compOf(row, (*d.CompPropertiesAny).GetCompProperties_Refuelable).GetFuelCapacity())
+	default:
+		return policy.GeneratorRow{}, contract("generator %s accepts %d fuels", name, len(fuels))
+	}
+	return out, nil
+}
+
+// ProductInputCost is the units of input the cheapest recipe making product
+// takes per unit made, when that recipe's one ingredient slot accepts only
+// input (the game's own steel-to-components rate); unknown when no recipe
+// is so shaped.
+func (catalog *DefinitionCatalog) ProductInputCost(product, input string) (domain.Fact[float64], error) {
+	hosts, err := catalog.RecipeHosts(product, nil)
+	if err != nil {
+		return domain.Fact[float64]{}, err
+	}
+	best, found := 0.0, false
+	for _, host := range hosts {
+		slots, known := host.Ingredients.Value()
+		if !known || len(slots) != 1 || len(slots[0]) != 1 || string(slots[0][0].Resource) != input {
+			continue
+		}
+		row, err := catalog.Recipe(host.Definition)
+		if err != nil {
+			return domain.Fact[float64]{}, err
+		}
+		made := int64(0)
+		for _, p := range row.GetProducts() {
+			if p.GetValue().GetThingDef() == product {
+				made += int64(p.GetValue().GetCount())
+			}
+		}
+		if made <= 0 {
+			continue
+		}
+		if cost := float64(slots[0][0].Count) / float64(made); !found || cost < best {
+			best, found = cost, true
+		}
+	}
+	if !found {
+		return domain.Unknown[float64](), nil
+	}
+	return domain.Known(best), nil
 }
 
 // PowerBattery is the storage of the named battery def: the capacity and

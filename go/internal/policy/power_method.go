@@ -73,13 +73,30 @@ type GeneratorOption struct {
 	Fuel        Resource
 	FuelStock   domain.Fact[int64]
 	MinimumFuel int64
+	// FuelRenewable is whether the colony can grow its fuel here (a sowable
+	// crop harvests it); false is a finite stock that runs out.
+	FuelRenewable bool
 	// Profile is how the generator delivers its nominal watts over a day
 	// (DefinitionCatalog.PowerSources).
 	Profile PowerSourceProfile
+	// NominalW is the producer's catalog wattage and Costs its build cost.
+	NominalW float64
+	Costs    []Amount
+}
+
+// GeneratorRow is the catalog's description of one generator definition:
+// nominal watts, build cost and, for a refuelable one, the fuel it burns and
+// the tank a full load takes (the stock floor below which the planner will
+// not commit to that fuel).
+type GeneratorRow struct {
+	NominalW     float64
+	Costs        []Amount
+	Fuel         Resource
+	FuelCapacity int64
 }
 
 // GeneratorDefinitions lists every generator definition RankGenerators may
-// choose, in the order it prefers them within a tier. Planners request these
+// choose, in the order that breaks ties among equal tiers and yields. Planners request these
 // planning definitions and Hands correlate completed work against them. The
 // wind turbine follows the solar generator: both are fuel-free, but a turbine
 // needs an unobstructed catch zone the placement preview reports, so a site
@@ -106,23 +123,24 @@ func PowerFamilyDefinitions() []string {
 	return append(append([]string{string(PowerConnect)}, GeneratorDefinitions...), GeothermalDefinition, BatteryDefinition)
 }
 
-// DefaultGeneratorOptions pairs each generator definition with its fuel, the
-// stock floor below which the planner will not commit to that fuel, and its
-// delivery profile from sources; a generator with no profile is an error.
-func DefaultGeneratorOptions(available func(string) domain.Fact[bool], stock func(Resource) domain.Fact[int64], sources map[string]PowerSourceProfile) ([]GeneratorOption, error) {
-	fuels := map[string]struct {
-		fuel    Resource
-		minimum int64
-	}{"WoodFiredGenerator": {"WoodLog", 75}, "ChemfuelPoweredGenerator": {"Chemfuel", 30}}
+// DefaultGeneratorOptions pairs each generator definition with its catalog row
+// (cost, nominal watts, fuel and tank), the observed stock of its fuel,
+// whether renewable says the fuel can be grown here, and its delivery profile
+// from sources; a generator with no profile or row is an error.
+func DefaultGeneratorOptions(available func(string) domain.Fact[bool], stock func(Resource) domain.Fact[int64], renewable func(Resource) bool, sources map[string]PowerSourceProfile, rows map[string]GeneratorRow) ([]GeneratorOption, error) {
 	options := make([]GeneratorOption, 0, len(GeneratorDefinitions))
 	for _, name := range GeneratorDefinitions {
 		profile, ok := sources[name]
 		if !ok {
 			return nil, fmt.Errorf("generator %s has no catalog power source profile", name)
 		}
-		option := GeneratorOption{Definition: name, Available: available(name), Profile: profile}
-		if f, ok := fuels[name]; ok {
-			option.Fuel, option.MinimumFuel, option.FuelStock = f.fuel, f.minimum, stock(f.fuel)
+		row, ok := rows[name]
+		if !ok {
+			return nil, fmt.Errorf("generator %s has no catalog row", name)
+		}
+		option := GeneratorOption{Definition: name, Available: available(name), Profile: profile, NominalW: row.NominalW, Costs: row.Costs}
+		if row.Fuel != "" {
+			option.Fuel, option.MinimumFuel, option.FuelStock, option.FuelRenewable = row.Fuel, row.FuelCapacity, stock(row.Fuel), renewable(row.Fuel)
 		}
 		options = append(options, option)
 	}
@@ -142,7 +160,10 @@ type PowerPlanning struct {
 	// Sources is the delivery profile of every producer definition the
 	// catalog has (DefinitionCatalog.PowerSources); a producer on the map
 	// that it lacks is an error.
-	Sources        map[string]PowerSourceProfile
+	Sources map[string]PowerSourceProfile
+	// ComponentSteel is the steel one component costs by the game's recipe;
+	// it prices generators' components for RankGenerators.
+	ComponentSteel domain.Fact[float64]
 	ReserveMinDays float64
 	StorageMargin  float64
 	// PendingDemandW is the wattage of consumers other goals' admitted plans
@@ -160,24 +181,55 @@ func DefaultPowerPlanning() PowerPlanning {
 
 // GeneratorRanking is what RankGenerators knows about the colony beyond the
 // options: whether a battery can be built (a renewable is free to run but
-// needs storage to carry the night) and whether the shortfall being closed
-// is night-only, which a solar generator cannot touch.
+// needs storage to carry the night), whether the shortfall being closed is
+// night-only, which a solar generator cannot touch, and the steel a component
+// costs to make (the game's own recipe, DefinitionCatalog.ProductInputCost),
+// which prices a generator's components in steel. Unknown, no generator can
+// be priced and list order breaks ties.
 type GeneratorRanking struct {
 	BatteryAvailable domain.Fact[bool]
 	NightOnly        bool
+	ComponentSteel   domain.Fact[float64]
 }
 
-// RankGenerators orders the known-available options by cost per delivered
-// day of energy under current stock: a fuel-free generator first once a
-// battery can bank its surplus, fuel-burning generators whose stock meets
-// the floor next (list order breaks ties: wood before chemfuel, since
-// MaintainResource replenishes it), fuel-short ones after, and a renewable that
-// cannot serve the deficit (no battery, or a night-only shortfall) last,
-// still chosen when nothing else is available.
+// generatorYield is the average watts a generator delivers per steel of build
+// cost, components counted at ranking.ComponentSteel steel each; zero when a
+// cost cannot be priced (unknown component recipe or another resource).
+func generatorYield(o GeneratorOption, componentSteel domain.Fact[float64]) float64 {
+	steel := 0.0
+	for _, c := range o.Costs {
+		switch c.Resource {
+		case siteSteelUnit:
+			steel += float64(c.Count)
+		case ComponentResource:
+			rate, ok := componentSteel.Value()
+			if !ok {
+				return 0
+			}
+			steel += float64(c.Count) * rate
+		default:
+			return 0
+		}
+	}
+	if !(steel > 0) {
+		return 0
+	}
+	return o.NominalW * o.Profile.Daily / steel
+}
+
+// RankGenerators orders the known-available options: a fuel-free generator
+// first once a battery can bank its surplus, then a generator that runs
+// around the clock on a fuel the colony can grow (or none), a stocked finite
+// fuel next, fuel-short ones after, and a renewable that cannot serve the
+// deficit (no battery, or a night-only shortfall) last, still chosen when
+// nothing else is available. Within a tier the generator delivering the most
+// watts per steel of build cost (components priced at their recipe's steel)
+// goes first; list order breaks ties.
 func RankGenerators(options []GeneratorOption, ranking GeneratorRanking) []string {
 	type ranked struct {
 		definition  string
 		tier, order int
+		yield       float64
 	}
 	var rows []ranked
 	battery, _ := ranking.BatteryAvailable.Value()
@@ -188,7 +240,7 @@ func RankGenerators(options []GeneratorOption, ranking GeneratorRanking) []strin
 		tier := 0
 		switch profile := o.Profile; {
 		case profile.Night < 1 && (!battery || ranking.NightOnly && profile.Night == 0):
-			tier = 3
+			tier = 4
 		case profile.Night < 1:
 			tier = 0
 		case o.Fuel == "":
@@ -196,14 +248,19 @@ func RankGenerators(options []GeneratorOption, ranking GeneratorRanking) []strin
 		default:
 			tier = 1
 			if stock, ok := o.FuelStock.Value(); ok && stock < o.MinimumFuel {
+				tier = 3
+			} else if !o.FuelRenewable {
 				tier = 2
 			}
 		}
-		rows = append(rows, ranked{o.Definition, tier, i})
+		rows = append(rows, ranked{o.Definition, tier, i, generatorYield(o, ranking.ComponentSteel)})
 	}
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].tier != rows[j].tier {
 			return rows[i].tier < rows[j].tier
+		}
+		if rows[i].yield != rows[j].yield {
+			return rows[i].yield > rows[j].yield
 		}
 		return rows[i].order < rows[j].order
 	})
@@ -686,7 +743,7 @@ func generate(p PowerProposal, target PowerSite, producers []PowerSite, planning
 		return p, nil
 	}
 	// A shortfall the day already covers is night-only: no solar answers it.
-	ranking := GeneratorRanking{BatteryAvailable: planning.BatteryAvailable, NightOnly: p.Budget.GenerationShortfallW > 0 && p.Budget.DaySurplusWD > 0}
+	ranking := GeneratorRanking{BatteryAvailable: planning.BatteryAvailable, ComponentSteel: planning.ComponentSteel, NightOnly: p.Budget.GenerationShortfallW > 0 && p.Budget.DaySurplusWD > 0}
 	ranked := RankGenerators(planning.Generators, ranking)
 	if len(ranked) == 0 {
 		p.Method = PowerNoGenerator

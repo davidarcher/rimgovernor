@@ -174,21 +174,47 @@ var testBattery = PowerBattery{CapacityWD: 600, Efficiency: 0.5}
 // testPowerSources are the catalog's delivery profiles of the stock generators.
 func testPowerSources() map[string]PowerSourceProfile {
 	return map[string]PowerSourceProfile{
-		"SolarGenerator": SolarPowerProfile, WindTurbineDefinition: WindPowerProfile, "WoodFiredGenerator": ConstantPowerProfile,
+		"SolarGenerator": SolarPowerProfile, WindTurbineDefinition: testWindProfile, "WoodFiredGenerator": ConstantPowerProfile,
 		"ChemfuelPoweredGenerator": ConstantPowerProfile, GeothermalDefinition: ConstantPowerProfile,
+	}
+}
+
+// testWindProfile is Core's wind turbine in clear weather (WindManager speed
+// range 0.04-2, Clear wind factor 1).
+var testWindProfile = WindProfile(0.04, 2, 1)
+
+// testComponentSteel is Core's Make_ComponentIndustrial: 12 steel per component.
+var testComponentSteel = domain.Known(12.0)
+
+// testGeneratorRows are Core's rows of the ranked generators.
+func testGeneratorRows() map[string]GeneratorRow {
+	steel := func(steel, components int64) []Amount {
+		return []Amount{{Resource: SteelResource, Count: steel}, {Resource: ComponentResource, Count: components}}
+	}
+	return map[string]GeneratorRow{
+		"SolarGenerator":           {NominalW: 1700, Costs: steel(100, 3)},
+		WindTurbineDefinition:      {NominalW: 2300, Costs: steel(100, 2)},
+		"WoodFiredGenerator":       {NominalW: 1000, Costs: steel(100, 2), Fuel: "WoodLog", FuelCapacity: 75},
+		"ChemfuelPoweredGenerator": {NominalW: 1000, Costs: steel(100, 3), Fuel: "Chemfuel", FuelCapacity: 30},
 	}
 }
 
 // testPowerPlanning is DefaultPowerPlanning over the stock catalog rows.
 func testPowerPlanning() PowerPlanning {
 	p := DefaultPowerPlanning()
-	p.Battery, p.Sources, p.Light = testBattery, testPowerSources(), LightTerrains{"Soil": true}
+	p.Battery, p.Sources, p.Light, p.ComponentSteel = testBattery, testPowerSources(), LightTerrains{"Soil": true}, testComponentSteel
 	return p
 }
 
 // testGeneratorOptions is DefaultGeneratorOptions over the stock sources.
 func testGeneratorOptions(available func(string) domain.Fact[bool], stock func(Resource) domain.Fact[int64]) []GeneratorOption {
-	options, err := DefaultGeneratorOptions(available, stock, testPowerSources())
+	return testGeneratorOptionsFuel(available, stock, func(Resource) bool { return true })
+}
+
+// testGeneratorOptionsFuel is testGeneratorOptions with renewable deciding
+// which fuels the colony can grow.
+func testGeneratorOptionsFuel(available func(string) domain.Fact[bool], stock func(Resource) domain.Fact[int64], renewable func(Resource) bool) []GeneratorOption {
+	options, err := DefaultGeneratorOptions(available, stock, renewable, testPowerSources(), testGeneratorRows())
 	if err != nil {
 		panic(err)
 	}

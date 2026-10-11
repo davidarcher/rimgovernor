@@ -26,11 +26,18 @@ func NewRoundsPowerPlanner(reviewer *Rounder, native RoundsBuildingSource) (*Rou
 // about to build; their declared draw joins the budget's demand.
 func (r *RoundsBuildingPlanner) selectPower(facts observation.ColonyProjection, pendingConsumers []string) (*RoundsBuildingPlanner, Verdict, error) {
 	planning := policy.DefaultPowerPlanning()
-	generators, err := facts.GeneratorOptions()
+	// A fuel is renewable when a crop that yields it can be sown now (the
+	// condition for the supply plan's field candidate with a rate), else it is
+	// a finite stock. The plan itself holds rows only for unmet floors, so a
+	// stocked fuel has none to read.
+	crops, biome, skill := cropChoices(facts), facts.CropClimate.Biome, policy.GrowerSkill(facts.WorkPawns)
+	generators, err := facts.GeneratorOptions(func(fuel policy.Resource) bool {
+		return policy.ResourceGrowable(crops, fuel, biome, skill)
+	})
 	if err != nil {
 		return nil, Verdict{}, err
 	}
-	planning.Generators = generators
+	planning.Generators, planning.ComponentSteel = generators, facts.ComponentSteel
 	planning.Sources, planning.Battery, planning.Light = facts.PowerSources, facts.PowerBattery, facts.LightTerrains
 	planning.BatteryAvailable = facts.DefinitionAvailable(policy.BatteryDefinition)
 	planning.GeothermalAvailable = facts.DefinitionAvailable(policy.GeothermalDefinition)

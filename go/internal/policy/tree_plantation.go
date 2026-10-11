@@ -67,6 +67,26 @@ func cropSowable(crop CropChoice, skill domain.Fact[int32]) string {
 	return ""
 }
 
+// ResourceGrowable is whether the colony can grow resource: some crop harvests
+// it and can be sown now (a tree species for wood), the condition under which
+// the supply plan can open a field candidate with a rate for it. A resource
+// nothing sows is a finite stock: wild trees and chemfuel run out.
+func ResourceGrowable(choices []CropChoice, resource Resource, biome domain.Fact[string], skill domain.Fact[int32]) bool {
+	for _, crop := range choices {
+		if harvests, known := crop.Harvests.Value(); !known || harvests != resource {
+			continue
+		}
+		reason := cropSowable(crop, skill)
+		if IsTreeCrop(crop) {
+			reason = treeSowable(crop, biome, skill)
+		}
+		if reason == "" {
+			return true
+		}
+	}
+	return false
+}
+
 // TreeFellFraction is the colony-wide growth fraction at which plantation trees
 // are felled: the harvestMinGrowth of the best-priced tree species harvesting resource that can
 // be sown now. False when no species can, so nothing gates the chop. It is a

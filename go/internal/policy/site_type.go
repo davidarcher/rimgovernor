@@ -79,6 +79,9 @@ const siteLampDuty = 0.55
 // in: each cost-list resource is worth its market value over steel's.
 const siteSteelUnit Resource = "Steel"
 
+// SteelResource is that material for callers outside the package.
+const SteelResource = siteSteelUnit
+
 // siteSteelEquivalent is a building's cost list in steel by the game's market
 // values; an unknown list prices as 100 steel so every kind still pays for
 // what it builds, and a resource the catalog does not price is an error.

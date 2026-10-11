@@ -53,6 +53,7 @@ func loadRecorded(t *testing.T, name string) snapshot.Rounds {
 	var dining policy.DiningFurniture
 	r.Projection.PowerSources, r.Projection.PowerBattery, dining = recordedPowerRows(t)
 	r.Projection.Shapes = recordedPower.shapes
+	r.Projection.GeneratorRows, r.Projection.ComponentSteel = recordedPower.rows, recordedPower.componentSteel
 	// The dining furniture is catalog-derived too: a recording's comfort
 	// censuses and room census take it from the recorded catalog.
 	furnish := func(f *domain.Fact[policy.ComfortObservation]) {
@@ -118,9 +119,12 @@ var recordedPower struct {
 	once    sync.Once
 	sources map[string]policy.PowerSourceProfile
 	battery policy.PowerBattery
-	dining  policy.DiningFurniture
-	shapes  policy.PieceShapes
-	err     error
+	rows    map[string]policy.GeneratorRow
+	// componentSteel is the recorded recipe's steel per component.
+	componentSteel domain.Fact[float64]
+	dining         policy.DiningFurniture
+	shapes         policy.PieceShapes
+	err            error
 }
 
 // recordedPowerRows are the power source profiles and the battery of the
@@ -137,6 +141,15 @@ func recordedPowerRows(t *testing.T) (map[string]policy.PowerSourceProfile, poli
 			return
 		}
 		if recordedPower.battery, recordedPower.err = catalog.PowerBattery(policy.BatteryDefinition); recordedPower.err != nil {
+			return
+		}
+		recordedPower.rows = map[string]policy.GeneratorRow{}
+		for _, name := range policy.GeneratorDefinitions {
+			if recordedPower.rows[name], recordedPower.err = catalog.GeneratorRow(name); recordedPower.err != nil {
+				return
+			}
+		}
+		if recordedPower.componentSteel, recordedPower.err = catalog.ProductInputCost(string(policy.ComponentResource), string(policy.SteelResource)); recordedPower.err != nil {
 			return
 		}
 		// The pin is the

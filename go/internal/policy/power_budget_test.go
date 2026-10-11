@@ -8,7 +8,7 @@ import (
 func TestPowerBudgetSizesGenerationAndStorageIndependently(t *testing.T) {
 	solar := PowerProducer{Definition: "SolarGenerator", NominalW: 1700, Profile: SolarPowerProfile}
 	wood := PowerProducer{Definition: "WoodFiredGenerator", NominalW: 1000, Profile: ConstantPowerProfile}
-	wind := PowerProducer{Definition: "WindTurbine", NominalW: 2300, Profile: WindPowerProfile}
+	wind := PowerProducer{Definition: "WindTurbine", NominalW: 2300, Profile: testWindProfile}
 	geo := PowerProducer{Definition: "GeothermalGenerator", NominalW: 3600, Profile: ConstantPowerProfile}
 	near := func(a, b float64) bool { return math.Abs(a-b) < 0.5 }
 	solarDayW := 1700 * SolarDailyFraction / (1 - SolarNightFraction)
