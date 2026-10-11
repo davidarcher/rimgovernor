@@ -74,7 +74,7 @@ research. Exit criteria via `StageColonyFacts`:
 | --- | --- |
 | Foothold | Roofed sleeping for every colonist, an active meal bill, an owned food stockpile (a standing meals, raw food, perishables or ingredients zone the store claimed; a player-flagged food zone does not count, and unread claims are unknown, not missing), runway at `FootholdFoodDays`, two armed fighters. |
 | Reserves | Runway at `FoodTargetDays`, growing field sown, wood latch clear, research bench built, no production concern blocked. |
-| Stable | Power online, season's climate answered, a doctor-capable pawn, production concerns unblocked for `StableTicks` (two days), Stable held `DevelopmentTicks` (three days), runway at twice target. |
+| Stable | Power online, season's climate answered, production concerns unblocked for `StableTicks` (two days), Stable held `DevelopmentTicks` (three days), runway at twice target. |
 
 Exits are laxer than entries (`ColonyStagePolicy`: stages above Foothold drop only under
 two thirds of `FootholdFoodDays`, Development only under the target, Stable only after a

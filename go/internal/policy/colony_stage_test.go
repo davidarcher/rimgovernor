@@ -10,7 +10,7 @@ import (
 // given.
 func stageFacts(shelter bool, food float64) ColonyStageFacts {
 	yes := domain.Known(true)
-	return ColonyStageFacts{Shelter: domain.Known(shelter), FoodDays: domain.Known(food), Cooking: yes, FoodStorage: yes, Armed: yes, FieldSown: yes, ResearchBench: yes, Power: yes, Climate: yes, Doctor: yes}
+	return ColonyStageFacts{Shelter: domain.Known(shelter), FoodDays: domain.Known(food), Cooking: yes, FoodStorage: yes, Armed: yes, FieldSown: yes, ResearchBench: yes, Power: yes, Climate: yes}
 }
 
 func withFact(f ColonyStageFacts, set func(*ColonyStageFacts)) ColonyStageFacts {
@@ -47,7 +47,6 @@ func TestColonyStageTransitions(t *testing.T) {
 		{"bench unknown", withFact(stageFacts(true, 8), func(f *ColonyStageFacts) { f.ResearchBench = domain.Unknown[bool]() }), 6 * day, StageReserves, StageBlockerUnknown, false},
 		{"reserves met", stageFacts(true, 8), 7 * day, StageStable, StageBlockerSettling, false},
 		{"power out", withFact(stageFacts(true, 8), func(f *ColonyStageFacts) { f.Power = no }), 8 * day, StageStable, StageBlockerPower, false},
-		{"no doctor", withFact(stageFacts(true, 8), func(f *ColonyStageFacts) { f.Doctor = no }), 9 * day, StageStable, StageBlockerDoctor, false},
 		{"stable, food short of development", stageFacts(true, 9), 10 * day, StageStable, StageBlockerFood, false},
 		{"development", stageFacts(true, 15), 11 * day, StageDevelopment, "", false},
 		{"food under the development exit", stageFacts(true, 6), 12 * day, StageStable, StageBlockerFood, false},

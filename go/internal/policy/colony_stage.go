@@ -25,8 +25,8 @@ import (
 //	Reserves     food >= FoodTargetDays, the growing field sown, the wood
 //	             floor met, a research bench built
 //	Stable       power online, the season's climate answered (refrigeration
-//	             in spring and summer, sleeping warmth in fall and winter), a
-//	             doctor-capable pawn, production unblocked for StableTicks
+//	             in spring and summer, sleeping warmth in fall and winter),
+//	             production unblocked for StableTicks
 //	Development  Stable held for DevelopmentTicks with the reserve doubled
 type ColonyStage int
 
@@ -64,7 +64,6 @@ const (
 	StageBlockerResearchBench StageBlocker = "research_bench"
 	StageBlockerPower         StageBlocker = "power"
 	StageBlockerClimate       StageBlocker = "climate"
-	StageBlockerDoctor        StageBlocker = "doctor"
 	StageBlockerProduction    StageBlocker = "production_blocked"
 	// StageBlockerSettling: every condition holds and the stage waits out
 	// its settling time (StableTicks, DevelopmentTicks).
@@ -74,7 +73,7 @@ const (
 
 func (b StageBlocker) valid() bool {
 	switch b {
-	case "", StageBlockerShelter, StageBlockerCooking, StageBlockerFoodStorage, StageBlockerStarvation, StageBlockerDefense, StageBlockerFood, StageBlockerField, StageBlockerWood, StageBlockerResearchBench, StageBlockerPower, StageBlockerClimate, StageBlockerDoctor, StageBlockerProduction, StageBlockerSettling, StageBlockerUnknown:
+	case "", StageBlockerShelter, StageBlockerCooking, StageBlockerFoodStorage, StageBlockerStarvation, StageBlockerDefense, StageBlockerFood, StageBlockerField, StageBlockerWood, StageBlockerResearchBench, StageBlockerPower, StageBlockerClimate, StageBlockerProduction, StageBlockerSettling, StageBlockerUnknown:
 		return true
 	}
 	return false
@@ -122,8 +121,8 @@ type ColonyStageFacts struct {
 	FieldSown, ResearchBench domain.Fact[bool]
 	WoodShort                bool
 	// Stable's exit: Power the power gate; Climate the season's
-	// temperature answer; Doctor a pawn capable of doctoring.
-	Power, Climate, Doctor domain.Fact[bool]
+	// temperature answer.
+	Power, Climate domain.Fact[bool]
 	// ProductionBlocked names the production goal whose record is blocked
 	// (ProductionBlockedGoal), "" when none; Blocked is its reason.
 	ProductionBlocked ConcernID
@@ -302,7 +301,6 @@ func ReviewColonyStage(previous ColonyStageRecord, f ColonyStageFacts, p ColonyS
 			if b, reason := firstUnmet(
 				stageCheck{f.Power, StageBlockerPower, "power"},
 				stageCheck{f.Climate, StageBlockerClimate, "seasonal climate"},
-				stageCheck{f.Doctor, StageBlockerDoctor, "doctor"},
 			); b != "" {
 				return b, reason
 			}
@@ -385,7 +383,7 @@ func StageColonyFacts(needs RoundsFindings, f RoundsFacts, p RoundsPolicy, progr
 		FoodDays:  f.FoodDays,
 		FieldSown: allFacts(footholdProduction(f), measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 })),
 		WoodShort: needs.Latches.Wood && !sourceless(progress, WoodLatchDefs), ResearchBench: ResearchBenchBuilt(f.CurrentConstruction),
-		Power: footholdPower(f), Climate: SeasonalClimate(f.Calendar, footholdTemperature(f, p), needs.Latches.Refrigeration), Doctor: DoctorCapable(f.WorkProfiles),
+		Power: footholdPower(f), Climate: SeasonalClimate(f.Calendar, footholdTemperature(f, p), needs.Latches.Refrigeration),
 	}
 	facts.ProductionBlocked, facts.Blocked = ProductionBlockedConcern(progress)
 	return facts
@@ -428,20 +426,6 @@ func SeasonalClimate(calendar domain.Fact[Calendar], temperature domain.Fact[boo
 		return cooled
 	}
 	return temperature
-}
-
-// DoctorCapable reports a colonist able to doctor.
-func DoctorCapable(profiles domain.Fact[[]PawnProfile]) domain.Fact[bool] {
-	rows, known := profiles.Value()
-	if !known {
-		return domain.Unknown[bool]()
-	}
-	for _, p := range rows {
-		if !p.Incapable[WorkDoctor] && !p.Child {
-			return domain.Known(true)
-		}
-	}
-	return domain.Known(false)
 }
 
 // stageLadderRungs is how many rungs of the research ladder each stage

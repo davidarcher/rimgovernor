@@ -39,10 +39,6 @@ is not replayed.
 | `shelter/bunks-first` | The complete path: an unhoused colony, the controller discovers the deficit, places spots, builds beds, raises the whole ring by ordinary pawn work, the game roofs it, and the native census then holds one bed per colonist inside. The precondition is asserted not to satisfy the outcome. | nothing |
 | `shelter/solo-cold` | One colonist on a cold ice-sheet start: the plan latches Cold, holds the shelter and plans no laboratory, and the shelter's campfire stands on its interior. A cold start needs a real world; the capability logic itself is the snapshot rows above. | nothing |
 
-Open note for `shelter/solo-cold`: a solo colonist who cannot doctor fails the
-Stable stage through `policy.DoctorCapable` (the `doctor` blocker); #2761 left
-that check unchanged, so a year run with such a colonist stalls at Stable.
-
 ## Composition
 
 The shelter cases serve the `shelter,sleeping` families alone, which keeps
