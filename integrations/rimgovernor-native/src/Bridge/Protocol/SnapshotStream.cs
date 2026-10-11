@@ -177,7 +177,11 @@ namespace HomeBridge.BridgeTools
             var needed = Interlocked.Read(ref due);
             if (deferredAt != 0 && Stopwatch.GetTimestamp() - deferredAt >= DeferredSeconds * Stopwatch.Frequency) needed = w;
             var period = CombatMirror.Dirty ? CombatMirror.MinCombatCompareTicks : PeriodTicks;
-            var periodic = needed <= capturedWrites && paused == capturedPaused && tick >= capturedTick;
+            // A paused game whose tick moved since the last capture is a clock
+            // window that ran and stopped between two frame hooks (a stop on a
+            // combat event, a few ticks in): the stop's decision reads the stop
+            // tick, so that frame is due at once, not a wall second later (#2826).
+            var periodic = needed <= capturedWrites && paused == capturedPaused && tick >= capturedTick && !(paused && tick != capturedTick);
             // A paused game advances no tick, so the period is wall time
             // there: a change no native write made (a fixture op, a
             // player edit while paused) is otherwise never captured.
