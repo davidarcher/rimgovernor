@@ -23,6 +23,8 @@ one honest end-to-end path, and staged fixtures for recovery.
 | Manual cancellation of a pending ring | `buildingruntime.TestRoundsShelterManualCancelsWholePendingShell` |
 | Starter-search siting per terrain (recorded searches) | `buildingruntime.TestShelterSitingSnapshots` |
 | Which concerns open beside the initial shelter | `snapshot.TestReplay*Shelter*` |
+| Retirement per capability: sleep, craft, research (bench outside, or a standing lab), heat on a cold map, unknowns and an otherwise empty plan keep the shelter | `policy` `layout_retire_shelter_test.go` (`TestShelterRetirable…`, `TestShelterRetiresForSoloColonyWithBenchInBedroom`) |
+| A solo colony: the shelter hosts sleep, craft, research and heat, and no laboratory is owed while it has capacity | `policy.TestSoloColonyOwesNoLaboratory` |
 
 A planner test's modeled reachability is not native reachability, and the
 fast checks derive nothing from the production geometry helpers they cover:
@@ -35,6 +37,11 @@ is not replayed.
 | Case | What only a real game proves | Staged |
 | --- | --- | --- |
 | `shelter/bunks-first` | The complete path: an unhoused colony, the controller discovers the deficit, places spots, builds beds, raises the whole ring by ordinary pawn work, the game roofs it, and the native census then holds one bed per colonist inside. The precondition is asserted not to satisfy the outcome. | nothing |
+| `shelter/solo-cold` | One colonist on a cold ice-sheet start: the plan latches Cold, holds the shelter and plans no laboratory, and the shelter's campfire stands on its interior. A cold start needs a real world; the capability logic itself is the snapshot rows above. | nothing |
+
+Open note for `shelter/solo-cold`: a solo colonist who cannot doctor fails the
+Stable stage through `policy.DoctorCapable` (the `doctor` blocker); #2761 left
+that check unchanged, so a year run with such a colonist stalls at Stable.
 
 ## Composition
 
