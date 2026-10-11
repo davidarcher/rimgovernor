@@ -235,3 +235,43 @@ func TestImportLeavesMeleeUnmodeledNotGuessed(t *testing.T) {
 		t.Errorf("melee power = %v %v", power, ok)
 	}
 }
+
+func TestImportSuppliesTheRaidLordFromTheCatalog(t *testing.T) {
+	cat := recordedcatalog.Catalog(t)
+	spec := duelSpec()
+	if res, err := Import(cat, spec); err != nil || res.Fight.EnemyAI != nil {
+		t.Fatalf("a spec without a raid: err %v, EnemyAI %+v, want none", err, res.Fight.EnemyAI)
+	}
+	spec.Raid = &Raid{CanTimeoutOrFlee: true, Exit: domain.Known(cell(39, 7))}
+	res, err := Import(cat, spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := res.Fight.EnemyAI
+	g, err := cat.GameConstants()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := g.GetLordJob_AssaultColony().GetAssaultTimeBeforeGiveUp()
+	if cfg == nil || cfg.GiveUpMinTicks != int(want.GetMin()) || cfg.GiveUpMaxTicks != int(want.GetMax()) || cfg.GiveUpMinTicks <= 0 {
+		t.Fatalf("give-up range = %+v, want the catalog's %v-%v", cfg, want.GetMin(), want.GetMax())
+	}
+	// Two colonists at 100 each plus the sandbags' hit points.
+	if got, ok := cfg.ColonyHealthTotal.Value(); !ok || got <= 200 {
+		t.Errorf("colony health total = %v %v, want above 200 (sandbag hit points)", got, ok)
+	}
+	traced(t, res, "raid", "GiveUpTicks")
+	traced(t, res, "raid", "ColonyHealthTotal")
+	if _, err := combatsim.RunFight(res.Fight, 3, policy.DefaultCombatTuning()); err != nil {
+		t.Fatalf("the imported raid does not run: %v", err)
+	}
+
+	spec.Raid = &Raid{CanTimeoutOrFlee: true}
+	res, err = Import(cat, spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := combatsim.RunFight(res.Fight, 3, policy.DefaultCombatTuning()); !errors.Is(err, combatsim.ErrUnsupported) {
+		t.Errorf("a fleeing raid with no exit: err = %v, want ErrUnsupported", err)
+	}
+}

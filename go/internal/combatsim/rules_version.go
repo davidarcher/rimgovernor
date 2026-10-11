@@ -46,3 +46,9 @@ package combatsim
 //
 // Simplifications of these ports are listed in approximations.md.
 const AssemblyCSharpSHA256 = "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A"
+
+// RulesVersion is the version of the ported ruleset as a whole. Bump it with
+// any change to a port or an approximation that can move an outcome (a rule
+// fix, a new modeled behavior): a calibration pass (combatsim/calibrate) is
+// recorded under it and is stale after a bump.
+const RulesVersion = 1

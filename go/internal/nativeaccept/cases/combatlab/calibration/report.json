@@ -1,0 +1,72 @@
+{
+  "Stamp": {
+    "assemblyHash": "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A",
+    "rulesVersion": 1,
+    "thresholdsVersion": 1,
+    "sweepVersion": 2
+  },
+  "Pass": false,
+  "Fixtures": [
+    {
+      "name": "lab-ranged",
+      "role": "calibration",
+      "status": "measured",
+      "cells": [
+        {
+          "Variant": "default",
+          "RealDeaths": 0,
+          "SimDeaths": 0,
+          "RealDowns": 0.2,
+          "SimDowns": 3.3,
+          "RealDamage": 64.15,
+          "SimDamage": 244.2,
+          "RealDeathSeeds": 0,
+          "SimDeathSeeds": 0
+        }
+      ]
+    },
+    {
+      "name": "lab-ranged-shield",
+      "role": "held-out",
+      "status": "unsupported: combatsim: unsupported scenario: combatlab: fixture lab-ranged-shield has a staged condition on a pawn, which the sim does not model"
+    },
+    {
+      "name": "lab-open",
+      "role": "held-out",
+      "status": "unsupported: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 3 unmodeled, first: pawn h0 wields melee weapon MeleeWeapon_Club: the sim has no melee, the pawn is imported unarmed"
+    },
+    {
+      "name": "lab-choke",
+      "role": "held-out",
+      "status": "unsupported: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 9 unmodeled, first: pawn c0 wields melee weapon MeleeWeapon_LongSword: the sim has no melee, the pawn is imported unarmed"
+    },
+    {
+      "name": "lab-base",
+      "role": "held-out",
+      "status": "unsupported: combatsim: unsupported scenario: thing \"Turret_MiniTurret\" is a turret, which the sim does not fire"
+    }
+  ],
+  "RankAgreement": 0,
+  "RankPairs": 0,
+  "Misrankings": null,
+  "Regrets": null,
+  "FalseSafe": null,
+  "Gaps": [
+    {
+      "Fixture": "lab-ranged",
+      "Variant": "default",
+      "Measure": "colonist downs",
+      "Real": 0.2,
+      "Sim": 3.3,
+      "Tolerance": 1
+    }
+  ],
+  "Failures": [
+    "lab-ranged-shield (held-out): the sim does not support this fixture: combatsim: unsupported scenario: combatlab: fixture lab-ranged-shield has a staged condition on a pawn, which the sim does not model",
+    "lab-open (held-out): the sim does not support this fixture: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 3 unmodeled, first: pawn h0 wields melee weapon MeleeWeapon_Club: the sim has no melee, the pawn is imported unarmed",
+    "lab-choke (held-out): the sim does not support this fixture: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 9 unmodeled, first: pawn c0 wields melee weapon MeleeWeapon_LongSword: the sim has no melee, the pawn is imported unarmed",
+    "lab-base (held-out): the sim does not support this fixture: combatsim: unsupported scenario: thing \"Turret_MiniTurret\" is a turret, which the sim does not fire",
+    "no held-out fixture was measured: rank agreement and survival misrankings are unmeasured",
+    "lab-ranged/default: sim colonist downs mean 3.30 vs real 0.20, outside +/-1.00"
+  ]
+}

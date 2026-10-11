@@ -113,6 +113,9 @@ func SimSpec(f Fixture, env SimEnv) (simimport.Spec, error) {
 		}
 		s.Pawns = append(s.Pawns, sp)
 	}
+	if hostiles > 0 {
+		s.Raid = &simimport.Raid{CanTimeoutOrFlee: true, Exit: raidExit(s)}
+	}
 	if l := f.Layout; l != nil {
 		layout := policy.CombatLayout{Toward: domain.Rotation(l.Toward)}
 		for _, c := range l.Firing {
@@ -127,6 +130,32 @@ func SimSpec(f Fixture, env SimEnv) (simimport.Spec, error) {
 		s.Layout = domain.Known(layout)
 	}
 	return s, nil
+}
+
+// raidExit is the map-edge cell nearest the hostiles' centroid, where fleeing
+// raiders leave (A32).
+func raidExit(s simimport.Spec) domain.Fact[domain.Cell] {
+	var sx, sz, n int
+	for _, p := range s.Pawns {
+		if p.Side == Hostile {
+			sx, sz, n = sx+int(p.Cell.X), sz+int(p.Cell.Z), n+1
+		}
+	}
+	x, z := sx/n, sz/n
+	best, exit := x, domain.Cell{X: 0, Z: int32(z)}
+	for _, c := range []struct {
+		dist int
+		cell domain.Cell
+	}{
+		{s.Width - 1 - x, domain.Cell{X: int32(s.Width - 1), Z: int32(z)}},
+		{z, domain.Cell{X: int32(x), Z: 0}},
+		{s.Height - 1 - z, domain.Cell{X: int32(x), Z: int32(s.Height - 1)}},
+	} {
+		if c.dist < best {
+			best, exit = c.dist, c.cell
+		}
+	}
+	return domain.Known(exit)
 }
 
 // skills sets the skills the sim's pawn stats read to level.

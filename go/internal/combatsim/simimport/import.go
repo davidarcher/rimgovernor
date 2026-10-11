@@ -5,6 +5,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge/stateval"
+	"github.com/davidarcher/RimGovernor/go/internal/combatmetrics"
 	"github.com/davidarcher/RimGovernor/go/internal/combatsim"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
@@ -66,8 +67,60 @@ func Import(cat *bridge.DefinitionCatalog, spec Spec) (Result, error) {
 	res.Fight = combatsim.Fight{
 		Name: spec.Name, Scenario: sc, Layout: spec.Layout, Facts: facts, MaxTicks: spec.MaxTicks,
 	}
+	if spec.Raid != nil {
+		cfg, err := im.raid(spec)
+		if err != nil {
+			return res, err
+		}
+		res.Fight.EnemyAI = &cfg
+	}
 	return res, nil
 }
+
+// raid builds the raid lord's EnemyConfig: the give-up range from
+// LordJob_AssaultColony.AssaultTimeBeforeGiveUp and the colony health total
+// from WealthWatcher.HealthTotal (A32).
+func (im *importer) raid(spec Spec) (combatsim.EnemyConfig, error) {
+	cfg := combatsim.EnemyConfig{CanTimeoutOrFlee: spec.Raid.CanTimeoutOrFlee, Exit: spec.Raid.Exit}
+	if !cfg.CanTimeoutOrFlee {
+		return cfg, nil
+	}
+	constants, err := im.cat.GameConstants()
+	if err != nil {
+		return cfg, unsupported("game constants: %v", err)
+	}
+	span := constants.GetLordJob_AssaultColony().GetAssaultTimeBeforeGiveUp()
+	if span == nil {
+		return cfg, unsupported("catalog has no LordJob_AssaultColony.AssaultTimeBeforeGiveUp")
+	}
+	cfg.GiveUpMinTicks, cfg.GiveUpMaxTicks = int(span.GetMin()), int(span.GetMax())
+	im.trace("raid", "GiveUpTicks", "game constant LordJob_AssaultColony.AssaultTimeBeforeGiveUp")
+
+	// WealthWatcher.HealthTotal: the hit points of every player-owned artificial
+	// building plus 100 per free colonist at full health.
+	total := 0.0
+	for _, p := range spec.Pawns {
+		if p.Side == combatmetrics.Colonist {
+			total += 100
+		}
+	}
+	for _, t := range spec.Things {
+		row := im.cat.ThingDef(t.Def)
+		if row.GetCategory() != d.ThingCategory_THING_CATEGORY_BUILDING || row.GetBuilding().GetIsNaturalRock() {
+			continue
+		}
+		hp, err := im.ev.Value(statMaxHitPoints, stateval.ThingSubject(t.Def, ""))
+		if err != nil {
+			return cfg, unsupported("thing %q stat %s: %v", t.Def, statMaxHitPoints, err)
+		}
+		total += float64(hp)
+	}
+	cfg.ColonyHealthTotal = domain.Known(total)
+	im.trace("raid", "ColonyHealthTotal", "100 per colonist plus stat "+statMaxHitPoints+" of each artificial building ThingDef")
+	return cfg, nil
+}
+
+const statMaxHitPoints = "MaxHitPoints"
 
 // world fills the map: terrain palette, thing palette and grid, weather and
 // the friendly fire factor.

@@ -86,12 +86,22 @@ func TestLabFixturesImportAndRunInTheSim(t *testing.T) {
 				t.Errorf("choke melee pawns left unmodeled = %v, want 3 brawlers and 6 slashers", res.Unmodeled)
 			}
 			fight := res.Fight
-			fight.Enemy = hostileHook(fight.Scenario)
+			if fight.EnemyAI == nil || !fight.EnemyAI.CanTimeoutOrFlee || fight.EnemyAI.GiveUpMinTicks <= 0 || fight.EnemyAI.GiveUpMaxTicks < fight.EnemyAI.GiveUpMinTicks {
+				t.Fatalf("the import left the raid lord unset: %+v", fight.EnemyAI)
+			}
+			if name == "lab-choke" {
+				// The enemy AI drives ranged raiders only (E8), so the melee fixture
+				// keeps the scripted opponent that walks them in.
+				fight.EnemyAI = nil
+				fight.Enemy = hostileHook(fight.Scenario)
+			}
 			got, err := combatsim.RunFight(fight, 1, policy.DefaultCombatTuning())
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got.Decisions == 0 || got.Metrics.FirstContactTick < 0 || got.Metrics.EnemyDowns == 0 {
+			// Who wins lab-ranged is the calibration gate's business (it does not
+			// match the real baseline); this asserts the closed loop fights.
+			if got.Decisions == 0 || got.Metrics.FirstContactTick < 0 || got.Metrics.ColonistDamage+float64(got.Metrics.EnemyDowns) == 0 {
 				t.Fatalf("the policy never fought: %+v", got.Metrics)
 			}
 			switch name {

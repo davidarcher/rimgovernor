@@ -1,0 +1,178 @@
+package combatlab
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/combatmetrics"
+	"github.com/davidarcher/RimGovernor/go/internal/combatsim"
+	"github.com/davidarcher/RimGovernor/go/internal/combatsim/calibrate"
+	"github.com/davidarcher/RimGovernor/go/internal/combatsim/simimport"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+)
+
+// The ranged slice's calibration split (#2844), fixed before any measurement.
+// Calibration fixtures were used while building the sim (its tests and
+// approximations were checked on lab-ranged); held-out fixtures were not. A
+// fixture the sim cannot represent stays in its list and fails the gate with
+// the sim's refusal: the gate never drops a fixture it cannot run.
+var (
+	CalibrationFixtures = []string{"lab-ranged"}
+	// HeldOutFixtures are the lab fixtures whose hostiles a ranged-slice sim
+	// would have to fight: gunners behind or with melee raiders, a walled
+	// base with turrets, and the shield-belt tank.
+	HeldOutFixtures = []string{"lab-ranged-shield", "lab-open", "lab-choke", "lab-base"}
+)
+
+// Variant is a tactic variant: a named CombatTuning swept in the real game and
+// in the sim over the same seeds. The default's real sweep is the committed
+// baseline; the others' are sweep files under CalibrationVariantsDir.
+type Variant struct {
+	Name   string
+	Tuning policy.CombatTuning
+}
+
+// Variants are the ranged slice's tactic variants: the two tuning knobs the
+// ranged fallback and raid grouping read, each moved both ways.
+func Variants() []Variant {
+	with := func(name string, f func(*policy.CombatTuning)) Variant {
+		t := policy.DefaultCombatTuning()
+		f(&t)
+		return Variant{Name: name, Tuning: t}
+	}
+	return []Variant{
+		{Name: calibrate.DefaultVariant, Tuning: policy.DefaultCombatTuning()},
+		with("scatter-short", func(t *policy.CombatTuning) { t.ScatterCells = 8 }),
+		with("scatter-long", func(t *policy.CombatTuning) { t.ScatterCells = 45 }),
+		with("group-gap-tight", func(t *policy.CombatTuning) { t.GroupGap = 3 }),
+		with("group-gap-wide", func(t *policy.CombatTuning) { t.GroupGap = 20 }),
+	}
+}
+
+// CalibrationDir is the calibration directory relative to the Go module root:
+// report.json and report.txt (the gate's recorded output) and variants/, the
+// real-game sweep files `<fixture>/<variant>.json` of the non-default variants.
+const CalibrationDir = "internal/nativeaccept/cases/combatlab/calibration"
+
+// CalibrationEnv is the SimEnv the gate imports under: the lab's, with the two
+// facts it cannot read stated. They are assumptions, listed in the report's
+// caveats, not readings: colonists in no armor-rated apparel, and the
+// difficulty's friendly fire factor.
+func CalibrationEnv() SimEnv {
+	env := LabSimEnv()
+	env.FriendlyFireChanceFactor = domain.Known(0.4)
+	env.ColonistWorn = domain.Known([]simimport.Wear{})
+	return env
+}
+
+// SimSweep plays the fight under tuning for each seed and returns the sweep
+// of the scored runs, the same schema `acceptance sweep` writes.
+func SimSweep(fixture string, fight combatsim.Fight, tuning policy.CombatTuning, seeds []int) (combatmetrics.Sweep, error) {
+	var rows []combatmetrics.SeedRow
+	for _, seed := range seeds {
+		res, err := combatsim.RunFight(fight, uint64(seed), tuning)
+		if err != nil {
+			return combatmetrics.Sweep{}, fmt.Errorf("seed %d: %w", seed, err)
+		}
+		m := res.Metrics
+		rows = append(rows, combatmetrics.SeedRow{Seed: seed, Metrics: &m})
+	}
+	return combatmetrics.NewSweep(fixture, 1, "combatsim", 0, rows), nil
+}
+
+// readVariant reads a real-game sweep file of a non-default variant, nil when
+// it has not been recorded.
+func readVariant(dir, fixture, variant string) (*combatmetrics.Sweep, error) {
+	data, err := os.ReadFile(filepath.Join(dir, "variants", fixture, variant+".json"))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	s, err := combatmetrics.ParseSweep(data)
+	if err != nil {
+		return nil, fmt.Errorf("%s/%s: %w", fixture, variant, err)
+	}
+	return &s, nil
+}
+
+// CalibrationInputs measures every listed fixture under every variant in the
+// sim and pairs it with its real sweeps. The sim side runs the baseline's
+// seeds. variantsDir is the calibration directory holding variants/.
+func CalibrationInputs(cat *bridge.DefinitionCatalog, variantsDir string) ([]calibrate.FixtureInput, error) {
+	cx := na.LabMapSize / 2
+	cz := cx
+	var out []calibrate.FixtureInput
+	roles := []struct {
+		role  calibrate.Role
+		names []string
+	}{{calibrate.Calibration, CalibrationFixtures}, {calibrate.HeldOut, HeldOutFixtures}}
+	for _, r := range roles {
+		for _, name := range r.names {
+			fx := calibrate.FixtureInput{Name: name, Role: r.role}
+			fight, err := importFight(cat, name, cx, cz)
+			if err != nil {
+				fx.Unsupported = err
+				out = append(out, fx)
+				continue
+			}
+			base, err := Baseline(name)
+			if err != nil {
+				return nil, err
+			}
+			seeds := make([]int, len(base.Rows))
+			for i, row := range base.Rows {
+				seeds[i] = row.Seed
+			}
+			for _, v := range Variants() {
+				if r.role == calibrate.Calibration && v.Name != calibrate.DefaultVariant {
+					continue // a calibration fixture is checked against its baseline only
+				}
+				vi := calibrate.VariantInput{Name: v.Name}
+				if v.Name == calibrate.DefaultVariant {
+					vi.Real = &base
+				} else if vi.Real, err = readVariant(variantsDir, name, v.Name); err != nil {
+					return nil, err
+				}
+				sim, err := SimSweep(name, fight, v.Tuning, seeds)
+				if err != nil {
+					vi.SimErr = err
+				} else {
+					vi.Sim = &sim
+				}
+				fx.Variants = append(fx.Variants, vi)
+			}
+			out = append(out, fx)
+		}
+	}
+	return out, nil
+}
+
+// importFight builds the sim fight of a fixture, or the reason the sim cannot
+// run it. A fixture with a hostile the sim leaves unmodeled (a melee weapon)
+// is unsupported: the AI would leave that raider doing nothing, and a result
+// from the remainder is not a result for the fixture.
+func importFight(cat *bridge.DefinitionCatalog, name string, cx, cz int) (combatsim.Fight, error) {
+	f, err := Build(name, cx, cz)
+	if err != nil {
+		return combatsim.Fight{}, err
+	}
+	spec, err := SimSpec(f, CalibrationEnv())
+	if err != nil {
+		return combatsim.Fight{}, fmt.Errorf("%w: %v", combatsim.ErrUnsupported, err)
+	}
+	res, err := simimport.Import(cat, spec)
+	if err != nil {
+		return combatsim.Fight{}, err
+	}
+	if len(res.Unmodeled) > 0 {
+		return combatsim.Fight{}, fmt.Errorf("%w: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): %d unmodeled, first: %s", combatsim.ErrUnsupported, len(res.Unmodeled), res.Unmodeled[0])
+	}
+	return res.Fight, nil
+}

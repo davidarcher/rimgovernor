@@ -189,6 +189,36 @@ schema bump or an intended change to the fixture, planner or simulator; the
 unit test `TestBaselinesCommitted` checks version, seeds and summary. lab-open
 is smoke-only: recorded, but not a tactics signal.
 
+## Simulator calibration gate
+
+`go run ./cmd/combatcalibrate [-record]` (from `go/`) decides whether
+`combatsim` results may be trusted for the ranged slice (#2844). It plays each
+fixture in `combatlab.CalibrationFixtures` and `HeldOutFixtures` in the sim,
+under each `combatlab.Variants()` tuning, over the baseline's seeds, and
+compares the result with the real-game sweeps: the baselines for the default
+tuning, and `combatlab/calibration/variants/<fixture>/<variant>.json` (a
+`combatmetrics.Sweep` from `acceptance sweep`, seeds 1..20) for the others.
+The thresholds are constants in `combatsim/calibrate`: pooled pairwise rank
+agreement >= 0.80 on held-out fixtures, zero survival-critical misrankings (the
+sim prefers a variant whose real sweep has more colonist deaths), and colonist
+deaths and downs within +/-25% of the real mean or +/-1 pawn. Variants are
+ordered deaths first, then downs, then colonist damage.
+
+The gate fails closed and exits 1: a fixture the sim cannot import (melee
+pawns, turrets, staged conditions), a variant with no real sweep, a sweep with
+defects or a different seed list, and a role with nothing measured are
+failures. The report also carries native regret (the real outcome lost by
+following the sim's pick) and false-safe variants (the sim sees no colonist
+death, the real sweep does). `calibration/report.json` and `report.txt` are the
+recorded output, stamped with the pinned assembly hash,
+`combatsim.RulesVersion`, the thresholds version and the sweep schema;
+`TestCommittedCalibrationReportIsCurrent` fails when the stamp or the output is
+stale. Bump `RulesVersion` with any port or approximation change that can move
+an outcome, then re-record. A failing report is a valid record; the sim is
+trusted only where `calibrate.Trusted` accepts a passing report of this build.
+A held-out fixture joins the gate by becoming importable and gaining real
+variant sweeps; the fixture lists and variants are fixed before measuring.
+
 `acceptance suite -stages` schedules missing stages and their dependent tails
 for iteration. The ordinary suite restages from scratch. Preserve
 `staged_from` when reporting cached evidence; see

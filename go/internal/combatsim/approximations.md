@@ -203,6 +203,15 @@ DefinitionCatalog; every derived value is listed with its source in
   friendly-fire factor are inputs (`combatlab.SimEnv`), not readings; the last
   two stay unknown, and the import fails, until stated.
 
+- **A32. The raid lord's constants come from the catalog, its exit and colony
+  health are derived.** `Spec.Raid` makes the importer set `Fight.EnemyAI`:
+  the give-up range is `LordJob_AssaultColony.AssaultTimeBeforeGiveUp`, and
+  `ColonyHealthTotal` follows `WealthWatcher.HealthTotal` (100 per free colonist
+  at full health plus the hit points of every player artificial building, here
+  the def-level `MaxHitPoints` stat: stuff and damage are ignored). The exit is
+  caller-stated; the lab states the map-edge cell nearest the raiders' centroid
+  (the game picks its own exit spot).
+
 ## Out of scope for this slice
 
 Melee, explosives and grenades, specialist abilities, breaches, turrets,

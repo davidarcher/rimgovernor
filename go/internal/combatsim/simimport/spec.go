@@ -37,6 +37,8 @@ type Spec struct {
 	Pawns                    []Pawn
 	// Layout is the stored defense layout the policy reads, unknown without one.
 	Layout domain.Fact[policy.CombatLayout]
+	// Raid is the hostiles' lord; nil leaves Fight.EnemyAI unset.
+	Raid *Raid
 	// StepTicks is the game ticks per Step; MaxTicks ends an unresolved fight.
 	StepTicks, MaxTicks int
 }
@@ -76,6 +78,19 @@ type Pawn struct {
 	LordJobClass, LordToilClass domain.Fact[string]
 }
 
+// Raid is the hostiles' LordJob_AssaultColony as the sim needs it. Importing a
+// Spec with a Raid sets Fight.EnemyAI, which drives the hostile ranged pawns;
+// without one the caller drives them through Fight.Enemy.
+type Raid struct {
+	// CanTimeoutOrFlee is the lord's canTimeoutOrFlee: true for an ordinary
+	// raid, which gives up after AssaultTimeBeforeGiveUp or on enough colony
+	// damage. It needs Exit.
+	CanTimeoutOrFlee bool
+	// Exit is the cell fleeing raiders walk to and leave by. No catalog def or
+	// fixture holds it (the game picks a map-edge spot), so the caller states it.
+	Exit domain.Fact[domain.Cell]
+}
+
 // Trace records where one derived value came from.
 type Trace struct {
 	// Subject is a pawn id, or "map".
@@ -88,7 +103,8 @@ type Trace struct {
 
 // Result is an imported fight.
 type Result struct {
-	// Fight is ready for combatsim.RunFight once the caller sets Enemy.
+	// Fight is ready for combatsim.RunFight; a Spec without a Raid leaves the
+	// hostiles to the caller's Fight.Enemy.
 	Fight combatsim.Fight
 	// Trace lists every derived value with its source.
 	Trace []Trace
