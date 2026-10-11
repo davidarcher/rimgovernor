@@ -91,12 +91,11 @@ func Aggregate(fixture string, staged map[string]string, reads []map[string]any)
 			row, _ := na.AsMap(r)
 			pawns[na.AsString(row["id"])] = row
 		}
-		if m.ResolvedTick < 0 {
+		// The staging read resolves nothing: raiders still in their drop pods
+		// are not on the map yet and would read as a side already gone.
+		if m.ResolvedTick < 0 && i > 0 {
 			if side := resolved(staged, pawns); side != "" {
-				m.ResolvedTick, m.Winner = tick, side
-				if i > 0 {
-					m.ResolvedTick = decisiveHit(staged, pawns, side, na.AsSlice(read["damage"]), tick)
-				}
+				m.ResolvedTick, m.Winner = decisiveHit(staged, pawns, side, na.AsSlice(read["damage"]), tick), side
 			}
 		}
 	}

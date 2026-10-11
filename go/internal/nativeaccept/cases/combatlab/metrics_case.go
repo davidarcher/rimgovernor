@@ -22,7 +22,7 @@ import (
 
 const (
 	// metricsTicks is a fixture run's game-tick budget .
-	metricsTicks = 5000
+	metricsTicks = 10000
 	// metricsSpeed labels the response evidence. The served clock runs
 	// Ultrafast uncapped like every acceptance case, so the service's 1 s
 	// state refresh lags the game by over a thousand ticks.

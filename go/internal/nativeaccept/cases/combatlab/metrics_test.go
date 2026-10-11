@@ -108,3 +108,23 @@ func TestBaselinesCommitted(t *testing.T) {
 		}
 	}
 }
+
+// Raiders still in their pods are absent from the staging read: that read
+// resolves nothing, and the later one decides.
+func TestAggregateStagingReadResolvesNothing(t *testing.T) {
+	staged := map[string]string{"a": Colonist, "b": Hostile}
+	alive := func(ids ...string) []any {
+		var rows []any
+		for _, id := range ids {
+			rows = append(rows, map[string]any{"id": id})
+		}
+		return rows
+	}
+	m := Aggregate("x", staged, []map[string]any{
+		{"tick": 1.0, "pawns": alive("a")},
+		{"tick": 500.0, "pawns": alive("a", "b")},
+	})
+	if m.ResolvedTick != -1 || m.Winner != "" {
+		t.Fatalf("got %+v", m)
+	}
+}
