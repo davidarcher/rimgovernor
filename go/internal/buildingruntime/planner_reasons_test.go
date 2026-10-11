@@ -17,7 +17,7 @@ func filingOf(goals map[string]policy.ConcernID, verdicts map[string]Verdict) fu
 }
 
 func TestWavePlannerReasonsFilesRefusalsPerGoal(t *testing.T) {
-	goals := map[string]policy.ConcernID{"power": policy.EnsureBasicPower, "equip": policy.MaintainEquipment, "gear": policy.MaintainEquipment, "research": policy.EnsureResearch, "clean": policy.MaintainCleanFacilities}
+	goals := map[string]policy.ConcernID{"power": policy.EnsureBasicPower, "equip": policy.EnsureBasicDefense, "gear": policy.MaintainEquipment, "research": policy.EnsureResearch, "clean": policy.MaintainCleanFacilities}
 	verdicts := map[string]Verdict{
 		"power":    noSpace("power_route"),
 		"equip":    BuildingReasonAdmitted,
@@ -29,6 +29,7 @@ func TestWavePlannerReasonsFilesRefusalsPerGoal(t *testing.T) {
 	got := wavePlannerReasons([]string{"power", "equip", "gear", "research", "clean", "naming"}, filingOf(goals, verdicts))
 	want := map[policy.ConcernID]policy.PlannerNote{
 		policy.EnsureBasicPower:        {Cause: policy.CauseNoSpace, Subject: "power_route"},
+		policy.EnsureBasicDefense:      {},
 		policy.MaintainEquipment:       {Cause: policy.CauseRetriesSpent, Subject: "gear_craft"},
 		policy.MaintainCleanFacilities: {Cause: policy.CauseExistingWork},
 	}
