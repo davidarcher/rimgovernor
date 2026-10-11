@@ -65,3 +65,31 @@ func TestRoundsMoodLedgerFromRecordedSnapshot(t *testing.T) {
 		t.Fatal("unknown census produced a ledger")
 	}
 }
+
+// A native expectation level reaches the ledger; a pawn whose social block
+// carries none (or flags it unreadable) stays unknown.
+func TestRoundsMoodLedgerReadsExpectationLevel(t *testing.T) {
+	mk := func(id string, social *o.PawnSocial, issues ...string) (*o.PawnState, policy.MoodPawn) {
+		s := ledgerState(id)
+		s.Social = social
+		for _, i := range issues {
+			s.Issues = append(s.Issues, &o.ReadIssue{Field: proto.String(i)})
+		}
+		return s, policy.MoodPawn{ID: policy.PawnID(id), Thoughts: domain.Known([]policy.MoodThought{{Def: "NeedJoy", Offset: -5}})}
+	}
+	a, am := mk("a", &o.PawnSocial{ExpectationDefName: proto.String("High")})
+	b, bm := mk("b", &o.PawnSocial{ExpectationDefName: proto.String("Low")})
+	c, cm := mk("c", &o.PawnSocial{})
+	d, dm := mk("d", &o.PawnSocial{ExpectationDefName: proto.String("High")}, "social")
+	got, known := roundsMoodLedger(domain.Known([]policy.MoodPawn{am, bm, cm, dm}), &o.PawnSnapshot{Pawns: []*o.PawnState{a, b, c, d}}, nil).Value()
+	if !known {
+		t.Fatal("ledger unknown")
+	}
+	counts := map[string]int{}
+	for _, e := range got.Expectation {
+		counts[e.Level] = e.Pawns
+	}
+	if len(counts) != 2 || counts["High"] != 1 || counts["Low"] != 1 {
+		t.Fatalf("expectation = %+v, want High and Low once each", got.Expectation)
+	}
+}

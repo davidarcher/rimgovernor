@@ -5104,6 +5104,7 @@ func (x *Relation) GetOpinionReconstructed() bool {
 type PawnSocial struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
 	HighExpectations      *bool                  `protobuf:"varint,6,opt,name=high_expectations,json=highExpectations,proto3,oneof" json:"high_expectations,omitempty"`
+	ExpectationDefName    *string                `protobuf:"bytes,7,opt,name=expectation_def_name,json=expectationDefName,proto3,oneof" json:"expectation_def_name,omitempty"`
 	Memories              []*Thought             `protobuf:"bytes,1,rep,name=memories,proto3" json:"memories,omitempty"`
 	Situational           []*Thought             `protobuf:"bytes,2,rep,name=situational,proto3" json:"situational,omitempty"`
 	Relations             []*Relation            `protobuf:"bytes,3,rep,name=relations,proto3" json:"relations,omitempty"`
@@ -5148,6 +5149,13 @@ func (x *PawnSocial) GetHighExpectations() bool {
 		return *x.HighExpectations
 	}
 	return false
+}
+
+func (x *PawnSocial) GetExpectationDefName() string {
+	if x != nil && x.ExpectationDefName != nil {
+		return *x.ExpectationDefName
+	}
+	return ""
 }
 
 func (x *PawnSocial) GetMemories() []*Thought {
@@ -43856,16 +43864,18 @@ const file_observations_proto_rawDesc = "" +
 	"\x12_relation_def_nameB\n" +
 	"\n" +
 	"\b_opinionB\x18\n" +
-	"\x16_opinion_reconstructed\"\xbc\x03\n" +
+	"\x16_opinion_reconstructed\"\x8c\x04\n" +
 	"\n" +
 	"PawnSocial\x120\n" +
-	"\x11high_expectations\x18\x06 \x01(\bH\x00R\x10highExpectations\x88\x01\x01\x12@\n" +
+	"\x11high_expectations\x18\x06 \x01(\bH\x00R\x10highExpectations\x88\x01\x01\x125\n" +
+	"\x14expectation_def_name\x18\a \x01(\tH\x01R\x12expectationDefName\x88\x01\x01\x12@\n" +
 	"\bmemories\x18\x01 \x03(\v2$.rimgovernor.observations.v1.ThoughtR\bmemories\x12F\n" +
 	"\vsituational\x18\x02 \x03(\v2$.rimgovernor.observations.v1.ThoughtR\vsituational\x12C\n" +
 	"\trelations\x18\x03 \x03(\v2%.rimgovernor.observations.v1.RelationR\trelations\x12;\n" +
-	"\x17situational_cache_stale\x18\x04 \x01(\bH\x01R\x15situationalCacheStale\x88\x01\x01\x12>\n" +
+	"\x17situational_cache_stale\x18\x04 \x01(\bH\x02R\x15situationalCacheStale\x88\x01\x01\x12>\n" +
 	"\x06issues\x18\x05 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\x14\n" +
-	"\x12_high_expectationsB\x1a\n" +
+	"\x12_high_expectationsB\x17\n" +
+	"\x15_expectation_def_nameB\x1a\n" +
 	"\x18_situational_cache_stale\"\xd6\t\n" +
 	"\fPawnSettings\x12N\n" +
 	"\fmedical_care\x18\x02 \x01(\x0e2&.rimgovernor.operations.v1.MedicalCareH\x00R\vmedicalCare\x88\x01\x01\x12 \n" +

@@ -10,8 +10,8 @@ import (
 // roundsMoodLedger builds the colony mood ledger from the review's mood
 // census, each pawn's traits and precepts, and the catalog's ThoughtFacts. The
 // ledger is unknown when the census is. A pawn attribute the snapshot lacks
-// (an unread biography or policy block) stays unknown, and the expectation
-// level is never read, so MinExpectation thoughts stay unverified.
+// (an unread biography, policy or social block) stays unknown, so
+// MinExpectation thoughts of such a pawn stay unverified.
 func roundsMoodLedger(census domain.Fact[[]policy.MoodPawn], snapshot *o.PawnSnapshot, facts map[string]policy.ThoughtFacts) domain.Fact[policy.MoodLedger] {
 	moods, known := census.Value()
 	if !known {
@@ -31,6 +31,9 @@ func roundsMoodLedger(census domain.Fact[[]policy.MoodPawn], snapshot *o.PawnSna
 					traits = append(traits, t.GetDefName())
 				}
 				pawn.Traits = domain.Known(traits)
+			}
+			if s := r.Social; s != nil && !hasIssue(r.Issues, "social") && s.ExpectationDefName != nil {
+				pawn.Expectation = domain.Known(s.GetExpectationDefName())
 			}
 			if s := r.Settings; s != nil && !hasIssue(s.Issues, "policy_inputs") {
 				if inputs, ok := bridge.PawnPolicyInputs(s.PolicyInputs).Value(); ok {

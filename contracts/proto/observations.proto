@@ -338,7 +338,7 @@ message PawnBiography {
 }
 message Thought { optional string def_name = 1; optional uint32 count = 3; optional double mood_offset_each = 4; optional double mood_offset_total = 5; }
 message Relation { rimgovernor.common.v1.Ref other = 1; optional string relation_def_name = 2; optional int32 opinion = 3; optional bool opinion_reconstructed = 4; }
-message PawnSocial { optional bool high_expectations = 6; repeated Thought memories = 1; repeated Thought situational = 2; repeated Relation relations = 3; optional bool situational_cache_stale = 4; repeated ReadIssue issues = 5; }
+message PawnSocial { optional bool high_expectations = 6; optional string expectation_def_name = 7; repeated Thought memories = 1; repeated Thought situational = 2; repeated Relation relations = 3; optional bool situational_cache_stale = 4; repeated ReadIssue issues = 5; }
 message PawnSettings {
   optional rimgovernor.operations.v1.MedicalCare medical_care = 2; optional bool self_tend = 3; optional rimgovernor.operations.v1.HostilityResponse hostility_response = 4;
   optional string allowed_area_id = 5; optional string master_id = 6; optional bool follow_drafted = 7; optional bool follow_fieldwork = 8;

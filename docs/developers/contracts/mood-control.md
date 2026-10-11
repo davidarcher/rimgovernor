@@ -149,8 +149,10 @@ Every Round builds the ledger in `observation/rounds_mood_ledger.go` and publish
 rows, `AllThoughtFacts()` from the load's catalog (none without a catalog, so every source
 is unverified), each pawn's biography traits and the ideology precepts from its policy
 inputs. A pawn whose biography or policy block was skipped has unknown traits or precepts.
-The expectation level is not observed yet, so it is always unknown: `MinExpectation`
-thoughts stay unverified and the ledger's expectation list is empty. Later children
+The expectation level is the native `PawnSocial.expectation_def_name` (the pawn's current
+`ExpectationDef`); a pawn whose social block was skipped or carried none has an unknown
+level, so its `MinExpectation` thoughts stay unverified and it is left out of the ledger's
+expectation list. Later children
 (display, the colony aggregate, the gathering trigger) read this fact; the ledger itself
 changes no relief or provisioning decision.
 

@@ -653,8 +653,10 @@ namespace HomeBridge.BridgeTools
         private static Obs.PawnSocial Social(Pawn pawn,System.Collections.Generic.List<Pawn> colonists)
         {
             var row=new Obs.PawnSocial();
+            var current=ExpectationsUtility.CurrentExpectationFor(pawn);
+            if(current!=null)row.ExpectationDefName=current.defName;
             var high=DefDatabase<ExpectationDef>.GetNamedSilentFail("High");
-            if(high!=null)row.HighExpectations=ExpectationsUtility.CurrentExpectationFor(pawn).order>=high.order;
+            if(high!=null&&current!=null)row.HighExpectations=current.order>=high.order;
             var memories=PawnSettingsRead.LiveMemories(pawn);
             if(memories==null) row.Issues.Add(Missing("memories"));
             else foreach(var t in PawnSettingsRead.GroupThoughtRows(memories))
