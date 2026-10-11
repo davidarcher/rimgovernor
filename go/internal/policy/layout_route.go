@@ -69,7 +69,8 @@ func spineEntrances(spine []SpineSegment) []domain.Cell {
 // cell (for the overlay). A thoroughfare or an unreachable trip is an error.
 // Trips whose rooms the plan lacks are skipped.
 func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
-	walk, rooms := routeWalk(p)
+	walkMap, rooms := routeWalk(p)
+	walk := newRouteGrid(walkMap)
 	cells := tripCells(p, rooms)
 	traffic := map[domain.Cell]int{}
 	for _, trip := range routeTrips {
@@ -87,14 +88,14 @@ func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 			to = append(to, g...)
 		}
 		for _, from := range froms {
-			path := routePath(walk, from, to)
+			path := walk.routePath(from, to)
 			if path == nil {
 				return nil, fmt.Errorf("no route %s -> %s", trip.from, trip.to)
 			}
-			ends := map[int]bool{walk[path[0]]: true, walk[path[len(path)-1]]: true}
+			ends := map[int]bool{walk.at(path[0]): true, walk.at(path[len(path)-1]): true}
 			for _, c := range path {
 				traffic[c]++
-				if i := walk[c]; i >= 0 && !ends[i] && noThroughfare[rooms[i].Role] {
+				if i := walk.at(c); i >= 0 && !ends[i] && noThroughfare[rooms[i].Role] {
 					return nil, fmt.Errorf("%s -> %s crosses %s at %v", trip.from, trip.to, rooms[i].Role, c)
 				}
 			}
@@ -176,42 +177,95 @@ func routeWalk(p LayoutPlan) (map[domain.Cell]int, []PlannedRoom) {
 	return walk, rooms
 }
 
-// routePath is a shortest 4-neighbour path over walk from any of from to
-// any of to, or nil.
-func routePath(walk map[domain.Cell]int, from, to []domain.Cell) []domain.Cell {
-	goal := map[domain.Cell]bool{}
-	for _, c := range to {
-		goal[c] = true
+// routeGrid is walk over its bounding box, so a path search indexes arrays
+// instead of hashing cells. Search state is stamped per search, so one grid
+// serves every trip without clearing.
+type routeGrid struct {
+	minX, minZ, w, h int32
+	room             []int32 // room index + 2; 0 = not walkable
+	seen, goal       []uint32
+	prev             []int32
+	stamp            uint32
+	queue            []int32
+}
+
+func newRouteGrid(walk map[domain.Cell]int) *routeGrid {
+	g := &routeGrid{}
+	first := true
+	var maxX, maxZ int32
+	for c := range walk {
+		if first {
+			g.minX, maxX, g.minZ, maxZ, first = c.X, c.X, c.Z, c.Z, false
+			continue
+		}
+		g.minX, maxX = min(g.minX, c.X), max(maxX, c.X)
+		g.minZ, maxZ = min(g.minZ, c.Z), max(maxZ, c.Z)
 	}
-	prev := map[domain.Cell]domain.Cell{}
-	var queue []domain.Cell
-	for _, c := range from {
-		if _, ok := walk[c]; ok {
-			prev[c] = c
-			queue = append(queue, c)
+	if first {
+		return g
+	}
+	g.w, g.h = maxX-g.minX+1, maxZ-g.minZ+1
+	n := int(g.w) * int(g.h)
+	g.room, g.seen, g.goal, g.prev = make([]int32, n), make([]uint32, n), make([]uint32, n), make([]int32, n)
+	for c, i := range walk {
+		g.room[g.index(c)] = int32(i) + 2
+	}
+	return g
+}
+
+func (g *routeGrid) in(c domain.Cell) bool {
+	return c.X >= g.minX && c.Z >= g.minZ && c.X < g.minX+g.w && c.Z < g.minZ+g.h
+}
+
+func (g *routeGrid) index(c domain.Cell) int { return int(c.Z-g.minZ)*int(g.w) + int(c.X-g.minX) }
+
+func (g *routeGrid) cell(i int32) domain.Cell {
+	return domain.Cell{X: g.minX + i%g.w, Z: g.minZ + i/g.w}
+}
+
+// at is the room index of a walkable cell (-1 hallway or door).
+func (g *routeGrid) at(c domain.Cell) int { return int(g.room[g.index(c)]) - 2 }
+
+// routePath is a shortest 4-neighbour path over the grid from any of from to
+// any of to, or nil.
+func (g *routeGrid) routePath(from, to []domain.Cell) []domain.Cell {
+	g.stamp++
+	for _, c := range to {
+		if g.in(c) {
+			g.goal[g.index(c)] = g.stamp
 		}
 	}
-	for len(queue) > 0 {
-		c := queue[0]
-		queue = queue[1:]
-		if goal[c] {
-			path := []domain.Cell{c}
-			for prev[c] != c {
-				c = prev[c]
-				path = append(path, c)
+	queue := g.queue[:0]
+	for _, c := range from {
+		if g.in(c) && g.room[g.index(c)] != 0 {
+			i := g.index(c)
+			g.seen[i], g.prev[i] = g.stamp, int32(i)
+			queue = append(queue, int32(i))
+		}
+	}
+	defer func() { g.queue = queue[:0] }()
+	for head := 0; head < len(queue); head++ {
+		i := queue[head]
+		if g.goal[i] == g.stamp {
+			path := []domain.Cell{g.cell(i)}
+			for g.prev[i] != i {
+				i = g.prev[i]
+				path = append(path, g.cell(i))
 			}
 			return path
 		}
+		c := g.cell(i)
 		for _, d := range [4][2]int32{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
 			n := domain.Cell{X: c.X + d[0], Z: c.Z + d[1]}
-			if _, ok := walk[n]; !ok {
+			if !g.in(n) {
 				continue
 			}
-			if _, seen := prev[n]; seen {
+			ni := g.index(n)
+			if g.room[ni] == 0 || g.seen[ni] == g.stamp {
 				continue
 			}
-			prev[n] = c
-			queue = append(queue, n)
+			g.seen[ni], g.prev[ni] = g.stamp, i
+			queue = append(queue, int32(ni))
 		}
 	}
 	return nil
