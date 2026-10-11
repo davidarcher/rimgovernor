@@ -77,6 +77,10 @@ type TendPatientFacts struct {
 	Bleeding, LifeThreatening    domain.Fact[bool]
 	HoursUntilDeathFromBloodLoss domain.Fact[float64]
 	ExistingJobDef               domain.Fact[string]
+	// Threatened is a live hostile pawn standing within TendThreatCells of the
+	// patient (ThreatenedPatients): a doctor sent now walks into it alone, so
+	// the combat response answers first and the patient waits.
+	Threatened bool
 }
 
 // SelectTend ports medical_triage.treatment_pairs: rank eligible doctors by
@@ -113,7 +117,7 @@ func SelectTend(doctors []TendDoctorFacts, patients []TendPatientFacts, reach Te
 		if !dk || !nk || !ck || !ek {
 			return false
 		}
-		return !dead && needsTend && !noCare && existing != "TendPatient" && tendable(p)
+		return !dead && needsTend && !noCare && !p.Threatened && existing != "TendPatient" && tendable(p)
 	}
 	var patientPool []TendPatientFacts
 	needsTendItself := map[domain.PawnID]bool{}

@@ -118,6 +118,9 @@ func emergencyFacts(row *o.PawnState) (policy.EmergencyPawn, error) {
 		return result, err
 	}
 	result = policy.EmergencyPawn{ID: policy.PawnID(row.Pawn.GetId()), Dead: emergencyBool(row.Dead), Downed: emergencyBool(row.Downed), InBed: emergencyBool(row.InBed)}
+	if at := row.GetPawn().GetPosition(); at != nil && at.X != nil && at.Z != nil {
+		result.Position = domain.Known(domain.Cell{X: at.GetX(), Z: at.GetZ()})
+	}
 	mental, err := PawnMentalState(row)
 	if err != nil {
 		return result, err

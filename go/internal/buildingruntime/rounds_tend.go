@@ -93,6 +93,7 @@ func (r *RoundsTendPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	if len(observed.Pawns) != len(ids) {
 		return RoundsTendResult{}, fmt.Errorf("%w: step: len(observed.Pawns) != len(ids)", ErrControl)
 	}
+	threatened := policy.ThreatenedPatients(emergency.Facts)
 	var doctors []policy.TendDoctorFacts
 	var patients []policy.TendPatientFacts
 	seen := map[string]bool{}
@@ -103,7 +104,9 @@ func (r *RoundsTendPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		seen[row.Pawn.GetId()] = true
 		pawn := domain.PawnID(row.Pawn.GetId())
 		doctors = append(doctors, tend.NewTendDoctorFacts(pawn, row, ""))
-		patients = append(patients, tend.NewTendPatientFacts(pawn, row, ""))
+		patientFacts := tend.NewTendPatientFacts(pawn, row, "")
+		patientFacts.Threatened = threatened[pawn]
+		patients = append(patients, patientFacts)
 	}
 	doctor, patient, ok := policy.SelectTend(doctors, patients, tend.TendReachability(observed.Pawns))
 	if ok && !arbiter.tryClaim([]domain.PawnID{doctor, patient}) {

@@ -27,6 +27,8 @@ type EmergencyPawn struct {
 	// is anyone's patient: WorkGiver_Tend tends a humanlike only in a bed
 	// and the ground tend needs a downed pawn.
 	InBed domain.Fact[bool]
+	// Position is the colonist's cell when the pawn table row carried one.
+	Position domain.Fact[domain.Cell]
 }
 type ThreatKind uint8
 
