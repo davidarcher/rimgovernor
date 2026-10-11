@@ -152,3 +152,38 @@ func (s *Sim) CellCanSeeCell(source, dest domain.Cell) bool {
 	}
 	return false
 }
+
+// pointsOnLine ports GenSight.PointsOnLineOfSight(start, end), the IEnumerable
+// overload: the cells of the line from start to end, both included, in walking
+// order, each passed to visit until it returns false.
+func pointsOnLine(start, end domain.Cell, visit func(domain.Cell) bool) {
+	sideOnEqual := start.Z < end.Z
+	if start.X != end.X {
+		sideOnEqual = start.X < end.X
+	}
+	dx := abs32(end.X - start.X)
+	dz := abs32(end.Z - start.Z)
+	x, z := int(start.X), int(start.Z)
+	xInc, zInc := -1, -1
+	if end.X > start.X {
+		xInc = 1
+	}
+	if end.Z > start.Z {
+		zInc = 1
+	}
+	errv := dx - dz
+	dx *= 2
+	dz *= 2
+	for n := 1 + abs32(end.X-start.X) + abs32(end.Z-start.Z); n > 0; n-- {
+		if !visit(domain.Cell{X: int32(x), Z: int32(z)}) {
+			return
+		}
+		if errv > 0 || (errv == 0 && sideOnEqual) {
+			x += xInc
+			errv -= dz
+		} else {
+			z += zInc
+			errv += dx
+		}
+	}
+}

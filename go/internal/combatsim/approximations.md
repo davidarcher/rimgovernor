@@ -72,6 +72,31 @@ is a candidate to replace by a faithful port. Game sources are in
   next idle tick.
 - **A19. Skill learning, noise and clamor are not simulated.**
 
+## Policy adapter (`adapter.go`, `geometry.go`, `run.go`)
+
+- **A20. Health is the share of the damage budget left.** `View` reports
+  `1 - damage/DamageToKill` (0 dead); the game's health scale is capacity-based.
+  Bleeding, pain, tending and medical skill have no sim state and are not
+  reported as facts the policy could misread.
+- **A21. A holder shoots on its own.** `hold_position` is Wait_Combat in the game,
+  whose auto-attack picks a hostile in reach. `Autonomy` gives an idle holder
+  that is not on hold fire an attack on the nearest hostile it can hit (ties to
+  the earlier scenario pawn). The game's target scoring is not ported.
+- **A22. Only two stop kinds are raised.** `downed` (a colonist downed or
+  killed) and `entered_range` (a hostile came within a colonist's weapon range,
+  or a colonist's weapon reached it; distance only, no sight, once per hostile
+  each way, the first scan recording the start). The native serious-injury,
+  shield, lord, melee, explosive and mental-state stops need state the sim does
+  not hold. A backstop (default 120 ticks) asks the policy again.
+- **A23. Geometry is computed from the current sim world.** Sight lines and
+  cover use the ports above; proposals follow the native roles' filters and
+  orderings under the same caps (64 cells, 16 hostiles, radius 12). A
+  rescue route is the walker's A* path cut at the first cell touching the goal,
+  not the game's path-to-touch. Only ranged `move`, `attack`, `stop`,
+  `hold_position` and `fire_mode` orders execute; every other kind is refused
+  `native_refused`. Unknown pawn facts (kind, melee power, colonist armor) make
+  the fight unsupported rather than being defaulted.
+
 ## Out of scope for this slice
 
 Melee, explosives and grenades, specialist abilities, breaches, turrets,

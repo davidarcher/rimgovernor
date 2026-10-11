@@ -2,8 +2,10 @@
 // mechanics-faithful port of the game's grid rules (line of sight and lean,
 // cover, per-cell movement cost) and of ordinary ranged resolution (hit
 // chance, warmup, burst and cooldown, projectile flight and interception,
-// armor, an injury approximation) behind a Reset/Step seam. Enemy choice,
-// melee and the CombatView adapter come in later children of epic #2830. Every
+// armor, an injury approximation) behind a Reset/Step seam. Adapter and
+// RunFight let the unchanged policy.DecideCombat drive a fight: they build its
+// CombatView, StopEvent and GeometryReply from sim state and apply its orders.
+// Enemy choice and melee come in later children of epic #2830. Every
 // simplification is listed in approximations.md.
 //
 // Time is the game tick. Reset(scenario, seed) builds the world and the two

@@ -8,7 +8,8 @@ package combatsim
 // Ports and their game sources:
 //   - sight.go: Verse.GenSight.LineOfSight (halfX/halfZ overload),
 //     Verse.ShootLeanUtility.LeanShootingSourcesFromTo and CellCanSeeCell,
-//     Verse.GenGrid.CanBeSeenOver (Building.CanBeSeenOver).
+//     Verse.GenGrid.CanBeSeenOver (Building.CanBeSeenOver),
+//     Verse.GenSight.PointsOnLineOfSight (the IEnumerable overload).
 //   - cover.go: Verse.CoverUtility.CalculateOverallBlockChance,
 //     TryFindAdjustedCoverInCell, BaseBlockChance; Verse.CoverGrid.RecalculateCell;
 //     Verse.GenGeo.AngleDifferenceBetween; Verse.IntVec3.AngleFlat.
