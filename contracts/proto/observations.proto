@@ -348,6 +348,10 @@ message PawnSettings {
   FoodRestriction food_restriction = 17;
   // Per-pawn policy planner inputs, read with work detail.
   PawnPolicyInputs policy_inputs = 20;
+  // The pawn's effective eat trigger (food level 0..1 under which it seeks food;
+  // 0.30 vanilla when no override), read with work detail. Absent when the
+  // pawn has none (not a humanlike colony pawn with a food need).
+  optional float eat_trigger = 21;
 }
 // The inputs per-pawn outfit/drug/food/reading planners compose from.
 // Traits, mood and break thresholds (biography, needs) and animal

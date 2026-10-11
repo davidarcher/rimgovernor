@@ -127,7 +127,7 @@ func inspectManageSupplySafety(c *roundsRun) error {
 func inspectWorkAssignments(c *roundsRun) error {
 	f := c.f
 	workMet := allFacts(f.WorkCoverage, measured(f.CleanupPawns, func(v bool) bool { return !v }))
-	if positive(f.HostilityOwed) || positive(f.SelfTendOwed) || positive(f.NamesOwed) || positive(f.MedicineCarryOwed) || positive(f.MedicalCareOwed) {
+	if positive(f.HostilityOwed) || positive(f.SelfTendOwed) || positive(f.NamesOwed) || positive(f.MedicineCarryOwed) || positive(f.EatTriggerOwed) || positive(f.MedicalCareOwed) {
 		workMet = domain.Known(false)
 	}
 	if !positive(workMet) {

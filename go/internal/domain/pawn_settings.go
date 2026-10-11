@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"math"
 	"strings"
 )
 
@@ -58,6 +59,9 @@ const (
 	// extractBioferrite flag, which the game's own Doctor work giver
 	// (WorkGiver_ExtractBioferrite) reads.
 	SettingExtractBioferrite SettingKind = "extract_bioferrite"
+	// SettingEatTrigger is the food level (0..1) under which a humanlike
+	// colonist starts seeking food; 0.30 is vanilla.
+	SettingEatTrigger SettingKind = "eat_trigger"
 )
 
 // MedicalCare is a vanilla MedicalCareCategory name: the best medicine a
@@ -118,6 +122,7 @@ type PawnSettings struct {
 	faction   string
 	permit    string
 	extract   bool
+	trigger   float64
 }
 
 // NewExtractBioferriteSetting sets the extract-bioferrite flag of the held
@@ -294,6 +299,8 @@ func canonicalPawnSettings(s PawnSettings) (PawnSettings, error) {
 		return NewChoosePermitSetting(s.pawn, s.faction, s.permit)
 	case SettingExtractBioferrite:
 		return NewExtractBioferriteSetting(s.pawn, s.extract)
+	case SettingEatTrigger:
+		return NewEatTriggerSetting(s.pawn, s.trigger)
 	}
 	return PawnSettings{}, errors.New("unknown pawn setting")
 }
@@ -312,3 +319,15 @@ func NewPawnSettingsAction(id ActionID, s PawnSettings) (Action, error) {
 func (a Action) PawnSettings() (PawnSettings, bool) {
 	return a.pawnSettings, a.kind == PawnSettingsAction
 }
+
+// NewEatTriggerSetting is the food level, 0 to 1, under which the humanlike
+// colonist starts seeking food. Native clears its override at 0.30 or more.
+func NewEatTriggerSetting(pawn PawnID, level float64) (PawnSettings, error) {
+	if !validID(string(pawn)) || math.IsNaN(level) || level < 0 || level > 1 {
+		return PawnSettings{}, errors.New("an eat trigger setting requires a pawn and a food level of 0-1")
+	}
+	return PawnSettings{pawn: pawn, kind: SettingEatTrigger, trigger: level}, nil
+}
+
+// EatTrigger is the food level, and whether this is the eat trigger arm.
+func (s PawnSettings) EatTrigger() (float64, bool) { return s.trigger, s.kind == SettingEatTrigger }

@@ -12,6 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
@@ -224,6 +225,9 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		return RoundsWorkResult{}, err
 	}
 	settings = append(settings, policy.MedicineCarryChanges(policy.MedicineCarryRows(pawns), reserve.Stock, reserve.Target)...)
+	// Eat trigger: lowered for a solo or low-runway colony, vanilla
+	// below the emergency line.
+	settings = append(settings, policy.EatTriggerChanges(policy.EatTriggerRows(pawns), eatTriggerColony(read.Projection.Facts, r.reviewer.seasonal(read.Projection.Facts)))...)
 	// Unique short names: a newer owned pawn holding an older
 	// one's short name is renamed from its own name bank.
 	if names, ok := read.Projection.Facts.OwnedNames.Value(); ok {
@@ -327,7 +331,8 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		diet, _ := s.FoodPolicy()
 		mode, _ := s.MechWorkMode()
 		group, _ := s.MechControlGroup()
-		fmt.Fprintf(hash, "%s/%s/%s/%t/%q/%d/%s/%q/%q/%q/%q/%d/%d\n", s.Kind(), s.Pawn(), s.Hostility(), s.SelfTend(), s.LeaveName(), carry, s.MedicalCare(), book, drug, diet, mode, group, len(goal.Methods))
+		trigger, _ := s.EatTrigger()
+		fmt.Fprintf(hash, "%s/%s/%s/%t/%q/%d/%s/%q/%q/%q/%q/%d/%g/%d\n", s.Kind(), s.Pawn(), s.Hostility(), s.SelfTend(), s.LeaveName(), carry, s.MedicalCare(), book, drug, diet, mode, group, trigger, len(goal.Methods))
 	}
 	for _, d := range drugs {
 		data, _ := json.Marshal(d.Entries())
@@ -406,6 +411,12 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, method, "", plan); err != nil {
 		return RoundsWorkResult{}, err
 	}
+	runway, _ := read.Projection.Facts.FoodDays.Value()
+	for _, s := range settings {
+		if level, ok := s.EatTrigger(); ok {
+			telemetry.Decide(call, eatTriggerDecision(s.Pawn(), level, runway))
+		}
+	}
 	return RoundsWorkResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
@@ -469,6 +480,24 @@ func workActionStale(w domain.WorkAssignment, wanted map[domain.PawnID]domain.Wo
 		}
 	}
 	return false
+}
+
+// eatTriggerDecision is the eat_trigger flight row: the level the pawn is
+// planned to hold and the days that lowering it adds to the food runway
+// (zero at vanilla).
+func eatTriggerDecision(pawn domain.PawnID, level, runwayDays float64) telemetry.Decision {
+	reason := "vanilla"
+	if level < policy.EatTriggerVanilla {
+		reason = "lowered"
+	}
+	return telemetry.Decision{Kind: "eat_trigger", Component: "routine-work", Verdict: "admitted", Reason: reason, Target: string(pawn),
+		Attrs: map[string]any{"trigger": level, "food_days": runwayDays, "days_saved": policy.EatTriggerDaysSaved(runwayDays, level)}}
+}
+
+// eatTriggerColony is the colony-wide eat trigger input: the runway against
+// the seasonal minimum and the foothold emergency line.
+func eatTriggerColony(facts policy.RoundsFacts, seasonal policy.RoundsPolicy) policy.EatTriggerColony {
+	return policy.EatTriggerColony{FoodDays: facts.FoodDays, Colonists: facts.Colonists, EmergencyDays: seasonal.FootholdFoodDays, MinDays: seasonal.FoodMinDays}
 }
 
 // hostilityRows are the work census's hostility inputs.

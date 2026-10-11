@@ -51,6 +51,9 @@ type WorkPawn struct {
 	MedicalCare domain.Fact[string]
 	// PolicyInputs are the per-pawn policy planner inputs.
 	PolicyInputs domain.Fact[PawnPolicyInputs]
+	// EatTrigger is the pawn's effective eat trigger (food level, 0.30
+	// vanilla); unknown where the read did not carry it.
+	EatTrigger domain.Fact[float64]
 	// Job is the pawn's current job; unknown when the read carried no job
 	// block.
 	Job domain.Fact[PawnJob]

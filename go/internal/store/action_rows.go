@@ -1464,7 +1464,7 @@ func bedUseDefinition(b domain.BedUse) string {
 // "drug_policy:<name>", "food_policy:<name>",
 // "mech_work_mode:<def>" or "mech_control_group:<index>" or
 // "choose_permit:<faction def>:<permit def>" or
-// "extract_bioferrite:<bool>"; the names never overlap.
+// "extract_bioferrite:<bool>" or "eat_trigger:<level>"; the names never overlap.
 func pawnSettingDefinition(s domain.PawnSettings) string {
 	if s.Kind() == domain.SettingSelfTend {
 		return "self_tend:" + strconv.FormatBool(s.SelfTend())
@@ -1499,6 +1499,9 @@ func pawnSettingDefinition(s domain.PawnSettings) string {
 	if on, ok := s.ExtractBioferrite(); ok {
 		return "extract_bioferrite:" + strconv.FormatBool(on)
 	}
+	if level, ok := s.EatTrigger(); ok {
+		return "eat_trigger:" + strconv.FormatFloat(level, 'g', -1, 64)
+	}
 	return string(s.Hostility())
 }
 
@@ -1508,6 +1511,13 @@ func parsePawnSetting(pawn domain.PawnID, def string) (domain.PawnSettings, erro
 		return domain.NewSelfTendSetting(pawn, def == "self_tend:true")
 	case "extract_bioferrite:true", "extract_bioferrite:false":
 		return domain.NewExtractBioferriteSetting(pawn, def == "extract_bioferrite:true")
+	}
+	if n, ok := strings.CutPrefix(def, "eat_trigger:"); ok {
+		level, err := strconv.ParseFloat(n, 64)
+		if err != nil {
+			return domain.PawnSettings{}, err
+		}
+		return domain.NewEatTriggerSetting(pawn, level)
 	}
 	if n, ok := strings.CutPrefix(def, "medicine_carry:"); ok {
 		count, err := strconv.Atoi(n)

@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"math"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -37,7 +38,7 @@ func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 	allowed := &o.PawnSettings{Issues: s.Issues}
 	if work {
 		allowed.FoodRestriction = s.FoodRestriction
-		allowed.PolicyInputs = s.PolicyInputs
+		allowed.PolicyInputs, allowed.EatTrigger = s.PolicyInputs, s.EatTrigger
 		allowed.Work, allowed.WorkApplies, allowed.ManualWorkPriorities, allowed.AllowedAreaId = s.Work, s.WorkApplies, s.ManualWorkPriorities, s.AllowedAreaId
 	}
 	if care {
@@ -51,6 +52,9 @@ func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 	}
 	if err := validatePolicyInputs(s.PolicyInputs); err != nil {
 		return err
+	}
+	if s.EatTrigger != nil && (math.IsNaN(float64(s.GetEatTrigger())) || s.GetEatTrigger() < 0 || s.GetEatTrigger() > 1) {
+		return contract("invalid eat trigger")
 	}
 	if food := s.FoodRestriction; food != nil {
 		if validID(food.GetPolicyId()) != nil {

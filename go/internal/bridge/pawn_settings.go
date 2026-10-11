@@ -84,6 +84,12 @@ func pawnSettingsAction(action domain.Action) (*o.Action, error) {
 	case domain.SettingExtractBioferrite:
 		on, _ := v.ExtractBioferrite()
 		intent.Setting = &o.PawnSettingsIntent_ExtractBioferrite{ExtractBioferrite: on}
+	case domain.SettingEatTrigger:
+		level, _ := v.EatTrigger()
+		if _, err := domain.NewEatTriggerSetting(v.Pawn(), level); err != nil {
+			return nil, contract("%v", err)
+		}
+		intent.Setting = &o.PawnSettingsIntent_EatTrigger{EatTrigger: float32(level)}
 	default:
 		return nil, contract("unknown pawn setting")
 	}

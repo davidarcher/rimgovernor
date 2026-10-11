@@ -132,6 +132,9 @@ func workPawnRow(row *o.PawnState) policy.WorkPawn {
 			w.FoodRestriction = domain.Known(policy.FoodRestriction{PolicyID: food.GetPolicyId(), Allowed: append([]string(nil), food.AllowedDefs...)})
 		}
 		w.PolicyInputs = bridge.PawnPolicyInputs(s.PolicyInputs)
+		if s.EatTrigger != nil {
+			w.EatTrigger = domain.Known(float64(s.GetEatTrigger()))
+		}
 		if s.MedicalCare != nil && !hasIssue(s.Issues, "medical_care") {
 			w.MedicalCare = domain.Known(bridge.MedicalCareName(s.GetMedicalCare()))
 		}

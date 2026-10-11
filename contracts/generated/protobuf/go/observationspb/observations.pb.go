@@ -5202,7 +5202,11 @@ type PawnSettings struct {
 	ManualWorkPriorities *bool                           `protobuf:"varint,16,opt,name=manual_work_priorities,json=manualWorkPriorities,proto3,oneof" json:"manual_work_priorities,omitempty"`
 	FoodRestriction      *FoodRestriction                `protobuf:"bytes,17,opt,name=food_restriction,json=foodRestriction,proto3" json:"food_restriction,omitempty"`
 	// Per-pawn policy planner inputs, read with work detail.
-	PolicyInputs  *PawnPolicyInputs `protobuf:"bytes,20,opt,name=policy_inputs,json=policyInputs,proto3" json:"policy_inputs,omitempty"`
+	PolicyInputs *PawnPolicyInputs `protobuf:"bytes,20,opt,name=policy_inputs,json=policyInputs,proto3" json:"policy_inputs,omitempty"`
+	// The pawn's effective eat trigger (food level 0..1 under which it seeks food;
+	// 0.30 vanilla when no override), read with work detail. Absent when the
+	// pawn has none (not a humanlike colony pawn with a food need).
+	EatTrigger    *float32 `protobuf:"fixed32,21,opt,name=eat_trigger,json=eatTrigger,proto3,oneof" json:"eat_trigger,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5340,6 +5344,13 @@ func (x *PawnSettings) GetPolicyInputs() *PawnPolicyInputs {
 		return x.PolicyInputs
 	}
 	return nil
+}
+
+func (x *PawnSettings) GetEatTrigger() float32 {
+	if x != nil && x.EatTrigger != nil {
+		return *x.EatTrigger
+	}
+	return 0
 }
 
 // The inputs per-pawn outfit/drug/food/reading planners compose from.
@@ -43711,7 +43722,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x17situational_cache_stale\x18\x04 \x01(\bH\x01R\x15situationalCacheStale\x88\x01\x01\x12>\n" +
 	"\x06issues\x18\x05 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\x14\n" +
 	"\x12_high_expectationsB\x1a\n" +
-	"\x18_situational_cache_stale\"\xe0\b\n" +
+	"\x18_situational_cache_stale\"\x96\t\n" +
 	"\fPawnSettings\x12N\n" +
 	"\fmedical_care\x18\x02 \x01(\x0e2&.rimgovernor.operations.v1.MedicalCareH\x00R\vmedicalCare\x88\x01\x01\x12 \n" +
 	"\tself_tend\x18\x03 \x01(\bH\x01R\bselfTend\x88\x01\x01\x12`\n" +
@@ -43728,7 +43739,9 @@ const file_observations_proto_rawDesc = "" +
 	"\fwork_applies\x18\x0f \x01(\bH\aR\vworkApplies\x88\x01\x01\x129\n" +
 	"\x16manual_work_priorities\x18\x10 \x01(\bH\bR\x14manualWorkPriorities\x88\x01\x01\x12W\n" +
 	"\x10food_restriction\x18\x11 \x01(\v2,.rimgovernor.observations.v1.FoodRestrictionR\x0ffoodRestriction\x12R\n" +
-	"\rpolicy_inputs\x18\x14 \x01(\v2-.rimgovernor.observations.v1.PawnPolicyInputsR\fpolicyInputsB\x0f\n" +
+	"\rpolicy_inputs\x18\x14 \x01(\v2-.rimgovernor.observations.v1.PawnPolicyInputsR\fpolicyInputs\x12$\n" +
+	"\veat_trigger\x18\x15 \x01(\x02H\tR\n" +
+	"eatTrigger\x88\x01\x01B\x0f\n" +
 	"\r_medical_careB\f\n" +
 	"\n" +
 	"_self_tendB\x15\n" +
@@ -43739,7 +43752,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x0f_follow_draftedB\x13\n" +
 	"\x11_follow_fieldworkB\x0f\n" +
 	"\r_work_appliesB\x19\n" +
-	"\x17_manual_work_priorities\"\xc3\b\n" +
+	"\x17_manual_work_prioritiesB\x0e\n" +
+	"\f_eat_trigger\"\xc3\b\n" +
 	"\x10PawnPolicyInputs\x12-\n" +
 	"\x10outfit_policy_id\x18\x01 \x01(\tH\x00R\x0eoutfitPolicyId\x88\x01\x01\x12)\n" +
 	"\x0edrug_policy_id\x18\x02 \x01(\tH\x01R\fdrugPolicyId\x88\x01\x01\x12/\n" +

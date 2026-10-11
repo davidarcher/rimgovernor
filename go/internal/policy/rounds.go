@@ -578,6 +578,9 @@ type RoundsFacts struct {
 	// MedicineCarryOwed is a colonist whose medicine carry count differs
 	// from the planned one; EnsureWorkAssignments writes it.
 	MedicineCarryOwed domain.Fact[bool]
+	// EatTriggerOwed is a colonist whose eat trigger differs from the one
+	// the food runway calls for; EnsureWorkAssignments writes it.
+	EatTriggerOwed domain.Fact[bool]
 	// SelfTendOwed is a colonist whose self-tend setting differs from the
 	// one it should hold; EnsureWorkAssignments writes it.
 	SelfTendOwed domain.Fact[bool]
