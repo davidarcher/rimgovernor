@@ -8,15 +8,15 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// newColonyPartsDTO are the scenario parts of a new colony, layered on the base
+// NewColonyPartsDTO are the scenario parts of a new colony, layered on the base
 // scenario. Numeric fields are pointers so an absent value fails the shared
 // bridge validation instead of reading as zero. Enums travel as lower-case names.
-type newColonyPartsDTO struct {
-	StartingThings      []startingThingDTO `json:"startingThings,omitempty"`
-	ForcedTraits        []forcedTraitDTO   `json:"forcedTraits,omitempty"`
-	ForcedHediffs       []forcedHediffDTO  `json:"forcedHediffs,omitempty"`
-	Naked               []nakedDTO         `json:"naked,omitempty"`
-	SetNeedLevels       []setNeedLevelDTO  `json:"setNeedLevels,omitempty"`
+type NewColonyPartsDTO struct {
+	StartingThings      []StartingThingDTO `json:"startingThings,omitempty"`
+	ForcedTraits        []ForcedTraitDTO   `json:"forcedTraits,omitempty"`
+	ForcedHediffs       []ForcedHediffDTO  `json:"forcedHediffs,omitempty"`
+	Naked               []NakedDTO         `json:"naked,omitempty"`
+	SetNeedLevels       []SetNeedLevelDTO  `json:"setNeedLevels,omitempty"`
 	PermaGameConditions []string           `json:"permaGameConditions,omitempty"`
 	PermaMapConditions  []string           `json:"permaMapConditions,omitempty"`
 	DisallowedBuildings []string           `json:"disallowedBuildings,omitempty"`
@@ -24,7 +24,7 @@ type newColonyPartsDTO struct {
 	PlayerFaction       string             `json:"playerFaction,omitempty"`
 	ArrivalMethod       string             `json:"arrivalMethod,omitempty"`
 }
-type startingThingDTO struct {
+type StartingThingDTO struct {
 	Placement   string  `json:"placement"`
 	ThingDef    string  `json:"thingDef"`
 	Stuff       *string `json:"stuff,omitempty"`
@@ -32,23 +32,23 @@ type startingThingDTO struct {
 	Quality     *string `json:"quality,omitempty"`
 	AllowRoofed *bool   `json:"allowRoofed,omitempty"`
 }
-type forcedTraitDTO struct {
+type ForcedTraitDTO struct {
 	Trait   string   `json:"trait"`
 	Degree  *int32   `json:"degree"`
 	Chance  *float32 `json:"chance"`
 	Context string   `json:"context"`
 }
-type forcedHediffDTO struct {
+type ForcedHediffDTO struct {
 	Hediff   string   `json:"hediff"`
 	Severity *float32 `json:"severity"`
 	Chance   *float32 `json:"chance"`
 	Context  string   `json:"context"`
 }
-type nakedDTO struct {
+type NakedDTO struct {
 	Chance  *float32 `json:"chance"`
 	Context string   `json:"context"`
 }
-type setNeedLevelDTO struct {
+type SetNeedLevelDTO struct {
 	Need    string   `json:"need"`
 	Level   *float32 `json:"level"`
 	Chance  *float32 `json:"chance"`
@@ -72,7 +72,7 @@ func pawnContext(name string) (*l.ScenarioPawnContext, error) {
 }
 
 // applyNewColonyParts copies the parts onto the spec; a malformed enum name is an error.
-func applyNewColonyParts(spec *l.NewColonySpec, parts newColonyPartsDTO) error {
+func applyNewColonyParts(spec *l.NewColonySpec, parts NewColonyPartsDTO) error {
 	for _, t := range parts.StartingThings {
 		placement, err := enumByName[l.StartingThingPlacement](t.Placement, "STARTING_THING_PLACEMENT_", l.StartingThingPlacement_name)
 		if err != nil {

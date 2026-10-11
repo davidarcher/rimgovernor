@@ -13,10 +13,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// newColonySpecDTO is the typed spec of a new colony. Required fields left at
+// NewColonySpecDTO is the typed spec of a new colony. Required fields left at
 // their zero value fail the shared bridge validation; the optional ones are
 // pointers or empty strings.
-type newColonySpecDTO struct {
+type NewColonySpecDTO struct {
 	Scenario           string               `json:"scenario"`
 	ColonistCount      uint32               `json:"colonistCount"`
 	Seed               string               `json:"seed"`
@@ -30,19 +30,52 @@ type newColonySpecDTO struct {
 	MapSize            uint32               `json:"mapSize"`
 	PlanetCoverage     float32              `json:"planetCoverage"`
 	SaveName           string               `json:"saveName"`
-	Ideoligion         *ideoligionDesignDTO `json:"ideoligion,omitempty"`
+	Ideoligion         *IdeoligionDesignDTO `json:"ideoligion,omitempty"`
 	GovernorIdeoligion bool                 `json:"governorIdeoligion,omitempty"`
-	newColonyPartsDTO
+	NewColonyPartsDTO
 }
-type ideoligionDesignDTO struct {
+type IdeoligionDesignDTO struct {
 	Memes    []string `json:"memes"`
 	Precepts []string `json:"precepts"`
 	Fluid    *bool    `json:"fluid"`
 }
-type newColonyRequestDTO struct {
+
+// Proto builds the wire spec. A malformed scenario-part enum name is an error;
+// range and presence rules are the bridge's (ValidateNewColonySpec).
+func (d NewColonySpecDTO) Proto() (*l.NewColonySpec, error) {
+	spec := &l.NewColonySpec{
+		Scenario:       proto.String(d.Scenario),
+		ColonistCount:  proto.Uint32(d.ColonistCount),
+		Seed:           proto.String(d.Seed),
+		Biomes:         d.Biomes,
+		FlatTile:       proto.Bool(d.FlatTile),
+		Difficulty:     proto.String(d.Difficulty),
+		Storyteller:    proto.String(d.Storyteller),
+		MinTemperature: d.MinTemperature,
+		MaxTemperature: d.MaxTemperature,
+		MapSize:        proto.Uint32(d.MapSize),
+		PlanetCoverage: proto.Float32(d.PlanetCoverage),
+		SaveName:       proto.String(d.SaveName),
+	}
+	if d.WorldTemperature != "" {
+		spec.WorldTemperature = proto.String(d.WorldTemperature)
+	}
+	if d.Ideoligion != nil {
+		spec.Ideoligion = &c.IdeoligionDesign{Memes: d.Ideoligion.Memes, Precepts: d.Ideoligion.Precepts, Fluid: d.Ideoligion.Fluid}
+	}
+	if d.GovernorIdeoligion {
+		spec.GovernorIdeoligion = proto.Bool(true)
+	}
+	if err := applyNewColonyParts(spec, d.NewColonyPartsDTO); err != nil {
+		return nil, err
+	}
+	return spec, nil
+}
+
+type NewColonyRequestDTO struct {
 	RequestID string           `json:"requestId"`
 	TimeoutMs uint32           `json:"timeoutMs"`
-	Spec      newColonySpecDTO `json:"spec"`
+	Spec      NewColonySpecDTO `json:"spec"`
 }
 
 // A new colony reply is one of two DTOs on POST and GET, told apart by Status:
@@ -76,40 +109,17 @@ var newColonyPhaseNames = map[l.NewColonyPhase]string{
 }
 
 func (s *Server) handleLifecycleNew(w http.ResponseWriter, r *http.Request, ctx context.Context) {
-	var body newColonyRequestDTO
+	var body NewColonyRequestDTO
 	if err := decodeMediaBody(r, &body); err != nil || buildingRequestID(body.RequestID) != nil {
 		s.failure(w, r, 400, "invalid_request", "requestId and a spec are required")
 		return
 	}
-	spec := &l.NewColonySpec{
-		Scenario:       proto.String(body.Spec.Scenario),
-		ColonistCount:  proto.Uint32(body.Spec.ColonistCount),
-		Seed:           proto.String(body.Spec.Seed),
-		Biomes:         body.Spec.Biomes,
-		FlatTile:       proto.Bool(body.Spec.FlatTile),
-		Difficulty:     proto.String(body.Spec.Difficulty),
-		Storyteller:    proto.String(body.Spec.Storyteller),
-		MinTemperature: body.Spec.MinTemperature,
-		MaxTemperature: body.Spec.MaxTemperature,
-		MapSize:        proto.Uint32(body.Spec.MapSize),
-		PlanetCoverage: proto.Float32(body.Spec.PlanetCoverage),
-		SaveName:       proto.String(body.Spec.SaveName),
-	}
-	if body.Spec.WorldTemperature != "" {
-		spec.WorldTemperature = proto.String(body.Spec.WorldTemperature)
-	}
-	if body.Spec.Ideoligion != nil {
-		design := body.Spec.Ideoligion
-		spec.Ideoligion = &c.IdeoligionDesign{Memes: design.Memes, Precepts: design.Precepts, Fluid: design.Fluid}
-	}
-	if err := applyNewColonyParts(spec, body.Spec.newColonyPartsDTO); err != nil {
+	spec, err := body.Spec.Proto()
+	if err != nil {
 		s.failure(w, r, 400, "invalid_request", "Invalid new colony request: scenario part "+err.Error())
 		return
 	}
 	request := &l.NewColonyRequest{RequestId: proto.String(body.RequestID), Spec: spec, TimeoutMs: proto.Uint32(body.TimeoutMs)}
-	if body.Spec.GovernorIdeoligion {
-		spec.GovernorIdeoligion = proto.Bool(true)
-	}
 	if err := bridgepkg.ValidateNewColonyRequest(request); err != nil {
 		s.failure(w, r, 400, "invalid_request", "Invalid new colony request: "+strings.TrimPrefix(err.Error(), bridgepkg.ErrContract.Error()+": "))
 		return

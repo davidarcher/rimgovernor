@@ -77,7 +77,11 @@ game it left open. See the [acceptance guide](../testing/acceptance-guide.md).
 [newcolony.go](../../../go/cmd/launcher/newcolony.go) supplies native option
 lists, ranges, DLC requirements and progress. The page renders the options
 without inventing or filtering them. Its elapsed timer advances between polls;
-failed polls mark retained values stale.
+failed polls mark retained values stale. The spec embeds the HTTP DTO's
+scenario parts ([lifecycle_new_parts.go](../../../go/internal/httpapi/lifecycle_new_parts.go))
+and the launcher posts `httpapi.NewColonyRequestDTO`, so settings, page and wire
+share one shape; the part rows' choice lists are in
+[newcolony_parts.go](../../../go/cmd/launcher/newcolony_parts.go).
 
 Go derives a unique save name from scenario, biome and seed. On completion the
 page selects it in Saved game. Generation and cancellation behavior are in

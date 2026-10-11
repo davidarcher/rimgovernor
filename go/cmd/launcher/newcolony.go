@@ -18,7 +18,6 @@ import (
 	bridgepkg "github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
-	"google.golang.org/protobuf/proto"
 )
 
 // New colony: the launcher's orchestration of POST /api/lifecycle/new.
@@ -41,6 +40,9 @@ type NewColonySpec struct {
 	MapSize          int      `json:"mapSize"`
 	PlanetCoverage   float32  `json:"planetCoverage"`
 	SaveName         string   `json:"saveName"`
+	// The scenario parts and mandatory-part overrides layered on the base
+	// scenario (the pawn count override is ColonistCount).
+	httpapi.NewColonyPartsDTO
 }
 
 // DefaultNewColonySpec is the tribal-8 spec. SaveName is empty: Generate
@@ -154,11 +156,17 @@ type NewColonyRanges struct {
 	ColonistsMin   int     `json:"colonistsMin"`
 	ColonistsMax   int     `json:"colonistsMax"`
 	TemperatureAbs float64 `json:"temperatureAbs"`
+	PartsPerKind   int     `json:"partsPerKind"`
+	ThingCountMax  int     `json:"thingCountMax"`
+	TraitDegreeAbs int     `json:"traitDegreeAbs"`
+	SeverityMax    int     `json:"severityMax"`
 }
 
 var newColonyRanges = NewColonyRanges{
 	ColonistsMin: 1, ColonistsMax: bridgepkg.NewColonyMaxColonists,
 	TemperatureAbs: bridgepkg.NewColonyMaxTemperature,
+	PartsPerKind:   bridgepkg.NewColonyMaxPartsPerKind, ThingCountMax: bridgepkg.NewColonyMaxThingCount,
+	TraitDegreeAbs: bridgepkg.NewColonyMaxTraitDegree, SeverityMax: bridgepkg.NewColonyMaxSeverity,
 }
 
 // Generation states. Active ones: restarting, connecting, generating.
@@ -194,11 +202,13 @@ type NewColonyProgress struct {
 
 // NewColonyView is what the page polls.
 type NewColonyView struct {
-	Options  NewColonyOptions  `json:"options"`
-	Ranges   NewColonyRanges   `json:"ranges"`
-	Defaults NewColonySpec     `json:"defaults"`
-	Spec     NewColonySpec     `json:"spec"` // the last one generated, else the defaults
-	Progress NewColonyProgress `json:"progress"`
+	Options      NewColonyOptions     `json:"options"`
+	Parts        ScenarioChoices      `json:"parts"`
+	PartDefaults ScenarioPartDefaults `json:"partDefaults"`
+	Ranges       NewColonyRanges      `json:"ranges"`
+	Defaults     NewColonySpec        `json:"defaults"`
+	Spec         NewColonySpec        `json:"spec"` // the last one generated, else the defaults
+	Progress     NewColonyProgress    `json:"progress"`
 	// Unavailable is a one-line notice when generation cannot run (Observe mode).
 	Unavailable string `json:"unavailable,omitempty"`
 }
@@ -217,21 +227,28 @@ func wireSpec(s NewColonySpec, seed string) (*l.NewColonySpec, error) {
 	if s.ColonistCount < 0 || s.MapSize < 0 {
 		return nil, errors.New("colonist count and map size must be positive")
 	}
-	spec := &l.NewColonySpec{
-		Scenario: proto.String(s.Scenario), ColonistCount: proto.Uint32(uint32(s.ColonistCount)),
-		Seed: proto.String(seed), Biomes: s.Biomes, FlatTile: proto.Bool(s.FlatTile),
-		Difficulty: proto.String(s.Difficulty), Storyteller: proto.String(s.Storyteller),
-		MinTemperature: s.MinTemperature, MaxTemperature: s.MaxTemperature,
-		MapSize: proto.Uint32(uint32(s.MapSize)), PlanetCoverage: proto.Float32(s.PlanetCoverage),
-		SaveName: proto.String(s.SaveName),
-	}
-	if s.WorldTemperature != "" {
-		spec.WorldTemperature = proto.String(s.WorldTemperature)
+	spec, err := s.dto(seed).Proto()
+	if err != nil {
+		return nil, errors.New("scenario part " + err.Error())
 	}
 	if err := bridgepkg.ValidateNewColonySpec(spec); err != nil {
 		return nil, errors.New(strings.TrimPrefix(err.Error(), bridgepkg.ErrContract.Error()+": "))
 	}
 	return spec, nil
+}
+
+// dto is the spec as the HTTP call carries it. Biomes is never null.
+func (s NewColonySpec) dto(seed string) httpapi.NewColonySpecDTO {
+	biomes := s.Biomes
+	if biomes == nil {
+		biomes = []string{}
+	}
+	return httpapi.NewColonySpecDTO{
+		Scenario: s.Scenario, ColonistCount: uint32(s.ColonistCount), Seed: seed, Biomes: biomes, FlatTile: s.FlatTile,
+		Difficulty: s.Difficulty, Storyteller: s.Storyteller, MinTemperature: s.MinTemperature, MaxTemperature: s.MaxTemperature,
+		WorldTemperature: s.WorldTemperature, MapSize: uint32(s.MapSize), PlanetCoverage: s.PlanetCoverage, SaveName: s.SaveName,
+		NewColonyPartsDTO: s.NewColonyPartsDTO,
+	}
 }
 
 const savePrefix = "RimGovernor-"
@@ -325,7 +342,7 @@ func (r *colonyRunner) active() bool {
 func (r *colonyRunner) View() NewColonyView {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	v := NewColonyView{Options: newColonyOptions, Ranges: newColonyRanges, Defaults: DefaultNewColonySpec(), Spec: r.spec, Progress: r.progress}
+	v := NewColonyView{Options: newColonyOptions, Parts: scenarioChoices, PartDefaults: scenarioPartDefaults, Ranges: newColonyRanges, Defaults: DefaultNewColonySpec(), Spec: r.spec, Progress: r.progress}
 	if r.progress.State != ColonyIdle {
 		end := r.now()
 		if !r.active() {
@@ -430,7 +447,7 @@ func (r *colonyRunner) run(ctx context.Context, spec NewColonySpec, seed, id str
 	ctx, stop := context.WithTimeout(ctx, r.timeout)
 	defer stop()
 	timeoutMs := uint32(r.timeout / time.Millisecond)
-	body, _ := json.Marshal(newColonyBody{RequestID: id, TimeoutMs: timeoutMs, Spec: wireBody(spec, seed)})
+	body, _ := json.Marshal(httpapi.NewColonyRequestDTO{RequestID: id, TimeoutMs: timeoutMs, Spec: spec.dto(seed)})
 	base := strings.TrimRight(r.host.BaseURL(), "/")
 	token, posted := "", false
 	for ; ; r.sleep(ctx) {
@@ -557,37 +574,7 @@ func (r *colonyRunner) call(ctx context.Context, method, target string, body []b
 	return resp.StatusCode, data, err
 }
 
-// The request and reply bodies of /api/lifecycle/new (httpapi's DTOs are unexported).
-type newColonyBody struct {
-	RequestID string        `json:"requestId"`
-	TimeoutMs uint32        `json:"timeoutMs"`
-	Spec      newColonyWire `json:"spec"`
-}
-type newColonyWire struct {
-	Scenario         string   `json:"scenario"`
-	ColonistCount    int      `json:"colonistCount"`
-	Seed             string   `json:"seed"`
-	Biomes           []string `json:"biomes"`
-	FlatTile         bool     `json:"flatTile"`
-	Difficulty       string   `json:"difficulty"`
-	Storyteller      string   `json:"storyteller"`
-	MinTemperature   *float32 `json:"minTemperature"`
-	MaxTemperature   *float32 `json:"maxTemperature"`
-	WorldTemperature string   `json:"worldTemperature"`
-	MapSize          int      `json:"mapSize"`
-	PlanetCoverage   float32  `json:"planetCoverage"`
-	SaveName         string   `json:"saveName"`
-}
-
-func wireBody(s NewColonySpec, seed string) newColonyWire {
-	biomes := s.Biomes
-	if biomes == nil {
-		biomes = []string{}
-	}
-	return newColonyWire{s.Scenario, s.ColonistCount, seed, biomes, s.FlatTile, s.Difficulty, s.Storyteller,
-		s.MinTemperature, s.MaxTemperature, s.WorldTemperature, s.MapSize, s.PlanetCoverage, s.SaveName}
-}
-
+// The reply body of /api/lifecycle/new (httpapi has no exported reply DTO).
 type colonyReply struct {
 	Status      string `json:"status"`
 	Phase       string `json:"phase"`

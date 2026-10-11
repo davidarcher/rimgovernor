@@ -40,6 +40,16 @@ save is named automatically (`RimGovernor-<scenario>-<biome>-<seed>`, with `-2`,
 the name. Options marked "needs <DLC>" require that expansion; the game refuses
 one it lacks.
 
+**Scenario parts** (collapsed, below Advanced) layers parts on the base
+scenario, as the game's scenario editor does: starting things (def, count,
+start with, start near or scattered), forced traits and hediffs (chance and who
+they apply to), permanent game and map conditions, disallowed buildings,
+disabled incidents, and overrides for the player faction and arrival method.
+Colonists sets the pawn count. Inputs suggest common Core defs but take any
+defName; the game refuses an unknown one. The launcher refuses out-of-range or
+incomplete rows before it stops anything. The parts are saved with the rest of
+the form.
+
 Generation closes the running game and controller, restarts them, builds the
 world and saves the colony, so it needs Autopilot (Observe only shows a notice
 instead). The panel shows the state, the current phase, a timer, the reroll

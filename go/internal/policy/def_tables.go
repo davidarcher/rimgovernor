@@ -39,7 +39,16 @@ func DefTables() []DefTable {
 		{"ShelterHeatDef", "Verse.ThingDef", []string{ShelterHeatDef}},
 		{"ShelterCoolDef", "Verse.ThingDef", []string{ShelterCoolDef}},
 		{"WoodLatchDefs", "Verse.ThingDef", slices.Clone(WoodLatchDefs)},
+		{"ScenarioThingChoices", "Verse.ThingDef", slices.Clone(ScenarioThingChoices)},
 	}
+}
+
+// ScenarioThingChoices are the Core items the launcher's scenario composer
+// suggests for a starting thing. The composer takes any defName; this list only
+// saves typing for common supplies.
+var ScenarioThingChoices = []string{
+	"Silver", "Gold", "WoodLog", "Steel", "Plasteel", "Uranium", "ComponentIndustrial", "ComponentSpacer",
+	"MealSurvivalPack", "Pemmican", "MedicineHerbal", "MedicineIndustrial", "Gun_BoltActionRifle",
 }
 
 // WoodLatchDefs are the stock defs the wood latch (WoodMin, WoodTarget) floors:
