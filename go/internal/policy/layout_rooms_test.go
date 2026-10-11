@@ -98,10 +98,8 @@ func ringWalls(plan LayoutPlan, r PlannedRoom) GroundCensus {
 	for _, d := range plan.ShellDoors(r) {
 		doors[d] = true
 	}
-	ring := roomWalls(r)
-	for _, c := range rectCells(ring) {
+	for _, c := range r.wallRing().Cells() {
 		switch {
-		case !onRing(c, ring):
 		case slices.Contains(plan.FlapCells(r), c):
 			g.flaps[c] = true
 		case doors[c]:

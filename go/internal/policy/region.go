@@ -183,6 +183,20 @@ func (g Region) Translate(dx, dz int32) Region {
 	return Region{Runs: runs}
 }
 
+// adjacent reports whether c is outside the region and orthogonally next to
+// one of its cells: a wall cell a door can stand in, not a diagonal corner.
+func (g Region) adjacent(c domain.Cell) bool {
+	if g.Contains(c) {
+		return false
+	}
+	for _, n := range [4]domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}} {
+		if g.Contains(n) {
+			return true
+		}
+	}
+	return false
+}
+
 // minus is g without the cells of o. Both are canonical, so the result is.
 func (g Region) minus(o Region) Region {
 	var runs []RowRun

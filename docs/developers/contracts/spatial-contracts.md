@@ -119,6 +119,28 @@ neighbour is interior and whose outward neighbour is neither. The door is placed
 first, then walls in north-facing, z-outer/x-inner order. The ring is one wave with
 the door first in dispatch order; no wall waits for the door to complete.
 
+A planned room's shell is built from its `Region` (`PlannedRoom.Footprint`), so any
+4-connected cell set the rules above accept shells, not only rectangles. Its ring is
+`Region.Walls()`; `GroundMatches` requires a wall on every ring cell (a door only on
+the cells the plan holds one: its doors, links and airlock, and another room's link
+standing orthogonally beside the region, never on a diagonal corner). `CensusRoomIn`
+matches the enclosed census room that holds the region's anchor cell (the cell nearest
+the bounding-box centre) and lies wholly inside the region, so a census room one cell
+off or merged with a neighbour is rejected. The sparring ring, training range and the
+other unfenced roles keep their rectangle blocks (`ringBlock`, `rangeBlock`).
+
+Large irregular rooms and the cell-list actions. `BuildRoofAction` and
+`RemoveRoofAction` take any non-empty deduplicated cell list with no count, shape or
+span limit, and `ExcavationAction` and `DeconstructionAction` are per cell, so a
+reshape of any size is a list of cells and is covered with no new action. The span
+limit is the game's roof support, not the actions: an unpropped roof holds only within
+`roof_max_support_distance` of a wall (`RoomFootprint.RoofSupported`, Euclidean, counted
+from every ring cell, so the pillar a hole leaves extends the span). The footprint
+constructor does not enforce it (`UnionFootprint` and `GrowFootprint` do), so a planner
+that proposes a wide room must call `RoofSupported` itself; bounds are 3844 interior
+cells and 255 ring cells. A roof that fails the check is not buildable without
+columns, which the planner does not place.
+
 A composite footprint is the union of one to eight interior rectangles
 (`UnionFootprint`), deduplicated, 4-connected and roof-supported, with its south door
 on the bounding box's entrance edge: the door's inward cell is interior with interior

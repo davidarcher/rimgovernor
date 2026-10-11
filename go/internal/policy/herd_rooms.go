@@ -258,10 +258,10 @@ func (p LayoutPlan) ringCells(r PlannedRoom, cells []domain.Cell) []domain.Cell 
 	if r.Outdoor {
 		return nil
 	}
-	ring := roomWalls(r)
+	ring := r.wallRing()
 	var out []domain.Cell
 	for _, c := range cells {
-		if onRing(c, ring) {
+		if ring.Contains(c) {
 			out = append(out, c)
 		}
 	}

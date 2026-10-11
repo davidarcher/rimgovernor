@@ -2,6 +2,7 @@ package policy
 
 import (
 	"maps"
+	"slices"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -144,12 +145,8 @@ func (p LayoutPlan) GroundMatches(r PlannedRoom, g GroundCensus) bool {
 	for _, d := range p.ShellDoors(r) {
 		doors[d] = true
 	}
-	ring := roomWalls(r)
 	walls, standing := p.ring(r, g)
-	for _, c := range rectCells(ring) {
-		if !onRing(c, ring) {
-			continue
-		}
+	for _, c := range r.wallRing().Cells() {
 		if doors[c] != standing[c] || !doors[c] && !walls[c] {
 			return false
 		}
@@ -167,38 +164,71 @@ func (p LayoutPlan) GroundMatches(r PlannedRoom, g GroundCensus) bool {
 	return true
 }
 
-// CensusRoomIn is the census room standing enclosed on the planned
-// room's centre cell and no larger than its interior: the lookup for the
-// room's role, quality and temperature. Whether the room is built is
-// GroundMatches.
+// wallRing is the cells r's shell stands on: the region's wall ring
+// (Region.Walls). A sparring ring and the unfenced roles with no walls of
+// their own keep their rectangle behaviour: the border of the block they
+// reserve (ringBlock, rangeBlock, the interior).
+func (r PlannedRoom) wallRing() Region {
+	if r.Unfenced() {
+		return RectRegion(roomWalls(r)).Perimeter()
+	}
+	return r.Region.Walls()
+}
+
+// anchor is the region cell nearest its bounding-box centre (ties to the
+// first in cell order): the centre of a rectangle, a cell inside an L or a
+// holed region whose centre is not itself part of it.
+func (g Region) anchor() domain.Cell {
+	b := g.Bounds()
+	cx, cz := int64(2*b.X+b.Width), int64(2*b.Z+b.Height) // centre doubled
+	centre := domain.Cell{X: b.X + b.Width/2, Z: b.Z + b.Height/2}
+	if g.Contains(centre) {
+		return centre
+	}
+	best, bestD := domain.Cell{}, int64(-1)
+	for _, c := range g.Cells() {
+		dx, dz := int64(2*c.X)+1-cx, int64(2*c.Z)+1-cz
+		if d := dx*dx + dz*dz; bestD < 0 || d < bestD {
+			best, bestD = c, d
+		}
+	}
+	return best
+}
+
+// CensusRoomIn is the census room standing enclosed on the planned room's
+// anchor cell and lying wholly inside its region: the lookup for the room's
+// role, quality and temperature. A census room that spills a cell outside the
+// region (one cell off, or merged with a neighbour) is not the planned room.
+// Whether the room is built is GroundMatches.
 func CensusRoomIn(r PlannedRoom, rooms RoomObservation) (Room, bool) {
-	centre := domain.Cell{X: r.Region.Bounds().X + r.Region.Bounds().Width/2, Z: r.Region.Bounds().Z + r.Region.Bounds().Height/2}
+	if r.Region.Empty() {
+		return Room{}, false
+	}
+	anchor := r.Region.anchor()
 	for _, room := range rooms.Rooms {
-		if len(room.Cells) > int(r.Region.Bounds().Width*r.Region.Bounds().Height) {
+		if len(room.Cells) > r.Region.Area() {
 			continue
 		}
 		if enclosed, known := room.Enclosed.Value(); !known || !enclosed {
 			continue
 		}
+		hit, within := false, true
 		for _, c := range room.Cells {
-			if c == centre {
-				return room, true
-			}
+			hit = hit || c == anchor
+			within = within && r.Region.Contains(c)
+		}
+		if hit && within {
+			return room, true
 		}
 	}
 	return Room{}, false
 }
 
-// Footprint is the room's shell: its interior walled round, the door where
-// the plan put it.
+// Footprint is the room's shell: its region walled round, the door where
+// the plan put it. Any region the footprint rules accept (4-connected, at most
+// 3844 cells, a ring of at most 255) shells, rectangular or not.
 func (r PlannedRoom) Footprint() (domain.RoomFootprint, error) {
-	in := r.Region.Bounds()
-	cells := make([]domain.Cell, 0, int(in.Width*in.Height))
-	for z := in.Z; z < in.Z+in.Height; z++ {
-		for x := in.X; x < in.X+in.Width; x++ {
-			cells = append(cells, domain.Cell{X: x, Z: z})
-		}
-	}
+	cells := r.Region.Cells()
 	var extra []domain.RoomDoor
 	for _, d := range r.Doors {
 		extra = append(extra, domain.RoomDoor{Cell: d.Cell, Entrance: d.Rot})
@@ -264,15 +294,12 @@ func (p LayoutPlan) ShellDoors(r PlannedRoom) []domain.Cell {
 		doors = append(doors, r.Airlock.Outer)
 	}
 	doors = append(doors, p.FlapCells(r)...)
-	in := r.Region.Bounds()
+	ring := r.Region.Walls()
 	for _, o := range p.roomsWithHerd() {
-		if o.Link == nil || o.Region.Bounds() == in {
+		if o.Link == nil || slices.Equal(o.Region.Runs, r.Region.Runs) {
 			continue
 		}
-		l := *o.Link
-		onX := l.X == in.X-1 || l.X == in.X+in.Width
-		onZ := l.Z == in.Z-1 || l.Z == in.Z+in.Height
-		if onX && l.Z >= in.Z && l.Z < in.Z+in.Height || onZ && l.X >= in.X && l.X < in.X+in.Width {
+		if l := *o.Link; ring.Contains(l) && r.Region.adjacent(l) {
 			doors = append(doors, l)
 		}
 	}
