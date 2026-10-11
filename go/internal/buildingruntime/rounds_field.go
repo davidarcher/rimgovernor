@@ -718,7 +718,7 @@ func fieldSiteRequest(projection observation.ColonyProjection, protected []domai
 	if fields, ok := layoutFieldCells(projection); ok {
 		field.Site.Fields = fields
 	}
-	request := policy.SiteTypeRequest{Field: field, Environment: projection.Environment, LampGrowthRadius: fieldLampGrowthRadius, Items: projection.Facts.Items}
+	request := policy.SiteTypeRequest{Field: field, Environment: projection.Environment, LampGrowthRadius: fieldLampGrowthRadius, Items: projection.Facts.Items, Stock: projection.Resources}
 	for _, d := range projection.Definitions {
 		infrastructure := domain.Known(policy.Infrastructure{Name: d.Name, Available: d.Available, PowerW: d.PowerW, Fertility: d.GrowerFertility, Costs: d.CheapestCosts()})
 		switch d.Name {

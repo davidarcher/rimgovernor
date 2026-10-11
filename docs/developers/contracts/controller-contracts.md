@@ -238,7 +238,7 @@ unknown when withheld; see [go-clock-recovery](go-clock-recovery.md)):
 | outdoor | Open-air growing zone. |
 | greenhouse-reuse | Roofed soil a running lamp already lights. |
 | greenhouse-new | Roofed indoor soil plus one lamp placed to cover the most soil. |
-| hydroponics | New basins on lit roofed floor, for crops with the `Hydroponic` sow tag. |
+| hydroponics | New basins on lit roofed floor, for crops with the `Hydroponic` sow tag. With no sun lamp on the map it is one soil-free unit: a lamp, a heater when the room or outdoors is below 6 C, and up to the needed basins inside the lamp's growth disc on roofed indoor floor. The count is the largest one network's day and night headroom and the accessible stock (steel, components) pay for; if not even one basin fits it holds with the reason (`not enough <resource> ...`, `no power headroom ...`). Wiring the unit to the network is not part of the plan. |
 | dark-room | Unlit roofed indoor soil for a zero-glow crop. |
 
 All use the same net-nutrition-per-needed-cell score, charging construction per 100

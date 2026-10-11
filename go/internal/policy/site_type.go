@@ -125,6 +125,9 @@ type SiteTypeRequest struct {
 	Weights          SiteTypeWeights
 	// Items price the cost lists (market values).
 	Items ItemFacts
+	// Stock is the accessible colony stock a soil-free hydroponics unit must
+	// be able to pay for; unknown leaves the check to admission.
+	Stock domain.Fact[map[Resource]int64]
 }
 
 // siteHydroponicTag is the native sow tag a HydroponicsBasin accepts. A new
@@ -542,20 +545,13 @@ func siteHydroponics(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnviron
 		return c
 	}
 	if len(lit) == 0 {
-		c.Reason = "no running sun lamp"
-		return c
-	}
-	blocked := map[domain.Cell]bool{}
-	for _, cell := range r.Field.Site.Protected {
-		blocked[cell] = true
-	}
-	free := map[domain.Cell]bool{}
-	for _, s := range r.Field.Site.Cells {
-		_, isLit := lit[s.Cell]
-		if isLit && !blocked[s.Cell] && positive(s.Roofed) && positive(s.Walkable) && !s.Occupied() && siteKnownFalse(s.Zone) {
-			free[s.Cell] = true
+		if len(env.Lights) > 0 {
+			c.Reason = "no running sun lamp"
+			return c
 		}
+		return siteHydroponicsUnit(r, w, env, v, c, basin, draw, fertility, unit)
 	}
+	free := siteFreeFloor(r.Field.Site, func(s SiteCell) bool { _, isLit := lit[s.Cell]; return isLit })
 	_, room, ok := sitePower(env, draw, true)
 	if !ok {
 		c.Reason = "no night power headroom for a basin"
@@ -566,38 +562,8 @@ func siteHydroponics(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnviron
 		limit = min(limit, int(math.Floor(room/draw)))
 	}
 	limit = min(limit, farmSitePatchLimit)
-	ordered := make([]domain.Cell, 0, len(free))
-	for cell := range free {
-		ordered = append(ordered, cell)
-	}
-	sort.Slice(ordered, func(i, j int) bool {
-		a, b := ordered[i], ordered[j]
-		da, db := siteManhattan(a, r.Field.Site.Anchor), siteManhattan(b, r.Field.Site.Anchor)
-		if da != db {
-			return da < db
-		}
-		return cellLess(a, b)
-	})
-	taken := map[domain.Cell]bool{}
-	walk := 0
-	for _, cell := range ordered {
-		if len(c.Buildings) >= limit {
-			break
-		}
-		footprint := siteBasinFootprint(cell)
-		fits := true
-		for _, f := range footprint {
-			fits = fits && free[f] && !taken[f]
-		}
-		if !fits {
-			continue
-		}
-		for _, f := range footprint {
-			taken[f] = true
-			walk += siteManhattan(f, r.Field.Site.Anchor)
-		}
-		c.Buildings = append(c.Buildings, SiteBuilding{Definition: basin.Name, Cell: cell, Rotation: domain.North})
-	}
+	c.Buildings = siteBasinPlacements(free, basin.Name, r.Field.Site.Anchor, limit)
+	walk := siteBasinWalk(c.Buildings, r.Field.Site.Anchor)
 	if len(c.Buildings) == 0 {
 		c.Reason = "no free lit floor for a basin"
 		return c
