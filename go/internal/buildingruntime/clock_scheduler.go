@@ -942,6 +942,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		if !controllerPausedAt.IsZero() {
 			extra["controller_pause_ms"] = float64(time.Since(controllerPausedAt)) / float64(time.Millisecond)
 		}
+		recordStepMetrics(cause, elapsed, out.CriticalWave, extra)
 		reads.Publish(call, stepDecision(out, err, cause, elapsed, extra))
 	}()
 	attempts, err := journalTimed(journal, func() ([]store.ClockAttempt, error) { return s.player.journal.LoadClockAttempts(call, 4096) })

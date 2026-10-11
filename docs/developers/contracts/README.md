@@ -26,6 +26,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Persistence contracts](persistence-contracts.md)
 - [Flight rows (schema v2)](flight-rows.md)
 - [OTEL core: providers, OTLP/JSON file sink, collector exporter](otel-core.md)
+- [OTEL metrics: native call phases, scheduler, outcomes](otel-metrics.md)
 - [Durable policy and Auto control](durable-policy.md)
 - [Population commitments](population-contracts.md)
 - [Quest classification and execution](quests.md)

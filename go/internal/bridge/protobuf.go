@@ -368,6 +368,9 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		return result, err
 	}
 	err = unmarshalReply(wire, reply)
+	if invoked {
+		telemetry.NativePhase(nativeToolVocabulary.Label(name), telemetry.PhaseProtoDecode, millis(time.Since(decodeBegan)))
+	}
 	if caller.recorder != nil && invoked {
 		// Reply decoding is the typed adapter's own cost; it joins the
 		// call's native_call timing. payload_bytes is the decoded binary

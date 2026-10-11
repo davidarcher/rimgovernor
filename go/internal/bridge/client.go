@@ -638,6 +638,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 		c.transcript.call(ctx, name, arguments, raw, err, callElapsed)
 	}
 	if err != nil {
+		recordCallMetrics(nativeTool, timing, millis(callElapsed), -1, nil, err)
 		if recording {
 			c.recordCall(ctx, recordCtx, callRow(map[string]any{"ok": false, "error": err.Error(), "timing": phases(0, len(raw))}))
 		}
@@ -650,7 +651,13 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 	decoded, decodeErr := decodeReceipt(name, raw)
 	decoded.slotted = slotted
 	decodeElapsed := time.Since(decodeBegan)
-	annotateCallSpan(ctx, nativeTool, callBegan, callElapsed, decodeElapsed, decoded.Structured)
+	native, hasNative := nativeTiming(decoded.Structured)
+	annotateCallSpan(ctx, nativeTool, callBegan, callElapsed, decodeElapsed, native, hasNative)
+	if hasNative {
+		recordCallMetrics(nativeTool, timing, millis(callElapsed), millis(decodeElapsed), &native, decodeErr)
+	} else {
+		recordCallMetrics(nativeTool, timing, millis(callElapsed), millis(decodeElapsed), nil, decodeErr)
+	}
 	if recording {
 		if decodeErr != nil {
 			row := callRow(map[string]any{"ok": false, "error": decodeErr.Error(), "timing": phases(decodeElapsed, len(raw))})
@@ -663,7 +670,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 			c.recordCall(ctx, recordCtx, row)
 		} else {
 			timing := phases(decodeElapsed, len(raw))
-			if native, ok := nativeTiming(decoded.Structured); ok {
+			if hasNative {
 				timing["native_queue_ms"] = native.queueMs
 				timing["native_execute_ms"] = native.executeMs
 				if native.trace != "" {

@@ -539,6 +539,9 @@ func (w *Worker) runStep(ctx context.Context, now time.Time) error {
 			results, resultErrs = w.runBatch(call, run, lead.view.Plan, group)
 		}
 		endDispatchSpan(dispatch, results, resultErrs)
+		for i, member := range group {
+			recordDispatchOutcome(member.kind, results[i], resultErrs[i])
+		}
 		longest = max(longest, time.Since(dispatchStarted))
 		for _, result := range results {
 			if result.NativeCalled {

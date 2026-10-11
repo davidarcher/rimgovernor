@@ -21,6 +21,7 @@ func admitMethod(ctx context.Context, journal *store.Store, r store.BuildingMeth
 	decision, err := journal.AdmitBuildingMethod(ctx, r)
 	if err == nil {
 		telemetry.Decide(ctx, methodAdmissionDecision(r, decision))
+		recordAdmission(decision.Admitted, decision.Refused)
 		if !decision.Admitted {
 			reasons := make([]string, len(decision.Refused))
 			for i, f := range decision.Refused {

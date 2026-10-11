@@ -17,13 +17,12 @@ import (
 // Activity support, see docs/developers/contracts/otel-core.md), so the
 // child is placed from the echoed durations: it ends when the call returned
 // and starts queue+execute before that, clamped to the call's start.
-func annotateCallSpan(ctx context.Context, tool string, began time.Time, call, decode time.Duration, structured json.RawMessage) {
+func annotateCallSpan(ctx context.Context, tool string, began time.Time, call, decode time.Duration, native nativeTimingReport, ok bool) {
 	span := trace.SpanFromContext(ctx)
 	if !span.IsRecording() {
 		return
 	}
 	span.SetAttributes(attribute.String("rimgovernor.tool", tool), attribute.Float64("rimgovernor.call_ms", millis(call)), attribute.Float64("rimgovernor.decode_ms", millis(decode)))
-	native, ok := nativeTiming(structured)
 	if !ok {
 		return
 	}
