@@ -128,6 +128,25 @@ names what a mixed room loses: the intended role's own effect (the
 bench whose `NeedRole` is not the predicted role, at that need's factor (the
 x0.8 workbench penalty). Roles without a native consumer are ignored.
 
+### Room groups
+
+`policy.ClusterStations` (`layout_cluster.go`) clusters the station graph into
+room groups, the planner's seed; it replaces the role-keyed `affinityClusters`.
+Each node is a pool of stations. A pool splits by halves until `PredictRole`
+keeps every effect its stations are for (what a station is for is the role the
+game gives it alone) and it fits the area limit, so free beds end one per
+bedroom while medical beds stay a hospital. Unit pairs then merge by descending
+flow weight (required links first) unless the merge loses an effect, joins a
+cold room with a station that works in a temperature band, joins an enclosed
+station with an open-sky one, or exceeds the area limit. Area is the stations'
+catalog footprints plus the placer's clearance (one open cell per station and
+the door threshold); the limit is the largest room the roof support distance
+and the shell bounds (3844 interior, 255 wall cells) allow. A group carries its
+stations, area, predicted role, environment requirements (cold, clean,
+enclosed, open sky) and links to other groups, required ones marked. Rooms of a
+role the game gives no effect (dining beside a stove, storage beside a bench)
+share a room with the station that outweighs them.
+
 ## Electrical safety
 
 `EnsureBasicPower` uses `HiddenConduit` for new connections and replaces ordinary
