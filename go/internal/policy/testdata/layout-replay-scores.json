@@ -44,6 +44,21 @@
   "Expansion": 300,
   "Rooms": 107
  },
+ "irregular": {
+  "Pass": true,
+  "Total": -15779,
+  "Missing": 0,
+  "RoutesErr": "",
+  "RichCells": 0,
+  "Soil": -3504,
+  "Footprint": -812,
+  "Wall": -8250,
+  "Edge": -972,
+  "Centre": -2125,
+  "Defense": 300,
+  "Expansion": 300,
+  "Rooms": 10
+ },
  "mountain-edge": {
   "Pass": true,
   "Total": -11705,
@@ -86,6 +101,21 @@
   "Edge": 0,
   "Centre": 0,
   "Defense": 300,
+  "Expansion": 300,
+  "Rooms": 17
+ },
+ "sea-ice": {
+  "Pass": true,
+  "Total": -3895,
+  "Missing": 0,
+  "RoutesErr": "",
+  "RichCells": 0,
+  "Soil": 0,
+  "Footprint": -968,
+  "Wall": -2400,
+  "Edge": 0,
+  "Centre": -45,
+  "Defense": 0,
   "Expansion": 300,
   "Rooms": 17
  },
