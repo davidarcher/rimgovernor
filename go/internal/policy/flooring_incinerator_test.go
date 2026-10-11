@@ -31,7 +31,7 @@ func TestFlooringIncineratorTier(t *testing.T) {
 		t.Fatal(r)
 	}
 	got, err := SelectFlooringMethod(r, firebreakFlooringFacts(100, 100), flooringPolicy())
-	if err != nil || got.Method != FlooringBuild || got.Definition != "Concrete" || got.Tier != FloorTierIncinerator || len(got.Cells) != 9 {
+	if err != nil || got.Method != FlooringBuild || got.Definition != "FlagstoneGranite" || got.Tier != FloorTierIncinerator || len(got.Cells) != 9 {
 		t.Fatal(got, err)
 	}
 	for _, terrain := range []string{"GraniteRough", "Concrete"} {

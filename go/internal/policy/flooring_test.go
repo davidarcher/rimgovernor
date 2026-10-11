@@ -380,7 +380,9 @@ func TestFlooringTrafficTierStyleAndDisable(t *testing.T) {
 	}
 }
 
-func firebreakFlooringFacts(steel, wood int64) FlooringFacts {
+// firebreakFlooringFacts offers steel floors beside the stone style: the
+// colony always holds plenty of steel and wood, so a steel pick would show.
+func firebreakFlooringFacts(stone, wood int64) FlooringFacts {
 	amounts := func(r Resource, n int64) domain.Fact[[]Amount] {
 		return domain.Known([]Amount{{Resource: r, Count: n}})
 	}
@@ -389,12 +391,18 @@ func firebreakFlooringFacts(steel, wood int64) FlooringFacts {
 	}
 	return FlooringFacts{
 		Definitions: map[string]FloorDefinition{
-			"WoodPlankFloor": def(0.22, amounts("WoodLog", 1)),
-			"Concrete":       def(0, amounts("Steel", 2)),
-			"SterileTile":    def(0, amounts("Steel", 4)),
+			"WoodPlankFloor":   def(0.22, amounts("WoodLog", 1)),
+			"Concrete":         def(0, amounts("Steel", 2)),
+			"SterileTile":      def(0, amounts("Steel", 4)),
+			"FlagstoneGranite": def(0, amounts("BlocksGranite", 2)),
 		},
-		Stock: domain.Known(map[Resource]int64{"WoodLog": wood, "Steel": steel}),
-		Style: func(RoomRole) (string, bool) { return "WoodPlankFloor", true },
+		Stock: domain.Known(map[Resource]int64{"WoodLog": wood, "Steel": 1000, "BlocksGranite": stone}),
+		Style: func(role RoomRole) (string, bool) {
+			if role == RoomRoleNone {
+				return "FlagstoneGranite", true
+			}
+			return "WoodPlankFloor", true
+		},
 	}
 }
 
@@ -420,27 +428,29 @@ func TestFlooringFirebreakTier(t *testing.T) {
 			t.Fatal(r)
 		}
 	})
-	t.Run("cheapest non-flammable", func(t *testing.T) {
+	t.Run("styled stone floor, never steel", func(t *testing.T) {
 		got, err := SelectFlooringMethod(firebreakReview(t, empty, ring...), firebreakFlooringFacts(100, 100), flooringPolicy())
-		if err != nil || got.Method != FlooringBuild || got.Definition != "Concrete" || got.Tier != FloorTierFirebreak || len(got.Cells) != 3 {
+		if err != nil || got.Method != FlooringBuild || got.Definition != "FlagstoneGranite" || got.Tier != FloorTierFirebreak || len(got.Cells) != 3 {
 			t.Fatal(got, err)
 		}
 	})
-	t.Run("batch limited by stock", func(t *testing.T) {
-		got, _ := SelectFlooringMethod(firebreakReview(t, empty, ring...), firebreakFlooringFacts(4, 100), flooringPolicy())
-		if got.Method != FlooringBuild || got.Definition != "Concrete" || len(got.Cells) != 2 {
-			t.Fatal(got)
-		}
-	})
-	t.Run("held when unaffordable", func(t *testing.T) {
+	t.Run("held when the style is unaffordable, steel idle", func(t *testing.T) {
 		got, _ := SelectFlooringMethod(firebreakReview(t, empty, ring...), firebreakFlooringFacts(1, 100), flooringPolicy())
 		if got.Method != FlooringMaterialsNeeded {
 			t.Fatal(got)
 		}
 	})
+	t.Run("no style lays nothing", func(t *testing.T) {
+		facts := firebreakFlooringFacts(100, 100)
+		facts.Style = nil
+		got, _ := SelectFlooringMethod(firebreakReview(t, empty, ring...), facts, flooringPolicy())
+		if got.Method == FlooringBuild {
+			t.Fatal(got)
+		}
+	})
 	t.Run("unknown flammability is not laid", func(t *testing.T) {
 		facts := firebreakFlooringFacts(100, 100)
-		for _, name := range []string{"Concrete", "SterileTile"} {
+		for _, name := range []string{"FlagstoneGranite"} {
 			d := facts.Definitions[name]
 			d.Flammability = domain.Unknown[float64]()
 			facts.Definitions[name] = d
@@ -471,7 +481,7 @@ func TestFlooringFirebreakPavesSettledRing(t *testing.T) {
 	wood := firebreakFloorDef(0.22, 1, 1)
 	wood.Costs = domain.Known([]Amount{{Resource: "WoodLog", Count: 1}})
 	r.Floors = map[string]FloorDefinition{"FlagstoneGranite": stone, "WoodPlankFloor": wood}
-	r.Policy.Floors = []string{"FlagstoneGranite", "WoodPlankFloor"}
+	r.Floor = "FlagstoneGranite"
 	r.Stock = domain.Known(map[Resource]int64{"BlocksGranite": 10000, "WoodLog": 10000})
 	dwell := map[domain.Cell]domain.Tick{}
 	for x := int32(0); x < 60; x++ {
@@ -490,11 +500,12 @@ func TestFlooringFirebreakPavesSettledRing(t *testing.T) {
 		t.Fatal("nothing paved", plan)
 	}
 	census := FlooringObservation{Terrains: flooringTerrains(), Firebreak: pave}
-	review, err := ReviewFlooring(domain.Known(census), domain.Unknown[RoomObservation](), nil, r.Policy)
+	review, err := ReviewFlooring(domain.Known(census), domain.Unknown[RoomObservation](), nil, flooringPolicy())
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := SelectFlooringMethod(review, FlooringFacts{Definitions: r.Floors, Stock: r.Stock}, r.Policy)
+	style := func(RoomRole) (string, bool) { return r.Floor, true }
+	got, err := SelectFlooringMethod(review, FlooringFacts{Definitions: r.Floors, Stock: r.Stock, Style: style}, flooringPolicy())
 	if err != nil || got.Method != FlooringBuild || got.Tier != FloorTierFirebreak || got.Definition != "FlagstoneGranite" {
 		t.Fatal(got, err)
 	}

@@ -546,7 +546,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		reading.Sections.Colony.Value.Facts.Upkeep.Flooring = reading.Projection.Facts.Upkeep.Flooring
 	}
 	if r.firebreak != nil {
-		if reading.Projection.Facts.FirebreakOwed, err = r.firebreak.review(ctx, boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, r.stage, r.policy.Flooring, firebreakBusy(plans, state.Snapshot, playerPlans)); err != nil {
+		if reading.Projection.Facts.FirebreakOwed, err = r.firebreak.review(ctx, boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, r.stage, firebreakBusy(plans, state.Snapshot, playerPlans)); err != nil {
 			return store.RoundsResult{}, err
 		}
 	}

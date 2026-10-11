@@ -66,7 +66,10 @@ type FirebreakRequest struct {
 	Floors  map[string]FloorDefinition
 	Stock   domain.Fact[map[Resource]int64]
 	Claimed domain.Fact[map[Resource]int64]
-	Policy  FlooringPolicy
+	// Floor is the tier style's aisle floor, empty when the style names none
+	// (Camp); the ring is paved with it or not at all, never with a scored
+	// substitute.
+	Floor string
 }
 
 // FirebreakCell is one ring cell's treatment.
@@ -149,7 +152,7 @@ func PlanFirebreak(r FirebreakRequest, dwell map[domain.Cell]domain.Tick) (domai
 		}
 	}
 	if len(settled) > 0 {
-		floor, known := firebreakFloor(r.Floors, r.Policy)
+		floor, known := firebreakFloor(r.Floors, r.Floor)
 		if !known {
 			return unknown, dwell, nil
 		}
@@ -171,26 +174,23 @@ func PlanFirebreak(r FirebreakRequest, dwell map[domain.Cell]domain.Tick) (domai
 	return domain.Known(plan), next, nil
 }
 
-// firebreakFloor is the known-available, non-flammable policy floor with the
-// fewest one-time ticks. known is false when no candidate can be judged and
-// priced; an empty name with known true means none can be laid.
-func firebreakFloor(floors map[string]FloorDefinition, p FlooringPolicy) (string, bool) {
-	best, bestTicks, judged := "", 0.0, false
-	for _, name := range p.Floors {
-		def, ok := floors[name]
-		available, ak := def.Available.Value()
-		terrain, tk := def.Terrain.Value()
-		flammability, fk := def.Flammability.Value()
-		if !ok || !ak || !tk || !fk || !floorPriced(def) {
-			continue
-		}
-		judged = true
-		if !available || !terrain || flammability > 0 {
-			continue
-		}
-		if ticks := floorTicks(def, p); best == "" || ticks < bestTicks {
-			best, bestTicks = name, ticks
-		}
+// firebreakFloor judges the tier style's floor: it must be known available,
+// terrain, priced and non-flammable. known is false when the floor cannot be
+// judged; an empty name with known true means none can be laid (no style, or
+// the style's floor is unavailable or flammable).
+func firebreakFloor(floors map[string]FloorDefinition, style string) (string, bool) {
+	if style == "" {
+		return "", true
 	}
-	return best, judged
+	def, ok := floors[style]
+	available, ak := def.Available.Value()
+	terrain, tk := def.Terrain.Value()
+	flammability, fk := def.Flammability.Value()
+	if !ok || !ak || !tk || !fk || !floorPriced(def) {
+		return "", false
+	}
+	if !available || !terrain || flammability > 0 {
+		return "", true
+	}
+	return style, true
 }

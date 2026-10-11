@@ -669,7 +669,8 @@ func affordableCells(d FloorDefinition, stock domain.Fact[map[Resource]int64], w
 // living rooms. Candidates must be known available, be terrain, meet the
 // tier's requirement and be affordable for at least one cell; a floor that
 // pays for the whole batch beats one that pays for part of it, then the
-// tier's score decides; the firebreak tier is never styled. A room whose
+// tier's score decides, except the tiers that lay the tier style's floor or
+// none (every tier but the throne and a priced traffic aisle). A room whose
 // deficient cells are all ordered already waits for them. Dirt entry points choose among the entry floors
 // only. The traffic deficit lays the floor its cells were priced on.
 // A traffic latch the review could not price is unknown.
@@ -732,9 +733,9 @@ func chooseFloor(d FloorDeficit, facts FlooringFacts, batch int, p FlooringPolic
 	var best *candidate
 	reason := FlooringResearchNeeded
 	unknown := false
-	// The tier style decides when it can be laid; the scored list is
-	// consulted only otherwise.
-	scored := p.Floors
+	// Only the throne and a priced traffic aisle score a list; every other
+	// tier lays the tier style's floor or none.
+	var scored []string
 	if d.Tier == FloorTierThrone {
 		// Any floor the mirror tags as the title requires, however
 		// the policy lists floors; none known is a fact gap.
@@ -751,10 +752,15 @@ func chooseFloor(d FloorDeficit, facts FlooringFacts, batch int, p FlooringPolic
 	} else if d.Floor != "" {
 		// The traffic tier lays the floor its payback was priced on.
 		scored = []string{d.Floor}
-	} else if !d.Tier.fireproof() {
-		// A clean or living room lays the tier style's floor or none: a
-		// style that names nothing, or whose floor cannot be laid, is a
-		// reason to wait, never a cheaper substitute from the policy list.
+	} else {
+		// Every other tier lays the tier style's floor or none: a style that
+		// names nothing, or whose floor cannot be laid, is a reason to wait,
+		// never a cheaper substitute from the policy list. The firebreak and
+		// incinerator tiers take the aisle floor (flagstone of the quarried
+		// stone), which spends no steel.
+		if d.Tier.fireproof() {
+			d.Role = RoomRoleNone
+		}
 		name, why := styledFloor(d, facts, batch, weights)
 		if name == "" {
 			return "", 0, why

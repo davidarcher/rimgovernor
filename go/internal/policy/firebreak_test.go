@@ -29,13 +29,14 @@ func firebreakFixture(t *testing.T, points ...domain.Cell) FirebreakRequest {
 		GrowingZones: domain.Known([]domain.Cell{}), Planned: domain.Known([]domain.Cell{}), Ground: ground,
 		Stage: domain.Known(StageDevelopment), Now: 10 * firebreakDay,
 		Floors: map[string]FloorDefinition{
-			"Concrete":       firebreakFloorDef(0, 1, 10),
-			"PavedTile":      firebreakFloorDef(0, 5, 10),
-			"WoodPlankFloor": firebreakFloorDef(0.22, 1, 1),
+			"FlagstoneGranite": firebreakFloorDef(0, 1, 10),
+			"PavedTile":        firebreakFloorDef(0, 5, 10),
+			"WoodPlankFloor":   firebreakFloorDef(0.22, 1, 1),
 		},
 		Stock:   domain.Known(map[Resource]int64{"Steel": 1000}),
 		Claimed: domain.Known(map[Resource]int64{}),
-		Policy:  DefaultFlooringPolicy(),
+		// The costed resource is arbitrary here; the style names the floor.
+		Floor: "FlagstoneGranite",
 	}
 }
 
@@ -189,6 +190,8 @@ func TestFirebreakCutUntilSettled(t *testing.T) {
 		{"all hold", func(*FirebreakRequest, map[domain.Cell]domain.Tick) {}, FirebreakPave},
 		{"stage", func(r *FirebreakRequest, _ map[domain.Cell]domain.Tick) { r.Stage = domain.Known(StageStable) }, FirebreakCut},
 		{"dwell", func(r *FirebreakRequest, d map[domain.Cell]domain.Tick) { d[c] = r.Now - FirebreakSettleTicks + 1 }, FirebreakCut},
+		{"no styled floor", func(r *FirebreakRequest, _ map[domain.Cell]domain.Tick) { r.Floor = "" }, FirebreakCut},
+		{"flammable styled floor", func(r *FirebreakRequest, _ map[domain.Cell]domain.Tick) { r.Floor = "WoodPlankFloor" }, FirebreakCut},
 		{"stock after claims", func(r *FirebreakRequest, _ map[domain.Cell]domain.Tick) {
 			r.Claimed = domain.Known(map[Resource]int64{"Steel": 950})
 		}, FirebreakCut},

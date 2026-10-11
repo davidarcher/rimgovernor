@@ -185,7 +185,7 @@ func firebreakClaimed(projection observation.ColonyProjection) map[policy.Resour
 // review plans the ring for the projection and reports whether work is
 // owed; unknown when the ring or its ground is. busy are the cells an open
 // building action targets, held out of the pave cells.
-func (m *firebreakMemory) review(ctx context.Context, identity *c.Identity, current domain.GenerationSnapshot, projection observation.ColonyProjection, stage policy.ColonyStage, p policy.FlooringPolicy, busy map[domain.Cell]bool) (domain.Fact[bool], error) {
+func (m *firebreakMemory) review(ctx context.Context, identity *c.Identity, current domain.GenerationSnapshot, projection observation.ColonyProjection, stage policy.ColonyStage, busy map[domain.Cell]bool) (domain.Fact[bool], error) {
 	// A colony still at its Foothold has no shelter, fields or stores worth a
 	// ring yet, and its few hands are better spent on them: nothing is owed.
 	if stage == policy.StageFoothold {
@@ -208,7 +208,10 @@ func (m *firebreakMemory) review(ctx context.Context, identity *c.Identity, curr
 	if !flooringKnown {
 		stage = min(stage, policy.StageStable)
 	}
-	request.Stage, request.Policy = domain.Known(stage), p
+	request.Stage = domain.Known(stage)
+	if style := floorStyle(projection); style != nil {
+		request.Floor, _ = style(policy.RoomRoleNone)
+	}
 	request.Stock, request.Claimed = projection.Resources, domain.Known(firebreakClaimed(projection))
 	request.Floors = map[string]policy.FloorDefinition{}
 	for _, d := range projection.Definitions {
