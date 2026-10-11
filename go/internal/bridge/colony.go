@@ -15,7 +15,7 @@ func (client *Client) ReadColonyFacts(ctx context.Context, identity *c.Identity,
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, Result{}, err
 	}
-	request := colonyFactsRequest(identity, planning)
+	request := ColonyFactsRequest(identity, planning)
 	reply := &o.ColonyFactsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_colony_facts", request, reply)
 	if err != nil {
@@ -40,11 +40,11 @@ func (client *Client) ReadColonyFacts(ctx context.Context, identity *c.Identity,
 	return reply, raw, err
 }
 
-// colonyFactsRequest is the exact request ReadColonyFacts issues; the
+// ColonyFactsRequest is the exact request ReadColonyFacts issues; the
 // bundle seeds its colony_facts section under the planning form of it.
 // Project definitions beyond the default catalog ride the snapshot frame's
 // subscription (ReadRoundsFrame), not this read.
-func colonyFactsRequest(identity *c.Identity, planning bool) *o.ColonyFactsRequest {
+func ColonyFactsRequest(identity *c.Identity, planning bool) *o.ColonyFactsRequest {
 	return &o.ColonyFactsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Planning: proto.Bool(planning), HerdRadius: proto.Uint32(HerdRadius), HuntRouteBudgetMs: proto.Uint32(HuntRouteBudgetMS), HuntPredatorMarginCells: proto.Float32(policy.HuntPredatorMarginCells)}
 }
 

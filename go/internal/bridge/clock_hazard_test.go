@@ -52,7 +52,7 @@ func TestClockPolicyHazardThresholds(t *testing.T) {
 
 // Go supplies the predator margin on every hunt census request; native has none.
 func TestHuntRouteRequestCarriesPredatorMargin(t *testing.T) {
-	if q := colonyFactsRequest(&c.Identity{}, true); q.HuntPredatorMarginCells == nil || q.GetHuntPredatorMarginCells() != 25 {
+	if q := ColonyFactsRequest(&c.Identity{}, true); q.HuntPredatorMarginCells == nil || q.GetHuntPredatorMarginCells() != 25 {
 		t.Fatal(q)
 	}
 }

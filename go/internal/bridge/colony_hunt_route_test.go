@@ -32,7 +32,7 @@ func TestHuntRouteEvidenceIsExplicit(t *testing.T) {
 
 // Go asks for the herd radius and the hunt route budget on every colony facts read.
 func TestColonyFactsRequestCarriesHerdRadiusAndHuntBudget(t *testing.T) {
-	q := colonyFactsRequest(&c.Identity{}, true)
+	q := ColonyFactsRequest(&c.Identity{}, true)
 	if q.HerdRadius == nil || q.HuntRouteBudgetMs == nil || q.GetHerdRadius() != HerdRadius || q.GetHuntRouteBudgetMs() != HuntRouteBudgetMS {
 		t.Fatal(q)
 	}

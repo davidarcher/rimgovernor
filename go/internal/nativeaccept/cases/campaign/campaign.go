@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
@@ -27,6 +28,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/sustainedfood"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -342,11 +344,31 @@ func (p *phase) assertPlaying(window uint64) error {
 	return nil
 }
 
+// colonyFactsWire is the service's own colony facts request (herd radius,
+// hunt budget and predator margin included) as ProtoJSON: a bare scope
+// leaves the native's wild hunt rows without herd sizes, which
+// DecodeColony rejects.
+func colonyFactsWire(identity map[string]any) (json.RawMessage, error) {
+	data, err := json.Marshal(identity)
+	if err != nil {
+		return nil, err
+	}
+	id := &c.Identity{}
+	if err := protojson.Unmarshal(data, id); err != nil {
+		return nil, err
+	}
+	return protojson.Marshal(bridge.ColonyFactsRequest(id, false))
+}
+
 // ColonyFacts reads the controller's decoded colony facts natively through
 // the reattached harness: the food forecast, wood stock and sleeping
 // capacity the end-state audits judge.
 func ColonyFacts(ctx context.Context, h *na.Harness, s cases.Session, label string) (*observation.ColonyProjection, error) {
-	facts, err := h.Wire(ctx, label, "observations_read_colony_facts", map[string]any{"scope": map[string]any{"expectedIdentity": s.Identity()}})
+	request, err := colonyFactsWire(s.Identity())
+	if err != nil {
+		return nil, err
+	}
+	facts, err := h.Wire(ctx, label, "observations_read_colony_facts", request)
 	if err != nil {
 		return nil, err
 	}
