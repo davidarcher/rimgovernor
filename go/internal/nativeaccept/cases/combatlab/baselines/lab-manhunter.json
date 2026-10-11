@@ -1,19 +1,19 @@
 {
   "version": 1,
   "fixture": "lab-manhunter",
-  "ticks": 4392,
-  "colonistDamage": 0,
-  "colonistDowns": 0,
+  "ticks": 3645,
+  "colonistDamage": 192.5,
+  "colonistDowns": 1,
   "colonistDeaths": 0,
   "enemyDowns": 0,
   "enemyDeaths": 0,
   "enemyFled": 0,
-  "firstContactTick": -1,
-  "resolvedTick": -1,
-  "contactToResolutionTicks": -1,
-  "winner": "",
+  "firstContactTick": 339,
+  "resolvedTick": 2445,
+  "contactToResolutionTicks": 2106,
+  "winner": "hostile",
   "friendlyFireHits": 0,
-  "ordersIssued": 2,
+  "ordersIssued": 4,
   "ordersRefused": 0,
-  "stepLatencyP95Ms": 338
+  "stepLatencyP95Ms": 3368
 }

@@ -196,6 +196,12 @@ namespace HomeBridge.BridgeTools
                     s.BoostOwned = true;
                     BoostField.SetValue(null, true);
                 }
+                // Vanilla's forced slowdown (a danger signal holds the tick rate at 1x for
+                // 800 ticks) would cap every fight at 60 TPS whatever speed the epoch runs;
+                // the controller owns danger handling, so no epoch accepts it.
+                s.PriorNeverForceNormal = DebugViewSettings.neverForceNormalSpeed;
+                s.NeverForceNormalOwned = true;
+                DebugViewSettings.neverForceNormalSpeed = true;
                 PlayerSpeedHook.Owned(() => Find.TickManager.CurTimeSpeed = speed);
                 if (Find.TickManager.CurTimeSpeed != speed)
                 {
@@ -1263,6 +1269,11 @@ namespace HomeBridge.BridgeTools
         }
         private static void RestoreBoost(State s)
         {
+            if (s.NeverForceNormalOwned)
+            {
+                DebugViewSettings.neverForceNormalSpeed = s.PriorNeverForceNormal;
+                s.NeverForceNormalOwned = false;
+            }
             if (!s.BoostOwned) return;
             BoostField.SetValue(null, s.PriorBoost);
             s.BoostOwned = false;
@@ -1469,7 +1480,7 @@ namespace HomeBridge.BridgeTools
             public string? Mode; public float HostileWithin; public float HealthDropFraction; public float MinHealthFraction;
             public long LeaseExpiresMs; public long LastProbeMs; public int LastTick; public bool PausedAtStop;
             public int StartTick; public long? TickDeadline;
-            public bool TestAcceleration; public bool PriorBoost; public bool BoostOwned;
+            public bool TestAcceleration; public bool PriorBoost; public bool BoostOwned; public bool PriorNeverForceNormal; public bool NeverForceNormalOwned;
             // Blind-tick regulator (SupervisedPlayRegulator.cs): the budget and
             // owner ceiling from the start, the ceiling the regulator holds
             // (0 = none), the controller's last read tick and acknowledged

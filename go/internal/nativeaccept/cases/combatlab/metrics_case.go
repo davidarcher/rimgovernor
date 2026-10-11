@@ -23,13 +23,13 @@ import (
 const (
 	// metricsTicks is a fixture run's game-tick budget .
 	metricsTicks = 5000
-	// metricsSpeed is the player speed the served clock follows:
-	// Fast keeps the fight well inside the case budget while the
-	// service's 1 s state refresh lags the game by a few hundred ticks.
-	metricsSpeed = "Fast"
+	// metricsSpeed labels the response evidence. The served clock runs
+	// Ultrafast uncapped like every acceptance case, so the service's 1 s
+	// state refresh lags the game by over a thousand ticks.
+	metricsSpeed = "Ultrafast"
 	// metricsStopMargin is how far short of the budget the service is
 	// stopped: the state refresh lag plus the reattach.
-	metricsStopMargin = 800
+	metricsStopMargin = 2500
 	// metricsIdle is how long a still served clock means the run is over.
 	metricsIdle = 20 * time.Second
 	// pauseModeTool sets Prefs.AutomaticPauseMode (scripts/fixtures/LetterFixture.cs).
@@ -73,12 +73,12 @@ func init() {
 			Scope:       fmt.Sprintf("Combat metrics (#855, #869): stage %s, serve the routine defense planner on it for up to %d game ticks, and record the reads before and after to %s and the aggregate (damage, downs, deaths, fled, contact-to-resolution, friendly fire, orders, step latency) to %s. Evidence, not a gate: native because the metrics are vanilla combat outcomes under the live planner.", name, metricsTicks, ReadsFile, MetricsFile),
 			Start:       cases.Lab{Colonists: probe.Colonists},
 			RequiredOps: []string{na.LabStartTool, StageTool, pauseModeTool},
-			QuietWorld:  true,
+			QuietWorld:  false,
 			// A checkpoint capture pauses the served game mid-fight: the
 			// external pause revokes authority and drops the fight plan
 			// (lab-open at t+2m).
 			NoCheckpoint: true,
-			Serve:        &cases.ServeSpec{Families: metricsFamilies, PlayerSpeed: metricsSpeed, Prefix: "combatlab"},
+			Serve:        &cases.ServeSpec{Families: metricsFamilies, Prefix: "combatlab"},
 			Budget:       cases.LabBudget,
 			Crew:         cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error { return runMetrics(ctx, s, name) },
 		})

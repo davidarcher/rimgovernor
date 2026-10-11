@@ -27,9 +27,11 @@ func init() {
 			"both huskies stay inside the room and the door reads forbidden; a second call allows the door and a husky then walks out to its area within 600 ticks.",
 		Start:       cases.Lab{Colonists: 1},
 		RequiredOps: []string{na.LabStartTool, StageTool},
-		QuietWorld:  true,
-		Budget:      cases.LabBudget,
-		Crew:        cases.Crew{Size: 3}, Run: runDoorHold,
+		// The wargs are manhunters pressing on the room; a quiet world would
+		// freeze them (AcceptanceWorld.WildAnimal) and the hold would prove nothing.
+		QuietWorld: false,
+		Budget:     cases.LabBudget,
+		Crew:       cases.Crew{Size: 3}, Run: runDoorHold,
 	})
 }
 
@@ -68,10 +70,13 @@ func runDoorHold(ctx context.Context, s cases.Session) error {
 	}
 	pawn := func(id string) map[string]any { return map[string]any{"entityId": id} }
 	door, outside := cell(cx, cz+doorHoldHalfZ), cell(cx, cz+doorHoldHalfZ+3)
-	orders := []any{map[string]any{"door": map[string]any{"cell": door, "mode": "COMBAT_DOOR_MODE_FORBID"}}}
+	// Areas first: a forbidden door makes the outside cell unreachable, and
+	// the area order is refused for it.
+	var orders []any
 	for _, a := range animals {
 		orders = append(orders, map[string]any{"pawn": pawn(a), "animalArea": map[string]any{"cell": outside}})
 	}
+	orders = append(orders, map[string]any{"door": map[string]any{"cell": door, "mode": "COMBAT_DOOR_MODE_FORBID"}})
 	results, err := issue(ctx, h, identity, "combat-door-hold-1", orders)
 	if err != nil {
 		return err

@@ -41,7 +41,8 @@ lists the routes `serve` offers.
   `--clock-test-acceleration`. Native raises Ultrafast's multiplier between 15x and 150x against the
   30 ms frame budget (reported as `Epoch.frame_budget_ms`; the start request carries none): a frame
   whose tick work exceeds it lowers the rate at once, one under 75% of it climbs 25% per 250 ms; the
-  game's forced slowdown is kept. Every tick runs the full safety check, so hazard bounds stay
+  epoch holds `DebugViewSettings.neverForceNormalSpeed`, so the game's forced slowdown (danger
+  holding the tick rate at Normal for 800 ticks) never applies. Every tick runs the full safety check, so hazard bounds stay
   tick-bounded however many ticks a frame carries.
   - The controller watches each critical planner wave and lowers the epoch's `max_ticks_per_second` so
     a wave fits in half the safe horizon (`--clock-blind-ticks`, default 2500 when unset), with

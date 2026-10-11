@@ -12,8 +12,8 @@ namespace HomeBridge.BridgeTools
     // is never touched). The multiplier adapts to the wall time the previous
     // frame's ticks took against the epoch's frame budget: over the budget it
     // drops at once, comfortably under it climbs one step per ramp interval
-    // back toward the boosted rate. The game's forced slowdown returns 1 from
-    // the getter and is left alone. Every tick of such an epoch runs the full
+    // back toward the boosted rate. The epoch holds neverForceNormalSpeed, so
+    // the game's forced slowdown no longer returns 1 from the getter. Every tick of such an epoch runs the full
     // frame check (OnUpdate) first, as an accelerated epoch does: ownership,
     // lease, a player pause and the tick-bounded hazard probe are checked
     // between any two ticks of a frame, however many the frame carries.
