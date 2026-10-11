@@ -34,16 +34,16 @@ func TestHerdSitesBarnAndVetRoom(t *testing.T) {
 	if len(barns) != 1 || len(vets) != 1 {
 		t.Fatal("want one barn and one vet room", len(barns), len(vets))
 	}
-	if barns[0].Area.Width < 7 || barns[0].Area.Height < 7 {
+	if barns[0].Area.Bounds().Width < 7 || barns[0].Area.Bounds().Height < 7 {
 		t.Fatal("barn below the minimum", barns[0].Area)
 	}
 	vet := vets[0].Area
-	if VetRoomBeds(vet) < 2 {
-		t.Fatal("vet room holds fewer than two beds", vet, VetRoomBeds(vet))
+	if VetRoomBeds(vet.Bounds()) < 2 {
+		t.Fatal("vet room holds fewer than two beds", vet, VetRoomBeds(vet.Bounds()))
 	}
 	for _, r := range p.Reservations {
 		// The barn's wall is the one thing the vet room may share.
-		if _, shared := sharedWallLink(r.Area, vet); r.Kind != ReserveVetRoom && rectsOverlap(r.Area, vet) && !(r.Kind == ReserveBarn && shared) {
+		if _, shared := sharedWallLink(r.Area.Bounds(), vet.Bounds()); r.Kind != ReserveVetRoom && rectsOverlap(r.Area.Bounds(), vet.Bounds()) && !(r.Kind == ReserveBarn && shared) {
 			t.Fatal("vet room overlaps", r.Kind)
 		}
 	}
@@ -66,7 +66,7 @@ func TestVetBedsScaleWithTheHerd(t *testing.T) {
 	core := corePlan(utilityTestZones(), 3, TechTierCamp)
 	small := herdReservations(PlanUtilities(core, UtilityWants{PenAnimals: 10}), ReserveVetRoom)
 	large := herdReservations(PlanUtilities(core, UtilityWants{PenAnimals: 45}), ReserveVetRoom)
-	if len(small) != 1 || len(large) != 1 || VetRoomBeds(large[0].Area) < VetBeds(45) || VetRoomBeds(large[0].Area) <= VetRoomBeds(small[0].Area) {
+	if len(small) != 1 || len(large) != 1 || VetRoomBeds(large[0].Area.Bounds()) < VetBeds(45) || VetRoomBeds(large[0].Area.Bounds()) <= VetRoomBeds(small[0].Area.Bounds()) {
 		t.Fatal("vet room does not scale", small, large)
 	}
 }
@@ -95,7 +95,7 @@ func TestBoxedInUnitFoundsASecondUnit(t *testing.T) {
 		t.Fatal("a unit per animal", len(more.herdUnits()))
 	}
 	for i, r := range small.Reservations {
-		if grown.Reservations[i] != r {
+		if !grown.Reservations[i].Equal(r) {
 			t.Fatal("a placed reservation moved", r)
 		}
 	}
@@ -134,7 +134,7 @@ func TestTopUpAddsABarnBesideTheUnit(t *testing.T) {
 		t.Fatal("no extra barn", len(herdReservations(grown, ReserveBarn)))
 	}
 	for i, r := range small.Reservations {
-		if grown.Reservations[i] != r {
+		if !grown.Reservations[i].Equal(r) {
 			t.Fatal("a placed reservation moved", r)
 		}
 	}

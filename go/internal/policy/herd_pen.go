@@ -62,7 +62,7 @@ func NextPaddockStep(plan LayoutPlan, ground GroundCensus, built []CurrentBuildi
 		if r.Kind == ReserveCoverClear {
 			continue
 		}
-		for _, c := range rectCells(r.Area) {
+		for _, c := range r.Area.Cells() {
 			taken[c] = true
 		}
 	}

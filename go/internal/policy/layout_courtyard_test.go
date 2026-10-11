@@ -76,7 +76,7 @@ func TestCourtyardPlusPatchStaysOneFarmedFieldEnclosedWhole(t *testing.T) {
 	for _, r := range plan.Reservations {
 		switch r.Kind {
 		case ReservePerimeter, ReservePerimeterLight, ReserveGate, ReserveBridge, ReservePerimeterGap:
-			for _, c := range rectCells(r.Area) {
+			for _, c := range rectCells(r.Area.Bounds()) {
 				if rich[c] {
 					t.Fatalf("%s on rich soil at %v", r.Kind, c)
 				}

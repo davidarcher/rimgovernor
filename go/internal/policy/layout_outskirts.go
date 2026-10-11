@@ -38,7 +38,7 @@ var outskirtsSides = []domain.Rotation{domain.West, domain.East, domain.South, d
 func (p LayoutPlan) OutskirtsArea() (Rectangle, bool) {
 	for _, r := range p.Reservations {
 		if r.Kind == ReserveOutskirts {
-			return r.Area, true
+			return r.Area.Bounds(), true
 		}
 	}
 	return Rectangle{}, false
@@ -58,7 +58,7 @@ func growOutskirts(plan LayoutPlan, size [2]int32) (LayoutPlan, bool) {
 	if !ok {
 		return plan, false
 	}
-	plan.Reservations = append(slices.Clone(plan.Reservations), LayoutReservation{Kind: ReserveOutskirts, Area: area})
+	plan.Reservations = append(slices.Clone(plan.Reservations), LayoutReservation{Kind: ReserveOutskirts, Area: RectRegion(area)})
 	return plan, true
 }
 

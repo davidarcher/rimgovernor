@@ -117,7 +117,7 @@ func TestPlannedCoolerSites(t *testing.T) {
 		}
 		hot := false
 		for _, r := range p.Reservations {
-			hot = hot || r.Kind == ReserveExhaust && inRect(r.Area, c.Hot())
+			hot = hot || r.Kind == ReserveExhaust && inRect(r.Area.Bounds(), c.Hot())
 		}
 		if room == nil || !hot || inRect(roomWalls(*room), c.Hot()) || !inRect(roomWalls(*room), c.Position) {
 			t.Fatal(s, room)
@@ -263,23 +263,23 @@ func TestPlanUtilities(t *testing.T) {
 	for _, tb := range turbines {
 		south := false
 		for _, o := range turbines {
-			if o.Pair == tb.Pair && (o.Area.Z > tb.Area.Z || o.Area.X > tb.Area.X) {
+			if o.Pair == tb.Pair && (o.Area.Bounds().Z > tb.Area.Bounds().Z || o.Area.Bounds().X > tb.Area.Bounds().X) {
 				south = true
 			}
 		}
-		center, rot := TurbinePlacement(tb.Area, south)
+		center, rot := TurbinePlacement(tb.Area.Bounds(), south)
 		inLane := 0
 		for _, c := range TurbineWindCells(center, rot) {
 			if g.rock[c] || !g.core[c] || planned(c) {
 				t.Fatal("blocked wind cell", c)
 			}
 			for _, o := range turbines {
-				if inRect(o.Area, c) {
+				if inRect(o.Area.Bounds(), c) {
 					t.Fatal("turbine in a zone", o, c)
 				}
 			}
 			for _, l := range lanes {
-				if l.Pair == tb.Pair && inRect(l.Area, c) {
+				if l.Pair == tb.Pair && inRect(l.Area.Bounds(), c) {
 					inLane++
 					break
 				}
@@ -303,7 +303,7 @@ func TestPlanUtilities(t *testing.T) {
 	for _, r := range grown.Rooms {
 		for _, res := range p.Reservations {
 			w := roomWalls(r)
-			if w.X < res.Area.X+res.Area.Width && res.Area.X < w.X+w.Width && w.Z < res.Area.Z+res.Area.Height && res.Area.Z < w.Z+w.Height {
+			if w.X < res.Area.Bounds().X+res.Area.Bounds().Width && res.Area.Bounds().X < w.X+w.Width && w.Z < res.Area.Bounds().Z+res.Area.Bounds().Height && res.Area.Bounds().Z < w.Z+w.Height {
 				t.Fatal("room over reservation", r, res)
 			}
 		}
@@ -329,17 +329,17 @@ func TestPlanUtilitiesHerdUnit(t *testing.T) {
 	// A herd unit's rooms share one wall line by design: the barn and
 	// its vet room overlap in exactly that line, never in an interior.
 	for _, r := range p.Reservations {
-		if _, shared := sharedWallLink(r.Area, barn.Area); r.Kind != ReserveBarn && rectsOverlap(r.Area, barn.Area) && !shared {
+		if _, shared := sharedWallLink(r.Area.Bounds(), barn.Area.Bounds()); r.Kind != ReserveBarn && rectsOverlap(r.Area.Bounds(), barn.Area.Bounds()) && !shared {
 			t.Fatal("barn overlaps", r)
 		}
 	}
 	for _, r := range p.AllRooms() {
-		if _, shared := sharedWallLink(roomWalls(r), barn.Area); rectsOverlap(roomWalls(r), barn.Area) && !shared {
+		if _, shared := sharedWallLink(roomWalls(r), barn.Area.Bounds()); rectsOverlap(roomWalls(r), barn.Area.Bounds()) && !shared {
 			t.Fatal("barn overlaps room", r.Role)
 		}
 	}
 	u := newUtilityGrid(core)
-	if !u.free(barn.Area, true) {
+	if !u.free(barn.Area.Bounds(), true) {
 		t.Fatal("barn in the hallway clearance", barn.Area)
 	}
 	// The site search follows the centre it is given.
@@ -363,17 +363,17 @@ func TestTurnedTurbinePair(t *testing.T) {
 			lanes = append(lanes, r)
 		}
 	}
-	if len(turbines) != 2 || turbines[0].Area.Width != 2 || turbines[0].Area.Height != turbineWidth {
+	if len(turbines) != 2 || turbines[0].Area.Bounds().Width != 2 || turbines[0].Area.Bounds().Height != turbineWidth {
 		t.Fatal(turbines)
 	}
 	rots := map[domain.Rotation]bool{}
 	for i, tb := range turbines {
-		centre, rot := TurbinePlacement(tb.Area, i == 0)
+		centre, rot := TurbinePlacement(tb.Area.Bounds(), i == 0)
 		rots[rot] = true
 		for _, c := range TurbineWindCells(centre, rot) {
 			in := false
 			for _, l := range lanes {
-				in = in || inRect(l.Area, c)
+				in = in || inRect(l.Area.Bounds(), c)
 			}
 			if !in {
 				t.Fatal("wind cell outside the lanes", rot, c)

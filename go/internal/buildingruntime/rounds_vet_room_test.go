@@ -15,7 +15,7 @@ func TestVetRoomReadyIsUnknownWhileAFactIs(t *testing.T) {
 }
 
 func TestBotAreasPlanTheVetRoomAndKeepItOutOfSafe(t *testing.T) {
-	plan := policy.LayoutPlan{Reservations: []policy.LayoutReservation{{Kind: policy.ReserveVetRoom, Area: policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 6}}}}
+	plan := policy.LayoutPlan{Reservations: []policy.LayoutReservation{{Kind: policy.ReserveVetRoom, Area: policy.RectRegion(policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 6})}}}
 	vet := plan.VetRoomCells()
 	if len(vet) != 16 {
 		t.Fatal("the vet room interior is 4x4", len(vet))

@@ -50,9 +50,9 @@ func PlanBaitRoom(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 		kept = append(kept, r)
 		if r.Kind == ReservePerimeter {
-			ring = unionRect(ring, r.Area)
+			ring = unionRect(ring, r.Area.Bounds())
 		}
-		for _, c := range rectCells(r.Area) {
+		for _, c := range r.Area.Cells() {
 			used[c] = true
 		}
 	}
@@ -93,11 +93,11 @@ func PlanBaitRoom(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	if bestD < 0 {
 		return plan
 	}
-	plan.Reservations = append(plan.Reservations, LayoutReservation{Kind: ReserveBaitRoom, Area: best})
+	plan.Reservations = append(plan.Reservations, LayoutReservation{Kind: ReserveBaitRoom, Area: RectRegion(best)})
 	in, door := pad(best, -1), baitDoor(best)
 	for _, c := range rectCells(best) {
 		if !contains(in, c) && c != door && !cells[c].Rock {
-			plan.Reservations = append(plan.Reservations, LayoutReservation{Kind: ReserveBaitWall, Area: Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1}})
+			plan.Reservations = append(plan.Reservations, LayoutReservation{Kind: ReserveBaitWall, Area: RectRegion(Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1})})
 		}
 	}
 	return plan
@@ -150,9 +150,9 @@ func BaitRoomSections(plan LayoutPlan, wall, door, flammable string, jelly bool)
 	for _, r := range plan.Reservations {
 		switch r.Kind {
 		case ReserveBaitRoom:
-			area = r.Area
+			area = r.Area.Bounds()
 		case ReserveBaitWall:
-			for _, c := range rectCells(r.Area) {
+			for _, c := range r.Area.Cells() {
 				if err := add(wall, c); err != nil {
 					return nil, err
 				}

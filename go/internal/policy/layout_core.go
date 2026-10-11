@@ -152,10 +152,8 @@ func newCoreGrid(zones []LayoutZone, reserved []LayoutReservation) coreGrid {
 		}
 	}
 	for _, r := range reserved {
-		for x := r.Area.X; x < r.Area.X+r.Area.Width; x++ {
-			for z := r.Area.Z; z < r.Area.Z+r.Area.Height; z++ {
-				delete(g.core, domain.Cell{X: x, Z: z})
-			}
+		for _, c := range r.Area.Cells() {
+			delete(g.core, c)
 		}
 	}
 	return g

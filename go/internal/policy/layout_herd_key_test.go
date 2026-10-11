@@ -45,7 +45,7 @@ func TestHerdKeyKeepsASecondUnitWithItsHerd(t *testing.T) {
 		t.Fatal("the new unit is B's", units[2].herd)
 	}
 	for _, r := range grown.Reservations {
-		if !slices.Contains(withB.Reservations, r) {
+		if !slices.ContainsFunc(withB.Reservations, r.Equal) {
 			t.Fatal("a placed reservation moved or changed", r)
 		}
 	}

@@ -320,12 +320,12 @@ func planInterior(plan LayoutPlan, grow int32) (wi wallInterior, ok bool) {
 	for _, r := range plan.Reservations {
 		switch r.Kind {
 		case ReservePerimeter, ReservePerimeterLight, ReserveBridge, ReservePerimeterGap, ReserveGate:
-			ring = unionRect(ring, r.Area)
-			for _, c := range rectCells(r.Area) {
+			ring = unionRect(ring, r.Area.Bounds())
+			for _, c := range r.Area.Cells() {
 				wall[c] = true
 			}
 		case ReserveCoverClear:
-			band = append(band, r.Area)
+			band = append(band, r.Area.Bounds())
 		}
 	}
 	if ring.Width == 0 {

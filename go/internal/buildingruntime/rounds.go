@@ -887,7 +887,12 @@ func plannedGround(colony observation.ColonyProjection) []policy.Rectangle {
 	if !known {
 		return nil
 	}
-	return policy.PlannedGround(plan, ground)
+	// The native census takes rectangles: a non-rect ground is asked for by its bounds.
+	var out []policy.Rectangle
+	for _, g := range policy.PlannedGround(plan, ground) {
+		out = append(out, g.Bounds())
+	}
+	return out
 }
 
 // retiredGround is the recorded plan's retired ground with its kept

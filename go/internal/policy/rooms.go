@@ -92,11 +92,7 @@ func (p LayoutPlan) KillboxCells() []domain.Cell {
 		if r.Kind != ReserveKillbox {
 			continue
 		}
-		for x := r.Area.X; x < r.Area.X+r.Area.Width; x++ {
-			for z := r.Area.Z; z < r.Area.Z+r.Area.Height; z++ {
-				out = append(out, domain.Cell{X: x, Z: z})
-			}
-		}
+		out = append(out, r.Area.Cells()...)
 	}
 	return out
 }

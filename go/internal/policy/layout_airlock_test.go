@@ -69,7 +69,7 @@ func TestAirlockReconcileOwesWallsAndOuterDoor(t *testing.T) {
 	if rec := Reconcile(airlockInput(plan, room, ring)); len(rec.Owed) != 0 {
 		t.Fatalf("complete airlock owes %+v", rec.Owed)
 	}
-	if got := PlannedGround(plan, GroundCensus{}); !slices.Contains(got, room.AirlockGround()) {
+	if got := PlannedGround(plan, GroundCensus{}); !slices.ContainsFunc(got, RectRegion(room.AirlockGround()).Equal) {
 		t.Fatalf("airlock ground missing from %v", got)
 	}
 }

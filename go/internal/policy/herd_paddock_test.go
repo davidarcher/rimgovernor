@@ -31,7 +31,7 @@ func TestPaddockMarkerOnFreeYardCell(t *testing.T) {
 	covered := map[domain.Cell]bool{}
 	for _, r := range p.Reservations {
 		if r.Kind != ReserveCoverClear {
-			for _, c := range rectCells(r.Area) {
+			for _, c := range rectCells(r.Area.Bounds()) {
 				covered[c] = true
 			}
 		}

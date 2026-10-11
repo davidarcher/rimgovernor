@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -217,3 +218,6 @@ func (g Region) minus(o Region) Region {
 	}
 	return Region{Runs: runs}
 }
+
+// Equal reports whether both regions hold the same cells.
+func (g Region) Equal(o Region) bool { return slices.Equal(g.Runs, o.Runs) }

@@ -133,16 +133,16 @@ func retireShelter(plan LayoutPlan, growth RoomGrowth) (LayoutPlan, bool) {
 		return plan, false
 	}
 	drop := map[Rectangle]bool{}
-	var ground []Rectangle
+	var ground []Region
 	for _, r := range plan.roomsOf(PlannedShelter) {
 		if !growth.InFlight[r.Region.Bounds()] {
 			drop[r.Region.Bounds()] = true
-			ground = append(ground, roomGround(r.Region.Bounds()))
+			ground = append(ground, RectRegion(roomGround(r.Region.Bounds())))
 			if r.Airlock != nil {
-				ground = append(ground, r.AirlockGround())
+				ground = append(ground, RectRegion(r.AirlockGround()))
 			}
 			if r.Porch != nil {
-				ground = append(ground, r.PorchGround())
+				ground = append(ground, RectRegion(r.PorchGround()))
 			}
 		}
 	}

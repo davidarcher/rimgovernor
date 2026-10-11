@@ -19,7 +19,7 @@ func TestHerdUnitsAreSizedFromTheirCeilingAndLeaveTheMiscUnitAlone(t *testing.T)
 	}
 	grown := PlanHerdSites(misc, 10, HerdCeiling{"A", 30}, HerdCeiling{"B", 12})
 	for i, r := range misc.Reservations {
-		if grown.Reservations[i] != r {
+		if !grown.Reservations[i].Equal(r) {
 			t.Fatal("a placed reservation moved", r)
 		}
 	}
@@ -51,7 +51,7 @@ func TestHerdUnitsAreSizedFromTheirCeilingAndLeaveTheMiscUnitAlone(t *testing.T)
 		t.Fatal("an outgrown herd adds to its own unit", len(more.herdUnits()))
 	}
 	for i, r := range grown.Reservations {
-		if more.Reservations[i] != r {
+		if !more.Reservations[i].Equal(r) {
 			t.Fatal("a placed reservation moved", r)
 		}
 	}

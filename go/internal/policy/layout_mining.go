@@ -39,7 +39,7 @@ func (p LayoutPlan) MineTier(cell domain.Cell) int {
 		}
 	}
 	for _, e := range p.Reservations {
-		if e.Kind == ReserveExhaust && cell.X >= e.Area.X && cell.X < e.Area.X+e.Area.Width && cell.Z >= e.Area.Z && cell.Z < e.Area.Z+e.Area.Height {
+		if e.Kind == ReserveExhaust && e.Area.Contains(cell) {
 			return MineTierCore
 		}
 	}

@@ -118,15 +118,15 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 		if !ok {
 			continue
 		}
-		if r.Kind == ReserveCoverClear && r.Area.Width*r.Area.Height > cover.Width*cover.Height {
-			cover = r.Area
+		if r.Kind == ReserveCoverClear && r.Area.Bounds().Width*r.Area.Bounds().Height > cover.Width*cover.Height {
+			cover = r.Area.Bounds()
 		}
 		shape := OverlayFill
 		if r.Kind == ReservePerimeter || r.Kind == ReserveKillbox {
 			shape = OverlayOutline
 		}
-		if add(style, shape, []Rectangle{r.Area}, nil) && r.Kind != ReservePerimeter && r.Kind != ReserveCoverClear {
-			label(style.label, centre(r.Area))
+		if add(style, shape, []Rectangle{r.Area.Bounds()}, nil) && r.Kind != ReservePerimeter && r.Kind != ReserveCoverClear {
+			label(style.label, centre(r.Area.Bounds()))
 		}
 	}
 	if cover.Width > 0 {

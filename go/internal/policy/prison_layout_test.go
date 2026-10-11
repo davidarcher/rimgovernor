@@ -15,10 +15,10 @@ func prisonPlan() LayoutPlan {
 			{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 26, Z: 21, Width: 4, Height: 4}), Door: domain.Cell{X: 27, Z: 20}, DoorRot: domain.South},
 		},
 		Reservations: []LayoutReservation{
-			{Kind: ReservePerimeter, Area: Rectangle{X: 7, Z: 7, Width: 86, Height: 3}},
-			{Kind: ReservePerimeter, Area: Rectangle{X: 7, Z: 90, Width: 86, Height: 3}},
-			{Kind: ReservePerimeter, Area: Rectangle{X: 7, Z: 10, Width: 3, Height: 80}},
-			{Kind: ReservePerimeter, Area: Rectangle{X: 90, Z: 10, Width: 3, Height: 80}},
+			{Kind: ReservePerimeter, Area: RectRegion(Rectangle{X: 7, Z: 7, Width: 86, Height: 3})},
+			{Kind: ReservePerimeter, Area: RectRegion(Rectangle{X: 7, Z: 90, Width: 86, Height: 3})},
+			{Kind: ReservePerimeter, Area: RectRegion(Rectangle{X: 7, Z: 10, Width: 3, Height: 80})},
+			{Kind: ReservePerimeter, Area: RectRegion(Rectangle{X: 90, Z: 10, Width: 3, Height: 80})},
 		},
 	}
 }

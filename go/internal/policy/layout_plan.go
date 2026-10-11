@@ -99,7 +99,7 @@ const (
 // its lanes (0 for every other kind).
 type LayoutReservation struct {
 	Kind ReservationKind
-	Area Rectangle
+	Area Region
 	Pair int32 `json:",omitempty"`
 	// Facing is the side a walled reservation's door faces (the incinerator).
 	Facing domain.Rotation `json:",omitempty"`
@@ -122,7 +122,7 @@ type LayoutPlan struct {
 	// RetiredGround is the walled footprint of each room the plan retired
 	// while its building stands: planned-ground clearance demolishes
 	// it, then the entry is dropped.
-	RetiredGround []Rectangle `json:",omitempty"`
+	RetiredGround []Region `json:",omitempty"`
 	// Cold latches the map's climate when the plan is derived: the
 	// seasonal curve dips below ColdMapBelowC. The shelter is sized for it,
 	// so a replan never resizes or re-sites the room.
@@ -239,12 +239,12 @@ func (p LayoutPlan) Valid() bool {
 		}
 	}
 	for _, g := range p.RetiredGround {
-		if g.Width < 1 || g.Height < 1 {
+		if g.Empty() {
 			return false
 		}
 	}
 	for _, r := range p.Reservations {
-		if r.Kind == "" || r.Area.Width < 1 || r.Area.Height < 1 {
+		if r.Kind == "" || r.Area.Empty() {
 			return false
 		}
 	}
@@ -261,7 +261,7 @@ func (p LayoutPlan) Extent() (Rectangle, bool) {
 	}
 	rects = append(rects, spineRects(p.Hallways())...)
 	for _, r := range p.Reservations {
-		rects = append(rects, r.Area)
+		rects = append(rects, r.Area.Bounds())
 	}
 	return RectUnion(rects...)
 }
@@ -340,4 +340,9 @@ func (p LayoutPlan) FieldAnchor(free func(Rectangle) bool) (domain.Cell, bool) {
 		}
 	}
 	return domain.Cell{}, false
+}
+
+// Equal reports whether both reservations are the same site.
+func (r LayoutReservation) Equal(o LayoutReservation) bool {
+	return r.Kind == o.Kind && r.Pair == o.Pair && r.Facing == o.Facing && r.Herd == o.Herd && r.Area.Equal(o.Area)
 }

@@ -244,8 +244,8 @@ func groundStepMethod(id domain.PlanID, step policy.GroundStep) (string, []domai
 		switch {
 		case len(step.Roof) > 0 && len(step.Targets) == 0:
 			prefix = fmt.Sprintf("roof-off-%d-%d-x%d-", step.Roof[0].X, step.Roof[0].Z, len(step.Roof))
-		case step.Ground != (policy.Rectangle{}):
-			prefix = fmt.Sprintf("ground-walls-%d-%d-", step.Ground.X, step.Ground.Z)
+		case !step.Ground.Empty():
+			prefix = fmt.Sprintf("ground-walls-%d-%d-", step.Ground.Bounds().X, step.Ground.Bounds().Z)
 		default:
 			prefix = batchPrefix("ground-walls", step.Targets[0].EntityID, len(step.Targets))
 		}

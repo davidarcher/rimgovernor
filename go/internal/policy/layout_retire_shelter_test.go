@@ -212,7 +212,7 @@ func TestRetiredShelterGroundIsDemolishedThenDropped(t *testing.T) {
 	f := newShelterRetireFixture(t)
 	next, _ := f.replan(t, true, nil)
 	ground := roomGround(f.shelter.Region.Bounds())
-	if len(next.RetiredGround) != 1 || next.RetiredGround[0] != ground || !next.Valid() {
+	if len(next.RetiredGround) != 1 || !next.RetiredGround[0].Equal(RectRegion(ground)) || !next.Valid() {
 		t.Fatalf("retired ground %v, want %v", next.RetiredGround, ground)
 	}
 	again, _, _ := ReplanLayoutWithRooms(next, f.survey, RoomGrowth{}, 0, 2, 0, TechTierCamp, nil, nil)

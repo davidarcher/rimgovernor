@@ -190,7 +190,7 @@ func (p LayoutPlan) HerdRooms(role PlannedRole) []PlannedRoom {
 	var out []PlannedRoom
 	for _, r := range p.Reservations {
 		if want, ok := herdRole(r.Kind); ok && want == role {
-			out = append(out, p.herdRoom(r.Area, role))
+			out = append(out, p.herdRoom(r.Area.Bounds(), role))
 		}
 	}
 	return out
@@ -241,7 +241,7 @@ func (p LayoutPlan) flaps() []domain.Cell {
 		if r.Kind != ReserveBarn {
 			continue
 		}
-		if c, ok := p.barnFlap(r.Area); ok {
+		if c, ok := p.barnFlap(r.Area.Bounds()); ok {
 			out = append(out, c)
 		}
 	}
@@ -299,10 +299,10 @@ func (p LayoutPlan) herdRoom(area Rectangle, role PlannedRole) PlannedRoom {
 	// door in the shared wall, besides its own door outside.
 	if role == PlannedVetRoom {
 		for _, r := range p.Reservations {
-			if r.Kind != ReserveBarn || r.Area == area {
+			if r.Kind != ReserveBarn || r.Area.Equal(RectRegion(area)) {
 				continue
 			}
-			if link, ok := sharedWallLink(area, r.Area); ok {
+			if link, ok := sharedWallLink(area, r.Area.Bounds()); ok {
 				room.Link = &link
 				break
 			}
@@ -342,10 +342,10 @@ func (p LayoutPlan) doorBlocked(d herdDoor, own Rectangle) bool {
 	out := domain.Cell{X: d.cell.X + d.sx, Z: d.cell.Z + d.sz}
 	for _, r := range p.Reservations {
 		a := r.Area
-		if a == own {
+		if a.Equal(RectRegion(own)) {
 			continue
 		}
-		if out.X >= a.X && out.X < a.X+a.Width && out.Z >= a.Z && out.Z < a.Z+a.Height {
+		if a.Contains(out) {
 			return true
 		}
 	}

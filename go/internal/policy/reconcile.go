@@ -171,11 +171,11 @@ func Reconcile(in ReconcileInput) Reconciliation {
 		}
 	}
 	for _, row := range rows {
-		if !row.Player || !overlaps(row, ground) {
+		if !row.Player || !overlaps(row, RectRegion(ground)) {
 			continue
 		}
 		if row.Class == "ancient_wall_door" {
-			if overlaps(row, interior) {
+			if overlaps(row, RectRegion(interior)) {
 				innerWalls = append(innerWalls, row)
 			}
 			continue
@@ -274,7 +274,7 @@ func Reconcile(in ReconcileInput) Reconciliation {
 	// An outdoor ring has no roof to take off.
 	var roof []domain.Cell
 	if len(wallTargets) > 0 && !r.Outdoor {
-		roof = enclosedRoof(wallTargets, []Rectangle{roomGround(interior)}, in.Rooms)
+		roof = enclosedRoof(wallTargets, []Region{RectRegion(roomGround(interior))}, in.Rooms)
 	}
 	for _, c := range allWallOut {
 		add(reconcileItem{kind: OpWallOut, cell: c, target: ringTarget(rows, c, wallDef), ready: len(roof) == 0 && slices.Contains(wallOutCells, c)})

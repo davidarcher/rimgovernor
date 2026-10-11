@@ -151,7 +151,7 @@ func auditSoil(plan policy.LayoutPlan, s policy.MapSurvey, crops [][]domain.Cell
 	for _, r := range plan.Reservations {
 		switch r.Kind {
 		case policy.ReservePerimeter, policy.ReservePerimeterLight, policy.ReserveBridge, policy.ReservePerimeterGap, policy.ReserveGate:
-			for _, c := range rectCells(r.Area) {
+			for _, c := range r.Area.Cells() {
 				wall[c] = true
 			}
 		}
@@ -163,7 +163,7 @@ func auditSoil(plan policy.LayoutPlan, s policy.MapSurvey, crops [][]domain.Cell
 	lane := map[domain.Cell]bool{}
 	for _, r := range plan.Reservations {
 		if r.Kind == policy.ReserveTurbineLane {
-			for _, c := range rectCells(r.Area) {
+			for _, c := range r.Area.Cells() {
 				lane[c] = true
 			}
 		}

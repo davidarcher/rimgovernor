@@ -91,7 +91,7 @@ func reserveExhausts(u *utilityGrid, plan *LayoutPlan) {
 				continue
 			}
 			if area, ok := u.exhaust(r); ok {
-				u.reserve(plan, LayoutReservation{Kind: ReserveExhaust, Area: area})
+				u.reserve(plan, LayoutReservation{Kind: ReserveExhaust, Area: RectRegion(area)})
 			}
 		}
 	}
@@ -116,7 +116,7 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		// The clearance ring only keeps other sites off the hallways: a vent is
 		// where it is, and core rooms were already sited off its enclosure.
 		if u.freeWhere(area, true, false) {
-			u.reserve(&plan, LayoutReservation{Kind: ReserveGeothermal, Area: area})
+			u.reserve(&plan, LayoutReservation{Kind: ReserveGeothermal, Area: RectRegion(area)})
 		}
 	}
 	pair := int32(0)
@@ -179,7 +179,7 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		if !ok {
 			break
 		}
-		u.reserve(&plan, LayoutReservation{Kind: ReserveSolar, Area: site})
+		u.reserve(&plan, LayoutReservation{Kind: ReserveSolar, Area: RectRegion(site)})
 	}
 	planHerdSites(u, &plan, want.PenAnimals, nil)
 	return plan
@@ -194,7 +194,7 @@ func turbinePair(site Rectangle, pair int32, turned bool) []LayoutReservation {
 		if turned {
 			a = Rectangle{X: site.X + dz, Z: site.Z, Width: h, Height: turbineWidth}
 		}
-		return LayoutReservation{Kind: kind, Area: a, Pair: pair}
+		return LayoutReservation{Kind: kind, Area: RectRegion(a), Pair: pair}
 	}
 	return []LayoutReservation{
 		row(6, 2, ReserveTurbine), row(18, 2, ReserveTurbine),
@@ -297,17 +297,17 @@ func PlannedPowerSites(plan LayoutPlan, definition string) []PlannedPowerSite {
 			}
 			south := true
 			for _, o := range plan.Reservations {
-				if o.Kind == ReserveTurbine && o.Pair == r.Pair && (o.Area.Z < r.Area.Z || o.Area.X < r.Area.X) {
+				if o.Kind == ReserveTurbine && o.Pair == r.Pair && (o.Area.Bounds().Z < r.Area.Bounds().Z || o.Area.Bounds().X < r.Area.Bounds().X) {
 					south = false
 				}
 			}
-			c, rot := TurbinePlacement(r.Area, south)
-			out = append(out, PlannedPowerSite{Cell: c, Rotation: rot, Area: r.Area})
+			c, rot := TurbinePlacement(r.Area.Bounds(), south)
+			out = append(out, PlannedPowerSite{Cell: c, Rotation: rot, Area: r.Area.Bounds()})
 		}
 	case SolarDefinition:
 		for _, r := range plan.Reservations {
 			if r.Kind == ReserveSolar {
-				out = append(out, PlannedPowerSite{Cell: domain.Cell{X: r.Area.X + 1, Z: r.Area.Z + 1}, Rotation: domain.North, Area: r.Area})
+				out = append(out, PlannedPowerSite{Cell: domain.Cell{X: r.Area.Bounds().X + 1, Z: r.Area.Bounds().Z + 1}, Rotation: domain.North, Area: r.Area.Bounds()})
 			}
 		}
 	case GeothermalDefinition:
@@ -315,7 +315,7 @@ func PlannedPowerSites(plan LayoutPlan, definition string) []PlannedPowerSite {
 		// 6-wide footprint spans its centre -2..+3.
 		for _, r := range plan.Reservations {
 			if r.Kind == ReserveGeothermal {
-				gen := pad(r.Area, -geothermalShell)
+				gen := pad(r.Area.Bounds(), -geothermalShell)
 				out = append(out, PlannedPowerSite{Cell: domain.Cell{X: gen.X + 2, Z: gen.Z + 2}, Rotation: domain.North, Area: gen})
 			}
 		}
@@ -369,8 +369,8 @@ func (p LayoutPlan) CoolerExhaust(room PlannedRoom) (PlannedCoolerSite, Rectangl
 	wall, step, rot := backWall(room)
 	first := domain.Cell{X: wall.X + step.X, Z: wall.Z + step.Z}
 	for _, e := range p.Reservations {
-		if e.Kind == ReserveExhaust && (e.Area.Width == 1 || e.Area.Height == 1) && rectsOverlap(e.Area, Rectangle{X: first.X, Z: first.Z, Width: 1, Height: 1}) {
-			return PlannedCoolerSite{Cell: wall, Rotation: rot}, e.Area, true
+		if e.Kind == ReserveExhaust && (e.Area.Bounds().Width == 1 || e.Area.Bounds().Height == 1) && rectsOverlap(e.Area.Bounds(), Rectangle{X: first.X, Z: first.Z, Width: 1, Height: 1}) {
+			return PlannedCoolerSite{Cell: wall, Rotation: rot}, e.Area.Bounds(), true
 		}
 	}
 	return PlannedCoolerSite{}, Rectangle{}, false
@@ -444,7 +444,7 @@ func newUtilityGrid(plan LayoutPlan) *utilityGrid {
 		u.mark(Rectangle{X: x0 - SpineWidth/2, Z: z0 - SpineWidth/2, Width: x1 - x0 + SpineWidth, Height: z1 - z0 + SpineWidth})
 	}
 	for _, r := range plan.Reservations {
-		u.mark(r.Area)
+		u.markRegion(r.Area)
 	}
 	u.keepOut = outerKeepOut(plan, u.w, u.h)
 	u.clear = make([]bool, n)
@@ -489,9 +489,17 @@ func (u *utilityGrid) mark(r Rectangle) {
 	}
 }
 
+func (u *utilityGrid) markRegion(g Region) {
+	for _, c := range g.Cells() {
+		if u.in(c.X, c.Z) {
+			u.used[c.Z*u.w+c.X] = true
+		}
+	}
+}
+
 func (u *utilityGrid) reserve(plan *LayoutPlan, r LayoutReservation) {
 	plan.Reservations = append(plan.Reservations, r)
-	u.mark(r.Area)
+	u.markRegion(r.Area)
 }
 
 // siteInset is how far from the map edge a core-side site starts: the ring walls

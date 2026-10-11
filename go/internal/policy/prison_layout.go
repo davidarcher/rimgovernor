@@ -43,7 +43,7 @@ func PrisonTurretSites(plan LayoutPlan) []domain.Cell {
 		}
 	}
 	for _, r := range plan.Reservations {
-		for _, c := range rectCells(r.Area) {
+		for _, c := range r.Area.Cells() {
 			blocked[c] = true
 		}
 	}
@@ -80,7 +80,7 @@ func PerimeterPrisonTurrets(plan LayoutPlan, turret, stuff, conduit string, tran
 	var killbox Rectangle
 	for _, r := range plan.Reservations {
 		if r.Kind == ReserveKillbox {
-			killbox = r.Area
+			killbox = r.Area.Bounds()
 		}
 	}
 	wi, _ := planInterior(plan, 0)

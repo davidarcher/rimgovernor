@@ -26,7 +26,7 @@ func (p LayoutPlan) YardRooms() []PlannedRoom {
 	var out []PlannedRoom
 	for _, r := range p.Reservations {
 		if r.Kind == ReserveYard {
-			out = append(out, PlannedRoom{Role: PlannedYard, Region: RectRegion(pad(r.Area, -1)), Outdoor: true})
+			out = append(out, PlannedRoom{Role: PlannedYard, Region: RectRegion(pad(r.Area.Bounds(), -1)), Outdoor: true})
 		}
 	}
 	return out
@@ -57,7 +57,7 @@ func PlanYardSites(plan LayoutPlan, want int) LayoutPlan {
 		if !ok {
 			break
 		}
-		u.reserve(&plan, LayoutReservation{Kind: ReserveYard, Area: site})
+		u.reserve(&plan, LayoutReservation{Kind: ReserveYard, Area: RectRegion(site)})
 	}
 	return plan
 }

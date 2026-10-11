@@ -76,8 +76,9 @@ func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 			planned[pad(r.Region.Bounds(), 1)] = true
 		}
 	}
-	for _, g := range PlannedGround(next, GroundCensus{}) {
-		if planned[g] {
+	for _, reg := range PlannedGround(next, GroundCensus{}) {
+		g := reg.Bounds()
+		if planned[reg.Bounds()] {
 			continue
 		}
 		if g.X <= built.Region.Bounds().X && built.Region.Bounds().X < g.X+g.Width && g.Z <= built.Region.Bounds().Z && built.Region.Bounds().Z < g.Z+g.Height {

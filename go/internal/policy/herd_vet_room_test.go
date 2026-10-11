@@ -54,7 +54,7 @@ func TestVetRoomAreaCoversTheInteriorAndNotTheBarns(t *testing.T) {
 			continue
 		}
 		in := map[domain.Cell]bool{}
-		for _, c := range rectCells(r.Area) {
+		for _, c := range rectCells(r.Area.Bounds()) {
 			in[c] = true
 		}
 		for _, c := range cells {

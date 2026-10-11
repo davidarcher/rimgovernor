@@ -29,8 +29,8 @@ func boxedInHerdPlan(t *testing.T, animals int) LayoutPlan {
 	x0, z0, x1, z1 := int32(1<<30), int32(1<<30), int32(-1<<30), int32(-1<<30)
 	for _, r := range p.Reservations {
 		if _, ok := herdRole(r.Kind); ok {
-			x0, z0 = min(x0, r.Area.X), min(z0, r.Area.Z)
-			x1, z1 = max(x1, r.Area.X+r.Area.Width), max(z1, r.Area.Z+r.Area.Height)
+			x0, z0 = min(x0, r.Area.Bounds().X), min(z0, r.Area.Bounds().Z)
+			x1, z1 = max(x1, r.Area.Bounds().X+r.Area.Bounds().Width), max(z1, r.Area.Bounds().Z+r.Area.Bounds().Height)
 		}
 	}
 	const thick = 40
@@ -40,7 +40,7 @@ func boxedInHerdPlan(t *testing.T, animals int) LayoutPlan {
 		{X: x0, Z: z0 - thick, Width: x1 - x0, Height: thick},
 		{X: x0, Z: z1, Width: x1 - x0, Height: thick},
 	} {
-		p.Reservations = append(p.Reservations, LayoutReservation{Kind: ReserveSolar, Area: a})
+		p.Reservations = append(p.Reservations, LayoutReservation{Kind: ReserveSolar, Area: RectRegion(a)})
 	}
 	return p
 }
@@ -265,7 +265,7 @@ func TestHerdOutgrowsItsRoomsAndAddsAnotherWithoutMovingAny(t *testing.T) {
 		t.Fatal("rooms hold fewer beds than the herd", grown.herdCapacity(PlannedBarn), grown.herdCapacity(PlannedVetRoom))
 	}
 	for i, r := range small.Reservations {
-		if grown.Reservations[i] != r {
+		if !grown.Reservations[i].Equal(r) {
 			t.Fatal("a placed reservation moved", r)
 		}
 	}
@@ -311,8 +311,8 @@ func TestBarnAndVetRoomAreAnimalFurnitureRooms(t *testing.T) {
 // A vet room walled against the barn never opens its door on the barn's wall.
 func TestVetRoomDoorAvoidsNeighbourWall(t *testing.T) {
 	plan := LayoutPlan{Reservations: []LayoutReservation{
-		{Kind: ReserveBarn, Area: Rectangle{X: 0, Z: 10, Width: 8, Height: 8}},
-		{Kind: ReserveVetRoom, Area: Rectangle{X: 0, Z: 2, Width: 8, Height: 8}},
+		{Kind: ReserveBarn, Area: RectRegion(Rectangle{X: 0, Z: 10, Width: 8, Height: 8})},
+		{Kind: ReserveVetRoom, Area: RectRegion(Rectangle{X: 0, Z: 2, Width: 8, Height: 8})},
 	}}
 	rooms := plan.HerdRooms(PlannedVetRoom)
 	if len(rooms) != 1 {

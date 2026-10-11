@@ -23,9 +23,9 @@ func TestDefenseKillboxRegionFromThePlan(t *testing.T) {
 		t.Fatal("a killbox without a plan")
 	}
 	plan := policy.LayoutPlan{Reservations: []policy.LayoutReservation{
-		{Kind: policy.ReserveKillbox, Area: policy.Rectangle{X: 95, Z: 53, Width: 11, Height: 10}},
-		{Kind: policy.ReserveKillboxApproach, Area: policy.Rectangle{X: 99, Z: 42, Width: 3, Height: 8}},
-		{Kind: policy.ReservePerimeter, Area: policy.Rectangle{X: 60, Z: 50, Width: 39, Height: 3}},
+		{Kind: policy.ReserveKillbox, Area: policy.RectRegion(policy.Rectangle{X: 95, Z: 53, Width: 11, Height: 10})},
+		{Kind: policy.ReserveKillboxApproach, Area: policy.RectRegion(policy.Rectangle{X: 99, Z: 42, Width: 3, Height: 8})},
+		{Kind: policy.ReservePerimeter, Area: policy.RectRegion(policy.Rectangle{X: 60, Z: 50, Width: 39, Height: 3})},
 	}}
 	k, region, home, ok := defenseKillbox(observation.ColonyProjection{Bounds: bounds, LayoutPlan: domain.Known(plan)})
 	if !ok || k.Entry != (domain.Cell{X: 100, Z: 50}) || k.Toward != domain.North || region.Min.X < 0 || region.Min.Z < 0 || region.Max.X >= 250 || region.Max.Z >= 250 || region.Cells() == 0 || k.Depth != 10 || home != (domain.Cell{X: 100, Z: 63}) {

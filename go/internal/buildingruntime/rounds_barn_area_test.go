@@ -9,7 +9,7 @@ import (
 )
 
 func TestBotAreasPlanOnlyAStandingBarn(t *testing.T) {
-	plan := policy.LayoutPlan{Reservations: []policy.LayoutReservation{{Kind: policy.ReserveBarn, Area: policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 6}}}}
+	plan := policy.LayoutPlan{Reservations: []policy.LayoutReservation{{Kind: policy.ReserveBarn, Area: policy.RectRegion(policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 6})}}}
 	interior := policy.Rectangle{X: 11, Z: 11, Width: 4, Height: 4}
 	barnArea := func(rooms policy.RoomObservation) int {
 		var m safeAreaMemory

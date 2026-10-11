@@ -28,9 +28,9 @@ func TestDeriveLayoutPlanGeothermal(t *testing.T) {
 			for _, r := range plan.Reservations {
 				switch r.Kind {
 				case ReserveGeothermal:
-					enclosure = r.Area
+					enclosure = r.Area.Bounds()
 				case ReservePerimeter:
-					ring = unionRect(ring, r.Area)
+					ring = unionRect(ring, r.Area.Bounds())
 				}
 			}
 			// The wall never enters the edge margin, so a geyser

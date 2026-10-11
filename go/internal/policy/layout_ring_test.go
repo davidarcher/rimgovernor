@@ -31,7 +31,7 @@ func TestRingHallwaysNeedNoMainSpine(t *testing.T) {
 	p := PlanUtilities(plan, UtilityWants{TurbinePairs: 1, Solar: 1})
 	u := newUtilityGrid(plan)
 	for _, r := range p.Reservations {
-		if (r.Kind == ReserveTurbine || r.Kind == ReserveSolar) && !u.free(r.Area, true) {
+		if (r.Kind == ReserveTurbine || r.Kind == ReserveSolar) && !u.free(r.Area.Bounds(), true) {
 			t.Fatal("site on the clearance", r)
 		}
 	}

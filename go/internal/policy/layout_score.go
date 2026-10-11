@@ -191,7 +191,7 @@ func (sc planScorer) walled(p LayoutPlan, out PlanScore) PlanScore {
 	for _, r := range wp.Reservations {
 		switch r.Kind {
 		case ReservePerimeter, ReservePerimeterLight, ReserveBridge:
-			for _, c := range rectCells(r.Area) {
+			for _, c := range r.Area.Cells() {
 				walls[c] = true
 			}
 		case ReserveKillbox:
@@ -199,7 +199,7 @@ func (sc planScorer) walled(p LayoutPlan, out PlanScore) PlanScore {
 		case ReserveKillboxApproach:
 			approach = true
 		case ReservePerimeterGap:
-			gaps += int(r.Area.Width * r.Area.Height)
+			gaps += int(r.Area.Bounds().Width * r.Area.Bounds().Height)
 		}
 	}
 	out.Wall = -planWeights.Wall * len(walls)

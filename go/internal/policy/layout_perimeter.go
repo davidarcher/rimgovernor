@@ -280,7 +280,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 		// Raiders fight through the killbox: no utility stands in it.
 		for _, r := range plan.Reservations {
-			if !perimeterKinds[r.Kind] && rectsOverlap(killbox, r.Area) {
+			if !perimeterKinds[r.Kind] && rectsOverlap(killbox, r.Area.Bounds()) {
 				return false
 			}
 		}
@@ -392,7 +392,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 		for k, sd := range sides {
 			for p := sd.lo; p <= sd.hi && !opened; p++ {
-				if kb, _ := openingAt(crossing{k, p}); kb == r.Area && opens(crossing{k, p}, false) {
+				if kb, _ := openingAt(crossing{k, p}); kb == r.Area.Bounds() && opens(crossing{k, p}, false) {
 					open, opened = crossing{k, p}, true
 				}
 			}
@@ -412,7 +412,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	var res []LayoutReservation
 	add := func(kind ReservationKind, r Rectangle) {
 		if r = clipRect(r, Rectangle{Width: w, Height: h}); r.Width > 0 && r.Height > 0 {
-			res = append(res, LayoutReservation{Kind: kind, Area: r})
+			res = append(res, LayoutReservation{Kind: kind, Area: RectRegion(r)})
 		}
 	}
 	var killbox Rectangle
@@ -535,7 +535,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 	}
 	for _, r := range plan.Reservations {
-		if c := (domain.Cell{X: r.Area.X, Z: r.Area.Z}); r.Kind == ReserveMoisturePump && pumpSite(c, true) && drying(c) > 0 {
+		if c := (domain.Cell{X: r.Area.Bounds().X, Z: r.Area.Bounds().Z}); r.Kind == ReserveMoisturePump && pumpSite(c, true) && drying(c) > 0 {
 			cover(c)
 		}
 	}

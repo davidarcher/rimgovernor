@@ -49,9 +49,9 @@ func PlanMountainPockets(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 		kept = append(kept, r)
 		if r.Kind == ReservePerimeter {
-			ring = unionRect(ring, r.Area)
+			ring = unionRect(ring, r.Area.Bounds())
 		}
-		for _, c := range rectCells(r.Area) {
+		for _, c := range r.Area.Cells() {
 			used[c] = true
 		}
 	}
@@ -126,7 +126,7 @@ func pocketRuns(cells []domain.Cell) []LayoutReservation {
 		for j < len(sorted) && sorted[j].Z == sorted[i].Z && sorted[j].X == sorted[j-1].X+1 {
 			j++
 		}
-		out = append(out, LayoutReservation{Kind: ReservePocketWall, Area: Rectangle{X: sorted[i].X, Z: sorted[i].Z, Width: int32(j - i), Height: 1}})
+		out = append(out, LayoutReservation{Kind: ReservePocketWall, Area: RectRegion(Rectangle{X: sorted[i].X, Z: sorted[i].Z, Width: int32(j - i), Height: 1})})
 		i = j
 	}
 	return out
@@ -141,7 +141,7 @@ func PocketSections(plan LayoutPlan, wall string) ([]PerimeterSection, error) {
 			continue
 		}
 		s := PerimeterSection{Name: DefenseTierName(fmt.Sprintf("%s%02d", TierPocketPrefix, len(out)))}
-		for _, c := range rectCells(r.Area) {
+		for _, c := range r.Area.Cells() {
 			b, err := domain.NewBuilding(wall, c, domain.North, "")
 			if err != nil {
 				return nil, err

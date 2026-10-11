@@ -11,7 +11,7 @@ import (
 func TestWallOffMountainPocket(t *testing.T) {
 	plan := LayoutPlan{
 		Rooms:        []PlannedRoom{{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 40, Z: 40, Width: 5, Height: 5}), DoorRot: domain.North}},
-		Reservations: []LayoutReservation{{Kind: ReservePerimeter, Area: Rectangle{X: 30, Z: 30, Width: 30, Height: 3}}, {Kind: ReservePocketWall, Area: Rectangle{X: 1, Z: 1, Width: 1, Height: 1}}},
+		Reservations: []LayoutReservation{{Kind: ReservePerimeter, Area: RectRegion(Rectangle{X: 30, Z: 30, Width: 30, Height: 3})}, {Kind: ReservePocketWall, Area: RectRegion(Rectangle{X: 1, Z: 1, Width: 1, Height: 1})}},
 	}
 	var cells []SurveyCell
 	open := func(r Rectangle) {
@@ -31,7 +31,7 @@ func TestWallOffMountainPocket(t *testing.T) {
 	var walled []domain.Cell
 	for _, r := range got.Reservations {
 		if r.Kind == ReservePocketWall {
-			walled = append(walled, rectCells(r.Area)...)
+			walled = append(walled, rectCells(r.Area.Bounds())...)
 		}
 	}
 	slices.SortFunc(walled, func(a, b domain.Cell) int {

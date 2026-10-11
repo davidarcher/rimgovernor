@@ -162,7 +162,7 @@ func (p LayoutPlan) herdUnits() []herdUnit {
 			if a.Kind == b.Kind || a.Kind != ReserveBarn && b.Kind != ReserveBarn {
 				continue
 			}
-			if _, joined := sharedWallLink(a.Area, b.Area); joined {
+			if _, joined := sharedWallLink(a.Area.Bounds(), b.Area.Bounds()); joined {
 				group[max(root(i), root(j))] = min(root(i), root(j))
 			}
 		}
@@ -181,9 +181,9 @@ func (p LayoutPlan) herdUnits() []herdUnit {
 		}
 		switch r.Kind {
 		case ReserveBarn:
-			units[k].barns = append(units[k].barns, r.Area)
+			units[k].barns = append(units[k].barns, r.Area.Bounds())
 		default:
-			units[k].vets = append(units[k].vets, r.Area)
+			units[k].vets = append(units[k].vets, r.Area.Bounds())
 		}
 	}
 	return units
@@ -255,7 +255,7 @@ func planUnit(u *utilityGrid, plan *LayoutPlan, unit herdUnit, herd string, anim
 		if !ok {
 			return false
 		}
-		u.reserve(plan, LayoutReservation{Kind: kind, Area: site, Herd: herd})
+		u.reserve(plan, LayoutReservation{Kind: kind, Area: RectRegion(site), Herd: herd})
 		if kind == ReserveBarn {
 			barns = append(barns, site)
 		} else {
@@ -276,10 +276,10 @@ func planUnit(u *utilityGrid, plan *LayoutPlan, unit herdUnit, herd string, anim
 		vw, vh := walledSide(herdSide(vetBeds))
 		barn, ok := u.site(bw, bh, false, false, cx, cz)
 		if ok {
-			u.reserve(plan, LayoutReservation{Kind: ReserveBarn, Area: barn, Herd: herd})
+			u.reserve(plan, LayoutReservation{Kind: ReserveBarn, Area: RectRegion(barn), Herd: herd})
 			var vet Rectangle
 			if vet, ok = u.besideReservation(*plan, barn, ReserveVetRoom, vw, vh); ok {
-				u.reserve(plan, LayoutReservation{Kind: ReserveVetRoom, Area: vet, Herd: herd})
+				u.reserve(plan, LayoutReservation{Kind: ReserveVetRoom, Area: RectRegion(vet), Herd: herd})
 			}
 		}
 		if !ok {
@@ -380,7 +380,7 @@ func (u *utilityGrid) besideReservation(plan LayoutPlan, anchor Rectangle, kind 
 			if found && cost >= bestCost {
 				continue
 			}
-			if _, ok := sharedWallLink(r, anchor); !ok || !u.inset(r) || !u.freeBesideWall(r, anchor) || !plan.doorsHold(LayoutReservation{Kind: kind, Area: r}) {
+			if _, ok := sharedWallLink(r, anchor); !ok || !u.inset(r) || !u.freeBesideWall(r, anchor) || !plan.doorsHold(LayoutReservation{Kind: kind, Area: RectRegion(r)}) {
 				continue
 			}
 			best, bestCost, found = r, cost, true
@@ -401,8 +401,8 @@ func (p LayoutPlan) doorsHold(cand LayoutReservation) bool {
 		if !ok {
 			continue
 		}
-		room := next.herdRoom(r.Area, role)
-		if r != cand && p.herdRoom(r.Area, role).Door != room.Door {
+		room := next.herdRoom(r.Area.Bounds(), role)
+		if !r.Equal(cand) && p.herdRoom(r.Area.Bounds(), role).Door != room.Door {
 			return false
 		}
 		cells := []domain.Cell{room.Door}
@@ -410,8 +410,8 @@ func (p LayoutPlan) doorsHold(cand LayoutReservation) bool {
 			cells = append(cells, *room.Link)
 		}
 		if r.Kind == ReserveBarn {
-			flap, has := next.barnFlap(r.Area)
-			if was, hadFlap := p.barnFlap(r.Area); r != cand && (was != flap || hadFlap != has) {
+			flap, has := next.barnFlap(r.Area.Bounds())
+			if was, hadFlap := p.barnFlap(r.Area.Bounds()); !r.Equal(cand) && (was != flap || hadFlap != has) {
 				return false
 			}
 			if has {

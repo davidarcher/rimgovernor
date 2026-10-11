@@ -8,7 +8,7 @@ import (
 
 func TestBaitRoomPlacement(t *testing.T) {
 	plan := LayoutPlan{
-		Reservations: []LayoutReservation{{Kind: ReservePerimeter, Area: Rectangle{X: 10, Z: 10, Width: 20, Height: 3}}, {Kind: ReserveBaitRoom, Area: Rectangle{X: 1, Z: 1, Width: 5, Height: 5}}},
+		Reservations: []LayoutReservation{{Kind: ReservePerimeter, Area: RectRegion(Rectangle{X: 10, Z: 10, Width: 20, Height: 3})}, {Kind: ReserveBaitRoom, Area: RectRegion(Rectangle{X: 1, Z: 1, Width: 5, Height: 5})}},
 	}
 	var cells []SurveyCell
 	set := func(r Rectangle, c SurveyCell) {
@@ -41,7 +41,7 @@ func TestBaitRoomPlacement(t *testing.T) {
 	for _, r := range got.Reservations {
 		switch r.Kind {
 		case ReserveBaitRoom:
-			rooms = append(rooms, r.Area)
+			rooms = append(rooms, r.Area.Bounds())
 		case ReserveBaitWall:
 			walls++
 		}

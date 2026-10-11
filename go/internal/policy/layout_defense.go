@@ -50,11 +50,11 @@ func LayoutKillbox(plan LayoutPlan, bounds Bounds) (k DefenseKillbox, region Rec
 	for _, r := range plan.Reservations {
 		switch r.Kind {
 		case ReserveKillbox:
-			killbox = r.Area
+			killbox = r.Area.Bounds()
 		case ReserveKillboxApproach:
-			approaches = append(approaches, r.Area)
+			approaches = append(approaches, r.Area.Bounds())
 		case ReservePerimeter:
-			k.Walled = append(k.Walled, rectCells(r.Area)...)
+			k.Walled = append(k.Walled, r.Area.Cells()...)
 		}
 	}
 	if killbox.Width == 0 {
@@ -135,11 +135,11 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 		case ReserveGate:
 			// An airlock: a door on each face of the wall, the
 			// cells between left open, enclosed by the wall beside them.
-			ends := r.Area.Width
-			if r.Area.Height > ends {
-				ends = r.Area.Height
+			ends := r.Area.Bounds().Width
+			if r.Area.Bounds().Height > ends {
+				ends = r.Area.Bounds().Height
 			}
-			for i, c := range rectCells(r.Area) {
+			for i, c := range r.Area.Cells() {
 				if i == 0 || int32(i) == ends-1 {
 					gates[c] = true
 				} else {
@@ -147,20 +147,20 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 				}
 			}
 		case ReservePerimeter:
-			runs = append(runs, r.Area)
+			runs = append(runs, r.Area.Bounds())
 		case ReservePerimeterLight:
-			for _, c := range rectCells(r.Area) {
+			for _, c := range r.Area.Cells() {
 				woodInner[c] = true
 			}
 		case ReserveBridge:
-			for _, c := range rectCells(r.Area) {
+			for _, c := range r.Area.Cells() {
 				bridged[c] = true
 			}
 		case ReserveKillbox:
-			killbox = r.Area
+			killbox = r.Area.Bounds()
 		case ReserveGeothermal:
 			if geothermal.Width == 0 {
-				geothermal = r.Area
+				geothermal = r.Area.Bounds()
 			}
 		}
 	}
@@ -290,9 +290,9 @@ func PerimeterPumps(plan LayoutPlan, pump, conduit string, transmitters []domain
 	for _, r := range plan.Reservations {
 		switch r.Kind {
 		case ReserveKillbox:
-			killbox = r.Area
+			killbox = r.Area.Bounds()
 		case ReserveMoisturePump:
-			sites = append(sites, domain.Cell{X: r.Area.X, Z: r.Area.Z})
+			sites = append(sites, domain.Cell{X: r.Area.Bounds().X, Z: r.Area.Bounds().Z})
 		}
 	}
 	if len(sites) == 0 || len(transmitters) == 0 {
@@ -347,7 +347,7 @@ func FenceSections(plan LayoutPlan, fence, stuff string) ([]PerimeterSection, er
 			continue
 		}
 		s := PerimeterSection{Name: DefenseTierName(fmt.Sprintf("%s%02d", TierFencePrefix, len(out)))}
-		for _, c := range rectCells(r.Area) {
+		for _, c := range r.Area.Cells() {
 			b, err := domain.NewBuilding(fence, c, domain.North, stuff)
 			if err != nil {
 				return nil, err

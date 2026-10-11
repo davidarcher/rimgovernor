@@ -62,7 +62,7 @@ func TestPorchSurvivesTransposeAndRetiresWithTheShelter(t *testing.T) {
 	}
 	plan := LayoutPlan{Rooms: []PlannedRoom{room}}
 	next, dropped := retireShelter(plan, RoomGrowth{RetireShelter: true})
-	if !dropped || !slices.Contains(RetiredGroundOf(next).Ground, room.PorchGround()) {
+	if !dropped || !slices.ContainsFunc(RetiredGroundOf(next).Ground, RectRegion(room.PorchGround()).Equal) {
 		t.Fatalf("retired ground %v lacks the porch %v", next.RetiredGround, room.PorchGround())
 	}
 }

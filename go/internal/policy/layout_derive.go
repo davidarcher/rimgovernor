@@ -271,15 +271,15 @@ func sameInteriors(a, b []PlannedRoom) bool {
 // samePerimeter reports whether a and b hold the same perimeter
 // reservations, in any order.
 func samePerimeter(a, b LayoutPlan) bool {
-	count := map[LayoutReservation]int{}
+	count := map[string]int{}
 	for _, r := range a.Reservations {
 		if perimeterKinds[r.Kind] {
-			count[r]++
+			count[fmt.Sprint(r)]++
 		}
 	}
 	for _, r := range b.Reservations {
 		if perimeterKinds[r.Kind] {
-			count[r]--
+			count[fmt.Sprint(r)]--
 		}
 	}
 	for _, n := range count {

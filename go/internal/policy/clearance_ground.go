@@ -38,15 +38,15 @@ const (
 // PlannedGround is the ground of every open-ground planned room whose ring
 // does not yet match the plan (GroundMatches), in plan order: its interior and
 // its wall ring, standing rooms included; then the retired ground.
-func PlannedGround(plan LayoutPlan, ground GroundCensus) []Rectangle {
-	var out []Rectangle
+func PlannedGround(plan LayoutPlan, ground GroundCensus) []Region {
+	var out []Region
 	for _, r := range plan.groundRooms(ground) {
-		out = append(out, roomGround(r.Region.Bounds()))
+		out = append(out, RectRegion(roomGround(r.Region.Bounds())))
 		if r.Airlock != nil {
-			out = append(out, r.AirlockGround())
+			out = append(out, RectRegion(r.AirlockGround()))
 		}
 		if r.Porch != nil {
-			out = append(out, r.PorchGround())
+			out = append(out, RectRegion(r.PorchGround()))
 		}
 	}
 	return append(out, plan.RetiredGround...)
@@ -71,23 +71,25 @@ func roomGround(in Rectangle) Rectangle {
 // planned: its ring walls, doors and frames come down and its sleeping spots go;
 // a research table is packed with the rest and installed in the laboratory.
 type RetiredGround struct {
-	Ground, Kept []Rectangle
+	Ground, Kept []Region
 }
 
 // RetiredGroundOf is plan's retired ground with its kept rooms' walls.
 func RetiredGroundOf(plan LayoutPlan) RetiredGround {
 	out := RetiredGround{Ground: plan.RetiredGround}
 	for _, r := range plan.roomsWithHerd() {
-		out.Kept = append(out.Kept, roomWalls(r))
+		out.Kept = append(out.Kept, RectRegion(roomWalls(r)))
 	}
 	return out
 }
 
-func (rg RetiredGround) has(g Rectangle) bool { return slices.Contains(rg.Ground, g) }
+func (rg RetiredGround) has(g Region) bool {
+	return slices.ContainsFunc(rg.Ground, g.Equal)
+}
 
 func (rg RetiredGround) kept(c domain.Cell) bool {
 	for _, k := range rg.Kept {
-		if inside(c, k) {
+		if k.Contains(c) {
 			return true
 		}
 	}
@@ -108,9 +110,9 @@ func (rg RetiredGround) heldRow(row ClearanceTarget) bool {
 // RetiredGroundDone is the retired ground with nothing left to clear: no
 // building and no floor of ours that
 // is not a kept room's. The plan drops these entries.
-func RetiredGroundDone(plan LayoutPlan, rows []ClearanceTarget, floors []ClearanceFloor) []Rectangle {
+func RetiredGroundDone(plan LayoutPlan, rows []ClearanceTarget, floors []ClearanceFloor) []Region {
 	rg := RetiredGroundOf(plan)
-	var done []Rectangle
+	var done []Region
 	for _, g := range rg.Ground {
 		if !retiredWork(rows, floors, g, rg) {
 			done = append(done, g)
@@ -120,20 +122,22 @@ func RetiredGroundDone(plan LayoutPlan, rows []ClearanceTarget, floors []Clearan
 }
 
 // WithoutRetiredGround is plan less the entries of done.
-func (p LayoutPlan) WithoutRetiredGround(done []Rectangle) LayoutPlan {
-	p.RetiredGround = slices.DeleteFunc(slices.Clone(p.RetiredGround), func(g Rectangle) bool { return slices.Contains(done, g) })
+func (p LayoutPlan) WithoutRetiredGround(done []Region) LayoutPlan {
+	p.RetiredGround = slices.DeleteFunc(slices.Clone(p.RetiredGround), func(g Region) bool {
+		return slices.ContainsFunc(done, g.Equal)
+	})
 	return p
 }
 
 // retiredWork reports a building or floor left on retired ground g.
-func retiredWork(rows []ClearanceTarget, floors []ClearanceFloor, g Rectangle, rg RetiredGround) bool {
+func retiredWork(rows []ClearanceTarget, floors []ClearanceFloor, g Region, rg RetiredGround) bool {
 	for _, row := range rows {
 		if groundTarget(row, g, rg) {
 			return true
 		}
 	}
 	for _, f := range floors {
-		if inside(f.Cell, g) && !rg.kept(f.Cell) && !groundCovered(f.Cell, rows) {
+		if g.Contains(f.Cell) && !rg.kept(f.Cell) && !groundCovered(f.Cell, rows) {
 			return true
 		}
 	}
@@ -142,7 +146,7 @@ func retiredWork(rows []ClearanceTarget, floors []ClearanceFloor, g Rectangle, r
 
 // groundTarget is a building clearance of retired ground g takes down:
 // everything but a kept room's walls.
-func groundTarget(row ClearanceTarget, g Rectangle, rg RetiredGround) bool {
+func groundTarget(row ClearanceTarget, g Region, rg RetiredGround) bool {
 	return row.Player && overlaps(row, g) && !rg.heldRow(row)
 }
 
@@ -164,7 +168,7 @@ func SplitGroundRows(rows []ClearanceTarget) (others, player []ClearanceTarget) 
 // walls are deconstructed on. Ground is the retired ground it clears, zero for
 // the batch of planned rooms.
 type GroundStep struct {
-	Ground  Rectangle
+	Ground  Region
 	Phase   GroundPhase
 	Targets []ClearanceTarget
 	Floors  []ClearanceFloor
@@ -182,7 +186,7 @@ func standInBed(row ClearanceTarget) bool { return row.DefName == "SleepingSpot"
 // then floors. Rows are the census's player rows on the ground
 // (SplitGroundRows). ok is false when the
 // ground is clear. Planned rooms go through Reconcile (PlannedGroundStep).
-func retiredGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground []Rectangle, rooms RoomObservation, rg RetiredGround) (GroundStep, bool) {
+func retiredGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground []Region, rooms RoomObservation, rg RetiredGround) (GroundStep, bool) {
 	ordered := append([]ClearanceTarget(nil), rows...)
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i].EntityID < ordered[j].EntityID })
 	cells := append([]ClearanceFloor(nil), floors...)
@@ -219,7 +223,7 @@ func retiredGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground [
 		}
 		var mine []ClearanceFloor
 		for _, f := range cells {
-			if inside(f.Cell, g) && !claimedFloor[f.Cell] && !groundCovered(f.Cell, ordered) && !(rg.has(g) && rg.kept(f.Cell)) {
+			if g.Contains(f.Cell) && !claimedFloor[f.Cell] && !groundCovered(f.Cell, ordered) && !(rg.has(g) && rg.kept(f.Cell)) {
 				claimedFloor[f.Cell] = true
 				mine = append(mine, f)
 			}
@@ -233,7 +237,7 @@ func retiredGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground [
 
 // retiredGroundWork is the clearance deficit retired ground owes: every
 // target building and every floor cell no player building covers, stable.
-func retiredGroundWork(rows []ClearanceTarget, floors []ClearanceFloor, ground []Rectangle, rg RetiredGround) []string {
+func retiredGroundWork(rows []ClearanceTarget, floors []ClearanceFloor, ground []Region, rg RetiredGround) []string {
 	var out []string
 	for _, row := range rows {
 		for _, g := range ground {
@@ -245,7 +249,7 @@ func retiredGroundWork(rows []ClearanceTarget, floors []ClearanceFloor, ground [
 	}
 	for _, f := range floors {
 		for _, g := range ground {
-			if inside(f.Cell, g) && !groundCovered(f.Cell, rows) && !(rg.has(g) && rg.kept(f.Cell)) {
+			if g.Contains(f.Cell) && !groundCovered(f.Cell, rows) && !(rg.has(g) && rg.kept(f.Cell)) {
 				out = append(out, GroundFloorID(f.Cell))
 				break
 			}
@@ -273,7 +277,7 @@ func groundCovered(c domain.Cell, rows []ClearanceTarget) bool {
 // bounds that lies wholly inside the cleared ground: the roof the native
 // deconstruct guard waits on. A room reaching outside is the
 // guard's refusal, not a roof to remove.
-func enclosedRoof(walls []ClearanceTarget, ground []Rectangle, rooms RoomObservation) []domain.Cell {
+func enclosedRoof(walls []ClearanceTarget, ground []Region, rooms RoomObservation) []domain.Cell {
 	seen := map[domain.Cell]bool{}
 	var out []domain.Cell
 	for _, room := range rooms.Rooms {
@@ -284,7 +288,7 @@ func enclosedRoof(walls []ClearanceTarget, ground []Rectangle, rooms RoomObserva
 		for _, c := range room.Cells {
 			in := false
 			for _, g := range ground {
-				in = in || inside(c, g)
+				in = in || g.Contains(c)
 			}
 			within = within && in
 			for _, w := range walls {
@@ -313,6 +317,6 @@ func onRing(c domain.Cell, g Rectangle) bool {
 	return inside(c, g) && (c.X == g.X || c.X == g.X+g.Width-1 || c.Z == g.Z || c.Z == g.Z+g.Height-1)
 }
 
-func overlaps(row ClearanceTarget, g Rectangle) bool {
-	return row.Minimum.X < g.X+g.Width && row.Maximum.X >= g.X && row.Minimum.Z < g.Z+g.Height && row.Maximum.Z >= g.Z
+func overlaps(row ClearanceTarget, g Region) bool {
+	return g.Overlaps(RectRegion(Rectangle{X: row.Minimum.X, Z: row.Minimum.Z, Width: row.Maximum.X - row.Minimum.X + 1, Height: row.Maximum.Z - row.Minimum.Z + 1}))
 }

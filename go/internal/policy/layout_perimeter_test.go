@@ -37,7 +37,7 @@ func reserved(p LayoutPlan, kind ReservationKind) []Rectangle {
 	var out []Rectangle
 	for _, r := range p.Reservations {
 		if r.Kind == kind {
-			out = append(out, r.Area)
+			out = append(out, r.Area.Bounds())
 		}
 	}
 	return out
@@ -606,7 +606,7 @@ func TestPerimeterKillboxClearOfUtilities(t *testing.T) {
 		t.Fatal("killbox", k)
 	}
 	for _, r := range p.Reservations {
-		if !perimeterKinds[r.Kind] && rectsOverlap(k[0], r.Area) {
+		if !perimeterKinds[r.Kind] && rectsOverlap(k[0], r.Area.Bounds()) {
 			t.Fatal(r.Kind, r.Area, "inside the killbox", k[0])
 		}
 	}
@@ -628,7 +628,7 @@ func TestPerimeterPlainSoilStaysNearCore(t *testing.T) {
 	// The herd sites sit inside the ring beside the few essential rooms.
 	for _, r := range p.Reservations {
 		if !perimeterKinds[r.Kind] {
-			rooms = unionRect(rooms, r.Area)
+			rooms = unionRect(rooms, r.Area.Bounds())
 		}
 	}
 	for _, r := range reserved(p, ReservePerimeter) {

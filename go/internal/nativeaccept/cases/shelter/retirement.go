@@ -103,7 +103,7 @@ func retirement(ctx context.Context, s cases.Session) error {
 		service.Stop()
 		return err
 	}
-	var ground []policy.Rectangle
+	var ground []policy.Region
 	var final policy.LayoutPlan
 	var readErr error
 	_, err = service.WaitReview(ctx, na.Wait{Ceiling: retireWait}, func(r store.Rounds) bool {
@@ -169,7 +169,7 @@ func retirement(ctx context.Context, s cases.Session) error {
 		w, _ := na.AsMap(raw)
 		c := domain.Cell{X: int32(na.AsNumber(w["x"])), Z: int32(na.AsNumber(w["z"]))}
 		for _, g := range ground {
-			if inside(g, c) && !keptByRoom(final, c) {
+			if g.Contains(c) && !keptByRoom(final, c) {
 				left = append(left, c)
 			}
 		}

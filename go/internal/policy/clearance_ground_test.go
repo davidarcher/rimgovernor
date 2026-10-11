@@ -19,7 +19,7 @@ func playerRow(id, def, class string, min, max domain.Cell, encloses bool) Clear
 
 func TestPlannedGroundSkipsStandingRooms(t *testing.T) {
 	plan, _ := groundFixture()
-	if got := PlannedGround(plan, GroundCensus{}); !reflect.DeepEqual(got, []Rectangle{{X: 9, Z: 9, Width: 5, Height: 5}}) {
+	if got := PlannedGround(plan, GroundCensus{}); !reflect.DeepEqual(got, []Region{RectRegion(Rectangle{X: 9, Z: 9, Width: 5, Height: 5})}) {
 		t.Fatalf("ground = %v", got)
 	}
 	if got := PlannedGround(plan, ringWalls(plan, plan.Rooms[0])); len(got) != 0 {

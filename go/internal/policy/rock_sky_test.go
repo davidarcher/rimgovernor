@@ -72,7 +72,7 @@ func TestTurbineCatchZoneIsTheTurbinesOwnWindPath(t *testing.T) {
 	var lanes []domain.Cell
 	for _, r := range p.Reservations {
 		if r.Kind == ReserveTurbineLane {
-			lanes = append(lanes, RectangleCells(r.Area)...)
+			lanes = append(lanes, RectangleCells(r.Area.Bounds())...)
 		}
 	}
 	zones := make([][]domain.Cell, len(sites))

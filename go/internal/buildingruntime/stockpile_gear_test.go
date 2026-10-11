@@ -76,7 +76,7 @@ func TestGearStoreFailsWithoutCatalogArmor(t *testing.T) {
 func TestYardIsNeverOwedAShell(t *testing.T) {
 	t.Parallel()
 	projection, _ := mealSpotColony(1.6)
-	plan := policy.LayoutPlan{Reservations: []policy.LayoutReservation{{Kind: policy.ReserveYard, Area: policy.Rectangle{X: 30, Z: 30, Width: policy.YardW + 2, Height: policy.YardH + 2}}}}
+	plan := policy.LayoutPlan{Reservations: []policy.LayoutReservation{{Kind: policy.ReserveYard, Area: policy.RectRegion(policy.Rectangle{X: 30, Z: 30, Width: policy.YardW + 2, Height: policy.YardH + 2})}}}
 	projection.LayoutPlan = domain.Known(plan)
 	projection.Facts.CurrentConstruction = ringConstruction(nil)
 	request := stockpileRequest(projection, nil, nil, domain.Unknown[map[string]bool](), nil, nil, nil, nil)

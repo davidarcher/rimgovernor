@@ -141,8 +141,8 @@ func coreFootprint(plan LayoutPlan, w, h int32) []bool {
 	fp := coreBaseFootprint(plan, w, h)
 	gap := yardGap(fp, w, h, plan.YardCells)
 	for _, r := range plan.Reservations {
-		if outerEnclosed[r.Kind] && crowdsCore(fp, w, h, r.Area, gap) {
-			markRect(fp, w, h, pad(r.Area, 1))
+		if outerEnclosed[r.Kind] && crowdsCore(fp, w, h, r.Area.Bounds(), gap) {
+			markRect(fp, w, h, pad(r.Area.Bounds(), 1))
 		}
 	}
 	return fp
@@ -159,7 +159,7 @@ func coreBaseFootprint(plan LayoutPlan, w, h int32) []bool {
 	}
 	for _, r := range plan.Reservations {
 		if innerEnclosed[r.Kind] {
-			markRect(fp, w, h, pad(r.Area, 1))
+			markRect(fp, w, h, pad(r.Area.Bounds(), 1))
 		}
 	}
 	return fp
@@ -183,8 +183,8 @@ func coreEnclosure(plan LayoutPlan, w, h int32) enclosure {
 	gap := yardGap(base, w, h, plan.YardCells)
 	tight := make([]bool, len(base))
 	for _, r := range plan.Reservations {
-		if outerEnclosed[r.Kind] && crowdsCore(base, w, h, r.Area, gap) {
-			markRect(tight, w, h, r.Area)
+		if outerEnclosed[r.Kind] && crowdsCore(base, w, h, r.Area.Bounds(), gap) {
+			markRect(tight, w, h, r.Area.Bounds())
 		}
 	}
 	m := LayoutEdgeMargin + perimeterThick
