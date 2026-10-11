@@ -65,32 +65,12 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        // The static part, built once per process: the defs are loaded at boot and
-        // do not change, so a later load reuses the messages instead of
-        // running the reflection again. A failed build caches nothing.
-        private static Obs.DefinitionCatalog? staticPart;
-
         private static Obs.DefinitionCatalog Read(Common.ObservationContext context, string heldFingerprint)
         {
             var fingerprint = NativeCatalogFingerprint.Value;
             var catalog = new Obs.DefinitionCatalog { Context = context, Fingerprint = fingerprint, StatEnv = StatEnv() };
             // The caller holds this static part: only what changes per load is sent.
             if (heldFingerprint == fingerprint) return catalog;
-            var shared = staticPart ??= BuildStatic();
-            catalog.ThingDefs.AddRange(shared.ThingDefs);
-            catalog.TerrainDefs.AddRange(shared.TerrainDefs);
-            catalog.Defs = shared.Defs;
-            catalog.ClassChains.AddRange(shared.ClassChains);
-            catalog.GameConstants = shared.GameConstants;
-            catalog.Derived = shared.Derived;
-            catalog.ThingFacts.AddRange(shared.ThingFacts);
-            catalog.Biotech = shared.Biotech;
-            return catalog;
-        }
-
-        private static Obs.DefinitionCatalog BuildStatic()
-        {
-            var catalog = new Obs.DefinitionCatalog();
             // Every def with all its fields, by protobuf reflection over the
             // generated messages. An unmapped field throws and fails the read.
             var mirror = new DefMirrorFill();
