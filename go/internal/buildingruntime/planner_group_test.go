@@ -44,7 +44,7 @@ func TestClockSchedulerIsolatesFailingPlanner(t *testing.T) {
 	s, f := schedulerFixture(t)
 	schedulerRounds(t, s, f)
 	refused := errors.New("bridge read refused: games_tool_detail")
-	planner, err := NewRoundsSleepingPlanner(s.config.Rounds, failingBuildingSource{refused})
+	planner, err := NewRoundsShelterPlanner(s.config.Rounds, failingBuildingSource{refused})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +179,7 @@ func TestClockSchedulerLendsWindowToPlannerRefusedNatively(t *testing.T) {
 			t.Parallel()
 			s, f := schedulerFixture(t)
 			schedulerRounds(t, s, f)
-			planner, err := NewRoundsSleepingPlanner(s.config.Rounds, failingBuildingSource{tc.err})
+			planner, err := NewRoundsShelterPlanner(s.config.Rounds, failingBuildingSource{tc.err})
 			if err != nil {
 				t.Fatal(err)
 			}

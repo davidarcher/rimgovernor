@@ -697,13 +697,8 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if !ok {
 				return nil, errors.New("building plans require typed placement previews")
 			}
-			if shelter {
+			if sleeping || shelter {
 				config.Sleeping, err = buildingruntime.NewRoundsShelterPlanner(reviewer, source)
-				if err != nil {
-					return nil, err
-				}
-			} else if sleeping {
-				config.Sleeping, err = buildingruntime.NewRoundsSleepingPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}

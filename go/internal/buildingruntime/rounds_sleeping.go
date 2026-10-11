@@ -85,13 +85,6 @@ type RoundsBuildingPlanner struct {
 	partySpotRoom string
 }
 
-func NewRoundsSleepingPlanner(reviewer *Rounder, native RoundsBuildingSource) (*RoundsBuildingPlanner, error) {
-	if reviewer == nil || native == nil {
-		return nil, fmt.Errorf("%w: NewRoundsSleepingPlanner: reviewer == nil || native == nil", ErrControl)
-	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainHousing, phase: policy.HousingShelter, definition: "SleepingSpot"}, nil
-}
-
 // step is also used by the scheduler already holding the same player gate.
 func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoundsBuildingResult, error) {
 	roofingOnly := false

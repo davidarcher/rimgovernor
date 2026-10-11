@@ -166,7 +166,7 @@ func openControllerRig(t *testing.T, path, dir string, authority *controlNative,
 	if err != nil {
 		t.Fatal(err)
 	}
-	planner, err := NewRoundsSleepingPlanner(reviewer, native.sleepingNative)
+	planner, err := NewRoundsShelterPlanner(reviewer, native.sleepingNative)
 	if err != nil {
 		t.Fatal(err)
 	}

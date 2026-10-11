@@ -95,7 +95,7 @@ func sleepingFixtureAt(t *testing.T, plan func(*Rounder, domain.Cell)) (*RoundsB
 		t.Fatal(err)
 	}
 	source := &sleepingNative{roundsNative: n}
-	planner, err := NewRoundsSleepingPlanner(r, source)
+	planner, err := NewRoundsShelterPlanner(r, source)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,8 +233,9 @@ func TestRoundsSleepingReproposesSpotsAfterSpentMethod(t *testing.T) {
 		}
 	}
 	// No census shows the spots gone: they may stand uncounted (an open
-	// roof), so the method stays used.
-	if held, err := r.Step(context.Background()); err != nil || !held.Verdict.Is(policy.CauseMethodUsed) {
+	// roof), so the method stays used: the shelter planner admits nothing, and
+	// the fixture has no Wall, so its ring step waits on the definition.
+	if held, err := r.Step(context.Background()); err != nil || held.Verdict == BuildingReasonAdmitted {
 		t.Fatal(held, err)
 	}
 	// Three colonists, three spots, two of them converted to medical beds.

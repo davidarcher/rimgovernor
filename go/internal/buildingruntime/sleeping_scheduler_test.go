@@ -35,7 +35,7 @@ func schedulerSleepingAt(t *testing.T, s *ClockScheduler, f *schedulerNative, pl
 	n.reply.GetObserved().Center = proto.Clone(template.reply.GetObserved().Center).(*c.Cell)
 	plan(s.config.Rounds, domain.Cell{X: n.reply.GetObserved().Center.GetX(), Z: n.reply.GetObserved().Center.GetZ()})
 	source := &sleepingNative{roundsNative: n}
-	planner, err := NewRoundsSleepingPlanner(s.config.Rounds, source)
+	planner, err := NewRoundsShelterPlanner(s.config.Rounds, source)
 	if err != nil {
 		t.Fatal(err)
 	}

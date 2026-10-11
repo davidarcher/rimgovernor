@@ -60,7 +60,7 @@ func TestRoundsSleepingPlansUnderAReviewAnchorAheadOfTheIdentityRead(t *testing.
 	if review.Review.Tick != reviewed {
 		t.Fatalf("review anchored on tick %d, not the colony read's", review.Review.Tick)
 	}
-	planner, err := NewRoundsSleepingPlanner(reviewer, &sleepingNative{roundsNative: n})
+	planner, err := NewRoundsShelterPlanner(reviewer, &sleepingNative{roundsNative: n})
 	if err != nil {
 		t.Fatal(err)
 	}
