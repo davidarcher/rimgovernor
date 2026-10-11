@@ -178,7 +178,12 @@ type AuthorityKeepAlive struct {
 
 	// hold, while set, stops the loop re-acquiring: a checkpoint pauses the
 	// clock on purpose and the save needs manual control to stay manual.
+	// pass is held for one pass of the loop, so Hold(true) returns only when
+	// no pass is between its requests: a checkpoint's own pause and resume
+	// then never fall inside a pass, whose generation accounting would charge
+	// them to its resume.
 	hold atomic.Bool
+	pass sync.Mutex
 
 	mu                sync.Mutex
 	attempts          int
@@ -223,8 +228,13 @@ func (k *AuthorityKeepAlive) Snapshot() map[string]any {
 	return out
 }
 
-// Hold pauses (true) or resumes (false) re-acquisition.
-func (k *AuthorityKeepAlive) Hold(held bool) { k.hold.Store(held) }
+// Hold pauses (true) or resumes (false) re-acquisition. Pausing returns once
+// the pass in flight, if any, has finished.
+func (k *AuthorityKeepAlive) Hold(held bool) {
+	k.pass.Lock()
+	k.hold.Store(held)
+	k.pass.Unlock()
+}
 
 func (k *AuthorityKeepAlive) fail(message string) {
 	k.mu.Lock()
@@ -253,84 +263,91 @@ func (k *AuthorityKeepAlive) run(ctx context.Context) {
 			return
 		case <-time.After(KeepAliveInterval):
 		}
-		if k.hold.Load() {
-			continue
-		}
-		state, status, err := k.Service.API("GET", "/api/state", nil, "")
-		if err != nil || status != 200 {
-			continue
-		}
-		if AsString(state["mode"]) == "automate" {
-			waitingSince = time.Time{}
-			wasAutomate = true
-			continue
-		}
-		if status, _ := AsMap(state["status"]); wasAutomate && AsString(status["label"]) == "Player control is waiting for current observations" {
-			if waitingSince.IsZero() {
-				waitingSince = time.Now()
-			}
-			if time.Since(waitingSince) < keepAliveStaleGrace {
-				continue
-			}
-		} else {
-			waitingSince = time.Time{}
-		}
-		before, beforeKnown := keepAliveGeneration(state["generation"])
-		if clk, clkStatus, clkErr := k.Service.API("GET", "/api/player/clock", nil, ""); clkErr == nil && clkStatus == 200 {
-			if holds := AsSlice(clk["holds"]); len(holds) > 0 {
-				ackBody := map[string]any{
-					"requestId":        fmt.Sprintf("%s-ack-%d", k.Prefix, time.Now().UnixNano()),
-					"expectedRevision": AsString(clk["revision"]),
-					"throughCursor":    AsString(clk["inboxCursor"]),
-				}
-				if _, ackStatus, ackErr := k.Service.API("POST", "/api/player/clock/acknowledge", ackBody, k.Token); ackErr != nil || ackStatus != 200 {
-					k.mu.Lock()
-					if ackErr != nil {
-						k.lastError = "acknowledge: " + ackErr.Error()
-					} else {
-						k.lastError = fmt.Sprintf("acknowledge status=%d", ackStatus)
-					}
-					k.acknowledgeFailed++
-					k.mu.Unlock()
-				} else {
-					k.mu.Lock()
-					k.acknowledged++
-					k.mu.Unlock()
-				}
-			}
-		}
-		k.mu.Lock()
-		k.attempts++
-		k.mu.Unlock()
-		body := map[string]any{
-			"requestId": fmt.Sprintf("%s-resume-%d", k.Prefix, time.Now().UnixNano()),
-			"expected":  k.Identity,
-		}
-		resumed, status, err := k.Service.API("POST", "/api/player/control/resume", body, k.Token)
-		if err != nil {
-			k.fail(err.Error())
-			continue
-		}
-		if status != 200 {
-			k.fail(fmt.Sprintf("resume status=%d body=%#v", status, resumed))
-			continue
-		}
-		record, _ := AsMap(resumed["record"])
-		if AsString(record["phase"]) != "running" {
-			k.fail(fmt.Sprintf("resume not running: %#v", resumed))
-			continue
-		}
-		k.mu.Lock()
-		k.reacquired++
-		k.lastError = ""
-		if after, err := strconv.ParseUint(AsString(record["nativeGeneration"]), 10, 64); err == nil && beforeKnown && after > before {
-			k.generationAdvance += after - before
-			if after-before > 1 {
-				k.generationsOverOne++
-			}
-		}
-		k.mu.Unlock()
+		k.once(&waitingSince, &wasAutomate)
 	}
+}
+
+// once is one pass of the loop, under the pass lock so Hold can wait for it.
+func (k *AuthorityKeepAlive) once(waitingSince *time.Time, wasAutomate *bool) {
+	k.pass.Lock()
+	defer k.pass.Unlock()
+	if k.hold.Load() {
+		return
+	}
+	state, status, err := k.Service.API("GET", "/api/state", nil, "")
+	if err != nil || status != 200 {
+		return
+	}
+	if AsString(state["mode"]) == "automate" {
+		*waitingSince = time.Time{}
+		*wasAutomate = true
+		return
+	}
+	if status, _ := AsMap(state["status"]); *wasAutomate && AsString(status["label"]) == "Player control is waiting for current observations" {
+		if (*waitingSince).IsZero() {
+			*waitingSince = time.Now()
+		}
+		if time.Since(*waitingSince) < keepAliveStaleGrace {
+			return
+		}
+	} else {
+		*waitingSince = time.Time{}
+	}
+	before, beforeKnown := keepAliveGeneration(state["generation"])
+	if clk, clkStatus, clkErr := k.Service.API("GET", "/api/player/clock", nil, ""); clkErr == nil && clkStatus == 200 {
+		if holds := AsSlice(clk["holds"]); len(holds) > 0 {
+			ackBody := map[string]any{
+				"requestId":        fmt.Sprintf("%s-ack-%d", k.Prefix, time.Now().UnixNano()),
+				"expectedRevision": AsString(clk["revision"]),
+				"throughCursor":    AsString(clk["inboxCursor"]),
+			}
+			if _, ackStatus, ackErr := k.Service.API("POST", "/api/player/clock/acknowledge", ackBody, k.Token); ackErr != nil || ackStatus != 200 {
+				k.mu.Lock()
+				if ackErr != nil {
+					k.lastError = "acknowledge: " + ackErr.Error()
+				} else {
+					k.lastError = fmt.Sprintf("acknowledge status=%d", ackStatus)
+				}
+				k.acknowledgeFailed++
+				k.mu.Unlock()
+			} else {
+				k.mu.Lock()
+				k.acknowledged++
+				k.mu.Unlock()
+			}
+		}
+	}
+	k.mu.Lock()
+	k.attempts++
+	k.mu.Unlock()
+	body := map[string]any{
+		"requestId": fmt.Sprintf("%s-resume-%d", k.Prefix, time.Now().UnixNano()),
+		"expected":  k.Identity,
+	}
+	resumed, status, err := k.Service.API("POST", "/api/player/control/resume", body, k.Token)
+	if err != nil {
+		k.fail(err.Error())
+		return
+	}
+	if status != 200 {
+		k.fail(fmt.Sprintf("resume status=%d body=%#v", status, resumed))
+		return
+	}
+	record, _ := AsMap(resumed["record"])
+	if AsString(record["phase"]) != "running" {
+		k.fail(fmt.Sprintf("resume not running: %#v", resumed))
+		return
+	}
+	k.mu.Lock()
+	k.reacquired++
+	k.lastError = ""
+	if after, err := strconv.ParseUint(AsString(record["nativeGeneration"]), 10, 64); err == nil && beforeKnown && after > before {
+		k.generationAdvance += after - before
+		if after-before > 1 {
+			k.generationsOverOne++
+		}
+	}
+	k.mu.Unlock()
 }
 
 // keepAliveGeneration reads the native generation out of /api/state's
