@@ -84,7 +84,14 @@ func runHomeCoverage(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("expected two routine-built beds, got %v", built)
 	}
 	corridor, _ := na.AsMap(prepared["corridor"])
-	outside, _ := na.AsMap(prepared["outside"])
+	margin, _ := na.AsMap(prepared["outside"])
+	// The fixture point lies one cell past the east wall, inside the Home
+	// margin; the first cell excluded by policy is a full margin farther east.
+	if _, ok := margin["x"]; !ok {
+		return fmt.Errorf("fixture outside point lacks coordinates: %v", prepared["outside"])
+	}
+	outside := map[string]any{"x": int(na.AsNumber(margin["x"])) + int(policy.HomeAreaMargin), "z": int(na.AsNumber(margin["z"]))}
+	report["home_margin_cell"], report["home_outside_margin"] = margin, outside
 	cx, cz := int(na.AsNumber(corridor["x"])), int(na.AsNumber(corridor["z"]))
 	target := built[0]
 	staged, err := callFixture(ctx, h, identity, "test/home_coverage_setup", map[string]any{"target": target})
