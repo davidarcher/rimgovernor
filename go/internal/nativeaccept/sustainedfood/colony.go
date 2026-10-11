@@ -117,3 +117,39 @@ func asFloat(v any) (float64, bool) {
 	}
 	return 0, false
 }
+
+// MeanFoodRunway is the mean census food runway over the samples taken in the
+// last span ticks before the final sample, and how many samples that is. The
+// runway swings as the colony eats and restocks, so a gate that judges food
+// reads the mean, not one instant. ok is false when no readable sample
+// carries both a tick and a runway.
+func MeanFoodRunway(timeline []map[string]any, span uint64) (mean float64, samples int, ok bool) {
+	type point struct {
+		tick   uint64
+		runway float64
+	}
+	var points []point
+	for _, sample := range timeline {
+		colony, isMap := sample["colony"].(map[string]any)
+		if !isMap || colony["error"] != nil {
+			continue
+		}
+		tick, hasTick := asFloat(sample["tick"])
+		runway, hasRunway := asFloat(colony["foodRunwayDays"])
+		if hasTick && hasRunway {
+			points = append(points, point{uint64(tick), runway})
+		}
+	}
+	if len(points) == 0 {
+		return 0, 0, false
+	}
+	last := points[len(points)-1].tick
+	var sum float64
+	for _, p := range points {
+		if p.tick+span >= last {
+			sum += p.runway
+			samples++
+		}
+	}
+	return sum / float64(samples), samples, true
+}

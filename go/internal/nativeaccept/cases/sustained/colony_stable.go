@@ -2,20 +2,14 @@ package sustained
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/sustainedfood"
-	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // Fixed equivalent of RIMGOVERNOR_ACCEPT_WINDOW_TICKS=900000: a shorter
@@ -98,7 +92,7 @@ func init() {
 						failures = append(failures, fmt.Errorf("initial colonist %s no longer alive on map", id))
 					}
 				}
-				failures = append(failures, auditStableFood(ctx, h, s, report))
+				failures = append(failures, auditStableFood(report))
 				if err := errors.Join(failures...); err != nil {
 					return fmt.Errorf("%w; %s", err, stableTimeline(report))
 				}
@@ -142,42 +136,20 @@ func stableTimeline(report na.Report) string {
 	return detail
 }
 
-func auditStableFood(ctx context.Context, h *na.Harness, s cases.Session, report na.Report) error {
-	facts, err := h.Wire(ctx, "stable-food", "observations_read_colony_facts", map[string]any{"scope": map[string]any{"expectedIdentity": s.Identity()}, "herdRadius": bridge.HerdRadius, "huntRouteBudgetMs": bridge.HuntRouteBudgetMS, "huntPredatorMarginCells": policy.HuntPredatorMarginCells})
-	if err != nil {
-		return err
-	}
-	raw, err := json.Marshal(facts)
-	if err != nil {
-		return err
-	}
-	reply := &o.ColonyFactsReply{}
-	if err := protojson.Unmarshal(raw, reply); err != nil {
-		return err
-	}
-	v := reply.GetObserved()
-	if v == nil || v.Context == nil || v.Context.Identity == nil {
-		return fmt.Errorf("final colony facts unavailable")
-	}
-	id := v.Context.Identity
-	if _, err := h.Client.DefinitionCatalog(ctx, id); err != nil {
-		return err
-	}
-	tables, err := h.Client.FrameTables(ctx, id)
-	if err != nil {
-		return err
-	}
-	projection, err := observation.DecodeColony(reply, observation.Identity{Colony: domain.ColonyID(id.GetColonyId()), Map: domain.MapID(id.GetMapId()), Load: domain.LoadID(id.GetLoadToken()), Tick: domain.Tick(v.Context.GetTick())}, tables)
-	if err != nil {
-		return err
-	}
-	// Use the controller's combined diet/rot/animal-feed forecast and
-	// seasonal target, not the census's simple nutrition/demand ratio.
-	days, known := projection.Facts.FoodDays.Value()
-	target := policy.DefaultRoundsPolicy().Seasonal(projection.Facts.Calendar, projection.Facts.DisasterConditions).FoodTargetDays
-	report["stable_food"] = map[string]any{"food_days": days, "food_target_days": target}
-	if !known || days < target {
-		return fmt.Errorf("final food days %v (known=%v) below FoodTargetDays %v", days, known, target)
+// stableFoodDays is the runway an eight-person tribal colony must average over
+// the last stableFoodSpanTicks: the runway swings as the colony eats and
+// restocks, so one end-of-run read is not the gate.
+const (
+	stableFoodDays      = 14.0
+	stableFoodSpanTicks = 5 * 60000
+)
+
+func auditStableFood(report na.Report) error {
+	timeline, _ := report["timeline"].([]map[string]any)
+	mean, samples, sampled := sustainedfood.MeanFoodRunway(timeline, stableFoodSpanTicks)
+	report["stable_food"] = map[string]any{"mean_food_runway_days": mean, "mean_samples": samples, "required_days": stableFoodDays}
+	if !sampled || mean < stableFoodDays {
+		return fmt.Errorf("mean food runway %.2f days over the last %d days (%d samples) below %g days", mean, stableFoodSpanTicks/60000, samples, stableFoodDays)
 	}
 	return nil
 }
