@@ -22,6 +22,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 type workerFake struct {
@@ -659,35 +663,72 @@ func TestWorkerBackoffIgnoresTickAndStretchesForUnknownEffects(t *testing.T) {
 	}
 }
 
-// A dispatch runs under a span of its own beneath the worker step's span,
+// A dispatch runs under a hands.dispatch span beneath the worker.step span,
 // which nests under the scheduler's latest step (WorkerConfig.Trace), so
-// the rows it leaves join that step's trace; without a scheduler trace the
-// step is a root of its own.
-func TestWorkerDispatchNestsUnderTheSchedulerTrace(t *testing.T) {
-	t.Parallel()
+// the native calls it makes join that step's trace; without a scheduler
+// span the worker step is a root of its own. A refused dispatch leaves an
+// error-status span carrying the refusal reasons.
+func TestWorkerDispatchSpansNestUnderTheSchedulerStep(t *testing.T) {
+	spans := telemetrytest.Spans(t)
 	w, f, db := workerFixture(t)
 	workerPending(t, w, "trace", true)
-	var seen telemetry.Trace
+	var seen oteltrace.SpanContext
+	var refuse bool
 	f.run = func(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
-		seen = telemetry.TraceFrom(ctx)
+		seen = oteltrace.SpanContextFromContext(ctx)
 		plan, err := db.LoadPlan(ctx, p)
-		return executor.Result{Progress: plan.Progress[0]}, err
+		result := executor.Result{Progress: plan.Progress[0]}
+		if refuse {
+			result.Refused = []policy.Refusal{{Action: a, Reason: "no_stock"}}
+		}
+		return result, err
 	}
 	if err := w.step(context.Background(), time.Now()); err != nil {
 		t.Fatal(err)
 	}
-	// The step is the root; the dispatch is its direct child.
-	if f.runs.Load() != 1 || seen.Empty() || seen.ParentID != seen.TraceID || seen.SpanID == seen.TraceID {
-		t.Fatalf("dispatch without a scheduler is not a span under its own step: %+v", seen)
+	byName := func() map[string]tracetest.SpanStub {
+		out := map[string]tracetest.SpanStub{}
+		for _, s := range spans.GetSpans() {
+			out[s.Name] = s
+		}
+		return out
 	}
-	step := telemetry.NewTrace()
-	w.config.Trace = func() telemetry.Trace { return step }
+	got := byName()
+	step, dispatch := got["worker.step"], got["hands.dispatch"]
+	if f.runs.Load() != 1 || !seen.IsValid() || step.Parent.IsValid() || dispatch.Parent.SpanID() != step.SpanContext.SpanID() || seen.SpanID() != dispatch.SpanContext.SpanID() {
+		t.Fatalf("without a scheduler the dispatch is not a span under its own worker step: %+v", got)
+	}
+	if dispatch.Status.Code != codes.Unset {
+		t.Fatalf("an accepted dispatch has status %v", dispatch.Status)
+	}
+	spans.Reset()
+
+	// Under a scheduler step: the worker step is its child, and a refused
+	// dispatch marks its span.
+	_, scheduler := telemetry.StartSpan(context.Background(), "test", "scheduler.step")
+	w.config.Trace = func() oteltrace.SpanContext { return scheduler.SpanContext() }
 	w.waits = map[domain.ActionID]workerWait{}
+	refuse = true
 	if err := w.step(context.Background(), time.Now()); err != nil {
 		t.Fatal(err)
 	}
-	if seen.TraceID != step.TraceID || seen.ParentID == "" || seen.ParentID == step.SpanID || seen.SpanID == seen.ParentID {
-		t.Fatalf("dispatch %+v is not a span two levels under step %+v", seen, step)
+	scheduler.End()
+	got = byName()
+	step, dispatch = got["worker.step"], got["hands.dispatch"]
+	if step.Parent.SpanID() != scheduler.SpanContext().SpanID() || step.SpanContext.TraceID() != scheduler.SpanContext().TraceID() || dispatch.Parent.SpanID() != step.SpanContext.SpanID() {
+		t.Fatalf("worker step is not under the scheduler step: %+v", got)
+	}
+	if dispatch.Status.Code != codes.Error || dispatch.Status.Description != "refused" {
+		t.Fatalf("a refused dispatch has status %+v", dispatch.Status)
+	}
+	var reasons []string
+	for _, a := range dispatch.Attributes {
+		if a.Key == "rimgovernor.refused" {
+			reasons = a.Value.AsStringSlice()
+		}
+	}
+	if len(reasons) != 1 || reasons[0] != "no_stock" {
+		t.Fatalf("refusal reasons %v", reasons)
 	}
 }
 

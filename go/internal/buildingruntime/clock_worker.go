@@ -16,6 +16,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // ClockWorker owns only its three loops. Session retains native capabilities,
@@ -34,7 +35,7 @@ type ClockWorker struct {
 	// held reports a window running (the running poll cadence); nil
 	// counts as running.
 	held       func() bool
-	trace      func() telemetry.Trace
+	trace      func() oteltrace.SpanContext
 	validity   func() (domain.ReadValidity, bool)
 	renew      func(context.Context) (ClockRenewResult, error)
 	step       func(context.Context, StepReason) (ClockSchedulerResult, error)
@@ -166,7 +167,18 @@ func (w *ClockWorker) Nudge() {
 func (w *ClockWorker) WindowRunning() bool { return w.held != nil && w.held() }
 
 // Trace is the trace of the scheduler's latest step (ClockScheduler.Trace).
-func (w *ClockWorker) Trace() telemetry.Trace { return w.trace() }
+func (w *ClockWorker) Trace() oteltrace.SpanContext {
+	if w.trace == nil {
+		return oteltrace.SpanContext{}
+	}
+	return w.trace()
+}
+
+// stepSpan is ctx under the latest scheduler step's span, so the row logged
+// after the step shares the trace of the rows the step wrote.
+func (w *ClockWorker) stepSpan(ctx context.Context) context.Context {
+	return telemetry.Remote(ctx, w.Trace())
+}
 
 // Validity is the read validity of the scheduler's latest step
 // (ClockScheduler.Validity).
@@ -419,9 +431,9 @@ func (w *ClockWorker) stepLoop() {
 	// ended the wait before it: the timer, a wake, or a settled epoch.
 	reason := StepReason{Cause: StepFull}
 	for w.ctx.Err() == nil {
-		// The loop mints the step's trace so the planner_step row below
-		// shares it with every row the step wrote.
-		call, cancel := context.WithTimeout(telemetry.WithTrace(w.ctx, telemetry.NewTrace()), w.config.StepTimeout)
+		// The planner_step row below is logged under the step span
+		// (the scheduler publishes it) so it shares the trace of the rows the step wrote.
+		call, cancel := context.WithTimeout(w.ctx, w.config.StepTimeout)
 		result, err := w.step(call, reason)
 		cancel()
 		w.wakePoll()
@@ -434,7 +446,7 @@ func (w *ClockWorker) stepLoop() {
 		// (clock_scheduler.go), so the failure is diagnosable from this
 		// line alone; the stall diagnosis reads it (issues #45).
 		if changed {
-			clockWorkerStepEvent(call, result, err, repeats)
+			clockWorkerStepEvent(w.stepSpan(call), result, err, repeats)
 			repeats = 0
 		} else {
 			repeats++

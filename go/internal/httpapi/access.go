@@ -123,7 +123,6 @@ func accessHandler(next http.Handler, recorder telemetry.Recorder) http.Handler 
 			level = "WARN"
 		}
 		rowContext := map[string]any{"level": level, "at": start.UTC().Format(time.RFC3339Nano), telemetry.ComponentKey: accessComponent}
-		telemetry.NewTrace().Stamp(rowContext)
 		if tick, ok := telemetry.Tick(); ok {
 			rowContext["tick"] = tick
 		}

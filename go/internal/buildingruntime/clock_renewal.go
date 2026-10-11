@@ -31,7 +31,8 @@ func (s *ClockScheduler) renewalHold(cause error) error {
 // RenewEpoch uses its own gate so a long player action cannot starve the native
 // epoch lease. It never extends the retained tick deadline or acquires authority.
 func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, error) {
-	ctx, _ = telemetry.EnsureTrace(ctx)
+	ctx, span := telemetry.StartSpan(ctx, "buildingruntime", "clock.renew")
+	defer span.End()
 	var out ClockRenewResult
 	call, cancel := context.WithTimeout(ctx, s.session.control.config.CallTimeout)
 	defer cancel()

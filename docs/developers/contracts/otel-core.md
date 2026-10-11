@@ -137,3 +137,50 @@ pipeline at all.
 For `http/protobuf` with an explicit endpoint the signal path (`/v1/traces`
 and so on) is appended to the endpoint's path. The exporters are the stock OTLP
 ones and connect lazily.
+
+## Spans
+
+Instrument with `telemetry.StartSpan(ctx, component, name)` and `telemetry.EndSpan(span, err)`
+(`internal/telemetry/span.go`); context.Context carries the parent. `telemetry.Refuse`
+marks a refusal (error status, `rimgovernor.refused` reasons); `telemetry.Remote` nests a
+span under a span context published from another goroutine. With no provider installed
+(a test, a failed `otel.Start`) spans are no-ops and rows carry no trace ids. Tests use
+`telemetrytest.Spans(t)` (in-memory exporter; not parallel).
+
+Span tree, one scheduler step:
+
+```text
+scheduler.step                      root; attr step_cause
+  rounds.review                     the Round
+  planner.<name>                    attrs class, concern, verdict, reason; error only when the planner failed
+    admission                       plan admission; error status on a store error, refused status + reasons
+    native.call (client)            under whichever span made the call
+      native.execute (server)       synthesized from the companion's echoed queue/execute timing
+worker.step                         child of the scheduler step that admitted the window
+  hands.dispatch                    attrs action_kind, actions; error on a returned error,
+    native.call ...                 refused status + reasons on a refusal
+clock.poll, clock.renew             roots of their own
+```
+
+Critical protection is the `class=critical` planner spans. `native.call` covers the gate wait and the
+call; attributes `tool`, `admission_class`, `gate_wait_ms`, `call_ms`, `decode_ms`,
+`native_queue_ms`, `native_execute_ms`. Attribute keys are prefixed `rimgovernor.`.
+
+### Wire to the companion
+
+Typed bridge calls send the current span as a W3C `traceparent` (`00-<32 hex trace>-<16 hex span>-<flags>`,
+55 characters) in the existing `trace` argument. The mod caps the argument at 64 characters,
+treats it as opaque, stamps it on its `mod_log` lines and echoes it in `timing.trace`; Go reads
+either that form or the older `<trace>/<span>` (`telemetry.ParseWireTrace`).
+
+The mod does **not** ship `System.Diagnostics.DiagnosticSource` (spike #2781 was conditional on an
+in-game check under RimWorld's Unity Mono, and the mod has no exporter, so an `Activity` there would
+only be discarded). Go therefore synthesizes the `native.execute` child span from the echoed timing, so
+a game that never loads DiagnosticSource behaves identically. If a C# `Activity` path is added later it
+must fall back to this echo when the assembly cannot load, and never throw on the game thread.
+
+### Temporary adapter
+
+Flight rows logged under a span are stamped with `trace_id`/`span_id`/`parent_id`
+(`telemetry.StampTrace`, `internal/telemetry/trace_adapter.go`) so `rimgovernor trace` keeps
+working. It is removed with the recorder by the Retire child (#2793).

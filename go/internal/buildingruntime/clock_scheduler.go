@@ -25,6 +25,8 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -402,8 +404,8 @@ type ClockScheduler struct {
 	// latched holds the attempts whose terminal outcome a committed page
 	// reported and the Worker has yet to reconcile; see clockLatched.
 	latched *clockLatched
-	// trace is the trace of the latest step (telemetry.Trace); the Worker
-	// nests its dispatches under it.
+	// trace is the span context of the latest step; the Worker
+	// nests its steps under it.
 	trace atomic.Value
 	// grant is the latest AuthorityChanged grant a committed page carried
 	// (generation, cursor): a hold or stop before it was answered by that
@@ -751,10 +753,10 @@ func clockAuthorityLost(ctx context.Context, why string, attrs ...any) {
 		append([]any{telemetry.ComponentKey, "clock-scheduler", telemetry.KindKey, "authority", "change", "lost", "reason", why}, attrs...)...)
 }
 
-// Trace is the trace of the latest step, empty before the first. The
-// Worker's dispatches are spans under it (WorkerConfig.Trace).
-func (s *ClockScheduler) Trace() telemetry.Trace {
-	t, _ := s.trace.Load().(telemetry.Trace)
+// Trace is the span context of the latest step, invalid before the first.
+// The Worker's steps are spans under it (WorkerConfig.Trace).
+func (s *ClockScheduler) Trace() oteltrace.SpanContext {
+	t, _ := s.trace.Load().(oteltrace.SpanContext)
 	return t
 }
 
@@ -803,10 +805,12 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	var readmit bool
 	entered := time.Now()
 	var gate gateWait
-	// The step is a trace root (or runs under the caller's): every flight
-	// row it leaves, native or kinded, carries its trace_id.
-	ctx, trace := telemetry.EnsureTrace(ctx)
-	s.trace.Store(trace)
+	// The step is a trace root (or runs under the caller's span): the Round
+	// review, each planner, admission and every native call it makes are
+	// spans under it, and the Worker nests its steps under the latest one.
+	ctx, span := telemetry.StartSpan(ctx, "buildingruntime", "scheduler.step", oteltrace.WithAttributes(attribute.String("rimgovernor.step_cause", string(reason.Cause))))
+	defer func() { telemetry.EndSpan(span, err) }()
+	s.trace.Store(span.SpanContext())
 	// The poll records latched outcomes as it commits them; the reason
 	// repeats them for a step driven without the poll loop.
 	s.latched.remember(reason.Events)

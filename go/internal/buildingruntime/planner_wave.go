@@ -13,6 +13,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // StepBudget bounds one clock step's planner waves, each part
@@ -117,6 +119,10 @@ func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbi
 	w.began[entry.name] = start
 	w.mu.Unlock()
 	w.group.Go(entry.name, entry.class, entry.priority, func() error {
+		// One span per planner run; a critical planner is the critical
+		// protection path, so the class rides on it.
+		ctx, span := telemetry.StartSpan(ctx, "buildingruntime", "planner."+entry.name, oteltrace.WithAttributes(
+			attribute.String("rimgovernor.class", string(entry.class)), attribute.String("rimgovernor.concern", string(entry.concern))))
 		var reason Verdict
 		run := s.config.Faults.plannerFault(entry.name, ctx, func() (err error) {
 			reason, err = entry.run(s, ctx, epoch, private, arbiter)
@@ -145,6 +151,12 @@ func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbi
 			}
 		}
 		telemetry.Decide(ctx, decision)
+		span.SetAttributes(attribute.String("rimgovernor.verdict", decision.Verdict), attribute.String("rimgovernor.reason", decision.Reason), attribute.Bool("rimgovernor.late", late))
+		if decision.Verdict == "failed" {
+			telemetry.EndSpan(span, err)
+		} else {
+			span.End() // a late cancelled optional planner is a cutoff, not a failure
+		}
 		if err != nil {
 			err = fmt.Errorf("%s: %w", entry.name, err)
 		}

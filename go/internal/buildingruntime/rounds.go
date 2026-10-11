@@ -320,8 +320,10 @@ func (r *Rounder) Step(ctx context.Context) (store.RoundsResult, error) {
 // partial is set when only a subset of the planners follows the review.
 func (r *Rounder) step(ctx, epoch context.Context, arbiter *stepArbiter, partial bool) (store.RoundsResult, error) {
 	began := time.Now()
+	ctx, span := telemetry.StartSpan(ctx, "buildingruntime", "rounds.review")
 	result, err := r.reviewStep(ctx, epoch, arbiter, partial)
 	telemetry.Decide(ctx, roundsStepDecision(err, time.Since(began), partial))
+	telemetry.EndSpan(span, err)
 	return result, err
 }
 

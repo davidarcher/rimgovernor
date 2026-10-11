@@ -51,13 +51,15 @@ attributes.
 
 ## Traces
 
-Every row's context carries `trace_id` and `span_id`. A scheduler step is a
-trace root (bundle, census, planner reads, admission, its `clock_step` and
-`planner_step` rows); the Worker's step and each dispatch are child spans, so
-`dispatch` rows and a dispatch's native calls join the trace
-of the step that admitted their window. Typed bridge calls send `trace`
-(`<trace_id>/<span_id>`); the companion echoes it so `queueMs`/`executeMs`
-belong to the same trace.
+Rows logged under a span carry its `trace_id`, `span_id` and `parent_id`: a
+temporary adapter for this reader until flight.jsonl retires (#2793); the spans
+themselves are in `otlp/traces.jsonl` ([span tree](../contracts/otel-core.md#spans)).
+A scheduler step is a trace root (bundle, census, planner reads, admission, its
+`clock_step` and `planner_step` rows); the Worker's step and each dispatch are
+child spans, so `dispatch` rows and a dispatch's native calls join the trace
+of the step that admitted their window. Typed bridge calls send `trace` (a W3C
+`traceparent`); the companion echoes it so `queueMs`/`executeMs` belong to the
+same trace.
 
 ```bash
 go run ./cmd/rimgovernor trace C:\path\to\run\flight-recorder.jsonl

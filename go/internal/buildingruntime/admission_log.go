@@ -17,10 +17,19 @@ import (
 // one, which commits the method to the plan. An error from the store files
 // nothing: the planner's own step row carries it.
 func admitMethod(ctx context.Context, journal *store.Store, r store.BuildingMethodRequest) (store.BuildingMethodDecision, error) {
+	ctx, span := telemetry.StartSpan(ctx, "buildingruntime", "admission")
 	decision, err := journal.AdmitBuildingMethod(ctx, r)
 	if err == nil {
 		telemetry.Decide(ctx, methodAdmissionDecision(r, decision))
+		if !decision.Admitted {
+			reasons := make([]string, len(decision.Refused))
+			for i, f := range decision.Refused {
+				reasons[i] = string(f.Reason)
+			}
+			telemetry.Refuse(span, reasons...)
+		}
 	}
+	telemetry.EndSpan(span, err)
 	return decision, err
 }
 

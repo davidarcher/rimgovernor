@@ -106,7 +106,7 @@ func (s *modLogSink) write(payload json.RawMessage) {
 	if e.AtUnixMs > 0 {
 		context["at"] = time.UnixMilli(e.AtUnixMs).UTC().Format(time.RFC3339Nano)
 	}
-	if trace, span, ok := strings.Cut(e.Trace, "/"); ok && trace != "" && span != "" {
+	if trace, span, ok := telemetry.ParseWireTrace(e.Trace); ok {
 		context[telemetry.TraceIDKey], context[telemetry.SpanIDKey] = trace, span
 	}
 	if e.Type == "overflow" {

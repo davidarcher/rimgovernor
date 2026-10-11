@@ -148,7 +148,7 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	if component != "" {
 		rowContext[ComponentKey] = component
 	}
-	TraceFrom(ctx).Stamp(rowContext)
+	StampTrace(ctx, rowContext)
 	var payload map[string]any
 	if decision != nil {
 		payload = decision.Payload()

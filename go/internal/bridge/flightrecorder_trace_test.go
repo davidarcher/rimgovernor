@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 // A typed call made under a traced ctx sends the trace beside the request,
@@ -50,52 +52,77 @@ func TestTracePropagatesThroughTypedCallsAndRows(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = client.Close() })
 
-	root := telemetry.NewTrace()
-	child := root.Child()
-	if _, _, err = client.Identity(telemetry.WithTrace(context.Background(), child)); err != nil {
+	spans := telemetrytest.Spans(t)
+	callerCtx, caller := telemetry.StartSpan(context.Background(), "test", "caller")
+	callerSC := caller.SpanContext()
+	if _, _, err = client.Identity(callerCtx); err != nil {
 		t.Fatal(err)
 	}
+	caller.End()
 	if _, _, err = client.Identity(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	// The untraced call is a root trace of its own, minted once for the
-	// whole operation.
-	if len(sent) != 2 || sent[0] != child.Wire() || sent[1] == "" || sent[1] == child.Wire() || !strings.HasSuffix(sent[1], "/"+sent[1][:16]) {
-		t.Fatalf("trace arguments sent: %q, want [%q <own root>]", sent, child.Wire())
+	// The call under a span sends that trace as a W3C traceparent (its
+	// own native.call span as parent id); the call outside any span is a
+	// trace root of its own.
+	if len(sent) != 2 {
+		t.Fatalf("trace arguments sent: %q", sent)
 	}
-	own := sent[1][:16]
+	callTrace, callSpan, ok := telemetry.ParseWireTrace(sent[0])
+	if !ok || !strings.HasPrefix(sent[0], "00-") || callTrace != callerSC.TraceID().String() || callSpan == callerSC.SpanID().String() {
+		t.Fatalf("traced call sent %q, want a traceparent in trace %s under a span of its own", sent[0], callerSC.TraceID())
+	}
+	ownTraceID, _, ok := telemetry.ParseWireTrace(sent[1])
+	if !ok || ownTraceID == callTrace {
+		t.Fatalf("untraced call sent %q, want a root trace of its own", sent[1])
+	}
+	// The recorded structure: native.call under the caller, the synthesized
+	// native.execute under native.call from the echoed timing.
+	byName := map[string][]tracetest.SpanStub{}
+	for _, span := range spans.GetSpans() {
+		byName[span.Name] = append(byName[span.Name], span)
+	}
+	var nativeCall *tracetest.SpanStub
+	for i, span := range byName["native.call"] {
+		if span.SpanContext.TraceID() == callerSC.TraceID() {
+			nativeCall = &byName["native.call"][i]
+		}
+	}
+	if nativeCall == nil || nativeCall.Parent.SpanID() != callerSC.SpanID() || nativeCall.SpanContext.SpanID().String() != callSpan || len(byName["native.call"]) != 2 {
+		t.Fatalf("native.call spans: %+v", byName["native.call"])
+	}
+	execute := byName["native.execute"]
+	if len(execute) != 2 || execute[0].Parent.SpanID() != nativeCall.SpanContext.SpanID() && execute[1].Parent.SpanID() != nativeCall.SpanContext.SpanID() {
+		t.Fatalf("native.execute spans: %+v", execute)
+	}
 	rows, err := ReadTimeline(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	traced, untraced := 0, 0
+	traced := 0
 	for _, row := range rows {
 		id, _ := row.Context[telemetry.TraceIDKey].(string)
-		if id == "" {
-			t.Fatalf("row %d (%s) has no trace_id: %+v", row.Sequence, row.Kind, row.Context)
-		}
-		if id != root.TraceID {
-			untraced++
+		if id != callerSC.TraceID().String() {
 			continue
 		}
 		traced++
-		if row.Context[telemetry.SpanIDKey] != child.SpanID || row.Context[telemetry.ParentIDKey] != root.SpanID {
+		if row.Context[telemetry.SpanIDKey] != callSpan || row.Context[telemetry.ParentIDKey] != callerSC.SpanID().String() {
 			t.Fatalf("row %d (%s) span/parent: %+v", row.Sequence, row.Kind, row.Context)
 		}
 		if row.Kind == "native_call" && row.Payload["tool"] == "games_call_tool" {
 			timing, _ := row.Payload["timing"].(map[string]any)
-			if timing["native_trace"] != child.Wire() || timing["native_queue_ms"] != 0.5 {
+			if timing["native_trace"] != sent[0] || timing["native_queue_ms"] != 0.5 {
 				t.Fatalf("echoed trace missing from response timing: %+v", timing)
 			}
 		}
 	}
 	// The traced call's describe (games_tool_detail) and read round trips are
-	// one native_call row each; the untraced call is one row of its own
-	// trace; the coverage row is a single-row trace.
-	if traced != 2 || untraced != 2 {
-		t.Fatalf("traced %d untraced %d rows: %+v", traced, untraced, rows)
+	// one native_call row each.
+	if traced != 2 {
+		t.Fatalf("traced %d rows: %+v", traced, rows)
 	}
-	if ownTrace, ok := FindTrace(rows, own); !ok || len(ownTrace.Rows) != 1 || ownTrace.Root != "native rimgovernor/lifecycle_read_identity" {
+	root := struct{ TraceID string }{callerSC.TraceID().String()}
+	if ownTrace, ok := FindTrace(rows, ownTraceID); !ok || len(ownTrace.Rows) != 1 || ownTrace.Root != "native rimgovernor/lifecycle_read_identity" {
 		t.Fatalf("the untraced call's rows do not share its operation trace: %+v", ownTrace)
 	}
 	summaries := SummarizeTraces(rows)
@@ -124,12 +151,15 @@ func TestTracePropagatesThroughTypedCallsAndRows(t *testing.T) {
 // its request, keeps an unmatched reply visible, and renders kinded rows
 // with their attributes.
 func TestTraceReportWaterfall(t *testing.T) {
-	root := telemetry.NewTrace()
-	worker := root.Child()
-	dispatch := worker.Child()
-	stamp := func(tr telemetry.Trace, tick int64) map[string]any {
+	root := testSpan{TraceID: "aaaaaaaaaaaaaaaa0000000000000001", SpanID: "11111111aaaaaaaa"}
+	worker := testSpan{TraceID: root.TraceID, SpanID: "22222222aaaaaaaa", ParentID: root.SpanID}
+	dispatch := testSpan{TraceID: root.TraceID, SpanID: "33333333aaaaaaaa", ParentID: worker.SpanID}
+	stamp := func(tr testSpan, tick int64) map[string]any {
 		m := map[string]any{"tick": float64(tick)}
-		tr.Stamp(m)
+		m[telemetry.TraceIDKey], m[telemetry.SpanIDKey] = tr.TraceID, tr.SpanID
+		if tr.ParentID != "" {
+			m[telemetry.ParentIDKey] = tr.ParentID
+		}
 		return m
 	}
 	rows := []TimelineRecord{
@@ -181,9 +211,13 @@ func TestTraceReportWaterfall(t *testing.T) {
 	}
 }
 
-// A row recorded outside any traced unit of work still carries a trace_id
-// of its own, so every row in a recording is addressable.
-func TestEveryRecordedRowCarriesATrace(t *testing.T) {
+// testSpan is the id triple a row is stamped with, for rows built by hand.
+type testSpan struct{ TraceID, SpanID, ParentID string }
+
+// A row recorded outside any span carries no trace_id (the reader leaves it
+// out of the trace index); a caller-given trace is never replaced, and the
+// recorder never writes to the caller's context map.
+func TestRowsOutsideASpanCarryNoTrace(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "timeline.jsonl")
 	rec, err := NewFlightRecorder(path)
 	if err != nil {
@@ -194,21 +228,18 @@ func TestEveryRecordedRowCarriesATrace(t *testing.T) {
 	if _, err = rec.Event("clock_step", given, false, nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, traced := given[telemetry.TraceIDKey]; traced {
+	if _, written := given["level"]; written {
 		t.Fatal("the caller's context map was written to")
 	}
-	stamped := map[string]any{}
-	telemetry.Trace{TraceID: "t", SpanID: "s"}.Stamp(stamped)
-	if _, err = rec.Event("clock_step", stamped, false, nil); err != nil {
+	if _, err = rec.Event("clock_step", map[string]any{telemetry.TraceIDKey: "t", telemetry.SpanIDKey: "s"}, false, nil); err != nil {
 		t.Fatal(err)
 	}
 	rows, err := ReadTimeline(path)
 	if err != nil || len(rows) != 3 {
 		t.Fatalf("rows %d %v", len(rows), err)
 	}
-	minted, _ := rows[1].Context[telemetry.TraceIDKey].(string)
-	if len(minted) != 16 || rows[1].Context[telemetry.SpanIDKey] != minted || rows[1].Context["colony"] != "c" {
-		t.Fatalf("minted trace: %+v", rows[1].Context)
+	if _, traced := rows[1].Context[telemetry.TraceIDKey]; traced || rows[1].Context["colony"] != "c" {
+		t.Fatalf("untraced row: %+v", rows[1].Context)
 	}
 	if rows[2].Context[telemetry.TraceIDKey] != "t" || rows[2].Context[telemetry.SpanIDKey] != "s" {
 		t.Fatalf("given trace replaced: %+v", rows[2].Context)

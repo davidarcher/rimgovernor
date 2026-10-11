@@ -195,7 +195,7 @@ func callLine(line *traceLine, reply TimelineRecord, traceID, span string) {
 		if queue, ok := number(timing["native_queue_ms"]); ok {
 			line.text += fmt.Sprintf(" native queue %.1f exec %.1f", queue, field(timing, "native_execute_ms"))
 		}
-		if echoed, _ := timing["native_trace"].(string); echoed != "" && echoed != traceID+"/"+span {
+		if echoed, _ := timing["native_trace"].(string); echoed != "" && !strings.Contains(echoed, traceID) {
 			line.text += " echoed " + echoed
 		}
 	}

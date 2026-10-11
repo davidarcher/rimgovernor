@@ -18,6 +18,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 type WorkerConfig struct {
@@ -56,12 +58,12 @@ type WorkerConfig struct {
 	// as a "dispatch" flight row, so a run can count the
 	// dispatches made live and the fraction native refused.
 	WindowRunning func() bool
-	// Trace, when set, is the trace of the scheduler's latest step
+	// Trace, when set, is the span context of the scheduler's latest step
 	// (ClockWorker.Trace). Each worker step is a span under it and each
 	// dispatch a span under the step, so every row a dispatch leaves joins
 	// the trace of the step that admitted the window it ran in.
 	// Nil starts a trace per worker step.
-	Trace func() telemetry.Trace
+	Trace func() oteltrace.SpanContext
 	// Validity, when set, is the read validity of the scheduler's latest
 	// step (ClockScheduler.Validity): each dispatch runs under it, so
 	// its boundaries judge their reads by age class (a dispatch
@@ -310,15 +312,22 @@ func (w *Worker) takeWake() {
 }
 
 func (w *Worker) focusNamed(id domain.ActionID) bool { _, ok := w.focus[id]; return ok }
-func (w *Worker) step(ctx context.Context, now time.Time) error {
+
+// step is one Worker step as a span under the scheduler's latest step (a
+// trace root of its own when there is none).
+func (w *Worker) step(ctx context.Context, now time.Time) (err error) {
+	if w.config.Trace != nil {
+		ctx = telemetry.Remote(ctx, w.config.Trace())
+	}
+	ctx, span := telemetry.StartSpan(ctx, "buildingruntime", "worker.step")
+	defer func() { telemetry.EndSpan(span, err) }()
+	return w.runStep(ctx, now)
+}
+
+func (w *Worker) runStep(ctx context.Context, now time.Time) error {
 	w.advanced = false
 	w.takeWake()
-	var parent telemetry.Trace
-	if w.config.Trace != nil {
-		parent = w.config.Trace()
-	}
-	stepTrace := parent.Child()
-	call := telemetry.WithTrace(ctx, stepTrace)
+	call := ctx
 	// StepTimeout budgets the dispatches, not the wait for the player
 	// gate: a scheduler step holds the gate for its whole planner wave, and
 	// a budget that started before the wait left the step 0-3 s for its
@@ -516,7 +525,9 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		resultErrs := make([]error, len(group))
 		dispatchStarted := time.Now()
 		running := w.config.WindowRunning != nil && w.config.WindowRunning()
-		run, tally := bridge.WithReadTally(telemetry.WithTrace(call, stepTrace.Child()))
+		dispatchCtx, dispatch := telemetry.StartSpan(call, "buildingruntime", "hands.dispatch", oteltrace.WithAttributes(
+			attribute.String("rimgovernor.action_kind", string(lead.kind)), attribute.Int("rimgovernor.actions", len(group))))
+		run, tally := bridge.WithReadTally(dispatchCtx)
 		if err != nil {
 			for i := range group {
 				resultErrs[i] = err
@@ -527,6 +538,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			}
 			results, resultErrs = w.runBatch(call, run, lead.view.Plan, group)
 		}
+		endDispatchSpan(dispatch, results, resultErrs)
 		longest = max(longest, time.Since(dispatchStarted))
 		for _, result := range results {
 			if result.NativeCalled {

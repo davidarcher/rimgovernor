@@ -343,7 +343,7 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 			Trace    string `json:"trace,omitempty"`
 			Class    string `json:"class,omitempty"`
 			Encoding string `json:"encoding"`
-		}{string(inner), telemetry.TraceFrom(ctx).Wire(), string(class), caller.replies.encoding()})
+		}{string(inner), telemetry.Traceparent(ctx), string(class), caller.replies.encoding()})
 		call := encode(nativeArgument{caller.gameID, name, args})
 		result, err := caller.core(ctx, live, "games_call_tool", call)
 		if id, ok := BlockingAttentionID(err); ok {

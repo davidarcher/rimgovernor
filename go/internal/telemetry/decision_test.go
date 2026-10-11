@@ -11,6 +11,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 )
 
 func newRecorder(t *testing.T, opts ...bridge.FlightRecorderOption) (string, *bridge.FlightRecorder) {
@@ -30,7 +31,9 @@ func TestDecisionRowRoundTrip(t *testing.T) {
 	path, recorder := newRecorder(t)
 	logger := telemetry.New(recorder)
 	telemetry.ObserveTick(1234)
-	ctx, trace := telemetry.EnsureTrace(context.Background())
+	telemetrytest.Spans(t)
+	ctx, span := telemetry.StartSpan(context.Background(), "test", "step")
+	sc := span.SpanContext()
 	telemetry.Decision{
 		Kind: "admission", Component: "clock-scheduler", Level: slog.LevelWarn,
 		Verdict: "refused", Reason: "critical_wave_budget", Target: "window",
@@ -58,7 +61,7 @@ func TestDecisionRowRoundTrip(t *testing.T) {
 		t.Fatalf("attrs: %+v", attrs)
 	}
 	c := row.Context
-	if c["level"] != "WARN" || c["component"] != "clock-scheduler" || c["tick"] != 1234.0 || c["trace_id"] != trace.TraceID || c["span_id"] != trace.SpanID || c["at"] == nil {
+	if c["level"] != "WARN" || c["component"] != "clock-scheduler" || c["tick"] != 1234.0 || c["trace_id"] != sc.TraceID().String() || c["span_id"] != sc.SpanID().String() || c["at"] == nil {
 		t.Fatalf("context: %+v", c)
 	}
 }
@@ -89,7 +92,7 @@ func TestRecorderStampsV2Envelope(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := rows[len(rows)-1].Context
-	if c["level"] != "INFO" || c["component"] != "bridge" || c["tick"] != 55.0 || c["at"] == nil || c["trace_id"] == nil || c["span_id"] == nil {
+	if c["level"] != "INFO" || c["component"] != "bridge" || c["tick"] != 55.0 || c["at"] == nil {
 		t.Fatalf("context: %+v", c)
 	}
 	if bridge.FlightSchemaVersion != 2 {
@@ -113,7 +116,7 @@ func TestTruncationKeepsDecisionKeys(t *testing.T) {
 	if row.Payload["truncated"] != true || row.Payload["verdict"] != "waiting" || row.Payload["reason"] != "no_work" || row.Payload["target"] != "Fields" || row.Payload["dur_ms"] != 1.0 {
 		t.Fatalf("payload: %+v", row.Payload)
 	}
-	if row.Context["trace_id"] == nil || row.Context["component"] != "worker" {
+	if row.Context["component"] != "worker" {
 		t.Fatalf("context: %+v", row.Context)
 	}
 }

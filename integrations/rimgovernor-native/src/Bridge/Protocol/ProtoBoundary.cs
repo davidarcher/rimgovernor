@@ -235,8 +235,8 @@ namespace HomeBridge.BridgeTools
         // many hops were pending when it was queued. It
         // covers every tool whose single main-thread hop goes through
         // OnMainThread. The
-        // caller's trace argument ("<trace_id>/<span_id>", the controller's
-        // scheduler step or worker dispatch) is echoed as timing.trace so
+        // caller's trace argument (a W3C traceparent of the controller's span,
+        // or the older "<trace_id>/<span_id>"; opaque here) is echoed as timing.trace so
         // the phases join the controller's trace.
         internal const string TimingField = "timing";
         internal const string TraceArgument = "trace";

@@ -18,6 +18,8 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/gamehost"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var (
@@ -509,10 +511,31 @@ func (c *Client) operation(ctx context.Context, class AdmissionClass, run func(c
 	}
 	stop := context.AfterFunc(live.ctx, cancel)
 	defer stop()
-	// A call outside any traced unit of work (startup, an observer read)
-	// is a trace of its own, so its request, reply and decode rows share
-	// one id instead of each minting a single-row trace.
-	ctx, _ = telemetry.EnsureTrace(ctx)
+	// Every native call is a client span under the caller's span (a call
+	// outside any traced unit of work, startup or an observer read, is a
+	// trace of its own). The span covers the admission gate wait and the
+	// call; protoCall names the tool on it and core adds the phase timings.
+	ctx, span := telemetry.StartSpan(ctx, "bridge", "native.call", trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(attribute.String("rimgovernor.admission_class", string(class))))
+	result, err := c.operationCall(ctx, span, class, live, run)
+	endNativeCall(span, err)
+	return result, err
+}
+
+// endNativeCall ends a native.call span: a refusal is a failed outcome with
+// the game's cause, any other error is recorded as one.
+func endNativeCall(span trace.Span, err error) {
+	var refusal *Refusal
+	switch {
+	case errors.As(err, &refusal):
+		telemetry.Refuse(span, refusal.Cause)
+		span.End()
+	default:
+		telemetry.EndSpan(span, err)
+	}
+}
+
+func (c *Client) operationCall(ctx context.Context, span trace.Span, class AdmissionClass, live *liveSession, run func(context.Context, *liveSession) (Result, error)) (Result, error) {
 	timing := &callTiming{began: time.Now()}
 	admitted, err := c.gate.acquire(ctx, class)
 	if err != nil {
@@ -521,6 +544,7 @@ func (c *Client) operation(ctx context.Context, class AdmissionClass, run func(c
 	defer c.gate.release(class)
 	timing.admission = admitted
 	timing.gateWait = admitted.wait
+	span.SetAttributes(attribute.Float64("rimgovernor.gate_wait_ms", millis(admitted.wait)), attribute.Int("rimgovernor.queue_depth", admitted.queueDepth))
 	if err := ctx.Err(); err != nil {
 		return Result{}, err
 	}
@@ -529,7 +553,7 @@ func (c *Client) operation(ctx context.Context, class AdmissionClass, run func(c
 
 // snapshotRecordingContext reads the installed recording-context callback (if
 // any) once per call and merges in the trace the caller's step or dispatch
-// attached via telemetry.WithTrace.
+// attached by telemetry.StartSpan.
 func (c *Client) snapshotRecordingContext(ctx context.Context) map[string]any {
 	c.mu.Lock()
 	callback := c.recordingContext
@@ -540,7 +564,7 @@ func (c *Client) snapshotRecordingContext(ctx context.Context) map[string]any {
 			merged[k] = v
 		}
 	}
-	telemetry.TraceFrom(ctx).Stamp(merged)
+	telemetry.StampTrace(ctx, merged)
 	return merged
 }
 
@@ -626,6 +650,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 	decoded, decodeErr := decodeReceipt(name, raw)
 	decoded.slotted = slotted
 	decodeElapsed := time.Since(decodeBegan)
+	annotateCallSpan(ctx, nativeTool, callBegan, callElapsed, decodeElapsed, decoded.Structured)
 	if recording {
 		if decodeErr != nil {
 			row := callRow(map[string]any{"ok": false, "error": decodeErr.Error(), "timing": phases(decodeElapsed, len(raw))})

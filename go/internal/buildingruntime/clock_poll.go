@@ -57,8 +57,9 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		return fail(ctx.Err())
 	}
 	defer func() { <-s.pollGate }()
-	// One trace per poll: its read and the events it publishes.
-	ctx, _ = telemetry.EnsureTrace(ctx)
+	// One span per poll: its read and the events it publishes.
+	ctx, span := telemetry.StartSpan(ctx, "buildingruntime", "clock.poll")
+	defer func() { telemetry.EndSpan(span, err) }()
 	call, cancel := context.WithTimeout(ctx, s.session.control.config.CallTimeout)
 	defer cancel()
 	invalidate := func(why string, attrs ...any) error {

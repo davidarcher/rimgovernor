@@ -22,7 +22,7 @@ import (
 
 // FlightSchemaVersion is the envelope version every row is written with.
 // v2 keeps the v1 field names; what changed is the context contract
-// (level, at, tick when known, component, trace_id and span_id on every row)
+// (level, at, tick when known, component; trace_id and span_id on rows written under a span)
 // and the decision-row payload shape. Readers never gate on the version: a
 // v1 row decodes as before, and the kind and the contract in
 // docs/developers/contracts/flight-rows.md say which payload shape a row has.
@@ -132,11 +132,10 @@ func openRecorder(path string, segmentBytes int64, segments int, opts []FlightRe
 // caller can be certain the record survives a crash; the natural use is a
 // durable "request" row bracketing a non-durable "response" row that becomes
 // durable only at the next durable record or segment rotation. context and
-// payload are marshaled as JSON objects; a nil map encodes as {}. Every
-// row carries a trace_id: the one its context names (a scheduler step, a
-// Worker dispatch), else a fresh single-row trace, so `rimgovernor trace`
-// can address any row and a consumer never has to special-case the rows
-// written outside a traced unit of work.
+// payload are marshaled as JSON objects; a nil map encodes as {}. A row
+// carries the trace_id its context names (stamped from the span it was
+// logged under, telemetry.StampTrace) so `rimgovernor trace` can group it;
+// rows written outside a span have none.
 func (r *FlightRecorder) Event(kind string, context map[string]any, durable bool, payload map[string]any) (uint64, error) {
 	if r == nil {
 		return 0, errors.New("flightrecorder: recorder required")
@@ -237,9 +236,6 @@ func stampFlightContext(context map[string]any, now time.Time) map[string]any {
 	}
 	if _, ok := stamped[telemetry.ComponentKey]; !ok {
 		stamped[telemetry.ComponentKey] = defaultFlightComponent
-	}
-	if _, traced := stamped[telemetry.TraceIDKey]; !traced {
-		telemetry.NewTrace().Stamp(stamped)
 	}
 	return stamped
 }

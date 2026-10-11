@@ -20,8 +20,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 type buildingServiceBridge struct {
@@ -274,7 +274,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	var ledger httpapi.LedgerProvider
 	var placement func(domain.PlanID, domain.Action, domain.ProgressView)
 	var advanced, windowRunning = func() {}, func() bool { return false }
-	var stepTrace func() telemetry.Trace
+	var stepTrace func() oteltrace.SpanContext
 	var validity func() (domain.ReadValidity, bool)
 	// The per-world store rebuild: the clock worker's gate and the save
 	// flusher share it, so it runs before either acts in a new world.

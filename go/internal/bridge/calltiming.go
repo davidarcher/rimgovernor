@@ -4,7 +4,40 @@ import (
 	"context"
 	"encoding/json"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
+
+// annotateCallSpan puts a completed call's phases on the native.call span
+// ctx carries, and, when the companion reported its main-thread timing,
+// adds the native.execute child span synthesized from it. The companion
+// echoes the traceparent but exports no spans of its own (it ships no
+// Activity support, see docs/developers/contracts/otel-core.md), so the
+// child is placed from the echoed durations: it ends when the call returned
+// and starts queue+execute before that, clamped to the call's start.
+func annotateCallSpan(ctx context.Context, tool string, began time.Time, call, decode time.Duration, structured json.RawMessage) {
+	span := trace.SpanFromContext(ctx)
+	if !span.IsRecording() {
+		return
+	}
+	span.SetAttributes(attribute.String("rimgovernor.tool", tool), attribute.Float64("rimgovernor.call_ms", millis(call)), attribute.Float64("rimgovernor.decode_ms", millis(decode)))
+	native, ok := nativeTiming(structured)
+	if !ok {
+		return
+	}
+	span.SetAttributes(attribute.Float64("rimgovernor.native_queue_ms", native.queueMs), attribute.Float64("rimgovernor.native_execute_ms", native.executeMs))
+	end := began.Add(call)
+	start := end.Add(-time.Duration((native.queueMs + native.executeMs) * float64(time.Millisecond)))
+	if start.Before(began) {
+		start = began
+	}
+	_, child := telemetry.StartSpan(ctx, "bridge", "native.execute", trace.WithSpanKind(trace.SpanKindServer), trace.WithTimestamp(start),
+		trace.WithAttributes(attribute.String("rimgovernor.tool", tool), attribute.Bool("rimgovernor.synthesized", true),
+			attribute.Float64("rimgovernor.native_queue_ms", native.queueMs), attribute.Float64("rimgovernor.native_execute_ms", native.executeMs)))
+	child.End(trace.WithTimestamp(end))
+}
 
 // callTiming splits one Client.operation into the phases a flight-recorder
 // consumer can attribute: waiting for the concurrency gate, the MCP round

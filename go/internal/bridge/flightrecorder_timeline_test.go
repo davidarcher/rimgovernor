@@ -25,7 +25,7 @@ func timelineRecorder(t *testing.T, path string, segments int) *FlightRecorder {
 func writeRows(t *testing.T, r *FlightRecorder, n int) {
 	t.Helper()
 	for i := 0; i < n; i++ {
-		if _, err := r.Event("sample", nil, false, map[string]any{"pad": strings.Repeat("y", 40)}); err != nil {
+		if _, err := r.Event("sample", nil, false, map[string]any{"pad": strings.Repeat("y", 108)}); err != nil {
 			t.Fatalf("Event: %v", err)
 		}
 	}
