@@ -500,6 +500,9 @@ type RoundsFacts struct {
 	// weapon; EnsureBasicDefense stays owed while it is positive.
 	Unarmed                 domain.Fact[int64]
 	FoodDays, FieldCoverage domain.Fact[float64]
+	// NoSoil is whether the observed planning window holds no soil (NoSoil);
+	// with a short FoodDays it latches RoundsLatches.FoodFirst.
+	NoSoil domain.Fact[bool]
 	// WorkHelp is the same plan's construction helper record;
 	// nil when the plan ran without the helper input.
 	WorkHelp *ConstructionHelpRecord
@@ -681,6 +684,10 @@ type RoundsLatches struct {
 	// Soldiers latches once the gear census derives a soldier role: the
 	// research roadmap then walks the armor ladder (ArmorResearchLadder ) and keeps walking it when the squad is later undrafted.
 	Soldiers bool `json:",omitempty"`
+	// FoodFirst latches once a map with no soil runs under FoodFirstRunwayDays
+	// of stored food: the research roadmap then leads with the food chain
+	// (FoodFirstLadder).
+	FoodFirst bool `json:",omitempty"`
 	// Housing is the MaintainHousing phase this review left owed
 	// (reviewHousing); empty once housing recovered. The housing planners
 	// run only for their own phase.
@@ -901,6 +908,7 @@ func InspectRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolicy) (Round
 		Hot:            latchValue(previous.Hot, fallback(f.SleepingMax, f.OutdoorTemperature), p.HotEnter, p.HotExit, true),
 		Wood:           latchValue(previous.Wood, wood, float64(p.WoodMin), float64(p.WoodTarget), false),
 		Soldiers:       previous.Soldiers || GearSoldierPresent(f.Gear),
+		FoodFirst:      previous.FoodFirst || FoodFirstOwed(f),
 	}
 	c.r = RoundsFindings{Latches: c.l}
 	c.demand = ResourceDemandOf(f, p, c.l)

@@ -330,12 +330,12 @@ func inspectEquipment(c *roundsRun) error {
 func inspectResearch(c *roundsRun) error {
 	f, p := c.f, c.p
 	researchNeeds := DeepDrillingResearch(f.ResearchNeeds, f.ResourceRunways, f.Items)
-	researchTarget, researchDerived := ResearchConcern(ArmorResearchPolicy(p, c.l.Soldiers), researchNeeds, f.Research)
+	researchTarget, researchDerived := ResearchConcern(ResearchPolicy(p, c.l.Soldiers, c.l.FoodFirst), researchNeeds, f.Research)
 	researchRecovered, researchDeficit := ResearchTargetNeed(researchTarget, researchDerived, f.Research)
 	// An empty Anomaly knowledge slot with a project to fund is a spending
 	// need of its own; a disabled goal (no target, empty ladder)
 	// funds none.
-	if facts, known := f.Research.Value(); known && facts.KnowledgePick != "" && (len(researchNeeds) != 0 || len(ArmorResearchPolicy(p, c.l.Soldiers).ResearchLadder) != 0) {
+	if facts, known := f.Research.Value(); known && facts.KnowledgePick != "" && (len(researchNeeds) != 0 || len(ResearchPolicy(p, c.l.Soldiers, c.l.FoodFirst).ResearchLadder) != 0) {
 		deficit, _ := researchDeficit.Value()
 		researchRecovered, researchDeficit = domain.Known(false), domain.Known(max(deficit, 1.0))
 	}

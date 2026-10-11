@@ -458,6 +458,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	r.census.rememberLayout(reading.Projection.Identity, reading.Projection.LayoutPlan)
 	reading.Projection.Facts.TitleClaimQuests = titleClaimQuests(reading.Projection)
 	reading.Projection.Facts.BedroomsOwed = bedroomsOwed(reading.Projection, r.stage)
+	reading.Projection.Facts.NoSoil = policy.NoSoil(reading.Projection.Cells)
 	reading.Projection.Facts.BurialOwed = burialOwed(reading.Projection)
 	reading.Projection.Facts.IncinerationOwed = incinerationOwed(reading.Projection)
 	// The herd furniture is read only when the containment method is on
@@ -652,7 +653,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 			var rows []policy.WorkRequirement
 			rows, known = benchWork.Value()
 			required = mergeWorkRequirements(required, rows)
-			required = mergeWorkRequirements(required, roundsResearchWork(policy.ArmorResearchPolicy(r.policy, previous.Latches.Soldiers || policy.GearSoldierPresent(reading.Projection.Facts.Gear)), needs, reading.Projection.Facts.Research))
+			required = mergeWorkRequirements(required, roundsResearchWork(policy.ResearchPolicy(r.policy, previous.Latches.Soldiers || policy.GearSoldierPresent(reading.Projection.Facts.Gear), previous.Latches.FoodFirst || policy.FoodFirstOwed(reading.Projection.Facts)), needs, reading.Projection.Facts.Research))
 			required = mergeWorkRequirements(required, fishingWork(reading.Projection))
 			study, studyKnown := studyWork(ctx, reading.Projection).Value()
 			required = mergeWorkRequirements(required, study)

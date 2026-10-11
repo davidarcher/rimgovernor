@@ -220,7 +220,7 @@ func (r *RoundsResearchPlanner) step(call, epoch context.Context, arbiter *stepA
 	if _, err = boundary.Context(read.Context, state.Snapshot); err != nil || read.Context.GetTick() < int64(review.Tick) {
 		return RoundsResearchResult{}, fmt.Errorf("%w: step: err != nil || read.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
-	inputs := snap.ResearchCall{Policy: policy.ArmorResearchPolicy(staged, review.Latches.Soldiers), Needs: needs, Read: read}
+	inputs := snap.ResearchCall{Policy: policy.ResearchPolicy(staged, review.Latches.Soldiers, review.Latches.FoodFirst), Needs: needs, Read: read}
 	if deficit {
 		snap.NoteResearch(call, inputs)
 		// A knowledge project fills its category's slot beside the ordinary

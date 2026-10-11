@@ -15,6 +15,11 @@ research orders.
    `policy.DefaultResearchLadder`: Stonecutting, Electricity, Batteries, GeothermalPower, SolarPanels,
    Smithing, CarpetMaking, ComplexClothing, MicroelectronicsBasics, MultiAnalyzer, Machining, Gunsmithing, ChargedShot, BeamWeapons; BeamWeapons is Odyssey's and skipped when the census does not list it).
 
+The ladder is reordered by `policy.ResearchPolicy`: armor rungs follow Electricity once a soldier role
+exists, and the `FoodFirst` latch (`RoundsFacts.NoSoil`, no cell with fertility in the planning window,
+and `FoodDays` under `FoodFirstRunwayDays`) moves Electricity and Hydroponics to the head, ahead of the
+stage pacing. Maps with soil are unchanged.
+
 A rung is a deficit only while the research tab is idle: any current project, the player's included,
 recovers the concern and is never replaced, and the planner lends the clock ticks until it finishes. The
 ladder is walked only under a known research census and skips rungs the installed game does not list;

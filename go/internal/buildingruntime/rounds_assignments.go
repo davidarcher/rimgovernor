@@ -152,7 +152,7 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		return RoundsWorkResult{}, err
 	}
 	needs = r.reviewer.censusResearchNeeds(needs)
-	required = mergeWorkRequirements(required, roundsResearchWork(policy.ArmorResearchPolicy(r.reviewer.policy, review.Latches.Soldiers), needs, read.Projection.Facts.Research))
+	required = mergeWorkRequirements(required, roundsResearchWork(policy.ResearchPolicy(r.reviewer.policy, review.Latches.Soldiers, review.Latches.FoodFirst), needs, read.Projection.Facts.Research))
 	required = mergeWorkRequirements(required, fishingWork(read.Projection))
 	study, known := studyWork(call, read.Projection).Value()
 	if !known {
