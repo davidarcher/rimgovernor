@@ -13,8 +13,8 @@ namespace HomeBridge.BridgeTools
     // frame's ticks took against the epoch's frame budget: over the budget it
     // drops at once, comfortably under it climbs one step per ramp interval
     // back toward the boosted rate. The epoch holds neverForceNormalSpeed, so
-    // the game's forced slowdown no longer returns 1 from the getter. Every tick of such an epoch runs the full
-    // frame check (OnUpdate) first, as an accelerated epoch does: ownership,
+    // the game's forced slowdown never applies. Every tick of such an epoch runs
+    // the full frame check (OnUpdate) first, as an accelerated epoch does: ownership,
     // lease, a player pause and the tick-bounded hazard probe are checked
     // between any two ticks of a frame, however many the frame carries.
     internal static partial class Supervisor
@@ -45,7 +45,7 @@ namespace HomeBridge.BridgeTools
         private static float PacedMultiplier(State s, float gameMultiplier)
         {
             if (!s.PlayerPaced || s.RequestedSpeed != TimeSpeed.Ultrafast) return gameMultiplier;
-            // Forced slowdown (1) and pause (0) are the game's to keep.
+            // Pause (0) is the game's to keep.
             if (gameMultiplier < PacedFloorMultiplier) return gameMultiplier;
             return Math.Max(gameMultiplier, s.Paced);
         }
@@ -56,7 +56,7 @@ namespace HomeBridge.BridgeTools
             if (!s.PlayerPaced || ticks == 0) return;
             NoteFrame(frameMs, frameMs > s.FrameBudgetMs);
             var now = NowMs();
-            if (tm.slower.ForcedNormalSpeed || tm.CurTimeSpeed != TimeSpeed.Ultrafast) return;
+            if (tm.CurTimeSpeed != TimeSpeed.Ultrafast) return;
             if (frameMs > s.FrameBudgetMs)
             {
                 var lowered = Math.Max(PacedFloorMultiplier, s.Paced * PacedLower);
@@ -82,9 +82,6 @@ namespace HomeBridge.BridgeTools
         // What bounds the epoch's rate, most binding first.
         private static RimGovernor.Protocol.Clock.PacingReason PacingReasonOf(State s)
         {
-            var tm = Find.TickManager;
-            if (tm != null && tm.slower.ForcedNormalSpeed && tm.CurTimeSpeed != TimeSpeed.Paused)
-                return RimGovernor.Protocol.Clock.PacingReason.ForcedSlowdown;
             var unclamped = UnclampedTicksPerSecond(s);
             if (s.RegulatedTicksPerSecond > 0 && s.RegulatedTicksPerSecond < unclamped
                 && (s.MaxTicksPerSecond == 0 || s.RegulatedTicksPerSecond <= s.MaxTicksPerSecond))

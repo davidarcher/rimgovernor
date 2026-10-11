@@ -145,8 +145,7 @@ func (ObservedSpeed) EnumDescriptor() ([]byte, []int) {
 // own rate. PLAYER_ACCELERATED raises Ultrafast's ticks per frame toward the
 // boosted rate while the frame's tick work stays inside native's 30 ms frame
 // budget, so input, rendering and control dispatch keep their share of each
-// frame; the
-// game's forced slowdown still holds it at Normal. It needs no test launch.
+// frame. It needs no test launch.
 type Pacing int32
 
 const (
@@ -197,20 +196,19 @@ func (Pacing) EnumDescriptor() ([]byte, []int) {
 }
 
 // What bounds the running epoch's tick rate right now, most binding
-// first: the game's forced slowdown, the blind-tick regulator, the owner's
+// first: the blind-tick regulator, the owner's
 // max_ticks_per_second (the controller's backoff), the frame budget; else
 // the pacing runs at its ceiling (ACCELERATED) or the speed's own rate
 // (FIXED).
 type PacingReason int32
 
 const (
-	PacingReason_PACING_REASON_UNSPECIFIED     PacingReason = 0
-	PacingReason_PACING_REASON_FIXED           PacingReason = 1
-	PacingReason_PACING_REASON_ACCELERATED     PacingReason = 2
-	PacingReason_PACING_REASON_FRAME_BUDGET    PacingReason = 3
-	PacingReason_PACING_REASON_FORCED_SLOWDOWN PacingReason = 4
-	PacingReason_PACING_REASON_REGULATED       PacingReason = 5
-	PacingReason_PACING_REASON_CEILING         PacingReason = 6
+	PacingReason_PACING_REASON_UNSPECIFIED  PacingReason = 0
+	PacingReason_PACING_REASON_FIXED        PacingReason = 1
+	PacingReason_PACING_REASON_ACCELERATED  PacingReason = 2
+	PacingReason_PACING_REASON_FRAME_BUDGET PacingReason = 3
+	PacingReason_PACING_REASON_REGULATED    PacingReason = 5
+	PacingReason_PACING_REASON_CEILING      PacingReason = 6
 )
 
 // Enum value maps for PacingReason.
@@ -220,18 +218,16 @@ var (
 		1: "PACING_REASON_FIXED",
 		2: "PACING_REASON_ACCELERATED",
 		3: "PACING_REASON_FRAME_BUDGET",
-		4: "PACING_REASON_FORCED_SLOWDOWN",
 		5: "PACING_REASON_REGULATED",
 		6: "PACING_REASON_CEILING",
 	}
 	PacingReason_value = map[string]int32{
-		"PACING_REASON_UNSPECIFIED":     0,
-		"PACING_REASON_FIXED":           1,
-		"PACING_REASON_ACCELERATED":     2,
-		"PACING_REASON_FRAME_BUDGET":    3,
-		"PACING_REASON_FORCED_SLOWDOWN": 4,
-		"PACING_REASON_REGULATED":       5,
-		"PACING_REASON_CEILING":         6,
+		"PACING_REASON_UNSPECIFIED":  0,
+		"PACING_REASON_FIXED":        1,
+		"PACING_REASON_ACCELERATED":  2,
+		"PACING_REASON_FRAME_BUDGET": 3,
+		"PACING_REASON_REGULATED":    5,
+		"PACING_REASON_CEILING":      6,
 	}
 )
 
@@ -5924,13 +5920,12 @@ const file_clock_proto_rawDesc = "" +
 	"\x06Pacing\x12\x16\n" +
 	"\x12PACING_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fPACING_FIXED\x10\x01\x12\x1d\n" +
-	"\x19PACING_PLAYER_ACCELERATED\x10\x02*\xe0\x01\n" +
+	"\x19PACING_PLAYER_ACCELERATED\x10\x02*\xbd\x01\n" +
 	"\fPacingReason\x12\x1d\n" +
 	"\x19PACING_REASON_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13PACING_REASON_FIXED\x10\x01\x12\x1d\n" +
 	"\x19PACING_REASON_ACCELERATED\x10\x02\x12\x1e\n" +
-	"\x1aPACING_REASON_FRAME_BUDGET\x10\x03\x12!\n" +
-	"\x1dPACING_REASON_FORCED_SLOWDOWN\x10\x04\x12\x1b\n" +
+	"\x1aPACING_REASON_FRAME_BUDGET\x10\x03\x12\x1b\n" +
 	"\x17PACING_REASON_REGULATED\x10\x05\x12\x19\n" +
 	"\x15PACING_REASON_CEILING\x10\x06*U\n" +
 	"\tWatchMode\x12\x1a\n" +

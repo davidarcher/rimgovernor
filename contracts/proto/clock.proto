@@ -29,15 +29,14 @@ enum ObservedSpeed {
 // own rate. PLAYER_ACCELERATED raises Ultrafast's ticks per frame toward the
 // boosted rate while the frame's tick work stays inside native's 30 ms frame
 // budget, so input, rendering and control dispatch keep their share of each
-// frame; the
-// game's forced slowdown still holds it at Normal. It needs no test launch.
+// frame. It needs no test launch.
 enum Pacing {
   PACING_UNSPECIFIED = 0;
   PACING_FIXED = 1;
   PACING_PLAYER_ACCELERATED = 2;
 }
 // What bounds the running epoch's tick rate right now, most binding
-// first: the game's forced slowdown, the blind-tick regulator, the owner's
+// first: the blind-tick regulator, the owner's
 // max_ticks_per_second (the controller's backoff), the frame budget; else
 // the pacing runs at its ceiling (ACCELERATED) or the speed's own rate
 // (FIXED).
@@ -46,7 +45,6 @@ enum PacingReason {
   PACING_REASON_FIXED = 1;
   PACING_REASON_ACCELERATED = 2;
   PACING_REASON_FRAME_BUDGET = 3;
-  PACING_REASON_FORCED_SLOWDOWN = 4;
   PACING_REASON_REGULATED = 5;
   PACING_REASON_CEILING = 6;
 }

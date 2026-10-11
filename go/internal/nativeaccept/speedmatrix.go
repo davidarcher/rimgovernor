@@ -153,7 +153,7 @@ func PlayerRowProblems(row PlayerRow) []string {
 		}
 	}
 	switch row.LastPacingReason {
-	case "accelerated", "frame_budget", "forced_slowdown":
+	case "accelerated", "frame_budget":
 	case "":
 		problems = append(problems, "no running step reported a pacing reason")
 	default:
