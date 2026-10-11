@@ -118,26 +118,6 @@ the first native protective effect.
 | `rule` | decision, one per native rule event ingested from the clock inbox (`clockPollEvents`, #2154). A firing: `verdict` `fired`, `reason` `prey_killed`, `target` the actor pawn; attrs `rule`, `target` (the prey), `params` (`job`, `radius`), `tick`, `cursor`. A lapsed lease: `verdict` `expired`, `reason` `lease_expired`, `target` `rules`; attrs `expires_at_tick`, `deactivated`, `cursor`. Reader: the launcher Log panel (`infoLogKinds`) and `rimgovernor log` |
 | `log_overflow` | event row, level `WARN`: one summary of dropped diagnostics. `dropped`, `side` `mod` (the mod's ring overflowed while nothing was subscribed or the publisher lagged; `seq` is where the lines were) or `controller` (the reader goroutine's hand-off queue of 1024 was full) |
 
-### Explanation rows (`explain.jsonl`)
-
-Player-facing explanation rows go to a second ring, `explain.jsonl`, beside `flight.jsonl` in the profile
-flight directory. It is a `bridge.FlightRecorder` with the same envelope, written by the same
-`telemetry.Decide`/`slog` call sites: `telemetry.RouteExplanations` (installed by `serve`) sends the kinds
-in `telemetry.IsExplanationKind` to this ring and every other kind to `flight.jsonl`. The ring has its own
-monotonic `sequence` (continuing across launches; no `coverage` row), rows carry the run id, and retention is
-1 MiB x 4 segments (`bridge.DefaultExplainSegmentBytes`/`DefaultExplainSegments`, tunable with the
-`FlightSegmentBytes`/`FlightSegments` options). `serve` opens it at start and closes it on exit. Readers
-merge the two streams by `wall_time` and never compare sequences across them: `bridge.ReadMergedTimeline`/`MergedTimelineReader`
-assemble each ring on its own (so no false `recording_gap` rows), tag explanation rows `Stream == "explain"` and interleave
-them. `rimgovernor log` (including `--follow`, which keeps a last sequence per stream), `phases` and the acceptance postmortem
-(evidence `explain.jsonl#<seq>`, plus `service-N/explain.jsonl`) read both; with no `explain.jsonl` the result is the flight
-timeline unchanged. Remote acceptance exports and indexes `explain.jsonl` beside `flight.jsonl`. The launcher tails the file
-directly; there is no HTTP route.
-
-| Kind | Shape and fields |
-|---|---|
-| `concern_transition` | decision row, component `clock-scheduler`, one per change of a concern's winning typed cause (transition rows, not repeats), written by `recordPlannerReasons` (`buildingruntime/planner_reasons.go`) after the wave's notes are filed. `target` the concern id, or for a planner that serves no single concern (undraft, fields, supplies, the bill planners, workshop, hospital, tend, rescue, armory, moodRelief, recovery, husbandry, prisonerInteraction, populationCustody, populationJoiner, storage-shelves, dialog, trade) the planner's own name as a subject key (`plannerEntry.filingKey`; it has no progress record, so `method` is empty); `verdict` the winning planner verdict's outcome (`refused`, `waiting`, `admitted`, `nothing_to_do`, `disabled`, `combat_orders`, `hold_fallback`); `reason` the new `policy.Cause` wire value, empty when the note cleared (`admitted`, `nothing_to_do`); attrs `subject` (bounded subject, may be empty), `method` (the concern's current method on its progress record when filed, empty when none), and when known `previous_reason` (the cause replaced, empty when it was a clear) and `held_ticks` (game ticks the previous cause stood, whole across a subject-only change). No row while the cause is unchanged or when the subject alone changes; a concern first seen clear files no row. The standing state is in memory only: after a restart a concern's first non-clear cause has no `previous_reason` and no `held_ticks` (unknown, not zero), and `held_ticks` is also absent when the game clock went backwards (a save load). No free text. Readers: the launcher's per-concern timeline (#2699), `rimgovernor log` (merge, #2695) and the nightly case `explain/every-concern` (#2702) |
-
 ### Session and reader events
 
 | Kind | Notes |
@@ -146,7 +126,7 @@ directly; there is no HTTP route.
 | `recording_gap` | Synthetic, produced by `TimelineReader` for a corrupt line or sequence discontinuity; never written. Fields `reason`, `file`, `line`, `before`, `after`. |
 | `state_reset` | event row, level `WARN`, component `serve`: the service database came from another schema version and was moved aside (`path`, `aside`). Written once at startup. |
 
-The flight recorder, with its explanation ring, is the only log: the telemetry handler writes a row for a record that names a `kind`
+The flight recorder is the only log: the telemetry handler writes a row for a record that names a `kind`
 and drops one that does not, there is no Debug level, and `telemetry/kinds_test.go` fails any `slog` call in
 non-test code with no `kind`. stderr carries only the startup banner, parse errors, `flight recorder:` and
 `Go service:` failures, the clock fault-injection notice and Go panics. A new emission adds its kind here with

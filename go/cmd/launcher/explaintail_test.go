@@ -1,42 +1,54 @@
 package main
 
 import (
-	"fmt"
-	"os"
+	"context"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-func transitionLine(seq int, tick int, concern, verdict, reason, attrs string) string {
-	return fmt.Sprintf(`{"version":2,"run":"r1","sequence":%d,"wall_time":%d,"kind":"concern_transition","context":{"level":"INFO","tick":%d,"component":"clock-scheduler"},"payload":{"verdict":%q,"reason":%q,"target":%q,"dur_ms":0,"attrs":%s}}`+"\n",
-		seq, 1000+seq, tick, verdict, reason, concern, attrs)
+// transitionRow is a concern_transitions row at tick; the wall clock follows
+// the tick so a later row is later.
+func transitionRow(tick int64, concern, verdict, cause, subject, method string) store.ConcernTransition {
+	return store.ConcernTransition{WallMS: (1000 + tick) * 1000, Tick: tick, Concern: concern, Verdict: verdict, Cause: cause, Subject: subject, Method: method}
 }
 
-func appendFile(t *testing.T, path, s string) {
+func withPrevious(r store.ConcernTransition, previous string, held int64) store.ConcernTransition {
+	r.PreviousKnown, r.Previous = true, previous
+	if held >= 0 {
+		r.Held = &held
+	}
+	return r
+}
+
+// seedState records rows in a session store named state-<stamp>.sqlite under dir.
+func seedState(t *testing.T, dir, stamp string, rows ...store.ConcernTransition) {
 	t.Helper()
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	ctx := context.Background()
+	s, err := store.Open(ctx, filepath.Join(dir, "state-"+stamp+".sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
-	f.WriteString(s)
+	defer s.Close()
+	if err = s.RecordConcernTransitions(ctx, rows); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestExplainTailBuildsOrderedTimelinesWithDurations(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, explainFile)
-	tail := newExplainTail(filepath.Join(dir, "flight.jsonl"))
+	tail := newExplainTail(dir)
 	if v := tail.view(); v.Available || !strings.Contains(v.Empty, "No explanation history") || v.Concerns == nil {
-		t.Fatalf("missing file: %+v", v)
+		t.Fatalf("missing store: %+v", v)
 	}
-	appendFile(t, path, transitionLine(1, 100, "food", "refused", "no_worker", `{"subject":"","method":""}`))
-	appendFile(t, path, transitionLine(2, 150, "shelter", "waiting", "shelter_bunks_open", `{"subject":"north","method":"build"}`))
-	appendFile(t, path, transitionLine(3, 600, "food", "admitted", "", `{"subject":"","method":"forage","previous_reason":"no_worker","held_ticks":500}`))
-	appendFile(t, path, "not json\n")
-	appendFile(t, path, `{"version":2,"run":"r1","sequence":5,"wall_time":1005,"kind":"planner_step","context":{},"payload":{}}`+"\n")
+	seedState(t, dir, "20260101-000000",
+		transitionRow(100, "food", "refused", "no_worker", "", ""),
+		transitionRow(150, "shelter", "waiting", "shelter_bunks_open", "north", "build"),
+		withPrevious(transitionRow(600, "food", "admitted", "", "", "forage"), "no_worker", 500),
+	)
 	v := tail.view()
 	if !v.Available || len(v.Concerns) != 2 {
 		t.Fatalf("%+v", v)
@@ -46,7 +58,7 @@ func TestExplainTailBuildsOrderedTimelinesWithDurations(t *testing.T) {
 		t.Fatalf("food newest first with two entries: %+v", v.Concerns)
 	}
 	first, second := food.Entries[0], food.Entries[1]
-	if first.Seq != 1 || second.Seq != 3 || first.Tick != 100 || !first.HasTick {
+	if first.Seq >= second.Seq || first.Tick != 100 || !first.HasTick {
 		t.Fatalf("order: %+v", food.Entries)
 	}
 	if first.Text != policy.Wording(policy.CauseNoWorker, "") || first.HasHeld || first.Previous != "" || first.PreviousClear {
@@ -60,8 +72,18 @@ func TestExplainTailBuildsOrderedTimelinesWithDurations(t *testing.T) {
 	if shelter.Entries[0].Text != policy.Wording(policy.CauseBunksOpen, "north") || !strings.Contains(shelter.Entries[0].Text, "(north)") {
 		t.Fatalf("%+v", shelter)
 	}
-	// An appended row shows on the next poll; an unchanged ring is served from cache.
-	appendFile(t, path, transitionLine(6, 900, "shelter", "refused", "no_space", `{"previous_reason":""}`))
+
+	// A row recorded after the first view shows on the next one, and a clear
+	// previous state reads as such.
+	ctx := context.Background()
+	s, err := store.Open(ctx, filepath.Join(dir, "state-20260101-000000.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if err = s.RecordConcernTransitions(ctx, []store.ConcernTransition{withPrevious(transitionRow(900, "shelter", "refused", "no_space", "", ""), "", -1)}); err != nil {
+		t.Fatal(err)
+	}
 	v = tail.view()
 	got := v.Timeline("shelter").Entries
 	if len(got) != 2 || !got[1].PreviousClear || got[1].HasHeld || v.Concerns[0].Concern != "shelter" {
@@ -70,14 +92,13 @@ func TestExplainTailBuildsOrderedTimelinesWithDurations(t *testing.T) {
 }
 
 func TestExplainTailWordsEveryCause(t *testing.T) {
-	var b strings.Builder
-	for i, c := range policy.Causes {
-		b.WriteString(transitionLine(i+1, i, "c", "refused", string(c), `{}`))
-	}
 	dir := t.TempDir()
-	appendFile(t, filepath.Join(dir, explainFile), b.String())
-	v := newExplainTail(filepath.Join(dir, "flight.jsonl")).view()
-	entries := v.Timeline("c").Entries
+	var rows []store.ConcernTransition
+	for i, c := range policy.Causes {
+		rows = append(rows, transitionRow(int64(i), "c", "refused", string(c), "", ""))
+	}
+	seedState(t, dir, "20260101-000000", rows...)
+	entries := newExplainTail(dir).view().Timeline("c").Entries
 	if len(entries) != len(policy.Causes) {
 		t.Fatalf("%d entries", len(entries))
 	}
@@ -89,27 +110,27 @@ func TestExplainTailWordsEveryCause(t *testing.T) {
 	}
 }
 
-func TestExplainTailToleratesUnknownCauseAndRotation(t *testing.T) {
+// The newest session store answers; an older one is a finished session.
+func TestExplainTailReadsTheNewestSessionStore(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, explainFile)
-	tail := newExplainTail(filepath.Join(dir, "flight.jsonl"))
-	appendFile(t, path, transitionLine(1, 1, "x", "refused", "a_future_cause", `{}`))
-	if e := tail.view().Timeline("x").Entries[0]; e.Cause != "a_future_cause" || e.Text == "" {
-		t.Fatalf("%+v", e)
-	}
-	// Rotation: the active file moves to .1 and a new one starts.
-	if err := os.Rename(path, path+".1"); err != nil {
-		t.Fatal(err)
-	}
-	appendFile(t, path, transitionLine(2, 2, "y", "refused", "no_space", `{}`))
-	v := tail.view()
-	if v.Timeline("x") == nil || v.Timeline("y") == nil {
+	seedState(t, dir, "20260101-000000", transitionRow(1, "old", "refused", "no_space", "", ""))
+	seedState(t, dir, "20260102-000000", transitionRow(2, "new", "refused", "no_space", "", ""))
+	v := newExplainTail(dir).view()
+	if v.Timeline("new") == nil || v.Timeline("old") != nil {
 		t.Fatalf("%+v", v.Concerns)
 	}
-	// The ring vanishing leaves an unavailable view, not a stale one.
-	os.Remove(path)
-	os.Remove(path + ".1")
-	if v = tail.view(); v.Available || v.Empty == "" {
+}
+
+func TestExplainTailReportsAnUnreadableStore(t *testing.T) {
+	dir := t.TempDir()
+	seedState(t, dir, "20260101-000000")
+	v := newExplainTail(dir).view()
+	if v.Available || v.Empty != "The explanation history is empty." {
+		t.Fatalf("empty table: %+v", v)
+	}
+	// A file that is not a session store is a reason, not a crash.
+	appendNotAStore(t, filepath.Join(dir, "state-20260103-000000.sqlite"))
+	if v = newExplainTail(dir).view(); v.Available || !strings.Contains(v.Empty, "could not be read") {
 		t.Fatalf("%+v", v)
 	}
 }

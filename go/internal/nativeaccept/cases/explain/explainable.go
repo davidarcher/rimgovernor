@@ -1,6 +1,6 @@
 // Package explain holds the nightly check that the bot can explain itself
 // (#2702, epic #2690): every refusal or wait a planner reports on a running
-// colony has a plain-language concern_transition row in the explanation ring.
+// colony has a plain-language concern_transitions row in the session store.
 package explain
 
 import (
@@ -22,10 +22,10 @@ const windowTicks int64 = 30000
 func init() {
 	cases.Register(cases.Case{
 		Name: "explain/every-concern",
-		Scope: "Epic #2690 (#2702): on a running baseline colony every concern or planner that reports a refusal or wait has at least one concern_transition row " +
-			"in explain.jsonl whose cause the shared wording table (policy.Wording, the one the launcher renders) names in plain language, and no row carries " +
+		Scope: "Epic #2690 (#2702): on a running baseline colony every concern or planner that reports a refusal or wait has at least one row " +
+			"in the session store's concern_transitions table whose cause the shared wording table (policy.Wording, the one the launcher renders) names in plain language, and no row carries " +
 			"free text. A concern first seen clear writes no row by design and is reported as silent, not failed. Nightly tier. The launcher's timeline model " +
-			"lives in package main and cannot be imported, so the case reads the rows through bridge.MergedTimelineReader; a Go snapshot cannot prove that " +
+			"lives in package main and cannot be imported, so the case reads the table through the store; a Go snapshot cannot prove that " +
 			"the live planners keep emitting.",
 		Start:  cases.Save{Name: sustained.BaselineSave},
 		Keep:   []string{string(na.LiveNeeds)},
@@ -88,11 +88,15 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	stop()
 
-	rows, err := bridge.NewMergedTimelineReader(service.FlightPath).Read()
+	rows, err := bridge.ReadTimeline(service.FlightPath)
 	if err != nil {
-		return fmt.Errorf("read flight and explanation rings: %w", err)
+		return fmt.Errorf("read flight ring: %w", err)
 	}
-	result, auditErr := Audit(rows, active)
+	transitions, err := st.ConcernTransitions(ctx)
+	if err != nil {
+		return fmt.Errorf("read concern_transitions: %w", err)
+	}
+	result, auditErr := Audit(rows, transitions, active)
 	report["window_ticks"] = windowTicks
 	report["explainable"] = result
 	return auditErr

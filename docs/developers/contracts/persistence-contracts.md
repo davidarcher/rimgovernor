@@ -20,7 +20,45 @@ copy of a fact is a bug, not a cache.
 | Go memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (rows read once per game fingerprint and shared by later loads; context and stat environment read per load token), the animal race catalog derived from its race rows, the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`); the `standards`, `projects`, `methods` and family tables are such views of the save blobs (`RebuildStandards` rebuilds Standards and Projects under one orphan pass, `RebuildFamilies`) | Rebuilt from the save and the live world |
 | Refusal budget ledger (`policy.RefusalBudget.Entries`) | A planner's refusals by subject and reason, each with its class and the `GenerationSnapshot` it was met in. A pure value: the store that owns the subject persists it. Every planner that retries a refused write (medical, repair, clean, equip, mood, drill, clearance, husbandry, population, quest, ideology, ritual, shrine, permit, defense, firebreak, mine, sleeping, trade and psylink) derives its ledger from the refusals journaled on its plans each step and keeps nothing of its own | With its owner: Standards' and Projects' records follow the save, a session-scoped planner's ledger is derived and rebuilt |
 | `flight.jsonl` | All controller telemetry, one row per thing that happened ([flight rows](flight-rows.md), schema v2), the only log: always on for `serve`, nothing else is written to stderr but the startup banner, fatals and panics; snapshot dumps and the acceptance harness's replay transcript are opt-in recordings | Diagnostics only |
-| `explain.jsonl` | Player-facing explanation rows (`concern_transition`), a second small recorder ring beside `flight.jsonl` ([explanation rows](flight-rows.md#explanation-rows-explainjsonl)): own sequence, 1 MiB x 4 segments, profile-scoped, opened by `serve`. Together with `flight.jsonl` it is the only log | Survives restarts (rotated by count); history only, nothing is rebuilt from it |
+| SQLite table `concern_transitions` (session journal) | Player-facing explanation history: one row per change of a concern's winning typed cause ([below](#concern_transitions)). Not telemetry, so it is not a flight row | Not restored; read by the launcher and the nightly `explain/every-concern` case |
+
+### concern_transitions
+
+The player-facing explanation history lives in the session SQLite store, not in
+telemetry (epic #2778, #2788). `recordPlannerReasons`
+(`buildingruntime/planner_reasons.go`) appends one row per change of a
+concern's winning typed cause, in the same step that files the goal's planner
+note; `store.RecordConcernTransitions` writes them and `store.ConcernTransitions` /
+`store.ReadConcernTransitions` (read-only handle, for a process that does not
+own the store) read them. The table is `concern_transitions` (schema version 211;
+a database of another version is moved aside, never migrated):
+
+| Column | Meaning |
+|---|---|
+| `sequence` | `INTEGER PRIMARY KEY AUTOINCREMENT`; monotonic, never reused, so a reader can follow by sequence |
+| `wall_ms`, `tick` | wall clock (unix ms) and game tick when filed |
+| `concern` | the concern id, or for a planner that serves no single concern (fields, supplies, the bill planners, workshop, hospital, tend, rescue, armory, moodRelief, recovery, husbandry, prisonerInteraction, populationCustody, populationJoiner, storage-shelves, dialog, trade) the planner's own name (`plannerEntry.filingKey`; no progress record, so `method` is empty) |
+| `verdict` | the winning planner verdict's outcome (`refused`, `waiting`, `admitted`, `nothing_to_do`, `disabled`, `combat_orders`, `hold_fallback`) |
+| `cause` | the new `policy.Cause` wire value, `''` when the note cleared (`admitted`, `nothing_to_do`); anything outside the vocabulary is refused on write |
+| `subject`, `method` | bounded subject (may be empty); the concern's current method on its progress record when filed (empty when none) |
+| `previous_cause` | the cause replaced; `''` when it was a clear; `NULL` when unknown |
+| `held_ticks` | game ticks the previous cause stood (whole across a subject-only change); `NULL` when unknown |
+
+No row while the cause is unchanged or when only the subject changes; a concern
+first seen clear files no row. The standing state that decides "changed" is in
+memory only, as before: after a restart a concern's first non-clear cause has
+`previous_cause` and `held_ticks` `NULL` (unknown, not zero), and `held_ticks` is
+also `NULL` when the game clock went backwards (a save load). No free text.
+
+Retention is a ring by count: each insert deletes rows more than
+`store.ConcernTransitionRetention` (8192) sequences behind the newest, in the same
+transaction. The history lasts as long as the `state-*.sqlite` file; a launch that
+continues a state keeps it, a fresh state starts empty. Readers: the launcher's
+Explain drill-down (`cmd/launcher/explaintail.go`, newest `state-*.sqlite`, read-only,
+opened per view and closed so the file can still be moved aside) and the nightly
+case `explain/every-concern` (#2702, through the case's own store handle). The
+Now and Problems pages read spectator and flight data, which carry no explanation
+rows.
 
 The derived `rounds` payload records its last inspection scope (`Immediate`) and
 last full enabled inspection time (`OrdinaryTick`) separately from the latest

@@ -229,7 +229,7 @@ func flightRows(dir string) []flightRow {
 		}
 		f.Close()
 	}
-	// The flight and explanation rings merge by wall time; each keeps its own
+	// Rows of successive rings merge by wall time; each keeps its own
 	// sequence, which is why evidence names the file.
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i].rec.WallTime < rows[j].rec.WallTime })
 	return rows
@@ -478,7 +478,7 @@ func clip(text string) string {
 	return text
 }
 
-// flightFiles lists every flight and explanation recording under dir (the
+// flightFiles lists every flight recording under dir (the
 // case's own and each relaunch's service-N/), each ring with its retained
 // segments oldest first, relative to dir.
 func flightFiles(dir string) []string {
@@ -489,9 +489,7 @@ func flightFiles(dir string) []string {
 		if err != nil {
 			return
 		}
-		for _, ring := range []string{"flight.jsonl", "explain.jsonl"} {
-			out = append(out, ringFiles(sub, ring, entries)...)
-		}
+		out = append(out, ringFiles(sub, "flight.jsonl", entries)...)
 	}
 	add(".")
 	entries, _ := os.ReadDir(dir)

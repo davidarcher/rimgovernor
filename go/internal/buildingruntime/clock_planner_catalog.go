@@ -109,7 +109,7 @@ func (e plannerEntry) reviewEvery() domain.Tick {
 }
 
 // filingKey is the key a planner's verdict files its cause under, and so the
-// target of its concern_transition rows: its concern, or for a planner that
+// target of its concern_transitions rows: its concern, or for a planner that
 // serves several concerns (or none) its own name, a subject key beside the
 // concern ids. A subject key has no progress record, so it never relabels a
 // concern's strip; it only explains the planner.

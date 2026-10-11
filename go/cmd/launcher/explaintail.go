@@ -1,34 +1,34 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"sync"
+	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// The explanation tail: explain.jsonl under the profile read in-process, like
-// the Problems and Log tabs, and turned into one plain-language timeline per
-// concern. There is no HTTP route; the Now tab (#2700) and the Ledger (#2701)
-// read ExplainView from the app.
-
-// explainFile is the explanation ring beside flight.jsonl.
-const explainFile = "explain.jsonl"
-
-const concernTransitionKind = "concern_transition"
+// The explanation reader: the concern_transitions table of the newest session
+// store (state-*.sqlite under .rimgovernor/go) read in-process, read-only, and
+// turned into one plain-language timeline per concern. There is no HTTP route;
+// the Now tab (#2700) and the Ledger (#2701) read ExplainView from the app.
 
 // gameTicksPerMinute is a game minute: domain.TicksPerHour ticks.
 const gameTicksPerMinute = float64(domain.TicksPerHour) / 60
 
+// explainReadTimeout bounds one read of the store.
+const explainReadTimeout = 5 * time.Second
+
 // TimelineEntry is one change of a concern's winning cause.
 type TimelineEntry struct {
 	Seq     uint64
-	Run     string
 	Wall    float64 // unix seconds
 	Tick    int64
 	HasTick bool
@@ -43,7 +43,7 @@ type TimelineEntry struct {
 	Text string
 	// Previous is the sentence for the state this row replaced, "" when
 	// unknown. PreviousClear is true when the replaced state was a clear
-	// (previous_reason ""), in which case Previous is "".
+	// (previous cause ""), in which case Previous is "".
 	Previous      string
 	PreviousClear bool
 	// Held is how long that previous state stood in game time ("held for 12
@@ -64,7 +64,7 @@ type ConcernTimeline struct {
 
 // ExplainView is what the Now tab and Ledger read.
 type ExplainView struct {
-	Available bool   // the ring holds a concern_transition row
+	Available bool   // the store holds a concern_transitions row
 	Empty     string // why not, when not Available
 	Path      string
 	// Concerns is ordered by newest entry first.
@@ -81,66 +81,58 @@ func (v ExplainView) Timeline(concern string) *ConcernTimeline {
 	return nil
 }
 
-// explainTail follows the explanation ring, decoding only what was appended
-// since the last call, and recomputes the view only when the ring grew.
+// explainTail reads the explanation history of the newest session store in
+// dir. Each view opens the store read-only and closes it again, so the
+// launcher never holds the file the controller may move aside on a schema change.
 type explainTail struct {
-	mu     sync.Mutex
-	path   string
-	reader *bridge.TimelineReader
-	key    string
-	cached ExplainView
+	mu  sync.Mutex
+	dir string
 }
 
-func newExplainTail(flightPath string) *explainTail {
-	path := filepath.Join(filepath.Dir(flightPath), explainFile)
-	return &explainTail{path: path, reader: bridge.NewTailTimelineReader(path, launcherRingFiles)}
+func newExplainTail(dir string) *explainTail { return &explainTail{dir: dir} }
+
+// newestState is the newest state-*.sqlite in dir ("" when none): the stamped
+// names sort by start time, as StatePath relies on.
+func newestState(dir string) string {
+	matches, _ := filepath.Glob(filepath.Join(dir, "state-*.sqlite"))
+	if len(matches) == 0 {
+		return ""
+	}
+	sort.Strings(matches)
+	return matches[len(matches)-1]
 }
 
-// view answers a poll. A missing or empty ring is an unavailable view with the
-// reason; a corrupt line or a gap is skipped, never an error.
+// view answers a poll. A missing store or an empty table is an unavailable
+// view with the reason; an unreadable store is one too, never a crash.
 func (t *explainTail) view() ExplainView {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	rows, err := t.reader.Read()
-	if err != nil {
-		t.key = ""
-		return ExplainView{Path: t.path, Concerns: []ConcernTimeline{}, Empty: "The explanation history could not be read: " + err.Error()}
+	path := newestState(t.dir)
+	if path == "" {
+		return ExplainView{Path: t.dir, Concerns: []ConcernTimeline{}, Empty: "No explanation history yet. It appears in the session store under " + t.dir + " once the controller has run."}
 	}
-	key := ""
-	if n := len(rows); n > 0 {
-		last := rows[n-1]
-		key = fmt.Sprintf("%d/%d/%g", n, last.Sequence, last.WallTime)
+	ctx, cancel := context.WithTimeout(context.Background(), explainReadTimeout)
+	defer cancel()
+	rows, err := store.ReadConcernTransitions(ctx, path)
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		return ExplainView{Path: path, Concerns: []ConcernTimeline{}, Empty: "No explanation history yet. It appears at " + path + " once the controller has run."}
+	case err != nil:
+		return ExplainView{Path: path, Concerns: []ConcernTimeline{}, Empty: "The explanation history could not be read: " + err.Error()}
 	}
-	if key != "" && key == t.key {
-		return t.cached
-	}
-	out := buildExplainView(t.path, rows)
-	if len(rows) == 0 {
-		if _, statErr := os.Stat(t.path); statErr != nil {
-			out.Empty = "No explanation history yet. It appears at " + t.path + " once the controller has run."
-		}
-	}
-	t.key, t.cached = key, out
-	return out
+	return buildExplainView(path, rows)
 }
 
-func buildExplainView(path string, rows []bridge.TimelineRecord) ExplainView {
+func buildExplainView(path string, rows []store.ConcernTransition) ExplainView {
 	out := ExplainView{Path: path, Concerns: []ConcernTimeline{}}
 	byConcern := map[string]*ConcernTimeline{}
 	var order []string
 	for _, r := range rows {
-		if r.Kind != concernTransitionKind {
-			continue
-		}
-		concern, _ := r.Payload["target"].(string)
-		if concern == "" {
-			continue
-		}
-		tl := byConcern[concern]
+		tl := byConcern[r.Concern]
 		if tl == nil {
-			tl = &ConcernTimeline{Concern: concern}
-			byConcern[concern] = tl
-			order = append(order, concern)
+			tl = &ConcernTimeline{Concern: r.Concern}
+			byConcern[r.Concern] = tl
+			order = append(order, r.Concern)
 		}
 		tl.Entries = append(tl.Entries, timelineEntry(r))
 	}
@@ -161,24 +153,19 @@ func buildExplainView(path string, rows []bridge.TimelineRecord) ExplainView {
 	return out
 }
 
-func timelineEntry(r bridge.TimelineRecord) TimelineEntry {
-	attrs, _ := r.Payload["attrs"].(map[string]any)
-	e := TimelineEntry{Seq: r.Sequence, Run: r.Run, Wall: r.WallTime}
-	e.Tick, e.HasTick = tickOf(r)
-	e.Outcome, _ = r.Payload["verdict"].(string)
-	e.Cause, _ = r.Payload["reason"].(string)
-	e.Subject, _ = attrs["subject"].(string)
-	e.Method, _ = attrs["method"].(string)
+func timelineEntry(r store.ConcernTransition) TimelineEntry {
+	e := TimelineEntry{Seq: uint64(r.Sequence), Wall: float64(r.WallMS) / 1000, Tick: r.Tick, HasTick: true,
+		Outcome: r.Verdict, Cause: r.Cause, Subject: r.Subject, Method: r.Method}
 	e.Text = causeText(e.Outcome, e.Cause, e.Subject)
-	if prev, ok := attrs["previous_reason"].(string); ok {
-		if prev == "" {
+	if r.PreviousKnown {
+		if r.Previous == "" {
 			e.PreviousClear = true
 		} else {
-			e.Previous = policy.Wording(policy.Cause(prev), "")
+			e.Previous = policy.Wording(policy.Cause(r.Previous), "")
 		}
 	}
-	if v, ok := attrs["held_ticks"].(float64); ok && v >= 0 {
-		e.HeldTicks, e.HasHeld = int64(v), true
+	if r.Held != nil {
+		e.HeldTicks, e.HasHeld = *r.Held, true
 		e.Held = "held for " + gameDuration(e.HeldTicks)
 	}
 	return e

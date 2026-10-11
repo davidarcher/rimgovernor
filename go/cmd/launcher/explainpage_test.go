@@ -1,22 +1,30 @@
 package main
 
 import (
-	"path/filepath"
+	"os"
 	"strings"
 	"testing"
 )
 
+func appendNotAStore(t *testing.T, path string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte("this is not a database, just text padded out to be longer than a header"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestExplainPageNewestFirstWithPlainLabels(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, explainFile)
-	tail := newExplainTail(filepath.Join(dir, "flight.jsonl"))
+	tail := newExplainTail(dir)
 	if p := explainPage(tail.view(), ""); p.Available || p.Notice == "" || p.Selected != nil || p.Concerns == nil {
 		t.Fatalf("empty: %+v", p)
 	}
-	appendFile(t, path, transitionLine(1, 100, "EnsureFoodSupply", "refused", "no_worker", `{"subject":"","method":""}`))
-	appendFile(t, path, transitionLine(2, 150, "tend", "waiting", "no_worker", `{"subject":"","method":""}`))
-	appendFile(t, path, transitionLine(3, 2600, "EnsureFoodSupply", "admitted", "", `{"subject":"","method":"forage","previous_reason":"no_worker","held_ticks":2500}`))
-	appendFile(t, path, transitionLine(4, 2700, "mystery_planner", "waiting", "no_worker", `{"subject":"","method":""}`))
+	seedState(t, dir, "20260101-000000",
+		transitionRow(100, "EnsureFoodSupply", "refused", "no_worker", "", ""),
+		transitionRow(150, "tend", "waiting", "no_worker", "", ""),
+		withPrevious(transitionRow(2600, "EnsureFoodSupply", "admitted", "", "", "forage"), "no_worker", 2500),
+		transitionRow(2700, "mystery_planner", "waiting", "no_worker", "", ""),
+	)
 	p := explainPage(tail.view(), "EnsureFoodSupply")
 	if !p.Available || len(p.Concerns) != 3 || p.Concerns[0].ID != "mystery_planner" {
 		t.Fatalf("picker: %+v", p.Concerns)

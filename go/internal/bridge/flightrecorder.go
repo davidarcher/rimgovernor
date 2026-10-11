@@ -43,11 +43,6 @@ const (
 	DefaultFlightPayloadBytes = 64 << 10
 	flightPreviewBytes        = 4 << 10
 
-	// DefaultExplainSegmentBytes and DefaultExplainSegments are the explanation
-	// ring's retention: 1 MiB x 4 files (the active one included) = 4 MiB.
-	DefaultExplainSegmentBytes = 1 << 20
-	DefaultExplainSegments     = 4
-
 	minSegmentBytes = 1024
 	minSegments     = 2
 	minPayloadBytes = 128
@@ -94,18 +89,10 @@ func FlightRunID(id string) FlightRecorderOption { return func(r *FlightRecorder
 // New opens (or creates) path for durable append and records one "coverage"
 // event describing what the timeline does and does not capture.
 func NewFlightRecorder(path string, opts ...FlightRecorderOption) (*FlightRecorder, error) {
-	return openRecorder(path, true, DefaultFlightSegmentBytes, DefaultFlightSegments, opts)
+	return openRecorder(path, DefaultFlightSegmentBytes, DefaultFlightSegments, opts)
 }
 
-// NewExplainRecorder opens the explanation ring (explain.jsonl): the same
-// recorder with its own sequence, small retention (DefaultExplainSegmentBytes x
-// DefaultExplainSegments, tunable with the same options) and no coverage row,
-// since every row in it is a player-facing explanation.
-func NewExplainRecorder(path string, opts ...FlightRecorderOption) (*FlightRecorder, error) {
-	return openRecorder(path, false, DefaultExplainSegmentBytes, DefaultExplainSegments, opts)
-}
-
-func openRecorder(path string, coverage bool, segmentBytes int64, segments int, opts []FlightRecorderOption) (*FlightRecorder, error) {
+func openRecorder(path string, segmentBytes int64, segments int, opts []FlightRecorderOption) (*FlightRecorder, error) {
 	if path == "" {
 		return nil, errors.New("flightrecorder: path required")
 	}
@@ -131,9 +118,6 @@ func openRecorder(path string, coverage bool, segmentBytes int64, segments int, 
 		return nil, err
 	}
 	r.sequence = last
-	if !coverage {
-		return r, nil
-	}
 	if _, err := r.Event("coverage", nil, true, map[string]any{
 		"coverage": "All bridge.Client native calls (one row each, plus an in-flight marker for a slow one) and exceptions, including background reads." +
 			"Records reach the OS on each write (a process crash loses none); fsync happens on rotation, close and this row. " +

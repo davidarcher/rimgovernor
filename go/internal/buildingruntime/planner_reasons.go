@@ -4,8 +4,10 @@ import (
 	"context"
 	"log/slog"
 	"slices"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
@@ -127,22 +129,20 @@ func (l *plannerReasonLog) changed(filings map[policy.ConcernID]plannerFiling, t
 	return out
 }
 
-// emitTransitions writes one concern_transition row per transition into the
-// explanation ring: target the concern, verdict the filing verdict's outcome,
-// reason the new cause (empty when it cleared), attrs subject, previous_reason
-// and held_ticks (each only when known) and method, the goal's current method
-// on its progress record.
-func emitTransitions(call context.Context, transitions []concernTransition, methods map[policy.ConcernID]string) {
+// transitionRows turns transitions into concern_transitions rows: concern the
+// goal, verdict the filing verdict's outcome, cause the new cause (empty when
+// it cleared), subject, method (the goal's current method on its progress
+// record), and previous cause and held ticks only when known.
+func transitionRows(transitions []concernTransition, methods map[policy.ConcernID]string, tick int64, now time.Time) []store.ConcernTransition {
+	rows := make([]store.ConcernTransition, 0, len(transitions))
 	for _, t := range transitions {
-		attrs := map[string]any{"subject": t.Filing.Note.Subject, "method": methods[t.Concern]}
-		if t.HadPrevious {
-			attrs["previous_reason"] = string(t.Previous)
-		}
-		if t.Held != nil {
-			attrs["held_ticks"] = *t.Held
-		}
-		telemetry.Decide(call, telemetry.Decision{Kind: telemetry.ConcernTransitionKind, Component: "clock-scheduler", Verdict: string(t.Filing.Outcome), Reason: string(t.Filing.Note.Cause), Target: string(t.Concern), Attrs: attrs})
+		rows = append(rows, store.ConcernTransition{
+			WallMS: now.UnixMilli(), Tick: tick, Concern: string(t.Concern), Verdict: string(t.Filing.Outcome),
+			Cause: string(t.Filing.Note.Cause), Subject: t.Filing.Note.Subject, Method: methods[t.Concern],
+			PreviousKnown: t.HadPrevious, Previous: string(t.Previous), Held: t.Held,
+		})
 	}
+	return rows
 }
 
 // wavePlannerReasons collects the goal filings of the planners that returned;
@@ -168,7 +168,7 @@ func wavePlannerReasons(names []string, filing func(string) (policy.ConcernID, V
 // recordPlannerReasons notes each goal's planner refusal or wait and files it
 // on the goal's progress record, so the status strip says why a goal has no
 // method or what it waits on (the planner_step rows carry the same reasons).
-// A goal whose cause changed also files a concern_transition row.
+// A goal whose cause changed also files a concern_transitions row.
 func (s *ClockScheduler) recordPlannerReasons(call context.Context, wave *plannerWave, tick int64) {
 	filings := wavePlannerReasons(wave.finishedNames(), wave.filing)
 	if len(filings) == 0 {
@@ -185,8 +185,10 @@ func (s *ClockScheduler) recordPlannerReasons(call context.Context, wave *planne
 		if _, methods, err = s.player.journal.RecordPlannerReasons(call, notes); err != nil {
 			plannerBookkeepingFailed(call, "reasons", err)
 		}
+		if err = s.player.journal.RecordConcernTransitions(call, transitionRows(transitions, methods, tick, time.Now())); err != nil {
+			plannerBookkeepingFailed(call, "concern_transitions", err)
+		}
 	}
-	emitTransitions(call, transitions, methods)
 }
 
 // plannerBookkeepingFailed files the step's own failure to record a wave

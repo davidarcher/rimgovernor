@@ -6,6 +6,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 func step(planner, concern, verdict, reason string, extra map[string]any) bridge.TimelineRecord {
@@ -16,12 +17,12 @@ func step(planner, concern, verdict, reason string, extra map[string]any) bridge
 	return bridge.TimelineRecord{Kind: plannerKind, Payload: map[string]any{"verdict": verdict, "reason": reason, "target": planner, "dur_ms": 1.0, "attrs": attrs}}
 }
 
-func transition(target, verdict, reason string, attrs map[string]any) bridge.TimelineRecord {
-	if attrs == nil {
-		attrs = map[string]any{"subject": "", "method": ""}
+func transition(target, verdict, reason string, edit func(*store.ConcernTransition)) store.ConcernTransition {
+	r := store.ConcernTransition{Sequence: 1, Concern: target, Verdict: verdict, Cause: reason}
+	if edit != nil {
+		edit(&r)
 	}
-	return bridge.TimelineRecord{Kind: transitionKind, Stream: bridge.ExplainStream, Sequence: 1,
-		Payload: map[string]any{"verdict": verdict, "reason": reason, "target": target, "dur_ms": 0.0, "attrs": attrs}}
+	return r
 }
 
 func TestAuditPassesWhenEveryRefusalIsExplained(t *testing.T) {
@@ -29,12 +30,17 @@ func TestAuditPassesWhenEveryRefusalIsExplained(t *testing.T) {
 		step("housing", "MaintainHousing", "refused", string(policy.CauseNoWorker), nil),
 		step("tend", "", "waiting", string(policy.CauseMethodUsed), nil),
 		step("food", "EnsureFoodSupply", "ok", "nothing_to_do", nil),
-		transition("MaintainHousing", "refused", string(policy.CauseNoWorker), map[string]any{"subject": "north", "method": "build_beds"}),
+	}
+	held := int64(500)
+	transitions := []store.ConcernTransition{
+		transition("MaintainHousing", "refused", string(policy.CauseNoWorker), func(r *store.ConcernTransition) { r.Subject, r.Method = "north", "build_beds" }),
 		transition("tend", "waiting", string(policy.CauseMethodUsed), nil),
-		transition("tend", "admitted", "", map[string]any{"subject": "", "method": "", "previous_reason": string(policy.CauseMethodUsed), "held_ticks": 500.0}),
+		transition("tend", "admitted", "", func(r *store.ConcernTransition) {
+			r.PreviousKnown, r.Previous, r.Held = true, string(policy.CauseMethodUsed), &held
+		}),
 	}
 	active := map[string]policy.Cause{"MaintainHousing": policy.CauseNoWorker, "EnsureFoodSupply": ""}
-	res, err := Audit(rows, active)
+	res, err := Audit(rows, transitions, active)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,20 +53,18 @@ func TestAuditFailsWhenAPlannerStopsEmitting(t *testing.T) {
 	rows := []bridge.TimelineRecord{
 		step("housing", "MaintainHousing", "refused", string(policy.CauseNoWorker), nil),
 		step("tend", "", "waiting", string(policy.CauseMethodUsed), nil),
-		transition("MaintainHousing", "refused", string(policy.CauseNoWorker), nil),
 	}
-	_, err := Audit(rows, map[string]policy.Cause{"MaintainHousing": policy.CauseNoWorker})
+	transitions := []store.ConcernTransition{transition("MaintainHousing", "refused", string(policy.CauseNoWorker), nil)}
+	_, err := Audit(rows, transitions, map[string]policy.Cause{"MaintainHousing": policy.CauseNoWorker})
 	if err == nil || !strings.Contains(err.Error(), "tend") || strings.Contains(err.Error(), "MaintainHousing (") {
 		t.Fatalf("want only tend missing, got %v", err)
 	}
 }
 
 func TestAuditFailsOnAProgressCauseWithNoRow(t *testing.T) {
-	rows := []bridge.TimelineRecord{
-		step("housing", "MaintainHousing", "refused", string(policy.CauseNoWorker), nil),
-		transition("MaintainHousing", "refused", string(policy.CauseNoWorker), nil),
-	}
-	_, err := Audit(rows, map[string]policy.Cause{"MaintainHousing": policy.CauseNoWorker, "EnsureResearch": policy.CauseNoMethod})
+	rows := []bridge.TimelineRecord{step("housing", "MaintainHousing", "refused", string(policy.CauseNoWorker), nil)}
+	transitions := []store.ConcernTransition{transition("MaintainHousing", "refused", string(policy.CauseNoWorker), nil)}
+	_, err := Audit(rows, transitions, map[string]policy.Cause{"MaintainHousing": policy.CauseNoWorker, "EnsureResearch": policy.CauseNoMethod})
 	if err == nil || !strings.Contains(err.Error(), "EnsureResearch") {
 		t.Fatalf("got %v", err)
 	}
@@ -72,42 +76,38 @@ func TestAuditIgnoresLateImmediateAndUnnamedPlannerSteps(t *testing.T) {
 		step("b", "B", "refused", string(policy.CauseNoWorker), map[string]any{"scope": "immediate"}),
 		step("c", "C", "refused", "not_a_cause", nil),
 		step("d", "D", "refused", string(policy.CauseNoWorker), nil),
-		transition("D", "refused", string(policy.CauseNoWorker), nil),
 	}
-	if _, err := Audit(rows, map[string]policy.Cause{"D": ""}); err != nil {
+	transitions := []store.ConcernTransition{transition("D", "refused", string(policy.CauseNoWorker), nil)}
+	if _, err := Audit(rows, transitions, map[string]policy.Cause{"D": ""}); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestAuditRejectsFreeTextAndUnnamedRows(t *testing.T) {
-	good := step("d", "D", "refused", string(policy.CauseNoWorker), nil)
-	for name, bad := range map[string]bridge.TimelineRecord{
-		"unknown cause":    transition("D", "refused", "something odd", nil),
-		"verdict":          transition("D", "scolded", string(policy.CauseNoWorker), nil),
-		"clear verdict":    transition("D", "refused", "", nil),
-		"extra attr":       transition("D", "refused", string(policy.CauseNoWorker), map[string]any{"subject": "", "method": "", "msg": "free text"}),
-		"sentence method":  transition("D", "refused", string(policy.CauseNoWorker), map[string]any{"subject": "", "method": "build a bed now"}),
-		"long subject":     transition("D", "refused", string(policy.CauseNoWorker), map[string]any{"subject": strings.Repeat("x", 80), "method": ""}),
-		"unknown previous": transition("D", "refused", string(policy.CauseNoWorker), map[string]any{"previous_reason": "because", "method": "", "subject": ""}),
+	rows := []bridge.TimelineRecord{step("d", "D", "refused", string(policy.CauseNoWorker), nil)}
+	for name, bad := range map[string]store.ConcernTransition{
+		"unknown cause":   transition("D", "refused", "something odd", nil),
+		"verdict":         transition("D", "scolded", string(policy.CauseNoWorker), nil),
+		"clear verdict":   transition("D", "refused", "", nil),
+		"sentence method": transition("D", "refused", string(policy.CauseNoWorker), func(r *store.ConcernTransition) { r.Method = "build a bed now" }),
+		"long subject":    transition("D", "refused", string(policy.CauseNoWorker), func(r *store.ConcernTransition) { r.Subject = strings.Repeat("x", 80) }),
+		"unknown previous": transition("D", "refused", string(policy.CauseNoWorker), func(r *store.ConcernTransition) {
+			r.PreviousKnown, r.Previous = true, "because"
+		}),
 	} {
-		rows := []bridge.TimelineRecord{good, transition("D", "refused", string(policy.CauseNoWorker), nil), bad}
-		if _, err := Audit(rows, map[string]policy.Cause{"D": ""}); err == nil {
+		transitions := []store.ConcernTransition{transition("D", "refused", string(policy.CauseNoWorker), nil), bad}
+		if _, err := Audit(rows, transitions, map[string]policy.Cause{"D": ""}); err == nil {
 			t.Errorf("%s passed", name)
 		}
-	}
-	extra := transition("D", "refused", string(policy.CauseNoWorker), nil)
-	extra.Payload["msg"] = "free text"
-	if _, err := Audit([]bridge.TimelineRecord{good, extra}, map[string]policy.Cause{"D": ""}); err == nil {
-		t.Error("payload msg passed")
 	}
 }
 
 func TestAuditFailsWhenNothingWasChecked(t *testing.T) {
-	if _, err := Audit(nil, nil); err == nil {
+	if _, err := Audit(nil, nil, nil); err == nil {
 		t.Fatal("empty window passed")
 	}
-	rows := []bridge.TimelineRecord{transition("D", "refused", string(policy.CauseNoWorker), nil)}
-	if _, err := Audit(rows, map[string]policy.Cause{"D": ""}); err == nil {
+	transitions := []store.ConcernTransition{transition("D", "refused", string(policy.CauseNoWorker), nil)}
+	if _, err := Audit(nil, transitions, map[string]policy.Cause{"D": ""}); err == nil {
 		t.Fatal("window with no planner refusal passed")
 	}
 }

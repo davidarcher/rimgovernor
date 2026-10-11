@@ -39,8 +39,8 @@ a tick while a request is in flight.
 [now.go](../../../go/cmd/launcher/now.go) builds the report; the page does not
 rank Concerns or infer planner state. The Now tab's "Why is the bot doing
 this?" drill-down binds `getExplain`: [explainpage.go](../../../go/cmd/launcher/explainpage.go)
-turns the `explain.jsonl` timelines ([explaintail.go](../../../go/cmd/launcher/explaintail.go),
-read in-process, no HTTP route) into newest-first entries. Targets are concern
+turns the session store's `concern_transitions` timelines ([explaintail.go](../../../go/cmd/launcher/explaintail.go),
+read in-process and read-only, no HTTP route; [table](../contracts/persistence-contracts.md#concern_transitions)) into newest-first entries. Targets are concern
 ids or planner names; `plannerLabels` is the closed table naming the latter,
 and an unknown target prints as written. Spectator/routine reads use retained
 review data and issue no native calls.

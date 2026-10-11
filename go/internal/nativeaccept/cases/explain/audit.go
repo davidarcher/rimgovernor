@@ -8,20 +8,16 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-const (
-	transitionKind = "concern_transition"
-	plannerKind    = "planner_step"
-)
+const plannerKind = "planner_step"
 
 // causeOutcomes are the verdict words a transition row with a cause carries;
 // clearOutcomes the two a row with no cause (the concern cleared) carries.
 var (
 	causeOutcomes = []string{"refused", "waiting", "disabled", "combat_orders", "hold_fallback"}
 	clearOutcomes = []string{"admitted", "nothing_to_do"}
-	payloadKeys   = []string{"verdict", "reason", "target", "dur_ms", "attrs"}
-	attrKeys      = []string{"subject", "method", "previous_reason", "held_ticks"}
 )
 
 // Result is what Audit found, kept in the case report.
@@ -36,10 +32,10 @@ type Result struct {
 	Silent []string `json:"silent"`
 }
 
-// Audit holds a colony's rows to the explainability claim. rows is the merged
-// flight and explanation reading; active maps every concern that had a progress
-// record during the window to the planner cause filed on it at its last
-// non-clear poll ("" when never filed).
+// Audit holds a colony's rows to the explainability claim. rows is the flight
+// reading and transitions the session store's concern_transitions; active maps
+// every concern that had a progress record during the window to the planner
+// cause filed on it at its last non-clear poll ("" when never filed).
 //
 // A key is a concern id or, for a planner serving no single concern, the
 // planner's own name (the target its transition rows use). A key needs an
@@ -47,23 +43,23 @@ type Result struct {
 // a planner_step row in flight.jsonl with verdict refused or waiting, a
 // closed cause, that was neither late nor an immediate review (the planner
 // ran and its verdict was filed); or, for an active concern, a planner cause
-// on its progress record. It is explained when explain.jsonl holds at least
-// one concern_transition row for the key with a cause: the first row of a key
-// is always non-clear, since a key first seen clear writes none. A key
-// with neither trail is silent and passes.
+// on its progress record. It is explained when concern_transitions holds at
+// least one row for the key with a cause: the first row of a key is always
+// non-clear, since a key first seen clear writes none. A key with neither trail
+// is silent and passes.
 //
 // Every transition row must also be closed typed data: a known verdict, a
-// cause that policy.Wording names (not its unnamed-reason fallback), only the
-// fixed payload and attr keys, a bounded printable subject and no free text.
+// cause that policy.Wording names (not its unnamed-reason fallback), a bounded
+// printable subject and no free text.
 // The run fails when no active concern, no planner refusal or wait, or no
 // transition row was seen at all, since nothing would have been checked.
-func Audit(rows []bridge.TimelineRecord, active map[string]policy.Cause) (Result, error) {
+func Audit(rows []bridge.TimelineRecord, transitions []store.ConcernTransition, active map[string]policy.Cause) (Result, error) {
 	var problems []error
 	res := Result{Active: len(active)}
 
 	need := map[string]string{} // key -> where the non-clear state showed
 	for _, r := range rows {
-		if r.Stream == bridge.ExplainStream || r.Kind != plannerKind {
+		if r.Kind != plannerKind {
 			continue
 		}
 		verdict, _ := r.Payload["verdict"].(string)
@@ -100,10 +96,7 @@ func Audit(rows []bridge.TimelineRecord, active map[string]policy.Cause) (Result
 	}
 
 	explained := map[string]bool{}
-	for _, r := range rows {
-		if r.Stream != bridge.ExplainStream || r.Kind != transitionKind {
-			continue
-		}
+	for _, r := range transitions {
 		res.Transitions++
 		target, cause, err := checkRow(r)
 		if err != nil {
@@ -134,7 +127,7 @@ func Audit(rows []bridge.TimelineRecord, active map[string]policy.Cause) (Result
 	sort.Strings(missing)
 
 	if len(missing) > 0 {
-		problems = append(problems, fmt.Errorf("%d key(s) refused or waited with no concern_transition row naming a cause (a planner stopped emitting): %v", len(missing), missing))
+		problems = append(problems, fmt.Errorf("%d key(s) refused or waited with no concern_transitions row naming a cause (a planner stopped emitting): %v", len(missing), missing))
 	}
 	switch {
 	case len(active) == 0:
@@ -142,30 +135,17 @@ func Audit(rows []bridge.TimelineRecord, active map[string]policy.Cause) (Result
 	case res.Planner == 0:
 		problems = append(problems, errors.New("no planner refused or waited in the window: nothing was checked"))
 	case res.NonClear == 0:
-		problems = append(problems, errors.New("explain.jsonl holds no concern_transition row with a cause"))
+		problems = append(problems, errors.New("concern_transitions holds no row with a cause"))
 	}
 	return res, errors.Join(problems...)
 }
 
 // checkRow holds one transition row to the closed shape and returns its
 // target and cause.
-func checkRow(r bridge.TimelineRecord) (target string, cause policy.Cause, err error) {
-	for k := range r.Payload {
-		if !slices.Contains(payloadKeys, k) {
-			return "", "", fmt.Errorf("unexpected payload key %q", k)
-		}
-	}
-	target, _ = r.Payload["target"].(string)
+func checkRow(r store.ConcernTransition) (target string, cause policy.Cause, err error) {
+	target, verdict, reason := r.Concern, r.Verdict, r.Cause
 	if target == "" {
 		return "", "", errors.New("no target")
-	}
-	verdict, _ := r.Payload["verdict"].(string)
-	reason, _ := r.Payload["reason"].(string)
-	attrs, _ := r.Payload["attrs"].(map[string]any)
-	for k := range attrs {
-		if !slices.Contains(attrKeys, k) {
-			return target, "", fmt.Errorf("unexpected attr %q", k)
-		}
 	}
 	if reason == "" {
 		if !slices.Contains(clearOutcomes, verdict) {
@@ -179,21 +159,16 @@ func checkRow(r bridge.TimelineRecord) (target string, cause policy.Cause, err e
 			return target, "", fmt.Errorf("%s: %w", target, err)
 		}
 	}
-	if prev, _ := attrs["previous_reason"].(string); prev != "" {
-		if err := named(policy.Cause(prev)); err != nil {
-			return target, "", fmt.Errorf("%s previous_reason: %w", target, err)
+	if r.Previous != "" {
+		if err := named(policy.Cause(r.Previous)); err != nil {
+			return target, "", fmt.Errorf("%s previous cause: %w", target, err)
 		}
 	}
-	if subject, _ := attrs["subject"].(string); subject != policy.BoundSubject(subject) {
-		return target, "", fmt.Errorf("%s: subject %q is not a bounded printable subject", target, subject)
+	if r.Subject != policy.BoundSubject(r.Subject) {
+		return target, "", fmt.Errorf("%s: subject %q is not a bounded printable subject", target, r.Subject)
 	}
-	if method, _ := attrs["method"].(string); !idLike(method) {
-		return target, "", fmt.Errorf("%s: method %q is not an identifier", target, method)
-	}
-	if held, ok := attrs["held_ticks"]; ok {
-		if n, isNum := held.(float64); !isNum || n < 0 {
-			return target, "", fmt.Errorf("%s: held_ticks %v", target, held)
-		}
+	if !idLike(r.Method) {
+		return target, "", fmt.Errorf("%s: method %q is not an identifier", target, r.Method)
 	}
 	return target, policy.Cause(reason), nil
 }

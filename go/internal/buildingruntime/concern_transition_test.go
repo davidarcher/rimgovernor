@@ -2,39 +2,37 @@ package buildingruntime
 
 import (
 	"context"
-	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 )
-
-type rowCapture struct{ rows []map[string]any }
-
-func (c *rowCapture) Event(kind string, _ map[string]any, _ bool, payload map[string]any) (uint64, error) {
-	row := map[string]any{"kind": kind}
-	for k, v := range payload {
-		row[k] = v
-	}
-	c.rows = append(c.rows, row)
-	return uint64(len(c.rows)), nil
-}
 
 func filingFor(v Verdict) map[policy.ConcernID]plannerFiling {
 	note, _ := plannerRecordReason(v)
 	return map[policy.ConcernID]plannerFiling{policy.MaintainShelter: {Note: note, Outcome: v.Outcome}}
 }
 
-// emitted writes the transitions through the real telemetry handler, so the
-// row shape is what lands in explain.jsonl.
-func emitted(t *testing.T, transitions []concernTransition, methods map[policy.ConcernID]string) []map[string]any {
+// emitted writes the transitions into a real session store and reads them
+// back, so the row shape is what the launcher's Explain page reads.
+func emitted(t *testing.T, transitions []concernTransition, methods map[policy.ConcernID]string) []store.ConcernTransition {
 	t.Helper()
-	capture := &rowCapture{}
-	old := slog.Default()
-	slog.SetDefault(telemetry.New(capture))
-	defer slog.SetDefault(old)
-	emitTransitions(context.Background(), transitions, methods)
-	return capture.rows
+	ctx := context.Background()
+	db, err := store.Open(ctx, storetest.Path(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err = db.RecordConcernTransitions(ctx, transitionRows(transitions, methods, 1, time.UnixMilli(5))); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := db.ConcernTransitions(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return rows
 }
 
 func TestConcernTransitionsRefusalWaitAdmitted(t *testing.T) {
@@ -73,29 +71,21 @@ func TestConcernTransitionsRefusalWaitAdmitted(t *testing.T) {
 	}
 	for i, w := range want {
 		row := rows[i]
-		if row["kind"] != telemetry.ConcernTransitionKind || row[telemetry.VerdictKey] != w.verdict || row[telemetry.ReasonKey] != w.reason || row[telemetry.TargetKey] != string(policy.MaintainShelter) {
-			t.Fatalf("row %d: %v", i, row)
+		if row.Verdict != w.verdict || row.Cause != w.reason || row.Concern != string(policy.MaintainShelter) {
+			t.Fatalf("row %d: %+v", i, row)
 		}
-		attrs := row[telemetry.AttrsKey].(map[string]any)
-		if attrs["method"] != "build" {
-			t.Fatalf("row %d method: %v", i, attrs)
+		if row.Method != "build" {
+			t.Fatalf("row %d method: %+v", i, row)
 		}
-		prev, hasPrev := attrs["previous_reason"]
-		if hasPrev != w.hasPrevious || (hasPrev && prev != w.previous) {
-			t.Fatalf("row %d previous: %v", i, attrs)
+		if row.PreviousKnown != w.hasPrevious || row.Previous != w.previous {
+			t.Fatalf("row %d previous: %+v", i, row)
 		}
-		held, hasHeld := attrs["held_ticks"]
-		if hasHeld != w.hasHeld || (hasHeld && held != w.held) {
-			t.Fatalf("row %d held: %v", i, attrs)
-		}
-		for _, field := range []any{row[telemetry.ReasonKey], prev} {
-			if s, _ := field.(string); s != "" && policy.Cause(s).Validate() != nil {
-				t.Fatalf("free text in %v", row)
-			}
+		if (row.Held != nil) != w.hasHeld || (row.Held != nil && *row.Held != w.held) {
+			t.Fatalf("row %d held: %+v", i, row)
 		}
 	}
-	if attrs := rows[0][telemetry.AttrsKey].(map[string]any); attrs["subject"] != "bed" {
-		t.Fatalf("subject: %v", attrs)
+	if rows[0].Subject != "bed" {
+		t.Fatalf("subject: %+v", rows[0])
 	}
 }
 
@@ -131,8 +121,8 @@ func TestConcernTransitionsDoNotInventAPast(t *testing.T) {
 		t.Fatalf("backwards clock: %+v", back)
 	}
 	for _, row := range emitted(t, append(first, back...), nil) {
-		if _, ok := row[telemetry.AttrsKey].(map[string]any)["held_ticks"]; ok {
-			t.Fatalf("unknown held written: %v", row)
+		if row.Held != nil {
+			t.Fatalf("unknown held written: %+v", row)
 		}
 	}
 }
