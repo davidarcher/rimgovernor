@@ -252,7 +252,8 @@ namespace HomeBridge.BridgeTools
             var observed = plan.Proposed();
             var placed = plan.Place(observed, action.Building.ReplaceWall) ??throw new InvalidOperationException("Native placement returned no object.");
             if (action.Building.HasMinimumFinishingSkill) ConstructionSkillGuard.Set(placed, action.Building.MinimumFinishingSkill);
-            if (action.Building.HasTier) ConstructionSkillGuard.SetTier(placed, action.Building.Tier);
+            // An instant building is placed finished: there is no site to gate, so the tier has nothing to bind (#2733).
+            if (action.Building.HasTier && (placed is Blueprint_Build || placed is Frame)) ConstructionSkillGuard.SetTier(placed, action.Building.Tier);
             observed.OriginThingId = observed.CurrentThingId = placed.GetUniqueLoadID();
             observed.Stage = Stage(placed);
             observed.Present = true; observed.Started = true; observed.Failed = false;
