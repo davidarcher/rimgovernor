@@ -473,6 +473,14 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		ring.Activate()
 	}
 	s.ring, s.stages, s.runStarted = ring, newStages(c, opts, s, cfg, output, staged, report), time.Now()
+	if ring == nil && s.stages != nil {
+		// A staged case that opts out of the ring (NoCheckpoint) still
+		// records its stage state (na.SetCheckpointState) on the stage
+		// ring; with no periodic cadence installing it only gives the
+		// state a holder.
+		s.stages.Activate()
+		defer s.stages.Deactivate()
+	}
 	// The budget cuts the Run body where Finalize would fail it anyway:
 	// the -timeout safety net sits minutes past it, long enough for
 	// a hung serve loop to run on unseen.

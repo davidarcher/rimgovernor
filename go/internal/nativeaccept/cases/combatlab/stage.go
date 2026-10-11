@@ -20,6 +20,8 @@ type Staged struct {
 	Faction string
 	// Seed is the seed test/lab_stage echoed back.
 	Seed int
+	// Center is the lab wipe's centre the fixture was built around.
+	Center Cell
 }
 
 // WithSeed is a Stage edit that stages the fixture under seed (see
@@ -94,7 +96,7 @@ func Stage(ctx context.Context, h *na.Harness, name string, edits ...func(f *Fix
 	if len(rows) != len(f.Pawns) {
 		return Staged{}, fmt.Errorf("%s %s: %d pawns read back, want %d", StageTool, name, len(rows), len(f.Pawns))
 	}
-	out := Staged{Fixture: f, Digest: na.AsString(reply["digest"]), Faction: na.AsString(reply["faction"]), Seed: int(na.AsNumber(reply["seed"]))}
+	out := Staged{Fixture: f, Digest: na.AsString(reply["digest"]), Faction: na.AsString(reply["faction"]), Seed: int(na.AsNumber(reply["seed"])), Center: Cell{cx, cz}}
 	if out.Seed != f.Seed {
 		return Staged{}, fmt.Errorf("%s %s: staged under seed %d, want %d", StageTool, name, out.Seed, f.Seed)
 	}

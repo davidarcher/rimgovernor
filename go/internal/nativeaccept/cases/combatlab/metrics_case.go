@@ -85,10 +85,13 @@ func init() {
 			Start:       cases.Lab{Colonists: probe.Colonists},
 			RequiredOps: []string{na.LabStartTool, StageTool, pauseModeTool},
 			QuietWorld:  false,
-			// A checkpoint capture pauses the served game mid-fight: the
+			// A ring capture pauses the served game mid-fight: the
 			// external pause revokes authority and drops the fight plan
-			// (lab-open at t+2m).
+			// (lab-open at t+2m). The stage bundle is taken right after
+			// staging, before the planner is served (#2837), so a run
+			// loads it instead of booting and staging.
 			NoCheckpoint: true,
+			Stages:       []string{metricsStage},
 			Serve:        &cases.ServeSpec{Families: metricsFamilies, Prefix: "combatlab"},
 			Budget:       cases.LabBudget,
 			Crew:         cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error { return runMetrics(ctx, s, name) },
@@ -96,29 +99,76 @@ func init() {
 	}
 }
 
+const (
+	// metricsStage is the declared stage whose bundle a later run opens on.
+	metricsStage = "staged"
+	// metricsStagedKey is the checkpoint state key of the stagedRecord.
+	metricsStagedKey = "combatlab_staged"
+)
+
+// stagedRecord is what the code after the stage reads of the staging: the
+// pawn sides, the lab centre the fixture was built around (its layout cells
+// are rebuilt from it) and the digest and seed the staging read back.
+type stagedRecord struct {
+	Sides  map[string]string
+	Center Cell
+	Digest string
+	Seed   int
+}
+
 // runMetrics stages a fixture, serves the planner on it until the tick
 // budget is nearly spent, reads it back and writes the reads, the service
 // log and the metrics to the bundle.
 func runMetrics(ctx context.Context, s cases.Session, name string) error {
 	dir := s.Config().Output
-	var staged Staged
-	var err error
-	if probe, _ := Build(name, 0, 0); probe.Arrival != "" {
-		staged, err = stagePods(ctx, s, name)
-	} else {
-		staged, err = Stage(ctx, s.Harness(), name)
-	}
-	if err != nil {
+	// The staging is the stage: the save is captured right after it, before
+	// the planner is served, so a later run loads it instead of booting and
+	// staging again. What the code after the stage needs travels in the
+	// stage's checkpoint state.
+	var record stagedRecord
+	if err := s.Stage(ctx, metricsStage, func(ctx context.Context) error {
+		var staged Staged
+		var err error
+		if probe, _ := Build(name, 0, 0); probe.Arrival != "" {
+			staged, err = stagePods(ctx, s, name)
+		} else {
+			staged, err = Stage(ctx, s.Harness(), name)
+		}
+		if err != nil {
+			return err
+		}
+		record = stagedRecord{Sides: StagedSides(staged), Center: staged.Center, Digest: staged.Digest, Seed: staged.Seed}
+		na.SetCheckpointState(metricsStagedKey, record)
+		return nil
+	}); err != nil {
 		return err
 	}
-	sides := StagedSides(staged)
+	resumed := false
+	if restored := cases.RestoredState(s, metricsStagedKey); restored != nil {
+		data, err := json.Marshal(restored)
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(data, &record); err != nil {
+			return fmt.Errorf("staged record of %s: %w", name, err)
+		}
+		resumed = true
+	}
+	if record.Sides == nil {
+		return fmt.Errorf("%s: no staged record after the stage", name)
+	}
+	s.Report()["stage_resumed"] = resumed
+	s.Report()["staged_digest"] = record.Digest
+	s.Report()["staged_seed"] = record.Seed
+	sides := record.Sides
 	first, err := rawRead(ctx, s.Harness(), map[string]any{"action": "read"})
 	if err != nil {
 		return err
 	}
 	first["staged"] = sides
 	start := int(na.AsNumber(first["tick"]))
-	if layout := staged.Fixture.Layout; layout != nil {
+	if fixture, _ := Build(name, record.Center.X, record.Center.Z); fixture.Layout != nil {
+		layout := fixture.Layout
 		record, err := storeLayout(ctx, s.Harness(), s.Identity(), *layout)
 		if err != nil {
 			return err
