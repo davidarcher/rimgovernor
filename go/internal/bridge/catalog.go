@@ -201,6 +201,9 @@ func (caller *Client) DefinitionCatalog(ctx context.Context, identity *c.Identit
 		return held, nil
 	}
 	prior := caller.priorCatalog()
+	if prior == nil {
+		prior = caller.diskCatalog()
+	}
 	held := ""
 	if prior != nil {
 		held = prior.fingerprint
@@ -214,6 +217,9 @@ func (caller *Client) DefinitionCatalog(ctx context.Context, identity *c.Identit
 		catalog, err = prior.forLoad(wire, identity)
 	} else {
 		catalog, err = DecodeDefinitionCatalog(wire, identity)
+		if err == nil {
+			caller.saveCatalog(wire)
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -409,10 +415,28 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 	if v == nil || ValidateContext(v.Context) != nil || !sameIdentity(v.Context.Identity, identity) {
 		return nil, contract("invalid definition catalog context")
 	}
+	out, err := decodeStatic(v)
+	if err != nil {
+		return nil, err
+	}
+	out.LoadToken = identity.GetLoadToken()
+	if out.statEnv, err = decodeStatEnv(v.StatEnv); err != nil {
+		return nil, err
+	}
+	if out.Biotech, err = buildBiotech(out, v.Biotech); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// decodeStatic validates and decodes the static part of a catalog: every field but
+// the context and stat environment. The result carries no load token, stat
+// environment or Biotech; DecodeDefinitionCatalog and forLoad add them.
+func decodeStatic(v *o.DefinitionCatalog) (*DefinitionCatalog, error) {
 	if err := buildingUnknown(v); err != nil {
 		return nil, err
 	}
-	out := &DefinitionCatalog{LoadToken: identity.GetLoadToken(), fingerprint: v.GetFingerprint(), biotechWire: v.Biotech}
+	out := &DefinitionCatalog{fingerprint: v.GetFingerprint(), biotechWire: v.Biotech}
 	var err error
 	if out.ThingDefs, err = defRows(v.ThingDefs, (*d.ThingDef).GetDefName, "thing"); err != nil {
 		return nil, err
@@ -433,12 +457,6 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 		return nil, err
 	}
 	if out.thingFacts, err = decodeThingFacts(v.ThingFacts, out.ThingDefs); err != nil {
-		return nil, err
-	}
-	if out.statEnv, err = decodeStatEnv(v.StatEnv); err != nil {
-		return nil, err
-	}
-	if out.Biotech, err = buildBiotech(out, v.Biotech); err != nil {
 		return nil, err
 	}
 	if out.Research, err = researchFacts(v.GetDefs().GetResearchProjectDefs()); err != nil {

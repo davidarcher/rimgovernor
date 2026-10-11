@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -191,7 +192,10 @@ type Client struct {
 
 	frames  *frameStream
 	catalog catalogCache
-	replies *replySlots
+	// catalogDir holds the static definition catalog files shared by this user's
+	// processes (catalog_disk.go); empty disables the cache.
+	catalogDir string
+	replies    *replySlots
 
 	recorder         *FlightRecorder
 	framesSampledAt  atomic.Int64
@@ -224,6 +228,9 @@ func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
 	// The snapshot stream serves the state families of a game on
 	// this host; test clients built with open read over GABP only.
 	client.stateDir = launch.StateDir
+	if cache, err := os.UserCacheDir(); err == nil {
+		client.catalogDir = filepath.Join(cache, "rimgovernor", "defcatalog")
+	}
 	client.clock = clock
 	client.frames = newFrameStream()
 	client.replies = newReplySlots()

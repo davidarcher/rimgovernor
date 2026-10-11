@@ -3,6 +3,10 @@ package bridge
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -69,5 +73,78 @@ func TestNewLoadReusesTheStaticCatalog(t *testing.T) {
 	}
 	if want := []string{"", "defs-a", "defs-a"}; len(held) != 3 || held[0] != want[0] || held[1] != want[1] || held[2] != want[2] {
 		t.Fatalf("held fingerprints sent: %q", held)
+	}
+}
+
+// TestStaticCatalogSurvivesOnDisk: the first process writes the static part under
+// its fingerprint; a second Client with the same directory sends that fingerprint
+// before any in-memory catalog exists and, answered with the per-load part alone,
+// never receives the rows. Garbage in the directory is a miss, and only the newest
+// files are kept.
+func TestStaticCatalogSurvivesOnDisk(t *testing.T) {
+	dir := t.TempDir()
+	var held []string
+	serve := func(fingerprint string) func(context.Context, nativeArgument) (*callResult, error) {
+		return func(ctx context.Context, arg nativeArgument) (*callResult, error) {
+			var outer struct {
+				Request string `json:"request"`
+			}
+			if err := json.Unmarshal(arg.Arguments, &outer); err != nil {
+				return nil, err
+			}
+			request := &o.DefinitionCatalogRequest{}
+			if err := protojson.Unmarshal([]byte(outer.Request), request); err != nil {
+				return nil, err
+			}
+			held = append(held, request.GetHeldFingerprint())
+			reply := catalogReply(&c.ObservationContext{Identity: request.GetScope().GetExpectedIdentity(), Tick: proto.Int64(12), NativeGeneration: proto.Uint64(7)})
+			catalog := reply.GetObserved()
+			catalog.Fingerprint = fingerprint
+			catalog.StatEnv = &o.StatEnv{}
+			if request.GetHeldFingerprint() == fingerprint {
+				*catalog = o.DefinitionCatalog{Context: catalog.Context, StatEnv: catalog.StatEnv, Fingerprint: fingerprint}
+			}
+			return pbResult(reply), nil
+		}
+	}
+	first := testClient(t, &testServer{schema: protoSchema, handler: serve("defs-a")}, time.Second)
+	first.catalogDir = dir
+	if _, err := first.DefinitionCatalog(context.Background(), pbIdentity()); err != nil {
+		t.Fatal(err)
+	}
+	second := testClient(t, &testServer{schema: protoSchema, handler: serve("defs-a")}, time.Second)
+	second.catalogDir = dir
+	catalog, err := second.DefinitionCatalog(context.Background(), pbIdentity())
+	if err != nil || catalog.ThingDef("Wall") == nil || len(catalog.Research) != 2 || !slices.Equal(held, []string{"", "defs-a"}) {
+		t.Fatalf("second process did not reuse the file: %v %q %v", catalog, held, err)
+	}
+
+	bad := second.catalogFile("defs-b")
+	if err := os.WriteFile(bad, []byte("not gzip"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	future := time.Now().Add(time.Hour)
+	if err := os.Chtimes(bad, future, future); err != nil {
+		t.Fatal(err)
+	}
+	held = nil
+	third := testClient(t, &testServer{schema: protoSchema, handler: serve("defs-a")}, time.Second)
+	third.catalogDir = dir
+	if catalog, err = third.DefinitionCatalog(context.Background(), pbIdentity()); err != nil || catalog.ThingDef("Wall") == nil || !slices.Equal(held, []string{"defs-a"}) {
+		t.Fatalf("unusable newest file was not skipped: %q %v", held, err)
+	}
+	if _, err := os.Stat(bad); !os.IsNotExist(err) {
+		t.Fatalf("unusable file kept: %v", err)
+	}
+
+	for i := range catalogFilesKept + 2 {
+		fresh := testClient(t, &testServer{schema: protoSchema, handler: serve(fmt.Sprintf("defs-%d", i))}, time.Second)
+		fresh.catalogDir = dir
+		if _, err := fresh.DefinitionCatalog(context.Background(), pbIdentity()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if files, _ := filepath.Glob(filepath.Join(dir, "*"+catalogFileSuffix)); len(files) != catalogFilesKept {
+		t.Fatalf("%d files kept, want %d", len(files), catalogFilesKept)
 	}
 }
