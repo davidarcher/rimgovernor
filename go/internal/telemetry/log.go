@@ -6,7 +6,7 @@
 // handler writes nothing to stderr, and a record with no kind is dropped (a
 // programming error the source scan in kinds_test.go catches).
 //
-// Call sites log through slog.Default(); serve installs the handler. A
+// Call sites log through Event (and Decide); serve installs the handler. A
 // process that never installs one (tests, smoke binaries) keeps Go's
 // default text log on stderr and records nothing.
 package telemetry
@@ -201,4 +201,14 @@ func jsonValue(v slog.Value) any {
 	default:
 		return v.String()
 	}
+}
+
+// Event logs one flight-recorder row through the default logger. The kind is
+// a required parameter, so no call site can write a record the handler would
+// drop; direct slog calls are not how code in this module logs.
+func Event(ctx context.Context, level slog.Level, component, kind, message string, attrs ...any) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	slog.Default().Log(ctx, level, message, append([]any{ComponentKey, component, KindKey, kind}, attrs...)...)
 }

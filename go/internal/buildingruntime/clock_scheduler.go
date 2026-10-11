@@ -742,15 +742,14 @@ func (s *ClockScheduler) drift() domain.Tick {
 // stamped with the last observed tick and the trace ctx carries, with
 // attrs as its payload.
 func clockEvent(ctx context.Context, component, kind, message string, attrs ...any) {
-	slog.Default().InfoContext(ctx, message, append([]any{telemetry.ComponentKey, component, telemetry.KindKey, kind}, attrs...)...)
+	telemetry.Event(ctx, slog.LevelInfo, component, kind, message, attrs...)
 }
 
 // clockAuthorityLost logs that the controller dropped its own authority
 // and why, as a WARN authority row: every loss costs the auto-resumer a
 // re-acquire with a growing backoff.
 func clockAuthorityLost(ctx context.Context, why string, attrs ...any) {
-	slog.Default().Log(ctx, slog.LevelWarn, "authority lost: "+why,
-		append([]any{telemetry.ComponentKey, "clock-scheduler", telemetry.KindKey, "authority", "change", "lost", "reason", why}, attrs...)...)
+	telemetry.Event(ctx, slog.LevelWarn, "clock-scheduler", "authority", "authority lost: "+why, append([]any{"change", "lost", "reason", why}, attrs...)...)
 }
 
 // Trace is the span context of the latest step, invalid before the first.

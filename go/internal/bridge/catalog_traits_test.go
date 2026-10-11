@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"sync"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -14,10 +15,21 @@ import (
 
 // fullCatalog is the whole game catalog recorded with every expansion
 // (observation/testdata/full_catalog.pb.gz).
+//
+// The decode takes seconds and about thirty tests read it, so it is shared.
+// Tests must treat the result as read-only; one that edits a catalog decodes
+// its own with DecodeDefinitionCatalog.
+var fullCatalogOnce = sync.OnceValues(func() (*DefinitionCatalog, error) {
+	wire, err := testkit.LoadRecordedCatalogWire()
+	if err != nil {
+		return nil, err
+	}
+	return DecodeDefinitionCatalog(wire, wire.GetContext().GetIdentity())
+})
+
 func fullCatalog(t *testing.T) *DefinitionCatalog {
 	t.Helper()
-	wire := recordedCatalog(t)
-	catalog, err := DecodeDefinitionCatalog(wire, wire.GetContext().GetIdentity())
+	catalog, err := fullCatalogOnce()
 	if err != nil {
 		t.Fatal(err)
 	}

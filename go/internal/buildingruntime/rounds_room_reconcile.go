@@ -182,7 +182,7 @@ func reportRefused(ctx context.Context, build roomBuild, v policy.Preview) refus
 	if build.ring {
 		kindWord = "ring"
 	}
-	slog.Default().InfoContext(ctx, kindWord+" cell refused: "+r.key()+" blocked by "+r.blocker, telemetry.ComponentKey, "building-planner", telemetry.KindKey, "placement_refused")
+	telemetry.Event(ctx, slog.LevelInfo, "building-planner", "placement_refused", kindWord+" cell refused: "+r.key()+" blocked by "+r.blocker)
 	return r
 }
 
@@ -206,7 +206,7 @@ func holdKey(ctx context.Context, w roomWork) string {
 	var first string
 	for _, h := range w.holds {
 		key := fmt.Sprintf("%s@%d,%d:%s", h.Def, h.Cell.X, h.Cell.Z, h.Reason)
-		slog.Default().InfoContext(ctx, "foreign thing held: "+key, telemetry.ComponentKey, "building-planner", telemetry.KindKey, "foreign_held")
+		telemetry.Event(ctx, slog.LevelInfo, "building-planner", "foreign_held", "foreign thing held: "+key)
 		if first == "" {
 			first = key
 		}

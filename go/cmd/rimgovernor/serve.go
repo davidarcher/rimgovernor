@@ -386,7 +386,7 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 		CollectorProtocol: config.otlpProtocol,
 		SetGlobal:         true,
 		Warn: func(msg string, args ...any) {
-			slog.Warn(msg, append([]any{telemetry.ComponentKey, "otel", telemetry.KindKey, "telemetry_drop"}, args...)...)
+			telemetry.Event(ctx, slog.LevelWarn, "otel", "telemetry_drop", msg, args...)
 		},
 	})
 	if err != nil {
@@ -512,7 +512,7 @@ func openConfigured(ctx context.Context, config bridge.ProcessConfig) (*bridge.C
 func openState(ctx context.Context, path string) (*store.Store, error) {
 	database, aside, err := store.OpenOrReplace(ctx, path)
 	if aside != "" {
-		slog.Warn("state database from another schema version moved aside; starting fresh", telemetry.ComponentKey, "serve", telemetry.KindKey, "state_reset", "path", path, "aside", aside)
+		telemetry.Event(ctx, slog.LevelWarn, "serve", "state_reset", "state database from another schema version moved aside; starting fresh", "path", path, "aside", aside)
 	}
 	return database, err
 }

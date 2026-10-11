@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 const modulePrefix = "github.com/davidarcher/RimGovernor/go/internal/"
@@ -31,7 +32,22 @@ type file struct {
 
 // load parses the non-test Go files under dirs (relative to root) that dirs
 // name; recursive walks subdirectories too.
+// loaded memoizes load per root and directory set: the gates run in one test
+// process and four of them parse the same internal and cmd trees. Gates only
+// read the syntax trees, and each test writes its own fresh root.
+var loaded sync.Map // string -> []file
+
 func load(root string, dirs []string, recursive bool) []file {
+	key := fmt.Sprint(root, dirs, recursive)
+	if v, ok := loaded.Load(key); ok {
+		return v.([]file)
+	}
+	out := parseTree(root, dirs, recursive)
+	loaded.Store(key, out)
+	return out
+}
+
+func parseTree(root string, dirs []string, recursive bool) []file {
 	var out []file
 	fset := token.NewFileSet()
 	for _, d := range dirs {

@@ -130,8 +130,8 @@ the first native protective effect.
 | `observe_snapshot_failed` | event row, level `WARN`, component `serve`: `--observe-snapshot` could not create its directory (copies disabled) or one 5 s copy failed (retried next tick); `path`, `err`. Reader: `rimgovernor log` and the Grafana Loki logs. |
 
 The flight recorder is the only log: the telemetry handler writes a row for a record that names a `kind`
-and drops one that does not, there is no Debug level, and `telemetry/kinds_test.go` fails any `slog` call in
-non-test code with no `kind`. stderr carries only the startup banner, parse errors, `flight recorder:` and
+and drops one that does not, there is no Debug level, and `telemetry.Event` takes the `kind` as a required
+parameter so code logs through it, not `slog` directly. stderr carries only the startup banner, parse errors, `flight recorder:` and
 `Go service:` failures, the clock fault-injection notice and Go panics. A new emission adds its kind here with
 a reader, or it is not added.
 
