@@ -1,6 +1,7 @@
 // Package solo holds the year-long solo acceptance cases of epic #2745: one
 // colonist on a very cold ice sheet under Randy Random at the top difficulty
-// must survive 365 game days (SoloDaysEnv; the nightly default is shorter).
+// must survive the RimWorld year, policy.YearDays (60) game days. SoloDaysEnv
+// sets a shorter or longer run.
 //
 // The year is played in ten-day segments. Each segment launches the serve
 // process, watches a tick window, stops it and reattaches, and the reattached
@@ -29,12 +30,10 @@ import (
 
 const (
 	ticksPerDay = 60000
-	// YearDays is the epic's survival target. NightlyDays is the default run:
-	// the nightly job's suite allowance (345 minutes including retries) plays
-	// about that many days, not a year; SoloDaysEnv sets the full 365 for a run
-	// on a box without the job limit.
-	YearDays    = 365
-	NightlyDays = 15
+	// ticksPerSecond is the Ultrafast rate measured on the debug colony
+	// (nativeaccept.RunSpeed); the budget derives from it. Box load cuts it to
+	// about 340, which the suite allowance does not cover.
+	ticksPerSecond = 899
 	// segmentTicks is one serve launch: ten game days.
 	segmentTicks uint64 = 10 * ticksPerDay
 	// shelterGraceTicks is how long the sleeping band is not gated: the first
@@ -51,7 +50,9 @@ const (
 )
 
 // SoloDaysEnv names the environment variable that sets how many game days the
-// solo cases play (YearDays for the epic's claim; default NightlyDays).
+// solo cases play (default policy.YearDays, the 60-day RimWorld year; a longer
+// run such as 365 is set by hand and its budget scales, so the remote plan
+// refuses it past the suite allowance).
 const SoloDaysEnv = "RIMGOVERNOR_ACCEPT_SOLO_DAYS"
 
 // TargetTicks is the run's length in game ticks.
@@ -61,14 +62,17 @@ func TargetTicks() uint64 {
 			return n * ticksPerDay
 		}
 	}
-	return NightlyDays * ticksPerDay
+	return policy.YearDays * ticksPerDay
 }
 
-// runBudget is the wall clock a run of target ticks needs: about 100 ticks/s
-// of play plus a launch, stop and probe per segment.
+// runBudget is the wall clock a run of target ticks needs: ticksPerSecond of
+// play plus a launch, stop and probe per segment. The 60-day year is 67
+// minutes of play, six segments and the fixed 7 minutes: 92 minutes. The
+// remote plan counts the budget once per attempt (max_attempts 2) against the
+// 345-minute suite allowance.
 func runBudget(target uint64) time.Duration {
 	segments := time.Duration((target + segmentTicks - 1) / segmentTicks)
-	return time.Duration(target/100)*time.Second + segments*3*time.Minute + 7*time.Minute
+	return time.Duration(target/ticksPerSecond)*time.Second + segments*3*time.Minute + 7*time.Minute
 }
 
 // soloStart is the shared one-colonist ice-sheet start: Rhadamant's preset
@@ -92,8 +96,7 @@ func init() {
 func register(name, variant string, start na.ScenarioStart) {
 	cases.Register(cases.Case{
 		Name: name,
-		Scope: "Issue #2777 (epic #2745): the " + variant + " survives the run's game days (the full 365 with " + SoloDaysEnv + "=365; the nightly default " +
-			"is shorter, the job limit). At each ten-day segment boundary the colonist is alive, " +
+		Scope: "Issue #2777 (epic #2745): the " + variant + " survives the RimWorld year, 60 game days (" + SoloDaysEnv + " sets another length). At each ten-day segment boundary the colonist is alive, " +
 			"has no Hypothermia past serious and no Malnutrition past hungry; after the first segment the sleeping temperature is within the policy's band; " +
 			"the census food runway never reaches zero; at the end the colonist lives and power is on. Nightly only.",
 		Start: cases.Scenario{Spec: start},
