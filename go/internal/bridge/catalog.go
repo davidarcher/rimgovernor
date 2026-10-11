@@ -19,8 +19,10 @@ import (
 
 // The definition catalog: the static planning facts of every
 // buildable or sowable definition and every research project. They hold
-// for a whole load, so the client reads the catalog on the first read
-// under a load token and keeps it until the token changes; frames carry
+// for the whole game process. The client reads the catalog on the first read
+// under a load token and keeps it until the token changes; a later load sends
+// the held fingerprint and, when the game's defs are the same, reads only the
+// per-load context and stat environment (DefinitionCatalog.forLoad). Frames carry
 // only the per-map, per-tick values (availability is derived from the
 // research prerequisites and the finished projects).
 
@@ -29,6 +31,12 @@ const methodDefinitionCatalog = "rimgovernor/observations_read_definition_catalo
 // DefinitionCatalog is one load's decoded catalog.
 type DefinitionCatalog struct {
 	LoadToken string
+	// fingerprint names the static part (everything but LoadToken and statEnv); the
+	// next load under the same fingerprint reuses it (forLoad). Empty in a hand-built
+	// catalog.
+	fingerprint string
+	// biotechWire is the wire Biotech facts, kept to rebuild Biotech for a load.
+	biotechWire *o.BiotechCatalog
 	// Research is every research project's static facts by name.
 	Research map[string]policy.ResearchProjectFacts
 	// Biotech is the Biotech defs; nil without Biotech.
@@ -173,14 +181,17 @@ func DefRow[T proto.Message](catalog *DefinitionCatalog, name string) T {
 	return row
 }
 
-// catalogCache holds the catalog of the newest load token read.
+// catalogCache holds the catalog of the newest load token read. Its static part
+// outlives the token: a later load with the same fingerprint reuses it.
 type catalogCache struct {
 	mu      sync.Mutex
 	catalog *DefinitionCatalog
 }
 
 // DefinitionCatalog is the catalog of identity's load, read over GABP the
-// first time the load token is seen.
+// first time the load token is seen. A load after the first sends the held
+// fingerprint, and the game answers with the per-load part alone when its defs
+// are the held ones.
 func (caller *Client) DefinitionCatalog(ctx context.Context, identity *c.Identity) (*DefinitionCatalog, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, err
@@ -189,11 +200,21 @@ func (caller *Client) DefinitionCatalog(ctx context.Context, identity *c.Identit
 	if held := caller.heldCatalog(identity); held != nil {
 		return held, nil
 	}
-	wire, err := caller.readCatalogWire(ctx, identity)
+	prior := caller.priorCatalog()
+	held := ""
+	if prior != nil {
+		held = prior.fingerprint
+	}
+	wire, err := caller.readCatalogWire(ctx, identity, held)
 	if err != nil {
 		return nil, err
 	}
-	catalog, err := DecodeDefinitionCatalog(wire, identity)
+	var catalog *DefinitionCatalog
+	if prior != nil && held != "" && wire.GetFingerprint() == held && len(wire.ThingDefs) == 0 {
+		catalog, err = prior.forLoad(wire, identity)
+	} else {
+		catalog, err = DecodeDefinitionCatalog(wire, identity)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +231,7 @@ func (caller *Client) RecordDefinitionCatalog(ctx context.Context, identity *c.I
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, err
 	}
-	wire, err := caller.readCatalogWire(ctx, identity)
+	wire, err := caller.readCatalogWire(ctx, identity, "")
 	if err != nil {
 		return nil, err
 	}
@@ -220,8 +241,11 @@ func (caller *Client) RecordDefinitionCatalog(ctx context.Context, identity *c.I
 	return wire, nil
 }
 
-func (caller *Client) readCatalogWire(ctx context.Context, identity *c.Identity) (*o.DefinitionCatalog, error) {
+func (caller *Client) readCatalogWire(ctx context.Context, identity *c.Identity, held string) (*o.DefinitionCatalog, error) {
 	request := &o.DefinitionCatalogRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}}
+	if held != "" {
+		request.HeldFingerprint = proto.String(held)
+	}
 	reply := &o.DefinitionCatalogReply{}
 	raw, err := caller.protoRead(ctx, methodDefinitionCatalog, request, reply)
 	if err != nil {
@@ -388,7 +412,7 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 	if err := buildingUnknown(v); err != nil {
 		return nil, err
 	}
-	out := &DefinitionCatalog{LoadToken: identity.GetLoadToken()}
+	out := &DefinitionCatalog{LoadToken: identity.GetLoadToken(), fingerprint: v.GetFingerprint(), biotechWire: v.Biotech}
 	var err error
 	if out.ThingDefs, err = defRows(v.ThingDefs, (*d.ThingDef).GetDefName, "thing"); err != nil {
 		return nil, err
@@ -432,4 +456,43 @@ func (catalog *DefinitionCatalog) GameConstants() (*d.GameConstants, error) {
 		return nil, contract("catalog carries no game constants")
 	}
 	return catalog.gameConstants, nil
+}
+
+// priorCatalog is the newest catalog read under any load token, nil before the
+// first read.
+func (caller *Client) priorCatalog() *DefinitionCatalog {
+	caller.catalog.mu.Lock()
+	defer caller.catalog.mu.Unlock()
+	return caller.catalog.catalog
+}
+
+// forLoad is the catalog of identity's load over this catalog's static part: v
+// carries only the per-load context and stat environment, the game having
+// answered the held fingerprint. The rows are shared; everything built from the
+// stat environment (the lazily built caches, Biotech) is rebuilt for the load.
+func (catalog *DefinitionCatalog) forLoad(v *o.DefinitionCatalog, identity *c.Identity) (*DefinitionCatalog, error) {
+	if v == nil || ValidateContext(v.Context) != nil || !sameIdentity(v.Context.Identity, identity) {
+		return nil, contract("invalid definition catalog context")
+	}
+	out := &DefinitionCatalog{
+		LoadToken:     identity.GetLoadToken(),
+		fingerprint:   catalog.fingerprint,
+		biotechWire:   catalog.biotechWire,
+		Research:      catalog.Research,
+		ThingDefs:     catalog.ThingDefs,
+		TerrainDefs:   catalog.TerrainDefs,
+		Defs:          catalog.Defs,
+		classBases:    catalog.classBases,
+		Derived:       catalog.Derived,
+		gameConstants: catalog.gameConstants,
+		thingFacts:    catalog.thingFacts,
+	}
+	var err error
+	if out.statEnv, err = decodeStatEnv(v.StatEnv); err != nil {
+		return nil, err
+	}
+	if out.Biotech, err = buildBiotech(out, out.biotechWire); err != nil {
+		return nil, err
+	}
+	return out, nil
 }

@@ -40188,7 +40188,10 @@ func (x *SnapshotStreamRequest) GetLinesOfFireBudgetMs() uint32 {
 
 // The definition catalog: the generated def rows and the stat environment
 // the planning views read (research projects are ResearchProjectDef rows of
-// `defs`). It is fixed for a load: the controller reads it once per load token.
+// `defs`). `context` and `stat_env` are per load; every other field is static for
+// the game process (defs load once at boot) and is the part `fingerprint` names.
+// A read that sends `held_fingerprint` equal to the game's own gets only the per-load
+// fields and `fingerprint`; any other read gets the static part too.
 type DefinitionCatalog struct {
 	state   protoimpl.MessageState       `protogen:"open.v1"`
 	Context *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
@@ -40223,6 +40226,9 @@ type DefinitionCatalog struct {
 	// class, filled by reflection over the loaded assemblies; static for the game
 	// build, so the creation catalog carries the same message.
 	GameConstants *defspb.GameConstants `protobuf:"bytes,15,opt,name=game_constants,json=gameConstants,proto3" json:"game_constants,omitempty"`
+	// Names the static part: game version, language, and each active mod's id,
+	// version and def-file write times. Always set.
+	Fingerprint   string `protobuf:"bytes,16,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -40325,6 +40331,13 @@ func (x *DefinitionCatalog) GetGameConstants() *defspb.GameConstants {
 		return x.GameConstants
 	}
 	return nil
+}
+
+func (x *DefinitionCatalog) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
 }
 
 // A class by CLR full name and its base classes, nearest first, up to but not
@@ -42392,11 +42405,13 @@ func (x *AnomalyDoor) GetBlockedOpen() bool {
 }
 
 type DefinitionCatalogRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         *ReadScope             `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	Creation      *bool                  `protobuf:"varint,2,opt,name=creation,proto3,oneof" json:"creation,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Scope    *ReadScope             `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	Creation *bool                  `protobuf:"varint,2,opt,name=creation,proto3,oneof" json:"creation,omitempty"`
+	// The fingerprint of the static part the caller already holds (scoped reads only).
+	HeldFingerprint *string `protobuf:"bytes,3,opt,name=held_fingerprint,json=heldFingerprint,proto3,oneof" json:"held_fingerprint,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DefinitionCatalogRequest) Reset() {
@@ -42441,6 +42456,13 @@ func (x *DefinitionCatalogRequest) GetCreation() bool {
 		return *x.Creation
 	}
 	return false
+}
+
+func (x *DefinitionCatalogRequest) GetHeldFingerprint() string {
+	if x != nil && x.HeldFingerprint != nil {
+		return *x.HeldFingerprint
+	}
+	return ""
 }
 
 // The same static def mirror before a world exists; no invented map/load identity.
@@ -48484,7 +48506,7 @@ const file_observations_proto_rawDesc = "" +
 	"\f_herd_radiusB\x17\n" +
 	"\x15_hunt_route_budget_msB\x1d\n" +
 	"\x1b_hunt_predator_margin_cellsB\x1a\n" +
-	"\x18_lines_of_fire_budget_ms\"\xbf\x05\n" +
+	"\x18_lines_of_fire_budget_ms\"\xe1\x05\n" +
 	"\x11DefinitionCatalog\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12E\n" +
 	"\abiotech\x18\x04 \x01(\v2+.rimgovernor.observations.v1.BiotechCatalogR\abiotech\x12<\n" +
@@ -48498,7 +48520,8 @@ const file_observations_proto_rawDesc = "" +
 	"\fclass_chains\x18\r \x03(\v2'.rimgovernor.observations.v1.ClassChainR\vclassChains\x12K\n" +
 	"\vthing_facts\x18\x0e \x03(\v2*.rimgovernor.observations.v1.ThingDefFactsR\n" +
 	"thingFacts\x12I\n" +
-	"\x0egame_constants\x18\x0f \x01(\v2\".rimgovernor.defs.v1.GameConstantsR\rgameConstants\"6\n" +
+	"\x0egame_constants\x18\x0f \x01(\v2\".rimgovernor.defs.v1.GameConstantsR\rgameConstants\x12 \n" +
+	"\vfingerprint\x18\x10 \x01(\tR\vfingerprint\"6\n" +
 	"\n" +
 	"ClassChain\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
@@ -48760,11 +48783,13 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_hold_openB\x17\n" +
 	"\x15_containment_breachedB\x0f\n" +
-	"\r_blocked_open\"\x86\x01\n" +
+	"\r_blocked_open\"\xcb\x01\n" +
 	"\x18DefinitionCatalogRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x1f\n" +
-	"\bcreation\x18\x02 \x01(\bH\x00R\bcreation\x88\x01\x01B\v\n" +
-	"\t_creation\"\xe4\x01\n" +
+	"\bcreation\x18\x02 \x01(\bH\x00R\bcreation\x88\x01\x01\x12.\n" +
+	"\x10held_fingerprint\x18\x03 \x01(\tH\x01R\x0fheldFingerprint\x88\x01\x01B\v\n" +
+	"\t_creationB\x13\n" +
+	"\x11_held_fingerprint\"\xe4\x01\n" +
 	"\x19CreationDefinitionCatalog\x120\n" +
 	"\x04defs\x18\x01 \x01(\v2\x1c.rimgovernor.defs.v1.DefSetsR\x04defs\x12J\n" +
 	"\fclass_chains\x18\x02 \x03(\v2'.rimgovernor.observations.v1.ClassChainR\vclassChains\x12I\n" +

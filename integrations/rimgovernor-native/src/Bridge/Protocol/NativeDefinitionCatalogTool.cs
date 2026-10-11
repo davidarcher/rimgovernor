@@ -56,7 +56,7 @@ namespace HomeBridge.BridgeTools
                 var player = Faction.OfPlayerSilentFail;
                 if (player?.def == null)
                     return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NativeComponentMissing, Detail = "Player faction is unavailable." } });
-                try { return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Observed = Read(context) }); }
+                try { return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Observed = Read(context, parsed.HeldFingerprint) }); }
                 catch (Exception ex)
                 {
                     ObservationWork.Failed("definitionCatalog", ex);
@@ -65,9 +65,12 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        private static Obs.DefinitionCatalog Read(Common.ObservationContext context)
+        private static Obs.DefinitionCatalog Read(Common.ObservationContext context, string heldFingerprint)
         {
-            var catalog = new Obs.DefinitionCatalog { Context = context };
+            var fingerprint = NativeCatalogFingerprint.Value;
+            var catalog = new Obs.DefinitionCatalog { Context = context, Fingerprint = fingerprint, StatEnv = StatEnv() };
+            // The caller holds this static part: only what changes per load is sent.
+            if (heldFingerprint == fingerprint) return catalog;
             // Every def with all its fields, by protobuf reflection over the
             // generated messages. An unmapped field throws and fails the read.
             var mirror = new DefMirrorFill();
@@ -85,7 +88,6 @@ namespace HomeBridge.BridgeTools
             }
             catalog.GameConstants = mirror.BuildStatics<Defs.GameConstants>();
             catalog.Derived = Derived();
-            catalog.StatEnv = StatEnv();
             foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.race != null).OrderBy(d => Named(d.defName, "ThingDef"), StringComparer.Ordinal))
                 catalog.ThingFacts.Add(NativeFoodPolicy.Facts(def));
             catalog.Biotech = NativeBiotechFacts.Catalog();
