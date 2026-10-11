@@ -342,10 +342,10 @@ func (p *phase) assertPlaying(window uint64) error {
 	return nil
 }
 
-// colonyFacts reads the controller's decoded colony facts natively through
+// ColonyFacts reads the controller's decoded colony facts natively through
 // the reattached harness: the food forecast, wood stock and sleeping
 // capacity the end-state audits judge.
-func colonyFacts(ctx context.Context, h *na.Harness, s cases.Session, label string) (*observation.ColonyProjection, error) {
+func ColonyFacts(ctx context.Context, h *na.Harness, s cases.Session, label string) (*observation.ColonyProjection, error) {
 	facts, err := h.Wire(ctx, label, "observations_read_colony_facts", map[string]any{"scope": map[string]any{"expectedIdentity": s.Identity()}})
 	if err != nil {
 		return nil, err
@@ -398,7 +398,7 @@ func auditColony(ctx context.Context, h *na.Harness, s cases.Session, report na.
 			failures = append(failures, fmt.Errorf("initial colonist %s dead or gone", id))
 		}
 	}
-	projection, err := colonyFacts(ctx, h, s, label+"-facts")
+	projection, err := ColonyFacts(ctx, h, s, label+"-facts")
 	if err != nil {
 		return errors.Join(append(failures, err)...)
 	}

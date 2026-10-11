@@ -110,7 +110,7 @@ func recovery() cases.Case {
 				return fmt.Errorf("restock: wood not back to the policy floor within %d ticks of the breach", breachWindow)
 			}
 			c.milestone("wood_restocked", restockTick)
-			facts, err := colonyFacts(ctx, h, s, "wood-after-restock")
+			facts, err := ColonyFacts(ctx, h, s, "wood-after-restock")
 			if err != nil {
 				return err
 			}

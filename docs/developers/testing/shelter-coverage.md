@@ -38,6 +38,7 @@ is not replayed.
 | --- | --- | --- |
 | `shelter/bunks-first` | The complete path: an unhoused colony, the controller discovers the deficit, places spots, builds beds, raises the whole ring by ordinary pawn work, the game roofs it, and the native census then holds one bed per colonist inside. The precondition is asserted not to satisfy the outcome. | nothing |
 | `shelter/solo-cold` | One colonist on a cold ice-sheet start: the plan latches Cold, holds the shelter and plans no laboratory, and the shelter's campfire stands on its interior. A cold start needs a real world; the capability logic itself is the snapshot rows above. | nothing |
+| `solo/sea-ice-stock`, `solo/sea-ice-rhadamant` | Epic #2745's year: one colonist on a very cold ice sheet under Randy at the top difficulty (the second with Rhadamant's parts, `httpapi.RhadamantParts`). Played in ten-day serve segments; each boundary probes the reattached game for the colonist alive, Hypothermia at most serious (0.35), Malnutrition at most hungry, sleeping temperature inside the policy band (after the first segment) and, at the end, power on; the census food runway must never reach zero. `RIMGOVERNOR_ACCEPT_SOLO_DAYS` sets the length: the nightly default is 15 days because a hosted job cannot hold a year (about 100 ticks/s makes 365 days roughly 61 hours); set 365 on a box without the job limit. | a scenario start |
 
 ## Composition
 
