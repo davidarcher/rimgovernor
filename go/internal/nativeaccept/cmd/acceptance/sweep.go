@@ -127,6 +127,8 @@ func sweep(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, err)
 		return 2
 	}
+	// Taken before any game of the sweep boots, so the count is the box's peers.
+	load := combatdispatch.LoadNote()
 	var selected []cases.Case
 	for _, f := range opts.Fixtures {
 		c, ok := cases.Lookup("combatlab/metrics-" + f)
@@ -165,20 +167,19 @@ func sweep(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	exit := 0
 	for _, c := range selected {
 		fixture := strings.TrimPrefix(c.Name, "combatlab/metrics-")
-		if code := sweepFixture(ctx, c, fixture, opts, self, roots, stdout, stderr); code > exit {
+		if code := sweepFixture(ctx, c, fixture, opts, self, load, roots, stdout, stderr); code > exit {
 			exit = code
 		}
 	}
 	return exit
 }
 
-func sweepFixture(ctx context.Context, c cases.Case, fixture string, opts sweepOptions, self string, roots []string, stdout, stderr io.Writer) int {
+func sweepFixture(ctx context.Context, c cases.Case, fixture string, opts sweepOptions, self, load string, roots []string, stdout, stderr io.Writer) int {
 	dir := filepath.Join(opts.Output, fixture)
 	if err := stageForSweep(ctx, c, opts, self, roots, dir); err != nil {
 		fmt.Fprintf(stderr, "%s: stage: %v\n", fixture, err)
 		return 1
 	}
-	load := combatdispatch.LoadNote()
 	report, dispatchErr := combatdispatch.Dispatch(ctx, opts.Seeds, opts.Workers, load,
 		func(ctx context.Context, worker, seed int) (combatmetrics.SeedRow, error) {
 			fmt.Fprintf(stderr, "[worker %d] %s seed %d\n", worker+1, fixture, seed)
