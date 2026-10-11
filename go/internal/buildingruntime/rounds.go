@@ -758,6 +758,10 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	if reading.Projection.Facts.LedgerOwed, err = r.reviewLedger(ctx, state.Snapshot, expected, reading.Projection); err != nil {
 		return store.RoundsResult{}, err
 	}
+	// The Grafana ledger dashboard reads a derived copy of the review's view.
+	if err = p.journal.ReplaceLedgerRows(ctx, int64(reading.Projection.Identity.Tick), r.WorkLedger(ctx).Rows()); err != nil {
+		plannerBookkeepingFailed(ctx, "ledger_rows", err)
+	}
 	// The ledger's declared batches are read after the declaration above.
 	reading.Projection.Facts.OpenBills, err = r.openBills(ctx, state.Snapshot)
 	if err != nil {

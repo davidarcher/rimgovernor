@@ -334,7 +334,7 @@ func (a *app) activePort() int {
 	return firstPort
 }
 
-// serveURL is the running controller's base URL, for the serve client.
+// serveURL is the running controller's base URL, for the new-colony client.
 func (a *app) serveURL() string {
 	a.mu.Lock()
 	defer a.mu.Unlock()

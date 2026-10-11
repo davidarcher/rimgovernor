@@ -78,7 +78,7 @@ they are bucket-resolution values.
 ## Observation dashboards (replaced the launcher tabs, #2803)
 
 Grafana is the read-only observation surface; the launcher only controls. These
-four dashboards answer what the launcher's Now, Explain, Problems and Log tabs
+five dashboards answer what the launcher's Now, Explain, Problems, Log and Ledger tabs
 answered. They need the launcher's telemetry toggle on (serve then sends OTLP
 logs to Loki and writes the 5 s `--observe-snapshot` copy). Every dashboard has
 a `Run` variable (Loki label `service_instance_id`, one launch of `serve`) and a
@@ -90,6 +90,7 @@ a `Run` variable (Loki label `service_instance_id`, one launch of `serve`) and a
 | Explain | `concern-transitions.json` | `rg-concern-transitions` |
 | Problems | `problems.json` | `rg-problems` |
 | Log | `log.json` | `rg-log` |
+| Ledger | `ledger.json` | `rg-ledger` |
 
 The launcher's observability section links to these by exact URL
 (`go/cmd/launcher/links.go`; a test ties each uid to a dashboard file).
@@ -168,6 +169,33 @@ Variables: `Level` (default WARN and ERROR), `Kind` (regex), `Search`
 | Log | Loki, every decision and event row, filtered |
 | Player events | Loki, `combat_summary`, `defense_action`, `colony_stage`, `tech_tier`, `authority` and `rule` rows |
 
+### ledger.json: "RimGovernor: ledger"
+
+Queries the `RimGovernor state` SQLite data source. The controller replaces the
+`ledger_rows` table after every ledger review (#2805): a derived copy of the
+latest `policy.LedgerView`, one row per row of each former Ledger tab table, with
+the row's fields as a JSON object in `cells`. No variables; times are game
+ticks. Every question of the removed Ledger tab maps to one panel.
+
+| Panel | Source |
+| --- | --- |
+| Latest review | `ledger_rows` section `round`: status, tick, counts, whether a planner abstained |
+| Declared orders | section `order`: owners, recipe and product, target, mode, bench kind, worker, ingredients, state, benches, placing, unplaced reason, shortfall, latest placement outcome |
+| Orphan bills | section `orphan`: grace Rounds left, removing, held by an abstain |
+| Unmet throughput by bench kind | section `unmet`: units a day short, why, further bench requested |
+| Calibration windows | section `window`: predicted against observed stock gain |
+| Never-removed bills | section `excluded` |
+| Silver gap | section `export_gap`: gap, in flight, remaining |
+| Export candidates | section `export_candidate`: best scored candidates and the ordered ones |
+| Export candidates dropped | section `export_drop`: dropped counts by reason |
+| Planners declaring | section `declarer`: orders and abstain reasons |
+
+The table is empty before the first review and keeps the last review after the
+controller exits. The placement outcome is the one known when the review ran, so
+it trails a plan committed in the same Round by one review. Verified: the
+provisioned dashboard loads in grafana/otel-lgtm:0.36.0 and every panel query
+returns rows from a synthetic snapshot built from the sample view; not run
+against a real controller's rows.
 ### Not carried over
 
 The old tabs also showed a few things these dashboards do not answer: the

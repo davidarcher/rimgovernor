@@ -11,29 +11,24 @@ models and API calls; the page renders them through bound functions.
 ```mermaid
 flowchart LR
     UI[Embedded WebView2 page] --> Bind[Go bindings and view models]
-    Bind --> Client[ServeClient]
-    Client --> API[Controller API]
+    Bind --> Colony[New-colony client]
+    Colony --> API[Controller API]
     Bind --> Process[Build and process lifecycle]
 ```
 
-The page uses `SetHtml` and has an opaque origin. `ServeClient` makes HTTP
-requests from Go, keeping the controller's origin checks intact. Each feed
-retains its last good reading and marks failures stale. A 404 means the route
-is not served, as in Observe mode.
+The page uses `SetHtml` and has an opaque origin, so the new-colony client makes\nits HTTP requests from Go, keeping the controller's origin checks intact. The\nlauncher reads no other controller feed; observation lives in Grafana.
 
-Poll cadences live in the client. The page polls only its visible tab and skips
-a tick while a request is in flight. The only controller feed is the work ledger.
+The page polls only its visible tab and skips a tick while a request is in flight.
 
 ## Views
 
 | Tab | Source and purpose |
 | --- | --- |
 | Launch | Launcher process/build state, saved games, settings and colony generation; the Details log of build and start diagnostics; the observability stack toggle and dashboard links |
-| Ledger | `/api/ledger`: the work ledger's declared orders (owners, abstain reasons, journaled placement outcomes), orphans, unmet throughput and silver gap with dropped export candidates, read-only ([ledger.go](../../../go/cmd/launcher/ledger.go) builds the tables) |
 | Acceptance | Registered case list and one visible native run |
 
 The launcher is the control surface; Grafana is the observation surface. The
-Now, Explain, Problems and Log tabs were removed (#2803) and their questions
+Now, Explain, Problems, Log (#2803) and Ledger (#2805) tabs were removed and their questions
 moved to provisioned dashboards (tab-to-panel map in the
 [dashboards README](../../../tools/observability/dashboards/README.md)).
 While the stack is healthy the observability section shows one button per

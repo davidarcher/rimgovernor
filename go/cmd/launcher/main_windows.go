@@ -9,7 +9,6 @@
 package main
 
 import (
-	"context"
 	_ "embed"
 	"os"
 	"os/exec"
@@ -101,12 +100,6 @@ func main() {
 		if err := w.Bind(name, f); err != nil {
 			fatal(err.Error())
 		}
-	}
-	// The Ledger tab: the page polls this while the tab is visible; no timer
-	// lives here.
-	serve := NewServeClient(a.serveURL)
-	if err := w.Bind("getLedger", func() LedgerPage { return ledgerPage(serve.Ledger(context.Background())) }); err != nil {
-		fatal(err.Error())
 	}
 	if hwnd := uintptr(w.Window()); hwnd != 0 {
 		placement := filepath.Join(repo, ".rimgovernor", "launcher-window.json")

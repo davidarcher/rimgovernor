@@ -144,3 +144,34 @@ func TestWorkLedgerShowsPlacementOutcomesFromJournal(t *testing.T) {
 		t.Fatal("the memory view must not claim a journal read")
 	}
 }
+
+// Each review leaves the Round's rows in the session store, the derived copy
+// Grafana reads, and the next review replaces them.
+func TestReviewPersistsLedgerRowsForGrafana(t *testing.T) {
+	f := newLedgerFixture(t)
+	vest := ledgerOrder("Make_Vest")
+	f.declare(vest)
+	f.native.benches = []policy.GearBench{ledgerBenchRow(fakeBill("Bill_Vest", vest), fakeBill("Bill_Hat", ledgerOrder("Make_Hat")))}
+	f.round()
+	rows, err := f.db.LedgerRows(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	count := map[string]int{}
+	for _, r := range rows {
+		count[r.Section]++
+	}
+	if count[policy.LedgerSectionRound] != 1 || count[policy.LedgerSectionOrder] != 1 || count[policy.LedgerSectionOrphan] != 1 || count[policy.LedgerSectionDeclarer] != 1 {
+		t.Fatalf("rows by section = %v", count)
+	}
+	f.native.benches = []policy.GearBench{ledgerBenchRow(fakeBill("Bill_Vest", vest))}
+	f.round()
+	if rows, err = f.db.LedgerRows(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range rows {
+		if r.Section == policy.LedgerSectionOrphan {
+			t.Fatalf("a stale orphan row survived the next review: %+v", r)
+		}
+	}
+}

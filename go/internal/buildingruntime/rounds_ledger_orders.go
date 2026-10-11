@@ -47,7 +47,7 @@ func declarerName(d OrderDeclarer) string {
 }
 
 // WorkLedgerView is the latest review's ledger as a read-only projection of
-// memory: nothing is persisted and no planner reads it back. MaintainTrade's
+// memory that no planner reads back (the store keeps a derived copy of its rows). MaintainTrade's
 // silver gap rides along while the world is the one it was read in.
 func (r *Rounder) WorkLedgerView() policy.LedgerView {
 	r.ledger.mu.Lock()

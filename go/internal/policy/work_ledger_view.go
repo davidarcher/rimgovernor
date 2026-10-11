@@ -7,11 +7,11 @@ import (
 )
 
 // The ledger view is the read-only picture of one Round's work ledger for the
-// launcher: what each planner declared, where every wanted order stands against
+// Grafana ledger dashboard: what each planner declared, where every wanted order stands against
 // the benches' bills, the orphans on their way out, the dispatcher's unmet
 // throughput and calibration windows, and MaintainTrade's silver gap. It is a
-// projection of memory the Round already holds; nothing in it is persisted or
-// fed back to a planner.
+// projection of memory the Round already holds; Rows is its derived copy in
+// the session store, and nothing is fed back to a planner.
 
 // Ledger view statuses.
 const (

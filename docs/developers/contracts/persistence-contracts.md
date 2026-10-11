@@ -23,6 +23,7 @@ copy of a fact is a bug, not a cache.
 | Refusal budget ledger (`policy.RefusalBudget.Entries`) | A planner's refusals by subject and reason, each with its class and the `GenerationSnapshot` it was met in. A pure value: the store that owns the subject persists it. Every planner that retries a refused write (medical, repair, clean, equip, mood, drill, clearance, husbandry, population, quest, ideology, ritual, shrine, permit, defense, firebreak, mine, sleeping, trade and psylink) derives its ledger from the refusals journaled on its plans each step and keeps nothing of its own | With its owner: Standards' and Projects' records follow the save, a session-scoped planner's ledger is derived and rebuilt |
 | `flight.jsonl` | All controller telemetry, one row per thing that happened ([flight rows](flight-rows.md), schema v2), the only log: always on for `serve`, nothing else is written to stderr but the startup banner, fatals and panics; snapshot dumps and the acceptance harness's replay transcript are opt-in recordings | Diagnostics only |
 | SQLite table `concern_transitions` (session journal) | Player-facing explanation history: one row per change of a concern's winning typed cause ([below](#concern_transitions)). Not telemetry, so it is not a flight row | Not restored; read by the Grafana dashboards (snapshot copy) and the nightly `explain/every-concern` case |
+| SQLite table `ledger_rows` (session journal) | A derived, replaceable copy of the latest work-ledger review (`policy.LedgerView`), one row per row of each Ledger table, the whole set replaced in one transaction after every review ([below](#ledger_rows)). Not a second store: the controller never reads it back as truth and may delete it any time | Not restored; the next review rewrites it; read by the Grafana `rg-ledger` dashboard (snapshot copy) |
 
 ### concern_transitions
 
@@ -103,6 +104,24 @@ returns conservatively and never buys again to recover a missing receipt.
 
 Native saves no Go bookkeeping (receipts, lineage, purpose tags), and Go keeps no durable copy of what
 the save holds. The rest of this page details the session journal.
+
+### ledger_rows
+
+The Ledger view is built live each Round from the Rounder's ledger memory
+(`reviewLedger`, `Rounder.WorkLedger`) and, since #2805, copied into the session
+store for Grafana (the launcher's Ledger tab and `/api/ledger` were removed).
+The copy is derived and replaceable: after each review `store.ReplaceLedgerRows`
+deletes every row and inserts the review's rows in one transaction, so the table
+always holds exactly the latest review of the current controller. Nothing reads
+it back into policy; the in-memory ledger stays the only input. Columns (schema
+version 214; a database of another version is moved aside, never migrated):
+
+| Column | Meaning |
+|---|---|
+| `section` | `round` (one row: status, tick, grace, abstained), `order`, `orphan`, `excluded`, `unmet`, `window`, `declarer`, `export_gap`, `export_candidate`, `export_drop` |
+| `position` | row order within the section (the Ledger tab's order) |
+| `tick` | game tick of the review |
+| `cells` | a JSON object of the row's bounded fields (names in `policy.LedgerView.Rows`); lists are comma-joined strings; no free text beyond a native refusal reason already journaled |
 
 ## What must survive
 

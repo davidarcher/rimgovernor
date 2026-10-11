@@ -7,7 +7,6 @@ The launcher controls the game; Grafana shows what the governor is doing.
 | Tab | Use it to |
 | --- | --- |
 | Launch | Start, stop or restart the controller; select a save; generate a colony; change settings; read build and start diagnostics under Details; start the Observability stack and open its dashboards. |
-| Ledger | Read the work ledger's declared orders, orphans and unmet throughput. |
 | Acceptance | Run a native test case visibly on this checkout's private game. Stop the controller and close its game first. |
 
 ## Speed and manual control
@@ -18,7 +17,7 @@ control; once Auto resumes, the governor can adjust work and settings again.
 
 ## Watch the governor in Grafana
 
-The Now, Explain, Problems and Log views live in Grafana, not in the launcher.
+The Now, Explain, Problems, Log and Ledger views live in Grafana, not in the launcher.
 Turn on **Send telemetry to local collector** in Settings and start the
 Observability stack (it needs Docker; see [launch](launch.md#settings)). When it
 reads healthy, the Observability section shows a button for each dashboard.

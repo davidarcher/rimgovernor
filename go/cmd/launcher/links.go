@@ -23,6 +23,7 @@ var dashboardLinks = []DashboardLink{
 	{"Explain", grafanaURL + "/d/rg-concern-transitions"},
 	{"Problems", grafanaURL + "/d/rg-problems"},
 	{"Log", grafanaURL + "/d/rg-log"},
+	{"Ledger", grafanaURL + "/d/rg-ledger"},
 }
 
 // allowedLink returns nil only for an allowlisted URL, compared exactly.

@@ -29,7 +29,6 @@ const accessComponent = "httpapi"
 var polledPaths = map[string]bool{
 	"/api/state":    true,
 	"/api/routines": true,
-	"/api/ledger":   true,
 	"/api/health":   true,
 }
 

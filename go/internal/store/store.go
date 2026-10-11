@@ -25,7 +25,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 213
+const schemaVersion = 214
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -317,6 +317,9 @@ CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submiss
 		if err = initializeConcernTransitions(ctx, tx); err != nil {
 			return err
 		}
+		if err = initializeLedgerRows(ctx, tx); err != nil {
+			return err
+		}
 		if err = initializeCombatFights(ctx, tx); err != nil {
 			return err
 		}
@@ -365,6 +368,9 @@ CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submiss
 		return err
 	}
 	if err = checkConcernTransitionsSchema(ctx, tx); err != nil {
+		return err
+	}
+	if err = checkLedgerRowsSchema(ctx, tx); err != nil {
 		return err
 	}
 	if err = checkCombatFightsSchema(ctx, tx); err != nil {

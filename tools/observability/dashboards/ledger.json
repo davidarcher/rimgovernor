@@ -1,0 +1,367 @@
+{
+  "editable": false,
+  "links": [
+    {
+      "asDropdown": true,
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [
+        "rimgovernor"
+      ],
+      "title": "RimGovernor dashboards",
+      "type": "dashboards"
+    }
+  ],
+  "panels": [
+    {
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "content": "Source: the session store's `ledger_rows` table, a derived copy of the latest work-ledger review that the controller replaces every Round, read from the `serve --observe-snapshot` copy (docs/developers/observability.md). The controller never reads it. Each panel is one table of the former launcher Ledger tab; panel-to-section map: `tools/observability/dashboards/README.md`. An empty panel means the latest review had no such row.",
+        "mode": "markdown"
+      },
+      "title": "About",
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "rimgovernor-state"
+      },
+      "description": "Source: ledger_rows section round. status is no_review (no review filed yet), inactive (no planner declares), readback_unknown (bench bills unread, nothing diffed) or reconciled; abstained means a planner abstained so no orphan is removed this Round; attempts_known false means the placement index was not seeded yet.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 3
+      },
+      "id": 2,
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "rimgovernor-state"
+          },
+          "queryText": "SELECT json_extract(cells, '$.status') AS \"status\", tick, json_extract(cells, '$.orders') AS \"orders\", json_extract(cells, '$.orphans') AS \"orphans\", json_extract(cells, '$.declarers') AS \"declarers\", json_extract(cells, '$.abstained') AS \"abstained\", json_extract(cells, '$.grace_rounds') AS \"grace_rounds\", json_extract(cells, '$.attempts_known') AS \"attempts_known\" FROM ledger_rows WHERE section = 'round' ORDER BY position",
+          "queryType": "table",
+          "rawQueryText": "SELECT json_extract(cells, '$.status') AS \"status\", tick, json_extract(cells, '$.orders') AS \"orders\", json_extract(cells, '$.orphans') AS \"orphans\", json_extract(cells, '$.declarers') AS \"declarers\", json_extract(cells, '$.abstained') AS \"abstained\", json_extract(cells, '$.grace_rounds') AS \"grace_rounds\", json_extract(cells, '$.attempts_known') AS \"attempts_known\" FROM ledger_rows WHERE section = 'round' ORDER BY position",
+          "refId": "A"
+        }
+      ],
+      "title": "Latest review",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "rimgovernor-state"
+      },
+      "description": "Source: ledger_rows section order: each wanted order with its owning concerns, recipe and product, target and mode, bench kind, worker, ingredients, state (placed, placing, unplaced), benches carrying or being placed on, the reason for an unplaced copy (no_bench, bench_slots_full), any shortfall and the latest placement outcome (accepted, refused with native's code and reason, unconfirmed, pending).",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
+      "id": 3,
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "rimgovernor-state"
+          },
+          "queryText": "SELECT json_extract(cells, '$.owners') AS \"owners\", json_extract(cells, '$.recipe') AS \"recipe\", json_extract(cells, '$.product') AS \"product\", json_extract(cells, '$.mode') AS \"mode\", json_extract(cells, '$.target') AS \"target\", json_extract(cells, '$.bench_kind') AS \"bench_kind\", json_extract(cells, '$.worker') AS \"worker\", json_extract(cells, '$.ingredients') AS \"ingredients\", json_extract(cells, '$.copies') AS \"copies\", json_extract(cells, '$.state') AS \"state\", json_extract(cells, '$.benches') AS \"benches\", json_extract(cells, '$.placing') AS \"placing\", json_extract(cells, '$.unplaced') AS \"unplaced\", json_extract(cells, '$.reason') AS \"reason\", json_extract(cells, '$.short_per_day') AS \"short_per_day\", json_extract(cells, '$.short_reason') AS \"short_reason\", json_extract(cells, '$.attempt_outcome') AS \"attempt_outcome\", json_extract(cells, '$.attempt_tick') AS \"attempt_tick\", json_extract(cells, '$.attempt_code') AS \"attempt_code\", json_extract(cells, '$.attempt_reason') AS \"attempt_reason\" FROM ledger_rows WHERE section = 'order' ORDER BY position",
+          "queryType": "table",
+          "rawQueryText": "SELECT json_extract(cells, '$.owners') AS \"owners\", json_extract(cells, '$.recipe') AS \"recipe\", json_extract(cells, '$.product') AS \"product\", json_extract(cells, '$.mode') AS \"mode\", json_extract(cells, '$.target') AS \"target\", json_extract(cells, '$.bench_kind') AS \"bench_kind\", json_extract(cells, '$.worker') AS \"worker\", json_extract(cells, '$.ingredients') AS \"ingredients\", json_extract(cells, '$.copies') AS \"copies\", json_extract(cells, '$.state') AS \"state\", json_extract(cells, '$.benches') AS \"benches\", json_extract(cells, '$.placing') AS \"placing\", json_extract(cells, '$.unplaced') AS \"unplaced\", json_extract(cells, '$.reason') AS \"reason\", json_extract(cells, '$.short_per_day') AS \"short_per_day\", json_extract(cells, '$.short_reason') AS \"short_reason\", json_extract(cells, '$.attempt_outcome') AS \"attempt_outcome\", json_extract(cells, '$.attempt_tick') AS \"attempt_tick\", json_extract(cells, '$.attempt_code') AS \"attempt_code\", json_extract(cells, '$.attempt_reason') AS \"attempt_reason\" FROM ledger_rows WHERE section = 'order' ORDER BY position",
+          "refId": "A"
+        }
+      ],
+      "title": "Declared orders",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "rimgovernor-state"
+      },
+      "description": "Source: ledger_rows section orphan: bills on a bench that no planner declares. pending_removal counts down grace_left Rounds, removing is removed by this Round's plan, held_by_abstain waits because a planner abstained.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "id": 4,
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "rimgovernor-state"
+          },
+          "queryText": "SELECT json_extract(cells, '$.bench') AS \"bench\", json_extract(cells, '$.bill') AS \"bill\", json_extract(cells, '$.recipe') AS \"recipe\", json_extract(cells, '$.target') AS \"target\", json_extract(cells, '$.worker') AS \"worker\", json_extract(cells, '$.state') AS \"state\", json_extract(cells, '$.rounds') AS \"rounds\", json_extract(cells, '$.grace_left') AS \"grace_left\", json_extract(cells, '$.spent') AS \"spent\" FROM ledger_rows WHERE section = 'orphan' ORDER BY position",
+          "queryType": "table",
+          "rawQueryText": "SELECT json_extract(cells, '$.bench') AS \"bench\", json_extract(cells, '$.bill') AS \"bill\", json_extract(cells, '$.recipe') AS \"recipe\", json_extract(cells, '$.target') AS \"target\", json_extract(cells, '$.worker') AS \"worker\", json_extract(cells, '$.state') AS \"state\", json_extract(cells, '$.rounds') AS \"rounds\", json_extract(cells, '$.grace_left') AS \"grace_left\", json_extract(cells, '$.spent') AS \"spent\" FROM ledger_rows WHERE section = 'orphan' ORDER BY position",
+          "refId": "A"
+        }
+      ],
+      "title": "Orphan bills",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "rimgovernor-state"
+      },
+      "description": "Source: ledger_rows section unmet: units a day short per bench kind and why (no_bench, bench_slots_full, ingredient_bound, haul_bound, benches_exhausted); further_bench is 1 when a further bench of that kind is requested.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "id": 5,
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "rimgovernor-state"
+          },
+          "queryText": "SELECT json_extract(cells, '$.bench_kind') AS \"bench_kind\", json_extract(cells, '$.short_per_day') AS \"short_per_day\", json_extract(cells, '$.reason') AS \"reason\", json_extract(cells, '$.further_bench') AS \"further_bench\" FROM ledger_rows WHERE section = 'unmet' ORDER BY position",
+          "queryType": "table",
+          "rawQueryText": "SELECT json_extract(cells, '$.bench_kind') AS \"bench_kind\", json_extract(cells, '$.short_per_day') AS \"short_per_day\", json_extract(cells, '$.reason') AS \"reason\", json_extract(cells, '$.further_bench') AS \"further_bench\" FROM ledger_rows WHERE section = 'unmet' ORDER BY position",
+          "refId": "A"
+        }
+      ],
+      "title": "Unmet throughput by bench kind",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "rimgovernor-state"
+      },
+      "description": "Source: ledger_rows section window: the dispatcher's predicted units a day against the stock gained since the window opened (start_stock), with the window's tick span, samples, carrying benches and whether the target was met.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
+      "id": 6,
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "rimgovernor-state"
+          },
+          "queryText": "SELECT json_extract(cells, '$.recipe') AS \"recipe\", json_extract(cells, '$.predicted_per_day') AS \"predicted_per_day\", json_extract(cells, '$.observed_gain') AS \"observed_gain\", json_extract(cells, '$.start_stock') AS \"start_stock\", json_extract(cells, '$.start') AS \"start\", json_extract(cells, '$.ends') AS \"ends\", json_extract(cells, '$.samples') AS \"samples\", json_extract(cells, '$.carrying') AS \"carrying\", json_extract(cells, '$.met') AS \"met\" FROM ledger_rows WHERE section = 'window' ORDER BY position",
+          "queryType": "table",
+          "rawQueryText": "SELECT json_extract(cells, '$.recipe') AS \"recipe\", json_extract(cells, '$.predicted_per_day') AS \"predicted_per_day\", json_extract(cells, '$.observed_gain') AS \"observed_gain\", json_extract(cells, '$.start_stock') AS \"start_stock\", json_extract(cells, '$.start') AS \"start\", json_extract(cells, '$.ends') AS \"ends\", json_extract(cells, '$.samples') AS \"samples\", json_extract(cells, '$.carrying') AS \"carrying\", json_extract(cells, '$.met') AS \"met\" FROM ledger_rows WHERE section = 'window' ORDER BY position",
+          "refId": "A"
+        }
+      ],
+      "title": "Calibration windows",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "rimgovernor-state"
+      },
+      "description": "Source: ledger_rows section excluded: surgery, medicine, baby food and mech gestation bills the ledger never removes.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      },
+      "id": 7,
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "rimgovernor-state"
+          },
+          "queryText": "SELECT json_extract(cells, '$.bench') AS \"bench\", json_extract(cells, '$.recipe') AS \"recipe\", json_extract(cells, '$.kind') AS \"kind\", json_extract(cells, '$.target') AS \"target\" FROM ledger_rows WHERE section = 'excluded' ORDER BY position",
+          "queryType": "table",
+          "rawQueryText": "SELECT json_extract(cells, '$.bench') AS \"bench\", json_extract(cells, '$.recipe') AS \"recipe\", json_extract(cells, '$.kind') AS \"kind\", json_extract(cells, '$.target') AS \"target\" FROM ledger_rows WHERE section = 'excluded' ORDER BY position",
+          "refId": "A"
+        }
+      ],
+      "title": "Never-removed bills",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "rimgovernor-state"
+      },
+      "description": "Source: ledger_rows section export_gap, from MaintainTrade's latest declaration (no row until it declares in this world): the gap, the goods in flight netted off it and the gap left to order against.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 44
+      },
+      "id": 8,
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "rimgovernor-state"
+          },
+          "queryText": "SELECT json_extract(cells, '$.gap_known') AS \"gap_known\", json_extract(cells, '$.gap') AS \"gap\", json_extract(cells, '$.in_flight') AS \"in_flight\", json_extract(cells, '$.remaining') AS \"remaining\" FROM ledger_rows WHERE section = 'export_gap' ORDER BY position",
+          "queryType": "table",
+          "rawQueryText": "SELECT json_extract(cells, '$.gap_known') AS \"gap_known\", json_extract(cells, '$.gap') AS \"gap\", json_extract(cells, '$.in_flight') AS \"in_flight\", json_extract(cells, '$.remaining') AS \"remaining\" FROM ledger_rows WHERE section = 'export_gap' ORDER BY position",
+          "refId": "A"
+        }
+      ],
+      "title": "Silver gap",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "rimgovernor-state"
+      },
+      "description": "Source: ledger_rows section export_candidate: the best scored sale goods plus every ordered one, best first as stored.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 48
+      },
+      "id": 9,
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "rimgovernor-state"
+          },
+          "queryText": "SELECT json_extract(cells, '$.recipe') AS \"recipe\", json_extract(cells, '$.product') AS \"product\", json_extract(cells, '$.stuff') AS \"stuff\", json_extract(cells, '$.worker') AS \"worker\", json_extract(cells, '$.score') AS \"score\", json_extract(cells, '$.net') AS \"net\", json_extract(cells, '$.ticks') AS \"ticks\", json_extract(cells, '$.ordered') AS \"ordered\" FROM ledger_rows WHERE section = 'export_candidate' ORDER BY position",
+          "queryType": "table",
+          "rawQueryText": "SELECT json_extract(cells, '$.recipe') AS \"recipe\", json_extract(cells, '$.product') AS \"product\", json_extract(cells, '$.stuff') AS \"stuff\", json_extract(cells, '$.worker') AS \"worker\", json_extract(cells, '$.score') AS \"score\", json_extract(cells, '$.net') AS \"net\", json_extract(cells, '$.ticks') AS \"ticks\", json_extract(cells, '$.ordered') AS \"ordered\" FROM ledger_rows WHERE section = 'export_candidate' ORDER BY position",
+          "refId": "A"
+        }
+      ],
+      "title": "Export candidates",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "rimgovernor-state"
+      },
+      "description": "Source: ledger_rows section export_drop: candidates that never reached an order, counted by reason (no_buyer, no_ingredient, no_margin, runway_guard).",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 56
+      },
+      "id": 10,
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "rimgovernor-state"
+          },
+          "queryText": "SELECT json_extract(cells, '$.reason') AS \"reason\", json_extract(cells, '$.count') AS \"count\" FROM ledger_rows WHERE section = 'export_drop' ORDER BY position",
+          "queryType": "table",
+          "rawQueryText": "SELECT json_extract(cells, '$.reason') AS \"reason\", json_extract(cells, '$.count') AS \"count\" FROM ledger_rows WHERE section = 'export_drop' ORDER BY position",
+          "refId": "A"
+        }
+      ],
+      "title": "Export candidates dropped",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "rimgovernor-state"
+      },
+      "description": "Source: ledger_rows section declarer: each planner's order count and, when it abstained, the concern and the fact it lacked. Orphans are never removed in a Round where a planner abstained.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 60
+      },
+      "id": 11,
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "rimgovernor-state"
+          },
+          "queryText": "SELECT json_extract(cells, '$.planner') AS \"planner\", json_extract(cells, '$.orders') AS \"orders\", json_extract(cells, '$.abstained') AS \"abstained\", json_extract(cells, '$.abstains') AS \"abstains\" FROM ledger_rows WHERE section = 'declarer' ORDER BY position",
+          "queryType": "table",
+          "rawQueryText": "SELECT json_extract(cells, '$.planner') AS \"planner\", json_extract(cells, '$.orders') AS \"orders\", json_extract(cells, '$.abstained') AS \"abstained\", json_extract(cells, '$.abstains') AS \"abstains\" FROM ledger_rows WHERE section = 'declarer' ORDER BY position",
+          "refId": "A"
+        }
+      ],
+      "title": "Planners declaring",
+      "type": "table"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": [
+    "rimgovernor"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "title": "RimGovernor: ledger",
+  "uid": "rg-ledger",
+  "version": 1
+}

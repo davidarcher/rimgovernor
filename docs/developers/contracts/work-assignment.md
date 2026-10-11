@@ -372,9 +372,11 @@ reason, also `no_bench` when the model wants more benches than exist and
 `bench_slots_full` for an unplaced copy with capable benches), the demand signal the
 facilities ladder reads. A finished bill is spent and never satisfies an order.
 
-`GET /api/ledger` (`httpapi/ledger.go`, `policy.BuildLedgerView`) is the read-only
-view the launcher's Ledger tab prints. Each review leaves a `policy.LedgerView` in
-`Rounder.ledger.view`, a projection of the memory above that is persisted nowhere.
+The Grafana `rg-ledger` dashboard shows the ledger's read-only view. Each review leaves a
+`policy.LedgerView` (`policy.BuildLedgerView`) in `Rounder.ledger.view`, a projection of the
+memory above; after the review `store.ReplaceLedgerRows` replaces the `ledger_rows` table with it
+(a derived copy for the snapshot, one row per table row, never read back; see
+[persistence contracts](persistence-contracts.md#ledger_rows)).
 It lists the declaring planners (named by Go type, each abstain naming its concern
 and the `Cause` it lacked, worded by `policy.Wording`), every wanted order with its owning concerns, spec, state (`placed` on which benches,
 `placing`, or `unplaced` with `no_bench` or `bench_slots_full`), dispatch sizing,
@@ -383,14 +385,14 @@ orphans (grace Rounds left, `removing`, or held by an abstain), the excluded-kin
 bills, `UnmetThroughput` with the further-bench request and, from MaintainTrade's
 last declaration, the silver gap, the goods in flight netted off it, the best 10 scored
 export candidates plus any ordered, and the count of candidates dropped by reason (`no_buyer`,
-`no_ingredient`, `no_margin`, `runway_guard`; `Export`, nil until it declares in this world). It
-issues no native call and has no mutating verb (405); it is 404 without Rounds. Each order also
+`no_ingredient`, `no_margin`, `runway_guard`; `Export`, nil until it declares in this world). The view
+issues no native call. Each order also
 carries its latest placement outcome (`Rounder.WorkLedger`), read from an in-memory placement index:
 the Rounder notes a `ledger-*` plan's `production_bill` as `pending` when it commits, and the worker
 notes each dispatch's progress as `accepted`, `refused` (native's code and reason, e.g.
-`bench_bill_slots_full`), `unconfirmed` or `pending`. The first request after a start seeds the index once from the
+`bench_bill_slots_full`), `unconfirmed` or `pending`. The first review after a start seeds the index once from the
 journal's `ledger-*` plans, so a restart shows no false "never attempted". No attempt means none was
-ever journaled; `attemptsKnown` false means the seed could not be read yet. No request decodes a plan.
+ever journaled; `attemptsKnown` false means the seed could not be read yet. No review decodes a plan.
 
 Orphan removal covers every bill of a production recipe kind: one no plan placed (a
 player's, or placed before a restart) is an orphan like any other, and the journal

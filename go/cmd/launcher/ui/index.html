@@ -95,20 +95,6 @@
   .ev .dot { background: var(--muted); }
   .ev.open .evhead .msg { white-space: normal; }
   a { color: var(--accent); }
-  .nowsec { margin-top: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; user-select: text; }
-  .nowsec h2 { font-size: 15px; margin: 14px 0 6px; }
-  .nowsec p.nowline { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
-  .nowsec p.warn { color: var(--warn); }
-  .nowsec p.emergency { color: var(--bad); font-weight: 600; }
-  .nowsec p { margin: 6px 0; overflow-wrap: anywhere; }
-  .nowsec .muted { color: var(--muted); }
-  .nownotice { color: var(--warn); font-size: 13px; margin: 4px 0 8px; overflow-wrap: anywhere; }
-  .nownotice[hidden] { display: none; }
-  .ledtbl { overflow-x: auto; }
-  .ledtbl table { border-collapse: collapse; width: 100%; min-width: max-content; font-size: 12px; }
-  .ledtbl th { text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line); padding: 3px 8px 3px 0; white-space: nowrap; }
-  .ledtbl td { padding: 3px 8px 3px 0; border-bottom: 1px solid var(--raised); vertical-align: top; overflow-wrap: break-word; }
-  .ledtbl tr.warn td { color: var(--warn); }
 
   section.colony { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
   section.colony h2 { font-size: 15px; margin: 0; display: inline; }
@@ -167,18 +153,8 @@
 
   <nav class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-launch" data-tab="launch" aria-selected="true">Launch</button>
-    <button role="tab" id="tab-ledger" data-tab="ledger" aria-selected="false">Ledger</button>
     <button role="tab" id="tab-acceptance" data-tab="acceptance" aria-selected="false">Acceptance</button>
   </nav>
-  <div class="view" id="view-ledger" role="tabpanel" aria-labelledby="tab-ledger" hidden>
-    <section class="nowsec" aria-label="Work ledger">
-      <div class="nownotice" id="ledNote" role="status" hidden></div>
-      <div id="ledBody" hidden>
-        <p class="nowline" id="ledHeadline"></p>
-        <div id="ledSections"></div>
-      </div>
-    </section>
-  </div>
   <div class="view" id="view-acceptance" role="tabpanel" aria-labelledby="tab-acceptance" hidden>
     <section class="events" aria-label="Acceptance cases">
       <div class="evbar"><h2>Acceptance cases</h2><span class="pbstatus" id="acCount"></span></div>
@@ -453,10 +429,6 @@ $('guideLink').addEventListener('click', e => { e.preventDefault(); openLink(e.c
 $('closeGame').onclick = () => act(closeGame);
 
 // A tab polls its own Bind while it shows; a call still in flight skips the tick.
-function setNote(id, f) {
-  $(id).hidden = !f.Notice;
-  $(id).textContent = f.Notice || '';
-}
 function everyWhile(viewId, poll, ms) {
   let busy = false;
   const run = async () => {
@@ -467,19 +439,6 @@ function everyWhile(viewId, poll, ms) {
   setInterval(run, ms);
   document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', run));
 }
-// Ledger tab: the work ledger's tables, read-only, as the Go side built them.
-async function pollLedger() {
-  const l = await getLedger();
-  setNote('ledNote', l);
-  $('ledBody').hidden = !l.HasValue;
-  if (!l.HasValue) return;
-  $('ledHeadline').textContent = l.Headline;
-  $('ledSections').innerHTML = l.Sections.map(s =>
-    `<h2>${esc(s.Title)}</h2>` + (s.Note ? `<div class="nownotice">${esc(s.Note)}</div>` : '') +
-    (s.Rows.length ? `<div class="ledtbl"><table><thead><tr>${s.Columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>` +
-      s.Rows.map(r => `<tr class="${esc(r.Flag)}">${r.Cells.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('') + '</tbody></table></div>' : '')).join('');
-}
-everyWhile('view-ledger', pollLedger, 3000);
 
 // Acceptance tab: the case list loads once (the Go side reads the registry in
 // the background); the run view polls while the tab shows. Rows re-render only

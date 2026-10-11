@@ -45,13 +45,13 @@ Ports bind to loopback only.
 ## Observation dashboards replace the launcher tabs
 
 Grafana is the read-only observation surface; the launcher is control only
-(#2803). The launcher's former Now, Explain, Problems and Log tabs are the
-dashboards `rg-now`, `rg-concern-transitions`, `rg-problems` and `rg-log`; the
+(#2803). The launcher's former Now, Explain, Problems, Log and Ledger tabs are the
+dashboards `rg-now`, `rg-concern-transitions`, `rg-problems`, `rg-log` and `rg-ledger`; the
 tab-to-panel map and which Loki and Prometheus names were verified is in the
 [dashboards README](../../tools/observability/dashboards/README.md). Their
 sources are Loki (decision and event rows, which `serve` exports as OTLP logs),
 Prometheus (native call and pace instruments) and the SQLite snapshot
-(`concern_transitions`). They are empty until `serve` runs with the telemetry
+(`concern_transitions`, `ledger_rows`). They are empty until `serve` runs with the telemetry
 toggle on. The launcher's Observability section links to them by exact URL
 (`go/cmd/launcher/links.go`) and shows a one-line hint while the stack is down.
 

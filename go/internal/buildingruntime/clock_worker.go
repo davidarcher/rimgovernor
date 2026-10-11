@@ -13,7 +13,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -187,14 +186,6 @@ func (w *ClockWorker) Validity() (domain.ReadValidity, bool) {
 		return domain.ReadValidity{}, false
 	}
 	return w.validity()
-}
-
-// WorkLedger is the Rounder's latest ledger view; ok is false without routines.
-func (w *ClockWorker) WorkLedger(ctx context.Context) (view policy.LedgerView, ok bool) {
-	if w.rounds == nil {
-		return policy.LedgerView{}, false
-	}
-	return w.rounds.WorkLedger(ctx), true
 }
 
 // NotePlacement tells the Rounder's placement index a dispatched action's

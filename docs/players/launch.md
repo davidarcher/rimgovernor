@@ -81,7 +81,7 @@ Settings persist to `.rimgovernor/launcher.json`.
   controller. The launcher page's **Observability** section starts and stops the
   optional Docker stack ([developer guide](../developers/observability.md)),
   shows stopped/starting/healthy, and opens Grafana and its Now, Concern
-  transitions, Problems and Log dashboards (the launcher no longer has those
+  transitions, Problems, Log and Ledger dashboards (the launcher no longer has those
   tabs). While the stack is stopped the section shows a one-line hint. It needs
   Docker; without it the section says so and Play is unaffected. See
   [controls](controls.md#watch-the-governor-in-grafana).

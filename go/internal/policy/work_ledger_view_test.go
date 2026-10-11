@@ -89,3 +89,28 @@ func TestNewExportView(t *testing.T) {
 		t.Fatalf("unknown = %+v", u)
 	}
 }
+
+func TestLedgerViewRowsFlattenEveryTable(t *testing.T) {
+	v := NewLedgerView(LedgerViewReconciled, 9)
+	v.Orders = []LedgerOrderView{{Recipe: "Make_A", Owners: []string{"MaintainResource", "MaintainTrade"}, State: OrderUnplaced, Reason: UnmetNoBench, Unplaced: 1,
+		Window: &WindowView{PredictedPerDay: 4, Carrying: 1}, Attempt: &PlacementAttempt{Outcome: AttemptRefused, Reason: "bench_bill_slots_full"}}}
+	v.Unmet = []UnmetView{{BenchKind: "FueledSmithy", ShortPerDay: 3, Reason: UnmetNoBench}}
+	v.FurtherBenches = []string{"FueledSmithy"}
+	v.Declarers = []LedgerDeclarerView{{Name: "Resource", Abstains: []AbstainView{{Concern: "MaintainResource", Fact: CauseUnreadStock}}}}
+	v.Export = &ExportView{GapKnown: true, Gap: 50, Candidates: []ExportCandidateView{{Recipe: "Make_B", Ordered: true}}, Dropped: []ExportDropView{{Reason: ExportDropNoBuyer, Count: 2}}}
+	count := map[string]int{}
+	for _, r := range v.Rows() {
+		if r.Position != count[r.Section] {
+			t.Fatalf("%s position %d, want %d", r.Section, r.Position, count[r.Section])
+		}
+		count[r.Section]++
+	}
+	for _, section := range []string{LedgerSectionRound, LedgerSectionOrder, LedgerSectionUnmet, LedgerSectionWindow, LedgerSectionDeclarer, LedgerSectionExportGap, LedgerSectionExportCandidate, LedgerSectionExportDrop} {
+		if count[section] != 1 {
+			t.Errorf("%s rows = %d, want 1", section, count[section])
+		}
+	}
+	if rows := v.Rows(); rows[1].Cells["owners"] != "MaintainResource, MaintainTrade" || rows[1].Cells["attempt_outcome"] != AttemptRefused || rows[2].Cells["further_bench"] != true {
+		t.Fatalf("cells = %+v", rows[1:3])
+	}
+}

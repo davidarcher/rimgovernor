@@ -67,8 +67,8 @@ func TestGrafanaDashboardsAreWellFormed(t *testing.T) {
 			}
 			for _, tg := range p.Targets {
 				if tg.Source.Type == "frser-sqlite-datasource" {
-					if !strings.Contains(string(sources), "uid: "+tg.Source.UID) || !strings.Contains(tg.QueryText, "concern_transitions") {
-						t.Errorf("%s: panel %q: SQLite target needs a provisioned uid and a concern_transitions query", f, p.Title)
+					if !strings.Contains(string(sources), "uid: "+tg.Source.UID) || !(strings.Contains(tg.QueryText, "concern_transitions") || strings.Contains(tg.QueryText, "ledger_rows")) {
+						t.Errorf("%s: panel %q: SQLite target needs a provisioned uid and a concern_transitions or ledger_rows query", f, p.Title)
 					}
 					continue
 				}
