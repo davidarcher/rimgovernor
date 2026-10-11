@@ -10,10 +10,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// RoundsArtPlanner is MaintainArt's planner. The pinned sculpture bills are
-// the ledger's: DeclareOrders declares them (OrderDeclarer) and the planner
-// commits no bill method of its own. What stays is the game time a sculpture
-// takes, which a placed bill does not ask the clock for.
+// RoundsArtPlanner is MaintainArt's OrderDeclarer. The pinned sculpture bills
+// are the ledger's: DeclareOrders declares them and no bill method is
+// committed here. What stays is the game time a sculpture takes, which a
+// placed bill does not ask the clock for (purposeReporter).
 type RoundsArtPlanner struct {
 	reviewer *Rounder
 	mu       sync.Mutex
@@ -53,30 +53,18 @@ func (r *RoundsArtPlanner) declareOrders(ctx context.Context, snapshot domain.Ge
 	return policy.DeclareArtOrders(request), nil
 }
 
-func (r *RoundsArtPlanner) step(call, _ context.Context, _ *stepArbiter) (RoundsBillResult, error) {
-	p := r.reviewer.player
-	state := p.session.State()
-	if !state.Enabled {
-		return RoundsBillResult{Verdict: BuildingReasonDisabled}, nil
-	}
-	review, err := p.journal.LoadRounds(call)
-	if err != nil {
-		return RoundsBillResult{}, err
-	}
-	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoundsBillResult{Verdict: BuildingReasonNoReview}, nil
-	}
-	_, workable, err := p.journal.WorkableOwner(call, review, policy.MaintainArt)
-	if err != nil {
-		return RoundsBillResult{}, err
-	}
+// reportTarget files under MaintainArt itself: no other planner serves it.
+func (r *RoundsArtPlanner) reportTarget() (key, need policy.ConcernID) {
+	return policy.MaintainArt, policy.MaintainArt
+}
+
+func (r *RoundsArtPlanner) report() purposeReport {
 	r.mu.Lock()
-	sculpting := r.sculpting
-	r.mu.Unlock()
-	if !workable || !sculpting {
-		return RoundsBillResult{Verdict: BuildingReasonNoDeficit}, nil
+	defer r.mu.Unlock()
+	if !r.sculpting {
+		return purposeReport{order: BuildingReasonNoDeficit}
 	}
-	return RoundsBillResult{Verdict: waitFor(policy.CauseExistingWork, "sculpture"), NativeWorkTicks: artNativeWorkTicks}, nil
+	return purposeReport{order: waitFor(policy.CauseExistingWork, "sculpture"), workTicks: artNativeWorkTicks}
 }
 
 // artDemand sizes the art bills from the same bedroom census as

@@ -432,10 +432,29 @@ without its bills, so the declaration is what should stand. A stock-target bill 
 already covers the wanted target is declared as it stands (`adequateOrder`); a
 purpose that is not owed, or has no bench, keeps its standing bills; an unread
 fact or a food-plan channel not yet open abstains; the cook-ahead bill ends with the
-solar flare. The planners keep the food-plan gates, their verdicts and the reserve
-work-lending (`lendReserveWork`); human-meat and survival-pack ingredient filters
+solar flare. The food-plan gates, the purposes' verdicts and the reserve
+work-lending ride on the declarers, not on catalog planners: `DeclareOrders` notes
+each verdict on the request that declares (`purposeReporter`) and the ledger step
+files it (`RoundsLedgerResult.Reports`; see below). Human-meat and survival-pack ingredient filters
 ride in the declared spec. Food orders set no `Product`/`Class`, so each stands on
 one bench until the resource census covers meals.
+
+The food, art and export declarers are also `purposeReporter`s: no catalog
+planner stands for them, and the `workLedger` step files their verdicts beside its
+own (`RoundsLedgerResult.Reports`, filed by `recordPlannerReasons`). A purpose
+whose concern is not workable reports no deficit; a purpose with open work of its
+own reports existing work; otherwise it reports what its declaration noted
+(awaiting the food plan, a missing cooking or butcher bench, an unread fact, or
+`ledger_bill` once the ledger holds the bill) and lends game time while its
+reserve, sculpture or export bill runs. A journal read that fails reports the
+purpose unavailable and never fails bill placement. Art and export file under
+`MaintainArt` and `MaintainTrade`, which no other planner serves. The four food
+purposes file under subject keys of their own (`cookingBills`, `preservationBills`,
+`butcherBills`, `cookAheadBills`), because their concerns carry the building,
+acquisition and storage planners' notes: a bill verdict filed on the concern would
+compete with them for its one winning cause and relabel its strip with another
+purpose's reason. A priority gate that holds the ledger holds every purpose key
+with the same verdict.
 
 `MaintainResource` (#2601) is migrated too: `RoundsResourcePlanner` declares
 `policy.DeclareResourceOrders` (a stock-target order, with `Product` and
@@ -454,8 +473,9 @@ inspired artist or an owed bedroom is open, every active sculpture
 bill pinned to a current artist as it stands plus the bill the art selectors
 choose for each artist lacking one. A sculpture pinned to someone who is no longer an
 artist, or any sculpture once the need is known gone, is undeclared and so
-removed after the grace rounds; an unread need or artist abstains. The planner
-keeps only the game time a sculpture takes (`artNativeWorkTicks`). The produce-item quest
+removed after the grace rounds; an unread need or artist abstains. The declarer
+keeps only the game time a sculpture takes (`artNativeWorkTicks`), lent through the
+ledger step's report. The produce-item quest
 decrees of `MaintainPopulation` declare through
 `RoundsPopulationJoinerPlanner.DeclareOrders` (`policy.DeclareDecreeOrders`): the
 funded batch, or the bill already making the item as it stands; the planner keeps

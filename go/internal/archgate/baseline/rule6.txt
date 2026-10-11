@@ -45,8 +45,6 @@ internal/buildingruntime/rounds.go|Rounder.reviewStep|"NutrientPasteDispenser"
 internal/buildingruntime/rounds.go|Rounder.reviewStep|"Wall"
 internal/buildingruntime/rounds_acquisition.go|censusBlocking|"WoodLog"
 internal/buildingruntime/rounds_art.go|-|2500
-internal/buildingruntime/rounds_bill.go|RoundsBillPlanner.step|"Hopper"
-internal/buildingruntime/rounds_bill.go|RoundsBillPlanner.step|"NutrientPasteDispenser"
 internal/buildingruntime/rounds_building_selection.go|NewRoundsButcherPlanner|"TableButcher"
 internal/buildingruntime/rounds_building_selection.go|NewRoundsCookingPlanner|"Campfire"
 internal/buildingruntime/rounds_building_selection.go|RoundsBuildingPlanner.selection|"Campfire"

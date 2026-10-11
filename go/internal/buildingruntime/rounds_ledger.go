@@ -30,6 +30,71 @@ type OrderDeclarer interface {
 	DeclareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error)
 }
 
+// purposeReporter is an OrderDeclarer that also says why its purpose has
+// nothing to place, and lends the game time its bills take: the verdict the
+// ledger files beside its own (RoundsLedgerResult.Reports). DeclareOrders notes
+// the verdict on the same request that declares the orders, so the two read
+// one set of facts.
+type purposeReporter interface {
+	OrderDeclarer
+	// reportTarget is the key the verdict files under (a concern id, or a
+	// subject key beside the concern ids) and the concern whose owner gates it.
+	reportTarget() (key, need policy.ConcernID)
+	// report is the verdict the latest DeclareOrders noted.
+	report() purposeReport
+}
+
+// purposeReport is a purpose's verdict once its concern is workable and the
+// owner holds no open work of the purpose's own.
+type purposeReport struct {
+	order Verdict
+	// workTicks asks for game time while the purpose's bill runs.
+	workTicks uint32
+	// openWork says the owner's open plans are the purpose's own work in
+	// flight; nil when the purpose has none.
+	openWork func(context.Context, *store.Store, store.WorkOwner) (bool, error)
+}
+
+// ledgerPurpose is one reporter's latest report with where it files.
+type ledgerPurpose struct {
+	key, need policy.ConcernID
+	report    purposeReport
+}
+
+// LedgerReport is one purpose's verdict as the ledger step files it.
+type LedgerReport struct {
+	Key     policy.ConcernID
+	Verdict Verdict
+}
+
+// purposeOf is d's latest report with where it files (or, unread, the
+// unavailable verdict of a Round whose benches were not read); ok is false for a
+// declarer that reports nothing.
+func purposeOf(d OrderDeclarer, unread bool) (ledgerPurpose, bool) {
+	reporter, ok := d.(purposeReporter)
+	if !ok {
+		return ledgerPurpose{}, false
+	}
+	key, need := reporter.reportTarget()
+	if unread {
+		return ledgerPurpose{key: key, need: need, report: purposeReport{order: fieldUnavailable("work_benches")}}, true
+	}
+	return ledgerPurpose{key: key, need: need, report: reporter.report()}, true
+}
+
+// purposeKeys are the keys the registered reporters file under.
+func (r *Rounder) purposeKeys() []policy.ConcernID {
+	r.ledger.mu.Lock()
+	defer r.ledger.mu.Unlock()
+	var keys []policy.ConcernID
+	for _, d := range r.ledger.declarers {
+		if purpose, ok := purposeOf(d, true); ok {
+			keys = append(keys, purpose.key)
+		}
+	}
+	return keys
+}
+
 // workLedger is the Rounder's ledger memory: the declarers, the orphan counters
 // and the reconcile plan of the latest review. All of it is derived from the
 // game and the planners, so a restart empties it and only delays removal.
@@ -39,6 +104,10 @@ type workLedger struct {
 	world     domain.GenerationSnapshot
 	orphans   map[string]int
 	pending   *ledgerPending
+	// reports are the latest review's purpose verdicts, for the world they were
+	// declared in (reportsWorld).
+	reports      []ledgerPurpose
+	reportsWorld domain.GenerationSnapshot
 	// batches are the declared finite batches of the latest review that no
 	// declarer abstained from: ingredient demand (Rounder.openBills).
 	batches []policy.OrderSpec
@@ -103,6 +172,7 @@ func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSn
 		l.batches = nil
 	}
 	l.pending = nil
+	l.reports, l.reportsWorld = nil, snapshot
 	if l.world != snapshot && (l.world.Colony != snapshot.Colony || l.world.Load != snapshot.Load || l.world.Map != snapshot.Map) {
 		l.orphans = nil
 		l.dispatch = policy.DispatchMemory{}
@@ -123,6 +193,11 @@ func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSn
 		}
 		l.mu.Lock()
 		l.view = policy.NewLedgerView(policy.LedgerViewUnread, int64(projection.Identity.Tick))
+		for _, d := range declarers {
+			if purpose, ok := purposeOf(d, true); ok {
+				l.reports = append(l.reports, purpose)
+			}
+		}
 		l.mu.Unlock()
 		return domain.Unknown[bool](), nil
 	}
@@ -132,6 +207,7 @@ func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSn
 	}
 	declared := make([]policy.Declared, 0, len(declarers))
 	named := make([]policy.NamedDeclared, 0, len(declarers))
+	var purposes []ledgerPurpose
 	for _, d := range declarers {
 		one, err := d.DeclareOrders(ctx, snapshot, projection, benches)
 		if err != nil {
@@ -139,10 +215,14 @@ func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSn
 		}
 		declared = append(declared, one)
 		named = append(named, policy.NamedDeclared{Name: declarerName(d), Declared: one})
+		if purpose, ok := purposeOf(d, false); ok {
+			purposes = append(purposes, purpose)
+		}
 	}
 	actual, known := policy.LedgerActuals(benches)
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.reports = purposes
 	l.benchKinds = map[string]string{}
 	for _, b := range benches {
 		l.benchKinds[b.ID] = b.Def
@@ -186,6 +266,12 @@ type RoundsLedgerPlanner struct {
 type RoundsLedgerResult struct {
 	Verdict
 	Plan domain.PlanID
+	// Reports are the purposes' verdicts (purposeReporter), filed beside the
+	// ledger's own.
+	Reports []LedgerReport
+	// NativeWorkTicks asks for game time while a purpose's bill runs: a placed
+	// bill is no work to the clock.
+	NativeWorkTicks uint32
 }
 
 func NewRoundsLedgerPlanner(reviewer *Rounder) (*RoundsLedgerPlanner, error) {
@@ -200,7 +286,7 @@ func (l *RoundsLedgerPlanner) step(call, epoch context.Context, arbiter *stepArb
 	p := r.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoundsLedgerResult{Verdict: BuildingReasonDisabled}, nil
+		return RoundsLedgerResult{Verdict: BuildingReasonDisabled, Reports: r.heldReports(BuildingReasonDisabled)}, nil
 	}
 	if !state.ObservationKnown {
 		return RoundsLedgerResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
@@ -212,6 +298,73 @@ func (l *RoundsLedgerPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoundsLedgerResult{Verdict: BuildingReasonNoReview}, nil
 	}
+	// The purposes' verdicts never fail the step: a read that fails reports
+	// the purpose unavailable (purposeVerdict), whatever the commit does.
+	reports, ticks := l.purposeReports(call, state.Snapshot, review)
+	result, err := l.commit(call, epoch, arbiter, state, review)
+	if err != nil {
+		return RoundsLedgerResult{}, err
+	}
+	result.Reports, result.NativeWorkTicks = reports, ticks
+	return result, nil
+}
+
+// heldReports files one verdict for every registered reporter: a switched-off
+// service or a priority gate holds the purposes with the ledger.
+func (r *Rounder) heldReports(v Verdict) []LedgerReport {
+	var out []LedgerReport
+	for _, key := range r.purposeKeys() {
+		out = append(out, LedgerReport{Key: key, Verdict: v})
+	}
+	return out
+}
+
+// purposeReports are the latest review's purpose verdicts, and the largest
+// game time any of them lends.
+func (l *RoundsLedgerPlanner) purposeReports(call context.Context, snapshot domain.GenerationSnapshot, review store.Rounds) (reports []LedgerReport, ticks uint32) {
+	r := l.reviewer
+	r.ledger.mu.Lock()
+	purposes := r.ledger.reports
+	if r.ledger.reportsWorld != snapshot {
+		purposes = nil
+	}
+	r.ledger.mu.Unlock()
+	for _, purpose := range purposes {
+		verdict, lent := l.purposeVerdict(call, review, purpose)
+		reports = append(reports, LedgerReport{Key: purpose.key, Verdict: verdict})
+		ticks = max(ticks, lent)
+	}
+	return reports, ticks
+}
+
+// purposeVerdict is one purpose's verdict: no deficit while its concern is not
+// workable, existing work while the owner holds the purpose's own, else what its
+// declaration said. A journal read that fails reports the purpose unavailable.
+func (l *RoundsLedgerPlanner) purposeVerdict(call context.Context, review store.Rounds, purpose ledgerPurpose) (Verdict, uint32) {
+	journal := l.reviewer.player.journal
+	owner, workable, err := journal.WorkableOwner(call, review, purpose.need)
+	if err != nil {
+		return fieldUnavailable("purpose_owner"), 0
+	}
+	if !workable {
+		return BuildingReasonNoDeficit, 0
+	}
+	if purpose.report.openWork != nil {
+		open, err := purpose.report.openWork(call, journal, owner)
+		if err != nil {
+			return fieldUnavailable("purpose_plans"), 0
+		}
+		if open {
+			return BuildingReasonExistingWork, 0
+		}
+	}
+	return purpose.report.order, purpose.report.workTicks
+}
+
+// commit places and removes the Round's bills (MaintainWorkLedger's method).
+func (l *RoundsLedgerPlanner) commit(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds) (RoundsLedgerResult, error) {
+	r := l.reviewer
+	p := r.player
 	owner, workable, err := p.journal.WorkableOwner(call, review, policy.MaintainWorkLedger)
 	if err != nil {
 		return RoundsLedgerResult{}, err

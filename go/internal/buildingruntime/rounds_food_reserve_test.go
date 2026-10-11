@@ -45,7 +45,7 @@ func TestReserveUsesLiveDeliveryAndConfiguredDays(t *testing.T) {
 
 func TestReserveRefillUsesStorageGoal(t *testing.T) {
 	r, _, _, _, _ := roundsFixture(t)
-	planner, err := NewRoundsBillPlanner(r, &gearProductionNative{}, policy.PreserveFood)
+	planner, err := NewRoundsBillPlanner(r, policy.PreserveFood)
 	if err != nil || planner.need != policy.MaintainFoodStorage {
 		t.Fatal(planner, err)
 	}

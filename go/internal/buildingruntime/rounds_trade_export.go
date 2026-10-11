@@ -118,10 +118,10 @@ type exportSource interface {
 	ReadWorld(context.Context, *c.Identity, int32, float64) (bridge.WorldRead, bridge.Result, error)
 }
 
-// RoundsTradeExportPlanner is MaintainTrade's planner. The export batches are
-// the ledger's: DeclareOrders declares them (OrderDeclarer) and the planner
-// commits no bill method of its own. What stays is the game time a batch
-// takes, which a placed bill does not ask the clock for.
+// RoundsTradeExportPlanner is MaintainTrade's OrderDeclarer. The export
+// batches are the ledger's: DeclareOrders declares them and no bill method is
+// committed here. What stays is the game time a batch takes, which a placed
+// bill does not ask the clock for (purposeReporter).
 type RoundsTradeExportPlanner struct {
 	reviewer *Rounder
 	mu       sync.Mutex
@@ -382,28 +382,16 @@ func exportBuyers(catalog *bridge.DefinitionCatalog, kinds []string, products []
 	return domain.Known(cap), buys
 }
 
-func (r *RoundsTradeExportPlanner) step(call, _ context.Context, _ *stepArbiter) (RoundsBillResult, error) {
-	p := r.reviewer.player
-	state := p.session.State()
-	if !state.Enabled {
-		return RoundsBillResult{Verdict: BuildingReasonDisabled}, nil
-	}
-	review, err := p.journal.LoadRounds(call)
-	if err != nil {
-		return RoundsBillResult{}, err
-	}
-	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoundsBillResult{Verdict: BuildingReasonNoReview}, nil
-	}
-	_, workable, err := p.journal.WorkableOwner(call, review, policy.MaintainTrade)
-	if err != nil {
-		return RoundsBillResult{}, err
-	}
+// reportTarget files under MaintainTrade itself: no other planner serves it.
+func (r *RoundsTradeExportPlanner) reportTarget() (key, need policy.ConcernID) {
+	return policy.MaintainTrade, policy.MaintainTrade
+}
+
+func (r *RoundsTradeExportPlanner) report() purposeReport {
 	r.mu.Lock()
-	working := r.working
-	r.mu.Unlock()
-	if !workable || !working {
-		return RoundsBillResult{Verdict: BuildingReasonNoDeficit}, nil
+	defer r.mu.Unlock()
+	if !r.working {
+		return purposeReport{order: BuildingReasonNoDeficit}
 	}
-	return RoundsBillResult{Verdict: waitFor(policy.CauseExistingWork, "export"), NativeWorkTicks: exportNativeWorkTicks}, nil
+	return purposeReport{order: waitFor(policy.CauseExistingWork, "export"), workTicks: exportNativeWorkTicks}
 }

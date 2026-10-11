@@ -43,17 +43,10 @@ type ClockWindowNative interface {
 	ReadClockStatus(context.Context, *c.Identity) (*k.StatusReply, bridge.Result, error)
 }
 type ClockSchedulerConfig struct {
-	CookingBills, PreservationBills, ButcherBills, CookAheadBills *RoundsBillPlanner
-	// ArtBills lends MaintainArt its sculpting time; the sculpture bills are the
-	// ledger's (RoundsArtPlanner.DeclareOrders).
-	ArtBills *RoundsArtPlanner
-	// ExportBills lends MaintainTrade its crafting time; the export batches are
-	// the ledger's (RoundsTradeExportPlanner.DeclareOrders).
-	ExportBills *RoundsTradeExportPlanner
-	Butcher     *RoundsBuildingPlanner
-	Fields      *RoundsFieldPlanner
-	Profile     string
-	Start       bridge.ClockStart
+	Butcher *RoundsBuildingPlanner
+	Fields  *RoundsFieldPlanner
+	Profile string
+	Start   bridge.ClockStart
 	// PaceHorizonTicks is the safe horizon player acceleration's backoff
 	// keeps the critical evidence inside; zero is
 	// DefaultPaceHorizonTicks. Unused unless Start.PlayerAccelerated.
@@ -179,12 +172,11 @@ type ClockSchedulerResult struct {
 	// due until Hands has had a dispatch opportunity and native can advance.
 	Immediate bool
 	// Pacing is what the step's clock status said of the pace.
-	Pacing                                                                               StepPacing
-	CookingBills, PreservationBills, ButcherBills, CookAheadBills, ArtBills, ExportBills *RoundsBillResult
-	Butcher                                                                              *RoundsBuildingResult
-	Fields                                                                               *RoundsFieldResult
-	Attempt                                                                              *store.ClockAttempt
-	Decision                                                                             policy.ClockWindowDecision
+	Pacing   StepPacing
+	Butcher  *RoundsBuildingResult
+	Fields   *RoundsFieldResult
+	Attempt  *store.ClockAttempt
+	Decision policy.ClockWindowDecision
 	// Window is the colony window the admission tail sized (before any
 	// native-work or combat bound), zero when the tail did not run.
 	Window                       ClockWindowSize
@@ -439,17 +431,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.Rounds != nil && config.Rounds.player != player {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Rounds != nil && config.Rounds.player != player", ErrControl)
-	}
-	for _, planner := range []*RoundsBillPlanner{config.CookingBills, config.PreservationBills, config.ButcherBills, config.CookAheadBills} {
-		if planner != nil && (config.Rounds == nil || planner.reviewer != config.Rounds) {
-			return nil, fmt.Errorf("%w: NewClockScheduler: planner != nil && (config.Rounds == nil || planner.reviewer != config.Rounds)", ErrControl)
-		}
-	}
-	if config.ArtBills != nil && (config.Rounds == nil || config.ArtBills.reviewer != config.Rounds) {
-		return nil, fmt.Errorf("%w: NewClockScheduler: config.ArtBills != nil && (config.Rounds == nil || config.ArtBills.reviewer != config.Rounds)", ErrControl)
-	}
-	if config.ExportBills != nil && (config.Rounds == nil || config.ExportBills.reviewer != config.Rounds) {
-		return nil, fmt.Errorf("%w: NewClockScheduler: config.ExportBills != nil && (config.Rounds == nil || config.ExportBills.reviewer != config.Rounds)", ErrControl)
 	}
 	if config.Butcher != nil && (config.Rounds == nil || config.Butcher.reviewer != config.Rounds || config.Butcher.concern != policy.EnsureFoodSupply) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Butcher != nil && (config.Rounds == nil || config.Butcher.reviewer != config.Rounds || config.Butc", ErrControl)
@@ -1361,14 +1342,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if out.Trade != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Trade.NativeWorkTicks)
 	}
-	if out.ArtBills != nil {
-		nativeWorkTicks = max(nativeWorkTicks, out.ArtBills.NativeWorkTicks)
-	}
-	if out.ExportBills != nil {
-		nativeWorkTicks = max(nativeWorkTicks, out.ExportBills.NativeWorkTicks)
-	}
-	if out.PreservationBills != nil {
-		nativeWorkTicks = max(nativeWorkTicks, out.PreservationBills.NativeWorkTicks)
+	// A sculpture, an export batch or a reserve bill in flight needs game time,
+	// not a placed bill (the ledger's purpose reports).
+	if out.Ledger != nil {
+		nativeWorkTicks = max(nativeWorkTicks, out.Ledger.NativeWorkTicks)
 	}
 	if out.PopulationJoiner != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.PopulationJoiner.NativeWorkTicks)

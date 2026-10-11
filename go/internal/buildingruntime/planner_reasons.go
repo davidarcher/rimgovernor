@@ -154,15 +154,20 @@ func wavePlannerReasons(names []string, filing func(string) (policy.ConcernID, V
 		if !ok {
 			continue
 		}
-		note, ok := plannerRecordReason(verdict)
-		if !ok {
-			continue
-		}
-		if prior, seen := out[goal]; !seen || noteRank(note) > noteRank(prior.Note) {
-			out[goal] = plannerFiling{Note: note, Outcome: verdict.Outcome}
-		}
+		fileReason(out, goal, verdict)
 	}
 	return out
+}
+
+// fileReason files verdict on goal in out, keeping the highest-ranked note.
+func fileReason(out map[policy.ConcernID]plannerFiling, goal policy.ConcernID, verdict Verdict) {
+	note, ok := plannerRecordReason(verdict)
+	if !ok {
+		return
+	}
+	if prior, seen := out[goal]; !seen || noteRank(note) > noteRank(prior.Note) {
+		out[goal] = plannerFiling{Note: note, Outcome: verdict.Outcome}
+	}
 }
 
 // recordPlannerReasons notes each goal's planner refusal or wait and files it
@@ -171,6 +176,10 @@ func wavePlannerReasons(names []string, filing func(string) (policy.ConcernID, V
 // A goal whose cause changed also files a concern_transitions row.
 func (s *ClockScheduler) recordPlannerReasons(call context.Context, wave *plannerWave, tick int64) {
 	filings := wavePlannerReasons(wave.finishedNames(), wave.filing)
+	// The ledger files its bill purposes' verdicts beside its own.
+	for _, report := range wave.reports() {
+		fileReason(filings, report.Key, report.Verdict)
+	}
 	if len(filings) == 0 {
 		return
 	}

@@ -241,6 +241,20 @@ func (w *plannerWave) filing(name string) (policy.ConcernID, Verdict, bool) {
 	return w.concerns[name], verdict, ok
 }
 
+// reports are the purpose verdicts the returned ledger step filed beside its
+// own (RoundsLedgerResult.Reports).
+func (w *plannerWave) reports() []LedgerReport {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	var out []LedgerReport
+	for _, name := range w.finished {
+		if result := w.results[name]; result != nil && result.Ledger != nil {
+			out = append(out, result.Ledger.Reports...)
+		}
+	}
+	return out
+}
+
 // queuedCritical reports whether the named planner was queued into this
 // wave's critical cycle, promotion included: a pending one holds admission
 // instead of being recorded as having missed the cutoff.

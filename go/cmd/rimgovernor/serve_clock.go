@@ -245,25 +245,13 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			reviewer.AddOrderDeclarer(buildingruntime.NewRoundsCareBillDeclarer(reviewer, reads, medical, bills, sc.roundsMechPlans))
 		}
 		if bills {
-			nativeBills, ok := reads.(buildingruntime.BillPlannerNative)
-			if !ok {
-				return nil, errors.New("bill plans require typed preview")
+			for _, purpose := range []policy.BillPurpose{policy.CookFood, policy.PreserveFood, policy.ButcherFood} {
+				declarer, err := buildingruntime.NewRoundsBillPlanner(reviewer, purpose)
+				if err != nil {
+					return nil, err
+				}
+				reviewer.AddOrderDeclarer(declarer)
 			}
-			config.CookingBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.CookFood)
-			if err != nil {
-				return nil, err
-			}
-			config.PreservationBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.PreserveFood)
-			if err != nil {
-				return nil, err
-			}
-			config.ButcherBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.ButcherFood)
-			if err != nil {
-				return nil, err
-			}
-			reviewer.AddOrderDeclarer(config.CookingBills)
-			reviewer.AddOrderDeclarer(config.PreservationBills)
-			reviewer.AddOrderDeclarer(config.ButcherBills)
 			buildingNative, ok := reads.(buildingruntime.RoundsBuildingSource)
 			if !ok {
 				return nil, errors.New("bill prerequisites require building observations")
@@ -275,16 +263,18 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		if sc.roundsArtPlans {
 			// MaintainArt's pinned sculpture bills are the ledger's.
-			if config.ArtBills, err = buildingruntime.NewRoundsArtPlanner(reviewer); err != nil {
+			art, err := buildingruntime.NewRoundsArtPlanner(reviewer)
+			if err != nil {
 				return nil, err
 			}
-			reviewer.AddOrderDeclarer(config.ArtBills)
+			reviewer.AddOrderDeclarer(art)
 			// MaintainTrade's export batches are the ledger's too: the silver
 			// gap answered with sale goods (#2607).
-			if config.ExportBills, err = buildingruntime.NewRoundsTradeExportPlanner(reviewer); err != nil {
+			export, err := buildingruntime.NewRoundsTradeExportPlanner(reviewer)
+			if err != nil {
 				return nil, err
 			}
-			reviewer.AddOrderDeclarer(config.ExportBills)
+			reviewer.AddOrderDeclarer(export)
 		}
 		if fields {
 			fieldNative, ok := reads.(buildingruntime.FieldNative)
@@ -729,15 +719,11 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				// The solar-flare cook-ahead bill is the refrigeration
 				// goal's own method, wired with its family rather than
 				// the cooking bills so a refrigeration-only service serves it.
-				nativeBills, ok := reads.(buildingruntime.BillPlannerNative)
-				if !ok {
-					return nil, errors.New("cook-ahead bills require typed preview")
-				}
-				config.CookAheadBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.CookAheadFood)
+				cookAhead, err := buildingruntime.NewRoundsBillPlanner(reviewer, policy.CookAheadFood)
 				if err != nil {
 					return nil, err
 				}
-				reviewer.AddOrderDeclarer(config.CookAheadBills)
+				reviewer.AddOrderDeclarer(cookAhead)
 			}
 			if mechCharger {
 				config.MechCharger, err = buildingruntime.NewRoundsMechChargerPlanner(reviewer, source)

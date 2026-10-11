@@ -123,6 +123,25 @@ func TestWavePlannerReasonsFilesWaitsAndClearsThem(t *testing.T) {
 	}
 }
 
+// The ledger's returned step files its purposes' verdicts beside its own; a
+// planner that missed the cutoff files none.
+func TestWaveFilesTheLedgerPurposeReports(t *testing.T) {
+	wave := &plannerWave{
+		finished: []string{"workLedger"},
+		results: map[string]*ClockSchedulerResult{
+			"workLedger": {Ledger: &RoundsLedgerResult{Reports: []LedgerReport{{Key: cookingBillsKey, Verdict: awaitingPlan("cooking_bench", "")}, {Key: policy.MaintainArt, Verdict: BuildingReasonNoDeficit}}}},
+			"missed":     {Ledger: &RoundsLedgerResult{Reports: []LedgerReport{{Key: butcherBillsKey, Verdict: BuildingReasonNoDeficit}}}},
+		},
+	}
+	filings := map[policy.ConcernID]plannerFiling{}
+	for _, report := range wave.reports() {
+		fileReason(filings, report.Key, report.Verdict)
+	}
+	if len(filings) != 2 || filings[cookingBillsKey].Note != (policy.PlannerNote{Cause: policy.CauseAwaitingPlan, Subject: "cooking_bench"}) || filings[policy.MaintainArt].Note != (policy.PlannerNote{}) {
+		t.Fatalf("%+v", filings)
+	}
+}
+
 // A switched-off planner files the opt-out hold; a planner with no review or
 // a stale proposal says nothing about its goal and files nothing.
 func TestPlannerRecordReasonOptOutAndSilentOutcomes(t *testing.T) {

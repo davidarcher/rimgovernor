@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -12,22 +13,19 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
+// RoundsBillPlanner is one food purpose's OrderDeclarer: cooking, preservation,
+// butchery or the cook-ahead bill. The bills are the ledger's; the declarer
+// also says why the purpose has nothing to place (purposeReporter) and the
+// ledger files that verdict.
 type RoundsBillPlanner struct {
 	reviewer *Rounder
 	need     policy.ConcernID
 	purpose  policy.BillPurpose
-	native   BillPlannerNative
-}
-type RoundsBillResult struct {
-	Verdict
-	Plan domain.PlanID
-	// NativeWorkTicks asks for game time while a claimed art bill is still
-	// being sculpted: a placed bill is no work to the clock.
-	NativeWorkTicks uint32
+	mu       sync.Mutex
+	latest   purposeReport
 }
 
-// BillPlannerNative is the native reader behind a bill planner; the
-// butcher purpose asserts it to RoundsResourceSource for a corpse storage zone.
+// BillPlannerNative is the native reader behind a bill declarer.
 type BillPlannerNative interface{}
 
 // artBenchSource is the native read the part and gestation bills need: the
@@ -43,9 +41,9 @@ var _ artBenchSource = (*bridge.Client)(nil)
 // cook-ahead bill MaintainRefrigeration under a solar flare. The sculpture,
 // part, baby food and mech gestation bills are the ledger's
 // (RoundsArtPlanner, RoundsCareBillDeclarer).
-func NewRoundsBillPlanner(reviewer *Rounder, native BillPlannerNative, purpose policy.BillPurpose) (*RoundsBillPlanner, error) {
-	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood) {
-		return nil, fmt.Errorf("%w: NewRoundsBillPlanner: reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpos", ErrControl)
+func NewRoundsBillPlanner(reviewer *Rounder, purpose policy.BillPurpose) (*RoundsBillPlanner, error) {
+	if reviewer == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood) {
+		return nil, fmt.Errorf("%w: NewRoundsBillPlanner: reviewer == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood)", ErrControl)
 	}
 	need := policy.EnsureFoodSupply
 	switch purpose {
@@ -56,106 +54,106 @@ func NewRoundsBillPlanner(reviewer *Rounder, native BillPlannerNative, purpose p
 	case policy.CookAheadFood:
 		need = policy.MaintainRefrigeration
 	}
-	return &RoundsBillPlanner{reviewer: reviewer, native: native, purpose: purpose, need: need}, nil
+	return &RoundsBillPlanner{reviewer: reviewer, purpose: purpose, need: need}, nil
 }
-func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoundsBillResult, error) {
-	p := r.reviewer.player
-	state := p.session.State()
-	if !state.Enabled {
-		return RoundsBillResult{Verdict: BuildingReasonDisabled}, nil
-	}
-	if !state.ObservationKnown {
-		return RoundsBillResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
-	}
-	review, err := p.journal.LoadRounds(call)
-	if err != nil {
-		return RoundsBillResult{}, err
-	}
-	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoundsBillResult{Verdict: BuildingReasonNoReview}, nil
-	}
-	goal, workable, err := p.journal.WorkableOwner(call, review, r.need)
-	if err != nil {
-		return RoundsBillResult{}, err
-	}
-	if !workable {
-		return RoundsBillResult{Verdict: BuildingReasonNoDeficit}, nil
-	}
 
-	for _, method := range goal.OwnerMethods() {
-		plan, err := p.journal.LoadPlan(call, method.Plan)
+// Each bill purpose files its verdict under a key of its own, not under the
+// concern it serves: cooking, butchery, preservation and the cook-ahead bill
+// share EnsureCooking, EnsureFoodSupply, MaintainFoodStorage and
+// MaintainRefrigeration with the building, acquisition and storage planners,
+// whose notes the concern's strip shows. A bill verdict filed on the concern
+// would compete with them for the one winning cause (noteRank) and relabel the
+// strip with another purpose's reason. The keys are subject keys: they have no
+// progress record, so they only explain the bill purpose
+// (concern_transitions.concern).
+const (
+	cookingBillsKey      policy.ConcernID = "cookingBills"
+	preservationBillsKey policy.ConcernID = "preservationBills"
+	butcherBillsKey      policy.ConcernID = "butcherBills"
+	cookAheadBillsKey    policy.ConcernID = "cookAheadBills"
+)
+
+// reportTarget is the key the purpose's verdict files under and the concern
+// whose owner gates it.
+func (r *RoundsBillPlanner) reportTarget() (key, need policy.ConcernID) {
+	switch r.purpose {
+	case policy.CookFood:
+		return cookingBillsKey, r.need
+	case policy.PreserveFood:
+		return preservationBillsKey, r.need
+	case policy.CookAheadFood:
+		return cookAheadBillsKey, r.need
+	}
+	return butcherBillsKey, r.need
+}
+
+func (r *RoundsBillPlanner) report() purposeReport {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.latest
+}
+
+func (r *RoundsBillPlanner) note(report purposeReport) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.latest = report
+}
+
+// openWork reports whether the owner holds this purpose's own open work. The
+// food supply goal is shared with fields, foraging and hunts that stay open
+// for days, so only an open bill counts there.
+func (r *RoundsBillPlanner) openWork(ctx context.Context, journal *store.Store, owner store.WorkOwner) (bool, error) {
+	for _, method := range owner.OwnerMethods() {
+		plan, err := journal.LoadPlan(ctx, method.Plan)
 		if err != nil {
-			return RoundsBillResult{}, err
+			return false, err
 		}
 		if r.need == policy.EnsureFoodSupply {
-			// Fields, foraging and hunts share the goal and stay open for
-			// days; only an open bill is this planner's own work.
 			for _, progress := range plan.Progress {
 				if progress.Action().Kind() == domain.ProductionBillAction && domain.StandardWorkOpen([]domain.Progress{progress}) {
 					if b, ok := progress.Action().ProductionBill(); ok && r.purpose == policy.ButcherFood && b.Mode() == domain.ButcherForever {
 						continue
 					}
-					return RoundsBillResult{Verdict: BuildingReasonExistingWork}, nil
+					return true, nil
 				}
 			}
 			continue
 		}
 		if r.purpose != policy.CookFood && store.PlanOpen(plan) {
-			return RoundsBillResult{Verdict: BuildingReasonExistingWork}, nil
+			return true, nil
 		}
 	}
-	plans, err := p.journal.LoadPlans(call)
-	if err != nil {
-		return RoundsBillResult{}, err
-	}
-	playerPlans, err := p.journal.PlayerPlans(call, playerWorld(state.Snapshot))
-	if err != nil {
-		return RoundsBillResult{}, err
-	}
-	definitions := roundsProjectDefinitions(plans, state.Snapshot, playerPlans)
-	if r.purpose == policy.CookFood {
-		definitions = append(definitions, "NutrientPasteDispenser", "Hopper")
-	}
-	expected, err := stepScope(call, r.reviewer.native)
-	if err != nil {
-		return RoundsBillResult{}, err
-	}
-	if !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoundsBillResult{}, fmt.Errorf("%w: step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
-	}
-	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
-	if err != nil {
-		return RoundsBillResult{}, err
-	}
-	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims, definitions...)
-	if err != nil {
-		return RoundsBillResult{}, err
-	}
-	projection := read.Projection
-	recordStepRead("bill", r.need, state.Snapshot, projection)
-	// The food bills are the ledger's (DeclareOrders): this planner only says
-	// why the purpose has nothing to place and lends game time to a reserve.
-	request, err := r.foodRequest(projection, review)
-	if err != nil {
-		return RoundsBillResult{}, err
-	}
+	return false, nil
+}
+
+// foodReport is the purpose's verdict on a reviewed request: why the selection
+// has nothing to place, and the game time a standing reserve bill needs.
+func (r *RoundsBillPlanner) foodReport(request policy.FoodOrderRequest, projection observation.ColonyProjection) purposeReport {
 	order := policy.SelectFoodOrder(request)
-	reserveRunning := order.ReserveRunning
+	report := purposeReport{openWork: r.openWork}
 	switch order.Gap {
 	case policy.FoodOrderPlan:
-		return RoundsBillResult{Verdict: awaitingFoodPlan(order.Subject)}, nil
+		report.order = awaitingFoodPlan(order.Subject)
+		return report
 	case policy.FoodOrderField:
-		return RoundsBillResult{Verdict: fieldUnavailable(order.Subject)}, nil
+		report.order = fieldUnavailable(order.Subject)
+		return report
 	case policy.FoodOrderNoDeficit:
-		return RoundsBillResult{Verdict: BuildingReasonNoDeficit}, nil
+		report.order = BuildingReasonNoDeficit
+		return report
 	case policy.FoodOrderNoBill:
-		return r.lendReserveWork(RoundsBillResult{Verdict: r.noBill(projection.ProductionBenches, projection.Facts.Colonists)}, reserveRunning), nil
+		report.order = r.noBill(projection.ProductionBenches, projection.Facts.Colonists)
+	default:
+		report.order = waitFor(policy.CauseMethodUsed, "ledger_bill")
 	}
-	return r.lendReserveWork(RoundsBillResult{Verdict: waitFor(policy.CauseMethodUsed, "ledger_bill")}, reserveRunning), nil
+	if order.ReserveRunning {
+		report.workTicks = reserveBillWorkTicks
+	}
+	return report
 }
 
 // foodRequest is the food purpose's reviewed inputs: the declaration and the
-// verdict above read the same request.
+// verdict read the same request.
 func (r *RoundsBillPlanner) foodRequest(projection observation.ColonyProjection, review store.Rounds) (policy.FoodOrderRequest, error) {
 	seasonal := r.reviewer.seasonal(projection.Facts)
 	request := policy.FoodOrderRequest{Purpose: r.purpose, Benches: projection.ProductionBenches, Facts: projection.Facts, Supply: projection.CombinedFoodSupply, Humans: projection.FoodSupply, TargetDays: seasonal.FoodTargetDays, Warm: domain.Unknown[float64]()}
@@ -178,17 +176,21 @@ func (r *RoundsBillPlanner) DeclareOrders(ctx context.Context, snapshot domain.G
 	return declared.For(r.need), err
 }
 
-// declareOrders declares a food purpose's wanted bills (OrderDeclarer).
+// declareOrders declares a food purpose's wanted bills (OrderDeclarer) and
+// notes the purpose's verdict on the same request.
 func (r *RoundsBillPlanner) declareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
 	review, err := r.reviewer.player.journal.LoadRounds(ctx)
 	if err != nil {
+		r.note(purposeReport{order: fieldUnavailable("review")})
 		return abstainOnRead(ctx, policy.CauseUnreadReview)
 	}
 	request, err := r.foodRequest(projection, review)
 	if err != nil {
 		// A review that cannot be read from the facts declares nothing.
+		r.note(purposeReport{order: fieldUnavailable("food_facts")})
 		return abstainOnRead(ctx, policy.CauseUnreadFoodFacts)
 	}
+	r.note(r.foodReport(request, projection))
 	return policy.DeclareFoodOrders(request, benches), nil
 }
 
@@ -238,12 +240,3 @@ func (r *RoundsBillPlanner) noBill(benches domain.Fact[[]policy.ProductionBench]
 // reserveBillWorkTicks bounds one clock window spent letting a standing
 // reserve bill run; the next review re-measures the stock.
 const reserveBillWorkTicks = domain.TicksPerHour
-
-// lendReserveWork asks for game time while a reserve bill runs and no new
-// bill was admitted this step.
-func (r *RoundsBillPlanner) lendReserveWork(result RoundsBillResult, running bool) RoundsBillResult {
-	if running && result.Verdict != BuildingReasonAdmitted {
-		result.NativeWorkTicks = max(result.NativeWorkTicks, reserveBillWorkTicks)
-	}
-	return result
-}

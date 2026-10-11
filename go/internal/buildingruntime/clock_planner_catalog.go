@@ -43,6 +43,9 @@ type plannerEntry struct {
 	every domain.Tick
 	// configured reports whether the composition wired this planner.
 	configured func(*ClockSchedulerConfig) bool
+	// held, when set, stores on out what a priority gate's hold files besides
+	// the planner's own verdict (the keys it reports on).
+	held func(s *ClockScheduler, v Verdict, out *ClockSchedulerResult)
 	// run steps the planner and stores its result on out; the error is
 	// wrapped with the planner's name.
 	run func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error)
@@ -115,7 +118,9 @@ func (e plannerEntry) reviewEvery() domain.Tick {
 // target of its concern_transitions rows: its concern, or for a planner that
 // serves several concerns (or none) its own name, a subject key beside the
 // concern ids. A subject key has no progress record, so it never relabels a
-// concern's strip; it only explains the planner.
+// concern's strip; it only explains the planner. The bill purposes the ledger
+// reports on file under subject keys of their own for the same reason
+// (RoundsBillPlanner.reportTarget).
 func (e plannerEntry) filingKey() policy.ConcernID {
 	if e.concern != "" {
 		return e.concern
@@ -283,66 +288,6 @@ var plannerCatalog = []plannerEntry{
 				return Verdict{}, err
 			}
 			out.Butcher = &method
-			return method.Verdict, nil
-		}},
-	{name: "cookingBills", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.ProductionBillAction}, sections: sectionsBills,
-		configured: func(c *ClockSchedulerConfig) bool { return c.CookingBills != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			method, err := s.config.CookingBills.step(ctx, epoch, arbiter)
-			if err != nil {
-				return Verdict{}, err
-			}
-			out.CookingBills = &method
-			return method.Verdict, nil
-		}},
-	{name: "preservationBills", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.ProductionBillAction}, sections: sectionsBills,
-		configured: func(c *ClockSchedulerConfig) bool { return c.PreservationBills != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			method, err := s.config.PreservationBills.step(ctx, epoch, arbiter)
-			if err != nil {
-				return Verdict{}, err
-			}
-			out.PreservationBills = &method
-			return method.Verdict, nil
-		}},
-	{name: "butcherBills", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.ProductionBillAction, domain.ZoneCreateAction}, sections: sectionsBills,
-		configured: func(c *ClockSchedulerConfig) bool { return c.ButcherBills != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			method, err := s.config.ButcherBills.step(ctx, epoch, arbiter)
-			if err != nil {
-				return Verdict{}, err
-			}
-			out.ButcherBills = &method
-			return method.Verdict, nil
-		}},
-	{name: "cookAheadBills", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.ProductionBillAction}, sections: sectionsBills,
-		configured: func(c *ClockSchedulerConfig) bool { return c.CookAheadBills != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			method, err := s.config.CookAheadBills.step(ctx, epoch, arbiter)
-			if err != nil {
-				return Verdict{}, err
-			}
-			out.CookAheadBills = &method
-			return method.Verdict, nil
-		}},
-	{name: "artBills", concern: policy.MaintainArt, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction, domain.RemoveProductionBillAction}, sections: sectionsBills,
-		configured: func(c *ClockSchedulerConfig) bool { return c.ArtBills != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			method, err := s.config.ArtBills.step(ctx, epoch, arbiter)
-			if err != nil {
-				return Verdict{}, err
-			}
-			out.ArtBills = &method
-			return method.Verdict, nil
-		}},
-	{name: "exportBills", concern: policy.MaintainTrade, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction, domain.RemoveProductionBillAction}, sections: sectionsBills,
-		configured: func(c *ClockSchedulerConfig) bool { return c.ExportBills != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			method, err := s.config.ExportBills.step(ctx, epoch, arbiter)
-			if err != nil {
-				return Verdict{}, err
-			}
-			out.ExportBills = &method
 			return method.Verdict, nil
 		}},
 	{name: "basicComfort", concern: policy.EnsureComfort, class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, sections: sectionsBuilding,
@@ -545,8 +490,14 @@ var plannerCatalog = []plannerEntry{
 			out.GeneBank = &method
 			return method.Verdict, nil
 		}},
+	// workLedger also files the verdicts of the bill purposes
+	// (RoundsLedgerResult.Reports): when a priority gate holds it, it holds
+	// them with it.
 	{name: "workLedger", concern: policy.MaintainWorkLedger, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction, domain.RemoveProductionBillAction}, sections: sectionsBills,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Ledger != nil },
+		held: func(s *ClockScheduler, v Verdict, out *ClockSchedulerResult) {
+			out.Ledger = &RoundsLedgerResult{Verdict: v, Reports: s.config.Ledger.reviewer.heldReports(v)}
+		},
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Ledger.step(ctx, epoch, arbiter)
 			if err != nil {
@@ -950,8 +901,11 @@ func heldByPriority(entry plannerEntry, review *store.RoundsResult) (Verdict, bo
 }
 
 // awaiting is the run of a planner a priority gate holds.
-func awaiting(v Verdict) func(*ClockScheduler, context.Context, context.Context, *ClockSchedulerResult, *stepArbiter) (Verdict, error) {
-	return func(*ClockScheduler, context.Context, context.Context, *ClockSchedulerResult, *stepArbiter) (Verdict, error) {
+func (e plannerEntry) awaiting(v Verdict) func(*ClockScheduler, context.Context, context.Context, *ClockSchedulerResult, *stepArbiter) (Verdict, error) {
+	return func(s *ClockScheduler, _, _ context.Context, out *ClockSchedulerResult, _ *stepArbiter) (Verdict, error) {
+		if e.held != nil {
+			e.held(s, v, out)
+		}
 		return v, nil
 	}
 }
@@ -970,7 +924,7 @@ func (s *ClockScheduler) queuePlanners(ctx, epoch context.Context, wave *planner
 			continue
 		}
 		if pending, held := heldByPriority(entry, review); held {
-			entry.run = awaiting(pending)
+			entry.run = entry.awaiting(pending)
 		}
 		if startup && entry.startup || immediateReview(ctx) && immediatePlanner(entry) {
 			entry.class = classCritical
