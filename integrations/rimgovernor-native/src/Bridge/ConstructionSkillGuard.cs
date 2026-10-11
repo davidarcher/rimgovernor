@@ -25,10 +25,13 @@ namespace HomeBridge.BridgeTools
             setting.Minimum = minimum;
         }
         // The tier is mutable while the target is unfinished; the finishing floor is not.
+        // A target with no site to gate (an instant building or a zero-work sleeping spot is placed
+        // finished, or the cell holds a finished building) has nothing to bind: skipped, not an error (#2814).
         internal static void SetTier(Thing t, int tier)
         {
-            if (!(t is Blueprint_Build || t is Frame) || t.Faction != Faction.OfPlayer || tier < 0 || tier > MaxTier)
+            if (t.Faction != Faction.OfPlayer || tier < 0 || tier > MaxTier)
                 throw new InvalidOperationException("Invalid construction tier target or tier.");
+            if (!(t is Blueprint_Build || t is Frame)) return;
             Entry(t).Tier = tier;
         }
         internal const int MaxTier = 5;

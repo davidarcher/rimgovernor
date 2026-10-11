@@ -73,6 +73,30 @@ func TestClearanceAdmissionFollowsRepairsAndPrecedesCleaning(t *testing.T) {
 	check(false)
 }
 
+// While the Foothold shelter is unmet the housing latch sits at HousingShelter
+// and clearance waits with it (#2814); once the shelter stands it is released.
+func TestClearanceHeldWhileInitialShelterOwed(t *testing.T) {
+	f := stableRounds()
+	f.Upkeep.Clearance = domain.Known([]ClearanceTarget{{EntityID: "ruin", InHome: true, Deconstructible: true}})
+	held := func() bool {
+		r := needs(t, f, RoundsLatches{})
+		for _, g := range r.Concerns {
+			if g.ID == ClearHomeObstructions {
+				return g.MethodUnavailable
+			}
+		}
+		t.Fatal("clearance not raised")
+		return false
+	}
+	if held() {
+		t.Fatal("clearance held with the shelter standing")
+	}
+	f.IndoorCapacity = domain.Known(int64(0))
+	if !held() {
+		t.Fatal("clearance not held while the shelter is owed")
+	}
+}
+
 func TestChunkHoldsAndPendingDeficit(t *testing.T) {
 	chunk := func(id string, forbidden, stored, destination bool) ClearanceChunk {
 		return ClearanceChunk{EntityID: id, DefName: "ChunkGranite", Cell: domain.Cell{X: 1, Z: 1}, Forbidden: forbidden, Stored: stored, Destination: destination}

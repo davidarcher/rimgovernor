@@ -235,6 +235,13 @@ func waitingHeld(ctx context.Context, name string, w roomWork, refused ...refuse
 // is committed: foreign obstructions, removals, installs from packed stock,
 // then the on-site builds (commitBuilds).
 func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, stock *packedStock, rr roomReconcile) (RoundsBuildingResult, error) {
+	// The initial shelter comes first: no other room raises a ring while it
+	// is owed, so the builder's labor and the start kit go to it (#2814).
+	if b.concern != policy.MaintainHousing {
+		if owed, err := initialShelterOwed(call, b.reviewer.player, review); err != nil || owed {
+			return RoundsBuildingResult{Verdict: BuildingShelterPending}, err
+		}
+	}
 	facts := reading.Projection
 	plan, known := facts.LayoutPlan.Value()
 	if !known {
@@ -655,9 +662,36 @@ func shellMaterials(facts observation.ColonyProjection, wall, door string, choos
 		return "", "", fieldUnavailable("wall_door_availability"), false
 	}
 	if choose != nil {
-		return choose(wallDef, doorDef)
+		wallStuff, doorStuff, refusal, ok = choose(wallDef, doorDef)
+	} else {
+		wallStuff, doorStuff, refusal, ok = sharedShellStuff(facts, wallDef, doorDef)
 	}
-	return sharedShellStuff(facts, wallDef, doorDef)
+	if ok && unstockedUntilKitAllowed(facts, wallStuff, doorStuff) {
+		return "", "", awaitingPlan("start_kit", "forbidden"), false
+	}
+	return wallStuff, doorStuff, refusal, ok
+}
+
+// unstockedUntilKitAllowed is whether a stuff the ring would be placed in has
+// no accessible stock while the start kit is still forbidden: every start item
+// begins forbidden, so the stock census reads empty until the supply planner
+// allows the kit, and the stuff then falls to the best ranked one (stone
+// blocks the map does not have). The ring waits for the kit instead of laying
+// blueprints nothing can build (#2814).
+func unstockedUntilKitAllowed(facts observation.ColonyProjection, stuffs ...string) bool {
+	stock, known := facts.Stock()
+	if !known {
+		return false
+	}
+	if forbidden, known := forbiddenSupplies(facts.Facts.EventLoot).Value(); !known || !forbidden {
+		return false
+	}
+	for _, stuff := range stuffs {
+		if stuff != "" && stock[policy.Resource(stuff)] <= 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // withoutOwnBlueprint drops the blockers that are a blueprint of def, the ring

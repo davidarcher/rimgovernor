@@ -89,7 +89,12 @@ held) lives on `Rounds.Stage` and sets the next review's budgets
 (`policy.StageRoundsPolicy`): the research ladder walks 2/5/8/all rungs at
 Foothold/Reserves/Stable/Development; food reserve and wood targets scale 1.5x at
 Stable and 2x at Development. A Foothold colony with shelter unmet promotes shelter
-planning into the critical planner wave. The stage
+planning into the critical planner wave, and while the initial shelter is owed (the housing
+latch at `shelter`) three planners hold themselves with `awaiting_plan:initial_shelter`: every
+other concern's room ring (`reconcileRoom`), the animal pen and map-wide ruin clearance. The
+shelter ring never waits on its bunk rungs (an open rung yields to the ring), and a ring is not
+placed in a stuff with no accessible stock while the start kit is still forbidden
+(`awaiting_plan:start_kit`). The stage
 adds no action kind; the `rounds_review` timeline event carries
 `stage`/`stage_blocker`/`stage_reason`/`stage_held` and `colony_stage` records each
 change. The `clock_step` row carries

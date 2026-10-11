@@ -182,7 +182,8 @@ func (r *RoundsBuildingPlanner) shelterBunks(call context.Context, goal store.Wo
 // stepShelterRoom raises the layout plan's shelter room for this review.
 // The owed ring goes through one reconcile of the planned room,
 // after the initial shelter's bunk rungs when no ring is begun: a bunk rung
-// admitted (or refused) this review is the result. A standing ring waits on
+// admitted (or refused) this review is the result, but a rung merely still
+// open yields to the ring. A standing ring waits on
 // its roof: the window the completed wave lends, else the earlier-shell
 // wait. roofingOnly is an indoor
 // furnishing still waiting on its roof, which holds the rungs and the ring
@@ -228,7 +229,10 @@ func (r *RoundsBuildingPlanner) stepShelterRoom(call, epoch context.Context, s s
 	// The bunks stand on the room once its rock is dug (the ring's reconcile
 	// mines it before any wall).
 	if r.phase == policy.HousingShelter && len(ring) == 0 && len(plan.RoomRock(room, s.facts.Cells).Dig) == 0 {
-		if result, handled, err := r.stepShelterBunks(call, epoch, s, room); err != nil || handled {
+		// An open bunk rung (or one waiting on its clearing) does not hold the
+		// ring: the walls stand on cells the bunks never take, so the rungs
+		// are a follow-on, never a gate (#2814).
+		if result, handled, err := r.stepShelterBunks(call, epoch, s, room); err != nil || handled && !result.Verdict.Is(policy.CauseBunksOpen) {
 			return result, err
 		}
 	}

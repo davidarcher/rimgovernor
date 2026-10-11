@@ -61,6 +61,11 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 	if !workable {
 		return RoundsClearanceResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
+	// Map-wide ruin clearance is Construction work the shelter needs: it waits
+	// for the initial shelter (#2814).
+	if owed, err := initialShelterOwed(call, p, review); err != nil || owed {
+		return RoundsClearanceResult{Verdict: BuildingShelterPending}, err
+	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {

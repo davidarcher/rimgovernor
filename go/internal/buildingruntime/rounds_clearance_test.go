@@ -44,6 +44,7 @@ func TestRoundsReviewQueuesRuinsNearestFirstAndJournalsHolds(t *testing.T) {
 	reviewer, _, _, _, native := roundsFixture(t)
 	v := native.reply.GetObserved()
 	v.ColonistCount = proto.Uint32(2)
+	v.BedCapacity, v.IndoorSleepingCapacity = proto.Uint32(2), proto.Uint32(2) // the initial shelter stands: clearance is not held (#2814)
 	v.WorkerCount = proto.Uint32(2)
 	missing := func(field string) *o.ReadIssue {
 		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
@@ -102,6 +103,7 @@ func clearanceBatchFixture(t *testing.T) (*Rounder, *store.Store, *RoundsClearan
 	reviewer, db, _, _, native := roundsFixture(t)
 	v := native.reply.GetObserved()
 	v.ColonistCount, v.WorkerCount = proto.Uint32(2), proto.Uint32(2)
+	v.BedCapacity, v.IndoorSleepingCapacity = proto.Uint32(2), proto.Uint32(2) // the initial shelter stands: clearance is not held (#2814)
 	newRow := func(id string) *o.PawnState {
 		return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(true)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)}, Issues: []*o.ReadIssue{{Field: proto.String("pawn.snapshot"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}, {Field: proto.String("mental_state"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}}
 	}
@@ -294,6 +296,7 @@ func TestRoundsClearanceRefusesPendingChunksWithoutAStore(t *testing.T) {
 	reviewer, db, _, _, native := roundsFixture(t)
 	v := native.reply.GetObserved()
 	v.ColonistCount = proto.Uint32(2)
+	v.BedCapacity, v.IndoorSleepingCapacity = proto.Uint32(2), proto.Uint32(2) // the initial shelter stands: clearance is not held (#2814)
 	v.WorkerCount = proto.Uint32(2)
 	missing := func(field string) *o.ReadIssue {
 		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}

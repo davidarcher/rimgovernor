@@ -160,6 +160,10 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 	if !workable {
 		return RoundsAnimalContainmentResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
+	// The initial shelter comes first: the pen's blueprints wait for it (#2814).
+	if owed, err := initialShelterOwed(call, p, review); err != nil || owed {
+		return RoundsAnimalContainmentResult{Verdict: BuildingShelterPending}, err
+	}
 	penBuilding := false
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)

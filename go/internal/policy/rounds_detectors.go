@@ -452,8 +452,12 @@ func holdFireSafety(*roundsRun) bool { return true }
 // already suspend all development work through the shared emergency gate.
 // While the shrine breach is issued, obstruction clearance waits so
 // the construction hand is the breacher, not a wanderer past the trap line.
+// While the initial shelter is owed (the housing latch still at HousingShelter,
+// the Foothold shelter fact) clearance waits as well: its Deconstruct jobs use
+// the Construction work the shelter needs (#2814). The planner holds the same
+// way; this marks the review.
 func holdClearance(c *roundsRun) bool {
-	return c.upkeep.History.Repairs || c.f.UpkeepIssued[ClearAncientShrine]
+	return c.upkeep.History.Repairs || c.f.UpkeepIssued[ClearAncientShrine] || c.r.Latches.Housing == HousingShelter
 }
 
 // holdShrine: repairs hold the shrine only when their method is served: a

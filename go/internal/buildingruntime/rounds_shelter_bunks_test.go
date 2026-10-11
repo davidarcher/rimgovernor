@@ -162,9 +162,27 @@ func TestRoundsShelterLadderSpotsBedrollsBeds(t *testing.T) {
 	}
 }
 
-// While a spot is not yet standing, or its deletion is open, the bed rung
-// waits rather than overlaying; it never previews a bed then.
-func TestRoundsShelterBedRungWaitsForSpotsAndDeletion(t *testing.T) {
+// While a spot is not yet standing, the bed rung does not hold the ring (#2814):
+// the next review raises the shell, and no bed is previewed over the spots.
+func TestRoundsShelterOpenSpotsYieldToTheRing(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
+	t.Parallel()
+	r, _, n := shelterSiteFixture(t)
+	ctx := context.Background()
+	spots, err := r.Step(ctx)
+	if err != nil || spots.Verdict != BuildingReasonAdmitted {
+		t.Fatal(spots, err)
+	}
+	if ring, err := r.Step(ctx); err != nil || ring.Verdict != BuildingReasonAdmitted || !IsShellMethod(shellMethod(ring.Decision.Standard).Method) {
+		t.Fatal("open spots held the ring", ring, err)
+	}
+	if n.overlays != 0 {
+		t.Fatal("a bed was previewed over a standing spot", n.overlays)
+	}
+}
+
+// With the spots built and their deletion open, the ring goes on and no bed is previewed.
+func TestRoundsShelterOpenDeletionYieldsToTheRing(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, n := shelterSiteFixture(t)
@@ -173,9 +191,6 @@ func TestRoundsShelterBedRungWaitsForSpotsAndDeletion(t *testing.T) {
 	if err != nil || spots.Verdict != BuildingReasonAdmitted {
 		t.Fatal(spots, err)
 	}
-	if held, err := r.Step(ctx); err != nil || !held.Verdict.Is(policy.CauseBunksOpen) {
-		t.Fatal("open spots did not hold the bed rung", held, err)
-	}
 	completeRoundsBuildingMethod(t, db, spots)
 	settleBunks(t, r, db, n)
 	standBunks(n, standingBunks{"SleepingSpot", bunkAnchors(t, mustLoad(t, db, methodPlan(t, spots.Decision, shelterSpotsMethod)), "SleepingSpot")})
@@ -183,8 +198,8 @@ func TestRoundsShelterBedRungWaitsForSpotsAndDeletion(t *testing.T) {
 	if err != nil || clearing.Verdict != BuildingReasonAdmitted {
 		t.Fatal(clearing, err)
 	}
-	if held, err := r.Step(ctx); err != nil || !held.Verdict.Is(policy.CauseBunksOpen) {
-		t.Fatal("an open deletion did not hold the bed rung", held, err)
+	if ring, err := r.Step(ctx); err != nil || ring.Verdict != BuildingReasonAdmitted || !IsShellMethod(shellMethod(ring.Decision.Standard).Method) {
+		t.Fatal("an open deletion held the ring", ring, err)
 	}
 	if n.overlays != 0 {
 		t.Fatal("a bed was previewed over a standing spot", n.overlays)
