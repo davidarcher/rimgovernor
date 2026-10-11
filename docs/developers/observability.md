@@ -36,7 +36,7 @@ ready.
 | OTLP gRPC / HTTP | `127.0.0.1:4317` / `127.0.0.1:4318` |
 | Grafana | `http://127.0.0.1:3000` (default login `admin` / `admin`) |
 | Data | named volume `lgtm-data`, mounted at `/data`; survives `down` |
-| Dashboards | JSON files in `tools/observability/dashboards/` are provisioned read-only into the `RimGovernor` folder by `dashboards.yaml`; restart the service to pick up new files |
+| Dashboards | JSON files in `tools/observability/dashboards/` (panel list: its README) are provisioned read-only into the `RimGovernor` folder by `dashboards.yaml`; restart the service to pick up new files |
 
 Ports bind to loopback only.
 
