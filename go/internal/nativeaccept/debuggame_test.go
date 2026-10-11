@@ -5,7 +5,7 @@ import "testing"
 func TestDebugStartSpec(t *testing.T) {
 	t.Setenv(MapSizeEnv, "")
 	t.Setenv(PlanetCoverageEnv, "")
-	spec, err := DefaultDebugStart().scenarioStart("abcdefghij", "RimGovernor-debug-200-0_05-quiet").Spec(true)
+	spec, err := DefaultDebugStart().scenarioStart("abcdefghij", "RimGovernor-debug-200-0_05-quiet").Spec(QuietStorytellerDef)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,7 +23,7 @@ func TestDebugStartSpec(t *testing.T) {
 	}
 	// Loud keeps the ordinary storyteller; biomes keep their order and
 	// blanks drop; flat is a wire flag.
-	spec, err = (DebugStart{MapSize: 250, PlanetCoverage: 0.3, Biomes: "TemperateForest, ,TropicalRainforest", Flat: true}).scenarioStart("s", "n").Spec(false)
+	spec, err = (DebugStart{MapSize: 250, PlanetCoverage: 0.3, Biomes: "TemperateForest, ,TropicalRainforest", Flat: true}).scenarioStart("s", "n").Spec(LoudStorytellerDef)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,14 +35,14 @@ func TestDebugStartSpec(t *testing.T) {
 		t.Errorf("size %v", spec)
 	}
 	// A plain start carries no biomes, flat flag or temperature band.
-	spec, _ = (DebugStart{MapSize: 200, PlanetCoverage: 0.05}).scenarioStart("s", "n").Spec(true)
+	spec, _ = (DebugStart{MapSize: 200, PlanetCoverage: 0.05}).scenarioStart("s", "n").Spec(QuietStorytellerDef)
 	for _, k := range []string{"biomes", "flatTile", "minTemperature", "maxTemperature", "worldTemperature"} {
 		if _, has := spec[k]; has {
 			t.Errorf("plain spec carries %s", k)
 		}
 	}
 	// An empty seed is refused by the spec; generateDebugStart draws one first.
-	if _, err := (DebugStart{MapSize: 200, PlanetCoverage: 0.05}).scenarioStart("", "n").Spec(true); err == nil {
+	if _, err := (DebugStart{MapSize: 200, PlanetCoverage: 0.05}).scenarioStart("", "n").Spec(QuietStorytellerDef); err == nil {
 		t.Error("empty seed accepted")
 	}
 }

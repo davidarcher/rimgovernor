@@ -2,9 +2,12 @@ package nativeaccept
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 )
 
 // Storytellers a scenario start asks for: the production RimGovernorQuiet def
@@ -37,6 +40,12 @@ type ScenarioStart struct {
 	// WorldTemperature is a RimWorld OverallTemperature name; empty leaves native's default.
 	WorldTemperature string
 	Size             DebugStart
+	// Storyteller is a StorytellerDef name (Randy Random is "Randy"); empty
+	// takes the run's default, QuietStorytellerDef or LoudStorytellerDef.
+	Storyteller string
+	// Parts are scenario parts added to the base scenario (forced traits,
+	// scattered things, permanent conditions...), in the wire's JSON shape.
+	Parts httpapi.NewColonyPartsDTO
 	// SaveName is the save the op writes; empty is DefaultScenarioSaveName.
 	SaveName string
 	// Timeout bounds the whole start (timeoutMs); zero is NewColonyTimeout.
@@ -50,9 +59,18 @@ func (ScenarioStart) saves() []string      { return nil }
 func (ScenarioStart) fixtureOps() []string { return nil }
 func (v ScenarioStart) world() worldSource { return worldSource{seed: v.Seed, pinned: true} }
 
-// Spec is the op's wire spec for v. quiet picks the storyteller. A temperature
-// band of 0..0 or the unconstrained -100..100 is left out.
-func (v ScenarioStart) Spec(quiet bool) (map[string]any, error) {
+// DefaultStoryteller is the storyteller a start without its own asks for.
+func DefaultStoryteller(quiet bool) string {
+	if quiet {
+		return QuietStorytellerDef
+	}
+	return LoudStorytellerDef
+}
+
+// Spec is the op's wire spec for v. v.Storyteller wins; empty takes
+// defaultStoryteller. A temperature band of 0..0 or the unconstrained
+// -100..100 is left out.
+func (v ScenarioStart) Spec(defaultStoryteller string) (map[string]any, error) {
 	if v.Seed == "" {
 		return nil, fmt.Errorf("scenario start needs a pinned seed")
 	}
@@ -61,9 +79,9 @@ func (v ScenarioStart) Spec(quiet bool) (map[string]any, error) {
 	if difficulty == "" {
 		difficulty = "Rough"
 	}
-	storyteller := LoudStorytellerDef
-	if quiet {
-		storyteller = QuietStorytellerDef
+	storyteller := v.Storyteller
+	if storyteller == "" {
+		storyteller = defaultStoryteller
 	}
 	saveName := v.SaveName
 	if saveName == "" {
@@ -87,6 +105,18 @@ func (v ScenarioStart) Spec(quiet bool) (map[string]any, error) {
 	if constrained {
 		spec["minTemperature"], spec["maxTemperature"] = v.MinTemperature, v.MaxTemperature
 	}
+	// The DTO's omitempty tags leave out every part the start does not name.
+	raw, err := json.Marshal(v.Parts)
+	if err != nil {
+		return nil, err
+	}
+	var parts map[string]any
+	if err := json.Unmarshal(raw, &parts); err != nil {
+		return nil, err
+	}
+	for key, value := range parts {
+		spec[key] = value
+	}
 	return spec, nil
 }
 
@@ -104,7 +134,7 @@ func (v ScenarioStart) load(ctx context.Context, s *Session, quiet QuietMode) (m
 // Run starts v through the op on h's main-menu game and waits for the
 // completed colony (paused, saved). The caller owns resuming the clock.
 func (v ScenarioStart) Run(ctx context.Context, h *Harness, quiet bool) (NewColonyRun, error) {
-	spec, err := v.Spec(quiet)
+	spec, err := v.Spec(DefaultStoryteller(quiet))
 	if err != nil {
 		return NewColonyRun{}, err
 	}

@@ -4,15 +4,17 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 )
 
 // withGenerator swaps the baseline generator for fn and counts its calls.
 func withGenerator(t *testing.T, fn func(c *Config) error) *int {
 	t.Helper()
 	calls := 0
-	previous := generateBaseline
-	generateBaseline = func(c *Config) error { calls++; return fn(c) }
-	t.Cleanup(func() { generateBaseline = previous })
+	previous := generateStart
+	generateStart = func(c *Config, _ ScenarioStart) error { calls++; return fn(c) }
+	t.Cleanup(func() { generateStart = previous })
 	return &calls
 }
 
@@ -117,7 +119,7 @@ func TestEnsureSaveIgnoresOtherSaves(t *testing.T) {
 }
 
 func TestBaselineStartSpec(t *testing.T) {
-	spec, err := BaselineStart.Spec(true)
+	spec, err := BaselineStart.Spec(QuietStorytellerDef)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,10 +137,10 @@ func TestBaselineStartSpec(t *testing.T) {
 }
 
 func TestScenarioStartSpecRules(t *testing.T) {
-	if _, err := (ScenarioStart{Scenario: "LostTribe", Count: 1}).Spec(true); err == nil {
+	if _, err := (ScenarioStart{Scenario: "LostTribe", Count: 1}).Spec(QuietStorytellerDef); err == nil {
 		t.Fatal("a start without a seed was accepted")
 	}
-	loud, err := (ScenarioStart{Scenario: "Crashlanded", Count: 3, Seed: "s", MinTemperature: -10, MaxTemperature: 5}).Spec(false)
+	loud, err := (ScenarioStart{Scenario: "Crashlanded", Count: 3, Seed: "s", MinTemperature: -10, MaxTemperature: 5}).Spec(LoudStorytellerDef)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,8 +148,55 @@ func TestScenarioStartSpecRules(t *testing.T) {
 		loud["saveName"] != DefaultScenarioSaveName {
 		t.Fatalf("spec = %v", loud)
 	}
-	open, _ := (ScenarioStart{Scenario: "Crashlanded", Count: 3, Seed: "s", MinTemperature: -100, MaxTemperature: 100}).Spec(true)
+	open, _ := (ScenarioStart{Scenario: "Crashlanded", Count: 3, Seed: "s", MinTemperature: -100, MaxTemperature: 100}).Spec(QuietStorytellerDef)
 	if _, ok := open["minTemperature"]; ok {
 		t.Fatalf("the unconstrained band was sent: %v", open)
+	}
+}
+
+func TestScenarioStartStorytellerAndParts(t *testing.T) {
+	jogger, one := int32(0), float32(1)
+	start := ScenarioStart{Scenario: "Crashlanded", Count: 1, Seed: "s", Storyteller: "Randy"}
+	start.Parts.ForcedTraits = append(start.Parts.ForcedTraits, httpapi.ForcedTraitDTO{Trait: "Jogger", Degree: &jogger, Chance: &one, Context: "player_starter"})
+	spec, err := start.Spec(QuietStorytellerDef)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec["storyteller"] != "Randy" {
+		t.Fatalf("the start's storyteller lost to the default: %v", spec["storyteller"])
+	}
+	if traits, _ := spec["forcedTraits"].([]any); len(traits) != 1 {
+		t.Fatalf("forced traits = %v", spec["forcedTraits"])
+	}
+	if _, ok := spec["startingThings"]; ok {
+		t.Fatalf("an unnamed part kind was sent: %v", spec)
+	}
+}
+
+func TestEnsureSaveRegeneratesChangedStampedStart(t *testing.T) {
+	start := ScenarioStart{Scenario: "Crashlanded", Count: 1, Seed: "stamped-a", SaveName: "stamped-test-2754"}
+	stampedStarts[start.SaveName] = start
+	t.Cleanup(func() { delete(stampedStarts, start.SaveName) })
+	root := t.TempDir()
+	calls := 0
+	previous := generateStart
+	generateStart = func(c *Config, s ScenarioStart) error {
+		calls++
+		return os.WriteFile(startSavePath(c.Root, s.SaveName), []byte("save"), 0o644)
+	}
+	t.Cleanup(func() { generateStart = previous })
+	if err := os.MkdirAll(filepath.Dir(startSavePath(root, start.SaveName)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := &Config{Root: root}
+	for range 2 {
+		if err := cfg.EnsureSave(start.SaveName); err != nil || calls != 1 {
+			t.Fatalf("calls = %d, want 1: %v", calls, err)
+		}
+	}
+	start.Parts.DisabledIncidents = []string{"WandererJoin"}
+	stampedStarts[start.SaveName] = start
+	if err := cfg.EnsureSave(start.SaveName); err != nil || calls != 2 {
+		t.Fatalf("a changed part did not regenerate: calls = %d, %v", calls, err)
 	}
 }

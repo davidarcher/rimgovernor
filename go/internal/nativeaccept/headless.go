@@ -550,10 +550,12 @@ func IsolatedRoot(source, destination string) (string, error) {
 	// The baseline is generated on first use (Config.EnsureSave), so a source
 	// root that has not run a case yet has none to hand the worker; the worker
 	// then generates its own. A present baseline travels with its stamp.
-	if info, err := os.Stat(baselineSavePath(source)); err == nil && !info.IsDir() {
-		required = append(required, filepath.Join("profile", "Saves", BaselineSave))
-		if _, err := os.Stat(baselineStampPath(source)); err == nil {
-			required = append(required, filepath.Join("profile", "Saves", BaselineName+baselineStampSuffix))
+	for name := range stampedStarts {
+		if info, err := os.Stat(startSavePath(source, name)); err == nil && !info.IsDir() {
+			required = append(required, filepath.Join("profile", "Saves", name+".rws"))
+			if _, err := os.Stat(startStampPath(source, name)); err == nil {
+				required = append(required, filepath.Join("profile", "Saves", name+baselineStampSuffix))
+			}
 		}
 	}
 	for _, relative := range required {
