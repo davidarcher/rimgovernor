@@ -412,7 +412,10 @@ func (r *RoundsFirebreakPlanner) step(call, epoch context.Context, arbiter *step
 	if p.session.State() != state {
 		return RoundsFirebreakResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", firebreakPrefix, review.Tick))
+	// An ordinal, not the review tick: the owner binds a method id once per
+	// epoch, and a retired plan leaves its method bound, so a replay at the
+	// same tick (or after authority churn) must name a fresh one.
+	method := nextMethodID(firebreakPrefix, historyMethodIDs(goal.History, goal.Standard.Episode))
 	if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, fmt.Sprintf("firebreak cut %d cells, deconstruct %d ruins", actions.cut, actions.ruins), plan); err != nil {
 		return RoundsFirebreakResult{}, err
 	}

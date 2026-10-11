@@ -1,13 +1,80 @@
 package buildingruntime
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
+
+type noFirebreakSource struct{}
+
+func (noFirebreakSource) ReadDefenseSite(context.Context, *c.Identity, bridge.CellRect) (bridge.DefenseSite, bridge.Result, error) {
+	return bridge.DefenseSite{}, bridge.Result{}, errors.New("unexpected defense site read")
+}
+
+// A second round whose first firebreak plan was cancelled (authority churn
+// retires it) finds the owner's method still bound; it admits a fresh
+// ordinal method instead of failing "method already bound" every round.
+func TestFirebreakSecondRoundAfterChurnMintsFreshMethod(t *testing.T) {
+	ctx := context.Background()
+	reviewer, db, session, _, _ := roundsFixture(t)
+	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainFirebreak})
+	review, err := reviewer.Step(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var id domain.ConcernID
+	for _, b := range review.Review.Standards {
+		if b.Concern == policy.MaintainFirebreak {
+			id = b.Standard
+		}
+	}
+	if id == "" {
+		t.Fatal("MaintainFirebreak is not bound", review.Review.Standards)
+	}
+	state := session.State()
+	goal, err := db.LoadStandard(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.ReviewStandard(ctx, id, goal.Revision, state.Snapshot, review.Review.Tick, domain.FindingUnmet); err != nil {
+		t.Fatal(err)
+	}
+	planner, err := NewRoundsFirebreakPlanner(reviewer, noFirebreakSource{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	planner.memory.world, planner.memory.tick = stockpileWorld(state.Snapshot), review.Review.Tick
+	planner.memory.work = policy.FirebreakWork{Cut: []domain.Cell{{X: 3, Z: 1}}}
+	call, epoch, done, err := reviewer.player.enter(ctx, "test", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer done()
+	first, err := planner.step(call, epoch, nil)
+	if err != nil || first.Verdict != BuildingReasonAdmitted {
+		t.Fatal(first, err)
+	}
+	plan, err := db.LoadPlan(ctx, first.Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, action := range plan.Spec.Actions() {
+		if _, err = db.Cancel(ctx, first.Plan, action.ID()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	second, err := planner.step(call, epoch, nil)
+	if err != nil || second.Verdict != BuildingReasonAdmitted || second.Plan == first.Plan {
+		t.Fatal("second round", second, err)
+	}
+}
 
 func TestFirebreakActionsCutAndRuins(t *testing.T) {
 	ruins := map[domain.Cell]domain.CoverClearance{}
