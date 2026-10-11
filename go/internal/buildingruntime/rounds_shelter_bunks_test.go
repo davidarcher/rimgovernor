@@ -362,7 +362,7 @@ func TestRoundsShelterRestartKeepsBunks(t *testing.T) {
 	if again, err := restarted.Step(ctx); err != nil || again.Verdict != BuildingReasonExistingWork {
 		t.Fatal("repeat review", again, err)
 	}
-	if goal, err := db.LoadStandard(ctx, domain.ConcernID(standard.OwnerID())); err != nil || len(goal.Methods) != 3 {
+	if goal, err := db.LoadStandard(ctx, domain.StandardID(standard.OwnerID())); err != nil || len(goal.Methods) != 3 {
 		t.Fatal(goal.Methods, err)
 	}
 }

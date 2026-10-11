@@ -56,11 +56,11 @@ func init() {
 // joinerAnswer is what the durable journal proves for the offer: the
 // MaintainPopulation method whose plan carries a QuestAccept for it.
 type joinerAnswer struct {
-	Concern domain.ConcernID `json:"concern"`
-	Episode uint64           `json:"epoch"`
-	Plan    domain.PlanID    `json:"plan"`
-	Reward  int32            `json:"reward_choice"`
-	Stage   string           `json:"stage"`
+	Standard domain.StandardID `json:"concern"`
+	Episode  uint64            `json:"epoch"`
+	Plan     domain.PlanID     `json:"plan"`
+	Reward   int32             `json:"reward_choice"`
+	Stage    string            `json:"stage"`
 }
 
 // joinerAnswers lists every QuestAccept plan MaintainPopulation has ever
@@ -96,7 +96,7 @@ func joinerAnswers(ctx context.Context, st *store.Store) (map[domain.QuestID]joi
 					if !ok {
 						continue
 					}
-					out[accept.Quest()] = joinerAnswer{Concern: binding.Standard, Episode: epoch, Plan: m.Plan, Reward: accept.RewardChoice(), Stage: string(plan.Progress[i].View().Stage)}
+					out[accept.Quest()] = joinerAnswer{Standard: binding.Standard, Episode: epoch, Plan: m.Plan, Reward: accept.RewardChoice(), Stage: string(plan.Progress[i].View().Stage)}
 				}
 			}
 		}

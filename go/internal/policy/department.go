@@ -23,23 +23,55 @@ const (
 // DepartmentOf tags id with its colony area; an unknown id is DepartmentUnknown.
 func DepartmentOf(id ConcernID) Department { return inspectionIndex[id].Department }
 
-// StockpileZoneLimit is the number of stockpile-zone creations one method of
-// concern may carry; zero means the concern owns no store. A department's
-// concerns own their stores: ClearHomeObstructions keeps its chunk
-// dump until that zone goes, and MaintainStockpiles applies every declaration
-// of the storage planner in one batch.
-func StockpileZoneLimit(concern ConcernID) int {
-	if concern == MaintainStockpiles {
-		return 16
-	}
-	if concern == ClearHomeObstructions {
-		return 1
-	}
-	if d, ok := InspectionFor(concern); ok {
-		switch d.Department {
-		case DepartmentFood, DepartmentIndustry, DepartmentMilitary, DepartmentMedical, DepartmentPeople:
-			return 1
-		}
-	}
-	return 0
+// stockpileZoneLimits is the number of stockpile-zone creations one method of
+// each Standard Concern (and Project kind) that owns stores may carry.
+// ClearHomeObstructions keeps its chunk dump until that zone goes, and
+// MaintainStockpiles applies every declaration of the storage planner in one
+// batch. A concern absent from the table owns no store.
+var stockpileZoneLimits = map[ConcernID]int{
+	MaintainStockpiles:    16,
+	ClearHomeObstructions: 1,
+	// Food
+	EnsureFoodSupply:      1,
+	EnsureCooking:         1,
+	MaintainBabyFeeding:   1,
+	MaintainFoodStorage:   1,
+	MaintainRefrigeration: 1,
+	RemoveBlight:          1,
+	// Industry
+	EnsureBasicPower:   1,
+	EnsureResearch:     1,
+	MaintainResource:   1,
+	MaintainTrade:      1,
+	MaintainWorkLedger: 1,
+	MaintainMechs:      1,
+	EnsureMechCharger:  1,
+	// Military
+	EnsureBasicDefense:    1,
+	ClearPests:            1,
+	MaintainEquipment:     1,
+	MaintainTraining:      1,
+	EnsureDefensiveLayout: 1,
+	ClearAncientShrine:    1,
+	// Medical
+	MaintainMedicalReserves: 1,
+	MaintainSurgery:         1,
+	MaintainGeneBank:        1,
+	// People
+	EnsureWorkAssignments:     1,
+	MaintainPsylink:           1,
+	MaintainIdeoRoles:         1,
+	ImproveIdeoligion:         1,
+	MaintainRituals:           1,
+	HoldGatherings:            1,
+	MaintainPermits:           1,
+	ManageCreepJoiners:        1,
+	MaintainHerd:              1,
+	MaintainPopulation:        1,
+	MaintainAnimalContainment: 1,
+	MaintainBurial:            1,
 }
+
+// StockpileZoneLimit is the number of stockpile-zone creations one method of
+// concern may carry; zero means the concern owns no store.
+func StockpileZoneLimit(concern ConcernID) int { return stockpileZoneLimits[concern] }

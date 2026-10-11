@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -284,8 +285,8 @@ func commitIncidentMethod(ctx context.Context, tx *Tx, id domain.IncidentID, met
 	if open {
 		return IncidentState{}, ErrOpenMethod
 	}
-	if err = (domain.Method{Owner: domain.ConcernID(id), Method: method, Plan: plan.ID()}).Validate(); err != nil {
-		return IncidentState{}, err
+	if strings.TrimSpace(string(method)) == "" {
+		return IncidentState{}, errors.New("incident method needs an id")
 	}
 	if err = bindOwnerMethod(ctx, tx, state, method, reason, plan); err != nil {
 		return IncidentState{}, err

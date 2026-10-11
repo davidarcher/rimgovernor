@@ -2,7 +2,11 @@ package domain
 
 import "errors"
 
+// ConcernID names a Concern (what a Round inspects).
 type ConcernID string
+
+// StandardID names one Standard row: "routine-<hex16 world digest>-<concern>-<gen>".
+type StandardID string
 type MethodID string
 type StandardStatus string
 
@@ -42,7 +46,9 @@ func (s Situation) Finding() Finding { return Finding(s) }
 // Standard records a maintained outcome. Executable methods reference ordinary shared
 // plans; their receipts, progress and uncertainty stay in those plans.
 type Standard struct {
-	ID               ConcernID
+	ID StandardID
+	// Kind is the Concern the Standard serves.
+	Kind             ConcernID
 	Priority         int
 	Snapshot         GenerationSnapshot
 	Episode          uint64
@@ -58,12 +64,12 @@ type Standard struct {
 // MaxStandardRecord bounds Standard.Record in bytes.
 const MaxStandardRecord = 4096
 
-func NewStandard(id ConcernID, priority int, snapshot GenerationSnapshot) (Standard, error) {
-	g := Standard{ID: id, Priority: priority, Snapshot: snapshot, Status: StandardOpen, Finding: FindingUnclear}
+func NewStandard(id StandardID, kind ConcernID, priority int, snapshot GenerationSnapshot) (Standard, error) {
+	g := Standard{ID: id, Kind: kind, Priority: priority, Snapshot: snapshot, Status: StandardOpen, Finding: FindingUnclear}
 	return g, g.Validate()
 }
 func (g Standard) Validate() error {
-	if !validID(string(g.ID)) || g.Priority < 0 || g.Priority > MaxPriority || g.Snapshot.Validate() != nil {
+	if !validID(string(g.ID)) || !validID(string(g.Kind)) || g.Priority < 0 || g.Priority > MaxPriority || g.Snapshot.Validate() != nil {
 		return errors.New("invalid standard")
 	}
 	if len(g.Record) > MaxStandardRecord {
@@ -148,8 +154,8 @@ func ReviewStandard(g Standard, current GenerationSnapshot, need Finding, openWo
 // Method binds a selected method to its original Episode and executable plan.
 // Renewed deficits get a new Episode; the old plan remains available for readback.
 type Method struct {
-	// Owner is the Standard, Project or Incident id the method binds to.
-	Owner   ConcernID
+	// Owner is the Standard row the method binds to.
+	Owner   StandardID
 	Episode uint64
 	Method  MethodID
 	Plan    PlanID

@@ -456,7 +456,7 @@ func SampleStandard(ctx context.Context, s *store.Store, need policy.ConcernID) 
 	if policy.IsProjectKind(need) {
 		return sampleProject(ctx, s, review, need, sample)
 	}
-	var concernID domain.ConcernID
+	var concernID domain.StandardID
 	for _, binding := range review.Standards {
 		if binding.Concern == need {
 			concernID = binding.Standard

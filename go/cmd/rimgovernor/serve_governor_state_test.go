@@ -60,9 +60,9 @@ func TestWorldRebuildRereadsSaveOnWorldChange(t *testing.T) {
 	}
 }
 
-func governorStandardBlob(t *testing.T, id domain.ConcernID, colony domain.ColonyID, revision uint64) string {
+func governorStandardBlob(t *testing.T, id domain.StandardID, colony domain.ColonyID, revision uint64) string {
 	t.Helper()
-	g, err := domain.NewStandard(id, 1, domain.GenerationSnapshot{Colony: colony, Load: "l", Plan: "p"})
+	g, err := domain.NewStandard(id, "MaintainHousing", 1, domain.GenerationSnapshot{Colony: colony, Load: "l", Plan: "p"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +144,7 @@ func TestWorldRebuildEmptySaveStartsWithoutGoals(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer database.Close()
-	g, err := domain.NewStandard("stale", 1, domain.GenerationSnapshot{Colony: "c", Load: "l", Plan: "p"})
+	g, err := domain.NewStandard("stale", "MaintainHousing", 1, domain.GenerationSnapshot{Colony: "c", Load: "l", Plan: "p"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +190,7 @@ func TestWorldRebuildCancelsOrphanTrade(t *testing.T) {
 	}
 	defer database.Close()
 	snapshot := domain.GenerationSnapshot{Colony: "c", Load: "l", Plan: "p"}
-	g, err := domain.NewStandard("trade", 1, snapshot)
+	g, err := domain.NewStandard("trade", "MaintainTrade", 1, snapshot)
 	if err != nil {
 		t.Fatal(err)
 	}

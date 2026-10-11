@@ -7,12 +7,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func roundsIDs(t *testing.T, out RoundsResult) map[domain.ConcernID]domain.ConcernID {
+func roundsIDs(t *testing.T, out RoundsResult) map[domain.ConcernID]domain.StandardID {
 	t.Helper()
-	ids := map[domain.ConcernID]domain.ConcernID{}
-	for _, b := range out.Review.Standards {
-		if !roundsStandardOwns(b.Standard, b.Concern) {
-			t.Fatal("malformed routine goal id", b.Standard)
+	ids := map[domain.ConcernID]domain.StandardID{}
+	for i, b := range out.Review.Standards {
+		if out.Standards[i].Standard.Kind != b.Concern || out.Standards[i].Standard.ID != b.Standard {
+			t.Fatal("binding disagrees with its row", b.Standard)
 		}
 		ids[b.Concern] = b.Standard
 	}
@@ -86,23 +86,6 @@ func TestRoundsGoalIdentityRewindBumpsGeneration(t *testing.T) {
 		}
 		if g.Standard.Status != domain.StandardVoided {
 			t.Fatal("rewound row not terminal", g.Standard.Status)
-		}
-	}
-}
-
-func TestRoundsGoalOwnsShape(t *testing.T) {
-	t.Parallel()
-	for id, want := range map[domain.ConcernID]bool{
-		"routine-0123456789abcdef-need-0":  true,
-		"routine-0123456789abcdef-need-12": true,
-		"routine-0123456789abcdef-need":    false,
-		"routine-0123456789abcdef-need-01": false,
-		"routine-0123456789abcdeX-need-0":  false,
-		"routine-0123456789abcdef-other-0": false,
-		"player-0123456789abcdef-need-0":   false,
-	} {
-		if roundsStandardOwns(id, "need") != want {
-			t.Error(id, want)
 		}
 	}
 }

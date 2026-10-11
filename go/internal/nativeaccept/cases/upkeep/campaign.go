@@ -61,10 +61,10 @@ type stage struct {
 // closedGoal is a goal an earlier stage recovered, pinned by identity and
 // Episode.
 type closedStandard struct {
-	Stage   string           `json:"stage"`
-	Need    policy.ConcernID `json:"need"`
-	Concern domain.ConcernID `json:"concern"`
-	Episode uint64           `json:"epoch"`
+	Stage    string            `json:"stage"`
+	Need     policy.ConcernID  `json:"need"`
+	Standard domain.StandardID `json:"concern"`
+	Episode  uint64            `json:"epoch"`
 }
 
 const campaignBudget = 25 * time.Minute
@@ -221,7 +221,7 @@ func runCampaign(ctx context.Context, s cases.Session) error {
 			state.Closed = append(state.Closed, recovered...)
 			row := map[string]any{"stage": st.name, "tick_before": before.Tick, "tick_after": after.Tick, "wall_ms": time.Since(started).Milliseconds()}
 			for _, c := range recovered {
-				row[string(c.Need)] = map[string]any{"concern": string(c.Concern), "epoch": c.Episode}
+				row[string(c.Need)] = map[string]any{"concern": string(c.Standard), "epoch": c.Episode}
 			}
 			state.Timeline = append(state.Timeline, row)
 			report["timeline"] = state.Timeline
@@ -327,15 +327,15 @@ func runStage(ctx context.Context, s cases.Session, service *na.ServiceProcess, 
 		if err != nil {
 			return nil, err
 		}
-		recovered = append(recovered, closedStandard{Stage: st.name, Need: need, Concern: goal.Standard.ID, Episode: goal.Standard.Episode})
+		recovered = append(recovered, closedStandard{Stage: st.name, Need: need, Standard: goal.Standard.ID, Episode: goal.Standard.Episode})
 	}
 	return recovered, nil
 }
 
 // Only a bundle load may rebind the guards, once at the first live review.
 // Subsequent reviews and every stage of a fresh run retain the strict IDs.
-func rebindClosedStandards(ctx context.Context, closed []closedStandard, review store.Rounds, load func(context.Context, domain.ConcernID) (store.StandardState, error)) error {
-	bound := map[policy.ConcernID]domain.ConcernID{}
+func rebindClosedStandards(ctx context.Context, closed []closedStandard, review store.Rounds, load func(context.Context, domain.StandardID) (store.StandardState, error)) error {
+	bound := map[policy.ConcernID]domain.StandardID{}
 	for _, binding := range review.Standards {
 		bound[binding.Concern] = binding.Standard
 	}
@@ -352,7 +352,7 @@ func rebindClosedStandards(ctx context.Context, closed []closedStandard, review 
 		if goal.Standard.Status == domain.StandardVoided {
 			return fmt.Errorf("restored %s is %s in the loaded world", c.Need, goal.Standard.Status)
 		}
-		c.Concern, c.Episode = id, goal.Standard.Episode
+		c.Standard, c.Episode = id, goal.Standard.Episode
 	}
 	return nil
 }
@@ -374,12 +374,12 @@ const recoveredWait = 4 * time.Minute
 // invalidated.
 type closedTracker struct {
 	closed       []closedStandard
-	deficitSince map[domain.ConcernID]domain.Tick
+	deficitSince map[domain.StandardID]domain.Tick
 	reopens      []map[string]any
 }
 
 func newClosedTracker(closed []closedStandard) *closedTracker {
-	return &closedTracker{closed: closed, deficitSince: map[domain.ConcernID]domain.Tick{}, reopens: []map[string]any{}}
+	return &closedTracker{closed: closed, deficitSince: map[domain.StandardID]domain.Tick{}, reopens: []map[string]any{}}
 }
 
 // check reads the journal once and reports which closed goals are in
@@ -395,22 +395,22 @@ func (t *closedTracker) check(ctx context.Context, journal *store.Store) (inDefi
 		}
 		return nil, err
 	}
-	bound := map[policy.ConcernID]domain.ConcernID{}
+	bound := map[policy.ConcernID]domain.StandardID{}
 	for _, binding := range review.Standards {
 		bound[binding.Concern] = binding.Standard
 	}
 	for i := range t.closed {
 		c := &t.closed[i]
-		if id, ok := bound[c.Need]; ok && id != c.Concern {
-			return nil, fmt.Errorf("%s (recovered in stage %s as %s) is bound to a new standard %s in review %d", c.Need, c.Stage, c.Concern, id, review.Revision)
+		if id, ok := bound[c.Need]; ok && id != c.Standard {
+			return nil, fmt.Errorf("%s (recovered in stage %s as %s) is bound to a new standard %s in review %d", c.Need, c.Stage, c.Standard, id, review.Revision)
 		}
-		goal, err := journal.LoadStandard(ctx, c.Concern)
+		goal, err := journal.LoadStandard(ctx, c.Standard)
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil, nil
 			}
 			if errors.Is(err, store.ErrNotFound) {
-				return nil, fmt.Errorf("%s (recovered in stage %s as %s) is gone from the journal", c.Need, c.Stage, c.Concern)
+				return nil, fmt.Errorf("%s (recovered in stage %s as %s) is gone from the journal", c.Need, c.Stage, c.Standard)
 			}
 			return nil, err
 		}
@@ -419,19 +419,19 @@ func (t *closedTracker) check(ctx context.Context, journal *store.Store) (inDefi
 		}
 		if goal.Standard.Episode != c.Episode {
 			t.reopens = append(t.reopens, map[string]any{
-				"need": string(c.Need), "stage": c.Stage, "concern": string(c.Concern),
+				"need": string(c.Need), "stage": c.Stage, "concern": string(c.Standard),
 				"epoch_from": c.Episode, "epoch_to": goal.Standard.Episode, "tick": review.Tick, "review": review.Revision,
 			})
 			c.Episode = goal.Standard.Episode
 		}
 		if goal.Standard.Finding != domain.FindingUnmet {
-			delete(t.deficitSince, c.Concern)
+			delete(t.deficitSince, c.Standard)
 			continue
 		}
-		since, seen := t.deficitSince[c.Concern]
+		since, seen := t.deficitSince[c.Standard]
 		if !seen {
 			since = review.Tick
-			t.deficitSince[c.Concern] = since
+			t.deficitSince[c.Standard] = since
 		}
 		if review.Tick-since > reopenTicks {
 			return nil, fmt.Errorf("%s (recovered in stage %s) reopened at tick %d and is still in deficit at review %d tick %d, past %d ticks", c.Need, c.Stage, since, review.Revision, review.Tick, reopenTicks)
@@ -455,7 +455,7 @@ func (t *closedTracker) waitRecovered(ctx context.Context, journal *store.Store)
 		}
 		if time.Now().After(deadline) {
 			c := inDeficit[0]
-			return fmt.Errorf("%s (recovered in stage %s) reopened at tick %d and is still in deficit after %s", c.Need, c.Stage, t.deficitSince[c.Concern], recoveredWait)
+			return fmt.Errorf("%s (recovered in stage %s) reopened at tick %d and is still in deficit after %s", c.Need, c.Stage, t.deficitSince[c.Standard], recoveredWait)
 		}
 		select {
 		case <-ctx.Done():

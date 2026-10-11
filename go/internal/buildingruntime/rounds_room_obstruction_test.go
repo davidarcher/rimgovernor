@@ -43,7 +43,7 @@ func TestCommitObstructionsCommitsTheFirstKindOwed(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			var goal domain.ConcernID
+			var goal domain.StandardID
 			for _, binding := range review.Standards {
 				if binding.Concern == policy.MaintainRefrigeration {
 					goal = binding.Standard

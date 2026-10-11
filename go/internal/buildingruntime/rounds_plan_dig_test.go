@@ -82,7 +82,7 @@ func rockCoolerStep(t *testing.T) (p *RoundsBuildingPlanner, db *store.Store, n 
 	if err != nil {
 		t.Fatal(err)
 	}
-	var concernID domain.ConcernID
+	var concernID domain.StandardID
 	for _, binding := range review.Standards {
 		if binding.Concern == policy.MaintainRefrigeration {
 			concernID = binding.Standard

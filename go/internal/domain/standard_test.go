@@ -4,7 +4,7 @@ import "testing"
 
 func TestMaintainedGoalUnknownRenewalAndInvalidation(t *testing.T) {
 	_, scope := fixture(t)
-	g, e := NewStandard("food", 2, scope)
+	g, e := NewStandard("food", "EnsureFoodSupply", 2, scope)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -48,7 +48,7 @@ func TestMaintainedGoalUnknownRenewalAndInvalidation(t *testing.T) {
 // same method can repair the regression.
 func TestMaintainedGoalRecoveredWithOpenWorkThenDeficitRenewsEpoch(t *testing.T) {
 	_, scope := fixture(t)
-	g, e := NewStandard("lighting", 3, scope)
+	g, e := NewStandard("lighting", "MaintainLighting", 3, scope)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -77,7 +77,7 @@ func TestMaintainedGoalRecoveredWithOpenWorkThenDeficitRenewsEpoch(t *testing.T)
 }
 func TestMaintainedGoalInvalidatesScopeAndWaitsForEffects(t *testing.T) {
 	progress, scope := dispatched(t)
-	g, e := NewStandard("shelter", 2, scope)
+	g, e := NewStandard("shelter", "MaintainShelter", 2, scope)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -117,7 +117,7 @@ func TestSituationReducesToFinding(t *testing.T) {
 // a real change still differs.
 func TestReviewWithoutChangeReturnsTheGoalEqual(t *testing.T) {
 	_, scope := fixture(t)
-	g, e := NewStandard("lighting", 3, scope)
+	g, e := NewStandard("lighting", "MaintainLighting", 3, scope)
 	if e != nil {
 		t.Fatal(e)
 	}

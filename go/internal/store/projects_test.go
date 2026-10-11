@@ -64,7 +64,7 @@ func TestProjectMethodRoundTripBlobAndRebuild(t *testing.T) {
 	}
 	// One orphan pass over the goal and the project: both plans are handed
 	// over, both method rows go, both owners come back from the save.
-	g, err := domain.NewStandard("routine-0000000000000000-MaintainHousing-0", 2, scope())
+	g, err := domain.NewStandard("routine-0000000000000000-MaintainHousing-0", "MaintainHousing", 2, scope())
 	if err != nil {
 		t.Fatal(err)
 	}

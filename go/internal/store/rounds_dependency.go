@@ -26,8 +26,9 @@ type DependencyCost struct {
 // Episode stays active and any of the actions stays open, for at most
 // domain.TicksPerDay (roundsDependencies).
 type DependencyRecord struct {
-	Need     domain.ConcernID
-	Concern  domain.ConcernID
+	Need domain.ConcernID
+	// Standard is the row the method binds to.
+	Standard domain.StandardID
 	Episode  uint64
 	Method   domain.MethodID
 	Plan     domain.PlanID
@@ -41,7 +42,7 @@ type DependencyRecord struct {
 const maxDependencyRecords = 64
 
 func (d DependencyRecord) validate() error {
-	if d.Need == "" || d.Concern == "" || d.Method == "" || d.Plan == "" || d.Resource == "" || len(d.Costs) == 0 || len(d.Costs) > 256 || d.Available < 0 || d.Observed < 0 {
+	if d.Need == "" || d.Standard == "" || d.Method == "" || d.Plan == "" || d.Resource == "" || len(d.Costs) == 0 || len(d.Costs) > 256 || d.Available < 0 || d.Observed < 0 {
 		return errors.New("invalid dependency record")
 	}
 	for _, c := range d.Costs {
@@ -66,7 +67,7 @@ func ShortfallDependency(need domain.ConcernID, goal domain.Standard, method dom
 	if available < 0 {
 		return DependencyRecord{}, false
 	}
-	rec := DependencyRecord{Need: need, Concern: goal.ID, Episode: goal.Episode, Method: method, Plan: plan, Resource: resource, Available: available, Observed: tick}
+	rec := DependencyRecord{Need: need, Standard: goal.ID, Episode: goal.Episode, Method: method, Plan: plan, Resource: resource, Available: available, Observed: tick}
 	var total int64
 	for _, p := range previews {
 		costs, known := p.Costs.Value()
@@ -107,7 +108,7 @@ func (s *Store) RecordDependency(ctx context.Context, revision uint64, rec Depen
 	}
 	kept := []DependencyRecord{rec}
 	for _, d := range review.Dependencies {
-		if d.Concern != rec.Concern || d.Method != rec.Method || d.Resource != rec.Resource {
+		if d.Standard != rec.Standard || d.Method != rec.Method || d.Resource != rec.Resource {
 			kept = append(kept, d)
 		}
 	}
@@ -131,8 +132,8 @@ func (s *Store) RecordDependency(ctx context.Context, revision uint64, rec Depen
 
 func sortDependencies(d []DependencyRecord) {
 	sort.SliceStable(d, func(i, j int) bool {
-		if d[i].Concern != d[j].Concern {
-			return d[i].Concern < d[j].Concern
+		if d[i].Standard != d[j].Standard {
+			return d[i].Standard < d[j].Standard
 		}
 		if d[i].Method != d[j].Method {
 			return d[i].Method < d[j].Method
@@ -157,7 +158,7 @@ func roundsDependencies(ctx context.Context, tx *Tx, records []DependencyRecord,
 	var admitted []policy.AdmittedCost
 	for _, rec := range records {
 		g, ok := active[rec.Need]
-		if !ok || domain.ConcernID(g.OwnerID()) != rec.Concern || g.OwnerEpisode() != rec.Episode || !ownerActive(g) || tick < rec.Observed || tick-rec.Observed > domain.TicksPerDay {
+		if !ok || domain.StandardID(g.OwnerID()) != rec.Standard || g.OwnerEpisode() != rec.Episode || !ownerActive(g) || tick < rec.Observed || tick-rec.Observed > domain.TicksPerDay {
 			continue
 		}
 		plan, err := load(ctx, tx, rec.Plan)
@@ -217,7 +218,7 @@ func priorAdmitted(ctx context.Context, tx *Tx, previous Rounds, tick domain.Tic
 		if err != nil {
 			return nil, err
 		}
-		bindings, states = append(bindings, RoundsStandard{Concern: b.Concern, Standard: domain.ConcernID(b.Project)}), append(states, g)
+		bindings, states = append(bindings, RoundsStandard{Concern: b.Concern, Standard: domain.StandardID(b.Project)}), append(states, g)
 	}
 	_, admitted, err := roundsDependencies(ctx, tx, previous.Dependencies, bindings, states, tick)
 	return admitted, err

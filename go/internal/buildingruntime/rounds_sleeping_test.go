@@ -271,7 +271,7 @@ func TestRoundsSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
 	r, db, session, _, _ := bedroomFixture(t)
 	ctx := context.Background()
 	snapshot := session.State().Snapshot
-	g, err := domain.NewStandard("player-room", 3, snapshot)
+	g, err := domain.NewStandard("player-room", "MaintainHousing", 3, snapshot)
 	if err != nil {
 		t.Fatal(err)
 	}

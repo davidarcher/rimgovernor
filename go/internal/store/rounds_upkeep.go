@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -26,7 +25,7 @@ func roundsUpkeepIssued(ctx context.Context, tx *Tx, current domain.GenerationSn
 		if !issued {
 			continue
 		}
-		var goal domain.ConcernID
+		var goal domain.StandardID
 		err := tx.QueryRowContext(ctx, "SELECT owner_id FROM plan_methods WHERE plan_id=? AND kind='standard'", plan.Spec.ID()).Scan(&goal)
 		if errors.Is(err, sql.ErrNoRows) {
 			continue
@@ -39,13 +38,13 @@ func roundsUpkeepIssued(ctx context.Context, tx *Tx, current domain.GenerationSn
 			return nil, err
 		}
 		s := g.Standard.Snapshot
-		if s.Colony != current.Colony || s.Load != current.Load || s.Map != current.Map || !strings.HasPrefix(string(goal), "routine-") {
+		if s.Colony != current.Colony || s.Load != current.Load || s.Map != current.Map {
 			continue
 		}
 		// Invalidated methods keep their original goal binding while new routine
 		// goals replace the current review. Their unresolved effects still count.
 		for _, need := range []policy.ConcernID{policy.ClearHomeObstructions, policy.MaintainFireSafety, policy.MaintainEssentialRepairs, policy.MaintainCleanFacilities, policy.MaintainMedicalReserves, policy.MaintainFoodStorage, policy.MaintainAnimalContainment, policy.MaintainHousing, policy.MaintainHomeCoverage, policy.MaintainStoneShell} {
-			if roundsStandardOwns(goal, need) {
+			if g.Standard.Kind == need {
 				result[need] = true
 			}
 		}

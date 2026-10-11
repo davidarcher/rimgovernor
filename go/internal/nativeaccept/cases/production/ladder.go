@@ -226,7 +226,7 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 	if err != nil {
 		return fmt.Errorf("load rounds: %w", err)
 	}
-	goals := map[policy.ConcernID]domain.ConcernID{}
+	goals := map[policy.ConcernID]domain.StandardID{}
 	for _, binding := range review.Standards {
 		goals[binding.Concern] = binding.Standard
 	}

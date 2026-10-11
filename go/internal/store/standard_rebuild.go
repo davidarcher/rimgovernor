@@ -23,7 +23,7 @@ type StandardOrphanPass func(context.Context, []PlanState) error
 // save without goal blobs leaves no goals (D5), without project blobs no
 // projects. An incident's method rows are not touched.
 func (s *Store) RebuildStandards(ctx context.Context, saved map[string]string, orphans StandardOrphanPass) error {
-	goals := map[domain.ConcernID]GovernorStandardBlob{}
+	goals := map[domain.StandardID]GovernorStandardBlob{}
 	for key, blob := range saved {
 		if !strings.HasPrefix(key, GovernorStandardKeyPrefix) {
 			continue
@@ -73,7 +73,7 @@ func (s *Store) RebuildStandards(ctx context.Context, saved map[string]string, o
 			return err
 		}
 	}
-	existing, err := concernIDs(ctx, tx)
+	existing, err := standardIDs(ctx, tx)
 	if err != nil {
 		return err
 	}
@@ -204,15 +204,15 @@ func rebuildProjects(ctx context.Context, tx *Tx, projects map[domain.ProjectID]
 	return nil
 }
 
-func concernIDs(ctx context.Context, tx *Tx) ([]domain.ConcernID, error) {
+func standardIDs(ctx context.Context, tx *Tx) ([]domain.StandardID, error) {
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM standards ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []domain.ConcernID
+	var out []domain.StandardID
 	for rows.Next() {
-		var id domain.ConcernID
+		var id domain.StandardID
 		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}

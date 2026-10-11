@@ -17,7 +17,7 @@ import (
 // component; the store stays authoritative. Each value is ASCII JSON
 // (non-ASCII escaped as \uXXXX) with a top-level "schemaVersion".
 //
-//	standard/<concern id>   GovernorStandardBlob, one per unretired standard;
+//	standard/<standard id>  GovernorStandardBlob, one per unretired standard;
 //	             a retired standard's key is deleted.
 //	project/<project id>   GovernorProjectBlob, one per unretired project
 //	             (finished ones included: they are the record);
@@ -31,7 +31,7 @@ import (
 // (colony, map, tick) of the newest row written. Field names are the
 // Go struct field names encoding/json emits; a breaking change bumps
 // GovernorStateSchemaVersion.
-const GovernorStateSchemaVersion = 4
+const GovernorStateSchemaVersion = 5
 
 const (
 	GovernorStandardKeyPrefix   = "standard/"
@@ -98,9 +98,9 @@ func (s *Store) GovernorStateBlobs(ctx context.Context) (map[string]string, erro
 	if err != nil {
 		return nil, err
 	}
-	var ids []domain.ConcernID
+	var ids []domain.StandardID
 	for rows.Next() {
-		var id domain.ConcernID
+		var id domain.StandardID
 		if err = rows.Scan(&id); err != nil {
 			rows.Close()
 			return nil, err

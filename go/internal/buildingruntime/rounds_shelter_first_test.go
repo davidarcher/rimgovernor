@@ -22,8 +22,8 @@ type defenseHoldSource struct{ RoundsDefenseLayoutSource }
 func shelterOwedReview(finding domain.Finding, emergency ...policy.ConcernID) *store.RoundsResult {
 	review := &store.RoundsResult{Emergency: emergency}
 	review.Review.Latches.Housing = policy.HousingShelter
-	review.Review.Standards = []store.RoundsStandard{{Concern: policy.MaintainHousing, Standard: policy.MaintainHousing}}
-	review.Standards = []store.StandardState{{Standard: domain.Standard{ID: policy.MaintainHousing, Status: domain.StandardOpen, Finding: finding}}}
+	review.Review.Standards = []store.RoundsStandard{{Concern: policy.MaintainHousing, Standard: "housing"}}
+	review.Standards = []store.StandardState{{Standard: domain.Standard{ID: "housing", Kind: policy.MaintainHousing, Status: domain.StandardOpen, Finding: finding}}}
 	return review
 }
 

@@ -60,7 +60,7 @@ func (s *Store) AuthorizeRoundsPlan(ctx context.Context, root, target domain.Gen
 		}
 		return tx.Commit()
 	}
-	goal, err := loadStandard(ctx, tx, domain.ConcernID(ownerID))
+	goal, err := loadStandard(ctx, tx, domain.StandardID(ownerID))
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func roundsActionsSupported(spec domain.PlanSpec) error {
 }
 
 // Need returns the routine need the review binds the goal to.
-func (r Rounds) Need(goal domain.ConcernID) (domain.ConcernID, bool) {
+func (r Rounds) Need(goal domain.StandardID) (domain.ConcernID, bool) {
 	for _, binding := range r.Standards {
 		if binding.Standard == goal {
 			return binding.Concern, true
@@ -204,7 +204,7 @@ func (r Rounds) Veto(g domain.Standard) string {
 // is returned whenever the review binds one, workable or not.
 
 func (s *Store) Workable(ctx context.Context, r Rounds, need policy.ConcernID) (StandardState, bool, error) {
-	id := domain.ConcernID("")
+	id := domain.StandardID("")
 	for _, binding := range r.Standards {
 		if binding.Concern == need {
 			id = binding.Standard

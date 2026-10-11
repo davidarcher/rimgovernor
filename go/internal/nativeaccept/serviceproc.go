@@ -487,7 +487,7 @@ func PlanSignature(state store.PlanState) string {
 // live Methods, so the current epoch's bounded history is consulted too.
 // The wait stalls (StallBudget) when the binding and its method count stop
 // changing.
-func WaitMethod(ctx context.Context, s *store.Store, need policy.ConcernID, previous *domain.Method) (domain.ConcernID, domain.Method, error) {
+func WaitMethod(ctx context.Context, s *store.Store, need policy.ConcernID, previous *domain.Method) (domain.StandardID, domain.Method, error) {
 	var seen map[domain.PlanID]bool
 	if previous != nil {
 		seen = map[domain.PlanID]bool{previous.Plan: true}
@@ -499,13 +499,13 @@ func WaitMethod(ctx context.Context, s *store.Store, need policy.ConcernID, prev
 // plans: a goal whose history holds several settled methods (retired attempts
 // stay in LoadMethods) would otherwise hand the same old plan back on
 // every call that names only the last one.
-func WaitMethodExcluding(ctx context.Context, s *store.Store, need policy.ConcernID, seen map[domain.PlanID]bool) (domain.ConcernID, domain.Method, error) {
+func WaitMethodExcluding(ctx context.Context, s *store.Store, need policy.ConcernID, seen map[domain.PlanID]bool) (domain.StandardID, domain.Method, error) {
 	return waitMethod(ctx, s, Wait{Stall: StallBudget(), Interval: time.Second}, need, seen)
 }
 
 // waitMethod is WaitMethodExcluding under an explicit Wait.
-func waitMethod(ctx context.Context, s *store.Store, w Wait, need policy.ConcernID, seen map[domain.PlanID]bool) (domain.ConcernID, domain.Method, error) {
-	var foundGoal domain.ConcernID
+func waitMethod(ctx context.Context, s *store.Store, w Wait, need policy.ConcernID, seen map[domain.PlanID]bool) (domain.StandardID, domain.Method, error) {
+	var foundGoal domain.StandardID
 	var found domain.Method
 	err := WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRounds(ctx)
@@ -524,13 +524,13 @@ func waitMethod(ctx context.Context, s *store.Store, w Wait, need policy.Concern
 			}
 			for _, method := range project.History {
 				if !seen[method.Plan] {
-					foundGoal, found = domain.ConcernID(id), domain.Method{Owner: domain.ConcernID(id), Method: method.Method, Plan: method.Plan}
+					foundGoal, found = domain.StandardID(id), domain.Method{Owner: domain.StandardID(id), Method: method.Method, Plan: method.Plan}
 					return "", true, nil
 				}
 			}
 			return Signature(id, len(project.History)), false, nil
 		}
-		var concernID domain.ConcernID
+		var concernID domain.StandardID
 		for _, binding := range review.Standards {
 			if binding.Concern == need {
 				concernID = binding.Standard

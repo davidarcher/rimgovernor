@@ -30,7 +30,7 @@ func TestAdmittedMethodDependenciesGateNativeHands(t *testing.T) {
 	}
 	scope := f.authority.Snapshot
 	scope.Plan = plan.ID()
-	goal, err := domain.NewStandard("shelter", 2, scope)
+	goal, err := domain.NewStandard("shelter", "MaintainShelter", 2, scope)
 	if err != nil {
 		t.Fatal(err)
 	}

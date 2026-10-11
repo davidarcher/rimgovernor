@@ -77,7 +77,7 @@ func createStandard(ctx context.Context, tx *Tx, g domain.Standard) error {
 	return nil
 }
 
-func loadStandard(ctx context.Context, tx *Tx, id domain.ConcernID) (StandardState, error) {
+func loadStandard(ctx context.Context, tx *Tx, id domain.StandardID) (StandardState, error) {
 	var out StandardState
 	var data []byte
 	var revision string
@@ -155,7 +155,7 @@ func loadStandard(ctx context.Context, tx *Tx, id domain.ConcernID) (StandardSta
 	return out, rows.Err()
 }
 
-func (s *Store) LoadStandard(ctx context.Context, id domain.ConcernID) (StandardState, error) {
+func (s *Store) LoadStandard(ctx context.Context, id domain.StandardID) (StandardState, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return StandardState{}, err
@@ -242,7 +242,7 @@ func planOpenWork(ctx context.Context, tx *Tx, owner methodOwner) (bool, error) 
 	return false, nil
 }
 
-func (s *Store) ReviewStandard(ctx context.Context, id domain.ConcernID, revision uint64, current domain.GenerationSnapshot, tick domain.Tick, need domain.Finding) (StandardState, error) {
+func (s *Store) ReviewStandard(ctx context.Context, id domain.StandardID, revision uint64, current domain.GenerationSnapshot, tick domain.Tick, need domain.Finding) (StandardState, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return StandardState{}, err
@@ -280,14 +280,14 @@ func (s *Store) ReviewStandard(ctx context.Context, id domain.ConcernID, revisio
 
 // CommitMethod stores the method and its shared plan atomically. Admission
 // and dispatch still belong to existing policy/Hands; this grants no authority.
-func (s *Store) CommitMethod(ctx context.Context, id domain.ConcernID, revision uint64, method domain.MethodID, plan domain.PlanSpec) (StandardState, error) {
+func (s *Store) CommitMethod(ctx context.Context, id domain.StandardID, revision uint64, method domain.MethodID, plan domain.PlanSpec) (StandardState, error) {
 	return s.CommitMethodReason(ctx, id, revision, method, "", plan)
 }
 
 // CommitMethodReason is CommitMethod with the planner's short reason
 // for admitting it (runway, deficit, target); the dispatcher appends it to
 // Operation.intent. Empty stores none.
-func (s *Store) CommitMethodReason(ctx context.Context, id domain.ConcernID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (StandardState, error) {
+func (s *Store) CommitMethodReason(ctx context.Context, id domain.StandardID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (StandardState, error) {
 	if err := plan.Validate(); err != nil {
 		return StandardState{}, err
 	}
@@ -309,7 +309,7 @@ func (s *Store) CommitMethodReason(ctx context.Context, id domain.ConcernID, rev
 	return state, nil
 }
 
-func commitMethod(ctx context.Context, tx *Tx, id domain.ConcernID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (StandardState, error) {
+func commitMethod(ctx context.Context, tx *Tx, id domain.StandardID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (StandardState, error) {
 	state, err := loadStandard(ctx, tx, id)
 	if err != nil {
 		return StandardState{}, err
@@ -428,7 +428,7 @@ func admitOwnerCommit(ctx context.Context, tx *Tx, state WorkOwner, revision uin
 			return ErrOpenMethod
 		}
 	}
-	m := domain.Method{Owner: domain.ConcernID(summary.ID), Episode: summary.Episode, Method: method, Plan: plan.ID()}
+	m := domain.Method{Owner: domain.StandardID(summary.ID), Episode: summary.Episode, Method: method, Plan: plan.ID()}
 	if err = m.Validate(); err != nil {
 		return err
 	}
@@ -531,7 +531,7 @@ func guardStandardWork(ctx context.Context, tx *Tx, floors *retirementFloors, pl
 	case "project":
 		return guardProjectWork(ctx, tx, domain.ProjectID(ownerID), current, tick)
 	}
-	state, err := loadStandard(ctx, tx, domain.ConcernID(ownerID))
+	state, err := loadStandard(ctx, tx, domain.StandardID(ownerID))
 	if err != nil {
 		return err
 	}

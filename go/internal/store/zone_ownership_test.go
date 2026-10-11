@@ -91,7 +91,7 @@ func TestZoneClaimsOwnEveryCreatedComponentWithActualCells(t *testing.T) {
 		t.Fatal(claims, err)
 	}
 	for i, claim := range claims {
-		if claim.ID != rows[i].ID || len(claim.Cells) != 1 || claim.Cells[0] != rows[i].Cells[0] || claim.Concern == "" || claim.Filter != domain.FoodFilter() || claim.Priority != domain.ImportantPriority {
+		if claim.ID != rows[i].ID || len(claim.Cells) != 1 || claim.Cells[0] != rows[i].Cells[0] || claim.Owner == "" || claim.Filter != domain.FoodFilter() || claim.Priority != domain.ImportantPriority {
 			t.Fatal(claim)
 		}
 	}

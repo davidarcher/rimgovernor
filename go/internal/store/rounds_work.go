@@ -23,7 +23,7 @@ type roundsPlan struct {
 // goal: routine plans to their bound need, player submissions to a
 // per-plan project id. Plans of another world, and plans with neither a
 // method nor a submission, are skipped.
-func roundsPlans(ctx context.Context, tx *Tx, current domain.GenerationSnapshot, bindings []RoundsStandard) ([]roundsPlan, error) {
+func roundsPlans(ctx context.Context, tx *Tx, current domain.GenerationSnapshot) ([]roundsPlan, error) {
 	plans, err := loadPlans(ctx, tx)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,6 @@ func roundsPlans(ctx context.Context, tx *Tx, current domain.GenerationSnapshot,
 		world := World{}
 		var kind, ownerID string
 		err = tx.QueryRowContext(ctx, "SELECT kind,owner_id FROM plan_methods WHERE plan_id=?", plan.Spec.ID()).Scan(&kind, &ownerID)
-		concernID = domain.ConcernID(ownerID)
 		if err == nil && kind == "project" {
 			// A Project's method serves its kind, which is its need.
 			p, e := loadProject(ctx, tx, domain.ProjectID(ownerID))
@@ -52,17 +51,12 @@ func roundsPlans(ctx context.Context, tx *Tx, current domain.GenerationSnapshot,
 			concernID = i.Incident.Kind
 			world = World{Colony: i.Incident.Snapshot.Colony, Load: i.Incident.Snapshot.Load, Map: i.Incident.Snapshot.Map}
 		} else if err == nil {
-			g, e := loadStandard(ctx, tx, concernID)
+			g, e := loadStandard(ctx, tx, domain.StandardID(ownerID))
 			if e != nil {
 				return nil, e
 			}
+			concernID = g.Standard.Kind
 			world = World{Colony: g.Standard.Snapshot.Colony, Load: g.Standard.Snapshot.Load, Map: g.Standard.Snapshot.Map}
-			for _, b := range bindings {
-				if concernID == b.Standard || roundsStandardOwns(concernID, b.Concern) {
-					concernID = b.Concern
-					break
-				}
-			}
 		} else if errors.Is(err, sql.ErrNoRows) {
 			err = tx.QueryRowContext(ctx, "SELECT colony,load_token,map_id FROM submissions WHERE plan_id=?", plan.Spec.ID()).Scan(&world.Colony, &world.Load, &world.Map)
 			if errors.Is(err, sql.ErrNoRows) {
@@ -125,7 +119,7 @@ func reviewWork(ctx context.Context, tx *Tx, r RoundsRequest, needs policy.Round
 	var bindings []RoundsStandard
 	var unserved []domain.ConcernID
 	for i, n := range needs.Assessments {
-		bindings = append(bindings, RoundsStandard{Concern: n.ID, Standard: domain.ConcernID(states[i].OwnerID())})
+		bindings = append(bindings, RoundsStandard{Concern: n.ID, Standard: domain.StandardID(states[i].OwnerID())})
 		if !ownerActive(states[i]) || len(policy.ConcernLabor(n.ID)) == 0 {
 			continue
 		}
@@ -137,7 +131,7 @@ func reviewWork(ctx context.Context, tx *Tx, r RoundsRequest, needs policy.Round
 			unserved = append(unserved, n.ID)
 		}
 	}
-	plans, err := roundsPlans(ctx, tx, r.Current, bindings)
+	plans, err := roundsPlans(ctx, tx, r.Current)
 	if err != nil {
 		return policy.ReadyWorkReport{}, nil, err
 	}

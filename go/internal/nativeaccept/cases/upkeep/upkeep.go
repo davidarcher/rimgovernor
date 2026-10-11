@@ -259,7 +259,7 @@ func followMethodsExcluding(ctx context.Context, journal *store.Store, need poli
 	}
 	deadline := time.Now().Add(10 * time.Minute)
 	for {
-		var concernID domain.ConcernID
+		var concernID domain.StandardID
 		var method domain.Method
 		for {
 			if time.Now().After(deadline) {

@@ -76,7 +76,7 @@ func retireRoundsPlans(ctx context.Context, tx *Tx, current domain.GenerationSna
 				return err
 			}
 		case "standard":
-			if g, err = loadStandard(ctx, tx, domain.ConcernID(v.owner)); err != nil {
+			if g, err = loadStandard(ctx, tx, domain.StandardID(v.owner)); err != nil {
 				return err
 			}
 		}
@@ -143,7 +143,7 @@ func retireRoundsPlans(ctx context.Context, tx *Tx, current domain.GenerationSna
 
 // LoadMethod reads an exact historical binding, including retired plans.
 // History is never fed back into active capacity or dependency accounting.
-func (s *Store) LoadMethod(ctx context.Context, goal domain.ConcernID, epoch uint64, method domain.MethodID) (domain.Method, error) {
+func (s *Store) LoadMethod(ctx context.Context, goal domain.StandardID, epoch uint64, method domain.MethodID) (domain.Method, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return domain.Method{}, err
@@ -176,7 +176,7 @@ func (s *Store) LoadMethod(ctx context.Context, goal domain.ConcernID, epoch uin
 // LatestMethodPlan finds the plan a goal last bound to method in any
 // epoch: plan ids are minted, so planners whose work outlives an
 // epoch turnover (tidy re-sites, zone shelves) load it by this stored key.
-func (s *Store) LatestMethodPlan(ctx context.Context, goal domain.ConcernID, method domain.MethodID) (domain.PlanID, error) {
+func (s *Store) LatestMethodPlan(ctx context.Context, goal domain.StandardID, method domain.MethodID) (domain.PlanID, error) {
 	var id domain.PlanID
 	err := s.db.QueryRowContext(ctx, "SELECT plan_id FROM standard_methods WHERE standard_id=? AND method_id=? ORDER BY CAST(episode AS INTEGER) DESC LIMIT 1", goal, method).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -187,7 +187,7 @@ func (s *Store) LatestMethodPlan(ctx context.Context, goal domain.ConcernID, met
 
 // LoadMethods includes retired bindings for one epoch. The bounded history
 // is evidence only; it cannot restore retired work to execution or accounting.
-func (s *Store) LoadMethods(ctx context.Context, goal domain.ConcernID, epoch uint64) ([]domain.Method, error) {
+func (s *Store) LoadMethods(ctx context.Context, goal domain.StandardID, epoch uint64) ([]domain.Method, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return nil, err

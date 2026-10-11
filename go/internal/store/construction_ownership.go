@@ -27,13 +27,13 @@ func constructionClaims(ctx context.Context, tx *Tx, current domain.GenerationSn
 		return unknown, err
 	}
 	type link struct {
-		plan    domain.PlanID
-		concern domain.ConcernID
+		plan  domain.PlanID
+		owner string
 	}
 	links := []link{}
 	for rows.Next() {
 		var v link
-		if err = rows.Scan(&v.plan, &v.concern); err != nil {
+		if err = rows.Scan(&v.plan, &v.owner); err != nil {
 			rows.Close()
 			return unknown, err
 		}
@@ -48,16 +48,16 @@ func constructionClaims(ctx context.Context, tx *Tx, current domain.GenerationSn
 		return unknown, nil
 	}
 	result := []policy.ConstructionClaim{}
-	goals := map[domain.ConcernID]OwnerSummary{}
+	owners := map[string]OwnerSummary{}
 	for _, link := range links {
-		g, cached := goals[link.concern]
+		g, cached := owners[link.owner]
 		if !cached {
-			owner, err := loadOwner(ctx, tx, string(link.concern))
+			owner, err := loadOwner(ctx, tx, link.owner)
 			if err != nil {
 				return unknown, err
 			}
 			g, _ = SummarizeOwner(owner)
-			goals[link.concern] = g
+			owners[link.owner] = g
 		}
 		scope := g.Snapshot
 		if scope.Colony != current.Colony || scope.Load != current.Load || scope.Map != current.Map {
@@ -74,7 +74,7 @@ func constructionClaims(ctx context.Context, tx *Tx, current domain.GenerationSn
 			if !isBuilding || progress.Action().ConstructionTarget() != "" || !ek || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Tick > tick || v.Snapshot.Colony != current.Colony || v.Snapshot.Load != current.Load || v.Snapshot.Map != current.Map {
 				continue
 			}
-			result = append(result, policy.ConstructionClaim{Plan: link.plan, Action: v.Action, Concern: link.concern, Building: building})
+			result = append(result, policy.ConstructionClaim{Plan: link.plan, Action: v.Action, Concern: g.Kind, Building: building})
 			if len(result) > 256 {
 				return unknown, nil
 			}

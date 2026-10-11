@@ -16,7 +16,7 @@ import (
 // review filed for it.
 type RoundsStandard struct {
 	Concern  domain.ConcernID
-	Standard domain.ConcernID
+	Standard domain.StandardID
 }
 
 // RoundsProject binds a Project need to the Project row the review filed for
@@ -279,17 +279,18 @@ func loadRounds(ctx context.Context, tx *Tx) (Rounds, error) {
 	// incidents table and Project kinds in the projects table; Goals binds
 	// Standards only.
 	seen := map[domain.ConcernID]bool{}
-	identities := map[domain.ConcernID]bool{}
+	identities := map[domain.StandardID]bool{}
 	for _, binding := range r.Standards {
 		if policy.ConcernTypeOf(binding.Concern) != policy.StandardConcern || seen[binding.Concern] || identities[binding.Standard] {
 			return Rounds{}, errors.New("duplicate routine need")
 		}
 		seen[binding.Concern] = true
 		identities[binding.Standard] = true
-		if _, err := loadStandard(ctx, tx, binding.Standard); err != nil {
+		g, err := loadStandard(ctx, tx, binding.Standard)
+		if err != nil {
 			return Rounds{}, err
 		}
-		if !roundsStandardOwns(binding.Standard, binding.Concern) {
+		if g.Standard.Kind != binding.Concern {
 			return Rounds{}, errors.New("routine standard ownership mismatch")
 		}
 	}
@@ -561,7 +562,7 @@ func reviewRoundsTx(ctx context.Context, tx *Tx, request RoundsRequest, settled 
 	}
 	// Keep disabled bindings available for review. An enabled review replaces
 	// invalidated bindings, so their clean history can leave active capacity.
-	retained := map[domain.ConcernID]bool{}
+	retained := map[domain.StandardID]bool{}
 	for _, g := range old {
 		if !request.Enabled || g.Standard.Status != domain.StandardVoided {
 			retained[g.Standard.ID] = true
@@ -724,7 +725,7 @@ func reviewRoundsTx(ctx context.Context, tx *Tx, request RoundsRequest, settled 
 				if err != nil {
 					return RoundsResult{}, err
 				}
-				goal, err := domain.NewStandard(id, n.Priority, b)
+				goal, err := domain.NewStandard(id, n.ID, n.Priority, b)
 				if err != nil {
 					return RoundsResult{}, err
 				}

@@ -19,7 +19,7 @@ func BenchmarkWorldRebuild(b *testing.B) {
 		b.Fatal(err)
 	}
 	b.Cleanup(func() { _ = s.Close() })
-	goal, err := domain.NewStandard("routine-0000000000000000-MaintainResource-0", 2, scope())
+	goal, err := domain.NewStandard("routine-0000000000000000-MaintainResource-0", "MaintainResource", 2, scope())
 	if err != nil {
 		b.Fatal(err)
 	}

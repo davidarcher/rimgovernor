@@ -160,9 +160,9 @@ func (r *Rounder) stockpileRequest(ctx context.Context, snapshot domain.Generati
 	for _, row := range census {
 		benches[row.Bench.ID] = true
 	}
-	zoneGoal := map[string]domain.ConcernID{}
+	zoneGoal := map[string]domain.StandardID{}
 	for _, z := range owned {
-		zoneGoal[z.ID] = z.Concern
+		zoneGoal[z.ID] = z.Owner
 	}
 	gear, err := r.gearStore(ctx, snapshot, projection)
 	if err != nil {

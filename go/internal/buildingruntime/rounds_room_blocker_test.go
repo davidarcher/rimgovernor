@@ -54,7 +54,7 @@ func commitOps(t *testing.T, refuse string, blocker policy.PlacementBlocker, op 
 	if err != nil {
 		t.Fatal(err)
 	}
-	var concern domain.ConcernID
+	var concern domain.StandardID
 	for _, binding := range review.Standards {
 		if binding.Concern == policy.MaintainRefrigeration {
 			concern = binding.Standard

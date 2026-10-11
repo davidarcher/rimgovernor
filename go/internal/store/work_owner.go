@@ -20,6 +20,8 @@ type WorkOwner interface {
 	methodOwner
 	// OwnerID is the goal's or Project's row id.
 	OwnerID() string
+	// OwnerKind is the Concern the owner serves.
+	OwnerKind() domain.ConcernID
 	// OwnerEpisode is the goal's current epoch, 0 for a Project.
 	OwnerEpisode() uint64
 	// OwnerRevision is the local CAS token method commits are scoped to.
@@ -38,6 +40,8 @@ type WorkOwner interface {
 }
 
 func (g StandardState) OwnerID() string               { return string(g.Standard.ID) }
+func (g StandardState) OwnerKind() domain.ConcernID   { return g.Standard.Kind }
+func (p ProjectState) OwnerKind() domain.ConcernID    { return p.Project.Kind }
 func (g StandardState) OwnerEpisode() uint64          { return g.Standard.Episode }
 func (g StandardState) OwnerRevision() uint64         { return g.Revision }
 func (g StandardState) OwnerMethods() []domain.Method { return g.Methods }
@@ -61,7 +65,7 @@ func (p ProjectState) OwnerDeficit() bool {
 func (p ProjectState) domainMethods(rows []ProjectMethod) []domain.Method {
 	var out []domain.Method
 	for _, m := range rows {
-		out = append(out, domain.Method{Owner: domain.ConcernID(p.Project.ID), Method: m.Method, Plan: m.Plan})
+		out = append(out, domain.Method{Owner: domain.StandardID(p.Project.ID), Method: m.Method, Plan: m.Plan})
 	}
 	return out
 }
@@ -150,7 +154,7 @@ func (s *Store) LoadOwnerMethod(ctx context.Context, owner WorkOwner, method dom
 		if errors.Is(err, sql.ErrNoRows) {
 			return domain.Method{}, ErrNotFound
 		}
-		return domain.Method{Owner: domain.ConcernID(o.Project.ID), Method: method, Plan: plan}, err
+		return domain.Method{Owner: domain.StandardID(o.Project.ID), Method: method, Plan: plan}, err
 	}
 	return domain.Method{}, fmt.Errorf("unsupported method owner %T", owner)
 }
@@ -210,7 +214,9 @@ func decisionOf(owner WorkOwner, refused []policy.Refusal) BuildingMethodDecisio
 // the wire already uses (open is active, finished is satisfied); Epoch is 0
 // for a Project, which has none.
 type OwnerSummary struct {
-	ID       string
+	ID string
+	// Kind is the Concern the owner serves.
+	Kind     domain.ConcernID
 	Status   domain.StandardStatus
 	Finding  domain.Finding
 	Priority int
@@ -226,7 +232,7 @@ func SummarizeOwner(owner WorkOwner) (OwnerSummary, bool) {
 	switch o := owner.(type) {
 	case StandardState:
 		g := o.Standard
-		return OwnerSummary{string(g.ID), g.Status, g.Finding, g.Priority, g.Episode, o.Revision, g.Snapshot, o.Retired}, true
+		return OwnerSummary{string(g.ID), g.Kind, g.Status, g.Finding, g.Priority, g.Episode, o.Revision, g.Snapshot, o.Retired}, true
 	case ProjectState:
 		p := o.Project
 		status := domain.StandardOpen
@@ -236,7 +242,7 @@ func SummarizeOwner(owner WorkOwner) (OwnerSummary, bool) {
 		case domain.ProjectVoided:
 			status = domain.StandardVoided
 		}
-		return OwnerSummary{string(p.ID), status, p.Finding, p.Priority, 0, o.Revision, p.Snapshot, o.Retired}, true
+		return OwnerSummary{string(p.ID), p.Kind, status, p.Finding, p.Priority, 0, o.Revision, p.Snapshot, o.Retired}, true
 	}
 	return OwnerSummary{}, false
 }
@@ -247,7 +253,7 @@ func (s *Store) LoadOwner(ctx context.Context, id string) (WorkOwner, error) {
 	if isProjectID(id) {
 		return s.LoadProject(ctx, domain.ProjectID(id))
 	}
-	return s.LoadStandard(ctx, domain.ConcernID(id))
+	return s.LoadStandard(ctx, domain.StandardID(id))
 }
 
 // loadOwner is LoadOwner inside tx.
@@ -255,7 +261,7 @@ func loadOwner(ctx context.Context, tx *Tx, id string) (WorkOwner, error) {
 	if isProjectID(id) {
 		return loadProject(ctx, tx, domain.ProjectID(id))
 	}
-	return loadStandard(ctx, tx, domain.ConcernID(id))
+	return loadStandard(ctx, tx, domain.StandardID(id))
 }
 
 // Owner is the goal or Project the method was admitted for.

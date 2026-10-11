@@ -41,7 +41,7 @@ func (r *RoundsStockpilePlanner) shelve(call, epoch context.Context, state Contr
 
 // zoneShelves reads back the zone's shelf plans in index order: the
 // shelves built or in flight, and the next free index.
-func zoneShelves(ctx context.Context, journal *store.Store, goal domain.ConcernID, zone string, census domain.Fact[policy.CurrentConstruction]) ([]policy.ShelfRecord, int, error) {
+func zoneShelves(ctx context.Context, journal *store.Store, goal domain.StandardID, zone string, census domain.Fact[policy.CurrentConstruction]) ([]policy.ShelfRecord, int, error) {
 	var out []policy.ShelfRecord
 	for index := 0; index < maxShelvesPerZone; index++ {
 		id, err := journal.LatestMethodPlan(ctx, goal, shelfMethod(zone, index))

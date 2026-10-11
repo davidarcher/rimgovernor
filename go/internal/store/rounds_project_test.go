@@ -75,7 +75,7 @@ func TestProjectAndResponseKindsNeverMintGoalRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tx.Rollback()
-	ids, err := concernIDs(t.Context(), tx)
+	ids, err := standardIDs(t.Context(), tx)
 	if err != nil {
 		t.Fatal(err)
 	}

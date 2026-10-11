@@ -16,9 +16,9 @@ type OwnedZone struct {
 	Crop  string
 	Cells []domain.Cell
 	Role  string
-	// Goal is the goal whose method created the zone; Filter and Priority
+	// Owner is the Standard whose method created the zone; Filter and Priority
 	// are the stockpile settings it was created with.
-	Concern  domain.ConcernID
+	Owner    domain.StandardID
 	Filter   domain.StockpileFilter
 	Priority domain.StockpilePriority
 }
@@ -37,13 +37,13 @@ func zoneClaims(ctx context.Context, tx *Tx, current domain.GenerationSnapshot, 
 		return unknown, err
 	}
 	type link struct {
-		plan    domain.PlanID
-		concern domain.ConcernID
+		plan  domain.PlanID
+		owner string
 	}
 	links := []link{}
 	for rows.Next() {
 		var v link
-		if err = rows.Scan(&v.plan, &v.concern); err != nil {
+		if err = rows.Scan(&v.plan, &v.owner); err != nil {
 			rows.Close()
 			return unknown, err
 		}
@@ -55,16 +55,16 @@ func zoneClaims(ctx context.Context, tx *Tx, current domain.GenerationSnapshot, 
 		return unknown, err
 	}
 	result := []OwnedZone{}
-	goals := map[domain.ConcernID]OwnerSummary{}
+	owners := map[string]OwnerSummary{}
 	for _, link := range links {
-		g, cached := goals[link.concern]
+		g, cached := owners[link.owner]
 		if !cached {
-			owner, err := loadOwner(ctx, tx, string(link.concern))
+			owner, err := loadOwner(ctx, tx, link.owner)
 			if err != nil {
 				return unknown, err
 			}
 			g, _ = SummarizeOwner(owner)
-			goals[link.concern] = g
+			owners[link.owner] = g
 		}
 		scope := g.Snapshot
 		if scope.Colony != current.Colony || scope.Load != current.Load || scope.Map != current.Map {
@@ -84,10 +84,10 @@ func zoneClaims(ctx context.Context, tx *Tx, current domain.GenerationSnapshot, 
 			}
 			if placements, ok := v.Stockpiles.Value(); ok {
 				for _, created := range placements.Rows() {
-					result = append(result, OwnedZone{ID: created.ID, Kind: zone.Kind(), Cells: created.Cells, Role: zone.Role(), Concern: link.concern, Filter: zone.Filter(), Priority: zone.Priority()})
+					result = append(result, OwnedZone{ID: created.ID, Kind: zone.Kind(), Cells: created.Cells, Role: zone.Role(), Owner: domain.StandardID(link.owner), Filter: zone.Filter(), Priority: zone.Priority()})
 				}
 			} else if known {
-				result = append(result, OwnedZone{ID: id, Kind: zone.Kind(), Crop: zone.Crop(), Cells: zone.Cells(), Role: zone.Role(), Concern: link.concern, Filter: zone.Filter(), Priority: zone.Priority()})
+				result = append(result, OwnedZone{ID: id, Kind: zone.Kind(), Crop: zone.Crop(), Cells: zone.Cells(), Role: zone.Role(), Owner: domain.StandardID(link.owner), Filter: zone.Filter(), Priority: zone.Priority()})
 			}
 		}
 	}

@@ -591,7 +591,7 @@ func (p *ServiceProcess) WaitPlan(ctx context.Context, w Wait, planID domain.Pla
 }
 
 // WaitMethod is WaitMethod on this service's store, ended by its exit.
-func (p *ServiceProcess) WaitMethod(ctx context.Context, need policy.ConcernID, previous *domain.Method) (domain.ConcernID, domain.Method, error) {
+func (p *ServiceProcess) WaitMethod(ctx context.Context, need policy.ConcernID, previous *domain.Method) (domain.StandardID, domain.Method, error) {
 	var seen map[domain.PlanID]bool
 	if previous != nil {
 		seen = map[domain.PlanID]bool{previous.Plan: true}
@@ -601,7 +601,7 @@ func (p *ServiceProcess) WaitMethod(ctx context.Context, need policy.ConcernID, 
 
 // WaitMethodExcluding is WaitMethodExcluding on this service's
 // store, ended by its exit.
-func (p *ServiceProcess) WaitMethodExcluding(ctx context.Context, need policy.ConcernID, seen map[domain.PlanID]bool) (domain.ConcernID, domain.Method, error) {
+func (p *ServiceProcess) WaitMethodExcluding(ctx context.Context, need policy.ConcernID, seen map[domain.PlanID]bool) (domain.StandardID, domain.Method, error) {
 	s, err := p.Store(ctx)
 	if err != nil {
 		return "", domain.Method{}, err

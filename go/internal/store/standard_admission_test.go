@@ -38,10 +38,10 @@ func methodRequest(t *testing.T, g WorkOwner, id string, costs ...int64) Buildin
 	}
 	return r
 }
-func anotherGoal(t *testing.T, s *Store, id domain.ConcernID) StandardState {
+func anotherGoal(t *testing.T, s *Store, id domain.StandardID) StandardState {
 	t.Helper()
 	ctx := context.Background()
-	g, e := domain.NewStandard(id, 3, scope())
+	g, e := domain.NewStandard(id, "MaintainHousing", 3, scope())
 	if e != nil {
 		t.Fatal(e)
 	}

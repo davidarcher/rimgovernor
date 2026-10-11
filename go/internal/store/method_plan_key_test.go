@@ -43,7 +43,7 @@ func TestMethodPlanKey(t *testing.T) {
 		latest = id
 	}
 	for _, c := range []struct {
-		goal   domain.ConcernID
+		goal   domain.StandardID
 		method domain.MethodID
 		want   domain.PlanID
 		err    error

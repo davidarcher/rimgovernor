@@ -29,7 +29,7 @@ func TestFirebreakSecondRoundAfterChurnMintsFreshMethod(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var id domain.ConcernID
+	var id domain.StandardID
 	for _, b := range review.Review.Standards {
 		if b.Concern == policy.MaintainFirebreak {
 			id = b.Standard

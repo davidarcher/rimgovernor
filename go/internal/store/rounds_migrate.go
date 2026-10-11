@@ -65,7 +65,7 @@ func dropRemovedStandards(r *Rounds) bool {
 	r.Emergency = slices.DeleteFunc(r.Emergency, removed)
 	r.Progress = slices.DeleteFunc(r.Progress, func(v policy.ConcernProgress) bool { return removed(v.Concern) })
 	r.NoOps = slices.DeleteFunc(r.NoOps, func(v policy.NoOpRecord) bool { return removed(v.Concern) })
-	r.Dependencies = slices.DeleteFunc(r.Dependencies, func(v DependencyRecord) bool { return removed(v.Need) || removed(v.Concern) })
+	r.Dependencies = slices.DeleteFunc(r.Dependencies, func(v DependencyRecord) bool { return removed(v.Need) })
 	after := len(r.Standards) + len(r.Emergency) + len(r.Progress) + len(r.NoOps) + len(r.Dependencies)
 	return after != before
 }

@@ -103,7 +103,7 @@ func (r *Rounder) reviewIdeoligion(ctx context.Context, read *observation.Rounds
 	if !review.Snapshot.Matches(snapshot) {
 		return nil
 	}
-	id := domain.ConcernID("")
+	id := domain.StandardID("")
 	for _, binding := range review.Standards {
 		if binding.Concern == policy.ImproveIdeoligion {
 			id = binding.Standard
