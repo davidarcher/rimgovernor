@@ -264,7 +264,13 @@ func load(ctx context.Context, tx *Tx, id domain.PlanID) (PlanState, error) {
 func (s *Store) begin(ctx context.Context) (*Tx, error) {
 	var tx *sql.Tx
 	err := retryBusy(ctx, func() (err error) {
-		tx, err = s.db.BeginTx(ctx, nil)
+		// database/sql rolls a transaction back the moment its begin context
+		// is cancelled, so a statement still running on it (a planner past
+		// the round's cutoff) fails with "transaction has already been
+		// committed or rolled back". The transaction is owned by its caller's
+		// Commit/Rollback; each statement still carries ctx and fails with
+		// the cancellation itself.
+		tx, err = s.db.BeginTx(context.WithoutCancel(ctx), nil)
 		return err
 	})
 	if err != nil {

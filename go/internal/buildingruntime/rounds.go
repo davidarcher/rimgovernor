@@ -332,7 +332,11 @@ func (r *Rounder) step(ctx, epoch context.Context, arbiter *stepArbiter, partial
 // for ErrControl) when it did not.
 func roundsStepDecision(err error, took time.Duration, partial bool) telemetry.Decision {
 	d := telemetry.Decision{Kind: "planner_step", Component: "clock-scheduler", Target: "rounds", Verdict: "ok", Reason: "reviewed", Dur: took, Attrs: map[string]any{"partial": partial}}
-	if err != nil {
+	switch {
+	case errors.Is(err, context.Canceled):
+		// An authority change cancelled the round: it stops, it did not fail.
+		d.Reason = "cancelled"
+	case err != nil:
 		d.Level, d.Verdict, d.Reason = slog.LevelWarn, "failed", "error"
 		if errors.Is(err, ErrControl) {
 			d.Reason = "control_lost"

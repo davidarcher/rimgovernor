@@ -29,6 +29,19 @@ func TestRoundsStepDecisionShape(t *testing.T) {
 	}
 }
 
+// A round cancelled by an authority change stops: its planner_step row is an
+// info ok/cancelled row, not a failed row with the error attached.
+func TestRoundsStepDecisionCancelledIsNotAFailure(t *testing.T) {
+	d := roundsStepDecision(fmt.Errorf("routine: %w", context.Canceled), 0, true)
+	p := d.Payload()
+	if p["verdict"] != "ok" || p["reason"] != "cancelled" || d.Level != slog.LevelInfo {
+		t.Fatalf("%+v", p)
+	}
+	if _, has := p["attrs"].(map[string]any)["error"]; has {
+		t.Fatalf("cancelled round recorded an error: %+v", p)
+	}
+}
+
 func TestLayoutPlanDecisionVerdicts(t *testing.T) {
 	d := layoutPlanDecision("replanned", "outgrown", 7, "plan", map[string]any{"unplaced": "x"})
 	p := d.Payload()
