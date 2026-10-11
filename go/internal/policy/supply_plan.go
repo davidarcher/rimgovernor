@@ -371,6 +371,11 @@ func PlanSupply(r SupplyPlanRequest) (SupplyPlan, error) {
 			used -= c.work
 		}
 	}
+	for _, c := range openOrder {
+		if c.entry.Decision != SupplyClose {
+			used -= c.trim(demands, delivered, finite)
+		}
+	}
 	for _, c := range cands {
 		if c.open {
 			if c.entry.Decision != SupplyClose && lk && used > labor {
@@ -769,6 +774,26 @@ func (c *supplyCand) consider(demands []SupplyDemand, remaining []int64, deliver
 		e.Reason = "target covered"
 		return 0
 	}
+	if c.scalesToGap() {
+		frac := 1.0
+		for i, d := range demands {
+			if f.matched[i] && c.ok[i] && d.flow() && share.credit[i] > 0 {
+				if gap := d.PerDay - c.covered(delivered[i], finite[i]); gap < share.credit[i] {
+					frac = math.Min(frac, gap/share.credit[i])
+				}
+			}
+		}
+		if frac < 1 {
+			for i, d := range demands {
+				if d.flow() {
+					share.credit[i] *= frac
+				}
+			}
+			c.laborNew -= c.work * (1 - frac)
+			c.work *= frac
+			e.Terms = append(e.Terms, CandidateTerm{"gap_share", frac})
+		}
+	}
 	if free := math.Max(0, labor-used); c.laborNew > free {
 		e.Reason = "labor budget"
 		e.Terms = append(e.Terms, CandidateTerm{"labor_excess", c.laborNew - free})
@@ -780,6 +805,39 @@ func (c *supplyCand) consider(demands []SupplyDemand, remaining []int64, deliver
 		usable[q.Key] -= min(usable[q.Key], int64(math.Ceil(float64(q.Count)*c.scale-1e-9)))
 	}
 	return c.laborNew
+}
+
+// scalesToGap marks a source whose draw is a dial: fishing takes as many fish
+// as the open gap needs, so its credit and labor are capped at that gap.
+func (c *supplyCand) scalesToGap() bool { return c.c.Kind == CandidateFishing }
+
+// trim scales an open gap-scaled source down to the flow demand's remaining
+// need, freeing the labor it was booked at the full draw. It returns the labor
+// freed. A need already met by other steady sources is left to surplus.
+func (c *supplyCand) trim(demands []SupplyDemand, delivered, finite []float64) float64 {
+	freed := 0.0
+	for i, amount := range c.credited {
+		d := demands[i]
+		if amount <= 0 || !d.flow() || !c.scalesToGap() {
+			continue
+		}
+		need := d.PerDay - (c.covered(delivered[i], finite[i]) - amount)
+		if need <= 0 || need >= amount {
+			continue
+		}
+		frac := need / amount
+		c.credited[i] = need
+		delivered[i] -= amount - need
+		for j := range c.entry.Credit {
+			if c.entry.Credit[j].Good == d.Good {
+				c.entry.Credit[j].Amount = need
+			}
+		}
+		freed += c.work * (1 - frac)
+		c.work *= frac
+		c.entry.Terms = append(c.entry.Terms, CandidateTerm{"gap_share", frac})
+	}
+	return freed
 }
 
 func (c *supplyCand) flowGood(demands []SupplyDemand) ResourceKey {
