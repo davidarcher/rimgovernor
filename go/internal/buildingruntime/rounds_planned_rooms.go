@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -147,7 +148,7 @@ func (r *RoundsBuildingPlanner) plannedFacilityFurnishing(call, epoch context.Co
 	if r.facility == nil || r.cells != nil || !facilityFurnishingRoles[r.facility.Role] {
 		return r, RoundsBuildingResult{}, false, nil
 	}
-	if r.facility.Role == policy.RoomRoleLaboratory && !r.advancedLab && len(plannedShelterRooms(facts)) > 0 {
+	if r.facility.Role == policy.RoomRoleLaboratory && !r.advancedLab && len(researchHostRooms(facts)) > 0 {
 		return r, RoundsBuildingResult{}, false, nil
 	}
 	module, ok := r.roomModule()
@@ -283,4 +284,14 @@ func plannedRoomPlanCells(facts observation.ColonyProjection, module policy.Plan
 		}
 	}
 	return nil
+}
+
+// researchHostRooms are the planned rooms that host the plain research bench
+// in place of a laboratory: the shelter, while its capabilities include
+// research.
+func researchHostRooms(facts observation.ColonyProjection) []policy.InteriorRoom {
+	if !slices.Contains(policy.CapabilitiesOf(policy.PlannedShelter), policy.CapResearch) {
+		return nil
+	}
+	return plannedShelterRooms(facts)
 }

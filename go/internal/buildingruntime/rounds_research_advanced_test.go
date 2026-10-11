@@ -54,7 +54,7 @@ func TestAdvancedLabOwedWalksBenchThenAnalyzer(t *testing.T) {
 		}
 	}
 	// An owed buildable high-tech building also wants the planned lab.
-	roles := coreRoomsWanted(projection(nil, available(bench)))
+	roles, _ := coreRoomsWanted(projection(nil, available(bench)))
 	found := false
 	for _, role := range roles {
 		found = found || role == policy.PlannedLab

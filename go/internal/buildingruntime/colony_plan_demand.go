@@ -11,8 +11,7 @@ import (
 // colony needs now. Each reads the signal its own builder acts on, so the
 // room is planned when something is about to shell it and not before: a
 // planned room costs ground and, in rock, a dig.
-func coreRoomsWanted(projection observation.ColonyProjection) []policy.PlannedRole {
-	var wanted []policy.PlannedRole
+func coreRoomsWanted(projection observation.ColonyProjection) (wanted []policy.PlannedRole, full []policy.Capability) {
 	want := func(on bool, role policy.PlannedRole) {
 		if on {
 			wanted = append(wanted, role)
@@ -26,6 +25,10 @@ func coreRoomsWanted(projection observation.ColonyProjection) []policy.PlannedRo
 	// Or the high-tech bench or its analyzer is buildable and owed.
 	_, advanced := advancedLabOwed(projection)
 	want(known && !built || advanced, policy.PlannedLab)
+	// The shelter holds the plain bench only: the high-tech one needs the lab.
+	if advanced {
+		full = append(full, policy.CapResearch)
+	}
 	want(recRoomWanted(projection), policy.PlannedRec)
 	benches, bk := projection.ButcheringBenches.Value()
 	want(bk && butcherRoomWanted(projection, benches), policy.PlannedButchery)
@@ -34,7 +37,7 @@ func coreRoomsWanted(projection observation.ColonyProjection) []policy.PlannedRo
 	// A generator stands: batteries bank its surplus.
 	topology, tk := projection.PowerPlanning.Value()
 	want(tk && slices.ContainsFunc(topology.Buildings, generatorSite), policy.PlannedBattery)
-	return wanted
+	return wanted, full
 }
 
 // generatorSite is a standing generator, geothermal included.

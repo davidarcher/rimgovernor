@@ -164,7 +164,8 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	// A need for a room the plan starts without (hospital, lab, rec, butchery,
 	// prison, battery) plans it, at most once an hour.
 	if haveLayout {
-		growth.Core = policy.CoreRoomsOwed(layout.Plan, coreRoomsWanted(*projection))
+		wanted, full := coreRoomsWanted(*projection)
+		growth.Core = policy.CoreRoomsOwed(layout.Plan, wanted, full...)
 	}
 	core := len(growth.Core) > 0 && hourly
 	// The outskirts cluster holds the tomb, morgue, waste yard and incinerator from the start; a

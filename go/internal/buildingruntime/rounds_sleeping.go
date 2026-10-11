@@ -1009,7 +1009,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		}
 	}
 	if r.facility != nil {
-		if planned := plannedShelterRooms(facts); r.facility.Role == policy.RoomRoleLaboratory && !r.advancedLab && len(planned) > 0 {
+		if planned := researchHostRooms(facts); r.facility.Role == policy.RoomRoleLaboratory && !r.advancedLab && len(planned) > 0 {
 			// The research bench takes the planned shelter's bench row.
 			interiorRooms, plannedInterior = planned, true
 			for _, room := range planned {

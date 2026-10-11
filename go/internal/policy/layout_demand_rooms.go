@@ -1,6 +1,9 @@
 package policy
 
-import "errors"
+import (
+	"errors"
+	"slices"
+)
 
 // Demand-grown core rooms. A colony starts with only coreBaseRooms and the
 // bedroom wings; every room below joins the plan once its need shows, at the
@@ -17,9 +20,46 @@ var demandCoreRooms = []PlannedRole{
 	PlannedHospital, PlannedLab, PlannedRec, PlannedButchery, PlannedPrison, PlannedBattery,
 }
 
+// designatedHosts are the rooms that serve a capability by template rather
+// than by catalog compatibility: a workshop could take a research bench, but
+// only the shelter is planned to.
+var designatedHosts = map[PlannedRole][]Capability{PlannedShelter: shelterCapabilities}
+
+// HostsCapability reports a planned room other than except that is designated to
+// host c.
+func (p LayoutPlan) HostsCapability(c Capability, except PlannedRole) bool {
+	for _, r := range p.AllRooms() {
+		if r.Role != except && slices.Contains(designatedHosts[r.Role], c) {
+			return true
+		}
+	}
+	return false
+}
+
 // CoreRoomsOwed is the rooms of wanted that plan lacks, in demandCoreRooms
-// order. A role outside demandCoreRooms is ignored.
-func CoreRoomsOwed(plan LayoutPlan, wanted []PlannedRole) []PlannedRole {
+// order, except a room whose every capability another planned room hosts (the
+// shelter's research bench serves the first laboratory). full names the
+// capabilities whose hosts have no free capacity for the need at hand (the
+// shelter holds the plain bench, not the high-tech one); a role needing one
+// is owed its own room. A role outside demandCoreRooms is ignored.
+func CoreRoomsOwed(plan LayoutPlan, wanted []PlannedRole, full ...Capability) []PlannedRole {
+	var owed []PlannedRole
+	for _, role := range coreRoomsLacking(plan, wanted) {
+		caps := roleCapabilities[role]
+		hosted := len(caps) > 0
+		for _, c := range caps {
+			hosted = hosted && !slices.Contains(full, c) && plan.HostsCapability(c, role)
+		}
+		if !hosted {
+			owed = append(owed, role)
+		}
+	}
+	return owed
+}
+
+// coreRoomsLacking is the rooms of wanted that plan has no room of the role
+// for, in demandCoreRooms order.
+func coreRoomsLacking(plan LayoutPlan, wanted []PlannedRole) []PlannedRole {
 	want := map[PlannedRole]bool{}
 	for _, r := range wanted {
 		want[r] = true
@@ -46,7 +86,8 @@ func growDemandRooms(plan LayoutPlan, s MapSurvey, sc *planScorer, wanted []Plan
 	}
 	grew := false
 	var unplaced []error
-	for _, role := range CoreRoomsOwed(plan, wanted) {
+	// The caller's wanted already weighed hosting (CoreRoomsOwed).
+	for _, role := range coreRoomsLacking(plan, wanted) {
 		var added bool
 		var err error
 		if plan, added, err = SiteRoom(plan, sc, role, coreRoomSize[role]); added {
