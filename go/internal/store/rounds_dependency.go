@@ -148,7 +148,7 @@ func sortDependencies(d []DependencyRecord) {
 // dependency is satisfied, cancelled or replaced), or its evidence is
 // older than a game day. The shortfall is measured against the stock of the
 // moment by the demand itself.
-func roundsDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRecord, bindings []RoundsStandard, states []WorkOwner, tick domain.Tick) ([]DependencyRecord, []policy.AdmittedCost, error) {
+func roundsDependencies(ctx context.Context, tx *Tx, records []DependencyRecord, bindings []RoundsStandard, states []WorkOwner, tick domain.Tick) ([]DependencyRecord, []policy.AdmittedCost, error) {
 	active := map[domain.ConcernID]WorkOwner{}
 	for i, b := range bindings {
 		active[b.Concern] = states[i]
@@ -193,7 +193,7 @@ func roundsDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRec
 // priorAdmitted is the last review's still-live admitted-method costs
 // against its goal bindings, read before DetectRounds so an open shortfall
 // raises its MaintainResource floor.
-func priorAdmitted(ctx context.Context, tx *sql.Tx, previous Rounds, tick domain.Tick) ([]policy.AdmittedCost, error) {
+func priorAdmitted(ctx context.Context, tx *Tx, previous Rounds, tick domain.Tick) ([]policy.AdmittedCost, error) {
 	if len(previous.Dependencies) == 0 {
 		return nil, nil
 	}

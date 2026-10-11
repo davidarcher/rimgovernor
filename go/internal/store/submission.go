@@ -119,7 +119,7 @@ func (s *Store) LookupSubmission(ctx context.Context, requestID string) (Submiss
 	}
 	return result, nil
 }
-func lookupSubmission(ctx context.Context, tx *sql.Tx, id string) (Submission, error) {
+func lookupSubmission(ctx context.Context, tx *Tx, id string) (Submission, error) {
 	h, err := lookupSubmissionHeader(ctx, tx, id, "building")
 	if err != nil {
 		return Submission{}, err

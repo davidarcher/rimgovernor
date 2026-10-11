@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"slices"
@@ -19,7 +18,7 @@ import (
 // An accepted wall removal completes once its demolition is designated, so a
 // dependent (the replacement wall on the same cell) waits for the census to
 // show no wall left in that cell (Rounds.WallCells).
-func checkDependencies(ctx context.Context, tx *sql.Tx, state PlanState, action domain.ActionID, current domain.GenerationSnapshot, tick domain.Tick) error {
+func checkDependencies(ctx context.Context, tx *Tx, state PlanState, action domain.ActionID, current domain.GenerationSnapshot, tick domain.Tick) error {
 	if err := state.Spec.CheckDependencies(action, state.Progress, current, tick); err != nil {
 		return err
 	}
@@ -80,7 +79,7 @@ const maxWallCells = 256
 
 // wallCells answers, from a complete colony construction census, whether a
 // colony Wall stands on each cell a wall removal of a live plan names.
-func wallCells(ctx context.Context, tx *sql.Tx, census policy.CurrentConstruction) ([]WallCell, error) {
+func wallCells(ctx context.Context, tx *Tx, census policy.CurrentConstruction) ([]WallCell, error) {
 	rows, err := tx.QueryContext(ctx, "SELECT a.wall_removal_payload FROM actions a JOIN plans p ON p.id=a.plan_id WHERE a.kind='wall_removal' AND p.retired=0")
 	if err != nil {
 		return nil, err
@@ -132,7 +131,7 @@ func wallCells(ctx context.Context, tx *sql.Tx, census policy.CurrentConstructio
 // dispatch, the removal and every action waiting on it are cancelled, so
 // the plan settles and its goal re-plans instead of checkDependencies
 // holding the replacement forever.
-func abandonStuckWallRemovals(ctx context.Context, tx *sql.Tx, cells []WallCell, tick domain.Tick) error {
+func abandonStuckWallRemovals(ctx context.Context, tx *Tx, cells []WallCell, tick domain.Tick) error {
 	standing := map[domain.Cell]bool{}
 	for _, c := range cells {
 		if c.Standing {
@@ -196,7 +195,7 @@ func abandonStuckWallRemovals(ctx context.Context, tx *sql.Tx, cells []WallCell,
 // builtActions is every live plan's building action whose building stands
 // built in the census, matched by definition, stuff, anchor and rotation,
 // sorted.
-func builtActions(ctx context.Context, tx *sql.Tx, census policy.CurrentConstruction) ([]domain.ActionID, error) {
+func builtActions(ctx context.Context, tx *Tx, census policy.CurrentConstruction) ([]domain.ActionID, error) {
 	rows, err := tx.QueryContext(ctx, "SELECT a.id,a.definition,a.x,a.z,a.rotation,a.stuff FROM actions a JOIN plans p ON p.id=a.plan_id WHERE a.kind='building' AND p.retired=0")
 	if err != nil {
 		return nil, err

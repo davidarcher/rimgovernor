@@ -2,14 +2,13 @@ package store
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // Independent pawn dressing may share a review; a bill remains exclusive.
-func gearOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
+func gearOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
 	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return false, err
@@ -75,7 +74,7 @@ func craftingSpotAction(action domain.Action) bool {
 // placement in the planned workshop, its deconstruction) be committed beside the
 // goal's bills and dressing, which run for days and do not depend on it. A plan
 // made only of spot actions is blocked only by an open spot action.
-func craftingSpotOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
+func craftingSpotOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
 	if len(plan.Actions()) == 0 {
 		return false, nil
 	}

@@ -35,7 +35,7 @@ func (r SoldierSquadRecord) Validate() error {
 	return nil
 }
 
-func loadSoldierSquad(ctx context.Context, tx *sql.Tx) (SoldierSquadRecord, bool, error) {
+func loadSoldierSquad(ctx context.Context, tx *Tx) (SoldierSquadRecord, bool, error) {
 	var data []byte
 	if err := tx.QueryRowContext(ctx, "SELECT payload FROM soldier_squad WHERE singleton=1").Scan(&data); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

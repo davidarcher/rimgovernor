@@ -73,7 +73,7 @@ func TestPlanCacheForgetsARolledBackWrite(t *testing.T) {
 	if _, err = tx.ExecContext(ctx, "UPDATE plans SET method_id='rolled-back' WHERE id='p'"); err != nil {
 		t.Fatal(err)
 	}
-	inside, err := s.plans.load(ctx, tx, "p")
+	inside, err := load(ctx, tx, "p")
 	if err != nil || inside.Method != "rolled-back" {
 		t.Fatal(inside.Method, err)
 	}

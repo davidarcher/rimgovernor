@@ -2,14 +2,13 @@ package store
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // Retirement retains identities, methods and progress. Only invalidated
 // autopilot goals without observation or cleanup obligations leave capacity.
-func retireRoundsStandards(ctx context.Context, tx *sql.Tx, retained map[domain.ConcernID]bool) error {
+func retireRoundsStandards(ctx context.Context, tx *Tx, retained map[domain.ConcernID]bool) error {
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM standards WHERE retired=0 ORDER BY id LIMIT 257")
 	if err != nil {
 		return err

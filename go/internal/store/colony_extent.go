@@ -3,7 +3,6 @@ package store
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -23,11 +22,11 @@ type EstablishedExtent struct {
 	Region   policy.ExtentRegion
 }
 
-func initializeColonyExtent(ctx context.Context, tx *sql.Tx) error {
+func initializeColonyExtent(ctx context.Context, tx *Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE colony_extent_events(colony TEXT NOT NULL, map_id INTEGER NOT NULL, ordinal INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), native_generation INTEGER NOT NULL, payload BLOB NOT NULL, PRIMARY KEY(colony,map_id,ordinal)) STRICT;`)
 	return err
 }
-func checkColonyExtentSchema(ctx context.Context, tx *sql.Tx) error {
+func checkColonyExtentSchema(ctx context.Context, tx *Tx) error {
 	_, err := tx.ExecContext(ctx, "SELECT colony,map_id,ordinal,tick,native_generation,payload FROM colony_extent_events LIMIT 0")
 	return err
 }
@@ -92,7 +91,7 @@ type extentEvent struct {
 }
 
 // extentEvents lists the world's journal at or before tick, oldest first.
-func extentEvents(ctx context.Context, tx *sql.Tx, s domain.GenerationSnapshot, tick domain.Tick) ([]extentEvent, error) {
+func extentEvents(ctx context.Context, tx *Tx, s domain.GenerationSnapshot, tick domain.Tick) ([]extentEvent, error) {
 	rows, err := tx.QueryContext(ctx, "SELECT tick,native_generation,payload FROM colony_extent_events WHERE colony=? AND map_id=? AND tick<=? ORDER BY ordinal", s.Colony, s.Map, tick)
 	if err != nil {
 		return nil, err
@@ -109,7 +108,7 @@ func extentEvents(ctx context.Context, tx *sql.Tx, s domain.GenerationSnapshot, 
 	return out, rows.Err()
 }
 
-func appendExtentEvent(ctx context.Context, tx *sql.Tx, s domain.GenerationSnapshot, e extentEvent) error {
+func appendExtentEvent(ctx context.Context, tx *Tx, s domain.GenerationSnapshot, e extentEvent) error {
 	var ordinal int64
 	if err := tx.QueryRowContext(ctx, "SELECT coalesce(max(ordinal),0)+1 FROM colony_extent_events WHERE colony=? AND map_id=?", s.Colony, s.Map).Scan(&ordinal); err != nil {
 		return err

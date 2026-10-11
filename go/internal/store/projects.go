@@ -109,7 +109,7 @@ func (s *Store) CreateProject(ctx context.Context, p domain.Project) error {
 	return nil
 }
 
-func createProject(ctx context.Context, tx *sql.Tx, p domain.Project) error {
+func createProject(ctx context.Context, tx *Tx, p domain.Project) error {
 	if err := p.Validate(); err != nil {
 		return err
 	}
@@ -139,7 +139,7 @@ func (s *Store) LoadProject(ctx context.Context, id domain.ProjectID) (ProjectSt
 	return loadProject(ctx, tx, id)
 }
 
-func loadProject(ctx context.Context, tx *sql.Tx, id domain.ProjectID) (ProjectState, error) {
+func loadProject(ctx context.Context, tx *Tx, id domain.ProjectID) (ProjectState, error) {
 	var out ProjectState
 	var data []byte
 	var revision string
@@ -199,7 +199,7 @@ func loadProject(ctx context.Context, tx *sql.Tx, id domain.ProjectID) (ProjectS
 	return out, nil
 }
 
-func saveProject(ctx context.Context, tx *sql.Tx, previous ProjectState, p domain.Project) (ProjectState, error) {
+func saveProject(ctx context.Context, tx *Tx, previous ProjectState, p domain.Project) (ProjectState, error) {
 	if previous.Retired {
 		return ProjectState{}, errors.New("retired project is read-only")
 	}
@@ -282,7 +282,7 @@ func (s *Store) CommitProjectMethod(ctx context.Context, id domain.ProjectID, re
 	return state, tx.Commit()
 }
 
-func commitProjectMethod(ctx context.Context, tx *sql.Tx, id domain.ProjectID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (ProjectState, error) {
+func commitProjectMethod(ctx context.Context, tx *Tx, id domain.ProjectID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (ProjectState, error) {
 	state, err := loadProject(ctx, tx, id)
 	if err != nil {
 		return ProjectState{}, err
@@ -295,7 +295,7 @@ func commitProjectMethod(ctx context.Context, tx *sql.Tx, id domain.ProjectID, r
 
 // guardProjectWork is guardGoalWork for a project's plan: the project is open
 // in the current world and no Safeguard vetoes it.
-func guardProjectWork(ctx context.Context, tx *sql.Tx, id domain.ProjectID, current domain.GenerationSnapshot, tick domain.Tick) error {
+func guardProjectWork(ctx context.Context, tx *Tx, id domain.ProjectID, current domain.GenerationSnapshot, tick domain.Tick) error {
 	state, err := loadProject(ctx, tx, id)
 	if err != nil {
 		return err
@@ -309,7 +309,7 @@ func guardProjectWork(ctx context.Context, tx *sql.Tx, id domain.ProjectID, curr
 
 // retireProjects takes invalidated autopilot projects without open work out of
 // capacity, as retireRoundsGoals does goals.
-func retireProjects(ctx context.Context, tx *sql.Tx, retained map[domain.ProjectID]bool) error {
+func retireProjects(ctx context.Context, tx *Tx, retained map[domain.ProjectID]bool) error {
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM projects WHERE retired=0 ORDER BY id LIMIT 257")
 	if err != nil {
 		return err

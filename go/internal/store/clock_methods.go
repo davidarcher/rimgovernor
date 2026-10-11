@@ -16,7 +16,7 @@ func (s *Store) PrepareClock(ctx context.Context, intent ClockIntent) (ClockAtte
 		return ClockAttempt{}, false, err
 	}
 	defer tx.Rollback()
-	v, created, err := clock.Prepare(ctx, tx, intent)
+	v, created, err := clock.Prepare(ctx, tx.Tx, intent)
 	if err != nil {
 		return ClockAttempt{}, false, err
 	}
@@ -28,7 +28,7 @@ func (s *Store) LookupClockAttempt(ctx context.Context, id string) (ClockAttempt
 		return ClockAttempt{}, err
 	}
 	defer tx.Rollback()
-	v, err := clock.LookupAttempt(ctx, tx, id)
+	v, err := clock.LookupAttempt(ctx, tx.Tx, id)
 	if err != nil {
 		return ClockAttempt{}, err
 	}
@@ -40,7 +40,7 @@ func (s *Store) LoadClockAttempts(ctx context.Context, limit int) ([]ClockAttemp
 		return nil, err
 	}
 	defer tx.Rollback()
-	v, err := clock.LoadAttempts(ctx, tx, limit)
+	v, err := clock.LoadAttempts(ctx, tx.Tx, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (s *Store) DispatchClock(ctx context.Context, id string) (ClockAttempt, err
 		return ClockAttempt{}, err
 	}
 	defer tx.Rollback()
-	v, err := clock.Dispatch(ctx, tx, id)
+	v, err := clock.Dispatch(ctx, tx.Tx, id)
 	if err != nil {
 		return ClockAttempt{}, err
 	}
@@ -64,7 +64,7 @@ func (s *Store) MarkClockUncertain(ctx context.Context, id string) (ClockAttempt
 		return ClockAttempt{}, err
 	}
 	defer tx.Rollback()
-	v, err := clock.MarkUncertain(ctx, tx, id)
+	v, err := clock.MarkUncertain(ctx, tx.Tx, id)
 	if err != nil {
 		return ClockAttempt{}, err
 	}
@@ -79,7 +79,7 @@ func (s *Store) RecordClockReply(ctx context.Context, id string, reply *k.Contro
 		return ClockAttempt{}, err
 	}
 	defer tx.Rollback()
-	v, err := clock.RecordReply(ctx, tx, id, reply)
+	v, err := clock.RecordReply(ctx, tx.Tx, id, reply)
 	if err != nil {
 		return ClockAttempt{}, err
 	}
@@ -94,7 +94,7 @@ func (s *Store) AdoptClockBacklog(ctx context.Context, profile string, cursor in
 		return false, err
 	}
 	defer tx.Rollback()
-	v, err := clock.AdoptBacklog(ctx, tx, profile, cursor)
+	v, err := clock.AdoptBacklog(ctx, tx.Tx, profile, cursor)
 	if err != nil {
 		return false, err
 	}
@@ -110,7 +110,7 @@ func (s *Store) CompactClockHistory(ctx context.Context, profile string) (ClockH
 		return ClockHistoryCompaction{}, err
 	}
 	defer tx.Rollback()
-	v, err := clock.CompactHistory(ctx, tx, profile)
+	v, err := clock.CompactHistory(ctx, tx.Tx, profile)
 	if err != nil {
 		return ClockHistoryCompaction{}, err
 	}
@@ -122,7 +122,7 @@ func (s *Store) LookupClockEpoch(ctx context.Context, id string) (ClockEpochObli
 		return ClockEpochObligation{}, err
 	}
 	defer tx.Rollback()
-	v, err := clock.LookupEpoch(ctx, tx, id)
+	v, err := clock.LookupEpoch(ctx, tx.Tx, id)
 	if err != nil {
 		return ClockEpochObligation{}, err
 	}
@@ -137,7 +137,7 @@ func (s *Store) LoadClockEpochs(ctx context.Context, limit int) ([]ClockEpochObl
 		return nil, err
 	}
 	defer tx.Rollback()
-	v, err := clock.LoadEpochs(ctx, tx, limit)
+	v, err := clock.LoadEpochs(ctx, tx.Tx, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func (s *Store) BeginClockPause(ctx context.Context, id string, sequence uint64)
 		return ClockEpochObligation{}, err
 	}
 	defer tx.Rollback()
-	v, err := clock.BeginPause(ctx, tx, id, sequence)
+	v, err := clock.BeginPause(ctx, tx.Tx, id, sequence)
 	if err != nil {
 		return ClockEpochObligation{}, err
 	}
@@ -161,7 +161,7 @@ func (s *Store) MarkClockPauseUncertain(ctx context.Context, id string, sequence
 		return ClockEpochObligation{}, err
 	}
 	defer tx.Rollback()
-	v, err := clock.MarkPauseUncertain(ctx, tx, id, sequence)
+	v, err := clock.MarkPauseUncertain(ctx, tx.Tx, id, sequence)
 	if err != nil {
 		return ClockEpochObligation{}, err
 	}
@@ -176,7 +176,7 @@ func (s *Store) ObserveClockEpoch(ctx context.Context, id string, sequence uint6
 		return ClockEpochObligation{}, err
 	}
 	defer tx.Rollback()
-	v, err := clock.ObserveEpoch(ctx, tx, id, sequence, current, status)
+	v, err := clock.ObserveEpoch(ctx, tx.Tx, id, sequence, current, status)
 	if err != nil {
 		return ClockEpochObligation{}, err
 	}
@@ -194,7 +194,7 @@ func (s *Store) BindClockInbox(ctx context.Context, profile string) (ClockInboxS
 		return ClockInboxState{}, err
 	}
 	defer tx.Rollback()
-	v, err := clock.BindInbox(ctx, tx, path)
+	v, err := clock.BindInbox(ctx, tx.Tx, path)
 	if err != nil {
 		return ClockInboxState{}, err
 	}
@@ -217,7 +217,7 @@ func (s *Store) LoadClockInbox(ctx context.Context, profile string, limit int) (
 		return ClockInbox{}, err
 	}
 	defer tx.Rollback()
-	v, err := clock.LoadInbox(ctx, tx, path, limit)
+	v, err := clock.LoadInbox(ctx, tx.Tx, path, limit)
 	if err != nil {
 		return ClockInbox{}, err
 	}
@@ -237,7 +237,7 @@ func (s *Store) AppendClockEvents(ctx context.Context, profile string, request *
 		return ClockInboxState{}, false, err
 	}
 	defer tx.Rollback()
-	v, created, err := clock.AppendEvents(ctx, tx, path, request, page)
+	v, created, err := clock.AppendEvents(ctx, tx.Tx, path, request, page)
 	if err != nil {
 		return ClockInboxState{}, false, err
 	}
@@ -253,7 +253,7 @@ func (s *Store) RetireClockHistory(ctx context.Context, expected ClockSequenceSt
 		return ClockRetirement{}, err
 	}
 	defer tx.Rollback()
-	v, err := clock.RetireHistory(ctx, tx, expected, keepRecent)
+	v, err := clock.RetireHistory(ctx, tx.Tx, expected, keepRecent)
 	if err != nil {
 		return ClockRetirement{}, err
 	}
@@ -265,7 +265,7 @@ func (s *Store) ReadClockReview(ctx context.Context, profile string) (ClockRevie
 		return ClockReviewState{}, err
 	}
 	defer tx.Rollback()
-	v, err := clock.ReadReview(ctx, tx, profile)
+	v, err := clock.ReadReview(ctx, tx.Tx, profile)
 	if err != nil {
 		return ClockReviewState{}, err
 	}
@@ -277,7 +277,7 @@ func (s *Store) ReviewClockEvents(ctx context.Context, profile string, expectedR
 		return ClockReviewState{}, err
 	}
 	defer tx.Rollback()
-	v, err := clock.ReviewEvents(ctx, tx, profile, expectedRevision)
+	v, err := clock.ReviewEvents(ctx, tx.Tx, profile, expectedRevision)
 	if err != nil {
 		return ClockReviewState{}, err
 	}
@@ -289,7 +289,7 @@ func (s *Store) AcknowledgeClockEvents(ctx context.Context, profile string, ack 
 		return ClockReviewState{}, err
 	}
 	defer tx.Rollback()
-	v, err := clock.AcknowledgeEvents(ctx, tx, profile, ack)
+	v, err := clock.AcknowledgeEvents(ctx, tx.Tx, profile, ack)
 	if err != nil {
 		return ClockReviewState{}, err
 	}
@@ -304,7 +304,7 @@ func (s *Store) MarkClockScopeSuperseded(ctx context.Context, id string, observe
 		return ClockAttempt{}, err
 	}
 	defer tx.Rollback()
-	v, err := clock.MarkScopeSuperseded(ctx, tx, id, observed)
+	v, err := clock.MarkScopeSuperseded(ctx, tx.Tx, id, observed)
 	if err != nil {
 		return ClockAttempt{}, err
 	}
@@ -316,7 +316,7 @@ func (s *Store) ReadClockSequence(ctx context.Context) (ClockSequenceState, erro
 		return ClockSequenceState{}, err
 	}
 	defer tx.Rollback()
-	v, err := clock.ReadClockSequence(ctx, tx)
+	v, err := clock.ReadClockSequence(ctx, tx.Tx)
 	if err != nil {
 		return ClockSequenceState{}, err
 	}

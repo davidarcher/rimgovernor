@@ -44,14 +44,14 @@ type ConcernTransition struct {
 	Held *int64
 }
 
-func initializeConcernTransitions(ctx context.Context, tx *sql.Tx) error {
+func initializeConcernTransitions(ctx context.Context, tx *Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE concern_transitions(sequence INTEGER PRIMARY KEY AUTOINCREMENT, wall_ms INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), concern TEXT NOT NULL CHECK(concern<>''), verdict TEXT NOT NULL, cause TEXT NOT NULL, subject TEXT NOT NULL, method TEXT NOT NULL, previous_cause TEXT, held_ticks INTEGER CHECK(held_ticks IS NULL OR held_ticks>=0)) STRICT;`)
 	return err
 }
 
 const concernTransitionColumns = "sequence,wall_ms,tick,concern,verdict,cause,subject,method,previous_cause,held_ticks"
 
-func checkConcernTransitionsSchema(ctx context.Context, tx *sql.Tx) error {
+func checkConcernTransitionsSchema(ctx context.Context, tx *Tx) error {
 	_, err := tx.ExecContext(ctx, "SELECT "+concernTransitionColumns+" FROM concern_transitions LIMIT 0")
 	return err
 }

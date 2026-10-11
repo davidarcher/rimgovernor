@@ -50,13 +50,13 @@ type combatRoster struct {
 	Roster []domain.PawnID
 }
 
-func initializeCombatFights(ctx context.Context, tx *sql.Tx) error {
+func initializeCombatFights(ctx context.Context, tx *Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE combat_fights(plan_id TEXT PRIMARY KEY REFERENCES plans(id), open INTEGER NOT NULL CHECK(open IN (0,1)), memory BLOB NOT NULL, roster BLOB NOT NULL) STRICT;
 CREATE TABLE combat_evidence(plan_id TEXT NOT NULL REFERENCES combat_fights(plan_id), sequence INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), payload BLOB NOT NULL, PRIMARY KEY(plan_id,sequence)) STRICT;`)
 	return err
 }
 
-func checkCombatFightsSchema(ctx context.Context, tx *sql.Tx) error {
+func checkCombatFightsSchema(ctx context.Context, tx *Tx) error {
 	if _, err := tx.ExecContext(ctx, "SELECT plan_id,open,memory,roster FROM combat_fights LIMIT 0"); err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func encodeRoster(world World, roster map[domain.PawnID]bool) ([]byte, error) {
 	return json.Marshal(held)
 }
 
-func insertCombatFight(ctx context.Context, tx *sql.Tx, plan domain.PlanID, memory policy.CombatMemory, world World, roster []domain.PawnID) error {
+func insertCombatFight(ctx context.Context, tx *Tx, plan domain.PlanID, memory policy.CombatMemory, world World, roster []domain.PawnID) error {
 	encoded, err := json.Marshal(memory)
 	if err != nil {
 		return err
@@ -202,7 +202,7 @@ func loadCombatFight(ctx context.Context, db queryRower, plan domain.PlanID) (Co
 }
 
 // combatFightHolds reports whether plan is a fight still open.
-func combatFightHolds(ctx context.Context, tx *sql.Tx, plan domain.PlanID) (bool, error) {
+func combatFightHolds(ctx context.Context, tx *Tx, plan domain.PlanID) (bool, error) {
 	fight, ok, err := loadCombatFight(ctx, tx, plan)
 	return ok && fight.Open, err
 }

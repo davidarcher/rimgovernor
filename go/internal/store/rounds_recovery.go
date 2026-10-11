@@ -3,7 +3,6 @@ package store
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 
@@ -113,7 +112,7 @@ func validateRoundsRecovery(r Rounds) error {
 	return nil
 }
 
-func roundsRecovery(ctx context.Context, tx *sql.Tx, f policy.RoundsFacts, h *policy.DisasterHistory, review Rounds, tick domain.Tick) (*RoundsRecovery, error) {
+func roundsRecovery(ctx context.Context, tx *Tx, f policy.RoundsFacts, h *policy.DisasterHistory, review Rounds, tick domain.Tick) (*RoundsRecovery, error) {
 	if h == nil {
 		return nil, nil
 	}

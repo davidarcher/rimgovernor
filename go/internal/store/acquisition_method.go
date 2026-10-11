@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -15,7 +14,7 @@ import (
 // wild food does, so neither's open progress blocks the acquisition the way
 // any other family's open work would. Any other open work still blocks, same
 // as every other goal-method family.
-func acquisitionOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
+func acquisitionOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
 	if len(plan.Actions()) == 0 {
 		return false, nil
 	}
@@ -86,7 +85,7 @@ func acquisitionIndependentWork(method domain.MethodID, action domain.Action) bo
 	return ok && zone.Kind() == domain.GrowingZone
 }
 
-func admitAcquisitionMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan domain.PlanSpec) error {
+func admitAcquisitionMethod(ctx context.Context, tx *Tx, owner methodOwner, plan domain.PlanSpec) error {
 	hasAcquisition := false
 	for _, action := range plan.Actions() {
 		hasAcquisition = hasAcquisition || action.Kind() == domain.AcquisitionAction

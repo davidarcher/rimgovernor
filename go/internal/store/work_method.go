@@ -2,13 +2,12 @@ package store
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func admitWorkMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan domain.PlanSpec) error {
+func admitWorkMethod(ctx context.Context, tx *Tx, owner methodOwner, plan domain.PlanSpec) error {
 	hasWork := false
 	for _, action := range plan.Actions() {
 		hasWork = hasWork || action.Kind() == domain.WorkAssignmentAction

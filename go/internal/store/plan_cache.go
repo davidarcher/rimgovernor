@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"reflect"
 	"sync"
@@ -180,11 +179,11 @@ func (c *planCache) flush() {
 	c.mu.Unlock()
 }
 
-// load returns the plan, from the cache when it is held. A nil cache loads
+// get returns the plan, from the cache when it is held. A nil cache decodes
 // from the database every time.
-func (c *planCache) load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) {
+func (c *planCache) get(ctx context.Context, tx *Tx, id domain.PlanID) (PlanState, error) {
 	if c == nil {
-		return load(ctx, tx, id)
+		return decodePlan(ctx, tx, id)
 	}
 	if err := c.syncVersion(ctx, tx); err != nil {
 		return PlanState{}, err
@@ -202,7 +201,7 @@ func (c *planCache) load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (Pla
 		return held.detached(), nil
 	}
 	c.misses.Add(1)
-	state, err := load(ctx, tx, id)
+	state, err := decodePlan(ctx, tx, id)
 	if err != nil {
 		return PlanState{}, err
 	}
@@ -220,7 +219,7 @@ func (c *planCache) load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (Pla
 // syncVersion flushes the cache when another connection has committed since
 // the last read: SQLite's data_version changes only for commits made by other
 // connections, which the hooks on this one cannot see.
-func (c *planCache) syncVersion(ctx context.Context, tx *sql.Tx) error {
+func (c *planCache) syncVersion(ctx context.Context, tx *Tx) error {
 	var v int64
 	if err := tx.QueryRowContext(ctx, "PRAGMA data_version").Scan(&v); err != nil {
 		return err
@@ -236,8 +235,8 @@ func (c *planCache) syncVersion(ctx context.Context, tx *sql.Tx) error {
 
 // verify is the test-only proof that no write path escaped the hooks: a hit
 // must equal a fresh decode.
-func (c *planCache) verify(ctx context.Context, tx *sql.Tx, id domain.PlanID, held PlanState) error {
-	fresh, err := load(ctx, tx, id)
+func (c *planCache) verify(ctx context.Context, tx *Tx, id domain.PlanID, held PlanState) error {
+	fresh, err := decodePlan(ctx, tx, id)
 	if err != nil {
 		return err
 	}

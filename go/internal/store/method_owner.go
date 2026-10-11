@@ -28,26 +28,26 @@ type methodOwner interface {
 	ownerLabel() string
 	// boundPlan is the plan the owner binds method to in its current
 	// episode (sql.ErrNoRows when it binds none), retired plans included.
-	boundPlan(ctx context.Context, tx *sql.Tx, method domain.MethodID) (domain.PlanID, error)
+	boundPlan(ctx context.Context, tx *Tx, method domain.MethodID) (domain.PlanID, error)
 	// bindMethod writes the owner's methods row and the plan_owner row that
 	// keeps plan_id unique across the three owner tables.
-	bindMethod(ctx context.Context, tx *sql.Tx, method domain.MethodID, plan domain.PlanID, reason string) error
+	bindMethod(ctx context.Context, tx *Tx, method domain.MethodID, plan domain.PlanID, reason string) error
 	// servedCount counts the owner's methods in its current episode,
 	// retired plans included.
-	servedCount(ctx context.Context, tx *sql.Tx) (int, error)
+	servedCount(ctx context.Context, tx *Tx) (int, error)
 }
 
-func insertPlanOwner(ctx context.Context, tx *sql.Tx, plan domain.PlanID, kind string) error {
+func insertPlanOwner(ctx context.Context, tx *Tx, plan domain.PlanID, kind string) error {
 	_, err := tx.ExecContext(ctx, "INSERT INTO plan_owner(plan_id,kind) VALUES(?,?)", plan, kind)
 	return err
 }
 
-func (g StandardState) boundPlan(ctx context.Context, tx *sql.Tx, method domain.MethodID) (plan domain.PlanID, err error) {
+func (g StandardState) boundPlan(ctx context.Context, tx *Tx, method domain.MethodID) (plan domain.PlanID, err error) {
 	err = tx.QueryRowContext(ctx, "SELECT plan_id FROM standard_methods WHERE standard_id=? AND episode=? AND method_id=?", g.Standard.ID, strconv.FormatUint(g.Standard.Episode, 10), method).Scan(&plan)
 	return plan, err
 }
 
-func (g StandardState) bindMethod(ctx context.Context, tx *sql.Tx, method domain.MethodID, plan domain.PlanID, reason string) error {
+func (g StandardState) bindMethod(ctx context.Context, tx *Tx, method domain.MethodID, plan domain.PlanID, reason string) error {
 	if err := insertPlanOwner(ctx, tx, plan, "standard"); err != nil {
 		return err
 	}
@@ -55,17 +55,17 @@ func (g StandardState) bindMethod(ctx context.Context, tx *sql.Tx, method domain
 	return err
 }
 
-func (g StandardState) servedCount(ctx context.Context, tx *sql.Tx) (n int, err error) {
+func (g StandardState) servedCount(ctx context.Context, tx *Tx) (n int, err error) {
 	err = tx.QueryRowContext(ctx, "SELECT count(*) FROM standard_methods WHERE standard_id=? AND episode=?", g.Standard.ID, strconv.FormatUint(g.Standard.Episode, 10)).Scan(&n)
 	return n, err
 }
 
-func (p ProjectState) boundPlan(ctx context.Context, tx *sql.Tx, method domain.MethodID) (plan domain.PlanID, err error) {
+func (p ProjectState) boundPlan(ctx context.Context, tx *Tx, method domain.MethodID) (plan domain.PlanID, err error) {
 	err = tx.QueryRowContext(ctx, "SELECT plan_id FROM project_methods WHERE project_id=? AND method_id=?", p.Project.ID, method).Scan(&plan)
 	return plan, err
 }
 
-func (p ProjectState) bindMethod(ctx context.Context, tx *sql.Tx, method domain.MethodID, plan domain.PlanID, reason string) error {
+func (p ProjectState) bindMethod(ctx context.Context, tx *Tx, method domain.MethodID, plan domain.PlanID, reason string) error {
 	if err := insertPlanOwner(ctx, tx, plan, "project"); err != nil {
 		return err
 	}
@@ -73,17 +73,17 @@ func (p ProjectState) bindMethod(ctx context.Context, tx *sql.Tx, method domain.
 	return err
 }
 
-func (p ProjectState) servedCount(ctx context.Context, tx *sql.Tx) (n int, err error) {
+func (p ProjectState) servedCount(ctx context.Context, tx *Tx) (n int, err error) {
 	err = tx.QueryRowContext(ctx, "SELECT count(*) FROM project_methods WHERE project_id=?", p.Project.ID).Scan(&n)
 	return n, err
 }
 
-func (i IncidentState) boundPlan(ctx context.Context, tx *sql.Tx, method domain.MethodID) (plan domain.PlanID, err error) {
+func (i IncidentState) boundPlan(ctx context.Context, tx *Tx, method domain.MethodID) (plan domain.PlanID, err error) {
 	err = tx.QueryRowContext(ctx, "SELECT plan_id FROM incident_methods WHERE incident_id=? AND method_id=?", i.Incident.ID, method).Scan(&plan)
 	return plan, err
 }
 
-func (i IncidentState) bindMethod(ctx context.Context, tx *sql.Tx, method domain.MethodID, plan domain.PlanID, reason string) error {
+func (i IncidentState) bindMethod(ctx context.Context, tx *Tx, method domain.MethodID, plan domain.PlanID, reason string) error {
 	if err := insertPlanOwner(ctx, tx, plan, "incident"); err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (i IncidentState) bindMethod(ctx context.Context, tx *sql.Tx, method domain
 	return err
 }
 
-func (i IncidentState) servedCount(ctx context.Context, tx *sql.Tx) (n int, err error) {
+func (i IncidentState) servedCount(ctx context.Context, tx *Tx) (n int, err error) {
 	err = tx.QueryRowContext(ctx, "SELECT count(*) FROM incident_methods WHERE incident_id=?", i.Incident.ID).Scan(&n)
 	return n, err
 }
@@ -114,7 +114,7 @@ func (g StandardState) ownerLabel() string { return "standard " + string(g.Stand
 // planner already asked: a vetoed proposal is ErrNotAdmitted with the
 // Safeguard's reason. An owner the review does not bind (a player goal) is
 // outside the routine Safeguards.
-func admitRoundsSafeguards(ctx context.Context, tx *sql.Tx, owner methodOwner) error {
+func admitRoundsSafeguards(ctx context.Context, tx *Tx, owner methodOwner) error {
 	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return err
@@ -132,8 +132,8 @@ func admitRoundsSafeguards(ctx context.Context, tx *sql.Tx, owner methodOwner) e
 
 // admitOwnerMethod runs the per-family admission checks every owner shares
 // and stores the plan; the caller then writes the methods row.
-func admitOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan domain.PlanSpec) error {
-	for _, admit := range []func(context.Context, *sql.Tx, methodOwner, domain.PlanSpec) error{admitBillMethod, admitZoneMethod, admitAcquisitionMethod, admitWorkMethod, admitSupplyMethod} {
+func admitOwnerMethod(ctx context.Context, tx *Tx, owner methodOwner, plan domain.PlanSpec) error {
+	for _, admit := range []func(context.Context, *Tx, methodOwner, domain.PlanSpec) error{admitBillMethod, admitZoneMethod, admitAcquisitionMethod, admitWorkMethod, admitSupplyMethod} {
 		if err := admit(ctx, tx, owner, plan); err != nil {
 			return err
 		}
@@ -145,7 +145,7 @@ func admitOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan d
 // owner already binds in its epoch, bound the owner's methods, run the family
 // admission and store the plan, then write the methods row and name the
 // plan's method.
-func bindOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, method domain.MethodID, reason string, plan domain.PlanSpec) error {
+func bindOwnerMethod(ctx context.Context, tx *Tx, owner methodOwner, method domain.MethodID, reason string, plan domain.PlanSpec) error {
 	// Plan ids are minted; the real double-admission key is the
 	// owner table's primary key (owner, [episode,] method).
 	switch bound, err := owner.boundPlan(ctx, tx, method); {
@@ -164,12 +164,12 @@ func bindOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, method 
 	return err
 }
 
-func (g StandardState) bumpRevision(ctx context.Context, tx *sql.Tx) error {
+func (g StandardState) bumpRevision(ctx context.Context, tx *Tx) error {
 	_, err := tx.ExecContext(ctx, "UPDATE standards SET revision=? WHERE id=?", strconv.FormatUint(g.Revision+1, 10), g.Standard.ID)
 	return err
 }
 
-func (p ProjectState) bumpRevision(ctx context.Context, tx *sql.Tx) error {
+func (p ProjectState) bumpRevision(ctx context.Context, tx *Tx) error {
 	_, err := tx.ExecContext(ctx, "UPDATE projects SET revision=? WHERE id=?", strconv.FormatUint(p.Revision+1, 10), p.Project.ID)
 	return err
 }

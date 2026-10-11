@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -90,7 +89,7 @@ func (s *Store) RetireCombatBatch(ctx context.Context, id domain.PlanID) error {
 
 // supersedeCombatBatches transfers execution responsibility to a later recorded
 // decision or completed restoration, while historical receipts stay untouched.
-func supersedeCombatBatches(ctx context.Context, tx *sql.Tx, fight, next domain.PlanID, restored bool) error {
+func supersedeCombatBatches(ctx context.Context, tx *Tx, fight, next domain.PlanID, restored bool) error {
 	if next != fight {
 		successor, err := load(ctx, tx, next)
 		if err != nil {

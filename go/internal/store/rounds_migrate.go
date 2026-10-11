@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"slices"
 
@@ -23,7 +22,7 @@ var removedStandardConcerns = map[policy.ConcernID]bool{"MaintainWaste": true}
 // ranking, progress, no-op, dependency). Plans holding the removed `waste`
 // action retire. It reports whether the row changed; the next review files
 // the migrated row.
-func migrateRounds(ctx context.Context, tx *sql.Tx, data []byte, r *Rounds) (bool, error) {
+func migrateRounds(ctx context.Context, tx *Tx, data []byte, r *Rounds) (bool, error) {
 	var legacy struct{ StartingSupplies json.RawMessage }
 	if err := json.Unmarshal(data, &legacy); err != nil {
 		return false, err

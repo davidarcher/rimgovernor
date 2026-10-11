@@ -197,7 +197,7 @@ func NewDefenseLayoutRecord(w World, project domain.ProjectID, l policy.DefenseL
 	return r, r.Validate()
 }
 
-func loadDefenseLayout(ctx context.Context, tx *sql.Tx) (DefenseLayoutRecord, bool, error) {
+func loadDefenseLayout(ctx context.Context, tx *Tx) (DefenseLayoutRecord, bool, error) {
 	var data []byte
 	if err := tx.QueryRowContext(ctx, "SELECT payload FROM defense_layout WHERE singleton=1").Scan(&data); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

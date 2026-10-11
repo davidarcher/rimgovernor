@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -12,7 +11,7 @@ import (
 // MaxBillPlanActions bounds one batched bill plan to a Round's reconcile.
 const MaxBillPlanActions = 64
 
-func admitBillMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan domain.PlanSpec) error {
+func admitBillMethod(ctx context.Context, tx *Tx, owner methodOwner, plan domain.PlanSpec) error {
 	has := false
 	for _, a := range plan.Actions() {
 		has = has || a.Kind() == domain.ProductionBillAction

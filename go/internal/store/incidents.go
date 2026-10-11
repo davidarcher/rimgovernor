@@ -68,7 +68,7 @@ func (s *Store) OpenIncident(ctx context.Context, a IncidentAssessment) (Inciden
 	return out, tx.Commit()
 }
 
-func openIncident(ctx context.Context, tx *sql.Tx, a IncidentAssessment) (IncidentState, error) {
+func openIncident(ctx context.Context, tx *Tx, a IncidentAssessment) (IncidentState, error) {
 	next := domain.Incident{Kind: a.Kind, Subject: a.Subject, Trigger: a.Trigger, Priority: a.Priority, Snapshot: a.Snapshot, Started: a.Tick, Payload: a.Payload}
 	var id domain.IncidentID
 	err := tx.QueryRowContext(ctx, "SELECT id FROM incidents WHERE colony=? AND load_token=? AND map_id=? AND kind=? AND subject=? AND ended_tick IS NULL", a.Snapshot.Colony, a.Snapshot.Load, a.Snapshot.Map, a.Kind, a.Subject).Scan(&id)
@@ -122,7 +122,7 @@ func (s *Store) CloseIncident(ctx context.Context, id domain.IncidentID, tick do
 	return state, tx.Commit()
 }
 
-func closeIncident(ctx context.Context, tx *sql.Tx, id domain.IncidentID, tick domain.Tick) (IncidentState, error) {
+func closeIncident(ctx context.Context, tx *Tx, id domain.IncidentID, tick domain.Tick) (IncidentState, error) {
 	state, err := loadIncident(ctx, tx, id)
 	if err != nil {
 		return IncidentState{}, err
@@ -200,7 +200,7 @@ func canonicalIncident(i domain.Incident) ([]byte, error) {
 	return json.Marshal(i)
 }
 
-func loadIncident(ctx context.Context, tx *sql.Tx, id domain.IncidentID) (IncidentState, error) {
+func loadIncident(ctx context.Context, tx *Tx, id domain.IncidentID) (IncidentState, error) {
 	var out IncidentState
 	var data []byte
 	if err := tx.QueryRowContext(ctx, "SELECT payload FROM incidents WHERE id=?", id).Scan(&data); err != nil {
@@ -257,7 +257,7 @@ func (s *Store) CommitIncidentMethod(ctx context.Context, id domain.IncidentID, 
 
 // fightWork admits the method beside the incident's open fight:
 // only a plan still open refuses it.
-func commitIncidentMethod(ctx context.Context, tx *sql.Tx, id domain.IncidentID, method domain.MethodID, reason string, plan domain.PlanSpec, fightWork bool) (IncidentState, error) {
+func commitIncidentMethod(ctx context.Context, tx *Tx, id domain.IncidentID, method domain.MethodID, reason string, plan domain.PlanSpec, fightWork bool) (IncidentState, error) {
 	state, err := loadIncident(ctx, tx, id)
 	if err != nil {
 		return IncidentState{}, err
@@ -295,7 +295,7 @@ func commitIncidentMethod(ctx context.Context, tx *sql.Tx, id domain.IncidentID,
 
 // guardIncidentWork is guardGoalWork for an incident's plan: the occurrence
 // is open in the current world and no Safeguard vetoes it.
-func guardIncidentWork(ctx context.Context, tx *sql.Tx, id domain.IncidentID, current domain.GenerationSnapshot, tick domain.Tick) error {
+func guardIncidentWork(ctx context.Context, tx *Tx, id domain.IncidentID, current domain.GenerationSnapshot, tick domain.Tick) error {
 	state, err := loadIncident(ctx, tx, id)
 	if err != nil {
 		return err
@@ -323,7 +323,7 @@ func recoveryAreaOnly(plan domain.PlanSpec) bool {
 	return true
 }
 
-func recoveryAreaConflictingWork(ctx context.Context, tx *sql.Tx, state IncidentState) (bool, error) {
+func recoveryAreaConflictingWork(ctx context.Context, tx *Tx, state IncidentState) (bool, error) {
 	for _, id := range state.ownerPlans() {
 		plan, err := load(ctx, tx, id)
 		if err != nil {

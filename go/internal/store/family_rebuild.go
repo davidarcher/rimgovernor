@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -107,7 +106,7 @@ func (s *Store) ResetRounds(ctx context.Context) error {
 	return err
 }
 
-func rebuildLayoutPlan(ctx context.Context, tx *sql.Tx, b GovernorFamilyBlob) error {
+func rebuildLayoutPlan(ctx context.Context, tx *Tx, b GovernorFamilyBlob) error {
 	var plan policy.LayoutPlan
 	if err := json.Unmarshal(b.Record, &plan); err != nil {
 		return err
@@ -123,7 +122,7 @@ func rebuildLayoutPlan(ctx context.Context, tx *sql.Tx, b GovernorFamilyBlob) er
 	return err
 }
 
-func putSingleton(ctx context.Context, tx *sql.Tx, table string, record any, limit int) error {
+func putSingleton(ctx context.Context, tx *Tx, table string, record any, limit int) error {
 	data, err := json.Marshal(record)
 	if err != nil {
 		return err

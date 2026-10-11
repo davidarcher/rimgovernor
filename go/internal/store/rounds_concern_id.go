@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -18,7 +17,7 @@ import (
 // reused before minting, so a mint happens only after an invalidation (tick
 // rewind, need dropping out); the generation advances past every existing
 // row, so a terminal row is never reopened.
-func mintRoundsStandardID(ctx context.Context, tx *sql.Tx, w World, need domain.ConcernID) (domain.ConcernID, error) {
+func mintRoundsStandardID(ctx context.Context, tx *Tx, w World, need domain.ConcernID) (domain.ConcernID, error) {
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%d", w.Colony, w.Load, w.Map)))
 	for gen := 0; gen < 1<<20; gen++ {
 		id := domain.ConcernID(fmt.Sprintf("routine-%x-%s-%d", digest[:8], need, gen))
@@ -34,7 +33,7 @@ func mintRoundsStandardID(ctx context.Context, tx *sql.Tx, w World, need domain.
 // mintRoundsProjectID is mintRoundsStandardID for a Project need: the
 // generation advances past every existing row, so a finished Project's
 // replacement after a regression is a new row.
-func mintRoundsProjectID(ctx context.Context, tx *sql.Tx, w World, need domain.ConcernID) (domain.ProjectID, error) {
+func mintRoundsProjectID(ctx context.Context, tx *Tx, w World, need domain.ConcernID) (domain.ProjectID, error) {
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%d", w.Colony, w.Load, w.Map)))
 	for gen := 0; gen < 1<<20; gen++ {
 		id := domain.ProjectID(fmt.Sprintf("project-%x-%s-%d", digest[:8], need, gen))

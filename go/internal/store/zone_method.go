@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -21,7 +20,7 @@ import (
 // zones: they light, heat or replace the soil a later batch plants.
 var fieldInfrastructure = map[string]bool{"SunLamp": true, "HydroponicsBasin": true, "Heater": true}
 
-func fieldOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
+func fieldOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
 	if len(plan.Actions()) == 0 {
 		return false, nil
 	}
@@ -48,7 +47,7 @@ func fieldOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan d
 	return true, nil
 }
 
-func admitZoneMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan domain.PlanSpec) error {
+func admitZoneMethod(ctx context.Context, tx *Tx, owner methodOwner, plan domain.PlanSpec) error {
 	hasWork := false
 	stockpile := false
 	for _, action := range plan.Actions() {

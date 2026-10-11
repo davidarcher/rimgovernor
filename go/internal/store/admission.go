@@ -57,7 +57,7 @@ func validateAdmission(a domain.Action, p domain.Progress, admission Admission) 
 	return nil
 }
 
-func loadAdmission(ctx context.Context, tx *sql.Tx, a domain.Action, p domain.Progress) (Admission, bool, error) {
+func loadAdmission(ctx context.Context, tx *Tx, a domain.Action, p domain.Progress) (Admission, bool, error) {
 	if a.Kind() != domain.ZoneCreateAction {
 		return Admission{}, false, nil
 	}

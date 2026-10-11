@@ -3,9 +3,10 @@ package store
 import (
 	"context"
 	"errors"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"path/filepath"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func TestTradeMissionProjectRecordFollowsSaveAndCAS(t *testing.T) {

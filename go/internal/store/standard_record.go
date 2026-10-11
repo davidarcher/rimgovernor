@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -57,7 +56,7 @@ func (s *Store) CommitMethodRecord(ctx context.Context, id domain.ConcernID, rev
 	return state, nil
 }
 
-func writeStandardRecord(ctx context.Context, tx *sql.Tx, state StandardState, record string) (StandardState, error) {
+func writeStandardRecord(ctx context.Context, tx *Tx, state StandardState, record string) (StandardState, error) {
 	g := state.Standard
 	g.Record = record
 	return saveStandard(ctx, tx, state, g)

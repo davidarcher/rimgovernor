@@ -77,7 +77,7 @@ func (r Rounds) VetoIncident(i domain.Incident) string {
 	return r.vetoNeed(i.Kind, i.Priority)
 }
 
-func openIncidentID(ctx context.Context, tx *sql.Tx, world domain.GenerationSnapshot, kind domain.ConcernID, subject domain.PawnID) (domain.IncidentID, bool, error) {
+func openIncidentID(ctx context.Context, tx *Tx, world domain.GenerationSnapshot, kind domain.ConcernID, subject domain.PawnID) (domain.IncidentID, bool, error) {
 	var id domain.IncidentID
 	err := tx.QueryRowContext(ctx, "SELECT id FROM incidents WHERE colony=? AND load_token=? AND map_id=? AND kind=? AND subject=? AND ended_tick IS NULL", world.Colony, world.Load, world.Map, kind, subject).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -91,7 +91,7 @@ func openIncidentID(ctx context.Context, tx *sql.Tx, world domain.GenerationSnap
 // re-triggers) its occurrence; a recovered one closes once no work is
 // open, as a goal satisfies; an unknown one keeps an open occurrence and
 // opens none. An open occurrence the review no longer binds closes.
-func reviewIncidents(ctx context.Context, tx *sql.Tx, assessments []policy.RoundsAssessment, request RoundsRequest, previous Rounds) ([]RoundsIncident, []IncidentState, error) {
+func reviewIncidents(ctx context.Context, tx *Tx, assessments []policy.RoundsAssessment, request RoundsRequest, previous Rounds) ([]RoundsIncident, []IncidentState, error) {
 	current, tick := request.Current, request.Tick
 	var bindings []RoundsIncident
 	var states []IncidentState
@@ -193,7 +193,7 @@ func reviewIncidents(ctx context.Context, tx *sql.Tx, assessments []policy.Round
 // abandonIncident closes an occurrence whose world was replaced, rewound
 // or stopped assessing it, cancelling all its work as an invalidated
 // goal's is.
-func abandonIncident(ctx context.Context, tx *sql.Tx, id domain.IncidentID, tick domain.Tick) error {
+func abandonIncident(ctx context.Context, tx *Tx, id domain.IncidentID, tick domain.Tick) error {
 	state, err := loadIncident(ctx, tx, id)
 	if err != nil || state.Incident.Closed {
 		return err
@@ -205,7 +205,7 @@ func abandonIncident(ctx context.Context, tx *sql.Tx, id domain.IncidentID, tick
 	return err
 }
 
-func openIncidentIDs(ctx context.Context, tx *sql.Tx, world World) ([]domain.IncidentID, error) {
+func openIncidentIDs(ctx context.Context, tx *Tx, world World) ([]domain.IncidentID, error) {
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM incidents WHERE colony=? AND load_token=? AND map_id=? AND ended_tick IS NULL ORDER BY started_tick,id LIMIT 513", world.Colony, world.Load, world.Map)
 	if err != nil {
 		return nil, err
@@ -280,7 +280,7 @@ func (s *Store) IncidentHistory(ctx context.Context, world World, kind domain.Co
 	return out, nil
 }
 
-func validateRoundsIncidents(ctx context.Context, tx *sql.Tx, r Rounds) error {
+func validateRoundsIncidents(ctx context.Context, tx *Tx, r Rounds) error {
 	if len(r.Incidents) > 512 {
 		return errors.New("invalid routine incident bindings")
 	}

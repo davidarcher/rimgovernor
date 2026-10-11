@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -21,7 +20,7 @@ func mergeImmediateRows[T any](old, fresh []T, concern func(T) domain.ConcernID)
 // retainOrdinaryRounds overlays the scoped transaction on the prior record.
 // Copying the untouched record retains each derived history's observation
 // time; absence from this inspection is never a recovery or a new observation.
-func retainOrdinaryRounds(ctx context.Context, tx *sql.Tx, r *Rounds, previous Rounds, result *RoundsResult) error {
+func retainOrdinaryRounds(ctx context.Context, tx *Tx, r *Rounds, previous Rounds, result *RoundsResult) error {
 	next := previous
 	next.Revision, next.Snapshot, next.Tick = r.Revision, r.Snapshot, r.Tick
 	next.Enabled, next.Immediate, next.Latches = r.Enabled, true, r.Latches

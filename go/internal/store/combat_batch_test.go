@@ -3,12 +3,13 @@ package store
 import (
 	"context"
 	"fmt"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"reflect"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 func testCombatPlan(t *testing.T, s *Store, id string, orders []domain.CombatCommand) domain.PlanSpec {

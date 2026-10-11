@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"slices"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 const GovernorCombatRestorationKey = "family/combat_restoration"
@@ -50,7 +51,7 @@ func (r CombatRestoration) Validate() error {
 	}
 	return nil
 }
-func loadCombatRestoration(ctx context.Context, tx *sql.Tx) (CombatRestoration, bool, error) {
+func loadCombatRestoration(ctx context.Context, tx *Tx) (CombatRestoration, bool, error) {
 	var raw []byte
 	err := tx.QueryRowContext(ctx, "SELECT payload FROM combat_restoration WHERE singleton=1").Scan(&raw)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -162,7 +163,7 @@ func CombatRestorationActions(r CombatRestoration, id domain.PlanID) ([]domain.A
 	}
 	return actions, nil
 }
-func combatRestorationPlan(ctx context.Context, tx *sql.Tx, p PlanState) bool {
+func combatRestorationPlan(ctx context.Context, tx *Tx, p PlanState) bool {
 	r, ok, err := loadCombatRestoration(ctx, tx)
 	if err != nil || !ok {
 		return false

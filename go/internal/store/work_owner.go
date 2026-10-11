@@ -25,7 +25,7 @@ type WorkOwner interface {
 	// OwnerRevision is the local CAS token method commits are scoped to.
 	OwnerRevision() uint64
 	// bumpRevision advances the stored revision after a method commit.
-	bumpRevision(ctx context.Context, tx *sql.Tx) error
+	bumpRevision(ctx context.Context, tx *Tx) error
 	// OwnerMethods lists the open methods; OwnerHistory every method of
 	// the current epoch, retired plans included.
 	OwnerMethods() []domain.Method
@@ -172,7 +172,7 @@ func (s *Store) LoadOwnerMethods(ctx context.Context, owner WorkOwner) ([]domain
 }
 
 // reloadOwner reads the owner's row again inside tx.
-func reloadOwner(ctx context.Context, tx *sql.Tx, owner WorkOwner) (WorkOwner, error) {
+func reloadOwner(ctx context.Context, tx *Tx, owner WorkOwner) (WorkOwner, error) {
 	switch o := owner.(type) {
 	case StandardState:
 		return loadStandard(ctx, tx, o.Standard.ID)
@@ -184,7 +184,7 @@ func reloadOwner(ctx context.Context, tx *sql.Tx, owner WorkOwner) (WorkOwner, e
 
 // commitOwnerMethod is CommitOwnerMethod inside tx, returning the owner as
 // committed.
-func commitOwnerMethod(ctx context.Context, tx *sql.Tx, owner WorkOwner, method domain.MethodID, reason string, plan domain.PlanSpec) (WorkOwner, error) {
+func commitOwnerMethod(ctx context.Context, tx *Tx, owner WorkOwner, method domain.MethodID, reason string, plan domain.PlanSpec) (WorkOwner, error) {
 	switch o := owner.(type) {
 	case StandardState:
 		return commitMethod(ctx, tx, o.Standard.ID, o.Revision, method, reason, plan)
@@ -251,7 +251,7 @@ func (s *Store) LoadOwner(ctx context.Context, id string) (WorkOwner, error) {
 }
 
 // loadOwner is LoadOwner inside tx.
-func loadOwner(ctx context.Context, tx *sql.Tx, id string) (WorkOwner, error) {
+func loadOwner(ctx context.Context, tx *Tx, id string) (WorkOwner, error) {
 	if isProjectID(id) {
 		return loadProject(ctx, tx, domain.ProjectID(id))
 	}

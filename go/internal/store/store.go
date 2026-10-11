@@ -213,13 +213,29 @@ func syncMode() string {
 	return "NORMAL"
 }
 
-func (s *Store) begin(ctx context.Context) (*sql.Tx, error) {
+// Tx is a store transaction. The store opens every transaction through begin,
+// so this is where a plan read reaches the decoded-plan cache: load takes a
+// Tx, and no caller can read a plan around the cache.
+type Tx struct {
+	*sql.Tx
+	plans *planCache
+}
+
+// load is the plan with the id, from the cache when it holds it.
+func load(ctx context.Context, tx *Tx, id domain.PlanID) (PlanState, error) {
+	return tx.plans.get(ctx, tx, id)
+}
+
+func (s *Store) begin(ctx context.Context) (*Tx, error) {
 	var tx *sql.Tx
 	err := retryBusy(ctx, func() (err error) {
 		tx, err = s.db.BeginTx(ctx, nil)
 		return err
 	})
-	return tx, err
+	if err != nil {
+		return nil, err
+	}
+	return &Tx{Tx: tx, plans: s.plans}, nil
 }
 
 // retryBusy repeats operation while it fails with SQLITE_BUSY or SQLITE_LOCKED.
@@ -277,19 +293,19 @@ CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submiss
 		if err != nil {
 			return err
 		}
-		if err = clock.InitializeReview(ctx, tx); err != nil {
+		if err = clock.InitializeReview(ctx, tx.Tx); err != nil {
 			return err
 		}
 		if err = initializeStandards(ctx, tx); err != nil {
 			return err
 		}
-		if err = clock.InitializeInbox(ctx, tx); err != nil {
+		if err = clock.InitializeInbox(ctx, tx.Tx); err != nil {
 			return err
 		}
-		if err = clock.InitializeSequence(ctx, tx); err != nil {
+		if err = clock.InitializeSequence(ctx, tx.Tx); err != nil {
 			return err
 		}
-		if err = clock.InitializeCheckpoint(ctx, tx); err != nil {
+		if err = clock.InitializeCheckpoint(ctx, tx.Tx); err != nil {
 			return err
 		}
 		if err = initializeColonyExtent(ctx, tx); err != nil {
@@ -330,16 +346,16 @@ CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submiss
 			}
 		}
 	}
-	if err = clock.CheckReviewSchema(ctx, tx); err != nil {
+	if err = clock.CheckReviewSchema(ctx, tx.Tx); err != nil {
 		return err
 	}
-	if err = clock.CheckInboxSchema(ctx, tx); err != nil {
+	if err = clock.CheckInboxSchema(ctx, tx.Tx); err != nil {
 		return err
 	}
-	if err = clock.CheckSequenceSchema(ctx, tx); err != nil {
+	if err = clock.CheckSequenceSchema(ctx, tx.Tx); err != nil {
 		return err
 	}
-	if err = clock.CheckCheckpointSchema(ctx, tx); err != nil {
+	if err = clock.CheckCheckpointSchema(ctx, tx.Tx); err != nil {
 		return err
 	}
 	if err = checkColonyExtentSchema(ctx, tx); err != nil {
@@ -399,8 +415,8 @@ func (s *Store) Identity(ctx context.Context) (ControllerSessionID, error) {
 	}
 	return id, nil
 }
-func identity(ctx context.Context, tx *sql.Tx) (ControllerSessionID, error) {
-	return core.Identity(ctx, tx)
+func identity(ctx context.Context, tx *Tx) (ControllerSessionID, error) {
+	return core.Identity(ctx, tx.Tx)
 }
 
 // CreatePlan initializes every action atomically. IDs remain unique across plans.
@@ -418,7 +434,7 @@ func (s *Store) CreatePlan(ctx context.Context, plan domain.PlanSpec) error {
 	}
 	return tx.Commit()
 }
-func createPlan(ctx context.Context, tx *sql.Tx, plan domain.PlanSpec) error {
+func createPlan(ctx context.Context, tx *Tx, plan domain.PlanSpec) error {
 	if err := plan.Validate(); err != nil {
 		return err
 	}
@@ -464,7 +480,7 @@ func (s *Store) LoadPlan(ctx context.Context, id domain.PlanID) (PlanState, erro
 	}
 	return state, nil
 }
-func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) {
+func decodePlan(ctx context.Context, tx *Tx, id domain.PlanID) (PlanState, error) {
 	var revision string
 	var retired bool
 	var method sql.NullString
@@ -642,7 +658,7 @@ func (s *Store) advance(ctx context.Context, plan domain.PlanID, action domain.A
 	return next, nil
 }
 
-func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, action domain.ActionID, event transition) (domain.Progress, error) {
+func advanceInTransaction(ctx context.Context, tx *Tx, plan domain.PlanID, action domain.ActionID, event transition) (domain.Progress, error) {
 	if event.Kind == "prepare" || event.Kind == "dispatch" {
 		if err := guardStandardWork(ctx, tx, event.floors, plan, event.Snapshot, event.Tick); err != nil {
 			return domain.Progress{}, err

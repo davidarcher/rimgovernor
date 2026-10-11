@@ -183,7 +183,7 @@ func TestClockSequenceRetirementAndCorruption(t *testing.T) {
 			if _, err = tx.Exec("DELETE FROM clock_attempts WHERE request_id=?", second); err != nil {
 				t.Fatal(err)
 			}
-			if err = clock.SaveSequence(ctx, tx, head); err != nil {
+			if err = clock.SaveSequence(ctx, tx.Tx, head); err != nil {
 				t.Fatal(err)
 			}
 			if err = tx.Commit(); err != nil {

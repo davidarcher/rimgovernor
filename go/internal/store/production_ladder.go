@@ -48,7 +48,7 @@ func (r ProductionLadderRecord) Validate() error {
 	return nil
 }
 
-func loadProductionLadder(ctx context.Context, tx *sql.Tx) (ProductionLadderRecord, bool, error) {
+func loadProductionLadder(ctx context.Context, tx *Tx) (ProductionLadderRecord, bool, error) {
 	var data []byte
 	if err := tx.QueryRowContext(ctx, "SELECT payload FROM production_ladder WHERE singleton=1").Scan(&data); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

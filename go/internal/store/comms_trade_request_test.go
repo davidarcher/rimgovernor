@@ -3,8 +3,9 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func TestCommsTradeRequestPendingJournalReload(t *testing.T) {

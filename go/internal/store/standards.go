@@ -36,7 +36,7 @@ const maxActiveStandards = 512
 // are session caches: RebuildStandards refills goals and projects from the save and
 // ResetRounds empties rounds on every world change, and the
 // next review recomputes it. Goal-create request replay is in memory only.
-func initializeStandards(ctx context.Context, tx *sql.Tx) error {
+func initializeStandards(ctx context.Context, tx *Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE standards(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;
 CREATE INDEX active_standards ON standards(id) WHERE retired=0;
 CREATE TABLE incidents(id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, subject TEXT NOT NULL, started_tick INTEGER NOT NULL, ended_tick INTEGER, payload BLOB NOT NULL) STRICT;
@@ -56,7 +56,7 @@ CREATE TABLE soldier_squad(singleton INTEGER PRIMARY KEY CHECK(singleton=1), pay
 	return err
 }
 
-func createStandard(ctx context.Context, tx *sql.Tx, g domain.Standard) error {
+func createStandard(ctx context.Context, tx *Tx, g domain.Standard) error {
 	if err := g.Validate(); err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func createStandard(ctx context.Context, tx *sql.Tx, g domain.Standard) error {
 	return nil
 }
 
-func loadStandard(ctx context.Context, tx *sql.Tx, id domain.ConcernID) (StandardState, error) {
+func loadStandard(ctx context.Context, tx *Tx, id domain.ConcernID) (StandardState, error) {
 	var out StandardState
 	var data []byte
 	var revision string
@@ -171,7 +171,7 @@ func (s *Store) LoadStandard(ctx context.Context, id domain.ConcernID) (Standard
 	return out, nil
 }
 
-func saveStandard(ctx context.Context, tx *sql.Tx, previous StandardState, g domain.Standard) (StandardState, error) {
+func saveStandard(ctx context.Context, tx *Tx, previous StandardState, g domain.Standard) (StandardState, error) {
 	if previous.Retired {
 		return StandardState{}, errors.New("retired standard is read-only")
 	}
@@ -197,7 +197,7 @@ func saveStandard(ctx context.Context, tx *sql.Tx, previous StandardState, g dom
 	return previous, nil
 }
 
-func standardOpenWork(ctx context.Context, tx *sql.Tx, owner methodOwner) (bool, error) {
+func standardOpenWork(ctx context.Context, tx *Tx, owner methodOwner) (bool, error) {
 	open := false
 	for _, plan := range owner.ownerPlans() {
 		p, err := load(ctx, tx, plan)
@@ -232,7 +232,7 @@ func rulesAttachOnly(plan domain.PlanSpec) bool {
 
 // planOpenWork is goalOpenWork without the fights: whether any of the
 // owner's plans is still open.
-func planOpenWork(ctx context.Context, tx *sql.Tx, owner methodOwner) (bool, error) {
+func planOpenWork(ctx context.Context, tx *Tx, owner methodOwner) (bool, error) {
 	for _, plan := range owner.ownerPlans() {
 		p, err := load(ctx, tx, plan)
 		if err != nil || PlanOpen(p) {
@@ -309,7 +309,7 @@ func (s *Store) CommitMethodReason(ctx context.Context, id domain.ConcernID, rev
 	return state, nil
 }
 
-func commitMethod(ctx context.Context, tx *sql.Tx, id domain.ConcernID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (StandardState, error) {
+func commitMethod(ctx context.Context, tx *Tx, id domain.ConcernID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (StandardState, error) {
 	state, err := loadStandard(ctx, tx, id)
 	if err != nil {
 		return StandardState{}, err
@@ -324,7 +324,7 @@ func commitMethod(ctx context.Context, tx *sql.Tx, id domain.ConcernID, revision
 // Project: the revision CAS, the open-deficit check, the Safeguards and current review, the open-work check with its exemptions, then the family
 // admission, the methods row and the revision bump. The caller reloads
 // the owner.
-func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) error {
+func admitOwnerCommit(ctx context.Context, tx *Tx, state WorkOwner, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) error {
 	summary, _ := SummarizeOwner(state)
 	if state.OwnerRevision() != revision {
 		return fmt.Errorf("%w: %s is at revision %d, not %d", ErrStaleOwner, state.ownerLabel(), state.OwnerRevision(), revision)
@@ -449,7 +449,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 // Active and never authorized: the worker refuses a recovered goal's fresh
 // write on every step, and nothing else ever retires the plan. Work
 // already dispatched keeps its own settlement path.
-func cancelUndispatchedMethods(ctx context.Context, tx *sql.Tx, owner methodOwner) error {
+func cancelUndispatchedMethods(ctx context.Context, tx *Tx, owner methodOwner) error {
 	for _, plan := range owner.ownerPlans() {
 		p, err := load(ctx, tx, plan)
 		if err != nil {
@@ -481,7 +481,7 @@ func cancelUndispatchedMethods(ctx context.Context, tx *sql.Tx, owner methodOwne
 	return nil
 }
 
-func cancelMethods(ctx context.Context, tx *sql.Tx, owner methodOwner) error {
+func cancelMethods(ctx context.Context, tx *Tx, owner methodOwner) error {
 	for _, plan := range owner.ownerPlans() {
 		p, err := load(ctx, tx, plan)
 		if err != nil {
@@ -502,7 +502,7 @@ func cancelMethods(ctx context.Context, tx *sql.Tx, owner methodOwner) error {
 	return nil
 }
 
-func guardStandardWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors, plan domain.PlanID, current domain.GenerationSnapshot, tick domain.Tick) error {
+func guardStandardWork(ctx context.Context, tx *Tx, floors *retirementFloors, plan domain.PlanID, current domain.GenerationSnapshot, tick domain.Tick) error {
 	var retired bool
 	if err := tx.QueryRowContext(ctx, "SELECT retired FROM plans WHERE id=?", plan).Scan(&retired); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

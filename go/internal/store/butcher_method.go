@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -44,7 +43,7 @@ func butcherFacilityWork(method domain.MethodID, action domain.Action) bool {
 // of method (a ring wave and the bench run side by side); a plan made only of
 // production bills only by an open bill. Any other goal keeps the ordinary
 // rule.
-func foodFacilityOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, method domain.MethodID, plan domain.PlanSpec) (bool, error) {
+func foodFacilityOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, method domain.MethodID, plan domain.PlanSpec) (bool, error) {
 	if len(plan.Actions()) == 0 || !foodConcern(goal) {
 		return false, nil
 	}

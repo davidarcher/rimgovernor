@@ -149,7 +149,7 @@ type RoundsDetection struct {
 	Policy  policy.RoundsPolicy
 }
 
-func loadRounds(ctx context.Context, tx *sql.Tx) (Rounds, error) {
+func loadRounds(ctx context.Context, tx *Tx) (Rounds, error) {
 	var data []byte
 	if err := tx.QueryRowContext(ctx, "SELECT payload FROM rounds WHERE singleton=1").Scan(&data); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -343,7 +343,7 @@ func (s *Store) ReviewRounds(ctx context.Context, request RoundsRequest) (Rounds
 	}
 	defer tx.Rollback()
 	settled := map[retirementWorld]domain.Tick{}
-	result, err := reviewRoundsTx(ctx, tx, s.plans, request, settled)
+	result, err := reviewRoundsTx(ctx, tx, request, settled)
 	if err != nil {
 		return RoundsResult{}, err
 	}
@@ -354,7 +354,7 @@ func (s *Store) ReviewRounds(ctx context.Context, request RoundsRequest) (Rounds
 	return result, nil
 }
 
-func reviewRoundsTx(ctx context.Context, tx *sql.Tx, cache *planCache, request RoundsRequest, settled map[retirementWorld]domain.Tick) (RoundsResult, error) {
+func reviewRoundsTx(ctx context.Context, tx *Tx, request RoundsRequest, settled map[retirementWorld]domain.Tick) (RoundsResult, error) {
 	previous, err := loadRounds(ctx, tx)
 	if err != nil {
 		return RoundsResult{}, err
@@ -404,7 +404,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, cache *planCache, request R
 		if err != nil {
 			return RoundsResult{}, err
 		}
-		request.Facts.UpkeepIssued, err = roundsUpkeepIssued(ctx, tx, cache, request.Current)
+		request.Facts.UpkeepIssued, err = roundsUpkeepIssued(ctx, tx, request.Current)
 		if err != nil {
 			return RoundsResult{}, err
 		}
@@ -769,7 +769,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, cache *planCache, request R
 		if !reset {
 			records = previous.Dependencies
 		}
-		ready, r.Dependencies, err = reviewWork(ctx, tx, cache, request, needs, states, records)
+		ready, r.Dependencies, err = reviewWork(ctx, tx, request, needs, states, records)
 		if err != nil {
 			return RoundsResult{}, err
 		}
@@ -833,7 +833,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, cache *planCache, request R
 // Project row, opens a new one when none stands or the finished one regressed
 // with no work open (the finished row stays as its record), and reviews
 // it against the assessment.
-func reviewProject(ctx context.Context, tx *sql.Tx, old map[domain.ConcernID]ProjectState, n policy.RoundsAssessment, current domain.GenerationSnapshot, tick domain.Tick) (ProjectState, error) {
+func reviewProject(ctx context.Context, tx *Tx, old map[domain.ConcernID]ProjectState, n policy.RoundsAssessment, current domain.GenerationSnapshot, tick domain.Tick) (ProjectState, error) {
 	p, exists := old[n.ID]
 	if exists && domain.ProjectRegressed(p.Project, n.Finding, false) {
 		open, err := standardOpenWork(ctx, tx, p)

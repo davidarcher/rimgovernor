@@ -23,8 +23,8 @@ type roundsPlan struct {
 // goal: routine plans to their bound need, player submissions to a
 // per-plan project id. Plans of another world, and plans with neither a
 // method nor a submission, are skipped.
-func roundsPlans(ctx context.Context, tx *sql.Tx, cache *planCache, current domain.GenerationSnapshot, bindings []RoundsStandard) ([]roundsPlan, error) {
-	plans, err := loadPlans(ctx, tx, cache)
+func roundsPlans(ctx context.Context, tx *Tx, current domain.GenerationSnapshot, bindings []RoundsStandard) ([]roundsPlan, error) {
+	plans, err := loadPlans(ctx, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func readyWorkOf(r RoundsRequest, plans []roundsPlan, unserved []domain.ConcernI
 
 // admitRoundsReview refuses work from a stale or disabled review, independently
 // of pawn availability. Safety is enforced by the shared Safeguards.
-func admitRoundsReview(ctx context.Context, tx *sql.Tx, g OwnerSummary) error {
+func admitRoundsReview(ctx context.Context, tx *Tx, g OwnerSummary) error {
 	if !(strings.HasPrefix(g.ID, "routine-") || isProjectID(g.ID)) {
 		return nil
 	}
@@ -121,7 +121,7 @@ func admitRoundsReview(ctx context.Context, tx *sql.Tx, g OwnerSummary) error {
 	return nil
 }
 
-func reviewWork(ctx context.Context, tx *sql.Tx, cache *planCache, r RoundsRequest, needs policy.RoundsFindings, states []WorkOwner, records []DependencyRecord) (policy.ReadyWorkReport, []DependencyRecord, error) {
+func reviewWork(ctx context.Context, tx *Tx, r RoundsRequest, needs policy.RoundsFindings, states []WorkOwner, records []DependencyRecord) (policy.ReadyWorkReport, []DependencyRecord, error) {
 	var bindings []RoundsStandard
 	var unserved []domain.ConcernID
 	for i, n := range needs.Assessments {
@@ -137,7 +137,7 @@ func reviewWork(ctx context.Context, tx *sql.Tx, cache *planCache, r RoundsReque
 			unserved = append(unserved, n.ID)
 		}
 	}
-	plans, err := roundsPlans(ctx, tx, cache, r.Current, bindings)
+	plans, err := roundsPlans(ctx, tx, r.Current, bindings)
 	if err != nil {
 		return policy.ReadyWorkReport{}, nil, err
 	}

@@ -166,7 +166,7 @@ func TestClockNamespaceBoundsAndRollback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = clock.ActionAvailable(ctx, tx, "a"); !errors.Is(err, ErrConflict) {
+	if err = clock.ActionAvailable(ctx, tx.Tx, "a"); !errors.Is(err, ErrConflict) {
 		t.Fatal(err)
 	}
 	tx.Rollback()
@@ -300,7 +300,7 @@ func TestClockAttemptCapacityPreservesReplay(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err = clock.SaveSequence(ctx, tx, head); err != nil {
+	if err = clock.SaveSequence(ctx, tx.Tx, head); err != nil {
 		t.Fatal(err)
 	}
 	if err = tx.Commit(); err != nil {

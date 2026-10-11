@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -40,7 +39,7 @@ func (s *Store) StockpilePatches(ctx context.Context, current domain.GenerationS
 	return result, tx.Commit()
 }
 
-func stockpilePatches(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick) (map[string]AppliedStockpile, error) {
+func stockpilePatches(ctx context.Context, tx *Tx, current domain.GenerationSnapshot, tick domain.Tick) (map[string]AppliedStockpile, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT m.plan_id,m.owner_id FROM plan_methods m LEFT JOIN standards g ON g.id=m.owner_id AND m.kind='standard' LEFT JOIN projects pr ON pr.id=m.owner_id AND m.kind='project'
  WHERE json_extract(COALESCE(g.payload,pr.payload),'$.Snapshot.Colony')=?
  AND json_extract(COALESCE(g.payload,pr.payload),'$.Snapshot.Load')=? AND json_extract(COALESCE(g.payload,pr.payload),'$.Snapshot.Map')=?

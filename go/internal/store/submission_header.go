@@ -17,11 +17,11 @@ type submissionHeader struct {
 	Revision domain.PlanRevision
 }
 
-func insertSubmissionHeader(ctx context.Context, tx *sql.Tx, id, kind string, w World, plan domain.PlanID, action domain.ActionID) error {
+func insertSubmissionHeader(ctx context.Context, tx *Tx, id, kind string, w World, plan domain.PlanID, action domain.ActionID) error {
 	_, err := tx.ExecContext(ctx, "INSERT INTO submissions(request_id,kind,colony,load_token,map_id,plan_id,action_id,revision) VALUES(?,?,?,?,?,?,?,'1')", id, kind, w.Colony, w.Load, w.Map, plan, action)
 	return conflict(err)
 }
-func lookupSubmissionHeader(ctx context.Context, tx *sql.Tx, id, kind string) (submissionHeader, error) {
+func lookupSubmissionHeader(ctx context.Context, tx *Tx, id, kind string) (submissionHeader, error) {
 	var revision string
 	h := submissionHeader{Revision: 1}
 	err := tx.QueryRowContext(ctx, "SELECT kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions WHERE request_id=?", id).Scan(&h.Kind, &h.World.Colony, &h.World.Load, &h.World.Map, &h.Plan, &h.Action, &revision)
@@ -45,7 +45,7 @@ func lookupSubmissionHeader(ctx context.Context, tx *sql.Tx, id, kind string) (s
 	}
 	return h, nil
 }
-func lookupAnySubmission(ctx context.Context, tx *sql.Tx, id string) (submissionHeader, error) {
+func lookupAnySubmission(ctx context.Context, tx *Tx, id string) (submissionHeader, error) {
 	h, err := lookupSubmissionHeader(ctx, tx, id, "")
 	if err != nil {
 		return h, err

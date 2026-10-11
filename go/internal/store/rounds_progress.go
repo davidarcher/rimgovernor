@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -19,7 +18,7 @@ import (
 // deficit the review measured. Records are keyed by need, the id the
 // launcher names concerns by; a concern that is recovered, cancelled or
 // invalidated drops its record.
-func roundsProgress(ctx context.Context, tx *sql.Tx, request RoundsRequest, previous Rounds, reset bool, needs policy.RoundsFindings, states []WorkOwner) ([]policy.ConcernProgress, error) {
+func roundsProgress(ctx context.Context, tx *Tx, request RoundsRequest, previous Rounds, reset bool, needs policy.RoundsFindings, states []WorkOwner) ([]policy.ConcernProgress, error) {
 	old := map[domain.ConcernID]policy.ConcernProgress{}
 	if !reset {
 		for _, p := range previous.Progress {

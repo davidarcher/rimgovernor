@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"slices"
@@ -50,7 +49,7 @@ func (s *Store) AuthorizeRoundsPlan(ctx context.Context, root, target domain.Gen
 		if err != nil {
 			return err
 		}
-		if err = authorizeStandardPlan(ctx, tx, s.plans, review, project, root, target); err != nil {
+		if err = authorizeStandardPlan(ctx, tx, review, project, root, target); err != nil {
 			return err
 		}
 		return tx.Commit()
@@ -65,7 +64,7 @@ func (s *Store) AuthorizeRoundsPlan(ctx context.Context, root, target domain.Gen
 	if err != nil {
 		return err
 	}
-	if err = authorizeStandardPlan(ctx, tx, s.plans, review, goal, root, target); err != nil {
+	if err = authorizeStandardPlan(ctx, tx, review, goal, root, target); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -74,7 +73,7 @@ func (s *Store) AuthorizeRoundsPlan(ctx context.Context, root, target domain.Gen
 // authorizeIncidentPlan is AuthorizeRoundsPlan for an incident's method:
 // the review binds the open occurrence in deficit, no Safeguard vetoes
 // it and the plan is its unretired method.
-func authorizeIncidentPlan(ctx context.Context, tx *sql.Tx, review Rounds, id domain.IncidentID, root, target domain.GenerationSnapshot) error {
+func authorizeIncidentPlan(ctx context.Context, tx *Tx, review Rounds, id domain.IncidentID, root, target domain.GenerationSnapshot) error {
 	binding, bound := review.incidentBinding(id)
 
 	state, err := loadIncident(ctx, tx, id)
@@ -103,7 +102,7 @@ func authorizeIncidentPlan(ctx context.Context, tx *sql.Tx, review Rounds, id do
 	return roundsActionsSupported(p.Spec)
 }
 
-func authorizeStandardPlan(ctx context.Context, tx *sql.Tx, cache *planCache, review Rounds, owner WorkOwner, root, target domain.GenerationSnapshot) error {
+func authorizeStandardPlan(ctx context.Context, tx *Tx, review Rounds, owner WorkOwner, root, target domain.GenerationSnapshot) error {
 	if _, bound := owner.ownerNeed(review); !bound {
 		return ErrConflict
 	}
@@ -124,7 +123,7 @@ func authorizeStandardPlan(ctx context.Context, tx *sql.Tx, cache *planCache, re
 	if !bound {
 		return ErrConflict
 	}
-	p, err := cache.load(ctx, tx, target.Plan)
+	p, err := load(ctx, tx, target.Plan)
 	if err != nil {
 		return err
 	}
@@ -223,7 +222,7 @@ func (s *Store) Workable(ctx context.Context, r Rounds, need policy.ConcernID) (
 
 // vetoAction asks the action Safeguards at dispatch: a vetoed action is
 // ErrActionVetoed with the Safeguard's reason and only that action is refused.
-func vetoAction(ctx context.Context, tx *sql.Tx, a domain.Action) error {
+func vetoAction(ctx context.Context, tx *Tx, a domain.Action) error {
 	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return err

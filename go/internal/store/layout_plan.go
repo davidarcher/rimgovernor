@@ -24,11 +24,11 @@ type LayoutPlanRecord struct {
 	Invalid bool
 }
 
-func initializeLayoutPlan(ctx context.Context, tx *sql.Tx) error {
+func initializeLayoutPlan(ctx context.Context, tx *Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE colony_layout_plans(colony TEXT NOT NULL, map_id INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), plan TEXT NOT NULL, PRIMARY KEY(colony,map_id,tick)) STRICT;`)
 	return err
 }
-func checkLayoutPlanSchema(ctx context.Context, tx *sql.Tx) error {
+func checkLayoutPlanSchema(ctx context.Context, tx *Tx) error {
 	_, err := tx.ExecContext(ctx, "SELECT colony,map_id,tick,plan FROM colony_layout_plans LIMIT 0")
 	return err
 }

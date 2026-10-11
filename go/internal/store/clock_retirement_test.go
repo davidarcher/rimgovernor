@@ -195,7 +195,7 @@ func TestClockRetirementPinnedCapacity(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tx.Rollback()
-	ns, h, err := clock.LoadSequence(ctx, tx)
+	ns, h, err := clock.LoadSequence(ctx, tx.Tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +214,7 @@ func TestClockRetirementPinnedCapacity(t *testing.T) {
 		h.Retained = append(h.Retained, i)
 	}
 	h.LastAllocated = 4096
-	if err = clock.SaveSequence(ctx, tx, h); err != nil {
+	if err = clock.SaveSequence(ctx, tx.Tx, h); err != nil {
 		t.Fatal(err)
 	}
 	if err = tx.Commit(); err != nil {

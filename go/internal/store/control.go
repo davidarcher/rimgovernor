@@ -94,10 +94,10 @@ func scanControl(row *sql.Row) (ControlRecord, error) {
 	}
 	return r, nil
 }
-func lookupControl(ctx context.Context, tx *sql.Tx, id string) (ControlRecord, error) {
+func lookupControl(ctx context.Context, tx *Tx, id string) (ControlRecord, error) {
 	return scanControl(tx.QueryRowContext(ctx, "SELECT "+controlColumns+" FROM control_intents WHERE request_id=?", id))
 }
-func currentControl(ctx context.Context, tx *sql.Tx) (ControlRecord, error) {
+func currentControl(ctx context.Context, tx *Tx) (ControlRecord, error) {
 	return scanControl(tx.QueryRowContext(ctx, "SELECT "+controlColumns+" FROM control_intents ORDER BY rowid DESC LIMIT 1"))
 }
 

@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -166,7 +165,7 @@ func parseProjectBlobs(saved map[string]string) (map[domain.ProjectID]GovernorPr
 
 // rebuildProjects is RebuildStandards' project half, in its transaction: its
 // method rows are already deleted and their plans retired.
-func rebuildProjects(ctx context.Context, tx *sql.Tx, projects map[domain.ProjectID]GovernorProjectBlob) error {
+func rebuildProjects(ctx context.Context, tx *Tx, projects map[domain.ProjectID]GovernorProjectBlob) error {
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM projects ORDER BY id")
 	if err != nil {
 		return err
@@ -205,7 +204,7 @@ func rebuildProjects(ctx context.Context, tx *sql.Tx, projects map[domain.Projec
 	return nil
 }
 
-func concernIDs(ctx context.Context, tx *sql.Tx) ([]domain.ConcernID, error) {
+func concernIDs(ctx context.Context, tx *Tx) ([]domain.ConcernID, error) {
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM standards ORDER BY id")
 	if err != nil {
 		return nil, err

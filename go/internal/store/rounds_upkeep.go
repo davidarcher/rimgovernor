@@ -12,8 +12,8 @@ import (
 
 // Only the journal may retain an issued upkeep obligation. Review callers cannot
 // invent a pending order, and retired observed methods need no fresh hold.
-func roundsUpkeepIssued(ctx context.Context, tx *sql.Tx, cache *planCache, current domain.GenerationSnapshot) (map[policy.ConcernID]bool, error) {
-	plans, err := loadPlans(ctx, tx, cache)
+func roundsUpkeepIssued(ctx context.Context, tx *Tx, current domain.GenerationSnapshot) (map[policy.ConcernID]bool, error) {
+	plans, err := loadPlans(ctx, tx)
 	if err != nil {
 		return nil, err
 	}

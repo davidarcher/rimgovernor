@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -10,7 +9,7 @@ import (
 
 // admitSupplyMethod admits only stacks the review's cohort still lists, each
 // at the cell the census last reported, in bounded batches.
-func admitSupplyMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan domain.PlanSpec) error {
+func admitSupplyMethod(ctx context.Context, tx *Tx, owner methodOwner, plan domain.PlanSpec) error {
 	hasSupply := false
 	for _, action := range plan.Actions() {
 		hasSupply = hasSupply || action.Kind() == domain.SupplyAllowAction || action.Kind() == domain.SupplyForbidAction
@@ -65,7 +64,7 @@ func admitSupplyMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan 
 }
 
 // A standing refill bill must not delay access to food in an emergency.
-func reserveAccessOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
+func reserveAccessOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
 	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return false, err
