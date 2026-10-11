@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
             // Fresh animal corpses have a separate storage/forbid owner.
             var items = things.Where(t => NativeSupplyAllow.Eligible(t) && !FoodSupplyFacts.FreshAnimalCorpse(t)).OrderBy(t => t.thingIDNumber).ToList();
             var safety = new HaulingSafety(map);
-            var census = new Obs.LootCensus { FreeHaulers = safety.FreeHaulers, StorytellerQuiet = StorytellerQuiet() };
+            var census = new Obs.LootCensus();
             var headroom = new Dictionary<ThingDef, long>();
             foreach (var t in items) {
                 var row = new Obs.LootItem {
@@ -36,14 +36,6 @@ namespace HomeBridge.BridgeTools
             }
             safety.Dispose();
             return new Obs.LootSection { Observed = census };
-        }
-
-        // Reach readiness reads the storyteller as quiet at zero threat
-        // scale (peaceful) or with no incident generators at all.
-        internal static bool StorytellerQuiet()
-        {
-            var storyteller = Find.Storyteller;
-            return storyteller != null && (storyteller.difficulty.threatScale <= 0f || storyteller.storytellerComps.Count == 0);
         }
 
         // Free item units the player's storage accepting this def can still take:
@@ -104,7 +96,6 @@ namespace HomeBridge.BridgeTools
             // PathLength is the last Safe(true) verdict's colonist route length in
             // cells, -1 when that verdict came without a measured path.
             internal double PathLength = -1;
-            internal readonly long FreeHaulers;
             // What the verdicts depend on beyond the building itself, for the
             // cross-read salvage cache's validity signature.
             internal int HazardCount => hazards.Count;
@@ -113,8 +104,6 @@ namespace HomeBridge.BridgeTools
             {
                 this.map = map;
                 people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && !p.InMentalState).ToList();
-                FreeHaulers = people.Count(p => !p.Drafted && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)
-                    && p.workSettings != null && p.workSettings.WorkIsActive(WorkTypeDefOf.Hauling));
                 hazards = map.listerThings.AllThings.Where(t => t.Spawned && !t.Position.Fogged(map)
                     && (t is Fire || t is Building_Trap
                         || t is Pawn p && !p.Dead && !p.Downed && p.HostileTo(Faction.OfPlayer)

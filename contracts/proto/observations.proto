@@ -1683,10 +1683,8 @@ message ThreatSection { oneof outcome { ThreatFacts observed = 1; rimgovernor.co
 // stack size; path_length is the shortest observed safe colonist route to the
 // item in cells (present only with safe_to_haul true); storage_headroom is the
 // item units the player's accepting storage can still take for this def.
-// free_haulers counts free colonists with Hauling enabled; storyteller_quiet
-// is true at zero threat scale or with no storyteller incident generators.
 message LootItem { rimgovernor.common.v1.Ref item = 1; optional bool forbidden = 2; optional bool safe_to_haul = 3; optional int64 count = 4; optional double path_length = 5; optional int64 storage_headroom = 6; }
-message LootCensus { repeated LootItem items = 1; optional int64 free_haulers = 2; optional bool storyteller_quiet = 3; }
+message LootCensus { repeated LootItem items = 1; }
 message LootSection { oneof outcome { LootCensus observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Food source potential, independent of acquisition instances and policy.
 // Animal rows cover every tame animal: absent components leave their scalars

@@ -46,7 +46,7 @@ func coverLootCell(n *roundsNative, cell domain.Cell) {
 // at cell, the stacks ManageSupplySafety releases.
 func forbiddenSupplyRows(n *roundsNative, count int, cell domain.Cell) *o.LootSection {
 	coverLootCell(n, cell)
-	census := &o.LootCensus{FreeHaulers: proto.Int64(5), StorytellerQuiet: proto.Bool(true)}
+	census := &o.LootCensus{}
 	for i := 0; i < count; i++ {
 		ref := n.thing(&o.Thing{Thing: &o.EntityRef{Id: proto.String(fmt.Sprintf("item-%02d", i)), DefName: proto.String("Steel"), MapId: n.reply.GetObserved().Context.Identity.MapId, Position: &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)}}})
 		census.Items = append(census.Items, &o.LootItem{Item: ref, Forbidden: proto.Bool(true), SafeToHaul: proto.Bool(true), Count: proto.Int64(10), PathLength: proto.Float64(1), StorageHeadroom: proto.Int64(100)})
