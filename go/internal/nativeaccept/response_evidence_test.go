@@ -17,7 +17,7 @@ func TestResponseEvidenceKeepsAcceptanceSeparateFromNativeEffect(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := r.ReadFlight(path); err != nil {
+	if err := r.ReadLogs(path); err != nil {
 		t.Fatal(err)
 	}
 	if r.DetectionTick == nil || *r.DetectionTick != 102 || r.DecisionTick == nil || *r.DecisionTick != 103 || r.DispatchTick == nil || *r.DispatchTick != 104 || r.FirstEffectTick != nil {

@@ -8,8 +8,8 @@ import (
 )
 
 // SchedulerStep is the service's latest worker-step row (the planner_step of target worker_step) (the clock
-// worker writes one per change of step outcome): the row as the flight
-// recorder wrote it and the isolated planner failures it carried.
+// worker writes one per change of step outcome): the row as the OTLP log
+// ring held it and the isolated planner failures it carried.
 type SchedulerStep struct {
 	// Line is the row's OTLP log line, distinct per row (it carries the
 	// observed time), so a caller can tell a new step from a re-read one.
@@ -33,7 +33,7 @@ const schedulerStepTail = 256 * 1024
 // LastSchedulerStepFile reads the last worker-step row (planner_step, target worker_step) from the tail of
 // the OTLP log ring at path; false when it has none yet or cannot be read.
 func LastSchedulerStepFile(path string) (SchedulerStep, bool) {
-	row, line, ok := lastFlightRow(path, schedulerStepTail, func(r FlightRow) bool { return bridge.IsWorkerStep(r.Record()) })
+	row, line, ok := lastLogRow(path, schedulerStepTail, func(r LogRow) bool { return bridge.IsWorkerStep(r.Record()) })
 	if !ok {
 		return SchedulerStep{}, false
 	}
@@ -42,7 +42,7 @@ func LastSchedulerStepFile(path string) (SchedulerStep, bool) {
 
 // plannerFailures renders the row's planner_failures list as "[a; b]" ("[]"
 // when empty).
-func plannerFailures(row FlightRow) string {
+func plannerFailures(row LogRow) string {
 	list, _ := row.Fields()["planner_failures"].([]any)
 	parts := make([]string, 0, len(list))
 	for _, v := range list {

@@ -128,11 +128,11 @@ func (sel selection) register(name string) cases.Case {
 				return err
 			}
 			report := s.Report()
-			flight, err := na.ReadFlight(na.ServiceLogsPath(s.Config().Output))
+			logs, err := na.ReadLogs(na.ServiceLogsPath(s.Config().Output))
 			if err != nil {
 				return err
 			}
-			selections, err := farmselect.Parse(flight)
+			selections, err := farmselect.Parse(logs)
 			if err != nil {
 				return err
 			}

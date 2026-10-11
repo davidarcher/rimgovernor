@@ -203,19 +203,9 @@ type Client struct {
 	recording       bool // ProcessConfig.RecordRows
 	framesSampledAt atomic.Int64
 	// rowIDs numbers native_request markers (nativeRow).
-	rowIDs           atomic.Uint64
-	rollup           pollRollup
-	recordingContext func() map[string]any
-	transcript       *Transcript
-}
-
-// SetRecordingContext installs a callback read once per recorded call and
-// attached to every native row it produces (colony/plan/direction identity,
-// not authority). It has no effect when the Client does not record rows.
-func (c *Client) SetRecordingContext(context func() map[string]any) {
-	c.mu.Lock()
-	c.recordingContext = context
-	c.mu.Unlock()
+	rowIDs     atomic.Uint64
+	rollup     pollRollup
+	transcript *Transcript
 }
 
 func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
@@ -554,22 +544,6 @@ func (c *Client) operationCall(ctx context.Context, span trace.Span, class Admis
 	return run(withCallTiming(ctx, timing), live)
 }
 
-// snapshotRecordingContext reads the installed recording-context callback (if
-// any) once per call. The row's trace ids come from ctx's span when the row is
-// emitted.
-func (c *Client) snapshotRecordingContext(ctx context.Context) map[string]any {
-	c.mu.Lock()
-	callback := c.recordingContext
-	c.mu.Unlock()
-	merged := map[string]any{}
-	if callback != nil {
-		for k, v := range callback() {
-			merged[k] = v
-		}
-	}
-	return merged
-}
-
 func (c *Client) core(ctx context.Context, live *liveSession, name string, arguments json.RawMessage) (Result, error) {
 	found := false
 	for _, tool := range live.discovery.Tools {
@@ -581,13 +555,11 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 	if !found {
 		return Result{}, fmt.Errorf("%w: missing capability %s", ErrContract, name)
 	}
-	var recordCtx map[string]any
 	var marker *callMarker
 	recording := c.recording
 	nativeTool := nativeToolOf(name, arguments)
 	if recording {
-		recordCtx = c.snapshotRecordingContext(ctx)
-		marker = c.startCallMarker(ctx, recordCtx, name, nativeTool, arguments)
+		marker = c.startCallMarker(ctx, name, nativeTool, arguments)
 	}
 	timing := callTimingFrom(ctx)
 	callBegan := time.Now()
@@ -642,7 +614,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 	if err != nil {
 		recordCallMetrics(nativeTool, timing, millis(callElapsed), -1, nil, err)
 		if recording {
-			c.recordCall(ctx, recordCtx, callRow(map[string]any{"ok": false, "error": err.Error(), "timing": phases(0, len(raw))}))
+			c.recordCall(ctx, callRow(map[string]any{"ok": false, "error": err.Error(), "timing": phases(0, len(raw))}))
 		}
 		if errors.Is(err, ErrContract) || errors.Is(err, context.Canceled) {
 			return Result{}, err
@@ -669,7 +641,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 			if errors.As(decodeErr, &refusal) {
 				row["refused_text"] = refusal.Result.Text
 			}
-			c.recordCall(ctx, recordCtx, row)
+			c.recordCall(ctx, row)
 		} else {
 			timing := phases(decodeElapsed, len(raw))
 			if hasNative {
@@ -696,7 +668,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 			if typeName := recordedReplyType(ctx); typeName != "" {
 				row["reply_type"] = typeName
 			}
-			c.recordCall(ctx, recordCtx, row)
+			c.recordCall(ctx, row)
 		}
 	}
 	return decoded, decodeErr

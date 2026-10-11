@@ -35,7 +35,7 @@ type Selection struct {
 // Parse extracts every selection from a service's rows: a
 // fields_select row carries the winner (reason the site kind, target the
 // crop) and its candidates in attrs. Other rows are ignored.
-func Parse(rows []na.FlightRow) ([]Selection, error) {
+func Parse(rows []na.LogRow) ([]Selection, error) {
 	var out []Selection
 	for _, row := range rows {
 		if row.Kind != "fields_select" {

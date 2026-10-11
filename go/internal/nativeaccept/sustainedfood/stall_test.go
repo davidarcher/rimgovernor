@@ -64,7 +64,7 @@ func TestTickStallIdle(t *testing.T) {
 }
 
 func TestNoWorkRefusal(t *testing.T) {
-	row := na.FlightRow{Kind: "admission", Payload: map[string]any{"verdict": "refused", "target": "window", "attrs": map[string]any{"refused": []any{"no_work"}}}}
+	row := na.LogRow{Kind: "admission", Payload: map[string]any{"verdict": "refused", "target": "window", "attrs": map[string]any{"refused": []any{"no_work"}}}}
 	if !NoWorkRefusal(row) {
 		t.Fatal("no_work refusal not recognised")
 	}

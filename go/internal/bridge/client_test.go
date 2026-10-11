@@ -284,7 +284,6 @@ func TestNativeRowsCaptureCompletedCallsAndErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = client.Close() })
-	client.SetRecordingContext(func() map[string]any { return map[string]any{"colony": "test-colony"} })
 	if _, err = testNativeRead(client, context.Background()); err != nil {
 		t.Fatal(err)
 	}

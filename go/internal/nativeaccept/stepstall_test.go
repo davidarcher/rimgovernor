@@ -9,7 +9,7 @@ import (
 )
 
 func TestLastStepFailure(t *testing.T) {
-	path := writeFlight(t,
+	path := writeLogs(t,
 		stepRow("WARN", "rounds: context deadline exceeded", 4100),
 		stepRow("INFO", "step done", 4150),
 		stepRow("WARN", "Fields: context deadline exceeded", 4200),
@@ -18,7 +18,7 @@ func TestLastStepFailure(t *testing.T) {
 	if got := lastStepFailure(path); got != "2026-09-18T19:46:03.123Z tick=4200 WARN failed step_error: Fields: context deadline exceeded" {
 		t.Fatalf("last failure = %q", got)
 	}
-	if got := lastStepFailure(writeFlight(t, stepRow("INFO", "step done", 4100))); got != "" {
+	if got := lastStepFailure(writeLogs(t, stepRow("INFO", "step done", 4100))); got != "" {
 		t.Fatalf("expected no failure, got %q", got)
 	}
 	if got := lastStepFailure(filepath.Join(t.TempDir(), "missing.jsonl")); got != "" {

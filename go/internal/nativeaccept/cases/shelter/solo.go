@@ -61,7 +61,7 @@ func runSolo(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("%w (shelter %+v, placements %v)", err, shelter.Interior, seen)
 	}
 	report["placement"] = map[string]any{"definition": policy.ShelterHeatDef, "cell": cell}
-	refused, err := na.RefusalsNameBlockers(service.FlightPath)
+	refused, err := na.RefusalsNameBlockers(service.LogPath)
 	report["placement_refused"] = refused
 	return err
 }

@@ -16,12 +16,12 @@ import (
 
 // Bundle files a combat-fixture run records. ReadsFile holds every
 // raw test/lab_stage read reply, one JSON object per line, in tick order;
-// MetricsFile is the aggregate; FlightFile, when a run served the planner,
+// MetricsFile is the aggregate; CombatRowsFile, when a run served the planner,
 // carries its clock_stop, combat_order and dispatch rows.
 const (
-	ReadsFile   = "combat_reads.jsonl"
-	MetricsFile = "combat_metrics.json"
-	FlightFile  = "combat_rows.jsonl"
+	ReadsFile      = "combat_reads.jsonl"
+	MetricsFile    = "combat_metrics.json"
+	CombatRowsFile = "combat_rows.jsonl"
 )
 
 // MetricsVersion is the Metrics schema version: bump it when a field
@@ -53,7 +53,7 @@ type Metrics struct {
 	FriendlyFireHits int `json:"friendlyFireHits"`
 	DamageDropped    int `json:"damageDropped,omitempty"`
 
-	// OrdersIssued and OrdersRefused count combat orders from the flight
+	// OrdersIssued and OrdersRefused count combat orders from the log
 	// rows: combat_order rows and the routine defense planner's
 	// actions, issued once one completes, refused when one only ever
 	// carried a refusal.
@@ -206,13 +206,13 @@ func resolved(staged map[string]string, pawns map[string]map[string]any) string 
 	return ""
 }
 
-// ScanFlight adds the rows' combat orders and step latency: each
+// ScanLogs adds the rows' combat orders and step latency: each
 // combat stop's resume_latency_ms, each combat_order row's verdict, and the
 // routine defense planner's actions (drafts, holds) from the worker's
 // outcome rows, issued once one completes, refused when one only ever
 // refused. A missing file is a run no planner served.
-func (m *Metrics) ScanFlight(path string) error {
-	rows, err := na.ReadFlight(path)
+func (m *Metrics) ScanLogs(path string) error {
+	rows, err := na.ReadLogs(path)
 	if err != nil {
 		return err
 	}
@@ -259,9 +259,9 @@ func (m *Metrics) ScanFlight(path string) error {
 	return nil
 }
 
-// CombatRow reports whether a row is one ScanFlight reads: the
+// CombatRow reports whether a row is one ScanLogs reads: the
 // bundle keeps only these.
-func CombatRow(row na.FlightRow) bool {
+func CombatRow(row na.LogRow) bool {
 	return row.Kind == "combat_order" || row.Kind == "clock_stop" || row.Kind == "dispatch" || row.Kind == "clock_step" || row.Kind == "planner_step" && na.AsString(row.Fields()["scope"]) == "immediate"
 }
 
@@ -313,5 +313,5 @@ func AggregateBundle(dir, fixture string) (Metrics, error) {
 		staged[id] = na.AsString(side)
 	}
 	m := Aggregate(fixture, staged, reads)
-	return m, m.ScanFlight(filepath.Join(dir, FlightFile))
+	return m, m.ScanLogs(filepath.Join(dir, CombatRowsFile))
 }

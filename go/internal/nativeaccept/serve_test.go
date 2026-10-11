@@ -238,8 +238,8 @@ func TestLaunchServeExitIsTerminalAndNamesTheStepFailure(t *testing.T) {
 		t.Fatalf("state %q", state)
 	}
 	// The stall error names the last step failure in the OTLP log ring.
-	p.FlightPath = writeFlight(t, stepRow("WARN", "Fields: context deadline exceeded", 4200))
-	stall := &StepStallError{Stall: time.Minute, Families: "supply,work", LastFailure: lastStepFailure(p.FlightPath)}
+	p.LogPath = writeLogs(t, stepRow("WARN", "Fields: context deadline exceeded", 4200))
+	stall := &StepStallError{Stall: time.Minute, Families: "supply,work", LastFailure: lastStepFailure(p.LogPath)}
 	if !strings.Contains(stall.Error(), "Fields: context deadline exceeded") {
 		t.Fatalf("stall error %q", stall)
 	}

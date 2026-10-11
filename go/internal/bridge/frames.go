@@ -174,7 +174,7 @@ func (caller *Client) frameReadView(ctx context.Context, name string, key readCa
 	defer cancel()
 	miss := func(why string, err error) (bool, error) {
 		if caller.recording {
-			caller.nativeRow(ctx, "native_frame", caller.snapshotRecordingContext(ctx), false, map[string]any{"outcome": "miss", "native_tool": name, "why": why})
+			caller.nativeRow(ctx, "native_frame", nil, false, map[string]any{"outcome": "miss", "native_tool": name, "why": why})
 		}
 		return true, err
 	}
@@ -210,7 +210,7 @@ func (caller *Client) frameReadView(ctx context.Context, name string, key readCa
 					caller.frameReader(ctx) // asks for the keyframe now
 				}
 				if decoded != nil && caller.recording {
-					caller.nativeRow(ctx, "native_frame", caller.snapshotRecordingContext(ctx), false, decoded)
+					caller.nativeRow(ctx, "native_frame", nil, false, decoded)
 				}
 				switch {
 				case found:

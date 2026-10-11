@@ -220,7 +220,7 @@ func observe(ctx context.Context, s cases.Session, variant string) (startuplabor
 	}
 	service.Stop()
 	obs.Blocked = startuplabor.BlockedTicks(diagnoses, window(), 0)
-	obs.Idle = idleAccount(service.FlightPath)
+	obs.Idle = idleAccount(service.LogPath)
 	obs.Revision = na.AsString(s.Report()["revision"])
 	rows := make([]map[string]any, 0, len(diagnoses))
 	for _, d := range diagnoses {
@@ -376,8 +376,8 @@ func firstEnclosure(ctx context.Context, st *store.Store, known domain.Fact[doma
 // idleAccount derives the window's idle accounting from the pawn censuses
 // the service's own reviews already took, as its OTLP log ring holds
 // them. No sample is taken for the diagnosis itself.
-func idleAccount(flightPath string) startuplabor.Account {
-	rows, err := na.ReadFlight(flightPath)
+func idleAccount(logPath string) startuplabor.Account {
+	rows, err := na.ReadLogs(logPath)
 	if err != nil {
 		return startuplabor.Account{}
 	}

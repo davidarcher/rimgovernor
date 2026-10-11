@@ -88,7 +88,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	stop()
 
-	rows, err := bridge.ReadOTLPTimeline(service.FlightPath)
+	rows, err := bridge.ReadOTLPTimeline(service.LogPath)
 	if err != nil {
 		return fmt.Errorf("read log ring: %w", err)
 	}

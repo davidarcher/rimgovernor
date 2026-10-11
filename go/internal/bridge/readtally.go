@@ -151,7 +151,7 @@ func (t *ReadTally) Publish(ctx context.Context, d telemetry.Decision) {
 	}
 	attrs["reads"], attrs["tools"], attrs["schema_fetches"] = t.Total(), tools, t.Schema()
 	d.Attrs = attrs
-	rowContext := client.snapshotRecordingContext(ctx)
+	rowContext := map[string]any{}
 	if d.Component != "" {
 		rowContext[telemetry.ComponentKey] = d.Component
 	}

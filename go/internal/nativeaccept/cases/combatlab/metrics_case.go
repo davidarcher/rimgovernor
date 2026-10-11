@@ -131,8 +131,8 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 		return err
 	}
 	service.KeepAuthority(ctx)
-	flight := na.ServiceLogsPath(s.Config().Output)
-	served, err := serveUntil(ctx, service, flight, start+metricsTicks-metricsStopMargin)
+	logPath := na.ServiceLogsPath(s.Config().Output)
+	served, err := serveUntil(ctx, service, logPath, start+metricsTicks-metricsStopMargin)
 	service.Stop()
 	s.Report()["servedTick"] = served
 	if err != nil {
@@ -152,7 +152,7 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 	if err := writeReads(dir, []map[string]any{first, last}); err != nil {
 		return err
 	}
-	if err := writeCombatFlight(flight, filepath.Join(dir, FlightFile)); err != nil {
+	if err := writeCombatRows(logPath, filepath.Join(dir, CombatRowsFile)); err != nil {
 		return err
 	}
 	m, err := AggregateBundle(dir, name)
@@ -168,7 +168,7 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 	if err != nil {
 		return err
 	}
-	if err := response.ReadFlight(flight); err != nil {
+	if err := response.ReadLogs(logPath); err != nil {
 		return err
 	}
 	for _, value := range na.AsSlice(last["damage"]) {
@@ -228,12 +228,12 @@ func stagePods(ctx context.Context, s cases.Session, name string) (Staged, error
 
 // serveUntil polls the service's state until the game tick reaches until,
 // until the service records the end of the combat (a combat_summary row at
-// flight; the colony window after it would otherwise run the quiet lab to
+// the log; the colony window after it would otherwise run the quiet lab to
 // the budget), or until the served clock has sat still for
 // metricsIdle, and returns the last tick it saw.
-func serveUntil(ctx context.Context, service *na.ServiceProcess, flight string, until int) (int, error) {
+func serveUntil(ctx context.Context, service *na.ServiceProcess, logPath string, until int) (int, error) {
 	tick, moved := -1, time.Now()
-	tail := na.NewFlightTailFromStart(flight)
+	tail := na.NewLogTailFromStart(logPath)
 	for {
 		if err := service.Exited(); err != nil {
 			return tick, fmt.Errorf("service exited at tick %d: %w", tick, err)
@@ -262,18 +262,18 @@ func serveUntil(ctx context.Context, service *na.ServiceProcess, flight string, 
 }
 
 // combatEnded reports whether a row is the end-of-combat summary.
-func combatEnded(row na.FlightRow) bool {
+func combatEnded(row na.LogRow) bool {
 	return row.Kind == "combat_summary"
 }
 
-// writeCombatFlight copies the combat rows ScanFlight reads from the rotated
+// writeCombatRows copies the combat rows ScanLogs reads from the rotated
 // segments (oldest first) and the live file of the service's OTLP log ring
 // into the bundle, one OTLP line each (the bundle is itself a log ring that
-// ScanFlight reads back).
-func writeCombatFlight(from, to string) error {
+// ScanLogs reads back).
+func writeCombatRows(from, to string) error {
 	var kept []byte
 	err := otel.ReadLines(from, func(line []byte) error {
-		if row, ok := na.ParseFlightRow(line); ok && CombatRow(row) {
+		if row, ok := na.ParseLogRow(line); ok && CombatRow(row) {
 			kept = append(append(kept, line...), 0x0a)
 		}
 		return nil

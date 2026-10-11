@@ -102,9 +102,9 @@ func richSoil(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	service.KeepAuthority(ctx)
-	var replan *na.FlightRow
+	var replan *na.LogRow
 	_, err = service.WaitReview(ctx, na.Wait{Ceiling: 4 * time.Minute}, func(r store.Rounds) bool {
-		rows, _ := na.ReadFlight(service.FlightPath)
+		rows, _ := na.ReadLogs(service.LogPath)
 		for i := range rows {
 			if isReplan(rows[i]) && int64(na.AsNumber(rows[i].Fields()["colonists"])) == pawns+1 {
 				replan = &rows[i]
@@ -189,6 +189,6 @@ func cropZones(ctx context.Context, s cases.Session, h *na.Harness) ([][]domain.
 
 // isReplan reports a layout replan row: the layout_plan decision with verdict
 // replanned.
-func isReplan(row na.FlightRow) bool {
+func isReplan(row na.LogRow) bool {
 	return row.Kind == "layout_plan" && na.AsString(row.Fields()["verdict"]) == "replanned"
 }

@@ -11,7 +11,7 @@ import (
 
 // The v2 rows (clock_stop, dispatch, a decision combat_order) count the same
 // as the legacy kinds the bundle holds.
-func TestScanFlightV2Rows(t *testing.T) {
+func TestScanLogsV2Rows(t *testing.T) {
 	decision := func(kind, verdict, reason, target string, attrs map[string]any) telemetrytest.Row {
 		return telemetrytest.Row{Kind: kind, Context: map[string]any{}, Payload: map[string]any{"verdict": verdict, "reason": reason, "target": target, "dur_ms": 0.0, "attrs": attrs}}
 	}
@@ -22,7 +22,7 @@ func TestScanFlightV2Rows(t *testing.T) {
 		decision("dispatch", "completed", "", "routine-defense-p1-hold", map[string]any{}),
 	)
 	m := Metrics{StepLatencyP95Ms: -1}
-	if err := m.ScanFlight(path); err != nil {
+	if err := m.ScanLogs(path); err != nil {
 		t.Fatal(err)
 	}
 	if m.OrdersIssued != 2 || m.OrdersRefused != 1 || m.StepLatencyP95Ms != 250 {
@@ -32,7 +32,7 @@ func TestScanFlightV2Rows(t *testing.T) {
 
 // A rotated ring keeps its early combat rows in logs.jsonl.N: the bundle copy
 // reads them first, oldest segment (highest N) to the live file.
-func TestWriteCombatFlightReadsRotatedSegments(t *testing.T) {
+func TestWriteCombatRowsReadsRotatedSegments(t *testing.T) {
 	dir := t.TempDir()
 	live := filepath.Join(dir, "logs.jsonl")
 	row := func(target, kind, verdict string) telemetrytest.Row {
@@ -49,8 +49,8 @@ func TestWriteCombatFlightReadsRotatedSegments(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	out := filepath.Join(dir, FlightFile)
-	if err := writeCombatFlight(live, out); err != nil {
+	out := filepath.Join(dir, CombatRowsFile)
+	if err := writeCombatRows(live, out); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(out)
@@ -62,7 +62,7 @@ func TestWriteCombatFlightReadsRotatedSegments(t *testing.T) {
 		t.Fatalf("rows out of order or dropped:\n%s", data)
 	}
 	m := Metrics{StepLatencyP95Ms: -1}
-	if err := m.ScanFlight(out); err != nil {
+	if err := m.ScanLogs(out); err != nil {
 		t.Fatal(err)
 	}
 	if m.OrdersIssued != 2 || m.OrdersRefused != 1 {

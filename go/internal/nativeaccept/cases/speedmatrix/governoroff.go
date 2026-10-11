@@ -74,7 +74,7 @@ func (m *matrix) runGovernorOff(ctx context.Context, c na.SpeedCase) (err error)
 	resumedAt := time.Now()
 	lastTick := startTick
 	reads := 0
-	// Nothing records a flight timeline here, so the row's observation and
+	// Nothing records an OTLP timeline here, so the row's observation and
 	// frame accounts come off its own tick reads' reply envelopes:
 	// the ungoverned update intervals on the same save and renderer.
 	account := &bridge.NativeAccount{}

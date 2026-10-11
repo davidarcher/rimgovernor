@@ -35,7 +35,7 @@ func (e *StepStallError) Error() string {
 // lastStepFailure returns the service's most recent failed step from its
 // OTLP log ring at path, or "" when it has none or cannot be read.
 func lastStepFailure(path string) string {
-	row, _, ok := lastFlightRow(path, 0, func(r FlightRow) bool {
+	row, _, ok := lastLogRow(path, 0, func(r LogRow) bool {
 		level, _ := r.Context["level"].(string)
 		return bridge.IsWorkerStep(r.Record()) && (level == "WARN" || level == "ERROR")
 	})
@@ -48,7 +48,7 @@ func lastStepFailure(path string) string {
 // StepFailureText renders a failed worker-step row as
 // "<at> tick=<n> <level> <verdict> <reason>: <error>" (the row's error attr
 // and isolated planner failures carry the text).
-func StepFailureText(row FlightRow) string {
+func StepFailureText(row LogRow) string {
 	level, _ := row.Context["level"].(string)
 	at, _ := row.Context["at"].(string)
 	msg := stepFailureWords(row)
@@ -65,7 +65,7 @@ func StepFailureText(row FlightRow) string {
 
 // stepFailureWords is the worker-step row's "<verdict> <reason>" followed by
 // its error and the isolated planner failures when it carries them.
-func stepFailureWords(row FlightRow) string {
+func stepFailureWords(row LogRow) string {
 	f := row.Fields()
 	words := []string{}
 	for _, key := range []string{"verdict", "reason"} {

@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 )
 
-func TestFlightTailReadsAppendedRowsOnly(t *testing.T) {
+func TestLogTailReadsAppendedRowsOnly(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "logs.jsonl")
 	write := func(s string) {
 		f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
@@ -25,7 +25,7 @@ func TestFlightTailReadsAppendedRowsOnly(t *testing.T) {
 		Payload: map[string]any{"verdict": "completed", "reason": "completed", "target": "a", "dur_ms": 0.0, "attrs": map[string]any{"changed": true}}})
 	step := telemetrytest.LogLines(t, telemetrytest.Row{Kind: "planner_step", Context: map[string]any{}, Payload: map[string]any{"verdict": "ok"}})
 	write(call[0] + "\n")
-	tail := NewFlightTail(path)
+	tail := NewLogTail(path)
 	rows, err := tail.Next()
 	if err != nil || len(rows) != 0 {
 		t.Fatalf("history is not a wake: rows=%v err=%v", rows, err)
@@ -55,8 +55,8 @@ func TestFlightTailReadsAppendedRowsOnly(t *testing.T) {
 	}
 }
 
-func TestFlightTailMissingFile(t *testing.T) {
-	tail := NewFlightTail(filepath.Join(t.TempDir(), "none.jsonl"))
+func TestLogTailMissingFile(t *testing.T) {
+	tail := NewLogTail(filepath.Join(t.TempDir(), "none.jsonl"))
 	if rows, err := tail.Next(); err != nil || rows != nil {
 		t.Fatalf("missing file: rows=%v err=%v", rows, err)
 	}

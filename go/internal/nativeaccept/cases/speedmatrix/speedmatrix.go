@@ -363,7 +363,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	// the wait.
 	var lastTick uint64
 	var workDone bool
-	flight := na.ServiceLogsPath(output)
+	logPath := na.ServiceLogsPath(output)
 	waitErr := na.WaitProgress(ctx, na.Wait{Stall: na.StallBudget(), Interval: 2 * time.Second, Terminal: service.Exited},
 		func(ctx context.Context) (string, bool, error) {
 			review, err := journal.LoadRounds(ctx)
@@ -371,7 +371,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 				return "", false, err
 			}
 			lastTick = uint64(review.Tick)
-			if rows, err := bridge.ReadOTLPTimeline(flight); err == nil {
+			if rows, err := bridge.ReadOTLPTimeline(logPath); err == nil {
 				if observed := bridge.SummarizePhases(rows).Clock.LastTick; observed > int64(lastTick) {
 					lastTick = uint64(observed)
 				}

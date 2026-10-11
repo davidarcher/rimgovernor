@@ -133,9 +133,9 @@ func (c *Client) flushRollup(now time.Time) {
 }
 
 // recordNativeCall writes a native_call row unless it folds into the rollup.
-func (c *Client) recordNativeCall(ctx context.Context, recordCtx map[string]any, row map[string]any) {
+func (c *Client) recordNativeCall(ctx context.Context, row map[string]any) {
 	if c.foldCall(row) {
 		return
 	}
-	c.nativeRow(ctx, "native_call", recordCtx, false, row)
+	c.nativeRow(ctx, "native_call", nil, false, row)
 }

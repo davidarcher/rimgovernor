@@ -49,7 +49,7 @@ func TestSamplesFromPawnSnapshotIgnoresUnreadableReplies(t *testing.T) {
 	}
 }
 
-func TestSamplesFromPawnSnapshotReadsAWrappedFlightRow(t *testing.T) {
+func TestSamplesFromPawnSnapshotReadsAWrappedLogRow(t *testing.T) {
 	row := map[string]any{"tool": "rimgovernor/observations_list_pawns", "result": map[string]any{
 		"observed": map[string]any{"pawns": []any{pawnRow("builder", map[string]any{"job": map[string]any{"defName": "FinishFrame"}})}}}}
 	samples := SamplesFromPawnSnapshot(10, row, false)

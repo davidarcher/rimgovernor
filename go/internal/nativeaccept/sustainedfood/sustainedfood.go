@@ -55,11 +55,11 @@ type WatchConfig struct {
 	PollTicks uint64
 	Poll      time.Duration
 	// Wake, when a service journal row satisfies it, takes a sample at
-	// once instead of waiting for the cadence: the service's flight
-	// recorder is tailed between samples (na.FlightTail). Default
+	// once instead of waiting for the cadence: the service's OTLP log
+	// ring is tailed between samples (na.LogTail). Default
 	// na.WorkerOutcome, the row an action's outcome changes on. Until,
 	// FailFast and the checkpoints all see the woken sample.
-	Wake func(na.FlightRow) bool
+	Wake func(na.LogRow) bool
 	// Goal is the maintained goal the timeline samples (default
 	// EnsureFoodSupply).
 	Concern policy.ConcernID
@@ -194,8 +194,8 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 	pending = append(pending, cfg.Checkpoints...)
 	var taken []map[string]any
 	stepped := false
-	failFast := newFailFast(cfg.FailFast, concernID, service.FlightPath)
-	tail := na.NewFlightTail(service.FlightPath)
+	failFast := newFailFast(cfg.FailFast, concernID, service.LogPath)
+	tail := na.NewLogTail(service.LogPath)
 	stall := newTickStall(cfg.TickStall, time.Now())
 	cadence := map[string]any{"poll_ticks": cfg.PollTicks, "poll_ms": cfg.Poll.Milliseconds(), "wakes": 0, "tick_polls": 0, "wall_polls": 0}
 	report["cadence"] = cadence
@@ -319,7 +319,7 @@ const (
 // NoWorkRefusal reports a scheduler admission row refusing the window with
 // no_work among its refusals: the governor declined to run the clock because
 // nothing needs game time.
-func NoWorkRefusal(row na.FlightRow) bool {
+func NoWorkRefusal(row na.LogRow) bool {
 	if row.Kind != "admission" || na.AsString(row.Payload["target"]) != "window" {
 		return false
 	}
@@ -338,7 +338,7 @@ func NoWorkRefusal(row na.FlightRow) bool {
 // ("tick_polls"), or the Poll wall-clock ceiling ("wall_polls"). The live
 // tick and the journal are probed every na.RunInterval. The watch
 // deadline ends the pause early so the loop's own check sees it.
-func waitNextSample(ctx context.Context, apiCall func(string, string, map[string]any, string) (map[string]any, int, error), tail *na.FlightTail, cfg WatchConfig, stall *tickStall, sampledTick uint64, watchDeadline time.Time) (string, error) {
+func waitNextSample(ctx context.Context, apiCall func(string, string, map[string]any, string) (map[string]any, int, error), tail *na.LogTail, cfg WatchConfig, stall *tickStall, sampledTick uint64, watchDeadline time.Time) (string, error) {
 	started := time.Now()
 	for {
 		wait := na.RunInterval

@@ -19,7 +19,7 @@ import (
 //   - no method: the rounds handed the watched goal a development
 //     slot and its planner committed nothing (the row's Idle flag) for
 //     NoMethodReviews consecutive reviews while the goal stayed
-//     open/unmet with no method in flight;
+//     open/unmet with no method in logPath;
 //   - unsuccessful: an action of one of the goal's committed methods ended
 //     unsuccessful for any reason but interrupted or cancelled (a pawn's
 //     own needs or a cancelled order are re-planned; a native failure,
@@ -38,7 +38,7 @@ import (
 type FailFast struct {
 	Disabled bool
 	// NoMethodReviews is how many consecutive reviews may leave the goal
-	// idle with nothing in flight before the watch fails (default 5). A
+	// idle with nothing in logPath before the watch fails (default 5). A
 	// review is one rounds_review revision; unsampled revisions in
 	// between do not count.
 	NoMethodReviews int
@@ -90,7 +90,7 @@ func (v Verdict) Error() string { return "fail-fast (" + v.Shape + "): " + v.Rea
 type failFastState struct {
 	cfg     FailFast
 	concern policy.ConcernID
-	flight  string
+	logPath string
 
 	lastRevision uint64
 	idleReviews  []uint64
@@ -102,7 +102,7 @@ type failFastState struct {
 	parkSamples int
 }
 
-func newFailFast(cfg FailFast, goal policy.ConcernID, flightPath string) *failFastState {
+func newFailFast(cfg FailFast, goal policy.ConcernID, logPath string) *failFastState {
 	if cfg.NoMethodReviews <= 0 {
 		cfg.NoMethodReviews = defaultNoMethodReviews
 	}
@@ -112,7 +112,7 @@ func newFailFast(cfg FailFast, goal policy.ConcernID, flightPath string) *failFa
 	if cfg.ParkSamples <= 0 {
 		cfg.ParkSamples = defaultParkSamples
 	}
-	return &failFastState{cfg: cfg, concern: goal, flight: flightPath}
+	return &failFastState{cfg: cfg, concern: goal, logPath: logPath}
 }
 
 // check folds one sample (SampleGoal's shape, without an error) and the
@@ -130,8 +130,8 @@ func (f *failFastState) check(sample map[string]any) (Verdict, bool) {
 	if v, ok := f.emergencyPark(sample); ok {
 		return v, true
 	}
-	if f.flight != "" {
-		if step, ok := na.LastSchedulerStepFile(f.flight); ok {
+	if f.logPath != "" {
+		if step, ok := na.LastSchedulerStepFile(f.logPath); ok {
 			return f.refusal(step)
 		}
 	}

@@ -130,7 +130,7 @@ func runClimate(ctx context.Context, s cases.Session, c climate) error {
 			}
 		}
 	}
-	refused, err := na.RefusalsNameBlockers(service.FlightPath)
+	refused, err := na.RefusalsNameBlockers(service.LogPath)
 	report["placement_refused"] = refused
 	return err
 }

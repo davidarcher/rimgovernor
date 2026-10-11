@@ -148,7 +148,7 @@ func TestCollectReadsEachStepWithEvidence(t *testing.T) {
 		t.Fatalf("a completed outcome or a failed (not refused) dispatch is not a refusal: %+v", refusals)
 	}
 	if !hasLine(refusals, "native_call error rimgovernor/orders_haul: the target is not a haulable item", "otlp/logs.jsonl#4") {
-		t.Fatalf("flight native_call error missing: %+v", refusals)
+		t.Fatalf("log native_call error missing: %+v", refusals)
 	}
 	review := section(t, d, "rounds")
 	if !hasLine(review, "standard routine-c-EnsureComfort deficit/open priority 2 episode 0: 0 live methods", "standards#routine-c-EnsureComfort") {

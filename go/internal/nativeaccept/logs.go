@@ -28,18 +28,18 @@ func LogsPath(otlpDir string) string { return filepath.Join(otlpDir, otel.LogsFi
 // summarizes it (metrics.go).
 func ServiceLogsPath(output string) string { return LogsPath(OTLPDir(output)) }
 
-// ReadFlight reads every row of a service's log ring at path from its start,
-// across the ring's rotated segments (FlightTail follows appends only): what
+// ReadLogs reads every row of a service's log ring at path from its start,
+// across the ring's rotated segments (LogTail follows appends only): what
 // a case audits after the service stopped. A missing ring is an empty
 // recording.
-func ReadFlight(path string) ([]FlightRow, error) {
+func ReadLogs(path string) ([]LogRow, error) {
 	records, err := bridge.ReadOTLPTimeline(path)
 	if err != nil {
 		return nil, err
 	}
-	rows := make([]FlightRow, 0, len(records))
+	rows := make([]LogRow, 0, len(records))
 	for _, rec := range records {
-		row := FlightRow{Sequence: rec.Sequence, Kind: rec.Kind, Context: rec.Context, Payload: rec.Payload}
+		row := LogRow{Sequence: rec.Sequence, Kind: rec.Kind, Context: rec.Context, Payload: rec.Payload}
 		if tick, ok := row.Context["tick"].(float64); ok {
 			row.Tick, row.HasTick = int64(tick), true
 		}
@@ -48,11 +48,11 @@ func ReadFlight(path string) ([]FlightRow, error) {
 	return rows, nil
 }
 
-// FlightMessages are the msg payloads of every row of kind in the log ring at
+// LogMessages are the msg payloads of every row of kind in the log ring at
 // path, oldest first: the building planner's placement_refused and
 // foreign_held rows carry what they report there.
-func FlightMessages(path, kind string) ([]string, error) {
-	rows, err := ReadFlight(path)
+func LogMessages(path, kind string) ([]string, error) {
+	rows, err := ReadLogs(path)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func FlightMessages(path, kind string) ([]string, error) {
 // at path and fails when one names no blocker: a refused furniture cell
 // reports the thing the native preview found in the way.
 func RefusalsNameBlockers(path string) ([]string, error) {
-	refused, err := FlightMessages(path, "placement_refused")
+	refused, err := LogMessages(path, "placement_refused")
 	if err != nil {
 		return nil, err
 	}

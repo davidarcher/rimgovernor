@@ -45,8 +45,8 @@ func (r *ResponseEvidence) ObserveEffect(tick int64, effect string) {
 	}
 }
 
-func (r *ResponseEvidence) ReadFlight(path string) error {
-	rows, err := ReadFlight(path)
+func (r *ResponseEvidence) ReadLogs(path string) error {
+	rows, err := ReadLogs(path)
 	if err != nil {
 		return err
 	}

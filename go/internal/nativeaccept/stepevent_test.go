@@ -28,15 +28,15 @@ func stepRow(level, msg string, tick int, failures ...string) telemetrytest.Row 
 		Payload: map[string]any{"verdict": verdict, "reason": reason, "target": "worker_step", "dur_ms": 0.0, "attrs": attrs}}
 }
 
-// writeFlight writes rows as a service's OTLP log ring and returns its path.
-func writeFlight(t *testing.T, rows ...telemetrytest.Row) string {
+// writeLogs writes rows as a service's OTLP log ring and returns its path.
+func writeLogs(t *testing.T, rows ...telemetrytest.Row) string {
 	t.Helper()
 	return telemetrytest.WriteLogs(t, t.TempDir(), rows...)
 }
 
 func TestLastSchedulerStepReadsPlannerFailures(t *testing.T) {
 	other := telemetrytest.Row{Kind: "dispatch", Context: map[string]any{}, Payload: map[string]any{}}
-	path := writeFlight(t,
+	path := writeLogs(t,
 		stepRow("INFO", "step done", 4100),
 		stepRow("INFO", "step done", 4200, "resource: add bill preview: bridge read refused: bills/add_bill"),
 		other,
@@ -51,14 +51,14 @@ func TestLastSchedulerStepReadsPlannerFailures(t *testing.T) {
 	if !step.Refused() || !strings.Contains(step.Line, "bills/add_bill") {
 		t.Fatalf("latest step must be the refused one: %+v", step)
 	}
-	clean, ok := LastSchedulerStepFile(writeFlight(t, stepRow("INFO", "step done", 4100)))
+	clean, ok := LastSchedulerStepFile(writeLogs(t, stepRow("INFO", "step done", 4100)))
 	if !ok || clean.PlannerFailures != "[]" || clean.Refused() {
 		t.Fatalf("a clean step has no failures: %+v ok=%v", clean, ok)
 	}
-	if _, ok := LastSchedulerStepFile(writeFlight(t, other)); ok {
+	if _, ok := LastSchedulerStepFile(writeLogs(t, other)); ok {
 		t.Fatal("no step row must report none")
 	}
-	failed, ok := LastSchedulerStepFile(writeFlight(t, stepRow("WARN", "Fields: context deadline exceeded", 4200)))
+	failed, ok := LastSchedulerStepFile(writeLogs(t, stepRow("WARN", "Fields: context deadline exceeded", 4200)))
 	if !ok || failed.Refused() {
 		t.Fatalf("a transport step failure is not a refusal: %+v", failed)
 	}

@@ -6,8 +6,8 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
-func selectRow(kind, crop string, cells int, urgent bool, candidates ...any) na.FlightRow {
-	return na.FlightRow{Kind: "fields_select", Payload: map[string]any{
+func selectRow(kind, crop string, cells int, urgent bool, candidates ...any) na.LogRow {
+	return na.LogRow{Kind: "fields_select", Payload: map[string]any{
 		"verdict": "selected", "reason": kind, "target": crop, "dur_ms": 0.0,
 		"attrs": map[string]any{"cells": float64(cells), "buildings": 0.0, "needed": 671.0, "urgent": urgent, "candidates": candidates},
 	}}
@@ -24,8 +24,8 @@ func candidate(kind, crop string, needed, cells int, score float64, terms map[st
 	return c
 }
 
-func rows(winnerTerms map[string]any, loserReason string) []na.FlightRow {
-	return []na.FlightRow{
+func rows(winnerTerms map[string]any, loserReason string) []na.LogRow {
+	return []na.LogRow{
 		{Kind: "planner_step", Payload: map[string]any{}},
 		selectRow("outdoor", "Plant_Rice", 224, true,
 			candidate("outdoor", "Plant_Rice", 671, 224, 0.021, winnerTerms, "net 14.0900/day over 15 patches"),
@@ -76,7 +76,7 @@ func TestParseAndCheck(t *testing.T) {
 
 func TestResilienceTermsAreParsedAndRequired(t *testing.T) {
 	terms := map[string]any{"labor": -0.2, "harvest-delay": -0.3, "risk-frost": 2.0, "yield": 5.9}
-	selections, err := Parse([]na.FlightRow{selectRow("greenhouse-reuse", "Plant_Corn", 59, false,
+	selections, err := Parse([]na.LogRow{selectRow("greenhouse-reuse", "Plant_Corn", 59, false,
 		candidate("greenhouse-reuse", "Plant_Corn", 55, 59, 0.0411, terms, ""))})
 	if err != nil {
 		t.Fatal(err)

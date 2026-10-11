@@ -77,7 +77,7 @@ type callMarker struct {
 	timer    *time.Timer
 }
 
-func (c *Client) startCallMarker(ctx context.Context, recordCtx map[string]any, name, nativeTool string, arguments json.RawMessage) *callMarker {
+func (c *Client) startCallMarker(ctx context.Context, name, nativeTool string, arguments json.RawMessage) *callMarker {
 	m := &callMarker{}
 	m.timer = time.AfterFunc(slowCallMarker, func() {
 		m.mu.Lock()
@@ -86,7 +86,7 @@ func (c *Client) startCallMarker(ctx context.Context, recordCtx map[string]any, 
 			return
 		}
 		// Durable: the marker brackets a call that may never return.
-		m.sequence = c.nativeRow(ctx, "native_request", recordCtx, true, map[string]any{"tool": name, "native_tool": nativeTool, "arguments": recordedArguments(name, arguments)})
+		m.sequence = c.nativeRow(ctx, "native_request", nil, true, map[string]any{"tool": name, "native_tool": nativeTool, "arguments": recordedArguments(name, arguments)})
 	})
 	return m
 }
@@ -105,10 +105,9 @@ func (m *callMarker) finish() uint64 {
 // adapter can add its reply decode to the same row (proto_decode_ms,
 // payload_bytes, wire_bytes). A call that is not typed writes at once.
 type pendingCall struct {
-	c         *Client
-	ctx       context.Context
-	recordCtx map[string]any
-	row       map[string]any
+	c   *Client
+	ctx context.Context
+	row map[string]any
 }
 
 type pendingCallKey struct{}
@@ -128,15 +127,15 @@ func withDeferredCall(ctx context.Context) (context.Context, *deferredCall) {
 // record writes row now, or parks it when the context carries a holder. A row
 // already parked (a call retried after an attention acknowledgement) is
 // written first, since its call is over.
-func (c *Client) recordCall(ctx context.Context, recordCtx map[string]any, row map[string]any) {
+func (c *Client) recordCall(ctx context.Context, row map[string]any) {
 	d, _ := ctx.Value(pendingCallKey{}).(*deferredCall)
 	if d == nil {
-		c.recordNativeCall(ctx, recordCtx, row)
+		c.recordNativeCall(ctx, row)
 		return
 	}
 	d.mu.Lock()
 	previous := d.pending
-	d.pending = &pendingCall{c: c, ctx: ctx, recordCtx: recordCtx, row: row}
+	d.pending = &pendingCall{c: c, ctx: ctx, row: row}
 	d.mu.Unlock()
 	if previous != nil {
 		previous.write(nil)
@@ -161,5 +160,5 @@ func (p *pendingCall) write(extra map[string]any) {
 			timing[k] = v
 		}
 	}
-	p.c.recordNativeCall(p.ctx, p.recordCtx, p.row)
+	p.c.recordNativeCall(p.ctx, p.row)
 }

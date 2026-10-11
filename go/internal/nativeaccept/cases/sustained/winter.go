@@ -61,8 +61,8 @@ func init() {
 	})
 }
 
-// winterSample is one rounds's stored-food reading off the flight
-// recorder's rounds_review row.
+// winterSample is one rounds's stored-food reading off the OTLP log
+// ring's rounds_review row.
 type winterSample struct {
 	Revision   uint64  `json:"revision"`
 	Tick       int64   `json:"tick"`

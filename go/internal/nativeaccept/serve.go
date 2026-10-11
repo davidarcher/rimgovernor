@@ -83,10 +83,10 @@ type ServiceProcess struct {
 	Launch int
 	// Spec is what the service was launched with.
 	Spec ServeSpec
-	// FlightPath is the service's OTLP log ring (logs.jsonl in its
-	// --otlp-dir): the journal FlightTail follows. Its traces and
+	// LogPath is the service's OTLP log ring (logs.jsonl in its
+	// --otlp-dir): the journal LogTail follows. Its traces and
 	// metrics rings sit beside it (otel.SiblingRing).
-	FlightPath string
+	LogPath string
 
 	cfg    *Config
 	game   *Game
@@ -234,7 +234,7 @@ func ServeArgs(cfg *Config, profileDir, statePath, otlpDir string, spec ServeSpe
 		"--state", statePath,
 		"--listen", "127.0.0.1:0",
 		"--timeout", timeout.String(),
-		// The OTLP files are the evidence (flight.go); stderr keeps the
+		// The OTLP files are the evidence (logs.go); stderr keeps the
 		// startup banner, fatals and panics.
 		"--otlp-dir", otlpDir,
 	}
@@ -277,7 +277,7 @@ func launchServe(ctx context.Context, cfg *Config, spec ServeSpec, launch int, r
 	if launch > 1 {
 		otlpDir = OTLPDir(serviceDir)
 	}
-	flightPath := LogsPath(otlpDir)
+	logPath := LogsPath(otlpDir)
 	argv := ServeArgs(cfg, profileDir, statePath, otlpDir, spec)
 	entry := map[string]any{"argv": append([]string{spec.Binary}, argv...), "state": "starting", "launch": launch}
 	if report != nil {
@@ -313,7 +313,7 @@ func launchServe(ctx context.Context, cfg *Config, spec ServeSpec, launch int, r
 		return nil, fmt.Errorf("start rimgovernor serve: %w", err)
 	}
 	p := &ServiceProcess{
-		PID: cmd.Process.Pid, StatePath: statePath, Launch: launch, Spec: spec, FlightPath: flightPath,
+		PID: cmd.Process.Pid, StatePath: statePath, Launch: launch, Spec: spec, LogPath: logPath,
 		cfg: cfg, report: report, entry: entry,
 		cmd: cmd, done: make(chan error, 1), dir: serviceDir,
 		client: &http.Client{Timeout: 20 * time.Second}, ctx: ctx,
@@ -460,7 +460,7 @@ func (p *ServiceProcess) Stop() map[string]any {
 // of the service's wall time the game stood still between windows. A
 // missing or malformed recording leaves the entry alone.
 func (p *ServiceProcess) recordClock() {
-	rows, err := bridge.ReadOTLPTimeline(p.FlightPath)
+	rows, err := bridge.ReadOTLPTimeline(p.LogPath)
 	if err != nil {
 		return
 	}
@@ -650,7 +650,7 @@ func (p *ServiceProcess) StepAdmitted(ctx context.Context, since time.Time) (boo
 		return true, nil
 	}
 	if p.Spec.StepStall > 0 && time.Since(since) >= p.Spec.StepStall {
-		return false, &StepStallError{Stall: p.Spec.StepStall, Families: routinefamily.Join(p.Spec.Families), LastFailure: lastStepFailure(p.FlightPath)}
+		return false, &StepStallError{Stall: p.Spec.StepStall, Families: routinefamily.Join(p.Spec.Families), LastFailure: lastStepFailure(p.LogPath)}
 	}
 	return false, nil
 }

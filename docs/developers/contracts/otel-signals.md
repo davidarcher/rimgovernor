@@ -93,7 +93,7 @@ the first native protective effect.
 | `eat_trigger` (decision) | one per eat trigger setting in an admitted work plan (`rounds_assignments.go`). `target` the pawn, `verdict` `admitted`, `reason` `lowered` (below the vanilla 0.30) or `vanilla`; attrs `trigger` (the planned level), `food_days` (the runway when planned), `days_saved` (`policy.EatTriggerDaysSaved`: the days the lowered trigger adds to that runway, 0 at vanilla; about 6-7 for 57 meals). Component `routine-work`. Reader: `rimgovernor log` |
 | `snapshot_skip` | decision, `WARN`. `target` the snapshot (`colony`, `combat`, `defense`, `layout`, `firebreak`, `shelter`), `verdict` `skipped`, `reason` `not_recorded`; attrs `error`, `tick` |
 | `routine_skip` (decision) | `target` the subject, `verdict` `skipped`/`waiting`, `reason`; attrs `quest`, `script`, `detail`, `findings` |
-| `placement_refused`, `foreign_held` | event rows, component `building-planner` (`rounds_room_reconcile.go`). `msg` only: `furniture cell refused: <def>@<x>,<z> blocked by <thing, ...>` (`ring cell refused:` for a wall or door cell) (the native preview's blockers, `unreported` when it names none) and `foreign thing held: <def>@<x>,<z>:<reason>` (`casket`, `ancient_danger`, `not_deconstructible`, `forbidden_item`: a forbidden haulable stack on a wanted door cell, named but not blocking). The same text is the room's wait key (`<room>_reconcile:blocked:...`, `<room>_reconcile:held:...`). Read by the shelter climate cases (`nativeaccept.FlightMessages`) |
+| `placement_refused`, `foreign_held` | event rows, component `building-planner` (`rounds_room_reconcile.go`). `msg` only: `furniture cell refused: <def>@<x>,<z> blocked by <thing, ...>` (`ring cell refused:` for a wall or door cell) (the native preview's blockers, `unreported` when it names none) and `foreign thing held: <def>@<x>,<z>:<reason>` (`casket`, `ancient_danger`, `not_deconstructible`, `forbidden_item`: a forbidden haulable stack on a wanted door cell, named but not blocking). The same text is the room's wait key (`<room>_reconcile:blocked:...`, `<room>_reconcile:held:...`). Read by the shelter climate cases (`nativeaccept.LogMessages`) |
 
 ### Defense, population and pawns
 
@@ -181,8 +181,8 @@ stop-event rows do not. Acceptance readers use the case's OTLP log ring
 (`<output>/otlp/logs.jsonl*`, `<output>/service-N/otlp/...` per relaunch):
 `bridge.ReadOTLPTimeline` and `bridge.RecordFromLog` rebuild the row shape these
 helpers expect from the typed log reader (`otel.ReadLogs`, see
-[OTEL core](otel-core.md)); `nativeaccept.ReadFlight`, `FlightTail` and
-`FlightMessages` sit on top. A null attribute is absent in a record, not present
+[OTEL core](otel-core.md)); `nativeaccept.ReadLogs`, `LogTail` and
+`LogMessages` sit on top. A null attribute is absent in a record, not present
 as nil. Postmortem evidence is `otlp/logs.jsonl.2#77`: the segment and its
 1-based line (what `grep -n` prints).
 

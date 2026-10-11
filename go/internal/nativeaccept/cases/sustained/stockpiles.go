@@ -116,12 +116,12 @@ type zoneChurn struct {
 // cannot be read leaves the counts empty.
 func auditZoneChurn(s cases.Session) (zoneChurn, error) {
 	churn := zoneChurn{deletes: map[string]int{}}
-	flight, err := na.ReadFlight(na.ServiceLogsPath(s.Config().Output))
+	logs, err := na.ReadLogs(na.ServiceLogsPath(s.Config().Output))
 	if err != nil {
 		return churn, nil
 	}
 	deleted := map[string]bool{}
-	for _, row := range flight {
+	for _, row := range logs {
 		if row.Kind != "layout_edit" || na.AsString(row.Payload["verdict"]) != "admitted" {
 			continue
 		}

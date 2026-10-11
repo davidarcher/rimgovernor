@@ -32,7 +32,7 @@ type Result struct {
 	Silent []string `json:"silent"`
 }
 
-// Audit holds a colony's rows to the explainability claim. rows is the flight
+// Audit holds a colony's rows to the explainability claim. rows is the OTLP log
 // reading and transitions the session store's concern_transitions; active maps
 // every concern that had a progress record during the window to the planner
 // cause filed on it at its last non-clear poll ("" when never filed).

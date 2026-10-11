@@ -202,7 +202,7 @@ func referencedFiles(report Report, output string) map[string]bool {
 
 // Artifacts hashes (sha256, keyed by slash-separated path relative to
 // output) every capped evidence file under output and every file the
-// report names; other files (flight segments, service databases, logs,
+// report names; other files (log segments, service databases, logs,
 // saves, the full rows) are skipped without being read.
 func Artifacts(output string, report Report) (map[string]string, error) {
 	hashes := map[string]string{}
