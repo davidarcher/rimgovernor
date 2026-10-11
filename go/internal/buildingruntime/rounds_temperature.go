@@ -52,12 +52,15 @@ func (r *RoundsBuildingPlanner) selectTemperature(facts observation.ColonyProjec
 		return nil, Verdict{}, err
 	}
 	switch proposal.Method {
-	case policy.TemperatureHeat, policy.TemperatureCool, policy.TemperatureCoolPowered, policy.TemperatureRefuelOff, policy.TemperatureRefuelOn:
+	case policy.TemperatureHeat, policy.TemperatureHeatElectric, policy.TemperatureCool, policy.TemperatureCoolPowered, policy.TemperatureRefuelOff, policy.TemperatureRefuelOn:
 		resolved := *r
 		resolved.temperature = &proposal
 		resolved.definition, resolved.environment = string(proposal.Method), policy.PlacementAnywhere
 		if proposal.Thing != "" {
 			resolved.definition = "Campfire"
+		}
+		if proposal.Method == policy.TemperatureHeatElectric {
+			resolved.definition = cooling.Heater
 		}
 		return &resolved, Verdict{}, nil
 	case policy.TemperatureUnknown:
@@ -99,10 +102,15 @@ func temperatureCooling(facts observation.ColonyProjection) policy.TemperatureCo
 		cooling.PlannedShelters = append(cooling.PlannedShelters, policy.ThermalShelter{Cells: rectCells(shelter.Interior), Standing: shelter.Standing, Hot: planKnown && plan.Hot})
 	}
 	for _, d := range facts.Definitions {
-		if d.Name == "Cooler" {
+		switch {
+		case d.Name == "Cooler":
 			cooling.CoolerAvailable, cooling.CoolerDrawW = d.Available, d.PowerW
+		case d.Name == cooling.Heater:
+			cooling.HeaterAvailable, cooling.HeaterDrawW = d.Available, d.PowerW
 		}
 	}
+	// Campfires burn wood: a finite stock unless a tree species can be sown.
+	cooling.HeatFuelFinite = !policy.ResourceGrowable(cropChoices(facts), policy.BurnFuelStuff, facts.CropClimate.Biome, policy.GrowerSkill(facts.WorkPawns))
 	return cooling
 }
 
@@ -113,7 +121,7 @@ var temperatureDefinitions = []string{"Campfire", "PassiveCooler", "Cooler"}
 
 // Completed construction lends bounded ordinary refueling and heat-exchange
 // time. Neither the construction receipt nor this allowance establishes safety.
-func temperatureOutputAllowance(ctx context.Context, journal *store.Store, goal store.WorkOwner, current domain.GenerationSnapshot, tick domain.Tick) (uint32, error) {
+func temperatureOutputAllowance(ctx context.Context, heater string, journal *store.Store, goal store.WorkOwner, current domain.GenerationSnapshot, tick domain.Tick) (uint32, error) {
 	methods, err := journal.LoadOwnerMethods(ctx, goal)
 	if err != nil {
 		return 0, err
@@ -124,18 +132,18 @@ func temperatureOutputAllowance(ctx context.Context, journal *store.Store, goal 
 		if err != nil {
 			return 0, err
 		}
-		allowance = max(allowance, temperatureNativeWorkTicks(plan, current, tick))
+		allowance = max(allowance, temperatureNativeWorkTicks(heater, plan, current, tick))
 	}
 	return allowance, nil
 }
 
-func temperatureNativeWorkTicks(plan store.PlanState, current domain.GenerationSnapshot, tick domain.Tick) uint32 {
+func temperatureNativeWorkTicks(heater string, plan store.PlanState, current domain.GenerationSnapshot, tick domain.Tick) uint32 {
 	if len(plan.Progress) != 1 {
 		return 0
 	}
 	progress := plan.Progress[0]
 	building, ok := progress.Action().Building()
-	if !ok || building.Definition() != "Campfire" && building.Definition() != "PassiveCooler" && building.Definition() != "Cooler" {
+	if !ok || building.Definition() != "Campfire" && building.Definition() != heater && building.Definition() != "PassiveCooler" && building.Definition() != "Cooler" {
 		return 0
 	}
 	// Native order-generation drift (authority reacquired since the build)

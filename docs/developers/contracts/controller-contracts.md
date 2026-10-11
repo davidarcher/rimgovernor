@@ -174,6 +174,12 @@ not an executor.
 - Unusable cooking bench: one campfire method when none exists; no new bills on it.
   Replacement cooking searches at most eight nearby free cells with native previews.
   Starter heating is suppressed only by a usable campfire in the selected room.
+- Room heat: a cold sleeping room gets one campfire, or one powered Heater instead
+  when wood is a finite stock (nothing sows it), the Heater is placeable and a power
+  network has spare watts for its nominal draw. A standing campfire does not hold the
+  room against the Heater; a standing Heater does. The power family connects and
+  budgets the Heater as any consumer (nominal draw, conservative against the 44-164 W
+  average of spike #2769).
 - `RecoverDisasterServices` selects bounded refuel, structural repair and
   breakdown-repair `GiveJobIntent` jobs (Repair, FixBrokenDownBuilding, Refuel) through
   native WorkGivers, preserving work permissions, allowed areas, forbidden supplies,

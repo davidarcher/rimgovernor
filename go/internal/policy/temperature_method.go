@@ -19,6 +19,12 @@ const (
 	TemperatureWait          TemperatureMethod = "waiting_for_native_temperature"
 	TemperatureHeat          TemperatureMethod = "Campfire"
 	TemperatureCool          TemperatureMethod = "PassiveCooler"
+	// TemperatureHeatElectric places one powered Heater in the coldest
+	// sleeping room instead of a campfire when the campfire's fuel is a finite
+	// stock and a network has the spare capacity for the heater's draw
+	// (spike #2769: 44 to 164 W average, a campfire burns 10 wood a day
+	// whatever the load).
+	TemperatureHeatElectric TemperatureMethod = "electric_heat"
 	// TemperatureCoolPowered places one powered Cooler through a vented
 	// wall of the hottest sleeping room, its cold side facing the room;
 	// it outranks the passive cooler when the research is done and a
@@ -72,6 +78,13 @@ type TemperatureCooling struct {
 	// Heater is the catalog's heater definition (RoomFurniture.Heater), the
 	// climate piece of the barn; empty when the catalog has none.
 	Heater string
+	// HeaterAvailable and HeaterDrawW are the Heater planning definition's
+	// availability and nominal draw.
+	HeaterAvailable domain.Fact[bool]
+	HeaterDrawW     domain.Fact[float64]
+	// HeatFuelFinite is true when the campfire's fuel (wood) is a finite
+	// stock here: nothing sows it. A renewable fuel keeps campfire heat.
+	HeatFuelFinite bool
 	// PlannedShelters are the layout plan's shelter rooms, read from the
 	// planned interior alone: a shelter template holds the sleeping
 	// places (spots, bedrolls, beds), so it is the room people will sleep in
@@ -291,8 +304,19 @@ func (c TemperatureCooling) wallCoolerBeside(room Room) bool {
 // poweredCoolerReady reports whether a powered cooler can be proposed at
 // all: research finished, draw known and a network with that much spare.
 func (c TemperatureCooling) poweredCoolerReady() bool {
-	available, ak := c.CoolerAvailable.Value()
-	draw, dk := c.CoolerDrawW.Value()
+	return c.spareCovers(c.CoolerAvailable, c.CoolerDrawW)
+}
+
+// electricHeatReady reports whether a powered heater is preferred over a
+// campfire: the campfire's fuel is finite, the heater is placeable and a
+// network has the spare capacity for its draw.
+func (c TemperatureCooling) electricHeatReady() bool {
+	return c.HeatFuelFinite && c.Heater != "" && c.spareCovers(c.HeaterAvailable, c.HeaterDrawW)
+}
+
+func (c TemperatureCooling) spareCovers(availableFact domain.Fact[bool], drawFact domain.Fact[float64]) bool {
+	available, ak := availableFact.Value()
+	draw, dk := drawFact.Value()
 	topology, tk := c.Power.Value()
 	if !ak || !available || !dk || !tk {
 		return false
@@ -501,7 +525,7 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling Temperat
 		}
 		return a.bed < b.bed
 	})
-	powered := cooling.poweredCoolerReady()
+	powered, electric := cooling.poweredCoolerReady(), cooling.electricHeatReady()
 	var cellRoom map[domain.Cell]string
 	var cells map[domain.Cell]SiteCell
 	if powered {
@@ -527,7 +551,9 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling Temperat
 				continue
 			}
 			if choice.method == TemperatureHeat {
-				exists = exists || q.Resource == "Campfire" || q.Resource == "Heater"
+				// With a finite wood stock and power to spare a standing
+				// campfire does not hold the room: the heater joins it.
+				exists = exists || q.Resource == "Campfire" && !electric || q.Resource == "Heater"
 			} else {
 				// A campfire in a hot room is the heat's cause, not a
 				// cooling target: its refuel switch lets it burn out.
@@ -552,6 +578,9 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling Temperat
 				digest := sha256.Sum256([]byte(choice.bed + "/" + string(TemperatureCoolPowered)))
 				return TemperatureProposal{Method: TemperatureCoolPowered, Key: domain.MethodID(fmt.Sprintf("thermal-%x", digest[:12])), Room: choice.room.ID, Cells: append([]domain.Cell{}, choice.room.Cells...), Cell: cell, Rotation: rotation}, nil
 			}
+		}
+		if choice.method == TemperatureHeat && electric {
+			choice.method = TemperatureHeatElectric
 		}
 		digest := sha256.Sum256([]byte(choice.bed + "/" + string(choice.method)))
 		return TemperatureProposal{Method: choice.method, Key: domain.MethodID(fmt.Sprintf("thermal-%x", digest[:12])), Room: choice.room.ID, Cells: append([]domain.Cell{}, choice.room.Cells...)}, nil

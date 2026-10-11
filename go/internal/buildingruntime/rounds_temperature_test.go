@@ -73,7 +73,7 @@ func TestTemperatureNativeWorkBudgetCountsFromTheApplyReceipt(t *testing.T) {
 		progress, _ := domain.NewProgress(spec, action.ID())
 		snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Native: 1, Plan: spec.ID(), Revision: 1}
 		state := store.PlanState{Spec: spec, Progress: []domain.Progress{progress}}
-		if temperatureNativeWorkTicks(state, snapshot, 100) != 0 {
+		if temperatureNativeWorkTicks("", state, snapshot, 100) != 0 {
 			t.Fatal("pending construction granted time")
 		}
 		var err error
@@ -100,18 +100,18 @@ func TestTemperatureNativeWorkBudgetCountsFromTheApplyReceipt(t *testing.T) {
 			if definition == "Wall" {
 				want = 0
 			}
-			if got := temperatureNativeWorkTicks(state, snapshot, row.tick); got != want {
+			if got := temperatureNativeWorkTicks("", state, snapshot, row.tick); got != want {
 				t.Fatal(definition, row, got)
 			}
 		}
 		// A reacquired direction keeps the budget (the heater was re-observed
 		// under it); a reloaded world does not.
 		snapshot.Native++
-		if got := temperatureNativeWorkTicks(state, snapshot, 100); got != 120 && definition != "Wall" {
+		if got := temperatureNativeWorkTicks("", state, snapshot, 100); got != 120 && definition != "Wall" {
 			t.Fatal("new direction lost heat-exchange budget", got)
 		}
 		snapshot.Load = "reload"
-		if temperatureNativeWorkTicks(state, snapshot, 100) != 0 {
+		if temperatureNativeWorkTicks("", state, snapshot, 100) != 0 {
 			t.Fatal("reloaded world inherited heat-exchange budget")
 		}
 	}

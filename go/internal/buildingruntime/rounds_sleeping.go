@@ -273,7 +273,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		definitions = append(append([]string{"Wall", "Door"}, policy.PowerFamilyDefinitions()...), pendingConsumers...)
 	}
 	if r.concern == policy.EnsureTemperatureSafety {
-		definitions = temperatureDefinitions
+		definitions = append(append([]string{}, temperatureDefinitions...), "Heater")
 	}
 	if r.concern == policy.MaintainRefrigeration {
 		definitions = []string{"Cooler"}
@@ -431,7 +431,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			powerSettling := r.concern == policy.MaintainRefrigeration && reason == awaitingMethod(policy.RefrigerationPowerNeeded) && !coolingLent
 			if reason == BuildingComfortWait || reason == awaitingMethod(policy.PowerWaitOutput) || reason == BuildingTemperatureWait || reason == awaitingMethod(policy.RefrigerationWait) || powerSettling {
 				if r.concern == policy.EnsureTemperatureSafety {
-					result.NativeWorkTicks, err = temperatureOutputAllowance(call, p.journal, goal, state.Snapshot, facts.Identity.Tick)
+					result.NativeWorkTicks, err = temperatureOutputAllowance(call, facts.Shapes.Furniture.Heater, p.journal, goal, state.Snapshot, facts.Identity.Tick)
 				} else if r.concern == policy.MaintainRefrigeration {
 					result.NativeWorkTicks = coolingAllowance
 				} else if r.concern == policy.EnsureBasicPower {
@@ -695,7 +695,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if r.butcherFacility() || r.concern == policy.EnsureCooking || r.facilityLadder() || r.phase == policy.ComfortBasic || r.phase == policy.ComfortSpot || r.phase == policy.HousingExpansion || r.concern == policy.EnsureBasicPower || r.concern == policy.EnsureTemperatureSafety || r.concern == policy.MaintainRefrigeration || r.concern == policy.MaintainLighting || r.concern == policy.MaintainFlooring || r.concern == policy.MaintainRoutes {
 		pending := func(progress domain.Progress) bool {
 			if r.concern == policy.EnsureTemperatureSafety {
-				if r.temperature.Method == policy.TemperatureHeat {
+				if r.temperature.Method == policy.TemperatureHeat || r.temperature.Method == policy.TemperatureHeatElectric {
 					return pendingFacility(progress, "Campfire") || pendingFacility(progress, "Heater")
 				}
 				return pendingFacility(progress, "PassiveCooler") || pendingFacility(progress, "Cooler")
