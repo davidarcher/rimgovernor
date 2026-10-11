@@ -218,6 +218,13 @@ func checkPartsSave(save string, row map[string]any) error {
 	if !regexp.MustCompile(`(?s)<disallowedBuildings>.*?<li>Heater</li>`).MatchString(save) {
 		return fmt.Errorf("the saved game rules do not disallow Heater")
 	}
+	// Replace by kind: the base's own things and its absence of the supplied
+	// kinds' parts mean Crashlanded's Silver and rifle are gone, not layered under.
+	for _, gone := range []string{`<thingDef>Silver</thingDef>`, `<thingDef>Gun_BoltActionRifle</thingDef>`, `<thingDef>MealSurvivalPack</thingDef>`} {
+		if strings.Contains(scenario, gone) {
+			return fmt.Errorf("the saved scenario still holds the base's %s; the supplied things should replace them", gone)
+		}
+	}
 	row["scenario_parts"] = true
 	return nil
 }

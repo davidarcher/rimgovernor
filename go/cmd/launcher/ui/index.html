@@ -302,6 +302,7 @@
     <summary><h2>New colony</h2><span id="ncSummary"></span></summary>
     <div class="ncnotice" id="ncUnavailable" role="status" hidden></div>
     <fieldset id="ncForm">
+      <div class="field"><label for="ncPreset">Preset</label><select id="ncPreset"></select></div>
       <div class="field"><label for="ncScenario">Scenario</label><select id="ncScenario"></select></div>
       <div class="field"><label for="ncColonists">Colonists</label><input type="number" class="short" id="ncColonists"></div>
       <div class="field"><label for="ncSeed">Seed</label>
@@ -770,6 +771,11 @@ function ncFill(v) {
   $('ncColonists').min = r.colonistsMin; $('ncColonists').max = r.colonistsMax;
   $('ncMinTemp').min = $('ncMaxTemp').min = -r.temperatureAbs;
   $('ncMinTemp').max = $('ncMaxTemp').max = r.temperatureAbs;
+  $('ncPreset').innerHTML = '<option value="">Custom</option>' + v.presets.map(x => `<option value="${esc(x.name)}">${esc(x.label)}</option>`).join('');
+  ncApply(sp, v);
+}
+// ncApply sets every row of the form from a spec (the last generated one, or a preset's).
+function ncApply(sp, v) {
   $('ncScenario').value = sp.scenario;
   $('ncColonists').value = sp.colonistCount;
   $('ncSeed').value = sp.seed || '';
@@ -784,6 +790,10 @@ function ncFill(v) {
   $('ncFlat').checked = !!sp.flatTile;
   ncFillParts(v);
 }
+$('ncPreset').onchange = () => {
+  const x = nc.view.presets.find(p => p.name === $('ncPreset').value);
+  ncApply(x ? x.spec : nc.view.defaults, nc.view);
+};
 // Scenario part rows. Each kind is a repeatable list; a row keeps the wire
 // fields the page does not edit (stuff, quality, allowRoofed) in row.orig.
 const ncKinds = {
@@ -898,8 +908,8 @@ function ncSelectSave(name) {
   save();
 }
 function ncRender(v) {
-  if (!nc.ready) { ncFill(v); nc.ready = true; }
   nc.view = v;
+  if (!nc.ready) { ncFill(v); nc.ready = true; }
   const p = v.progress, active = ncActive(p.state);
   if (p.requestId !== nc.rid) { nc.rid = p.requestId; nc.shown = 0; }
   nc.anchor = { ms: p.elapsedMs, at: performance.now() };

@@ -204,3 +204,69 @@ func TestNewColonySpecWithPartsRoundTrips(t *testing.T) {
 		t.Fatalf("parts lost: %+v", loaded.NewColony)
 	}
 }
+
+func TestRhadamantPresetValidatesAndYieldsExactlyHerParts(t *testing.T) {
+	var p *NewColonyPreset
+	for i := range newColonyPresets {
+		if newColonyPresets[i].Name == "rhadamant" {
+			p = &newColonyPresets[i]
+		}
+	}
+	if p == nil {
+		t.Fatal("no rhadamant preset in the view")
+	}
+	s := p.Spec
+	if err := ValidateNewColonySpec(s); err != nil {
+		t.Fatal(err)
+	}
+	has := func(opts []Option, v string) bool {
+		for _, o := range opts {
+			if o.Value == v {
+				return true
+			}
+		}
+		return false
+	}
+	o := newColonyOptions
+	if !has(o.Scenarios, s.Scenario) || !has(o.Difficulties, s.Difficulty) || !has(o.Storytellers, s.Storyteller) || !has(o.WorldTemperatures, s.WorldTemperature) || !has(o.Biomes, s.Biomes[0]) {
+		t.Fatalf("preset values are not in the lists: %+v", s)
+	}
+	if s.Scenario != "Crashlanded" || s.Difficulty != "Extreme" || s.Storyteller != "Randy" || s.ColonistCount != 1 ||
+		!reflect.DeepEqual(s.Biomes, []string{"IceSheet"}) || s.WorldTemperature != "VeryCold" || s.Seed == "" {
+		t.Fatalf("settings: %+v", s)
+	}
+	type thing struct {
+		placement, def string
+		n              uint32
+	}
+	var got []thing
+	for _, x := range s.StartingThings {
+		got = append(got, thing{x.Placement, x.ThingDef, *x.Count})
+		if !has(scenarioChoices.Things, x.ThingDef) {
+			t.Errorf("%s is not a composer choice", x.ThingDef)
+		}
+	}
+	want := []thing{{"start_with", "Silver", 800}, {"start_with", "MealSurvivalPack", 50}, {"start_with", "WoodLog", 300},
+		{"start_with", "Steel", 450}, {"start_with", "ComponentIndustrial", 30}, {"start_with", "MedicineIndustrial", 30},
+		{"start_with", "Gun_BoltActionRifle", 1}, {"scattered", "Steel", 720}, {"scattered", "MealSurvivalPack", 7}, {"scattered", "ShipChunk", 3}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("things %v", got)
+	}
+	type tr struct {
+		def    string
+		degree int32
+	}
+	var traits []tr
+	for _, x := range s.ForcedTraits {
+		traits = append(traits, tr{x.Trait, *x.Degree})
+		if *x.Chance != 1 || x.Context != "player_starter" {
+			t.Errorf("trait %+v", x)
+		}
+	}
+	if !reflect.DeepEqual(traits, []tr{{"NaturalMood", 2}, {"Immunity", 1}, {"SpeedOffset", 2}}) {
+		t.Errorf("traits %v", traits)
+	}
+	if !reflect.DeepEqual(s.PermaGameConditions, []string{"ColdSnap"}) || len(s.ForcedHediffs)+len(s.Naked)+len(s.SetNeedLevels)+len(s.DisallowedBuildings)+len(s.DisabledIncidents) != 0 || s.PlayerFaction != "" || s.ArrivalMethod != "" {
+		t.Errorf("other parts: %+v", s.NewColonyPartsDTO)
+	}
+}

@@ -7240,8 +7240,10 @@ namespace RimGovernor.Protocol.Lifecycle {
         = pb::FieldCodec.ForMessage(130, global::RimGovernor.Protocol.Lifecycle.StartingThing.Parser);
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Lifecycle.StartingThing> startingThings_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Lifecycle.StartingThing>();
     /// <summary>
-    /// Scenario parts layered on the base scenario (the game editor's part set).
-    /// Native applies them to a copy of `scenario`; defName existence is native's call.
+    /// Scenario parts (the game editor's part set). Native applies them to a copy
+    /// of `scenario`; defName existence is native's call. Replace by kind: a
+    /// non-empty list replaces every base-scenario part of its kind (the three
+    /// starting_things placements are one kind), an empty list keeps the base's.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

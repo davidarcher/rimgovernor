@@ -40,6 +40,7 @@ func DefTables() []DefTable {
 		{"ShelterCoolDef", "Verse.ThingDef", []string{ShelterCoolDef}},
 		{"WoodLatchDefs", "Verse.ThingDef", slices.Clone(WoodLatchDefs)},
 		{"ScenarioThingChoices", "Verse.ThingDef", slices.Clone(ScenarioThingChoices)},
+		{"RhadamantThings", "Verse.ThingDef", rhadamantThingDefs()},
 	}
 }
 
@@ -49,6 +50,17 @@ func DefTables() []DefTable {
 var ScenarioThingChoices = []string{
 	"Silver", "Gold", "WoodLog", "Steel", "Plasteel", "Uranium", "ComponentIndustrial", "ComponentSpacer",
 	"MealSurvivalPack", "Pemmican", "MedicineHerbal", "MedicineIndustrial", "Gun_BoltActionRifle",
+	"ShipChunk",
+}
+
+// RhadamantThings are the items of the launcher's Rhadamant Sea Ice preset.
+var RhadamantThings = struct {
+	Silver, Meal, Wood, Steel, Component, Medicine, Rifle, ShipChunk string
+}{"Silver", "MealSurvivalPack", "WoodLog", "Steel", "ComponentIndustrial", "MedicineIndustrial", "Gun_BoltActionRifle", "ShipChunk"}
+
+func rhadamantThingDefs() []string {
+	t := RhadamantThings
+	return []string{t.Silver, t.Meal, t.Wood, t.Steel, t.Component, t.Medicine, t.Rifle, t.ShipChunk}
 }
 
 // WoodLatchDefs are the stock defs the wood latch (WoodMin, WoodTarget) floors:

@@ -1778,8 +1778,10 @@ type NewColonySpec struct {
 	Ideoligion       *commonpb.IdeoligionDesign `protobuf:"bytes,14,opt,name=ideoligion,proto3" json:"ideoligion,omitempty"`
 	// Go resolves this request through the definition catalog before dispatch.
 	GovernorIdeoligion *bool `protobuf:"varint,15,opt,name=governor_ideoligion,json=governorIdeoligion,proto3,oneof" json:"governor_ideoligion,omitempty"`
-	// Scenario parts layered on the base scenario (the game editor's part set).
-	// Native applies them to a copy of `scenario`; defName existence is native's call.
+	// Scenario parts (the game editor's part set). Native applies them to a copy
+	// of `scenario`; defName existence is native's call. Replace by kind: a
+	// non-empty list replaces every base-scenario part of its kind (the three
+	// starting_things placements are one kind), an empty list keeps the base's.
 	StartingThings []*StartingThing `protobuf:"bytes,16,rep,name=starting_things,json=startingThings,proto3" json:"starting_things,omitempty"`
 	ForcedTraits   []*ForcedTrait   `protobuf:"bytes,17,rep,name=forced_traits,json=forcedTraits,proto3" json:"forced_traits,omitempty"`
 	ForcedHediffs  []*ForcedHediff  `protobuf:"bytes,18,rep,name=forced_hediffs,json=forcedHediffs,proto3" json:"forced_hediffs,omitempty"`

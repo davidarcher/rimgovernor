@@ -157,8 +157,10 @@ message NewColonySpec {
   rimgovernor.common.v1.IdeoligionDesign ideoligion = 14;
   // Go resolves this request through the definition catalog before dispatch.
   optional bool governor_ideoligion = 15;
-  // Scenario parts layered on the base scenario (the game editor's part set).
-  // Native applies them to a copy of `scenario`; defName existence is native's call.
+  // Scenario parts (the game editor's part set). Native applies them to a copy
+  // of `scenario`; defName existence is native's call. Replace by kind: a
+  // non-empty list replaces every base-scenario part of its kind (the three
+  // starting_things placements are one kind), an empty list keeps the base's.
   repeated StartingThing starting_things = 16;
   repeated ForcedTrait forced_traits = 17;
   repeated ForcedHediff forced_hediffs = 18;

@@ -10,7 +10,8 @@ using Lifecycle = RimGovernor.Protocol.Lifecycle;
 namespace HomeBridge.BridgeTools
 {
     // The typed scenario parts of a NewColonySpec (contracts/proto/lifecycle.proto),
-    // built into game ScenParts and added to the copy of the base scenario.
+    // built into game ScenParts and put on the copy of the base scenario, where a
+    // supplied list replaces the base's parts of that kind (an empty list keeps them).
     // Vanilla's editor builds a part with ScenarioMaker.MakeScenPart(ScenPartDef)
     // and sets its (mostly private) fields; this does the same through reflection,
     // checked against the 1.6 assemblies:
@@ -41,9 +42,15 @@ namespace HomeBridge.BridgeTools
             public PartRefusal(string message) : base(message) { }
         }
 
+        // A supplied list replaces the base scenario's parts of its kind (the
+        // preset yields exactly its own parts); an empty list keeps them. The
+        // three thing placements are one kind.
+        private static readonly string[] ThingPartDefs = { "StartingThing_Defined", "ScatterThingsNearPlayerStart", "ScatterThingsAnywhere" };
+
         internal sealed class Plan
         {
             public readonly List<ScenPart> Parts = new List<ScenPart>();
+            public readonly HashSet<string> ReplacedPartDefs = new HashSet<string>();
             public FactionDef? PlayerFaction;
             public PlayerPawnsArriveMethod? ArrivalMethod;
         }
@@ -52,6 +59,14 @@ namespace HomeBridge.BridgeTools
         internal static Plan Build(Lifecycle.NewColonySpec spec, Scenario baseScenario)
         {
             var plan = new Plan();
+            if (spec.StartingThings.Count > 0) plan.ReplacedPartDefs.UnionWith(ThingPartDefs);
+            if (spec.ForcedTraits.Count > 0) plan.ReplacedPartDefs.Add("ForcedTrait");
+            if (spec.ForcedHediffs.Count > 0) plan.ReplacedPartDefs.Add("ForcedHediff");
+            if (spec.Naked.Count > 0) plan.ReplacedPartDefs.Add("Naked");
+            if (spec.SetNeedLevels.Count > 0) plan.ReplacedPartDefs.Add("SetNeedLevel");
+            if (spec.PermaGameConditions.Count > 0) plan.ReplacedPartDefs.Add("PermanentGameCondition");
+            if (spec.DisallowedBuildings.Count > 0) plan.ReplacedPartDefs.Add("Rule_DisallowBuilding");
+            if (spec.DisabledIncidents.Count > 0) plan.ReplacedPartDefs.Add("DisableIncident");
             for (var i = 0; i < spec.StartingThings.Count; i++) plan.Parts.Add(Thing(spec.StartingThings[i], "starting_things[" + i + "]"));
             for (var i = 0; i < spec.ForcedTraits.Count; i++) plan.Parts.Add(Trait(spec.ForcedTraits[i], "forced_traits[" + i + "]"));
             for (var i = 0; i < spec.ForcedHediffs.Count; i++) plan.Parts.Add(Hediff(spec.ForcedHediffs[i], "forced_hediffs[" + i + "]"));
@@ -100,7 +115,7 @@ namespace HomeBridge.BridgeTools
 
             // The editor drops a part that cannot coexist with another (the same
             // trait for overlapping pawns, clashing conditions); here it is a refusal.
-            var existing = baseScenario.AllParts.Where(p => p != null).ToList();
+            var existing = baseScenario.AllParts.Where(p => p != null && !Replaced(plan, p)).ToList();
             for (var i = 0; i < plan.Parts.Count; i++)
             {
                 var others = existing.Concat(plan.Parts.Where((_, j) => j != i));
@@ -115,6 +130,7 @@ namespace HomeBridge.BridgeTools
         internal static void Apply(Scenario copy, Plan plan)
         {
             var parts = Get<List<ScenPart>>(copy, "parts");
+            parts.RemoveAll(p => Replaced(plan, p));
             parts.AddRange(plan.Parts);
             if (plan.PlayerFaction != null) Set(Get<ScenPart>(copy, "playerFaction"), "factionDef", plan.PlayerFaction);
             if (plan.ArrivalMethod.HasValue)
@@ -128,6 +144,8 @@ namespace HomeBridge.BridgeTools
                 Set(arrival, "method", plan.ArrivalMethod.Value);
             }
         }
+
+        private static bool Replaced(Plan plan, ScenPart? part) => part?.def != null && plan.ReplacedPartDefs.Contains(part.def.defName);
 
         private static ScenPart Thing(Lifecycle.StartingThing thing, string field)
         {

@@ -40,8 +40,10 @@ save is named automatically (`RimGovernor-<scenario>-<biome>-<seed>`, with `-2`,
 the name. Options marked "needs <DLC>" require that expansion; the game refuses
 one it lacks.
 
-**Scenario parts** (collapsed, below Advanced) layers parts on the base
-scenario, as the game's scenario editor does: starting things (def, count,
+**Scenario parts** (collapsed, below Advanced) sets parts on the base
+scenario, as the game's scenario editor does. A kind you fill in (say starting
+things) replaces the base scenario's parts of that kind; a kind you leave empty
+keeps them. Kinds: starting things (def, count,
 start with, start near or scattered), forced traits and hediffs (chance and who
 they apply to), permanent game conditions, disallowed buildings,
 disabled incidents, and overrides for the player faction and arrival method.
@@ -49,6 +51,14 @@ Colonists sets the pawn count. Inputs suggest common Core defs but take any
 defName; the game refuses an unknown one. The launcher refuses out-of-range or
 incomplete rows before it stops anything. The parts are saved with the rest of
 the form.
+
+**Preset** (top of the panel) fills every row at once. *Rhadamant's Sea Ice
+challenge* is Crashlanded with one colonist (Sanguine, Super-immune, Jogger), a
+permanent cold snap, Randy Random on Extreme, an ice sheet on a very cold world,
+a starting stockpile (800 silver, 50 survival meals, 300 wood, 450 steel, 30
+components, 30 medicine, a rifle) and 720 steel, 7 survival meals and 3 ship
+chunks scattered. The seed is pinned but editable; edit any row afterwards, or
+pick **Custom** to return to the defaults.
 
 Generation closes the running game and controller, restarts them, builds the
 world and saves the colony, so it needs Autopilot (Observe only shows a notice

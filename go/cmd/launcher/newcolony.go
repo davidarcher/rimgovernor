@@ -17,6 +17,7 @@ import (
 
 	bridgepkg "github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 )
 
@@ -151,6 +152,47 @@ var newColonyOptions = NewColonyOptions{
 	},
 }
 
+// NewColonyPreset is a named, complete form: selecting it fills every row.
+type NewColonyPreset struct {
+	Name  string        `json:"name"`
+	Label string        `json:"label"`
+	Spec  NewColonySpec `json:"spec"`
+}
+
+var newColonyPresets = []NewColonyPreset{{Name: "rhadamant", Label: "Rhadamant's Sea Ice challenge", Spec: rhadamantSpec()}}
+
+// rhadamantSpec is Rhadamant's Sea Ice Community Challenge (Workshop
+// 1565580939, 1.0 format) on Crashlanded. Scenario parts replace the base
+// scenario's parts of their kind, so these lists are the whole of them. The
+// seed is a pinned default the player may edit; "Losing is fun" is Extreme.
+// Her cannibalism rules are not part of the preset.
+func rhadamantSpec() NewColonySpec {
+	d := policy.RhadamantThings
+	f32 := func(v float32) *float32 { return &v }
+	i32 := func(v int32) *int32 { return &v }
+	u32 := func(v uint32) *uint32 { return &v }
+	thing := func(placement, def string, n uint32) httpapi.StartingThingDTO {
+		return httpapi.StartingThingDTO{Placement: placement, ThingDef: def, Count: u32(n)}
+	}
+	trait := func(def string, degree int32) httpapi.ForcedTraitDTO {
+		return httpapi.ForcedTraitDTO{Trait: def, Degree: i32(degree), Chance: f32(1), Context: "player_starter"}
+	}
+	return NewColonySpec{
+		Scenario: "Crashlanded", ColonistCount: 1, Seed: "SeaIce", Biomes: []string{"IceSheet"},
+		Difficulty: "Extreme", Storyteller: "Randy", WorldTemperature: "VeryCold", MapSize: 250, PlanetCoverage: 0.3,
+		NewColonyPartsDTO: httpapi.NewColonyPartsDTO{
+			StartingThings: []httpapi.StartingThingDTO{
+				thing("start_with", d.Silver, 800), thing("start_with", d.Meal, 50), thing("start_with", d.Wood, 300),
+				thing("start_with", d.Steel, 450), thing("start_with", d.Component, 30),
+				thing("start_with", d.Medicine, 30), thing("start_with", d.Rifle, 1),
+				thing("scattered", d.Steel, 720), thing("scattered", d.Meal, 7), thing("scattered", d.ShipChunk, 3),
+			},
+			ForcedTraits:        []httpapi.ForcedTraitDTO{trait("NaturalMood", 2), trait("Immunity", 1), trait("SpeedOffset", 2)},
+			PermaGameConditions: []string{"ColdSnap"},
+		},
+	}
+}
+
 // NewColonyRanges are the validation ranges the form shows.
 type NewColonyRanges struct {
 	ColonistsMin   int     `json:"colonistsMin"`
@@ -205,6 +247,7 @@ type NewColonyView struct {
 	Options      NewColonyOptions     `json:"options"`
 	Parts        ScenarioChoices      `json:"parts"`
 	PartDefaults ScenarioPartDefaults `json:"partDefaults"`
+	Presets      []NewColonyPreset    `json:"presets"`
 	Ranges       NewColonyRanges      `json:"ranges"`
 	Defaults     NewColonySpec        `json:"defaults"`
 	Spec         NewColonySpec        `json:"spec"` // the last one generated, else the defaults
@@ -342,7 +385,7 @@ func (r *colonyRunner) active() bool {
 func (r *colonyRunner) View() NewColonyView {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	v := NewColonyView{Options: newColonyOptions, Parts: scenarioChoices, PartDefaults: scenarioPartDefaults, Ranges: newColonyRanges, Defaults: DefaultNewColonySpec(), Spec: r.spec, Progress: r.progress}
+	v := NewColonyView{Options: newColonyOptions, Parts: scenarioChoices, PartDefaults: scenarioPartDefaults, Presets: newColonyPresets, Ranges: newColonyRanges, Defaults: DefaultNewColonySpec(), Spec: r.spec, Progress: r.progress}
 	if r.progress.State != ColonyIdle {
 		end := r.now()
 		if !r.active() {
