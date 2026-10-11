@@ -292,8 +292,7 @@ func routeDist(walk map[domain.Cell]int, goal []domain.Cell) map[domain.Cell]int
 // mountain whose far face is open toward the spawn edge is no refuge. A cell
 // no raider can reach, natural rock left standing, costs nothing.
 func (sc planScorer) edgeCost(rooms []PlannedRoom, under map[domain.Cell]bool) int {
-	b := sc.s.Bounds
-	clear := min(planWeights.EdgeClear, int(min(b.Width, b.Height))/5)
+	clear := sc.edgeClear()
 	cost := 0
 	dug := map[domain.Cell]bool{}
 	for c := range under {
@@ -312,11 +311,7 @@ func (sc planScorer) edgeCost(rooms []PlannedRoom, under map[domain.Cell]bool) i
 				continue
 			}
 			seen[c] = true
-			d := ground.walkDist(c)
-			if d < 0 || d >= clear {
-				continue
-			}
-			cost += planWeights.Edge * (clear - d)
+			cost += edgeCellCost(ground, c, clear)
 		}
 	}
 	return cost
@@ -327,18 +322,40 @@ func (sc planScorer) edgeCost(rooms []PlannedRoom, under map[domain.Cell]bool) i
 // short side on a small map. Plain geometry: unlike edgeCost it ignores what
 // raiders can walk, so a mountain on the border gets no discount.
 func (sc planScorer) centreCost(rooms []PlannedRoom) int {
-	b := sc.s.Bounds
-	clear := min(planWeights.CentreClear, int(min(b.Width, b.Height))/3)
 	cost := 0
 	for _, r := range rooms {
 		for _, c := range rectCells(r.Region.Bounds()) {
-			d := int(min(c.X, c.Z, b.Width-1-c.X, b.Height-1-c.Z))
-			if d < clear {
-				cost += planWeights.Centre * (clear - d)
-			}
+			cost += sc.centreCell(c)
 		}
 	}
 	return cost
+}
+
+// edgeClear is the walking distance inside which a cell pays the edge term.
+func (sc planScorer) edgeClear() int {
+	b := sc.s.Bounds
+	return min(planWeights.EdgeClear, int(min(b.Width, b.Height))/5)
+}
+
+// edgeCellCost is the edge term of one cell over ground: planWeights.Edge per
+// step it stands inside clear of an open edge cell, 0 when no raider reaches it.
+func edgeCellCost(ground siteGround, c domain.Cell, clear int) int {
+	d := ground.walkDist(c)
+	if d < 0 || d >= clear {
+		return 0
+	}
+	return planWeights.Edge * (clear - d)
+}
+
+// centreCell is the centre term of one room interior cell.
+func (sc planScorer) centreCell(c domain.Cell) int {
+	b := sc.s.Bounds
+	clear := min(planWeights.CentreClear, int(min(b.Width, b.Height))/3)
+	d := int(min(c.X, c.Z, b.Width-1-c.X, b.Height-1-c.Z))
+	if d >= clear {
+		return 0
+	}
+	return planWeights.Centre * (clear - d)
 }
 
 // expansion is the free ground a plan can still grow into: core cells

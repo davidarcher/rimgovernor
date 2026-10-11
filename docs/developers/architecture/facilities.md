@@ -147,6 +147,27 @@ enclosed, open sky) and links to other groups, required ones marked. Rooms of a
 role the game gives no effect (dining beside a stove, storage beside a bench)
 share a room with the station that outweighs them.
 
+### Topology embedding
+
+`policy.Embed` (`layout_embed.go`) places the room groups on the site as
+area-sized rectangular blocks, coarsely (tiling to regions is a later stage). It
+reuses the siting machinery: SiteCore's obstacle levels (the strictest level
+that places every group wins) and candidate seeds, the PlanScore soil, rock,
+edge and centre terms per cell (prefix sums, so pricing a block is O(1)),
+`planWeights` for every weight and the seeded `searchRand`. The walking term is
+`Walk x link weight x (gap - 1)` with the cluster's summed flow weights, so
+adjacent (sharing a wall) is free; a required link not adjacent costs
+`BadRoutes` and is reported. Each seed builds a Prim-like greedy start (heaviest
+group, then the group with most weight to what is placed, on the smallest ring
+beside its neighbours) and a local search of `siteSearchIters` moves per block
+(beside a linked block, beside any block, a random core cell, a swap) keeps
+strict gains; the best start wins. Environment requirements: open sky excludes
+rock and mountain roof; cold storage pays no dig cost under mountain roof and is
+satisfied only wholly under it (otherwise `embed_no_thick_roof`, it needs a
+cooler); a clean room has no site signal (`embed_no_site_signal`). A group no
+position fits is reported unplaceable (`embed_no_ground`,
+`embed_open_sky_ground`).
+
 ## Electrical safety
 
 `EnsureBasicPower` uses `HiddenConduit` for new connections and replaces ordinary

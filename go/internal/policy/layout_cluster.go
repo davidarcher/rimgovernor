@@ -153,8 +153,15 @@ const (
 // its depth is bounded and its length is bounded by the shell: a w by h
 // interior has a wall ring of 2(w+h)+4 cells.
 func maxRoomArea(roofDistance float64) (int, error) {
+	_, area, err := roomLimits(roofDistance)
+	return area, err
+}
+
+// roomLimits is the deepest roof-supported square interior and the largest
+// roof-supported interior area.
+func roomLimits(roofDistance float64) (depth, area int, err error) {
 	if roofDistance <= 0 {
-		return 0, fmt.Errorf("%w: roof support distance %v", ErrCluster, roofDistance)
+		return 0, 0, fmt.Errorf("%w: roof support distance %v", ErrCluster, roofDistance)
 	}
 	rect := func(w, h int) (domain.RoomFootprint, error) {
 		cells := make([]domain.Cell, 0, w*h)
@@ -165,7 +172,6 @@ func maxRoomArea(roofDistance float64) (int, error) {
 		}
 		return domain.NewRoomFootprint(cells, domain.Cell{X: 1, Z: 0}, domain.South)
 	}
-	depth := 0
 	for s := 1; s*s <= shellMaxInterior; s++ {
 		f, err := rect(s, s)
 		if err != nil || !f.RoofSupported(roofDistance) {
@@ -174,14 +180,14 @@ func maxRoomArea(roofDistance float64) (int, error) {
 		depth = s
 	}
 	if depth == 0 {
-		return 0, fmt.Errorf("%w: no room is roof supported at distance %v", ErrCluster, roofDistance)
+		return 0, 0, fmt.Errorf("%w: no room is roof supported at distance %v", ErrCluster, roofDistance)
 	}
 	length := min((shellMaxWalls-4)/2-depth, shellMaxInterior/depth)
 	f, err := rect(length, depth)
 	if err != nil || !f.RoofSupported(roofDistance) {
-		return 0, fmt.Errorf("%w: a %dx%d room is not buildable: %v", ErrCluster, length, depth, err)
+		return 0, 0, fmt.Errorf("%w: a %dx%d room is not buildable: %v", ErrCluster, length, depth, err)
 	}
-	return length * depth, nil
+	return depth, length * depth, nil
 }
 
 // unit is count stations of one graph node.
