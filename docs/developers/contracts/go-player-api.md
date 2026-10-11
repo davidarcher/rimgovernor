@@ -159,7 +159,7 @@ scenario parts on `spec`: `startingThings` (`placement` `start_with` | `start_ne
 `scattered`, `thingDef`, optional `stuff` and `quality`, `count`, `allowRoofed` for scattered),
 `forcedTraits` (`trait`, `degree`, `chance`), `forcedHediffs` (`hediff`, `severity`, `chance`),
 `naked` (`chance`), `setNeedLevels` (`need`, `level`, `chance`), each pawn part with a `context`
-(`all` | `player_starter` | `non_player`), plus the `permaGameConditions`, `permaMapConditions`,
+(`all` | `player_starter` | `non_player`), plus the `permaGameConditions`,
 `disallowedBuildings` and `disabledIncidents` defName lists and the overrides `playerFaction`
 (`new_arrivals` | `new_tribe`) and `arrivalMethod` (`standing` | `drop_pods`). The starting pawn
 count stays `colonistCount` (1-10). Ranges are in

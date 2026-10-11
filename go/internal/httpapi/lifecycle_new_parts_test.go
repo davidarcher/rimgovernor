@@ -17,7 +17,6 @@ const newColonyPartsJSON = `{
  "naked":[{"chance":1,"context":"non_player"}],
  "setNeedLevels":[{"need":"Food","level":0.2,"chance":1,"context":"player_starter"}],
  "permaGameConditions":["ColdSnap"],
- "permaMapConditions":["Eclipse"],
  "disallowedBuildings":["TurretGun"],
  "disabledIncidents":["RaidEnemy"],
  "playerFaction":"new_tribe","arrivalMethod":"drop_pods"}`
@@ -51,7 +50,7 @@ func TestLifecycleNewColonyScenarioPartsRoundTrip(t *testing.T) {
 		len(nl) != 1 || nl[0].GetNeed() != "Food" || nl[0].GetLevel() != 0.2 {
 		t.Fatal(spec)
 	}
-	if spec.GetPermaGameConditions()[0] != "ColdSnap" || spec.GetPermaMapConditions()[0] != "Eclipse" || spec.GetDisallowedBuildings()[0] != "TurretGun" || spec.GetDisabledIncidents()[0] != "RaidEnemy" ||
+	if spec.GetPermaGameConditions()[0] != "ColdSnap" || spec.GetDisallowedBuildings()[0] != "TurretGun" || spec.GetDisabledIncidents()[0] != "RaidEnemy" ||
 		spec.GetPlayerFaction() != l.ScenarioPlayerFaction_SCENARIO_PLAYER_FACTION_NEW_TRIBE || spec.GetArrivalMethod() != l.ScenarioArrivalMethod_SCENARIO_ARRIVAL_METHOD_DROP_PODS {
 		t.Fatal(spec)
 	}
@@ -89,7 +88,7 @@ func TestLifecycleNewColonyScenarioPartsRejected(t *testing.T) {
 			s["setNeedLevels"] = part(map[string]any{"need": "Food", "level": 2, "chance": 1, "context": "all"})
 		},
 		"hediff severity": func(s map[string]any) {
-			s["forcedHediffs"] = part(map[string]any{"hediff": "Flu", "severity": -1, "chance": 1, "context": "all"})
+			s["forcedHediffs"] = part(map[string]any{"hediff": "Flu", "severity": 1.5, "chance": 1, "context": "all"})
 		},
 		"duplicate condition": func(s map[string]any) { s["permaGameConditions"] = []any{"ColdSnap", "ColdSnap"} },
 		"empty building":      func(s map[string]any) { s["disallowedBuildings"] = []any{""} },

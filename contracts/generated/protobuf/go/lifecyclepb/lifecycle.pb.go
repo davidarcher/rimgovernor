@@ -1780,19 +1780,22 @@ type NewColonySpec struct {
 	GovernorIdeoligion *bool `protobuf:"varint,15,opt,name=governor_ideoligion,json=governorIdeoligion,proto3,oneof" json:"governor_ideoligion,omitempty"`
 	// Scenario parts layered on the base scenario (the game editor's part set).
 	// Native applies them to a copy of `scenario`; defName existence is native's call.
-	StartingThings      []*StartingThing `protobuf:"bytes,16,rep,name=starting_things,json=startingThings,proto3" json:"starting_things,omitempty"`
-	ForcedTraits        []*ForcedTrait   `protobuf:"bytes,17,rep,name=forced_traits,json=forcedTraits,proto3" json:"forced_traits,omitempty"`
-	ForcedHediffs       []*ForcedHediff  `protobuf:"bytes,18,rep,name=forced_hediffs,json=forcedHediffs,proto3" json:"forced_hediffs,omitempty"`
-	Naked               []*NakedPart     `protobuf:"bytes,19,rep,name=naked,proto3" json:"naked,omitempty"`
-	SetNeedLevels       []*SetNeedLevel  `protobuf:"bytes,20,rep,name=set_need_levels,json=setNeedLevels,proto3" json:"set_need_levels,omitempty"`
-	PermaGameConditions []string         `protobuf:"bytes,21,rep,name=perma_game_conditions,json=permaGameConditions,proto3" json:"perma_game_conditions,omitempty"`
-	PermaMapConditions  []string         `protobuf:"bytes,22,rep,name=perma_map_conditions,json=permaMapConditions,proto3" json:"perma_map_conditions,omitempty"`
-	DisallowedBuildings []string         `protobuf:"bytes,23,rep,name=disallowed_buildings,json=disallowedBuildings,proto3" json:"disallowed_buildings,omitempty"`
-	DisabledIncidents   []string         `protobuf:"bytes,24,rep,name=disabled_incidents,json=disabledIncidents,proto3" json:"disabled_incidents,omitempty"`
+	StartingThings []*StartingThing `protobuf:"bytes,16,rep,name=starting_things,json=startingThings,proto3" json:"starting_things,omitempty"`
+	ForcedTraits   []*ForcedTrait   `protobuf:"bytes,17,rep,name=forced_traits,json=forcedTraits,proto3" json:"forced_traits,omitempty"`
+	ForcedHediffs  []*ForcedHediff  `protobuf:"bytes,18,rep,name=forced_hediffs,json=forcedHediffs,proto3" json:"forced_hediffs,omitempty"`
+	Naked          []*NakedPart     `protobuf:"bytes,19,rep,name=naked,proto3" json:"naked,omitempty"`
+	SetNeedLevels  []*SetNeedLevel  `protobuf:"bytes,20,rep,name=set_need_levels,json=setNeedLevels,proto3" json:"set_need_levels,omitempty"`
+	// GameConditionDef names registered permanently on the start map (the
+	// game's PermanentGameCondition part). The editor lists only defs with
+	// canBePermanent, native accepts any def (ColdSnap works). There is no
+	// separate map-scoped part.
+	PermaGameConditions []string `protobuf:"bytes,21,rep,name=perma_game_conditions,json=permaGameConditions,proto3" json:"perma_game_conditions,omitempty"`
+	DisallowedBuildings []string `protobuf:"bytes,22,rep,name=disallowed_buildings,json=disallowedBuildings,proto3" json:"disallowed_buildings,omitempty"`
+	DisabledIncidents   []string `protobuf:"bytes,23,rep,name=disabled_incidents,json=disabledIncidents,proto3" json:"disabled_incidents,omitempty"`
 	// Mandatory-part overrides; unset keeps the base scenario's. The starting
 	// pawn count is colonist_count.
-	PlayerFaction *ScenarioPlayerFaction `protobuf:"varint,25,opt,name=player_faction,json=playerFaction,proto3,enum=rimgovernor.lifecycle.v1.ScenarioPlayerFaction,oneof" json:"player_faction,omitempty"`
-	ArrivalMethod *ScenarioArrivalMethod `protobuf:"varint,26,opt,name=arrival_method,json=arrivalMethod,proto3,enum=rimgovernor.lifecycle.v1.ScenarioArrivalMethod,oneof" json:"arrival_method,omitempty"`
+	PlayerFaction *ScenarioPlayerFaction `protobuf:"varint,24,opt,name=player_faction,json=playerFaction,proto3,enum=rimgovernor.lifecycle.v1.ScenarioPlayerFaction,oneof" json:"player_faction,omitempty"`
+	ArrivalMethod *ScenarioArrivalMethod `protobuf:"varint,25,opt,name=arrival_method,json=arrivalMethod,proto3,enum=rimgovernor.lifecycle.v1.ScenarioArrivalMethod,oneof" json:"arrival_method,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1970,13 +1973,6 @@ func (x *NewColonySpec) GetSetNeedLevels() []*SetNeedLevel {
 func (x *NewColonySpec) GetPermaGameConditions() []string {
 	if x != nil {
 		return x.PermaGameConditions
-	}
-	return nil
-}
-
-func (x *NewColonySpec) GetPermaMapConditions() []string {
-	if x != nil {
-		return x.PermaMapConditions
 	}
 	return nil
 }
@@ -2164,6 +2160,9 @@ func (x *ForcedTrait) GetContext() ScenarioPawnContext {
 	return ScenarioPawnContext_SCENARIO_PAWN_CONTEXT_UNSPECIFIED
 }
 
+// severity is 0..1 (every scenario-addable hediff's cap in 1.6; native also
+// refuses above the def's lethal severity x 0.99). The game's part takes a
+// severity range; native sets both ends to severity. chance is 0..1.
 type ForcedHediff struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Hediff        *string                `protobuf:"bytes,1,opt,name=hediff,proto3,oneof" json:"hediff,omitempty"`
@@ -2284,7 +2283,8 @@ func (x *NakedPart) GetContext() ScenarioPawnContext {
 	return ScenarioPawnContext_SCENARIO_PAWN_CONTEXT_UNSPECIFIED
 }
 
-// level is 0..1.
+// level is 0..1 (the game's part takes a range; native sets both ends to
+// level); chance is 0..1. Native refuses a need that is not major.
 type SetNeedLevel struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Need          *string                `protobuf:"bytes,1,opt,name=need,proto3,oneof" json:"need,omitempty"`
@@ -3522,7 +3522,7 @@ const file_lifecycle_proto_rawDesc = "" +
 	"request_id\x18\x01 \x01(\tH\x00R\trequestId\x88\x01\x01\x125\n" +
 	"\x14expected_instance_id\x18\x02 \x01(\tH\x01R\x12expectedInstanceId\x88\x01\x01B\r\n" +
 	"\v_request_idB\x17\n" +
-	"\x15_expected_instance_id\"\xf3\f\n" +
+	"\x15_expected_instance_id\"\xc1\f\n" +
 	"\rNewColonySpec\x12\x1f\n" +
 	"\bscenario\x18\x01 \x01(\tH\x00R\bscenario\x88\x01\x01\x12*\n" +
 	"\x0ecolonist_count\x18\x02 \x01(\rH\x01R\rcolonistCount\x88\x01\x01\x12\x17\n" +
@@ -3550,12 +3550,11 @@ const file_lifecycle_proto_rawDesc = "" +
 	"\x0eforced_hediffs\x18\x12 \x03(\v2&.rimgovernor.lifecycle.v1.ForcedHediffR\rforcedHediffs\x129\n" +
 	"\x05naked\x18\x13 \x03(\v2#.rimgovernor.lifecycle.v1.NakedPartR\x05naked\x12N\n" +
 	"\x0fset_need_levels\x18\x14 \x03(\v2&.rimgovernor.lifecycle.v1.SetNeedLevelR\rsetNeedLevels\x122\n" +
-	"\x15perma_game_conditions\x18\x15 \x03(\tR\x13permaGameConditions\x120\n" +
-	"\x14perma_map_conditions\x18\x16 \x03(\tR\x12permaMapConditions\x121\n" +
-	"\x14disallowed_buildings\x18\x17 \x03(\tR\x13disallowedBuildings\x12-\n" +
-	"\x12disabled_incidents\x18\x18 \x03(\tR\x11disabledIncidents\x12[\n" +
-	"\x0eplayer_faction\x18\x19 \x01(\x0e2/.rimgovernor.lifecycle.v1.ScenarioPlayerFactionH\rR\rplayerFaction\x88\x01\x01\x12[\n" +
-	"\x0earrival_method\x18\x1a \x01(\x0e2/.rimgovernor.lifecycle.v1.ScenarioArrivalMethodH\x0eR\rarrivalMethod\x88\x01\x01B\v\n" +
+	"\x15perma_game_conditions\x18\x15 \x03(\tR\x13permaGameConditions\x121\n" +
+	"\x14disallowed_buildings\x18\x16 \x03(\tR\x13disallowedBuildings\x12-\n" +
+	"\x12disabled_incidents\x18\x17 \x03(\tR\x11disabledIncidents\x12[\n" +
+	"\x0eplayer_faction\x18\x18 \x01(\x0e2/.rimgovernor.lifecycle.v1.ScenarioPlayerFactionH\rR\rplayerFaction\x88\x01\x01\x12[\n" +
+	"\x0earrival_method\x18\x19 \x01(\x0e2/.rimgovernor.lifecycle.v1.ScenarioArrivalMethodH\x0eR\rarrivalMethod\x88\x01\x01B\v\n" +
 	"\t_scenarioB\x11\n" +
 	"\x0f_colonist_countB\a\n" +
 	"\x05_seedB\f\n" +

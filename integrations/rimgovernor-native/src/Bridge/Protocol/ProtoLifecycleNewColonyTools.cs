@@ -74,6 +74,7 @@ namespace HomeBridge.BridgeTools
             public OverallTemperature WorldTemperature;
             public float? MinTemperature, MaxTemperature;
             public List<BiomeDef> Biomes = new List<BiomeDef>();
+            public NativeNewColonyScenarioParts.Plan Parts = null!;
         }
 
         [Tool(NewColonyToolName, Title = "Start a new colony",
@@ -185,6 +186,8 @@ namespace HomeBridge.BridgeTools
             resolved.Storyteller = Named(DefDatabase<StorytellerDef>.AllDefsListForReading, spec.Storyteller, "storyteller");
             if (resolved.Scenario.scenario.AllParts.OfType<ScenPart_ConfigPage_ConfigureStartingPawns>().SingleOrDefault() == null)
                 throw new Refusal(Common.FailureCode.InvalidRequest, "Scenario " + spec.Scenario + " has no editable starting-pawn count.");
+            try { resolved.Parts = NativeNewColonyScenarioParts.Build(spec, resolved.Scenario.scenario); }
+            catch (NativeNewColonyScenarioParts.PartRefusal refusal) { throw new Refusal(Common.FailureCode.InvalidRequest, refusal.Message); }
             var settleable = DefDatabase<BiomeDef>.AllDefsListForReading.Where(b => b.canBuildBase).ToList();
             foreach (var name in spec.Biomes)
                 resolved.Biomes.Add(Named(settleable, name, "biome"));
@@ -227,6 +230,7 @@ namespace HomeBridge.BridgeTools
                 // (The property setter needs a map for PlayerCanControl, so set the field.)
                 HarmonyLib.Traverse.Create(Current.Game.tickManager).Field("curTimeSpeed").SetValue(TimeSpeed.Paused);
                 var scenario = resolved.Scenario.scenario.CopyForEditing();
+                NativeNewColonyScenarioParts.Apply(scenario, resolved.Parts);
                 var part = scenario.AllParts.OfType<ScenPart_ConfigPage_ConfigureStartingPawns>().Single();
                 part.pawnCount = (int)spec.ColonistCount;
                 part.pawnChoiceCount = Math.Max((int)spec.ColonistCount, part.pawnChoiceCount);

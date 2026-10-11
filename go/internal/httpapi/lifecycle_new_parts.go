@@ -18,7 +18,6 @@ type NewColonyPartsDTO struct {
 	Naked               []NakedDTO         `json:"naked,omitempty"`
 	SetNeedLevels       []SetNeedLevelDTO  `json:"setNeedLevels,omitempty"`
 	PermaGameConditions []string           `json:"permaGameConditions,omitempty"`
-	PermaMapConditions  []string           `json:"permaMapConditions,omitempty"`
 	DisallowedBuildings []string           `json:"disallowedBuildings,omitempty"`
 	DisabledIncidents   []string           `json:"disabledIncidents,omitempty"`
 	PlayerFaction       string             `json:"playerFaction,omitempty"`
@@ -112,7 +111,6 @@ func applyNewColonyParts(spec *l.NewColonySpec, parts NewColonyPartsDTO) error {
 		spec.SetNeedLevels = append(spec.SetNeedLevels, &l.SetNeedLevel{Need: proto.String(n.Need), Level: n.Level, Chance: n.Chance, Context: ctx})
 	}
 	spec.PermaGameConditions = parts.PermaGameConditions
-	spec.PermaMapConditions = parts.PermaMapConditions
 	spec.DisallowedBuildings = parts.DisallowedBuildings
 	spec.DisabledIncidents = parts.DisabledIncidents
 	if parts.PlayerFaction != "" {

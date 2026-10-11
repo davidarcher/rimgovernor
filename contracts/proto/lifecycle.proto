@@ -164,14 +164,17 @@ message NewColonySpec {
   repeated ForcedHediff forced_hediffs = 18;
   repeated NakedPart naked = 19;
   repeated SetNeedLevel set_need_levels = 20;
+  // GameConditionDef names registered permanently on the start map (the
+  // game's PermanentGameCondition part). The editor lists only defs with
+  // canBePermanent, native accepts any def (ColdSnap works). There is no
+  // separate map-scoped part.
   repeated string perma_game_conditions = 21;
-  repeated string perma_map_conditions = 22;
-  repeated string disallowed_buildings = 23;
-  repeated string disabled_incidents = 24;
+  repeated string disallowed_buildings = 22;
+  repeated string disabled_incidents = 23;
   // Mandatory-part overrides; unset keeps the base scenario's. The starting
   // pawn count is colonist_count.
-  optional ScenarioPlayerFaction player_faction = 25;
-  optional ScenarioArrivalMethod arrival_method = 26;
+  optional ScenarioPlayerFaction player_faction = 24;
+  optional ScenarioArrivalMethod arrival_method = 25;
 }
 enum StartingThingPlacement {
   STARTING_THING_PLACEMENT_UNSPECIFIED = 0;
@@ -213,6 +216,9 @@ message ForcedTrait {
   optional float chance = 3;
   optional ScenarioPawnContext context = 4;
 }
+// severity is 0..1 (every scenario-addable hediff's cap in 1.6; native also
+// refuses above the def's lethal severity x 0.99). The game's part takes a
+// severity range; native sets both ends to severity. chance is 0..1.
 message ForcedHediff {
   optional string hediff = 1;
   optional float severity = 2;
@@ -223,7 +229,8 @@ message NakedPart {
   optional float chance = 1;
   optional ScenarioPawnContext context = 2;
 }
-// level is 0..1.
+// level is 0..1 (the game's part takes a range; native sets both ends to
+// level); chance is 0..1. Native refuses a need that is not major.
 message SetNeedLevel {
   optional string need = 1;
   optional float level = 2;

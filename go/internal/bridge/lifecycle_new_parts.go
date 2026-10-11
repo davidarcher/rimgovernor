@@ -11,7 +11,7 @@ const (
 	NewColonyMaxPartsPerKind = 64
 	NewColonyMaxThingCount   = 100_000
 	NewColonyMaxTraitDegree  = 10
-	NewColonyMaxSeverity     = 100
+	NewColonyMaxSeverity     = 1
 )
 
 // validateNewColonyParts checks the scenario parts' presence and ranges.
@@ -19,7 +19,7 @@ const (
 func validateNewColonyParts(spec *l.NewColonySpec) error {
 	for _, n := range []int{
 		len(spec.StartingThings), len(spec.ForcedTraits), len(spec.ForcedHediffs), len(spec.Naked), len(spec.SetNeedLevels),
-		len(spec.PermaGameConditions), len(spec.PermaMapConditions), len(spec.DisallowedBuildings), len(spec.DisabledIncidents),
+		len(spec.PermaGameConditions), len(spec.DisallowedBuildings), len(spec.DisabledIncidents),
 	} {
 		if n > NewColonyMaxPartsPerKind {
 			return contract("new colony scenario parts exceed %d per kind", NewColonyMaxPartsPerKind)
@@ -71,8 +71,8 @@ func validateNewColonyParts(spec *l.NewColonySpec) error {
 		}
 	}
 	for name, ids := range map[string][]string{
-		"perma game conditions": spec.PermaGameConditions, "perma map conditions": spec.PermaMapConditions,
-		"disallowed buildings": spec.DisallowedBuildings, "disabled incidents": spec.DisabledIncidents,
+		"perma game conditions": spec.PermaGameConditions,
+		"disallowed buildings":  spec.DisallowedBuildings, "disabled incidents": spec.DisabledIncidents,
 	} {
 		if !validIDs(ids, true) {
 			return contract("new colony %s invalid", name)
