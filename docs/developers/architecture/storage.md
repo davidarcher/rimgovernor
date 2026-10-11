@@ -10,9 +10,11 @@ the one applier, through the ordinary zone create, cell-edit, patch and delete a
 standing zones are the only record (see
 [persistence contracts](../contracts/persistence-contracts.md)). Rooms stay
 layout's job. The stores are declared per department: Shelter (the starter
-shelter's floor, one Low priority general zone over the whole interior until a
+shelter's 3x3 starter-storage patch, one Low priority general zone until a
 storage room or freezer stands, then deleted so its contents haul to the better
-stores), Storage (warehouse, yard), Food, Medical, Industry (bench ingredients), Military (armory, wardrobe),
+stores; it is only the patch because the placement search treats zoned cells as
+unplaceable, so a whole-interior zone starved the campfire slot, tracked by the
+layout epic), Storage (warehouse, yard), Food, Medical, Industry (bench ingredients), Military (armory, wardrobe),
 People (tomb, morgue, graveyard) and Sanitation (waste dump, incinerator); the
 animal feed store belongs to Husbandry.
 

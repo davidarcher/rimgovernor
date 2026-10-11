@@ -2,10 +2,12 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// The Shelter department's one store: the starter shelter's floor as a general
-// store at the lowest priority, so the colony has somewhere to put its things
-// before it has a storage room. The zone covers the whole interior; furniture
-// placed on top of it (RimWorld allows it) shrinks the zone by itself. Any real
+// The Shelter department's one store: the starter shelter's 3x3 starter-storage
+// patch as a general store at the lowest priority, so the colony has somewhere
+// to put its things before it has a storage room. The patch is the one the
+// shelter interior template keeps clear, because the placement search treats
+// zoned cells as unplaceable (tracked by the layout epic); a whole-interior
+// zone starved the campfire of a slot. Any real
 // store outranks it, and the zone is deleted (its contents haul to the better
 // stores) once a storage room or freezer stands, or the shelter leaves the plan.
 
@@ -30,7 +32,15 @@ func (shelterOwner) Stores(v StoreView) []Store {
 	var out []Store
 	for _, room := range v.Layout.AllRooms() {
 		if room.Role == PlannedShelter {
-			out = append(out, Store{StoreSite: StoreSite{Role: domain.ShelterRole, Interior: room.Region.Bounds(), Filter: domain.GeneralFilter(), Priority: domain.LowPriority}})
+			shell, err := room.Footprint()
+			if err != nil {
+				continue
+			}
+			patch := starterStorage(shell)
+			if patch.Width == 0 {
+				continue
+			}
+			out = append(out, Store{StoreSite: StoreSite{Role: domain.ShelterRole, Interior: patch, Filter: domain.GeneralFilter(), Priority: domain.LowPriority}})
 		}
 	}
 	if len(out) == 0 {
