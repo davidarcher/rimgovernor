@@ -1,7 +1,6 @@
 package sustainedfood
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 )
 
 func TestFailFastRetryableUnsuccessfulSkipsListedReasons(t *testing.T) {
@@ -120,28 +120,27 @@ func TestFailFastUnsuccessfulStageSkipsReplannedReasons(t *testing.T) {
 	}
 }
 
-// stepRow is a worker-step planner_step flight row carrying the given planner failures.
-func stepRow(seq int, failures ...string) string {
+// stepRow is a worker-step planner_step OTLP log line carrying the given
+// planner failures; each call is a distinct row (its own observed time).
+func stepRow(t *testing.T, failures ...string) string {
+	t.Helper()
 	if failures == nil {
 		failures = []string{}
 	}
-	line, _ := json.Marshal(map[string]any{
-		"sequence": seq, "kind": "planner_step",
-		"context": map[string]any{"level": "INFO", "tick": 4200},
-		"payload": map[string]any{"verdict": "waiting", "reason": "no_window", "target": "worker_step", "dur_ms": 0, "attrs": map[string]any{"planner_failures": failures}},
-	})
-	return string(line)
+	return telemetrytest.LogLines(t, telemetrytest.Row{Kind: "planner_step",
+		Context: map[string]any{"level": "INFO", "tick": 4200},
+		Payload: map[string]any{"verdict": "waiting", "reason": "no_window", "target": "worker_step", "dur_ms": 0.0, "attrs": map[string]any{"planner_failures": failures}}})[0]
 }
 
 func TestFailFastRepeatedRefusalReadsTheLatestStep(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "flight.jsonl")
+	path := filepath.Join(t.TempDir(), "logs.jsonl")
 	write := func(lines ...string) {
 		if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
-	refused := stepRow(1, "resource: bridge read refused: bills/add_bill")
-	clean := stepRow(2)
+	refused := stepRow(t, "resource: bridge read refused: bills/add_bill")
+	clean := stepRow(t)
 	f := newFailFast(FailFast{RefusalSamples: 3}, policy.MaintainResource, path)
 	sample := map[string]any{"method_count": 0, "need": "unmet", "status": "open"}
 	write(refused)
@@ -155,8 +154,9 @@ func TestFailFastRepeatedRefusalReadsTheLatestStep(t *testing.T) {
 	if _, failed := f.check(sample); failed {
 		t.Fatal("a clean latest step is not a refusal")
 	}
-	refused = stepRow(3, "resource: bridge read refused: bills/add_bill")
-	write(refused, clean, refused)
+	first := refused
+	refused = stepRow(t, "resource: bridge read refused: bills/add_bill")
+	write(first, clean, refused)
 	for i := 0; i < 2; i++ {
 		if v, failed := f.check(sample); failed {
 			t.Fatalf("after reset, sample %d: %v", i, v)

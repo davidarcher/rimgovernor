@@ -2,53 +2,57 @@ package nativeaccept
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-	"sort"
-	"strconv"
 	"strings"
+
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/otel"
 )
 
-// FlightSegments lists the recorder at path oldest first: its rotated
-// segments path.N (a higher N is older), then path itself, each only when it
-// exists. A recorder that rotated holds its early rows only there.
-func FlightSegments(path string) []string {
-	type segment struct {
-		index int
-		path  string
-	}
-	var rotated []segment
-	matches, _ := filepath.Glob(path + ".*")
-	for _, m := range matches {
-		if i, err := strconv.Atoi(strings.TrimPrefix(m, path+".")); err == nil {
-			rotated = append(rotated, segment{i, m})
-		}
-	}
-	sort.Slice(rotated, func(i, j int) bool { return rotated[i].index > rotated[j].index })
-	var out []string
-	for _, s := range rotated {
-		out = append(out, s.path)
-	}
-	if _, err := os.Stat(path); err == nil {
-		out = append(out, path)
-	}
-	return out
+// A service's evidence is its OTLP/JSON file sink (docs/developers/contracts/otel-core.md):
+// rimgovernor serve writes traces.jsonl, logs.jsonl and metrics.jsonl under
+// <dir of --flight-recorder>/otlp. Decisions, events and the bridge's native
+// rows are the log records; the case oracles read them as rows
+// (bridge.RecordFromLog). The harness launches serve with
+// --legacy-flight-rows=false (ServeArgs), so no flight.jsonl rows are written
+// besides the recorder's own coverage row.
+
+// FlightRecorderFile is the --flight-recorder argument of a service whose
+// evidence lives under dir: the anchor the sink's otlp directory sits beside.
+func FlightRecorderFile(dir string) string { return filepath.Join(dir, "flight.jsonl") }
+
+// LogsPath is the log ring of the service launched with --flight-recorder
+// recorder: <dir of recorder>/otlp/logs.jsonl.
+func LogsPath(recorder string) string {
+	return filepath.Join(filepath.Dir(recorder), "otlp", otel.LogsFile)
 }
 
-// FlightRecorderPath is where every launch has rimgovernor serve write its
-// timeline under output (launchServe passes --flight-recorder); the
+// FlightRecorderPath is the log ring of the first service launch under output
+// (launchServe passes --flight-recorder FlightRecorderFile(output)); the
 // runner's metrics block summarizes it (metrics.go).
-func FlightRecorderPath(output string) string { return filepath.Join(output, "flight.jsonl") }
+func FlightRecorderPath(output string) string { return LogsPath(FlightRecorderFile(output)) }
 
-// ReadFlight reads every row of a service's flight recorder at path from
-// its start (FlightTail follows appends only): what a case audits after
-// the service stopped. A missing file is an empty recording.
+// ReadFlight reads every row of a service's log ring at path from its start,
+// across the ring's rotated segments (FlightTail follows appends only): what
+// a case audits after the service stopped. A missing ring is an empty
+// recording.
 func ReadFlight(path string) ([]FlightRow, error) {
-	t := &FlightTail{path: path}
-	return t.Next()
+	records, err := bridge.ReadOTLPTimeline(path)
+	if err != nil {
+		return nil, err
+	}
+	rows := make([]FlightRow, 0, len(records))
+	for _, rec := range records {
+		row := FlightRow{Sequence: rec.Sequence, Kind: rec.Kind, Context: rec.Context, Payload: rec.Payload}
+		if tick, ok := row.Context["tick"].(float64); ok {
+			row.Tick, row.HasTick = int64(tick), true
+		}
+		rows = append(rows, row)
+	}
+	return rows, nil
 }
 
-// FlightMessages are the msg payloads of every row of kind in the recorder at
+// FlightMessages are the msg payloads of every row of kind in the log ring at
 // path, oldest first: the building planner's placement_refused and
 // foreign_held rows carry what they report there.
 func FlightMessages(path, kind string) ([]string, error) {
@@ -68,7 +72,7 @@ func FlightMessages(path, kind string) ([]string, error) {
 	return out, nil
 }
 
-// RefusalsNameBlockers returns every placement_refused message in the recorder
+// RefusalsNameBlockers returns every placement_refused message in the log ring
 // at path and fails when one names no blocker: a refused furniture cell
 // reports the thing the native preview found in the way.
 func RefusalsNameBlockers(path string) ([]string, error) {

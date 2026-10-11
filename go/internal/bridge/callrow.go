@@ -77,7 +77,7 @@ type callMarker struct {
 	timer    *time.Timer
 }
 
-func (c *Client) startCallMarker(recordCtx map[string]any, name, nativeTool string, arguments json.RawMessage) *callMarker {
+func (c *Client) startCallMarker(ctx context.Context, recordCtx map[string]any, name, nativeTool string, arguments json.RawMessage) *callMarker {
 	m := &callMarker{}
 	m.timer = time.AfterFunc(slowCallMarker, func() {
 		m.mu.Lock()
@@ -86,7 +86,7 @@ func (c *Client) startCallMarker(recordCtx map[string]any, name, nativeTool stri
 			return
 		}
 		// Durable: the marker brackets a call that may never return.
-		m.sequence, _ = c.recorder.Event("native_request", recordCtx, true, map[string]any{"tool": name, "native_tool": nativeTool, "arguments": recordedArguments(name, arguments)})
+		m.sequence = c.nativeRow(ctx, "native_request", recordCtx, true, map[string]any{"tool": name, "native_tool": nativeTool, "arguments": recordedArguments(name, arguments)})
 	})
 	return m
 }
@@ -106,6 +106,7 @@ func (m *callMarker) finish() uint64 {
 // payload_bytes, wire_bytes). A call that is not typed writes at once.
 type pendingCall struct {
 	c         *Client
+	ctx       context.Context
 	recordCtx map[string]any
 	row       map[string]any
 }
@@ -130,12 +131,12 @@ func withDeferredCall(ctx context.Context) (context.Context, *deferredCall) {
 func (c *Client) recordCall(ctx context.Context, recordCtx map[string]any, row map[string]any) {
 	d, _ := ctx.Value(pendingCallKey{}).(*deferredCall)
 	if d == nil {
-		c.recordNativeCall(recordCtx, row)
+		c.recordNativeCall(ctx, recordCtx, row)
 		return
 	}
 	d.mu.Lock()
 	previous := d.pending
-	d.pending = &pendingCall{c: c, recordCtx: recordCtx, row: row}
+	d.pending = &pendingCall{c: c, ctx: ctx, recordCtx: recordCtx, row: row}
 	d.mu.Unlock()
 	if previous != nil {
 		previous.write(nil)
@@ -160,5 +161,5 @@ func (p *pendingCall) write(extra map[string]any) {
 			timing[k] = v
 		}
 	}
-	p.c.recordNativeCall(p.recordCtx, p.row)
+	p.c.recordNativeCall(p.ctx, p.recordCtx, p.row)
 }

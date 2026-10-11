@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 )
 
 // A flight recording of two calls (one an error, one timed by the
@@ -15,40 +17,49 @@ import (
 // recording under service-2.
 func writeRecordings(t *testing.T, output string) {
 	t.Helper()
-	first := strings.Join([]string{
-		`{"sequence":1,"wall_time":10,"kind":"native_call","context":{},"payload":{"request":1,"tool":"games_call_tool","native_tool":"x/read","timing":{"total_ms":5,"response_bytes":100,"native_queue_ms":2,"native_execute_ms":4}}}`,
-		`{"sequence":2,"wall_time":11,"kind":"native_call","context":{},"payload":{"request":2,"tool":"games_call_tool","native_tool":"x/read","ok":false,"error":"boom","timing":{"total_ms":1,"response_bytes":20}}}`,
-		`{"sequence":3,"wall_time":12,"kind":"native_frame","context":{},"payload":{"outcome":"hit","tool":"games_call_tool","native_tool":"x/read"}}`,
-		`{"sequence":4,"wall_time":13,"kind":"clock_step","context":{},"payload":{"verdict":"admitted","reason":"","target":"timer","dur_ms":0,"attrs":{"reads":3}}}`,
-		`{"sequence":5,"wall_time":14,"kind":"clock_step","context":{},"payload":{"verdict":"admitted","reason":"","target":"timer","dur_ms":0,"attrs":{"reads":1}}}`,
+	call := func(wall int64, request int, extra map[string]any) telemetrytest.Row {
+		payload := map[string]any{"request": request, "tool": "games_call_tool", "native_tool": "x/read"}
+		for k, v := range extra {
+			payload[k] = v
+		}
+		return telemetrytest.Row{Kind: "native_call", Context: wallContext(wall), Payload: payload}
+	}
+	step := func(wall int64, reads int) telemetrytest.Row {
+		return telemetrytest.Row{Kind: "clock_step", Context: wallContext(wall),
+			Payload: map[string]any{"verdict": "admitted", "reason": "", "target": "timer", "dur_ms": 0.0, "attrs": map[string]any{"reads": reads}}}
+	}
+	telemetrytest.WriteLogs(t, filepath.Dir(FlightRecorderPath(output)),
+		call(10, 1, map[string]any{"timing": map[string]any{"total_ms": 5, "response_bytes": 100, "native_queue_ms": 2, "native_execute_ms": 4}}),
+		call(11, 2, map[string]any{"ok": false, "error": "boom", "timing": map[string]any{"total_ms": 1, "response_bytes": 20}}),
+		telemetrytest.Row{Kind: "native_frame", Context: wallContext(12), Payload: map[string]any{"outcome": "hit", "tool": "games_call_tool", "native_tool": "x/read"}},
+		step(13, 3), step(14, 1),
 		// Clock status samples: paused for 2 of the 4 s they span.
 		clockSampleRow(6, 20, true), clockSampleRow(7, 22, false), clockSampleRow(8, 24, true),
-	}, "\n") + "\n"
-	if err := os.WriteFile(FlightRecorderPath(output), []byte(first), 0644); err != nil {
-		t.Fatal(err)
-	}
+	)
 	// The restart's recording runs unpaused for 4 s: the block's paused
 	// fraction weighs both recordings by time, 2 of 8 s.
-	second := strings.Join([]string{
-		`{"sequence":1,"wall_time":20,"kind":"native_call","context":{},"payload":{"request":1,"tool":"games_call_tool","native_tool":"x/read","timing":{"total_ms":5,"response_bytes":30,"native_queue_ms":6,"native_execute_ms":8}}}`,
+	telemetrytest.WriteLogs(t, filepath.Join(output, "service-2", "otlp"),
+		call(20, 1, map[string]any{"timing": map[string]any{"total_ms": 5, "response_bytes": 30, "native_queue_ms": 6, "native_execute_ms": 8}}),
 		clockSampleRow(2, 30, false), clockSampleRow(3, 34, false),
-	}, "\n") + "\n"
-	if err := os.MkdirAll(filepath.Join(output, "service-2"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(output, "service-2", "flight.jsonl"), []byte(second), 0644); err != nil {
-		t.Fatal(err)
-	}
+	)
+}
+
+// wallContext stamps a row at second wall of the epoch, the time the phase
+// summary weighs clock samples by.
+func wallContext(wall int64) map[string]any {
+	return map[string]any{"at": time.Unix(wall, 0).UTC().Format(time.RFC3339Nano)}
 }
 
 // clockSampleRow is a bundle reply carrying a clock status the phase
 // summary samples (bridge.ClockSample); it counts as an untimed native call.
-func clockSampleRow(sequence int, wall float64, paused bool) string {
+func clockSampleRow(request int, wall int64, paused bool) telemetrytest.Row {
 	state := "running"
 	if paused {
 		state = "stopped"
 	}
-	return fmt.Sprintf(`{"sequence":%d,"wall_time":%v,"kind":"native_call","context":{},"payload":{"request":%d,"tool":"games_call_tool","native_tool":"x/bundle","timing":{},"result":{"payload":"{\"bundle\":{\"clockStatus\":{\"actualPaused\":%v,\"%s\":{}}}}"}}}`, sequence, wall, sequence, paused, state)
+	reply := fmt.Sprintf(`{"payload":"{\"bundle\":{\"clockStatus\":{\"actualPaused\":%v,\"%s\":{}}}}"}`, paused, state)
+	return telemetrytest.Row{Kind: "native_call", Context: wallContext(wall), Payload: map[string]any{
+		"request": request, "tool": "games_call_tool", "native_tool": "x/bundle", "timing": map[string]any{}, "result": json.RawMessage(reply)}}
 }
 
 func TestComputeMetricsFromReportAndRecordings(t *testing.T) {

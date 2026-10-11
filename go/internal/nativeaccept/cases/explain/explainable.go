@@ -88,7 +88,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	stop()
 
-	rows, err := bridge.ReadTimeline(service.FlightPath)
+	rows, err := bridge.ReadOTLPTimeline(service.FlightPath)
 	if err != nil {
 		return fmt.Errorf("read flight ring: %w", err)
 	}

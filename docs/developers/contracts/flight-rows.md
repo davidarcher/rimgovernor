@@ -144,7 +144,12 @@ when the emitter runs under a recording span, an event on that span. The code is
 `http_access`, `ReadTally.Publish`) all reach it, so the kinds registry and the
 consuming-reader rule above apply unchanged: a kind is the record's `eventName`.
 The bridge's own `native_call`, `native_request`, `native_frame` and `native_poll`
-rows are not mapped yet (spans and metrics cover the calls); they stay recorder-only.
+rows are mapped too (`bridge.Client.nativeRow`), as ordinary event records: the
+acceptance oracles read reply bodies (clock status, `failure.code`, startup and
+speedmatrix replies) that only these rows carry, so they are rows, not derived
+from spans or metrics. `native_request` is durable (fsynced) and its `request`
+attribute is the id the answering `native_call` repeats (the recorder sequence
+while the legacy write is on, a per-process counter otherwise).
 
 This attribute schema is what log readers parse. Changing it is a contract change.
 
@@ -175,10 +180,12 @@ reader operation, now over the `rimgovernor.*` attributes.
 
 While the readers still parse `flight.jsonl`, rows are written to both. The
 recorder write is behind `telemetry.SetLegacyRows` / `serve --legacy-flight-rows`
-(default on). The Oracles and Readers children (#2789, #2790) turn it off when
-they cut over; Retire (#2793) deletes the flag, the recorder rows and the
-`trace_id` stamping. There is no permanent dual write. Never gate the OTEL write
-on it.
+(default on). The acceptance harness (#2789) has cut over: `nativeaccept.ServeArgs`
+passes `--legacy-flight-rows=false` and every oracle reads the log ring. The
+launcher, CLI, spectator and HTTP API readers (#2790) still read `flight.jsonl`
+and turn the flag off when they cut over; Retire (#2793) deletes the flag, the
+recorder rows and the `trace_id` stamping. There is no permanent dual write.
+Never gate the OTEL write on it.
 
 ## Readers
 
@@ -186,7 +193,14 @@ on it.
 spectator views and acceptance diagnostics consume these kinds.
 `bridge.IsWorkerStep`, `bridge.IsWindowStop` and `bridge.StepFields` centralize
 clock/worker interpretation. Combat `clock_stop` rows carry `event`; ordinary
-stop-event rows do not. Acceptance readers use the retained flight bundle.
+stop-event rows do not. Acceptance readers use the case's OTLP log ring
+(`<output>/otlp/logs.jsonl*`, `<output>/service-N/otlp/...` per relaunch):
+`bridge.ReadOTLPTimeline` and `bridge.RecordFromLog` rebuild the row shape these
+helpers expect from the typed log reader (`otel.ReadLogs`, see
+[OTEL core](otel-core.md)); `nativeaccept.ReadFlight`, `FlightTail` and
+`FlightMessages` sit on top. A null attribute is absent in a record, not present
+as nil. Postmortem evidence is `otlp/logs.jsonl.2#77`: the segment and its
+1-based line (what `grep -n` prints).
 
 Add a kind only with its reader. Keep stable reason words and structured attrs
 so filtering, repeat collapse and diagnostics do not depend on prose parsing.

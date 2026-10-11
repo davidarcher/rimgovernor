@@ -192,7 +192,7 @@ func stockWinterLarder(ctx context.Context, h *na.Harness, identity, prepared ma
 // it reviewed under; the window must have reached the first non-growing
 // day so the seasonal flip is covered.
 func auditWinter(output string, report na.Report) error {
-	rows, err := bridge.ReadTimeline(na.FlightRecorderPath(output))
+	rows, err := bridge.ReadOTLPTimeline(na.FlightRecorderPath(output))
 	if err != nil {
 		return fmt.Errorf("read flight recorder: %w", err)
 	}

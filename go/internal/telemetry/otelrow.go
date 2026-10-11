@@ -1,6 +1,7 @@
 package telemetry
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -16,6 +17,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	otellog "go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/trace"
+
+	rgotel "github.com/davidarcher/RimGovernor/go/internal/otel"
 )
 
 // Every flight row (a decision or an event) is also an OTEL log record, and a
@@ -78,6 +81,17 @@ func LegacyRows() bool { return legacyRows.Load() }
 // record carries ctx's trace and span ids. With no logger provider installed
 // it costs one Enabled call.
 func EmitRow(ctx context.Context, kind string, rowContext, payload map[string]any) {
+	emitRow(ctx, kind, rowContext, payload, false)
+}
+
+// EmitDurableRow is EmitRow for a row that must survive a machine crash: its
+// record carries rimgovernor.durable, so the file sink exports and fsyncs its
+// batch at once (the slow-call marker, written before a call that may hang).
+func EmitDurableRow(ctx context.Context, kind string, rowContext, payload map[string]any) {
+	emitRow(ctx, kind, rowContext, payload, true)
+}
+
+func emitRow(ctx context.Context, kind string, rowContext, payload map[string]any, durable bool) {
 	if kind == "" {
 		return
 	}
@@ -171,6 +185,9 @@ func EmitRow(ctx context.Context, kind string, rowContext, payload map[string]an
 		record.SetBody(attribute.StringValue(body))
 	}
 	record.AddAttributes(attrs...)
+	if durable {
+		record.AddAttributes(rgotel.DurableAttr)
+	}
 	logger.Emit(ctx, record)
 
 	if span := trace.SpanFromContext(ctx); span.IsRecording() {
@@ -280,6 +297,16 @@ func logValue(v any) attribute.Value {
 		}
 		f, _ := x.Float64()
 		return attribute.Float64Value(f)
+	case json.RawMessage:
+		// A row field kept as received JSON (a native call's arguments and
+		// reply) becomes the structure it encodes.
+		var generic any
+		d := json.NewDecoder(bytes.NewReader(x))
+		d.UseNumber()
+		if d.Decode(&generic) != nil {
+			return attribute.StringValue(string(x))
+		}
+		return logValue(generic)
 	case error:
 		return attribute.StringValue(x.Error())
 	case fmt.Stringer:

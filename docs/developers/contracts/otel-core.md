@@ -22,6 +22,24 @@ otel.ReadLines(path, fn)              // readers: complete valid lines of a ring
 otel.Segments(path)
 ```
 
+Typed readers (`internal/otel/typed.go`) turn a ring's lines into Go values; the
+acceptance oracles and the Readers child (#2790) share them:
+
+```go
+otel.Scan(path, func(pos otel.Position, line []byte) error)  // lines with file#line positions (pos.String())
+otel.ReadLogs(path,    func(otel.Log) error)     // eventName, time, severity, body, trace/span ids, Attrs
+otel.ReadSpans(path,   func(otel.Span) error)    // name, ids, parent, kind, status, attrs, events
+otel.ReadMetrics(path, func(otel.Metric) error)  // name, unit, points (cumulative; the last export is the total)
+otel.DecodeLog(line)                             // one logs.jsonl line, for a tail
+otel.SiblingRing(ring, otel.TracesFile)          // the other signals' rings sit beside it
+```
+
+`Attrs` values are natively typed (string, bool, int64, float64, `[]any`,
+`map[string]any`); `Attrs.Str/Int/Float/Bool` read them. Every function skips
+torn or invalid lines. `bridge.RecordFromLog` maps a `Log` back to a flight-style
+row ([flight rows](flight-rows.md)). Tests produce real rings with
+`telemetrytest.WriteLogs` / `LogLines`.
+
 `Telemetry.TracerProvider`, `MeterProvider` and `LoggerProvider` are the plain
 SDK providers. Instrumentation uses the standard OTEL API; nothing RimGovernor
 specific is needed except one attribute:

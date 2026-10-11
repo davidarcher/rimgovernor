@@ -238,7 +238,7 @@ func TestLaunchServeExitIsTerminalAndNamesTheStepFailure(t *testing.T) {
 		t.Fatalf("state %q", state)
 	}
 	// The stall error names the last step failure in the flight recorder.
-	p.FlightPath = writeFlight(t, stepRowLine(1, "WARN", "Fields: context deadline exceeded", 4200))
+	p.FlightPath = writeFlight(t, stepRow("WARN", "Fields: context deadline exceeded", 4200))
 	stall := &StepStallError{Stall: time.Minute, Families: "supply,work", LastFailure: lastStepFailure(p.FlightPath)}
 	if !strings.Contains(stall.Error(), "Fields: context deadline exceeded") {
 		t.Fatalf("stall error %q", stall)

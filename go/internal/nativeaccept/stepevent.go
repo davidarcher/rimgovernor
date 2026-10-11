@@ -11,8 +11,8 @@ import (
 // worker writes one per change of step outcome): the row as the flight
 // recorder wrote it and the isolated planner failures it carried.
 type SchedulerStep struct {
-	// Line is the row's JSON line, distinct per row (it carries the
-	// sequence), so a caller can tell a new step from a re-read one.
+	// Line is the row's OTLP log line, distinct per row (it carries the
+	// observed time), so a caller can tell a new step from a re-read one.
 	Line            string
 	PlannerFailures string
 }

@@ -83,8 +83,9 @@ type ServiceProcess struct {
 	Launch int
 	// Spec is what the service was launched with.
 	Spec ServeSpec
-	// FlightPath is the service's flight recorder (--flight-recorder), the
-	// journal FlightTail follows.
+	// FlightPath is the service's OTLP log ring (otlp/logs.jsonl beside its
+	// --flight-recorder anchor): the journal FlightTail follows. Its traces and
+	// metrics rings sit beside it (otel.SiblingRing).
 	FlightPath string
 
 	cfg    *Config
@@ -220,7 +221,7 @@ func (p *ServiceProcess) Restart(ctx context.Context) (*ServiceProcess, error) {
 
 // ServeArgs is the serve argv every launch shares (see ServeSpec), before
 // the binary. profile, state and flight are the run's own paths.
-func ServeArgs(cfg *Config, profileDir, statePath, flightPath string, spec ServeSpec) []string {
+func ServeArgs(cfg *Config, profileDir, statePath, recorder string, spec ServeSpec) []string {
 	timeout := spec.NativeTimeout
 	if timeout <= 0 {
 		timeout = 15 * time.Second
@@ -233,9 +234,11 @@ func ServeArgs(cfg *Config, profileDir, statePath, flightPath string, spec Serve
 		"--state", statePath,
 		"--listen", "127.0.0.1:0",
 		"--timeout", timeout.String(),
-		// The flight recording is the evidence; stderr keeps the
+		// The OTLP files beside the recorder are the evidence (flight.go);
+		// the legacy flight.jsonl rows are not written. stderr keeps the
 		// startup banner, fatals and panics.
-		"--flight-recorder", flightPath,
+		"--flight-recorder", recorder,
+		"--legacy-flight-rows=false",
 	}
 	// A harness that names its own PlayerSpeed owns the test-acceleration
 	// flag too; one that passed ClockSpeedArgs in Extra already has it.
@@ -272,11 +275,12 @@ func launchServe(ctx context.Context, cfg *Config, spec ServeSpec, launch int, r
 		}
 	}
 	statePath := filepath.Join(output, "service.sqlite")
-	flightPath := FlightRecorderPath(output)
+	recorder := FlightRecorderFile(output)
 	if launch > 1 {
-		flightPath = filepath.Join(serviceDir, "flight.jsonl")
+		recorder = FlightRecorderFile(serviceDir)
 	}
-	argv := ServeArgs(cfg, profileDir, statePath, flightPath, spec)
+	flightPath := LogsPath(recorder)
+	argv := ServeArgs(cfg, profileDir, statePath, recorder, spec)
 	entry := map[string]any{"argv": append([]string{spec.Binary}, argv...), "state": "starting", "launch": launch}
 	if report != nil {
 		report[key] = entry
@@ -452,13 +456,13 @@ func (p *ServiceProcess) Stop() map[string]any {
 	return keep
 }
 
-// recordClock summarizes the launch's flight recording into its report
+// recordClock summarizes the launch's log ring into its report
 // entry ("clock": the bridge.ClockSample plus paused_fraction) once
 // the process has exited, so every serve-driven result.json shows how much
 // of the service's wall time the game stood still between windows. A
 // missing or malformed recording leaves the entry alone.
 func (p *ServiceProcess) recordClock() {
-	rows, err := bridge.ReadTimeline(p.FlightPath)
+	rows, err := bridge.ReadOTLPTimeline(p.FlightPath)
 	if err != nil {
 		return
 	}

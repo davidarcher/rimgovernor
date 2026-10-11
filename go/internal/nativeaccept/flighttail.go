@@ -9,12 +9,14 @@ import (
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/otel"
 )
 
-// FlightRow is one flight-recorder row a FlightTail read: the service's
-// own journal of what it did (planner_step, dispatch, native_*
-// rows; see package telemetry). Tick is the game tick the row was stamped
-// with, when the service knew one.
+// FlightRow is one row of a service's own journal of what it did (planner_step,
+// dispatch, native_* rows; see package telemetry), read from its OTLP log ring
+// (<recorder dir>/otlp/logs.jsonl, rebuilt by bridge.RecordFromLog). Tick is
+// the game tick the row was stamped with, when the service knew one. Sequence
+// numbers rows in the order this reader met them.
 type FlightRow struct {
 	Sequence uint64
 	Kind     string
@@ -24,20 +26,22 @@ type FlightRow struct {
 	Payload  map[string]any
 }
 
-// FlightTail follows a service's flight recorder from where it left off,
-// so a harness can wake on what the service just did instead of polling
-// its state on a timer. Each Next opens the active segment, reads
-// the complete lines appended since the previous call and closes it
-// again: the file is never held open, so the recorder's rotation (a
-// close-and-rename) is not blocked on Windows. A rotation between two
-// reads is detected as the file shrinking; the rows that landed in the
-// rotated segment are skipped, which a caller polling anyway tolerates.
+// FlightTail follows a service's OTLP log ring from where it left off, so a
+// harness can wake on what the service just did instead of polling its state
+// on a timer. Each Next opens the active segment (logs.jsonl), reads the
+// complete lines appended since the previous call and closes it again: the file
+// is never held open, so the sink's rotation (a close-and-rename) is not blocked
+// on Windows. A rotation between two reads is detected as the file shrinking;
+// the rows that landed in the rotated segment are skipped, which a caller
+// polling anyway tolerates. The sink batches for up to 250 ms, so a row is
+// visible that much after the service logged it.
 type FlightTail struct {
 	path   string
 	offset int64
+	seq    uint64
 }
 
-// NewFlightTail starts a tail at the end of path (what the recorder wrote
+// NewFlightTail starts a tail at the end of path (what the service wrote
 // before now is history, not a wake), or at the start when the file does
 // not exist yet.
 func NewFlightTail(path string) *FlightTail {
@@ -49,11 +53,11 @@ func NewFlightTail(path string) *FlightTail {
 }
 
 // NewFlightTailFromStart starts a tail at the first row of path: it
-// returns every row the recorder holds on its first Next.
+// returns every row the active file holds on its first Next.
 func NewFlightTailFromStart(path string) *FlightTail { return &FlightTail{path: path} }
 
 // Next returns the rows appended since the previous call. A missing file
-// is not an error (the service has not opened its recorder yet); a
+// is not an error (the service has not opened its sink yet); a
 // corrupt line is skipped.
 func (t *FlightTail) Next() ([]FlightRow, error) {
 	file, err := os.Open(t.path)
@@ -90,14 +94,16 @@ func (t *FlightTail) Next() ([]FlightRow, error) {
 			break
 		}
 		t.offset += int64(len(line))
-		if row, ok := parseFlightRow(line); ok {
+		if row, ok := ParseFlightRow(line); ok {
+			t.seq++
+			row.Sequence = t.seq
 			rows = append(rows, row)
 		}
 	}
 	return rows, nil
 }
 
-// lastFlightRow returns the last row of the recorder at path that match
+// lastFlightRow returns the last row of the log ring file at path that match
 // accepts, with its JSON line. tail > 0 reads only that many trailing
 // bytes (the first, possibly partial, line is dropped); 0 reads the whole
 // segment. False when no row matches or the file cannot be read.
@@ -126,22 +132,27 @@ func lastFlightRow(path string, tail int64, match func(FlightRow) bool) (FlightR
 			skipFirst = false
 			continue
 		}
-		if row, ok := parseFlightRow(scanner.Bytes()); ok && match(row) {
+		if row, ok := ParseFlightRow(scanner.Bytes()); ok && match(row) {
 			last, line, found = row, strings.TrimSpace(scanner.Text()), true
 		}
 	}
 	return last, line, found
 }
 
-func parseFlightRow(line []byte) (FlightRow, bool) {
+// ParseFlightRow rebuilds the row of one logs.jsonl line (false for a line that is no row).
+func ParseFlightRow(line []byte) (FlightRow, bool) {
 	if len(bytes.TrimSpace(line)) == 0 {
 		return FlightRow{}, false
 	}
-	record, ok := bridge.DecodeFlightLine(line)
+	log, ok := otel.DecodeLog(line)
 	if !ok {
 		return FlightRow{}, false
 	}
-	row := FlightRow{Sequence: record.Sequence, Kind: record.Kind, Context: record.Context, Payload: record.Payload}
+	record, ok := bridge.RecordFromLog(log)
+	if !ok {
+		return FlightRow{}, false
+	}
+	row := FlightRow{Kind: record.Kind, Context: record.Context, Payload: record.Payload}
 	if tick, ok := row.Context["tick"].(float64); ok {
 		row.Tick, row.HasTick = int64(tick), true
 	}

@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
@@ -111,6 +112,52 @@ func emitRow(ctx context.Context, recorder *FlightRecorder, kind string, rowCont
 	if recorder != nil && telemetry.LegacyRows() {
 		_, _ = recorder.Event(kind, rowContext, false, payload)
 	}
+}
+
+// nativeRow writes one of the bridge's own rows (native_call, native_request,
+// native_frame, native_poll) as an OTEL log record and, while
+// telemetry.LegacyRows is on, to the flight recorder too. It returns the id
+// that ties a native_request marker to the native_call answering it: the
+// recorder's sequence while the recorder writes, else a counter. Callers write
+// these rows only while c.recorder is set, which is what turns native-row
+// recording on. The record's context is filled as the recorder fills it
+// (INFO, now, component bridge); a durable row is fsynced by both sinks.
+func (c *Client) nativeRow(ctx context.Context, kind string, rowContext map[string]any, durable bool, payload map[string]any) uint64 {
+	var id uint64
+	if c.recorder != nil && telemetry.LegacyRows() {
+		id, _ = c.recorder.Event(kind, rowContext, durable, payload)
+	}
+	if id == 0 {
+		id = c.rowIDs.Add(1)
+	}
+	rc := make(map[string]any, len(rowContext)+3)
+	for k, v := range rowContext {
+		rc[k] = v
+	}
+	if _, ok := rc["level"]; !ok {
+		rc["level"] = "INFO"
+	}
+	if _, ok := rc["at"]; !ok {
+		rc["at"] = time.Now().UTC().Format(time.RFC3339Nano)
+	}
+	if _, ok := rc[telemetry.ComponentKey]; !ok {
+		rc[telemetry.ComponentKey] = "bridge"
+	}
+	if kind == "native_request" {
+		// The marker's identity: the answering native_call's request names it.
+		answered := make(map[string]any, len(payload)+1)
+		for k, v := range payload {
+			answered[k] = v
+		}
+		answered["request"] = id
+		payload = answered
+	}
+	if durable {
+		telemetry.EmitDurableRow(ctx, kind, rc, payload)
+	} else {
+		telemetry.EmitRow(ctx, kind, rc, payload)
+	}
+	return id
 }
 
 // DecodeFlightLine decodes one flight.jsonl line. It is the one decoder of a

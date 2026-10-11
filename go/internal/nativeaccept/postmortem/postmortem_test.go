@@ -9,19 +9,19 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 	"github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	"google.golang.org/protobuf/proto"
 )
 
 // fixture writes a case output directory shaped like a failed serve-driven
-// run: result.json, a flight recording with a rotated segment, and a
+// run: result.json, an OTLP log ring with a rotated segment, and a
 // service.sqlite holding only the tables the digest reads
 // (an old schema: no actions table at all).
 func fixture(t *testing.T) string {
@@ -42,21 +42,29 @@ func fixture(t *testing.T) string {
 	// planner_step) read
 	// side by side. An empty refused list and a completed outcome are not
 	// refusals.
-	row := func(seq int, kind, payload string) string {
-		return `{"version":2,"run":"r","sequence":` + strconv.Itoa(seq) + `,"wall_time":1,"kind":"` + kind + `","context":{},"payload":` + payload + "}\n"
+	row := func(kind, payload string) telemetrytest.Row {
+		var fields map[string]any
+		if err := json.Unmarshal([]byte(payload), &fields); err != nil {
+			t.Fatal(err)
+		}
+		return telemetrytest.Row{Kind: kind, Context: map[string]any{}, Payload: fields}
+	}
+	writeRing := func(name string, rows ...telemetrytest.Row) {
+		t.Helper()
+		write(name, strings.Join(telemetrytest.LogLines(t, rows...), "\n")+"\n")
 	}
 	const haulRefusal = `"native write refused: FAILURE_CODE_INVALID_REQUEST: JobFailReason: no empty place configured"`
-	write("flight.jsonl.1",
-		row(1, "native_request", `{}`)+
-			row(2, "dispatch", `{"verdict":"refused","reason":"","target":"routine-haul-abc-0","dur_ms":0,"attrs":{"stage":"pending","refused":"no_empty_place","error":`+haulRefusal+`}}`)+
-			row(3, "authority", `{"change":"changed","reason":"Manual","generation":4}`))
-	write("flight.jsonl",
-		row(4, "dispatch", `{"verdict":"failed","reason":"contract","target":"routine-haul-abc-1","dur_ms":0,"attrs":{"stage":"awaiting_observation","error":"bridge contract failure: pawn order job mismatch"}}`)+
-			row(5, "planner_step", `{"verdict":"failed","reason":"control_lost","target":"rounds","dur_ms":1,"attrs":{"error":"control lost"}}`)+
-			row(6, "authority", `{"change":"lost","reason":"manual","generation":4}`)+
-			row(7, "native_call", `{"native_tool":"rimgovernor/orders_haul","error":"refused","refused_text":"the target is not a haulable item"}`)+
-			row(8, "dispatch", `{"verdict":"refused","reason":"","target":"routine-haul-abc-0","dur_ms":0,"attrs":{"stage":"pending","refused":"no_empty_place","error":`+haulRefusal+`}}`)+
-			row(9, "dispatch", `{"verdict":"completed","reason":"","target":"routine-haul-abc-2","dur_ms":0,"attrs":{"stage":"done"}}`))
+	writeRing("otlp/logs.jsonl.1",
+		row("native_request", `{}`),
+		row("dispatch", `{"verdict":"refused","reason":"","target":"routine-haul-abc-0","dur_ms":0,"attrs":{"stage":"pending","refused":"no_empty_place","error":`+haulRefusal+`}}`),
+		row("authority", `{"change":"changed","reason":"Manual","generation":4}`))
+	writeRing("otlp/logs.jsonl",
+		row("dispatch", `{"verdict":"failed","reason":"contract","target":"routine-haul-abc-1","dur_ms":0,"attrs":{"stage":"awaiting_observation","error":"bridge contract failure: pawn order job mismatch"}}`),
+		row("planner_step", `{"verdict":"failed","reason":"control_lost","target":"rounds","dur_ms":1,"attrs":{"error":"control lost"}}`),
+		row("authority", `{"change":"lost","reason":"manual","generation":4}`),
+		row("native_call", `{"native_tool":"rimgovernor/orders_haul","error":"refused","refused_text":"the target is not a haulable item"}`),
+		row("dispatch", `{"verdict":"refused","reason":"","target":"routine-haul-abc-0","dur_ms":0,"attrs":{"stage":"pending","refused":"no_empty_place","error":`+haulRefusal+`}}`),
+		row("dispatch", `{"verdict":"completed","reason":"","target":"routine-haul-abc-2","dur_ms":0,"attrs":{"stage":"done"}}`))
 
 	db, err := sql.Open(store.DriverName, "file:"+filepath.ToSlash(filepath.Join(dir, "service.sqlite")))
 	if err != nil {
@@ -133,13 +141,13 @@ func TestCollectReadsEachStepWithEvidence(t *testing.T) {
 		t.Fatalf("a report without a source revision should say so: %+v", s)
 	}
 	refusals := section(t, d, "native refusals (last first)")
-	if !hasLine(refusals, "dispatch routine-haul-abc-0 refused [no_empty_place]: native write refused: FAILURE_CODE_INVALID_REQUEST: JobFailReason: no empty place configured (x2)", "flight.jsonl#8") {
+	if !hasLine(refusals, "dispatch routine-haul-abc-0 refused [no_empty_place]: native write refused: FAILURE_CODE_INVALID_REQUEST: JobFailReason: no empty place configured (x2)", "otlp/logs.jsonl#5") {
 		t.Fatalf("refusals = %+v", refusals)
 	}
 	if hasLine(refusals, "routine-haul-abc-2", "") || hasLine(refusals, "job mismatch", "") {
 		t.Fatalf("a completed outcome or a failed (not refused) dispatch is not a refusal: %+v", refusals)
 	}
-	if !hasLine(refusals, "native_call error rimgovernor/orders_haul: the target is not a haulable item", "flight.jsonl#7") {
+	if !hasLine(refusals, "native_call error rimgovernor/orders_haul: the target is not a haulable item", "otlp/logs.jsonl#4") {
 		t.Fatalf("flight native_call error missing: %+v", refusals)
 	}
 	review := section(t, d, "rounds")
@@ -160,8 +168,8 @@ func TestCollectReadsEachStepWithEvidence(t *testing.T) {
 		t.Fatalf("stages = %+v", stages)
 	}
 	jobs := section(t, d, "native job failures")
-	if !hasLine(jobs, "dispatch routine-haul-abc-0 refused at pending: native write refused: FAILURE_CODE_INVALID_REQUEST: JobFailReason: no empty place configured (x2)", "flight.jsonl#8") ||
-		!hasLine(jobs, "dispatch routine-haul-abc-1 failed at awaiting_observation: bridge contract failure: pawn order job mismatch", "flight.jsonl#4") {
+	if !hasLine(jobs, "dispatch routine-haul-abc-0 refused at pending: native write refused: FAILURE_CODE_INVALID_REQUEST: JobFailReason: no empty place configured (x2)", "otlp/logs.jsonl#5") ||
+		!hasLine(jobs, "dispatch routine-haul-abc-1 failed at awaiting_observation: bridge contract failure: pawn order job mismatch", "otlp/logs.jsonl#1") {
 		t.Fatalf("jobs = %+v", jobs)
 	}
 	if hasLine(jobs, "routine-haul-abc-2", "") {
@@ -171,9 +179,9 @@ func TestCollectReadsEachStepWithEvidence(t *testing.T) {
 	if !hasLine(authority, "generation 3 -> 4", "transitions#3") || !hasLine(authority, "generation 3 first, 4 last, 1 flips", "transitions#4") {
 		t.Fatalf("authority = %+v", authority)
 	}
-	if !hasLine(authority, "1 authority rows changed; last generation 4 (Manual)", "flight.jsonl.1#3") ||
-		!hasLine(authority, "1 authority rows lost; last generation 4 (manual)", "flight.jsonl#6") ||
-		!hasLine(authority, "1 Rounder steps failed on lost control", "flight.jsonl#5") {
+	if !hasLine(authority, "1 authority rows changed; last generation 4 (Manual)", "otlp/logs.jsonl.1#3") ||
+		!hasLine(authority, "1 authority rows lost; last generation 4 (manual)", "otlp/logs.jsonl#3") ||
+		!hasLine(authority, "1 Rounder steps failed on lost control", "otlp/logs.jsonl#2") {
 		t.Fatalf("authority rows = %+v", authority)
 	}
 	if !hasLine(authority, "authority_reacquisitions=map[attempts:2]", "result.json") {
@@ -235,7 +243,7 @@ func TestRefusalsReportNativeResponseFailures(t *testing.T) {
 	dir := t.TempDir()
 	// Rows as the recorder writes them: the binary "proto" as
 	// received, named by reply_type.
-	row := func(seq int, tool string, reply proto.Message) string {
+	row := func(seq int, tool string, reply proto.Message) telemetrytest.Row {
 		data, err := proto.Marshal(reply)
 		if err != nil {
 			t.Fatal(err)
@@ -244,33 +252,30 @@ func TestRefusalsReportNativeResponseFailures(t *testing.T) {
 		w := gzip.NewWriter(&buffer)
 		w.Write(data)
 		w.Close()
-		line, _ := json.Marshal(map[string]any{"version": 1, "run": "r", "sequence": seq, "kind": "native_call", "context": map[string]any{}, "payload": map[string]any{
+		return telemetrytest.Row{Kind: "native_call", Context: map[string]any{}, Payload: map[string]any{
 			"native_tool": tool,
 			"reply_type":  string(reply.ProtoReflect().Descriptor().FullName()),
 			"result":      map[string]any{"proto": base64.StdEncoding.EncodeToString(buffer.Bytes())},
-		}})
-		return string(line)
+		}}
 	}
 	failed := func(code commonpb.FailureCode, detail string) proto.Message {
 		return &lifecyclepb.IdentityReply{Outcome: &lifecyclepb.IdentityReply_Failure{Failure: &commonpb.Failure{Code: &code, Detail: &detail}}}
 	}
-	rows := []string{
+	rows := []telemetrytest.Row{
 		row(1, "rimgovernor/colony_facts", failed(commonpb.FailureCode_FAILURE_CODE_STALE_IDENTITY, "context changed")),
 		row(2, "rimgovernor/colony_facts", &lifecyclepb.IdentityReply{}),
 		row(3, "rimgovernor/orders_build", failed(commonpb.FailureCode_FAILURE_CODE_UNAVAILABLE, "blocked")),
 		row(4, "rimgovernor/colony_facts", failed(commonpb.FailureCode_FAILURE_CODE_STALE_IDENTITY, "context changed")),
 	}
-	if err := os.WriteFile(filepath.Join(dir, "flight.jsonl"), []byte(strings.Join(rows, "\n")+"\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	telemetrytest.WriteLogs(t, filepath.Join(dir, "otlp"), rows...)
 	s := refusals(dir, flightRows(dir))
 	if len(s.Lines) != 2 {
 		t.Fatalf("want two failure groups, got %+v", s)
 	}
-	if s.Lines[0] != (Line{Text: "native_call refused rimgovernor/colony_facts: FAILURE_CODE_STALE_IDENTITY: context changed (x2)", Evidence: "flight.jsonl#4"}) {
+	if s.Lines[0] != (Line{Text: "native_call refused rimgovernor/colony_facts: FAILURE_CODE_STALE_IDENTITY: context changed (x2)", Evidence: "otlp/logs.jsonl#4"}) {
 		t.Fatalf("latest group: %+v", s.Lines[0])
 	}
-	if s.Lines[1] != (Line{Text: "native_call refused rimgovernor/orders_build: FAILURE_CODE_UNAVAILABLE: blocked", Evidence: "flight.jsonl#3"}) {
+	if s.Lines[1] != (Line{Text: "native_call refused rimgovernor/orders_build: FAILURE_CODE_UNAVAILABLE: blocked", Evidence: "otlp/logs.jsonl#3"}) {
 		t.Fatalf("older group: %+v", s.Lines[1])
 	}
 }

@@ -1,7 +1,6 @@
 package combatlab
 
 import (
-	"bytes"
 	"context"
 	"embed"
 	"encoding/json"
@@ -16,6 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/otel"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -267,24 +267,22 @@ func combatEnded(row na.FlightRow) bool {
 }
 
 // writeCombatFlight copies the combat rows ScanFlight reads from the rotated
-// segments (oldest first) and the live file of the
-// service's flight recorder into the bundle, one wire line each.
+// segments (oldest first) and the live file of the service's OTLP log ring
+// into the bundle, one OTLP line each (the bundle is itself a log ring that
+// ScanFlight reads back).
 func writeCombatFlight(from, to string) error {
-	segments := na.FlightSegments(from)
-	if len(segments) == 0 {
-		return nil
-	}
 	var kept []byte
-	for _, path := range segments {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
+	err := otel.ReadLines(from, func(line []byte) error {
+		if row, ok := na.ParseFlightRow(line); ok && CombatRow(row) {
+			kept = append(append(kept, line...), 0x0a)
 		}
-		for _, line := range bytes.Split(data, []byte("\n")) {
-			if record, ok := bridge.DecodeFlightLine(line); ok && CombatRow(na.FlightRow{Kind: record.Kind}) {
-				kept = append(append(kept, line...), '\n')
-			}
-		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if len(kept) == 0 {
+		return nil
 	}
 	return os.WriteFile(to, kept, 0o644)
 }

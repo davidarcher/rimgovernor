@@ -20,8 +20,8 @@ import (
 // Every result.json carries a flat "metrics" block of numbers under stable
 // names, so a run's cost is comparable across runs without
 // reading the nested report: the timing fields, the wait statistics, the
-// native round trips of every flight recording under the output directory
-// (flight.jsonl and each restart's service-N/flight.jsonl), the service
+// native round trips of every service log ring under the output directory
+// (otlp/logs.jsonl and each restart's service-N/otlp/logs.jsonl), the service
 // launches and the evidence size. Finalize computes it from the report
 // and the output directory; cases add nothing. `acceptance run` and
 // `acceptance suite` append one row per case to an append-only series
@@ -75,7 +75,7 @@ func ComputeMetrics(r Report, output string) Metrics {
 	m["service_launches"] = float64(launches)
 	var totals recordingTotals
 	for _, path := range flightRecordings(output) {
-		rows, err := bridge.ReadTimeline(path)
+		rows, err := bridge.ReadOTLPTimeline(path)
 		if err != nil {
 			continue
 		}
@@ -172,11 +172,11 @@ func metricValue(value any) float64 {
 	return 0
 }
 
-// flightRecordings lists the run's flight recordings: the first launch's
+// flightRecordings lists the run's service log rings: the first launch's
 // under output and each restart's under its service-N directory.
 func flightRecordings(output string) []string {
 	paths := []string{FlightRecorderPath(output)}
-	matches, _ := filepath.Glob(filepath.Join(output, "service-*", "flight.jsonl"))
+	matches, _ := filepath.Glob(filepath.Join(output, "service-*", "otlp", "logs.jsonl"))
 	sort.Strings(matches)
 	return append(paths, matches...)
 }

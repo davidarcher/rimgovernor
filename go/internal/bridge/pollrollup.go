@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -127,14 +128,14 @@ func (c *Client) flushRollup(now time.Time) {
 	r.tools, r.hits, r.flushedAt = nil, nil, now
 	r.mu.Unlock()
 	if c.recorder != nil {
-		c.recorder.Event("native_poll", map[string]any{"component": "bridge"}, false, map[string]any{"window_ms": millis(window), "tools": tools, "frame_hits": hits})
+		c.nativeRow(context.Background(), "native_poll", map[string]any{"component": "bridge"}, false, map[string]any{"window_ms": millis(window), "tools": tools, "frame_hits": hits})
 	}
 }
 
 // recordNativeCall writes a native_call row unless it folds into the rollup.
-func (c *Client) recordNativeCall(recordCtx map[string]any, row map[string]any) {
+func (c *Client) recordNativeCall(ctx context.Context, recordCtx map[string]any, row map[string]any) {
 	if c.foldCall(row) {
 		return
 	}
-	c.recorder.Event("native_call", recordCtx, false, row)
+	c.nativeRow(ctx, "native_call", recordCtx, false, row)
 }

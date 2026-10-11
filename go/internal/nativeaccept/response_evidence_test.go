@@ -1,23 +1,18 @@
 package nativeaccept
 
 import (
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 )
 
 func TestResponseEvidenceKeepsAcceptanceSeparateFromNativeEffect(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "flight.jsonl")
-	rows := []string{
-		`{"sequence":1,"kind":"planner_step","context":{"tick":102},"payload":{"verdict":"ok","target":"rounds","attrs":{"scope":"immediate","observation_tick":102}}}`,
-		`{"sequence":2,"kind":"planner_step","context":{"tick":103},"payload":{"verdict":"admitted","target":"tend","attrs":{"scope":"immediate"}}}`,
-		`{"sequence":3,"kind":"dispatch","context":{"tick":104},"payload":{"verdict":"completed","attrs":{"dispatch_tick":104,"receipt":"accepted"}}}`,
-		`{"sequence":4,"kind":"clock_step","context":{},"payload":{"controller_pause_ms":200,"critical_wave_ms":150}}`,
-	}
-	if err := os.WriteFile(path, []byte(strings.Join(rows, "\n")+"\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
+	path := telemetrytest.WriteLogs(t, t.TempDir(),
+		telemetrytest.Row{Kind: "planner_step", Context: map[string]any{"tick": 102}, Payload: map[string]any{"verdict": "ok", "target": "rounds", "attrs": map[string]any{"scope": "immediate", "observation_tick": 102}}},
+		telemetrytest.Row{Kind: "planner_step", Context: map[string]any{"tick": 103}, Payload: map[string]any{"verdict": "admitted", "target": "tend", "attrs": map[string]any{"scope": "immediate"}}},
+		telemetrytest.Row{Kind: "dispatch", Context: map[string]any{"tick": 104}, Payload: map[string]any{"verdict": "completed", "attrs": map[string]any{"dispatch_tick": 104, "receipt": "accepted"}}},
+		telemetrytest.Row{Kind: "clock_step", Context: map[string]any{}, Payload: map[string]any{"controller_pause_ms": 200, "critical_wave_ms": 150}},
+	)
 	r, err := NewResponseEvidence("medical/fixture", "Fast", 100)
 	if err != nil {
 		t.Fatal(err)

@@ -199,8 +199,10 @@ type Client struct {
 	catalogDir string
 	replies    *replySlots
 
-	recorder         *FlightRecorder
-	framesSampledAt  atomic.Int64
+	recorder        *FlightRecorder
+	framesSampledAt atomic.Int64
+	// rowIDs numbers native_request markers when the recorder does not (nativeRow).
+	rowIDs           atomic.Uint64
 	rollup           pollRollup
 	recordingContext func() map[string]any
 	transcript       *Transcript
@@ -585,7 +587,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 	nativeTool := nativeToolOf(name, arguments)
 	if recording {
 		recordCtx = c.snapshotRecordingContext(ctx)
-		marker = c.startCallMarker(recordCtx, name, nativeTool, arguments)
+		marker = c.startCallMarker(ctx, recordCtx, name, nativeTool, arguments)
 	}
 	timing := callTimingFrom(ctx)
 	callBegan := time.Now()

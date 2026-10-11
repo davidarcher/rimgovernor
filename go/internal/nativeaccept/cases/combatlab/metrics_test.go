@@ -1,26 +1,26 @@
 package combatlab
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 )
 
 // The v2 rows (clock_stop, dispatch, a decision combat_order) count the same
 // as the legacy kinds the bundle holds.
 func TestScanFlightV2Rows(t *testing.T) {
-	path := filepath.Join(t.TempDir(), FlightFile)
-	rows := []string{
-		`{"sequence":1,"kind":"clock_stop","context":{},"payload":{"reason":"combat_event","event":"downed","resume_latency_ms":250}}`,
-		`{"sequence":2,"kind":"combat_order","context":{},"payload":{"verdict":"applied","reason":"","target":"p1","dur_ms":0,"attrs":{"index":0}}}`,
-		`{"sequence":3,"kind":"combat_order","context":{},"payload":{"verdict":"refused","reason":"unreachable","target":"p2","dur_ms":0,"attrs":{"index":1}}}`,
-		`{"sequence":4,"kind":"dispatch","context":{},"payload":{"verdict":"completed","reason":"","target":"routine-defense-p1-hold","dur_ms":0,"attrs":{}}}`,
+	decision := func(kind, verdict, reason, target string, attrs map[string]any) telemetrytest.Row {
+		return telemetrytest.Row{Kind: kind, Context: map[string]any{}, Payload: map[string]any{"verdict": verdict, "reason": reason, "target": target, "dur_ms": 0.0, "attrs": attrs}}
 	}
-	if err := os.WriteFile(path, []byte(strings.Join(rows, "\n")+"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	path := telemetrytest.WriteLogs(t, t.TempDir(),
+		telemetrytest.Row{Kind: "clock_stop", Context: map[string]any{}, Payload: map[string]any{"reason": "combat_event", "event": "downed", "resume_latency_ms": 250}},
+		decision("combat_order", "applied", "", "p1", map[string]any{"index": 0}),
+		decision("combat_order", "refused", "unreachable", "p2", map[string]any{"index": 1}),
+		decision("dispatch", "completed", "", "routine-defense-p1-hold", map[string]any{}),
+	)
 	m := Metrics{StepLatencyP95Ms: -1}
 	if err := m.ScanFlight(path); err != nil {
 		t.Fatal(err)
@@ -30,21 +30,22 @@ func TestScanFlightV2Rows(t *testing.T) {
 	}
 }
 
-// A rotated recorder keeps its early combat rows in flight.jsonl.N: the
-// bundle copy reads them first, oldest segment (highest N) to the live file.
+// A rotated ring keeps its early combat rows in logs.jsonl.N: the bundle copy
+// reads them first, oldest segment (highest N) to the live file.
 func TestWriteCombatFlightReadsRotatedSegments(t *testing.T) {
 	dir := t.TempDir()
-	live := filepath.Join(dir, "flight.jsonl")
-	row := func(seq int, kind, verdict string) string {
-		return fmt.Sprintf(`{"sequence":%d,"kind":%q,"context":{},"payload":{"verdict":%q,"reason":"","target":"p","dur_ms":0,"attrs":{}}}`, seq, kind, verdict)
+	live := filepath.Join(dir, "logs.jsonl")
+	row := func(target, kind, verdict string) telemetrytest.Row {
+		return telemetrytest.Row{Kind: kind, Context: map[string]any{}, Payload: map[string]any{"verdict": verdict, "reason": "", "target": target, "dur_ms": 0.0, "attrs": map[string]any{}}}
 	}
-	files := map[string][]string{
-		live + ".2": {row(1, "combat_order", "applied"), row(2, "native_call", "ok")},
-		live + ".1": {row(3, "combat_order", "refused")},
-		live:        {row(4, "combat_order", "applied")},
+	files := map[string][]telemetrytest.Row{
+		live + ".2": {row("first", "combat_order", "applied"), row("dropped", "native_call", "ok")},
+		live + ".1": {row("second", "combat_order", "refused")},
+		live:        {row("third", "combat_order", "applied")},
 	}
 	for path, rows := range files {
-		if err := os.WriteFile(path, []byte(strings.Join(rows, "\n")+"\n"), 0o644); err != nil {
+		lines := telemetrytest.LogLines(t, rows...)
+		if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -57,7 +58,7 @@ func TestWriteCombatFlightReadsRotatedSegments(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	if len(lines) != 3 || !strings.Contains(lines[0], `"sequence":1`) || !strings.Contains(lines[1], `"sequence":3`) || !strings.Contains(lines[2], `"sequence":4`) {
+	if len(lines) != 3 || !strings.Contains(lines[0], `"first"`) || !strings.Contains(lines[1], `"second"`) || !strings.Contains(lines[2], `"third"`) {
 		t.Fatalf("rows out of order or dropped:\n%s", data)
 	}
 	m := Metrics{StepLatencyP95Ms: -1}

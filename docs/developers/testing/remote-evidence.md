@@ -60,7 +60,8 @@ the trusted workflow must remove secrets and licensed contents before upload.
 Keep all attempt logs, metrics and flight recorder segments in the artifact;
 do not upload a whole game, profile or worker directory. The flight segments
 are the diagnostic evidence (`acceptance why` cites them as
-`flight.jsonl#<sequence>`); a launch's `service/stderr.log` holds only the
+`otlp/logs.jsonl#<line>`; the case's `otlp/` ring replaced `flight.jsonl` in
+#2789, and carrying it through remote export is #2791); a launch's `service/stderr.log` holds only the
 startup banner, fatals and panics, and no report or digest depends on it.
 
 ## Import an authenticated Actions artifact

@@ -4,10 +4,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 )
 
 func TestFlightTailReadsAppendedRowsOnly(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "flight.jsonl")
+	path := filepath.Join(t.TempDir(), "logs.jsonl")
 	write := func(s string) {
 		f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
@@ -18,33 +20,37 @@ func TestFlightTailReadsAppendedRowsOnly(t *testing.T) {
 		}
 		f.Close()
 	}
-	write(`{"version":1,"run":"a","sequence":1,"wall_time":1,"kind":"native_call","context":{},"payload":{}}` + "\n")
+	call := telemetrytest.LogLines(t, telemetrytest.Row{Kind: "native_call", Context: map[string]any{}, Payload: map[string]any{}})
+	dispatch := telemetrytest.LogLines(t, telemetrytest.Row{Kind: "dispatch", Context: map[string]any{"tick": 4200},
+		Payload: map[string]any{"verdict": "completed", "reason": "completed", "target": "a", "dur_ms": 0.0, "attrs": map[string]any{"changed": true}}})
+	step := telemetrytest.LogLines(t, telemetrytest.Row{Kind: "planner_step", Context: map[string]any{}, Payload: map[string]any{"verdict": "ok"}})
+	write(call[0] + "\n")
 	tail := NewFlightTail(path)
 	rows, err := tail.Next()
 	if err != nil || len(rows) != 0 {
 		t.Fatalf("history is not a wake: rows=%v err=%v", rows, err)
 	}
-	write(`{"version":1,"run":"a","sequence":2,"wall_time":1,"kind":"dispatch","context":{"tick":4200},"payload":{"verdict":"completed","reason":"completed","target":"a","dur_ms":0,"attrs":{"changed":true}}}` + "\n")
+	write(dispatch[0] + "\n")
 	write(`not json` + "\n")
-	write(`{"version":1,"run":"a","sequence":3,"wall_time":1,"kind":"planner_step","context":{},"payload":{}`) // partial
+	write(step[0][:len(step[0])-1]) // partial
 	rows, err = tail.Next()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 1 || !WorkerOutcome(rows[0]) || rows[0].Sequence != 2 || !rows[0].HasTick || rows[0].Tick != 4200 {
+	if len(rows) != 1 || !WorkerOutcome(rows[0]) || rows[0].Sequence != 1 || !rows[0].HasTick || rows[0].Tick != 4200 {
 		t.Fatalf("rows: %+v", rows)
 	}
-	write("}\n")
+	write(step[0][len(step[0])-1:] + "\n")
 	rows, err = tail.Next()
 	if err != nil || len(rows) != 1 || rows[0].Kind != "planner_step" {
 		t.Fatalf("partial line completes next read: rows=%+v err=%v", rows, err)
 	}
 	// Rotation: the active file restarts small.
-	if err := os.WriteFile(path, []byte(`{"version":1,"run":"a","sequence":4,"wall_time":1,"kind":"dispatch","context":{},"payload":{}}`+"\n"), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(dispatch[0]+"\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	rows, err = tail.Next()
-	if err != nil || len(rows) != 1 || rows[0].Sequence != 4 {
+	if err != nil || len(rows) != 1 || rows[0].Sequence != 3 {
 		t.Fatalf("after rotation: rows=%+v err=%v", rows, err)
 	}
 }

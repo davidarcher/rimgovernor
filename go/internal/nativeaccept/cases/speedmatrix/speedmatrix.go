@@ -371,7 +371,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 				return "", false, err
 			}
 			lastTick = uint64(review.Tick)
-			if rows, err := bridge.ReadTimeline(flight); err == nil {
+			if rows, err := bridge.ReadOTLPTimeline(flight); err == nil {
 				if observed := bridge.SummarizePhases(rows).Clock.LastTick; observed > int64(lastTick) {
 					lastTick = uint64(observed)
 				}
@@ -407,7 +407,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 		readers = nil
 	}
 	service.Stop()
-	rows, err := bridge.ReadTimeline(na.FlightRecorderPath(output))
+	rows, err := bridge.ReadOTLPTimeline(na.FlightRecorderPath(output))
 	if err != nil {
 		return outcome, fmt.Errorf("read flight recorder: %w", err)
 	}

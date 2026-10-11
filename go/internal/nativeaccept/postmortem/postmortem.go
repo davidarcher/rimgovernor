@@ -9,7 +9,6 @@
 package postmortem
 
 import (
-	"bufio"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -27,6 +26,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/stepresult"
+	"github.com/davidarcher/RimGovernor/go/internal/otel"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -51,9 +51,9 @@ type Section struct {
 }
 
 // Line is one finding: Text is the reading, Evidence the file (relative to
-// the case directory) and row it came from ("flight.jsonl#1834",
-// "service.sqlite transitions#412", "flight.jsonl.2#77"; a flight row's
-// number is its sequence).
+// the case directory) and row it came from ("otlp/logs.jsonl#1834",
+// "service.sqlite transitions#412", "otlp/logs.jsonl.2#77"; a log row's
+// number is its line in the segment).
 type Line struct {
 	Text     string `json:"text"`
 	Evidence string `json:"evidence"`
@@ -196,41 +196,46 @@ func short(rev string) string {
 
 // --- 2. refusals -------------------------------------------------------
 
-// flightRow is one decoded flight row with the recording it came from. A
-// row's evidence is "<file>#<sequence>": the sequence is the recorder's own,
-// so it is the number `rimgovernor log` and `trace` print.
+// flightRow is one decoded log record with the segment it came from. A row's
+// evidence is "<file>#<line>": the segment path relative to the case directory
+// and the 1-based line there (otel.Position), the number `grep -n` prints.
 type flightRow struct {
 	file string // relative to the case directory
+	line int
 	rec  bridge.TimelineRecord
 }
 
-func (r flightRow) evidence() string { return fmt.Sprintf("%s#%d", r.file, r.rec.Sequence) }
+func (r flightRow) evidence() string { return fmt.Sprintf("%s#%d", r.file, r.line) }
 
 // fields is the row's data as one flat map (a decision row's attrs with its
 // verdict, reason and target).
 func (r flightRow) fields() map[string]any { return bridge.RowFields(r.rec) }
 
-// flightRows decodes every flight recording under dir, oldest first (see
-// flightFiles). A line that is not a row is skipped: the digest is read from
+// flightRows decodes every log ring under dir, oldest launch first (see
+// logRings). A line that is not a row is skipped: the digest is read from
 // whatever survived.
 func flightRows(dir string) []flightRow {
 	var rows []flightRow
-	for _, file := range flightFiles(dir) {
-		f, err := os.Open(filepath.Join(dir, file))
-		if err != nil {
-			continue
-		}
-		scanner := bufio.NewScanner(f)
-		scanner.Buffer(make([]byte, 1<<20), 8<<20)
-		for scanner.Scan() {
-			if rec, ok := bridge.DecodeFlightLine(scanner.Bytes()); ok {
-				rows = append(rows, flightRow{file: file, rec: rec})
+	for _, ring := range logRings(dir) {
+		_ = otel.Scan(filepath.Join(dir, filepath.FromSlash(ring)), func(pos otel.Position, line []byte) error {
+			log, ok := otel.DecodeLog(line)
+			if !ok {
+				return nil
 			}
-		}
-		f.Close()
+			rec, ok := bridge.RecordFromLog(log)
+			if !ok {
+				return nil
+			}
+			rel, err := filepath.Rel(dir, pos.File)
+			if err != nil {
+				rel = pos.File
+			}
+			rows = append(rows, flightRow{file: filepath.ToSlash(rel), line: pos.Line, rec: rec})
+			return nil
+		})
 	}
 	// Rows of successive rings merge by wall time; each keeps its own
-	// sequence, which is why evidence names the file.
+	// line, which is why evidence names the file.
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i].rec.WallTime < rows[j].rec.WallTime })
 	return rows
 }
@@ -260,7 +265,7 @@ func refusals(dir string, rows []flightRow) Section {
 		}
 	}
 	if len(s.Lines) == 0 {
-		s.Note = "no refused step result, refused dispatch row, or native_call error or failure in flight.jsonl*"
+		s.Note = "no refused step result, refused dispatch row, or native_call error or failure in otlp/logs.jsonl*"
 	}
 	return s
 }
@@ -478,18 +483,17 @@ func clip(text string) string {
 	return text
 }
 
-// flightFiles lists every flight recording under dir (the
-// case's own and each relaunch's service-N/), each ring with its retained
-// segments oldest first, relative to dir.
-func flightFiles(dir string) []string {
+// logRings lists every OTLP log ring under dir (the case's own
+// otlp/logs.jsonl and each relaunch's service-N/otlp/logs.jsonl), oldest
+// launch first, relative to dir; otel.Scan reads a ring's rotated segments
+// (logs.jsonl.N) itself.
+func logRings(dir string) []string {
 	var out []string
 	add := func(sub string) {
-		base := filepath.Join(dir, sub)
-		entries, err := os.ReadDir(base)
-		if err != nil {
-			return
+		ring := filepath.Join(sub, "otlp", otel.LogsFile)
+		if len(otel.Segments(filepath.Join(dir, ring))) > 0 {
+			out = append(out, filepath.ToSlash(ring))
 		}
-		out = append(out, ringFiles(sub, "flight.jsonl", entries)...)
 	}
 	add(".")
 	entries, _ := os.ReadDir(dir)
@@ -502,39 +506,6 @@ func flightFiles(dir string) []string {
 	sort.Slice(relaunches, func(i, j int) bool { return launchIndex(relaunches[i]) < launchIndex(relaunches[j]) })
 	for _, r := range relaunches {
 		add(r)
-	}
-	return out
-}
-
-// ringFiles lists one ring's files among the entries of directory sub:
-// rotated segments oldest first, then the active file.
-func ringFiles(sub, ring string, entries []os.DirEntry) []string {
-	type segment struct {
-		index int
-		name  string
-	}
-	var segments []segment
-	active := false
-	for _, e := range entries {
-		name := e.Name()
-		if name == ring {
-			active = true
-			continue
-		}
-		if !strings.HasPrefix(name, ring+".") {
-			continue
-		}
-		if i, err := strconv.Atoi(strings.TrimPrefix(name, ring+".")); err == nil {
-			segments = append(segments, segment{i, name})
-		}
-	}
-	sort.Slice(segments, func(i, j int) bool { return segments[i].index > segments[j].index })
-	var out []string
-	for _, s := range segments {
-		out = append(out, filepath.ToSlash(filepath.Join(sub, s.name)))
-	}
-	if active {
-		out = append(out, filepath.ToSlash(filepath.Join(sub, ring)))
 	}
 	return out
 }
@@ -771,13 +742,13 @@ func jobFailures(rows []flightRow) Section {
 	})
 	for i, l := range lines {
 		if i >= maxLines {
-			s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("... %d more distinct failures", len(lines)-i), Evidence: "flight.jsonl*"})
+			s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("... %d more distinct failures", len(lines)-i), Evidence: "otlp/logs.jsonl*"})
 			break
 		}
 		s.Lines = append(s.Lines, l)
 	}
 	if len(s.Lines) == 0 {
-		s.Note = "no failed dispatch row in flight.jsonl*"
+		s.Note = "no failed dispatch row in otlp/logs.jsonl*"
 	}
 	return s
 }
