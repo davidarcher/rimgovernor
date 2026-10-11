@@ -11,6 +11,8 @@ package combatlab
 import (
 	"fmt"
 	"slices"
+
+	"github.com/davidarcher/RimGovernor/go/internal/combatmetrics"
 )
 
 // StageTool stages a fixture spec on a wiped lab
@@ -116,8 +118,8 @@ type Siege struct {
 type Cell struct{ X, Z int }
 
 const (
-	Colonist = "colonist"
-	Hostile  = "hostile"
+	Colonist = combatmetrics.Colonist
+	Hostile  = combatmetrics.Hostile
 	// Animal is a generated player animal of Kind; Manhunter a wild Kind
 	// gone permanently manhunter.
 	Animal    = "animal"

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/combatmetrics"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 )
 
@@ -21,8 +22,8 @@ func TestScanLogsV2Rows(t *testing.T) {
 		decision("combat_order", "refused", "unreachable", "p2", map[string]any{"index": 1}),
 		decision("dispatch", "completed", "", "routine-defense-p1-hold", map[string]any{}),
 	)
-	m := Metrics{StepLatencyP95Ms: -1}
-	if err := m.ScanLogs(path); err != nil {
+	m := combatmetrics.Metrics{StepLatencyP95Ms: -1}
+	if err := ScanLogs(&m, path); err != nil {
 		t.Fatal(err)
 	}
 	if m.OrdersIssued != 2 || m.OrdersRefused != 1 || m.StepLatencyP95Ms != 250 {
@@ -61,8 +62,8 @@ func TestWriteCombatRowsReadsRotatedSegments(t *testing.T) {
 	if len(lines) != 3 || !strings.Contains(lines[0], `"first"`) || !strings.Contains(lines[1], `"second"`) || !strings.Contains(lines[2], `"third"`) {
 		t.Fatalf("rows out of order or dropped:\n%s", data)
 	}
-	m := Metrics{StepLatencyP95Ms: -1}
-	if err := m.ScanLogs(out); err != nil {
+	m := combatmetrics.Metrics{StepLatencyP95Ms: -1}
+	if err := ScanLogs(&m, out); err != nil {
 		t.Fatal(err)
 	}
 	if m.OrdersIssued != 2 || m.OrdersRefused != 1 {
@@ -79,7 +80,7 @@ func TestAggregateBundle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := Metrics{Version: MetricsVersion, Fixture: "lab-test", Ticks: 500,
+	want := combatmetrics.Metrics{Version: combatmetrics.Version, Fixture: "lab-test", Ticks: 500,
 		ColonistDamage: 13.3, ColonistDowns: 1, EnemyDowns: 1, EnemyDeaths: 1, EnemyFled: 1,
 		FirstContactTick: 1100, ResolvedTick: 1500, ContactToResolution: 400, Winner: Colonist,
 		FriendlyFireHits: 1, OrdersIssued: 1, OrdersRefused: 1, StepLatencyP95Ms: 400}

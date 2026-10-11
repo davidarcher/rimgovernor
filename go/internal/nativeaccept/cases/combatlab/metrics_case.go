@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/combatmetrics"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
@@ -56,8 +57,8 @@ var baselines embed.FS
 
 // Baseline returns the committed baseline metrics for a fixture, refusing
 // one recorded under another schema version.
-func Baseline(name string) (Metrics, error) {
-	var m Metrics
+func Baseline(name string) (combatmetrics.Metrics, error) {
+	var m combatmetrics.Metrics
 	data, err := baselines.ReadFile("baselines/" + name + ".json")
 	if err != nil {
 		return m, err
@@ -65,8 +66,8 @@ func Baseline(name string) (Metrics, error) {
 	if err := json.Unmarshal(data, &m); err != nil {
 		return m, err
 	}
-	if m.Version != MetricsVersion {
-		return m, fmt.Errorf("baseline %s is metrics schema version %d, this build reads version %d: re-record it with combatlab/metrics-%s", name, m.Version, MetricsVersion, name)
+	if m.Version != combatmetrics.Version {
+		return m, fmt.Errorf("baseline %s is metrics schema version %d, this build reads version %d: re-record it with combatlab/metrics-%s", name, m.Version, combatmetrics.Version, name)
 	}
 	return m, nil
 }
