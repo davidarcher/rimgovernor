@@ -23,7 +23,6 @@ namespace HomeBridge.BridgeTools
         {
             Code = result == NativePawnControlResult.StaleIdentity ? Common.FailureCode.StaleIdentity
                 : result == NativePawnControlResult.StaleSnapshot ? Common.FailureCode.OwnerConflict
-                : result == NativePawnControlResult.CapacityExhausted ? Common.FailureCode.CapacityExhausted
                 : Common.FailureCode.Unavailable,
             Detail = "Native pawn control guard refused: " + result,
             ObservedContext = context.Clone()

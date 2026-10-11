@@ -174,7 +174,7 @@ Kept, reason recorded:
 | NativeAreaPlantCut.cs | 101 | code | Designates non-crop non-forage plants on cells for cutting or tree chopping via game designators. |  |  |
 | NativeArrestOperations.cs | 67 | state | GiveJobIntent Arrest: gives the arrester the Arrest job onto an exact prisoner bed after live checks. |  |  |
 | NativeAssignOperations.cs | 124 | state | AssignIntent: assigns one colonist ownership of a bed/throne/grave via CompAssignableToPawn. |  |  |
-| NativeAttemptLedger.cs | 263 | state | Unsaved per-colony ledger of admitted attempts with identity comparison. | Capacity=4096 (bridge tuning) |  |
+| NativeAttemptLedger.cs | 263 | state | Unsaved per-colony ledger of admitted attempts with identity comparison. |  |  |
 | NativeAuthorityControlTools.cs | 148 | state | Tool that sets authority mode for the player-control owner. |  |  |
 | NativeAuthorityTools.cs | 136 | state | Tool projecting current authority status, revocation reason and generation. |  |  |
 | NativeAutoHomeArea.cs | 41 | state | Sets the save-level auto home area play setting. |  |  |

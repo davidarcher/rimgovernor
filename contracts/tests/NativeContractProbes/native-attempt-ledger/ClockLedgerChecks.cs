@@ -74,7 +74,6 @@ internal static class ClockLedgerChecks
         thread.Start(); thread.Join(); Check(threadError is InvalidOperationException, "clock ledger access remains main-thread affine");
         Equality(ledger, original);
         Variants(ledger);
-        Capacity();
         return checks;
     }
     private static void Equality(NativeAttemptLedger ledger, Clock.StartRequest original)
@@ -131,18 +130,5 @@ internal static class ClockLedgerChecks
         Check(ledger.InspectClock(Speed, conflictingSpeed).Reply!.Failure.Code == Common.FailureCode.AttemptConflict, "clock methods share attempt namespace");
         var max = Request(ulong.MaxValue);
         Check(ledger.AdmitClock(Start, max, Context()).Kind == Kind.Admitted, "clock uint64 maximum attempt is preserved");
-    }
-    private static void Capacity()
-    {
-        var ledger = new NativeAttemptLedger(Identity());
-        for (ulong i = 1; i <= NativeAttemptLedger.Capacity; i++)
-        {
-            var admitted = ledger.AdmitClock(Start, Request(i), Context());
-            if (admitted.Kind != Kind.Admitted) throw new Exception("clock capacity admission failed");
-            ledger.FinishClockUncertain(admitted.Handle!, null, "not dispatched in test");
-        }
-        Check(ledger.Count == 4096, "fixed capacity");
-        Check(ledger.InspectClock(Start, Request(4097)).Reply!.Failure.Code == Common.FailureCode.CapacityExhausted, "full ledger refuses overflow clock before effects");
-        Check(ledger.InspectClock(Start, Request(1)).Kind == Kind.Replay, "capacity never evicts");
     }
 }

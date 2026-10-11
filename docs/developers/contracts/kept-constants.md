@@ -34,13 +34,11 @@ not a silent exemption.
 
 | Constant | Where | Value | Issue |
 | --- | --- | --- | --- |
-| Attempt ledger `Capacity` | `NativeAttemptLedger.cs` | 4096 | #2662 |
-| Pawn-control table | `NativePawnControlState.cs` | 4096 | #2662 |
-| Production bill tracking | `NativeProductionTracking.cs` | 4096 | #2662 |
 | `HiveBoundaryCells` | `NativeObservationTools.cs` | 10 | #2652 (reads the game's constant) |
 
-The three 4096 tables refuse new entries with a capacity failure; #2662
-decides, per table, whether the cap goes or becomes a visible flag.
+The native attempt ledger, pawn-control table and production bill tracking
+have no count cap (#2662): each grows with the live game's pawns, bills or
+admitted clock attempts and is dropped with the game.
 
 ## Visible truncation
 

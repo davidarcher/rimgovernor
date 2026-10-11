@@ -12,7 +12,7 @@ using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
-    internal enum NativePawnControlResult { Ready, Unavailable, StaleIdentity, StaleSnapshot, CapacityExhausted }
+    internal enum NativePawnControlResult { Ready, Unavailable, StaleIdentity, StaleSnapshot }
     internal sealed class NativePawnSnapshot
     {
         internal NativePawnSnapshot(string token, NativePawnFacts facts) { Token = token; Facts = facts; }
@@ -172,8 +172,6 @@ namespace HomeBridge.BridgeTools
                 if (game.Exhausted) return NativePawnControlResult.Unavailable;
                 if (!game.Pawns.TryGetValue(pawn,out var record))
                 {
-                    // Hard count; tracked in #2662 (docs/developers/contracts/kept-constants.md).
-                    if (game.Pawns.Count >= 4096) return NativePawnControlResult.CapacityExhausted;
                     record = new NativePawnControlRecord(); game.Pawns.Add(pawn,record);
                 }
                 var revision = pawn.drafter == null ? (ulong?)0 : DraftOwnership.Revision(pawn);

@@ -16,8 +16,6 @@ namespace HomeBridge.BridgeTools
     // thread may use it. Admission guards and native evidence remain adapter work.
     internal sealed class NativeAttemptLedger
     {
-        // Refuses at this count; tracked in #2662 (docs/developers/contracts/kept-constants.md).
-        internal const int Capacity = 4096;
         private static readonly Encoding Utf8 = new UTF8Encoding(false, true);
         private readonly string colonyId;
         private readonly string loadToken;
@@ -99,9 +97,7 @@ namespace HomeBridge.BridgeTools
                     ? new ClockDecision(DecisionKind.Replay, reply: new Clock.ControlReply { Receipt = entry.ClockReceipt.Clone() })
                     : new ClockDecision(DecisionKind.InFlight, reply: new Clock.ControlReply { Receipt = ClockInFlight(entry) });
             }
-            return entries.Count == Capacity
-                ? ClockRefused(Common.FailureCode.CapacityExhausted, "The native attempt ledger is full; no attempt was admitted.")
-                : new ClockDecision(DecisionKind.New);
+            return new ClockDecision(DecisionKind.New);
         }
 
         internal ClockDecision AdmitClock(string method, IMessage request, Common.ObservationContext context)
