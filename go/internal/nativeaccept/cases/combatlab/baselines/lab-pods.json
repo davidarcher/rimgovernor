@@ -1,19 +1,657 @@
 {
-  "version": 1,
+  "version": 2,
   "fixture": "lab-pods",
-  "ticks": 8689,
-  "colonistDamage": 288.7,
-  "colonistDowns": 4,
-  "colonistDeaths": 0,
-  "enemyDowns": 0,
-  "enemyDeaths": 0,
-  "enemyFled": 2,
-  "firstContactTick": 381,
-  "resolvedTick": -1,
-  "contactToResolutionTicks": -1,
-  "winner": "",
-  "friendlyFireHits": 0,
-  "ordersIssued": 14,
-  "ordersRefused": 0,
-  "stepLatencyP95Ms": 2043
+  "workers": 2,
+  "load": "rimworld processes before dispatch: 1",
+  "wallMs": 736808,
+  "rows": [
+    {
+      "seed": 1,
+      "worker": 2,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        -235104240,
+        -1770829539,
+        -1438552120,
+        -1776007489
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 8155,
+        "colonistDamage": 301,
+        "colonistDowns": 1,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 368,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 17,
+        "ordersRefused": 24,
+        "stepLatencyP95Ms": 2539
+      }
+    },
+    {
+      "seed": 2,
+      "worker": 1,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        -1342498867,
+        680027767,
+        -1516637188,
+        -1527604660
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 8017,
+        "colonistDamage": 191.7,
+        "colonistDowns": 1,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 402,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 10,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 2195
+      }
+    },
+    {
+      "seed": 3,
+      "worker": 1,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        2109658768,
+        -1679935835,
+        -85088490,
+        297383587
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 8226,
+        "colonistDamage": 88,
+        "colonistDowns": 1,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 392,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 18,
+        "ordersRefused": 51,
+        "stepLatencyP95Ms": 2045
+      }
+    },
+    {
+      "seed": 4,
+      "worker": 2,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        -1826488659,
+        -1667436116,
+        -1451572079,
+        -952076478
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 8002,
+        "colonistDamage": 295.5,
+        "colonistDowns": 3,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 380,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 10,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 2048
+      }
+    },
+    {
+      "seed": 5,
+      "worker": 1,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        1580628434,
+        360578704,
+        -222442466,
+        -495534939
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 8647,
+        "colonistDamage": 275,
+        "colonistDowns": 1,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 371,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 10,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 1962
+      }
+    },
+    {
+      "seed": 6,
+      "worker": 2,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        2121875065,
+        1305424310,
+        1393260883,
+        2086431044
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 8782,
+        "colonistDamage": 231.7,
+        "colonistDowns": 1,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 389,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 10,
+        "ordersRefused": 5,
+        "stepLatencyP95Ms": 2040
+      }
+    },
+    {
+      "seed": 7,
+      "worker": 1,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        1072597060,
+        704578319,
+        -824090483,
+        1534904821
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 7968,
+        "colonistDamage": 248.3,
+        "colonistDowns": 2,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 383,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 10,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 1959
+      }
+    },
+    {
+      "seed": 8,
+      "worker": 2,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        -446497963,
+        1973108769,
+        -1858171126,
+        985634381
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 8043,
+        "colonistDamage": 310.4,
+        "colonistDowns": 2,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 380,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 10,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 1907
+      }
+    },
+    {
+      "seed": 9,
+      "worker": 1,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        -1410448947,
+        161651147,
+        59558535,
+        1866365599
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 8855,
+        "colonistDamage": 236.4,
+        "colonistDowns": 2,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 392,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 10,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 1898
+      }
+    },
+    {
+      "seed": 10,
+      "worker": 2,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        398827085,
+        -1221793655,
+        1008620082,
+        -1520335184
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 3707,
+        "colonistDamage": 337,
+        "colonistDowns": 3,
+        "colonistDeaths": 0,
+        "enemyDowns": 1,
+        "enemyDeaths": 0,
+        "enemyFled": 3,
+        "firstContactTick": 371,
+        "resolvedTick": 3708,
+        "contactToResolutionTicks": 3337,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 18,
+        "ordersRefused": 2,
+        "stepLatencyP95Ms": 2055
+      }
+    },
+    {
+      "seed": 11,
+      "worker": 2,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        -1468614870,
+        -1195630990,
+        -998591070,
+        323350639
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 8515,
+        "colonistDamage": 66,
+        "colonistDowns": 1,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 377,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 17,
+        "ordersRefused": 50,
+        "stepLatencyP95Ms": 2036
+      }
+    },
+    {
+      "seed": 12,
+      "worker": 1,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        1801513416,
+        -969431055,
+        833837030,
+        508390438
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 8339,
+        "colonistDamage": 253.7,
+        "colonistDowns": 3,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 380,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 10,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 1931
+      }
+    },
+    {
+      "seed": 13,
+      "worker": 2,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        163023724,
+        -550243132,
+        -679036384,
+        281781382
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 8012,
+        "colonistDamage": 246.1,
+        "colonistDowns": 2,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 387,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 10,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 1929
+      }
+    },
+    {
+      "seed": 14,
+      "worker": 1,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        1299933229,
+        -814957564,
+        -1200597146,
+        -1700362327
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 8274,
+        "colonistDamage": 235,
+        "colonistDowns": 2,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 383,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 10,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 2088
+      }
+    },
+    {
+      "seed": 15,
+      "worker": 2,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        -876189140,
+        -952120532,
+        430767800,
+        11659082
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 9154,
+        "colonistDamage": 270.2,
+        "colonistDowns": 2,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 382,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 10,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 2063
+      }
+    },
+    {
+      "seed": 16,
+      "worker": 1,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        -1771485732,
+        2039932197,
+        -1850968135,
+        583259013
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 8170,
+        "colonistDamage": 267.9,
+        "colonistDowns": 3,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 368,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 10,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 1985
+      }
+    },
+    {
+      "seed": 17,
+      "worker": 1,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        318417803,
+        -596845585,
+        -1000007358,
+        -2025163129
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 8513,
+        "colonistDamage": 99,
+        "colonistDowns": 1,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 370,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 18,
+        "ordersRefused": 53,
+        "stepLatencyP95Ms": 1989
+      }
+    },
+    {
+      "seed": 18,
+      "worker": 2,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        423972722,
+        -1994762446,
+        -858030191,
+        1309060408
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 9253,
+        "colonistDamage": 168,
+        "colonistDowns": 2,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 371,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 10,
+        "ordersRefused": 4,
+        "stepLatencyP95Ms": 2061
+      }
+    },
+    {
+      "seed": 19,
+      "worker": 1,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        -920186481,
+        244442703,
+        -1796004366,
+        1654517272
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 7844,
+        "colonistDamage": 132,
+        "colonistDowns": 1,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 377,
+        "resolvedTick": -1,
+        "contactToResolutionTicks": -1,
+        "winner": "",
+        "friendlyFireHits": 0,
+        "ordersIssued": 21,
+        "ordersRefused": 46,
+        "stepLatencyP95Ms": 2222
+      }
+    },
+    {
+      "seed": 20,
+      "worker": 2,
+      "stagedDigest": "a3c1386f",
+      "runSeedDraws": [
+        -1753227894,
+        -2062440609,
+        1317984169,
+        736998608
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-pods",
+        "ticks": 7751,
+        "colonistDamage": 404.2,
+        "colonistDowns": 5,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 2,
+        "firstContactTick": 368,
+        "resolvedTick": 5952,
+        "contactToResolutionTicks": 5584,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 10,
+        "ordersRefused": 4,
+        "stepLatencyP95Ms": 2160
+      }
+    }
+  ],
+  "summary": {
+    "runs": 20,
+    "seedsWithColonistDeath": 0,
+    "seedsWithColonistDown": 20,
+    "unresolved": 18,
+    "colonistDeaths": {
+      "n": 20,
+      "mean": 0,
+      "sd": 0,
+      "lo": 0,
+      "hi": 0
+    },
+    "colonistDowns": {
+      "n": 20,
+      "mean": 1.95,
+      "sd": 1.050062654772261,
+      "lo": 1.4585611979257127,
+      "hi": 2.441438802074287
+    },
+    "colonistDamage": {
+      "n": 20,
+      "mean": 232.85499999999996,
+      "sd": 86.7133843551028,
+      "lo": 192.27235330019784,
+      "hi": 273.4376466998021
+    },
+    "enemyDowns": {
+      "n": 20,
+      "mean": 0.05,
+      "sd": 0.2236067977499789,
+      "lo": -0.05464999999999996,
+      "hi": 0.15464999999999995
+    },
+    "enemyDeaths": {
+      "n": 20,
+      "mean": 0,
+      "sd": 0,
+      "lo": 0,
+      "hi": 0
+    },
+    "contactToResolutionTicks": {
+      "n": 2,
+      "mean": 4460.5,
+      "sd": 1588.8689373261723,
+      "lo": -9814.690999999997,
+      "hi": 18735.691
+    }
+  }
 }

@@ -97,15 +97,31 @@ func TestAggregateUnresolved(t *testing.T) {
 	}
 }
 
-// Every metrics fixture has a committed baseline.
+// Every metrics fixture has a committed baseline sweep: current schema,
+// the recorded seeds 1..N, no defective row and a summary that is the one
+// its rows derive.
 func TestBaselinesCommitted(t *testing.T) {
 	for _, name := range Names {
-		m, err := Baseline(name)
+		s, err := Baseline(name)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		if m.Fixture != name || m.Ticks <= 0 {
-			t.Fatalf("%s baseline: %+v", name, m)
+		if s.Fixture != name || s.Version != combatmetrics.SweepVersion {
+			t.Fatalf("%s baseline: fixture %q version %d", name, s.Fixture, s.Version)
+		}
+		if len(s.Rows) != BaselineSeeds {
+			t.Fatalf("%s baseline has %d rows, want %d", name, len(s.Rows), BaselineSeeds)
+		}
+		for i, r := range s.Rows {
+			if r.Seed != i+1 {
+				t.Fatalf("%s baseline row %d is seed %d", name, i, r.Seed)
+			}
+		}
+		if d := s.Defects(); len(d) > 0 {
+			t.Fatalf("%s baseline: %v", name, d)
+		}
+		if s.Summary.Runs != BaselineSeeds {
+			t.Fatalf("%s baseline scored %d runs", name, s.Summary.Runs)
 		}
 	}
 }

@@ -31,8 +31,11 @@ const (
 	// metricsStopMargin is how far short of the budget the service is
 	// stopped: the state refresh lag plus the reattach.
 	metricsStopMargin = 2500
-	// metricsIdle is how long a still served clock means the run is over.
-	metricsIdle = 20 * time.Second
+	// metricsIdle is how long a still served clock means the run is over. A
+	// cold service on a loaded box spends 20 s or more on its first frame
+	// capture and definition catalog read before its first round (#2843), so
+	// 20 s ended runs at tick 0 with no orders.
+	metricsIdle = 90 * time.Second
 	// pauseModeTool sets Prefs.AutomaticPauseMode (scripts/fixtures/LetterFixture.cs).
 	pauseModeTool = "test/letter_pause_mode"
 )
@@ -48,28 +51,33 @@ const smokeOnly = " Smoke only: lab-open is an unstructured 3v3 whose outcome is
 // tend families it hands downed colonists to.
 var metricsFamilies = []routinefamily.Family{routinefamily.Defense, routinefamily.Tend, routinefamily.Rescue}
 
-// Baselines are each fixture's metrics recorded from main before any
-// Phase 1 tactic, with the routine defense planner serving the run:
-// a tactic child reports its delta against them.
+// BaselineSeeds is the seed count a baseline sweep records (seeds 1..N) and
+// `acceptance sweep` runs by default.
+const BaselineSeeds = 20
+
+// BaselinesDir is the baselines directory relative to the Go module root.
+const BaselinesDir = "internal/nativeaccept/cases/combatlab/baselines"
+
+// Baselines are each fixture's sweep (per-seed rows plus summary) recorded
+// from main with the routine defense planner serving the run: a tactic
+// child sweeps the same seeds and pairs its rows against them.
+// `acceptance sweep <fixture> -record` rewrites one.
 //
 //go:embed baselines/*.json
 var baselines embed.FS
 
-// Baseline returns the committed baseline metrics for a fixture, refusing
+// Baseline returns the committed baseline sweep for a fixture, refusing
 // one recorded under another schema version.
-func Baseline(name string) (combatmetrics.Metrics, error) {
-	var m combatmetrics.Metrics
+func Baseline(name string) (combatmetrics.Sweep, error) {
 	data, err := baselines.ReadFile("baselines/" + name + ".json")
 	if err != nil {
-		return m, err
+		return combatmetrics.Sweep{}, err
 	}
-	if err := json.Unmarshal(data, &m); err != nil {
-		return m, err
+	s, err := combatmetrics.ParseSweep(data)
+	if err != nil {
+		return s, fmt.Errorf("baseline %s: %w; re-record it with `acceptance sweep %s -record`", name, err, name)
 	}
-	if m.Version != combatmetrics.Version {
-		return m, fmt.Errorf("baseline %s is metrics schema version %d, this build reads version %d: re-record it with combatlab/metrics-%s", name, m.Version, combatmetrics.Version, name)
-	}
-	return m, nil
+	return s, nil
 }
 
 func init() {
@@ -250,7 +258,7 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 	}
 	s.Report()["response"] = response
 	if base, err := Baseline(name); err == nil {
-		s.Report()["baseline"] = base
+		s.Report()["baseline"] = base.Summary
 	}
 	if m.Ticks > metricsTicks {
 		return fmt.Errorf("%s ran %d ticks from %d, over the %d-tick budget", name, m.Ticks, start, metricsTicks)

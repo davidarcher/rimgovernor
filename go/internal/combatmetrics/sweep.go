@@ -11,7 +11,7 @@ import (
 // SweepVersion is the Sweep schema version: bump it when a field changes
 // meaning. The baselines (#2843) are Sweep files, so a reader refuses one of
 // another version instead of comparing it.
-const SweepVersion = 1
+const SweepVersion = 2
 
 // SeedRow is one seed's run: its scored metrics and the evidence that the
 // run started where its pair did.
@@ -171,6 +171,27 @@ func ParseSweep(data []byte) (Sweep, error) {
 		return s, fmt.Errorf("sweep is schema version %d, this build reads version %d: re-run the sweep", s.Version, SweepVersion)
 	}
 	return s, nil
+}
+
+// Defects lists why a sweep cannot serve as a baseline: a failed seed, a seed
+// that saw no contact or issued no orders (the planner never fought), or a
+// summary that is not the one its rows derive.
+func (s Sweep) Defects() []string {
+	var out []string
+	for _, r := range s.Rows {
+		switch {
+		case r.Error != "" || r.Metrics == nil:
+			out = append(out, fmt.Sprintf("seed %d failed: %s", r.Seed, r.Error))
+		case r.Metrics.FirstContactTick < 0:
+			out = append(out, fmt.Sprintf("seed %d saw no contact", r.Seed))
+		case r.Metrics.OrdersIssued == 0:
+			out = append(out, fmt.Sprintf("seed %d issued no orders", r.Seed))
+		}
+	}
+	if s.Summary != Summarize(s.Rows) {
+		out = append(out, "summary is not derived from the rows")
+	}
+	return out
 }
 
 // Delta is a paired difference (candidate minus baseline) over the seeds both

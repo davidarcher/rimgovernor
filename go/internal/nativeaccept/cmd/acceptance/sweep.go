@@ -22,7 +22,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/combatlab"
 )
 
-const sweepUsage = `  acceptance sweep <fixture>... -root <dir> -output <dir> -rimgovernor <bin> [-n 20 | -seeds 1,2,5 -workers 1|2 -against <sweep.json|dir> -restage -game <id> -case-timeout <d>]
+const sweepUsage = `  acceptance sweep <fixture>... -root <dir> -output <dir> -rimgovernor <bin> [-n 20 | -seeds 1,2,5 -workers 1|2 -against <sweep.json|dir> -restage -record -game <id> -case-timeout <d>]
     runs combatlab/metrics-<fixture> once per seed from one staged checkpoint (seed s reseeds the RNG after the load, -run-seed),
     on 1 or 2 private clones of -root, and writes <output>/<fixture>/sweep.json (per-seed rows plus summary) with the report printed
     deaths and downs first; -against pairs the seeds with an earlier sweep.json (or <dir>/<fixture>/sweep.json) and exits 1 on a survival regression
@@ -38,6 +38,7 @@ type sweepOptions struct {
 	Workers     int
 	Against     string
 	Restage     bool
+	Record      bool
 	CaseTimeout time.Duration
 }
 
@@ -53,7 +54,8 @@ func parseSweep(args []string, stderr io.Writer) (sweepOptions, error) {
 	}
 	fs := flag.NewFlagSet("sweep", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	n := fs.Int("n", 20, "seeds 1..n")
+	n := fs.Int("n", combatlab.BaselineSeeds, "seeds 1..n")
+	fs.BoolVar(&opts.Record, "record", false, "write each clean sweep of seeds 1..N over the fixture's committed baseline (run from go/)")
 	seeds := fs.String("seeds", "", "comma-separated seeds instead of 1..n")
 	fs.StringVar(&opts.Root, "root", "", "absolute worker root to clone for every worker")
 	fs.StringVar(&opts.Output, "output", "", "fresh output directory")
@@ -85,6 +87,9 @@ func parseSweep(args []string, stderr io.Writer) (sweepOptions, error) {
 	var err error
 	if opts.Seeds, err = sweepSeeds(*n, *seeds); err != nil {
 		return opts, err
+	}
+	if opts.Record && (*seeds != "" || *n != combatlab.BaselineSeeds) {
+		return opts, fmt.Errorf("-record writes the %d-seed baseline: omit -n and -seeds", combatlab.BaselineSeeds)
 	}
 	if opts.Workers < 1 || opts.Workers > combatdispatch.MaxWorkers {
 		return opts, fmt.Errorf("-workers must be 1 to %d", combatdispatch.MaxWorkers)
@@ -208,6 +213,13 @@ func sweepFixture(ctx context.Context, c cases.Case, fixture string, opts sweepO
 		fmt.Fprintf(stdout, "FAIL\t%s\t%v\n", fixture, dispatchErr)
 		code = 1
 	}
+	if opts.Record {
+		if err := recordBaseline(result); err != nil {
+			fmt.Fprintf(stdout, "FAIL\t%s\tnot recorded: %v\n", fixture, err)
+			return 1
+		}
+		fmt.Fprintf(stdout, "  recorded baseline %s\n", fixture)
+	}
 	if opts.Against != "" {
 		cmp, err := compareAgainst(opts.Against, result)
 		if err != nil {
@@ -225,11 +237,37 @@ func sweepFixture(ctx context.Context, c cases.Case, fixture string, opts sweepO
 	return code
 }
 
+// recordBaseline writes a clean sweep over the fixture's committed baseline in
+// the module's source tree (the working directory must be inside go/).
+func recordBaseline(s combatmetrics.Sweep) error {
+	if d := s.Defects(); len(d) > 0 {
+		return fmt.Errorf("sweep is not a baseline: %s", strings.Join(d, "; "))
+	}
+	dir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			break
+		}
+		if parent := filepath.Dir(dir); parent != dir {
+			dir = parent
+			continue
+		}
+		return errors.New("no go.mod above the working directory: run -record from go/")
+	}
+	return writeJSON(filepath.Join(dir, filepath.FromSlash(combatlab.BaselinesDir), s.Fixture+".json"), s)
+}
+
 // compareAgainst loads the baseline sweep (a file, or <dir>/<fixture>/sweep.json).
 func compareAgainst(against string, cand combatmetrics.Sweep) (combatmetrics.Comparison, error) {
 	path := against
 	if info, err := os.Stat(against); err == nil && info.IsDir() {
 		path = filepath.Join(against, cand.Fixture, "sweep.json")
+		if _, err := os.Stat(path); err != nil {
+			path = filepath.Join(against, cand.Fixture+".json") // the baselines directory
+		}
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {

@@ -138,6 +138,27 @@ func TestCompareRefusals(t *testing.T) {
 	}
 }
 
+func TestSweepDefects(t *testing.T) {
+	contact := func(r SeedRow) SeedRow {
+		r.Metrics.FirstContactTick, r.Metrics.OrdersIssued = 100, 3
+		return r
+	}
+	good := NewSweep("lab-choke", 1, "", 0, []SeedRow{contact(row(1, 0, 0, 5, 10)), contact(row(2, 1, 1, 9, 12))})
+	if d := good.Defects(); len(d) != 0 {
+		t.Fatalf("clean sweep has defects %v", d)
+	}
+	quiet := row(3, 0, 0, 0, 10)
+	quiet.Metrics.FirstContactTick, quiet.Metrics.OrdersIssued = -1, 0
+	bad := NewSweep("lab-choke", 1, "", 0, []SeedRow{contact(row(1, 0, 0, 5, 10)), quiet, {Seed: 4, Error: "boom"}})
+	if d := bad.Defects(); len(d) != 2 {
+		t.Fatalf("want a no-contact and a failed-seed defect, got %v", d)
+	}
+	good.Summary.ColonistDeaths.Mean++
+	if d := good.Defects(); len(d) != 1 || !strings.Contains(d[0], "summary") {
+		t.Fatalf("tampered summary: %v", d)
+	}
+}
+
 func TestSweepReportLeadsWithSurvival(t *testing.T) {
 	out := sweep(row(1, 1, 1, 10, 100)).Report()
 	if strings.Index(out, "colonist death") > strings.Index(out, "colonist damage") {

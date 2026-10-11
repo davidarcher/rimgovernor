@@ -175,9 +175,19 @@ then damage, enemy outcomes and contact-to-resolution. A second sweep with the
 same seeds reads the same staging digest and reseed draws per seed. `-against`
 pairs the seeds of an earlier sweep file and prints the paired deltas; it exits
 1 when a seed gains a colonist death or the paired interval of colonist deaths
-or downs lies wholly above zero. The single-run `combatlab/baselines/*.json`
-files carry no seeds and cannot be paired against until the baselines become
-sweep outputs (#2843).
+or downs lies wholly above zero.
+
+The combat baselines are sweep outputs: `combatlab/baselines/<fixture>.json` is
+the `combatmetrics.Sweep` of seeds 1..20 recorded from main with the routine
+defense planner serving, and `combatlab.Baseline(name)` returns it (rows and
+summary). A tactic sweeps the same seeds with `-against
+go/internal/nativeaccept/cases/combatlab/baselines` and gets paired deltas row
+by row. Re-record one from `go/` with `acceptance sweep <fixture> -record`
+(seeds 1..20 only; a failed seed, a seed with no contact or no orders, or a
+summary that is not derived from the rows is refused). Re-record after a
+schema bump or an intended change to the fixture, planner or simulator; the
+unit test `TestBaselinesCommitted` checks version, seeds and summary. lab-open
+is smoke-only: recorded, but not a tactics signal.
 
 `acceptance suite -stages` schedules missing stages and their dependent tails
 for iteration. The ordinary suite restages from scratch. Preserve

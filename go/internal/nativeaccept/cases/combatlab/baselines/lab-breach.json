@@ -1,19 +1,657 @@
 {
-  "version": 1,
+  "version": 2,
   "fixture": "lab-breach",
-  "ticks": 4284,
-  "colonistDamage": 44.4,
-  "colonistDowns": 0,
-  "colonistDeaths": 0,
-  "enemyDowns": 0,
-  "enemyDeaths": 0,
-  "enemyFled": 3,
-  "firstContactTick": 1699,
-  "resolvedTick": 4284,
-  "contactToResolutionTicks": 2585,
-  "winner": "colonist",
-  "friendlyFireHits": 0,
-  "ordersIssued": 6,
-  "ordersRefused": 12,
-  "stepLatencyP95Ms": 3780
+  "workers": 2,
+  "load": "rimworld processes before dispatch: 1",
+  "wallMs": 382406,
+  "rows": [
+    {
+      "seed": 1,
+      "worker": 2,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        -235104240,
+        -1770829539,
+        -1438552120,
+        -1776007489
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 4608,
+        "colonistDamage": 32.7,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 3,
+        "firstContactTick": 1696,
+        "resolvedTick": 4608,
+        "contactToResolutionTicks": 2912,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 9,
+        "ordersRefused": 12,
+        "stepLatencyP95Ms": 491
+      }
+    },
+    {
+      "seed": 2,
+      "worker": 1,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        -1342498867,
+        680027767,
+        -1516637188,
+        -1527604660
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 4735,
+        "colonistDamage": 12.3,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 3,
+        "firstContactTick": 1715,
+        "resolvedTick": 4735,
+        "contactToResolutionTicks": 3020,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 6,
+        "ordersRefused": 12,
+        "stepLatencyP95Ms": 459
+      }
+    },
+    {
+      "seed": 3,
+      "worker": 1,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        2109658768,
+        -1679935835,
+        -85088490,
+        297383587
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 5475,
+        "colonistDamage": 55,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 1,
+        "enemyDeaths": 0,
+        "enemyFled": 2,
+        "firstContactTick": 1700,
+        "resolvedTick": 5475,
+        "contactToResolutionTicks": 3775,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 10,
+        "ordersRefused": 14,
+        "stepLatencyP95Ms": 464
+      }
+    },
+    {
+      "seed": 4,
+      "worker": 2,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        -1826488659,
+        -1667436116,
+        -1451572079,
+        -952076478
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 3702,
+        "colonistDamage": 11.8,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 3,
+        "firstContactTick": 1721,
+        "resolvedTick": 3702,
+        "contactToResolutionTicks": 1981,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 6,
+        "ordersRefused": 12,
+        "stepLatencyP95Ms": 416
+      }
+    },
+    {
+      "seed": 5,
+      "worker": 2,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        1580628434,
+        360578704,
+        -222442466,
+        -495534939
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 4272,
+        "colonistDamage": 38.3,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 1,
+        "enemyDeaths": 0,
+        "enemyFled": 2,
+        "firstContactTick": 1700,
+        "resolvedTick": 4272,
+        "contactToResolutionTicks": 2572,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 6,
+        "ordersRefused": 12,
+        "stepLatencyP95Ms": 476
+      }
+    },
+    {
+      "seed": 6,
+      "worker": 1,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        2121875065,
+        1305424310,
+        1393260883,
+        2086431044
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 3651,
+        "colonistDamage": 40.2,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 3,
+        "firstContactTick": 1701,
+        "resolvedTick": 3651,
+        "contactToResolutionTicks": 1950,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 10,
+        "ordersRefused": 14,
+        "stepLatencyP95Ms": 468
+      }
+    },
+    {
+      "seed": 7,
+      "worker": 1,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        1072597060,
+        704578319,
+        -824090483,
+        1534904821
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 4355,
+        "colonistDamage": 62.8,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 1,
+        "enemyDeaths": 0,
+        "enemyFled": 2,
+        "firstContactTick": 1700,
+        "resolvedTick": 4355,
+        "contactToResolutionTicks": 2655,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 6,
+        "ordersRefused": 12,
+        "stepLatencyP95Ms": 464
+      }
+    },
+    {
+      "seed": 8,
+      "worker": 2,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        -446497963,
+        1973108769,
+        -1858171126,
+        985634381
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 3463,
+        "colonistDamage": 44.8,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 3,
+        "firstContactTick": 1751,
+        "resolvedTick": 3463,
+        "contactToResolutionTicks": 1712,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 12,
+        "ordersRefused": 17,
+        "stepLatencyP95Ms": 479
+      }
+    },
+    {
+      "seed": 9,
+      "worker": 2,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        -1410448947,
+        161651147,
+        59558535,
+        1866365599
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 4268,
+        "colonistDamage": 0,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 1,
+        "enemyDeaths": 0,
+        "enemyFled": 2,
+        "firstContactTick": 1706,
+        "resolvedTick": 4268,
+        "contactToResolutionTicks": 2562,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 9,
+        "ordersRefused": 12,
+        "stepLatencyP95Ms": 491
+      }
+    },
+    {
+      "seed": 10,
+      "worker": 1,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        398827085,
+        -1221793655,
+        1008620082,
+        -1520335184
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 4040,
+        "colonistDamage": 26.5,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 1,
+        "enemyDeaths": 0,
+        "enemyFled": 2,
+        "firstContactTick": 1700,
+        "resolvedTick": 4040,
+        "contactToResolutionTicks": 2340,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 6,
+        "ordersRefused": 12,
+        "stepLatencyP95Ms": 555
+      }
+    },
+    {
+      "seed": 11,
+      "worker": 1,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        -1468614870,
+        -1195630990,
+        -998591070,
+        323350639
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 3072,
+        "colonistDamage": 0,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 1,
+        "enemyDeaths": 0,
+        "enemyFled": 2,
+        "firstContactTick": 1716,
+        "resolvedTick": 3072,
+        "contactToResolutionTicks": 1356,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 6,
+        "ordersRefused": 12,
+        "stepLatencyP95Ms": 507
+      }
+    },
+    {
+      "seed": 12,
+      "worker": 2,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        1801513416,
+        -969431055,
+        833837030,
+        508390438
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 4542,
+        "colonistDamage": 42.6,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 3,
+        "firstContactTick": 1715,
+        "resolvedTick": 4542,
+        "contactToResolutionTicks": 2827,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 6,
+        "ordersRefused": 15,
+        "stepLatencyP95Ms": 507
+      }
+    },
+    {
+      "seed": 13,
+      "worker": 2,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        163023724,
+        -550243132,
+        -679036384,
+        281781382
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 3654,
+        "colonistDamage": 0,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 3,
+        "firstContactTick": 1736,
+        "resolvedTick": 3654,
+        "contactToResolutionTicks": 1918,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 12,
+        "ordersRefused": 12,
+        "stepLatencyP95Ms": 495
+      }
+    },
+    {
+      "seed": 14,
+      "worker": 1,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        1299933229,
+        -814957564,
+        -1200597146,
+        -1700362327
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 6264,
+        "colonistDamage": 145,
+        "colonistDowns": 2,
+        "colonistDeaths": 0,
+        "enemyDowns": 1,
+        "enemyDeaths": 0,
+        "enemyFled": 2,
+        "firstContactTick": 1715,
+        "resolvedTick": 6264,
+        "contactToResolutionTicks": 4549,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 11,
+        "ordersRefused": 19,
+        "stepLatencyP95Ms": 1621
+      }
+    },
+    {
+      "seed": 15,
+      "worker": 2,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        -876189140,
+        -952120532,
+        430767800,
+        11659082
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 4454,
+        "colonistDamage": 14.6,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 3,
+        "firstContactTick": 1715,
+        "resolvedTick": 4454,
+        "contactToResolutionTicks": 2739,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 6,
+        "ordersRefused": 12,
+        "stepLatencyP95Ms": 483
+      }
+    },
+    {
+      "seed": 16,
+      "worker": 1,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        -1771485732,
+        2039932197,
+        -1850968135,
+        583259013
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 3770,
+        "colonistDamage": 43.9,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 3,
+        "firstContactTick": 1715,
+        "resolvedTick": 3770,
+        "contactToResolutionTicks": 2055,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 9,
+        "ordersRefused": 12,
+        "stepLatencyP95Ms": 430
+      }
+    },
+    {
+      "seed": 17,
+      "worker": 2,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        318417803,
+        -596845585,
+        -1000007358,
+        -2025163129
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 5614,
+        "colonistDamage": 54,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 3,
+        "firstContactTick": 1700,
+        "resolvedTick": 5614,
+        "contactToResolutionTicks": 3914,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 6,
+        "ordersRefused": 12,
+        "stepLatencyP95Ms": 499
+      }
+    },
+    {
+      "seed": 18,
+      "worker": 1,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        423972722,
+        -1994762446,
+        -858030191,
+        1309060408
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 4229,
+        "colonistDamage": 29.5,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 1,
+        "enemyDeaths": 0,
+        "enemyFled": 2,
+        "firstContactTick": 1715,
+        "resolvedTick": 4229,
+        "contactToResolutionTicks": 2514,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 6,
+        "ordersRefused": 12,
+        "stepLatencyP95Ms": 510
+      }
+    },
+    {
+      "seed": 19,
+      "worker": 2,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        -920186481,
+        244442703,
+        -1796004366,
+        1654517272
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 6075,
+        "colonistDamage": 9,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 1,
+        "enemyDeaths": 0,
+        "enemyFled": 2,
+        "firstContactTick": 1715,
+        "resolvedTick": 6075,
+        "contactToResolutionTicks": 4360,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 9,
+        "ordersRefused": 12,
+        "stepLatencyP95Ms": 476
+      }
+    },
+    {
+      "seed": 20,
+      "worker": 1,
+      "stagedDigest": "bb66ccf5",
+      "runSeedDraws": [
+        -1753227894,
+        -2062440609,
+        1317984169,
+        736998608
+      ],
+      "metrics": {
+        "version": 1,
+        "fixture": "lab-breach",
+        "ticks": 4048,
+        "colonistDamage": 10.3,
+        "colonistDowns": 0,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 3,
+        "firstContactTick": 1700,
+        "resolvedTick": 4048,
+        "contactToResolutionTicks": 2348,
+        "winner": "colonist",
+        "friendlyFireHits": 0,
+        "ordersIssued": 6,
+        "ordersRefused": 12,
+        "stepLatencyP95Ms": 450
+      }
+    }
+  ],
+  "summary": {
+    "runs": 20,
+    "seedsWithColonistDeath": 0,
+    "seedsWithColonistDown": 1,
+    "unresolved": 0,
+    "colonistDeaths": {
+      "n": 20,
+      "mean": 0,
+      "sd": 0,
+      "lo": 0,
+      "hi": 0
+    },
+    "colonistDowns": {
+      "n": 20,
+      "mean": 0.1,
+      "sd": 0.44721359549995787,
+      "lo": -0.10929999999999995,
+      "hi": 0.30929999999999996
+    },
+    "colonistDamage": {
+      "n": 20,
+      "mean": 33.665,
+      "sd": 32.77330870018916,
+      "lo": 18.326795661017115,
+      "hi": 49.00320433898288
+    },
+    "enemyDowns": {
+      "n": 20,
+      "mean": 0.45,
+      "sd": 0.5104177855340405,
+      "lo": 0.21111986847617045,
+      "hi": 0.6888801315238295
+    },
+    "enemyDeaths": {
+      "n": 20,
+      "mean": 0,
+      "sd": 0,
+      "lo": 0,
+      "hi": 0
+    },
+    "contactToResolutionTicks": {
+      "n": 20,
+      "mean": 2702.95,
+      "sd": 864.0079480019418,
+      "lo": 2298.586480338569,
+      "hi": 3107.3135196614307
+    }
+  }
 }
