@@ -151,3 +151,17 @@ Read routes name the watched kind `concern` (a Concern id string such as `Ensure
 
 The HTTP read routes (`/api/routines`, `/api/spectator/now`) carry no finding string; the values reach
 clients through the colony-review timeline (`need` per concern) and the acceptance reports.
+
+## New colony scenario parts
+
+`POST /api/lifecycle/new` accepts, beside the base `scenario` and the world settings, typed
+scenario parts on `spec`: `startingThings` (`placement` `start_with` | `start_near` |
+`scattered`, `thingDef`, optional `stuff` and `quality`, `count`, `allowRoofed` for scattered),
+`forcedTraits` (`trait`, `degree`, `chance`), `forcedHediffs` (`hediff`, `severity`, `chance`),
+`naked` (`chance`), `setNeedLevels` (`need`, `level`, `chance`), each pawn part with a `context`
+(`all` | `player_starter` | `non_player`), plus the `permaGameConditions`, `permaMapConditions`,
+`disallowedBuildings` and `disabledIncidents` defName lists and the overrides `playerFaction`
+(`new_arrivals` | `new_tribe`) and `arrivalMethod` (`standing` | `drop_pods`). The starting pawn
+count stays `colonistCount` (1-10). Ranges are in
+[validation](../../../contracts/proto/validation.md#new-colony-scenario-parts); an out-of-range
+or unknown-enum part is a 400 before native is called.

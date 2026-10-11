@@ -59,3 +59,13 @@ Native validators additionally resolve definitions, eligibility, settings,
 resources, reachability, reservations, current player changes and other ordinary
 game rules on the game thread. Those stateful checks cannot be established by a
 schema or by a successful serialization test.
+
+## New colony scenario parts
+
+`ValidateNewColonySpec` (shared by the HTTP route and the bridge) bounds the parts on
+`NewColonySpec`: at most 64 entries per kind; `colonist_count` 1-10; starting-thing
+placement set, `count` 1-100000, `allow_roofed` only on scattered things; forced-trait
+`degree` -10..10; forced-hediff `severity` 0-100; `chance` and need `level` 0-1 and finite;
+a pawn `context` set on every pawn-modifying part; condition, building and incident lists
+non-empty, unique identifiers; `player_faction` and `arrival_method` supported cases. An
+absent required number is a refusal, not zero. Whether a defName exists is native's call.

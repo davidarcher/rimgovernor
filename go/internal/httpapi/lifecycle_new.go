@@ -32,6 +32,7 @@ type newColonySpecDTO struct {
 	SaveName           string               `json:"saveName"`
 	Ideoligion         *ideoligionDesignDTO `json:"ideoligion,omitempty"`
 	GovernorIdeoligion bool                 `json:"governorIdeoligion,omitempty"`
+	newColonyPartsDTO
 }
 type ideoligionDesignDTO struct {
 	Memes    []string `json:"memes"`
@@ -100,6 +101,10 @@ func (s *Server) handleLifecycleNew(w http.ResponseWriter, r *http.Request, ctx 
 	if body.Spec.Ideoligion != nil {
 		design := body.Spec.Ideoligion
 		spec.Ideoligion = &c.IdeoligionDesign{Memes: design.Memes, Precepts: design.Precepts, Fluid: design.Fluid}
+	}
+	if err := applyNewColonyParts(spec, body.Spec.newColonyPartsDTO); err != nil {
+		s.failure(w, r, 400, "invalid_request", "Invalid new colony request: scenario part "+err.Error())
+		return
 	}
 	request := &l.NewColonyRequest{RequestId: proto.String(body.RequestID), Spec: spec, TimeoutMs: proto.Uint32(body.TimeoutMs)}
 	if body.Spec.GovernorIdeoligion {

@@ -157,6 +157,78 @@ message NewColonySpec {
   rimgovernor.common.v1.IdeoligionDesign ideoligion = 14;
   // Go resolves this request through the definition catalog before dispatch.
   optional bool governor_ideoligion = 15;
+  // Scenario parts layered on the base scenario (the game editor's part set).
+  // Native applies them to a copy of `scenario`; defName existence is native's call.
+  repeated StartingThing starting_things = 16;
+  repeated ForcedTrait forced_traits = 17;
+  repeated ForcedHediff forced_hediffs = 18;
+  repeated NakedPart naked = 19;
+  repeated SetNeedLevel set_need_levels = 20;
+  repeated string perma_game_conditions = 21;
+  repeated string perma_map_conditions = 22;
+  repeated string disallowed_buildings = 23;
+  repeated string disabled_incidents = 24;
+  // Mandatory-part overrides; unset keeps the base scenario's. The starting
+  // pawn count is colonist_count.
+  optional ScenarioPlayerFaction player_faction = 25;
+  optional ScenarioArrivalMethod arrival_method = 26;
+}
+enum StartingThingPlacement {
+  STARTING_THING_PLACEMENT_UNSPECIFIED = 0;
+  STARTING_THING_PLACEMENT_START_WITH = 1;
+  STARTING_THING_PLACEMENT_START_NEAR = 2;
+  STARTING_THING_PLACEMENT_SCATTERED = 3;
+}
+// RimWorld PawnGenerationContext: which pawns a pawn-modifying part touches.
+enum ScenarioPawnContext {
+  SCENARIO_PAWN_CONTEXT_UNSPECIFIED = 0;
+  SCENARIO_PAWN_CONTEXT_ALL = 1;
+  SCENARIO_PAWN_CONTEXT_PLAYER_STARTER = 2;
+  SCENARIO_PAWN_CONTEXT_NON_PLAYER = 3;
+}
+enum ScenarioPlayerFaction {
+  SCENARIO_PLAYER_FACTION_UNSPECIFIED = 0;
+  SCENARIO_PLAYER_FACTION_NEW_ARRIVALS = 1;
+  SCENARIO_PLAYER_FACTION_NEW_TRIBE = 2;
+}
+enum ScenarioArrivalMethod {
+  SCENARIO_ARRIVAL_METHOD_UNSPECIFIED = 0;
+  SCENARIO_ARRIVAL_METHOD_STANDING = 1;
+  SCENARIO_ARRIVAL_METHOD_DROP_PODS = 2;
+}
+// stuff and quality (QualityCategory name) are optional; allow_roofed applies
+// to scattered things only.
+message StartingThing {
+  optional StartingThingPlacement placement = 1;
+  optional string thing_def = 2;
+  optional string stuff = 3;
+  optional uint32 count = 4;
+  optional string quality = 5;
+  optional bool allow_roofed = 6;
+}
+// chance is 0..1.
+message ForcedTrait {
+  optional string trait = 1;
+  optional sint32 degree = 2;
+  optional float chance = 3;
+  optional ScenarioPawnContext context = 4;
+}
+message ForcedHediff {
+  optional string hediff = 1;
+  optional float severity = 2;
+  optional float chance = 3;
+  optional ScenarioPawnContext context = 4;
+}
+message NakedPart {
+  optional float chance = 1;
+  optional ScenarioPawnContext context = 2;
+}
+// level is 0..1.
+message SetNeedLevel {
+  optional string need = 1;
+  optional float level = 2;
+  optional float chance = 3;
+  optional ScenarioPawnContext context = 4;
 }
 message NewColonyRequest {
   optional string request_id = 1;

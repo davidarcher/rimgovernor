@@ -202,6 +202,9 @@ func ValidateNewColonySpec(spec *l.NewColonySpec) error {
 	if spec.SaveName == nil || !newColonySaveName.MatchString(spec.GetSaveName()) {
 		return contract("new colony save name invalid")
 	}
+	if err := validateNewColonyParts(spec); err != nil {
+		return err
+	}
 	if spec.Ideoligion != nil {
 		return ValidateIdeoligionDesign(spec.Ideoligion)
 	}
