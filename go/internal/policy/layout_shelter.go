@@ -137,10 +137,14 @@ func (g coreGrid) siteShelter(spine []SpineSegment, rooms []PlannedRoom, wings [
 		all = append(all, w.Rooms...)
 	}
 	halls := spineRects(LayoutPlan{Spine: spine, Wings: wings}.Hallways())
-	for gap := shelterGap; gap >= 1; gap-- {
-		for _, size := range sizes {
-			if room, ok := g.shelterOnOpenGround(all, halls, seed, size, gap); ok {
-				return spine, append(rooms, room)
+	// A cold map's shelter gets an airlock where the ground has room for
+	// one; where it fits nowhere the shelter is sited without.
+	for _, airlock := range airlockPasses(cold) {
+		for gap := shelterGap; gap >= 1; gap-- {
+			for _, size := range sizes {
+				if room, ok := g.shelterOnOpenGround(all, halls, seed, size, gap, airlock); ok {
+					return spine, append(rooms, room)
+				}
 			}
 		}
 	}
@@ -155,7 +159,7 @@ func (g coreGrid) siteShelter(spine []SpineSegment, rooms []PlannedRoom, wings [
 // shelterOnOpenGround is the best site whose walls sit on core ground, clear
 // of the hallways and gap cells from every room: the fewest rich-soil cells,
 // then the nearest to seed. Its door is at the middle of the wall facing seed.
-func (g coreGrid) shelterOnOpenGround(rooms []PlannedRoom, halls []Rectangle, seed domain.Cell, size [2]int32, gap int32) (PlannedRoom, bool) {
+func (g coreGrid) shelterOnOpenGround(rooms []PlannedRoom, halls []Rectangle, seed domain.Cell, size [2]int32, gap int32, airlock bool) (PlannedRoom, bool) {
 	w, d := size[0], size[1]
 	var avoid []Rectangle
 	for _, r := range rooms {
@@ -168,16 +172,18 @@ func (g coreGrid) shelterOnOpenGround(rooms []PlannedRoom, halls []Rectangle, se
 	for x := seed.X - shelterReach; x <= seed.X+shelterReach; x++ {
 		for z := seed.Z - shelterReach; z <= seed.Z+shelterReach; z++ {
 			in := Rectangle{X: x, Z: z, Width: w, Height: d}
-			if g.skip[in] || shelterBlocked(pad(in, 1), avoid) {
+			room := shelterRoom(in, seed, airlock)
+			footprint := unionRect(pad(in, 1), room.AirlockGround())
+			if g.skip[in] || shelterBlocked(footprint, avoid) {
 				continue
 			}
-			rich, ok := g.shelterGround(pad(in, 1))
+			rich, ok := g.shelterGround(footprint)
 			if !ok {
 				continue
 			}
 			dist := distanceToRect(seed, in)
 			if !found || rich < bestRich || rich == bestRich && dist < bestDist {
-				best, bestRich, bestDist, found = shelterRoom(in, seed), rich, dist, true
+				best, bestRich, bestDist, found = room, rich, dist, true
 			}
 		}
 	}
@@ -219,8 +225,8 @@ func distanceToRect(c domain.Cell, r Rectangle) int32 {
 }
 
 // shelterRoom is the room on interior in with its door at the middle of the
-// wall facing seed.
-func shelterRoom(in Rectangle, seed domain.Cell) PlannedRoom {
+// wall facing seed, and an airlock outside it when airlock is set.
+func shelterRoom(in Rectangle, seed domain.Cell, airlock bool) PlannedRoom {
 	cx, cz := in.X+in.Width/2, in.Z+in.Height/2
 	dx, dz := seed.X-cx, seed.Z-cz
 	r := PlannedRoom{Role: PlannedShelter, Interior: in}
@@ -233,6 +239,9 @@ func shelterRoom(in Rectangle, seed domain.Cell) PlannedRoom {
 		r.Door, r.DoorRot = domain.Cell{X: cx, Z: in.Z + in.Height}, domain.North
 	default:
 		r.Door, r.DoorRot = domain.Cell{X: cx, Z: in.Z - 1}, domain.South
+	}
+	if airlock {
+		r.Airlock = newAirlock(r.Door, r.DoorRot)
 	}
 	return r
 }

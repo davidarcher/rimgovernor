@@ -161,6 +161,9 @@ func routeWalk(p LayoutPlan) (map[domain.Cell]int, []PlannedRoom) {
 		if _, ok := walk[r.Door]; !ok {
 			walk[r.Door] = -1
 		}
+		if r.Airlock != nil {
+			walk[r.Airlock.Vestibule], walk[r.Airlock.Outer] = -1, -1
+		}
 		for _, d := range r.Doors {
 			if _, ok := walk[d.Cell]; !ok {
 				walk[d.Cell] = -1

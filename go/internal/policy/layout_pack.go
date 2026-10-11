@@ -119,6 +119,9 @@ func (g coreGrid) packer(spine []SpineSegment, i int, rooms []PlannedRoom) packe
 			p.mine = append(p.mine, r)
 		} else {
 			p.barred = append(p.barred, roomWalls(r))
+			if r.Airlock != nil {
+				p.barred = append(p.barred, r.AirlockGround())
+			}
 		}
 	}
 	switch {

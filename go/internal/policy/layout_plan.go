@@ -47,6 +47,9 @@ type PlannedRoom struct {
 	// Markers is the marker count of a sparring ring (RingSlot orders the
 	// slots); 0 for every other room.
 	Markers int `json:",omitempty"`
+	// Airlock is a cold-map shelter's vestibule and outer door beyond its
+	// door (layout_airlock.go); nil for every other room.
+	Airlock *Airlock `json:",omitempty"`
 }
 
 // ZoneKind is a whole-map zone's use.
@@ -291,7 +294,7 @@ func (r PlannedRoom) Same(o PlannedRoom) bool {
 			return false
 		}
 	}
-	return r.Role == o.Role && r.Interior == o.Interior && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing && r.Markers == o.Markers
+	return r.Role == o.Role && r.Interior == o.Interior && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing && r.Markers == o.Markers && (r.Airlock == nil) == (o.Airlock == nil) && (r.Airlock == nil || *r.Airlock == *o.Airlock)
 }
 
 // NearestAnchor is the interior centre of the free planned room of role want

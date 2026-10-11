@@ -67,6 +67,15 @@ plans) and selects the rung once it stands. A table still standing in a retiring
 shelter is packed with the rest of the retired ground and installed in the
 laboratory from stock; no separate pass relocates it.
 
+On a cold map (`ColdMapCurve`) the starter shelter carries an airlock: extra
+fields on its `PlannedRoom` (`Airlock`: the vestibule cell outside the shelter
+door and the outer door beyond it, with walls either side of the vestibule), not
+a separate room role. The ring reconcile, `GroundMatches`, clearance ground and
+retirement treat those cells as part of the shelter's ring; the vanilla
+auto-roof roofs the enclosed vestibule. It is sited where the ground has room
+for it and omitted otherwise (a shelter packed onto a hallway slot has none).
+A second wall layer is not built.
+
 ## Electrical safety
 
 `EnsureBasicPower` uses `HiddenConduit` for new connections and replaces ordinary

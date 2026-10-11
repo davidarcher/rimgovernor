@@ -154,6 +154,16 @@ func (p LayoutPlan) GroundMatches(r PlannedRoom, g GroundCensus) bool {
 			return false
 		}
 	}
+	if r.Airlock != nil {
+		if !standing[r.Airlock.Outer] {
+			return false
+		}
+		for _, c := range r.AirlockWalls() {
+			if standing[c] || !walls[c] {
+				return false
+			}
+		}
+	}
 	return true
 }
 
@@ -249,6 +259,9 @@ func (p LayoutPlan) ShellDoors(r PlannedRoom) []domain.Cell {
 	}
 	if r.Link != nil {
 		doors = append(doors, *r.Link)
+	}
+	if r.Airlock != nil {
+		doors = append(doors, r.Airlock.Outer)
 	}
 	doors = append(doors, p.FlapCells(r)...)
 	in := r.Interior

@@ -225,10 +225,8 @@ func Reconcile(in ReconcileInput) Reconciliation {
 	// Ring: walls and doors by cell.
 	ringStart := len(items)
 	var allWallOut []domain.Cell
-	for _, c := range rectCells(ring) {
-		if !onRing(c, ring) {
-			continue
-		}
+	ringList := append(ringOf(ring), r.airlockCells()...)
+	for _, c := range ringList {
 		switch {
 		case doorWanted[c] && doors[c]:
 		case doorWanted[c] && walls[c]:
@@ -256,8 +254,8 @@ func Reconcile(in ReconcileInput) Reconciliation {
 	}
 	// An otherwise complete ring never has more than one door gap open.
 	wallOutCells, closed, gaps := allWallOut, true, 0
-	for _, c := range rectCells(ring) {
-		if onRing(c, ring) && !walls[c] && !doors[c] {
+	for _, c := range ringList {
+		if !walls[c] && !doors[c] {
 			if doorWanted[c] {
 				gaps++
 			} else {
