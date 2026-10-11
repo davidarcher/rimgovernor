@@ -296,3 +296,28 @@ func TestSelectSquadDefenseExcludesDeathresting(t *testing.T) {
 		t.Fatal("assigned a deathresting defender")
 	}
 }
+
+// A raid more than half the colony cannot be paired: every foe still takes
+// one defender instead of one foe taking two and the rest going undefended (#2816).
+func TestSelectSquadDefenseTakesOneEachWhenUnderTwiceTheRaid(t *testing.T) {
+	threats := []SquadThreatFacts{squadThreat("r1", false), squadThreat("r2", false), squadThreat("r3", false)}
+	defenders := []SquadDefenderFacts{squadDefender("a", false), squadDefender("b", false), squadDefender("c", false)}
+	assignments, ok := SelectSquadDefense(threats, defenders)
+	if !ok || len(assignments) != 3 {
+		t.Fatal(assignments, ok)
+	}
+	targets := map[PawnID]bool{}
+	for _, a := range assignments {
+		targets[a.Target] = true
+	}
+	if len(targets) != 3 {
+		t.Fatal("not every foe defended", assignments)
+	}
+}
+
+// One defender still never takes on a foe alone.
+func TestSelectSquadDefenseLoneDefenderStillHolds(t *testing.T) {
+	if _, ok := SelectSquadDefense([]SquadThreatFacts{squadThreat("r1", false)}, []SquadDefenderFacts{squadDefender("a", false)}); ok {
+		t.Fatal("one defender took a foe alone")
+	}
+}

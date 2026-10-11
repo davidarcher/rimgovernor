@@ -313,51 +313,70 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 		return id, SquadMelee, found
 	}
 
-	var assignments []SquadAssignment
-	for _, t := range threatPool {
-		if len(assignments)+requiredDefendersPerFoe > maxSquadDefenders {
-			break
-		}
-		ranged, known := t.RangedEquipped.Value()
-		if !t.Building && !known {
-			continue
-		}
-		var chosen []SquadAssignment
-		ok := true
-		for i := 0; i < requiredDefendersPerFoe; i++ {
-			var id domain.PawnID
-			var found bool
-			mode := SquadMelee
-			if t.Building {
-				id, mode, found = takeBuilding(t)
-			} else {
-				if ranged {
-					mode = SquadRanged
-				}
-				id, found = take(ranged)
-			}
-			if !found {
-				ok = false
+	selectFor := func(per int) []SquadAssignment {
+		var assignments []SquadAssignment
+		for _, t := range threatPool {
+			if len(assignments)+per > maxSquadDefenders {
 				break
 			}
-			chosen = append(chosen, SquadAssignment{Defender: id, Target: t.ID, Mode: mode})
-		}
-		if ok && !ranged {
-			var pair []SquadDefenderFacts
-			for _, a := range chosen {
-				pair = append(pair, byID[a.Defender])
+			ranged, known := t.RangedEquipped.Value()
+			if !t.Building && !known {
+				continue
 			}
-			ok = meleeBeats(t, pair)
-		}
-		if !ok {
-			// Release any partial reservation; an unsupported encounter is an
-			// explicit hold, not a partially defended one.
-			for _, a := range chosen {
-				delete(used, a.Defender)
+			var chosen []SquadAssignment
+			ok := true
+			for i := 0; i < per; i++ {
+				var id domain.PawnID
+				var found bool
+				mode := SquadMelee
+				if t.Building {
+					id, mode, found = takeBuilding(t)
+				} else {
+					if ranged {
+						mode = SquadRanged
+					}
+					id, found = take(ranged)
+				}
+				if !found {
+					ok = false
+					break
+				}
+				chosen = append(chosen, SquadAssignment{Defender: id, Target: t.ID, Mode: mode})
 			}
-			continue
+			if ok && !ranged {
+				var pair []SquadDefenderFacts
+				for _, a := range chosen {
+					pair = append(pair, byID[a.Defender])
+				}
+				ok = meleeBeats(t, pair)
+			}
+			if !ok {
+				// Release any partial reservation; an unsupported encounter is an
+				// explicit hold, not a partially defended one.
+				for _, a := range chosen {
+					delete(used, a.Defender)
+				}
+				continue
+			}
+			assignments = append(assignments, chosen...)
 		}
-		assignments = append(assignments, chosen...)
+		return assignments
+	}
+	assignments := selectFor(requiredDefendersPerFoe)
+	// A colony under twice the raid cannot pair every foe, and defending one
+	// foe while the rest hit undefended loses the fight (#2816): with a
+	// defender for every foe, each takes one instead.
+	covered := map[PawnID]bool{}
+	for _, a := range assignments {
+		covered[a.Target] = true
+	}
+	if len(covered) < len(threatPool) && len(defenderPool) >= 2 && len(defenderPool) >= len(threatPool) {
+		for id := range used {
+			delete(used, id)
+		}
+		if single := selectFor(1); len(single) >= 2 && len(single) > len(assignments) {
+			assignments = single
+		}
 	}
 	return assignments, len(assignments) > 0
 }

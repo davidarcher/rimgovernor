@@ -1,19 +1,19 @@
 {
   "version": 1,
   "fixture": "lab-mech",
-  "ticks": 4512,
-  "colonistDamage": 29.1,
-  "colonistDowns": 0,
+  "ticks": 8177,
+  "colonistDamage": 77.8,
+  "colonistDowns": 1,
   "colonistDeaths": 0,
   "enemyDowns": 0,
   "enemyDeaths": 0,
-  "enemyFled": 1,
-  "firstContactTick": 845,
-  "resolvedTick": 4512,
-  "contactToResolutionTicks": 3667,
-  "winner": "colonist",
+  "enemyFled": 0,
+  "firstContactTick": 839,
+  "resolvedTick": 2477,
+  "contactToResolutionTicks": 1638,
+  "winner": "hostile",
   "friendlyFireHits": 0,
   "ordersIssued": 4,
   "ordersRefused": 0,
-  "stepLatencyP95Ms": 906
+  "stepLatencyP95Ms": 1581
 }
