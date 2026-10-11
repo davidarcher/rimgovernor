@@ -120,7 +120,8 @@ func (c SupplyCandidate) Mode() HuntMode {
 // animal or per group: a group worth a squad (SquadPreyGroups) is one
 // formation channel `squad:<first id>`, every other animal a lone channel
 // named by its id. A grouped animal is credited once, in its group's channel.
-// With fewer than SquadHuntMinGunners gunners a formation is a Hold: it
+// With fewer than SquadHuntMinGunners gunners a group with no retaliating
+// animal stays lone channels; a group with one is a Hold formation: it
 // yields nothing and carries a needs_gunners term, the gunners it lacks, and
 // the nutrition it would deliver. Bad weather (rain, snow, fog) mildly raises
 // the work of a formation. A hunt yields the animal's meat and its Products.
@@ -128,6 +129,9 @@ func HuntCandidates(sources []AcquisitionSource, gunners int, weatherAccuracy do
 	grouped := map[string]bool{}
 	var out []SupplyCandidate
 	for _, g := range SquadPreyGroups(sources) {
+		if gunners < SquadHuntMinGunners && !anyRetaliates(g) {
+			continue // a formation nobody can field: the animals stay lone channels
+		}
 		for _, s := range g {
 			grouped[s.ID] = true
 		}
@@ -139,6 +143,16 @@ func HuntCandidates(sources []AcquisitionSource, gunners int, weatherAccuracy do
 		}
 	}
 	return out
+}
+
+// anyRetaliates reports whether a lone hunter must not designate some animal of the group.
+func anyRetaliates(g []AcquisitionSource) bool {
+	for _, s := range g {
+		if s.Retaliates() {
+			return true
+		}
+	}
+	return false
 }
 
 // huntChannel prices the prey as one cycle's hunt: each animal's pursuit work

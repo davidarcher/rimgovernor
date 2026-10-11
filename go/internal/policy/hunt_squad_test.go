@@ -53,15 +53,34 @@ func TestHuntCandidatesOnePerGroupWithMode(t *testing.T) {
 	}
 }
 
-// Below the squad's gunners a formation is a Hold row carrying needs_gunners,
-// never a vanished candidate and never one that yields.
-func TestHuntFormationHoldsWithoutGunners(t *testing.T) {
-	rows := []AcquisitionSource{preyRow("a", 1, 1, 0.05), preyRow("b", 2, 2, 0.05), preyRow("c", 3, 3, 0.05), preyRow("moose", 150, 150, 0.5), preyRow("hare", 90, 90, 0.01)}
-	by := huntByID(HuntCandidates(rows, SquadHuntMinGunners-1, domain.Fact[float64]{}))
+// A solo gunner keeps a harmless cluster as lone open channels; with the
+// squad's gunners the same cluster is one formation.
+func TestSoloGunnerClusterStaysLone(t *testing.T) {
+	rows := []AcquisitionSource{preyRow("hare-0", 1, 1, 0.01), preyRow("hare-1", 2, 2, 0.01), preyRow("hare-2", 3, 3, 0.01)}
+	by := huntByID(HuntCandidates(rows, 1, domain.Fact[float64]{}))
 	if len(by) != 3 {
 		t.Fatalf("candidates = %+v", by)
 	}
-	for _, id := range []string{"squad:a", "squad:moose"} {
+	for _, id := range []string{"hare-0", "hare-1", "hare-2"} {
+		c := by[id]
+		if n, _ := c.Nutrition().PerDay.Value(); c.Mode() != HuntLone || n <= 0 {
+			t.Fatalf("%s = %+v", id, c)
+		}
+	}
+	if full := huntByID(HuntCandidates(rows, SquadHuntMinGunners, domain.Fact[float64]{})); len(full) != 1 || full["squad:hare-0"].Mode() != HuntFormation {
+		t.Fatalf("full squad = %+v", full)
+	}
+}
+
+// Below the squad's gunners a retaliating group is a Hold row carrying
+// needs_gunners, never a vanished candidate and never one that yields.
+func TestHuntFormationHoldsWithoutGunners(t *testing.T) {
+	rows := []AcquisitionSource{preyRow("a", 1, 1, 0.05), preyRow("b", 2, 2, 0.05), preyRow("c", 3, 3, 0.05), preyRow("moose", 150, 150, 0.5), preyRow("hare", 90, 90, 0.01)}
+	by := huntByID(HuntCandidates(rows, SquadHuntMinGunners-1, domain.Fact[float64]{}))
+	if len(by) != 5 {
+		t.Fatalf("candidates = %+v", by)
+	}
+	for _, id := range []string{"squad:moose"} {
 		c := by[id]
 		terms := map[string]float64{}
 		for _, term := range c.Terms {
