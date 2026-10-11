@@ -54,6 +54,10 @@ type InteriorRoom struct {
 	// Coolers is how many passive cooler floor slots the shelter template
 	// plans: one on a hot map, none elsewhere, from the plan's latch.
 	Coolers int
+	// Capabilities are what the room hosts; the shelter template plans a
+	// piece (research bench, crafting spot, campfires) only for a capability
+	// the room hosts. Derived from the planned role, never persisted.
+	Capabilities []Capability
 	// Reserved are floor cells (world) a template must keep clear: ground
 	// another plan holds, like the starter stockpile patch or rock yet to be
 	// mined. Cells outside the interior are ignored.
@@ -87,6 +91,8 @@ type InteriorFrame struct {
 	Campfires int
 	// Coolers is InteriorRoom.Coolers.
 	Coolers int
+	// Capabilities is InteriorRoom.Capabilities.
+	Capabilities []Capability
 	// Reserved is InteriorRoom.Reserved in canonical cells, those inside the
 	// frame only.
 	Reserved []domain.Cell
@@ -179,6 +185,7 @@ func PlanInterior(room InteriorRoom, piece InteriorPieceDef) (InteriorPlan, bool
 	frame := x.frame()
 	frame.Dining, frame.Shapes, frame.Required = room.Dining, room.Shapes, room.Required
 	frame.Occupants, frame.Campfires, frame.Coolers = room.Occupants, room.Campfires, room.Coolers
+	frame.Capabilities = room.Capabilities
 	for _, c := range room.Reserved {
 		if rc := x.toCanonical(c); rectContains(room.Interior, c) {
 			frame.Reserved = append(frame.Reserved, rc)
@@ -300,7 +307,7 @@ func InteriorRoomFromLayout(r PlannedRoom, shapes PieceShapes) (InteriorRoom, bo
 		}
 		doors = append(doors, d.Cell)
 	}
-	return InteriorRoom{Role: role, Interior: r.Interior, Doors: doors, Shapes: shapes}, true
+	return InteriorRoom{Role: role, Interior: r.Interior, Doors: doors, Shapes: shapes, Capabilities: CapabilitiesOf(r.Role)}, true
 }
 
 // doorSide is the direction from the room to a door in one of its walls

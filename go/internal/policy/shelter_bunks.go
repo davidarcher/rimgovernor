@@ -33,7 +33,7 @@ func ShelterRoom(room PlannedRoom, mined []domain.Cell, shapes PieceShapes, occu
 	if err != nil || room.Interior.Width <= 0 || room.Interior.Height <= 0 {
 		return InteriorRoom{}, false
 	}
-	interior := InteriorRoom{Role: RoomRoleShelter, Interior: room.Interior, Doors: []domain.Cell{room.Door}, Shapes: shapes, Occupants: occupants, Campfires: campfires, Coolers: coolers}
+	interior := InteriorRoom{Role: RoomRoleShelter, Interior: room.Interior, Doors: []domain.Cell{room.Door}, Shapes: shapes, Occupants: occupants, Campfires: campfires, Coolers: coolers, Capabilities: CapabilitiesOf(PlannedShelter)}
 	if _, ok := doorSide(interior.Interior, room.Door); !ok {
 		return InteriorRoom{}, false
 	}

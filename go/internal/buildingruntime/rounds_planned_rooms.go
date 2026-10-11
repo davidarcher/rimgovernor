@@ -181,13 +181,13 @@ func (r *RoundsBuildingPlanner) takesShelterSlot(facts observation.ColonyProject
 	plan, known := facts.LayoutPlan.Value()
 	switch {
 	case r.facility != nil:
-		return r.facility.Role == policy.RoomRoleLaboratory && !r.advancedLab
+		return r.facility.Role == policy.RoomRoleLaboratory && !r.advancedLab && policy.ShelterHosts(policy.CapResearch)
 	case r.craftingSpot:
-		return true
-	case r.definition == "Campfire":
+		return policy.ShelterHosts(policy.CapCraft)
+	case r.definition == policy.ShelterHeatDef:
 		cooking := r.concern == policy.EnsureCooking && len(r.paste) == 0
-		return known && plan.Cold && (cooking || r.temperature != nil && r.temperature.Method == policy.TemperatureHeat)
-	case r.definition == "PassiveCooler":
+		return known && plan.Cold && policy.ShelterHosts(policy.CapHeat) && (cooking || r.temperature != nil && r.temperature.Method == policy.TemperatureHeat)
+	case r.definition == policy.ShelterCoolDef:
 		return known && plan.Hot && r.temperature != nil && r.temperature.Method == policy.TemperatureCool
 	}
 	return false

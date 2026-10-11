@@ -30,9 +30,7 @@ import (
 // catalog without a row for it, gets the bunks alone rather than no plan.
 
 const (
-	shelterCampfireDef = "Campfire"
 	shelterCraftingDef = "CraftingSpot"
-	shelterCoolerDef   = "PassiveCooler"
 	// shelterBunkSlotPrefix names every bunk slot ("bunk.1", "bunk.2", ...).
 	shelterBunkSlotPrefix = "bunk."
 )
@@ -142,7 +140,7 @@ func planShelter(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool
 		s.kept[c] = true
 	}
 
-	if def, ok := BenchRowDef(f, piece, RoomRoleLaboratory); ok {
+	if def, ok := BenchRowDef(f, piece, RoomRoleLaboratory); ok && f.hosts(CapResearch) {
 		if benches, _, _, ok := BenchRow(f, def, 0, 1, func(int) string { return "research" }); ok {
 			for _, b := range benches {
 				s.try(b)
@@ -192,12 +190,16 @@ func planShelter(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool
 			}
 		}
 	}
-	single("craft", shelterCraftingDef)
-	for i := range f.Campfires {
-		single(fmt.Sprintf("campfire.%d", i+1), shelterCampfireDef)
+	if f.hosts(CapCraft) {
+		single("craft", shelterCraftingDef)
+	}
+	if f.hosts(CapHeat) {
+		for i := range f.Campfires {
+			single(fmt.Sprintf("campfire.%d", i+1), ShelterHeatDef)
+		}
 	}
 	for i := range f.Coolers {
-		single(fmt.Sprintf("%s%d", ShelterCoolerSlotPrefix, i+1), shelterCoolerDef)
+		single(fmt.Sprintf("%s%d", ShelterCoolerSlotPrefix, i+1), ShelterCoolDef)
 	}
 
 	bunkDef := f.Shapes.Furniture.PrimaryBed()

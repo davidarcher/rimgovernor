@@ -64,3 +64,22 @@ func deriveRoleCapabilities() map[PlannedRole][]Capability {
 
 // CapabilitiesOf lists the capabilities a room of the planned role can host.
 func CapabilitiesOf(role PlannedRole) []Capability { return slices.Clone(roleCapabilities[role]) }
+
+// The shelter's heat and cooling pieces: the game offers no signal tying a
+// capability to a def, so these two names are judgment tables (DefTables).
+const (
+	// ShelterHeatDef is the campfire that provides CapHeat.
+	ShelterHeatDef = "Campfire"
+	// ShelterCoolDef is the passive cooler a hot map's shelter holds.
+	ShelterCoolDef = "PassiveCooler"
+)
+
+// capabilityCells is the floor a capability's piece takes in the shelter
+// template: the crafting spot one cell, the plain research bench 3x2.
+var capabilityCells = map[Capability]int{CapCraft: 1, CapResearch: 6}
+
+// ShelterHosts reports whether the shelter template hosts the capability.
+func ShelterHosts(c Capability) bool { return slices.Contains(shelterCapabilities, c) }
+
+// hosts reports whether the frame's room hosts the capability.
+func (f InteriorFrame) hosts(c Capability) bool { return slices.Contains(f.Capabilities, c) }

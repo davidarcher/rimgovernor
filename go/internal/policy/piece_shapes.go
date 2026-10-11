@@ -64,7 +64,7 @@ type templatePiece struct {
 var templatePieces = []templatePiece{
 	{standingLampDef, "", false},
 	{workshopShelfDef, "", false},
-	{shelterCampfireDef, "", false},
+	{ShelterHeatDef, "", false},
 	{shelterCraftingDef, "", false},
 }
 

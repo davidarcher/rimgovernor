@@ -28,13 +28,12 @@ const (
 )
 
 // Contents, in cells. A sleeping spot is 1x2, the simple research bench 3x2,
-// the crafting spot and a campfire one cell each.
+// the crafting spot and a campfire one cell each (the hosted capabilities'
+// pieces are capabilityCells).
 const (
 	shelterBunkCells    = 2
 	shelterCampfireCell = 1
 	shelterCoolerCell   = 1
-	shelterCraftCells   = 1
-	shelterResearchCell = 6
 )
 
 // ColdMapBelowC is the seasonal minimum below which a map is cold: a
@@ -90,7 +89,10 @@ func ShelterCoolers(hot bool) int {
 // its contents plus half again for the aisle and the door's approach. The
 // research bench is counted at its 3x2 footprint.
 func ShelterInteriorArea(colonists, campfires, coolers int) int {
-	contents := shelterBunkCells*max(colonists, 1) + shelterCampfireCell*max(campfires, 0) + shelterCoolerCell*max(coolers, 0) + shelterCraftCells + shelterResearchCell
+	contents := shelterBunkCells*max(colonists, 1) + shelterCampfireCell*max(campfires, 0) + shelterCoolerCell*max(coolers, 0)
+	for _, c := range shelterCapabilities {
+		contents += capabilityCells[c]
+	}
 	return (contents*3 + 1) / 2
 }
 
