@@ -28,6 +28,9 @@ type Station struct {
 	Contributions []RoleContribution
 	// Capacity is what one station serves.
 	Capacity StationCapacity
+	// EmptyCountsForBarracks is a humanlike bed's bed_emptyCountsForBarracks:
+	// an unassigned bed counts toward the barracks test.
+	EmptyCountsForBarracks bool
 	// Needs are what the station wants of its surroundings.
 	Needs []EnvNeed
 	// Content is the package id of the content that defines the station

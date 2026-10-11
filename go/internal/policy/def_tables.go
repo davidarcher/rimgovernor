@@ -35,6 +35,7 @@ func DefTables() []DefTable {
 		{"GameRoomRoleDefs", "Verse.ThingDef", sortedKeys(GameRoomRoleDefs)},
 		{"roomRoleScores", "Verse.RoomRoleDef", roomRoleScoreRoles()},
 		{"RoomRoleNamedDefs", "Verse.ThingDef", sortedKeys(RoomRoleNamedDefs)},
+		{"roleEffects", "Verse.RoomRoleDef", roleEffectRoles()},
 		{"NonFleshMeatDefs", "Verse.ThingDef", slices.Clone(NonFleshMeatDefs)},
 		{"MortarProbeShells", "Verse.ThingDef", slices.Clone(MortarProbeShells)},
 		{"QuestGiftDefs", "Verse.ThingDef", slices.Clone(QuestGiftDefs)},

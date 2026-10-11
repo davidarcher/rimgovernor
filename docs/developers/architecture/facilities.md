@@ -93,6 +93,19 @@ role weights are literals in the game's role workers, so they are the
 `roomRoleScores` entry in `DefTables` (keyed by `RoomRoleDef`). The rot curve
 and the throne's indoor rule are code, not data, and are not stated.
 
+`policy.PredictRole(catalog, pieces)` is the pure form of the game's
+`Room.UpdateRoomStatsAndRole`: the highest role-worker score wins and the
+generic `Room` scores 0.99. Additive and flat weights come from each station's
+`Contributions`; the bed-set roles (bedroom with `IsBedroom`, barracks, nursery
+of two or more baby beds, hospital, prison cell of exactly one bed, prison
+barracks) follow their decompiled workers, so a humanlike bed outscores every
+bench by orders of magnitude. A tie breaks to the smaller role name, and a
+prisoner bed vetoes the hospital whatever the scan order. `policy.LostEffects`
+names what a mixed room loses: the intended role's own effect (the
+`roleEffects` entry: sleep, patient and prison mood, throne, worship) and each
+bench whose `NeedRole` is not the predicted role, at that need's factor (the
+x0.8 workbench penalty). Roles without a native consumer are ignored.
+
 ## Electrical safety
 
 `EnsureBasicPower` uses `HiddenConduit` for new connections and replaces ordinary

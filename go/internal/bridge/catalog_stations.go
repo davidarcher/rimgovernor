@@ -68,6 +68,7 @@ func (catalog *DefinitionCatalog) buildStations() (policy.StationCatalog, error)
 		if station.Contributions, err = b.contributions(); err != nil {
 			return policy.StationCatalog{}, err
 		}
+		station.EmptyCountsForBarracks = row.GetBuilding().GetBedEmptyCountsForBarracks()
 		if station.Capacity, err = b.capacity(); err != nil {
 			return policy.StationCatalog{}, err
 		}
