@@ -38,6 +38,9 @@ const (
 	PurposeStore       StationPurpose = "store"
 	PurposeStoreCold   StationPurpose = "store_cold"
 	PurposeDine        StationPurpose = "dine"
+	// PurposeCool is the cooling station clustering adds to a group that needs
+	// cold (a catalog cooler; no graph node has it).
+	PurposeCool StationPurpose = "cool"
 )
 
 // Reasons a node or edge exists; the caller journals them as telemetry

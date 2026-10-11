@@ -39,8 +39,9 @@ func baselineClustering(t *testing.T) (policy.StationGraphInput, policy.Clusteri
 // with the stove or the bench that outweighs them (the old planner kept
 // those apart as room types).
 //
-//	kitchen   stove + table          -> Kitchen   (old: kitchen + dining)
-//	freezer   cold shelf             -> Storeroom, cold, required link to the kitchen
+//	kitchen   stove + table + cold shelf + cooler -> Kitchen, cold (old: kitchen,
+//	          dining, freezer; the cold shelf joins the stove it has a required
+//	          link to, the temperature-band conflict is recorded not refused)
 //	workshop  bench + dry shelves    -> Workshop  (old: workshop + storage)
 //	bedrooms  one bed per group      -> Bedroom x6
 //	hospital  medical bed            -> Hospital
@@ -48,7 +49,7 @@ func baselineClustering(t *testing.T) (policy.StationGraphInput, policy.Clusteri
 func TestBaselineClustering(t *testing.T) {
 	_, got := baselineClustering(t)
 	want := map[policy.RoomRole]int{
-		policy.RoomRoleKitchen: 1, policy.RoomRoleStoreroom: 1, policy.RoomRoleWorkshop: 1,
+		policy.RoomRoleKitchen: 1, policy.RoomRoleWorkshop: 1,
 		policy.RoomRoleBedroom: 6, policy.RoomRoleHospital: 1, policy.RoomRolePrisonCell: 1,
 	}
 	have := map[policy.RoomRole]int{}
@@ -58,20 +59,19 @@ func TestBaselineClustering(t *testing.T) {
 	if !reflect.DeepEqual(have, want) {
 		t.Errorf("roles %v, want %v\n%+v", have, want, got.Groups)
 	}
-	var kitchen, freezer policy.RoomGroup
+	var kitchen policy.RoomGroup
 	for _, g := range got.Groups {
-		switch {
-		case g.Role == policy.RoomRoleKitchen:
+		if g.Role == policy.RoomRoleKitchen {
 			kitchen = g
-		case slices.Contains(g.Requires, policy.EnvCold):
-			freezer = g
 		}
 	}
-	if len(kitchen.Stations) != 2 {
-		t.Errorf("kitchen holds %+v, want the stove and the table", kitchen.Stations)
+	if len(kitchen.Stations) != 4 || !slices.Contains(kitchen.Requires, policy.EnvCold) || !slices.ContainsFunc(kitchen.Stations, func(s policy.GroupStation) bool { return s.Purpose == policy.PurposeCool }) {
+		t.Errorf("kitchen holds %+v (needs %v), want the stove, table, cold shelf and a cooler", kitchen.Stations, kitchen.Requires)
 	}
-	if freezer.Role != policy.RoomRoleStoreroom || !slices.ContainsFunc(freezer.Links, func(l policy.GroupLink) bool { return l.To == kitchen.ID && l.Required }) {
-		t.Errorf("freezer %+v lacks its required link to the kitchen %d", freezer, kitchen.ID)
+	for _, d := range got.Decisions {
+		if d.Verdict == policy.ClusterUnsatisfied {
+			t.Errorf("unsatisfied: %+v", d)
+		}
 	}
 	for _, g := range got.Groups {
 		if g.Area <= 0 || g.Area != g.Footprint+g.Clearance {

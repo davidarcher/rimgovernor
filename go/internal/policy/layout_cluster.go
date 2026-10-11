@@ -23,9 +23,10 @@ import (
 //   - Merging. Unit pairs are taken by descending affinity (the graph's flow
 //     weights, a required link first) and merged unless the merged group loses
 //     an effect a part had (a bench slowed by the wrong role, a bedroom that
-//     reads as barracks), would join a cold room with a station that works in
-//     a temperature band, or an enclosed one with an open-sky one, or would not
-//     fit the area limit.
+//     reads as barracks), would join an enclosed room with an open-sky one, or
+//     would not fit the area limit. A cold room beside a station that works in
+//     a temperature band is not refused: the decision records the conflict
+//     (Conflict) for the search to price.
 //   - Intended role. What a station is for is what the game makes of it alone:
 //     PredictRole of the single station (a stove is a kitchen, a bed a
 //     bedroom, a medical bed a hospital).
@@ -39,6 +40,12 @@ import (
 //     cells.
 //   - Environment. Cold, clean, enclosed and open-sky requirements come from
 //     the catalog's needs of the stations in the group.
+//   - Cold is met by a cooling station: a group that needs cold gets the
+//     catalog's most efficient cooler (least power draw per heat moved) in its
+//     station list, its footprint and one clearance cell in the area, or a
+//     ClusterUnsatisfied decision when the catalog has none. Cooler power and
+//     wiring are the refrigeration planner's; exposure to cold outside air is
+//     the climate envelope's (#2880).
 //
 // The result is pure data and deterministic: ties break by node id. The caller
 // journals Decisions as telemetry decisions.
@@ -62,11 +69,20 @@ const (
 	ClusterMerge = "merge"
 	ClusterKeep  = "keep"
 	ClusterSplit = "split"
+	// ClusterUnsatisfied: a group needs cold and the catalog has no cooling station.
+	ClusterUnsatisfied = "unsatisfied"
 
 	ReasonClusterAffinity    = "cluster_affinity"
 	ReasonClusterLostEffect  = "cluster_lost_effect"
 	ReasonClusterEnvConflict = "cluster_env_conflict"
 	ReasonClusterArea        = "cluster_area"
+	ReasonClusterNoCooler    = "cluster_no_cooler"
+
+	// ConflictColdBand is recorded on a decision whose two parts are a cold
+	// group and a station that works in a temperature band: cold is kept below
+	// the rot-slowing temperature, under the band, so the room costs one or the
+	// other. The game gives no exclusion; the search prices it (#2896).
+	ConflictColdBand = "cold_vs_temperature_band"
 )
 
 // cleanlinessStat is the room stat the surgery chain ends in; the catalog's
@@ -121,6 +137,9 @@ type ClusterDecision struct {
 	Verdict string
 	Reason  string
 	Weight  float64
+	// Conflict names an environment conflict between the two parts, if any; it
+	// does not stop a merge.
+	Conflict string
 }
 
 // Clustering is the room groups and why they are what they are.
@@ -196,6 +215,11 @@ type unit struct{ node, count int }
 type clusterer struct {
 	in      ClusterInput
 	maxArea int
+	// cooler is the cooling station a cold group carries, coolerSize its
+	// footprint in cells; hasCooler is false when the catalog has none.
+	cooler     string
+	coolerSize int
+	hasCooler  bool
 }
 
 // groupEval is what clustering knows of a candidate group.
@@ -287,6 +311,10 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 			}
 		}
 	}
+	if e.cold && c.hasCooler {
+		e.footprint += c.coolerSize
+		e.clearance++
+	}
 	e.clearance++ // the door threshold
 	e.area = e.footprint + e.clearance
 	return e, nil
@@ -305,13 +333,16 @@ func (e groupEval) requires() []EnvRequirement {
 	return out
 }
 
-// conflict reports two groups whose environments exclude each other. A cold
-// room is kept below the rot-slowing temperature, which is below the lower
-// bound of every work table's temperature band; a station under an open sky
-// cannot share a roofed room.
+// conflict reports two groups whose environments exclude each other: a station
+// under an open sky cannot share a roofed room. Cold against a temperature band
+// is not an exclusion (coldBandConflict).
 func conflict(a, b groupEval) bool {
-	return a.cold && b.band || a.band && b.cold || a.enclosed && b.openSky || a.openSky && b.enclosed
+	return a.enclosed && b.openSky || a.openSky && b.enclosed
 }
+
+// coldBandConflict reports a cold group beside a station that works in a
+// temperature band.
+func coldBandConflict(a, b groupEval) bool { return a.cold && b.band || a.band && b.cold }
 
 // ClusterStations groups the stations of in.Graph into rooms.
 func ClusterStations(in ClusterInput) (Clustering, error) {
@@ -320,6 +351,11 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 		return Clustering{}, err
 	}
 	c := &clusterer{in: in, maxArea: maxArea}
+	c.cooler, c.hasCooler = bestCooler(in.Catalog)
+	if c.hasCooler {
+		size := in.Catalog.Stations[c.cooler].Shape.Size
+		c.coolerSize = int(size.X) * int(size.Z)
+	}
 	for _, n := range in.Graph.Nodes {
 		st, ok := in.Catalog.Stations[n.Def]
 		if !ok || st.Shape.Size.X <= 0 || st.Shape.Size.Z <= 0 {
@@ -419,6 +455,9 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 			return Clustering{}, err
 		}
 		d := ClusterDecision{A: p.na, B: p.nb, Verdict: ClusterKeep, Weight: p.weight}
+		if coldBandConflict(ea, eb) {
+			d.Conflict = ConflictColdBand
+		}
 		switch {
 		case conflict(ea, eb):
 			d.Reason = ReasonClusterEnvConflict
@@ -463,6 +502,13 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 		for _, n := range nodes {
 			node := in.Graph.Nodes[n]
 			g.Stations = append(g.Stations, GroupStation{Node: node.ID, Def: node.Def, Purpose: node.Purpose, Count: byNode[n]})
+		}
+		if e.cold {
+			if c.hasCooler {
+				g.Stations = append(g.Stations, GroupStation{Node: "cooler", Def: c.cooler, Purpose: PurposeCool, Count: 1})
+			} else {
+				out.Decisions = append(out.Decisions, ClusterDecision{A: g.Stations[0].Node, Verdict: ClusterUnsatisfied, Reason: ReasonClusterNoCooler})
+			}
 		}
 		out.Groups = append(out.Groups, g)
 	}
@@ -529,4 +575,20 @@ func (c *clusterer) split(n, count int, decisions *[]ClusterDecision) ([]unit, e
 		return nil, err
 	}
 	return append(left, right...), nil
+}
+
+// bestCooler is the catalog's cooling station that draws the least power per
+// heat moved (the defs' energyPerSecond and power comp), by name when equal.
+func bestCooler(cat StationCatalog) (string, bool) {
+	best, bestRatio := "", 0.0
+	for _, def := range cat.Coolers() {
+		st := cat.Stations[def]
+		if st.Shape.Size.X <= 0 || st.Shape.Size.Z <= 0 {
+			continue
+		}
+		if ratio := st.Cooling.PowerDraw / st.Cooling.HeatPerSecond; best == "" || ratio < bestRatio {
+			best, bestRatio = def, ratio
+		}
+	}
+	return best, best != ""
 }

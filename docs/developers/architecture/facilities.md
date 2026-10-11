@@ -136,9 +136,18 @@ Each node is a pool of stations. A pool splits by halves until `PredictRole`
 keeps every effect its stations are for (what a station is for is the role the
 game gives it alone) and it fits the area limit, so free beds end one per
 bedroom while medical beds stay a hospital. Unit pairs then merge by descending
-flow weight (required links first) unless the merge loses an effect, joins a
-cold room with a station that works in a temperature band, joins an enclosed
-station with an open-sky one, or exceeds the area limit. Area is the stations'
+flow weight (required links first) unless the merge loses an effect, joins an
+enclosed station with an open-sky one, or exceeds the area limit. A cold room
+beside a station that works in a temperature band is not refused: the decision
+records the conflict (`Conflict`) for the search to price. Cold is met by a
+cooling station: the catalog marks coolers (`Station.Cooling`, a temperature
+control whose `energyPerSecond` is negative, with its power draw), and a group
+that needs cold gets the one drawing the least power per heat moved
+(`PurposeCool`) with its footprint and a clearance cell in the area, or an
+`unsatisfied` decision (`cluster_no_cooler`) when the catalog has none. Cooler
+power and wiring stay with the refrigeration planner; exposure to cold outside
+air and the thermal benefit of thick roof belong to the climate envelope
+(#2880). Area is the stations'
 catalog footprints plus the placer's clearance (one open cell per station and
 the door threshold); the limit is the largest room the roof support distance
 and the shell bounds (3844 interior, 255 wall cells) allow. A group carries its
@@ -162,9 +171,8 @@ group, then the group with most weight to what is placed, on the smallest ring
 beside its neighbours) and a local search of `siteSearchIters` moves per block
 (beside a linked block, beside any block, a random core cell, a swap) keeps
 strict gains; the best start wins. Environment requirements: open sky excludes
-rock and mountain roof; cold storage pays no dig cost under mountain roof and is
-satisfied only wholly under it (otherwise `embed_no_thick_roof`, it needs a
-cooler); a clean room has no site signal (`embed_no_site_signal`). A group no
+rock and mountain roof; cold is no site requirement (the group carries its
+cooler, and rock is only the dig cost every group pays); a clean room has no site signal (`embed_no_site_signal`). A group no
 position fits is reported unplaceable (`embed_no_ground`,
 `embed_open_sky_ground`).
 

@@ -75,7 +75,8 @@ func (catalog *DefinitionCatalog) buildStations() (policy.StationCatalog, error)
 		if station.Needs, err = b.needs(); err != nil {
 			return policy.StationCatalog{}, err
 		}
-		if station.Access == policy.AccessFloor && len(station.Contributions) == 0 && station.Capacity.Kind == policy.CapacityNone && len(station.Needs) == 0 {
+		station.Cooling = b.cooling()
+		if station.Access == policy.AccessFloor && len(station.Contributions) == 0 && station.Capacity.Kind == policy.CapacityNone && len(station.Needs) == 0 && !station.Cooling.Cools() {
 			continue
 		}
 		out.Stations[name] = station
@@ -429,4 +430,19 @@ func (b stationBuilder) storesPerishables() (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+// cooling is the building's cooling: a temperature control whose
+// energyPerSecond is negative (a cooler or air conditioner draws heat out; a
+// heater's is positive), with the power comp's draw.
+func (b stationBuilder) cooling() policy.StationCooling {
+	control := compOf(b.row, (*d.CompPropertiesAny).GetCompProperties_TempControl)
+	if control == nil || control.GetEnergyPerSecond() >= 0 {
+		return policy.StationCooling{}
+	}
+	out := policy.StationCooling{HeatPerSecond: float64(-control.GetEnergyPerSecond())}
+	if power := compOf(b.row, (*d.CompPropertiesAny).GetCompProperties_Power); power != nil {
+		out.PowerDraw = float64(power.GetBasePowerConsumption())
+	}
+	return out
 }

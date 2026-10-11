@@ -33,6 +33,9 @@ type Station struct {
 	EmptyCountsForBarracks bool
 	// Needs are what the station wants of its surroundings.
 	Needs []EnvNeed
+	// Cooling is set when the station cools its room (a temperature control
+	// that draws heat out); the zero value cools nothing.
+	Cooling StationCooling
 	// Content is the package id of the content that defines the station
 	// ("ludeon.rimworld" for the base game, an expansion's id otherwise); the
 	// station is plannable only while that content is active.
@@ -262,4 +265,27 @@ func roomRoleScoreRoles() []string {
 var RoomRoleNamedDefs = map[string]RoomRole{
 	"DeathrestCasket":   RoomRoleDeathrestChamber,
 	"PsychicRitualSpot": RoomRoleCeremonialChamber,
+}
+
+// StationCooling is what a cooling station does, from its
+// CompProperties_TempControl and power comp: the heat it moves per second
+// (the def's negative energyPerSecond, as a positive number) and the power it
+// draws.
+type StationCooling struct {
+	HeatPerSecond float64
+	PowerDraw     float64
+}
+
+// Cools reports whether the station cools its room.
+func (c StationCooling) Cools() bool { return c.HeatPerSecond > 0 }
+
+// Coolers lists, sorted, the stations that cool their room.
+func (c StationCatalog) Coolers() []string {
+	var out []string
+	for _, def := range c.Defs() {
+		if c.Stations[def].Cooling.Cools() {
+			out = append(out, def)
+		}
+	}
+	return out
 }

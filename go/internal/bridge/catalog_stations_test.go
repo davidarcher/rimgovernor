@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -223,5 +224,27 @@ func TestStationCatalogNeedsACatalog(t *testing.T) {
 	var none *DefinitionCatalog
 	if _, err := none.StationCatalog(); err == nil {
 		t.Error("no catalog, no stations")
+	}
+}
+
+// Cooling stations are the buildings whose temperature control draws heat out,
+// with the power they draw.
+func TestStationCatalogHasCoolers(t *testing.T) {
+	stations := recordedStations(t)
+	coolers := stations.Coolers()
+	if len(coolers) == 0 {
+		t.Fatal("no cooling station in the catalog")
+	}
+	for _, def := range coolers {
+		c := stations.Stations[def].Cooling
+		if c.HeatPerSecond <= 0 || c.PowerDraw <= 0 {
+			t.Errorf("%s cooling %+v", def, c)
+		}
+	}
+	if !slices.Contains(coolers, "Cooler") {
+		t.Errorf("coolers %v lack the Cooler", coolers)
+	}
+	if stations.Stations["Heater"].Cooling.Cools() {
+		t.Error("a heater cools")
 	}
 }

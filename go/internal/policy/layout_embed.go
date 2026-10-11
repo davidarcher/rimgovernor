@@ -42,11 +42,11 @@ import (
 //
 // Environment requirements drive placement only where the survey says
 // something: open sky is a constraint (no rock or mountain roof under the
-// block), cold storage pays no dig cost for mountain roof (natural cold) and
-// is satisfied only when the whole block lies under it, and every block gets
-// walls (enclosed). A clean room has no site signal, and a cold room off the
-// mountain needs a cooler (climate envelope, #2880): both are reported as
-// unsatisfied with a reason, not guessed at.
+// block), and every block gets walls (enclosed). Cold is not a site
+// requirement: a cold group carries its cooling station (ClusterStations), so
+// mountain is only the rock dig cost every group pays; its thermal benefit and
+// exposure to cold outside air are the climate envelope (#2880). A clean room
+// has no site signal and is reported unsatisfied with a reason, not guessed at.
 //
 // Obstacle levels work as in SiteCore: the strictest level that places every
 // group is kept, and the last level (soil priced, not banned) runs only when
@@ -61,7 +61,6 @@ const (
 	ReasonEmbedPlaced          = "embed_placed"
 	ReasonEmbedNoGround        = "embed_no_ground"
 	ReasonEmbedOpenSkyGround   = "embed_open_sky_ground"
-	ReasonEmbedNoThickRoof     = "embed_no_thick_roof"
 	ReasonEmbedNoSiteSignal    = "embed_no_site_signal"
 	ReasonEmbedLinkNotAdjacent = "embed_link_not_adjacent"
 )
@@ -179,13 +178,12 @@ type embedder struct {
 	groups []RoomGroup
 	shapes [][][2]int32 // per group, the interiors (width, height) it may take
 	sky    []bool       // per group: needs open sky
-	cold   []bool
 
-	level, base            prefix // core cells at the level / with no obstacle
-	soil, edge, centre     prefix // weighted cell costs
-	thickRock, solid, thin prefix // rock under mountain roof (counts), rock or mountain roof, mountain roof
-	core                   []domain.Cell
-	seeds                  []domain.Cell
+	level, base        prefix // core cells at the level / with no obstacle
+	soil, edge, centre prefix // weighted cell costs
+	solid              prefix // rock or mountain roof
+	core               []domain.Cell
+	seeds              []domain.Cell
 }
 
 // blockShapes are the interiors a group of area cells may take: as deep as
@@ -208,7 +206,6 @@ func newEmbedder(in EmbedInput, depth int, scorer planScorer, level obstacleLeve
 	for _, g := range in.Groups {
 		e.shapes = append(e.shapes, blockShapes(g.Area, depth))
 		e.sky = append(e.sky, slices.Contains(g.Requires, EnvOpenSky))
-		e.cold = append(e.cold, slices.Contains(g.Requires, EnvCold))
 	}
 	cells := map[domain.Cell]SurveyCell{}
 	for _, c := range in.Survey.Cells {
@@ -223,9 +220,7 @@ func newEmbedder(in EmbedInput, depth int, scorer planScorer, level obstacleLeve
 	clear := scorer.edgeClear()
 	e.edge = newPrefix(w, h, func(c domain.Cell) int { return -edgeCellCost(scorer.ground, c, clear) })
 	e.centre = newPrefix(w, h, func(c domain.Cell) int { return -scorer.centreCell(c) })
-	e.thickRock = newPrefix(w, h, func(c domain.Cell) int { return b2i(scorer.g.rock[c] && cells[c].ThickRoof) })
 	e.solid = newPrefix(w, h, func(c domain.Cell) int { return b2i(scorer.g.rock[c] || cells[c].ThickRoof) })
-	e.thin = newPrefix(w, h, func(c domain.Cell) int { return b2i(cells[c].ThickRoof) })
 	for c := range lg.core {
 		e.core = append(e.core, c)
 	}
@@ -294,9 +289,6 @@ func (e *embedder) fits(i int, r Rectangle, blocks []Rectangle, sky bool) bool {
 // link to a placed block. Higher is worse.
 func (e *embedder) blockCost(i int, r Rectangle, blocks []Rectangle) float64 {
 	cost := float64(-(e.soil.sum(r) + e.centre.sum(r) + e.edge.sum(pad(r, 1))))
-	if e.cold[i] {
-		cost -= float64(planWeights.Rock) * float64(e.thickRock.sum(r)) // natural cold: no dig charge
-	}
 	for _, l := range e.groups[i].Links {
 		if b := blocks[l.To]; b.Width > 0 && l.To != i {
 			cost += linkCost(l, gapDist(r, b))
@@ -627,18 +619,11 @@ func (r *embedRun) embedding(in EmbedInput, scorer planScorer) Embedding {
 		out.Score.Soil += int(e.soil.sum(b))
 		out.Score.Centre += int(e.centre.sum(b))
 		out.Score.Edge += int(e.edge.sum(pad(b, 1)))
-		if e.cold[i] {
-			out.Score.Soil += planWeights.Rock * int(e.thickRock.sum(b))
-		}
 		for _, req := range g.Requires {
 			unsat := func(reason string) {
 				out.Decisions = append(out.Decisions, EmbedDecision{Group: i, Other: -1, Verdict: EmbedUnsatisfied, Reason: reason, Requirement: req})
 			}
 			switch req {
-			case EnvCold:
-				if e.thin.sum(b) != int64(b.Width*b.Height) {
-					unsat(ReasonEmbedNoThickRoof)
-				}
 			case EnvClean:
 				unsat(ReasonEmbedNoSiteSignal)
 			}

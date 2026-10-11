@@ -125,8 +125,7 @@ func TestEmbedSearchNeverWorsens(t *testing.T) {
 	}
 }
 
-// A group that cannot stand under a roof keeps off rock and mountain; a cold
-// group pays no dig charge for mountain roof and ends under it when it fits.
+// A group that cannot stand under a roof keeps off rock and mountain.
 func TestEmbedEnvironmentRequirements(t *testing.T) {
 	s := replayFixtureNamed("mountain-edge").survey(t) // mountain-edge: rock from x=85, thick roof from x=100
 	in := embedInput(t, s, 6)
@@ -142,47 +141,21 @@ func TestEmbedEnvironmentRequirements(t *testing.T) {
 	if !ok || b.X+b.Width > 85 {
 		t.Errorf("open-sky block %+v on rock", b)
 	}
-	var reasons []string
-	for _, d := range emb.Decisions {
-		if d.Verdict == EmbedUnsatisfied && d.Requirement == EnvCold {
-			reasons = append(reasons, d.Reason)
-		}
-	}
-	for _, r := range reasons {
-		if r != ReasonEmbedNoThickRoof {
-			t.Errorf("cold reason %q", r)
-		}
-	}
 }
 
-// Cold storage is satisfied exactly where the whole block lies under mountain
-// roof, and an open-sky group on a map that is all mountain is unplaceable for
-// that reason.
+// An open-sky group on a map that is all mountain is unplaceable for that
+// reason; a cold group is no site requirement (it carries its cooler).
 func TestEmbedColdAndOpenSkySiteSignal(t *testing.T) {
 	mountain := zoningSurvey(60, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Rock: true, ThickRoof: true} })
-	plain := plainScoreSurvey()
-	cold := func(emb Embedding) (n int) {
-		for _, d := range emb.Decisions {
-			if d.Verdict == EmbedUnsatisfied && d.Requirement == EnvCold {
-				if d.Reason != ReasonEmbedNoThickRoof {
-					t.Errorf("cold reason %q", d.Reason)
-				}
-				n++
-			}
-		}
-		return n
-	}
-	inM, inP := embedInput(t, mountain, 3), embedInput(t, plain, 3)
+	inM := embedInput(t, mountain, 3)
 	embM, err := Embed(inM)
 	if err != nil {
 		t.Fatal(err)
 	}
-	embP, err := Embed(inP)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cold(embM) != 0 || cold(embP) == 0 {
-		t.Errorf("cold unsatisfied on mountain %d, on plain %d", cold(embM), cold(embP))
+	for _, d := range embM.Decisions {
+		if d.Verdict == EmbedUnsatisfied && d.Requirement == EnvCold {
+			t.Errorf("cold is reported as a site requirement: %+v", d)
+		}
 	}
 	inM.Groups = slices.Clone(inM.Groups)
 	inM.Groups[0].Requires = []EnvRequirement{EnvOpenSky}
@@ -263,5 +236,32 @@ func TestEmbedReplayFixtures(t *testing.T) {
 			t.Logf("%-16s old:   rooms=%d cells=%d soil=%d edge=%d centre=%d walk=%d                    terms/cell=%.2f",
 				f.name, len(plan.AllRooms()), cells, old.Soil, old.Edge, old.Centre, old.Walk, float64(oldTerms)/float64(max(cells, 1)))
 		})
+	}
+}
+
+// A cold group stands on open ground with its cooler in the group when the map
+// has no mountain.
+func TestEmbedColdGroupOnOpenGround(t *testing.T) {
+	in := embedInput(t, plainScoreSurvey(), 3)
+	emb, err := Embed(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkEmbedding(t, in, emb)
+	cold := 0
+	for i, g := range in.Groups {
+		if !slices.Contains(g.Requires, EnvCold) {
+			continue
+		}
+		cold++
+		if !slices.ContainsFunc(g.Stations, func(s GroupStation) bool { return s.Purpose == PurposeCool }) {
+			t.Errorf("cold group %d has no cooler: %+v", i, g.Stations)
+		}
+		if _, ok := emb.Block(i); !ok {
+			t.Errorf("cold group %d is not placed", i)
+		}
+	}
+	if cold == 0 {
+		t.Fatal("no cold group")
 	}
 }

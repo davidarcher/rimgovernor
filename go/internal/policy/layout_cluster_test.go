@@ -29,6 +29,8 @@ func clusterCatalog() StationCatalog {
 	cat.Stations["Table"] = shape("Table", 1, 2, cat.Stations["Table"])
 	cat.Stations["Shelf"] = shape("Shelf", 2, 1, cat.Stations["Shelf"])
 	cat.Stations["ColdShelf"] = shape("ColdShelf", 2, 1, cold)
+	cat.Stations["Cooler"] = shape("Cooler", 2, 1, Station{Access: AccessWall, Cooling: StationCooling{HeatPerSecond: 12, PowerDraw: 200}})
+	cat.Stations["Wasteful"] = shape("Wasteful", 1, 1, Station{Cooling: StationCooling{HeatPerSecond: 12, PowerDraw: 900}})
 	return cat
 }
 
@@ -68,8 +70,9 @@ func groupWith(t *testing.T, c Clustering, id string) RoomGroup {
 }
 
 // Beds never share with the stove, tables follow the heavier flow, a cold
-// shelf stays apart from a stove that works in a temperature band but keeps a
-// required link to it, and beds split to one per group.
+// shelf joins the stove that works in a temperature band (the conflict is
+// recorded, not refused) and the group carries the most efficient cooler, and
+// beds split to one per group.
 func TestClusterStationsSplitsAndMerges(t *testing.T) {
 	stove := node("Stove", PurposeWork, 1, workBand)
 	table := node("Table", PurposeDine, 1)
@@ -104,13 +107,18 @@ func TestClusterStationsSplitsAndMerges(t *testing.T) {
 		t.Errorf("bedrooms %d hospitals %d: %+v", beds, hospitals, got.Groups)
 	}
 	freezer := groupWith(t, got, cold.ID)
-	if !slices.Contains(freezer.Requires, EnvCold) || freezer.ID == kitchen.ID {
+	if !slices.Contains(freezer.Requires, EnvCold) || freezer.ID != kitchen.ID {
 		t.Errorf("cold shelf: %+v", freezer)
 	}
-	if !slices.ContainsFunc(freezer.Links, func(l GroupLink) bool { return l.To == kitchen.ID && l.Required }) {
-		t.Errorf("no required link from the cold shelf to the kitchen: %+v", freezer.Links)
+	if !slices.ContainsFunc(kitchen.Stations, func(s GroupStation) bool { return s.Def == "Cooler" && s.Purpose == PurposeCool && s.Count == 1 }) {
+		t.Errorf("the cold group has no cooler: %+v", kitchen.Stations)
 	}
-	if kitchen.Footprint != 3+2 || kitchen.Clearance != 2+1 || kitchen.Area != 8 {
+	if !slices.ContainsFunc(got.Decisions, func(d ClusterDecision) bool { return d.Verdict == ClusterMerge && d.Conflict == ConflictColdBand }) {
+		t.Errorf("the cold-band conflict is not recorded: %+v", got.Decisions)
+	}
+	// stove 3x1, cold shelf 2x1, cooler 2x1, table 1x2; a cell each for the
+	// four and the door.
+	if kitchen.Footprint != 3+2+2+2 || kitchen.Clearance != 4+1 || kitchen.Area != kitchen.Footprint+kitchen.Clearance {
 		t.Errorf("kitchen area %+v", kitchen)
 	}
 }
@@ -184,5 +192,22 @@ func TestClusterStationsDeterministicAndErrors(t *testing.T) {
 	bad := StationGraph{Nodes: []StationNode{node("Nothing", PurposeStore, 1)}}
 	if _, err := ClusterStations(ClusterInput{Graph: bad, Catalog: clusterCatalog(), RoofDistance: testRoof}); err == nil {
 		t.Error("unknown station accepted")
+	}
+}
+
+// A cold group without a cooler in the catalog is reported, not guessed at.
+func TestClusterStationsReportsNoCooler(t *testing.T) {
+	cat := clusterCatalog()
+	delete(cat.Stations, "Cooler")
+	delete(cat.Stations, "Wasteful")
+	cold := node("ColdShelf", PurposeStoreCold, 1, EnvNeed{Kind: NeedCold})
+	got, err := ClusterStations(ClusterInput{Graph: StationGraph{Nodes: []StationNode{cold}}, Catalog: cat, RoofDistance: testRoof})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.ContainsFunc(got.Decisions, func(d ClusterDecision) bool {
+		return d.Verdict == ClusterUnsatisfied && d.Reason == ReasonClusterNoCooler && d.A == cold.ID
+	}) {
+		t.Errorf("no unsatisfied decision: %+v", got.Decisions)
 	}
 }
