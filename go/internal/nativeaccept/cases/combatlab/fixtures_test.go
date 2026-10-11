@@ -1,6 +1,7 @@
 package combatlab
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -115,6 +116,30 @@ func TestRangedLineIsSpacedBehindCover(t *testing.T) {
 	for i := 1; i < len(xs); i++ {
 		if xs[i]-xs[i-1] != 2 {
 			t.Errorf("colonists at x %v are not one empty cell apart", xs)
+		}
+	}
+}
+
+// An unseeded spec must not mention the seed (or jitter): the committed
+// baselines stage byte-for-byte as before. WithSeed puts the seed in the spec.
+func TestSeedIsInTheSpecOnlyWhenSet(t *testing.T) {
+	cx, cz := labCenter()
+	for _, name := range Names {
+		f, err := Build(name, cx, cz)
+		if err != nil {
+			t.Fatal(err)
+		}
+		plain, _ := json.Marshal(f)
+		if bytes.Contains(plain, []byte(`"seed"`)) || bytes.Contains(plain, []byte(`"jitter"`)) {
+			t.Errorf("%s: unseeded spec carries a seed or jitter: %s", name, plain)
+		}
+		WithSeed(7)(&f, cx, cz)
+		seeded, _ := json.Marshal(f)
+		if !bytes.Contains(seeded, []byte(`"seed":7`)) {
+			t.Errorf("%s: seeded spec lacks the seed: %s", name, seeded)
+		}
+		if got := bytes.Replace(seeded, []byte(`,"seed":7`), nil, 1); !bytes.Equal(got, plain) {
+			t.Errorf("%s: the seed changes more than itself", name)
 		}
 	}
 }

@@ -57,6 +57,10 @@ type Pawn struct {
 	Inventory []string `json:"inventory,omitempty"`
 	// StunTicks stuns the pawn directly for that many ticks.
 	StunTicks int `json:"stunTicks,omitempty"`
+	// Jitter lets a seeded staging move a spawned hostile up to this many
+	// cells from X,Z (its declared bounds); 0 pins it. No committed fixture
+	// declares one, and an unseeded staging ignores it.
+	Jitter int `json:"jitter,omitempty"`
 }
 
 // Fixture is one staged combat. Colonists is the lab wipe's colonist
@@ -80,6 +84,14 @@ type Fixture struct {
 	// Sappers stages the hostiles' assault lord as a sapper raid: it digs
 	// a path through the walls to the colony.
 	Sappers bool `json:"sappers,omitempty"`
+	// Seed, when non-zero, varies the staging and reseeds the game's RNG once
+	// staging ends: hostile skills draw from it and a Jitter pawn moves within
+	// its bounds. Seed 0 is the pinned staging every committed baseline used.
+	//
+	// Pairing caveat: the seed fixes the initial conditions and the RNG start
+	// after staging. Once two tactics diverge, their later draws diverge too,
+	// so paired seeds compare starting conditions, not identical dice.
+	Seed int `json:"seed,omitempty"`
 	// Layout, when set, is the complete defense layout record the metrics
 	// run stores before serving, so the planner holds this
 	// fixture's line instead of refusing the hold for want of one.

@@ -18,6 +18,14 @@ type Staged struct {
 	Digest  string
 	Rows    []string
 	Faction string
+	// Seed is the seed test/lab_stage echoed back.
+	Seed int
+}
+
+// WithSeed is a Stage edit that stages the fixture under seed (see
+// Fixture.Seed).
+func WithSeed(seed int) func(f *Fixture, cx, cz int) {
+	return func(f *Fixture, _, _ int) { f.Seed = seed }
 }
 
 // Colonists returns the staged colonists' load ids, spec order.
@@ -86,7 +94,10 @@ func Stage(ctx context.Context, h *na.Harness, name string, edits ...func(f *Fix
 	if len(rows) != len(f.Pawns) {
 		return Staged{}, fmt.Errorf("%s %s: %d pawns read back, want %d", StageTool, name, len(rows), len(f.Pawns))
 	}
-	out := Staged{Fixture: f, Digest: na.AsString(reply["digest"]), Faction: na.AsString(reply["faction"])}
+	out := Staged{Fixture: f, Digest: na.AsString(reply["digest"]), Faction: na.AsString(reply["faction"]), Seed: int(na.AsNumber(reply["seed"]))}
+	if out.Seed != f.Seed {
+		return Staged{}, fmt.Errorf("%s %s: staged under seed %d, want %d", StageTool, name, out.Seed, f.Seed)
+	}
 	for _, r := range na.AsSlice(reply["digestRows"]) {
 		out.Rows = append(out.Rows, na.AsString(r))
 	}
@@ -175,7 +186,8 @@ func checkPawn(want Pawn, got map[string]any, lord string) error {
 	if inPod, _ := na.AsBool(got["inPod"]); inPod {
 		want.X, want.Z = int(na.AsNumber(got["x"])), int(na.AsNumber(got["z"]))
 	}
-	if x, z := int(na.AsNumber(got["x"])), int(na.AsNumber(got["z"])); x != want.X || z != want.Z {
+	j := want.Jitter
+	if x, z := int(na.AsNumber(got["x"])), int(na.AsNumber(got["z"])); x < want.X-j || x > want.X+j || z < want.Z-j || z > want.Z+j {
 		return fmt.Errorf("at %d,%d, want %d,%d: %#v", x, z, want.X, want.Z, got)
 	}
 	if na.AsString(got["side"]) != want.Side {

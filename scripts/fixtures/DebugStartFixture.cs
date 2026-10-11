@@ -314,7 +314,11 @@ namespace HomeBridge.BridgeTools
             var prisoners = new List<Pawn>();
             var insects = new List<Pawn>();
             var mechs = new List<Pawn>();
-            Rand.PushState(Seed);
+            // seed: non-zero varies hostile skills and jitters pawns that declare a
+            // jitter, from a state derived from it, and reseeds Rand once staging
+            // ends. Zero draws nothing extra: the pinned staging, byte for byte.
+            var seed = (int?)spec["seed"] ?? 0;
+            Rand.PushState(seed == 0 ? Seed : unchecked(Seed + seed * 7919));
             try
             {
                 var faction = HostileFaction();
@@ -367,7 +371,7 @@ namespace HomeBridge.BridgeTools
                             allowAddictions: false, fixedBiologicalAge: 30f, fixedChronologicalAge: 30f, forceBaselinerChance: 1f, developmentalStages: DevelopmentalStage.Adult));
                         foreach (var trait in pawn.story.traits.allTraits.ToList()) pawn.story.traits.RemoveTrait(trait);
                         foreach (var hediff in pawn.health.hediffSet.hediffs.Where(h => h.def.isBad).ToList()) pawn.health.RemoveHediff(hediff);
-                        foreach (var skill in pawn.skills.skills) { skill.Level = HostileSkill; skill.passion = Passion.None; }
+                        foreach (var skill in pawn.skills.skills) { skill.Level = seed == 0 ? HostileSkill : HostileSkill + Rand.RangeInclusive(-2, 2); skill.passion = Passion.None; }
                         pawn.apparel?.DestroyAll();
                         pawn.inventory?.DestroyAll();
                         if ((string)p["side"] == "prisoner")
@@ -379,6 +383,7 @@ namespace HomeBridge.BridgeTools
                         }
                         else
                         {
+                            if (seed != 0 && arrival == null && (int?)p["jitter"] is int jitter && jitter > 0) cell = Jittered(map, cell, jitter);
                             if (arrival == null) GenSpawn.Spawn(pawn, cell, map);
                             hostiles.Add(pawn);
                         }
@@ -451,6 +456,8 @@ namespace HomeBridge.BridgeTools
             {
                 Rand.PopState();
             }
+            // The fight's later draws are a function of the seed.
+            if (seed != 0) Rand.Seed = unchecked(Seed ^ (seed * 31337));
             // siege: the hostiles are a real siege lord camped at the
             // spot; the game's own LordToil_Siege places the blueprints, drops
             // the supplies and sets the builders to work on the frames.
@@ -474,7 +481,7 @@ namespace HomeBridge.BridgeTools
                 x = p.PositionHeld.x, z = p.PositionHeld.z, inPod = !p.Spawned, weapon = p.equipment?.Primary?.def.defName, hostile = p.HostileTo(Faction.OfPlayer),
                 lordJob = p.GetLord()?.LordJob?.GetType().Name, health = p.health.summaryHealth.SummaryHealthPercent, apparel = p.apparel?.WornApparelCount ?? 0,
                 worn = p.apparel?.WornApparel.Select(a => new { id = a.GetUniqueLoadID(), def = a.def.defName }).ToList() }).ToList();
-            return new { success = true, faction = hostiles.FirstOrDefault()?.Faction.def.defName, things, pawns = rows, digest = Digest(map), digestRows = DigestRows(map) };
+            return new { success = true, seed, faction = hostiles.FirstOrDefault()?.Faction.def.defName, things, pawns = rows, digest = Digest(map), digestRows = DigestRows(map) };
         }
 
         private static IntVec3 Cell(Map map, JObject o)
@@ -482,6 +489,13 @@ namespace HomeBridge.BridgeTools
             var cell = new IntVec3((int)o["x"], 0, (int)o["z"]);
             if (!cell.InBounds(map)) throw new ArgumentException($"Cell {cell.x},{cell.z} is out of bounds.");
             return cell;
+        }
+
+        // A random standable, unoccupied cell within jitter of cell, else cell.
+        private static IntVec3 Jittered(Map map, IntVec3 cell, int jitter)
+        {
+            var near = new IntVec3(cell.x + Rand.RangeInclusive(-jitter, jitter), 0, cell.z + Rand.RangeInclusive(-jitter, jitter));
+            return near.InBounds(map) && near.Standable(map) && !near.GetThingList(map).OfType<Pawn>().Any() ? near : cell;
         }
 
         private static void Arm(Pawn pawn, string weapon, string stuffName)
@@ -569,7 +583,7 @@ namespace HomeBridge.BridgeTools
         // well under the call ceiling.
         private const int MaxTicks = 2000;
 
-        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile,hitPoints}], pawns:[{side:colonist|hostile|animal|manhunter|prisoner|insect, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, injured, trained (animal TrainableDefs), apparel, hediffs:[HediffDef], inventory:[ThingDef]}], roof:{def,minX,minZ,maxX,maxZ}, prisonBreak, sappers}. Hostiles get fixed skills, only the named apparel and an assault lord (a sapper one with sappers, #1149). Replies each staged pawn read back from the map (with worn apparel ids) and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, hediff defs, every player door's hold-open and forbidden flag, and the tick.")]
+        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile,hitPoints}], pawns:[{side:colonist|hostile|animal|manhunter|prisoner|insect, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, injured, trained (animal TrainableDefs), apparel, hediffs:[HediffDef], inventory:[ThingDef]}], roof:{def,minX,minZ,maxX,maxZ}, prisonBreak, sappers, seed (non-zero varies hostile skills and jitters hostiles that declare jitter, then reseeds Rand after staging; 0 or absent is the pinned staging; the reply echoes it), pawns also take jitter (cells)}. Hostiles get fixed skills, only the named apparel and an assault lord (a sapper one with sappers, #1149). Replies each staged pawn read back from the map (with worn apparel ids) and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, hediff defs, every player door's hold-open and forbidden flag, and the tick.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Fixture spec JSON (action stage).")] string spec = "{}",
             [ToolParameter(Description = "stage (default), read, orphan-animal (spec animal and mode: despawn, dead or foreign), or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "stage",
