@@ -60,8 +60,20 @@ const SnapshotDir = "snapshots"
 
 var restrictedMarkers = []string{"AGE-SECRET-KEY-", "-----BEGIN PRIVATE KEY", "-----BEGIN OPENSSH PRIVATE KEY", "<savegame", "<savedgame", "UnityFS"}
 
+// diagExt is the diagnostic extension of p, lower-cased. A rotated OTLP ring
+// segment (otlp/logs.jsonl.2) is a .jsonl file: the ring numbers its segments
+// after the extension (docs/developers/contracts/otel-core.md).
+func diagExt(p string) string {
+	ext := strings.ToLower(filepath.Ext(p))
+	if n := strings.TrimPrefix(ext, "."); n != "" && strings.Trim(n, "0123456789") == "" &&
+		strings.HasSuffix(strings.ToLower(strings.TrimSuffix(p, ext)), ".jsonl") {
+		return ".jsonl"
+	}
+	return ext
+}
+
 func publicExt(p string) error {
-	switch strings.ToLower(filepath.Ext(p)) {
+	switch diagExt(p) {
 	case ".json", ".jsonl", ".log", ".txt", ".md":
 		return nil
 	}
@@ -129,7 +141,7 @@ func (c *capWriter) Write(b []byte) (int, error) {
 }
 
 func publicDiagnostic(p string, b []byte) error {
-	ext := strings.ToLower(filepath.Ext(p))
+	ext := diagExt(p)
 	if ext == ".png" {
 		config, err := png.DecodeConfig(bytes.NewReader(b))
 		if err != nil || config.Width < 1 || config.Height < 1 || config.Width > 4096 || config.Height > 4096 {
@@ -230,7 +242,7 @@ func (e *exporter) copy(p string) (Ref, error) {
 		return Ref{}, fmt.Errorf("artifact allowance exhausted at %s", p)
 	}
 	src := filepath.Join(e.source, p)
-	ext := strings.ToLower(filepath.Ext(p))
+	ext := diagExt(p)
 	if ext == ".png" {
 		b, err := os.ReadFile(src)
 		if err != nil {
@@ -438,7 +450,7 @@ func ExportShard(root, shard string, jobs []ExportJob, secrets []string) error {
 			if !info.Mode().IsRegular() {
 				return fmt.Errorf("nonregular diagnostic")
 			}
-			ext := strings.ToLower(filepath.Ext(rel))
+			ext := diagExt(rel)
 			if ext == ".json" || ext == ".jsonl" || ext == ".log" || ext == ".txt" || ext == ".md" || ext == ".png" {
 				if _, ok := e.files[strings.ToLower(rel)]; ok {
 					return fmt.Errorf("case-colliding diagnostic")

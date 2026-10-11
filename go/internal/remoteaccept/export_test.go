@@ -137,6 +137,59 @@ func exportFixtureVerdict(t *testing.T, f *fixture, index int, fail bool) Export
 	return ExportJob{Role: "fixture", Output: output, Bootstrap: boot}
 }
 
+// A case's OTLP rings (all three signals and their rotated segments) are
+// exported, survive the archive round trip byte-for-byte as JSON lines, and the
+// index lists the active files.
+func TestOTLPRingsExportAndImport(t *testing.T) {
+	f := fixtureRun(t)
+	job := exportFixture(t, f, 0)
+	name := f.attempts[0].Attempts[0].Case
+	files := map[string]string{
+		"otlp/logs.jsonl":      `{"resourceLogs":[{"scopeLogs":[{"logRecords":[{"body":{"stringValue":"new"}}]}]}]}` + "\n",
+		"otlp/logs.jsonl.1":    `{"resourceLogs":[{"scopeLogs":[{"logRecords":[{"body":{"stringValue":"old"}}]}]}]}` + "\n",
+		"otlp/traces.jsonl":    `{"resourceSpans":[]}` + "\n",
+		"otlp/metrics.jsonl":   `{"resourceMetrics":[]}` + "\n",
+		"otlp/metrics.jsonl.2": `{"resourceMetrics":[]}` + "\n",
+	}
+	for rel, body := range files {
+		p := filepath.Join(job.Output, name, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := ExportShard(f.root, "s1", []ExportJob{job}, nil); err != nil {
+		t.Fatal(err)
+	}
+	archive := filepath.Join(t.TempDir(), "evidence.zip")
+	if err := os.WriteFile(archive, zipTree(t, f.root), 0600); err != nil {
+		t.Fatal(err)
+	}
+	out := t.TempDir()
+	if err := extract(archive, out); err != nil {
+		t.Fatal(err)
+	}
+	for rel, body := range files {
+		got, err := os.ReadFile(filepath.Join(out, "s1", "fixture", name, filepath.FromSlash(rel)))
+		if err != nil || string(got) != body {
+			t.Errorf("%s = %q, %v; want %q", rel, got, err, body)
+		}
+	}
+}
+
+func TestDiagExt(t *testing.T) {
+	for p, want := range map[string]string{
+		"a/otlp/logs.jsonl": ".jsonl", "a/otlp/logs.jsonl.12": ".jsonl", "a/x.json": ".json", "a/x.PNG": ".png",
+		"a/x.log.1": ".1", "a/otlp/logs.jsonl.x": ".x", "a/.1": ".1",
+	} {
+		if got := diagExt(p); got != want {
+			t.Errorf("diagExt(%q) = %q, want %q", p, got, want)
+		}
+	}
+}
+
 func TestExportPortableEvidenceAndRedVerdict(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	for _, fail := range []bool{false, true} {
@@ -268,9 +321,12 @@ func TestExportFullShardBeyondFormerFifteenMiBAllowance(t *testing.T) {
 		f.selection.Shards = append(f.selection.Shards, PlannedShard{ID: fmt.Sprintf("s%d", len(f.selection.Shards)+1), Cases: []string{}})
 	}
 	f.run.Limits.Shards = 32
-	rel := f.attempts[0].Attempts[0].Case + "/flight.jsonl"
+	rel := f.attempts[0].Attempts[0].Case + "/otlp/logs.jsonl"
 	data := append([]byte(`{"message":"`), bytes.Repeat([]byte("x"), 16<<20)...)
 	data = append(data, []byte("\"}\n")...)
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(job.Output, rel)), 0700); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(job.Output, rel), data, 0600); err != nil {
 		t.Fatal(err)
 	}

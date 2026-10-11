@@ -229,7 +229,7 @@ func extract(archive, root string) error {
 		if !f.Mode().IsRegular() {
 			return fmt.Errorf("nonregular archive entry")
 		}
-		ext := strings.ToLower(filepath.Ext(p))
+		ext := diagExt(p)
 		switch ext {
 		case ".json", ".jsonl", ".log", ".txt", ".md", ".png":
 		default:
@@ -254,7 +254,7 @@ func extract(archive, root string) error {
 		if err = extractFile(f, p); err != nil {
 			return err
 		}
-		if strings.EqualFold(filepath.Ext(p), ".png") {
+		if diagExt(p) == ".png" {
 			b, err := os.ReadFile(p)
 			if err != nil {
 				return err

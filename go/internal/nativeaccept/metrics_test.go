@@ -2,95 +2,35 @@ package nativeaccept
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 )
 
-// A flight recording of two calls (one an error, one timed by the
-// companion), a cache hit and two scheduler steps, plus a restart's
-// recording under service-2.
-func writeRecordings(t *testing.T, output string) {
-	t.Helper()
-	call := func(wall int64, request int, extra map[string]any) telemetrytest.Row {
-		payload := map[string]any{"request": request, "tool": "games_call_tool", "native_tool": "x/read"}
-		for k, v := range extra {
-			payload[k] = v
-		}
-		return telemetrytest.Row{Kind: "native_call", Context: wallContext(wall), Payload: payload}
-	}
-	step := func(wall int64, reads int) telemetrytest.Row {
-		return telemetrytest.Row{Kind: "clock_step", Context: wallContext(wall),
-			Payload: map[string]any{"verdict": "admitted", "reason": "", "target": "timer", "dur_ms": 0.0, "attrs": map[string]any{"reads": reads}}}
-	}
-	telemetrytest.WriteLogs(t, filepath.Dir(FlightRecorderPath(output)),
-		call(10, 1, map[string]any{"timing": map[string]any{"total_ms": 5, "response_bytes": 100, "native_queue_ms": 2, "native_execute_ms": 4}}),
-		call(11, 2, map[string]any{"ok": false, "error": "boom", "timing": map[string]any{"total_ms": 1, "response_bytes": 20}}),
-		telemetrytest.Row{Kind: "native_frame", Context: wallContext(12), Payload: map[string]any{"outcome": "hit", "tool": "games_call_tool", "native_tool": "x/read"}},
-		step(13, 3), step(14, 1),
-		// Clock status samples: paused for 2 of the 4 s they span.
-		clockSampleRow(6, 20, true), clockSampleRow(7, 22, false), clockSampleRow(8, 24, true),
-	)
-	// The restart's recording runs unpaused for 4 s: the block's paused
-	// fraction weighs both recordings by time, 2 of 8 s.
-	telemetrytest.WriteLogs(t, filepath.Join(output, "service-2", "otlp"),
-		call(20, 1, map[string]any{"timing": map[string]any{"total_ms": 5, "response_bytes": 30, "native_queue_ms": 6, "native_execute_ms": 8}}),
-		clockSampleRow(2, 30, false), clockSampleRow(3, 34, false),
-	)
-}
-
-// wallContext stamps a row at second wall of the epoch, the time the phase
-// summary weighs clock samples by.
-func wallContext(wall int64) map[string]any {
-	return map[string]any{"at": time.Unix(wall, 0).UTC().Format(time.RFC3339Nano)}
-}
-
-// clockSampleRow is a bundle reply carrying a clock status the phase
-// summary samples (bridge.ClockSample); it counts as an untimed native call.
-func clockSampleRow(request int, wall int64, paused bool) telemetrytest.Row {
-	state := "running"
-	if paused {
-		state = "stopped"
-	}
-	reply := fmt.Sprintf(`{"payload":"{\"bundle\":{\"clockStatus\":{\"actualPaused\":%v,\"%s\":{}}}}"}`, paused, state)
-	return telemetrytest.Row{Kind: "native_call", Context: wallContext(wall), Payload: map[string]any{
-		"request": request, "tool": "games_call_tool", "native_tool": "x/bundle", "timing": map[string]any{}, "result": json.RawMessage(reply)}}
-}
-
-func TestComputeMetricsFromReportAndRecordings(t *testing.T) {
+// The report-derived part of the block: timing, waits and service launches.
+func TestComputeMetricsFromReport(t *testing.T) {
 	output := t.TempDir()
-	writeRecordings(t, output)
 	r := Report{
 		WallMsKey: int64(12000), BootMsKey: int64(3000), TicksAdvancedKey: uint64(6000), WallTPSKey: 500.0,
 		"wait_stats": map[string]any{"waits": 4, "stalled": 1, "max_quiet_ms": int64(700)},
 		"service":    map[string]any{"pid": 1}, "service_2": map[string]any{"pid": 2},
 	}
+	if err := os.WriteFile(filepath.Join(output, "evidence.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	m := ComputeMetrics(r, output)
 	want := Metrics{
 		"wall_ms": 12000, "boot_ms": 3000, "ticks_advanced": 6000, "wall_tps": 500,
-		"waits": 4, "waits_stalled": 1, "max_quiet_ms": 700,
-		"native_calls": 8, "native_errors": 1, "native_bytes": 150,
-		"reads_per_step_mean": 2, "cache_hit_ratio": 1.0 / 9,
-		"native_queue_ms_mean": 4, "native_exec_ms_mean": 6,
-		"paused_fraction": 0.25, "service_launches": 2,
+		"waits": 4, "waits_stalled": 1, "max_quiet_ms": 700, "service_launches": 2, "evidence_bytes": 1,
 	}
 	for name, value := range want {
 		if m[name] != value {
 			t.Errorf("%s = %v, want %v", name, m[name], value)
 		}
 	}
-	if m["evidence_bytes"] <= 0 {
-		t.Errorf("evidence_bytes = %v", m["evidence_bytes"])
-	}
-	if len(m) != len(MetricNames) {
-		t.Errorf("block has %d metrics, want %d: %v", len(m), len(MetricNames), m)
-	}
-	// Without recordings or services every metric is present at zero.
+	// Without metric rings or services every metric is present at zero.
 	m = ComputeMetrics(Report{}, t.TempDir())
 	for _, name := range MetricNames {
 		if v, ok := m[name]; !ok || v != 0 {
@@ -132,7 +72,7 @@ func TestSeriesAppendReadAndDrift(t *testing.T) {
 	}
 	for i, wall := range []float64{10000, 11000, 10500, 9800, 10200} {
 		row := SeriesRow{Case: "x/y", RunID: "run-" + string(rune('a'+i)), Timestamp: time.Now(), Passed: true,
-			Metrics: Metrics{"wall_ms": wall, "native_errors": 0, "cache_hit_ratio": 0.5, "waits_stalled": 0, "wall_tps": 400}}
+			Metrics: Metrics{"wall_ms": wall, "native_errors": 0, "paused_fraction": 0.1, "waits_stalled": 0, "wall_tps": 400}}
 		if err := AppendSeries(path, row); err != nil {
 			t.Fatal(err)
 		}
@@ -154,16 +94,16 @@ func TestSeriesAppendReadAndDrift(t *testing.T) {
 	}
 	// Median wall 10200: 13000 is 1.27x and 2800 over, under the floor;
 	// 16000 is past both. An error where the median is zero never flags.
-	// The cache hit ratio flags when it drops; wall_tps 300 is 0.75x and
+	// The paused fraction flags when it rises; wall_tps 300 is 0.75x and
 	// 100 under, past both.
-	m := Metrics{"wall_ms": 13000, "native_errors": 3, "cache_hit_ratio": 0.5, "wall_tps": 300}
+	m := Metrics{"wall_ms": 13000, "native_errors": 3, "paused_fraction": 0.1, "wall_tps": 300}
 	flags := Drift("x/y", "run-new", m, rows)
 	if len(flags) != 1 || flags[0].Metric != "wall_tps" {
 		t.Errorf("flags = %+v", flags)
 	}
-	m = Metrics{"wall_ms": 16000, "native_errors": 0, "cache_hit_ratio": 0.3, "wall_tps": 400}
+	m = Metrics{"wall_ms": 16000, "native_errors": 0, "paused_fraction": 0.5, "wall_tps": 400}
 	flags = Drift("x/y", "run-new", m, rows)
-	if len(flags) != 2 || flags[0].Metric != "wall_ms" || flags[1].Metric != "cache_hit_ratio" {
+	if len(flags) != 2 || flags[0].Metric != "wall_ms" || flags[1].Metric != "paused_fraction" {
 		t.Fatalf("flags = %+v", flags)
 	}
 	if flags[0].Median != 10200 || flags[0].Samples != 5 || flags[0].Value != 16000 {

@@ -155,13 +155,22 @@ The bootstrap still gates trust before cache restore or identity access: public
 ciphertext does not authorize unreviewed code to decrypt licensed inputs.
 
 Public Actions logs and artifacts are public-facing outputs. #380 uploads an
-allowlisted, sanitized evidence tree (reports, metrics, flight/log diagnostics and generated PNG frame captures),
+allowlisted, sanitized evidence tree (reports, metrics, the case's OTLP rings and log diagnostics and generated PNG frame captures),
 never entire game/profile/work directories, credentials or licensed bytes. Raw
 restricted diagnostics stay out of public uploads; if required, #377/#380 use
 separately age-encrypted assets with a digest-bound reference and trusted retrieval.
 Missing required diagnostics cannot be hidden by redaction: report incomplete
 until the importer can retrieve them. The initial evidence fixtures require no
 private diagnostic payloads. #377 inventories licensed inputs before packaging.
+
+A case's OTLP/JSON rings (`<case>/otlp/logs.jsonl`, `traces.jsonl`, `metrics.jsonl`
+and their rotated segments `*.jsonl.N`, see [OTEL core](otel-core.md)) are
+exported and imported like any `.jsonl` diagnostic: scanned for restricted
+markers, re-encoded line by line, hashed into the attempts manifest. A numeric
+segment suffix after `.jsonl` is accepted by the exporter and by archive import;
+no other new extension is. `index.json` (schema 2) lists each case's exported active
+rings under `otlp`; postmortem evidence refs (`otlp/logs.jsonl.N#line`) resolve
+against the downloaded tree.
 
 #382 accepts only maintainer-controlled dispatch and scheduled main runs, using
 a trusted workflow revision recorded as `workflow_commit`. No PR, fork or

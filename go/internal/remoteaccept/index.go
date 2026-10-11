@@ -22,7 +22,7 @@ type IndexCase struct {
 	Artifact  string   `json:"artifact"`
 	Diagnosis []string `json:"diagnosis,omitempty"`
 	Report    string   `json:"report,omitempty"`
-	Flight    string   `json:"flight,omitempty"`
+	OTLP      []string `json:"otlp,omitempty"`
 	Log       string   `json:"log,omitempty"`
 	Snapshots []string `json:"snapshots,omitempty"`
 }
@@ -34,6 +34,12 @@ type Index struct {
 	Status  string      `json:"status"`
 	Cases   []IndexCase `json:"cases"`
 }
+
+// otlpRings are the OTLP/JSON rings a case's service writes under its otlp
+// directory (docs/developers/contracts/otel-core.md); the index lists each
+// active file that was exported. Rotated segments (logs.jsonl.N) travel with
+// them and are not listed.
+var otlpRings = []string{"logs.jsonl", "traces.jsonl", "metrics.jsonl"}
 
 // maxDiagnosis bounds the postmortem lines copied per case.
 const maxDiagnosis = 8
@@ -48,14 +54,18 @@ func BuildIndex(root string) (Index, error) {
 	}
 	var run Run
 	_ = readLoose(root, "run.json", &run)
-	idx := Index{Version: 1, Status: agg.Status, Cases: []IndexCase{}}
+	idx := Index{Version: 2, Status: agg.Status, Cases: []IndexCase{}}
 	for _, c := range agg.Cases {
 		row := IndexCase{Name: c.Name, Status: c.Status, Attempts: c.AttemptCount, Shard: c.ShardID}
 		if c.ShardID != "" {
 			row.Artifact = fmt.Sprintf("acceptance-%d-%d-shard-%s", run.Trigger.RunID, run.Trigger.Attempt, c.ShardID)
 			base := c.ShardID + "/fixture"
 			row.Report = existing(root, base+"/"+c.Name+"/result.json")
-			row.Flight = existing(root, base+"/"+c.Name+"/flight.jsonl")
+			for _, ring := range otlpRings {
+				if p := existing(root, base+"/"+c.Name+"/otlp/"+ring); p != "" {
+					row.OTLP = append(row.OTLP, p)
+				}
+			}
 			row.Log = existing(root, base+"/"+c.Name+".log")
 			matches, _ := filepath.Glob(filepath.Join(root, filepath.FromSlash(base+"/"+SnapshotDir+"/"+c.Name), "routine-stream-*.jsonl"))
 			sort.Strings(matches)
@@ -129,7 +139,7 @@ func (x Index) Markdown() string {
 	b.WriteString("| Case | Status | Attempts | Shard | `gh run download -n` | Evidence | Postmortem |\n|---|---|---|---|---|---|---|\n")
 	for _, c := range x.Cases {
 		ev := []string{}
-		for _, p := range []string{c.Report, c.Flight, c.Log} {
+		for _, p := range append(append([]string{c.Report}, c.OTLP...), c.Log) {
 			if p != "" {
 				ev = append(ev, "`"+p+"`")
 			}

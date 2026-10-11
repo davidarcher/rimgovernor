@@ -21,9 +21,11 @@ import (
 // names, so a run's cost is comparable across runs without
 // reading the nested report: the timing fields, the wait statistics, the
 // native round trips of every service log ring under the output directory
-// (otlp/logs.jsonl and each restart's service-N/otlp/logs.jsonl), the service
-// launches and the evidence size. Finalize computes it from the report
-// and the output directory; cases add nothing. `acceptance run` and
+// (the native call and pause costs come from the exported OTEL metrics rings,
+// otlp/metrics.jsonl and each restart's service-N/otlp/metrics.jsonl; see
+// metrics_otel.go), the service launches and the evidence size. Finalize
+// computes it from the report and the output directory; cases add nothing.
+// `acceptance run` and
 // `acceptance suite` append one row per case to an append-only series
 // (metrics.jsonl beside the output directory) and flag the metrics that
 // drifted past their rule against the series' trailing median.
@@ -36,8 +38,7 @@ const MetricsKey = "metrics"
 var MetricNames = []string{
 	"wall_ms", "boot_ms", "ticks_advanced", "wall_tps",
 	"waits", "waits_stalled", "max_quiet_ms",
-	"native_calls", "native_errors", "native_bytes",
-	"reads_per_step_mean", "cache_hit_ratio",
+	"native_calls", "native_errors",
 	"native_queue_ms_mean", "native_exec_ms_mean",
 	"paused_fraction",
 	"service_launches", "evidence_bytes",
@@ -73,15 +74,7 @@ func ComputeMetrics(r Report, output string) Metrics {
 		}
 	}
 	m["service_launches"] = float64(launches)
-	var totals recordingTotals
-	for _, path := range flightRecordings(output) {
-		rows, err := bridge.ReadOTLPTimeline(path)
-		if err != nil {
-			continue
-		}
-		totals.add(bridge.SummarizePhases(rows))
-	}
-	totals.fill(m)
+	readOTELTotals(output).fill(m, m["wall_ms"])
 	m["evidence_bytes"] = float64(evidenceBytes(output))
 	return m
 }
@@ -93,7 +86,7 @@ func ComputeMetrics(r Report, output string) Metrics {
 // shows without the report the harness computes the full block from.
 func RecorderMetrics(rows []bridge.TimelineRecord) Metrics {
 	m := Metrics{}
-	for _, name := range MetricNames {
+	for _, name := range append(append([]string(nil), MetricNames...), recorderOnlyMetrics...) {
 		m[name] = 0
 	}
 	summary := bridge.SummarizePhases(rows)
@@ -104,6 +97,11 @@ func RecorderMetrics(rows []bridge.TimelineRecord) Metrics {
 	totals.fill(m)
 	return m
 }
+
+// recorderOnlyMetrics are the launcher's extra readings the OTEL metrics
+// carry no instrument for (response bytes, frame-cache hits, reads per step):
+// RecorderMetrics adds them, the harness's series block does not.
+var recorderOnlyMetrics = []string{"native_bytes", "reads_per_step_mean", "cache_hit_ratio"}
 
 // recordingTotals sums the native round trips of one or more recordings.
 type recordingTotals struct {
@@ -170,15 +168,6 @@ func metricValue(value any) float64 {
 		}
 	}
 	return 0
-}
-
-// flightRecordings lists the run's service log rings: the first launch's
-// under output and each restart's under its service-N directory.
-func flightRecordings(output string) []string {
-	paths := []string{FlightRecorderPath(output)}
-	matches, _ := filepath.Glob(filepath.Join(output, "service-*", "otlp", "logs.jsonl"))
-	sort.Strings(matches)
-	return append(paths, matches...)
 }
 
 // evidenceBytes sums the size of every file under output; result.json is
@@ -356,9 +345,6 @@ var DriftRules = map[string]DriftRule{
 	"max_quiet_ms":         {Ratio: 1.5, Floor: 10000},
 	"native_calls":         {Ratio: 1.5, Floor: 200},
 	"native_errors":        {Ratio: 1, Floor: 0.5},
-	"native_bytes":         {Ratio: 1.5, Floor: 1 << 20},
-	"reads_per_step_mean":  {Ratio: 1.5, Floor: 2},
-	"cache_hit_ratio":      {Ratio: 0.8, Floor: 0.05, Lower: true},
 	"native_queue_ms_mean": {Ratio: 1.5, Floor: 20},
 	"native_exec_ms_mean":  {Ratio: 1.5, Floor: 20},
 	"paused_fraction":      {Ratio: 1.5, Floor: 0.1},

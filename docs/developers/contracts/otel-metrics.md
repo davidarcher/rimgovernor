@@ -66,13 +66,45 @@ or free-form target can reach a metric.
 to every instrument through a manual reader and asserts the series and attribute
 values stay inside these sets, with the documented units and bucket boundaries.
 
+## Acceptance run metrics and drift series
+
+Every acceptance `result.json` carries a flat `metrics` block, and `acceptance run`
+and `acceptance suite` append one row per case to the append-only series
+(`metrics.jsonl` beside the output directory, `-series`/`-baseline`; not the OTLP
+ring of the same name). `go/internal/nativeaccept/metrics.go` and `metrics_otel.go`.
+The block's native and pause readings come from the run's exported metric rings
+(`otlp/metrics.jsonl` of the first launch and of each restart's `service-N/otlp`).
+Instruments are cumulative, so each process's last export is its total (rows are
+keyed by `service.instance.id`, instrument and attributes) and the run's value is the
+sum over processes:
+
+| Block key | Derived from |
+| --- | --- |
+| `native_calls` | sum of `native.calls` over all outcomes |
+| `native_errors` | `native.calls` with `outcome=error` (refusals are not errors) |
+| `native_queue_ms_mean`, `native_exec_ms_mean` | `native.phase.duration` sum / count for `phase=native_queue` and `native_execute` |
+| `paused_fraction` | `scheduler.controller_pause` sum / the run's `wall_ms` |
+
+The remaining keys come from the report and output directory, not telemetry:
+`wall_ms`, `boot_ms`, `ticks_advanced`, `wall_tps`, the wait statistics
+(`waits`, `waits_stalled`, `max_quiet_ms`), `service_launches`, `evidence_bytes`.
+Row format, flake rate (failures in a case's last 10 runs) and drift (value past a
+per-key ratio and floor against the trailing median of the last 10 passing runs) are
+unchanged. Differences from the earlier log-derived block: `paused_fraction` is now the
+controller-held pause share of wall time (it was the share of sampled clock statuses
+that were paused); `native_bytes`, `cache_hit_ratio` and `reads_per_step_mean` are
+gone because no instrument measures them, and they no longer drift-flag. A series
+recorded before this change keeps its old rows; `paused_fraction` medians mix the two
+meanings until ten new passing runs replace them. A run with no metric ring reads zero
+for the OTEL-derived keys. The launcher's Problems tab still computes its own readings
+from the flight stream (`RecorderMetrics`) until #2803.
 ## What remains of the hand-rolled aggregation
 
 Nothing is deleted by this change, because readers still consume it (they move in
 #2790 and #2791; final deletion is #2793):
 
 - `bridge.SummarizePhases` and `ToolPhases` build `rimgovernor phases` and the
-  acceptance harness's metrics, speed-matrix and serve checks from `native_call` and
+  acceptance harness's speed-matrix and serve checks from `native_call` and
   `clock_step` flight rows.
 - `pollrollup` folds quiet polls and frame-cache hits into the `native_call` rows
   those readers sum. The metrics above count every call individually and need no
