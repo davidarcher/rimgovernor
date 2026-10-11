@@ -1,6 +1,6 @@
 # Combat in the game: the rules the planner works against
 
-[Documentation](../../README.md) · [Architecture](overview.md) · [Weapon planner](../contracts/weapon-planner.md) · [Native rules](../contracts/native-rules.md)
+[Documentation](../../README.md) · [Architecture](overview.md) · [Weapon planner](../contracts/weapon-planner.md) · [Native rules](../contracts/native-rules.md) · [Predictive combat research](combat-predictability-research.md)
 
 RimWorld owns targeting, pathing, weapon execution and raid state. Go owns squad
 composition, positions and tactical transitions. The game constants below are
@@ -34,23 +34,35 @@ flowchart LR
 
 Score for a candidate target: `60 − min(distance, 40)`, plus 10 if it is aiming at me, plus 40 if it was my
 target in the last 300 ticks, minus `10 × coverBlock`, minus 50 if downed, minus a non-combatant penalty,
-adjusted for friendly fire, times the target's priority factor. Targets are acquired within 56 cells and
-kept to 65; a target not engaged for 400 ticks is dropped.
+adjusted for friendly fire and weapon-specific preferences, times the target's
+priority factor. The ranged shooting branch samples eligible targets by weight
+within 30 score points of the best; it does not always choose the best score.
+When the best score is below 1 it instead selects that best available target.
+The base job giver acquires within 56 cells and keeps to 65; a target not
+engaged for more than 400 ticks is dropped. Subclasses and configuration can differ.
 
 An AI shooter stands and fires (`Wait_Combat`) when it has cover against the target, its cell is free to
 reserve and it can hit, or when the target is within 5 cells and it can hit. Otherwise it picks a shooting
-position and walks there. The decision is revisited every 450 to 550 ticks, so a raider commits to a
-position for about 8 game seconds.
+position and walks there. Ordinary successful ranged jobs receive a 450 to
+550 tick expiry, not a guaranteed target lock. `JobDriver_Wait` checks
+auto-attack every four ticks and on becoming mobile, subject to its guards;
+it can acquire another target inside the same `Wait_Combat` job. Remaining
+warmup/cooldown and actual attack intent are better timing evidence.
 
 ## Raid behavior (`LordJob_AssaultColony`)
 
 A raid is a state graph. Assault is the default toil; sappers start in a sapper toil and switch to assault
-when none is left fighting. Raiders give up and leave after 26,000 to 38,000 ticks (33,000 to 38,000 for
-sappers and breachers), or when a damage-fraction trigger of 25 to 35% fires; both are filtered to maps
-they can exit. Kidnap and steal are separate transitions. Mechanoid raids leave only when the game ends.
+when none is left fighting. Eligible humanlike raids can give up after 26,000
+to 38,000 ticks (33,000 to 38,000 for sappers and breachers). A separate exit
+trigger uses damage taken by the colony: 25 to 35% of initial colony health,
+with a 900 minimum damage threshold in this constructor. This is not a raider
+casualty threshold. Both exits require an exitable map and the relevant Lord
+configuration. Kidnap and steal are separate transitions. These humanlike
+exit rules do not establish when other raid types leave.
 
-The combat fixtures stage the assault lord with `canTimeoutOrFlee: false`, so a fixture fight never ends by
-the raiders giving up. Real raids do. Read fixture resolution times with that in mind.
+The combat fixtures stage the assault lord with `canTimeoutOrFlee: false`,
+disabling those configured exit transitions. This does not exclude every other
+flee mechanism. Read fixture resolution times with that distinction in mind.
 
 ## What the planner should take from this
 
@@ -77,9 +89,9 @@ fight owns the response; the health pause thresholds are unchanged.
 - Cover and spacing are scored with the hit formula above; `combat.geometry` already asks the game for cover
   and line of fire rather than reimplementing it. More such reads (hit chance per candidate cell, best
   target per pawn, path cost to the nearest colonist) are the way to borrow more, not a Go port.
-- The 8-second shooting-position window and the +40 target stickiness are things focus-fire and
-  repositioning tactics can lean on: a raider keeps shooting its current target and does not re-plan for
-  several seconds.
+- The +40 recent-target preference can concentrate target probability, but it
+  does not guarantee continued targeting. Test repositioning against observed
+  stance timing and target changes, not an assumed eight-second commitment.
 - `explainDefensivePositions` treats a hostile inside a standing room or at or behind the firing line as engaged. A hostile outside the walls does not prevent holding solely because it is nearby.
 
 ## Measure the response path

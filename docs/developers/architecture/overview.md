@@ -34,10 +34,10 @@ flowchart LR
 | RimWorld | Legality, pathing, pawn jobs and physical outcomes | Governor intent |
 | Launcher | Starts/stops sessions and presents observed state | Planner execution |
 
-The intended order path is through Hands. Existing combat batches still call
-the native boundary directly; unification is tracked in
-[#2502](https://github.com/davidarcher/rimgovernor/issues/2502).
-Do not use that exception as a pattern for new writers.
+Combat batches use the same Hands ownership: the planner commits the batch to
+the journal, then calls `hands.RunBatch`. Uncertain receipts remain explicit.
+[#2502](https://github.com/davidarcher/rimgovernor/issues/2502) completed this
+unification. New writers must also use Hands.
 
 ## The control cycle
 
