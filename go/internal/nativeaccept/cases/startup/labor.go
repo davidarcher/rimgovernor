@@ -258,24 +258,18 @@ func reviewDiagnoses(ctx context.Context, st *store.Store, review store.Rounds) 
 // ownerMethods is the open methods of the goal or Project the review binds to
 // need; ok is false when it binds none or the row is gone.
 func ownerMethods(ctx context.Context, st *store.Store, review store.Rounds, need domain.ConcernID) ([]domain.Method, bool, error) {
-	var owner store.WorkOwner
+	var owner store.StandardState
 	var err error
-	if id, ok := review.ProjectFor(need); ok {
-		owner, err = st.LoadProject(ctx, id)
-	} else {
-		for _, b := range review.Standards {
-			if b.Concern == need {
-				owner, err = st.LoadStandard(ctx, b.Standard)
-			}
-		}
+	if id, ok := review.StandardFor(need); ok {
+		owner, err = st.LoadStandard(ctx, id)
 	}
-	if owner == nil || errors.Is(err, store.ErrNotFound) {
+	if owner.Standard.ID == "" || errors.Is(err, store.ErrNotFound) {
 		return nil, false, nil
 	}
 	if err != nil {
 		return nil, false, err
 	}
-	return owner.OwnerMethods(), true, nil
+	return owner.Methods, true, nil
 }
 
 // openWork is the first open action among methods: its method, action id, the

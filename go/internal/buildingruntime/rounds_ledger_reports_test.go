@@ -56,13 +56,13 @@ func TestLedgerFilesThePurposeVerdicts(t *testing.T) {
 func TestLedgerPurposeVerdictFailureDoesNotFailPlacement(t *testing.T) {
 	f, d := reportingFixture(t, purposeReport{order: BuildingReasonNoDeficit, workTicks: 1})
 	f.declare(ledgerOrder("Make_Vest"))
-	d.latest.openWork = func(context.Context, *store.Store, store.WorkOwner) (bool, error) { return true, nil }
+	d.latest.openWork = func(context.Context, *store.Store, store.StandardState) (bool, error) { return true, nil }
 	open := f.round()
 	if open.Reports[0].Verdict != BuildingReasonExistingWork || open.NativeWorkTicks != 0 {
 		t.Fatalf("open work reported %+v", open)
 	}
 	f.declare(ledgerOrder("Make_Hat"))
-	d.latest.openWork = func(context.Context, *store.Store, store.WorkOwner) (bool, error) {
+	d.latest.openWork = func(context.Context, *store.Store, store.StandardState) (bool, error) {
 		return false, errors.New("journal")
 	}
 	failed := f.round()

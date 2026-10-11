@@ -33,7 +33,7 @@ type StandardState struct {
 const maxActiveStandards = 512
 
 // initializeGoals creates the goal lifecycle tables. goals and rounds
-// are session caches: RebuildStandards refills goals and projects from the save and
+// are session caches: RebuildStandards refills goals from the save and
 // ResetRounds empties rounds on every world change, and the
 // next review recomputes it. Goal-create request replay is in memory only.
 func initializeStandards(ctx context.Context, tx *Tx) error {
@@ -41,13 +41,10 @@ func initializeStandards(ctx context.Context, tx *Tx) error {
 CREATE INDEX active_standards ON standards(id) WHERE retired=0;
 CREATE TABLE incidents(id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, subject TEXT NOT NULL, started_tick INTEGER NOT NULL, ended_tick INTEGER, payload BLOB NOT NULL) STRICT;
 CREATE UNIQUE INDEX open_incidents ON incidents(colony,load_token,map_id,kind,subject) WHERE ended_tick IS NULL;
-CREATE TABLE projects(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;
-CREATE INDEX active_projects ON projects(id) WHERE retired=0;
-CREATE TABLE plan_owner(plan_id TEXT PRIMARY KEY REFERENCES plans(id), kind TEXT NOT NULL CHECK(kind IN ('standard','project','incident')), UNIQUE(plan_id,kind)) STRICT;
+CREATE TABLE plan_owner(plan_id TEXT PRIMARY KEY REFERENCES plans(id), kind TEXT NOT NULL CHECK(kind IN ('standard','incident')), UNIQUE(plan_id,kind)) STRICT;
 CREATE TABLE standard_methods(standard_id TEXT NOT NULL REFERENCES standards(id), episode TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE, kind TEXT NOT NULL DEFAULT 'standard' CHECK(kind='standard'), priority INTEGER NOT NULL, reason TEXT, PRIMARY KEY(standard_id,episode,method_id), FOREIGN KEY(plan_id,kind) REFERENCES plan_owner(plan_id,kind)) STRICT;
-CREATE TABLE project_methods(project_id TEXT NOT NULL REFERENCES projects(id), method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE, kind TEXT NOT NULL DEFAULT 'project' CHECK(kind='project'), priority INTEGER NOT NULL, reason TEXT, PRIMARY KEY(project_id,method_id), FOREIGN KEY(plan_id,kind) REFERENCES plan_owner(plan_id,kind)) STRICT;
 CREATE TABLE incident_methods(incident_id TEXT NOT NULL REFERENCES incidents(id), method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE, kind TEXT NOT NULL DEFAULT 'incident' CHECK(kind='incident'), priority INTEGER NOT NULL, reason TEXT, PRIMARY KEY(incident_id,method_id), FOREIGN KEY(plan_id,kind) REFERENCES plan_owner(plan_id,kind)) STRICT;
-CREATE VIEW plan_methods AS SELECT plan_id,kind,standard_id AS owner_id,episode,method_id,priority,reason FROM standard_methods UNION ALL SELECT plan_id,kind,project_id,NULL,method_id,priority,reason FROM project_methods UNION ALL SELECT plan_id,kind,incident_id,NULL,method_id,priority,reason FROM incident_methods;
+CREATE VIEW plan_methods AS SELECT plan_id,kind,standard_id AS owner_id,episode,method_id,priority,reason FROM standard_methods UNION ALL SELECT plan_id,kind,incident_id,NULL,method_id,priority,reason FROM incident_methods;
 CREATE TABLE rounds(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE defense_layout(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE production_ladder(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
@@ -169,6 +166,45 @@ func (s *Store) LoadStandard(ctx context.Context, id domain.StandardID) (Standar
 		return StandardState{}, err
 	}
 	return out, nil
+}
+
+// OpenStandards returns the open Standards of kind, including ones the
+// rounds do not bind to an assessment (a trade mission). Their methods use the
+// same Hands admission and journal.
+func (s *Store) OpenStandards(ctx context.Context, kind domain.ConcernID) ([]StandardState, error) {
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	rows, err := tx.QueryContext(ctx, "SELECT id FROM standards WHERE retired=0 ORDER BY id")
+	if err != nil {
+		return nil, err
+	}
+	var ids []domain.StandardID
+	for rows.Next() {
+		var id domain.StandardID
+		if err = rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	var out []StandardState
+	for _, id := range ids {
+		g, err := loadStandard(ctx, tx, id)
+		if err != nil {
+			return nil, err
+		}
+		if g.Standard.Kind == kind && g.Standard.Status == domain.StandardOpen {
+			out = append(out, g)
+		}
+	}
+	return out, tx.Commit()
 }
 
 func saveStandard(ctx context.Context, tx *Tx, previous StandardState, g domain.Standard) (StandardState, error) {
@@ -320,14 +356,14 @@ func commitMethod(ctx context.Context, tx *Tx, id domain.StandardID, revision ui
 	return loadStandard(ctx, tx, id)
 }
 
-// admitOwnerCommit is the commit every method owner shares, a goal or a
-// Project: the revision CAS, the open-deficit check, the Safeguards and current review, the open-work check with its exemptions, then the family
+// admitOwnerCommit is the commit a Standard method shares with CommitMethod:
+// the revision CAS, the open-deficit check, the Safeguards and current review, the open-work check with its exemptions, then the family
 // admission, the methods row and the revision bump. The caller reloads
 // the owner.
-func admitOwnerCommit(ctx context.Context, tx *Tx, state WorkOwner, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) error {
-	summary, _ := SummarizeOwner(state)
-	if state.OwnerRevision() != revision {
-		return fmt.Errorf("%w: %s is at revision %d, not %d", ErrStaleOwner, state.ownerLabel(), state.OwnerRevision(), revision)
+func admitOwnerCommit(ctx context.Context, tx *Tx, state StandardState, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) error {
+	summary := SummarizeOwner(state)
+	if state.Revision != revision {
+		return fmt.Errorf("%w: %s is at revision %d, not %d", ErrStaleOwner, state.ownerLabel(), state.Revision, revision)
 	}
 	if summary.Status != domain.StandardOpen || summary.Finding != domain.FindingUnmet {
 		return errors.New("standard does not admit a method")
@@ -348,7 +384,7 @@ func admitOwnerCommit(ctx context.Context, tx *Tx, state WorkOwner, revision uin
 		// its supply owner. Ordinary local methods may proceed while its
 		// separate Hands attempt remains unresolved.
 		onlyRequests := true
-		for _, linked := range state.OwnerMethods() {
+		for _, linked := range state.Methods {
 			pending, err := load(ctx, tx, linked.Plan)
 			if err != nil {
 				return err
@@ -432,7 +468,7 @@ func admitOwnerCommit(ctx context.Context, tx *Tx, state WorkOwner, revision uin
 	if err = m.Validate(); err != nil {
 		return err
 	}
-	if state.OwnerRevision() == ^uint64(0) {
+	if state.Revision == ^uint64(0) {
 		return ErrCapacity
 	}
 	if err = bindOwnerMethod(ctx, tx, state, method, reason, plan); err != nil {
@@ -525,11 +561,8 @@ func guardStandardWork(ctx context.Context, tx *Tx, floors *retirementFloors, pl
 	if err != nil {
 		return err
 	}
-	switch kind {
-	case "incident":
+	if kind == "incident" {
 		return guardIncidentWork(ctx, tx, domain.IncidentID(ownerID), current, tick)
-	case "project":
-		return guardProjectWork(ctx, tx, domain.ProjectID(ownerID), current, tick)
 	}
 	state, err := loadStandard(ctx, tx, domain.StandardID(ownerID))
 	if err != nil {

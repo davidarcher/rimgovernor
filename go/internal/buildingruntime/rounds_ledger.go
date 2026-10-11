@@ -52,7 +52,7 @@ type purposeReport struct {
 	workTicks uint32
 	// openWork says the owner's open plans are the purpose's own work in
 	// flight; nil when the purpose has none.
-	openWork func(context.Context, *store.Store, store.WorkOwner) (bool, error)
+	openWork func(context.Context, *store.Store, store.StandardState) (bool, error)
 }
 
 // ledgerPurpose is one reporter's latest report with where it files.
@@ -342,7 +342,7 @@ func (l *RoundsLedgerPlanner) purposeReports(call context.Context, snapshot doma
 // declaration said. A journal read that fails reports the purpose unavailable.
 func (l *RoundsLedgerPlanner) purposeVerdict(call context.Context, review store.Rounds, purpose ledgerPurpose) (Verdict, uint32) {
 	journal := l.reviewer.player.journal
-	owner, workable, err := journal.WorkableOwner(call, review, purpose.need)
+	owner, workable, err := journal.Workable(call, review, purpose.need)
 	if err != nil {
 		return fieldUnavailable("purpose_owner"), 0
 	}
@@ -365,7 +365,7 @@ func (l *RoundsLedgerPlanner) purposeVerdict(call context.Context, review store.
 func (l *RoundsLedgerPlanner) commit(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds) (RoundsLedgerResult, error) {
 	r := l.reviewer
 	p := r.player
-	owner, workable, err := p.journal.WorkableOwner(call, review, policy.MaintainWorkLedger)
+	owner, workable, err := p.journal.Workable(call, review, policy.MaintainWorkLedger)
 	if err != nil {
 		return RoundsLedgerResult{}, err
 	}
@@ -374,7 +374,7 @@ func (l *RoundsLedgerPlanner) commit(call, epoch context.Context, arbiter *stepA
 	}
 	// An accepted bill action completes within the step; an unknown receipt
 	// leaves its plan open, and the next commit waits for the resend.
-	for _, method := range owner.OwnerMethods() {
+	for _, method := range owner.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoundsLedgerResult{}, err
@@ -494,9 +494,9 @@ func ledgerBill(p policy.LedgerPlacement) (domain.ProductionBill, error) {
 // ledgerMethod is the owner's next method for a plan of this content. The
 // same reconcile diff next Round (native lost a placed bill, refused a
 // removal) is a new attempt: the id skips every method the owner has tried.
-func ledgerMethod(owner store.WorkOwner, key string) domain.MethodID {
+func ledgerMethod(owner store.StandardState, key string) domain.MethodID {
 	tried := map[domain.MethodID]bool{}
-	for _, method := range owner.OwnerHistory() {
+	for _, method := range owner.History {
 		tried[method.Method] = true
 	}
 	for attempt := 0; ; attempt++ {

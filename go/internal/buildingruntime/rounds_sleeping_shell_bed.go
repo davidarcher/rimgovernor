@@ -19,7 +19,7 @@ import (
 // stock takes it on the next pass (the install itself is reconcileRoom's).
 // Each bed is packed once per Episode; due is false when bed is not a Bed, one
 // is stored already, or there is none to carry over, so the reconcile goes on.
-func (r *RoundsSleepingUpkeepPlanner) packShellBed(call, epoch context.Context, stock *packedStock, state ControlState, goal store.WorkOwner, reading observation.RoundsReading, bed string) (RoundsBuildingResult, bool, error) {
+func (r *RoundsSleepingUpkeepPlanner) packShellBed(call, epoch context.Context, stock *packedStock, state ControlState, goal store.StandardState, reading observation.RoundsReading, bed string) (RoundsBuildingResult, bool, error) {
 	const shellBed = "Bed"
 	facts := reading.Projection
 	rooms, rk := facts.Rooms.Value()

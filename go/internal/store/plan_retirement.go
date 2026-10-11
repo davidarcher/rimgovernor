@@ -69,13 +69,7 @@ func retireRoundsPlans(ctx context.Context, tx *Tx, current domain.GenerationSna
 			continue
 		}
 		var g StandardState
-		var owned ProjectState
-		switch v.kind {
-		case "project":
-			if owned, err = loadProject(ctx, tx, domain.ProjectID(v.owner)); err != nil {
-				return err
-			}
-		case "standard":
+		if v.kind == "standard" {
 			if g, err = loadStandard(ctx, tx, domain.StandardID(v.owner)); err != nil {
 				return err
 			}
@@ -116,7 +110,7 @@ func retireRoundsPlans(ctx context.Context, tx *Tx, current domain.GenerationSna
 		if !settled {
 			continue
 		}
-		if g.Revision == ^uint64(0) || owned.Revision == ^uint64(0) {
+		if g.Revision == ^uint64(0) {
 			return ErrCapacity
 		}
 		for _, progress := range p.Progress {
@@ -128,14 +122,10 @@ func retireRoundsPlans(ctx context.Context, tx *Tx, current domain.GenerationSna
 		if _, err = tx.ExecContext(ctx, "UPDATE plans SET retired=1 WHERE id=?", v.plan); err != nil {
 			return err
 		}
-		switch v.kind {
-		case "project":
-			err = owned.bumpRevision(ctx, tx)
-		case "standard":
-			err = g.bumpRevision(ctx, tx)
-		}
-		if err != nil {
-			return err
+		if v.kind == "standard" {
+			if err = g.bumpRevision(ctx, tx); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

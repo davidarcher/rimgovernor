@@ -49,7 +49,7 @@ func (r *RoundsSupplyPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoundsSupplyResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	var goal store.WorkOwner
+	var goal store.StandardState
 	var cohort []policy.StartingSupply
 	for _, binding := range review.Standards {
 		if binding.Concern != policy.ManageSupplySafety {
@@ -60,15 +60,15 @@ func (r *RoundsSupplyPlanner) step(call, epoch context.Context, arbiter *stepArb
 			return RoundsSupplyResult{}, err
 		}
 		goal = safety
-		if safety.OwnerDeficit() {
+		if safety.Deficit() {
 			cohort = review.EventLoot.Pending
 			break
 		}
 	}
-	if goal == nil || !goal.OwnerDeficit() || review.VetoOwner(goal) != "" {
+	if goal.Standard.ID == "" || !goal.Deficit() || review.Veto(goal.Standard) != "" {
 		return RoundsSupplyResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	for _, method := range goal.OwnerMethods() {
+	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoundsSupplyResult{}, err

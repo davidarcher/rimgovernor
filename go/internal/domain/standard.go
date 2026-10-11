@@ -16,7 +16,7 @@ const (
 	StandardVoided  StandardStatus = "voided"
 )
 
-// Finding is an Inspection's measured result for a Standard or Project
+// Finding is an Inspection's measured result for a Standard
 // Concern: Met, Unmet, or Unclear when the facts do not say.
 type Finding string
 
@@ -55,6 +55,11 @@ type Standard struct {
 	Status           StandardStatus
 	Finding          Finding
 	RecoveryObserved bool
+	// Once marks a build-once outcome (cooking, basic power, defensive
+	// layout, a trade mission): once settled it stays settled, an unknown
+	// measurement does not reopen it, and only a measured deficit with no
+	// work open starts a new Episode.
+	Once bool `json:",omitempty"`
 	// Record is the goal's own durable intent, JSON the goal's planner
 	// writes and reads (empty for most goals): what the world cannot show,
 	// saved with the goal in the GovernorState blob.
@@ -74,6 +79,12 @@ func (g Standard) Validate() error {
 	}
 	if len(g.Record) > MaxStandardRecord {
 		return errors.New("standard record exceeds bound")
+	}
+	if g.Kind == TradeMissionConcern {
+		mission, err := DecodeTradeMission(g.Record)
+		if err != nil || !g.Once || mission.HomeColony != g.Snapshot.Colony || mission.HomeMap != g.Snapshot.Map {
+			return errors.New("invalid trade mission standard record")
+		}
 	}
 	switch g.Status {
 	case StandardOpen, StandardSettled, StandardVoided:
@@ -100,7 +111,9 @@ func (g Standard) Validate() error {
 // regressed since (a lamp removed behind a lit bench), so the settled
 // episode's methods may be proposed again. Priority orders work only: an
 // manual pause vetoes proposals through the policy Safeguards.
-// Projects are not goals (Project, ReviewProject).
+// A Once Standard that settled stays settled: only a measured deficit with
+// no work open (it regressed) starts a new Episode, and a regression it
+// measured while its effects were unresolved is not one.
 //
 // A goal carries no review tick: a review that changes nothing returns g
 // equal to its input, so the store neither bumps the revision nor rewrites the
@@ -127,6 +140,9 @@ func ReviewStandard(g Standard, current GenerationSnapshot, need Finding, openWo
 	}
 	// Review revisions may advance without changing the player's direction.
 	g.Snapshot = current
+	if g.Once && g.Status == StandardSettled && (need != FindingUnmet || openWork) {
+		return g, nil
+	}
 	if need == FindingUnclear {
 		if g.Status == StandardSettled {
 			g.Status = StandardOpen
@@ -134,7 +150,7 @@ func ReviewStandard(g Standard, current GenerationSnapshot, need Finding, openWo
 		g.Finding = need
 		return g, nil
 	}
-	if need == FindingUnmet && (g.RecoveryObserved || g.Finding == FindingMet) && !openWork {
+	if need == FindingUnmet && (g.RecoveryObserved || !g.Once && g.Finding == FindingMet) && !openWork {
 		if g.Episode == ^uint64(0) {
 			return original, errors.New("standard episode exhausted")
 		}

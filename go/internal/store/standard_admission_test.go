@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func methodRequest(t *testing.T, g WorkOwner, id string, costs ...int64) BuildingMethodRequest {
+func methodRequest(t *testing.T, g StandardState, id string, costs ...int64) BuildingMethodRequest {
 	t.Helper()
 	var actions []domain.Action
 	for i := range costs {
@@ -26,7 +26,7 @@ func methodRequest(t *testing.T, g WorkOwner, id string, costs ...int64) Buildin
 	if e != nil {
 		t.Fatal(e)
 	}
-	summary, _ := SummarizeOwner(g)
+	summary := SummarizeOwner(g)
 	s := summary.Snapshot
 	s.Plan = p.ID()
 	s.Revision = p.Revision()

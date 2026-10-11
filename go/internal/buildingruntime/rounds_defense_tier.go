@@ -26,7 +26,7 @@ func defensePromoted(projection observation.ColonyProjection) bool {
 // when the colony is outmatched (#2527): one set-tier action per site, on the
 // exact target. done is false when nothing needs lifting. A site that reads
 // Survive on the next round is no longer selected, so the action is idempotent.
-func (r *RoundsDefenseLayoutPlanner) retier(call, epoch context.Context, goal store.ProjectState, state ControlState, read observation.RoundsReading, record store.DefenseLayoutRecord) (RoundsDefenseLayoutResult, bool, error) {
+func (r *RoundsDefenseLayoutPlanner) retier(call, epoch context.Context, goal store.StandardState, state ControlState, read observation.RoundsReading, record store.DefenseLayoutRecord) (RoundsDefenseLayoutResult, bool, error) {
 	if !defensePromoted(read.Projection) {
 		return RoundsDefenseLayoutResult{}, false, nil
 	}
@@ -77,7 +77,7 @@ func (r *RoundsDefenseLayoutPlanner) retier(call, epoch context.Context, goal st
 	if p.session.State() != state {
 		return RoundsDefenseLayoutResult{}, false, defenseControlErr(119)
 	}
-	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, method, "", plan); err != nil {
+	if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, "", plan); err != nil {
 		return RoundsDefenseLayoutResult{}, false, err
 	}
 	defenseAction(call, "defense-layout", slog.LevelInfo, "applied", "retier", string(defenseRetierTier), map[string]any{"sites": len(sites), "method": string(method)})

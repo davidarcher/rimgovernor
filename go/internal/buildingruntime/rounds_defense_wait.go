@@ -48,7 +48,7 @@ func defenseWaitRegion(m policy.CombatMemory) bridge.CellRect {
 
 // fight builds the waiting fight's needs: the burn-out's fuel
 // while it waits on it, else the wait's hardening.
-func (r *RoundsDefenseLayoutPlanner) fight(call, epoch context.Context, goal store.ProjectState, state ControlState, m policy.CombatMemory) (RoundsDefenseLayoutResult, error) {
+func (r *RoundsDefenseLayoutPlanner) fight(call, epoch context.Context, goal store.StandardState, state ControlState, m policy.CombatMemory) (RoundsDefenseLayoutResult, error) {
 	if m.Burn.Fueling() {
 		return r.fuel(call, epoch, goal, state, *m.Burn)
 	}
@@ -95,7 +95,7 @@ func defenseFightCensus(site bridge.DefenseSite) map[domain.Cell]policy.WaitDoor
 // harden admits the waiting fight's builds: plasteel over its
 // rooms' wooden doors, a wall behind each broken door. One method per
 // stop tick; the open-plan check upstream keeps one in flight.
-func (r *RoundsDefenseLayoutPlanner) harden(call, epoch context.Context, goal store.ProjectState, state ControlState, m policy.CombatMemory) (RoundsDefenseLayoutResult, error) {
+func (r *RoundsDefenseLayoutPlanner) harden(call, epoch context.Context, goal store.StandardState, state ControlState, m policy.CombatMemory) (RoundsDefenseLayoutResult, error) {
 	if len(m.WaitRooms) == 0 {
 		return RoundsDefenseLayoutResult{Verdict: BuildingReasonNoDeficit, Tier: defenseWaitTier}, nil
 	}
@@ -113,7 +113,7 @@ func (r *RoundsDefenseLayoutPlanner) harden(call, epoch context.Context, goal st
 
 // admitFightBuilds previews a fight's builds and admits the placeable ones
 // as one method under the layout goal, named by tier and stop tick.
-func (r *RoundsDefenseLayoutPlanner) admitFightBuilds(call, epoch context.Context, goal store.ProjectState, state ControlState, read observation.RoundsReading, buildings []domain.Building, tier policy.DefenseTierName) (RoundsDefenseLayoutResult, error) {
+func (r *RoundsDefenseLayoutPlanner) admitFightBuilds(call, epoch context.Context, goal store.StandardState, state ControlState, read observation.RoundsReading, buildings []domain.Building, tier policy.DefenseTierName) (RoundsDefenseLayoutResult, error) {
 	p := r.reviewer.player
 	tick := read.Projection.Identity.Tick
 	id := domain.MintPlanID()

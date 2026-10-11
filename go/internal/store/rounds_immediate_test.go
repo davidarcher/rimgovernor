@@ -49,7 +49,7 @@ func TestImmediateRoundsPreserveOrdinaryStateAndTimestamps(t *testing.T) {
 	}
 	ordinary := func(v Rounds) Rounds {
 		v.Revision, v.Tick, v.Snapshot, v.Immediate = 0, 0, domain.GenerationSnapshot{}, false
-		v.Standards, v.Projects, v.Incidents, v.Emergency, v.NoOps = nil, nil, nil, nil, nil
+		v.Standards, v.Incidents, v.Emergency, v.NoOps = nil, nil, nil, nil
 		v.Latches.Upkeep.Fire = false
 		return v
 	}

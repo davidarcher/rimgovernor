@@ -125,7 +125,7 @@ func (r *RoundsBurialPlanner) step(call, epoch context.Context, _ *stepArbiter) 
 // dispose deconstructs one filled stranger sarcophagus with the plain
 // Deconstruction action, once per sarcophagus per Episode: native ejects the
 // corpse beside the cell for the incineration concern to burn.
-func (r *RoundsBurialPlanner) dispose(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, b policy.CurrentBuilding) (RoundsBurialResult, error) {
+func (r *RoundsBurialPlanner) dispose(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, reading observation.RoundsReading, b policy.CurrentBuilding) (RoundsBurialResult, error) {
 	result, err := r.building.retireBuilding(call, epoch, state, review, goal, reading.ColonyReading, b.ID, b.Building.Definition(), b.Building.Cell(), "tomb-dispose", "tomb_disposal")
 	return RoundsBurialResult{Verdict: result.Verdict}, err
 }

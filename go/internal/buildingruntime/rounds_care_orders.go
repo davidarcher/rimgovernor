@@ -64,7 +64,7 @@ func (d *RoundsCareBillDeclarer) DeclareOrders(ctx context.Context, snapshot dom
 		if !enabled {
 			return nil
 		}
-		_, workable, err := journal.WorkableOwner(ctx, review, need)
+		_, workable, err := journal.Workable(ctx, review, need)
 		if err != nil || !workable {
 			return err
 		}

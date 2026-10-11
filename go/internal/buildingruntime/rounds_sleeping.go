@@ -114,7 +114,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoundsBuildingResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	goal, workable, err := p.journal.WorkableOwner(call, review, r.concern)
+	goal, workable, err := p.journal.Workable(call, review, r.concern)
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}
@@ -132,7 +132,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoundsBuildingResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	bunksOpen, ringOpen := false, false
-	for _, m := range goal.OwnerMethods() {
+	for _, m := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, m.Plan)
 		if err != nil {
 			return RoundsBuildingResult{}, err
@@ -541,7 +541,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			ringAfter = &roomReconcile{ringOnly: true, room: room, name: string(plannedRoomMethod(room))}
 		}
 	}
-	admitRing := func(goal store.WorkOwner) (RoundsBuildingResult, error) {
+	admitRing := func(goal store.StandardState) (RoundsBuildingResult, error) {
 		return r.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: reading}, nil, *ringAfter)
 	}
 	if module, ok := r.plannedRoomModule(); ok {
@@ -736,7 +736,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	// Building intents admitted on other goals' plans but not yet applied
 	// show nothing on the map; keep off their anchors.
 	var own []domain.PlanID
-	for _, m := range goal.OwnerMethods() {
+	for _, m := range goal.Methods {
 		own = append(own, m.Plan)
 	}
 	pendingAnchors, err := p.journal.PendingBuildingAnchors(call, snapshot, own)
@@ -802,7 +802,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	// The slot is admitted: the shelter's ring wave goes in around it. The slot's
 	// admission moved the owner on, so the ring commits against the fresh owner;
 	// a ring that is not ready now is tried again next step.
-	owner, workable, err := p.journal.WorkableOwner(call, review, r.concern)
+	owner, workable, err := p.journal.Workable(call, review, r.concern)
 	if err != nil || !workable {
 		return result, err
 	}
@@ -817,7 +817,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 type roundsAdmission struct {
 	state  ControlState
 	review store.Rounds
-	owner  store.WorkOwner
+	owner  store.StandardState
 	facts  observation.ColonyProjection
 	method domain.MethodID
 	// reason is the planner's short why, stored with the method.
@@ -1400,7 +1400,7 @@ const sleepingBedsPerEpoch = 8
 // only a method whose plan is still open stays the one reported used. A
 // building gone from the census (a campfire that burnt out, a bed that
 // disappeared) and one never built both mean try again.
-func (r *RoundsBuildingPlanner) nextSleepingBedMethod(call context.Context, goal store.WorkOwner, method domain.MethodID, census domain.Fact[policy.CurrentConstruction]) (domain.MethodID, error) {
+func (r *RoundsBuildingPlanner) nextSleepingBedMethod(call context.Context, goal store.StandardState, method domain.MethodID, census domain.Fact[policy.CurrentConstruction]) (domain.MethodID, error) {
 	p := r.reviewer.player
 	base := method
 	for n := 1; n < sleepingBedsPerEpoch; n++ {

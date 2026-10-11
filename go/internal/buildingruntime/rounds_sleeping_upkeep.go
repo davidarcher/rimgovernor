@@ -176,7 +176,7 @@ func (r *RoundsSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter 
 	if !workable || review.Latches.Housing != policy.HousingSleeping {
 		return RoundsBuildingResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	for _, m := range goal.OwnerMethods() {
+	for _, m := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, m.Plan)
 		if err != nil {
 			return RoundsBuildingResult{}, err
@@ -241,7 +241,7 @@ func sleepingNativeWorkTicks(plan store.PlanState, current domain.GenerationSnap
 	return min(uint32(sleepingObservationSlice), uint32(sleepingObservationBudget-(tick-v.Tick)))
 }
 
-func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds, goal store.WorkOwner) (RoundsBuildingResult, error) {
+func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds, goal store.StandardState) (RoundsBuildingResult, error) {
 	p := r.reviewer.player
 	started := r.reviewer.clock.Now()
 	identity, _, err := r.native.Identity(call)
@@ -423,7 +423,7 @@ func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbite
 // assignMethod returns the method ID for the next assignment attempt of this
 // epoch under base, or "" when the pair was already applied, or the shared
 // refusal budget bars another attempt (the verdict then says why).
-func (r *RoundsSleepingUpkeepPlanner) assignMethod(call context.Context, goal store.WorkOwner, base string, world domain.GenerationSnapshot) (domain.MethodID, Verdict, error) {
+func (r *RoundsSleepingUpkeepPlanner) assignMethod(call context.Context, goal store.StandardState, base string, world domain.GenerationSnapshot) (domain.MethodID, Verdict, error) {
 	p := r.reviewer.player
 	var refused []domain.PlanID
 	for try := 0; ; try++ {
@@ -470,7 +470,7 @@ func sleepingAssignUnadmitted(progress []domain.Progress) bool {
 
 // markSlaveBed commits one patch setting bed for slaves, once per
 // bed per Episode; the next review assigns the waiting slave to it.
-func (r *RoundsSleepingUpkeepPlanner) markSlaveBed(call, epoch context.Context, state ControlState, goal store.WorkOwner, bed string) (RoundsBuildingResult, error) {
+func (r *RoundsSleepingUpkeepPlanner) markSlaveBed(call, epoch context.Context, state ControlState, goal store.StandardState, bed string) (RoundsBuildingResult, error) {
 	p := r.reviewer.player
 	method := domain.MethodID("sleeping-slave-bed-" + bed)
 	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {

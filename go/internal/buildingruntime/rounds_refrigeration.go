@@ -85,7 +85,7 @@ func (r *RoundsBuildingPlanner) selectRefrigeration(call context.Context, facts 
 // re-latched when the season warmed, or a cooler the player set) lends the
 // same allowance from the tick the latch engaged, so a second cooler can
 // still be proposed once it elapses; lent reports that case.
-func refrigerationOutputAllowance(ctx context.Context, journal *store.Store, goal store.WorkOwner, current domain.GenerationSnapshot, tick domain.Tick, since domain.Tick) (allowance uint32, exhausted bool, lent bool, err error) {
+func refrigerationOutputAllowance(ctx context.Context, journal *store.Store, goal store.StandardState, current domain.GenerationSnapshot, tick domain.Tick, since domain.Tick) (allowance uint32, exhausted bool, lent bool, err error) {
 	methods, err := journal.LoadOwnerMethods(ctx, goal)
 	if err != nil {
 		return 0, false, false, err
@@ -232,7 +232,7 @@ func (r *RoundsBuildingPlanner) previewPlannedBuilding(ctx context.Context, snap
 // commitRefrigerationTarget binds a one-action building-temperature plan to
 // the goal, the same shape the tend planner commits: the Hands worker then
 // applies the CAS-gated setpoint patch and records its receipt.
-func (r *RoundsBuildingPlanner) commitRefrigerationTarget(call context.Context, goal store.WorkOwner, check func() error) (RoundsBuildingResult, error) {
+func (r *RoundsBuildingPlanner) commitRefrigerationTarget(call context.Context, goal store.StandardState, check func() error) (RoundsBuildingResult, error) {
 	p := r.reviewer.player
 	proposal := r.refrigeration
 	if proposal == nil || proposal.Method != policy.RefrigerationSetTarget {

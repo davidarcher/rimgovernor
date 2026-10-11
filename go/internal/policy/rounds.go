@@ -716,7 +716,7 @@ type RoundsFindings struct {
 	Disaster *DisasterHistory
 	Latches  RoundsLatches
 	Concerns []RoundsConcern
-	// Assessments are the Standard and Project needs the review files rows for;
+	// Assessments are the Standard needs the review files rows for;
 	// Incidents are the incident kinds' assessments.
 	Assessments []RoundsAssessment
 	Incidents   []RoundsAssessment

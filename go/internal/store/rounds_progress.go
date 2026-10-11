@@ -18,7 +18,7 @@ import (
 // deficit the review measured. Records are keyed by need, the id the
 // launcher names concerns by; a concern that is recovered, cancelled or
 // invalidated drops its record.
-func roundsProgress(ctx context.Context, tx *Tx, request RoundsRequest, previous Rounds, reset bool, needs policy.RoundsFindings, states []WorkOwner) ([]policy.ConcernProgress, error) {
+func roundsProgress(ctx context.Context, tx *Tx, request RoundsRequest, previous Rounds, reset bool, needs policy.RoundsFindings, states []StandardState) ([]policy.ConcernProgress, error) {
 	old := map[domain.ConcernID]policy.ConcernProgress{}
 	if !reset {
 		for _, p := range previous.Progress {
@@ -50,8 +50,8 @@ func roundsProgress(ctx context.Context, tx *Tx, request RoundsRequest, previous
 		evidence := policy.ProgressEvidence{Observed: deficits[n.ID]}
 		var method domain.MethodID
 		labor := policy.ConcernLabor(n.ID)
-		for _, m := range g.OwnerMethods() {
-			if m.Episode != g.OwnerEpisode() {
+		for _, m := range g.Methods {
+			if m.Episode != g.Standard.Episode {
 				continue
 			}
 			plan, err := load(ctx, tx, m.Plan)

@@ -62,8 +62,8 @@ func TestRoundsExecutionRecoveredBillNeedPermitsPendingOutputOnly(t *testing.T) 
 	r.Facts.Cooking = domain.Known(false)
 	tick := r.Tick
 	out := reviewRounds(t, s, &r)
-	g := roundsProject(t, out, policy.EnsureCooking)
-	if g.Project.Finding != domain.FindingUnmet {
+	g := roundsGoal(t, out, policy.EnsureCooking)
+	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
 	bill, err := domain.NewProductionBill("bench", "recipe", domain.FoodTarget, 10)
@@ -78,7 +78,7 @@ func TestRoundsExecutionRecoveredBillNeedPermitsPendingOutputOnly(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitProjectMethod(ctx, g.Project.ID, g.Revision, "cook", "", billPlan); err != nil {
+	if _, err = s.CommitMethodReason(ctx, g.Standard.ID, g.Revision, "cook", "", billPlan); err != nil {
 		t.Fatal(err)
 	}
 	target := r.Current
@@ -91,8 +91,8 @@ func TestRoundsExecutionRecoveredBillNeedPermitsPendingOutputOnly(t *testing.T) 
 	}
 	r.Facts.Cooking = domain.Known(true)
 	out = reviewRounds(t, s, &r)
-	g = roundsProject(t, out, policy.EnsureCooking)
-	if g.Project.Finding != domain.FindingMet || g.Project.Status != domain.ProjectOpen {
+	g = roundsGoal(t, out, policy.EnsureCooking)
+	if g.Standard.Finding != domain.FindingMet || g.Standard.Status != domain.StandardOpen {
 		t.Fatal(g)
 	}
 	if err = s.AuthorizeRoundsPlan(ctx, r.Current, target); err != nil {
@@ -112,7 +112,7 @@ func TestRoundsExecutionRecoveredBillNeedRefusesOnceResolved(t *testing.T) {
 	r.Facts.Cooking = domain.Known(false)
 	tick := r.Tick
 	out := reviewRounds(t, s, &r)
-	g := roundsProject(t, out, policy.EnsureCooking)
+	g := roundsGoal(t, out, policy.EnsureCooking)
 	bill, err := domain.NewProductionBill("bench", "recipe", domain.FoodTarget, 10)
 	if err != nil {
 		t.Fatal(err)
@@ -125,7 +125,7 @@ func TestRoundsExecutionRecoveredBillNeedRefusesOnceResolved(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitProjectMethod(ctx, g.Project.ID, g.Revision, "cook", "", billPlan); err != nil {
+	if _, err = s.CommitMethodReason(ctx, g.Standard.ID, g.Revision, "cook", "", billPlan); err != nil {
 		t.Fatal(err)
 	}
 	target := r.Current
@@ -141,8 +141,8 @@ func TestRoundsExecutionRecoveredBillNeedRefusesOnceResolved(t *testing.T) {
 	}
 	r.Facts.Cooking = domain.Known(true)
 	out = reviewRounds(t, s, &r)
-	g = roundsProject(t, out, policy.EnsureCooking)
-	if g.Project.Finding != domain.FindingMet || g.Project.Status != domain.ProjectCompleted {
+	g = roundsGoal(t, out, policy.EnsureCooking)
+	if g.Standard.Finding != domain.FindingMet || g.Standard.Status != domain.StandardSettled {
 		t.Fatal(g)
 	}
 	if err = s.AuthorizeRoundsPlan(ctx, r.Current, target); err == nil {
@@ -162,7 +162,7 @@ func TestRoundsExecutionRecoveredBillNeedRefusesUndispatchedSibling(t *testing.T
 	r.Facts.Cooking = domain.Known(false)
 	tick := r.Tick
 	out := reviewRounds(t, s, &r)
-	g := roundsProject(t, out, policy.EnsureCooking)
+	g := roundsGoal(t, out, policy.EnsureCooking)
 	bill1, err := domain.NewProductionBill("bench1", "recipe1", domain.FoodTarget, 10)
 	if err != nil {
 		t.Fatal(err)
@@ -183,7 +183,7 @@ func TestRoundsExecutionRecoveredBillNeedRefusesUndispatchedSibling(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitProjectMethod(ctx, g.Project.ID, g.Revision, "cook", "", billPlan); err != nil {
+	if _, err = s.CommitMethodReason(ctx, g.Standard.ID, g.Revision, "cook", "", billPlan); err != nil {
 		t.Fatal(err)
 	}
 	target := r.Current
@@ -197,8 +197,8 @@ func TestRoundsExecutionRecoveredBillNeedRefusesUndispatchedSibling(t *testing.T
 	// bill2 is deliberately left Pending: never prepared or dispatched.
 	r.Facts.Cooking = domain.Known(true)
 	out = reviewRounds(t, s, &r)
-	g = roundsProject(t, out, policy.EnsureCooking)
-	if g.Project.Finding != domain.FindingMet || g.Project.Status != domain.ProjectOpen {
+	g = roundsGoal(t, out, policy.EnsureCooking)
+	if g.Standard.Finding != domain.FindingMet || g.Standard.Status != domain.StandardOpen {
 		t.Fatal(g)
 	}
 	if err = s.AuthorizeRoundsPlan(ctx, r.Current, target); err == nil {
@@ -302,7 +302,7 @@ func TestRoundsRecoverySettlesUndispatchedMethod(t *testing.T) {
 	r.Current.Native = 2
 	r.Facts.Cooking = domain.Known(false)
 	tick := r.Tick
-	g := roundsProject(t, reviewRounds(t, s, &r), policy.EnsureCooking)
+	g := roundsGoal(t, reviewRounds(t, s, &r), policy.EnsureCooking)
 	bill, err := domain.NewProductionBill("bench", "recipe", domain.FoodTarget, 10)
 	if err != nil {
 		t.Fatal(err)
@@ -315,7 +315,7 @@ func TestRoundsRecoverySettlesUndispatchedMethod(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitProjectMethod(ctx, g.Project.ID, g.Revision, "cook", "", billPlan); err != nil {
+	if _, err = s.CommitMethodReason(ctx, g.Standard.ID, g.Revision, "cook", "", billPlan); err != nil {
 		t.Fatal(err)
 	}
 	target := r.Current
@@ -327,9 +327,9 @@ func TestRoundsRecoverySettlesUndispatchedMethod(t *testing.T) {
 		t.Fatal(p, err)
 	}
 	r.Facts.Cooking = domain.Known(true)
-	g = roundsProject(t, reviewRounds(t, s, &r), policy.EnsureCooking)
-	if g.Project.Finding != domain.FindingMet || g.Project.Status != domain.ProjectCompleted {
-		t.Fatal("recovered goal kept its undispatched method open", g.Project)
+	g = roundsGoal(t, reviewRounds(t, s, &r), policy.EnsureCooking)
+	if g.Standard.Finding != domain.FindingMet || g.Standard.Status != domain.StandardSettled {
+		t.Fatal("recovered goal kept its undispatched method open", g.Standard)
 	}
 	p, err := s.LoadPlan(ctx, "bill-plan")
 	if err != nil {

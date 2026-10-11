@@ -39,10 +39,10 @@ func TestPutGovernorStateBatch(t *testing.T) {
 	client := testClient(t, s, testBudget)
 	ctx := context.Background()
 
-	if err := client.PutGovernorStateBatch(ctx, map[string]string{"standard/a": `{"v":1}`, "project/b": "x"}); err != nil {
+	if err := client.PutGovernorStateBatch(ctx, map[string]string{"standard/a": `{"v":1}`, "family/b": "x"}); err != nil {
 		t.Fatalf("replace: %v", err)
 	}
-	if got := requests[0].GetBlobs(); len(got) != 2 || got["standard/a"] != `{"v":1}` || got["project/b"] != "x" {
+	if got := requests[0].GetBlobs(); len(got) != 2 || got["standard/a"] != `{"v":1}` || got["family/b"] != "x" {
 		t.Fatalf("replace request %v", got)
 	}
 	// A later batch without project/b: absence is the delete.

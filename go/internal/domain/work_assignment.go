@@ -19,7 +19,7 @@ const ScheduleHours = 24
 
 // MaxPriority is the top of the 0-4 priority range: RimWorld's manual work
 // priorities run 1 (first) to 4 (last) with 0 disabled, and Concern
-// priorities (Standard, Project, Incident) share the scale. Kept as the one
+// priorities (Standard, Incident) share the scale. Kept as the one
 // range constant (docs/developers/contracts/kept-constants.md).
 const MaxPriority = 4
 

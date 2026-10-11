@@ -39,7 +39,7 @@ func admitMethod(ctx context.Context, journal *store.Store, r store.BuildingMeth
 // reason with every refusal listed in refused.
 func methodAdmissionDecision(r store.BuildingMethodRequest, decision store.BuildingMethodDecision) telemetry.Decision {
 	d := telemetry.Decision{Kind: "admission", Component: "clock-scheduler", Verdict: "admitted", Reason: "method_committed", Target: string(r.Method),
-		Attrs: map[string]any{"concern": r.Owner.OwnerID()}}
+		Attrs: map[string]any{"concern": r.Owner.Standard.ID}}
 	if !decision.Admitted {
 		d.Verdict, d.Reason = "refused", "unspecified"
 		if len(decision.Refused) > 0 {

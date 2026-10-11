@@ -73,7 +73,7 @@ func (r *Rounder) partySpotOwed(ctx context.Context, previous store.Rounds, fact
 			return domain.Unknown[bool](), err
 		}
 		if state.Standard.Finding == domain.FindingUnmet {
-			spent = partySpotSpent(state.OwnerMethods())
+			spent = partySpotSpent(state.Methods)
 		}
 	}
 	need, known := partySpotReview(facts, spent).Value()
@@ -86,8 +86,8 @@ func (r *Rounder) partySpotOwed(ctx context.Context, previous store.Rounds, fact
 // partySpotStep resolves the spot step for the ranked comfort planner: a
 // deconstruction (done here) or a placement the shared placement path takes
 // over, with the winning room's cells.
-func (r *RoundsBuildingPlanner) partySpotStep(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading) (RoundsBuildingResult, *RoundsBuildingPlanner, error) {
-	need, known := partySpotReview(reading.Projection, partySpotSpent(goal.OwnerMethods())).Value()
+func (r *RoundsBuildingPlanner) partySpotStep(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, reading observation.ColonyReading) (RoundsBuildingResult, *RoundsBuildingPlanner, error) {
+	need, known := partySpotReview(reading.Projection, partySpotSpent(goal.Methods)).Value()
 	if !known || !need.Owed() {
 		return RoundsBuildingResult{Verdict: BuildingReasonNoDeficit}, nil, nil
 	}

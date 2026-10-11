@@ -25,7 +25,6 @@ func retainOrdinaryRounds(ctx context.Context, tx *Tx, r *Rounds, previous Round
 	next.Revision, next.Snapshot, next.Tick = r.Revision, r.Snapshot, r.Tick
 	next.Enabled, next.Immediate, next.Latches = r.Enabled, true, r.Latches
 	next.Standards = mergeImmediateRows(previous.Standards, r.Standards, func(v RoundsStandard) domain.ConcernID { return v.Concern })
-	next.Projects = mergeImmediateRows(previous.Projects, r.Projects, func(v RoundsProject) domain.ConcernID { return v.Concern })
 	next.Incidents = mergeImmediateRows(previous.Incidents, r.Incidents, func(v RoundsIncident) domain.ConcernID { return v.Kind })
 	next.Emergency = mergeImmediateRows(previous.Emergency, r.Emergency, func(v domain.ConcernID) domain.ConcernID { return v })
 	next.NoOps = mergeImmediateRows(previous.NoOps, r.NoOps, func(v policy.NoOpRecord) domain.ConcernID { return v.Concern })
@@ -36,20 +35,13 @@ func retainOrdinaryRounds(ctx context.Context, tx *Tx, r *Rounds, previous Round
 		return err
 	}
 	next.MoodMethods = proposals
-	result.Standards, result.Projects, result.Incidents = nil, nil, nil
+	result.Standards, result.Incidents = nil, nil
 	for _, b := range next.Standards {
 		state, err := loadStandard(ctx, tx, b.Standard)
 		if err != nil {
 			return err
 		}
 		result.Standards = append(result.Standards, state)
-	}
-	for _, b := range next.Projects {
-		state, err := loadProject(ctx, tx, b.Project)
-		if err != nil {
-			return err
-		}
-		result.Projects = append(result.Projects, state)
 	}
 	for _, b := range next.Incidents {
 		state, err := loadIncident(ctx, tx, b.Incident)

@@ -337,7 +337,7 @@ func TestRoundsShelterRestartKeepsBunks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	standard, _, err := db.WorkableOwner(ctx, review, policy.MaintainHousing)
+	standard, _, err := db.Workable(ctx, review, policy.MaintainHousing)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -362,7 +362,7 @@ func TestRoundsShelterRestartKeepsBunks(t *testing.T) {
 	if again, err := restarted.Step(ctx); err != nil || again.Verdict != BuildingReasonExistingWork {
 		t.Fatal("repeat review", again, err)
 	}
-	if goal, err := db.LoadStandard(ctx, domain.StandardID(standard.OwnerID())); err != nil || len(goal.Methods) != 3 {
+	if goal, err := db.LoadStandard(ctx, domain.StandardID(standard.Standard.ID)); err != nil || len(goal.Methods) != 3 {
 		t.Fatal(goal.Methods, err)
 	}
 }

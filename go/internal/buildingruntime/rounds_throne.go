@@ -210,7 +210,7 @@ func throneFloorTerrains(catalog *bridge.DefinitionCatalog, f policy.RoyaltyFact
 // side (reconcileRoom: the ring, floor and furniture the template and the plan
 // still owe, installed from packed stock first), the assignment, the refuel.
 // Furnishing beyond the template follows through the room upgrade.
-func (r *RoundsSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, arbiter *stepArbiter, stock *packedStock, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, step policy.ThroneStep) (RoundsBuildingResult, error) {
+func (r *RoundsSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, arbiter *stepArbiter, stock *packedStock, state ControlState, review store.Rounds, goal store.StandardState, reading observation.RoundsReading, step policy.ThroneStep) (RoundsBuildingResult, error) {
 	switch step.Kind {
 	case policy.ThroneReconcile:
 		in := step.Room.Interior
@@ -230,7 +230,7 @@ func (r *RoundsSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, a
 // once per holder and throne per Episode (refused attempts retry within
 // assignMethod's bound). The royalty read refreshes on its own cadence, so a
 // throne assigned this epoch reads unowned until then and the method is used.
-func (r *RoundsSleepingUpkeepPlanner) assignThrone(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, step policy.ThroneStep) (RoundsBuildingResult, error) {
+func (r *RoundsSleepingUpkeepPlanner) assignThrone(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, step policy.ThroneStep) (RoundsBuildingResult, error) {
 	p := r.reviewer.player
 	method, barred, err := r.assignMethod(call, goal, fmt.Sprintf("throne-assign-%s-%s", step.Need.Holder, step.Throne), state.Snapshot)
 	if err != nil {

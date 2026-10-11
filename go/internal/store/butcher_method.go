@@ -13,8 +13,8 @@ const butcherSpotDefinition = "ButcherSpot"
 
 // foodGoal reports the routine EnsureFoodSupply goal; the routine goal id
 // ends in its need.
-func foodConcern(goal WorkOwner) bool {
-	return goal.OwnerKind() == policy.EnsureFoodSupply
+func foodConcern(goal StandardState) bool {
+	return goal.Standard.Kind == policy.EnsureFoodSupply
 }
 
 // butcherBenchAction reports an action placing or removing a butcher bench:
@@ -43,7 +43,7 @@ func butcherFacilityWork(method domain.MethodID, action domain.Action) bool {
 // of method (a ring wave and the bench run side by side); a plan made only of
 // production bills only by an open bill. Any other goal keeps the ordinary
 // rule.
-func foodFacilityOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, method domain.MethodID, plan domain.PlanSpec) (bool, error) {
+func foodFacilityOpenWorkExempt(ctx context.Context, tx *Tx, goal StandardState, method domain.MethodID, plan domain.PlanSpec) (bool, error) {
 	if len(plan.Actions()) == 0 || !foodConcern(goal) {
 		return false, nil
 	}
@@ -62,7 +62,7 @@ func foodFacilityOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, met
 	if spot == bill {
 		return false, nil
 	}
-	for _, m := range goal.OwnerMethods() {
+	for _, m := range goal.Methods {
 		p, err := load(ctx, tx, m.Plan)
 		if err != nil {
 			return false, err

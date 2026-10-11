@@ -275,7 +275,7 @@ func defenseRemovalGone(tier store.DefenseTierRecord, census *defenseCensus) boo
 // on each standing bridge. A target already designated is work in
 // progress; one the census cannot identify (no removable cover thing of
 // its definition) is left out of the tier, as a refused placement is.
-func (r *RoundsDefenseLayoutPlanner) remove(call, epoch context.Context, goal store.ProjectState, state ControlState, read observation.RoundsReading, record store.DefenseLayoutRecord, tier store.DefenseTierRecord, census *defenseCensus) (RoundsDefenseLayoutResult, error) {
+func (r *RoundsDefenseLayoutPlanner) remove(call, epoch context.Context, goal store.StandardState, state ControlState, read observation.RoundsReading, record store.DefenseLayoutRecord, tier store.DefenseTierRecord, census *defenseCensus) (RoundsDefenseLayoutResult, error) {
 	p := r.reviewer.player
 	key := defenseTierMethodID(tier)
 	id := domain.MintPlanID()
@@ -308,7 +308,7 @@ func (r *RoundsDefenseLayoutPlanner) remove(call, epoch context.Context, goal st
 	if p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
 		return RoundsDefenseLayoutResult{}, defenseControlErr(1)
 	}
-	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, key, "", plan); err != nil {
+	if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, key, "", plan); err != nil {
 		return RoundsDefenseLayoutResult{}, err
 	}
 	tier.Attempts++

@@ -39,7 +39,7 @@ func throneRefuelRecent(history []domain.Method, lamp string, tick domain.Tick) 
 // room light as a recovery_service action under the housing goal: the same
 // native work-giver job the defense rearm issues, whose CAS token and pawn
 // eligibility Hands re-check at dispatch.
-func (r *RoundsSleepingUpkeepPlanner) refuelThrone(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, step policy.ThroneStep) (RoundsBuildingResult, error) {
+func (r *RoundsSleepingUpkeepPlanner) refuelThrone(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds, goal store.StandardState, reading observation.RoundsReading, step policy.ThroneStep) (RoundsBuildingResult, error) {
 	p := r.reviewer.player
 	tick := reading.Projection.Identity.Tick
 	history, err := p.journal.LoadOwnerMethods(call, goal)

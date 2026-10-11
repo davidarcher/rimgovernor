@@ -1,14 +1,15 @@
 package policy
 
-// ConcernType is what kind of thing a Concern is: a Standard, a Project or an
-// Incident. The table matches the type table in
+// ConcernType is what kind of thing a Concern is: a Standard, a Once
+// Standard (a build-once outcome that settles once and only a measured
+// regression reopens) or an Incident. The table matches the type table in
 // docs/developers/architecture/control-loop.md.
 type ConcernType string
 
 const (
 	UnknownConcern  ConcernType = ""
 	StandardConcern ConcernType = "Standard"
-	ProjectConcern  ConcernType = "Project"
+	OnceConcern     ConcernType = "Once"
 	IncidentConcern ConcernType = "Incident"
 )
 
@@ -21,7 +22,12 @@ func ConcernTypeOf(id ConcernID) ConcernType { return inspectionIndex[id].Type }
 // Standard row for them.
 func IsIncidentKind(id ConcernID) bool { return ConcernTypeOf(id) == IncidentConcern }
 
-// IsProjectKind reports whether id is a Project Concern, whose rows live in
-// the projects table: the rounds file one per world and never a
-// Standard row.
-func IsProjectKind(id ConcernID) bool { return ConcernTypeOf(id) == ProjectConcern }
+// IsStandardKind reports whether id is a Standard Concern, Once or not: the
+// rounds file one Standard row per world for it.
+func IsStandardKind(id ConcernID) bool {
+	t := ConcernTypeOf(id)
+	return t == StandardConcern || t == OnceConcern
+}
+
+// IsOnceKind reports whether id's Standard is Once (domain.Standard.Once).
+func IsOnceKind(id ConcernID) bool { return ConcernTypeOf(id) == OnceConcern }

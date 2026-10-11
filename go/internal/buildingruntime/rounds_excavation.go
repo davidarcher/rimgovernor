@@ -82,7 +82,7 @@ func excavationProgress(methods []domain.Method) (latest *policy.ExcavationTarge
 
 // excavationProject reports the target of the goal's current tunnel: the
 // one the most recently admitted stage under this Episode carries.
-func (r *RoundsBuildingPlanner) excavationProject(call context.Context, goal store.WorkOwner) (*policy.ExcavationTarget, error) {
+func (r *RoundsBuildingPlanner) excavationProject(call context.Context, goal store.StandardState) (*policy.ExcavationTarget, error) {
 	methods, err := r.reviewer.player.journal.LoadOwnerMethods(call, goal)
 	if err != nil {
 		return nil, err
@@ -155,7 +155,7 @@ func maxInt32(a, b int32) int32 {
 type excavationStep struct {
 	state  ControlState
 	review store.Rounds
-	owner  store.WorkOwner
+	owner  store.StandardState
 	facts  observation.ColonyProjection
 	read   observation.ColonyReading
 	target policy.ExcavationTarget
@@ -295,8 +295,8 @@ func excavationNext(target policy.ExcavationTarget, site bridge.ExcavationSite) 
 // project instead of re-inspecting the same refusal forever. Cancelling
 // the plan's pending work is the only durable change; cells the pawns
 // already opened stay cleared and are never designated again.
-func cancelStalledExcavation(ctx context.Context, journal *store.Store, goal store.WorkOwner, now domain.Tick) error {
-	for _, method := range goal.OwnerMethods() {
+func cancelStalledExcavation(ctx context.Context, journal *store.Store, goal store.StandardState, now domain.Tick) error {
+	for _, method := range goal.Methods {
 		if !IsExcavationMethod(method.Method) {
 			continue
 		}

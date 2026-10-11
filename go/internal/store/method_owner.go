@@ -17,7 +17,7 @@ var ErrMethodBound = errors.New("method already bound")
 // methodOwner is what method admission reads of the goal or incident a
 // methods row binds to: the world it was last reviewed in,
 // whether the autopilot owns it, the routine need it serves and its open
-// plans. StandardState, ProjectState and IncidentState implement it.
+// plans. StandardState and IncidentState implement it.
 type methodOwner interface {
 	ownerSnapshot() domain.GenerationSnapshot
 	// ownerNeed is the routine need the owner serves under this review:
@@ -57,24 +57,6 @@ func (g StandardState) bindMethod(ctx context.Context, tx *Tx, method domain.Met
 
 func (g StandardState) servedCount(ctx context.Context, tx *Tx) (n int, err error) {
 	err = tx.QueryRowContext(ctx, "SELECT count(*) FROM standard_methods WHERE standard_id=? AND episode=?", g.Standard.ID, strconv.FormatUint(g.Standard.Episode, 10)).Scan(&n)
-	return n, err
-}
-
-func (p ProjectState) boundPlan(ctx context.Context, tx *Tx, method domain.MethodID) (plan domain.PlanID, err error) {
-	err = tx.QueryRowContext(ctx, "SELECT plan_id FROM project_methods WHERE project_id=? AND method_id=?", p.Project.ID, method).Scan(&plan)
-	return plan, err
-}
-
-func (p ProjectState) bindMethod(ctx context.Context, tx *Tx, method domain.MethodID, plan domain.PlanID, reason string) error {
-	if err := insertPlanOwner(ctx, tx, plan, "project"); err != nil {
-		return err
-	}
-	_, err := tx.ExecContext(ctx, "INSERT INTO project_methods(project_id,method_id,plan_id,priority,reason) VALUES(?,?,?,?,?)", p.Project.ID, method, plan, p.Project.Priority, sql.NullString{String: reason, Valid: reason != ""})
-	return err
-}
-
-func (p ProjectState) servedCount(ctx context.Context, tx *Tx) (n int, err error) {
-	err = tx.QueryRowContext(ctx, "SELECT count(*) FROM project_methods WHERE project_id=?", p.Project.ID).Scan(&n)
 	return n, err
 }
 
@@ -166,11 +148,6 @@ func bindOwnerMethod(ctx context.Context, tx *Tx, owner methodOwner, method doma
 
 func (g StandardState) bumpRevision(ctx context.Context, tx *Tx) error {
 	_, err := tx.ExecContext(ctx, "UPDATE standards SET revision=? WHERE id=?", strconv.FormatUint(g.Revision+1, 10), g.Standard.ID)
-	return err
-}
-
-func (p ProjectState) bumpRevision(ctx context.Context, tx *Tx) error {
-	_, err := tx.ExecContext(ctx, "UPDATE projects SET revision=? WHERE id=?", strconv.FormatUint(p.Revision+1, 10), p.Project.ID)
 	return err
 }
 

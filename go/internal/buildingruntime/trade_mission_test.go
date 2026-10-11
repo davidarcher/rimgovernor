@@ -109,14 +109,14 @@ func TestTradeMissionDepartureAdmissionHoldsManualStaleAndAlreadyFormed(t *testi
 	m.HomeColony = state.Snapshot.Colony
 	m.HomeMap = state.Snapshot.Map
 	m.Phase = domain.TradeMissionPlanned
-	p, err := domain.NewTradeMissionProject("project-trade", 2, state.Snapshot, m)
+	p, err := domain.NewTradeMissionStandard("project-trade", 2, state.Snapshot, m)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = db.CreateProject(ctx, p); err != nil {
+	if err = db.SeedStandard(ctx, p); err != nil {
 		t.Fatal(err)
 	}
-	project, err := db.LoadProject(ctx, p.ID)
+	project, err := db.LoadStandard(ctx, p.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,11 +143,11 @@ func TestTradeMissionDepartureAdmissionHoldsManualStaleAndAlreadyFormed(t *testi
 	if id, err := r.AdmitTradeMissionDeparture(ctx, r.player.epoch, state, project, read, newStepArbiter()); err != nil || id != "" {
 		t.Fatal("formed crew dispatched", id, err)
 	}
-	after, err := db.LoadProject(ctx, p.ID)
+	after, err := db.LoadStandard(ctx, p.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	intent, err := domain.DecodeTradeMission(after.Project.Record)
+	intent, err := domain.DecodeTradeMission(after.Standard.Record)
 	if err != nil || intent.Phase != domain.TradeMissionOutbound || len(after.History) != 0 {
 		t.Fatal(intent, after, err)
 	}

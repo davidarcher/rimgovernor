@@ -531,7 +531,7 @@ func TestRounderPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The review yields every catalogued Standard and Project concern.
-	if len(got.Standards)+len(got.Projects) != reviewedConcernCount() || got.Review.Revision != 1 || !got.Review.Enabled {
+	if len(got.Standards) != reviewedConcernCount() || got.Review.Revision != 1 || !got.Review.Enabled {
 		t.Fatal(got)
 	}
 	for _, binding := range got.Review.Standards {

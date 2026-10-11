@@ -11,9 +11,9 @@ import (
 // that touch disjoint cells cannot conflict, so there is nothing to observe
 // first. Planners fund such plans against their own stock ledger; the native
 // side validates each footprint when the intent is applied.
-func buildingOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
+func buildingOpenWorkExempt(ctx context.Context, tx *Tx, goal StandardState, plan domain.PlanSpec) (bool, error) {
 	taken := map[domain.Cell]bool{}
-	for _, m := range goal.OwnerMethods() {
+	for _, m := range goal.Methods {
 		p, err := load(ctx, tx, m.Plan)
 		if err != nil {
 			return false, err

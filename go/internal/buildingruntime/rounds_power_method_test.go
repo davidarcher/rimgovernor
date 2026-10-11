@@ -106,12 +106,12 @@ func TestRoundsPowerAdmitsSharedWorkAndManualCancels(t *testing.T) {
 				}
 				t.Fatal(first, err)
 			}
-			plan, err := db.LoadPlan(context.Background(), first.Decision.Project.Methods[0].Plan)
+			plan, err := db.LoadPlan(context.Background(), first.Decision.Standard.Methods[0].Plan)
 			want := 1
 			if conduit {
 				want = 3
 			}
-			if err != nil || len(plan.Progress) != want || first.Decision.Project.Project.Finding != domain.FindingUnmet {
+			if err != nil || len(plan.Progress) != want || first.Decision.Standard.Standard.Finding != domain.FindingUnmet {
 				t.Fatal(plan, err)
 			}
 			for _, progress := range plan.Progress {

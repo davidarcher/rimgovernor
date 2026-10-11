@@ -28,8 +28,8 @@ func TestRoundsUndeclaredFireEmergencyKeepsMethodsAuthorized(t *testing.T) {
 		r.Facts.PowerRequired = domain.Known(true)
 		r.Facts.PowerHeadroom = domain.Known(-100.0)
 		r.Facts.DisabledConsumers = domain.Known(false)
-		g := roundsProject(t, reviewRounds(t, s, &r), policy.EnsureBasicPower)
-		if g.Project.Finding != domain.FindingUnmet || g.Project.Status != domain.ProjectOpen {
+		g := roundsGoal(t, reviewRounds(t, s, &r), policy.EnsureBasicPower)
+		if g.Standard.Finding != domain.FindingUnmet || g.Standard.Status != domain.StandardOpen {
 			t.Fatal(declared, g)
 		}
 		q := methodRequest(t, g, "enclosure", 10)
@@ -56,14 +56,14 @@ func TestRoundsUndeclaredFireEmergencyKeepsMethodsAuthorized(t *testing.T) {
 		target := q.Current
 		target.Native = r.Current.Native
 		err = s.AuthorizeRoundsPlan(ctx, r.Current, target)
-		power := roundsProject(t, out, policy.EnsureBasicPower)
+		power := roundsGoal(t, out, policy.EnsureBasicPower)
 		if declared {
-			if len(out.Emergency) != 1 || out.Review.VetoProject(power.Project) != "" || err != nil {
+			if len(out.Emergency) != 1 || out.Review.Veto(power.Standard) != "" || err != nil {
 				t.Fatal("declared fire blocked ordinary power work", out.Emergency, power, err)
 			}
 			continue
 		}
-		if len(out.Emergency) != 0 || power.Project.Status != domain.ProjectOpen {
+		if len(out.Emergency) != 0 || power.Standard.Status != domain.StandardOpen {
 			t.Fatal("undeclared fire suspended the colony", out.Emergency, power)
 		}
 		if err != nil {

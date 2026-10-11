@@ -81,7 +81,7 @@ func defenseTierOpen(open []domain.MethodID, tier policy.DefenseTierName) bool {
 // defenseOpenTiers reads the goal's open plans. ok is false when one of them
 // is not a pure-construction perimeter tier (a turret, a rearm, a wall
 // removal): the layout then waits on it as it always did.
-func defenseOpenTiers(goal store.ProjectState, plans func(domain.PlanID) (store.PlanState, error)) (pipe *defensePipeline, ok bool, err error) {
+func defenseOpenTiers(goal store.StandardState, plans func(domain.PlanID) (store.PlanState, error)) (pipe *defensePipeline, ok bool, err error) {
 	pipe = newDefensePipeline()
 	for _, method := range goal.Methods {
 		plan, err := plans(method.Plan)

@@ -112,7 +112,7 @@ func (r *RoundsShrinePlanner) step(call, epoch context.Context, arbiter *stepArb
 	if err = r.settleOrphanedPlans(call); err != nil {
 		return RoundsShrineResult{}, err
 	}
-	goal, workable, err := p.journal.WorkableProject(call, review, policy.ClearAncientShrine)
+	goal, workable, err := p.journal.Workable(call, review, policy.ClearAncientShrine)
 	if err != nil {
 		return RoundsShrineResult{}, err
 	}
@@ -236,10 +236,10 @@ func (r RoundsShrineResult) pass(shrine, reason string) RoundsShrineResult {
 // the CAS token a fresh target read gives it. A casket the read already
 // shows as the player's (a census a tick behind) is skipped; a claim
 // refused natively surfaces as the action's own unsuccessful outcome.
-func (r *RoundsShrinePlanner) claim(call, epoch context.Context, state ControlState, goal store.ProjectState, shrine policy.AncientShrine, caskets []policy.ShrineCasket, started time.Time) (RoundsShrineResult, error) {
+func (r *RoundsShrinePlanner) claim(call, epoch context.Context, state ControlState, goal store.StandardState, shrine policy.AncientShrine, caskets []policy.ShrineCasket, started time.Time) (RoundsShrineResult, error) {
 	p := r.reviewer.player
 	prefix := fmt.Sprintf("claim-%s-", shrine.ID)
-	method, verdict, ok, err := admitProjectMethod(call, p.journal, goal, prefix, state.Snapshot)
+	method, verdict, ok, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
 	if err != nil {
 		return RoundsShrineResult{}, err
 	}
@@ -281,7 +281,7 @@ func (r *RoundsShrinePlanner) claim(call, epoch context.Context, state ControlSt
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoundsShrineResult{}, fmt.Errorf("%w: claim: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, method, "", plan); err != nil {
+	if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, "", plan); err != nil {
 		return RoundsShrineResult{}, err
 	}
 	return RoundsShrineResult{Verdict: BuildingReasonAdmitted, Plan: id, Shrine: shrine.ID}, nil
@@ -292,7 +292,7 @@ func (r *RoundsShrinePlanner) claim(call, epoch context.Context, state ControlSt
 // breach deconstruction of the chosen wall. One colonist is always left
 // undrafted for the deconstruct job. The shared refusal budget decides whether
 // the wall may be tried again.
-func (r *RoundsShrinePlanner) breach(call, epoch context.Context, state ControlState, goal store.ProjectState, shrine policy.AncientShrine, report ShrineReadinessReport, projection observation.ColonyProjection, started time.Time, arbiter *stepArbiter) (RoundsShrineResult, error) {
+func (r *RoundsShrinePlanner) breach(call, epoch context.Context, state ControlState, goal store.StandardState, shrine policy.AncientShrine, report ShrineReadinessReport, projection observation.ColonyProjection, started time.Time, arbiter *stepArbiter) (RoundsShrineResult, error) {
 	p := r.reviewer.player
 	wall := report.Readiness.Wall
 	colonists, known := projection.Facts.Colonists.Value()
@@ -305,7 +305,7 @@ func (r *RoundsShrinePlanner) breach(call, epoch context.Context, state ControlS
 	}
 	positions := policy.ShrineBreachPositions(wall, drafted, report.Standing, report.Traps)
 	prefix := fmt.Sprintf("breach-%s-%s-", shrine.ID, wall.EntityID)
-	method, verdict, ok, err := admitProjectMethod(call, p.journal, goal, prefix, state.Snapshot)
+	method, verdict, ok, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
 	if err != nil {
 		return RoundsShrineResult{}, err
 	}
@@ -370,7 +370,7 @@ func (r *RoundsShrinePlanner) breach(call, epoch context.Context, state ControlS
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoundsShrineResult{}, fmt.Errorf("%w: breach: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, method, "", plan); err != nil {
+	if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, "", plan); err != nil {
 		return RoundsShrineResult{}, err
 	}
 	return RoundsShrineResult{Verdict: BuildingReasonAdmitted, Plan: id, Shrine: shrine.ID}, nil
@@ -383,7 +383,7 @@ func (r *RoundsShrinePlanner) breach(call, epoch context.Context, state ControlS
 // drafted auto-attack answers a waking hostile; the plan has no further
 // work, so the worker keeps the drafts until the opening resolves and
 // ActiveCombat and the custody planner take the occupants from there.
-func (r *RoundsShrinePlanner) open(call, epoch context.Context, state ControlState, goal store.ProjectState, shrine policy.AncientShrine, caskets []policy.ShrineCasket, lock policy.ShrineLock, started time.Time, arbiter *stepArbiter) (RoundsShrineResult, error) {
+func (r *RoundsShrinePlanner) open(call, epoch context.Context, state ControlState, goal store.StandardState, shrine policy.AncientShrine, caskets []policy.ShrineCasket, lock policy.ShrineLock, started time.Time, arbiter *stepArbiter) (RoundsShrineResult, error) {
 	p := r.reviewer.player
 	lockers := make([]domain.PawnID, 0, len(lock.Lockers))
 	for _, casket := range caskets {
@@ -393,7 +393,7 @@ func (r *RoundsShrinePlanner) open(call, epoch context.Context, state ControlSta
 		return RoundsShrineResult{Verdict: waitFor(policy.CauseMethodUsed, "casket_lockers")}, nil
 	}
 	prefix := fmt.Sprintf("open-%s-", shrine.ID)
-	method, verdict, ok, err := admitProjectMethod(call, p.journal, goal, prefix, state.Snapshot)
+	method, verdict, ok, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
 	if err != nil {
 		return RoundsShrineResult{}, err
 	}
@@ -456,7 +456,7 @@ func (r *RoundsShrinePlanner) open(call, epoch context.Context, state ControlSta
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoundsShrineResult{}, fmt.Errorf("%w: open: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, method, "", plan); err != nil {
+	if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, "", plan); err != nil {
 		return RoundsShrineResult{}, err
 	}
 	return RoundsShrineResult{Verdict: BuildingReasonAdmitted, Plan: id, Shrine: shrine.ID}, nil

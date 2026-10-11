@@ -149,8 +149,8 @@ func sortDependencies(d []DependencyRecord) {
 // dependency is satisfied, cancelled or replaced), or its evidence is
 // older than a game day. The shortfall is measured against the stock of the
 // moment by the demand itself.
-func roundsDependencies(ctx context.Context, tx *Tx, records []DependencyRecord, bindings []RoundsStandard, states []WorkOwner, tick domain.Tick) ([]DependencyRecord, []policy.AdmittedCost, error) {
-	active := map[domain.ConcernID]WorkOwner{}
+func roundsDependencies(ctx context.Context, tx *Tx, records []DependencyRecord, bindings []RoundsStandard, states []StandardState, tick domain.Tick) ([]DependencyRecord, []policy.AdmittedCost, error) {
+	active := map[domain.ConcernID]StandardState{}
 	for i, b := range bindings {
 		active[b.Concern] = states[i]
 	}
@@ -158,7 +158,7 @@ func roundsDependencies(ctx context.Context, tx *Tx, records []DependencyRecord,
 	var admitted []policy.AdmittedCost
 	for _, rec := range records {
 		g, ok := active[rec.Need]
-		if !ok || domain.StandardID(g.OwnerID()) != rec.Standard || g.OwnerEpisode() != rec.Episode || !ownerActive(g) || tick < rec.Observed || tick-rec.Observed > domain.TicksPerDay {
+		if !ok || g.Standard.ID != rec.Standard || g.Standard.Episode != rec.Episode || !ownerActive(g) || tick < rec.Observed || tick-rec.Observed > domain.TicksPerDay {
 			continue
 		}
 		plan, err := load(ctx, tx, rec.Plan)
@@ -199,7 +199,7 @@ func priorAdmitted(ctx context.Context, tx *Tx, previous Rounds, tick domain.Tic
 		return nil, nil
 	}
 	var bindings []RoundsStandard
-	var states []WorkOwner
+	var states []StandardState
 	for _, b := range previous.Standards {
 		g, err := loadStandard(ctx, tx, b.Standard)
 		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, ErrNotFound) {
@@ -209,16 +209,6 @@ func priorAdmitted(ctx context.Context, tx *Tx, previous Rounds, tick domain.Tic
 			return nil, err
 		}
 		bindings, states = append(bindings, b), append(states, g)
-	}
-	for _, b := range previous.Projects {
-		g, err := loadProject(ctx, tx, b.Project)
-		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, ErrNotFound) {
-			continue
-		}
-		if err != nil {
-			return nil, err
-		}
-		bindings, states = append(bindings, RoundsStandard{Concern: b.Concern, Standard: domain.StandardID(b.Project)}), append(states, g)
 	}
 	_, admitted, err := roundsDependencies(ctx, tx, previous.Dependencies, bindings, states, tick)
 	return admitted, err

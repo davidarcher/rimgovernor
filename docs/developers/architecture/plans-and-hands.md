@@ -4,8 +4,8 @@
 
 Player requests and routine automation share admission checks, resource accounting
 and completion tracking. The plan owns concerns; Hands deterministically executes
-accepted work. Advisers cannot commit game orders. Each concern is a Standard,
-Project or Incident, and Safeguards veto proposals at admission; see
+accepted work. Advisers cannot commit game orders. Each concern is a Standard
+or Incident, and Safeguards veto proposals at admission; see
 [concerns and their forms](control-loop.md#concerns-and-their-forms).
 
 ```mermaid

@@ -102,8 +102,8 @@ func (r *RoundsBillPlanner) note(report purposeReport) {
 // openWork reports whether the owner holds this purpose's own open work. The
 // food supply goal is shared with fields, foraging and hunts that stay open
 // for days, so only an open bill counts there.
-func (r *RoundsBillPlanner) openWork(ctx context.Context, journal *store.Store, owner store.WorkOwner) (bool, error) {
-	for _, method := range owner.OwnerMethods() {
+func (r *RoundsBillPlanner) openWork(ctx context.Context, journal *store.Store, owner store.StandardState) (bool, error) {
+	for _, method := range owner.Methods {
 		plan, err := journal.LoadPlan(ctx, method.Plan)
 		if err != nil {
 			return false, err

@@ -125,9 +125,9 @@ func run(ctx context.Context, s cases.Session) error {
 		if err != nil {
 			return err
 		}
-		if id, ok := r.ProjectFor(policy.EnsureBasicPower); ok {
+		if id, ok := r.StandardFor(policy.EnsureBasicPower); ok {
 			sawGoal = true
-			project, err := journal.LoadProject(ctx, id)
+			project, err := journal.LoadStandard(ctx, id)
 			if err != nil {
 				return err
 			}

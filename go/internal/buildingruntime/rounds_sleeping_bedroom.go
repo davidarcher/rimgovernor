@@ -117,7 +117,7 @@ func bedroomReconcileName(room policy.PlannedRoom) string {
 // plan and the bedroom template, the bed installed from packed stock first and
 // built on site only when none is stored. A vacant bed left in the starter
 // shell is packed to become that stock; a placement native refuses means wait.
-func (r *RoundsSleepingUpkeepPlanner) reconcileBedroom(call, epoch context.Context, stock *packedStock, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, step policy.BedroomStep) (RoundsBuildingResult, error) {
+func (r *RoundsSleepingUpkeepPlanner) reconcileBedroom(call, epoch context.Context, stock *packedStock, state ControlState, review store.Rounds, goal store.StandardState, reading observation.RoundsReading, step policy.BedroomStep) (RoundsBuildingResult, error) {
 	facts := reading.Projection
 	// A suite is only started with its whole ring in stock.
 	if step.Room.Role == policy.PlannedSuite {

@@ -240,15 +240,15 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 	}
 	report[strings.ToLower(string(policy.MaintainResource))+"_standard"] = map[string]any{"status": string(goal.Standard.Status), "need": string(goal.Standard.Finding), "methods": len(goal.Methods)}
 	// EnsureResearch is a Project: its own row, not a goal.
-	projectID, ok := review.ProjectFor(policy.EnsureResearch)
+	projectID, ok := review.StandardFor(policy.EnsureResearch)
 	if !ok {
 		return fmt.Errorf("%s was never bound in the rounds", policy.EnsureResearch)
 	}
-	research, err := journal.LoadProject(ctx, projectID)
+	research, err := journal.LoadStandard(ctx, projectID)
 	if err != nil {
 		return err
 	}
-	report[strings.ToLower(string(policy.EnsureResearch))+"_standard"] = map[string]any{"status": string(research.Project.Status), "need": string(research.Project.Finding), "methods": len(research.Methods)}
+	report[strings.ToLower(string(policy.EnsureResearch))+"_standard"] = map[string]any{"status": string(research.Standard.Status), "need": string(research.Standard.Finding), "methods": len(research.Methods)}
 	ladder, ok, err := journal.LoadProductionLadder(ctx, store.World{Colony: review.Snapshot.Colony, Load: review.Snapshot.Load, Map: review.Snapshot.Map})
 	if err != nil {
 		return err

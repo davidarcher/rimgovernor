@@ -95,7 +95,7 @@ func temperatureOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 
 // commitCampfireRefuel binds a one-action auto-refuel plan for the heat
 // campfire the temperature proposal switches.
-func (r *RoundsBuildingPlanner) commitCampfireRefuel(call context.Context, goal store.WorkOwner, check func() error) (RoundsBuildingResult, error) {
+func (r *RoundsBuildingPlanner) commitCampfireRefuel(call context.Context, goal store.StandardState, check func() error) (RoundsBuildingResult, error) {
 	p := r.reviewer.player
 	proposal := r.temperature
 	if proposal == nil || proposal.Method != policy.TemperatureRefuelOff && proposal.Method != policy.TemperatureRefuelOn {
@@ -143,14 +143,14 @@ func campfireRetireOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 
 // retireCampfire admits one deconstruction of a misplaced or superseded
 // cooking campfire, once per campfire per Episode.
-func (r *RoundsBuildingPlanner) retireCampfire(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, campfire policy.CurrentBuilding) (RoundsBuildingResult, error) {
+func (r *RoundsBuildingPlanner) retireCampfire(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, reading observation.ColonyReading, campfire policy.CurrentBuilding) (RoundsBuildingResult, error) {
 	return r.retireBuilding(call, epoch, state, review, goal, reading, campfire.ID, campfire.Building.Definition(), campfire.Cells[0], "campfire-retire", "building_retire_method")
 }
 
 // retireBuilding deconstructs one standing building, once per building per
 // Episode under a method named prefix and its ID; reason is the wait reason
 // once that method exists.
-func (r *RoundsBuildingPlanner) retireBuilding(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, id, def string, cell domain.Cell, prefix, reason string) (RoundsBuildingResult, error) {
+func (r *RoundsBuildingPlanner) retireBuilding(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, reading observation.ColonyReading, id, def string, cell domain.Cell, prefix, reason string) (RoundsBuildingResult, error) {
 	p := r.reviewer.player
 	method := retireMethodID(prefix, id)
 	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
@@ -185,7 +185,7 @@ func (r *RoundsBuildingPlanner) retireBuilding(call, epoch context.Context, stat
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}
-	telemetry.Decide(call, telemetry.Decision{Kind: "layout_edit", Component: "building", Verdict: "admitted", Reason: "building_retire", Target: id, Attrs: map[string]any{"family": "building", "owner": goal.OwnerID(), "x": cell.X, "z": cell.Z}})
+	telemetry.Decide(call, telemetry.Decision{Kind: "layout_edit", Component: "building", Verdict: "admitted", Reason: "building_retire", Target: id, Attrs: map[string]any{"family": "building", "owner": goal.Standard.ID, "x": cell.X, "z": cell.Z}})
 	facts := reading.Projection
 	return r.admitExcavation(call, epoch, excavationStep{state: state, review: review, owner: goal, facts: facts, read: reading}, snapshot, method, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, check)
 }

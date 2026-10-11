@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// goalLabels are the in-game names of goal kinds whose split identifier
+// concernLabels are the in-game names of Concerns whose split identifier
 // reads poorly; every other kind falls back to its words.
 var concernLabels = map[policy.ConcernID]string{
 	policy.EnsureFoodSupply:         "Food supply",
@@ -47,19 +47,15 @@ var concernLabels = map[policy.ConcernID]string{
 	policy.MaintainTraining:         "Training",
 	policy.MaintainHerd:             "Herd",
 	policy.MaintainPopulation:       "Population",
+	domain.TradeMissionConcern:      "Trade mission",
 }
 
-// GoalLabel is the readable name of a stored goal id. Routine and player ids
-// end in "-<kind>"; the kind picks the label.
-func ConcernLabel(goal domain.ConcernID) string {
-	kind := string(goal)
-	if i := strings.LastIndexByte(kind, '-'); i >= 0 {
-		kind = kind[i+1:]
-	}
-	if label, ok := concernLabels[policy.ConcernID(kind)]; ok {
+// ConcernLabel is the readable name of a Concern.
+func ConcernLabel(kind domain.ConcernID) string {
+	if label, ok := concernLabels[kind]; ok {
 		return label
 	}
-	return splitWords(strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(kind, "Maintain"), "Ensure"), "Manage"))
+	return splitWords(strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(string(kind), "Maintain"), "Ensure"), "Manage"))
 }
 
 // methodReason is the method id without its identity hash: "hunt-<hex>" is

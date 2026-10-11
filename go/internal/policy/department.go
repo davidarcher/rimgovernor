@@ -24,7 +24,7 @@ const (
 func DepartmentOf(id ConcernID) Department { return inspectionIndex[id].Department }
 
 // stockpileZoneLimits is the number of stockpile-zone creations one method of
-// each Standard Concern (and Project kind) that owns stores may carry.
+// each Standard Concern that owns stores may carry.
 // ClearHomeObstructions keeps its chunk dump until that zone goes, and
 // MaintainStockpiles applies every declaration of the storage planner in one
 // batch. A concern absent from the table owns no store.

@@ -151,7 +151,7 @@ func defenseCoverSelection(approaches policy.DefenseApproaches, byCell map[domai
 // clearCover proposes the next cover-clearance method for a complete
 // layout. handled false means nothing to order: no cover selected, the
 // policy holding, or no ranged defender to size the zone by.
-func (r *RoundsDefenseLayoutPlanner) clearCover(call, epoch context.Context, goal store.ProjectState, review store.Rounds, state ControlState, read observation.RoundsReading, record store.DefenseLayoutRecord) (RoundsDefenseLayoutResult, bool, error) {
+func (r *RoundsDefenseLayoutPlanner) clearCover(call, epoch context.Context, goal store.StandardState, review store.Rounds, state ControlState, read observation.RoundsReading, record store.DefenseLayoutRecord) (RoundsDefenseLayoutResult, bool, error) {
 	p := r.reviewer.player
 	projection := read.Projection
 	tick := projection.Identity.Tick
@@ -214,7 +214,7 @@ func (r *RoundsDefenseLayoutPlanner) clearCover(call, epoch context.Context, goa
 	if len(clearances) > maxDefenseCoverBatch {
 		clearances = clearances[:maxDefenseCoverBatch]
 	}
-	if verdict, ok, err := admitProjectSubject(call, p.journal, goal, defenseCoverPrefix, state.Snapshot); err != nil {
+	if verdict, ok, err := admitStandardSubject(call, p.journal, goal, defenseCoverPrefix, state.Snapshot); err != nil {
 		return RoundsDefenseLayoutResult{}, false, err
 	} else if !ok {
 		return RoundsDefenseLayoutResult{Verdict: verdict}, true, nil
@@ -240,7 +240,7 @@ func (r *RoundsDefenseLayoutPlanner) clearCover(call, epoch context.Context, goa
 	if p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
 		return RoundsDefenseLayoutResult{}, false, defenseControlErr(360)
 	}
-	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, method, "", plan); err != nil {
+	if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, "", plan); err != nil {
 		return RoundsDefenseLayoutResult{}, false, err
 	}
 	defenseAction(call, "defense-layout", slog.LevelInfo, "applied", "cover_clearance", string(method), map[string]any{"things": len(clearances)})

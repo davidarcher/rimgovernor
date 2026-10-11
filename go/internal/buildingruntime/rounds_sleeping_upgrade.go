@@ -171,7 +171,7 @@ func beautyUpgrade(facts observation.ColonyProjection, stage policy.ColonyStage)
 }
 
 // removeOldBed deconstructs a replaced bed, once per bed per Episode.
-func (r *RoundsSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, rep policy.BedReplacement) (RoundsBuildingResult, error) {
+func (r *RoundsSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, reading observation.RoundsReading, rep policy.BedReplacement) (RoundsBuildingResult, error) {
 	p := r.reviewer.player
 	bed := sha256.Sum256([]byte(rep.Bed))
 	method := domain.MethodID(fmt.Sprintf("bedroom-replace-remove-%x", bed[:8]))
@@ -198,7 +198,7 @@ func (r *RoundsSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context, 
 
 // upgradeBedroom previews and admits one upgrade piece, once per room and
 // slot per Episode.
-func (r *RoundsSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, u policy.RoomUpgrade) (RoundsBuildingResult, error) {
+func (r *RoundsSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, reading observation.RoundsReading, u policy.RoomUpgrade) (RoundsBuildingResult, error) {
 	p := r.reviewer.player
 	facts := reading.Projection
 	room := sha256.Sum256([]byte(u.Room))

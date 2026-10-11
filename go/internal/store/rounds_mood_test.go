@@ -136,8 +136,8 @@ func TestRoundsMoodCompleteBoundedCohort(t *testing.T) {
 	}
 	r.Facts.MoodPawns = domain.Known(rows)
 	out := reviewRounds(t, s, &r)
-	// The bound Standard set includes ImproveIdeoligion alongside the mood cohort.
-	if len(out.Review.Standards) != 47 || len(out.Review.SubjectIncidents(policy.EnsureMood)) != 256 {
+	// The bound Standard set (Once rows included) includes ImproveIdeoligion alongside the mood cohort.
+	if len(out.Review.Standards) != 53 || len(out.Review.SubjectIncidents(policy.EnsureMood)) != 256 {
 		t.Fatal(len(out.Review.Standards), len(out.Review.Incidents))
 	}
 	if _, err := s.LoadRounds(context.Background()); err != nil {

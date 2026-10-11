@@ -114,7 +114,7 @@ func childRoomStep(facts observation.ColonyProjection) policy.ChildRoomStep {
 // stageChildRoom answers a due child room step through the shared build side
 // (reconcileRoom): the ring, floor and furniture the plan and the template
 // still owe, installed from packed stock first.
-func (r *RoundsSleepingUpkeepPlanner) stageChildRoom(call, epoch context.Context, stock *packedStock, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, step policy.ChildRoomStep) (RoundsBuildingResult, error) {
+func (r *RoundsSleepingUpkeepPlanner) stageChildRoom(call, epoch context.Context, stock *packedStock, state ControlState, review store.Rounds, goal store.StandardState, reading observation.RoundsReading, step policy.ChildRoomStep) (RoundsBuildingResult, error) {
 	in := step.Room.Interior
 	return r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{
 		room: step.Room, template: step.Template,

@@ -64,14 +64,14 @@ func TestMissionUnknownFoodHoldsBuyingButKnownZeroReturns(t *testing.T) {
 			m.HomeMap = state.Snapshot.Map
 			m.Phase = domain.TradeMissionPlanned
 			m.Demand = []domain.CargoItem{{Definition: "MealSurvivalPack", Count: 10}}
-			p, err := domain.NewTradeMissionProject("food-mission", 1, state.Snapshot, m)
+			p, err := domain.NewTradeMissionStandard("food-mission", 1, state.Snapshot, m)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err = db.CreateProject(ctx, p); err != nil {
+			if err = db.SeedStandard(ctx, p); err != nil {
 				t.Fatal(err)
 			}
-			project, err := db.LoadProject(ctx, p.ID)
+			project, err := db.LoadStandard(ctx, p.ID)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -80,10 +80,10 @@ func TestMissionUnknownFoodHoldsBuyingButKnownZeroReturns(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err = db.RecordProject(ctx, p.ID, project.Revision, record); err != nil {
+			if _, err = db.RecordStandard(ctx, p.ID, project.Revision, record); err != nil {
 				t.Fatal(err)
 			}
-			project, err = db.LoadProject(ctx, p.ID)
+			project, err = db.LoadStandard(ctx, p.ID)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -101,11 +101,11 @@ func TestMissionUnknownFoodHoldsBuyingButKnownZeroReturns(t *testing.T) {
 			if food, measured := r.census.foodPlan.Value(); measured != known || (measured && food.GapPerDay != 0) {
 				t.Fatal("fixture did not distinguish unknown from measured zero", food, measured)
 			}
-			saved, err := db.LoadProject(ctx, p.ID)
+			saved, err := db.LoadStandard(ctx, p.ID)
 			if err != nil {
 				t.Fatal(err)
 			}
-			mission, err := domain.DecodeTradeMission(saved.Project.Record)
+			mission, err := domain.DecodeTradeMission(saved.Standard.Record)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -113,7 +113,7 @@ func TestMissionUnknownFoodHoldsBuyingButKnownZeroReturns(t *testing.T) {
 			if known {
 				want = domain.TradeMissionReturning
 			}
-			if mission.Phase != want || mission.PurchaseCommitted || len(mission.ReturnGoods) != 0 || len(saved.History) != 0 || saved.Project.Status != domain.ProjectOpen {
+			if mission.Phase != want || mission.PurchaseCommitted || len(mission.ReturnGoods) != 0 || len(saved.History) != 0 || saved.Standard.Status != domain.StandardOpen {
 				t.Fatal("wrong mission transition", mission, saved)
 			}
 			if !known && (saved.Revision != project.Revision || result.Verdict != fieldUnavailable("food_plan")) {

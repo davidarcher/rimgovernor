@@ -44,16 +44,6 @@ func (s *Store) AuthorizeRoundsPlan(ctx context.Context, root, target domain.Gen
 	if err = tx.QueryRowContext(ctx, "SELECT kind,owner_id FROM plan_methods WHERE plan_id=?", target.Plan).Scan(&kind, &ownerID); err != nil {
 		return err
 	}
-	if kind == "project" {
-		project, err := loadProject(ctx, tx, domain.ProjectID(ownerID))
-		if err != nil {
-			return err
-		}
-		if err = authorizeStandardPlan(ctx, tx, review, project, root, target); err != nil {
-			return err
-		}
-		return tx.Commit()
-	}
 	if kind == "incident" {
 		if err = authorizeIncidentPlan(ctx, tx, review, domain.IncidentID(ownerID), root, target); err != nil {
 			return err
@@ -102,20 +92,20 @@ func authorizeIncidentPlan(ctx context.Context, tx *Tx, review Rounds, id domain
 	return roundsActionsSupported(p.Spec)
 }
 
-func authorizeStandardPlan(ctx context.Context, tx *Tx, review Rounds, owner WorkOwner, root, target domain.GenerationSnapshot) error {
-	if _, bound := owner.ownerNeed(review); !bound {
+func authorizeStandardPlan(ctx context.Context, tx *Tx, review Rounds, owner StandardState, root, target domain.GenerationSnapshot) error {
+	if _, bound := review.Need(owner.Standard.ID); !bound {
 		return ErrConflict
 	}
-	g, _ := SummarizeOwner(owner)
+	g := SummarizeOwner(owner)
 	if g.Retired || g.Status != domain.StandardOpen || g.Finding == domain.FindingUnclear || !sameRoot(g.Snapshot, root) {
 		return ErrConflict
 	}
 	// A prepared plan does not dispatch while a Safeguard vetoes its goal.
-	if reason := review.VetoOwner(owner); reason != "" {
+	if reason := review.Veto(owner.Standard); reason != "" {
 		return fmt.Errorf("%w: %w: standard %s: %s", ErrConflict, ErrNotAdmitted, g.ID, reason)
 	}
 	bound := false
-	for _, method := range owner.OwnerMethods() {
+	for _, method := range owner.Methods {
 		if method.Plan == target.Plan && method.Episode == g.Episode {
 			bound = true
 		}
@@ -176,11 +166,11 @@ func (r Rounds) Need(goal domain.StandardID) (domain.ConcernID, bool) {
 	return "", false
 }
 
-// projectNeed returns the routine need the review binds the Project to.
-func (r Rounds) projectNeed(project domain.ProjectID) (domain.ConcernID, bool) {
-	for _, binding := range r.Projects {
-		if binding.Project == project {
-			return binding.Concern, true
+// StandardFor returns the Standard the review binds to need.
+func (r Rounds) StandardFor(need domain.ConcernID) (domain.StandardID, bool) {
+	for _, binding := range r.Standards {
+		if binding.Concern == need {
+			return binding.Standard, true
 		}
 	}
 	return "", false

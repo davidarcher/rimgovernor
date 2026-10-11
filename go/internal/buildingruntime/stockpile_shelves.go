@@ -95,7 +95,7 @@ func zoneShelves(ctx context.Context, journal *store.Store, goal domain.Standard
 
 // build previews the step's candidate sites in turn and admits the first
 // native accepts as the zone's next shelf.
-func (r *RoundsStockpilePlanner) buildShelf(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, step policy.ShelfStep, index int) (RoundsStockpileResult, error) {
+func (r *RoundsStockpilePlanner) buildShelf(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, reading observation.RoundsReading, step policy.ShelfStep, index int) (RoundsStockpileResult, error) {
 	p := r.reviewer.player
 	facts := reading.Projection
 	stuff := facts.BuildStuff(policy.ShelfDefinition)

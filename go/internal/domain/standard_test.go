@@ -141,15 +141,40 @@ func TestReviewWithoutChangeReturnsTheGoalEqual(t *testing.T) {
 	if e != nil || next == changed || next.Snapshot != moved {
 		t.Fatal("a new snapshot is a change", next, e)
 	}
-	p, e := NewProject("project-0011223344556677-cook-0", "cook", 2, scope)
+}
+
+func TestOnceStandardSettlesOnceAndRegressionStartsNewEpisode(t *testing.T) {
+	_, scope := fixture(t)
+	p, e := NewStandard("routine-0011223344556677-cook-0", "cook", 2, scope)
 	if e != nil {
 		t.Fatal(e)
 	}
-	p, e = ReviewProject(p, scope, FindingUnmet, true)
-	if e != nil {
+	p.Once = true
+	if p, e = ReviewStandard(p, scope, FindingUnmet, false); e != nil || p.Status != StandardOpen || p.Finding != FindingUnmet {
 		t.Fatal(p, e)
 	}
-	if again, e := ReviewProject(p, scope, FindingUnmet, true); e != nil || again != p {
-		t.Fatal("repeat project review changed the project", again, e)
+	if p, e = ReviewStandard(p, scope, FindingMet, true); e != nil || p.Status != StandardOpen {
+		t.Fatal("recovery with open work settled the standard", p, e)
+	}
+	// A deficit measured after unresolved effects is not a regression.
+	if q, e := ReviewStandard(p, scope, FindingUnmet, false); e != nil || q.Episode != 0 || q.Status != StandardOpen {
+		t.Fatal("unsettled once standard regressed", q, e)
+	}
+	if p, e = ReviewStandard(p, scope, FindingMet, false); e != nil || p.Status != StandardSettled {
+		t.Fatal(p, e)
+	}
+	// An unknown measurement or open work does not reopen it, and a review
+	// that changes nothing returns it equal to its input.
+	for _, open := range []bool{false, true} {
+		if again, e := ReviewStandard(p, scope, FindingUnclear, open); e != nil || again != p {
+			t.Fatal("unclear reopened a settled once standard", again, e)
+		}
+	}
+	if again, e := ReviewStandard(p, scope, FindingUnmet, true); e != nil || again != p {
+		t.Fatal("open work regressed a settled once standard", again, e)
+	}
+	next, e := ReviewStandard(p, scope, FindingUnmet, false)
+	if e != nil || next.Status != StandardOpen || next.Episode != 1 || next.RecoveryObserved {
+		t.Fatal("deficit with no work open must start a new episode", next, e)
 	}
 }

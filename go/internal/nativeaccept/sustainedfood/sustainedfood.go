@@ -453,9 +453,6 @@ func SampleStandard(ctx context.Context, s *store.Store, need policy.ConcernID) 
 	if policy.IsIncidentKind(need) {
 		return sampleIncident(ctx, s, review, need, sample)
 	}
-	if policy.IsProjectKind(need) {
-		return sampleProject(ctx, s, review, need, sample)
-	}
 	var concernID domain.StandardID
 	for _, binding := range review.Standards {
 		if binding.Concern == need {
@@ -527,43 +524,6 @@ func describeMethod(ctx context.Context, s *store.Store, method domain.MethodID,
 		described["unsuccessful"] = unsuccessful
 	}
 	return described
-}
-
-// sampleProject is SampleGoal for a Project: the review's current
-// Project row for the kind, its status and need, and its plans.
-func sampleProject(ctx context.Context, s *store.Store, review store.Rounds, kind policy.ConcernID, sample map[string]any) (map[string]any, error) {
-	id, bound := review.ProjectFor(kind)
-	sample["concern_bound"] = bound
-	if !bound {
-		return sample, nil
-	}
-	project, err := s.LoadProject(ctx, id)
-	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return sample, nil
-		}
-		return sample, err
-	}
-	sample["project"] = string(id)
-	sample["status"] = string(project.Project.Status)
-	sample["need"] = string(project.Project.Finding)
-	sample["priority"] = project.Project.Priority
-	sample["vetoed"] = review.VetoProject(project.Project) != ""
-	sample["method_count"] = len(project.Methods)
-	var plans, retired []map[string]any
-	active := map[domain.PlanID]bool{}
-	for _, method := range project.Methods {
-		active[method.Plan] = true
-		plans = append(plans, describeMethod(ctx, s, method.Method, method.Plan))
-	}
-	for _, method := range project.History {
-		if !active[method.Plan] {
-			retired = append(retired, describeMethod(ctx, s, method.Method, method.Plan))
-		}
-	}
-	sample["plans"] = plans
-	sample["retired_plans"] = retired
-	return sample, nil
 }
 
 // sampleIncident is SampleGoal for a Response whose occurrences are

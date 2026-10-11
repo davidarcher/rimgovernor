@@ -22,7 +22,7 @@ const (
 	TradeMissionEnded     TradeMissionPhase = "ended"
 )
 
-// TradeMission is intent carried by Project.Record. It holds no native
+// TradeMission is intent carried by Standard.Record. It holds no native
 // inventory, caravan identity, position, prices or routes.
 type TradeMission struct {
 	HomeColony     ColonyID
@@ -94,7 +94,7 @@ func (m TradeMission) Record() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if len(data) > MaxProjectRecord {
+	if len(data) > MaxStandardRecord {
 		return "", errors.New("trade mission record exceeds bound")
 	}
 	return string(data), nil
@@ -102,7 +102,7 @@ func (m TradeMission) Record() (string, error) {
 
 func DecodeTradeMission(record string) (TradeMission, error) {
 	var m TradeMission
-	if len(record) > MaxProjectRecord {
+	if len(record) > MaxStandardRecord {
 		return m, errors.New("trade mission record exceeds bound")
 	}
 	decoder := json.NewDecoder(bytes.NewBufferString(record))
@@ -130,14 +130,15 @@ func (m TradeMission) Departure() (CaravanDeparture, error) {
 	return NewCaravanDeparture(m.Crew, m.Pack, m.SettlementTile)
 }
 
-func NewTradeMissionProject(id ProjectID, priority int, snapshot GenerationSnapshot, m TradeMission) (Project, error) {
+// NewTradeMissionStandard is a Once Standard whose Record is the mission.
+func NewTradeMissionStandard(id StandardID, priority int, snapshot GenerationSnapshot, m TradeMission) (Standard, error) {
 	if m.Phase != TradeMissionPlanned || m.HomeColony != snapshot.Colony || m.HomeMap != snapshot.Map {
-		return Project{}, errors.New("trade mission scope mismatch")
+		return Standard{}, errors.New("trade mission scope mismatch")
 	}
 	record, err := m.Record()
 	if err != nil {
-		return Project{}, err
+		return Standard{}, err
 	}
-	p := Project{ID: id, Kind: TradeMissionConcern, Priority: priority, Snapshot: snapshot, Status: ProjectOpen, Finding: FindingUnclear, Record: record}
-	return p, p.Validate()
+	g := Standard{ID: id, Kind: TradeMissionConcern, Priority: priority, Snapshot: snapshot, Status: StandardOpen, Finding: FindingUnclear, Once: true, Record: record}
+	return g, g.Validate()
 }

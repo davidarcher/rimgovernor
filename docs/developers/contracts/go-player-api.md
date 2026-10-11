@@ -146,7 +146,7 @@ Other fields (`method`,
 
 | Where | Values |
 | --- | --- |
-| `domain.Finding` (Standard / Project `Finding`, disaster service `Need`, acceptance and colony-review `need` samples) | `unclear` / `unmet` / `met` |
+| `domain.Finding` (Standard `Finding`, disaster service `Need`, acceptance and colony-review `need` samples) | `unclear` / `unmet` / `met` |
 | `domain.Situation` (Incident bindings) | `unclear` / `active` / `clear` |
 
 The HTTP read route `/api/routines` carries no finding string; the values reach

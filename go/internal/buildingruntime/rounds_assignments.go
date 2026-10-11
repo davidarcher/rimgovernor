@@ -66,9 +66,9 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		if err != nil {
 			return RoundsWorkResult{}, err
 		}
-		deficit = resource.OwnerDeficit()
+		deficit = resource.Deficit()
 	}
-	goal, deficitProject, err := p.journal.WorkableProject(call, review, policy.EnsureWorkAssignments)
+	goal, deficitProject, err := p.journal.Workable(call, review, policy.EnsureWorkAssignments)
 	if err != nil {
 		return RoundsWorkResult{}, err
 	}
@@ -408,7 +408,7 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	if p.session.State() != state {
 		return RoundsWorkResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
-	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, method, "", plan); err != nil {
+	if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, "", plan); err != nil {
 		return RoundsWorkResult{}, err
 	}
 	runway, _ := read.Projection.Facts.FoodDays.Value()

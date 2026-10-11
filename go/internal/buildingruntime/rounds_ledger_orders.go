@@ -148,12 +148,12 @@ func (r *Rounder) seedPlacements(ctx context.Context) bool {
 	if err != nil {
 		return false
 	}
-	owner, _, err := journal.WorkableOwner(ctx, review, policy.MaintainWorkLedger)
-	if err != nil || owner == nil {
+	owner, _, err := journal.Workable(ctx, review, policy.MaintainWorkLedger)
+	if err != nil || owner.Standard.ID == "" {
 		return false
 	}
 	found := map[string]placementEntry{}
-	for _, method := range owner.OwnerHistory() {
+	for _, method := range owner.History {
 		if !strings.HasPrefix(string(method.Method), ledgerMethodPrefix) {
 			continue
 		}

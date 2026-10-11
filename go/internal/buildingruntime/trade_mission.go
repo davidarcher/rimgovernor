@@ -176,12 +176,12 @@ func TradeMissionDepartureEvidence(m domain.TradeMission, read *bridge.WorldProg
 
 // AdmitTradeMissionDeparture is deliberately unregistered. The complete driver
 // calls it under the player gate after persisting the planned Project.
-func (r *Rounder) AdmitTradeMissionDeparture(call, epoch context.Context, state ControlState, project store.ProjectState, read *bridge.WorldProgressionRead, arbiter *stepArbiter) (domain.PlanID, error) {
-	m, err := domain.DecodeTradeMission(project.Project.Record)
+func (r *Rounder) AdmitTradeMissionDeparture(call, epoch context.Context, state ControlState, project store.StandardState, read *bridge.WorldProgressionRead, arbiter *stepArbiter) (domain.PlanID, error) {
+	m, err := domain.DecodeTradeMission(project.Standard.Record)
 	if err != nil {
 		return "", err
 	}
-	if !state.Enabled || !state.ObservationKnown || !project.Project.Snapshot.SameWorld(state.Snapshot) || m.Phase != domain.TradeMissionPlanned || len(project.History) != 0 {
+	if !state.Enabled || !state.ObservationKnown || !project.Standard.Snapshot.SameWorld(state.Snapshot) || m.Phase != domain.TradeMissionPlanned || len(project.History) != 0 {
 		return "", ErrControl
 	}
 	if !tradeMissionCurrentRead(state.Snapshot, read) {
@@ -199,7 +199,7 @@ func (r *Rounder) AdmitTradeMissionDeparture(call, epoch context.Context, state 
 		if err != nil {
 			return "", err
 		}
-		_, err = r.player.journal.RecordProject(call, project.Project.ID, project.Revision, record)
+		_, err = r.player.journal.RecordStandard(call, project.Standard.ID, project.Revision, record)
 		return "", err
 	}
 	if !tradeMissionCrewAtHome(m, read) {
@@ -226,7 +226,7 @@ func (r *Rounder) AdmitTradeMissionDeparture(call, epoch context.Context, state 
 	if err != nil {
 		return "", err
 	}
-	_, err = r.player.journal.CommitProjectMethodRecord(call, project.Project.ID, project.Revision, "trade-departure", fmt.Sprintf("settlement:%s", m.Settlement), plan, record)
+	_, err = r.player.journal.CommitMethodRecord(call, project.Standard.ID, project.Revision, "trade-departure", fmt.Sprintf("settlement:%s", m.Settlement), plan, record)
 	return id, err
 }
 

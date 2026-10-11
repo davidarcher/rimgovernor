@@ -11,9 +11,9 @@ import (
 )
 
 type BuildingMethodRequest struct {
-	// Owner is the goal or Project the method binds to, as loaded: its
+	// Owner is the Standard the method binds to, as loaded: its
 	// revision scopes the commit.
-	Owner    WorkOwner
+	Owner    StandardState
 	Method   domain.MethodID
 	Plan     domain.PlanSpec
 	Current  domain.GenerationSnapshot
@@ -29,10 +29,8 @@ type BuildingMethodRequest struct {
 // BuildingMethodDecision reports an admission; Refused lists a refusal's reasons.
 type BuildingMethodDecision struct {
 	Admitted bool
-	// Goal is the owning goal, Project the owning Project: the other is
-	// zero.
+	// Standard is the owning Standard.
 	Standard StandardState
-	Project  ProjectState
 	Refused  []policy.Refusal
 }
 
@@ -82,12 +80,12 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 	if err = s.floors.guard(r.Current, r.Tick); err != nil {
 		return BuildingMethodDecision{}, err
 	}
-	owner, err := reloadOwner(ctx, tx, r.Owner)
+	owner, err := loadStandard(ctx, tx, r.Owner.Standard.ID)
 	if err != nil {
 		return BuildingMethodDecision{}, err
 	}
-	if owner.OwnerRevision() != r.Owner.OwnerRevision() {
-		return BuildingMethodDecision{}, fmt.Errorf("%w: %s revision %d, method scoped to %d", ErrStaleOwner, owner.ownerLabel(), owner.OwnerRevision(), r.Owner.OwnerRevision())
+	if owner.Revision != r.Owner.Revision {
+		return BuildingMethodDecision{}, fmt.Errorf("%w: %s revision %d, method scoped to %d", ErrStaleOwner, owner.ownerLabel(), owner.Revision, r.Owner.Revision)
 	}
 	old := owner.ownerSnapshot()
 	if old.Colony != r.Current.Colony || old.Map != r.Current.Map {
@@ -140,7 +138,7 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 			return decisionOf(owner, decision.Refused), nil
 		}
 	}
-	committed, err := commitOwnerMethod(ctx, tx, owner, r.Method, r.Reason, r.Plan)
+	committed, err := commitMethod(ctx, tx, owner.Standard.ID, owner.Revision, r.Method, r.Reason, r.Plan)
 	if err != nil {
 		return BuildingMethodDecision{}, err
 	}

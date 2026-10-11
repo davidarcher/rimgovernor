@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -34,15 +33,7 @@ func roundsPlans(ctx context.Context, tx *Tx, current domain.GenerationSnapshot)
 		world := World{}
 		var kind, ownerID string
 		err = tx.QueryRowContext(ctx, "SELECT kind,owner_id FROM plan_methods WHERE plan_id=?", plan.Spec.ID()).Scan(&kind, &ownerID)
-		if err == nil && kind == "project" {
-			// A Project's method serves its kind, which is its need.
-			p, e := loadProject(ctx, tx, domain.ProjectID(ownerID))
-			if e != nil {
-				return nil, e
-			}
-			concernID = p.Project.Kind
-			world = World{Colony: p.Project.Snapshot.Colony, Load: p.Project.Snapshot.Load, Map: p.Project.Snapshot.Map}
-		} else if err == nil && kind == "incident" {
+		if err == nil && kind == "incident" {
 			// An incident's method serves its Response kind.
 			i, e := loadIncident(ctx, tx, domain.IncidentID(ownerID))
 			if e != nil {
@@ -92,9 +83,6 @@ func readyWorkOf(r RoundsRequest, plans []roundsPlan, unserved []domain.ConcernI
 // admitRoundsReview refuses work from a stale or disabled review, independently
 // of pawn availability. Safety is enforced by the shared Safeguards.
 func admitRoundsReview(ctx context.Context, tx *Tx, g OwnerSummary) error {
-	if !(strings.HasPrefix(g.ID, "routine-") || isProjectID(g.ID)) {
-		return nil
-	}
 	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return err
@@ -102,9 +90,6 @@ func admitRoundsReview(ctx context.Context, tx *Tx, g OwnerSummary) error {
 	bound := false
 	for _, b := range review.Standards {
 		bound = bound || string(b.Standard) == g.ID
-	}
-	for _, b := range review.Projects {
-		bound = bound || string(b.Project) == g.ID
 	}
 	if !bound {
 		return nil
@@ -115,11 +100,11 @@ func admitRoundsReview(ctx context.Context, tx *Tx, g OwnerSummary) error {
 	return nil
 }
 
-func reviewWork(ctx context.Context, tx *Tx, r RoundsRequest, needs policy.RoundsFindings, states []WorkOwner, records []DependencyRecord) (policy.ReadyWorkReport, []DependencyRecord, error) {
+func reviewWork(ctx context.Context, tx *Tx, r RoundsRequest, needs policy.RoundsFindings, states []StandardState, records []DependencyRecord) (policy.ReadyWorkReport, []DependencyRecord, error) {
 	var bindings []RoundsStandard
 	var unserved []domain.ConcernID
 	for i, n := range needs.Assessments {
-		bindings = append(bindings, RoundsStandard{Concern: n.ID, Standard: domain.StandardID(states[i].OwnerID())})
+		bindings = append(bindings, RoundsStandard{Concern: n.ID, Standard: states[i].Standard.ID})
 		if !ownerActive(states[i]) || len(policy.ConcernLabor(n.ID)) == 0 {
 			continue
 		}

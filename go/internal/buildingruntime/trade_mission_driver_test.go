@@ -83,18 +83,18 @@ func TestTradeMissionSavedCommitmentReturnsWithoutRebuy(t *testing.T) {
 	m.HomeColony = state.Snapshot.Colony
 	m.HomeMap = state.Snapshot.Map
 	m.Phase = domain.TradeMissionPlanned
-	p, err := domain.NewTradeMissionProject("project-trade-reload", 1, state.Snapshot, m)
+	p, err := domain.NewTradeMissionStandard("project-trade-reload", 1, state.Snapshot, m)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = db.CreateProject(ctx, p); err != nil {
+	if err = db.SeedStandard(ctx, p); err != nil {
 		t.Fatal(err)
 	}
-	project, err := db.LoadProject(ctx, p.ID)
+	project, err := db.LoadStandard(ctx, p.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	project, err = db.ReviewProject(ctx, p.ID, project.Revision, state.Snapshot, 7, domain.FindingUnmet)
+	project, err = db.ReviewStandard(ctx, p.ID, project.Revision, state.Snapshot, 7, domain.FindingUnmet)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,11 +123,11 @@ func TestTradeMissionSavedCommitmentReturnsWithoutRebuy(t *testing.T) {
 	if err = db.RebuildStandards(ctx, blobs, nil); err != nil {
 		t.Fatal(err)
 	}
-	restored, err := db.LoadProject(ctx, p.ID)
+	restored, err := db.LoadStandard(ctx, p.ID)
 	if err != nil || len(restored.History) != 0 {
 		t.Fatal(restored, err)
 	}
-	saved, err := domain.DecodeTradeMission(restored.Project.Record)
+	saved, err := domain.DecodeTradeMission(restored.Standard.Record)
 	if err != nil || !saved.PurchaseCommitted {
 		t.Fatal(saved, err)
 	}
@@ -147,11 +147,11 @@ func TestTradeMissionSavedCommitmentReturnsWithoutRebuy(t *testing.T) {
 	if err != nil || result.Plan != "" {
 		t.Fatal(result, err)
 	}
-	restored, err = db.LoadProject(ctx, p.ID)
+	restored, err = db.LoadStandard(ctx, p.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	saved, err = domain.DecodeTradeMission(restored.Project.Record)
+	saved, err = domain.DecodeTradeMission(restored.Standard.Record)
 	if err != nil || saved.Phase != domain.TradeMissionReturning || len(restored.History) != 0 {
 		t.Fatal("reload reopened trade", saved, restored, err)
 	}
@@ -161,17 +161,17 @@ func TestTradeMissionSavedCommitmentReturnsWithoutRebuy(t *testing.T) {
 	if _, _, err = planner.mission(ctx, r.player.epoch, state, store.Rounds{}, newStepArbiter()); err != nil {
 		t.Fatal(err)
 	}
-	restored, _ = db.LoadProject(ctx, p.ID)
-	if restored.Project.Status != domain.ProjectOpen {
+	restored, _ = db.LoadStandard(ctx, p.ID)
+	if restored.Standard.Status != domain.StandardOpen {
 		t.Fatal("receipt/home arrival completed without goods")
 	}
 	native.cargo["Steel"] = 10
 	if _, _, err = planner.mission(ctx, r.player.epoch, state, store.Rounds{}, newStepArbiter()); err != nil {
 		t.Fatal(err)
 	}
-	restored, _ = db.LoadProject(ctx, p.ID)
-	saved, _ = domain.DecodeTradeMission(restored.Project.Record)
-	if restored.Project.Status != domain.ProjectCompleted || saved.Phase != domain.TradeMissionDelivered {
+	restored, _ = db.LoadStandard(ctx, p.ID)
+	saved, _ = domain.DecodeTradeMission(restored.Standard.Record)
+	if restored.Standard.Status != domain.StandardSettled || saved.Phase != domain.TradeMissionDelivered {
 		t.Fatal(restored, saved)
 	}
 }

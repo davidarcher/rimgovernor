@@ -8,14 +8,14 @@ import (
 )
 
 // Independent pawn dressing may share a review; a bill remains exclusive.
-func gearOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
+func gearOpenWorkExempt(ctx context.Context, tx *Tx, goal StandardState, plan domain.PlanSpec) (bool, error) {
 	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return false, err
 	}
 	bound := false
 	for _, b := range review.Standards {
-		bound = bound || string(b.Standard) == goal.OwnerID() && b.Concern == policy.MaintainEquipment
+		bound = bound || b.Standard == goal.Standard.ID && b.Concern == policy.MaintainEquipment
 	}
 	if !bound {
 		return false, nil
@@ -48,7 +48,7 @@ func gearOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, plan domain
 	}
 	// No slot limit: open work only has to stay off the pawns and items this
 	// plan touches.
-	for _, m := range goal.OwnerMethods() {
+	for _, m := range goal.Methods {
 		p, err := load(ctx, tx, m.Plan)
 		if err != nil {
 			return false, err
@@ -74,7 +74,7 @@ func craftingSpotAction(action domain.Action) bool {
 // placement in the planned workshop, its deconstruction) be committed beside the
 // goal's bills and dressing, which run for days and do not depend on it. A plan
 // made only of spot actions is blocked only by an open spot action.
-func craftingSpotOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
+func craftingSpotOpenWorkExempt(ctx context.Context, tx *Tx, goal StandardState, plan domain.PlanSpec) (bool, error) {
 	if len(plan.Actions()) == 0 {
 		return false, nil
 	}
@@ -89,12 +89,12 @@ func craftingSpotOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, pla
 	}
 	bound := false
 	for _, b := range review.Standards {
-		bound = bound || string(b.Standard) == goal.OwnerID() && b.Concern == policy.MaintainEquipment
+		bound = bound || b.Standard == goal.Standard.ID && b.Concern == policy.MaintainEquipment
 	}
 	if !bound {
 		return false, nil
 	}
-	for _, m := range goal.OwnerMethods() {
+	for _, m := range goal.Methods {
 		p, err := load(ctx, tx, m.Plan)
 		if err != nil {
 			return false, err

@@ -197,7 +197,7 @@ func (r *RoundsResearchPlanner) step(call, epoch context.Context, arbiter *stepA
 	if len(needs) == 0 && len(staged.ResearchLadder) == 0 {
 		return RoundsResearchResult{Verdict: BuildingReasonDisabled}, nil
 	}
-	goal, deficit, err := p.journal.WorkableProject(call, review, policy.EnsureResearch)
+	goal, deficit, err := p.journal.Workable(call, review, policy.EnsureResearch)
 	if err != nil {
 		return RoundsResearchResult{}, err
 	}
@@ -305,7 +305,7 @@ func (r *RoundsResearchPlanner) buildAhead(call, epoch context.Context, arbiter 
 
 // admit records the one-action plan that selects next, unless this goal
 // epoch already tried it.
-func (r *RoundsResearchPlanner) admit(call, epoch context.Context, state ControlState, goal store.ProjectState, next string) (RoundsResearchResult, error) {
+func (r *RoundsResearchPlanner) admit(call, epoch context.Context, state ControlState, goal store.StandardState, next string) (RoundsResearchResult, error) {
 	p := r.reviewer.player
 	digestNext := sha256.Sum256([]byte(next))
 	method := domain.MethodID(fmt.Sprintf("research-%x", digestNext[:16]))
@@ -333,7 +333,7 @@ func (r *RoundsResearchPlanner) admit(call, epoch context.Context, state Control
 	if p.session.State() != state {
 		return RoundsResearchResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
-	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, method, "", plan); err != nil {
+	if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, "", plan); err != nil {
 		return RoundsResearchResult{}, err
 	}
 	return RoundsResearchResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

@@ -206,7 +206,7 @@ func TestDigPlannedRefusesLoudlyWhenADigSettlesWithRockStanding(t *testing.T) {
 	dig := func() RoundsBuildingResult {
 		t.Helper()
 		var err error
-		if s.owner, err = db.LoadOwner(ctx, s.owner.OwnerID()); err != nil {
+		if s.owner, err = db.LoadStandard(ctx, s.owner.Standard.ID); err != nil {
 			t.Fatal(err)
 		}
 		result, handled, err := p.digPlanned(ctx, ctx, s, []domain.Cell{shaft}, cold, "plan-dig-test", nil, func() error { return nil })

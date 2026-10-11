@@ -31,7 +31,7 @@ func sculptureRoomsOwed(facts observation.ColonyProjection, stage policy.ColonyS
 // finished packed sculpture (MaintainArt's pinned bill) installed (a
 // RelocateIntent on the packed item's inner building) on free floor in the
 // room, once per Episode. due is false when the lever has nothing to do.
-func (r *RoundsSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context, stock *packedStock, state ControlState, goal store.WorkOwner, reading observation.RoundsReading) (RoundsBuildingResult, bool, error) {
+func (r *RoundsSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context, stock *packedStock, state ControlState, goal store.StandardState, reading observation.RoundsReading) (RoundsBuildingResult, bool, error) {
 	facts := reading.Projection
 	obs, sk := facts.Facts.Sleeping.Value()
 	rooms, rk := facts.Rooms.Value()

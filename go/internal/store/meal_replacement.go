@@ -4,7 +4,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // Replacement is observed and guarded natively by owned bill identity and
 // unchanged settings. It may supersede an iteration still waiting for inputs.
-func mealReplacementOpenWorkExempt(goal WorkOwner, plan domain.PlanSpec) bool {
+func mealReplacementOpenWorkExempt(goal StandardState, plan domain.PlanSpec) bool {
 	if len(plan.Actions()) != 1 {
 		return false
 	}

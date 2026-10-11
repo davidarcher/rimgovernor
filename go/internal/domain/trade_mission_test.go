@@ -25,7 +25,7 @@ func TestTradeMissionIntentRoundTripAndClosedRecord(t *testing.T) {
 		}
 	}
 	snapshot := GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}
-	p, err := NewTradeMissionProject("project-trade", 2, snapshot, m)
+	p, err := NewTradeMissionStandard("routine-trade", 2, snapshot, m)
 	if err != nil {
 		t.Fatal(err)
 	}

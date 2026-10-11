@@ -99,21 +99,3 @@ func TestStandardMethodsFollowTheSharedRefusalBudget(t *testing.T) {
 		})
 	}
 }
-
-// A Project (the shrine planner) has no epochs; the same ledger reads its
-// history.
-func TestProjectMethodsFollowTheSharedRefusalBudget(t *testing.T) {
-	reviewer, db, _, _, _ := roundsFixture(t)
-	ctx := context.Background()
-	world := reviewer.player.session.State().Snapshot
-	goal := journalRefusedMethod(t, db, world, store.StandardState{}, "breach-s1-w1-0", domain.RefusalPermanent, "not diggable")
-	project := store.ProjectState{History: []store.ProjectMethod{{Method: goal.History[0].Method, Plan: goal.History[0].Plan}}}
-	_, verdict, ok, err := admitProjectMethod(ctx, db, project, "breach-s1-w1-", world)
-	if err != nil || ok || !verdict.Is(policy.CauseRetriesSpent) || verdict.Refusal.Detail != "not_diggable" {
-		t.Fatal(verdict, ok, err)
-	}
-	method, _, ok, err := admitProjectMethod(ctx, db, project, "breach-s1-w2-", world)
-	if err != nil || !ok || method != "breach-s1-w2-0" {
-		t.Fatal(method, ok, err)
-	}
-}

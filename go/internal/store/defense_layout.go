@@ -43,13 +43,14 @@ type DefenseTierRecord struct {
 }
 
 // DefenseLayoutRecord is the one layout the colony committed to for one
-// world and Project. The planner writes it when it first proposes a
+// world and Episode of its Standard. The planner writes it when it first proposes a
 // layout so later tiers keep the same geometry after earlier tiers changed
 // the census, and marks Complete once every tier's method has finished;
 // combat reads Firing only while Complete holds.
 type DefenseLayoutRecord struct {
 	World      World
-	Project    domain.ProjectID
+	Standard   domain.StandardID
+	Episode    uint64
 	Chokepoint domain.Cell
 	Entry      domain.Cell
 	Toward     domain.Rotation
@@ -95,8 +96,8 @@ const maxDefenseLayoutBytes = 1024 * 1024
 // Validate rejects a record that could not have come from a policy layout:
 // bad world identity, no firing cells or tiers, or oversized tiers.
 func (r DefenseLayoutRecord) Validate() error {
-	if !validIdentity(string(r.World.Colony)) || !validIdentity(string(r.World.Load)) || r.World.Map < 0 || !validIdentity(string(r.Project)) {
-		return errors.New("defense layout world or project identity invalid")
+	if !validIdentity(string(r.World.Colony)) || !validIdentity(string(r.World.Load)) || r.World.Map < 0 || !validIdentity(string(r.Standard)) {
+		return errors.New("defense layout world or standard identity invalid")
 	}
 	if len(r.Firing) == 0 || len(r.Tiers) == 0 || len(r.Firing) > 64 || len(r.Retreat) != 0 && len(r.Retreat) != len(r.Firing) || len(r.TrapLane) > 512 || len(r.SafeLane) > 64 || len(r.Entrances) > 64 {
 		return errors.New("defense layout geometry out of bounds")
@@ -180,9 +181,9 @@ func (r *DefenseLayoutRecord) SetTier(tier DefenseTierRecord) {
 
 func validIdentity(s string) bool { return s != "" && len(s) <= 256 }
 
-// NewDefenseLayoutRecord captures a policy layout for one Project.
-func NewDefenseLayoutRecord(w World, project domain.ProjectID, l policy.DefenseLayout, entrances []domain.Cell) (DefenseLayoutRecord, error) {
-	r := DefenseLayoutRecord{World: w, Project: project, Chokepoint: l.Chokepoint, Entry: l.Entry, Toward: l.Toward, Width: l.Width, TrapLane: append([]domain.Cell{}, l.TrapLane...), Entrances: append([]domain.Cell{}, entrances...)}
+// NewDefenseLayoutRecord captures a policy layout for one Standard Episode.
+func NewDefenseLayoutRecord(w World, standard domain.StandardID, episode uint64, l policy.DefenseLayout, entrances []domain.Cell) (DefenseLayoutRecord, error) {
+	r := DefenseLayoutRecord{World: w, Standard: standard, Episode: episode, Chokepoint: l.Chokepoint, Entry: l.Entry, Toward: l.Toward, Width: l.Width, TrapLane: append([]domain.Cell{}, l.TrapLane...), Entrances: append([]domain.Cell{}, entrances...)}
 	for _, f := range l.Firing {
 		r.Firing = append(r.Firing, f.Cell)
 		r.Retreat = append(r.Retreat, f.Retreat)

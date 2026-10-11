@@ -188,12 +188,12 @@ func defenseTierSubject(tier store.DefenseTierRecord) string {
 
 // defenseLayoutGoal finds the goal the planner serves: the review binding
 // for EnsureDefensiveLayout when the routine policy opts in.
-func defenseLayoutProject(ctx context.Context, p *Player, review store.Rounds) (store.ProjectState, bool, error) {
-	if id, bound := review.ProjectFor(policy.EnsureDefensiveLayout); bound {
-		project, err := p.journal.LoadProject(ctx, id)
+func defenseLayoutProject(ctx context.Context, p *Player, review store.Rounds) (store.StandardState, bool, error) {
+	if id, bound := review.StandardFor(policy.EnsureDefensiveLayout); bound {
+		project, err := p.journal.LoadStandard(ctx, id)
 		return project, err == nil, err
 	}
-	return store.ProjectState{}, false, nil
+	return store.StandardState{}, false, nil
 }
 
 func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoundsDefenseLayoutResult, error) {
@@ -217,7 +217,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	if err != nil {
 		return RoundsDefenseLayoutResult{}, err
 	}
-	if !found || goal.Project.Status != domain.ProjectOpen {
+	if !found || goal.Standard.Status != domain.StandardOpen {
 		return RoundsDefenseLayoutResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// A fight waiting behind its rooms' doors hardens them whether
@@ -226,7 +226,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	if err != nil {
 		return RoundsDefenseLayoutResult{}, err
 	}
-	if wait == nil && (goal.Project.Finding != domain.FindingUnmet || review.VetoProject(goal.Project) != "") {
+	if wait == nil && (goal.Standard.Finding != domain.FindingUnmet || review.Veto(goal.Standard) != "") {
 		return RoundsDefenseLayoutResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// Open perimeter tiers do not hold the layout: more of the wall is admitted
@@ -267,13 +267,13 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 			return RoundsDefenseLayoutResult{}, err
 		}
 	}
-	if stored && record.Project != goal.Project.ID {
+	if stored && (record.Standard != goal.Standard.ID || record.Episode != goal.Standard.Episode) {
 		// A new Episode (cancelled and re-created, e.g. by a letter pause)
 		// keeps the stored geometry: re-proposing against a census that
 		// already holds the earlier epoch's walls shifts the corridor by a
 		// cell and lands traps beside the old ones, which can never place.
 		// Built tiers stay built; pending tiers get a fresh retry budget.
-		record.Project = goal.Project.ID
+		record.Standard, record.Episode = goal.Standard.ID, goal.Standard.Episode
 		for i := range record.Tiers {
 			if !record.Tiers[i].Built {
 				record.Tiers[i].Attempts = 0
@@ -320,7 +320,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 			}
 			return RoundsDefenseLayoutResult{Verdict: held}, nil
 		}
-		record, err = store.NewDefenseLayoutRecord(world, goal.Project.ID, layout, entrances)
+		record, err = store.NewDefenseLayoutRecord(world, goal.Standard.ID, goal.Standard.Episode, layout, entrances)
 		if err != nil {
 			return RoundsDefenseLayoutResult{}, err
 		}
@@ -394,7 +394,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 		if pipe.piped() && (!policy.IsPerimeterTier(name) || tier.Remove) {
 			break
 		}
-		spent, ok, err := admitProjectSubject(call, p.journal, goal, defenseTierSubject(tier), state.Snapshot)
+		spent, ok, err := admitStandardSubject(call, p.journal, goal, defenseTierSubject(tier), state.Snapshot)
 		if err != nil {
 			return RoundsDefenseLayoutResult{}, err
 		}
@@ -524,10 +524,10 @@ func defenseRearmPrefix(turret string) string { return "defense-rearm-" + turret
 // recovery_service action under the layout goal: the same native work-giver
 // job a player's float-menu click issues, whose CAS token and pawn
 // eligibility Hands re-check at dispatch.
-func (r *RoundsDefenseLayoutPlanner) rearm(call, epoch context.Context, goal store.ProjectState, review store.Rounds, state ControlState, read observation.RoundsReading, order policy.DefenseRearm, arbiter *stepArbiter) (RoundsDefenseLayoutResult, error) {
+func (r *RoundsDefenseLayoutPlanner) rearm(call, epoch context.Context, goal store.StandardState, review store.Rounds, state ControlState, read observation.RoundsReading, order policy.DefenseRearm, arbiter *stepArbiter) (RoundsDefenseLayoutResult, error) {
 	p := r.reviewer.player
 	tick := read.Projection.Identity.Tick
-	if verdict, ok, err := admitProjectSubject(call, p.journal, goal, defenseRearmPrefix(order.Turret), state.Snapshot); err != nil {
+	if verdict, ok, err := admitStandardSubject(call, p.journal, goal, defenseRearmPrefix(order.Turret), state.Snapshot); err != nil {
 		return RoundsDefenseLayoutResult{}, err
 	} else if !ok {
 		return RoundsDefenseLayoutResult{Verdict: verdict, Tier: policy.TierTurrets}, nil
@@ -556,7 +556,7 @@ func (r *RoundsDefenseLayoutPlanner) rearm(call, epoch context.Context, goal sto
 	if p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
 		return RoundsDefenseLayoutResult{}, defenseControlErr(360)
 	}
-	if _, err = p.journal.CommitProjectMethod(call, goal.Project.ID, goal.Revision, method, "", plan); err != nil {
+	if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, "", plan); err != nil {
 		return RoundsDefenseLayoutResult{}, err
 	}
 	defenseAction(call, "defense-layout", slog.LevelInfo, "applied", "rearm", order.Turret, map[string]any{"pawn": order.Pawn, "fuel": order.Fuel, "x": order.Cell.X, "z": order.Cell.Z, "method": string(method)})
@@ -1178,7 +1178,7 @@ func defenseMissingBuildings(buildings []domain.Building, census *defenseCensus)
 // colony has no verified killbox geometry yet (no ranged defender, no
 // chokepoint, no line of sight), which is a wait rather than an error; the
 // verdict then names which of those is missing.
-func (r *RoundsDefenseLayoutPlanner) propose(call, epoch context.Context, goal store.ProjectState, review store.Rounds, state ControlState, read observation.RoundsReading) (policy.DefenseLayout, []domain.Cell, Verdict, bool, error) {
+func (r *RoundsDefenseLayoutPlanner) propose(call, epoch context.Context, goal store.StandardState, review store.Rounds, state ControlState, read observation.RoundsReading) (policy.DefenseLayout, []domain.Cell, Verdict, bool, error) {
 	projection := read.Projection
 	identity := boundary.Identity(state.Snapshot)
 	killbox, region, home, ok := defenseKillbox(projection)
@@ -1269,7 +1269,7 @@ func (r *RoundsDefenseLayoutPlanner) propose(call, epoch context.Context, goal s
 // shared rock step (admitRockStep), reached from the yard behind the
 // killbox. handled is false when nothing needs digging or the native side
 // has nothing to dig (or no excavation read).
-func (r *RoundsDefenseLayoutPlanner) digKillbox(call, epoch context.Context, goal store.ProjectState, review store.Rounds, state ControlState, read observation.RoundsReading, access domain.Cell, planned []policy.RoleCell) (RoundsBuildingResult, bool, error) {
+func (r *RoundsDefenseLayoutPlanner) digKillbox(call, epoch context.Context, goal store.StandardState, review store.Rounds, state ControlState, read observation.RoundsReading, access domain.Cell, planned []policy.RoleCell) (RoundsBuildingResult, bool, error) {
 	source, ok := r.native.(RoundsExcavationSource)
 	if !ok {
 		return RoundsBuildingResult{}, false, nil
@@ -1292,7 +1292,7 @@ func (r *RoundsDefenseLayoutPlanner) digKillbox(call, epoch context.Context, goa
 // admit previews one tier's placements, audits colonist access with every
 // tier's footprint impassable, and admits the tier as one Defense-purpose
 // building method.
-func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal store.ProjectState, state ControlState, read observation.RoundsReading, record store.DefenseLayoutRecord, tier store.DefenseTierRecord, buildings []domain.Building, key domain.MethodID, pipe *defensePipeline) (RoundsDefenseLayoutResult, error) {
+func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal store.StandardState, state ControlState, read observation.RoundsReading, record store.DefenseLayoutRecord, tier store.DefenseTierRecord, buildings []domain.Building, key domain.MethodID, pipe *defensePipeline) (RoundsDefenseLayoutResult, error) {
 	p := r.reviewer.player
 	projection := read.Projection
 	id := domain.MintPlanID()

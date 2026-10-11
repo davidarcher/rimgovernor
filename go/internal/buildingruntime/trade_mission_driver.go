@@ -79,7 +79,7 @@ func (r *RoundsTradePlanner) mission(call, epoch context.Context, state ControlS
 	if !ok {
 		return RoundsTradeResult{}, false, nil
 	}
-	projects, err := r.reviewer.player.journal.OpenProjects(call, domain.TradeMissionConcern)
+	projects, err := r.reviewer.player.journal.OpenStandards(call, domain.TradeMissionConcern)
 	if err != nil {
 		return RoundsTradeResult{}, true, err
 	}
@@ -87,7 +87,7 @@ func (r *RoundsTradePlanner) mission(call, epoch context.Context, state ControlS
 		return r.createMission(call, state, review)
 	}
 	project := projects[0]
-	m, err := domain.DecodeTradeMission(project.Project.Record)
+	m, err := domain.DecodeTradeMission(project.Standard.Record)
 	if err != nil {
 		return RoundsTradeResult{}, true, err
 	}
@@ -98,7 +98,7 @@ func (r *RoundsTradePlanner) mission(call, epoch context.Context, state ControlS
 	if !tradeMissionCurrentRead(state.Snapshot, &world) {
 		return RoundsTradeResult{}, true, ErrControl
 	}
-	project, err = r.reviewer.player.journal.ReviewProject(call, project.Project.ID, project.Revision, state.Snapshot, domain.Tick(world.Context.GetTick()), domain.FindingUnmet)
+	project, err = r.reviewer.player.journal.ReviewStandard(call, project.Standard.ID, project.Revision, state.Snapshot, domain.Tick(world.Context.GetTick()), domain.FindingUnmet)
 	if err != nil {
 		return RoundsTradeResult{}, true, err
 	}
@@ -148,9 +148,9 @@ func (r *RoundsTradePlanner) mission(call, epoch context.Context, state ControlS
 			if err != nil {
 				return out, true, err
 			}
-			saved, err := r.reviewer.player.journal.LoadProject(call, project.Project.ID)
+			saved, err := r.reviewer.player.journal.LoadStandard(call, project.Standard.ID)
 			if err == nil {
-				_, err = r.reviewer.player.journal.ReviewProject(call, saved.Project.ID, saved.Revision, state.Snapshot, domain.Tick(world.Context.GetTick()), domain.FindingMet)
+				_, err = r.reviewer.player.journal.ReviewStandard(call, saved.Standard.ID, saved.Revision, state.Snapshot, domain.Tick(world.Context.GetTick()), domain.FindingMet)
 			}
 			return out, true, err
 		}
@@ -175,10 +175,10 @@ func (r *RoundsTradePlanner) mission(call, epoch context.Context, state ControlS
 			m.Phase = domain.TradeMissionEnded
 			out, _, err := r.missionRecord(call, project, m)
 			if err == nil {
-				saved, e := r.reviewer.player.journal.LoadProject(call, project.Project.ID)
+				saved, e := r.reviewer.player.journal.LoadStandard(call, project.Standard.ID)
 				err = e
 				if err == nil {
-					_, err = r.reviewer.player.journal.ReviewProject(call, saved.Project.ID, saved.Revision, state.Snapshot, domain.Tick(world.Context.GetTick()), domain.FindingMet)
+					_, err = r.reviewer.player.journal.ReviewStandard(call, saved.Standard.ID, saved.Revision, state.Snapshot, domain.Tick(world.Context.GetTick()), domain.FindingMet)
 				}
 			}
 			return out, true, err
@@ -240,10 +240,10 @@ func (r *RoundsTradePlanner) mission(call, epoch context.Context, state ControlS
 	return RoundsTradeResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: tradeWalkTicks}, true, nil
 }
 
-func (r *RoundsTradePlanner) missionRecord(ctx context.Context, p store.ProjectState, m domain.TradeMission) (RoundsTradeResult, bool, error) {
+func (r *RoundsTradePlanner) missionRecord(ctx context.Context, p store.StandardState, m domain.TradeMission) (RoundsTradeResult, bool, error) {
 	record, err := m.Record()
 	if err == nil {
-		_, err = r.reviewer.player.journal.RecordProject(ctx, p.Project.ID, p.Revision, record)
+		_, err = r.reviewer.player.journal.RecordStandard(ctx, p.Standard.ID, p.Revision, record)
 	}
 	if err == nil && (m.Phase == domain.TradeMissionDelivered || m.Phase == domain.TradeMissionEnded) {
 		memory := &r.reviewer.tradeAcquisition
@@ -258,10 +258,10 @@ func (r *RoundsTradePlanner) missionRecord(ctx context.Context, p store.ProjectS
 	return RoundsTradeResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: tradeWalkTicks}, true, err
 }
 
-func missionAttempted(p store.ProjectState, method string) bool {
-	return slices.ContainsFunc(p.History, func(row store.ProjectMethod) bool { return strings.HasPrefix(string(row.Method), method+"-") })
+func missionAttempted(p store.StandardState, method string) bool {
+	return slices.ContainsFunc(p.History, func(row domain.Method) bool { return strings.HasPrefix(string(row.Method), method+"-") })
 }
-func (r *RoundsTradePlanner) missionCommit(call, epoch context.Context, state ControlState, p store.ProjectState, m domain.TradeMission, id domain.PlanID, a domain.Action, method string) (RoundsTradeResult, bool, error) {
+func (r *RoundsTradePlanner) missionCommit(call, epoch context.Context, state ControlState, p store.StandardState, m domain.TradeMission, id domain.PlanID, a domain.Action, method string) (RoundsTradeResult, bool, error) {
 	plan, err := domain.NewPlan(id, 1, []domain.Action{a})
 	if err != nil {
 		return RoundsTradeResult{}, true, err
@@ -276,10 +276,10 @@ func (r *RoundsTradePlanner) missionCommit(call, epoch context.Context, state Co
 	if r.reviewer.player.session.State() != state {
 		return RoundsTradeResult{}, true, ErrControl
 	}
-	_, err = r.reviewer.player.journal.CommitProjectMethodRecord(call, p.Project.ID, p.Revision, domain.MethodID(fmt.Sprintf("%s-%d", method, p.Admitted)), "", plan, record)
+	_, err = r.reviewer.player.journal.CommitMethodRecord(call, p.Standard.ID, p.Revision, domain.MethodID(fmt.Sprintf("%s-%d", method, p.Admitted)), "", plan, record)
 	return RoundsTradeResult{Verdict: BuildingReasonAdmitted, Plan: id, NativeWorkTicks: tradeWalkTicks}, true, err
 }
-func (r *RoundsTradePlanner) missionTradeCommit(call, epoch context.Context, state ControlState, p store.ProjectState, m domain.TradeMission, value domain.Trade) (RoundsTradeResult, bool, error) {
+func (r *RoundsTradePlanner) missionTradeCommit(call, epoch context.Context, state ControlState, p store.StandardState, m domain.TradeMission, value domain.Trade) (RoundsTradeResult, bool, error) {
 	id := domain.MintPlanID()
 	a, err := domain.NewTradeAction(domain.ActionID(string(id)+"-trade"), value)
 	if err != nil {
@@ -288,7 +288,7 @@ func (r *RoundsTradePlanner) missionTradeCommit(call, epoch context.Context, sta
 	return r.missionCommit(call, epoch, state, p, m, id, a, "trade-"+string(value.Kind()))
 }
 
-func (r *RoundsTradePlanner) missionTrade(call, epoch context.Context, state ControlState, review store.Rounds, p store.ProjectState, m domain.TradeMission, caravan *bridge.CaravanJourney) (RoundsTradeResult, bool, error) {
+func (r *RoundsTradePlanner) missionTrade(call, epoch context.Context, state ControlState, review store.Rounds, p store.StandardState, m domain.TradeMission, caravan *bridge.CaravanJourney) (RoundsTradeResult, bool, error) {
 	target := domain.TradeParticipant{Kind: domain.TradeParticipantSettlement, ID: m.Settlement, Caravan: caravan.ID}
 	trader := target.Key()
 	session, _, err := r.native.ReadTradeSession(call, boundary.Identity(state.Snapshot))
@@ -433,10 +433,10 @@ func (r *RoundsTradePlanner) createMission(ctx context.Context, state ControlSta
 		if !ok || !r.reviewer.ClaimTradeAcquisition(owner, proposal.Option.ID) {
 			continue
 		}
-		id := domain.ProjectID("project-trade-" + string(domain.MintPlanID()))
-		p, err := domain.NewTradeMissionProject(id, 1, state.Snapshot, m)
+		id := domain.StandardID("trade-mission-" + string(domain.MintPlanID()))
+		p, err := domain.NewTradeMissionStandard(id, 1, state.Snapshot, m)
 		if err == nil {
-			err = r.reviewer.player.journal.CreateProject(ctx, p)
+			err = r.reviewer.player.journal.SeedStandard(ctx, p)
 		}
 		return RoundsTradeResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: tradeWalkTicks}, true, err
 	}

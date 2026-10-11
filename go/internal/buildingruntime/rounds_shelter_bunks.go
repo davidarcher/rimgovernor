@@ -131,7 +131,7 @@ func ShelterClearBedsMethod() domain.MethodID { return shelterClearBedsMethod }
 type shelterSite struct {
 	state  ControlState
 	review store.Rounds
-	owner  store.WorkOwner
+	owner  store.StandardState
 	facts  observation.ColonyProjection
 	read   observation.ColonyReading
 	check  func() error
@@ -152,7 +152,7 @@ func (b shelterBunkRecord) anyBound() bool {
 }
 
 // shelterBunks reads the bunk methods bound under the goal's epoch.
-func (r *RoundsBuildingPlanner) shelterBunks(call context.Context, goal store.WorkOwner, census domain.Fact[policy.CurrentConstruction]) (shelterBunkRecord, error) {
+func (r *RoundsBuildingPlanner) shelterBunks(call context.Context, goal store.StandardState, census domain.Fact[policy.CurrentConstruction]) (shelterBunkRecord, error) {
 	journal := r.reviewer.player.journal
 	record := shelterBunkRecord{placed: map[domain.MethodID][]shelterBunk{}, open: map[domain.MethodID]bool{}}
 	for _, method := range []domain.MethodID{shelterSpotsMethod, shelterBedrollsMethod, shelterBedsMethod, shelterClearBedrollsMethod, shelterClearBedsMethod} {
@@ -249,7 +249,7 @@ func (r *RoundsBuildingPlanner) stepShelterRoom(call, epoch context.Context, s s
 			// under the goal as it now stands.
 			bunks = result
 			var workable bool
-			if owner, workable, err = r.reviewer.player.journal.WorkableOwner(call, s.review, r.concern); err != nil || !workable {
+			if owner, workable, err = r.reviewer.player.journal.Workable(call, s.review, r.concern); err != nil || !workable {
 				return result, err
 			}
 		}
@@ -270,10 +270,10 @@ func (r *RoundsBuildingPlanner) stepShelterRoom(call, epoch context.Context, s s
 
 // shelterRingMethods are the plans of the ring's build waves bound under the
 // goal's epoch, retired ones included: the record of a ring begun.
-func (r *RoundsBuildingPlanner) shelterRingMethods(call context.Context, goal store.WorkOwner, name string) ([]store.PlanState, error) {
+func (r *RoundsBuildingPlanner) shelterRingMethods(call context.Context, goal store.StandardState, name string) ([]store.PlanState, error) {
 	var ring []store.PlanState
 	seen := map[domain.PlanID]bool{}
-	for _, m := range slices.Concat(goal.OwnerMethods(), goal.OwnerHistory()) {
+	for _, m := range slices.Concat(goal.Methods, goal.History) {
 		if !strings.HasPrefix(string(m.Method), name+"-build-") || seen[m.Plan] {
 			continue
 		}

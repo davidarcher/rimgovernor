@@ -395,7 +395,7 @@ func completeRoundsBuildingMethod(t *testing.T, db *store.Store, result RoundsBu
 	t.Helper()
 	ctx := context.Background()
 	var plan store.PlanState
-	for _, method := range result.Decision.Owner().OwnerMethods() {
+	for _, method := range result.Decision.Standard.Methods {
 		candidate, err := db.LoadPlan(ctx, method.Plan)
 		if err != nil {
 			t.Fatal(err)
@@ -418,7 +418,7 @@ func completeRoundsBuildingMethod(t *testing.T, db *store.Store, result RoundsBu
 	if len(plan.Progress) == 0 {
 		t.Fatal("no pending method")
 	}
-	summary, _ := store.SummarizeOwner(result.Decision.Owner())
+	summary := store.SummarizeOwner(result.Decision.Standard)
 	snapshot := summary.Snapshot
 	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	for _, action := range plan.Spec.Actions() {
@@ -653,11 +653,11 @@ func TestRoundsShelterRaisesTheStarterRectangle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	owner, _, err := db.WorkableOwner(context.Background(), review, policy.MaintainHousing)
+	owner, _, err := db.Workable(context.Background(), review, policy.MaintainHousing)
 	if err != nil {
 		t.Fatal(err)
 	}
-	summary, _ := store.SummarizeOwner(owner)
+	summary := store.SummarizeOwner(owner)
 	current := summary.Snapshot
 	snapshot := current
 	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()

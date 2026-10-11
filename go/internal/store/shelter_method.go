@@ -18,20 +18,20 @@ var shelterBunkMethods = map[domain.MethodID]bool{"shelter-spots": true, "shelte
 // must be pure construction on no cell an open bunk stands on (a bed goes on
 // a spot's slot only after the spot is deleted); any other open method
 // (the shell itself) still holds the goal.
-func shelterOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, method domain.MethodID, plan domain.PlanSpec) (bool, error) {
+func shelterOpenWorkExempt(ctx context.Context, tx *Tx, goal StandardState, method domain.MethodID, plan domain.PlanSpec) (bool, error) {
 	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return false, err
 	}
 	bound := false
 	for _, b := range review.Standards {
-		bound = bound || string(b.Standard) == goal.OwnerID() && b.Concern == policy.MaintainHousing
+		bound = bound || b.Standard == goal.Standard.ID && b.Concern == policy.MaintainHousing
 	}
 	if !bound || len(plan.Actions()) == 0 {
 		return false, nil
 	}
 	taken := map[domain.Cell]bool{}
-	for _, m := range goal.OwnerMethods() {
+	for _, m := range goal.Methods {
 		p, err := load(ctx, tx, m.Plan)
 		if err != nil {
 			return false, err
@@ -94,13 +94,13 @@ func IsRoomShellMethod(method domain.MethodID) bool {
 // campfire or cooler) is admitted with it, not after it. Both sides are pure
 // construction on cells the other does not build on, a single ring wave beside
 // non-ring methods; any other open method still holds the owner.
-func roomShellOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, method domain.MethodID, plan domain.PlanSpec) (bool, error) {
+func roomShellOpenWorkExempt(ctx context.Context, tx *Tx, goal StandardState, method domain.MethodID, plan domain.PlanSpec) (bool, error) {
 	if len(plan.Actions()) == 0 {
 		return false, nil
 	}
 	newRing := IsRoomShellMethod(method)
 	taken := map[domain.Cell]bool{}
-	for _, m := range goal.OwnerMethods() {
+	for _, m := range goal.Methods {
 		p, err := load(ctx, tx, m.Plan)
 		if err != nil {
 			return false, err

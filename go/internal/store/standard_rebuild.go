@@ -15,13 +15,12 @@ import (
 // side effects here; nil skips it.
 type StandardOrphanPass func(context.Context, []PlanState) error
 
-// RebuildStandards replaces the store's goals and projects with the save's goal/*
-// and project/* blobs: the save wins. Goals and projects absent
-// from the save are deleted with their session-only create submissions; every
-// goal and project method row is deleted and its plan retired after one
-// orphans pass sees them all, so methods start empty and are re-planned. A
-// save without goal blobs leaves no goals (D5), without project blobs no
-// projects. An incident's method rows are not touched.
+// RebuildStandards replaces the store's standards with the save's standard/*
+// blobs: the save wins. Standards absent from the save are deleted with their
+// session-only create submissions; every standard method row is deleted and
+// its plan retired after one orphans pass sees them all, so methods start
+// empty and are re-planned. A save without standard blobs leaves no
+// standards (D5). An incident's method rows are not touched.
 func (s *Store) RebuildStandards(ctx context.Context, saved map[string]string, orphans StandardOrphanPass) error {
 	goals := map[domain.StandardID]GovernorStandardBlob{}
 	for key, blob := range saved {
@@ -43,10 +42,6 @@ func (s *Store) RebuildStandards(ctx context.Context, saved map[string]string, o
 		}
 		goals[b.Standard.ID] = b
 	}
-	projects, err := parseProjectBlobs(saved)
-	if err != nil {
-		return err
-	}
 	if orphans != nil {
 		plans, err := s.methodPlans(ctx)
 		if err != nil {
@@ -64,10 +59,9 @@ func (s *Store) RebuildStandards(ctx context.Context, saved map[string]string, o
 	}
 	defer tx.Rollback()
 	for _, statement := range []string{
-		"UPDATE plans SET retired=1 WHERE retired=0 AND id IN (SELECT plan_id FROM plan_owner WHERE kind IN ('standard','project'))",
+		"UPDATE plans SET retired=1 WHERE retired=0 AND id IN (SELECT plan_id FROM plan_owner WHERE kind='standard')",
 		"DELETE FROM standard_methods",
-		"DELETE FROM project_methods",
-		"DELETE FROM plan_owner WHERE kind IN ('standard','project')",
+		"DELETE FROM plan_owner WHERE kind='standard'",
 	} {
 		if _, err = tx.ExecContext(ctx, statement); err != nil {
 			return err
@@ -94,9 +88,6 @@ func (s *Store) RebuildStandards(ctx context.Context, saved map[string]string, o
 			return err
 		}
 	}
-	if err = rebuildProjects(ctx, tx, projects); err != nil {
-		return err
-	}
 	if err = tx.Commit(); err != nil {
 		return err
 	}
@@ -111,7 +102,7 @@ func (s *Store) methodPlans(ctx context.Context) ([]PlanState, error) {
 		return nil, err
 	}
 	defer tx.Rollback()
-	rows, err := tx.QueryContext(ctx, "SELECT plan_id FROM plan_owner WHERE kind IN ('standard','project') ORDER BY plan_id")
+	rows, err := tx.QueryContext(ctx, "SELECT plan_id FROM plan_owner WHERE kind='standard' ORDER BY plan_id")
 	if err != nil {
 		return nil, err
 	}
@@ -137,71 +128,6 @@ func (s *Store) methodPlans(ctx context.Context) ([]PlanState, error) {
 		out = append(out, p)
 	}
 	return out, nil
-}
-
-func parseProjectBlobs(saved map[string]string) (map[domain.ProjectID]GovernorProjectBlob, error) {
-	projects := map[domain.ProjectID]GovernorProjectBlob{}
-	for key, blob := range saved {
-		if !strings.HasPrefix(key, GovernorProjectKeyPrefix) {
-			continue
-		}
-		var b GovernorProjectBlob
-		if err := json.Unmarshal([]byte(blob), &b); err != nil {
-			return nil, fmt.Errorf("%s: %w", key, err)
-		}
-		if b.SchemaVersion != GovernorStateSchemaVersion {
-			return nil, fmt.Errorf("%s: schema version %d", key, b.SchemaVersion)
-		}
-		if err := b.Project.Validate(); err != nil {
-			return nil, fmt.Errorf("%s: %w", key, err)
-		}
-		if string(b.Project.ID) != strings.TrimPrefix(key, GovernorProjectKeyPrefix) {
-			return nil, fmt.Errorf("%s: project identity mismatch", key)
-		}
-		projects[b.Project.ID] = b
-	}
-	return projects, nil
-}
-
-// rebuildProjects is RebuildStandards' project half, in its transaction: its
-// method rows are already deleted and their plans retired.
-func rebuildProjects(ctx context.Context, tx *Tx, projects map[domain.ProjectID]GovernorProjectBlob) error {
-	rows, err := tx.QueryContext(ctx, "SELECT id FROM projects ORDER BY id")
-	if err != nil {
-		return err
-	}
-	var existing []domain.ProjectID
-	for rows.Next() {
-		var id domain.ProjectID
-		if err = rows.Scan(&id); err != nil {
-			rows.Close()
-			return err
-		}
-		existing = append(existing, id)
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return err
-	}
-	for _, id := range existing {
-		if _, ok := projects[id]; ok {
-			continue
-		}
-		if _, err = tx.ExecContext(ctx, "DELETE FROM projects WHERE id=?", id); err != nil {
-			return err
-		}
-	}
-	for id, b := range projects {
-		data, err := json.Marshal(b.Project)
-		if err != nil {
-			return err
-		}
-		if _, err = tx.ExecContext(ctx, "INSERT INTO projects(id,revision,payload,retired) VALUES(?,?,?,0) ON CONFLICT(id) DO UPDATE SET revision=excluded.revision,payload=excluded.payload,retired=0", id, strconv.FormatUint(b.Revision, 10), data); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func standardIDs(ctx context.Context, tx *Tx) ([]domain.StandardID, error) {

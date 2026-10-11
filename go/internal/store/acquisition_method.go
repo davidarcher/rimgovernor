@@ -14,7 +14,7 @@ import (
 // wild food does, so neither's open progress blocks the acquisition the way
 // any other family's open work would. Any other open work still blocks, same
 // as every other goal-method family.
-func acquisitionOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
+func acquisitionOpenWorkExempt(ctx context.Context, tx *Tx, goal StandardState, plan domain.PlanSpec) (bool, error) {
 	if len(plan.Actions()) == 0 {
 		return false, nil
 	}
@@ -39,7 +39,7 @@ func acquisitionOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, plan
 	for _, action := range plan.Actions() {
 		hunts = hunts && huntAcquisition(action)
 	}
-	for _, m := range goal.OwnerMethods() {
+	for _, m := range goal.Methods {
 		p, err := load(ctx, tx, m.Plan)
 		if err != nil {
 			return false, err
@@ -70,8 +70,8 @@ func huntAcquisition(action domain.Action) bool {
 // pestGoal reports the routine ClearPests goal, whose hunts are
 // planned animal by animal: a hunt still awaiting its kill never blocks
 // the next animal's method. The routine goal id names its need.
-func pestConcern(goal WorkOwner) bool {
-	return goal.OwnerKind() == policy.ClearPests
+func pestConcern(goal StandardState) bool {
+	return goal.Standard.Kind == policy.ClearPests
 }
 
 // acquisitionIndependentWork reports the action kinds whose open progress does

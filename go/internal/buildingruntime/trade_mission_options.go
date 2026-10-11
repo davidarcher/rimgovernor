@@ -30,7 +30,7 @@ func (r *Rounder) settlementAcquisitionOptions(ctx context.Context, world domain
 	if !ok {
 		return nil
 	}
-	projects, err := r.player.journal.OpenProjects(ctx, domain.TradeMissionConcern)
+	projects, err := r.player.journal.OpenStandards(ctx, domain.TradeMissionConcern)
 	if err != nil || len(projects) != 0 {
 		return nil
 	}

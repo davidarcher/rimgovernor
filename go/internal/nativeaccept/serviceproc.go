@@ -437,12 +437,9 @@ func WaitReview(ctx context.Context, s *store.Store, w Wait, ready func(store.Ro
 		if ready(r) {
 			return "", true, nil
 		}
-		needs := make([]string, 0, len(r.Standards)+len(r.Projects))
+		needs := make([]string, 0, len(r.Standards))
 		for _, binding := range r.Standards {
 			needs = append(needs, string(binding.Concern)+"="+string(binding.Standard))
-		}
-		for _, binding := range r.Projects {
-			needs = append(needs, string(binding.Concern)+"="+string(binding.Project))
 		}
 		return Signature(fmt.Sprintf("%+v", r.Latches), needs), false, nil
 	})
@@ -511,24 +508,6 @@ func waitMethod(ctx context.Context, s *store.Store, w Wait, need policy.Concern
 		review, err := s.LoadRounds(ctx)
 		if err != nil {
 			return "", false, err
-		}
-		if policy.IsProjectKind(need) {
-			// A Project's methods; the owner id comes back as the ConcernID.
-			id, bound := review.ProjectFor(need)
-			if !bound {
-				return Signature("unbound", review.Revision > 0), false, nil
-			}
-			project, err := s.LoadProject(ctx, id)
-			if err != nil && !errors.Is(err, store.ErrNotFound) {
-				return "", false, err
-			}
-			for _, method := range project.History {
-				if !seen[method.Plan] {
-					foundGoal, found = domain.StandardID(id), domain.Method{Owner: domain.StandardID(id), Method: method.Method, Plan: method.Plan}
-					return "", true, nil
-				}
-			}
-			return Signature(id, len(project.History)), false, nil
 		}
 		var concernID domain.StandardID
 		for _, binding := range review.Standards {

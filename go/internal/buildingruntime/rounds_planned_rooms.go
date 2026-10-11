@@ -144,7 +144,7 @@ var facilityFurnishingRoles = map[policy.RoomRole]bool{
 // furniture goes into its interior. A laboratory takes the planned shelter's
 // bench row instead. done is true when the ring's own step produced
 // the result to return.
-func (r *RoundsBuildingPlanner) plannedFacilityFurnishing(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, facts observation.ColonyProjection) (planner *RoundsBuildingPlanner, result RoundsBuildingResult, done bool, err error) {
+func (r *RoundsBuildingPlanner) plannedFacilityFurnishing(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, reading observation.ColonyReading, facts observation.ColonyProjection) (planner *RoundsBuildingPlanner, result RoundsBuildingResult, done bool, err error) {
 	if r.facility == nil || r.cells != nil || !facilityFurnishingRoles[r.facility.Role] {
 		return r, RoundsBuildingResult{}, false, nil
 	}

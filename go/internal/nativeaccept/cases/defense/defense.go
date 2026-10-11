@@ -781,7 +781,7 @@ func (b *buildProgress) signature(open []string, record store.DefenseLayoutRecor
 // progress signature is the tier methods' plan stages, the stored record
 // and an open tier's construction (buildProgress).
 func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, w na.Wait, report na.Report) (store.DefenseLayoutRecord, error) {
-	var projectID domain.ProjectID
+	var projectID domain.StandardID
 	var record store.DefenseLayoutRecord
 	var stored bool
 	var building buildProgress
@@ -789,14 +789,14 @@ func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, 
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRounds(ctx)
 		if err == nil && projectID == "" {
-			if id, ok := review.ProjectFor(policy.EnsureDefensiveLayout); ok {
+			if id, ok := review.StandardFor(policy.EnsureDefensiveLayout); ok {
 				projectID = id
 				report["layout_project"] = string(projectID)
 			}
 		}
 		var open []string
 		if projectID != "" {
-			if project, err := s.LoadProject(ctx, projectID); err == nil {
+			if project, err := s.LoadStandard(ctx, projectID); err == nil {
 				for _, m := range project.Methods {
 					entry := map[string]any{"plan": string(m.Plan)}
 					if plan, err := s.LoadPlan(ctx, m.Plan); err == nil {
@@ -1093,8 +1093,8 @@ func waitLayoutRepaired(ctx context.Context, s *store.Store, world store.World, 
 		} else if ok {
 			combat = string(latest.Incident.ID)
 		}
-		if id, ok := review.ProjectFor(policy.EnsureDefensiveLayout); ok {
-			project, err := s.LoadProject(ctx, id)
+		if id, ok := review.StandardFor(policy.EnsureDefensiveLayout); ok {
+			project, err := s.LoadStandard(ctx, id)
 			if err != nil && !errors.Is(err, store.ErrNotFound) {
 				return "", false, err
 			}

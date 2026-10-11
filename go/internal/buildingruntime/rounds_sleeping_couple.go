@@ -17,7 +17,7 @@ const couplePackMethod = "sleeping-couple-pack-"
 
 // couplePacked is the cells of the beds this epoch's completed couple pack
 // steps uninstalled, each plan's first (the couple's room's) first.
-func (r *RoundsSleepingUpkeepPlanner) couplePacked(call context.Context, goal store.WorkOwner) ([]domain.Cell, error) {
+func (r *RoundsSleepingUpkeepPlanner) couplePacked(call context.Context, goal store.StandardState) ([]domain.Cell, error) {
 	p := r.reviewer.player
 	methods, err := p.journal.LoadOwnerMethods(call, goal)
 	if err != nil {
@@ -46,7 +46,7 @@ func (r *RoundsSleepingUpkeepPlanner) couplePacked(call context.Context, goal st
 // then install a DoubleBed (a stored one first) in the couple's room's
 // bedroom slot; each step once per Episode. due is false when nothing
 // is to do, so the ordinary sleeping choice goes on.
-func (r *RoundsSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, stock *packedStock, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading) (RoundsBuildingResult, bool, error) {
+func (r *RoundsSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, stock *packedStock, state ControlState, review store.Rounds, goal store.StandardState, reading observation.RoundsReading) (RoundsBuildingResult, bool, error) {
 	facts := reading.Projection
 	obs, sk := facts.Facts.Sleeping.Value()
 	rooms, rk := facts.Rooms.Value()
@@ -119,7 +119,7 @@ func (r *RoundsSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, sto
 // the chosen definition, installed at the first free bed spot of a hosting
 // room; once per packed bed per Episode. due is false when none is
 // stored or none fits, so the build goes on.
-func (r *RoundsSleepingUpkeepPlanner) reinstallStoredBed(call, epoch context.Context, stock *packedStock, state ControlState, goal store.WorkOwner, reading observation.RoundsReading, choice policy.SleepingChoice) (RoundsBuildingResult, bool, error) {
+func (r *RoundsSleepingUpkeepPlanner) reinstallStoredBed(call, epoch context.Context, stock *packedStock, state ControlState, goal store.StandardState, reading observation.RoundsReading, choice policy.SleepingChoice) (RoundsBuildingResult, bool, error) {
 	facts := reading.Projection
 	rooms, rk := facts.Rooms.Value()
 	census, ck := facts.Facts.CurrentConstruction.Value()
@@ -157,7 +157,7 @@ func (r *RoundsSleepingUpkeepPlanner) reinstallStoredBed(call, epoch context.Con
 	return RoundsBuildingResult{}, false, nil
 }
 
-func (r *RoundsSleepingUpkeepPlanner) commitCouple(call, epoch context.Context, state ControlState, goal store.WorkOwner, method domain.MethodID, id domain.PlanID, actions []domain.Action) (RoundsBuildingResult, bool, error) {
+func (r *RoundsSleepingUpkeepPlanner) commitCouple(call, epoch context.Context, state ControlState, goal store.StandardState, method domain.MethodID, id domain.PlanID, actions []domain.Action) (RoundsBuildingResult, bool, error) {
 	p := r.reviewer.player
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {

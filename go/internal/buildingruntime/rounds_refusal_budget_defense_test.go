@@ -9,15 +9,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// projectOf lists the goal's journaled methods as a Project's history.
-func projectOf(goal store.StandardState) store.ProjectState {
-	var project store.ProjectState
-	for _, m := range goal.History {
-		project.History = append(project.History, store.ProjectMethod{Method: m.Method, Plan: m.Plan})
-	}
-	return project
-}
-
 // The defense layout planner (tier, rearm and cover methods) and the
 // firebreak planner keep no attempt constant: a permanent refusal gives the
 // subject up under native's real reason, a transient one waits until the
@@ -60,8 +51,8 @@ func TestDefenseAndFirebreakFollowTheSharedRefusalBudget(t *testing.T) {
 				goal = journalMethod(t, db, goal, tc.method(i))
 			}
 			goal = journalRefusedMethod(t, db, world, goal, tc.method(9), tc.class, tc.reason)
-			project := projectOf(goal)
-			verdict, ok, err := admitProjectSubject(ctx, db, project, tc.subject, world)
+
+			verdict, ok, err := admitStandardSubject(ctx, db, goal, tc.subject, world)
 			if err != nil || ok {
 				t.Fatal("a refusal must bar the subject in this world", verdict, ok, err)
 			}
@@ -71,7 +62,7 @@ func TestDefenseAndFirebreakFollowTheSharedRefusalBudget(t *testing.T) {
 			if !tc.spent && !verdict.Is(policy.CauseRetryBudgetWait) {
 				t.Fatal(verdict)
 			}
-			if _, ok, err = admitProjectSubject(ctx, db, project, tc.other, world); err != nil || !ok {
+			if _, ok, err = admitStandardSubject(ctx, db, goal, tc.other, world); err != nil || !ok {
 				t.Fatal("another subject must stay allowed", ok, err)
 			}
 			// The standard-owner form (firebreak) reads the same ledger.
@@ -81,7 +72,7 @@ func TestDefenseAndFirebreakFollowTheSharedRefusalBudget(t *testing.T) {
 			if !tc.spent {
 				moved := world
 				moved.Native++
-				if _, ok, err = admitProjectSubject(ctx, db, project, tc.subject, moved); err != nil || !ok {
+				if _, ok, err = admitStandardSubject(ctx, db, goal, tc.subject, moved); err != nil || !ok {
 					t.Fatal("a changed world must re-arm a transient refusal", ok, err)
 				}
 			}

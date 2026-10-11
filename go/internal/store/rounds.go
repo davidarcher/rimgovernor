@@ -19,13 +19,6 @@ type RoundsStandard struct {
 	Standard domain.StandardID
 }
 
-// RoundsProject binds a Project need to the Project row the review filed for
-// it: Projects are never goal rows.
-type RoundsProject struct {
-	Concern domain.ConcernID
-	Project domain.ProjectID
-}
-
 // ReserveSupply binds identity and access direction. Its current position is
 // resolved by the supply census and checked by Hands before a write.
 type ReserveSupply struct {
@@ -72,10 +65,8 @@ type Rounds struct {
 	MedicalCare  policy.MedicalCareHistory
 	EventLoot    policy.EventLootHistory
 	Comfort      policy.ComfortHistory
-	// Goals binds the Standards this review assessed; Projects binds the
-	// Projects.
+	// Standards binds the Standards this review assessed.
 	Standards []RoundsStandard
-	Projects  []RoundsProject `json:",omitempty"`
 	// Incidents binds the Responses this review assessed to their open
 	// occurrences; those needs have no entry in Goals.
 	Incidents []RoundsIncident `json:",omitempty"`
@@ -130,8 +121,6 @@ type RoundsResult struct {
 	Review    Rounds
 	Needs     policy.RoundsFindings
 	Standards []StandardState
-	// Projects are the Project rows Review.Projects binds.
-	Projects []ProjectState
 	// Incidents are the occurrences Review.Incidents binds.
 	Incidents []IncidentState
 	// Emergency findings guide response planning and reporting.
@@ -164,15 +153,8 @@ func loadRounds(ctx context.Context, tx *Tx) (Rounds, error) {
 	if err := json.Unmarshal(data, &r); err != nil {
 		return r, err
 	}
-	migrated, err := migrateRounds(ctx, tx, data, &r)
-	if err != nil {
-		return Rounds{}, err
-	}
 	canonical, err := json.Marshal(r)
-	if migrated {
-		data = canonical
-	}
-	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || r.OrdinaryTick < 0 || r.OrdinaryTick > r.Tick || len(r.Standards) > 306 || len(r.Projects) > 306 {
+	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || r.OrdinaryTick < 0 || r.OrdinaryTick > r.Tick || len(r.Standards) > 306 {
 		return Rounds{}, errors.New("invalid rounds history")
 	}
 	if err := r.MedicalCare.Validate(); err != nil {
@@ -276,12 +258,11 @@ func loadRounds(ctx context.Context, tx *Tx) (Rounds, error) {
 	// The stored review is the fact: a binding is valid when it names a
 	// routine goal the table knows, not when a second derivation from empty
 	// facts would also have assessed it. Response kinds live in the
-	// incidents table and Project kinds in the projects table; Goals binds
-	// Standards only.
+	// incidents table; Standards binds Standards only.
 	seen := map[domain.ConcernID]bool{}
 	identities := map[domain.StandardID]bool{}
 	for _, binding := range r.Standards {
-		if policy.ConcernTypeOf(binding.Concern) != policy.StandardConcern || seen[binding.Concern] || identities[binding.Standard] {
+		if !policy.IsStandardKind(binding.Concern) || seen[binding.Concern] || identities[binding.Standard] {
 			return Rounds{}, errors.New("duplicate routine need")
 		}
 		seen[binding.Concern] = true
@@ -292,21 +273,6 @@ func loadRounds(ctx context.Context, tx *Tx) (Rounds, error) {
 		}
 		if g.Standard.Kind != binding.Concern {
 			return Rounds{}, errors.New("routine standard ownership mismatch")
-		}
-	}
-	projects := map[domain.ProjectID]bool{}
-	for _, binding := range r.Projects {
-		if !policy.IsProjectKind(binding.Concern) || seen[binding.Concern] || projects[binding.Project] {
-			return Rounds{}, errors.New("duplicate routine need")
-		}
-		seen[binding.Concern] = true
-		projects[binding.Project] = true
-		p, err := loadProject(ctx, tx, binding.Project)
-		if err != nil {
-			return Rounds{}, err
-		}
-		if p.Project.Kind != binding.Concern || !roundsProjectOwns(binding.Project, binding.Concern) {
-			return Rounds{}, errors.New("routine project ownership mismatch")
 		}
 	}
 	if err := validateRoundsIncidents(ctx, tx, r); err != nil {
@@ -531,26 +497,6 @@ func reviewRoundsTx(ctx context.Context, tx *Tx, request RoundsRequest, settled 
 		// resumed goal adopts the result.
 		old[binding.Concern] = g
 	}
-	oldProjects := map[domain.ConcernID]ProjectState{}
-	for _, binding := range previous.Projects {
-		p, err := loadProject(ctx, tx, binding.Project)
-		if err != nil {
-			return RoundsResult{}, err
-		}
-		if changed || (request.Enabled && !assessed[binding.Concern] && (!request.Immediate || policy.ImmediateConcern(binding.Concern))) {
-			if p.Project.Status != domain.ProjectVoided {
-				if err = cancelMethods(ctx, tx, p); err != nil {
-					return RoundsResult{}, err
-				}
-				next := p.Project
-				next.Status = domain.ProjectVoided
-				if p, err = saveProject(ctx, tx, p, next); err != nil {
-					return RoundsResult{}, err
-				}
-			}
-		}
-		oldProjects[binding.Concern] = p
-	}
 	// A replaced or rewound world ends its occurrences and their work, as
 	// it invalidates its goals.
 	if changed {
@@ -570,17 +516,6 @@ func reviewRoundsTx(ctx context.Context, tx *Tx, request RoundsRequest, settled 
 	}
 	if !request.Immediate || changed {
 		if err = retireRoundsStandards(ctx, tx, retained); err != nil {
-			return RoundsResult{}, err
-		}
-	}
-	retainedProjects := map[domain.ProjectID]bool{}
-	for _, p := range oldProjects {
-		if !request.Enabled || p.Project.Status != domain.ProjectVoided {
-			retainedProjects[p.Project.ID] = true
-		}
-	}
-	if !request.Immediate || changed {
-		if err = retireProjects(ctx, tx, retainedProjects); err != nil {
 			return RoundsResult{}, err
 		}
 	}
@@ -661,12 +596,11 @@ func reviewRoundsTx(ctx context.Context, tx *Tx, request RoundsRequest, settled 
 		}
 	}
 	result := RoundsResult{Needs: needs, Detection: detection}
-	// states is every assessment's row in assessment order, Projects as the
-	// goal handles ranking and progress read.
-	var states []WorkOwner
+	// states is every assessment's row in assessment order, as the goal
+	// handles ranking and progress read.
+	var states []StandardState
 	if !request.Enabled {
 		r.Standards = previous.Standards
-		r.Projects = previous.Projects
 		if !changed {
 			r.Incidents = previous.Incidents
 			for _, binding := range r.Incidents {
@@ -688,9 +622,6 @@ func reviewRoundsTx(ctx context.Context, tx *Tx, request RoundsRequest, settled 
 		for _, binding := range r.Standards {
 			result.Standards = append(result.Standards, old[binding.Concern])
 		}
-		for _, binding := range r.Projects {
-			result.Projects = append(result.Projects, oldProjects[binding.Concern])
-		}
 	} else {
 		// Emergency findings guide response planning and reporting.
 		for _, n := range needs.All() {
@@ -709,16 +640,6 @@ func reviewRoundsTx(ctx context.Context, tx *Tx, request RoundsRequest, settled 
 			return RoundsResult{}, err
 		}
 		for _, n := range needs.Assessments {
-			if policy.IsProjectKind(n.ID) {
-				p, err := reviewProject(ctx, tx, oldProjects, n, b, request.Tick)
-				if err != nil {
-					return RoundsResult{}, err
-				}
-				r.Projects = append(r.Projects, RoundsProject{n.ID, p.Project.ID})
-				result.Projects = append(result.Projects, p)
-				states = append(states, p)
-				continue
-			}
 			g, exists := old[n.ID]
 			if !exists || g.Standard.Status == domain.StandardVoided {
 				id, err := mintRoundsStandardID(ctx, tx, World{b.Colony, b.Load, b.Map}, n.ID)
@@ -729,6 +650,7 @@ func reviewRoundsTx(ctx context.Context, tx *Tx, request RoundsRequest, settled 
 				if err != nil {
 					return RoundsResult{}, err
 				}
+				goal.Once = policy.IsOnceKind(n.ID)
 				if err = createStandard(ctx, tx, goal); err != nil {
 					return RoundsResult{}, err
 				}
@@ -828,50 +750,6 @@ func reviewRoundsTx(ctx context.Context, tx *Tx, request RoundsRequest, settled 
 	}
 	result.Review = r
 	return result, nil
-}
-
-// reviewProject files and reviews one Project need: it reuses the world's
-// Project row, opens a new one when none stands or the finished one regressed
-// with no work open (the finished row stays as its record), and reviews
-// it against the assessment.
-func reviewProject(ctx context.Context, tx *Tx, old map[domain.ConcernID]ProjectState, n policy.RoundsAssessment, current domain.GenerationSnapshot, tick domain.Tick) (ProjectState, error) {
-	p, exists := old[n.ID]
-	if exists && domain.ProjectRegressed(p.Project, n.Finding, false) {
-		open, err := standardOpenWork(ctx, tx, p)
-		if err != nil {
-			return ProjectState{}, err
-		}
-		exists = open
-	}
-	if !exists || p.Project.Status == domain.ProjectVoided {
-		id, err := mintRoundsProjectID(ctx, tx, World{current.Colony, current.Load, current.Map}, n.ID)
-		if err != nil {
-			return ProjectState{}, err
-		}
-		project, err := domain.NewProject(id, n.ID, n.Priority, current)
-		if err != nil {
-			return ProjectState{}, err
-		}
-		if err = createProject(ctx, tx, project); err != nil {
-			return ProjectState{}, err
-		}
-		p = ProjectState{Project: project}
-	}
-	if n.Finding == domain.FindingMet {
-		if err := cancelUndispatchedMethods(ctx, tx, p); err != nil {
-			return ProjectState{}, err
-		}
-	}
-	open, err := standardOpenWork(ctx, tx, p)
-	if err != nil {
-		return ProjectState{}, err
-	}
-	next := p.Project
-	next.Priority = n.Priority
-	if next, err = domain.ReviewProject(next, current, n.Finding, open); err != nil {
-		return ProjectState{}, err
-	}
-	return saveProject(ctx, tx, p, next)
 }
 
 // roundsRoster records the roster planner's report when this review planned

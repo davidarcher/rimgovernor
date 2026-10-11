@@ -61,7 +61,7 @@ func TestConcernTypeOfCoversEveryConcernID(t *testing.T) {
 		EnsureFoodSupply:     StandardConcern,
 		EnsureBasicDefense:   StandardConcern,
 		TradeWithCaravan:     IncidentConcern,
-		EnsureCooking:        ProjectConcern,
+		EnsureCooking:        OnceConcern,
 		MaintainIncineration: StandardConcern,
 		MaintainBurial:       StandardConcern,
 		MaintainTraining:     StandardConcern,

@@ -28,9 +28,9 @@ type OwnedZone struct {
 // tidy reads a zone's kind and crop from these when it has one.
 func zoneClaims(ctx context.Context, tx *Tx, current domain.GenerationSnapshot, tick domain.Tick) (domain.Fact[[]OwnedZone], error) {
 	unknown := domain.Unknown[[]OwnedZone]()
-	rows, err := tx.QueryContext(ctx, `SELECT m.plan_id,m.owner_id FROM plan_methods m LEFT JOIN standards g ON g.id=m.owner_id AND m.kind='standard' LEFT JOIN projects pr ON pr.id=m.owner_id AND m.kind='project'
- WHERE json_extract(COALESCE(g.payload,pr.payload),'$.Snapshot.Colony')=?
- AND json_extract(COALESCE(g.payload,pr.payload),'$.Snapshot.Load')=? AND json_extract(COALESCE(g.payload,pr.payload),'$.Snapshot.Map')=?
+	rows, err := tx.QueryContext(ctx, `SELECT m.plan_id,m.owner_id FROM plan_methods m JOIN standards g ON g.id=m.owner_id AND m.kind='standard'
+ WHERE json_extract(g.payload,'$.Snapshot.Colony')=?
+ AND json_extract(g.payload,'$.Snapshot.Load')=? AND json_extract(g.payload,'$.Snapshot.Map')=?
  AND EXISTS(SELECT 1 FROM actions a JOIN transitions t ON t.action_id=a.id WHERE a.plan_id=m.plan_id AND a.kind='zone_create' AND json_extract(t.payload,'$.Kind') IN ('observe','receipt'))
  ORDER BY m.plan_id`, current.Colony, current.Load, current.Map)
 	if err != nil {
@@ -59,11 +59,11 @@ func zoneClaims(ctx context.Context, tx *Tx, current domain.GenerationSnapshot, 
 	for _, link := range links {
 		g, cached := owners[link.owner]
 		if !cached {
-			owner, err := loadOwner(ctx, tx, link.owner)
+			owner, err := loadStandard(ctx, tx, domain.StandardID(link.owner))
 			if err != nil {
 				return unknown, err
 			}
-			g, _ = SummarizeOwner(owner)
+			g = SummarizeOwner(owner)
 			owners[link.owner] = g
 		}
 		scope := g.Snapshot

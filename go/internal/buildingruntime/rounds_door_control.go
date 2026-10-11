@@ -14,7 +14,7 @@ import (
 // controlRoomDoor binds setting changes and, for emergency heat relief, a
 // plan-owned draft and ordinary move to the cooler floor across the door.
 // Completed settings do not prove passage or recovered temperature.
-func (r *RoundsBuildingPlanner) controlRoomDoor(call, epoch context.Context, state ControlState, goal store.WorkOwner, facts observation.ColonyProjection) (RoundsBuildingResult, bool, error) {
+func (r *RoundsBuildingPlanner) controlRoomDoor(call, epoch context.Context, state ControlState, goal store.StandardState, facts observation.ColonyProjection) (RoundsBuildingResult, bool, error) {
 	fights, err := r.reviewer.player.journal.OpenCombatFights(call)
 	if err != nil {
 		return RoundsBuildingResult{}, true, err

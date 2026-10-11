@@ -234,7 +234,7 @@ func waitingHeld(ctx context.Context, name string, w roomWork, refused ...refuse
 // reconcileRoom reconciles one owner's room: it is diffed, then the next wave
 // is committed: foreign obstructions, removals, installs from packed stock,
 // then the on-site builds (commitBuilds).
-func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, stock *packedStock, rr roomReconcile) (RoundsBuildingResult, error) {
+func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, reading observation.RoundsReading, stock *packedStock, rr roomReconcile) (RoundsBuildingResult, error) {
 	facts := reading.Projection
 	plan, known := facts.LayoutPlan.Value()
 	if !known {
@@ -314,7 +314,7 @@ func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state
 }
 
 // methodOnce is true when the owner has not committed method yet.
-func (b *RoundsBuildingPlanner) methodOnce(call context.Context, goal store.WorkOwner, method domain.MethodID) (bool, error) {
+func (b *RoundsBuildingPlanner) methodOnce(call context.Context, goal store.StandardState, method domain.MethodID) (bool, error) {
 	if _, err := b.reviewer.player.journal.LoadOwnerMethod(call, goal, method); err == nil {
 		return false, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
@@ -324,7 +324,7 @@ func (b *RoundsBuildingPlanner) methodOnce(call context.Context, goal store.Work
 }
 
 // commitOwnerActions commits actions as one owner method.
-func (b *RoundsBuildingPlanner) commitOwnerActions(call, epoch context.Context, state ControlState, goal store.WorkOwner, method domain.MethodID, id domain.PlanID, actions []domain.Action) (RoundsBuildingResult, error) {
+func (b *RoundsBuildingPlanner) commitOwnerActions(call, epoch context.Context, state ControlState, goal store.StandardState, method domain.MethodID, id domain.PlanID, actions []domain.Action) (RoundsBuildingResult, error) {
 	p := b.reviewer.player
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
@@ -345,7 +345,7 @@ func (b *RoundsBuildingPlanner) commitOwnerActions(call, epoch context.Context, 
 // commitRemoval takes down what the room holds that it should not: packable
 // buildings are packed (uninstalled), the rest deconstructed one at a time, the
 // wrong floors removed, one method per wave.
-func (b *RoundsBuildingPlanner) commitRemoval(call, epoch context.Context, state ControlState, goal store.WorkOwner, rr roomReconcile, op policy.Operation) (RoundsBuildingResult, error) {
+func (b *RoundsBuildingPlanner) commitRemoval(call, epoch context.Context, state ControlState, goal store.StandardState, rr roomReconcile, op policy.Operation) (RoundsBuildingResult, error) {
 	step := policy.GroundStep{Phase: op.Label, Targets: op.Targets, Floors: op.Floors}
 	if op.Kind == policy.OpFurnitureOut {
 		step.Targets = step.Targets[:1]
@@ -373,7 +373,7 @@ var obstructionKinds = []policy.OpKind{policy.OpClaim, policy.OpCut, policy.OpHa
 // committed is skipped, not waited on: the cells it covers are blocked in the
 // diff, so the rest of the room proceeds. done is false when nothing was
 // committed.
-func (b *RoundsBuildingPlanner) commitObstructions(call, epoch context.Context, state ControlState, goal store.WorkOwner, w roomWork) (RoundsBuildingResult, bool, error) {
+func (b *RoundsBuildingPlanner) commitObstructions(call, epoch context.Context, state ControlState, goal store.StandardState, w roomWork) (RoundsBuildingResult, bool, error) {
 	for _, kind := range obstructionKinds {
 		var targets []policy.ClearanceTarget
 		seen := map[string]bool{}
@@ -402,7 +402,7 @@ func (b *RoundsBuildingPlanner) commitObstructions(call, epoch context.Context, 
 
 // commitObstructionWave commits one wave of kind over targets as an owner
 // method named for them; done is false when that wave was committed before.
-func (b *RoundsBuildingPlanner) commitObstructionWave(call, epoch context.Context, state ControlState, goal store.WorkOwner, name string, kind policy.OpKind, targets []policy.ClearanceTarget) (RoundsBuildingResult, bool, error) {
+func (b *RoundsBuildingPlanner) commitObstructionWave(call, epoch context.Context, state ControlState, goal store.StandardState, name string, kind policy.OpKind, targets []policy.ClearanceTarget) (RoundsBuildingResult, bool, error) {
 	id := domain.MintPlanID()
 	var actions []domain.Action
 	var key strings.Builder
@@ -448,7 +448,7 @@ func obstructionAction(id domain.ActionID, kind policy.OpKind, t policy.Clearanc
 
 // commitInstalls moves the pieces the packed stock holds to their slots; done
 // is false when none is stored after all, so the pieces are built on site.
-func (b *RoundsBuildingPlanner) commitInstalls(call, epoch context.Context, state ControlState, goal store.WorkOwner, stock *packedStock, rr roomReconcile, pieces []policy.WantedPiece) (RoundsBuildingResult, bool, error) {
+func (b *RoundsBuildingPlanner) commitInstalls(call, epoch context.Context, state ControlState, goal store.StandardState, stock *packedStock, rr roomReconcile, pieces []policy.WantedPiece) (RoundsBuildingResult, bool, error) {
 	var actions []domain.Action
 	var key strings.Builder
 	id := domain.MintPlanID()
@@ -496,7 +496,7 @@ var roomBuildKinds = []policy.OpKind{policy.OpDoorIn, policy.OpWallIn, policy.Op
 // a time, and admits those native accepts as one method; a refused placement
 // is left for a later pass. There is no cap on cells and no funding limit: the
 // native tier gate orders material delivery.
-func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, plan policy.LayoutPlan, w roomWork) (RoundsBuildingResult, error) {
+func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, reading observation.RoundsReading, plan policy.LayoutPlan, w roomWork) (RoundsBuildingResult, error) {
 	facts := reading.Projection
 	rr := w.rr
 	wantWalls := false

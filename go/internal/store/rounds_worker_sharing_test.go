@@ -41,12 +41,12 @@ func TestRoundsMethodsShareWorkersWithoutSlots(t *testing.T) {
 	if _, err = s.CommitMethod(ctx, expansion.Standard.ID, expansion.Revision, "wall", plan(t, "wall", "wall-action")); err != nil {
 		t.Fatal("builder limit refused a goal", err)
 	}
-	research := roundsProject(t, first, policy.EnsureResearch)
-	if _, err = s.CommitProjectMethod(ctx, research.Project.ID, research.Revision, "study", "", plan(t, "study", "study-action")); err != nil {
+	research := roundsGoal(t, first, policy.EnsureResearch)
+	if _, err = s.CommitMethodReason(ctx, research.Standard.ID, research.Revision, "study", "", plan(t, "study", "study-action")); err != nil {
 		t.Fatal(err)
 	}
 	// A retry of the same admission is refused, not duplicated.
-	if _, err = s.CommitProjectMethod(ctx, research.Project.ID, research.Revision, "study", "", plan(t, "study", "study-action")); err == nil {
+	if _, err = s.CommitMethodReason(ctx, research.Standard.ID, research.Revision, "study", "", plan(t, "study", "study-action")); err == nil {
 		t.Fatal("retry admitted twice")
 	}
 	wood := roundsGoal(t, first, policy.MaintainResource)

@@ -20,7 +20,7 @@ import (
 // zones: they light, heat or replace the soil a later batch plants.
 var fieldInfrastructure = map[string]bool{"SunLamp": true, "HydroponicsBasin": true, "Heater": true}
 
-func fieldOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
+func fieldOpenWorkExempt(ctx context.Context, tx *Tx, goal StandardState, plan domain.PlanSpec) (bool, error) {
 	if len(plan.Actions()) == 0 {
 		return false, nil
 	}
@@ -32,7 +32,7 @@ func fieldOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, plan domai
 		}
 		return false, nil
 	}
-	for _, m := range goal.OwnerMethods() {
+	for _, m := range goal.Methods {
 		p, err := load(ctx, tx, m.Plan)
 		if err != nil {
 			return false, err

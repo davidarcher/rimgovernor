@@ -13,8 +13,7 @@ A selected **Method** pursues a Concern through a Plan of actions.
 
 | Type | Inspection | Lifecycle |
 | --- | --- | --- |
-| Standard | Finding: Met, Unmet or Unclear | Maintains a target; a settled target becoming unmet starts a new Episode. |
-| Project | Finished-state and prerequisite checks | Completes once; if the finished state later breaks, a new Project can open. |
+| Standard | Finding: Met, Unmet or Unclear | Maintains a target; a settled target becoming unmet starts a new Episode. A Once Standard (the former Project kinds, trade missions) settles and stays settled until an observed recovery and a new unmet finding open the next Episode. |
 | Incident | Situation: Active, Clear or Unclear | One occurrence, opened by a trigger and closed by observed clearance. |
 
 Departments group work in the launcher. They do not allocate exclusive workers.

@@ -71,16 +71,16 @@ no tick change while the pawn's matching comms job is present establishes pendin
 A lost receipt without sufficient native evidence remains unknown and must not
 be retried merely to obtain a charge receipt. Arrival is reconciled separately.
 
-The outbound saved Project records home colony/map, settlement target, exact crew,
+The outbound saved trade-mission Standard records home colony/map, settlement target, exact crew,
 silver budget, demanded definitions/counts and mission phase/return intent. The
-Project must persist before departure, and departure remains inactive until return
+Standard must persist before departure, and departure remains inactive until return
 and completion exist. Native inventory, trade stock/prices, goodwill, cooldown,
 caravan position and routes stay native facts. Action attempts remain in the
 session journal. Goods bought away count as away inventory until native delivery
 at home is observed; request/scouting intent supplies no secured yield.
 
-`domain.TradeMission` is the bounded, strictly decoded `Project.Record` for
-`trade-mission` Projects. It adds home/settlement tiles for return/departure intent,
+`domain.TradeMission` is the bounded, strictly decoded `Standard.Record` for
+`trade-mission` Standards (Once). It adds home/settlement tiles for return/departure intent,
 the exact negotiator, definition/count demands and packed cargo. Phases are
 planned, departing, outbound, buying, returning, delivered and ended; return-home
 intent is mandatory. Caravan IDs are discovered from exact native crew, never
@@ -103,10 +103,10 @@ Exact observed assembly or player caravan reconstructs progress after a lost
 receipt or load. Missing/overlapping crew evidence never resets a departing
 mission to planned. A stopped player caravan on the settlement tile is available
 to the shared session through vanilla `SettlementVisitedNow`; arrival does not
-require an extra order. The shared trade planner drives saved Projects before
+require an extra order. The shared trade planner drives saved Standards before
 considering a new request or visit. Completed home staffing/defense facts admit
 exact packing options; the existing acquisition planner chooses without stock
-credit. Departure runs only after the Project has been recorded.
+credit. Departure runs only after the Standard has been recorded.
 
 Settlement purchases use live prices and current home demand, bounded by saved
 authorization, mission silver and native carry capacity. The existing supply

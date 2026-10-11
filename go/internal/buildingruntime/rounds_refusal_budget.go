@@ -131,37 +131,18 @@ func nextMethodID(prefix string, taken []domain.MethodID) domain.MethodID {
 // one-write planner keyed by prefix: the id of the next method, or the
 // verdict that says why the subject may not be tried.
 func admitStandardMethod(ctx context.Context, journal *store.Store, goal store.StandardState, prefix string, world domain.GenerationSnapshot) (domain.MethodID, Verdict, bool, error) {
-	verdict, ok, err := admitSubject(ctx, journal, prefix, standardMethodPlans(goal.History, goal.Standard.Episode, prefix), world)
+	verdict, ok, err := admitStandardSubject(ctx, journal, goal, prefix, world)
 	if err != nil || !ok {
 		return "", verdict, false, err
 	}
 	return nextMethodID(prefix, historyMethodIDs(goal.History, goal.Standard.Episode)), Verdict{}, true, nil
 }
 
-// admitProjectMethod is admitStandardMethod for a Project, which has no epochs.
-func admitProjectMethod(ctx context.Context, journal *store.Store, project store.ProjectState, prefix string, world domain.GenerationSnapshot) (domain.MethodID, Verdict, bool, error) {
-	verdict, ok, err := admitProjectSubject(ctx, journal, project, prefix, world)
-	if err != nil || !ok {
-		return "", verdict, false, err
-	}
-	taken := make([]domain.MethodID, 0, len(project.History))
-	for _, m := range project.History {
-		taken = append(taken, m.Method)
-	}
-	return nextMethodID(prefix, taken), Verdict{}, true, nil
-}
-
-// admitProjectSubject is admitSubject for a Project whose method ids the
+// admitStandardSubject is admitSubject for a Standard whose method ids the
 // planner names itself (a tier ordinal, a tick): every refusal sits on the
-// plans of the methods that start with prefix.
-func admitProjectSubject(ctx context.Context, journal *store.Store, project store.ProjectState, prefix string, world domain.GenerationSnapshot) (Verdict, bool, error) {
-	var plans []domain.PlanID
-	for _, m := range project.History {
-		if strings.HasPrefix(string(m.Method), prefix) {
-			plans = append(plans, m.Plan)
-		}
-	}
-	return admitSubject(ctx, journal, prefix, plans, world)
+// plans of the current Episode's methods that start with prefix.
+func admitStandardSubject(ctx context.Context, journal *store.Store, goal store.StandardState, prefix string, world domain.GenerationSnapshot) (Verdict, bool, error) {
+	return admitSubject(ctx, journal, prefix, standardMethodPlans(goal.History, goal.Standard.Episode, prefix), world)
 }
 
 func historyMethodIDs(history []domain.Method, episode uint64) []domain.MethodID {

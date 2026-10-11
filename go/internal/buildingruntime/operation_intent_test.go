@@ -16,12 +16,12 @@ func TestOperationIntentLabelsMethod(t *testing.T) {
 		reason string
 		want   string
 	}{
-		{"routine-0123456789abcdef-MaintainFoodStorage", "hunt-0123456789abcdef0123456789abcdef", "", "Food storage: hunt"},
-		{"routine-0123456789abcdef-MaintainFlooring", "floor-2", "", "Flooring: floor 2"},
-		{"player-ab-MaintainHousing", "comfort-Bed", "", "Housing: comfort Bed"},
-		{"routine-01-MaintainFireSafety", "fire", "", "Fire safety: fire"},
-		{"routine-01-EnsureFoodSupply", "acquire-0123456789abcdef0123456789abcdef", "food runway 1.5d", "Food supply: acquire, food runway 1.5d"},
-		{"routine-01-MaintainHousing", "bedroom-shell-3-4", "  room for 2 unhoused ", "Housing: bedroom shell 3 4, room for 2 unhoused"},
+		{"MaintainFoodStorage", "hunt-0123456789abcdef0123456789abcdef", "", "Food storage: hunt"},
+		{"MaintainFlooring", "floor-2", "", "Flooring: floor 2"},
+		{"MaintainHousing", "comfort-Bed", "", "Housing: comfort Bed"},
+		{"MaintainFireSafety", "fire", "", "Fire safety: fire"},
+		{"EnsureFoodSupply", "acquire-0123456789abcdef0123456789abcdef", "food runway 1.5d", "Food supply: acquire, food runway 1.5d"},
+		{"MaintainHousing", "bedroom-shell-3-4", "  room for 2 unhoused ", "Housing: bedroom shell 3 4, room for 2 unhoused"},
 	} {
 		got := OperationIntent(store.PlanMethod{Concern: c.goal, Method: c.method, Reason: c.reason})
 		if got != c.want {
@@ -38,7 +38,7 @@ func (f fakePlanGoals) PlanMethod(_ context.Context, plan domain.PlanID) (store.
 }
 
 func TestDispatchContextCarriesPlanIntent(t *testing.T) {
-	goals := fakePlanGoals{"p": {Concern: "routine-01-MaintainResource", Method: "chop-0123456789abcdef", Plan: "p", Reason: "WoodLog low"}}
+	goals := fakePlanGoals{"p": {Concern: "MaintainResource", Method: "chop-0123456789abcdef", Plan: "p", Reason: "WoodLog low"}}
 	ctx := withPlanIntent(context.Background(), goals, "p")
 	if got := bridge.OperationIntentFrom(ctx); got != "Resource: chop, WoodLog low" {
 		t.Fatal(got)
