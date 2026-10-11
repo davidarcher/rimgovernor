@@ -97,6 +97,44 @@ is a candidate to replace by a faithful port. Game sources are in
   `native_refused`. Unknown pawn facts (kind, melee power, colonist armor) make
   the fight unsupported rather than being defaulted.
 
+## Scenario importer (`simimport/`)
+
+The importer derives what the sim holds no literals for from the native
+DefinitionCatalog; every derived value is listed with its source in
+`Result.Trace`. A value it cannot derive fails the import with `ErrUnsupported`.
+
+- **A24. A melee weapon imports as unarmed.** The pawn keeps its catalog melee
+  DPS as `MeleePower` and is named in `Result.Unmodeled`; no melee verb is
+  simulated. Explosive, launcher, one-use, EMP and incendiary weapons, turrets
+  and non-humanlike races are refused, as is a spec with no ranged weapon at all.
+- **A25. Injury thresholds are the pain-shock and lethal-damage rules only.**
+  `DamageToKill` = 150 x HealthScale (healthScaleFactor x baseHealthScale).
+  `DamageToDown` = PainShockThreshold x HealthScale / the damage hediff's
+  `injuryProps.painPerSeverity`. Blood loss, consciousness, vital parts and
+  per-part health are ignored, and a spec may use one damage def only.
+- **A26. Armor is flattened.** Worn apparel outermost first, then the race's
+  natural armor, each as the definition-level rating of the damage's armor
+  category stat; the composite fact is 1 - product(1 - r). Quality, hit points
+  and per-body-part coverage are ignored.
+- **A27. Weapons are read at normal quality.** Range is capped by the weather
+  `maxRangeCap`; cooldown, accuracy bands, damage and AP multipliers come from
+  the stat evaluator on the weapon def and stuff. The wielder's range stats are
+  not applied. Projectile damage and AP follow `GetDamageAmount` and
+  `GetArmorPenetration` (0.015 per damage fallback); speed is speed/100.
+- **A28. Pawns are baseline healthy adults.** The adult stage is the race's
+  last life stage; no traits, hediffs, needs, mood or gear beyond the listed
+  apparel and weapon. Move speed is the MoveSpeed stat on that context.
+- **A29. MeleePower and FrontLine come from the catalog DPS and skills.** A pawn
+  is a front-liner when it has no ranged weapon and Melee >= Shooting; both
+  skills must be stated.
+- **A30. Things are one per cell and stuff is ignored.** Fill percent, path
+  cost and passability come from the ThingDef (fillage thresholds 0.01/0.99,
+  doors by thingClass); stuff does not change them.
+- **A31. Lab assumptions are caller-stated.** Skills 8, an assault lord toil
+  for hostiles, hostile apparel destroyed, colonist apparel and the difficulty
+  friendly-fire factor are inputs (`combatlab.SimEnv`), not readings; the last
+  two stay unknown, and the import fails, until stated.
+
 ## Out of scope for this slice
 
 Melee, explosives and grenades, specialist abilities, breaches, turrets,
