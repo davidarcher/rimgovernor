@@ -20,14 +20,14 @@ const (
 // replayEventLoot is the review's loot pass (store.lootReachFilter then
 // policy.ReviewEventLoot) over the recorded facts: the census the
 // ManageSupplySafety planner forbids and allows from.
-func replayEventLoot(t *testing.T, r Rounds, first bool) policy.EventLootHistory {
+func replayEventLoot(t *testing.T, r Rounds) policy.EventLootHistory {
 	t.Helper()
 	remote, err := policy.LootContext(r.Facts)
 	if err != nil {
 		t.Fatal(err)
 	}
 	released, held := policy.FilterLootRelease(r.Facts.EventLoot, r.Facts.DangerSeeds)
-	census, reach, err := policy.FilterLootReachAdmitted(released, remote, policy.EventLootHistory{}, first)
+	census, reach, err := policy.FilterLootReach(released, remote)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestStartingStacksNearHomeAreReleasedBySupplySafety(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	loot := replayEventLoot(t, r, true)
+	loot := replayEventLoot(t, r)
 	if len(loot.Pending) != 23 || len(loot.Held) != 0 {
 		t.Fatalf("load census: %d pending, held %v", len(loot.Pending), loot.Held)
 	}
@@ -82,7 +82,7 @@ func TestStartingStacksNearHomeAreReleasedBySupplySafety(t *testing.T) {
 	rows[0].SafeToHaul = false
 	unsafe := rows[0].Supply.Thing
 	r.Facts.EventLoot = domain.Known(rows)
-	loot = replayEventLoot(t, r, true)
+	loot = replayEventLoot(t, r)
 	if _, pending := pendingLoot(loot, unsafe); pending || len(loot.Pending) != 22 {
 		t.Fatalf("unsafe stack released: %d pending", len(loot.Pending))
 	}
@@ -93,7 +93,7 @@ func TestSupplySafetyRecoversOnceEveryStartingStackIsAllowed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loot := replayEventLoot(t, r, false); len(loot.Pending) != 0 {
+	if loot := replayEventLoot(t, r); len(loot.Pending) != 0 {
 		t.Fatalf("after the last allow: pending %v", loot.Pending)
 	}
 	r.Facts.EventLootPending = domain.Known(false)
@@ -116,7 +116,7 @@ func TestRemoteLootIsQueuedForAllow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	row, ok := pendingLoot(replayEventLoot(t, r, false), lootRemoteThing)
+	row, ok := pendingLoot(replayEventLoot(t, r), lootRemoteThing)
 	if !ok || row.Forbid {
 		t.Fatalf("remote loot not queued for Allow: %+v %v", row, ok)
 	}
@@ -127,7 +127,7 @@ func TestLootOnATrapIsForbidden(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	row, ok := pendingLoot(replayEventLoot(t, r, false), lootSafetyThing)
+	row, ok := pendingLoot(replayEventLoot(t, r), lootSafetyThing)
 	if !ok || !row.Forbid || row.Definition != lootSafetyDef {
 		t.Fatalf("trapped loot not queued for Forbid: %+v %v", row, ok)
 	}
@@ -142,7 +142,7 @@ func TestLootIsAllowedOnceItsTrapIsGone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	loot := replayEventLoot(t, r, false)
+	loot := replayEventLoot(t, r)
 	row, ok := pendingLoot(loot, lootSafetyThing)
 	if !ok || row.Forbid {
 		t.Fatalf("safe loot not queued for Allow: %+v %v", row, ok)
@@ -174,7 +174,7 @@ func TestLootNextToAHiveStaysForbidden(t *testing.T) {
 	}
 	hive := policy.EmergencyThreat{ID: "hive", Kind: policy.HostileBuilding, Definition: "Hive", Passive: domain.Known(true), Cells: []domain.Cell{{X: at.X + 3, Z: at.Z}}}
 	r.Facts.DangerSeeds = domain.Known(policy.DangerSeeds([]policy.EmergencyThreat{hive}))
-	loot := replayEventLoot(t, r, false)
+	loot := replayEventLoot(t, r)
 	if _, ok := pendingLoot(loot, lootSafetyThing); ok {
 		t.Fatal("loot beside a hive queued for Allow")
 	}

@@ -106,8 +106,8 @@ shelter room is one continuous reconcile: the first review admits the spots rung
 together, and later reviews go on up the ladder (the clearing, then the beds) while the ring's
 wave is open (disjoint cells; `store.shelterOpenWorkExempt`). A ring is not
 placed in a stuff with no accessible stock while the start kit is still forbidden
-(`awaiting_plan:start_kit`); the kit is released by the supplies planner on the first review
-that reads the loot census (`EventLootHistory.Read`), whatever the storage headroom, so the
+(`awaiting_plan:start_kit`); the supplies planner releases the kit like any safe forbidden
+stack (one plan allows every pending stack), with or without storage, so the
 wait is short. The stage
 adds no action kind; the `rounds_review` timeline event carries
 `stage`/`stage_blocker`/`stage_reason`/`stage_held` and `colony_stage` records each
@@ -655,7 +655,7 @@ passive hives included; `policy.DangerSeeds`). The same seeds feed the hauler ga
 while a hostile is live and for an hour after, `MaintainShelter` restricts haulers to the
 `NoDanger` allowed area (home minus killbox and cells near accumulated seeds).
 
-Unsafe items are forbidden before safe ones are allowed, in batches of eight. Forbid
+Unsafe items are forbidden before safe ones are allowed, each in one plan carrying every pending target. Forbid
 changes no pawn orders and may run during an emergency; Allow keeps the emergency gate.
 A changed census cancels stale undispatched proposals; later reviews may reverse a
 decision. A designation receipt proves the flag only; native storage observations prove
@@ -665,12 +665,13 @@ hauling.
 
 Allow is additionally a safety and demand filter; Forbid is not. A safe forbidden stack on
 a cell of the derived colony extent is allowed as above. Outside the extent it is
-allowed unless a safety hold applies and it is
-ranked by the recovery queue (`policy.RankRecovery` over the usable stock census);
-otherwise it stays forbidden and is recorded under
-`EventLoot.Held` with an [explicit hold](#remote-work-holds-and-resume)
-(`threat_present`, `threat_unknown`, the outdoor hazard hold, `urgent_competing_work`,
-`missing_storage`). The routines API reports these as `lootHolds`. There is no distance
+allowed unless a safety hold applies; otherwise it stays
+forbidden and is recorded under `EventLoot.Held` with an
+[explicit hold](#remote-work-holds-and-resume) (`threat_present`, `threat_unknown`, the
+outdoor hazard hold). Allow dispatches no pawn and only clears a flag, so storage headroom
+and urgent work do not hold it: with no storage a released item is simply not hauled yet,
+and construction and bills can use it where it lies. The routines API reports the holds as
+`lootHolds`. There is no distance
 ceiling or readiness threshold: the supply planner prices each stack by its safe route
 length (`haul = dist * (1 + 2*trips)`), so a solo colony's scattered steel 40 cells out is
 a candidate like any other. Unknown threat or demand holds remote stacks. Remote work
@@ -679,7 +680,8 @@ changes no Home cell.
 ### Remote work holds and resume
 
 Remote loot, ruin salvage and surface mining share one hold vocabulary
-(`policy.RemoteHoldReason`), reported on `EventLoot.Held`, held `RecoveryQueue` entries and the
+(`policy.RemoteHoldReason`); loot Allow uses only the safety reasons, and
+`urgent_competing_work` and `missing_storage` hold dispatched work, not an Allow. Reported on `EventLoot.Held`, held `RecoveryQueue` entries and the
 resource planner's log:
 
 | Reason | Meaning |

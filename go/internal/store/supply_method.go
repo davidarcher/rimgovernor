@@ -8,7 +8,7 @@ import (
 )
 
 // admitSupplyMethod admits only stacks the review's cohort still lists, each
-// at the cell the census last reported, in bounded batches.
+// at the cell the census last reported.
 func admitSupplyMethod(ctx context.Context, tx *Tx, owner methodOwner, plan domain.PlanSpec) error {
 	hasSupply := false
 	for _, action := range plan.Actions() {
@@ -21,7 +21,7 @@ func admitSupplyMethod(ctx context.Context, tx *Tx, owner methodOwner, plan doma
 	if err != nil {
 		return err
 	}
-	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || len(plan.Actions()) > 8 {
+	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() {
 		return ErrConflict
 	}
 	bound := false

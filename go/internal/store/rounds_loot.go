@@ -9,11 +9,9 @@ import (
 
 // lootReachFilter narrows the loot census's Allow candidates to what may be
 // released (FilterLootRelease: spawner-forbidden stacks and stacks in danger
-// stay forbidden), then to the safety holds and storage headroom,
-// before the safety review acts on it. The extent is the same
+// stay forbidden), then to the safety holds, before the safety review acts on it. The extent is the same
 // derived extent the routines API reports.
-// The startup release lives in policy.FilterLootReachAdmitted.
-func lootReachFilter(request RoundsRequest, previous policy.EventLootHistory, first bool) (domain.Fact[[]policy.LootItem], []policy.LootHold, error) {
+func lootReachFilter(request RoundsRequest) (domain.Fact[[]policy.LootItem], []policy.LootHold, error) {
 	f := request.Facts
 	if _, known := f.EventLoot.Value(); !known {
 		return f.EventLoot, nil, nil
@@ -23,7 +21,7 @@ func lootReachFilter(request RoundsRequest, previous policy.EventLootHistory, fi
 	if err != nil {
 		return domain.Unknown[[]policy.LootItem](), nil, err
 	}
-	census, reach, err := policy.FilterLootReachAdmitted(released, r, previous, first)
+	census, reach, err := policy.FilterLootReach(released, r)
 	if err != nil {
 		return domain.Unknown[[]policy.LootItem](), nil, err
 	}

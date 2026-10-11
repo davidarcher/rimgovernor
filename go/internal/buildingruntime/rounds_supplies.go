@@ -150,17 +150,11 @@ func (r *RoundsSupplyPlanner) step(call, epoch context.Context, arbiter *stepArb
 				targets = append(targets, target.Supply)
 			}
 		}
-		if len(targets) >= 8 {
-			break
-		}
 	}
 	if len(targets) == 0 {
 		return RoundsSupplyResult{Verdict: waitFor(policy.CauseMethodUsed, "supply_targets")}, nil
 	}
 	sort.Slice(targets, func(i, j int) bool { return targets[i].Thing() < targets[j].Thing() })
-	if len(targets) > 8 {
-		targets = targets[:8]
-	}
 	hash := sha256.New()
 	for _, supply := range targets {
 		fmt.Fprintf(hash, "%s/%s/%d/%d/%t\n", supply.Thing(), supply.Definition(), supply.Cell().X, supply.Cell().Z, supply.Forbidden())

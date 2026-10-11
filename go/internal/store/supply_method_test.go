@@ -36,9 +36,9 @@ func supplyCohort(count int, cell domain.Cell) []policy.StartingSupply {
 	}
 	return rows
 }
-func TestSupplyMethodRequiresCensusCohortAndBoundedBatch(t *testing.T) {
+func TestSupplyMethodRequiresCensusCohort(t *testing.T) {
 	t.Parallel()
-	for _, kind := range []string{"valid", "later", "moved", "oversized", "other-goal", "manual"} {
+	for _, kind := range []string{"valid", "later", "moved", "other-goal", "manual"} {
 		t.Run(kind, func(t *testing.T) {
 			s := open(t, memoryPath(t))
 			request := roundsRequest()
@@ -69,9 +69,6 @@ func TestSupplyMethodRequiresCensusCohortAndBoundedBatch(t *testing.T) {
 				// The census cell is where the planner read the stack; a plan
 				// naming it elsewhere was composed from a stale read.
 				cell.X = 3
-			}
-			if kind == "oversized" {
-				count = 9
 			}
 			err := s.CommitOwnerMethod(context.Background(), goal, "allow", "", supplyPlan(t, "supplies", count, cell))
 			if (err == nil) != (kind == "valid") {

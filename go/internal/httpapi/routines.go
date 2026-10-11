@@ -52,8 +52,8 @@ type RoundsStatus struct {
 	// NoOps are the inspections that raised nothing in the last enabled
 	// review, with the typed reason.
 	NoOps []policy.NoOpRecord
-	// LootHolds are the safe forbidden stacks the last review's demand
-	// scoring or safety hold kept forbidden, with reasons.
+	// LootHolds are the safe forbidden stacks the last review's safety
+	// hold kept forbidden, with reasons.
 	LootHolds []policy.LootHold
 }
 

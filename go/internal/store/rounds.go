@@ -390,7 +390,7 @@ func reviewRoundsTx(ctx context.Context, tx *Tx, request RoundsRequest, settled 
 		}
 		comfort = comfortReview.History
 		request.Facts.ComfortRecovered, request.Facts.ComfortDeficit = comfortReview.Recovered(), comfortReview.Deficit()
-		lootCensus, held, err := lootReachFilter(request, loot, !loot.Read)
+		lootCensus, held, err := lootReachFilter(request)
 		if err != nil {
 			return RoundsResult{}, err
 		}

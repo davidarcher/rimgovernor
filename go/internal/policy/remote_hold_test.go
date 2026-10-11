@@ -69,12 +69,13 @@ func TestRemoteWorkHoldsAreExplicitAcrossKinds(t *testing.T) {
 					t.Fatal(err)
 				}
 				rows, _ := kept.Value()
-				if row.SafeToHaul {
+				// Only safety reasons hold a loot Allow; urgent work and storage hold dispatched work.
+				if row.SafeToHaul && tt.reason != RemoteHoldUrgentWork && tt.reason != RemoteHoldMissingStorage {
 					if len(rows) != 0 || len(holds) != 1 || holds[0].Reason != tt.reason {
 						t.Fatalf("loot kept %v holds %v", rows, holds)
 					}
 				} else if len(rows) != 1 || len(holds) != 0 {
-					t.Fatalf("unsafe loot must reach the safety review: kept %v holds %v", rows, holds)
+					t.Fatalf("loot must reach the safety review: kept %v holds %v", rows, holds)
 				}
 			}
 			salvage := remoteSalvageRow()

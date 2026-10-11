@@ -72,7 +72,7 @@ func (n *roundsSupplyNative) ReadAllowSupplies(_ context.Context, _ *c.Identity,
 	}
 	return out, bridge.Result{}, nil
 }
-func TestSupplyPlannerBoundsPendingWorkAndManualCancels(t *testing.T) {
+func TestSupplyPlannerReleasesTheWholeKitInOnePlanAndManualCancels(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
@@ -92,7 +92,7 @@ func TestSupplyPlannerBoundsPendingWorkAndManualCancels(t *testing.T) {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
-	if err != nil || len(plan.Progress) != 8 || session.acquires.Load() != before {
+	if err != nil || len(plan.Progress) != 10 || session.acquires.Load() != before {
 		t.Fatal(plan, err)
 	}
 	for _, p := range plan.Progress {

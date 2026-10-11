@@ -85,9 +85,8 @@ func TestRemoteLootKeepsSafetySemantics(t *testing.T) {
 	}
 }
 
-// A safe stack is released whatever the demand: covered, unknown or
-// absent demand and an unknown path hold nothing; only storage headroom and
-// urgent colony work throttle it.
+// A safe stack is released whatever the demand, storage headroom or
+// competing work: Allow dispatches no pawn, so only safety holds it.
 func TestRemoteLootReleasesWithoutDemand(t *testing.T) {
 	r := quietSafety()
 	remote := domain.Cell{X: 95, Z: 95}
@@ -110,9 +109,9 @@ func TestRemoteLootReleasesWithoutDemand(t *testing.T) {
 		{"other demand", remoteLootRow("s", remote, true, true), domain.Known([]ResourceDemand{{Key: ResourceKey{Def: "WoodLog"}, Count: 50, Priority: 2}}), AcquisitionCompetition{}, ""},
 		{"covered resource", remoteLootRow("s", remote, true, true), steelDemand(), AcquisitionCompetition{}, ""},
 		{"unknown path", unknownPath, steelDemand(), AcquisitionCompetition{}, ""},
-		{"no storage", noHeadroom, steelDemand(), AcquisitionCompetition{}, "missing_storage"},
-		{"unknown storage", unknownHeadroom, steelDemand(), AcquisitionCompetition{}, "missing_storage"},
-		{"urgent work", remoteLootRow("s", remote, true, true), steelDemand(), urgent, "urgent_competing_work"},
+		{"no storage", noHeadroom, steelDemand(), AcquisitionCompetition{}, ""},
+		{"unknown storage", unknownHeadroom, steelDemand(), AcquisitionCompetition{}, ""},
+		{"urgent work", remoteLootRow("s", remote, true, true), steelDemand(), urgent, ""},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			kept, holds, err := FilterLootReach(domain.Known([]LootItem{tt.row}), RemoteWorkRequest{Safety: r, Extent: tribal8Extent(), Demand: tt.demand, Competition: tt.competition})
@@ -180,62 +179,80 @@ func TestRemoteLootEmptyExtentReleases(t *testing.T) {
 	}
 }
 
-// The startup release: 23 starting stacks outside the colony extent
-// under a threat are all pending on the first review, and the stacks left after each
-// 8-action plan stay pending on the following reviews. A stack that first
-// appears later is held; an unsafe stack is never pending.
-func TestStartupReleaseFinishesAcrossReviews(t *testing.T) {
-	r := quietSafety()
-	r.Threat = domain.Known(true)
-	remote := RemoteWorkRequest{Safety: r, Extent: tribal8Extent(), Demand: steelDemand()}
+// The start kit is released with no exemption: 23 forbidden stacks outside the
+// extent, with unknown storage headroom and urgent work, are all pending on one
+// review (the supplies planner allows them in one plan). An unsafe stack is
+// never pending.
+func TestStartKitReleasesInOneReview(t *testing.T) {
+	remote := RemoteWorkRequest{Safety: quietSafety(), Extent: tribal8Extent(), Competition: AcquisitionCompetition{UrgentPriority: UrgentWorkPriority}}
 	cell := domain.Cell{X: 95, Z: 95}
 	var rows []LootItem
 	for i := 0; i < 23; i++ {
-		rows = append(rows, remoteLootRow(string(rune('a'+i)), cell, true, true))
+		row := remoteLootRow(string(rune('a'+i)), cell, true, true)
+		row.StorageHeadroom = domain.Unknown[int64]()
+		rows = append(rows, row)
 	}
 	rows[3].SafeToHaul = false
-	review := func(census []LootItem, previous EventLootHistory, first bool) EventLootHistory {
+	review := func(previous EventLootHistory) EventLootHistory {
 		t.Helper()
-		kept, holds, err := FilterLootReachAdmitted(domain.Known(census), remote, previous, first)
-		if err != nil {
-			t.Fatal(err)
+		kept, holds, err := FilterLootReach(domain.Known(rows), remote)
+		if err != nil || len(holds) != 0 {
+			t.Fatal(holds, err)
 		}
 		next, _, err := ReviewEventLoot(kept, previous)
 		if err != nil {
 			t.Fatal(err)
 		}
-		next.Held = holds
 		return next
 	}
-	history := review(rows, EventLootHistory{}, true)
-	if len(history.Pending) != 22 || len(history.Held) != 0 {
-		t.Fatalf("first review: %d pending, held %v", len(history.Pending), history.Held)
+	history := review(EventLootHistory{})
+	if len(history.Pending) != 22 {
+		t.Fatalf("first review: %d pending", len(history.Pending))
 	}
 	for _, row := range history.Pending {
 		if row.Thing == rows[3].Supply.Thing {
 			t.Fatal("unsafe stack pending release")
 		}
 	}
-	for want := 22 - 8; want > 0; want -= 8 {
-		// A plan allows the first 8 pending stacks; the rest stay forbidden.
-		allowed := map[string]bool{}
-		for _, row := range history.Pending[:min(8, len(history.Pending))] {
-			allowed[row.Thing] = true
-		}
-		for i := range rows {
-			if allowed[rows[i].Supply.Thing] {
-				rows[i].Forbidden = false
-			}
-		}
-		history = review(rows, history, false)
-		if len(history.Pending) != want || len(history.Held) != 0 {
-			t.Fatalf("want %d pending, got %d, held %v", want, len(history.Pending), history.Held)
-		}
+}
+
+// Safety holds outlast the loss of the throttle: a threat and an outdoor
+// hazard keep a safe stack forbidden whatever its storage headroom, and an
+// unsafe route (census SafeToHaul false) is never released.
+func TestLootAllowKeepsSafetyHoldsWithoutHeadroom(t *testing.T) {
+	remote := domain.Cell{X: 95, Z: 95}
+	noHeadroom := func(safe bool) LootItem {
+		row := remoteLootRow("s", remote, true, safe)
+		row.StorageHeadroom = domain.Known(int64(0))
+		return row
 	}
-	// A stack forbidden later was never admitted: reach holds it.
-	rows = append(rows, remoteLootRow("later", cell, true, true))
-	history = review(rows, history, false)
-	if len(history.Held) != 1 || history.Held[0].Thing != "later" {
-		t.Fatalf("later forbid not held: %v", history.Held)
+	threat := quietSafety()
+	threat.Threat = domain.Known(true)
+	cold := quietSafety()
+	cold.Hazard = domain.Known([]OutdoorHazard{{Kind: HazardExtremeCold}})
+	for name, tt := range map[string]struct {
+		safety RemoteSafety
+		row    LootItem
+		reason string
+	}{
+		"threat":       {threat, noHeadroom(true), RemoteHoldThreat},
+		"hazard":       {cold, noHeadroom(true), RemoteHoldHazard},
+		"unsafe route": {quietSafety(), noHeadroom(false), ""},
+	} {
+		kept, holds, err := FilterLootReach(domain.Known([]LootItem{tt.row}), RemoteWorkRequest{Safety: tt.safety, Extent: tribal8Extent()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows, _ := kept.Value()
+		if tt.reason != "" && (len(rows) != 0 || len(holds) != 1 || holds[0].Reason != tt.reason) {
+			t.Fatalf("%s: kept %v holds %v", name, rows, holds)
+		}
+		next, _, err := ReviewEventLoot(kept, EventLootHistory{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(next.Pending) != 0 {
+			t.Fatalf("%s: pending %v", name, next.Pending)
+		}
 	}
 }

@@ -21,11 +21,11 @@ const lootUnitsPerTrip = 75
 // Allow side: an unsafe stack still forbids, an already allowed stack is not
 // re-forbidden by reach, and a safe forbidden stack inside the established
 // extent is allowed as before. A safe forbidden stack outside the extent is
-// allowed when no safety hold applies, whatever the colony's demand:
-// only missing storage headroom and urgent colony work
-// keep it forbidden, reported as a hold with an explicit reason
-// (RemoteHoldReason). The returned rows are the census the
-// safety review should act on.
+// allowed when no safety hold applies, whatever the colony's demand,
+// storage headroom or competing work: Allow only clears a flag and dispatches
+// no pawn, so the storage and urgent-work holds of dispatched remote work do
+// not apply. A safety hold is reported with an explicit reason. The returned
+// rows are the census the safety review should act on.
 func FilterLootReach(observed domain.Fact[[]LootItem], r RemoteWorkRequest) (domain.Fact[[]LootItem], []LootHold, error) {
 	rows, known := observed.Value()
 	if !known {
@@ -37,9 +37,6 @@ func FilterLootReach(observed domain.Fact[[]LootItem], r RemoteWorkRequest) (dom
 			continue
 		}
 		reasons[i] = remoteLootReachHold(r)
-		if reasons[i] == "" {
-			reasons[i] = remoteLootThrottleHold(r, row)
-		}
 	}
 	var kept []LootItem
 	var holds []LootHold
@@ -52,39 +49,6 @@ func FilterLootReach(observed domain.Fact[[]LootItem], r RemoteWorkRequest) (dom
 	}
 	sort.Slice(holds, func(i, j int) bool { return holds[i].Thing < holds[j].Thing })
 	return domain.Known(kept), holds, nil
-}
-
-// FilterLootReachAdmitted is FilterLootReach for the startup release:
-// the scenario's starting stacks are forbidden before the colony has an
-// extent, so the safety hold would hold them all. A forbidden stack skips the
-// hold on the first review that reads the census (first: no EventLootHistory.Read
-// yet), whatever its storage headroom, and while it stays in the previous
-// review's pending cohort, so a release of more stacks than one plan holds
-// finishes over the following reviews. FilterLootRelease's danger and spawner
-// holds run before it and still apply.
-func FilterLootReachAdmitted(observed domain.Fact[[]LootItem], r RemoteWorkRequest, previous EventLootHistory, first bool) (domain.Fact[[]LootItem], []LootHold, error) {
-	rows, known := observed.Value()
-	if !known {
-		return observed, nil, nil
-	}
-	admitted := map[string]bool{}
-	for _, row := range previous.Pending {
-		admitted[row.Thing] = true
-	}
-	var exempt, rest []LootItem
-	for _, row := range rows {
-		if row.Forbidden && (first || admitted[row.Supply.Thing]) {
-			exempt = append(exempt, row)
-		} else {
-			rest = append(rest, row)
-		}
-	}
-	census, holds, err := FilterLootReach(domain.Known(rest), r)
-	if err != nil {
-		return census, nil, err
-	}
-	kept, _ := census.Value()
-	return domain.Known(append(kept, exempt...)), holds, nil
 }
 
 func lootInsideExtent(extent domain.Fact[ColonyExtent], cell domain.Cell) bool {
@@ -108,18 +72,6 @@ func lootInsideExtent(extent domain.Fact[ColonyExtent], cell domain.Cell) bool {
 // route. Distance is the supply planner's price, not a hold.
 func remoteLootReachHold(r RemoteWorkRequest) string {
 	return remoteThreatHold(r.Safety)
-}
-
-// remoteLootThrottleHold is the per-stack throttle that outlives the demand
-// gate: no known storage headroom for the stack, or urgent colony work.
-func remoteLootThrottleHold(r RemoteWorkRequest, row LootItem) string {
-	if units, known := row.StorageHeadroom.Value(); !known || units <= 0 {
-		return RemoteHoldMissingStorage
-	}
-	if r.Competition.UrgentPriority > 0 {
-		return RemoteHoldUrgentWork
-	}
-	return ""
 }
 
 // lootCandidate is a stack as a supply candidate: its census count, hauled to
