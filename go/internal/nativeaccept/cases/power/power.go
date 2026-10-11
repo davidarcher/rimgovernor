@@ -119,14 +119,14 @@ func run(ctx context.Context, s cases.Session) error {
 	// may bind (the consumer is unpowered) but no method may be committed
 	// while the generator merely wants refuelling.
 	deadline := time.Now().Add(4 * time.Minute)
-	sawGoal := false
+	sawStandard := false
 	for time.Now().Before(deadline) {
 		r, err := journal.LoadRounds(ctx)
 		if err != nil {
 			return err
 		}
 		if id, ok := r.StandardFor(policy.EnsureBasicPower); ok {
-			sawGoal = true
+			sawStandard = true
 			project, err := journal.LoadStandard(ctx, id)
 			if err != nil {
 				return err
@@ -141,7 +141,7 @@ func run(ctx context.Context, s cases.Session) error {
 		case <-time.After(3 * time.Second):
 		}
 	}
-	report["power_standard_bound"] = sawGoal
+	report["power_standard_bound"] = sawStandard
 	if err := na.AssertRoundsRunning(service.Get); err != nil {
 		return err
 	}

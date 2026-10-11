@@ -14,7 +14,7 @@ func batchGoal(t *testing.T, s *Store, r *RoundsRequest) StandardState {
 	r.Current.Native = 2
 	r.Facts.ResourceNeeds = map[policy.Resource]int64{"MeleeWeapon_Club": 3}
 	r.Facts.Resources = domain.Known([]policy.Amount{})
-	g := roundsGoal(t, reviewRounds(t, s, r), policy.MaintainResource)
+	g := roundsStandard(t, reviewRounds(t, s, r), policy.MaintainResource)
 	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 // ConstructionClaim names the autonomous action that owns a building. The
-// journal supplies Plan, Action, Goal and Building for every applied
+// journal supplies Plan, Action, Standard and Building for every applied
 // building intent; OwnedConstructions fills Identity (the building's
 // current id) and Cells from the census row standing where the intent
 // built. A census row no intent built carries Identity, Building and

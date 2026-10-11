@@ -27,7 +27,7 @@ func TestRoundsEmergencyAllowsAdmissionAndDispatchButPauseVetoes(t *testing.T) {
 	if err != nil || len(loaded.Emergency) != 1 {
 		t.Fatal("emergency not journalled with the review", loaded.Emergency, err)
 	}
-	g := roundsGoal(t, out, policy.MaintainResource)
+	g := roundsStandard(t, out, policy.MaintainResource)
 	if g.Standard.Status != domain.StandardOpen {
 		t.Fatal("an emergency must not change the goal's status", g.Standard.Status)
 	}
@@ -53,7 +53,7 @@ func TestRoundsEmergencyAllowsAdmissionAndDispatchButPauseVetoes(t *testing.T) {
 	r.Enabled = false
 	r.Tick++
 	out = reviewRounds(t, s, &r)
-	g = roundsGoal(t, out, policy.MaintainResource)
+	g = roundsStandard(t, out, policy.MaintainResource)
 	if reason := out.Review.Veto(g.Standard); reason != "control paused" {
 		t.Fatal("pause did not veto routine work", reason)
 	}

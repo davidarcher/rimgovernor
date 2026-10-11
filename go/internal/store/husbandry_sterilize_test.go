@@ -12,7 +12,7 @@ import (
 func TestHusbandrySterilizeActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	value, err := domain.NewHusbandry("Thing_Goat1", domain.HusbandrySterilize, "")
 	if err != nil {
 		t.Fatal(err)

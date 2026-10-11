@@ -37,11 +37,11 @@ func TestRoundsMethodsShareWorkersWithoutSlots(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expansion := roundsGoal(t, first, policy.MaintainHousing)
+	expansion := roundsStandard(t, first, policy.MaintainHousing)
 	if _, err = s.CommitMethod(ctx, expansion.Standard.ID, expansion.Revision, "wall", plan(t, "wall", "wall-action")); err != nil {
 		t.Fatal("builder limit refused a goal", err)
 	}
-	research := roundsGoal(t, first, policy.EnsureResearch)
+	research := roundsStandard(t, first, policy.EnsureResearch)
 	if _, err = s.CommitMethodReason(ctx, research.Standard.ID, research.Revision, "study", "", plan(t, "study", "study-action")); err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestRoundsMethodsShareWorkersWithoutSlots(t *testing.T) {
 	if _, err = s.CommitMethodReason(ctx, research.Standard.ID, research.Revision, "study", "", plan(t, "study", "study-action")); err == nil {
 		t.Fatal("retry admitted twice")
 	}
-	wood := roundsGoal(t, first, policy.MaintainResource)
+	wood := roundsStandard(t, first, policy.MaintainResource)
 	if _, err = s.CommitMethod(ctx, wood.Standard.ID, wood.Revision, "cut", plan(t, "cut", "cut-action")); err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestRoundsMethodsShareWorkersWithoutSlots(t *testing.T) {
 	// A reviewed goal from another load is refused on the snapshot.
 	r.Current.Load = "reloaded"
 	reviewRounds(t, s, &r)
-	stale := roundsGoal(t, first, policy.MaintainHousing)
+	stale := roundsStandard(t, first, policy.MaintainHousing)
 	if _, err = s.CommitMethod(ctx, stale.Standard.ID, stale.Revision, "wall", plan(t, "wall2", "wall2-action")); err == nil {
 		t.Fatal("stale review admitted")
 	}
@@ -77,7 +77,7 @@ func TestHousingAssignmentNeedsNoWorkerSlot(t *testing.T) {
 		r.Facts.IndoorCapacity = domain.Known(int64(3))
 		r.Facts.BedCapacity = domain.Known(int64(2))
 		out := reviewRounds(t, s, &r)
-		g := roundsGoal(t, out, policy.MaintainHousing)
+		g := roundsStandard(t, out, policy.MaintainHousing)
 		assign, err := domain.NewAssign("pawn", "bed", domain.ClearPrevious())
 		if err != nil {
 			t.Fatal(err)

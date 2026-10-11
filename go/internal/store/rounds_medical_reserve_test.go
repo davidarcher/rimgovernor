@@ -20,17 +20,17 @@ func TestMedicalReserveRetainsHistoryAcrossManualUnknownAndRestart(t *testing.T)
 	}
 	set(2)
 	out := reviewRounds(t, s, &r)
-	if g := roundsGoal(t, out, policy.MaintainMedicalReserves); g.Standard.Finding != domain.FindingUnmet || !out.Review.Latches.MedicalReserve {
+	if g := roundsStandard(t, out, policy.MaintainMedicalReserves); g.Standard.Finding != domain.FindingUnmet || !out.Review.Latches.MedicalReserve {
 		t.Fatal(g)
 	}
 	set(5)
 	out = reviewRounds(t, s, &r)
-	if g := roundsGoal(t, out, policy.MaintainMedicalReserves); g.Standard.Finding != domain.FindingUnmet {
+	if g := roundsStandard(t, out, policy.MaintainMedicalReserves); g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
 	r.Facts.MedicalReserve.Items = domain.Unknown[[]policy.MedicineStack]()
 	out = reviewRounds(t, s, &r)
-	if g := roundsGoal(t, out, policy.MaintainMedicalReserves); g.Standard.Finding != domain.FindingUnclear || g.Standard.Priority != 3 {
+	if g := roundsStandard(t, out, policy.MaintainMedicalReserves); g.Standard.Finding != domain.FindingUnclear || g.Standard.Priority != 3 {
 		t.Fatal(g)
 	}
 	r.Enabled = false
@@ -47,25 +47,25 @@ func TestMedicalReserveRetainsHistoryAcrossManualUnknownAndRestart(t *testing.T)
 	r.Enabled = true
 	set(5)
 	out = reviewRounds(t, s, &r)
-	if g := roundsGoal(t, out, policy.MaintainMedicalReserves); g.Standard.Finding != domain.FindingUnmet {
+	if g := roundsStandard(t, out, policy.MaintainMedicalReserves); g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
 	set(9)
 	r.Facts.UpkeepIssued = map[policy.ConcernID]bool{policy.MaintainMedicalReserves: true}
 	out = reviewRounds(t, s, &r)
-	recovered := roundsGoal(t, out, policy.MaintainMedicalReserves)
+	recovered := roundsStandard(t, out, policy.MaintainMedicalReserves)
 	if recovered.Standard.Finding != domain.FindingMet || out.Review.Latches.MedicalReserve {
 		t.Fatal(recovered)
 	}
 	set(2)
 	out = reviewRounds(t, s, &r)
-	if g := roundsGoal(t, out, policy.MaintainMedicalReserves); g.Standard.Finding != domain.FindingUnmet || g.Standard.Episode <= recovered.Standard.Episode {
+	if g := roundsStandard(t, out, policy.MaintainMedicalReserves); g.Standard.Finding != domain.FindingUnmet || g.Standard.Episode <= recovered.Standard.Episode {
 		t.Fatal(g)
 	}
 	set(5)
 	r.Current.Load = "new-load"
 	out = reviewRounds(t, s, &r)
-	if g := roundsGoal(t, out, policy.MaintainMedicalReserves); g.Standard.Finding != domain.FindingMet {
+	if g := roundsStandard(t, out, policy.MaintainMedicalReserves); g.Standard.Finding != domain.FindingMet {
 		t.Fatal(g)
 	}
 }

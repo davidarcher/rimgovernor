@@ -67,7 +67,7 @@ func huntAcquisition(action domain.Action) bool {
 	return ok && acquisition.Hunt()
 }
 
-// pestGoal reports the routine ClearPests goal, whose hunts are
+// pestStandard reports the routine ClearPests goal, whose hunts are
 // planned animal by animal: a hunt still awaiting its kill never blocks
 // the next animal's method. The routine goal id names its need.
 func pestConcern(goal StandardState) bool {

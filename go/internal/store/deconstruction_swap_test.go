@@ -11,7 +11,7 @@ import (
 func TestDeconstructionSwapRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	base, err := domain.NewDeconstruction("Thing_Wall1", "Wall", domain.Cell{X: 10, Z: 12})
 	if err != nil {
 		t.Fatal(err)

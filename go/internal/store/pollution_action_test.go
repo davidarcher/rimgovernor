@@ -12,7 +12,7 @@ import (
 func TestPollutionActionsRoundTrip(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	clear, err := domain.NewPollutionClearArea(domain.AreaSetCells, []domain.Cell{{X: 5, Z: 1}, {X: 4, Z: 1}})
 	if err != nil {
 		t.Fatal(err)

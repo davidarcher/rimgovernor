@@ -10,7 +10,7 @@ import (
 
 func TestCommsTradeRequestPendingJournalReload(t *testing.T) {
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	request := domain.CommsTradeRequest{Kind: domain.TradeRequestCaravan, Faction: "ally", TraderKind: "bulk", Console: "console", Negotiator: "pawn", ExpectedLastRequestTick: -240000}
 	action, err := domain.NewCommsTradeRequestAction("request", request)
 	if err != nil {

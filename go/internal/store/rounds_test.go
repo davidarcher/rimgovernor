@@ -31,7 +31,7 @@ func TestRoundsWithPollutionFactsLoads(t *testing.T) {
 	}
 }
 
-func roundsGoal(t *testing.T, r RoundsResult, need domain.ConcernID) StandardState {
+func roundsStandard(t *testing.T, r RoundsResult, need domain.ConcernID) StandardState {
 	t.Helper()
 	for i, b := range r.Review.Standards {
 		if b.Concern == need {
@@ -82,7 +82,7 @@ func TestRoundsRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	s := open(t, path)
 	r := roundsRequest()
 	out := reviewRounds(t, s, &r)
-	initial := roundsGoal(t, out, policy.MaintainResource)
+	initial := roundsStandard(t, out, policy.MaintainResource)
 	if initial.Standard.Finding != domain.FindingUnmet || !out.Review.Latches.Wood {
 		t.Fatal(out)
 	}
@@ -94,12 +94,12 @@ func TestRoundsRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	}
 	r.Facts.Wood = domain.Known(int64(200))
 	out = reviewRounds(t, s, &r)
-	if roundsGoal(t, out, policy.MaintainResource).Standard.Finding != domain.FindingUnmet {
+	if roundsStandard(t, out, policy.MaintainResource).Standard.Finding != domain.FindingUnmet {
 		t.Fatal("restart lost recovery threshold")
 	}
 	r.Facts.Wood = domain.Unknown[int64]()
 	out = reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.MaintainResource)
+	g := roundsStandard(t, out, policy.MaintainResource)
 	if g.Standard.Finding != domain.FindingUnclear || !out.Review.Latches.Wood {
 		t.Fatal(g)
 	}
@@ -108,12 +108,12 @@ func TestRoundsRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	}
 	r.Facts.Wood = domain.Known(int64(400))
 	out = reviewRounds(t, s, &r)
-	if roundsGoal(t, out, policy.MaintainResource).Standard.Status != domain.StandardSettled {
+	if roundsStandard(t, out, policy.MaintainResource).Standard.Status != domain.StandardSettled {
 		t.Fatal(out)
 	}
 	r.Facts.Wood = domain.Known(int64(100))
 	out = reviewRounds(t, s, &r)
-	g = roundsGoal(t, out, policy.MaintainResource)
+	g = roundsStandard(t, out, policy.MaintainResource)
 	if g.Standard.Episode != 1 || g.Standard.ID != initial.Standard.ID || g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
@@ -128,7 +128,7 @@ func TestRoundsSuspendsOrInvalidatesLinkedWork(t *testing.T) {
 			s := open(t, memoryPath(t))
 			r := roundsRequest()
 			out := reviewRounds(t, s, &r)
-			g := roundsGoal(t, out, policy.MaintainResource)
+			g := roundsStandard(t, out, policy.MaintainResource)
 			if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
 				t.Fatal(err)
 			}
@@ -174,7 +174,7 @@ func TestRoundsSuspendsOrInvalidatesLinkedWork(t *testing.T) {
 			r.Policy = policy.DefaultRoundsPolicy()
 			r.Facts.Wood = domain.Known(int64(100))
 			out = reviewRounds(t, s, &r)
-			resumed := roundsGoal(t, out, policy.MaintainResource)
+			resumed := roundsStandard(t, out, policy.MaintainResource)
 			if change == "manual" {
 				if resumed.Standard.ID != g.Standard.ID || resumed.Standard.Status != domain.StandardOpen {
 					t.Fatal("resume replaced the suspended goal", resumed)
@@ -222,13 +222,13 @@ func TestRoundsEmergencyDoesNotHoldSharedMethod(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := roundsRequest()
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.MaintainResource)
+	g := roundsStandard(t, out, policy.MaintainResource)
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}
 	r.Facts.Hostiles = domain.Unknown[int64]()
 	out = reviewRounds(t, s, &r)
-	if out.Review.Veto(roundsGoal(t, out, policy.MaintainResource).Standard) != "" {
+	if out.Review.Veto(roundsStandard(t, out, policy.MaintainResource).Standard) != "" {
 		t.Fatal(out)
 	}
 	if _, err := s.Prepare(ctx, "p", "a", scope(), r.Tick); err != nil {
@@ -249,14 +249,14 @@ func TestRoundsDirectionAndManualDoNotEraseRecoveryTarget(t *testing.T) {
 	r.Facts.Wood = domain.Known(int64(200))
 	r.Current.Native++
 	out := reviewRounds(t, s, &r)
-	if !out.Review.Latches.Wood || roundsGoal(t, out, policy.MaintainResource).Standard.Finding != domain.FindingUnmet {
+	if !out.Review.Latches.Wood || roundsStandard(t, out, policy.MaintainResource).Standard.Finding != domain.FindingUnmet {
 		t.Fatal("direction erased known recovery target")
 	}
 	r.Enabled = false
 	reviewRounds(t, s, &r)
 	r.Enabled = true
 	out = reviewRounds(t, s, &r)
-	if !out.Review.Latches.Wood || roundsGoal(t, out, policy.MaintainResource).Standard.Finding != domain.FindingUnmet {
+	if !out.Review.Latches.Wood || roundsStandard(t, out, policy.MaintainResource).Standard.Finding != domain.FindingUnmet {
 		t.Fatal("Manual erased known recovery target")
 	}
 }

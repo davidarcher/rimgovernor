@@ -18,7 +18,7 @@ func TestRoundsGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	s := open(t, path)
 	r := roundsRequest()
 	first := reviewRounds(t, s, &r)
-	old := roundsGoal(t, first, policy.MaintainResource)
+	old := roundsStandard(t, first, policy.MaintainResource)
 	n := len(first.Standards) // the catalog size moves with the catalog (TidyLayout left it at 42)
 	for i := 0; i < 32; i++ {
 		r.Current.Load = domain.LoadID(fmt.Sprintf("load-%d", i))
@@ -58,7 +58,7 @@ func TestRoundsGoalRetirementWaitsForObservedEffects(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := roundsRequest()
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.MaintainResource)
+	g := roundsStandard(t, out, policy.MaintainResource)
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}

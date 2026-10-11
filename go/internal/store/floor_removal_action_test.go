@@ -11,7 +11,7 @@ import (
 func TestFloorRemovalActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	value, err := domain.NewFloorRemoval("WoodPlankFloor", domain.Cell{X: 12, Z: 5})
 	if err != nil {
 		t.Fatal(err)

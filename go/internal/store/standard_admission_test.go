@@ -61,7 +61,7 @@ func anotherGoal(t *testing.T, s *Store, id domain.StandardID) StandardState {
 func TestBuildingMethodAdmitsWithoutPricing(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, _, g := goalFixture(t)
+	s, _, g := standardFixture(t)
 	r := methodRequest(t, g, "shell", 600, 600)
 	d, e := s.AdmitBuildingMethod(ctx, r)
 	if e != nil || !d.Admitted || len(d.Refused) != 0 {
@@ -87,7 +87,7 @@ func TestBuildingMethodAdmitsWithoutPricing(t *testing.T) {
 func TestBuildingMethodAdmitsUnderNewLoad(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, _, g := goalFixture(t)
+	s, _, g := standardFixture(t)
 	r := methodRequest(t, g, "reload", 10)
 	r.Current.Load = "reloaded"
 	if d, e := s.AdmitBuildingMethod(ctx, r); e != nil || !d.Admitted {

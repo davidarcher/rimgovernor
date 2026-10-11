@@ -8,7 +8,7 @@ func AppliedBuildingOpen(p domain.Progress, census domain.Fact[CurrentConstructi
 	return p.Action().Kind() == domain.BuildingAction && p.Action().ConstructionTarget() == "" && p.View().Stage == domain.Completed && workOpen(p, census) == BuildingOpen
 }
 
-// PlanWorkOpen is GoalWorkOpen plus applied buildings still under
+// PlanWorkOpen is domain.StandardWorkOpen plus applied buildings still under
 // construction.
 func PlanWorkOpen(progress []domain.Progress, census domain.Fact[CurrentConstruction]) bool {
 	if domain.StandardWorkOpen(progress) {

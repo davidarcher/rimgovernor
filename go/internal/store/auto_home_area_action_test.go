@@ -11,7 +11,7 @@ import (
 func TestAutoHomeAreaActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	off, err := domain.NewAutoHomeAreaAction("off", false)
 	if err != nil {
 		t.Fatal(err)

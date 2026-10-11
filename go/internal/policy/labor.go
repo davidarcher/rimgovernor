@@ -28,7 +28,7 @@ const (
 // coarse worker count.
 type LaborProfile []WorkType
 
-// GoalLabor names each routine need's labor profile. Goals not listed here
+// ConcernLabor names each routine need's labor profile. Concerns not listed here
 // (emergencies, monitoring-only needs, configuration pushes) have no profile.
 func ConcernLabor(id ConcernID) LaborProfile {
 	switch id {

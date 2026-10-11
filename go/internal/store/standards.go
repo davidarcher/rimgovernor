@@ -33,9 +33,9 @@ type StandardState struct {
 const maxActiveStandards = 512
 
 // initializeGoals creates the goal lifecycle tables. goals and rounds
-// are session caches: RebuildStandards refills goals from the save and
+// are session caches: RebuildStandards refills Standards from the save and
 // ResetRounds empties rounds on every world change, and the
-// next review recomputes it. Goal-create request replay is in memory only.
+// next review recomputes it. Standard-create request replay is in memory only.
 func initializeStandards(ctx context.Context, tx *Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE standards(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;
 CREATE INDEX active_standards ON standards(id) WHERE retired=0;

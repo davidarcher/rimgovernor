@@ -26,7 +26,7 @@ type ReserveSupply struct {
 	Forbid            bool
 }
 
-// Rounds is the durable review cursor and hysteresis history. Goal
+// Rounds is the durable review cursor and hysteresis history. Standard
 // bindings retain semantic needs while old executable plans keep their identity.
 type Rounds struct {
 	// Emergency findings guide response planning and reporting.
@@ -68,7 +68,7 @@ type Rounds struct {
 	// Standards binds the Standards this review assessed.
 	Standards []RoundsStandard
 	// Incidents binds the Responses this review assessed to their open
-	// occurrences; those needs have no entry in Goals.
+	// occurrences; those needs have no entry in Standards.
 	Incidents []RoundsIncident `json:",omitempty"`
 
 	// Roster is the roster planner's last recorded report: coverage,

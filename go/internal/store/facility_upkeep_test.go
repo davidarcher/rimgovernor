@@ -11,7 +11,7 @@ import (
 func completedFacility(t *testing.T, proof bool) (*Store, string, StandardState, domain.Building) {
 	t.Helper()
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	b, err := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 7}, domain.North, "WoodLog")
 	if err != nil {
 		t.Fatal(err)
@@ -82,10 +82,10 @@ func TestFacilityUpkeepDurableUnknownManualAndPlayerReplacement(t *testing.T) {
 	// margin is missing Home while it stands, unknown while the census is.
 	assertNeeds := func(out RoundsResult, want domain.Finding) {
 		t.Helper()
-		if got := roundsGoal(t, out, policy.MaintainStoneShell).Standard.Finding; got != want {
+		if got := roundsStandard(t, out, policy.MaintainStoneShell).Standard.Finding; got != want {
 			t.Fatal(policy.MaintainStoneShell, got, want)
 		}
-		if got := roundsGoal(t, out, policy.MaintainHomeCoverage).Standard.Finding; got != want {
+		if got := roundsStandard(t, out, policy.MaintainHomeCoverage).Standard.Finding; got != want {
 			t.Fatal(policy.MaintainHomeCoverage, got)
 		}
 	}
@@ -113,7 +113,7 @@ func TestFacilityUpkeepDurableUnknownManualAndPlayerReplacement(t *testing.T) {
 
 func TestRoundsCannotInventConstructionOrZoneOwnership(t *testing.T) {
 	t.Parallel()
-	s, _, _ := goalFixture(t)
+	s, _, _ := standardFixture(t)
 	defer s.Close()
 	r := roundsRequest()
 	b, _ := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 7}, domain.North, "WoodLog")
@@ -126,7 +126,7 @@ func TestRoundsCannotInventConstructionOrZoneOwnership(t *testing.T) {
 	r.Facts.StoneStructures = domain.Known([]policy.StoneStructure{{ID: "wall", Definition: "Wall", Flammability: domain.Known(1.0)}})
 	out := reviewRounds(t, s, &r)
 	for _, id := range []domain.ConcernID{policy.MaintainHomeCoverage, policy.MaintainStoneShell} {
-		if got := roundsGoal(t, out, id).Standard.Finding; got != domain.FindingMet {
+		if got := roundsStandard(t, out, id).Standard.Finding; got != domain.FindingMet {
 			t.Fatal(id, got)
 		}
 	}

@@ -16,7 +16,7 @@ func TestUseItemActionRowRoundTrips(t *testing.T) {
 	r := roundsRequest()
 	r.Policy.Stage.Floor = policy.StageDevelopment
 	r.Facts.Gear = domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{gearDeficitPawn("a")}})
-	g := roundsGoal(t, reviewRounds(t, db, &r), policy.MaintainEquipment)
+	g := roundsStandard(t, reviewRounds(t, db, &r), policy.MaintainEquipment)
 	use, err := domain.NewUseItem("user", "PsychicShockLance", "raider")
 	if err != nil {
 		t.Fatal(err)

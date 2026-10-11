@@ -12,7 +12,7 @@ import (
 func TestRemoveRoofActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	value, err := domain.NewRemoveRoof([]domain.Cell{{X: 4, Z: 3}, {X: 2, Z: 7}})
 	if err != nil {
 		t.Fatal(err)

@@ -478,7 +478,7 @@ func PlanSignature(state store.PlanState) string {
 
 // WaitMethod polls the durable rounds for need's goal binding
 // and a committed method on it other than previous, exactly what the
-// building planners themselves read (review.Goals then the goal's Methods).
+// building planners themselves read (review.Standards then the Standard's Methods).
 // A method whose plan completed and retired within a single clock window
 // (the goal recovered before the harness polled) is no longer on the goal's
 // live Methods, so the current epoch's bounded history is consulted too.
@@ -502,7 +502,7 @@ func WaitMethodExcluding(ctx context.Context, s *store.Store, need policy.Concer
 
 // waitMethod is WaitMethodExcluding under an explicit Wait.
 func waitMethod(ctx context.Context, s *store.Store, w Wait, need policy.ConcernID, seen map[domain.PlanID]bool) (domain.StandardID, domain.Method, error) {
-	var foundGoal domain.StandardID
+	var foundStandard domain.StandardID
 	var found domain.Method
 	err := WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRounds(ctx)
@@ -531,7 +531,7 @@ func waitMethod(ctx context.Context, s *store.Store, w Wait, need policy.Concern
 		}
 		for _, method := range methods {
 			if !seen[method.Plan] {
-				foundGoal, found = concernID, method
+				foundStandard, found = concernID, method
 				return "", true, nil
 			}
 		}
@@ -540,7 +540,7 @@ func waitMethod(ctx context.Context, s *store.Store, w Wait, need policy.Concern
 	if err != nil {
 		return "", domain.Method{}, fmt.Errorf("standard method for %s: %w", need, err)
 	}
-	return foundGoal, found, nil
+	return foundStandard, found, nil
 }
 
 // WaitPlanTerminal polls plan until every action reaches a terminal stage.

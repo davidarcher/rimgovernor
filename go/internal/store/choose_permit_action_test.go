@@ -11,7 +11,7 @@ import (
 func TestChoosePermitSettingRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	value, err := domain.NewChoosePermitSetting("pawn-3", "Empire", "CallMilitaryAidSmall")
 	if err != nil {
 		t.Fatal(err)

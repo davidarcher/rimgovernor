@@ -115,7 +115,7 @@ func newFailFast(cfg FailFast, goal policy.ConcernID, logPath string) *failFastS
 	return &failFastState{cfg: cfg, concern: goal, logPath: logPath}
 }
 
-// check folds one sample (SampleGoal's shape, without an error) and the
+// check folds one sample (SampleStandard's shape, without an error) and the
 // service's latest scheduler step.
 func (f *failFastState) check(sample map[string]any) (Verdict, bool) {
 	if f == nil || f.cfg.Disabled {

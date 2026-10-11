@@ -12,7 +12,7 @@ import (
 func TestAreaActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	var actions []domain.Action
 	for i, want := range []struct {
 		op    domain.AreaOperation

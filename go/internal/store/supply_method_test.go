@@ -56,13 +56,13 @@ func TestSupplyMethodRequiresCensusCohortAndBoundedBatch(t *testing.T) {
 				request.Facts.EventLoot = census([]policy.StartingSupply{{Thing: "later", Definition: "Steel", Cell: cell}})
 			}
 			review := reviewRounds(t, s, &request)
-			var goal StandardState = roundsGoal(t, review, policy.ManageSupplySafety)
+			var goal StandardState = roundsStandard(t, review, policy.ManageSupplySafety)
 			if kind == "manual" {
 				request.Enabled = false
 				reviewRounds(t, s, &request)
 			}
 			if kind == "other-goal" {
-				goal = roundsGoal(t, review, policy.MaintainResource)
+				goal = roundsStandard(t, review, policy.MaintainResource)
 			}
 			count := 1
 			if kind == "moved" {

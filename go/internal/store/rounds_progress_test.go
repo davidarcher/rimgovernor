@@ -44,7 +44,7 @@ func TestRoundsProgressFoodPrerequisiteWithholdsBuilder(t *testing.T) {
 		t.Fatalf("food record %+v", food)
 	}
 	for _, binding := range first.Review.Standards {
-		if _, ok := first.Review.ConcernProgress(binding.Concern); !ok && roundsGoal(t, first, binding.Concern).Standard.Status == domain.StandardOpen {
+		if _, ok := first.Review.ConcernProgress(binding.Concern); !ok && roundsStandard(t, first, binding.Concern).Standard.Status == domain.StandardOpen {
 			t.Fatal("active goal without a progress record", binding.Concern)
 		}
 	}
@@ -109,7 +109,7 @@ func TestRoundsProgressDesignationWithoutWorkerIsBlocked(t *testing.T) {
 	if wood.Blocked != policy.BlockedNoMethod || wood.Method != "assess" {
 		t.Fatalf("wood record %+v", wood)
 	}
-	g := roundsGoal(t, first, policy.MaintainResource)
+	g := roundsStandard(t, first, policy.MaintainResource)
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "cut-0123456789abcdef", plan(t, "wood", "wood-action")); err != nil {
 		t.Fatal(err)
 	}

@@ -8081,7 +8081,7 @@
     {
      "Count": 10,
      "Concern": "EnsureBasicPower",
-     "Reason": "per_goal_bound"
+     "Reason": "per_standard_bound"
     }
    ],
    "Load": "d367669d2e67487c9dad1a51b6c915a2",

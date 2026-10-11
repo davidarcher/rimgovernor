@@ -11,7 +11,7 @@ import (
 func TestGovernorStateBlobsMirrorStandards(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, _, g := goalFixture(t)
+	s, _, g := standardFixture(t)
 	blobs, err := s.GovernorStateBlobs(ctx)
 	if err != nil {
 		t.Fatal(err)

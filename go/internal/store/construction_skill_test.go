@@ -9,7 +9,7 @@ import (
 
 func TestConstructionSkillJournalRoundTrip(t *testing.T) {
 	ctx := context.Background()
-	s, path, _ := goalFixture(t)
+	s, path, _ := standardFixture(t)
 	b, err := domain.NewBuilding("Bed", domain.Cell{X: 3, Z: 4}, domain.North, "WoodLog")
 	if err != nil {
 		t.Fatal(err)

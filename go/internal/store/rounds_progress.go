@@ -201,7 +201,7 @@ func (s *Store) RecordProgressCooldown(ctx context.Context, revision uint64, nee
 	return review, tx.Commit()
 }
 
-// GoalProgress is need's progress record in the review, if it has one.
+// ConcernProgress is need's progress record in the review, if it has one.
 func (r Rounds) ConcernProgress(need domain.ConcernID) (policy.ConcernProgress, bool) {
 	for _, p := range r.Progress {
 		if p.Concern == need {
@@ -215,7 +215,7 @@ func (r Rounds) ConcernProgress(need domain.ConcernID) (policy.ConcernProgress, 
 // progress record (ConcernProgress.Planner); the zero note clears it (the
 // planner admitted or found work). A record with no method, or one already
 // naming a planner refusal or wait, is relabelled at once so the strip names the reason
-// before the next review; held records keep their hold. Goals without a
+// before the next review; held records keep their hold. Standards without a
 // record are skipped. It reports whether anything changed and each filed
 // goal's current method (its record's Method, "" when it has none).
 func (s *Store) RecordPlannerReasons(ctx context.Context, reasons map[domain.ConcernID]policy.PlannerNote) (bool, map[domain.ConcernID]string, error) {

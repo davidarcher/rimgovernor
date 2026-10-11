@@ -18,7 +18,7 @@ func completedStockpile(t *testing.T, created []domain.CreatedZone) (*Store, str
 	path := filepath.Join(t.TempDir(), "zones.db")
 	s := open(t, path)
 	r := medicalReserveRoundsRequest()
-	g := roundsGoal(t, reviewRounds(t, s, &r), policy.MaintainMedicalReserves)
+	g := roundsStandard(t, reviewRounds(t, s, &r), policy.MaintainMedicalReserves)
 	p := stockpilePlan(t, "storage-plan", []domain.Cell{{X: 3, Z: 7}, {X: 4, Z: 7}, {X: 5, Z: 7}})
 	a := p.Actions()[0]
 	current := r.Current

@@ -72,7 +72,7 @@ func TestCommitStockpileZoneMethodBindsToResourceTargetGoal(t *testing.T) {
 	r.Facts.ResourceNeeds = map[policy.Resource]int64{"MeleeWeapon_Gladius": 3}
 	r.Facts.Resources = domain.Known([]policy.Amount{})
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.MaintainResource)
+	g := roundsStandard(t, out, policy.MaintainResource)
 	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
@@ -103,7 +103,7 @@ func TestCommitResourceFieldZoneUnderMaintainResource(t *testing.T) {
 	r.Facts.ResourceNeeds = map[policy.Resource]int64{"Cloth": 30}
 	r.Facts.Resources = domain.Known([]policy.Amount{})
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.MaintainResource)
+	g := roundsStandard(t, out, policy.MaintainResource)
 	cells := []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}}
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "cotton", growingCropPlan(t, "cotton-plan", "Plant_Cotton", cells)); err != nil {
 		t.Fatal("a cotton field is a resource field", err)
@@ -118,7 +118,7 @@ func TestCommitStockpileZoneMethodCappedAtOneAction(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := medicalReserveRoundsRequest()
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.MaintainMedicalReserves)
+	g := roundsStandard(t, out, policy.MaintainMedicalReserves)
 	plan := stockpilePlan(t, "storage-plan", []domain.Cell{{X: 4, Z: 6}}, []domain.Cell{{X: 8, Z: 6}})
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "food-storage", plan); err == nil {
 		t.Fatal("expected rejection of multi-action stockpile plan")
@@ -135,7 +135,7 @@ func TestCommitOpeningStockpilesBindToStockpilesGoal(t *testing.T) {
 	r.Current.Native = 2
 	r.Facts.Stockpiles = domain.Known(policy.StockpileReview{Known: true, Active: true})
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.MaintainStockpiles)
+	g := roundsStandard(t, out, policy.MaintainStockpiles)
 	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
@@ -153,7 +153,7 @@ func TestCommitZoneMethodRejectsKindGoalMismatch(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := medicalReserveRoundsRequest()
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.MaintainMedicalReserves)
+	g := roundsStandard(t, out, policy.MaintainMedicalReserves)
 	plan := growingPlan(t, "fields-plan", []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}})
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "fields", plan); err == nil {
 		t.Fatal("expected rejection of growing zone bound to food storage goal")
@@ -169,7 +169,7 @@ func TestCommitAllowListStockpileZoneMethodRoundTrips(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := medicalReserveRoundsRequest()
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.MaintainMedicalReserves)
+	g := roundsStandard(t, out, policy.MaintainMedicalReserves)
 	zone, err := allowListZone(domain.ImportantPriority, []string{"MealSimple", "MealFine"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}, {X: 6, Z: 6}, {X: 4, Z: 7}})
 	if err != nil {
 		t.Fatal(err)
@@ -203,7 +203,7 @@ func TestCommitStockpileZoneMethodRejectsOverlappingCells(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := medicalReserveRoundsRequest()
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.MaintainMedicalReserves)
+	g := roundsStandard(t, out, policy.MaintainMedicalReserves)
 	zone1, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, stockpileTestRectangle([]domain.Cell{{X: 4, Z: 6}}))
 	if err != nil {
 		t.Fatal(err)
@@ -239,7 +239,7 @@ func TestCommitFieldMethodExemptFromAcquisitionOpenWork(t *testing.T) {
 	r := foodDeficitRoundsRequest()
 	tick := r.Tick
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.EnsureFoodSupply)
+	g := roundsStandard(t, out, policy.EnsureFoodSupply)
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "acquire-1", acquisitionPlan(t, "acquire-plan-1", "WoodLog")); err != nil {
 		t.Fatal(err)
 	}
@@ -276,7 +276,7 @@ func TestCommitFieldInfrastructureExemptFromAcquisitionOpenWork(t *testing.T) {
 	r := foodDeficitRoundsRequest()
 	tick := r.Tick
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.EnsureFoodSupply)
+	g := roundsStandard(t, out, policy.EnsureFoodSupply)
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "acquire-1", acquisitionPlan(t, "acquire-plan-1", "WoodLog")); err != nil {
 		t.Fatal(err)
 	}
@@ -325,7 +325,7 @@ func TestCommitGrowerCropExemptFromOpenFieldWork(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := foodDeficitRoundsRequest()
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.EnsureFoodSupply)
+	g := roundsStandard(t, out, policy.EnsureFoodSupply)
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "basin-1", buildingOnlyPlan(t, "basin-plan-1", "HydroponicsBasin")); err != nil {
 		t.Fatal(err)
 	}
@@ -387,8 +387,8 @@ func TestCommitStockpileZonesOfTwoOwnersInOneCycle(t *testing.T) {
 	r.Facts.ResourceNeeds = map[policy.Resource]int64{"MeleeWeapon_Gladius": 3}
 	r.Facts.Resources = domain.Known([]policy.Amount{})
 	out := reviewRounds(t, s, &r)
-	feed := roundsGoal(t, out, policy.MaintainMedicalReserves)
-	resource := roundsGoal(t, out, policy.MaintainResource)
+	feed := roundsStandard(t, out, policy.MaintainMedicalReserves)
+	resource := roundsStandard(t, out, policy.MaintainResource)
 	if _, err := s.CommitMethod(ctx, feed.Standard.ID, feed.Revision, "feed-storage-0", stockpilePlan(t, "feed-plan", []domain.Cell{{X: 4, Z: 6}})); err != nil {
 		t.Fatal(err)
 	}

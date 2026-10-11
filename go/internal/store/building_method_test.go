@@ -38,7 +38,7 @@ func TestCommitBuildingMethodsOnDisjointCellsStayOpenTogether(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := foodDeficitRoundsRequest()
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.EnsureFoodSupply)
+	g := roundsStandard(t, out, policy.EnsureFoodSupply)
 	first := buildingAtPlan(t, "wall-plan-1", "SunLamp", domain.Cell{X: 1, Z: 1}, domain.Cell{X: 2, Z: 1})
 	g1, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "wall-1", first)
 	if err != nil {

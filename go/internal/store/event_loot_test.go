@@ -30,7 +30,7 @@ func TestEventLootRestartAdmissionAndReset(t *testing.T) {
 	}
 	lootExtentFacts(t, &r.Facts, cell)
 	out = reviewRounds(t, s, &r)
-	goal := roundsGoal(t, out, policy.ManageSupplySafety)
+	goal := roundsStandard(t, out, policy.ManageSupplySafety)
 	if goal.Standard.Finding != domain.FindingUnmet || len(out.Review.EventLoot.Pending) != 1 || len(out.Review.EventLoot.Held) != 0 {
 		t.Fatal(out)
 	}
@@ -73,7 +73,7 @@ func TestSafetyForbidPersistsAsDistinctAction(t *testing.T) {
 	cell := domain.Cell{X: 70, Z: 80}
 	r.Facts.EventLoot = domain.Known([]policy.LootItem{{SafetyKnown: true, Supply: policy.StartingSupply{Thing: "loot", Definition: "Steel", Cell: cell}}})
 	out := reviewRounds(t, s, &r)
-	goal := roundsGoal(t, out, policy.ManageSupplySafety)
+	goal := roundsStandard(t, out, policy.ManageSupplySafety)
 	target, err := domain.NewSupplyForbid("loot", "Steel", cell)
 	if err != nil {
 		t.Fatal(err)
@@ -116,7 +116,7 @@ func TestUnsafeItemAllowRefusedAfterCensus(t *testing.T) {
 	}
 	request.Facts.EventLoot = domain.Known(rows)
 	review := reviewRounds(t, s, &request)
-	goal := roundsGoal(t, review, policy.ManageSupplySafety)
+	goal := roundsStandard(t, review, policy.ManageSupplySafety)
 	plan := supplyPlan(t, "allow", 2, cell)
 	if _, err := s.CommitMethod(ctx, goal.Standard.ID, goal.Revision, "allow", plan); err != nil {
 		t.Fatal(err)

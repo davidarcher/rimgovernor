@@ -11,7 +11,7 @@ import (
 func TestIgniteActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	want, err := domain.NewIgnite("Human12", domain.Cell{X: 12, Z: 31})
 	if err != nil {
 		t.Fatal(err)

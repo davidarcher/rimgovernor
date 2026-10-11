@@ -35,7 +35,7 @@ func TestCommitCraftingSpotBesideOpenEquipmentWork(t *testing.T) {
 	r := roundsRequest()
 	r.Policy.Stage.Floor = policy.StageDevelopment
 	r.Facts.Gear = domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{gearDeficitPawn("a")}})
-	g := roundsGoal(t, reviewRounds(t, db, &r), policy.MaintainEquipment)
+	g := roundsStandard(t, reviewRounds(t, db, &r), policy.MaintainEquipment)
 	gear, err := domain.NewGearReplace("a", "one", "Parka")
 	if err != nil {
 		t.Fatal(err)

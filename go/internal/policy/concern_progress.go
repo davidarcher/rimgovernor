@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// GoalProgress is the one progress contract every active goal reports:
+// ConcernProgress is the one progress contract every active Standard reports:
 // the method it is working, the native observable that proves the
 // method is advancing, the last tick that observable moved, the tick by
 // which it must move again and why it is not moving now. Progress is
@@ -244,7 +244,7 @@ type ProgressEvidence struct {
 // ReviewGoalProgress folds one review's evidence into the goal's record.
 // A new record starts its clock at now. Progress resets the deadline;
 // blocked evidence leaves the clock running, so a method blocked past its
-// deadline rotates (ExpireGoalProgress). Expired cooldowns are dropped.
+// deadline rotates (ExpireConcernProgress). Expired cooldowns are dropped.
 func ReviewConcernProgress(previous ConcernProgress, goal ConcernID, c ProgressContract, e ProgressEvidence, now domain.Tick) ConcernProgress {
 	p := previous
 	p.Concern = goal
@@ -328,7 +328,7 @@ func CooldownKey(parts ...string) string {
 	return strings.Join(parts, "/")
 }
 
-// ExpireGoalProgress rotates a method whose deadline has passed without
+// ExpireConcernProgress rotates a method whose deadline has passed without
 // progress: the failed situation is keyed out for the contract's bounded
 // cooldown and the first alternative not under one becomes the method,
 // with a fresh deadline. It reports whether it rotated. A write whose
@@ -435,8 +435,8 @@ func FoodProgress(f RoundsFacts, p RoundsPolicy, storageOpen bool) (ProgressCont
 	}
 }
 
-// GoalProgressContract is the default contract for a goal's method: the
-// method id as the method, the goal's deficit as the observable,
+// ConcernProgressContract is the default contract for a Standard's method: the
+// method id as the method, the Standard's deficit as the observable,
 // RoundsPolicy.ConcernStallTicks (scaled by colony stage) without progress as
 // the deadline.
 func ConcernProgressContract(method string, p RoundsPolicy) ProgressContract {

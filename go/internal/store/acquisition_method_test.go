@@ -45,7 +45,7 @@ func TestCommitAcquisitionMethodExemptFromBillOpenWork(t *testing.T) {
 	r := foodDeficitRoundsRequest()
 	tick := r.Tick
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.EnsureFoodSupply)
+	g := roundsStandard(t, out, policy.EnsureFoodSupply)
 	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
@@ -93,7 +93,7 @@ func TestCommitAcquisitionMethodNotExemptFromNonBillOpenWork(t *testing.T) {
 	r := foodDeficitRoundsRequest()
 	tick := r.Tick
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.EnsureFoodSupply)
+	g := roundsStandard(t, out, policy.EnsureFoodSupply)
 	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
@@ -130,14 +130,14 @@ func TestCommitAcquisitionMethodAdmitsClearPests(t *testing.T) {
 	r.Current.Native = 2
 	r.Facts.AnimalUpkeep.WildAnimals = domain.Known([]policy.UpkeepAnimal{{ID: "beaver", Definition: "Alphabeaver", Pest: true}})
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.ClearPests)
+	g := roundsStandard(t, out, policy.ClearPests)
 	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "pest-hunt-1", acquisitionPlan(t, "routine-pest-hunt-1", "Corpse_Alphabeaver")); err != nil {
 		t.Fatal(err)
 	}
-	other := roundsGoal(t, out, policy.MaintainHousing)
+	other := roundsStandard(t, out, policy.MaintainHousing)
 	if _, err := s.CommitMethod(ctx, other.Standard.ID, other.Revision, "shelter-hunt", acquisitionPlan(t, "routine-shelter-hunt", "Corpse_Alphabeaver")); err == nil {
 		t.Fatal("a shelter goal admitted an acquisition method")
 	}

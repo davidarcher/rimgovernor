@@ -23,7 +23,7 @@ func TestRoundsPlanRetirementNoDoubleSpend(t *testing.T) {
 			path := memoryPath(t)
 			s := open(t, path)
 			r := roundsRequest()
-			g := roundsGoal(t, reviewRounds(t, s, &r), policy.MaintainResource)
+			g := roundsStandard(t, reviewRounds(t, s, &r), policy.MaintainResource)
 			q := methodRequest(t, g, "old", 100)
 			d, err := s.AdmitBuildingMethod(ctx, q)
 			if err != nil || !d.Admitted {
@@ -74,7 +74,7 @@ func TestRoundsPlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 	path := memoryPath(t)
 	s := open(t, path)
 	r := roundsRequest()
-	g := roundsGoal(t, reviewRounds(t, s, &r), policy.MaintainResource)
+	g := roundsStandard(t, reviewRounds(t, s, &r), policy.MaintainResource)
 	for i := 0; i < 260; i++ {
 		id := fmt.Sprintf("method-%03d", i)
 		p := plan(t, domain.PlanID(id), domain.ActionID(id+"-a"))
@@ -88,7 +88,7 @@ func TestRoundsPlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 		if i == 0 {
 			r.Tick--
 		}
-		g = roundsGoal(t, reviewRounds(t, s, &r), policy.MaintainResource)
+		g = roundsStandard(t, reviewRounds(t, s, &r), policy.MaintainResource)
 		if i == 0 {
 			if g.Revision <= committed.Revision {
 				t.Fatal("same-tick retirement retained stale revision")
@@ -131,7 +131,7 @@ func TestRoundsPlanRetirementPinsCurrentAndRollsBack(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
 	r := roundsRequest()
-	g := roundsGoal(t, reviewRounds(t, s, &r), policy.MaintainResource)
+	g := roundsStandard(t, reviewRounds(t, s, &r), policy.MaintainResource)
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "current", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +163,7 @@ func TestRoundsPlanRetirementPinsUnfinishedMethods(t *testing.T) {
 			ctx := context.Background()
 			s := open(t, memoryPath(t))
 			r := roundsRequest()
-			g := roundsGoal(t, reviewRounds(t, s, &r), policy.MaintainResource)
+			g := roundsStandard(t, reviewRounds(t, s, &r), policy.MaintainResource)
 			p := plan(t, "method", "method-a", "method-b")
 			if kind == "dependency" {
 				var err error

@@ -165,7 +165,7 @@ func runChunks(ctx context.Context, s cases.Session, fixture, before map[string]
 	if err = reattach(ctx, s); err != nil {
 		return err
 	}
-	// Goal recovery means a destination exists (the materials yard takes
+	// Standard recovery means a destination exists (the materials yard takes
 	// chunks and slag; no dump zone is created). Ordinary native hauling must
 	// still move all three items; never equate a store with storage.
 	err = na.WaitProgress(ctx, na.Wait{Ceiling: time.Minute, Stall: 30 * time.Second}, func(ctx context.Context) (string, bool, error) {

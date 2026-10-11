@@ -11,7 +11,7 @@ import (
 func TestPawnSettingsActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	value, err := domain.NewHostilitySetting("Human7", domain.HostilityIgnore)
 	if err != nil {
 		t.Fatal(err)

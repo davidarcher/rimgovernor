@@ -27,7 +27,7 @@ func TestAutonomousConstructionClaimsSurviveRetirementAndManual(t *testing.T) {
 	request.Facts.Colonists = domain.Known(int64(3))
 	request.Facts.BedCapacity = domain.Known(int64(0))
 	request.Facts.IndoorCapacity = domain.Known(int64(0))
-	g := roundsGoal(t, reviewRounds(t, s, &request), policy.MaintainHousing)
+	g := roundsStandard(t, reviewRounds(t, s, &request), policy.MaintainHousing)
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "build", plan(t, "method", "placed")); err != nil {
 		t.Fatal(err)
 	}

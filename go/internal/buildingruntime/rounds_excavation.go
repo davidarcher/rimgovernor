@@ -183,7 +183,7 @@ func excavationStates(site bridge.ExcavationSite) []policy.ExcavationCellState {
 // unfogged into something that cannot be mined), and a stage whose own
 // removal native reports unsupported. A pending collapse and an unknown
 // verdict hold the project for the next observation instead. Stage
-// sequencing rides on GoalWorkOpen in step; this never runs while a stage
+// sequencing rides on StandardWorkOpen in step; this never runs while a stage
 // plan is open.
 func (r *RoundsBuildingPlanner) stepExcavation(call, epoch context.Context, s excavationStep) (RoundsBuildingResult, error) {
 	p := r.reviewer.player

@@ -38,7 +38,7 @@ func TestRecreationMaintenanceAssessmentSurvivesJournalRead(t *testing.T) {
 	r.Facts.Comfort = domain.Known(comfortCensus(true)) // the ranked phase met: variety alone decides
 	r.Facts.BasicComfort = domain.Known(v)
 	out := reviewRounds(t, s, &r)
-	if roundsGoal(t, out, policy.EnsureComfort).Standard.Finding != domain.FindingUnmet {
+	if roundsStandard(t, out, policy.EnsureComfort).Standard.Finding != domain.FindingUnmet {
 		t.Fatal("variety not persisted as a deficit")
 	}
 	// Loading and reviewing again traverses Rounds's optional-goal
@@ -48,7 +48,7 @@ func TestRecreationMaintenanceAssessmentSurvivesJournalRead(t *testing.T) {
 	v.Joy.Pawns[0].Bored[0] = false
 	r.Facts.BasicComfort = domain.Known(v)
 	out = reviewRounds(t, s, &r)
-	if roundsGoal(t, out, policy.EnsureComfort).Standard.Finding != domain.FindingMet {
+	if roundsStandard(t, out, policy.EnsureComfort).Standard.Finding != domain.FindingMet {
 		t.Fatal("fresh native evidence did not recover variety")
 	}
 }
@@ -62,14 +62,14 @@ func TestRoundsComfortUseSurvivesRestartManualButNotReplacement(t *testing.T) {
 	r.Facts.Comfort = domain.Known(comfortCensus(true))
 	out := reviewRounds(t, s, &r)
 	history := out.Review.Comfort
-	if roundsGoal(t, out, policy.EnsureComfort).Standard.Finding != domain.FindingMet || history.Dining.Facility != "chair" {
+	if roundsStandard(t, out, policy.EnsureComfort).Standard.Finding != domain.FindingMet || history.Dining.Facility != "chair" {
 		t.Fatal(out)
 	}
 	s.Close()
 	s = open(t, path)
 	r.Facts.Comfort = domain.Known(comfortCensus(false))
 	out = reviewRounds(t, s, &r)
-	if out.Review.Comfort != history || roundsGoal(t, out, policy.EnsureComfort).Standard.Status != domain.StandardSettled {
+	if out.Review.Comfort != history || roundsStandard(t, out, policy.EnsureComfort).Standard.Status != domain.StandardSettled {
 		t.Fatal(out)
 	}
 	r.Enabled = false
@@ -79,20 +79,20 @@ func TestRoundsComfortUseSurvivesRestartManualButNotReplacement(t *testing.T) {
 	r.Facts.Comfort = domain.Unknown[policy.ComfortObservation]()
 	r.Facts.ComfortRecovered = domain.Known(true)
 	out = reviewRounds(t, s, &r)
-	if out.Review.Comfort != history || roundsGoal(t, out, policy.EnsureComfort).Standard.Finding != domain.FindingUnclear {
-		t.Fatal("unknown census replaced by aggregate", roundsGoal(t, out, policy.EnsureComfort).Standard, out.Review.Latches.Comfort)
+	if out.Review.Comfort != history || roundsStandard(t, out, policy.EnsureComfort).Standard.Finding != domain.FindingUnclear {
+		t.Fatal("unknown census replaced by aggregate", roundsStandard(t, out, policy.EnsureComfort).Standard, out.Review.Latches.Comfort)
 	}
 	replacement := comfortCensus(false)
 	replacement.Dining[0].ID = "replacement-chair"
 	r.Facts.Comfort = domain.Known(replacement)
 	out = reviewRounds(t, s, &r)
-	if out.Review.Comfort != history || roundsGoal(t, out, policy.EnsureComfort).Standard.Finding != domain.FindingUnmet {
+	if out.Review.Comfort != history || roundsStandard(t, out, policy.EnsureComfort).Standard.Finding != domain.FindingUnmet {
 		t.Fatal("replacement inherited use", out)
 	}
 	replacement.Dining[0].Users = replacement.People
 	r.Facts.Comfort = domain.Known(replacement)
 	out = reviewRounds(t, s, &r)
-	if roundsGoal(t, out, policy.EnsureComfort).Standard.Finding != domain.FindingMet || out.Review.Comfort.Dining.Facility != "replacement-chair" {
+	if roundsStandard(t, out, policy.EnsureComfort).Standard.Finding != domain.FindingMet || out.Review.Comfort.Dining.Facility != "replacement-chair" {
 		t.Fatal(out)
 	}
 }
@@ -113,7 +113,7 @@ func TestRoundsComfortWorldResetAndInvalidDisabledHistory(t *testing.T) {
 			}
 			r.Facts.Comfort = domain.Known(comfortCensus(false))
 			out := reviewRounds(t, s, &r)
-			if out.Review.Comfort != (policy.ComfortHistory{}) || roundsGoal(t, out, policy.EnsureComfort).Standard.Finding != domain.FindingUnmet {
+			if out.Review.Comfort != (policy.ComfortHistory{}) || roundsStandard(t, out, policy.EnsureComfort).Standard.Finding != domain.FindingUnmet {
 				t.Fatal(out)
 			}
 			r.Enabled = false

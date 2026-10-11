@@ -14,12 +14,12 @@ func TestRoundsUpkeepRetainsEmergencyAcrossUnknownManualAndRestart(t *testing.T)
 	db := open(t, path)
 	r := roundsRequest()
 	out := reviewRounds(t, db, &r)
-	if g := roundsGoal(t, out, policy.MaintainFireSafety); g.Standard.Priority != 4 || g.Standard.Finding != domain.FindingUnclear || len(out.Emergency) != 0 {
+	if g := roundsStandard(t, out, policy.MaintainFireSafety); g.Standard.Priority != 4 || g.Standard.Finding != domain.FindingUnclear || len(out.Emergency) != 0 {
 		t.Fatal(g, out.Emergency)
 	}
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{{ID: "fire", Home: true, Size: domain.Known(.5)}})
 	out = reviewRounds(t, db, &r)
-	g := roundsGoal(t, out, policy.MaintainFireSafety)
+	g := roundsStandard(t, out, policy.MaintainFireSafety)
 	epoch := g.Standard.Episode
 	if g.Standard.Priority != 1 || g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
@@ -28,7 +28,7 @@ func TestRoundsUpkeepRetainsEmergencyAcrossUnknownManualAndRestart(t *testing.T)
 	if len(out.Emergency) != 1 || out.Emergency[0] != policy.MaintainFireSafety {
 		t.Fatal("emergency source not reported", out.Emergency)
 	}
-	if g := roundsGoal(t, out, policy.MaintainResource); out.Review.Veto(g.Standard) != "" {
+	if g := roundsStandard(t, out, policy.MaintainResource); out.Review.Veto(g.Standard) != "" {
 		t.Fatal("fire emergency vetoed ordinary work", g)
 	}
 	r.Enabled = false
@@ -41,24 +41,24 @@ func TestRoundsUpkeepRetainsEmergencyAcrossUnknownManualAndRestart(t *testing.T)
 	}
 	r.Enabled = true
 	r.Facts.Upkeep.Fires = domain.Unknown[[]policy.UpkeepFire]()
-	g = roundsGoal(t, reviewRounds(t, db, &r), policy.MaintainFireSafety)
+	g = roundsStandard(t, reviewRounds(t, db, &r), policy.MaintainFireSafety)
 	if g.Standard.Priority != 1 || g.Standard.Finding != domain.FindingUnclear {
 		t.Fatal("unknown erased observed fire risk", g)
 	}
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{})
-	g = roundsGoal(t, reviewRounds(t, db, &r), policy.MaintainFireSafety)
+	g = roundsStandard(t, reviewRounds(t, db, &r), policy.MaintainFireSafety)
 	if g.Standard.Status != domain.StandardSettled {
 		t.Fatal(g)
 	}
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{{ID: "new-fire", Home: true, Size: domain.Known(.5)}})
-	g = roundsGoal(t, reviewRounds(t, db, &r), policy.MaintainFireSafety)
+	g = roundsStandard(t, reviewRounds(t, db, &r), policy.MaintainFireSafety)
 	if g.Standard.Finding != domain.FindingUnmet || g.Standard.Episode <= epoch {
 		t.Fatal("renewed fire not reopened", g)
 	}
 	// Caller-supplied pending work is not trusted as a native obligation.
 	r.Facts.UpkeepIssued = map[policy.ConcernID]bool{policy.MaintainFireSafety: true}
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{})
-	if g = roundsGoal(t, reviewRounds(t, db, &r), policy.MaintainFireSafety); g.Standard.Finding != domain.FindingMet {
+	if g = roundsStandard(t, reviewRounds(t, db, &r), policy.MaintainFireSafety); g.Standard.Finding != domain.FindingMet {
 		t.Fatal(g)
 	}
 }
@@ -69,13 +69,13 @@ func TestRoundsUpkeepIssuedWorkCannotRecoverFromTargetDisappearance(t *testing.T
 	ctx := context.Background()
 	r := roundsRequest()
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{{ID: "fire", Home: true, Size: domain.Known(.5)}})
-	g := roundsGoal(t, reviewRounds(t, db, &r), policy.MaintainFireSafety)
+	g := roundsStandard(t, reviewRounds(t, db, &r), policy.MaintainFireSafety)
 	// Shared journal semantics do not depend on the future upkeep action family.
 	if _, err := db.CommitMethod(ctx, g.Standard.ID, g.Revision, "owned-work", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{})
-	if g = roundsGoal(t, reviewRounds(t, db, &r), policy.MaintainFireSafety); g.Standard.Finding != domain.FindingMet || g.Standard.Status != domain.StandardSettled {
+	if g = roundsStandard(t, reviewRounds(t, db, &r), policy.MaintainFireSafety); g.Standard.Finding != domain.FindingMet || g.Standard.Status != domain.StandardSettled {
 		t.Fatal("unissued plan invented a deficit", g)
 	}
 	// The unissued method settles with the recovery; the renewed
@@ -84,7 +84,7 @@ func TestRoundsUpkeepIssuedWorkCannotRecoverFromTargetDisappearance(t *testing.T
 		t.Fatal("recovery left the unissued method open", p, err)
 	}
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{{ID: "fire", Home: true, Size: domain.Known(.5)}})
-	g = roundsGoal(t, reviewRounds(t, db, &r), policy.MaintainFireSafety)
+	g = roundsStandard(t, reviewRounds(t, db, &r), policy.MaintainFireSafety)
 	if _, err := db.CommitMethod(ctx, g.Standard.ID, g.Revision, "owned-work", plan(t, "p2", "a2")); err != nil {
 		t.Fatal(err)
 	}
@@ -98,14 +98,14 @@ func TestRoundsUpkeepIssuedWorkCannotRecoverFromTargetDisappearance(t *testing.T
 	}
 	r.Tick++
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{})
-	if g = roundsGoal(t, reviewRounds(t, db, &r), policy.MaintainFireSafety); g.Standard.Finding != domain.FindingUnmet {
+	if g = roundsStandard(t, reviewRounds(t, db, &r), policy.MaintainFireSafety); g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal("issued target loss recovered need", g)
 	}
 	r.Enabled = false
 	reviewRounds(t, db, &r)
 	r.Enabled = true
 	for i := 0; i < 2; i++ {
-		if g = roundsGoal(t, reviewRounds(t, db, &r), policy.MaintainFireSafety); g.Standard.Finding != domain.FindingUnmet {
+		if g = roundsStandard(t, reviewRounds(t, db, &r), policy.MaintainFireSafety); g.Standard.Finding != domain.FindingUnmet {
 			t.Fatal("replacement binding lost unresolved work", g)
 		}
 	}
@@ -114,7 +114,7 @@ func TestRoundsUpkeepIssuedWorkCannotRecoverFromTargetDisappearance(t *testing.T
 	}
 	// An applied building closes once the census shows it built.
 	r.Facts.CurrentConstruction = builtCensus(t, "wall")
-	if g = roundsGoal(t, reviewRounds(t, db, &r), policy.MaintainFireSafety); g.Standard.Finding != domain.FindingMet {
+	if g = roundsStandard(t, reviewRounds(t, db, &r), policy.MaintainFireSafety); g.Standard.Finding != domain.FindingMet {
 		t.Fatal(g)
 	}
 }

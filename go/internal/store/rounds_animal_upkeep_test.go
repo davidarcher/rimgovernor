@@ -22,7 +22,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	set(1, false)
 	out := reviewRounds(t, s, &r)
 	for _, id := range []policy.ConcernID{policy.MaintainAnimalContainment} {
-		if g := roundsGoal(t, out, id); g.Standard.Finding != domain.FindingUnmet || g.Standard.Priority != 3 {
+		if g := roundsStandard(t, out, id); g.Standard.Finding != domain.FindingUnmet || g.Standard.Priority != 3 {
 			t.Fatal(g)
 		}
 	}
@@ -31,7 +31,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	// Containment keeps its latch across an unknown census; the feed reserve
 	// has none, so an unread herd ranks as any other unknown optional need.
 	for id, priority := range map[policy.ConcernID]int{policy.MaintainAnimalContainment: 3} {
-		if g := roundsGoal(t, out, id); g.Standard.Finding != domain.FindingUnclear || g.Standard.Priority != priority {
+		if g := roundsStandard(t, out, id); g.Standard.Finding != domain.FindingUnclear || g.Standard.Priority != priority {
 			t.Fatal(g)
 		}
 	}
@@ -49,7 +49,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	r.Enabled = true
 	set(3, true)
 	out = reviewRounds(t, s, &r)
-	if g := roundsGoal(t, out, policy.MaintainAnimalContainment); g.Standard.Finding != domain.FindingMet {
+	if g := roundsStandard(t, out, policy.MaintainAnimalContainment); g.Standard.Finding != domain.FindingMet {
 		t.Fatal(g)
 	}
 }

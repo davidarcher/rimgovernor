@@ -90,8 +90,8 @@ type RoundsPolicy struct {
 	AcquisitionStallTicks int64
 	// ConcernStallTicks bounds how long a goal's progress record may go
 	// without native evidence advancing its expected observable before
-	// ExpireGoalProgress rotates the method (or keys the failed situation
-	// out with a cooldown): GoalProgressContract's default contract and the
+	// ExpireConcernProgress rotates the method (or keys the failed situation
+	// out with a cooldown): ConcernProgressContract's default contract and the
 	// food ladder's rungs (FoodProgress) both use it as their deadline.
 	// StageRoundsPolicy scales it down during StageFoothold
 	// (StageGoalStallScale) so a stuck method rotates in a fraction of a

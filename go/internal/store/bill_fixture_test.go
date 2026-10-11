@@ -52,7 +52,7 @@ func TestBillMethodAcceptsResourceTargetGoal(t *testing.T) {
 	r.Facts.ResourceNeeds = map[policy.Resource]int64{"MeleeWeapon_Club": 3}
 	r.Facts.Resources = domain.Known([]policy.Amount{})
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.MaintainResource)
+	g := roundsStandard(t, out, policy.MaintainResource)
 	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}

@@ -58,7 +58,7 @@ type stage struct {
 	verify  func(ctx context.Context, h *na.Harness, identity, prepared map[string]any, report na.Report) error
 }
 
-// closedGoal is a goal an earlier stage recovered, pinned by identity and
+// closedStandard is a goal an earlier stage recovered, pinned by identity and
 // Episode.
 type closedStandard struct {
 	Stage    string            `json:"stage"`

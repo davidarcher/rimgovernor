@@ -60,7 +60,7 @@ type WatchConfig struct {
 	// na.WorkerOutcome, the row an action's outcome changes on. Until,
 	// FailFast and the checkpoints all see the woken sample.
 	Wake func(na.LogRow) bool
-	// Goal is the maintained goal the timeline samples (default
+	// Concern is the maintained Concern the timeline samples (default
 	// EnsureFoodSupply).
 	Concern policy.ConcernID
 	// Extra are further goals each sample also reads, under the goal id.
@@ -425,9 +425,9 @@ func liveTick(apiCall func(string, string, map[string]any, string) (map[string]a
 	return uint64(tick), true
 }
 
-// SampleGoal reads one maintained goal's current binding (if any) and its
+// SampleStandard reads one maintained goal's current binding (if any) and its
 // committed methods' plan stages, mirroring exactly what a routine planner's
-// step itself reads: review.Goals for the Need, then that goal's
+// step itself reads: review.Standards for the Need, then that Standard's
 // Status/Need/Priority/Methods.
 func SampleStandard(ctx context.Context, s *store.Store, need policy.ConcernID) (map[string]any, error) {
 	sample := map[string]any{"at": time.Now().UTC().Format(time.RFC3339), "method_count": 0}
@@ -526,7 +526,7 @@ func describeMethod(ctx context.Context, s *store.Store, method domain.MethodID,
 	return described
 }
 
-// sampleIncident is SampleGoal for a Response whose occurrences are
+// sampleIncident is SampleStandard for a Response whose occurrences are
 // incidents: the latest occurrence in the review's world, open or
 // closed, with the need the review binds it at and its plans.
 func sampleIncident(ctx context.Context, s *store.Store, review store.Rounds, kind policy.ConcernID, sample map[string]any) (map[string]any, error) {

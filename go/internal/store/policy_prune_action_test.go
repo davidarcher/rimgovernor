@@ -12,7 +12,7 @@ import (
 func TestPolicyPruneActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	var actions []domain.Action
 	for i, db := range []domain.PolicyDatabase{domain.OutfitPolicies, domain.DrugPolicies, domain.FoodPolicies, domain.ReadingPolicies, domain.AllowedAreas} {
 		value, err := domain.NewPolicyPrune(db, []string{"Policy_9", "Policy_2"})

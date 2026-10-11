@@ -26,7 +26,7 @@ func TestRoundsMedicalRestartRecoveryRenewalAndCancellation(t *testing.T) {
 	r.Facts.MedicalReserve = policy.MedicalReserveObservation{Catalog: policy.CoreItemFacts(), Items: domain.Known([]policy.MedicineStack{{ID: "medicine", Definition: "MedicineHerbal", Count: 100, Perishable: domain.Known(false)}}), Resources: domain.Known([]policy.Amount{{Resource: "MedicineHerbal", Count: 100}})}
 	r.Facts.MedicalPawns = domain.Known([]policy.CarePawn{medicalPawn(true)})
 	out := reviewRounds(t, s, &r)
-	initial := roundsGoal(t, out, policy.MaintainMedicalReserves)
+	initial := roundsStandard(t, out, policy.MaintainMedicalReserves)
 	if initial.Standard.Finding != domain.FindingUnmet || initial.Standard.Priority != 2 || initial.Standard.Status != domain.StandardOpen {
 		t.Fatal(initial)
 	}
@@ -40,29 +40,29 @@ func TestRoundsMedicalRestartRecoveryRenewalAndCancellation(t *testing.T) {
 	// A caller-supplied aggregate cannot erase unresolved tracked patients.
 	r.Facts.MedicalCareRecovered = domain.Known(true)
 	out = reviewRounds(t, s, &r)
-	if roundsGoal(t, out, policy.MaintainMedicalReserves).Standard.Finding != domain.FindingUnclear || !reflect.DeepEqual(out.Review.MedicalCare.Unknown, []policy.PawnID{"patient"}) {
+	if roundsStandard(t, out, policy.MaintainMedicalReserves).Standard.Finding != domain.FindingUnclear || !reflect.DeepEqual(out.Review.MedicalCare.Unknown, []policy.PawnID{"patient"}) {
 		t.Fatal(out)
 	}
 	r.Enabled = false
 	out = reviewRounds(t, s, &r)
-	if out.Review.Veto(roundsGoal(t, out, policy.MaintainMedicalReserves).Standard) == "" || len(out.Review.MedicalCare.Unknown) != 1 {
+	if out.Review.Veto(roundsStandard(t, out, policy.MaintainMedicalReserves).Standard) == "" || len(out.Review.MedicalCare.Unknown) != 1 {
 		t.Fatal(out)
 	}
 	r.Enabled = true
 	r.Current.Native++
 	out = reviewRounds(t, s, &r)
-	if roundsGoal(t, out, policy.MaintainMedicalReserves).Standard.Finding != domain.FindingUnclear {
+	if roundsStandard(t, out, policy.MaintainMedicalReserves).Standard.Finding != domain.FindingUnclear {
 		t.Fatal("new direction claimed recovery", out)
 	}
 	r.Facts.MedicalPawns = domain.Known([]policy.CarePawn{medicalPawn(false)})
 	out = reviewRounds(t, s, &r)
-	healed := roundsGoal(t, out, policy.MaintainMedicalReserves)
+	healed := roundsStandard(t, out, policy.MaintainMedicalReserves)
 	if healed.Standard.Finding != domain.FindingMet || healed.Standard.Status != domain.StandardSettled || len(out.Review.MedicalCare.Unknown) != 0 {
 		t.Fatal(healed.Standard, out.Review.Latches.Medical, out.Review.Latches.MedicalReserve)
 	}
 	r.Facts.MedicalPawns = domain.Known([]policy.CarePawn{medicalPawn(true)})
 	out = reviewRounds(t, s, &r)
-	renewed := roundsGoal(t, out, policy.MaintainMedicalReserves)
+	renewed := roundsStandard(t, out, policy.MaintainMedicalReserves)
 	if renewed.Standard.Finding != domain.FindingUnmet || renewed.Standard.Episode <= healed.Standard.Episode {
 		t.Fatal(renewed)
 	}

@@ -11,7 +11,7 @@ import (
 // so a hunt's corpse can be butchered.
 const butcherSpotDefinition = "ButcherSpot"
 
-// foodGoal reports the routine EnsureFoodSupply goal; the routine goal id
+// foodStandard reports the routine EnsureFoodSupply goal; the routine goal id
 // ends in its need.
 func foodConcern(goal StandardState) bool {
 	return goal.Standard.Kind == policy.EnsureFoodSupply

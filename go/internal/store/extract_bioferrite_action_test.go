@@ -11,7 +11,7 @@ import (
 func TestExtractBioferriteSettingRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	on, err := domain.NewExtractBioferriteSetting("entity-3", true)
 	if err != nil {
 		t.Fatal(err)

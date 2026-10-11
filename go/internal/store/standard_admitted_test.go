@@ -17,7 +17,7 @@ func TestLoadGoalAdmittedCountsRetiredMethods(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := foodDeficitRoundsRequest()
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.EnsureFoodSupply)
+	g := roundsStandard(t, out, policy.EnsureFoodSupply)
 	if g.Admitted != 0 || len(g.Methods) != 0 {
 		t.Fatalf("fresh goal: admitted=%d methods=%d", g.Admitted, len(g.Methods))
 	}

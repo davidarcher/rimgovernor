@@ -21,7 +21,7 @@ func TestShelterShortfallAdmitsMaintainResourceUntilSatisfied(t *testing.T) {
 	r.Facts.Colonists, r.Facts.IndoorCapacity, r.Facts.BedCapacity = domain.Known(int64(3)), domain.Known(int64(0)), domain.Known(int64(0))
 	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkPlantCutting: 1, policy.WorkConstruction: 1})
 	first := reviewRounds(t, s, &r)
-	shelter := roundsGoal(t, first, policy.MaintainHousing)
+	shelter := roundsStandard(t, first, policy.MaintainHousing)
 	if shelter.Standard.Status != domain.StandardOpen {
 		t.Fatalf("shelter %+v", shelter.Standard)
 	}
@@ -95,7 +95,7 @@ func TestShelterNonWoodShortfallRaisesResourceFloor(t *testing.T) {
 	r.Facts.Colonists, r.Facts.IndoorCapacity, r.Facts.BedCapacity = domain.Known(int64(3)), domain.Known(int64(0)), domain.Known(int64(0))
 	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkPlantCutting: 1, policy.WorkConstruction: 1})
 	first := reviewRounds(t, s, &r)
-	shelter := roundsGoal(t, first, policy.MaintainHousing)
+	shelter := roundsStandard(t, first, policy.MaintainHousing)
 	req := methodRequest(t, shelter, "shell", 60, 60)
 	req.Purpose = policy.Shelter
 	for i := range req.Previews {

@@ -11,7 +11,7 @@ import (
 func TestEatTriggerSettingRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	lowered, err := domain.NewEatTriggerSetting("Human3", 0.125)
 	if err != nil {
 		t.Fatal(err)

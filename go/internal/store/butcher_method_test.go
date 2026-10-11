@@ -36,7 +36,7 @@ func TestCommitButcherSpotExemptFromFieldAndAcquisitionOpenWork(t *testing.T) {
 	r := foodDeficitRoundsRequest()
 	tick := r.Tick
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.EnsureFoodSupply)
+	g := roundsStandard(t, out, policy.EnsureFoodSupply)
 	g, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "butcher-spot", butcherSpotPlan(t, "spot-plan-1"))
 	if err != nil {
 		t.Fatal(err)
@@ -85,7 +85,7 @@ func TestCommitButcherSpotOverOpenFieldWork(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := foodDeficitRoundsRequest()
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.EnsureFoodSupply)
+	g := roundsStandard(t, out, policy.EnsureFoodSupply)
 	g, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "field-1", growingPlan(t, "field-plan-1", []domain.Cell{{X: 0, Z: 0}}))
 	if err != nil {
 		t.Fatal(err)
@@ -105,7 +105,7 @@ func TestCommitHuntOverOpenForage(t *testing.T) {
 	r := foodDeficitRoundsRequest()
 	tick := r.Tick
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.EnsureFoodSupply)
+	g := roundsStandard(t, out, policy.EnsureFoodSupply)
 	g, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "acquire-1", acquisitionPlan(t, "acquire-plan-1", "RawBerries"))
 	if err != nil {
 		t.Fatal(err)

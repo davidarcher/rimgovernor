@@ -22,13 +22,13 @@ func TestExpansionDurableRenewalAndUnknown(t *testing.T) {
 	r.Facts.Wood = domain.Known(int64(500))
 	r.Facts.Sleeping = housedSleeping(3)
 	out := reviewRounds(t, s, &r)
-	first := roundsGoal(t, out, policy.MaintainHousing)
+	first := roundsStandard(t, out, policy.MaintainHousing)
 	if first.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(out)
 	}
 	r.Facts.IndoorCapacity = domain.Unknown[int64]()
 	out = reviewRounds(t, s, &r)
-	if g := roundsGoal(t, out, policy.MaintainHousing); g.Standard.Finding != domain.FindingUnclear || g.Standard.Episode != first.Standard.Episode {
+	if g := roundsStandard(t, out, policy.MaintainHousing); g.Standard.Finding != domain.FindingUnclear || g.Standard.Episode != first.Standard.Episode {
 		t.Fatal(g)
 	}
 	r.Enabled = false
@@ -45,15 +45,15 @@ func TestExpansionDurableRenewalAndUnknown(t *testing.T) {
 	r.Enabled = true
 	r.Facts.IndoorCapacity = domain.Known(int64(4))
 	out = reviewRounds(t, s, &r)
-	if g := roundsGoal(t, out, policy.MaintainHousing); g.Standard.Finding != domain.FindingMet {
+	if g := roundsStandard(t, out, policy.MaintainHousing); g.Standard.Finding != domain.FindingMet {
 		t.Fatal(g)
 	}
-	recovered := roundsGoal(t, out, policy.MaintainHousing)
+	recovered := roundsStandard(t, out, policy.MaintainHousing)
 	r.Facts.Colonists = domain.Known(int64(4))
 	r.Facts.BedCapacity = domain.Known(int64(4))
 	r.Facts.Sleeping = housedSleeping(4)
 	out = reviewRounds(t, s, &r)
-	if g := roundsGoal(t, out, policy.MaintainHousing); g.Standard.Finding != domain.FindingUnmet || g.Standard.Episode <= recovered.Standard.Episode {
+	if g := roundsStandard(t, out, policy.MaintainHousing); g.Standard.Finding != domain.FindingUnmet || g.Standard.Episode <= recovered.Standard.Episode {
 		t.Fatal(g, recovered)
 	}
 }
@@ -82,13 +82,13 @@ func TestRoundsCapabilitiesPreserveCommittedExpansion(t *testing.T) {
 	r.Facts.IndoorCapacity = domain.Known(int64(3))
 	r.Facts.AvailableMethods = domain.Known([]policy.ConcernID{policy.MaintainHousing})
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.MaintainHousing)
+	g := roundsStandard(t, out, policy.MaintainHousing)
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "expansion", plan(t, "expansion", "additional-place")); err != nil {
 		t.Fatal(err)
 	}
 	r.Facts.AvailableMethods = domain.Known([]policy.ConcernID{})
 	out = reviewRounds(t, s, &r)
-	if got := roundsGoal(t, out, policy.MaintainHousing); got.Standard.Finding != domain.FindingUnmet || len(got.Methods) != 1 {
+	if got := roundsStandard(t, out, policy.MaintainHousing); got.Standard.Finding != domain.FindingUnmet || len(got.Methods) != 1 {
 		t.Fatal(got)
 	}
 }

@@ -36,7 +36,7 @@ func ColonyWindow() uint64 {
 	return ColonyWindowTicks
 }
 
-// ColonyGoals are the goals every colony sample reads beside
+// ColonyConcerns are the Concerns every colony sample reads beside
 // EnsureFoodSupply: the foothold gates and the first maintenance-tier
 // projects, so the timeline shows which one stalls, thrashes or starves the
 // others.

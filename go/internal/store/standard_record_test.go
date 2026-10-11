@@ -16,7 +16,7 @@ import (
 func TestGoalRecordRidesTheGoalBlobAndRebuilds(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, _, g := goalFixture(t)
+	s, _, g := standardFixture(t)
 	recorded, err := s.RecordStandard(ctx, g.Standard.ID, g.Revision, `{"k":1}`)
 	if err != nil || recorded.Standard.Record != `{"k":1}` || recorded.Revision != g.Revision+1 {
 		t.Fatal(recorded, err)

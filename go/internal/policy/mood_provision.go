@@ -90,7 +90,7 @@ func moodProvisioning(f domain.Fact[[]MoodThought]) []MoodProvision {
 		return nil
 	}
 	total, owned := 0.0, 0.0
-	byGoal := map[ConcernID]float64{}
+	byConcern := map[ConcernID]float64{}
 	for _, t := range rows {
 		if t.Offset >= 0 {
 			continue
@@ -101,14 +101,14 @@ func moodProvisioning(f domain.Fact[[]MoodThought]) []MoodProvision {
 			owned += t.Offset
 		}
 		for _, goal := range owners {
-			byGoal[goal] += t.Offset
+			byConcern[goal] += t.Offset
 		}
 	}
 	if owned >= 0 || owned > total/2 {
 		return nil
 	}
 	var result []MoodProvision
-	for goal, offset := range byGoal {
+	for goal, offset := range byConcern {
 		result = append(result, MoodProvision{goal, offset})
 	}
 	sort.Slice(result, func(i, j int) bool {
@@ -146,17 +146,17 @@ func MoodProvisionDeficits(census []MoodPawn, ledger MoodLedger) map[ConcernID]f
 			continue
 		}
 		total := 0.0
-		byGoal := map[ConcernID]float64{}
+		byConcern := map[ConcernID]float64{}
 		for _, t := range lost {
 			total += t.Offset
 			for _, goal := range thoughtOwners(t.Def) {
-				byGoal[goal] += t.Offset
+				byConcern[goal] += t.Offset
 			}
 		}
 		if total >= 0 {
 			continue
 		}
-		for goal, offset := range byGoal {
+		for goal, offset := range byConcern {
 			weights[goal] += offset / total
 		}
 	}

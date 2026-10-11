@@ -14,13 +14,13 @@ func TestClearanceIssuedWorkRecoveryAndManual(t *testing.T) {
 	ctx := context.Background()
 	r := roundsRequest()
 	r.Facts.Upkeep.Clearance = domain.Known([]policy.ClearanceTarget{{EntityID: "ruin", DefName: "Wall", InHome: true, Deconstructible: true, Salvage: &policy.SalvageEvidence{Safe: domain.Known(true)}}})
-	g := roundsGoal(t, reviewRounds(t, db, &r), policy.ClearHomeObstructions)
+	g := roundsStandard(t, reviewRounds(t, db, &r), policy.ClearHomeObstructions)
 	// Shared journal semantics do not depend on the future upkeep action family.
 	if _, err := db.CommitMethod(ctx, g.Standard.ID, g.Revision, "owned-work", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}
 	r.Facts.Upkeep.Clearance = domain.Known([]policy.ClearanceTarget{})
-	if g = roundsGoal(t, reviewRounds(t, db, &r), policy.ClearHomeObstructions); g.Standard.Finding != domain.FindingMet || g.Standard.Status != domain.StandardSettled {
+	if g = roundsStandard(t, reviewRounds(t, db, &r), policy.ClearHomeObstructions); g.Standard.Finding != domain.FindingMet || g.Standard.Status != domain.StandardSettled {
 		t.Fatal("unissued plan invented a deficit", g)
 	}
 	// The unissued method settles with the recovery; the renewed
@@ -29,7 +29,7 @@ func TestClearanceIssuedWorkRecoveryAndManual(t *testing.T) {
 		t.Fatal("recovery left the unissued method open", p, err)
 	}
 	r.Facts.Upkeep.Clearance = domain.Known([]policy.ClearanceTarget{{EntityID: "ruin", DefName: "Wall", InHome: true, Deconstructible: true, Salvage: &policy.SalvageEvidence{Safe: domain.Known(true)}}})
-	g = roundsGoal(t, reviewRounds(t, db, &r), policy.ClearHomeObstructions)
+	g = roundsStandard(t, reviewRounds(t, db, &r), policy.ClearHomeObstructions)
 	if _, err := db.CommitMethod(ctx, g.Standard.ID, g.Revision, "owned-work", plan(t, "p2", "a2")); err != nil {
 		t.Fatal(err)
 	}
@@ -43,14 +43,14 @@ func TestClearanceIssuedWorkRecoveryAndManual(t *testing.T) {
 	}
 	r.Tick++
 	r.Facts.Upkeep.Clearance = domain.Known([]policy.ClearanceTarget{})
-	if g = roundsGoal(t, reviewRounds(t, db, &r), policy.ClearHomeObstructions); g.Standard.Finding != domain.FindingUnmet {
+	if g = roundsStandard(t, reviewRounds(t, db, &r), policy.ClearHomeObstructions); g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal("issued target loss recovered need", g)
 	}
 	r.Enabled = false
 	reviewRounds(t, db, &r)
 	r.Enabled = true
 	for i := 0; i < 2; i++ {
-		if g = roundsGoal(t, reviewRounds(t, db, &r), policy.ClearHomeObstructions); g.Standard.Finding != domain.FindingUnmet {
+		if g = roundsStandard(t, reviewRounds(t, db, &r), policy.ClearHomeObstructions); g.Standard.Finding != domain.FindingUnmet {
 			t.Fatal("replacement binding lost unresolved work", g)
 		}
 	}
@@ -59,7 +59,7 @@ func TestClearanceIssuedWorkRecoveryAndManual(t *testing.T) {
 	}
 	// An applied building closes once the census shows it built.
 	r.Facts.CurrentConstruction = builtCensus(t, "wall")
-	if g = roundsGoal(t, reviewRounds(t, db, &r), policy.ClearHomeObstructions); g.Standard.Finding != domain.FindingMet {
+	if g = roundsStandard(t, reviewRounds(t, db, &r), policy.ClearHomeObstructions); g.Standard.Finding != domain.FindingMet {
 		t.Fatal(g)
 	}
 }

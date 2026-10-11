@@ -6,7 +6,7 @@
 // campaign/recovery) share one shape: launch rimgovernor serve over the tribal8 baseline, watch a
 // tick-measured phase, stop, inject the next disturbance through a fixture
 // op, relaunch. Every assertion is native end state or an advancing
-// GoalProgress record, never a plan count.
+// ConcernProgress record, never a plan count.
 //
 // The player control path is Ultrafast under the player pacing.
 package campaign
@@ -270,7 +270,7 @@ func (c *campaign) play(ctx context.Context, label string, opts playOptions) (*p
 	return p, nil
 }
 
-// progressRecord is one concern's GoalProgress record as /api/routines
+// progressRecord is one concern's ConcernProgress record as /api/routines
 // renders it.
 type progressRecord struct {
 	Concern      string `json:"concern"`

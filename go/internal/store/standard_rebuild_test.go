@@ -15,7 +15,7 @@ import (
 func TestRebuildStandardsHandsOldPlansToOrphanPass(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, _, g := goalFixture(t)
+	s, _, g := standardFixture(t)
 	id := domain.MintPlanID()
 	g, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, id, domain.ActionID(id+"-0")))
 	if err != nil {

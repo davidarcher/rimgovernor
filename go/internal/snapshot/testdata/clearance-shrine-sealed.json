@@ -12329,7 +12329,7 @@
     {
      "Count": 7,
      "Concern": "ClearAncientShrine",
-     "Reason": "per_goal_bound"
+     "Reason": "per_standard_bound"
     }
    ],
    "Load": "d4ee1d5f39c64dde89d67810e2569acf",

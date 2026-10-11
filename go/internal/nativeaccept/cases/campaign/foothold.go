@@ -16,7 +16,7 @@ func init() {
 	cases.Register(foothold())
 }
 
-// campaignGoals are the goals every campaign sample reads beside
+// campaignConcerns are the Concerns every campaign sample reads beside
 // EnsureFoodSupply: the foothold gates and the wood stock the recovery
 // campaign breaches.
 var campaignConcerns = []policy.ConcernID{

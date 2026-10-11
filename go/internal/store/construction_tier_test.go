@@ -9,7 +9,7 @@ import (
 
 func TestConstructionTierJournalRoundTripAndCanonicalForm(t *testing.T) {
 	ctx := context.Background()
-	s, path, _ := goalFixture(t)
+	s, path, _ := standardFixture(t)
 	b, _ := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 4}, domain.North, "WoodLog")
 	placed, _ := domain.NewBuildingAction("placed", b, domain.TierExpand)
 	placed, err := placed.WithTier(domain.TierSurvive, "")

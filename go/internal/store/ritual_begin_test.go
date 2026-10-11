@@ -12,7 +12,7 @@ import (
 func TestRitualBeginActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	value, err := domain.NewRitualBegin("guide", "Precept_12", domain.Cell{X: 40, Z: 41},
 		[]domain.RitualSlot{{Slot: "moralist", Pawns: []domain.PawnID{"guide"}}, {Slot: "candidate", Pawns: []domain.PawnID{"a", "b"}}}, []domain.PawnID{"s1"})
 	if err != nil {

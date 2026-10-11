@@ -19,7 +19,7 @@ func TestCommitSurgeryPartBillMethod(t *testing.T) {
 		SuccessChance: domain.Known(0.9), EligibleDoctors: domain.Known(1), IngredientsOnMap: domain.Known(true), Violation: domain.Known(false), Lethal: domain.Known(false)}
 	r.Facts.MedicalPawns = domain.Known([]policy.CarePawn{{ID: "patient", Dead: domain.Known(false), QueuedSurgeries: domain.Known(0), Operations: domain.Known([]policy.SurgeryOperation{op})}})
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.MaintainSurgery)
+	g := roundsStandard(t, out, policy.MaintainSurgery)
 	bill, err := domain.NewProductionBill("bench", "Make_Prosthetic", domain.GearBatch, 1)
 	if err != nil {
 		t.Fatal(err)

@@ -18,7 +18,7 @@ func TestLarderSupplyAdmissionRequiresReviewedCorpseAndDirection(t *testing.T) {
 			r.Facts.FoodStorageUpkeep = policy.FoodStorageStocks(policy.FoodSupply{Stocks: []policy.FoodStock{stock}}, 10)
 			r.Facts.FoodStorageUpkeep.Larder = domain.Known(policy.FoodLarder{CookDemandNutrition: .5, Corpses: []policy.CorpseHandling{{ID: stock.ID, Cell: cell}}})
 			review := reviewRounds(t, s, &r)
-			goal := roundsGoal(t, review, policy.MaintainFoodStorage)
+			goal := roundsStandard(t, review, policy.MaintainFoodStorage)
 			id := stock.ID
 			if change == "other-corpse" {
 				id = "other"

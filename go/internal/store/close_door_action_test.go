@@ -12,7 +12,7 @@ func TestDoorControlActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	for _, held := range []bool{false, true} {
 		ctx := context.Background()
-		s, path, g := goalFixture(t)
+		s, path, g := standardFixture(t)
 		want, err := domain.NewDoorControl(domain.Cell{X: 12, Z: 31}, held)
 		if err != nil {
 			t.Fatal(err)

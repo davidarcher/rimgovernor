@@ -16,7 +16,7 @@ func TestRoundsExecutionRequiresCurrentReviewedMethod(t *testing.T) {
 			s := open(t, memoryPath(t))
 			r := roundsRequest()
 			r.Current.Native = 2
-			g := roundsGoal(t, reviewRounds(t, s, &r), policy.MaintainResource)
+			g := roundsStandard(t, reviewRounds(t, s, &r), policy.MaintainResource)
 			q := methodRequest(t, g, "method", 10)
 			d, err := s.AdmitBuildingMethod(ctx, q)
 			if err != nil || !d.Admitted {
@@ -62,7 +62,7 @@ func TestRoundsExecutionRecoveredBillNeedPermitsPendingOutputOnly(t *testing.T) 
 	r.Facts.Cooking = domain.Known(false)
 	tick := r.Tick
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.EnsureCooking)
+	g := roundsStandard(t, out, policy.EnsureCooking)
 	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
@@ -91,7 +91,7 @@ func TestRoundsExecutionRecoveredBillNeedPermitsPendingOutputOnly(t *testing.T) 
 	}
 	r.Facts.Cooking = domain.Known(true)
 	out = reviewRounds(t, s, &r)
-	g = roundsGoal(t, out, policy.EnsureCooking)
+	g = roundsStandard(t, out, policy.EnsureCooking)
 	if g.Standard.Finding != domain.FindingMet || g.Standard.Status != domain.StandardOpen {
 		t.Fatal(g)
 	}
@@ -112,7 +112,7 @@ func TestRoundsExecutionRecoveredBillNeedRefusesOnceResolved(t *testing.T) {
 	r.Facts.Cooking = domain.Known(false)
 	tick := r.Tick
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.EnsureCooking)
+	g := roundsStandard(t, out, policy.EnsureCooking)
 	bill, err := domain.NewProductionBill("bench", "recipe", domain.FoodTarget, 10)
 	if err != nil {
 		t.Fatal(err)
@@ -141,7 +141,7 @@ func TestRoundsExecutionRecoveredBillNeedRefusesOnceResolved(t *testing.T) {
 	}
 	r.Facts.Cooking = domain.Known(true)
 	out = reviewRounds(t, s, &r)
-	g = roundsGoal(t, out, policy.EnsureCooking)
+	g = roundsStandard(t, out, policy.EnsureCooking)
 	if g.Standard.Finding != domain.FindingMet || g.Standard.Status != domain.StandardSettled {
 		t.Fatal(g)
 	}
@@ -162,7 +162,7 @@ func TestRoundsExecutionRecoveredBillNeedRefusesUndispatchedSibling(t *testing.T
 	r.Facts.Cooking = domain.Known(false)
 	tick := r.Tick
 	out := reviewRounds(t, s, &r)
-	g := roundsGoal(t, out, policy.EnsureCooking)
+	g := roundsStandard(t, out, policy.EnsureCooking)
 	bill1, err := domain.NewProductionBill("bench1", "recipe1", domain.FoodTarget, 10)
 	if err != nil {
 		t.Fatal(err)
@@ -197,7 +197,7 @@ func TestRoundsExecutionRecoveredBillNeedRefusesUndispatchedSibling(t *testing.T
 	// bill2 is deliberately left Pending: never prepared or dispatched.
 	r.Facts.Cooking = domain.Known(true)
 	out = reviewRounds(t, s, &r)
-	g = roundsGoal(t, out, policy.EnsureCooking)
+	g = roundsStandard(t, out, policy.EnsureCooking)
 	if g.Standard.Finding != domain.FindingMet || g.Standard.Status != domain.StandardOpen {
 		t.Fatal(g)
 	}
@@ -302,7 +302,7 @@ func TestRoundsRecoverySettlesUndispatchedMethod(t *testing.T) {
 	r.Current.Native = 2
 	r.Facts.Cooking = domain.Known(false)
 	tick := r.Tick
-	g := roundsGoal(t, reviewRounds(t, s, &r), policy.EnsureCooking)
+	g := roundsStandard(t, reviewRounds(t, s, &r), policy.EnsureCooking)
 	bill, err := domain.NewProductionBill("bench", "recipe", domain.FoodTarget, 10)
 	if err != nil {
 		t.Fatal(err)
@@ -327,7 +327,7 @@ func TestRoundsRecoverySettlesUndispatchedMethod(t *testing.T) {
 		t.Fatal(p, err)
 	}
 	r.Facts.Cooking = domain.Known(true)
-	g = roundsGoal(t, reviewRounds(t, s, &r), policy.EnsureCooking)
+	g = roundsStandard(t, reviewRounds(t, s, &r), policy.EnsureCooking)
 	if g.Standard.Finding != domain.FindingMet || g.Standard.Status != domain.StandardSettled {
 		t.Fatal("recovered goal kept its undispatched method open", g.Standard)
 	}
@@ -370,7 +370,7 @@ func TestRoundsExecutionAuthorizesWallRemovalBundle(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := roundsRequest()
 	r.Current.Native = 2
-	g := roundsGoal(t, reviewRounds(t, s, &r), policy.MaintainResource)
+	g := roundsStandard(t, reviewRounds(t, s, &r), policy.MaintainResource)
 	removal, err := domain.NewWallRemoval("original-wall", "", domain.Cell{X: 0, Z: 1})
 	if err != nil {
 		t.Fatal(err)

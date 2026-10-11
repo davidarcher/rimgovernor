@@ -28,7 +28,7 @@ func TestRoundsUndeclaredFireEmergencyKeepsMethodsAuthorized(t *testing.T) {
 		r.Facts.PowerRequired = domain.Known(true)
 		r.Facts.PowerHeadroom = domain.Known(-100.0)
 		r.Facts.DisabledConsumers = domain.Known(false)
-		g := roundsGoal(t, reviewRounds(t, s, &r), policy.EnsureBasicPower)
+		g := roundsStandard(t, reviewRounds(t, s, &r), policy.EnsureBasicPower)
 		if g.Standard.Finding != domain.FindingUnmet || g.Standard.Status != domain.StandardOpen {
 			t.Fatal(declared, g)
 		}
@@ -49,14 +49,14 @@ func TestRoundsUndeclaredFireEmergencyKeepsMethodsAuthorized(t *testing.T) {
 		r.Current.Native++
 		r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{{ID: "fire", Home: true, Size: domain.Known(.5)}})
 		out := reviewRounds(t, s, &r)
-		fire := roundsGoal(t, out, policy.MaintainFireSafety)
+		fire := roundsStandard(t, out, policy.MaintainFireSafety)
 		if fire.Standard.Priority != 1 || fire.Standard.Finding != domain.FindingUnmet {
 			t.Fatal("fire need not recorded", declared, fire)
 		}
 		target := q.Current
 		target.Native = r.Current.Native
 		err = s.AuthorizeRoundsPlan(ctx, r.Current, target)
-		power := roundsGoal(t, out, policy.EnsureBasicPower)
+		power := roundsStandard(t, out, policy.EnsureBasicPower)
 		if declared {
 			if len(out.Emergency) != 1 || out.Review.Veto(power.Standard) != "" || err != nil {
 				t.Fatal("declared fire blocked ordinary power work", out.Emergency, power, err)

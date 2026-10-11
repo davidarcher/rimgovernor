@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func goalFixture(t *testing.T) (*Store, string, StandardState) {
+func standardFixture(t *testing.T) (*Store, string, StandardState) {
 	t.Helper()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "goals.db")
@@ -32,7 +32,7 @@ func goalFixture(t *testing.T) (*Store, string, StandardState) {
 func TestMethodAtomicCommitReopenAndDuplicate(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	p := plan(t, "method-plan", "method-action")
 	g, e := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "shell", p)
 	if e != nil {
@@ -66,7 +66,7 @@ func TestMethodAtomicCommitReopenAndDuplicate(t *testing.T) {
 func TestGoalInvalidationRetainsIssuedUncertainty(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, _, g := goalFixture(t)
+	s, _, g := standardFixture(t)
 	p := plan(t, "p", "issued", "waiting")
 	g, e := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "shell", p)
 	if e != nil {
@@ -99,7 +99,7 @@ func TestGoalInvalidationRetainsIssuedUncertainty(t *testing.T) {
 func TestGoalObservedRecoveryThenRenewalKeepsOldPlan(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, _, g := goalFixture(t)
+	s, _, g := standardFixture(t)
 	g, e := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, "p", "a"))
 	if e != nil {
 		t.Fatal(e)
@@ -143,7 +143,7 @@ func TestGoalObservedRecoveryThenRenewalKeepsOldPlan(t *testing.T) {
 func TestGoalWorldInvalidationCancelsPendingPlan(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, _, g := goalFixture(t)
+	s, _, g := standardFixture(t)
 	g, e := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, "p", "a"))
 	if e != nil {
 		t.Fatal(e)
@@ -172,7 +172,7 @@ func TestGoalWorldInvalidationCancelsPendingPlan(t *testing.T) {
 func TestGoalDuplicateMethodRollsBackPlanAfterTerminalWork(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, _, g := goalFixture(t)
+	s, _, g := standardFixture(t)
 	g, e := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, "p", "a"))
 	if e != nil {
 		t.Fatal(e)
@@ -195,7 +195,7 @@ func TestGoalDuplicateMethodRollsBackPlanAfterTerminalWork(t *testing.T) {
 func TestGoalInvalidationRollbackDoesNotPartiallyCancelActions(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, _, g := goalFixture(t)
+	s, _, g := standardFixture(t)
 	g, e := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, "p", "a", "b"))
 	if e != nil {
 		t.Fatal(e)
@@ -225,7 +225,7 @@ func TestGoalInvalidationRollbackDoesNotPartiallyCancelActions(t *testing.T) {
 func TestGoalCorruptPayloadNeverAdmitsMethods(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, _, g := goalFixture(t)
+	s, _, g := standardFixture(t)
 	if _, e := s.db.ExecContext(ctx, "UPDATE standards SET payload=? WHERE id=?", []byte(`{"ID":"routine-0000000000000000-MaintainHousing-0"}`), g.Standard.ID); e != nil {
 		t.Fatal(e)
 	}
@@ -240,7 +240,7 @@ func TestGoalCorruptPayloadNeverAdmitsMethods(t *testing.T) {
 func TestGoalUnknownReviewGuardsEveryPreparationPath(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, _, g := goalFixture(t)
+	s, _, g := standardFixture(t)
 	g, e := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, "p", "a"))
 	if e != nil {
 		t.Fatal(e)
@@ -264,7 +264,7 @@ func TestGoalUnknownReviewGuardsEveryPreparationPath(t *testing.T) {
 func TestGoalRecoveredNeedFinishesAcceptedMethodWithoutStartingAnother(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, _, g := goalFixture(t)
+	s, _, g := standardFixture(t)
 	g, e := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, "p", "a"))
 	if e != nil {
 		t.Fatal(e)

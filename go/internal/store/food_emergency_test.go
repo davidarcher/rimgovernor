@@ -20,7 +20,7 @@ func TestFoodFacilityAdmittedDuringEmergency(t *testing.T) {
 	if len(out.Review.Emergency) == 0 {
 		t.Fatal("hostiles raised no emergency")
 	}
-	g := roundsGoal(t, out, policy.EnsureFoodSupply)
+	g := roundsStandard(t, out, policy.EnsureFoodSupply)
 	if _, workable, err := s.Workable(ctx, out.Review, policy.EnsureFoodSupply); err != nil || !workable {
 		t.Fatal("food is workable under an emergency", workable, err)
 	}

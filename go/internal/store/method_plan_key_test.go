@@ -14,7 +14,7 @@ import (
 func TestMethodPlanKey(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, _, g := goalFixture(t)
+	s, _, g := standardFixture(t)
 	first := domain.MintPlanID()
 	g, e := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, first, domain.ActionID(first+"-0")))
 	if e != nil {

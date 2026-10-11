@@ -11,7 +11,7 @@ import (
 func TestGatheringActionRoundTripsAndIsRoutineSupported(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, path, g := goalFixture(t)
+	s, path, g := standardFixture(t)
 	want, err := domain.NewGathering("Party", "Human12")
 	if err != nil {
 		t.Fatal(err)

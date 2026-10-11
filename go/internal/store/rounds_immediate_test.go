@@ -15,7 +15,7 @@ func TestImmediateRoundsPreserveOrdinaryStateAndTimestamps(t *testing.T) {
 	s := open(t, path)
 	r := recoveryRequest()
 	before := reviewRounds(t, s, &r)
-	g := roundsGoal(t, before, policy.MaintainResource)
+	g := roundsStandard(t, before, policy.MaintainResource)
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "wood-plan", "wood-action")); err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +105,7 @@ func TestImmediateRoundsKeepWorldRewindAndPauseInvariants(t *testing.T) {
 			s := open(t, memoryPath(t))
 			r := roundsRequest()
 			before := reviewRounds(t, s, &r)
-			g := roundsGoal(t, before, policy.MaintainResource)
+			g := roundsStandard(t, before, policy.MaintainResource)
 			if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "wood-plan", "wood-action")); err != nil {
 				t.Fatal(err)
 			}

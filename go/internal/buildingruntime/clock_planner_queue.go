@@ -338,7 +338,7 @@ func openWorkOfKinds(plans []store.PlanState, kinds []domain.ActionKind) []domai
 	return out
 }
 
-// progressOpen is domain.GoalWorkOpen for one progress row.
+// progressOpen is domain.StandardWorkOpen for one progress row.
 func progressOpen(progress domain.Progress) bool {
 	return domain.StandardWorkOpen([]domain.Progress{progress})
 }

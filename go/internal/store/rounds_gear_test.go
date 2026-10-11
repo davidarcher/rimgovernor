@@ -27,7 +27,7 @@ func TestGearParallelAdmissionBoundsAndClaims(t *testing.T) {
 	r := roundsRequest()
 	r.Policy.Stage.Floor = policy.StageDevelopment
 	r.Facts.Gear = domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{gearDeficitPawn("a")}})
-	g := roundsGoal(t, reviewRounds(t, db, &r), policy.MaintainEquipment)
+	g := roundsStandard(t, reviewRounds(t, db, &r), policy.MaintainEquipment)
 	admit := func(index int, pawn domain.PawnID, item string) error {
 		gear, err := domain.NewGearReplace(pawn, item, "Parka")
 		if err != nil {
@@ -73,7 +73,7 @@ func TestRoundsGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 	gear := policy.GearObservation{Pawns: []policy.GearPawn{gearDeficitPawn("pawn")}}
 	r.Facts.Gear = domain.Known(gear)
 	out := reviewRounds(t, db, &r)
-	g := roundsGoal(t, out, policy.MaintainEquipment)
+	g := roundsStandard(t, out, policy.MaintainEquipment)
 	if g.Standard.Finding != domain.FindingUnmet || g.Standard.Priority != 3 {
 		t.Fatal(g)
 	}
@@ -81,18 +81,18 @@ func TestRoundsGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 	db.Close()
 	db = open(t, path)
 	r.Facts.Gear = domain.Unknown[policy.GearObservation]()
-	g = roundsGoal(t, reviewRounds(t, db, &r), policy.MaintainEquipment)
+	g = roundsStandard(t, reviewRounds(t, db, &r), policy.MaintainEquipment)
 	if g.Standard.Finding != domain.FindingUnclear || g.Standard.Episode != epoch {
 		t.Fatal("missing census recovered or renewed need", g)
 	}
 	gear.Pawns[0] = gearRecoveredPawn("pawn")
 	r.Facts.Gear = domain.Known(gear)
-	g = roundsGoal(t, reviewRounds(t, db, &r), policy.MaintainEquipment)
+	g = roundsStandard(t, reviewRounds(t, db, &r), policy.MaintainEquipment)
 	if g.Standard.Status != domain.StandardSettled {
 		t.Fatal(g)
 	}
 	gear.Pawns[0] = gearDeficitPawn("pawn")
-	g = roundsGoal(t, reviewRounds(t, db, &r), policy.MaintainEquipment)
+	g = roundsStandard(t, reviewRounds(t, db, &r), policy.MaintainEquipment)
 	if g.Standard.Finding != domain.FindingUnmet || g.Standard.Episode <= epoch {
 		t.Fatal("a new model gap did not reopen equipment need", g)
 	}

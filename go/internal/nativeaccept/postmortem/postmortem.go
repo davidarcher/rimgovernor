@@ -572,7 +572,7 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 			s.Lines = append(s.Lines, Line{Text: text, Evidence: "service.sqlite rounds"})
 		}
 	}
-	// Goals in deficit that development selected (or never ranked) with no
+	// Standards in deficit that development selected (or never ranked) with no
 	// live method: the "zero methods" symptom the rows above do not explain.
 	rows, err := db.QueryContext(ctx, "SELECT g.id, g.payload, (SELECT count(*) FROM standard_methods m JOIN plans p ON p.id=m.plan_id WHERE m.standard_id=g.id AND p.retired=0) FROM standards g WHERE g.retired=0")
 	if err != nil {

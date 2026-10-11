@@ -15,7 +15,7 @@ func TestTradeParticipantJournalRoundTrip(t *testing.T) {
 	} {
 		t.Run(string(participant.Kind), func(t *testing.T) {
 			ctx := context.Background()
-			s, path, g := goalFixture(t)
+			s, path, g := standardFixture(t)
 			trade, err := domain.NewTradeOpen("seller", "negotiator", false)
 			if err != nil {
 				t.Fatal(err)
