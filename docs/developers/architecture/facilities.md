@@ -78,6 +78,21 @@ auto-roof roofs the enclosed vestibule. It is sited where the ground has room
 for it and omitted otherwise (a shelter packed onto a hallway slot has none).
 A second wall layer is not built.
 
+### Station catalog
+
+`DefinitionCatalog.StationCatalog()` (`policy.StationCatalog`) lists the
+buildable stations the planner places: beds, work tables, storage, tables,
+joy and ritual furniture, wall-bound buildings. Each `Station` carries the
+`PieceShapes` shape, floor or wall `Access`, `Contributions` (what
+`RoomRoleWorker.GetScoreDeltaIfBuildingPlaced` adds per building, with the
+`RoleCondition` for instance state such as a medical or prisoner bed),
+`Capacity` (sleepers, stored stacks, or one worker with each recipe's work
+amount), `Needs` and the defining `Content` package. Membership, capacity and
+needs are read from defs, stat parts, place workers and game constants; the
+role weights are literals in the game's role workers, so they are the
+`roomRoleScores` entry in `DefTables` (keyed by `RoomRoleDef`). The rot curve
+and the throne's indoor rule are code, not data, and are not stated.
+
 ## Electrical safety
 
 `EnsureBasicPower` uses `HiddenConduit` for new connections and replaces ordinary

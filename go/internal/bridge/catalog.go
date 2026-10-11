@@ -87,6 +87,10 @@ type DefinitionCatalog struct {
 	shapesOnce sync.Once
 	shapes     policy.PieceShapes
 	shapesErr  error
+	// stations is StationCatalog, built once on first use.
+	stationsOnce sync.Once
+	stations     policy.StationCatalog
+	stationsErr  error
 	// races is the animal race catalog, built once on first use (catalog_races.go).
 	racesOnce sync.Once
 	races     policy.AnimalRaceCatalog

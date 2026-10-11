@@ -33,6 +33,8 @@ func DefTables() []DefTable {
 		{"traitThoughts", "RimWorld.ThoughtDef", slices.Clone(traitThoughts)},
 		{"suitePressureThoughts", "RimWorld.ThoughtDef", sortedKeys(suitePressureThoughts)},
 		{"GameRoomRoleDefs", "Verse.ThingDef", sortedKeys(GameRoomRoleDefs)},
+		{"roomRoleScores", "Verse.RoomRoleDef", roomRoleScoreRoles()},
+		{"RoomRoleNamedDefs", "Verse.ThingDef", sortedKeys(RoomRoleNamedDefs)},
 		{"NonFleshMeatDefs", "Verse.ThingDef", slices.Clone(NonFleshMeatDefs)},
 		{"MortarProbeShells", "Verse.ThingDef", slices.Clone(MortarProbeShells)},
 		{"QuestGiftDefs", "Verse.ThingDef", slices.Clone(QuestGiftDefs)},
