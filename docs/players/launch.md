@@ -43,7 +43,7 @@ one it lacks.
 **Scenario parts** (collapsed, below Advanced) layers parts on the base
 scenario, as the game's scenario editor does: starting things (def, count,
 start with, start near or scattered), forced traits and hediffs (chance and who
-they apply to), permanent game and map conditions, disallowed buildings,
+they apply to), permanent game conditions, disallowed buildings,
 disabled incidents, and overrides for the player faction and arrival method.
 Colonists sets the pawn count. Inputs suggest common Core defs but take any
 defName; the game refuses an unknown one. The launcher refuses out-of-range or

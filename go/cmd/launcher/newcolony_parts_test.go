@@ -30,7 +30,6 @@ func partsSpec() NewColonySpec {
 	*s.ForcedTraits[0].Degree = 2
 	s.ForcedHediffs = []httpapi.ForcedHediffDTO{{Hediff: "Asthma", Severity: f32(0.5), Chance: f32(1), Context: "all"}}
 	s.PermaGameConditions = []string{"ColdSnap"}
-	s.PermaMapConditions = []string{"ColdSnap"}
 	s.DisallowedBuildings = []string{"Turret_Mortar"}
 	s.DisabledIncidents = []string{"Eclipse"}
 	return s
@@ -78,7 +77,6 @@ func TestScenarioChoicesAreValidParts(t *testing.T) {
 	for _, o := range c.Conditions {
 		s := DefaultNewColonySpec()
 		s.PermaGameConditions = []string{o.Value}
-		s.PermaMapConditions = []string{o.Value}
 		s.DisabledIncidents = []string{o.Value}
 		if err := ValidateNewColonySpec(s); err != nil {
 			t.Errorf("condition %s: %v", o.Value, err)
@@ -183,7 +181,7 @@ func TestNewColonySpecWithPartsRoundTrips(t *testing.T) {
 	}
 	if len(got.ForcedTraits) != 1 || got.ForcedTraits[0].GetTrait() != "NaturalMood" || got.ForcedTraits[0].GetDegree() != 2 ||
 		len(got.ForcedHediffs) != 1 || got.ForcedHediffs[0].GetSeverity() != 0.5 ||
-		!reflect.DeepEqual(got.PermaGameConditions, []string{"ColdSnap"}) || !reflect.DeepEqual(got.PermaMapConditions, []string{"ColdSnap"}) ||
+		!reflect.DeepEqual(got.PermaGameConditions, []string{"ColdSnap"}) ||
 		!reflect.DeepEqual(got.DisallowedBuildings, []string{"Turret_Mortar"}) || !reflect.DeepEqual(got.DisabledIncidents, []string{"Eclipse"}) {
 		t.Fatalf("parts: %v", got)
 	}
