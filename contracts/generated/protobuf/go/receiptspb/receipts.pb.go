@@ -176,6 +176,7 @@ const (
 	SettingsField_SETTINGS_FIELD_PERMIT             SettingsField = 31
 	SettingsField_SETTINGS_FIELD_RULES              SettingsField = 32
 	SettingsField_SETTINGS_FIELD_EXTRACT_BIOFERRITE SettingsField = 33
+	SettingsField_SETTINGS_FIELD_EAT_TRIGGER        SettingsField = 34
 )
 
 // Enum value maps for SettingsField.
@@ -215,6 +216,7 @@ var (
 		31: "SETTINGS_FIELD_PERMIT",
 		32: "SETTINGS_FIELD_RULES",
 		33: "SETTINGS_FIELD_EXTRACT_BIOFERRITE",
+		34: "SETTINGS_FIELD_EAT_TRIGGER",
 	}
 	SettingsField_value = map[string]int32{
 		"SETTINGS_FIELD_UNSPECIFIED":        0,
@@ -251,6 +253,7 @@ var (
 		"SETTINGS_FIELD_PERMIT":             31,
 		"SETTINGS_FIELD_RULES":              32,
 		"SETTINGS_FIELD_EXTRACT_BIOFERRITE": 33,
+		"SETTINGS_FIELD_EAT_TRIGGER":        34,
 	}
 )
 
@@ -6348,7 +6351,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\x19INSTALLATION_STAGE_QUEUED\x10\x03\x12 \n" +
 	"\x1cINSTALLATION_STAGE_INSTALLED\x10\x04\x12!\n" +
 	"\x1dINSTALLATION_STAGE_UNVERIFIED\x10\x05\x12'\n" +
-	"#INSTALLATION_STAGE_UNINSTALL_QUEUED\x10\x06*\xb9\b\n" +
+	"#INSTALLATION_STAGE_UNINSTALL_QUEUED\x10\x06*\xd9\b\n" +
 	"\rSettingsField\x12\x1e\n" +
 	"\x1aSETTINGS_FIELD_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18SETTINGS_FIELD_FORBIDDEN\x10\x01\x12\x18\n" +
@@ -6384,7 +6387,8 @@ const file_receipts_proto_rawDesc = "" +
 	"!SETTINGS_FIELD_MECH_CONTROL_GROUP\x10\x1e\x12\x19\n" +
 	"\x15SETTINGS_FIELD_PERMIT\x10\x1f\x12\x18\n" +
 	"\x14SETTINGS_FIELD_RULES\x10 \x12%\n" +
-	"!SETTINGS_FIELD_EXTRACT_BIOFERRITE\x10!*\x9b\x01\n" +
+	"!SETTINGS_FIELD_EXTRACT_BIOFERRITE\x10!\x12\x1e\n" +
+	"\x1aSETTINGS_FIELD_EAT_TRIGGER\x10\"*\x9b\x01\n" +
 	"\fFieldOutcome\x12\x1d\n" +
 	"\x19FIELD_OUTCOME_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17FIELD_OUTCOME_UNCHANGED\x10\x01\x12\x19\n" +

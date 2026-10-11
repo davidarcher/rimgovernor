@@ -95,6 +95,8 @@ namespace HomeBridge.BridgeTools
                 return ResolvePermit(intent, out pawn, out _, out _);
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.ExtractBioferrite)
                 return ResolveExtractBioferrite(intent, context, out pawn, out _);
+            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.EatTrigger)
+                return ResolveEatTrigger(intent, context, out pawn);
             if (kind != Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse && kind != Operations.PawnSettingsIntent.SettingOneofCase.SelfTend)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require exactly one setting.");
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse)
@@ -143,6 +145,8 @@ namespace HomeBridge.BridgeTools
                 return ApplyPermit(intent);
             if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.ExtractBioferrite)
                 return ApplyExtractBioferrite(intent, context);
+            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.EatTrigger)
+                return ApplyEatTrigger(intent, context);
             var settings = pawn!.playerSettings;
             if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MedicalCare) {
                 var outcome = settings.medCare == care ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied;
@@ -465,6 +469,34 @@ namespace HomeBridge.BridgeTools
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn!.GetUniqueLoadID() },
                 Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.ExtractBioferrite,
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
+        }
+
+        // eat_trigger: the food level (0 to 1) under which a humanlike pawn of
+        // the colony with a food need starts seeking food (EatTriggerGuard). A
+        // value at or above vanilla's 0.30 clears the override. Read back as the
+        // pawn's effective trigger.
+        private static Common.Failure? ResolveEatTrigger(Operations.PawnSettingsIntent intent, Common.ObservationContext context, out Pawn? pawn)
+        {
+            pawn = null;
+            if (float.IsNaN(intent.EatTrigger) || intent.EatTrigger < 0f || intent.EatTrigger > 1f)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Eat trigger must be a food level from 0 to 1.");
+            pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.PawnId);
+            var player = Faction.OfPlayerSilentFail;
+            return pawn == null || pawn.Dead || pawn.needs?.food == null || player == null || pawn.Faction != player || !pawn.RaceProps.Humanlike
+                ? ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living humanlike colony pawn with a food need is not spawned on this map.") : null;
+        }
+
+        private static Receipts.EffectEvidence ApplyEatTrigger(Operations.PawnSettingsIntent intent, Common.ObservationContext context)
+        {
+            var failure = ResolveEatTrigger(intent, context, out var pawn);
+            if (failure != null) throw new ApplyRefusedException(failure);
+            var changed = EatTriggerGuard.Set(pawn!, intent.EatTrigger);
+            var want = intent.EatTrigger >= EatTriggerGuard.Vanilla ? EatTriggerGuard.Vanilla : intent.EatTrigger;
+            if (EatTriggerGuard.Effective(pawn!) != want) throw new InvalidOperationException("Native eat trigger requires readback.");
+            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+                Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn!.GetUniqueLoadID() },
+                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.EatTrigger,
+                    Outcome = changed ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Unchanged } } } };
         }
 
         // Rename draws from the pawn's own name bank until a short name no

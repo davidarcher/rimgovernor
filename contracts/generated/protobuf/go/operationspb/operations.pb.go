@@ -5346,6 +5346,11 @@ func (*AbilityNoTarget) Descriptor() ([]byte, []int) {
 // Native refuses an entity whose platform has an attached bioferrite harvester
 // (the game forces the flag false) and a true flag before BioferriteExtraction
 // is researched.
+// eat_trigger is the food-bar level (0 to 1) below which a humanlike colony
+// pawn starts seeking food, read by a postfix on JobGiver_GetFood.GetPriority
+// (vanilla 0.30). A value at or above 0.30 clears the pawn's override and
+// restores vanilla; below it the pawn eats later. Native keeps it per pawn in
+// the save and reads it back; UNCHANGED when the effective trigger already held.
 type PawnSettingsIntent struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	PawnId *string                `protobuf:"bytes,1,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`
@@ -5363,6 +5368,7 @@ type PawnSettingsIntent struct {
 	//	*PawnSettingsIntent_MechControlGroup
 	//	*PawnSettingsIntent_ChoosePermit
 	//	*PawnSettingsIntent_ExtractBioferrite
+	//	*PawnSettingsIntent_EatTrigger
 	Setting       isPawnSettingsIntent_Setting `protobuf_oneof:"setting"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5520,6 +5526,15 @@ func (x *PawnSettingsIntent) GetExtractBioferrite() bool {
 	return false
 }
 
+func (x *PawnSettingsIntent) GetEatTrigger() float32 {
+	if x != nil {
+		if x, ok := x.Setting.(*PawnSettingsIntent_EatTrigger); ok {
+			return x.EatTrigger
+		}
+	}
+	return 0
+}
+
 type isPawnSettingsIntent_Setting interface {
 	isPawnSettingsIntent_Setting()
 }
@@ -5572,6 +5587,10 @@ type PawnSettingsIntent_ExtractBioferrite struct {
 	ExtractBioferrite bool `protobuf:"varint,13,opt,name=extract_bioferrite,json=extractBioferrite,proto3,oneof"`
 }
 
+type PawnSettingsIntent_EatTrigger struct {
+	EatTrigger float32 `protobuf:"fixed32,14,opt,name=eat_trigger,json=eatTrigger,proto3,oneof"`
+}
+
 func (*PawnSettingsIntent_HostilityResponse) isPawnSettingsIntent_Setting() {}
 
 func (*PawnSettingsIntent_SelfTend) isPawnSettingsIntent_Setting() {}
@@ -5595,6 +5614,8 @@ func (*PawnSettingsIntent_MechControlGroup) isPawnSettingsIntent_Setting() {}
 func (*PawnSettingsIntent_ChoosePermit) isPawnSettingsIntent_Setting() {}
 
 func (*PawnSettingsIntent_ExtractBioferrite) isPawnSettingsIntent_Setting() {}
+
+func (*PawnSettingsIntent_EatTrigger) isPawnSettingsIntent_Setting() {}
 
 // The faction def and the RoyalTitlePermitDef a choose_permit setting takes.
 type PermitChoice struct {
@@ -9870,7 +9891,7 @@ const file_operations_proto_rawDesc = "" +
 	"\aability\x18\x01 \x01(\tH\x00R\aability\x88\x01\x01B\n" +
 	"\n" +
 	"\b_ability\"\x11\n" +
-	"\x0fAbilityNoTarget\"\xa3\x05\n" +
+	"\x0fAbilityNoTarget\"\xc6\x05\n" +
 	"\x12PawnSettingsIntent\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x01R\x06pawnId\x88\x01\x01\x12]\n" +
 	"\x12hostility_response\x18\x02 \x01(\x0e2,.rimgovernor.operations.v1.HostilityResponseH\x00R\x11hostilityResponse\x12\x1d\n" +
@@ -9887,7 +9908,9 @@ const file_operations_proto_rawDesc = "" +
 	" \x01(\tH\x00R\fmechWorkMode\x12.\n" +
 	"\x12mech_control_group\x18\v \x01(\x05H\x00R\x10mechControlGroup\x12N\n" +
 	"\rchoose_permit\x18\f \x01(\v2'.rimgovernor.operations.v1.PermitChoiceH\x00R\fchoosePermit\x12/\n" +
-	"\x12extract_bioferrite\x18\r \x01(\bH\x00R\x11extractBioferriteB\t\n" +
+	"\x12extract_bioferrite\x18\r \x01(\bH\x00R\x11extractBioferrite\x12!\n" +
+	"\veat_trigger\x18\x0e \x01(\x02H\x00R\n" +
+	"eatTriggerB\t\n" +
 	"\asettingB\n" +
 	"\n" +
 	"\b_pawn_id\"l\n" +
@@ -10947,6 +10970,7 @@ func file_operations_proto_init() {
 		(*PawnSettingsIntent_MechControlGroup)(nil),
 		(*PawnSettingsIntent_ChoosePermit)(nil),
 		(*PawnSettingsIntent_ExtractBioferrite)(nil),
+		(*PawnSettingsIntent_EatTrigger)(nil),
 	}
 	file_operations_proto_msgTypes[46].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[47].OneofWrappers = []any{}
