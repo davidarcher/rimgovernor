@@ -18,7 +18,7 @@ var shelterBunkMethods = map[domain.MethodID]bool{"shelter-spots": true, "shelte
 // must be pure construction on no cell an open bunk stands on (a bed goes on
 // a spot's slot only after the spot is deleted); any other open method
 // (the shell itself) still holds the goal.
-func shelterOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
+func shelterOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, method domain.MethodID, plan domain.PlanSpec) (bool, error) {
 	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return false, err
@@ -39,23 +39,42 @@ func shelterOpenWorkExempt(ctx context.Context, tx *Tx, goal WorkOwner, plan dom
 		if !PlanOpen(p) {
 			continue
 		}
-		if !shelterBunkMethods[m.Method] {
+		ring := IsRoomShellMethod(m.Method)
+		if ring && IsRoomShellMethod(method) {
+			return false, nil // one ring wave at a time
+		}
+		if !shelterBunkMethods[m.Method] && !ring {
 			return false, nil
 		}
 		for _, a := range p.Spec.Actions() {
 			if b, ok := a.Building(); ok {
+				if ring {
+					taken[b.Cell()] = true
+					continue
+				}
 				for _, c := range policy.BunkCells(b.Cell(), b.Rotation()) {
 					taken[c] = true
 				}
 			}
 		}
 	}
+	// The shelter room is one continuous reconcile: the ring's open wave and
+	// the bunk rungs (placements and the clearing deconstructions) run
+	// together on disjoint cells.
 	for _, a := range plan.Actions() {
-		b, ok := a.Building()
-		if !ok {
-			return false, nil
+		if b, ok := a.Building(); ok {
+			if taken[b.Cell()] {
+				return false, nil
+			}
+			continue
 		}
-		if taken[b.Cell()] {
+		if d, ok := a.Deconstruction(); ok {
+			if taken[d.Cell()] {
+				return false, nil
+			}
+			continue
+		}
+		if u, ok := a.UninstallBuilding(); !ok || taken[u.Cell()] {
 			return false, nil
 		}
 	}

@@ -2,14 +2,14 @@ package buildingruntime
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
-
-	"google.golang.org/protobuf/proto"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
 )
 
@@ -17,9 +17,93 @@ import (
 // reaches it and fails, which is enough to tell a hold from a release.
 type defenseHoldSource struct{ RoundsDefenseLayoutSource }
 
-// The defense layout's killbox digs wait for the initial shelter (#2818): the
-// held step reports the shelter pending, the released one goes on to read.
-func TestRoundsDefenseLayoutWaitsForInitialShelter(t *testing.T) {
+// shelterOwedReview is a review binding MaintainHousing on its shelter phase
+// with the goal's finding as given.
+func shelterOwedReview(finding domain.Finding, emergency ...policy.ConcernID) *store.RoundsResult {
+	review := &store.RoundsResult{Emergency: emergency}
+	review.Review.Latches.Housing = policy.HousingShelter
+	review.Review.Standards = []store.RoundsStandard{{Concern: policy.MaintainHousing, Standard: policy.MaintainHousing}}
+	review.Standards = []store.StandardState{{Standard: domain.Standard{ID: policy.MaintainHousing, Status: domain.StandardOpen, Finding: finding}}}
+	return review
+}
+
+// While the initial shelter is owed only the allowlist runs: what builds it
+// and what answers an event. A concern the review calls an emergency also runs.
+func TestShelterGateHoldsEveryPlannerOutsideTheAllowlist(t *testing.T) {
+	names := map[string]bool{}
+	for _, entry := range plannerCatalog {
+		names[entry.name] = true
+	}
+	for name := range runsBeforeShelter {
+		if !names[name] {
+			t.Fatalf("runsBeforeShelter names %q, which is not in the catalog", name)
+		}
+	}
+	owed := shelterOwedReview(domain.FindingUnmet)
+	for _, entry := range plannerCatalog {
+		if _, held := heldByPriority(entry, owed); held == runsBeforeShelter[entry.name] {
+			t.Errorf("%s held=%v while the shelter is owed, allowlisted=%v", entry.name, held, runsBeforeShelter[entry.name])
+		}
+		if _, a := heldByPriority(entry, shelterOwedReview(domain.FindingMet)); a {
+			t.Errorf("%s held without an owed shelter", entry.name)
+		}
+		if _, b := heldByPriority(entry, nil); b {
+			t.Errorf("%s held without an owed shelter", entry.name)
+		}
+	}
+	emergency := shelterOwedReview(domain.FindingUnmet, policy.MaintainMedicalReserves)
+	for _, entry := range plannerCatalog {
+		switch entry.name {
+		case "medical":
+			if _, held := heldByPriority(entry, emergency); held {
+				t.Error("medical reserves are an emergency and must run")
+			}
+		case "surgery":
+			if _, held := heldByPriority(entry, emergency); !held {
+				t.Error("surgery is not the emergency and must wait")
+			}
+		}
+	}
+}
+
+// A held planner is queued as a hold: its own run never starts and it files
+// the shelter pending; an allowlisted planner runs as before.
+func TestShelterGateQueuesHeldPlannerAsHold(t *testing.T) {
+	ran := map[string]bool{}
+	entry := func(name string, class plannerClass) plannerEntry {
+		return plannerEntry{name: name, class: class, priority: plannerFoothold,
+			configured: func(*ClockSchedulerConfig) bool { return true },
+			run: func(*ClockScheduler, context.Context, context.Context, *ClockSchedulerResult, *stepArbiter) (Verdict, error) {
+				ran[name] = true
+				return BuildingReasonAdmitted, nil
+			}}
+	}
+	s := &ClockScheduler{catalog: []plannerEntry{entry("work", classOptional), entry("cooking", classOptional)}}
+	ctx := context.Background()
+	wave := newPlannerWave(ctx)
+	defer wave.cancelOptional()
+	queued := s.queuePlanners(ctx, ctx, wave, nil, nil, false, shelterOwedReview(domain.FindingUnmet))
+	if !reflect.DeepEqual(queued, []string{"work", "cooking"}) {
+		t.Fatal("the held planner left the queue:", queued)
+	}
+	if pending := wave.group.WaitUntil(nil); len(pending) != 0 {
+		t.Fatal(pending)
+	}
+	if !ran["work"] || ran["cooking"] {
+		t.Fatal("ran:", ran)
+	}
+	if v, ok := wave.reason("cooking"); !ok || v != BuildingShelterPending {
+		t.Fatal("held planner filed", v, ok)
+	}
+	if v, ok := wave.reason("work"); !ok || v != BuildingReasonAdmitted {
+		t.Fatal("allowlisted planner filed", v, ok)
+	}
+}
+
+// The defense layout's killbox digs are the answer to a raid: with no
+// ActiveCombat incident in the world the step holds on the threat, and the
+// incident releases it to read the site.
+func TestRoundsDefenseLayoutWaitsForAThreat(t *testing.T) {
 	p, _, _, _ := playerFixture(t)
 	request := playerAcquire(t, p)
 	ctx := context.Background()
@@ -33,73 +117,27 @@ func TestRoundsDefenseLayoutWaitsForInitialShelter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	v := native.reply.GetObserved()
-	v.ColonistCount, v.WorkerCount = proto.Uint32(2), proto.Uint32(2)
-	v.BedCapacity, v.IndoorSleepingCapacity = proto.Uint32(0), proto.Uint32(0)
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
 	planner := &RoundsDefenseLayoutPlanner{reviewer: reviewer, native: defenseHoldSource{}}
 	held, err := planner.step(ctx, ctx, nil)
-	if err != nil || held.Verdict != BuildingShelterPending {
-		t.Fatal("the layout ran while the shelter was owed:", held.Verdict, err)
+	if err != nil || held.Verdict != BuildingThreatPending {
+		t.Fatal("the layout ran with no threat seen:", held.Verdict, err)
 	}
-	v.BedCapacity, v.IndoorSleepingCapacity = proto.Uint32(2), proto.Uint32(2)
-	if _, err := reviewer.Step(ctx); err != nil {
+	review, err := p.journal.LoadRounds(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.journal.OpenIncident(ctx, store.IncidentAssessment{Kind: policy.ActiveCombat, Trigger: "raid", Snapshot: review.Snapshot, Tick: 10}); err != nil {
 		t.Fatal(err)
 	}
 	func() {
 		defer func() { _ = recover() }() // a release reaches the refusing source
-		if released, _ := planner.step(ctx, ctx, nil); released.Verdict == BuildingShelterPending {
-			t.Fatal("the layout stayed held after the shelter stood")
+		if released, _ := planner.step(ctx, ctx, nil); released.Verdict == BuildingThreatPending {
+			t.Fatal("the layout stayed held after a raid")
 		}
 	}()
-}
-
-// While the initial shelter is owed, map-wide clearance waits; the review that
-// sees the shelter stand releases it (#2814).
-func TestRoundsClearanceWaitsForInitialShelter(t *testing.T) {
-	reviewer, _, planner, source := clearanceBatchFixture(t)
-	ctx := context.Background()
-	v := source.reply.GetObserved()
-	v.BedCapacity, v.IndoorSleepingCapacity = proto.Uint32(0), proto.Uint32(0)
-	if _, err := reviewer.Step(ctx); err != nil {
-		t.Fatal(err)
-	}
-	held, err := planner.Step(ctx)
-	if err != nil || held.Verdict != BuildingShelterPending {
-		t.Fatal("clearance ran while the shelter was owed:", held.Verdict, err)
-	}
-	v.BedCapacity, v.IndoorSleepingCapacity = proto.Uint32(2), proto.Uint32(2)
-	if _, err := reviewer.Step(ctx); err != nil {
-		t.Fatal(err)
-	}
-	released, err := planner.Step(ctx)
-	if err != nil || released.Verdict != BuildingReasonAdmitted {
-		t.Fatal("clearance stayed held after the shelter stood:", released.Verdict, err)
-	}
-}
-
-// Another concern's room ring is held while the initial shelter is owed, and
-// the shelter's own ring proceeds under the same review.
-func TestRoundsOtherRingsWaitWhileShelterRingProceeds(t *testing.T) {
-	r, db, _ := shelterSiteFixture(t)
-	ctx := context.Background()
-	review, err := db.LoadRounds(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, concern := range []policy.ConcernID{policy.MaintainStockpiles, policy.MaintainResource, policy.MaintainBurial, policy.MaintainIncineration, policy.EnsureCooking, policy.MaintainAnimalContainment} {
-		other := &RoundsBuildingPlanner{reviewer: r.reviewer, native: r.native, concern: concern}
-		got, err := other.reconcileRoom(ctx, ctx, ControlState{}, review, nil, observation.RoundsReading{}, nil, roomReconcile{})
-		if err != nil || got.Verdict != BuildingShelterPending {
-			t.Fatal(concern, "raised a ring while the shelter was owed:", got.Verdict, err)
-		}
-	}
-	shelter, err := r.Step(ctx)
-	if err != nil || shelter.Verdict == BuildingShelterPending {
-		t.Fatal("the shelter was held by its own hold:", shelter.Verdict, err)
-	}
 }
 
 // A ring is not placed in a stuff with no accessible stock while the start kit

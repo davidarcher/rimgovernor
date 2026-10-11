@@ -90,11 +90,20 @@ held) lives on `Rounds.Stage` and sets the next review's budgets
 Foothold/Reserves/Stable/Development; food reserve and wood targets scale 1.5x at
 Stable and 2x at Development. A Foothold colony with shelter unmet promotes shelter
 planning into the critical planner wave, and while the initial shelter is owed (the housing
-latch at `shelter`) four planners hold themselves with `awaiting_plan:initial_shelter`: every
-other concern's room ring (`reconcileRoom`), the animal pen, map-wide ruin clearance and the
-defense layout's killbox digs (#2818). An item on a ring cell is never an obstruction (the
+latch at `shelter`) one priority gate (`priorityGates`, applied where the planners are queued)
+holds every planner outside its allowlist with `awaiting_plan:initial_shelter`. The allowlist
+is what builds the shelter or answers an event: `undraft`, `work`, `supplies`, `sleeping`,
+`sleepingUpkeep`, `hospital`, `tend`, `rescue`, `recovery`, `populationCustody`, `fireSafety`,
+`dialog` and the defense planner; a planner whose concern the review calls an emergency
+(priority 0 or 1) also runs. A later goal joins the rule as one more `priorityGates` row, with
+no per-planner hold. A held planner is queued with a trivial run, so its dirty marks and
+cadence are those of a planner that ran and refused. The defense layout's killbox digs (#2818)
+also wait on a raid: no `ActiveCombat` incident in the journal files `awaiting_plan:raid`, and
+the first raid releases them. An item on a ring cell is never an obstruction (the
 builder hauls it aside when the wall goes over it), so a ring cell waits on no haul. The
-shelter ring never waits on its bunk rungs (an open rung yields to the ring), and a ring is not
+shelter room is one continuous reconcile: the first review admits the spots rung and the ring
+together, and later reviews go on up the ladder (the clearing, then the beds) while the ring's
+wave is open (disjoint cells; `store.shelterOpenWorkExempt`). A ring is not
 placed in a stuff with no accessible stock while the start kit is still forbidden
 (`awaiting_plan:start_kit`). The stage
 adds no action kind; the `rounds_review` timeline event carries

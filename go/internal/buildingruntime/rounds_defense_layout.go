@@ -242,10 +242,15 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	if wait != nil {
 		return r.fight(call, epoch, goal, state, *wait)
 	}
-	// The lone builder raises the initial shelter first: the killbox's rock
-	// is not mined while it is owed (#2818).
-	if owed, err := initialShelterOwed(call, p, review); err != nil || owed {
-		return RoundsDefenseLayoutResult{Verdict: BuildingShelterPending}, err
+	// The killbox is dug in answer to a raid, not ahead of one: until the
+	// world has opened an ActiveCombat incident the layout waits (the
+	// initial shelter's hold is the planner gate's, queuePlanners).
+	combat, err := defenseCombatKey(call, p, review)
+	if err != nil {
+		return RoundsDefenseLayoutResult{}, err
+	}
+	if combat == "" {
+		return RoundsDefenseLayoutResult{Verdict: BuildingThreatPending}, nil
 	}
 	record, stored, err := p.journal.LoadDefenseLayout(call, world)
 	if err != nil {
@@ -277,10 +282,6 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 		if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 			return RoundsDefenseLayoutResult{}, err
 		}
-	}
-	combat, err := defenseCombatKey(call, p, review)
-	if err != nil {
-		return RoundsDefenseLayoutResult{}, err
 	}
 	if stored && record.Complete && !defenseReverifyDue(record, review.Tick, combat) {
 		return RoundsDefenseLayoutResult{Verdict: BuildingReasonNoDeficit}, nil

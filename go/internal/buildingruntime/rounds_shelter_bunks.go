@@ -26,16 +26,16 @@ import (
 //     standing spot, so the standing spots are deleted first (the clearing
 //     method, upgradeBunks; a bedroll is packed to storage instead) and the
 //     beds go on the freed cells.
-//  3. the ring itself, at the next review whether or not the beds stand
-//     : the planned room's ring through one reconcile. The
+//  3. the ring itself: the planned room's ring through one reconcile. The
 //     ring stands on the plan's footprint, which the bunk slots lie inside
 //     and keep off the corners of.
 //
-// A room whose ring is begun or standing skips the rungs: its gaps are
-// closed first and the room is furnished by the indoor step and the
-// sleeping family as before. A bed rung refused whole (no wood at all)
-// yields to the ring rather than holding the colony outdoors; the sleeping
-// family furnishes the room later.
+// The room is one continuous reconcile (stepShelterRoom): the first review
+// admits the spots and the ring together, and every later review goes on up
+// the ladder (the clearing, then the beds) while the ring's wave is open, the
+// walls and the bunks standing on disjoint cells (store.shelterOpenWorkExempt
+// admits them side by side). A bed rung refused whole (no wood at all) never
+// holds the ring; the sleeping family furnishes the room later.
 const (
 	shelterSpotsMethod         domain.MethodID = "shelter-spots"
 	shelterBedrollsMethod      domain.MethodID = "shelter-bedrolls"
@@ -180,14 +180,12 @@ func (r *RoundsBuildingPlanner) shelterBunks(call context.Context, goal store.Wo
 }
 
 // stepShelterRoom raises the layout plan's shelter room for this review.
-// The owed ring goes through one reconcile of the planned room,
-// after the initial shelter's bunk rungs when no ring is begun: a bunk rung
-// admitted (or refused) this review is the result, but a rung merely still
-// open yields to the ring. A standing ring waits on
-// its roof: the window the completed wave lends, else the earlier-shell
-// wait. roofingOnly is an indoor
-// furnishing still waiting on its roof, which holds the rungs and the ring
-// alike.
+// The owed ring and the bunk rungs go through one reconcile of the planned
+// room in the same review: a rung admitted this review is admitted beside the
+// ring, and an open ring wave is existing work that still lets the ladder go
+// on. A standing ring waits on its roof: the window the completed wave lends,
+// else the earlier-shell wait. roofingOnly is an indoor furnishing still
+// waiting on its roof, which holds the rungs and the ring alike.
 func (r *RoundsBuildingPlanner) stepShelterRoom(call, epoch context.Context, s shelterSite, roofingOnly bool) (RoundsBuildingResult, error) {
 	plan, known := s.facts.LayoutPlan.Value()
 	if !known {
@@ -214,6 +212,15 @@ func (r *RoundsBuildingPlanner) stepShelterRoom(call, epoch context.Context, s s
 		if len(ring) == 0 {
 			return RoundsBuildingResult{Verdict: BuildingShellBlocked}, nil
 		}
+		// The bunk ladder goes on up its rungs (spots deleted, beds placed)
+		// under the same reconcile; an admitted rung ends the review, a hold
+		// does not displace the roof wait.
+		if !roofingOnly && r.phase == policy.HousingShelter && len(plan.RoomRock(room, s.facts.Cells).Dig) == 0 {
+			result, handled, err := r.stepShelterBunks(call, epoch, s, room)
+			if err != nil || handled && result.Verdict == BuildingReasonAdmitted {
+				return result, err
+			}
+		}
 		var ticks uint32
 		for _, built := range ring {
 			ticks = max(ticks, shelterNativeWorkTicks(built, s.state.Snapshot, s.facts.Identity.Tick))
@@ -226,17 +233,39 @@ func (r *RoundsBuildingPlanner) stepShelterRoom(call, epoch context.Context, s s
 	if roofingOnly {
 		return RoundsBuildingResult{Verdict: waitFor(policy.CauseMethodUsed, "roofing_method")}, nil
 	}
-	// The bunks stand on the room once its rock is dug (the ring's reconcile
-	// mines it before any wall).
-	if r.phase == policy.HousingShelter && len(ring) == 0 && len(plan.RoomRock(room, s.facts.Cells).Dig) == 0 {
-		// An open bunk rung (or one waiting on its clearing) does not hold the
-		// ring: the walls stand on cells the bunks never take, so the rungs
-		// are a follow-on, never a gate (#2814).
-		if result, handled, err := r.stepShelterBunks(call, epoch, s, room); err != nil || handled && !result.Verdict.Is(policy.CauseBunksOpen) {
+	// The planned room is one reconcile: the bunks and the ring are each
+	// admitted this review when admissible. The walls stand on cells the bunks
+	// never take, so neither waits on the other. The bunks stand on the room
+	// once its rock is dug (the ring's reconcile mines it before any wall).
+	owner := s.owner
+	var bunks RoundsBuildingResult
+	if r.phase == policy.HousingShelter && len(plan.RoomRock(room, s.facts.Cells).Dig) == 0 {
+		result, handled, err := r.stepShelterBunks(call, epoch, s, room)
+		if err != nil {
 			return result, err
 		}
+		if handled && result.Verdict == BuildingReasonAdmitted {
+			// The admission moved the goal's revision: the ring is admitted
+			// under the goal as it now stands.
+			bunks = result
+			var workable bool
+			if owner, workable, err = r.reviewer.player.journal.WorkableOwner(call, s.review, r.concern); err != nil || !workable {
+				return result, err
+			}
+		}
 	}
-	return r.reconcileRoom(call, epoch, s.state, s.review, s.owner, observation.RoundsReading{ColonyReading: s.read}, nil, roomReconcile{ringOnly: true, room: room, name: name, reason: "starter shelter"})
+	if slices.ContainsFunc(ring, store.PlanOpen) {
+		// The ring's wave is open: existing work, nothing to preview or admit.
+		if bunks.Verdict == BuildingReasonAdmitted {
+			return bunks, nil
+		}
+		return RoundsBuildingResult{Verdict: BuildingReasonExistingWork}, nil
+	}
+	result, err := r.reconcileRoom(call, epoch, s.state, s.review, owner, observation.RoundsReading{ColonyReading: s.read}, nil, roomReconcile{ringOnly: true, room: room, name: name, reason: "starter shelter"})
+	if err == nil && result.Verdict != BuildingReasonAdmitted && bunks.Verdict == BuildingReasonAdmitted {
+		return bunks, nil
+	}
+	return result, err
 }
 
 // shelterRingMethods are the plans of the ring's build waves bound under the

@@ -1953,6 +1953,7 @@ func (s *ClockScheduler) fullStepDue() bool {
 // startup planners into the critical cycle for the step.
 func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult, wave *plannerWave, arbiter *stepArbiter, pick func(plannerEntry) bool, immediate bool) ([]string, error) {
 	startup := false
+	var held *store.RoundsResult
 	if s.config.Rounds != nil {
 		var review store.RoundsResult
 		var err error
@@ -1974,6 +1975,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 			return nil, fmt.Errorf("routine: %w", executor.ErrAuthority)
 		}
 		out.Rounds = &review
+		held = &review
 		if !immediate {
 			if err := s.establishExtent(call, review.Review.Tick); err != nil {
 				return nil, fmt.Errorf("colony extent: %w", err)
@@ -1990,7 +1992,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 			startup = true
 		}
 	}
-	return s.queuePlanners(call, epoch, wave, arbiter, pick, startup), nil
+	return s.queuePlanners(call, epoch, wave, arbiter, pick, startup, held), nil
 }
 
 type clockWorkItem struct {

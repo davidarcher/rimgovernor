@@ -407,7 +407,7 @@ func admitOwnerCommit(ctx context.Context, tx *Tx, state WorkOwner, revision uin
 			}
 		}
 		if !exempt {
-			exempt, err = shelterOpenWorkExempt(ctx, tx, state, plan)
+			exempt, err = shelterOpenWorkExempt(ctx, tx, state, method, plan)
 			if err != nil {
 				return err
 			}

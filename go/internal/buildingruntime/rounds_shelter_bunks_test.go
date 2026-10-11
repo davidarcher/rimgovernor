@@ -35,7 +35,7 @@ func TestRoundsShelterSpotsThenBedsThenShell(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterSiteFixture(t)
 	ctx := context.Background()
-	plans := stageShelterBunks(t, r, db, n)
+	plans, shell := stageShelter(t, r, db, n)
 	spots := bunkAnchors(t, plans[0], "SleepingSpot")
 	beds := bunkAnchors(t, plans[1], "Bed")
 	// Two colonists: two spots at the first review, then two wooden beds.
@@ -48,13 +48,11 @@ func TestRoundsShelterSpotsThenBedsThenShell(t *testing.T) {
 			t.Fatal("bed not wooden", action)
 		}
 	}
-	result, err := r.Step(ctx)
-	if err != nil || result.Verdict != BuildingReasonAdmitted || n.previews != 32 {
-		t.Fatal(result, err, n.previews)
+	if !IsShellMethod(shell.Method) || len(shell.Progress) != 32 {
+		t.Fatal(shell)
 	}
-	shell, err := db.LoadPlan(ctx, shellMethod(result.Decision.Standard).Plan)
-	if err != nil || !IsShellMethod(shell.Method) || len(shell.Progress) != 32 {
-		t.Fatal(shell, err)
+	if again, err := r.Step(ctx); err != nil || again.Verdict != BuildingReasonExistingWork || n.previews != 0 {
+		t.Fatal("repeat review", again, err, n.previews)
 	}
 	// The first-round shell stands on the planned shelter room.
 	if !strings.HasPrefix(string(shell.Method), "shelter-shell-1-1-build-") {
@@ -121,7 +119,7 @@ func TestRoundsShelterLadderSpotsBedrollsBeds(t *testing.T) {
 			t.Fatal(method, result, err)
 		}
 		id := methodPlan(t, result.Decision, method)
-		completeRoundsBuildingMethod(t, db, result)
+		completeRoundsBuildingMethod(t, db, result, method)
 		plan, err := db.LoadPlan(ctx, id)
 		if err != nil {
 			t.Fatal(err)
@@ -173,8 +171,12 @@ func TestRoundsShelterOpenSpotsYieldToTheRing(t *testing.T) {
 	if err != nil || spots.Verdict != BuildingReasonAdmitted {
 		t.Fatal(spots, err)
 	}
-	if ring, err := r.Step(ctx); err != nil || ring.Verdict != BuildingReasonAdmitted || !IsShellMethod(shellMethod(ring.Decision.Standard).Method) {
-		t.Fatal("open spots held the ring", ring, err)
+	// The ring was admitted in the same review as the spots, one reconcile.
+	if !IsShellMethod(shellMethod(spots.Decision.Standard).Method) || methodPlan(t, spots.Decision, shelterSpotsMethod) == "" {
+		t.Fatal("the spots did not admit the ring with them", spots)
+	}
+	if again, err := r.Step(ctx); err != nil || again.Verdict != BuildingReasonExistingWork {
+		t.Fatal("repeat review", again, err)
 	}
 	if n.overlays != 0 {
 		t.Fatal("a bed was previewed over a standing spot", n.overlays)
@@ -191,15 +193,18 @@ func TestRoundsShelterOpenDeletionYieldsToTheRing(t *testing.T) {
 	if err != nil || spots.Verdict != BuildingReasonAdmitted {
 		t.Fatal(spots, err)
 	}
-	completeRoundsBuildingMethod(t, db, spots)
+	completeRoundsBuildingMethod(t, db, spots, shelterSpotsMethod)
 	settleBunks(t, r, db, n)
 	standBunks(n, standingBunks{"SleepingSpot", bunkAnchors(t, mustLoad(t, db, methodPlan(t, spots.Decision, shelterSpotsMethod)), "SleepingSpot")})
 	clearing, err := r.Step(ctx)
 	if err != nil || clearing.Verdict != BuildingReasonAdmitted {
 		t.Fatal(clearing, err)
 	}
-	if ring, err := r.Step(ctx); err != nil || ring.Verdict != BuildingReasonAdmitted || !IsShellMethod(shellMethod(ring.Decision.Standard).Method) {
-		t.Fatal("an open deletion held the ring", ring, err)
+	if !IsShellMethod(shellMethod(clearing.Decision.Standard).Method) {
+		t.Fatal("the open deletion displaced the ring", clearing)
+	}
+	if again, err := r.Step(ctx); err != nil || again.Verdict != BuildingReasonExistingWork {
+		t.Fatal("repeat review", again, err)
 	}
 	if n.overlays != 0 {
 		t.Fatal("a bed was previewed over a standing spot", n.overlays)
@@ -230,17 +235,21 @@ func TestRoundsShelterBedsRefusedFallsThroughToShell(t *testing.T) {
 	if plan := methodPlan(t, first.Decision, shelterSpotsMethod); plan == "" {
 		t.Fatal("spots did not lead", plan)
 	}
-	completeRoundsBuildingMethod(t, db, first)
+	completeRoundsBuildingMethod(t, db, first, shelterSpotsMethod)
 	n.previews, n.calls = 0, 0
 	second, err := r.Step(ctx)
-	if err != nil || second.Verdict != BuildingReasonAdmitted || n.previews != 32 {
+	if err != nil || second.Verdict != BuildingReasonExistingWork || n.previews != 0 {
 		t.Fatal(second, err, n.previews)
 	}
-	plan, err := db.LoadPlan(ctx, shellMethod(second.Decision.Standard).Plan)
+	plan, err := db.LoadPlan(ctx, shellMethod(first.Decision.Standard).Plan)
 	if err != nil || !IsShellMethod(plan.Method) {
 		t.Fatal(plan.Spec.ID(), err)
 	}
-	for _, m := range second.Decision.Standard.Methods {
+	goal, err := db.LoadStandard(ctx, first.Decision.Standard.Standard.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range goal.Methods {
 		if m.Method == shelterBedsMethod {
 			t.Fatal("beds admitted without a buildable Bed", m)
 		}
@@ -260,14 +269,14 @@ func TestRoundsShelterStalledBedsAdmitShell(t *testing.T) {
 		t.Fatal(spots, err)
 	}
 	spotPlan := mustLoad(t, db, methodPlan(t, spots.Decision, shelterSpotsMethod))
-	completeRoundsBuildingMethod(t, db, spots)
+	completeRoundsBuildingMethod(t, db, spots, shelterSpotsMethod)
 	settleBunks(t, r, db, n)
 	standBunks(n, standingBunks{"SleepingSpot", bunkAnchors(t, spotPlan, "SleepingSpot")})
 	clearing, err := r.Step(ctx)
 	if err != nil || clearing.Verdict != BuildingReasonAdmitted {
 		t.Fatal(clearing, err)
 	}
-	completeRoundsBuildingMethod(t, db, clearing)
+	completeRoundsBuildingMethod(t, db, clearing, shelterClearBedsMethod)
 	standBunks(n)
 	beds, err := r.Step(ctx)
 	if err != nil || beds.Verdict != BuildingReasonAdmitted {
@@ -278,10 +287,8 @@ func TestRoundsShelterStalledBedsAdmitShell(t *testing.T) {
 		t.Fatal(err)
 	}
 	n.previews, n.calls = 0, 0
-	shell, err := r.Step(ctx)
-	if err != nil || shell.Verdict != BuildingReasonAdmitted {
-		t.Fatal("stalled beds held the ring", shell, err)
-	}
+	// The ring went up with the spots and the stalled beds do not displace it.
+	shell := beds
 	plan, err := db.LoadPlan(ctx, shellMethod(shell.Decision.Standard).Plan)
 	if err != nil || !IsShellMethod(plan.Method) {
 		t.Fatal(plan.Spec.ID(), err)
@@ -316,23 +323,27 @@ func TestRoundsShelterRestartKeepsBunks(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterSiteFixture(t)
 	ctx := context.Background()
-	stageShelterBunks(t, r, db, n)
+	_, plan := stageShelter(t, r, db, n)
 	// The beds are open (placed, not yet built): the restart keeps them.
 	restarted, err := NewRoundsShelterPlanner(r.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}
 	shell, err := restarted.Step(ctx)
-	if err != nil || shell.Verdict != BuildingReasonAdmitted {
+	if err != nil || shell.Verdict != BuildingReasonExistingWork {
 		t.Fatal(shell, err)
 	}
-	record, err := restarted.shelterBunks(ctx, shell.Decision.Standard, domain.Unknown[policy.CurrentConstruction]())
-	if err != nil || len(record.placed[shelterSpotsMethod]) != 2 || len(record.placed[shelterBedsMethod]) != 2 {
-		t.Fatal(record, err)
-	}
-	plan, err := db.LoadPlan(ctx, shellMethod(shell.Decision.Standard).Plan)
+	review, err := db.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)
+	}
+	standard, _, err := db.WorkableOwner(ctx, review, policy.MaintainHousing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := restarted.shelterBunks(ctx, standard, domain.Unknown[policy.CurrentConstruction]())
+	if err != nil || len(record.placed[shelterSpotsMethod]) != 2 || len(record.placed[shelterBedsMethod]) != 2 {
+		t.Fatal(record, err)
 	}
 	wall := map[domain.Cell]bool{}
 	for _, action := range plan.Spec.Actions() {
@@ -351,7 +362,7 @@ func TestRoundsShelterRestartKeepsBunks(t *testing.T) {
 	if again, err := restarted.Step(ctx); err != nil || again.Verdict != BuildingReasonExistingWork {
 		t.Fatal("repeat review", again, err)
 	}
-	if goal, err := db.LoadStandard(ctx, shell.Decision.Standard.Standard.ID); err != nil || len(goal.Methods) != 3 {
+	if goal, err := db.LoadStandard(ctx, domain.ConcernID(standard.OwnerID())); err != nil || len(goal.Methods) != 3 {
 		t.Fatal(goal.Methods, err)
 	}
 }

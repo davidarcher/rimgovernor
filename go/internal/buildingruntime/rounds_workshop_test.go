@@ -370,27 +370,3 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 		}
 	})
 }
-
-func TestWorkshopShellWaitsWhileInitialShelterIsOwed(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	t.Parallel()
-	r, db, _ := shelterFixture(t)
-	review, err := db.LoadRounds(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	owed, err := initialShelterOwed(context.Background(), r.reviewer.player, review)
-	if err != nil || !owed {
-		t.Fatal("initial shelter deficit not seen as owed:", owed, err)
-	}
-	var others []store.RoundsStandard
-	for _, binding := range review.Standards {
-		if binding.Concern != policy.MaintainHousing {
-			others = append(others, binding)
-		}
-	}
-	review.Standards = others
-	if owed, err = initialShelterOwed(context.Background(), r.reviewer.player, review); err != nil || owed {
-		t.Fatal("no shelter binding must not block a workshop shell:", owed, err)
-	}
-}

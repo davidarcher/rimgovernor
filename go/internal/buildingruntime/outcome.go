@@ -241,6 +241,7 @@ var (
 	BuildingReasonNoSquad            = noWorker("squad")
 	BuildingShellBlocked             = awaitingPlan("earlier_shell", "")
 	BuildingShelterPending           = awaitingPlan("initial_shelter", "")
+	BuildingThreatPending            = awaitingPlan("raid", "")
 	BuildingSuiteStock               = awaitingPlan("suite_materials", "walls")
 	BuildingWorkshopUnavailable      = noWorker("workshop_bench")
 	BuildingWorkshopResearch         = awaitingPlan("research", "workshop")

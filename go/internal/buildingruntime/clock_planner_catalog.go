@@ -2,11 +2,13 @@ package buildingruntime
 
 import (
 	"context"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 // plannerEntry declares a queued planner's priority, dependencies and wake conditions.
@@ -882,15 +884,100 @@ var plannerCatalog = []plannerEntry{
 		}},
 }
 
+// runsBeforeShelter names the planners that run while the initial shelter is
+// owed: what builds it (work priorities, the start kit's allow/forbid, the
+// shelter and its bunk assignment) and what answers an event (a raid, a
+// patient, a fire, a dialog, a disaster, custody). A hostile-temperature start
+// owes the colonists no other action until the shelter stands; the rest are
+// held with BuildingShelterPending (queuePlanners). The medical-reserve and
+// surgery planners are critical for emergencies only: they run when the
+// review names their concern an emergency (priority 0 or 1). Food, heat and
+// the areas are priority 2 at best, so none of them is an emergency here.
+var runsBeforeShelter = map[string]bool{
+	"undraft": true, "work": true, "supplies": true, "sleeping": true, "sleepingUpkeep": true,
+	"hospital": true, "tend": true, "rescue": true, "recovery": true, "populationCustody": true,
+	"fireSafety": true, "dialog": true, defensePlanner: true,
+}
+
+// shelterOwed reports whether the review binds an active MaintainHousing goal
+// still in deficit on its starter-shelter phase.
+func shelterOwed(review store.RoundsResult) bool {
+	if review.Review.Latches.Housing != policy.HousingShelter {
+		return false
+	}
+	for _, binding := range review.Review.Standards {
+		if binding.Concern != policy.MaintainHousing {
+			continue
+		}
+		for _, state := range review.Standards {
+			if state.Standard.ID == binding.Standard {
+				return state.Standard.Status == domain.StandardOpen && state.Standard.Finding == domain.FindingUnmet
+			}
+		}
+	}
+	return false
+}
+
+// priorityGate is the one rule that lets a higher-priority goal outrank the
+// planner tiers (plannerPriority only orders the queue and breaks ties
+// between proposals; nothing else stops lower-priority work from adding
+// demand): while owed holds for the review, a planner outside allow is not
+// run, it files pending. A concern the review calls an emergency is exempt.
+// A later goal joins as one more row of priorityGates, with no per-planner
+// hold in the planners themselves.
+type priorityGate struct {
+	goal    string
+	owed    func(store.RoundsResult) bool
+	allow   map[string]bool
+	pending Verdict
+}
+
+// priorityGates are the gates in force, in precedence order: the first row
+// that holds a planner decides its verdict.
+var priorityGates = []priorityGate{
+	{goal: "initial_shelter", owed: shelterOwed, allow: runsBeforeShelter, pending: BuildingShelterPending},
+}
+
+// heldByPriority reports the verdict entry files, and true, when a gate of
+// priorityGates holds it under review.
+func heldByPriority(entry plannerEntry, review *store.RoundsResult) (Verdict, bool) {
+	if review == nil {
+		return Verdict{}, false
+	}
+	for _, gate := range priorityGates {
+		if gate.allow[entry.name] || !gate.owed(*review) {
+			continue
+		}
+		if entry.concern != "" && slices.Contains(review.Emergency, entry.concern) {
+			continue
+		}
+		return gate.pending, true
+	}
+	return Verdict{}, false
+}
+
+// awaiting is the run of a planner a priority gate holds.
+func awaiting(v Verdict) func(*ClockScheduler, context.Context, context.Context, *ClockSchedulerResult, *stepArbiter) (Verdict, error) {
+	return func(*ClockScheduler, context.Context, context.Context, *ClockSchedulerResult, *stepArbiter) (Verdict, error) {
+		return v, nil
+	}
+}
+
 // queuePlanners queues the configured planners pick selects (all when nil)
 // onto the wave, returning the names queued in catalog order. A nil pick
 // selects the whole catalog. With startup set, a startup planner is queued
 // into the critical cycle rather than the optional wave (plannerEntry.startup).
-func (s *ClockScheduler) queuePlanners(ctx, epoch context.Context, wave *plannerWave, arbiter *stepArbiter, pick func(plannerEntry) bool, startup bool) []string {
+// While a priorityGate holds under review every planner outside
+// its allowlist is queued as a hold (awaiting), so its cadence and
+// filing stay those of a planner that ran and refused.
+func (s *ClockScheduler) queuePlanners(ctx, epoch context.Context, wave *plannerWave, arbiter *stepArbiter, pick func(plannerEntry) bool, startup bool, review *store.RoundsResult) []string {
 	var queued []string
 	for _, entry := range s.catalog {
 		if !entry.configured(&s.config) || pick != nil && !pick(entry) {
 			continue
+		}
+		if pending, held := heldByPriority(entry, review); held {
+			entry.run = awaiting(pending)
 		}
 		if startup && entry.startup || immediateReview(ctx) && immediatePlanner(entry) {
 			entry.class = classCritical

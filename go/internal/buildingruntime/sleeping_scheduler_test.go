@@ -119,6 +119,8 @@ func TestSchedulerCompilesCookingAtPausedBoundary(t *testing.T) {
 	n := schedulerSleepingAt(t, s, f, coldShelterSite)
 	v := n.reply.GetObserved()
 	foodPlanFixture(v)
+	// The initial shelter stands: nothing outside its allowlist runs before.
+	v.IndoorSleepingCapacity, v.BedCapacity = v.ColonistCount, v.ColonistCount
 	issues := v.Issues[:0]
 	for _, issue := range v.Issues {
 		if issue.GetField() != "cooking" {

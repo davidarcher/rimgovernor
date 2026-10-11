@@ -138,16 +138,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	} else if r.phase != "" && review.Latches.Phase(r.concern) != r.phase {
 		return RoundsBuildingResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	if r.phase == policy.ComfortBasic {
-		owed, err := initialShelterOwed(call, p, review)
-		if err != nil {
-			return RoundsBuildingResult{}, err
-		}
-		if owed {
-			return RoundsBuildingResult{Verdict: BuildingShelterPending}, nil
-		}
-	}
-	bunksOpen := false
+	bunksOpen, ringOpen := false, false
 	for _, m := range goal.OwnerMethods() {
 		plan, err := p.journal.LoadPlan(call, m.Plan)
 		if err != nil {
@@ -183,6 +174,13 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			if !r.shelter && store.PlanOpen(plan) {
 				bunksOpen = true
 			}
+			continue
+		}
+		if r.shelter && r.phase == policy.HousingShelter && IsShellMethod(m.Method) {
+			// The ring's open wave does not hold the bunk ladder: the shelter
+			// room is one continuous reconcile (stepShelterRoom), which leaves
+			// the open wave alone and goes on up the rungs.
+			ringOpen = ringOpen || store.PlanOpen(plan)
 			continue
 		}
 		if r.shelter && isRoomDigMethod(m.Method) {
@@ -658,7 +656,12 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			}
 			return nil
 		}
-		return r.stepShelterRoom(call, epoch, shelterSite{state: state, review: review, owner: goal, facts: facts, read: reading, check: check}, roofingOnly)
+		result, err := r.stepShelterRoom(call, epoch, shelterSite{state: state, review: review, owner: goal, facts: facts, read: reading, check: check}, roofingOnly)
+		if ringOpen && err == nil && result.Verdict != BuildingReasonAdmitted {
+			// An open ring wave is existing work unless a rung was admitted.
+			return RoundsBuildingResult{Verdict: BuildingReasonExistingWork}, nil
+		}
+		return result, err
 	}
 	// A campfire the pawns let burn out leaves the cooking census empty
 	// again in the same epoch; the completed method yields to a numbered
@@ -1390,25 +1393,6 @@ func roundsBuildingFresh(actual, anchor domain.Tick) bool {
 // and that is checked beside it.
 func roundsCachedFresh(family bridge.FactFamily, actual, anchor domain.Tick) bool {
 	return true
-}
-
-// initialShelterOwed reports whether the review binds an active
-// MaintainHousing goal still in deficit on its starter-shelter phase.
-func initialShelterOwed(ctx context.Context, p *Player, review store.Rounds) (bool, error) {
-	if review.Latches.Housing != policy.HousingShelter {
-		return false, nil
-	}
-	for _, binding := range review.Standards {
-		if binding.Concern != policy.MaintainHousing {
-			continue
-		}
-		goal, err := p.journal.LoadStandard(ctx, binding.Standard)
-		if err != nil {
-			return false, err
-		}
-		return goal.Standard.Status == domain.StandardOpen && goal.Standard.Finding == domain.FindingUnmet, nil
-	}
-	return false, nil
 }
 
 // sleepingBedsPerEpoch bounds the builds one epoch may stage under the same

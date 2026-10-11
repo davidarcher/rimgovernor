@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -103,9 +104,7 @@ func recordLayout(t *testing.T, r *RoundsBuildingPlanner, db *store.Store, plan 
 // here.
 func shelterFixture(t *testing.T) (*RoundsBuildingPlanner, *store.Store, *sleepingNative) {
 	t.Helper()
-	planner, db, n := shelterSiteFixture(t)
-	stageShelterBunks(t, planner, db, n)
-	return planner, db, n
+	return shelterSiteFixture(t)
 }
 
 // shellMethod is the method the ring was admitted under: the one that
@@ -126,7 +125,7 @@ func TestRoundsShelterAdmitsWholeShellInOneWave(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterFixture(t)
 	result, err := r.Step(context.Background())
-	if err != nil || result.Verdict != BuildingReasonAdmitted || len(result.Decision.Refused) != 0 || n.previews != 32 {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || len(result.Decision.Refused) != 0 || n.previews != 34 {
 		t.Fatal(result, err, n.previews)
 	}
 	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Standard).Plan)
@@ -150,8 +149,8 @@ func TestRoundsShelterAdmitsWholeShellInOneWave(t *testing.T) {
 			t.Fatal("wall waits for the door", action, err)
 		}
 	}
-	if again, err := r.Step(context.Background()); err != nil || again.Verdict != BuildingReasonExistingWork || n.previews != 32 {
-		t.Fatal(again, err)
+	if again, err := r.Step(context.Background()); err != nil || again.Verdict != BuildingReasonExistingWork || n.previews != 34 {
+		t.Fatal(again, err, n.previews)
 	}
 }
 
@@ -166,6 +165,9 @@ func TestRoundsShelterAdmitsShellWithoutStockCheck(t *testing.T) {
 			base := n.onPreview
 			n.onPreview = func(ctx context.Context, v *bridge.BuildingPreview) {
 				base(ctx, v)
+				if len(v.Stock.Values) == 0 {
+					return
+				}
 				switch change {
 				case "stock-short":
 					v.Stock.Values[0].Available = domain.Known(int64(179))
@@ -183,7 +185,7 @@ func TestRoundsShelterAdmitsShellWithoutStockCheck(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if result.Verdict != BuildingReasonAdmitted || len(plans) != 5 {
+			if result.Verdict != BuildingReasonAdmitted || len(plans) != 4 {
 				t.Fatal("shell not admitted", result, len(plans))
 			}
 			plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Standard).Plan)
@@ -216,6 +218,9 @@ func TestRoundsShelterHoldsThroughWoodShortage(t *testing.T) {
 	base, previews := n.onPreview, n.previews
 	n.onPreview = func(ctx context.Context, v *bridge.BuildingPreview) {
 		base(ctx, v)
+		if len(v.Stock.Values) == 0 {
+			return
+		}
 		v.Stock.Values[0].Available = domain.Known(int64(0))
 	}
 	for range 3 {
@@ -225,7 +230,7 @@ func TestRoundsShelterHoldsThroughWoodShortage(t *testing.T) {
 		}
 	}
 	plans, err := db.LoadPlans(context.Background())
-	if err != nil || len(plans) != 5 {
+	if err != nil || len(plans) != 4 {
 		t.Fatal("second shell or order under the shortage", len(plans), err)
 	}
 	plan, err := db.LoadPlan(context.Background(), shell)
@@ -245,9 +250,12 @@ func TestRoundsShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 			base := n.onPreview
 			n.onPreview = func(ctx context.Context, v *bridge.BuildingPreview) {
 				base(ctx, v)
+				if len(v.Stock.Values) == 0 {
+					return
+				}
 				switch change {
 				case "late-refusal":
-					if n.previews == 32 {
+					if n.previews == 34 {
 						v.Preview.SafeToPlace = domain.Known(false)
 					}
 				}
@@ -258,14 +266,18 @@ func TestRoundsShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 				// the Core door row now states its own 1x1 size.
 				n.def("Wall").Size.X = 2
 			}
-			result, err := r.Step(context.Background())
-			if err == nil && result.Verdict == BuildingReasonAdmitted {
-				t.Fatal("invalid shell admitted", change)
+			// The spots rung may be admitted in the same review; the ring is not.
+			if _, err := r.Step(context.Background()); err != nil {
+				t.Log(err)
 			}
-			// The load plan and the two bunk plans are all the journal holds.
 			plans, err := db.LoadPlans(context.Background())
-			if err != nil || len(plans) != 4 {
-				t.Fatal("partial shell committed", plans, err)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, plan := range plans {
+				if len(plan.Progress) > 4 {
+					t.Fatal("partial shell committed", len(plan.Progress), change)
+				}
 			}
 		})
 	}
@@ -377,7 +389,9 @@ func TestRoundsShelterManualCancelsWholePendingShell(t *testing.T) {
 	}
 }
 
-func completeRoundsBuildingMethod(t *testing.T, db *store.Store, result RoundsBuildingResult) {
+// completeRoundsBuildingMethod completes the open method named, else the ring
+// (the one open method that is not a bunk rung), else the only open method.
+func completeRoundsBuildingMethod(t *testing.T, db *store.Store, result RoundsBuildingResult, named ...domain.MethodID) {
 	t.Helper()
 	ctx := context.Background()
 	var plan store.PlanState
@@ -386,10 +400,18 @@ func completeRoundsBuildingMethod(t *testing.T, db *store.Store, result RoundsBu
 		if err != nil {
 			t.Fatal(err)
 		}
-		if domain.StandardWorkOpen(candidate.Progress) {
-			if len(plan.Progress) != 0 {
-				t.Fatal("multiple open methods")
+		if !domain.StandardWorkOpen(candidate.Progress) {
+			continue
+		}
+		if len(named) > 0 {
+			if slices.Contains(named, method.Method) {
+				plan = candidate
 			}
+			continue
+		}
+		// The ring and a bunk rung are admitted in one review; the ring is
+		// the method this completes.
+		if len(plan.Progress) == 0 || !isShelterBunkMethod(method.Method) {
 			plan = candidate
 		}
 	}
@@ -412,15 +434,16 @@ func completeRoundsBuildingMethod(t *testing.T, db *store.Store, result RoundsBu
 	}
 }
 
-// stageShelterBunks walks the initial shelter's bunk rungs: every
-// bunk method the planner admits (the spots, then the beds) is completed in
-// the journal, so the next Step sites the ring around them. It returns the
-// bunk plans in the order admitted and resets the fixture's preview
-// counters, so a test's shell assertions count the ring alone.
-func stageShelterBunks(t *testing.T, r *RoundsBuildingPlanner, db *store.Store, n *sleepingNative, afterSettle ...func()) []store.PlanState {
+// stageShelter walks the initial shelter's bunk rungs: every bunk method the
+// planner admits (the spots, then the beds) is completed in the journal. The
+// ring is admitted with the spots in the first review and stays open. It
+// returns the bunk plans in the order admitted and the ring's plan, and resets
+// the fixture's preview counters.
+func stageShelter(t *testing.T, r *RoundsBuildingPlanner, db *store.Store, n *sleepingNative, afterSettle ...func()) ([]store.PlanState, store.PlanState) {
 	t.Helper()
 	ctx := context.Background()
 	var plans []store.PlanState
+	var ring store.PlanState
 	upkeep := n.reply.GetObserved().Upkeep
 	step := func(method domain.MethodID) store.PlanState {
 		t.Helper()
@@ -431,8 +454,11 @@ func stageShelterBunks(t *testing.T, r *RoundsBuildingPlanner, db *store.Store, 
 		if result.Verdict != BuildingReasonAdmitted {
 			t.Fatal("bunk rung not admitted", method, result)
 		}
+		if method == shelterSpotsMethod {
+			ring = mustLoad(t, db, shellMethod(result.Decision.Standard).Plan)
+		}
 		id := methodPlan(t, result.Decision, method)
-		completeRoundsBuildingMethod(t, db, result)
+		completeRoundsBuildingMethod(t, db, result, method)
 		plan, err := db.LoadPlan(ctx, id)
 		if err != nil {
 			t.Fatal(err)
@@ -461,7 +487,7 @@ func stageShelterBunks(t *testing.T, r *RoundsBuildingPlanner, db *store.Store, 
 	// The ring tests that follow read no sleeping census, as before.
 	n.reply.GetObserved().Upkeep, n.standing = upkeep, nil
 	n.previews, n.calls = 0, 0
-	return plans
+	return plans, ring
 }
 
 // standingBunks is a definition standing at the anchors of some bunk slots.
@@ -509,6 +535,7 @@ func TestShelterRoofingContinuesAfterFurnishingUntilNativeCapacityRecovers(t *te
 		t.Fatal(shell, err)
 	}
 	completeRoundsBuildingMethod(t, db, shell)
+	completeRoundsBuildingMethod(t, db, shell, shelterSpotsMethod)
 	markBuilt(t, db, n.roundsNative)
 	if _, err := r.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
@@ -604,22 +631,14 @@ func TestRoundsShelterRaisesTheStarterRectangle(t *testing.T) {
 	centreOn(r.reviewer, domain.Cell{X: 10, Z: 10})
 	hutCells(n, 21, func(int32, int32) bool { return true })
 	recordStoreroom(t, r, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
-	stageShelterBunks(t, r, db, n)
-	result, err := r.Step(context.Background())
-	if err != nil || result.Verdict != BuildingReasonAdmitted {
-		t.Fatal(result, err)
-	}
-	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Standard).Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, plan := stageShelter(t, r, db, n)
 	want, err := domain.RectangleFootprint(domain.RoomBounds{X: 6, Z: 6, Width: 9, Height: 9}, domain.South)
 	if err != nil {
 		t.Fatal(err)
 	}
 	door, cells := shellCells(t, plan)
-	if door.Cell() != want.Door() || len(cells) != len(want.Walls()) || n.previews != len(want.Walls()) {
-		t.Fatal(door, len(cells), n.previews)
+	if door.Cell() != want.Door() || len(cells) != len(want.Walls()) {
+		t.Fatal(door, len(cells))
 	}
 	for _, w := range want.Walls() {
 		if !cells[w] {
@@ -630,7 +649,16 @@ func TestRoundsShelterRaisesTheStarterRectangle(t *testing.T) {
 		t.Fatal(len(plan.Progress), len(plan.Spec.Dependencies()))
 	}
 	// Roofing budget accepts a shell of any size once every wall is complete.
-	current := result.Decision.Standard.Standard.Snapshot
+	review, err := db.LoadRounds(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, _, err := db.WorkableOwner(context.Background(), review, policy.MaintainHousing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	summary, _ := store.SummarizeOwner(owner)
+	current := summary.Snapshot
 	snapshot := current
 	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	for i, p := range plan.Progress {

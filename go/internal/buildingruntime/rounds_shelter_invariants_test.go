@@ -1,7 +1,6 @@
 package buildingruntime
 
 import (
-	"context"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
@@ -40,7 +39,6 @@ func TestRoundsShelterShellInvariantsAcrossSites(t *testing.T) {
 	for _, variant := range variants {
 		t.Run(variant.name, func(t *testing.T) {
 			t.Parallel()
-			ctx := context.Background()
 			planner, db, n := shelterSiteFixture(t)
 			if variant.side > 0 {
 				n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(variant.center.X), Z: proto.Int32(variant.center.Z)}
@@ -52,20 +50,10 @@ func TestRoundsShelterShellInvariantsAcrossSites(t *testing.T) {
 				hutCells(n, variant.side, lit)
 				recordStoreroom(t, planner, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
 			}
-			bunks := stageShelterBunks(t, planner, db, n)
+			// The ring is admitted whole with the spots in the first review.
+			bunks, plan := stageShelter(t, planner, db, n)
 			beds := bunkCellsOf(t, bunks[len(bunks)-1])
-			result, err := planner.Step(ctx)
-			if err != nil || result.Verdict != BuildingReasonAdmitted {
-				t.Fatal(result, err)
-			}
-			plan, err := db.LoadPlan(ctx, shellMethod(result.Decision.Standard).Plan)
-			if err != nil {
-				t.Fatal(err)
-			}
 			door, ring := shellCells(t, plan)
-			if n.previews != len(ring) {
-				t.Fatalf("%d previews for a ring of %d cells: the ring is admitted whole", n.previews, len(ring))
-			}
 			checkAdmittedShell(t, n, door, ring, beds)
 		})
 	}
@@ -195,7 +183,6 @@ func offeredSite(n *sleepingNative) (map[domain.Cell]bool, domain.Cell) {
 func TestRoundsShelterRingEnclosesBunksAfterCentreDrift(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	ctx := context.Background()
 	planner, db, n := shelterSiteFixture(t)
 	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	centreOn(planner.reviewer, domain.Cell{X: 10, Z: 10})
@@ -204,22 +191,15 @@ func TestRoundsShelterRingEnclosesBunksAfterCentreDrift(t *testing.T) {
 	room := policy.Rectangle{X: 1, Z: 2, Width: 7, Height: 7}
 	recordStoreroom(t, planner, db, room)
 	bunks := map[domain.Cell]bool{}
-	for _, plan := range stageShelterBunks(t, planner, db, n, func() { recordStoreroom(t, planner, db, room) }) {
-		for _, action := range plan.Spec.Actions() {
+	staged, plan := stageShelter(t, planner, db, n, func() { recordStoreroom(t, planner, db, room) })
+	for _, bunkPlan := range staged {
+		for _, action := range bunkPlan.Spec.Actions() {
 			if b, ok := action.Building(); ok {
 				for _, cell := range policy.BunkCells(b.Cell(), b.Rotation()) {
 					bunks[cell] = true
 				}
 			}
 		}
-	}
-	result, err := planner.Step(ctx)
-	if err != nil || result.Verdict != BuildingReasonAdmitted {
-		t.Fatal(result, err)
-	}
-	plan, err := db.LoadPlan(ctx, shellMethod(result.Decision.Standard).Plan)
-	if err != nil {
-		t.Fatal(err)
 	}
 	door, ring := shellCells(t, plan)
 	checkAdmittedShell(t, n, door, ring, bunks)

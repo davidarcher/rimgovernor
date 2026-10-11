@@ -235,13 +235,6 @@ func waitingHeld(ctx context.Context, name string, w roomWork, refused ...refuse
 // is committed: foreign obstructions, removals, installs from packed stock,
 // then the on-site builds (commitBuilds).
 func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, stock *packedStock, rr roomReconcile) (RoundsBuildingResult, error) {
-	// The initial shelter comes first: no other room raises a ring while it
-	// is owed, so the builder's labor and the start kit go to it (#2814).
-	if b.concern != policy.MaintainHousing {
-		if owed, err := initialShelterOwed(call, b.reviewer.player, review); err != nil || owed {
-			return RoundsBuildingResult{Verdict: BuildingShelterPending}, err
-		}
-	}
 	facts := reading.Projection
 	plan, known := facts.LayoutPlan.Value()
 	if !known {
