@@ -28,6 +28,9 @@ type pawn struct {
 	// next and the overshoot carries into the following cell.
 	costLeft    float64
 	blockedSent bool
+
+	side string
+	combatant
 }
 
 // ticksPerMove ports Pawn.TicksPerMove for a pawn standing on from: 60 over
@@ -76,13 +79,20 @@ func (s *Sim) apply(o Order) error {
 		return unknownPawn(o.Pawn)
 	}
 	p := &s.pawns[i]
+	if p.dead || p.downed {
+		return nil
+	}
 	switch o.Kind {
+	case OrderAttack:
+		return s.startAttack(i, o)
 	case OrderStop:
+		p.cancelAttack()
 		if p.moving {
 			p.halt()
 			s.emit(Event{Kind: EventStopped, Pawn: p.id, Cell: p.pos})
 		}
 	case OrderMove:
+		p.cancelAttack()
 		s.startMove(i, o)
 	}
 	return nil
@@ -165,7 +175,7 @@ func (s *Sim) arrivalTicks(p *pawn) int {
 // tick advances one pawn one game tick (PatherTick): pay a tick of the next
 // cell's cost, and enter the cell when it is paid.
 func (p *pawn) tick(s *Sim, self int) {
-	if !p.moving {
+	if !p.moving || p.dead || p.downed || p.stance != stanceIdle {
 		return
 	}
 	if p.costLeft > 0 {

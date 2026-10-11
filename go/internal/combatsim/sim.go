@@ -1,8 +1,10 @@
-// Package combatsim is a deterministic, pure-Go combat simulator core: a
+// Package combatsim is a deterministic, pure-Go combat simulator: a
 // mechanics-faithful port of the game's grid rules (line of sight and lean,
-// cover, per-cell movement cost) behind a Reset/Step seam. It is the world
-// only; hit resolution, enemy choice, melee and the CombatView adapter come in
-// later children of epic #2830.
+// cover, per-cell movement cost) and of ordinary ranged resolution (hit
+// chance, warmup, burst and cooldown, projectile flight and interception,
+// armor, an injury approximation) behind a Reset/Step seam. Enemy choice,
+// melee and the CombatView adapter come in later children of epic #2830. Every
+// simplification is listed in approximations.md.
 //
 // Time is the game tick. Reset(scenario, seed) builds the world and the two
 // simulator-owned random streams (physical outcomes and enemy choice); Step
@@ -24,6 +26,7 @@ package combatsim
 import (
 	"math/rand/v2"
 
+	"github.com/davidarcher/RimGovernor/go/internal/combatmetrics"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -44,6 +47,13 @@ type PawnSpec struct {
 	// MoveSpeed is the pawn's MoveSpeed stat in cells per second. Unknown marks
 	// the scenario unsupported.
 	MoveSpeed domain.Fact[float64]
+	// Side is combatmetrics.Colonist or combatmetrics.Hostile; required when
+	// Combat is set.
+	Side string
+	// Combat makes the pawn a combatant: it can be shot and, with a Weapon,
+	// shoot. Nil marks a non-combatant that shots pass through and orders
+	// cannot target.
+	Combat *CombatSpec
 }
 
 // Scenario is the simulator input. Reset copies it; the simulator never
@@ -64,6 +74,13 @@ type Scenario struct {
 	// WeatherMoveSpeed is the weather's move speed multiplier outside roofs.
 	// Unknown marks the scenario unsupported.
 	WeatherMoveSpeed domain.Fact[float64]
+	// WeatherAccuracy is the weather's shooting accuracy multiplier
+	// (CurWeatherAccuracyMultiplier), applied unless both shooter and target
+	// are roofed. FriendlyFireChanceFactor is the difficulty's
+	// friendlyFireChanceFactor. Both are required once any pawn has Combat set;
+	// unknown marks the scenario unsupported.
+	WeatherAccuracy          domain.Fact[float64]
+	FriendlyFireChanceFactor domain.Fact[float64]
 	// StepTicks is the game ticks one Step advances; it must be positive.
 	StepTicks int
 	Pawns     []PawnSpec
@@ -77,6 +94,10 @@ const (
 	OrderMove OrderKind = iota
 	// OrderStop halts the pawn where it stands.
 	OrderStop
+	// OrderAttack makes the pawn shoot Target until it is down, dead or the
+	// pawn is given another order. It stands and waits while Target is out of
+	// range or sight.
+	OrderAttack
 )
 
 // Order is one pawn command applied at the start of a Step.
@@ -85,6 +106,8 @@ type Order struct {
 	Kind    OrderKind
 	To      domain.Cell
 	Urgency Urgency
+	// Target is the pawn an OrderAttack shoots at.
+	Target domain.PawnID
 }
 
 // EventKind names what happened.
@@ -105,6 +128,30 @@ const (
 	EventDoorOpened
 	// EventStopped: a stop order halted the pawn at Cell.
 	EventStopped
+	// EventShot: Pawn fired at Target; Outcome says where the shot goes.
+	EventShot
+	// EventHit: a projectile of Pawn hit Target (the victim, which may not be
+	// the pawn aimed at) for Amount damage after armor.
+	EventHit
+	// EventDowned and EventDied: Pawn is down or dead; Target is the
+	// instigator of the hit that did it.
+	EventDowned
+	EventDied
+	// EventAttackEnded: Pawn's attack order ended because Target is down or dead.
+	EventAttackEnded
+)
+
+// ShotOutcome is what a fired shot is already decided to do.
+type ShotOutcome uint8
+
+const (
+	// ShotFlying: aimed at the target; it hits it unless a pawn intercepts it
+	// (an EventHit follows when the projectile lands).
+	ShotFlying ShotOutcome = iota + 1
+	// ShotWild: missed wide; nothing is hit.
+	ShotWild
+	// ShotCover: absorbed by cover next to the target; nothing is hit.
+	ShotCover
 )
 
 // Event is one thing that happened during a Step.
@@ -115,6 +162,10 @@ type Event struct {
 	Cell domain.Cell
 	// ETA is set on EventMoveStarted: the arrival tick.
 	ETA int
+	// Target, Amount and Outcome are set by the combat events.
+	Target  domain.PawnID
+	Amount  float64
+	Outcome ShotOutcome
 }
 
 // PawnState is a pawn's observable state.
@@ -123,6 +174,11 @@ type PawnState struct {
 	Pos    domain.Cell
 	Moving bool
 	Dest   domain.Cell
+	// Damage is the post-armor damage taken; Downed and Dead are the injury
+	// approximation's verdicts (Dead implies Downed).
+	Damage float64
+	Downed bool
+	Dead   bool
 }
 
 // State is the world after a Step. Pawns is in scenario order. Both State and
@@ -162,6 +218,11 @@ type Sim struct {
 	events []Event
 	state  State
 
+	pending []projectile // in flight, in launch order
+	ledger  []combatmetrics.Hit
+	ff      float64 // FriendlyFireChanceFactor
+	wxAcc   float64 // WeatherAccuracy
+
 	// scratch reused across calls
 	leanSource, leanDest []domain.Cell
 	search               search
@@ -180,6 +241,8 @@ func (s *Sim) Reset(sc Scenario, seed uint64) (State, error) {
 		Enemy:    rand.New(rand.NewPCG(seed, enemyStream)),
 	}
 	s.events = s.events[:0]
+	s.pending = s.pending[:0]
+	s.ledger = s.ledger[:0]
 	return s.snapshot(), nil
 }
 
@@ -203,7 +266,9 @@ func (s *Sim) Step(orders []Order) (State, []Event, error) {
 		s.tick++
 		for i := range s.pawns {
 			s.pawns[i].tick(s, i)
+			s.combatTick(i)
 		}
+		s.landProjectiles()
 	}
 	return s.snapshot(), s.events, nil
 }
@@ -213,7 +278,10 @@ func (s *Sim) snapshot() State {
 	s.state.Pawns = s.state.Pawns[:0]
 	for i := range s.pawns {
 		p := &s.pawns[i]
-		s.state.Pawns = append(s.state.Pawns, PawnState{ID: p.id, Pos: p.pos, Moving: p.moving, Dest: p.dest})
+		s.state.Pawns = append(s.state.Pawns, PawnState{
+			ID: p.id, Pos: p.pos, Moving: p.moving, Dest: p.dest,
+			Damage: p.damage, Downed: p.downed, Dead: p.dead,
+		})
 	}
 	return s.state
 }
@@ -286,10 +354,16 @@ func (s *Sim) load(sc Scenario) error {
 		case s.pawnIndex(ps.ID) >= 0:
 			return unsupported("duplicate pawn id %q", ps.ID)
 		}
+		np := pawn{id: ps.ID, pos: ps.Pos, speed: speed, dest: ps.Pos, side: ps.Side, target: -1}
+		if ps.Combat != nil {
+			if err := np.loadCombat(ps); err != nil {
+				return err
+			}
+		}
 		s.occ[g.idx(ps.Pos)] = int32(i + 1)
-		s.pawns = append(s.pawns, pawn{id: ps.ID, pos: ps.Pos, speed: speed, dest: ps.Pos})
+		s.pawns = append(s.pawns, np)
 	}
-	return nil
+	return s.loadCombatWorld(sc)
 }
 
 func fill(dst, src []uint8, n int) []uint8 {
