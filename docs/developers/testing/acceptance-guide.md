@@ -156,6 +156,29 @@ action), so seeds 1..N run from one bundle; the report carries `run_seed` and
 their draws diverge too, so paired seeds compare starting dice, not identical
 dice. `combatlab/reseed` checks the action itself.
 
+## Combat lab sweeps
+
+`acceptance sweep <fixture>... -root <dir> -output <fresh dir> -rimgovernor <bin>
+[-n 20 | -seeds 1,2,5] [-workers 1|2] [-against <sweep.json|dir>] [-restage]`
+runs `combatlab/metrics-<fixture>` once per seed, 1..N by default. The fixture
+is staged once (a cached stage bundle is reused), every worker root gets its
+own copy of that bundle, and seed `s` runs `-run-seed s` from it. Seeds are
+dispatched with `combatdispatch.Dispatch` on 1 or 2 private clones of `-root`
+(more is refused); the result records the workers and a RimWorld process count
+taken before dispatch, so a timing-dependent metric can be read against box load.
+
+`<output>/<fixture>/sweep.json` is the `combatmetrics.Sweep` file (version
+field `SweepVersion`): one row per seed (metrics, staging digest, reseed draws)
+plus a summary. The printed report leads with the seeds that saw a colonist
+death or down and the means of colonist deaths and downs with 95% t intervals,
+then damage, enemy outcomes and contact-to-resolution. A second sweep with the
+same seeds reads the same staging digest and reseed draws per seed. `-against`
+pairs the seeds of an earlier sweep file and prints the paired deltas; it exits
+1 when a seed gains a colonist death or the paired interval of colonist deaths
+or downs lies wholly above zero. The single-run `combatlab/baselines/*.json`
+files carry no seeds and cannot be paired against until the baselines become
+sweep outputs (#2843).
+
 `acceptance suite -stages` schedules missing stages and their dependent tails
 for iteration. The ordinary suite restages from scratch. Preserve
 `staged_from` when reporting cached evidence; see

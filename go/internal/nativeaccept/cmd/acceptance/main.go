@@ -3,6 +3,7 @@
 //	acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [-tier nightly|smoke] [<case>|<area>/...]...
 //	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d -restage -no-doctor -no-heal -repeat N -seed s -postmortem-only [-from bundle] -break stage=<name>|tick=<n>|minute=<m> -through <stage>]
 //	acceptance resume [<case>...] -root <dir> [run flags]
+//	acceptance sweep <fixture>... -root <dir> -output <dir> -rimgovernor <bin> [-n 20 -seeds a,b -workers 1|2 -against sweep.json]
 //	acceptance suite (-all | -cases a,b | -suite file.json | -tier nightly|smoke) -root -output -workers N [-baseline result.json -series metrics.jsonl]
 //	acceptance stop -root <dir> [-config -game -takeover]
 //	acceptance setup [-worktree -rimworld -harmony -fixture -rebuild -skip-mod -skip-binaries]
@@ -87,7 +88,6 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/clean"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/clearance"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/combat"
-	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/combatlab"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/custody"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/defense"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/dialog"
@@ -171,6 +171,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return 2
 		}
 		return runSuite(context.Background(), list, opts, stderr)
+	case "sweep":
+		return sweep(context.Background(), args[1:], stdout, stderr)
 	case "resume":
 		return resume(context.Background(), args[1:], stdout, stderr)
 	case "stop":
@@ -217,7 +219,7 @@ const usage = `usage:
     and leaves the game loaded and paused on the kept process (BREAK, exit 3); acceptance resume continues it
   acceptance stop -root <dir> [-config <dir> -game <id> -takeover]
     ends the game the root keeps and discards any breakpoint paused there
-` + resumeUsage + setupUsage + suiteUsage + whyUsage + warmUsage + fixtureUsage + doctorUsage + pruneUsage + devUsage + profileUsage + profileCompareUsage + fetchFixtureUsage
+` + sweepUsage + resumeUsage + setupUsage + suiteUsage + whyUsage + warmUsage + fixtureUsage + doctorUsage + pruneUsage + devUsage + profileUsage + profileCompareUsage + fetchFixtureUsage
 
 // parseRun resolves the run subcommand's flags and case names. Flags may
 // follow the case names (flag.FlagSet stops at the first non-flag, so the
