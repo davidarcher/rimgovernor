@@ -371,6 +371,30 @@ func (r *RoundsStockpilePlanner) raiseRoom(call, epoch context.Context, state Co
 	return RoundsStockpileResult{Verdict: result.Verdict}, err != nil || result.Verdict == BuildingReasonAdmitted, err
 }
 
+// withoutBuilds is the proposal's zone edits alone: the storage shells and the
+// shelf upgrade need builders.
+func withoutBuilds(proposal policy.StockpileReview) policy.StockpileReview {
+	proposal.Rooms, proposal.Shelf = nil, policy.ShelfStep{}
+	return proposal
+}
+
+// shelterOwed is whether the initial shelter is owed under review, the reading
+// the priority gate holds planners on.
+func (r *RoundsStockpilePlanner) shelterOwed(call context.Context, review store.Rounds) (bool, error) {
+	result := store.RoundsResult{Review: review}
+	for _, binding := range review.Standards {
+		if binding.Concern != policy.MaintainHousing {
+			continue
+		}
+		state, err := r.reviewer.player.journal.LoadStandard(call, binding.Standard)
+		if err != nil {
+			return false, err
+		}
+		result.Standards = append(result.Standards, state)
+	}
+	return shelterOwed(result), nil
+}
+
 func (r *RoundsStockpilePlanner) step(call, epoch context.Context, _ *stepArbiter) (RoundsStockpileResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
@@ -433,9 +457,18 @@ func (r *RoundsStockpilePlanner) step(call, epoch context.Context, _ *stepArbite
 	if !proposal.Active {
 		return RoundsStockpileResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
+	// While the initial shelter is owed the builders are its: zone edits are
+	// instant and go on, but no storage shell or shelf is raised.
+	var waiting Verdict
+	owed, err := r.shelterOwed(call, review)
+	if err != nil {
+		return RoundsStockpileResult{}, err
+	}
+	if owed {
+		proposal, waiting = withoutBuilds(proposal), BuildingShelterPending
+	}
 	// A planned room not yet standing is raised first; while its shell waits
 	// (already tried, no space, refused) the zone edits go on.
-	var waiting Verdict
 	if len(proposal.Rooms) > 0 {
 		result, handled, err := r.raiseRoom(call, epoch, state, review, goal, read, proposal.Rooms[0])
 		if err != nil || handled {

@@ -27,6 +27,12 @@ type LootItem struct {
 // Held lists the safe forbidden stacks demand or a safety hold kept
 // forbidden, with reasons.
 type EventLootHistory struct {
+	// Read is set once a review has read the loot census. The start kit is
+	// released on that first read (FilterLootReachAdmitted), whichever review
+	// it is: every start item begins forbidden and no storage exists yet to
+	// price it, so a census that was unread on the world's first review must
+	// not leave the kit to the remote-loot throttle.
+	Read    bool `json:",omitempty"`
 	Pending []StartingSupply
 	Held    []LootHold `json:",omitempty"`
 }
@@ -56,7 +62,7 @@ func ReviewEventLoot(observed domain.Fact[[]LootItem], previous EventLootHistory
 	if !known {
 		return previous, domain.Unknown[bool](), nil
 	}
-	next := EventLootHistory{}
+	next := EventLootHistory{Read: true}
 	seen := map[string]bool{}
 	for _, row := range rows {
 		if err := row.Supply.Validate(); err != nil {

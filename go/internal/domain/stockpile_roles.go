@@ -4,7 +4,10 @@ package domain
 // parameterized roles append ":<key>".
 const (
 	// GeneralRole is the warehouse: the roofed general store.
-	GeneralRole           = "general"
+	GeneralRole = "general"
+	// ShelterRole is the starter shelter's floor: a general store at Low
+	// priority until a real storage room stands.
+	ShelterRole           = "shelter"
 	IngredientsPrefix     = "ingredients:"
 	MealsRolePrefix       = "meals:"
 	RawFoodRolePrefix     = "rawfood:"

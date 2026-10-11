@@ -57,7 +57,8 @@ func FilterLootReach(observed domain.Fact[[]LootItem], r RemoteWorkRequest) (dom
 // FilterLootReachAdmitted is FilterLootReach for the startup release:
 // the scenario's starting stacks are forbidden before the colony has an
 // extent, so the safety hold would hold them all. A forbidden stack skips the
-// hold on the world's first review (first) and while it stays in the previous
+// hold on the first review that reads the census (first: no EventLootHistory.Read
+// yet), whatever its storage headroom, and while it stays in the previous
 // review's pending cohort, so a release of more stacks than one plan holds
 // finishes over the following reviews. FilterLootRelease's danger and spawner
 // holds run before it and still apply.

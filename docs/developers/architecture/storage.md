@@ -9,8 +9,10 @@ asks for when full) and its `RoomDemand` from capacity. `MaintainStockpiles` is
 the one applier, through the ordinary zone create, cell-edit, patch and delete actions; the
 standing zones are the only record (see
 [persistence contracts](../contracts/persistence-contracts.md)). Rooms stay
-layout's job. The stores are declared per department: Storage (warehouse, yard),
-Food, Medical, Industry (bench ingredients), Military (armory, wardrobe),
+layout's job. The stores are declared per department: Shelter (the starter
+shelter's floor, one Low priority general zone over the whole interior until a
+storage room or freezer stands, then deleted so its contents haul to the better
+stores), Storage (warehouse, yard), Food, Medical, Industry (bench ingredients), Military (armory, wardrobe),
 People (tomb, morgue, graveyard) and Sanitation (waste dump, incinerator); the
 animal feed store belongs to Husbandry.
 

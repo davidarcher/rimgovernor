@@ -38,7 +38,7 @@ type StoreOwner interface {
 }
 
 // storeOwners is the one registry of departments that declare stores.
-var storeOwners = []StoreOwner{storageOwner{}, militaryOwner{}, industryOwner{}, incinerationOwner{}, burialOwner{}, animalOwner{}, foodOwner{}, medicalOwner{}}
+var storeOwners = []StoreOwner{storageOwner{}, shelterOwner{}, militaryOwner{}, industryOwner{}, incinerationOwner{}, burialOwner{}, animalOwner{}, foodOwner{}, medicalOwner{}}
 
 // StoreDeclaration is every owner's stores and room demand, merged.
 type StoreDeclaration struct {

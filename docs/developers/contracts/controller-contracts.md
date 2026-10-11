@@ -94,7 +94,8 @@ latch at `shelter`) one priority gate (`priorityGates`, applied where the planne
 holds every planner outside its allowlist with `awaiting_plan:initial_shelter`. The allowlist
 is what builds the shelter or answers an event: `undraft`, `work`, `supplies`, `sleeping`,
 `sleepingUpkeep`, `hospital`, `tend`, `rescue`, `recovery`, `populationCustody`, `fireSafety`,
-`dialog` and the defense planner; a planner whose concern the review calls an emergency
+`dialog`, `stockpiles` and the defense planner (the stockpiles planner zones the start kit's
+storage but raises no storage shell or shelf while the shelter is owed); a planner whose concern the review calls an emergency
 (priority 0 or 1) also runs. A later goal joins the rule as one more `priorityGates` row, with
 no per-planner hold. A held planner is queued with a trivial run, so its dirty marks and
 cadence are those of a planner that ran and refused. The defense layout's killbox digs (#2818)
@@ -105,7 +106,9 @@ shelter room is one continuous reconcile: the first review admits the spots rung
 together, and later reviews go on up the ladder (the clearing, then the beds) while the ring's
 wave is open (disjoint cells; `store.shelterOpenWorkExempt`). A ring is not
 placed in a stuff with no accessible stock while the start kit is still forbidden
-(`awaiting_plan:start_kit`). The stage
+(`awaiting_plan:start_kit`); the kit is released by the supplies planner on the first review
+that reads the loot census (`EventLootHistory.Read`), whatever the storage headroom, so the
+wait is short. The stage
 adds no action kind; the `rounds_review` timeline event carries
 `stage`/`stage_blocker`/`stage_reason`/`stage_held` and `colony_stage` records each
 change. The `clock_step` row carries

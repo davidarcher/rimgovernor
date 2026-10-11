@@ -830,7 +830,9 @@ var plannerCatalog = []plannerEntry{
 
 // runsBeforeShelter names the planners that run while the initial shelter is
 // owed: what builds it (work priorities, the start kit's allow/forbid, the
-// shelter and its bunk assignment) and what answers an event (a raid, a
+// shelter and its bunk assignment), the stockpile zones the kit is stored in
+// (the stockpiles planner skips every build while the shelter is owed) and
+// what answers an event (a raid, a
 // patient, a fire, a dialog, a disaster, custody). A hostile-temperature start
 // owes the colonists no other action until the shelter stands; the rest are
 // held with BuildingShelterPending (queuePlanners). The medical-reserve and
@@ -840,7 +842,7 @@ var plannerCatalog = []plannerEntry{
 var runsBeforeShelter = map[string]bool{
 	"undraft": true, "work": true, "supplies": true, "sleeping": true, "sleepingUpkeep": true,
 	"hospital": true, "tend": true, "rescue": true, "recovery": true, "populationCustody": true,
-	"fireSafety": true, "dialog": true, defensePlanner: true,
+	"fireSafety": true, "dialog": true, defensePlanner: true, "stockpiles": true,
 }
 
 // shelterOwed reports whether the review binds an active MaintainHousing goal
