@@ -45,6 +45,9 @@ func PlannedGround(plan LayoutPlan, ground GroundCensus) []Rectangle {
 		if r.Airlock != nil {
 			out = append(out, r.AirlockGround())
 		}
+		if r.Porch != nil {
+			out = append(out, r.PorchGround())
+		}
 	}
 	return append(out, plan.RetiredGround...)
 }

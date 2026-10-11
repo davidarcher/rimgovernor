@@ -263,6 +263,10 @@ func PlannedPowerSites(plan LayoutPlan, definition string) []PlannedPowerSite {
 	var out []PlannedPowerSite
 	switch definition {
 	case BatteryDefinition:
+		// The shelter's porch holds the batteries until the battery room is planned.
+		if len(plan.roomsOf(PlannedBattery)) == 0 {
+			out = append(out, porchSites(plan)...)
+		}
 		for _, r := range plan.AllRooms() {
 			if r.Role != PlannedBattery {
 				continue
@@ -429,6 +433,9 @@ func newUtilityGrid(plan LayoutPlan) *utilityGrid {
 		u.mark(roomWalls(r))
 		if r.Airlock != nil {
 			u.mark(r.AirlockGround())
+		}
+		if r.Porch != nil {
+			u.mark(r.PorchGround())
 		}
 	}
 	for _, s := range plan.Hallways() {

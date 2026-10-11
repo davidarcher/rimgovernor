@@ -40,7 +40,7 @@ func airlockInput(plan LayoutPlan, room PlannedRoom, ground GroundCensus) Reconc
 
 func TestAirlockReconcileOwesWallsAndOuterDoor(t *testing.T) {
 	in := Rectangle{X: 10, Z: 10, Width: 4, Height: 3}
-	room := shelterRoom(in, domain.Cell{X: 40, Z: 11}, true)
+	room := shelterRoom(in, domain.Cell{X: 40, Z: 11}, true, false)
 	plan := LayoutPlan{Rooms: []PlannedRoom{room}}
 	if room.DoorRot != domain.East || room.Airlock.Vestibule != (domain.Cell{X: 15, Z: 11}) || room.Airlock.Outer != (domain.Cell{X: 16, Z: 11}) {
 		t.Fatalf("room %+v %+v", room, room.Airlock)
@@ -75,7 +75,7 @@ func TestAirlockReconcileOwesWallsAndOuterDoor(t *testing.T) {
 }
 
 func TestTransposeKeepsTheAirlock(t *testing.T) {
-	room := shelterRoom(Rectangle{X: 10, Z: 10, Width: 4, Height: 3}, domain.Cell{X: 40, Z: 11}, true)
+	room := shelterRoom(Rectangle{X: 10, Z: 10, Width: 4, Height: 3}, domain.Cell{X: 40, Z: 11}, true, false)
 	if again := transposeRoom(transposeRoom(room)); !again.Same(room) {
 		t.Fatalf("%+v != %+v", again, room)
 	}

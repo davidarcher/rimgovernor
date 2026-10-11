@@ -65,6 +65,7 @@ message EffectEvidence {
     GiveItemEffect give_item = 44;
     CommsTradeRequestEffect comms_trade_request = 45;
     GatheringEffect gathering = 46;
+    BuildRoofEffect build_roof = 47;
   }
 }
 message HackDesignationEffect { optional string target_id = 1; optional bool enabled = 2; }
@@ -201,6 +202,9 @@ message PolicyPruneEffect { optional string database = 1; repeated string delete
 // whose RemoveRoof designation already stood, and cells already unroofed.
 // Applied means designated; the roof read decides when pawns finished.
 message RemoveRoofEffect { optional int32 designated = 1; optional int32 adopted = 2; optional int32 unroofed = 3; }
+// One BuildRoofIntent's result: cells this apply designated, cells whose BuildRoof
+// designation already stood, and cells already roofed. Applied means designated.
+message BuildRoofEffect { optional int32 designated = 1; optional int32 adopted = 2; optional int32 roofed = 3; }
 // One AreaPlantCutIntent's result: plants this apply designated
 // CutPlant, trees it designated chop-wood, and plants whose cut or chop
 // designation already stood. Applied means designated; the plant cut census

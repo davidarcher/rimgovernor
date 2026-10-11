@@ -255,6 +255,13 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,zone_payload) VALUES(?,?,?,'remove_roof',?)", a.ID(), plan, ordinal, data)
+	} else if roof, ok := a.BuildRoof(); ok {
+		// zone_payload is the canonical cells.
+		data, encodeErr := json.Marshal(roof.Cells())
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,zone_payload) VALUES(?,?,?,'build_roof',?)", a.ID(), plan, ordinal, data)
 	} else if cut, ok := a.AreaPlantCut(); ok {
 		// zone_payload is the canonical cells.
 		data, encodeErr := json.Marshal(cut.Cells())
@@ -457,6 +464,18 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewRemoveRoofAction(id, roof)
+		return a, ordinal, err
+	}
+	if kind == "build_roof" && !def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil {
+		var cells []domain.Cell
+		if json.Unmarshal(zone, &cells) != nil {
+			return domain.Action{}, 0, errors.New("invalid build roof payload")
+		}
+		roof, err := domain.NewBuildRoof(cells)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewBuildRoofAction(id, roof)
 		return a, ordinal, err
 	}
 	if kind == "area_plant_cut" && !def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil {

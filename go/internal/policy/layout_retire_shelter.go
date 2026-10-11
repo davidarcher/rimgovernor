@@ -141,6 +141,9 @@ func retireShelter(plan LayoutPlan, growth RoomGrowth) (LayoutPlan, bool) {
 			if r.Airlock != nil {
 				ground = append(ground, r.AirlockGround())
 			}
+			if r.Porch != nil {
+				ground = append(ground, r.PorchGround())
+			}
 		}
 	}
 	next, dropped := dropRooms(plan, drop)

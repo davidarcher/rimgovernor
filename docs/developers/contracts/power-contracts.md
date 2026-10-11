@@ -87,7 +87,15 @@ check on the model: a consumer that actually loses power is a deficit whatever t
   - No available generator reports `no_affordable_generator`, or the research gate that would make one
     available (the research ladder places `GeothermalPower` after `Batteries`).
 - **`store`:** one `Battery` on a roofed cell within six cells of the draining consumer (an unroofed
-  battery short-circuits in rain or snow).
+  battery short-circuits in rain or snow). On a cold map, while the plan has no battery room,
+  `PlannedPowerSites(Battery)` lists the shelter porch's slots first: an open lean-to strip on the
+  exterior face of the wall opposite the shelter door (`PlannedRoom.Porch`, `layout_porch.go`; two 1x2
+  slots, no walls). The porch is not enclosed, so the plan that places a battery on it also carries a
+  `build_roof` action over the whole strip (vanilla's Build Roof area, see
+  [action contracts](action-contracts.md)), and `previewPlannedPower`'s roofed-cell gate accepts porch
+  cells on that basis. Once a battery room is planned the porch slots are no longer listed; batteries
+  already on the porch stay until the shelter retires, when the porch ground joins `RetiredGroundOf`
+  and clearance takes them down. Temperate maps get no porch.
 - **`shelter_power`:** a bounded enclosure around exposed vulnerable equipment; recovery requires the
   observed roof. See [electrical safety](../architecture/facilities.md#electrical-safety).
 

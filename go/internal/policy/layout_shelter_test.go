@@ -97,7 +97,7 @@ func TestShelterFallbackLadder(t *testing.T) {
 		}
 	}
 	for gap := shelterGap; gap > 4; gap-- {
-		if _, ok := g.shelterOnOpenGround(all, halls, seed, size, gap, false); ok {
+		if _, ok := g.shelterOnOpenGround(all, halls, seed, size, gap, false, false); ok {
 			t.Fatalf("shelter sited %d clear on ground that leaves less", gap)
 		}
 	}
@@ -148,7 +148,7 @@ func TestShelterDoorFacesTheBase(t *testing.T) {
 		{domain.Cell{X: 13, Z: 60}, domain.North, domain.Cell{X: 13, Z: 14}},
 		{domain.Cell{X: 13, Z: -30}, domain.South, domain.Cell{X: 13, Z: 9}},
 	} {
-		r := shelterRoom(in, c.seed, false)
+		r := shelterRoom(in, c.seed, false, false)
 		if r.DoorRot != c.rot || r.Door != c.door {
 			t.Fatalf("seed %v: door %v %v, want %v %v", c.seed, r.Door, r.DoorRot, c.door, c.rot)
 		}

@@ -376,6 +376,11 @@ func (r *RoundsBuildingPlanner) previewPlannedPower(ctx context.Context, snapsho
 			roofed[c.Cell] = true
 		}
 	}
+	// A porch cell counts as roofed: the plan that places a battery there
+	// designates the porch's Build Roof area with it (porchRoofAction).
+	for c := range porchCells(facts) {
+		roofed[c] = true
+	}
 	wallStuff := ""
 	if s := shellStyle(facts).WallStuff; s != "" {
 		wallStuff = string(s)
@@ -460,6 +465,45 @@ func (r *RoundsBuildingPlanner) previewPlannedPower(ctx context.Context, snapsho
 		return nil, stock, false, nil
 	}
 	return selected, stock, true, nil
+}
+
+// porchCells are the cells of the plan's shelter porches, which the plan
+// roofs itself (porchRoofAction) when a battery goes on one.
+func porchCells(facts observation.ColonyProjection) map[domain.Cell]bool {
+	out := map[domain.Cell]bool{}
+	if plan, ok := facts.LayoutPlan.Value(); ok {
+		for _, c := range policy.PorchRoofCells(plan) {
+			out[c] = true
+		}
+	}
+	return out
+}
+
+// porchRoofAction is the BuildRoof designation over the shelter porch,
+// issued with the plan that puts a battery on it: the open lean-to is roofed by
+// vanilla's Build Roof area, not by a room's auto-roof. False when no selected
+// building is a battery on a porch cell. id is the action's ordinal in the plan.
+func porchRoofAction(a roundsAdmission, ordinal int) (domain.Action, bool, error) {
+	plan, ok := a.facts.LayoutPlan.Value()
+	if !ok {
+		return domain.Action{}, false, nil
+	}
+	porch := porchCells(a.facts)
+	onPorch := false
+	for _, v := range a.selected {
+		if b, isBuilding := v.Action.Building(); isBuilding && b.Definition() == policy.BatteryDefinition && porch[b.Cell()] {
+			onPorch = true
+		}
+	}
+	if !onPorch {
+		return domain.Action{}, false, nil
+	}
+	roof, err := domain.NewBuildRoof(policy.PorchRoofCells(plan))
+	if err != nil {
+		return domain.Action{}, false, err
+	}
+	action, err := domain.NewBuildRoofAction(domain.ActionID(fmt.Sprintf("%s-%d", a.snapshot.Plan, ordinal)), roof)
+	return action, err == nil, err
 }
 
 // sameCells reports whether a and b hold the same cells.

@@ -108,7 +108,7 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 				return BuildingMethodDecision{}, err
 			}
 			candidates = append(candidates, policy.Candidate{Action: a, Progress: progress, Priority: int32(4 - owner.ownerPriority()), Purpose: r.Purpose, Preview: preview})
-		case domain.WallRemovalAction, domain.ExcavationAction, domain.DeconstructionAction, domain.UninstallBuildingAction, domain.ClaimBuildingAction, domain.RemoveRoofAction:
+		case domain.WallRemovalAction, domain.ExcavationAction, domain.DeconstructionAction, domain.UninstallBuildingAction, domain.ClaimBuildingAction, domain.RemoveRoofAction, domain.BuildRoofAction:
 			// Guarded demolition, staged excavation and a shell ring's ruin
 			// clearance and claims, and the shelter bunks' packed bedrolls,
 			// carry no cost/footprint preview; they are

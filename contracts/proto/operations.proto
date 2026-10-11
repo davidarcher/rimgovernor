@@ -307,6 +307,7 @@ message Action {
     GiveItemIntent give_item = 71;
     CommsTradeRequestIntent comms_trade_request = 72;
     GatheringIntent gathering = 73;
+    BuildRoofIntent build_roof = 74;
   }
 }
 message HackDesignationIntent { rimgovernor.common.v1.Ref target = 1; optional bool enabled = 2; }
@@ -638,6 +639,11 @@ message BuildingPatchIntent {
 // refuses a fogged or out-of-bounds cell and a thick (overhead mountain)
 // roof; a cell already unroofed or already designated applies again.
 message RemoveRoofIntent { repeated rimgovernor.common.v1.Cell cells = 1; }
+// Mark cells in the vanilla build-roof (BuildRoof) area, the mirror of RemoveRoofIntent: pawns
+// roof the designated cells that are unroofed, beside a wall or other roof support (the
+// shelter porch holding the first batteries). Native refuses a fogged or out-of-bounds cell
+// and a thick (overhead mountain) roof; a cell already roofed or designated applies again.
+message BuildRoofIntent { repeated rimgovernor.common.v1.Cell cells = 1; }
 // Order every non-crop plant on cells cut: wild plants get CutPlant,
 // a harvestable tree gets chop-wood (HarvestPlant). Plants in a growing zone,
 // on a plant grower and sown crops are never touched. Native refuses an

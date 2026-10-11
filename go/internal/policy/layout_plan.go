@@ -50,6 +50,9 @@ type PlannedRoom struct {
 	// Airlock is a cold-map shelter's vestibule and outer door beyond its
 	// door (layout_airlock.go); nil for every other room.
 	Airlock *Airlock `json:",omitempty"`
+	// Porch is a cold-map shelter's roofed lean-to holding the first
+	// batteries (layout_porch.go); nil for every other room.
+	Porch *Porch `json:",omitempty"`
 }
 
 // ZoneKind is a whole-map zone's use.
@@ -294,7 +297,7 @@ func (r PlannedRoom) Same(o PlannedRoom) bool {
 			return false
 		}
 	}
-	return r.Role == o.Role && r.Interior == o.Interior && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing && r.Markers == o.Markers && (r.Airlock == nil) == (o.Airlock == nil) && (r.Airlock == nil || *r.Airlock == *o.Airlock)
+	return r.Role == o.Role && r.Interior == o.Interior && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing && r.Markers == o.Markers && (r.Airlock == nil) == (o.Airlock == nil) && (r.Airlock == nil || *r.Airlock == *o.Airlock) && (r.Porch == nil) == (o.Porch == nil) && (r.Porch == nil || *r.Porch == *o.Porch)
 }
 
 // NearestAnchor is the interior centre of the free planned room of role want

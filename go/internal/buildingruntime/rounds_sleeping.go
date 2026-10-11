@@ -847,6 +847,13 @@ func (r *RoundsBuildingPlanner) admitPreviews(call, epoch context.Context, a rou
 	for i, v := range a.selected {
 		actions[i] = v.Action
 	}
+	roof, roofed, err := porchRoofAction(a, len(actions))
+	if err != nil {
+		return RoundsBuildingResult{}, err
+	}
+	if roofed {
+		actions = append(actions, roof)
+	}
 	plan, err := domain.NewPlan(a.snapshot.Plan, a.snapshot.Revision, actions)
 	if err != nil {
 		return RoundsBuildingResult{}, err

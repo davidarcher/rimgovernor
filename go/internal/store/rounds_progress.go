@@ -116,7 +116,7 @@ func roundsProgress(ctx context.Context, tx *sql.Tx, request RoundsRequest, prev
 // goal declares no profile (a startup goal): who could take it.
 func actionLabor(action domain.Action) policy.LaborProfile {
 	switch action.Kind() {
-	case domain.BuildingAction, domain.DeconstructionAction, domain.RemoveRoofAction, domain.WallRemovalAction, domain.RepairAction, domain.MoveBuildingAction, domain.UninstallBuildingAction:
+	case domain.BuildingAction, domain.DeconstructionAction, domain.RemoveRoofAction, domain.BuildRoofAction, domain.WallRemovalAction, domain.RepairAction, domain.MoveBuildingAction, domain.UninstallBuildingAction:
 		return policy.LaborProfile{policy.WorkConstruction}
 	case domain.HaulAction, domain.StripAction:
 		return policy.LaborProfile{policy.WorkHauling}

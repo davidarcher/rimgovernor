@@ -292,6 +292,7 @@ Kept, reason recorded:
 | NativeRecoveryFacts.cs | 39 | state | Reads colonist buildings and per-pawn allowed area for the recovery census. |  |  |
 | NativeRecoveryOperations.cs | 110 | state | Orders a pawn to fix a breakdown or refuel a building using the native work giver. |  |  |
 | NativeRef.cs | 47 | state | Builds Common.Ref from load ids and collects things referenced during a frame capture. |  |  |
+| NativeBuildRoof.cs | 77 | code | BuildRoofIntent: validates cells and designates the BuildRoof area via Designator_AreaBuildRoof. |  |  |
 | NativeRemoveRoof.cs | 93 | code | RemoveRoofIntent: validates cells and designates NoRoof area via Designator_AreaNoRoof plus a Harmony patch on WorkGiver_BuildRoof. |  |  |
 | NativeRepairOperations.cs | 62 | code | GiveJobIntent Repair: checks reach and WorkGiver_Repair.HasJobOnThing then issues a forced Repair job. |  |  |
 | NativeResearchObservationTools.cs | 282 | mixed | Research snapshot (progress, slots, lock reasons, benches, researchers) plus a static per-project catalog row. | Static(ResearchProjectDef,Faction) ~18 lines: base_cost, cost factor, tab, knowledge category, prerequisites, hidden prerequisites, techprint count, required building and facilities | ResearchProjectDef.baseCost/prerequisites/hiddenPrerequisites/techLevel/tab/knowledgeCategory/techprintCount/requiredResearchBuilding/requiredResearchFacilities; cost factor = Go rule over TechLevel (GameConstants) |

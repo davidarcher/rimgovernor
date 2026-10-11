@@ -136,6 +136,7 @@ type Action struct {
 	pawnSettings        PawnSettings
 	policyPrune         PolicyPrune
 	removeRoof          RemoveRoof
+	buildRoof           BuildRoof
 	areaPlantCut        AreaPlantCut
 	readingPolicy       ReadingPolicy
 	drugPolicy          DrugPolicy
@@ -302,6 +303,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewAreaAction(a.id, a.area)
 		case AreaPlantCutAction:
 			canonical, err = NewAreaPlantCutAction(a.id, a.areaPlantCut)
+		case BuildRoofAction:
+			canonical, err = NewBuildRoofAction(a.id, a.buildRoof)
 		case RemoveRoofAction:
 			canonical, err = NewRemoveRoofAction(a.id, a.removeRoof)
 		case PolicyPruneAction:
