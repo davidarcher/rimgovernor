@@ -18,6 +18,7 @@ verify and land the change.
 | Planner replay | [Colony snapshots](testing/colony-snapshots.md) |
 | Recorded definition catalog | [Recording the catalog](testing/recording-the-catalog.md) |
 | Performance diagnosis | [Measure throughput](testing/measure-throughput.md) |
+| Optional Grafana/OTLP backend | [Observability stack](observability.md) |
 | Schema changes | [Wire contracts](../../contracts/README.md) and [generation](../../contracts/schema-generation.md) |
 | Deployment names | [Project identity](project-identity.md) |
 | Architectural constraints | [Rules](architecture/rules.md) |
