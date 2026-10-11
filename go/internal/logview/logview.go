@@ -1,29 +1,29 @@
-// Package logview reads the diagnostic stream (flight.jsonl, schema v2, see
-// docs/developers/contracts/flight-rows.md): it resolves the recording,
-// filters its rows and collapses repeated decision rows into one counted
-// entry. It is the single reader the CLI (`rimgovernor log`) and the other
-// consumers of the stream share.
+// Package logview reads the diagnostic stream from the OTLP log ring
+// (logs.jsonl, see docs/developers/contracts/otel-core.md and the OTEL mapping
+// in flight-rows.md): it resolves the ring, filters its rows, collapses
+// repeated decision rows into one counted entry and follows the ring across
+// rotation. It is the single reader the CLI (`rimgovernor log`) shares with
+// the launcher, whose flight.jsonl tabs still read through Filter and Collapse.
 package logview
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/otel"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
-// Path resolves a recording: a profile directory's flight/flight.jsonl, or
+// Path resolves the OTLP log ring: a profile directory's flight/otlp/logs.jsonl, or
 // the file path itself.
 func Path(profile, file string) string {
 	if profile != "" {
-		return filepath.Join(profile, "flight", "flight.jsonl")
+		return filepath.Join(profile, "flight", "otlp", otel.LogsFile)
 	}
 	return file
 }
@@ -372,47 +372,4 @@ func compactPayload(payload map[string]any) string {
 		text = text[:payloadPreview] + "..."
 	}
 	return text
-}
-
-// Follow calls emit with each row appended to the recording after the call
-// starts that passes f (with the recording_gap before it, if any), polling every interval
-// until ctx ends. Rows already present are skipped: the caller prints those
-// first. Follow does not collapse.
-func Follow(ctx context.Context, path string, f Filter, interval time.Duration, emit func(bridge.TimelineRecord)) error {
-	reader := bridge.NewTimelineReader(path)
-	var last uint64
-	started := false
-	for {
-		records, err := reader.Read()
-		if err != nil {
-			return err
-		}
-		var fresh []bridge.TimelineRecord
-		var gap *bridge.TimelineRecord // the gap just before the row being read
-		for i, rec := range records {
-			if rec.Kind == "recording_gap" {
-				gap = &records[i]
-				continue
-			}
-			if rec.HasSeq && rec.Sequence > last {
-				last = rec.Sequence
-				if started {
-					if gap != nil {
-						fresh = append(fresh, *gap)
-					}
-					fresh = append(fresh, rec)
-				}
-			}
-			gap = nil
-		}
-		started = true
-		for _, rec := range f.Apply(fresh) {
-			emit(rec)
-		}
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-time.After(interval):
-		}
-	}
 }

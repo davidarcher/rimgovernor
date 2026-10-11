@@ -1,13 +1,11 @@
 package logview
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
@@ -69,7 +67,7 @@ func seqs(records []bridge.TimelineRecord) []int {
 }
 
 func TestFilters(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "flight", "flight.jsonl")
+	path := filepath.Join(t.TempDir(), "flight", "otlp", "logs.jsonl")
 	write(t, path,
 		row{seq: 1, run: "a", kind: "coverage", comp: "bridge", tick: 1},
 		row{seq: 2, run: "a", kind: "admission", comp: "clock", level: "WARN", tick: 10, trace: "t1", decision: true, verdict: "refused", reason: "r", target: "w"},
@@ -221,48 +219,11 @@ func TestCollapseKeyAndInterleaving(t *testing.T) {
 }
 
 func TestPath(t *testing.T) {
-	if got := Path(filepath.Join("p"), ""); got != filepath.Join("p", "flight", "flight.jsonl") {
+	if got := Path(filepath.Join("p"), ""); got != filepath.Join("p", "flight", "otlp", "logs.jsonl") {
 		t.Fatal(got)
 	}
 	if Path("", "x.jsonl") != "x.jsonl" {
 		t.Fatal("file path kept")
-	}
-}
-
-func TestFollowEmitsOnlyNewRowsWithGap(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "flight.jsonl")
-	write(t, path, row{seq: 1, kind: "old"}, row{seq: 2, kind: "old"})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	got := make(chan bridge.TimelineRecord, 8)
-	done := make(chan error, 1)
-	go func() {
-		done <- Follow(ctx, path, Filter{Kind: "new"}, 10*time.Millisecond, func(r bridge.TimelineRecord) { got <- r })
-	}()
-	time.Sleep(100 * time.Millisecond) // the first poll has absorbed the backlog
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Sequence 3 is skipped (a gap) and 4 is filtered out by kind.
-	f.WriteString(row{seq: 4, kind: "other"}.line() + "\n")
-	f.WriteString(row{seq: 5, kind: "new"}.line() + "\n")
-	f.Close()
-	var kinds []string
-	for len(kinds) < 2 {
-		select {
-		case r := <-got:
-			kinds = append(kinds, r.Kind)
-		case <-ctx.Done():
-			t.Fatalf("timed out with %v", kinds)
-		}
-	}
-	cancel()
-	if err := <-done; err != nil {
-		t.Fatal(err)
-	}
-	if fmt.Sprint(kinds) != "[recording_gap new]" {
-		t.Fatalf("got %v", kinds)
 	}
 }
 

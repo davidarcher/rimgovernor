@@ -200,5 +200,5 @@ must fall back to this echo when the assembly cannot load, and never throw on th
 ### Temporary adapter
 
 Flight rows logged under a span are stamped with `trace_id`/`span_id`/`parent_id`
-(`telemetry.StampTrace`, `internal/telemetry/trace_adapter.go`) so `rimgovernor trace` keeps
-working. It is removed with the recorder by the Retire child (#2793).
+(`telemetry.StampTrace`, `internal/telemetry/trace_adapter.go`) for the legacy flight.jsonl
+readers (the launcher tabs). `rimgovernor trace` reads spans and OTLP log records instead. It is removed with the recorder by the Retire child (#2793).

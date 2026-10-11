@@ -36,7 +36,7 @@ Row kinds a phase report reads:
   the paused fraction.
 
 There is no text log or debug flag: stderr carries the startup banner,
-fatals and panics, and everything else is a row in `flight.jsonl`
+fatals and panics, and everything else is a log record in `otlp/logs.jsonl`
 (`rimgovernor log` reads it).
 
 ## Service events
@@ -50,46 +50,54 @@ emitting code for each one's
 attributes.
 
 ## Traces
+## Traces
 
-Rows logged under a span carry its `trace_id`, `span_id` and `parent_id`: a
-temporary adapter for this reader until flight.jsonl retires (#2793); the spans
-themselves are in `otlp/traces.jsonl` ([span tree](../contracts/otel-core.md#spans)).
-A scheduler step is a trace root (bundle, census, planner reads, admission, its
-`clock_step` and `planner_step` rows); the Worker's step and each dispatch are
-child spans, so `dispatch` rows and a dispatch's native calls join the trace
-of the step that admitted their window. Typed bridge calls send `trace` (a W3C
-`traceparent`); the companion echoes it so `queueMs`/`executeMs` belong to the
-same trace.
+The spans are in `otlp/traces.jsonl` ([span tree](../contracts/otel-core.md#spans))
+and the rows logged inside them are `otlp/logs.jsonl` records carrying the same
+`trace_id` and a `span_id`. A scheduler step is a trace root (bundle, census,
+planner reads, admission, its `clock_step` and `planner_step` rows); the Worker's
+step and each dispatch are child spans, so `dispatch` rows and a dispatch's
+native calls join the trace of the step that admitted their window. Typed
+bridge calls send `trace` (a W3C `traceparent`); the companion echoes it so
+`queueMs`/`executeMs` belong to the same trace.
 
 ```bash
-go run ./cmd/rimgovernor trace C:\path\to\run\flight-recorder.jsonl
-go run ./cmd/rimgovernor trace [--json] C:\path\to\run\flight-recorder.jsonl <trace_id>
+go run ./cmd/rimgovernor trace [--json] --profile C:\path\to\profile
+go run ./cmd/rimgovernor trace [--json] (--profile C:\path\to\profile | C:\path\to\otlp\logs.jsonl) <trace_id>
 ```
 
 Without an id it lists traces (find the step that took 4 s); with one it
-renders a waterfall of rows with offsets, spans and per-call phases (`gate`,
-`call`, `decode`, native `queue`/`exec`).
+prints the span tree: offset, duration, status (`ERROR: <cause>`) and attributes
+per span (a `native.call` carries `tool`, `gate_wait_ms`, `call_ms`,
+`decode_ms`, `native_queue_ms`, `native_execute_ms`), with the decision and
+event rows under the span they were logged in. Spans export when they end, so a
+native call that never returned has no span: its `native_request` marker (written
+once a call is 2 s outstanding) prints as `native <tool>  (no reply recorded)`.
+`--json` is jq-friendly: the index is an array of traces; one trace is
+`{trace_id, tick, spans[], rows[]}`, a marker nothing answered flagged
+`"no_reply": true`.
 
 ## Reading the rows
 
 ```bash
 go run ./cmd/rimgovernor log --profile C:\path\to\profile --level WARN --since-run
-go run ./cmd/rimgovernor log [--kind K] [--component C] [--tick a..b] [--trace ID] [--follow] [--json] C:\path\to\flight.jsonl
+go run ./cmd/rimgovernor log [--kind K] [--component C] [--tick a..b] [--trace ID] [--follow] [--json] C:\path\to\otlp\logs.jsonl
 ```
 
-`rimgovernor log` prints the diagnostic stream (`--profile` resolves
-`<profile>/flight/flight.jsonl`; rotated segments are read oldest first and a
-`recording_gap` always shows). `--level` is a minimum, `--since-run` keeps the
-newest launch. Decision rows (`verdict`, `reason`, `target`) that repeat collapse
-into one line, `x N, first/last tick a/b`, keyed on (kind, component, verdict,
-reason, target); other rows print one line each. `--follow` streams new rows
-uncollapsed. `--json` is one entry object per line. The reader library is
+`rimgovernor log` prints the diagnostic stream: the OTLP log ring (`--profile`
+resolves `<profile>/flight/otlp/logs.jsonl`; rotated segments are read oldest
+first). `--level` is a minimum, `--since-run` keeps the newest launch (the
+newest `service.instance.id`). Decision rows (`verdict`, `reason`, `target`)
+that repeat collapse into one line, `x N, first/last tick a/b`, keyed on (kind,
+component, verdict, reason, target); other rows print one line each. `--follow`
+streams new rows uncollapsed and keeps reading across ring rotation. `--json`
+is one entry object per line (pipe to `jq`). The reader library is
 `internal/logview`; [flight rows](../contracts/flight-rows.md) is the contract.
 
 ## Report
 
 ```bash
-go run ./cmd/rimgovernor phases [--json] C:\path\to\run\flight-recorder.jsonl
+go run ./cmd/rimgovernor phases [--json] (--profile C:\path\to\profile | C:\path\to\otlp\logs.jsonl)
 ```
 
 Sections: header, `clock`, `steps`, `stops`, `observation`, `frames`,

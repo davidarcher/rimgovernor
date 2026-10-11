@@ -12,9 +12,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/logview"
 )
 
-const logUsage = "usage: rimgovernor log (--profile <dir> | <absolute flight.jsonl>) [--kind K] [--component C] [--level INFO|WARN|ERROR] [--tick a..b] [--trace ID] [--since-run] [--follow] [--json]"
+const logUsage = "usage: rimgovernor log (--profile <dir> | <absolute logs.jsonl>) [--kind K] [--component C] [--level INFO|WARN|ERROR] [--tick a..b] [--trace ID] [--since-run] [--follow] [--json]"
 
-// logCommand prints the diagnostic stream (flight.jsonl rows) filtered and
+// logCommand prints the diagnostic stream (the OTLP log ring, logs.jsonl) filtered and
 // with repeated decision rows collapsed into one counted line. --follow
 // keeps printing rows as they are appended, uncollapsed, until ctx ends.
 // Exit 2 is usage, 1 a read error.
@@ -86,7 +86,7 @@ func logCommand(ctx context.Context, args []string, out, errors io.Writer) int {
 		return usage("the file path must be absolute")
 	}
 	path := logview.Path(profile, file)
-	records, err := bridge.ReadTimeline(path)
+	records, err := bridge.ReadOTLPTimeline(path)
 	if err != nil {
 		fmt.Fprintf(errors, "log: %v\n", err)
 		return 1

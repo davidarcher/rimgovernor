@@ -16,7 +16,7 @@ One JSON object per line, written by `bridge.FlightRecorder.Event`:
 | `sequence` | Monotonic across runs sharing the file. |
 | `wall_time` | Unix seconds. |
 | `kind` | A name from the tables below. |
-| `context` | Always: `level` (`INFO`/`WARN`/`ERROR`), `at` (RFC 3339 UTC), `tick` (when the service has observed one), `component`; `trace_id`, `span_id` and `parent_id` when the row was logged under a span (temporary stamping for `rimgovernor trace`, removed with the recorder by #2793). The recorder fills what the producer left out (`INFO`, now, last observed tick, component `bridge`); a producer's own values win. |
+| `context` | Always: `level` (`INFO`/`WARN`/`ERROR`), `at` (RFC 3339 UTC), `tick` (when the service has observed one), `component`; `trace_id`, `span_id` and `parent_id` when the row was logged under a span (legacy flight.jsonl stamping, removed with the recorder by #2793; OTLP records carry the ids natively). The recorder fills what the producer left out (`INFO`, now, last observed tick, component `bridge`); a producer's own values win. |
 | `payload` | Per kind. Oversized payloads are replaced by `{truncated, original_bytes, sha256, preview}` plus the correlation keys `request`, `tool`, `native_tool`, `category`, `timing` and the decision keys `verdict`, `reason`, `target`, `dur_ms`. |
 
 Writes are unbuffered; durable rows, rotation and close are fsynced.
@@ -190,7 +190,7 @@ Never gate the OTEL write on it.
 
 ## Readers
 
-`rimgovernor log`, `phases` and `trace`, the launcher's Problems and Log tabs,
+`rimgovernor log`, `phases` and `trace` (read from the OTLP rings), the launcher's Problems and Log tabs,
 spectator views and acceptance diagnostics consume these kinds.
 `bridge.IsWorkerStep`, `bridge.IsWindowStop` and `bridge.StepFields` centralize
 clock/worker interpretation. Combat `clock_stop` rows carry `event`; ordinary
