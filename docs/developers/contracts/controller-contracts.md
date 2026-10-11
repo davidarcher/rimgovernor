@@ -197,7 +197,8 @@ not an executor.
   clears a restriction while fallout lasts; native reports no hazard veto. No refuge produces a blocker.
   Outdoor hazards (extreme cold at or below -20 C, extreme heat at or above 45 C, toxic fallout) are a typed
   fact (`OutdoorHazardsOf`); any known hazard, including an unrecognised kind, holds remote loot, salvage and
-  mining, recovery, and chop, hunt and forage acquisition with reason `outdoor_hazard`. An unknown fact never
+  mining, recovery, and chop, hunt and forage acquisition with reason `outdoor_hazard` (acquisition reports it as a `waiting_for_native_temperature` wait
+  with that subject). An unknown fact never
   holds. Field expansion is not gated.
   Planned dashes (#2765): while extreme cold is the only hazard and no hostile is up, `policy.PlanDash`
   picks one colonist's trips from the loot census, ordered by market value per exposed tick, each an

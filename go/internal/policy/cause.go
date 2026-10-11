@@ -238,7 +238,7 @@ var causeWording = map[Cause]string{
 	CauseDialog:          "A choice dialog is not ready to answer yet.",
 	CauseClaim:           "A higher-priority plan holds something this one needs.",
 	CauseFacilityAccess:  "A facility stands but some colonists cannot reach it.",
-	CauseRoomTemperature: "The room's temperature has to settle first.",
+	CauseRoomTemperature: "A temperature has to settle first: a room's, or the weather outdoors.",
 	CauseRetryBudgetWait: "The game refused this for now and nothing has changed since.",
 	CauseCombatOrders:    "Combat orders are running.",
 	CauseHoldFallback:    "The hold line fell back to squad defense.",

@@ -64,7 +64,7 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 	}
 	// An outdoor hazard holds chop, hunt and forage like it holds remote work.
 	if policy.OutdoorAcquisitionHeld(projection.Facts) {
-		return RoundsAcquisitionResult{Verdict: waitFor(policy.CauseUnsafeThreat, policy.RemoteHoldHazard)}, nil
+		return RoundsAcquisitionResult{Verdict: waitFor(policy.CauseRoomTemperature, policy.RemoteHoldHazard)}, nil
 	}
 	pest := r.need == policy.ClearPests
 	stockGoal := r.need == policy.MaintainResource
