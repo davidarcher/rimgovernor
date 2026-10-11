@@ -49,7 +49,7 @@ func reviewHousing(f RoundsFacts, previous RoundsLatches, p RoundsPolicy, sleepi
 	}
 	expansion := domain.Unknown[bool]()
 	if n, known := f.Colonists.Value(); known && n > 0 {
-		expansion = measured(f.IndoorCapacity, func(capacity int64) bool { return capacity > n })
+		expansion = measured(f.IndoorCapacity, func(capacity int64) bool { return capacity >= n+HousingSparePlaces })
 	}
 	staged := p.ColonyStage >= StageReserves
 	recovered := allFacts(shelter, sleeping)

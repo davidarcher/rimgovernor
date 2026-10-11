@@ -93,6 +93,28 @@ role weights are literals in the game's role workers, so they are the
 `roomRoleScores` entry in `DefTables` (keyed by `RoomRoleDef`). The rot curve
 and the throne's indoor rule are code, not data, and are not stated.
 
+### Station graph
+
+`policy.BuildStationGraph` (`layout_graph.go`) turns the catalog and the
+existing demand models into the planner's input: nodes are station classes with
+a count, edges are affinity. Counts: beds are the colonists plus
+`HousingSparePlaces` (the spare place `MaintainHousing`'s expansion phase
+keeps), with medical, prison, baby and animal beds for the injured, prisoners,
+babies and animals, each divided by the bed's sleeping slots; work stations are
+the day's work (the colonists' nutrition met by the food recipe with the least
+work per nutrition, merged by maximum with the work ledger's orders) over a
+worker's day; tables seat at their edge cells; shelves hold the stacks of the
+stock demand, perishables in a store that wants cold. Edges are daily flows:
+ingredients from store to station, food from station to table, other products
+to store, and the meals a sleeper walks to. A station working a perishable
+ingredient has a required link to the cold store. Station definitions come from
+`RoomFurniture`, `DiningFurniture` and the catalog; a need with no station, or
+an item with no stack limit, is an error. The graph adds no `DefTables` entry
+and is never persisted. `DefinitionCatalog.StationRecipeFlows` reads the recipe
+flows it needs.
+
+### Predicted room role
+
 `policy.PredictRole(catalog, pieces)` is the pure form of the game's
 `Room.UpdateRoomStatsAndRole`: the highest role-worker score wins and the
 generic `Room` scores 0.99. Additive and flat weights come from each station's
