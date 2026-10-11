@@ -471,7 +471,6 @@ type RoundsFacts struct {
 	ComfortDeficit       domain.Fact[float64]
 	EventLoot            domain.Fact[[]LootItem]
 	EventLootPending     domain.Fact[bool]
-	LootReadiness        LootReadiness // the loot census's reach readiness
 	MapBounds            domain.Fact[Bounds]
 	MedicalPawns         domain.Fact[[]CarePawn]
 	MedicalCareRecovered domain.Fact[bool]

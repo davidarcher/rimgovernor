@@ -13,8 +13,8 @@ deposit after depletion.
 
 ## Surface mining
 
-- Reach is resource reach, not a fixed distance from a pawn. Visible deposits and meteorite rock inside
-  it are candidates only while the selected resource target is unmet.
+- Distance is priced by the supply planner, not capped. Visible deposits and meteorite rock are
+  candidates only while the selected resource target is unmet.
 - Each method designates at most one rock. Existing designations reserve estimated yield and are
   never adopted or removed. Fresh stock stops further methods once the target is met; the last rock
   can overshoot by its native yield. No tunnel is opened to reach interior ore.
@@ -26,7 +26,7 @@ deposit after depletion.
 - A deposit kept back is a hold with an explicit reason ([remote work
   holds](controller-contracts.md#remote-work-holds-and-resume)): `threat_present`,
   `urgent_competing_work`, `roof_support_risk` (not an open-surface rock), `route_unsafe`,
-  `missing_storage`, or the reach stage. The planner logs the first hold when nothing is selected.
+  or `threat_unknown`. The planner logs the first hold when nothing is selected.
 
 ## Material runway and fabrication
 

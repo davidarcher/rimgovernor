@@ -6,10 +6,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func remoteReadyReach() ResourceReachRequest {
-	r := tribal8Reach()
-	r.Armed, r.FreeHaulers = domain.Known(int64(6)), domain.Known(int64(3))
-	return r
+// quietSafety is a known-clear outdoor safety: no hostile, no hazard.
+func quietSafety() RemoteSafety {
+	return RemoteSafety{Threat: domain.Known(false)}
+}
+
+// tribal8Extent is a one-cell colony extent at (20, 20).
+func tribal8Extent() domain.Fact[ColonyExtent] {
+	return domain.Known(ColonyExtent{Regions: []ExtentRegion{{Cells: []ExtentCell{{Cell: domain.Cell{X: 20, Z: 20}}}}}})
 }
 
 func remoteSalvageRow() ClearanceTarget {
@@ -22,13 +26,13 @@ func remoteSalvageRow() ClearanceTarget {
 // ruin under the request's threat and urgent work; "" when it is admitted.
 func salvageQueueReason(row ClearanceTarget, r RemoteWorkRequest) string {
 	thing, _ := RecoveryClearanceThing(row, false)
-	q := RankRecovery(RecoveryRequest{Things: []RecoveryThing{thing}, Threat: r.Reach.Threat, Urgent: domain.Known(r.Competition.UrgentPriority > 0)})
+	q := RankRecovery(RecoveryRequest{Things: []RecoveryThing{thing}, Threat: r.Safety.Threat, Urgent: domain.Known(r.Competition.UrgentPriority > 0)})
 	return q.Entries[0].Reason
 }
 
 // Every explicit hold reason, for each remote kind, from the same request
 // edits: a threat outranks the route verdict it causes, urgent work outranks
-// the reach stage, and roof, route and storage each name themselves.
+// demand, and roof, route and storage each name themselves.
 func TestRemoteWorkHoldsAreExplicitAcrossKinds(t *testing.T) {
 	urgent := AcquisitionCompetition{UrgentPriority: UrgentWorkPriority}
 	for _, tt := range []struct {
@@ -39,19 +43,19 @@ func TestRemoteWorkHoldsAreExplicitAcrossKinds(t *testing.T) {
 		mining  func(*ResourceSource)
 		reason  string
 	}{
-		{"threat", func(r *RemoteWorkRequest) { r.Reach.Threat = domain.Known(true) },
+		{"threat", func(r *RemoteWorkRequest) { r.Safety.Threat = domain.Known(true) },
 			func(l *LootItem) { l.SafeToHaul = false; l.Forbidden = true }, // an unsafe stack is #336's forbid, not a reach hold
 			func(c *ClearanceTarget) { c.Salvage.Safe = domain.Known(false) },
 			func(s *ResourceSource) { s.Reachable = domain.Known(false) }, RemoteHoldThreat},
 		{"urgent work", func(r *RemoteWorkRequest) { r.Competition = urgent }, nil, nil, nil, RemoteHoldUrgentWork},
 		{"roof support", nil, nil, nil, func(s *ResourceSource) { s.Safety = "roofed" }, RemoteHoldRoofSupport},
 		{"route", nil, nil, func(c *ClearanceTarget) { c.Salvage.Safe = domain.Known(false) }, func(s *ResourceSource) { s.Reachable = domain.Known(false) }, RemoteHoldRouteUnsafe},
-		{"storage", func(r *RemoteWorkRequest) { r.Reach.StorageHeadroom = domain.Known(int64(0)) },
+		{"storage", nil,
 			func(l *LootItem) { l.StorageHeadroom = domain.Known(int64(0)) },
 			func(c *ClearanceTarget) { c.Salvage.Candidate.Yields[0].Headroom = domain.Known(int64(0)) }, nil, RemoteHoldMissingStorage},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			r := RemoteWorkRequest{Reach: remoteReadyReach(), Demand: steelDemand()}
+			r := RemoteWorkRequest{Safety: quietSafety(), Extent: tribal8Extent(), Demand: steelDemand()}
 			if tt.request != nil {
 				tt.request(&r)
 			}
@@ -85,6 +89,9 @@ func TestRemoteWorkHoldsAreExplicitAcrossKinds(t *testing.T) {
 			if tt.mining != nil {
 				tt.mining(&ore)
 			}
+			if tt.reason == RemoteHoldMissingStorage {
+				return // mining storage is the planner's check, not a remote hold
+			}
 			selected, mined := SelectReachableResourceSources([]ResourceSource{ore}, 40, 0, r)
 			if len(selected) != 0 || len(mined) != 1 || mined[0].Reason != tt.reason || mined[0].Target != "ore" || mined[0].Kind != RemoteMining {
 				t.Fatalf("mining selected %v holds %v", selected, mined)
@@ -94,7 +101,7 @@ func TestRemoteWorkHoldsAreExplicitAcrossKinds(t *testing.T) {
 }
 
 func TestRemoteWorkClearsHoldsWhenSafe(t *testing.T) {
-	r := RemoteWorkRequest{Reach: remoteReadyReach(), Demand: steelDemand()}
+	r := RemoteWorkRequest{Safety: quietSafety(), Extent: tribal8Extent(), Demand: steelDemand()}
 	if got := salvageQueueReason(remoteSalvageRow(), r); got != "" {
 		t.Fatal("a safe ruin is held:", got)
 	}
@@ -128,14 +135,11 @@ func TestUrgentWorkCompeting(t *testing.T) {
 
 func TestRemoteHoldReasonKeepsOtherReasons(t *testing.T) {
 	for reason, want := range map[string]string{
-		"outside_base:insufficient_defense": "outside_base:insufficient_defense",
-		"outside_base:threat_present":       RemoteHoldThreat,
-		"outside_near:no_storage":           RemoteHoldMissingStorage,
-		"demand:no_demand":                  "demand:no_demand",
-		"demand:no_storage_headroom":        RemoteHoldMissingStorage,
-		"demand:competing_urgent_work":      RemoteHoldUrgentWork,
-		"route_unknown":                     RemoteHoldRouteUnsafe,
-		"":                                  "",
+		"demand:no_demand":             "demand:no_demand",
+		"demand:no_storage_headroom":   RemoteHoldMissingStorage,
+		"demand:competing_urgent_work": RemoteHoldUrgentWork,
+		"route_unknown":                RemoteHoldRouteUnsafe,
+		"":                             "",
 	} {
 		if got := RemoteHoldReason(RemoteLoot, reason); got != want {
 			t.Fatal(reason, got, want)

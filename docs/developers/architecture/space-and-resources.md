@@ -93,10 +93,10 @@ open; the planners do not rank:
 
 Higher-priority urgent work (`policy.RemoteCompetition`) holds acquisition in the
 plan (`UrgentPriority`); remote loot and salvage rank through the recovery queue
-(`policy.RankRecovery`: threat and reach holds first, then tier and distance).
+(`policy.RankRecovery`: threat holds first, then tier and distance).
 Remote loot consumes it through the
 [supply safety filter](../contracts/controller-contracts.md#remote-loot-and-resource-reach).
-Surface mining uses the same reach ceiling and one-rock demand batches
+Surface mining uses the same safety holds and one-rock demand batches
 ([mining contract](../contracts/mining-contracts.md)); salvage reads the
 [upkeep contract](../contracts/upkeep-contracts.md). All three report the same
 [explicit holds](../contracts/controller-contracts.md#remote-work-holds-and-resume)

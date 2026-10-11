@@ -87,22 +87,17 @@ type ResourceSource struct {
 
 // BuriedResourceSource is the deposit MaintainResource tunnels to
 // when no mine source can be selected directly: the nearest undesignated,
-// MineSafe, buried mine row with yield left whose cell the resource reach
-// would let a miner work once the corridor opens it. Nothing is
+// MineSafe, buried mine row with yield left. Nothing is
 // returned while a known threat or urgent competing work would hold any
 // mining.
 func BuriedResourceSource(sources []ResourceSource, r RemoteWorkRequest) (ResourceSource, bool) {
-	if remoteThreatHold(r.Reach) != "" || r.Competition.UrgentPriority > 0 {
+	if remoteThreatHold(r.Safety) != "" || r.Competition.UrgentPriority > 0 {
 		return ResourceSource{}, false
 	}
 	var best ResourceSource
 	found := false
 	for _, s := range sources {
 		if s.Method != ResourceSourceMine || !s.Buried || s.Designated || s.Yield <= 0 || !MineSafe(s.Safety) {
-			continue
-		}
-		// The tunnel supplies the route; the deposit itself must lie in reach.
-		if !FilterResourceReach(r.Reach, ResourceReachCandidate{Cell: s.Cell, Eligible: domain.Known(true), RouteObservedPassable: domain.Known(true)}).Allowed {
 			continue
 		}
 		if !found || s.Distance < best.Distance || s.Distance == best.Distance && s.ThingID < best.ThingID {
@@ -112,13 +107,25 @@ func BuriedResourceSource(sources []ResourceSource, r RemoteWorkRequest) (Resour
 	return best, found
 }
 
-// SelectReachableResourceSources narrows mining to the current resource reach.
+// mineRouteHold is the open-surface roof check, then the observed route; an
+// unobserved route holds like an unsafe one.
+func mineRouteHold(s ResourceSource) string {
+	if !MineSafe(s.Safety) || s.Buried {
+		return RemoteHoldRoofSupport
+	}
+	if route, known := s.Reachable.Value(); !known || !route {
+		return RemoteHoldRouteUnsafe
+	}
+	return ""
+}
+
+// SelectReachableResourceSources narrows mining to safe, observed-route deposits.
 // Existing designations reserve estimated yield but are never adopted or removed.
 // Each new method still contains at most one rock; its final native yield may
 // overshoot the remaining demand by one rock's output. Every mine source kept
 // back is returned as a hold with its explicit reason (RemoteHoldReason): a
 // known threat or urgent competing work holds every deposit, then the
-// open-surface roof check, the observed route and the reach stage.
+// open-surface roof check, then the observed route.
 func SelectReachableResourceSources(sources []ResourceSource, target, stock int64, r RemoteWorkRequest) ([]ResourceSource, []RemoteWorkHold) {
 	var pending int64
 	var candidates []ResourceSource
@@ -129,7 +136,7 @@ func SelectReachableResourceSources(sources []ResourceSource, target, stock int6
 			continue
 		}
 		if source.Method == ResourceSourceMine {
-			reason := remoteThreatHold(r.Reach)
+			reason := remoteThreatHold(r.Safety)
 			if reason == "" && r.Competition.UrgentPriority > 0 {
 				reason = RemoteHoldUrgentWork
 			}
@@ -138,11 +145,7 @@ func SelectReachableResourceSources(sources []ResourceSource, target, stock int6
 				reason = RemoteHoldBuried
 			}
 			if reason == "" {
-				decision := FilterResourceReach(r.Reach, ResourceReachCandidate{Cell: source.Cell,
-					Eligible: domain.Known(MineSafe(source.Safety) && !source.Buried), RouteObservedPassable: source.Reachable})
-				if !decision.Allowed {
-					reason = RemoteHoldReason(RemoteMining, decision.Reason)
-				}
+				reason = mineRouteHold(source)
 			}
 			if reason != "" {
 				holds = append(holds, RemoteWorkHold{Kind: RemoteMining, Target: source.ThingID, Reason: reason})

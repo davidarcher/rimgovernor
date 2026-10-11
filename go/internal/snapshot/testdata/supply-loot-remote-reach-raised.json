@@ -5429,14 +5429,6 @@
     "Hauling": 5
    }
   },
-  "LootReadiness": {
-   "FreeHaulers": {
-    "v": 5
-   },
-   "StorytellerQuiet": {
-    "v": true
-   }
-  },
   "MapBounds": {
    "v": {
     "Height": 200,

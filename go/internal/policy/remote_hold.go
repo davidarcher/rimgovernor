@@ -10,7 +10,7 @@ import (
 // extent) is held for one of four explicit reasons. Selection reports
 // them on the review's hold rows; dispatch mirrors them as the pending
 // action's HeldReason through the executor's refusal table. Every other
-// selection reason (the reach stage, demand) keeps its own text.
+// selection reason (demand) keeps its own text.
 const (
 	// RemoteHoldThreat: a known hostile is on the map. The threat explains
 	// the hold even where it also makes the route read unsafe.
@@ -54,12 +54,23 @@ type RemoteWorkHold struct {
 	Reason string
 }
 
+// RemoteSafety is the observed outdoor safety every remote selection holds
+// on: a hostile on the map (unknown holds too) and the outdoor hazard, which
+// an open dash window lifts for extreme cold only. Distance is not a hold;
+// the supply planner prices it.
+type RemoteSafety struct {
+	Threat domain.Fact[bool]
+	Hazard domain.Fact[[]OutdoorHazard]
+	// DashOpen: a planned dash window is open (DashWindow.OpenAt).
+	DashOpen bool
+}
+
 // RemoteWorkRequest carries what every remote selection filters against: the
-// reach readiness, the demand and the urgent work competing for
-// the colonists. Extent geometry decides which candidates are base
-// scope; the rest are remote.
+// outdoor safety, the demand and the urgent work competing for the colonists.
+// Extent geometry decides which loot is base scope; the rest is remote.
 type RemoteWorkRequest struct {
-	Reach       ResourceReachRequest
+	Safety      RemoteSafety
+	Extent      domain.Fact[ColonyExtent]
 	Demand      domain.Fact[[]ResourceDemand]
 	Competition AcquisitionCompetition
 	// Plan orders mine sources by LayoutPlan.MineTier.
@@ -101,13 +112,13 @@ func RemoteCompetition(f RoundsFacts) AcquisitionCompetition {
 	return AcquisitionCompetition{}
 }
 
-// RemoteHoldReason folds a reach, eligibility or demand reason into the
+// RemoteHoldReason folds an eligibility or demand reason into the
 // explicit vocabulary above and returns any other reason unchanged. An
 // "ineligible" salvage or loot candidate failed native route safety; an
 // ineligible mining deposit failed the open-surface roof check.
 func RemoteHoldReason(kind RemoteWorkKind, reason string) string {
 	base := reason
-	if strings.HasPrefix(base, "outside_") || strings.HasPrefix(base, "demand:") {
+	if strings.HasPrefix(base, "demand:") {
 		if i := strings.Index(base, ":"); i >= 0 {
 			base = base[i+1:]
 		}
@@ -133,10 +144,14 @@ func RemoteHoldReason(kind RemoteWorkKind, reason string) string {
 }
 
 // remoteThreatHold reports the threat hold ahead of any route verdict: a
-// hostile on the map is what the operator needs to know, and the reach
-// stage collapses to base on the same fact.
-func remoteThreatHold(r ResourceReachRequest) string {
-	if threat, known := r.Threat.Value(); known && threat {
+// hostile on the map is what the operator needs to know. An unknown threat
+// holds too.
+func remoteThreatHold(r RemoteSafety) string {
+	threat, known := r.Threat.Value()
+	if !known {
+		return "threat_unknown"
+	}
+	if threat {
 		return RemoteHoldThreat
 	}
 	if OutdoorHazardHeldDash(r.Hazard, r.DashOpen) {

@@ -435,7 +435,6 @@ func (r *RoundsResourcePlanner) sourcesForDeficit(ctx context.Context, identity 
 	if err != nil {
 		return sourceSelection{}, false
 	}
-	remote.Reach.StorageHeadroom = domain.Known(storage.Capacity)
 	selected, _ := policy.SelectReachableResourceSources(sources, target, have, remote)
 	out := sourceSelection{selected: selected, storage: storage, none: len(sources) == 0}
 	for _, s := range sources {
@@ -480,7 +479,7 @@ func (r *RoundsResourcePlanner) miningReach(ctx context.Context, state ControlSt
 	if err != nil {
 		return policy.RemoteWorkRequest{}, err
 	}
-	request := policy.RemoteWorkRequest{Reach: policy.LootReach(f, f.MapBounds, extent), Competition: policy.RemoteCompetition(f)}
+	request := policy.RemoteWorkRequest{Safety: policy.LootSafety(f), Extent: extent, Competition: policy.RemoteCompetition(f)}
 	layout, ok, err := r.reviewer.layoutPlan(ctx, state.Snapshot, expected.Tick)
 	if err != nil {
 		return policy.RemoteWorkRequest{}, err

@@ -4009,14 +4009,6 @@
     "Warden": 2
    }
   },
-  "LootReadiness": {
-   "FreeHaulers": {
-    "v": 1
-   },
-   "StorytellerQuiet": {
-    "v": true
-   }
-  },
   "MapBounds": {
    "v": {
     "Height": 200,

@@ -122,7 +122,7 @@ byte-identical.
 ## Related reading
 
 - [Colony upkeep contracts](upkeep-contracts.md): Home ownership, the
-  derivation's inputs, resource reach and the eligibility view.
+  derivation's inputs and the eligibility view.
 - [Persistence contracts](persistence-contracts.md#what-must-survive):
   extent history.
 - [Spatial contracts](spatial-contracts.md): site selection and bounded

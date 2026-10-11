@@ -191,48 +191,22 @@ func TestDashLiftsOnlyTheColdHold(t *testing.T) {
 	cold := domain.Known([]OutdoorHazard{{HazardExtremeCold}})
 	heat := domain.Known([]OutdoorHazard{{HazardExtremeHeat}})
 	both := domain.Known([]OutdoorHazard{{HazardExtremeCold}, {HazardToxicFallout}})
-	if got := remoteThreatHold(ResourceReachRequest{Hazard: cold, DashOpen: true}); got != "" {
+	if got := remoteThreatHold(RemoteSafety{Threat: domain.Known(false), Hazard: cold, DashOpen: true}); got != "" {
 		t.Fatalf("cold with a window: %q", got)
 	}
-	if got := remoteThreatHold(ResourceReachRequest{Hazard: cold}); got != RemoteHoldHazard {
+	if got := remoteThreatHold(RemoteSafety{Threat: domain.Known(false), Hazard: cold}); got != RemoteHoldHazard {
 		t.Fatalf("cold without a window: %q", got)
 	}
 	for _, h := range []domain.Fact[[]OutdoorHazard]{heat, both} {
-		if got := remoteThreatHold(ResourceReachRequest{Hazard: h, DashOpen: true}); got != RemoteHoldHazard {
+		if got := remoteThreatHold(RemoteSafety{Threat: domain.Known(false), Hazard: h, DashOpen: true}); got != RemoteHoldHazard {
 			t.Fatalf("%v: %q", h, got)
 		}
 		if got := recoveryHold(RecoveryThing{Evidenced: true}, RecoveryRequest{Hazard: h, DashOpen: true}); got != RemoteHoldHazard {
 			t.Fatalf("recovery %v: %q", h, got)
 		}
-		if d := ResourceReach(ResourceReachRequest{Hazard: h, DashOpen: true}); d.Reason != RemoteHoldHazard {
-			t.Fatalf("reach %v: %v", h, d)
-		}
 	}
 	if got := recoveryHold(RecoveryThing{Evidenced: true, RouteSafe: domain.Known(true)}, RecoveryRequest{Hazard: cold, DashOpen: true}); got != "" {
 		t.Fatalf("recovery cold with a window: %q", got)
-	}
-	if d := ResourceReach(ResourceReachRequest{Hazard: cold, DashOpen: true}); d.Reason == RemoteHoldHazard {
-		t.Fatalf("reach cold with a window: %v", d)
-	}
-}
-
-func TestResourceReachSoloColonyIsNotDenied(t *testing.T) {
-	r := tribal8Reach()
-	r.Armed, r.Colonists, r.RaidPoints = domain.Known(int64(1)), domain.Known(int64(1)), domain.Known(90.0)
-	if d := ResourceReach(r); d.Stage != ResourceReachNear || d.Reason != "defense_limits_near" {
-		t.Fatalf("solo with a rifle: %v", d)
-	}
-	r.Armed = domain.Known(int64(0))
-	if d := ResourceReach(r); d.Reason != "insufficient_defense" {
-		t.Fatalf("solo unarmed: %v", d)
-	}
-	r.Armed, r.Colonists = domain.Known(int64(1)), domain.Known(int64(3))
-	if d := ResourceReach(r); d.Reason != "insufficient_defense" {
-		t.Fatalf("three colonists, one armed: %v", d)
-	}
-	r.Colonists = domain.Unknown[int64]()
-	if d := ResourceReach(r); d.Reason != "insufficient_defense" {
-		t.Fatalf("unknown count keeps the floor of two: %v", d)
 	}
 }
 

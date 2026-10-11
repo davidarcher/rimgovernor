@@ -6,16 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// LootReadiness is the loot census's own readiness evidence for the resource
-// reach stages: free hauling colonists and storyteller quietness.
-// Absent facts leave reach at its base stage, never widen it.
-type LootReadiness struct {
-	FreeHaulers      domain.Fact[int64]
-	StorytellerQuiet domain.Fact[bool]
-}
-
-// LootHold records a safe, forbidden stack the reach stage or demand scoring
-// kept forbidden, with the reason, so the review can explain it.
+// LootHold records a safe, forbidden stack demand scoring or a safety
+// hold kept forbidden, with the reason, so the review can explain it.
 type LootHold struct {
 	Thing, Definition string
 	Cell              domain.Cell
@@ -29,7 +21,7 @@ const lootUnitsPerTrip = 75
 // Allow side: an unsafe stack still forbids, an already allowed stack is not
 // re-forbidden by reach, and a safe forbidden stack inside the established
 // extent is allowed as before. A safe forbidden stack outside the extent is
-// allowed when the reach stage admits its cell, whatever the colony's demand:
+// allowed when no safety hold applies, whatever the colony's demand:
 // only missing storage headroom and urgent colony work
 // keep it forbidden, reported as a hold with an explicit reason
 // (RemoteHoldReason). The returned rows are the census the
@@ -41,10 +33,10 @@ func FilterLootReach(observed domain.Fact[[]LootItem], r RemoteWorkRequest) (dom
 	}
 	reasons := make([]string, len(rows))
 	for i, row := range rows {
-		if !row.SafetyKnown || !row.SafeToHaul || !row.Forbidden || lootInsideExtent(r.Reach.Extent, row.Supply.Cell) {
+		if !row.SafetyKnown || !row.SafeToHaul || !row.Forbidden || lootInsideExtent(r.Extent, row.Supply.Cell) {
 			continue
 		}
-		reasons[i] = remoteLootReachHold(r, row)
+		reasons[i] = remoteLootReachHold(r)
 		if reasons[i] == "" {
 			reasons[i] = remoteLootThrottleHold(r, row)
 		}
@@ -64,8 +56,8 @@ func FilterLootReach(observed domain.Fact[[]LootItem], r RemoteWorkRequest) (dom
 
 // FilterLootReachAdmitted is FilterLootReach for the startup release:
 // the scenario's starting stacks are forbidden before the colony has an
-// extent, so the reach stage would hold them all. A forbidden stack skips the
-// stage on the world's first review (first) and while it stays in the previous
+// extent, so the safety hold would hold them all. A forbidden stack skips the
+// hold on the world's first review (first) and while it stays in the previous
 // review's pending cohort, so a release of more stacks than one plan holds
 // finishes over the following reviews. FilterLootRelease's danger and spawner
 // holds run before it and still apply.
@@ -109,20 +101,12 @@ func lootInsideExtent(extent domain.Fact[ColonyExtent], cell domain.Cell) bool {
 	return false
 }
 
-// remoteLootReachHold returns the empty string when the stack passes the
-// reach stage. The native safety verdict is this candidate's eligibility and
-// route evidence: the census only reports SafeToHaul after walking a
-// colonist's route. A known threat is reported before the reach stage it
-// collapses.
-func remoteLootReachHold(r RemoteWorkRequest, row LootItem) string {
-	if reason := remoteThreatHold(r.Reach); reason != "" {
-		return reason
-	}
-	filter := FilterResourceReach(r.Reach, ResourceReachCandidate{Cell: row.Supply.Cell, Eligible: domain.Known(true), RouteObservedPassable: domain.Known(true)})
-	if !filter.Allowed {
-		return RemoteHoldReason(RemoteLoot, filter.Reason)
-	}
-	return ""
+// remoteLootReachHold returns the empty string when no safety hold applies.
+// The native safety verdict is this candidate's eligibility and route
+// evidence: the census only reports SafeToHaul after walking a colonist's
+// route. Distance is the supply planner's price, not a hold.
+func remoteLootReachHold(r RemoteWorkRequest) string {
+	return remoteThreatHold(r.Safety)
 }
 
 // remoteLootThrottleHold is the per-stack throttle that outlives the demand
@@ -144,38 +128,20 @@ func lootCandidate(row LootItem) SupplyCandidate {
 		SourceYield(ResourceKey{Def: Resource(row.Supply.Definition)}, row.Count, 0, row.StorageHeadroom))
 }
 
-// LootContext is the remote request the loot filter runs against: reach from
-// the derived extent and the urgent work competing for the colonists.
+// LootContext is the remote request the loot filter runs against: safety and
+// the derived extent from the review facts, and the urgent work competing for
+// the colonists.
 func LootContext(f RoundsFacts) (RemoteWorkRequest, error) {
 	extent, err := DeriveColonyExtent(ColonyExtentRequest{Bounds: f.MapBounds, Construction: f.CurrentConstruction, Claims: f.ConstructionClaims, Home: f.HomeCoverage})
-	return RemoteWorkRequest{Reach: LootReach(f, f.MapBounds, extent), Competition: RemoteCompetition(f)}, err
+	return RemoteWorkRequest{Safety: LootSafety(f), Extent: extent, Competition: RemoteCompetition(f)}, err
 }
 
-// LootReach assembles the reach readiness for the loot filter from the review
-// facts: threat, defense and raid points from the colony census, hauling and
-// storyteller quietness from the loot census's own readiness, and storage
-// headroom from the census's accepting-storage figures. Unknown stays unknown.
-func LootReach(f RoundsFacts, bounds domain.Fact[Bounds], extent domain.Fact[ColonyExtent]) ResourceReachRequest {
-	r := ResourceReachRequest{Extent: extent, Bounds: bounds, RaidPoints: f.RaidPoints, Armed: f.Armed,
-		FreeHaulers: f.LootReadiness.FreeHaulers, StorytellerQuiet: f.LootReadiness.StorytellerQuiet}
+// LootSafety assembles the outdoor safety from the review facts. Unknown
+// hostiles stay unknown.
+func LootSafety(f RoundsFacts) RemoteSafety {
+	r := RemoteSafety{Hazard: OutdoorHazardsOf(f), DashOpen: f.DashOpen()}
 	if hostiles, known := f.Hostiles.Value(); known {
 		r.Threat = domain.Known(hostiles > 0)
-	}
-	r.Hazard, r.DashOpen, r.Colonists = OutdoorHazardsOf(f), f.DashOpen(), f.Colonists
-	if rows, known := f.EventLoot.Value(); known {
-		headroom := int64(0)
-		complete := true
-		for _, row := range rows {
-			units, ok := row.StorageHeadroom.Value()
-			if !ok {
-				complete = false
-				break
-			}
-			headroom = max(headroom, units)
-		}
-		if complete {
-			r.StorageHeadroom = domain.Known(headroom)
-		}
 	}
 	return r
 }

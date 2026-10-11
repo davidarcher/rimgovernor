@@ -29,8 +29,8 @@ type RoundsProvider interface {
 type RoundsStatus struct {
 	Emergency         []policy.ConcernID
 	ExtentEligibility policy.ExtentEligibilityRequest
-	// ResourceReach holds same-observation inputs; absent facts stay unknown.
-	ResourceReach   policy.ResourceReachRequest
+	// Extent is the derived colony extent; absent stays unknown.
+	Extent          domain.Fact[policy.ColonyExtent]
 	ResourceRunways []policy.ResourceRunway
 	ReviewsEnabled  bool
 	MethodsEnabled  bool
@@ -52,15 +52,14 @@ type RoundsStatus struct {
 	// NoOps are the inspections that raised nothing in the last enabled
 	// review, with the typed reason.
 	NoOps []policy.NoOpRecord
-	// LootHolds are the safe forbidden stacks the last review's reach stage
-	// or demand kept forbidden, with reasons.
+	// LootHolds are the safe forbidden stacks the last review's demand
+	// scoring or safety hold kept forbidden, with reasons.
 	LootHolds []policy.LootHold
 }
 
 type roundsStatusDTO struct {
 	Emergency         []policy.ConcernID           `json:"emergency"`
 	ExtentEligibility policy.ExtentEligibilityView `json:"extentEligibility"`
-	ResourceReach     policy.ResourceReachDecision `json:"resourceReach"`
 	Extent            roundsExtentDTO              `json:"extent"`
 	ResourceRunways   []resourceRunwayDTO          `json:"resourceRunways"`
 	ReviewsEnabled    bool                         `json:"reviewsEnabled"`
@@ -201,8 +200,7 @@ func roundsStatus(v RoundsStatus) roundsStatusDTO {
 	}
 	result := roundsStatusDTO{Emergency: append([]policy.ConcernID{}, v.Emergency...), ReviewsEnabled: v.ReviewsEnabled, MethodsEnabled: v.MethodsEnabled, ActiveFamilies: families, Sections: []roundsSectionDTO{}}
 	result.ResourceRunways = resourceRunwaysDTO(v.ResourceRunways)
-	result.ResourceReach = policy.ResourceReach(v.ResourceReach)
-	result.Extent = roundsExtent(v.ResourceReach.Extent)
+	result.Extent = roundsExtent(v.Extent)
 	result.ExtentEligibility = policy.ExtentEligibility(v.ExtentEligibility)
 	result.LootHolds = lootHolds(v.LootHolds)
 	result.Progress = concernProgress(v.Progress)

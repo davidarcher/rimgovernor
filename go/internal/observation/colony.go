@@ -807,12 +807,6 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 			rows = append(rows, item)
 		}
 		r.Facts.EventLoot = domain.Known(rows)
-		if loot.FreeHaulers != nil {
-			r.Facts.LootReadiness.FreeHaulers = domain.Known(loot.GetFreeHaulers())
-		}
-		if loot.StorytellerQuiet != nil {
-			r.Facts.LootReadiness.StorytellerQuiet = domain.Known(loot.GetStorytellerQuiet())
-		}
 	}
 	if planning := v.GetPlanning().GetObserved(); planning != nil && planning.Environment != nil && !hasIssue(planning.Issues, "environment") && headed(buildings, planning.Environment.Lights, (*o.GrowLight).GetBuilding) && headed(buildings, planning.Environment.Growers, (*o.PlantGrower).GetBuilding) {
 		environment, err := colonyEnvironment(planning.Environment, v.OutdoorTemperatureC, buildings, tables.Catalog)

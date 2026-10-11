@@ -26,7 +26,6 @@ func extentEligibility(dir string) Section {
 			Status   int    `json:"status"`
 			Response struct {
 				Extent *policy.ExtentEligibilityView `json:"extentEligibility"`
-				Reach  policy.ResourceReachDecision  `json:"resourceReach"`
 			} `json:"response"`
 		}
 		if json.Unmarshal(data, &row) != nil || row.Path != "/api/routines" || row.Status != 200 || row.Response.Extent == nil {
@@ -36,7 +35,7 @@ func extentEligibility(dir string) Section {
 		rel = filepath.ToSlash(rel)
 		v := row.Response.Extent
 		s.Note = ""
-		s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("extent known=%t reason=%s; resource reach stage=%s reason=%s", v.Known, v.Reason, row.Response.Reach.Stage, row.Response.Reach.Reason), Evidence: rel})
+		s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("extent known=%t reason=%s", v.Known, v.Reason), Evidence: rel})
 		for j, r := range v.Regions {
 			if j >= maxLines-1 {
 				s.Note = fmt.Sprintf("%d more regions in recorded response", len(v.Regions)-j)

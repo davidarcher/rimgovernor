@@ -60,22 +60,21 @@ func (s serviceRoundsDiagnostics) RoundsStatus(ctx context.Context) (httpapi.Rou
 		Sections:        s.sections.Status(),
 		LootHolds:       review.EventLoot.Held,
 	}
-	// Read-only diagnostics: missing complete extent geometry or readiness
+	// Read-only diagnostics: missing complete extent geometry
 	// stays unknown. This does not widen any planner or dispatch surface.
 	if held, ok := facts.Get[observation.ColonyProjection](s.sections, facts.Colony); ok && held.Complete {
 		f := held.Value.Facts
-		r := policy.ResourceReachRequest{Bounds: domain.Known(held.Value.Bounds), RaidPoints: f.RaidPoints, Armed: f.Armed}
+		var threat domain.Fact[bool]
 		if count, known := f.Hostiles.Value(); known {
-			r.Threat = domain.Known(count > 0)
+			threat = domain.Known(count > 0)
 		}
-		r.Extent, err = policy.DeriveColonyExtent(policy.ColonyExtentRequest{
-			Bounds: r.Bounds, Construction: f.CurrentConstruction, Claims: f.ConstructionClaims,
+		status.Extent, err = policy.DeriveColonyExtent(policy.ColonyExtentRequest{
+			Bounds: domain.Known(held.Value.Bounds), Construction: f.CurrentConstruction, Claims: f.ConstructionClaims,
 			Home: f.HomeCoverage,
 		})
 		if err != nil {
 			return httpapi.RoundsStatus{}, err
 		}
-		status.ResourceReach = r
 		id := held.Value.Identity
 		if id.Validate() == nil {
 			history, err := s.journal.EstablishedColonyExtent(ctx, domain.GenerationSnapshot{Colony: id.Colony, Map: id.Map, Load: id.Load, Plan: "extent-diagnostics"}, id.Tick)
@@ -86,7 +85,7 @@ func (s serviceRoundsDiagnostics) RoundsStatus(ctx context.Context) (httpapi.Rou
 			for _, row := range history {
 				extent.Regions = append(extent.Regions, row.Region)
 			}
-			status.ExtentEligibility = policy.ExtentEligibilityRequest{Extent: domain.Known(extent), Threat: r.Threat}
+			status.ExtentEligibility = policy.ExtentEligibilityRequest{Extent: domain.Known(extent), Threat: threat}
 			buildings, bk := f.CurrentConstruction.Value()
 			home, hk := f.HomeCoverage.Value()
 			if bk && buildings.Colony && hk {

@@ -60,14 +60,11 @@ func TestOutdoorHazardUnrecognisedKindFailsClosed(t *testing.T) {
 
 func TestOutdoorHazardHoldsRemoteRequests(t *testing.T) {
 	cold := domain.Known([]OutdoorHazard{{Kind: HazardExtremeCold}})
-	if got := remoteThreatHold(ResourceReachRequest{Hazard: cold}); got != RemoteHoldHazard {
+	if got := remoteThreatHold(RemoteSafety{Threat: domain.Known(false), Hazard: cold}); got != RemoteHoldHazard {
 		t.Fatalf("remote hold = %q", got)
 	}
-	if got := remoteThreatHold(ResourceReachRequest{Hazard: domain.Known([]OutdoorHazard(nil))}); got != "" {
+	if got := remoteThreatHold(RemoteSafety{Threat: domain.Known(false), Hazard: domain.Known([]OutdoorHazard(nil))}); got != "" {
 		t.Fatalf("clear hazard held: %q", got)
-	}
-	if d := ResourceReach(ResourceReachRequest{Hazard: cold}); d.Stage != ResourceReachBase || d.Reason != RemoteHoldHazard {
-		t.Fatalf("reach = %+v", d)
 	}
 	if got := recoveryHold(RecoveryThing{Evidenced: true}, RecoveryRequest{Hazard: cold}); got != RemoteHoldHazard {
 		t.Fatalf("recovery hold = %q", got)

@@ -15,30 +15,26 @@ func steelDemand() domain.Fact[[]ResourceDemand] {
 	return domain.Known([]ResourceDemand{{Key: ResourceKey{Def: "Steel"}, Count: 200, Priority: 2}})
 }
 
-func TestRemoteLootFollowsReachStage(t *testing.T) {
+func TestRemoteLootHoldsOnSafetyOnly(t *testing.T) {
 	remote := domain.Cell{X: 95, Z: 95}
 	for _, tt := range []struct {
 		name   string
-		edit   func(*ResourceReachRequest)
+		edit   func(*RemoteSafety)
 		kept   bool
 		reason string
 	}{
-		{"base holds remote", func(r *ResourceReachRequest) { r.Armed = domain.Known(int64(1)) }, false, "outside_base:insufficient_defense"},
-		{"near holds remote", func(r *ResourceReachRequest) {}, false, "outside_near:defense_limits_near"},
-		{"far allows remote", func(r *ResourceReachRequest) {
-			r.Armed = domain.Known(int64(6))
-			r.FreeHaulers = domain.Known(int64(2))
+		{"quiet allows remote", func(r *RemoteSafety) {}, true, ""},
+		{"threat holds", func(r *RemoteSafety) { r.Threat = domain.Known(true) }, false, "threat_present"},
+		{"unknown threat holds", func(r *RemoteSafety) { r.Threat = domain.Unknown[bool]() }, false, "threat_unknown"},
+		{"cold holds", func(r *RemoteSafety) { r.Hazard = domain.Known([]OutdoorHazard{{Kind: HazardExtremeCold}}) }, false, RemoteHoldHazard},
+		{"cold lifted by a dash window", func(r *RemoteSafety) {
+			r.Hazard, r.DashOpen = domain.Known([]OutdoorHazard{{Kind: HazardExtremeCold}}), true
 		}, true, ""},
-		{"threat collapses", func(r *ResourceReachRequest) {
-			r.Armed = domain.Known(int64(6))
-			r.FreeHaulers = domain.Known(int64(2))
-			r.Threat = domain.Known(true)
-		}, false, "threat_present"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			r := tribal8Reach()
+			r := quietSafety()
 			tt.edit(&r)
-			rows, holds, err := FilterLootReach(domain.Known([]LootItem{remoteLootRow("steel-1", remote, true, true)}), RemoteWorkRequest{Reach: r, Demand: steelDemand()})
+			rows, holds, err := FilterLootReach(domain.Known([]LootItem{remoteLootRow("steel-1", remote, true, true)}), RemoteWorkRequest{Safety: r, Extent: tribal8Extent(), Demand: steelDemand()})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -54,8 +50,8 @@ func TestRemoteLootFollowsReachStage(t *testing.T) {
 }
 
 func TestRemoteLootKeepsSafetySemantics(t *testing.T) {
-	r := tribal8Reach()
-	r.Armed = domain.Known(int64(1))
+	r := quietSafety()
+	r.Threat = domain.Known(true)
 	remote := domain.Cell{X: 95, Z: 95}
 	rows := []LootItem{
 		remoteLootRow("unsafe-allowed", remote, false, true),
@@ -65,7 +61,7 @@ func TestRemoteLootKeepsSafetySemantics(t *testing.T) {
 		remoteLootRow("remote-forbidden", remote, true, true),
 	}
 	rows[0].SafeToHaul = false
-	kept, holds, err := FilterLootReach(domain.Known(rows), RemoteWorkRequest{Reach: r, Demand: steelDemand()})
+	kept, holds, err := FilterLootReach(domain.Known(rows), RemoteWorkRequest{Safety: r, Extent: tribal8Extent(), Demand: steelDemand()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +80,7 @@ func TestRemoteLootKeepsSafetySemantics(t *testing.T) {
 	if err := next.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := FilterLootReach(domain.Unknown[[]LootItem](), RemoteWorkRequest{Reach: r}); err != nil {
+	if _, _, err := FilterLootReach(domain.Unknown[[]LootItem](), RemoteWorkRequest{Safety: r}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -93,9 +89,7 @@ func TestRemoteLootKeepsSafetySemantics(t *testing.T) {
 // absent demand and an unknown path hold nothing; only storage headroom and
 // urgent colony work throttle it.
 func TestRemoteLootReleasesWithoutDemand(t *testing.T) {
-	r := tribal8Reach()
-	r.Armed = domain.Known(int64(6))
-	r.FreeHaulers = domain.Known(int64(2))
+	r := quietSafety()
 	remote := domain.Cell{X: 95, Z: 95}
 	noHeadroom := remoteLootRow("s", remote, true, true)
 	noHeadroom.StorageHeadroom = domain.Known(int64(0))
@@ -121,7 +115,7 @@ func TestRemoteLootReleasesWithoutDemand(t *testing.T) {
 		{"urgent work", remoteLootRow("s", remote, true, true), steelDemand(), urgent, "urgent_competing_work"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			kept, holds, err := FilterLootReach(domain.Known([]LootItem{tt.row}), RemoteWorkRequest{Reach: r, Demand: tt.demand, Competition: tt.competition})
+			kept, holds, err := FilterLootReach(domain.Known([]LootItem{tt.row}), RemoteWorkRequest{Safety: r, Extent: tribal8Extent(), Demand: tt.demand, Competition: tt.competition})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -150,48 +144,29 @@ func TestLootDemandAndReachFromFacts(t *testing.T) {
 		t.Fatal("unknown stock certified shortage", short, err)
 	}
 	f.Hostiles = domain.Known(int64(0))
-	f.Armed = domain.Known(int64(6))
-	f.RaidPoints = domain.Known(100.0)
-	f.LootReadiness = LootReadiness{FreeHaulers: domain.Known(int64(2)), StorytellerQuiet: domain.Known(true)}
-	f.EventLoot = domain.Known([]LootItem{remoteLootRow("s", domain.Cell{X: 95, Z: 95}, true, true)})
-	extent := tribal8Reach().Extent
-	r := LootReach(f, domain.Known(Bounds{Width: 100, Height: 100}), extent)
-	if d := ResourceReach(r); d.Stage != ResourceReachFar {
-		t.Fatal(d)
+	if r := LootSafety(f); remoteThreatHold(r) != "" {
+		t.Fatal(remoteThreatHold(r))
 	}
 	f.Hostiles = domain.Known(int64(1))
-	if d := ResourceReach(LootReach(f, domain.Known(Bounds{Width: 100, Height: 100}), extent)); d.Reason != "threat_present" {
-		t.Fatal(d)
+	if got := remoteThreatHold(LootSafety(f)); got != RemoteHoldThreat {
+		t.Fatal(got)
 	}
 	f.Hostiles = domain.Unknown[int64]()
-	f.EventLoot = domain.Known([]LootItem{})
-	r = LootReach(f, domain.Known(Bounds{Width: 100, Height: 100}), extent)
+	r := LootSafety(f)
 	if _, known := r.Threat.Value(); known {
 		t.Fatal("unknown hostiles became a threat verdict")
 	}
-	if headroom, known := r.StorageHeadroom.Value(); !known || headroom != 0 {
-		t.Fatal(r.StorageHeadroom)
+	if got := remoteThreatHold(r); got != "threat_unknown" {
+		t.Fatal(got)
 	}
 }
 
-// Both nightly loot failures were one shape: a colony whose established
-// extent is empty -- it owns no facility, or the only facility anchoring its
-// extent was the trap the case removed -- held every safe forbidden stack on
-// extent geometry, so no readiness could ever allow one.
-func TestRemoteLootEmptyExtentFollowsReadiness(t *testing.T) {
-	r := tribal8Reach()
-	r.Extent = domain.Known(ColonyExtent{})
-	r.Armed = domain.Known(int64(1))
+// A colony whose established extent is empty -- it owns no facility, or the
+// only facility anchoring its extent was removed -- still releases a safe
+// forbidden remote stack: extent geometry never holds loot.
+func TestRemoteLootEmptyExtentReleases(t *testing.T) {
 	row := remoteLootRow("steel-1", domain.Cell{X: 95, Z: 95}, true, true)
-	kept, holds, err := FilterLootReach(domain.Known([]LootItem{row}), RemoteWorkRequest{Reach: r, Demand: steelDemand()})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if rows, _ := kept.Value(); len(rows) != 0 || len(holds) != 1 || holds[0].Reason != "outside_base:insufficient_defense" {
-		t.Fatalf("kept %v holds %v", rows, holds)
-	}
-	r.Armed, r.FreeHaulers = domain.Known(int64(6)), domain.Known(int64(3))
-	kept, holds, err = FilterLootReach(domain.Known([]LootItem{row}), RemoteWorkRequest{Reach: r, Demand: steelDemand()})
+	kept, holds, err := FilterLootReach(domain.Known([]LootItem{row}), RemoteWorkRequest{Safety: quietSafety(), Extent: domain.Known(ColonyExtent{}), Demand: steelDemand()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,14 +180,14 @@ func TestRemoteLootEmptyExtentFollowsReadiness(t *testing.T) {
 	}
 }
 
-// The startup release: 23 starting stacks outside a defended-base
-// reach are all pending on the first review, and the stacks left after each
+// The startup release: 23 starting stacks outside the colony extent
+// under a threat are all pending on the first review, and the stacks left after each
 // 8-action plan stay pending on the following reviews. A stack that first
-// appears later is reach-held; an unsafe stack is never pending.
+// appears later is held; an unsafe stack is never pending.
 func TestStartupReleaseFinishesAcrossReviews(t *testing.T) {
-	r := tribal8Reach()
-	r.Armed = domain.Known(int64(1))
-	remote := RemoteWorkRequest{Reach: r, Demand: steelDemand()}
+	r := quietSafety()
+	r.Threat = domain.Known(true)
+	remote := RemoteWorkRequest{Safety: r, Extent: tribal8Extent(), Demand: steelDemand()}
 	cell := domain.Cell{X: 95, Z: 95}
 	var rows []LootItem
 	for i := 0; i < 23; i++ {

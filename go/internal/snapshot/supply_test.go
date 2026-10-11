@@ -105,35 +105,13 @@ func TestSupplySafetyRecoversOnceEveryStartingStackIsAllowed(t *testing.T) {
 
 // Recorded from acceptance run supply/loot-remote at 04b0a98c: a
 // forbidden, safe Steel stack near the far map edge under a Steel:2000
-// target, first with one free hauler (base reach), then after the fixture
-// raised readiness to five. Both reviews ran at the case's paused tick 21.
+// target. Remote loot has no reach ladder, so the review queues it for Allow.
 const (
-	lootRemoteBase   = "testdata/supply-loot-remote-base-reach.json"
 	lootRemoteRaised = "testdata/supply-loot-remote-reach-raised.json"
 	lootRemoteThing  = "Thing_Steel9441"
 )
 
-func TestRemoteLootHeldUnderBaseReach(t *testing.T) {
-	r, err := Load(lootRemoteBase)
-	if err != nil {
-		t.Fatal(err)
-	}
-	loot := replayEventLoot(t, r, false)
-	if _, ok := pendingLoot(loot, lootRemoteThing); ok {
-		t.Fatal("remote loot queued for Allow under base reach")
-	}
-	for _, hold := range loot.Held {
-		if hold.Thing == lootRemoteThing {
-			if hold.Reason != "outside_base:insufficient_defense" {
-				t.Fatal("hold reason", hold.Reason)
-			}
-			return
-		}
-	}
-	t.Fatal("remote loot not held", loot.Held)
-}
-
-func TestRemoteLootAllowedOnceReachRises(t *testing.T) {
+func TestRemoteLootIsQueuedForAllow(t *testing.T) {
 	r, err := Load(lootRemoteRaised)
 	if err != nil {
 		t.Fatal(err)

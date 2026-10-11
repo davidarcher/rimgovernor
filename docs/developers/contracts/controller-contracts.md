@@ -208,13 +208,11 @@ not an executor.
   held in `RoundsLatches.Dash` until `Until` (re-planning from the severity built up out in the cold would
   close the window under a pawn partway out). At `Until` the review closes it for one review, so the pawn is
   recalled before a new window can plan; the recovery step reads the persisted latch. `DashWindow.OpenAt(tick)`
-  is the only close rule: open before `Until`, closed from it. `DashMarginIntervals` of growth stay under the cap. While open it lifts the extreme-cold hold (and only that) in `ResourceReach`,
+  is the only close rule: open before `Until`, closed from it. `DashMarginIntervals` of growth stay under the cap. While open it lifts the extreme-cold hold (and only that) in
   `recoveryHold` and `remoteThreatHold`, and `PlanSheltering` lets the named pawn out of Safe; at the bound
   it shelters the pawn again. Heat, fallout and unrecognised kinds stay held. The per-colonist inputs
   (comfortable temperature range, move speed, hypothermia and other severities, capacities) are the native
-  `PawnSettings.body` block, read with work detail (`WorkPawn.Body`). `ResourceReach` requires
-  `min(2, colonists)` armed colonists (`ResourceReachRequest.Colonists`), so a solo colony with one armed
-  colonist is not denied reach.
+  `PawnSettings.body` block, read with work detail (`WorkPawn.Body`).
 
 ### Shared compilation
 
@@ -645,19 +643,18 @@ hauling.
 
 ### Remote loot and resource reach
 
-Allow is additionally a reach and demand filter; Forbid is not. A safe forbidden stack on
+Allow is additionally a safety and demand filter; Forbid is not. A safe forbidden stack on
 a cell of the derived colony extent is allowed as above. Outside the extent it is
-allowed only when `FilterResourceReach` admits its cell at the current
-[reach stage](upkeep-contracts.md) and it is
+allowed unless a safety hold applies and it is
 ranked by the recovery queue (`policy.RankRecovery` over the usable stock census);
 otherwise it stays forbidden and is recorded under
 `EventLoot.Held` with an [explicit hold](#remote-work-holds-and-resume)
-(`threat_present`, `urgent_competing_work`, `missing_storage`), or the reach reason
-(`outside_base:insufficient_defense`, `outside_near:...`). The routines API reports these as
-`lootHolds`. Beside each item's stack count, safe route length and storage headroom the
-census supplies `free_haulers` (free colonists with Hauling active) and
-`storyteller_quiet` (zero threat scale or no incident generators). Unknown readiness or
-demand holds remote stacks; it never widens reach. Reach changes no Home cell.
+(`threat_present`, `threat_unknown`, the outdoor hazard hold, `urgent_competing_work`,
+`missing_storage`). The routines API reports these as `lootHolds`. There is no distance
+ceiling or readiness threshold: the supply planner prices each stack by its safe route
+length (`haul = dist * (1 + 2*trips)`), so a solo colony's scattered steel 40 cells out is
+a candidate like any other. Unknown threat or demand holds remote stacks. Remote work
+changes no Home cell.
 
 ### Remote work holds and resume
 

@@ -20,12 +20,12 @@ func TestEventLootRestartAdmissionAndReset(t *testing.T) {
 	s = open(t, path)
 	defer s.Close()
 	cell := domain.Cell{X: 70, Z: 80}
-	row := policy.LootItem{Supply: supplyCohort(1, cell)[0], Forbidden: true, SafeToHaul: true, SafetyKnown: true}
-	// A safe forbidden stack outside any known extent is a reach hold, not
-	// an Allow; the base extent covering its cell admits it.
+	row := policy.LootItem{Supply: supplyCohort(1, cell)[0], Forbidden: true, SafeToHaul: true, SafetyKnown: true, StorageHeadroom: domain.Known(int64(100))}
+	// A safe forbidden stack is an Allow whether or not an extent covers its
+	// cell; distance is the supply planner's price, not a hold.
 	r.Facts.EventLoot = domain.Known([]policy.LootItem{row})
 	out := reviewRounds(t, s, &r)
-	if len(out.Review.EventLoot.Pending) != 0 || len(out.Review.EventLoot.Held) != 1 || out.Review.EventLoot.Held[0].Reason != "bounds_unknown" {
+	if len(out.Review.EventLoot.Pending) != 1 || len(out.Review.EventLoot.Held) != 0 {
 		t.Fatal(out.Review.EventLoot)
 	}
 	lootExtentFacts(t, &r.Facts, cell)

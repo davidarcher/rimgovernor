@@ -24,7 +24,7 @@ type LootItem struct {
 
 // EventLootHistory is the latest complete safety census's work, not a
 // first-seen cohort. The controller owns both forbidding and allowing items.
-// Held lists the safe forbidden stacks the reach stage or demand kept
+// Held lists the safe forbidden stacks demand or a safety hold kept
 // forbidden, with reasons.
 type EventLootHistory struct {
 	Pending []StartingSupply

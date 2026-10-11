@@ -75,28 +75,19 @@ Home mask across a subsequent extent review.
   paints Home are in the [colony extent contract](colony-extent.md) and
   [persistence contracts](persistence-contracts.md#what-must-survive).
 
-### Resource reach and extent eligibility
+### Extent eligibility
 
-- `policy.ResourceReach` limits candidate consideration to `base`, `near`, `far` or
-  `map`, with a reason on every decision. Base is exact extent cells; near adds a
-  12-cell Chebyshev margin. Near needs two armed colonists, positive hauling capacity
-  and storage headroom, no unknown or present threat, and raid points at most 100 per
-  armed colonist. Far needs six armed colonists, a quiet storyteller and two free
-  haulers; map needs three. These are selection thresholds, not combat predictions.
-- `FilterResourceReach` intersects the ceiling with map bounds, a positive candidate
-  eligibility verdict and an observed passable route (also at base/map). Distance never
-  supplies route evidence. Dispatch is unchanged.
-- The routines API's `resourceReach.stage/reason` projects held colony facts. Unknown
-  extent reports `base` / `extent_unknown` and admits nothing. A known empty extent
-  (no facility or claimed stockpile yet) carries no readiness evidence: readiness alone
-  stages reach and only missing geometry denies base and near.
+- Remote work has no reach stage ladder. Safety vetoes are plain holds: a present or
+  unknown threat, the outdoor hazard hold (an open dash window lifts extreme cold only)
+  and the [remote work holds](controller-contracts.md#remote-work-holds-and-resume).
+  Distance is the supply planner's path-distance price, never a gate.
 - `policy.ExtentEligibility` overlays current evidence on stored history without
   mutating it. Per-region diagnostics keep origins and facility IDs, list active
   facilities separately and report holds: `threat_present`, `threat_unknown`,
   `facility_lost`, `facilities_unknown`, `route_unknown`, `route_impassable`. Losing any
   supporting facility holds the region; a map-wide threat holds every region; missing
   evidence never grants permission; recovery clears holds, not history. The routines
-  API `extentEligibility` shows this separately from `resourceReach`, reading the current
+  API `extentEligibility` reads the current
   timeline's stored history and fresh held census without writing either. It neither
   paints Home nor changes selection or dispatch. The acceptance harness records
   `/api/routines` before shutdown for `acceptance why` and postmortems.
@@ -227,7 +218,7 @@ Home at a time, nearest the colony center first.
   eligibility at apply; the action completes on its applied result and the census
   decides recovery. Salvage uses ordinary hauling and does not gate the concern.
 - Remote clearance considers visible abandoned buildings outside Home only when
-  resource reach permits their observed safe route and native salvage yield scores
+  their observed safe route is not held and native salvage yield scores
   against unmet resource demand with storage headroom. Roof-support blockers, caskets
   and sealed ancient-danger rooms stay held; a remote ruin's hold names its
   [reason](controller-contracts.md#remote-work-holds-and-resume) (`threat_present`,

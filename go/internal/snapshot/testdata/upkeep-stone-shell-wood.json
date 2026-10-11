@@ -8299,14 +8299,6 @@
     "Warden": 3
    }
   },
-  "LootReadiness": {
-   "FreeHaulers": {
-    "v": 3
-   },
-   "StorytellerQuiet": {
-    "v": true
-   }
-  },
   "MapBounds": {
    "v": {
     "Height": 200,
