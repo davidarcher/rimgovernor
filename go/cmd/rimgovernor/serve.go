@@ -19,6 +19,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
+	"github.com/davidarcher/RimGovernor/go/internal/otel"
 	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -32,6 +33,7 @@ func (wallClock) Now() time.Time { return time.Now() }
 type serveConfig struct {
 	bridge                         bridge.ProcessConfig
 	flightRecorder                 string
+	otlpEndpoint, otlpProtocol     string
 	state, listen                  string
 	profile                        string
 	playerControl                  bool
@@ -143,6 +145,8 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.UintVar(&c.clockBlindTicks, "clock-blind-ticks", 0, fmt.Sprintf("arm the native blind-tick regulator (issue #583): past this many game ticks since the controller's last read or oldest unread clock event, native throttles the window toward Normal and ramps back once the controller catches up, without ending the window (1..%d; 0 leaves windows unregulated)", maxClockBlindTicks))
 	flags.BoolVar(&c.pprof, "pprof", false, "serve net/http/pprof under /debug/pprof/ on the listener (CPU profile, heap, trace); off by default")
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path of the flight-recorder ring (every native request/response/error and service event; read back by /api/telemetry); default <profile>/flight/flight.jsonl, or flight/flight.jsonl beside --state under --observe; always on")
+	flags.StringVar(&c.otlpEndpoint, "otlp-endpoint", "", "export telemetry to this OTLP collector, for example http://localhost:4317 (the docs/developers/observability.md stack); empty falls back to OTEL_EXPORTER_OTLP_ENDPOINT, and with neither only the local OTLP/JSON files are written")
+	flags.StringVar(&c.otlpProtocol, "otlp-protocol", "", "collector protocol: grpc (default) or http/protobuf; empty falls back to OTEL_EXPORTER_OTLP_PROTOCOL")
 	flags.BoolVar(&c.layoutOverlay, "layout-overlay", true, "draw the colony layout plan as a color-coded native overlay with role labels (#817); false deletes the overlay")
 	flags.BoolVar(&c.resume, "resume", false, "run the bot for the observed world at startup and again after every native load, without a launcher Resume")
 	if err := flags.Parse(args); err != nil {
@@ -362,6 +366,31 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 	}
 	defer recorder.Close()
 	config.bridge.Recorder = recorder
+	// The OTLP/JSON file sink beside flight.jsonl is always on; a collector is
+	// added only when --otlp-endpoint or OTEL_EXPORTER_OTLP_ENDPOINT names one.
+	// Telemetry never stops serve: a failure to start it is reported and ignored.
+	var instance [8]byte
+	_, _ = rand.Read(instance[:])
+	tel, err := otel.Start(ctx, otel.Config{
+		Dir:               filepath.Join(filepath.Dir(config.flightRecorder), "otlp"),
+		Service:           "rimgovernor-serve",
+		RunID:             hex.EncodeToString(instance[:]),
+		CollectorEndpoint: config.otlpEndpoint,
+		CollectorProtocol: config.otlpProtocol,
+		SetGlobal:         true,
+		Warn: func(msg string, args ...any) {
+			slog.Warn(msg, append([]any{telemetry.ComponentKey, "otel", telemetry.KindKey, "telemetry_drop"}, args...)...)
+		},
+	})
+	if err != nil {
+		fmt.Fprintln(diagnostics, "telemetry:", err)
+	} else {
+		defer func() {
+			flush, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = tel.Shutdown(flush)
+		}()
+	}
 	slog.SetDefault(telemetry.New(recorder))
 	defer snapshot.Flush()
 	if config.playerControl {

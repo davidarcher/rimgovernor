@@ -42,11 +42,18 @@ Ports bind to loopback only.
 
 ## Pointing serve at it
 
-Export through the standard OTLP environment variable, for example
-`OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317` (gRPC) in the environment of
-`serve`. The exporter setting itself belongs to the OTEL core work (#2782); this
-page will name the exact switch once it lands. Without it serve exports nothing
-to a backend and still writes its local file sink.
+Serve exports to a collector only when told where it is, by either of:
+
+- the flag `serve --otlp-endpoint http://localhost:4317` (the launcher passes
+  this; `--otlp-protocol http/protobuf` selects OTLP/HTTP, default gRPC), or
+- the standard environment variable `OTEL_EXPORTER_OTLP_ENDPOINT` (also
+  `OTEL_EXPORTER_OTLP_PROTOCOL` and the per-signal `*_TRACES_/_METRICS_/_LOGS_`
+  endpoints) in the environment of `serve`. The flag wins over the environment.
+
+With neither, serve exports nothing to a backend and still writes its local
+OTLP/JSON files under `<profile>/flight/otlp/`. An unreachable collector never
+slows or stops serve; the loss is counted (see the
+[OTEL core contract](contracts/otel-core.md)).
 
 ## Smoke test
 
@@ -58,7 +65,9 @@ docker run --rm --network host ghcr.io/open-telemetry/opentelemetry-collector-co
 ```
 
 Open Grafana, Explore, select the Tempo data source, and search for service
-`telemetrygen`. Once the core exporter exists, a serve run replaces this step.
+`telemetrygen`. A serve run with `--otlp-endpoint` also sends its metrics (the
+`rimgovernor.telemetry.dropped` counter, every 10 s) and any spans and logs the
+instrumentation children add.
 
 `--network host` is unreliable on Docker Desktop for Windows; if the span does not
 arrive, use `--otlp-endpoint host.docker.internal:4317`.

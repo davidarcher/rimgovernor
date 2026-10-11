@@ -25,6 +25,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Construction tiers](construction-tiers.md): per-target tier on place, native store, set-tier, readback
 - [Persistence contracts](persistence-contracts.md)
 - [Flight rows (schema v2)](flight-rows.md)
+- [OTEL core: providers, OTLP/JSON file sink, collector exporter](otel-core.md)
 - [Durable policy and Auto control](durable-policy.md)
 - [Population commitments](population-contracts.md)
 - [Quest classification and execution](quests.md)

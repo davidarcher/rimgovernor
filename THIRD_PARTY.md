@@ -4,6 +4,11 @@
 
 Pinned versions and hashes are in `go/go.mod` and `go/go.sum`. Retained notices
 in `third_party/` cover modernc SQLite.
+The OpenTelemetry Go SDK and OTLP exporters (`go.opentelemetry.io/otel/...`,
+with gRPC, protobuf, go-logr, backoff, xxhash and grpc-gateway beneath them) are
+Apache-2.0, BSD-3-Clause or MIT; their module LICENSE files are the notices to
+ship. They enter through `go/internal/otel` (see the
+[OTEL core contract](docs/developers/contracts/otel-core.md)).
 Include applicable dependency notices with distributed binaries.
 
 ## Native integration and formatters
