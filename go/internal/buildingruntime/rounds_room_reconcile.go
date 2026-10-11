@@ -602,6 +602,15 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
 		if !ck || !can || !sk || !safe {
+			if build.ring {
+				if rest, own := withoutOwnBlueprint(v.Blockers, build.def); own {
+					if len(rest) == 0 {
+						// Our own blueprint already stands on the cell: it is placed.
+						continue
+					}
+					v.Blockers = rest
+				}
+			}
 			if build.ring && (rr.room.Outdoor || rr.ringOnly) {
 				// The planner sited this ring: a cell the native refuses is
 				// reported and left to the plan's replan, never moved to
@@ -649,4 +658,17 @@ func shellMaterials(facts observation.ColonyProjection, wall, door string, choos
 		return choose(wallDef, doorDef)
 	}
 	return sharedShellStuff(facts, wallDef, doorDef)
+}
+
+// withoutOwnBlueprint drops the blockers that are a blueprint of def, the ring
+// cell's own wanted piece, and reports whether any was dropped.
+func withoutOwnBlueprint(blockers []policy.PlacementBlocker, def string) (rest []policy.PlacementBlocker, dropped bool) {
+	for _, b := range blockers {
+		if b.Blueprint && strings.TrimPrefix(b.DefName, "Blueprint_") == def {
+			dropped = true
+			continue
+		}
+		rest = append(rest, b)
+	}
+	return rest, dropped
 }
