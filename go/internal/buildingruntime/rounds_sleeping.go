@@ -1076,7 +1076,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	if !planned && r.cells == nil && r.power == nil {
 		return nil, policy.StockObservation{}, BuildingNoLayoutPlan, nil
 	}
-	searchRequest := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: center, Cells: cells, Protected: append(append([]domain.Cell(nil), protected...), policy.DoorwayAisles(facts.Bounds, facts.Cells)...), Environment: policy.PlacementIndoors, Radius: max(facts.Bounds.Width, facts.Bounds.Height), Limit: 64}
+	searchRequest := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: center, Cells: cells, Protected: append(append([]domain.Cell(nil), protected...), policy.DoorwayAisles(facts.Bounds, facts.Cells)...), Environment: policy.PlacementIndoors, Radius: max(facts.Bounds.Width, facts.Bounds.Height), Limit: 64, StockpileZones: stockpileZoneIDs(facts)}
 	if r.facility != nil {
 		// A facility furnishes the free room of its role nearest the colony
 		// centre; the search spans the map, so the

@@ -26,6 +26,11 @@ type PlacementSearchRequest struct {
 	Environment PlacementEnvironment
 	Radius      int32
 	Limit       int
+	// StockpileZones are the ids of the native stockpile zones. A building
+	// may stand on a stockpile cell (the game shrinks the zone), so such a
+	// cell counts as free; any other zone, or a zone of unknown kind, still
+	// blocks.
+	StockpileZones map[string]bool
 	// Anchors, when non-nil, limits the sites to these cells; footprints
 	// may still cover any free cell.
 	Anchors []domain.Cell
@@ -85,7 +90,7 @@ func NewPlacementSearch(r PlacementSearchRequest) (PlacementSearch, error) {
 		}
 		seen[c] = true
 		zone, zoneKnown := row.Zone.Value()
-		if blocked[c] || !positive(row.Walkable) || row.Occupied() || !zoneKnown || zone {
+		if blocked[c] || !positive(row.Walkable) || row.Occupied() || !zoneKnown || zone && !stockpileCell(row, r.StockpileZones) {
 			continue
 		}
 		if r.Environment != PlacementAnywhere {
@@ -222,4 +227,10 @@ func cellsRectangle(cells []domain.Cell) Rectangle {
 		minX, maxX, minZ, maxZ = min(minX, c.X), max(maxX, c.X), min(minZ, c.Z), max(maxZ, c.Z)
 	}
 	return Rectangle{X: minX, Z: minZ, Width: maxX - minX + 1, Height: maxZ - minZ + 1}
+}
+
+// stockpileCell reports whether the cell's zone is a known stockpile.
+func stockpileCell(row SiteCell, stockpiles map[string]bool) bool {
+	id, known := row.ZoneID.Value()
+	return known && stockpiles[id]
 }
