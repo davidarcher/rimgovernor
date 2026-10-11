@@ -316,15 +316,6 @@ func (r *RoundsStoneShellPlanner) Step(ctx context.Context) (RoundsStoneShellRes
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoundsStorageShelvesPlanner) Step(ctx context.Context) (RoundsStorageShelvesResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
-	if err != nil {
-		return RoundsStorageShelvesResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch)
-}
-
 func (r *RoundsSupplyPlanner) Step(ctx context.Context) (RoundsSupplyResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {

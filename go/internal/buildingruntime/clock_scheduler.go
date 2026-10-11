@@ -141,7 +141,6 @@ type ClockSchedulerConfig struct {
 	PopulationCustody   *RoundsPopulationCustodyPlanner
 	PopulationJoiner    *RoundsPopulationJoinerPlanner
 	Research            *RoundsResearchPlanner
-	StorageShelves      *RoundsStorageShelvesPlanner
 	Resource            *RoundsResourcePlanner
 	HomeCoverage        *RoundsHomeCoveragePlanner
 	MaintainShelter     *MaintainShelterPlanner
@@ -236,7 +235,6 @@ type ClockSchedulerResult struct {
 	PopulationCustody            *RoundsPopulationCustodyResult
 	PopulationJoiner             *RoundsPopulationJoinerResult
 	Research                     *RoundsResearchResult
-	StorageShelves               *RoundsStorageShelvesResult
 	Resource                     *RoundsResourceResult
 	HomeCoverage                 *RoundsHomeCoverageResult
 	MaintainShelter              *MaintainShelterResult
@@ -604,9 +602,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.Research != nil && (config.Rounds == nil || config.Research.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Research != nil && (config.Rounds == nil || config.Research.reviewer != config.Rounds)", ErrControl)
-	}
-	if config.StorageShelves != nil && (config.Rounds == nil || config.StorageShelves.reviewer != config.Rounds) {
-		return nil, fmt.Errorf("%w: NewClockScheduler: config.StorageShelves != nil && (config.Rounds == nil || config.StorageShelves.reviewer != config.Rounds)", ErrControl)
 	}
 	if config.Dialog != nil && (config.Rounds == nil || config.Dialog.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Dialog != nil && (config.Rounds == nil || config.Dialog.reviewer != config.Rounds)", ErrControl)

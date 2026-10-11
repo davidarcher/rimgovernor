@@ -715,16 +715,6 @@ var plannerCatalog = []plannerEntry{
 			out.Research = &method
 			return method.Verdict, nil
 		}},
-	{name: "storage-shelves", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction}, sections: sectionsBuilding,
-		configured: func(c *ClockSchedulerConfig) bool { return c.StorageShelves != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			method, err := s.config.StorageShelves.step(ctx, epoch)
-			if err != nil {
-				return Verdict{}, err
-			}
-			out.StorageShelves = &method
-			return method.Verdict, nil
-		}},
 	{name: "dialog", class: classCritical, priority: plannerPreempt, kinds: []domain.ActionKind{domain.DialogAnswerAction}, sections: sectionsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Dialog != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

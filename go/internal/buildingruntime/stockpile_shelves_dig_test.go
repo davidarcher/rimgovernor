@@ -35,7 +35,7 @@ func TestShelfOnRockMinesFootprintThenBuildsShelf(t *testing.T) {
 				}
 			}
 		}
-		r := &RoundsStorageShelvesPlanner{reviewer: p.reviewer, native: n}
+		r := &RoundsStockpilePlanner{reviewer: p.reviewer, building: &RoundsBuildingPlanner{reviewer: p.reviewer, native: n}}
 		call, epoch, done, err := p.reviewer.player.enter(context.Background(), "test", false)
 		if err != nil {
 			t.Fatal(err)
@@ -44,7 +44,7 @@ func TestShelfOnRockMinesFootprintThenBuildsShelf(t *testing.T) {
 		step := policy.ShelfStep{Zone: policy.ShelfZone{Zone: "z1"}, Pieces: []policy.InteriorPiece{{Slot: "shelf", Def: policy.ShelfDefinition, Size: domain.Cell{X: 1, Z: 1}, Rot: domain.North, Rect: policy.Rectangle{X: cell.X, Z: cell.Z, Width: 1, Height: 1}}}}
 		reading := observation.RoundsReading{ColonyReading: s.read}
 		reading.Projection = s.facts
-		result, err := r.build(call, epoch, s.state, s.review, s.owner, policy.MaintainResource, reading, step, 0)
+		result, err := r.buildShelf(call, epoch, s.state, s.review, s.owner, reading, step, 0)
 		if err != nil || result.Verdict != BuildingReasonAdmitted || result.Plan == "" {
 			t.Fatal(fogged, result, err)
 		}

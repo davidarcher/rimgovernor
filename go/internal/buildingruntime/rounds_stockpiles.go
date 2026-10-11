@@ -173,11 +173,16 @@ func (r *Rounder) stockpileRequest(ctx context.Context, snapshot domain.Generati
 		return policy.StockpileRequest{}, "", err
 	}
 	request := stockpileRequest(projection, owned, patches, domain.Known(benches), benchInputs(census, projection), gear, protected, r.animalFeedStore(projection))
+	_, canBuild := r.native.(RoundsBuildingSource)
+	request.ShelfAvailable = canBuild && shelfAvailable(projection)
+	request.ShelfSpent = map[string]bool{}
 	for _, z := range request.Zones {
-		shelves, _, err := zoneShelves(ctx, r.player.journal, zoneGoal[z.ID], z.ID, projection.Facts.CurrentConstruction)
+		shelves, next, err := zoneShelves(ctx, r.player.journal, zoneGoal[z.ID], z.ID, projection.Facts.CurrentConstruction)
 		if err != nil {
 			return policy.StockpileRequest{}, "", err
 		}
+		request.ShelfRecords = append(request.ShelfRecords, shelves...)
+		request.ShelfSpent[z.ID] = next >= maxShelvesPerZone
 		for _, s := range shelves {
 			if s.Building == "" || s.Open {
 				continue
@@ -190,6 +195,18 @@ func (r *Rounder) stockpileRequest(ctx context.Context, snapshot domain.Generati
 		}
 	}
 	return request, "", nil
+}
+
+// shelfAvailable reports whether the census found the Shelf buildable
+// (researched).
+func shelfAvailable(projection *observation.ColonyProjection) bool {
+	for _, d := range projection.Definitions {
+		if d.Name == policy.ShelfDefinition {
+			available, _ := d.Available.Value()
+			return available
+		}
+	}
+	return false
 }
 
 // reservedGround is the ground no stockpile site takes: the
@@ -400,7 +417,7 @@ func (r *RoundsStockpilePlanner) step(call, epoch context.Context, _ *stepArbite
 	// The medicine store reads the medical beds, so the census carries them.
 	// The gear rooms are shelled from the same reading, so the census carries
 	// the wall and door definitions.
-	read, err := observe(call, r.reviewer.native, expected, claims, policy.ShellWallDefinition, policy.ShellDoorDefinition, policy.PenFenceDefinition, policy.PenGateDefinition)
+	read, err := observe(call, r.reviewer.native, expected, claims, policy.ShellWallDefinition, policy.ShellDoorDefinition, policy.PenFenceDefinition, policy.PenGateDefinition, policy.ShelfDefinition)
 	if err != nil {
 		return RoundsStockpileResult{}, err
 	}
@@ -427,6 +444,9 @@ func (r *RoundsStockpilePlanner) step(call, epoch context.Context, _ *stepArbite
 		waiting = result.Verdict
 	}
 	if len(proposal.Edits) == 0 {
+		if proposal.Shelf.Kind == policy.ShelfBuild {
+			return r.shelve(call, epoch, state, review, goal, read, proposal.Shelf)
+		}
 		return RoundsStockpileResult{Verdict: waiting}, nil
 	}
 	tick := projection.Identity.Tick

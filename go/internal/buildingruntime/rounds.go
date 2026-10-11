@@ -405,6 +405,10 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		// a furniture rule's, read with every catalog.
 		readDefinitions = append(append([]string(nil), readDefinitions...), "Wall", "Door")
 	}
+	if r.methodEnabled(policy.MaintainStockpiles) {
+		// The warehouse shelf upgrade needs the Shelf's availability.
+		readDefinitions = append(append([]string(nil), readDefinitions...), policy.ShelfDefinition)
+	}
 	claims, err := p.journal.ConstructionClaims(ctx, state.Snapshot, expected.Tick)
 	if err != nil {
 		return store.RoundsResult{}, err

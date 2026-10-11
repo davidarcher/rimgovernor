@@ -40,7 +40,7 @@ a database of another version is moved aside, never migrated):
 |---|---|
 | `sequence` | `INTEGER PRIMARY KEY AUTOINCREMENT`; monotonic, never reused, so a reader can follow by sequence |
 | `wall_ms`, `tick` | wall clock (unix ms) and game tick when filed |
-| `concern` | the concern id, or for a planner that serves no single concern (fields, supplies, the bill planners, workshop, hospital, tend, rescue, armory, moodRelief, recovery, husbandry, prisonerInteraction, populationCustody, populationJoiner, storage-shelves, dialog, trade) the planner's own name (`plannerEntry.filingKey`; no progress record, so `method` is empty) |
+| `concern` | the concern id, or for a planner that serves no single concern (fields, supplies, the bill planners, workshop, hospital, tend, rescue, armory, moodRelief, recovery, husbandry, prisonerInteraction, populationCustody, populationJoiner, dialog, trade) the planner's own name (`plannerEntry.filingKey`; no progress record, so `method` is empty) |
 | `verdict` | the winning planner verdict's outcome (`refused`, `waiting`, `admitted`, `nothing_to_do`, `disabled`, `combat_orders`, `hold_fallback`) |
 | `cause` | the new `policy.Cause` wire value, `''` when the note cleared (`admitted`, `nothing_to_do`); anything outside the vocabulary is refused on write |
 | `subject`, `method` | bounded subject (may be empty); the concern's current method on its progress record when filed (empty when none) |

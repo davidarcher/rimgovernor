@@ -356,14 +356,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
-		// Shelves serve the stockpiles the methods create.
-		if stockpiles {
-			if shelvesNative, ok := reads.(buildingruntime.RoundsStorageShelvesSource); ok {
-				if config.StorageShelves, err = buildingruntime.NewRoundsStorageShelvesPlanner(reviewer, shelvesNative); err != nil {
-					return nil, err
-				}
-			}
-		}
 		if fireSafety {
 			fireNative, ok := reads.(buildingruntime.RoundsFireSafetySource)
 			if !ok {

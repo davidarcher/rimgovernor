@@ -23,7 +23,7 @@ var inlinePlannerSet = []struct {
 	{"fireSafety", plannerFoothold}, {"clearance", plannerMaintenance}, {"shrine", plannerMaintenance}, {"clean", plannerMaintenance}, {"pollution", plannerMaintenance}, {"mechcharger", plannerMaintenance}, {"genebank", plannerMaintenance}, {"workLedger", plannerMaintenance}, {"blight", plannerMaintenance}, {"armory", plannerMaintenance}, {"burial", plannerMaintenance}, {"training", plannerMaintenance}, {"incineration", plannerMaintenance}, {"moodRelief", plannerMaintenance},
 	{"gear", plannerMaintenance}, {"foodStorageUpkeep", plannerFoothold},
 	{"animalContainment", plannerMaintenance}, {"recovery", plannerCritical}, {"rules", plannerMaintenance}, {"husbandry", plannerMaintenance}, {"prisonerInteraction", plannerMaintenance},
-	{"populationCustody", plannerPreempt}, {"populationJoiner", plannerMaintenance}, {"research", plannerMaintenance}, {"storage-shelves", plannerMaintenance}, {"dialog", plannerPreempt}, {"trade", plannerFoothold}, {"resource", plannerMaintenance},
+	{"populationCustody", plannerPreempt}, {"populationJoiner", plannerMaintenance}, {"research", plannerMaintenance}, {"dialog", plannerPreempt}, {"trade", plannerFoothold}, {"resource", plannerMaintenance},
 	{"maintainShelter", plannerComfort}, {"firebreak", plannerMaintenance}, {"psylink", plannerMaintenance}, {"creepJoiners", plannerMaintenance}, {"ideoRoles", plannerMaintenance}, {"rituals", plannerMaintenance}, {"gathering", plannerMaintenance}, {"ideoligion", plannerMaintenance}, {"permits", plannerMaintenance}, {"homeCoverage", plannerComfort},
 	{"stoneShell", plannerComfort}, {"stockpiles", plannerFoothold}, {"defenseLayout", plannerMaintenance},
 }

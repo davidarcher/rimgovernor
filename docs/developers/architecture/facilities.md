@@ -46,10 +46,12 @@ admission checks its resources and dependencies; vanilla priorities schedule paw
    (`policy.DeriveBenchInputs`) on the free roofed 2x2 patch in the bench's room
    nearest it; hauling brings the inputs to the bench. All stores are declared by
    their departments and applied by `MaintainStockpiles`: see
-   [storage](storage.md). Once ComplexFurniture is researched,
-   `RoundsStorageShelvesPlanner` places a Shelf inside the warehouse, up to a
-   third of its footprint; `MaintainStockpiles` patches each built shelf with its
-   zone's filter and priority (role `shelf:<buildingID>`). Native storage
+   [storage](storage.md). Once ComplexFurniture is researched and no zone edit
+   stands, `RoundsStockpilePlanner` upgrades the warehouse (the general store)
+   with a Shelf inside it, up to a third of its footprint, one at a time. The
+   upgrade runs under the stockpiles planner, so the initial-shelter gate holds
+   it. `MaintainStockpiles` patches each built shelf with its zone's filter and
+   priority (role `shelf:<buildingID>`). Native storage
    capacity counts a shelf cell's free slots (three stacks per cell).
 6. **Bill**: `RoundsResourcePlanner` dispatches the bill and native readback
    of the rising item count carries the deficit to recovery. Native

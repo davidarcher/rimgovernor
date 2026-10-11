@@ -111,6 +111,13 @@ type StockpileRequest struct {
 	// the materials yard's fence ring) not yet standing: the
 	// planner raises their shells (StockpileReview.Rooms).
 	Rooms []PlannedRole
+	// ShelfRecords are the shelves placed for the zones, built or in flight;
+	// ShelfSpent names the zones whose shelf attempts are used up;
+	// ShelfAvailable is whether a Shelf is buildable (researched) and the
+	// planner can place it.
+	ShelfRecords   []ShelfRecord
+	ShelfSpent     map[string]bool
+	ShelfAvailable bool
 }
 
 // StockpileShelf is one built shelf serving an owned zone and the settings
@@ -168,7 +175,10 @@ type StockpileReview struct {
 	Edits  []StockpileEdit `json:",omitempty"`
 	// Rooms are the planned rooms (StockpileRequest.Rooms) the planner raises
 	// before the zone edits go on.
-	Rooms  []PlannedRole `json:",omitempty"`
+	Rooms []PlannedRole `json:",omitempty"`
+	// Shelf is the shelf upgrade: the next shelf for the warehouse. It ranks
+	// after every zone edit, so the planner places it only when none stands.
+	Shelf  ShelfStep `json:",omitempty"`
 	Reason string
 }
 
@@ -277,11 +287,39 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 			created[e.Role] = true
 		}
 	}
-	review.Active = len(review.Edits) > 0 || len(review.Rooms) > 0
+	review.Shelf = nextWarehouseShelf(r, zones)
+	review.Active = len(review.Edits) > 0 || len(review.Rooms) > 0 || review.Shelf.Kind == ShelfBuild
 	if !review.Active {
 		review.Reason = "stockpiles fit their contents"
 	}
 	return review
+}
+
+// nextWarehouseShelf is the shelf upgrade: the next shelf for the standing
+// warehouse (the general store) once a Shelf is buildable. A retired store's
+// zone and a zone whose shelf attempts are spent get none.
+func nextWarehouseShelf(r StockpileRequest, zones []StockpileZone) ShelfStep {
+	if !r.ShelfAvailable {
+		return ShelfStep{}
+	}
+	request := ShelfRequest{Cells: r.Cells, Available: true}
+	ids := map[string]bool{}
+	for _, z := range zones {
+		if z.Role != domain.GeneralRole || r.ShelfSpent[z.ID] {
+			continue
+		}
+		if store, declared := storeOfZone(r.Stores, z); declared && store.Retired {
+			continue
+		}
+		ids[z.ID] = true
+		request.Zones = append(request.Zones, ShelfZone{Zone: z.ID, Cells: z.Cells, Filter: z.Filter, Priority: z.Priority})
+	}
+	for _, s := range r.ShelfRecords {
+		if ids[s.Zone] {
+			request.Shelves = append(request.Shelves, s)
+		}
+	}
+	return NextShelfStep(request)
 }
 
 // stockpileSettingsEdit deletes a zone whose store retired and retargets one
