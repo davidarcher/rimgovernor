@@ -47,6 +47,9 @@ type Store struct {
 	// registered under (see planCache).
 	plans *planCache
 	dsn   string
+	// snapshotReady is a test hook, called once Snapshot's read-only
+	// connection is open and before it copies.
+	snapshotReady func()
 }
 
 // ControllerSessionID identifies one persistent controller execution namespace.
@@ -189,8 +192,15 @@ func fileURL(path string) (*url.URL, error) {
 }
 
 // Snapshot copies the database into a new file at path through SQLite's
-// online backup (CopyPages), consistent even while another process holds
-// it open: an acceptance checkpoint's copy of a service's durable state.
+// online backup, consistent even while another process holds it open: an
+// acceptance checkpoint's copy of a service's durable state and the observe
+// snapshot.
+//
+// The backup reads through its own read-only connection, never the pool's
+// single one, so journal transactions keep committing while it copies. WAL
+// lets that reader keep its view of the file as writers commit past it, and
+// Step(-1) copies every page in one call, so the copy is one commit. File
+// databases only: a shared-cache memory database has no second handle.
 func (s *Store) Snapshot(ctx context.Context, path string) error {
 	if _, err := os.Stat(path); err == nil {
 		return fmt.Errorf("snapshot: %s already exists", path)
@@ -199,7 +209,32 @@ func (s *Store) Snapshot(ctx context.Context, path string) error {
 	if err != nil {
 		return err
 	}
-	return CopyPages(ctx, s.db, u.String())
+	src, err := url.Parse(s.dsn)
+	if err != nil {
+		return err
+	}
+	q := src.Query()
+	if q.Get("mode") == "memory" {
+		return errors.New("snapshot: in-memory store")
+	}
+	q.Del("_txlock")
+	q.Set("mode", "ro")
+	src.RawQuery = q.Encode()
+	ro, err := sql.Open(DriverName, src.String())
+	if err != nil {
+		return err
+	}
+	defer ro.Close()
+	ro.SetMaxOpenConns(1)
+	conn, err := ro.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	if s.snapshotReady != nil {
+		s.snapshotReady()
+	}
+	return backupConn(conn, u.String())
 }
 
 // syncMode keeps WAL durability in production. Under `go test` every test opens

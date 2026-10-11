@@ -73,10 +73,15 @@ fixed, it survives the per-launch `state-*.sqlite` files and the schema-change
 rename, and it stays queryable after the controller exits. A failed copy is logged
 and retried.
 
-Cost: the backup holds the store's single connection for its duration, so
-journal writes wait that long once per 5 s. Measured on a synthetic 30 MB store
-(about the largest real state file seen): 90-140 ms per copy, so about 30 ms for
-a typical 9 MB store; it grows linearly with the store.
+Cost: the backup runs on its own read-only connection (`mode=ro`), never the
+store's single write connection, so WAL lets it read while journal transactions
+keep committing: the journal does not wait for a copy. The copy is one
+`Step(-1)` call, so it is a single commit even under a concurrent writer. The
+copy itself still takes time linear in the store (about 140 ms for a synthetic
+30 MB store, about 30 ms for a typical 9 MB one) and the WAL cannot checkpoint
+past the reader meanwhile. Measured on the 30 MB store with a writer
+committing continuously: worst journal commit 122 ms (p99 93 ms) before, 0.8 ms
+after.
 
 Why a copy and not a bind mount of the live file: a read-only mount of a WAL
 database works only while a writer holds the WAL (the reader cannot create

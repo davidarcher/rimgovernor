@@ -189,6 +189,12 @@ func CopyPages(ctx context.Context, src *sql.DB, dstURI string) error {
 		return err
 	}
 	defer conn.Close()
+	return backupConn(conn, dstURI)
+}
+
+// backupConn runs the online backup from the connection conn holds. Step(-1)
+// is one call, so the copy reads one snapshot of the source.
+func backupConn(conn *sql.Conn, dstURI string) error {
 	return conn.Raw(func(raw any) error {
 		if c, ok := raw.(*cachingConn); ok {
 			raw = c.Conn
