@@ -49,7 +49,7 @@ Use `rimgovernor serve -h` for the complete flag list.
 | `--listen` | Loopback API address; the default chooses a free port. |
 | `--resume` | Enable control at startup and after each load; bare serve otherwise waits for Resume. |
 | `--follow-player-speed` | Follow the player's speed choice instead of the default Ultrafast policy. |
-| `--flight-recorder` | Choose the always-on flight recorder's path. |
+| `--otlp-dir` | Choose the directory of the always-on OTLP/JSON files (default `<profile>/otlp`). |
 
 Colony intent is saved in RimWorld's `GovernorState` blobs. SQLite records the
 controller session; it is not a database to pair manually with an ordinary
@@ -77,7 +77,7 @@ than a second per-family inventory here.
 
 ## Diagnostics and replay
 
-Start with `flight.jsonl`; `rimgovernor log`, `phases` and `trace` read its
+Start with the OTLP log ring (`<profile>/otlp/logs.jsonl`); `rimgovernor log`, `phases` and `trace` read its
 segments. See [measure throughput](../docs/developers/testing/measure-throughput.md)
 for fields and examples. A process's stderr contains startup/fatal information,
 not the gameplay decision history.

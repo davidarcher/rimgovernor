@@ -17,7 +17,7 @@ import (
 // to EvidencePayloadCap and past it replaced by its preview, size and
 // hash; the untouched row survives only under EvidenceFull, in
 // <output>/full/. Finalize's artifact manifest hashes the capped rows and
-// the files the report names, never the flight ring, service database or
+// the files the report names, never the log ring, service database or
 // logs.
 
 // EvidenceEnv overrides the evidence mode ("capped" or "full") for a
@@ -37,7 +37,7 @@ const (
 )
 
 // EvidencePayloadCap is the largest payload an evidence row keeps inline:
-// the flight recorder's payload cap, so a capped row and the flight row for
+// the OTLP log ring's payload cap, so a capped row and the row for
 // the same call agree on what survived.
 const EvidencePayloadCap = 256 << 10
 

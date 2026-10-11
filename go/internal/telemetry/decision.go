@@ -7,10 +7,10 @@ import (
 	"time"
 )
 
-// Payload keys of a decision row (flight schema v2). The shape is fixed:
-// every decision row carries all four scalar keys and an attrs object, so a
-// reader filters and collapses on them without knowing the kind. See
-// docs/developers/contracts/flight-rows.md.
+// Payload keys of a decision row. The shape is fixed: every decision row
+// carries all four scalar keys and an attrs object, so a reader filters and
+// collapses on them without knowing the kind. See
+// docs/developers/contracts/otel-signals.md.
 const (
 	VerdictKey = "verdict"
 	ReasonKey  = "reason"
@@ -20,16 +20,16 @@ const (
 )
 
 // DecisionKey is the slog attribute that carries a Decision to the Handler,
-// which writes it as a v2 row instead of the free-text msg payload.
+// which writes it as a decision row instead of the free-text msg payload.
 const DecisionKey = "decision"
 
 // Decision is one thing that happened at a planner, goal/method selection,
 // admission or action-dispatch site: what was decided (Verdict), why
 // (Reason), about what (Target) and how long it took (Dur), plus the
-// kind-specific facts in Attrs. It is the only way to emit a v2 decision
-// row; a fresh kind needs an entry in the flight-rows contract and a reader.
+// kind-specific facts in Attrs. It is the only way to emit a decision row; a
+// fresh kind needs an entry in the otel-signals contract and a reader.
 type Decision struct {
-	// Kind is the row kind, a name from the flight-rows contract.
+	// Kind is the row kind, a name from the otel-signals contract.
 	Kind string
 	// Component is the subsystem that decided ("clock-scheduler", "worker").
 	Component string

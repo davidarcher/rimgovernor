@@ -2,8 +2,6 @@ package bridge
 
 import (
 	"context"
-	"encoding/json"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -11,22 +9,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/gabp/gabptest"
 )
 
-type modLogRow struct {
-	Kind    string         `json:"kind"`
-	Context map[string]any `json:"context"`
-	Payload map[string]any `json:"payload"`
-}
-
-func readModLogRows(t *testing.T, path string) []modLogRow {
-	t.Helper()
-	lines, err := readFlightLines(path)
-	if err != nil {
-		return nil
-	}
-	var rows []modLogRow
-	for _, line := range lines {
-		var row modLogRow
-		if json.Unmarshal([]byte(line), &row) == nil && (row.Kind == "mod_log" || row.Kind == "log_overflow") {
+func readModLogRows(read func() []TimelineRecord) []TimelineRecord {
+	var rows []TimelineRecord
+	for _, row := range read() {
+		if row.Kind == "mod_log" || row.Kind == "log_overflow" {
 			rows = append(rows, row)
 		}
 	}
@@ -44,20 +30,15 @@ func modLogEventFrame(seq int, fields map[string]any) gabp.Message {
 // The mod replays its ring on subscribe (late=true), then pushes live; the
 // controller records each as a mod_log row in order with the mod's tick and
 // trace, and the mod's overflow summary as one log_overflow row.
-func TestModLogEventsBecomeFlightRows(t *testing.T) {
+func TestModLogEventsBecomeRows(t *testing.T) {
 	game := startFakeGame(t)
 	game.onModLogSubscribe = func(conn *gabptest.ServerConn) {
 		conn.Send(modLogEventFrame(1, map[string]any{"type": "overflow", "dropped": 7, "tick": 40}))
-		conn.Send(modLogEventFrame(2, map[string]any{"level": "warn", "component": "watchdog", "tick": 41, "trace": "aaaa/bbbb", "msg": "queued", "late": true, "at_unix_ms": 1700000000000}))
+		conn.Send(modLogEventFrame(2, map[string]any{"level": "warn", "component": "watchdog", "tick": 41, "trace": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01", "msg": "queued", "late": true, "at_unix_ms": 1700000000000}))
 		conn.Send(modLogEventFrame(3, map[string]any{"level": "info", "component": "probe", "tick": 42, "msg": "live", "suppressed": 4}))
 	}
-	path := filepath.Join(t.TempDir(), "flight.jsonl")
-	recorder, err := NewFlightRecorder(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = recorder.Close() })
-	client, err := Open(context.Background(), ProcessConfig{GameID: "fixture", Launch: game.spec, Timeout: 20 * time.Second, Recorder: recorder})
+	read := rowSink(t)
+	client, err := Open(context.Background(), ProcessConfig{GameID: "fixture", Launch: game.spec, Timeout: 20 * time.Second, RecordRows: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,9 +50,9 @@ func TestModLogEventsBecomeFlightRows(t *testing.T) {
 	if _, err := client.ConnectWithPoll(context.Background(), started); err != nil {
 		t.Fatal(err)
 	}
-	var rows []modLogRow
+	var rows []TimelineRecord
 	for deadline := time.Now().Add(20 * time.Second); len(rows) < 3 && time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
-		rows = readModLogRows(t, path)
+		rows = readModLogRows(read)
 	}
 	if len(rows) != 3 {
 		t.Fatalf("rows: %+v", rows)
@@ -83,7 +64,7 @@ func TestModLogEventsBecomeFlightRows(t *testing.T) {
 	if late.Kind != "mod_log" || late.Payload["seq"] != float64(2) || late.Payload["late"] != true || late.Payload["source"] != "watchdog" || late.Payload["msg"] != "queued" {
 		t.Fatalf("late row: %+v", late)
 	}
-	if late.Context["tick"] != float64(41) || late.Context["trace_id"] != "aaaa" || late.Context["span_id"] != "bbbb" || late.Context["level"] != "WARN" || late.Context["component"] != "mod" {
+	if late.Context["tick"] != float64(41) || late.Context["trace_id"] != "0af7651916cd43dd8448eb211c80319c" || late.Context["span_id"] != "b7ad6b7169203331" || late.Context["level"] != "WARN" || late.Context["component"] != "mod" {
 		t.Fatalf("late context: %+v", late.Context)
 	}
 	if late.Context["at"] != "2023-11-14T22:13:20Z" {
@@ -98,13 +79,8 @@ func TestModLogEventsBecomeFlightRows(t *testing.T) {
 // offer never blocks the GABP reader: a burst past the queue is dropped and
 // counted in one log_overflow row, and the rest is written in order.
 func TestModLogOfferNeverBlocksAndCountsOverflow(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "flight.jsonl")
-	recorder, err := NewFlightRecorder(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = recorder.Close() })
-	sink := newModLogSink(recorder)
+	read := rowSink(t)
+	sink := newModLogSink(true)
 	total := modLogQueueDepth + 10
 	for i := 1; i <= total; i++ { // no writer is running: a blocking offer would hang here
 		sink.offer(gabp.Event{Channel: modLogChannel, Payload: encode(map[string]any{"type": "log", "seq": i, "level": "info", "msg": "m"})})
@@ -113,7 +89,7 @@ func TestModLogOfferNeverBlocksAndCountsOverflow(t *testing.T) {
 	done := make(chan struct{})
 	close(done)
 	sink.run(done)
-	rows := readModLogRows(t, path)
+	rows := readModLogRows(read)
 	if len(rows) != modLogQueueDepth+1 {
 		t.Fatalf("rows %d", len(rows))
 	}

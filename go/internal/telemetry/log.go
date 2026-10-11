@@ -1,10 +1,9 @@
 // Package telemetry is the service's structured event substrate: one
 // slog.Handler that turns every record naming an event kind into an OTEL log
 // record (and span event) of that kind, stamped with the scheduler's last-known
-// game tick (EmitRow, mapping in flight-rows.md), and, while LegacyRows is on,
-// a flight-recorder row in sequence with the bridge's native_call rows. The
-// handler writes nothing to stderr, and a record with no kind is dropped (a
-// programming error the source scan in kinds_test.go catches).
+// game tick (EmitRow, mapping in otel-signals.md). The handler writes nothing
+// to stderr, and a record with no kind is dropped (a programming error the
+// source scan in kinds_test.go catches).
 //
 // Call sites log through Event (and Decide); serve installs the handler. A
 // process that never installs one (tests, smoke binaries) keeps Go's
@@ -19,19 +18,14 @@ import (
 	"time"
 )
 
-// KindKey is the record attribute that makes a record a flight-recorder
-// row: its value is the row kind (planner_step, dispatch, ...). A record
-// without it is dropped.
+// KindKey is the record attribute that makes a record a telemetry row: its
+// value is the row kind (planner_step, dispatch, ...). A record without it is
+// dropped.
 const KindKey = "kind"
 
 // ComponentKey names the subsystem a record came from ("clock-scheduler",
 // "worker"); it is the row context's component.
 const ComponentKey = "component"
-
-// Recorder is the flight-recorder surface the handler writes rows to.
-type Recorder interface {
-	Event(kind string, context map[string]any, durable bool, payload map[string]any) (uint64, error)
-}
 
 var lastTick atomic.Int64
 
@@ -39,7 +33,7 @@ func init() { lastTick.Store(-1) }
 
 // ObserveTick records the game tick the service last read; every record
 // logged afterwards carries it. The scheduler and the clock poll call it on
-// each status or page they take, so a flight row can be lined up with the
+// each status or page they take, so a row can be lined up with the
 // game's own clock.
 func ObserveTick(tick int64) { lastTick.Store(tick) }
 
@@ -49,23 +43,21 @@ func Tick() (int64, bool) {
 	return t, t >= 0
 }
 
-// Handler writes a recorder row for each kinded record. It is safe for
-// concurrent use.
+// Handler emits a row for each kinded record. It is safe for concurrent use.
 type Handler struct {
-	recorder Recorder
-	attrs    []slog.Attr
-	group    string
+	attrs []slog.Attr
+	group string
 }
 
-// New returns a logger on the handler: a row for every Info-or-above record
-// that carries KindKey, written to recorder.
-func New(recorder Recorder) *slog.Logger {
-	return slog.New(NewHandler(recorder))
+// New returns a logger on the handler: a row (EmitRow) for every Info-or-above
+// record that carries KindKey.
+func New() *slog.Logger {
+	return slog.New(NewHandler())
 }
 
 // NewHandler is New's handler, for callers composing their own logger.
-func NewHandler(recorder Recorder) *Handler {
-	return &Handler{recorder: recorder}
+func NewHandler() *Handler {
+	return &Handler{}
 }
 
 // Enabled admits Info and above: there is no Debug level.
@@ -103,10 +95,9 @@ func (h *Handler) qualify(attrs []slog.Attr) []slog.Attr {
 	return out
 }
 
-// Handle writes one recorder row for a kinded record and drops the rest. A
-// record logged under a traced ctx (WithTrace) carries the trace in its row
-// context beside tick, level and component; the payload is the message plus
-// the remaining attributes, or a decision's fixed shape.
+// Handle emits one row for a kinded record and drops the rest. A record
+// logged under a span carries its ids natively; the payload is the message
+// plus the remaining attributes, or a decision's fixed shape.
 func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	attrs := make([]slog.Attr, 0, len(h.attrs)+r.NumAttrs())
 	attrs = append(attrs, h.attrs...)
@@ -148,7 +139,6 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	if component != "" {
 		rowContext[ComponentKey] = component
 	}
-	StampTrace(ctx, rowContext)
 	var payload map[string]any
 	if decision != nil {
 		payload = decision.Payload()
@@ -159,11 +149,7 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 		}
 	}
 	EmitRow(ctx, kind, rowContext, payload)
-	if h.recorder == nil || !LegacyRows() {
-		return nil
-	}
-	_, err := h.recorder.Event(kind, rowContext, false, payload)
-	return err
+	return nil
 }
 
 // jsonValue is the row payload's form of an attribute: scalars as
@@ -203,7 +189,7 @@ func jsonValue(v slog.Value) any {
 	}
 }
 
-// Event logs one flight-recorder row through the default logger. The kind is
+// Event logs one telemetry row through the default logger. The kind is
 // a required parameter, so no call site can write a record the handler would
 // drop; direct slog calls are not how code in this module logs.
 func Event(ctx context.Context, level slog.Level, component, kind, message string, attrs ...any) {

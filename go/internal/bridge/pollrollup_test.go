@@ -43,19 +43,10 @@ func TestRollupRowCarriesFoldedCallsAndHitsToPhases(t *testing.T) {
 	c.rollup.mu.Lock()
 	c.rollup.flushedAt = time.Now().Add(-2 * pollRollupEvery)
 	c.rollup.mu.Unlock()
-	path := t.TempDir() + "/flight.jsonl"
-	rec, err := NewFlightRecorder(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	c.recorder = rec
+	read := rowSink(t)
+	c.recording = true
 	c.flushRollup(time.Now())
-	rec.Close()
-	rows, err := ReadTimeline(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rows = nativePollRows(rows)
+	rows := nativePollRows(read())
 	if len(rows) != 1 || rows[0].Kind != "native_poll" {
 		t.Fatalf("rows %+v", rows)
 	}

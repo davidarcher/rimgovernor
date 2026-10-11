@@ -38,7 +38,7 @@ func annotateCallSpan(ctx context.Context, tool string, began time.Time, call, d
 	child.End(trace.WithTimestamp(end))
 }
 
-// callTiming splits one Client.operation into the phases a flight-recorder
+// callTiming splits one Client.operation into the phases a log-ring
 // consumer can attribute: waiting for the concurrency gate, the MCP round
 // trip over GABP, decoding the receipt, and, for typed adapters,
 // ProtoJSON reply decoding. The round trip's native share (main-thread

@@ -32,10 +32,9 @@ func (wallClock) Now() time.Time { return time.Now() }
 
 type serveConfig struct {
 	bridge                         bridge.ProcessConfig
-	flightRecorder                 string
+	otlpDir                        string
 	otlpEndpoint, otlpProtocol     string
 	observeSnapshot                string
-	legacyRows                     bool
 	state, listen                  string
 	profile                        string
 	playerControl                  bool
@@ -146,11 +145,10 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	c.refresh = serveRefresh
 	flags.UintVar(&c.clockBlindTicks, "clock-blind-ticks", 0, fmt.Sprintf("arm the native blind-tick regulator (issue #583): past this many game ticks since the controller's last read or oldest unread clock event, native throttles the window toward Normal and ramps back once the controller catches up, without ending the window (1..%d; 0 leaves windows unregulated)", maxClockBlindTicks))
 	flags.BoolVar(&c.pprof, "pprof", false, "serve net/http/pprof under /debug/pprof/ on the listener (CPU profile, heap, trace); off by default")
-	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path of the flight-recorder ring (every native request/response/error and service event; read back by /api/telemetry); default <profile>/flight/flight.jsonl, or flight/flight.jsonl beside --state under --observe; always on")
+	flags.StringVar(&c.otlpDir, "otlp-dir", "", "absolute path of the directory the OTLP/JSON files (traces.jsonl, logs.jsonl, metrics.jsonl) are written to; default <profile>/otlp, or otlp beside --state under --observe; always on")
 	flags.StringVar(&c.otlpEndpoint, "otlp-endpoint", "", "export telemetry to this OTLP collector, for example http://localhost:4317 (the docs/developers/observability.md stack); empty falls back to OTEL_EXPORTER_OTLP_ENDPOINT, and with neither only the local OTLP/JSON files are written")
 	flags.StringVar(&c.observeSnapshot, "observe-snapshot", "", "absolute path of a derived read-only copy of the whole state database, rewritten every 5 s through a temporary file and an atomic rename (the Grafana SQLite panels in docs/developers/observability.md); empty (default) writes none")
 	flags.StringVar(&c.otlpProtocol, "otlp-protocol", "", "collector protocol: grpc (default) or http/protobuf; empty falls back to OTEL_EXPORTER_OTLP_PROTOCOL")
-	flags.BoolVar(&c.legacyRows, "legacy-flight-rows", true, "also write decision and event rows to flight.jsonl, beside their OTEL log records; transitional (#2787), the reader children turn it off and #2793 deletes it and the recorder rows")
 	flags.BoolVar(&c.layoutOverlay, "layout-overlay", true, "draw the colony layout plan as a color-coded native overlay with role labels (#817); false deletes the overlay")
 	flags.BoolVar(&c.resume, "resume", false, "run the bot for the observed world at startup and again after every native load, without a launcher Resume")
 	if err := flags.Parse(args); err != nil {
@@ -198,19 +196,19 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if c.observeSnapshot != "" && !filepath.IsAbs(c.observeSnapshot) {
 		return c, errors.New("--observe-snapshot requires an absolute path")
 	}
-	if c.flightRecorder != "" && !filepath.IsAbs(c.flightRecorder) {
-		return c, errors.New("--flight-recorder requires an absolute path")
+	if c.otlpDir != "" && !filepath.IsAbs(c.otlpDir) {
+		return c, errors.New("--otlp-dir requires an absolute path")
 	}
-	// The flight recorder is the only log, so it is always on: by default
+	// The OTLP files are the only log, so they are always written: by default
 	// under the profile, where a player launch keeps the evidence the
 	// acceptance runner reads, or beside the state database when --observe
-	// has no profile. Acceptance names its per-case path explicitly.
-	if c.flightRecorder == "" {
+	// has no profile. Acceptance names its per-case directory explicitly.
+	if c.otlpDir == "" {
 		root := c.profile
 		if root == "" {
 			root = filepath.Dir(c.state)
 		}
-		c.flightRecorder = filepath.Join(root, "flight", "flight.jsonl")
+		c.otlpDir = filepath.Join(root, "otlp")
 	}
 	return c, nil
 }
@@ -363,23 +361,17 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 		fmt.Fprintln(diagnostics, err)
 		return 2
 	}
-	// The flight recorder is the only log: kinded service records become
-	// rows in sequence with the bridge's native_call rows.
+	// The OTLP files are the only log: kinded service records and the
+	// bridge's native_call rows are log records in logs.jsonl.
 	// diagnostics (stderr) carries only the banner, fatals and panics.
-	recorder, err := bridge.NewFlightRecorder(config.flightRecorder)
-	if err != nil {
-		fmt.Fprintln(diagnostics, "flight recorder:", err)
-		return 1
-	}
-	defer recorder.Close()
-	config.bridge.Recorder = recorder
-	// The OTLP/JSON file sink beside flight.jsonl is always on; a collector is
-	// added only when --otlp-endpoint or OTEL_EXPORTER_OTLP_ENDPOINT names one.
+	config.bridge.RecordRows = true
+	// The OTLP/JSON file sink is always on; a collector is added only when
+	// --otlp-endpoint or OTEL_EXPORTER_OTLP_ENDPOINT names one.
 	// Telemetry never stops serve: a failure to start it is reported and ignored.
 	var instance [8]byte
 	_, _ = rand.Read(instance[:])
 	tel, err := otel.Start(ctx, otel.Config{
-		Dir:               filepath.Join(filepath.Dir(config.flightRecorder), "otlp"),
+		Dir:               config.otlpDir,
 		Service:           "rimgovernor-serve",
 		RunID:             hex.EncodeToString(instance[:]),
 		CollectorEndpoint: config.otlpEndpoint,
@@ -398,8 +390,7 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 			_ = tel.Shutdown(flush)
 		}()
 	}
-	telemetry.SetLegacyRows(config.legacyRows)
-	slog.SetDefault(telemetry.New(recorder))
+	slog.SetDefault(telemetry.New())
 	defer snapshot.Flush()
 	if config.playerControl {
 		err = serveBuildingControl(ctx, config, out)
@@ -411,15 +402,6 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 		return 1
 	}
 	return 0
-}
-
-// accessRecorder is the recorder http_access rows go to: the flight recorder
-// serve opened, or nil (no rows) when there is none.
-func accessRecorder(config serveConfig) telemetry.Recorder {
-	if config.bridge.Recorder == nil {
-		return nil
-	}
-	return config.bridge.Recorder
 }
 
 func serveReadOnly(ctx context.Context, config serveConfig, out io.Writer) (result error) {
@@ -480,7 +462,7 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 	if err != nil {
 		return err
 	}
-	server, err := httpapi.New(httpapi.Config{Notifications: notifications, Presentation: presentation, Pprof: config.pprof, FlightRecorder: config.flightRecorder, Access: accessRecorder(config), ReadTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, snapshots, database)
+	server, err := httpapi.New(httpapi.Config{Notifications: notifications, Presentation: presentation, Pprof: config.pprof, Access: config.bridge.RecordRows, ReadTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, snapshots, database)
 	if err != nil {
 		return err
 	}

@@ -55,7 +55,7 @@ type WorkerConfig struct {
 	Store *facts.Store
 	// WindowRunning, when set, reports the scheduler's hint that its window
 	// is running; each native call the worker issues is recorded with it
-	// as a "dispatch" flight row, so a run can count the
+	// as a "dispatch" row, so a run can count the
 	// dispatches made live and the fraction native refused.
 	WindowRunning func() bool
 	// Trace, when set, is the span context of the scheduler's latest step

@@ -175,7 +175,7 @@ type phase struct {
 	Progress []progressRecord
 	// Mode is /api/state's mode when the phase ended.
 	Mode string
-	// Flight is the service's flight recording.
+	// Flight is the service's OTLP recording.
 	Flight []na.FlightRow
 	// Keep is the keep-alive's counters (report authority_reacquisitions).
 	Keep map[string]any

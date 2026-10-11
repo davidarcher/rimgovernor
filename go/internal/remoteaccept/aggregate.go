@@ -205,7 +205,7 @@ func Evaluate(root string, runRef, selectionRef Ref, shards []Shard) (Evaluation
 					return e, err
 				}
 			}
-			for _, key := range []string{"log", "output", "flight_recorder"} {
+			for _, key := range []string{"log", "output"} {
 				if raw, ok := native[key]; ok {
 					var p string
 					if err = json.Unmarshal(raw, &p); err != nil {

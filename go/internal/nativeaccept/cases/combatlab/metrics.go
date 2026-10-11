@@ -17,11 +17,11 @@ import (
 // Bundle files a combat-fixture run records. ReadsFile holds every
 // raw test/lab_stage read reply, one JSON object per line, in tick order;
 // MetricsFile is the aggregate; FlightFile, when a run served the planner,
-// carries its clock_stop, combat_order and dispatch flight rows.
+// carries its clock_stop, combat_order and dispatch rows.
 const (
 	ReadsFile   = "combat_reads.jsonl"
 	MetricsFile = "combat_metrics.json"
-	FlightFile  = "combat_flight.jsonl"
+	FlightFile  = "combat_rows.jsonl"
 )
 
 // MetricsVersion is the Metrics schema version: bump it when a field
@@ -207,7 +207,7 @@ func resolved(staged map[string]string, pawns map[string]map[string]any) string 
 	return ""
 }
 
-// ScanFlight adds the flight rows' combat orders and step latency: each
+// ScanFlight adds the rows' combat orders and step latency: each
 // combat stop's resume_latency_ms, each combat_order row's verdict, and the
 // routine defense planner's actions (drafts, holds) from the worker's
 // outcome rows, issued once one completes, refused when one only ever
@@ -260,7 +260,7 @@ func (m *Metrics) ScanFlight(path string) error {
 	return nil
 }
 
-// CombatRow reports whether a flight row is one ScanFlight reads: the
+// CombatRow reports whether a row is one ScanFlight reads: the
 // bundle keeps only these.
 func CombatRow(row na.FlightRow) bool {
 	return row.Kind == "combat_order" || row.Kind == "clock_stop" || row.Kind == "dispatch" || row.Kind == "clock_step" || row.Kind == "planner_step" && na.AsString(row.Fields()["scope"]) == "immediate"
@@ -283,7 +283,7 @@ func StagedSides(s Staged) map[string]string {
 
 // AggregateBundle recomputes a recorded run's metrics from its bundle
 // directory: the reads file, whose first line (the read right after
-// staging) carries staged {id: side}, and the flight rows when present.
+// staging) carries staged {id: side}, and the rows when present.
 func AggregateBundle(dir, fixture string) (Metrics, error) {
 	data, err := os.ReadFile(filepath.Join(dir, ReadsFile))
 	if err != nil {

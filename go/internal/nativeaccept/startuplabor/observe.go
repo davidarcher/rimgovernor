@@ -56,7 +56,7 @@ func SamplesFromPawnSnapshot(tick domain.Tick, reply map[string]any, restart boo
 
 // findPawnRows locates the PawnSnapshot's pawns array inside a reply: at
 // the top level for a bare ListPawnsReply, or under whatever envelope a
-// flight-recorder row wrapped it in. The walk is depth-bounded so a large
+// log-ring row wrapped it in. The walk is depth-bounded so a large
 // payload costs nothing to scan.
 func findPawnRows(value any, depth int) []any {
 	if depth > 4 {

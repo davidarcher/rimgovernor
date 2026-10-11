@@ -238,7 +238,7 @@ wealth and speed to one weighted score.
 Use the existing [persistence table](../contracts/persistence-contracts.md):
 player targets and durable intent belong in save-owned records; exact attempts
 and outcomes belong in the session journal; fact views, residual capacity and
-forecasts are derived in memory; diagnostic decisions use `flight.jsonl` with
+forecasts are derived in memory; diagnostic decisions use the OTLP log ring with
 an existing reader or a reader added with the row. Any genuinely new durable
 fact must amend that table before implementation. Capacity must be recomputed
 from observed work and saved intent after load, not restored as a second ledger.
@@ -254,7 +254,7 @@ demonstrated benefit yet.
 | Dimension | Measure and baseline | Existing home |
 | --- | --- | --- |
 | Throughput | Governed wall TPS divided by the same fixture's ungoverned TPS; native pause fraction; observation main-thread cost | [Speedmatrix and observation workload](../testing/measure-throughput.md) |
-| Protection | Onset → detection → decision → dispatch → first native protective effect in ticks; stop → resume in monotonic wall time | Hazard cases, scheduler tests, combatlab and flight traces |
+| Protection | Onset → detection → decision → dispatch → first native protective effect in ticks; stop → resume in monotonic wall time | Hazard cases, scheduler tests, combatlab and OTLP traces |
 | Disaster recovery | Duration of unmet food/temperature/medical obligations; native restoration; losses in declared scenarios | Campaign/recovery plus focused staged cases |
 | Development | Time to useful completed capability; outstanding work and disrupted work; survival reserves during construction | Snapshot decisions, supply matrices and campaign/foothold |
 | Combat | Deaths, injuries, friendly fire, refusal recurrence, threat resolution and return to productive work | Combatlab metrics and recorded decision replay |

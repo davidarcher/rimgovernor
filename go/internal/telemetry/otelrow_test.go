@@ -32,7 +32,6 @@ func attrsOf(r sdklog.Record) map[string]attribute.Value {
 // A decision is an OTEL log record with the fixed searchable attributes, its
 // attrs under rimgovernor.attr.*, the active span's ids, and a span event.
 func TestDecideEmitsLogRecordAndSpanEvent(t *testing.T) {
-	logs := telemetrytest.Logs(t)
 	spans := telemetrytest.Spans(t)
 	telemetry.ObserveTick(1234)
 	rows := telemetrytest.Install(t)
@@ -44,9 +43,9 @@ func TestDecideEmitsLogRecordAndSpanEvent(t *testing.T) {
 	})
 	telemetry.EndSpan(span, nil)
 
-	records := logs.All()
-	if len(records) != 1 || len(rows.Of("admission")) != 1 {
-		t.Fatalf("records %d rows %d: the legacy row is written in parallel", len(records), len(rows.Of("admission")))
+	records := rows.Records()
+	if len(records) != 1 {
+		t.Fatalf("records %d", len(records))
 	}
 	r := records[0]
 	a := attrsOf(r)
@@ -86,11 +85,10 @@ func TestDecideEmitsLogRecordAndSpanEvent(t *testing.T) {
 
 // An event row keeps its message as the body and its fields as attributes.
 func TestEventRowMapping(t *testing.T) {
-	logs := telemetrytest.Logs(t)
-	telemetrytest.Install(t)
+	rows := telemetrytest.Install(t)
 	telemetry.ObserveTick(-1)
 	slog.Info("step done", telemetry.KindKey, "authority", telemetry.ComponentKey, "worker", "change", "lost", "generation", 7)
-	r := logs.All()[0]
+	r := rows.Records()[0]
 	a := attrsOf(r)
 	if r.Body().AsString() != "step done" || a[telemetry.LogRow].AsString() != telemetry.RowEvent || a[telemetry.FieldPrefix+"change"].AsString() != "lost" || a[telemetry.FieldPrefix+"generation"].AsInt64() != 7 {
 		t.Fatalf("%q %v", r.Body().AsString(), a)
@@ -120,27 +118,15 @@ func TestEmitRowCapsPayload(t *testing.T) {
 	}
 }
 
-// With the legacy flag off only the OTEL record is written.
-func TestLegacyRowsFlag(t *testing.T) {
-	logs := telemetrytest.Logs(t)
-	rows := telemetrytest.Install(t)
-	telemetry.SetLegacyRows(false)
-	t.Cleanup(func() { telemetry.SetLegacyRows(true) })
-	telemetry.Decide(context.Background(), telemetry.Decision{Kind: "pace", Component: "x", Verdict: "ok"})
-	if len(rows.All()) != 0 || len(logs.All()) != 1 {
-		t.Fatalf("rows %d records %d", len(rows.All()), len(logs.All()))
-	}
-}
-
-// Every kind registered in flight-rows.md round-trips through the OTLP/JSON
+// Every kind registered in otel-signals.md round-trips through the OTLP/JSON
 // file sink with the same searchable fields, as a decision and as an event.
 func TestEveryRegisteredKindRoundTripsThroughTheFileSink(t *testing.T) {
-	doc, err := os.ReadFile(filepath.Join("..", "..", "..", "docs", "developers", "contracts", "flight-rows.md"))
+	doc, err := os.ReadFile(filepath.Join("..", "..", "..", "docs", "developers", "contracts", "otel-signals.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	text := string(doc)
-	text = text[strings.Index(text, "\n## Kinds"):strings.Index(text, "\n## OTEL mapping")]
+	text = text[strings.Index(text, "\n## Kinds"):strings.Index(text, "\n## Mapping")]
 	var kinds []string
 	for _, m := range regexp.MustCompile("(?m)^\\| `([a-z_]+)`").FindAllStringSubmatch(text, -1) {
 		kinds = append(kinds, m[1])
@@ -155,7 +141,7 @@ func TestEveryRegisteredKindRoundTripsThroughTheFileSink(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = tel.Shutdown(context.Background()) })
 	telemetry.ObserveTick(99)
-	logger := telemetry.New(nil)
+	logger := telemetry.New()
 	for i, kind := range kinds {
 		if i%2 == 0 {
 			telemetry.Decision{Kind: kind, Component: "c", Verdict: "ok", Reason: "r", Target: "t", Dur: time.Millisecond, Attrs: map[string]any{"n": i}}.LogTo(context.Background(), logger)

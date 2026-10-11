@@ -127,7 +127,7 @@ func (c *Client) flushRollup(now time.Time) {
 	window := now.Sub(r.flushedAt)
 	r.tools, r.hits, r.flushedAt = nil, nil, now
 	r.mu.Unlock()
-	if c.recorder != nil {
+	if c.recording {
 		c.nativeRow(context.Background(), "native_poll", map[string]any{"component": "bridge"}, false, map[string]any{"window_ms": millis(window), "tools": tools, "frame_hits": hits})
 	}
 }

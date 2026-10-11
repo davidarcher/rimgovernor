@@ -83,7 +83,7 @@ type Rounder struct {
 	roomStalls map[string]roomStall
 	// skipsLogged are the quest skips already logged.
 	skipsLogged map[questSkipKey]bool
-	// techTier is the last tech tier logged: the flight recorder
+	// techTier is the last tech tier logged: the OTLP log ring
 	// records a change once, not every review.
 	techTier domain.Fact[policy.TechTier]
 	// stockpiles remembers since when each owned stockpile sat mostly
@@ -116,7 +116,7 @@ type Rounder struct {
 	// targets (staged) agree with the review's. Foothold before any
 	// review filed one.
 	stage policy.ColonyStage
-	// stageLogged is the last stage record logged; the flight recorder records
+	// stageLogged is the last stage record logged; the OTLP log ring records
 	// a change once, not every review.
 	stageLogged domain.Fact[policy.ColonyStageRecord]
 	// foodGapZero is the acceptance fault that pins the food plan's gap to
@@ -171,7 +171,7 @@ func (r *Rounder) staged() policy.RoundsPolicy {
 	return policy.StageRoundsPolicy(r.policy, r.stage)
 }
 
-// logColonyStage records a review's stage in the flight recorder and timeline
+// logColonyStage records a review's stage in the OTLP log ring and timeline
 // once per change of stage or blocker: `[routine] colony stage Reserves
 // (settling: production clear 1.0 of 2.0 days)`.
 func (r *Rounder) logColonyStage(ctx context.Context, review store.Rounds) {
@@ -190,7 +190,7 @@ func (r *Rounder) logColonyStage(ctx context.Context, review store.Rounds) {
 	clockEvent(ctx, "routine", "colony_stage", message, "stage", stage.Stage.String(), "since", int64(stage.Since), "blocker", string(stage.Blocker), "reason", stage.Reason, "held", stage.Held)
 }
 
-// logTechTier records the reading's tech tier in the flight recorder once per
+// logTechTier records the reading's tech tier in the OTLP log ring once per
 // change: `[layout] tech tier Masonry (Stonecutting)`. An unknown tier
 // (no research census) is not a change.
 func (r *Rounder) logTechTier(ctx context.Context, projection observation.ColonyProjection) {
@@ -223,7 +223,7 @@ type questSkipKey struct {
 }
 
 // logQuestSkips records each quest offer the colony does not accept
-// (policy.QuestSkips) in the flight recorder once per quest and reason.
+// (policy.QuestSkips) in the OTLP log ring once per quest and reason.
 
 func (r *Rounder) logQuestSkips(ctx context.Context, facts policy.RoundsFacts) {
 	for _, skip := range policy.QuestSkips(facts) {

@@ -8,7 +8,7 @@ import (
 )
 
 // Traffic findings check the layout rules against where pawns really
-// walk. They have no action of their own yet: the flight recorder carries them
+// walk. They have no action of their own yet: the OTLP log ring carries them
 // so a flagged room is visible before a planner acts on it.
 
 // TrafficFindingKind names what a finding flags.

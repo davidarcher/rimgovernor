@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// CombatEvidenceStops bounds retained fight evidence to the newest stops; flight recordings
+// CombatEvidenceStops bounds retained fight evidence to the newest stops; OTLP recordings
 // retain the full history.
 const CombatEvidenceStops = 32
 

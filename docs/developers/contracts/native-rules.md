@@ -62,7 +62,7 @@ Admission holds for new hunt designations do not clear existing orders; native c
 - Journal before write: native appends `rule_fired` (rule id, job, radius, actor, target, tick) to the
   [clock event ring](../../../contracts/proto/clock-lifecycle.md) and writes the game only once the row is
   in the journal. Both rule events are epoch-less, so they carry no owner; Go ingests them through the
-  clock inbox, writes a [`rule` flight row](flight-rows.md) for each and they never hold a review.
+  clock inbox, writes a [`rule` row](otel-signals.md) for each and they never hold a review.
 
 Source: `NativeRuleBook.cs` (validation, lease; no game types, probed by
 `contracts/tests/NativeContractProbes` `native-rule-runtime`), `NativeRuleRuntime.cs` (trigger, target

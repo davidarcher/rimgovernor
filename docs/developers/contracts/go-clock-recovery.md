@@ -218,7 +218,7 @@ interruption holds:
   force-pause waits (an autosave or transient pause native says is not a stop; one that
   outlasts its grace becomes a `FORCE_PAUSED` stop),
   operation outcomes and authority changes;
-- game alerts (`Event_Alert`): planning evidence and an `alert` flight row;
+- game alerts (`Event_Alert`): planning evidence and an `alert` row;
 - injury observations (`Event_InjuryObserved`): sub-threshold damage native coalesces;
 - notifications (`Event_Notification`): only classes native never stops play for;
 - the benign stops (`store/clock.BenignStop`): tick budget, requested pause, watch
@@ -532,7 +532,7 @@ branch on outcome or kind, never text. The kind lists are the constants in
 `outcome.go`.
 
 `Verdict.String` is the machine token (`kind[:subject[:detail]]`, no spaces) for the
-flight rows' `reason` and snapshot names. Persisted progress and the wire carry the
+rows' `reason` and snapshot names. Persisted progress and the wire carry the
 typed `policy.Cause` plus a subject bounded to `policy.MaxSubjectLen`
 (`ConcernProgress.Planner`, `PlannerSubject`); English for a cause lives only in
 `policy.Wording`, which the launcher renders.

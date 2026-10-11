@@ -47,8 +47,8 @@ func TestCombatStopMetrics(t *testing.T) {
 		t.Fatal(summaries)
 	}
 	summary := summaries[0].Payload
-	byEvent, _ := summary["by_event"].(map[string]int)
-	if summary["stops"] != int64(3) || byEvent["entered_range"] != 1 || byEvent["tick_budget"] != 1 || byEvent["downed"] != 1 ||
+	byEvent, _ := summary["by_event"].(map[string]any)
+	if summary["stops"] != int64(3) || byEvent["entered_range"] != int64(1) || byEvent["tick_budget"] != int64(1) || byEvent["downed"] != int64(1) ||
 		summary["resume_latency_p50_ms"] != int64(100) || summary["resume_latency_p95_ms"] != int64(200) ||
 		summary["ticks_between_stops_p50"] != int64(60) || summary["ticks_between_stops_p95"] != int64(300) {
 		t.Fatal(summary)

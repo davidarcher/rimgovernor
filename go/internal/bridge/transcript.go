@@ -16,7 +16,7 @@ import (
 // tools/call with the raw MCP receipt the client decoded, plus a session
 // row per connect carrying the wrapper catalog the client discovered. It is
 // the recording the acceptance harnesses make under
-// RIMGOVERNOR_ACCEPT_RECORD; the flight recorder (flightrecorder.go) is
+// RIMGOVERNOR_ACCEPT_RECORD; the OTLP log ring is
 // the production timeline and keeps only the decoded structured content.
 
 // TranscriptRow is one line of a transcript.

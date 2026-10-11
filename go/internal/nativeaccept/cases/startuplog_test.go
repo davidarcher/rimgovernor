@@ -34,7 +34,7 @@ func TestCheckStartupRows(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			dir := t.TempDir()
-			telemetrytest.WriteLogs(t, filepath.Dir(na.FlightRecorderPath(dir)), c.rows...)
+			telemetrytest.WriteLogs(t, filepath.Dir(na.ServiceLogsPath(dir)), c.rows...)
 			err := checkStartupRows(dir, c.headless)
 			switch {
 			case c.want == "" && err != nil:
@@ -48,7 +48,7 @@ func TestCheckStartupRows(t *testing.T) {
 
 func TestCheckStartupRowsReadsRotatedSegments(t *testing.T) {
 	dir := t.TempDir()
-	base := na.FlightRecorderPath(dir)
+	base := na.ServiceLogsPath(dir)
 	if err := os.MkdirAll(filepath.Dir(base), 0o755); err != nil {
 		t.Fatal(err)
 	}

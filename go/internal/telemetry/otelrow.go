@@ -10,7 +10,6 @@ import (
 	"reflect"
 	"sort"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -21,10 +20,10 @@ import (
 	rgotel "github.com/davidarcher/RimGovernor/go/internal/otel"
 )
 
-// Every flight row (a decision or an event) is also an OTEL log record, and a
-// span event when ctx carries a recording span. The attribute schema below is
-// what the log readers parse; docs/developers/contracts/flight-rows.md
-// ("OTEL mapping") is its contract.
+// Every row (a decision or an event) is an OTEL log record, and a span event
+// when ctx carries a recording span. The attribute schema below is what the
+// log readers parse; docs/developers/contracts/otel-signals.md ("Mapping") is
+// its contract.
 
 // Log record attribute keys. All are prefixed with AttrPrefix; a row's own
 // payload fields are under FieldPrefix.
@@ -52,30 +51,15 @@ const (
 )
 
 const (
-	// PayloadCapBytes caps one row's encoded payload, as the flight recorder's
-	// DefaultFlightPayloadBytes does: a larger payload is replaced by a preview,
-	// its size and its hash.
+	// PayloadCapBytes caps one row's encoded payload: a larger payload is
+	// replaced by a preview, its size and its hash.
 	PayloadCapBytes = 64 << 10
 	previewBytes    = 4 << 10
 )
 
-var legacyRows atomic.Bool
-
-func init() { legacyRows.Store(true) }
-
-// SetLegacyRows turns the old flight.jsonl write of decision and event rows
-// on or off. It defaults on so the recorder readers keep working; the
-// Oracles/Readers children (#2789/#2790) cut over by turning it off, and
-// Retire (#2793) deletes the flag and the old path. The OTEL write is never
-// conditional.
-func SetLegacyRows(on bool) { legacyRows.Store(on) }
-
-// LegacyRows reports whether rows are still also written to the recorder.
-func LegacyRows() bool { return legacyRows.Load() }
-
 // EmitRow writes one row as an OTEL log record and, when ctx has a recording
-// span, as an event on it. rowContext and payload are the recorder's: context
-// keys level, at, tick and component; a payload carrying the verdict key is a
+// span, as an event on it. rowContext carries the keys level, at, tick and
+// component; a payload carrying the verdict key is a
 // decision (verdict, reason, target, dur_ms, attrs), anything else an event
 // whose msg is the record body and whose other fields are attributes. The
 // record carries ctx's trace and span ids. With no logger provider installed
@@ -162,7 +146,7 @@ func emitRow(ctx context.Context, kind string, rowContext, payload map[string]an
 			attribute.String(LogSHA256, hex.EncodeToString(sum[:])),
 			attribute.String(LogPreview, string(encoded[:previewBytes])),
 		)
-		// The correlation keys of the recorder's truncation survive.
+		// The correlation keys survive the truncation.
 		kept := map[string]any{}
 		for _, key := range []string{"request", "tool", "native_tool", "category", "timing"} {
 			if value, ok := fields[key]; ok && correlatable(value) {

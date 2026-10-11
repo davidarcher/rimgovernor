@@ -1,66 +1,58 @@
-package telemetry
+package telemetry_test
 
 import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 )
 
-type fakeRecorder struct {
-	rows []struct {
-		kind    string
-		context map[string]any
-		payload map[string]any
-	}
-}
-
-func (f *fakeRecorder) Event(kind string, context map[string]any, _ bool, payload map[string]any) (uint64, error) {
-	f.rows = append(f.rows, struct {
-		kind    string
-		context map[string]any
-		payload map[string]any
-	}{kind, context, payload})
-	return uint64(len(f.rows)), nil
-}
-
 func TestKindedRecordBecomesARowStampedWithTheTick(t *testing.T) {
-	recorder := &fakeRecorder{}
-	logger := New(recorder)
-	ObserveTick(4200)
-	logger.Info("step done", KindKey, "scheduler_step", ComponentKey, "clock-worker", "err", errors.New("Fields: deadline"), "held", 250*time.Millisecond, "repeats", 3, "as_of", map[string]int64{"colony": 4200})
-	logger.Info("no kind, no row", ComponentKey, "clock-scheduler")
+	rows := telemetrytest.Install(t)
+	logger := telemetry.New()
+	telemetry.ObserveTick(4200)
+	logger.Info("step done", telemetry.KindKey, "scheduler_step", telemetry.ComponentKey, "clock-worker", "err", errors.New("Fields: deadline"), "held", 250*time.Millisecond, "repeats", 3, "as_of", map[string]int64{"colony": 4200})
+	logger.Info("no kind, no row", telemetry.ComponentKey, "clock-scheduler")
 
-	if len(recorder.rows) != 1 {
-		t.Fatalf("only the kinded record becomes a row, got %d", len(recorder.rows))
+	got := rows.All()
+	if len(got) != 1 {
+		t.Fatalf("only the kinded record becomes a row, got %d", len(got))
 	}
-	row := recorder.rows[0]
-	if row.kind != "scheduler_step" || row.context["tick"] != int64(4200) || row.context["level"] != "INFO" || row.context[ComponentKey] != "clock-worker" {
-		t.Fatalf("row context: kind=%s %+v", row.kind, row.context)
+	row := got[0]
+	if row.Kind != "scheduler_step" || row.Context["tick"] != int64(4200) || row.Context["level"] != "INFO" || row.Context[telemetry.ComponentKey] != "clock-worker" {
+		t.Fatalf("row context: kind=%s %+v", row.Kind, row.Context)
 	}
-	if row.payload["msg"] != "step done" || row.payload["err"] != "Fields: deadline" || row.payload["held"] != 250.0 || row.payload["repeats"] != int64(3) {
-		t.Fatalf("row payload: %+v", row.payload)
+	if row.Payload["msg"] != "step done" || row.Payload["err"] != "Fields: deadline" || row.Payload["held"] != 250.0 || row.Payload["repeats"] != int64(3) {
+		t.Fatalf("row payload: %+v", row.Payload)
 	}
 	// A tick map rides into the row as an object, not its %+v rendering.
-	if asOf, ok := row.payload["as_of"].(map[string]int64); !ok || asOf["colony"] != 4200 {
-		t.Fatalf("row as_of: %#v", row.payload["as_of"])
+	if asOf, ok := row.Payload["as_of"].(map[string]any); !ok || asOf["colony"] != int64(4200) {
+		t.Fatalf("row as_of: %#v", row.Payload["as_of"])
 	}
 }
 
 func TestUnknownTickIsOmittedFromTheRow(t *testing.T) {
-	recorder := &fakeRecorder{}
-	ObserveTick(-1)
-	New(recorder).Info("early", KindKey, "clock_step")
-	if _, has := recorder.rows[0].context["tick"]; has {
-		t.Fatalf("no tick observed yet: %+v", recorder.rows[0].context)
+	rows := telemetrytest.Install(t)
+	telemetry.ObserveTick(-1)
+	telemetry.New().Info("early", telemetry.KindKey, "clock_step")
+	got := rows.All()
+	if len(got) != 1 {
+		t.Fatalf("rows: %+v", got)
+	}
+	if _, has := got[0].Context["tick"]; has {
+		t.Fatalf("no tick observed yet: %+v", got[0].Context)
 	}
 }
 
 func TestDebugIsGatedAndWithAttrsReachTheRow(t *testing.T) {
-	recorder := &fakeRecorder{}
-	logger := New(recorder).With(ComponentKey, "worker")
-	logger.Debug("hidden", KindKey, "worker_outcome")
-	logger.Info("ran", KindKey, "worker_outcome", "action", "a1")
-	if len(recorder.rows) != 1 || recorder.rows[0].context[ComponentKey] != "worker" || recorder.rows[0].payload["action"] != "a1" {
-		t.Fatalf("there is no Debug level; With attrs reach the row: %+v", recorder.rows)
+	rows := telemetrytest.Install(t)
+	logger := telemetry.New().With(telemetry.ComponentKey, "worker")
+	logger.Debug("hidden", telemetry.KindKey, "worker_outcome")
+	logger.Info("ran", telemetry.KindKey, "worker_outcome", "action", "a1")
+	got := rows.All()
+	if len(got) != 1 || got[0].Context[telemetry.ComponentKey] != "worker" || got[0].Payload["action"] != "a1" {
+		t.Fatalf("there is no Debug level; With attrs reach the row: %+v", got)
 	}
 }

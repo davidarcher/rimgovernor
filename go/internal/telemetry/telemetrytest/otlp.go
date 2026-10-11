@@ -33,6 +33,36 @@ func LogLines(t testing.TB, rows ...Row) []string {
 	return out
 }
 
+// Sink starts the real OTLP file sink in a temporary directory and makes its
+// logger provider the global one until the test ends. The returned function
+// flushes the sink and returns the log ring's path, for a test that drives
+// code emitting rows and reads them back as a reader of the files would. Tests
+// using it must not run in parallel.
+func Sink(t testing.TB) func() string {
+	t.Helper()
+	dir := t.TempDir()
+	tel, err := rgotel.Start(context.Background(), rgotel.Config{Dir: dir, Service: "rimgovernor-test", RunID: "test-run", MetricInterval: time.Hour})
+	if err != nil {
+		t.Fatalf("start telemetry: %v", err)
+	}
+	previous := otel.GetLoggerProvider()
+	otel.SetLoggerProvider(tel.LoggerProvider)
+	t.Cleanup(func() {
+		otel.SetLoggerProvider(previous)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_ = tel.Shutdown(ctx)
+	})
+	return func() string {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := tel.ForceFlush(ctx); err != nil {
+			t.Fatalf("flush telemetry: %v", err)
+		}
+		return filepath.Join(dir, rgotel.LogsFile)
+	}
+}
+
 // WriteLogs writes rows into dir as the OTLP log ring the service writes
 // (through the real file sink and telemetry.EmitRow) and returns the ring's
 // path, dir/logs.jsonl. A reader of OTLP output sees the rows exactly as it

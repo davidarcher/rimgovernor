@@ -90,7 +90,7 @@ func run(ctx context.Context, s cases.Session) error {
 
 	rows, err := bridge.ReadOTLPTimeline(service.FlightPath)
 	if err != nil {
-		return fmt.Errorf("read flight ring: %w", err)
+		return fmt.Errorf("read log ring: %w", err)
 	}
 	transitions, err := st.ConcernTransitions(ctx)
 	if err != nil {

@@ -245,7 +245,7 @@ func CompareOutcomes(outcomes []SpeedOutcome, tolerance int) []string {
 }
 
 // StopSummary classifies the clock stops one serve process observed, read
-// back from its flight-recorder timeline: every stopped event a
+// back from its log-ring timeline: every stopped event a
 // clock_read_events reply carried, split into budget stops (the window's
 // tick budget ran out) and reactive stops (everything else: a watch latch,
 // a letter, a requested pause), with the latency from the companion's

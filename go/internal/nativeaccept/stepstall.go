@@ -17,7 +17,7 @@ type StepStallError struct {
 	Stall    time.Duration
 	Families string
 	// LastFailure is the last WARN or ERROR worker-step planner_step row of the
-	// service's flight recorder, rendered by StepFailureText; empty when it
+	// service's OTLP log ring, rendered by StepFailureText; empty when it
 	// recorded none.
 	LastFailure string
 }
@@ -33,7 +33,7 @@ func (e *StepStallError) Error() string {
 }
 
 // lastStepFailure returns the service's most recent failed step from its
-// flight recorder at path, or "" when it has none or cannot be read.
+// OTLP log ring at path, or "" when it has none or cannot be read.
 func lastStepFailure(path string) string {
 	row, _, ok := lastFlightRow(path, 0, func(r FlightRow) bool {
 		level, _ := r.Context["level"].(string)

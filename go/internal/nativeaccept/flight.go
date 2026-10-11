@@ -11,26 +11,22 @@ import (
 
 // A service's evidence is its OTLP/JSON file sink (docs/developers/contracts/otel-core.md):
 // rimgovernor serve writes traces.jsonl, logs.jsonl and metrics.jsonl under
-// <dir of --flight-recorder>/otlp. Decisions, events and the bridge's native
-// rows are the log records; the case oracles read them as rows
-// (bridge.RecordFromLog). The harness launches serve with
-// --legacy-flight-rows=false (ServeArgs), so no flight.jsonl rows are written
-// besides the recorder's own coverage row.
+// the --otlp-dir directory. Decisions, events and the bridge's native rows
+// are the log records; the case oracles read them as rows
+// (bridge.RecordFromLog).
 
-// FlightRecorderFile is the --flight-recorder argument of a service whose
-// evidence lives under dir: the anchor the sink's otlp directory sits beside.
-func FlightRecorderFile(dir string) string { return filepath.Join(dir, "flight.jsonl") }
+// OTLPDir is the --otlp-dir argument of a service whose evidence lives under
+// dir.
+func OTLPDir(dir string) string { return filepath.Join(dir, "otlp") }
 
-// LogsPath is the log ring of the service launched with --flight-recorder
-// recorder: <dir of recorder>/otlp/logs.jsonl.
-func LogsPath(recorder string) string {
-	return filepath.Join(filepath.Dir(recorder), "otlp", otel.LogsFile)
-}
+// LogsPath is the log ring of the service launched with --otlp-dir otlpDir:
+// otlpDir/logs.jsonl.
+func LogsPath(otlpDir string) string { return filepath.Join(otlpDir, otel.LogsFile) }
 
-// FlightRecorderPath is the log ring of the first service launch under output
-// (launchServe passes --flight-recorder FlightRecorderFile(output)); the
-// runner's metrics block summarizes it (metrics.go).
-func FlightRecorderPath(output string) string { return LogsPath(FlightRecorderFile(output)) }
+// ServiceLogsPath is the log ring of the first service launch under output
+// (launchServe passes --otlp-dir OTLPDir(output)); the runner's metrics block
+// summarizes it (metrics.go).
+func ServiceLogsPath(output string) string { return LogsPath(OTLPDir(output)) }
 
 // ReadFlight reads every row of a service's log ring at path from its start,
 // across the ring's rotated segments (FlightTail follows appends only): what

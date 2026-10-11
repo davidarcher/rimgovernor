@@ -50,11 +50,11 @@ func TestMain(m *testing.M) {
 func TestServeArgsFixesTheSharedFlags(t *testing.T) {
 	t.Setenv(ClockSpeedEnv, "Ultrafast")
 	cfg := &Config{Configuration: "C:/cfg", GameID: "rimworld"}
-	argv := ServeArgs(cfg, "C:/out/service-profile", "C:/out/service.sqlite", "C:/out/flight.jsonl", ServeSpec{Resume: true, Extra: []string{"--routine-food-reserve-days", "2"}})
+	argv := ServeArgs(cfg, "C:/out/service-profile", "C:/out/service.sqlite", "C:/out/otlp", ServeSpec{Resume: true, Extra: []string{"--routine-food-reserve-days", "2"}})
 	joined := strings.Join(argv, " ")
 	for _, want := range []string{
 		"serve --profile C:/out/service-profile --config C:/cfg --game rimworld --state C:/out/service.sqlite",
-		"--listen 127.0.0.1:0", "--timeout 15s", "--flight-recorder C:/out/flight.jsonl",
+		"--listen 127.0.0.1:0", "--timeout 15s", "--otlp-dir C:/out/otlp",
 		"--clock-test-acceleration", "--pprof", "--resume", "--routine-food-reserve-days 2",
 	} {
 		if !strings.Contains(joined, want) {
@@ -237,7 +237,7 @@ func TestLaunchServeExitIsTerminalAndNamesTheStepFailure(t *testing.T) {
 	if state, _ := report["service"].(map[string]any)["state"].(string); !strings.HasPrefix(state, "exited: ") {
 		t.Fatalf("state %q", state)
 	}
-	// The stall error names the last step failure in the flight recorder.
+	// The stall error names the last step failure in the OTLP log ring.
 	p.FlightPath = writeFlight(t, stepRow("WARN", "Fields: context deadline exceeded", 4200))
 	stall := &StepStallError{Stall: time.Minute, Families: "supply,work", LastFailure: lastStepFailure(p.FlightPath)}
 	if !strings.Contains(stall.Error(), "Fields: context deadline exceeded") {

@@ -3,7 +3,6 @@ package bridge
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -40,13 +39,8 @@ func TestTracePropagatesThroughTypedCallsAndRows(t *testing.T) {
 		envelope["timing"] = timing
 		return structured(string(encode(envelope))), nil
 	}}
-	path := filepath.Join(t.TempDir(), "timeline.jsonl")
-	rec, err := NewFlightRecorder(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { rec.Close() })
-	client, err := open(context.Background(), "fixture-game", time.Second, rec, nil, s.factory(t))
+	read := rowSink(t)
+	client, err := open(context.Background(), "fixture-game", time.Second, true, nil, s.factory(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,10 +89,7 @@ func TestTracePropagatesThroughTypedCallsAndRows(t *testing.T) {
 	if len(execute) != 2 || execute[0].Parent.SpanID() != nativeCall.SpanContext.SpanID() && execute[1].Parent.SpanID() != nativeCall.SpanContext.SpanID() {
 		t.Fatalf("native.execute spans: %+v", execute)
 	}
-	rows, err := ReadTimeline(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	rows := read()
 	traced := 0
 	for _, row := range rows {
 		id, _ := row.Context[telemetry.TraceIDKey].(string)
@@ -106,7 +97,7 @@ func TestTracePropagatesThroughTypedCallsAndRows(t *testing.T) {
 			continue
 		}
 		traced++
-		if row.Context[telemetry.SpanIDKey] != callSpan || row.Context[telemetry.ParentIDKey] != callerSC.SpanID().String() {
+		if row.Context[telemetry.SpanIDKey] != callSpan {
 			t.Fatalf("row %d (%s) span/parent: %+v", row.Sequence, row.Kind, row.Context)
 		}
 		if row.Kind == "native_call" && row.Payload["tool"] == "games_call_tool" {
@@ -120,37 +111,5 @@ func TestTracePropagatesThroughTypedCallsAndRows(t *testing.T) {
 	// one native_call row each.
 	if traced != 2 {
 		t.Fatalf("traced %d rows: %+v", traced, rows)
-	}
-}
-
-// A row recorded outside any span carries no trace_id (the reader leaves it
-// out of the trace index); a caller-given trace is never replaced, and the
-// recorder never writes to the caller's context map.
-func TestRowsOutsideASpanCarryNoTrace(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "timeline.jsonl")
-	rec, err := NewFlightRecorder(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { rec.Close() })
-	given := map[string]any{"colony": "c"}
-	if _, err = rec.Event("clock_step", given, false, nil); err != nil {
-		t.Fatal(err)
-	}
-	if _, written := given["level"]; written {
-		t.Fatal("the caller's context map was written to")
-	}
-	if _, err = rec.Event("clock_step", map[string]any{telemetry.TraceIDKey: "t", telemetry.SpanIDKey: "s"}, false, nil); err != nil {
-		t.Fatal(err)
-	}
-	rows, err := ReadTimeline(path)
-	if err != nil || len(rows) != 3 {
-		t.Fatalf("rows %d %v", len(rows), err)
-	}
-	if _, traced := rows[1].Context[telemetry.TraceIDKey]; traced || rows[1].Context["colony"] != "c" {
-		t.Fatalf("untraced row: %+v", rows[1].Context)
-	}
-	if rows[2].Context[telemetry.TraceIDKey] != "t" || rows[2].Context[telemetry.SpanIDKey] != "s" {
-		t.Fatalf("given trace replaced: %+v", rows[2].Context)
 	}
 }

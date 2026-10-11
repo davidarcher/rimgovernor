@@ -34,10 +34,10 @@ const connectDialBound = 10 * time.Second
 // gameBackend drives one game: gamehost launches or finds the process and
 // a direct GABP connection carries the calls.
 type gameBackend struct {
-	gameID   string
-	spec     gamehost.Spec
-	recorder *FlightRecorder // receives the mod's rimgovernor.log events as rows; nil records none
-	clock    *ClockSignal    // receives the mod's rimgovernor.clock events; nil ignores them
+	gameID    string
+	spec      gamehost.Spec
+	recording bool         // writes the mod's rimgovernor.log events as mod_log rows
+	clock     *ClockSignal // receives the mod's rimgovernor.clock events; nil ignores them
 
 	connectMu sync.Mutex // one dial at a time
 
@@ -60,9 +60,9 @@ type attentionState struct {
 	current   json.RawMessage // the item, nil when none is open
 }
 
-func newGameBackend(gameID string, spec gamehost.Spec, recorder *FlightRecorder, clock *ClockSignal) *gameBackend {
+func newGameBackend(gameID string, spec gamehost.Spec, recording bool, clock *ClockSignal) *gameBackend {
 	spec.GameID = gameID
-	return &gameBackend{gameID: gameID, spec: spec, recorder: recorder, clock: clock, ended: make(chan struct{})}
+	return &gameBackend{gameID: gameID, spec: spec, recording: recording, clock: clock, ended: make(chan struct{})}
 }
 
 func (b *gameBackend) discovery() Discovery  { return wrapperDiscovery("rimgovernor-gamehost") }
@@ -242,7 +242,7 @@ func (b *gameBackend) connect(ctx context.Context) json.RawMessage {
 	}
 	defer cancel()
 	state := &attentionState{}
-	modLog := newModLogSink(b.recorder)
+	modLog := newModLogSink(b.recording)
 	conn, err := gabp.Dial(dialCtx, game.Addr(), game.Token(), gabp.Options{
 		ClientName: "rimgovernor", ClientVersion: "go-read-v1", MaxFrameBytes: maxResponseBytes + 1<<20,
 		OnEvent: func(event gabp.Event) {
@@ -311,7 +311,7 @@ func (b *gameBackend) connect(ctx context.Context) json.RawMessage {
 // the controller attaches: the game logged it while booting or loading a
 // save, before any controller call it could be about, and left open it
 // refuses every native call so the bot never starts. The item rides the
-// connect receipt so the flight recorder keeps its text. Items opened
+// connect receipt so the OTLP log ring keeps its text. Items opened
 // after attach still block until a caller acknowledges them.
 func (b *gameBackend) ackPreexisting(ctx context.Context, conn *gabp.Conn, state *attentionState) json.RawMessage {
 	b.mu.Lock()

@@ -292,7 +292,7 @@
         "type": "loki",
         "uid": "loki"
       },
-      "description": "Source: Loki WARN and ERROR rows counted by kind, component, verdict, reason and target over the dashboard range (the collapse key of the flight-row contract).",
+      "description": "Source: Loki WARN and ERROR rows counted by kind, component, verdict, reason and target over the dashboard range (the collapse key of the OTEL signals contract).",
       "gridPos": {
         "h": 9,
         "w": 24,

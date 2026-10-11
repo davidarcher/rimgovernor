@@ -29,7 +29,7 @@ var combatStopEvents = []k.CombatEvent{
 	k.CombatEvent_COMBAT_EVENT_PRISON_BREAK,
 }
 
-// combatStopMetrics measures one combat's stops for the flight recorder:
+// combatStopMetrics measures one combat's stops for the OTLP log ring:
 // stops by event kind (the tick budget is the backstop), the wall
 // latency from a stop to the next window's admission, and the ticks
 // between stops. A combat is the run of consecutive combat windows; its

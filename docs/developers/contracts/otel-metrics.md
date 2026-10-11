@@ -6,7 +6,7 @@ Counters, histograms and one gauge recorded directly from the measurement at
 its call site (epic #2778). They go through the OTEL `MeterProvider` of
 [OTEL core](otel-core.md): the local file sink writes them to `metrics.jsonl`
 every 10 s, and a configured collector receives them too. Nothing here is
-derived by parsing logs or flight rows.
+derived by parsing logs or rows.
 
 Code: `go/internal/telemetry/metrics.go` (instruments and vocabularies),
 `go/internal/bridge/call_metrics.go`, `go/internal/buildingruntime/metrics.go`
@@ -96,16 +96,14 @@ that were paused); `native_bytes`, `cache_hit_ratio` and `reads_per_step_mean` a
 gone because no instrument measures them, and they no longer drift-flag. A series
 recorded before this change keeps its old rows; `paused_fraction` medians mix the two
 meanings until ten new passing runs replace them. A run with no metric ring reads zero
-for the OTEL-derived keys. The launcher's Problems tab still computes its own readings
-from the flight stream (`RecorderMetrics`) until #2803.
-## What remains of the hand-rolled aggregation
+for the OTEL-derived keys.## What remains of the hand-rolled aggregation
 
 Nothing is deleted by this change, because readers still consume it (they move in
 #2790 and #2791; final deletion is #2793):
 
 - `bridge.SummarizePhases` and `ToolPhases` build `rimgovernor phases` and the
   acceptance harness's speed-matrix and serve checks from `native_call` and
-  `clock_step` flight rows.
+  `clock_step` rows.
 - `pollrollup` folds quiet polls and frame-cache hits into the `native_call` rows
   those readers sum. The metrics above count every call individually and need no
   rollup.

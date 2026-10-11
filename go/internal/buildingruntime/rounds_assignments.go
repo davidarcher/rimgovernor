@@ -482,7 +482,7 @@ func workActionStale(w domain.WorkAssignment, wanted map[domain.PawnID]domain.Wo
 	return false
 }
 
-// eatTriggerDecision is the eat_trigger flight row: the level the pawn is
+// eatTriggerDecision is the eat_trigger row: the level the pawn is
 // planned to hold and the days that lowering it adds to the food runway
 // (zero at vanilla).
 func eatTriggerDecision(pawn domain.PawnID, level, runwayDays float64) telemetry.Decision {

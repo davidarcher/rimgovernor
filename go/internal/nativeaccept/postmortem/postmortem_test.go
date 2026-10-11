@@ -38,7 +38,7 @@ func fixture(t *testing.T) string {
 		}
 	}
 	write("result.json", `{"case":"storage/food","error":"no meal hauled","passed":false,"authority_reacquisitions":{"attempts":2}}`)
-	// The flight recording is the whole evidence: v2 rows (dispatch, authority,
+	// The OTLP recording is the whole evidence: v2 rows (dispatch, authority,
 	// planner_step) read
 	// side by side. An empty refused list and a completed outcome are not
 	// refusals.
@@ -268,7 +268,7 @@ func TestRefusalsReportNativeResponseFailures(t *testing.T) {
 		row(4, "rimgovernor/colony_facts", failed(commonpb.FailureCode_FAILURE_CODE_STALE_IDENTITY, "context changed")),
 	}
 	telemetrytest.WriteLogs(t, filepath.Join(dir, "otlp"), rows...)
-	s := refusals(dir, flightRows(dir))
+	s := refusals(dir, logRows(dir))
 	if len(s.Lines) != 2 {
 		t.Fatalf("want two failure groups, got %+v", s)
 	}

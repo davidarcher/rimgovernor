@@ -182,7 +182,7 @@ func (v Verdict) Is(kind policy.Cause) bool {
 	return (v.Outcome == OutcomeRefused || v.Outcome == OutcomeWaiting) && v.Refusal.Kind == kind
 }
 
-// String is the machine rendering of a verdict for the flight recorder, the
+// String is the machine rendering of a verdict for the OTLP log ring, the
 // timeline's reason= field and snapshot names, one token without
 // spaces: a refusal or wait reads "kind", "kind:subject" or
 // "kind:subject:detail"; any other verdict reads its outcome.

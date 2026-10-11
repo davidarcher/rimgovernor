@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
-// AccessKind is the flight row kind of one HTTP request (flight-rows.md).
+// AccessKind is the row kind of one HTTP request (otel-signals.md).
 const AccessKind = "http_access"
 
 // slowAccess is the duration at or above which a successful poll is still
@@ -19,7 +19,7 @@ const slowAccess = 250 * time.Millisecond
 const accessComponent = "httpapi"
 
 // Access rows: Server.Handler wraps the routes so every request
-// writes one http_access row to Config.Access, except a successful GET of a
+// emits one http_access row when Config.Access is set, except a successful GET of a
 // frequently polled path under slowAccess, which would otherwise drown the
 // stream. Errors, slow requests and every non-GET are always kept. A pprof
 // request holds the connection for the whole capture, so its row carries
@@ -98,10 +98,10 @@ func (r *statusRecorder) Flush() {
 
 func (r *statusRecorder) Unwrap() http.ResponseWriter { return r.ResponseWriter }
 
-// accessHandler records each request of next to recorder; a nil recorder
-// returns next unchanged.
-func accessHandler(next http.Handler, recorder telemetry.Recorder) http.Handler {
-	if recorder == nil {
+// accessHandler records each request of next as an http_access row; disabled,
+// it returns next unchanged.
+func accessHandler(next http.Handler, enabled bool) http.Handler {
+	if !enabled {
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -133,8 +133,5 @@ func accessHandler(next http.Handler, recorder telemetry.Recorder) http.Handler 
 			"long_lived": isLongLived(r.URL.Path),
 		}
 		telemetry.EmitRow(r.Context(), AccessKind, rowContext, payload)
-		if telemetry.LegacyRows() {
-			_, _ = recorder.Event(AccessKind, rowContext, false, payload)
-		}
 	})
 }

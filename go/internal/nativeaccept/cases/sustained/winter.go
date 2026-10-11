@@ -188,13 +188,13 @@ func stockWinterLarder(ctx context.Context, h *na.Harness, identity, prepared ma
 }
 
 // auditWinter reads every rounds the service committed off the
-// flight recorder and holds each one's food runway to the seasonal minimum
+// OTLP log ring and holds each one's food runway to the seasonal minimum
 // it reviewed under; the window must have reached the first non-growing
 // day so the seasonal flip is covered.
 func auditWinter(output string, report na.Report) error {
-	rows, err := bridge.ReadOTLPTimeline(na.FlightRecorderPath(output))
+	rows, err := bridge.ReadOTLPTimeline(na.ServiceLogsPath(output))
 	if err != nil {
-		return fmt.Errorf("read flight recorder: %w", err)
+		return fmt.Errorf("read OTLP log ring: %w", err)
 	}
 	var samples []winterSample
 	for _, row := range rows {
@@ -214,7 +214,7 @@ func auditWinter(output string, report na.Report) error {
 	}
 	report["review_samples"] = samples
 	if len(samples) == 0 {
-		return fmt.Errorf("the flight recorder holds no rounds_review rows")
+		return fmt.Errorf("the OTLP log ring holds no rounds_review rows")
 	}
 	known, growing, waiting := 0, 0, 0
 	lowest := math.Inf(1)

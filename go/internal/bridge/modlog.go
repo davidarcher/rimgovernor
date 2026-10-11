@@ -36,20 +36,21 @@ type modLogEvent struct {
 	Dropped    int64  `json:"dropped"`
 }
 
-// modLogSink turns rimgovernor.log events into mod_log flight rows. offer
+// modLogSink turns rimgovernor.log events into mod_log rows. offer
 // runs on the GABP reader goroutine and never blocks: it hands the frame to
 // a queue a writer goroutine drains in order.
 type modLogSink struct {
-	recorder *FlightRecorder
-	queue    chan json.RawMessage
-	dropped  atomic.Int64
+	queue   chan json.RawMessage
+	dropped atomic.Int64
 }
 
-func newModLogSink(recorder *FlightRecorder) *modLogSink {
-	if recorder == nil {
+// newModLogSink returns the sink, or nil (which offers nothing) when the
+// Client does not record rows.
+func newModLogSink(recording bool) *modLogSink {
+	if !recording {
 		return nil
 	}
-	return &modLogSink{recorder: recorder, queue: make(chan json.RawMessage, modLogQueueDepth)}
+	return &modLogSink{queue: make(chan json.RawMessage, modLogQueueDepth)}
 }
 
 func (s *modLogSink) offer(event gabp.Event) {
@@ -90,7 +91,7 @@ func (s *modLogSink) run(done <-chan struct{}) {
 
 func (s *modLogSink) flushDropped() {
 	if n := s.dropped.Swap(0); n > 0 {
-		emitRow(context.Background(), s.recorder, "log_overflow", map[string]any{"level": "WARN", "component": "mod-log"},
+		telemetry.EmitRow(context.Background(), "log_overflow", map[string]any{"level": "WARN", "component": "mod-log"},
 			map[string]any{"dropped": n, "side": "controller"})
 	}
 }
@@ -111,12 +112,11 @@ func (s *modLogSink) write(payload json.RawMessage) {
 	// another process's context, so it is a remote parent).
 	ctx := context.Background()
 	if trace, span, ok := telemetry.ParseWireTrace(e.Trace); ok {
-		rowContext[telemetry.TraceIDKey], rowContext[telemetry.SpanIDKey] = trace, span
 		ctx = telemetry.RemoteHex(ctx, trace, span)
 	}
 	if e.Type == "overflow" {
 		rowContext["level"] = "WARN"
-		emitRow(ctx, s.recorder, "log_overflow", rowContext, map[string]any{"seq": e.Seq, "dropped": e.Dropped, "side": "mod"})
+		telemetry.EmitRow(ctx, "log_overflow", rowContext, map[string]any{"seq": e.Seq, "dropped": e.Dropped, "side": "mod"})
 		return
 	}
 	switch strings.ToLower(e.Level) {
@@ -132,5 +132,5 @@ func (s *modLogSink) write(payload json.RawMessage) {
 	if e.Suppressed > 0 {
 		row["suppressed"] = e.Suppressed
 	}
-	emitRow(ctx, s.recorder, "mod_log", rowContext, row)
+	telemetry.EmitRow(ctx, "mod_log", rowContext, row)
 }

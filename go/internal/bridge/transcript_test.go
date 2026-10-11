@@ -28,7 +28,7 @@ func TestTranscriptRecordsAndReplays(t *testing.T) {
 		}
 		return nil, errors.New("boom")
 	}}
-	client, err := open(context.Background(), "fixture-game", time.Second, nil, transcript, s.factory(t))
+	client, err := open(context.Background(), "fixture-game", time.Second, false, transcript, s.factory(t))
 	if err != nil {
 		t.Fatal(err)
 	}

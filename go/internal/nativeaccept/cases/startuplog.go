@@ -14,7 +14,7 @@ import (
 // startup row can be trimmed away. A run that never started a
 // service has no ring and no startup guard.
 func checkStartupRows(output string, headless bool) error {
-	rows, err := na.ReadFlight(na.FlightRecorderPath(output))
+	rows, err := na.ReadFlight(na.ServiceLogsPath(output))
 	if err != nil {
 		return fmt.Errorf("read log ring: %w", err)
 	}

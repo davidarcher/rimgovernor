@@ -139,7 +139,7 @@ func TestArtifactsHashesEvidenceAndReferencedFilesOnly(t *testing.T) {
 	write("0001-call.json", `{"a":1}`)
 	write("service/http-0001.json", `{"b":2}`)
 	write("full/0001-call.json", strings.Repeat("y", 100))
-	write("flight.jsonl", strings.Repeat("z", 1000))
+	write("rows.jsonl", strings.Repeat("z", 1000))
 	write("service.sqlite", "db")
 	write("service/cpu.pprof.txt", "log")
 	write("service-profile/Saves/checkpoint.rws", "save")

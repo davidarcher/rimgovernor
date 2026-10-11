@@ -40,7 +40,7 @@ type Result struct {
 // A key is a concern id or, for a planner serving no single concern, the
 // planner's own name (the target its transition rows use). A key needs an
 // explanation when either independent trail shows a non-clear state for it:
-// a planner_step row in flight.jsonl with verdict refused or waiting, a
+// a planner_step row in the OTLP log ring with verdict refused or waiting, a
 // closed cause, that was neither late nor an immediate review (the planner
 // ran and its verdict was filed); or, for an active concern, a planner cause
 // on its progress record. It is explained when concern_transitions holds at

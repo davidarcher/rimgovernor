@@ -160,7 +160,7 @@ func ParseFlightRow(line []byte) (FlightRow, bool) {
 }
 
 // Record is the row as the bridge's timeline reader holds it, for the
-// kind helpers in package bridge (flightrows.go).
+// kind helpers in package bridge (rows.go).
 func (r FlightRow) Record() bridge.TimelineRecord {
 	return bridge.TimelineRecord{Kind: r.Kind, Sequence: r.Sequence, HasSeq: true, Context: r.Context, Payload: r.Payload}
 }

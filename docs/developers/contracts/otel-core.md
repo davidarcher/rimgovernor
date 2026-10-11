@@ -36,8 +36,8 @@ otel.SiblingRing(ring, otel.TracesFile)          // the other signals' rings sit
 
 `Attrs` values are natively typed (string, bool, int64, float64, `[]any`,
 `map[string]any`); `Attrs.Str/Int/Float/Bool` read them. Every function skips
-torn or invalid lines. `bridge.RecordFromLog` maps a `Log` back to a flight-style
-row ([flight rows](flight-rows.md)). Tests produce real rings with
+torn or invalid lines. `bridge.RecordFromLog` maps a `Log` back to an OTEL-signals
+row ([OTEL signals](otel-signals.md)). Tests produce real rings with
 `telemetrytest.WriteLogs` / `LogLines`.
 
 `Telemetry.TracerProvider`, `MeterProvider` and `LoggerProvider` are the plain
@@ -100,8 +100,7 @@ its own goroutine.
 
 ## File layout
 
-Directory: `<flight dir>/otlp/` (serve: `<profile>/flight/otlp/`, beside
-`flight.jsonl`; `--flight-recorder` moves both). One ring per signal, so a busy
+Directory: the `--otlp-dir` of `serve` (default `<profile>/otlp/`). One ring per signal, so a busy
 signal cannot rotate another's records out:
 
 | File | Content | Retention (segment x files, active included) |
@@ -196,9 +195,3 @@ in-game check under RimWorld's Unity Mono, and the mod has no exporter, so an `A
 only be discarded). Go therefore synthesizes the `native.execute` child span from the echoed timing, so
 a game that never loads DiagnosticSource behaves identically. If a C# `Activity` path is added later it
 must fall back to this echo when the assembly cannot load, and never throw on the game thread.
-
-### Temporary adapter
-
-Flight rows logged under a span are stamped with `trace_id`/`span_id`/`parent_id`
-(`telemetry.StampTrace`, `internal/telemetry/trace_adapter.go`) for the legacy flight.jsonl
-readers (the launcher tabs). `rimgovernor trace` reads spans and OTLP log records instead. It is removed with the recorder by the Retire child (#2793).

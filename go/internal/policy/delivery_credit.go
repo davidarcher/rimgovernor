@@ -51,7 +51,7 @@ type CreditResult struct {
 	State  CandidateState
 }
 
-// CreditChange is a food_credit flight row: a factor that moved by
+// CreditChange is a food_credit row: a factor that moved by
 // CreditMoveThreshold or more, a state change, or a held factor explained.
 type CreditChange struct {
 	Source, Reason, State      string

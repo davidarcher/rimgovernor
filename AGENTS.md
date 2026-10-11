@@ -54,7 +54,7 @@ edit the main checkout. Details: [landing](docs/developers/development-process.m
 - State has one owner: [persistence table](docs/developers/contracts/persistence-contracts.md).
   Amend that table before adding a store or second copy. Game intent lives in the
   save, the session journal in SQLite, derived state in memory, telemetry in
-  `flight.jsonl`.
+  the OTLP files.
 - Protobuf changes regenerate Go and C# together. Delete removed fields outright:
   no `reserved` fields/names and no compatibility shims.
 - Use current vocabulary: Rounds inspect Concerns in Departments; Types are
@@ -73,9 +73,9 @@ edit the main checkout. Details: [landing](docs/developers/development-process.m
   focused race tests. Deadlines guard hangs, not latency; use synchronized
   events/game ticks for behavioral assertions. Do not rerun a full suite for a
   load-sensitive failure that passes alone; record it in the commit.
-- `flight.jsonl` is the runtime log. Decisions use `telemetry.Decide` with
+- The OTLP log ring (`otlp/logs.jsonl`) is the runtime log. Decisions use `telemetry.Decide` with
   `verdict`, stable `reason`, `target`, `dur_ms` and `attrs`. A new emission needs
-  a registered [kind and reader](docs/developers/contracts/flight-rows.md).
+  a registered [kind and reader](docs/developers/contracts/otel-signals.md).
   Log events and decisions, not per-step narration or unkinded `slog` text.
 
 ## Shared machine

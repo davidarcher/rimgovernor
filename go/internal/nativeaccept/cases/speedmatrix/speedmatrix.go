@@ -355,7 +355,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 		return outcome, err
 	}
 	// The budget is game time: the wait ends once the tick the service
-	// last observed (its flight recorder's newest clock sample; the routine
+	// last observed (its OTLP log ring's newest clock sample; the routine
 	// review's tick only moves once per full step under a day-long window,
 	//  ) has advanced by -ticks past the reload tick, or earlier once the
 	// stage has no work left for the clock to admit. The signature is the
@@ -363,7 +363,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	// the wait.
 	var lastTick uint64
 	var workDone bool
-	flight := na.FlightRecorderPath(output)
+	flight := na.ServiceLogsPath(output)
 	waitErr := na.WaitProgress(ctx, na.Wait{Stall: na.StallBudget(), Interval: 2 * time.Second, Terminal: service.Exited},
 		func(ctx context.Context) (string, bool, error) {
 			review, err := journal.LoadRounds(ctx)
@@ -407,9 +407,9 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 		readers = nil
 	}
 	service.Stop()
-	rows, err := bridge.ReadOTLPTimeline(na.FlightRecorderPath(output))
+	rows, err := bridge.ReadOTLPTimeline(na.ServiceLogsPath(output))
 	if err != nil {
-		return outcome, fmt.Errorf("read flight recorder: %w", err)
+		return outcome, fmt.Errorf("read OTLP log ring: %w", err)
 	}
 	phases := bridge.SummarizePhases(rows)
 	stops := na.SummarizeStops(rows, resumedAt.UnixMilli())

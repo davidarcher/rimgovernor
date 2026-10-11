@@ -107,7 +107,7 @@ The launcher's observability section links to these by exact URL
 - Verified: the SQLite data source reads the snapshot copy; the panel queries
   returned rows for a hand-built snapshot.
 - Assumed, not verified: that the real controller's rows carry exactly the
-  attribute names in `docs/developers/contracts/flight-rows.md` (the panels use
+  attribute names in `docs/developers/contracts/otel-signals.md` (the panels use
   `rimgovernor_kind`, `_component`, `_verdict`, `_reason`, `_target`, `_tick`),
   and that the Prometheus panels render on real data. No real controller was
   run against the stack for this change.

@@ -42,10 +42,11 @@ type ProcessConfig struct {
 	// from a configuration directory.
 	Launch  gamehost.Spec
 	Timeout time.Duration
-	// Recorder, when set, durably records every native request/response/error
-	// including background reads.
-	// It is opt-in: a nil Recorder records nothing and costs nothing.
-	Recorder *FlightRecorder
+	// RecordRows, when set, writes every native call (background reads
+	// included), frame read and rollup as a native_* telemetry row, and the
+	// mod's log events as mod_log rows. It is opt-in: a Client without it
+	// builds no rows and costs nothing.
+	RecordRows bool
 	// Transcript, when set, records every call and its raw receipt
 	// so a Replay can serve the session back without a game.
 	Transcript *Transcript
@@ -199,9 +200,9 @@ type Client struct {
 	catalogDir string
 	replies    *replySlots
 
-	recorder        *FlightRecorder
+	recording       bool // ProcessConfig.RecordRows
 	framesSampledAt atomic.Int64
-	// rowIDs numbers native_request markers when the recorder does not (nativeRow).
+	// rowIDs numbers native_request markers (nativeRow).
 	rowIDs           atomic.Uint64
 	rollup           pollRollup
 	recordingContext func() map[string]any
@@ -209,8 +210,8 @@ type Client struct {
 }
 
 // SetRecordingContext installs a callback read once per recorded call and
-// attached to every flight-recorder row it produces (colony/plan/direction
-// identity, not authority). It has no effect when the Client has no Recorder.
+// attached to every native row it produces (colony/plan/direction identity,
+// not authority). It has no effect when the Client does not record rows.
 func (c *Client) SetRecordingContext(context func() map[string]any) {
 	c.mu.Lock()
 	c.recordingContext = context
@@ -223,8 +224,8 @@ func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
 	}
 	launch := config.Launch
 	clock := NewClockSignal()
-	client, err := open(ctx, config.GameID, config.Timeout, config.Recorder, config.Transcript, func(context.Context) (backend, error) {
-		return newGameBackend(config.GameID, launch, config.Recorder, clock), nil
+	client, err := open(ctx, config.GameID, config.Timeout, config.RecordRows, config.Transcript, func(context.Context) (backend, error) {
+		return newGameBackend(config.GameID, launch, config.RecordRows, clock), nil
 	})
 	if err != nil {
 		return nil, err
@@ -241,7 +242,7 @@ func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
 	return client, nil
 }
 
-func open(ctx context.Context, gameID string, timeout time.Duration, recorder *FlightRecorder, transcript *Transcript, factory backendFactory) (*Client, error) {
+func open(ctx context.Context, gameID string, timeout time.Duration, recording bool, transcript *Transcript, factory backendFactory) (*Client, error) {
 	if gameID == "" || len(gameID) > 256 {
 		return nil, fmt.Errorf("%w: invalid game ID", ErrContract)
 	}
@@ -251,7 +252,7 @@ func open(ctx context.Context, gameID string, timeout time.Duration, recorder *F
 	if timeout < time.Millisecond || timeout > 120*time.Second {
 		return nil, fmt.Errorf("%w: timeout outside 1ms..120s", ErrContract)
 	}
-	c := &Client{factory: factory, gameID: gameID, timeout: timeout, gate: newAdmission(MaxConcurrentCalls), lifecycle: make(chan struct{}, 1), recorder: recorder, transcript: transcript}
+	c := &Client{factory: factory, gameID: gameID, timeout: timeout, gate: newAdmission(MaxConcurrentCalls), lifecycle: make(chan struct{}, 1), recording: recording, transcript: transcript}
 	if err := c.Reconnect(ctx); err != nil {
 		return nil, err
 	}
@@ -554,8 +555,8 @@ func (c *Client) operationCall(ctx context.Context, span trace.Span, class Admis
 }
 
 // snapshotRecordingContext reads the installed recording-context callback (if
-// any) once per call and merges in the trace the caller's step or dispatch
-// attached by telemetry.StartSpan.
+// any) once per call. The row's trace ids come from ctx's span when the row is
+// emitted.
 func (c *Client) snapshotRecordingContext(ctx context.Context) map[string]any {
 	c.mu.Lock()
 	callback := c.recordingContext
@@ -566,7 +567,6 @@ func (c *Client) snapshotRecordingContext(ctx context.Context) map[string]any {
 			merged[k] = v
 		}
 	}
-	telemetry.StampTrace(ctx, merged)
 	return merged
 }
 
@@ -583,7 +583,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 	}
 	var recordCtx map[string]any
 	var marker *callMarker
-	recording := c.recorder != nil
+	recording := c.recording
 	nativeTool := nativeToolOf(name, arguments)
 	if recording {
 		recordCtx = c.snapshotRecordingContext(ctx)

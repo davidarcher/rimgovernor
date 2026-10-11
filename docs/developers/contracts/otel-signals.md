@@ -1,25 +1,20 @@
-# Flight rows (schema v2)
+# OTEL signals
 
 [Documentation](../../README.md)
 
-`flight.jsonl` is the diagnostic stream. Each row records an event or decision.
-This contract defines the envelope, decision shape, kinds and their consumers.
+The controller's diagnostic stream is OpenTelemetry. Every decision and event
+(a row) is an OTLP log record in `logs.jsonl`; spans go to `traces.jsonl` and
+numbers to `metrics.jsonl` ([OTEL core](otel-core.md), [OTEL metrics](otel-metrics.md)).
+These files are always written, with or without a collector. This contract
+defines the row shapes, kinds, the record mapping, the readers and the retention.
 
-## Envelope
-
-One JSON object per line, written by `bridge.FlightRecorder.Event`:
-
-| Field | Meaning |
-|---|---|
-| `version` | `2` (`bridge.FlightSchemaVersion`). Readers never gate on it; v1 rows decode the same way. |
-| `run` | Recorder run id (a launch). |
-| `sequence` | Monotonic across runs sharing the file. |
-| `wall_time` | Unix seconds. |
-| `kind` | A name from the tables below. |
-| `context` | Always: `level` (`INFO`/`WARN`/`ERROR`), `at` (RFC 3339 UTC), `tick` (when the service has observed one), `component`; `trace_id`, `span_id` and `parent_id` when the row was logged under a span (legacy flight.jsonl stamping, removed with the recorder by #2793; OTLP records carry the ids natively). The recorder fills what the producer left out (`INFO`, now, last observed tick, component `bridge`); a producer's own values win. |
-| `payload` | Per kind. Oversized payloads are replaced by `{truncated, original_bytes, sha256, preview}` plus the correlation keys `request`, `tool`, `native_tool`, `category`, `timing` and the decision keys `verdict`, `reason`, `target`, `dur_ms`. |
-
-Writes are unbuffered; durable rows, rotation and close are fsynced.
+A row has a `kind`, a context (`level` `INFO`/`WARN`/`ERROR`, `at`, `tick` when
+the service has observed one, `component`, and the trace and span ids when it
+was emitted under a span) and a payload. Oversized payloads are replaced by
+`{truncated, original_bytes, sha256, preview}` plus the correlation keys
+`request`, `tool`, `native_tool`, `category`, `timing` and the decision keys
+`verdict`, `reason`, `target`, `dur_ms`. [Mapping](#mapping) gives the record
+attributes; `bridge.RecordFromLog` rebuilds the row from a record.
 
 ## Decision rows
 
@@ -124,21 +119,18 @@ the first native protective effect.
 
 | Kind | Notes |
 |---|---|
-| `coverage` | First row of each run; free text by design. |
-| `recording_gap` | Synthetic, produced by `TimelineReader` for a corrupt line or sequence discontinuity; never written. Fields `reason`, `file`, `line`, `before`, `after`. |
 | `state_reset` | event row, level `WARN`, component `serve`: the service database came from another schema version and was moved aside (`path`, `aside`). Written once at startup. |
 | `observe_snapshot_failed` | event row, level `WARN`, component `serve`: `--observe-snapshot` could not create its directory (copies disabled) or one 5 s copy failed (retried next tick); `path`, `err`. Reader: `rimgovernor log` and the Grafana Loki logs. |
 
-The flight recorder is the only log: the telemetry handler writes a row for a record that names a `kind`
+The OTLP log ring is the only log: the telemetry handler writes a row for a record that names a `kind`
 and drops one that does not, there is no Debug level, and `telemetry.Event` takes the `kind` as a required
-parameter so code logs through it, not `slog` directly. stderr carries only the startup banner, parse errors, `flight recorder:` and
+parameter so code logs through it, not `slog` directly. stderr carries only the startup banner, parse errors,
 `Go service:` failures, the clock fault-injection notice and Go panics. A new emission adds its kind here with
 a reader, or it is not added.
 
-## OTEL mapping
+## Mapping
 
-Epic #2778 moves the stream to OpenTelemetry. Every decision and event row below
-is also an OTEL log record in `otlp/logs.jsonl` ([OTEL core](otel-core.md)) and,
+Every decision and event row is an OTEL log record in `logs.jsonl` and,
 when the emitter runs under a recording span, an event on that span. The code is
 `telemetry.EmitRow` (`internal/telemetry/otelrow.go`): `telemetry.Decide`, every
 `slog` call with a `kind`, and the direct emitters (`mod_log`, `log_overflow`,
@@ -149,8 +141,9 @@ rows are mapped too (`bridge.Client.nativeRow`), as ordinary event records: the
 acceptance oracles read reply bodies (clock status, `failure.code`, startup and
 speedmatrix replies) that only these rows carry, so they are rows, not derived
 from spans or metrics. `native_request` is durable (fsynced) and its `request`
-attribute is the id the answering `native_call` repeats (the recorder sequence
-while the legacy write is on, a per-process counter otherwise).
+attribute is the id the answering `native_call` repeats (a per-process counter).
+Recording is on for `serve` (`bridge.ProcessConfig.RecordRows`) and off for a
+bare client.
 
 This attribute schema is what log readers parse. Changing it is a contract change.
 
@@ -177,21 +170,10 @@ Vocabulary, the no-free-text rule for decisions and the collapse key
 `(kind, component, verdict, reason, target)` are unchanged; collapsing stays a
 reader operation, now over the `rimgovernor.*` attributes.
 
-### Transition flag
-
-While the readers still parse `flight.jsonl`, rows are written to both. The
-recorder write is behind `telemetry.SetLegacyRows` / `serve --legacy-flight-rows`
-(default on). The acceptance harness (#2789) has cut over: `nativeaccept.ServeArgs`
-passes `--legacy-flight-rows=false` and every oracle reads the log ring. The
-CLI and HTTP API readers (#2790) still read `flight.jsonl`
-and turn the flag off when they cut over; Retire (#2793) deletes the flag, the
-recorder rows and the `trace_id` stamping. There is no permanent dual write.
-Never gate the OTEL write on it.
-
 ## Readers
 
 `rimgovernor log`, `phases` and `trace` (read from the OTLP rings), the Grafana
-Problems, Log and Now dashboards (Loki, [README](../../../tools/observability/dashboards/README.md))
+dashboards (Loki, [README](../../../tools/observability/dashboards/README.md))
 and acceptance diagnostics consume these kinds.
 `bridge.IsWorkerStep`, `bridge.IsWindowStop` and `bridge.StepFields` centralize
 clock/worker interpretation. Combat `clock_stop` rows carry `event`; ordinary
@@ -203,6 +185,20 @@ helpers expect from the typed log reader (`otel.ReadLogs`, see
 `FlightMessages` sit on top. A null attribute is absent in a record, not present
 as nil. Postmortem evidence is `otlp/logs.jsonl.2#77`: the segment and its
 1-based line (what `grep -n` prints).
+
+## Retention
+
+`serve` writes the three files into `--otlp-dir` (default `<profile>/otlp/`;
+beside `--state` under `--observe`; the acceptance runner passes `<output>/otlp`
+and `<output>/service-N/otlp` per relaunch). Each signal is its own rotating
+ring: `traces.jsonl` 16 MiB x 8, `logs.jsonl` 32 MiB x 16 (512 MiB),
+`metrics.jsonl` 8 MiB x 4. When the active file would pass its segment size it
+becomes `name.1`, older segments shift up and the one beyond the count is
+deleted; retention is by count only. Under overload the sink drops items
+and counts them (`telemetry_drop` row, `rimgovernor.telemetry.dropped`
+metric) rather than blocking the controller. A run with no collector keeps
+exactly these files, and the acceptance and postmortem readers use them.
+[OTEL core](otel-core.md) has the file layout and line format.
 
 Add a kind only with its reader. Keep stable reason words and structured attrs
 so filtering, repeat collapse and diagnostics do not depend on prose parsing.

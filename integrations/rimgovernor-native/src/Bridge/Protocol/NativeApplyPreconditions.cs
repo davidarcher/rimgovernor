@@ -59,7 +59,7 @@ namespace HomeBridge.BridgeTools
 
         // Failure is the wire refusal: "<kind> refused: <reason>". The
         // reason strings are the contract (action-contracts.md); the
-        // controller's flight recorder keeps them verbatim.
+        // controller's OTLP log ring keeps them verbatim.
         internal Common.Failure Failure() => ProtoBoundary.Fail(code, Detail(kind, refused ?? "precondition failed"), refusalClass);
 
         internal static string Detail(string kind, string reason) => kind + " refused: " + reason;

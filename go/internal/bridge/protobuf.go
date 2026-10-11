@@ -51,7 +51,7 @@ type NativeUnavailable struct {
 
 func (e *NativeUnavailable) Error() string {
 	// The native detail names the bound or field that failed; without it a
-	// LIMIT_EXCEEDED census is undiagnosable from the flight recorder.
+	// LIMIT_EXCEEDED census is undiagnosable from the OTLP log ring.
 	if detail := e.Value.GetDetail(); detail != "" {
 		return "native read unavailable: " + e.Value.GetReason().String() + ": " + detail
 	}
@@ -371,7 +371,7 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	if invoked {
 		telemetry.NativePhase(nativeToolVocabulary.Label(name), telemetry.PhaseProtoDecode, millis(time.Since(decodeBegan)))
 	}
-	if caller.recorder != nil && invoked {
+	if caller.recording && invoked {
 		// Reply decoding is the typed adapter's own cost; it joins the
 		// call's native_call timing. payload_bytes is the decoded binary
 		// reply, wire_bytes the JSON value that carried it.

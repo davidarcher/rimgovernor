@@ -1,5 +1,5 @@
 // Package farmselect reads the field planner's site-type selections out of
-// a live service's fields_select flight rows so a native run can assert which
+// a live service's fields_select rows so a native run can assert which
 // crop and site kind the controller chose and why, independently of whether
 // the zone or building receipts later resolve.
 package farmselect
@@ -32,7 +32,7 @@ type Selection struct {
 	Candidates []Candidate `json:"candidates"`
 }
 
-// Parse extracts every selection from a service's flight rows: a
+// Parse extracts every selection from a service's rows: a
 // fields_select row carries the winner (reason the site kind, target the
 // crop) and its candidates in attrs. Other rows are ignored.
 func Parse(rows []na.FlightRow) ([]Selection, error) {

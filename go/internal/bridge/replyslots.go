@@ -112,7 +112,7 @@ func (s *replySlots) close() {
 
 // resolveReplySlot reads the slot a raw receipt's wrapper names, before
 // a later reply can overwrite it. data is nil for a receipt without one.
-// When the receipt is kept (a transcript or flight recorder), the
+// When the receipt is kept (a transcript or OTLP log ring), the
 // returned receipt carries the bytes inline as "proto_raw" (base64 of the
 // raw proto) in place of "slot", so recordings decode without the ring.
 func (s *replySlots) resolveReplySlot(raw json.RawMessage, keep bool) (json.RawMessage, []byte, error) {

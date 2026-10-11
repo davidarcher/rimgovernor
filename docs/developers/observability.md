@@ -96,7 +96,7 @@ Serve exports to a collector only when told where it is, by either of:
   endpoints) in the environment of `serve`. The flag wins over the environment.
 
 With neither, serve exports nothing to a backend and still writes its local
-OTLP/JSON files under `<profile>/flight/otlp/`. An unreachable collector never
+OTLP/JSON files under `<profile>/otlp/`. An unreachable collector never
 slows or stops serve; the loss is counted (see the
 [OTEL core contract](contracts/otel-core.md)).
 

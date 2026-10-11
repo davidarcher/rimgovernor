@@ -14,9 +14,8 @@ const phasesUsage = "usage: rimgovernor phases [--json] (--profile <dir> | <abso
 
 // phases is the read-only throughput sampler: it aggregates the OTLP log
 // ring's per-call phase timings (see bridge.SummarizePhases) without touching
-// the game or the running controller. The ring is <profile>/flight/otlp/logs.jsonl
-// (beside the path given to serve --flight-recorder); rotated segments are
-// read too.
+// the game or the running controller. The ring is <profile>/otlp/logs.jsonl
+// (the directory given to serve --otlp-dir); rotated segments are read too.
 func phases(args []string, out, errors io.Writer) int {
 	asJSON := false
 	profile, file := "", ""

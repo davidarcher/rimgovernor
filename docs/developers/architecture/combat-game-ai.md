@@ -86,7 +86,7 @@ fight owns the response; the health pause thresholds are unchanged.
 
 Keep detection, stop-to-step, order dispatch and native effect as separate
 measurements. A quick wake proves neither a useful tactical decision nor timely
-protection. Compare retained flight artifacts under the same scenario and build;
+protection. Compare retained OTLP artifacts under the same scenario and build;
 see [throughput](../testing/measure-throughput.md) and
 [expert-play evaluation](expert-play-assessment.md#evidence-needed-to-claim-improvement).
 

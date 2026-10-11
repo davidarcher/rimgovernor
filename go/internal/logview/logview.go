@@ -1,9 +1,8 @@
 // Package logview reads the diagnostic stream from the OTLP log ring
 // (logs.jsonl, see docs/developers/contracts/otel-core.md and the OTEL mapping
-// in flight-rows.md): it resolves the ring, filters its rows, collapses
+// in otel-signals.md): it resolves the ring, filters its rows, collapses
 // repeated decision rows into one counted entry and follows the ring across
-// rotation. It is the single reader the CLI (`rimgovernor log`) shares with
-// the launcher, whose flight.jsonl tabs still read through Filter and Collapse.
+// rotation. It is the reader behind the CLI (`rimgovernor log`).
 package logview
 
 import (
@@ -19,11 +18,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
-// Path resolves the OTLP log ring: a profile directory's flight/otlp/logs.jsonl, or
+// Path resolves the OTLP log ring: a profile directory's otlp/logs.jsonl, or
 // the file path itself.
 func Path(profile, file string) string {
 	if profile != "" {
-		return filepath.Join(profile, "flight", "otlp", otel.LogsFile)
+		return filepath.Join(profile, "otlp", otel.LogsFile)
 	}
 	return file
 }
@@ -68,8 +67,7 @@ func ParseTickRange(s string) (TickRange, error) {
 
 func (r TickRange) active() bool { return r.HasMin || r.HasMax }
 
-// Filter selects rows. Empty fields match everything. A recording_gap row
-// always passes: it is the signal that the rows around it are incomplete.
+// Filter selects rows. Empty fields match everything.
 type Filter struct {
 	Kind      string
 	Component string
@@ -102,9 +100,6 @@ func (f Filter) Apply(records []bridge.TimelineRecord) []bridge.TimelineRecord {
 }
 
 func (f Filter) match(rec bridge.TimelineRecord, run string) bool {
-	if rec.Kind == "recording_gap" {
-		return true
-	}
 	if f.Kind != "" && rec.Kind != f.Kind {
 		return false
 	}
@@ -195,10 +190,6 @@ func NewEntry(rec bridge.TimelineRecord) Entry {
 		e.Verdict = payloadString(rec, telemetry.VerdictKey)
 		e.Reason = payloadString(rec, telemetry.ReasonKey)
 		e.Target = payloadString(rec, telemetry.TargetKey)
-	}
-	if rec.Kind == "recording_gap" {
-		e.Level = "WARN"
-		e.Payload = map[string]any{"reason": rec.Reason, "file": rec.File, "line": rec.Line, "before": rec.Before, "after": rec.After}
 	}
 	return e
 }

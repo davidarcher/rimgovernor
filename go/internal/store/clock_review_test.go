@@ -119,7 +119,7 @@ func TestClockReviewEventClassification(t *testing.T) {
 			t.Fatal(event)
 		}
 	}
-	// A game alert is a fact row for the planners and the flight recorder,
+	// A game alert is a fact row for the planners and the OTLP log ring,
 	// not a hold: the native supervisor never stops play for one.
 	if clock.EventInterrupts(&k.Event{Event: &k.Event_Alert{}}) {
 		t.Fatal("alert interrupts")

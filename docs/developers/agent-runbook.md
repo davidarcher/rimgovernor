@@ -67,7 +67,7 @@ mechanism; do not use sleep/poll shell loops. Large suites must run detached.
 
 Read `diagnosis.txt` or `result.json` first. `acceptance why` summarizes failed
 stages, native refusals, Concern blockers and authority changes, with artifact
-and flight-row references. Controller stderr is only startup/fatal output.
+and row references. Controller stderr is only startup/fatal output.
 
 The runner keeps its game by default. Stop it before changing expansions or
 using a fixture-less production build. `acceptance warm -root <root>` boots

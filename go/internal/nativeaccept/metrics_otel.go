@@ -28,7 +28,7 @@ type otelTotals struct {
 // metricsRings lists the run's metric rings: the first launch's under output
 // and each restart's under its service-N directory.
 func metricsRings(output string) []string {
-	paths := []string{otel.SiblingRing(FlightRecorderPath(output), otel.MetricsFile)}
+	paths := []string{otel.SiblingRing(ServiceLogsPath(output), otel.MetricsFile)}
 	matches, _ := filepath.Glob(filepath.Join(output, "service-*", "otlp", otel.MetricsFile))
 	sort.Strings(matches)
 	return append(paths, matches...)

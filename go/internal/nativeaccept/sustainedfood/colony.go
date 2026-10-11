@@ -38,7 +38,7 @@ type ColonyOutcome struct {
 	MinMoodMean         *float64 `json:"min_mood_mean"`
 	FinalMoodMean       *float64 `json:"final_mood_mean"`
 	// MinFoodRunwayTick is the live game tick of the sample that recorded
-	// MinFoodRunwayDays, for finding the collapse in the flight recorder.
+	// MinFoodRunwayDays, for finding the collapse in the OTLP log ring.
 	MinFoodRunwayTick *uint64 `json:"min_food_runway_tick"`
 }
 

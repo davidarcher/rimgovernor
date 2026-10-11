@@ -35,40 +35,40 @@ func TestServeRequiresExplicitReadOnlyLocalConfiguration(t *testing.T) {
 	}
 }
 
-func TestServeRejectsRelativeFlightRecorderPath(t *testing.T) {
+func TestServeRejectsRelativeOTLPDir(t *testing.T) {
 	dir := t.TempDir()
 	base := []string{"--observe", "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
-	if _, err := parseServe(append(append([]string{}, base...), "--flight-recorder", "relative.jsonl"), io.Discard); err == nil {
-		t.Fatal("accepted relative --flight-recorder path")
+	if _, err := parseServe(append(append([]string{}, base...), "--otlp-dir", "relative"), io.Discard); err == nil {
+		t.Fatal("accepted relative --otlp-dir path")
 	}
-	config, err := parseServe(append(append([]string{}, base...), "--flight-recorder", filepath.Join(dir, "timeline.jsonl")), io.Discard)
+	config, err := parseServe(append(append([]string{}, base...), "--otlp-dir", filepath.Join(dir, "files")), io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if config.flightRecorder != filepath.Join(dir, "timeline.jsonl") {
-		t.Fatalf("flight recorder path not retained: %+v", config)
+	if config.otlpDir != filepath.Join(dir, "files") {
+		t.Fatalf("otlp dir not retained: %+v", config)
 	}
 }
 
-// A plain serve records under the profile; --observe has no profile and
-// records beside its state database; --flight-recorder keeps naming the
-// acceptance runner's per-case path.
-func TestServeFlightRecorderDefaultsUnderTheProfile(t *testing.T) {
+// A plain serve writes the OTLP files under the profile; --observe has no
+// profile and writes beside its state database; --otlp-dir keeps naming the
+// acceptance runner's per-case directory.
+func TestServeOTLPDirDefaultsUnderTheProfile(t *testing.T) {
 	dir := t.TempDir()
 	withRoundsFamilies(t, "", false)
 	base := append(serveBase(dir), "--profile", dir)
 	config, err := parseServe(base, io.Discard)
-	if err != nil || config.flightRecorder != filepath.Join(dir, "flight", "flight.jsonl") {
-		t.Fatalf("default ring: %q %v", config.flightRecorder, err)
+	if err != nil || config.otlpDir != filepath.Join(dir, "otlp") {
+		t.Fatalf("default dir: %q %v", config.otlpDir, err)
 	}
-	explicit := filepath.Join(dir, "case", "flight.jsonl")
-	config, err = parseServe(append(append([]string{}, base...), "--flight-recorder", explicit), io.Discard)
-	if err != nil || config.flightRecorder != explicit {
-		t.Fatalf("explicit ring: %q %v", config.flightRecorder, err)
+	explicit := filepath.Join(dir, "case", "otlp")
+	config, err = parseServe(append(append([]string{}, base...), "--otlp-dir", explicit), io.Discard)
+	if err != nil || config.otlpDir != explicit {
+		t.Fatalf("explicit dir: %q %v", config.otlpDir, err)
 	}
 	observe := []string{"--observe", "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
-	if config, err = parseServe(observe, io.Discard); err != nil || config.flightRecorder != filepath.Join(dir, "flight", "flight.jsonl") {
-		t.Fatalf("--observe recorder: %q %v", config.flightRecorder, err)
+	if config, err = parseServe(observe, io.Discard); err != nil || config.otlpDir != filepath.Join(dir, "otlp") {
+		t.Fatalf("--observe dir: %q %v", config.otlpDir, err)
 	}
 }
 

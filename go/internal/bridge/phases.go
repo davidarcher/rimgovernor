@@ -94,12 +94,11 @@ func (s *SnapshotSample) add(payload map[string]any) {
 	s.Skipped += uint64(field(payload, "skipped"))
 }
 
-// PhaseSummary is a read-only aggregation of one flight-recorder timeline:
+// PhaseSummary is a read-only aggregation of one log-ring timeline:
 // per-tool phase totals plus the game-clock progress visible in observation
 // replies. It changes nothing in the game and needs no authority.
 type PhaseSummary struct {
 	Records  uint64         `json:"records"`
-	Gaps     uint64         `json:"gaps"`
 	Untimed  uint64         `json:"untimed_calls"`
 	WallSecs float64        `json:"wall_seconds"`
 	Tools    []ToolPhases   `json:"tools"`
@@ -353,10 +352,6 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 	frames := &frameAccumulator{}
 	for _, row := range records {
 		summary.Records++
-		if row.Kind == "recording_gap" {
-			summary.Gaps++
-			continue
-		}
 		if summary.FirstWall == 0 || row.WallTime < summary.FirstWall {
 			summary.FirstWall = row.WallTime
 		}
@@ -789,7 +784,7 @@ func tickValue(value any) (int64, bool) {
 // WritePhaseReport prints a PhaseSummary as an aligned table with per-call
 // means, the format the rimgovernor phases subcommand shows by default.
 func WritePhaseReport(w io.Writer, summary PhaseSummary) {
-	fmt.Fprintf(w, "records %d (gaps %d, untimed calls %d), wall %.1fs\n", summary.Records, summary.Gaps, summary.Untimed, summary.WallSecs)
+	fmt.Fprintf(w, "records %d (untimed calls %d), wall %.1fs\n", summary.Records, summary.Untimed, summary.WallSecs)
 	clock := summary.Clock
 	if clock.TickSamples > 0 {
 		fmt.Fprintf(w, "clock: %d ticks over %.1fs = %.1f wall TPS (%d tick samples, %d resets)", clock.TicksAdvanced, clock.WallSecs, clock.WallTPS, clock.TickSamples, clock.Resets)

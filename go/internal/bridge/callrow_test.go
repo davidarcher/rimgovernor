@@ -2,7 +2,6 @@ package bridge
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 	"time"
 )
@@ -50,27 +49,5 @@ func TestSampleFramesOncePerInterval(t *testing.T) {
 	c.framesSampledAt.Store(time.Now().Add(-2 * framesSampleEvery).UnixNano())
 	if !c.sampleFrames() {
 		t.Fatal("a call after the interval carries it again")
-	}
-}
-
-func TestTruncatedPayloadPreviewIsBounded(t *testing.T) {
-	r, err := NewFlightRecorder(t.TempDir()+"/flight.jsonl", FlightPayloadBytes(DefaultFlightPayloadBytes))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer r.Close()
-	if _, err := r.Event("big", nil, false, map[string]any{"blob": strings.Repeat("x", DefaultFlightPayloadBytes*2)}); err != nil {
-		t.Fatal(err)
-	}
-	if stats := r.FlightRecorderStats(); stats.Truncated != 1 {
-		t.Fatalf("truncated = %d", stats.Truncated)
-	}
-	data, err := readFlightLines(r.path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	last := data[len(data)-1]
-	if len(last) > 2*flightPreviewBytes {
-		t.Fatalf("truncated row is %d bytes, preview should cap near %d", len(last), flightPreviewBytes)
 	}
 }

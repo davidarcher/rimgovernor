@@ -3,7 +3,7 @@ package bridge
 import "testing"
 
 // envelope is a raw native reply envelope with the companion's own timing
-// key names, as a harness call returns it (no flight recording involved).
+// key names, as a harness call returns it (no OTLP recording involved).
 func envelope(queueMs, executeMs float64, observation, frames map[string]any) map[string]any {
 	timing := map[string]any{"queueMs": queueMs, "executeMs": executeMs, "trace": "t/1", "class": "observation"}
 	if observation != nil {
@@ -16,7 +16,7 @@ func envelope(queueMs, executeMs float64, observation, frames map[string]any) ma
 }
 
 // TestNativeAccountReadsReplyEnvelopes checks the accounts come out of raw
-// reply envelopes the same way they come out of a flight recording: the
+// reply envelopes the same way they come out of a recording: the
 // per-hop capture split aggregates, the cumulative frame counters are
 // differenced first to last, and an envelope from a companion that carries
 // neither block leaves the accounts unknown rather than zeroed.

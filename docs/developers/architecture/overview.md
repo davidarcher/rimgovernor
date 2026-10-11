@@ -62,7 +62,7 @@ flowchart TD
     Review --> Journal[SQLite session actions and receipts]
     Review --> Flush[Flush intent before save]
     Flush --> Save
-    Review --> Flight[flight.jsonl diagnostics]
+    Review --> Flight[OTLP diagnostics]
 ```
 
 The [persistence table](../contracts/persistence-contracts.md) defines each

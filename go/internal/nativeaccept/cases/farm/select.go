@@ -128,7 +128,7 @@ func (sel selection) register(name string) cases.Case {
 				return err
 			}
 			report := s.Report()
-			flight, err := na.ReadFlight(na.FlightRecorderPath(s.Config().Output))
+			flight, err := na.ReadFlight(na.ServiceLogsPath(s.Config().Output))
 			if err != nil {
 				return err
 			}

@@ -738,7 +738,7 @@ func (s *ClockScheduler) drift() domain.Tick {
 }
 
 // clockEvent logs one typed service event: an Info record that the
-// telemetry handler mirrors into the flight recorder as a row of kind,
+// telemetry handler mirrors into the OTLP log ring as a row of kind,
 // stamped with the last observed tick and the trace ctx carries, with
 // attrs as its payload.
 func clockEvent(ctx context.Context, component, kind, message string, attrs ...any) {
@@ -783,7 +783,7 @@ func windowRefusedDecision(refused []string, attrs map[string]any) telemetry.Dec
 
 // journalHoldEscape journals once per action the hold bound that let the
 // review through while the Worker still owed the action (a liveness escape,
-// not a policy cap), so a silent pass-through is visible in flight.jsonl.
+// not a policy cap), so a silent pass-through is visible in the OTLP log ring.
 func (s *ClockScheduler) journalHoldEscape(ctx context.Context) {
 	escapes := s.latched.takeEscapes()
 	if !s.config.Worker || len(escapes) == 0 {
@@ -839,7 +839,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// The round trips that still cross the bridge (frame misses and
 	// writes) are tallied by tool so the cost of the composition is
 	// visible per step: as a debug record and as a clock_step row in the
-	// flight recorder, which `rimgovernor phases` reports as reads/step.
+	// OTLP log ring, which `rimgovernor phases` reports as reads/step.
 	call, reads := bridge.WithReadTally(call)
 	// The planning window's refresher: its step scope, tick and
 	// whether this step reviews are fixed once the bundle below is read,
@@ -1559,7 +1559,7 @@ const (
 // warnIdleStall is the loud half of the idle lend: reaching it is a defect
 // (a planner waits on game time without saying how many ticks, so the
 // stopped clock deadlocks), not routine. It logs at Warn, mirrored to the
-// flight recorder as an idle_stall row, naming every goal's standing
+// OTLP log ring as an idle_stall row, naming every goal's standing
 // planner refusal or wait: those are the planners to teach a
 // NativeWorkTicks hint.
 func (s *ClockScheduler) warnIdleStall(ctx context.Context, tick int64) {

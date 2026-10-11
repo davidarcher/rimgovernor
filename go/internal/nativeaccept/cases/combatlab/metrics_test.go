@@ -73,7 +73,7 @@ func TestWriteCombatFlightReadsRotatedSegments(t *testing.T) {
 // A recorded bundle aggregates to its metrics: final-read downs, deaths
 // and a hostile gone from the map (fled), the cumulative damage ledger
 // (colonist damage, friendly fire, first contact), resolution on the read
-// where no hostile stands, and the flight rows' orders and p95 latency.
+// where no hostile stands, and the rows' orders and p95 latency.
 func TestAggregateBundle(t *testing.T) {
 	m, err := AggregateBundle("testdata/bundle", "lab-test")
 	if err != nil {

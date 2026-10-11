@@ -20,7 +20,7 @@ func writeProfileLogs(t *testing.T) (profile, ring string) {
 		rows = append(rows, telemetrytest.Row{Kind: "planner_step", Context: map[string]any{"level": "INFO", "tick": tick, "component": "worker"},
 			Payload: map[string]any{"verdict": "waiting", "reason": "no_work", "target": "stock", "dur_ms": 0, "attrs": map[string]any{}}})
 	}
-	return profile, telemetrytest.WriteLogs(t, filepath.Join(profile, "flight", "otlp"), rows...)
+	return profile, telemetrytest.WriteLogs(t, filepath.Join(profile, "otlp"), rows...)
 }
 
 func TestLogCommand(t *testing.T) {

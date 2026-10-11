@@ -34,7 +34,7 @@ func OpenBridgeSession(ctx context.Context, configDir, gameID string, timeout ti
 }
 
 // OpenBridgeSessionWith is OpenBridgeSession for a caller that needs the full
-// bridge.ProcessConfig (a flight recorder, say).
+// bridge.ProcessConfig (an OTLP log ring, say).
 func OpenBridgeSessionWith(ctx context.Context, config bridge.ProcessConfig) (*bridge.Client, error) {
 	config, err := WithRecording(config)
 	if err != nil {

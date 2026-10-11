@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 )
 
-// The flight recorder names each skipped Odyssey offer once per quest and
+// The OTLP log ring names each skipped Odyssey offer once per quest and
 // reason, as a WARN routine_skip row (the quest detail rides in
 // the row attrs).
 func TestRounderLogsQuestSkipsOncePerQuest(t *testing.T) {

@@ -17,7 +17,7 @@ namespace RimGovernor.Host.Sdk
     /// <summary>
     /// One diagnostic line from the mod. <see cref="ModLog"/> keeps them in a bounded ring until the
     /// host publishes them on the <c>rimgovernor.log</c> GABP channel and the controller records each
-    /// as a flight row.
+    /// as a row.
     /// </summary>
     public sealed class ModLogEntry
     {
@@ -37,7 +37,7 @@ namespace RimGovernor.Host.Sdk
     }
 
     /// <summary>
-    /// The mod's diagnostic log. <c>flight.jsonl</c> is the only log, so the helper never writes to
+    /// The mod's diagnostic log. The OTLP log ring is the only log, so the helper never writes to
     /// Unity's log and never uses <c>Log.Error</c> (RimWorld pauses the game on it). A call is a lock,
     /// a ring write and a pulse: it never touches the socket and never waits on the publisher, so it is
     /// safe on the game thread.

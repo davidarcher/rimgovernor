@@ -28,7 +28,7 @@ import (
 // ServeSpec declares the `rimgovernor serve` process a serve-driven harness
 // runs against. What every launch shares is fixed here rather
 // than per harness: the clock speed comes from ClockSpeedArgs
-// (RIMGOVERNOR_ACCEPT_CLOCK_SPEED), the flight recorder and
+// (RIMGOVERNOR_ACCEPT_CLOCK_SPEED), the OTLP directory and
 // --listen 127.0.0.1:0 are always on, --pprof is on unless
 // RIMGOVERNOR_ACCEPT_PPROF opts out (see pprof.go), and
 // the service's profile, state, logs and profiles live under the run's
@@ -83,8 +83,8 @@ type ServiceProcess struct {
 	Launch int
 	// Spec is what the service was launched with.
 	Spec ServeSpec
-	// FlightPath is the service's OTLP log ring (otlp/logs.jsonl beside its
-	// --flight-recorder anchor): the journal FlightTail follows. Its traces and
+	// FlightPath is the service's OTLP log ring (logs.jsonl in its
+	// --otlp-dir): the journal FlightTail follows. Its traces and
 	// metrics rings sit beside it (otel.SiblingRing).
 	FlightPath string
 
@@ -220,8 +220,8 @@ func (p *ServiceProcess) Restart(ctx context.Context) (*ServiceProcess, error) {
 }
 
 // ServeArgs is the serve argv every launch shares (see ServeSpec), before
-// the binary. profile, state and flight are the run's own paths.
-func ServeArgs(cfg *Config, profileDir, statePath, recorder string, spec ServeSpec) []string {
+// the binary. profile, state and otlpDir are the run's own paths.
+func ServeArgs(cfg *Config, profileDir, statePath, otlpDir string, spec ServeSpec) []string {
 	timeout := spec.NativeTimeout
 	if timeout <= 0 {
 		timeout = 15 * time.Second
@@ -234,11 +234,9 @@ func ServeArgs(cfg *Config, profileDir, statePath, recorder string, spec ServeSp
 		"--state", statePath,
 		"--listen", "127.0.0.1:0",
 		"--timeout", timeout.String(),
-		// The OTLP files beside the recorder are the evidence (flight.go);
-		// the legacy flight.jsonl rows are not written. stderr keeps the
+		// The OTLP files are the evidence (flight.go); stderr keeps the
 		// startup banner, fatals and panics.
-		"--flight-recorder", recorder,
-		"--legacy-flight-rows=false",
+		"--otlp-dir", otlpDir,
 	}
 	// A harness that names its own PlayerSpeed owns the test-acceleration
 	// flag too; one that passed ClockSpeedArgs in Extra already has it.
@@ -275,12 +273,12 @@ func launchServe(ctx context.Context, cfg *Config, spec ServeSpec, launch int, r
 		}
 	}
 	statePath := filepath.Join(output, "service.sqlite")
-	recorder := FlightRecorderFile(output)
+	otlpDir := OTLPDir(output)
 	if launch > 1 {
-		recorder = FlightRecorderFile(serviceDir)
+		otlpDir = OTLPDir(serviceDir)
 	}
-	flightPath := LogsPath(recorder)
-	argv := ServeArgs(cfg, profileDir, statePath, recorder, spec)
+	flightPath := LogsPath(otlpDir)
+	argv := ServeArgs(cfg, profileDir, statePath, otlpDir, spec)
 	entry := map[string]any{"argv": append([]string{spec.Binary}, argv...), "state": "starting", "launch": launch}
 	if report != nil {
 		report[key] = entry
@@ -302,7 +300,7 @@ func launchServe(ctx context.Context, cfg *Config, spec ServeSpec, launch int, r
 	if err != nil {
 		return nil, err
 	}
-	// stderr.log holds the startup banner, fatal errors and panics. Flight recording supplies report
+	// stderr.log holds the startup banner, fatal errors and panics. The OTLP files supply report
 	// evidence.
 	stderrFile, err := os.Create(filepath.Join(serviceDir, "stderr.log"))
 	if err != nil {

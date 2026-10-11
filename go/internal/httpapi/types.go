@@ -6,7 +6,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	"time"
 )
 
@@ -55,12 +54,9 @@ type Config struct {
 	// Pprof mounts net/http/pprof under /debug/pprof/ (see pprof.go); off,
 	// the routes answer 404.
 	Pprof bool
-	// FlightRecorder is unused: the spectator route that read this ring was removed
-	// with the launcher tabs (#2803); delete it with its serve wiring.
-	FlightRecorder string
-	// Access, when set, receives one http_access row per request (access.go);
-	// nil records nothing.
-	Access telemetry.Recorder
+	// Access emits one http_access row per request (access.go); off records
+	// nothing.
+	Access bool
 }
 type State struct {
 	SessionID    string         `json:"sessionId"`

@@ -75,7 +75,7 @@ func Collect(ctx context.Context, dir string, report map[string]any) Digest {
 		}
 	}
 	d := Digest{Case: asString(report["case"]), Error: asString(report["error"])}
-	rows := flightRows(dir)
+	rows := logRows(dir)
 	d.Sections = append(d.Sections, revision(ctx, report))
 	d.Sections = append(d.Sections, stageGraph(report))
 	d.Sections = append(d.Sections, refusals(dir, rows))
@@ -196,26 +196,26 @@ func short(rev string) string {
 
 // --- 2. refusals -------------------------------------------------------
 
-// flightRow is one decoded log record with the segment it came from. A row's
+// logRow is one decoded log record with the segment it came from. A row's
 // evidence is "<file>#<line>": the segment path relative to the case directory
 // and the 1-based line there (otel.Position), the number `grep -n` prints.
-type flightRow struct {
+type logRow struct {
 	file string // relative to the case directory
 	line int
 	rec  bridge.TimelineRecord
 }
 
-func (r flightRow) evidence() string { return fmt.Sprintf("%s#%d", r.file, r.line) }
+func (r logRow) evidence() string { return fmt.Sprintf("%s#%d", r.file, r.line) }
 
 // fields is the row's data as one flat map (a decision row's attrs with its
 // verdict, reason and target).
-func (r flightRow) fields() map[string]any { return bridge.RowFields(r.rec) }
+func (r logRow) fields() map[string]any { return bridge.RowFields(r.rec) }
 
-// flightRows decodes every log ring under dir, oldest launch first (see
+// logRows decodes every log ring under dir, oldest launch first (see
 // logRings). A line that is not a row is skipped: the digest is read from
 // whatever survived.
-func flightRows(dir string) []flightRow {
-	var rows []flightRow
+func logRows(dir string) []logRow {
+	var rows []logRow
 	for _, ring := range logRings(dir) {
 		_ = otel.Scan(filepath.Join(dir, filepath.FromSlash(ring)), func(pos otel.Position, line []byte) error {
 			log, ok := otel.DecodeLog(line)
@@ -230,7 +230,7 @@ func flightRows(dir string) []flightRow {
 			if err != nil {
 				rel = pos.File
 			}
-			rows = append(rows, flightRow{file: filepath.ToSlash(rel), line: pos.Line, rec: rec})
+			rows = append(rows, logRow{file: filepath.ToSlash(rel), line: pos.Line, rec: rec})
 			return nil
 		})
 	}
@@ -253,10 +253,10 @@ func launchIndex(name string) int {
 // or a failure code. Repeats collapse (distinct texts are counted) and the
 // most recent come first, so a refusal repeated every window shows once with
 // its count.
-func refusals(dir string, rows []flightRow) Section {
+func refusals(dir string, rows []logRow) Section {
 	s := Section{Name: "native refusals (last first)"}
 	s.Lines = refusedSteps(dir)
-	for _, read := range []func(flightRow) (string, bool){dispatchRefusal, nativeCallRefusal} {
+	for _, read := range []func(logRow) (string, bool){dispatchRefusal, nativeCallRefusal} {
 		for _, l := range groupRows(rows, read) {
 			if len(s.Lines) >= 2*maxLines {
 				break
@@ -272,7 +272,7 @@ func refusals(dir string, rows []flightRow) Section {
 
 // groupRows reads every row with read and returns the distinct texts, most
 // recent first, each with its count and the evidence of its last row.
-func groupRows(rows []flightRow, read func(flightRow) (string, bool)) []Line {
+func groupRows(rows []logRow, read func(logRow) (string, bool)) []Line {
 	type group struct {
 		text     string
 		evidence string
@@ -321,7 +321,7 @@ type outcome struct {
 	action, verdict, reason, refused, err, stage string
 }
 
-func readOutcome(row flightRow) (outcome, bool) {
+func readOutcome(row logRow) (outcome, bool) {
 	if !isOutcomeKind(row.rec.Kind) {
 		return outcome{}, false
 	}
@@ -366,7 +366,7 @@ func firstText(fields map[string]any, keys ...string) string {
 
 // dispatchRefusal reads a Worker outcome row the native side or the planner
 // turned down: verdict refused, or a non-empty refused list.
-func dispatchRefusal(row flightRow) (string, bool) {
+func dispatchRefusal(row logRow) (string, bool) {
 	o, ok := readOutcome(row)
 	if !ok || (o.verdict != "refused" && o.refused == "") {
 		return "", false
@@ -388,7 +388,7 @@ func dispatchRefusal(row flightRow) (string, bool) {
 // refusal error (the text the native side gave, when it gave one), or a
 // reply carrying a {"failure":{"code":...}} payload, a refusal the native
 // side answered rather than raised.
-func nativeCallRefusal(row flightRow) (string, bool) {
+func nativeCallRefusal(row logRow) (string, bool) {
 	if !bridge.IsNativeReply(row.rec.Kind) {
 		return "", false
 	}
@@ -724,9 +724,9 @@ func unsuccessfulStages(ctx context.Context, db *sql.DB, note string) Section {
 // an error text): the native refusal or contract failure a pawn order
 // carried, and the pooled-job mismatch a completed order raised when
 // the native record read a pooled Job, grouped by text with a count.
-func jobFailures(rows []flightRow) Section {
+func jobFailures(rows []logRow) Section {
 	s := Section{Name: "native job failures"}
-	lines := groupRows(rows, func(row flightRow) (string, bool) {
+	lines := groupRows(rows, func(row logRow) (string, bool) {
 		o, ok := readOutcome(row)
 		if !ok || (o.verdict != "failed" && o.err == "") {
 			return "", false
@@ -758,7 +758,7 @@ func jobFailures(rows []flightRow) Section {
 // authorityMovement reports how an authority row moved the grant: "changed"
 // (an AuthorityChanged event), "lost" or "retaken", from the authority row's
 // change field.
-func authorityMovement(row flightRow) (string, bool) {
+func authorityMovement(row logRow) (string, bool) {
 	switch {
 	case row.rec.Kind == "authority":
 		if change := firstText(row.fields(), "change"); change != "" {
@@ -774,7 +774,7 @@ func authorityMovement(row flightRow) (string, bool) {
 // authority rows (changed, lost, retaken) and the Rounder steps that failed
 // on a lost control, and the report's own reacquisition count. A thrashing
 // generation invalidates every open attempt.
-func authorityGenerations(ctx context.Context, db *sql.DB, note string, rows []flightRow, report map[string]any) Section {
+func authorityGenerations(ctx context.Context, db *sql.DB, note string, rows []logRow, report map[string]any) Section {
 	s := Section{Name: "authority generations"}
 	if v, ok := report["authority_reacquisitions"]; ok {
 		s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("report authority_reacquisitions=%v", v), Evidence: "result.json authority_reacquisitions"})
@@ -824,9 +824,9 @@ func authorityGenerations(ctx context.Context, db *sql.DB, note string, rows []f
 		s.Note = note
 	}
 	counts := map[string]int{}
-	last := map[string]flightRow{}
+	last := map[string]logRow{}
 	controlLost := 0
-	var lastControlLost flightRow
+	var lastControlLost logRow
 	for _, row := range rows {
 		if change, ok := authorityMovement(row); ok {
 			counts[change]++

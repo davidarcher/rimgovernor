@@ -7,7 +7,7 @@ import (
 )
 
 // wrapperTools are the calls a session answers. The names are the labels
-// every receipt, flight-recorder row and transcript carries; they name what
+// every receipt, log-ring row and transcript carries; they name what
 // the call does (start, connect, call a native tool, ...), not a transport.
 var wrapperTools = []string{
 	"games_start", "games_stop", "games_status", "games_connect",

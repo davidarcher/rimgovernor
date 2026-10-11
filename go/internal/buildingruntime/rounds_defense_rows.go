@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
-// defenseAction emits one defense_action decision row (flight-rows contract):
+// defenseAction emits one defense_action decision row (otel-signals contract):
 // a defense, combat or custody action that was applied, refused, failed or is
 // waiting. reason is a stable word; the data goes in attrs.
 func defenseAction(ctx context.Context, component string, level slog.Level, verdict, reason, target string, attrs map[string]any) {

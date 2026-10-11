@@ -219,7 +219,7 @@ func (f FrameSample) ObservationShare() float64 {
 }
 
 // observationRecord is one recorded reply's observation account, as the
-// aggregator reads it out of a flight row's timing block.
+// aggregator reads it out of a row's timing block.
 type observationRecord struct {
 	captureMs, formatMs float64
 	hasCapture          bool
@@ -297,7 +297,7 @@ type frameRecord struct {
 	histObserved                                        []uint64
 }
 
-// readFrames reads the "native_frames" block out of a flight row's timing.
+// readFrames reads the "native_frames" block out of a row's timing.
 // A block without an update count reports nothing, so an older companion
 // leaves the frame report unknown.
 func readFrames(timing map[string]any) (frameRecord, bool) {

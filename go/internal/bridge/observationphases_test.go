@@ -290,7 +290,7 @@ func TestQuantilesNearestRank(t *testing.T) {
 }
 
 // TestNativeTimingCarriesObservationBlocks checks the reply wrapper's
-// blocks reach the flight row verbatim, and that a wrapper without them
+// blocks reach the row verbatim, and that a wrapper without them
 // reports none.
 func TestNativeTimingCarriesObservationBlocks(t *testing.T) {
 	raw := `{"payload":"{}","timing":{"queueMs":1,"executeMs":2,` +

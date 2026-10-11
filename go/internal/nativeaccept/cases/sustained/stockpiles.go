@@ -109,14 +109,14 @@ type zoneChurn struct {
 	flagged []string
 }
 
-// auditZoneChurn reads the flight recorder's admitted stockpile deletes
+// auditZoneChurn reads the OTLP log ring's admitted stockpile deletes
 // and creates (layout_edit, family stockpile, attrs kind and role: a delete
 // follows a purpose the department declared gone, so a later create of the
 // same role is churn). It is post-hoc like the rest of the audit: a recorder that
 // cannot be read leaves the counts empty.
 func auditZoneChurn(s cases.Session) (zoneChurn, error) {
 	churn := zoneChurn{deletes: map[string]int{}}
-	flight, err := na.ReadFlight(na.FlightRecorderPath(s.Config().Output))
+	flight, err := na.ReadFlight(na.ServiceLogsPath(s.Config().Output))
 	if err != nil {
 		return churn, nil
 	}

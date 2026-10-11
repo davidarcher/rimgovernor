@@ -11,14 +11,14 @@ rules for reading them.
 
 ## Record
 
-`serve` appends one JSON line per native request, response, error and internal
-sample to a flight recorder: `<profile>/flight/flight.jsonl` by default (the
-sequence continues across launches; each row's `run` names its launch), or
-`--flight-recorder <absolute path>` (the acceptance runner's per-case path).
-Segments rotate beside the path (16 x 32 MiB, 512 MiB, pruned by count); the reader picks them all up.
+`serve` writes one OTLP log record per native call, marker and internal
+sample to `<profile>/otlp/logs.jsonl` by default (each row's `run` is its
+launch's `service.instance.id`), or to `--otlp-dir <absolute dir>` (the
+acceptance runner's per-case path).
+Segments rotate beside the file (16 x 32 MiB, 512 MiB, pruned by count); the reader picks them all up.
 
 ```bash
-go run ./cmd/rimgovernor serve --flight-recorder C:\path\to\run\flight-recorder.jsonl ...
+go run ./cmd/rimgovernor serve --otlp-dir C:\path\to\run\otlp ...
 ```
 
 Row kinds a phase report reads:
@@ -42,7 +42,7 @@ fatals and panics, and everything else is a log record in `otlp/logs.jsonl`
 ## Service events
 
 Every service event is a structured record (`go/internal/telemetry`) that
-becomes a flight row of its `kind` (`phases` ignores them); a record with no
+becomes a row of its `kind` (`phases` ignores them); a record with no
 kind writes nothing, and a test fails any `slog` call that names none.
 Kinds: `planner_step` (one per planner run; target `worker_step` is the clock worker's step, one per change of outcome), `clock_step`, `admission`,
 `clock_stop`, `authority`, `alert`, `dispatch`, `rounds_review`. Grep the
@@ -85,14 +85,14 @@ go run ./cmd/rimgovernor log [--kind K] [--component C] [--tick a..b] [--trace I
 ```
 
 `rimgovernor log` prints the diagnostic stream: the OTLP log ring (`--profile`
-resolves `<profile>/flight/otlp/logs.jsonl`; rotated segments are read oldest
+resolves `<profile>/otlp/logs.jsonl`; rotated segments are read oldest
 first). `--level` is a minimum, `--since-run` keeps the newest launch (the
 newest `service.instance.id`). Decision rows (`verdict`, `reason`, `target`)
 that repeat collapse into one line, `x N, first/last tick a/b`, keyed on (kind,
 component, verdict, reason, target); other rows print one line each. `--follow`
 streams new rows uncollapsed and keeps reading across ring rotation. `--json`
 is one entry object per line (pipe to `jq`). The reader library is
-`internal/logview`; [flight rows](../contracts/flight-rows.md) is the contract.
+`internal/logview`; [OTEL signals](../contracts/otel-signals.md) is the contract.
 
 ## Report
 

@@ -2,13 +2,12 @@ package bridge
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
-// Canonical flight-row readers follow docs/developers/contracts/flight-rows.md.
+// Canonical row readers follow docs/developers/contracts/otel-signals.md.
 
 // IsNativeReply identifies completed native calls.
 func IsNativeReply(kind string) bool { return kind == "native_call" }
@@ -104,32 +103,14 @@ func WindowRefusal(row TimelineRecord) bool {
 	return target == "window" && (verdict == "refused" || verdict == "held")
 }
 
-// emitRow writes a decision or event row as OTEL telemetry and, while
-// telemetry.LegacyRows is on, to the flight recorder too. A nil recorder skips
-// only the recorder; ctx carries the row's span.
-func emitRow(ctx context.Context, recorder *FlightRecorder, kind string, rowContext, payload map[string]any) {
-	telemetry.EmitRow(ctx, kind, rowContext, payload)
-	if recorder != nil && telemetry.LegacyRows() {
-		_, _ = recorder.Event(kind, rowContext, false, payload)
-	}
-}
-
 // nativeRow writes one of the bridge's own rows (native_call, native_request,
-// native_frame, native_poll) as an OTEL log record and, while
-// telemetry.LegacyRows is on, to the flight recorder too. It returns the id
-// that ties a native_request marker to the native_call answering it: the
-// recorder's sequence while the recorder writes, else a counter. Callers write
-// these rows only while c.recorder is set, which is what turns native-row
-// recording on. The record's context is filled as the recorder fills it
-// (INFO, now, component bridge); a durable row is fsynced by both sinks.
+// native_frame, native_poll) as an OTEL log record. It returns the id that ties
+// a native_request marker to the native_call answering it. Callers write these
+// rows only while c.recording is set. The record's context is filled with INFO,
+// now and component bridge where the caller left them out; a durable row is
+// fsynced by the file sink at once.
 func (c *Client) nativeRow(ctx context.Context, kind string, rowContext map[string]any, durable bool, payload map[string]any) uint64 {
-	var id uint64
-	if c.recorder != nil && telemetry.LegacyRows() {
-		id, _ = c.recorder.Event(kind, rowContext, durable, payload)
-	}
-	if id == 0 {
-		id = c.rowIDs.Add(1)
-	}
+	id := c.rowIDs.Add(1)
 	rc := make(map[string]any, len(rowContext)+3)
 	for k, v := range rowContext {
 		rc[k] = v
@@ -158,23 +139,4 @@ func (c *Client) nativeRow(ctx context.Context, kind string, rowContext map[stri
 		telemetry.EmitRow(ctx, kind, rc, payload)
 	}
 	return id
-}
-
-// DecodeFlightLine decodes one flight.jsonl line. It is the one decoder of a
-// row: TimelineReader and nativeaccept.FlightTail both use it. A line without
-// a sequence and a kind is not a row. A row's missing context or payload
-// decodes as an empty map; the timeline reader treats that as corrupt.
-func DecodeFlightLine(line []byte) (TimelineRecord, bool) {
-	var raw struct {
-		Run      string         `json:"run"`
-		Sequence *uint64        `json:"sequence"`
-		WallTime float64        `json:"wall_time"`
-		Kind     *string        `json:"kind"`
-		Context  map[string]any `json:"context"`
-		Payload  map[string]any `json:"payload"`
-	}
-	if err := json.Unmarshal(line, &raw); err != nil || raw.Sequence == nil || raw.Kind == nil {
-		return TimelineRecord{}, false
-	}
-	return TimelineRecord{Kind: *raw.Kind, Sequence: *raw.Sequence, HasSeq: true, Run: raw.Run, WallTime: raw.WallTime, Context: raw.Context, Payload: raw.Payload}, true
 }

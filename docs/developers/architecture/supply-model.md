@@ -187,7 +187,7 @@ expected rate x factor`.
   lost. A group remains tracked through gaps between designations while its
   source remains in the census; its samples are bounded to the trailing window.
   A group no longer in the census is forgotten.
-- **Flight**: a `food_credit` decision row per group when its factor moves by 0.1
+- **Log**: a `food_credit` decision row per group when its factor moves by 0.1
   or more, its state changes, or a hold ends a window it was judged over.
 
 ### Hunting

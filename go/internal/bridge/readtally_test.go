@@ -3,7 +3,6 @@ package bridge
 import (
 	"bytes"
 	"context"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -19,13 +18,8 @@ func TestReadTallyCountsPerStepAndSummarizes(t *testing.T) {
 	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(pbLoaded()), nil
 	}}
-	path := filepath.Join(t.TempDir(), "timeline.jsonl")
-	rec, err := NewFlightRecorder(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { rec.Close() })
-	client, err := open(context.Background(), "fixture-game", time.Second, rec, nil, s.factory(t))
+	read := rowSink(t)
+	client, err := open(context.Background(), "fixture-game", time.Second, true, nil, s.factory(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,13 +55,7 @@ func TestReadTallyCountsPerStepAndSummarizes(t *testing.T) {
 	}
 	var empty ReadTally
 	empty.Publish(context.Background(), telemetry.Decision{Kind: "clock_step"}) // nothing tallied: no row, no panic
-	if err = rec.Close(); err != nil {
-		t.Fatal(err)
-	}
-	rows, err := ReadTimeline(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	rows := read()
 	summary := SummarizePhases(rows)
 	steps := summary.Steps
 	if steps.Steps != 2 || steps.Reads != 6 || steps.MaxReads != 4 || steps.Tools["rimgovernor/lifecycle_read_identity"] != 4 || steps.Tools["games_status"] != 2 || steps.Windows != 1 || steps.WindowTicks != 2700 || steps.MaxWindowTicks != 2700 {
@@ -86,13 +74,8 @@ func TestReadTallyCountsSchemaFetchesApart(t *testing.T) {
 	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(pbLoaded()), nil
 	}}
-	path := filepath.Join(t.TempDir(), "timeline.jsonl")
-	rec, err := NewFlightRecorder(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { rec.Close() })
-	client, err := open(context.Background(), "fixture-game", time.Second, rec, nil, s.factory(t))
+	read := rowSink(t)
+	client, err := open(context.Background(), "fixture-game", time.Second, true, nil, s.factory(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,13 +90,7 @@ func TestReadTallyCountsSchemaFetchesApart(t *testing.T) {
 		t.Fatalf("tally: total %d schema %d %q", tally.Total(), tally.Schema(), tally.String())
 	}
 	tally.Publish(ctx, telemetry.Decision{Kind: "clock_step"})
-	if err = rec.Close(); err != nil {
-		t.Fatal(err)
-	}
-	rows, err := ReadTimeline(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	rows := read()
 	for _, row := range rows {
 		if row.Kind != "clock_step" {
 			continue

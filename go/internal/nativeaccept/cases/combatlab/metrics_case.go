@@ -131,7 +131,7 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 		return err
 	}
 	service.KeepAuthority(ctx)
-	flight := na.FlightRecorderPath(s.Config().Output)
+	flight := na.ServiceLogsPath(s.Config().Output)
 	served, err := serveUntil(ctx, service, flight, start+metricsTicks-metricsStopMargin)
 	service.Stop()
 	s.Report()["servedTick"] = served
@@ -261,7 +261,7 @@ func serveUntil(ctx context.Context, service *na.ServiceProcess, flight string, 
 	}
 }
 
-// combatEnded reports whether a flight row is the end-of-combat summary.
+// combatEnded reports whether a row is the end-of-combat summary.
 func combatEnded(row na.FlightRow) bool {
 	return row.Kind == "combat_summary"
 }

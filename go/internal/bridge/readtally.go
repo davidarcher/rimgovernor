@@ -17,7 +17,7 @@ import (
 // the wrapper name otherwise), errors included. A ClockScheduler step
 // attaches one at entry so the reads a full planner composition costs are
 // visible per step and, through Publish, in the
-// flight recorder the throughput profiler summarizes. It is safe for
+// OTLP log ring the throughput profiler summarizes. It is safe for
 // concurrent use; planners run in parallel under the same step context.
 //
 // The one-off schema fetches (games_tool_detail) the Client issues before
@@ -127,7 +127,7 @@ func (t *ReadTally) String() string {
 }
 
 // Publish writes the tally as one decision row of d's kind (a "clock_step" or
-// a "dispatch") on the recorder of the Client that served the tallied calls:
+// a "dispatch") for the Client that served the tallied calls:
 // d's verdict, reason, target and duration, with its attrs plus the tally's
 // reads, tools and schema_fetches. Without a client it is a no-op; the
 // profiler (SummarizePhases) aggregates the rows.
@@ -158,5 +158,5 @@ func (t *ReadTally) Publish(ctx context.Context, d telemetry.Decision) {
 	if d.Level >= slog.LevelWarn {
 		rowContext["level"] = d.Level.String()
 	}
-	emitRow(ctx, client.recorder, d.Kind, rowContext, d.Payload())
+	telemetry.EmitRow(ctx, d.Kind, rowContext, d.Payload())
 }

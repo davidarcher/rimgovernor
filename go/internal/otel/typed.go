@@ -124,7 +124,7 @@ type Resource struct {
 	Service, Instance, Version string
 }
 
-// Log is one log record (a decision or event row, see flight-rows.md "OTEL mapping").
+// Log is one log record (a decision or event row, see otel-signals.md "OTEL mapping").
 type Log struct {
 	Pos          Position
 	Resource     Resource

@@ -109,7 +109,7 @@ func (r *Replay) Open(ctx context.Context, timeout time.Duration) (*Client, erro
 	for _, name := range r.tools {
 		catalog.Tools = append(catalog.Tools, Tool{Name: name, InputSchema: json.RawMessage(`{"type":"object"}`)})
 	}
-	return open(ctx, r.gameID, timeout, nil, nil, func(context.Context) (backend, error) {
+	return open(ctx, r.gameID, timeout, false, nil, func(context.Context) (backend, error) {
 		session := newHandlerBackend(catalog, r.handle)
 		r.mu.Lock()
 		r.sessions = append(r.sessions, session)

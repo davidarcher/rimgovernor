@@ -24,7 +24,7 @@ func TestTypedCallRecordsPhaseMetrics(t *testing.T) {
 		envelope["timing"] = map[string]any{"queueMs": 0.5, "executeMs": 1.5}
 		return structured(string(encode(envelope))), nil
 	}}
-	client, err := open(context.Background(), "fixture-game", time.Second, nil, nil, s.factory(t))
+	client, err := open(context.Background(), "fixture-game", time.Second, false, nil, s.factory(t))
 	if err != nil {
 		t.Fatal(err)
 	}

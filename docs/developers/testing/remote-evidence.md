@@ -38,7 +38,7 @@ native fields are preserved. Every attempt and original file remains untouched;
 projected rows add `remote_evidence` and `remote_attempts` links. The aggregate's
 per-case summary includes attempt count, final attempt and disposition.
 An optional attempt `log` reference and native `evidence_files` array of
-references are verified too. Native `log`, `output` and `flight_recorder` paths,
+references are verified too. Native `log`, `output` paths,
 when supplied, must exist inside the collected root. Exporters must include
 required diagnostic references; absent optional fields do not assert that a
 diagnostic was captured. Resumed, staged and postmortem-only rows retain their
@@ -57,11 +57,11 @@ authenticated through GitHub metadata and verified against its SHA-256 digest.
 ZIP entries are streamed with declared-size, checksum and integer-overflow
 checks. This extension allowlist is not a content sanitizer:
 the trusted workflow must remove secrets and licensed contents before upload.
-Keep all attempt logs, metrics and flight recorder segments in the artifact;
-do not upload a whole game, profile or worker directory. The flight segments
+Keep all attempt logs, metrics and OTLP log segments in the artifact;
+do not upload a whole game, profile or worker directory. The log segments
 are the diagnostic evidence (`acceptance why` cites them as
-`otlp/logs.jsonl#<line>`; the case's `otlp/` ring replaced `flight.jsonl` in
-#2789, and carrying it through remote export is #2791); a launch's `service/stderr.log` holds only the
+`otlp/logs.jsonl#<line>`; the case's `otlp/` ring is the only
+log since #2789, and carrying it through remote export is #2791); a launch's `service/stderr.log` holds only the
 startup banner, fatals and panics, and no report or digest depends on it.
 
 ## Import an authenticated Actions artifact

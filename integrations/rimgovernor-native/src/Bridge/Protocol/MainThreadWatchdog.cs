@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
     // service's flight log. Without it a hung call shows only as a Go-side
     // deadline, indistinguishable from a dead game. The lines go through
     // ModLog (the rimgovernor.log channel), not Unity's log: they reach
-    // the flight recorder as mod_log rows carrying the same trace.
+    // the OTLP log ring as mod_log rows carrying the same trace.
     internal static class MainThreadWatchdog
     {
         internal const double StallSeconds = 2.0;

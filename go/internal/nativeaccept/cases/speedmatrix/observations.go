@@ -93,7 +93,7 @@ func (m *matrix) provenance() map[string]any {
 		"camera": "the stage save's own camera position, restored by the reload; no row commands the camera",
 		"warmup": "the reload, the needs freeze, the plan submission and the resume precede the measured interval",
 		"measured_interval": "per row: wall_seconds from resume to the tick budget; the frames and observation blocks are " +
-			"differenced over the service's flight recording, which starts when the service attaches",
+			"differenced over the service's OTLP recording, which starts when the service attaches",
 		"load":    "the observation-load row adds concurrent /api/state readers (#656); the other rows hold none",
 		"readers": map[string]any{"count": na.ObservationLoadReaders, "interval_ms": na.ObservationLoadInterval.Milliseconds()},
 	}

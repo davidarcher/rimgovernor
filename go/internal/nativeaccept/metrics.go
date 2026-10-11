@@ -13,8 +13,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
 
 // Every result.json carries a flat "metrics" block of numbers under stable
@@ -77,74 +75,6 @@ func ComputeMetrics(r Report, output string) Metrics {
 	readOTELTotals(output).fill(m, m["wall_ms"])
 	m["evidence_bytes"] = float64(evidenceBytes(output))
 	return m
-}
-
-// RecorderMetrics is the block's recorder-derived part (ticks advanced,
-// wall TPS, native calls and
-// errors, cache hits, reads per step, native phase means, paused fraction)
-// over one recording's rows, the rest 0: what the launcher's Problems tab
-// shows without the report the harness computes the full block from.
-func RecorderMetrics(rows []bridge.TimelineRecord) Metrics {
-	m := Metrics{}
-	for _, name := range append(append([]string(nil), MetricNames...), recorderOnlyMetrics...) {
-		m[name] = 0
-	}
-	summary := bridge.SummarizePhases(rows)
-	m["ticks_advanced"] = float64(summary.Clock.TicksAdvanced)
-	m["wall_tps"] = summary.Clock.WallTPS
-	var totals recordingTotals
-	totals.add(summary)
-	totals.fill(m)
-	return m
-}
-
-// recorderOnlyMetrics are the launcher's extra readings the OTEL metrics
-// carry no instrument for (response bytes, frame-cache hits, reads per step):
-// RecorderMetrics adds them, the harness's series block does not.
-var recorderOnlyMetrics = []string{"native_bytes", "reads_per_step_mean", "cache_hit_ratio"}
-
-// recordingTotals sums the native round trips of one or more recordings.
-type recordingTotals struct {
-	calls, errs, hits, bytes, timed uint64
-	queue, execute, paused, sampled float64
-	steps, reads                    uint64
-}
-
-func (t *recordingTotals) add(summary bridge.PhaseSummary) {
-	for _, tool := range summary.Tools {
-		t.calls += tool.Calls
-		t.errs += tool.Errors
-		t.hits += tool.CacheHits
-		t.bytes += tool.ResponseBytes
-		t.timed += tool.NativeTimed
-		t.queue += tool.NativeQueueMs
-		t.execute += tool.NativeExecuteMs
-	}
-	t.steps += summary.Steps.Steps
-	t.reads += summary.Steps.Reads
-	t.paused += summary.Clock.PausedSecs
-	t.sampled += summary.Clock.SampledSecs
-}
-
-func (t *recordingTotals) fill(m Metrics) {
-	m["native_calls"] = float64(t.calls)
-	m["native_errors"] = float64(t.errs)
-	m["native_bytes"] = float64(t.bytes)
-	if t.calls+t.hits > 0 {
-		m["cache_hit_ratio"] = float64(t.hits) / float64(t.calls+t.hits)
-	}
-	if t.steps > 0 {
-		m["reads_per_step_mean"] = float64(t.reads) / float64(t.steps)
-	}
-	if t.timed > 0 {
-		m["native_queue_ms_mean"] = t.queue / float64(t.timed)
-		m["native_exec_ms_mean"] = t.execute / float64(t.timed)
-	}
-	// The share of the sampled wall time the game stood still between
-	// clock windows, time-weighted across every recording.
-	if t.sampled > 0 {
-		m["paused_fraction"] = t.paused / t.sampled
-	}
 }
 
 // metricValue reads a report number as Go or decoded JSON holds it; an

@@ -10,7 +10,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 )
 
-func TestSpanNestingTraceparentAndStamp(t *testing.T) {
+func TestSpanNestingAndTraceparent(t *testing.T) {
 	spans := telemetrytest.Spans(t)
 	rootCtx, root := telemetry.StartSpan(context.Background(), "test", "root")
 	childCtx, child := telemetry.StartSpan(rootCtx, "test", "child")
@@ -27,21 +27,6 @@ func TestSpanNestingTraceparentAndStamp(t *testing.T) {
 	}
 	if len(telemetry.Traceparent(childCtx)) > 64 {
 		t.Fatal("the companion accepts at most 64 characters of trace")
-	}
-	row := map[string]any{}
-	telemetry.StampTrace(childCtx, row)
-	if row[telemetry.TraceIDKey] != rootSC.TraceID().String() || row[telemetry.SpanIDKey] != childSC.SpanID().String() || row[telemetry.ParentIDKey] != rootSC.SpanID().String() {
-		t.Fatalf("stamp: %+v", row)
-	}
-	rootRow := map[string]any{}
-	telemetry.StampTrace(rootCtx, rootRow)
-	if _, parented := rootRow[telemetry.ParentIDKey]; parented {
-		t.Fatalf("a root stamped a parent: %+v", rootRow)
-	}
-	empty := map[string]any{}
-	telemetry.StampTrace(context.Background(), empty)
-	if len(empty) != 0 {
-		t.Fatalf("a ctx without a span stamped %+v", empty)
 	}
 	child.End()
 	root.End()

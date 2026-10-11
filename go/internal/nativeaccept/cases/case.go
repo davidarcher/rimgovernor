@@ -137,7 +137,7 @@ func (o Owned) Describe() map[string]any {
 // ServeSpec declares the `rimgovernor serve` process a serve-driven case
 // runs against: na.ServeSpec (Session.Serve launches it; an empty Binary
 // takes the run's -rimgovernor). Clock speed always comes from
-// na.ClockSpeedArgs; the flight recorder and --listen 127.0.0.1:0 are
+// na.ClockSpeedArgs; the OTLP log ring and --listen 127.0.0.1:0 are
 // always on.
 type ServeSpec = na.ServeSpec
 

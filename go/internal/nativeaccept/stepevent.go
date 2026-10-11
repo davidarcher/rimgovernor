@@ -25,13 +25,13 @@ func (s SchedulerStep) Refused() bool {
 	return strings.Contains(s.PlannerFailures, "refused")
 }
 
-// schedulerStepTail bounds how much of a growing flight recorder
+// schedulerStepTail bounds how much of a growing OTLP log ring
 // LastSchedulerStepFile reads per call: the latest step row is near the
 // end, and a poll must not re-read an hour of rows.
 const schedulerStepTail = 256 * 1024
 
 // LastSchedulerStepFile reads the last worker-step row (planner_step, target worker_step) from the tail of
-// the flight recorder at path; false when it has none yet or cannot be read.
+// the OTLP log ring at path; false when it has none yet or cannot be read.
 func LastSchedulerStepFile(path string) (SchedulerStep, bool) {
 	row, line, ok := lastFlightRow(path, schedulerStepTail, func(r FlightRow) bool { return bridge.IsWorkerStep(r.Record()) })
 	if !ok {

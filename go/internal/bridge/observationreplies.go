@@ -1,7 +1,7 @@
 package bridge
 
 // NativeAccount aggregates the observation and frame accounts carried
-// by raw native reply envelopes, for a caller that has no flight recording to
+// by raw native reply envelopes, for a caller that has no OTLP recording to
 // summarize: the speed matrix's governor-off row plays the save with no
 // controller attached, so its only samples are the harness's own replies.
 //
@@ -21,7 +21,7 @@ func (a *NativeAccount) Reply(envelope map[string]any) bool {
 		return false
 	}
 	// The companion's own key names; the service renames them when it copies
-	// the blocks into a flight row, which is what the readers expect.
+	// the blocks into a row, which is what the readers expect.
 	row := map[string]any{"native_observation": timing["observation"], "native_frames": timing["frames"]}
 	found := false
 	if queue, ok := number(timing["queueMs"]); ok {

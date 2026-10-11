@@ -10,10 +10,26 @@ import (
 
 // Rows over OTLP. Every decision and event row, and the bridge's native_call,
 // native_request, native_frame and native_poll rows, is an OTEL log record in
-// logs.jsonl (docs/developers/contracts/flight-rows.md, "OTEL mapping").
+// logs.jsonl (docs/developers/contracts/otel-signals.md, "Mapping").
 // RecordFromLog is the inverse of telemetry.EmitRow: it rebuilds the row's
 // TimelineRecord, so the readers of rows (SummarizePhases, the kind helpers in
-// flightrows.go, the acceptance oracles) work on OTLP output unchanged.
+// rows.go, the acceptance oracles) read the log ring directly.
+
+// TimelineRecord is one row read back from the log ring.
+type TimelineRecord struct {
+	Kind string
+	// Sequence numbers the rows in the order the reader met them (1-based).
+	Sequence uint64
+	HasSeq   bool
+	// Run is the emitting process's service.instance.id (a launch). A ring
+	// kept under a profile outlives the process that wrote it, so the rows of
+	// successive launches share a file and Run tells them apart.
+	Run string
+	// WallTime is the row's Unix time in seconds.
+	WallTime float64
+	Context  map[string]any
+	Payload  map[string]any
+}
 
 // ReadOTLPTimeline reads the logs ring at path (a logs.jsonl, with its rotated
 // segments) as rows, oldest first. Sequence numbers are the records' order in
@@ -37,7 +53,7 @@ func ReadOTLPTimeline(path string) ([]TimelineRecord, error) {
 // Context carries level, at, component, tick (when the record had one) and the
 // record's trace_id and span_id. A decision's payload is verdict, reason,
 // target, dur_ms and attrs; an event's is msg (the record body) and its
-// fields. All numbers are float64, as a JSON-decoded flight row held them. A
+// fields. All numbers are float64, as a JSON-decoded row held them. A
 // record whose payload was capped carries truncated, original_bytes, sha256
 // and preview in its payload beside the correlation fields that survived.
 func RecordFromLog(l otel.Log) (TimelineRecord, bool) {

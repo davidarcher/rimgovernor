@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -49,7 +48,7 @@ func TestCanceledNativeReadIsNotTransportFailure(t *testing.T) {
 
 func testClient(t *testing.T, s *testServer, timeout time.Duration) *Client {
 	t.Helper()
-	client, err := open(context.Background(), "fixture-game", timeout, nil, nil, s.factory(t))
+	client, err := open(context.Background(), "fixture-game", timeout, false, nil, s.factory(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +196,7 @@ func TestLostConnectionAndMissingCapabilities(t *testing.T) {
 	default:
 	}
 	missing := newHandlerBackend(Discovery{ServerName: "missing-capabilities"}, nil)
-	_, err := open(context.Background(), "fixture", time.Second, nil, nil, func(context.Context) (backend, error) { return missing, nil })
+	_, err := open(context.Background(), "fixture", time.Second, false, nil, func(context.Context) (backend, error) { return missing, nil })
 	if !errors.Is(err, ErrContract) {
 		t.Fatalf("missing capabilities accepted: %v", err)
 	}
@@ -234,7 +233,7 @@ func TestConcurrentReconnectHonorsContextAndClose(t *testing.T) {
 	factory := s.factory(t)
 	entered := make(chan struct{})
 	count := 0
-	client, err := open(context.Background(), "fixture", time.Second, nil, nil, func(ctx context.Context) (backend, error) {
+	client, err := open(context.Background(), "fixture", time.Second, false, nil, func(ctx context.Context) (backend, error) {
 		count++
 		if count == 1 {
 			return factory(ctx)
@@ -271,7 +270,7 @@ func TestConcurrentReconnectHonorsContextAndClose(t *testing.T) {
 	}
 }
 
-func TestFlightRecorderCapturesRequestResponseAndError(t *testing.T) {
+func TestNativeRowsCaptureCompletedCallsAndErrors(t *testing.T) {
 	failing := int32(0)
 	s := &testServer{handler: func(ctx context.Context, args nativeArgument) (*callResult, error) {
 		if atomic.LoadInt32(&failing) != 0 {
@@ -279,13 +278,8 @@ func TestFlightRecorderCapturesRequestResponseAndError(t *testing.T) {
 		}
 		return structured(`{"colonyId":"test-colony","tick":0,"operation":{"id":"receipt-1"}}`), nil
 	}}
-	path := filepath.Join(t.TempDir(), "timeline.jsonl")
-	rec, err := NewFlightRecorder(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { rec.Close() })
-	client, err := open(context.Background(), "fixture-game", time.Second, rec, nil, s.factory(t))
+	read := rowSink(t)
+	client, err := open(context.Background(), "fixture-game", time.Second, true, nil, s.factory(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,10 +292,7 @@ func TestFlightRecorderCapturesRequestResponseAndError(t *testing.T) {
 	if _, err = testNativeRead(client, context.Background()); err == nil {
 		t.Fatal("expected refused call to surface an error")
 	}
-	rows, err := ReadTimeline(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	rows := read()
 	var kinds []string
 	for _, row := range rows {
 		kinds = append(kinds, row.Kind)
@@ -317,7 +308,7 @@ func TestFlightRecorderCapturesRequestResponseAndError(t *testing.T) {
 		if row.Kind != "native_call" {
 			continue
 		}
-		if row.Context["colony"] != "test-colony" {
+		if row.Context["component"] != "bridge" {
 			t.Fatalf("expected recording context on call row, got %+v", row.Context)
 		}
 		if _, hasArgs := row.Payload["arguments"]; !hasArgs {
@@ -348,13 +339,8 @@ func TestSlowNativeCallWritesInFlightMarker(t *testing.T) {
 		}
 		return structured(`{"colonyId":"test-colony","tick":0,"operation":{"id":"receipt-1"}}`), nil
 	}}
-	path := filepath.Join(t.TempDir(), "timeline.jsonl")
-	rec, err := NewFlightRecorder(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { rec.Close() })
-	client, err := open(context.Background(), "fixture-game", 10*time.Second, rec, nil, s.factory(t))
+	read := rowSink(t)
+	client, err := open(context.Background(), "fixture-game", 10*time.Second, true, nil, s.factory(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -364,12 +350,8 @@ func TestSlowNativeCallWritesInFlightMarker(t *testing.T) {
 	go func() { _, err := testNativeRead(client, context.Background()); done <- err }()
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		rows, err := ReadTimeline(path)
-		if err != nil {
-			t.Fatal(err)
-		}
 		hung := false
-		for _, row := range rows {
+		for _, row := range read() {
 			hung = hung || row.Kind == "native_request"
 		}
 		if hung {
@@ -384,14 +366,12 @@ func TestSlowNativeCallWritesInFlightMarker(t *testing.T) {
 	if err := <-done; err != nil {
 		t.Fatal(err)
 	}
-	rows, err := ReadTimeline(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	rows := read()
 	markers := map[uint64]bool{}
 	for _, row := range rows {
 		if row.Kind == "native_request" {
-			markers[row.Sequence] = true
+			id, _ := number(row.Payload["request"])
+			markers[uint64(id)] = true
 		}
 	}
 	for _, row := range rows {

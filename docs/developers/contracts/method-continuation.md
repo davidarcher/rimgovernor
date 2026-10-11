@@ -33,7 +33,7 @@ raid wait horizon is 38,000 game ticks; reaching it reassesses the fight without
 proving the raid ended. Fight closure and roster undrafting retain their owners.
 
 Reconsideration uses stable `defenders_available`, `shelter_exposed` and
-`shelter_unreachable` reasons in existing `admission` flight rows.
+`shelter_unreachable` reasons in existing `admission` rows.
 
 ## Disaster recovery
 
@@ -53,7 +53,7 @@ Incident; independently observed hazard absence releases area restrictions.
 
 Existing `planner_step` rows distinguish unknown observations, no eligible
 worker, missing/protected infrastructure, existing work, exhausted methods and
-no pending work. Existing flight readers consume these rows.
+no pending work. Existing log readers consume these rows.
 
 ## Evidence
 

@@ -374,7 +374,7 @@ func firstEnclosure(ctx context.Context, st *store.Store, known domain.Fact[doma
 }
 
 // idleAccount derives the window's idle accounting from the pawn censuses
-// the service's own reviews already took, as its flight recorder holds
+// the service's own reviews already took, as its OTLP log ring holds
 // them. No sample is taken for the diagnosis itself.
 func idleAccount(flightPath string) startuplabor.Account {
 	rows, err := na.ReadFlight(flightPath)

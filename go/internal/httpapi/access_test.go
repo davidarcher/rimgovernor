@@ -3,9 +3,10 @@ package httpapi
 import (
 	"net/http"
 	"net/http/httptest"
-	"sync"
 	"testing"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 )
 
 type accessRow struct {
@@ -14,30 +15,32 @@ type accessRow struct {
 	payload map[string]any
 }
 
+// accessSink reads back the http_access rows the handler emitted.
 type accessSink struct {
-	mu   sync.Mutex
-	rows []accessRow
+	captured *telemetrytest.Rows
+	rows     []accessRow
 }
 
-func (s *accessSink) Event(kind string, context map[string]any, _ bool, payload map[string]any) (uint64, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.rows = append(s.rows, accessRow{kind, context, payload})
-	return uint64(len(s.rows)), nil
+func newAccessSink(t *testing.T) *accessSink {
+	return &accessSink{captured: telemetrytest.Install(t)}
 }
 
 func serveAccess(t *testing.T, sink *accessSink, h http.HandlerFunc, method, path string) {
 	t.Helper()
-	accessHandler(h, sink).ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(method, path, nil))
+	accessHandler(h, true).ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(method, path, nil))
+	sink.rows = nil
+	for _, row := range sink.captured.Of(AccessKind) {
+		sink.rows = append(sink.rows, accessRow{row.Kind, row.Context, row.Payload})
+	}
 }
 
 func TestAccessStatusCapture(t *testing.T) {
-	sink := &accessSink{}
+	sink := newAccessSink(t)
 	serveAccess(t, sink, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(404) }, "POST", "/api/x")
 	serveAccess(t, sink, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("hello")) }, "POST", "/api/y")
 	serveAccess(t, sink, func(http.ResponseWriter, *http.Request) {}, "HEAD", "/api/state")
 	want := []struct {
-		status int
+		status int64
 		bytes  int64
 	}{{404, 0}, {200, 5}, {200, 0}}
 	if len(sink.rows) != len(want) {
@@ -48,7 +51,7 @@ func TestAccessStatusCapture(t *testing.T) {
 		if row.kind != AccessKind || row.payload["status"] != w.status || row.payload["bytes"] != w.bytes {
 			t.Fatalf("row %d = %+v, want status %d bytes %d", i, row, w.status, w.bytes)
 		}
-		if row.context["trace_id"] == "" || row.context["component"] != "httpapi" {
+		if row.context["component"] != "httpapi" {
 			t.Fatalf("row %d context = %v", i, row.context)
 		}
 	}
@@ -76,13 +79,13 @@ func TestAccessDenylist(t *testing.T) {
 		{"pprof kept", ok, "GET", "/debug/pprof/heap", true},
 	}
 	for _, c := range cases {
-		sink := &accessSink{}
+		sink := newAccessSink(t)
 		serveAccess(t, sink, c.h, c.method, c.path)
 		if got := len(sink.rows) == 1; got != c.kept {
 			t.Errorf("%s: kept = %v, want %v", c.name, got, c.kept)
 		}
 	}
-	sink := &accessSink{}
+	sink := newAccessSink(t)
 	serveAccess(t, sink, ok, "GET", "/debug/pprof/profile")
 	if sink.rows[0].payload["long_lived"] != true {
 		t.Fatal("pprof row must carry long_lived")
@@ -91,25 +94,24 @@ func TestAccessDenylist(t *testing.T) {
 
 func TestAccessNilRecorderIsNoOp(t *testing.T) {
 	next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
-	if h := accessHandler(next, nil); h == nil {
+	if h := accessHandler(next, false); h == nil {
 		t.Fatal("nil recorder must still serve")
 	}
 	rec := httptest.NewRecorder()
-	accessHandler(next, nil).ServeHTTP(rec, httptest.NewRequest("GET", "/api/state", nil))
+	accessHandler(next, false).ServeHTTP(rec, httptest.NewRequest("GET", "/api/state", nil))
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
 }
 
 func TestAccessWrapperUnwrapsForResponseController(t *testing.T) {
-	sink := &accessSink{}
 	var deadlineErr, flushErr error
 	h := func(w http.ResponseWriter, _ *http.Request) {
 		rc := http.NewResponseController(w)
 		deadlineErr = rc.SetWriteDeadline(time.Now().Add(time.Minute))
 		flushErr = rc.Flush()
 	}
-	srv := httptest.NewServer(accessHandler(http.HandlerFunc(h), sink))
+	srv := httptest.NewServer(accessHandler(http.HandlerFunc(h), true))
 	defer srv.Close()
 	resp, err := http.Get(srv.URL + "/debug/pprof/profile")
 	if err != nil {

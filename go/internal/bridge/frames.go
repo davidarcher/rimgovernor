@@ -173,7 +173,7 @@ func (caller *Client) frameReadView(ctx context.Context, name string, key readCa
 	ctx, cancel := context.WithTimeout(ctx, caller.timeout)
 	defer cancel()
 	miss := func(why string, err error) (bool, error) {
-		if caller.recorder != nil {
+		if caller.recording {
 			caller.nativeRow(ctx, "native_frame", caller.snapshotRecordingContext(ctx), false, map[string]any{"outcome": "miss", "native_tool": name, "why": why})
 		}
 		return true, err
@@ -209,7 +209,7 @@ func (caller *Client) frameReadView(ctx context.Context, name string, key readCa
 				if decoded["gap"] == true {
 					caller.frameReader(ctx) // asks for the keyframe now
 				}
-				if decoded != nil && caller.recorder != nil {
+				if decoded != nil && caller.recording {
 					caller.nativeRow(ctx, "native_frame", caller.snapshotRecordingContext(ctx), false, decoded)
 				}
 				switch {
@@ -219,7 +219,7 @@ func (caller *Client) frameReadView(ctx context.Context, name string, key readCa
 							return true, contract("frame reply decoding: %v", err)
 						}
 					}
-					if caller.recorder != nil {
+					if caller.recording {
 						caller.foldHit(name)
 					}
 					return true, nil

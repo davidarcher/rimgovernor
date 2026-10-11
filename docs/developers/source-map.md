@@ -36,5 +36,5 @@ and registered executor handler. For a wire change, follow the schema through
 generated Go/C# types to both adapters.
 
 Use [persistence ownership](contracts/persistence-contracts.md) to place state
-and [flight rows](contracts/flight-rows.md) to add diagnostics. Avoid creating a
+and [OTEL signals](contracts/otel-signals.md) to add diagnostics. Avoid creating a
 second owner merely because the code is in a different package.

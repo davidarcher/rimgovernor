@@ -32,7 +32,7 @@ const (
 // admissionOutcome is what one admitted call learned about the queue: its
 // class, how long it waited for a slot and how many calls of its class
 // (and in total) were waiting ahead of it when it asked. It is copied into
-// the call's timing so a flight.jsonl consumer can attribute gate waits
+// the call's timing so a log-ring consumer can attribute gate waits
 // per class.
 type admissionOutcome struct {
 	class      AdmissionClass

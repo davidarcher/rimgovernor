@@ -103,7 +103,7 @@ and the controller's execute omits it: the worker dispatches them under a runnin
 where the token moves every tick, and the rules alone refuse a moved world; a preview
 still sends it. A refusal is a terminal failure reply (`InvalidRequest`; `NotFound` where
 the exact target is gone), never a receipt: the worker reconciles it as `ReceiptRefused`,
-flight.jsonl keeps the detail verbatim, and no Go code parses it. The detail is
+The OTLP log ring keeps the detail verbatim, and no Go code parses it. The detail is
 `<Kind> refused: <reason>`; the `apply/refusal` case executes one write per kind after
 moving the world under a valid token. The reason text itself lives in the native handler
 for each kind (grep the quoted phrase); the table names the rule order and the non-obvious
@@ -123,7 +123,7 @@ the wall codes stay unknown on purpose, since only the game's reason separates t
 classifies from reason text. A refusal without a class is unknown.
 
 The worker journals the failure code, reason and class beside `ReceiptRefused`
-(`Progress.view.Refusal`, `domain.NativeRefusal`), and the `dispatch` flight row carries
+(`Progress.view.Refusal`, `domain.NativeRefusal`), and the `dispatch` row carries
 `refusal_class` and `refusal_reason`. `policy.RefusalBudget` (`Record(subject, reason, class,
 world)`, `Allowed(subject, world)`) is the one reason-aware retry budget: a permanent refusal
 gives its subject up with `retry_budget_spent` carrying the real reason, a transient one waits

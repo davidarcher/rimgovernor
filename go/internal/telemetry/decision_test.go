@@ -4,50 +4,28 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 )
 
-func newRecorder(t *testing.T, opts ...bridge.FlightRecorderOption) (string, *bridge.FlightRecorder) {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), "flight.jsonl")
-	recorder, err := bridge.NewFlightRecorder(path, opts...)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { recorder.Close() })
-	return path, recorder
-}
-
-// A decision row round-trips through the timeline reader with the fixed
-// payload shape and the full v2 context, under the ctx's trace.
+// A decision row has the fixed payload shape and the full context.
 func TestDecisionRowRoundTrip(t *testing.T) {
-	path, recorder := newRecorder(t)
-	logger := telemetry.New(recorder)
+	rows := telemetrytest.Install(t)
 	telemetry.ObserveTick(1234)
-	telemetrytest.Spans(t)
-	ctx, span := telemetry.StartSpan(context.Background(), "test", "step")
-	sc := span.SpanContext()
 	telemetry.Decision{
 		Kind: "admission", Component: "clock-scheduler", Level: slog.LevelWarn,
 		Verdict: "refused", Reason: "critical_wave_budget", Target: "window",
 		Dur:   1500 * time.Microsecond,
 		Attrs: map[string]any{"err": errors.New("held"), "wait": 2 * time.Second, "n": 3},
-	}.LogTo(ctx, logger)
-	rows, err := bridge.ReadTimeline(path)
-	if err != nil {
-		t.Fatal(err)
+	}.LogTo(context.Background(), slog.Default())
+	got := rows.Of("admission")
+	if len(got) != 1 {
+		t.Fatalf("rows: %+v", rows.All())
 	}
-	row := rows[len(rows)-1]
-	if row.Kind != "admission" {
-		t.Fatalf("kind %q", row.Kind)
-	}
+	row := got[0]
 	for key, want := range map[string]any{"verdict": "refused", "reason": "critical_wave_budget", "target": "window", "dur_ms": 1.5} {
 		if row.Payload[key] != want {
 			t.Fatalf("payload %s = %v, want %v: %+v", key, row.Payload[key], want, row.Payload)
@@ -57,11 +35,11 @@ func TestDecisionRowRoundTrip(t *testing.T) {
 		t.Fatalf("a decision row carries no free text: %+v", row.Payload)
 	}
 	attrs, _ := row.Payload["attrs"].(map[string]any)
-	if attrs["err"] != "held" || attrs["wait"] != 2000.0 || attrs["n"] != 3.0 {
+	if attrs["err"] != "held" || attrs["wait"] != 2000.0 || attrs["n"] != int64(3) {
 		t.Fatalf("attrs: %+v", attrs)
 	}
 	c := row.Context
-	if c["level"] != "WARN" || c["component"] != "clock-scheduler" || c["tick"] != 1234.0 || c["trace_id"] != sc.TraceID().String() || c["span_id"] != sc.SpanID().String() || c["at"] == nil {
+	if c["level"] != "WARN" || c["component"] != "clock-scheduler" || c["tick"] != int64(1234) || c["at"] == nil {
 		t.Fatalf("context: %+v", c)
 	}
 }
@@ -76,47 +54,5 @@ func TestDecisionPayloadIsAlwaysFullShape(t *testing.T) {
 	}
 	if attrs, ok := p["attrs"].(map[string]any); !ok || len(attrs) != 0 {
 		t.Fatalf("attrs: %+v", p["attrs"])
-	}
-}
-
-// Every row, including one a producer wrote with no context, is a v2 row
-// with the envelope guarantees.
-func TestRecorderStampsV2Envelope(t *testing.T) {
-	path, recorder := newRecorder(t)
-	telemetry.ObserveTick(55)
-	if _, err := recorder.Event("native_request", nil, false, map[string]any{"tool": "x"}); err != nil {
-		t.Fatal(err)
-	}
-	rows, err := bridge.ReadTimeline(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	c := rows[len(rows)-1].Context
-	if c["level"] != "INFO" || c["component"] != "bridge" || c["tick"] != 55.0 || c["at"] == nil {
-		t.Fatalf("context: %+v", c)
-	}
-	if bridge.FlightSchemaVersion != 2 {
-		t.Fatalf("version %d", bridge.FlightSchemaVersion)
-	}
-}
-
-// Truncating an oversized decision row keeps the fixed keys that correlate it.
-func TestTruncationKeepsDecisionKeys(t *testing.T) {
-	path, recorder := newRecorder(t, bridge.FlightPayloadBytes(256))
-	logger := telemetry.New(recorder)
-	telemetry.Decision{
-		Kind: "planner_step", Component: "worker", Verdict: "waiting", Reason: "no_work", Target: "Fields",
-		Dur: time.Millisecond, Attrs: map[string]any{"big": strings.Repeat("x", 4096)},
-	}.LogTo(context.Background(), logger)
-	rows, err := bridge.ReadTimeline(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	row := rows[len(rows)-1]
-	if row.Payload["truncated"] != true || row.Payload["verdict"] != "waiting" || row.Payload["reason"] != "no_work" || row.Payload["target"] != "Fields" || row.Payload["dur_ms"] != 1.0 {
-		t.Fatalf("payload: %+v", row.Payload)
-	}
-	if row.Context["component"] != "worker" {
-		t.Fatalf("context: %+v", row.Context)
 	}
 }

@@ -35,7 +35,7 @@ While the stack is healthy the observability section shows one button per
 dashboard (`dashboardLinks` in [links.go](../../../go/cmd/launcher/links.go));
 `openLink` accepts only those exact URLs, the player guide and the Grafana root.
 While the stack is stopped it shows a one-line hint instead. The launcher no
-longer reads the flight recorder or the session store.
+longer reads the OTLP log ring or the session store.
 
 ## Controls
 
@@ -77,7 +77,7 @@ page selects it in Saved game. Generation and cancellation behavior are in
 
 ## Diagnostics
 
-The recorder defaults to `<profile>/flight/flight.jsonl`, a 16 × 32 MiB ring.
-Observe mode places its recorder beside the state path; `--flight-recorder`
-overrides the location. Acceptance readers use
-`bridge.TimelineReader`; see [flight rows](../contracts/flight-rows.md).
+The OTLP files default to `<profile>/otlp/` (`logs.jsonl` is a 16 × 32 MiB ring).
+Observe mode places them beside the state path; `--otlp-dir` overrides the
+location. Acceptance readers use `bridge.ReadOTLPTimeline`; see
+[OTEL signals](../contracts/otel-signals.md).

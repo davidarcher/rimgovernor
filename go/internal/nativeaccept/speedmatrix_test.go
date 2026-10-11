@@ -78,7 +78,6 @@ func TestSummarizeStops(t *testing.T) {
 		// The same page read again after a hold: cursor 7 counts once.
 		{Kind: "native_call", Sequence: 2, WallTime: 1000.900, Payload: page(budget, latched)},
 		{Kind: "native_call", Sequence: 3, WallTime: 1001, Payload: map[string]any{"native_tool": "rimgovernor/clock_read_status", "result": map[string]any{"payload": "{}"}}},
-		{Kind: "recording_gap"},
 	}
 	got := SummarizeStops(rows, 0)
 	if len(got.Latencies) != 2 || got.Latencies[0].Cursor != 7 || got.Latencies[1].Cursor != 8 || got.Latencies[0].ObserveMs != nil || got.Latencies[0].ReadmitMs != nil {

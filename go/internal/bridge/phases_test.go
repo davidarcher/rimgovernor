@@ -3,7 +3,6 @@ package bridge
 import (
 	"bytes"
 	"context"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -38,13 +37,8 @@ func TestPhaseTimingRecordedAndSummarized(t *testing.T) {
 		}
 		return &callResult{IsError: true}, nil
 	}}
-	path := filepath.Join(t.TempDir(), "timeline.jsonl")
-	rec, err := NewFlightRecorder(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { rec.Close() })
-	client, err := open(context.Background(), "fixture-game", time.Second, rec, nil, s.factory(t))
+	read := rowSink(t)
+	client, err := open(context.Background(), "fixture-game", time.Second, true, nil, s.factory(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,10 +52,7 @@ func TestPhaseTimingRecordedAndSummarized(t *testing.T) {
 	// receipt matters here, so the typed outcome is ignored.
 	_, _, _ = client.ReadClockStatus(context.Background(), pbIdentity())
 
-	rows, err := ReadTimeline(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	rows := read()
 	responses, decodes := 0, 0
 	for _, row := range rows {
 		switch row.Kind {
@@ -136,8 +127,8 @@ func TestPhaseTimingRecordedAndSummarized(t *testing.T) {
 	if identityDetail.ProtoDecodeMs != 0 {
 		t.Fatalf("describe round trip must not carry proto decode: %+v", identityDetail)
 	}
-	if summary.Untimed != 0 || summary.Gaps != 0 {
-		t.Fatalf("unexpected untimed/gaps: %+v", summary)
+	if summary.Untimed != 0 {
+		t.Fatalf("unexpected untimed:%+v", summary)
 	}
 	clock := summary.Clock
 	if clock.TickSamples != 4 || clock.TicksAdvanced != 3*600 || clock.WallSecs <= 0 || clock.WallTPS <= 0 || clock.Resets != 0 {
@@ -172,10 +163,9 @@ func TestPhaseTimingRecordedAndSummarized(t *testing.T) {
 	}
 }
 
-func TestSummarizePhasesHandlesLegacyRowsGapsAndResets(t *testing.T) {
+func TestSummarizePhasesHandlesUntimedRowsAndResets(t *testing.T) {
 	rows := []TimelineRecord{
 		{Kind: "coverage", WallTime: 10, Payload: map[string]any{}},
-		{Kind: "recording_gap", Reason: "Retention or sequence discontinuity"},
 		// Pre-timing row: counted, no phases.
 		{Kind: "native_call", WallTime: 11, Payload: map[string]any{"request": 1.0, "tool": "games_call_tool", "result": map[string]any{"payload": `{"loaded":{"context":{"tick":"500"}}}`}}},
 		{Kind: "native_call", WallTime: 12, Payload: map[string]any{"request": 2.0, "tool": "games_call_tool", "native_tool": "x/read", "timing": map[string]any{"gate_wait_ms": 1.0, "call_ms": 5.0, "decode_ms": 0.5, "total_ms": 7.0, "response_bytes": 100.0}, "result": map[string]any{"payload": `{"loaded":{"context":{"tick":"1100"}}}`}}},
@@ -184,7 +174,7 @@ func TestSummarizePhasesHandlesLegacyRowsGapsAndResets(t *testing.T) {
 		{Kind: "native_call", WallTime: 14, Payload: map[string]any{"tool": "games_start", "native_tool": "games_start", "ok": false, "error": "boom", "timing": map[string]any{"gate_wait_ms": 0.0, "call_ms": 2.0, "decode_ms": 0.0, "total_ms": 2.0, "response_bytes": 0.0}}},
 	}
 	summary := SummarizePhases(rows)
-	if summary.Records != 6 || summary.Gaps != 1 || summary.Untimed != 1 || summary.WallSecs != 4 {
+	if summary.Records != 5 || summary.Untimed != 1 || summary.WallSecs != 4 {
 		t.Fatalf("summary: %+v", summary)
 	}
 	if len(summary.Tools) != 3 || summary.Tools[0].NativeTool != "x/read" {
