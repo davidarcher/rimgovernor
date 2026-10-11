@@ -177,6 +177,7 @@ func meleeDoorTurn(view CombatView, memory *CombatMemory) {
 		memory.ChokeDoor = nil
 		return
 	}
+	openR := int64(memory.tuning().DoorOpenRange)
 	observed := states[index]
 	ready := memory.Tactic == TacticDoorChoke && !memory.Wait && !memory.Scattered
 	blockers := 0
@@ -204,7 +205,7 @@ func meleeDoorTurn(view CombatView, memory *CombatMemory) {
 	if !ok || !doorFactFalse(observed.Forbidden) {
 		ready = false
 	}
-	if !open && hostileDistance(view, door.Cell) <= doorOpenRange*doorOpenRange {
+	if !open && hostileDistance(view, door.Cell) <= openR*openR {
 		ready = false
 	}
 	mode := DoorClose
@@ -218,7 +219,7 @@ func meleeDoorTurn(view CombatView, memory *CombatMemory) {
 		door.Opener = ""
 		return
 	}
-	if hostileDistance(view, door.Cell) <= doorOpenRange*doorOpenRange {
+	if hostileDistance(view, door.Cell) <= openR*openR {
 		return
 	}
 	if door.Opener != "" {

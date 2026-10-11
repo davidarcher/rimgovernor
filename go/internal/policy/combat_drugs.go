@@ -64,7 +64,7 @@ func doseOrders(view CombatView, m *CombatMemory, orders []CombatOrder, orderabl
 		if !ok || slices.ContainsFunc(orders, func(o CombatOrder) bool { return o.Pawn == id }) || !orderable[id] || s.Dead || s.Downed || s.GoJuice || interruptsAim(s) || slices.Contains(m.Dosed, id) || m.Rescue.carrying(id) {
 			continue
 		}
-		if !slices.ContainsFunc(hostiles, func(h CombatPawnState) bool { return withinDose(s, h) }) {
+		if !slices.ContainsFunc(hostiles, func(h CombatPawnState) bool { return withinDose(s, h, m.tuning().DoseMargin) }) {
 			continue
 		}
 		carried, known := s.CarriedDrugs.Value()
@@ -89,12 +89,12 @@ func doseOrders(view CombatView, m *CombatMemory, orders []CombatOrder, orderabl
 
 // withinDose reports h within the defender's weapon range plus doseMargin;
 // an unknown cell counts as out of reach (a dose waits for the facts).
-func withinDose(d, h CombatPawnState) bool {
+func withinDose(d, h CombatPawnState, margin float64) bool {
 	if _, ok := d.Cell.Value(); !ok {
 		return false
 	}
 	if _, ok := h.Cell.Value(); !ok {
 		return false
 	}
-	return inRange(d.Cell, max(d.WeaponRange, 1)+doseMargin, h)
+	return inRange(d.Cell, max(d.WeaponRange, 1)+margin, h)
 }

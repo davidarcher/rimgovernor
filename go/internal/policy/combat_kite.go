@@ -74,7 +74,7 @@ func kite(view CombatView, m *CombatMemory) {
 	near := int64(-1)
 	for _, h := range ranked {
 		c, ok := h.Cell.Value()
-		if h.Target == m.Kiter || ok && known && distance2(c, at) <= kiteLeadRange*kiteLeadRange {
+		if h.Target == m.Kiter || ok && known && distance2(c, at) <= int64(m.tuning().KiteLeadRange)*int64(m.tuning().KiteLeadRange) {
 			m.Leading = true
 		}
 		if ok && known && (near < 0 || distance2(c, at) < near) {
@@ -115,7 +115,7 @@ func kiteLead(view CombatView, m CombatMemory) (domain.Cell, float64, bool) {
 	if !ok {
 		return domain.Cell{}, 0, false
 	}
-	fastest, ratio := 0.0, kiteSpeedRatio
+	fastest, ratio := 0.0, m.tuning().KiteSpeedRatio
 	for _, h := range rankThreats(view) {
 		if h.MoveSpeed <= 0 {
 			return domain.Cell{}, 0, false
@@ -145,7 +145,7 @@ func mechKiteLead(view CombatView, m CombatMemory) (domain.Cell, float64, bool) 
 		}
 		fastest = max(fastest, h.MoveSpeed)
 	}
-	need := kiteSpeedRatio * fastest
+	need := m.tuning().KiteSpeedRatio * fastest
 	if m.Tactic == TacticHold {
 		lure, ok := rearmostRetreat(view)
 		return lure, need, ok

@@ -48,7 +48,7 @@ type raidGroup struct {
 // raidGroups clusters the live hostiles with known cells, single-link at
 // groupGap, keeping clusters of groupMinHostiles or more, in id order of
 // their first member.
-func raidGroups(view CombatView) []raidGroup {
+func raidGroups(view CombatView, t CombatTuning) []raidGroup {
 	var hs []CombatPawnState
 	for _, h := range rankThreats(view) {
 		if _, ok := h.Cell.Value(); ok {
@@ -78,7 +78,7 @@ func raidGroups(view CombatView) []raidGroup {
 		for j := i + 1; j < len(hs); j++ {
 			a, _ := hs[i].Cell.Value()
 			b, _ := hs[j].Cell.Value()
-			if within(a, b, groupGap) {
+			if within(a, b, int32(t.GroupGap)) {
 				ri, rj := find(i), find(j)
 				group[max(ri, rj)] = min(ri, rj)
 			}
@@ -133,7 +133,7 @@ func groupHome(view CombatView) (home, choke domain.Cell, ok bool) {
 // that no squad answers yet; nil unless the raid is split.
 func sideGroups(view CombatView, m CombatMemory) []raidGroup {
 	_, choke, ok := groupHome(view)
-	groups := raidGroups(view)
+	groups := raidGroups(view, m.tuning())
 	if !ok || len(groups) < 2 {
 		return nil
 	}
@@ -200,7 +200,7 @@ func groupDetach(view CombatView, geometry GeometryReply, m *CombatMemory) {
 	s := CombatGroup{Hostiles: g.hostiles, Centroid: g.centroid}
 	defer func() { m.Groups = append(m.Groups, s) }()
 	total := 0
-	for _, rg := range raidGroups(view) {
+	for _, rg := range raidGroups(view, m.tuning()) {
 		total += len(rg.hostiles)
 	}
 	gunners := groupGunners(*m)

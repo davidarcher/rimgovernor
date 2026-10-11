@@ -195,7 +195,7 @@ func drillEvacuate(view CombatView, m *CombatMemory, orderable map[domain.PawnID
 		if near == nil {
 			return
 		}
-		to = domain.Cell{X: at.X + kiteLeadRange*sign(at.X-near.X), Z: at.Z + kiteLeadRange*sign(at.Z-near.Z)}
+		to = domain.Cell{X: at.X + int32(m.tuning().KiteLeadRange)*sign(at.X-near.X), Z: at.Z + int32(m.tuning().KiteLeadRange)*sign(at.Z-near.Z)}
 	}
 	if m.Kiter == m.Driller {
 		m.Kiter, m.Leading = "", false

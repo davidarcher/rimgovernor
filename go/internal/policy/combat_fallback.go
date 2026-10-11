@@ -78,7 +78,7 @@ func scatter(view CombatView, m *CombatMemory) {
 		if l == 0 {
 			dx, dz, l = 0, 1, 1
 		}
-		c := domain.Cell{X: max(0, from.X+int32(math.Round(dx/l*scatterCells))), Z: max(0, from.Z+int32(math.Round(dz/l*scatterCells)))}
+		c := domain.Cell{X: max(0, from.X+int32(math.Round(dx/l*float64(m.tuning().ScatterCells)))), Z: max(0, from.Z+int32(math.Round(dz/l*float64(m.tuning().ScatterCells))))}
 		r.Cell, r.Retreat = &c, true
 	}
 	m.Kiter, m.Leading, m.PotshotDoor = "", false, nil

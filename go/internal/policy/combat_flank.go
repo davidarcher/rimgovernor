@@ -52,8 +52,8 @@ func (f *CombatFlank) waiting(pawn domain.PawnID) bool {
 // flankGunners are the hold's gunners the detachment takes: the last
 // flankSize ranged line roles in pawn order, or nil when the hold is under
 // flankMinDefenders or would keep fewer than flankSize on the line.
-func flankGunners(roles []CombatRole) []domain.PawnID {
-	if len(roles) < flankMinDefenders {
+func flankGunners(roles []CombatRole, t CombatTuning) []domain.PawnID {
+	if len(roles) < t.FlankMinDefenders {
 		return nil
 	}
 	var gunners []domain.PawnID
@@ -62,15 +62,15 @@ func flankGunners(roles []CombatRole) []domain.PawnID {
 			gunners = append(gunners, r.Pawn)
 		}
 	}
-	if len(gunners) < 2*flankSize {
+	if len(gunners) < 2*t.FlankSize {
 		return nil
 	}
-	return gunners[len(gunners)-flankSize:]
+	return gunners[len(gunners)-t.FlankSize:]
 }
 
 // flankAnchor is the firing_cells ask's from cell beside the approach, and
 // the choke the flankers need a line to.
-func flankAnchor(view CombatView) (domain.Cell, domain.Cell, bool) {
+func flankAnchor(view CombatView, t CombatTuning) (domain.Cell, domain.Cell, bool) {
 	layout, ok := view.Layout.Value()
 	if !ok {
 		return domain.Cell{}, domain.Cell{}, false
@@ -82,7 +82,7 @@ func flankAnchor(view CombatView) (domain.Cell, domain.Cell, bool) {
 	}
 	side := domain.Cell{X: v.Z, Z: -v.X}
 	for _, s := range []int32{1, -1} {
-		a := domain.Cell{X: choke.X + s*flankLateral*side.X + flankDepth*v.X, Z: choke.Z + s*flankLateral*side.Z + flankDepth*v.Z}
+		a := domain.Cell{X: choke.X + s*int32(t.FlankLateral)*side.X + flankDepth*v.X, Z: choke.Z + s*int32(t.FlankLateral)*side.Z + flankDepth*v.Z}
 		if a.X >= 0 && a.Z >= 0 {
 			return a, choke, true
 		}
@@ -94,10 +94,10 @@ func flankAnchor(view CombatView) (domain.Cell, domain.Cell, bool) {
 // gunners and a choke, not flanking yet. It names the shooters and the
 // top hostiles too, so the stop's attacks still get their lines.
 func flankAsk(view CombatView, m CombatMemory) *GeometryRequest {
-	if m.Tactic != TacticHold || m.Flank != nil || m.MechLure || len(flankGunners(m.Roles)) == 0 {
+	if m.Tactic != TacticHold || m.Flank != nil || m.MechLure || len(flankGunners(m.Roles, m.tuning())) == 0 {
 		return nil
 	}
-	from, choke, ok := flankAnchor(view)
+	from, choke, ok := flankAnchor(view, m.tuning())
 	if !ok {
 		return nil
 	}
@@ -124,8 +124,8 @@ func firingCellsAsk(view CombatView, from, target domain.Cell) *GeometryRequest 
 // the line and every other role's cell, for the flank gunners.
 func flankDetach(view CombatView, geometry GeometryReply, m *CombatMemory) {
 	m.Flank = &CombatFlank{}
-	from, _, ok := flankAnchor(view)
-	gunners := flankGunners(m.Roles)
+	from, _, ok := flankAnchor(view, m.tuning())
+	gunners := flankGunners(m.Roles, m.tuning())
 	if !ok || len(gunners) == 0 {
 		return
 	}

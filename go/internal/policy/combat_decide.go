@@ -691,6 +691,9 @@ type CombatMemory struct {
 	EMPAdapted []EMPAdaptation `json:",omitempty"`
 	// Burn is an infestation's burn-out.
 	Burn *CombatBurn `json:",omitempty"`
+	// Tuning overrides the curated combat constants for this fight (a search
+	// trial); nil is DefaultCombatTuning. It is cloned with the memory.
+	Tuning *CombatTuning `json:",omitempty"`
 }
 
 // RefuseShell is Forget for a mortar order native refused for its shell:
@@ -808,6 +811,10 @@ func (m CombatMemory) clone() CombatMemory {
 	m.Permitted = slices.Clone(m.Permitted)
 	m.Casts = slices.Clone(m.Casts)
 	m.Flank = m.Flank.clone()
+	if m.Tuning != nil {
+		t := *m.Tuning
+		m.Tuning = &t
+	}
 	m.Groups = slices.Clone(m.Groups)
 	for i := range m.Groups {
 		g := &m.Groups[i]

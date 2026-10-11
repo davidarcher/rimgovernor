@@ -28,7 +28,7 @@ func sapperRush(view CombatView, stop StopEvent, m *CombatMemory) {
 	if nearest == "" {
 		return
 	}
-	if near <= rushRange*rushRange || stop.Kind == StopBreach {
+	if near <= int64(m.tuning().RushRange)*int64(m.tuning().RushRange) || stop.Kind == StopBreach {
 		m.Rushing = true
 	}
 	if !m.Rushing {

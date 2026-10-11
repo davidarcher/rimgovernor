@@ -39,7 +39,7 @@ func doorPotshot(view CombatView, formed bool, m *CombatMemory) {
 		return
 	}
 	if formed {
-		m.PotshotDoor = potshotDoor(view, m.Roles)
+		m.PotshotDoor = potshotDoor(view, m.Roles, m.tuning().DoorGunners)
 	}
 	door := m.PotshotDoor
 	if door == nil {
@@ -54,19 +54,21 @@ func doorPotshot(view CombatView, formed bool, m *CombatMemory) {
 		}
 		return
 	}
+	t := m.tuning()
+	closeR, openR := int64(t.DoorCloseRange), int64(t.DoorOpenRange)
 	near := hostileDistance(view, door.Cell)
 	mode := door.Mode
 	switch {
-	case near <= doorCloseRange*doorCloseRange:
+	case near <= closeR*closeR:
 		mode = DoorClose
-	case near > doorOpenRange*doorOpenRange:
+	case near > openR*openR:
 		mode = DoorHoldOpen
 	}
 	if mode != door.Mode {
 		door.Mode, door.Sent = mode, false
 	}
 	door.Repairer = ""
-	if near > doorOpenRange*doorOpenRange && slices.Contains(view.DamagedDoors, door.Cell) {
+	if near > openR*openR && slices.Contains(view.DamagedDoors, door.Cell) {
 		door.Repairer = doorRepairer(view, m.Roles, door.Cell)
 	}
 	if door.Mode == DoorClose {
@@ -123,7 +125,7 @@ func doorRepairer(view CombatView, roles []CombatRole, door domain.Cell) domain.
 
 // potshotDoor picks the door and posts the door gunners, or nil: a
 // formation with blockers, no planned door, or no gunner has none.
-func potshotDoor(view CombatView, roles []CombatRole) *PodDoor {
+func potshotDoor(view CombatView, roles []CombatRole, gunnerCount int) *PodDoor {
 	if slices.ContainsFunc(roles, func(r CombatRole) bool { return r.Duty == DutyBlocker }) {
 		return nil
 	}
@@ -170,7 +172,7 @@ func potshotDoor(view CombatView, roles []CombatRole) *PodDoor {
 		}
 		return distance2(ca, door) < distance2(cb, door)
 	})
-	n := min(doorGunners, len(cells), len(gunners))
+	n := min(gunnerCount, len(cells), len(gunners))
 	if n == 0 {
 		return nil
 	}
