@@ -135,6 +135,15 @@ func workPawnRow(row *o.PawnState) policy.WorkPawn {
 		if s.EatTrigger != nil {
 			w.EatTrigger = domain.Known(float64(s.GetEatTrigger()))
 		}
+		if b := s.Body; b != nil && !hasIssue(s.Issues, "body") {
+			w.Body = domain.Known(policy.PawnBody{
+				ComfortableMinC: optional(b.ComfortableMinC), ComfortableMaxC: optional(b.ComfortableMaxC),
+				MoveSpeed: optional(b.MoveSpeed), CarryCapacity: optional(b.CarryCapacity), ToxicResistance: optional(b.ToxicEnvironmentResistance),
+				CellTemperatureC: optional(b.CellTemperatureC),
+				Hypothermia:      optional(b.Hypothermia), Heatstroke: optional(b.Heatstroke), Frostbite: optional(b.Frostbite), ToxicBuildup: optional(b.ToxicBuildup),
+				Moving: optional(b.Moving), Manipulation: optional(b.Manipulation), Consciousness: optional(b.Consciousness),
+			})
+		}
 		if s.MedicalCare != nil && !hasIssue(s.Issues, "medical_care") {
 			w.MedicalCare = domain.Known(bridge.MedicalCareName(s.GetMedicalCare()))
 		}

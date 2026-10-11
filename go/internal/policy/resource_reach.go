@@ -19,10 +19,16 @@ const (
 // readiness never widens reach. FreeHaulers counts available hauling workers;
 // StorageHeadroom counts free item units accepting the resource being considered.
 type ResourceReachRequest struct {
-	Extent                              domain.Fact[ColonyExtent]
-	Bounds                              domain.Fact[Bounds]
-	Threat                              domain.Fact[bool]
-	Hazard                              domain.Fact[[]OutdoorHazard]
+	Extent domain.Fact[ColonyExtent]
+	Bounds domain.Fact[Bounds]
+	Threat domain.Fact[bool]
+	Hazard domain.Fact[[]OutdoorHazard]
+	// DashOpen: a planned dash window is open (DashWindow.OpenAt), which
+	// lifts the extreme cold hold only.
+	DashOpen bool
+	// Colonists is the colony's colonist count: the armed floor is the
+	// lesser of two and the colonists, so a solo colony is not denied.
+	Colonists                           domain.Fact[int64]
 	RaidPoints                          domain.Fact[float64]
 	Armed, FreeHaulers, StorageHeadroom domain.Fact[int64]
 	StorytellerQuiet                    domain.Fact[bool]
@@ -47,7 +53,7 @@ func ResourceReach(r ResourceReachRequest) ResourceReachDecision {
 	if tk && threat {
 		return base("threat_present")
 	}
-	if OutdoorHazardHeld(r.Hazard) {
+	if OutdoorHazardHeldDash(r.Hazard, r.DashOpen) {
 		return base(RemoteHoldHazard)
 	}
 	if _, ek := r.Extent.Value(); !ek {
@@ -64,7 +70,7 @@ func ResourceReach(r ResourceReachRequest) ResourceReachDecision {
 	if !ak {
 		return base("armed_unknown")
 	}
-	if armed < 2 {
+	if armed < armedFloor(r.Colonists) {
 		return base("insufficient_defense")
 	}
 	points, pk := r.RaidPoints.Value()
@@ -109,6 +115,15 @@ func ResourceReach(r ResourceReachRequest) ResourceReachDecision {
 		return ResourceReachDecision{ResourceReachFar, "ready_far"}
 	}
 	return ResourceReachDecision{ResourceReachMap, "ready_map"}
+}
+
+// armedFloor is the armed colonists near work needs: two, or every colonist
+// of a colony smaller than that. An unknown count keeps two.
+func armedFloor(colonists domain.Fact[int64]) int64 {
+	if n, known := colonists.Value(); known && n >= 1 {
+		return min(2, n)
+	}
+	return 2
 }
 
 // ResourceReachCandidate is the narrow boundary for an eligibility view.

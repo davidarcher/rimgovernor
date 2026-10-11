@@ -55,6 +55,22 @@ func OutdoorHazardHeld(h domain.Fact[[]OutdoorHazard]) bool {
 	return known && len(hazards) > 0
 }
 
+// OutdoorHazardHeldDash is OutdoorHazardHeld with an open dash window: the
+// window lifts extreme cold only; heat, fallout and any unrecognised kind
+// still hold.
+func OutdoorHazardHeldDash(h domain.Fact[[]OutdoorHazard], dashOpen bool) bool {
+	hazards, known := h.Value()
+	if !known {
+		return false
+	}
+	for _, hazard := range hazards {
+		if !dashOpen || hazard.Kind != HazardExtremeCold {
+			return true
+		}
+	}
+	return false
+}
+
 // OutdoorAcquisitionHeld is the chop, hunt and forage gate: the same hold
 // the remote requests apply, read from the review facts.
 func OutdoorAcquisitionHeld(f RoundsFacts) bool { return OutdoorHazardHeld(OutdoorHazardsOf(f)) }

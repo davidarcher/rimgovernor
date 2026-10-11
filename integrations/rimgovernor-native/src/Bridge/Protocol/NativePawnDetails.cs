@@ -104,7 +104,7 @@ namespace HomeBridge.BridgeTools
                 // flags, master, allowed area) that home/pawn_config's own
                 // PawnSettingsRead.SettingsBlock reports instead.
                 if(d.Settings) CarePolicy(pawn,row.Settings);
-                if(d.Work) { Work(pawn,row.Settings); AllowedArea(pawn,row.Settings); row.Settings.FoodRestriction=NativeFoodPolicy.Read(pawn); row.Settings.PolicyInputs=NativePolicyFacts.Inputs(pawn); if(pawn.RaceProps.Humanlike && pawn.needs?.food!=null && pawn.Faction==Faction.OfPlayerSilentFail) row.Settings.EatTrigger=EatTriggerGuard.Effective(pawn); }
+                if(d.Work) { Work(pawn,row.Settings); AllowedArea(pawn,row.Settings); row.Settings.FoodRestriction=NativeFoodPolicy.Read(pawn); row.Settings.PolicyInputs=NativePolicyFacts.Inputs(pawn); if(pawn.RaceProps.Humanlike && pawn.needs?.food!=null && pawn.Faction==Faction.OfPlayerSilentFail) row.Settings.EatTrigger=EatTriggerGuard.Effective(pawn); BodyStats(pawn,row.Settings); }
                 if(d.Schedule) Schedule(pawn,row.Settings);
             } else row.Issues.Add(Skipped("settings"));
             if(d.Social) row.Social=Social(pawn,colonists);
@@ -526,6 +526,41 @@ namespace HomeBridge.BridgeTools
             if(pawn.workSettings?.Initialized!=true || !row.WorkApplies) { row.Issues.Add(Missing("work"));return; }
             var defs=DefDatabase<WorkTypeDef>.AllDefsListForReading;
             foreach(var def in defs) row.Work.Add(new Obs.WorkSetting {DefName=Id(def.defName),Priority=pawn.workSettings.GetPriority(def),Disabled=pawn.WorkTypeIsDisabled(def)});
+        }
+
+        // The body stats the outdoor dash planner reads under d.Work: the
+        // game's own stat and hediff values. A failed read leaves the whole
+        // block absent and adds a body issue, never zeros.
+        private static void BodyStats(Pawn pawn,Obs.PawnSettings row)
+        {
+            try {
+                var body=new Obs.PawnBodyStats {
+                    ComfortableMinC=Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)),
+                    ComfortableMaxC=Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)),
+                    MoveSpeed=Number(pawn.GetStatValue(StatDefOf.MoveSpeed)),
+                    CarryCapacity=Number(MassUtility.Capacity(pawn)),
+                    ToxicEnvironmentResistance=Number(pawn.GetStatValue(StatDefOf.ToxicEnvironmentResistance)),
+                    Hypothermia=Severity(pawn,"Hypothermia"), Heatstroke=Severity(pawn,"Heatstroke"),
+                    Frostbite=Severity(pawn,"Frostbite"), ToxicBuildup=Severity(pawn,"ToxicBuildup") };
+                if(pawn.Spawned) body.CellTemperatureC=Number(pawn.AmbientTemperature);
+                var capacities=pawn.health.capacities;
+                body.Moving=Number(capacities.GetLevel(PawnCapacityDefOf.Moving));
+                body.Manipulation=Number(capacities.GetLevel(PawnCapacityDefOf.Manipulation));
+                body.Consciousness=Number(capacities.GetLevel(PawnCapacityDefOf.Consciousness));
+                row.Body=body;
+            } catch(InvalidOperationException) {
+                row.Issues.Add(Missing("body"));
+            }
+        }
+
+        // The highest severity among the pawn's hediffs of one def, 0 when it has none.
+        private static double Severity(Pawn pawn,string defName)
+        {
+            var def=DefDatabase<HediffDef>.GetNamedSilentFail(defName);
+            if(def==null) return 0;
+            var best=0.0;
+            foreach(var h in pawn.health.hediffSet.hediffs) if(h.def==def) best=Math.Max(best,h.Severity);
+            return Number(best);
         }
 
         // Projects the pawn's current allowed-area restriction under d.Work

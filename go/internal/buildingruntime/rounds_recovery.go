@@ -110,6 +110,7 @@ func (r *RoundsRecoveryPlanner) step(call, epoch context.Context, arbiter *stepA
 	seeds, _ := facts.DangerSeeds.Value()
 	facts.DangerWindow = r.reviewer.safeArea.dangerWindow(stockpileWorld(state.Snapshot), facts.Hostiles, seeds, expected.Tick)
 	facts.DangerHaulers = policy.DangerHaulers(read.Projection.WorkPawns)
+	facts.Tick, facts.Dash = expected.Tick, domain.Known(review.Latches.Dash)
 	world := store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}
 	if facts.ShelterCombatants, err = shelterCombatants(call, p.journal, world); err != nil {
 		return RoundsRecoveryResult{}, err

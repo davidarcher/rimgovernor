@@ -38,7 +38,7 @@ func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 	allowed := &o.PawnSettings{Issues: s.Issues}
 	if work {
 		allowed.FoodRestriction = s.FoodRestriction
-		allowed.PolicyInputs, allowed.EatTrigger = s.PolicyInputs, s.EatTrigger
+		allowed.PolicyInputs, allowed.EatTrigger, allowed.Body = s.PolicyInputs, s.EatTrigger, s.Body
 		allowed.Work, allowed.WorkApplies, allowed.ManualWorkPriorities, allowed.AllowedAreaId = s.Work, s.WorkApplies, s.ManualWorkPriorities, s.AllowedAreaId
 	}
 	if care {
@@ -49,6 +49,9 @@ func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 	}
 	if !proto.Equal(s, allowed) || len(s.Schedule) > 24 {
 		return contract("unrequested settings detail")
+	}
+	if err := validateBodyStats(s.Body); err != nil {
+		return err
 	}
 	if err := validatePolicyInputs(s.PolicyInputs); err != nil {
 		return err

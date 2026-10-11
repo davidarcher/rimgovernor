@@ -68,6 +68,7 @@ func InspectImmediateRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolic
 	}
 	c := &roundsRun{f: f, p: p, previous: previous, l: previous, r: RoundsFindings{Latches: previous, Disaster: f.Disaster}, upkeep: UpkeepReview{Needs: []UpkeepNeed{fire}}}
 	c.r.Latches.Upkeep.Fire = fire.Active
+	c.r.Latches.Dash = dashLatch(f.Dash)
 	for _, d := range inspections {
 		if !ImmediateConcern(d.Concern) {
 			continue

@@ -352,6 +352,28 @@ message PawnSettings {
   // 0.30 vanilla when no override), read with work detail. Absent when the
   // pawn has none (not a humanlike colony pawn with a food need).
   optional float eat_trigger = 21;
+  // Body stats for outdoor dash planning and nearby hazard planners, read
+  // with work detail.
+  PawnBodyStats body = 22;
+}
+// The pawn's body stats the outdoor dash planner and nearby hazard planners
+// read: native values at the read tick (the game's own stat and hediff
+// evaluation, never derived in Go). A scalar is absent when native could not
+// read it (unknown, not zero). comfortable_min_c and comfortable_max_c are
+// StatDefOf.ComfyTemperatureMin/Max (degrees C, apparel included);
+// move_speed is StatDefOf.MoveSpeed in cells per second, with the current
+// Moving capacity; carry_capacity is MassCarryCapacity in kg;
+// toxic_environment_resistance is StatDefOf.ToxicEnvironmentResistance (0-1).
+// cell_temperature_c is the temperature at the pawn's cell. hypothermia,
+// heatstroke, frostbite (highest part) and toxic_buildup are hediff
+// severities, 0 when the pawn has none. moving, manipulation and
+// consciousness are PawnCapacityDefOf levels (1 = full).
+message PawnBodyStats {
+  optional double comfortable_min_c = 1; optional double comfortable_max_c = 2;
+  optional double move_speed = 3; optional double carry_capacity = 4; optional double toxic_environment_resistance = 5;
+  optional double cell_temperature_c = 6;
+  optional double hypothermia = 7; optional double heatstroke = 8; optional double frostbite = 9; optional double toxic_buildup = 10;
+  optional double moving = 11; optional double manipulation = 12; optional double consciousness = 13;
 }
 // The inputs per-pawn outfit/drug/food/reading planners compose from.
 // Traits, mood and break thresholds (biography, needs) and animal

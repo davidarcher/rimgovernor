@@ -96,6 +96,7 @@ func (r *Rounder) immediateStep(ctx, epoch context.Context) (result store.Rounds
 	seeds, _ := f.DangerSeeds.Value()
 	f.DangerWindow = r.safeArea.dangerWindow(stockpileWorld(state.Snapshot), f.Hostiles, seeds, expected.Tick)
 	f.DangerHaulers = policy.DangerHaulers(reading.Projection.WorkPawns)
+	f.Tick, f.Dash = expected.Tick, policy.ReviewDash(previous.Latches.Dash, *f, reading.Projection.WorkPawns, expected.Tick, policy.PublishedHypothermiaTuning)
 	needed, err := plannedDrafts(ctx, p.journal)
 	if err != nil {
 		return result, err

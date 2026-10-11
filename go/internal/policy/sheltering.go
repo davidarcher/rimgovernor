@@ -171,7 +171,9 @@ func ShelterTriggerOf(f RoundsFacts) (ShelterTrigger, bool) {
 // are moved into the Safe area. Once every trigger is known clear, pawns
 // still restricted to the Safe area go back to unrestricted. Haulers not
 // sheltered are kept to the NoDanger area while DangerWindow holds, and go
-// back to unrestricted once it is known closed; other areas are left to
+// back to unrestricted once it is known closed; the colonist named by an open
+// dash window (DashOpenFor) is let out of Safe while the trigger is cold
+// alone, and sheltered again at the window's bound; other areas are left to
 // their own planners. It keeps no history: the same facts give the
 // same moves after a restart or reload.
 func PlanSheltering(f RoundsFacts) []AllowedAreaChange {
@@ -197,8 +199,12 @@ func PlanSheltering(f RoundsFacts) []AllowedAreaChange {
 			}
 		}
 	}
+	hostiles, hostilesKnown := f.Hostiles.Value()
+	calm := hostilesKnown && hostiles == 0
 	var changes []AllowedAreaChange
 	add := func(id PawnID, animal, shelter bool, current domain.Fact[string]) {
+		dash := !animal && trigger == ShelterTemperature && calm && f.DashOpenFor(id)
+		shelter = shelter && !dash
 		area, known := current.Value()
 		if !known {
 			return
@@ -213,7 +219,9 @@ func PlanSheltering(f RoundsFacts) []AllowedAreaChange {
 			// cooldown.
 			to, move = noKill, area != noKill
 		case safe != "" && area == safe:
-			move = trigger == ShelterNone
+			// An open dash window lets the named pawn out of Safe for the
+			// cold only.
+			move = trigger == ShelterNone || dash
 		case noKill != "" && area == noKill:
 			move = windowKnown && (!window || hk && !hauler)
 		}

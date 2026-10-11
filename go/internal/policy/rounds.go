@@ -228,7 +228,13 @@ type RoundsFacts struct {
 	RecoveryBuildings domain.Fact[[]RecoveryBuilding]
 	Disaster          *DisasterHistory
 	DisasterTick      domain.Tick
-	MoodPawns         domain.Fact[[]MoodPawn]
+	// Tick is the game tick the facts were assembled at, which Dash is
+	// judged against; zero where no dash is planned.
+	Tick domain.Tick `json:",omitzero"`
+	// Dash is the planned outdoor dash window through extreme cold (#2765);
+	// unknown or zero is closed.
+	Dash      domain.Fact[DashWindow]
+	MoodPawns domain.Fact[[]MoodPawn]
 	// MoodLedger is where the colony loses mood, built each review from the
 	// mood census and the catalog thought facts; unknown with the census.
 	MoodLedger          domain.Fact[MoodLedger]
@@ -684,6 +690,9 @@ type RoundsLatches struct {
 	Routes                []string
 	Food, Cold, Hot, Wood bool
 	Upkeep                UpkeepHistory
+	// Dash is the planned outdoor dash window (#2765), held until its bound;
+	// zero when none is open.
+	Dash DashWindow `json:",omitzero"`
 	// Soldiers latches once the gear census derives a soldier role: the
 	// research roadmap then walks the armor ladder (ArmorResearchLadder ) and keeps walking it when the squad is later undrafted.
 	Soldiers bool `json:",omitempty"`
@@ -906,6 +915,7 @@ func InspectRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolicy) (Round
 		Flooring:       c.flooring.Latched,
 		Routes:         c.routes.Latched,
 		Upkeep:         c.upkeep.History,
+		Dash:           dashLatch(f.Dash),
 		Food:           latchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
 		Cold:           latchValue(previous.Cold, fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
 		Hot:            latchValue(previous.Hot, fallback(f.SleepingMax, f.OutdoorTemperature), p.HotEnter, p.HotExit, true),

@@ -71,7 +71,10 @@ type RecoveryRequest struct {
 	Center  domain.Cell
 	Threat  domain.Fact[bool]
 	Hazard  domain.Fact[[]OutdoorHazard]
-	Urgent  domain.Fact[bool]
+	// DashOpen: a planned dash window is open, which lifts the extreme
+	// cold hold (and only that hazard).
+	DashOpen bool
+	Urgent   domain.Fact[bool]
 }
 
 // RecoveryEntry is one ranked thing as journaled.
@@ -126,7 +129,7 @@ func recoveryHold(t RecoveryThing, r RecoveryRequest) string {
 	if threat, known := r.Threat.Value(); known && threat {
 		return RemoteHoldThreat
 	}
-	if OutdoorHazardHeld(r.Hazard) {
+	if OutdoorHazardHeldDash(r.Hazard, r.DashOpen) {
 		return RemoteHoldHazard
 	}
 	switch {
@@ -324,7 +327,7 @@ func ReviewRecoveryRequest(p RoundsPolicy, f RoundsFacts, rows []ClearanceTarget
 	if hostiles, known := f.Hostiles.Value(); known {
 		r.Threat = domain.Known(hostiles > 0)
 	}
-	r.Hazard = OutdoorHazardsOf(f)
+	r.Hazard, r.DashOpen = OutdoorHazardsOf(f), f.DashOpen()
 	if e, known := extent.Value(); known {
 		var sx, sz, n int64
 		for _, region := range e.Regions {

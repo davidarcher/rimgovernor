@@ -588,6 +588,8 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	seeds, _ := reading.Projection.Facts.DangerSeeds.Value()
 	reading.Projection.Facts.DangerWindow = r.safeArea.dangerWindow(stockpileWorld(state.Snapshot), reading.Projection.Facts.Hostiles, seeds, expected.Tick)
 	reading.Projection.Facts.DangerHaulers = policy.DangerHaulers(reading.Projection.WorkPawns)
+	reading.Projection.Facts.Tick = expected.Tick
+	reading.Projection.Facts.Dash = policy.ReviewDash(previous.Latches.Dash, reading.Projection.Facts, reading.Projection.WorkPawns, expected.Tick, policy.PublishedHypothermiaTuning)
 	reading.Projection.Facts.UrgentPatients = policy.UrgentPatients(emergency, state.Snapshot, expected.Tick)
 	reading.Projection.Facts.CriticalPatients, reading.Projection.Facts.UrgentPatients = policy.AmputationNeeds(emergency, reading.Projection.Facts.MedicalPawns, reading.Projection.Facts.CriticalPatients, reading.Projection.Facts.UrgentPatients)
 	// RestoreWorkers stands while a drafted colonist no live plan needs

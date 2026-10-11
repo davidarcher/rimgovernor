@@ -199,6 +199,22 @@ not an executor.
   fact (`OutdoorHazardsOf`); any known hazard, including an unrecognised kind, holds remote loot, salvage and
   mining, recovery, and chop, hunt and forage acquisition with reason `outdoor_hazard`. An unknown fact never
   holds. Field expansion is not gated.
+  Planned dashes (#2765): while extreme cold is the only hazard and no hostile is up, `policy.PlanDash`
+  picks one colonist's trips from the loot census, ordered by market value per exposed tick, each an
+  out-and-back leg plus a pickup dwell, walked at the pawn's real move speed slowed by the hypothermia
+  stages it crosses, and cut where hypothermia would reach `DashSeverityCap` (0.35, the serious floor) by the
+  last return (the formula of `OutdoorBudgetFor`; trips counted from home with no rest between). The result
+  is `RoundsFacts.Dash` (`DashWindow`: the pawn, trips and `Until`), planned once by `policy.ReviewDash` and
+  held in `RoundsLatches.Dash` until `Until` (re-planning from the severity built up out in the cold would
+  close the window under a pawn partway out). At `Until` the review closes it for one review, so the pawn is
+  recalled before a new window can plan; the recovery step reads the persisted latch. `DashWindow.OpenAt(tick)`
+  is the only close rule: open before `Until`, closed from it. `DashMarginIntervals` of growth stay under the cap. While open it lifts the extreme-cold hold (and only that) in `ResourceReach`,
+  `recoveryHold` and `remoteThreatHold`, and `PlanSheltering` lets the named pawn out of Safe; at the bound
+  it shelters the pawn again. Heat, fallout and unrecognised kinds stay held. The per-colonist inputs
+  (comfortable temperature range, move speed, hypothermia and other severities, capacities) are the native
+  `PawnSettings.body` block, read with work detail (`WorkPawn.Body`). `ResourceReach` requires
+  `min(2, colonists)` armed colonists (`ResourceReachRequest.Colonists`), so a solo colony with one armed
+  colonist is not denied reach.
 
 ### Shared compilation
 
