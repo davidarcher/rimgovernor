@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge/cellgrid"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -38,6 +39,30 @@ type gridHold struct {
 type frameGrid struct {
 	context *c.ObservationContext
 	grid    *cellgrid.Grid
+	windows *windowMemo
+}
+
+// windowMemo is the last window read from one frame's grid. A grid never
+// changes once decoded, so its window over a rect is the same every time the
+// planners ask in the frame, and a frame is asked tens of times: the memo
+// builds it once. The slice is shared, as the facts store already shares it
+// across a step's planners; no reader modifies it.
+type windowMemo struct {
+	mu     sync.Mutex
+	rect   policy.Rectangle
+	built  bool
+	cells  []policy.SiteCell
+	fogged uint64
+}
+
+func (m *windowMemo) window(g *cellgrid.Grid, rect policy.Rectangle) ([]policy.SiteCell, uint64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.built || m.rect != rect {
+		m.cells, m.fogged = g.Window(rect)
+		m.rect, m.built = rect, true
+	}
+	return m.cells, m.fogged
 }
 
 // apply decodes v's grid against the hold: the map as of v, or nil when v
@@ -86,6 +111,6 @@ func (client *Client) frameWindow(ctx context.Context, identity *c.Identity, rec
 	if held.grid == nil || !sameIdentity(held.context.GetIdentity(), identity) {
 		return PlanningWindow{}, fmt.Errorf("%w: no snapshot frame grid for this world", ErrUnavailable)
 	}
-	cells, fogged := held.grid.Window(rect)
+	cells, fogged := held.windows.window(held.grid, rect)
 	return PlanningWindow{Context: held.context, Region: rect, Cells: cells, Filtered: fogged}, nil
 }

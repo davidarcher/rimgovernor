@@ -270,3 +270,36 @@ func TestFrameGridMatchesTheBand(t *testing.T) {
 	ring.publish(t, gridFrame(server.snapshot, 16, next, 2, 0.3), 0)
 	check("new keyframe", 0.3)
 }
+
+// TestFrameWindowIsBuiltOncePerFrame checks that the planners' repeated reads
+// of one frame's window share one slice, and that a new frame, or another
+// rect, is built afresh.
+func TestFrameWindowIsBuiltOncePerFrame(t *testing.T) {
+	client, server, ring := frameClient(t)
+	rect := policy.Rectangle{X: 1, Z: 0, Width: 3, Height: 3}
+	cells := gridTestMap()
+	read := func(r policy.Rectangle) []policy.SiteCell {
+		t.Helper()
+		window, _, err := client.ReadPlanningWindow(context.Background(), pbIdentity(), r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(window.Cells) == 0 {
+			t.Fatal("empty window")
+		}
+		return window.Cells
+	}
+	ring.publish(t, gridFrame(server.snapshot, 12, gridWire(cells), 1, 0.8), 0)
+	first, again := read(rect), read(rect)
+	if &first[0] != &again[0] {
+		t.Fatal("the same frame and rect rebuilt the window")
+	}
+	if other := read(policy.Rectangle{X: 1, Z: 0, Width: 2, Height: 2}); &other[0] == &first[0] {
+		t.Fatal("another rect was served the first rect's window")
+	}
+	cells[6].glow = 0.2
+	ring.publish(t, gridFrame(server.snapshot, 13, gridWire(cells), 1, 0.8), 0)
+	if next := read(policy.Rectangle{X: 1, Z: 0, Width: 3, Height: 3}); &next[0] == &first[0] {
+		t.Fatal("a new frame was served the old frame's window")
+	}
+}

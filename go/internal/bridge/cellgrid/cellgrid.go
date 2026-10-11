@@ -548,7 +548,16 @@ func (g *Grid) Cells() []policy.SiteCell {
 func (g *Grid) Window(rect policy.Rectangle) ([]policy.SiteCell, uint64) {
 	minX, minZ := max(rect.X, g.Rect.X), max(rect.Z, g.Rect.Z)
 	maxX, maxZ := min(rect.X+rect.Width, g.Rect.X+g.Rect.Width), min(rect.Z+rect.Height, g.Rect.Z+g.Rect.Height)
-	var out []policy.SiteCell
+	var held int
+	for z := minZ; z < maxZ; z++ {
+		row := int(z-g.Rect.Z)*int(g.Rect.Width) - int(g.Rect.X)
+		for x := minX; x < maxX; x++ {
+			if g.cols[presenceArray].codes[row+int(x)] == 1 {
+				held++
+			}
+		}
+	}
+	out := make([]policy.SiteCell, 0, held)
 	var fogged uint64
 	for z := minZ; z < maxZ; z++ {
 		for x := minX; x < maxX; x++ {

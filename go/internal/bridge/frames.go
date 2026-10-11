@@ -337,7 +337,7 @@ func (s *frameStream) frameTable(payload []byte) (table map[readCacheKey]*frameR
 		table[readCacheKey{method: method, request: string(encoded)}] = &frameReply{build: reply}
 	})
 	if decodedGrid != nil {
-		grid = frameGrid{context: v.Context, grid: decodedGrid}
+		grid = frameGrid{context: v.Context, grid: decodedGrid, windows: &windowMemo{}}
 		if payload, err := proto.Marshal(v.Context); err == nil {
 			table[readCacheKey{method: gridFrameMethod}] = &frameReply{payload: payload, ok: true}
 		}
