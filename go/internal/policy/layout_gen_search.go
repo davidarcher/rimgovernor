@@ -125,6 +125,14 @@ func (g coreGrid) moveCluster(plan LayoutPlan, rng *searchRand) (LayoutPlan, boo
 	ground.carveBedroomWings(plan.Wings)
 	ground.carveSuiteWings(plan.Wings)
 	ground.carve(pad(roomWalls(*first), int32(rng.intn(4))))
+	// The cluster may come back in other proportions: a variant is kept only
+	// when the plan scores better for it.
+	ground.sizes = map[PlannedRole]int{}
+	for _, role := range c.roles {
+		if n := len(coreRoomVariants[role]); n > 0 {
+			ground.sizes[role] = rng.intn(n + 1)
+		}
+	}
 	base := plan
 	base.Rooms = kept
 	base.Spine = trimSpine(base)

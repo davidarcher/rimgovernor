@@ -36,6 +36,9 @@ var planWeights = struct {
 	// Defense: a killbox placed, an approach lane placed, and per ring cell
 	// nothing can close.
 	Killbox, Approach, Gap int
+	// Walk: per step of planWalk, the affinity-weighted walking distance
+	// between the rooms pawns travel (routeTrips).
+	Walk int
 	// Expansion: per free core cell within ExpansionReach of the plan,
 	// at most ExpansionCap cells counted.
 	Expansion, ExpansionReach, ExpansionCap int
@@ -58,6 +61,8 @@ var planWeights = struct {
 	// of the map's short side, so tens of cells off the border outweigh it.
 	Centre: 1, CentreClear: 83,
 	Killbox: 200, Approach: 100, Gap: 20,
+	// Walk is priced per step of planWalk, the trip-weighted walking distance.
+	Walk:      1,
 	Expansion: 1, ExpansionReach: 6, ExpansionCap: 300,
 	ReplanGain: 100, FieldGain: 2000,
 }
@@ -70,7 +75,7 @@ type PlanScore struct {
 	RoutesErr string        // CheckRoutes' error, "" when the routes are valid
 	RichCells int           // rich-soil cells under rooms and hallways
 	// Soft tier.
-	Soil, Footprint, Wall, Edge, Centre, Defense, Expansion int
+	Soil, Footprint, Wall, Edge, Centre, Defense, Expansion, Walk int
 	// Walled reports whether Wall and Defense were scored (PlanPerimeter
 	// ran); a cheap score leaves them zero.
 	Walled bool
@@ -83,7 +88,7 @@ func (s PlanScore) Passes() bool {
 
 // Total is the soft terms plus the hard-tier failure charges.
 func (s PlanScore) Total() int {
-	t := s.Soil + s.Footprint + s.Wall + s.Edge + s.Centre + s.Defense + s.Expansion
+	t := s.Soil + s.Footprint + s.Wall + s.Edge + s.Centre + s.Defense + s.Expansion + s.Walk
 	t -= planWeights.MissingRoom * len(s.Missing)
 	if s.RoutesErr != "" {
 		t -= planWeights.BadRoutes
@@ -101,8 +106,8 @@ func (s PlanScore) Better(o PlanScore) bool {
 }
 
 func (s PlanScore) String() string {
-	return fmt.Sprintf("pass=%v total=%d missing=%d routes=%q rich=%d soil=%d footprint=%d wall=%d edge=%d centre=%d defense=%d expansion=%d",
-		s.Passes(), s.Total(), len(s.Missing), s.RoutesErr, s.RichCells, s.Soil, s.Footprint, s.Wall, s.Edge, s.Centre, s.Defense, s.Expansion)
+	return fmt.Sprintf("pass=%v total=%d missing=%d routes=%q rich=%d soil=%d footprint=%d wall=%d edge=%d centre=%d defense=%d expansion=%d walk=%d",
+		s.Passes(), s.Total(), len(s.Missing), s.RoutesErr, s.RichCells, s.Soil, s.Footprint, s.Wall, s.Edge, s.Centre, s.Defense, s.Expansion, s.Walk)
 }
 
 // planScorer holds the per-survey state every candidate's score shares.
@@ -168,6 +173,7 @@ func (sc planScorer) core(p LayoutPlan) PlanScore {
 	out.Edge = -sc.edgeCost(rooms, under)
 	out.Centre = -sc.centreCost(rooms)
 	out.Expansion = sc.expansion(rooms, under)
+	out.Walk = -planWeights.Walk * planWalk(p)
 	return out
 }
 

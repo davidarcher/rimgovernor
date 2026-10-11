@@ -267,7 +267,7 @@ func (p *packer) slot(role PlannedRole, w, d int32) (PlannedRoom, bool) {
 // rule is unlinked; its back wall before or after the sides as the rule says.
 // It reports false for a role with no rule, without the neighbour or when no
 // wall fits (the caller then takes a plain slot).
-func (p *packer) against(rooms []PlannedRoom, role PlannedRole) (PlannedRoom, bool) {
+func (p *packer) against(rooms []PlannedRoom, role PlannedRole, size [2]int32) (PlannedRoom, bool) {
 	rule, ok := besideRoles[role]
 	if !ok {
 		return PlannedRoom{}, false
@@ -284,11 +284,11 @@ func (p *packer) against(rooms []PlannedRoom, role PlannedRole) (PlannedRoom, bo
 		return PlannedRoom{}, false
 	}
 	if rule.backFirst {
-		if room, ok := p.behind(rooms, k, role, rule); ok {
+		if room, ok := p.behind(rooms, k, role, rule, size); ok {
 			return room, true
 		}
 	}
-	w, d := coreRoomSize[role][0], coreRoomSize[role][1]
+	w, d := size[0], size[1]
 	ku, kw, ka, kd := p.h.extent(k)
 	pos := p.h.positive(k)
 	for _, east := range []bool{true, false} {
@@ -312,7 +312,7 @@ func (p *packer) against(rooms []PlannedRoom, role PlannedRole) (PlannedRoom, bo
 		return p.finish(room), true
 	}
 	if rule.backLast {
-		return p.behind(rooms, k, role, rule)
+		return p.behind(rooms, k, role, rule, size)
 	}
 	return PlannedRoom{}, false
 }
@@ -322,8 +322,8 @@ func (p *packer) against(rooms []PlannedRoom, role PlannedRole) (PlannedRoom, bo
 // behind the freezer: the butcher walks through the freezer, and carcasses
 // stay in the cold. A gear room takes the back wall when the side
 // walls are taken. The room's own Door is the Link.
-func (p *packer) behind(rooms []PlannedRoom, k Rectangle, role PlannedRole, rule relationSpec) (PlannedRoom, bool) {
-	w, d := coreRoomSize[role][0], coreRoomSize[role][1]
+func (p *packer) behind(rooms []PlannedRoom, k Rectangle, role PlannedRole, rule relationSpec, size [2]int32) (PlannedRoom, bool) {
+	w, d := size[0], size[1]
 	ku, kw, ka, kd := p.h.extent(k)
 	pos := p.h.positive(k)
 	a, wall := ka-1-d, ka-1
@@ -365,7 +365,7 @@ func (g coreGrid) packRoom(spine []SpineSegment, rooms []PlannedRoom, wings []Wi
 			ok := false
 			var room PlannedRoom
 			if i == 0 {
-				room, ok = p.against(rooms, role)
+				room, ok = p.against(rooms, role, size)
 			}
 			if !ok {
 				room, ok = p.slot(role, size[0], size[1])

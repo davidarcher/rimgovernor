@@ -78,6 +78,9 @@ type coreGrid struct {
 	fixed map[Rectangle]bool
 	// skip are the room interiors the packer refuses: the slots SiteRoom has scored.
 	skip map[Rectangle]bool
+	// sizes picks a variant (coreRoomVariants) per role; a role absent keeps
+	// its coreRoomSize. Only the local search sets it.
+	sizes map[PlannedRole]int
 	// noShelter keeps the generator from siting a shelter: a replan never
 	// regrows one a retirement dropped.
 	noShelter bool
@@ -205,4 +208,24 @@ func (g coreGrid) dug(r PlannedRoom) bool {
 		}
 	}
 	return false
+}
+
+// coreRoomVariants are the other proportions a base-cluster room may take:
+// the same floor area or a little more, never deeper than coreMaxDepth. A
+// role listed here is sized by roomSize; coreRoomSize stays variant 0, and
+// the sizes of rooms grown on demand.
+var coreRoomVariants = map[PlannedRole][][2]int32{
+	PlannedKitchen:  {{5, 6}},
+	PlannedDining:   {{11, 6}},
+	PlannedWorkshop: {{5, 7}, {6, 6}},
+	PlannedStorage:  {{18, 6}},
+}
+
+// roomSize is role's interior on g: coreRoomSize, or the variant g.sizes
+// picks for it (1 is the first of coreRoomVariants).
+func (g coreGrid) roomSize(role PlannedRole) [2]int32 {
+	if i := g.sizes[role]; i > 0 && i <= len(coreRoomVariants[role]) {
+		return coreRoomVariants[role][i-1]
+	}
+	return coreRoomSize[role]
 }
