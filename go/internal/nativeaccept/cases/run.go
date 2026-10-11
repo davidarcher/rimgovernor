@@ -82,6 +82,11 @@ type Options struct {
 	// world. A case that starts from a save has no seed to pin and is
 	// refused. Implies Fresh.
 	Seed string
+	// RunSeed reseeds the game RNG once the run has opened (#2849): a run
+	// of a case that applies it (combatlab/metrics-*) calls the lab's reseed
+	// action after resuming its checkpoint, so seeds 1..N run from one
+	// staged save. 0 leaves the RNG as the save carried it.
+	RunSeed int
 	// Repeat runs each case this many times on the kept process
 	// and reports the pass rate and per-attempt seeds (cmd/acceptance
 	// runRepeat); 0 or 1 is one run. Every attempt is fresh with the
@@ -353,7 +358,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	if opts.Dev && staged.off == "" {
 		staged.off = "dev iteration"
 	}
-	s := &session{c: c, report: report, binary: opts.Rimgovernor, seed: opts.Seed, stagePlan: staged, stagesDir: opts.StagesDir(c), through: opts.Through}
+	s := &session{c: c, report: report, binary: opts.Rimgovernor, seed: opts.Seed, runSeed: opts.RunSeed, stagePlan: staged, stagesDir: opts.StagesDir(c), through: opts.Through}
 	if resumed.resuming() || staged.staged() {
 		// The restored store holds the earlier run's submissions.
 		s.resumeSuffix = opts.RunID()
@@ -777,6 +782,8 @@ type session struct {
 	resumeSuffix string
 	// seed is the run's pinned world seed, "" when none.
 	seed string
+	// runSeed is Options.RunSeed.
+	runSeed int
 	// resumed is the checkpoint entry the run resumed from, nil fresh.
 	resumed *na.Checkpoint
 	// ring is the run's checkpoint ring, nil when it never checkpoints;
@@ -838,6 +845,7 @@ func (s *session) Spec() ServeSpec {
 	return spec
 }
 func (s *session) Rimgovernor() string      { return s.binary }
+func (s *session) RunSeed() int             { return s.runSeed }
 func (s *session) Harness() *na.Harness     { return s.Session.Harness }
 func (s *session) Names() []string          { return s.Session.Names }
 func (s *session) Identity() map[string]any { return s.Session.Identity }

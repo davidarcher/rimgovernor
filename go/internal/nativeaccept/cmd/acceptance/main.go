@@ -253,6 +253,7 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 	fs.BoolVar(&opts.NoDoctor, "no-doctor", false, "skip the doctor preflight (a suite worker, or a check you have judged wrong)")
 	fs.BoolVar(&opts.NoHeal, "no-heal", false, "refuse a stale or fixture-less installed mod instead of rebuilding and reinstalling it (a landing run)")
 	fs.IntVar(&opts.Repeat, "repeat", 1, "run each case this many times fresh on the kept process and report the pass rate and per-attempt seeds")
+	fs.IntVar(&opts.RunSeed, "run-seed", 0, "reseed the game RNG after the checkpoint loads (combatlab/metrics-*): seeds 1..N from one staged save; 0 keeps the save's RNG")
 	fs.StringVar(&opts.Seed, "seed", "", "pin the world seed of a debug or scenario start (a result.json world.seed) to reproduce that run; implies -fresh")
 	fs.BoolVar(&opts.PostmortemOnly, "postmortem-only", false, "reload the case's failed bundle on the kept process and run only its Postmortem phase; the ring is left as it was")
 	fs.StringVar(&opts.From, "from", "", "with -postmortem-only: the bundle to load, a ring label (t+7m, failed) or a bundle directory (default: the ring's failed bundle)")

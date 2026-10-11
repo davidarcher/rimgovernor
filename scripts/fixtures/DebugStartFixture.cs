@@ -306,6 +306,22 @@ namespace HomeBridge.BridgeTools
         private const int Seed = 854;
         private const int HostileSkill = 8;
 
+        // Reseed (#2849) sets the game's Rand seed from spec.seed after a checkpoint
+        // load, so one staged save serves runs seeds 1..N. It uses the same
+        // derivation as the post-staging reseed, so a seed means one RNG start. The
+        // reply echoes the seed and the next four draws, read without consuming them.
+        public static object Reseed(JObject spec)
+        {
+            var seed = (int?)spec["seed"] ?? 0;
+            if (seed == 0) throw new ArgumentException("reseed needs a non-zero spec seed.");
+            Rand.Seed = unchecked(Seed ^ (seed * 31337));
+            var draws = new List<int>();
+            Rand.PushState();
+            try { for (var i = 0; i < 4; i++) draws.Add(Rand.Int); }
+            finally { Rand.PopState(); }
+            return new { success = true, seed, draws, tick = Find.TickManager.TicksGame };
+        }
+
         public static object Stage(Map map, JObject spec)
         {
             var things = new List<object>();
@@ -586,7 +602,7 @@ namespace HomeBridge.BridgeTools
         [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile,hitPoints}], pawns:[{side:colonist|hostile|animal|manhunter|prisoner|insect, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, injured, trained (animal TrainableDefs), apparel, hediffs:[HediffDef], inventory:[ThingDef]}], roof:{def,minX,minZ,maxX,maxZ}, prisonBreak, sappers, seed (non-zero varies hostile skills and jitters hostiles that declare jitter, then reseeds Rand after staging; 0 or absent is the pinned staging; the reply echoes it), pawns also take jitter (cells)}. Hostiles get fixed skills, only the named apparel and an assault lord (a sapper one with sappers, #1149). Replies each staged pawn read back from the map (with worn apparel ids) and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, hediff defs, every player door's hold-open and forbidden flag, and the tick.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Fixture spec JSON (action stage).")] string spec = "{}",
-            [ToolParameter(Description = "stage (default), read, orphan-animal (spec animal and mode: despawn, dead or foreign), or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "stage",
+            [ToolParameter(Description = "stage (default), read, reseed (spec {seed: non-zero}: set the game Rand seed the way a seeded staging ends, reply the next four draws; #2849), orphan-animal (spec animal and mode: despawn, dead or foreign), or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "stage",
             [ToolParameter(Description = "Ticks for action tick, 1..2000.")] int ticks = 0)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -606,6 +622,8 @@ namespace HomeBridge.BridgeTools
                     }
                     action = "read";
                 }
+                if (action == "reseed")
+                    return LabStage.Reseed(JObject.Parse(spec ?? "{}"));
                 if (action == "tick")
                 {
                     if (ticks < 1 || ticks > MaxTicks) throw new ArgumentException($"ticks must be within 1..{MaxTicks}.");

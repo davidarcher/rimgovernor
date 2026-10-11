@@ -125,6 +125,41 @@ func Stage(ctx context.Context, h *na.Harness, name string, edits ...func(f *Fix
 	return out, nil
 }
 
+// Reseed sets the game's RNG from seed through test/lab_stage action reseed
+// (#2849) and returns the next draws the native read without consuming
+// them. It fixes the RNG start only: once two runs' tactics diverge, their
+// draws diverge too, so a paired comparison across tactics is a comparison
+// of distributions, not of identical dice.
+func Reseed(ctx context.Context, h *na.Harness, seed int) ([]int, error) {
+	if seed == 0 {
+		return nil, fmt.Errorf("reseed needs a non-zero seed")
+	}
+	spec, _ := json.Marshal(map[string]int{"seed": seed})
+	reply, err := h.Call(ctx, fmt.Sprintf("combatlab-reseed-%d", seed), StageTool, map[string]any{"action": "reseed", "spec": string(spec)})
+	if err != nil {
+		return nil, err
+	}
+	return parseReseed(reply, seed)
+}
+
+// parseReseed checks a reseed reply echoed the seed and carried draws.
+func parseReseed(reply map[string]any, seed int) ([]int, error) {
+	if ok, _ := na.AsBool(reply["success"]); !ok {
+		return nil, fmt.Errorf("%s reseed %d refused: %#v", StageTool, seed, reply)
+	}
+	if got := int(na.AsNumber(reply["seed"])); got != seed {
+		return nil, fmt.Errorf("%s reseeded under %d, want %d", StageTool, got, seed)
+	}
+	var draws []int
+	for _, d := range na.AsSlice(reply["draws"]) {
+		draws = append(draws, int(na.AsNumber(d)))
+	}
+	if len(draws) == 0 {
+		return nil, fmt.Errorf("%s reseed %d read back no draws: %#v", StageTool, seed, reply)
+	}
+	return draws, nil
+}
+
 // Position is one pawn as test/lab_stage action read reports it.
 type Position struct {
 	ID           string

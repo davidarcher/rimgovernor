@@ -198,6 +198,9 @@ type Session interface {
 	// Spec is the case's declared Serve spec (Binary resolved to the run's
 	// -rimgovernor), or the zero spec for a bridge-only case.
 	Spec() ServeSpec
+	// RunSeed is the run-level RNG seed (-run-seed), 0 for none: a case that
+	// reseeds after resume passes it to the lab's reseed action (#2849).
+	RunSeed() int
 	// Rimgovernor is the run's -rimgovernor binary (absolute path), empty
 	// when none was passed; an Owned case that launches controllers over
 	// its own game (na.LaunchService) takes it from here.

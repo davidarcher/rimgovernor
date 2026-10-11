@@ -183,6 +183,16 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 	} else if na.AsString(reply["mode"]) != "Never" {
 		return fmt.Errorf("%s did not take: %#v", pauseModeTool, reply)
 	}
+	// A run seed reseeds the RNG on the paused, loaded checkpoint, right
+	// before the planner is served: nothing draws between (#2849).
+	if seed := s.RunSeed(); seed != 0 {
+		draws, err := Reseed(ctx, s.Harness(), seed)
+		if err != nil {
+			return err
+		}
+		s.Report()["run_seed"] = seed
+		s.Report()["run_seed_draws"] = draws
+	}
 	service, err := s.Serve(ctx, s.Spec())
 	if err != nil {
 		return err

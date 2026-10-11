@@ -148,6 +148,14 @@ the controller binary. Use `-restage` when those affect the precondition.
 `-fresh` retains stages; `-restage` discards them. A pending resume takes
 precedence. `RIMGOVERNOR_ACCEPT_STAGES=0` disables caching.
 
+A staged checkpoint is staged once, at seed 0. `-run-seed <n>` reseeds the
+game RNG after the checkpoint loads (`combatlab/metrics-*`, through the lab's
+`test/lab_stage` action `reseed`, a harness-only test tool and not a model
+action), so seeds 1..N run from one bundle; the report carries `run_seed` and
+`run_seed_draws`. The reseed fixes the RNG start only: once two tactics diverge
+their draws diverge too, so paired seeds compare starting dice, not identical
+dice. `combatlab/reseed` checks the action itself.
+
 `acceptance suite -stages` schedules missing stages and their dependent tails
 for iteration. The ordinary suite restages from scratch. Preserve
 `staged_from` when reporting cached evidence; see
