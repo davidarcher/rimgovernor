@@ -155,6 +155,22 @@ func TestAdviseStationsRunsTheChainAndChangesNothing(t *testing.T) {
 	}
 }
 
+func TestAdviseStationsTilesOnlyWhenAsked(t *testing.T) {
+	f := stationFactsFixture()
+	plain, err := AdviseStations(f)
+	if err != nil || plain.Tiled != nil {
+		t.Fatalf("tile off: tiled %v, err %v", plain.Tiled, err)
+	}
+	f.Tile = true
+	advice, err := AdviseStations(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if advice.Tiled == nil || len(advice.Tiled.Plan.Rooms) != len(advice.Embedding.Blocks) {
+		t.Fatalf("tile on: %+v for %d blocks", advice.Tiled, len(advice.Embedding.Blocks))
+	}
+}
+
 func TestAdviseStationsNamesAnUnknownFact(t *testing.T) {
 	for name, edit := range map[string]func(*StationFacts){
 		"colonists": func(f *StationFacts) { f.Colonists = domain.Unknown[int64]() },

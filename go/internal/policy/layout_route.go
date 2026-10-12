@@ -65,6 +65,18 @@ func spineEntrances(spine []SpineSegment) []domain.Cell {
 	return out
 }
 
+// ThroughfareError is a trip whose shortest path crosses a room nobody may
+// walk through; Room is that room's id.
+type ThroughfareError struct {
+	From, To, Crossed PlannedRole
+	Room              int32
+	Cell              domain.Cell
+}
+
+func (e *ThroughfareError) Error() string {
+	return fmt.Sprintf("%s -> %s crosses %s at %v", e.From, e.To, e.Crossed, e.Cell)
+}
+
 // CheckRoutes paths every trip over p and returns how many paths cross each
 // cell (for the overlay). A thoroughfare or an unreachable trip is an error.
 // Trips whose rooms the plan lacks are skipped.
@@ -96,7 +108,7 @@ func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 			for _, c := range path {
 				traffic[c]++
 				if i := walk.at(c); i >= 0 && !ends[i] && noThroughfare[rooms[i].Role] {
-					return nil, fmt.Errorf("%s -> %s crosses %s at %v", trip.from, trip.to, rooms[i].Role, c)
+					return nil, &ThroughfareError{From: trip.from, To: trip.to, Crossed: rooms[i].Role, Room: rooms[i].ID, Cell: c}
 				}
 			}
 		}
@@ -172,6 +184,33 @@ func routeWalk(p LayoutPlan) (map[domain.Cell]int, []PlannedRoom) {
 		}
 		if r.Link != nil {
 			walk[*r.Link] = -1
+		}
+	}
+	for _, l := range p.Links {
+		walk[l.Cell] = -1
+	}
+	for _, c := range p.Entrances {
+		if _, ok := walk[c]; !ok {
+			walk[c] = -1
+		}
+	}
+	if len(p.Hallways()) == 0 && len(p.Entrances) > 0 {
+		// A plan without hallways is walked over the open ground its entrances
+		// stand on: every cell around the rooms that no room or wall holds. The
+		// terrain is not read (the embedding sited the rooms; the entrances
+		// lie in the map's largest free area).
+		if fp, ok := p.CoreBounds(); ok {
+			walled := map[domain.Cell]bool{}
+			for _, r := range rooms {
+				for _, c := range rectCells(roomWalls(r)) {
+					walled[c] = true
+				}
+			}
+			for _, c := range rectCells(pad(fp, 1)) {
+				if _, taken := walk[c]; !taken && !walled[c] {
+					walk[c] = -1
+				}
+			}
 		}
 	}
 	return walk, rooms

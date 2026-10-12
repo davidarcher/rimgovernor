@@ -290,6 +290,7 @@ func (p LayoutPlan) ShellDoors(r PlannedRoom) []domain.Cell {
 	if r.Link != nil {
 		doors = append(doors, *r.Link)
 	}
+	doors = append(doors, p.LinkCells(r.ID)...)
 	if r.Airlock != nil {
 		doors = append(doors, r.Airlock.Outer)
 	}

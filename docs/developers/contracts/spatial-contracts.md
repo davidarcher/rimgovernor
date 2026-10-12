@@ -262,6 +262,15 @@ on the colony centre when the plan has no free cell there.
 - **Rings.** Hallway ends are joined into rings where the ground allows, rooms get
   second doors, and the plan's entrances are the hallway ends that reach outside the
   base; `CheckRoutes` proves every trip routes.
+- **Tiling (advisory, #2876).** `policy.TileEmbedding` (`layout_tile.go`) turns the
+  station embedding into a hallway-free plan behind `StationFacts.Tile`; the generator
+  above stays authoritative. Doors between rooms in a shared wall are the plan's typed
+  door graph, `LayoutPlan.Links` (`RoomLink`: room ids `A < B` plus the wall cell,
+  persisted in `family/layout_plan`); `PlannedRoom.Link/Door/Doors` still carry the
+  older generator's doors. On a plan with no hallways, `Entrances` are the outside
+  cells beside an exterior door, and `CheckRoutes` walks the open ground between them.
+  A room with no way in (packed wall to wall) is `ErrTileClosed` until hallways land
+  (#2879).
 - **Search.** The best sites by score get a deterministic, iteration-bounded local
   search; wall time is only a hang guard.
 - **Replan.** Two-stage: the same generator runs with every room that has anything of

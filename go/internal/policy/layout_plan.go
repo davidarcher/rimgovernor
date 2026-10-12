@@ -24,6 +24,13 @@ type Door struct {
 	Rot  domain.Rotation
 }
 
+// RoomLink is a door in the wall two rooms share: A and B are their room ids
+// (A below B) and Cell the wall cell, which lies on both rooms' walls.
+type RoomLink struct {
+	A, B int32
+	Cell domain.Cell
+}
+
 // PlannedRoom is one planned room.
 type PlannedRoom struct {
 	// ID names the room for as long as the plan lives: handed out by
@@ -121,9 +128,14 @@ type LayoutReservation struct {
 // LayoutPlan is the v2 colony layout.
 type LayoutPlan struct {
 	Spine []SpineSegment
-	// Entrances are the hallway cells traffic enters the base from; empty
-	// until the plan is grown.
+	// Entrances are the cells traffic enters the base from: hallway cells on a
+	// spine plan, the outside cell beside each exterior door on a tiled plan
+	// (layout_tile.go). Empty until the plan is grown.
 	Entrances []domain.Cell `json:",omitempty"`
+	// Links is the door graph between rooms: one door in the wall two rooms
+	// share, by room id. Only a tiled plan holds it; a spine plan keeps its
+	// freezer and butchery doors on PlannedRoom.Link.
+	Links []RoomLink `json:",omitempty"`
 	// Rooms are the rooms hung off the spine; a wing holds its own.
 	Rooms        []PlannedRoom
 	Wings        []Wing `json:",omitempty"`
@@ -251,7 +263,7 @@ func (p LayoutPlan) Valid() bool {
 	}
 	halls := spineRects(p.Hallways())
 	for _, c := range p.Entrances {
-		on := false
+		on := p.besideExteriorDoor(c)
 		for _, h := range halls {
 			on = on || contains(h, c)
 		}
@@ -276,6 +288,19 @@ func (p LayoutPlan) Valid() bool {
 			}
 		}
 	}
+	rooms := map[int32]Rectangle{}
+	for _, r := range p.AllRooms() {
+		rooms[r.ID] = r.Region.Bounds()
+	}
+	seen := map[RoomLink]bool{}
+	for _, l := range p.Links {
+		a, okA := rooms[l.A]
+		b, okB := rooms[l.B]
+		if !okA || !okB || l.A >= l.B || seen[l] || !inWall(a, l.Cell) || !inWall(b, l.Cell) {
+			return false
+		}
+		seen[l] = true
+	}
 	for _, z := range p.Zones {
 		if z.Kind == "" {
 			return false
@@ -297,6 +322,37 @@ func (p LayoutPlan) Valid() bool {
 		}
 	}
 	return true
+}
+
+// besideExteriorDoor reports c as the outside cell of a room's own door: it
+// touches the room's Door or one of its Doors from outside the room.
+func (p LayoutPlan) besideExteriorDoor(c domain.Cell) bool {
+	for _, r := range p.AllRooms() {
+		if r.Unfenced() || r.Region.Contains(c) {
+			continue
+		}
+		doors := []domain.Cell{r.Door}
+		for _, d := range r.Doors {
+			doors = append(doors, d.Cell)
+		}
+		for _, d := range doors {
+			if abs32(d.X-c.X)+abs32(d.Z-c.Z) == 1 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// LinkCells are the cells of the doors the door graph gives room id.
+func (p LayoutPlan) LinkCells(id int32) []domain.Cell {
+	var out []domain.Cell
+	for _, l := range p.Links {
+		if l.A == id || l.B == id {
+			out = append(out, l.Cell)
+		}
+	}
+	return out
 }
 
 // Extent is the bounding rectangle of what the plan builds: every room

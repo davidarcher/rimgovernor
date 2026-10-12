@@ -63,6 +63,10 @@ type StationFacts struct {
 	Plan   LayoutPlan
 	Built  map[int32]bool
 	Survey MapSurvey
+	// Tile also tiles the embedding into a plan (TileEmbedding, #2876). Off,
+	// the old planner stays the only one; the tiled plan is advisory until the
+	// epic (#2855) switches over.
+	Tile bool
 }
 
 // StationPopulationOf is the people the graph sizes beds for. Babies sleep in
@@ -169,6 +173,8 @@ type StationAdvice struct {
 	Clustering Clustering
 	Embedding  Embedding
 	Groups     []GroupAdvice
+	// Tiled is the embedding tiled into a plan; nil unless StationFacts.Tile.
+	Tiled *TileResult
 }
 
 // AdviseStations runs the station chain over the live colony. It reads the
@@ -197,6 +203,13 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 		return StationAdvice{}, err
 	}
 	out := StationAdvice{Graph: graph, Clustering: clustering, Embedding: embedding}
+	if f.Tile {
+		tiled, err := TileEmbedding(TileInput{Groups: clustering.Groups, Embedding: embedding, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reservations, Survey: f.Survey})
+		if err != nil {
+			return StationAdvice{}, err
+		}
+		out.Tiled = &tiled
+	}
 	for _, m := range MatchGroupRooms(clustering.Groups, BuiltRegions(f.Plan, f.Built)) {
 		g := clustering.Groups[m.Group]
 		out.Groups = append(out.Groups, GroupAdvice{Group: g, Rooms: m.Rooms, Capacity: m.Capacity, Outgrown: GroupOutgrown(g, m)})
