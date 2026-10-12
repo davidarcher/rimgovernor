@@ -112,8 +112,10 @@ func TestDefenseSiteFromCells(t *testing.T) {
 	}
 	// The wall and door stand across row 1, and the tree and frame leave
 	// row 1's far side open to rows 0 and 2: every known walkable cell
-	// reaches an edge by rows 0 and 2, the door cell is closed to raiders.
-	if !row(0, 1).EdgeReachable || !row(3, 1).EdgeReachable || row(4, 1).EdgeReachable || row(1, 1).EdgeReachable {
+	// reaches an edge by rows 0 and 2, the closed door cell is a start region
+	// the game answers true from, through its open sides (CanReachMapEdge
+	// never tests the start region against the traverse mode).
+	if !row(0, 1).EdgeReachable || !row(3, 1).EdgeReachable || !row(4, 1).EdgeReachable || row(1, 1).EdgeReachable {
 		t.Fatalf("reach: open %v tree %v door %v wall %v", row(0, 1).EdgeReachable, row(3, 1).EdgeReachable, row(4, 1).EdgeReachable, row(1, 1).EdgeReachable)
 	}
 }
@@ -148,8 +150,43 @@ func TestDefenseSiteFromCellsSealed(t *testing.T) {
 		if inside && c.EdgeReachable {
 			t.Fatalf("the sealed cell is reachable through a closed door: %+v", c)
 		}
+		if c.Cell == (domain.Cell{X: 2, Z: 1}) && !c.EdgeReachable {
+			t.Fatalf("the closed door's own cell reaches the edge by its outer side: %+v", c)
+		}
 		if c.Cell == (domain.Cell{X: 0, Z: 0}) && !c.EdgeReachable {
 			t.Fatalf("the edge is not reachable: %+v", c)
 		}
+	}
+}
+
+// TestDefenseSiteFromCellsDoorBehindDoor: a closed door whose every side is
+// sealed or another door does not reach the edge, though a door on the map
+// edge does (CanReachMapEdge starts from the door's own region).
+func TestDefenseSiteFromCellsDoorBehindDoor(t *testing.T) {
+	var cells []policy.SiteCell
+	for z := int32(0); z < 5; z++ {
+		for x := int32(0); x < 5; x++ {
+			c := testSiteCell(x, z, true)
+			switch {
+			case x == 2 && z <= 2:
+				c.Doorway = domain.Known(true)
+				c.Things = []policy.Thing{edifice("Door", policy.FactionPlayer, 0)}
+			case x >= 1 && x <= 3 && z >= 1 && z <= 3:
+				c.Walkable = domain.Known(false)
+				c.Things = []policy.Thing{edifice("Wall", policy.FactionPlayer, policy.FlagImpassable)}
+			}
+			cells = append(cells, c)
+		}
+	}
+	site, err := DefenseSiteFromCells(cells, policy.Bounds{Width: 5, Height: 5}, CellRect{Max: domain.Cell{X: 4, Z: 4}}, censusCatalog())
+	if err != nil {
+		t.Fatal(err)
+	}
+	reach := func(x, z int) bool { return site.Cells[z*5+x].EdgeReachable }
+	if !reach(2, 0) {
+		t.Fatal("a door on the map edge reaches it")
+	}
+	if reach(2, 1) || reach(2, 2) {
+		t.Fatalf("doors behind a door reach nothing: %v %v", reach(2, 1), reach(2, 2))
 	}
 }

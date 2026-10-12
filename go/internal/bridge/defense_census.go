@@ -153,6 +153,23 @@ func (r *censusReader) edgeReachable(grid []*policy.SiteCell, width, height int)
 			push(i + width)
 		}
 	}
+	// A door is its own one-cell region and the query's start region is never
+	// tested against the traverse mode, so a closed door's own cell reaches
+	// the edge when it lies on it or any side neighbour does; the flood never
+	// passes through it.
+	var doors []int
+	for i, cell := range grid {
+		if c := r.read(cell); !c.known || !c.walkable || !c.door {
+			continue
+		}
+		x, z := i%width, i/width
+		if x == 0 || z == 0 || x == width-1 || z == height-1 || reach[i-1] || reach[i+1] || reach[i-width] || reach[i+width] {
+			doors = append(doors, i)
+		}
+	}
+	for _, i := range doors {
+		reach[i] = true
+	}
 	return reach
 }
 
