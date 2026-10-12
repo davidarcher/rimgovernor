@@ -66,3 +66,7 @@ func transposeRoom(r PlannedRoom) PlannedRoom {
 	}
 	return r
 }
+
+func rectsOverlap(a, b Rectangle) bool {
+	return a.X < b.X+b.Width && b.X < a.X+a.Width && a.Z < b.Z+b.Height && b.Z < a.Z+a.Height
+}

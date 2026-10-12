@@ -91,7 +91,3 @@ func (g coreGrid) growSpine(spine []SpineSegment, rooms []PlannedRoom) ([]SpineS
 	}
 	return spine, false
 }
-
-func rectsOverlap(a, b Rectangle) bool {
-	return a.X < b.X+b.Width && b.X < a.X+a.Width && a.Z < b.Z+b.Height && b.Z < a.Z+a.Height
-}

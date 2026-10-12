@@ -66,30 +66,6 @@ func WingRoomSize(tier TechTier) [2]int32 {
 // is occupied, a new one is sited.
 const wingMaxRooms = 10
 
-// AllRooms is every planned room: the spine's, then each wing's.
-func (p LayoutPlan) AllRooms() []PlannedRoom {
-	if len(p.Wings) == 0 {
-		return p.Rooms
-	}
-	out := append([]PlannedRoom(nil), p.Rooms...)
-	for _, w := range p.Wings {
-		out = append(out, w.Rooms...)
-	}
-	return out
-}
-
-// Hallways is every walkable hallway: the spine, then each wing's corridor.
-func (p LayoutPlan) Hallways() []SpineSegment {
-	if len(p.Wings) == 0 {
-		return p.Spine
-	}
-	out := append([]SpineSegment(nil), p.Spine...)
-	for _, w := range p.Wings {
-		out = append(out, w.Corridor)
-	}
-	return out
-}
-
 // wingFrame places a wing: v counts cells away from the main hallway's
 // centre row z0 (sign +1 north, -1 south) along the corridor at column cx.
 // size is a standard wing's room interior, as WingRoomSize.

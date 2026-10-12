@@ -8,26 +8,6 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // candidates (ZoneCore); a room over rock (ZoneMining) is Dug. The other
 // zones give way to the core wherever they overlap it.
 
-// Core room roles; PlannedPrison identifies the jail.
-const (
-	PlannedBedroom PlannedRole = "bedroom"
-	// PlannedShelter is the temporary starter room, sited apart from the
-	// core (layout_shelter.go) so its ground frees cleanly once it is demolished.
-	PlannedShelter PlannedRole = "shelter"
-	PlannedDining  PlannedRole = "dining"
-	PlannedRec     PlannedRole = "rec"
-	PlannedLab     PlannedRole = "lab"
-	// PlannedTomb is the sarcophagus room, planned from the start in the
-	// outskirts cluster and shelled only once a colonist lies dead.
-	PlannedTomb PlannedRole = "tomb"
-	// PlannedMorgue is the room for human corpses, planned from the
-	// start in the outskirts cluster and shelled only once one lies waiting.
-	PlannedMorgue PlannedRole = "morgue"
-	// PlannedGraveyard is the unfenced, unfloored Outdoor room of graves,
-	// planned from the start in the outskirts cluster.
-	PlannedGraveyard PlannedRole = "graveyard"
-)
-
 // coreRoomSize is a role's interior: width along the spine, depth away
 // from it. Bedrooms live in the wing (layout_wing.go).
 var coreRoomSize = map[PlannedRole][2]int32{

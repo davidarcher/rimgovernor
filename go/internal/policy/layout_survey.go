@@ -94,3 +94,23 @@ const (
 // LayoutEdgeMargin is how far from the map edge nothing is built: raiders
 // and the map edge's fog make the band useless.
 const LayoutEdgeMargin int32 = 10
+
+// Core room roles; PlannedPrison identifies the jail.
+const (
+	PlannedBedroom PlannedRole = "bedroom"
+	// PlannedShelter is the temporary starter room, sited apart from the
+	// core (layout_shelter.go) so its ground frees cleanly once it is demolished.
+	PlannedShelter PlannedRole = "shelter"
+	PlannedDining  PlannedRole = "dining"
+	PlannedRec     PlannedRole = "rec"
+	PlannedLab     PlannedRole = "lab"
+	// PlannedTomb is the sarcophagus room, planned from the start in the
+	// outskirts cluster and shelled only once a colonist lies dead.
+	PlannedTomb PlannedRole = "tomb"
+	// PlannedMorgue is the room for human corpses, planned from the
+	// start in the outskirts cluster and shelled only once one lies waiting.
+	PlannedMorgue PlannedRole = "morgue"
+	// PlannedGraveyard is the unfenced, unfloored Outdoor room of graves,
+	// planned from the start in the outskirts cluster.
+	PlannedGraveyard PlannedRole = "graveyard"
+)
