@@ -61,6 +61,39 @@ type HospitalChoice struct {
 	Definition string
 }
 
+// illPatients are the living patients who need a hosted medical bed: those
+// whose health read says they need rest, and the surgical patients. A hospital
+// bed serves medical rest; MaintainMedicalReserves's wider census (any bad
+// condition, e.g. a scar) keeps the deficit and does not size the ward. False
+// when the census or a patient's rest or death is unknown.
+func illPatients(patients domain.Fact[[]CarePawn], surgical []PawnID) (map[PawnID]bool, bool) {
+	rows, known := patients.Value()
+	if !known {
+		return nil, false
+	}
+	ill := map[PawnID]bool{}
+	for _, p := range rows {
+		dead, dk := p.Dead.Value()
+		rest, rk := p.NeedsRest.Value()
+		if !dk {
+			return nil, false
+		}
+		if dead {
+			continue
+		}
+		if !rk {
+			return nil, false
+		}
+		if rest {
+			ill[p.ID] = true
+		}
+	}
+	for _, id := range surgical {
+		ill[id] = true
+	}
+	return ill, true
+}
+
 // SelectHospitalBed decides whether the colony's patients already have hosted
 // medical beds, which existing bed to convert, or which definition to stage.
 // Conversion prefers an unowned bed, then a bed a patient owns (the game
@@ -68,32 +101,9 @@ type HospitalChoice struct {
 // never evicted for a hospital bed while one can be built instead. It issues
 // no orders and reserves nothing.
 func SelectHospitalBed(r HospitalRequest) (HospitalChoice, error) {
-	patients, known := r.Patients.Value()
+	ill, known := illPatients(r.Patients, r.Surgical)
 	if !known {
 		return HospitalChoice{Method: HospitalUnknown}, nil
-	}
-	// A hospital bed serves medical rest. MaintainMedicalReserves's wider
-	// census (any bad condition, e.g. a scar) keeps the deficit; it does
-	// not size the ward.
-	ill := map[PawnID]bool{}
-	for _, p := range patients {
-		dead, dk := p.Dead.Value()
-		rest, rk := p.NeedsRest.Value()
-		if !dk {
-			return HospitalChoice{Method: HospitalUnknown}, nil
-		}
-		if dead {
-			continue
-		}
-		if !rk {
-			return HospitalChoice{Method: HospitalUnknown}, nil
-		}
-		if rest {
-			ill[p.ID] = true
-		}
-	}
-	for _, id := range r.Surgical {
-		ill[id] = true
 	}
 	surgical := len(r.Surgical) > 0
 	choice := HospitalChoice{Needed: len(ill)}

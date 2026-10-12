@@ -224,6 +224,8 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 			if replanned && haveLayout {
 				// The recorded replan is the plan the same inputs grow next.
 				r.planInputs.planTick = layout.Tick
+				// The station chain reads the plan it left and only records.
+				r.adviseStations(ctx, snapshot, *projection, layout.Plan, survey)
 			}
 		}
 	}

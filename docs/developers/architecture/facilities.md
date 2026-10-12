@@ -183,6 +183,29 @@ cooler, and rock is only the dig cost every group pays); a clean room has no sit
 position fits is reported unplaceable (`embed_no_ground`,
 `embed_open_sky_ground`).
 
+### Advisory station plan
+
+`policy.AdviseStations` (`layout_station_plan.go`) runs graph, clustering and
+embedding over the live colony and records the result; the old planner stays
+authoritative, so the plan and the rooms built are unchanged. After each
+recorded replan `Rounder.adviseStations` reads `StationFacts` from the
+projection (the unknown stays unknown, never zero): the people (colonists less
+babies, the ward from `SelectHospitalBed`'s ill set, held prisoners, the pen
+herd), the colonists' nutrition a day (the food census consumers' rates), the
+work ledger's orders (only while the ledger is `reconciled`), the resource
+demand as stock, and the catalog's recipe flows, stack limits and rot
+(`StationItemFacts`). It writes one `layout_stations` decision: `advised` with
+each group (stations, footprint, clearance, area, predicted role, costs,
+block), the clustering's conflicts and the embedding report; `skipped`
+(`facts_unknown`, naming the fact); or `failed`.
+
+`MatchGroupRooms` matches the standing planned rooms of a native role
+(`BuiltRegions`, through the planned-role to native-role table) to the groups
+of that role: both largest first, the n-th group takes the n-th room, and a
+surplus room goes to the group most short of floor (ties to the lower id).
+`GroupOutgrown` holds when the group's area exceeds the matched rooms' floor; a
+group with no built room is not outgrown. Acting on either is #2863.
+
 ## Electrical safety
 
 `EnsureBasicPower` uses `HiddenConduit` for new connections and replaces ordinary

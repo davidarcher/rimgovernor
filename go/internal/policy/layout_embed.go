@@ -643,3 +643,7 @@ func (r *embedRun) embedding(in EmbedInput, scorer planScorer) Embedding {
 	}
 	return out
 }
+
+// ObstacleLevel is the obstacle level the blocks were placed under: 0 is the
+// strictest (every field cell and rich soil avoided), higher is looser.
+func (e Embedding) ObstacleLevel() int { return int(e.Level) }

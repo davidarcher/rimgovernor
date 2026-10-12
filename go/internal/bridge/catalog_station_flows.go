@@ -44,3 +44,45 @@ func (catalog *DefinitionCatalog) StationRecipeFlows(stations policy.StationCata
 	}
 	return out, nil
 }
+
+// StationItemFacts are the item rows the station graph reads of a stock: each
+// stocked item's largest stack and whether it rots, and whether each item the
+// recipes take in or put out rots. An item the catalog has no row for is an
+// error, never a zero.
+func (catalog *DefinitionCatalog) StationItemFacts(stock map[policy.Resource]int64, recipes map[string]policy.RecipeFlow) (stackLimit map[policy.Resource]int64, perishable map[policy.Resource]bool, err error) {
+	stackLimit, perishable = map[policy.Resource]int64{}, map[policy.Resource]bool{}
+	rots := func(r policy.Resource) error {
+		if _, done := perishable[r]; done {
+			return nil
+		}
+		_, rot, err := catalog.RotDays(string(r))
+		perishable[r] = rot
+		return err
+	}
+	for r, n := range stock {
+		if n <= 0 {
+			continue
+		}
+		if stackLimit[r], err = catalog.StackLimit(string(r)); err != nil {
+			return nil, nil, err
+		}
+		if err = rots(r); err != nil {
+			return nil, nil, err
+		}
+	}
+	for _, flow := range recipes {
+		for _, slot := range flow.Ingredients {
+			for _, a := range slot {
+				if err = rots(a.Resource); err != nil {
+					return nil, nil, err
+				}
+			}
+		}
+		for _, a := range flow.Products {
+			if err = rots(a.Resource); err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+	return stackLimit, perishable, nil
+}

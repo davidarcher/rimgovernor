@@ -137,6 +137,22 @@ func TestCatalogItemFactsRefuseMissingRows(t *testing.T) {
 	}
 }
 
+func TestStationItemFactsReadStackLimitsAndRot(t *testing.T) {
+	catalog := itemCatalog()
+	catalog.ThingDefs["Steel"].StackLimit = 75
+	flows := map[string]policy.RecipeFlow{"Cook": {Ingredients: [][]policy.Amount{{{Resource: "Rice", Count: 1}}}, Products: []policy.Amount{{Resource: "Steel", Count: 1}}}}
+	limits, rots, err := catalog.StationItemFacts(map[policy.Resource]int64{"Steel": 10, "Gone": 0}, flows)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if limits["Steel"] != 75 || len(limits) != 1 || rots["Steel"] || !rots["Rice"] {
+		t.Errorf("limits %v, rot %v", limits, rots)
+	}
+	if _, _, err := catalog.StationItemFacts(map[policy.Resource]int64{"Missing": 1}, nil); err == nil {
+		t.Error("a stocked item without a row was read")
+	}
+}
+
 func doers(values ...*d.ReadingOutcomePropertiesAny) []*d.Opt_ReadingOutcomePropertiesAny {
 	var out []*d.Opt_ReadingOutcomePropertiesAny
 	for _, v := range values {
