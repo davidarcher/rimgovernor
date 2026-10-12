@@ -26,17 +26,11 @@ func TestTurretRungsFollowTheArmoryTier(t *testing.T) {
 	}
 }
 
-// autocannonFixture asks the turret fixture for the 2x2 autocannon, with a
-// known line to the kill zone from every cell behind the fence bar.
+// autocannonFixture asks the turret fixture for the 2x2 autocannon.
 func autocannonFixture() DefenseRequest {
 	r := turretFixture()
 	r.UnitCosts[TurretAutocannon] = []Amount{{Resource: "Steel", Count: 100}, {Resource: "ComponentIndustrial", Count: 4}}
 	r.Turret.Definition, r.Turret.Size = TurretAutocannon, Bounds{Width: 2, Height: 2}
-	for x := int32(0); x < 31; x++ {
-		for z := int32(22); z < 29; z++ {
-			r.Lines = append(r.Lines, DefenseLine{From: domain.Cell{X: x, Z: z}, To: fixtureExit, LineOfSight: domain.Known(true)})
-		}
-	}
 	return r
 }
 

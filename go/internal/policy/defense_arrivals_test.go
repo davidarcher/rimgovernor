@@ -150,8 +150,8 @@ func TestDefenseApproachesPreserveAcceptedGeometry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(l.Geometry(), with.Geometry()) || l.LinesVerified != with.LinesVerified {
-		t.Fatal("cover assessment changed geometry or verification")
+	if !reflect.DeepEqual(l.Geometry(), with.Geometry()) {
+		t.Fatal("cover assessment changed geometry")
 	}
 	reserved := map[domain.Cell]bool{}
 	for _, tier := range with.Tiers {

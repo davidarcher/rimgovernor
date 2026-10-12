@@ -113,9 +113,9 @@ type DefenseGeometry struct {
 	Walls []domain.Cell `json:",omitempty"`
 }
 
+// TurretPosition is a turret cell with line of sight to the lane.
 type TurretPosition struct {
-	Cell     domain.Cell
-	Verified bool
+	Cell domain.Cell
 }
 
 const (
@@ -166,12 +166,12 @@ func (l DefenseLayout) Geometry() DefenseGeometry {
 // DefenseTurrets proposes the powered turret tier for a layout: turrets
 // beside the firing positions on the shooters' row or the row behind it,
 // spaced against chain explosions, off the lanes and
-// every reserved cell, each with a known native line of sight to some cell
-// of the kill zone (the funnel walls hide most of the lane from the
-// flanks), and a conduit chain from each turret
+// every reserved cell, each with a line of sight (the game's rule over the
+// census, defense_sight.go) to some cell of the lane (the funnel walls hide
+// most of the lane from the flanks), and a conduit chain from each turret
 // to the network unless a transmitter already lies within native connector
-// reach. Candidates lists every position considered so the caller can probe
-// their lines of fire; the tier holds the verified ones the gates allow.
+// reach. Candidates lists every position that sees the lane; the tier holds
+// the ones the gates allow.
 func DefenseTurrets(r DefenseRequest, g DefenseGeometry) (DefenseTier, []TurretPosition, error) {
 	s, err := newDefenseSite(r)
 	if err != nil {
@@ -208,10 +208,6 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 	for _, f := range g.Firing {
 		o := (f.X-origin.X)*p.X + (f.Z-origin.Z)*p.Z
 		low, high = min(low, o), max(high, o)
-	}
-	lines := map[[2]domain.Cell]domain.Fact[bool]{}
-	for _, l := range s.r.Lines {
-		lines[[2]domain.Cell{l.From, l.To}] = l.LineOfSight
 	}
 	var candidates []TurretPosition
 	var chosen [][]domain.Cell
@@ -260,25 +256,23 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 		if !clear(c) {
 			continue
 		}
-		// Verified by any known line to the kill zone; skipped only
-		// when every line is known blocked.
-		sees, blocked := false, true
+		// Kept when it has a known line of sight to some cell of the lane.
+		sees := false
 		for _, a := range g.Approach {
-			los, known := lines[[2]domain.Cell{c, a}].Value()
-			sees = sees || known && los
-			blocked = blocked && known && !los
+			if los, known := s.lineOfSight(c, a).Value(); known && los {
+				sees = true
+				break
+			}
 		}
-		if blocked {
+		if !sees {
 			continue
 		}
-		candidates = append(candidates, TurretPosition{Cell: c, Verified: sees})
+		candidates = append(candidates, TurretPosition{Cell: c})
 		chosen = append(chosen, TurretFootprint(c, q.Size))
 	}
 	var verified []domain.Cell
 	for _, c := range candidates {
-		if c.Verified {
-			verified = append(verified, c.Cell)
-		}
+		verified = append(verified, c.Cell)
 	}
 	n, gate := turretLimit(s.r, len(verified))
 	if n == 0 {

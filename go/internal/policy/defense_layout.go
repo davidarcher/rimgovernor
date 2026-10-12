@@ -28,13 +28,6 @@ type DefenseCell struct {
 	Edifice     string
 }
 
-// DefenseLine is one observations_read_lines_of_fire row: whether a firing
-// cell has native line of sight to an approach cell.
-type DefenseLine struct {
-	From, To    domain.Cell
-	LineOfSight domain.Fact[bool]
-}
-
 // DefenseDefinitions names the native buildings each tier places. Stuff
 // empty requests the native default material. Door is the safe lane's
 // colonist-only passage; its stuff must be wood, the corridor's pricing
@@ -63,7 +56,6 @@ type DefenseRequest struct {
 	Cells     []DefenseCell
 	// Protected holds accepted footprints, walkways and doorway approaches.
 	Protected   []domain.Cell
-	Lines       []DefenseLine
 	Definitions DefenseDefinitions
 	// MinRange is the shortest ranged-weapon range among defenders; unknown
 	// forbids the firing line rather than assuming one.
@@ -142,7 +134,6 @@ type DefenseGated struct {
 
 type FiringPosition struct {
 	Cell, Cover, Retreat domain.Cell
-	Verified             bool
 }
 
 // DefenseLayout is a deterministic proposal. Native placement previews and
@@ -158,13 +149,10 @@ type DefenseLayout struct {
 	Entry    domain.Cell
 	TrapLane []domain.Cell
 	Firing   []FiringPosition
-	// Turrets lists every turret position considered; the turret tier holds
-	// the verified ones the power and stock gates allow.
+	// Turrets lists every turret position with line of sight to the lane; the
+	// turret tier holds the ones the power and stock gates allow.
 	Turrets []TurretPosition
 	Tiers   []DefenseTier
-	// LinesVerified is false until every firing cell carries a known native
-	// line of sight to the kill zone; Probe lists the pairs to read.
-	LinesVerified bool
 	// Approaches describes local routes and cover demand, not admitted orders.
 	Approaches DefenseApproaches
 	// Gated lists the gates that stopped the turret and IED tiers short.
@@ -401,11 +389,6 @@ func newDefenseSite(r DefenseRequest) (defenseSite, error) {
 	for _, c := range r.Entrances {
 		if !s.inRegion(c) {
 			return defenseSite{}, errors.New("entrance outside defense region")
-		}
-	}
-	for _, l := range r.Lines {
-		if !s.inRegion(l.From) || !s.inRegion(l.To) {
-			return defenseSite{}, errors.New("line of fire outside region")
 		}
 	}
 	return s, nil
@@ -705,11 +688,8 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 	}
 	// Firing line: sandbags behind the fence bar, floored shooter cells
 	// behind them and a free retreat cell before the back wall, centred on
-	// column 0, each within MinRange of the exit.
-	lines := map[[2]domain.Cell]domain.Fact[bool]{}
-	for _, l := range r.Lines {
-		lines[[2]domain.Cell{l.From, l.To}] = l.LineOfSight
-	}
+	// column 0, each within MinRange of the exit and in the game's line of
+	// sight of it over the census.
 	minRange, rangeKnown := r.MinRange.Value()
 	if rangeKnown && r.Defenders > 0 {
 		for _, o := range []int32{0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6} {
@@ -726,8 +706,7 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 			if math.Sqrt(float64(squaredDistance(shooter, exit))) > minRange {
 				continue
 			}
-			los, known := lines[[2]domain.Cell{shooter, exit}].Value()
-			if known && !los {
+			if los, known := s.lineOfSight(shooter, exit).Value(); !known || !los {
 				continue
 			}
 			// A cover cell on the perimeter wall is an embrasure in the
@@ -749,12 +728,8 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 			}
 			line = append(line, b, floor)
 			firingReserved = append(firingReserved, cover, shooter, retreat)
-			layout.Firing = append(layout.Firing, FiringPosition{Cell: shooter, Cover: cover, Retreat: retreat, Verified: known})
+			layout.Firing = append(layout.Firing, FiringPosition{Cell: shooter, Cover: cover, Retreat: retreat})
 		}
-	}
-	layout.LinesVerified = len(layout.Firing) > 0
-	for _, f := range layout.Firing {
-		layout.LinesVerified = layout.LinesVerified && f.Verified
 	}
 	// Every colony entrance and Home keep a route to the map edge once the
 	// layout stands, and no cheapest colonist route crosses a trap, nor
@@ -832,22 +807,6 @@ func tierCosts(unit map[string][]Amount, buildings []domain.Building) domain.Fac
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Resource < out[j].Resource })
 	return domain.Known(out)
-}
-
-// Probe lists the firing/approach pairs a caller must read through
-// observations_read_lines_of_fire before the firing line and the turret
-// positions are verified.
-func (l DefenseLayout) Probe() (firing, approach []domain.Cell) {
-	for _, f := range l.Firing {
-		firing = append(firing, f.Cell)
-	}
-	if len(firing) == 0 {
-		return nil, nil
-	}
-	for _, t := range l.Turrets {
-		firing = append(firing, t.Cell)
-	}
-	return firing, []domain.Cell{l.KillZone()}
 }
 
 // KillZone is the cell raiders reach leaving the snake, the one the firing

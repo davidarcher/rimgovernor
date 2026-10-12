@@ -3,6 +3,7 @@ package policy
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -11,7 +12,7 @@ import (
 // turretFixture adds the turret request to the corridor fixture: a mini
 // turret available, a network with spare watts whose one conduit sits in the
 // yard behind the back wall, steel for two turrets and their conduits, and
-// a known line of sight from both flank slots (x 11 and 19 on the shooters'
+// a clear line of sight from both flank slots (x 11 and 19 on the shooters'
 // row, three cells clear of the firing span x 14..16) to the kill zone.
 func turretFixture() DefenseRequest {
 	r := defenseFixture()
@@ -19,16 +20,10 @@ func turretFixture() DefenseRequest {
 	r.UnitCosts["PowerConduit"] = []Amount{{Resource: "Steel", Count: 1}}
 	r.Turret = DefenseTurretRequest{Definition: "Turret_MiniTurret", Conduit: "PowerConduit", Available: domain.Known(true), DrawW: domain.Known(80.0), SpareW: domain.Known(200.0),
 		Transmitters: cells(18, 28), Stock: domain.Known(map[Resource]int64{"Steel": 300, "ComponentIndustrial": 10}), Max: 2}
-	for _, c := range flankSlots {
-		r.Lines = append(r.Lines, DefenseLine{From: c, To: fixtureExit, LineOfSight: domain.Known(true)})
-	}
 	return r
 }
 
-var (
-	flankSlots  = cells(11, 23, 19, 23)
-	fixtureExit = domain.Cell{X: 18, Z: 19}
-)
+var flankSlots = cells(11, 23, 19, 23)
 
 func turretCells(tier DefenseTier, definition string) []domain.Cell {
 	var out []domain.Cell
@@ -52,7 +47,7 @@ func TestDefenseTurretsFlankTheFiringLineAndReachTheNetwork(t *testing.T) {
 	// Slots step outward from the firing span on the shooters' row to the
 	// kill zone's side walls; the row behind is within chain-explosion
 	// range of the front slots, so only these two remain.
-	if !reflect.DeepEqual(layout.Turrets, []TurretPosition{{Cell: flankSlots[0], Verified: true}, {Cell: flankSlots[1], Verified: true}}) {
+	if !reflect.DeepEqual(layout.Turrets, []TurretPosition{{Cell: flankSlots[0]}, {Cell: flankSlots[1]}}) {
 		t.Fatalf("%+v", layout.Turrets)
 	}
 	turrets := turretCells(tier, "Turret_MiniTurret")
@@ -115,10 +110,6 @@ func TestDefenseTurretsFlankTheFiringLineAndReachTheNetwork(t *testing.T) {
 	if !crossed {
 		t.Fatal("chain never left the kill zone", chain)
 	}
-	firing, _ := layout.Probe()
-	if !reflect.DeepEqual(firing, cells(15, 23, 14, 23, 16, 23, 11, 23, 19, 23)) {
-		t.Fatal(firing)
-	}
 	if v, k := tier.Costs.Value(); !k || v[0] != (Amount{Resource: "ComponentIndustrial", Count: 6}) || v[1].Resource != "Steel" || v[1].Count != int64(140+len(chain)) {
 		t.Fatal(tier.Costs)
 	}
@@ -135,15 +126,11 @@ func TestDefenseTurretsHeavierRungsStandFurtherBack(t *testing.T) {
 	r := turretFixture()
 	r.UnitCosts[TurretAutocannon] = []Amount{{Resource: "Steel", Count: 100}, {Resource: "ComponentIndustrial", Count: 4}}
 	r.Turret.Definition = TurretAutocannon
-	r.Lines = nil
-	for _, c := range cells(11, 24, 19, 24) {
-		r.Lines = append(r.Lines, DefenseLine{From: c, To: fixtureExit, LineOfSight: domain.Known(true)})
-	}
 	layout, err := DefenseLayouts(r)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(layout.Turrets, []TurretPosition{{Cell: domain.Cell{X: 11, Z: 24}, Verified: true}, {Cell: domain.Cell{X: 19, Z: 24}, Verified: true}}) {
+	if !reflect.DeepEqual(layout.Turrets, []TurretPosition{{Cell: domain.Cell{X: 11, Z: 24}}, {Cell: domain.Cell{X: 19, Z: 24}}}) {
 		t.Fatalf("%+v", layout.Turrets)
 	}
 	mini, err := DefenseLayouts(turretFixture())
@@ -181,13 +168,16 @@ func TestDefenseTurretsGateOnObservedResearchPowerAndStock(t *testing.T) {
 		"no steel": func(r *DefenseRequest) {
 			r.Turret.Stock = domain.Known(map[Resource]int64{"Steel": 69, "ComponentIndustrial": 10})
 		},
-		"no components":    func(r *DefenseRequest) { r.Turret.Stock = domain.Known(map[Resource]int64{"Steel": 300}) },
-		"cost unknown":     func(r *DefenseRequest) { delete(r.UnitCosts, "Turret_MiniTurret") },
-		"no transmitter":   func(r *DefenseRequest) { r.Turret.Transmitters = nil },
-		"max zero":         func(r *DefenseRequest) { r.Turret.Max = 0 },
-		"lines unverified": func(r *DefenseRequest) { r.Lines = nil },
+		"no components":  func(r *DefenseRequest) { r.Turret.Stock = domain.Known(map[Resource]int64{"Steel": 300}) },
+		"cost unknown":   func(r *DefenseRequest) { delete(r.UnitCosts, "Turret_MiniTurret") },
+		"no transmitter": func(r *DefenseRequest) { r.Turret.Transmitters = nil },
+		"max zero":       func(r *DefenseRequest) { r.Turret.Max = 0 },
 		"no line of sight": func(r *DefenseRequest) {
-			r.Lines[0].LineOfSight, r.Lines[1].LineOfSight = domain.Known(false), domain.Known(false)
+			for _, slot := range flankSlots {
+				for _, c := range cells(slot.X-1, slot.Z, slot.X+1, slot.Z, slot.X, slot.Z-1, slot.X, slot.Z+1) {
+					setDefenseCell(r, wallCell(c))
+				}
+			}
 		},
 		"no firing line": func(r *DefenseRequest) { r.Defenders = 0 },
 	} {
@@ -273,37 +263,36 @@ func TestDefenseTurretsAvoidLanesReservedAndUnknownCells(t *testing.T) {
 		}
 	}
 }
-func TestDefenseTurretsSeeTheKillZoneNotTheEntry(t *testing.T) {
-	// The corridor's walls hide the entry from the kill zone: a slot that
-	// sees the exit is verified; one whose every corridor line is known
-	// blocked is skipped.
-	plain, err := DefenseLayouts(defenseFixture())
-	if err != nil {
-		t.Fatal(err)
+
+// A flank slot that sees nothing of the lane over the census is skipped, a
+// walled-in one and one whose surroundings are unseen alike.
+func TestDefenseTurretsNeedSightOfTheLane(t *testing.T) {
+	around := func(c domain.Cell) []domain.Cell {
+		return cells(c.X-1, c.Z, c.X+1, c.Z, c.X, c.Z-1, c.X, c.Z+1)
 	}
-	r := turretFixture()
-	r.Lines = nil
-	for _, c := range flankSlots {
-		r.Lines = append(r.Lines, DefenseLine{From: c, To: domain.Cell{X: 15, Z: 5}, LineOfSight: domain.Known(false)})
-	}
-	r.Lines = append(r.Lines, DefenseLine{From: flankSlots[0], To: fixtureExit, LineOfSight: domain.Known(true)})
-	for _, a := range plain.TrapLane {
-		r.Lines = append(r.Lines, DefenseLine{From: flankSlots[1], To: a, LineOfSight: domain.Known(false)})
-	}
-	layout, err := DefenseLayouts(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tier, _ := layout.Tier(TierTurrets)
-	if turrets := turretCells(tier, "Turret_MiniTurret"); !reflect.DeepEqual(turrets, flankSlots[:1]) {
-		t.Fatal(turrets)
-	}
-	for _, c := range layout.Turrets {
-		if c.Cell == flankSlots[1] {
-			t.Fatal("blocked flank kept as a candidate", layout.Turrets)
+	for name, edit := range map[string]func(domain.Cell) DefenseCell{
+		"walled": wallCell,
+		"unseen": func(c domain.Cell) DefenseCell { return DefenseCell{Cell: c} },
+	} {
+		r := turretFixture()
+		for _, c := range around(flankSlots[1]) {
+			setDefenseCell(&r, edit(c))
 		}
-	}
-	if g := layout.Geometry(); !reflect.DeepEqual(g.Approach, layout.TrapLane) {
-		t.Fatal(g.Approach)
+		layout, err := DefenseLayouts(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tier, _ := layout.Tier(TierTurrets)
+		if turrets := turretCells(tier, "Turret_MiniTurret"); slices.Contains(turrets, flankSlots[1]) || !slices.Contains(turrets, flankSlots[0]) {
+			t.Fatal(name, turrets)
+		}
+		for _, c := range layout.Turrets {
+			if c.Cell == flankSlots[1] {
+				t.Fatal(name, "blind flank kept as a candidate", layout.Turrets)
+			}
+		}
+		if g := layout.Geometry(); !reflect.DeepEqual(g.Approach, layout.TrapLane) {
+			t.Fatal(g.Approach)
+		}
 	}
 }

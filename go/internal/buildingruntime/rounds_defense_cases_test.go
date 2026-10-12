@@ -341,6 +341,47 @@ func loadLayout(t *testing.T, path, point string) snapshot.Layout {
 	return l
 }
 
+// The Go line of sight reproduces every native answer recorded with a
+// defense layout request (#2943): the turret probe, taken with the funnel and
+// fences standing, and the chokepoint proposal. Differences the Go rule
+// documents (a door reads closed; an unseen cell is unknown) do not occur in
+// these censuses.
+func TestDefenseLineOfSightMatchesRecordedNativeAnswers(t *testing.T) {
+	t.Parallel()
+	for path, point := range map[string]string{
+		"testdata/defense/layout-turrets.json.gz":         snapshot.LayoutTurrets,
+		"testdata/defense/layout-perimeter-fence.json.gz": snapshot.LayoutPropose,
+	} {
+		l := loadLayout(t, path, point)
+		if len(l.NativeLines) == 0 {
+			t.Fatalf("%s records no native answers", path)
+		}
+		clear, blocked := 0, 0
+		for _, line := range l.NativeLines {
+			want, known := line.LineOfSight.Value()
+			if !known {
+				t.Fatalf("%s: native answer %v to %v unknown", path, line.From, line.To)
+			}
+			got, err := l.Request.LineOfSight(line.From, line.To)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if v, k := got.Value(); !k || v != want {
+				t.Errorf("%s: %v to %v: native %v, go %v (known %v)", path, line.From, line.To, want, v, k)
+			}
+			if want {
+				clear++
+			} else {
+				blocked++
+			}
+		}
+		t.Logf("%s: %d clear, %d blocked agree", path, clear, blocked)
+		if point == snapshot.LayoutTurrets && (clear == 0 || blocked == 0) {
+			t.Fatalf("the turret recording must hold both clear and blocked lines: %d, %d", clear, blocked)
+		}
+	}
+}
+
 // defense/turrets: with turret research, a fuelled network and steel
 // observed, turrets are placed behind the firing line with a conduit chain.
 func TestDefenseReplayTurretsJoinTheLayout(t *testing.T) {
@@ -365,22 +406,13 @@ func TestDefenseReplayTurretsJoinTheLayout(t *testing.T) {
 }
 
 // defense/layout-stocked: a stocked colony's higher raid-point band raises
-// the turret budget; the same site then proposes more turret positions on
-// an unchanged firing line. The recording's lines of fire were probed for
-// slots without recorded lines of fire, so every slot proposed now is given a known line.
-func TestDefenseReplayStockedColonyProposesMoreTurrets(t *testing.T) {
+// the turret budget. On this site the standing funnel hides the lane from
+// every flank slot but one (the Go line of sight, checked against the native
+// answers above), so more budget and stock leave the proposal at that one
+// position rather than shrinking it.
+func TestDefenseReplayStockedColonyKeepsTheSightedTurret(t *testing.T) {
 	t.Parallel()
 	l := loadLayout(t, "testdata/defense/layout-turrets.json.gz", snapshot.LayoutTurrets)
-	wide := l.Request
-	wide.Turret.Max = policy.TurretBudget(domain.Known(1e6))
-	_, slots, err := policy.DefenseTurrets(wide, l.Geometry)
-	if err != nil {
-		t.Fatal(err)
-	}
-	l.Request.Lines = append([]policy.DefenseLine{}, l.Request.Lines...)
-	for _, c := range slots {
-		l.Request.Lines = append(l.Request.Lines, policy.DefenseLine{From: c.Cell, To: l.Geometry.Approach[0], LineOfSight: domain.Known(true)})
-	}
 	count := func(r policy.DefenseRequest) int {
 		tier, _, err := policy.DefenseTurrets(r, l.Geometry)
 		if err != nil {
@@ -407,7 +439,7 @@ func TestDefenseReplayStockedColonyProposesMoreTurrets(t *testing.T) {
 	if base >= stocked.Turret.Max {
 		t.Fatalf("base %d already at the stocked budget %d", base, stocked.Turret.Max)
 	}
-	if more := count(stocked); more <= base {
+	if more := count(stocked); base == 0 || more != base {
 		t.Fatalf("stocked colony proposes %d turrets, base %d", more, base)
 	}
 }

@@ -3,6 +3,7 @@ package policy
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -238,7 +239,7 @@ func TestDefenseLayoutKillboxShape(t *testing.T) {
 		t.Fatal(choke)
 	}
 	firing, _ := layout.Tier(TierFiringLine)
-	if len(layout.Firing) != 3 || len(firing.Buildings) != 6 || layout.LinesVerified {
+	if len(layout.Firing) != 3 || len(firing.Buildings) != 6 {
 		t.Fatalf("%+v", layout.Firing)
 	}
 	// Each shooter cell is floored so nothing grows onto the position.
@@ -260,10 +261,6 @@ func TestDefenseLayoutKillboxShape(t *testing.T) {
 	}
 	if !reflect.DeepEqual(layout.Firing, wantFiring) {
 		t.Fatalf("%+v", layout.Firing)
-	}
-	f, a := layout.Probe()
-	if !reflect.DeepEqual(f, cells(15, 23, 14, 23, 16, 23)) || !reflect.DeepEqual(a, cells(18, 19)) {
-		t.Fatal(f, a)
 	}
 	if v, k := funnel.Costs.Value(); !k || len(v) != 2 {
 		t.Fatal(funnel.Costs)
@@ -521,25 +518,57 @@ func TestDefenseLayoutSizedFromDefendersTurretsAndDepth(t *testing.T) {
 		t.Fatal("a killbox too shallow for one leg")
 	}
 }
-func TestDefenseLayoutLinesOfFire(t *testing.T) {
+
+// setDefenseCell replaces one fixture cell.
+func setDefenseCell(r *DefenseRequest, c DefenseCell) {
+	for i := range r.Cells {
+		if r.Cells[i].Cell == c.Cell {
+			r.Cells[i] = c
+		}
+	}
+}
+
+// wallCell is a fixture cell holding a wall: impassable, full fill.
+func wallCell(c domain.Cell) DefenseCell {
+	return DefenseCell{Cell: c, Walkable: domain.Known(false), Passable: domain.Known(false), PlayerOwned: domain.Known(true), NaturalRock: domain.Known(false),
+		Door: domain.Known(false), EdgeReachable: domain.Known(false), CoverFill: domain.Known(1.0), Edifice: "Wall"}
+}
+
+// The firing line keeps only shooter cells that see the exit over the
+// census: a wall on the line drops the cell, and so does an unseen cell.
+func TestDefenseLayoutFiringLineNeedsSight(t *testing.T) {
+	firing := func(r DefenseRequest) []domain.Cell {
+		layout, err := DefenseLayouts(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []domain.Cell
+		for _, f := range layout.Firing {
+			out = append(out, f.Cell)
+		}
+		return out
+	}
+	open := firing(defenseFixture())
+	if !reflect.DeepEqual(open, cells(15, 23, 14, 23, 16, 23)) {
+		t.Fatal(open)
+	}
+	// (17,22) lies on the walk from (16,23) to the exit (18,19) and on no other
+	// shooter's.
+	for name, edit := range map[string]DefenseCell{
+		"wall":   wallCell(domain.Cell{X: 17, Z: 22}),
+		"unseen": {Cell: domain.Cell{X: 17, Z: 22}},
+	} {
+		r := defenseFixture()
+		setDefenseCell(&r, edit)
+		got := firing(r)
+		if len(got) != 3 || slices.Contains(got, domain.Cell{X: 16, Z: 23}) {
+			t.Fatal(name, got)
+		}
+	}
 	r := defenseFixture()
-	exit := domain.Cell{X: 18, Z: 19}
-	r.Lines = []DefenseLine{
-		{From: domain.Cell{X: 15, Z: 23}, To: exit, LineOfSight: domain.Known(false)},
-		{From: domain.Cell{X: 14, Z: 23}, To: exit, LineOfSight: domain.Known(true)},
-		{From: domain.Cell{X: 16, Z: 23}, To: exit, LineOfSight: domain.Known(true)},
-		{From: domain.Cell{X: 13, Z: 23}, To: exit, LineOfSight: domain.Known(true)},
-	}
-	layout, err := DefenseLayouts(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !layout.LinesVerified || !reflect.DeepEqual([]domain.Cell{layout.Firing[0].Cell, layout.Firing[1].Cell, layout.Firing[2].Cell}, cells(14, 23, 16, 23, 13, 23)) {
-		t.Fatalf("%+v", layout.Firing)
-	}
-	r.Lines[3].LineOfSight = domain.Unknown[bool]()
-	if layout, err = DefenseLayouts(r); err != nil || layout.LinesVerified || layout.Firing[2].Verified {
-		t.Fatal(layout.Firing, err)
+	setDefenseCell(&r, DefenseCell{Cell: domain.Cell{X: 18, Z: 19}})
+	if _, err := DefenseLayouts(r); err == nil {
+		t.Fatal("an unseen exit lane cell is not a passable lane")
 	}
 }
 func TestDefenseLayoutRangeAndDefenders(t *testing.T) {
@@ -745,7 +774,6 @@ func TestDefenseLayoutRejectsInvalidRequests(t *testing.T) {
 		"negative range":        func(r *DefenseRequest) { r.MinRange = domain.Known(-1.0) },
 		"cover over one":        func(r *DefenseRequest) { r.Cells[0].CoverFill = domain.Known(2.0) },
 		"entrance outside":      func(r *DefenseRequest) { r.Entrances = cells(99, 99) },
-		"line outside":          func(r *DefenseRequest) { r.Lines = []DefenseLine{{From: domain.Cell{X: 99, Z: 0}}} },
 	} {
 		r := defenseFixture()
 		edit(&r)

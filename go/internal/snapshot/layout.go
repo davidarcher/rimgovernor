@@ -24,9 +24,18 @@ const (
 	LayoutCover = "cover"
 )
 
+// NativeLine is one native line-of-sight answer (observations_read_lines_of_fire)
+// recorded beside the request it was read against, from before the planner
+// computed sight in Go. It is evidence only: the planner no longer reads or
+// records lines, and the policy's line of sight is checked against these.
+type NativeLine struct {
+	From, To    domain.Cell
+	LineOfSight domain.Fact[bool]
+}
+
 // Layout is one decision of the defensive layout planner as recorded: the
-// policy request it built from the native defense-site, combat-pawn and
-// lines-of-fire reads, and the stored layout it decided against.
+// policy request it built from the native defense-site and combat-pawn
+// reads, and the stored layout it decided against.
 type Layout struct {
 	Recorded string
 	Snapshot domain.GenerationSnapshot
@@ -38,6 +47,9 @@ type Layout struct {
 	// Site is the defense-site read's cells, which the cover selection
 	// consults beside the request (LayoutCover only).
 	Site []bridge.DefenseCell
+	// NativeLines are the native answers recorded before the Go line of
+	// sight replaced the read; only the oldest recordings carry them.
+	NativeLines []NativeLine `json:",omitempty"`
 }
 
 // RecordLayout writes l into dir as layout-<point>-<tick>.json.

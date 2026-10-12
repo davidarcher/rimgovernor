@@ -668,9 +668,19 @@ the smallest of four Go gates, and the gate that stops a tier short is named:
 Kept constants are geometry, not caps: `defenseMaxWidth`, `defenseMaxDefenders`,
 `turretSpacing`, `conduitReach`, `defenseIEDReach`, `defenseIEDSpacing`,
 `mortarBehindMin`/`mortarBehindMax` (the native placement and blast rules they
-mirror). Turret line-of-sight candidates are every verified slot, bounded by that
+mirror). Turret candidates are every slot with a line of sight to the lane, bounded by that
 geometry. Native still reports its own placement refusals, handled as ordinary
 refusals (`placement_preview_refused`).
+
+Line of sight is computed in Go over the defense census (`policy/defense_sight.go`);
+the defense layout round makes no `observations_read_lines_of_fire` call. It is
+`GenSight.LineOfSight(start, end, map, skipFirstCell: true)`: the game's integer
+walk, which skips the shooter's cell and stops short of the target's, blocked by any
+walked cell whose edifice has fill above 0.99 (`GenGrid.CanBeSeenOver`; the census
+cover fill is the largest fill on the cell). A door reads closed. A fogged endpoint,
+or an unknown cell on an otherwise clear walk, is unknown and the position is not
+placed. The rule is checked against the native answers recorded with the defense
+layout snapshots (`TestDefenseLineOfSightMatchesRecordedNativeAnswers`).
 
 A gate that cuts a tier journals `defense_action` / `refused` with the gate as
 `reason` (`turret_unavailable`, `turret_threat_budget`, `turret_power`,
@@ -705,7 +715,7 @@ Unknown range or threshold holds selection. Accepted footprints, firing position
 both lanes and existing rock supporting their flanks are protected. Map-edge rock,
 mountain interiors and rock faces carry concrete holds; only free-standing rock is
 mined. Demand within a sector ranks nearest Entry first. Ranking cover demand does
-not change geometry or `LinesVerified`.
+not change geometry.
 
 Each cell whose fill comes from a thing the game's own designators could remove names
 it (`cover_thing_id`, `cover_def_name`, `cover_kind` plant/chunk/mineable/building,

@@ -125,7 +125,6 @@ func defenseTierSequence(record store.DefenseLayoutRecord, roamerOwned bool) []p
 // lines, the access audit, defender gear and placement previews.
 type RoundsDefenseLayoutSource interface {
 	ReadDefenseSite(context.Context, *c.Identity, bridge.CellRect) (bridge.DefenseSite, bridge.Result, error)
-	ReadLinesOfFire(context.Context, *c.Identity, []domain.Cell, []domain.Cell) (bridge.LinesOfFire, bridge.Result, error)
 	ReadSpatialAccess(context.Context, *c.Identity, []domain.Cell, []domain.Cell, []string) (bridge.SpatialAccess, bridge.Result, error)
 	ReadCombatPawns(context.Context, *c.Identity, []string) (*o.ListPawnsReply, bridge.Result, error)
 	PreviewBuildings(context.Context, []domain.Action, domain.GenerationSnapshot) ([]bridge.BuildingPreview, bridge.Result, error)
@@ -991,32 +990,6 @@ func (r *RoundsDefenseLayoutPlanner) proposeTurrets(call context.Context, state 
 	}
 	geometry := defenseRecordGeometry(*record, killbox)
 	record.TurretsProbedTick = projection.Identity.Tick
-	_, candidates, err := policy.DefenseTurrets(request, geometry)
-	if err != nil || len(candidates) == 0 {
-		return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
-	}
-	var probe []domain.Cell
-	for _, c := range candidates {
-		probe = append(probe, c.Cell)
-	}
-	lines, _, err := r.native.ReadLinesOfFire(call, identity, probe, record.TrapLane)
-	if err != nil {
-		return err
-	}
-	if err = r.sameTick(lines.Context, state, projection.Identity.Tick); err != nil {
-		return err
-	}
-	if lines.Skipped {
-		// Pairs past the budget stay absent, which the turret policy reads as unknown.
-		defenseAction(call, "defense-layout", slog.LevelInfo, "partial", "lines_of_fire_skipped", "turrets", map[string]any{"read": len(lines.Lines), "firing": len(probe), "approach": len(record.TrapLane)})
-	}
-	for _, line := range lines.Lines {
-		l := policy.DefenseLine{From: line.From, To: line.To}
-		if line.Known {
-			l.LineOfSight = domain.Known(line.LineOfSight)
-		}
-		request.Lines = append(request.Lines, l)
-	}
 	recordLayoutSnapshot(call, state.Snapshot, projection.Identity.Tick, snapshot.Layout{Point: snapshot.LayoutTurrets, Request: request, Geometry: geometry, Record: record})
 	tier, _, err := policy.DefenseTurrets(request, geometry)
 	if err == nil {
@@ -1242,35 +1215,13 @@ func (r *RoundsDefenseLayoutPlanner) propose(call, epoch context.Context, goal s
 			return policy.DefenseLayout{}, nil, result.Verdict, false, err
 		}
 	}
+	recordLayoutSnapshot(call, state.Snapshot, projection.Identity.Tick, snapshot.Layout{Point: snapshot.LayoutPropose, Request: request})
 	layout, err := policy.DefenseLayouts(request)
 	if err != nil {
 		return policy.DefenseLayout{}, nil, noSpace("defense_layout"), false, nil
 	}
-	firing, approach := layout.Probe()
-	if len(firing) == 0 {
+	if len(layout.Firing) == 0 {
 		return policy.DefenseLayout{}, nil, noSpace("firing_cell"), false, nil
-	}
-	lines, _, err := r.native.ReadLinesOfFire(call, identity, firing, approach)
-	if err != nil {
-		return policy.DefenseLayout{}, nil, Verdict{}, false, err
-	}
-	if err = r.sameTick(lines.Context, state, projection.Identity.Tick); err != nil {
-		return policy.DefenseLayout{}, nil, Verdict{}, false, err
-	}
-	for _, line := range lines.Lines {
-		l := policy.DefenseLine{From: line.From, To: line.To}
-		if line.Known {
-			l.LineOfSight = domain.Known(line.LineOfSight)
-		}
-		request.Lines = append(request.Lines, l)
-	}
-	recordLayoutSnapshot(call, state.Snapshot, projection.Identity.Tick, snapshot.Layout{Point: snapshot.LayoutPropose, Request: request})
-	layout, err = policy.DefenseLayouts(request)
-	if err != nil {
-		return policy.DefenseLayout{}, nil, noSpace("defense_layout"), false, nil
-	}
-	if !layout.LinesVerified {
-		return policy.DefenseLayout{}, nil, fieldUnavailable("lines_of_fire"), false, nil
 	}
 	for _, g := range layout.Gated {
 		defenseTierGated(call, g.Tier, g.Reason)
