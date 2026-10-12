@@ -202,3 +202,33 @@ func TestEmbedDeterministicAtAnyThreadCount(t *testing.T) {
 		}
 	}
 }
+
+// The grid reads the same uncovered weight as the sweep, rectangles spilling off
+// the map and k beyond the grid included.
+func TestCoverGridMatchesTheSweep(t *testing.T) {
+	const n = 40
+	onMap := Rectangle{Width: n, Height: n}
+	odd := newPrefix(n, n, func(c domain.Cell) int { return b2i((c.X*7+c.Z*3)%5 != 0) })
+	rng := uint32(12345)
+	next := func(m int32) int32 { rng = rng*1664525 + 1013904223; return int32(rng>>8) % m }
+	for trial := 0; trial < 200; trial++ {
+		var rs []Rectangle
+		for i := int32(0); i < 1+next(30); i++ {
+			rs = append(rs, Rectangle{X: next(n+8) - 4, Z: next(n+8) - 4, Width: 1 + next(9), Height: 1 + next(9)})
+		}
+		xr := newXRects(rs)
+		var sc coverScratch
+		for _, w := range []*prefix{nil, &odd} {
+			g := newCoverGrid(onMap, xr, w)
+			for q := 0; q < 20; q++ {
+				k := Rectangle{X: next(n+8) - 4, Z: next(n+8) - 4, Width: next(12) - 1, Height: next(12) - 1}
+				if w != nil {
+					k = clipRect(k, onMap)
+				}
+				if want, got := sc.uncovered(k, xr, w), g.uncovered(k, w); want != got {
+					t.Fatalf("trial %d k %v weighted %v: sweep %d, grid %d", trial, k, w != nil, want, got)
+				}
+			}
+		}
+	}
+}
