@@ -266,7 +266,7 @@ and Hot; `Spine` and `Wings` are leftovers of the old generator.
   than greedy on a gated term; the tiler has no built input, so nothing is pinned or moved free.
   **Live furnishing (#2956).** The runtime reads a room's furniture slots from
   `PlanRoomInterior` (`interior_region.go`). A role in `regionRoles` (workshop, laboratory,
-  kitchen, tomb, prison cell, hospital, bedroom, suite, throne room and the child rooms so far) states what its floor should hold as
+  kitchen, tomb, prison cell, hospital, bedroom, suite, throne room, the child rooms, dining and rec room so far) states what its floor should hold as
   `RegionWant`s (`interior_region_roles.go`: the capacity its template had along the entrance
   wall or aisle, the pieces named as the reconcilers and consumers read them) and the placer
   seats them on `InteriorRoom.Floor()`, the planned room's region, so an L or notched room is
@@ -276,7 +276,12 @@ and Hot; `Spine` and `Wings` are leftovers of the old generator.
   give it the graph flows and hold the result to the template's count of every definition,
   its slot names and its gated terms. `InteriorTable` is the judgment table (the stove
   count). `InteriorRoom.Built` is what already stands (the closers pass `FurnitureRoom.Planning()`):
-  the plan leaves those pieces where they stand and holds only what is missing. Roles not yet
+  the plan leaves those pieces where they stand and holds only what is missing. A want can
+  sit `Beside` another (a chair at its table): the piece faces and touches a piece of that want,
+  the objective counts it as a facility link (so the search keeps it), and only the pieces up
+  to the want's minimum fall back to any free cell. `Open` seats a want where the most of its
+  `Beside` pieces still fit, nearest the doors (a table with room for its chairs); `Clear` keeps a
+  lane open in front of a piece (the pin's throw lane; a hard constraint). Roles not yet
   moved are still planned by their `InteriorTemplate`.
   **Roofed set (#2941).** On a bad-climate map (the Cold or Hot latch, or a curve under
   `ColdMapBelowC` or over `HotEnter`) `PlanRoofed` (`layout_roof.go`) puts every

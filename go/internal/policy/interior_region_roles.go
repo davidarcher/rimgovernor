@@ -231,3 +231,53 @@ func childRoomWants(_ InteriorRoom, piece InteriorPieceDef, f regionFrame) ([]Re
 	}
 	return []RegionWant{shapeWant("child", piece, n, 1, numbered("child", 0))}, true
 }
+
+// diningWants: the throw pin with its clear lane, then tables each ringed by
+// six chairs that face them, then a lamp. The counts are the template's: a
+// table unit is end chair, 1x2 table, end chair along a line with a side chair
+// each side of the table, one cell between units, row 0 left for the entrance.
+// A dining room drops the pin before its first table and a rec room drops
+// tables before its pin, so the first of the two is the minimum.
+func diningWants(recFirst bool) regionRole {
+	return func(room InteriorRoom, _ InteriorPieceDef, f regionFrame) ([]RegionWant, bool) {
+		d := room.Dining
+		if d.Validate() != nil || f.Width < 5 {
+			return nil, false
+		}
+		units := func(depth int32) int { return int(RowCapacity(depth-1, diningUnitDepth, 1)) }
+		pin, tables := f.Depth >= d.Lane+1, units(f.Depth)
+		if pin {
+			if withPin := units(f.Depth - d.Lane); withPin > 0 || recFirst {
+				tables = withPin
+			} else {
+				pin = false
+			}
+		}
+		if tables == 0 && !pin {
+			return nil, false
+		}
+		var wants []RegionWant
+		if pin {
+			w := namedPiece("horseshoes", d.Pin, 0)
+			if recFirst {
+				w.Min = 1
+			}
+			w.Clear, w.AgainstWall = d.Lane-1, true
+			wants = append(wants, w)
+		}
+		for i := range tables {
+			table := namedPiece(fmt.Sprintf("table.%d", i), d.Table, 0)
+			if i == 0 && !recFirst {
+				table.Min = 1
+			}
+			table.Open = true
+			chairs := shapeWant(fmt.Sprintf("chair.%d", i), d.Chair, 6, 0, numbered(fmt.Sprintf("chair.%d", i), 0))
+			chairs.Beside = table.Slot
+			wants = append(wants, table, chairs)
+		}
+		if lamp, ok := room.Shapes.Get(interiorTable.LampDef); ok {
+			wants = append(wants, namedPiece("lamp", lamp, 0))
+		}
+		return wants, true
+	}
+}

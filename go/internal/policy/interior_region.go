@@ -85,6 +85,8 @@ var regionRoles = map[RoomRole]regionRole{
 	RoomRoleBedroom:    bedroomWants,
 	RoomRoleSuite:      bedroomWants,
 	RoomRoleThroneRoom: throneWants,
+	RoomRoleDiningRoom: diningWants(false),
+	RoomRoleRecRoom:    diningWants(true),
 
 	RoomRoleNursery: childRoomWants, RoomRolePlayroom: childRoomWants, RoomRoleClassroom: childRoomWants,
 	RoomRoleWorshipRoom: childRoomWants, RoomRoleDeathrestChamber: childRoomWants,
@@ -108,10 +110,7 @@ func regionRequest(room InteriorRoom, piece InteriorPieceDef) (RegionPlacement, 
 	}
 	reserved := append([]domain.Cell(nil), room.Reserved...)
 	for _, p := range room.Built {
-		reserved = append(reserved, rectCells(p.Rect)...)
-		if c, ok := p.Interaction(); ok {
-			reserved = append(reserved, c)
-		}
+		reserved = append(append(reserved, rectCells(p.Rect)...), p.Reserves()...)
 	}
 	return RegionPlacement{Region: room.Floor(), Doors: room.Doors, Reserved: reserved, Wants: wants}, true
 }

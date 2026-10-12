@@ -49,6 +49,12 @@ func regionSizedFixtures() []regionFixture {
 	for _, s := range [][2]int32{{5, 6}, {7, 8}} {
 		out = append(out, sizedFixture(RoomRoleSuite, "suite", s[0], s[1], InteriorPieceDef{}))
 	}
+	// Deep enough for the pin's lane and a table beside it, then for several.
+	for _, role := range []RoomRole{RoomRoleDiningRoom, RoomRoleRecRoom} {
+		for _, s := range [][2]int32{{9, 11}, {9, 16}, {12, 12}} {
+			out = append(out, sizedFixture(role, "deep", s[0], s[1], InteriorPieceDef{}))
+		}
+	}
 	brazier := func(i int) RequiredPiece {
 		return RequiredPiece{Slot: fmt.Sprintf("brazier.%d", i), Piece: testBrazier}
 	}
@@ -93,6 +99,7 @@ func regionFamilies() []regionFixture {
 	}{
 		{RoomRoleWorkshop, 7, 5}, {RoomRoleLaboratory, 11, 6}, {RoomRoleKitchen, 6, 5},
 		{RoomRoleTomb, 5, 5}, {RoomRolePrisonCell, 5, 5}, {RoomRoleHospital, 7, 5},
+		{RoomRoleDiningRoom, 9, 7}, {RoomRoleRecRoom, 9, 7},
 	} {
 		out = append(out, sizedFixture(c.role, "core", c.w, c.d, InteriorPieceDef{}))
 	}
@@ -188,6 +195,11 @@ func TestRegionInteriorMatchesTemplates(t *testing.T) {
 			names[p.Slot] = p.Def
 		}
 		for _, p := range tpl.Pieces {
+			// A dining or rec room's pieces are named by table and chair
+			// index; no consumer reads which side of a table a chair is on.
+			if diningRole(f.Role) && (p.Def == testDining.Chair.Def || p.Slot == "lamp") {
+				continue
+			}
 			if names[p.Slot] != p.Def {
 				t.Errorf("%s: template slot %s (%s) is missing from the region plan %v", key, p.Slot, p.Def, names)
 			}
@@ -214,6 +226,8 @@ func TestRegionInteriorMatchesTemplates(t *testing.T) {
 	}
 	t.Log("\n" + table.String())
 }
+
+func diningRole(r RoomRole) bool { return r == RoomRoleDiningRoom || r == RoomRoleRecRoom }
 
 // Two irregular shapes per role: the plan stays on the floor, keeps the doors
 // and every cell reachable, holds the role's minimum, and is no worse than the
@@ -291,6 +305,94 @@ func TestRegionInteriorPlansAroundWhatStands(t *testing.T) {
 	score := ScoreInterior(InteriorObjective{Region: RectRegion(room.Interior), Doors: room.Doors, Pieces: append([]InteriorPiece{bed}, plan.Pieces...), Shapes: testShapes})
 	if len(plan.Pieces) != 1 || plan.Pieces[0].Slot != "end_table" || score.LinksServed != 1 || !score.Feasible() {
 		t.Errorf("plan %+v, score %+v", plan.Pieces, score)
+	}
+}
+
+// A want beside another seats each piece facing and touching its partner; a
+// piece beyond the want's minimum with no partner is left out, and one the want
+// requires still stands, unlinked, which the objective counts as a missed link.
+func TestRegionBesideSeatsPiecesAtTheirPartner(t *testing.T) {
+	region := RectRegion(Rectangle{X: 0, Z: 0, Width: 5, Height: 5})
+	door := []domain.Cell{{X: 2, Z: -1}}
+	table := RegionWant{Slot: "table", Def: "Table1x2c", Size: domain.Cell{X: 1, Z: 2}, Count: 1, Min: 1, Open: true}
+	chairs := RegionWant{Slot: "chair", Def: "DiningChair", Size: domain.Cell{X: 1, Z: 1}, Count: 6, Beside: "table"}
+	pieces, err := PlaceInRegion(RegionPlacement{Region: region, Doors: door, Wants: []RegionWant{table, chairs}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := defCounts(pieces)["DiningChair"]; got != 6 {
+		t.Fatalf("%d chairs seated, want 6 around the open table", got)
+	}
+	for _, p := range pieces {
+		if p.Beside != "" && !p.faces(pieces) {
+			t.Errorf("%s at %+v faces %v, not the table", p.Slot, p.Rect, p.frontCells())
+		}
+	}
+	score := ScoreInterior(InteriorObjective{Region: region, Doors: door, Pieces: pieces, Shapes: testShapes})
+	if score.LinksWanted != 6 || score.LinksServed != 6 || !score.Feasible() {
+		t.Errorf("links %d/%d, violations %v", score.LinksServed, score.LinksWanted, score.Violations)
+	}
+	// Turned away, a chair no longer links.
+	turned := append([]InteriorPiece(nil), pieces...)
+	for i, p := range turned {
+		if p.Beside != "" {
+			turned[i] = replaced(p, rotateCW(p.Rot, 2), domain.Cell{X: p.Rect.X, Z: p.Rect.Z})
+			break
+		}
+	}
+	if s := ScoreInterior(InteriorObjective{Region: region, Doors: door, Pieces: turned, Shapes: testShapes}); s.LinksServed != 5 {
+		t.Errorf("a chair turned from its table serves %d of 6 links", s.LinksServed)
+	}
+	// No partner: an optional chair is left out, a required one stands.
+	orphans := chairs
+	orphans.Beside = "ghost"
+	if got, _ := PlaceInRegion(RegionPlacement{Region: region, Doors: door, Wants: []RegionWant{orphans}}); len(got) != 0 {
+		t.Errorf("%d chairs stand with no table to sit at", len(got))
+	}
+	orphans.Min = 2
+	if got, err := PlaceInRegion(RegionPlacement{Region: region, Doors: door, Wants: []RegionWant{orphans}}); err != nil || len(got) != 2 {
+		t.Errorf("the 2 required chairs stand: %d, %v", len(got), err)
+	}
+}
+
+// A clear lane stays open floor in front of its piece, for the placer and for
+// the objective.
+func TestRegionClearLaneStaysOpen(t *testing.T) {
+	region := RectRegion(Rectangle{X: 0, Z: 0, Width: 5, Height: 7})
+	door := []domain.Cell{{X: 2, Z: -1}}
+	pin := RegionWant{Slot: "pin", Def: "HorseshoesPin", Size: domain.Cell{X: 1, Z: 1}, Count: 1, Min: 1, Clear: 4, AgainstWall: true}
+	crate := RegionWant{Slot: "crate", Def: "Crate", Size: domain.Cell{X: 1, Z: 1}, Count: 25}
+	pieces, err := PlaceInRegion(RegionPlacement{Region: region, Doors: door, Wants: []RegionWant{pin, crate}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lane []domain.Cell
+	for _, p := range pieces {
+		if p.Def == "HorseshoesPin" {
+			lane = p.Reserves()
+		}
+	}
+	if len(lane) != 4 {
+		t.Fatalf("lane %v, want 4 cells", lane)
+	}
+	for _, p := range pieces {
+		for _, c := range lane {
+			if rectContains(p.Rect, c) {
+				t.Errorf("%s stands on the lane cell %v", p.Slot, c)
+			}
+		}
+	}
+	if s := ScoreInterior(InteriorObjective{Region: region, Doors: door, Pieces: pieces, Shapes: testShapes}); !s.Feasible() {
+		t.Errorf("a laid-out lane is infeasible: %v", s.Violations)
+	}
+	var blocked []InteriorPiece
+	for _, p := range pieces {
+		if p.Def == "HorseshoesPin" {
+			blocked = append(blocked, p, NewInteriorPiece("crate", "Crate", domain.Cell{X: 1, Z: 1}, domain.North, lane[1]))
+		}
+	}
+	if s := ScoreInterior(InteriorObjective{Region: region, Doors: door, Pieces: blocked, Shapes: testShapes}); s.Feasible() {
+		t.Error("a piece on the lane is feasible")
 	}
 }
 

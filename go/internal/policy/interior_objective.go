@@ -322,6 +322,13 @@ func ScoreInterior(in InteriorObjective) InteriorScore {
 	}
 	stand := map[string][]domain.Cell{}
 	for _, p := range in.Pieces {
+		if p.Clear > 0 {
+			for _, c := range p.Reserves() {
+				if _, taken := blocked[c]; taken || !g.Contains(c) {
+					bad("%s: lane cell %v is not open floor", p.Slot, c)
+				}
+			}
+		}
 		if c, ok := p.Interaction(); ok {
 			if _, taken := blocked[c]; taken || !g.Contains(c) && !isDoor[c] {
 				bad("%s: interaction cell %v is not open floor", p.Slot, c)
@@ -487,6 +494,16 @@ func facilityRules(shapes PieceShapes) []facilityRule {
 // facility; a facility serves at most MaxSimultaneous targets, each target
 // taking the nearest facility with capacity.
 func facilityLinks(in InteriorObjective) (wanted, served int) {
+	// A piece placed beside another (a chair at its table) is one link,
+	// served when it faces and touches one.
+	for _, p := range in.Pieces {
+		if p.Beside != "" {
+			wanted++
+			if p.faces(in.Pieces) {
+				served++
+			}
+		}
+	}
 	for _, rule := range facilityRules(in.Shapes) {
 		l := rule.link
 		if l.Def == "" {

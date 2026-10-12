@@ -126,6 +126,11 @@ type InteriorPiece struct {
 	// regularity checker holds the plan to them.
 	Row, Pair string
 	Centred   bool
+	// Beside names the Row of the pieces this one must face and touch (a chair
+	// at its table); Clear is the length of the straight lane kept open in
+	// front of the piece, where its user stands (RegionWant.Beside, .Clear).
+	Beside string
+	Clear  int32
 }
 
 // Anchor is the cell a native building order names for this footprint.

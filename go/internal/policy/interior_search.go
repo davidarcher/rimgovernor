@@ -113,10 +113,7 @@ func SearchInterior(req RegionPlacement, s InteriorSearch) (InteriorSearchResult
 		}
 	}
 	for _, p := range append(append([]InteriorPiece(nil), pinned...), movable...) {
-		greedy.Reserved = append(greedy.Reserved, rectCells(p.Rect)...)
-		if c, ok := p.Interaction(); ok {
-			greedy.Reserved = append(greedy.Reserved, c)
-		}
+		greedy.Reserved = append(append(greedy.Reserved, rectCells(p.Rect)...), p.Reserves()...)
 	}
 	placed, err := PlaceInRegion(greedy)
 	if err != nil {
@@ -230,5 +227,6 @@ func perturbPieces(pieces []InteriorPiece, free int, cells []domain.Cell, bounds
 func replaced(p InteriorPiece, rot domain.Rotation, corner domain.Cell) InteriorPiece {
 	q := NewInteriorPiece(p.Slot, p.Def, p.Size, rot, corner)
 	q.InteractionOffset, q.Row, q.Pair, q.Centred = p.InteractionOffset, p.Row, p.Pair, p.Centred
+	q.Beside, q.Clear = p.Beside, p.Clear
 	return q
 }
