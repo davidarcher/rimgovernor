@@ -512,14 +512,16 @@ idle. A hallway cell has no ring to wait for: its roof was priced to pay at plan
   infestation cell by weighted random over every candidate, so a dark room does not steer
   it (#2944).
 
-**Old generator (pending deletion, #2932).** `policy.SiteCore` (`layout_site_score.go`)
-and the spine generator behind it (`generate`, the `layout_gen*.go` files,
+**Old generator (pending deletion, #2932).** `policy.SiteCore` (`layout_gen.go`)
+and the spine generator behind it (`generate`, the rest of the `layout_gen*.go` files,
 `layout_spines.go`, `layout_pack.go`, `layout_wing.go`, `layout_suite.go`) are still in
 the tree, but nothing at runtime calls them: only tests call `SiteCore`, and
 `PlanUtilities` (`layout_utility.go`) has no production caller either. They are what
 wrote `LayoutPlan.Spine` and `Wings` and the doors `PlannedRoom.Link` and `Doors` carry;
-those fields are leftovers until the deletion. The `coreGrid` in `layout_core.go` is not
-part of that: `Embed` reads its obstacle levels, siting seeds and `FieldGain`.
+those fields are leftovers until the deletion. The ground the embedder reads is not
+part of that: `buildGround` (`layout_build_ground.go`) holds the core and rock cells, the
+soil costs and the obstacle levels, and `layout_site_ground.go` the siting seeds, that
+`Embed` uses with `FieldGain`.
 
 **Entry points and what a replan does.** `DeriveLayoutPlan` (`layout_derive.go`) sets
 `StationFacts.Derive` and runs `TileStations`, then merges the field zones and plans the
