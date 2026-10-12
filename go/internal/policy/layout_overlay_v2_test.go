@@ -152,3 +152,22 @@ func TestLayoutOverlayV2DrawsShapedRoomsAsTheirCellsWithIdsAndSuccessors(t *test
 		t.Fatalf("ring label %v sits in the hole", labels["#2 dining"])
 	}
 }
+
+func TestRequirementOverlayDrawsRequiredEdgesBetweenGroupRooms(t *testing.T) {
+	plan := LayoutPlan{Rooms: []PlannedRoom{
+		{ID: 2, Role: PlannedKitchen, Region: RegionOfRuns([]RowRun{{Z: 5, X: 3, Length: 3}})},
+		{ID: 3, Role: PlannedFreezer, Region: RegionOfRuns([]RowRun{{Z: 15, X: 3, Length: 3}})},
+	}}
+	advice := StationAdvice{
+		Graph: StationGraph{Edges: []StationEdge{{A: "stove", B: "cooler", Required: true}, {A: "stove", B: "cooler"}}},
+		Groups: []GroupAdvice{
+			{Group: RoomGroup{Stations: []GroupStation{{Node: "stove"}}}, Rooms: []int32{2}},
+			{Group: RoomGroup{Stations: []GroupStation{{Node: "cooler"}}}, Rooms: []int32{3}},
+		},
+	}
+	var o LayoutOverlay
+	plan.RequirementOverlay(advice, Bounds{Width: 50, Height: 50}, &o)
+	if len(o.Layers) != 1 || len(o.Layers[0].Lines) != 1 || o.Layers[0].Lines[0].From.Z != 5 || o.Layers[0].Lines[0].To.Z != 15 {
+		t.Fatalf("%v", o.Layers)
+	}
+}

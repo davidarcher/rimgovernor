@@ -49,3 +49,32 @@ func TestOverlayRequestSendsAShapedRoomAsItsRuns(t *testing.T) {
 		t.Fatalf("labels %v", labels)
 	}
 }
+
+func TestOverlayRequestSendsSuccessorArrowAndLinks(t *testing.T) {
+	plan := policy.LayoutPlan{
+		Rooms: []policy.PlannedRoom{
+			{ID: 2, Role: policy.PlannedKitchen, Region: policy.RegionOfRuns([]policy.RowRun{{Z: 5, X: 3, Length: 3}})},
+			{ID: 4, Replaces: 2, Role: policy.PlannedKitchen, Region: policy.RegionOfRuns([]policy.RowRun{{Z: 15, X: 3, Length: 3}})},
+			{ID: 5, Role: policy.PlannedStorage, Region: policy.RegionOfRuns([]policy.RowRun{{Z: 25, X: 3, Length: 3}})},
+		},
+		Links: []policy.RoomLink{{A: 4, B: 5, Cell: domain.Cell{X: 4, Z: 20}}},
+		Trips: []policy.RoomTrip{{A: 2, B: 5, Weight: 3}},
+	}
+	shapes, _ := overlayRequest(plan.Overlay(policy.Bounds{Width: 50, Height: 50}))
+	var arrows, segments int
+	for _, s := range shapes {
+		for _, l := range s.Lines {
+			segments++
+			if l.GetArrow() {
+				arrows++
+				if l.From.GetZ() != 5 || l.To.GetZ() != 15 {
+					t.Fatalf("arrow %v", l)
+				}
+			}
+		}
+	}
+	// One successor arrow, two link segments through the door, one trip.
+	if arrows != 1 || segments != 4 {
+		t.Fatalf("arrows %d segments %d: %v", arrows, segments, shapes)
+	}
+}

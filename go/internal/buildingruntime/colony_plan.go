@@ -291,7 +291,11 @@ func (r *Rounder) drawLayoutOverlay(ctx context.Context, snapshot domain.Generat
 	if key == r.overlayKey && tick >= r.overlayDrawn && tick-r.overlayDrawn < overlayRedrawEvery {
 		return
 	}
-	layer, fields := policy.SplitFields(layout.Plan.Overlay(projection.Bounds))
+	overlay := layout.Plan.Overlay(projection.Bounds)
+	if r.stationHeld {
+		layout.Plan.RequirementOverlay(r.stationLast, projection.Bounds, &overlay)
+	}
+	layer, fields := policy.SplitFields(overlay)
 	if _, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), fieldLayer, fields, len(fields.Layers) > 0); err != nil {
 		return
 	}

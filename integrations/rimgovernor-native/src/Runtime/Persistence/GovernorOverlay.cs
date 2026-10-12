@@ -22,6 +22,8 @@ namespace HomeBridge.BridgeTools
         public bool Outline;
         public readonly List<CellRect> Fills = new List<CellRect>();
         public readonly HashSet<IntVec3> Cells = new HashSet<IntVec3>();
+        // Segments between cell centres (map coordinates); Arrow heads the end.
+        public readonly List<(Vector2 From, Vector2 To, bool Arrow)> Lines = new List<(Vector2, Vector2, bool)>();
     }
 
     /// <summary>
@@ -33,6 +35,8 @@ namespace HomeBridge.BridgeTools
     public sealed class GovernorOverlay : MapComponent
     {
         private const float EdgeWidth = 0.1f;
+        private const float LineWidth = 0.2f;
+        private const float ArrowLength = 1f;
 
         private sealed class Layer
         {
@@ -140,24 +144,49 @@ namespace HomeBridge.BridgeTools
                 var quads = new List<Rect>();
                 if (bucket.Key.Outline) Edges(bucket.SelectMany(g => g.Cells).ToHashSet(), quads);
                 else foreach (var g in bucket) foreach (var r in g.Fills) quads.Add(new Rect(r.minX, r.minZ, r.Width, r.Height));
-                if (quads.Count == 0) continue;
-                var verts = new Vector3[quads.Count * 4];
-                var tris = new int[quads.Count * 6];
-                for (var i = 0; i < quads.Count; i++)
+                var verts = new List<Vector3>();
+                var tris = new List<int>();
+                foreach (var q in quads)
                 {
-                    var q = quads[i];
-                    verts[i * 4] = new Vector3(q.xMin, y, q.yMin);
-                    verts[i * 4 + 1] = new Vector3(q.xMin, y, q.yMax);
-                    verts[i * 4 + 2] = new Vector3(q.xMax, y, q.yMax);
-                    verts[i * 4 + 3] = new Vector3(q.xMax, y, q.yMin);
-                    tris[i * 6] = i * 4; tris[i * 6 + 1] = i * 4 + 1; tris[i * 6 + 2] = i * 4 + 2;
-                    tris[i * 6 + 3] = i * 4; tris[i * 6 + 4] = i * 4 + 2; tris[i * 6 + 5] = i * 4 + 3;
+                    var i = verts.Count;
+                    verts.Add(new Vector3(q.xMin, y, q.yMin));
+                    verts.Add(new Vector3(q.xMin, y, q.yMax));
+                    verts.Add(new Vector3(q.xMax, y, q.yMax));
+                    verts.Add(new Vector3(q.xMax, y, q.yMin));
+                    tris.AddRange(new[] { i, i + 1, i + 2, i, i + 2, i + 3 });
                 }
-                var mesh = new Mesh { name = "RimGovernorOverlay", indexFormat = IndexFormat.UInt32, vertices = verts, triangles = tris };
+                foreach (var g in bucket) foreach (var (a, b, arrow) in g.Lines) Segment(a, b, arrow, y, verts, tris);
+                if (verts.Count == 0) continue;
+                var mesh = new Mesh { name = "RimGovernorOverlay", indexFormat = IndexFormat.UInt32, vertices = verts.ToArray(), triangles = tris.ToArray() };
                 mesh.RecalculateBounds();
                 result.Add((mesh, MaterialPool.MatFrom(BaseContent.WhiteTex, ShaderDatabase.MetaOverlay, bucket.Key.Color)));
             }
             return result;
+        }
+
+        // A line as a thin quad from..to; an arrow adds a triangular head at
+        // the end, half a cell back from the tip.
+        private static void Segment(Vector2 from, Vector2 to, bool arrow, float y, List<Vector3> verts, List<int> tris)
+        {
+            var d = to - from;
+            if (d.sqrMagnitude < 1e-6f) return;
+            var dir = d.normalized;
+            var side = new Vector2(-dir.y, dir.x);
+            var half = LineWidth / 2f;
+            var end = arrow ? to - dir * ArrowLength : to;
+            var i = verts.Count;
+            verts.Add(new Vector3(from.x - side.x * half, y, from.y - side.y * half));
+            verts.Add(new Vector3(from.x + side.x * half, y, from.y + side.y * half));
+            verts.Add(new Vector3(end.x + side.x * half, y, end.y + side.y * half));
+            verts.Add(new Vector3(end.x - side.x * half, y, end.y - side.y * half));
+            tris.AddRange(new[] { i, i + 1, i + 2, i, i + 2, i + 3 });
+            if (!arrow) return;
+            var h = ArrowLength * 0.6f;
+            i = verts.Count;
+            verts.Add(new Vector3(end.x - side.x * h, y, end.y - side.y * h));
+            verts.Add(new Vector3(end.x + side.x * h, y, end.y + side.y * h));
+            verts.Add(new Vector3(to.x, y, to.y));
+            tris.AddRange(new[] { i, i + 1, i + 2 });
         }
 
         // Boundary edges of the cell set as thin quads inside the cells,

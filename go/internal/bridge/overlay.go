@@ -53,6 +53,13 @@ func overlayRequest(overlay policy.LayoutOverlay) ([]*p.OverlayShape, []*p.Overl
 		for _, r := range l.Runs {
 			shape.Runs = append(shape.Runs, &p.OverlayRun{X: proto.Int32(r.X), Z: proto.Int32(r.Z), Length: proto.Int32(r.Length)})
 		}
+		for _, ln := range l.Lines {
+			shape.Lines = append(shape.Lines, &p.OverlayLine{
+				From:  &c.Cell{X: proto.Int32(ln.From.X), Z: proto.Int32(ln.From.Z)},
+				To:    &c.Cell{X: proto.Int32(ln.To.X), Z: proto.Int32(ln.To.Z)},
+				Arrow: proto.Bool(ln.Arrow),
+			})
+		}
 		shapes = append(shapes, shape)
 	}
 	labels := make([]*p.OverlayLabel, 0, len(overlay.Labels))

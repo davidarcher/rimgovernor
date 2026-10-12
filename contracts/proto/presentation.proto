@@ -406,6 +406,13 @@ message OverlayShape {
   OverlayStyle style = 2;
   repeated MapRect rects = 3; // Inclusive.
   repeated OverlayRun runs = 4;
+  repeated OverlayLine lines = 5; // Drawn centre to centre in the shape's color.
+}
+// A segment between two map cells; arrow puts a head on `to`.
+message OverlayLine {
+  rimgovernor.common.v1.Cell from = 1;
+  rimgovernor.common.v1.Cell to = 2;
+  optional bool arrow = 3;
 }
 // Text drawn at a map cell while the layer is visible.
 message OverlayLabel { optional string text = 1; rimgovernor.common.v1.Cell cell = 2; }

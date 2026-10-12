@@ -22,6 +22,8 @@ type OverlayLayer struct {
 	Label string
 	Rects []Rectangle
 	Runs  []RowRun
+	// Lines are segments between cells (layout_overlay_lines.go).
+	Lines []OverlayLine
 }
 
 // OverlayColor is straight RGBA in [0,1].

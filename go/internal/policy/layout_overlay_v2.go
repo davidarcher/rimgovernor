@@ -176,6 +176,7 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 		}
 	}
 	add(overlayStyle{planWhite, "door"}, OverlayFill, nil, cellRuns(doors))
+	p.linesOverlay(bounds, &out)
 	return out
 }
 

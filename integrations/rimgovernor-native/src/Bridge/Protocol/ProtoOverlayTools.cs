@@ -20,6 +20,7 @@ namespace HomeBridge.BridgeTools
         // Input bounds on a draw request; kept (docs/developers/contracts/kept-constants.md).
         private const int MaxCells = 250000;
         private const int MaxLabels = 4096;
+        private const int MaxLines = 4096;
         private const int MaxLayerId = 64;
 
         [Tool(ToolName, Title = "Draw a map overlay layer",
@@ -54,6 +55,7 @@ namespace HomeBridge.BridgeTools
             var groups = new List<OverlayGroup>();
             var covered = new HashSet<IntVec3>();
             long budget = MaxCells;
+            var lineBudget = MaxLines;
             var bounds = CellRect.WholeMap(map);
             foreach (var shape in request.Shapes)
             {
@@ -75,6 +77,12 @@ namespace HomeBridge.BridgeTools
                 {
                     if (run.Length <= 0) return Invalid("Overlay run needs a positive length.");
                     rects.Add(new CellRect(run.X, run.Z, run.Length, 1));
+                }
+                foreach (var line in shape.Lines)
+                {
+                    if (line.From == null || line.To == null) return Invalid("Overlay line needs both ends.");
+                    if (--lineBudget < 0) return Invalid($"More than {MaxLines} overlay lines.");
+                    group.Lines.Add((new Vector2(line.From.X + 0.5f, line.From.Z + 0.5f), new Vector2(line.To.X + 0.5f, line.To.Z + 0.5f), line.Arrow));
                 }
                 foreach (var rect in rects)
                 {

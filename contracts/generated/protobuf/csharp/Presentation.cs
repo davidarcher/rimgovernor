@@ -504,77 +504,82 @@ namespace RimGovernor.Protocol.Presentation {
             "ASgCSAKIAQESDgoBYRgEIAEoAkgDiAEBQgQKAl9yQgQKAl9nQgQKAl9iQgQK",
             "Al9hIlgKCk92ZXJsYXlSdW4SDgoBeBgBIAEoBUgAiAEBEg4KAXoYAiABKAVI",
             "AYgBARITCgZsZW5ndGgYAyABKAVIAogBAUIECgJfeEIECgJfekIJCgdfbGVu",
-            "Z3RoIu4BCgxPdmVybGF5U2hhcGUSOAoFY29sb3IYASABKAsyKS5yaW1nb3Zl",
+            "Z3RoIqcCCgxPdmVybGF5U2hhcGUSOAoFY29sb3IYASABKAsyKS5yaW1nb3Zl",
             "cm5vci5wcmVzZW50YXRpb24udjEuT3ZlcmxheUNvbG9yEjgKBXN0eWxlGAIg",
             "ASgOMikucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLk92ZXJsYXlTdHls",
             "ZRIzCgVyZWN0cxgDIAMoCzIkLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52",
             "MS5NYXBSZWN0EjUKBHJ1bnMYBCADKAsyJy5yaW1nb3Zlcm5vci5wcmVzZW50",
-            "YXRpb24udjEuT3ZlcmxheVJ1biJVCgxPdmVybGF5TGFiZWwSEQoEdGV4dBgB",
-            "IAEoCUgAiAEBEikKBGNlbGwYAiABKAsyGy5yaW1nb3Zlcm5vci5jb21tb24u",
-            "djEuQ2VsbEIHCgVfdGV4dCL/AQoOT3ZlcmxheVJlcXVlc3QSMQoIaWRlbnRp",
-            "dHkYASABKAsyHy5yaW1nb3Zlcm5vci5jb21tb24udjEuSWRlbnRpdHkSFQoI",
-            "bGF5ZXJfaWQYAiABKAlIAIgBARIUCgdlbmFibGVkGAMgASgISAGIAQESOQoG",
-            "c2hhcGVzGAQgAygLMikucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLk92",
-            "ZXJsYXlTaGFwZRI5CgZsYWJlbHMYBSADKAsyKS5yaW1nb3Zlcm5vci5wcmVz",
-            "ZW50YXRpb24udjEuT3ZlcmxheUxhYmVsQgsKCV9sYXllcl9pZEIKCghfZW5h",
-            "YmxlZCKKAQoOT3ZlcmxheUFwcGxpZWQSOgoHY29udGV4dBgBIAEoCzIpLnJp",
-            "bWdvdmVybm9yLmNvbW1vbi52MS5PYnNlcnZhdGlvbkNvbnRleHQSEgoFY2Vs",
-            "bHMYAiABKA1IAIgBARITCgZsYXllcnMYAyABKA1IAYgBAUIICgZfY2VsbHNC",
-            "CQoHX2xheWVycyKMAQoMT3ZlcmxheVJlcGx5Ej4KB2FwcGxpZWQYASABKAsy",
-            "Ky5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEuT3ZlcmxheUFwcGxpZWRI",
-            "ABIxCgdmYWlsdXJlGAIgASgLMh4ucmltZ292ZXJub3IuY29tbW9uLnYxLkZh",
-            "aWx1cmVIAEIJCgdvdXRjb21lKsIBCg1NZWRpYUVuY29kaW5nEh4KGk1FRElB",
-            "X0VOQ09ESU5HX1VOU1BFQ0lGSUVEEAASFgoSTUVESUFfRU5DT0RJTkdfUE5H",
-            "EAESFwoTTUVESUFfRU5DT0RJTkdfSlBFRxACEhcKE01FRElBX0VOQ09ESU5H",
-            "X0gyNjQQAxIjCh9NRURJQV9FTkNPRElOR19SR0JBMzJfQk9UVE9NX1VQEAQS",
-            "IgoeTUVESUFfRU5DT0RJTkdfQkdSQTMyX1RPUF9ET1dOEAUqmgEKDUNhcHR1",
-            "cmVNZXRob2QSHgoaQ0FQVFVSRV9NRVRIT0RfVU5TUEVDSUZJRUQQABIrCidD",
-            "QVBUVVJFX01FVEhPRF9QUklWQVRFX1BSRVNFTlRFRF9XSU5ET1cQARIcChhD",
-            "QVBUVVJFX01FVEhPRF9BU1lOQ19HUFUQAhIeChpDQVBUVVJFX01FVEhPRF9S",
-            "RUFEX1BJWEVMUxADKmAKDE92ZXJsYXlTdHlsZRIdChlPVkVSTEFZX1NUWUxF",
-            "X1VOU1BFQ0lGSUVEEAASFgoST1ZFUkxBWV9TVFlMRV9GSUxMEAESGQoVT1ZF",
-            "UkxBWV9TVFlMRV9PVVRMSU5FEAIy2woKEVByZXNlbnRhdGlvblJlYWRzElwK",
-            "BkNhbWVyYRIoLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5SZWFkUmVx",
-            "dWVzdBooLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5DYW1lcmFSZXBs",
-            "eRJiCglTZWxlY3Rpb24SKC5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEu",
-            "UmVhZFJlcXVlc3QaKy5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEuU2Vs",
-            "ZWN0aW9uUmVwbHkScQoJQ29sb25pc3RzEjIucmltZ292ZXJub3IucHJlc2Vu",
-            "dGF0aW9uLnYxLkNvbG9uaXN0Um9zdGVyUmVxdWVzdBowLnJpbWdvdmVybm9y",
-            "LnByZXNlbnRhdGlvbi52MS5Db2xvbmlzdFJvc3RlclJlcGx5El0KCUNhcHR1",
-            "cmVVaRIqLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5VaVJlYWRSZXF1",
-            "ZXN0GiQucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLlVpUmVwbHkSbgoR",
-            "U2NyZWVuVGFyZ2V0c1JlYWQSKC5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24u",
-            "djEuUmVhZFJlcXVlc3QaLy5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEu",
-            "U2NyZWVuVGFyZ2V0c1JlcGx5ElwKCE1haW5UYWJzEigucmltZ292ZXJub3Iu",
-            "cHJlc2VudGF0aW9uLnYxLlRhYnNSZXF1ZXN0GiYucmltZ292ZXJub3IucHJl",
-            "c2VudGF0aW9uLnYxLlRhYnNSZXBseRJfCgtJbnNwZWN0VGFicxIoLnJpbWdv",
-            "dmVybm9yLnByZXNlbnRhdGlvbi52MS5UYWJzUmVxdWVzdBomLnJpbWdvdmVy",
-            "bm9yLnByZXNlbnRhdGlvbi52MS5UYWJzUmVwbHkSXAoGR2l6bW9zEigucmlt",
-            "Z292ZXJub3IucHJlc2VudGF0aW9uLnYxLlJlYWRSZXF1ZXN0GigucmltZ292",
-            "ZXJub3IucHJlc2VudGF0aW9uLnYxLkdpem1vc1JlcGx5EmIKDERpYWxvZ0Zp",
-            "ZWxkcxIoLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5SZWFkUmVxdWVz",
-            "dBooLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5EaWFsb2dSZXBseRJ/",
-            "ChFQcmV2aWV3RGlhbG9nVGV4dBI1LnJpbWdvdmVybm9yLnByZXNlbnRhdGlv",
-            "bi52MS5EaWFsb2dUZXh0UHJldmlld1JlcXVlc3QaMy5yaW1nb3Zlcm5vci5w",
-            "cmVzZW50YXRpb24udjEuRGlhbG9nVGV4dFByZXZpZXdSZXBseRJzCg1Ob3Rp",
-            "ZmljYXRpb25zEjEucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLk5vdGlm",
-            "aWNhdGlvbnNSZXF1ZXN0Gi8ucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYx",
-            "Lk5vdGlmaWNhdGlvbnNSZXBseRJhCgtSZW5kZXJTdGF0ZRIoLnJpbWdvdmVy",
-            "bm9yLnByZXNlbnRhdGlvbi52MS5SZWFkUmVxdWVzdBooLnJpbWdvdmVybm9y",
-            "LnByZXNlbnRhdGlvbi52MS5SZW5kZXJSZXBseRJoCg5JbnB1dFN0YXRlUmVh",
-            "ZBIoLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5SZWFkUmVxdWVzdBos",
-            "LnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5JbnB1dFN0YXRlUmVwbHky",
-            "egoSUGxheWVyUHJlc2VudGF0aW9uEmQKBUFwcGx5EioucmltZ292ZXJub3Iu",
-            "cHJlc2VudGF0aW9uLnYxLlBsYXllckNvbW1hbmQaLy5yaW1nb3Zlcm5vci5w",
-            "cmVzZW50YXRpb24udjEuUGxheWVyQ29tbWFuZFJlcGx5Mu4BChFQcmVzZW50",
-            "YXRpb25NZWRpYRJmCg9EZW1hbmRSZW5kZXJpbmcSKS5yaW1nb3Zlcm5vci5w",
-            "cmVzZW50YXRpb24udjEuUmVuZGVyRGVtYW5kGigucmltZ292ZXJub3IucHJl",
-            "c2VudGF0aW9uLnYxLlJlbmRlclJlcGx5EnEKEUNhcHR1cmVTY3JlZW5zaG90",
-            "Ei4ucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLlNjcmVlbnNob3RSZXF1",
-            "ZXN0GiwucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLlNjcmVlbnNob3RS",
-            "ZXBseUJ3WlFnaXRodWIuY29tL2RhdmlkYXJjaGVyL1JpbUdvdmVybm9yL2dv",
-            "L2ludGVybmFsL3dpcmUvcHJlc2VudGF0aW9ucGI7cHJlc2VudGF0aW9ucGKq",
-            "AiFSaW1Hb3Zlcm5vci5Qcm90b2NvbC5QcmVzZW50YXRpb25iBnByb3RvMw=="));
+            "YXRpb24udjEuT3ZlcmxheVJ1bhI3CgVsaW5lcxgFIAMoCzIoLnJpbWdvdmVy",
+            "bm9yLnByZXNlbnRhdGlvbi52MS5PdmVybGF5TGluZSJ/CgtPdmVybGF5TGlu",
+            "ZRIpCgRmcm9tGAEgASgLMhsucmltZ292ZXJub3IuY29tbW9uLnYxLkNlbGwS",
+            "JwoCdG8YAiABKAsyGy5yaW1nb3Zlcm5vci5jb21tb24udjEuQ2VsbBISCgVh",
+            "cnJvdxgDIAEoCEgAiAEBQggKBl9hcnJvdyJVCgxPdmVybGF5TGFiZWwSEQoE",
+            "dGV4dBgBIAEoCUgAiAEBEikKBGNlbGwYAiABKAsyGy5yaW1nb3Zlcm5vci5j",
+            "b21tb24udjEuQ2VsbEIHCgVfdGV4dCL/AQoOT3ZlcmxheVJlcXVlc3QSMQoI",
+            "aWRlbnRpdHkYASABKAsyHy5yaW1nb3Zlcm5vci5jb21tb24udjEuSWRlbnRp",
+            "dHkSFQoIbGF5ZXJfaWQYAiABKAlIAIgBARIUCgdlbmFibGVkGAMgASgISAGI",
+            "AQESOQoGc2hhcGVzGAQgAygLMikucmltZ292ZXJub3IucHJlc2VudGF0aW9u",
+            "LnYxLk92ZXJsYXlTaGFwZRI5CgZsYWJlbHMYBSADKAsyKS5yaW1nb3Zlcm5v",
+            "ci5wcmVzZW50YXRpb24udjEuT3ZlcmxheUxhYmVsQgsKCV9sYXllcl9pZEIK",
+            "CghfZW5hYmxlZCKKAQoOT3ZlcmxheUFwcGxpZWQSOgoHY29udGV4dBgBIAEo",
+            "CzIpLnJpbWdvdmVybm9yLmNvbW1vbi52MS5PYnNlcnZhdGlvbkNvbnRleHQS",
+            "EgoFY2VsbHMYAiABKA1IAIgBARITCgZsYXllcnMYAyABKA1IAYgBAUIICgZf",
+            "Y2VsbHNCCQoHX2xheWVycyKMAQoMT3ZlcmxheVJlcGx5Ej4KB2FwcGxpZWQY",
+            "ASABKAsyKy5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEuT3ZlcmxheUFw",
+            "cGxpZWRIABIxCgdmYWlsdXJlGAIgASgLMh4ucmltZ292ZXJub3IuY29tbW9u",
+            "LnYxLkZhaWx1cmVIAEIJCgdvdXRjb21lKsIBCg1NZWRpYUVuY29kaW5nEh4K",
+            "Gk1FRElBX0VOQ09ESU5HX1VOU1BFQ0lGSUVEEAASFgoSTUVESUFfRU5DT0RJ",
+            "TkdfUE5HEAESFwoTTUVESUFfRU5DT0RJTkdfSlBFRxACEhcKE01FRElBX0VO",
+            "Q09ESU5HX0gyNjQQAxIjCh9NRURJQV9FTkNPRElOR19SR0JBMzJfQk9UVE9N",
+            "X1VQEAQSIgoeTUVESUFfRU5DT0RJTkdfQkdSQTMyX1RPUF9ET1dOEAUqmgEK",
+            "DUNhcHR1cmVNZXRob2QSHgoaQ0FQVFVSRV9NRVRIT0RfVU5TUEVDSUZJRUQQ",
+            "ABIrCidDQVBUVVJFX01FVEhPRF9QUklWQVRFX1BSRVNFTlRFRF9XSU5ET1cQ",
+            "ARIcChhDQVBUVVJFX01FVEhPRF9BU1lOQ19HUFUQAhIeChpDQVBUVVJFX01F",
+            "VEhPRF9SRUFEX1BJWEVMUxADKmAKDE92ZXJsYXlTdHlsZRIdChlPVkVSTEFZ",
+            "X1NUWUxFX1VOU1BFQ0lGSUVEEAASFgoST1ZFUkxBWV9TVFlMRV9GSUxMEAES",
+            "GQoVT1ZFUkxBWV9TVFlMRV9PVVRMSU5FEAIy2woKEVByZXNlbnRhdGlvblJl",
+            "YWRzElwKBkNhbWVyYRIoLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5S",
+            "ZWFkUmVxdWVzdBooLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5DYW1l",
+            "cmFSZXBseRJiCglTZWxlY3Rpb24SKC5yaW1nb3Zlcm5vci5wcmVzZW50YXRp",
+            "b24udjEuUmVhZFJlcXVlc3QaKy5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24u",
+            "djEuU2VsZWN0aW9uUmVwbHkScQoJQ29sb25pc3RzEjIucmltZ292ZXJub3Iu",
+            "cHJlc2VudGF0aW9uLnYxLkNvbG9uaXN0Um9zdGVyUmVxdWVzdBowLnJpbWdv",
+            "dmVybm9yLnByZXNlbnRhdGlvbi52MS5Db2xvbmlzdFJvc3RlclJlcGx5El0K",
+            "CUNhcHR1cmVVaRIqLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5VaVJl",
+            "YWRSZXF1ZXN0GiQucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLlVpUmVw",
+            "bHkSbgoRU2NyZWVuVGFyZ2V0c1JlYWQSKC5yaW1nb3Zlcm5vci5wcmVzZW50",
+            "YXRpb24udjEuUmVhZFJlcXVlc3QaLy5yaW1nb3Zlcm5vci5wcmVzZW50YXRp",
+            "b24udjEuU2NyZWVuVGFyZ2V0c1JlcGx5ElwKCE1haW5UYWJzEigucmltZ292",
+            "ZXJub3IucHJlc2VudGF0aW9uLnYxLlRhYnNSZXF1ZXN0GiYucmltZ292ZXJu",
+            "b3IucHJlc2VudGF0aW9uLnYxLlRhYnNSZXBseRJfCgtJbnNwZWN0VGFicxIo",
+            "LnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5UYWJzUmVxdWVzdBomLnJp",
+            "bWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5UYWJzUmVwbHkSXAoGR2l6bW9z",
+            "EigucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLlJlYWRSZXF1ZXN0Gigu",
+            "cmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLkdpem1vc1JlcGx5EmIKDERp",
+            "YWxvZ0ZpZWxkcxIoLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5SZWFk",
+            "UmVxdWVzdBooLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5EaWFsb2dS",
+            "ZXBseRJ/ChFQcmV2aWV3RGlhbG9nVGV4dBI1LnJpbWdvdmVybm9yLnByZXNl",
+            "bnRhdGlvbi52MS5EaWFsb2dUZXh0UHJldmlld1JlcXVlc3QaMy5yaW1nb3Zl",
+            "cm5vci5wcmVzZW50YXRpb24udjEuRGlhbG9nVGV4dFByZXZpZXdSZXBseRJz",
+            "Cg1Ob3RpZmljYXRpb25zEjEucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYx",
+            "Lk5vdGlmaWNhdGlvbnNSZXF1ZXN0Gi8ucmltZ292ZXJub3IucHJlc2VudGF0",
+            "aW9uLnYxLk5vdGlmaWNhdGlvbnNSZXBseRJhCgtSZW5kZXJTdGF0ZRIoLnJp",
+            "bWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5SZWFkUmVxdWVzdBooLnJpbWdv",
+            "dmVybm9yLnByZXNlbnRhdGlvbi52MS5SZW5kZXJSZXBseRJoCg5JbnB1dFN0",
+            "YXRlUmVhZBIoLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5SZWFkUmVx",
+            "dWVzdBosLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5JbnB1dFN0YXRl",
+            "UmVwbHkyegoSUGxheWVyUHJlc2VudGF0aW9uEmQKBUFwcGx5EioucmltZ292",
+            "ZXJub3IucHJlc2VudGF0aW9uLnYxLlBsYXllckNvbW1hbmQaLy5yaW1nb3Zl",
+            "cm5vci5wcmVzZW50YXRpb24udjEuUGxheWVyQ29tbWFuZFJlcGx5Mu4BChFQ",
+            "cmVzZW50YXRpb25NZWRpYRJmCg9EZW1hbmRSZW5kZXJpbmcSKS5yaW1nb3Zl",
+            "cm5vci5wcmVzZW50YXRpb24udjEuUmVuZGVyRGVtYW5kGigucmltZ292ZXJu",
+            "b3IucHJlc2VudGF0aW9uLnYxLlJlbmRlclJlcGx5EnEKEUNhcHR1cmVTY3Jl",
+            "ZW5zaG90Ei4ucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLlNjcmVlbnNo",
+            "b3RSZXF1ZXN0GiwucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLlNjcmVl",
+            "bnNob3RSZXBseUJ3WlFnaXRodWIuY29tL2RhdmlkYXJjaGVyL1JpbUdvdmVy",
+            "bm9yL2dvL2ludGVybmFsL3dpcmUvcHJlc2VudGF0aW9ucGI7cHJlc2VudGF0",
+            "aW9ucGKqAiFSaW1Hb3Zlcm5vci5Qcm90b2NvbC5QcmVzZW50YXRpb25iBnBy",
+            "b3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, global::RimGovernor.Protocol.Observations.ObservationsReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Presentation.MediaEncoding), typeof(global::RimGovernor.Protocol.Presentation.CaptureMethod), typeof(global::RimGovernor.Protocol.Presentation.OverlayStyle), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -665,7 +670,8 @@ namespace RimGovernor.Protocol.Presentation {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.ScreenshotReply), global::RimGovernor.Protocol.Presentation.ScreenshotReply.Parser, new[]{ "Screenshot", "Failure" }, new[]{ "Outcome" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.OverlayColor), global::RimGovernor.Protocol.Presentation.OverlayColor.Parser, new[]{ "R", "G", "B", "A" }, new[]{ "R", "G", "B", "A" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.OverlayRun), global::RimGovernor.Protocol.Presentation.OverlayRun.Parser, new[]{ "X", "Z", "Length" }, new[]{ "X", "Z", "Length" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.OverlayShape), global::RimGovernor.Protocol.Presentation.OverlayShape.Parser, new[]{ "Color", "Style", "Rects", "Runs" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.OverlayShape), global::RimGovernor.Protocol.Presentation.OverlayShape.Parser, new[]{ "Color", "Style", "Rects", "Runs", "Lines" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.OverlayLine), global::RimGovernor.Protocol.Presentation.OverlayLine.Parser, new[]{ "From", "To", "Arrow" }, new[]{ "Arrow" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.OverlayLabel), global::RimGovernor.Protocol.Presentation.OverlayLabel.Parser, new[]{ "Text", "Cell" }, new[]{ "Text" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.OverlayRequest), global::RimGovernor.Protocol.Presentation.OverlayRequest.Parser, new[]{ "Identity", "LayerId", "Enabled", "Shapes", "Labels" }, new[]{ "LayerId", "Enabled" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.OverlayApplied), global::RimGovernor.Protocol.Presentation.OverlayApplied.Parser, new[]{ "Context", "Cells", "Layers" }, new[]{ "Cells", "Layers" }, null, null, null),
@@ -35921,6 +35927,7 @@ namespace RimGovernor.Protocol.Presentation {
       style_ = other.style_;
       rects_ = other.rects_.Clone();
       runs_ = other.runs_.Clone();
+      lines_ = other.lines_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -35979,6 +35986,20 @@ namespace RimGovernor.Protocol.Presentation {
       get { return runs_; }
     }
 
+    /// <summary>Field number for the "lines" field.</summary>
+    public const int LinesFieldNumber = 5;
+    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Presentation.OverlayLine> _repeated_lines_codec
+        = pb::FieldCodec.ForMessage(42, global::RimGovernor.Protocol.Presentation.OverlayLine.Parser);
+    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Presentation.OverlayLine> lines_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Presentation.OverlayLine>();
+    /// <summary>
+    /// Drawn centre to centre in the shape's color.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::RimGovernor.Protocol.Presentation.OverlayLine> Lines {
+      get { return lines_; }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -35998,6 +36019,7 @@ namespace RimGovernor.Protocol.Presentation {
       if (Style != other.Style) return false;
       if(!rects_.Equals(other.rects_)) return false;
       if(!runs_.Equals(other.runs_)) return false;
+      if(!lines_.Equals(other.lines_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -36009,6 +36031,7 @@ namespace RimGovernor.Protocol.Presentation {
       if (Style != global::RimGovernor.Protocol.Presentation.OverlayStyle.Unspecified) hash ^= Style.GetHashCode();
       hash ^= rects_.GetHashCode();
       hash ^= runs_.GetHashCode();
+      hash ^= lines_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -36037,6 +36060,7 @@ namespace RimGovernor.Protocol.Presentation {
       }
       rects_.WriteTo(output, _repeated_rects_codec);
       runs_.WriteTo(output, _repeated_runs_codec);
+      lines_.WriteTo(output, _repeated_lines_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -36057,6 +36081,7 @@ namespace RimGovernor.Protocol.Presentation {
       }
       rects_.WriteTo(ref output, _repeated_rects_codec);
       runs_.WriteTo(ref output, _repeated_runs_codec);
+      lines_.WriteTo(ref output, _repeated_lines_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -36075,6 +36100,7 @@ namespace RimGovernor.Protocol.Presentation {
       }
       size += rects_.CalculateSize(_repeated_rects_codec);
       size += runs_.CalculateSize(_repeated_runs_codec);
+      size += lines_.CalculateSize(_repeated_lines_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -36098,6 +36124,7 @@ namespace RimGovernor.Protocol.Presentation {
       }
       rects_.Add(other.rects_);
       runs_.Add(other.runs_);
+      lines_.Add(other.lines_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -36134,6 +36161,10 @@ namespace RimGovernor.Protocol.Presentation {
           }
           case 34: {
             runs_.AddEntriesFrom(input, _repeated_runs_codec);
+            break;
+          }
+          case 42: {
+            lines_.AddEntriesFrom(input, _repeated_lines_codec);
             break;
           }
         }
@@ -36174,6 +36205,320 @@ namespace RimGovernor.Protocol.Presentation {
             runs_.AddEntriesFrom(ref input, _repeated_runs_codec);
             break;
           }
+          case 42: {
+            lines_.AddEntriesFrom(ref input, _repeated_lines_codec);
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
+  /// A segment between two map cells; arrow puts a head on `to`.
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class OverlayLine : pb::IMessage<OverlayLine>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<OverlayLine> _parser = new pb::MessageParser<OverlayLine>(() => new OverlayLine());
+    private pb::UnknownFieldSet _unknownFields;
+    private int _hasBits0;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<OverlayLine> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Presentation.PresentationReflection.Descriptor.MessageTypes[88]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public OverlayLine() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public OverlayLine(OverlayLine other) : this() {
+      _hasBits0 = other._hasBits0;
+      from_ = other.from_ != null ? other.from_.Clone() : null;
+      to_ = other.to_ != null ? other.to_.Clone() : null;
+      arrow_ = other.arrow_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public OverlayLine Clone() {
+      return new OverlayLine(this);
+    }
+
+    /// <summary>Field number for the "from" field.</summary>
+    public const int FromFieldNumber = 1;
+    private global::RimGovernor.Protocol.Common.Cell from_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.Cell From {
+      get { return from_; }
+      set {
+        from_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "to" field.</summary>
+    public const int ToFieldNumber = 2;
+    private global::RimGovernor.Protocol.Common.Cell to_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.Cell To {
+      get { return to_; }
+      set {
+        to_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "arrow" field.</summary>
+    public const int ArrowFieldNumber = 3;
+    private readonly static bool ArrowDefaultValue = false;
+
+    private bool arrow_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Arrow {
+      get { if ((_hasBits0 & 1) != 0) { return arrow_; } else { return ArrowDefaultValue; } }
+      set {
+        _hasBits0 |= 1;
+        arrow_ = value;
+      }
+    }
+    /// <summary>Gets whether the "arrow" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasArrow {
+      get { return (_hasBits0 & 1) != 0; }
+    }
+    /// <summary>Clears the value of the "arrow" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearArrow() {
+      _hasBits0 &= ~1;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as OverlayLine);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(OverlayLine other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (!object.Equals(From, other.From)) return false;
+      if (!object.Equals(To, other.To)) return false;
+      if (Arrow != other.Arrow) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (from_ != null) hash ^= From.GetHashCode();
+      if (to_ != null) hash ^= To.GetHashCode();
+      if (HasArrow) hash ^= Arrow.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (from_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(From);
+      }
+      if (to_ != null) {
+        output.WriteRawTag(18);
+        output.WriteMessage(To);
+      }
+      if (HasArrow) {
+        output.WriteRawTag(24);
+        output.WriteBool(Arrow);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (from_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(From);
+      }
+      if (to_ != null) {
+        output.WriteRawTag(18);
+        output.WriteMessage(To);
+      }
+      if (HasArrow) {
+        output.WriteRawTag(24);
+        output.WriteBool(Arrow);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (from_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(From);
+      }
+      if (to_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(To);
+      }
+      if (HasArrow) {
+        size += 1 + 1;
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(OverlayLine other) {
+      if (other == null) {
+        return;
+      }
+      if (other.from_ != null) {
+        if (from_ == null) {
+          From = new global::RimGovernor.Protocol.Common.Cell();
+        }
+        From.MergeFrom(other.From);
+      }
+      if (other.to_ != null) {
+        if (to_ == null) {
+          To = new global::RimGovernor.Protocol.Common.Cell();
+        }
+        To.MergeFrom(other.To);
+      }
+      if (other.HasArrow) {
+        Arrow = other.Arrow;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            if (from_ == null) {
+              From = new global::RimGovernor.Protocol.Common.Cell();
+            }
+            input.ReadMessage(From);
+            break;
+          }
+          case 18: {
+            if (to_ == null) {
+              To = new global::RimGovernor.Protocol.Common.Cell();
+            }
+            input.ReadMessage(To);
+            break;
+          }
+          case 24: {
+            Arrow = input.ReadBool();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            if (from_ == null) {
+              From = new global::RimGovernor.Protocol.Common.Cell();
+            }
+            input.ReadMessage(From);
+            break;
+          }
+          case 18: {
+            if (to_ == null) {
+              To = new global::RimGovernor.Protocol.Common.Cell();
+            }
+            input.ReadMessage(To);
+            break;
+          }
+          case 24: {
+            Arrow = input.ReadBool();
+            break;
+          }
         }
       }
     }
@@ -36199,7 +36544,7 @@ namespace RimGovernor.Protocol.Presentation {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Presentation.PresentationReflection.Descriptor.MessageTypes[88]; }
+      get { return global::RimGovernor.Protocol.Presentation.PresentationReflection.Descriptor.MessageTypes[89]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -36458,7 +36803,7 @@ namespace RimGovernor.Protocol.Presentation {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Presentation.PresentationReflection.Descriptor.MessageTypes[89]; }
+      get { return global::RimGovernor.Protocol.Presentation.PresentationReflection.Descriptor.MessageTypes[90]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -36825,7 +37170,7 @@ namespace RimGovernor.Protocol.Presentation {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Presentation.PresentationReflection.Descriptor.MessageTypes[90]; }
+      get { return global::RimGovernor.Protocol.Presentation.PresentationReflection.Descriptor.MessageTypes[91]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -37143,7 +37488,7 @@ namespace RimGovernor.Protocol.Presentation {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Presentation.PresentationReflection.Descriptor.MessageTypes[91]; }
+      get { return global::RimGovernor.Protocol.Presentation.PresentationReflection.Descriptor.MessageTypes[92]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
