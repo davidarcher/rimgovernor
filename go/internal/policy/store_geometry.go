@@ -33,7 +33,7 @@ func roomPool(room []domain.Cell, cells []SiteCell, avoid []domain.Cell) []domai
 // butcheryDoor is the planned butchery's door when it opens through a Link
 // (into the freezer), else false.
 func butcheryDoor(layout LayoutPlan) (domain.Cell, bool) {
-	for _, r := range layout.AllRooms() {
+	for _, r := range layout.Rooms {
 		if r.Role != PlannedButchery {
 			continue
 		}

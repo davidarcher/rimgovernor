@@ -49,7 +49,7 @@ func (o militaryOwner) RoomDemand(view StoreView) RoomDemand {
 	demand.Known = true
 	demand.Ranges, demand.Rings = ranges, rings
 	stands := map[PlannedRole]bool{}
-	for _, planned := range view.Layout.AllRooms() {
+	for _, planned := range view.Layout.Rooms {
 		if _, ok := CensusRoomIn(planned, *view.Rooms); ok {
 			stands[planned.Role] = true
 		}
@@ -75,7 +75,7 @@ func (militaryOwner) gearStores(r StoreView) ([]Store, error) {
 		prefix string
 		filter domain.StockpileFilter
 	}{{PlannedArmory, domain.ArmoryRolePrefix, r.Gear.Armory}, {PlannedWardrobe, domain.WardrobeRolePrefix, r.Gear.Wardrobe}} {
-		for _, planned := range r.Layout.AllRooms() {
+		for _, planned := range r.Layout.Rooms {
 			if planned.Role != gear.module {
 				continue
 			}

@@ -26,7 +26,7 @@ func MorgueRoomOwed(plan LayoutPlan, ground GroundCensus, waste []WasteItem) (Pl
 	if !MorgueWaiting(waste) {
 		return PlannedRoom{}, false
 	}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role != PlannedMorgue {
 			continue
 		}

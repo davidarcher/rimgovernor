@@ -15,7 +15,7 @@ import "slices"
 // replaces.
 func (p LayoutPlan) superseded() map[int32]bool {
 	out := map[int32]bool{}
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if r.Replaces != 0 {
 			out[r.Replaces] = true
 		}
@@ -40,18 +40,18 @@ func (p LayoutPlan) RoomChains(role PlannedRole) int {
 // a rebuild in flight.
 func SuccessorPending(plan LayoutPlan) bool {
 	gone := plan.superseded()
-	return slices.ContainsFunc(plan.AllRooms(), func(r PlannedRoom) bool { return gone[r.ID] })
+	return slices.ContainsFunc(plan.Rooms, func(r PlannedRoom) bool { return gone[r.ID] })
 }
 
 // successorPinned are the ids of a room in a rebuild in flight and of its
 // successor: neither moves until the predecessor leaves the plan.
 func successorPinned(plan LayoutPlan) map[int32]bool {
 	have := map[int32]bool{}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		have[r.ID] = true
 	}
 	out := map[int32]bool{}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Replaces != 0 && have[r.Replaces] {
 			out[r.ID], out[r.Replaces] = true, true
 		}

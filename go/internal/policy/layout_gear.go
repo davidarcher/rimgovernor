@@ -42,7 +42,7 @@ func GearRoomNodes(plan LayoutPlan, demand RoomDemand) []RoomNode {
 func GearRoomsOwed(plan LayoutPlan, demand RoomDemand) []PlannedRole {
 	wanted := map[PlannedRole]bool{PlannedArmory: demand.Armory, PlannedWardrobe: demand.Wardrobe}
 	have := map[PlannedRole]bool{}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		have[r.Role] = true
 	}
 	var owed []PlannedRole

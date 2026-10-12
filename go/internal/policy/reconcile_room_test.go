@@ -74,8 +74,8 @@ func TestReconcileKeepsAnAdequateFloorUnlessTheTitleTagsIt(t *testing.T) {
 func TestReconcileReadsRoofStateFromTheCensusRoom(t *testing.T) {
 	in, room := reconFixture()
 	a := domain.Cell{X: 9, Z: 11}
-	in.Room.Doors = []Door{{Cell: a, Rot: domain.West}}
-	in.Plan = LayoutPlan{Rooms: []PlannedRoom{in.Room}}
+	in.Plan = LayoutPlan{Rooms: []PlannedRoom{in.Room, hallRoom(PlannedStorage, 2, 11, 3, 3, true)}, Links: []RoomLink{{A: 1, B: 2, Cell: a}}}.WithRoomIDs()
+	in.Room = in.Plan.Rooms[0]
 	in.Rooms.Rooms = []Room{{ID: "r", Enclosed: domain.Known(true), Cells: rectCells(room.Region.Bounds())}}
 	if k := readyKinds(Reconcile(in)); !kindsEqual(k, OpRoofOff) {
 		t.Fatal("an enclosed census room owes its roof off first", k)

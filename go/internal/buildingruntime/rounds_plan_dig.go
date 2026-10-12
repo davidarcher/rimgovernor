@@ -288,7 +288,7 @@ func (b *RoundsBuildingPlanner) digExhaust(call, epoch context.Context, s excava
 	if tier, ok := s.facts.TechTier.Value(); !pk || !rk || !ok || tier < policy.TechTierMasonry {
 		return RoundsBuildingResult{}, false, nil
 	}
-	for _, room := range plan.AllRooms() {
+	for _, room := range plan.Rooms {
 		site, _, ok := plan.CoolerExhaust(room)
 		if !ok {
 			continue

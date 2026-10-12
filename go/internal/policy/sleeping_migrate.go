@@ -17,7 +17,7 @@ import (
 func retiringBedrooms(plan LayoutPlan) []PlannedRoom {
 	gone := plan.superseded()
 	var out []PlannedRoom
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if (r.Role == PlannedBedroom || r.Role == PlannedSuite) && gone[r.ID] {
 			out = append(out, r)
 		}
@@ -73,7 +73,7 @@ func SleptBedrooms(plan LayoutPlan, rooms domain.Fact[RoomObservation], sleeping
 	}
 	gone := plan.superseded()
 	var out map[int32]bool
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role != PlannedBedroom && r.Role != PlannedSuite || !gone[r.ID] {
 			continue
 		}
@@ -136,7 +136,7 @@ func NextMigrateStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	empty, unbuilt := map[PlannedRole][]PlannedRoom{}, map[PlannedRole][]PlannedRoom{}
 	vacant := map[PlannedRole][]string{}
 	retiring := retiringRooms(plan)
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role != PlannedBedroom && r.Role != PlannedSuite || retiring[r.Region.Bounds()] {
 			continue
 		}

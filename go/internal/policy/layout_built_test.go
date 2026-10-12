@@ -269,7 +269,7 @@ func TestTileKeepsBuiltRoomsAndSitesSuccessors(t *testing.T) {
 		t.Fatal(err)
 	}
 	byID := map[int32]PlannedRoom{}
-	for _, r := range res.Plan.AllRooms() {
+	for _, r := range res.Plan.Rooms {
 		byID[r.ID] = r
 	}
 	if r, ok := byID[11]; !ok || r.Region.Bounds() != kb || res.Rooms[k] != 11 {

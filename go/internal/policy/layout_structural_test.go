@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // StructDiff is what StructuralDiff reports: the room set by role and size,
@@ -48,7 +50,7 @@ func StructuralDiff(a, b LayoutPlan) StructDiff {
 		if fa, fb := shapesOf(ra[role]), shapesOf(rb[role]); fmt.Sprint(fa) != fmt.Sprint(fb) {
 			d.Shapes = append(d.Shapes, fmt.Sprintf("%s %v -> %v", role, fa, fb))
 		}
-		if ca, cb := doorsOf(ra[role]), doorsOf(rb[role]); fmt.Sprint(ca) != fmt.Sprint(cb) {
+		if ca, cb := doorsOf(a, ra[role]), doorsOf(b, rb[role]); fmt.Sprint(ca) != fmt.Sprint(cb) {
 			d.Connectivity = append(d.Connectivity, fmt.Sprintf("%s door counts %v -> %v", role, ca, cb))
 		}
 	}
@@ -57,9 +59,6 @@ func StructuralDiff(a, b LayoutPlan) StructDiff {
 		if aa[k] != ab[k] {
 			d.Adjacency = append(d.Adjacency, fmt.Sprintf("%s shares a wall: %v -> %v", k, aa[k], ab[k]))
 		}
-	}
-	if ha, hb := len(a.Hallways()), len(b.Hallways()); ha != hb {
-		d.Connectivity = append(d.Connectivity, fmt.Sprintf("hallways %d -> %d", ha, hb))
 	}
 	if ea, eb := len(a.Entrances), len(b.Entrances); ea != eb {
 		d.Connectivity = append(d.Connectivity, fmt.Sprintf("entrances %d -> %d", ea, eb))
@@ -79,7 +78,7 @@ func routesVerdict(p LayoutPlan) string {
 
 func roomsByRole(p LayoutPlan) map[PlannedRole][]PlannedRoom {
 	out := map[PlannedRole][]PlannedRoom{}
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		out[r.Role] = append(out[r.Role], r)
 	}
 	return out
@@ -106,14 +105,10 @@ func shapesOf(rooms []PlannedRoom) []string {
 	return out
 }
 
-func doorsOf(rooms []PlannedRoom) []int {
+func doorsOf(p LayoutPlan, rooms []PlannedRoom) []int {
 	out := make([]int, 0, len(rooms))
 	for _, r := range rooms {
-		n := 1 + len(r.Doors)
-		if r.Link != nil {
-			n++
-		}
-		out = append(out, n)
+		out = append(out, 1+len(p.LinkCells(r.ID)))
 	}
 	sort.Ints(out)
 	return out
@@ -122,7 +117,7 @@ func doorsOf(rooms []PlannedRoom) []int {
 // adjacencyOf is the set of role pairs ("a|b", a <= b) with a room of each
 // whose wall rings meet.
 func adjacencyOf(p LayoutPlan) map[string]bool {
-	rooms := p.AllRooms()
+	rooms := p.Rooms
 	walls := make([]Region, len(rooms))
 	for i, r := range rooms {
 		walls[i] = r.Region.Walls()
@@ -165,11 +160,12 @@ func TestStructuralDiff(t *testing.T) {
 	if d := StructuralDiff(a, a); !d.Empty() {
 		t.Fatal("a plan differs from itself:", d)
 	}
+	a = a.WithRoomIDs()
 	b := LayoutPlan{Rooms: []PlannedRoom{
-		{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 0, Z: 0, Width: 5, Height: 4}), Doors: []Door{{}}},
+		{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 0, Z: 0, Width: 5, Height: 4})},
 		{Role: PlannedStorage, Region: RectRegion(Rectangle{X: 20, Z: 0, Width: 4, Height: 4})},
 		{Role: PlannedNursery, Region: RectRegion(Rectangle{X: 30, Z: 0, Width: 3, Height: 3})},
-	}}
+	}, Links: []RoomLink{{A: 1, B: 3, Cell: domain.Cell{X: 5, Z: 1}}}}.WithRoomIDs()
 	d := StructuralDiff(a, b)
 	// Bedroom and nursery change area and shape; storage no longer touches the bedroom;
 	// the bedroom gains a door and the nursery appears.

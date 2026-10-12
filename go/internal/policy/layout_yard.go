@@ -46,7 +46,7 @@ func YardRoomsOwed(plan LayoutPlan, demand RoomDemand) int {
 // out.
 func PlanYardSites(plan LayoutPlan, want int) LayoutPlan {
 	have := len(plan.YardRooms())
-	if have >= want || len(plan.AllRooms()) == 0 {
+	if have >= want || len(plan.Rooms) == 0 {
 		return plan
 	}
 	plan.Reservations = slices.Clone(plan.Reservations)

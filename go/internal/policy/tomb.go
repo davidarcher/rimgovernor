@@ -265,7 +265,7 @@ func NextTombStep(plan LayoutPlan, waste []WasteItem, built []CurrentBuilding, s
 		}
 		return TombStep{}
 	}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role != PlannedTomb {
 			continue
 		}
@@ -284,7 +284,7 @@ func NextTombStep(plan LayoutPlan, waste []WasteItem, built []CurrentBuilding, s
 // TombRooms is the plan's tomb rooms that a sarcophagus can stand in.
 func (p LayoutPlan) TombRooms() int {
 	n := 0
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if r.Role == PlannedTomb {
 			n++
 		}

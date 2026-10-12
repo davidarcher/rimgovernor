@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -76,8 +77,22 @@ func (s *Store) LayoutPlan(ctx context.Context, snapshot domain.GenerationSnapsh
 	if err != nil {
 		return LayoutPlanRecord{}, false, err
 	}
-	if json.Unmarshal([]byte(plan), &r.Plan) != nil || !r.Plan.Valid() {
+	r.Plan, err = decodeLayoutPlan([]byte(plan))
+	if err != nil || !r.Plan.Valid() {
 		return LayoutPlanRecord{Tick: r.Tick, Invalid: true}, false, tx.Commit()
 	}
 	return r, true, tx.Commit()
+}
+
+// decodeLayoutPlan reads a stored plan strictly: a field the plan no longer
+// has (a plan written before a wire change) fails the decode, so the world
+// reads as holding no plan and the next survey derives a fresh one.
+func decodeLayoutPlan(raw []byte) (policy.LayoutPlan, error) {
+	var plan policy.LayoutPlan
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&plan); err != nil {
+		return policy.LayoutPlan{}, err
+	}
+	return plan, nil
 }

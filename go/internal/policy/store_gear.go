@@ -78,7 +78,7 @@ func (r StoreView) gearRoomPending(demand RoomDemand) bool {
 	if r.Layout == nil || r.Rooms == nil {
 		return false
 	}
-	for _, planned := range r.Layout.AllRooms() {
+	for _, planned := range r.Layout.Rooms {
 		if planned.Role == PlannedArmory && demand.Armory || planned.Role == PlannedWardrobe && demand.Wardrobe {
 			// Census: pending until the room is a roofed room a zone can bind to.
 			if _, ok := CensusRoomIn(planned, *r.Rooms); !ok {

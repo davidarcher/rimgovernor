@@ -878,5 +878,5 @@ func throughRank(r PlannedRoom) int {
 
 // roofInput is what the roofed set reads from the tiler's input.
 func (t *tiler) roofInput() RoofInput {
-	return RoofInput{Curve: t.in.OutdoorCurve, Cold: t.in.Survey.Cold, Hot: t.in.Survey.Hot, Climate: t.in.Catalog.Climate, RoofDistance: t.in.RoofDistance, Light: t.in.Light, Rock: surveyRock(t.in.Survey)}
+	return RoofInput{Curve: t.in.OutdoorCurve, Cold: t.in.Survey.Cold, Hot: t.in.Survey.Hot, RoofDistance: t.in.RoofDistance}
 }

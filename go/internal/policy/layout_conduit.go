@@ -202,7 +202,7 @@ func (g *conduitNet) lay(n conduitNode) (ConduitLink, ConduitDecision, bool) {
 // conduit cells, and each node's own cells, which are the plan's ground
 // whatever the survey holds there.
 func newConduitNet(plan LayoutPlan, nodes []conduitNode, survey MapSurvey, held map[ConduitRef]ConduitLink) *conduitNet {
-	g := &conduitNet{allowed: ConduitCells(survey, plan.AllRooms()), net: map[domain.Cell]bool{}, owner: map[domain.Cell]ConduitRef{}, held: held}
+	g := &conduitNet{allowed: ConduitCells(survey, plan.Rooms), net: map[domain.Cell]bool{}, owner: map[domain.Cell]ConduitRef{}, held: held}
 	for _, n := range nodes {
 		for _, c := range n.cells {
 			g.allowed[c] = true
@@ -238,7 +238,7 @@ func heldLinks(prev []ConduitLink, plan LayoutPlan) map[ConduitRef]ConduitLink {
 	for _, l := range prev {
 		held[l.From] = l
 	}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if l, ok := held[RoomRef(r.Replaces)]; ok && r.Replaces != 0 {
 			if _, own := held[RoomRef(r.ID)]; !own {
 				held[RoomRef(r.ID)] = l

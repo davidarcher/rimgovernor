@@ -45,7 +45,7 @@ func (p LayoutPlan) HospitalCells() []domain.Cell {
 // hospitals are the plan's hospital rooms, in plan order.
 func (p LayoutPlan) hospitals() []PlannedRoom {
 	var out []PlannedRoom
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if r.Role == PlannedHospital {
 			out = append(out, r)
 		}

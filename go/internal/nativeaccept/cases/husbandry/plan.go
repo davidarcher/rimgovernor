@@ -355,7 +355,7 @@ func (p *phase) stop(ctx context.Context, label string) (*na.Harness, error) {
 // vetRoom is the plan's one hospital ward and its interior cells.
 func vetRoom(plan policy.LayoutPlan) (policy.PlannedRoom, []domain.Cell, error) {
 	var rooms []policy.PlannedRoom
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role == policy.PlannedHospital {
 			rooms = append(rooms, r)
 		}

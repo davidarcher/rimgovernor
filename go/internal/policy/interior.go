@@ -314,14 +314,7 @@ func InteriorRoomFromLayout(r PlannedRoom, shapes PieceShapes) (InteriorRoom, bo
 	if _, ok := doorSide(r.Region.Bounds(), r.Door); !ok {
 		return InteriorRoom{}, false
 	}
-	doors := []domain.Cell{r.Door}
-	for _, d := range r.Doors {
-		if _, ok := doorSide(r.Region.Bounds(), d.Cell); !ok {
-			return InteriorRoom{}, false
-		}
-		doors = append(doors, d.Cell)
-	}
-	out := InteriorRoom{Role: role, Interior: r.Region.Bounds(), Doors: doors, Shapes: shapes, Capabilities: CapabilitiesOf(r.Role)}
+	out := InteriorRoom{Role: role, Interior: r.Region.Bounds(), Doors: []domain.Cell{r.Door}, Shapes: shapes, Capabilities: CapabilitiesOf(r.Role)}
 	if !r.Region.IsRect() {
 		out.Region = r.Region
 	}

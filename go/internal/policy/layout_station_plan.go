@@ -125,7 +125,7 @@ type StationFacts struct {
 func (f StationFacts) seedRooms() (SeedRooms, error) {
 	var s SeedRooms
 	held := 0
-	for _, r := range f.Plan.AllRooms() {
+	for _, r := range f.Plan.Rooms {
 		if r.Role == PlannedThrone {
 			held = max(held, int(r.Region.Bounds().Width)*int(r.Region.Bounds().Height))
 		}
@@ -134,7 +134,7 @@ func (f StationFacts) seedRooms() (SeedRooms, error) {
 	if area, ok := f.ThroneArea.Value(); ok && area > held {
 		s.ThroneArea = area
 	}
-	if slices.ContainsFunc(f.Plan.AllRooms(), func(r PlannedRoom) bool { return r.Role == PlannedShelter }) {
+	if slices.ContainsFunc(f.Plan.Rooms, func(r PlannedRoom) bool { return r.Role == PlannedShelter }) {
 		if f.RetireShelter {
 			return s, nil
 		}
@@ -496,12 +496,12 @@ func matchKeyOfGroup(g RoomGroup) string {
 func BuiltRegions(plan LayoutPlan, built map[int32]bool) []BuiltRegion {
 	var out []BuiltRegion
 	replaced := map[int32]bool{}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if built[r.ID] && r.Replaces != 0 {
 			replaced[r.Replaces] = true
 		}
 	}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		role, ok := moduleRoomRoles[r.Role]
 		var planned PlannedRole
 		if native, special := matchedPlanned[r.Role]; special {
@@ -612,13 +612,13 @@ func GroupOutgrown(g RoomGroup, m GroupRooms) bool {
 // room whose successor stands (the pair is one room, as in BuiltRegions).
 func (f StationFacts) standingRooms() []BuiltRegion {
 	replaced := map[int32]bool{}
-	for _, r := range f.Plan.AllRooms() {
+	for _, r := range f.Plan.Rooms {
 		if f.Built[r.ID] && r.Replaces != 0 {
 			replaced[r.Replaces] = true
 		}
 	}
 	var out []BuiltRegion
-	for _, r := range f.Plan.AllRooms() {
+	for _, r := range f.Plan.Rooms {
 		if f.Built[r.ID] && f.Pinned[r.ID] && !r.attached() && !replaced[r.ID] {
 			out = append(out, BuiltRegion{Room: r.ID, Planned: r.Role, Region: r.Region, Pinned: true})
 		}

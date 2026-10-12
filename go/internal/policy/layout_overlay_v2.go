@@ -8,10 +8,8 @@ import (
 )
 
 // The overlay draws the layout plan over the whole
-// map: zones as filled row runs, the spine, each room's outline with its
-// role label, the labelled reservations (the perimeter and killbox as
-// outlines) and a traffic layer for the busiest spine cells (recomputed by
-// CheckRoutes at draw time, never persisted).
+// map: zones as filled row runs, each room's outline with its role label, and
+// the labelled reservations (the perimeter and killbox as outlines).
 
 var zoneOverlay = map[ZoneKind]overlayStyle{
 	ZoneField:  {planGreen, "field"},
@@ -102,7 +100,7 @@ var (
 )
 
 // Overlay draws p inside bounds. Layer order is zones, reservations,
-// spine, traffic, rooms, so the smaller shapes draw last.
+// rooms, so the smaller shapes draw last.
 func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 	var out LayoutOverlay
 	label := func(text string, at domain.Cell) {
@@ -178,10 +176,7 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 			label(style.label, centre(s.Footprint.Bounds()))
 		}
 	}
-	spine := spineRects(p.Hallways())
-	add(overlayStyle{planGray, "hallway"}, OverlayFill, spine, nil)
-	add(overlayStyle{planYellow, "traffic"}, OverlayFill, nil, cellRuns(busiestSpineCells(p, spine)))
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		style, ok := roomOverlay[r.Role]
 		if !ok {
 			continue
@@ -207,7 +202,7 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 		}
 	}
 	var doors []domain.Cell
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if r.Unfenced() {
 			continue
 		}
@@ -230,36 +225,6 @@ func labelCell(g Region) domain.Cell {
 		}
 	}
 	return best
-}
-
-// busiestSpineCells are the spine cells carrying at least half the busiest
-// spine cell's routes; none when the routes fail.
-func busiestSpineCells(p LayoutPlan, spine []Rectangle) []domain.Cell {
-	counts, err := CheckRoutes(p)
-	if err != nil {
-		return nil
-	}
-	onSpine := func(c domain.Cell) bool {
-		for _, r := range spine {
-			if c.X >= r.X && c.X < r.X+r.Width && c.Z >= r.Z && c.Z < r.Z+r.Height {
-				return true
-			}
-		}
-		return false
-	}
-	top := 0
-	for c, n := range counts {
-		if onSpine(c) {
-			top = max(top, n)
-		}
-	}
-	var out []domain.Cell
-	for c, n := range counts {
-		if top > 0 && 2*n >= top && onSpine(c) {
-			out = append(out, c)
-		}
-	}
-	return out
 }
 
 // SplitFields moves o's field zone layers into their own overlay, so the

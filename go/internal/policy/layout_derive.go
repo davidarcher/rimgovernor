@@ -41,7 +41,7 @@ func DeriveLayoutPlan(s MapSurvey, f StationFacts, geysers []PowerGeyser, animal
 		return domain.Unknown[LayoutPlan](), advice, err
 	}
 	plan := advice.Tiled.Plan
-	if len(plan.AllRooms()) == 0 {
+	if len(plan.Rooms) == 0 {
 		return domain.Unknown[LayoutPlan](), advice, nil
 	}
 	// The survey's zones less its field patches, then the fields the tiler placed.
@@ -141,7 +141,7 @@ func ReplanLayout(prev LayoutPlan, f StationFacts, s MapSurvey, geysers []PowerG
 		return prev, advice, err
 	}
 	plan := advice.Tiled.Plan
-	if len(plan.AllRooms()) == 0 {
+	if len(plan.Rooms) == 0 {
 		return prev, advice, ErrReplanEmpty
 	}
 	// The survey's zones less its field patches, then the fields the tiler placed.
@@ -169,11 +169,11 @@ func ReplanLayout(prev LayoutPlan, f StationFacts, s MapSurvey, geysers []PowerG
 func keepHeld(prev, next LayoutPlan, growth RoomGrowth) LayoutPlan {
 	held := heldRooms(prev, growth)
 	have := map[int32]bool{}
-	for _, r := range next.AllRooms() {
+	for _, r := range next.Rooms {
 		have[r.ID] = true
 	}
 	before := map[int32]PlannedRoom{}
-	for _, r := range prev.AllRooms() {
+	for _, r := range prev.Rooms {
 		before[r.ID] = r
 	}
 	next.Rooms = slices.Clone(next.Rooms)
@@ -182,7 +182,7 @@ func keepHeld(prev, next LayoutPlan, growth RoomGrowth) LayoutPlan {
 			next.Rooms[i].Replaces = old.Replaces
 		}
 	}
-	for _, r := range prev.AllRooms() {
+	for _, r := range prev.Rooms {
 		if held[r.ID] && !have[r.ID] && !r.attached() {
 			next.Rooms = append(next.Rooms, r)
 			next.Rooms = append(next.Rooms, prev.ChildrenOf(r.ID)...)
@@ -201,12 +201,12 @@ func keepHeld(prev, next LayoutPlan, growth RoomGrowth) LayoutPlan {
 // drops is simply not laid again.
 func rejoinHeld(prev, tiled, plan LayoutPlan, s MapSurvey) ([]ConduitLink, []ConduitDecision) {
 	planned := map[int32]bool{}
-	for _, r := range tiled.AllRooms() {
+	for _, r := range tiled.Rooms {
 		planned[r.ID] = true
 	}
 	held := heldLinks(prev.Conduits, plan)
 	var consumers []conduitNode
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if planned[r.ID] || r.attached() {
 			continue
 		}
@@ -229,10 +229,10 @@ func rejoinHeld(prev, tiled, plan LayoutPlan, s MapSurvey) ([]ConduitLink, []Con
 func retiredGround(prev, next LayoutPlan, built map[int32]bool) []Region {
 	out := slices.Clone(prev.RetiredGround)
 	held := map[int32]bool{}
-	for _, r := range next.AllRooms() {
+	for _, r := range next.Rooms {
 		held[r.ID] = true
 	}
-	for _, r := range prev.AllRooms() {
+	for _, r := range prev.Rooms {
 		if r.attached() || held[r.ID] || !built[r.ID] {
 			continue
 		}
@@ -250,7 +250,7 @@ func retiredGround(prev, next LayoutPlan, built map[int32]bool) []Region {
 // stays where it is, so a replan does not move a barn or a yard that was built.
 func carriedSites(prev, next LayoutPlan) []LayoutReservation {
 	var taken []Rectangle
-	for _, r := range next.AllRooms() {
+	for _, r := range next.Rooms {
 		taken = append(taken, roomGround(r.Region.Bounds()))
 	}
 	for _, r := range next.Reserved() {
@@ -280,7 +280,7 @@ func SamePlan(a, b LayoutPlan) bool {
 // count, or the rejection).
 func (p LayoutPlan) Summary() string {
 	rooms, zones, reserved := map[string]int{}, map[string]int{}, map[string]int{}
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		rooms[string(r.Role)]++
 	}
 	for _, z := range p.Zones {

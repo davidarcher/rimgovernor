@@ -12,7 +12,6 @@ import (
 // the stored plan's storeroom, not the colonists' centroid.
 func TestPlanCoreAnchorsOnPlan(t *testing.T) {
 	plan := policy.LayoutPlan{
-		Spine: []policy.SpineSegment{{From: domain.Cell{X: 10, Z: 20}, To: domain.Cell{X: 30, Z: 20}}},
 		Rooms: []policy.PlannedRoom{{Role: policy.PlannedStorage, Region: policy.RectRegion(policy.Rectangle{X: 12, Z: 22, Width: 6, Height: 4})}},
 	}
 	if got, _ := planCore(observation.ColonyProjection{LayoutPlan: domain.Known(plan)}); got != (domain.Cell{X: 15, Z: 24}) {

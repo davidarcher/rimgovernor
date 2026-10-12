@@ -26,7 +26,7 @@ func PlannedNetOf(plan LayoutPlan) PlannedNet {
 	if len(n.Cells) == 0 {
 		return PlannedNet{}
 	}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		n.Pads = append(n.Pads, r.Region)
 	}
 	for _, s := range plan.Sites {

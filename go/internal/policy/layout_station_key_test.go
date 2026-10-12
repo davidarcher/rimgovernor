@@ -28,12 +28,6 @@ func TestStationFactsInputsKeyTracksTheChainsInputs(t *testing.T) {
 			t.Errorf("%s did not change the key", name)
 		}
 	}
-	// A pointer in the plan does not make equal plans differ.
-	a, b := stationFactsFixture(), stationFactsFixture()
-	a.Plan.Rooms[0].Link, b.Plan.Rooms[0].Link = &domain.Cell{X: 1, Z: 2}, &domain.Cell{X: 1, Z: 2}
-	if a.InputsKey() != b.InputsKey() {
-		t.Error("equal plans with distinct pointers keyed apart")
-	}
 }
 
 // BenchmarkAdviseStationsLarge is the station chain a layout review runs on

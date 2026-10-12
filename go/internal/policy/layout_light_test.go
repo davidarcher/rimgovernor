@@ -106,22 +106,6 @@ func TestPlanLampsShareReachAndAreDeterministic(t *testing.T) {
 	}
 }
 
-func TestHallwayLightIsTheCheaperOfLampsAndDark(t *testing.T) {
-	p := testLightPrice()
-	rect := Rectangle{X: 0, Z: 0, Width: 12, Height: 1}
-	quiet := map[domain.Cell]float64{{X: 5, Z: 0}: 2}
-	if got, want := hallwayLightW(rect, quiet, nil, p), p.WalkCellW(2); math.Abs(got-want) > 1e-9 {
-		t.Errorf("quiet hallway %v W, want the dark %v W", got, want)
-	}
-	busy := map[domain.Cell]float64{{X: 5, Z: 0}: 20000}
-	if got, want := hallwayLightW(rect, busy, nil, p), p.LampW; math.Abs(got-want) > 1e-9 {
-		t.Errorf("busy hallway %v W, want one lamp %v W", got, want)
-	}
-	if got := hallwayLightW(rect, nil, nil, p); got != 0 {
-		t.Errorf("an unwalked hallway costs %v W", got)
-	}
-}
-
 // lampTileInput tiles the base with the kitchen's stove and the workshop's
 // bench as worker stations a colonist stands at.
 func lampTileInput(t *testing.T) TileInput {
@@ -157,7 +141,7 @@ func TestTilerLightsRoofedWorkRoomsOnly(t *testing.T) {
 		t.Fatalf("no room was lit: %+v", res.Decisions)
 	}
 	rooms := map[int32]PlannedRoom{}
-	for _, r := range res.Plan.AllRooms() {
+	for _, r := range res.Plan.Rooms {
 		rooms[r.ID] = r
 	}
 	// The plan carries the lamps, and finds them from any floor cell of the room.
@@ -243,31 +227,5 @@ func TestOutdoorRoomsGetNoLamp(t *testing.T) {
 	sky := PlannedRoom{Role: PlannedTrainingRange, Region: RectRegion(Rectangle{X: 0, Z: 0, Width: 8, Height: 8}), Outdoor: true}
 	if lightRoofed(sky) {
 		t.Error("an outdoor room is lit by the sky")
-	}
-}
-
-func TestRoofingAHallwayChargesTheLampsItCauses(t *testing.T) {
-	plan := roofPlan()
-	plan.Trips = []RoomTrip{{A: 1, B: 2, Weight: 20000}} // the two rooms swap pawns along the hallway
-	unpriced := PlanRoofed(plan, roofInput(seaIce))
-	in := roofInput(seaIce)
-	in.Light = testLightPrice()
-	lit := PlanRoofed(plan, in)
-	var hall, bare RoofDecision
-	for i, d := range lit.Decisions {
-		if d.Reason == ReasonRoofHallway {
-			hall, bare = d, unpriced.Decisions[i]
-		}
-	}
-	if hall.Reason != ReasonRoofHallway || hall.LightW <= 0 || hall.LightUnpriced || !bare.LightUnpriced {
-		t.Fatalf("roofed hallway: %+v (unpriced %+v)", hall, bare)
-	}
-	if math.Abs(hall.HeldW-bare.HeldW-hall.LightW) > 1e-6 {
-		t.Errorf("held %v W should be the climate's %v W plus the lamps' %v W", hall.HeldW, bare.HeldW, hall.LightW)
-	}
-	// Priced high enough, the dark it makes outweighs what the roof saves.
-	in.Light = LightPrice{WorkDayW: 1e8, LampW: 1e8, CellWalkDays: in.Light.CellWalkDays, LampReach: in.Light.LampReach}
-	if got := PlanRoofed(plan, in); !hasRoofReason(got, ReasonRoofHallwaySkip) || got.Roofed.Contains(domain.Cell{X: 20, Z: 11}) {
-		t.Errorf("a hallway whose lamps cost more than the roof saves was roofed: %+v", got.Decisions)
 	}
 }

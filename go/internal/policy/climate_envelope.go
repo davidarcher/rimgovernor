@@ -47,7 +47,7 @@ func EnvelopeHallwayRoof(plan LayoutPlan, unroofed map[domain.Cell]bool) []domai
 		return nil
 	}
 	inRoom := map[domain.Cell]bool{}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		for _, c := range r.groundRegion().Cells() {
 			inRoom[c] = true
 		}

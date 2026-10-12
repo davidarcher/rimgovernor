@@ -65,7 +65,7 @@ func siting(ctx context.Context, s cases.Session) error {
 	}
 	plan := record.Plan
 	var shelters []policy.PlannedRoom
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role == policy.PlannedShelter {
 			shelters = append(shelters, r)
 		}
@@ -82,7 +82,7 @@ func siting(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("shelter interior %dx%d holds %d cells, %d needed for %d colonists, %d campfires, %d coolers", in.Width, in.Height, got, want, colonists, campfires, coolers)
 	}
 	gap := int32(-1)
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role == policy.PlannedShelter {
 			continue
 		}

@@ -146,7 +146,7 @@ func (m stockMap) neverAbsent() error {
 
 // successorOf is the storage room of the plan that replaces room id.
 func successorOf(plan policy.LayoutPlan, id int32) (policy.PlannedRoom, bool) {
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role == policy.PlannedStorage && r.Replaces == id {
 			return r, true
 		}
@@ -156,7 +156,7 @@ func successorOf(plan policy.LayoutPlan, id int32) (policy.PlannedRoom, bool) {
 
 // inPlan reports a room of the plan with the id.
 func inPlan(plan policy.LayoutPlan, id int32) bool {
-	return slices.ContainsFunc(plan.AllRooms(), func(r policy.PlannedRoom) bool { return r.ID == id })
+	return slices.ContainsFunc(plan.Rooms, func(r policy.PlannedRoom) bool { return r.ID == id })
 }
 
 // handoff is assertions 3 and 4 over a probe: the zone over the successor

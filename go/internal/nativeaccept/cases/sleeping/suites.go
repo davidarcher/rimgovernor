@@ -90,16 +90,11 @@ func history(ctx context.Context, journal *store.Store) ([]store.PlanState, erro
 	return plans, nil
 }
 
-// roomAt is the wing room of purpose whose interior starts at x,z.
-func roomAt(plan policy.LayoutPlan, purpose policy.WingPurpose, x, z int32) (policy.PlannedRoom, bool) {
-	for _, w := range plan.Wings {
-		if w.Purpose != purpose {
-			continue
-		}
-		for _, r := range w.Rooms {
-			if r.Region.Bounds().X == x && r.Region.Bounds().Z == z {
-				return r, true
-			}
+// roomAt is the room of role whose interior starts at x,z.
+func roomAt(plan policy.LayoutPlan, role policy.PlannedRole, x, z int32) (policy.PlannedRoom, bool) {
+	for _, r := range plan.Rooms {
+		if r.Role == role && r.Region.Bounds().X == x && r.Region.Bounds().Z == z {
+			return r, true
 		}
 	}
 	return policy.PlannedRoom{}, false
@@ -120,9 +115,10 @@ func findSuiteMove(ctx context.Context, journal *store.Store, pawn domain.PawnID
 		return suiteMove{}, false, err
 	}
 	var suite policy.PlannedRoom
-	for _, w := range layout.Plan.Wings {
-		if w.Purpose == policy.WingSuites && len(w.Rooms) > 0 {
-			suite = w.Rooms[0]
+	for _, r := range layout.Plan.Rooms {
+		if r.Role == policy.PlannedSuite {
+			suite = r
+			break
 		}
 	}
 	if suite.Role == "" {
@@ -136,7 +132,7 @@ func findSuiteMove(ctx context.Context, journal *store.Store, pawn domain.PawnID
 		var x, z int32
 		method := string(plan.Method)
 		if _, err := fmt.Sscanf(method, "bedroom-shell-%d-%d", &x, &z); err == nil {
-			if _, ok := roomAt(layout.Plan, policy.WingBedrooms, x, z); ok {
+			if _, ok := roomAt(layout.Plan, policy.PlannedBedroom, x, z); ok {
 				if _, done := completed(plan); done {
 					standard++
 				}
@@ -285,7 +281,7 @@ func newSuiteShelled(ctx context.Context, journal *store.Store, first policy.Pla
 		if _, err := fmt.Sscanf(string(plan.Method), "bedroom-shell-%d-%d", &x, &z); err != nil || (x == first.Region.Bounds().X && z == first.Region.Bounds().Z) {
 			continue
 		}
-		if room, ok := roomAt(layout.Plan, policy.WingSuites, x, z); ok {
+		if room, ok := roomAt(layout.Plan, policy.PlannedSuite, x, z); ok {
 			if _, done := completed(plan); done {
 				return room, true, nil
 			}
@@ -313,7 +309,7 @@ func auditNewSuite(ctx context.Context, journal *store.Store, report na.Report, 
 	if err != nil {
 		return err
 	}
-	kept, ok := roomAt(layout.Plan, policy.WingSuites, first.room.Region.Bounds().X, first.room.Region.Bounds().Z)
+	kept, ok := roomAt(layout.Plan, policy.PlannedSuite, first.room.Region.Bounds().X, first.room.Region.Bounds().Z)
 	if !ok || !kept.Same(first.room) {
 		return fmt.Errorf("the first suite %+v changed or left the plan (now %+v)", first.room.Region.Bounds(), kept.Region.Bounds())
 	}

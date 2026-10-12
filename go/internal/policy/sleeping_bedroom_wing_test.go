@@ -6,24 +6,22 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// wingFixture is bedroomFixture with its two bedrooms replaced by a wing of n
+// wingFixture is bedroomFixture with its two bedrooms replaced by a row of n
 // rooms; both colonists sleep in the barracks, so both are unhoused.
-func wingFixture(n int, purpose WingPurpose) (LayoutPlan, RoomObservation, SleepingObservation) {
+func wingFixture(n int) (LayoutPlan, RoomObservation, SleepingObservation) {
 	plan, rooms, sleeping := bedroomFixture()
 	plan.Rooms = plan.Rooms[:1]
-	wing := Wing{Purpose: purpose}
 	for i := int32(0); i < int32(n); i++ {
 		x := 10 + i*6
-		wing.Rooms = append(wing.Rooms, PlannedRoom{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: x, Z: 0, Width: 5, Height: 5}), Door: domain.Cell{X: x + 2, Z: 5}, DoorRot: domain.North})
+		plan.Rooms = append(plan.Rooms, PlannedRoom{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: x, Z: 0, Width: 5, Height: 5}), Door: domain.Cell{X: x + 2, Z: 5}, DoorRot: domain.North})
 	}
-	plan.Wings = []Wing{wing}
 	return plan, rooms, sleeping
 }
 
 // A wing of unbuilt bedrooms yields one bedroom per step, the first in plan
 // order; unhoused colonists owe the wing.
 func TestBedroomStepIsOneRoomPerStep(t *testing.T) {
-	plan, rooms, sleeping := wingFixture(4, WingBedrooms)
+	plan, rooms, sleeping := wingFixture(4)
 	got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{})
 	if got.Kind != BedroomReconcile || got.Unhoused != 2 || got.Room.Region.Bounds().X != 10 {
 		t.Fatalf("step = %+v, want the wing's first room reconciled", got)
@@ -33,7 +31,7 @@ func TestBedroomStepIsOneRoomPerStep(t *testing.T) {
 // A built room with a bed is not reconciled again; a standing empty room is
 // owed like an unbuilt one, in plan order.
 func TestBedroomStepSkipsBuiltRooms(t *testing.T) {
-	plan, rooms, sleeping := wingFixture(4, WingBedrooms)
+	plan, rooms, sleeping := wingFixture(4)
 	rooms.Rooms = append(rooms.Rooms,
 		Room{ID: "built", Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: []string{"x"}, Cells: roomCells(10, 0, 5, 5)},
 		Room{ID: "empty", Role: domain.Known(RoomRole("None")), Enclosed: domain.Known(true), Cells: roomCells(22, 0, 5, 5)})
@@ -44,9 +42,9 @@ func TestBedroomStepSkipsBuiltRooms(t *testing.T) {
 	}
 }
 
-// With nobody unhoused nothing is owed, however empty the wing.
+// With nobody unhoused nothing is owed, however empty the row.
 func TestBedroomStepWingOwedOnlyByNeed(t *testing.T) {
-	plan, rooms, sleeping := wingFixture(4, WingBedrooms)
+	plan, rooms, sleeping := wingFixture(4)
 	// Both colonists sleep in a bedroom elsewhere: nobody is unhoused.
 	rooms.Rooms[0].Role, rooms.Rooms[0].Cells = domain.Known(RoomRoleBedroom), []domain.Cell{{X: 50, Z: 50}}
 	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomNone {
@@ -54,26 +52,25 @@ func TestBedroomStepWingOwedOnlyByNeed(t *testing.T) {
 	}
 }
 
-// A bedroom outside any wing stands alone in its step.
+// A lone bedroom stands alone in its step.
 func TestBedroomStepSpineRoomStandsAlone(t *testing.T) {
 	plan, rooms, sleeping := bedroomFixture()
 	sleeping.People[0].OwnedBed = domain.Known("")
 	sleeping.Beds[0].Owners = nil
 	got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{})
 	if got.Kind != BedroomReconcile || got.Room.Region.Bounds().X != 10 {
-		t.Fatalf("step = %+v, want the one spine room", got)
+		t.Fatalf("step = %+v, want the one room", got)
 	}
 }
 
 // The step is the first room in plan order that owes a bedroom: a standing
-// empty room in a later wing does not jump ahead of an unbuilt earlier one.
+// empty room in a later room does not jump ahead of an unbuilt earlier one.
 func TestBedroomStepChoosesRoomInPlanOrder(t *testing.T) {
-	plan, rooms, sleeping := wingFixture(3, WingBedrooms)
-	second := Wing{Purpose: WingBedrooms, Rooms: []PlannedRoom{{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 50, Z: 0, Width: 5, Height: 5}), Door: domain.Cell{X: 52, Z: 5}, DoorRot: domain.North}}}
-	plan.Wings = append(plan.Wings, second)
+	plan, rooms, sleeping := wingFixture(3)
+	plan.Rooms = append(plan.Rooms, PlannedRoom{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 50, Z: 0, Width: 5, Height: 5}), Door: domain.Cell{X: 52, Z: 5}, DoorRot: domain.North})
 	rooms.Rooms = append(rooms.Rooms, Room{ID: "empty2", Role: domain.Known(RoomRole("None")), Enclosed: domain.Known(true), Cells: roomCells(50, 0, 5, 5)})
 	got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{})
 	if got.Kind != BedroomReconcile || got.Room.Region.Bounds().X != 10 {
-		t.Fatalf("step = %+v, want wing 1 first", got)
+		t.Fatalf("step = %+v, want the first room", got)
 	}
 }

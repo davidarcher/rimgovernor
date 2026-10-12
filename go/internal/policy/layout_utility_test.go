@@ -34,8 +34,7 @@ func testSolarSite(id string, x, z int32) PlannedSite {
 func batteryRoomPlan() LayoutPlan {
 	size := roomSize(PlannedBattery)
 	room := PlannedRoom{Role: PlannedBattery, Region: RectRegion(Rectangle{X: 40, Z: 40, Width: size[0], Height: size[1]}), Door: domain.Cell{X: 42, Z: 40 + size[1]}, DoorRot: domain.North}
-	hall := SpineSegment{From: domain.Cell{X: 30, Z: room.Door.Z + 2}, To: domain.Cell{X: 60, Z: room.Door.Z + 2}}
-	return LayoutPlan{Zones: utilityTestZones(), Spine: []SpineSegment{hall}, Rooms: []PlannedRoom{room}}.WithRoomIDs()
+	return LayoutPlan{Zones: utilityTestZones(), Rooms: []PlannedRoom{room}}.WithRoomIDs()
 }
 
 func TestPlannedPowerSites(t *testing.T) {
@@ -197,10 +196,10 @@ func TestTurbineWindCells(t *testing.T) {
 	}
 }
 
-func TestPlanUtilitiesHerdUnit(t *testing.T) {
+func TestPlanHerdSitesHerdUnit(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	core := zonedKitchenPlan()
-	p := PlanUtilities(core, UtilityWants{PenAnimals: 30})
+	p := PlanHerdSites(core, 30)
 	var barn *LayoutReservation
 	for i, r := range p.Reservations {
 		if r.Kind == ReserveBarn {
@@ -220,14 +219,14 @@ func TestPlanUtilitiesHerdUnit(t *testing.T) {
 			t.Fatal("barn overlaps", r)
 		}
 	}
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if _, shared := sharedWallLink(roomWalls(r), barn.Area.Bounds()); rectsOverlap(roomWalls(r), barn.Area.Bounds()) && !shared {
 			t.Fatal("barn overlaps room", r.Role)
 		}
 	}
 	u := newUtilityGrid(core)
 	if !u.free(barn.Area.Bounds(), true) {
-		t.Fatal("barn in the hallway clearance", barn.Area)
+		t.Fatal("barn off the core ground", barn.Area)
 	}
 	// The site search follows the centre it is given.
 	w, h := walledSide(herdSide(30))

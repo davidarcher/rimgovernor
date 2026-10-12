@@ -40,7 +40,7 @@ func exteriorDoorMovements(p LayoutPlan) map[int32]float64 {
 	}
 	out := map[int32]float64{}
 	var moves map[domain.Cell]float64
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if r.Unfenced() || links[r.Door] {
 			continue
 		}

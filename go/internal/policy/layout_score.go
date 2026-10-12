@@ -10,7 +10,7 @@ import (
 // Plan scoring: one generator-independent score for a
 // core plan, read by every siting search. It is tiered. The hard tier is
 // pass or fail: every owed room placed (defaultOwedRooms), CheckRoutes valid,
-// and no rich soil under a room or hallway. A plan failing it ranks below
+// and no rich soil under a room. A plan failing it ranks below
 // any plan that passes (PlanScore.Better), so rich soil is a loss only when
 // nothing avoids it: when every candidate stands on some, they all share
 // the lower tier and the soft score picks among them. The soft tier is the
@@ -21,7 +21,7 @@ var planWeights = struct {
 	// Hard tier, charged once per failure so failing plans still rank
 	// (more missing rooms lower) inside their tier.
 	MissingRoom, BadRoutes int
-	// Soil: per soilCost point under a room or hallway, and per rock cell
+	// Soil: per soilCost point under a room, and per rock cell
 	// (a dig cost).
 	Soil, Rock int
 	// Footprint per cell the ring would enclose; Wall per built wall cell.
@@ -79,7 +79,7 @@ type PlanScore struct {
 	// Hard tier.
 	Missing   []PlannedRole // base rooms the plan lacks
 	RoutesErr string        // CheckRoutes' error, "" when the routes are valid
-	RichCells int           // rich-soil cells under rooms and hallways
+	RichCells int           // rich-soil cells under rooms
 	// Soft tier.
 	Soil, Footprint, Wall, Edge, Centre, Defense, Expansion, Walk int
 	// Walled reports whether Wall and Defense were scored (PlanPerimeter
@@ -161,7 +161,7 @@ func (sc planScorer) core(p LayoutPlan) PlanScore {
 	var out PlanScore
 	// Attached children (an airlock, a porch) are no rooms of their own to
 	// owe, site or weigh: their parent stands for them.
-	rooms := slices.DeleteFunc(slices.Clone(p.AllRooms()), PlannedRoom.attached)
+	rooms := slices.DeleteFunc(slices.Clone(p.Rooms), PlannedRoom.attached)
 	out.Missing = missingRooms(rooms, p.Owed)
 	if len(rooms) == 0 {
 		return out
@@ -173,11 +173,6 @@ func (sc planScorer) core(p LayoutPlan) PlanScore {
 	under := map[domain.Cell]bool{}
 	for _, r := range rooms {
 		for _, c := range rectCells(r.Region.Bounds()) {
-			under[c] = true
-		}
-	}
-	for _, h := range p.hallwayFootprints() {
-		for _, c := range rectCells(h) {
 			under[c] = true
 		}
 	}
@@ -209,7 +204,7 @@ func (sc planScorer) core(p LayoutPlan) PlanScore {
 // defensibility (killbox, approach lane, gaps).
 func (sc planScorer) walled(p LayoutPlan, out PlanScore) PlanScore {
 	out.Walled = true
-	if len(p.AllRooms()) == 0 {
+	if len(p.Rooms) == 0 {
 		return out
 	}
 	wp := PlanPerimeter(p, sc.s)
@@ -240,7 +235,7 @@ const walkUnreachable = 200
 
 // planWalk is the affinity-weighted walking distance over p: for every
 // routeTrips edge, each room of the from role walks the shortest path over
-// the hallway graph to the nearest to end, so every bedroom of a wing
+// the walkable ground to the nearest to end, so every bedroom
 // counts its own distance to dining. A trip with no path costs
 // walkUnreachable; one whose ends the plan lacks costs nothing. Not a score
 // term: the corridor generator measures its gain with it.

@@ -61,7 +61,7 @@ func (p LayoutPlan) PlannedShells(role RoomRole) []domain.RoomFootprint {
 		return nil
 	}
 	var shells []domain.RoomFootprint
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if r.Role != want {
 			continue
 		}
@@ -76,7 +76,7 @@ func (p LayoutPlan) PlannedShells(role RoomRole) []domain.RoomFootprint {
 // ring standing yet: the kitchen, freezer or jail its owning
 // goal shells before furnishing. A dug room is mined out first.
 func (p LayoutPlan) NextPlannedRoom(role PlannedRole, ground GroundCensus) (PlannedRoom, bool) {
-	rooms := p.AllRooms()
+	rooms := p.Rooms
 	if role == PlannedYard {
 		// Yards are reservations viewed as rooms, not plan rooms.
 		rooms = p.YardRooms()

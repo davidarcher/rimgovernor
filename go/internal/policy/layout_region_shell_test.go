@@ -103,8 +103,7 @@ func TestShellDoorsTakeAnotherRoomsLinkOnAnIrregularRing(t *testing.T) {
 	if !region.Walls().Contains(side) || !region.adjacent(side) {
 		t.Fatalf("%v is not a side wall cell", side)
 	}
-	other.Link = &side
-	plan := LayoutPlan{Rooms: []PlannedRoom{room, other}}
+	plan := LayoutPlan{Rooms: []PlannedRoom{room, other}, Links: []RoomLink{{A: 1, B: 2, Cell: side}}}.WithRoomIDs()
 	if !slices.Contains(plan.ShellDoors(room), side) {
 		t.Fatal("a link on the ring takes a door")
 	}
@@ -112,8 +111,7 @@ func TestShellDoorsTakeAnotherRoomsLinkOnAnIrregularRing(t *testing.T) {
 	if !region.Walls().Contains(corner) || region.adjacent(corner) {
 		t.Fatalf("%v is not a diagonal corner", corner)
 	}
-	other.Link = &corner
-	plan = LayoutPlan{Rooms: []PlannedRoom{room, other}}
+	plan.Links = []RoomLink{{A: 1, B: 2, Cell: corner}}
 	if slices.Contains(plan.ShellDoors(room), corner) {
 		t.Fatal("a link on a ring corner takes no door")
 	}

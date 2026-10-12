@@ -13,7 +13,7 @@ func (r StoreView) plannedStorageRooms() []PlannedRoom {
 		return nil
 	}
 	var out []PlannedRoom
-	for _, planned := range r.Layout.AllRooms() {
+	for _, planned := range r.Layout.Rooms {
 		if planned.Role == PlannedStorage {
 			out = append(out, planned)
 		}

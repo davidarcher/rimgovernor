@@ -51,13 +51,8 @@ func PlanMountainPockets(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			used[c] = true
 		}
 	}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		for _, c := range rectCells(roomWalls(r)) {
-			used[c] = true
-		}
-	}
-	for _, hall := range plan.hallwayFootprints() {
-		for _, c := range rectCells(hall) {
 			used[c] = true
 		}
 	}
@@ -134,7 +129,7 @@ func BaseRoomLamps(plan LayoutPlan, reach float64) []domain.Cell {
 		return nil
 	}
 	var out []domain.Cell
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role == PlannedReserve {
 			continue
 		}

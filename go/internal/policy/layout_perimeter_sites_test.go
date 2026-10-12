@@ -27,7 +27,7 @@ func withInterior(p LayoutPlan) LayoutPlan {
 	for i, s := range p.Sites {
 		if s.Ring != nil {
 			facts := *s.Ring
-			facts.Inner, facts.Sealed = traceInterior(p.AllRooms(), p.WallCells(), nil)
+			facts.Inner, facts.Sealed = traceInterior(p.Rooms, p.WallCells(), nil)
 			s.Ring = &facts
 		}
 		sites[i] = s

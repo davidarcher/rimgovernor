@@ -214,12 +214,12 @@ func TestWallLampSharesACellWithFurnitureButNotWithAFullFillPiece(t *testing.T) 
 	}
 }
 
-// A hallway is walled where a fenced indoor room's ring borders it; a door, a
+// A fenced indoor room's ring is walled; a door, a
 // link, an entrance or a vent, an outdoor room's fence and open ground are not
 // walls. Natural rock is.
 func TestPlainWallsAreTheFencedRingLessWhatOtherBuildingsHold(t *testing.T) {
-	plan := roofPlan() // kitchen (10..13, 14..17), door (11,13); hallway z 10..12; pen outdoors
-	rock := map[domain.Cell]bool{{X: 9, Z: 11}: true, {X: 12, Z: 12}: true}
+	plan := roofPlan() // kitchen (10..13, 14..17), door (11,13); pen outdoors
+	rock := map[domain.Cell]bool{{X: 9, Z: 11}: true}
 	isWall := plainWalls(plan, rock)
 	for _, tc := range []struct {
 		cell domain.Cell
@@ -228,8 +228,6 @@ func TestPlainWallsAreTheFencedRingLessWhatOtherBuildingsHold(t *testing.T) {
 	}{
 		{domain.Cell{X: 12, Z: 13}, true, "kitchen north wall"},
 		{domain.Cell{X: 11, Z: 13}, false, "kitchen door"},
-		{domain.Cell{X: 12, Z: 11}, false, "hallway floor"},
-		{domain.Cell{X: 12, Z: 12}, false, "rock under the hallway floor"},
 		{domain.Cell{X: 9, Z: 11}, true, "natural rock"},
 		{domain.Cell{X: 27, Z: 11}, false, "the pen's gate"},
 		{domain.Cell{X: 28, Z: 8}, false, "the pen's fence"},
@@ -238,45 +236,6 @@ func TestPlainWallsAreTheFencedRingLessWhatOtherBuildingsHold(t *testing.T) {
 		if got := isWall(tc.cell); got != tc.want {
 			t.Errorf("%s %v: plain wall %v, want %v", tc.why, tc.cell, got, tc.want)
 		}
-	}
-}
-
-// A hallway with a plain wall at its edge takes the wall lamp, which costs less;
-// a vent or door on that wall leaves the standing lamp, priced, not refused.
-func TestHallwayWithAPlainWallEdgeGetsWallLamps(t *testing.T) {
-	p := testLightPrice()
-	rect := Rectangle{X: 10, Z: 10, Width: 12, Height: 3}
-	busy := map[domain.Cell]float64{{X: 12, Z: 12}: 20000}
-	plan := roofPlan()
-	if got, want := hallwayLightW(rect, busy, plainWalls(plan, nil), p), p.WallLampW; math.Abs(got-want) > 1e-9 {
-		t.Errorf("hallway beside a wall costs %v W, want one wall lamp %v W", got, want)
-	}
-	// The same cell beside the kitchen door (11,13) has no wall to hang on.
-	door := map[domain.Cell]float64{{X: 11, Z: 12}: 20000}
-	if got, want := hallwayLightW(rect, door, plainWalls(plan, nil), p), p.WallLampW; got > want+1e-9 {
-		t.Errorf("a cell beside the door still has its neighbours' walls: %v W, want at most %v W", got, want)
-	}
-	if got, want := hallwayLightW(rect, busy, func(domain.Cell) bool { return false }, p), p.LampW; math.Abs(got-want) > 1e-9 {
-		t.Errorf("hallway with no wall costs %v W, want one standing lamp %v W", got, want)
-	}
-}
-
-func TestRoofingAHallwayPricesItsWallLamps(t *testing.T) {
-	plan := roofPlan()
-	plan.Trips = []RoomTrip{{A: 1, B: 2, Weight: 20000}}
-	in := roofInput(seaIce)
-	in.Light = testLightPrice()
-	walled := PlanRoofed(plan, in)
-	in.Light.WallLampW, in.Light.WallReach = 0, 0
-	standing := PlanRoofed(plan, in)
-	var w, s RoofDecision
-	for i, d := range walled.Decisions {
-		if d.Reason == ReasonRoofHallway {
-			w, s = d, standing.Decisions[i]
-		}
-	}
-	if w.LightW <= 0 || w.LightW >= s.LightW {
-		t.Errorf("hallway lights %v W with wall lamps, %v W with standing lamps only", w.LightW, s.LightW)
 	}
 }
 

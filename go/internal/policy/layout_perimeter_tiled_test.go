@@ -20,9 +20,6 @@ func TestPerimeterRingOverTiledFixtures(t *testing.T) {
 			if err != nil {
 				t.Skipf("no tiled plan: %v", err)
 			}
-			if len(plan.Hallways()) != 0 {
-				t.Fatalf("a tiled plan holds hallways: %+v", plan.Hallways())
-			}
 			ring, ok := plan.Ring()
 			if !ok {
 				t.Fatal("no ring")
@@ -31,7 +28,7 @@ func TestPerimeterRingOverTiledFixtures(t *testing.T) {
 			for _, c := range ring.Footprint.Cells() {
 				occupied[c] = "ring"
 			}
-			for _, r := range plan.AllRooms() {
+			for _, r := range plan.Rooms {
 				for _, c := range r.Region.Cells() {
 					if occupied[c] == "ring" {
 						t.Errorf("room #%d (%s) floor cell %v lies on the ring", r.ID, r.Role, c)

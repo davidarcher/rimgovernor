@@ -29,9 +29,8 @@ var innerEnclosed = map[ReservationKind]bool{ReserveYard: true, ReserveBarn: tru
 // (a step of a squared-off diagonal) gives step gates, kept by pitchGates.
 // Raiders neither mine nor attack natural rock: a run is walled only
 // on its open cells, and not behind a rock row that spans the column and both
-// neighbours, which no raider can reach round. axes are the positions of
-// hallways meeting the side, which the pitch lines up with.
-func wallRuns(sd ringSide, impassable func(domain.Cell) bool, walls map[domain.Cell]bool, axes []int32, skip func(p int32) bool) (gates []Rectangle, stepGates []stepGate) {
+// neighbours, which no raider can reach round.
+func wallRuns(sd ringSide, impassable func(domain.Cell) bool, walls map[domain.Cell]bool, skip func(p int32) bool) (gates []Rectangle, stepGates []stepGate) {
 	sealed := func(p, t int32) bool {
 		for u := int32(0); u < t; u++ {
 			if impassable(sd.cell(p-1, u)) && impassable(sd.cell(p, u)) && impassable(sd.cell(p+1, u)) {
@@ -63,12 +62,6 @@ func wallRuns(sd ringSide, impassable func(domain.Cell) bool, walls map[domain.C
 		n := end - start + 1
 		if n >= 5 {
 			first := start + min(perimeterGatePitch/2, n/2)
-			for _, a := range axes {
-				if a > start && a < end {
-					first = start + (a-start)%perimeterGatePitch
-					break
-				}
-			}
 			for p := first; p <= end; p += perimeterGatePitch {
 				if !openColumn(p) {
 					continue
@@ -134,7 +127,7 @@ func pitchGates(gates []Rectangle, stepGates []stepGate, blocked func(domain.Cel
 }
 
 // coreFootprint marks the cells of a w x h map the core ring walls in: each
-// room's interior with its walls, each hallway with its walls, the
+// room's interior with its walls, the
 // pen, barn, vet room and turbine pairs beside them, and any
 // geothermal crowding that footprint. It follows the plan's real outline,
 // not its bounding rectangle.
@@ -152,11 +145,8 @@ func coreFootprint(plan LayoutPlan, w, h int32) []bool {
 // coreBaseFootprint is coreFootprint before any outer-ring unit is taken in.
 func coreBaseFootprint(plan LayoutPlan, w, h int32) []bool {
 	fp := make([]bool, max(w, 0)*max(h, 0))
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		markRect(fp, w, h, pad(r.Region.Bounds(), 1))
-	}
-	for _, hall := range plan.hallwayFootprints() {
-		markRect(fp, w, h, hall)
 	}
 	for _, r := range plan.Reservations {
 		if innerEnclosed[r.Kind] {
@@ -242,7 +232,7 @@ func crowdsCore(fp []bool, w, h int32, area Region, gap int32) bool {
 // footprint stands in for the ring.
 func outerKeepOut(plan LayoutPlan, w, h int32) []bool {
 	out := make([]bool, max(w, 0)*max(h, 0))
-	if w < 1 || h < 1 || len(plan.AllRooms()) == 0 && len(plan.Hallways()) == 0 {
+	if w < 1 || h < 1 || len(plan.Rooms) == 0 {
 		return out
 	}
 	enc := coreEnclosure(plan, w, h)

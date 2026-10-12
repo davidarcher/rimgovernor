@@ -24,7 +24,7 @@ func TestPenAnimalsFollowsThePlanCeilings(t *testing.T) {
 
 func TestHerdSitesABarnAndNoVetRoom(t *testing.T) {
 	core := zonedKitchenPlan()
-	p := PlanUtilities(core, UtilityWants{PenAnimals: 20})
+	p := PlanHerdSites(core, 20)
 	barns := herdReservations(p, ReserveBarn)
 	if len(barns) != 1 {
 		t.Fatal("want one barn", len(barns))

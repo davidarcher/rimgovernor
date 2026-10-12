@@ -6,43 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// LayoutPlan combines hallway spines, concrete rooms, whole-map zones and
-// reserved infrastructure sites.
-
-// SpineWidth is a spine hallway's width in cells.
-const SpineWidth int32 = 3
-
-// SpineSegment is one straight hallway run SpineWidth wide: From and To
-// are the centre line's end cells (same X or same Z).
-type SpineSegment struct {
-	From, To domain.Cell
-}
-
-// WingPurpose is what a wing's rooms are for.
-type WingPurpose string
-
-// WingBedrooms is the standard bedroom wing; WingSuites the suite wing.
-// WingBedroomsRetiring is a standard wing a tier bump left behind. Only the
-// old generator sited wings; LayoutPlan.Wings goes with #2971.
-const (
-	WingBedrooms         WingPurpose = "bedrooms"
-	WingSuites           WingPurpose = "suites"
-	WingBedroomsRetiring WingPurpose = "bedrooms_retiring"
-)
-
-// Wing is a corridor off the main hallway with its rooms. Corridor.From is
-// its centre cell in the main hallway's wall row, Corridor.To the open end.
-type Wing struct {
-	Purpose  WingPurpose
-	Corridor SpineSegment
-	Rooms    []PlannedRoom
-}
-
-// Door is one boundary door of a room: its wall cell and the side it faces.
-type Door struct {
-	Cell domain.Cell
-	Rot  domain.Rotation
-}
+// LayoutPlan combines concrete rooms, whole-map zones and reserved
+// infrastructure sites.
 
 // RoomLink is a door in the wall two rooms share: A and B are their room ids
 // (A below B) and Cell the wall cell, which lies on both rooms' walls.
@@ -66,16 +31,9 @@ type PlannedRoom struct {
 	// use.
 	Door    domain.Cell
 	DoorRot domain.Rotation
-	// Doors are further boundary doors of a room that touches a second
-	// hallway. Nil for a single-door room, never empty.
-	Doors []Door `json:",omitempty"`
-	// Link, when set, is a second door in a wall shared with a neighbour:
-	// the freezer's door into the kitchen. Plans saved before it
-	// have none.
-	Link *domain.Cell
 	// Crossing is what walking through the room costs, read from the station
-	// group that became it (RoomCrossing); nil for a room the old generator
-	// planned, which keeps its role's noThroughfare rule.
+	// group that became it (RoomCrossing); nil for a room that
+	// is not a station group, which keeps its role's noThroughfare rule.
 	Crossing *RoomCrossing `json:",omitempty"`
 	// Through marks a room the plan lets pawns walk through to reach other
 	// rooms although crossing it costs something (MayBeThrough): CheckRoutes
@@ -144,17 +102,14 @@ type LayoutReservation struct {
 
 // LayoutPlan is the v2 colony layout.
 type LayoutPlan struct {
-	Spine []SpineSegment
-	// Entrances are the cells traffic enters the base from: hallway cells on a
-	// spine plan, the outside cell beside each exterior door on a tiled plan
+	// Entrances are the cells traffic enters the base from: the outside cell beside each exterior door on a tiled plan
 	// (layout_tile.go). Empty until the plan is grown.
 	Entrances []domain.Cell `json:",omitempty"`
 	// Links is the door graph between rooms: one door in the wall two rooms
-	// share, by room id. Only a tiled plan holds it; a spine plan keeps its
-	// freezer and butchery doors on PlannedRoom.Link.
+	// share, by room id.
 	Links []RoomLink `json:",omitempty"`
 	// Conduits are the power conduit paths the planner lays, one per node joined
-	// to the net (layout_conduit.go). Only a tiled plan holds them.
+	// to the net (layout_conduit.go).
 	Conduits []ConduitLink `json:",omitempty"`
 	// Owed is the room each station group owes the plan, one role per group,
 	// set only by a tiled plan (layout_tile.go). The hard tier's Missing term
@@ -163,15 +118,12 @@ type LayoutPlan struct {
 	Owed []PlannedRole `json:",omitempty"`
 	// Trips are the pawn trips between this plan's rooms with their daily
 	// frequency (the station graph's flows, layout_trips.go). When set, plan
-	// scoring walks them instead of the role-pair trip table; a spine plan has
-	// none and keeps the table.
+	// scoring walks them instead of the role-pair trip table.
 	Trips []RoomTrip `json:",omitempty"`
 	// OutsideTrips are the rooms' trips to the outside, walked to the nearest
 	// entrance (exteriorDoorMovements); scoring does not read them.
 	OutsideTrips []OutsideTrip `json:",omitempty"`
-	// Rooms are the rooms hung off the spine; a wing holds its own.
 	Rooms        []PlannedRoom
-	Wings        []Wing `json:",omitempty"`
 	Zones        []LayoutZone
 	Reservations []LayoutReservation
 	// Sites are the defense nodes PlanPerimeter traces: ring, gates, killbox,
@@ -182,7 +134,7 @@ type LayoutPlan struct {
 	// it, then the entry is dropped.
 	RetiredGround []Region `json:",omitempty"`
 	// Roofed is the cells the plan roofs on a map whose outdoor temperature is
-	// not good for pawns: every room and hallway except the outdoor roles
+	// not good for pawns: every room except the outdoor roles
 	// (layout_roof.go). Only a tiled plan holds it; advice until #2931 issues
 	// the roofs.
 	Roofed Region `json:",omitzero"`
@@ -205,23 +157,16 @@ type LayoutPlan struct {
 }
 
 // WithRoomIDs hands every room without an id the next one from NextRoomID,
-// in plan order (rooms, then each wing's rooms). The counter first moves
+// in plan order. The counter first moves
 // past every id the plan already holds, so ids stay unique and a dropped
 // room's id is not handed out again.
 func (p LayoutPlan) WithRoomIDs() LayoutPlan {
 	next := max(p.NextRoomID, 1)
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		next = max(next, r.ID+1, r.Replaces+1)
 	}
 	p.Rooms = slices.Clone(p.Rooms)
 	next = idRooms(p.Rooms, next)
-	if len(p.Wings) > 0 {
-		p.Wings = slices.Clone(p.Wings)
-		for i := range p.Wings {
-			p.Wings[i].Rooms = slices.Clone(p.Wings[i].Rooms)
-			next = idRooms(p.Wings[i].Rooms, next)
-		}
-	}
 	p.NextRoomID = next
 	return p
 }
@@ -258,12 +203,11 @@ func (r PlannedRoom) attached() bool { return r.Role == PlannedAirlock || r.Role
 
 // Anchor is the interior centre of the
 // first room for want that free accepts (every one when free is nil), in
-// plan order (the planner lists rooms nearest the spine's start first). A
-// full role falls back to reserve rooms; false means the plan holds no
+// plan order. A full role falls back to reserve rooms; false means the plan holds no
 // slot.
 func (p LayoutPlan) Anchor(want PlannedRole, free func(room Rectangle) bool) (domain.Cell, bool) {
 	for _, role := range []PlannedRole{want, PlannedReserve} {
-		for _, r := range p.AllRooms() {
+		for _, r := range p.Rooms {
 			if r.Role == role && (free == nil || free(r.Region.Bounds())) {
 				return domain.Cell{X: r.Region.Bounds().X + r.Region.Bounds().Width/2, Z: r.Region.Bounds().Z + r.Region.Bounds().Height/2}, true
 			}
@@ -273,12 +217,12 @@ func (p LayoutPlan) Anchor(want PlannedRole, free func(room Rectangle) bool) (do
 }
 
 // Core is the cell the base clusters around: the first storeroom's
-// interior centre, else the centre of the footprint, every hallway and room
+// interior centre, else the centre of the footprint of every room
 // wall. Stockpiles and
 // the cooking campfire anchor here rather than on the colonists' centroid,
 // which on a fresh landing is the map centre. False means an empty plan.
 func (p LayoutPlan) Core() (domain.Cell, bool) {
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if r.Role == PlannedStorage {
 			return domain.Cell{X: r.Region.Bounds().X + r.Region.Bounds().Width/2, Z: r.Region.Bounds().Z + r.Region.Bounds().Height/2}, true
 		}
@@ -286,8 +230,8 @@ func (p LayoutPlan) Core() (domain.Cell, bool) {
 	return p.Center()
 }
 
-// Center is the middle of the plan's core: the bounding box of its hallways
-// and room walls. False for a plan with neither.
+// Center is the middle of the plan's core: the bounding box of its room
+// walls. False for a plan with no rooms.
 func (p LayoutPlan) Center() (domain.Cell, bool) {
 	fp, ok := p.CoreBounds()
 	if !ok {
@@ -296,47 +240,29 @@ func (p LayoutPlan) Center() (domain.Cell, bool) {
 	return domain.Cell{X: fp.X + fp.Width/2, Z: fp.Z + fp.Height/2}, true
 }
 
-// CoreBounds is the bounding box of the plan's hallways and room walls;
-// false for a plan with neither.
+// CoreBounds is the bounding box of the plan's room walls; false for a plan
+// with no rooms.
 func (p LayoutPlan) CoreBounds() (Rectangle, bool) {
 	var fp Rectangle
-	for _, r := range spineRects(p.Hallways()) {
-		fp = unionRect(fp, r)
-	}
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		fp = unionRect(fp, roomWalls(r))
 	}
 	return fp, fp.Width != 0
 }
 
-// Valid reports a plan a store may persist: at least one room, straight
-// spine segments, non-empty rectangles and runs, and a real door rotation.
+// Valid reports a plan a store may persist: at least one room, non-empty
+// rectangles and runs, and a real door rotation.
 func (p LayoutPlan) Valid() bool {
-	if len(p.AllRooms()) == 0 {
+	if len(p.Rooms) == 0 {
 		return false
 	}
-	for _, w := range p.Wings {
-		if w.Purpose == "" || len(w.Rooms) == 0 {
-			return false
-		}
-	}
-	for _, s := range p.Hallways() {
-		if s.From.X != s.To.X && s.From.Z != s.To.Z {
-			return false
-		}
-	}
-	halls := spineRects(p.Hallways())
 	for _, c := range p.Entrances {
-		on := p.besideExteriorDoor(c)
-		for _, h := range halls {
-			on = on || contains(h, c)
-		}
-		if !on {
+		if !p.besideExteriorDoor(c) {
 			return false
 		}
 	}
 	ids := map[int32]bool{}
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if r.Role == "" || r.Region.Empty() {
 			return false
 		}
@@ -359,7 +285,7 @@ func (p LayoutPlan) Valid() bool {
 		}
 	}
 	rooms := map[int32]Rectangle{}
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		rooms[r.ID] = r.Region.Bounds()
 	}
 	seen := map[RoomLink]bool{}
@@ -437,7 +363,7 @@ func (p LayoutPlan) validVent(s PlannedSite) bool {
 		return false
 	}
 	inRing := false
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if r.Unfenced() {
 			continue
 		}
@@ -450,16 +376,14 @@ func (p LayoutPlan) validVent(s PlannedSite) bool {
 }
 
 // besideExteriorDoor reports c as the outside cell of a room's own door: it
-// touches the room's Door or one of its Doors from outside the room.
+// touches the room's Door from outside the room.
 func (p LayoutPlan) besideExteriorDoor(c domain.Cell) bool {
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if r.Unfenced() || r.Region.Contains(c) {
 			continue
 		}
-		for _, d := range r.BoundaryDoors() {
-			if abs32(d.Cell.X-c.X)+abs32(d.Cell.Z-c.Z) == 1 {
-				return true
-			}
+		if abs32(r.Door.X-c.X)+abs32(r.Door.Z-c.Z) == 1 {
+			return true
 		}
 	}
 	return false
@@ -476,41 +400,20 @@ func (p LayoutPlan) LinkCells(id int32) []domain.Cell {
 	return out
 }
 
-// BoundaryDoors are the room's own doors with the side each faces: Door, then
-// Doors. A link door in a wall shared with a neighbour is not among them
-// (LayoutPlan.LinksOf).
-func (r PlannedRoom) BoundaryDoors() []Door {
-	return append([]Door{{Cell: r.Door, Rot: r.DoorRot}}, r.Doors...)
-}
-
 // LinksOf are the cells of the link doors room r holds in walls it shares with
-// a neighbour: its Link on a plan the old generator wrote, the door graph's
-// links (LinkCells) on a tiled plan. Herd rooms (barn, pen) are reservations
-// without room ids and own no link, so they give none.
+// a neighbour: the door graph's links (LinkCells). Herd rooms (barn, pen) are
+// reservations without room ids and own no link, so they give none.
 func (p LayoutPlan) LinksOf(r PlannedRoom) []domain.Cell {
-	var out []domain.Cell
-	if r.Link != nil {
-		out = append(out, *r.Link)
+	if r.ID == 0 {
+		return nil
 	}
-	if r.ID != 0 {
-		for _, c := range p.LinkCells(r.ID) {
-			if !slices.Contains(out, c) {
-				out = append(out, c)
-			}
-		}
-	}
-	return out
+	return p.LinkCells(r.ID)
 }
 
-// DoorsOf are the cells of every door of room r, one door API for both plans:
-// Door, then Doors, then its links (LinksOf), each cell once.
+// DoorsOf are the cells of every door of room r: Door, then its links
+// (LinksOf), each cell once.
 func (p LayoutPlan) DoorsOf(r PlannedRoom) []domain.Cell {
-	var out []domain.Cell
-	for _, d := range r.BoundaryDoors() {
-		if !slices.Contains(out, d.Cell) {
-			out = append(out, d.Cell)
-		}
-	}
+	out := []domain.Cell{r.Door}
 	for _, c := range p.LinksOf(r) {
 		if !slices.Contains(out, c) {
 			out = append(out, c)
@@ -526,7 +429,7 @@ func (p LayoutPlan) DoorsOf(r PlannedRoom) []domain.Cell {
 func (p LayoutPlan) linkInto(r PlannedRoom, role PlannedRole) (domain.Cell, bool) {
 	links := p.LinksOf(r)
 	for _, c := range links {
-		for _, o := range p.AllRooms() {
+		for _, o := range p.Rooms {
 			if o.ID != r.ID && o.Role == role && inWall(o.Region.Bounds(), c) {
 				return c, true
 			}
@@ -539,14 +442,13 @@ func (p LayoutPlan) linkInto(r PlannedRoom, role PlannedRole) (domain.Cell, bool
 }
 
 // Extent is the bounding rectangle of what the plan builds: every room
-// with its walls, every hallway and every reserved site. The
+// with its walls and every reserved site. The
 // whole-map zones are left out; false means the plan holds none of these.
 func (p LayoutPlan) Extent() (Rectangle, bool) {
 	var rects []Rectangle
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		rects = append(rects, Rectangle{X: r.Region.Bounds().X - 1, Z: r.Region.Bounds().Z - 1, Width: r.Region.Bounds().Width + 2, Height: r.Region.Bounds().Height + 2})
 	}
-	rects = append(rects, spineRects(p.Hallways())...)
 	for _, r := range p.Reservations {
 		rects = append(rects, r.Area.Bounds())
 	}
@@ -577,16 +479,8 @@ func RectUnion(rects ...Rectangle) (Rectangle, bool) {
 }
 
 // Same reports whether two rooms are identical, the comparison PlannedRoom's
-// slice of doors rules out for ==.
+// Region and Crossing rule out for ==.
 func (r PlannedRoom) Same(o PlannedRoom) bool {
-	if (r.Link == nil) != (o.Link == nil) || r.Link != nil && *r.Link != *o.Link || len(r.Doors) != len(o.Doors) {
-		return false
-	}
-	for i := range r.Doors {
-		if r.Doors[i] != o.Doors[i] {
-			return false
-		}
-	}
 	return r.ID == o.ID && r.Replaces == o.Replaces && r.Role == o.Role && r.Through == o.Through && (r.Crossing == nil) == (o.Crossing == nil) && (r.Crossing == nil || *r.Crossing == *o.Crossing) && r.Region.Bounds() == o.Region.Bounds() && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing && r.Markers == o.Markers && r.Parent == o.Parent
 }
 
@@ -598,7 +492,7 @@ func (r PlannedRoom) Same(o PlannedRoom) bool {
 func (p LayoutPlan) NearestAnchor(want PlannedRole, to domain.Cell, free func(room Rectangle) bool) (domain.Cell, bool) {
 	for _, role := range []PlannedRole{want, PlannedReserve} {
 		best, bestD, found := domain.Cell{}, int64(0), false
-		for _, r := range p.AllRooms() {
+		for _, r := range p.Rooms {
 			if r.Role != role || free != nil && !free(r.Region.Bounds()) {
 				continue
 			}

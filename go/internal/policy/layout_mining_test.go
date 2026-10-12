@@ -101,7 +101,7 @@ func TestPlannedDig(t *testing.T) {
 func TestRoomDigIncludesFoggedCells(t *testing.T) {
 	p := tiledPlan(utilityTestSurvey(), 3)
 	var room PlannedRoom
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		room = r
 		break
 	}
@@ -129,10 +129,10 @@ func TestRoomDigIncludesFoggedCells(t *testing.T) {
 func TestRoomDigThroughLinkedNeighbour(t *testing.T) {
 	link := domain.Cell{X: 96, Z: 36}
 	freezer := PlannedRoom{Role: PlannedFreezer, Region: RectRegion(Rectangle{X: 96, Z: 37, Width: 5, Height: 5}), Door: domain.Cell{X: 98, Z: 42}, DoorRot: domain.North}
-	butchery := PlannedRoom{Role: PlannedButchery, Region: RectRegion(Rectangle{X: 93, Z: 32, Width: 4, Height: 4}), Door: link, Link: &link, DoorRot: domain.North}
-	p := LayoutPlan{Rooms: []PlannedRoom{freezer, butchery}}
+	butchery := PlannedRoom{Role: PlannedButchery, Region: RectRegion(Rectangle{X: 93, Z: 32, Width: 4, Height: 4}), Door: link, DoorRot: domain.North}
+	p := LayoutPlan{Rooms: []PlannedRoom{freezer, butchery}, Links: []RoomLink{{A: 1, B: 2, Cell: link}}}.WithRoomIDs()
 	dig := map[domain.Cell]bool{}
-	for _, c := range p.RoomRock(butchery, nil).Dig {
+	for _, c := range p.RoomRock(p.Rooms[1], nil).Dig {
 		dig[c] = true
 	}
 	for _, c := range append(RectangleCells(freezer.Region.Bounds()), freezer.Door) {
@@ -140,7 +140,7 @@ func TestRoomDigThroughLinkedNeighbour(t *testing.T) {
 			t.Fatalf("%v of the freezer the butchery is entered through is not dug", c)
 		}
 	}
-	if len(p.RoomRock(freezer, nil).Dig) == 0 || dig[domain.Cell{X: 200, Z: 200}] {
+	if len(p.RoomRock(p.Rooms[0], nil).Dig) == 0 || dig[domain.Cell{X: 200, Z: 200}] {
 		t.Fatal("unexpected dig set")
 	}
 }

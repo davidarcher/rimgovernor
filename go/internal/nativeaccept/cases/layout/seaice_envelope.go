@@ -209,7 +209,7 @@ func envelopeCells(plan policy.LayoutPlan) []planstage.Cell {
 	for _, c := range plan.Roofed.Cells() {
 		add(c)
 	}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role != policy.PlannedAirlock {
 			continue
 		}
@@ -225,7 +225,7 @@ func envelopeCells(plan policy.LayoutPlan) []planstage.Cell {
 
 // parentOf is the room child is attached to.
 func parentOf(plan policy.LayoutPlan, child policy.PlannedRoom) (policy.PlannedRoom, bool) {
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if child.Parent != 0 && r.ID == child.Parent {
 			return r, true
 		}
@@ -251,7 +251,7 @@ func unbuiltRoofs(plan policy.LayoutPlan, a planstage.Audit) []domain.Cell {
 func airlockFaults(plan policy.LayoutPlan, a planstage.Audit) []string {
 	var out []string
 	at := func(c domain.Cell) planstage.CellRead { return a.Cells[planstage.Cell{X: c.X, Z: c.Z}] }
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role != policy.PlannedAirlock {
 			continue
 		}
@@ -287,7 +287,7 @@ func adjacent(a, b domain.Cell) bool {
 // airlockCount fails a plan with no airlock: the case asserts the airlocks the
 // tiler chose, and on a very cold map it chooses at least one.
 func airlockCount(plan policy.LayoutPlan) error {
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role == policy.PlannedAirlock {
 			return nil
 		}
@@ -299,7 +299,7 @@ func airlockCount(plan policy.LayoutPlan) error {
 // roofed set.
 func unroofedRooms(plan policy.LayoutPlan) error {
 	var failures []error
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role.IsOutdoor() {
 			continue
 		}
@@ -321,13 +321,13 @@ func disconnectedRooms(plan policy.LayoutPlan) error {
 	for _, c := range plan.Roofed.Cells() {
 		walk[c] = true
 	}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		for _, c := range plan.DoorsOf(r) {
 			walk[c] = true
 		}
 	}
 	var rooms []policy.PlannedRoom
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if !r.Role.IsOutdoor() && !r.Region.Empty() && plan.Roofed.Contains(r.Region.Cells()[0]) {
 			rooms = append(rooms, r)
 		}

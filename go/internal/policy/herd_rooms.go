@@ -188,7 +188,7 @@ func (p LayoutPlan) HerdRooms(role PlannedRole) []PlannedRoom {
 // roomsWithHerd is AllRooms and the barns the reservations hold: the rooms
 // whose doors and links a ring is matched against.
 func (p LayoutPlan) roomsWithHerd() []PlannedRoom {
-	return append(slices.Clone(p.AllRooms()), p.HerdRooms(PlannedBarn)...)
+	return append(slices.Clone(p.Rooms), p.HerdRooms(PlannedBarn)...)
 }
 
 // herdRoom is the room a barn reservation holds: the door in the middle of the

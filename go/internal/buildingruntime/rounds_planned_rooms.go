@@ -75,7 +75,7 @@ func plannedRoomCells(facts observation.ColonyProjection, module policy.PlannedR
 	if !known {
 		return nil
 	}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role != module {
 			continue
 		}
@@ -247,7 +247,7 @@ func plannedInteriorRooms(facts observation.ColonyProjection, keep func(policy.P
 		}
 	}
 	var out []policy.InteriorRoom
-	for _, planned := range plan.AllRooms() {
+	for _, planned := range plan.Rooms {
 		if !keep(planned) {
 			continue
 		}
@@ -281,7 +281,7 @@ func plannedRoomPlanCells(facts observation.ColonyProjection, module policy.Plan
 	if !known {
 		return nil
 	}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role == module {
 			return plannedRoomInterior(r)
 		}

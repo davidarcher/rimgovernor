@@ -32,7 +32,7 @@ func WarmCoolingRooms(coolers domain.Fact[bool], plan domain.Fact[LayoutPlan], r
 		return domain.Unknown[[]string]()
 	}
 	var out []string
-	for _, planned := range p.AllRooms() {
+	for _, planned := range p.Rooms {
 		if planned.Role != PlannedTomb && planned.Role != PlannedMorgue && planned.Role != PlannedMealCloset {
 			continue
 		}

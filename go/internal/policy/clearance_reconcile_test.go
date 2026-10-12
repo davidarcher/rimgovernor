@@ -105,9 +105,9 @@ func TestPlannedGroundStepReconcilesAStandingRoom(t *testing.T) {
 	// The plan wants a second door where a wall stands, and a bed sits on a
 	// ring cell.
 	door := domain.Cell{X: 9, Z: 11}
-	plan.Rooms[0].Doors = []Door{{Cell: door, Rot: domain.West}}
 	g := ringWalls(plan, plan.Rooms[0])
 	g.walls[door], g.doors[door] = true, false
+	plan.Rooms[0].Door, plan.Rooms[0].DoorRot = door, domain.West
 	bedCell := domain.Cell{X: 13, Z: 12}
 	g.walls[bedCell] = false
 	bed := playerRow("bed", "Bed", "other", bedCell, bedCell, false)

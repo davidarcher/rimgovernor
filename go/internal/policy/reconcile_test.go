@@ -181,8 +181,8 @@ func TestReconcileStandingRoomKeepsItsRing(t *testing.T) {
 	// The plan now wants two more doors on walls: the roof comes off first,
 	// then one ring wall at a time.
 	a, b := domain.Cell{X: 9, Z: 11}, domain.Cell{X: 9, Z: 12}
-	in.Room.Doors = []Door{{Cell: a, Rot: domain.West}, {Cell: b, Rot: domain.West}}
-	in.Plan = LayoutPlan{Rooms: []PlannedRoom{in.Room}}
+	in.Plan = LayoutPlan{Rooms: []PlannedRoom{in.Room, hallRoom(PlannedStorage, 2, 11, 3, 3, true)}, Links: []RoomLink{{A: 1, B: 2, Cell: a}, {A: 1, B: 2, Cell: b}}}.WithRoomIDs()
+	in.Room = in.Plan.Rooms[0]
 	rec = Reconcile(in)
 	if k := readyKinds(rec); !kindsEqual(k, OpRoofOff) || len(rec.Ready[0].Cells) != 9 {
 		t.Fatalf("roof off first: %+v", rec.Ready)

@@ -191,12 +191,7 @@ func CensusRoomIn(r PlannedRoom, rooms RoomObservation) (Room, bool) {
 // the plan put it. Any region the footprint rules accept (4-connected, at most
 // 3844 cells, a ring of at most 255) shells, rectangular or not.
 func (r PlannedRoom) Footprint() (domain.RoomFootprint, error) {
-	cells := r.Region.Cells()
-	var extra []domain.RoomDoor
-	for _, d := range r.BoundaryDoors()[1:] {
-		extra = append(extra, domain.RoomDoor{Cell: d.Cell, Entrance: d.Rot})
-	}
-	return domain.NewRoomFootprint(cells, r.Door, r.DoorRot, extra...)
+	return domain.NewRoomFootprint(r.Region.Cells(), r.Door, r.DoorRot)
 }
 
 // ShellDoors is the cells of r's ring that take a door rather than a

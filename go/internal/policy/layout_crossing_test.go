@@ -68,7 +68,6 @@ func TestReachabilityTakesTheWayAround(t *testing.T) {
 	// not the only way in (the shortest path may still lead through it).
 	p.Rooms[3].Door = domain.Cell{X: 36, Z: 19}
 	p.Rooms[3].DoorRot = domain.North
-	p.Rooms[3].Doors = []Door{{Cell: domain.Cell{X: 36, Z: 19}, Rot: domain.North}}
 	p.Entrances = append(p.Entrances, domain.Cell{X: 36, Z: 18})
 	p.Rooms[2].Through = false
 	if _, err := CheckRoutes(p); err != nil {

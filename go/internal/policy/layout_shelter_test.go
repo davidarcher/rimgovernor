@@ -9,7 +9,7 @@ import (
 func shelterOf(t *testing.T, p LayoutPlan) PlannedRoom {
 	t.Helper()
 	var found []PlannedRoom
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if r.Role == PlannedShelter {
 			found = append(found, r)
 		}

@@ -12,7 +12,7 @@ type OverlayLine struct {
 // roomCentres is each room's label cell by room id.
 func (p LayoutPlan) roomCentres() map[int32]domain.Cell {
 	centres := map[int32]domain.Cell{}
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		centres[r.ID] = labelCell(r.Region)
 	}
 	return centres
@@ -45,7 +45,7 @@ func (p LayoutPlan) linesOverlay(bounds Bounds, out *LayoutOverlay) {
 			links = append(links, OverlayLine{From: a, To: l.Cell}, OverlayLine{From: l.Cell, To: b})
 		}
 	}
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if old, ok := centres[r.Replaces]; ok && r.Replaces > 0 {
 			successors = append(successors, OverlayLine{From: old, To: centres[r.ID], Arrow: true})
 		}

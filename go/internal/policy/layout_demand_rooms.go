@@ -27,7 +27,7 @@ var designatedHosts = map[PlannedRole][]Capability{PlannedShelter: shelterCapabi
 // HostsCapability reports a planned room other than except that is designated to
 // host c.
 func (p LayoutPlan) HostsCapability(c Capability, except PlannedRole) bool {
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if r.Role != except && slices.Contains(designatedHosts[r.Role], c) {
 			return true
 		}

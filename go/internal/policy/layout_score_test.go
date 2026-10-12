@@ -89,8 +89,8 @@ func handPlan(fx int32) LayoutPlan {
 	room := func(role PlannedRole, x int32) PlannedRoom {
 		return PlannedRoom{Role: role, Region: RectRegion(Rectangle{X: x, Z: 13, Width: 3, Height: 3}), Door: domain.Cell{X: x + 1, Z: 12}}
 	}
-	spine := []SpineSegment{{From: domain.Cell{X: 0, Z: 10}, To: domain.Cell{X: 60, Z: 10}}}
-	return LayoutPlan{Spine: spine, Entrances: spineEntrances(spine), Rooms: []PlannedRoom{room(PlannedKitchen, 5), room(PlannedFreezer, fx)}}
+	entrances := []domain.Cell{{X: 6, Z: 11}}
+	return LayoutPlan{Entrances: entrances, Rooms: []PlannedRoom{room(PlannedKitchen, 5), room(PlannedFreezer, fx)}}
 }
 
 func TestScoreWalkRisesAsRoutesShorten(t *testing.T) {

@@ -24,7 +24,7 @@ func ObservedRoomContents(catalog StationCatalog, plan LayoutPlan, rooms RoomObs
 	}
 	clusters := loveClusters(sleeping)
 	var out []RoomContents
-	for _, planned := range plan.AllRooms() {
+	for _, planned := range plan.Rooms {
 		census, standing := CensusRoomIn(planned, rooms)
 		if !standing {
 			continue

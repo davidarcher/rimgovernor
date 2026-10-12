@@ -23,10 +23,10 @@ func TestReplanLayoutKeepsTheHeldRooms(t *testing.T) {
 		t.Fatalf("invalid replan: %s", next.Summary())
 	}
 	have := map[int32]bool{}
-	for _, r := range next.AllRooms() {
+	for _, r := range next.Rooms {
 		have[r.ID] = true
 	}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if !r.attached() && !have[r.ID] {
 			t.Errorf("room %d (%s) left a plan whose rooms are all held", r.ID, r.Role)
 		}
@@ -50,10 +50,10 @@ func TestReplanLayoutRetiresAStandingRoomWithNoNode(t *testing.T) {
 		t.Fatal(err)
 	}
 	have, dropped := map[int32]bool{}, 0
-	for _, r := range next.AllRooms() {
+	for _, r := range next.Rooms {
 		have[r.ID] = true
 	}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.attached() || have[r.ID] {
 			continue
 		}

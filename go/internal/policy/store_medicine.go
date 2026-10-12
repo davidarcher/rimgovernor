@@ -15,7 +15,7 @@ func (r StoreView) medicineStore() (Store, bool) {
 		return Store{}, false
 	}
 	var hospital PlannedRoom
-	for _, planned := range r.Layout.AllRooms() {
+	for _, planned := range r.Layout.Rooms {
 		if planned.Role == PlannedHospital {
 			hospital = planned
 			break

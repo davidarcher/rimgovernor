@@ -6,9 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func TestLayoutOverlayV2DrawsZonesSpineRoomsReservationsAndTraffic(t *testing.T) {
+func TestLayoutOverlayV2DrawsZonesRoomsAndReservations(t *testing.T) {
 	plan := LayoutPlan{
-		Spine: []SpineSegment{{From: domain.Cell{X: 10, Z: 20}, To: domain.Cell{X: 40, Z: 20}}},
 		Rooms: []PlannedRoom{
 			{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 12, Z: 23, Width: 5, Height: 5}), Door: domain.Cell{X: 14, Z: 22}, DoorRot: domain.South},
 			{Role: PlannedDining, Region: RectRegion(Rectangle{X: 20, Z: 23, Width: 9, Height: 7}), Door: domain.Cell{X: 24, Z: 22}, DoorRot: domain.South},
@@ -28,9 +27,6 @@ func TestLayoutOverlayV2DrawsZonesSpineRoomsReservationsAndTraffic(t *testing.T)
 	// Zones go out as filled runs, clipped to the map.
 	if f := layers["field"]; f.Style != OverlayFill || len(f.Rects) != 0 || len(f.Runs) != 2 || f.Runs[1] != (RowRun{Z: 1, X: 240, Length: 10}) {
 		t.Fatalf("field %+v", f)
-	}
-	if h := layers["hallway"]; len(h.Rects) != 1 || h.Rects[0] != (Rectangle{X: 10, Z: 19, Width: 31, Height: 3}) {
-		t.Fatalf("hallway %+v", h.Rects)
 	}
 	// A fenced room outlines its floor and wall ring as row runs.
 	if l := layers["bedroom"]; l.Style != OverlayOutline || len(l.Rects) != 0 || len(l.Runs) != 7 || l.Runs[0] != (RowRun{Z: 22, X: 11, Length: 7}) {
@@ -59,14 +55,6 @@ func TestLayoutOverlayV2DrawsZonesSpineRoomsReservationsAndTraffic(t *testing.T)
 	}
 	if labels["perimeter"] {
 		t.Fatal("perimeter labelled")
-	}
-	if len(layers["traffic"].Runs) == 0 {
-		t.Fatal("no traffic layer")
-	}
-	for _, r := range layers["traffic"].Runs {
-		if r.Z < 19 || r.Z > 21 {
-			t.Fatalf("traffic off the spine %+v", r)
-		}
 	}
 }
 

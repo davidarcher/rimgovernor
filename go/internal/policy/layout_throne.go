@@ -47,7 +47,7 @@ func ThroneRoomSizes(area int) [][2]int32 {
 // ThroneRoomFor is the plan's first throne room whose interior holds at
 // least area cells (the room a title's area requirement is met in).
 func (p LayoutPlan) ThroneRoomFor(area int) (PlannedRoom, bool) {
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if r.Role == PlannedThrone && int(r.Region.Bounds().Width)*int(r.Region.Bounds().Height) >= area {
 			return r, true
 		}

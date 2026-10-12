@@ -484,7 +484,7 @@ func PlanLitRooms(plan domain.Fact[LayoutPlan], rooms domain.Fact[RoomObservatio
 	if !source {
 		return domain.Known(out)
 	}
-	for _, room := range p.AllRooms() {
+	for _, room := range p.Rooms {
 		if len(unbuiltPlannedLamps(p.Lamps[room.ID], l.Lamps)) == 0 {
 			continue
 		}

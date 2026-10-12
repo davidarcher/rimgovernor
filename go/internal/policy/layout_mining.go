@@ -1,8 +1,6 @@
 package policy
 
 import (
-	"sort"
-
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -27,12 +25,12 @@ func (p LayoutPlan) MineTier(cell domain.Cell) int {
 			return MineTierOre
 		}
 	}
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if r.Dug && IsStoreRoom(r.Role) && inRoomRing(r.Region.Bounds(), cell) {
 			return MineTierStore
 		}
 	}
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		in := r.Region.Bounds()
 		if r.Dug && cell.X >= in.X-1 && cell.X <= in.X+in.Width && cell.Z >= in.Z-1 && cell.Z <= in.Z+in.Height {
 			return MineTierCore
@@ -54,15 +52,13 @@ func inRoomRing(in Rectangle, cell domain.Cell) bool {
 // room's shell waits on: its door and interior and, for a cooled
 // room, its cooler's wall cell and exhaust shaft, mined before the ring so
 // the ring walls the cooler cell and the room is never left open, then the
-// cell outside the door and the corridor outward from it. All of them are
+// cell outside the door. All of them are
 // built on or walked, so each needs a floor; rock on the rest of the ring
 // stays and walls the room. Dig is in that priority order.
 func (p LayoutPlan) RoomRock(room PlannedRoom, cells []SiteCell) RockStepResult {
 	var planned []RoleCell
 	add := func(c domain.Cell) { planned = append(planned, RoleCell{Cell: c, Role: RockNeedsFloor}) }
-	for _, d := range room.BoundaryDoors() {
-		add(d.Cell)
-	}
+	add(room.Door)
 	for _, c := range RectangleCells(room.Region.Bounds()) {
 		add(c)
 	}
@@ -91,24 +87,6 @@ func (p LayoutPlan) RoomRock(room PlannedRoom, cells []SiteCell) RockStepResult 
 		for _, d := range shell.ExtraDoors() {
 			add(d.Threshold())
 		}
-		hall := p.hallwayCells()
-		corridor := make([]domain.Cell, 0, len(hall))
-		for c := range hall {
-			corridor = append(corridor, c)
-		}
-		sort.Slice(corridor, func(i, j int) bool {
-			di, dj := manhattan(corridor[i], from), manhattan(corridor[j], from)
-			if di != dj {
-				return di < dj
-			}
-			if corridor[i].Z != corridor[j].Z {
-				return corridor[i].Z < corridor[j].Z
-			}
-			return corridor[i].X < corridor[j].X
-		})
-		for _, c := range corridor {
-			add(c)
-		}
 	}
 	return RockStep(planned, cells)
 }
@@ -116,24 +94,13 @@ func (p LayoutPlan) RoomRock(room PlannedRoom, cells []SiteCell) RockStepResult 
 // linkedNeighbour is the other room whose wall holds one of room's link doors.
 func (p LayoutPlan) linkedNeighbour(room PlannedRoom) (PlannedRoom, bool) {
 	for _, link := range p.LinksOf(room) {
-		for _, o := range p.AllRooms() {
+		for _, o := range p.Rooms {
 			if o.Region.Bounds() != room.Region.Bounds() && inWall(o.Region.Bounds(), link) {
 				return o, true
 			}
 		}
 	}
 	return PlannedRoom{}, false
-}
-
-func manhattan(a, b domain.Cell) int32 {
-	dx, dz := a.X-b.X, a.Z-b.Z
-	if dx < 0 {
-		dx = -dx
-	}
-	if dz < 0 {
-		dz = -dz
-	}
-	return dx + dz
 }
 
 // ExhaustRock is the shared rock step over a standing room's planned cooler

@@ -25,7 +25,7 @@ func builtReplanAdvice(t *testing.T, f replayFixture) (LayoutPlan, StationFacts,
 		t.Fatalf("derive: %v %v", ok, err)
 	}
 	facts.Plan, facts.Built = plan, map[int32]bool{}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		facts.Built[r.ID] = true
 	}
 	advice, err := TileStations(ReplanTileFacts(facts, s, nil))
@@ -56,7 +56,7 @@ func TestDiffReplanTileKeepsBuiltRoomsAndListsTheUnmatched(t *testing.T) {
 					byRoom[d.Room] = d
 				}
 			}
-			for _, r := range plan.AllRooms() {
+			for _, r := range plan.Rooms {
 				d, ok := byRoom[r.ID]
 				if r.attached() {
 					if ok {
@@ -89,7 +89,7 @@ func TestDiffReplanTileKeepsBuiltRoomsAndListsTheUnmatched(t *testing.T) {
 			// Every room node's room is pinned: circulation, the outskirts rooms
 			// and the shelter stand as the chain's nodes, outdoor or with no
 			// native role as they may be (J2 of #2965), none a rebuild.
-			for _, r := range plan.AllRooms() {
+			for _, r := range plan.Rooms {
 				if !roomNodeRoles[r.Role] {
 					continue
 				}
@@ -166,7 +166,7 @@ func TestTiledReplanHousesColonistsOnBedroomAndSuiteNodes(t *testing.T) {
 	built := map[int32]bool{}
 	var kept []SuiteWish
 	var suites []int32
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		built[r.ID] = true
 		if r.Role == PlannedSuite {
 			kept = append(kept, SuiteWish{Kept: r.Region.Area()})
@@ -227,12 +227,12 @@ func TestTiledReplanHousesColonistsOnBedroomAndSuiteNodes(t *testing.T) {
 			t.Errorf("raised suite row %+v, counts %v", got, counts)
 		}
 		var succ *PlannedRoom
-		for _, r := range last.Tiled.Plan.AllRooms() {
+		for _, r := range last.Tiled.Plan.Rooms {
 			if r.Replaces == suites[0] {
 				succ = &r
 			}
 		}
-		old := plan.AllRooms()[slices.IndexFunc(plan.AllRooms(), func(r PlannedRoom) bool { return r.ID == suites[0] })].Region
+		old := plan.Rooms[slices.IndexFunc(plan.Rooms, func(r PlannedRoom) bool { return r.ID == suites[0] })].Region
 		if succ == nil || succ.Region.Area() < old.Area()+got.Short || collides(succ.Region.Bounds(), old.Bounds()) {
 			t.Errorf("successor %+v of the suite at %v short %d", succ, old.Bounds(), got.Short)
 		}
@@ -391,7 +391,7 @@ func TestPinnedRoomWithNoGroupStaysInTheTiledPlan(t *testing.T) {
 	}
 	built := map[int32]bool{}
 	standing := map[int32]PlannedRoom{}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		built[r.ID], standing[r.ID] = true, r
 	}
 	tile := func(pinned map[int32]bool) (StationAdvice, ReplanTileDiff) {
@@ -417,7 +417,7 @@ func TestPinnedRoomWithNoGroupStaysInTheTiledPlan(t *testing.T) {
 	if len(advice.Embedding.Held) != len(pinned) {
 		t.Fatalf("held %+v, want the surplus bedrooms %v", advice.Embedding.Held, pinned)
 	}
-	all := advice.Tiled.Plan.AllRooms()
+	all := advice.Tiled.Plan.Rooms
 	for id := range pinned {
 		i := slices.IndexFunc(all, func(r PlannedRoom) bool { return r.ID == id })
 		if i < 0 {

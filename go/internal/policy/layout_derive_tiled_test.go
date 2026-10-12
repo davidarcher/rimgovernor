@@ -27,7 +27,7 @@ func TestDeriveLayoutPlanDoesNotReferenceTheOldGenerator(t *testing.T) {
 		t.Fatal("DeriveLayoutPlan not found")
 	}
 	body := text[start : start+end]
-	for _, banned := range []string{"SiteCore", "PlanUtilities", "growOutskirts"} {
+	for _, banned := range []string{"SiteCore", "growOutskirts"} {
 		if strings.Contains(body, banned) {
 			t.Errorf("DeriveLayoutPlan references %s", banned)
 		}
@@ -53,9 +53,6 @@ func TestDeriveLayoutPlanLaysTheTiledPlan(t *testing.T) {
 		if z.Kind == ZoneCore {
 			t.Fatal("core candidates saved")
 		}
-	}
-	if len(plan.Hallways()) != 0 {
-		t.Errorf("a tiled plan holds hallways: %+v", plan.Hallways())
 	}
 	if len(plan.Links) == 0 || len(plan.Entrances) == 0 {
 		t.Errorf("links %d, entrances %d", len(plan.Links), len(plan.Entrances))
@@ -86,7 +83,7 @@ func TestDeriveLayoutPlanKeepsRoomsOffGeysers(t *testing.T) {
 	s := openSurvey(200)
 	base, _, _ := DeriveLayoutPlan(s, colonyStationFacts(5, s), nil, 0)
 	plan, _ := base.Value()
-	for i, r := range plan.AllRooms() {
+	for i, r := range plan.Rooms {
 		if i%4 != 0 { // a geyser under every fourth room covers each role
 			continue
 		}
@@ -98,7 +95,7 @@ func TestDeriveLayoutPlanKeepsRoomsOffGeysers(t *testing.T) {
 		if err != nil || !ok {
 			t.Fatalf("no plan with a geyser under %s: %v", r.Role, err)
 		}
-		for _, room := range next.AllRooms() {
+		for _, room := range next.Rooms {
 			if rectHits(roomWalls(room), vents) {
 				t.Fatalf("%s covers the geyser at %v", room.Role, at)
 			}

@@ -31,7 +31,7 @@ type RoleMismatch struct {
 // unknown, is skipped: there is nothing to compare. Contents naming no
 // planned room, or a piece outside the catalog, are an error.
 func GuardNativeRoles(catalog StationCatalog, plan LayoutPlan, rooms RoomObservation, contents []RoomContents) ([]RoleMismatch, error) {
-	planned := plan.AllRooms()
+	planned := plan.Rooms
 	var out []RoleMismatch
 	for _, c := range contents {
 		idx := slices.IndexFunc(planned, func(r PlannedRoom) bool { return r.ID == c.Room })

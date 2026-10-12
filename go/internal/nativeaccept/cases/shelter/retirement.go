@@ -183,7 +183,7 @@ func retirement(ctx context.Context, s cases.Session) error {
 
 // keptByRoom reports whether c is on a planned room's interior or wall ring.
 func keptByRoom(plan policy.LayoutPlan, c domain.Cell) bool {
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		in := r.Region.Bounds()
 		if inside(policy.Rectangle{X: in.X - 1, Z: in.Z - 1, Width: in.Width + 2, Height: in.Height + 2}, c) {
 			return true

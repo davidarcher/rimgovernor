@@ -15,11 +15,7 @@ func suiteFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 	}
 	suite := PlannedRoom{Role: PlannedSuite, Region: RectRegion(Rectangle{X: 30, Z: 0, Width: 7, Height: 8}), Door: domain.Cell{X: 33, Z: 8}, DoorRot: domain.North}
 	plan := LayoutPlan{
-		Rooms: []PlannedRoom{{Role: PlannedShelter, Region: RectRegion(Rectangle{X: 0, Z: 0, Width: 7, Height: 7}), DoorRot: domain.North}},
-		Wings: []Wing{
-			{Purpose: WingBedrooms, Rooms: []PlannedRoom{standard(10), standard(14)}},
-			{Purpose: WingSuites, Rooms: []PlannedRoom{suite}},
-		},
+		Rooms: []PlannedRoom{{Role: PlannedShelter, Region: RectRegion(Rectangle{X: 0, Z: 0, Width: 7, Height: 7}), DoorRot: domain.North}, standard(10), standard(14), suite},
 	}
 	room := func(id string, x int32, beds ...string) Room {
 		return Room{ID: id, Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: beds, Cells: []domain.Cell{{X: x + 1, Z: 2}}}
@@ -118,7 +114,7 @@ func TestSuiteTargetsAddOnlyUnansweredClaims(t *testing.T) {
 	if got := SuiteTargets(plan, rooms, sleeping, claims); !slices.Equal(got, []float64{0, 60}) {
 		t.Fatalf("targets = %v, want the kept suite and b's", got)
 	}
-	plan.Wings = plan.Wings[:1]
+	plan.Rooms = plan.Rooms[:3]
 	if got := SuiteTargets(plan, rooms, sleeping, claims); !slices.Equal(got, []float64{50, 60}) {
 		t.Fatalf("no suite wing targets = %v", got)
 	}

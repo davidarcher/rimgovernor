@@ -34,77 +34,7 @@ const (
 	geothermalSide int32 = 6
 	// geothermalShell is the enclosure's thickness.
 	geothermalShell int32 = 2
-	exhaustMax      int32 = 12
 )
-
-// coolingRoles are the rooms that need a cooler, most important first;
-// the tomb keeps colonist corpses frozen, the meal closet the
-// dining room's meals.
-var coolingRoles = []PlannedRole{PlannedFreezer, PlannedTomb, PlannedMorgue, PlannedMealCloset}
-
-// UtilityWants is what PlanUtilities reserves: the steam geysers (each the
-// geyser's 2x2 footprint) and the herd units (barn and vet room) for
-// PenAnimals animals.
-type UtilityWants struct {
-	PenAnimals int
-	Geysers    []Rectangle
-}
-
-// ThickRoofCells is the survey's cells under thick mountain roof, for
-// UtilityWants.ThickRoof; never nil.
-func ThickRoofCells(s MapSurvey) map[domain.Cell]bool {
-	out := map[domain.Cell]bool{}
-	for _, c := range s.Cells {
-		if c.ThickRoof {
-			out[c.Cell] = true
-		}
-	}
-	return out
-}
-
-// reserveExhausts gives each cooling room that has none a cooler exhaust.
-// Rooms already holding one are left alone, so it is safe to run again after
-// a cooled room is grown (test scaffolding: withRooms).
-func reserveExhausts(u *utilityGrid, plan *LayoutPlan) {
-	for _, role := range coolingRoles {
-		for _, r := range plan.AllRooms() {
-			if r.Role != role {
-				continue
-			}
-			if _, _, has := plan.CoolerExhaust(r); has {
-				continue
-			}
-			if area, ok := u.exhaust(r); ok {
-				u.reserve(plan, LayoutReservation{Kind: ReserveExhaust, Area: RectRegion(area)})
-			}
-		}
-	}
-}
-
-// PlanUtilities adds cooler exhausts, the geyser enclosures and the herd units
-// to a spine plan. Sites that do not fit are left out. The battery room is
-// a room of the tiler, not here; the turbines and solar plots
-// are site nodes (PowerSiteNodes).
-func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
-	if len(plan.Hallways()) == 0 {
-		return plan
-	}
-	plan.Rooms = append([]PlannedRoom(nil), plan.Rooms...)
-	plan.Reservations = append([]LayoutReservation(nil), plan.Reservations...)
-	plan.Zones = append([]LayoutZone(nil), plan.Zones...)
-	u := newUtilityGrid(plan)
-	reserveExhausts(u, &plan)
-	for _, gz := range want.Geysers {
-		area := geothermalArea(gz)
-		// The clearance ring only keeps other sites off the hallways: a vent is
-		// where it is, and core rooms were already sited off its enclosure.
-		if u.freeWhere(area, true, false) {
-			u.reserve(&plan, LayoutReservation{Kind: ReserveGeothermal, Area: RectRegion(area)})
-		}
-	}
-	planHerdSites(u, &plan, want.PenAnimals, nil)
-	return plan
-}
 
 // TurbinePlacement is a turbine's native centre and rotation on its 7x2 pad
 // (2x7 turned): lowRow puts it on the pad's low row (z, or x turned), facing
@@ -171,7 +101,7 @@ func PlannedPowerSites(plan LayoutPlan, definition string) []PlannedPowerSite {
 		if len(plan.roomsOf(PlannedBattery)) == 0 {
 			out = append(out, porchSites(plan)...)
 		}
-		for _, r := range plan.AllRooms() {
+		for _, r := range plan.Rooms {
 			if r.Role != PlannedBattery {
 				continue
 			}
@@ -230,12 +160,15 @@ type PlannedCoolerSite struct {
 	Rotation domain.Rotation
 }
 
+// coolingRoles are the rooms that need a cooler, most important first.
+var coolingRoles = []PlannedRole{PlannedFreezer, PlannedTomb, PlannedMorgue, PlannedMealCloset}
+
 // PlannedCoolerSites lists a cooler site per cooling room whose exhaust
 // the plan reserved, in plan order.
 func PlannedCoolerSites(plan LayoutPlan) []PlannedCoolerSite {
 	var out []PlannedCoolerSite
 	for _, role := range coolingRoles {
-		for _, r := range plan.AllRooms() {
+		for _, r := range plan.Rooms {
 			if r.Role != role {
 				continue
 			}
@@ -296,8 +229,7 @@ type utilityGrid struct {
 	field    []bool // planned farmland: sites avoid it
 	thick    map[domain.Cell]bool
 	keepOut  []bool // the core ring and the clearance the outer ring needs
-	used     []bool // planned rooms, spine, reservations
-	clear    []bool // the hallways and a clearance ring: no site stands here
+	used     []bool // planned rooms and reservations
 	cx, cz   int32  // the plan core (LayoutPlan.Core)
 }
 
@@ -328,30 +260,16 @@ func newUtilityGrid(plan LayoutPlan) *utilityGrid {
 			}
 		}
 	}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		u.mark(roomWalls(r))
 		if r.attached() {
 			u.mark(r.attachedGround())
 		}
 	}
-	for _, s := range plan.Hallways() {
-		x0, x1 := min(s.From.X, s.To.X), max(s.From.X, s.To.X)
-		z0, z1 := min(s.From.Z, s.To.Z), max(s.From.Z, s.To.Z)
-		u.mark(Rectangle{X: x0 - SpineWidth/2, Z: z0 - SpineWidth/2, Width: x1 - x0 + SpineWidth, Height: z1 - z0 + SpineWidth})
-	}
 	for _, r := range plan.Reserved() {
 		u.markRegion(r.Area)
 	}
 	u.keepOut = outerKeepOut(plan, u.w, u.h)
-	u.clear = make([]bool, n)
-	ring := coreHalf
-	for _, r := range spineRects(plan.Hallways()) {
-		for z := max(r.Z-ring, 0); z < min(r.Z+r.Height+ring, u.h); z++ {
-			for x := max(r.X-ring, 0); x < min(r.X+r.Width+ring, u.w); x++ {
-				u.clear[z*u.w+x] = true
-			}
-		}
-	}
 	if c, ok := plan.Core(); ok {
 		u.cx, u.cz = c.X, c.Z
 	}
@@ -403,19 +321,16 @@ func (u *utilityGrid) reserve(plan *LayoutPlan, r LayoutReservation) {
 // on the ring itself.
 const siteInset = LayoutEdgeMargin + perimeterThick + 1
 
-// free reports every cell of r on unplanned core candidates, off the core
-// hallway clearance; rockOK lets it cross natural rock.
-func (u *utilityGrid) free(r Rectangle, rockOK bool) bool { return u.freeWhere(r, rockOK, true) }
-
-// freeWhere is free, optionally letting r stand in the hallway clearance ring.
-func (u *utilityGrid) freeWhere(r Rectangle, rockOK, clearBlocks bool) bool {
+// free reports every cell of r on unplanned core candidates; rockOK lets it
+// cross natural rock.
+func (u *utilityGrid) free(r Rectangle, rockOK bool) bool {
 	for z := r.Z; z < r.Z+r.Height; z++ {
 		for x := r.X; x < r.X+r.Width; x++ {
 			if !u.in(x, z) {
 				return false
 			}
 			i := z*u.w + x
-			if !u.ok[i] || u.used[i] || clearBlocks && u.clear[i] || u.rock[i] && !rockOK {
+			if !u.ok[i] || u.used[i] || u.rock[i] && !rockOK {
 				return false
 			}
 		}
@@ -514,25 +429,6 @@ func (u *utilityGrid) skyRock(r Rectangle) int {
 		}
 	}
 	return n
-}
-
-// exhaust is the column behind r's back wall, away from the spine, out to
-// the first open cell: one cell on an outer face, a dug shaft through
-// rock. False when the back is planned or off the map.
-func (u *utilityGrid) exhaust(r PlannedRoom) (Rectangle, bool) {
-	wall, step, _ := backWall(r)
-	first := domain.Cell{X: wall.X + step.X, Z: wall.Z + step.Z}
-	c := first
-	for n := int32(1); n <= exhaustMax; n++ {
-		if !u.in(c.X, c.Z) || u.used[c.Z*u.w+c.X] {
-			return Rectangle{}, false
-		}
-		if !u.rock[c.Z*u.w+c.X] {
-			return Rectangle{X: min(first.X, c.X), Z: min(first.Z, c.Z), Width: abs32(c.X-first.X) + 1, Height: abs32(c.Z-first.Z) + 1}, true
-		}
-		c = domain.Cell{X: c.X + step.X, Z: c.Z + step.Z}
-	}
-	return Rectangle{}, false
 }
 
 // TurbineCatchZone is the cells the turbine standing on area must keep

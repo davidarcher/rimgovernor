@@ -126,7 +126,7 @@ func OutskirtsSlots(area Rectangle) (OutskirtsLayout, bool) {
 func outskirtsMissing(plan LayoutPlan, l OutskirtsLayout) []PlannedRoom {
 	var out []PlannedRoom
 	for _, want := range outskirtsRooms(l) {
-		if !slices.ContainsFunc(plan.AllRooms(), func(r PlannedRoom) bool { return r.Role == want.Role }) {
+		if !slices.ContainsFunc(plan.Rooms, func(r PlannedRoom) bool { return r.Role == want.Role }) {
 			out = append(out, want)
 		}
 	}

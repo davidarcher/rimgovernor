@@ -20,9 +20,9 @@ func anchorProjection(tier policy.TechTier) observation.ColonyProjection {
 	return p
 }
 
-// centrePlan is a plan whose centre is c: one hallway cell there.
+// centrePlan is a plan whose centre is c: one room cell there.
 func centrePlan(c domain.Cell) policy.LayoutPlan {
-	return policy.LayoutPlan{Spine: []policy.SpineSegment{{From: c, To: c}}}
+	return policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedContainmentCell, Region: policy.RectRegion(policy.Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1}), DoorRot: domain.South}}}.WithRoomIDs()
 }
 
 // centreOn records a plan centred on c, as the journal holds one for a

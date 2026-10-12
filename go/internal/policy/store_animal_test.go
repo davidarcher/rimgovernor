@@ -46,7 +46,7 @@ func TestAnimalFeedStoreInThePlannedBarn(t *testing.T) {
 func barnStoreCreates(view StoreView) map[string]StockpileEdit {
 	view.Bounds = Bounds{Width: 200, Height: 200}
 	for x := int32(80); x < 140; x++ {
-		for z := int32(100); z < 150; z++ {
+		for z := int32(80); z < 150; z++ {
 			view.Cells = append(view.Cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Roofed: domain.Known(false), Walkable: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(false), StorageEmpty: domain.Known(true)})
 		}
 	}

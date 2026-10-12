@@ -15,7 +15,7 @@ var testHerdFurniture = HerdFurniture{
 func herdTestPlan(t *testing.T, animals int) LayoutPlan {
 	t.Helper()
 	core := zonedKitchenPlan()
-	return PlanUtilities(core, UtilityWants{PenAnimals: animals})
+	return PlanHerdSites(core, animals)
 }
 
 // standing is the room census of rooms standing enclosed on each room's

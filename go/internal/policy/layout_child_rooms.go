@@ -149,7 +149,7 @@ func childRowDemand(s ChildRoomShape) int {
 
 // ChildRoomFor is the plan's first room of the shape's role that holds it.
 func (p LayoutPlan) ChildRoomFor(s ChildRoomShape) (PlannedRoom, bool) {
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if w, d := frameDims(r); r.Role == s.Module && s.holds(w, d) {
 			return r, true
 		}

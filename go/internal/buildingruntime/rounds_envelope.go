@@ -44,7 +44,7 @@ func envelopeWork(facts observation.ColonyProjection) (rooms []policy.PlannedRoo
 	if !planned {
 		return nil, nil, false
 	}
-	for _, room := range plan.AllRooms() {
+	for _, room := range plan.Rooms {
 		if room.Parent != 0 {
 			continue // an airlock rides its parent's ring and roof
 		}

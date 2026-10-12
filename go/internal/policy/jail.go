@@ -104,7 +104,7 @@ func NextJailStep(plan LayoutPlan, rooms RoomObservation, held int, beds []Sleep
 		}
 	}
 	var act JailStep
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role != PlannedPrison {
 			continue
 		}

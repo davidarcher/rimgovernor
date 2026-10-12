@@ -22,22 +22,61 @@ func derivePlan(s MapSurvey, pawns int, geysers []PowerGeyser) (LayoutPlan, bool
 	return plan, ok && err == nil
 }
 
-// zonedKitchenPlan is one kitchen on a hallway over the utility map's zoned
-// core ground: the base PlanUtilities and the pen sites work from, which read
-// the hallway and the core zones a derived plan does not keep.
+// zonedKitchenPlan is one kitchen over the utility map's zoned core ground:
+// the base the pen sites work from, which read the core zones a derived plan
+// does not keep.
 func zonedKitchenPlan() LayoutPlan {
 	kitchen := hallRoom(PlannedKitchen, 100, 100, 6, 5, true)
-	hall := SpineSegment{From: domain.Cell{X: 70, Z: 100}, To: domain.Cell{X: 130, Z: 100}}
-	return LayoutPlan{Zones: utilityTestZones(), Spine: []SpineSegment{hall}, Rooms: []PlannedRoom{kitchen}}.WithRoomIDs()
+	return LayoutPlan{Zones: utilityTestZones(), Rooms: []PlannedRoom{kitchen}}.WithRoomIDs()
 }
 
-// zonedCoolerPlan is zonedKitchenPlan with a freezer and a tomb on the hallway,
-// their cooler exhausts reserved: PlanUtilities is the only writer of those
-// reservations.
+// zonedCoolerPlan is zonedKitchenPlan with a freezer and a tomb, their cooler
+// exhausts reserved by reserveExhausts.
 func zonedCoolerPlan() LayoutPlan {
 	plan := zonedKitchenPlan()
 	plan.Rooms = append(plan.Rooms, hallRoom(PlannedFreezer, 108, 100, 5, 5, true), hallRoom(PlannedTomb, 100, 100, 5, 5, false))
-	return PlanUtilities(plan.WithRoomIDs(), UtilityWants{})
+	plan = plan.WithRoomIDs()
+	reserveExhausts(newUtilityGrid(plan), &plan)
+	return plan
+}
+
+// exhaustMax is the longest shaft reserveExhausts digs behind a room.
+const exhaustMax int32 = 12
+
+// reserveExhausts gives each cooling room that has none a cooler exhaust.
+func reserveExhausts(u *utilityGrid, plan *LayoutPlan) {
+	for _, role := range coolingRoles {
+		for _, r := range plan.Rooms {
+			if r.Role != role {
+				continue
+			}
+			if _, _, has := plan.CoolerExhaust(r); has {
+				continue
+			}
+			if area, ok := u.exhaust(r); ok {
+				u.reserve(plan, LayoutReservation{Kind: ReserveExhaust, Area: RectRegion(area)})
+			}
+		}
+	}
+}
+
+// exhaust is the column behind r's back wall out to the first open cell: one
+// cell on an outer face, a dug shaft through rock. False when the back is
+// planned or off the map.
+func (u *utilityGrid) exhaust(r PlannedRoom) (Rectangle, bool) {
+	wall, step, _ := backWall(r)
+	first := domain.Cell{X: wall.X + step.X, Z: wall.Z + step.Z}
+	c := first
+	for n := int32(1); n <= exhaustMax; n++ {
+		if !u.in(c.X, c.Z) || u.used[c.Z*u.w+c.X] {
+			return Rectangle{}, false
+		}
+		if !u.rock[c.Z*u.w+c.X] {
+			return Rectangle{X: min(first.X, c.X), Z: min(first.Z, c.Z), Width: abs32(c.X-first.X) + 1, Height: abs32(c.Z-first.Z) + 1}, true
+		}
+		c = domain.Cell{X: c.X + step.X, Z: c.Z + step.Z}
+	}
+	return Rectangle{}, false
 }
 
 // coldTiledPlan is the plan for three colonists on a cold or temperate map.

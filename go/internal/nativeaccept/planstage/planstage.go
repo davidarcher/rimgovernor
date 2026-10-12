@@ -408,7 +408,7 @@ func (p *Phase) Abort() {
 // FirstRoom is the first room of role in plan order, the room the planners
 // serve first.
 func FirstRoom(plan policy.LayoutPlan, role policy.PlannedRole) (policy.PlannedRoom, bool) {
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role == role {
 			return r, true
 		}
@@ -417,18 +417,13 @@ func FirstRoom(plan policy.LayoutPlan, role policy.PlannedRole) (policy.PlannedR
 }
 
 // FreeRect is a width by height rectangle near centre that no planned room
-// (walls included, with a margin of two) and no hallway (margin one) touches,
+// (walls included, with a margin of two) touches,
 // where a case lays stock and a stockpile the plan's own sites never meet.
 func FreeRect(plan policy.LayoutPlan, centre Cell, width, height int32) (Rect, bool) {
 	blocked := func(x, z int32) bool {
-		for _, r := range plan.AllRooms() {
+		for _, r := range plan.Rooms {
 			in := r.Region.Bounds()
 			if x >= in.X-3 && x <= in.X+in.Width+2 && z >= in.Z-3 && z <= in.Z+in.Height+2 {
-				return true
-			}
-		}
-		for _, h := range plan.Hallways() {
-			if x >= min(h.From.X, h.To.X)-1 && x <= max(h.From.X, h.To.X)+1 && z >= min(h.From.Z, h.To.Z)-1 && z <= max(h.From.Z, h.To.Z)+1 {
 				return true
 			}
 		}

@@ -98,15 +98,11 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			orphans = append(orphans, c)
 		}
 	}
-	ringBox := pad(enc.bbox, perimeterThick) // built is a cell the core's rooms or hallway hold.
+	ringBox := pad(enc.bbox, perimeterThick)
+	// built is a cell the core's rooms hold.
 	built := func(c domain.Cell) bool {
-		for _, r := range plan.AllRooms() {
+		for _, r := range plan.Rooms {
 			if contains(pad(r.Region.Bounds(), 1), c) {
-				return true
-			}
-		}
-		for _, h := range plan.hallwayFootprints() {
-			if contains(h, c) {
 				return true
 			}
 		}
@@ -422,17 +418,6 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		add(NodeFence, rectOf(at(0, -1), at(0, 1)))
 	}
 
-	// axes are where the hallways, run straight on, meet sd: the east-west
-	// ones on the east and west sides, the crossings on the others.
-	axes := func(sd ringSide) []int32 {
-		var out []int32
-		for _, sg := range plan.Hallways() {
-			if alongX(sg) == sd.vertical {
-				out = append(out, sd.pos(sg.From))
-			}
-		}
-		return out
-	}
 	// Wall runs and gates along the dry ring, side by side. A run shorter
 	// than the pitch (a step of a squared-off diagonal) takes its gate
 	// only a pitch clear of every other, so a staircase is gated about as
@@ -441,7 +426,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	var stepGates []stepGate
 	walls, light, bridges, gaps := map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
 	for k, sd := range sides {
-		g, sg := wallRuns(sd, impassable, walls, axes(sd), func(p int32) bool {
+		g, sg := wallRuns(sd, impassable, walls, func(p int32) bool {
 			terrain := true
 			for t := int32(0); t < perimeterThick; t++ {
 				terrain = terrain && impassable(sd.cell(p, t))
@@ -612,7 +597,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			wall[c] = true
 		}
 	}
-	ring.Ring.Inner, ring.Ring.Sealed = traceInterior(plan.AllRooms(), wall, band)
+	ring.Ring.Inner, ring.Ring.Sealed = traceInterior(plan.Rooms, wall, band)
 
 	rev := plan.ringRevision()
 	plan = plan.withoutPerimeterSites()
@@ -660,19 +645,10 @@ func (sd ringSide) cell(p, t int32) domain.Cell {
 	return domain.Cell{X: b.X + sd.in.X*t, Z: b.Z + sd.in.Z*t}
 }
 
-func (sd ringSide) pos(c domain.Cell) int32 {
-	if sd.vertical {
-		return c.Z
-	}
-	return c.X
-}
-
 func rectOf(a, b domain.Cell) Rectangle {
 	x0, z0 := min(a.X, b.X), min(a.Z, b.Z)
 	return Rectangle{X: x0, Z: z0, Width: max(a.X, b.X) - x0 + 1, Height: max(a.Z, b.Z) - z0 + 1}
 }
-
-func alongX(s SpineSegment) bool { return s.From.Z == s.To.Z }
 
 func pad(r Rectangle, n int32) Rectangle {
 	return Rectangle{X: r.X - n, Z: r.Z - n, Width: r.Width + 2*n, Height: r.Height + 2*n}

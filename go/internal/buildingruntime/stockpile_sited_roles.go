@@ -42,7 +42,7 @@ func tableMeal(projection *observation.ColonyProjection) *policy.MealStore {
 		return nil
 	}
 	var dining []policy.PlannedRoom
-	for _, planned := range plan.AllRooms() {
+	for _, planned := range plan.Rooms {
 		if planned.Role == policy.PlannedDining {
 			dining = append(dining, planned)
 		}

@@ -16,7 +16,7 @@ import (
 // shelter.
 func ShellBedIDs(plan LayoutPlan, rooms RoomObservation) map[string]bool {
 	shell := map[string]bool{}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role != PlannedShelter {
 			continue
 		}
@@ -154,7 +154,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	}
 	// A suite's bed is its claimant's, never an unhoused pawn's.
 	suiteBed := map[string]bool{}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role != PlannedSuite {
 			continue
 		}
@@ -187,7 +187,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	standing := func(r PlannedRoom) (Room, bool) { return CensusRoomIn(r, rooms) }
 	var owed []PlannedRoom
 	retiring := retiringRooms(plan)
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		// A Retiring wing is never built out further.
 		if r.Role != PlannedBedroom || retiring[r.Region.Bounds()] {
 			continue

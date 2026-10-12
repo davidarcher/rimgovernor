@@ -46,7 +46,7 @@ func plannedKey(prefix string, interior Rectangle) string {
 // mealClosets are the planned meal closets, each covered whole.
 func (r StoreView) mealClosets() []Store {
 	var out []Store
-	for _, closet := range r.Layout.AllRooms() {
+	for _, closet := range r.Layout.Rooms {
 		if closet.Role == PlannedMealCloset {
 			out = append(out, Store{StoreSite: StoreSite{Role: plannedKey(domain.MealsRolePrefix, closet.Region.Bounds()), Interior: closet.Region.Bounds(), Region: closet.Region,
 				Filter: domain.MealShelfFilter(), Priority: domain.CriticalPriority}})
@@ -76,7 +76,7 @@ func withoutCells(cells, drop []domain.Cell) []domain.Cell {
 
 // freezer is the first planned freezer.
 func (r StoreView) freezer() (PlannedRoom, bool) {
-	for _, planned := range r.Layout.AllRooms() {
+	for _, planned := range r.Layout.Rooms {
 		if planned.Role == PlannedFreezer {
 			return planned, true
 		}

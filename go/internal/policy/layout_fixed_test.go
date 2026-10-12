@@ -13,7 +13,7 @@ func TestFixedRoomsAreTheTouchedOnes(t *testing.T) {
 		return PlannedRoom{ID: x / 10, Role: PlannedBedroom, Region: RectRegion(Rectangle{X: x, Z: 10, Width: 5, Height: 5})}
 	}
 	standing, onRing, onFloor, untouched := room(10), room(20), room(30), room(40)
-	plan := LayoutPlan{Rooms: []PlannedRoom{standing, onRing, untouched}, Wings: []Wing{{Rooms: []PlannedRoom{onFloor}}}}
+	plan := LayoutPlan{Rooms: []PlannedRoom{standing, onRing, untouched, onFloor}}
 	occupied := map[domain.Cell]bool{
 		{X: 19, Z: 9}:   true, // the ring corner of onRing
 		{X: 32, Z: 12}:  true, // inside onFloor

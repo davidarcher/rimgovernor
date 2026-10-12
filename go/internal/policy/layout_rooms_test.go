@@ -59,9 +59,8 @@ func TestShellDoorsPutTheFreezerLinkInBothRings(t *testing.T) {
 	kitchen := hallRoom(PlannedKitchen, 10, 30, 6, 5, true)
 	freezer := hallRoom(PlannedFreezer, 17, 30, 5, 5, true)
 	link := domain.Cell{X: 16, Z: kitchen.Region.Bounds().Z + 2}
-	freezer.Link = &link
 	jail := hallRoom(PlannedPrison, 40, 30, 5, 5, true)
-	plan := LayoutPlan{Rooms: []PlannedRoom{kitchen, freezer, jail}}
+	plan := LayoutPlan{Rooms: []PlannedRoom{kitchen, freezer, jail}, Links: []RoomLink{{A: 1, B: 2, Cell: link}}}.WithRoomIDs()
 	has := func(doors []domain.Cell, c domain.Cell) bool {
 		for _, d := range doors {
 			if d == c {

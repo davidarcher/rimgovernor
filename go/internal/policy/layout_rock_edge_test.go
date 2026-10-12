@@ -74,7 +74,7 @@ func TestRockEdgeMapsPlanWalkableAndBuildableLayouts(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			s := rockEdgeSurvey(rock)
 			plan := tiledPlan(s, 3)
-			if len(plan.AllRooms()) == 0 {
+			if len(plan.Rooms) == 0 {
 				t.Fatal("the tiler placed no rooms")
 			}
 			if !plan.WithRoomIDs().Valid() {

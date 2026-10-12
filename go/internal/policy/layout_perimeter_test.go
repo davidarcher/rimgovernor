@@ -607,7 +607,7 @@ func TestPerimeterPlainSoilStaysNearCore(t *testing.T) {
 		t.Fatal("no plan")
 	}
 	var rooms, ring Rectangle
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		rooms = unionRect(rooms, r.Region.Bounds())
 	}
 	// The herd sites sit inside the ring beside the few essential rooms.

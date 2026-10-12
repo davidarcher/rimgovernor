@@ -16,8 +16,8 @@ type buildGround struct {
 const coreMaxDepth int32 = 7
 
 // coreHalf is the half height of the cross-section a siting seed must have
-// free about its row: half a hallway, the deepest room and a wall on each side.
-const coreHalf = SpineWidth/2 + coreMaxDepth + 2
+// free about its row: a hallway cell, the deepest room and a wall on each side.
+const coreHalf = 1 + coreMaxDepth + 2
 
 // Soil build costs per cell: rich soil costs more than
 // plain soil, which costs more than anything else (bare ground, rock).

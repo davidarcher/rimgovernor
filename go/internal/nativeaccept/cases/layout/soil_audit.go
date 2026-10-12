@@ -16,7 +16,7 @@ import (
 const richFertility = 1.0
 
 // richOverlapBudget is the fraction of the map's rich cells planned rooms
-// and hallways may cover: the planner prices rich soil as a cost,
+// may cover: the planner prices rich soil as a cost,
 // not a ban, so a small overlap is allowed.
 const richOverlapBudget = 0.02
 
@@ -36,7 +36,7 @@ type soilAudit struct {
 
 func (a soilAudit) err() error {
 	if a.RichOverlap > richOverlapBudget {
-		return fmt.Errorf("planned rooms and hallways cover %s, over the %.0f%% budget: %v",
+		return fmt.Errorf("planned rooms cover %s, over the %.0f%% budget: %v",
 			a.richOverlap(), richOverlapBudget*100, a.RichBuilt)
 	}
 	for _, v := range []struct {
@@ -51,7 +51,7 @@ func (a soilAudit) err() error {
 	return nil
 }
 
-// richOverlap reports the rich cells rooms and hallways cover.
+// richOverlap reports the rich cells rooms cover.
 func (a soilAudit) richOverlap() string {
 	return fmt.Sprintf("%d of %d rich cells (%.2f%%)", a.RichBuiltN, a.RichCells, a.RichOverlap*100)
 }
@@ -98,29 +98,20 @@ func connected(set map[domain.Cell]bool) bool {
 	return true
 }
 
-// builtCells is every cell a planned room (walls included) or hallway
-// covers.
+// builtCells is every cell a planned room (walls included) covers.
 func builtCells(plan policy.LayoutPlan) map[domain.Cell]string {
 	out := map[domain.Cell]string{}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		in := r.Region.Bounds()
 		for _, c := range rectCells(policy.Rectangle{X: in.X - 1, Z: in.Z - 1, Width: in.Width + 2, Height: in.Height + 2}) {
 			out[c] = "room " + string(r.Role)
-		}
-	}
-	half := policy.SpineWidth / 2
-	for _, s := range plan.Hallways() {
-		lo := domain.Cell{X: min(s.From.X, s.To.X) - half, Z: min(s.From.Z, s.To.Z) - half}
-		hi := domain.Cell{X: max(s.From.X, s.To.X) + half, Z: max(s.From.Z, s.To.Z) + half}
-		for _, c := range rectCells(policy.Rectangle{X: lo.X, Z: lo.Z, Width: hi.X - lo.X + 1, Height: hi.Z - lo.Z + 1}) {
-			out[c] = "hallway"
 		}
 	}
 	return out
 }
 
 // auditSoil checks the plan and crop zones against the survey:
-//  1. planned rooms and hallways cover at most richOverlapBudget of the
+//  1. planned rooms cover at most richOverlapBudget of the
 //     rich cells;
 //  2. each rich patch of a field zone is one block and touches no other,
 //     and a rich patch of any footprint (an L, a plus, a courtyard that is
@@ -206,7 +197,7 @@ func auditSoil(plan policy.LayoutPlan, s policy.MapSurvey, crops [][]domain.Cell
 
 	// A rich patch of any shape (the survey's 4-connected rich cells, an L,
 	// a plus or a ring as much as a rectangle) is farmed as one block: the
-	// field cells over it form one 4-connected set, so a room or hallway
+	// field cells over it form one 4-connected set, so a room
 	// cut through it splits it into two and is caught here even inside the
 	// overlap budget.
 	left := maps.Clone(rich)

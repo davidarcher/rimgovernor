@@ -37,7 +37,7 @@ func prisonDoorOutside(r PlannedRoom) (domain.Cell, domain.Cell, bool) {
 // (the walkway) nor on any room's footprint or reservation.
 func PrisonTurretSites(plan LayoutPlan) []domain.Cell {
 	blocked := map[domain.Cell]bool{}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		for _, c := range rectCells(pad(r.Region.Bounds(), 1)) {
 			blocked[c] = true
 		}
@@ -48,7 +48,7 @@ func PrisonTurretSites(plan LayoutPlan) []domain.Cell {
 		}
 	}
 	var out []domain.Cell
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role != PlannedPrison {
 			continue
 		}
@@ -119,7 +119,7 @@ func PerimeterPrisonTurrets(plan LayoutPlan, turret, stuff, conduit string, tran
 // PrisonCells are every cell of the plan's prisons, walls included.
 func PrisonCells(plan LayoutPlan) []domain.Cell {
 	var out []domain.Cell
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role == PlannedPrison {
 			out = append(out, rectCells(pad(r.Region.Bounds(), 1))...)
 		}

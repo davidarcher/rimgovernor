@@ -49,7 +49,7 @@ func waitPlan(ctx context.Context, service *na.ServiceProcess, ceiling time.Dura
 // roomsOf lists the plan's rooms of role.
 func roomsOf(plan policy.LayoutPlan, role policy.PlannedRole) []policy.PlannedRoom {
 	var out []policy.PlannedRoom
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role == role {
 			out = append(out, r)
 		}

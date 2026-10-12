@@ -39,7 +39,7 @@ func TestLayoutPlanAnchorFallsBackToReserve(t *testing.T) {
 
 // A saved plan loads and saves with the same field names and role strings.
 func TestPlannedRoomJSONRoundTripsSavedPlan(t *testing.T) {
-	const saved = `{"ID":4,"Role":"kitchen","Region":{"Runs":[{"Z":2,"X":1,"Length":4},{"Z":3,"X":1,"Length":4},{"Z":4,"X":1,"Length":4}]},"Door":{"X":5,"Z":3},"DoorRot":"east","Link":null,"Dug":true}`
+	const saved = `{"ID":4,"Role":"kitchen","Region":{"Runs":[{"Z":2,"X":1,"Length":4},{"Z":3,"X":1,"Length":4},{"Z":4,"X":1,"Length":4}]},"Door":{"X":5,"Z":3},"DoorRot":"east","Dug":true}`
 	var r PlannedRoom
 	if err := json.Unmarshal([]byte(saved), &r); err != nil {
 		t.Fatal(err)

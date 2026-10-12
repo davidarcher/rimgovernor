@@ -100,20 +100,13 @@ func firebreakRequest(projection observation.ColonyProjection) policy.FirebreakR
 }
 
 // layoutFootprint is the accepted layout plan's built footprint: every
-// room with its walls and every hallway run.
+// room with its walls.
 func layoutFootprint(plan policy.LayoutPlan) []domain.Cell {
 	var out []domain.Cell
-	for _, room := range plan.AllRooms() {
+	for _, room := range plan.Rooms {
 		in := room.Region.Bounds()
 		for x := in.X - 1; x <= in.X+in.Width; x++ {
 			for z := in.Z - 1; z <= in.Z+in.Height; z++ {
-				out = append(out, domain.Cell{X: x, Z: z})
-			}
-		}
-	}
-	for _, s := range plan.Hallways() {
-		for x := min(s.From.X, s.To.X); x <= max(s.From.X, s.To.X); x++ {
-			for z := min(s.From.Z, s.To.Z); z <= max(s.From.Z, s.To.Z); z++ {
 				out = append(out, domain.Cell{X: x, Z: z})
 			}
 		}

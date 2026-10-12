@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // RebuildFamilies replaces the family record tables with the save's family/*
@@ -107,8 +105,8 @@ func (s *Store) ResetRounds(ctx context.Context) error {
 }
 
 func rebuildLayoutPlan(ctx context.Context, tx *Tx, b GovernorFamilyBlob) error {
-	var plan policy.LayoutPlan
-	if err := json.Unmarshal(b.Record, &plan); err != nil {
+	plan, err := decodeLayoutPlan(b.Record)
+	if err != nil {
 		return err
 	}
 	if !plan.Valid() {

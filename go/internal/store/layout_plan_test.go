@@ -20,7 +20,6 @@ func TestLayoutPlanRoundTripsAndForgetsOnRewind(t *testing.T) {
 	defer db.Close()
 	w := extentWorld("colony", "load", 3)
 	first := policy.LayoutPlan{
-		Spine: []policy.SpineSegment{{From: domain.Cell{X: 10, Z: 20}, To: domain.Cell{X: 40, Z: 20}}},
 		Rooms: []policy.PlannedRoom{{Role: policy.PlannedStorage, Region: policy.RectRegion(policy.Rectangle{X: 12, Z: 22, Width: 7, Height: 5}), Door: domain.Cell{X: 15, Z: 21}, DoorRot: domain.South, Dug: true}},
 		Zones: []policy.LayoutZone{{Kind: policy.ZoneField, Runs: []policy.RowRun{{Z: 5, X: 3, Length: 9}}}},
 		Reservations: []policy.LayoutReservation{
@@ -57,5 +56,15 @@ func TestLayoutPlanRoundTripsAndForgetsOnRewind(t *testing.T) {
 	}
 	if r, ok, err := db.LayoutPlan(ctx, w, 450); err != nil || ok || !r.Invalid || r.Tick != 400 {
 		t.Fatal(r, ok, err)
+	}
+	// A plan written before the spine and wings left the wire holds fields the
+	// plan no longer has: it fails the decode and reads as no plan, so the next
+	// survey derives a fresh one.
+	old := `{"Spine":[{"From":{"X":10,"Z":20},"To":{"X":40,"Z":20}}],"Rooms":[{"ID":1,"Role":"storage","Region":{"Runs":[{"Z":22,"X":12,"Length":7}]},"Door":{"X":15,"Z":21},"DoorRot":2,"Link":null}],"NextRoomID":2}`
+	if _, err := db.db.ExecContext(ctx, "INSERT INTO colony_layout_plans(colony,map_id,tick,plan) VALUES(?,?,?,?)", w.Colony, w.Map, 500, old); err != nil {
+		t.Fatal(err)
+	}
+	if r, ok, err := db.LayoutPlan(ctx, w, 550); err != nil || ok || !r.Invalid || r.Tick != 500 {
+		t.Fatal("an old-shape plan decoded", r, ok, err)
 	}
 }

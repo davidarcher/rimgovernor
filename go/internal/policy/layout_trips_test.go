@@ -29,41 +29,6 @@ func passThroughRow(through bool) LayoutPlan {
 	}
 }
 
-// hallwayRow is the same three rooms each with a door onto a spine hallway
-// below them.
-func hallwayRow() LayoutPlan {
-	spine := []SpineSegment{{From: domain.Cell{X: 18, Z: 26}, To: domain.Cell{X: 36, Z: 26}}}
-	room := func(id int32, role PlannedRole, x int32) PlannedRoom {
-		return PlannedRoom{ID: id, Role: role, Region: RectRegion(Rectangle{X: x, Z: 20, Width: 4, Height: 4}), Door: domain.Cell{X: x + 1, Z: 24}, DoorRot: domain.South}
-	}
-	return LayoutPlan{
-		Spine:      spine,
-		Entrances:  spineEntrances(spine),
-		Rooms:      []PlannedRoom{room(1, PlannedDining, 20), room(2, PlannedBedroom, 25), room(3, PlannedBedroom, 30)},
-		NextRoomID: 4,
-	}
-}
-
-// A compact base with no spine is scored by the same trips: a plan that walks
-// through a bedroom beats the one that spends hallway ground on the same rooms.
-func TestPassThroughPlanBeatsHallwayPlanOnASmallMap(t *testing.T) {
-	s := plainScoreSurvey()
-	pass, hall := passThroughRow(true), hallwayRow()
-	if !pass.Valid() || !hall.Valid() {
-		t.Fatal("hand plans are not valid", pass.Valid(), hall.Valid())
-	}
-	a, b := Score(pass, s), Score(hall, s)
-	if a.RoutesErr != "" || b.RoutesErr != "" {
-		t.Fatalf("routes: pass-through %q hallway %q", a.RoutesErr, b.RoutesErr)
-	}
-	if !a.Better(b) {
-		t.Fatalf("pass-through plan does not beat the hallway plan:\n pass %s\n hall %s", a, b)
-	}
-	if a.Footprint <= b.Footprint {
-		t.Errorf("the saving is the hallway ground: footprint %d against %d", a.Footprint, b.Footprint)
-	}
-}
-
 // A bedroom is crossed only when the plan marks it; a room nothing reaches is
 // still an error.
 func TestCheckRoutesPassThroughAndReachability(t *testing.T) {
@@ -133,14 +98,14 @@ func TestTripWalkWeighsRoomTrips(t *testing.T) {
 	}
 }
 
-// The spine plan has no room trips, so the new term leaves its walk as it was.
-func TestSpinePlanWalkIsTheRolePairWalk(t *testing.T) {
+// The hand plan has no room trips, so the trip term leaves its walk as it was.
+func TestHandPlanWalkIsTheRolePairWalk(t *testing.T) {
 	p := handPlan(12)
 	if len(p.Trips) != 0 {
 		t.Fatal("hand plan carries trips")
 	}
-	if got := planWalk(p); got != 71 {
-		t.Errorf("spine plan walk %d, was 71", got)
+	if got := planWalk(p); got != 59 {
+		t.Errorf("hand plan walk %d, was 59", got)
 	}
 }
 

@@ -50,7 +50,7 @@ func suiteCells(target float64) int32 {
 // to its plan room.
 func plannedRoomIDs(plan LayoutPlan, rooms RoomObservation, role PlannedRole) map[string]PlannedRoom {
 	out := map[string]PlannedRoom{}
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role != role {
 			continue
 		}
@@ -170,7 +170,7 @@ func vacantSuites(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObser
 		}
 	}
 	var out []PlannedRoom
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role != PlannedSuite {
 			continue
 		}
@@ -190,7 +190,7 @@ func vacantSuites(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObser
 // SuiteRooms is how many suites the plan holds.
 func (p LayoutPlan) SuiteRooms() int {
 	n := 0
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if r.Role == PlannedSuite {
 			n++
 		}
@@ -223,7 +223,7 @@ func SuiteWishes(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObserv
 		owned[s.room] = true
 	}
 	var out []SuiteWish
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role != PlannedSuite {
 			continue
 		}

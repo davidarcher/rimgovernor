@@ -25,25 +25,14 @@ func transposeRot(rot domain.Rotation) domain.Rotation {
 	return rot
 }
 
-// transposeRoom swaps X and Z; a door facing its hallway to the south faces
-// it to the west once transposed, north to east, and back.
+// transposeRoom swaps X and Z; a door facing south faces west once
+// transposed, north east, and back.
 func transposeRoom(r PlannedRoom) PlannedRoom {
 	in := r.Region.Bounds()
 	r.Region = RectRegion(Rectangle{X: in.Z, Z: in.X, Width: in.Height, Height: in.Width})
 	r.Door = transposeCell(r.Door)
-	if r.Link != nil {
-		l := transposeCell(*r.Link)
-		r.Link = &l
-	}
 	r.DoorRot = transposeRot(r.DoorRot)
 	r.Facing = transposeRot(r.Facing)
-	if len(r.Doors) > 0 {
-		doors := make([]Door, len(r.Doors))
-		for i, d := range r.Doors {
-			doors[i] = Door{Cell: transposeCell(d.Cell), Rot: transposeRot(d.Rot)}
-		}
-		r.Doors = doors
-	}
 	return r
 }
 

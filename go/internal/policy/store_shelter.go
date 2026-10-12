@@ -30,7 +30,7 @@ func (shelterOwner) Stores(v StoreView) []Store {
 		return []Store{retired}
 	}
 	var out []Store
-	for _, room := range v.Layout.AllRooms() {
+	for _, room := range v.Layout.Rooms {
 		if room.Role == PlannedShelter {
 			shell, err := room.Footprint()
 			if err != nil {
@@ -57,7 +57,7 @@ func (r StoreView) storageRoomStands() bool {
 	if r.Layout == nil || r.Rooms == nil {
 		return false
 	}
-	for _, planned := range r.Layout.AllRooms() {
+	for _, planned := range r.Layout.Rooms {
 		if planned.Role != PlannedStorage && planned.Role != PlannedFreezer {
 			continue
 		}

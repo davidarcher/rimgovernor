@@ -138,7 +138,7 @@ func DiffReplanTile(old LayoutPlan, built map[int32]bool, advice StationAdvice) 
 	var tiled []PlannedRoom
 	var blocks []EmbeddedBlock
 	if advice.Tiled != nil {
-		all := advice.Tiled.Plan.AllRooms()
+		all := advice.Tiled.Plan.Rooms
 		_, held := heldBlocks(len(advice.Clustering.Groups), advice.Embedding.Held)
 		for _, b := range append(slices.Clone(advice.Embedding.Blocks), held...) {
 			id, ok := advice.Tiled.Rooms[b.Group]
@@ -168,7 +168,7 @@ func DiffReplanTile(old LayoutPlan, built map[int32]bool, advice StationAdvice) 
 		}
 	}
 	superseded := map[int32]bool{}
-	for _, r := range old.AllRooms() {
+	for _, r := range old.Rooms {
 		if built[r.ID] && r.Replaces != 0 {
 			superseded[r.Replaces] = true
 		}
@@ -187,7 +187,7 @@ func DiffReplanTile(old LayoutPlan, built map[int32]bool, advice StationAdvice) 
 	}
 	var out ReplanTileDiff
 	var rooms []PlannedRoom
-	for _, r := range old.AllRooms() {
+	for _, r := range old.Rooms {
 		if !r.attached() {
 			rooms = append(rooms, r)
 		}

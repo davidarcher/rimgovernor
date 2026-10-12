@@ -340,23 +340,6 @@ func planLamps(cells []DarkCell, cands []lampCand) (lamps []lampCand, leftW floa
 // an outdoor role. An outdoor room gets the sun's light and no lamp.
 func lightRoofed(r PlannedRoom) bool { return !r.Role.IsOutdoor() && !r.Unfenced() }
 
-// hallwayLightW is the price of the dark a roofed hallway segment makes: the
-// cheaper of lighting the movements through it and leaving them dark, as the
-// lamps' cost plus the dark left over. Zero for a segment nobody walks. A
-// hallway cell takes a wall lamp where a neighbour is a plain wall of the plan
-// (walls, from plainWalls) and a standing lamp anywhere.
-func hallwayLightW(rect Rectangle, moves map[domain.Cell]float64, walls func(domain.Cell) bool, p LightPrice) float64 {
-	var cells []DarkCell
-	spots := rectCells(rect)
-	for _, c := range spots {
-		if m := moves[c]; m > 0 {
-			cells = append(cells, DarkCell{Cell: c, W: p.WalkCellW(m)})
-		}
-	}
-	lamps, left := planLamps(cells, append(p.standingCands(spots), wallLampCands(spots, walls, p)...))
-	return lampsW(lamps) + left
-}
-
 func lampsW(lamps []lampCand) float64 {
 	total := 0.0
 	for _, l := range lamps {
@@ -377,7 +360,7 @@ func lampsW(lamps []lampCand) float64 {
 func plainWalls(p LayoutPlan, rock map[domain.Cell]bool) func(domain.Cell) bool {
 	held := heldWallCells(p)
 	ring := map[domain.Cell]bool{}
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if lightRoofed(r) {
 			for _, c := range r.Region.Walls().Cells() {
 				ring[c] = true
@@ -402,16 +385,11 @@ func surveyRock(s MapSurvey) map[domain.Cell]bool {
 // links, entrances and vents.
 func heldWallCells(p LayoutPlan) map[domain.Cell]bool {
 	out := map[domain.Cell]bool{}
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		for _, c := range r.Region.Cells() {
 			out[c] = true
 		}
 		for _, c := range p.DoorsOf(r) {
-			out[c] = true
-		}
-	}
-	for _, rect := range spineRects(p.Hallways()) {
-		for _, c := range rectCells(rect) {
 			out[c] = true
 		}
 	}
@@ -565,7 +543,7 @@ func (t *tiler) noteLamps(group int, reason, verdict string, darkW, lampW float6
 // in the order the plan placed them (the most valuable first); nil when c is in
 // no room or its room was planned no lamp.
 func (p LayoutPlan) PlannedLampsAt(c domain.Cell) []PlannedLamp {
-	for _, r := range p.AllRooms() {
+	for _, r := range p.Rooms {
 		if r.Region.Contains(c) {
 			return p.Lamps[r.ID]
 		}

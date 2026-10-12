@@ -35,7 +35,7 @@ func plannedSite(plan policy.LayoutPlan, bounds policy.Bounds, size int32) (site
 // interior and door cell), joined by ';'.
 func plannedBedrooms(plan policy.LayoutPlan) string {
 	var rooms []string
-	for _, r := range plan.AllRooms() {
+	for _, r := range plan.Rooms {
 		if r.Role != policy.PlannedBedroom {
 			continue
 		}

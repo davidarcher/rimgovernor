@@ -193,7 +193,7 @@ func (r *RoundsBuildingPlanner) stepShelterRoom(call, epoch context.Context, s s
 	}
 	var room policy.PlannedRoom
 	planned := false
-	for _, candidate := range plan.AllRooms() {
+	for _, candidate := range plan.Rooms {
 		if candidate.Role == policy.PlannedShelter {
 			room, planned = candidate, true
 			break

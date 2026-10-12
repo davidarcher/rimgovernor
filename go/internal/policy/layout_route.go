@@ -7,8 +7,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Route checks and traffic. Pawns walk the planned core: spine
-// hallways, room floors and doors; walls block. The entrances are the plan's
+// Route checks and traffic. Pawns walk the planned core: open
+// ground, room floors and doors; walls block. The entrances are the plan's
 // Entrances. Every trip pair gets a shortest path, and a path through a
 // private or clean room that is not one of its ends rejects the layout.
 
@@ -277,13 +277,10 @@ func tripCells(p LayoutPlan, rooms []PlannedRoom) func(PlannedRole) [][]domain.C
 }
 
 // routeWalk is the cells pawns walk over p, each mapped to its room index
-// (in p.AllRooms()), -1 for a hallway or door cell, with those rooms.
+// (in p.Rooms), -1 for a door cell, with those rooms.
 func routeWalk(p LayoutPlan) (map[domain.Cell]int, []PlannedRoom) {
 	walk := map[domain.Cell]int{}
-	rooms := p.AllRooms()
-	for c := range p.hallwayCells() {
-		walk[c] = -1
-	}
+	rooms := p.Rooms
 	for i, r := range rooms {
 		if r.attached() {
 			continue // a child is no destination: its parent's door leads through it
@@ -316,8 +313,8 @@ func routeWalk(p LayoutPlan) (map[domain.Cell]int, []PlannedRoom) {
 			walk[c] = -1
 		}
 	}
-	if len(p.Hallways()) == 0 && len(p.Entrances) > 0 {
-		// A plan without hallways is walked over the open ground its entrances
+	if len(p.Entrances) > 0 {
+		// A plan is walked over the open ground its entrances
 		// stand on: every cell around the rooms that no room or wall holds. The
 		// terrain is not read (the embedding sited the rooms; the entrances
 		// lie in the map's largest free area).

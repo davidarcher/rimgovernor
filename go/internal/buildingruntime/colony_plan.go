@@ -388,7 +388,7 @@ func (r *Rounder) replanLayout(ctx context.Context, snapshot domain.GenerationSn
 	}
 	changed := !policy.SamePlan(plan, next)
 	decision.Verdict, decision.Reason = "replanned", "tiled_plan"
-	decision.Attrs = tiledReplanAttrs(policy.DiffReplanTile(plan, facts.Built, advice), len(facts.Built), len(advice.Tiled.Plan.AllRooms()))
+	decision.Attrs = tiledReplanAttrs(policy.DiffReplanTile(plan, facts.Built, advice), len(facts.Built), len(advice.Tiled.Plan.Rooms))
 	decision.Attrs["changed"] = changed
 	telemetry.Decide(ctx, decision)
 	logInterior(ctx, advice)

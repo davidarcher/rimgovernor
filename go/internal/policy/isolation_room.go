@@ -84,7 +84,7 @@ func IsolationRoomStanding(plan LayoutPlan, ground GroundCensus, built []Current
 // sorted.
 func (p LayoutPlan) IsolationRoomCells() []domain.Cell {
 	set := map[domain.Cell]bool{}
-	for _, room := range p.AllRooms() {
+	for _, room := range p.Rooms {
 		if room.Role != PlannedIsolationRoom {
 			continue
 		}

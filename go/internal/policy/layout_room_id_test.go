@@ -14,9 +14,9 @@ func TestRoomIDsAreUniqueStableAndNeverReused(t *testing.T) {
 	room := func(x int32) PlannedRoom {
 		return PlannedRoom{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: x, Z: 0, Width: 3, Height: 3}), DoorRot: domain.South}
 	}
-	plan := LayoutPlan{Spine: []SpineSegment{{From: domain.Cell{X: 0, Z: 5}, To: domain.Cell{X: 40, Z: 5}}}, Rooms: []PlannedRoom{room(0), room(10)}, Wings: []Wing{{Purpose: WingSuites, Rooms: []PlannedRoom{room(20)}}}}
+	plan := LayoutPlan{Rooms: []PlannedRoom{room(0), room(10), room(20)}}
 	plan = plan.WithRoomIDs()
-	for i, r := range plan.AllRooms() {
+	for i, r := range plan.Rooms {
 		if r.ID != int32(i+1) {
 			t.Fatalf("room %d has id %d", i, r.ID)
 		}

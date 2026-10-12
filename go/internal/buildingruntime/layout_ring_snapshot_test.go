@@ -13,8 +13,7 @@ import (
 // the Masonry capacity ring, recorded from `acceptance run layout/ring`
 // (tick 15, issue-1271 branch on 8130fd810). The ring is one stuff throughout, the
 // one the shell style picks from the recorded stock, apart from its Door at the
-// planned door cell, exactly the planned room's walls, its door onto a spine
-// hallway.
+// planned door cell, exactly the planned room's walls.
 func TestLayoutRingStepIsMasonry(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -85,13 +84,4 @@ func TestLayoutRingStepIsMasonry(t *testing.T) {
 	if placements[0].Cell() != room.Door || placements[0].Definition() != "Door" {
 		t.Fatalf("ring door %s at %v, planned door %v", placements[0].Definition(), placements[0].Cell(), room.Door)
 	}
-	plan, _ := facts.LayoutPlan.Value()
-	threshold, half := shell.Threshold(), policy.SpineWidth/2
-	for _, s := range plan.Hallways() {
-		if threshold.X >= min(s.From.X, s.To.X)-half && threshold.X <= max(s.From.X, s.To.X)+half &&
-			threshold.Z >= min(s.From.Z, s.To.Z)-half && threshold.Z <= max(s.From.Z, s.To.Z)+half {
-			return
-		}
-	}
-	t.Fatalf("door %v opens onto %v, off every hallway %v", room.Door, threshold, plan.Hallways())
 }
