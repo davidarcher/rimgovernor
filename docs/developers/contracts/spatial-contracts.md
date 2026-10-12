@@ -292,6 +292,17 @@ on the colony centre when the plan has no free cell there.
   cannot furnish stands bare: `TileResult.Unfit`). The tiled plan's `Owed` lists one
   room role per station group, and the hard tier's Missing term counts a room per
   entry instead of per role (empty keeps `coreBaseRooms`).
+  **Roofed set (#2941).** On a bad-climate map (the Cold or Hot latch, or a curve under
+  `ColdMapBelowC` or over `HotEnter`) `PlanRoofed` (`layout_roof.go`) puts every
+  room's floor and every priced hallway into `LayoutPlan.Roofed`, except the outdoor
+  roles (`Valid` rejects a roofed cell on one); a temperate map's set is empty. There is
+  no outer climate wall: the envelope is the roofed rooms and hallways. A hallway is
+  roofed only when the watts its roof saves the doors that open onto it exceed the
+  watts that hold it through its entrances (`climate.go`, in the `ColdEnter`..`HotEnter`
+  band); a roof takes work, not materials. Cells farther than `RoofMaxSupportDistance`
+  from a wall stay in the set and are reported (`roof_unsupported`), never vetoed.
+  `TileResult.RoofDecisions` carries the reasons. Advice only: the runtime issues the
+  `BuildRoofAction` at the #2931 cutover.
   **Circulation (#2911).** The station graph carries station-less room nodes
   (`StationGraph.Rooms`, `RoomNode`: role, area demand, optional strip width; the morgue
   and waste yard of #2882 reuse the kind). Circulation is the corridor that joins rooms

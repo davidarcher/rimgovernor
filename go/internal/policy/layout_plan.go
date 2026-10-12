@@ -163,6 +163,11 @@ type LayoutPlan struct {
 	// while its building stands: planned-ground clearance demolishes
 	// it, then the entry is dropped.
 	RetiredGround []Region `json:",omitempty"`
+	// Roofed is the cells the plan roofs on a map whose outdoor temperature is
+	// not good for pawns: every room and hallway except the outdoor roles
+	// (layout_roof.go). Only a tiled plan holds it; advice until #2931 issues
+	// the roofs.
+	Roofed Region `json:",omitzero"`
 	// Cold latches the map's climate when the plan is derived: the
 	// seasonal curve dips below ColdMapBelowC. The shelter is sized for it,
 	// so a replan never resizes or re-sites the room.
@@ -342,6 +347,9 @@ func (p LayoutPlan) Valid() bool {
 			return false
 		}
 		seen[l] = true
+	}
+	if p.roofedOutdoors() {
+		return false
 	}
 	if !p.validConduits(rooms) {
 		return false

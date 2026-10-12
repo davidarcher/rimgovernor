@@ -177,7 +177,7 @@ func (f StationFacts) GraphInput() (StationGraphInput, error) {
 // the caller keys the load beside it.
 func (f StationFacts) InputsKey() string {
 	plan, _ := json.Marshal(f.Plan) // the plan holds pointers; the saved form is its value
-	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Tile) + string(plan)
+	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Tile, f.OutdoorCurve) + string(plan)
 	input, err := f.GraphInput()
 	if err != nil {
 		return key + err.Error()
@@ -246,7 +246,7 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 		}
 	}
 	if f.Tile {
-		tiled, err := TileEmbedding(TileInput{Groups: clustering.Groups, Embedding: embedding, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey})
+		tiled, err := TileEmbedding(TileInput{Groups: clustering.Groups, Embedding: embedding, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, OutdoorCurve: f.OutdoorCurve, RoofDistance: f.RoofDistance})
 		if err != nil {
 			return StationAdvice{}, err
 		}

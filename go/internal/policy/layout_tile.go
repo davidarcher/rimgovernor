@@ -92,6 +92,11 @@ type TileInput struct {
 	Zones        []LayoutZone
 	Reservations []LayoutReservation
 	Survey       MapSurvey
+	// OutdoorCurve and RoofDistance are the roofed set's reads (layout_roof.go);
+	// the climate model is Catalog.Climate. An unknown read leaves the hallways
+	// unroofed and the decision says so.
+	OutdoorCurve domain.Fact[[]float64]
+	RoofDistance float64
 }
 
 // TileDecision is one tiling decision for the caller to journal. Group is the
@@ -117,6 +122,8 @@ type TileResult struct {
 	// ConduitDecisions are the conduit net's decisions, one per routed or
 	// blocked link (layout_conduit.go).
 	ConduitDecisions []ConduitDecision
+	// RoofDecisions are the roofed set's decisions (layout_roof.go).
+	RoofDecisions []RoofDecision
 }
 
 // groupCold reports that the group's room is kept cold: it needs cold or holds
@@ -274,6 +281,8 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 		return t.out, fmt.Errorf("%w: the tiled plan is not valid", ErrTile)
 	}
 	t.furnish()
+	roof := PlanRoofed(t.out.Plan, RoofInput{Curve: t.in.OutdoorCurve, Cold: t.in.Survey.Cold, Hot: t.in.Survey.Hot, Climate: t.in.Catalog.Climate, RoofDistance: t.in.RoofDistance})
+	t.out.Plan.Roofed, t.out.RoofDecisions = roof.Roofed, roof.Decisions
 	t.routeTileConduits()
 	if !t.out.Plan.Valid() {
 		return t.out, fmt.Errorf("%w: the conduit net is not valid", ErrTile)
