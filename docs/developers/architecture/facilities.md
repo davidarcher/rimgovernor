@@ -252,12 +252,17 @@ surplus room goes to the group most short of floor (ties to the lower id).
 `GroupOutgrown` holds when the group's area exceeds the matched rooms' floor; a
 group with no built room is not outgrown. A built pair (a room and the successor that replaces it) is one room: `BuiltRegions` leaves the replaced room out.
 
-Successor rooms (`layout_succession.go`, storage and workshop; the other roles
-are #2864). `OutgrownSuccession` reads the advice at a layout review: an
+The freezer and the butchery are matched to the group that became them
+(`matchedPlanned`: a cold storeroom group, a filth closet the game reads as a
+kitchen), not to the storage and kitchen groups.
+
+Successor rooms (`layout_succession.go`; storage and workshop #2863, kitchen,
+freezer, butchery, dining, recreation and bedroom wings #2864). Every role has
+the one outgrown test. `OutgrownSuccession` reads the advice at a layout review: an
 outgrown group of those roles whose shortfall (group area less the matched
 rooms' floor) holds the footprint plus one open cell of the smallest station
-in the group asks for a successor. It replaces the smallest matched storage or
-workshop room and is that room's floor plus the shortfall, in the group's
+in the group asks for a successor. It replaces the smallest matched room of
+those roles and is that room's floor plus the shortfall, in the group's
 embedded block shape (the block's depth cut to the floor needed) sited by
 `SiteRoom` with `Replaces` set. The group most short goes first and none starts
 while a predecessor is still in the plan, so one rebuild runs at a time. A
@@ -268,6 +273,19 @@ no embedded block, or no free core slot, is not built: `successor_unsited`.
 `StorageRoomsOwed` and the storage department's further-warehouse demand count
 a `Replaces` chain as one room, so no twin is added. Stock drains from the old
 zone as vanilla re-hauls it; bills and packed furniture are #2881.
+
+A successor of a room with a Link door (the freezer's to the kitchen, dining's
+to the freezer, the butchery's) is sited only where it has one: beside the
+neighbour, else on its back wall, and the neighbour a successor of its own
+replaces is passed over for that successor. The Link doors of other rooms into
+the room that leaves are not moved; they open on cleared ground once clearance
+takes it. A bedroom is replaced by wing: the wing holding the outgrown bedroom
+turns `WingBedroomsRetiring`, the next wing is sited at the successor's room
+size (`Successor.WingSize`, never below the tier's), and sleepers move one pawn
+a step straight to a vacant bed in the new wing (`NextMigrateStep`). The old
+wing keeps every bed until no pawn owns one in it (`EmptiedRetiringWings`), so
+no night is spent unbedded. No second bedroom rebuild starts while a wing
+retires.
 
 In-place reshape and moving built rooms (#2865; `layout_reshape.go`,
 `layout_switch.go`). `ReshapeRoom` gives a room a new rectangle region and keeps

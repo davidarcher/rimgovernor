@@ -149,6 +149,9 @@ func (g coreGrid) siteBedWings(spine []SpineSegment, rooms []PlannedRoom, wings 
 		owed -= len(wings[i].Rooms)
 	}
 	size := WingRoomSize(tier)
+	if g.wingSize != ([2]int32{}) {
+		size = g.wingSize
+	}
 	for owed > 0 {
 		grown, next, ok := g.siteBedWing(spine, rooms, wings, size, nil)
 		if !ok {

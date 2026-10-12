@@ -19,6 +19,13 @@ const siteRoomCandidates = 12
 // room to grow), so a room does not pop through a mountain's face that the
 // first plan stayed behind. With no scorer the nearest slot is taken.
 func SiteRoom(plan LayoutPlan, sc *planScorer, role PlannedRole, sizes ...[2]int32) (LayoutPlan, bool, error) {
+	return siteRoomWhere(plan, sc, role, nil, sizes...)
+}
+
+// siteRoomWhere is SiteRoom keeping only the slots whose room accept takes
+// (nil takes all): a successor that must keep its Link door refuses the slots
+// that have none.
+func siteRoomWhere(plan LayoutPlan, sc *planScorer, role PlannedRole, accept func(PlannedRoom) bool, sizes ...[2]int32) (LayoutPlan, bool, error) {
 	g := newCoreGrid(plan.Zones, plan.Reservations)
 	if len(g.core) == 0 {
 		return plan, false, fmt.Errorf("the plan needs a %s room but the map survey left no core ground to place it on", role)
@@ -35,6 +42,7 @@ func SiteRoom(plan LayoutPlan, sc *planScorer, role PlannedRole, sizes ...[2]int
 		limit = 1
 	}
 	g.skip = map[Rectangle]bool{}
+	g.linkBehind = accept != nil
 	var best LayoutPlan
 	var bestScore PlanScore
 	found := false
@@ -54,6 +62,9 @@ func SiteRoom(plan LayoutPlan, sc *planScorer, role PlannedRole, sizes ...[2]int
 		cand := plan
 		cand.Spine, cand.Rooms = spine, rooms
 		g.skip[rooms[len(rooms)-1].Region.Bounds()] = true
+		if accept != nil && !accept(rooms[len(rooms)-1]) {
+			continue
+		}
 		if sc == nil {
 			return cand, true, nil
 		}

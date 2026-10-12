@@ -64,11 +64,15 @@ func RelocationReason(plan LayoutPlan, successor PlannedRoom, s MapSurvey) Reloc
 	return WhyScoreGain
 }
 
+// relocatableRoles are the roles a built room may be moved in: the storage and
+// workshop rooms (#2865); the other successor roles move only when outgrown.
+var relocatableRoles = []PlannedRole{PlannedStorage, PlannedWorkshop}
+
 // relocatable reports a room that may be sited again as it is: a plain
-// rectangle of a successor role in the plan's own rooms, with no link door,
+// rectangle of a relocatable role in the plan's own rooms, with no link door,
 // airlock or porch of its own.
 func relocatable(r PlannedRoom) bool {
-	return slices.Contains(successorRoles, r.Role) && !r.Unfenced() && !r.Dug && !r.Outdoor && r.Link == nil && r.Airlock == nil && r.Porch == nil && r.Region.IsRect()
+	return slices.Contains(relocatableRoles, r.Role) && !r.Unfenced() && !r.Dug && !r.Outdoor && r.Link == nil && r.Airlock == nil && r.Porch == nil && r.Region.IsRect()
 }
 
 // relocation is one built room's move: plan with its replacement sited, the

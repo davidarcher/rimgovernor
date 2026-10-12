@@ -274,8 +274,11 @@ func (p *packer) against(rooms []PlannedRoom, role PlannedRole, size [2]int32) (
 	}
 	var k Rectangle
 	found := false
+	// A neighbour a successor replaces is passed over for the successor, so a
+	// freezer's Link opens on the kitchen that will stand.
+	gone := LayoutPlan{Rooms: rooms}.superseded()
 	for _, r := range rooms {
-		if r.Role == rule.neighbour {
+		if r.Role == rule.neighbour && !gone[r.ID] {
 			k, found = r.Region.Bounds(), true
 			break
 		}
@@ -311,7 +314,9 @@ func (p *packer) against(rooms []PlannedRoom, role PlannedRole, size [2]int32) (
 		}
 		return p.finish(room), true
 	}
-	if rule.backLast {
+	// A successor that must keep its Link takes the back wall when the sides
+	// are taken: the kitchen's sides hold the freezer it is replacing.
+	if rule.backLast || p.g.linkBehind && !rule.unlinked {
 		return p.behind(rooms, k, role, rule, size)
 	}
 	return PlannedRoom{}, false

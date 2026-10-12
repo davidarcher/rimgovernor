@@ -15,11 +15,32 @@ import (
 // flight at a time. The trigger is the station chain's outgrown predicate
 // (GroupOutgrown); the successor replaces the smallest matched room and is
 // sized to that room's floor plus the group's shortfall. The roles are storage
-// and workshop; the rest follow in #2864. Bills and packed furniture stay with
-// #2881, and merging several rooms into one is #2878.
+// and workshop (#2863), and the kitchen, freezer, butchery, dining and
+// recreation rooms and the bedrooms of the bedroom wings (#2864). Bills and
+// packed furniture stay with #2881, and merging several rooms into one is
+// #2878.
+//
+// Every role has the one outgrown test: its station group needs more floor
+// than the built rooms matched to it give, by at least the footprint plus one
+// open cell of the group's smallest station. The freezer and the butchery are
+// matched to the group that became them (matchedPlanned), not to the storage
+// and kitchen groups. A successor of a room with a Link door (the freezer's to
+// the kitchen, the dining room's to the freezer, the butchery's) is sited only
+// where it has one (beside the neighbour, else on its back wall), and a
+// neighbour that is itself replaced is passed over for its successor
+// (packer.against). A Link of another room into the room
+// that leaves stays in the wall the old room shared and opens on cleared
+// ground once clearance takes the old room.
+//
+// A bedroom is replaced by wing: the wing holding the outgrown bedroom turns
+// Retiring (WingBedroomsRetiring), the next bedroom wing is sited at the
+// successor's room size (WingSize), and the wing's sleepers move into it one
+// pawn a step, each straight to a vacant bed (NextMigrateStep) while the old
+// wing keeps every bed until no pawn owns one in it (EmptiedRetiringWings),
+// so no night is spent unbedded.
 
 // successorRoles are the planned roles a successor may replace.
-var successorRoles = []PlannedRole{PlannedStorage, PlannedWorkshop}
+var successorRoles = []PlannedRole{PlannedStorage, PlannedWorkshop, PlannedKitchen, PlannedFreezer, PlannedButchery, PlannedDining, PlannedRec, PlannedBedroom}
 
 // Successor is the room the plan is asked to add in place of an outgrown one.
 // The zero value asks for none.
@@ -27,6 +48,8 @@ type Successor struct {
 	// Replaces is the id of the built room the successor supersedes.
 	Replaces int32
 	Role     PlannedRole
+	// Linked: the replaced room has a Link door, which the successor keeps.
+	Linked bool
 	// Floor is the replaced room's floor and Shortfall the cells its group
 	// lacks; the successor holds at least their sum.
 	Floor, Shortfall int
@@ -170,13 +193,23 @@ func OutgrownSuccession(advice StationAdvice, catalog StationCatalog, plan Layou
 	for _, r := range plan.AllRooms() {
 		rooms[r.ID] = r
 	}
+	// Bedrooms are replaced by wing, one wing at a time: only a room of an
+	// active wing, and none while a wing is still emptying.
+	wingRooms := map[int32]bool{}
+	retiring := false
+	for _, w := range plan.Wings {
+		retiring = retiring || w.Purpose == WingBedroomsRetiring
+		for _, r := range w.Rooms {
+			wingRooms[r.ID] = w.Purpose == WingBedrooms
+		}
+	}
 	var best Successor
 	for _, ga := range advice.Groups {
 		if !ga.Outgrown {
 			continue
 		}
 		role, ok := PlannedRoleOfGroup(ga.Group)
-		if !ok || !slices.Contains(successorRoles, role) {
+		if !ok || !slices.Contains(successorRoles, role) || role == PlannedBedroom && retiring {
 			continue
 		}
 		shortfall := ga.Group.Area - ga.Capacity
@@ -186,7 +219,7 @@ func OutgrownSuccession(advice StationAdvice, catalog StationCatalog, plan Layou
 		var old *PlannedRoom
 		for _, id := range ga.Rooms {
 			r := rooms[id]
-			if !slices.Contains(successorRoles, r.Role) {
+			if !slices.Contains(successorRoles, r.Role) || r.Role == PlannedBedroom && !wingRooms[r.ID] {
 				continue
 			}
 			if old == nil || r.Region.Area() < old.Region.Area() || r.Region.Area() == old.Region.Area() && r.ID < old.ID {
@@ -196,7 +229,7 @@ func OutgrownSuccession(advice StationAdvice, catalog StationCatalog, plan Layou
 		if old == nil || best.Any() && shortfall <= best.Shortfall {
 			continue
 		}
-		best = Successor{Replaces: old.ID, Role: old.Role, Floor: old.Region.Area(), Shortfall: shortfall}
+		best = Successor{Replaces: old.ID, Role: old.Role, Linked: old.Link != nil, Floor: old.Region.Area(), Shortfall: shortfall}
 		if block, placed := advice.Embedding.Block(ga.Group.ID); placed {
 			best.Sizes = successorSizes(block, best.Floor+shortfall)
 		}
@@ -251,9 +284,17 @@ func growSuccessor(plan LayoutPlan, s Successor, sc *planScorer, blocked map[dom
 	if len(s.Sizes) == 0 {
 		return plan, false, &UnsitedSuccessor{Successor: s, Reason: "the embedding placed no block for the group"}
 	}
+	if s.Role == PlannedBedroom {
+		next, retired := retireBedroomWing(plan, s)
+		return next, retired, nil
+	}
 	siting := plan
 	siting.Zones = coreWithout(plan.Zones, blocked)
-	sited, ok, err := SiteRoom(siting, sc, s.Role, s.Sizes...)
+	var accept func(PlannedRoom) bool
+	if s.Linked {
+		accept = func(r PlannedRoom) bool { return r.Link != nil }
+	}
+	sited, ok, err := siteRoomWhere(siting, sc, s.Role, accept, s.Sizes...)
 	if !ok {
 		reason := "no free core slot"
 		if err != nil {
@@ -264,4 +305,37 @@ func growSuccessor(plan LayoutPlan, s Successor, sc *planScorer, blocked map[dom
 	sited.Zones = plan.Zones
 	sited.Rooms[len(sited.Rooms)-1].Replaces = s.Replaces
 	return sited, true, nil
+}
+
+// retireBedroomWing turns the bedroom wing holding the replaced room Retiring:
+// its sleepers migrate, and the next wing sited takes the successor's room size
+// (Successor.WingSize). False, and the plan as it came, when no active wing
+// holds the room.
+func retireBedroomWing(plan LayoutPlan, s Successor) (LayoutPlan, bool) {
+	wings := slices.Clone(plan.Wings)
+	for i, w := range wings {
+		if w.Purpose == WingBedrooms && slices.ContainsFunc(w.Rooms, func(r PlannedRoom) bool { return r.ID == s.Replaces }) {
+			wings[i].Purpose = WingBedroomsRetiring
+			plan.Wings = wings
+			return plan, true
+		}
+	}
+	return plan, false
+}
+
+// WingSize is the room size (width along the corridor, depth away from it) the
+// next bedroom wing is sited at for a bedroom successor: its block's interior,
+// never smaller than the tier's WingRoomSize and no deeper than the core's
+// cross-section. The zero size is the tier's, for every other successor.
+func (s Successor) WingSize(tier TechTier) [2]int32 {
+	if s.Role != PlannedBedroom {
+		return [2]int32{}
+	}
+	size := WingRoomSize(tier)
+	for _, got := range s.Sizes {
+		if got[1] <= coreMaxDepth && got[0]*got[1] > size[0]*size[1] {
+			return got
+		}
+	}
+	return size
 }

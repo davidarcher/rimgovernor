@@ -245,14 +245,46 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 // BuiltRegion is a planned room that stands as planned, with the role the
 // game gives its furniture.
 type BuiltRegion struct {
-	Room   int32
-	Role   RoomRole
-	Region Region
+	Room int32
+	Role RoomRole
+	// Planned is the planned role of a room the native role does not tell
+	// apart (matchedPlanned): the freezer and the butchery; empty otherwise.
+	Planned PlannedRole
+	Region  Region
+}
+
+// matchedPlanned are the planned rooms matched to groups by their planned
+// role, with the native role the game gives them: a freezer is a storeroom
+// and a butchery reads as a kitchen, but each is matched only to the group
+// that became it (PlannedRoleOfGroup), not to the plain storage or kitchen
+// groups.
+var matchedPlanned = map[PlannedRole]RoomRole{
+	PlannedFreezer:  RoomRoleStoreroom,
+	PlannedButchery: RoomRoleKitchen,
+}
+
+// matchKey is the key a room is matched to groups under.
+func (b BuiltRegion) matchKey() string {
+	if b.Planned != "" {
+		return string(b.Planned)
+	}
+	return string(b.Role)
+}
+
+// matchKeyOfGroup is the key a group is matched to rooms under.
+func matchKeyOfGroup(g RoomGroup) string {
+	if p, ok := PlannedRoleOfGroup(g); ok {
+		if _, special := matchedPlanned[p]; special {
+			return string(p)
+		}
+	}
+	return string(g.Role)
 }
 
 // BuiltRegions are the plan's standing rooms that carry a native role
-// (moduleRoomRoles), by room id. Outdoor rooms and rooms with no native role
-// are left out, and so is a room whose successor stands: the pair is one room.
+// (moduleRoomRoles, and the freezer and butchery of matchedPlanned), by room
+// id. Outdoor rooms and rooms with no native role are left out, and so is a
+// room whose successor stands: the pair is one room.
 func BuiltRegions(plan LayoutPlan, built map[int32]bool) []BuiltRegion {
 	var out []BuiltRegion
 	replaced := map[int32]bool{}
@@ -263,10 +295,14 @@ func BuiltRegions(plan LayoutPlan, built map[int32]bool) []BuiltRegion {
 	}
 	for _, r := range plan.AllRooms() {
 		role, ok := moduleRoomRoles[r.Role]
+		var planned PlannedRole
+		if native, special := matchedPlanned[r.Role]; special {
+			role, ok, planned = native, true, r.Role
+		}
 		if !ok || r.Outdoor || !built[r.ID] || replaced[r.ID] {
 			continue
 		}
-		out = append(out, BuiltRegion{Room: r.ID, Role: role, Region: r.Region})
+		out = append(out, BuiltRegion{Room: r.ID, Role: role, Planned: planned, Region: r.Region})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Room < out[j].Room })
 	return out
@@ -297,15 +333,17 @@ func MatchGroupRooms(groups []RoomGroup, built []BuiltRegion) []GroupRooms {
 	for i, g := range groups {
 		index[g.ID] = i
 	}
-	byRole := map[RoomRole][]RoomGroup{}
+	byRole := map[string][]RoomGroup{}
 	for _, g := range groups {
-		byRole[g.Role] = append(byRole[g.Role], g)
+		k := matchKeyOfGroup(g)
+		byRole[k] = append(byRole[k], g)
 	}
-	roomsByRole := map[RoomRole][]BuiltRegion{}
+	roomsByRole := map[string][]BuiltRegion{}
 	for _, b := range built {
-		roomsByRole[b.Role] = append(roomsByRole[b.Role], b)
+		k := b.matchKey()
+		roomsByRole[k] = append(roomsByRole[k], b)
 	}
-	roles := make([]RoomRole, 0, len(byRole))
+	roles := make([]string, 0, len(byRole))
 	for role := range byRole {
 		roles = append(roles, role)
 	}

@@ -34,6 +34,8 @@ type replanner struct {
 	tombs int
 	tier  TechTier
 	suite []float64
+	// wing is the room size of the next bedroom wing (coreGrid.wingSize).
+	wing [2]int32
 }
 
 // newReplanner prepares a replan of plan over survey s. The core ground is
@@ -55,7 +57,7 @@ func newReplanner(plan LayoutPlan, s MapSurvey, blocked map[domain.Cell]bool, pa
 // returned as it is.
 func (rp replanner) site(plan LayoutPlan, pins map[int32]bool, iters int) LayoutPlan {
 	g := rp.g
-	g.fixed, g.noShelter = pins, true
+	g.fixed, g.noShelter, g.wingSize = pins, true, rp.wing
 	var seed domain.Cell
 	if len(plan.Spine) > 0 {
 		seed = plan.Spine[0].From
