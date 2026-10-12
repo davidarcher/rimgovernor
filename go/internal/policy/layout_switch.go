@@ -72,7 +72,7 @@ var relocatableRoles = []PlannedRole{PlannedStorage, PlannedWorkshop}
 // rectangle of a relocatable role in the plan's own rooms, with no link door,
 // airlock or porch of its own.
 func relocatable(r PlannedRoom) bool {
-	return slices.Contains(relocatableRoles, r.Role) && !r.Unfenced() && !r.Dug && !r.Outdoor && r.Link == nil && r.Airlock == nil && r.Porch == nil && r.Region.IsRect()
+	return slices.Contains(relocatableRoles, r.Role) && !r.Unfenced() && !r.Dug && !r.Outdoor && r.Link == nil && r.Parent == 0 && r.Region.IsRect()
 }
 
 // relocation is one built room's move: plan with its replacement sited, the

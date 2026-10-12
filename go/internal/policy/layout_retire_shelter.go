@@ -138,11 +138,8 @@ func retireShelter(plan LayoutPlan, growth RoomGrowth) (LayoutPlan, bool) {
 		if !growth.InFlight[r.ID] {
 			drop[r.ID] = true
 			ground = append(ground, RectRegion(roomGround(r.Region.Bounds())))
-			if r.Airlock != nil {
-				ground = append(ground, RectRegion(r.AirlockGround()))
-			}
-			if r.Porch != nil {
-				ground = append(ground, RectRegion(r.PorchGround()))
+			for _, c := range plan.ChildrenOf(r.ID) {
+				ground = append(ground, RectRegion(c.attachedGround()))
 			}
 		}
 	}

@@ -225,7 +225,7 @@ func Reconcile(in ReconcileInput) Reconciliation {
 	// Ring: walls and doors by cell.
 	ringStart := len(items)
 	var allWallOut []domain.Cell
-	ringList := append(ring.Cells(), r.airlockCells()...)
+	ringList := append(ring.Cells(), in.Plan.airlockCells(r)...)
 	for _, c := range ringList {
 		switch {
 		case doorWanted[c] && doors[c]:

@@ -57,13 +57,6 @@ func transposeRoom(r PlannedRoom) PlannedRoom {
 		}
 		r.Doors = doors
 	}
-	if r.Airlock != nil {
-		r.Airlock = &Airlock{Vestibule: transposeCell(r.Airlock.Vestibule), Outer: transposeCell(r.Airlock.Outer)}
-	}
-	if r.Porch != nil {
-		s := r.Porch.Strip
-		r.Porch = &Porch{Strip: Rectangle{X: s.Z, Z: s.X, Width: s.Height, Height: s.Width}}
-	}
 	return r
 }
 

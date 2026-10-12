@@ -72,12 +72,11 @@ type PlannedRoom struct {
 	// Markers is the marker count of a sparring ring (RingSlot orders the
 	// slots); 0 for every other room.
 	Markers int `json:",omitempty"`
-	// Airlock is a cold-map shelter's vestibule and outer door beyond its
-	// door (layout_airlock.go); nil for every other room.
-	Airlock *Airlock `json:",omitempty"`
-	// Porch is a cold-map shelter's roofed lean-to holding the first
-	// batteries (layout_porch.go); nil for every other room.
-	Porch *Porch `json:",omitempty"`
+	// Parent is the ID of the room this one is attached to: an airlock or
+	// porch child (layout_airlock.go, layout_porch.go); 0 for every room that
+	// stands on its own. A child owns no ring (Unfenced): its parent's ring
+	// takes its walls and doors. See ChildrenOf.
+	Parent int32 `json:",omitempty"`
 }
 
 // ZoneKind is a whole-map zone's use.
@@ -186,25 +185,47 @@ func (p LayoutPlan) WithRoomIDs() LayoutPlan {
 		next = max(next, r.ID+1, r.Replaces+1)
 	}
 	p.Rooms = slices.Clone(p.Rooms)
-	for i := range p.Rooms {
-		if p.Rooms[i].ID == 0 {
-			p.Rooms[i].ID, next = next, next+1
-		}
-	}
+	next = idRooms(p.Rooms, next)
 	if len(p.Wings) > 0 {
 		p.Wings = slices.Clone(p.Wings)
 		for i := range p.Wings {
 			p.Wings[i].Rooms = slices.Clone(p.Wings[i].Rooms)
-			for j := range p.Wings[i].Rooms {
-				if p.Wings[i].Rooms[j].ID == 0 {
-					p.Wings[i].Rooms[j].ID, next = next, next+1
-				}
-			}
+			next = idRooms(p.Wings[i].Rooms, next)
 		}
 	}
 	p.NextRoomID = next
 	return p
 }
+
+// idRooms hands each room without an id the next from next, in place, and
+// returns the counter. An attached child (airlock, porch) sited with no
+// Parent is the parent's: the room listed just before it.
+func idRooms(rooms []PlannedRoom, next int32) int32 {
+	var last int32
+	for i := range rooms {
+		if rooms[i].ID == 0 {
+			rooms[i].ID, next = next, next+1
+		}
+		if !rooms[i].attached() {
+			last = rooms[i].ID
+		} else if rooms[i].Parent == 0 {
+			rooms[i].Parent = last
+		}
+	}
+	return next
+}
+
+// attachedGround is the ground an attached child occupies beyond its parent's
+// ring: the airlock's vestibule, walls and outer door, or the porch strip.
+func (r PlannedRoom) attachedGround() Rectangle {
+	if r.Role == PlannedAirlock {
+		return r.AirlockGround()
+	}
+	return r.PorchGround()
+}
+
+// attached reports a child room that hangs off a parent: an airlock or porch.
+func (r PlannedRoom) attached() bool { return r.Role == PlannedAirlock || r.Role == PlannedPorch }
 
 // Anchor is the interior centre of the
 // first room for want that free accepts (every one when free is nil), in
@@ -290,7 +311,10 @@ func (p LayoutPlan) Valid() bool {
 		if r.Role == "" || r.Region.Empty() {
 			return false
 		}
-		if r.ID < 1 || ids[r.ID] || r.ID >= p.NextRoomID || r.Replaces == r.ID {
+		if r.ID < 1 || ids[r.ID] || r.ID >= p.NextRoomID || r.Replaces == r.ID || r.Parent == r.ID {
+			return false
+		}
+		if r.attached() != (r.Parent != 0) {
 			return false
 		}
 		ids[r.ID] = true
@@ -426,7 +450,7 @@ func (r PlannedRoom) Same(o PlannedRoom) bool {
 			return false
 		}
 	}
-	return r.ID == o.ID && r.Replaces == o.Replaces && r.Role == o.Role && r.Through == o.Through && (r.Crossing == nil) == (o.Crossing == nil) && (r.Crossing == nil || *r.Crossing == *o.Crossing) && r.Region.Bounds() == o.Region.Bounds() && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing && r.Markers == o.Markers && (r.Airlock == nil) == (o.Airlock == nil) && (r.Airlock == nil || *r.Airlock == *o.Airlock) && (r.Porch == nil) == (o.Porch == nil) && (r.Porch == nil || *r.Porch == *o.Porch)
+	return r.ID == o.ID && r.Replaces == o.Replaces && r.Role == o.Role && r.Through == o.Through && (r.Crossing == nil) == (o.Crossing == nil) && (r.Crossing == nil || *r.Crossing == *o.Crossing) && r.Region.Bounds() == o.Region.Bounds() && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing && r.Markers == o.Markers && r.Parent == o.Parent
 }
 
 // NearestAnchor is the interior centre of the free planned room of role want

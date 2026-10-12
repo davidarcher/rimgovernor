@@ -8,23 +8,22 @@ import (
 )
 
 func TestColdShelterHasAPorchTemperateNone(t *testing.T) {
-	if s := shelterOf(t, coldCorePlan(false)); s.Porch != nil {
-		t.Fatalf("temperate shelter has a porch: %+v", s.Porch)
+	if p := coldCorePlan(false); len(p.roomsOf(PlannedPorch)) != 0 {
+		t.Fatal("temperate shelter has a porch")
 	}
 	plan := coldCorePlan(true)
 	s := shelterOf(t, plan)
-	if s.Porch == nil {
-		t.Fatal("cold shelter has no porch")
-	}
-	if got := len(s.PorchSlots()); got != 2 {
+	porch := childOf(t, plan, s, PlannedPorch)
+	if got := len(porch.PorchSlots()); got != 2 {
 		t.Fatalf("porch slots %d", got)
 	}
 	// The strip lies against the ring on the side opposite the door.
+	strip := porch.Region.Bounds()
 	ring := Rectangle{X: s.Region.Bounds().X - 1, Z: s.Region.Bounds().Z - 1, Width: s.Region.Bounds().Width + 2, Height: s.Region.Bounds().Height + 2}
-	if rectsOverlap(s.Porch.Strip, ring) || !rectsOverlap(pad(s.Porch.Strip, 1), ring) {
-		t.Fatalf("porch %+v not beside ring %+v", s.Porch.Strip, ring)
+	if rectsOverlap(strip, ring) || !rectsOverlap(pad(strip, 1), ring) {
+		t.Fatalf("porch %+v not beside ring %+v", strip, ring)
 	}
-	if rectsOverlap(s.Porch.Strip, s.AirlockGround()) {
+	if rectsOverlap(strip, childOf(t, plan, s, PlannedAirlock).AirlockGround()) {
 		t.Fatal("porch overlaps the airlock")
 	}
 }
@@ -33,7 +32,7 @@ func TestPorchHoldsBatteriesUntilTheBatteryRoomIsPlanned(t *testing.T) {
 	plan := coldCorePlan(true)
 	s := shelterOf(t, plan)
 	sites := PlannedPowerSites(plan, BatteryDefinition)
-	if len(sites) != 2 || sites[0].Area != s.PorchSlots()[0] || sites[0].Cell != (domain.Cell{X: sites[0].Area.X, Z: sites[0].Area.Z}) {
+	if len(sites) != 2 || sites[0].Area != childOf(t, plan, s, PlannedPorch).PorchSlots()[0] || sites[0].Cell != (domain.Cell{X: sites[0].Area.X, Z: sites[0].Area.Z}) {
 		t.Fatalf("porch sites %+v", sites)
 	}
 	for _, c := range RectangleCells(sites[0].Area) {
@@ -53,16 +52,19 @@ func TestPorchHoldsBatteriesUntilTheBatteryRoomIsPlanned(t *testing.T) {
 }
 
 func TestPorchSurvivesTransposeAndRetiresWithTheShelter(t *testing.T) {
-	room := shelterRoom(Rectangle{X: 10, Z: 10, Width: 5, Height: 4}, domain.Cell{X: 40, Z: 11}, false, true)
-	if room.DoorRot != domain.East || room.Porch.Strip != (Rectangle{X: 8, Z: 10, Width: 1, Height: 4}) {
-		t.Fatalf("room %+v porch %+v", room, room.Porch)
+	plan, room := shelterWithKids(Rectangle{X: 10, Z: 10, Width: 5, Height: 4}, domain.Cell{X: 40, Z: 11}, false, true)
+	porch := childOf(t, plan, room, PlannedPorch)
+	if room.DoorRot != domain.East || porch.PorchGround() != (Rectangle{X: 8, Z: 10, Width: 1, Height: 4}) {
+		t.Fatalf("room %+v porch %+v", room, porch)
 	}
-	if again := transposeRoom(transposeRoom(room)); !again.Same(room) {
-		t.Fatalf("%+v != %+v", again, room)
+	if again := transposeRoom(transposeRoom(porch)); !again.Same(porch) {
+		t.Fatalf("%+v != %+v", again, porch)
 	}
-	plan := LayoutPlan{Rooms: []PlannedRoom{room}}
 	next, dropped := retireShelter(plan, RoomGrowth{RetireShelter: true})
-	if !dropped || !slices.ContainsFunc(RetiredGroundOf(next).Ground, RectRegion(room.PorchGround()).Equal) {
-		t.Fatalf("retired ground %v lacks the porch %v", next.RetiredGround, room.PorchGround())
+	if !dropped || !slices.ContainsFunc(RetiredGroundOf(next).Ground, RectRegion(porch.PorchGround()).Equal) {
+		t.Fatalf("retired ground %v lacks the porch %v", next.RetiredGround, porch.PorchGround())
+	}
+	if len(next.Rooms) != 0 {
+		t.Fatalf("the porch outlives its shelter: %+v", next.Rooms)
 	}
 }

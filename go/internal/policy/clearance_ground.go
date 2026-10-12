@@ -42,11 +42,8 @@ func PlannedGround(plan LayoutPlan, ground GroundCensus) []Region {
 	var out []Region
 	for _, r := range plan.groundRooms(ground) {
 		out = append(out, RectRegion(roomGround(r.Region.Bounds())))
-		if r.Airlock != nil {
-			out = append(out, RectRegion(r.AirlockGround()))
-		}
-		if r.Porch != nil {
-			out = append(out, RectRegion(r.PorchGround()))
+		for _, c := range plan.ChildrenOf(r.ID) {
+			out = append(out, RectRegion(c.attachedGround()))
 		}
 	}
 	return append(out, plan.RetiredGround...)

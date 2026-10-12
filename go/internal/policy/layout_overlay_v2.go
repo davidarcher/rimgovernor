@@ -22,6 +22,8 @@ var roomOverlay = map[PlannedRole]overlayStyle{
 	PlannedBedroom:          {planBlue, "bedroom"},
 	PlannedSuite:            {planBlue, "suite"},
 	PlannedShelter:          {planLightBlue, "shelter"},
+	PlannedAirlock:          {planLightBlue, "airlock"},
+	PlannedPorch:            {planLightBlue, "porch"},
 	PlannedDining:           {planAmber, "dining"},
 	PlannedRec:              {planPink, "rec room"},
 	PlannedLab:              {planViolet, "research"},

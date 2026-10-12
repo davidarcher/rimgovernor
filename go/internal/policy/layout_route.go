@@ -328,6 +328,9 @@ func routeWalk(p LayoutPlan) (map[domain.Cell]int, []PlannedRoom) {
 		}
 	}
 	for i, r := range rooms {
+		if r.attached() {
+			continue // a child is no destination: its parent's door leads through it
+		}
 		in := r.Region.Bounds()
 		for x := in.X; x < in.X+in.Width; x++ {
 			for z := in.Z; z < in.Z+in.Height; z++ {
@@ -336,14 +339,14 @@ func routeWalk(p LayoutPlan) (map[domain.Cell]int, []PlannedRoom) {
 		}
 	}
 	for _, r := range rooms {
+		if r.Role == PlannedAirlock {
+			walk[r.Vestibule()], walk[r.Door] = -1, -1
+		}
 		if r.Unfenced() {
 			continue // no door
 		}
 		if _, ok := walk[r.Door]; !ok {
 			walk[r.Door] = -1
-		}
-		if r.Airlock != nil {
-			walk[r.Airlock.Vestibule], walk[r.Airlock.Outer] = -1, -1
 		}
 		for _, d := range r.Doors {
 			if _, ok := walk[d.Cell]; !ok {

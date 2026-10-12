@@ -42,7 +42,7 @@ func RangeStandsFor(capable int) int {
 // gate, roof or floor and has no Door. Only the animal pen keeps a fence.
 func (r PlannedRoom) Unfenced() bool {
 	switch r.Role {
-	case PlannedTrainingRange, PlannedSparringRing, PlannedGraveyard, PlannedWasteYard, PlannedYard:
+	case PlannedTrainingRange, PlannedSparringRing, PlannedGraveyard, PlannedWasteYard, PlannedYard, PlannedAirlock, PlannedPorch:
 		return true
 	}
 	return false

@@ -2,6 +2,7 @@ package policy
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -151,7 +152,9 @@ func missingRooms(rooms []PlannedRoom, owed []PlannedRole) []PlannedRole {
 // walking distance, footprint, the map edge and expansion room.
 func (sc planScorer) core(p LayoutPlan) PlanScore {
 	var out PlanScore
-	rooms := p.AllRooms()
+	// Attached children (an airlock, a porch) are no rooms of their own to
+	// owe, site or weigh: their parent stands for them.
+	rooms := slices.DeleteFunc(slices.Clone(p.AllRooms()), PlannedRoom.attached)
 	out.Missing = missingRooms(rooms, p.Owed)
 	if len(rooms) == 0 {
 		return out

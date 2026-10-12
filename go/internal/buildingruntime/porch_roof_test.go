@@ -12,10 +12,12 @@ import (
 // the whole porch; a battery elsewhere does not.
 func TestPorchRoofActionAccompaniesAPorchBattery(t *testing.T) {
 	t.Parallel()
-	plan := policy.LayoutPlan{Cold: true, Rooms: []policy.PlannedRoom{{
-		Role: policy.PlannedShelter, Region: policy.RectRegion(policy.Rectangle{X: 10, Z: 10, Width: 5, Height: 4}),
+	plan := policy.LayoutPlan{Cold: true, NextRoomID: 3, Rooms: []policy.PlannedRoom{{
+		ID: 1, Role: policy.PlannedShelter, Region: policy.RectRegion(policy.Rectangle{X: 10, Z: 10, Width: 5, Height: 4}),
 		Door: domain.Cell{X: 15, Z: 12}, DoorRot: domain.East,
-		Porch: &policy.Porch{Strip: policy.Rectangle{X: 8, Z: 10, Width: 1, Height: 4}},
+	}, {
+		ID: 2, Parent: 1, Role: policy.PlannedPorch, DoorRot: domain.East,
+		Region: policy.RectRegion(policy.Rectangle{X: 8, Z: 10, Width: 1, Height: 4}),
 	}}}
 	facts := observation.ColonyProjection{LayoutPlan: domain.Known(plan)}
 	battery := func(c domain.Cell) policy.Preview {

@@ -17,6 +17,18 @@ func (p LayoutPlan) AllRooms() []PlannedRoom {
 	return out
 }
 
+// ChildrenOf are the rooms attached to room id (an airlock, a porch), in plan
+// order; nil for a room with none.
+func (p LayoutPlan) ChildrenOf(id int32) []PlannedRoom {
+	var out []PlannedRoom
+	for _, r := range p.AllRooms() {
+		if id != 0 && r.Parent == id {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
 // Hallways is every walkable hallway: the spine, then each wing's corridor.
 func (p LayoutPlan) Hallways() []SpineSegment {
 	if len(p.Wings) == 0 {
@@ -146,6 +158,11 @@ func RoomsInUse(plan LayoutPlan, built []CurrentBuilding, furniture []FurnitureD
 func dropRooms(plan LayoutPlan, drop map[int32]bool) (LayoutPlan, bool) {
 	if len(drop) == 0 {
 		return plan, false
+	}
+	for _, r := range plan.Rooms {
+		if r.Parent != 0 && drop[r.Parent] {
+			drop[r.ID] = true // a child leaves with its parent
+		}
 	}
 	plan.Rooms = withoutRooms(plan.Rooms, drop)
 	plan.Wings = append([]Wing(nil), plan.Wings...)

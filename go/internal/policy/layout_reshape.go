@@ -89,7 +89,7 @@ func reshapeFits(plan LayoutPlan, r PlannedRoom, to Region, blocked map[domain.C
 	if !slices.ContainsFunc(plan.Rooms, func(o PlannedRoom) bool { return o.ID == r.ID }) {
 		return false
 	}
-	if r.Unfenced() || r.Dug || r.Airlock != nil || r.Porch != nil || !r.Region.IsRect() || !to.IsRect() || to.Empty() {
+	if r.Unfenced() || r.Dug || len(plan.ChildrenOf(r.ID)) > 0 || !r.Region.IsRect() || !to.IsRect() || to.Empty() {
 		return false
 	}
 	b := to.Bounds()

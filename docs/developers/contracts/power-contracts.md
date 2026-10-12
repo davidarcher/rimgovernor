@@ -90,7 +90,7 @@ check on the model: a consumer that actually loses power is a deficit whatever t
 - **`store`:** one `Battery` on a roofed cell within six cells of the draining consumer (an unroofed
   battery short-circuits in rain or snow). On a cold map, while the plan has no battery room,
   `PlannedPowerSites(Battery)` lists the shelter porch's slots first: an open lean-to strip on the
-  exterior face of the wall opposite the shelter door (`PlannedRoom.Porch`, `layout_porch.go`; two 1x2
+  exterior face of the wall opposite the shelter door (a `PlannedPorch` child of the shelter, `layout_porch.go`; two 1x2
   slots, no walls). The porch is not enclosed, so the plan that places a battery on it also carries a
   `build_roof` action over the whole strip (vanilla's Build Roof area, see
   [action contracts](action-contracts.md)), and `previewPlannedPower`'s roofed-cell gate accepts porch

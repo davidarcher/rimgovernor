@@ -8,6 +8,8 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // stands. Tier orders construction only; it is not the tech ladder.
 var plannedRoleTier = map[PlannedRole]domain.ConstructionTier{
 	PlannedShelter: domain.TierSurvive,
+	PlannedAirlock: domain.TierSurvive,
+	PlannedPorch:   domain.TierSurvive,
 	PlannedKitchen: domain.TierSurvive,
 
 	PlannedBedroom:    domain.TierSustain,

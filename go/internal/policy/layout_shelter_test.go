@@ -148,7 +148,7 @@ func TestShelterDoorFacesTheBase(t *testing.T) {
 		{domain.Cell{X: 13, Z: 60}, domain.North, domain.Cell{X: 13, Z: 14}},
 		{domain.Cell{X: 13, Z: -30}, domain.South, domain.Cell{X: 13, Z: 9}},
 	} {
-		r := shelterRoom(in, c.seed, false, false)
+		r := shelterRoom(in, c.seed)
 		if r.DoorRot != c.rot || r.Door != c.door {
 			t.Fatalf("seed %v: door %v %v, want %v %v", c.seed, r.Door, r.DoorRot, c.door, c.rot)
 		}

@@ -431,11 +431,8 @@ func newUtilityGrid(plan LayoutPlan) *utilityGrid {
 	}
 	for _, r := range plan.AllRooms() {
 		u.mark(roomWalls(r))
-		if r.Airlock != nil {
-			u.mark(r.AirlockGround())
-		}
-		if r.Porch != nil {
-			u.mark(r.PorchGround())
+		if r.attached() {
+			u.mark(r.attachedGround())
 		}
 	}
 	for _, s := range plan.Hallways() {
