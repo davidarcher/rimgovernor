@@ -35,6 +35,9 @@ type StationCatalog struct {
 	// Joy is the joy givers a colonist uses and the game numbers beside them
 	// (#2997); the zero value is unknown and leaves joy outings unsized.
 	Joy JoyModel
+	// Haul is the mined and chopped goods and what they cost in work (#2998); the
+	// zero value is unknown and leaves them unhauled.
+	Haul HaulModel
 }
 
 // Station is one buildable definition as the planner sees it.

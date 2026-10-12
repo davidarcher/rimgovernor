@@ -96,6 +96,10 @@ func DefTables() []DefTable {
 		// interval and gain scale are Need_Joy's and JoyUtility's literals (ilspycmd).
 		{"joyGame", "RimWorld.NeedDef", []string{joyGame.Need}},
 		{"joyOutdoorGivers", "RimWorld.JoyGiverDef", slices.Clone(joyGame.OutdoorGivers)},
+		// haulGame (#2998): the stats the mining and chopping work and yield are scaled
+		// by; the pick interval and hit are JobDriver_Mine's literals (ilspycmd) and
+		// MinerOwners the judgment explained on HaulTable.
+		{"haulGame", "RimWorld.StatDef", []string{haulGame.MiningSpeed, haulGame.MiningYield, haulGame.PlantWorkSpeed, haulGame.PlantHarvestYield}},
 	}
 }
 

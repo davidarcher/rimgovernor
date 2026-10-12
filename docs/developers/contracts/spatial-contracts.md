@@ -332,8 +332,20 @@ on the colony centre when the plan has no free cell there.
   session is one trip from the bed to the outside node, merged into the day-cycle edge.
   It is a lower bound: no tolerance, weather, or building-backed givers (they wait on a
   rec room with stations in the graph, whose indoor sessions are `RecreationNode.Indoor`).
-  Mined, wood and hunt hauling have no model yet (#2949), so a plan's passages fall
-  short of the audit's 30-50 per colonist a day. Each passage holds a door open for its window,
+  Mined, chopped and hunted goods are hauls from the outside node to the store that
+  holds them (`StationCatalog.Haul`, `layout_haul_nodes.go`, #2998): an owner works
+  `CookTicksPerDay` of the day; a mineable tile costs `ceil(hit points / 80)` pick hits of
+  100 ticks and gives `mineableYield` x `mineableDropChance` (x `MiningYield` when
+  wasteable), a tree `harvestWork` ticks for `harvestYield` (`haulGame` reads the four
+  stats at their default base); the defs of one item average. The woodcutters are the
+  PlantCutting owners and the hunters the Hunting owners of `baselineDemand`; Mining has
+  no baseline owner, so `haulGame.MinerOwners` (one) stands for it. An owner's ticks go in
+  equal shares to the goods the stock demand holds, hauled as stacks (items over
+  `StackLimit`; weights are loads a day, not items); a kill is one load of
+  `HuntKillsPerHunterDay` per hunter to the cold store, only where the orders butcher. The
+  output is the owners' capacity (an upper bound where the stock is met sooner) and leaves
+  out skill, the walk to the rock, tree or prey, builders' and deep drills' ore and trade
+  or loot; an unread yield, work or stack adds no flow. Each passage holds a door open for its window,
   from the def: the wait (`Building_Door.TicksToOpenNow`, 45 over `DoorOpenSpeed`), two
   cell moves (`climateTable.CellMoveTicks`) and the close delay (`ClimateModel.Door`). An
   airlock passage has an overlap of one close delay with both doors open (the vestibule

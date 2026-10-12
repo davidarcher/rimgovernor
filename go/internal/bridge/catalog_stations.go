@@ -112,6 +112,7 @@ func (catalog *DefinitionCatalog) buildStations() (policy.StationCatalog, error)
 	if out.Joy, err = catalog.joyModel(); err != nil {
 		return policy.StationCatalog{}, err
 	}
+	out.Haul = catalog.haulModel()
 	return out, nil
 }
 

@@ -347,6 +347,7 @@ func BuildStationGraph(in StationGraphInput) (StationGraph, error) {
 	fields := b.fieldNodes(runs)
 	pens := b.penNodes()
 	recreation := b.recreation()
+	b.hauls()
 	g := b.graph()
 	g.Fields = fields
 	g.Pens = pens
@@ -911,9 +912,8 @@ func recipePicks(f RecipeFlow) []Amount {
 // medical bed leaves it at wake and comes back to sleep, one trip a day to the
 // outside node (one way, like every edge; the way back is counted where trips
 // become door passages). Meals are sleepEat's and the pen herds' hauls are
-// penNodes' and the joy outings are recreation's; what a colonist does between
-// wake and sleep outdoors (hauling mined, wood or hunted goods) has no model yet
-// and adds nothing.
+// penNodes', the joy outings are recreation's and the hauls of mined, wood and
+// hunted goods are hauls'.
 func (b *graphBuilder) dayCycle() {
 	p := b.in.Population
 	if p.Colonists <= 0 {
