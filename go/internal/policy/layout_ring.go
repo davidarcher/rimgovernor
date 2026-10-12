@@ -134,10 +134,11 @@ func siteRing(plan LayoutPlan, markers int) (PlannedRoom, bool) {
 	var best Rectangle
 	found, bestDist := false, int32(0)
 	for _, side := range outskirtsSides {
-		block, ok := cands[side]
+		site, ok := cands[side]
 		if !ok {
 			continue
 		}
+		block := site.Bounds()
 		dx := (block.X + block.Width/2) - (anchor.X + anchor.Width/2)
 		dz := (block.Z + block.Height/2) - (anchor.Z + anchor.Height/2)
 		if d := dx*dx + dz*dz; !found || d < bestDist {

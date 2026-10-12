@@ -141,8 +141,8 @@ func coreFootprint(plan LayoutPlan, w, h int32) []bool {
 	fp := coreBaseFootprint(plan, w, h)
 	gap := perimeterGap
 	for _, r := range plan.Reservations {
-		if outerEnclosed[r.Kind] && crowdsCore(fp, w, h, r.Area.Bounds(), gap) {
-			markRect(fp, w, h, pad(r.Area.Bounds(), 1))
+		if outerEnclosed[r.Kind] && crowdsCore(fp, w, h, r.Area, gap) {
+			markRegion(fp, w, h, r.Area.Grow(1))
 		}
 	}
 	return fp
@@ -159,7 +159,7 @@ func coreBaseFootprint(plan LayoutPlan, w, h int32) []bool {
 	}
 	for _, r := range plan.Reservations {
 		if innerEnclosed[r.Kind] {
-			markRect(fp, w, h, pad(r.Area.Bounds(), 1))
+			markRegion(fp, w, h, r.Area.Grow(1))
 		}
 	}
 	return fp
@@ -174,6 +174,19 @@ func markRect(fp []bool, w, h int32, r Rectangle) {
 	}
 }
 
+// markRegion sets the cells of g that lie on the w x h map: a ring marks its
+// ring, not its bounding rectangle.
+func markRegion(fp []bool, w, h int32, g Region) {
+	for _, run := range g.Runs {
+		if run.Z < 0 || run.Z >= h {
+			continue
+		}
+		for x := max(run.X, 0); x < min(run.X+run.Length, w); x++ {
+			fp[run.Z*w+x] = true
+		}
+	}
+}
+
 // coreEnclosure traces the core ring's enclosure: the core grown by the
 // killbox yard, plus each outer-ring unit it takes in (crowdsCore) grown only
 // by perimeterOuterYard, as a blob of its own: a geothermal has no killbox lane
@@ -183,8 +196,8 @@ func coreEnclosure(plan LayoutPlan, w, h int32) enclosure {
 	gap := perimeterGap
 	tight := make([]bool, len(base))
 	for _, r := range plan.Reservations {
-		if outerEnclosed[r.Kind] && crowdsCore(base, w, h, r.Area.Bounds(), gap) {
-			markRect(tight, w, h, r.Area.Bounds())
+		if outerEnclosed[r.Kind] && crowdsCore(base, w, h, r.Area, gap) {
+			markRegion(tight, w, h, r.Area)
 		}
 	}
 	m := LayoutEdgeMargin + perimeterThick
@@ -203,11 +216,14 @@ const outerClear = perimeterGap + perimeterThick + perimeterOuterGap + perimeter
 // crowdsCore reports whether area stands within outerClear (Chebyshev), widened by
 // the yard (gap) a herd grew past perimeterGap, of the core footprint. The outer
 // ring cannot wall such a unit whole, so the core ring takes it in.
-func crowdsCore(fp []bool, w, h int32, area Rectangle, gap int32) bool {
+func crowdsCore(fp []bool, w, h int32, area Region, gap int32) bool {
 	clear := outerClear + gap - perimeterGap
-	for z := max(area.Z-clear, 0); z < min(area.Z+area.Height+clear, h); z++ {
-		for x := max(area.X-clear, 0); x < min(area.X+area.Width+clear, w); x++ {
-			if fp[z*w+x] {
+	for _, run := range area.Grow(clear).Runs {
+		if run.Z < 0 || run.Z >= h {
+			continue
+		}
+		for x := max(run.X, 0); x < min(run.X+run.Length, w); x++ {
+			if fp[run.Z*w+x] {
 				return true
 			}
 		}

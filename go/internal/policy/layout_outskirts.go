@@ -40,13 +40,13 @@ const (
 var outskirtsSides = []domain.Rotation{domain.West, domain.East, domain.South, domain.North}
 
 // OutskirtsArea is the plan's outskirts reservation, false when it holds none.
-func (p LayoutPlan) OutskirtsArea() (Rectangle, bool) {
+func (p LayoutPlan) OutskirtsArea() (Region, bool) {
 	for _, r := range p.Reservations {
 		if r.Kind == ReserveOutskirts {
-			return r.Area.Bounds(), true
+			return r.Area, true
 		}
 	}
-	return Rectangle{}, false
+	return Region{}, false
 }
 
 // growOutskirts reserves a w x h outline for the outskirts in plan unless it
@@ -63,7 +63,7 @@ func growOutskirts(plan LayoutPlan, size [2]int32) (LayoutPlan, bool) {
 	if !ok {
 		return plan, false
 	}
-	plan.Reservations = append(slices.Clone(plan.Reservations), LayoutReservation{Kind: ReserveOutskirts, Area: RectRegion(area)})
+	plan.Reservations = append(slices.Clone(plan.Reservations), LayoutReservation{Kind: ReserveOutskirts, Area: area})
 	return plan, true
 }
 
@@ -71,9 +71,9 @@ func growOutskirts(plan LayoutPlan, size [2]int32) (LayoutPlan, bool) {
 // on the side of the core extent holding the least core ground within reach,
 // the nearest valid site to the extent, ties by position. plan holds its core
 // zones. False when the plan has no core or no side fits one.
-func SiteOutskirts(plan LayoutPlan, w, h int32) (Rectangle, bool) {
+func SiteOutskirts(plan LayoutPlan, w, h int32) (Region, bool) {
 	best, u, ext, lines := outskirtsCandidates(plan, w, h)
-	var out Rectangle
+	var out Region
 	found, score := false, 0
 	for _, side := range outskirtsSides {
 		area, ok := best[side]
@@ -89,13 +89,13 @@ func SiteOutskirts(plan LayoutPlan, w, h int32) (Rectangle, bool) {
 
 // outskirtsCandidates is the nearest valid site on each side of the core
 // extent, with the grid, extent and growth lines that scored them.
-func outskirtsCandidates(plan LayoutPlan, w, h int32) (map[domain.Rotation]Rectangle, *utilityGrid, Rectangle, []Rectangle) {
+func outskirtsCandidates(plan LayoutPlan, w, h int32) (map[domain.Rotation]Region, *utilityGrid, Rectangle, []Rectangle) {
 	return outskirtsCandidatesAt(plan, w, h, outskirtsGap)
 }
 
 // outskirtsCandidatesAt is outskirtsCandidates keeping gap clear cells from
 // every room and hallway instead of outskirtsGap.
-func outskirtsCandidatesAt(plan LayoutPlan, w, h, gap int32) (map[domain.Rotation]Rectangle, *utilityGrid, Rectangle, []Rectangle) {
+func outskirtsCandidatesAt(plan LayoutPlan, w, h, gap int32) (map[domain.Rotation]Region, *utilityGrid, Rectangle, []Rectangle) {
 	ext, ok := plan.CoreBounds()
 	if !ok || len(plan.Hallways()) == 0 {
 		return nil, nil, ext, nil
@@ -114,7 +114,7 @@ func outskirtsCandidatesAt(plan LayoutPlan, w, h, gap int32) (map[domain.Rotatio
 	}
 	walkable := u.walkableFromCore(plan)
 
-	best, bestDist := map[domain.Rotation]Rectangle{}, map[domain.Rotation]int32{}
+	best, bestDist := map[domain.Rotation]Region{}, map[domain.Rotation]int32{}
 	x0, x1 := max(ext.X-outskirtsReach-w, 0), min(ext.X+ext.Width+outskirtsReach, u.w-w)
 	z0, z1 := max(ext.Z-outskirtsReach-h, 0), min(ext.Z+ext.Height+outskirtsReach, u.h-h)
 	for z := z0; z <= z1; z++ {
@@ -131,7 +131,7 @@ func outskirtsCandidatesAt(plan LayoutPlan, w, h, gap int32) (map[domain.Rotatio
 				shelterBlocked(site, avoid) || shelterBlocked(site, lines) || !u.reachable(site, walkable) {
 				continue
 			}
-			best[side], bestDist[side] = site, dist
+			best[side], bestDist[side] = RectRegion(site), dist
 		}
 	}
 	return best, u, ext, lines

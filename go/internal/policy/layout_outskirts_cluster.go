@@ -177,7 +177,7 @@ func growOutskirtsRooms(plan LayoutPlan, thick map[domain.Cell]bool) (LayoutPlan
 	if !has {
 		return plan, false
 	}
-	l, ok := OutskirtsSlots(area)
+	l, ok := OutskirtsSlots(area.Bounds())
 	if !ok {
 		return plan, false
 	}

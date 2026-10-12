@@ -20,7 +20,8 @@ func outskirtsPlan(rockX int32) LayoutPlan {
 
 func TestOutskirtsSitedOffTheCoreOnTheSideWithLeastGround(t *testing.T) {
 	plan := outskirtsPlan(150)
-	site, ok := SiteOutskirts(plan, outskirtsW, outskirtsH)
+	siteR, ok := SiteOutskirts(plan, outskirtsW, outskirtsH)
+	site := siteR.Bounds()
 	if !ok {
 		t.Fatal("no site")
 	}
@@ -56,7 +57,7 @@ func TestOutskirtsSitedOffTheCoreOnTheSideWithLeastGround(t *testing.T) {
 			t.Fatal("a side with less core ground fits", other, chosen)
 		}
 	}
-	if again, _ := SiteOutskirts(plan, outskirtsW, outskirtsH); again != site {
+	if again, _ := SiteOutskirts(plan, outskirtsW, outskirtsH); !again.Equal(siteR) {
 		t.Fatal("not deterministic", site, again)
 	}
 }
@@ -67,7 +68,8 @@ func TestOutskirtsGrowOnceAndNeverMove(t *testing.T) {
 	if !ok {
 		t.Fatal("not grown")
 	}
-	area, has := grown.OutskirtsArea()
+	areaR, has := grown.OutskirtsArea()
+	area := areaR.Bounds()
 	if !has {
 		t.Fatal("no reservation")
 	}
@@ -80,14 +82,15 @@ func TestOutskirtsGrowOnceAndNeverMove(t *testing.T) {
 	if len(plan.Reservations) == len(grown.Reservations) {
 		t.Fatal("the input plan was changed or nothing added")
 	}
-	if got, _ := grown.OutskirtsArea(); got != area {
+	if got, _ := grown.OutskirtsArea(); got.Bounds() != area {
 		t.Fatal("moved")
 	}
 }
 
 func TestOutskirtsStayWholeWhenTheCoreGrowsLater(t *testing.T) {
 	plan, _ := growOutskirts(outskirtsPlan(150), [2]int32{outskirtsW, outskirtsH})
-	area, _ := plan.OutskirtsArea()
+	areaR, _ := plan.OutskirtsArea()
+	area := areaR.Bounds()
 	late, err := WithCoreRooms(plan, PlannedBattery, PlannedWorship)
 	if err != nil {
 		t.Fatal(err)
@@ -100,14 +103,15 @@ func TestOutskirtsStayWholeWhenTheCoreGrowsLater(t *testing.T) {
 			t.Fatal("a late room cut into the cluster", r.Role, area)
 		}
 	}
-	if got, _ := late.OutskirtsArea(); got != area {
+	if got, _ := late.OutskirtsArea(); got.Bounds() != area {
 		t.Fatal("cluster changed", got, area)
 	}
 }
 
 func TestOutskirtsNeedWalkablePath(t *testing.T) {
 	plan := outskirtsPlan(150)
-	site, _ := SiteOutskirts(plan, outskirtsW, outskirtsH)
+	siteR, _ := SiteOutskirts(plan, outskirtsW, outskirtsH)
+	site := siteR.Bounds()
 	// A rock moat round the site leaves no way in: the next best site is used.
 	moat := LayoutZone{Kind: ZoneMining}
 	for _, c := range RectangleCells(pad(site, 2)) {
@@ -117,7 +121,8 @@ func TestOutskirtsNeedWalkablePath(t *testing.T) {
 	}
 	walled := plan
 	walled.Zones = append(append([]LayoutZone(nil), plan.Zones...), moat)
-	next, ok := SiteOutskirts(walled, outskirtsW, outskirtsH)
+	nextR, ok := SiteOutskirts(walled, outskirtsW, outskirtsH)
+	next := nextR.Bounds()
 	if ok && rectsOverlap(next, pad(site, 2)) && next == site {
 		t.Fatal("sited behind a rock moat", next)
 	}
@@ -134,7 +139,8 @@ func TestOutskirtsReplanGateUnchangedWithoutCluster(t *testing.T) {
 // base stays one compact block (no far cluster for the outer ring to reach).
 func TestOutskirtsStandCloseToTheCore(t *testing.T) {
 	plan := outskirtsPlan(150)
-	site, ok := SiteOutskirts(plan, outskirtsW, outskirtsH)
+	siteR, ok := SiteOutskirts(plan, outskirtsW, outskirtsH)
+	site := siteR.Bounds()
 	if !ok {
 		t.Fatal("no site")
 	}

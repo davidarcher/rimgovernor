@@ -116,8 +116,9 @@ func growGraveyards(plan LayoutPlan, demand RoomDemand) (LayoutPlan, bool) {
 		if !ok {
 			break
 		}
-		in := Rectangle{X: area.X + 1, Z: area.Z + 1, Width: GraveyardW, Height: GraveyardH}
-		slot := OutskirtsSlot{Outline: area, Interior: in}
+		outline := area.Bounds()
+		in := Rectangle{X: outline.X + 1, Z: outline.Z + 1, Width: GraveyardW, Height: GraveyardH}
+		slot := OutskirtsSlot{Outline: outline, Interior: in}
 		plan.Rooms = append(slices.Clone(plan.Rooms), slotRoom(PlannedGraveyard, slot))
 		added = true
 	}
@@ -126,25 +127,27 @@ func growGraveyards(plan LayoutPlan, demand RoomDemand) (LayoutPlan, bool) {
 
 // nearestSite is the candidate nearest (by centre distance) to the outskirts
 // cluster, or to the core when the plan holds none.
-func nearestSite(sites map[domain.Rotation]Rectangle, plan LayoutPlan) (Rectangle, bool) {
-	from, has := plan.OutskirtsArea()
+func nearestSite(sites map[domain.Rotation]Region, plan LayoutPlan) (Region, bool) {
+	area, has := plan.OutskirtsArea()
+	from := area.Bounds()
 	if !has {
 		from, has = plan.CoreBounds()
 	}
 	if !has {
-		return Rectangle{}, false
+		return Region{}, false
 	}
-	var out Rectangle
+	var out Region
 	found, best := false, int32(0)
 	for _, side := range outskirtsSides {
-		s, ok := sites[side]
+		site, ok := sites[side]
 		if !ok {
 			continue
 		}
+		s := site.Bounds()
 		dx := (s.X + s.Width/2) - (from.X + from.Width/2)
 		dz := (s.Z + s.Height/2) - (from.Z + from.Height/2)
 		if d := dx*dx + dz*dz; !found || d < best {
-			out, found, best = s, true, d
+			out, found, best = site, true, d
 		}
 	}
 	return out, found

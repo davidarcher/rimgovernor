@@ -21,7 +21,8 @@ func graveyardPlan(t *testing.T) (LayoutPlan, PlannedRoom) {
 
 func TestGraveyardIsAnOutdoorRoomInTheOutskirtsSlot(t *testing.T) {
 	plan, room := graveyardPlan(t)
-	area, _ := plan.OutskirtsArea()
+	outskirts, _ := plan.OutskirtsArea()
+	area := outskirts.Bounds()
 	l, _ := OutskirtsSlots(area)
 	if room.Region.Bounds() != l.Graveyard.Interior || !room.Outdoor || !room.Unfenced() || room.Door != (domain.Cell{}) {
 		t.Fatalf("graveyard %+v want unfenced slot %+v", room, l.Graveyard)

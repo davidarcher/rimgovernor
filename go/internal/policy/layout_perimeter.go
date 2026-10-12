@@ -280,7 +280,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 		// Raiders fight through the killbox: no utility stands in it.
 		for _, r := range plan.Reservations {
-			if !perimeterKinds[r.Kind] && rectsOverlap(killbox, r.Area.Bounds()) {
+			if !perimeterKinds[r.Kind] && r.Area.OverlapsRect(killbox) {
 				return false
 			}
 		}

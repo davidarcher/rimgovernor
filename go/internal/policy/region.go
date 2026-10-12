@@ -221,3 +221,25 @@ func (g Region) minus(o Region) Region {
 
 // Equal reports whether both regions hold the same cells.
 func (g Region) Equal(o Region) bool { return slices.Equal(g.Runs, o.Runs) }
+
+// Grow is the region dilated by n cells in every direction (Chebyshev): for a
+// rectangle, the rectangle padded by n; for a ring, the ring thickened with its
+// hole filled only as far as n reaches. Zero or negative n is the region itself.
+func (g Region) Grow(n int32) Region {
+	if n <= 0 || g.Empty() {
+		return g
+	}
+	runs := make([]RowRun, 0, len(g.Runs)*int(2*n+1))
+	for _, r := range g.Runs {
+		for dz := -n; dz <= n; dz++ {
+			runs = append(runs, RowRun{Z: r.Z + dz, X: r.X - n, Length: r.Length + 2*n})
+		}
+	}
+	return Region{Runs: canonicalRuns(runs)}
+}
+
+// OverlapsRect reports whether the region shares a cell with r. A ring does not
+// overlap a rectangle lying wholly in its hole.
+func (g Region) OverlapsRect(r Rectangle) bool {
+	return g.Overlaps(RectRegion(r))
+}

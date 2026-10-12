@@ -71,7 +71,8 @@ func TestOutskirtsPlanHoldsTombAndMorgueFromTheStart(t *testing.T) {
 	if !added || OutskirtsOwed(plan) {
 		t.Fatalf("rooms added=%v owed=%v", added, OutskirtsOwed(plan))
 	}
-	area, _ := plan.OutskirtsArea()
+	outskirts, _ := plan.OutskirtsArea()
+	area := outskirts.Bounds()
 	l, _ := OutskirtsSlots(area)
 	tombs, morgues := plan.roomsOf(PlannedTomb), plan.roomsOf(PlannedMorgue)
 	if len(tombs) != 1 || tombs[0].Region.Bounds() != l.Tomb.Interior || tombs[0].Door != l.Tomb.Door {
@@ -109,7 +110,8 @@ func TestOutskirtsPlanHoldsTombAndMorgueFromTheStart(t *testing.T) {
 func TestOutskirtsPlanHoldsWasteYardWithIncineratorInside(t *testing.T) {
 	plan, _ := growOutskirts(outskirtsPlan(150), OutskirtsSize())
 	plan, _ = growOutskirtsRooms(plan, nil)
-	area, _ := plan.OutskirtsArea()
+	outskirts, _ := plan.OutskirtsArea()
+	area := outskirts.Bounds()
 	l, _ := OutskirtsSlots(area)
 	yards, incs := plan.roomsOf(PlannedWasteYard), plan.IncineratorRooms()
 	if len(yards) != 1 || len(incs) != 1 {
@@ -162,8 +164,10 @@ func TestDeriveLayoutPlanPlansTheOutskirtsRooms(t *testing.T) {
 		t.Fatalf("outskirts not planned: %s", plan.Summary())
 	}
 	again, _ := DeriveLayoutPlan(survey, 3, TechTierCamp, nil, 0).Value()
-	a1, _ := plan.OutskirtsArea()
-	a2, _ := again.OutskirtsArea()
+	a1r, _ := plan.OutskirtsArea()
+	a1 := a1r.Bounds()
+	a2r, _ := again.OutskirtsArea()
+	a2 := a2r.Bounds()
 	if a1 != a2 {
 		t.Fatal("not deterministic", a1, a2)
 	}

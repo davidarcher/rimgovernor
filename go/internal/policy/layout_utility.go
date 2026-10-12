@@ -369,7 +369,7 @@ func (p LayoutPlan) CoolerExhaust(room PlannedRoom) (PlannedCoolerSite, Rectangl
 	wall, step, rot := backWall(room)
 	first := domain.Cell{X: wall.X + step.X, Z: wall.Z + step.Z}
 	for _, e := range p.Reservations {
-		if e.Kind == ReserveExhaust && (e.Area.Bounds().Width == 1 || e.Area.Bounds().Height == 1) && rectsOverlap(e.Area.Bounds(), Rectangle{X: first.X, Z: first.Z, Width: 1, Height: 1}) {
+		if e.Kind == ReserveExhaust && (e.Area.Bounds().Width == 1 || e.Area.Bounds().Height == 1) && e.Area.Contains(first) {
 			return PlannedCoolerSite{Cell: wall, Rotation: rot}, e.Area.Bounds(), true
 		}
 	}

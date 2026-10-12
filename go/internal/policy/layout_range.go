@@ -183,10 +183,11 @@ func siteRange(plan LayoutPlan, stands int32) (PlannedRoom, bool) {
 		w, h := rangeBlockSize(stands, horizontal)
 		cands, _, _, _ := outskirtsCandidatesAt(plan, w, h, rangeGap)
 		for _, side := range outskirtsSides {
-			block, ok := cands[side]
+			site, ok := cands[side]
 			if !ok {
 				continue
 			}
+			block := site.Bounds()
 			facing := rangeFacing(side, horizontal, block, ext)
 			rank := 1
 			if facing == side {
