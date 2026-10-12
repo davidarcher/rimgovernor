@@ -212,7 +212,7 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	}
 	na.ResetWaitStats()
 	na.ResetTickStats()
-	gameLog := na.OpenGameLog((&na.Config{Root: opts.Root, Headless: headless}).StartupLogPath())
+	gameLog := na.OpenGameLog((&na.Config{Root: opts.Root, Headless: headless, GameID: opts.GameID}).StartupLogPath())
 	// The log copy lands only in an output directory this run owns.
 	opened := false
 	code := func() int {

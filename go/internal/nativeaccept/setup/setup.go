@@ -343,7 +343,7 @@ func RenderConfig(l Layout) string {
 				"target":     filepath.Join(l.GameCopy, GameImage),
 				"workingDir": l.GameCopy,
 				"args": []string{
-					"-savedatafolder=" + profile, "-logFile", filepath.Join(l.Root, "Player.log"),
+					"-savedatafolder=" + profile, "-NoFileLog", "-DisableLogStackTraces",
 					"-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", "720",
 					"-rimgovernor-pause-on-load",
 				},

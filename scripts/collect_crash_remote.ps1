@@ -56,7 +56,7 @@ $roots = @("$env:LOCALAPPDATA\CrashDumps", "$env:ProgramData\Microsoft\Windows\W
 $inventory = @(); $logs = @()
 foreach ($r in $roots | Where-Object { $_ -and (Test-Path -LiteralPath $_) }) {
     Get-ChildItem -LiteralPath $r -Recurse -File -Depth 4 -ErrorAction SilentlyContinue |
-        Where-Object { $_.LastWriteTime -ge $Since -and ($_.FullName -match $names -or $_.FullName -match '\\Crash_' -or $_.Extension -eq '.dmp') } |
+        Where-Object { $_.LastWriteTime -ge $Since -and ($_.Name -ne 'Player.log' -and ($_.FullName -match $names -or $_.FullName -match '\\Crash_' -or $_.Extension -eq '.dmp')) } |
         ForEach-Object {
             $inventory += "$($_.LastWriteTime.ToString('o')) $($_.Length) $($_.Directory.Name)/$($_.Name)"
             if ($_.Extension -in '.log','.txt','.wer' -and $_.Length -lt 1MB) {

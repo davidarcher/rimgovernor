@@ -15,9 +15,9 @@ const GameLogName = "game.log"
 // GameLogKey is the result.json field GameLogCapture.Close records.
 const GameLogKey = "game_log"
 
-// GameLogCapture retains the slice of the game's log (Player.log or
-// HeadlessPlayer.log under the root, shared by every case on a kept
-// process and overwritten by a relaunch) that a case wrote: OpenGameLog
+// GameLogCapture retains the slice of the game's log (the instance's captured stdout, game.log in
+// its gamehost state directory, shared by every case on a kept process and
+// overwritten by a relaunch) that a case wrote: OpenGameLog
 // notes where the log ends when the case opens, and Close copies from
 // there to <output>/game.log. A native exception mid-case is then in the
 // case's own evidence instead of a root-level file the next case overwrites.

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/gamehost"
 )
 
 // BridgeConfig is the bridge.ProcessConfig for gameID under configDir: the
@@ -298,10 +299,14 @@ func (c *Config) GameSection() (map[string]any, error) {
 	return game, nil
 }
 
-// StartupLogPath returns the expected Player.log/HeadlessPlayer.log path under Root.
+// StartupLogPath returns the game log of the instance under Root: the stdout
+// the gamehost captures into its state directory (<Root>/config-headless or
+// <Root>/config), per root. 1.7 ignores -logFile and writes Player.log to one
+// shared LocalLow path, so nothing reads that file.
 func (c *Config) StartupLogPath() string {
+	config := "config"
 	if c.Headless {
-		return filepath.Join(c.Root, "HeadlessPlayer.log")
+		config = "config-headless"
 	}
-	return filepath.Join(c.Root, "Player.log")
+	return gamehost.LogPath(filepath.Join(c.Root, config), c.GameID)
 }

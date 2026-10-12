@@ -639,7 +639,7 @@ func prepareRendered(root string, fixtureOps, expansions []string) (string, erro
 		return "", err
 	}
 	game["args"] = []any{
-		"-savedatafolder=" + profile, "-logFile", filepath.Join(root, "Player.log"),
+		"-savedatafolder=" + profile, "-NoFileLog", "-DisableLogStackTraces",
 		"-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", "720", "-rimgovernor-pause-on-load",
 		"-rimgovernor-test-acceleration", IdleExitArg,
 	}
@@ -719,8 +719,13 @@ func prepare(root string, fixtureOps, expansions []string, graphics bool) (strin
 	// acceleration (StartRequest.test_acceleration); both acceptance
 	// profiles (this one and PrepareRendered) carry it, a player launch
 	// never does.
+	// 1.7 ignores -logFile and writes one Player.log at a fixed LocalLow path
+	// shared by every instance, so -NoFileLog stops that write: the per-instance
+	// log is the stdout the gamehost captures to <config>/<game>/game.log.
+	// -DisableLogStackTraces bounds that capture (about 15 MB a minute with
+	// stacks); message lines, exceptions included, stay.
 	args := []any{
-		"-savedatafolder=" + profile, "-logFile", filepath.Join(root, "HeadlessPlayer.log"),
+		"-savedatafolder=" + profile, "-NoFileLog", "-DisableLogStackTraces",
 		"-Headless", "-batchmode", "-rimgovernor-pause-on-load", "-rimgovernor-test-acceleration", IdleExitArg,
 	}
 	if graphics {

@@ -167,6 +167,12 @@ func (g *Game) removeEndpoint() error {
 
 func gameDir(stateDir, gameID string) string { return filepath.Join(stateDir, gameID) }
 
+// LogPath is where Launch captures the game process's stdout and stderr, the
+// per-instance game log (stateDir is per root, so instances never share it).
+func LogPath(stateDir, gameID string) string {
+	return filepath.Join(gameDir(stateDir, gameID), "game.log")
+}
+
 func endpointPath(stateDir, gameID string) string {
 	return filepath.Join(gameDir(stateDir, gameID), "endpoint.json")
 }
@@ -231,7 +237,7 @@ func Launch(ctx context.Context, spec Spec) (*Game, error) {
 	if err != nil {
 		return nil, err
 	}
-	logFile, err := os.Create(filepath.Join(dir, "game.log"))
+	logFile, err := os.Create(LogPath(spec.StateDir, spec.GameID))
 	if err != nil {
 		return nil, err
 	}
