@@ -33,7 +33,10 @@ package combatsim
 //     Verse.Pawn.TryStartAttack, Verse.AI.JobDriver_AttackStatic and
 //     Verse.AI.Pawn_JobTracker.StartJob (when a job's verb starts, #2914).
 //
-//   - shot.go: Verse.ShotReport.HitReportFor, HitFactorFromShooter,
+//   - shot.go: Verse.ShotReport.GetRandomCoverToMissInto;
+//     Verse.ShootLine.ChangeDestToMissWild;
+//     Verse.ShootTuning.MissDistanceFromAimOnChanceCurves (the wild and
+//     covered shot, #2937); Verse.ShotReport.HitReportFor, HitFactorFromShooter,
 //     AimOnTargetChance_*; Verse.VerbProperties.GetHitChanceFactor;
 //     Verse.Verb_LaunchProjectile.TryCastShot; Verse.Projectile.Launch,
 //     StartingTicksToImpact, CheckForFreeInterceptBetween, CheckForFreeIntercept,
@@ -67,4 +70,4 @@ const AssemblyCSharpSHA256 = "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04A
 // any change to a port or an approximation that can move an outcome (a rule
 // fix, a new modeled behavior): a calibration pass (combatsim/calibrate) is
 // recorded under it and is stale after a bump.
-const RulesVersion = 7
+const RulesVersion = 8

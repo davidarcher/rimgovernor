@@ -169,9 +169,11 @@ const (
 	// ShotFlying: aimed at the target; it hits it unless a pawn intercepts it
 	// (an EventHit follows when the projectile lands).
 	ShotFlying ShotOutcome = iota + 1
-	// ShotWild: missed wide; nothing is hit.
+	// ShotWild: missed wide, toward a cell around the target. The projectile
+	// flies on and may strike a thing or a pawn there (A7).
 	ShotWild
-	// ShotCover: absorbed by cover next to the target; nothing is hit.
+	// ShotCover: sent into the cover next to the target. It strikes the cover
+	// unless something on the way stops it first (A7).
 	ShotCover
 )
 
@@ -181,13 +183,16 @@ type Event struct {
 	Kind EventKind
 	Pawn domain.PawnID
 	Cell domain.Cell
-	// ETA is set on EventMoveStarted: the arrival tick, and on an EventShot
-	// whose Outcome is ShotFlying: the tick its projectile lands.
+	// ETA is set on EventMoveStarted: the arrival tick, and on an EventShot:
+	// the tick its projectile lands or is destroyed.
 	ETA int
 	// Target, Amount and Outcome are set by the combat events.
 	Target  domain.PawnID
 	Amount  float64
 	Outcome ShotOutcome
+	// StopsInThing is set on an EventShot whose projectile ends in a non-pawn
+	// thing (cover or a wall): it hits no pawn.
+	StopsInThing bool
 }
 
 // PawnState is a pawn's observable state.
@@ -258,6 +263,7 @@ type Sim struct {
 	// scratch reused across calls
 	leanSource, leanDest []domain.Cell
 	search               search
+	givers               []coverGiver
 }
 
 // Reset builds the world from sc and seeds the random streams from seed. It

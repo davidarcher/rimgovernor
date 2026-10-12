@@ -36,17 +36,24 @@ is a candidate to replace by a faithful port. Game sources are in
 
 ## Hit resolution
 
-- **A7. Wild and cover misses hit nothing.** The game sends a wild shot to a
-  random cell (it can strike a bystander) and a covered shot into the cover
-  thing; both here end with no damage and no friendly fire. The wild-miss
-  destination (`ChangeDestToMissWild`) and the cover thing choice
-  (`GetRandomCoverToMissInto`) are not ported. The recorded shots show what
-  this leaves out (#2933): 38 percent of the raiders' shots stop in a sandbag
-  or other non-pawn thing, none of the colonists' do (0.1 percent), while the
-  sim's covered shots are 14 percent. The other 24 points are wild shots
-  (`ChangeDestToMissWild`) that land on the sandbags in front of the colonists;
-  they would also reach the bystanders behind the line that `NonTargetPawns`
-  allows. Not ported: no outcome of the fight rests on them except those hits.
+- **A7. Wild and cover misses fly on; the forced miss radius is not ported.**
+  A wild shot is sent to `ShootLine.ChangeDestToMissWild`'s cell (a random
+  point `MissDistanceFromAimOnChanceCurves` cells from the target's cell centre,
+  not behind the shooter, cut short at the first filled cell when the shooter
+  cannot see it) with the NonTargetWorld flag and, on a coin flip, NonTargetPawns;
+  a covered shot is sent at a cover thing drawn by block chance
+  (`GetRandomCoverToMissInto`) with both. Each then flies like any projectile
+  (A9): a wall stops it, a sandbag (fill over 0.2) intercepts at its fill percent
+  next to the destination and 0.15 of that further out, bystanders by the
+  usual pawn chances (friendly ones scaled by the friendly-fire factor), and at
+  the destination `ImpactSomething` strikes the cover, or rolls each pawn and
+  thing on a wild cell. A shot that ends in a thing is `Event.StopsInThing`.
+  Recorded shots (#2933): 38 percent of the raiders' shots stop in a sandbag
+  or other non-pawn thing, none of the colonists' do (0.1 percent); the sim has
+  37.6 and 0.0 percent. Not ported: weapons with `ForcedMissRadius` above 0.5
+  (mortars; their imports stay unsupported), the lean cell as the wild line's
+  source (A8), and the `canGoWild` and `canHitNonTargetPawnsNow` verb flags
+  (both true for the ordinary attack job).
 - **A8. The line is cell centre to cell centre, in 3D, with the game's
   scatter.** Projectiles leave the shooter's cell centre (not the lean cell,
   `PawnLeaner`) and aim at the target's cell centre plus
@@ -63,7 +70,7 @@ is a candidate to replace by a faithful port. Game sources are in
   `GenTicks.GetCameraUpdateRate` = 15 ticks at the phase of its thing id hash,
   `ticksToImpact` falling by the ticks elapsed, so it lands on the first phase
   tick at or after launch + its 3D flight (0 to 14 ticks later) and is tested
-  for interception per 15-tick segment, the last one included. The phase is a
+  for interception per 15-tick segment, the last one included. The phase
   residue is `(tick + Gen.HashOffset(thingID)) % 15 == 0`, and the sim replays
   it from the id (#2936): every recorded landing (1526 of 1526; 1508 are the
   first such tick at or after launch + ticks to impact, the rest interceptions)
@@ -75,15 +82,15 @@ is a candidate to replace by a faithful port. Game sources are in
   the rest bleeding drops, lumped into the hit; filth stacking on an existing
   one, a corpse or dropped gear are not told apart). The start id is the
   `lab-ranged` checkpoint's; other scenarios inherit it. Draws come from the
-  stream of its own (`Streams.Phase`). The sim's flights run one tick short
-  of the recorded ones (median 45 against 46) because its flying shots have
-  a shorter mean ticks-to-impact (38.2 against the real 39.4 over all shots,
-  a different mix: the wild and cover shots are not flown, A7), not because of
-  the phase: its wait for the phase tick averages 6.8 of the expected 7.
-- **A10. Only pawns intercept.** A shot aimed at a pawn carries the
-  IntendedTarget and NonTargetPawns hit flags only, so walls, doors and cover
-  never intercept in flight; they matter through line of fire (`CellCanSeeCell`)
-  and the cover roll. This is the game's rule, noted because it surprises.
+  stream of its own (`Streams.Phase`). The sim's flights run about one tick
+  short of the recorded ones (median 45 against 46, mean 45.4 against 46.2);
+  wild and cover shots are flown too since A7, so the mix is the game's.
+- **A10. Only pawns intercept an aimed shot.** A shot aimed at a pawn carries
+  the IntendedTarget and NonTargetPawns hit flags only, so walls, doors and
+  cover never intercept it in flight; they matter through line of fire
+  (`CellCanSeeCell`) and the cover roll. This is the game's rule, noted because
+  it surprises. Wild and covered shots carry NonTargetWorld and do strike
+  them (A7).
 - **A11. A pawn without `Combat` is not in the fight.** Shots pass through it;
   it cannot be a target.
 - **A12. Everyone stands or lies.** Posture is standing, or lying when downed or

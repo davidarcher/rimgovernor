@@ -103,9 +103,37 @@ func (s *Sim) ShotReport(shooter, target domain.PawnID) (ShotReport, error) {
 
 // projectile is a launched shot whose outcome is decided; it lands at tick at.
 type projectile struct {
-	at               int
-	shooter, victim  int32
+	at      int
+	shooter int32
+	// victim is the pawn the projectile strikes, or -1 when it stops in a
+	// thing or on the ground.
+	victim           int32
 	intended, distal bool // victim is the aimed-at pawn; the shot was >= 4.5 cells
+}
+
+// hitFlags is ProjectileHitFlags: what a flying projectile may strike.
+type hitFlags uint8
+
+const (
+	hitIntended hitFlags = 1 << iota
+	hitNonTargetPawns
+	hitNonTargetWorld
+)
+
+// strike is where a projectile ends: a pawn (index), a non-pawn thing, or
+// neither (the ground, or off the map).
+type strike struct {
+	pawn  int
+	thing bool
+}
+
+var noStrike = strike{pawn: -1}
+
+// coverGiver is one CoverInfo of a ShotReport: the cell of a thing next to the
+// target and the adjusted chance it blocks the shot.
+type coverGiver struct {
+	cell   domain.Cell
+	chance float64
 }
 
 // chance ports Rand.Chance on the physical stream.
@@ -129,22 +157,30 @@ func (s *Sim) roundRandom(f float64) float64 {
 }
 
 // launch ports Verb_LaunchProjectile.TryCastShot for a shot from pawn si at
-// ti, drawing the outcome now: wild, into cover, or a flight whose
-// interception is decided against the pawns standing now.
+// ti, drawing the outcome now. A wild shot is sent to a cell around the target
+// (ShootLine.ChangeDestToMissWild), a covered one at the cover thing next to
+// it, and every projectile then flies to its destination, where the pawns and
+// things on the way and at the end are rolled against the shot's hit flags
+// (A7, A9). The interception is decided against the pawns standing now.
 func (s *Sim) launch(si, ti int) {
 	a, t := &s.pawns[si], &s.pawns[ti]
 	r := s.report(si, ti)
 	id := s.takeID() // every projectile takes an id, wild or not
 	e := Event{Kind: EventShot, Pawn: a.id, Target: t.id, Cell: a.pos, Outcome: ShotFlying}
+	// ShotReport.GetRandomCoverToMissInto is drawn before the wild test.
+	coverCell, haveCover := s.randomCover(a.pos, t)
+	dest, flags, used := t.pos, hitIntended|hitNonTargetPawns, usedPawn
 	switch {
 	case !s.chance(r.AimIgnoringPosture):
 		e.Outcome = ShotWild
-	case t.cover && !s.chance(r.PassCover()):
+		dest = s.wildDest(a.pos, t.pos, r.AimStandard)
+		flags, used = hitNonTargetWorld, usedCell
+		if s.chance(0.5) {
+			flags |= hitNonTargetPawns
+		}
+	case t.cover && haveCover && !s.chance(r.PassCover()):
 		e.Outcome = ShotCover
-	}
-	if e.Outcome != ShotFlying {
-		s.emit(e)
-		return
+		dest, flags, used = coverCell, hitNonTargetWorld|hitNonTargetPawns, usedCover
 	}
 	// Projectile.Launch: the destination is the cell centre plus a random
 	// horizontal vector of up to 0.3 on each axis, and the projectile is ticked
@@ -153,17 +189,104 @@ func (s *Sim) launch(si, ti int) {
 		(s.streams.Physical.Float64()*2 - 1) * launchScatter,
 		(s.streams.Physical.Float64()*2 - 1) * launchScatter,
 	}
-	victim, at := s.fly(si, ti, off, idPhase(id))
-	intended := false
-	if victim < 0 { // reaches the destination cell
-		victim, intended = ti, true
+	fl := flight{si: si, ti: ti, dest: dest, flags: flags,
+		tx: float64(dest.X) + 0.5 + off[0], tz: float64(dest.Z) + 0.5 + off[1]}
+	end, at, arrived := s.fly(fl, idPhase(id))
+	if arrived {
+		end = s.impactSomething(fl, used)
 	}
-	e.ETA = at
+	e.ETA, e.StopsInThing = at, end.thing
 	s.emit(e)
+	if end.pawn < 0 { // it stops in a thing, on the ground or off the map
+		return
+	}
+	intended := arrived && used == usedPawn
 	s.pending = append(s.pending, projectile{
-		at: at, shooter: int32(si), victim: int32(victim),
+		at: at, shooter: int32(si), victim: int32(end.pawn),
 		intended: intended, distal: r.Distance*r.Distance >= 20.25,
 	})
+}
+
+// randomCover ports ShotReport.GetRandomCoverToMissInto: the cover thing next
+// to t, weighted by its block chance.
+func (s *Sim) randomCover(shooter domain.Cell, t *pawn) (domain.Cell, bool) {
+	if !t.cover {
+		return domain.Cell{}, false
+	}
+	s.givers = s.coverGivers(t.pos, shooter, s.givers[:0])
+	total := 0.0
+	for _, c := range s.givers {
+		total += c.chance
+	}
+	if len(s.givers) == 0 || total <= 0 {
+		return domain.Cell{}, false
+	}
+	u := s.streams.Physical.Float64() * total
+	for _, c := range s.givers {
+		if u -= c.chance; u < 0 {
+			return c.cell, true
+		}
+	}
+	return s.givers[len(s.givers)-1].cell, true
+}
+
+// missDistance evaluates ShootTuning.MissDistanceFromAimOnChanceCurves: the
+// columns at aim-on chances 0.02, 0.04, 0.07, 0.11, 0.22 and 1 map a uniform
+// draw u to a distance from 1 up to 10, 8, 6, 4, 2 and 1 cells, blended
+// linearly between neighbouring columns.
+func missDistance(aim, u float64) float64 {
+	xs := [...]float64{0.02, 0.04, 0.07, 0.11, 0.22, 1}
+	far := [...]float64{10, 8, 6, 4, 2, 1}
+	col := func(i int) float64 { return 1 + (far[i]-1)*math.Min(math.Max(u, 0), 1) }
+	if aim <= xs[0] {
+		return col(0)
+	}
+	for i := 1; i < len(xs); i++ {
+		if aim <= xs[i] {
+			return lerp(col(i-1), col(i), (aim-xs[i-1])/(xs[i]-xs[i-1]))
+		}
+	}
+	return col(len(xs) - 1)
+}
+
+// wildDest ports ShootLine.ChangeDestToMissWild for a shot from src at dest:
+// a random point missDistance cells from the target's cell centre that does not
+// lie behind the shooter, then, if the shooter cannot see that cell, the first
+// filled cell on the line to it that is not within 1.5 cells of the shooter.
+// The line starts at the shooter's own cell (A8).
+func (s *Sim) wildDest(src, dest domain.Cell, aim float64) domain.Cell {
+	num := missDistance(aim, s.streams.Physical.Float64())
+	var c domain.Cell
+	for {
+		ux, uz := s.streams.Physical.NormFloat64(), s.streams.Physical.NormFloat64()
+		if n := math.Hypot(ux, uz); n > 0 {
+			ux, uz = ux/n, uz/n
+		}
+		// Vector3.ToIntVec3 truncates.
+		c = domain.Cell{
+			X: int32(float64(dest.X) + 0.5 + ux*num),
+			Z: int32(float64(dest.Z) + 0.5 + uz*num),
+		}
+		dot := (dest.X-src.X)*(c.X-src.X) + (dest.Z-src.Z)*(c.Z-src.Z)
+		if dot >= 0 {
+			break
+		}
+	}
+	if s.CellCanSeeCell(src, c) {
+		return c
+	}
+	pointsOnLine(src, c, func(p domain.Cell) bool {
+		c = p
+		if p == src || !s.g.inBounds(p) || s.g.thing(p).Fillage != FillFull {
+			return true
+		}
+		dx, dz := float64(src.X-p.X), float64(src.Z-p.Z)
+		if dx*dx+dz*dz <= 1.5*1.5 {
+			return true
+		}
+		return s.g.thing(p).Door && s.g.doorOpen[s.g.idx(p)]
+	})
+	return c
 }
 
 const (
@@ -184,9 +307,9 @@ const (
 // startingTicks is Projectile.StartingTicksToImpact for a shot from pawn si to
 // the centre of pawn ti's cell shifted by off: the 3D origin-to-destination
 // distance over the projectile speed.
-func (s *Sim) startingTicks(si, ti int, off [2]float64) float64 {
-	a, b := s.pawns[si].pos, s.pawns[ti].pos
-	dx, dz := float64(b.X-a.X)+off[0], float64(b.Z-a.Z)+off[1]
+func (s *Sim) startingTicks(si int, tx, tz float64) float64 {
+	a := s.pawns[si].pos
+	dx, dz := tx-(float64(a.X)+0.5), tz-(float64(a.Z)+0.5)
 	n := math.Sqrt(dx*dx+dz*dz+pawnAltitude*pawnAltitude) / s.pawns[si].weapon.ProjectileSpeed
 	if n <= 0 {
 		return 0.001
@@ -217,13 +340,15 @@ func interceptFactor(ox, oz float64, c domain.Cell) float64 {
 // impact (A9). phase is that tick's residue mod 15. A shot aimed at a pawn
 // carries only the IntendedTarget and NonTargetPawns hit flags, so only other
 // pawns can intercept it (walls and cover were settled by line of fire and the
-// cover roll). It returns the intercepting pawn (or -1 for the aimed-at
-// destination) and the tick the projectile lands.
-func (s *Sim) fly(si, ti int, off [2]float64, phase int) (victim, at int) {
-	a, t := &s.pawns[si], &s.pawns[ti]
+// cover roll); a wild or covered shot carries NonTargetWorld, so it can also
+// be stopped by a wall or a sandbag on the way. It returns where the
+// projectile was stopped, the tick it lands or is destroyed, and whether it
+// reached its destination (ImpactSomething follows). A projectile whose next
+// position is off the map is destroyed there.
+func (s *Sim) fly(fl flight, phase int) (end strike, at int, arrived bool) {
+	a := &s.pawns[fl.si]
 	ox, oz := float64(a.pos.X)+0.5, float64(a.pos.Z)+0.5
-	tx, tz := float64(t.pos.X)+0.5+off[0], float64(t.pos.Z)+0.5+off[1]
-	start := s.startingTicks(si, ti, off)
+	start := s.startingTicks(fl.si, fl.tx, fl.tz)
 	total := max(1, int(math.Ceil(start)))
 	last := [2]float64{ox, oz}
 	// The first call is the first tick of the phase at or after the launch.
@@ -231,32 +356,43 @@ func (s *Sim) fly(si, ti int, off [2]float64, phase int) (victim, at int) {
 	for at = first; ; at += offCameraInterval {
 		left := total - (at - s.tick) // ticksToImpact after this call
 		frac := math.Min(math.Max(1-float64(left)/start, 0), 1)
-		now := [2]float64{ox + (tx-ox)*frac, oz + (tz-oz)*frac}
-		if v := s.interceptBetween(si, ti, ox, oz, last, now); v >= 0 {
-			return v, at
+		now := [2]float64{ox + (fl.tx-ox)*frac, oz + (fl.tz-oz)*frac}
+		if now[0] < 0 || now[1] < 0 || now[0] >= float64(s.g.w) || now[1] >= float64(s.g.h) {
+			return noStrike, at, false
+		}
+		if v := s.interceptBetween(fl, ox, oz, last, now); v.thing || v.pawn >= 0 {
+			return v, at, false
 		}
 		if left <= 0 {
-			return -1, at
+			return noStrike, at, true
 		}
 		last = now
 	}
 }
 
-func (s *Sim) interceptBetween(si, ti int, ox, oz float64, last, now [2]float64) int {
+// flight is a launched projectile's course: shooter si, intended target ti,
+// the destination cell dest and its exact point (tx, tz), and the hit flags.
+type flight struct {
+	si, ti int
+	dest   domain.Cell
+	tx, tz float64
+	flags  hitFlags
+}
+
+func (s *Sim) interceptBetween(fl flight, ox, oz float64, last, now [2]float64) strike {
 	if last == now {
-		return -1
+		return noStrike
 	}
 	from := domain.Cell{X: int32(last[0]), Z: int32(last[1])}
 	to := domain.Cell{X: int32(now[0]), Z: int32(now[1])}
 	if to == from || !s.g.inBounds(from) || !s.g.inBounds(to) {
-		return -1
+		return noStrike
 	}
-	dest := s.pawns[ti].pos
 	if cardinalAdjacent(to, from) {
-		return s.interceptAt(si, to, dest, ox, oz)
+		return s.interceptAt(fl, to, ox, oz)
 	}
 	if interceptFactor(ox, oz, to) <= 0 {
-		return -1
+		return noStrike
 	}
 	vx, vz := now[0]-last[0], now[1]-last[1]
 	mag := math.Hypot(vx, vz)
@@ -273,7 +409,7 @@ func (s *Sim) interceptBetween(si, ti int, ox, oz float64, last, now [2]float64)
 			fresh = fresh && sc != c
 		}
 		if fresh {
-			if v := s.interceptAt(si, c, dest, ox, oz); v >= 0 {
+			if v := s.interceptAt(fl, c, ox, oz); v.thing || v.pawn >= 0 {
 				return v
 			}
 			if nseen < len(seen) {
@@ -282,25 +418,61 @@ func (s *Sim) interceptBetween(si, ti int, ox, oz float64, last, now [2]float64)
 			}
 		}
 		if steps++; steps > n || c == to {
-			return -1
+			return noStrike
 		}
 	}
 }
 
-// interceptAt ports Projectile.CheckForFreeIntercept for the pawn on c.
-func (s *Sim) interceptAt(si int, c, dest domain.Cell, ox, oz float64) int {
-	if c == dest || !s.g.inBounds(c) {
-		return -1
+// canHitPawn ports Projectile.CanHit for pawn j: not the launcher, the aimed
+// target only with the IntendedTarget flag, any other pawn with
+// NonTargetPawns.
+func (fl flight) canHitPawn(j int) bool {
+	switch j {
+	case fl.si:
+		return false
+	case fl.ti:
+		return fl.flags&hitIntended != 0
+	}
+	return fl.flags&hitNonTargetPawns != 0
+}
+
+// interceptAt ports Projectile.CheckForFreeIntercept for the things on c: the
+// building or item there first, then the pawns in the order they entered it
+// (the cell's thing list).
+func (s *Sim) interceptAt(fl flight, c domain.Cell, ox, oz float64) strike {
+	if c == fl.dest || !s.g.inBounds(c) {
+		return noStrike
 	}
 	f := interceptFactor(ox, oz, c)
 	if f <= 0 {
-		return -1
+		return noStrike
 	}
-	// Every pawn on the cell gets its roll, in the order they entered it
-	// (the cell's thing list).
+	if th := s.g.thing(c); fl.flags&hitNonTargetWorld != 0 && th.Name != "" {
+		// A Full thing stops the projectile unless it is an open door, which
+		// only gets the fixed 0.05; any other thing above fill 0.2 gets its
+		// fill percent, a full share next to the destination, 0.15 of it
+		// elsewhere.
+		openDoor := th.Door && s.g.doorOpen[s.g.idx(c)]
+		if th.Fillage == FillFull && !openDoor {
+			return strike{pawn: -1, thing: true}
+		}
+		chance := 0.0
+		switch {
+		case th.FillPercent <= 0.2:
+		case openDoor:
+			chance = 0.05
+		case max(abs32(c.X-fl.dest.X), abs32(c.Z-fl.dest.Z)) == 1:
+			chance = th.FillPercent
+		default:
+			chance = th.FillPercent * 0.15
+		}
+		if chance *= f; chance > 1e-5 && s.chance(chance) {
+			return strike{pawn: -1, thing: true}
+		}
+	}
 	for k := s.cells.head[s.g.idx(c)]; k != 0; k = s.pawns[k-1].here {
 		j := int(k) - 1
-		if j == si || !s.pawns[j].has {
+		if !s.pawns[j].has || !fl.canHitPawn(j) {
 			continue
 		}
 		v := &s.pawns[j]
@@ -308,16 +480,75 @@ func (s *Sim) interceptAt(si int, c, dest domain.Cell, ox, oz float64) int {
 		if v.lying() {
 			chance *= 0.1
 		}
-		if v.side == s.pawns[si].side {
+		if v.side == s.pawns[fl.si].side {
 			chance *= s.ff
 		}
 		chance *= f
 		if chance > 1e-5 && s.chance(chance) {
-			return j
+			return strike{pawn: j}
 		}
 	}
-	return -1
+	return noStrike
 }
+
+// impactSomething ports Projectile.ImpactSomething for a projectile that
+// reached its destination cell. A projectile aimed at a pawn (usedPawn)
+// strikes it; one sent at a cover thing strikes that thing; one sent at a bare
+// cell rolls, in random order, every pawn and thing standing there that it may
+// hit: a pawn at 0.5 per body size (halved for a lying pawn from 4.5 cells
+// out, and scaled by the distance factor for a friendly one), a thing at 1.5
+// times its fill percent.
+func (s *Sim) impactSomething(fl flight, used usedTarget) strike {
+	switch used {
+	case usedPawn:
+		return strike{pawn: fl.ti}
+	case usedCover:
+		return strike{pawn: -1, thing: true}
+	}
+	var cands []strike
+	if th := s.g.thing(fl.dest); fl.flags&hitNonTargetWorld != 0 && th.Name != "" {
+		cands = append(cands, strike{pawn: -1, thing: true})
+	}
+	for k := s.cells.head[s.g.idx(fl.dest)]; k != 0; k = s.pawns[k-1].here {
+		if j := int(k) - 1; fl.canHitPawn(j) {
+			cands = append(cands, strike{pawn: j})
+		}
+	}
+	s.streams.Physical.Shuffle(len(cands), func(i, j int) { cands[i], cands[j] = cands[j], cands[i] })
+	ox, oz := float64(s.pawns[fl.si].pos.X)+0.5, float64(s.pawns[fl.si].pos.Z)+0.5
+	far := (fl.tx-ox)*(fl.tx-ox)+(fl.tz-oz)*(fl.tz-oz) >= 20.25
+	for _, c := range cands {
+		chance := 0.0
+		if c.thing {
+			chance = 1.5 * s.g.thing(fl.dest).FillPercent
+		} else {
+			v := &s.pawns[c.pawn]
+			chance = 0.5 * math.Min(math.Max(v.bodySize, 0.1), 2)
+			if v.lying() && far {
+				chance *= 0.5
+			}
+			if v.side == s.pawns[fl.si].side {
+				chance *= interceptFactor(ox, oz, fl.dest)
+			}
+		}
+		if s.chance(chance) {
+			return c
+		}
+	}
+	return noStrike
+}
+
+// usedTarget is what the projectile was launched at (Projectile.usedTarget).
+type usedTarget uint8
+
+const (
+	// usedPawn: the aimed-at pawn.
+	usedPawn usedTarget = iota
+	// usedCover: the cover thing a covered shot is sent into.
+	usedCover
+	// usedCell: a cell, for a wild shot.
+	usedCell
+)
 
 // landProjectiles resolves every projectile due this tick, in launch order.
 func (s *Sim) landProjectiles() {

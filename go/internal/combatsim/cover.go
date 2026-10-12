@@ -73,3 +73,20 @@ func (s *Sim) CoverBlockChance(target, shooter domain.Cell, canBenefitFromCover 
 	}
 	return total
 }
+
+// coverGivers ports CoverUtility.CalculateCoverGiverSet for a pawn on target
+// shot from shooter: the eight neighbours whose cover has an adjusted block
+// chance above 0. Unlike the overall chance, a neighbour on the shooter's own
+// cell is not skipped.
+func (s *Sim) coverGivers(target, shooter domain.Cell, out []coverGiver) []coverGiver {
+	for _, off := range adjacent {
+		adj := add(target, off)
+		if !s.g.inBounds(adj) {
+			continue
+		}
+		if c := s.g.adjustedCover(shooter, target, adj); c > 0 {
+			out = append(out, coverGiver{cell: adj, chance: c})
+		}
+	}
+	return out
+}
