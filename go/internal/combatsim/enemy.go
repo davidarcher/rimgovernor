@@ -2,6 +2,7 @@ package combatsim
 
 import (
 	"math"
+	"sync/atomic"
 
 	"github.com/davidarcher/RimGovernor/go/internal/combatmetrics"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -96,10 +97,11 @@ type EnemyAI struct {
 	fraction float64
 	fleeing  bool
 
-	reach, seen []bool
-	queue       []int32
-	weights     []float64
-	cand        []int
+	seen    []bool
+	comp    []int32
+	queue   []int32
+	weights []float64
+	cand    []int
 }
 
 // NewEnemyAI binds an AI to a Sim that has been Reset, and draws the raid
@@ -289,7 +291,7 @@ func (e *EnemyAI) shouldLoseTarget(i int) bool {
 	case float64(distSq(p.pos, t.pos)) > enemyKeepRadius*enemyKeepRadius:
 		return true
 	}
-	return !e.flood(p.pos)[s.g.idx(t.pos)]
+	return !e.flood(p.pos).has(s.g.idx(t.pos))
 }
 
 // findAttackTarget ports FindAttackTarget: AttackTargetFinder.BestAttackTarget
@@ -307,7 +309,7 @@ func (e *EnemyAI) findAttackTarget(i int) int {
 	reach := e.flood(p.pos)
 	best, bd := -1, 0
 	for _, j := range cands { // ClosestThing_Global: nearest, first on ties
-		if d := distSq(p.pos, s.pawns[j].pos); reach[s.g.idx(s.pawns[j].pos)] && (best < 0 || d < bd) {
+		if d := distSq(p.pos, s.pawns[j].pos); reach.has(s.g.idx(s.pawns[j].pos)) && (best < 0 || d < bd) {
 			best, bd = j, d
 		}
 	}
@@ -557,7 +559,7 @@ func (e *EnemyAI) gotoNearest(out []Order, i int) []Order {
 	best, bd := -1, 0
 	for j := range s.pawns {
 		t := &s.pawns[j]
-		if !t.has || t.side == p.side || t.dead || t.downed || !reach[s.g.idx(t.pos)] {
+		if !t.has || t.side == p.side || t.dead || t.downed || !reach.has(s.g.idx(t.pos)) {
 			continue
 		}
 		if d := distSq(p.pos, t.pos); best < 0 || d < bd {
@@ -602,39 +604,73 @@ func (e *EnemyAI) canReserve(c domain.Cell, i int) bool {
 	return true
 }
 
-// flood marks every cell pawn pathing could reach from `from`, with the
+// reachSet is the cells one flood reaches: those labelled id.
+type reachSet struct {
+	comp []int32
+	id   int32
+}
+
+func (r reachSet) has(i int) bool { return r.id > 0 && r.comp[i] == r.id }
+
+// flood is the set of cells pawn pathing could reach from `from`, with the
 // pathfinder's neighbour rules; pawns do not block it (Reachability ignores
-// them). The slice is reused by the next call.
-func (e *EnemyAI) flood(from domain.Cell) []bool {
+// them). The map never changes during a fight and the neighbour rule is
+// symmetric, so reachability is an equivalence: the first call labels every
+// walkable cell with its connected component and each flood is a lookup.
+func (e *EnemyAI) flood(from domain.Cell) reachSet {
 	g := &e.sim.g
-	n := g.w * g.h
-	if len(e.reach) != n {
-		e.reach = make([]bool, n)
+	if len(e.comp) != g.w*g.h {
+		e.labelComponents()
 	}
-	clear(e.reach)
-	if !g.walkable(from) {
-		return e.reach
+	if !g.inBounds(from) {
+		return reachSet{}
 	}
-	q := append(e.queue[:0], int32(g.idx(from)))
-	e.reach[q[0]] = true
-	for h := 0; h < len(q); h++ {
-		cc := g.cell(int(q[h]))
-		for k, off := range adjacent {
-			nb := add(cc, off)
-			if !g.walkable(nb) {
-				continue
-			}
-			if k >= 4 && (!g.walkable(domain.Cell{X: nb.X, Z: cc.Z}) || !g.walkable(domain.Cell{X: cc.X, Z: nb.Z})) {
-				continue
-			}
-			if ni := g.idx(nb); !e.reach[ni] {
-				e.reach[ni] = true
-				q = append(q, int32(ni))
+	return reachSet{e.comp, e.comp[g.idx(from)]}
+}
+
+// labelComponents sets e.comp to 0 for a cell pawns cannot walk through and
+// otherwise to the number (from 1) of its connected component.
+func (e *EnemyAI) labelComponents() {
+	g := &e.sim.g
+	w, h := g.w, g.h
+	comp := make([]int32, w*h)
+	for i := range comp {
+		if g.cellCostAt(i) < impassableCost {
+			comp[i] = -1 // walkable, not yet labelled
+		}
+	}
+	var label int32
+	q := e.queue[:0]
+	for start := range comp {
+		if comp[start] != -1 {
+			continue
+		}
+		label++
+		comp[start] = label
+		q = append(q[:0], int32(start))
+		for head := 0; head < len(q); head++ {
+			ci := int(q[head])
+			cx, cz := ci%w, ci/w
+			for k, off := range adjacent {
+				nx, nz := cx+int(off.X), cz+int(off.Z)
+				if nx < 0 || nz < 0 || nx >= w || nz >= h {
+					continue
+				}
+				ni := nz*w + nx
+				if comp[ni] == 0 {
+					continue
+				}
+				if k >= 4 && (comp[cz*w+nx] == 0 || comp[nz*w+cx] == 0) {
+					continue
+				}
+				if comp[ni] == -1 {
+					comp[ni] = label
+					q = append(q, int32(ni))
+				}
 			}
 		}
 	}
-	e.queue = q
-	return e.reach
+	e.queue, e.comp = q, comp
 }
 
 // castPosition ports CastPositionFinder.TryFindCastPosition for pawn i's
@@ -659,7 +695,7 @@ func (e *EnemyAI) castPosition(i, j int) (domain.Cell, bool) {
 	found, bestPref := false, 0.001
 
 	eval := func(c domain.Cell) {
-		if float64(distSq(c, t.pos)) > rng*rng || !g.walkable(c) || !reach[g.idx(c)] {
+		if float64(distSq(c, t.pos)) > rng*rng || !reach.has(g.idx(c)) {
 			return
 		}
 		pref := e.castPreference(c, i, j, optimal, rng > 5)
@@ -704,6 +740,28 @@ func (e *EnemyAI) castPosition(i, j int) (domain.Cell, bool) {
 	return p.pos, false
 }
 
+// decayTable memoises distanceDecay by squared distance: the entries are the
+// very values math.Pow returns, computed once and shared by every fight.
+var decayTable atomic.Pointer[[]float64]
+
+// distanceDecay is math.Pow(0.967, sqrt(d2)), the preference's falloff with
+// the distance from the caster.
+func distanceDecay(d2 int) float64 {
+	if t := decayTable.Load(); t != nil && d2 < len(*t) {
+		return (*t)[d2]
+	}
+	var old int
+	if t := decayTable.Load(); t != nil {
+		old = len(*t)
+	}
+	t := make([]float64, max(d2+1, 2*old, 1024))
+	for i := range t {
+		t[i] = math.Pow(0.967, math.Sqrt(float64(i)))
+	}
+	decayTable.Store(&t) // a racing larger table is replaced by an equal prefix
+	return t[d2]
+}
+
 // castPreference ports CastPositionFinder.CastPositionPreference for a
 // humanlike caster (aiAvoidCover false) with no avoid grid. The game also
 // scales by a static field left over from an earlier request (the distance
@@ -716,7 +774,7 @@ func (e *EnemyAI) castPreference(c domain.Cell, i, j int, optimal float64, wantC
 	if wantCover {
 		num += s.CoverBlockChance(c, t.pos, true) * 0.55
 	}
-	num *= math.Pow(0.967, math.Sqrt(float64(distSq(p.pos, c))))
+	num *= distanceDecay(distSq(p.pos, c))
 	rt := float64(distSq(c, t.pos))
 	f := 0.7 + 0.3*(1-math.Abs(rt-optimal)/optimal)
 	if rt < 25 {

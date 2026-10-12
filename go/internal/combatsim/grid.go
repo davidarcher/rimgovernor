@@ -121,8 +121,10 @@ func (g *grid) baseBlockChance(c domain.Cell) float64 {
 
 // cellCost is PathGrid.CalculatedCostAt without snow, sand and fire: the
 // larger of the terrain's and the thing's path cost, or impassableCost.
-func (g *grid) cellCost(c domain.Cell) int {
-	i := g.idx(c)
+func (g *grid) cellCost(c domain.Cell) int { return g.cellCostAt(g.idx(c)) }
+
+// cellCostAt is cellCost for the cell at index i.
+func (g *grid) cellCostAt(i int) int {
 	te := &g.terrain[g.terrainI[i]]
 	th := &g.things[g.thingI[i]]
 	if !te.Passable || th.Passability == Impassable {
