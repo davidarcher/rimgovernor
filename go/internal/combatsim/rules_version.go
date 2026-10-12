@@ -52,7 +52,8 @@ package combatsim
 //     its thing id; Verse.Pawn.PostApplyDamage and Pawn_HealthTracker
 //     .DropBloodFilth (the filth that takes ids between shots, #2936).
 //
-//   - enemy.go: Verse.AI.AttackTargetFinder.BestAttackTarget,
+//   - enemy.go: Verse.AI.Stance_Warmup and Pawn_MindState.lastAttackedTarget
+//     (EnemyConfig.FirstTargets, #3007), Verse.AI.AttackTargetFinder.BestAttackTarget,
 //     GetAvailableShootingTargetsByScore, GetShootingTargetScore,
 //     FriendlyFireConeTargetScoreOffset, CanSee; RimWorld.JobGiver_AIFightEnemy
 //     TryGiveJob, UpdateEnemyTarget, ShouldLoseTarget, FindAttackTarget;
@@ -109,4 +110,4 @@ const AssemblyCSharpSHA256 = "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04A
 // any change to a port or an approximation that can move an outcome (a rule
 // fix, a new modeled behavior): a calibration pass (combatsim/calibrate) is
 // recorded under it and is stale after a bump.
-const RulesVersion = 16
+const RulesVersion = 17

@@ -2,6 +2,7 @@ package combatsim
 
 import (
 	"math"
+	"slices"
 	"sync/atomic"
 
 	"github.com/davidarcher/RimGovernor/go/internal/combatmetrics"
@@ -64,6 +65,13 @@ type EnemyConfig struct {
 	// downed or killed reach it times the raiders ever gained, every standing
 	// raider panics and runs for Exit. Unknown: the lord never panics. Needs Exit.
 	AutoFleeFraction domain.Fact[float64]
+	// FirstTargets is, per raider, the pawn its warmup was already aimed at in
+	// the checkpoint a resumed run starts from. The game's Stance_Warmup keeps
+	// that target (the pawn is FullBodyBusy, so CheckForAutoAttack does not
+	// pick again) and Pawn_MindState.lastAttackedTarget keeps it sticky (+40)
+	// afterwards, so the raider's decision at tick 0 is that target, not a draw
+	// from the scores. Empty: every raider draws.
+	FirstTargets map[domain.PawnID]domain.PawnID
 }
 
 type jobKind uint8
@@ -645,7 +653,13 @@ func (e *EnemyAI) autoAttack(out []Order, i int) []Order {
 	s := e.sim
 	p := &s.pawns[i]
 	cands := e.valid(i, p.weapon.Range, p.weapon.MinRange, false)
-	if j := e.pickByScore(i, cands); j >= 0 {
+	j := e.pickByScore(i, cands)
+	if t, ok := e.cfg.FirstTargets[p.id]; ok && s.tick == 0 {
+		if k := s.pawnIndex(t); k >= 0 && slices.Contains(cands, k) {
+			j = k
+		}
+	}
+	if j >= 0 {
 		// Auto: the verb starts the moment the raider decides, and its warmup
 		// counts down that tick. A decision at tick 0 is the resumed
 		// checkpoint's raider already in Wait_Combat: the recorded stance rows

@@ -1,5 +1,5 @@
 combatsim calibration gate (ranged slice): FAIL
-stamp: assembly 5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A, rules version 16, thresholds version 1, sweep schema 2
+stamp: assembly 5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A, rules version 17, thresholds version 1, sweep schema 2
 thresholds: rank agreement >= 0.80 on held-out fixtures; 0 survival-critical misrankings; colonist deaths and downs within +/-25% of the real mean or +/-1 pawn
 caveat: committed real sweeps predate #2989 and read a dead colonist as neither dead nor down (the native read omits the dead), so their colonist deaths are a floor of 0 and their downs leave out the dead
 rank agreement: 0.70 over 10 pairs; survival-critical misrankings: 0

@@ -657,7 +657,29 @@ DefinitionCatalog; every derived value is listed with its source in
   real 0.079, and the raiders' shots stopping in a sandbag fall from 0.357 to
   0.308 (real 0.378): the same wild destinations hit a sandbag less often in
   the sim than in the ledger (destination cell beside the target on its own
-  row: 0.33 against 0.52 of 60 to 70 shots; cause not found).
+  row: 0.33 against 0.52 of 60 to 70 shots; the cause is A44).
+
+- **A44. A resumed checkpoint's raiders start aimed (#3007).** The wild
+  shots beside a target hit a sandbag less often in the sim only because the
+  sim's raiders chose different targets, not because a wild shot, the
+  intercept or the impact differs: those were checked line by line against the
+  decompile (`Verb_LaunchProjectile.TryCastShot`, `Projectile.CheckForFreeIntercept`,
+  `ImpactSomething`) and the per-target stop rates match the ledger. The lab
+  runs resume a saved checkpoint in which each raider is already in
+  `Stance_Warmup` on a target. The pawn is FullBodyBusy, so
+  `CheckForAutoAttack` does not pick again, and `Pawn_MindState
+  .lastAttackedTarget` (+40 in `GetShootingTargetScore`) keeps it afterwards.
+  The ledger's first targets are therefore fixed per checkpoint (seeds 1 to 13
+  one set, 15 to 20 another) while the sim drew from near-equal scores
+  uniformly, aiming more at the east end colonist, whose neighbouring wild
+  cells lie beyond the sandbag row. `EnemyConfig.FirstTargets` names a
+  raider's staged target; its tick-0 decision takes it when it is a valid
+  candidate. Empty: every raider draws (the other cases, where no ledger
+  exists). The calibration test reads the targets from the ledger per seed.
+  Raiders' shots stopping in a sandbag, sim before -> after (real 0.378):
+  0.308 -> 0.362; pawn-hit share 0.124 -> 0.090 (real 0.099). Left: the wild
+  shots on the target's row still stop in a sandbag in about 0.40 of the sim
+  against 0.52 (about 2 sigma of 69 shots).
 
 ## Out of scope for this slice
 

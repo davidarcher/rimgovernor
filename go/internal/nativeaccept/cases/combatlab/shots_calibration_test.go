@@ -12,6 +12,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/combatmetrics"
 	"github.com/davidarcher/RimGovernor/go/internal/combatsim"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/testkit/recordedcatalog"
 )
@@ -312,7 +313,7 @@ func realShotStats(set ShotSet) *shotStats {
 
 // simShotStats plays the fight for each seed and reads its event trace. It
 // also returns the scored metrics of every run.
-func simShotStats(fight combatsim.Fight, seeds []int) (*shotStats, []combatmetrics.Metrics, error) {
+func simShotStats(fight combatsim.Fight, seeds []int, firsts map[int]map[domain.PawnID]domain.PawnID) (*shotStats, []combatmetrics.Metrics, error) {
 	side := map[string]string{}
 	for _, p := range fight.Scenario.Pawns {
 		side[string(p.ID)] = p.Side
@@ -358,7 +359,13 @@ func simShotStats(fight combatsim.Fight, seeds []int) (*shotStats, []combatmetri
 				}
 			}
 		}
-		res, err := combatsim.RunFight(fight, uint64(seed), policy.DefaultCombatTuning())
+		run := fight
+		if ft := firsts[seed]; fight.EnemyAI != nil && len(ft) > 0 {
+			cfg := *fight.EnemyAI
+			cfg.FirstTargets = ft
+			run.EnemyAI = &cfg
+		}
+		res, err := combatsim.RunFight(run, uint64(seed), policy.DefaultCombatTuning())
 		if err != nil {
 			return nil, nil, fmt.Errorf("seed %d: %w", seed, err)
 		}
@@ -392,6 +399,54 @@ func shotLabFight(t *testing.T) combatsim.Fight {
 	return fight
 }
 
+// checkpointTargets reads, per seed, the pawn each raider's first shot was
+// aimed at. A resumed run starts with the raiders already in Stance_Warmup on
+// the target the staging run gave them (the game keeps it, combatsim
+// EnemyConfig.FirstTargets), so the first target does not vary with the run
+// seed in the ledger: seeds 1 to 13 share one set, 15 to 20 another. The
+// ledger's colonists and raiders are the sim's c0.. and h0.. in thing id order
+// (the fixture spawns them in index order).
+func checkpointTargets(set ShotSet) map[int]map[domain.PawnID]domain.PawnID {
+	colonists, hostiles := map[string]bool{}, map[string]bool{}
+	for _, s := range set.Shots {
+		switch s.Side {
+		case combatmetrics.Colonist:
+			colonists[s.Shooter] = true
+		case combatmetrics.Hostile:
+			hostiles[s.Shooter] = true
+		}
+	}
+	index := func(m map[string]bool, prefix string) map[string]domain.PawnID {
+		var ids []string
+		for id := range m {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		out := map[string]domain.PawnID{}
+		for i, id := range ids {
+			out[id] = domain.PawnID(fmt.Sprintf("%s%d", prefix, i))
+		}
+		return out
+	}
+	cs, hs := index(colonists, "c"), index(hostiles, "h")
+	out := map[int]map[domain.PawnID]domain.PawnID{}
+	for _, s := range set.Shots {
+		h, ok := hs[s.Shooter]
+		if !ok || s.Target == "" {
+			continue
+		}
+		if out[s.Seed] == nil {
+			out[s.Seed] = map[domain.PawnID]domain.PawnID{}
+		}
+		if _, seen := out[s.Seed][h]; !seen {
+			if c, ok := cs[s.Target]; ok {
+				out[s.Seed][h] = c
+			}
+		}
+	}
+	return out
+}
+
 func shotSeeds(set ShotSet) []int {
 	seen := map[int]bool{}
 	var seeds []int
@@ -415,7 +470,7 @@ func shotSeeds(set ShotSet) []int {
 func TestSimShotTimingMatchesTheRecordedShots(t *testing.T) {
 	set := loadRecordedShots(t)
 	real := realShotStats(set)
-	sim, metrics, err := simShotStats(shotLabFight(t), shotSeeds(set))
+	sim, metrics, err := simShotStats(shotLabFight(t), shotSeeds(set), checkpointTargets(set))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -490,11 +545,10 @@ func TestSimShotTimingMatchesTheRecordedShots(t *testing.T) {
 	// retreating colonists leave their sandbag cover, so the sim's raiders
 	// stop in a sandbag a little less often).
 	within("colonist cover share", sim.share(sim.cover, combatmetrics.Colonist), real.share(real.cover, combatmetrics.Colonist), 0.01)
-	// With the injured shooters' wider misses (A43) the sim's share is 0.31 to
-	// the real 0.38: a wild shot to the cell beside the target hits a sandbag
-	// less often than in the ledger (A43, cause not found), so the bound is
-	// 8 points.
-	within("raider cover share", sim.share(sim.cover, combatmetrics.Hostile), real.share(real.cover, combatmetrics.Hostile), 0.08)
+	// Fed each raider's checkpoint first target (A44) the sim's share is 0.36
+	// to the real 0.38; drawn uniformly it was 0.31, because the raiders then
+	// aimed at the east colonist more often than the staged warmups did.
+	within("raider cover share", sim.share(sim.cover, combatmetrics.Hostile), real.share(real.cover, combatmetrics.Hostile), 0.05)
 	// The colonists' hits on raiders in the first 700 ticks, within 15 percent (the sim runs about 13 percent over: seed noise of the id-driven phases plus A1).
 	rh, sh := float64(real.early)/float64(real.seeds), float64(sim.early)/float64(sim.seeds)
 	within("colonist hits on raiders in the first 700 ticks", sh, rh, 0.15*rh)
