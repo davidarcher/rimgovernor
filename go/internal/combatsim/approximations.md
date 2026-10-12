@@ -704,6 +704,20 @@ DefinitionCatalog; every derived value is listed with its source in
   the real; the aimed-and-uncovered share of lab-ranged the A43 note called
   high is 0.090 against 0.099 after A44, so no gap remains there.
 
+  **A re-staged save is not the baseline's checkpoint (#3013).** The staged
+  digest does not pin the raiders' `focusTarg`: staging draws the targets anew
+  and the same digest comes back. Staging lab-ranged again (digest 90aea800,
+  matches its baseline) gives raiders 7264 7275 7286 7297 aimed at 7210 7198
+  7210 7218, which agrees with neither ledger set (seeds 1 to 13: 7252 7252
+  7198 7218; seeds 15 to 20: 7218 7210 7198 7198; the ledger's own two sets
+  mean a sweep re-staged mid-run). A re-staged lab-split-ranged (ca770629)
+  likewise differs from the table above on most raiders. So a fresh save
+  can add a fixture's targets only when it is the very `.rws` a baseline
+  resumed (or a ledger of that baseline agrees with it, as for
+  lab-split-ranged); the table keeps lab-split-ranged only, lab-ranged keeps
+  the ledger, and every other combatlab fixture is unsupported by the sim
+  (turret, sapper, melee, staged condition, mech, pods, siege).
+
 ## Out of scope for this slice
 
 Melee, explosives and grenades, specialist abilities, breaches, turrets,

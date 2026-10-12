@@ -33,6 +33,11 @@ type stagedTargets struct {
 // lab-split-ranged, digest ca770629: raiders 7264 7273 7282 7294 7302 7307
 // 7316 7325 aim at colonists 7198 7210 7210 7218 7210 7218 7198 7210.
 //
+// The digest does not pin the targets: staging draws them anew, so a re-staged
+// save with the same digest has other focusTargs (A45, #3013). Add a fixture
+// only from the very save its baseline resumed, or one a shot ledger of that
+// baseline agrees with.
+//
 // lab-ranged is not here: its ledger has two target sets (seeds 1 to 13 and 14
 // to 20, A44) and the shot calibration feeds each seed's from the ledger.
 var stagedFirstTargetTable = map[string]stagedTargets{
