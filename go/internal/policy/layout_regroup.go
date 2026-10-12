@@ -159,15 +159,16 @@ func (p RegroupPrice) group(g RoomGroup, guard []LostRoleEffect) (points float64
 // filth is what a room's filth nodes cost it, in points, through the same
 // work-day to points rate as every other conflict: the food poisoning (#2955:
 // FilthCost.PoisonWorkDays, the hediff's work-days per expected poisoning of the
-// meals made while the filth stands) and the cleaning labor (#2988:
-// FilthCost.CleaningWorkDays).
+// meals made while the filth stands) and the cleaning labor (#2988), which every
+// group holding a filth node pays whether it shares the room or not
+// (RoomGroup.Cleaning, #2993): it is the common baseline of the merged and the
+// apart grouping, so a merge changes it by nothing.
 func (p RegroupPrice) filth(g RoomGroup) (poison, clean float64) {
-	var poisonDays, cleanDays float64
+	var poisonDays float64
 	for _, f := range g.Filth {
 		poisonDays += f.PoisonWorkDays
-		cleanDays += f.CleaningWorkDays
 	}
-	return p.Work.Points(poisonDays), p.Work.Points(cleanDays)
+	return p.Work.Points(poisonDays), p.Work.Points(g.Cleaning)
 }
 
 // RegroupInput is the chain's input up to the embedding. Embed.Groups and
@@ -193,7 +194,7 @@ type RegroupDecision struct {
 	// Walk, Poison and Clean are the move's parts of Before to After, in score
 	// points: the change of the embedding's score (the walk it saves is
 	// negative), the poisoning price it adds (#2955) and the cleaning labor it
-	// adds (#2988); the rest is the conflicts' ticks and lost effects.
+	// changes (zero for a merge, #2993: both groupings pay the same cleaning labor); the rest is the conflicts' ticks and lost effects.
 	Walk, Poison, Clean float64
 }
 

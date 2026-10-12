@@ -253,12 +253,15 @@ conflict, loses a role effect or carries a role-guard mismatch) and
 **move-a-need** (a station class leaves the room that slows it for a room of the
 role it wants, or leaves a cold room). A **filth merge** (#2955) joins a butcher
 kept in its closet to the room it flows to when the walk saved (the embedding
-score) outweighs what the shared room costs (#2988), two parts at the work-day
-rate below. **Cleaning labor**: the butchery runs a day (`StationNode.FilthRuns`,
-a corpse each, one `TryMakeFilth` unit) times the filth def's
-`cleaningWorkToReduceThickness` (70 for `Filth_Blood`) over a colonist's
-`CleaningSpeed` stat (`JobDriver_CleanFilth` divides the work by it a tick), in
-work-days (`FilthCost.CleaningWorkDays`). **Poisoning residual**: nobody may clean
+score) outweighs what the shared room costs (#2988): the poisoning residual at
+the work-day rate below. **Cleaning labor** is a common baseline (#2993), not a
+cost of merging: the butchery runs a day (`StationNode.FilthRuns`, a corpse each,
+one `TryMakeFilth` unit) times the filth def's `cleaningWorkToReduceThickness`
+(70 for `Filth_Blood`) over a colonist's `CleaningSpeed` stat
+(`JobDriver_CleanFilth` divides the work by it a tick), in work-days
+(`FilthModel.CleaningWorkDays`), is priced in every group that holds a filth node
+(`RoomGroup.Cleaning`, closet or shared), and a merge leaves the sum unchanged,
+so it never decides a merge; it only lifts the absolute totals. **Poisoning residual**: nobody may clean
 filth before `WorkGiver_CleanFilth.MinTicksSinceThickened` (600 ticks), so the
 units of the runs that fall in that window stand at once (`StandingUnits`, a
 day's runs `FilthWork` ticks apart), at that many units' cleanliness; the meals
@@ -271,8 +274,9 @@ judgments. The floor's `Cleanliness` and `CleaningTimeFactor` and the dirt
 pawns track in (`Pawn_FilthTracker`, `FilthRate` a cell entered) are not
 priced: the floor is laid after the layout and the cells entered are the
 embedding's traffic. No thought reads room cleanliness (only `Impressiveness`
-does), so the impressiveness shift stays recorded only (#2954). A closet's own
-cleaning is not priced: only a room shared with other stations pays.
+does), so the impressiveness shift stays recorded only (#2954). `FilthModel.
+Priced` (a merge is proposed) needs the poisoning and the stand ticks, not the
+cleaning inputs.
 
 The total is in embedding score points, no new constant: `-Score.Total()` plus
 the conflicts. `RoomGroup.Costs` ticks a day become work-days (`TicksPerDay`),

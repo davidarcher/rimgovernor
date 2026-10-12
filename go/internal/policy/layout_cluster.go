@@ -187,6 +187,10 @@ type RoomGroup struct {
 	// Filth is the price of the filth nodes sharing the room with stations
 	// they are not for (empty for a closet), in game units.
 	Filth []FilthCost
+	// Cleaning is the work-days a day of cleaning the group's own filth takes,
+	// whether it shares the room or not (#2993): the same blood is cleaned either
+	// way, so it is the baseline a merge is compared against.
+	Cleaning float64
 }
 
 // ConflictCost is the work ticks a day a conflict costs the stations of one
@@ -340,6 +344,9 @@ type groupEval struct {
 	// the room when it also holds a node that is not filthy.
 	filthy, exposed []string
 	filthCosts      []FilthCost
+	// cleaning is the work-days a day of cleaning the group's filth takes, in every
+	// group that holds a filth node (FilthModel.CleaningWorkDays).
+	cleaning float64
 	// meals is the meals a day the exposed nodes' stations in the group make.
 	meals float64
 	// runs is each filthy node's butchering load in the group (its runs a day and
@@ -479,6 +486,9 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 		e.clearance = max(e.clearance, e.floor-e.footprint)
 	}
 	e.area = e.footprint + e.clearance
+	if e.filth {
+		e.cleaning = c.in.Catalog.Filth.CleaningWorkDays(e.runs)
+	}
 	if e.filth && !e.closet {
 		e.filthCosts = c.in.Catalog.Filth.filthCosts(e.filthy, e.exposed, e.area, e.meals, e.runs)
 	}
@@ -705,7 +715,7 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 		if err != nil {
 			return Clustering{}, err
 		}
-		g := RoomGroup{ID: gi, Footprint: e.footprint, Clearance: e.clearance, Area: e.area, Role: e.role, Planned: e.plannedRole(), Requires: e.requires(), Costs: e.costs, LostEffects: e.effects, Filth: e.filthCosts}
+		g := RoomGroup{ID: gi, Footprint: e.footprint, Clearance: e.clearance, Area: e.area, Role: e.role, Planned: e.plannedRole(), Requires: e.requires(), Costs: e.costs, LostEffects: e.effects, Filth: e.filthCosts, Cleaning: e.cleaning}
 		byNode := map[int]int{}
 		for _, m := range members[r] {
 			byNode[m.node] += m.count

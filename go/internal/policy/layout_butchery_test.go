@@ -261,13 +261,19 @@ func TestPoisoningWorkDays(t *testing.T) {
 // from, regrouped on a square site of side cells; the blood is heavy enough to
 // poison the merged room (a unit moves its cleanliness past the curve's onset).
 func filthyKitchen(meals float64, side int32, poison PoisoningModel) (Regrouping, StationNode, StationNode, error) {
+	return filthyKitchenCleaning(meals, side, poison, 70)
+}
+
+// filthyKitchenCleaning is filthyKitchen with the def work a unit of blood takes
+// to clean.
+func filthyKitchenCleaning(meals float64, side int32, poison PoisoningModel, work float64) (Regrouping, StationNode, StationNode, error) {
 	stove := node("Stove", PurposeWork, 1, workBand, EnvNeed{Kind: NeedRoomStat, Input: cleanlinessStat})
 	stove.Meals = meals
 	butcher := node("Butcher", PurposeWork, 1)
 	butcher.Filth, butcher.FilthRuns, butcher.FilthWork = true, 0.1, 300
 	g := StationGraph{Nodes: []StationNode{butcher, stove}, Edges: []StationEdge{edge(butcher, stove, 50, false)}}
 	in := regroupIn(g, plainSurvey(side))
-	in.Cluster.Catalog.Filth = FilthModel{Def: "Filth_Blood", Cleanliness: -100, Poisoning: poison, CleaningWork: 70, CleaningSpeed: 1, StandTicks: 600,
+	in.Cluster.Catalog.Filth = FilthModel{Def: "Filth_Blood", Cleanliness: -100, Poisoning: poison, CleaningWork: work, CleaningSpeed: 1, StandTicks: 600,
 		FoodPoison: []CurvePoint{{X: -5, Y: 0.05}, {X: -3.5, Y: 0.025}, {X: -2, Y: 0}}}
 	got, err := Regroup(in)
 	return got, butcher, stove, err
@@ -288,7 +294,7 @@ func TestRegroupPricesFilthMergeAgainstWalk(t *testing.T) {
 	if d.Kind != RegroupMerge || d.Verdict != RegroupApplied || d.Reason != ReasonRegroupFilthMerge || !(d.A == butcher.ID && d.B == stove.ID || d.A == stove.ID && d.B == butcher.ID) {
 		t.Fatalf("decision %+v", d)
 	}
-	if !(d.Walk < 0 && d.Poison > 0 && d.Clean > 0 && d.Walk+d.Poison+d.Clean < 0 && math.Abs(d.After-d.Before-(d.Walk+d.Poison+d.Clean)) < 1e-9) {
+	if !(d.Walk < 0 && d.Poison > 0 && d.Clean == 0 && d.Walk+d.Poison+d.Clean < 0 && math.Abs(d.After-d.Before-(d.Walk+d.Poison+d.Clean)) < 1e-9) {
 		t.Errorf("walk %v poison %v clean %v before %v after %v", d.Walk, d.Poison, d.Clean, d.Before, d.After)
 	}
 
@@ -350,25 +356,26 @@ func filthCostOf(t *testing.T, m FilthModel, cells int, meals float64, r FilthRu
 // inverse of the colonist's speed.
 func TestFilthCleaningLaborScalesWithUnitsAndDefWork(t *testing.T) {
 	r := FilthRuns{Runs: 2, Ticks: 300}
-	base := filthCostOf(t, cleaningModel(), 20, 0, r)
-	if want := 2 * 70 / float64(domain.TicksPerDay); math.Abs(base.CleaningWorkDays-want) > 1e-12 {
-		t.Fatalf("cleaning %v, want %v", base.CleaningWorkDays, want)
+	cleaningOf := func(m FilthModel, r FilthRuns) float64 { return m.CleaningWorkDays(map[string]FilthRuns{"B": r}) }
+	base := cleaningOf(cleaningModel(), r)
+	if want := 2 * 70 / float64(domain.TicksPerDay); math.Abs(base-want) > 1e-12 {
+		t.Fatalf("cleaning %v, want %v", base, want)
 	}
 	heavy := cleaningModel()
 	heavy.CleaningWork = 140
 	fast := cleaningModel()
 	fast.CleaningSpeed = 2
 	for name, c := range map[string]struct{ got, want float64 }{
-		"units x3": {filthCostOf(t, cleaningModel(), 20, 0, FilthRuns{Runs: 6, Ticks: 300}).CleaningWorkDays / base.CleaningWorkDays, 3},
-		"work x2":  {filthCostOf(t, heavy, 20, 0, r).CleaningWorkDays / base.CleaningWorkDays, 2},
-		"speed x2": {base.CleaningWorkDays / filthCostOf(t, fast, 20, 0, r).CleaningWorkDays, 2},
+		"units x3": {cleaningOf(cleaningModel(), FilthRuns{Runs: 6, Ticks: 300}) / base, 3},
+		"work x2":  {cleaningOf(heavy, r) / base, 2},
+		"speed x2": {base / cleaningOf(fast, r), 2},
 	} {
 		if math.Abs(c.got-c.want) > 1e-9 {
 			t.Errorf("%s: ratio %v, want %v", name, c.got, c.want)
 		}
 	}
-	if none := filthCostOf(t, FilthModel{Def: "Filth_Blood", Cleanliness: -10}, 20, 0, r); none.CleaningWorkDays != 0 {
-		t.Errorf("a model without the def work prices cleaning: %+v", none)
+	if none := cleaningOf(FilthModel{Def: "Filth_Blood", Cleanliness: -10}, r); none != 0 {
+		t.Errorf("a model without the def work prices cleaning: %v", none)
 	}
 }
 
@@ -398,7 +405,7 @@ func TestFilthPoisoningResidualUsesTheStandWindow(t *testing.T) {
 	if apart.StandingUnits != 1 || apart.PoisonWorkDays != 0 {
 		t.Errorf("runs a window apart: %+v", apart)
 	}
-	if got := filthCostOf(t, m, 5, 100, FilthRuns{}); got.CleaningWorkDays != 0 || got.PoisonWorkDays != 0 || got.StandingUnits != 0 {
+	if got := filthCostOf(t, m, 5, 100, FilthRuns{}); got.PoisonWorkDays != 0 || got.StandingUnits != 0 {
 		t.Errorf("a node that butchers nothing owes %+v", got)
 	}
 }
@@ -415,6 +422,7 @@ func TestButcheryMergedIntoKitchenCostsMoreThanApart(t *testing.T) {
 		g := StationGraph{Nodes: []StationNode{butcher, cold, stove}, Edges: []StationEdge{edge(stove, cold, 10, true), edge(butcher, cold, 20, true)}}
 		cat := clusterCatalog()
 		cat.Filth = cleaningModel()
+		cat.Filth.Cleanliness, cat.Filth.Poisoning = -100, poisonModel
 		var pairs []NodePair
 		if merge {
 			pairs = []NodePair{{A: butcher.ID, B: stove.ID, Rule: PairTogether}}
@@ -432,5 +440,42 @@ func TestButcheryMergedIntoKitchenCostsMoreThanApart(t *testing.T) {
 	}
 	if apart, merged := price(false), price(true); !(merged > apart && apart == 0) {
 		t.Errorf("merged %v work-days, apart %v", merged, apart)
+	}
+}
+
+// The cleaning labor is the same whether the butchery shares the kitchen's room
+// or stands in its closet, so it cancels from the merge decision (#2993): a
+// thousandfold def work leaves both verdicts as they are, the butchery's group
+// carries the price either way, and the move's Clean change is zero.
+func TestRegroupCleaningLaborIsACommonBaseline(t *testing.T) {
+	for _, c := range []struct {
+		name   string
+		meals  float64
+		merged bool
+	}{{"walk beats poison", 0.01, true}, {"poison beats walk", 1000, false}} {
+		base, butcher, _, err := filthyKitchenCleaning(c.meals, 30, poisonModel, 70)
+		if err != nil {
+			t.Fatal(err)
+		}
+		heavy, _, _, err := filthyKitchenCleaning(c.meals, 30, poisonModel, 70000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if (len(heavy.Clustering.Groups) == 1) != c.merged || len(heavy.Pairs) != len(base.Pairs) || len(heavy.Decisions) != 1 {
+			t.Fatalf("%s: heavy cleaning changed the grouping: rooms %v vs %v", c.name, roomsOf(heavy), roomsOf(base))
+		}
+		d := heavy.Decisions[0]
+		if d.Clean != 0 || d.Poison != base.Decisions[0].Poison || d.Walk != base.Decisions[0].Walk {
+			t.Errorf("%s: cleaning moved the decision: heavy %+v base %+v", c.name, d, base.Decisions[0])
+		}
+		var paid float64
+		for _, g := range heavy.Clustering.Groups {
+			if holdsNode(g, butcher.ID) {
+				paid += g.Cleaning
+			}
+		}
+		if paid <= 0 {
+			t.Errorf("%s: the butchery's group carries no cleaning price", c.name)
+		}
 	}
 }
