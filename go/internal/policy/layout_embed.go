@@ -209,13 +209,10 @@ type embedder struct {
 	shapes [][][2]int32 // per group, the interiors (width, height) it may take
 	sky    []bool       // per group: needs open sky
 
-	level, base        prefix // core cells at the level / with no obstacle
-	soil, edge, centre prefix // weighted cell costs
-	solid              prefix // rock or mountain roof
-	walkable           prefix // ground a wall can stand on (enclosureCost)
-	rich               prefix // rich soil (PlanScore.RichCells)
-	core               []domain.Cell
-	seeds              []domain.Cell
+	embedFixed
+	level prefix // core cells at the level
+	core  []domain.Cell
+	seeds []domain.Cell
 
 	// The built world (layout_built.go): per group the standing room that is
 	// its block (zero Width for none) and its id, whether it must not move,
@@ -224,14 +221,54 @@ type embedder struct {
 	homeRoom    []int32
 	pinned      []bool
 	inFlight    bool
-	retired     prefix
 	builtReport []EmbedDecision
 
-	// The groups from nRooms on are the fields (EmbedInput.withFields), each
-	// with the soil mask and candidate cells of its crop.
-	nRooms     int
+	// The groups from nRooms on are the fields (EmbedInput.withFields).
+	nRooms int
+}
+
+// embedFixed is what the site prices the same at every obstacle level, built
+// once per Embed (newEmbedFixed) and shared by its levels' embedders; it is
+// never written after that.
+type embedFixed struct {
+	base               prefix // core cells with no obstacle
+	soil, edge, centre prefix // weighted cell costs
+	solid              prefix // rock or mountain roof
+	walkable           prefix // ground a wall can stand on (enclosureCost)
+	rich               prefix // rich soil (PlanScore.RichCells)
+	retired            prefix // the retired ground under the map
+
+	// Per field group, the soil mask and candidate cells of its crop.
 	fieldMask  []prefix
 	fieldCells [][]domain.Cell
+}
+
+func newEmbedFixed(in EmbedInput, scorer planScorer) embedFixed {
+	w, h := in.Survey.Bounds.Width, in.Survey.Bounds.Height
+	cells := map[domain.Cell]SurveyCell{}
+	for _, c := range in.Survey.Cells {
+		cells[c.Cell] = c
+	}
+	f := embedFixed{}
+	f.base = newPrefix(w, h, func(c domain.Cell) int { return b2i(scorer.g.core[c]) })
+	f.soil = newPrefix(w, h, func(c domain.Cell) int {
+		return -(planWeights.Soil*scorer.g.soil[c] + planWeights.Rock*b2i(scorer.g.rock[c]))
+	})
+	clear := scorer.edgeClear()
+	f.edge = newPrefix(w, h, func(c domain.Cell) int { return -edgeCellCost(scorer.ground, c, clear) })
+	f.centre = newPrefix(w, h, func(c domain.Cell) int { return -scorer.centreCell(c) })
+	f.rich = newPrefix(w, h, func(c domain.Cell) int { return b2i(scorer.g.soil[c] == soilCostRich) })
+	f.solid = newPrefix(w, h, func(c domain.Cell) int { return b2i(scorer.g.rock[c] || cells[c].ThickRoof) })
+	f.walkable = newPrefix(w, h, func(c domain.Cell) int { return b2i(walkableCell(cells, c)) })
+	f.fieldMasks(in, scorer)
+	retired := map[domain.Cell]bool{}
+	for _, g := range in.RetiredGround {
+		for _, c := range rectCells(g.Bounds()) {
+			retired[c] = true
+		}
+	}
+	f.retired = newPrefix(w, h, func(c domain.Cell) int { return b2i(retired[c]) })
+	return f
 }
 
 // blockShapes are the interiors a group of area cells may take: as deep as
@@ -259,8 +296,12 @@ func groupShapes(g RoomGroup, depth int) [][2]int32 {
 }
 
 func newEmbedder(in EmbedInput, depth int, scorer planScorer, level obstacleLevel) *embedder {
+	return newEmbedderFixed(in, depth, scorer, level, newEmbedFixed(in, scorer))
+}
+
+func newEmbedderFixed(in EmbedInput, depth int, scorer planScorer, level obstacleLevel, fixed embedFixed) *embedder {
 	w, h := in.Survey.Bounds.Width, in.Survey.Bounds.Height
-	e := &embedder{groups: in.Groups, nRooms: len(in.Groups) - len(in.Fields)}
+	e := &embedder{groups: in.Groups, nRooms: len(in.Groups) - len(in.Fields), embedFixed: fixed}
 	for i, g := range in.Groups {
 		if i >= e.nRooms {
 			e.shapes = append(e.shapes, blockShapes(g.Area, g.Area)) // no roof bounds a field
@@ -269,34 +310,12 @@ func newEmbedder(in EmbedInput, depth int, scorer planScorer, level obstacleLeve
 		}
 		e.sky = append(e.sky, slices.Contains(g.Requires, EnvOpenSky))
 	}
-	cells := map[domain.Cell]SurveyCell{}
-	for _, c := range in.Survey.Cells {
-		cells[c.Cell] = c
-	}
 	lg := scorer.g.withObstacles(scorer.g.coreObstaclesFor(in.Zones, level, len(in.Fields) == 0))
 	e.level = newPrefix(w, h, func(c domain.Cell) int { return b2i(lg.core[c]) })
-	e.base = newPrefix(w, h, func(c domain.Cell) int { return b2i(scorer.g.core[c]) })
-	e.soil = newPrefix(w, h, func(c domain.Cell) int {
-		return -(planWeights.Soil*scorer.g.soil[c] + planWeights.Rock*b2i(scorer.g.rock[c]))
-	})
-	clear := scorer.edgeClear()
-	e.edge = newPrefix(w, h, func(c domain.Cell) int { return -edgeCellCost(scorer.ground, c, clear) })
-	e.centre = newPrefix(w, h, func(c domain.Cell) int { return -scorer.centreCell(c) })
-	e.rich = newPrefix(w, h, func(c domain.Cell) int { return b2i(scorer.g.soil[c] == soilCostRich) })
-	e.solid = newPrefix(w, h, func(c domain.Cell) int { return b2i(scorer.g.rock[c] || cells[c].ThickRoof) })
-	e.walkable = newPrefix(w, h, func(c domain.Cell) int { return b2i(walkableCell(cells, c)) })
 	for c := range lg.core {
 		e.core = append(e.core, c)
 	}
 	sortCells(e.core)
-	e.fieldMasks(in, scorer)
-	retired := map[domain.Cell]bool{}
-	for _, g := range in.RetiredGround {
-		for _, c := range rectCells(g.Bounds()) {
-			retired[c] = true
-		}
-	}
-	e.retired = newPrefix(w, h, func(c domain.Cell) int { return b2i(retired[c]) })
 	e.inFlight, e.pinned = in.InFlight, make([]bool, len(in.Groups))
 	e.home, e.homeRoom, e.builtReport = builtHomes(in.Groups[:e.nRooms], in.Built)
 	e.home, e.homeRoom = append(e.home, make([]Rectangle, len(in.Groups)-e.nRooms)...), append(e.homeRoom, make([]int32, len(in.Groups)-e.nRooms)...)
@@ -353,7 +372,8 @@ func axisGap(a0, al, b0, bl int32) int {
 
 // collides reports interiors that overlap or have no wall cell between them.
 func collides(a, b Rectangle) bool {
-	return axisGap(a.X, a.Width, b.X, b.Width) < 1 && axisGap(a.Z, a.Height, b.Z, b.Height) < 1
+	// axisGap < 1 on both axes: each interval reaches the other's start.
+	return b.X <= a.X+a.Width && a.X <= b.X+b.Width && b.Z <= a.Z+a.Height && a.Z <= b.Z+b.Height
 }
 
 func (e *embedder) fits(i int, r Rectangle, blocks []Rectangle, sky bool) bool {
@@ -438,18 +458,17 @@ func (e *embedder) placeNear(i int, blocks []Rectangle, anchors []int) (Rectangl
 		found := false
 		for _, a := range anchors {
 			ab := blocks[a]
+			fieldGap := e.isField(i) || e.isField(a)
 			for _, sh := range e.shapes[i] {
-				for z := ab.Z - sh[1] - int32(ring); z <= ab.Z+ab.Height+int32(ring); z++ {
-					for x := ab.X - sh[0] - int32(ring); x <= ab.X+ab.Width+int32(ring); x++ {
-						r := Rectangle{X: x, Z: z, Width: sh[0], Height: sh[1]}
-						if e.gap(i, r, a, ab) != ring || !e.fits(i, r, blocks, e.sky[i]) {
-							continue
-						}
-						if c := e.blockCostWith(i, r, blocks, enc); better(c, r, bestCost, best, found) {
-							best, bestCost, found = r, c, true
-						}
+				ringPositions(ab, sh, ring, fieldGap, func(x, z int32) {
+					r := Rectangle{X: x, Z: z, Width: sh[0], Height: sh[1]}
+					if !e.fits(i, r, blocks, e.sky[i]) {
+						return
 					}
-				}
+					if c := e.blockCostWith(i, r, blocks, enc); better(c, r, bestCost, best, found) {
+						best, bestCost, found = r, c, true
+					}
+				})
 			}
 		}
 		if found {
@@ -457,6 +476,68 @@ func (e *embedder) placeNear(i int, blocks []Rectangle, anchors []int) (Rectangl
 		}
 	}
 	return Rectangle{}, false
+}
+
+// axisSet is the start coordinates on one axis that put a block at one axis
+// gap from an anchor: the two starts lo and hi when pair, else every start from
+// lo to hi.
+type axisSet struct {
+	lo, hi int32
+	pair   bool
+}
+
+func (s axisSet) each(f func(int32)) {
+	if s.pair {
+		f(s.lo)
+		f(s.hi)
+		return
+	}
+	for v := s.lo; v <= s.hi; v++ {
+		f(v)
+	}
+}
+
+// ringPositions calls f with every start (x, z) of a block of interior sh whose
+// gap to the anchor ab is ring (gapDist, or fieldGap when field): exactly the
+// starts the window ab padded by ring holds with that gap, enumerated by axis
+// gap (axisGap) rather than filtered from the whole window. Each axis offers
+// two starts at every gap s >= 1 (beside the anchor on either side), two at gap
+// 0 (flush), and the starts in between that overlap it (gap < 0). gapDist is
+// sx+sz when both gaps are >= 1, sx plus one when sz is 0 and sx >= 1, sx alone
+// when sz < 0 (and the same turned); fieldGap is max(sx,0)+max(sz,0), at
+// least 1. The order of the calls is not the window's, which no caller reads:
+// better ranks by cost and then (Z, X).
+func ringPositions(ab Rectangle, sh [2]int32, ring int, field bool, f func(x, z int32)) {
+	w, h := sh[0], sh[1]
+	r := int32(ring)
+	xs := func(s int32) axisSet { return axisSet{ab.X - w - s, ab.X + ab.Width + s, true} }
+	zs := func(s int32) axisSet { return axisSet{ab.Z - h - s, ab.Z + ab.Height + s, true} }
+	xLow := axisSet{lo: ab.X - w, hi: ab.X + ab.Width}         // gap <= 0
+	zLow := axisSet{lo: ab.Z - h, hi: ab.Z + ab.Height}        // gap <= 0
+	xNeg := axisSet{lo: ab.X - w + 1, hi: ab.X + ab.Width - 1} // gap < 0
+	zNeg := axisSet{lo: ab.Z - h + 1, hi: ab.Z + ab.Height - 1}
+	product := func(xa, za axisSet) {
+		za.each(func(z int32) { xa.each(func(x int32) { f(x, z) }) })
+	}
+	for s := int32(1); s < r; s++ { // both gaps >= 1: they sum to ring
+		product(xs(s), zs(r-s))
+	}
+	switch {
+	case field && r == 1: // the gap is floored at 1: touching, or overlapping
+		product(xLow, zLow)
+		product(xs(1), zLow)
+		product(xLow, zs(1))
+	case field:
+		product(xs(r), zLow)
+		product(xLow, zs(r))
+	default:
+		product(xs(r), zNeg) // beside the anchor, overlapping on the other axis
+		product(xNeg, zs(r))
+		if r >= 2 { // flush on the other axis: the wall counts one
+			product(xs(r-1), zs(0))
+			product(xs(0), zs(r-1))
+		}
+	}
 }
 
 // placeAnywhere is the cheapest fitting position on the map, or the fitting
@@ -690,9 +771,10 @@ func Embed(in EmbedInput) (Embedding, error) {
 	}
 	in = in.withFields()
 	scorer := newPlanScorer(in.Zones, in.Reservations, in.Survey)
+	fixed := newEmbedFixed(in, scorer)
 	var best *embedRun
 	for _, level := range obstacleLevels {
-		run := embedLevel(in, depth, scorer, level)
+		run := embedLevel(in, depth, scorer, level, fixed)
 		// A looser level takes over only by FieldGain, as in SiteCore: the
 		// strictest level keeps the plan unless the ground it spares costs
 		// more than that.
@@ -738,8 +820,8 @@ func (e *embedder) unmetLinks(blocks []Rectangle) int {
 	return n
 }
 
-func embedLevel(in EmbedInput, depth int, scorer planScorer, level obstacleLevel) *embedRun {
-	e := newEmbedder(in, depth, scorer, level)
+func embedLevel(in EmbedInput, depth int, scorer planScorer, level obstacleLevel, fixed embedFixed) *embedRun {
+	e := newEmbedderFixed(in, depth, scorer, level, fixed)
 	if len(in.Groups) == 0 || len(e.core) == 0 {
 		blocks := make([]Rectangle, len(in.Groups))
 		run := &embedRun{e: e, level: level, blocks: blocks, built: builtRun{Moved: -1}}

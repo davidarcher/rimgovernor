@@ -144,7 +144,7 @@ func (e *embedder) cellsFor(i int) []domain.Cell {
 // fieldMasks prices the soil each field may stand on: a prefix sum per least
 // fertility, over the cells the survey holds that the core allows and that are
 // not rock.
-func (e *embedder) fieldMasks(in EmbedInput, scorer planScorer) {
+func (e *embedFixed) fieldMasks(in EmbedInput, scorer planScorer) {
 	type mask struct {
 		sum   prefix
 		cells []domain.Cell

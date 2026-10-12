@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"math"
 	"runtime"
 	"sort"
 	"sync"
@@ -138,11 +139,19 @@ func (g coreGrid) siteSeeds(n int) []domain.Cell {
 		add(c)
 	}
 	var edge, rock, grid []domain.Cell
+	dense := newDenseCore(g.core)
+	anyRich := false // nearRich is false everywhere when no cell is rich
+	for _, v := range g.soil {
+		if v == soilCostRich {
+			anyRich = true
+			break
+		}
+	}
 	for c := range g.core {
-		if !g.column(c.X, c.Z) {
+		if !dense.column(c.X, c.Z) { // g.column, read off a dense copy of the core
 			continue
 		}
-		if g.soil[c] != soilCostRich && g.nearRich(c) {
+		if anyRich && g.soil[c] != soilCostRich && g.nearRich(c) {
 			edge = append(edge, c)
 		}
 		if !g.rock[c] && g.besideRock(c) {
@@ -160,6 +169,47 @@ func (g coreGrid) siteSeeds(n int) []domain.Cell {
 		}
 	}
 	return out[:min(n, len(out))]
+}
+
+// denseCore is a core set as a bool grid over its bounding box, so column
+// reads array cells instead of map entries.
+type denseCore struct {
+	x0, z0, w, h int32
+	in           []bool
+}
+
+func newDenseCore(core map[domain.Cell]bool) denseCore {
+	x0, z0, x1, z1 := int32(math.MaxInt32), int32(math.MaxInt32), int32(math.MinInt32), int32(math.MinInt32)
+	for c, ok := range core {
+		if ok {
+			x0, z0, x1, z1 = min(x0, c.X), min(z0, c.Z), max(x1, c.X), max(z1, c.Z)
+		}
+	}
+	if x1 < x0 {
+		return denseCore{}
+	}
+	d := denseCore{x0: x0, z0: z0, w: x1 - x0 + 1, h: z1 - z0 + 1}
+	d.in = make([]bool, int(d.w)*int(d.h))
+	for c, ok := range core {
+		if ok {
+			d.in[int(c.Z-z0)*int(d.w)+int(c.X-x0)] = true
+		}
+	}
+	return d
+}
+
+// column is coreGrid.column: the cells (x, z-coreHalf..z+coreHalf) all core.
+func (d denseCore) column(x, z int32) bool {
+	if x < d.x0 || x >= d.x0+d.w || z-coreHalf < d.z0 || z+coreHalf >= d.z0+d.h {
+		return false
+	}
+	i := int(z-coreHalf-d.z0)*int(d.w) + int(x-d.x0)
+	for dz := int32(0); dz <= 2*coreHalf; dz++ {
+		if !d.in[i+int(dz)*int(d.w)] {
+			return false
+		}
+	}
+	return true
 }
 
 // siteGridStep is the coarse grid's spacing in cells.
