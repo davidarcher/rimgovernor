@@ -91,6 +91,16 @@ func bedDefs(beds []FurnitureBed) []string {
 	return out
 }
 
+// IsBed reports whether def is one of the catalog's beds.
+func (f RoomFurniture) IsBed(def string) bool {
+	for _, b := range f.Beds {
+		if b.Def == def {
+			return true
+		}
+	}
+	return false
+}
+
 // SleepingBeds are the single-slot beds in preference order: what the
 // sleeping and hospital planners stage, a sleeping spot last.
 func (f RoomFurniture) SleepingBeds() []string { return bedDefs(f.slotBeds(1)) }
