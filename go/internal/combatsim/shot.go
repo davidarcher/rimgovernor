@@ -134,6 +134,7 @@ func (s *Sim) roundRandom(f float64) float64 {
 func (s *Sim) launch(si, ti int) {
 	a, t := &s.pawns[si], &s.pawns[ti]
 	r := s.report(si, ti)
+	id := s.takeID() // every projectile takes an id, wild or not
 	e := Event{Kind: EventShot, Pawn: a.id, Target: t.id, Cell: a.pos, Outcome: ShotFlying}
 	switch {
 	case !s.chance(r.AimIgnoringPosture):
@@ -152,8 +153,7 @@ func (s *Sim) launch(si, ti int) {
 		(s.streams.Physical.Float64()*2 - 1) * launchScatter,
 		(s.streams.Physical.Float64()*2 - 1) * launchScatter,
 	}
-	phase := s.streams.Phase.IntN(offCameraInterval)
-	victim, at := s.fly(si, ti, off, phase)
+	victim, at := s.fly(si, ti, off, idPhase(id))
 	intended := false
 	if victim < 0 { // reaches the destination cell
 		victim, intended = ti, true
@@ -350,6 +350,9 @@ func (s *Sim) damage(si, vi int) {
 		dealt *= float64(1 + s.hitCopies(v.layers))
 	}
 	v.damage += dealt
+	if dealt > 0 {
+		s.dropFilth()
+	}
 	downed, dead := v.downed, v.dead
 	switch {
 	case v.damage >= v.killAt:

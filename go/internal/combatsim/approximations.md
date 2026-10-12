@@ -64,10 +64,22 @@ is a candidate to replace by a faithful port. Game sources are in
   `ticksToImpact` falling by the ticks elapsed, so it lands on the first phase
   tick at or after launch + its 3D flight (0 to 14 ticks later) and is tested
   for interception per 15-tick segment, the last one included. The phase is a
-  uniform draw from a stream of its own (`Streams.Phase`): the recorded flights
-  (median 46, p25 42, p75 50 over 1526 shots) match; the sim's are one tick
-  short at every quartile, unexplained (the leaning draw position and the 0.3
-  scatter's float32 rounding are the candidates) (#2933).
+  residue is `(tick + Gen.HashOffset(thingID)) % 15 == 0`, and the sim replays
+  it from the id (#2936): every recorded landing (1526 of 1526; 1508 are the
+  first such tick at or after launch + ticks to impact, the rest interceptions)
+  is on its id's phase. Ids come from one counter shared by both sides: a run
+  starts at 7308 plus 0 to 3 (the four first ids of the 20 recorded seeds, 7 /
+  7 / 4 / 2), every launched projectile (wild, cover or flying) takes the next
+  id, and a damaging hit takes one more with probability 356/410 (the recorded
+  extra ids over damaging impacts: 0.5 for `PostApplyDamage`'s blood filth,
+  the rest bleeding drops, lumped into the hit; filth stacking on an existing
+  one, a corpse or dropped gear are not told apart). The start id is the
+  `lab-ranged` checkpoint's; other scenarios inherit it. Draws come from the
+  stream of its own (`Streams.Phase`). The sim's flights run one tick short
+  of the recorded ones (median 45 against 46) because its flying shots have
+  a shorter mean ticks-to-impact (38.2 against the real 39.4 over all shots,
+  a different mix: the wild and cover shots are not flown, A7), not because of
+  the phase: its wait for the phase tick averages 6.8 of the expected 7.
 - **A10. Only pawns intercept.** A shot aimed at a pawn carries the
   IntendedTarget and NonTargetPawns hit flags only, so walls, doors and cover
   never intercept in flight; they matter through line of fire (`CellCanSeeCell`)

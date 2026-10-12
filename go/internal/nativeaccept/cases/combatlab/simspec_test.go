@@ -102,7 +102,7 @@ func TestLabFixturesImportAndRunInTheSim(t *testing.T) {
 			}
 			// Who wins lab-ranged is the calibration gate's business (it does not
 			// match the real baseline); this asserts the closed loop fights.
-			if got.Decisions == 0 || got.Metrics.FirstContactTick < 0 || got.Metrics.ColonistDamage+float64(got.Metrics.EnemyDowns) == 0 {
+			if got.Decisions == 0 || got.Metrics.FirstContactTick < 0 || got.Metrics.ColonistDamage+float64(got.Metrics.EnemyDowns+got.Metrics.EnemyDeaths) == 0 {
 				t.Fatalf("the policy never fought: %+v", got.Metrics)
 			}
 			switch name {

@@ -35,8 +35,19 @@ func TestProjectileLandsOnItsIntervalTickAfterTheThreeDimensionalFlight(t *testi
 		}
 		residues[shots[0].ETA%offCameraInterval] = true
 	}
-	if len(residues) != offCameraInterval {
-		t.Errorf("projectiles landed on %d of %d interval phases", len(residues), offCameraInterval)
+	// A run's first projectile takes one of four ids (7308..7311), so these
+	// single shots land on exactly the phases of those ids.
+	want := map[int]bool{}
+	for id := int32(firstProjectileID); id < firstProjectileID+4; id++ {
+		want[idPhase(id)] = true
+	}
+	for r := range residues {
+		if !want[r] {
+			t.Errorf("a projectile landed on phase %d, not one of %v", r, want)
+		}
+	}
+	if len(residues) != len(want) {
+		t.Errorf("projectiles landed on %d phases, want the %d of the first ids", len(residues), len(want))
 	}
 }
 

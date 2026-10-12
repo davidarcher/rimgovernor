@@ -218,8 +218,8 @@ type State struct {
 type Streams struct {
 	Physical *rand.Rand
 	Enemy    *rand.Rand
-	// Phase draws the hash phases the game derives from thing ids the sim does
-	// not model (A9): which tick of the 15-tick cycle a projectile is ticked on.
+	// Phase draws the thing ids the sim does not model (A9): where a run's
+	// ids start and which hits drop a filth that takes one.
 	Phase *rand.Rand
 }
 
@@ -249,6 +249,7 @@ type Sim struct {
 	events []Event
 	state  State
 
+	nextID  int32        // the next thing id the game would hand out (A9)
 	pending []projectile // in flight, in launch order
 	ledger  []combatmetrics.Hit
 	ff      float64 // FriendlyFireChanceFactor
@@ -273,6 +274,7 @@ func (s *Sim) Reset(sc Scenario, seed uint64) (State, error) {
 		Phase:    rand.New(rand.NewPCG(seed, phaseStream)),
 	}
 	s.events, s.applied = s.events[:0], false
+	s.nextID = firstThingID(s.streams.Phase)
 	s.pending = s.pending[:0]
 	s.ledger = s.ledger[:0]
 	return s.snapshot(), nil

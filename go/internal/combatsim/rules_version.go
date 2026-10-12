@@ -43,6 +43,11 @@ package combatsim
 //     Verse.Gen.RandomHorizontalVector, Verse.Altitudes.AltitudeFor (the
 //     projectile's 15-tick phase, 3D flight and scatter, #2933).
 //
+//   - thingid.go: Verse.Gen.HashOffset (Gen.HashCombineInt) and the
+//     Thing.IsHashIntervalTick rule that sets a projectile's tick phase from
+//     its thing id; Verse.Pawn.PostApplyDamage and Pawn_HealthTracker
+//     .DropBloodFilth (the filth that takes ids between shots, #2936).
+//
 //   - enemy.go: Verse.AI.AttackTargetFinder.BestAttackTarget,
 //     GetAvailableShootingTargetsByScore, GetShootingTargetScore,
 //     FriendlyFireConeTargetScoreOffset, CanSee; RimWorld.JobGiver_AIFightEnemy
@@ -62,4 +67,4 @@ const AssemblyCSharpSHA256 = "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04A
 // any change to a port or an approximation that can move an outcome (a rule
 // fix, a new modeled behavior): a calibration pass (combatsim/calibrate) is
 // recorded under it and is stale after a bump.
-const RulesVersion = 6
+const RulesVersion = 7

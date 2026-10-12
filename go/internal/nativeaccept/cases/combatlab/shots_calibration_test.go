@@ -125,6 +125,14 @@ func (st *shotStats) fold(shots []seedShot, contact int) {
 	}
 }
 
+func mean(xs []int) float64 {
+	sum := 0
+	for _, x := range xs {
+		sum += x
+	}
+	return float64(sum) / float64(max(len(xs), 1))
+}
+
 func quantile(xs []int, q float64) float64 {
 	if len(xs) == 0 {
 		return -1
@@ -178,7 +186,7 @@ func (st *shotStats) String() string {
 	fmt.Fprintf(&b, "openings colonist %s raider %s\n", st.openings(combatmetrics.Colonist), st.openings(combatmetrics.Hostile))
 	fmt.Fprintf(&b, "shots/pawn colonist %.2f raider %.2f (%d shots by %d, %d shots by %d)\n", st.perPawn(combatmetrics.Colonist), st.perPawn(combatmetrics.Hostile),
 		st.shots[combatmetrics.Colonist], st.pawns[combatmetrics.Colonist], st.shots[combatmetrics.Hostile], st.pawns[combatmetrics.Hostile])
-	fmt.Fprintf(&b, "flight p25/p50/p75 %.0f/%.0f/%.0f (n=%d)\n", quantile(st.flight, .25), quantile(st.flight, .5), quantile(st.flight, .75), len(st.flight))
+	fmt.Fprintf(&b, "flight p25/p50/p75 %.0f/%.0f/%.0f mean %.2f (n=%d)\n", quantile(st.flight, .25), quantile(st.flight, .5), quantile(st.flight, .75), mean(st.flight), len(st.flight))
 	fmt.Fprintf(&b, "first contact p25/p50/p75 %.0f/%.0f/%.0f (n=%d)\n", quantile(st.contact, .25), quantile(st.contact, .5), quantile(st.contact, .75), len(st.contact))
 	fmt.Fprintf(&b, "burst: %.3f of gaps within a burst, median in %.0f out %.0f\n", in, mi, mo)
 	var out []int
