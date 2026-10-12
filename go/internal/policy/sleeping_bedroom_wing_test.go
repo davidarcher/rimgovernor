@@ -44,18 +44,13 @@ func TestBedroomStepSkipsBuiltRooms(t *testing.T) {
 	}
 }
 
-// With nobody unhoused nothing is owed, however empty the wing; a Retiring
-// wing is never built out.
-func TestBedroomStepWingOwedOnlyByNeedAndNeverRetiring(t *testing.T) {
+// With nobody unhoused nothing is owed, however empty the wing.
+func TestBedroomStepWingOwedOnlyByNeed(t *testing.T) {
 	plan, rooms, sleeping := wingFixture(4, WingBedrooms)
 	// Both colonists sleep in a bedroom elsewhere: nobody is unhoused.
 	rooms.Rooms[0].Role, rooms.Rooms[0].Cells = domain.Known(RoomRoleBedroom), []domain.Cell{{X: 50, Z: 50}}
 	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomNone {
 		t.Fatalf("housed colony = %+v, want no step", got)
-	}
-	plan, rooms, sleeping = wingFixture(4, WingBedroomsRetiring)
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomNone {
-		t.Fatalf("retiring wing = %+v, want none", got)
 	}
 }
 
@@ -80,11 +75,5 @@ func TestBedroomStepChoosesRoomInPlanOrder(t *testing.T) {
 	got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{})
 	if got.Kind != BedroomReconcile || got.Room.Region.Bounds().X != 10 {
 		t.Fatalf("step = %+v, want wing 1 first", got)
-	}
-	// A Retiring first wing yields none of its rooms: the next wing leads.
-	plan.Wings[0].Purpose = WingBedroomsRetiring
-	got = NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{})
-	if got.Kind != BedroomReconcile || got.Room.Region.Bounds().X != 50 {
-		t.Fatalf("step = %+v, want wing 2 once wing 1 retires", got)
 	}
 }

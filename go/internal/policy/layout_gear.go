@@ -6,8 +6,7 @@ package policy
 // (RoomDemand); with no demand neither is planned. The armory stands beside
 // the storage room, the wardrobe beside the workshop, which hosts every bench
 // including the tailor's (besideRoles). A room already in the plan answers
-// its demand for good: rooms are only retired by the reconcile steps in
-// layout_retire.go and none moves or resizes, so a zone that stays
+// its demand for good: rooms are only retired by the tiled replan, and none moves or resizes, so a zone that stays
 // full after the room stands asks for nothing more.
 
 const (

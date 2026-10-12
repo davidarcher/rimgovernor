@@ -6,7 +6,7 @@ import (
 
 // Demand-grown core rooms. A colony starts with only the base rooms (defaultOwedRooms) and the
 // bedroom wings; every room below joins the plan once its need shows, at the
-// nearest core slot like any other add-on (SiteRoom), beside its anchor when
+// nearest core slot like any other add-on, beside its anchor when
 // besideRoles names one (the butchery behind the freezer). Nothing is
 // reserved ahead of the need, so no rock is dug and no ground held for a room
 // that is not up for building. The tomb and the morgue are planned from the start in the outskirts cluster

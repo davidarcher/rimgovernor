@@ -3,8 +3,6 @@ package policy
 import (
 	"slices"
 	"strings"
-
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // Shelter retirement: the temporary shelter leaves the plan once every
@@ -112,16 +110,4 @@ func benchOutside(built []CurrentBuilding, rooms RoomObservation, shelterRoom ma
 		}
 	}
 	return false
-}
-
-// InFlightRooms are the interiors of the plan's rooms an open journal plan is
-// working on, keyed by origin as InFlightRoomCells is.
-func InFlightRooms(plan LayoutPlan, origins map[domain.Cell]bool) map[int32]bool {
-	out := map[int32]bool{}
-	for _, r := range plan.AllRooms() {
-		if origins[domain.Cell{X: r.Region.Bounds().X, Z: r.Region.Bounds().Z}] {
-			out[r.ID] = true
-		}
-	}
-	return out
 }

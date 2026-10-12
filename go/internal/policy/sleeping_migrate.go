@@ -7,28 +7,18 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Bedroom migration. A bedroom a successor replaces (layout_succession.go), or
-// one in a smaller wing a tier bump left Retiring (retireWings), is retiring:
-// its pawns move one at a time into the other bedrooms. The move is not a
-// bedroom deficit: the unhoused count, BedroomsOwed and the bed research
+// Bedroom migration. A bedroom a successor replaces (layout_succession.go) is
+// retiring: its pawns move one at a time into the other bedrooms. The move is
+// not a bedroom deficit: the unhoused count, BedroomsOwed and the bed research
 // request ignore it.
 
 // retiringBedrooms are the bedrooms whose pawns migrate: those a successor
-// replaces and the rooms of the Retiring wings.
+// replaces.
 func retiringBedrooms(plan LayoutPlan) []PlannedRoom {
 	gone := plan.superseded()
-	inWing := map[int32]bool{}
 	var out []PlannedRoom
-	for _, w := range plan.Wings {
-		if w.Purpose == WingBedroomsRetiring {
-			for _, r := range w.Rooms {
-				inWing[r.ID] = true
-				out = append(out, r)
-			}
-		}
-	}
 	for _, r := range plan.AllRooms() {
-		if (r.Role == PlannedBedroom || r.Role == PlannedSuite) && gone[r.ID] && !inWing[r.ID] {
+		if (r.Role == PlannedBedroom || r.Role == PlannedSuite) && gone[r.ID] {
 			out = append(out, r)
 		}
 	}
@@ -113,10 +103,10 @@ func vacantColonistBed(b SleepingBed) bool {
 }
 
 // NextMigrateStep is the next migration step: move a pawn owning a bed in
-// a Retiring wing's room to a vacant bed in an active wing's room; with
-// none vacant, reconcile the first standing empty active room, else the
-// first unbuilt one (BedroomReconcile). BedroomNone when no single pawn sleeps in a
-// Retiring room (a couple keeps its double bed). One pawn per step.
+// a retiring room to a vacant bed in a room that stays; with none vacant,
+// reconcile the first standing empty such room, else the first unbuilt one
+// (BedroomReconcile). BedroomNone when no single pawn sleeps in a retiring
+// room (a couple keeps its double bed). One pawn per step.
 func NextMigrateStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation) BedroomStep {
 	old := retiringBedRoles(plan, rooms)
 	if len(old) == 0 {

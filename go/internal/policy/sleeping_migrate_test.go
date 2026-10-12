@@ -54,13 +54,11 @@ func TestTierBumpRetiresWingAndSitesNewOne(t *testing.T) {
 }
 
 func migrateFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
-	room := func(x int32) PlannedRoom {
-		return PlannedRoom{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: x, Z: 0, Width: 4, Height: 4})}
+	room := func(id, x, replaces int32) PlannedRoom {
+		return PlannedRoom{ID: id, Replaces: replaces, Role: PlannedBedroom, Region: RectRegion(Rectangle{X: x, Z: 0, Width: 4, Height: 4})}
 	}
-	plan := LayoutPlan{Wings: []Wing{
-		{Purpose: WingBedroomsRetiring, Rooms: []PlannedRoom{room(0), room(10)}},
-		{Purpose: WingBedrooms, Rooms: []PlannedRoom{room(20), room(30)}},
-	}}
+	// Two bedrooms and the two successors that replace them.
+	plan := LayoutPlan{Rooms: []PlannedRoom{room(1, 0, 0), room(2, 10, 0), room(3, 20, 1), room(4, 30, 2)}}
 	standing := func(id string, x int32, beds ...string) Room {
 		return Room{ID: id, Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: beds, Cells: []domain.Cell{{X: x + 2, Z: 2}}}
 	}
@@ -74,7 +72,7 @@ func migrateFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 	return plan, rooms, sleeping
 }
 
-// Pawns leave a Retiring wing one at a time; the move is no bedroom
+// Pawns leave a replaced bedroom one at a time; the move is no bedroom
 // deficit.
 func TestMigrateStepMovesOnePawnAtATime(t *testing.T) {
 	plan, rooms, sleeping := migrateFixture()
@@ -102,6 +100,6 @@ func TestMigrateStepMovesOnePawnAtATime(t *testing.T) {
 	}
 	sleeping.People[1].OwnedBed = domain.Known("nb2")
 	if got := NextMigrateStep(plan, rooms, sleeping); got.Kind != BedroomNone {
-		t.Fatalf("empty retiring wing = %+v, want none", got)
+		t.Fatalf("no retiring pawn left = %+v, want none", got)
 	}
 }

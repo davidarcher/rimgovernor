@@ -8,6 +8,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+func TestInFlightRoomsKeysByInteriorOrigin(t *testing.T) {
+	a := PlannedRoom{ID: 1, Role: PlannedShelter, Region: RectRegion(Rectangle{X: 4, Z: 5, Width: 5, Height: 4})}
+	b := PlannedRoom{ID: 2, Role: PlannedLab, Region: RectRegion(Rectangle{X: 20, Z: 5, Width: 5, Height: 4})}
+	got := InFlightRooms(LayoutPlan{Rooms: []PlannedRoom{a, b}}, map[domain.Cell]bool{{X: 4, Z: 5}: true})
+	if len(got) != 1 || !got[a.ID] {
+		t.Fatal(got)
+	}
+}
+
 func TestLayoutPlanAnchorFallsBackToReserve(t *testing.T) {
 	p := LayoutPlan{Rooms: []PlannedRoom{
 		{Role: PlannedKitchen, Region: RectRegion(Rectangle{X: 0, Z: 0, Width: 4, Height: 4})},

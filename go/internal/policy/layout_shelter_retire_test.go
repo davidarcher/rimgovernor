@@ -146,15 +146,6 @@ func containsCell(cells []domain.Cell, c domain.Cell) bool {
 	return false
 }
 
-func TestInFlightRoomsKeysByInteriorOrigin(t *testing.T) {
-	a := PlannedRoom{ID: 1, Role: PlannedShelter, Region: RectRegion(Rectangle{X: 4, Z: 5, Width: 5, Height: 4})}
-	b := PlannedRoom{ID: 2, Role: PlannedLab, Region: RectRegion(Rectangle{X: 20, Z: 5, Width: 5, Height: 4})}
-	got := InFlightRooms(LayoutPlan{Rooms: []PlannedRoom{a, b}}, map[domain.Cell]bool{{X: 4, Z: 5}: true})
-	if len(got) != 1 || !got[a.ID] {
-		t.Fatal(got)
-	}
-}
-
 // A standing room the next plan no longer holds has its ground recorded
 // (retiredGround) and kept by a later replan; clearance then takes the
 // furniture, the walls and the floor down, and the entry is dropped once the

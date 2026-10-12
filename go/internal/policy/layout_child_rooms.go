@@ -20,6 +20,18 @@ func init() {
 	}
 }
 
+// ChildRoomShapes are the shapes of every need whose furniture resolves,
+// planned or not.
+func ChildRoomShapes(needs []ChildRoomNeed, defs []FurnitureDefinition) []ChildRoomShape {
+	var out []ChildRoomShape
+	for _, n := range needs {
+		if s, ok := n.shape(defs); ok {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
 // childSlots are the canonical corners a piece of size stands at in a
 // width by depth room whose entrance column is aisle, back band first.
 func childSlots(width, depth, aisle int32, size domain.Cell) []domain.Cell {

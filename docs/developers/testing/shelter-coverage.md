@@ -23,7 +23,7 @@ one honest end-to-end path, and staged fixtures for recovery.
 | Manual cancellation of a pending ring | `buildingruntime.TestRoundsShelterManualCancelsWholePendingShell` |
 | Starter-search siting per terrain (recorded searches) | `buildingruntime.TestShelterSitingSnapshots` |
 | Which concerns open beside the initial shelter | `snapshot.TestReplay*Shelter*` |
-| Retirement per capability: sleep, craft, research (bench outside, or a standing lab), heat on a cold map, unknowns and an otherwise empty plan keep the shelter | `policy` `layout_retire_shelter_test.go` (`TestShelterRetirable…`, `TestShelterRetiresForSoloColonyWithBenchInBedroom`) |
+| Retirement per capability: sleep, craft, research (bench outside, or a standing lab), heat on a cold map, unknowns and an otherwise empty plan keep the shelter | `policy` `layout_shelter_retire_test.go` (`TestShelterRetirable…`, `TestShelterRetiresForSoloColonyWithBenchInBedroom`) |
 | A solo colony: the shelter hosts sleep, craft, research and heat, and no laboratory is owed while it has capacity | `policy.TestSoloColonyOwesNoLaboratory` |
 
 A planner test's modeled reachability is not native reachability, and the

@@ -82,6 +82,62 @@ func FixedRooms(plan LayoutPlan, ground GroundCensus, occupied map[domain.Cell]b
 	return fixed
 }
 
+// allPins is every room of plan.
+func allPins(plan LayoutPlan) map[int32]bool {
+	pins := map[int32]bool{}
+	for _, r := range plan.AllRooms() {
+		pins[r.ID] = true
+	}
+	return pins
+}
+
+func bedroomCount(p LayoutPlan) int {
+	n := 0
+	for _, r := range p.AllRooms() {
+		if r.Role == PlannedBedroom {
+			n++
+		}
+	}
+	return n
+}
+
+// InFlightRoomCells are the walls of the plan's rooms an open journal plan
+// is working on, keyed by the room's interior origin as the plan's method
+// ids are: added to the occupied cells, they make such a room fixed
+// before any building of it is accepted.
+func InFlightRoomCells(plan LayoutPlan, origins map[domain.Cell]bool) map[domain.Cell]bool {
+	out := map[domain.Cell]bool{}
+	for _, r := range plan.AllRooms() {
+		if origins[domain.Cell{X: r.Region.Bounds().X, Z: r.Region.Bounds().Z}] {
+			for _, c := range rectCells(roomWalls(r)) {
+				out[c] = true
+			}
+		}
+	}
+	return out
+}
+
+// InFlightRooms are the interiors of the plan's rooms an open journal plan is
+// working on, keyed by origin as InFlightRoomCells is.
+func InFlightRooms(plan LayoutPlan, origins map[domain.Cell]bool) map[int32]bool {
+	out := map[int32]bool{}
+	for _, r := range plan.AllRooms() {
+		if origins[domain.Cell{X: r.Region.Bounds().X, Z: r.Region.Bounds().Z}] {
+			out[r.ID] = true
+		}
+	}
+	return out
+}
+
+// RoomsOfRoles is how many planned rooms hold one of roles.
+func RoomsOfRoles(plan LayoutPlan, roles []PlannedRole) int {
+	n := 0
+	for _, role := range roles {
+		n += len(plan.roomsOf(role))
+	}
+	return n
+}
+
 func withoutRooms(rooms []PlannedRoom, drop map[int32]bool) []PlannedRoom {
 	var out []PlannedRoom
 	for _, r := range rooms {

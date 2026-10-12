@@ -18,6 +18,26 @@ type SpineSegment struct {
 	From, To domain.Cell
 }
 
+// WingPurpose is what a wing's rooms are for.
+type WingPurpose string
+
+// WingBedrooms is the standard bedroom wing; WingSuites the suite wing.
+// WingBedroomsRetiring is a standard wing a tier bump left behind. Only the
+// old generator sited wings; LayoutPlan.Wings goes with #2971.
+const (
+	WingBedrooms         WingPurpose = "bedrooms"
+	WingSuites           WingPurpose = "suites"
+	WingBedroomsRetiring WingPurpose = "bedrooms_retiring"
+)
+
+// Wing is a corridor off the main hallway with its rooms. Corridor.From is
+// its centre cell in the main hallway's wall row, Corridor.To the open end.
+type Wing struct {
+	Purpose  WingPurpose
+	Corridor SpineSegment
+	Rooms    []PlannedRoom
+}
+
 // Door is one boundary door of a room: its wall cell and the side it faces.
 type Door struct {
 	Cell domain.Cell

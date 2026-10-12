@@ -8,16 +8,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// A pending wing migration keeps housing owed though policy
+// A pending bedroom migration keeps housing owed though policy
 // BedroomsOwed counts no deficit.
 func TestPendingMigrationKeepsHousingOwed(t *testing.T) {
-	room := func(x int32) policy.PlannedRoom {
-		return policy.PlannedRoom{Role: policy.PlannedBedroom, Region: policy.RectRegion(policy.Rectangle{X: x, Z: 0, Width: 4, Height: 4})}
+	room := func(id, x, replaces int32) policy.PlannedRoom {
+		return policy.PlannedRoom{ID: id, Replaces: replaces, Role: policy.PlannedBedroom, Region: policy.RectRegion(policy.Rectangle{X: x, Z: 0, Width: 4, Height: 4})}
 	}
-	plan := policy.LayoutPlan{Wings: []policy.Wing{
-		{Purpose: policy.WingBedroomsRetiring, Rooms: []policy.PlannedRoom{room(0)}},
-		{Purpose: policy.WingBedrooms, Rooms: []policy.PlannedRoom{room(20)}},
-	}}
+	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{room(1, 0, 0), room(2, 20, 1)}}
 	standing := func(id string, x int32, beds ...string) policy.Room {
 		return policy.Room{ID: id, Role: domain.Known(policy.RoomRoleBedroom), Enclosed: domain.Known(true), Beds: beds, Cells: []domain.Cell{{X: x + 2, Z: 2}}}
 	}

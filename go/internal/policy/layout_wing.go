@@ -2,26 +2,12 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Bedroom wings. The standard bedrooms form one wing: a
+// Bedroom wings of the old generator, pending deletion with it (#2969). The standard bedrooms form one wing: a
 // SpineWidth corridor branching off the main hallway, with identical rooms
 // on both sides. Neighbouring rooms on a side share their walls and every
 // door sits in the corridor wall, so no room is a thoroughfare. A wing is
 // planned at full size when sited and never grows; a pawn past its capacity
 // sites another wing, and sited rooms never move.
-
-// WingPurpose is what a wing's rooms are for.
-type WingPurpose string
-
-// WingBedrooms is the standard bedroom wing; WingSuites the suite wing
-// (layout_suite.go).
-const (
-	WingBedrooms WingPurpose = "bedrooms"
-	WingSuites   WingPurpose = "suites"
-	// WingBedroomsRetiring is a standard wing whose rooms are smaller than
-	// the tier's WingRoomSize: it keeps its ground,
-	// and its pawns migrate to an active wing (NextMigrateStep).
-	WingBedroomsRetiring WingPurpose = "bedrooms_retiring"
-)
 
 // retireWings marks every bedroom wing whose rooms are smaller than tier's
 // WingRoomSize Retiring; the next wing sited takes the new size.
@@ -37,14 +23,6 @@ func retireWings(wings []Wing, tier TechTier) []Wing {
 		out = append(out, w)
 	}
 	return out
-}
-
-// Wing is a corridor off the main hallway with its rooms. Corridor.From is
-// its centre cell in the main hallway's wall row, Corridor.To the open end.
-type Wing struct {
-	Purpose  WingPurpose
-	Corridor SpineSegment
-	Rooms    []PlannedRoom
 }
 
 // WingRoomSize is a standard room's interior for tier:

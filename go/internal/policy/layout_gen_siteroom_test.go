@@ -1,18 +1,22 @@
 package policy
 
-import "fmt"
+import (
+	"fmt"
+	"testing"
+)
+
+// SiteRoom is a fixture of the old generator's tests; production sites every
+// add-on room through the station chain.
 
 // siteRoomCandidates is how many fitting slots SiteRoom scores before it
 // keeps the best.
 const siteRoomCandidates = 12
 
-// SiteRoom is the one seam that sites an add-on room of the role onto plan:
-// the best-scoring of the next fitting core slots, trying sizes (interior
-// width, depth) in order, kept off the wings' ground and any weapon
-// clearance. Throne, child, gear, storage, incinerator and battery rooms all
-// come through it, so a new generator replaces this body and nothing else. A
-// plan with no core ground or no slot for any size is returned as it is, with
-// an error naming the room that could not be placed and why.
+// SiteRoom sites an add-on room of the role onto plan: the best-scoring of
+// the next fitting core slots, trying sizes (interior width, depth) in order,
+// kept off the wings' ground and any weapon clearance. A plan with no core
+// ground or no slot for any size is returned as it is, with an error naming
+// the room that could not be placed and why.
 //
 // Slots are scored as the initial siting scores a plan (planScorer.core: soil,
 // rock to dig, the walk from the spawn edge through the dug rock, footprint,
@@ -79,4 +83,25 @@ func siteRoomWhere(plan LayoutPlan, sc *planScorer, role PlannedRole, accept fun
 		return plan, false, fmt.Errorf("the plan needs a %s room but no free core slot clear of the weapon clearance round the plan's armory and prisons fits one (interior sizes tried: %v)", role, sizes)
 	}
 	return plan, false, fmt.Errorf("the plan needs a %s room but no free core slot fits one (interior sizes tried: %v)", role, sizes)
+}
+
+// SiteRoom scores the next fitting slots as the initial siting does and keeps
+// the best, so it never ranks below the nearest slot it would otherwise take.
+func TestSiteRoomKeepsTheBestScoringSlot(t *testing.T) {
+	p, s := scoredPlan(t)
+	sc := newPlanScorer(p.Zones, p.Reservations, s)
+	nearest, ok, err := SiteRoom(p, nil, PlannedThrone, [2]int32{6, 5})
+	if !ok || err != nil {
+		t.Fatal("nearest slot:", ok, err)
+	}
+	best, ok, err := SiteRoom(p, &sc, PlannedThrone, [2]int32{6, 5})
+	if !ok || err != nil {
+		t.Fatal("scored slot:", ok, err)
+	}
+	if len(best.Rooms) != len(nearest.Rooms) {
+		t.Fatal("rooms added", len(best.Rooms)-len(p.Rooms), "want", len(nearest.Rooms)-len(p.Rooms))
+	}
+	if sc.core(nearest).Better(sc.core(best)) {
+		t.Fatal("scored siting ranks below the nearest slot:", sc.core(best), sc.core(nearest))
+	}
 }

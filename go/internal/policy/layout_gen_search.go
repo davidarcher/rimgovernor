@@ -128,6 +128,16 @@ func (g coreGrid) moveCluster(plan LayoutPlan, rng *searchRand) (LayoutPlan, boo
 	return plan, true
 }
 
+// wingPinned reports whether a room of w is pinned.
+func wingPinned(w Wing, pins map[int32]bool) bool {
+	for _, r := range w.Rooms {
+		if pins[r.ID] {
+			return true
+		}
+	}
+	return false
+}
+
 // resiteWing takes one bedroom wing out of plan and sites it again, with
 // its old side of the hallway struck within a random column radius, or
 // altogether (the mirrored wing). The new wing must hold at least as many
