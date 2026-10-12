@@ -15,6 +15,7 @@ import (
 const (
 	statMoveSpeed       = "MoveSpeed"
 	statPainShock       = "PainShockThreshold"
+	statIncomingDamage  = "IncomingDamageFactor"
 	statShootAccuracy   = "ShootingAccuracyPawn"
 	statAimingDelay     = "AimingDelayFactor"
 	statRangedCooldown  = "RangedCooldownFactor"
@@ -212,29 +213,36 @@ func (im *importer) pawn(spec Spec, p Pawn, w weapon) (combatsim.PawnSpec, comba
 	ps.MoveSpeed = domain.Known(speed)
 	im.trace(id, "MoveSpeed", "stat "+statMoveSpeed+" of race "+r.name+traitSource(p.Traits))
 
-	constants, err := im.cat.GameConstants()
-	if err != nil {
-		return ps, pf, unsupported("game constants: %v", err)
-	}
 	shock, err := stat(statPainShock)
+	if err != nil {
+		return ps, pf, err
+	}
+	incoming, err := stat(statIncomingDamage)
+	if err != nil {
+		return ps, pf, err
+	}
+	if p.Side == combatmetrics.Colonist {
+		// A player-faction pawn's would-be instant kill is turned into a
+		// survivable injury below this chance; the per-part model has no such
+		// protection (A39).
+		chance, ok := spec.AllowInstantKillChance.Value()
+		if !ok {
+			return ps, pf, unsupported("pawn %q: the difficulty's allowInstantKillChance is unknown", id)
+		}
+		if chance < 1 {
+			return ps, pf, unsupported("pawn %q: allowInstantKillChance %v protects colonists from instant kills, which the sim does not model", id, chance)
+		}
+	}
+	kd := bridge.DefRow[*d.PawnKindDef](im.cat, p.Kind)
+	body, err := im.body(r.def.GetRace().GetBody(), r.healthSize, shock, incoming, kd.GetIgnoresPainShock())
 	if err != nil {
 		return ps, pf, err
 	}
 	cs := &combatsim.CombatSpec{
 		BodySize:            domain.Known(r.bodySize),
 		CanBenefitFromCover: r.def.GetCategory() == d.ThingCategory_THING_CATEGORY_PAWN,
-		// Pawn.HealthScale scales both: pain shock downs at shock*HealthScale
-		// damage over pain per severity (Hediff_Injury.PainOffset), and the lethal
-		// damage threshold is HealthTuning.BaseTotalDamageLethalThreshold*HealthScale.
-		DamageToDown: domain.Known(shock * r.healthSize / im.dmg.painPerSeverity),
-		DamageToKill: domain.Known(float64(constants.GetHealthTuning().GetBaseTotalDamageLethalThreshold()) * r.healthSize),
+		Body:                body,
 	}
-	hits, err := im.hitLayers(r.def.GetRace().GetBody())
-	if err != nil {
-		return ps, pf, err
-	}
-	cs.HitLayers = hits
-	im.trace(id, "HitLayers", "BodyDef "+r.def.GetRace().GetBody()+" part coverage, BodyPartDef hitChanceFactors and depth, DamageDef "+im.dmg.def+" harmAllLayersUntilOutside")
 	if p.Side == combatmetrics.Hostile {
 		chance, source, err := im.deathOnDowned(spec, p.Kind)
 		if err != nil {
@@ -247,8 +255,9 @@ func (im *importer) pawn(spec Spec, p Pawn, w weapon) (combatsim.PawnSpec, comba
 	}
 	im.trace(id, "BodySize", "race "+r.name+" baseBodySize * LifeStageDef "+r.lifeStage+" bodySizeFactor")
 	im.trace(id, "CanBenefitFromCover", "ThingDef "+r.name+" category")
-	im.trace(id, "DamageToDown", "stat "+statPainShock+" * healthScale of race "+r.name+" / HediffDef "+im.dmg.hediff+" injuryProps.painPerSeverity")
-	im.trace(id, "DamageToKill", lethalSeverityScale+" * healthScale of race "+r.name)
+	im.trace(id, "Body", "BodyDef "+r.def.GetRace().GetBody()+" parts, coverage, depth and tags, BodyPartDef hitPoints, hitChanceFactors, solid and destroyableByDamage * healthScale of race "+r.name+
+		"; DamageDef "+im.dmg.def+" harmAllLayersUntilOutside and overkillPctToDestroyPart; HediffDef "+im.dmg.hediff+" and "+missingPartHediff+" injuryProps.painPerSeverity; PawnCapacityDef workers; stat "+
+		statPainShock+" and "+statIncomingDamage+"; "+lethalSeverityScale+" * healthScale")
 
 	// Armor: the worn apparel's ratings outermost first, then the natural one
 	// (A26). No armor category on the damage means nothing is rated.

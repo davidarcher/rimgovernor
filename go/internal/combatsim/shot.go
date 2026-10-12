@@ -572,35 +572,48 @@ func (s *Sim) landProjectiles() {
 	s.pending = keep
 }
 
-// damage lands one projectile of shooter si on victim vi: armor, then the
-// injury approximation, then the ledger.
+// damage lands one projectile of shooter si on victim vi: the part it hits,
+// armor, then the injuries it adds to the victim's body, then the ledger.
+//
+// It ports DamageWorker_AddInjury.ApplyDamageToPart: the part is drawn first
+// (GetRandomNotMissingPart), armor then rates the damage, and the injury is
+// added (FinalizeAndAddInjury) with the duplicates on the outer parts
+// (CheckDuplicateDamageToOuterParts). Every injury runs
+// Pawn_HealthTracker.CheckForStateChange: dead, else downed (the hit that first
+// makes a non-player pawn downable rolls the death-on-downed chance, A33), else
+// a pawn that can no longer use its hands drops its weapon.
 func (s *Sim) damage(si, vi int) {
 	a, v := &s.pawns[si], &s.pawns[vi]
+	b, st := v.body, &v.inj
+	part := b.chooseHitPart(st, s.streams.Physical.Float64())
 	dealt := s.afterArmor(float64(a.weapon.DamageAmount), a.weapon.ArmorPenetration, v.armor)
-	if dealt > 0 && len(v.layers) > 0 {
-		dealt *= float64(1 + s.hitCopies(v.layers))
-	}
-	v.damage += dealt
-	if dealt > 0 {
-		s.dropFilth()
-	}
 	downed, dead := v.downed, v.dead
-	switch {
-	case v.damage >= v.killAt:
-		downed, dead = true, true
-	case v.damage >= v.downAt:
-		downed = true
-		// Pawn_HealthTracker.CheckForStateChange: the hit that makes a
-		// non-player pawn downable rolls the death-on-downed chance (A33).
-		if !v.downed && s.chance(v.deathOnDown) {
-			dead = true
+	var landed float64
+	if dealt *= b.IncomingDamageFactor; dealt > 0 && part >= 0 {
+		s.dropFilth()
+		if b.preservesOutside(part) {
+			dealt = s.preserveOutside(b, st, part, dealt)
+		}
+		landed = s.addInjury(v, part, dealt, &downed, &dead)
+		if b.HarmAllLayers && b.Parts[part].Inside && !dead {
+			// CheckDuplicateDamageToOuterParts: up the tree to the first outside
+			// part, each one that is still whole and can be hit.
+			for p := b.Parts[part].Parent; p >= 0 && !dead; p = b.Parts[p].Parent {
+				if b.partHealth(st, p) != 0 && b.Parts[p].Coverage > 0 {
+					landed += s.addInjury(v, p, dealt, &downed, &dead)
+				}
+				if !b.Parts[p].Inside {
+					break
+				}
+			}
 		}
 	}
-	s.emit(Event{Kind: EventHit, Pawn: a.id, Target: v.id, Amount: dealt, Cell: v.pos})
+	v.damage += landed
+	s.emit(Event{Kind: EventHit, Pawn: a.id, Target: v.id, Amount: landed, Cell: v.pos})
 	s.ledger = append(s.ledger, combatmetrics.Hit{
 		Tick: s.tick, Victim: string(v.id), VictimSide: v.side,
 		Instigator: string(a.id), InstigatorSide: a.side,
-		Dealt: dealt, Downed: downed, Dead: dead,
+		Dealt: landed, Downed: downed, Dead: dead,
 	})
 	if downed && !v.downed {
 		v.downed = true
@@ -615,16 +628,42 @@ func (s *Sim) damage(si, vi int) {
 	}
 }
 
-// hitCopies draws where a hit lands (A34): the number of further injuries of
-// the same amount it adds.
-func (s *Sim) hitCopies(layers []HitLayer) int {
-	u := s.streams.Physical.Float64()
-	for _, l := range layers {
-		if u -= l.Chance; u < 0 {
-			return l.Copies
-		}
+// preserveOutside ports DamageWorker_AddInjury.ReduceDamageToPreserveOutsideParts:
+// a hit on an outside part that would take more than its health leaves the part
+// at 1 health unless the overkill draws the destruction.
+func (s *Sim) preserveOutside(b *Body, st *injuryState, part int, amount float64) float64 {
+	health := b.partHealth(st, part)
+	if amount < health {
+		return amount
 	}
-	return layers[len(layers)-1].Copies
+	if s.chance(b.overkillChance((amount - health) / b.Parts[part].MaxHealth)) {
+		return amount
+	}
+	return health - 1
+}
+
+// addInjury adds one injury to the victim's part and runs the state change the
+// game runs after every hediff added (CheckForStateChange). It returns the
+// damage dealt.
+func (s *Sim) addInjury(v *pawn, part int, severity float64, downed, dead *bool) float64 {
+	b, st := v.body, &v.inj
+	dealt := b.addInjury(st, part, severity)
+	caps := b.levels(st)
+	switch {
+	case b.shouldBeDead(st, caps):
+		*downed, *dead = true, true
+	case *downed:
+	case b.shouldBeDowned(st, caps):
+		*downed = true
+		if s.chance(v.deathOnDown) {
+			*dead = true
+		}
+	case !(caps.manipulation > 0) && v.armed:
+		// A pawn that cannot use its hands drops its weapon.
+		v.armed = false
+		v.stance, v.target, v.burstLeft = stanceIdle, -1, 0
+	}
+	return dealt
 }
 
 // afterArmor ports ArmorUtility.GetPostArmorDamage for a pawn without body

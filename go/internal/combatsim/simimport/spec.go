@@ -37,8 +37,13 @@ type Spec struct {
 	// depends on besides the catalog (A33). Unknown fails the import of a Spec
 	// with a hostile.
 	DeathOnDowned domain.Fact[DeathOnDowned]
-	Things        []Thing
-	Pawns         []Pawn
+	// AllowInstantKillChance is the difficulty's allowInstantKillChance, the
+	// chance a player-faction pawn's would-be instant kill goes through. The
+	// per-part model kills a colonist at any hit, so only 1 imports (A39).
+	// Unknown fails the import of a Spec with a colonist.
+	AllowInstantKillChance domain.Fact[float64]
+	Things                 []Thing
+	Pawns                  []Pawn
 	// Layout is the stored defense layout the policy reads, unknown without one.
 	Layout domain.Fact[policy.CombatLayout]
 	// Raid is the hostiles' lord; nil leaves Fight.EnemyAI unset.

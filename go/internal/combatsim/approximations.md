@@ -8,18 +8,22 @@ is a candidate to replace by a faithful port. Game sources are in
 
 ## Injury and health
 
-- **A1. Two thresholds replace the health system.** A pawn accumulates post-armor
-  damage and is downed at `DamageToDown`, dead at `DamageToKill` (both supplied
-  per pawn by the caller, `DamageToKill >= DamageToDown`). The game downs and
-  kills through body-part destruction, consciousness, moving and manipulation
-  capacities, pain and blood loss. No hediffs, no body parts. A hostile that
-  crosses `DamageToDown` also takes the death-on-downed roll (A33), which is
-  how raiders die in practice; `DamageToKill` is rarely reached.
-- **A2. No bleeding, pain, infection or recovery.** Damage never decays and
-  nothing is tended; a downed pawn does not bleed out.
-- **A3. Damage is applied whole.** The game splits a hit across body parts and
-  scatters a share to neighbours; here the full post-armor amount counts once,
-  plus the outer-part duplicates of A34.
+- **A1. Injuries are per body part (A39).** Each pawn carries the injuries on
+  the parts of its `CombatSpec.Body`, ported from `Pawn_HealthTracker`,
+  `HediffSet` and the capacity workers: pain shock, the consciousness, Moving
+  and Manipulation capacities, vital-part loss, core-part destruction and the
+  lethal damage threshold decide when a pawn is downed or dead. What is left
+  out of that model is listed in A39. A hostile that becomes downable also
+  takes the death-on-downed roll (A33).
+- **A2. No blood loss, infection or recovery.** Injuries never decay, heal or
+  get tended. Bleeding is not modeled: the blood-loss hediff's first stage
+  (0.15 severity) takes about 2,250 ticks of the fastest bleeding the lab's
+  hits cause, past the 600-tick fights the sim resolves, and a downed pawn does
+  not bleed out. A fight long enough for bleeding to matter has to be checked.
+- **A3. Damage lands on one part, plus the outer-part duplicates of A34.** The
+  game's shot-height/depth choice does not exist for a projectile hit, so the
+  part is drawn by `coverageAbs` x hit chance factor (A39); there is no
+  scatter of a share to neighbours.
 - **A4. A downed pawn stays where it fell** and is not carried, crawling or
   rescued. A downed or dead pawn does not collide (`ShouldCollideWithPawns`), so
   it never blocks a lane; a downed one stays on its cell's list, where shots
@@ -247,11 +251,19 @@ DefinitionCatalog; every derived value is listed with its source in
   DPS as `MeleePower` and is named in `Result.Unmodeled`; no melee verb is
   simulated. Explosive, launcher, one-use, EMP and incendiary weapons, turrets
   and non-humanlike races are refused, as is a spec with no ranged weapon at all.
-- **A25. Injury thresholds are the pain-shock and lethal-damage rules only.**
-  `DamageToKill` = 150 x HealthScale (healthScaleFactor x baseHealthScale).
-  `DamageToDown` = PainShockThreshold x HealthScale / the damage hediff's
-  `injuryProps.painPerSeverity`. Blood loss, consciousness, vital parts and
-  per-part health are ignored, and a spec may use one damage def only.
+- **A25. The body is derived from the catalog, for one damage def.** The
+  importer builds `CombatSpec.Body` from the race's `BodyDef` (parts in
+  pre-order, `coverageAbs`, depth, `hitPoints` x HealthScale rounded up, solid,
+  destroyableByDamage, the capacity tags and limbs), the damage def
+  (`harmAllLayersUntilOutside`, `overkillPctToDestroyPart`, hit chance factors),
+  the injury and `MissingBodyPart` hediffs' `painPerSeverity`, the
+  `PainShockThreshold` and `IncomingDamageFactor` stats and
+  `BaseTotalDamageLethalThreshold` x HealthScale. It refuses: an injury hediff
+  with stages, a lethal severity or a painless chance; a pawn kind that ignores
+  pain shock; a capacity worker other than the ported one or a lethal-flesh
+  capacity the sim does not evaluate; and a spec with a colonist whose
+  difficulty `allowInstantKillChance` is unstated or below 1 (A39). A spec may
+  use one damage def only.
 - **A26. Armor is flattened.** Worn apparel outermost first, then the race's
   natural armor, each as the definition-level rating of the damage's armor
   category stat; the composite fact is 1 - product(1 - r). Quality, hit points
@@ -299,18 +311,15 @@ DefinitionCatalog; every derived value is listed with its source in
   factor and unwavering flag; the lab states intent 0, factor 1, wavering (the
   quiet storyteller at four colonists on day zero; 0.85, matching 56 of 67
   raiders that crossed the pain-shock line dying in the real ledger). Kind
-  `forceDeathOnDowned` and `overrideDeathOnDownedChance` overrides, animals,
-  and the other death paths (vital part loss, brain hits, blood loss) are not
-  modeled; `DamageToKill` is therefore rarely reached.
+  `forceDeathOnDowned` and `overrideDeathOnDownedChance` overrides are read;
+  animals and blood loss deaths are not modeled. Vital-part loss, core-part
+  destruction and the lethal damage threshold kill outright (A39).
 - **A34. Hit layers duplicate injuries to outer parts.** A bullet's
   `harmAllLayersUntilOutside` (`DamageWorker_AddInjury.CheckDuplicateDamageToOuterParts`)
-  copies the injury onto every outer ancestor of an inside part it hits. The
-  importer weighs the body's parts by `coverageAbs` x hit chance factor and
-  gives each shot an extra-injury count drawn from that spread
-  (`CombatSpec.HitLayers`). Ignored: part health caps and destruction, overkill
-  redistribution, `ReduceDamageToPreserveOutsideParts`, per-part pain factors;
-  the shot's height and depth are not modeled (a bullet has none). Armor stays
-  part-agnostic (A5).
+  copies the injury onto each ancestor of an inside part it hits, up to and
+  including the first outside one that still has health and coverage. Now
+  ported per part (A39); the shot's height and depth are not modeled (a bullet
+  has none). Armor stays part-agnostic (A5).
 - **A35. Pawns pass through and share cells; only a standing hostile blocks.**
   Checked against the pinned assembly (`Pawn_PathFollower.PatherTick`,
   `WillCollideWithPawnAt`, `PawnUtility.ShouldCollideWithPawns`,
@@ -471,6 +480,45 @@ DefinitionCatalog; every derived value is listed with its source in
   bleed and vital-part serious triggers (more stops, so probably more of the
   same effect), the 15-tick think phase, and a real retreat that lands 40 to
   56 ticks later than the sim's after the cooldown.
+
+- **A39. The per-part injury model (#2986).** `Body` (`body.go`) holds the
+  parts the importer derived (A25) and each pawn's injuries. A projectile hit
+  draws a part (`HediffSet.GetRandomNotMissingPart`: weight `coverageAbs` x the
+  damage def's hit chance factor, conceptual parts none), applies armor (A5) and
+  `IncomingDamageFactor`, then an outside non-core part that would take more
+  than its health is left at 1 unless the overkill roll destroys it
+  (`ReduceDamageToPreserveOutsideParts`, range 0..0.7), and the injury is added
+  with the inside-part duplicates (A34). A part past its health that is not the
+  core goes missing with everything under it, its injuries removed (`Hediff_
+  MissingPart.PostAdd`); an outside, non-solid part lost this way hurts by its
+  maximum health x the missing-part pain rate. After each injury
+  `CheckForStateChange` runs: dead on core-part efficiency 0, a lethal capacity
+  (Consciousness, BloodPumping, Breathing, BloodFiltration, Metabolism) lost,
+  or injuries summing to 150 x HealthScale; else downed on pain at the
+  `PainShockThreshold`, Consciousness under 0.3 (which also zeroes Moving and
+  Manipulation, `zeroIfCannotBeAwake`) or Moving at most 0.15 (the first such
+  injury rolls the death-on-downed chance, A33); else a pawn whose Manipulation
+  reached 0 drops its weapon and stops shooting. `Event.Amount` and the ledger's
+  `Dealt` are the damage actually dealt, `min(severity, part health)`
+  (`totalDamageDealt`), which is what the real ledger records. The RNG order per
+  hit is the part draw, the armor rolls, the overkill roll, the death roll.
+  Left out: bleeding and blood loss (A2); infection, tending and recovery; the
+  hediffs' stage capacity modifiers (the importer refuses a staged injury);
+  part-specific armor (A5); the move-speed loss from pain or a damaged leg
+  (only the Moving capacity's down threshold is read); a pawn that has dropped
+  its weapon does not take up melee; instant-kill protection for colonists
+  (`allowInstantKillChance`, which the lab leaves at 1); added parts and other
+  hediffs; sight, hearing and other capacities no rule here reads.
+  Calibration (lab-ranged, 20 resumed seeds, after the E10 serious-injury stop
+  merged): colonist shots per pawn 11.71 -> 11.25 (real 10.24), raiders 9.75 ->
+  9.45 (real 8.84); the median raider down tick 521 -> 535.5 (real 499 to 504).
+  The raiders now go down on the same cumulative damage as the real ledger (66,
+  the 64 pain-shock line crossed by whole 11-point hits), so the rest of the gap
+  is hit timing and volume, not the health model. The #2986 target of 10.24 /
+  8.84 / 499 was not reached: shots per pawn improved, the down tick did not.
+  Open gap: lab-split-ranged shows 0.40 colonist deaths per seed in the sim
+  against 0 in the real runs (colonist downs 1.85 against 2.95); the cause (brain
+  and core hits killing a colonist the real game left downed) is not found.
 
 ## Out of scope for this slice
 

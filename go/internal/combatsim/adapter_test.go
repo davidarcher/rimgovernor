@@ -477,7 +477,7 @@ func TestRunFightUnsupportedFacts(t *testing.T) {
 		t.Error("a fight with no tick budget is refused")
 	}
 	f = laneFight(t, "x")
-	f.Scenario.Pawns[0].Combat.DamageToKill = domain.Unknown[float64]()
+	f.Scenario.Pawns[0].Combat.Body = nil
 	if _, err := RunFight(f, 1, policy.DefaultCombatTuning()); !errors.Is(err, ErrUnsupported) {
 		t.Errorf("an unknown sim fact is unsupported: %v", err)
 	}

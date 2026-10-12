@@ -28,7 +28,7 @@ func duelSpec() Spec {
 	s := Spec{
 		Name: "duel", Width: 40, Height: 14, Terrain: "Soil", Weather: "Clear",
 		FriendlyFireChanceFactor: domain.Known(0.4), StepTicks: 6, MaxTicks: 6000,
-		DeathOnDowned: domain.Known(DeathOnDowned{EnemyDeathOnDownedChanceFactor: 1}),
+		DeathOnDowned: domain.Known(DeathOnDowned{EnemyDeathOnDownedChanceFactor: 1}), AllowInstantKillChance: domain.Known(1.0),
 	}
 	for x := int32(5); x <= 9; x++ {
 		s.Things = append(s.Things, Thing{Def: "Sandbags", Cell: cell(x, 6)})
@@ -110,11 +110,9 @@ func TestImportDerivesEveryValueFromTheCatalog(t *testing.T) {
 			t.Errorf("%s body size = %v", id, got)
 		}
 		// 150 * HealthScale 1, and pain shock 0.8 over a bullet's 0.0125 pain per severity.
-		if kill, _ := cs.DamageToKill.Value(); kill != 150 {
-			t.Errorf("%s DamageToKill = %v", id, kill)
-		}
-		if down, _ := cs.DamageToDown.Value(); math.Abs(down-64) > 1e-3 {
-			t.Errorf("%s DamageToDown = %v", id, down)
+		body := cs.Body
+		if body == nil || body.LethalDamage != 150 || math.Abs(body.PainShock/body.PainPerSeverity-64) > 1e-3 || body.HealthScale != 1 {
+			t.Errorf("%s body = %+v", id, body)
 		}
 		if !cs.CanBenefitFromCover {
 			t.Errorf("%s cannot benefit from cover", id)
@@ -130,7 +128,7 @@ func TestImportDerivesEveryValueFromTheCatalog(t *testing.T) {
 			t.Errorf("%s move speed = %v", id, speed)
 		}
 		for _, field := range []string{
-			"MoveSpeed", "BodySize", "CanBenefitFromCover", "DamageToDown", "DamageToKill", "Armor.natural", "Facts.Armor", "Facts.MeleePower",
+			"MoveSpeed", "BodySize", "CanBenefitFromCover", "Body", "Armor.natural", "Facts.Armor", "Facts.MeleePower",
 			"Weapon.Range", "Weapon.MinRange", "Weapon.WarmupSeconds", "Weapon.CooldownSeconds", "Weapon.BurstShotCount", "Weapon.TicksBetweenBurstShots",
 			"Weapon.AccuracyTouch", "Weapon.AccuracyShort", "Weapon.AccuracyMedium", "Weapon.AccuracyLong", "Weapon.ProjectileSpeed",
 			"Weapon.DamageAmount", "Weapon.ArmorPenetration", "Weapon.ForcedMissRadius",
@@ -143,8 +141,8 @@ func TestImportDerivesEveryValueFromTheCatalog(t *testing.T) {
 	for _, field := range []string{"Terrain", "Things.Sandbags", "WeatherMoveSpeed", "WeatherAccuracy"} {
 		traced(t, res, "map", field)
 	}
-	if tr := traced(t, res, "c0", "DamageToDown"); !strings.Contains(tr.Source, "painPerSeverity") {
-		t.Errorf("DamageToDown source = %q", tr.Source)
+	if tr := traced(t, res, "c0", "Body"); !strings.Contains(tr.Source, "painPerSeverity") {
+		t.Errorf("Body source = %q", tr.Source)
 	}
 	if len(res.Unmodeled) != 0 {
 		t.Errorf("unmodeled = %v", res.Unmodeled)
@@ -215,6 +213,8 @@ func TestImportFailsClosed(t *testing.T) {
 		{"negative death on downed factor", func(s *Spec) {
 			s.DeathOnDowned = domain.Known(DeathOnDowned{EnemyDeathOnDownedChanceFactor: -1})
 		}},
+		{"unknown instant kill chance", func(s *Spec) { s.AllowInstantKillChance = domain.Fact[float64]{} }},
+		{"instant kill protection", func(s *Spec) { s.AllowInstantKillChance = domain.Known(0.5) }},
 		{"unknown kind", func(s *Spec) { s.Pawns[0].Kind = "NoSuchKind" }},
 		{"animal kind", func(s *Spec) { s.Pawns[0].Kind = "Muffalo" }},
 		{"unknown weapon", func(s *Spec) { s.Pawns[0].Weapon = "NoSuchGun" }},
@@ -286,32 +286,41 @@ func TestImportDerivesDeathOnDownedFromTheCatalogCurve(t *testing.T) {
 	}
 }
 
-// TestImportDerivesHitLayersFromTheBody checks the human body's hit spread:
-// the chances sum to one, most bullets land on an outside part (no extra
-// injury), and a hit on an inside part adds one injury per outside layer.
-func TestImportDerivesHitLayersFromTheBody(t *testing.T) {
+// TestImportDerivesTheBodyFromTheCatalog checks the human body: the parts in
+// pre-order with health, the hit weights (inside parts carry the share behind
+// the real ledger's doubled hits), the capacity tags and the two limb sets.
+func TestImportDerivesTheBodyFromTheCatalog(t *testing.T) {
 	res, err := Import(recordedcatalog.Catalog(t), duelSpec())
 	if err != nil {
 		t.Fatal(err)
 	}
-	layers := res.Fight.Scenario.Pawns[0].Combat.HitLayers
-	sum, mean, inside := 0.0, 0.0, 0.0
-	for _, l := range layers {
-		sum += l.Chance
-		mean += l.Chance * float64(1+l.Copies)
-		if l.Copies > 0 {
-			inside += l.Chance
+	b := res.Fight.Scenario.Pawns[0].Combat.Body
+	if len(b.Parts) != 64 || b.Parts[0].Parent != -1 || b.Parts[0].Inside || b.Parts[0].MaxHealth != 40 {
+		t.Fatalf("body has %d parts, core %+v", len(b.Parts), b.Parts[0])
+	}
+	sum, inside := 0.0, 0.0
+	for i, p := range b.Parts {
+		if i > 0 && p.Parent >= i {
+			t.Fatalf("part %d precedes its parent %d", i, p.Parent)
+		}
+		sum += p.HitWeight
+		if p.Inside {
+			inside += p.HitWeight
 		}
 	}
-	if len(layers) < 2 || layers[0].Copies != 0 || math.Abs(sum-1) > 1e-9 {
-		t.Fatalf("layers = %+v", layers)
-	}
 	// The real lab ledger shows a doubled hit (22 for a rifle's 11) on about
-	// 40% of hits: inside parts' share of the body's hit weight.
-	if inside < 0.3 || inside > 0.5 || mean < 1.3 || mean > 1.6 {
-		t.Errorf("inside-part share %.3f, mean injuries per hit %.3f: want about 0.4 and 1.4", inside, mean)
+	// 40% of hits.
+	if share := inside / sum; share < 0.3 || share > 0.5 {
+		t.Errorf("inside-part share of hit weight %.3f, want about 0.4", share)
 	}
-	traced(t, res, "h0", "HitLayers")
+	if !b.HarmAllLayers || b.OverkillLow != 0 || math.Abs(b.OverkillHigh-0.7) > 1e-6 || math.Abs(b.MovingMinForCapable-0.15) > 1e-6 {
+		t.Errorf("body scalars = %+v", b)
+	}
+	if len(b.Consciousness) != 1 || len(b.BloodPumping) != 1 || len(b.BreathingSource) != 2 || len(b.FiltrationKidney) != 2 ||
+		len(b.Moving) != 2 || len(b.Manipulation) != 2 || len(b.Moving[0].Digits) != 5 || len(b.Manipulation[0].Segments) != 5 {
+		t.Errorf("capacity parts = %+v", b)
+	}
+	traced(t, res, "h0", "Body")
 }
 
 func TestImportLeavesMeleeUnmodeledNotGuessed(t *testing.T) {

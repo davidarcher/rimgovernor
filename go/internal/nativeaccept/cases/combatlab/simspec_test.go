@@ -22,6 +22,7 @@ func statedEnv() SimEnv {
 	env.FriendlyFireChanceFactor = domain.Known(0.4)
 	env.DeathOnDowned = domain.Known(simimport.DeathOnDowned{EnemyDeathOnDownedChanceFactor: 1})
 	env.ColonistWorn = domain.Known([]simimport.Wear{})
+	env.AllowInstantKillChance = domain.Known(1.0)
 	return env
 }
 

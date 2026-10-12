@@ -57,22 +57,15 @@ type CombatSpec struct {
 	BodySize domain.Fact[float64]
 	// CanBenefitFromCover is the race's CanBenefitFromCover flag.
 	CanBenefitFromCover bool
-	// DamageToDown and DamageToKill are the post-armor damage totals at which
-	// the injury approximation downs and kills the pawn (see approximations.md);
-	// the caller derives them from the pawn's health, DamageToKill >=
-	// DamageToDown > 0.
-	DamageToDown, DamageToKill domain.Fact[float64]
-	// DeathOnDownedChance is the chance, in [0, 1], that the hit crossing
-	// DamageToDown kills the pawn outright instead of downing it (A33). Zero,
-	// the default, is a pawn that is only ever downed (a colonist); for a
-	// hostile the caller derives what Pawn_HealthTracker.CheckForStateChange
-	// computes for it.
+	// Body is the pawn's per-part injury model (A1, A39), which downs and
+	// kills it. The caller derives it from the pawn's body def; nil is
+	// unsupported.
+	Body *Body
+	// DeathOnDownedChance is the chance, in [0, 1], that the hit that makes the
+	// pawn downable kills it outright instead (A33). Zero, the default, is a
+	// pawn that is only ever downed (a colonist); for a hostile the caller
+	// derives what Pawn_HealthTracker.CheckForStateChange computes for it.
 	DeathOnDownedChance float64
-	// HitLayers is how many injuries of the post-armor amount a landed hit
-	// adds to this pawn, with the chance of each count (A3, A34): a hit on an
-	// inside body part also injures the parts outside it. Chances sum to 1
-	// and Copies are >= 0. Nil, the default, is one injury per hit.
-	HitLayers []HitLayer
 	// Armor lists the armor ratings against the projectile's damage category,
 	// in the order the game applies them: worn apparel from the last-worn
 	// layer in, then the pawn's own natural rating. Known(nil) is unarmored.
@@ -80,13 +73,6 @@ type CombatSpec struct {
 	// Weapon is nil for an unarmed pawn, which cannot be ordered to attack.
 	Weapon  *WeaponDef
 	Shooter ShooterStats
-}
-
-// HitLayer is one outcome of where a hit lands: with probability Chance it
-// adds Copies further injuries of the same amount beside the one it makes.
-type HitLayer struct {
-	Copies int
-	Chance float64
 }
 
 type stance uint8
@@ -103,16 +89,19 @@ type combatant struct {
 	has, armed bool
 	bodySize   float64
 	cover      bool
-	downAt     float64
-	killAt     float64
+	// body is CombatSpec.Body and inj its injuries; killAt is the body's lethal
+	// damage threshold, the scale of the health fraction the policy reads.
+	body   *Body
+	inj    injuryState
+	killAt float64
 	// deathOnDown is CombatSpec.DeathOnDownedChance.
 	deathOnDown float64
-	// layers is CombatSpec.HitLayers.
-	layers []HitLayer
-	armor  []float64
-	weapon WeaponDef
-	sh     struct{ acc, touch, short, medium, long, aim, cooldown float64 }
+	armor       []float64
+	weapon      WeaponDef
+	sh          struct{ acc, touch, short, medium, long, aim, cooldown float64 }
 
+	// damage is the damage dealt to the pawn so far: each injury's severity
+	// capped at the health of its part.
 	damage       float64
 	downed, dead bool
 
@@ -164,29 +153,20 @@ func (p *pawn) loadCombat(ps PawnSpec) error {
 	if c.bodySize, err = need(cs.BodySize, "BodySize", id); err != nil {
 		return err
 	}
-	if c.downAt, err = need(cs.DamageToDown, "DamageToDown", id); err != nil {
-		return err
+	if cs.Body == nil {
+		return unsupported("pawn %q body unknown", id)
 	}
-	if c.killAt, err = need(cs.DamageToKill, "DamageToKill", id); err != nil {
-		return err
+	if why := cs.Body.validate(); why != "" {
+		return unsupported("pawn %q body %s", id, why)
 	}
+	c.body, c.killAt = cs.Body, cs.Body.LethalDamage
+	c.inj = newInjuryState(len(cs.Body.Parts))
 	if !(cs.DeathOnDownedChance >= 0 && cs.DeathOnDownedChance <= 1) {
 		return unsupported("pawn %q death-on-downed chance %v is outside [0, 1]", id, cs.DeathOnDownedChance)
 	}
 	c.deathOnDown = cs.DeathOnDownedChance
-	sum := 0.0
-	for _, l := range cs.HitLayers {
-		if l.Copies < 0 || !(l.Chance >= 0) {
-			return unsupported("pawn %q hit layer %+v is invalid", id, l)
-		}
-		sum += l.Chance
-	}
-	if len(cs.HitLayers) > 0 && math.Abs(sum-1) > 1e-9 {
-		return unsupported("pawn %q hit layer chances sum to %v, not 1", id, sum)
-	}
-	c.layers = append([]HitLayer(nil), cs.HitLayers...)
-	if !(c.bodySize > 0) || !(c.downAt > 0) || c.killAt < c.downAt {
-		return unsupported("pawn %q body size %v or damage thresholds %v/%v are invalid", id, c.bodySize, c.downAt, c.killAt)
+	if !(c.bodySize > 0) {
+		return unsupported("pawn %q body size %v is invalid", id, c.bodySize)
 	}
 	armor, ok := cs.Armor.Value()
 	if !ok {

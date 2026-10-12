@@ -32,10 +32,11 @@ type damage struct {
 	def, armorCategory, hediff string
 	// armorStat is the armor category's armorRatingStat, "" for damage that no
 	// armor rates.
-	armorStat       string
-	painPerSeverity float64
-	// harmAllLayers is the damage def's harmAllLayersUntilOutside.
-	harmAllLayers bool
+	armorStat string
+	// harmAllLayers is the damage def's harmAllLayersUntilOutside and
+	// overkillLow/High its overkillPctToDestroyPart.
+	harmAllLayers             bool
+	overkillLow, overkillHigh float64
 }
 
 // weapon is one pawn's weapon resolved.
@@ -212,11 +213,14 @@ func (im *importer) settleDamage(name string, dd *d.DamageDef) error {
 	if hediff == nil || hediff.GetInjuryProps() == nil {
 		return unsupported("catalog has no injury hediff %q for damage def %q", dd.GetHediff(), name)
 	}
-	pain := float64(hediff.GetInjuryProps().GetPainPerSeverity())
-	if !(pain > 0) {
+	if !(hediff.GetInjuryProps().GetPainPerSeverity() > 0) {
 		return unsupported("hediff %q causes no pain per severity", dd.GetHediff())
 	}
-	im.dmg = &damage{def: name, armorCategory: dd.GetArmorCategory(), hediff: dd.GetHediff(), painPerSeverity: pain, harmAllLayers: dd.GetHarmAllLayersUntilOutside()}
+	overkill := dd.GetOverkillPctToDestroyPart()
+	im.dmg = &damage{
+		def: name, armorCategory: dd.GetArmorCategory(), hediff: dd.GetHediff(), harmAllLayers: dd.GetHarmAllLayersUntilOutside(),
+		overkillLow: float64(overkill.GetMin()), overkillHigh: float64(overkill.GetMax()),
+	}
 	if dd.GetArmorCategory() != "" {
 		cat := bridge.DefRow[*d.DamageArmorCategoryDef](im.cat, dd.GetArmorCategory())
 		if cat == nil || cat.GetArmorRatingStat() == "" {

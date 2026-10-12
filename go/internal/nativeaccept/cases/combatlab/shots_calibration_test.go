@@ -439,13 +439,15 @@ func TestSimShotTimingMatchesTheRecordedShots(t *testing.T) {
 	within("share of gaps within a burst", inSim, inReal, 0.03)
 	within("median in-burst gap", medInSim, medInReal, 1)
 	within("median between-burst gap", medOutSim, medOutReal, 1)
-	// Shots per pawn: real raiders go down on fewer hits than the sim's, so
-	// they fire less (A1/A33/A34: the median raider is down at tick 499.5 in
-	// the real baseline, about 520 in the sim). The sim's excess stays inside
-	// 20 percent.
+	// Shots per pawn: with the per-part injury model (A39) the sim's raiders go
+	// down on the same cumulative damage as the real ledger (66), but about 20
+	// ticks later (median down tick 535 against 499 to 504 in the real
+	// baseline), so they fire and are fired at a little longer: colonists 11.25
+	// against 10.24, raiders 9.45 against 8.84 (before: 11.71 and 9.75). The
+	// sim's excess stays inside 15 percent.
 	for _, side := range []string{combatmetrics.Colonist, combatmetrics.Hostile} {
 		rp, sp := real.perPawn(side), sim.perPawn(side)
-		within(side+" shots per pawn", sp, rp, 0.20*rp)
+		within(side+" shots per pawn", sp, rp, 0.15*rp)
 	}
 	// Pawn hits per shot, both sides, within 5 points.
 	for _, side := range []string{combatmetrics.Colonist, combatmetrics.Hostile} {

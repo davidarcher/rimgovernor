@@ -41,6 +41,9 @@ type SimEnv struct {
 	// DeathOnDowned is the storyteller population intent and the difficulty's
 	// death-on-downed settings, which decide how often a downed raider dies.
 	DeathOnDowned domain.Fact[simimport.DeathOnDowned]
+	// AllowInstantKillChance is the difficulty's setting (1 off Peaceful-style
+	// protection), which decides whether a colonist can die to a single hit.
+	AllowInstantKillChance domain.Fact[float64]
 	// AutoFleeFraction is the fraction of the raid downed or killed at which
 	// the lord panics (Lord.SetJob's Trigger_FractionPawnsLost): the game draws
 	// it from the faction's 0.4 to 0.7 seeded by the lord's load id.
@@ -92,7 +95,7 @@ func SimSpec(f Fixture, env SimEnv) (simimport.Spec, error) {
 	}
 	s := simimport.Spec{
 		Name: f.Name, Width: env.MapSize, Height: env.MapSize, Terrain: env.Terrain, Weather: env.Weather,
-		FriendlyFireChanceFactor: env.FriendlyFireChanceFactor, DeathOnDowned: env.DeathOnDowned, StepTicks: env.StepTicks, MaxTicks: env.MaxTicks,
+		FriendlyFireChanceFactor: env.FriendlyFireChanceFactor, DeathOnDowned: env.DeathOnDowned, AllowInstantKillChance: env.AllowInstantKillChance, StepTicks: env.StepTicks, MaxTicks: env.MaxTicks,
 	}
 	for _, t := range f.Things {
 		if t.Hostile || t.HitPoints != 0 {

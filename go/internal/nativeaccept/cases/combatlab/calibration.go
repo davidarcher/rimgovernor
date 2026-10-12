@@ -87,6 +87,7 @@ func CalibrationEnv() SimEnv {
 	env.ColonistTraits = crewTraits()
 	env.FriendlyFireChanceFactor = domain.Known(0.4)
 	env.DeathOnDowned = domain.Known(simimport.DeathOnDowned{PopulationIntent: 0, EnemyDeathOnDownedChanceFactor: 1})
+	env.AllowInstantKillChance = domain.Known(1.0) // DifficultyDef default; the lab sets no protection
 	env.ColonistWorn = domain.Known([]simimport.Wear{})
 	env.AutoFleeFraction = domain.Known(calibrationAutoFleeFraction)
 	return env

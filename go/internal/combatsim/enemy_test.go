@@ -524,7 +524,7 @@ func TestEnemyChoicesDoNotShiftHitRolls(t *testing.T) {
 	run := func(spin int) []Event {
 		sc := raidScene(t, testRifle, "a", rows...)
 		for i := range sc.Pawns {
-			sc.Pawns[i].Combat.DamageToDown, sc.Pawns[i].Combat.DamageToKill = domain.Known(1e9), domain.Known(1e9)
+			immortal(sc.Pawns[i].ID, sc.Pawns[i].Combat)
 		}
 		s := newSim(t, sc, 77)
 		for range spin {
@@ -559,9 +559,9 @@ func laneRaid(t testing.TB, hostileDamage int, toughness float64) Fight {
 			}
 			spec := testCombat(&w)
 			if side == combatmetrics.Colonist {
-				spec.DamageToDown, spec.DamageToKill = domain.Known(1e9), domain.Known(1e9)
+				immortal("", spec)
 			} else {
-				spec.DamageToDown, spec.DamageToKill = domain.Known(toughness), domain.Known(toughness*2)
+				spec.Body = thresholdBody(toughness, toughness*2)
 			}
 			sc.Pawns = append(sc.Pawns, PawnSpec{
 				ID: domain.PawnID(fmt.Sprintf("%s%d", prefix, i)), Pos: cell(x, int32(1+i*3)),
@@ -625,7 +625,7 @@ func TestClosedLoopIsDeterministicAndResolves(t *testing.T) {
 	f := laneRaid(t, 10, 25)
 	for i := range f.Scenario.Pawns {
 		if p := &f.Scenario.Pawns[i]; p.Side == combatmetrics.Colonist {
-			p.Combat.DamageToDown, p.Combat.DamageToKill = domain.Known(25.0), domain.Known(45.0)
+			p.Combat.Body = thresholdBody(25, 45)
 		}
 	}
 	f.EnemyAI.CanTimeoutOrFlee = false

@@ -42,8 +42,7 @@ func testCombat(w *WeaponDef) *CombatSpec {
 	return &CombatSpec{
 		BodySize:            domain.Known(1.0),
 		CanBenefitFromCover: true,
-		DamageToDown:        domain.Known(25.0),
-		DamageToKill:        domain.Known(45.0),
+		Body:                thresholdBody(25, 45),
 		Armor:               domain.Known[[]float64](nil),
 		Weapon:              w,
 		Shooter:             testShooter(),
@@ -72,8 +71,17 @@ func duel(t testing.TB, w WeaponDef, mod func(id domain.PawnID, c *CombatSpec), 
 	return sc
 }
 
-func immortal(_ domain.PawnID, c *CombatSpec) {
-	c.DamageToDown, c.DamageToKill = domain.Known(1e9), domain.Known(1e9)
+func immortal(_ domain.PawnID, c *CombatSpec) { c.Body = thresholdBody(1e9, 1e9) }
+
+// thresholdBody is a one-part body that goes down once the injuries on it sum
+// to down (pain shock) and dies once they sum to kill. Its only part is the core
+// and has health to spare, so it is never destroyed.
+func thresholdBody(down, kill float64) *Body {
+	return &Body{
+		Parts:       []BodyPart{{Parent: -1, Coverage: 1, HitWeight: 1, MaxHealth: 1e12}},
+		HealthScale: 1, PainPerSeverity: 0.8 / down, PainShock: 0.8, LethalDamage: kill, IncomingDamageFactor: 1,
+		MovingMinForCapable: 0.15, Moving: []Limb{{Core: 0}}, Manipulation: []Limb{{Core: 0}},
+	}
 }
 
 func attack(from, to domain.PawnID) Order { return Order{Pawn: from, Kind: OrderAttack, Target: to} }
@@ -511,7 +519,7 @@ func TestInjuryThresholds(t *testing.T) {
 
 // downTarget fights a shooter a (immortal) against an unarmed b whose kill
 // threshold is out of reach, so b can only die by the death-on-downed roll.
-func downTarget(t *testing.T, chance float64, layers []HitLayer, seed uint64) (st State, ev []Event) {
+func downTarget(t *testing.T, chance float64, body *Body, seed uint64) (st State, ev []Event) {
 	t.Helper()
 	sc := duel(t, rapid(), func(id domain.PawnID, c *CombatSpec) {
 		if id == "a" {
@@ -519,9 +527,11 @@ func downTarget(t *testing.T, chance float64, layers []HitLayer, seed uint64) (s
 			return
 		}
 		c.Weapon = nil
-		c.DamageToKill = domain.Known(1e9)
+		c.Body = thresholdBody(25, 1e9)
+		if body != nil {
+			c.Body = body
+		}
 		c.DeathOnDownedChance = chance
-		c.HitLayers = layers
 	}, "a.b")
 	return runUntil(t, newSim(t, sc, seed), []Order{attack("a", "b")}, 400, nil)
 }
@@ -566,7 +576,7 @@ func TestColonistIsNeverRolledForDeathOnDowned(t *testing.T) {
 			return
 		}
 		c.Weapon = nil
-		c.DamageToKill = domain.Known(1e9)
+		c.Body = thresholdBody(25, 1e9)
 	}, "a.b")
 	sc.Pawns[0].Combat.DeathOnDownedChance = 0
 	st, _ := runUntil(t, newSim(t, sc, 32), []Order{attack("b", "a")}, 400, nil)
@@ -575,10 +585,23 @@ func TestColonistIsNeverRolledForDeathOnDowned(t *testing.T) {
 	}
 }
 
-func TestHitLayersAddInjuriesBesideTheHitPart(t *testing.T) {
-	// Every hit adds one more injury of the same amount: 20 per hit, so the
-	// second hit (40 >= 25) downs where three single hits were needed.
-	_, ev := downTarget(t, 0, []HitLayer{{Copies: 1, Chance: 1}}, 33)
+// layeredBody is a core part with an outside part (hit weight 1-inside) and an
+// inside part (hit weight inside) under it. A hit on the inside part also
+// injures the core, the first outside part above it (harmAllLayersUntilOutside).
+func layeredBody(inside float64) *Body {
+	b := thresholdBody(25, 1e9)
+	b.HarmAllLayers = true
+	b.Parts[0].HitWeight = 0
+	b.Parts = append(b.Parts,
+		BodyPart{Parent: 0, Coverage: 1 - inside, HitWeight: 1 - inside, MaxHealth: 1e12},
+		BodyPart{Parent: 0, Inside: true, Coverage: inside, HitWeight: inside, MaxHealth: 1e12})
+	return b
+}
+
+func TestDuplicateInjuriesLandOnTheOuterPartAbove(t *testing.T) {
+	// Every hit lands inside: 10 on the organ and 10 on the core, 20 in all, so
+	// the second hit (40 >= 25) downs where three single hits were needed.
+	_, ev := downTarget(t, 0, layeredBody(1), 33)
 	downedAfter, hits := 0, 0
 	for _, e := range ev {
 		switch e.Kind {
@@ -594,28 +617,28 @@ func TestHitLayersAddInjuriesBesideTheHitPart(t *testing.T) {
 	if downedAfter != 2 {
 		t.Errorf("downed after %d hits, want 2", downedAfter)
 	}
-	// A split layer draws the count per hit.
+	// A split body draws the part per hit.
 	const n = 4000
-	_, ev = downTarget(t, 0, []HitLayer{{Copies: 0, Chance: 0.6}, {Copies: 2, Chance: 0.4}}, 34)
+	_, ev = downTarget(t, 0, layeredBody(0.4), 34)
 	for seed := uint64(35); len(ev) < n && seed < 200; seed++ {
-		_, more := downTarget(t, 0, []HitLayer{{Copies: 0, Chance: 0.6}, {Copies: 2, Chance: 0.4}}, seed)
+		_, more := downTarget(t, 0, layeredBody(0.4), seed)
 		ev = append(ev, more...)
 	}
-	hits, triple := 0, 0
+	hits, doubled := 0, 0
 	for _, e := range ev {
 		if e.Kind != EventHit {
 			continue
 		}
 		hits++
 		switch e.Amount {
-		case 30:
-			triple++
+		case 20:
+			doubled++
 		case 10:
 		default:
-			t.Fatalf("hit of %v, want 10 or 30", e.Amount)
+			t.Fatalf("hit of %v, want 10 or 20", e.Amount)
 		}
 	}
-	within(t, "two further injuries", triple, hits, 0.4)
+	within(t, "hits on the inside part", doubled, hits, 0.4)
 }
 
 func TestDeadPawnFreesItsCell(t *testing.T) {
@@ -816,12 +839,13 @@ func TestUnsupportedCombatScenarios(t *testing.T) {
 		"unknown armor":              func(sc *Scenario) { sc.Pawns[0].Combat.Armor = domain.Unknown[[]float64]() },
 		"unknown shooting accuracy":  func(sc *Scenario) { sc.Pawns[0].Combat.Shooter.ShootingAccuracyPawn = domain.Unknown[float64]() },
 		"unknown aiming delay":       func(sc *Scenario) { sc.Pawns[0].Combat.Shooter.AimingDelayFactor = domain.Unknown[float64]() },
-		"unknown down threshold":     func(sc *Scenario) { sc.Pawns[0].Combat.DamageToDown = domain.Unknown[float64]() },
-		"kill below down":            func(sc *Scenario) { sc.Pawns[0].Combat.DamageToKill = domain.Known(1.0) },
+		"unknown body":               func(sc *Scenario) { sc.Pawns[0].Combat.Body = nil },
+		"body with no parts":         func(sc *Scenario) { sc.Pawns[0].Combat.Body = &Body{} },
+		"body part with no health":   func(sc *Scenario) { sc.Pawns[0].Combat.Body.Parts[0].MaxHealth = 0 },
+		"body with no hit weight":    func(sc *Scenario) { sc.Pawns[0].Combat.Body.Parts[0].HitWeight = 0 },
+		"body limb off the body":     func(sc *Scenario) { sc.Pawns[0].Combat.Body.Moving = []Limb{{Core: 3}} },
 		"death chance above one":     func(sc *Scenario) { sc.Pawns[0].Combat.DeathOnDownedChance = 1.5 },
 		"negative death chance":      func(sc *Scenario) { sc.Pawns[0].Combat.DeathOnDownedChance = -0.1 },
-		"hit layers not summing":     func(sc *Scenario) { sc.Pawns[0].Combat.HitLayers = []HitLayer{{Copies: 1, Chance: 0.5}} },
-		"negative hit layer copies":  func(sc *Scenario) { sc.Pawns[0].Combat.HitLayers = []HitLayer{{Copies: -1, Chance: 1}} },
 		"weapon with no projectile":  func(sc *Scenario) { sc.Pawns[0].Combat.Weapon.ProjectileSpeed = 0 },
 		"weapon with no damage":      func(sc *Scenario) { sc.Pawns[0].Combat.Weapon.DamageAmount = 0 },
 		"weapon with forced miss":    func(sc *Scenario) { sc.Pawns[0].Combat.Weapon.ForcedMissRadius = 9 },
