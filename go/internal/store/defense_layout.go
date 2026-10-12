@@ -106,12 +106,10 @@ type DefenseLayoutRecord struct {
 	// keeps holding the line on the proven geometry.
 	VerifiedTick   domain.Tick `json:",omitempty"`
 	VerifiedCombat string      `json:",omitempty"`
-	// TurretsProbedTick is the tick the turret tier was last proposed
-	// against the stored geometry while it had nothing to place; the
-	// planner re-probes once per reverify interval, not every step.
+	// TurretsProbedTick is the tick the unstarted tiers were last sited from
+	// the plan's tier nodes; they are re-sited once per reverify interval,
+	// not every step.
 	TurretsProbedTick domain.Tick `json:",omitempty"`
-	// MortarsProbedTick is TurretsProbedTick for the mortar tier.
-	MortarsProbedTick domain.Tick `json:",omitempty"`
 	// PerimeterKey digests the perimeter the tiers were last cut from, and
 	// PerimeterRevision counts the times a changed plan or finished
 	// research re-cut them; it names the new tiers so their methods
@@ -135,7 +133,7 @@ func (r DefenseLayoutRecord) Validate() error {
 	if len(r.Firing) == 0 || len(r.Tiers) == 0 || len(r.Firing) > 64 || len(r.Retreat) != 0 && len(r.Retreat) != len(r.Firing) || len(r.TrapLane) > 512 || len(r.Entrances) > 64 {
 		return errors.New("defense layout geometry out of bounds")
 	}
-	if r.VerifiedTick < 0 || r.TurretsProbedTick < 0 || r.MortarsProbedTick < 0 || len(r.VerifiedCombat) > 512 || len(r.PerimeterKey) > 128 || r.PerimeterRevision < 0 ||
+	if r.VerifiedTick < 0 || r.TurretsProbedTick < 0 || len(r.VerifiedCombat) > 512 || len(r.PerimeterKey) > 128 || r.PerimeterRevision < 0 ||
 		len(r.PerimeterBridge) > 64 || len(r.Killbox) > 128 || len(r.KillboxDigest) > 64 {
 		return errors.New("defense layout verification invalid")
 	}

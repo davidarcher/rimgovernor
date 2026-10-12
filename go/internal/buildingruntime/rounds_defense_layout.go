@@ -306,7 +306,8 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	// proposed: a fresh proposal, or a stored layout without turrets whose
 	// probe interval has elapsed.
 	var definitions []string
-	if !stored || defenseTurretsDue(record, expected.Tick) || defenseMortarsDue(record, expected.Tick) || defenseReplaceDue(record, expected.Tick) {
+	siteDue, replaceDue := defenseSitingDue(record, expected.Tick), defenseReplaceDue(record, expected.Tick)
+	if !stored || siteDue || replaceDue {
 		definitions = defenseExtraDefinitions
 	}
 	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims, definitions...)
@@ -361,30 +362,19 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	}
 	tick := read.Projection.Identity.Tick
 	pipe.settle(census)
-	r.adviseTiers(call, state, read, record, census)
-	// A layout that stood before turrets could be placed (no research, no
-	// network, no steel) gains the tier once the observed gates open.
-	if !pipe.piped() && len(definitions) > 0 && stored && defenseTurretsDue(record, expected.Tick) {
-		request := defenseTurretRequest(read)
-		if request.TurretGatesOpen() {
-			if err = r.proposeTurrets(call, state, read, &record); err != nil {
-				return RoundsDefenseLayoutResult{}, err
-			}
-		} else {
-		}
-	}
-	// The mortar tier follows the same way once mortar research and the
-	// raid points' budget open its gates.
-	if !pipe.piped() && len(definitions) > 0 && defenseMortarsDue(record, expected.Tick) {
-		if request := defenseMortarRequest(read); request.MortarGatesOpen() {
-			if err = r.proposeMortars(call, state, read, &record); err != nil {
-				return RoundsDefenseLayoutResult{}, err
-			}
+	// The plan's tier nodes site every unstarted tier (#2973): a turret or
+	// mortar tier whose gates open later joins the record, a started tier stays
+	// where it is.
+	if !pipe.piped() && len(definitions) > 0 && stored && siteDue {
+		record.TurretsProbedTick = tick
+		r.siteTiers(call, state, read, &record, census)
+		if err = p.journal.SaveDefenseLayout(call, record); err != nil {
+			return RoundsDefenseLayoutResult{}, err
 		}
 	}
 	// A standing turret below the armory's rung is replaced in place, one
 	// at a time.
-	if !pipe.piped() && len(definitions) > 0 && stored && defenseReplaceDue(record, expected.Tick) {
+	if !pipe.piped() && len(definitions) > 0 && stored && replaceDue {
 		if err = r.replaceTurret(call, state, read, &record); err != nil {
 			return RoundsDefenseLayoutResult{}, err
 		}
@@ -606,17 +596,11 @@ func defenseTurretFacts(record store.DefenseLayoutRecord, census *defenseCensus)
 	return out
 }
 
-// defenseTurretsDue reports whether a stored layout without a placed turret
-// tier is due another proposal: never probed, or a reverify interval since.
-func defenseTurretsDue(record store.DefenseLayoutRecord, tick domain.Tick) bool {
-	turrets, _, ok := record.Tier(policy.TierTurrets)
-	return (!ok || len(turrets.Buildings) == 0) && (record.TurretsProbedTick == 0 || tick-record.TurretsProbedTick >= defenseReverifyTicks)
-}
-
-// defenseMortarsDue is defenseTurretsDue for the mortar tier.
-func defenseMortarsDue(record store.DefenseLayoutRecord, tick domain.Tick) bool {
-	mortars, _, ok := record.Tier(policy.TierMortars)
-	return (!ok || len(mortars.Buildings) == 0) && (record.MortarsProbedTick == 0 || tick-record.MortarsProbedTick >= defenseReverifyTicks)
+// defenseSitingDue reports whether a stored layout's unstarted tiers are due
+// another siting from the plan's tier nodes: never sited, or a reverify
+// interval since.
+func defenseSitingDue(record store.DefenseLayoutRecord, tick domain.Tick) bool {
+	return record.TurretsProbedTick == 0 || tick-record.TurretsProbedTick >= defenseReverifyTicks
 }
 
 // defenseMortarRequest is the mortar tier's observed gates: the mortar
@@ -651,51 +635,6 @@ func defenseUnitPrice(projection observation.ColonyProjection, d observation.Pla
 		return observation.StuffPrice{}, false
 	}
 	return price, true
-}
-
-// proposeMortars reads the census around the colony and sites the mortar
-// tier against the stored geometry and turret tier, recording it pending
-// when it places anything; the probe tick is recorded either way.
-func (r *RoundsDefenseLayoutPlanner) proposeMortars(call context.Context, state ControlState, read observation.RoundsReading, record *store.DefenseLayoutRecord) error {
-	projection := read.Projection
-	identity := boundary.Identity(state.Snapshot)
-	killbox, region, home, ok := defenseKillbox(projection)
-	if !ok {
-		return nil
-	}
-	site, err := r.defenseSite(call, identity, projection, region)
-	if err != nil {
-		return err
-	}
-	request := defenseMortarRequest(read)
-	request.Bounds, request.Home, request.Killbox = projection.Bounds, home, killbox
-	request.Region = policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}
-	for _, cell := range site.Cells {
-		request.Cells = append(request.Cells, defenseCellFacts(cell))
-	}
-	geometry := defenseMortarGeometry(*record, killbox)
-	record.MortarsProbedTick = projection.Identity.Tick
-	tier, err := policy.DefenseMortars(request, geometry)
-	if err == nil {
-		defenseTierGated(call, tier.Name, tier.Gated)
-	}
-	if err == nil && len(tier.Buildings) > 0 {
-		record.SetPolicyTier(tier)
-	}
-	return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
-}
-
-// defenseMortarGeometry is the stored layout with the turret tier's cells,
-// as the mortar tier sees it.
-func defenseMortarGeometry(record store.DefenseLayoutRecord, killbox policy.DefenseKillbox) policy.DefenseGeometry {
-	g := defenseRecordGeometry(record, killbox)
-	if turrets, _, ok := record.Tier(policy.TierTurrets); ok {
-		g.Turrets = append(g.Turrets, turrets.Reserved...)
-		for _, b := range turrets.Buildings {
-			g.Turrets = append(g.Turrets, b.Cell)
-		}
-	}
-	return g
 }
 
 // defenseCensus is one same-tick observation of the layout's cells: the
@@ -961,42 +900,6 @@ func abs32(v int32) int32 {
 		return -v
 	}
 	return v
-}
-
-// proposeTurrets reads the census around the colony and the turret
-// candidates' lines of fire against the stored geometry and, when the tier
-// places anything, records it pending with a fresh retry budget. The probe
-// tick is recorded either way so an open gate without a placeable site is
-// re-read once per reverify interval, not every step.
-func (r *RoundsDefenseLayoutPlanner) proposeTurrets(call context.Context, state ControlState, read observation.RoundsReading, record *store.DefenseLayoutRecord) error {
-	projection := read.Projection
-	identity := boundary.Identity(state.Snapshot)
-	killbox, region, home, ok := defenseKillbox(projection)
-	if !ok {
-		return nil
-	}
-	site, err := r.defenseSite(call, identity, projection, region)
-	if err != nil {
-		return err
-	}
-	request := defenseTurretRequest(read)
-	request.Bounds, request.Home, request.Killbox = projection.Bounds, home, killbox
-	request.Region = policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}
-	for _, cell := range site.Cells {
-		request.Cells = append(request.Cells, defenseCellFacts(cell))
-	}
-	geometry := defenseRecordGeometry(*record, killbox)
-	record.TurretsProbedTick = projection.Identity.Tick
-	recordLayoutSnapshot(call, state.Snapshot, projection.Identity.Tick, snapshot.Layout{Point: snapshot.LayoutTurrets, Request: request, Geometry: geometry, Record: record})
-	tier, _, err := policy.DefenseTurrets(request, geometry)
-	if err == nil {
-		defenseTierGated(call, tier.Name, tier.Gated)
-	}
-	if err != nil || len(tier.Buildings) == 0 {
-		return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
-	}
-	record.SetPolicyTier(tier)
-	return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
 }
 
 // defenseRecordGeometry is the stored layout, on the plan's killbox opening,

@@ -29,6 +29,8 @@ func (r *RoundsDefenseLayoutPlanner) defenseCensusRequest(call context.Context, 
 		return policy.DefenseRequest{}, Verdict{}, false, err
 	}
 	request := defenseTurretRequest(read)
+	mortar := defenseMortarRequest(read)
+	request.Mortar, request.UnitCosts[defenseMortarDefinition] = mortar.Mortar, mortar.UnitCosts[defenseMortarDefinition]
 	request.Bounds, request.Home, request.Killbox = projection.Bounds, home, killbox
 	// Observed arrivals rank the sectors; the bait tier stands only on a
 	// sector a raid used.
@@ -93,7 +95,73 @@ func defenseTierPins(record store.DefenseLayoutRecord, census *defenseCensus) po
 		}
 		pins.Tiers[t.Name] = policy.DefenseTier{Name: t.Name, Buildings: buildings, Reserved: slices.Clone(t.Reserved)}
 	}
+	// The corridor is the ground every other tier stands on: it stays where it is
+	// once any tier is started.
+	if choke, _, ok := record.Tier(policy.TierChokepoint); ok && len(pins.Tiers) > 0 {
+		pins.Tiers[policy.TierChokepoint] = policy.DefenseTier{Name: policy.TierChokepoint, Reserved: slices.Clone(choke.Reserved)}
+	}
 	return pins
+}
+
+// defenseKillboxTiers are the record's tiers the plan's killbox node is cut
+// into (policy.PlanDefenseTiers), in the order they are built.
+var defenseKillboxTiers = []policy.DefenseTierName{policy.TierChokepoint, policy.TierFiringLine, policy.TierFunnel, policy.TierTrapCorridor, policy.TierTurrets, policy.TierMortars, policy.TierBait, policy.TierIEDs}
+
+// siteUnstartedTiers sets the record's killbox tiers that are not pinned to the
+// tiers the census sites (#2973): an unstarted tier moves with the census, one
+// the census no longer sites leaves the record, a new one joins it, and the
+// geometry the proposal observed (the trap lane, the firing line and its
+// retreat) follows the tiers that define it. A refusal of the layout planner, or
+// a layout without a firing position, changes nothing. It reports whether the
+// record changed.
+func siteUnstartedTiers(record *store.DefenseLayoutRecord, tiers policy.DefenseTiers, pins policy.DefenseTierPins) bool {
+	if tiers.Refusal != "" || len(tiers.Layout.Firing) == 0 {
+		return false
+	}
+	before := *record
+	before.Tiers = slices.Clone(record.Tiers)
+	for _, name := range defenseKillboxTiers {
+		if _, pinned := pins.Tiers[name]; pinned {
+			continue
+		}
+		sited := slices.IndexFunc(tiers.Layout.Tiers, func(t policy.DefenseTier) bool { return t.Name == name })
+		old := slices.IndexFunc(record.Tiers, func(t store.DefenseTierRecord) bool { return t.Name == name })
+		switch {
+		case sited < 0 && old >= 0:
+			record.Tiers = slices.Delete(record.Tiers, old, old+1)
+		case sited >= 0:
+			record.SetPolicyTier(tiers.Layout.Tiers[sited])
+		}
+	}
+	if _, pinned := pins.Tiers[policy.TierChokepoint]; !pinned {
+		record.TrapLane = slices.Clone(tiers.Layout.TrapLane)
+	}
+	if _, pinned := pins.Tiers[policy.TierFiringLine]; !pinned {
+		record.Firing, record.Retreat = nil, nil
+		for _, f := range tiers.Layout.Firing {
+			record.Firing, record.Retreat = append(record.Firing, f.Cell), append(record.Retreat, f.Retreat)
+		}
+	}
+	return !sameSiting(before, *record)
+}
+
+// sameSiting reports two records with the same killbox siting: the geometry and,
+// tier by tier, the placements, reservations and progress.
+func sameSiting(a, b store.DefenseLayoutRecord) bool {
+	if !slices.Equal(a.TrapLane, b.TrapLane) || !slices.Equal(a.Firing, b.Firing) || !slices.Equal(a.Retreat, b.Retreat) || len(a.Tiers) != len(b.Tiers) {
+		return false
+	}
+	for _, t := range a.Tiers {
+		i := slices.IndexFunc(b.Tiers, func(u store.DefenseTierRecord) bool { return u.Name == t.Name })
+		if i < 0 {
+			return false
+		}
+		u := b.Tiers[i]
+		if !slices.Equal(t.Buildings, u.Buildings) || !slices.Equal(t.Reserved, u.Reserved) || t.Attempts != u.Attempts || t.Built != u.Built || t.Reopened != u.Reopened {
+			return false
+		}
+	}
+	return true
 }
 
 // tierOverlay is the tier nodes the defense round last cut, for the layout
@@ -103,12 +171,12 @@ type tierOverlay struct {
 	nodes []policy.PlannedSite
 }
 
-// adviseTiers cuts the plan's killbox into the defense tier nodes from the
-// round's census and the record's built tiers (#2973), holds them for the
-// overlay and journals the change as layout_plan rows. Advice only: the
-// layout planners above stay authoritative, and a failure here never fails
-// the round.
-func (r *RoundsDefenseLayoutPlanner) adviseTiers(call context.Context, state ControlState, read observation.RoundsReading, record store.DefenseLayoutRecord, tierCensus *defenseCensus) {
+// siteTiers cuts the plan's killbox into the defense tier nodes from the
+// round's census and the record's started tiers (#2973), sets the record's
+// unstarted tiers to what the nodes site (siteUnstartedTiers), holds the nodes
+// for the overlay and journals the change as layout_plan rows. It reports
+// a census it cannot cut leaves the record as it was.
+func (r *RoundsDefenseLayoutPlanner) siteTiers(call context.Context, state ControlState, read observation.RoundsReading, record *store.DefenseLayoutRecord, tierCensus *defenseCensus) {
 	plan, known := read.Projection.LayoutPlan.Value()
 	if !known {
 		return
@@ -121,12 +189,14 @@ func (r *RoundsDefenseLayoutPlanner) adviseTiers(call context.Context, state Con
 	if err != nil || !ok {
 		return
 	}
-	census.Mortar = defenseMortarRequest(read).Mortar
-	census.UnitCosts[defenseMortarDefinition] = defenseMortarRequest(read).UnitCosts[defenseMortarDefinition]
-	pins := defenseTierPins(record, tierCensus)
+	pins := defenseTierPins(*record, tierCensus)
 	tiers, err := policy.PlanDefenseTiers(plan, census, pins)
 	if err != nil {
 		return
+	}
+	siteUnstartedTiers(record, tiers, pins)
+	for _, g := range tiers.Layout.Gated {
+		defenseTierGated(call, g.Tier, g.Reason)
 	}
 	r.adviseBlocks(call, state, read, census, pins, tiers)
 	key := tierKey(tiers.Nodes)

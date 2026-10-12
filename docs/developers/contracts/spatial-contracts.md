@@ -846,9 +846,12 @@ room that holds anything of ours: its node is the built tier where it stands, th
 reads its standing buildings as the ground under them so the same census sites the same
 cells, and the tiers still to build are sited around it (a building of theirs on a pinned
 cell is dropped, `tier_displaced_by_built`). A census the layout planner refuses leaves the
-pinned tiers as the nodes (`tier_layout_failed`). Advisory until the defense round reads the
-nodes: `RoundsDefenseLayoutPlanner.adviseTiers` cuts them after each tier census, holds them
-for the overlay and journals them as `layout_plan` rows with target `defense_tiers`.
+pinned tiers as the nodes (`tier_layout_failed`). The defense round reads the nodes:
+`RoundsDefenseLayoutPlanner.siteTiers` cuts them after each tier census, once per reverify
+interval, sets the record's unstarted killbox tiers (and the trap lane and firing line they
+define) to what the nodes site, holds the nodes for the overlay and journals them as
+`layout_plan` rows with target `defense_tiers`. The turret and mortar proposals are gone:
+a tier whose gates open later joins the record through the same siting.
 
 ### A blocked tier
 

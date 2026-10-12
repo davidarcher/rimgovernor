@@ -247,23 +247,15 @@ func TestDefenseRecordGeometryAndTurretTier(t *testing.T) {
 	if record.Validate() == nil {
 		t.Fatal("negative probe tick accepted")
 	}
-	// A placed tier is never re-proposed; an empty or absent one is, once
-	// per reverify interval.
+	// The unstarted tiers are sited when never sited, then once per reverify
+	// interval.
 	record.TurretsProbedTick = 0
-	if defenseTurretsDue(record, 100) {
-		t.Fatal("placed tier due")
-	}
-	record.Tiers[1].Buildings = nil
-	if !defenseTurretsDue(record, 100) {
-		t.Fatal("empty tier never probed")
+	if !defenseSitingDue(record, 100) {
+		t.Fatal("never sited")
 	}
 	record.TurretsProbedTick = 100
-	if defenseTurretsDue(record, 100+defenseReverifyTicks-1) || !defenseTurretsDue(record, 100+defenseReverifyTicks) {
-		t.Fatal("probe interval")
-	}
-	record.Tiers = record.Tiers[:1]
-	if !defenseTurretsDue(record, 100+defenseReverifyTicks) {
-		t.Fatal("absent tier not due")
+	if defenseSitingDue(record, 100+defenseReverifyTicks-1) || !defenseSitingDue(record, 100+defenseReverifyTicks) {
+		t.Fatal("siting interval")
 	}
 }
 
@@ -286,12 +278,5 @@ func TestDefenseMortarRequestOpensAfterResearchAtRaidPoints(t *testing.T) {
 	read.Projection.Facts.RaidPoints = domain.Known(200.0)
 	if defenseMortarRequest(read).MortarGatesOpen() {
 		t.Fatal("open below the budget's raid points")
-	}
-	record := store.DefenseLayoutRecord{Tiers: []store.DefenseTierRecord{{Name: policy.TierTurrets, Buildings: []store.DefenseBuilding{{Definition: defenseTurretDefinition, Cell: domain.Cell{X: 4, Z: 5}, Rotation: domain.North}}}}}
-	if g := defenseMortarGeometry(record, policy.DefenseKillbox{}); !reflect.DeepEqual(g.Turrets, []domain.Cell{{X: 4, Z: 5}}) {
-		t.Fatal(g.Turrets)
-	}
-	if !defenseMortarsDue(record, 10) {
-		t.Fatal("not due")
 	}
 }
