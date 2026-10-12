@@ -159,6 +159,36 @@ func TestDefenseSiteFromCellsSealed(t *testing.T) {
 	}
 }
 
+// TestDefenseSiteFromCellsFloodsThroughFog: a pocket walled off from the edge
+// on every side but one fogged cell reads reachable (raiders path the real
+// map), while the fogged cell itself asserts nothing.
+func TestDefenseSiteFromCellsFloodsThroughFog(t *testing.T) {
+	var cells []policy.SiteCell
+	for z := int32(0); z < 5; z++ {
+		for x := int32(0); x < 5; x++ {
+			if x == 2 && z == 1 {
+				continue // fogged gap in the ring
+			}
+			c := testSiteCell(x, z, true)
+			if x >= 1 && x <= 3 && z >= 1 && z <= 3 && (x == 1 || x == 3 || z == 1 || z == 3) {
+				c.Walkable = domain.Known(false)
+				c.Things = []policy.Thing{edifice("Wall", policy.FactionPlayer, policy.FlagImpassable)}
+			}
+			cells = append(cells, c)
+		}
+	}
+	site, err := DefenseSiteFromCells(cells, policy.Bounds{Width: 5, Height: 5}, CellRect{Max: domain.Cell{X: 4, Z: 4}}, censusCatalog())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := site.Cells[2*5+2]; !c.EdgeReachable {
+		t.Fatalf("the pocket is reachable through the fogged gap: %+v", c)
+	}
+	if c := site.Cells[1*5+2]; !c.Fogged || c.EdgeReachable {
+		t.Fatalf("a fogged cell asserts no reachability: %+v", c)
+	}
+}
+
 // TestDefenseSiteFromCellsDoorBehindDoor: a closed door whose every side is
 // sealed or another door does not reach the edge, though a door on the map
 // edge does (CanReachMapEdge starts from the door's own region).

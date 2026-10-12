@@ -59,7 +59,7 @@ func DefenseSiteFromCells(cells []policy.SiteCell, bounds policy.Bounds, region 
 			if err != nil {
 				return DefenseSite{}, err
 			}
-			row.EdgeReachable = reach[i]
+			row.EdgeReachable = reach[i] && !row.Fogged
 			site.Cells = append(site.Cells, row)
 		}
 	}
@@ -110,14 +110,16 @@ func (r *censusReader) read(cell *policy.SiteCell) censusCell {
 // (Reachability.CanReachMapEdge with NoPassClosedDoors): a flood over
 // walkable cells from the walkable cells on the map edge, 4-connected as the
 // game's region links are, a door read closed. A cell the mirror does not
-// know blocks it: fog hides mountain far more often than open ground (the
-// game unfogs every outdoor region connected to the start), so an unknown
-// cell is never proof of a route. The mirror is the whole map; a smaller
-// window reaches only the edge cells it holds.
+// know conducts: the game's pathing has no fog, so raiders walk the real map
+// through cells we have not seen, and treating them as blocked would call a
+// base sealed that raiders can enter. (Nothing is built within 10 tiles of
+// the map edge, so the edge band is never ours to seal either.) The fogged
+// cell's own row still asserts nothing: DefenseSiteFromCells leaves
+// EdgeReachable false there and the planner reads it unknown.
 func (r *censusReader) edgeReachable(grid []*policy.SiteCell, width, height int) []bool {
 	open := make([]bool, len(grid))
 	for i, cell := range grid {
-		if c := r.read(cell); c.known && c.walkable && !c.door {
+		if c := r.read(cell); !c.known || (c.walkable && !c.door) {
 			open[i] = true
 		}
 	}

@@ -718,9 +718,12 @@ thing of highest `fillPercent` above 0.001; a frame 0.2, a blueprint none), the 
 thing's clearance kind (`NativeClearCover.KindOf`: plant, mineable, chunk by thing
 category, building), `Passable` from the impassable flag, a door from the door edifice,
 `Roofed`, the `foundation_removal` mirror column, and `EdgeReachable` as a four-connected
-flood over known walkable cells from the map edge with doors read closed. A cell the
+flood over walkable cells from the map edge with doors read closed. A cell the
 mirror does not hold, or holds without terrain or walkability, is fogged; the flood
-treats it as blocked (fog hides mountain far more often than open ground). The edifice
+treats it as passable, because the game's pathing has no fog (raiders path the real map)
+and nothing is built within 10 tiles of the map edge, so treating fog as blocked would
+call a base sealed that raiders can enter. A fogged cell's own `EdgeReachable` is not
+asserted (read unknown). The edifice
 stuff is not in the mirror, so the waiting fight's plasteel-door hardening still reads
 the native census.
 
