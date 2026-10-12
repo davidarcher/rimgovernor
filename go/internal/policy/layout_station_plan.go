@@ -68,6 +68,11 @@ type StationFacts struct {
 	// the old planner stays the only one; the tiled plan is advisory until the
 	// epic (#2855) switches over.
 	Tile bool
+	// OutdoorCurve is the seasonal outdoor temperature curve (twelve means, C)
+	// and FullRotRateC the catalog's full-rot temperature; the cold exposure
+	// advice (ColdExposureFor) needs both and is left off while either is unknown.
+	OutdoorCurve domain.Fact[[]float64]
+	FullRotRateC float64
 }
 
 // StationPopulationOf is the people the graph sizes beds for. Babies sleep in
@@ -182,6 +187,9 @@ type GroupAdvice struct {
 	Capacity int
 	// Outgrown: the group needs more floor than its built rooms give.
 	Outgrown bool
+	// Exposure is the cold room's vent-to-outdoors answer, beside its cooling
+	// station; nil for a group that does not require cold or when the curve is unknown.
+	Exposure *ColdExposure
 }
 
 // StationAdvice is the chain's result over the live colony.
@@ -229,7 +237,7 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 	}
 	for _, m := range MatchGroupRooms(clustering.Groups, BuiltRegions(f.Plan, f.Built)) {
 		g := clustering.Groups[m.Group]
-		out.Groups = append(out.Groups, GroupAdvice{Group: g, Rooms: m.Rooms, Capacity: m.Capacity, Outgrown: GroupOutgrown(g, m)})
+		out.Groups = append(out.Groups, GroupAdvice{Group: g, Rooms: m.Rooms, Capacity: m.Capacity, Outgrown: GroupOutgrown(g, m), Exposure: groupExposure(f, g)})
 	}
 	return out, nil
 }

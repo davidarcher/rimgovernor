@@ -86,6 +86,7 @@ func stationFactsOf(projection observation.ColonyProjection, plan policy.LayoutP
 		WorkPawns: projection.WorkPawns, Food: projection.FoodSupply,
 		Orders: domain.Unknown[[]policy.OrderSpec](), Stock: domain.Unknown[map[policy.Resource]int64](),
 		RoofDistance: projection.RoofSupport, Plan: plan, Survey: survey,
+		OutdoorCurve: projection.OutdoorCurve, FullRotRateC: projection.FullRotRateC,
 	}
 	if rooms, known := projection.Rooms.Value(); known {
 		f.Dining = rooms.Dining
@@ -136,6 +137,9 @@ func stationAdviceAttrs(a policy.StationAdvice) map[string]any {
 			"footprint": g.Group.Footprint, "clearance": g.Group.Clearance, "area": g.Group.Area,
 			"cost_ticks_per_day": costTicks, "lost_effects": len(g.Group.LostEffects),
 			"rooms": g.Rooms, "built_area": g.Capacity, "outgrown": g.Outgrown,
+		}
+		if e := g.Exposure; e != nil {
+			row["exposure"] = map[string]any{"satisfied": e.Satisfied, "vents": e.Vents, "peak_c": e.PeakC, "threshold_c": e.ThresholdC, "rot": "slowed"}
 		}
 		if b, ok := blocks[g.Group.ID]; ok {
 			row["block"] = map[string]any{"x": b.X, "z": b.Z, "width": b.Width, "height": b.Height}

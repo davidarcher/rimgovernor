@@ -44,6 +44,7 @@ func DefTables() []DefTable {
 		{"WoodLatchDefs", "Verse.ThingDef", slices.Clone(WoodLatchDefs)},
 		{"ScenarioThingChoices", "Verse.ThingDef", slices.Clone(ScenarioThingChoices)},
 		{"RhadamantThings", "Verse.ThingDef", rhadamantThingDefs()},
+		{"exposureLiterals", "Verse.ThingDef", sortedKeys(exposureLiterals)},
 	}
 }
 

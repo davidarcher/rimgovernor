@@ -126,6 +126,10 @@ type ColonyProjection struct {
 	ColdMap domain.Fact[bool]
 	// HotMap is whether the curve peaks above HotEnter (policy.HotMapCurve); unknown without the curve.
 	HotMap domain.Fact[bool]
+	// OutdoorCurve is the twelve seasonal means themselves (C) and FullRotRateC the
+	// catalog's full-rot temperature, which the cold exposure advice reads.
+	OutdoorCurve domain.Fact[[]float64]
+	FullRotRateC float64
 
 	PendingHunts domain.Fact[int]
 	// DeliveryLedger is native's cumulative delivery counters; unknown when the census is missing or malformed.
@@ -658,6 +662,8 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		}
 		r.ColdMap = domain.Known(policy.ColdMapCurve(temps))
 		r.HotMap = domain.Known(policy.HotMapCurve(temps))
+		r.OutdoorCurve = domain.Known(temps)
+		r.FullRotRateC = float64(tables.Catalog.Derived.FullRotRateC)
 	}
 	colonyAcquisition(v, tables, &r)
 	colonyProduction(v, &r.Facts)
