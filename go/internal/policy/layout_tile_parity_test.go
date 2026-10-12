@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"errors"
 	"strconv"
 	"testing"
 
@@ -13,6 +14,11 @@ import (
 // built rooms, and the survey's zones as the plan. It is the demand the old
 // generator was scored against, read through the station chain.
 func replayStationFacts(f replayFixture, s MapSurvey) StationFacts {
+	return colonyStationFacts(f.pawns, s)
+}
+
+// colonyStationFacts is replayStationFacts for a colony of pawns.
+func colonyStationFacts(pawns int, s MapSurvey) StationFacts {
 	facts := stationFactsFixture()
 	stove := facts.Catalog.Stations["Stove"]
 	stove.Capacity = StationCapacity{Kind: CapacityWorkers, Slots: 1, Recipes: []RecipeWorkAmount{{"CookMeal", 450}}}
@@ -21,26 +27,27 @@ func replayStationFacts(f replayFixture, s MapSurvey) StationFacts {
 	facts.Items = ItemFacts{Nutrition: map[Resource]float64{"Meal": 0.9}}
 	facts.StackLimit["Meal"], facts.StackLimit["Rice"] = 10, 75
 	facts.Perishable["Meal"] = true
-	consumers := make([]FoodConsumer, f.pawns)
+	consumers := make([]FoodConsumer, pawns)
 	for i := range consumers {
 		consumers[i] = FoodConsumer{ID: PawnID(strconv.Itoa(i + 1)), NutritionPerDay: domain.Known(1.6)}
 	}
-	facts.Colonists = domain.Known(int64(f.pawns))
+	facts.Colonists = domain.Known(int64(pawns))
 	facts.Food = domain.Known(FoodSupply{Complete: domain.Known(true), Consumers: consumers})
 	facts.Plan = LayoutPlan{Zones: Zone(s)}
 	facts.Built = map[int32]bool{}
 	facts.Survey = s
-	facts.Tile = true
 	return facts
 }
 
-// tiledParityPlan plans a survey through the station chain and the tiler.
+// tiledParityPlan plans a survey as the runtime does: DeriveLayoutPlan, the
+// station chain and the tiler with the perimeter and the sites laid over.
 func tiledParityPlan(f replayFixture, s MapSurvey) (LayoutPlan, error) {
-	advice, err := AdviseStations(replayStationFacts(f, s))
-	if err != nil {
-		return LayoutPlan{}, err
+	fact, _, err := DeriveLayoutPlan(s, replayStationFacts(f, s), nil, 0)
+	plan, known := fact.Value()
+	if err == nil && !known {
+		err = errors.New("the derive holds no core")
 	}
-	return advice.Tiled.Plan, nil
+	return plan, err
 }
 
 // tilerParityExpectedFail lists the replay fixtures the tiled plan does not

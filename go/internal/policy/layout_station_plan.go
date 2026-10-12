@@ -68,10 +68,6 @@ type StationFacts struct {
 	// not yet built is a rebuild in flight, which holds every built room.
 	Pinned map[int32]bool
 	Survey MapSurvey
-	// Tile also tiles the embedding into a plan (TileEmbedding, #2876). Off,
-	// the old planner stays the only one; the tiled plan is advisory until the
-	// epic (#2855) switches over.
-	Tile bool
 	// OutdoorCurve is the seasonal outdoor temperature curve (twelve means, C)
 	// and FullRotRateC the catalog's full-rot temperature; the climate advice
 	// (groupClimate) needs both and is left off while either is unknown.
@@ -239,7 +235,7 @@ func (f StationFacts) GraphInput() (StationGraphInput, error) {
 // the caller keys the load beside it.
 func (f StationFacts) InputsKey() string {
 	plan, _ := json.Marshal(f.Plan) // the plan holds pointers; the saved form is its value
-	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Pinned, f.Tile, f.OutdoorCurve, f.ExpectedMood, f.Mismatches, f.Derive, f.ThroneArea) + string(plan)
+	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Pinned, f.OutdoorCurve, f.ExpectedMood, f.Mismatches, f.Derive, f.ThroneArea) + string(plan)
 	input, err := f.GraphInput()
 	if err != nil {
 		return key + err.Error()
@@ -287,7 +283,7 @@ type StationAdvice struct {
 	// Regroup are the regrouping search's moves (layout_regroup.go): each one
 	// applied, or the single reason none was.
 	Regroup []RegroupDecision
-	// Tiled is the embedding tiled into a plan; nil unless StationFacts.Tile.
+	// Tiled is the embedding tiled into a plan; nil unless TileStations ran.
 	Tiled *TileResult
 	// Comfort is the priced comfort tier of the bed and each worked bench
 	// (#2975), advisory; nil while the model or a fact is unknown.
@@ -295,6 +291,24 @@ type StationAdvice struct {
 	// SeedOnly names the unknown fact that left a derive-time graph at the seed
 	// rooms (StationFacts.Derive); empty when the full graph was built.
 	SeedOnly string
+}
+
+// TileStations is AdviseStations with the embedding tiled into a plan
+// (TileEmbedding): the fresh derive's planner (DeriveLayoutPlan). The advice at
+// a replan review does not tile, which only the derive reads until the replan
+// moves onto the chain (#2965).
+func TileStations(f StationFacts) (StationAdvice, error) {
+	out, err := AdviseStations(f)
+	if err != nil {
+		return StationAdvice{}, err
+	}
+	steel, _ := f.Items.MarketValue(siteSteelUnit) // unknown stays zero: the airlocks and vents go unpriced
+	tiled, err := TileEmbedding(TileInput{Groups: out.Clustering.Groups, Embedding: out.Embedding, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, OutdoorCurve: f.OutdoorCurve, RoofDistance: f.RoofDistance, FullRotRateC: f.FullRotRateC, SteelValue: steel, VentAvailable: f.VentAvailable, Light: stationLightPrice(f, steel)})
+	if err != nil {
+		return out, err
+	}
+	out.Tiled = &tiled
+	return out, nil
 }
 
 // AdviseStations runs the station chain over the live colony. It reads the
@@ -350,14 +364,6 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 		if out.Sites, err = EmbedSites(SiteEmbedInput{Embed: embedIn, Embedding: embedding, Nodes: graph.Sites}); err != nil {
 			return StationAdvice{}, err
 		}
-	}
-	if f.Tile {
-		steel, _ := f.Items.MarketValue(siteSteelUnit) // unknown stays zero: the airlocks and vents go unpriced
-		tiled, err := TileEmbedding(TileInput{Groups: clustering.Groups, Embedding: embedding, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, OutdoorCurve: f.OutdoorCurve, RoofDistance: f.RoofDistance, FullRotRateC: f.FullRotRateC, SteelValue: steel, VentAvailable: f.VentAvailable, Light: stationLightPrice(f, steel)})
-		if err != nil {
-			return StationAdvice{}, err
-		}
-		out.Tiled = &tiled
 	}
 	comfortSteel, _ := f.Items.MarketValue(siteSteelUnit)
 	out.Comfort = adviseComfort(f, graph, comfortSteel)

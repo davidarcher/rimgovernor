@@ -155,19 +155,18 @@ func TestAdviseStationsRunsTheChainAndChangesNothing(t *testing.T) {
 	}
 }
 
-func TestAdviseStationsTilesOnlyWhenAsked(t *testing.T) {
+func TestAdviseStationsTilesOnlyInTileStations(t *testing.T) {
 	f := stationFactsFixture()
 	plain, err := AdviseStations(f)
 	if err != nil || plain.Tiled != nil {
-		t.Fatalf("tile off: tiled %v, err %v", plain.Tiled, err)
+		t.Fatalf("advice without TileStations: tiled %v, err %v", plain.Tiled, err)
 	}
-	f.Tile = true
-	advice, err := AdviseStations(f)
+	advice, err := TileStations(f)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if advice.Tiled == nil || len(advice.Tiled.Plan.Rooms) != len(advice.Embedding.Blocks) {
-		t.Fatalf("tile on: %+v for %d blocks", advice.Tiled, len(advice.Embedding.Blocks))
+		t.Fatalf("TileStations: %+v for %d blocks", advice.Tiled, len(advice.Embedding.Blocks))
 	}
 }
 

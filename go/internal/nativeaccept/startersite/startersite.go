@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -78,11 +79,15 @@ func args(ctx context.Context, h *na.Harness, size int32, bedrooms bool) (map[st
 			return nil, fmt.Errorf("dump map survey: %w", err)
 		}
 	}
-	pawns, _ := facts.Facts.Colonists.Value()
-	tier, _ := facts.TechTier.Value()
 	survey.Cold, _ = facts.ColdMap.Value()
 	survey.Hot, _ = facts.HotMap.Value()
-	plan, known := policy.DeriveLayoutPlan(survey, int(pawns), tier, nil, 0).Value()
+	// No ledger and no stock are read here: the first plan is the seed rooms and
+	// the outskirts, which hold the shelter the fixture hut stands on.
+	fact, _, err := policy.DeriveLayoutPlan(survey, buildingruntime.FirstPlanFacts(*facts, survey, nil, policy.NewLedgerView(policy.LedgerViewNone, 0)), nil, 0)
+	if err != nil {
+		return nil, fmt.Errorf("layout plan: %w", err)
+	}
+	plan, known := fact.Value()
 	if !known {
 		return nil, fmt.Errorf("no layout plan on this map")
 	}

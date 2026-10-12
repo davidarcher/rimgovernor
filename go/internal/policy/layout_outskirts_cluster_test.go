@@ -156,14 +156,14 @@ func TestDeriveLayoutPlanPlansTheOutskirtsRooms(t *testing.T) {
 		}
 		return SurveyCell{Walkable: true, Fertility: 1}
 	})
-	plan, known := DeriveLayoutPlan(survey, 3, TechTierCamp, nil, 0).Value()
+	plan, known := oldDerive(survey, 3, TechTierCamp, nil, 0).Value()
 	if !known {
 		t.Fatal("no plan")
 	}
 	if OutskirtsOwed(plan) {
 		t.Fatalf("outskirts not planned: %s", plan.Summary())
 	}
-	again, _ := DeriveLayoutPlan(survey, 3, TechTierCamp, nil, 0).Value()
+	again, _ := oldDerive(survey, 3, TechTierCamp, nil, 0).Value()
 	a1r, _ := plan.OutskirtsArea()
 	a1 := a1r.Bounds()
 	a2r, _ := again.OutskirtsArea()

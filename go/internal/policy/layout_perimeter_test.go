@@ -619,7 +619,7 @@ func TestPerimeterLeavesRichPatchOutside(t *testing.T) {
 func TestPerimeterKillboxClearOfUtilities(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	p, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 30).Value()
+	p, ok := oldDerive(s, 3, TechTierCamp, nil, 30).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -639,7 +639,7 @@ func TestPerimeterKillboxClearOfUtilities(t *testing.T) {
 func TestPerimeterPlainSoilStaysNearCore(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	p, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 30).Value()
+	p, ok := oldDerive(s, 3, TechTierCamp, nil, 30).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}

@@ -157,7 +157,7 @@ func TestRetireSurplusDropsThePredecessorOnceTheSuccessorStands(t *testing.T) {
 func TestReplanPinsKeepAPairInFlight(t *testing.T) {
 	plan := successionPlan()
 	plan.Rooms = append(plan.Rooms, PlannedRoom{ID: 5, Role: PlannedStorage, Replaces: 1, Region: region(12, 7)})
-	pins := replanPins(plan, map[int32]bool{}, nil, TechTierCamp)
+	pins := ReplanPins(plan, map[int32]bool{}, nil, TechTierCamp)
 	if !pins[1] || !pins[5] || pins[2] {
 		t.Fatalf("pins = %v, want the pair only", pins)
 	}
@@ -165,7 +165,7 @@ func TestReplanPinsKeepAPairInFlight(t *testing.T) {
 
 func TestReplanSitesTheSuccessorThenRetiresThePredecessor(t *testing.T) {
 	s := loadSurvey(t, baselineSurveyPath)
-	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0).Value()
+	plan, ok := oldDerive(s, 3, TechTierCamp, nil, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -218,7 +218,7 @@ func TestReplanSitesTheSuccessorThenRetiresThePredecessor(t *testing.T) {
 
 func TestReplanReportsASuccessorItCannotSite(t *testing.T) {
 	s := loadSurvey(t, baselineSurveyPath)
-	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0).Value()
+	plan, ok := oldDerive(s, 3, TechTierCamp, nil, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}

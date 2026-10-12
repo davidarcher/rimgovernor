@@ -121,12 +121,12 @@ func OutskirtsSlots(area Rectangle) (OutskirtsLayout, bool) {
 	return l, true
 }
 
-// OutskirtsOwed reports whether plan lacks the outskirts cluster or its tomb,
-// morgue, graveyard, waste yard or incinerator: a plan that already holds a room of a role
-// elsewhere (a core tomb) is not owed another.
+// OutskirtsOwed reports whether plan lacks a tomb, morgue, graveyard, waste
+// yard or incinerator: a plan that already holds a room of a role elsewhere (a
+// core tomb, or the rooms the chain tiles in place of the cluster's area) is
+// not owed another.
 func OutskirtsOwed(plan LayoutPlan) bool {
-	_, has := plan.OutskirtsArea()
-	return !has || len(outskirtsMissing(plan, OutskirtsLayout{})) > 0
+	return len(outskirtsMissing(plan, OutskirtsLayout{})) > 0
 }
 
 // outskirtsMissing are the roles the cluster owes plan, each with its room.

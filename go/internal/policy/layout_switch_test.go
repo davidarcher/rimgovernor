@@ -10,7 +10,7 @@ import (
 func switchFixture(t *testing.T) (MapSurvey, LayoutPlan, PlannedRoom, RoomGrowth) {
 	t.Helper()
 	s := loadSurvey(t, baselineSurveyPath)
-	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0).Value()
+	plan, ok := oldDerive(s, 3, TechTierCamp, nil, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}

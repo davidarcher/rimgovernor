@@ -12,7 +12,7 @@ func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	s := zoningSurvey(200, open)
-	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 30).Value()
+	plan, ok := oldDerive(s, 3, TechTierCamp, nil, 30).Value()
 	if !ok || !plan.WithRoomIDs().Valid() || plan.LayoutOutgrown(3) {
 		t.Fatal(ok, plan.WithRoomIDs().Valid())
 	}
@@ -70,7 +70,7 @@ func TestReplanPerimeterOnDriedGround(t *testing.T) {
 			return c
 		})
 	}
-	plan, ok := DeriveLayoutPlan(survey(false, nil), 3, TechTierCamp, nil, 30).Value()
+	plan, ok := oldDerive(survey(false, nil), 3, TechTierCamp, nil, 30).Value()
 	if !ok || len(reserved(plan, nodeRingLight)) == 0 || len(reserved(plan, NodePump)) == 0 {
 		t.Fatal("no wooden stretch", ok)
 	}

@@ -256,8 +256,7 @@ func TestAdviseStationsPlacesFieldsForCrops(t *testing.T) {
 	f.Plan.Zones = Zone(f.Survey)
 	f.Crops = []CropChoice{riceCrop()}
 	f.FoodReserveDays = DefaultFoodReserveDays
-	f.Tile = true
-	advice, err := AdviseStations(f)
+	advice, err := TileStations(f)
 	if err != nil {
 		t.Fatal(err)
 	}

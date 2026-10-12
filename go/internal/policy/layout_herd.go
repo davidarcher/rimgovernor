@@ -77,7 +77,7 @@ func walledSide(w, h int32) (int32, int32) { return w + 2, h + 2 }
 // the key on its reservations (see the file comment for plans saved without
 // one). Zero animals plans no misc unit. plan holds its core zones.
 func PlanHerdSites(plan LayoutPlan, animals int, herds ...HerdCeiling) LayoutPlan {
-	if animals <= 0 && len(herds) == 0 || len(plan.Hallways()) == 0 {
+	if animals <= 0 && len(herds) == 0 || len(plan.AllRooms()) == 0 {
 		return plan
 	}
 	plan.Reservations = slices.Clone(plan.Reservations)

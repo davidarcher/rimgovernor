@@ -20,7 +20,7 @@ func deriveFacts(colonists int, cold, hot bool, curve []float64) StationFacts {
 		Catalog: cat, Dining: DiningFurniture{Table: InteriorPieceDef{Def: "Table", Size: domain.Cell{X: 1, Z: 2}}},
 		Colonists: domain.Known(int64(colonists)), Items: ItemFacts{Market: map[Resource]float64{siteSteelUnit: 1.9}},
 		Plan: LayoutPlan{Zones: Zone(s)}, Built: map[int32]bool{}, Survey: s, RoofDistance: testRoof,
-		Tile: true, Derive: true, OutdoorCurve: domain.Known(curve), FullRotRateC: 10,
+		Derive: true, OutdoorCurve: domain.Known(curve), FullRotRateC: 10,
 	}
 }
 
@@ -65,7 +65,7 @@ func TestDeriveTimeFactsTileTheShelterWithoutAProjection(t *testing.T) {
 		curve []float64
 	}{{"cold", true, seaIce}, {"temperate", false, []float64{8, 10, 14, 18, 20, 22, 22, 21, 18, 14, 10, 8}}} {
 		t.Run(tc.name, func(t *testing.T) {
-			a, err := AdviseStations(deriveFacts(4, tc.cold, false, tc.curve))
+			a, err := TileStations(deriveFacts(4, tc.cold, false, tc.curve))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -92,7 +92,7 @@ func TestDeriveTimeFactsTileTheShelterWithoutAProjection(t *testing.T) {
 func TestDeriveTimeThroneRoomIsTheRequestedArea(t *testing.T) {
 	f := deriveFacts(4, false, false, []float64{8, 10, 14, 18, 20, 22, 22, 21, 18, 14, 10, 8})
 	f.ThroneArea = domain.Known(30)
-	a, err := AdviseStations(f)
+	a, err := TileStations(f)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func TestDeriveTimeThroneRoomIsTheRequestedArea(t *testing.T) {
 // still fails on a fact it lacks.
 func TestDeriveTimeUnknownFactsAskForNothing(t *testing.T) {
 	f := deriveFacts(4, false, false, nil)
-	a, err := AdviseStations(f)
+	a, err := TileStations(f)
 	if err != nil {
 		t.Fatal(err)
 	}

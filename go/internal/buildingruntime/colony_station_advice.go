@@ -21,8 +21,9 @@ import (
 // while its inputs are unchanged: the facts' key (StationFacts.InputsKey) and
 // the survey, as for the replan. A run records one layout_stations decision.
 // The advice is false when the chain failed or a fact is unread.
-func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, plan policy.LayoutPlan, survey policy.MapSurvey, catalog *bridge.DefinitionCatalog) (policy.StationAdvice, bool) {
+func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, plan policy.LayoutPlan, pinned map[int32]bool, survey policy.MapSurvey, catalog *bridge.DefinitionCatalog) (policy.StationAdvice, bool) {
 	f := stationFactsOf(projection, plan, survey, r.demand.get(snapshot).Needs, r.WorkLedgerView())
+	f.Pinned = pinned
 	f.Crops, f.FoodReserveDays = growingCrops(projection), r.seasonal(projection.Facts).FoodTargetDays
 	f.Suites = suiteWishes(projection, plan, r.stage)
 	inputs := layoutInputs{key: fmt.Sprint(snapshot.Load, "|", f.InputsKey()), bounds: survey.Bounds, cells: survey.Cells}
@@ -53,11 +54,16 @@ func regroupDecision(d policy.RegroupDecision) telemetry.Decision {
 // is the layout_stations row of the outcome: advised, skipped for an unknown
 // fact, or failed. The advice is returned when it was made.
 func stationDecision(facts policy.StationFacts, err error) (telemetry.Decision, policy.StationAdvice, bool) {
-	decision := telemetry.Decision{Kind: "layout_stations", Component: "layout", Target: "plan"}
 	var advice policy.StationAdvice
 	if err == nil {
 		advice, err = policy.AdviseStations(facts)
 	}
+	return stationOutcome(advice, err)
+}
+
+// stationOutcome is the layout_stations row of advice made (or err, the chain's).
+func stationOutcome(advice policy.StationAdvice, err error) (telemetry.Decision, policy.StationAdvice, bool) {
+	decision := telemetry.Decision{Kind: "layout_stations", Component: "layout", Target: "plan"}
 	switch {
 	case errors.Is(err, policy.ErrStationFacts):
 		decision.Verdict, decision.Reason, decision.Attrs = "skipped", "facts_unknown", map[string]any{"fact": err.Error()}
@@ -140,6 +146,20 @@ func stationFactsOf(projection observation.ColonyProjection, plan policy.LayoutP
 		}
 		f.Orders = domain.Known(orders)
 	}
+	return f
+}
+
+// FirstPlanFacts are the station facts of a first plan over survey
+// (policy.DeriveLayoutPlan): every fact the projection, the resource demand
+// needs and the work ledger hold, nothing standing, the throne room a title asks
+// (ThroneArea) and what the colony has not read left unknown, which a first plan
+// grows from the seed rooms (StationFacts.Derive). The catalog rows are added
+// by the caller (stationFacts).
+func FirstPlanFacts(projection observation.ColonyProjection, survey policy.MapSurvey, needs map[policy.Resource]int64, ledger policy.LedgerView) policy.StationFacts {
+	f := stationFactsOf(projection, policy.LayoutPlan{}, survey, needs, ledger)
+	f.Derive = true
+	need, owed := throneNeed(projection)
+	f.ThroneArea = domain.Known(policy.ThroneAreaOwed(policy.LayoutPlan{}, need, owed))
 	return f
 }
 

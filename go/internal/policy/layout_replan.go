@@ -99,13 +99,13 @@ func allPins(plan LayoutPlan) map[int32]bool {
 	return pins
 }
 
-// replanPins widens fixed (the rooms with anything of ours on them) to what
+// ReplanPins widens fixed (the rooms with anything of ours on them) to what
 // a replan must not move (every room when fixed is nil, the census unknown):
 // the partner a fixed room's Link door opens on, a
 // bedroom wing with a fixed room (a wing is sited as one block), and every
 // suite block (existing suites never move). An emptied Retiring wing is
 // never pinned, built or not: it is the ground a replan may reclaim.
-func replanPins(plan LayoutPlan, fixed map[int32]bool, emptied map[domain.Cell]bool, tier TechTier) map[int32]bool {
+func ReplanPins(plan LayoutPlan, fixed map[int32]bool, emptied map[domain.Cell]bool, tier TechTier) map[int32]bool {
 	if fixed == nil {
 		// The census is unknown, so nothing is known to be unbuilt.
 		return allPins(plan)

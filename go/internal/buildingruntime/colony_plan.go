@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -205,7 +206,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 				growth.Grazing = policy.GrazingGround(survey, pasture)
 			}
 			if !haveLayout {
-				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns), layoutTier(*projection), topology.Geysers, animals, perimeterWall(*projection))
+				err = r.deriveLayoutPlan(ctx, snapshot, tick, *projection, survey, catalog, topology.Geysers, animals, perimeterWall(*projection))
 				r.planGrownFor, r.planPawns, r.planInputs = grown, int(pawns), layoutInputs{}
 			} else {
 				// Fixed rooms are what the replan keeps: read here, with
@@ -219,10 +220,11 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 					// Open plans unknown: no shelter is dropped over work in flight.
 					growth.RetireShelter = false
 				}
+				emptied := policy.EmptiedRetiringWings(layout.Plan, projection.Rooms, projection.Facts.Sleeping)
 				// A room the colony outgrew gets a larger successor: the
-				// station chain at this review, skipped while its inputs
+				// station chain at this review (its pins the rooms the replan keeps), skipped while its inputs
 				// are unchanged.
-				if advice, ok := r.stationAdvice(ctx, snapshot, *projection, layout.Plan, survey, catalog); ok {
+				if advice, ok := r.stationAdvice(ctx, snapshot, *projection, layout.Plan, policy.ReplanPins(layout.Plan, growth.Fixed, emptied, layoutTier(*projection)), survey, catalog); ok {
 					growth.Successor = policy.OutgrownSuccession(advice, projection.Stations, layout.Plan)
 				}
 				growth.Slept = policy.SleptBedrooms(layout.Plan, projection.Rooms, projection.Facts.Sleeping)
@@ -236,7 +238,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 				inputs := layoutInputs{planTick: layout.Tick, key: fmt.Sprint(grown, pawns, tombs, suites, topology.Geysers, keyed, animals), bounds: survey.Bounds, cells: survey.Cells}
 				if !inputs.same(r.planInputs) {
 					reason := layoutReasons(map[string]bool{"outgrown": outgrown, "terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research, "tomb": tomb, "suite": suite, "throne": throne, "children": children, "gear": gear, "core": core, "outskirts": outskirts, "yard": yard, "succession": growth.Successor.Any(), "perimeter": perimeter})
-					err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, growth, animals, int(pawns), tombs, layoutTier(*projection), reason, topology.Geysers, policy.EmptiedRetiringWings(layout.Plan, projection.Rooms, projection.Facts.Sleeping), suites, perimeterWall(*projection))
+					err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, growth, animals, int(pawns), tombs, layoutTier(*projection), reason, topology.Geysers, emptied, suites, perimeterWall(*projection))
 					if err == nil {
 						r.planGrownFor, r.planPawns = grown, int(pawns)
 						r.planInputs, replanned = inputs, true
@@ -349,19 +351,44 @@ func (r *Rounder) layoutPlan(ctx context.Context, snapshot domain.GenerationSnap
 }
 
 // deriveLayoutPlan lays a fresh v2 plan over survey and the reported
-// geysers and records it.
-func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, survey policy.MapSurvey, pawns int, tier policy.TechTier, geysers []policy.PowerGeyser, animals int, wall policy.PerimeterWall) error {
-	plan, known := policy.DeriveLayoutPlan(survey, pawns, tier, geysers, animals).Value()
+// geysers from the station chain and records it. A fact the colony has not read
+// leaves the plan at the seed rooms (the layout_stations row says which); a
+// chain that fails records nothing and the next hourly review derives again.
+func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, projection observation.ColonyProjection, survey policy.MapSurvey, catalog *bridge.DefinitionCatalog, geysers []policy.PowerGeyser, animals int, wall policy.PerimeterWall) error {
+	pawns, _ := projection.Facts.Colonists.Value()
+	colonists := int(pawns)
+	start := time.Now()
+	f := FirstPlanFacts(projection, survey, r.demand.get(snapshot).Needs, r.WorkLedgerView())
+	f.Crops, f.FoodReserveDays = growingCrops(projection), r.seasonal(projection.Facts).FoodTargetDays
+	f, err := stationFacts(catalog, f)
+	var fact domain.Fact[policy.LayoutPlan]
+	var advice policy.StationAdvice
+	if err == nil {
+		fact, advice, err = policy.DeriveLayoutPlan(survey, f, geysers, animals)
+	}
+	row, _, _ := stationOutcome(advice, err)
+	row.Dur = time.Since(start)
+	row.Attrs["derive"] = true
+	telemetry.Decide(ctx, row)
+	switch {
+	case errors.Is(err, policy.ErrStationFacts):
+		telemetry.Decide(ctx, layoutPlanDecision("skipped", "facts_unknown", colonists, "", map[string]any{"fact": err.Error()}))
+		return nil
+	case err != nil:
+		telemetry.Decide(ctx, layoutPlanDecision("failed", "chain_error", colonists, "", map[string]any{"error": err.Error()}))
+		return nil
+	}
+	plan, known := fact.Value()
 	if !known {
-		telemetry.Decide(ctx, layoutPlanDecision("skipped", "no_core", pawns, "", nil))
+		telemetry.Decide(ctx, layoutPlanDecision("skipped", "no_core", colonists, "", nil))
 		return nil
 	}
 	if err := r.player.journal.RecordLayoutPlan(ctx, snapshot, tick, plan); err != nil {
 		return err
 	}
-	telemetry.Decide(ctx, layoutPlanDecision("planned", "", pawns, plan.Summary(), nil))
-	logPerimeter(ctx, plan, pawns)
-	logPerimeterCut(ctx, plan, survey, wall, pawns)
+	telemetry.Decide(ctx, layoutPlanDecision("planned", "", colonists, plan.Summary(), nil))
+	logPerimeter(ctx, plan, colonists)
+	logPerimeterCut(ctx, plan, survey, wall, colonists)
 	return nil
 }
 

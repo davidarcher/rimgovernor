@@ -137,7 +137,7 @@ func PensOwed(plan LayoutPlan, wants []PenWant) int {
 // nowhere is left out, and a unit without a barn gets none. plan holds its core
 // zones.
 func PlanPenSites(plan LayoutPlan, grazing map[domain.Cell]bool, wants ...PenWant) LayoutPlan {
-	if len(wants) == 0 || len(grazing) == 0 || len(plan.Hallways()) == 0 {
+	if len(wants) == 0 || len(grazing) == 0 || len(plan.AllRooms()) == 0 {
 		return plan
 	}
 	plan.Reservations = slices.Clone(plan.Reservations)

@@ -124,7 +124,7 @@ func TestFreezerSuccessorKeepsItsLinkToTheKitchen(t *testing.T) {
 
 func TestSuccessorOfALinkedRoomIsNotSitedWithoutALink(t *testing.T) {
 	s := loadSurvey(t, baselineSurveyPath)
-	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0).Value()
+	plan, ok := oldDerive(s, 3, TechTierCamp, nil, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -195,7 +195,7 @@ func TestBedroomSuccessorMigratesSleepersWithoutAnUnbeddedNight(t *testing.T) {
 	if kept, dropped := retireSurplusRooms(plan, growth, growth.Built); dropped || len(kept.AllRooms()) != 2 {
 		t.Fatalf("the old bedroom left the plan while a sleeps in it: %+v", kept.AllRooms())
 	}
-	if pins := replanPins(plan, map[int32]bool{next.ID: true}, nil, TechTierCamp); !pins[old.ID] {
+	if pins := ReplanPins(plan, map[int32]bool{next.ID: true}, nil, TechTierCamp); !pins[old.ID] {
 		t.Fatal("the old bedroom was unpinned while a sleeps in it")
 	}
 	step := NextMigrateStep(plan, rooms, sleeping)

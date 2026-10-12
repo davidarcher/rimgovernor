@@ -14,32 +14,62 @@ import (
 // unsupported by terrain and sites missing rooms. Core candidates are derived
 // planning input and are not saved.
 
-// layoutUtilities is what a fresh plan reserves beside its core; the pens,
-// barn and vet room are sized by the herd plan's target herd.
-var layoutUtilities = UtilityWants{TurbinePairs: 1, Solar: 1}
-
-// DeriveLayoutPlan lays a fresh plan over the survey for pawns
-// colonists, with a geothermal enclosure on each reported steam geyser
-// and a barn for a herd of animals (HerdPlan.PenAnimals). Its pens are sited by
-// the replan, once the pasture is read. Unknown when the survey holds no room for a core.
-func DeriveLayoutPlan(s MapSurvey, pawns int, tier TechTier, geysers []PowerGeyser, animals int) domain.Fact[LayoutPlan] {
+// DeriveLayoutPlan lays a fresh plan over the survey from the station chain:
+// the facts (a first plan's, StationFacts.Derive) go through the graph, the
+// clustering and the embedding, and the tiler (TileEmbedding) turns the
+// embedding into the rooms, doors, links, roofs and lamps. What the tiler does
+// not plan is laid over its rooms: a barn for a herd of animals
+// (HerdPlan.PenAnimals), the yards, the perimeter and its mountain pockets. The
+// pens are sited by the replan, once the pasture is read. A geothermal
+// enclosure is reserved on each reported steam geyser and rooms stay off it;
+// the outskirts are rooms of the chain itself. The advice is returned beside
+// the plan for the caller to journal. Unknown when the survey holds no room
+// for a core; the error is the chain's (ErrStationFacts for a fact the colony
+// has not read and the chain needs).
+func DeriveLayoutPlan(s MapSurvey, f StationFacts, geysers []PowerGeyser, animals int) (domain.Fact[LayoutPlan], StationAdvice, error) {
 	zones := Zone(s)
 	footprints := geyserFootprints(geysers)
-	plan := SiteCore(LayoutPlan{Zones: coreWithout(zones, geothermalCells(footprints)), Cold: s.Cold, Hot: s.Hot}, s, pawns, 0, tier)
-	if len(plan.AllRooms()) == 0 {
-		return domain.Unknown[LayoutPlan]()
+	f.Derive, f.Built, f.Survey = true, map[int32]bool{}, s
+	f.Plan = LayoutPlan{Zones: coreWithout(zones, geothermalCells(footprints)), Cold: s.Cold, Hot: s.Hot, Reservations: geothermalReservations(zones, footprints)}
+	advice, err := TileStations(f)
+	if err != nil {
+		return domain.Unknown[LayoutPlan](), advice, err
 	}
-	plan.Zones = zones
-	want := layoutUtilities
-	want.Geysers, want.PenAnimals, want.ThickRoof = footprints, animals, ThickRoofCells(s)
-	scorer := newPlanScorer(plan.Zones, plan.Reserved(), s)
-	want.scorer = &scorer
-	plan = PlanUtilities(plan, want)
+	plan := advice.Tiled.Plan
+	if len(plan.AllRooms()) == 0 {
+		return domain.Unknown[LayoutPlan](), advice, nil
+	}
+	// The survey's zones, then the fields the tiler placed.
+	plan.Zones = append(slices.Clone(zones), plan.Zones[len(f.Plan.Zones):]...)
+	plan.Cold, plan.Hot = s.Cold, s.Hot
+	plan = PlanHerdSites(plan, animals)
 	plan = PlanYardSites(plan, YardRoomsWanted(RoomDemand{}))
-	plan, _ = growOutskirts(plan, OutskirtsSize())
-	plan, _ = growOutskirtsRooms(plan, want.ThickRoof)
 	plan = PlanMountainPockets(PlanPerimeter(plan, s), s)
-	return domain.Known(withoutCore(plan).WithRoomIDs())
+	return domain.Known(withoutCore(plan).WithRoomIDs()), advice, nil
+}
+
+// geothermalReservations are the enclosures of the geysers whose cells all lie
+// on core ground; a site that does not fit is left out.
+func geothermalReservations(zones []LayoutZone, footprints []Rectangle) []LayoutReservation {
+	core := map[domain.Cell]bool{}
+	for _, z := range zones {
+		if z.Kind != ZoneCore {
+			continue
+		}
+		for _, r := range z.Runs {
+			for x := r.X; x < r.X+r.Length; x++ {
+				core[domain.Cell{X: x, Z: r.Z}] = true
+			}
+		}
+	}
+	var out []LayoutReservation
+	for _, g := range footprints {
+		area := geothermalArea(g)
+		if !slices.ContainsFunc(RectangleCells(area), func(c domain.Cell) bool { return !core[c] }) {
+			out = append(out, LayoutReservation{Kind: ReserveGeothermal, Area: RectRegion(area)})
+		}
+	}
+	return out
 }
 
 // RoomGrowth is the rooms the plan is asked to add beyond the core: a throne
@@ -194,7 +224,7 @@ func replanLayout(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawn
 	// Growth, then the unbuilt rooms sited again where that scores clearly
 	// better (layout_replan.go); an emptied Retiring wing is among them.
 	rp := newReplanner(next, s, blockedCells(next, growth.Occupied), pawns, tombs, tier, suites)
-	next, resited := rp.replanCore(next, replanPins(next, growth.Fixed, emptied, tier))
+	next, resited := rp.replanCore(next, ReplanPins(next, growth.Fixed, emptied, tier))
 	dropped = dropped || resited
 	scorer := newPlanScorer(next.Zones, next.Reserved(), s)
 	next, throne, err := growThroneRoom(next, growth.ThroneArea, &scorer)

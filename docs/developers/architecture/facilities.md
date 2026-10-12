@@ -311,6 +311,8 @@ each group (stations, footprint, clearance, area, predicted role, costs,
 block), the clustering's conflicts and the embedding report; `skipped`
 (`facts_unknown`, naming the fact); or `failed`. The chain runs at most once per change of its inputs (`StationFacts.InputsKey` and the survey; a review with them unchanged reads the last advice and writes no row). Cost on the 250x250 baseline map with a 30-colonist plan and 10 recipes ordered: about 85 ms a run, 0.5 ms for the key (`BenchmarkAdviseStationsLarge`).
 
+A fresh plan (`policy.DeriveLayoutPlan`, #2959) is this chain run through the tiler (`TileStations`, `StationFacts.Derive`): no core grid, hallways or old utilities; the `layout_stations` row carries `derive: true`, and the `layout_plan` row is `skipped` (`facts_unknown` on an unread fact, `no_core` when the map holds no shelter) or `failed` (`chain_error`). Facts the live ledger has not read leave the plan at the seed rooms (`StationAdvice.SeedOnly`). Power sites wait for #2960; replans still grow on the old planner until #2965.
+
 #### Derive-time facts and the seed rooms (#2958)
 
 The day-1 shelter and the throne room are kept as special rooms: station-less
