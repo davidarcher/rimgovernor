@@ -50,6 +50,35 @@ func movedBlocks(emb Embedding) []EmbeddedBlock {
 	return out
 }
 
+// A pinned standing room that no group carries is an obstacle: the kitchen
+// block, which the free embedding puts on its ground, goes elsewhere (#3019).
+func TestEmbedPinnedRoomWithNoGroupIsAnObstacle(t *testing.T) {
+	in := embedInput(t, plainScoreSurvey(), 6)
+	free, err := Embed(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	k := builtGroup(t, in.Groups, RoomRoleKitchen)
+	at, _ := free.Block(k)
+	in.Standing = []BuiltRegion{{Room: 9, Planned: PlannedBedroom, Region: RectRegion(at), Pinned: true}}
+	emb, err := Embed(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkEmbedding(t, in, emb)
+	if len(emb.Held) != 1 || emb.Held[0].Room != 9 || emb.Held[0].Interior != at || emb.Held[0].Role != PlannedBedroom {
+		t.Fatalf("held %+v, want room 9 at %+v", emb.Held, at)
+	}
+	if len(emb.Blocks) != len(in.Groups) {
+		t.Fatalf("%d blocks for %d groups", len(emb.Blocks), len(in.Groups))
+	}
+	for _, b := range emb.Blocks {
+		if collides(b.Interior, at) {
+			t.Errorf("group %d block %+v touches the pinned room at %+v", b.Group, b.Interior, at)
+		}
+	}
+}
+
 // A built kitchen and storeroom stand where they are and the rest is placed
 // around them: no churn, the same result at any thread count.
 func TestEmbedBuiltRoomsTileAroundWithNoChurn(t *testing.T) {

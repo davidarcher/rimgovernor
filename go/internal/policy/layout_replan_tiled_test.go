@@ -364,3 +364,64 @@ func TestDiffReplanTileReadsClaimsAndSupersededRooms(t *testing.T) {
 		t.Errorf("unmatched %+v, want %+v", diff.Unmatched, wantUnmatched)
 	}
 }
+
+// A pinned standing room that no group carries (a surplus bedroom still slept
+// in) stays an obstacle and a room of the tiled plan until it retires (#3019).
+func TestPinnedRoomWithNoGroupStaysInTheTiledPlan(t *testing.T) {
+	f := replayFixtures[0]
+	s := f.survey(t)
+	fact, _, err := DeriveLayoutPlan(s, colonyStationFacts(8, s), nil, 0)
+	plan, ok := fact.Value()
+	if err != nil || !ok {
+		t.Fatalf("derive: %v %v", ok, err)
+	}
+	built := map[int32]bool{}
+	standing := map[int32]PlannedRoom{}
+	for _, r := range plan.AllRooms() {
+		built[r.ID], standing[r.ID] = true, r
+	}
+	tile := func(pinned map[int32]bool) (StationAdvice, ReplanTileDiff) {
+		facts := colonyStationFacts(4, s) // four colonists need fewer bedrooms than stand
+		facts.Plan, facts.Built, facts.Pinned = plan, built, pinned
+		advice, err := TileStations(ReplanTileFacts(facts, s, nil))
+		if err != nil {
+			t.Fatalf("tile: %v", err)
+		}
+		return advice, DiffReplanTile(plan, built, advice)
+	}
+	_, free := tile(nil)
+	pinned := map[int32]bool{}
+	for _, u := range free.Unmatched {
+		if u.Role == PlannedBedroom {
+			pinned[u.Room] = true
+		}
+	}
+	if len(pinned) == 0 {
+		t.Fatal("no surplus bedroom to pin")
+	}
+	advice, d := tile(pinned)
+	if len(advice.Embedding.Held) != len(pinned) {
+		t.Fatalf("held %+v, want the surplus bedrooms %v", advice.Embedding.Held, pinned)
+	}
+	all := advice.Tiled.Plan.AllRooms()
+	for id := range pinned {
+		i := slices.IndexFunc(all, func(r PlannedRoom) bool { return r.ID == id })
+		if i < 0 {
+			t.Fatalf("pinned room %d is not in the tiled plan", id)
+		}
+		at := standing[id].Region.Bounds()
+		if all[i].Region.Bounds() != at {
+			t.Errorf("room %d tiled at %v, stands at %v", id, all[i].Region.Bounds(), at)
+		}
+		for _, r := range all {
+			if r.ID != id && !r.attached() && collides(r.Region.Bounds(), at) {
+				t.Errorf("room %d (%s) of the tiled plan touches pinned room %d", r.ID, r.Role, id)
+			}
+		}
+	}
+	for _, u := range d.Unmatched {
+		if pinned[u.Room] {
+			t.Errorf("pinned room %d is still unmatched: %+v", u.Room, u)
+		}
+	}
+}

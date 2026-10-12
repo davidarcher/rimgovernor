@@ -356,7 +356,10 @@ func TileStations(f StationFacts) (StationAdvice, error) {
 // tileInput is what the tiler reads of the advice and the facts.
 func (f StationFacts) tileInput(out StationAdvice) TileInput {
 	steel, _ := f.Items.MarketValue(siteSteelUnit) // unknown stays zero: the airlocks and vents go unpriced
-	return TileInput{Groups: out.Clustering.Groups, Embedding: out.Embedding, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, OutdoorCurve: f.OutdoorCurve, RoofDistance: f.RoofDistance, FullRotRateC: f.FullRotRateC, SteelValue: steel, VentAvailable: f.VentAvailable, Light: stationLightPrice(f, steel), Sites: PowerSitesOf(out.Graph.Sites, out.Sites), Graph: out.Graph, Furniture: f.Furniture, Dining: f.Dining}
+	groups, emb := out.Clustering.Groups, out.Embedding
+	held, blocks := heldBlocks(len(groups), emb.Held)
+	groups, emb.Blocks = append(slices.Clone(groups), held...), append(slices.Clone(emb.Blocks), blocks...)
+	return TileInput{Groups: groups, Embedding: emb, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, OutdoorCurve: f.OutdoorCurve, RoofDistance: f.RoofDistance, FullRotRateC: f.FullRotRateC, SteelValue: steel, VentAvailable: f.VentAvailable, Light: stationLightPrice(f, steel), Sites: PowerSitesOf(out.Graph.Sites, out.Sites), Graph: out.Graph, Furniture: f.Furniture, Dining: f.Dining}
 }
 
 // AdviseStations runs the station chain over the live colony. It reads the
@@ -399,7 +402,7 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 	}
 	regrouped, err := Regroup(RegroupInput{
 		Cluster:    ClusterInput{Graph: graph, Catalog: f.Catalog, RoofDistance: f.RoofDistance},
-		Embed:      EmbedInput{Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, RoofDistance: f.RoofDistance, Built: built, InFlight: rebuildPending(f), RetiredGround: f.Plan.RetiredGround},
+		Embed:      EmbedInput{Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, RoofDistance: f.RoofDistance, Built: built, Standing: f.standingRooms(), InFlight: rebuildPending(f), RetiredGround: f.Plan.RetiredGround},
 		Price:      f.regroupPrice(),
 		Mismatches: f.Mismatches,
 	})
@@ -601,4 +604,38 @@ func MatchGroupRooms(groups []RoomGroup, built []BuiltRegion) []GroupRooms {
 // rooms give. A group with no built room has nothing to outgrow.
 func GroupOutgrown(g RoomGroup, m GroupRooms) bool {
 	return len(m.Rooms) > 0 && g.Area > m.Capacity
+}
+
+// standingRooms are the pinned standing rooms (StationFacts.Pinned) as the
+// embedding holds them (EmbedInput.Standing): every built room that is pinned,
+// whatever its role or whether a group carries it, bar the attached rooms and a
+// room whose successor stands (the pair is one room, as in BuiltRegions).
+func (f StationFacts) standingRooms() []BuiltRegion {
+	replaced := map[int32]bool{}
+	for _, r := range f.Plan.AllRooms() {
+		if f.Built[r.ID] && r.Replaces != 0 {
+			replaced[r.Replaces] = true
+		}
+	}
+	var out []BuiltRegion
+	for _, r := range f.Plan.AllRooms() {
+		if f.Built[r.ID] && f.Pinned[r.ID] && !r.attached() && !replaced[r.ID] {
+			out = append(out, BuiltRegion{Room: r.ID, Planned: r.Role, Region: r.Region, Pinned: true})
+		}
+	}
+	return out
+}
+
+// heldBlocks are the groups and blocks of the embedding's held rooms, held room
+// k being group len(groups)+k: a group of its planned role with no stations, so
+// the tiler tiles the standing room where it stands.
+func heldBlocks(groups int, held []HeldRoom) ([]RoomGroup, []EmbeddedBlock) {
+	var gs []RoomGroup
+	var blocks []EmbeddedBlock
+	for k, h := range held {
+		id := groups + k
+		gs = append(gs, RoomGroup{ID: id, Planned: h.Role, Area: int(h.Interior.Width * h.Interior.Height)})
+		blocks = append(blocks, EmbeddedBlock{Group: id, Interior: h.Interior, Built: h.Room})
+	}
+	return gs, blocks
 }

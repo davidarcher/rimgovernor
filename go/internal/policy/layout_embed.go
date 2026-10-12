@@ -86,6 +86,11 @@ type EmbedInput struct {
 	// the group MatchGroupRooms gives it, and moves only by the relocation pass
 	// (layout_built.go). Unbuilt rooms are free.
 	Built []BuiltRegion
+	// Standing are the pinned standing rooms that must stay whether or not a
+	// group carries them (#3019): each one that is not a group's home block is an
+	// obstacle no block overlaps and comes back as Embedding.Held, until the
+	// caller stops pinning it. Role is unused; Planned is the room's planned role.
+	Standing []BuiltRegion
 	// InFlight: a rebuild is under way (a successor pending or a room being
 	// built), so no built room moves.
 	InFlight bool
@@ -102,6 +107,14 @@ type EmbeddedBlock struct {
 	Interior Rectangle
 	Built    int32
 	Replaces int32
+}
+
+// HeldRoom is a pinned standing room no group's block keeps (EmbedInput.Standing):
+// it stays where it stands as an obstacle to every block.
+type HeldRoom struct {
+	Room     int32
+	Interior Rectangle
+	Role     PlannedRole
 }
 
 // EmbedDecision is one embedding decision for the caller to journal. Other is
@@ -146,6 +159,8 @@ type Embedding struct {
 	Level  obstacleLevel
 	Seed   domain.Cell
 	Blocks []EmbeddedBlock
+	// Held are the pinned standing rooms no block keeps, by room id.
+	Held []HeldRoom
 	// Fields are the placed fields, by input order.
 	Fields []EmbeddedField
 	// Decisions has one entry per group (placed or unplaceable) and one per
@@ -222,6 +237,7 @@ type embedder struct {
 	pinned      []bool
 	inFlight    bool
 	builtReport []EmbedDecision
+	held        []HeldRoom
 
 	// The groups from nRooms on are the fields (EmbedInput.withFields).
 	nRooms int
@@ -332,6 +348,7 @@ func newEmbedderFixed(in EmbedInput, depth int, scorer planScorer, level obstacl
 			}
 		}
 	}
+	e.holdStanding(in.Standing)
 	if len(e.core) == 0 {
 		return e
 	}
@@ -393,7 +410,7 @@ func (e *embedder) fits(i int, r Rectangle, blocks []Rectangle, sky bool) bool {
 			return false
 		}
 	}
-	return true
+	return !e.hitsHeld(r)
 }
 
 // blockCost is the objective's share of group i at r: cell terms and every
@@ -861,6 +878,7 @@ func embedLevel(in EmbedInput, depth int, scorer planScorer, level obstacleLevel
 func (r *embedRun) embedding(in EmbedInput, scorer planScorer) Embedding {
 	e := r.e
 	out := Embedding{Level: r.level, Seed: r.seed}
+	out.Held = e.held
 	out.Decisions = append(out.Decisions, e.builtReport...)
 	out.Decisions = append(out.Decisions, r.built.Decisions...)
 	out.Score.Switch = -int(r.built.Price)

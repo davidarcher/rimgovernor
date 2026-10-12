@@ -190,7 +190,7 @@ func (e *embedder) fieldFits(i int, r Rectangle, blocks []Rectangle) bool {
 			return false
 		}
 	}
-	return true
+	return !e.hitsHeld(r)
 }
 
 // fieldCellCost is a field's centre and edge terms, the mean per cell.

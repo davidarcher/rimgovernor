@@ -132,7 +132,8 @@ func DiffReplanTile(old LayoutPlan, built map[int32]bool, advice StationAdvice) 
 	var blocks []EmbeddedBlock
 	if advice.Tiled != nil {
 		all := advice.Tiled.Plan.AllRooms()
-		for _, b := range advice.Embedding.Blocks {
+		_, held := heldBlocks(len(advice.Clustering.Groups), advice.Embedding.Held)
+		for _, b := range append(slices.Clone(advice.Embedding.Blocks), held...) {
 			id, ok := advice.Tiled.Rooms[b.Group]
 			if !ok {
 				continue

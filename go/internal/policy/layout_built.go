@@ -3,6 +3,7 @@ package policy
 import (
 	"maps"
 	"slices"
+	"sort"
 )
 
 // The built world in the embedding (#2877). A room that stands is a fixed
@@ -74,6 +75,36 @@ func builtHomes(groups []RoomGroup, built []BuiltRegion) (home []Rectangle, room
 		}
 	}
 	return home, room, decisions
+}
+
+// holdStanding keeps the pinned standing rooms that are no group's home block
+// (a surplus room beside the one a group keeps, a room of a role no group has
+// left, an outdoor room or one with no native role) as obstacles: the room is a
+// rectangle the blocks avoid, whether or not a group carries it (#3019). A room
+// that is no rectangle, or whose ring is off the map, is reported and not held.
+func (e *embedder) holdStanding(standing []BuiltRegion) {
+	for _, b := range standing {
+		if slices.Contains(e.homeRoom, b.Room) {
+			continue
+		}
+		reported := slices.ContainsFunc(e.builtReport, func(d EmbedDecision) bool { return d.Room == b.Room })
+		switch {
+		case !b.Region.IsRect():
+			if !reported {
+				e.builtReport = append(e.builtReport, EmbedDecision{Group: -1, Other: -1, Verdict: EmbedKeep, Reason: ReasonEmbedBuiltNotRect, Room: b.Room})
+			}
+		case !e.base.inside(pad(b.Region.Bounds(), 1)):
+			e.builtReport = append(e.builtReport, EmbedDecision{Group: -1, Other: -1, Verdict: EmbedKeep, Reason: ReasonEmbedBuiltOffMap, Room: b.Room})
+		default:
+			e.held = append(e.held, HeldRoom{Room: b.Room, Interior: b.Region.Bounds(), Role: b.Planned})
+		}
+	}
+	sort.Slice(e.held, func(i, j int) bool { return e.held[i].Room < e.held[j].Room })
+}
+
+// hitsHeld reports a block that touches a held room.
+func (e *embedder) hitsHeld(r Rectangle) bool {
+	return slices.ContainsFunc(e.held, func(h HeldRoom) bool { return collides(r, h.Interior) })
 }
 
 // builtRun is what the relocation pass decided for one run.
