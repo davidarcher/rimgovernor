@@ -109,17 +109,17 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 	return plan
 }
 
-// TurbinePlacement is a turbine's native centre and rotation: a turbine facing
-// north or east is "south" (its pair's southern or western one), the others
-// face the other way.
-func TurbinePlacement(area Rectangle, pairSouth bool) (domain.Cell, domain.Rotation) {
-	if area.Width == 2 && area.Height == turbineWidth { // a turned pair: the western one faces east
-		if pairSouth {
+// TurbinePlacement is a turbine's native centre and rotation on its 7x2 pad
+// (2x7 turned): lowRow puts it on the pad's low row (z, or x turned), facing
+// north (east turned); otherwise it stands on the high row facing the other way.
+func TurbinePlacement(area Rectangle, lowRow bool) (domain.Cell, domain.Rotation) {
+	if area.Width == 2 && area.Height == turbineWidth { // turned: the low column faces east
+		if lowRow {
 			return domain.Cell{X: area.X, Z: area.Z + 3}, domain.East
 		}
 		return domain.Cell{X: area.X + 1, Z: area.Z + 3}, domain.West
 	}
-	if pairSouth {
+	if lowRow {
 		return domain.Cell{X: area.X + 3, Z: area.Z}, domain.North
 	}
 	return domain.Cell{X: area.X + 3, Z: area.Z + 1}, domain.South
@@ -164,9 +164,8 @@ type PlannedPowerSite struct {
 
 // PlannedPowerSites lists the plan's sites for definition:
 // batteries in the battery room's slots (1x2 turned east, or facing north
-// in a room on a crossing), wind turbines on
-// their pair reservations (the southern one facing north), solar on its
-// plots. Nil for any other definition or a plan with no such site.
+// in a room on a crossing), wind turbines on their pads (TurbinePlacement),
+// solar on its plots. Nil for any other definition or a plan with no such site.
 func PlannedPowerSites(plan LayoutPlan, definition string) []PlannedPowerSite {
 	var out []PlannedPowerSite
 	switch definition {
@@ -205,7 +204,7 @@ func PlannedPowerSites(plan LayoutPlan, definition string) []PlannedPowerSite {
 				continue
 			}
 			area := s.Footprint.Bounds()
-			c, rot := TurbinePlacement(area, turbineTurns[i].south)
+			c, rot := TurbinePlacement(area, turbineTurns[i].lowRow)
 			out = append(out, PlannedPowerSite{Cell: c, Rotation: rot, Area: area})
 		}
 	case SolarDefinition:

@@ -106,9 +106,6 @@ type StationFacts struct {
 	// ThroneArea is the interior cells of the throne room a title asks (the
 	// growth's ThroneArea); 0 is none owed, unknown asks for none and says so.
 	ThroneArea domain.Fact[int]
-	// Power raises the turbine and solar nodes of the graph above the plan's own
-	// sites (FirstPowerWants for a first plan, which holds none).
-	Power PowerWants
 }
 
 // seedRooms are the special rooms the plan is owed: the day-1 shelter while
@@ -245,7 +242,7 @@ func (f StationFacts) GraphInput() (StationGraphInput, error) {
 // the caller keys the load beside it.
 func (f StationFacts) InputsKey() string {
 	plan, _ := json.Marshal(f.Plan) // the plan holds pointers; the saved form is its value
-	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Pinned, f.OutdoorCurve, f.ExpectedMood, f.Mismatches, f.Derive, f.ThroneArea, f.Power) + string(plan)
+	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Pinned, f.OutdoorCurve, f.ExpectedMood, f.Mismatches, f.Derive, f.ThroneArea) + string(plan)
 	input, err := f.GraphInput()
 	if err != nil {
 		return key + err.Error()
@@ -368,12 +365,9 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 		return StationAdvice{}, err
 	}
 	clustering, embedIn, embedding := regrouped.Clustering, regrouped.Embed, regrouped.Embedding
-	graph.Sites = PowerSiteNodes(f.Plan, f.Power)
 	out := StationAdvice{Graph: graph, Clustering: clustering, Embedding: embedding, Regroup: regrouped.Decisions, SeedOnly: seedOnly}
-	if len(graph.Sites) > 0 {
-		if out.Sites, err = EmbedSites(SiteEmbedInput{Embed: embedIn, Embedding: embedding, Nodes: graph.Sites}); err != nil {
-			return StationAdvice{}, err
-		}
+	if out.Graph.Sites, out.Sites, err = f.powerSites(clustering.Groups, embedIn, embedding); err != nil {
+		return StationAdvice{}, err
 	}
 	comfortSteel, _ := f.Items.MarketValue(siteSteelUnit)
 	out.Comfort = adviseComfort(f, graph, comfortSteel)

@@ -2,8 +2,6 @@ package policy
 
 import (
 	"errors"
-	"fmt"
-	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -19,10 +17,17 @@ import (
 // (layout_power_nodes.go): the cells that are roofed, off the map or held by a
 // thing that blocks wind cost output, and a node with turns takes the one that
 // loses least. Footprints are exclusive: they
-// stay off the rooms' walls and off each other, on ground the obstacle level
-// the rooms were placed under leaves free. Like a room it may Replace a
-// planned room. The station advice emits the power sites (PowerSiteNodes) and
-// the tiler stores them.
+// stay off the rooms' walls, the placed fields and each other, on ground the
+// obstacle level the rooms were placed under leaves free. Like a room it may
+// Replace a planned room. The station advice emits the power sites
+// (PowerSiteNodes, derivePowerSites) and the tiler stores them.
+//
+// A free node takes the origin and turn of least price, and the price is one
+// number in sustained watts (SitePrice, layout_site_run.go): the output its
+// lane loses, the conduit run and the wall length it adds to the ring, and the
+// soil its footprint covers. There is no distance rule and no points currency:
+// a site far from the rooms pays for its conduit and its wall, and a site over
+// good soil pays for the harvest it displaces.
 
 // ErrSiteNode marks a site node the embedder cannot read.
 var ErrSiteNode = errors.New("site node")
@@ -68,10 +73,6 @@ type SiteNode struct {
 	// anywhere the envelope and its band allow.
 	Anchor *domain.Cell
 	Lanes  []SiteLane
-	// Band is the ground the footprint keeps from the rooms: at least Min clear
-	// cells from every room's walls and, while any room stands, no more than Max
-	// from the nearest. The zero band is no constraint.
-	Band DistanceBand
 	// Replaces is the planned room ID this node supersedes; 0 for none.
 	Replaces int32
 	Reason   string
@@ -79,7 +80,7 @@ type SiteNode struct {
 	Rotation domain.Rotation
 	// Alts are the other shapes the same node may take, its turns: only
 	// Footprint, Lanes and Rotation are read from them. A free node takes the
-	// shape and origin of least lost output, then least site cost.
+	// shape and origin of least price.
 	Alts []SiteNode
 }
 
@@ -108,6 +109,9 @@ type SiteEmbedInput struct {
 	Embed     EmbedInput
 	Embedding Embedding
 	Nodes     []SiteNode
+	// Price is what a free node's origin is priced by; the zero value prices
+	// the ground and nothing else, and ties go to the lowest cell.
+	Price SitePrice
 }
 
 // SiteEmbedding is the placement of the site nodes.
@@ -124,161 +128,4 @@ func (e SiteEmbedding) Site(id string) (SitePlacement, bool) {
 		}
 	}
 	return SitePlacement{}, false
-}
-
-// siteClear is the clear ground in cells between a footprint (no walls) and a
-// room's interior: the room's wall ring is the first cell beyond it.
-func siteClear(site, room Rectangle) int {
-	return max(axisGap(site.X, site.Width, room.X, room.Width), axisGap(site.Z, site.Height, room.Z, room.Height)) - 1
-}
-
-// EmbedSites places the site nodes around the rooms. Anchored nodes stand
-// first, on their anchors; the rest take, in turn, the origin of least site
-// cost (the embedding's soil, edge and centre terms over the footprint's
-// cells), ties to the lowest cell, so the result depends only on the inputs.
-func EmbedSites(in SiteEmbedInput) (SiteEmbedding, error) {
-	ids := map[string]bool{}
-	for _, n := range in.Nodes {
-		if n.ID == "" || ids[n.ID] || n.Footprint.Empty() {
-			return SiteEmbedding{}, fmt.Errorf("%w: %q needs a unique id and a footprint", ErrSiteNode, n.ID)
-		}
-		ids[n.ID] = true
-	}
-	depth, _, err := roomLimits(in.Embed.RoofDistance)
-	if err != nil {
-		return SiteEmbedding{}, err
-	}
-	scorer := newPlanScorer(in.Embed.Zones, in.Embed.Reservations, in.Embed.Survey)
-	e := newEmbedder(in.Embed, depth, scorer, in.Embedding.Level)
-	var rooms []Rectangle
-	for _, b := range in.Embedding.Blocks {
-		rooms = append(rooms, b.Interior)
-	}
-	order := slices.Clone(in.Nodes)
-	slices.SortStableFunc(order, func(a, b SiteNode) int { return b2i(b.Anchor != nil) - b2i(a.Anchor != nil) })
-	ground := newWindGround(in)
-	var out SiteEmbedding
-	var taken []Region
-	for _, n := range order {
-		p := SitePlacement{Node: n.ID, Replaces: n.Replaces, Rotation: n.Rotation}
-		verdict, reason := EmbedPlace, ReasonSiteAnchored
-		lanes := n.Lanes
-		if n.Anchor != nil {
-			p.Origin, p.Anchored = *n.Anchor, true
-			p.Footprint = n.Footprint.Translate(p.Origin.X, p.Origin.Z)
-			if !siteFree(p.Footprint, rooms, taken) {
-				verdict, reason = EmbedUnsatisfied, ReasonSiteAnchorBlocked
-			}
-		} else {
-			shape, origin, ok := e.siteOrigin(n, rooms, taken, ground)
-			if !ok {
-				out.Decisions = append(out.Decisions, SiteDecision{Node: n.ID, Verdict: EmbedUnplaceable, Reason: ReasonSiteNoGround})
-				continue
-			}
-			p.Origin, p.Rotation, lanes = origin, shape.Rotation, shape.Lanes
-			p.Footprint = shape.Footprint.Translate(origin.X, origin.Z)
-			reason = ReasonSiteFree
-		}
-		for _, l := range lanes {
-			p.Lanes = append(p.Lanes, SiteLane{ID: l.ID, Region: l.Region.Translate(p.Origin.X, p.Origin.Z), Reason: l.Reason, Wind: l.Wind})
-		}
-		taken = append(taken, p.Footprint)
-		ground.add(p.Footprint)
-		out.Sites = append(out.Sites, p)
-		out.Decisions = append(out.Decisions, SiteDecision{Node: n.ID, Verdict: verdict, Reason: reason})
-	}
-	// Footprints placed after a lane can block it too: the lane is priced last,
-	// against every other footprint.
-	for i := range out.Sites {
-		for j, l := range out.Sites[i].Lanes {
-			if !l.Wind {
-				continue
-			}
-			out.Sites[i].Lanes[j].Blocked = ground.blocked(l.Region, out.Sites[i].Footprint)
-			if out.Sites[i].Lanes[j].Blocked > 0 {
-				out.Decisions = append(out.Decisions, SiteDecision{Node: out.Sites[i].Node, Verdict: EmbedUnsatisfied, Reason: ReasonSiteWindBlocked})
-			}
-		}
-	}
-	return out, nil
-}
-
-// siteFree reports a footprint off the rooms' walls and off the footprints
-// already taken. Lanes never enter into it.
-func siteFree(fp Region, rooms []Rectangle, taken []Region) bool {
-	bounds := fp.Bounds()
-	for _, r := range rooms {
-		if collides(bounds, r) {
-			return false
-		}
-	}
-	return !slices.ContainsFunc(taken, fp.Overlaps)
-}
-
-// siteOrigin is the origin of least cost where the node's footprint fits the
-// envelope, its band and the taken ground.
-// A node with turns (Alts) is tried in each; the least lost wind output wins,
-// then the least site cost, then the first turn and the lowest cell. It returns
-// the shape taken.
-func (e *embedder) siteOrigin(n SiteNode, rooms []Rectangle, taken []Region, ground *windGround) (SiteNode, domain.Cell, bool) {
-	shape, origin, ok := e.siteOriginIn(n, n.Band, rooms, taken, ground)
-	if !ok && n.Band.Set() {
-		// Nothing in reach: any ground, so the node is not lost to its band.
-		return e.siteOriginIn(n, DistanceBand{}, rooms, taken, ground)
-	}
-	return shape, origin, ok
-}
-
-func (e *embedder) siteOriginIn(n SiteNode, band DistanceBand, rooms []Rectangle, taken []Region, ground *windGround) (SiteNode, domain.Cell, bool) {
-	var best domain.Cell
-	var bestShape SiteNode
-	bestLoss, bestCost, found := 0, 0, false
-	for _, shape := range append([]SiteNode{n}, n.Alts...) {
-		box := shape.Footprint.Bounds()
-		for _, o := range e.core {
-			if !e.level.inside(Rectangle{X: box.X + o.X, Z: box.Z + o.Z, Width: box.Width, Height: box.Height}) {
-				continue
-			}
-			fp := shape.Footprint.Translate(o.X, o.Z)
-			cost, ok := e.siteCost(fp)
-			if !ok || !siteFree(fp, rooms, taken) || !siteBand(band, fp.Bounds(), rooms) {
-				continue
-			}
-			loss := 0
-			for _, l := range shape.Lanes {
-				if l.Wind {
-					loss += ground.blocked(l.Region.Translate(o.X, o.Z), fp)
-				}
-			}
-			if !found || loss < bestLoss || loss == bestLoss && cost < bestCost {
-				best, bestShape, bestLoss, bestCost, found = o, shape, loss, cost, true
-			}
-		}
-	}
-	return bestShape, best, found
-}
-
-// siteCost is the cost of a footprint on the site, in the embedding's terms;
-// false when a cell lies off the level's core.
-func (e *embedder) siteCost(fp Region) (int, bool) {
-	cost := 0
-	for _, c := range fp.Cells() {
-		cell := Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1}
-		if !e.level.inside(cell) || e.level.sum(cell) != 1 {
-			return 0, false
-		}
-		cost -= int(e.soil.sum(cell) + e.centre.sum(cell) + e.edge.sum(cell))
-	}
-	return cost, true
-}
-
-func siteBand(band DistanceBand, fp Rectangle, rooms []Rectangle) bool {
-	if !band.Set() || len(rooms) == 0 {
-		return true
-	}
-	nearest := siteClear(fp, rooms[0])
-	for _, r := range rooms {
-		nearest = min(nearest, siteClear(fp, r))
-	}
-	return nearest >= int(band.Min) && (band.Max <= 0 || nearest <= int(band.Max))
 }

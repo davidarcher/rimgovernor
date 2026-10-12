@@ -89,12 +89,13 @@ func DefTables() []DefTable {
 		// building the cut is walled with.
 		{"perimeterTable", "Verse.ThingDef", []string{perimeterTable.WallDef}},
 		{"windPath", "Verse.ThingDef", []string{WindTurbineDefinition}},
-		// firstPowerSites (#2960): how many turbines and solar plots a first plan owes.
+		// The power site price (#2999) is the market value of a conduit run and a
+		// wall cell: the catalog's cost lists, keyed by the defs so a rename fails.
+		{"siteConduit", "Verse.ThingDef", []string{PowerConduitDefinition}},
 		// joyGame (#2997): the Joy need and the giver whose class is outdoors; the fall,
 		// interval and gain scale are Need_Joy's and JoyUtility's literals (ilspycmd).
 		{"joyGame", "RimWorld.NeedDef", []string{joyGame.Need}},
 		{"joyOutdoorGivers", "RimWorld.JoyGiverDef", slices.Clone(joyGame.OutdoorGivers)},
-		{"firstPowerSites", "Verse.ThingDef", sortedKeys(firstPowerSites)},
 	}
 }
 

@@ -16,12 +16,14 @@ func deriveFacts(colonists int, cold, hot bool, curve []float64) StationFacts {
 	s.Cold, s.Hot = cold, hot
 	cat := clusterCatalog()
 	cat.Climate = testClimate()
-	return StationFacts{
+	f := StationFacts{
 		Catalog: cat, Dining: DiningFurniture{Table: InteriorPieceDef{Def: "Table", Size: domain.Cell{X: 1, Z: 2}}},
 		Colonists: domain.Known(int64(colonists)), Items: ItemFacts{Market: map[Resource]float64{siteSteelUnit: 1.9}},
 		Plan: LayoutPlan{Zones: Zone(s)}, Built: map[int32]bool{}, Survey: s, RoofDistance: testRoof,
 		Derive: true, OutdoorCurve: domain.Known(curve), FullRotRateC: 10,
 	}
+	withPowerSupply(&f)
+	return f
 }
 
 func tiledRoom(t *testing.T, a StationAdvice, role PlannedRole) (PlannedRoom, int) {

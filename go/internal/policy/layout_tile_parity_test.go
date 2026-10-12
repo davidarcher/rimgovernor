@@ -25,6 +25,7 @@ func colonyStationFacts(pawns int, s MapSurvey) StationFacts {
 	facts.Catalog.Stations["Stove"] = stove
 	facts.Recipes["CookMeal"] = RecipeFlow{Food: true, Ingredients: [][]Amount{{{Resource: "Rice", Count: 1}}}, Products: []Amount{{Resource: "Meal", Count: 1}}}
 	facts.Items = ItemFacts{Nutrition: map[Resource]float64{"Meal": 0.9}}
+	withPowerSupply(&facts)
 	facts.StackLimit["Meal"], facts.StackLimit["Rice"] = 10, 75
 	facts.Perishable["Meal"] = true
 	consumers := make([]FoodConsumer, pawns)

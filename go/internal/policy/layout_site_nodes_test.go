@@ -41,12 +41,11 @@ func TestSiteNodeLandsOnItsAnchor(t *testing.T) {
 	}
 }
 
-// A free node lands inside the envelope, off the rooms and under its band.
+// A free node lands inside the envelope and off the rooms.
 func TestSiteNodeFreeStaysInEnvelope(t *testing.T) {
-	band := DistanceBand{Min: 2, Max: 40}
 	n := rectNode("solar", 3, 3)
-	n.Band = band
 	in := siteInput(t, n)
+	in.Price = SitePrice{Weights: DefaultSiteTypeWeights(), ConduitW: 6.5, WallW: 32}
 	got, err := EmbedSites(in)
 	if err != nil {
 		t.Fatal(err)
@@ -55,13 +54,9 @@ func TestSiteNodeFreeStaysInEnvelope(t *testing.T) {
 	if !ok || p.Anchored {
 		t.Fatalf("no free placement: %+v", got)
 	}
-	e := newEmbedder(in.Embed, 8, newPlanScorer(in.Embed.Zones, in.Embed.Reservations, in.Embed.Survey), in.Embedding.Level)
-	if _, ok := e.siteCost(p.Footprint); !ok {
-		t.Errorf("footprint %+v is off the core", p.Footprint.Bounds())
-	}
 	for _, b := range in.Embedding.Blocks {
-		if collides(p.Footprint.Bounds(), b.Interior) || siteClear(p.Footprint.Bounds(), b.Interior) < int(band.Min) {
-			t.Errorf("footprint %+v breaks band against %+v", p.Footprint.Bounds(), b.Interior)
+		if p.Footprint.Overlaps(RectRegion(pad(b.Interior, 1))) {
+			t.Errorf("footprint %+v touches the walls of %+v", p.Footprint.Bounds(), b.Interior)
 		}
 	}
 	if d := got.Decisions[0]; d.Reason != ReasonSiteFree {

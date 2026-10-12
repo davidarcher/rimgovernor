@@ -144,6 +144,51 @@ func (catalog *DefinitionCatalog) GeneratorRow(name string) (policy.GeneratorRow
 	return out, nil
 }
 
+// powerModel is what the power site count is derived and priced from (#2999):
+// the turbine and the solar generator (nominal watts, cheapest build value,
+// delivery profile), the battery, and the value of a conduit and of a ring wall
+// cell. A catalog without one of the defs (a hand-built one) has an unknown
+// model, not an error: the count then refuses with an unknown power supply.
+func (catalog *DefinitionCatalog) powerModel() (policy.PowerModel, error) {
+	for _, name := range []string{policy.WindTurbineDefinition, policy.SolarDefinition, policy.BatteryDefinition, policy.PowerConduitDefinition, policy.ShellWallDefinition} {
+		if _, ok := catalog.ThingDefs[name]; !ok {
+			return policy.PowerModel{}, nil
+		}
+	}
+	profiles, err := catalog.PowerSources()
+	if err != nil {
+		return policy.PowerModel{}, err
+	}
+	supply := func(name string) (policy.SupplyRow, error) {
+		gen, err := catalog.GeneratorRow(name)
+		if err != nil {
+			return policy.SupplyRow{}, err
+		}
+		build, err := catalog.CheapestCostValue(name)
+		if err != nil {
+			return policy.SupplyRow{}, err
+		}
+		return policy.SupplyRow{NominalW: gen.NominalW, Build: build, Profile: profiles[name]}, nil
+	}
+	var out policy.PowerModel
+	if out.Wind, err = supply(policy.WindTurbineDefinition); err != nil {
+		return policy.PowerModel{}, err
+	}
+	if out.Solar, err = supply(policy.SolarDefinition); err != nil {
+		return policy.PowerModel{}, err
+	}
+	if out.Battery, err = catalog.PowerBattery(policy.BatteryDefinition); err != nil {
+		return policy.PowerModel{}, err
+	}
+	if out.Conduit, err = catalog.CheapestCostValue(policy.PowerConduitDefinition); err != nil {
+		return policy.PowerModel{}, err
+	}
+	if out.Wall, err = catalog.CheapestCostValue(policy.ShellWallDefinition); err != nil {
+		return policy.PowerModel{}, err
+	}
+	return out, nil
+}
+
 // ProductInputCost is the units of input the cheapest recipe making product
 // takes per unit made, when that recipe's one ingredient slot accepts only
 // input (the game's own steel-to-components rate); unknown when no recipe

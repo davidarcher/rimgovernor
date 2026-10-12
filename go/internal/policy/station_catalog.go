@@ -22,6 +22,10 @@ type StationCatalog struct {
 	// Light is the lamp's draw and build value (#2945); the zero value is
 	// unknown and leaves the lamps unpriced.
 	Light LightModel
+	// Power is the generators, the battery, the conduit and the wall a power
+	// site is derived and priced from (#2999); the zero value is unknown and
+	// leaves a first plan's power sites unknown.
+	Power PowerModel
 	// Mood is the break curve and the thought stages the mood price reads
 	// (#2954); the zero value is unknown and leaves mood unpriced.
 	Mood MoodModel

@@ -497,9 +497,19 @@ idle. A hallway cell has no ring to wait for: its roof was priced to pay at plan
   entry, read from `CompPowerPlantWind`): a path cell that is off the map, under thick
   roof, in a fenced room or under another footprint removes 20% of the output
   (`WindOutput`; zero at five). Crops do not block wind, so a lane over a field or over
-  another lane is free; a turbine's own cells are not in its path. A turn and origin of
-  least lost output wins, then least site cost, so pairing follows from cost. The
-  `layout_stations` row carries `sites` and `site_issues`.
+  another lane is free; a turbine's own cells are not in its path. A tree is a blocker (`TreeBase`
+  sets `blockWind`; crops and bushes do not).
+  **How many (#2999).** A first plan owes the sites its planned demand needs, not a number:
+  `StationFacts.powerSites` adds turbines and solar plots one at a time, re-quoting each at its
+  cheapest site, until `ComputePowerBudget(...).GenerationShortfallW <= 0` against the demand
+  (`Station.BaseW` over the groups, plus lamps from group area over the catalog lamp's reach) and
+  the planned battery room's storage. Turbines come first while their price per delivered watt is
+  least; solar fills the rest. Every site is priced in sustained watts (`SitePrice`): the output its
+  lane loses, the conduit cells to the nearest room or footprint, the ring wall it adds, and the soil it
+  covers (`unitsW`). There is no distance band. The generator, conduit and wall rows are
+  `StationCatalog.Power` (`PowerModel`, built in `bridge.powerModel`); a missing row with demand
+  above zero is `unknownStationFact("power supply")`, never a default. Replans keep the plan's
+  sites and add none. The `layout_stations` row carries `sites` and `site_issues`.
   **Infestation ground (#2925).** The pocket walls are site nodes produced after the ring
   node (`PlanMountainPockets`), dropped and laid again with the ring. Each `NodePocketWall`
   is a walled-solid patch of at most 20 cells within `pocketReach` of the ring, with no

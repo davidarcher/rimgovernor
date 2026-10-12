@@ -234,14 +234,6 @@ type RoomFlow struct {
 	Reason string
 }
 
-// DistanceBand is the ring of clear ground a site footprint keeps from the
-// rooms: at least Min cells between their walls, and, while any room stands, no
-// more than Max. The zero band is no constraint.
-type DistanceBand struct{ Min, Max int32 }
-
-// Set reports a band that constrains.
-func (b DistanceBand) Set() bool { return b.Min > 0 || b.Max > 0 }
-
 // StationGraph is the planner's input.
 type StationGraph struct {
 	Nodes []StationNode

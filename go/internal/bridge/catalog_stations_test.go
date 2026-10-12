@@ -18,6 +18,21 @@ func recordedStations(t *testing.T) policy.StationCatalog {
 	return stations
 }
 
+// The recorded catalog prices the power sites (#2999): the turbine and the solar
+// plot deliver, the battery stores, and a conduit and a wall cell have a value.
+func TestStationCatalogCarriesThePowerModel(t *testing.T) {
+	m := recordedStations(t).Power
+	if m.Wind.NominalW != 2300 || m.Wind.Build <= 0 || m.Wind.Profile.Daily <= 0.5 || m.Wind.Profile.Daily > 1 {
+		t.Errorf("wind %+v", m.Wind)
+	}
+	if m.Solar.NominalW <= 0 || !m.Solar.Profile.Solar || m.Solar.Build <= 0 {
+		t.Errorf("solar %+v", m.Solar)
+	}
+	if m.Battery.CapacityWD <= 0 || m.Conduit <= 0 || m.Wall <= 0 {
+		t.Errorf("battery %+v conduit %v wall %v", m.Battery, m.Conduit, m.Wall)
+	}
+}
+
 func contribution(s policy.Station, role policy.RoomRole, when policy.RoleCondition) (policy.RoleContribution, bool) {
 	for _, c := range s.Contributions {
 		if c.Role == role && c.When == when {
