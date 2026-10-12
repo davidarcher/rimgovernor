@@ -10,7 +10,7 @@ import (
 // objectiveGraph is the station graph of a small colony: five colonists, one
 // hurt, cooking from cold-stored meat and cutting blocks from stone. Every
 // weight in it is the graph's own.
-func objectiveGraph(t *testing.T) StationGraph {
+func objectiveGraph(t testing.TB) StationGraph {
 	t.Helper()
 	shape := func(def string, w, h int32) InteriorPieceDef {
 		return InteriorPieceDef{Def: def, Size: domain.Cell{X: w, Z: h}}

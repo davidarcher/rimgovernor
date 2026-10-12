@@ -308,13 +308,18 @@ func TileStations(f StationFacts) (StationAdvice, error) {
 	if err != nil {
 		return StationAdvice{}, err
 	}
-	steel, _ := f.Items.MarketValue(siteSteelUnit) // unknown stays zero: the airlocks and vents go unpriced
-	tiled, err := TileEmbedding(TileInput{Groups: out.Clustering.Groups, Embedding: out.Embedding, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, OutdoorCurve: f.OutdoorCurve, RoofDistance: f.RoofDistance, FullRotRateC: f.FullRotRateC, SteelValue: steel, VentAvailable: f.VentAvailable, Light: stationLightPrice(f, steel), Sites: PowerSitesOf(out.Graph.Sites, out.Sites)})
+	tiled, err := TileEmbedding(f.tileInput(out))
 	if err != nil {
 		return out, err
 	}
 	out.Tiled = &tiled
 	return out, nil
+}
+
+// tileInput is what the tiler reads of the advice and the facts.
+func (f StationFacts) tileInput(out StationAdvice) TileInput {
+	steel, _ := f.Items.MarketValue(siteSteelUnit) // unknown stays zero: the airlocks and vents go unpriced
+	return TileInput{Groups: out.Clustering.Groups, Embedding: out.Embedding, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, OutdoorCurve: f.OutdoorCurve, RoofDistance: f.RoofDistance, FullRotRateC: f.FullRotRateC, SteelValue: steel, VentAvailable: f.VentAvailable, Light: stationLightPrice(f, steel), Sites: PowerSitesOf(out.Graph.Sites, out.Sites), Graph: out.Graph, Furniture: f.Furniture, Dining: f.Dining}
 }
 
 // AdviseStations runs the station chain over the live colony. It reads the

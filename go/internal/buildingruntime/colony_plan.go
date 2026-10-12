@@ -371,6 +371,13 @@ func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.Generati
 	row.Dur = time.Since(start)
 	row.Attrs["derive"] = true
 	telemetry.Decide(ctx, row)
+	if advice.Tiled != nil {
+		for _, d := range advice.Tiled.Decisions {
+			if d.Reason == policy.ReasonInteriorSearchMove {
+				telemetry.Decide(ctx, telemetry.Decision{Kind: "layout_interior", Component: "layout", Verdict: d.Verdict, Reason: d.Reason, Target: "interior", Attrs: map[string]any{"group": d.Group, "move": d.Move}})
+			}
+		}
+	}
 	switch {
 	case errors.Is(err, policy.ErrStationFacts):
 		telemetry.Decide(ctx, layoutPlanDecision("skipped", "facts_unknown", colonists, "", map[string]any{"fact": err.Error()}))

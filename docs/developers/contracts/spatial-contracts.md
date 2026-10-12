@@ -292,6 +292,13 @@ on the colony centre when the plan has no free cell there.
   cannot furnish stands bare: `TileResult.Unfit`). The tiled plan's `Owed` lists one
   room role per station group, and the hard tier's Missing term counts a room per
   entry instead of per role (empty keeps `coreBaseRooms`).
+  **Interior search (#2869).** When `TileInput.Graph` is set, `furnish` improves each
+  room's greedy layout with `SearchInterior`: seeded from the room id and the embedding's
+  siting seed (no wall time, default move budget), door candidates the room's chosen link
+  and exterior doors (doors are inputs, not variables), flows `GraphFlows` over the station
+  graph. A kept move is a `TileDecision` (`interior_search_move`, `Move` = slot:kind:terms
+  improved), journalled as `layout_interior` by `deriveLayoutPlan`. The result is never worse
+  than greedy on a gated term; the tiler has no built input, so nothing is pinned or moved free.
   **Roofed set (#2941).** On a bad-climate map (the Cold or Hot latch, or a curve under
   `ColdMapBelowC` or over `HotEnter`) `PlanRoofed` (`layout_roof.go`) puts every
   room's floor and every priced hallway into `LayoutPlan.Roofed`, except the outdoor

@@ -77,6 +77,10 @@ const (
 	ReasonTileNoLink       = "tile_required_link_not_adjacent"
 	ReasonTilePassThrough  = "tile_pass_through"
 
+	// ReasonInteriorSearchMove is a kept interior search move (#2869); the
+	// decision's Move names the move and the gated terms it improved.
+	ReasonInteriorSearchMove = "interior_search_move"
+
 	ReasonTileAirlock          = "tile_airlock"
 	ReasonTileAirlockNotPaid   = "tile_airlock_not_paid"
 	ReasonTileAirlockNoGround  = "tile_airlock_no_ground"
@@ -121,6 +125,13 @@ type TileInput struct {
 	// Sites are the power sites the site embedding placed beside the rooms
 	// (PowerSitesOf): stored on the plan, they join the conduit net.
 	Sites []PlannedSite
+	// Graph, Furniture and Dining are what the interior search reads (#2869):
+	// the station graph weighs the walks between a room's stations, Furniture
+	// says which definitions are beds and Dining names the chair. An empty
+	// Graph leaves every room with the greedy placer's layout.
+	Graph     StationGraph
+	Furniture RoomFurniture
+	Dining    DiningFurniture
 }
 
 // TileDecision is one tiling decision for the caller to journal. Group is the
@@ -139,6 +150,8 @@ type TileDecision struct {
 	// the dark cost left unlit and the lamps' cost (a lit room's lamps, or one
 	// lamp when none paid).
 	DarkW, LampW float64 `json:",omitempty"`
+	// Move is a kept interior search move (SearchMove.Reason).
+	Move string `json:",omitempty"`
 }
 
 // TileResult is the tiled plan with the furniture of every room and the
@@ -775,7 +788,11 @@ func (t *tiler) furnish() {
 			// A wall building stands in the wall ring, not on the floor.
 			t.note(g.ID, -1, TilePlace, ReasonTileWallStation)
 		}
-		pieces, err := PlaceInRegion(RegionPlacement{Region: room.Region, Doors: doors, Wants: wants})
+		req := RegionPlacement{Region: room.Region, Doors: doors, Wants: wants}
+		if len(t.in.Graph.Nodes) > 0 {
+			req.Search = t.interiorSearch(room.ID, g.Role, doors)
+		}
+		pieces, moves, err := placeAndSearch(req)
 		if err != nil {
 			// The group's area undercounts what the placer needs: the room
 			// stands without furniture and the decision says so.
@@ -783,6 +800,44 @@ func (t *tiler) furnish() {
 			continue
 		}
 		t.out.Pieces[room.ID] = pieces
+		for _, m := range moves {
+			t.out.Decisions = append(t.out.Decisions, TileDecision{Group: g.ID, Other: -1, Verdict: TilePlace, Reason: ReasonInteriorSearchMove, Move: m.Slot + ":" + m.Reason()})
+		}
+	}
+}
+
+// placeAndSearch is the room's layout: the greedy placer's, improved by the
+// interior search when req asks for it, with the kept moves.
+func placeAndSearch(req RegionPlacement) ([]InteriorPiece, []SearchMove, error) {
+	if req.Search == nil {
+		pieces, err := PlaceInRegion(req)
+		return pieces, nil, err
+	}
+	res, err := SearchInterior(req, *req.Search)
+	if err != nil {
+		return nil, nil, err
+	}
+	return res.Stood(), res.Moves, nil
+}
+
+// interiorSearch is room id's search (#2869): seeded from the room id and the
+// siting seed of the embedding the plan stands on, so equal inputs tile alike
+// and no wall time enters; the doors the tiler chose are the only candidates
+// (doors are inputs, not variables); the flows are the station graph's, the
+// beds taking the room's purpose; the shapes are the catalog's rows. The tiler
+// has no built input yet, so nothing is pinned or moved free.
+func (t *tiler) interiorSearch(id int32, role RoomRole, doors []domain.Cell) *InteriorSearch {
+	defs := make(map[string]InteriorPieceDef, len(t.in.Catalog.Stations))
+	for def, st := range t.in.Catalog.Stations {
+		defs[def] = st.Shape
+	}
+	siting := newSearchRand(t.in.Embedding.Seed)
+	return &InteriorSearch{
+		Candidates: doors,
+		Shapes:     PieceShapes{Defs: defs, Furniture: t.in.Furniture},
+		Dining:     t.in.Dining,
+		Flows:      GraphFlows{Graph: t.in.Graph, Sleep: SleepPurposeOf(role), Furniture: t.in.Furniture},
+		Seed:       uint64(siting) ^ uint64(uint32(id))*0x9e3779b97f4a7c15,
 	}
 }
 
