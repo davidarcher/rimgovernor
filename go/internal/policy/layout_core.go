@@ -64,10 +64,6 @@ type coreGrid struct {
 	// noShelter keeps the generator from siting a shelter: a replan never
 	// regrows one a retirement dropped.
 	noShelter bool
-	// wingSize is the room size the next bedroom wing is sited at when a
-	// bedroom successor asks for more than the tier's (Successor.WingSize);
-	// zero keeps WingRoomSize.
-	wingSize [2]int32
 	// linkBehind lets a linked room take its neighbour's back wall when its
 	// sides are taken (packer.against): set by a successor that keeps a Link.
 	linkBehind bool

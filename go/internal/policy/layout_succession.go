@@ -15,8 +15,8 @@ import (
 // flight at a time. The trigger is the station chain's outgrown predicate
 // (GroupOutgrown); the successor replaces the smallest matched room and is
 // sized to that room's floor plus the group's shortfall. The roles are storage
-// and workshop (#2863), and the kitchen, freezer, butchery, dining and
-// recreation rooms and the bedrooms of the bedroom wings (#2864). Bills and
+// and workshop (#2863), and the kitchen, freezer, butchery, dining,
+// recreation and bedrooms (#2864). Bills and
 // packed furniture stay with #2881, and merging several rooms into one is
 // #2878.
 //
@@ -28,16 +28,19 @@ import (
 // the kitchen, the dining room's to the freezer, the butchery's) is sited only
 // where it has one (beside the neighbour, else on its back wall), and a
 // neighbour that is itself replaced is passed over for its successor
-// (packer.against). A Link of another room into the room
-// that leaves stays in the wall the old room shared and opens on cleared
-// ground once clearance takes the old room.
+// (packer.against).
 //
-// A bedroom is replaced by wing: the wing holding the outgrown bedroom turns
-// Retiring (WingBedroomsRetiring), the next bedroom wing is sited at the
-// successor's room size (WingSize), and the wing's sleepers move into it one
-// pawn a step, each straight to a vacant bed (NextMigrateStep) while the old
-// wing keeps every bed until no pawn owns one in it (EmptiedRetiringWings),
-// so no night is spent unbedded.
+// A bedroom is an ordinary successor role: the replaced bedroom stays pinned
+// and in use, its sleepers move one pawn a step, each straight to a vacant bed
+// (NextMigrateStep), and it leaves the plan only once no pawn owns a bed in it
+// (SleptBedrooms), so no night is spent unbedded.
+//
+// When the old room leaves, the Link doors of the rooms that opened into it
+// (the dining room and butchery into the freezer, the freezer into the
+// kitchen, the wardrobe into the workshop) move to the wall each shares with
+// the successor (repointLinks); a room the successor does not touch loses its
+// Link, so no door opens on cleared ground. The successor is sited beside
+// those rooms when a slot allows it.
 
 // successorRoles are the planned roles a successor may replace.
 var successorRoles = []PlannedRole{PlannedStorage, PlannedWorkshop, PlannedKitchen, PlannedFreezer, PlannedButchery, PlannedDining, PlannedRec, PlannedBedroom}
@@ -144,10 +147,11 @@ func successorPinned(plan LayoutPlan) map[int32]bool {
 }
 
 // retireSuperseded adds to drop each room whose successor stands. The old
-// room is built; its ground goes to clearance.
-func retireSuperseded(plan LayoutPlan, built map[int32]bool, drop map[int32]bool) {
+// room is built; its ground goes to clearance, unless slept: a bedroom a pawn
+// still owns a bed in stays until the pawn has moved.
+func retireSuperseded(plan LayoutPlan, built, slept map[int32]bool, drop map[int32]bool) {
 	for _, r := range plan.AllRooms() {
-		if r.Replaces != 0 && built[r.ID] {
+		if r.Replaces != 0 && built[r.ID] && !slept[r.Replaces] {
 			drop[r.Replaces] = true
 		}
 	}
@@ -193,23 +197,13 @@ func OutgrownSuccession(advice StationAdvice, catalog StationCatalog, plan Layou
 	for _, r := range plan.AllRooms() {
 		rooms[r.ID] = r
 	}
-	// Bedrooms are replaced by wing, one wing at a time: only a room of an
-	// active wing, and none while a wing is still emptying.
-	wingRooms := map[int32]bool{}
-	retiring := false
-	for _, w := range plan.Wings {
-		retiring = retiring || w.Purpose == WingBedroomsRetiring
-		for _, r := range w.Rooms {
-			wingRooms[r.ID] = w.Purpose == WingBedrooms
-		}
-	}
 	var best Successor
 	for _, ga := range advice.Groups {
 		if !ga.Outgrown {
 			continue
 		}
 		role, ok := PlannedRoleOfGroup(ga.Group)
-		if !ok || !slices.Contains(successorRoles, role) || role == PlannedBedroom && retiring {
+		if !ok || !slices.Contains(successorRoles, role) {
 			continue
 		}
 		shortfall := ga.Group.Area - ga.Capacity
@@ -219,7 +213,7 @@ func OutgrownSuccession(advice StationAdvice, catalog StationCatalog, plan Layou
 		var old *PlannedRoom
 		for _, id := range ga.Rooms {
 			r := rooms[id]
-			if !slices.Contains(successorRoles, r.Role) || r.Role == PlannedBedroom && !wingRooms[r.ID] {
+			if !slices.Contains(successorRoles, r.Role) {
 				continue
 			}
 			if old == nil || r.Region.Area() < old.Region.Area() || r.Region.Area() == old.Region.Area() && r.ID < old.ID {
@@ -284,17 +278,24 @@ func growSuccessor(plan LayoutPlan, s Successor, sc *planScorer, blocked map[dom
 	if len(s.Sizes) == 0 {
 		return plan, false, &UnsitedSuccessor{Successor: s, Reason: "the embedding placed no block for the group"}
 	}
-	if s.Role == PlannedBedroom {
-		next, retired := retireBedroomWing(plan, s)
-		return next, retired, nil
-	}
 	siting := plan
 	siting.Zones = coreWithout(plan.Zones, blocked)
+	// Beside the rooms that open into the old one when a slot allows it, else
+	// anywhere that keeps the successor's own Link.
 	var accept func(PlannedRoom) bool
 	if s.Linked {
 		accept = func(r PlannedRoom) bool { return r.Link != nil }
 	}
-	sited, ok, err := siteRoomWhere(siting, sc, s.Role, accept, s.Sizes...)
+	var sited LayoutPlan
+	ok, err := false, error(nil)
+	if linkers := linkersOf(plan, s.Replaces); len(linkers) > 0 {
+		sited, ok, err = siteRoomWhere(siting, sc, s.Role, func(r PlannedRoom) bool {
+			return (accept == nil || accept(r)) && !slices.ContainsFunc(linkers, func(n PlannedRoom) bool { _, shared := sharedDoor(n, r); return !shared })
+		}, s.Sizes...)
+	}
+	if !ok {
+		sited, ok, err = siteRoomWhere(siting, sc, s.Role, accept, s.Sizes...)
+	}
 	if !ok {
 		reason := "no free core slot"
 		if err != nil {
@@ -307,35 +308,64 @@ func growSuccessor(plan LayoutPlan, s Successor, sc *planScorer, blocked map[dom
 	return sited, true, nil
 }
 
-// retireBedroomWing turns the bedroom wing holding the replaced room Retiring:
-// its sleepers migrate, and the next wing sited takes the successor's room size
-// (Successor.WingSize). False, and the plan as it came, when no active wing
-// holds the room.
-func retireBedroomWing(plan LayoutPlan, s Successor) (LayoutPlan, bool) {
-	wings := slices.Clone(plan.Wings)
-	for i, w := range wings {
-		if w.Purpose == WingBedrooms && slices.ContainsFunc(w.Rooms, func(r PlannedRoom) bool { return r.ID == s.Replaces }) {
-			wings[i].Purpose = WingBedroomsRetiring
-			plan.Wings = wings
-			return plan, true
+// linkersOf are the rooms of plan, other than the room id, whose Link door
+// opens in its walls.
+func linkersOf(plan LayoutPlan, id int32) []PlannedRoom {
+	var old PlannedRoom
+	for _, r := range plan.AllRooms() {
+		if r.ID == id {
+			old = r
 		}
 	}
-	return plan, false
+	var out []PlannedRoom
+	for _, r := range plan.Rooms {
+		if r.ID != id && linked(r, old) {
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
-// WingSize is the room size (width along the corridor, depth away from it) the
-// next bedroom wing is sited at for a bedroom successor: its block's interior,
-// never smaller than the tier's WingRoomSize and no deeper than the core's
-// cross-section. The zero size is the tier's, for every other successor.
-func (s Successor) WingSize(tier TechTier) [2]int32 {
-	if s.Role != PlannedBedroom {
-		return [2]int32{}
-	}
-	size := WingRoomSize(tier)
-	for _, got := range s.Sizes {
-		if got[1] <= coreMaxDepth && got[0]*got[1] > size[0]*size[1] {
-			return got
+// sharedDoor is the door cell in the wall rooms a and b share, the middle one
+// in reading order; false when their walls share no door cell.
+func sharedDoor(a, b PlannedRoom) (domain.Cell, bool) {
+	var cells []domain.Cell
+	w := roomWalls(a)
+	for x := w.X; x < w.X+w.Width; x++ {
+		for z := w.Z; z < w.Z+w.Height; z++ {
+			c := domain.Cell{X: x, Z: z}
+			if inWall(a.Region.Bounds(), c) && inWall(b.Region.Bounds(), c) && c != a.Door && c != b.Door {
+				cells = append(cells, c)
+			}
 		}
 	}
-	return size
+	if len(cells) == 0 {
+		return domain.Cell{}, false
+	}
+	return cells[len(cells)/2], true
+}
+
+// repointLinks moves, for each room of drop that a successor replaces, the
+// Link doors that opened into it: to the wall the neighbour shares with the
+// successor, or to none when they share no wall, so no door is left opening on
+// the ground clearance takes.
+func repointLinks(plan LayoutPlan, drop map[int32]bool) LayoutPlan {
+	rooms := slices.Clone(plan.Rooms)
+	for _, succ := range plan.AllRooms() {
+		if succ.Replaces == 0 || !drop[succ.Replaces] {
+			continue
+		}
+		for _, n := range linkersOf(plan, succ.Replaces) {
+			i := slices.IndexFunc(rooms, func(r PlannedRoom) bool { return r.ID == n.ID })
+			if i < 0 || drop[n.ID] {
+				continue
+			}
+			rooms[i].Link = nil
+			if c, ok := sharedDoor(n, succ); ok {
+				rooms[i].Link = &c
+			}
+		}
+	}
+	plan.Rooms = rooms
+	return plan
 }

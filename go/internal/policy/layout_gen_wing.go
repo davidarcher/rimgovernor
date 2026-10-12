@@ -148,10 +148,13 @@ func (g coreGrid) siteBedWings(spine []SpineSegment, rooms []PlannedRoom, wings 
 	for _, i := range bedroomWings(wings) {
 		owed -= len(wings[i].Rooms)
 	}
-	size := WingRoomSize(tier)
-	if g.wingSize != ([2]int32{}) {
-		size = g.wingSize
+	// A bedroom successor stands outside the wings and houses its pawn.
+	for _, r := range rooms {
+		if r.Role == PlannedBedroom {
+			owed--
+		}
 	}
+	size := WingRoomSize(tier)
 	for owed > 0 {
 		grown, next, ok := g.siteBedWing(spine, rooms, wings, size, nil)
 		if !ok {

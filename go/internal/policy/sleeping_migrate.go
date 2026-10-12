@@ -6,38 +6,87 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Wing migration. After a tier bump a smaller bedroom
-// wing is Retiring (retireWings); its pawns move one at a time into the
-// active wings' rooms. The move is not a bedroom deficit: the unhoused
-// count, BedroomsOwed and the bed research request ignore it.
+// Bedroom migration. A bedroom a successor replaces (layout_succession.go), or
+// one in a smaller wing a tier bump left Retiring (retireWings), is retiring:
+// its pawns move one at a time into the other bedrooms. The move is not a
+// bedroom deficit: the unhoused count, BedroomsOwed and the bed research
+// request ignore it.
 
-// retiringRooms is the interiors of the Retiring wings' rooms.
-func retiringRooms(plan LayoutPlan) map[Rectangle]bool {
-	out := map[Rectangle]bool{}
+// retiringBedrooms are the bedrooms whose pawns migrate: those a successor
+// replaces and the rooms of the Retiring wings.
+func retiringBedrooms(plan LayoutPlan) []PlannedRoom {
+	gone := plan.superseded()
+	inWing := map[int32]bool{}
+	var out []PlannedRoom
 	for _, w := range plan.Wings {
 		if w.Purpose == WingBedroomsRetiring {
 			for _, r := range w.Rooms {
-				out[r.Region.Bounds()] = true
+				inWing[r.ID] = true
+				out = append(out, r)
+			}
+		}
+	}
+	for _, r := range plan.AllRooms() {
+		if r.Role == PlannedBedroom && gone[r.ID] && !inWing[r.ID] {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// retiringRooms is the interiors of the retiring bedrooms.
+func retiringRooms(plan LayoutPlan) map[Rectangle]bool {
+	out := map[Rectangle]bool{}
+	for _, r := range retiringBedrooms(plan) {
+		out[r.Region.Bounds()] = true
+	}
+	return out
+}
+
+// retiringBeds is the beds standing in the retiring bedrooms.
+func retiringBeds(plan LayoutPlan, rooms RoomObservation) map[string]bool {
+	out := map[string]bool{}
+	for _, r := range retiringBedrooms(plan) {
+		// Census: the room's beds are the retiring beds.
+		if room, ok := CensusRoomIn(r, rooms); ok {
+			for _, b := range room.Beds {
+				out[b] = true
 			}
 		}
 	}
 	return out
 }
 
-// retiringBeds is the beds standing in the Retiring wings' rooms.
-func retiringBeds(plan LayoutPlan, rooms RoomObservation) map[string]bool {
-	out := map[string]bool{}
-	for _, w := range plan.Wings {
-		if w.Purpose != WingBedroomsRetiring {
+// SleptBedrooms are the bedrooms a successor replaces that a pawn still owns a
+// bed in: they stay in the plan until the pawn has moved. With the census or
+// the sleeping read unknown every replaced bedroom counts, so none leaves
+// unseen.
+func SleptBedrooms(plan LayoutPlan, rooms domain.Fact[RoomObservation], sleeping domain.Fact[SleepingObservation]) map[int32]bool {
+	census, rk := rooms.Value()
+	obs, sk := sleeping.Value()
+	owned := map[string]bool{}
+	for _, b := range obs.Beds {
+		if len(b.Owners) > 0 {
+			owned[b.ID] = true
+		}
+	}
+	gone := plan.superseded()
+	var out map[int32]bool
+	for _, r := range plan.AllRooms() {
+		if r.Role != PlannedBedroom || !gone[r.ID] {
 			continue
 		}
-		for _, r := range w.Rooms {
-			// Census: the room's beds are the retiring beds.
-			if room, ok := CensusRoomIn(r, rooms); ok {
-				for _, b := range room.Beds {
-					out[b] = true
-				}
+		slept := !rk || !sk
+		if room, ok := CensusRoomIn(r, census); ok && rk && sk {
+			for _, b := range room.Beds {
+				slept = slept || owned[b]
 			}
+		}
+		if slept {
+			if out == nil {
+				out = map[int32]bool{}
+			}
+			out[r.ID] = true
 		}
 	}
 	return out
@@ -120,24 +169,23 @@ func NextMigrateStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	}
 	var empty, unbuilt []PlannedRoom
 	var vacant []string
-	for _, w := range plan.Wings {
-		if w.Purpose != WingBedrooms {
+	retiring := retiringRooms(plan)
+	for _, r := range plan.AllRooms() {
+		if r.Role != PlannedBedroom || retiring[r.Region.Bounds()] {
 			continue
 		}
-		for _, r := range w.Rooms {
-			// Census: the room's beds say vacant, empty or unbuilt.
-			room, ok := CensusRoomIn(r, rooms)
-			if !ok {
-				unbuilt = append(unbuilt, r)
-				continue
-			}
-			if len(room.Beds) == 0 {
-				empty = append(empty, r)
-			}
-			for _, id := range room.Beds {
-				if b, ok := beds[id]; ok && vacantColonistBed(b) {
-					vacant = append(vacant, id)
-				}
+		// Census: the room's beds say vacant, empty or unbuilt.
+		room, ok := CensusRoomIn(r, rooms)
+		if !ok {
+			unbuilt = append(unbuilt, r)
+			continue
+		}
+		if len(room.Beds) == 0 {
+			empty = append(empty, r)
+		}
+		for _, id := range room.Beds {
+			if b, ok := beds[id]; ok && vacantColonistBed(b) {
+				vacant = append(vacant, id)
 			}
 		}
 	}

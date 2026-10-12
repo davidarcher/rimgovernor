@@ -197,8 +197,8 @@ func retireSurplusRooms(plan LayoutPlan, growth RoomGrowth, built map[int32]bool
 			}
 		}
 	}
-	retireSuperseded(plan, built, drop)
-	return dropRooms(plan, drop)
+	retireSuperseded(plan, built, growth.Slept, drop)
+	return dropRooms(repointLinks(plan, drop), drop)
 }
 
 // RoomsOfRoles is how many planned rooms hold one of roles.

@@ -98,6 +98,9 @@ type RoomGrowth struct {
 	// it ahead of the re-siting, keeps both rooms pinned and retires the old
 	// room once the successor stands (Built).
 	Successor Successor
+	// Slept are the superseded bedrooms a pawn still owns a bed in
+	// (SleptBedrooms): they stay in the plan after their successor stands.
+	Slept map[int32]bool
 }
 
 // ReplanLayoutWithRooms grows plan for pawns colonists and tombs tomb rooms
@@ -187,9 +190,6 @@ func replanLayout(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawn
 	// Growth, then the unbuilt rooms sited again where that scores clearly
 	// better (layout_replan.go); an emptied Retiring wing is among them.
 	rp := newReplanner(next, s, blockedCells(next, growth.Occupied), pawns, tombs, tier, suites)
-	if successor {
-		rp.wing = growth.Successor.WingSize(tier)
-	}
 	next, resited := rp.replanCore(next, replanPins(next, growth.Fixed, emptied, tier))
 	dropped = dropped || resited
 	scorer := newPlanScorer(next.Zones, next.Reservations, s)

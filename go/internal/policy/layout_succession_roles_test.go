@@ -148,99 +148,160 @@ func TestSuccessorOfALinkedRoomIsNotSitedWithoutALink(t *testing.T) {
 	}
 }
 
-func TestOutgrownBedroomRetiresItsWingOnce(t *testing.T) {
-	wing := func(purpose WingPurpose, ids ...int32) Wing {
-		w := Wing{Purpose: purpose}
-		for _, id := range ids {
-			w.Rooms = append(w.Rooms, PlannedRoom{ID: id, Role: PlannedBedroom, Region: region(3, 4)})
-		}
-		return w
-	}
+func TestOutgrownBedroomIsAnOrdinarySuccessorOnce(t *testing.T) {
 	group := roleGroup(0, RoomRoleBedroom, "", 18)
-	plan := LayoutPlan{Wings: []Wing{wing(WingBedrooms, 1, 2)}, NextRoomID: 3}
+	plan := LayoutPlan{
+		Rooms:      []PlannedRoom{{ID: 1, Role: PlannedBedroom, Region: region(3, 4)}},
+		Wings:      []Wing{{Purpose: WingBedrooms, Rooms: []PlannedRoom{{ID: 2, Role: PlannedBedroom, Region: region(3, 3)}}}},
+		NextRoomID: 3,
+	}
 	got := OutgrownSuccession(outgrownAdvice(group, 12, 1, 2), successionCatalog(), plan)
-	if got.Replaces != 1 || got.Role != PlannedBedroom || got.Floor != 12 || got.Shortfall != 6 {
-		t.Fatalf("successor = %+v, want bedroom 1 at 12 + 6", got)
+	if got.Replaces != 2 || got.Role != PlannedBedroom || got.Floor != 9 || got.Shortfall != 6 {
+		t.Fatalf("successor = %+v, want the smallest bedroom, 2, at 9 + 6", got)
 	}
-	// A wing still emptying: no second rebuild.
-	plan.Wings = []Wing{wing(WingBedroomsRetiring, 1, 2), wing(WingBedrooms, 3)}
-	if got := OutgrownSuccession(outgrownAdvice(group, 12, 3), successionCatalog(), plan); got.Any() {
-		t.Fatalf("asked for a bedroom successor while a wing retires: %+v", got)
-	}
-	// A bedroom that is not in a wing is not replaced by this path.
-	plan = LayoutPlan{Rooms: []PlannedRoom{{ID: 1, Role: PlannedBedroom, Region: region(3, 4)}}, NextRoomID: 2}
-	if got := OutgrownSuccession(outgrownAdvice(group, 12, 1), successionCatalog(), plan); got.Any() {
-		t.Fatalf("replaced a bedroom outside the wings: %+v", got)
+	// One rebuild at a time: a bedroom already replaced asks for no second.
+	plan.Rooms = append(plan.Rooms, PlannedRoom{ID: 3, Replaces: 2, Role: PlannedBedroom, Region: region(5, 4)})
+	plan.NextRoomID = 4
+	if got := OutgrownSuccession(outgrownAdvice(group, 12, 1, 3), successionCatalog(), plan); got.Any() {
+		t.Fatalf("asked for a second rebuild while one is in flight: %+v", got)
 	}
 }
 
-func TestBedroomWingSuccessorMigratesSleepersWithoutAnUnbeddedNight(t *testing.T) {
-	s := loadSurvey(t, baselineSurveyPath)
-	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0).Value()
-	if !ok || len(bedroomWings(plan.Wings)) == 0 {
-		t.Fatal("no plan with a bedroom wing")
+// A replaced bedroom keeps its sleepers until each has moved straight to a
+// vacant bed of the successor, and leaves the plan only then.
+func TestBedroomSuccessorMigratesSleepersWithoutAnUnbeddedNight(t *testing.T) {
+	at := func(id, replaces int32, x int32) PlannedRoom {
+		return PlannedRoom{ID: id, Replaces: replaces, Role: PlannedBedroom, Region: RectRegion(Rectangle{X: x, Z: 0, Width: 3, Height: 4})}
 	}
-	oldWing := plan.Wings[bedroomWings(plan.Wings)[0]]
-	first := oldWing.Rooms[0]
-	all := allPins(plan)
-	succ := Successor{Replaces: first.ID, Role: PlannedBedroom, Floor: first.Region.Area(), Shortfall: 8, Sizes: [][2]int32{{5, 4}, {4, 5}}}
-	if got := succ.WingSize(TechTierCamp); got != [2]int32{5, 4} {
-		t.Fatalf("wing size = %v, want the block's 5x4", got)
-	}
-	next, changed, err := ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: all, Successor: succ}, 0, 3, 0, TechTierCamp, nil, nil)
-	if err != nil || !changed || !next.Valid() {
-		t.Fatalf("changed %v, valid %v, err %v", changed, next.Valid(), err)
-	}
-	var retiring, active []Wing
-	for _, w := range next.Wings {
-		switch w.Purpose {
-		case WingBedroomsRetiring:
-			retiring = append(retiring, w)
-		case WingBedrooms:
-			active = append(active, w)
-		}
-	}
-	if len(retiring) != 1 || len(retiring[0].Rooms) != len(oldWing.Rooms) || retiring[0].Rooms[0].ID != first.ID {
-		t.Fatalf("retiring wings = %+v, want the old wing as it was", retiring)
-	}
-	if len(active) == 0 {
-		t.Fatal("no new wing sited")
-	}
-	for _, r := range active[0].Rooms {
-		if r.Region.Area() != 20 {
-			t.Fatalf("new wing room %v, want 5x4", r.Region.Bounds())
-		}
-	}
-	// The sleepers: pawn a owns the old wing's first bed, the new wing's first
-	// room stands with a vacant bed. a is moved straight to it, and the old wing
-	// keeps every bed until then.
+	old, next := at(1, 0, 0), at(2, 1, 10)
+	plan := LayoutPlan{Rooms: []PlannedRoom{old, next}, NextRoomID: 3}
 	standing := func(r PlannedRoom, id string, beds ...string) Room {
 		return Room{ID: id, Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: beds, Cells: []domain.Cell{r.Region.anchor()}}
 	}
 	bed := func(id string, owners ...PawnID) SleepingBed {
 		return SleepingBed{ID: id, Definition: "Bed", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), Owners: owners, AccessibleTo: []PawnID{"a"}}
 	}
-	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{standing(retiring[0].Rooms[0], "old", "ob"), standing(active[0].Rooms[0], "new", "nb")}}
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{standing(old, "old", "ob"), standing(next, "new", "nb")}}
 	sleeping := SleepingObservation{Colonists: 1,
 		People: []SleepingPerson{{ID: "a", OwnedBed: domain.Known("ob")}},
 		Beds:   []SleepingBed{bed("ob", "a"), bed("nb")}}
-	if got := EmptiedRetiringWings(next, domain.Known(rooms), domain.Known(sleeping)); len(got) != 0 {
-		t.Fatalf("the old wing is emptied while a sleeps in it: %v", got)
+	slept := SleptBedrooms(plan, domain.Known(rooms), domain.Known(sleeping))
+	if !slept[old.ID] || slept[next.ID] {
+		t.Fatalf("slept = %v, want the old bedroom while a sleeps in it", slept)
 	}
-	if pins := replanPins(next, map[int32]bool{first.ID: true}, nil, TechTierCamp); !pins[first.ID] {
-		t.Fatal("the old wing was unpinned while a sleeps in it")
+	// The successor stands, but the old room stays while it is slept in.
+	growth := RoomGrowth{Slept: slept, Built: map[int32]bool{1: true, 2: true}}
+	if kept, dropped := retireSurplusRooms(plan, growth, growth.Built); dropped || len(kept.AllRooms()) != 2 {
+		t.Fatalf("the old bedroom left the plan while a sleeps in it: %+v", kept.AllRooms())
 	}
-	step := NextMigrateStep(next, rooms, sleeping)
+	if pins := replanPins(plan, map[int32]bool{next.ID: true}, nil, TechTierCamp); !pins[old.ID] {
+		t.Fatal("the old bedroom was unpinned while a sleeps in it")
+	}
+	step := NextMigrateStep(plan, rooms, sleeping)
 	if step.Kind != BedroomMove || step.Pawn != "a" || step.Bed != "nb" || step.PreviousBed != "ob" {
 		t.Fatalf("step = %+v, want a moved straight from ob to nb", step)
 	}
 	sleeping.People[0].OwnedBed = domain.Known("nb")
 	sleeping.Beds[0].Owners, sleeping.Beds[1].Owners = nil, []PawnID{"a"}
-	emptied := EmptiedRetiringWings(next, domain.Known(rooms), domain.Known(sleeping))
-	if !emptied[retiring[0].Corridor.From] {
-		t.Fatalf("emptied = %v, want the old wing once a has moved", emptied)
+	if slept := SleptBedrooms(plan, domain.Known(rooms), domain.Known(sleeping)); len(slept) != 0 {
+		t.Fatalf("slept = %v after a moved", slept)
 	}
-	if pins := replanPins(next, map[int32]bool{first.ID: true}, emptied, TechTierCamp); pins[first.ID] {
-		t.Fatal("the emptied wing stayed pinned")
+	growth.Slept = nil
+	kept, dropped := retireSurplusRooms(plan, growth, growth.Built)
+	if !dropped || len(kept.AllRooms()) != 1 || kept.AllRooms()[0].ID != next.ID {
+		t.Fatalf("rooms = %+v, want the old bedroom gone once a has moved", kept.AllRooms())
+	}
+	// An unread census keeps every replaced bedroom.
+	if slept := SleptBedrooms(plan, domain.Fact[RoomObservation]{}, domain.Known(sleeping)); !slept[old.ID] {
+		t.Fatalf("slept = %v with the census unknown", slept)
+	}
+}
+
+// opensOnGround are the rooms of plan whose Link is no cell of another room's
+// walls: a door onto open ground.
+func opensOnGround(plan LayoutPlan) []PlannedRoom {
+	var out []PlannedRoom
+	for _, r := range plan.AllRooms() {
+		if r.Link == nil {
+			continue
+		}
+		onto := false
+		for _, o := range plan.AllRooms() {
+			onto = onto || o.ID != r.ID && inWall(o.Region.Bounds(), *r.Link) && inWall(r.Region.Bounds(), *r.Link)
+		}
+		if !onto {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// linkedRooms are a kitchen, the freezer beside it, the dining room beside the
+// freezer and the butchery behind it, each Link in the wall it shares.
+func linkedRooms() (kitchen, freezer, dining, butchery PlannedRoom) {
+	in := func(x, z, w, h int32) Region { return RectRegion(Rectangle{X: x, Z: z, Width: w, Height: h}) }
+	link := func(x, z int32) *domain.Cell { return &domain.Cell{X: x, Z: z} }
+	kitchen = PlannedRoom{ID: 1, Role: PlannedKitchen, Region: in(0, 0, 5, 5)}
+	freezer = PlannedRoom{ID: 2, Role: PlannedFreezer, Region: in(6, 0, 4, 5), Link: link(5, 2)}
+	dining = PlannedRoom{ID: 3, Role: PlannedDining, Region: in(11, 0, 4, 5), Link: link(10, 2)}
+	butchery = PlannedRoom{ID: 4, Role: PlannedButchery, Region: in(6, 6, 4, 3), Link: link(7, 5)}
+	return
+}
+
+// The dining room and butchery opened into the freezer: once its successor
+// stands and it leaves, their doors are in the successor's walls, none onto the
+// ground clearance takes.
+func TestFreezerSuccessorRepointsTheNeighboursLinks(t *testing.T) {
+	kitchen, freezer, dining, butchery := linkedRooms()
+	succ := PlannedRoom{ID: 5, Replaces: 2, Role: PlannedFreezer, Region: RectRegion(Rectangle{X: 11, Z: 6, Width: 4, Height: 3})}
+	plan := LayoutPlan{Rooms: []PlannedRoom{kitchen, freezer, dining, butchery, succ}, NextRoomID: 6}
+	growth := RoomGrowth{Built: map[int32]bool{1: true, 2: true, 3: true, 4: true, 5: true}}
+	next, dropped := retireSurplusRooms(plan, growth, growth.Built)
+	if !dropped || len(next.AllRooms()) != 4 {
+		t.Fatalf("rooms = %+v, want the old freezer gone", next.AllRooms())
+	}
+	for _, r := range next.Rooms {
+		if (r.ID == dining.ID || r.ID == butchery.ID) && (r.Link == nil || !inWall(succ.Region.Bounds(), *r.Link)) {
+			t.Errorf("%s link = %v, want a door in the successor's wall", r.Role, r.Link)
+		}
+	}
+	if got := opensOnGround(next); len(got) != 0 {
+		t.Fatalf("doors open onto cleared ground: %+v", got)
+	}
+}
+
+// The freezer's Link into a replaced kitchen moves to the kitchen that stands,
+// and a neighbour that shares no wall with its successor loses its Link rather
+// than keep a door onto cleared ground.
+func TestKitchenSuccessorRepointsTheFreezersLink(t *testing.T) {
+	kitchen, freezer, dining, butchery := linkedRooms()
+	succ := PlannedRoom{ID: 5, Replaces: 1, Role: PlannedKitchen, Region: RectRegion(Rectangle{X: 0, Z: 6, Width: 9, Height: 3})}
+	plan := LayoutPlan{Rooms: []PlannedRoom{kitchen, freezer, dining, butchery, succ}, NextRoomID: 6}
+	growth := RoomGrowth{Built: map[int32]bool{1: true, 2: true, 3: true, 4: true, 5: true}}
+	next, dropped := retireSurplusRooms(plan, growth, growth.Built)
+	if !dropped {
+		t.Fatal("the old kitchen stayed")
+	}
+	for _, r := range next.Rooms {
+		switch r.ID {
+		case freezer.ID:
+			if r.Link == nil || !inWall(succ.Region.Bounds(), *r.Link) || !inWall(freezer.Region.Bounds(), *r.Link) {
+				t.Errorf("freezer link = %v, want a door in the new kitchen's wall", r.Link)
+			}
+		case dining.ID:
+			if r.Link == nil || *r.Link != *dining.Link {
+				t.Errorf("dining link = %v, want it untouched", r.Link)
+			}
+		}
+	}
+	if got := opensOnGround(next); len(got) != 0 {
+		t.Fatalf("doors open onto cleared ground: %+v", got)
+	}
+	plan.Rooms[4] = PlannedRoom{ID: 5, Replaces: 1, Role: PlannedKitchen, Region: RectRegion(Rectangle{X: -20, Z: 0, Width: 5, Height: 5})}
+	next, _ = retireSurplusRooms(plan, growth, growth.Built)
+	for _, r := range next.Rooms {
+		if r.ID == freezer.ID && r.Link != nil {
+			t.Errorf("freezer link = %v, want none with no kitchen beside it", *r.Link)
+		}
 	}
 }

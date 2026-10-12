@@ -215,6 +215,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 				if advice, ok := r.stationAdvice(ctx, snapshot, *projection, layout.Plan, survey); ok {
 					growth.Successor = policy.OutgrownSuccession(advice, projection.Stations, layout.Plan)
 				}
+				growth.Slept = policy.SleptBedrooms(layout.Plan, projection.Rooms, projection.Facts.Sleeping)
 				// Every new building moves Occupied; the fixed rooms are its key.
 				keyed := growth
 				keyed.Occupied, keyed.Grazing = nil, nil
