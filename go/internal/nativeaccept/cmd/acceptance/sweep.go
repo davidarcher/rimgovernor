@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -22,7 +23,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/combatlab"
 )
 
-const sweepUsage = `  acceptance sweep <fixture>... -root <dir> -output <dir> -rimgovernor <bin> [-n 20 | -seeds 1,2,5 -workers 1|2 -against <sweep.json|dir> -restage -record -game <id> -case-timeout <d>]
+const sweepUsage = `  acceptance sweep <fixture>... -root <dir> -output <dir> -rimgovernor <bin> [-n 20 | -seeds 1,2,5 -workers 1|2 -against <sweep.json|dir> -restage -record -shots <file> -game <id> -case-timeout <d>]
     runs combatlab/metrics-<fixture> once per seed from one staged checkpoint (seed s reseeds the RNG after the load, -run-seed),
     on 1 or 2 private clones of -root, and writes <output>/<fixture>/sweep.json (per-seed rows plus summary) with the report printed
     deaths and downs first; -against pairs the seeds with an earlier sweep.json (or <dir>/<fixture>/sweep.json) and exits 1 on a survival regression
@@ -39,6 +40,7 @@ type sweepOptions struct {
 	Against     string
 	Restage     bool
 	Record      bool
+	Shots       string
 	CaseTimeout time.Duration
 }
 
@@ -63,6 +65,7 @@ func parseSweep(args []string, stderr io.Writer) (sweepOptions, error) {
 	fs.StringVar(&opts.GameID, "game", "rimgovernor-trial", "configured game ID")
 	fs.IntVar(&opts.Workers, "workers", 1, "private game copies running seeds at once (1 or 2)")
 	fs.StringVar(&opts.Against, "against", "", "earlier sweep.json (or a directory of <fixture>/sweep.json) to pair seeds with")
+	fs.StringVar(&opts.Shots, "shots", "", "write the sweep's shot tap rows, each stamped with its seed, to this absolute file (one fixture)")
 	fs.BoolVar(&opts.Restage, "restage", false, "discard the cached stage bundle and stage again")
 	fs.DurationVar(&opts.CaseTimeout, "case-timeout", 0, "per-seed run safety net (default: the runner's)")
 	if err := fs.Parse(flagArgs); err != nil {
@@ -81,6 +84,12 @@ func parseSweep(args []string, stderr io.Writer) (sweepOptions, error) {
 		return opts, errors.New("-root and -rimgovernor must be absolute")
 	}
 	opts.Output = mustAbs(opts.Output)
+	if opts.Shots != "" {
+		if len(opts.Fixtures) != 1 {
+			return opts, errors.New("-shots writes one fixture's dataset: name one fixture")
+		}
+		opts.Shots = mustAbs(opts.Shots)
+	}
 	if opts.Against != "" {
 		opts.Against = mustAbs(opts.Against)
 	}
@@ -213,6 +222,13 @@ func sweepFixture(ctx context.Context, c cases.Case, fixture string, opts sweepO
 		fmt.Fprintf(stdout, "FAIL\t%s\t%v\n", fixture, dispatchErr)
 		code = 1
 	}
+	if opts.Shots != "" {
+		if err := writeShotDataset(c, dir, opts.Seeds, opts.Shots); err != nil {
+			fmt.Fprintf(stdout, "FAIL\t%s\tshots not written: %v\n", fixture, err)
+			return 1
+		}
+		fmt.Fprintf(stdout, "  shot dataset %s\n", opts.Shots)
+	}
 	if opts.Record {
 		if err := recordBaseline(result); err != nil {
 			fmt.Fprintf(stdout, "FAIL\t%s\tnot recorded: %v\n", fixture, err)
@@ -341,6 +357,22 @@ func runChild(ctx context.Context, c cases.Case, opts sweepOptions, self, root, 
 		return fmt.Errorf("%s: %w (see %s)", c.Name, err, log.Name())
 	}
 	return nil
+}
+
+// writeShotDataset concatenates the seeds' shot tap rows (combat_shots.jsonl
+// in each seed's bundle), each stamped with its seed, into one file. A seed
+// without a shot file is an error: the dataset must cover every seed.
+func writeShotDataset(c cases.Case, dir string, seeds []int, path string) error {
+	var out bytes.Buffer
+	if err := combatlab.BuildShotDataset(&out, seeds, func(seed int) string {
+		return cases.Options{Output: filepath.Join(dir, fmt.Sprintf("seed-%d", seed))}.CaseOutput(c)
+	}); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, out.Bytes(), 0o644)
 }
 
 // runSeed runs one seed on a worker root and reads the seed's row from its

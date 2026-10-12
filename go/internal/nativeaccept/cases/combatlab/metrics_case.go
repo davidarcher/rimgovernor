@@ -83,7 +83,7 @@ func Baseline(name string) (combatmetrics.Sweep, error) {
 func init() {
 	for _, name := range Names {
 		probe, _ := Build(name, 0, 0)
-		scope := fmt.Sprintf("Combat metrics (#855, #869): stage %s, serve the routine defense planner on it for up to %d game ticks, and record the reads before and after to %s and the aggregate (damage, downs, deaths, fled, contact-to-resolution, friendly fire, orders, step latency) to %s. Evidence, not a gate: native because the metrics are vanilla combat outcomes under the live planner.", name, metricsTicks, ReadsFile, MetricsFile)
+		scope := fmt.Sprintf("Combat metrics (#855, #869): stage %s, serve the routine defense planner on it for up to %d game ticks, and record the reads before and after to %s and the aggregate (damage, downs, deaths, fled, contact-to-resolution, friendly fire, orders, step latency) to %s, with the shot tap (launches, impacts, jobs, stances, think ticks) to %s. Evidence, not a gate: native because the metrics are vanilla combat outcomes under the live planner.", name, metricsTicks, ReadsFile, MetricsFile, ShotsFile)
 		if name == "lab-open" {
 			scope += smokeOnly
 		}
@@ -229,6 +229,13 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 		return err
 	}
 	if err := writeReads(dir, []map[string]any{first, last}); err != nil {
+		return err
+	}
+	shots, err := rawRead(ctx, h, map[string]any{"action": "shots"})
+	if err != nil {
+		return err
+	}
+	if err := writeShots(dir, shots); err != nil {
 		return err
 	}
 	if err := writeCombatRows(logPath, filepath.Join(dir, CombatRowsFile)); err != nil {

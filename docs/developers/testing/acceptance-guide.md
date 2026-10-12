@@ -177,6 +177,15 @@ pairs the seeds of an earlier sweep file and prints the paired deltas; it exits
 1 when a seed gains a colonist death or the paired interval of colonist deaths
 or downs lies wholly above zero.
 
+Every metrics run also records the shot tap (`LabShotLedger` in
+`scripts/fixtures/DebugStartFixture.cs`, harness only): each projectile launch
+and impact, job starts, stances, draft changes and each pawn's first think
+ticks, read with `test/lab_stage` action `shots` into `combat_shots.jsonl` in the
+bundle. `acceptance sweep <fixture> -shots <file>` concatenates the seeds' rows,
+stamped with the seed and with the damage each impact dealt. The committed
+`combatlab/calibration/shots/lab-ranged.jsonl` and its README (fields, how it
+was recorded) are the real timing data for `combatsim` calibration.
+
 The combat baselines are sweep outputs: `combatlab/baselines/<fixture>.json` is
 the `combatmetrics.Sweep` of seeds 1..20 recorded from main with the routine
 defense planner serving, and `combatlab.Baseline(name)` returns it (rows and

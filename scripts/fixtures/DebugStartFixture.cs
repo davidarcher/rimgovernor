@@ -600,18 +600,141 @@ namespace HomeBridge.BridgeTools
         }
     }
 
+    // Shot-level tap for combat lab runs (#2917): every projectile launched
+    // (tick, shooter, intended target, destination cell, burst position), its
+    // impact (tick, thing hit), and the per-pawn opening milestones (jobs,
+    // draft changes, stances) plus the first Pawn_JobTracker.JobTrackerTickInterval
+    // ticks of each pawn (the think cadence). Observation only: nothing it
+    // reads is written back. Installed with the damage ledger, bounded, one
+    // compact row per event; replied by test/lab_stage action shots.
+    public static class LabShotLedger
+    {
+        private const int Cap = 16384;
+        private const int ThinkTicksPerPawn = 8;
+        private static readonly List<object> rows = new List<object>();
+        private static readonly Dictionary<string, List<int>> thinks = new Dictionary<string, List<int>>();
+        private static readonly Dictionary<string, int> thinkCounts = new Dictionary<string, int>();
+        private static bool patched;
+        [ThreadStatic] private static int burstIndex;
+        [ThreadStatic] private static int burstSize;
+        public static int Dropped { get; private set; }
+
+        public static void Reset()
+        {
+            rows.Clear(); thinks.Clear(); thinkCounts.Clear();
+            Dropped = 0;
+            EnsurePatched();
+        }
+
+        public static void EnsurePatched()
+        {
+            if (patched) return;
+            var harmony = new Harmony("rimgovernor.fixture.lab-shots");
+            harmony.Patch(AccessTools.Method(typeof(Verb), "TryCastNextBurstShot"), prefix: new HarmonyMethod(typeof(LabShotLedger), nameof(BurstPrefix)));
+            harmony.Patch(AccessTools.Method(typeof(Projectile), nameof(Projectile.Launch),
+                new[] { typeof(Thing), typeof(UnityEngine.Vector3), typeof(LocalTargetInfo), typeof(LocalTargetInfo), typeof(ProjectileHitFlags), typeof(bool), typeof(Thing), typeof(ThingDef) }),
+                postfix: new HarmonyMethod(typeof(LabShotLedger), nameof(LaunchPostfix)));
+            harmony.Patch(AccessTools.Method(typeof(Projectile), "Impact"), prefix: new HarmonyMethod(typeof(LabShotLedger), nameof(ImpactPrefix)));
+            harmony.Patch(AccessTools.Method(typeof(Verse.AI.Pawn_JobTracker), "StartJob"), postfix: new HarmonyMethod(typeof(LabShotLedger), nameof(StartJobPostfix)));
+            harmony.Patch(AccessTools.Method(typeof(Verse.AI.Pawn_JobTracker), nameof(Verse.AI.Pawn_JobTracker.JobTrackerTickInterval)), prefix: new HarmonyMethod(typeof(LabShotLedger), nameof(ThinkPrefix)));
+            harmony.Patch(AccessTools.Method(typeof(Pawn_StanceTracker), nameof(Pawn_StanceTracker.SetStance)), postfix: new HarmonyMethod(typeof(LabShotLedger), nameof(StancePostfix)));
+            harmony.Patch(AccessTools.PropertySetter(typeof(Pawn_DraftController), nameof(Pawn_DraftController.Drafted)), postfix: new HarmonyMethod(typeof(LabShotLedger), nameof(DraftPostfix)));
+            patched = true;
+        }
+
+        // The rows in order, then one think row per pawn: its first
+        // JobTrackerTickInterval ticks and how many it had.
+        public static List<object> Rows()
+        {
+            var all = rows.ToList();
+            foreach (var kv in thinks.OrderBy(k => k.Key, StringComparer.Ordinal))
+                all.Add(new { k = "think", pawn = kv.Key, ticks = kv.Value, count = thinkCounts[kv.Key] });
+            return all;
+        }
+
+        private static bool On(Thing t) => !float.IsNaN(AcceptanceWorld.Lab) && t != null && t.Map != null && t.Map == Find.CurrentMap;
+        private static int Now => Find.TickManager.TicksGame;
+        private static string Id(Thing t) => t?.GetUniqueLoadID() ?? "";
+        private static string Side(Thing t) => t == null ? "" : t.Faction == Faction.OfPlayer ? "colonist" : t.HostileTo(Faction.OfPlayer) ? "hostile" : "other";
+
+        private static void Add(object row)
+        {
+            if (rows.Count >= Cap) { Dropped++; return; }
+            rows.Add(row);
+        }
+
+        public static void BurstPrefix(Verb __instance, int ___burstShotsLeft)
+        {
+            burstSize = Traverse.Create(__instance).Property("ShotsPerBurst").GetValue<int>();
+            burstIndex = burstSize - ___burstShotsLeft;
+        }
+
+        public static void LaunchPostfix(Projectile __instance, UnityEngine.Vector3 ___destination, int ___ticksToImpact)
+        {
+            var by = __instance.Launcher;
+            if (!On(by)) return;
+            var dest = ___destination.ToIntVec3();
+            var from = by.Position;
+            var target = __instance.intendedTarget;
+            Add(new { k = "shot", tick = Now, id = __instance.thingIDNumber, shooter = Id(by), side = Side(by), x = from.x, z = from.z,
+                target = Id(target.Thing), tx = target.Cell.x, tz = target.Cell.z, dx = dest.x, dz = dest.z, burst = burstIndex, of = burstSize,
+                weapon = __instance.EquipmentDef?.defName ?? "", proj = __instance.def.defName, tti = ___ticksToImpact });
+        }
+
+        public static void ImpactPrefix(Projectile __instance, Thing hitThing)
+        {
+            if (!On(__instance)) return;
+            var at = __instance.Position;
+            Add(new { k = "impact", tick = Now, id = __instance.thingIDNumber, hit = Id(hitThing), x = at.x, z = at.z });
+        }
+
+        public static void StartJobPostfix(Pawn ___pawn, Verse.AI.Job newJob)
+        {
+            if (!On(___pawn) || newJob == null) return;
+            var tgt = newJob.targetA;
+            Add(new { k = "job", tick = Now, pawn = Id(___pawn), side = Side(___pawn), job = newJob.def?.defName ?? "", forced = newJob.playerForced,
+                thing = Id(tgt.Thing), x = tgt.Cell.x, z = tgt.Cell.z });
+        }
+
+        public static void ThinkPrefix(Pawn ___pawn, int delta)
+        {
+            if (!On(___pawn)) return;
+            var id = Id(___pawn);
+            thinkCounts.TryGetValue(id, out var n);
+            thinkCounts[id] = n + 1;
+            if (n >= ThinkTicksPerPawn) return;
+            if (!thinks.TryGetValue(id, out var ticks)) thinks[id] = ticks = new List<int>();
+            ticks.Add(Now);
+        }
+
+        public static void StancePostfix(Pawn ___pawn, Stance newStance)
+        {
+            if (!On(___pawn) || !(newStance is Stance_Busy busy)) return;
+            var t = busy.focusTarg;
+            Add(new { k = "stance", tick = Now, pawn = Id(___pawn), side = Side(___pawn), stance = newStance.GetType().Name, left = busy.ticksLeft,
+                thing = Id(t.Thing), x = t.Cell.x, z = t.Cell.z });
+        }
+
+        public static void DraftPostfix(Pawn_DraftController __instance)
+        {
+            var pawn = __instance.pawn;
+            if (!On(pawn)) return;
+            Add(new { k = "draft", tick = Now, pawn = Id(pawn), drafted = __instance.Drafted });
+        }
+    }
+
     public sealed class LabStageFixture
     {
         // A tick call holds the main thread; 2000 ticks of a lab skirmish is
         // well under the call ceiling.
         private const int MaxTicks = 2000;
-        static LabStageFixture() { LabDamageLedger.EnsurePatched(); }
-        public LabStageFixture() { LabDamageLedger.EnsurePatched(); }
+        static LabStageFixture() { LabDamageLedger.EnsurePatched(); LabShotLedger.EnsurePatched(); }
+        public LabStageFixture() { LabDamageLedger.EnsurePatched(); LabShotLedger.EnsurePatched(); }
 
         [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile,hitPoints}], pawns:[{side:colonist|hostile|animal|manhunter|prisoner|insect, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, injured, trained (animal TrainableDefs), apparel, hediffs:[HediffDef], inventory:[ThingDef]}], roof:{def,minX,minZ,maxX,maxZ}, prisonBreak, sappers, seed (non-zero varies hostile skills and jitters hostiles that declare jitter, then reseeds Rand after staging; 0 or absent is the pinned staging; the reply echoes it), pawns also take jitter (cells)}. Hostiles get fixed skills, only the named apparel and an assault lord (a sapper one with sappers, #1149). Replies each staged pawn read back from the map (with worn apparel ids) and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, hediff defs, every player door's hold-open and forbidden flag, and the tick.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Fixture spec JSON (action stage).")] string spec = "{}",
-            [ToolParameter(Description = "stage (default), read, reseed (spec {seed: non-zero}: set the game Rand seed the way a seeded staging ends, reply the next four draws; #2849), orphan-animal (spec animal and mode: despawn, dead or foreign), or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "stage",
+            [ToolParameter(Description = "stage (default), read, reseed (spec {seed: non-zero}: set the game Rand seed the way a seeded staging ends, reply the next four draws; #2849), orphan-animal (spec animal and mode: despawn, dead or foreign), shots (the shot tap since the last staging: launches, impacts, jobs, stances, draft changes and each pawn's first think ticks, #2917), or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "stage",
             [ToolParameter(Description = "Ticks for action tick, 1..2000.")] int ticks = 0)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -631,6 +754,8 @@ namespace HomeBridge.BridgeTools
                     }
                     action = "read";
                 }
+                if (action == "shots")
+                    return new { success = true, tick = Find.TickManager.TicksGame, shots = LabShotLedger.Rows(), shotsDropped = LabShotLedger.Dropped };
                 if (action == "reseed")
                     return LabStage.Reseed(JObject.Parse(spec ?? "{}"));
                 if (action == "tick")
@@ -655,6 +780,7 @@ namespace HomeBridge.BridgeTools
                         damage = LabDamageLedger.Rows(), damageDropped = LabDamageLedger.Dropped };
                 if (action != "stage") throw new ArgumentException("Unknown action.");
                 LabDamageLedger.Reset();
+                LabShotLedger.Reset();
                 return LabStage.Stage(map, JObject.Parse(spec ?? "{}"));
             }, cancellationToken).ConfigureAwait(false);
         }
