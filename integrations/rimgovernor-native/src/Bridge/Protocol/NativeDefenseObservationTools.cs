@@ -132,15 +132,20 @@ namespace HomeBridge.BridgeTools
                 row.EdgeReachable = row.Passable && map.reachability.CanReachMapEdge(cell, raider);
                 snapshot.Cells.Add(row);
             }
-            var raids = map.GetComponent<RaidArrivalState>();
-            if (raids != null)
-                foreach (var track in raids.Tracks.Values.OrderBy(t => t.SpawnTick).ThenBy(t => t.LordId)) {
-                    var row = new Obs.RaidTrack { LordId = "lord-" + track.LordId.ToString(System.Globalization.CultureInfo.InvariantCulture), FactionDef = Identifier(track.FactionDef),
-                        SpawnTick = track.SpawnTick, Spawn = new Common.Cell { X = track.Spawn.x, Z = track.Spawn.z }, Ground = track.Ground, LastTick = track.LastTick };
-                    foreach (var c in track.Trail) row.Trail.Add(new Common.Cell { X = c.x, Z = c.z });
-                    snapshot.Raids.Add(row);
-                }
             return snapshot;
+        }
+
+        // The hostile lords RaidArrivalState has tracked since load, oldest first.
+        internal static IEnumerable<Obs.RaidTrack> RaidTracks(Map map)
+        {
+            var raids = map.GetComponent<RaidArrivalState>();
+            if (raids == null) yield break;
+            foreach (var track in raids.Tracks.Values.OrderBy(t => t.SpawnTick).ThenBy(t => t.LordId)) {
+                var row = new Obs.RaidTrack { LordId = "lord-" + track.LordId.ToString(System.Globalization.CultureInfo.InvariantCulture), FactionDef = Identifier(track.FactionDef),
+                    SpawnTick = track.SpawnTick, Spawn = new Common.Cell { X = track.Spawn.x, Z = track.Spawn.z }, Ground = track.Ground, LastTick = track.LastTick };
+                foreach (var c in track.Trail) row.Trail.Add(new Common.Cell { X = c.x, Z = c.z });
+                yield return row;
+            }
         }
 
         internal static Obs.LinesOfFireSnapshot Lines(Map map, List<IntVec3> firing, List<IntVec3> approach, Common.ObservationContext context, uint? budgetMs)

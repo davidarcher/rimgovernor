@@ -160,11 +160,8 @@ func (r *RoundsDefenseLayoutPlanner) clearCover(call, epoch context.Context, goa
 	if !ok {
 		return RoundsDefenseLayoutResult{}, false, nil
 	}
-	site, _, err := r.native.ReadDefenseSite(call, identity, region)
+	site, err := r.defenseSite(call, identity, projection, region)
 	if err != nil {
-		return RoundsDefenseLayoutResult{}, false, err
-	}
-	if err = r.sameTick(site.Context, state, tick); err != nil {
 		return RoundsDefenseLayoutResult{}, false, err
 	}
 	request := defenseTurretRequest(read)
@@ -181,7 +178,7 @@ func (r *RoundsDefenseLayoutPlanner) clearCover(call, epoch context.Context, goa
 	// The game's shooting model grants a block chance to any positive fill,
 	// so the cover threshold is zero.
 	const defenseCoverFillThreshold = 0.0
-	request.Arrivals, request.CoverThreshold = defenseArrivals(site.Raids, region), domain.Known(defenseCoverFillThreshold)
+	request.Arrivals, request.CoverThreshold = defenseArrivals(projection.Raids, region), domain.Known(defenseCoverFillThreshold)
 	defenders, minRange, ok, err := r.defenderRange(call, state, read)
 	if err != nil {
 		return RoundsDefenseLayoutResult{}, false, err

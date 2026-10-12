@@ -132,7 +132,7 @@ func (c SiteCell) Equal(o SiteCell) bool {
 		c.Indoors == o.Indoors && c.StorageEmpty == o.StorageEmpty && c.Doorway == o.Doorway &&
 		c.Fertility == o.Fertility && c.Polluted == o.Polluted && c.Glow == o.Glow && c.Roof == o.Roof && c.ZoneID == o.ZoneID &&
 		c.Room == o.Room && c.Terrain == o.Terrain && c.InHome == o.InHome &&
-		c.BaseTerrain == o.BaseTerrain && c.SnowDepth == o.SnowDepth && c.TopLayerRemovable == o.TopLayerRemovable &&
+		c.BaseTerrain == o.BaseTerrain && c.SnowDepth == o.SnowDepth && c.TopLayerRemovable == o.TopLayerRemovable && c.FoundationRemoval == o.FoundationRemoval &&
 		ThingsEqual(c.Things, o.Things)
 }
 

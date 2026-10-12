@@ -235,6 +235,7 @@ namespace HomeBridge.BridgeTools
                     DifficultyThreatScale = Finite(Find.Storyteller.difficulty.threatScale),
                     ColonistCount = checked((uint)colonists),
                 };
+                facts.Raids.AddRange(NativeDefenseObservationTools.RaidTracks(map));
                 return new Obs.ThreatSection { Observed = facts };
             }
             catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); return new Obs.ThreatSection { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Colony wealth and raid points could not be read.") }; }

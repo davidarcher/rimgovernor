@@ -657,11 +657,8 @@ func (r *RoundsDefenseLayoutPlanner) proposeMortars(call context.Context, state 
 	if !ok {
 		return nil
 	}
-	site, _, err := r.native.ReadDefenseSite(call, identity, region)
+	site, err := r.defenseSite(call, identity, projection, region)
 	if err != nil {
-		return err
-	}
-	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
 		return err
 	}
 	request := defenseMortarRequest(read)
@@ -873,11 +870,8 @@ func (r *RoundsDefenseLayoutPlanner) replaceTurret(call context.Context, state C
 	if !ok {
 		return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
 	}
-	site, _, err := r.native.ReadDefenseSite(call, identity, region)
+	site, err := r.defenseSite(call, identity, projection, region)
 	if err != nil {
-		return err
-	}
-	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
 		return err
 	}
 	request.Bounds, request.Home, request.Killbox = projection.Bounds, home, killbox
@@ -975,11 +969,8 @@ func (r *RoundsDefenseLayoutPlanner) proposeTurrets(call context.Context, state 
 	if !ok {
 		return nil
 	}
-	site, _, err := r.native.ReadDefenseSite(call, identity, region)
+	site, err := r.defenseSite(call, identity, projection, region)
 	if err != nil {
-		return err
-	}
-	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
 		return err
 	}
 	request := defenseTurretRequest(read)
@@ -1097,11 +1088,8 @@ func (r *RoundsDefenseLayoutPlanner) observeTiers(call context.Context, state Co
 	if !ok {
 		return nil, nil
 	}
-	site, _, err := r.native.ReadDefenseSite(call, boundary.Identity(state.Snapshot), defenseCensusRegion(*record, projection.Bounds, base))
+	site, err := r.defenseSite(call, boundary.Identity(state.Snapshot), projection, defenseCensusRegion(*record, projection.Bounds, base))
 	if err != nil {
-		return nil, err
-	}
-	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
 		return nil, err
 	}
 	for _, cell := range site.Cells {
@@ -1171,18 +1159,15 @@ func (r *RoundsDefenseLayoutPlanner) propose(call, epoch context.Context, goal s
 	if !ok {
 		return policy.DefenseLayout{}, nil, awaitingPlan("layout_plan", "killbox"), false, nil
 	}
-	site, _, err := r.native.ReadDefenseSite(call, identity, region)
+	site, err := r.defenseSite(call, identity, projection, region)
 	if err != nil {
-		return policy.DefenseLayout{}, nil, Verdict{}, false, err
-	}
-	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
 		return policy.DefenseLayout{}, nil, Verdict{}, false, err
 	}
 	request := defenseTurretRequest(read)
 	request.Bounds, request.Home, request.Killbox = projection.Bounds, home, killbox
 	// Observed arrivals rank the sectors; the bait tier stands only on a
 	// sector a raid used.
-	request.Arrivals, request.Tick = defenseArrivals(site.Raids, region), projection.Identity.Tick
+	request.Arrivals, request.Tick = defenseArrivals(projection.Raids, region), projection.Identity.Tick
 	request.Region = policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}
 	for _, cell := range site.Cells {
 		request.Cells = append(request.Cells, defenseCellFacts(cell))
@@ -1725,4 +1710,15 @@ func (r *RoundsDefenseLayoutPlanner) logUnbuiltTiers(ctx context.Context, record
 		r.unbuilt[tier.Name] = summary
 		defenseAction(ctx, "defense-layout", slog.LevelInfo, "waiting", "tier_unbuilt", string(tier.Name), map[string]any{"buildings": len(tier.Buildings), "census": summary})
 	}
+}
+
+// defenseSite is the census of region from the projection cell mirror and
+// the load definition catalog: no native read, and so the projection own
+// tick. A native without the catalog cannot census.
+func (r *RoundsDefenseLayoutPlanner) defenseSite(call context.Context, identity *c.Identity, projection observation.ColonyProjection, region bridge.CellRect) (bridge.DefenseSite, error) {
+	catalog, err := pawnCatalog(call, r.native, identity)
+	if err != nil {
+		return bridge.DefenseSite{}, err
+	}
+	return bridge.DefenseSiteFromCells(projection.Cells, projection.Bounds, region, catalog)
 }

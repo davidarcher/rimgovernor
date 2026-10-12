@@ -903,7 +903,6 @@ message RaidTrack {
 }
 message DefenseSiteSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2; Rectangle region = 3; repeated DefenseCell cells = 4;
-  repeated RaidTrack raids = 7;
 }
 message DefenseSiteRequest { ReadScope scope = 1; Rectangle region = 2; }
 message DefenseSiteReply { oneof outcome { DefenseSiteSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
@@ -1677,7 +1676,10 @@ message UpkeepSection { oneof outcome { UpkeepFacts observed = 1; rimgovernor.co
 // raid_points is StorytellerUtility.DefaultThreatPointsNow for the map,
 // already scaled by adaptation_factor (the story watcher's
 // TotalThreatPointsFactor) and difficulty_threat_scale. Read-only.
-message ThreatFacts { optional double wealth_items = 1; optional double wealth_buildings = 2; optional double wealth_pawns = 3; optional double wealth_total = 4; optional double storyteller_wealth = 5; optional double raid_points = 6; optional double adaptation_factor = 7; optional double difficulty_threat_scale = 8; optional uint32 colonist_count = 9; repeated ReadIssue issues = 11; }
+message ThreatFacts { optional double wealth_items = 1; optional double wealth_buildings = 2; optional double wealth_pawns = 3; optional double wealth_total = 4; optional double storyteller_wealth = 5; optional double raid_points = 6; optional double adaptation_factor = 7; optional double difficulty_threat_scale = 8; optional uint32 colonist_count = 9; repeated ReadIssue issues = 11;
+  // The hostile lords seen on the map since load (RaidArrivalState): the defense layout ranks the approaches by where ground raids crossed its census.
+  repeated RaidTrack raids = 12;
+}
 message ThreatSection { oneof outcome { ThreatFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Current autonomous hauling safety for visible haulable items. count is the
 // stack size; path_length is the shortest observed safe colonist route to the

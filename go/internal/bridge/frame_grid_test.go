@@ -81,7 +81,7 @@ func gridBand(cells []nativeCell, rect policy.Rectangle) ([]policy.SiteCell, uin
 				StorageEmpty: domain.Known(n.storageEmpty),
 				Indoors:      domain.Known(n.indoors), Polluted: domain.Known(n.polluted), Glow: domain.Known(n.glow), Zone: domain.Known(n.zone != ""), Roofed: domain.Known(n.roof != ""),
 				Roof: named(n.roof), ZoneID: named(n.zone), Room: named(n.room),
-				Terrain: named(n.terrain), InHome: domain.Known(n.inHome), BaseTerrain: named(n.baseTerrain), SnowDepth: domain.Known(n.snow), TopLayerRemovable: domain.Known(n.topRemovable), Things: n.things}
+				Terrain: named(n.terrain), InHome: domain.Known(n.inHome), BaseTerrain: named(n.baseTerrain), SnowDepth: domain.Known(n.snow), TopLayerRemovable: domain.Known(n.topRemovable), FoundationRemoval: domain.Known(false), Things: n.things}
 			if n.fertility > 0 {
 				cell.Fertility = domain.Known(n.fertility)
 			}
@@ -165,6 +165,7 @@ func gridWire(cells []nativeCell) *mp.CellGrid {
 	g.BaseTerrain = str(named(func(n nativeCell) string { return n.baseTerrain }))
 	g.SnowDepth = number(func(n nativeCell) (float64, bool) { return n.snow, true })
 	g.TopLayerRemovable = code(func(n nativeCell) bool { return n.topRemovable })
+	g.FoundationRemoval = code(func(nativeCell) bool { return false })
 	g.Things = thingList(cells, index)
 	return g
 }

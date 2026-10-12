@@ -135,6 +135,7 @@ var arrays = []array{
 	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.BaseTerrain }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.BaseTerrain }),
 	numArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.SnowDepth }, func(c *policy.SiteCell) *domain.Fact[float64] { return &c.SnowDepth }),
 	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.TopLayerRemovable }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.TopLayerRemovable }),
+	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.FoundationRemoval }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.FoundationRemoval }),
 }
 
 // Grid is a decoded grid: its rect, every array, and the string table its

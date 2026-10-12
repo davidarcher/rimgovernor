@@ -336,6 +336,7 @@ message CellGrid {
   FieldArray snow_depth = 26;            // numbers
   FieldArray top_layer_removable = 27;   // bool codes: the top terrain layer can be removed
   ThingList things = 28;
+  FieldArray foundation_removal = 29;    // bool codes: a RemoveFoundation designation stands on the cell
 }
 
 // What a thing is. Spawned pawns are never listed.

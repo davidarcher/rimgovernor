@@ -89,6 +89,7 @@ namespace HomeBridge.BridgeTools
         private readonly Dictionary<Thing, ThingRec?> records = new Dictionary<Thing, ThingRec?>();
         private readonly HashSet<Thing> designatedThings = new HashSet<Thing>();
         private readonly HashSet<IntVec3> designatedCells = new HashSet<IntVec3>();
+        private readonly HashSet<IntVec3> foundationRemovals = new HashSet<IntVec3>();
         private readonly HashSet<Thing> reserved = new HashSet<Thing>();
         private List<RectTrigger>? triggers;
 
@@ -97,10 +98,16 @@ namespace HomeBridge.BridgeTools
             this.map = map;
             this.player = player;
             foreach (var d in map.designationManager.AllDesignations)
+            {
                 if (d.target.HasThing) designatedThings.Add(d.target.Thing); else designatedCells.Add(d.target.Cell);
+                if (!d.target.HasThing && d.def == DesignationDefOf.RemoveFoundation) foundationRemovals.Add(d.target.Cell);
+            }
             foreach (var r in map.reservationManager.ReservationsReadOnly)
                 if (r.Target.HasThing) reserved.Add(r.Target.Thing);
         }
+
+        /// A RemoveFoundation designation stands on the cell.
+        internal bool FoundationRemoval(IntVec3 cell) => foundationRemovals.Contains(cell);
 
         /// The cell's things in native order, null for none. Pawns, motes
         /// and projectiles are not listed.

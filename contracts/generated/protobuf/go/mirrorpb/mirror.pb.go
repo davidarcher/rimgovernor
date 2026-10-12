@@ -2293,6 +2293,7 @@ type CellGrid struct {
 	SnowDepth         *FieldArray `protobuf:"bytes,26,opt,name=snow_depth,json=snowDepth,proto3" json:"snow_depth,omitempty"`                           // numbers
 	TopLayerRemovable *FieldArray `protobuf:"bytes,27,opt,name=top_layer_removable,json=topLayerRemovable,proto3" json:"top_layer_removable,omitempty"` // bool codes: the top terrain layer can be removed
 	Things            *ThingList  `protobuf:"bytes,28,opt,name=things,proto3" json:"things,omitempty"`
+	FoundationRemoval *FieldArray `protobuf:"bytes,29,opt,name=foundation_removal,json=foundationRemoval,proto3" json:"foundation_removal,omitempty"` // bool codes: a RemoveFoundation designation stands on the cell
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -2470,6 +2471,13 @@ func (x *CellGrid) GetTopLayerRemovable() *FieldArray {
 func (x *CellGrid) GetThings() *ThingList {
 	if x != nil {
 		return x.Things
+	}
+	return nil
+}
+
+func (x *CellGrid) GetFoundationRemoval() *FieldArray {
+	if x != nil {
+		return x.FoundationRemoval
 	}
 	return nil
 }
@@ -3260,7 +3268,8 @@ const file_mirror_proto_rawDesc = "" +
 	"\vSparseArray\x12\x14\n" +
 	"\x05index\x18\x01 \x03(\rR\x05index\x12\x12\n" +
 	"\x04code\x18\x02 \x03(\rR\x04code\x12\x16\n" +
-	"\x06number\x18\x03 \x03(\x01R\x06number\"\xf2\t\n" +
+	"\x06number\x18\x03 \x03(\x01R\x06number\"\xc4\n" +
+	"\n" +
 	"\bCellGrid\x123\n" +
 	"\x04rect\x18\x01 \x01(\v2\x1f.rimgovernor.mirror.v1.CellRectR\x04rect\x12\x18\n" +
 	"\astrings\x18\x02 \x03(\tR\astrings\x125\n" +
@@ -3284,7 +3293,8 @@ const file_mirror_proto_rawDesc = "" +
 	"\n" +
 	"snow_depth\x18\x1a \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\tsnowDepth\x12Q\n" +
 	"\x13top_layer_removable\x18\x1b \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x11topLayerRemovable\x128\n" +
-	"\x06things\x18\x1c \x01(\v2 .rimgovernor.mirror.v1.ThingListR\x06things\"q\n" +
+	"\x06things\x18\x1c \x01(\v2 .rimgovernor.mirror.v1.ThingListR\x06things\x12P\n" +
+	"\x12foundation_removal\x18\x1d \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x11foundationRemoval\"q\n" +
 	"\tThingList\x12\x14\n" +
 	"\x05cells\x18\x01 \x03(\rR\x05cells\x12\x18\n" +
 	"\aoffsets\x18\x02 \x03(\rR\aoffsets\x124\n" +
@@ -3508,21 +3518,22 @@ var file_mirror_proto_depIdxs = []int32{
 	24, // 54: rimgovernor.mirror.v1.CellGrid.snow_depth:type_name -> rimgovernor.mirror.v1.FieldArray
 	24, // 55: rimgovernor.mirror.v1.CellGrid.top_layer_removable:type_name -> rimgovernor.mirror.v1.FieldArray
 	29, // 56: rimgovernor.mirror.v1.CellGrid.things:type_name -> rimgovernor.mirror.v1.ThingList
-	30, // 57: rimgovernor.mirror.v1.ThingList.things:type_name -> rimgovernor.mirror.v1.Thing
-	3,  // 58: rimgovernor.mirror.v1.Thing.category:type_name -> rimgovernor.mirror.v1.ThingCategory
-	4,  // 59: rimgovernor.mirror.v1.Thing.faction:type_name -> rimgovernor.mirror.v1.ThingFaction
-	31, // 60: rimgovernor.mirror.v1.Thing.plant:type_name -> rimgovernor.mirror.v1.PlantState
-	32, // 61: rimgovernor.mirror.v1.Thing.corpse:type_name -> rimgovernor.mirror.v1.CorpseState
-	33, // 62: rimgovernor.mirror.v1.Thing.filth:type_name -> rimgovernor.mirror.v1.FilthState
-	35, // 63: rimgovernor.mirror.v1.Thing.building:type_name -> rimgovernor.mirror.v1.BuildingState
-	36, // 64: rimgovernor.mirror.v1.Thing.item:type_name -> rimgovernor.mirror.v1.ItemState
-	6,  // 65: rimgovernor.mirror.v1.CorpseState.class:type_name -> rimgovernor.mirror.v1.CorpseClass
-	34, // 66: rimgovernor.mirror.v1.BuildingState.needed:type_name -> rimgovernor.mirror.v1.MaterialNeed
-	67, // [67:67] is the sub-list for method output_type
-	67, // [67:67] is the sub-list for method input_type
-	67, // [67:67] is the sub-list for extension type_name
-	67, // [67:67] is the sub-list for extension extendee
-	0,  // [0:67] is the sub-list for field type_name
+	24, // 57: rimgovernor.mirror.v1.CellGrid.foundation_removal:type_name -> rimgovernor.mirror.v1.FieldArray
+	30, // 58: rimgovernor.mirror.v1.ThingList.things:type_name -> rimgovernor.mirror.v1.Thing
+	3,  // 59: rimgovernor.mirror.v1.Thing.category:type_name -> rimgovernor.mirror.v1.ThingCategory
+	4,  // 60: rimgovernor.mirror.v1.Thing.faction:type_name -> rimgovernor.mirror.v1.ThingFaction
+	31, // 61: rimgovernor.mirror.v1.Thing.plant:type_name -> rimgovernor.mirror.v1.PlantState
+	32, // 62: rimgovernor.mirror.v1.Thing.corpse:type_name -> rimgovernor.mirror.v1.CorpseState
+	33, // 63: rimgovernor.mirror.v1.Thing.filth:type_name -> rimgovernor.mirror.v1.FilthState
+	35, // 64: rimgovernor.mirror.v1.Thing.building:type_name -> rimgovernor.mirror.v1.BuildingState
+	36, // 65: rimgovernor.mirror.v1.Thing.item:type_name -> rimgovernor.mirror.v1.ItemState
+	6,  // 66: rimgovernor.mirror.v1.CorpseState.class:type_name -> rimgovernor.mirror.v1.CorpseClass
+	34, // 67: rimgovernor.mirror.v1.BuildingState.needed:type_name -> rimgovernor.mirror.v1.MaterialNeed
+	68, // [68:68] is the sub-list for method output_type
+	68, // [68:68] is the sub-list for method input_type
+	68, // [68:68] is the sub-list for extension type_name
+	68, // [68:68] is the sub-list for extension extendee
+	0,  // [0:68] is the sub-list for field type_name
 }
 
 func init() { file_mirror_proto_init() }

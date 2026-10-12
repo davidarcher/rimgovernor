@@ -29,7 +29,7 @@ func keyframeGrid() *mp.CellGrid {
 	g.ZoneId = empty()
 	g.Room = empty()
 	g.Terrain, g.BaseTerrain = empty(), empty()
-	g.InHome, g.TopLayerRemovable = empty(), empty()
+	g.InHome, g.TopLayerRemovable, g.FoundationRemoval = empty(), empty(), empty()
 	g.SnowDepth = empty()
 	g.Things = &mp.ThingList{Offsets: []uint32{0}}
 	return g

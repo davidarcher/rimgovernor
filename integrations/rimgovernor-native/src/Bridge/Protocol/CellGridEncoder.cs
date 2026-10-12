@@ -37,7 +37,7 @@ namespace HomeBridge.BridgeTools
         internal const int Cell = 0, Walkable = 1, Zone = 2, Roofed = 3, Indoors = 4,
             StorageEmpty = 5, Doorway = 6, Fertility = 7, Polluted = 8, Glow = 9, Roof = 10, ZoneId = 11,
             Room = 12, Terrain = 13, InHome = 14,
-            BaseTerrain = 15, SnowDepth = 16, TopLayerRemovable = 17;
+            BaseTerrain = 15, SnowDepth = 16, TopLayerRemovable = 17, FoundationRemoval = 18;
 
         private static readonly (string Name, Kind Kind, Action<Mirror.CellGrid, Mirror.FieldArray> Set)[] Fields =
         {
@@ -59,6 +59,7 @@ namespace HomeBridge.BridgeTools
             ("base_terrain", Kind.Index, (g, a) => g.BaseTerrain = a),
             ("snow_depth", Kind.Number, (g, a) => g.SnowDepth = a),
             ("top_layer_removable", Kind.Code, (g, a) => g.TopLayerRemovable = a),
+            ("foundation_removal", Kind.Code, (g, a) => g.FoundationRemoval = a),
         };
 
         internal static string FieldName(int field) => Fields[field].Name;
@@ -189,6 +190,7 @@ namespace HomeBridge.BridgeTools
                     // Held to 1/100: snowfall would otherwise re-send the column every frame.
                     c[SnowDepth].Numbers![j] = Math.Round(Finite(map.snowGrid.GetDepth(cell)) * 100.0) / 100.0;
                     c[TopLayerRemovable].Codes![j] = B(terrainGrid.CanRemoveTopLayerAt(cell));
+                    c[FoundationRemoval].Codes![j] = B(things.FoundationRemoval(cell));
                     read.Things[j] = things.At(cell);
                     var fertility = map.fertilityGrid.FertilityAt(cell);
                     if (fertility > 0f) c[Fertility].Numbers![j] = Finite(fertility);

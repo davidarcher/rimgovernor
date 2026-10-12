@@ -47,6 +47,9 @@ type SiteCell struct {
 	BaseTerrain       domain.Fact[string]
 	SnowDepth         domain.Fact[float64]
 	TopLayerRemovable domain.Fact[bool]
+	// FoundationRemoval is a RemoveFoundation designation standing on the cell
+	// (a bridge ordered lifted).
+	FoundationRemoval domain.Fact[bool]
 	Things            []Thing `json:",omitempty"`
 }
 

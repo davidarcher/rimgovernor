@@ -340,6 +340,9 @@ func validateColonyThreat(v *o.ThreatSection) error {
 		if facts.ColonistCount != nil && facts.GetColonistCount() > 65536 {
 			return contract("colony count exceeds bound")
 		}
+		if _, err := validateRaidTracks(facts.Raids); err != nil {
+			return err
+		}
 		return nil
 	default:
 		return contract("missing threat outcome")
@@ -353,6 +356,8 @@ func validateColonyThreat(v *o.ThreatSection) error {
 type ColonyThreat struct {
 	RaidPoints, WealthTotal, WealthItems, WealthBuildings, WealthPawns domain.Fact[float64]
 	StorytellerWealth, AdaptationFactor, DifficultyThreatScale         domain.Fact[float64]
+	// Raids are the hostile lords seen on the map since load.
+	Raids []RaidTrack
 }
 
 // ProjectColonyThreat reads the threat section of a validated census.
@@ -367,10 +372,11 @@ func ProjectColonyThreat(v *o.ColonyFactsSnapshot) ColonyThreat {
 		}
 		return domain.Known(*p)
 	}
+	raids, _ := validateRaidTracks(facts.Raids) // validated with the census
 	return ColonyThreat{
 		RaidPoints: number(facts.RaidPoints), WealthTotal: number(facts.WealthTotal), WealthItems: number(facts.WealthItems),
 		WealthBuildings: number(facts.WealthBuildings), WealthPawns: number(facts.WealthPawns), StorytellerWealth: number(facts.StorytellerWealth),
-		AdaptationFactor: number(facts.AdaptationFactor), DifficultyThreatScale: number(facts.DifficultyThreatScale),
+		AdaptationFactor: number(facts.AdaptationFactor), DifficultyThreatScale: number(facts.DifficultyThreatScale), Raids: raids,
 	}
 }
 

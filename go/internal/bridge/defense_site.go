@@ -92,7 +92,6 @@ type DefenseSite struct {
 	Width, Height uint32
 	Region        CellRect
 	Cells         []DefenseCell
-	Raids         []RaidTrack
 }
 
 // LineOfFire is the native shooting-model evidence for one (firing, approach)
@@ -289,25 +288,32 @@ func validateDefenseSite(v *o.DefenseSiteSnapshot, identity *c.Identity, region 
 		}
 		site.Cells = append(site.Cells, out)
 	}
+	return site, nil
+}
+
+// validateRaidTracks decodes the hostile lords of a threat census: one track
+// per lord, ticks in order, cells on the map.
+func validateRaidTracks(rows []*o.RaidTrack) ([]RaidTrack, error) {
 	lords := map[string]bool{}
-	for _, row := range v.Raids {
+	var out []RaidTrack
+	for _, row := range rows {
 		spawn, ok := protoCell(row.GetSpawn())
 		if row == nil || !ok || validID(row.GetLordId()) != nil || lords[row.GetLordId()] || validID(row.GetFactionDef()) != nil || row.SpawnTick == nil || row.LastTick == nil || row.Ground == nil ||
-			row.GetSpawnTick() < 0 || row.GetLastTick() < row.GetSpawnTick() || int64(spawn.X) >= int64(site.Width) || int64(spawn.Z) >= int64(site.Height) {
-			return DefenseSite{}, contract("invalid defense site raid track")
+			row.GetSpawnTick() < 0 || row.GetLastTick() < row.GetSpawnTick() || spawn.X < 0 || spawn.Z < 0 || spawn.X >= maxDefenseSiteExtent || spawn.Z >= maxDefenseSiteExtent {
+			return nil, contract("invalid raid track")
 		}
 		lords[row.GetLordId()] = true
 		track := RaidTrack{LordID: row.GetLordId(), FactionDef: row.GetFactionDef(), SpawnTick: domain.Tick(row.GetSpawnTick()), LastTick: domain.Tick(row.GetLastTick()), Spawn: spawn, Ground: row.GetGround()}
 		for _, at := range row.Trail {
 			cell, ok := protoCell(at)
-			if !ok || int64(cell.X) >= int64(site.Width) || int64(cell.Z) >= int64(site.Height) {
-				return DefenseSite{}, contract("invalid defense site raid trail")
+			if !ok || cell.X < 0 || cell.Z < 0 || cell.X >= maxDefenseSiteExtent || cell.Z >= maxDefenseSiteExtent {
+				return nil, contract("invalid raid track trail")
 			}
 			track.Trail = append(track.Trail, cell)
 		}
-		site.Raids = append(site.Raids, track)
+		out = append(out, track)
 	}
-	return site, nil
+	return out, nil
 }
 
 func validateLinesOfFire(v *o.LinesOfFireSnapshot, identity *c.Identity, firing, approach []domain.Cell) ([]LineOfFire, error) {

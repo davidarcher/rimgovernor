@@ -72,6 +72,9 @@ func init() {
 				if _, ok := cell.TopLayerRemovable.Value(); !ok {
 					return fmt.Errorf("grid_things: cell %d top layer removable unknown", i)
 				}
+				if _, ok := cell.FoundationRemoval.Value(); !ok {
+					return fmt.Errorf("grid_things: cell %d foundation removal unknown", i)
+				}
 			}
 			find := func(i int, cat policy.ThingCategory) (policy.Thing, error) {
 				for _, t := range cells[i].Things {

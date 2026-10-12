@@ -710,6 +710,20 @@ mirror). Turret candidates are every slot with a line of sight to the lane, boun
 geometry. Native still reports its own placement refusals, handled as ordinary
 refusals (`placement_preview_refused`).
 
+The defense census is built in Go from the cell mirror and the definition catalog
+(`bridge.DefenseSiteFromCells`), not read from the game: the layout round makes no
+`observations_read_defense_site` call. Per cell it takes the edifice (a frame is its own
+`Frame_<def>`, a blueprint is no edifice), cover as the game's `CoverGrid` keeps it (the
+thing of highest `fillPercent` above 0.001; a frame 0.2, a blueprint none), the cover
+thing's clearance kind (`NativeClearCover.KindOf`: plant, mineable, chunk by thing
+category, building), `Passable` from the impassable flag, a door from the door edifice,
+`Roofed`, the `foundation_removal` mirror column, and `EdgeReachable` as a four-connected
+flood over known walkable cells from the map edge with doors read closed. A cell the
+mirror does not hold, or holds without terrain or walkability, is fogged; the flood
+treats it as blocked (fog hides mountain far more often than open ground). The edifice
+stuff is not in the mirror, so the waiting fight's plasteel-door hardening still reads
+the native census.
+
 Line of sight is computed in Go over the defense census (`policy/defense_sight.go`);
 the defense layout round makes no `observations_read_lines_of_fire` call. It is
 `GenSight.LineOfSight(start, end, map, skipFirstCell: true)`: the game's integer
@@ -761,7 +775,7 @@ it (`cover_thing_id`, `cover_def_name`, `cover_kind` plant/chunk/mineable/buildi
 state. `RaidArrivalState`, a map component, samples every hostile lord every 60 ticks:
 its first pawn position is the spawn (ground when within 14 cells of the map edge) and
 the pawn nearest the home area adds one trail cell per sample; a live lord's trail is
-never truncated, and a track not sampled for 60000 ticks (one game day) is evicted. The snapshot's `raids` rows carry those tracks; the controller
+never truncated, and a track not sampled for 60000 ticks (one game day) is evicted. The colony threat census's `raids` rows (`ThreatFacts.raids`) carry those tracks; the controller
 takes the first trail cell inside its census region as the crossing, and the policy
 snaps it to the nearest sector edge cell within eight cells. Drop pods and tunnellers
 are not ground arrivals.

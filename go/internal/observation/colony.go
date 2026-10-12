@@ -199,6 +199,9 @@ type ColonyProjection struct {
 	// fogged, cells outside it were never read.
 	Region policy.Rectangle
 	Cells  []policy.SiteCell
+	// Raids are the hostile lords the map has seen since load (the native
+	// RaidArrivalState tracks), the defense layout's arrivals.
+	Raids []bridge.RaidTrack
 	// Window is the window's provenance when a PlanningWindowSource served
 	// it (Source set); empty when the reply listed the cells itself.
 	Window facts.Held[PlanningCells]
@@ -519,6 +522,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.Facts.AnimalWard.Area = allowedAreaID(r.Policies, policy.HospitalAreaLabel)
 	r.Facts.IsolationArea = allowedAreaID(r.Policies, policy.IsolationAreaLabel)
 	r.Facts.RaidPoints = bridge.ProjectColonyThreat(v).RaidPoints
+	r.Raids = bridge.ProjectColonyThreat(v).Raids
 	r.Facts.Monolith = monolithFacts(r.Anomaly)
 	threat := bridge.ProjectColonyThreat(v)
 	items, itemsKnown := threat.WealthItems.Value()
