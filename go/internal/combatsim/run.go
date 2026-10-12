@@ -189,6 +189,9 @@ func RunFight(f Fight, seed uint64, tuning policy.CombatTuning) (FightResult, er
 		if f.Trace != nil {
 			f.Trace(events)
 		}
+		if ai != nil {
+			ai.Observe()
+		}
 		res.Winner, res.Resolved = sim.Resolved()
 		if res.Resolved || sim.tick >= f.MaxTicks {
 			break

@@ -40,7 +40,11 @@ type SimEnv struct {
 	FriendlyFireChanceFactor domain.Fact[float64]
 	// DeathOnDowned is the storyteller population intent and the difficulty's
 	// death-on-downed settings, which decide how often a downed raider dies.
-	DeathOnDowned       domain.Fact[simimport.DeathOnDowned]
+	DeathOnDowned domain.Fact[simimport.DeathOnDowned]
+	// AutoFleeFraction is the fraction of the raid downed or killed at which
+	// the lord panics (Lord.SetJob's Trigger_FractionPawnsLost): the game draws
+	// it from the faction's 0.4 to 0.7 seeded by the lord's load id.
+	AutoFleeFraction    domain.Fact[float64]
 	StepTicks, MaxTicks int
 }
 
@@ -122,7 +126,7 @@ func SimSpec(f Fixture, env SimEnv) (simimport.Spec, error) {
 		s.Pawns = append(s.Pawns, sp)
 	}
 	if hostiles > 0 {
-		s.Raid = &simimport.Raid{CanTimeoutOrFlee: true, Exit: raidExit(s)}
+		s.Raid = &simimport.Raid{CanTimeoutOrFlee: true, Exit: raidExit(s), AutoFleeFraction: env.AutoFleeFraction}
 	}
 	if l := f.Layout; l != nil {
 		layout := policy.CombatLayout{Toward: domain.Rotation(l.Toward)}

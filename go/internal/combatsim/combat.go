@@ -128,6 +128,9 @@ type combatant struct {
 	// and lastAttackTargetTick: the pawn index of the last shot's target and
 	// the tick it was fired.
 	lastAttacked, lastAttackTick int
+	// panic marks a raider the lord sent into PanicFlee (EnemyAI.Observe): it
+	// runs for the exit and is out of the fight, though still on the map.
+	panic bool
 	// left marks a pawn that left the map; it no longer has a combat role.
 	left bool
 }
@@ -419,7 +422,7 @@ func (s *Sim) Metrics(fixture string) combatmetrics.Metrics {
 		}
 		staged[string(p.id)] = p.side
 		start.Pawns = append(start.Pawns, combatmetrics.Pawn{ID: string(p.id)})
-		end.Pawns = append(end.Pawns, combatmetrics.Pawn{ID: string(p.id), Dead: p.dead, Downed: p.downed && !p.dead, Fleeing: p.left})
+		end.Pawns = append(end.Pawns, combatmetrics.Pawn{ID: string(p.id), Dead: p.dead, Downed: p.downed && !p.dead, Fleeing: p.left || p.panic})
 	}
 	return combatmetrics.Aggregate(fixture, staged, []combatmetrics.Read{start, end})
 }

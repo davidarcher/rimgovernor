@@ -118,6 +118,11 @@ type Raid struct {
 	// Exit is the cell fleeing raiders walk to and leave by. No catalog def or
 	// fixture holds it (the game picks a map-edge spot), so the caller states it.
 	Exit domain.Fact[domain.Cell]
+	// AutoFleeFraction is the lord's Trigger_FractionPawnsLost fraction
+	// (EnemyConfig.AutoFleeFraction): the game draws it from the faction's
+	// attackersDownPercentageRangeForAutoFlee seeded by the lord's load id, so
+	// the caller states it. Unknown: the raid never panics. Needs Exit.
+	AutoFleeFraction domain.Fact[float64]
 }
 
 // Trace records where one derived value came from.

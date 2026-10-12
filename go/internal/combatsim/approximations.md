@@ -212,6 +212,27 @@ transitions. Every draw comes from the enemy stream (E6 lists what is drawn).
   exists. `Trigger_TicksPassed` is tested with `>=`.
 - **E8. Unarmed hostiles and melee do nothing.** A hostile without a ranged
   weapon gets no orders from the AI.
+- **E9. The faction's panic-flee transition is ported; its fraction is stated.**
+  `Lord.SetJob` adds a `LordToil_PanicFlee` transition to every lord of a
+  non-player faction with `autoFlee` (the default), unless the lord job opts out
+  (`AddFleeToil`) or `neverFlee`: it fires on `Trigger_FractionPawnsLost`
+  when `numPawnsLostViolently >= numPawnsEverGained x fraction`, the fraction
+  drawn from `attackersDownPercentageRangeForAutoFlee` (0.4 to 0.7) seeded by
+  the lord's load id. `Lord.Notify_PawnLost` counts `Incapped` and `Killed`
+  (a downed raider that dies later left the lord already, so it counts once).
+  The lab stages the assault lord with `canTimeoutOrFlee: false`, which only
+  removes E7's two transitions; this one stays, and the real baselines show it
+  (lab-split-ranged: 3 raiders flee once 5 of 8 are lost; lab-ranged: the last
+  raider flees at the third loss, and its `Goto` to the map edge is in the shot
+  dataset). `EnemyConfig.AutoFleeFraction` states the fraction (unknown: no
+  panic; needs `Exit`); `EnemyAI.Observe` runs the trigger after each Step and
+  every raider still standing stops fighting and walks to `Exit` as in E7. The
+  runner stays on the map, so colonists can still down it, and it counts as
+  fled only if it leaves the map. The lab's value is 0.5625, the midpoint of
+  (0.5, 0.625] that both baselines bracket (`calibrationAutoFleeFraction`);
+  the lord load ids are in no committed file. Not modeled:
+  `MentalState_PanicFlee`'s own job choice (`JobGiver_ExitMapPanic` picks the
+  best exit, here the one stated `Exit`) and its run speed.
 
 ## Scenario importer (`simimport/`)
 

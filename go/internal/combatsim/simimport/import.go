@@ -81,7 +81,7 @@ func Import(cat *bridge.DefinitionCatalog, spec Spec) (Result, error) {
 // LordJob_AssaultColony.AssaultTimeBeforeGiveUp and the colony health total
 // from WealthWatcher.HealthTotal (A32).
 func (im *importer) raid(spec Spec) (combatsim.EnemyConfig, error) {
-	cfg := combatsim.EnemyConfig{CanTimeoutOrFlee: spec.Raid.CanTimeoutOrFlee, Exit: spec.Raid.Exit}
+	cfg := combatsim.EnemyConfig{CanTimeoutOrFlee: spec.Raid.CanTimeoutOrFlee, Exit: spec.Raid.Exit, AutoFleeFraction: spec.Raid.AutoFleeFraction}
 	if !cfg.CanTimeoutOrFlee {
 		return cfg, nil
 	}

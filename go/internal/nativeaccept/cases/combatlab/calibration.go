@@ -88,8 +88,20 @@ func CalibrationEnv() SimEnv {
 	env.FriendlyFireChanceFactor = domain.Known(0.4)
 	env.DeathOnDowned = domain.Known(simimport.DeathOnDowned{PopulationIntent: 0, EnemyDeathOnDownedChanceFactor: 1})
 	env.ColonistWorn = domain.Known([]simimport.Wear{})
+	env.AutoFleeFraction = domain.Known(calibrationAutoFleeFraction)
 	return env
 }
+
+// calibrationAutoFleeFraction is the lord's Trigger_FractionPawnsLost fraction
+// the real runs imply. The lab stages the assault lord with canTimeoutOrFlee
+// false, but Lord.SetJob still gives the faction's lord the panic-flee
+// transition (autoFlee, a fraction drawn from 0.4..0.7 by the lord's load id,
+// which no committed file holds). The baselines bracket it: lab-split-ranged
+// (8 raiders) shows exactly 3 fled after 4 dead and 1 down in every run that
+// reached the flight and never one with 4 lost, so 4 < 8f <= 5; lab-ranged
+// (4 raiders) flees at the third loss, so 2 < 4f <= 3. The midpoint of
+// (0.5, 0.625] stands in for both lords.
+const calibrationAutoFleeFraction = 0.5625
 
 // crewTraits are na.SuperTraits ("Def:degree,...") as importer traits.
 func crewTraits() []simimport.Trait {

@@ -425,6 +425,44 @@ func TestFleeTriggers(t *testing.T) {
 	}
 }
 
+// Lord.SetJob gives a faction lord with autoFlee a LordToil_PanicFlee
+// transition on Trigger_FractionPawnsLost: with four raiders and 0.5625 the
+// third incapped or killed raider (2.25 rounds up) sends the one left running
+// for the exit, and a downed raider that later dies is not lost twice.
+func TestAutoFleeOnFractionLost(t *testing.T) {
+	rows := emptyRows(60, 20, map[domain.Cell]byte{cell(10, 10): 'h', cell(10, 12): 'i', cell(10, 14): 'j', cell(10, 16): 'k', cell(30, 10): 'a'})
+	sc := raidScene(t, longRifle(), "a", rows...)
+	cfg := EnemyConfig{Exit: domain.Known(cell(55, 18)), AutoFleeFraction: domain.Known(0.5625)}
+	s, e := raidAI(t, sc, 3, cfg)
+	h, i, j, k := s.pawnIndex("h"), s.pawnIndex("i"), s.pawnIndex("j"), s.pawnIndex("k")
+	s.pawns[h].downed = true
+	e.Observe()
+	s.pawns[h].dead, s.pawns[i].downed = true, true // the first dies after going down
+	e.Observe()
+	if s.pawns[j].panic || s.pawns[k].panic {
+		t.Fatal("two of four lost is below 2.25")
+	}
+	s.pawns[j].dead = true
+	e.Observe()
+	if !s.pawns[k].panic || s.pawns[h].panic || s.pawns[i].panic || s.pawns[j].panic {
+		t.Fatal("the third loss panics exactly the raider still standing")
+	}
+	orders := e.Orders()
+	if o, ok := orderFor(orders, "k"); !ok || o.Kind != OrderMove || o.To != cell(55, 18) {
+		t.Fatalf("a panicked raider runs for the exit: %v", orders)
+	}
+	if _, resolved := s.Resolved(); resolved {
+		t.Fatal("a running raider is still on the map and in the fight")
+	}
+	// Without a stated fraction the lord never panics.
+	s, e = raidAI(t, sc, 3, EnemyConfig{})
+	s.pawns[s.pawnIndex("h")].dead, s.pawns[s.pawnIndex("i")].dead, s.pawns[s.pawnIndex("j")].dead = true, true, true
+	e.Observe()
+	if s.pawns[s.pawnIndex("k")].panic {
+		t.Fatal("an unknown fraction means no panic")
+	}
+}
+
 func TestFleeConfigIsValidated(t *testing.T) {
 	sc := raidScene(t, longRifle(), "a", emptyRows(20, 10, map[domain.Cell]byte{cell(5, 5): 'h', cell(9, 5): 'a'})...)
 	s := newSim(t, sc, 1)

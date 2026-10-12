@@ -59,6 +59,13 @@ type EnemyConfig struct {
 	// inclusive range the give-up time is drawn from; required with
 	// CanTimeoutOrFlee. The caller reads them from the game data.
 	GiveUpMinTicks, GiveUpMaxTicks int
+	// AutoFleeFraction is the raid lord's Trigger_FractionPawnsLost fraction
+	// (Lord.SetJob adds a LordToil_PanicFlee transition to every lord of a
+	// faction with autoFlee, drawn from attackersDownPercentageRangeForAutoFlee
+	// seeded by the lord's load id, so the caller states it): once the raiders
+	// downed or killed reach it times the raiders ever gained, every standing
+	// raider panics and runs for Exit. Unknown: the lord never panics. Needs Exit.
+	AutoFleeFraction domain.Fact[float64]
 }
 
 type jobKind uint8
@@ -96,6 +103,11 @@ type EnemyAI struct {
 	giveUpAt int
 	fraction float64
 	fleeing  bool
+	// autoFlee is the Trigger_FractionPawnsLost fraction (0: none) and gained
+	// the raiders in the lord when it began (Lord.numPawnsEverGained).
+	autoFlee float64
+	gained   int
+	panicked bool
 
 	seen    []bool
 	comp    []int32
@@ -112,12 +124,27 @@ func NewEnemyAI(sim *Sim, cfg EnemyConfig) (*EnemyAI, error) {
 	for i := range e.p {
 		e.p[i] = enemyPawn{enemy: -1, lastEngage: noTick, near: -1}
 	}
-	if !cfg.CanTimeoutOrFlee {
+	if frac, ok := cfg.AutoFleeFraction.Value(); ok {
+		if !(frac > 0 && frac <= 1) {
+			return nil, unsupported("the auto-flee fraction %v is outside (0, 1]", frac)
+		}
+		e.autoFlee = frac
+		for i := range sim.pawns {
+			if p := &sim.pawns[i]; p.has && p.side == combatmetrics.Hostile {
+				e.gained++
+			}
+		}
+	}
+	if !cfg.CanTimeoutOrFlee && e.gained == 0 {
 		return e, nil
 	}
 	exit, ok := cfg.Exit.Value()
 	if !ok || !sim.g.standable(exit) {
 		return nil, unsupported("a raid that can flee needs a standable exit cell")
+	}
+	e.exit = exit
+	if !cfg.CanTimeoutOrFlee {
+		return e, nil
 	}
 	health, ok := cfg.ColonyHealthTotal.Value()
 	if !ok || !(health > 0) {
@@ -126,7 +153,7 @@ func NewEnemyAI(sim *Sim, cfg EnemyConfig) (*EnemyAI, error) {
 	if cfg.GiveUpMinTicks <= 0 || cfg.GiveUpMaxTicks < cfg.GiveUpMinTicks {
 		return nil, unsupported("a raid that can flee needs its give-up time range")
 	}
-	e.exit, e.health = exit, health
+	e.health = health
 	// CreateGraph draws the give-up time, then the damage fraction.
 	e.giveUpAt = e.rangeIncl(cfg.GiveUpMinTicks, cfg.GiveUpMaxTicks)
 	e.fraction = fleeFractionMin + sim.streams.Enemy.Float64()*(fleeFractionMax-fleeFractionMin)
@@ -138,6 +165,34 @@ func (e *EnemyAI) rangeIncl(lo, hi int) int { return lo + e.sim.streams.Enemy.In
 
 // Fleeing reports whether the raid lord has moved to the exit toil.
 func (e *EnemyAI) Fleeing() bool { return e.fleeing }
+
+// Observe runs the lord's PawnLost trigger after a Step: when the raiders
+// incapped or killed (Lord.numPawnsLostViolently; a downed raider that later
+// dies counts once, it left the lord when it went down) reach AutoFleeFraction
+// of those ever gained, every raider still standing takes the panic toil
+// (LordToil_PanicFlee.Init: MentalState_PanicFlee, then ExitMapRandom) and
+// stops fighting. The game flags them fleeing from that tick.
+func (e *EnemyAI) Observe() {
+	if e.autoFlee == 0 || e.panicked {
+		return
+	}
+	s := e.sim
+	lost := 0
+	for i := range s.pawns {
+		if p := &s.pawns[i]; p.has && p.side == combatmetrics.Hostile && (p.downed || p.dead) {
+			lost++
+		}
+	}
+	if float64(lost) < float64(e.gained)*e.autoFlee {
+		return
+	}
+	e.panicked = true
+	for i := range s.pawns {
+		if p := &s.pawns[i]; p.has && p.side == combatmetrics.Hostile && !p.downed && !p.dead {
+			p.panic = true
+		}
+	}
+}
 
 // Orders returns the hostile pawns' orders for the coming Step.
 func (e *EnemyAI) Orders() []Order {
@@ -151,7 +206,7 @@ func (e *EnemyAI) Orders() []Order {
 		if !p.has || p.side != combatmetrics.Hostile || p.dead || p.downed || !p.armed {
 			continue
 		}
-		if e.fleeing {
+		if e.fleeing || p.panic {
 			out = e.flee(out, i)
 			continue
 		}
