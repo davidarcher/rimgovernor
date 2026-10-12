@@ -20,6 +20,7 @@ import (
 func statedEnv() SimEnv {
 	env := LabSimEnv()
 	env.FriendlyFireChanceFactor = domain.Known(0.4)
+	env.DeathOnDowned = domain.Known(simimport.DeathOnDowned{EnemyDeathOnDownedChanceFactor: 1})
 	env.ColonistWorn = domain.Known([]simimport.Wear{})
 	return env
 }
@@ -129,8 +130,9 @@ func TestLabSimImportFailsClosedOnWhatTheFixtureCannotState(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, env := range map[string]SimEnv{
-		"worn apparel unknown":     func() SimEnv { e := statedEnv(); e.ColonistWorn = domain.Fact[[]simimport.Wear]{}; return e }(),
-		"friendly fire not stated": func() SimEnv { e := statedEnv(); e.FriendlyFireChanceFactor = domain.Fact[float64]{}; return e }(),
+		"worn apparel unknown":       func() SimEnv { e := statedEnv(); e.ColonistWorn = domain.Fact[[]simimport.Wear]{}; return e }(),
+		"friendly fire not stated":   func() SimEnv { e := statedEnv(); e.FriendlyFireChanceFactor = domain.Fact[float64]{}; return e }(),
+		"death on downed not stated": func() SimEnv { e := statedEnv(); e.DeathOnDowned = domain.Fact[simimport.DeathOnDowned]{}; return e }(),
 	} {
 		spec, err := SimSpec(f, env)
 		if err != nil {

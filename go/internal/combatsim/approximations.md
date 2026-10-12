@@ -12,11 +12,14 @@ is a candidate to replace by a faithful port. Game sources are in
   damage and is downed at `DamageToDown`, dead at `DamageToKill` (both supplied
   per pawn by the caller, `DamageToKill >= DamageToDown`). The game downs and
   kills through body-part destruction, consciousness, moving and manipulation
-  capacities, pain and blood loss. No hediffs, no body parts.
+  capacities, pain and blood loss. No hediffs, no body parts. A hostile that
+  crosses `DamageToDown` also takes the death-on-downed roll (A33), which is
+  how raiders die in practice; `DamageToKill` is rarely reached.
 - **A2. No bleeding, pain, infection or recovery.** Damage never decays and
   nothing is tended; a downed pawn does not bleed out.
 - **A3. Damage is applied whole.** The game splits a hit across body parts and
-  scatters a share to neighbours; here the full post-armor amount counts once.
+  scatters a share to neighbours; here the full post-armor amount counts once,
+  plus the outer-part duplicates of A34.
 - **A4. A downed pawn stays where it fell** and is not carried, crawling or
   rescued. A dead pawn frees its cell; a downed one still occupies it.
 
@@ -215,6 +218,27 @@ DefinitionCatalog; every derived value is listed with its source in
   the def-level `MaxHitPoints` stat: stuff and damage are ignored). The exit is
   caller-stated; the lab states the map-edge cell nearest the raiders' centroid
   (the game picks its own exit spot).
+- **A33. Death on downed is ported, its inputs are caller-stated.**
+  `Pawn_HealthTracker.CheckForStateChange` rolls once when a non-colony,
+  non-prisoner pawn first becomes downable from violence: the pawn dies with
+  `HealthTuning.DeathOnDowned_NonColonyHumanlikeFromPopulationIntentCurve` (or
+  the wavering-prisoners curve) at `PopulationIntent`, times the difficulty
+  `enemyDeathOnDownedChanceFactor`. `Spec.DeathOnDowned` states the intent,
+  factor and unwavering flag; the lab states intent 0, factor 1, wavering (the
+  quiet storyteller at four colonists on day zero; 0.85, matching 56 of 67
+  raiders that crossed the pain-shock line dying in the real ledger). Kind
+  `forceDeathOnDowned` and `overrideDeathOnDownedChance` overrides, animals,
+  and the other death paths (vital part loss, brain hits, blood loss) are not
+  modeled; `DamageToKill` is therefore rarely reached.
+- **A34. Hit layers duplicate injuries to outer parts.** A bullet's
+  `harmAllLayersUntilOutside` (`DamageWorker_AddInjury.CheckDuplicateDamageToOuterParts`)
+  copies the injury onto every outer ancestor of an inside part it hits. The
+  importer weighs the body's parts by `coverageAbs` x hit chance factor and
+  gives each shot an extra-injury count drawn from that spread
+  (`CombatSpec.HitLayers`). Ignored: part health caps and destruction, overkill
+  redistribution, `ReduceDamageToPreserveOutsideParts`, per-part pain factors;
+  the shot's height and depth are not modeled (a bullet has none). Armor stays
+  part-agnostic (A5).
 
 ## Out of scope for this slice
 

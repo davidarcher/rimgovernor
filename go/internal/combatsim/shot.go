@@ -309,6 +309,9 @@ func (s *Sim) landProjectiles() {
 func (s *Sim) damage(si, vi int) {
 	a, v := &s.pawns[si], &s.pawns[vi]
 	dealt := s.afterArmor(float64(a.weapon.DamageAmount), a.weapon.ArmorPenetration, v.armor)
+	if dealt > 0 && len(v.layers) > 0 {
+		dealt *= float64(1 + s.hitCopies(v.layers))
+	}
 	v.damage += dealt
 	downed, dead := v.downed, v.dead
 	switch {
@@ -316,6 +319,11 @@ func (s *Sim) damage(si, vi int) {
 		downed, dead = true, true
 	case v.damage >= v.downAt:
 		downed = true
+		// Pawn_HealthTracker.CheckForStateChange: the hit that makes a
+		// non-player pawn downable rolls the death-on-downed chance (A33).
+		if !v.downed && s.chance(v.deathOnDown) {
+			dead = true
+		}
 	}
 	s.emit(Event{Kind: EventHit, Pawn: a.id, Target: v.id, Amount: dealt, Cell: v.pos})
 	s.ledger = append(s.ledger, combatmetrics.Hit{
@@ -334,6 +342,18 @@ func (s *Sim) damage(si, vi int) {
 		s.occ[s.g.idx(v.pos)] = 0
 		s.emit(Event{Kind: EventDied, Pawn: v.id, Target: a.id, Cell: v.pos})
 	}
+}
+
+// hitCopies draws where a hit lands (A34): the number of further injuries of
+// the same amount it adds.
+func (s *Sim) hitCopies(layers []HitLayer) int {
+	u := s.streams.Physical.Float64()
+	for _, l := range layers {
+		if u -= l.Chance; u < 0 {
+			return l.Copies
+		}
+	}
+	return layers[len(layers)-1].Copies
 }
 
 // afterArmor ports ArmorUtility.GetPostArmorDamage for a pawn without body

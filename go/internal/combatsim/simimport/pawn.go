@@ -115,6 +115,47 @@ func (im *importer) baselineAdult(r race, kind string, skills map[string]int32) 
 	return &stateval.StatContext{Pawn: p, Spawned: some(true), Roofed: some(false)}, nil
 }
 
+// deathOnDowned ports the chance Pawn_HealthTracker.CheckForStateChange rolls
+// when a non-player, non-prisoner humanlike becomes downable from violence: the
+// pawn kind's forceDeathOnDowned (always) or overrideDeathOnDownedChance, else
+// the HealthTuning population-intent curve (the wavering-prisoners one unless
+// the difficulty is unwavering) times the difficulty's
+// enemyDeathOnDownedChanceFactor. The returned string is the trace source.
+func (im *importer) deathOnDowned(spec Spec, kind string) (float64, string, error) {
+	kd := bridge.DefRow[*d.PawnKindDef](im.cat, kind)
+	if kd == nil {
+		return 0, "", unsupported("catalog has no pawn kind %q", kind)
+	}
+	if kd.GetForceDeathOnDowned() {
+		return 1, "PawnKindDef " + kind + " forceDeathOnDowned", nil
+	}
+	if kd.OverrideDeathOnDownedChance != nil {
+		return float64(kd.GetOverrideDeathOnDownedChance()), "PawnKindDef " + kind + " overrideDeathOnDownedChance", nil
+	}
+	in, ok := spec.DeathOnDowned.Value()
+	if !ok {
+		return 0, "", unsupported("death-on-downed inputs (population intent, difficulty) unknown")
+	}
+	if in.EnemyDeathOnDownedChanceFactor < 0 {
+		return 0, "", unsupported("enemyDeathOnDownedChanceFactor %v is negative", in.EnemyDeathOnDownedChanceFactor)
+	}
+	constants, err := im.cat.GameConstants()
+	if err != nil {
+		return 0, "", unsupported("game constants: %v", err)
+	}
+	tuning := constants.GetHealthTuning()
+	curve, name := tuning.GetDeathOnDownedChance_NonColonyHumanlikeFromPopulationIntentCurve_WaveringPrisoners(), "..._WaveringPrisoners"
+	if in.UnwaveringPrisoners {
+		curve, name = tuning.GetDeathOnDownedChance_NonColonyHumanlikeFromPopulationIntentCurve(), ""
+	}
+	v, err := stateval.EvaluateCurve(curve, float32(in.PopulationIntent))
+	if err != nil {
+		return 0, "", unsupported("HealthTuning death-on-downed curve: %v", err)
+	}
+	chance := min(float64(v)*in.EnemyDeathOnDownedChanceFactor, 1)
+	return chance, "HealthTuning.DeathOnDownedChance_NonColonyHumanlikeFromPopulationIntentCurve" + name + " at population intent * difficulty enemyDeathOnDownedChanceFactor", nil
+}
+
 // pawn derives one combatant and the view facts about it.
 func (im *importer) pawn(spec Spec, p Pawn, w weapon) (combatsim.PawnSpec, combatsim.PawnFacts, error) {
 	id := string(p.ID)
@@ -169,6 +210,22 @@ func (im *importer) pawn(spec Spec, p Pawn, w weapon) (combatsim.PawnSpec, comba
 		// damage threshold is HealthTuning.BaseTotalDamageLethalThreshold*HealthScale.
 		DamageToDown: domain.Known(shock * r.healthSize / im.dmg.painPerSeverity),
 		DamageToKill: domain.Known(float64(constants.GetHealthTuning().GetBaseTotalDamageLethalThreshold()) * r.healthSize),
+	}
+	hits, err := im.hitLayers(r.def.GetRace().GetBody())
+	if err != nil {
+		return ps, pf, err
+	}
+	cs.HitLayers = hits
+	im.trace(id, "HitLayers", "BodyDef "+r.def.GetRace().GetBody()+" part coverage, BodyPartDef hitChanceFactors and depth, DamageDef "+im.dmg.def+" harmAllLayersUntilOutside")
+	if p.Side == combatmetrics.Hostile {
+		chance, source, err := im.deathOnDowned(spec, p.Kind)
+		if err != nil {
+			return ps, pf, err
+		}
+		cs.DeathOnDownedChance = chance
+		im.trace(id, "DeathOnDownedChance", source)
+	} else {
+		im.trace(id, "DeathOnDownedChance", "Pawn_HealthTracker.CheckForStateChange: a player-faction pawn is never rolled")
 	}
 	im.trace(id, "BodySize", "race "+r.name+" baseBodySize * LifeStageDef "+r.lifeStage+" bodySizeFactor")
 	im.trace(id, "CanBenefitFromCover", "ThingDef "+r.name+" category")

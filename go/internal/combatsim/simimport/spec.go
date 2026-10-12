@@ -33,14 +33,31 @@ type Spec struct {
 	// FriendlyFireChanceFactor is the difficulty's friendlyFireChanceFactor,
 	// which no catalog def holds. Unknown fails the import.
 	FriendlyFireChanceFactor domain.Fact[float64]
-	Things                   []Thing
-	Pawns                    []Pawn
+	// DeathOnDowned states what the death-on-downed chance of a hostile
+	// depends on besides the catalog (A33). Unknown fails the import of a Spec
+	// with a hostile.
+	DeathOnDowned domain.Fact[DeathOnDowned]
+	Things        []Thing
+	Pawns         []Pawn
 	// Layout is the stored defense layout the policy reads, unknown without one.
 	Layout domain.Fact[policy.CombatLayout]
 	// Raid is the hostiles' lord; nil leaves Fight.EnemyAI unset.
 	Raid *Raid
 	// StepTicks is the game ticks per Step; MaxTicks ends an unresolved fight.
 	StepTicks, MaxTicks int
+}
+
+// DeathOnDowned is the live state Pawn_HealthTracker.CheckForStateChange reads
+// for a non-colony humanlike: the storyteller's population intent and two
+// difficulty settings. No catalog def holds them.
+type DeathOnDowned struct {
+	// PopulationIntent is StorytellerUtilityPopulation.PopulationIntent.
+	PopulationIntent float64
+	// EnemyDeathOnDownedChanceFactor is the difficulty's setting.
+	EnemyDeathOnDownedChanceFactor float64
+	// UnwaveringPrisoners is the difficulty's setting; false selects the
+	// WaveringPrisoners curve.
+	UnwaveringPrisoners bool
 }
 
 // Thing is one structure or item standing on a cell. Stuff does not change

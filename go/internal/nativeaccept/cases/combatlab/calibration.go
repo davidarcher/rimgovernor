@@ -59,13 +59,21 @@ func Variants() []Variant {
 // real-game sweep files `<fixture>/<variant>.json` of the non-default variants.
 const CalibrationDir = "internal/nativeaccept/cases/combatlab/calibration"
 
-// CalibrationEnv is the SimEnv the gate imports under: the lab's, with the two
+// CalibrationEnv is the SimEnv the gate imports under: the lab's, with the
 // facts it cannot read stated. They are assumptions, listed in the report's
-// caveats, not readings: colonists in no armor-rated apparel, and the
-// difficulty's friendly fire factor.
+// caveats, not readings: colonists in no armor-rated apparel, the difficulty's
+// friendly fire factor, and the death-on-downed inputs. The lab runs the
+// RimGovernorQuiet storyteller (BaseStoryteller curves) on a fresh Custom
+// difficulty: four colonists put populationIntentFactorFromPopCurve at 1, and
+// the population adaptation is 0 days (reset when the colonists arrive), where
+// populationIntentFactorFromPopAdaptDaysCurve is 0, so the intent is 0;
+// enemyDeathOnDownedChanceFactor is 1 on every difficulty from Medium up and
+// unwaveringPrisoners is off. The 0.85 this gives agrees with the real
+// ledger: 56 of 67 raiders that crossed the pain-shock total died there.
 func CalibrationEnv() SimEnv {
 	env := LabSimEnv()
 	env.FriendlyFireChanceFactor = domain.Known(0.4)
+	env.DeathOnDowned = domain.Known(simimport.DeathOnDowned{PopulationIntent: 0, EnemyDeathOnDownedChanceFactor: 1})
 	env.ColonistWorn = domain.Known([]simimport.Wear{})
 	return env
 }

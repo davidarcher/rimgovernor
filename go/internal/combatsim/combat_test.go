@@ -398,6 +398,115 @@ func TestInjuryThresholds(t *testing.T) {
 	}
 }
 
+// downTarget fights a shooter a (immortal) against an unarmed b whose kill
+// threshold is out of reach, so b can only die by the death-on-downed roll.
+func downTarget(t *testing.T, chance float64, layers []HitLayer, seed uint64) (st State, ev []Event) {
+	t.Helper()
+	sc := duel(t, rapid(), func(id domain.PawnID, c *CombatSpec) {
+		if id == "a" {
+			immortal(id, c)
+			return
+		}
+		c.Weapon = nil
+		c.DamageToKill = domain.Known(1e9)
+		c.DeathOnDownedChance = chance
+		c.HitLayers = layers
+	}, "a.b")
+	return runUntil(t, newSim(t, sc, seed), []Order{attack("a", "b")}, 400, nil)
+}
+
+func TestDeathOnDownedRollsOnceAtTheDowningHit(t *testing.T) {
+	// 10 damage per hit, down at 25 (the third hit). Chance 1 kills on that
+	// hit: the pawn is downed and dead together, with no further hit needed.
+	st, ev := downTarget(t, 1, nil, 31)
+	total, diedAt := 0.0, 0.0
+	for _, e := range ev {
+		switch e.Kind {
+		case EventHit:
+			total += e.Amount
+		case EventDied:
+			diedAt = total
+		}
+	}
+	if !st.Pawns[1].Dead || diedAt != 30 {
+		t.Errorf("chance 1: dead %v at %v damage, want dead at 30 (the downing hit)", st.Pawns[1].Dead, diedAt)
+	}
+	// Chance 0 never kills, however many shots land on the downed pawn.
+	if st, _ = downTarget(t, 0, nil, 31); st.Pawns[1].Dead || !st.Pawns[1].Downed {
+		t.Errorf("chance 0: %+v, want downed and alive", st.Pawns[1])
+	}
+	// Chance p kills p of the pawns, and the shots that keep landing on one
+	// that survived the roll do not roll again (they would push it towards 1).
+	const n, p = 300, 0.3
+	dead := 0
+	for seed := uint64(0); seed < n; seed++ {
+		if st, _ = downTarget(t, p, nil, 1000+seed); st.Pawns[1].Dead {
+			dead++
+		}
+	}
+	within(t, "death on downed", dead, n, p)
+}
+
+func TestColonistIsNeverRolledForDeathOnDowned(t *testing.T) {
+	// The default chance is 0: the pawn the caller leaves unset is only downed.
+	sc := duel(t, rapid(), func(id domain.PawnID, c *CombatSpec) {
+		if id == "b" {
+			immortal(id, c)
+			return
+		}
+		c.Weapon = nil
+		c.DamageToKill = domain.Known(1e9)
+	}, "a.b")
+	sc.Pawns[0].Combat.DeathOnDownedChance = 0
+	st, _ := runUntil(t, newSim(t, sc, 32), []Order{attack("b", "a")}, 400, nil)
+	if st.Pawns[0].Dead || !st.Pawns[0].Downed {
+		t.Errorf("a = %+v, want downed and alive", st.Pawns[0])
+	}
+}
+
+func TestHitLayersAddInjuriesBesideTheHitPart(t *testing.T) {
+	// Every hit adds one more injury of the same amount: 20 per hit, so the
+	// second hit (40 >= 25) downs where three single hits were needed.
+	_, ev := downTarget(t, 0, []HitLayer{{Copies: 1, Chance: 1}}, 33)
+	downedAfter, hits := 0, 0
+	for _, e := range ev {
+		switch e.Kind {
+		case EventHit:
+			hits++
+			if e.Amount != 20 {
+				t.Errorf("hit of %v, want 20", e.Amount)
+			}
+		case EventDowned:
+			downedAfter = hits
+		}
+	}
+	if downedAfter != 2 {
+		t.Errorf("downed after %d hits, want 2", downedAfter)
+	}
+	// A split layer draws the count per hit.
+	const n = 4000
+	_, ev = downTarget(t, 0, []HitLayer{{Copies: 0, Chance: 0.6}, {Copies: 2, Chance: 0.4}}, 34)
+	for seed := uint64(35); len(ev) < n && seed < 200; seed++ {
+		_, more := downTarget(t, 0, []HitLayer{{Copies: 0, Chance: 0.6}, {Copies: 2, Chance: 0.4}}, seed)
+		ev = append(ev, more...)
+	}
+	hits, triple := 0, 0
+	for _, e := range ev {
+		if e.Kind != EventHit {
+			continue
+		}
+		hits++
+		switch e.Amount {
+		case 30:
+			triple++
+		case 10:
+		default:
+			t.Fatalf("hit of %v, want 10 or 30", e.Amount)
+		}
+	}
+	within(t, "two further injuries", triple, hits, 0.4)
+}
+
 func TestDeadPawnFreesItsCell(t *testing.T) {
 	w := rapid()
 	w.DamageAmount = 50
@@ -597,6 +706,10 @@ func TestUnsupportedCombatScenarios(t *testing.T) {
 		"unknown aiming delay":       func(sc *Scenario) { sc.Pawns[0].Combat.Shooter.AimingDelayFactor = domain.Unknown[float64]() },
 		"unknown down threshold":     func(sc *Scenario) { sc.Pawns[0].Combat.DamageToDown = domain.Unknown[float64]() },
 		"kill below down":            func(sc *Scenario) { sc.Pawns[0].Combat.DamageToKill = domain.Known(1.0) },
+		"death chance above one":     func(sc *Scenario) { sc.Pawns[0].Combat.DeathOnDownedChance = 1.5 },
+		"negative death chance":      func(sc *Scenario) { sc.Pawns[0].Combat.DeathOnDownedChance = -0.1 },
+		"hit layers not summing":     func(sc *Scenario) { sc.Pawns[0].Combat.HitLayers = []HitLayer{{Copies: 1, Chance: 0.5}} },
+		"negative hit layer copies":  func(sc *Scenario) { sc.Pawns[0].Combat.HitLayers = []HitLayer{{Copies: -1, Chance: 1}} },
 		"weapon with no projectile":  func(sc *Scenario) { sc.Pawns[0].Combat.Weapon.ProjectileSpeed = 0 },
 		"weapon with no damage":      func(sc *Scenario) { sc.Pawns[0].Combat.Weapon.DamageAmount = 0 },
 		"weapon with forced miss":    func(sc *Scenario) { sc.Pawns[0].Combat.Weapon.ForcedMissRadius = 9 },

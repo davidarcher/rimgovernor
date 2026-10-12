@@ -34,6 +34,8 @@ type damage struct {
 	// armor rates.
 	armorStat       string
 	painPerSeverity float64
+	// harmAllLayers is the damage def's harmAllLayersUntilOutside.
+	harmAllLayers bool
 }
 
 // weapon is one pawn's weapon resolved.
@@ -214,7 +216,7 @@ func (im *importer) settleDamage(name string, dd *d.DamageDef) error {
 	if !(pain > 0) {
 		return unsupported("hediff %q causes no pain per severity", dd.GetHediff())
 	}
-	im.dmg = &damage{def: name, armorCategory: dd.GetArmorCategory(), hediff: dd.GetHediff(), painPerSeverity: pain}
+	im.dmg = &damage{def: name, armorCategory: dd.GetArmorCategory(), hediff: dd.GetHediff(), painPerSeverity: pain, harmAllLayers: dd.GetHarmAllLayersUntilOutside()}
 	if dd.GetArmorCategory() != "" {
 		cat := bridge.DefRow[*d.DamageArmorCategoryDef](im.cat, dd.GetArmorCategory())
 		if cat == nil || cat.GetArmorRatingStat() == "" {

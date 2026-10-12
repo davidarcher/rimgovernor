@@ -35,7 +35,10 @@ type SimEnv struct {
 	HostileLordJob, HostileLordToil domain.Fact[string]
 	// FriendlyFireChanceFactor is the difficulty's setting.
 	FriendlyFireChanceFactor domain.Fact[float64]
-	StepTicks, MaxTicks      int
+	// DeathOnDowned is the storyteller population intent and the difficulty's
+	// death-on-downed settings, which decide how often a downed raider dies.
+	DeathOnDowned       domain.Fact[simimport.DeathOnDowned]
+	StepTicks, MaxTicks int
 }
 
 // Skill levels the lab staging sets, mirrored from
@@ -81,7 +84,7 @@ func SimSpec(f Fixture, env SimEnv) (simimport.Spec, error) {
 	}
 	s := simimport.Spec{
 		Name: f.Name, Width: env.MapSize, Height: env.MapSize, Terrain: env.Terrain, Weather: env.Weather,
-		FriendlyFireChanceFactor: env.FriendlyFireChanceFactor, StepTicks: env.StepTicks, MaxTicks: env.MaxTicks,
+		FriendlyFireChanceFactor: env.FriendlyFireChanceFactor, DeathOnDowned: env.DeathOnDowned, StepTicks: env.StepTicks, MaxTicks: env.MaxTicks,
 	}
 	for _, t := range f.Things {
 		if t.Hostile || t.HitPoints != 0 {

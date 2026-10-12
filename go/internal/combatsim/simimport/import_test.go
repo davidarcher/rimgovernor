@@ -28,6 +28,7 @@ func duelSpec() Spec {
 	s := Spec{
 		Name: "duel", Width: 40, Height: 14, Terrain: "Soil", Weather: "Clear",
 		FriendlyFireChanceFactor: domain.Known(0.4), StepTicks: 6, MaxTicks: 6000,
+		DeathOnDowned: domain.Known(DeathOnDowned{EnemyDeathOnDownedChanceFactor: 1}),
 	}
 	for x := int32(5); x <= 9; x++ {
 		s.Things = append(s.Things, Thing{Def: "Sandbags", Cell: cell(x, 6)})
@@ -188,6 +189,10 @@ func TestImportFailsClosed(t *testing.T) {
 		{"two things on a cell", func(s *Spec) { s.Things = append(s.Things, Thing{Def: "Wall", Cell: s.Things[0].Cell}) }},
 		{"thing off the map", func(s *Spec) { s.Things[0].Cell = cell(99, 99) }},
 		{"unknown friendly fire factor", func(s *Spec) { s.FriendlyFireChanceFactor = domain.Fact[float64]{} }},
+		{"unknown death on downed inputs", func(s *Spec) { s.DeathOnDowned = domain.Fact[DeathOnDowned]{} }},
+		{"negative death on downed factor", func(s *Spec) {
+			s.DeathOnDowned = domain.Known(DeathOnDowned{EnemyDeathOnDownedChanceFactor: -1})
+		}},
 		{"unknown kind", func(s *Spec) { s.Pawns[0].Kind = "NoSuchKind" }},
 		{"animal kind", func(s *Spec) { s.Pawns[0].Kind = "Muffalo" }},
 		{"unknown weapon", func(s *Spec) { s.Pawns[0].Weapon = "NoSuchGun" }},
@@ -215,6 +220,76 @@ func TestImportFailsClosed(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestImportDerivesDeathOnDownedFromTheCatalogCurve checks the chance
+// Pawn_HealthTracker.CheckForStateChange rolls for a downed non-colony
+// humanlike against the points of the game's own curves (HealthTuning: the
+// wavering-prisoners curve is 0.85 at intent 0 and 0.62 at intent 1; the other
+// is 0.8 and 0.5657), scaled by the difficulty factor. A colonist is never
+// rolled.
+func TestImportDerivesDeathOnDownedFromTheCatalogCurve(t *testing.T) {
+	cat := recordedcatalog.Catalog(t)
+	for _, tc := range []struct {
+		name string
+		in   DeathOnDowned
+		want float64
+	}{
+		{"intent 0, wavering", DeathOnDowned{PopulationIntent: 0, EnemyDeathOnDownedChanceFactor: 1}, 0.85},
+		{"intent 1, wavering", DeathOnDowned{PopulationIntent: 1, EnemyDeathOnDownedChanceFactor: 1}, 0.62},
+		{"intent 0, unwavering", DeathOnDowned{PopulationIntent: 0, EnemyDeathOnDownedChanceFactor: 1, UnwaveringPrisoners: true}, 0.8},
+		{"intent 1, unwavering", DeathOnDowned{PopulationIntent: 1, EnemyDeathOnDownedChanceFactor: 1, UnwaveringPrisoners: true}, 0.5657},
+		{"between points", DeathOnDowned{PopulationIntent: 0.5, EnemyDeathOnDownedChanceFactor: 1}, 0.735},
+		{"easy difficulty", DeathOnDowned{PopulationIntent: 0, EnemyDeathOnDownedChanceFactor: 0.5}, 0.425},
+		{"factor past one is capped", DeathOnDowned{PopulationIntent: 0, EnemyDeathOnDownedChanceFactor: 2}, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := duelSpec()
+			s.DeathOnDowned = domain.Known(tc.in)
+			res, err := Import(cat, s)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, p := range res.Fight.Scenario.Pawns {
+				want := tc.want
+				if p.Side == combatmetrics.Colonist {
+					want = 0
+				}
+				if got := p.Combat.DeathOnDownedChance; math.Abs(got-want) > 1e-6 {
+					t.Errorf("%s (%s) death on downed = %v, want %v", p.ID, p.Side, got, want)
+				}
+			}
+			traced(t, res, "h0", "DeathOnDownedChance")
+		})
+	}
+}
+
+// TestImportDerivesHitLayersFromTheBody checks the human body's hit spread:
+// the chances sum to one, most bullets land on an outside part (no extra
+// injury), and a hit on an inside part adds one injury per outside layer.
+func TestImportDerivesHitLayersFromTheBody(t *testing.T) {
+	res, err := Import(recordedcatalog.Catalog(t), duelSpec())
+	if err != nil {
+		t.Fatal(err)
+	}
+	layers := res.Fight.Scenario.Pawns[0].Combat.HitLayers
+	sum, mean, inside := 0.0, 0.0, 0.0
+	for _, l := range layers {
+		sum += l.Chance
+		mean += l.Chance * float64(1+l.Copies)
+		if l.Copies > 0 {
+			inside += l.Chance
+		}
+	}
+	if len(layers) < 2 || layers[0].Copies != 0 || math.Abs(sum-1) > 1e-9 {
+		t.Fatalf("layers = %+v", layers)
+	}
+	// The real lab ledger shows a doubled hit (22 for a rifle's 11) on about
+	// 40% of hits: inside parts' share of the body's hit weight.
+	if inside < 0.3 || inside > 0.5 || mean < 1.3 || mean > 1.6 {
+		t.Errorf("inside-part share %.3f, mean injuries per hit %.3f: want about 0.4 and 1.4", inside, mean)
+	}
+	traced(t, res, "h0", "HitLayers")
 }
 
 func TestImportLeavesMeleeUnmodeledNotGuessed(t *testing.T) {
