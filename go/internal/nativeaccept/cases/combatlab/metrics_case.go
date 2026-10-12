@@ -32,9 +32,15 @@ const (
 	// stopped: the state refresh lag plus the reattach.
 	metricsStopMargin = 2500
 	// metricsIdle is how long a still served clock means the run is over. A
-	// cold service on a loaded box spends 20 s or more on its first frame
-	// capture and definition catalog read before its first round (#2843), so
-	// 20 s ended runs at tick 0 with no orders.
+	// cold service spends its first seconds in native calls that the clock
+	// waits behind (#2901): on a quiet box a lab-ranged seed's first
+	// observations_open_snapshot_stream (the first full frame capture and
+	// definition catalog read) took 11.9 s and the first scheduler.step 12.3 s,
+	// with lifecycle_read_tick calls of 3-8 s around them, so the clock admits
+	// no window for 13-20 s. A loaded box (peer RimWorld processes) stretches
+	// that, and 20 s ended runs at tick 0-9 with no orders (#2843). 90 s is
+	// about four times the quiet-box first round; the cost is native-side
+	// (the game thread captures the frame), so it is bounded here, not fixed.
 	metricsIdle = 90 * time.Second
 	// pauseModeTool sets Prefs.AutomaticPauseMode (scripts/fixtures/LetterFixture.cs).
 	pauseModeTool = "test/letter_pause_mode"

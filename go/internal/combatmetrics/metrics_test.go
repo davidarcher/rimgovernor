@@ -19,6 +19,21 @@ func TestAggregateResolvesOnDecisiveHit(t *testing.T) {
 	}
 }
 
+// The native read omits a dead hostile; its dead:true ledger hit makes it a
+// death, while a hostile absent without one is still fled.
+func TestAggregateLedgerDeadHostileIsNotFled(t *testing.T) {
+	staged := map[string]string{"c": Colonist, "dead": Hostile, "gone": Hostile}
+	m := Aggregate("x", staged, []Read{
+		{Tick: 100, Pawns: []Pawn{{ID: "c"}, {ID: "dead"}, {ID: "gone"}}},
+		{Tick: 600, Pawns: []Pawn{{ID: "c"}}, Damage: []Hit{
+			{Tick: 450, Victim: "dead", VictimSide: Hostile, InstigatorSide: Colonist, Dealt: 9, Dead: true},
+		}},
+	})
+	if m.EnemyDeaths != 1 || m.EnemyFled != 1 || m.Winner != Colonist {
+		t.Fatalf("%+v", m)
+	}
+}
+
 func TestAggregateNoReads(t *testing.T) {
 	if m := Aggregate("x", nil, nil); m != New("x") {
 		t.Fatalf("%+v", m)

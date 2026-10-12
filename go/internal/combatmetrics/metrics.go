@@ -116,6 +116,14 @@ func Aggregate(fixture string, staged map[string]string, reads []Read) Metrics {
 	}
 	last := reads[len(reads)-1]
 	final := index(last.Pawns)
+	// The native read omits a dead hostile from the pawns, so the ledger is
+	// the only record of its death.
+	killed := map[string]bool{}
+	for _, h := range last.Damage {
+		if h.Dead {
+			killed[h.Victim] = true
+		}
+	}
 	for id, side := range staged {
 		row, present := final[id]
 		switch {
@@ -123,7 +131,7 @@ func Aggregate(fixture string, staged map[string]string, reads []Read) Metrics {
 			m.ColonistDeaths++
 		case side == Colonist && row.Downed:
 			m.ColonistDowns++
-		case side == Hostile && row.Dead:
+		case side == Hostile && (row.Dead || killed[id]):
 			m.EnemyDeaths++
 		case side == Hostile && row.Downed:
 			m.EnemyDowns++
