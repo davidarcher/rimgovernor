@@ -527,8 +527,8 @@ func sameCells(a, b []domain.Cell) bool {
 // route with native previews instead of treating occupied cells as free floor.
 func (r *RoundsBuildingPlanner) previewPowerRoute(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
-	if r.power == nil || r.power.Method != policy.PowerConnect || len(r.power.Cells) < 1 || len(r.power.Cells) > 8 {
-		return nil, stock, Verdict{}, fmt.Errorf("%w: previewPowerRoute: r.power == nil || r.power.Method != policy.PowerConnect || len(r.power.Cells) < 1 || len(r.power.Cells) > 8", ErrControl)
+	if r.power == nil || r.power.Method != policy.PowerConnect || len(r.power.Cells) < 1 {
+		return nil, stock, Verdict{}, fmt.Errorf("%w: previewPowerRoute: r.power == nil || r.power.Method != policy.PowerConnect || len(r.power.Cells) < 1", ErrControl)
 	}
 	blocked := map[domain.Cell]bool{}
 	for _, c := range protected {

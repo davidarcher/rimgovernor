@@ -55,10 +55,11 @@ check on the model: a consumer that actually loses power is a deficit whatever t
 ## Methods
 
 - **`connect` (`HiddenConduit`):** when the consumer's network has no producer but the colony has one,
-  one bounded route (eight cells per method) from the consumer toward the nearest enabled producer,
-  over cells the site census reports buildable and outside protected geometry; successive methods
-  extend the route. Blocked routes report `no_observed_route`. Ordinary conduits are also replaced in
-  bounded methods because roofs do not prevent their random short-circuit event.
+  the whole route from the consumer toward the nearest enabled producer as one proposal, over cells
+  the site census reports buildable and outside protected geometry. There is no cell cap: each cell
+  is its own native preview call, so no wire frame or shm slot bounds the route. Blocked routes
+  report `no_observed_route`. Ordinary conduits are also replaced in one method because roofs do not
+  prevent their random short-circuit event.
 - **`generate`:**
   - `GeothermalGenerator` first whenever the definition is natively available and the development
     census lists a free steam geyser (`DevelopmentFacts.geysers`: `Building_SteamGeyser` cells,

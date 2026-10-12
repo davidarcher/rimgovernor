@@ -84,13 +84,16 @@ func TestPowerRouteExtendsFromProducerAndSkipsNativeFootprints(t *testing.T) {
 		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, Terrain: domain.Known("Soil"), Things: OccupantThings(true)})
 	}
 	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, testPowerPlanning())
-	want := []domain.Cell{{X: 11, Z: 2}, {X: 10, Z: 2}, {X: 9, Z: 2}, {X: 8, Z: 2}, {X: 7, Z: 2}, {X: 6, Z: 2}, {X: 5, Z: 2}, {X: 4, Z: 2}}
+	var want []domain.Cell
+	for x := int32(11); x >= 1; x-- {
+		want = append(want, domain.Cell{X: x, Z: 2})
+	}
 	if err != nil || p.Method != PowerConnect || !reflect.DeepEqual(p.Cells, want) {
 		t.Fatal(p, err)
 	}
 	v.Conduits = append(v.Conduits, p.Cells...)
 	next, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, testPowerPlanning())
-	if err != nil || next.Method != PowerConnect || next.Key == p.Key || !reflect.DeepEqual(next.Cells, []domain.Cell{{X: 3, Z: 2}, {X: 2, Z: 2}, {X: 1, Z: 2}}) {
+	if err != nil || next.Method == PowerConnect {
 		t.Fatal(next, err)
 	}
 	blocked, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, []domain.Cell{{X: 6, Z: 2}}, testPowerPlanning())
@@ -101,6 +104,20 @@ func TestPowerRouteExtendsFromProducerAndSkipsNativeFootprints(t *testing.T) {
 	blocked, err = SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, testPowerPlanning())
 	if err != nil || blocked.Method != PowerRouteBlocked {
 		t.Fatal(blocked, err)
+	}
+}
+
+// One proposal carries the whole route: a 30-cell run is not cut into bounded
+// methods.
+func TestPowerRouteIsOneProposalForALongRun(t *testing.T) {
+	v := PowerTopology{Buildings: []PowerSite{powerSite("lamp", 1, -200, 0, ""), powerSite("generator", 34, 1000, 1000, "b")}, Blackout: domain.Known(false)}
+	var cells []SiteCell
+	for x := int32(1); x <= 34; x++ {
+		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, Terrain: domain.Known("Soil"), Things: OccupantThings(true)})
+	}
+	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 40, Height: 20}, cells, nil, testPowerPlanning())
+	if err != nil || p.Method != PowerConnect || len(p.Cells) < 30 {
+		t.Fatal(len(p.Cells), p, err)
 	}
 }
 

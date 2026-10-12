@@ -457,7 +457,6 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 		}
 		upgrade := append([]domain.Cell(nil), v.UnsafeConduits...)
 		sort.Slice(upgrade, func(i, j int) bool { return cellLess(upgrade[i], upgrade[j]) })
-		upgrade = upgrade[:min(len(upgrade), 8)]
 		return PowerProposal{Method: PowerConnect, Cells: upgrade, Key: powerMethodKey("upgrade", fmt.Sprint(upgrade))}, nil
 	}
 	var producers []PowerSite
@@ -601,9 +600,6 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 				if !existing[c] {
 					p.Cells = append(p.Cells, c)
 				}
-				if len(p.Cells) == 8 {
-					break
-				}
 			}
 			if len(p.Cells) == 0 {
 				p.Method = PowerWaitOutput
@@ -662,9 +658,7 @@ func connectLiveBeforeUpgrade(v PowerTopology, existing, unsafe, route map[domai
 				}
 				continue
 			}
-			if len(cells) < 8 {
-				cells = append(cells, c)
-			}
+			cells = append(cells, c)
 		}
 		if !safe || len(cells) == 0 {
 			continue
