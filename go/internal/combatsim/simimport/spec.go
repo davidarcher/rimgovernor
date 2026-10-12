@@ -128,6 +128,9 @@ type Raid struct {
 	// attackersDownPercentageRangeForAutoFlee seeded by the lord's load id, so
 	// the caller states it. Unknown: the raid never panics. Needs Exit.
 	AutoFleeFraction domain.Fact[float64]
+	// FirstTargets is each raider's staged target in a resumed checkpoint
+	// (EnemyConfig.FirstTargets, A44); empty: every raider draws.
+	FirstTargets map[domain.PawnID]domain.PawnID
 }
 
 // Trace records where one derived value came from.

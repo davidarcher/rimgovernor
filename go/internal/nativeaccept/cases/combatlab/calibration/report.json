@@ -1,7 +1,7 @@
 {
   "Stamp": {
     "assemblyHash": "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A",
-    "rulesVersion": 17,
+    "rulesVersion": 18,
     "thresholdsVersion": 1,
     "sweepVersion": 2
   },
@@ -53,55 +53,55 @@
         {
           "Variant": "default",
           "RealDeaths": 0,
-          "SimDeaths": 0.35,
+          "SimDeaths": 0.45,
           "RealDowns": 2.95,
-          "SimDowns": 2.55,
+          "SimDowns": 2.8,
           "RealDamage": 262.3,
-          "SimDamage": 247.65,
-          "RealDeathSeeds": 0,
-          "SimDeathSeeds": 5
-        },
-        {
-          "Variant": "scatter-short",
-          "RealDeaths": 0,
-          "SimDeaths": 0.25,
-          "RealDowns": 2.25,
-          "SimDowns": 2.7,
-          "RealDamage": 234.1,
-          "SimDamage": 253.7,
-          "RealDeathSeeds": 0,
-          "SimDeathSeeds": 5
-        },
-        {
-          "Variant": "scatter-long",
-          "RealDeaths": 0,
-          "SimDeaths": 0.4,
-          "RealDowns": 2.75,
-          "SimDowns": 2.55,
-          "RealDamage": 255.85,
-          "SimDamage": 247.5,
+          "SimDamage": 262.55,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 8
         },
         {
+          "Variant": "scatter-short",
+          "RealDeaths": 0,
+          "SimDeaths": 0.35,
+          "RealDowns": 2.25,
+          "SimDowns": 2.65,
+          "RealDamage": 234.1,
+          "SimDamage": 252.4,
+          "RealDeathSeeds": 0,
+          "SimDeathSeeds": 7
+        },
+        {
+          "Variant": "scatter-long",
+          "RealDeaths": 0,
+          "SimDeaths": 0.45,
+          "RealDowns": 2.75,
+          "SimDowns": 2.45,
+          "RealDamage": 255.85,
+          "SimDamage": 251.7,
+          "RealDeathSeeds": 0,
+          "SimDeathSeeds": 9
+        },
+        {
           "Variant": "group-gap-tight",
           "RealDeaths": 0,
-          "SimDeaths": 0.15,
+          "SimDeaths": 0.3,
           "RealDowns": 2.7,
-          "SimDowns": 2.65,
+          "SimDowns": 2.7,
           "RealDamage": 262.05,
-          "SimDamage": 245.25,
+          "SimDamage": 243.95,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 3
+          "SimDeathSeeds": 5
         },
         {
           "Variant": "group-gap-wide",
           "RealDeaths": 0,
-          "SimDeaths": 0.3,
+          "SimDeaths": 0.35,
           "RealDowns": 2.65,
-          "SimDowns": 2.4,
+          "SimDowns": 2.5,
           "RealDamage": 256.395,
-          "SimDamage": 241.2,
+          "SimDamage": 241.3,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 6
         }

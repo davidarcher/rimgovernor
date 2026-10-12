@@ -129,7 +129,7 @@ func SimSpec(f Fixture, env SimEnv) (simimport.Spec, error) {
 		s.Pawns = append(s.Pawns, sp)
 	}
 	if hostiles > 0 {
-		s.Raid = &simimport.Raid{CanTimeoutOrFlee: true, Exit: raidExit(s), AutoFleeFraction: env.AutoFleeFraction}
+		s.Raid = &simimport.Raid{CanTimeoutOrFlee: true, Exit: raidExit(s), AutoFleeFraction: env.AutoFleeFraction, FirstTargets: stagedFirstTargets(f.Name)}
 	}
 	if l := f.Layout; l != nil {
 		layout := policy.CombatLayout{Toward: domain.Rotation(l.Toward)}

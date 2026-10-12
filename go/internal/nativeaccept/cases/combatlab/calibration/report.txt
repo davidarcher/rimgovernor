@@ -1,5 +1,5 @@
 combatsim calibration gate (ranged slice): FAIL
-stamp: assembly 5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A, rules version 17, thresholds version 1, sweep schema 2
+stamp: assembly 5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A, rules version 18, thresholds version 1, sweep schema 2
 thresholds: rank agreement >= 0.80 on held-out fixtures; 0 survival-critical misrankings; colonist deaths and downs within +/-25% of the real mean or +/-1 pawn
 caveat: committed real sweeps predate #2989 and read a dead colonist as neither dead nor down (the native read omits the dead), so their colonist deaths are a floor of 0 and their downs leave out the dead
 rank agreement: 0.70 over 10 pairs; survival-critical misrankings: 0
@@ -18,8 +18,8 @@ fixtures:
   lab-choke (held-out): unsupported: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 9 unmodeled, first: pawn c0 wields melee weapon MeleeWeapon_LongSword: the sim has no melee, the pawn is imported unarmed
   lab-base (held-out): unsupported: combatsim: unsupported scenario: thing "Turret_MiniTurret" is a turret, which the sim does not fire
   lab-split-ranged (held-out): measured
-    default        deaths real 0.00 sim 0.35 (seeds with a death real 0 sim 5) | downs real 2.95 sim 2.55 | damage real 262.3 sim 247.7
-    scatter-short  deaths real 0.00 sim 0.25 (seeds with a death real 0 sim 5) | downs real 2.25 sim 2.70 | damage real 234.1 sim 253.7
-    scatter-long   deaths real 0.00 sim 0.40 (seeds with a death real 0 sim 8) | downs real 2.75 sim 2.55 | damage real 255.8 sim 247.5
-    group-gap-tight deaths real 0.00 sim 0.15 (seeds with a death real 0 sim 3) | downs real 2.70 sim 2.65 | damage real 262.1 sim 245.2
-    group-gap-wide deaths real 0.00 sim 0.30 (seeds with a death real 0 sim 6) | downs real 2.65 sim 2.40 | damage real 256.4 sim 241.2
+    default        deaths real 0.00 sim 0.45 (seeds with a death real 0 sim 8) | downs real 2.95 sim 2.80 | damage real 262.3 sim 262.6
+    scatter-short  deaths real 0.00 sim 0.35 (seeds with a death real 0 sim 7) | downs real 2.25 sim 2.65 | damage real 234.1 sim 252.4
+    scatter-long   deaths real 0.00 sim 0.45 (seeds with a death real 0 sim 9) | downs real 2.75 sim 2.45 | damage real 255.8 sim 251.7
+    group-gap-tight deaths real 0.00 sim 0.30 (seeds with a death real 0 sim 5) | downs real 2.70 sim 2.70 | damage real 262.1 sim 243.9
+    group-gap-wide deaths real 0.00 sim 0.35 (seeds with a death real 0 sim 6) | downs real 2.65 sim 2.50 | damage real 256.4 sim 241.3

@@ -681,6 +681,29 @@ DefinitionCatalog; every derived value is listed with its source in
   shots on the target's row still stop in a sandbag in about 0.40 of the sim
   against 0.52 (about 2 sigma of 69 shots).
 
+- **A45. lab-split-ranged's staged targets come from its checkpoint save
+  (#3011).** The staged `Stance_Warmup` is in the checkpoint save itself
+  (`RimGovernor-checkpoint-combatlab-metrics-<fixture>.rws`, `curStance
+  Class="Stance_Warmup"`, `focusTarg`), so no new run is needed to learn a
+  fixture's targets, only a staged save of it. lab-split-ranged's save (staged
+  digest ca770629, the digest of all 20 baseline rows, so every baseline seed
+  resumes it and the reseed leaves the stance alone) has its eight raiders in
+  thing id order aimed at colonists 0 1 1 2 1 2 0 1; the seed-1 shot ledger's
+  first shots agree. They are a committed table (`combatlab.stagedFirstTargetTable`,
+  keyed by the digest, which a test checks against the baseline) that
+  `SimSpec` hands to `simimport.Raid.FirstTargets`, so the calibration and the
+  gate sweeps use it. lab-ranged keeps the ledger-fed per-seed targets (its
+  ledger shows two sets, seeds 1 to 13 and 14 to 20; no save of it was
+  available to say which the baseline resumes). Fixtures with no staged save to
+  read keep drawing. Sim only, 200 seeds, lab-split-ranged, before -> after
+  (real, 20 seeds): colonist wins 0.53 -> 0.435 (0.25), raiders downed or
+  killed 5 or more 0.53 -> 0.435 (0.25), colonist downs plus deaths 2.74 ->
+  3.00 (2.95), colonist damage 236.6 -> 247.4 (262.3), raiders' shots stopping
+  in cover 0.147 -> 0.143 and hitting a pawn 0.131 (seed 1 ledger: 0.155,
+  0.093 of 129 shots). Left: the win rate is 1.9 sigma of 20 real seeds above
+  the real; the aimed-and-uncovered share of lab-ranged the A43 note called
+  high is 0.090 against 0.099 after A44, so no gap remains there.
+
 ## Out of scope for this slice
 
 Melee, explosives and grenades, specialist abilities, breaches, turrets,
