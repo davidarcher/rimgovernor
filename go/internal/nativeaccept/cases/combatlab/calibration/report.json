@@ -16,9 +16,9 @@
           "Variant": "default",
           "RealDeaths": 0,
           "SimDeaths": 0,
-          "RealDowns": 0.2,
+          "RealDowns": 0.25,
           "SimDowns": 0.2,
-          "RealDamage": 64.15,
+          "RealDamage": 69.05,
           "SimDamage": 63.25,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 0
@@ -54,9 +54,9 @@
           "Variant": "default",
           "RealDeaths": 0,
           "SimDeaths": 0,
-          "RealDowns": 2.65,
+          "RealDowns": 2.95,
           "SimDowns": 3.05,
-          "RealDamage": 254.75,
+          "RealDamage": 262.3,
           "SimDamage": 251.9,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 0
@@ -65,9 +65,9 @@
           "Variant": "scatter-short",
           "RealDeaths": 0,
           "SimDeaths": 0,
-          "RealDowns": 2.65,
+          "RealDowns": 2.25,
           "SimDowns": 3.05,
-          "RealDamage": 260.65,
+          "RealDamage": 234.1,
           "SimDamage": 251.9,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 0
@@ -76,9 +76,9 @@
           "Variant": "scatter-long",
           "RealDeaths": 0,
           "SimDeaths": 0,
-          "RealDowns": 2.7,
+          "RealDowns": 2.75,
           "SimDowns": 3.05,
-          "RealDamage": 270.1,
+          "RealDamage": 255.85,
           "SimDamage": 252.45,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 0
@@ -87,9 +87,9 @@
           "Variant": "group-gap-tight",
           "RealDeaths": 0,
           "SimDeaths": 0,
-          "RealDowns": 2.75,
+          "RealDowns": 2.7,
           "SimDowns": 3.1,
-          "RealDamage": 242.5,
+          "RealDamage": 262.05,
           "SimDamage": 251.9,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 0
@@ -98,29 +98,29 @@
           "Variant": "group-gap-wide",
           "RealDeaths": 0,
           "SimDeaths": 0,
-          "RealDowns": 2.6,
+          "RealDowns": 2.65,
           "SimDowns": 3.1,
-          "RealDamage": 259.15,
+          "RealDamage": 256.395,
           "SimDamage": 251.35,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 0
         }
       ],
       "pairs": 10,
-      "agreed": 6
+      "agreed": 4
     }
   ],
-  "RankAgreement": 0.6,
+  "RankAgreement": 0.4,
   "RankPairs": 10,
   "Misrankings": null,
   "Regrets": [
     {
       "Fixture": "lab-split-ranged",
       "SimPick": "default",
-      "RealBest": "group-gap-wide",
+      "RealBest": "scatter-short",
       "Deaths": 0,
-      "Downs": 0.04999999999999982,
-      "Damage": -4.399999999999977
+      "Downs": 0.7000000000000002,
+      "Damage": 28.200000000000017
     }
   ],
   "FalseSafe": null,
@@ -130,6 +130,6 @@
     "lab-open (held-out): the sim does not support this fixture: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 3 unmodeled, first: pawn h0 wields melee weapon MeleeWeapon_Club: the sim has no melee, the pawn is imported unarmed",
     "lab-choke (held-out): the sim does not support this fixture: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 9 unmodeled, first: pawn c0 wields melee weapon MeleeWeapon_LongSword: the sim has no melee, the pawn is imported unarmed",
     "lab-base (held-out): the sim does not support this fixture: combatsim: unsupported scenario: thing \"Turret_MiniTurret\" is a turret, which the sim does not fire",
-    "rank agreement 0.60 over 10 pairs is below 0.80"
+    "rank agreement 0.40 over 10 pairs is below 0.80"
   ]
 }
