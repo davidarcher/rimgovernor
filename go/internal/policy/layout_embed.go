@@ -379,13 +379,28 @@ func (e *embedder) fits(i int, r Rectangle, blocks []Rectangle, sky bool) bool {
 // blockCost is the objective's share of group i at r: cell terms and every
 // link to a placed block. Higher is worse.
 func (e *embedder) blockCost(i int, r Rectangle, blocks []Rectangle) float64 {
+	return e.blockCostWith(i, r, blocks, e.enclosureFor(i, blocks))
+}
+
+// enclosureFor is the enclosureSet group i is priced against, nil when the
+// group is not priced by enclosure.
+func (e *embedder) enclosureFor(i int, blocks []Rectangle) *enclosureSet {
+	if e.isField(i) || !e.unpriced(i) {
+		return nil
+	}
+	return e.enclosureRects(i, blocks)
+}
+
+// blockCostWith is blockCost with the enclosureSet enclosureFor built, for a
+// loop over candidates against fixed blocks.
+func (e *embedder) blockCostWith(i int, r Rectangle, blocks []Rectangle, enc *enclosureSet) float64 {
 	var cost float64
 	if e.isField(i) {
 		cost = e.fieldCellCost(r)
 	} else {
 		cost = float64(-(e.soil.sum(r) + e.centre.sum(r) + e.edge.sum(pad(r, 1))))
-		if e.unpriced(i) {
-			cost += e.enclosureCost(i, r, blocks)
+		if enc != nil {
+			cost += e.enclosureCost(r, enc)
 		}
 	}
 	for _, l := range e.groups[i].Links {
@@ -416,6 +431,7 @@ func better(cost float64, r Rectangle, bestCost float64, best Rectangle, found b
 // anchors that has one.
 func (e *embedder) placeNear(i int, blocks []Rectangle, anchors []int) (Rectangle, bool) {
 	maxRing := int(e.level.w + e.level.h)
+	enc := e.enclosureFor(i, blocks)
 	for ring := 1; ring <= maxRing; ring++ {
 		var best Rectangle
 		var bestCost float64
@@ -429,7 +445,7 @@ func (e *embedder) placeNear(i int, blocks []Rectangle, anchors []int) (Rectangl
 						if e.gap(i, r, a, ab) != ring || !e.fits(i, r, blocks, e.sky[i]) {
 							continue
 						}
-						if c := e.blockCost(i, r, blocks); better(c, r, bestCost, best, found) {
+						if c := e.blockCostWith(i, r, blocks, enc); better(c, r, bestCost, best, found) {
 							best, bestCost, found = r, c, true
 						}
 					}
@@ -449,6 +465,7 @@ func (e *embedder) placeAnywhere(i int, blocks []Rectangle, sky bool, toward *do
 	var best Rectangle
 	var bestCost float64
 	found := false
+	enc := e.enclosureFor(i, blocks)
 	for _, c := range e.cellsFor(i) {
 		for _, sh := range e.shapes[i] {
 			r := Rectangle{X: c.X, Z: c.Z, Width: sh[0], Height: sh[1]}
@@ -463,7 +480,7 @@ func (e *embedder) placeAnywhere(i int, blocks []Rectangle, sky bool, toward *do
 					cost += float64(e.level.w) * float64(e.level.w) * float64(e.level.h) * float64(e.level.h) // after every fit clear of rich soil
 				}
 			} else {
-				cost = e.blockCost(i, r, blocks)
+				cost = e.blockCostWith(i, r, blocks, enc)
 			}
 			if better(cost, r, bestCost, best, found) {
 				best, bestCost, found = r, cost, true

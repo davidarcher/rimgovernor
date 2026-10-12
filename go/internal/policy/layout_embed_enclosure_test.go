@@ -43,7 +43,7 @@ func TestEnclosureCostChargesScatteredRooms(t *testing.T) {
 	anchor := Rectangle{X: 80, Z: 80, Width: 4, Height: 4}
 	blocks := []Rectangle{anchor, {}}
 	at := func(dx int32) float64 {
-		return e.enclosureCost(1, Rectangle{X: 80 + dx, Z: 80, Width: 4, Height: 4}, blocks)
+		return e.enclosureCost(Rectangle{X: 80 + dx, Z: 80, Width: 4, Height: 4}, e.enclosureRects(1, blocks))
 	}
 	beside, farther, far, fartherStill := at(5), at(15), at(70), at(80)
 	if !(beside < farther && farther < far) {

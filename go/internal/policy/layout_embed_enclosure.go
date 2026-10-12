@@ -45,27 +45,44 @@ func (e *embedder) unpriced(i int) bool {
 	return true
 }
 
-// enclosureCost is the Wall and Footprint cost of group i at r given the other
-// blocks.
-func (e *embedder) enclosureCost(i int, r Rectangle, blocks []Rectangle) float64 {
+// enclosureSet is the rectangles the other blocks enclose, by X: each block
+// grown by the yard, by the yard and the thickness, and by the wall cell. They
+// depend on the group and the placed blocks, not the candidate, so a placement
+// call builds them once.
+type enclosureSet struct{ in, grown, walls []Rectangle }
+
+// enclosureRects is the enclosureSet of group i against the other blocks.
+func (e *embedder) enclosureRects(i int, blocks []Rectangle) *enclosureSet {
 	const yard = 1 + perimeterGap // the wall cells and the killbox yard
-	var in, grown, walls []Rectangle
+	s := &enclosureSet{}
 	for j, b := range blocks {
 		if j == i || b.Width == 0 || e.isField(j) {
 			continue
 		}
-		in = append(in, pad(b, yard))
-		grown = append(grown, pad(b, yard+perimeterThick))
-		walls = append(walls, pad(b, 1))
+		s.in = append(s.in, pad(b, yard))
+		s.grown = append(s.grown, pad(b, yard+perimeterThick))
+		s.walls = append(s.walls, pad(b, 1))
 	}
+	byX := func(a, b Rectangle) int { return int(a.X - b.X) }
+	slices.SortFunc(s.in, byX)
+	slices.SortFunc(s.grown, byX)
+	slices.SortFunc(s.walls, byX)
+	return s
+}
+
+// enclosureCost is the Wall and Footprint cost of a group at r given the
+// enclosureSet of the other blocks.
+func (e *embedder) enclosureCost(r Rectangle, s *enclosureSet) float64 {
+	const yard = 1 + perimeterGap // the wall cells and the killbox yard
 	onMap := Rectangle{Width: e.base.w, Height: e.base.h}
-	wall := uncovered(clipRect(pad(r, yard+perimeterThick), onMap), grown, &e.walkable) -
-		uncovered(clipRect(pad(r, yard), onMap), in, &e.walkable)
-	return float64(planWeights.Wall*wall + planWeights.Footprint*uncovered(pad(r, 1), walls, nil))
+	wall := uncovered(clipRect(pad(r, yard+perimeterThick), onMap), s.grown, &e.walkable) -
+		uncovered(clipRect(pad(r, yard), onMap), s.in, &e.walkable)
+	return float64(planWeights.Wall*wall + planWeights.Footprint*uncovered(pad(r, 1), s.walls, nil))
 }
 
 // uncovered is the number of cells of k, weighted by weight (each counts 1 when
-// nil), that none of rects covers. k lies on the map.
+// nil), that none of rects covers. k lies on the map. rects are sorted by X, so
+// the scan stops at the first one right of k.
 func uncovered(k Rectangle, rects []Rectangle, weight *prefix) int {
 	free := func(x0, x1, z0, z1 int32) int {
 		if z1 <= z0 {
@@ -82,6 +99,9 @@ func uncovered(k Rectangle, rects []Rectangle, weight *prefix) int {
 	var clipped []Rectangle
 	xs := []int32{k.X, k.X + k.Width}
 	for _, r := range rects {
+		if r.X >= k.X+k.Width {
+			break
+		}
 		if c := clipRect(r, k); c.Width > 0 {
 			clipped = append(clipped, c)
 			xs = append(xs, c.X, c.X+c.Width)
@@ -90,9 +110,10 @@ func uncovered(k Rectangle, rects []Rectangle, weight *prefix) int {
 	slices.Sort(xs)
 	xs = slices.Compact(xs)
 	total := 0
+	var spans [][2]int32
 	for s := 0; s+1 < len(xs); s++ {
 		x0, x1 := xs[s], xs[s+1]
-		var spans [][2]int32
+		spans = spans[:0]
 		for _, c := range clipped {
 			if c.X <= x0 && c.X+c.Width >= x1 {
 				spans = append(spans, [2]int32{c.Z, c.Z + c.Height})
