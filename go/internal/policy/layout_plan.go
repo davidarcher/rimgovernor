@@ -141,6 +141,11 @@ type LayoutPlan struct {
 	// share, by room id. Only a tiled plan holds it; a spine plan keeps its
 	// freezer and butchery doors on PlannedRoom.Link.
 	Links []RoomLink `json:",omitempty"`
+	// Owed is the room each station group owes the plan, one role per group,
+	// set only by a tiled plan (layout_tile.go). The hard tier's Missing term
+	// counts a room per entry, so two groups of one role need two rooms; empty
+	// keeps the base set (coreBaseRooms), once each.
+	Owed []PlannedRole `json:",omitempty"`
 	// Trips are the pawn trips between this plan's rooms with their daily
 	// frequency (the station graph's flows, layout_trips.go). When set, plan
 	// scoring walks them instead of the role-pair trip table; a spine plan has

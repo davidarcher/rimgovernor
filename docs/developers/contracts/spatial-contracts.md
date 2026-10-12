@@ -276,7 +276,13 @@ on the colony centre when the plan has no free cell there.
   closed room in the way is `ErrTileClosed`. The tiled plan carries the group flows as
   `LayoutPlan.Trips` and scoring walks them (`tripWalk`); a plan without trips (the
   spine generator's) keeps the role-pair table. Hallways are not planned by the tiler:
-  they need ground between blocks that only the embedding can reserve.
+  they need ground between blocks that only the embedding can reserve. A group's area
+  counts the exterior door and one door threshold per required link
+  (`RoomGroup.AddRequiredDoors`); other link doors open, after the exterior and
+  sealed-room doors, only where the placer still furnishes both rooms (a room it
+  cannot furnish stands bare: `TileResult.Unfit`). The tiled plan's `Owed` lists one
+  room role per station group, and the hard tier's Missing term counts a room per
+  entry instead of per role (empty keeps `coreBaseRooms`).
 - **Search.** The best sites by score get a deterministic, iteration-bounded local
   search; wall time is only a hang guard.
 - **Replan.** Two-stage: the same generator runs with every room that has anything of

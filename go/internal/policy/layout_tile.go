@@ -24,10 +24,14 @@ import (
 //   - Blocks. The embedding's rectangles are the rooms; walls are the ring
 //     around them, shared where two blocks stand a wall apart.
 //   - Links. A door joins two blocks that share a wall when the groups have a
-//     required link, and for the heaviest flows otherwise as a maximum
-//     spanning forest over the adjacent linked pairs (each flow weight is the
-//     clustering's, movements a day), so no loop of doors opens shortcuts.
-//     The door sits in the middle of the shared run (sharedWallLink).
+//     required link (first, their area counts it), and for the heaviest flows
+//     otherwise as a maximum spanning forest over the adjacent linked pairs
+//     (each flow weight is the clustering's, movements a day), so no loop of
+//     doors opens shortcuts. Flow doors come last, after the exterior and
+//     sealed-room doors, and only where the placer still furnishes both
+//     rooms. The door sits in the middle of the shared run when the placer
+//     furnishes both rooms behind it, else at the first cell of the run that
+//     does (pickLink).
 //   - Exterior door. Every room gets one door onto open ground when its wall
 //     has a cell whose outside neighbour is free, buildable and joined to the
 //     map's largest free area, the one nearest the middle of the blocks. The
@@ -133,6 +137,7 @@ type tiler struct {
 	rooms    []tileRoom
 	weight   map[[2]int]float64
 	required map[[2]int]bool
+	parent   []int // union-find over the rooms the link doors join
 	adj      map[[2]int][]domain.Cell
 	links    map[[2]int]domain.Cell
 	through  map[int]bool
@@ -162,6 +167,15 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 	blocks := slices.Clone(in.Embedding.Blocks)
 	sort.Slice(blocks, func(i, j int) bool { return blocks[i].Group < blocks[j].Group })
 	t.plan = LayoutPlan{Zones: in.Zones, Reservations: in.Reservations}
+	// Every group owes a room, placed or not: a group the embedding left out
+	// stays in the hard tier's Missing term instead of hiding behind another
+	// group of its role. A role no planned room carries is stopped below when
+	// its group is placed, else left to the embedding's report.
+	for _, g := range in.Groups {
+		if role, ok := PlannedRoleOfGroup(g); ok {
+			t.plan.Owed = append(t.plan.Owed, role)
+		}
+	}
 	for _, b := range blocks {
 		if b.Group < 0 || b.Group >= len(in.Groups) {
 			return t.out, fmt.Errorf("%w: block of unknown group %d", ErrTile, b.Group)
@@ -212,11 +226,16 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 			t.note(t.rooms[k[0]].group, t.rooms[k[1]].group, TileUnsatisfied, ReasonTileNoLink)
 		}
 	}
-	t.chooseLinks()
+	t.parent = make([]int, len(t.rooms))
+	for i := range t.parent {
+		t.parent[i] = i
+	}
+	t.chooseLinks(true)
 	t.chooseExteriors(scorer)
 	if err := t.joinSealed(); err != nil {
 		return t.out, err
 	}
+	t.chooseLinks(false)
 	if err := t.keepRoutes(); err != nil {
 		t.out.Plan = t.build()
 		return t.out, err
@@ -233,20 +252,50 @@ func (t *tiler) note(group, other int, verdict, reason string) {
 	t.out.Decisions = append(t.out.Decisions, TileDecision{Group: group, Other: other, Verdict: verdict, Reason: reason})
 }
 
-// chooseLinks opens a door on every adjacent required pair, then on the
-// heaviest adjacent flows that join two rooms not yet joined.
-func (t *tiler) chooseLinks() {
-	parent := make([]int, len(t.rooms))
-	for i := range parent {
-		parent[i] = i
+func (t *tiler) find(i int) int {
+	if t.parent[i] != i {
+		t.parent[i] = t.find(t.parent[i])
 	}
-	var find func(int) int
-	find = func(i int) int {
-		if parent[i] != i {
-			parent[i] = find(parent[i])
+	return t.parent[i]
+}
+
+// doorsOf are the doors room i has so far: its exterior door and its links.
+func (t *tiler) doorsOf(i int) []domain.Cell {
+	doors := t.linkCells(i)
+	if i < len(t.extDoor) && t.extDoor[i] != nil {
+		doors = append(doors, *t.extDoor[i])
+	}
+	return doors
+}
+
+// pickLink is the door cell of the shared wall of pair k, and whether the
+// placer furnishes both rooms behind it: the middle of the run when it does,
+// else the first cell of the run that does, else the middle. The placer is the
+// judge of a door cell as it is of an exterior door.
+func (t *tiler) pickLink(k [2]int) (domain.Cell, bool) {
+	run := t.adj[k]
+	middle := run[(len(run)-1)/2]
+	fits := func(c domain.Cell) bool {
+		return t.furnishes(k[0], append(t.doorsOf(k[0]), c)) && t.furnishes(k[1], append(t.doorsOf(k[1]), c))
+	}
+	if fits(middle) {
+		return middle, true
+	}
+	for _, c := range run {
+		if fits(c) {
+			return c, true
 		}
-		return parent[i]
 	}
+	return middle, false
+}
+
+// chooseLinks opens a door on every adjacent required pair (required) or on
+// the heaviest adjacent flows that join two rooms not yet joined. A required
+// door is part of the group's area (RoomGroup.AddRequiredDoors); a flow door
+// is a wish, opened only while the placer still furnishes both rooms behind
+// it, so no door crowds a room's stations out.
+func (t *tiler) chooseLinks(required bool) {
+	find := t.find
 	var pairs [][2]int
 	for k := range t.adj {
 		pairs = append(pairs, k)
@@ -265,12 +314,15 @@ func (t *tiler) chooseLinks() {
 		return p[1] < q[1]
 	})
 	for _, k := range pairs {
-		if !t.required[k] && (t.weight[k] <= 0 || find(k[0]) == find(k[1])) {
+		if t.required[k] != required {
 			continue
 		}
-		run := t.adj[k]
-		t.links[k] = run[(len(run)-1)/2]
-		parent[find(k[0])] = find(k[1])
+		cell, fits := t.pickLink(k)
+		if !required && (t.weight[k] <= 0 || find(k[0]) == find(k[1]) || !fits) {
+			continue
+		}
+		t.links[k] = cell
+		t.parent[find(k[0])] = find(k[1])
 		t.note(t.rooms[k[0]].group, t.rooms[k[1]].group, TilePlace, ReasonTileLinkDoor)
 	}
 }
@@ -437,7 +489,7 @@ func (t *tiler) joinSealed() error {
 	for {
 		ok := t.reach()
 		var best [2]int
-		bestScore, bestThrough, found := 0.0, -1, false
+		bestScore, bestThrough, bestFits, found := 0.0, -1, false, false
 		stranded := false
 		for k := range t.adj {
 			for _, e := range [2][2]int{{k[0], k[1]}, {k[1], k[0]}} {
@@ -452,9 +504,11 @@ func (t *tiler) joinSealed() error {
 				if _, linked := t.links[k]; linked {
 					continue
 				}
-				better := through > bestThrough || through == bestThrough && score > bestScore
-				if !found || better || !better && through == bestThrough && score == bestScore && k[0]*len(t.rooms)+k[1] < best[0]*len(t.rooms)+best[1] {
-					best, bestScore, bestThrough, found = k, score, through, true
+				_, fits := t.pickLink(k)
+				same := through == bestThrough && fits == bestFits
+				better := through > bestThrough || through == bestThrough && fits != bestFits && fits || same && score > bestScore
+				if !found || better || same && score == bestScore && k[0]*len(t.rooms)+k[1] < best[0]*len(t.rooms)+best[1] {
+					best, bestScore, bestThrough, bestFits, found = k, score, through, fits, true
 				}
 			}
 		}
@@ -470,8 +524,8 @@ func (t *tiler) joinSealed() error {
 			}
 			return nil
 		}
-		run := t.adj[best]
-		t.links[best] = run[(len(run)-1)/2]
+		t.links[best], _ = t.pickLink(best)
+		t.parent[t.find(best[0])] = t.find(best[1])
 		t.note(t.rooms[best[0]].group, t.rooms[best[1]].group, TilePlace, ReasonTileSealedRoom)
 	}
 }

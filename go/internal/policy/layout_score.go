@@ -121,20 +121,33 @@ func newPlanScorer(zones []LayoutZone, reserved []LayoutReservation, s MapSurvey
 	return planScorer{g: newCoreGrid(zones, reserved).withSoil(s), s: s, ground: newSiteGround(s)}
 }
 
+// missingRooms are the owed rooms rooms lack, one room per entry: a role owed
+// twice needs two rooms. owed empty is the base set.
+func missingRooms(rooms []PlannedRoom, owed []PlannedRole) []PlannedRole {
+	if len(owed) == 0 {
+		owed = coreBaseRooms
+	}
+	have := map[PlannedRole]int{}
+	for _, r := range rooms {
+		have[r.Role]++
+	}
+	var missing []PlannedRole
+	for _, role := range owed {
+		if have[role] == 0 {
+			missing = append(missing, role)
+			continue
+		}
+		have[role]--
+	}
+	return missing
+}
+
 // core scores every term that needs no wall: the hard tier, soil and rock,
 // walking distance, footprint, the map edge and expansion room.
 func (sc planScorer) core(p LayoutPlan) PlanScore {
 	var out PlanScore
 	rooms := p.AllRooms()
-	have := map[PlannedRole]bool{}
-	for _, r := range rooms {
-		have[r.Role] = true
-	}
-	for _, role := range coreBaseRooms {
-		if !have[role] {
-			out.Missing = append(out.Missing, role)
-		}
-	}
+	out.Missing = missingRooms(rooms, p.Owed)
 	if len(rooms) == 0 {
 		return out
 	}

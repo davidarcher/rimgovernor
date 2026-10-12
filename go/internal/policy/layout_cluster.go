@@ -32,8 +32,9 @@ import (
 //     bedroom, a medical bed a hospital).
 //   - Area. A group's area is its stations' footprints (the catalog's shapes)
 //     plus the clearance the placer keeps: one open cell per station (its
-//     interaction cell, or the neighbour that keeps it reachable) and the
-//     door threshold. The limit is the largest room the game's roof and the
+//     interaction cell, or the neighbour that keeps it reachable), the exterior
+//     door threshold and one more per required link (AddRequiredDoors). The
+//     limit is the largest room the game's roof and the
 //     plan's shell bounds allow: a room is roofed only while every cell lies
 //     within RoofMaxSupportDistance of a wall (domain.RoomFootprint), which
 //     bounds its depth, and a shell is at most 3844 interior cells and 255 wall
@@ -577,8 +578,25 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 	}
 	for i := range out.Groups {
 		sort.Slice(out.Groups[i].Links, func(a, b int) bool { return out.Groups[i].Links[a].To < out.Groups[i].Links[b].To })
+		out.Groups[i].AddRequiredDoors()
 	}
 	return out, nil
+}
+
+// AddRequiredDoors counts the door each required link opens: tiling opens a
+// door on every adjacent required pair (layout_tile.go), and a door keeps the
+// cell inside it clear, so the group's floor grows by one threshold per
+// required link beyond the exterior door eval counted. Other links are wishes;
+// a door for one opens only where the room still furnishes. The merge area
+// check runs before the links exist, so a merged group can pass it and exceed
+// the limit by its required doors.
+func (g *RoomGroup) AddRequiredDoors() {
+	for _, l := range g.Links {
+		if l.Required {
+			g.Clearance++
+			g.Area++
+		}
+	}
 }
 
 // costs are the work ticks a day the units' stations lose in a room of

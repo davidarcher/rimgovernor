@@ -47,6 +47,9 @@ func baseRoomGroups(pawns int) []RoomGroup {
 	for i := 5; i < len(groups); i++ {
 		link(i, 2, 6/float64(pawns), false)
 	}
+	for i := range groups {
+		groups[i].AddRequiredDoors()
+	}
 	return groups
 }
 
@@ -169,6 +172,9 @@ func TestTileBuildsAValidPlanDeterministically(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkTiled(t, in, res)
+	if unfit := res.Unfit(); len(unfit) > 0 {
+		t.Errorf("groups %v are not furnished", unfit)
+	}
 	roles := map[PlannedRole]bool{}
 	for _, r := range res.Plan.Rooms {
 		roles[r.Role] = true
@@ -288,6 +294,55 @@ func TestTileReplayFixtures(t *testing.T) {
 			if len(emb.Unplaceable()) == 0 && !sc.Passes() && !f.mayFail {
 				t.Fatalf("hard tier: missing=%v routes=%q rich=%d", sc.Missing, sc.RoutesErr, sc.RichCells)
 			}
+			if len(emb.Unplaceable()) > 0 && len(sc.Missing) < len(emb.Unplaceable()) {
+				t.Errorf("%d groups unplaced but missing=%v", len(emb.Unplaceable()), sc.Missing)
+			}
+			// A hub that carries the doors of sealed neighbours packed in around
+			// it holds more thresholds than its area counts; only hallways
+			// (#2879) take those doors off the hub, so such a plan is exempt.
+			sealed := slices.ContainsFunc(res.Decisions, func(d TileDecision) bool { return d.Reason == ReasonTileSealedRoom && d.Verdict == TilePlace })
+			if old.Passes() && !sealed && len(res.Unfit()) > 0 {
+				t.Errorf("the old generator furnishes this map but groups %v are unfit", res.Unfit())
+			}
 		})
+	}
+}
+
+// The hard tier counts a room per owed group: two bedroom groups need two
+// bedrooms, so one standing bedroom leaves the second group's room missing.
+func TestMissingRoomsIsPerGroup(t *testing.T) {
+	rooms := []PlannedRoom{{Role: PlannedBedroom}, {Role: PlannedKitchen}}
+	owed := []PlannedRole{PlannedKitchen, PlannedBedroom, PlannedBedroom}
+	if got := missingRooms(rooms, owed); !slices.Equal(got, []PlannedRole{PlannedBedroom}) {
+		t.Errorf("missing %v, want one bedroom", got)
+	}
+	if got := missingRooms(rooms, nil); len(got) != len(coreBaseRooms)-1 {
+		t.Errorf("no owed groups keeps the base set once each: missing %v", got)
+	}
+}
+
+// A group the embedding could not place is still owed a room.
+func TestTileOwesARoomPerGroup(t *testing.T) {
+	in, _ := tileInput(t, plainScoreSurvey(), 3, true)
+	in.Embedding.Blocks = in.Embedding.Blocks[:len(in.Embedding.Blocks)-1]
+	res, err := TileEmbedding(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Plan.Owed) != len(in.Groups) {
+		t.Fatalf("owed %d rooms for %d groups", len(res.Plan.Owed), len(in.Groups))
+	}
+	if sc := Score(res.Plan, in.Survey); !slices.Contains(sc.Missing, PlannedBedroom) {
+		t.Errorf("the dropped bedroom is not missing: %v", sc.Missing)
+	}
+}
+
+// A required link adds a door threshold to the group's floor; a plain one adds
+// none, and the tiler opens that one only while the room still furnishes.
+func TestRequiredLinksAddDoorClearance(t *testing.T) {
+	g := RoomGroup{Clearance: 2, Area: 5, Links: []GroupLink{{To: 1, Required: true}, {To: 2}}}
+	g.AddRequiredDoors()
+	if g.Clearance != 3 || g.Area != 6 {
+		t.Errorf("clearance %d area %d, want 3 and 6", g.Clearance, g.Area)
 	}
 }
