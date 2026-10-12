@@ -232,7 +232,7 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 	if err != nil {
 		return StationAdvice{}, err
 	}
-	embedIn := EmbedInput{Groups: clustering.Groups, Zones: f.Plan.Zones, Reservations: f.Plan.Reservations, Survey: f.Survey, RoofDistance: f.RoofDistance, Fields: FieldEmbedLinks(graph, clustering.Groups)}
+	embedIn := EmbedInput{Groups: clustering.Groups, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, RoofDistance: f.RoofDistance, Fields: FieldEmbedLinks(graph, clustering.Groups)}
 	embedding, err := Embed(embedIn)
 	if err != nil {
 		return StationAdvice{}, err
@@ -245,7 +245,7 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 		}
 	}
 	if f.Tile {
-		tiled, err := TileEmbedding(TileInput{Groups: clustering.Groups, Embedding: embedding, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reservations, Survey: f.Survey})
+		tiled, err := TileEmbedding(TileInput{Groups: clustering.Groups, Embedding: embedding, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey})
 		if err != nil {
 			return StationAdvice{}, err
 		}

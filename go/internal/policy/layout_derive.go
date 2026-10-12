@@ -32,7 +32,7 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier TechTier, geysers []PowerGeys
 	plan.Zones = zones
 	want := layoutUtilities
 	want.Geysers, want.PenAnimals, want.ThickRoof = footprints, animals, ThickRoofCells(s)
-	scorer := newPlanScorer(plan.Zones, plan.Reservations, s)
+	scorer := newPlanScorer(plan.Zones, plan.Reserved(), s)
 	want.scorer = &scorer
 	plan = PlanUtilities(plan, want)
 	plan = PlanYardSites(plan, YardRoomsWanted(RoomDemand{}))
@@ -168,7 +168,7 @@ func replanLayout(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawn
 	var unplaced []error
 	var successorScorer *planScorer
 	if growth.Successor.Any() || growth.Built != nil {
-		sc := newPlanScorer(next.Zones, next.Reservations, s)
+		sc := newPlanScorer(next.Zones, next.Reserved(), s)
 		successorScorer = &sc
 	}
 	asked := growth.Successor
@@ -192,7 +192,7 @@ func replanLayout(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawn
 	rp := newReplanner(next, s, blockedCells(next, growth.Occupied), pawns, tombs, tier, suites)
 	next, resited := rp.replanCore(next, replanPins(next, growth.Fixed, emptied, tier))
 	dropped = dropped || resited
-	scorer := newPlanScorer(next.Zones, next.Reservations, s)
+	scorer := newPlanScorer(next.Zones, next.Reserved(), s)
 	next, throne, err := growThroneRoom(next, growth.ThroneArea, &scorer)
 	dropped = dropped || throne
 	unplaced = append(unplaced, err)
@@ -259,7 +259,7 @@ func topUpSites(plan LayoutPlan, core []LayoutZone, add func(LayoutPlan) LayoutP
 		}
 	}
 	sitePlan := plan
-	sitePlan.Zones, sitePlan.Reservations = core, inner
+	sitePlan.Zones, sitePlan.Reservations, sitePlan.Sites = core, inner, nil
 	topped := add(sitePlan)
 	// A top-up also keys the units of a plan saved without keys.
 	plan.Reservations = slices.Clone(plan.Reservations)
@@ -314,9 +314,12 @@ func sameInteriors(a, b []PlannedRoom) bool {
 	return true
 }
 
-// samePerimeter reports whether a and b hold the same perimeter
-// reservations, in any order.
+// samePerimeter reports whether a and b hold the same perimeter nodes and the
+// same reservations that stand or fall with them, in any order.
 func samePerimeter(a, b LayoutPlan) bool {
+	if !sameSites(a, b) {
+		return false
+	}
 	count := map[string]int{}
 	for _, r := range a.Reservations {
 		if perimeterKinds[r.Kind] {
@@ -361,6 +364,9 @@ func (p LayoutPlan) Summary() string {
 	}
 	for _, r := range p.Reservations {
 		reserved[string(r.Kind)]++
+	}
+	for _, s := range p.Sites {
+		reserved[string(s.Kind)]++
 	}
 	route := "ok"
 	traffic, err := CheckRoutes(p)

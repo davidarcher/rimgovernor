@@ -440,7 +440,7 @@ func newUtilityGrid(plan LayoutPlan) *utilityGrid {
 		z0, z1 := min(s.From.Z, s.To.Z), max(s.From.Z, s.To.Z)
 		u.mark(Rectangle{X: x0 - SpineWidth/2, Z: z0 - SpineWidth/2, Width: x1 - x0 + SpineWidth, Height: z1 - z0 + SpineWidth})
 	}
-	for _, r := range plan.Reservations {
+	for _, r := range plan.Reserved() {
 		u.markRegion(r.Area)
 	}
 	u.keepOut = outerKeepOut(plan, u.w, u.h)

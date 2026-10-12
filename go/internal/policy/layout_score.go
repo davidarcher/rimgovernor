@@ -209,20 +209,14 @@ func (sc planScorer) walled(p LayoutPlan, out PlanScore) PlanScore {
 	walls := map[domain.Cell]bool{}
 	var killbox, approach bool
 	gaps := 0
-	for _, r := range wp.Reservations {
-		switch r.Kind {
-		case ReservePerimeter, ReservePerimeterLight, ReserveBridge:
-			for _, c := range r.Area.Cells() {
-				walls[c] = true
-			}
-		case ReserveKillbox:
-			killbox = true
-		case ReserveKillboxApproach:
-			approach = true
-		case ReservePerimeterGap:
-			gaps += int(r.Area.Bounds().Width * r.Area.Bounds().Height)
+	if ring, ok := wp.Ring(); ok {
+		for _, c := range ring.Footprint.Cells() {
+			walls[c] = true
 		}
+		gaps = ring.Ring.Gaps.Area()
 	}
+	_, killbox = wp.Killbox()
+	approach = len(wp.LiveSites(NodeApproach)) > 0
 	out.Wall = -planWeights.Wall * len(walls)
 	if killbox {
 		out.Defense += planWeights.Killbox

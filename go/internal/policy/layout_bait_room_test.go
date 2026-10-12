@@ -7,9 +7,10 @@ import (
 )
 
 func TestBaitRoomPlacement(t *testing.T) {
-	plan := LayoutPlan{
-		Reservations: []LayoutReservation{{Kind: ReservePerimeter, Area: RectRegion(Rectangle{X: 10, Z: 10, Width: 20, Height: 3})}, {Kind: ReserveBaitRoom, Area: RectRegion(Rectangle{X: 1, Z: 1, Width: 5, Height: 5})}},
-	}
+	plan := withInterior(LayoutPlan{
+		Sites:        []PlannedSite{testSite(NodeRing, Rectangle{X: 10, Z: 10, Width: 20, Height: 3})},
+		Reservations: []LayoutReservation{{Kind: ReserveBaitRoom, Area: RectRegion(Rectangle{X: 1, Z: 1, Width: 5, Height: 5})}},
+	})
 	var cells []SurveyCell
 	set := func(r Rectangle, c SurveyCell) {
 		for _, p := range rectCells(r) {

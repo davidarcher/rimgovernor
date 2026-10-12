@@ -9,18 +9,17 @@ import (
 // prisonPlan is a ring (interior 10..89) holding a prison whose door opens
 // south onto (22,19), and a bedroom beside it.
 func prisonPlan() LayoutPlan {
-	return LayoutPlan{
+	return withInterior(LayoutPlan{
 		Rooms: []PlannedRoom{
 			{Role: PlannedPrison, Region: RectRegion(Rectangle{X: 20, Z: 21, Width: 5, Height: 5}), Door: domain.Cell{X: 22, Z: 20}, DoorRot: domain.South},
 			{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 26, Z: 21, Width: 4, Height: 4}), Door: domain.Cell{X: 27, Z: 20}, DoorRot: domain.South},
 		},
-		Reservations: []LayoutReservation{
-			{Kind: ReservePerimeter, Area: RectRegion(Rectangle{X: 7, Z: 7, Width: 86, Height: 3})},
-			{Kind: ReservePerimeter, Area: RectRegion(Rectangle{X: 7, Z: 90, Width: 86, Height: 3})},
-			{Kind: ReservePerimeter, Area: RectRegion(Rectangle{X: 7, Z: 10, Width: 3, Height: 80})},
-			{Kind: ReservePerimeter, Area: RectRegion(Rectangle{X: 90, Z: 10, Width: 3, Height: 80})},
-		},
-	}
+		Sites: []PlannedSite{testSite(NodeRing,
+			Rectangle{X: 7, Z: 7, Width: 86, Height: 3},
+			Rectangle{X: 7, Z: 90, Width: 86, Height: 3},
+			Rectangle{X: 7, Z: 10, Width: 3, Height: 80},
+			Rectangle{X: 90, Z: 10, Width: 3, Height: 80})},
+	})
 }
 
 func TestPrisonTurrets(t *testing.T) {

@@ -138,7 +138,7 @@ func reshapeFits(plan LayoutPlan, r PlannedRoom, to Region, blocked map[domain.C
 // diff, or false (and plan as it came) when the room is not a plan room or the
 // shape does not fit (reshapeFits).
 func ReshapeRoom(plan LayoutPlan, id int32, to Region, blocked map[domain.Cell]bool) (LayoutPlan, RegionDiff, bool) {
-	core := newCoreGrid(coreWithout(plan.Zones, blocked), plan.Reservations)
+	core := newCoreGrid(coreWithout(plan.Zones, blocked), plan.Reserved())
 	return reshapeRoom(plan, id, to, blocked, core)
 }
 
@@ -194,7 +194,7 @@ func reshapeOutgrown(plan LayoutPlan, s Successor, growth RoomGrowth, blocked ma
 		return plan, false
 	}
 	extra := need - r.Region.Area()
-	core := newCoreGrid(coreWithout(plan.Zones, blocked), plan.Reservations)
+	core := newCoreGrid(coreWithout(plan.Zones, blocked), plan.Reserved())
 	var best Region
 	bestArea := 0
 	for side := range 4 {

@@ -310,33 +310,48 @@ func (wi wallInterior) near(limit int32) func(domain.Cell) int32 {
 	}
 }
 
-// planInterior reads plan's ring back; ok is false for a plan without one.
-// grow widens the box past the band for callers measuring out from the
-// ring.
+// planInterior reads the ring node's stored inside back into a grid; ok is
+// false for a plan without a ring. grow widens the box past the band for
+// callers measuring out from the ring.
 func planInterior(plan LayoutPlan, grow int32) (wi wallInterior, ok bool) {
-	var ring Rectangle
-	wall := map[domain.Cell]bool{}
-	var band []Rectangle
-	for _, r := range plan.Reservations {
-		switch r.Kind {
-		case ReservePerimeter, ReservePerimeterLight, ReserveBridge, ReservePerimeterGap, ReserveGate:
-			ring = unionRect(ring, r.Area.Bounds())
-			for _, c := range r.Area.Cells() {
-				wall[c] = true
-			}
-		case ReserveCoverClear:
-			band = append(band, r.Area.Bounds())
-		}
-	}
-	if ring.Width == 0 {
+	ring, found := plan.Ring()
+	if !found {
 		return wi, false
 	}
-	wi.box = pad(ring, perimeterCoverBand+grow)
+	wi.box = pad(unionRect(ring.Footprint.Bounds(), ring.Ring.Sealed.Bounds()), perimeterCoverBand+grow)
+	wi.in, wi.closed = make([]bool, wi.box.Width*wi.box.Height), make([]bool, wi.box.Width*wi.box.Height)
+	for _, c := range ring.Ring.Inner.Cells() {
+		if i, in := wi.at(c); in {
+			wi.in[i] = true
+		}
+	}
+	for _, c := range ring.Ring.Sealed.Cells() {
+		if i, in := wi.at(c); in {
+			wi.closed[i] = true
+		}
+	}
+	return wi, true
+}
+
+// traceInterior floods the ground the ring closes in from rooms: the
+// cover-clear band lies wholly outside the ring, so a flood that the band and
+// the wall stop is the inside; cells within perimeterThick of the band are the
+// ring itself (the opening and terrain stretches included) and are left out of
+// inner, though sealed holds them. wall is every cell the ring holds, gaps and
+// gates included.
+func traceInterior(rooms []PlannedRoom, wall, band map[domain.Cell]bool) (inner, sealed Region) {
+	var ring Rectangle
+	for c := range wall {
+		ring = unionRect(ring, Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1})
+	}
+	if ring.Width == 0 {
+		return Region{}, Region{}
+	}
+	wi := wallInterior{box: pad(ring, perimeterCoverBand)}
 	w, h := wi.box.Width, wi.box.Height
 	banded := make([]bool, w*h)
-	for _, r := range band {
-		for _, c := range rectCells(clipRect(r, wi.box)) {
-			i, _ := wi.at(c)
+	for c := range band {
+		if i, in := wi.at(c); in {
 			banded[i] = true
 		}
 	}
@@ -349,7 +364,7 @@ func planInterior(plan LayoutPlan, grow int32) (wi wallInterior, ok bool) {
 			q = append(q, int32(i))
 		}
 	}
-	for _, r := range plan.AllRooms() {
+	for _, r := range rooms {
 		for _, c := range rectCells(r.Region.Bounds()) {
 			seed(c)
 		}
@@ -372,5 +387,16 @@ func planInterior(plan LayoutPlan, grow int32) (wi wallInterior, ok bool) {
 		i, _ := wi.at(c)
 		wi.closed[i] = true
 	}
-	return wi, true
+	return wi.regionOf(wi.in), wi.regionOf(wi.closed)
+}
+
+// regionOf is the cells of set (one flag per box cell) as a region.
+func (wi wallInterior) regionOf(set []bool) Region {
+	var cs []domain.Cell
+	for i, v := range set {
+		if v {
+			cs = append(cs, domain.Cell{X: wi.box.X + int32(i)%wi.box.Width, Z: wi.box.Z + int32(i)/wi.box.Width})
+		}
+	}
+	return RegionOf(cs)
 }

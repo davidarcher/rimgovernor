@@ -84,7 +84,7 @@ func TestRockEdgeMapsPlanWalkableAndBuildableLayouts(t *testing.T) {
 			if c, leak := perimeterLeak(plan, s); leak {
 				t.Fatal("raiders reach the core at", c)
 			}
-			for _, kind := range []ReservationKind{ReservePerimeter, ReserveGate, ReserveKillbox} {
+			for _, kind := range []NodeKind{NodeRing, NodeGate, NodeKillbox} {
 				for c := range reservedCells(plan, kind) {
 					if rock(c.X, c.Z) {
 						t.Fatal("plan reserves", kind, "on rock at", c)

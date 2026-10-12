@@ -112,11 +112,6 @@ const (
 	ReserveTurbineLane ReservationKind = "turbine_lane"
 	ReserveSolar       ReservationKind = "solar"
 	ReserveGeothermal  ReservationKind = "geothermal"
-	ReservePerimeter   ReservationKind = "perimeter_wall"
-	ReserveGate        ReservationKind = "gate"
-	ReserveKillbox     ReservationKind = "killbox"
-	ReserveMortar      ReservationKind = "mortar"
-	ReserveCoverClear  ReservationKind = "cover_clear"
 )
 
 // LayoutReservation is one reserved site; Pair groups a turbine pair with
@@ -161,6 +156,9 @@ type LayoutPlan struct {
 	Wings        []Wing `json:",omitempty"`
 	Zones        []LayoutZone
 	Reservations []LayoutReservation
+	// Sites are the defense nodes PlanPerimeter traces: ring, gates, killbox,
+	// approach, fence, pumps, mortar and cover-clear band (layout_perimeter_sites.go).
+	Sites []PlannedSite `json:",omitempty"`
 	// RetiredGround is the walled footprint of each room the plan retired
 	// while its building stands: planned-ground clearance demolishes
 	// it, then the entry is dropped.
@@ -376,6 +374,13 @@ func (p LayoutPlan) Valid() bool {
 			return false
 		}
 	}
+	siteIDs := map[string]bool{}
+	for _, s := range p.Sites {
+		if s.Kind == "" || s.Node == "" || siteIDs[s.Node] || s.Footprint.Empty() || s.Kind == NodeRing && s.Ring == nil {
+			return false
+		}
+		siteIDs[s.Node] = true
+	}
 	return true
 }
 
@@ -421,6 +426,9 @@ func (p LayoutPlan) Extent() (Rectangle, bool) {
 	rects = append(rects, spineRects(p.Hallways())...)
 	for _, r := range p.Reservations {
 		rects = append(rects, r.Area.Bounds())
+	}
+	for _, s := range p.Sites {
+		rects = append(rects, s.Footprint.Bounds())
 	}
 	return RectUnion(rects...)
 }

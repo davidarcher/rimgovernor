@@ -59,26 +59,33 @@ var roomOverlay = map[PlannedRole]overlayStyle{
 }
 
 var reservationOverlay = map[ReservationKind]overlayStyle{
-	ReserveBatteryRoom:  {planCyan, "battery room"},
-	ReserveTurbine:      {planCyan, "turbine"},
-	ReserveTurbineLane:  {planGreen, "turbine lane"},
-	ReserveSolar:        {planCyan, "solar"},
-	ReserveGeothermal:   {planCyan, "geothermal"},
-	ReserveYard:         {planTan, "materials yard"},
-	ReserveBarn:         {planBrown, "barn"},
-	ReservePen:          {planGreen, "pen"},
-	ReservePerimeter:    {planRed, "perimeter"},
-	ReserveGate:         {planYellow, "gate"},
-	ReserveBridge:       {planBrown, "bridge"},
-	ReservePerimeterGap: {planYellow, "open gap"},
-	ReserveMoisturePump: {planCyan, "moisture pump"},
-	ReserveKillbox:      {planRed, "killbox"},
-	ReserveKillboxFence: {planYellow, "killbox fence"},
-	ReserveMortar:       {planRed, "mortar"},
-	ReserveCoverClear:   {planGray, "clear cover"},
-	ReservePocketWall:   {planRed, "pocket wall"},
-	ReserveOutskirts:    {planBrown, "outskirts"},
+	ReserveBatteryRoom: {planCyan, "battery room"},
+	ReserveTurbine:     {planCyan, "turbine"},
+	ReserveTurbineLane: {planGreen, "turbine lane"},
+	ReserveSolar:       {planCyan, "solar"},
+	ReserveGeothermal:  {planCyan, "geothermal"},
+	ReserveYard:        {planTan, "materials yard"},
+	ReserveBarn:        {planBrown, "barn"},
+	ReservePen:         {planGreen, "pen"},
+	ReservePocketWall:  {planRed, "pocket wall"},
+	ReserveOutskirts:   {planBrown, "outskirts"},
 }
+
+var siteOverlay = map[NodeKind]overlayStyle{
+	NodeRing:       {planRed, "perimeter"},
+	NodeGate:       {planYellow, "gate"},
+	NodePump:       {planCyan, "moisture pump"},
+	NodeKillbox:    {planRed, "killbox"},
+	NodeFence:      {planYellow, "killbox fence"},
+	NodeMortar:     {planRed, "mortar"},
+	NodeCoverClear: {planGray, "clear cover"},
+}
+
+// Ring attributes drawn beside the ring itself.
+var (
+	bridgeOverlay = overlayStyle{planBrown, "bridge"}
+	gapOverlay    = overlayStyle{planYellow, "open gap"}
+)
 
 // Overlay draws p inside bounds. Layer order is zones, reservations,
 // spine, traffic, rooms, so the smaller shapes draw last.
@@ -116,26 +123,43 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 			add(style, OverlayFill, nil, z.Runs)
 		}
 	}
-	// The cover band is many rectangles: one label, on the largest.
-	var cover Rectangle
 	for _, r := range p.Reservations {
 		style, ok := reservationOverlay[r.Kind]
 		if !ok {
 			continue
 		}
-		if r.Kind == ReserveCoverClear && r.Area.Bounds().Width*r.Area.Bounds().Height > cover.Width*cover.Height {
-			cover = r.Area.Bounds()
-		}
-		shape := OverlayFill
-		if r.Kind == ReservePerimeter || r.Kind == ReserveKillbox {
-			shape = OverlayOutline
-		}
-		if add(style, shape, []Rectangle{r.Area.Bounds()}, nil) && r.Kind != ReservePerimeter && r.Kind != ReserveCoverClear {
+		if add(style, OverlayFill, []Rectangle{r.Area.Bounds()}, nil) {
 			label(style.label, centre(r.Area.Bounds()))
 		}
 	}
-	if cover.Width > 0 {
-		label(reservationOverlay[ReserveCoverClear].label, centre(cover))
+	// The defense nodes draw as their own cells. The cover band is one wide
+	// region: one label, on its first run.
+	for _, s := range p.Sites {
+		style, ok := siteOverlay[s.Kind]
+		if !ok {
+			continue
+		}
+		shape := OverlayFill
+		if s.Kind == NodeRing || s.Kind == NodeKillbox {
+			shape = OverlayOutline
+		}
+		// A rectangle goes out as one, any other shape as its row runs.
+		var rects []Rectangle
+		runs := s.Footprint.Runs
+		if s.Footprint.IsRect() {
+			rects, runs = []Rectangle{s.Footprint.Bounds()}, nil
+		}
+		drawn := add(style, shape, rects, runs)
+		switch {
+		case s.Ring != nil:
+			add(bridgeOverlay, OverlayFill, nil, s.Ring.Bridged.Runs)
+			add(gapOverlay, OverlayFill, nil, s.Ring.Gaps.Runs)
+		case drawn && s.Kind == NodeCoverClear:
+			first := s.Footprint.Runs[0]
+			label(style.label, domain.Cell{X: first.X + first.Length/2, Z: first.Z})
+		case drawn:
+			label(style.label, centre(s.Footprint.Bounds()))
+		}
 	}
 	spine := spineRects(p.Hallways())
 	add(overlayStyle{planGray, "hallway"}, OverlayFill, spine, nil)

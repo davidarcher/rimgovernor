@@ -15,7 +15,7 @@ func TestLayoutKillboxAnchorsTheCorridor(t *testing.T) {
 	if !ok {
 		t.Fatal("no killbox anchor")
 	}
-	kb := reserved(p, ReserveKillbox)[0]
+	kb := reserved(p, NodeKillbox)[0]
 	d := directionOf(k.Toward)
 	if !contains(kb, addCell(k.Entry, scale(d, perimeterThick))) || contains(kb, addCell(k.Entry, scale(d, perimeterThick-1))) {
 		t.Fatal("entry is not the opening's outer face", k.Entry, kb)
@@ -82,19 +82,19 @@ func TestPerimeterSectionsCoverTheWallKillboxFirst(t *testing.T) {
 		t.Fatal(err)
 	}
 	wall, gate := map[domain.Cell]bool{}, map[domain.Cell]bool{}
-	for _, r := range reserved(p, ReservePerimeter) {
+	for _, r := range reserved(p, NodeRing) {
 		for _, c := range rectCells(r) {
 			wall[c] = true
 		}
 	}
-	for _, r := range reserved(p, ReserveGate) {
+	for _, r := range reserved(p, NodeGate) {
 		cs := rectCells(r)
 		gate[cs[0]], gate[cs[len(cs)-1]] = true, true
 		for _, c := range cs[1 : len(cs)-1] {
 			delete(wall, c) // the airlock cell stays open
 		}
 	}
-	kb := reserved(p, ReserveKillbox)[0]
+	kb := reserved(p, NodeKillbox)[0]
 	centre := domain.Cell{X: kb.X + kb.Width/2, Z: kb.Z + kb.Height/2}
 	seen := map[domain.Cell]bool{}
 	doors := 0
@@ -148,7 +148,7 @@ func TestPerimeterAirlock(t *testing.T) {
 			built[b.Cell()] = b.Definition()
 		}
 	}
-	gates := reserved(p, ReserveGate)
+	gates := reserved(p, NodeGate)
 	if len(gates) == 0 {
 		t.Fatal("no gates")
 	}
@@ -176,7 +176,7 @@ func TestPerimeterAirlock(t *testing.T) {
 
 // Every depth of a run is admitted together; native completion keeps access.
 func TestPerimeterSectionsKeepWallLayersTogether(t *testing.T) {
-	p := LayoutPlan{Reservations: []LayoutReservation{{Kind: ReservePerimeter, Area: RectRegion(Rectangle{X: 10, Z: 10, Width: 9, Height: 3})}}}
+	p := LayoutPlan{Sites: []PlannedSite{testSite(NodeRing, Rectangle{X: 10, Z: 10, Width: 9, Height: 3})}}
 	sections, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge)
 	if err != nil {
 		t.Fatal(err)

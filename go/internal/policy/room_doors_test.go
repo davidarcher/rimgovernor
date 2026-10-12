@@ -7,7 +7,7 @@ import (
 )
 
 func TestMarkEnemyDoorsFacesKillbox(t *testing.T) {
-	plan := LayoutPlan{Reservations: []LayoutReservation{{Kind: ReserveKillbox, Area: RectRegion(Rectangle{X: 20, Z: 0, Width: 3, Height: 5})}}}
+	plan := LayoutPlan{Sites: []PlannedSite{testSite(NodeKillbox, Rectangle{X: 20, Z: 0, Width: 3, Height: 5})}}
 	killbox := plan.KillboxCells()
 	if len(killbox) != 15 {
 		t.Fatal(killbox)

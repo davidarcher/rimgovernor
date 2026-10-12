@@ -22,15 +22,15 @@ func TestPerimeterSnapsOntoRockFace(t *testing.T) {
 		}
 		return open(x, z)
 	})
-	if got, base := len(reservedCells(p, ReservePerimeter)), len(reservedCells(plains, ReservePerimeter)); got >= base {
+	if got, base := len(reservedCells(p, NodeRing)), len(reservedCells(plains, NodeRing)); got >= base {
 		t.Fatal("rock-backed ring is no cheaper", got, base)
 	}
-	for c := range reservedCells(p, ReservePerimeter) {
+	for c := range reservedCells(p, NodeRing) {
 		if c.X >= edge {
 			t.Fatal("wall on rock", c)
 		}
 	}
-	for _, kind := range []ReservationKind{ReserveGate, ReserveKillbox} {
+	for _, kind := range []NodeKind{NodeGate, NodeKillbox} {
 		for c := range reservedCells(p, kind) {
 			if c.X >= edge {
 				t.Fatal("opening on rock", kind, c)

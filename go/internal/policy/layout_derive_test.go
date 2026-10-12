@@ -71,18 +71,18 @@ func TestReplanPerimeterOnDriedGround(t *testing.T) {
 		})
 	}
 	plan, ok := DeriveLayoutPlan(survey(false, nil), 3, TechTierCamp, nil, 30).Value()
-	if !ok || len(reserved(plan, ReservePerimeterLight)) == 0 || len(reserved(plan, ReserveMoisturePump)) == 0 {
+	if !ok || len(reserved(plan, nodeRingLight)) == 0 || len(reserved(plan, NodePump)) == 0 {
 		t.Fatal("no wooden stretch", ok)
 	}
-	walls := reservedCells(plan, ReservePerimeter)
+	walls := reservedCells(plan, NodeRing)
 	if _, changed := replanTest(plan, survey(false, walls), 3, 0, TechTierCamp, nil, nil); changed {
 		t.Fatal("standing walls replanned the perimeter")
 	}
 	next, changed := replanTest(plan, survey(true, walls), 3, 0, TechTierCamp, nil, nil)
-	if !changed || len(reserved(next, ReservePerimeterLight)) != 0 || len(reserved(next, ReserveMoisturePump)) != 0 {
+	if !changed || len(reserved(next, nodeRingLight)) != 0 || len(reserved(next, NodePump)) != 0 {
 		t.Fatal("dried ground kept its wooden wall", changed)
 	}
-	if kb, was := reserved(next, ReserveKillbox), reserved(plan, ReserveKillbox); len(kb) != 1 || kb[0] != was[0] {
+	if kb, was := reserved(next, NodeKillbox), reserved(plan, NodeKillbox); len(kb) != 1 || kb[0] != was[0] {
 		t.Fatal("the opening moved", kb, was)
 	}
 	for i, r := range plan.Rooms {

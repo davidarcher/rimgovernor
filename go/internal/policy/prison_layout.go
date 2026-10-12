@@ -78,10 +78,8 @@ func PerimeterPrisonTurrets(plan LayoutPlan, turret, stuff, conduit string, tran
 		return nil, nil
 	}
 	var killbox Rectangle
-	for _, r := range plan.Reservations {
-		if r.Kind == ReserveKillbox {
-			killbox = r.Area.Bounds()
-		}
+	if k, ok := plan.Killbox(); ok {
+		killbox = k.Footprint.Bounds()
 	}
 	wi, _ := planInterior(plan, 0)
 	allowed, carry := map[domain.Cell]bool{}, map[domain.Cell]bool{}

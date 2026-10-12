@@ -26,7 +26,7 @@ func SiteRoom(plan LayoutPlan, sc *planScorer, role PlannedRole, sizes ...[2]int
 // (nil takes all): a successor that must keep its Link door refuses the slots
 // that have none.
 func siteRoomWhere(plan LayoutPlan, sc *planScorer, role PlannedRole, accept func(PlannedRoom) bool, sizes ...[2]int32) (LayoutPlan, bool, error) {
-	g := newCoreGrid(plan.Zones, plan.Reservations)
+	g := newCoreGrid(plan.Zones, plan.Reserved())
 	if len(g.core) == 0 {
 		return plan, false, fmt.Errorf("the plan needs a %s room but the map survey left no core ground to place it on", role)
 	}

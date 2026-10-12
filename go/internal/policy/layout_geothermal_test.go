@@ -26,12 +26,12 @@ func TestDeriveLayoutPlanGeothermal(t *testing.T) {
 			var enclosure Rectangle
 			var ring Rectangle
 			for _, r := range plan.Reservations {
-				switch r.Kind {
-				case ReserveGeothermal:
+				if r.Kind == ReserveGeothermal {
 					enclosure = r.Area.Bounds()
-				case ReservePerimeter:
-					ring = unionRect(ring, r.Area.Bounds())
 				}
+			}
+			if node, ok := plan.Ring(); ok {
+				ring = node.Footprint.Bounds()
 			}
 			// The wall never enters the edge margin, so a geyser
 			// the site leaves that near the edge stays outside it.

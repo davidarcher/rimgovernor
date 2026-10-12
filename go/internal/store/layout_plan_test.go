@@ -25,8 +25,8 @@ func TestLayoutPlanRoundTripsAndForgetsOnRewind(t *testing.T) {
 		Zones: []policy.LayoutZone{{Kind: policy.ZoneField, Runs: []policy.RowRun{{Z: 5, X: 3, Length: 9}}}},
 		Reservations: []policy.LayoutReservation{
 			{Kind: policy.ReserveTurbine, Area: policy.RectRegion(policy.Rectangle{X: 50, Z: 50, Width: 5, Height: 2}), Pair: 1},
-			{Kind: policy.ReserveMortar, Area: policy.RectRegion(policy.Rectangle{X: 30, Z: 30, Width: 1, Height: 1})},
 		},
+		Sites: []policy.PlannedSite{{SitePlacement: policy.SitePlacement{Node: "mortar", Origin: domain.Cell{X: 30, Z: 30}, Footprint: policy.RectRegion(policy.Rectangle{X: 30, Z: 30, Width: 1, Height: 1})}, Kind: policy.NodeMortar}},
 	}
 	first = first.WithRoomIDs()
 	grown := first

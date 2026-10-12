@@ -47,15 +47,14 @@ type PerimeterSection struct {
 func LayoutKillbox(plan LayoutPlan, bounds Bounds) (k DefenseKillbox, region Rectangle, home domain.Cell, ok bool) {
 	var killbox Rectangle
 	var approaches []Rectangle
-	for _, r := range plan.Reservations {
-		switch r.Kind {
-		case ReserveKillbox:
-			killbox = r.Area.Bounds()
-		case ReserveKillboxApproach:
-			approaches = append(approaches, r.Area.Bounds())
-		case ReservePerimeter:
-			k.Walled = append(k.Walled, r.Area.Cells()...)
-		}
+	if node, found := plan.Killbox(); found {
+		killbox = node.Footprint.Bounds()
+	}
+	for _, a := range plan.LiveSites(NodeApproach) {
+		approaches = append(approaches, a.Footprint.Bounds())
+	}
+	if ring, found := plan.Ring(); found {
+		k.Walled = ring.Footprint.Cells()
 	}
 	if killbox.Width == 0 {
 		return DefenseKillbox{}, Rectangle{}, domain.Cell{}, false
@@ -130,38 +129,36 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 	woodInner := map[domain.Cell]bool{} // light-footing wall cells: wood to start
 	var runs []Rectangle
 	var killbox, geothermal Rectangle
+	for _, g := range plan.LiveSites(NodeGate) {
+		// An airlock: a door on each face of the wall, the
+		// cells between left open, enclosed by the wall beside them.
+		ends := g.Footprint.Bounds().Width
+		if g.Footprint.Bounds().Height > ends {
+			ends = g.Footprint.Bounds().Height
+		}
+		for i, c := range g.Footprint.Cells() {
+			if i == 0 || int32(i) == ends-1 {
+				gates[c] = true
+			} else {
+				airlock[c] = true
+			}
+		}
+	}
+	if ring, found := plan.Ring(); found {
+		runs = regionRects(ring.Footprint)
+		for _, c := range ring.Ring.Light.Cells() {
+			woodInner[c] = true
+		}
+		for _, c := range ring.Ring.Bridged.Cells() {
+			bridged[c] = true
+		}
+	}
+	if k, found := plan.Killbox(); found {
+		killbox = k.Footprint.Bounds()
+	}
 	for _, r := range plan.Reservations {
-		switch r.Kind {
-		case ReserveGate:
-			// An airlock: a door on each face of the wall, the
-			// cells between left open, enclosed by the wall beside them.
-			ends := r.Area.Bounds().Width
-			if r.Area.Bounds().Height > ends {
-				ends = r.Area.Bounds().Height
-			}
-			for i, c := range r.Area.Cells() {
-				if i == 0 || int32(i) == ends-1 {
-					gates[c] = true
-				} else {
-					airlock[c] = true
-				}
-			}
-		case ReservePerimeter:
-			runs = append(runs, r.Area.Bounds())
-		case ReservePerimeterLight:
-			for _, c := range r.Area.Cells() {
-				woodInner[c] = true
-			}
-		case ReserveBridge:
-			for _, c := range r.Area.Cells() {
-				bridged[c] = true
-			}
-		case ReserveKillbox:
-			killbox = r.Area.Bounds()
-		case ReserveGeothermal:
-			if geothermal.Width == 0 {
-				geothermal = r.Area.Bounds()
-			}
+		if r.Kind == ReserveGeothermal && geothermal.Width == 0 {
+			geothermal = r.Area.Bounds()
 		}
 	}
 	type piece struct {
@@ -287,13 +284,11 @@ const TierPumpPrefix = TierPerimeterPrefix + "pump-"
 func PerimeterPumps(plan LayoutPlan, pump, conduit string, transmitters []domain.Cell) ([]PerimeterSection, error) {
 	var killbox Rectangle
 	var sites []domain.Cell
-	for _, r := range plan.Reservations {
-		switch r.Kind {
-		case ReserveKillbox:
-			killbox = r.Area.Bounds()
-		case ReserveMoisturePump:
-			sites = append(sites, domain.Cell{X: r.Area.Bounds().X, Z: r.Area.Bounds().Z})
-		}
+	if k, found := plan.Killbox(); found {
+		killbox = k.Footprint.Bounds()
+	}
+	for _, p := range plan.LiveSites(NodePump) {
+		sites = append(sites, p.Origin)
 	}
 	if len(sites) == 0 || len(transmitters) == 0 {
 		return nil, nil
@@ -338,16 +333,13 @@ func PerimeterPumps(plan LayoutPlan, pump, conduit string, transmitters []domain
 const TierFencePrefix = TierPerimeterPrefix + "fence-"
 
 // FenceSections is one section for the fence cells across the killbox
-// opening (ReserveKillboxFence): a Fence is PassThroughOnly, stopping only
+// opening (NodeFence): a Fence is PassThroughOnly, stopping only
 // roamers, so the lane stays the raiders' way in.
 func FenceSections(plan LayoutPlan, fence, stuff string) ([]PerimeterSection, error) {
 	var out []PerimeterSection
-	for _, r := range plan.Reservations {
-		if r.Kind != ReserveKillboxFence {
-			continue
-		}
+	for _, f := range plan.LiveSites(NodeFence) {
 		s := PerimeterSection{Name: DefenseTierName(fmt.Sprintf("%s%02d", TierFencePrefix, len(out)))}
-		for _, c := range r.Area.Cells() {
+		for _, c := range f.Footprint.Cells() {
 			b, err := domain.NewBuilding(fence, c, domain.North, stuff)
 			if err != nil {
 				return nil, err

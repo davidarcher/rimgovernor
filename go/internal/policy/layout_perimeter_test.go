@@ -33,19 +33,41 @@ func perimeterPlanAt(t *testing.T, seed *domain.Cell, cell func(x, z int32) Surv
 	return p
 }
 
-func reserved(p LayoutPlan, kind ReservationKind) []Rectangle {
+// The ring's attributes, read as the pieces a test checks.
+const (
+	nodeRingLight  NodeKind = "ring_light"
+	nodeRingBridge NodeKind = "ring_bridge"
+	nodeRingGap    NodeKind = "ring_gap"
+)
+
+// reserved lists the rectangles of the plan's nodes of kind (a ring's wall as
+// the rectangles the sections cut, its attributes by the pseudo-kinds above).
+func reserved(p LayoutPlan, kind NodeKind) []Rectangle {
 	var out []Rectangle
-	for _, r := range p.Reservations {
-		if r.Kind == kind {
-			out = append(out, r.Area.Bounds())
+	for _, s := range p.LiveSites(NodeRing) {
+		switch kind {
+		case NodeRing:
+			out = append(out, regionRects(s.Footprint)...)
+		case nodeRingLight:
+			out = append(out, regionRects(s.Ring.Light)...)
+		case nodeRingBridge:
+			out = append(out, regionRects(s.Ring.Bridged)...)
+		case nodeRingGap:
+			out = append(out, regionRects(s.Ring.Gaps)...)
 		}
+	}
+	if kind == NodeRing || kind == nodeRingLight || kind == nodeRingBridge || kind == nodeRingGap {
+		return out
+	}
+	for _, s := range p.LiveSites(kind) {
+		out = append(out, regionRects(s.Footprint)...)
 	}
 	return out
 }
 
 func checkPerimeter(t *testing.T, p LayoutPlan) (killbox Rectangle) {
 	t.Helper()
-	walls, gates := reserved(p, ReservePerimeter), reserved(p, ReserveGate)
+	walls, gates := reserved(p, NodeRing), reserved(p, NodeGate)
 	if len(walls) == 0 || len(gates) == 0 {
 		t.Fatal("walls", walls, "gates", gates)
 	}
@@ -67,19 +89,19 @@ func checkPerimeter(t *testing.T, p LayoutPlan) (killbox Rectangle) {
 			t.Fatal("gate off the wall", g)
 		}
 	}
-	kb := reserved(p, ReserveKillbox)
-	if len(kb) != 1 || len(reserved(p, ReserveKillboxApproach)) != 2 {
+	kb := reserved(p, NodeKillbox)
+	if len(kb) != 1 || len(reserved(p, NodeApproach)) != 2 {
 		t.Fatal("killbox", kb)
 	}
 	// The approach leads into the killbox, so the defense layout reads a
 	// funnel from it.
 	if _, _, _, ok := LayoutKillbox(p, Bounds{Width: 200, Height: 200}); !ok {
-		t.Fatal("approach does not lead into the killbox", kb, reserved(p, ReserveKillboxApproach))
+		t.Fatal("approach does not lead into the killbox", kb, reserved(p, NodeApproach))
 	}
-	if len(reserved(p, ReserveCoverClear)) == 0 {
+	if len(reserved(p, NodeCoverClear)) == 0 {
 		t.Fatal("no cover band")
 	}
-	m := reserved(p, ReserveMortar)
+	m := reserved(p, NodeMortar)
 	if len(m) != 1 {
 		t.Fatal("mortar", m)
 	}
@@ -97,7 +119,7 @@ func TestPerimeterOpenPlains(t *testing.T) {
 	checkPerimeter(t, p)
 	// Replanning replaces, never duplicates.
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	if again := PlanPerimeter(p, s); len(again.Reservations) != len(p.Reservations) {
+	if again := PlanPerimeter(p, s); len(again.Sites) != len(p.Sites) {
 		t.Fatal("replan duplicated")
 	}
 }
@@ -109,12 +131,12 @@ func TestPerimeterOpenPlains(t *testing.T) {
 // plan's walls and approach legs only, are the same with the fence in place.
 func TestPerimeterFencesTheOpening(t *testing.T) {
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	fences := reserved(p, ReserveKillboxFence)
+	fences := reserved(p, NodeFence)
 	if len(fences) != 1 || fences[0].Width*fences[0].Height != 3 {
 		t.Fatal("fence", fences)
 	}
-	walls := reservedCells(p, ReservePerimeter)
-	for c := range reservedCells(p, ReserveKillboxFence) {
+	walls := reservedCells(p, NodeRing)
+	for c := range reservedCells(p, NodeFence) {
 		if walls[c] {
 			t.Fatal("fence on a wall cell", c)
 		}
@@ -125,10 +147,10 @@ func TestPerimeterFencesTheOpening(t *testing.T) {
 		t.Fatal("no killbox")
 	}
 	bare := p
-	bare.Reservations = nil
-	for _, r := range p.Reservations {
-		if r.Kind != ReserveKillboxFence {
-			bare.Reservations = append(bare.Reservations, r)
+	bare.Sites = nil
+	for _, s := range p.Sites {
+		if s.Kind != NodeFence {
+			bare.Sites = append(bare.Sites, s)
 		}
 	}
 	k2, region2, home2, _ := LayoutKillbox(bare, bounds)
@@ -149,7 +171,7 @@ func TestPerimeterMountainSealsFlank(t *testing.T) {
 		return SurveyCell{Walkable: true, Fertility: 1}
 	})
 	checkPerimeter(t, p)
-	for _, w := range reserved(p, ReservePerimeter) {
+	for _, w := range reserved(p, NodeRing) {
 		if w.X+w.Width > 120 {
 			t.Fatal("wall on rock", w)
 		}
@@ -172,7 +194,7 @@ func TestPerimeterKillboxWhereApproachesConverge(t *testing.T) {
 	if c := kb.X + kb.Width/2; c < 95-drift || c > 105+drift {
 		t.Fatal("killbox off the mouth", kb)
 	}
-	app := reserved(p, ReserveKillboxApproach)
+	app := reserved(p, NodeApproach)
 	if app[0].Z >= kb.Z {
 		t.Fatal("approach not outside the south wall", app, kb)
 	}
@@ -186,7 +208,7 @@ func perimeterLeak(p LayoutPlan, s MapSurvey) (domain.Cell, bool) {
 	for _, c := range s.Cells {
 		open[c.Cell] = c.Walkable && !c.Rock
 	}
-	for _, kind := range []ReservationKind{ReservePerimeter, ReserveKillbox} {
+	for _, kind := range []NodeKind{NodeRing, NodeKillbox} {
 		for _, r := range reserved(p, kind) {
 			for _, c := range rectCells(r) {
 				open[c] = false
@@ -222,7 +244,7 @@ func perimeterLeak(p LayoutPlan, s MapSurvey) (domain.Cell, bool) {
 	return domain.Cell{}, false
 }
 
-func reservedCells(p LayoutPlan, kind ReservationKind) map[domain.Cell]bool {
+func reservedCells(p LayoutPlan, kind NodeKind) map[domain.Cell]bool {
 	out := map[domain.Cell]bool{}
 	for _, r := range reserved(p, kind) {
 		for _, c := range rectCells(r) {
@@ -254,8 +276,8 @@ func wetPerimeter(t *testing.T, soft func(x, z int32) (SurveyCell, bool)) (Layou
 	if c, leak := perimeterLeak(p, s); leak {
 		t.Fatal("raiders reach the core at", c)
 	}
-	light, bridges := reservedCells(p, ReservePerimeterLight), reservedCells(p, ReserveBridge)
-	for c := range reservedCells(p, ReservePerimeter) {
+	light, bridges := reservedCells(p, nodeRingLight), reservedCells(p, nodeRingBridge)
+	for c := range reservedCells(p, NodeRing) {
 		sc := cell(c.X, c.Z)
 		switch {
 		case sc.Footing == FootingFirm && !light[c] && !bridges[c]:
@@ -272,7 +294,7 @@ func wetPerimeter(t *testing.T, soft func(x, z int32) (SurveyCell, bool)) (Layou
 func plainsRing(t *testing.T) Rectangle {
 	t.Helper()
 	var ring Rectangle
-	for _, r := range reserved(perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 0.7} }), ReservePerimeter) {
+	for _, r := range reserved(perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 0.7} }), NodeRing) {
 		ring = unionRect(ring, r)
 	}
 	return ring
@@ -289,11 +311,11 @@ func TestPerimeterShallowPondDetours(t *testing.T) {
 		return shallowWater, x >= face && x <= face+6 && z >= cz-3 && z <= cz+3
 	}
 	p, _ := wetPerimeter(t, pond)
-	if len(reserved(p, ReserveBridge)) != 0 || len(reserved(p, ReservePerimeterGap)) != 0 {
-		t.Fatal("a pond at the wall is walled around, not bridged", reserved(p, ReserveBridge))
+	if len(reserved(p, nodeRingBridge)) != 0 || len(reserved(p, nodeRingGap)) != 0 {
+		t.Fatal("a pond at the wall is walled around, not bridged", reserved(p, nodeRingBridge))
 	}
 	inside := false
-	for c := range reservedCells(p, ReservePerimeter) {
+	for c := range reservedCells(p, NodeRing) {
 		inside = inside || c.X == face-perimeterThick && c.Z == cz
 	}
 	if !inside {
@@ -304,7 +326,7 @@ func TestPerimeterShallowPondDetours(t *testing.T) {
 	p, _ = wetPerimeter(t, func(x, z int32) (SurveyCell, bool) {
 		return shallowWater, x >= face-4 && x <= face+6 && z >= cz-3 && z <= cz+3
 	})
-	if len(reserved(p, ReserveBridge)) == 0 {
+	if len(reserved(p, nodeRingBridge)) == 0 {
 		t.Fatal("a deep pond is bridged")
 	}
 }
@@ -318,7 +340,7 @@ func TestPerimeterRiverIsBridged(t *testing.T) {
 		c.Dries = false
 		return c, z >= z0 && z < z0+4
 	})
-	if len(reserved(p, ReserveBridge)) == 0 {
+	if len(reserved(p, nodeRingBridge)) == 0 {
 		t.Fatal("a river across the ring is bridged")
 	}
 }
@@ -330,7 +352,7 @@ func TestPerimeterMarshySoilTakesWood(t *testing.T) {
 	p, _ := wetPerimeter(t, func(x, z int32) (SurveyCell, bool) {
 		return SurveyCell{Walkable: true, Footing: FootingLight, Bridgeable: true, Dries: true, Fertility: 1}, z >= z0 && z < z0+4
 	})
-	if len(reserved(p, ReservePerimeterLight)) == 0 || len(reserved(p, ReserveBridge)) != 0 {
+	if len(reserved(p, nodeRingLight)) == 0 || len(reserved(p, nodeRingBridge)) != 0 {
 		t.Fatal("marshy soil takes a wooden wall, no bridge")
 	}
 }
@@ -345,7 +367,7 @@ func TestPerimeterPumpsCoverDryingRing(t *testing.T) {
 	z0 := ring.Z + ring.Height - 12
 	wet := func(x, z int32) bool { return z >= z0 && z < z0+4 }
 	p, _ := wetPerimeter(t, func(x, z int32) (SurveyCell, bool) { return marsh, wet(x, z) })
-	pumps, light := reservedCells(p, ReserveMoisturePump), reservedCells(p, ReservePerimeterLight)
+	pumps, light := reservedCells(p, NodePump), reservedCells(p, nodeRingLight)
 	if len(pumps) == 0 || len(light) == 0 {
 		t.Fatal("pumps", pumps, "light", len(light))
 	}
@@ -375,7 +397,7 @@ func TestPerimeterPumpsCoverDryingRing(t *testing.T) {
 		return SurveyCell{Walkable: true, Fertility: 1}
 	})
 	if again := PlanPerimeter(p, s); !samePerimeter(p, again) {
-		t.Fatal("standing pumps moved", reservedCells(again, ReserveMoisturePump))
+		t.Fatal("standing pumps moved", reservedCells(again, NodePump))
 	}
 	// Each pump section is the pump and a conduit run joining the network
 	// cardinally, ending within connector reach of the pump.
@@ -425,7 +447,7 @@ func TestPerimeterPumpsCoverDryingRing(t *testing.T) {
 	river := shallowWater
 	river.Dries = false
 	p, _ = wetPerimeter(t, func(x, z int32) (SurveyCell, bool) { return river, wet(x, z) })
-	if len(reserved(p, ReserveMoisturePump)) != 0 {
+	if len(reserved(p, NodePump)) != 0 {
 		t.Fatal("pumps by ground that never dries")
 	}
 }
@@ -436,7 +458,7 @@ func TestPerimeterReadsBuildingsAsGround(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	p := perimeterPlan(t, open)
-	walls := reservedCells(p, ReservePerimeter)
+	walls := reservedCells(p, NodeRing)
 	s := zoningSurvey(200, func(x, z int32) SurveyCell {
 		if walls[domain.Cell{X: x, Z: z}] {
 			return SurveyCell{Built: true, Fertility: 1}
@@ -455,7 +477,7 @@ func TestPerimeterDeepWaterSeals(t *testing.T) {
 	p, _ := wetPerimeter(t, func(x, z int32) (SurveyCell, bool) {
 		return SurveyCell{Footing: FootingNone}, x >= x0
 	})
-	for _, r := range reserved(p, ReservePerimeter) {
+	for _, r := range reserved(p, NodeRing) {
 		if r.X+r.Width > x0 {
 			t.Fatal("wall on deep water", r)
 		}
@@ -474,7 +496,7 @@ func TestPerimeterUnbridgeableGapIsFlagged(t *testing.T) {
 	}
 	s := zoningSurvey(200, cell)
 	p := PlanPerimeter(corePlan(Zone(s), 3, TechTierCamp), s)
-	if len(reserved(p, ReservePerimeterGap)) == 0 {
+	if len(reserved(p, nodeRingGap)) == 0 {
 		t.Fatal("ground nothing closes is flagged")
 	}
 }
@@ -488,7 +510,7 @@ func TestPerimeterSectionsBridgeBeforeWall(t *testing.T) {
 	p, _ := wetPerimeter(t, func(x, z int32) (SurveyCell, bool) {
 		return shallowWater, z >= z0 && z < z0+4
 	})
-	bridged := reservedCells(p, ReserveBridge)
+	bridged := reservedCells(p, nodeRingBridge)
 	for _, tc := range []struct{ bridge, stuff string }{{PerimeterBridge, PerimeterLightStuff}, {PerimeterHeavyBridge, ""}} {
 		sections, err := PerimeterSections(p, "Wall", "Door", tc.bridge)
 		if err != nil {
@@ -521,7 +543,7 @@ func TestPerimeterSectionsBridgeBeforeWall(t *testing.T) {
 func TestPerimeterGatesOnHallwayAxes(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	gates := reserved(p, ReserveGate)
+	gates := reserved(p, NodeGate)
 	onAxis := func(vertical bool, a int32) bool {
 		for _, g := range gates {
 			if vertical && g.Height == 1 && g.Z == a || !vertical && g.Width == 1 && g.X == a {
@@ -570,7 +592,7 @@ func TestPerimeterLeavesRichPatchOutside(t *testing.T) {
 	p := PlanPerimeter(plan, s)
 	checkPerimeter(t, p)
 	var ring Rectangle
-	for _, r := range reserved(p, ReservePerimeter) {
+	for _, r := range reserved(p, NodeRing) {
 		ring = unionRect(ring, r)
 	}
 	if lim := pad(core, perimeterGap+perimeterThick); ring.Width == 0 || unionRect(lim, ring) != lim {
@@ -601,7 +623,7 @@ func TestPerimeterKillboxClearOfUtilities(t *testing.T) {
 	if !ok {
 		t.Fatal("no plan")
 	}
-	k := reserved(p, ReserveKillbox)
+	k := reserved(p, NodeKillbox)
 	if len(k) != 1 || min(k[0].Width, k[0].Height) != 2*killboxHalf+1 || max(k[0].Width, k[0].Height) != killboxRows {
 		t.Fatal("killbox", k)
 	}
@@ -631,7 +653,7 @@ func TestPerimeterPlainSoilStaysNearCore(t *testing.T) {
 			rooms = unionRect(rooms, r.Area.Bounds())
 		}
 	}
-	for _, r := range reserved(p, ReservePerimeter) {
+	for _, r := range reserved(p, NodeRing) {
 		ring = unionRect(ring, r)
 	}
 	if lim := pad(rooms, 2*perimeterGap+perimeterThick); ring.Width == 0 || unionRect(lim, ring) != lim {

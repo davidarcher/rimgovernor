@@ -22,10 +22,15 @@ func TestDefenseKillboxRegionFromThePlan(t *testing.T) {
 	if _, _, _, ok := defenseKillbox(observation.ColonyProjection{Bounds: bounds}); ok {
 		t.Fatal("a killbox without a plan")
 	}
-	plan := policy.LayoutPlan{Reservations: []policy.LayoutReservation{
-		{Kind: policy.ReserveKillbox, Area: policy.RectRegion(policy.Rectangle{X: 95, Z: 53, Width: 11, Height: 10})},
-		{Kind: policy.ReserveKillboxApproach, Area: policy.RectRegion(policy.Rectangle{X: 99, Z: 42, Width: 3, Height: 8})},
-		{Kind: policy.ReservePerimeter, Area: policy.RectRegion(policy.Rectangle{X: 60, Z: 50, Width: 39, Height: 3})},
+	site := func(id string, kind policy.NodeKind, r policy.Rectangle) policy.PlannedSite {
+		return policy.PlannedSite{SitePlacement: policy.SitePlacement{Node: id, Footprint: policy.RectRegion(r)}, Kind: kind}
+	}
+	ring := site("ring", policy.NodeRing, policy.Rectangle{X: 60, Z: 50, Width: 39, Height: 3})
+	ring.Ring = &policy.RingFacts{}
+	plan := policy.LayoutPlan{Sites: []policy.PlannedSite{
+		site("killbox", policy.NodeKillbox, policy.Rectangle{X: 95, Z: 53, Width: 11, Height: 10}),
+		site("approach", policy.NodeApproach, policy.Rectangle{X: 99, Z: 42, Width: 3, Height: 8}),
+		ring,
 	}}
 	k, region, home, ok := defenseKillbox(observation.ColonyProjection{Bounds: bounds, LayoutPlan: domain.Known(plan)})
 	if !ok || k.Entry != (domain.Cell{X: 100, Z: 50}) || k.Toward != domain.North || region.Min.X < 0 || region.Min.Z < 0 || region.Max.X >= 250 || region.Max.Z >= 250 || region.Cells() == 0 || k.Depth != 10 || home != (domain.Cell{X: 100, Z: 63}) {

@@ -249,7 +249,7 @@ type herdDoor struct {
 // (its walls), where the door would open on a wall nobody can walk through.
 func (p LayoutPlan) doorBlocked(d herdDoor, own Rectangle) bool {
 	out := domain.Cell{X: d.cell.X + d.sx, Z: d.cell.Z + d.sz}
-	for _, r := range p.Reservations {
+	for _, r := range p.Reserved() {
 		a := r.Area
 		if a.Equal(RectRegion(own)) {
 			continue

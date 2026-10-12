@@ -88,11 +88,8 @@ type RoomDoor struct {
 // the plan reserves none.
 func (p LayoutPlan) KillboxCells() []domain.Cell {
 	var out []domain.Cell
-	for _, r := range p.Reservations {
-		if r.Kind != ReserveKillbox {
-			continue
-		}
-		out = append(out, r.Area.Cells()...)
+	if k, ok := p.Killbox(); ok {
+		out = append(out, k.Footprint.Cells()...)
 	}
 	return out
 }

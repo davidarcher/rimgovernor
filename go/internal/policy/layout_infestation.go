@@ -43,16 +43,20 @@ func PlanMountainPockets(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	var kept []LayoutReservation
 	var ring Rectangle
 	used := map[domain.Cell]bool{}
-	for _, r := range plan.Reservations {
+	if node, ok := plan.Ring(); ok {
+		ring = node.Footprint.Bounds()
+	}
+	for _, r := range plan.Reserved() {
 		if r.Kind == ReservePocketWall {
 			continue
 		}
-		kept = append(kept, r)
-		if r.Kind == ReservePerimeter {
-			ring = unionRect(ring, r.Area.Bounds())
-		}
 		for _, c := range r.Area.Cells() {
 			used[c] = true
+		}
+	}
+	for _, r := range plan.Reservations {
+		if r.Kind != ReservePocketWall {
+			kept = append(kept, r)
 		}
 	}
 	plan.Reservations = kept

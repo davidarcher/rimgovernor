@@ -1,7 +1,7 @@
 package policy
 
 import (
-	"sort"
+	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -26,29 +26,18 @@ import (
 // keeps the opening while it still opens: the defense layout is anchored
 // on it.
 
-// Reservation kinds A5 adds beside A1's.
-const (
-	ReserveKillboxApproach ReservationKind = "killbox_approach"
-	// ReserveKillboxFence marks the fence across the opening: a
-	// Fence is PassThroughOnly (path cost 80), so only roamers
-	// (FenceBlocked) are stopped and raiders still walk through; the cost
-	// is a penalty, not a block, and the census reads the cell as Passable.
-	ReserveKillboxFence ReservationKind = "killbox_fence"
-	// ReservePerimeterLight marks wall cells on light footing: the wall
-	// there is wood.
-	ReservePerimeterLight ReservationKind = "perimeter_light"
-	// ReserveBridge marks wall cells on water: a bridge goes down first,
-	// then the wall on it (wood on a plain bridge, stone on a heavy one).
-	ReserveBridge ReservationKind = "perimeter_bridge"
-	// ReservePerimeterGap marks walkable ring cells nothing can close.
-	ReservePerimeterGap ReservationKind = "perimeter_gap"
-	// ReserveMoisturePump marks a moisture pump site: soft ring cells it
-	// dries lie within pumpRadius.
-	ReserveMoisturePump ReservationKind = "perimeter_pump"
-)
+// The killbox fence closes the opening: a Fence is PassThroughOnly (path cost
+// 80), so only roamers (FenceBlocked) are stopped and raiders still walk
+// through; the cost is a penalty, not a block, and the census reads the cell as
+// Passable. Light footing, bridges and gaps are ring attributes (RingFacts): a
+// wall on light footing is wood, a wall on water stands on a bridge laid first
+// (wood on a plain bridge, stone on a heavy one), a gap is walkable ring ground
+// nothing can close. A moisture pump site covers the soft ring cells within
+// pumpRadius.
 
-// perimeterKinds are the reservations PlanPerimeter owns.
-var perimeterKinds = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveMoisturePump: true, ReserveGate: true, ReserveKillbox: true, ReserveKillboxApproach: true, ReserveKillboxFence: true, ReserveCoverClear: true, ReserveMortar: true, ReservePocketWall: true, ReserveBaitRoom: true, ReserveBaitWall: true}
+// perimeterKinds are the reservations that stand or fall with the ring (the
+// ring and its parts are sites, layout_perimeter_sites.go).
+var perimeterKinds = map[ReservationKind]bool{ReservePocketWall: true, ReserveBaitRoom: true, ReserveBaitWall: true}
 
 const (
 	perimeterThick int32 = 3
@@ -386,13 +375,12 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 	}
 	// The opening already planned stays while it still opens.
-	for _, r := range plan.Reservations {
-		if r.Kind != ReserveKillbox {
-			continue
-		}
+	keptReason := ""
+	for _, prev := range plan.LiveSites(NodeKillbox) {
 		for k, sd := range sides {
 			for p := sd.lo; p <= sd.hi && !opened; p++ {
-				if kb, _ := openingAt(crossing{k, p}); kb == r.Area.Bounds() && opens(crossing{k, p}, false) {
+				if kb, _ := openingAt(crossing{k, p}); kb == prev.Footprint.Bounds() && opens(crossing{k, p}, false) {
+					keptReason = prev.Reason
 					open, opened = crossing{k, p}, true
 				}
 			}
@@ -409,24 +397,33 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 	}
 
-	var res []LayoutReservation
-	add := func(kind ReservationKind, r Rectangle) {
+	openingReason := ReasonOpeningNone
+	switch {
+	case pinned && keptReason != "":
+		// A kept opening keeps the reason it was chosen for, so a replan
+		// that changes nothing stores nothing new.
+		openingReason = keptReason
+	case opened:
+		openingReason = ReasonOpeningRoutes
+	}
+	sites := map[NodeKind][]Region{}
+	add := func(kind NodeKind, r Rectangle) {
 		if r = clipRect(r, Rectangle{Width: w, Height: h}); r.Width > 0 && r.Height > 0 {
-			res = append(res, LayoutReservation{Kind: kind, Area: RectRegion(r)})
+			sites[kind] = append(sites[kind], RectRegion(r))
 		}
 	}
 	var killbox Rectangle
 	if opened {
 		var at func(in, al int32) domain.Cell
 		killbox, at = openingAt(open)
-		add(ReserveKillbox, killbox)
+		add(NodeKillbox, killbox)
 		// The approach leaves the opening straight out, then turns along
 		// the wall, so the lane breaks line of sight into the killbox.
-		add(ReserveKillboxApproach, rectOf(at(-1, -1), at(-approachLeg, 1)))
-		add(ReserveKillboxApproach, rectOf(at(-approachLeg+2, 2), at(-approachLeg, approachLeg+1)))
+		add(NodeApproach, rectOf(at(-1, -1), at(-approachLeg, 1)))
+		add(NodeApproach, rectOf(at(-approachLeg+2, 2), at(-approachLeg, approachLeg+1)))
 		// The fence closes the opening on its outer face, flush with the
 		// wall: the one lane stays the single way through.
-		add(ReserveKillboxFence, rectOf(at(0, -1), at(0, 1)))
+		add(NodeFence, rectOf(at(0, -1), at(0, 1)))
 	}
 
 	// axes are where the hallways, run straight on, meet sd: the east-west
@@ -459,7 +456,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	}
 	gates = pitchGates(gates, stepGates, func(c domain.Cell) bool { return walls[c] || impassable(c) })
 	for _, g := range gates {
-		add(ReserveGate, g)
+		add(NodeGate, g)
 	}
 	// Soft stretches: a detour's wall, else the ring crossing them.
 	for c := range detour {
@@ -496,11 +493,17 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			closeCell(c)
 		}
 	}
-	for kind, set := range map[ReservationKind]map[domain.Cell]bool{ReservePerimeter: walls, ReservePerimeterLight: light, ReserveBridge: bridges, ReservePerimeterGap: gaps} {
-		for _, r := range cellRects(set) {
-			add(kind, r)
+	inMap := func(set map[domain.Cell]bool) Region {
+		var cs []domain.Cell
+		for _, c := range sortedCells(set) {
+			if c.X >= 0 && c.Z >= 0 && c.X < w && c.Z < h {
+				cs = append(cs, c)
+			}
 		}
+		return RegionOf(cs)
 	}
+	ring := newSite("perimeter-ring", NodeRing, inMap(walls), ReasonRingTraced)
+	ring.Ring = &RingFacts{Light: inMap(light), Bridged: inMap(bridges), Gaps: inMap(gaps), Opening: openingReason}
 
 	// Moisture pumps: sites inside the wall, greedily covering the
 	// soft ring cells a pump dries, each within pumpRadiusSq of its pump.
@@ -534,9 +537,9 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			}
 		}
 	}
-	for _, r := range plan.Reservations {
-		if c := (domain.Cell{X: r.Area.Bounds().X, Z: r.Area.Bounds().Z}); r.Kind == ReserveMoisturePump && pumpSite(c, true) && drying(c) > 0 {
-			cover(c)
+	for _, old := range plan.LiveSites(NodePump) {
+		if pumpSite(old.Origin, true) && drying(old.Origin) > 0 {
+			cover(old.Origin)
 		}
 	}
 	candidates := map[domain.Cell]bool{}
@@ -563,7 +566,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		cover(best)
 	}
 	for _, c := range sortedCells(pumps) {
-		add(ReserveMoisturePump, rectOf(c, c))
+		add(NodePump, rectOf(c, c))
 	}
 
 	// Cover-clear band: everything within perimeterCoverBand outside the
@@ -574,9 +577,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			band[domain.Cell{X: int32(i) % w, Z: int32(i) / w}] = true
 		}
 	}
-	for _, r := range cellRects(band) {
-		add(ReserveCoverClear, r)
-	}
+	coverBand := inMap(band)
 
 	// Mortar: the firm cell deepest inside the wall, off rooms, hallway,
 	// killbox and detours.
@@ -599,8 +600,23 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 	}
 	if depth >= 0 {
-		add(ReserveMortar, rectOf(mortar, mortar))
+		add(NodeMortar, rectOf(mortar, mortar))
 	}
+
+	// The ring's inside is stored on the node: the rooms' flood, stopped by
+	// the band and the wall.
+	wall := map[domain.Cell]bool{}
+	for _, region := range []Region{ring.Footprint, ring.Ring.Gaps} {
+		for _, c := range region.Cells() {
+			wall[c] = true
+		}
+	}
+	for _, g := range sites[NodeGate] {
+		for _, c := range g.Cells() {
+			wall[c] = true
+		}
+	}
+	ring.Ring.Inner, ring.Ring.Sealed = traceInterior(plan.AllRooms(), wall, band)
 
 	kept := plan.Reservations[:0:0]
 	for _, r := range plan.Reservations {
@@ -608,8 +624,25 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			kept = append(kept, r)
 		}
 	}
-	sort.SliceStable(res, func(i, j int) bool { return res[i].Kind < res[j].Kind })
-	plan.Reservations = append(kept, res...)
+	plan.Reservations = kept
+	plan = plan.withoutPerimeterSites()
+	plan.Sites = append(plan.Sites, ring)
+	// Each kind in a stable order, its parts as ordinals, so the same inputs
+	// store the same nodes.
+	for _, kind := range []NodeKind{NodeGate, NodeKillbox, NodeApproach, NodeFence, NodePump, NodeMortar} {
+		for i, fp := range sites[kind] {
+			id, reason := fmt.Sprintf("%s-%02d", kind, i), ""
+			if kind == NodeKillbox {
+				id, reason = string(kind), openingReason
+			}
+			s := newSite(id, kind, fp, reason)
+			s.Anchored = kind == NodeKillbox
+			plan.Sites = append(plan.Sites, s)
+		}
+	}
+	if !coverBand.Empty() {
+		plan.Sites = append(plan.Sites, newSite("cover-clear", NodeCoverClear, coverBand, ""))
+	}
 	return plan
 }
 

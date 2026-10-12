@@ -38,7 +38,7 @@ func SiteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier TechTier) Lay
 // siteCore is SiteCore with searchIters local-search operators per searched
 // site (0 skips the search: the replay harness's unsearched baseline).
 func siteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier TechTier, searchIters int) LayoutPlan {
-	g := newCoreGrid(plan.Zones, plan.Reservations).withSoil(s)
+	g := newCoreGrid(plan.Zones, plan.Reserved()).withSoil(s)
 	if len(g.core) == 0 {
 		return plan
 	}

@@ -16,8 +16,10 @@ func TestLayoutOverlayV2DrawsZonesSpineRoomsReservationsAndTraffic(t *testing.T)
 		Zones: []LayoutZone{{Kind: ZoneField, Runs: []RowRun{{Z: 0, X: 0, Length: 50}, {Z: 1, X: 240, Length: 30}}}},
 		Reservations: []LayoutReservation{
 			{Kind: ReserveTurbineLane, Area: RectRegion(Rectangle{X: 50, Z: 50, Width: 7, Height: 18})},
-			{Kind: ReserveKillbox, Area: RectRegion(Rectangle{X: 80, Z: 80, Width: 5, Height: 5})},
-			{Kind: ReservePerimeter, Area: RectRegion(Rectangle{X: 5, Z: 5, Width: 120, Height: 120})},
+		},
+		Sites: []PlannedSite{
+			testSite(NodeKillbox, Rectangle{X: 80, Z: 80, Width: 5, Height: 5}),
+			testSite(NodeRing, Rectangle{X: 5, Z: 5, Width: 120, Height: 120}),
 		},
 	}
 	o := plan.Overlay(Bounds{Width: 250, Height: 250})

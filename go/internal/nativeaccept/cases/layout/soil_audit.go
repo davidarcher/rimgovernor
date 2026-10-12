@@ -147,15 +147,7 @@ func auditSoil(plan policy.LayoutPlan, s policy.MapSurvey, crops [][]domain.Cell
 		a.RichOverlap = float64(a.RichBuiltN) / float64(a.RichCells)
 	}
 
-	wall := map[domain.Cell]bool{}
-	for _, r := range plan.Reservations {
-		switch r.Kind {
-		case policy.ReservePerimeter, policy.ReservePerimeterLight, policy.ReserveBridge, policy.ReservePerimeterGap, policy.ReserveGate:
-			for _, c := range r.Area.Cells() {
-				wall[c] = true
-			}
-		}
-	}
+	wall := plan.WallCells()
 	a.WallCells = len(wall)
 
 	// A turbine lane is zoned as a field of its own under the blades; it

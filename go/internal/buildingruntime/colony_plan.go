@@ -329,7 +329,19 @@ func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.Generati
 		return err
 	}
 	telemetry.Decide(ctx, layoutPlanDecision("planned", "", pawns, plan.Summary(), nil))
+	logPerimeter(ctx, plan, pawns)
 	return nil
+}
+
+// logPerimeter writes the layout_plan rows of the traced ring and its opening
+// (target perimeter): the ring is traced, the opening stands where the raider
+// routes cross it or is absent.
+func logPerimeter(ctx context.Context, plan policy.LayoutPlan, colonists int) {
+	for _, d := range policy.PerimeterDecisions(plan) {
+		dec := layoutPlanDecision(d.Verdict, d.Reason, colonists, "", map[string]any{"node": d.Node})
+		dec.Target = "perimeter"
+		telemetry.Decide(ctx, dec)
+	}
 }
 
 // replanLayout grows the recorded v2 plan over a fresh survey and records
@@ -347,6 +359,9 @@ func (r *Rounder) replanLayout(ctx context.Context, snapshot domain.GenerationSn
 	}
 	extra := map[string]any{"tomb_short": max(tombs-next.TombRooms(), 0)}
 	telemetry.Decide(ctx, layoutPlanDecision("replanned", reason, pawns, next.Summary(), extra))
+	if policy.PerimeterChanged(plan, next) {
+		logPerimeter(ctx, next, pawns)
+	}
 	planned, retired := policy.SuccessionChanges(plan, next)
 	for _, room := range planned {
 		if room.Replaces != growth.Successor.Replaces {

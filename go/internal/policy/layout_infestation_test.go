@@ -9,10 +9,11 @@ import (
 )
 
 func TestWallOffMountainPocket(t *testing.T) {
-	plan := LayoutPlan{
+	plan := withInterior(LayoutPlan{
 		Rooms:        []PlannedRoom{{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 40, Z: 40, Width: 5, Height: 5}), DoorRot: domain.North}},
-		Reservations: []LayoutReservation{{Kind: ReservePerimeter, Area: RectRegion(Rectangle{X: 30, Z: 30, Width: 30, Height: 3})}, {Kind: ReservePocketWall, Area: RectRegion(Rectangle{X: 1, Z: 1, Width: 1, Height: 1})}},
-	}
+		Sites:        []PlannedSite{testSite(NodeRing, Rectangle{X: 30, Z: 30, Width: 30, Height: 3})},
+		Reservations: []LayoutReservation{{Kind: ReservePocketWall, Area: RectRegion(Rectangle{X: 1, Z: 1, Width: 1, Height: 1})}},
+	})
 	var cells []SurveyCell
 	open := func(r Rectangle) {
 		for _, c := range rectCells(r) {
