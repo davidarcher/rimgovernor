@@ -25,9 +25,11 @@ func (catalog *DefinitionCatalog) ThoughtFacts(name string) (policy.ThoughtFacts
 	first := true
 	for _, stage := range row.GetStages() {
 		if stage.GetValue() == nil {
+			facts.Stages = append(facts.Stages, policy.MoodStage{})
 			continue
 		}
 		offset := float32Number(stage.GetValue().GetBaseMoodEffect())
+		facts.Stages = append(facts.Stages, policy.MoodStage{Effect: offset, Present: true})
 		if first || offset < facts.WorstOffset {
 			facts.WorstOffset, first = offset, false
 		}

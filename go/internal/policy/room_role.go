@@ -76,6 +76,8 @@ type LostEffect struct {
 	Effect RoleEffect
 	// Role is the role the effect needs.
 	Role RoomRole
+	// Got is the role the room is scored as instead (the mood effects only).
+	Got RoomRole
 	// Def is the bench that is slowed (EffectBenchSpeed only).
 	Def string
 	// Factor is the rate multiplier applied (EffectBenchSpeed only).
@@ -353,7 +355,7 @@ func LostEffects(catalog StationCatalog, intended RoomRole, pieces []RoomPiece) 
 	}
 	var out []LostEffect
 	if effect, ok := roleEffects[intended]; ok && pred.Role != intended {
-		out = append(out, LostEffect{Effect: effect, Role: intended})
+		out = append(out, LostEffect{Effect: effect, Role: intended, Got: pred.Role})
 	}
 	for _, p := range pieces {
 		for _, n := range catalog.Stations[p.Def].Needs {

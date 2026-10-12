@@ -54,6 +54,14 @@ func DefTables() []DefTable {
 		// grid constants, read with ilspycmd). The research behind the lamp pricing (every effect of darkness, which are
 		// priced and which deferred) is the first comment of issue #2945.
 		{"lightTable", "Verse.ThingDef", []string{lightTable.LampDef, lightTable.WallLampDef}},
+		// moodGame (#2954): the stat the break thresholds scale, the thoughts the
+		// planner prices, and the breaks the game gives no duration for or gives
+		// as a hediff; the numbers beside them are MentalBreaker's literals.
+		{"moodGame", "RimWorld.StatDef", []string{moodGame.ThresholdStat}},
+		{"moodThoughts", "RimWorld.ThoughtDef", moodThoughtDefs()},
+		{"moodUnpricedBreaks", "Verse.MentalBreakDef", slices.Clone(moodGame.Unpriced)},
+		{"moodHediffBreaks", "Verse.MentalBreakDef", sortedKeys(moodGame.HediffBreaks)},
+		{"moodBreakHediffs", "Verse.HediffDef", moodBreakHediffs()},
 		// The wind path constants (windPathWidth ... windBlockedLoss) are
 		// CompPowerPlantWind's and WindTurbineUtility.CalculateWindCells's,
 		// read with ilspycmd; keyed by the turbine def so a rename fails the gate.

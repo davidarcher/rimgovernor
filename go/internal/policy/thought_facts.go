@@ -19,6 +19,9 @@ type ThoughtFacts struct {
 	// WorstOffset is the lowest BaseMoodEffect of the def's stages (the most
 	// negative, or the least positive when none is negative); 0 without stages.
 	WorstOffset float64
+	// Stages are the def's stages by index, null ones not Present: the stage a
+	// worker picks (a room's impressiveness stage) indexes them (#2954).
+	Stages []MoodStage
 	// NullifyingTraits and NullifyingPrecepts make a pawn immune; RequiredTraits
 	// are traits a pawn must have for the thought to apply.
 	NullifyingTraits   []string

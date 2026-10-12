@@ -179,11 +179,13 @@ type ConflictCost struct {
 }
 
 // LostRoleEffect is a role effect (sleep, patient or prison mood, throne,
-// worship) a room does not give, with the sleepers the graph puts in it. Its
-// mood magnitude is unknown until a room is built; #2878 prices it.
+// worship) a room does not give, with the sleepers the graph puts in it. Got is
+// the role the room is scored as instead. Its mood is priced by
+// MoodModel.LostPoints and PriceMood (#2954).
 type LostRoleEffect struct {
 	Effect RoleEffect
 	Role   RoomRole
+	Got    RoomRole
 	Pawns  int
 }
 
@@ -369,7 +371,7 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 		for _, l := range lost {
 			key := fmt.Sprintf("%s|%s|%s", l.Effect, l.Role, l.Def)
 			if !e.lost[key] && l.Effect != EffectBenchSpeed {
-				e.effects = append(e.effects, LostRoleEffect{Effect: l.Effect, Role: l.Role, Pawns: sleepers[l.Role]})
+				e.effects = append(e.effects, LostRoleEffect{Effect: l.Effect, Role: l.Role, Got: l.Got, Pawns: sleepers[l.Role]})
 			}
 			e.lost[key] = true
 		}

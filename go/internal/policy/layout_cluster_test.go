@@ -301,7 +301,7 @@ func TestClusterStationsRecordsConflictCosts(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(split.Decisions) == 0 || split.Decisions[0].Verdict != ClusterSplit ||
-		!reflect.DeepEqual(split.Decisions[0].LostEffects, []LostRoleEffect{{Effect: EffectSleepMood, Role: RoomRoleBedroom, Pawns: 3}}) {
+		!reflect.DeepEqual(split.Decisions[0].LostEffects, []LostRoleEffect{{Effect: EffectSleepMood, Role: RoomRoleBedroom, Got: RoomRoleBarracks, Pawns: 3}}) {
 		t.Errorf("split decisions: %+v", split.Decisions)
 	}
 	again, err := ClusterStations(in)

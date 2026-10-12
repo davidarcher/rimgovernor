@@ -22,6 +22,9 @@ type StationCatalog struct {
 	// Light is the lamp's draw and build value (#2945); the zero value is
 	// unknown and leaves the lamps unpriced.
 	Light LightModel
+	// Mood is the break curve and the thought stages the mood price reads
+	// (#2954); the zero value is unknown and leaves mood unpriced.
+	Mood MoodModel
 }
 
 // Station is one buildable definition as the planner sees it.
