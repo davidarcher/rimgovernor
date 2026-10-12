@@ -277,6 +277,38 @@ func shelterWants(room InteriorRoom, piece InteriorPieceDef, f regionFrame) ([]R
 	return wants, true
 }
 
+// barnWants: the animal beds, as many as the barn's bed grid held (an aisle
+// from the door and a bed row between free rows, herdGridBeds sizes a barn by
+// it), each tended from a free cell beside it, and the climate heater. A bed
+// is tended from the cell in front of it (an interaction cell, which the placer
+// keeps open floor and which beds may share), so every animal can be reached
+// whatever the placer does with the rest of the floor.
+func barnWants(room InteriorRoom, piece InteriorPieceDef, f regionFrame) ([]RegionWant, bool) {
+	size := piece.Size
+	if piece.Def == "" || size.X < 1 || size.Z < 1 {
+		return nil, false
+	}
+	var rows int32
+	for v := size.Z; v+size.Z <= f.Depth; v += 2 * size.Z {
+		rows++
+	}
+	n := int(rows) * int(f.Entrance/size.X+(f.Width-f.Entrance-1)/size.X)
+	if n == 0 {
+		return nil, false
+	}
+	beds := shapeWant("bed", piece, n, 1, numbered("bed", 1))
+	if beds.Interaction == nil {
+		beds.Interaction = &domain.Cell{Z: -1}
+	}
+	// The heater places first: the beds' tended cells use every cell the beds
+	// leave, so the heater would find none after them.
+	var wants []RegionWant
+	if heater, ok := room.Shapes.Get(room.Shapes.Furniture.Heater); ok && heater.Size == (domain.Cell{X: 1, Z: 1}) {
+		wants = append(wants, namedPiece(herdHeaterSlot, heater, 0))
+	}
+	return append(wants, beds), true
+}
+
 // diningWants: the throw pin with its clear lane, then tables each ringed by
 // six chairs that face them, then a lamp. The counts are the template's: a
 // table unit is end chair, 1x2 table, end chair along a line with a side chair

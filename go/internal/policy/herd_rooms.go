@@ -297,18 +297,21 @@ func herdRoomBeds(room PlannedRoom, shapes PieceShapes, def InteriorPieceDef) in
 	if !ok {
 		return 0
 	}
-	return len(herdBedPieces(plan.Pieces))
+	return len(herdBedPieces(plan.Pieces, room.Door))
 }
 
-// herdBedPieces are the pieces of a barn plan that are beds: all
-// but the climate slot.
-func herdBedPieces(pieces []InteriorPiece) []InteriorPiece {
+// herdBedPieces are the pieces of a barn plan that are beds: all but the
+// climate slot, nearest the door first (a barn short of animals fills from the
+// door).
+func herdBedPieces(pieces []InteriorPiece, door domain.Cell) []InteriorPiece {
 	var out []InteriorPiece
 	for _, p := range pieces {
 		if p.Slot != herdHeaterSlot {
 			out = append(out, p)
 		}
 	}
+	at := Rectangle{X: door.X, Z: door.Z, Width: 1, Height: 1}
+	sort.SliceStable(out, func(i, j int) bool { return centreDistance(out[i].Rect, at) < centreDistance(out[j].Rect, at) })
 	return out
 }
 
@@ -387,7 +390,7 @@ func NextHerdStep(plan LayoutPlan, rooms RoomObservation, ground GroundCensus, b
 		if !ok {
 			continue
 		}
-		beds := herdBedPieces(layout.Pieces)
+		beds := herdBedPieces(layout.Pieces, room.Door)
 		quota := min(want, len(beds))
 		want -= quota
 		template, absent := herdTemplate(PlannedBarn, f.Spot, f.Heater, layout.Pieces, quota, room, built, taken)
@@ -458,7 +461,7 @@ func herdTemplate(role PlannedRole, def, heater InteriorPieceDef, pieces []Inter
 			have++
 		}
 	}
-	for _, p := range herdBedPieces(pieces) {
+	for _, p := range herdBedPieces(pieces, room.Door) {
 		if have < quota && free(p) {
 			template = append(template, planned(p))
 			absent = true

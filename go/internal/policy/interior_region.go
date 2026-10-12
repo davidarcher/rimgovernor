@@ -11,8 +11,7 @@ import (
 // what its floor should hold (RegionWants), and the region placer seats it,
 // behind the room's doors, on any cell set; the seeded interior search then
 // improves the layout (#2869). It replaces the role templates, which fit one
-// rectangle in a canonical frame. A role with no entry here is still planned by
-// its template (PlanRoomInterior) until its family moves.
+// rectangle in a canonical frame. A role with no entry here has no interior.
 //
 // What a template read as an input is expressed as a want or a placer option:
 // the shelter's Occupants, Campfires, Coolers and Capabilities choose how many
@@ -86,6 +85,7 @@ var regionRoles = map[RoomRole]regionRole{
 	RoomRoleSuite:      bedroomWants,
 	RoomRoleThroneRoom: throneWants,
 	RoomRoleShelter:    shelterWants,
+	RoomRoleBarn:       barnWants,
 	RoomRoleDiningRoom: diningWants(false),
 	RoomRoleRecRoom:    diningWants(true),
 
@@ -173,24 +173,17 @@ func planRegion(room InteriorRoom, piece InteriorPieceDef, search bool) (Interio
 	return InteriorPlan{Template: "region", Room: room, Pieces: pieces}, true
 }
 
-// PlanRoomInterior is the live interior entry: the region placer's plan for a
-// role it furnishes, else the role's template, until the last family moves
-// (#2956). It is false as PlanInterior was.
+// PlanRoomInterior is the live interior entry: the region placer's plan, false
+// for a role with no entry in regionRoles. The role templates and PlanInterior
+// remain only until they are deleted (#2957).
 func PlanRoomInterior(room InteriorRoom, piece InteriorPieceDef) (InteriorPlan, bool) {
-	if _, ok := regionRoles[room.Role]; ok {
-		return PlanRegionInterior(room, piece)
-	}
-	return PlanInterior(room, piece)
+	return PlanRegionInterior(room, piece)
 }
 
 // RoomHasInterior reports that the room has a plan, without the search: the
 // existence check of a caller that reads no piece.
 func RoomHasInterior(room InteriorRoom, piece InteriorPieceDef) bool {
-	if _, ok := regionRoles[room.Role]; ok {
-		_, ok := planRegion(room, piece, false)
-		return ok
-	}
-	_, ok := PlanInterior(room, piece)
+	_, ok := planRegion(room, piece, false)
 	return ok
 }
 

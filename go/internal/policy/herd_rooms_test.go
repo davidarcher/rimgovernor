@@ -77,7 +77,7 @@ func TestHerdStepRebuildsALostWall(t *testing.T) {
 		t.Fatal("no barn layout")
 	}
 	var built []CurrentBuilding
-	for _, p := range layout.Pieces[:animals] {
+	for _, p := range herdBedPieces(layout.Pieces, barn.Door)[:animals] {
 		built = append(built, bedAt(t, p.Def, p))
 	}
 	ground := herdGround(plan, barn)
@@ -127,7 +127,12 @@ func TestHerdOutgrowsItsRoomsAndAddsAnotherWithoutMovingAny(t *testing.T) {
 	first, second := grown.HerdRooms(PlannedBarn)[0], grown.HerdRooms(PlannedBarn)[1]
 	var built []CurrentBuilding
 	rooms := standing(first)
-	layout, ok := PlanRoomInterior(mustInterior(t, first), testHerdFurniture.Spot)
+	// The room is planned with the shapes the step reads, as the live caller does.
+	inFirst, ok := InteriorRoomFromLayout(first, rooms.Shapes)
+	if !ok {
+		t.Fatal("no barn interior")
+	}
+	layout, ok := PlanRoomInterior(inFirst, testHerdFurniture.Spot)
 	if !ok {
 		t.Fatal("no barn layout")
 	}

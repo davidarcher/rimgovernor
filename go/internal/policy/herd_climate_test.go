@@ -25,7 +25,7 @@ func TestBarnPlanIncludesTheClimateHeater(t *testing.T) {
 	if len(heaters) != 1 || heaters[0].Def != "Heater" {
 		t.Fatal("one heater in the climate slot", heaters)
 	}
-	if beds := herdBedPieces(laid.Pieces); len(beds) != len(laid.Pieces)-1 || herdRoomBeds(barn, testShapes, testHerdFurniture.Spot) != len(beds) {
+	if beds := herdBedPieces(laid.Pieces, barn.Door); len(beds) != len(laid.Pieces)-1 || herdRoomBeds(barn, testShapes, testHerdFurniture.Spot) != len(beds) {
 		t.Fatal("the heater is no bed", len(beds), len(laid.Pieces))
 	}
 	// A catalog without a heater shape plans a barn without one.

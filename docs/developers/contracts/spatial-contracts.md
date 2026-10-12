@@ -266,7 +266,7 @@ and Hot; `Spine` and `Wings` are leftovers of the old generator.
   than greedy on a gated term; the tiler has no built input, so nothing is pinned or moved free.
   **Live furnishing (#2956).** The runtime reads a room's furniture slots from
   `PlanRoomInterior` (`interior_region.go`). A role in `regionRoles` (workshop, laboratory,
-  kitchen, tomb, prison cell, hospital, bedroom, suite, throne room, the child rooms, dining, rec room and shelter so far) states what its floor should hold as
+  kitchen, tomb, prison cell, hospital, bedroom, suite, throne room, the child rooms, dining, rec room, shelter and barn: every role) states what its floor should hold as
   `RegionWant`s (`interior_region_roles.go`: the capacity its template had along the entrance
   wall or aisle, the pieces named as the reconcilers and consumers read them) and the placer
   seats them on `InteriorRoom.Floor()`, the planned room's region, so an L or notched room is
@@ -281,8 +281,10 @@ and Hot; `Spine` and `Wings` are leftovers of the old generator.
   the objective counts it as a facility link (so the search keeps it), and only the pieces up
   to the want's minimum fall back to any free cell. `Open` seats a want where the most of its
   `Beside` pieces still fit, nearest the doors (a table with room for its chairs); `Clear` keeps a
-  lane open in front of a piece (the pin's throw lane; a hard constraint). Roles not yet
-  moved are still planned by their `InteriorTemplate`.
+  lane open in front of a piece (the pin's throw lane; a hard constraint). A role with no
+  `regionRoles` entry has no interior; the `InteriorTemplate`s and `PlanInterior` remain
+  only as the parity tests' baseline until #2957 deletes them. A barn's beds carry a
+  synthetic front interaction (tended from the cell before them) and its heater is placed first.
   **Roofed set (#2941).** On a bad-climate map (the Cold or Hot latch, or a curve under
   `ColdMapBelowC` or over `HotEnter`) `PlanRoofed` (`layout_roof.go`) puts every
   room's floor and every priced hallway into `LayoutPlan.Roofed`, except the outdoor

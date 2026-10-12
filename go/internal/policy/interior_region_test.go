@@ -69,6 +69,11 @@ func regionSizedFixtures() []regionFixture {
 		out = append(out, shelterFixture(fmt.Sprintf("%d sleepers", n), s[0], s[1], n, 0))
 	}
 	out = append(out, shelterFixture("fill", 7, 5, 0, 0), shelterFixture("cooler", 6, 5, 2, 1))
+	// The barns the herd planner sizes for 8, 20 and 30 animals.
+	for _, n := range []int{8, 20, 30} {
+		w, d := herdSide(n)
+		out = append(out, sizedFixture(RoomRoleBarn, fmt.Sprintf("%d beds", n), w, d, testHerdFurniture.Spot))
+	}
 	// Deep enough for the pin's lane and a table beside it, then for several.
 	for _, role := range []RoomRole{RoomRoleDiningRoom, RoomRoleRecRoom} {
 		for _, s := range [][2]int32{{9, 11}, {9, 16}, {12, 12}} {
@@ -123,7 +128,7 @@ func regionFamilies() []regionFixture {
 	} {
 		out = append(out, sizedFixture(c.role, "core", c.w, c.d, InteriorPieceDef{}))
 	}
-	out = append(out, shelterFixture("core", 7, 5, 3, 0))
+	out = append(out, shelterFixture("core", 7, 5, 3, 0), sizedFixture(RoomRoleBarn, "core", 7, 7, testHerdFurniture.Spot))
 	seen := map[RoomRole]bool{}
 	for _, f := range regionSizedFixtures() {
 		if !seen[f.Role] && f.W >= 5 && f.D >= 5 {
@@ -206,8 +211,14 @@ func TestRegionInteriorMatchesTemplates(t *testing.T) {
 			continue
 		}
 		have, want := defCounts(reg.Pieces), defCounts(tpl.Pieces)
+		// A barn's heater is placed first and may take the floor of one bed in a
+		// tight barn, where the template packs one more bed around it.
+		heaterFloor := 0
+		if f.Role == RoomRoleBarn && slices.ContainsFunc(reg.Pieces, func(p InteriorPiece) bool { return p.Slot == herdHeaterSlot }) {
+			heaterFloor = 1
+		}
 		for def, n := range want {
-			if have[def] < n {
+			if have[def] < n-heaterFloor {
 				t.Errorf("%s: %s: region plan holds %d, template %d", key, def, have[def], n)
 			}
 		}
@@ -219,6 +230,11 @@ func TestRegionInteriorMatchesTemplates(t *testing.T) {
 			// A dining or rec room's pieces are named by table and chair
 			// index; no consumer reads which side of a table a chair is on.
 			if diningRole(f.Role) && (p.Def == testDining.Chair.Def || p.Slot == "lamp") {
+				continue
+			}
+			// A barn's beds are interchangeable: the reconciler takes the ones
+			// nearest the door, whatever the slot is called.
+			if f.Role == RoomRoleBarn && p.Slot != herdHeaterSlot {
 				continue
 			}
 			if names[p.Slot] != p.Def {
