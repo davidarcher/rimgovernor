@@ -156,16 +156,18 @@ func (p RegroupPrice) group(g RoomGroup, guard []LostRoleEffect) (points float64
 	return points, lost
 }
 
-// poison is the food poisoning a filth node costs the cooks of its room, in
-// points (#2955): the work-days a day the poisoned meals cost (FilthCost.
-// PoisonWorkDays, the hediff's work-days per expected poisoning) through the
-// same work-day to points rate as every other conflict.
-func (p RegroupPrice) poison(g RoomGroup) float64 {
-	days := 0.0
+// filth is what a room's filth nodes cost it, in points, through the same
+// work-day to points rate as every other conflict: the food poisoning (#2955:
+// FilthCost.PoisonWorkDays, the hediff's work-days per expected poisoning of the
+// meals made while the filth stands) and the cleaning labor (#2988:
+// FilthCost.CleaningWorkDays).
+func (p RegroupPrice) filth(g RoomGroup) (poison, clean float64) {
+	var poisonDays, cleanDays float64
 	for _, f := range g.Filth {
-		days += f.PoisonWorkDays
+		poisonDays += f.PoisonWorkDays
+		cleanDays += f.CleaningWorkDays
 	}
-	return p.Work.Points(days)
+	return p.Work.Points(poisonDays), p.Work.Points(cleanDays)
 }
 
 // RegroupInput is the chain's input up to the embedding. Embed.Groups and
@@ -188,11 +190,11 @@ type RegroupDecision struct {
 	// grouping before and after the move; Lost the lost role effects after it.
 	Before, After float64
 	Lost          int
-	// Walk and Poison are the move's two parts of Before to After, in score
+	// Walk, Poison and Clean are the move's parts of Before to After, in score
 	// points: the change of the embedding's score (the walk it saves is
-	// negative) and the poisoning price it adds (#2955); the rest is the
-	// conflicts' ticks and lost effects.
-	Walk, Poison float64
+	// negative), the poisoning price it adds (#2955) and the cleaning labor it
+	// adds (#2988); the rest is the conflicts' ticks and lost effects.
+	Walk, Poison, Clean float64
 }
 
 // Regrouping is the groups the search ended on.
@@ -216,6 +218,7 @@ type regroupTrial struct {
 	points     float64
 	embedPts   float64 // the embedding's part of points
 	poisonPts  float64 // the poisoning price's part of points
+	cleanPts   float64 // the cleaning labor's part of points
 	lost       int
 	guarded    map[int]bool // groups that carry a role-guard cost
 }
@@ -271,9 +274,10 @@ func (r *regrouper) evaluate(pairs []NodePair) (*regroupTrial, error) {
 	guard := r.guardEffects(cl.Groups)
 	for _, g := range cl.Groups {
 		points, lost := r.in.Price.group(g, guard[g.ID])
-		poison := r.in.Price.poison(g)
-		t.points += points + poison
+		poison, clean := r.in.Price.filth(g)
+		t.points += points + poison + clean
 		t.poisonPts += poison
+		t.cleanPts += clean
 		t.lost += lost
 		t.guarded[g.ID] = len(guard[g.ID]) > 0
 	}
@@ -399,7 +403,7 @@ func Regroup(in RegroupInput) (Regrouping, error) {
 // moveDecision is the move m taking the grouping from → to.
 func moveDecision(m regroupMove, from, to *regroupTrial, verdict, reason string) RegroupDecision {
 	return RegroupDecision{Kind: m.kind, Verdict: verdict, Reason: reason, A: m.a, B: m.b, Before: from.points, After: to.points, Lost: to.lost,
-		Walk: to.embedPts - from.embedPts, Poison: to.poisonPts - from.poisonPts}
+		Walk: to.embedPts - from.embedPts, Poison: to.poisonPts - from.poisonPts, Clean: to.cleanPts - from.cleanPts}
 }
 
 func (t *regroupTrial) regrouping(decisions []RegroupDecision) Regrouping {
@@ -517,7 +521,7 @@ func (r *regrouper) candidates(cur *regroupTrial) []regroupMove {
 	// to, when the walk saved outweighs the poisoning it costs the room's cooks.
 	// A filth model that cannot price the poisoning proposes nothing: the merge
 	// would look free.
-	priced := r.in.Cluster.Catalog.Filth.Def != "" && r.in.Cluster.Catalog.Filth.Poisoning.WorkDays() > 0
+	priced := r.in.Cluster.Catalog.Filth.Priced()
 	for _, d := range cur.clustering.Decisions {
 		if !priced || d.Verdict != ClusterKeep || d.Reason != ReasonClusterFilthPriced || d.A == "" || d.B == "" || d.A == d.B || ruleOf(cur.pairs, d.A, d.B) != 0 {
 			continue

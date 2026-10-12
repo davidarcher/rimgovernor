@@ -122,6 +122,11 @@ func TestFilthModelReadsBloodAndFoodPoisonCurve(t *testing.T) {
 	if !reflect.DeepEqual(m.FoodPoison, want) {
 		t.Errorf("curve %v, want %v", m.FoodPoison, want)
 	}
+	// Cleaning (#2988): Filth_Blood's cleaningWorkToReduceThickness, the
+	// CleaningSpeed stat's base value and WorkGiver_CleanFilth's 600-tick wait.
+	if m.CleaningWork != 70 || m.CleaningSpeed != 1 || m.StandTicks != 600 || !m.Priced() {
+		t.Errorf("cleaning %v / %v / %v ticks", m.CleaningWork, m.CleaningSpeed, m.StandTicks)
+	}
 	// The FoodPoisoning hediff: half a work-day of lost Consciousness and vomiting.
 	if days := m.Poisoning.WorkDays(); days < 0.50 || days > 0.503 {
 		t.Errorf("poisoning %+v costs %v work-days, want 0.5017", m.Poisoning, days)

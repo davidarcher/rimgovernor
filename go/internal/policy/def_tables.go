@@ -73,6 +73,10 @@ func DefTables() []DefTable {
 		{"foodPoisonHediff", "Verse.HediffDef", []string{foodPoisonGame.Hediff}},
 		{"foodPoisonCapacity", "Verse.PawnCapacityDef", []string{foodPoisonGame.WorkCapacity}},
 		{"foodPoisonVomit", "Verse.JobDef", []string{foodPoisonGame.VomitJob}},
+		// filthGame (#2988): the stat a colonist's cleaning speed is; UnitsPerRun is
+		// TryMakeFilth's default count (ilspycmd), and the unpriced floor and
+		// tracked dirt are explained on FilthGame.
+		{"filthGame", "RimWorld.StatDef", []string{filthGame.SpeedStat}},
 		{"seekerNeeds", "RimWorld.NeedDef", seekerNeedDefs()},
 		{"seekerThoughts", "RimWorld.ThoughtDef", seekerThoughts()},
 		// The wind path constants (windPathWidth ... windBlockedLoss) are

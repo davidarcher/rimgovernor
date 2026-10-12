@@ -124,5 +124,12 @@ func (catalog *DefinitionCatalog) FilthModel() policy.FilthModel {
 	for _, p := range stat.GetCurve().GetPoints() {
 		out.FoodPoison = append(out.FoodPoison, policy.CurvePoint{X: float64(p.GetLoc().GetX()), Y: float64(p.GetLoc().GetY())})
 	}
+	out.CleaningWork = float64(blood.GetFilth().GetCleaningWorkToReduceThickness())
+	if speed := DefRow[*d.StatDef](catalog, policy.FilthGameTable().SpeedStat); speed != nil {
+		out.CleaningSpeed = float64(speed.GetDefaultBaseValue())
+	}
+	if game, err := catalog.GameConstants(); err == nil {
+		out.StandTicks = float64(game.GetWorkGiver_CleanFilth().GetMinTicksSinceThickened())
+	}
 	return out
 }

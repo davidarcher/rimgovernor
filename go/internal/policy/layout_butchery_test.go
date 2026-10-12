@@ -264,10 +264,10 @@ func filthyKitchen(meals float64, side int32, poison PoisoningModel) (Regrouping
 	stove := node("Stove", PurposeWork, 1, workBand, EnvNeed{Kind: NeedRoomStat, Input: cleanlinessStat})
 	stove.Meals = meals
 	butcher := node("Butcher", PurposeWork, 1)
-	butcher.Filth = true
+	butcher.Filth, butcher.FilthRuns, butcher.FilthWork = true, 0.1, 300
 	g := StationGraph{Nodes: []StationNode{butcher, stove}, Edges: []StationEdge{edge(butcher, stove, 50, false)}}
 	in := regroupIn(g, plainSurvey(side))
-	in.Cluster.Catalog.Filth = FilthModel{Def: "Filth_Blood", Cleanliness: -100, Poisoning: poison,
+	in.Cluster.Catalog.Filth = FilthModel{Def: "Filth_Blood", Cleanliness: -100, Poisoning: poison, CleaningWork: 70, CleaningSpeed: 1, StandTicks: 600,
 		FoodPoison: []CurvePoint{{X: -5, Y: 0.05}, {X: -3.5, Y: 0.025}, {X: -2, Y: 0}}}
 	got, err := Regroup(in)
 	return got, butcher, stove, err
@@ -288,11 +288,11 @@ func TestRegroupPricesFilthMergeAgainstWalk(t *testing.T) {
 	if d.Kind != RegroupMerge || d.Verdict != RegroupApplied || d.Reason != ReasonRegroupFilthMerge || !(d.A == butcher.ID && d.B == stove.ID || d.A == stove.ID && d.B == butcher.ID) {
 		t.Fatalf("decision %+v", d)
 	}
-	if !(d.Walk < 0 && d.Poison > 0 && d.Walk+d.Poison < 0 && math.Abs(d.After-d.Before-(d.Walk+d.Poison)) < 1e-9) {
-		t.Errorf("walk %v poison %v before %v after %v", d.Walk, d.Poison, d.Before, d.After)
+	if !(d.Walk < 0 && d.Poison > 0 && d.Clean > 0 && d.Walk+d.Poison+d.Clean < 0 && math.Abs(d.After-d.Before-(d.Walk+d.Poison+d.Clean)) < 1e-9) {
+		t.Errorf("walk %v poison %v clean %v before %v after %v", d.Walk, d.Poison, d.Clean, d.Before, d.After)
 	}
 
-	dear, _, _, err := filthyKitchen(1, 30, poisonModel)
+	dear, _, _, err := filthyKitchen(1000, 30, poisonModel)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -300,7 +300,7 @@ func TestRegroupPricesFilthMergeAgainstWalk(t *testing.T) {
 		t.Fatalf("dear poison: rooms %v decisions %+v", roomsOf(dear), dear.Decisions)
 	}
 	k := dear.Decisions[0]
-	if k.Kind != RegroupMerge || k.Verdict != RegroupKept || k.Reason != ReasonRegroupFilthKept || !(k.Walk < 0 && k.Poison > -k.Walk && k.After > k.Before) {
+	if k.Kind != RegroupMerge || k.Verdict != RegroupKept || k.Reason != ReasonRegroupFilthKept || !(k.Walk < 0 && k.Poison+k.Clean > -k.Walk && k.After > k.Before) {
 		t.Errorf("kept decision %+v", k)
 	}
 	for _, g := range dear.Clustering.Groups {
@@ -310,7 +310,7 @@ func TestRegroupPricesFilthMergeAgainstWalk(t *testing.T) {
 	}
 	assertReasons(t, cheap)
 	assertReasons(t, dear)
-	again, _, _, err := filthyKitchen(1, 30, poisonModel)
+	again, _, _, err := filthyKitchen(1000, 30, poisonModel)
 	if err != nil || !reflect.DeepEqual(dear, again) {
 		t.Errorf("regrouping changed: %v", err)
 	}
@@ -325,5 +325,112 @@ func TestRegroupFilthMergeNeedsAKnownPoisoning(t *testing.T) {
 	}
 	if len(got.Clustering.Groups) != 2 || len(got.Pairs) != 0 {
 		t.Errorf("rooms %v pairs %v decisions %+v", roomsOf(got), got.Pairs, got.Decisions)
+	}
+}
+
+// cleaningModel is blood as the defs give it (#2988): 70 work a unit of
+// thickness, a colonist's cleaning speed 1, 600 ticks before anyone may clean.
+func cleaningModel() FilthModel {
+	m := bloodModel
+	m.CleaningWork, m.CleaningSpeed, m.StandTicks = 70, 1, 600
+	return m
+}
+
+func filthCostOf(t *testing.T, m FilthModel, cells int, meals float64, r FilthRuns) FilthCost {
+	t.Helper()
+	got := m.filthCosts([]string{"B"}, []string{"S"}, cells, meals, map[string]FilthRuns{"B": r})
+	if len(got) != 1 {
+		t.Fatalf("costs %+v", got)
+	}
+	return got[0]
+}
+
+// Cleaning labor is the runs a day times the def's work over the cleaning
+// speed, in work-days: it scales with the units a day, the def's work and the
+// inverse of the colonist's speed.
+func TestFilthCleaningLaborScalesWithUnitsAndDefWork(t *testing.T) {
+	r := FilthRuns{Runs: 2, Ticks: 300}
+	base := filthCostOf(t, cleaningModel(), 20, 0, r)
+	if want := 2 * 70 / float64(domain.TicksPerDay); math.Abs(base.CleaningWorkDays-want) > 1e-12 {
+		t.Fatalf("cleaning %v, want %v", base.CleaningWorkDays, want)
+	}
+	heavy := cleaningModel()
+	heavy.CleaningWork = 140
+	fast := cleaningModel()
+	fast.CleaningSpeed = 2
+	for name, c := range map[string]struct{ got, want float64 }{
+		"units x3": {filthCostOf(t, cleaningModel(), 20, 0, FilthRuns{Runs: 6, Ticks: 300}).CleaningWorkDays / base.CleaningWorkDays, 3},
+		"work x2":  {filthCostOf(t, heavy, 20, 0, r).CleaningWorkDays / base.CleaningWorkDays, 2},
+		"speed x2": {base.CleaningWorkDays / filthCostOf(t, fast, 20, 0, r).CleaningWorkDays, 2},
+	} {
+		if math.Abs(c.got-c.want) > 1e-9 {
+			t.Errorf("%s: ratio %v, want %v", name, c.got, c.want)
+		}
+	}
+	if none := filthCostOf(t, FilthModel{Def: "Filth_Blood", Cleanliness: -10}, 20, 0, r); none.CleaningWorkDays != 0 {
+		t.Errorf("a model without the def work prices cleaning: %+v", none)
+	}
+}
+
+// The poisoning residual is the units that fall in the 600-tick window standing
+// at once: one unit alone leaves the room at -1 (in the curve's flat part),
+// three runs 200 ticks apart stand together at -3.
+func TestFilthPoisoningResidualUsesTheStandWindow(t *testing.T) {
+	m := cleaningModel()
+	m.Cleanliness = -5 // over 5 cells a unit is -1
+	m.Poisoning = poisonModel
+	one := filthCostOf(t, m, 5, 100, FilthRuns{Runs: 1, Ticks: 300})
+	if one.StandingUnits != 1 || one.StandingPoison != 0 || one.PoisonWorkDays != 0 {
+		t.Errorf("one run: %+v", one)
+	}
+	three := filthCostOf(t, m, 5, 100, FilthRuns{Runs: 3, Ticks: 200})
+	if three.StandingUnits != 3 || math.Abs(three.StandingPoison-0.025/1.5) > 1e-12 {
+		t.Fatalf("three runs 200 apart: units %v chance %v", three.StandingUnits, three.StandingPoison)
+	}
+	if want := (2*200 + 600) / float64(domain.TicksPerDay); math.Abs(three.Exposure-want) > 1e-12 {
+		t.Errorf("exposure %v, want %v", three.Exposure, want)
+	}
+	if want := 100 * three.Exposure * three.StandingPoison; math.Abs(three.PoisoningsPerDay-want) > 1e-12 || three.PoisonWorkDays <= 0 {
+		t.Errorf("poisonings %v, want %v", three.PoisoningsPerDay, want)
+	}
+	// Runs a whole window apart never stand together.
+	apart := filthCostOf(t, m, 5, 100, FilthRuns{Runs: 3, Ticks: 600})
+	if apart.StandingUnits != 1 || apart.PoisonWorkDays != 0 {
+		t.Errorf("runs a window apart: %+v", apart)
+	}
+	if got := filthCostOf(t, m, 5, 100, FilthRuns{}); got.CleaningWorkDays != 0 || got.PoisonWorkDays != 0 || got.StandingUnits != 0 {
+		t.Errorf("a node that butchers nothing owes %+v", got)
+	}
+}
+
+// A butchery merged into the kitchen room costs work-days a day; kept apart in
+// its closet, no group carries the price.
+func TestButcheryMergedIntoKitchenCostsMoreThanApart(t *testing.T) {
+	price := func(merge bool) (total float64) {
+		stove := node("Stove", PurposeWork, 1, workBand, EnvNeed{Kind: NeedRoomStat, Input: cleanlinessStat})
+		stove.Meals = 3
+		butcher := node("Butcher", PurposeWork, 1)
+		butcher.Filth, butcher.FilthRuns, butcher.FilthWork = true, 2, 300
+		cold := node("ColdShelf", PurposeStoreCold, 1, EnvNeed{Kind: NeedCold})
+		g := StationGraph{Nodes: []StationNode{butcher, cold, stove}, Edges: []StationEdge{edge(stove, cold, 10, true), edge(butcher, cold, 20, true)}}
+		cat := clusterCatalog()
+		cat.Filth = cleaningModel()
+		var pairs []NodePair
+		if merge {
+			pairs = []NodePair{{A: butcher.ID, B: stove.ID, Rule: PairTogether}}
+		}
+		got, err := ClusterStations(ClusterInput{Graph: g, Catalog: cat, RoofDistance: testRoof, Pairs: pairs})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, grp := range got.Groups {
+			for _, f := range grp.Filth {
+				total += f.WorkDays()
+			}
+		}
+		return total
+	}
+	if apart, merged := price(false), price(true); !(merged > apart && apart == 0) {
+		t.Errorf("merged %v work-days, apart %v", merged, apart)
 	}
 }

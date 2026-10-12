@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"math"
 	"slices"
 	"sort"
 
@@ -29,6 +30,50 @@ type FilthModel struct {
 	// Poisoning is what one poisoned meal costs the eater (the FoodPoisoning
 	// hediff); the zero value prices no poisoning.
 	Poisoning PoisoningModel
+	// CleaningWork is the filth def's cleaningWorkToReduceThickness, the work
+	// (JobDriver_CleanFilth's cleaning-speed ticks) one unit of thickness takes
+	// to clean; CleaningSpeed the CleaningSpeed stat of a colonist with no
+	// modifier (its defaultBaseValue, the speed the work is divided by); and
+	// StandTicks WorkGiver_CleanFilth.MinTicksSinceThickened, the ticks filth
+	// stands before anyone may clean it (#2988). A zero leaves that part unpriced.
+	CleaningWork, CleaningSpeed float64
+	StandTicks                  float64
+}
+
+// FilthGame is the judgment behind the cleaning price (#2988), registered in
+// DefTables. UnitsPerRun is the filth units a butchery run leaves: Corpse.
+// ButcherProducts calls FilthMaker.TryMakeFilth once with the default count of
+// one (read with ilspycmd), so a unit of thickness per corpse. SpeedStat is the
+// stat a pawn's cleaning speed is (JobDriver_CleanFilth divides the work by
+// it). The floor's Cleanliness (RoomStatWorker_Cleanliness adds each cell's
+// terrain stat) and CleaningTimeFactor, and the dirt pawns track in
+// (Pawn_FilthTracker.Notify_EnteredNewCell: FilthRate times 0.005 a cell
+// entered), are not priced: the floor is laid after the layout and the cells
+// entered are the embedding's traffic, neither known in the station chain. No
+// ThoughtDef reads room cleanliness (only the Impressiveness stat does, recorded
+// as ImpressivenessInputPerUnit), so the cleanliness mood is record-only.
+type FilthGame struct {
+	UnitsPerRun float64
+	SpeedStat   string
+}
+
+var filthGame = FilthGame{UnitsPerRun: 1, SpeedStat: "CleaningSpeed"}
+
+// FilthGameTable is the table the bridge reads the cleaning model with.
+func FilthGameTable() FilthGame { return filthGame }
+
+// Priced reports a model that prices both the poisoning and the cleaning
+// labor; a merge into a room is not proposed while either is unknown, as it
+// would look free.
+func (m FilthModel) Priced() bool {
+	return m.Def != "" && m.Poisoning.WorkDays() > 0 && finitePositive(m.CleaningWork) && finitePositive(m.CleaningSpeed) && finitePositive(m.StandTicks)
+}
+
+// FilthRuns is a node's butchering: the runs a day and the work ticks of one.
+type FilthRuns struct{ Runs, Ticks float64 }
+
+func (r FilthRuns) plus(o FilthRuns) FilthRuns {
+	return FilthRuns{Runs: r.Runs + o.Runs, Ticks: o.Ticks}
 }
 
 // FoodPoisonTable is the judgment behind the poisoning price (#2955), registered
@@ -130,6 +175,16 @@ func evaluateCurve(points []CurvePoint, x float64) float64 {
 // Everything is read from a room at cleanliness 0, the clamp of that input.
 // Exposed are the nodes in the room whose effect scales with cleanliness (a
 // cook's meals read the food poison chance).
+//
+// The price of keeping the node in this room (#2988) is two parts in the #2945
+// work-day unit. Cleaning is the labor of the filth the node's runs leave:
+// RunsPerDay x units a run x the def's CleaningWork over the colonist's
+// CleaningSpeed (CleaningWorkDays). The poisoning is the residual while the
+// filth stands: nobody may clean a unit before StandTicks, so the units of the
+// runs that fall in that window (StandingUnits, a day's runs being one batch of
+// runs RunTicks apart) stand at once, at cleanliness StandingUnits x
+// CleanlinessPerUnit, and the cooks' meals made while they stand (the Exposure
+// share of the day) are poisoned at the curve's chance there (StandingPoison).
 type FilthCost struct {
 	Node, Filth string
 	Cells       int
@@ -141,22 +196,57 @@ type FilthCost struct {
 	UnitsToPoison              float64
 	ImpressivenessInputPerUnit float64
 
+	// RunsPerDay and RunTicks are the node's butchering; CleaningWorkDays the
+	// work-days a day of cleaning its filth takes.
+	RunsPerDay, RunTicks float64
+	CleaningWorkDays     float64
+
+	// StandingUnits, Exposure and StandingPoison are the residual: the units
+	// standing at once, the share of the day any stands, and the food poison
+	// chance at their cleanliness.
+	StandingUnits, Exposure, StandingPoison float64
+
 	// MealsPerDay is the meals a day the exposed nodes' stations in the room
-	// make (the graph's demand), each poisoned with chance FoodPoisonPerUnit
-	// (CompFoodPoisonable.Notify_RecipeProduced) and each poisoned meal giving
-	// its eater one poisoning (PostIngested). PoisoningsPerDay is their product
-	// and PoisonWorkDays the work-days a day they cost (PoisoningModel.WorkDays);
-	// the price of keeping the node in this room, in the #2945 work-day unit.
+	// make (the graph's demand), each poisoned with chance StandingPoison while
+	// the filth stands (CompFoodPoisonable.Notify_RecipeProduced) and each
+	// poisoned meal giving its eater one poisoning (PostIngested).
+	// PoisoningsPerDay is their product with Exposure and PoisonWorkDays the
+	// work-days a day they cost (PoisoningModel.WorkDays).
 	MealsPerDay      float64
 	PoisoningsPerDay float64
 	PoisonWorkDays   float64
 }
 
+// WorkDays is the work-days a day the node costs the room: cleaning plus the
+// poisoning residual.
+func (c FilthCost) WorkDays() float64 { return c.CleaningWorkDays + c.PoisonWorkDays }
+
+// residual is the units of a node's filth that stand at once and the share of
+// the day some stands, for runs (a day's runs, one batch, runTicks apart) and
+// the stand ticks no one may clean before. A unit made stands for stand ticks,
+// so the units alive at once are those within one stand of each other, at most
+// the batch; the filth stands from the first run's start to the last unit's
+// end, (runs - 1) x runTicks + stand ticks, once a day (a day with less than a
+// run is a run that many days a share of it).
+func residual(runs, runTicks, stand float64) (units, exposure float64) {
+	if runs <= 0 || stand <= 0 {
+		return 0, 0
+	}
+	batch := math.Max(1, runs)
+	units = math.Ceil(batch)
+	if runTicks > 0 {
+		units = math.Min(units, math.Ceil(stand/runTicks))
+	}
+	batches := math.Min(1, runs)
+	exposure = math.Min(1, batches*((batch-1)*runTicks+stand)/domain.TicksPerDay)
+	return units, exposure
+}
+
 // filthCosts prices each filthy node of a room of cells cells that also holds
-// stations the filth is not for; exposed are the nodes that read cleanliness
-// and meals the meals a day they make. A model that prices nothing owes
-// nothing.
-func (m FilthModel) filthCosts(filthy, exposed []string, cells int, meals float64) []FilthCost {
+// stations the filth is not for; exposed are the nodes that read cleanliness,
+// meals the meals a day they make and runs each filthy node's butchering. A
+// model that prices nothing owes nothing.
+func (m FilthModel) filthCosts(filthy, exposed []string, cells int, meals float64, runs map[string]FilthRuns) []FilthCost {
 	if m.Def == "" || cells <= 0 || len(filthy) == 0 {
 		return nil
 	}
@@ -170,12 +260,21 @@ func (m FilthModel) filthCosts(filthy, exposed []string, cells int, meals float6
 		units = onset / per
 	}
 	chance := evaluateCurve(m.FoodPoison, per)
-	poisonings := meals * chance
 	var out []FilthCost
 	for _, node := range filthy {
+		r := runs[node]
+		cleaning := 0.0
+		if finitePositive(m.CleaningWork) && finitePositive(m.CleaningSpeed) {
+			cleaning = r.Runs * filthGame.UnitsPerRun * m.CleaningWork / m.CleaningSpeed / domain.TicksPerDay
+		}
+		standing, exposure := residual(r.Runs*filthGame.UnitsPerRun, r.Ticks, m.StandTicks)
+		standingChance := evaluateCurve(m.FoodPoison, per*standing)
+		poisonings := meals * exposure * standingChance
 		out = append(out, FilthCost{Node: node, Filth: m.Def, Cells: cells, Exposed: slices.Clone(exposed),
 			CleanlinessPerUnit: per, FoodPoisonPerUnit: chance, PoisonOnsetCleanliness: onset,
 			UnitsToPoison: units, ImpressivenessInputPerUnit: per / impressivenessCleanlinessScale,
+			RunsPerDay: r.Runs, RunTicks: r.Ticks, CleaningWorkDays: cleaning,
+			StandingUnits: standing, Exposure: exposure, StandingPoison: standingChance,
 			MealsPerDay: meals, PoisoningsPerDay: poisonings, PoisonWorkDays: poisonings * m.Poisoning.WorkDays()})
 	}
 	return out

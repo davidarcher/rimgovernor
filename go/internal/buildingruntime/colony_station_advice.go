@@ -46,7 +46,7 @@ func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationS
 // before and after, in score points) or the reason none was.
 func regroupDecision(d policy.RegroupDecision) telemetry.Decision {
 	return telemetry.Decision{Kind: "layout_regroup", Component: "layout", Verdict: d.Verdict, Reason: d.Reason, Target: "groups",
-		Attrs: map[string]any{"move": d.Kind, "a": d.A, "b": d.B, "before": d.Before, "after": d.After, "walk": d.Walk, "poison": d.Poison, "lost_effects": d.Lost}}
+		Attrs: map[string]any{"move": d.Kind, "a": d.A, "b": d.B, "before": d.Before, "after": d.After, "walk": d.Walk, "poison": d.Poison, "clean": d.Clean, "lost_effects": d.Lost}}
 }
 
 // stationDecision runs the chain over facts (when they were read, err nil) and

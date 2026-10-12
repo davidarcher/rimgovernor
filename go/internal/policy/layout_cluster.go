@@ -342,6 +342,9 @@ type groupEval struct {
 	filthCosts      []FilthCost
 	// meals is the meals a day the exposed nodes' stations in the group make.
 	meals float64
+	// runs is each filthy node's butchering load in the group (its runs a day and
+	// the work ticks of one), the share of the node its stations here make.
+	runs map[string]FilthRuns
 }
 
 func (c *clusterer) node(u unit) StationNode { return c.in.Graph.Nodes[u.node] }
@@ -399,7 +402,7 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 	if err != nil {
 		return groupEval{}, err
 	}
-	e := groupEval{lost: map[string]bool{}, role: pred.Role}
+	e := groupEval{lost: map[string]bool{}, runs: map[string]FilthRuns{}, role: pred.Role}
 	var intended []RoomRole
 	sleepers := map[RoomRole]int{} // sleepers whose bed is for the role
 	for _, p := range pieces {
@@ -438,6 +441,9 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 		if n.Filth && !slices.Contains(e.filthy, n.ID) {
 			e.filthy = append(e.filthy, n.ID)
 		}
+		if n.Filth && n.Count > 0 {
+			e.runs[n.ID] = e.runs[n.ID].plus(FilthRuns{Runs: n.FilthRuns * float64(u.count) / float64(n.Count), Ticks: n.FilthWork})
+		}
 		e.footprint += u.count * int(size.X) * int(size.Z)
 		e.clearance += u.count
 		exposedUnit := false
@@ -474,7 +480,7 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 	}
 	e.area = e.footprint + e.clearance
 	if e.filth && !e.closet {
-		e.filthCosts = c.in.Catalog.Filth.filthCosts(e.filthy, e.exposed, e.area, e.meals)
+		e.filthCosts = c.in.Catalog.Filth.filthCosts(e.filthy, e.exposed, e.area, e.meals, e.runs)
 	}
 	return e, nil
 }

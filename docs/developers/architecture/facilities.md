@@ -253,14 +253,26 @@ conflict, loses a role effect or carries a role-guard mismatch) and
 **move-a-need** (a station class leaves the room that slows it for a room of the
 role it wants, or leaves a cold room). A **filth merge** (#2955) joins a butcher
 kept in its closet to the room it flows to when the walk saved (the embedding
-score) outweighs the food poisoning it costs that room's cooks: the meals a day
-the exposed stations make (`StationNode.Meals`) times the room's
-`FoodPoisonChance` with the blood standing (`FilthCost.FoodPoisonPerUnit`) are
-the poisonings a day, each the work of the `FoodPoisoning` hediff
+score) outweighs what the shared room costs (#2988), two parts at the work-day
+rate below. **Cleaning labor**: the butchery runs a day (`StationNode.FilthRuns`,
+a corpse each, one `TryMakeFilth` unit) times the filth def's
+`cleaningWorkToReduceThickness` (70 for `Filth_Blood`) over a colonist's
+`CleaningSpeed` stat (`JobDriver_CleanFilth` divides the work by it a tick), in
+work-days (`FilthCost.CleaningWorkDays`). **Poisoning residual**: nobody may clean
+filth before `WorkGiver_CleanFilth.MinTicksSinceThickened` (600 ticks), so the
+units of the runs that fall in that window stand at once (`StandingUnits`, a
+day's runs `FilthWork` ticks apart), at that many units' cleanliness; the meals
+the exposed stations make (`StationNode.Meals`) while any stands (`Exposure`,
+the share of the day) are poisoned at the room's `FoodPoisonChance` there
+(`StandingPoison`), each poisoning the work of the `FoodPoisoning` hediff
 (`PoisoningModel.WorkDays`: each stage's days times the Consciousness it takes,
-plus its vomits, about 0.5 work-days), priced at the work-day rate below;
-`foodPoisonGame` holds the judgments. The impressiveness shift stays recorded
-only (#2954).
+plus its vomits, about 0.5 work-days). `foodPoisonGame` and `filthGame` hold the
+judgments. The floor's `Cleanliness` and `CleaningTimeFactor` and the dirt
+pawns track in (`Pawn_FilthTracker`, `FilthRate` a cell entered) are not
+priced: the floor is laid after the layout and the cells entered are the
+embedding's traffic. No thought reads room cleanliness (only `Impressiveness`
+does), so the impressiveness shift stays recorded only (#2954). A closet's own
+cleaning is not priced: only a room shared with other stations pays.
 
 The total is in embedding score points, no new constant: `-Score.Total()` plus
 the conflicts. `RoomGroup.Costs` ticks a day become work-days (`TicksPerDay`),

@@ -158,6 +158,10 @@ type StationNode struct {
 	// (CompFoodPoisonable.Notify_RecipeProduced). It is use, not station: the
 	// same bench that dismantles mechanoids also works other recipes.
 	Filth bool
+	// FilthRuns is the butchery runs a day the node's stations make (a run is a
+	// corpse, one TryMakeFilth) and FilthWork the work ticks of one (#2988); 0
+	// for a node that butchers nothing.
+	FilthRuns, FilthWork float64
 	// Target and Floor mark a target-sized bedroom (a suite, #2939): the
 	// sleeper's room-impressiveness target and the interior cells that meet it,
 	// at least the standing suite's own floor. Zero for an ordinary node.
@@ -644,7 +648,17 @@ func (b *graphBuilder) workLoads() ([]recipeLoad, error) {
 				node.Meals += l.runs * flow.productCount()
 			}
 		}
-		node.Filth = slices.ContainsFunc(out, func(l recipeLoad) bool { return l.station == def && b.in.Recipes[l.recipe].Butchery })
+		var butchery, butcherWork float64
+		for _, l := range out {
+			if l.station == def && b.in.Recipes[l.recipe].Butchery {
+				node.Filth = true
+				butchery += l.runs
+				butcherWork += l.runs * l.work
+			}
+		}
+		if butchery > 0 {
+			node.FilthRuns, node.FilthWork = butchery, butcherWork/butchery
+		}
 	}
 	return out, nil
 }
