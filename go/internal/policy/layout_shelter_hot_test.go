@@ -46,7 +46,7 @@ func TestHotMapShelterHoldsAPassiveCoolerSlot(t *testing.T) {
 		}
 		plans[hot] = plan
 		room := InteriorRoom{Role: RoomRoleShelter, Shapes: testShapes, Interior: shelter.Region.Bounds(), Doors: []domain.Cell{shelter.Door}, Occupants: 3, Coolers: ShelterCoolers(plan.Hot), Capabilities: CapabilitiesOf(PlannedShelter)}
-		planned, ok := PlanInterior(room, InteriorPieceDef{})
+		planned, ok := PlanRoomInterior(room, InteriorPieceDef{})
 		if !ok {
 			t.Fatalf("hot=%v: no interior plan", hot)
 		}

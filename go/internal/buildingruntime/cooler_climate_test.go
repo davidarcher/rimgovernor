@@ -57,7 +57,7 @@ func coolerSearch(t *testing.T, hot bool) (chosen domain.Cell, slots []domain.Ce
 	for _, shelter := range plannedShelterRooms(facts) {
 		piece, _ := shelter.Piece("PassiveCooler")
 		piece.Def = "PassiveCooler"
-		plan, ok := policy.PlanInterior(shelter, piece)
+		plan, ok := policy.PlanRoomInterior(shelter, piece)
 		if !ok {
 			t.Fatal("the shelter template plans no room")
 		}

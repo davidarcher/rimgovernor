@@ -68,7 +68,7 @@ func TestShelterStoreLeavesEveryTemplateSlotFree(t *testing.T) {
 	if !ok {
 		t.Fatal("no shelter room")
 	}
-	plan, ok := PlanInterior(interior, InteriorPieceDef{})
+	plan, ok := PlanRoomInterior(interior, InteriorPieceDef{})
 	if !ok || len(plan.Pieces) == 0 {
 		t.Fatal("no interior plan")
 	}

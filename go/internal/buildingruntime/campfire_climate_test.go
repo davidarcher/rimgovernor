@@ -71,7 +71,7 @@ func campfireSearchBlocked(t *testing.T, cold bool, refused func(domain.Cell) bo
 	for _, shelter := range plannedShelterRooms(facts) {
 		piece, _ := shelter.Piece("Campfire")
 		piece.Def = "Campfire"
-		plan, ok := policy.PlanInterior(shelter, piece)
+		plan, ok := policy.PlanRoomInterior(shelter, piece)
 		if !ok {
 			t.Fatal("the shelter template plans no room")
 		}

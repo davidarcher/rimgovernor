@@ -424,7 +424,7 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, ground GroundCensus,
 			in.Required = append(in.Required, RequiredPiece{Slot: fmt.Sprintf("%s.%d", w.Key, i), Piece: d})
 		}
 	}
-	interior, ok := PlanInterior(in, def)
+	interior, ok := PlanRoomInterior(in, def)
 	if !ok {
 		return ThroneStep{}
 	}

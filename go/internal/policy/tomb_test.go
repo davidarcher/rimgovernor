@@ -113,7 +113,7 @@ func TestCoreGrowPlansATomb(t *testing.T) {
 func TestTombStepGrowsAnotherTombWhenFull(t *testing.T) {
 	plan, room := tombFixture()
 	in, _ := InteriorRoomFromLayout(room, testShapes)
-	interior, ok := PlanInterior(in, testShapes.Defs[testSarcophagus])
+	interior, ok := PlanRoomInterior(in, testShapes.Defs[testSarcophagus])
 	if !ok {
 		t.Fatal("no template")
 	}

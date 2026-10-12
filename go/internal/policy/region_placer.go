@@ -15,10 +15,22 @@ type RegionWant struct {
 	Size        domain.Cell
 	Interaction *domain.Cell
 	Count, Min  int
+	// Names, when set, names the pieces in placement order ("bed", "bunk.1")
+	// where the slot names are read by a consumer; piece i past the list is
+	// "Slot.i". Without it every piece is "Slot.i".
+	Names []string
 	// AgainstWall requires a footprint cell beside a cell outside the region
 	// (a wall, or the edge of a hole). Without it the piece still prefers a
 	// wall cell and falls back to the open floor.
 	AgainstWall bool
+}
+
+// slotName is the name of the want's i-th piece.
+func (w RegionWant) slotName(i int) string {
+	if i < len(w.Names) {
+		return w.Names[i]
+	}
+	return fmt.Sprintf("%s.%d", w.Slot, i)
 }
 
 // RegionPlacement is the input to PlaceInRegion. Doors are the cells outside
@@ -80,7 +92,7 @@ func PlaceInRegion(req RegionPlacement) ([]InteriorPiece, error) {
 	for _, w := range req.Wants {
 		placed := 0
 		for placed < w.Count {
-			piece, ok := nextRegionPiece(g, cells, blocked, keep, thresholds, w, fmt.Sprintf("%s.%d", w.Slot, placed))
+			piece, ok := nextRegionPiece(g, cells, blocked, keep, thresholds, w, w.slotName(placed))
 			if !ok {
 				break
 			}

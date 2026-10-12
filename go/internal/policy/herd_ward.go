@@ -111,7 +111,7 @@ func WardSlots(room PlannedRoom, shapes PieceShapes, bed InteriorPieceDef) []Int
 	if !ok {
 		return nil
 	}
-	human, ok := PlanInterior(in, InteriorPieceDef{})
+	human, ok := PlanRoomInterior(in, InteriorPieceDef{})
 	if !ok {
 		return nil
 	}

@@ -44,7 +44,7 @@ func mustJailPieces(t *testing.T, r PlannedRoom) []InteriorPiece {
 	if !ok {
 		t.Fatal("jail room")
 	}
-	plan, ok := PlanInterior(in, testShapes.Defs[testPrimaryBed])
+	plan, ok := PlanRoomInterior(in, testShapes.Defs[testPrimaryBed])
 	if !ok || len(plan.Pieces) == 0 {
 		t.Fatal("jail template placed no bed")
 	}

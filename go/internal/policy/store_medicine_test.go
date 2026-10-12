@@ -25,7 +25,7 @@ func TestMedicalStoreBesideThePlannedBeds(t *testing.T) {
 	if !ok {
 		t.Fatal("no hospital room")
 	}
-	plan, ok := PlanInterior(in, InteriorPieceDef{})
+	plan, ok := PlanRoomInterior(in, InteriorPieceDef{})
 	if !ok {
 		t.Fatal("no hospital plan")
 	}

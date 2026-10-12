@@ -13,7 +13,7 @@ func coupleBedFixture() (SleepingObservation, []FurnitureRoom) {
 	for i, id := range []string{"Room_1", "Room_2"} {
 		x := int32(i * 10)
 		room := InteriorRoom{Shapes: testShapes, Role: RoomRoleBedroom, Interior: Rectangle{X: x, Z: 0, Width: 5, Height: 4}, Doors: []domain.Cell{{X: x, Z: -1}}}
-		plan, _ := PlanInterior(room, InteriorPieceDef{})
+		plan, _ := PlanRoomInterior(room, InteriorPieceDef{})
 		tidy := FurnitureRoom{ID: id, Room: room}
 		for _, p := range plan.Pieces {
 			if p.Slot == "bed" {
@@ -64,7 +64,7 @@ func TestCoupleBedPacksThenInstallsInTheBedSlot(t *testing.T) {
 		t.Fatalf("install = %+v %v", install, ok)
 	}
 	// The template is the bedroom template's DoubleBed bed slot.
-	plan, _ := PlanInterior(rooms[0].Room, testShapes.Defs["DoubleBed"])
+	plan, _ := PlanRoomInterior(rooms[0].Room, testShapes.Defs["DoubleBed"])
 	if plan.Pieces[0].Slot != "bed" || plan.Pieces[0].Def != "DoubleBed" || install.Template[0].Anchor() != plan.Pieces[0].Anchor() || install.Template[0].DefName != "DoubleBed" {
 		t.Fatalf("slot %+v, install %+v", plan.Pieces[0], install)
 	}

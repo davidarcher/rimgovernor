@@ -12,7 +12,7 @@ func TestBarnPlanIncludesTheClimateHeater(t *testing.T) {
 	plan := herdTestPlan(t, 20)
 	barn := plan.HerdRooms(PlannedBarn)[0]
 	in := mustInterior(t, barn)
-	laid, ok := PlanInterior(in, testHerdFurniture.Spot)
+	laid, ok := PlanRoomInterior(in, testHerdFurniture.Spot)
 	if !ok {
 		t.Fatal("no barn plan")
 	}
@@ -31,7 +31,7 @@ func TestBarnPlanIncludesTheClimateHeater(t *testing.T) {
 	// A catalog without a heater shape plans a barn without one.
 	bare := in
 	bare.Shapes.Furniture.Heater = ""
-	if bareLaid, ok := PlanInterior(bare, testHerdFurniture.Spot); !ok || len(bareLaid.Pieces) != len(laid.Pieces)-1 {
+	if bareLaid, ok := PlanRoomInterior(bare, testHerdFurniture.Spot); !ok || len(bareLaid.Pieces) != len(laid.Pieces)-1 {
 		t.Fatal("no heater in the catalog, no climate slot")
 	}
 }

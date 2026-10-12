@@ -72,7 +72,7 @@ func (animalOwner) Stores(v StoreView) []Store {
 	for _, barn := range v.Layout.HerdRooms(PlannedBarn) {
 		var avoid []domain.Cell
 		if in, ok := InteriorRoomFromLayout(barn, v.Shapes); ok {
-			if plan, ok := PlanInterior(in, v.AnimalFeed.Spot); ok {
+			if plan, ok := PlanRoomInterior(in, v.AnimalFeed.Spot); ok {
 				for _, p := range plan.Pieces {
 					avoid = append(avoid, rectCells(p.Rect)...)
 				}

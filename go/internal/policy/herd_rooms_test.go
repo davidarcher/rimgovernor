@@ -72,7 +72,7 @@ func TestHerdStepRebuildsALostWall(t *testing.T) {
 	plan := herdTestPlan(t, 20)
 	barn := plan.HerdRooms(PlannedBarn)[0]
 	const animals = 4
-	layout, ok := PlanInterior(mustInterior(t, barn), testHerdFurniture.Spot)
+	layout, ok := PlanRoomInterior(mustInterior(t, barn), testHerdFurniture.Spot)
 	if !ok {
 		t.Fatal("no barn layout")
 	}
@@ -127,7 +127,7 @@ func TestHerdOutgrowsItsRoomsAndAddsAnotherWithoutMovingAny(t *testing.T) {
 	first, second := grown.HerdRooms(PlannedBarn)[0], grown.HerdRooms(PlannedBarn)[1]
 	var built []CurrentBuilding
 	rooms := standing(first)
-	layout, ok := PlanInterior(mustInterior(t, first), testHerdFurniture.Spot)
+	layout, ok := PlanRoomInterior(mustInterior(t, first), testHerdFurniture.Spot)
 	if !ok {
 		t.Fatal("no barn layout")
 	}

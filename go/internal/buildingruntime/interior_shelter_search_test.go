@@ -55,7 +55,7 @@ func TestResearchBenchTakesTheShelterTemplateSlot(t *testing.T) {
 	}
 	piece, _ := rooms[0].Piece("SimpleResearchBench")
 	piece.Def = "SimpleResearchBench"
-	plan, ok := policy.PlanInterior(rooms[0], piece)
+	plan, ok := policy.PlanRoomInterior(rooms[0], piece)
 	if !ok {
 		t.Fatal("the shelter template plans no room")
 	}

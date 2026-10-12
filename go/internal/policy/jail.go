@@ -153,7 +153,7 @@ func jailSlot(r PlannedRoom, shapes PieceShapes, taken map[domain.Cell]bool) (In
 	if !ok {
 		return InteriorPiece{}, false
 	}
-	interior, ok := PlanInterior(in, bed)
+	interior, ok := PlanRoomInterior(in, bed)
 	if !ok {
 		return InteriorPiece{}, false
 	}

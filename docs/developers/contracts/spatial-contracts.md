@@ -264,6 +264,18 @@ and Hot; `Spine` and `Wings` are leftovers of the old generator.
   graph. A kept move is a `TileDecision` (`interior_search_move`, `Move` = slot:kind:terms
   improved), journalled as `layout_interior` by `deriveLayoutPlan`. The result is never worse
   than greedy on a gated term; the tiler has no built input, so nothing is pinned or moved free.
+  **Live furnishing (#2956).** The runtime reads a room's furniture slots from
+  `PlanRoomInterior` (`interior_region.go`). A role in `regionRoles` (workshop, laboratory,
+  kitchen, tomb, prison cell, hospital so far) states what its floor should hold as
+  `RegionWant`s (`interior_region_roles.go`: the capacity its template had along the entrance
+  wall or aisle, the pieces named as the reconcilers and consumers read them) and the placer
+  seats them on `InteriorRoom.Floor()`, the planned room's region, so an L or notched room is
+  furnished on its own cells rather than its bounding rectangle. `SearchInterior` then
+  improves the layout, seeded from the role, floor and doors (no wall time). The live caller
+  passes no station graph, so the search improves facility links and free floor only; tests
+  give it the graph flows and hold the result to the template's count of every definition,
+  its slot names and its gated terms. `InteriorTable` is the judgment table (the stove
+  count). Roles not yet moved are still planned by their `InteriorTemplate`.
   **Roofed set (#2941).** On a bad-climate map (the Cold or Hot latch, or a curve under
   `ColdMapBelowC` or over `HotEnter`) `PlanRoofed` (`layout_roof.go`) puts every
   room's floor and every priced hallway into `LayoutPlan.Roofed`, except the outdoor

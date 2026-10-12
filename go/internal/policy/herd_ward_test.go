@@ -64,7 +64,7 @@ func TestWardSlotsStayOutsideTheHumanTemplateAndKeepTheDoorOpen(t *testing.T) {
 	if !ok {
 		t.Fatal("no interior")
 	}
-	human, ok := PlanInterior(in, InteriorPieceDef{})
+	human, ok := PlanRoomInterior(in, InteriorPieceDef{})
 	if !ok {
 		t.Fatal("no hospital template")
 	}

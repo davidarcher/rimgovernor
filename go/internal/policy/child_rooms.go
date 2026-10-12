@@ -286,7 +286,7 @@ func NextChildRoomStep(plan LayoutPlan, rooms RoomObservation, ground GroundCens
 			if count >= p.Count {
 				continue
 			}
-			planned, ok := PlanInterior(in, p.Piece)
+			planned, ok := PlanRoomInterior(in, p.Piece)
 			if !ok {
 				continue
 			}

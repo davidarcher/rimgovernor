@@ -26,7 +26,7 @@ func (r StoreView) medicineStore() (Store, bool) {
 	}
 	var avoid, beds []domain.Cell
 	if in, ok := InteriorRoomFromLayout(hospital, r.Shapes); ok {
-		if plan, ok := PlanInterior(in, InteriorPieceDef{}); ok {
+		if plan, ok := PlanRoomInterior(in, InteriorPieceDef{}); ok {
 			for _, p := range plan.Pieces {
 				avoid = append(avoid, rectCells(p.Rect)...)
 				if p.Row == "beds" {

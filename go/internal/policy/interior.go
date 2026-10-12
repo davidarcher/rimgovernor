@@ -25,7 +25,11 @@ import (
 type InteriorRoom struct {
 	Role     RoomRole
 	Interior Rectangle
-	Doors    []domain.Cell
+	// Region is the floor when it is not the whole Interior rectangle (an
+	// L, a notch); the zero Region is the rectangle (Floor). Only the region
+	// placer reads it, Interior is its bounding rectangle.
+	Region Region
+	Doors  []domain.Cell
 	// InnerDoors are the doors among Doors that open onto another room;
 	// the frame faces a door onto a hallway or outdoors when it has one.
 	InnerDoors []domain.Cell
@@ -306,7 +310,11 @@ func InteriorRoomFromLayout(r PlannedRoom, shapes PieceShapes) (InteriorRoom, bo
 		}
 		doors = append(doors, d.Cell)
 	}
-	return InteriorRoom{Role: role, Interior: r.Region.Bounds(), Doors: doors, Shapes: shapes, Capabilities: CapabilitiesOf(r.Role)}, true
+	out := InteriorRoom{Role: role, Interior: r.Region.Bounds(), Doors: doors, Shapes: shapes, Capabilities: CapabilitiesOf(r.Role)}
+	if !r.Region.IsRect() {
+		out.Region = r.Region
+	}
+	return out, true
 }
 
 // doorSide is the direction from the room to a door in one of its walls

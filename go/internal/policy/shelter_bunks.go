@@ -50,7 +50,7 @@ func PlanShelterBunks(room PlannedRoom, mined []domain.Cell, shapes PieceShapes,
 	if !ok {
 		return nil
 	}
-	plan, ok := PlanInterior(interior, InteriorPieceDef{})
+	plan, ok := PlanRoomInterior(interior, InteriorPieceDef{})
 	if !ok {
 		return nil
 	}

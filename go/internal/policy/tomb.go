@@ -223,7 +223,7 @@ func tombSlot(r PlannedRoom, shapes PieceShapes, taken map[domain.Cell]bool) (In
 	if !ok {
 		return InteriorPiece{}, false
 	}
-	interior, ok := PlanInterior(in, sarcophagus)
+	interior, ok := PlanRoomInterior(in, sarcophagus)
 	if !ok {
 		return InteriorPiece{}, false
 	}

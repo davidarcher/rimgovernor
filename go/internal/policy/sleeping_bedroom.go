@@ -222,7 +222,7 @@ func BedroomTemplate(room PlannedRoom, shapes PieceShapes, bed string) ([]Wanted
 	if !ok {
 		return nil, false
 	}
-	plan, ok := PlanInterior(in, piece)
+	plan, ok := PlanRoomInterior(in, piece)
 	if !ok {
 		return nil, false
 	}

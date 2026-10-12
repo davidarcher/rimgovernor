@@ -50,7 +50,7 @@ func craftingSpotSearch(t *testing.T, shelterPlanned bool) (chosen, slot domain.
 	}
 	piece, _ := interiorRoom.Piece(craftingSpotDefinition)
 	piece.Def = craftingSpotDefinition
-	plan, ok := policy.PlanInterior(interiorRoom, piece)
+	plan, ok := policy.PlanRoomInterior(interiorRoom, piece)
 	if !ok {
 		t.Fatal("the shelter template plans no room")
 	}

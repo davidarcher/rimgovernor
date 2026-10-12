@@ -10,7 +10,7 @@ import (
 func TestFurnitureRoomsPlanTheStandingBed(t *testing.T) {
 	interior := Rectangle{X: 0, Z: 0, Width: 6, Height: 5}
 	door := domain.Cell{X: 1, Z: -1}
-	plan, ok := PlanInterior(InteriorRoom{Role: RoomRoleBedroom, Interior: interior, Doors: []domain.Cell{door}, Shapes: testShapes}, testShapes.Defs["DoubleBed"])
+	plan, ok := PlanRoomInterior(InteriorRoom{Role: RoomRoleBedroom, Interior: interior, Doors: []domain.Cell{door}, Shapes: testShapes}, testShapes.Defs["DoubleBed"])
 	if !ok {
 		t.Fatal("no double-bed plan")
 	}

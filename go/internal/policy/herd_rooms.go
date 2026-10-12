@@ -293,7 +293,7 @@ func herdRoomBeds(room PlannedRoom, shapes PieceShapes, def InteriorPieceDef) in
 	if !ok {
 		return 0
 	}
-	plan, ok := PlanInterior(in, def)
+	plan, ok := PlanRoomInterior(in, def)
 	if !ok {
 		return 0
 	}
@@ -383,7 +383,7 @@ func NextHerdStep(plan LayoutPlan, rooms RoomObservation, ground GroundCensus, b
 		if !ok {
 			continue
 		}
-		layout, ok := PlanInterior(in, f.Spot)
+		layout, ok := PlanRoomInterior(in, f.Spot)
 		if !ok {
 			continue
 		}

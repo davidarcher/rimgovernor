@@ -89,6 +89,10 @@ func DefTables() []DefTable {
 		// building the cut is walled with.
 		{"perimeterTable", "Verse.ThingDef", []string{perimeterTable.WallDef}},
 		{"windPath", "Verse.ThingDef", []string{WindTurbineDefinition}},
+		// interiorTable (#2956): the shelf and lamp the region interior wants
+		// beside benches and beds; KitchenStoves is the judgment explained on
+		// InteriorTable.
+		{"interiorTable", "Verse.ThingDef", []string{interiorTable.ShelfDef, interiorTable.LampDef}},
 		// The power site price (#2999) is the market value of a conduit run and a
 		// wall cell: the catalog's cost lists, keyed by the defs so a rename fails.
 		{"siteConduit", "Verse.ThingDef", []string{PowerConduitDefinition}},

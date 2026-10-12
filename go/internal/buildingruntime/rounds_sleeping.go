@@ -1276,7 +1276,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 			// template plans its default layout for it.
 			piece, _ := room.Piece(r.definition)
 			piece.Def = r.definition
-			plan, ok := policy.PlanInterior(room, piece)
+			plan, ok := policy.PlanRoomInterior(room, piece)
 			if !ok {
 				continue
 			}
@@ -1514,7 +1514,7 @@ func nonSleepingPlannedCells(facts observation.ColonyProjection) []domain.Cell {
 func shelterFurnitureCells(facts observation.ColonyProjection) []domain.Cell {
 	var cells []domain.Cell
 	for _, room := range plannedShelterRooms(facts) {
-		full, ok := policy.PlanInterior(room, policy.InteriorPieceDef{})
+		full, ok := policy.PlanRoomInterior(room, policy.InteriorPieceDef{})
 		if !ok {
 			continue
 		}

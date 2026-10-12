@@ -25,7 +25,7 @@ func TestAnimalFeedStoreInThePlannedBarn(t *testing.T) {
 		t.Fatal(f)
 	}
 	if in, ok := InteriorRoomFromLayout(barn, testShapes); ok {
-		if plan, ok := PlanInterior(in, testHerdFurniture.Spot); ok {
+		if plan, ok := PlanRoomInterior(in, testHerdFurniture.Spot); ok {
 			taken := map[domain.Cell]bool{}
 			for _, p := range plan.Pieces {
 				for _, c := range rectCells(p.Rect) {

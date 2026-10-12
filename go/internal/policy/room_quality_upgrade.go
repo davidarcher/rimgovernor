@@ -114,7 +114,7 @@ func NextRoomUpgrade(obs SleepingObservation, targets map[string]RoomTarget, roo
 		if weakest == RoomStatSpace {
 			continue
 		}
-		plan, ok := PlanInterior(room.Room, InteriorPieceDef{})
+		plan, ok := PlanRoomInterior(room.Room, InteriorPieceDef{})
 		if !ok {
 			continue
 		}

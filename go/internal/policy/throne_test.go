@@ -254,7 +254,7 @@ func TestThroneTemplateFurnishesAroundTheThrone(t *testing.T) {
 	if !ok {
 		t.Fatal("throne room has no interior role")
 	}
-	full, ok := PlanInterior(in, InteriorPieceDef{Def: "Throne", Size: domain.Cell{X: 1, Z: 1}})
+	full, ok := PlanRoomInterior(in, InteriorPieceDef{Def: "Throne", Size: domain.Cell{X: 1, Z: 1}})
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -268,7 +268,7 @@ func TestThroneTemplateFurnishesAroundTheThrone(t *testing.T) {
 		}
 	}
 	// The closer's plan names the furniture alone.
-	bare, ok := PlanInterior(in, InteriorPieceDef{})
+	bare, ok := PlanRoomInterior(in, InteriorPieceDef{})
 	if !ok {
 		t.Fatal("no furnishing plan")
 	}

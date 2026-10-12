@@ -72,7 +72,7 @@ func FurnitureRooms(rooms RoomObservation, census CurrentConstruction, cells []S
 			}
 		}
 		sort.Strings(input.Standing)
-		if _, ok := PlanInterior(input, InteriorPieceDef{}); !ok {
+		if !RoomHasInterior(input, InteriorPieceDef{}) {
 			continue
 		}
 		t.Room = input

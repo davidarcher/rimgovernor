@@ -18,7 +18,7 @@ func TestRoomVariantsKeepAreaDepthAndTemplates(t *testing.T) {
 			// Where the default plans, the variant must too.
 			if ir, ok := interiorRole[role]; ok && interiorPlansAt(ir, def) {
 				for _, room := range interiorRoomsAround(ir, v[0], v[1], 1) {
-					if _, ok := PlanInterior(room, InteriorPieceDef{}); !ok {
+					if _, ok := PlanRoomInterior(room, InteriorPieceDef{}); !ok {
 						t.Errorf("%s variant %v: no interior plan with doors %v", role, v, room.Doors)
 					}
 				}
@@ -30,7 +30,7 @@ func TestRoomVariantsKeepAreaDepthAndTemplates(t *testing.T) {
 // interiorPlansAt reports that role's interior template plans a size on every door.
 func interiorPlansAt(role RoomRole, size [2]int32) bool {
 	for _, room := range interiorRoomsAround(role, size[0], size[1], 1) {
-		if _, ok := PlanInterior(room, InteriorPieceDef{}); !ok {
+		if _, ok := PlanRoomInterior(room, InteriorPieceDef{}); !ok {
 			return false
 		}
 	}

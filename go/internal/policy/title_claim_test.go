@@ -13,7 +13,7 @@ func claimFixture(t *testing.T) TitleClaimFacts {
 	plan, room, _ := throneFixture()
 	in, _ := InteriorRoomFromLayout(room, testShapes)
 	def := InteriorPieceDef{Def: "Throne", Size: domain.Cell{X: 1, Z: 1}}
-	interior, _ := PlanInterior(in, def)
+	interior, _ := PlanRoomInterior(in, def)
 	var built []CurrentBuilding
 	for _, p := range interior.Pieces {
 		if p.Slot == throneSlot {

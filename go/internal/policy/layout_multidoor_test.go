@@ -75,7 +75,7 @@ func TestInteriorRoomFromLayoutKeepsExtraDoors(t *testing.T) {
 	if !ok || len(in.Doors) != 2 {
 		t.Fatalf("doors %+v %v", in.Doors, ok)
 	}
-	plan, ok := PlanInterior(in, InteriorPieceDef{})
+	plan, ok := PlanRoomInterior(in, InteriorPieceDef{})
 	if !ok {
 		t.Fatal("a two-door dining room does not plan")
 	}
