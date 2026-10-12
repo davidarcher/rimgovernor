@@ -26,6 +26,7 @@ const (
 	tagMovingCore      = "MovingLimbCore"
 	tagMovingSegment   = "MovingLimbSegment"
 	tagMovingDigit     = "MovingLimbDigit"
+	tagSight           = "SightSource"
 	tagManipCore       = "ManipulationLimbCore"
 	tagManipSegment    = "ManipulationLimbSegment"
 	tagManipDigit      = "ManipulationLimbDigit"
@@ -159,6 +160,7 @@ func (im *importer) body(race *d.RaceProperties, healthScale, shock, incoming fl
 	b.BreathingSource, b.BreathingPathway, b.BreathingCage = withTag(tagBreathingSource), withTag(tagBreathingPath), withTag(tagBreathingCage)
 	b.FiltrationKidney, b.FiltrationLiver, b.FiltrationSource = withTag(tagKidney), withTag(tagLiver), withTag(tagFiltration)
 	b.Metabolism, b.Pelvis, b.Spine = withTag(tagMetabolism), withTag(tagPelvis), withTag(tagSpine)
+	b.Sight = withTag(tagSight)
 
 	// BodyPartRecord.GetChildParts(tag): the part itself if tagged, then its
 	// descendants in order. GetConnectedParts(tag) climbs through tagged parents

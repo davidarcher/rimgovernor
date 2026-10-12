@@ -193,6 +193,10 @@ type Event struct {
 	// StopsInThing is set on an EventShot whose projectile ends in a non-pawn
 	// thing (cover or a wall): it hits no pawn.
 	StopsInThing bool
+	// Dest and TargetCell are set on an EventShot: the cell the projectile is
+	// sent to (the target's cell for an aimed shot, the cover or wild cell
+	// otherwise) and the cell the target stood in.
+	Dest, TargetCell domain.Cell
 	// Health and Bleed are, on an EventHit, the victim's summary health and
 	// total bleed rate after the hit, HealthBefore and BleedBefore before it
 	// (the serious-injury stop's crossing tests, A22).

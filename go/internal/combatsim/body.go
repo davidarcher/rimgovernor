@@ -46,6 +46,9 @@ type Body struct {
 	Consciousness, BloodPumping, BreathingSource, BreathingPathway, BreathingCage []int
 	FiltrationKidney, FiltrationLiver, FiltrationSource                           []int
 	Metabolism, Pelvis, Spine                                                     []int
+	// Sight lists the parts tagged SightSource (the eyes), read by
+	// PawnCapacityWorker_Sight; empty leaves the Sight capacity at 1.
+	Sight []int
 	// Moving and Manipulation are the limbs the two limb capacities average.
 	Moving, Manipulation []Limb
 }
@@ -241,6 +244,29 @@ func (b *Body) partEfficiency(st *injuryState, i int) float64 {
 
 func clamp01(f float64) float64 { return math.Min(math.Max(f, 0), 1) }
 
+// sightEfficiency ports PawnCapacityWorker_Sight: CalculateTagEfficiency over
+// the SightSource parts with PartEfficiencySpecialWeight 0.75, which weights the
+// best eye 0.75 and the mean of the others 0.25 when there are two or more.
+func (b *Body) sightEfficiency(st *injuryState) float64 {
+	n := len(b.Sight)
+	if n == 0 {
+		return 1
+	}
+	sum, best := 0.0, 0.0
+	for _, i := range b.Sight {
+		e := b.partEfficiency(st, i)
+		sum += e
+		best = math.Max(best, e)
+	}
+	if n < 2 {
+		return sum / float64(n)
+	}
+	return best*sightSpecialWeight + (sum-best)/float64(n-1)*(1-sightSpecialWeight)
+}
+
+// sightSpecialWeight is PawnCapacityWorker_Sight.PartEfficiencySpecialWeight.
+const sightSpecialWeight = 0.75
+
 // tagEfficiency ports PawnCapacityUtility.CalculateTagEfficiency with no lerp
 // range: the mean efficiency of the parts with the tag, capped at maximum, 1
 // for a body with no such part.
@@ -304,6 +330,8 @@ func (b *Body) pain(st *injuryState) float64 {
 // capacities are the levels the downing and firing rules read.
 type capacities struct {
 	consciousness, moving, manipulation float64
+	// sight is the Sight capacity (PawnCapacityWorker_Sight).
+	sight float64
 	// lethalLost is set when any capacity with lethalFlesh is no longer
 	// capable (level at or below its minForCapable of 0).
 	lethalLost bool
@@ -348,6 +376,8 @@ func (b *Body) levels(st *injuryState) capacities {
 	c = roundedHundredth(math.Max(c, 0))
 
 	out := capacities{consciousness: c}
+	// PawnCapacityUtility.CalculateCapacityLevel for Sight: no hediff here moves it.
+	out.sight = roundedHundredth(math.Max(b.sightEfficiency(st), 0))
 	out.lethalLost = !(c > 0) || !(pumping > 0) || !(breathing > 0) || !(filtration > 0) || !(metabolism > 0)
 	if !(c >= 0.3) { // PawnCapacitiesHandler.CanBeAwake: both limb capacities are zeroIfCannotBeAwake
 		return out

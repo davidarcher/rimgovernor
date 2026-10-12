@@ -1,7 +1,7 @@
 {
   "Stamp": {
     "assemblyHash": "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A",
-    "rulesVersion": 15,
+    "rulesVersion": 16,
     "thresholdsVersion": 1,
     "sweepVersion": 2
   },
@@ -15,13 +15,13 @@
         {
           "Variant": "default",
           "RealDeaths": 0,
-          "SimDeaths": 0.05,
+          "SimDeaths": 0,
           "RealDowns": 0.25,
-          "SimDowns": 0.2,
+          "SimDowns": 0.3,
           "RealDamage": 69.05,
-          "SimDamage": 73.35,
+          "SimDamage": 67.9,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 1
+          "SimDeathSeeds": 0
         }
       ]
     },
@@ -53,74 +53,74 @@
         {
           "Variant": "default",
           "RealDeaths": 0,
-          "SimDeaths": 0.3,
+          "SimDeaths": 0.35,
           "RealDowns": 2.95,
-          "SimDowns": 2.65,
+          "SimDowns": 2.55,
           "RealDamage": 262.3,
-          "SimDamage": 248.4,
+          "SimDamage": 247.65,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 6
+          "SimDeathSeeds": 5
         },
         {
           "Variant": "scatter-short",
           "RealDeaths": 0,
-          "SimDeaths": 0.3,
+          "SimDeaths": 0.25,
           "RealDowns": 2.25,
-          "SimDowns": 2.55,
+          "SimDowns": 2.7,
           "RealDamage": 234.1,
-          "SimDamage": 247.2,
+          "SimDamage": 253.7,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 6
+          "SimDeathSeeds": 5
         },
         {
           "Variant": "scatter-long",
           "RealDeaths": 0,
           "SimDeaths": 0.4,
           "RealDowns": 2.75,
-          "SimDowns": 2.35,
+          "SimDowns": 2.55,
           "RealDamage": 255.85,
-          "SimDamage": 246.55,
+          "SimDamage": 247.5,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 7
+          "SimDeathSeeds": 8
         },
         {
           "Variant": "group-gap-tight",
           "RealDeaths": 0,
-          "SimDeaths": 0.35,
+          "SimDeaths": 0.15,
           "RealDowns": 2.7,
           "SimDowns": 2.65,
           "RealDamage": 262.05,
-          "SimDamage": 253.95,
+          "SimDamage": 245.25,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 7
+          "SimDeathSeeds": 3
         },
         {
           "Variant": "group-gap-wide",
           "RealDeaths": 0,
-          "SimDeaths": 0.5,
+          "SimDeaths": 0.3,
           "RealDowns": 2.65,
-          "SimDowns": 2.45,
+          "SimDowns": 2.4,
           "RealDamage": 256.395,
-          "SimDamage": 255.75,
+          "SimDamage": 241.2,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 8
+          "SimDeathSeeds": 6
         }
       ],
       "pairs": 10,
-      "agreed": 5
+      "agreed": 7
     }
   ],
-  "RankAgreement": 0.5,
+  "RankAgreement": 0.7,
   "RankPairs": 10,
   "Misrankings": null,
   "Regrets": [
     {
       "Fixture": "lab-split-ranged",
-      "SimPick": "scatter-short",
+      "SimPick": "group-gap-tight",
       "RealBest": "scatter-short",
       "Deaths": 0,
-      "Downs": 0,
-      "Damage": 0
+      "Downs": 0.4500000000000002,
+      "Damage": 27.950000000000017
     }
   ],
   "FalseSafe": null,
@@ -130,6 +130,6 @@
     "lab-open (held-out): the sim does not support this fixture: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 3 unmodeled, first: pawn h0 wields melee weapon MeleeWeapon_Club: the sim has no melee, the pawn is imported unarmed",
     "lab-choke (held-out): the sim does not support this fixture: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 9 unmodeled, first: pawn c0 wields melee weapon MeleeWeapon_LongSword: the sim has no melee, the pawn is imported unarmed",
     "lab-base (held-out): the sim does not support this fixture: combatsim: unsupported scenario: thing \"Turret_MiniTurret\" is a turret, which the sim does not fire",
-    "rank agreement 0.50 over 10 pairs is below 0.80"
+    "rank agreement 0.70 over 10 pairs is below 0.80"
   ]
 }

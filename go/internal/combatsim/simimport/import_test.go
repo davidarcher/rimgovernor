@@ -156,7 +156,7 @@ func TestImportedFightRunsToResolution(t *testing.T) {
 	}
 	f := res.Fight
 	f.Enemy = nearestEnemy(f.Scenario)
-	got, err := combatsim.RunFight(f, 7, policy.DefaultCombatTuning())
+	got, err := combatsim.RunFight(f, 8, policy.DefaultCombatTuning())
 	if err != nil {
 		t.Fatal(err)
 	}

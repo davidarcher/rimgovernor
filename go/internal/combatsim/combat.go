@@ -99,6 +99,9 @@ type combatant struct {
 	armor       []float64
 	weapon      WeaponDef
 	sh          struct{ acc, touch, short, medium, long, aim, cooldown float64 }
+	// accHealthy is ShootingAccuracyPawn as the native read gave it, for a
+	// pawn at full Manipulation and Sight; sh.acc follows the injuries (A43).
+	accHealthy float64
 
 	// damage is the damage dealt to the pawn so far: each injury's severity
 	// capped at the health of its part.
@@ -210,6 +213,7 @@ func (p *pawn) loadCombat(ps PawnSpec) error {
 			return err
 		}
 	}
+	c.accHealthy = c.sh.acc
 	return nil
 }
 

@@ -95,6 +95,13 @@ package combatsim
 //     Verse.Stance_Warmup.StanceTick (a warmup that can no longer hit drops to
 //     Stance_Mobile and the raider's self-started order dies with it, #3001).
 //
+//   - accuracy.go: RimWorld.StatWorker.GetValueUnfinalized and FinalizeValue for
+//     ShootingAccuracyPawn (the capacityOffsets, RimWorld.PawnCapacityOffset
+//     .GetOffset, and the postProcessCurve from the Core
+//     Stats_Pawns_Combat.xml), with RimWorld.PawnCapacityWorker_Sight
+//     (PartEfficiencySpecialWeight 0.75) in body.go: an injured shooter's
+//     Manipulation and Sight lower its accuracy per cell (#3006).
+//
 // Simplifications of these ports are listed in approximations.md.
 const AssemblyCSharpSHA256 = "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A"
 
@@ -102,4 +109,4 @@ const AssemblyCSharpSHA256 = "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04A
 // any change to a port or an approximation that can move an outcome (a rule
 // fix, a new modeled behavior): a calibration pass (combatsim/calibrate) is
 // recorded under it and is stale after a bump.
-const RulesVersion = 15
+const RulesVersion = 16

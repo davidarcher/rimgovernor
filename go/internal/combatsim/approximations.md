@@ -628,6 +628,37 @@ DefinitionCatalog; every derived value is listed with its source in
   707 shots): the real raiders' shots end in cover more (0.378 against 0.357)
   and aim at the target cell only 61 percent of the time (colonists 96).
 
+- **A43. A shooter's accuracy follows its injuries (#3006).** The real
+  raiders aimed worse than the sim's and the cause was not the shot report but
+  the stat it reads: `ShootingAccuracyPawn` is recomputed on every read as the
+  skill term plus `PawnCapacityOffset`s (Sight scale 12 max 2, Manipulation
+  scale 8 max 1, `(min(level, max) - 1) x scale`) through the stat's
+  postProcessCurve, so a raider hit in the arm or the eye, or in pain, shoots
+  worse the next burst. The sim read the stat once at full health. It now
+  inverts the curve for the read value, adds the offsets of the pawn's current
+  Manipulation (limb damage times Consciousness, which pain and blood loss
+  lower) and Sight (`PawnCapacityWorker_Sight`: eyes, best eye weighted 0.75),
+  and re-evaluates the curve after every hit and blood-loss stage. The curve
+  and the two offsets are Core XML read by hand (the assembly hash covers the
+  workers, not the defs); trait, gear and hediff stat offsets stay folded into
+  the read value, and no hediff moves Sight or Manipulation here (A39). Real
+  evidence (the committed lab-ranged shot ledger, raiders' shots by the
+  damage the shooter had taken: share of shots ending 2 or more cells from the
+  target cell 0.26, 0.31, 0.49, 0.55, 0.65 for 0, 1..11, 12..22, 23..33, 34+
+  damage; colonists with skill 20 barely move, 0.03 to 0.12). Share of
+  raiders' shots landing within one cell of the target, sim before -> after
+  (real in brackets): lab-ranged 0.739 -> 0.601 (0.609), lab-split-ranged
+  0.602 -> 0.561; colonists 0.967 -> 0.959 (0.957). Sim only, 300 seeds:
+  lab-ranged colonist damage 74.9 -> 68.6 (69.0), lab-split-ranged raiders
+  lost 5 or more in 0.53 -> 0.52 of runs (real 0.25) and colonist wins 0.53 ->
+  0.52 (0.25): this was not the cause of those. The raiders' pawn-hit share
+  stays near 0.124 (lab-ranged, real 0.099) because the aimed-and-uncovered
+  shots that carry it (cell offset 0) are 0.10 of raider shots against the
+  real 0.079, and the raiders' shots stopping in a sandbag fall from 0.357 to
+  0.308 (real 0.378): the same wild destinations hit a sandbag less often in
+  the sim than in the ledger (destination cell beside the target on its own
+  row: 0.33 against 0.52 of 60 to 70 shots; cause not found).
+
 ## Out of scope for this slice
 
 Melee, explosives and grenades, specialist abilities, breaches, turrets,

@@ -195,7 +195,7 @@ func (s *Sim) launch(si, ti int) {
 	if arrived {
 		end = s.impactSomething(fl, used)
 	}
-	e.ETA, e.StopsInThing = at, end.thing
+	e.ETA, e.StopsInThing, e.Dest, e.TargetCell = at, end.thing, dest, t.pos
 	s.emit(e)
 	if end.pawn < 0 { // it stops in a thing, on the ground or off the map
 		return
@@ -652,6 +652,7 @@ func (s *Sim) healthTick(vi int) {
 		return
 	}
 	caps := b.levels(st)
+	v.refreshAccuracy(caps)
 	switch {
 	case b.shouldBeDead(st, caps):
 		v.dead = true
@@ -686,6 +687,7 @@ func (s *Sim) addInjury(v *pawn, part int, severity float64, downed, dead *bool)
 	b, st := v.body, &v.inj
 	dealt := b.addInjury(st, part, severity)
 	caps := b.levels(st)
+	v.refreshAccuracy(caps)
 	switch {
 	case b.shouldBeDead(st, caps):
 		*downed, *dead = true, true
