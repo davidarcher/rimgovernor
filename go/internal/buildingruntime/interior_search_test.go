@@ -11,10 +11,10 @@ import (
 )
 
 // A bed for a generic 4x4 room with a door in its north wall takes the
-// bedroom template's slot: head against the south wall on the centre line,
-// facing away from the door. With the slot occupied the search falls back
+// bedroom plan's bed slot. With the slot occupied the search falls back to a
+// snap cell of the room.
 // to a snap cell of the room.
-func TestFacilityBedTakesTheInteriorTemplateSlot(t *testing.T) {
+func TestFacilityBedTakesTheInteriorPlanSlot(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	planner, _, session, _, n := sleepingFixture(t)
@@ -64,14 +64,24 @@ func TestFacilityBedTakesTheInteriorTemplateSlot(t *testing.T) {
 		}
 		return selected[0]
 	}
-	b, _ := search(domain.Cell{X: -1, Z: -1}).Action.Building()
-	if b.Cell() != (domain.Cell{X: 2, Z: 0}) || b.Rotation() != domain.North {
-		t.Fatalf("bed at %v %s, want the template slot 2,0 north (head on the far wall)", b.Cell(), b.Rotation())
+	planned, ok := policy.PlanRoomInterior(policy.InteriorRoom{Role: policy.RoomRoleBedroom, Interior: policy.Rectangle{X: 0, Z: 0, Width: 4, Height: 4}, Doors: []domain.Cell{{X: 2, Z: 4}}, Shapes: testPieceShapes}, testPieceShapes.Defs["Bed"])
+	var slot policy.InteriorPiece
+	for _, p := range planned.Pieces {
+		if p.Slot == "bed" {
+			slot = p
+		}
 	}
-	b, _ = search(domain.Cell{X: 2, Z: 0}).Action.Building()
+	if !ok || slot.Def == "" {
+		t.Fatalf("no bedroom plan: %+v", planned)
+	}
+	b, _ := search(domain.Cell{X: -1, Z: -1}).Action.Building()
+	if b.Cell() != slot.Anchor() || b.Rotation() != slot.Rot {
+		t.Fatalf("bed at %v %s, want the plan slot %v %s", b.Cell(), b.Rotation(), slot.Anchor(), slot.Rot)
+	}
+	b, _ = search(slot.Anchor()).Action.Building()
 	snap := map[domain.Cell]bool{}
 	interior := policy.InteriorRoom{Interior: policy.Rectangle{X: 0, Z: 0, Width: 4, Height: 4}}
-	for _, c := range policy.InteriorSnapAnchors(interior, []domain.Cell{{X: 2, Z: 0}}) {
+	for _, c := range policy.InteriorSnapAnchors(interior, []domain.Cell{slot.Anchor()}) {
 		snap[c] = true
 	}
 	if !snap[b.Cell()] {

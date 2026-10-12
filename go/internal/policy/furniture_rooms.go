@@ -24,6 +24,23 @@ type FurnitureRoom struct {
 	Pieces []FurniturePiece
 }
 
+// Planning is the room as the closers plan it: the plan input with the
+// buildings that stand on it built, so a plan places only what is missing and
+// never on top of what stands.
+func (r FurnitureRoom) Planning() InteriorRoom {
+	in := r.Room
+	in.Built = nil
+	for _, p := range r.Pieces {
+		b := InteriorPiece{Slot: p.Thing, Def: p.Def, Size: p.Size, Rot: p.Rot, Rect: p.Rect}
+		if shape, ok := in.Shapes.Get(p.Def); ok && shape.Interaction != nil {
+			off := *shape.Interaction
+			b.InteractionOffset = &off
+		}
+		in.Built = append(in.Built, b)
+	}
+	return in
+}
+
 // FurnitureRooms reads the rectangular census rooms that have a derived
 // interior plan as furniture items: the doors are the observed doorways and
 // the pieces every census building whose footprint lies on the floor.

@@ -200,9 +200,9 @@ func TestNextChildRoomStepReconcilesTheNursery(t *testing.T) {
 			}
 			cells[c] = true
 		}
-		// The row inside the entrance stays floor.
-		if p.Minimum.Z == in.Z {
-			t.Fatalf("crib on the entrance row: %+v", p)
+		// The cell inside the door stays floor.
+		if p.Minimum.X <= room.Door.X && room.Door.X <= p.Maximum.X && p.Minimum.Z == in.Z {
+			t.Fatalf("crib inside the door: %+v", p)
 		}
 	}
 	// One crib stands: both are still wanted; both stand: nothing is due.

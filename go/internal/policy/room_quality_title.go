@@ -63,7 +63,7 @@ func titlePiece(id string, room FurnitureRoom, def Resource, available func(stri
 		return RoomUpgrade{}, false
 	}
 	slot := "title-" + string(def)
-	if plan, ok := PlanRoomInterior(room.Room, InteriorPieceDef{}); ok {
+	if plan, ok := PlanRoomInterior(room.Planning(), InteriorPieceDef{}); ok {
 		for _, p := range plan.Pieces {
 			if p.Def == string(def) && !roomPieceOverlaps(room.Pieces, p.Rect) {
 				return RoomUpgrade{Room: id, Slot: slot, Def: p.Def, Anchor: p.Anchor(), Rot: p.Rot}, true

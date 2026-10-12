@@ -129,3 +129,105 @@ func hospitalWants(room InteriorRoom, _ InteriorPieceDef, f regionFrame) ([]Regi
 	beds.AgainstWall = true
 	return []RegionWant{beds, shapeWant("monitors", monitor, pairs, 0, numbered("monitor", 1))}, true
 }
+
+// namedPiece is a want for one piece called name.
+func namedPiece(name string, d InteriorPieceDef, min int) RegionWant {
+	return shapeWant(name, d, 1, min, func(int) string { return name })
+}
+
+// sleepingBed is the bed a bedroom plans around: the requested bed, else the
+// room's standing one, else the primary bed.
+func (r InteriorRoom) sleepingBed(piece InteriorPieceDef) (InteriorPieceDef, bool) {
+	if piece.Family == RoomRoleBedroom {
+		return piece, true
+	}
+	for _, d := range r.Standing {
+		if s := r.Shapes.standing(d); s.Family == RoomRoleBedroom {
+			return s, true
+		}
+	}
+	return r.Shapes.Get(r.Shapes.Furniture.PrimaryBed())
+}
+
+// furnishingWants are the levers beside a bed or throne: an end table, a
+// dresser and a standing lamp, each in its slot and each optional (the room
+// keeps its bed or throne when one does not fit); skip names the ones a room
+// leaves out. A catalog without a row for one has no plan.
+func furnishingWants(room InteriorRoom, skip func(slot string, d InteriorPieceDef) bool) ([]RegionWant, bool) {
+	table, tok := room.Shapes.Get(room.Shapes.Furniture.EndTable.Def)
+	dresser, dok := room.Shapes.Get(room.Shapes.Furniture.Dresser.Def)
+	lamp, lok := room.Shapes.Get(interiorTable.LampDef)
+	if !tok || !dok || !lok {
+		return nil, false
+	}
+	var out []RegionWant
+	for _, w := range []struct {
+		slot string
+		d    InteriorPieceDef
+	}{{"end_table", table}, {"dresser", dresser}, {"lamp", lamp}} {
+		if skip == nil || !skip(w.slot, w.d) {
+			out = append(out, namedPiece(w.slot, w.d, 0))
+		}
+	}
+	return out, true
+}
+
+// bedroomWants: the bed, then an end table, a dresser and a lamp while the
+// room keeps the Space stat the bedroom's quality needs (bedroomSpace). The
+// small rooms of the first tiers hold the bed and end table only
+// (bedroomFullSetTiles). Only the bed is required: a cramped room gets a bare
+// bed rather than no plan. The end table links only beside the bed's head and
+// the dresser within 6 cells: the search prices both as facility links.
+func bedroomWants(room InteriorRoom, piece InteriorPieceDef, _ regionFrame) ([]RegionWant, bool) {
+	bed, ok := room.sleepingBed(piece)
+	if !ok {
+		return nil, false
+	}
+	area := int32(room.Floor().Area())
+	blocked := int(bed.Size.X * bed.Size.Z)
+	wants, ok := furnishingWants(room, func(slot string, d InteriorPieceDef) bool {
+		cells := int(d.Size.X * d.Size.Z)
+		if slot != "end_table" && area < bedroomFullSetTiles || bedroomSpace(area, 1, blocked+cells) < bedroomMinSpace {
+			return true
+		}
+		blocked += cells
+		return false
+	})
+	if !ok {
+		return nil, false
+	}
+	return append([]RegionWant{namedPiece("bed", bed, 1)}, wants...), true
+}
+
+// throneWants: the throne when one is being placed, the title's required
+// pieces (each in its slot, left out when no wall cell fits), then the
+// bedroom's furnishing levers. Asked for no piece, the plan is the furniture
+// alone, around the cell the throne stands on.
+func throneWants(room InteriorRoom, piece InteriorPieceDef, _ regionFrame) ([]RegionWant, bool) {
+	var wants []RegionWant
+	if piece.Def != "" && piece.Size.X > 0 && piece.Size.Z > 0 {
+		throne := namedPiece(throneSlot, piece, 1)
+		throne.AgainstWall = true
+		wants = append(wants, throne)
+	}
+	for _, req := range room.Required {
+		if req.Piece.Size.X > 0 && req.Piece.Size.Z > 0 {
+			w := namedPiece(req.Slot, req.Piece, 0)
+			w.AgainstWall = true
+			wants = append(wants, w)
+		}
+	}
+	furniture, ok := furnishingWants(room, nil)
+	return append(wants, furniture...), ok
+}
+
+// childRoomWants: as many of the piece as the template's bands held on this
+// room, one slot each ("child.0", ...); a room asked for no piece plans
+// nothing.
+func childRoomWants(_ InteriorRoom, piece InteriorPieceDef, f regionFrame) ([]RegionWant, bool) {
+	n := len(childSlots(f.Width, f.Depth, f.Entrance, piece.Size))
+	if piece.Def == "" || n == 0 {
+		return nil, false
+	}
+	return []RegionWant{shapeWant("child", piece, n, 1, numbered("child", 0))}, true
+}

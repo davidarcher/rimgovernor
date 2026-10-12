@@ -66,6 +66,12 @@ type InteriorRoom struct {
 	// another plan holds, like the starter stockpile patch or rock yet to be
 	// mined. Cells outside the interior are ignored.
 	Reserved []domain.Cell
+	// Built are the pieces standing on the floor, as world footprints. The
+	// region placer leaves them where they stand: they block their cells, count
+	// toward a want of their definition and link to what is placed around
+	// them, and the plan holds only the pieces still to stand. The templates
+	// ignore them.
+	Built []InteriorPiece
 }
 
 // Piece is def's shape for a plan in this room; false when the catalog has

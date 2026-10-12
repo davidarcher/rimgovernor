@@ -124,6 +124,12 @@ func templateOf(step ThroneStep, def string) (WantedPiece, bool) {
 	return WantedPiece{}, false
 }
 
+// againstWall reports whether a wanted piece's footprint touches a wall of the
+// room's interior.
+func againstWall(in Rectangle, p WantedPiece) bool {
+	return p.Minimum.X == in.X || p.Minimum.Z == in.Z || p.Maximum.X == in.X+in.Width-1 || p.Maximum.Z == in.Z+in.Height-1
+}
+
 func TestThroneStepReconcilesThenAssigns(t *testing.T) {
 	plan, room, need := throneFixture()
 	defs := throneDefs(Bounds{Width: 1, Height: 1})
@@ -139,8 +145,9 @@ func TestThroneStepReconcilesThenAssigns(t *testing.T) {
 	if step.Kind != ThroneReconcile || !ok || throne.Slot != throneSlot || !step.Owed() {
 		t.Fatalf("standing room: %+v", step)
 	}
-	// The throne sits centred against the back wall.
-	if throne.Minimum != (domain.Cell{X: 12, Z: 24}) || throne.Maximum != throne.Minimum {
+	// The throne stands on one floor cell against a wall, clear of the door's
+	// inside cell.
+	if throne.Maximum != throne.Minimum || !againstWall(room.Region.Bounds(), throne) || throne.Minimum == (domain.Cell{X: 12, Z: 20}) {
 		t.Fatalf("throne footprint %+v", throne)
 	}
 	// The reconciler installs it from stock, else builds it on site.
@@ -201,7 +208,7 @@ func TestThroneFootprintComesFromTheCatalog(t *testing.T) {
 	ground := ringWalls(plan, room)
 	step := NextThroneStep(plan, tombStanding(room), ground, nil, need, throneDefs(Bounds{Width: 2, Height: 1}), nil)
 	throne, _ := templateOf(step, "Throne")
-	if step.Kind != ThroneReconcile || throne.Maximum.X-throne.Minimum.X != 1 || throne.Maximum.Z != throne.Minimum.Z || throne.Minimum.X != 12 {
+	if step.Kind != ThroneReconcile || throne.Maximum.X-throne.Minimum.X != 1 || throne.Maximum.Z != throne.Minimum.Z || !againstWall(room.Region.Bounds(), throne) {
 		t.Fatalf("a 2x1 throne: %+v", throne)
 	}
 	unknown := []FurnitureDefinition{{Name: "Throne", Available: domain.Known(true), Size: domain.Unknown[Bounds]()}}

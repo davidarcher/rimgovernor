@@ -3,6 +3,8 @@ package policy
 import (
 	"fmt"
 	"hash/fnv"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // The region interior is the live furnishing entry (#2956): a room's role says
@@ -80,6 +82,13 @@ var regionRoles = map[RoomRole]regionRole{
 	RoomRoleTomb:       tombWants,
 	RoomRolePrisonCell: jailWants,
 	RoomRoleHospital:   hospitalWants,
+	RoomRoleBedroom:    bedroomWants,
+	RoomRoleSuite:      bedroomWants,
+	RoomRoleThroneRoom: throneWants,
+
+	RoomRoleNursery: childRoomWants, RoomRolePlayroom: childRoomWants, RoomRoleClassroom: childRoomWants,
+	RoomRoleWorshipRoom: childRoomWants, RoomRoleDeathrestChamber: childRoomWants,
+	RoomRoleContainmentCell: childRoomWants, RoomRoleIsolationRoom: childRoomWants,
 }
 
 // regionRequest is the room's placement: its role's wants on its floor behind
@@ -93,7 +102,43 @@ func regionRequest(room InteriorRoom, piece InteriorPieceDef) (RegionPlacement, 
 	if !ok || len(wants) == 0 {
 		return RegionPlacement{}, false
 	}
-	return RegionPlacement{Region: room.Floor(), Doors: room.Doors, Reserved: room.Reserved, Wants: wants}, true
+	wants = unbuilt(wants, room.Built)
+	if len(wants) == 0 && len(room.Built) == 0 {
+		return RegionPlacement{}, false
+	}
+	reserved := append([]domain.Cell(nil), room.Reserved...)
+	for _, p := range room.Built {
+		reserved = append(reserved, rectCells(p.Rect)...)
+		if c, ok := p.Interaction(); ok {
+			reserved = append(reserved, c)
+		}
+	}
+	return RegionPlacement{Region: room.Floor(), Doors: room.Doors, Reserved: reserved, Wants: wants}, true
+}
+
+// unbuilt is the wants less what stands: a built piece takes one piece of the
+// first want of its definition that still has one, and the names of the
+// pieces it took go with it.
+func unbuilt(wants []RegionWant, built []InteriorPiece) []RegionWant {
+	taken := map[string]int{}
+	for _, p := range built {
+		taken[p.Def]++
+	}
+	var out []RegionWant
+	for _, w := range wants {
+		n := min(taken[w.Def], w.Count)
+		taken[w.Def] -= n
+		w.Count, w.Min = w.Count-n, max(w.Min-n, 0)
+		if n < len(w.Names) {
+			w.Names = w.Names[n:]
+		} else {
+			w.Names = nil
+		}
+		if w.Count > 0 {
+			out = append(out, w)
+		}
+	}
+	return out
 }
 
 // regionSeed seeds the room's search from what the room is, so equal rooms
@@ -119,7 +164,7 @@ func planRegion(room InteriorRoom, piece InteriorPieceDef, search bool) (Interio
 		return InteriorPlan{}, false
 	}
 	if search {
-		req.Search = &InteriorSearch{Candidates: req.Doors, Shapes: room.Shapes, Dining: room.Dining, Seed: regionSeed(room)}
+		req.Search = &InteriorSearch{Candidates: req.Doors, Shapes: room.Shapes, Dining: room.Dining, Pinned: room.Built, Seed: regionSeed(room)}
 	}
 	pieces, err := PlaceInRegion(req)
 	if err != nil {
