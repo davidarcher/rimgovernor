@@ -13,7 +13,7 @@ import (
 func passThroughRow(through bool) LayoutPlan {
 	cell := func(x, z int32) domain.Cell { return domain.Cell{X: x, Z: z} }
 	room := func(id int32, role PlannedRole, x int32, door domain.Cell, rot domain.Rotation) PlannedRoom {
-		return PlannedRoom{ID: id, Role: role, Region: RectRegion(Rectangle{X: x, Z: 20, Width: 4, Height: 4}), Door: door, DoorRot: rot}
+		return PlannedRoom{ID: id, Role: role, Crossing: crossingFacts(role), Region: RectRegion(Rectangle{X: x, Z: 20, Width: 4, Height: 4}), Door: door, DoorRot: rot}
 	}
 	b1 := room(2, PlannedBedroom, 25, cell(24, 21), domain.West)
 	b1.Through = through
@@ -82,16 +82,29 @@ func TestCheckRoutesPassThroughAndReachability(t *testing.T) {
 	}
 }
 
-func TestThroughIsForPassableRolesOnly(t *testing.T) {
+// Through is for a room whose crossing costs something and is not cold; the
+// facts decide, not the role.
+func TestThroughIsForCostlyUncoldRoomsOnly(t *testing.T) {
 	p := passThroughRow(true)
 	if !p.Valid() {
 		t.Fatal("a bedroom marked through is invalid")
 	}
-	for role, want := range map[PlannedRole]bool{PlannedBedroom: true, PlannedKitchen: true, PlannedHospital: true, PlannedPrison: false, PlannedStorage: false} {
+	for name, tc := range map[string]struct {
+		crossing *RoomCrossing
+		want     bool
+	}{
+		"beds":              {&RoomCrossing{Beds: 1}, true},
+		"cleanliness":       {&RoomCrossing{Clean: true}, true},
+		"both":              {&RoomCrossing{Beds: 2, Clean: true}, true},
+		"nothing to cost":   {&RoomCrossing{}, false},
+		"cold":              {&RoomCrossing{Cold: true}, false},
+		"cold with a bed":   {&RoomCrossing{Cold: true, Beds: 1}, false},
+		"no facts (legacy)": {nil, false},
+	} {
 		q := passThroughRow(false)
-		q.Rooms[1].Role, q.Rooms[1].Through = role, true
-		if q.Valid() != want {
-			t.Errorf("%s marked through: valid %v, want %v", role, q.Valid(), want)
+		q.Rooms[1].Crossing, q.Rooms[1].Through = tc.crossing, true
+		if q.Valid() != tc.want {
+			t.Errorf("%s marked through: valid %v, want %v", name, q.Valid(), tc.want)
 		}
 	}
 }
@@ -144,7 +157,7 @@ func TestTilePassesThroughPackedRooms(t *testing.T) {
 	for _, r := range res.Plan.Rooms {
 		if r.Through {
 			marked++
-			if !MayPassThrough(r.Role) {
+			if !r.MayBeThrough() {
 				t.Errorf("room %d of role %s is marked through", r.ID, r.Role)
 			}
 		}

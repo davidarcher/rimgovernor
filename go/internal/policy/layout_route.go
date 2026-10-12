@@ -2,6 +2,7 @@ package policy
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -31,28 +32,84 @@ type routeTrip struct {
 	weight   int
 }
 
-// noThroughfare are the roles nobody walks through by default.
+// noThroughfare are the roles nobody walks through in a plan the old generator
+// made; a room the tiler made carries its own RoomCrossing instead.
 var noThroughfare = map[PlannedRole]bool{
 	PlannedBedroom: true, PlannedSuite: true, PlannedShelter: true, PlannedPrison: true,
 	PlannedKitchen: true, PlannedHospital: true, PlannedLab: true, PlannedThrone: true,
 }
 
-// passableRoles are the noThroughfare roles a plan may nevertheless let pawns
-// walk through (PlannedRoom.Through) when packed rooms leave no other way in.
-// The game reads the cleanliness of exactly these rooms (the bed roles' mood,
-// a kitchen's food poisoning, a hospital's infection), and foot traffic only
-// tracks filth in, so crossing one is a cost the walk term and the cleaners
-// bear, not a rule. The rest stay closed by judgment, no game number: a prison
-// and a shelter are secured or self-contained, a laboratory and a throne room
-// hold work and ceremony nobody should cross.
-var passableRoles = map[PlannedRole]bool{PlannedBedroom: true, PlannedSuite: true, PlannedKitchen: true, PlannedHospital: true}
+// RoomCrossing is what the game charges for walking through a room, read from
+// the station group that became it. No role is looked up: the three
+// mechanisms are facts about the stations inside.
+//
+//   - Cold: the room is kept cold (a freezer or any cooled room). Every door
+//     opening equalizes its temperature with the next room (Building_Door:
+//     every 34 ticks while open against every 375 closed, after a 110 tick
+//     close delay), so walking through leaks the cold. Never crossed.
+//   - Beds: player-faction beds (colonists, patients, babies; prisoners' and
+//     animals' beds do not count). Clamor within 7 cells gives a sleeper the
+//     SleepDisturbed memory (-1 mood, a day, stacking to 3); it does not wake
+//     them.
+//   - Clean: a station's effect scales with the room's cleanliness (the
+//     catalog's NeedRoomStat Cleanliness: a cook's food poisoning chance, a
+//     tending or operating bed's infection and surgery chances, research
+//     speed), and pawns track filth in.
+type RoomCrossing struct {
+	Cold  bool
+	Beds  int
+	Clean bool
+}
 
-// MayPassThrough reports that a room of role may be marked Through.
-func MayPassThrough(role PlannedRole) bool { return passableRoles[role] }
+// Mechanisms is how many of the crossing costs walking through the room
+// triggers; the cold mechanism is not priced but forbids (Crossable).
+func (c RoomCrossing) Mechanisms() int {
+	n := 0
+	if c.Beds > 0 {
+		n++
+	}
+	if c.Clean {
+		n++
+	}
+	return n
+}
+
+// Crossable reports that crossing is a cost to price, not a ban: only a cold
+// room is never crossed.
+func (c RoomCrossing) Crossable() bool { return !c.Cold }
+
+// crossingOf is the crossing facts of a group: whether it is kept cold
+// (groupCold), its player-faction beds and whether it needs cleanliness.
+func crossingOf(g RoomGroup) RoomCrossing {
+	c := RoomCrossing{Cold: groupCold(g), Clean: slices.Contains(g.Requires, EnvClean)}
+	for _, s := range g.Stations {
+		switch s.Purpose {
+		case PurposeSleep, PurposeSleepMed, PurposeSleepBaby:
+			c.Beds += s.Count
+		}
+	}
+	return c
+}
+
+// MayBeThrough reports that the plan may mark room r Through: it has crossing
+// facts, is not cold and crossing it costs something.
+func (r PlannedRoom) MayBeThrough() bool {
+	return r.Crossing != nil && r.Crossing.Crossable() && r.Crossing.Mechanisms() > 0
+}
 
 // walkedThrough reports that pawns may cross room r on the way between two
-// others: its role allows it, or the plan marks it Through.
-func walkedThrough(r PlannedRoom) bool { return !noThroughfare[r.Role] || r.Through }
+// others. A room with crossing facts is walked freely when crossing triggers
+// nothing, when the plan marks it Through if crossing costs, and never when
+// cold; one without keeps its role's noThroughfare rule.
+func walkedThrough(r PlannedRoom) bool {
+	if r.Crossing == nil {
+		return !noThroughfare[r.Role]
+	}
+	if !r.Crossing.Crossable() {
+		return false
+	}
+	return r.Crossing.Mechanisms() == 0 || r.Through
+}
 
 // spineEntrances are the cells a plan may be entered from at worst: the
 // end slabs of every spine segment (a wing corridor is a dead end).
@@ -130,7 +187,101 @@ func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 			}
 		}
 	}
+	if err := walk.checkReachable(p.Entrances, rooms); err != nil {
+		return nil, err
+	}
 	return traffic, nil
+}
+
+// checkReachable demands that pawns can walk from an entrance into every room
+// of a tiled plan (the rooms with crossing facts) without crossing a room
+// nobody may walk through (walkedThrough): the trips cover only some roles, a
+// room no trip ends in could be sealed or behind a closed room. The old
+// generator's rooms are not demanded: its shelter stands apart on open ground
+// the walk graph does not model. A room reached only across a closed room is a ThroughfareError
+// naming the first such room on the shortest way in.
+func (g *routeGrid) checkReachable(entrances []domain.Cell, rooms []PlannedRoom) error {
+	tiled := 0
+	for _, r := range rooms {
+		if r.Crossing != nil {
+			tiled++
+		}
+	}
+	if tiled == 0 {
+		return nil
+	}
+	if len(entrances) == 0 {
+		return fmt.Errorf("no entrances to reach %d rooms", tiled)
+	}
+	closed := make([]bool, len(rooms))
+	for i, r := range rooms {
+		closed[i] = !walkedThrough(r)
+	}
+	reached := g.flood(entrances, closed, len(rooms))
+	for i, r := range rooms {
+		if reached[i] || r.Crossing == nil {
+			continue
+		}
+		var to []domain.Cell
+		in := r.Region.Bounds()
+		for x := in.X; x < in.X+in.Width; x++ {
+			for z := in.Z; z < in.Z+in.Height; z++ {
+				if c := (domain.Cell{X: x, Z: z}); g.in(c) && g.at(c) == i {
+					to = append(to, c)
+				}
+			}
+		}
+		path := g.routePath(entrances, to)
+		if path == nil {
+			return fmt.Errorf("room %d (%s) is not reachable from the entrances", r.ID, r.Role)
+		}
+		for _, c := range path {
+			if j := g.at(c); j >= 0 && j != i && closed[j] {
+				return &ThroughfareError{To: r.Role, Crossed: rooms[j].Role, Room: rooms[j].ID, Cell: c}
+			}
+		}
+		return fmt.Errorf("room %d (%s) is not reachable from the entrances", r.ID, r.Role)
+	}
+	return nil
+}
+
+// flood marks the rooms (by index) pawns reach from the start cells when a
+// closed room can be entered but not left for another room.
+func (g *routeGrid) flood(start []domain.Cell, closed []bool, rooms int) []bool {
+	reached := make([]bool, rooms)
+	g.stamp++
+	queue := g.queue[:0]
+	defer func() { g.queue = queue[:0] }()
+	for _, c := range start {
+		if g.in(c) && g.room[g.index(c)] != 0 && g.seen[g.index(c)] != g.stamp {
+			g.seen[g.index(c)] = g.stamp
+			queue = append(queue, int32(g.index(c)))
+		}
+	}
+	for head := 0; head < len(queue); head++ {
+		i := queue[head]
+		here := int(g.room[i]) - 2
+		if here >= 0 {
+			reached[here] = true
+		}
+		c := g.cell(i)
+		for _, d := range [4][2]int32{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+			n := domain.Cell{X: c.X + d[0], Z: c.Z + d[1]}
+			if !g.in(n) {
+				continue
+			}
+			ni := g.index(n)
+			if g.room[ni] == 0 || g.seen[ni] == g.stamp {
+				continue
+			}
+			if here >= 0 && closed[here] && int(g.room[ni])-2 != here {
+				continue
+			}
+			g.seen[ni] = g.stamp
+			queue = append(queue, int32(ni))
+		}
+	}
+	return reached
 }
 
 // tripCells returns a role's trip end cells: the entrances for "", else one

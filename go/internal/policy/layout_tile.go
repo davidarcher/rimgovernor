@@ -3,6 +3,7 @@ package policy
 import (
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"sort"
 
@@ -38,13 +39,16 @@ import (
 //     outside cell is the entrance. A room with no such cell is sealed in by
 //     its neighbours and is entered through a link door instead; a group of
 //     sealed rooms is joined to a component that has an exterior door.
-//   - Pass-through. A room in noThroughfare may not lie on a path between two
-//     other rooms. CheckRoutes finds a violation; the tiler then drops the
+//   - Pass-through. Each room carries what crossing it costs (RoomCrossing,
+//     read from its group's stations: cold, player-faction beds, cleanliness
+//     stations). A room that costs nothing is walked freely; a cold room is
+//     never crossed; any other may not lie on a path between two other rooms.
+//     CheckRoutes finds a violation; the tiler then drops the
 //     crossed room's lightest link door that leaves every room still joined to
 //     an exterior door, required links last, and checks again. When no door
-//     can go, a room whose role MayPassThrough is marked Through (a decision,
-//     ReasonTilePassThrough) and walked through; a sealed room is joined to a
-//     neighbour anyone may cross first, then a passable one, then any (throughRank).
+//     can go, a room that MayBeThrough is marked Through (a decision,
+//     ReasonTilePassThrough) and walked through; a sealed room is joined to the
+//     neighbour crossing costs least (throughRank).
 //   - Trips. The plan carries the group flows as LayoutPlan.Trips between its
 //     rooms; plan scoring walks them (tripWalk), not the role-pair table.
 //
@@ -110,6 +114,14 @@ type TileResult struct {
 	Decisions []TileDecision
 }
 
+// groupCold reports that the group's room is kept cold: it needs cold or holds
+// a cooler or cold storage.
+func groupCold(g RoomGroup) bool {
+	return slices.Contains(g.Requires, EnvCold) || slices.ContainsFunc(g.Stations, func(s GroupStation) bool {
+		return s.Purpose == PurposeCool || s.Purpose == PurposeStoreCold
+	})
+}
+
 // PlannedRoleOfGroup is the planned room a group becomes: the room role the
 // game gives its stations, a storeroom that stores cold being the freezer.
 // False when no planned room carries the group's role.
@@ -117,11 +129,8 @@ func PlannedRoleOfGroup(g RoomGroup) (PlannedRole, bool) {
 	if g.Planned != "" {
 		return g.Planned, true
 	}
-	cold := slices.Contains(g.Requires, EnvCold) || slices.ContainsFunc(g.Stations, func(s GroupStation) bool {
-		return s.Purpose == PurposeCool || s.Purpose == PurposeStoreCold
-	})
 	if g.Role == RoomRoleStoreroom {
-		if cold {
+		if groupCold(g) {
 			return PlannedFreezer, true
 		}
 		return PlannedStorage, true
@@ -195,7 +204,8 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 		}
 		index[b.Group] = len(t.rooms)
 		t.rooms = append(t.rooms, tileRoom{group: b.Group, rect: b.Interior, role: role})
-		room := PlannedRoom{Role: role, Region: RectRegion(b.Interior)}
+		crossing := crossingOf(g)
+		room := PlannedRoom{Role: role, Region: RectRegion(b.Interior), Crossing: &crossing}
 		room.Dug = scorer.g.dug(room)
 		t.plan.Rooms = append(t.plan.Rooms, room)
 	}
@@ -503,7 +513,7 @@ func (t *tiler) joinSealed() error {
 				if !ok[e[1]] {
 					continue
 				}
-				score, through := t.weight[k], throughRank(t.rooms[e[1]].role)
+				score, through := t.weight[k], throughRank(t.plan.Rooms[e[1]])
 				if _, linked := t.links[k]; linked {
 					continue
 				}
@@ -583,7 +593,7 @@ func (t *tiler) keepRoutes() error {
 			dropped = true
 			break
 		}
-		if !dropped && room >= 0 && MayPassThrough(t.rooms[room].role) && !t.through[room] {
+		if !dropped && room >= 0 && t.plan.Rooms[room].MayBeThrough() && !t.through[room] {
 			// No door can go without stranding a room: the packed base has no
 			// other way in, so the private room is walked through.
 			t.through[room] = true
@@ -682,15 +692,17 @@ func (r TileResult) Unfit() []int {
 	return out
 }
 
-// throughRank orders the neighbours a sealed room is joined through: a room
-// anyone may cross (2), then one only a pass-through plan lets them cross (1),
-// then a room nobody may (0), which is joined only when nothing else is left.
-func throughRank(role PlannedRole) int {
-	switch {
-	case !noThroughfare[role]:
-		return 2
-	case MayPassThrough(role):
-		return 1
+// throughRank orders the neighbours a sealed room is joined through, higher
+// first: by what crossing the neighbour triggers (RoomCrossing.Mechanisms), so
+// a room that costs nothing to cross comes before a sleeping or a clean one
+// and a cold room, which is never crossed, comes last, joined only when
+// nothing else is left.
+func throughRank(r PlannedRoom) int {
+	if r.Crossing == nil {
+		return 0
 	}
-	return 0
+	if !r.Crossing.Crossable() {
+		return math.MinInt
+	}
+	return -r.Crossing.Mechanisms()
 }

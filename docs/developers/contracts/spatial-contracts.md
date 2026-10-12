@@ -269,11 +269,20 @@ on the colony centre when the plan has no free cell there.
   persisted in `family/layout_plan`); `PlannedRoom.Link/Door/Doors` still carry the
   older generator's doors. On a plan with no hallways, `Entrances` are the outside
   cells beside an exterior door, and `CheckRoutes` walks the open ground between them.
-  A room packed in with no door onto the ground is joined through a neighbour. A role in
-  `noThroughfare` is not walked through unless the plan marks the room `Through`, which
-  the tiler does only for `passableRoles` (bedroom, suite, kitchen, hospital: the rooms
-  whose cleanliness the game reads) and only when no link door can be dropped; any other
-  closed room in the way is `ErrTileClosed`. The tiled plan carries the group flows as
+  A room packed in with no door onto the ground is joined through a neighbour. Each
+  tiled room carries `PlannedRoom.Crossing` (`RoomCrossing`), read from its station
+  group, not its role: `Cold` (a cooled room: door temperature equalization leaks the
+  cold), `Beds` (player-faction beds: clamor within 7 cells gives the sleeper the
+  SleepDisturbed memory, -1 mood) and `Clean` (a station's effect scales with room
+  cleanliness: a cook, a tending or operating bed, a research bench). A room that
+  triggers none is walked freely; a cold room is never crossed; any other is not walked
+  through unless the plan marks it `Through`, which the tiler does only when no link
+  door can be dropped (`MayBeThrough`). A sealed room is joined through the neighbour
+  triggering the fewest mechanisms (`throughRank`). `CheckRoutes` also demands every
+  tiled room be reachable from an entrance without crossing a closed room. A room the
+  old generator planned has no facts and keeps its role's `noThroughfare` rule; it is
+  not demanded reachable (its shelter stands apart on open ground the walk graph does
+  not model). Any other closed room in the way is `ErrTileClosed`. The tiled plan carries the group flows as
   `LayoutPlan.Trips` and scoring walks them (`tripWalk`); a plan without trips (the
   spine generator's) keeps the role-pair table. Hallways are not planned by the tiler:
   they need ground between blocks that only the embedding can reserve. A group's area

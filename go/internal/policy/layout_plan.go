@@ -53,10 +53,13 @@ type PlannedRoom struct {
 	// the freezer's door into the kitchen. Plans saved before it
 	// have none.
 	Link *domain.Cell
+	// Crossing is what walking through the room costs, read from the station
+	// group that became it (RoomCrossing); nil for a room the old generator
+	// planned, which keeps its role's noThroughfare rule.
+	Crossing *RoomCrossing `json:",omitempty"`
 	// Through marks a room the plan lets pawns walk through to reach other
-	// rooms although its role is private (MayPassThrough): CheckRoutes accepts
-	// a path across it and trip scoring prices the extra steps. Any other room
-	// is walked through by its role's rule (noThroughfare).
+	// rooms although crossing it costs something (MayBeThrough): CheckRoutes
+	// accepts a path across it and trip scoring prices the extra steps.
 	Through bool `json:",omitempty"`
 	// Dug is a room mined out of natural rock.
 	Dug bool
@@ -295,7 +298,7 @@ func (p LayoutPlan) Valid() bool {
 			return false
 		}
 		ids[r.ID] = true
-		if r.Through && !MayPassThrough(r.Role) {
+		if r.Through && !r.MayBeThrough() {
 			return false
 		}
 		switch r.DoorRot {
@@ -427,7 +430,7 @@ func (r PlannedRoom) Same(o PlannedRoom) bool {
 			return false
 		}
 	}
-	return r.ID == o.ID && r.Replaces == o.Replaces && r.Role == o.Role && r.Through == o.Through && r.Region.Bounds() == o.Region.Bounds() && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing && r.Markers == o.Markers && (r.Airlock == nil) == (o.Airlock == nil) && (r.Airlock == nil || *r.Airlock == *o.Airlock) && (r.Porch == nil) == (o.Porch == nil) && (r.Porch == nil || *r.Porch == *o.Porch)
+	return r.ID == o.ID && r.Replaces == o.Replaces && r.Role == o.Role && r.Through == o.Through && (r.Crossing == nil) == (o.Crossing == nil) && (r.Crossing == nil || *r.Crossing == *o.Crossing) && r.Region.Bounds() == o.Region.Bounds() && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing && r.Markers == o.Markers && (r.Airlock == nil) == (o.Airlock == nil) && (r.Airlock == nil || *r.Airlock == *o.Airlock) && (r.Porch == nil) == (o.Porch == nil) && (r.Porch == nil || *r.Porch == *o.Porch)
 }
 
 // NearestAnchor is the interior centre of the free planned room of role want
