@@ -40,7 +40,7 @@ func TestAuditColonists(t *testing.T) {
 		{"dead", []map[string]any{pawn("a", true, 0)}, "dead or gone"},
 		{"missing", nil, "dead or gone"},
 	} {
-		err := auditColonists(tc.rows, []string{"a"}, map[string]any{})
+		err := AuditColonists(tc.rows, []string{"a"}, map[string]any{})
 		if tc.want == "" && err != nil || tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)) {
 			t.Errorf("%s: err = %v, want %q", tc.name, err, tc.want)
 		}

@@ -214,7 +214,7 @@ func probe(ctx context.Context, h *na.Harness, s cases.Session, label string, ro
 	if err != nil {
 		return errors.Join(append(failures, err)...)
 	}
-	failures = append(failures, auditColonists(listed, initial, row))
+	failures = append(failures, AuditColonists(listed, initial, row))
 	facts, err := campaign.ColonyFacts(ctx, h, s, label+"-facts")
 	if err != nil {
 		return errors.Join(append(failures, err)...)
@@ -236,9 +236,9 @@ func probe(ctx context.Context, h *na.Harness, s cases.Session, label string, ro
 	return errors.Join(failures...)
 }
 
-// auditColonists holds every initial colonist to alive with Hypothermia at or
+// AuditColonists (also the layout/sea-ice-envelope case's probe) holds every initial colonist to alive with Hypothermia at or
 // below hypothermiaCap. A corpse can despawn, so a missing pawn fails too.
-func auditColonists(listed []map[string]any, initial []string, row map[string]any) error {
+func AuditColonists(listed []map[string]any, initial []string, row map[string]any) error {
 	var failures []error
 	alive := map[string]bool{}
 	worst := map[string]float64{}
