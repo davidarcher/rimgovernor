@@ -57,6 +57,10 @@ func DefTables() []DefTable {
 		// The wind path constants (windPathWidth ... windBlockedLoss) are
 		// CompPowerPlantWind's and WindTurbineUtility.CalculateWindCells's,
 		// read with ilspycmd; keyed by the turbine def so a rename fails the gate.
+		// perimeterTable: DetourBudgetTicks is the one judgment of the perimeter
+		// cut's sapper-derived thickness (perimeter_cut.go); the wall def is the
+		// building the cut is walled with.
+		{"perimeterTable", "Verse.ThingDef", []string{perimeterTable.WallDef}},
 		{"windPath", "Verse.ThingDef", []string{WindTurbineDefinition}},
 	}
 }

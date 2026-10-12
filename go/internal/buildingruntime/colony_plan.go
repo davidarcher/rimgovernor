@@ -203,7 +203,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 				growth.Grazing = policy.GrazingGround(survey, pasture)
 			}
 			if !haveLayout {
-				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns), layoutTier(*projection), topology.Geysers, animals)
+				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns), layoutTier(*projection), topology.Geysers, animals, perimeterWall(*projection))
 				r.planGrownFor, r.planPawns, r.planInputs = grown, int(pawns), layoutInputs{}
 			} else {
 				// Fixed rooms are what the replan keeps: read here, with
@@ -234,7 +234,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 				inputs := layoutInputs{planTick: layout.Tick, key: fmt.Sprint(grown, pawns, tombs, suites, topology.Geysers, keyed, animals), bounds: survey.Bounds, cells: survey.Cells}
 				if !inputs.same(r.planInputs) {
 					reason := layoutReasons(map[string]bool{"outgrown": outgrown, "terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research, "tomb": tomb, "suite": suite, "throne": throne, "children": children, "gear": gear, "core": core, "outskirts": outskirts, "yard": yard, "succession": growth.Successor.Any(), "perimeter": perimeter})
-					err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, growth, animals, int(pawns), tombs, layoutTier(*projection), reason, topology.Geysers, policy.EmptiedRetiringWings(layout.Plan, projection.Rooms, projection.Facts.Sleeping), suites)
+					err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, growth, animals, int(pawns), tombs, layoutTier(*projection), reason, topology.Geysers, policy.EmptiedRetiringWings(layout.Plan, projection.Rooms, projection.Facts.Sleeping), suites, perimeterWall(*projection))
 					if err == nil {
 						r.planGrownFor, r.planPawns = grown, int(pawns)
 						r.planInputs, replanned = inputs, true
@@ -341,7 +341,7 @@ func (r *Rounder) layoutPlan(ctx context.Context, snapshot domain.GenerationSnap
 
 // deriveLayoutPlan lays a fresh v2 plan over survey and the reported
 // geysers and records it.
-func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, survey policy.MapSurvey, pawns int, tier policy.TechTier, geysers []policy.PowerGeyser, animals int) error {
+func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, survey policy.MapSurvey, pawns int, tier policy.TechTier, geysers []policy.PowerGeyser, animals int, wall policy.PerimeterWall) error {
 	plan, known := policy.DeriveLayoutPlan(survey, pawns, tier, geysers, animals).Value()
 	if !known {
 		telemetry.Decide(ctx, layoutPlanDecision("skipped", "no_core", pawns, "", nil))
@@ -352,6 +352,7 @@ func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.Generati
 	}
 	telemetry.Decide(ctx, layoutPlanDecision("planned", "", pawns, plan.Summary(), nil))
 	logPerimeter(ctx, plan, pawns)
+	logPerimeterCut(ctx, plan, survey, wall, pawns)
 	return nil
 }
 
@@ -368,7 +369,7 @@ func logPerimeter(ctx context.Context, plan policy.LayoutPlan, colonists int) {
 
 // replanLayout grows the recorded v2 plan over a fresh survey and records
 // it when it changed.
-func (r *Rounder) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, growth policy.RoomGrowth, animals, pawns, tombs int, tier policy.TechTier, reason string, geysers []policy.PowerGeyser, emptied map[domain.Cell]bool, suites []float64) error {
+func (r *Rounder) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, growth policy.RoomGrowth, animals, pawns, tombs int, tier policy.TechTier, reason string, geysers []policy.PowerGeyser, emptied map[domain.Cell]bool, suites []float64, wall policy.PerimeterWall) error {
 	next, changed, unplaced := policy.ReplanLayoutWithRooms(plan, survey, growth, animals, pawns, tombs, tier, geysers, emptied, suites...)
 	unsited, unplaced := policy.SplitUnsited(unplaced)
 	r.logNoRoom(ctx, pawns, unplaced)
@@ -383,6 +384,7 @@ func (r *Rounder) replanLayout(ctx context.Context, snapshot domain.GenerationSn
 	telemetry.Decide(ctx, layoutPlanDecision("replanned", reason, pawns, next.Summary(), extra))
 	if policy.PerimeterChanged(plan, next) {
 		logPerimeter(ctx, next, pawns)
+		logPerimeterCut(ctx, next, survey, wall, pawns)
 	}
 	planned, retired := policy.SuccessionChanges(plan, next)
 	for _, room := range planned {

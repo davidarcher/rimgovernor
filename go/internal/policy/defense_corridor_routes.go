@@ -20,10 +20,14 @@ const (
 	pathFenceCost     = 80
 	pathWoodDoorCost  = 38
 	pathKnownTrapCost = 800
+	// pathBlockedWallBase and pathBlockedWallPerHP price a destroyable wall to
+	// a pawn that may destroy it (Cost_BlockedWallBase, and 0.2 per hit point).
+	pathBlockedWallBase  = 70
+	pathBlockedWallPerHP = 0.2
 	// pathWallBashCost is the cheapest planned wall to path through by
-	// destroying it: Cost_BlockedWallBase 70 plus 0.2 per hit point of a
-	// wooden wall (195), the weakest stuff the layout may build.
-	pathWallBashCost = 70 + 195/5
+	// destroying it: the base cost plus the hit points of a wooden wall (195),
+	// the weakest stuff the layout may build.
+	pathWallBashCost = pathBlockedWallBase + 195*pathBlockedWallPerHP
 )
 
 // corridorCosts is the layout's effect on colonist pathing: walls close a

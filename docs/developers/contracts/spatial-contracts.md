@@ -751,3 +751,38 @@ designation already standing applies again. `CutPlant` on a harvestable tree
 designates `HarvestPlant` (chop wood). Applied is terminal; ordinary work removes the
 thing, and the census skips designated cover. The defense layout planner orders up to
 eight clearances per method once every tier stands; native refusals of the cover write follow the shared refusal budget (no per-day method bound).
+
+## Perimeter routing cut (#2973)
+
+`policy.PlanPerimeterCut` (`perimeter_cut.go`) advises the perimeter as a routing cut
+beside the ring `PlanPerimeter` traces; nothing reads it yet (the runtime flip is the
+#2931 perimeter child). The wall is about routing: the cheapest set of wall cells such
+that every walk from a map edge, or from the opening's lane, to the core enclosure
+crosses a wall or passes the killbox opening. Only walls are barriers (not sandbags, not
+traps). Terrain a pawn cannot cross (rock, hazard, unwalkable ground) is a free barrier,
+so the cut uses it before it spends a wall cell. The cut is a minimum vertex cut by
+maximum flow over the four-connected walkable grid (a diagonal chain of walls is sealed:
+`PathFinderJob` refuses a diagonal step past a blocked orthogonal neighbour); of the
+cuts of least cost it takes the one nearest the base. A cell is priced one wall (two on
+a bridgeable stretch); ground nothing can wall is priced 1000, not vetoed, and reported
+`cut_unclosable`. Ordinary raiders path ByPawn, where a wall cell is impassable, so an
+unbroken one-cell cut already funnels them to the opening.
+
+Thickness is designed against sappers (`JobGiver_AISapper` prices a destroyable wall cell
+at `Cost_BlockedWallBase` 70 plus 0.2 per hit point, plus the 13-tick step): breaching
+costs linearly in thickness, so a stretch whose detour to the opening is D ticks (the
+outside walk from the cut cell to the opening's mouth, 13 ticks a cell) is
+`N = ceil(D / (70 + 0.2*HP + 13))` thick, at least one. HP is the wall's `MaxHitPoints`
+for the stuff the colony would build it from (the wood wall on light footing and plain
+bridges). A stretch no outside walk joins to the opening is one thick: an entry cell must
+reach the colony, so no raider arrives there. Unknown HP leaves one cell. The one judgment
+is `perimeterTable.DetourBudgetTicks` (a `DefTables` entry): detours past it are designed
+for the budget, so a far stretch is not thickened without limit. Breachers (`BreachingGrid`
+prices a wall at 20 + 0.015 per hit point) barely feel thickness: the killbox and turrets
+answer them. The raid generator rolls `ImmediateAttackSappers` (selection weight 0 below
+700 raid points, 0.4 at 1000) for the factions with a `canBeSapper` pawn kind (pirates,
+mercenaries, tribes, Empire, wasters), so early raids walk and later ones may tunnel.
+
+The cut is deterministic: the flow network is built in a fixed order and nothing is
+random. The decisions are `layout_plan` rows with target `perimeter_cut` (see
+`otel-signals.md`).
