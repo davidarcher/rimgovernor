@@ -127,27 +127,9 @@ func TestRangeLayoutIsOneRowOfStandsAndADummyRowFacingThem(t *testing.T) {
 				}
 			}
 		}
-		// The backdrop behind the dummies is part of the blocked footprint and
-		// holds no piece.
-		block := rangeBlock(room)
-		for _, d := range dummies {
-			behind := d
-			switch facing {
-			case domain.North:
-				behind.Z += RangeBackdrop
-			case domain.South:
-				behind.Z -= RangeBackdrop
-			case domain.East:
-				behind.X += RangeBackdrop
-			case domain.West:
-				behind.X -= RangeBackdrop
-			}
-			if !contains(block, behind) {
-				t.Fatalf("%s: cell %d behind a dummy is outside the blocked footprint", facing, RangeBackdrop)
-			}
-		}
-		if !contains(block, domain.Cell{X: block.X, Z: block.Z}) || block.Width*block.Height == 0 {
-			t.Fatal("empty block")
+		// The blocked footprint is the interior with a one-cell margin, nothing more.
+		if block := rangeBlock(room); block != pad(room.Region.Bounds(), 1) {
+			t.Fatalf("%s: block %+v is not the interior and its margin", facing, block)
 		}
 	}
 }

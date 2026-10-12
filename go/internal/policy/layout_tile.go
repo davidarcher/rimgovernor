@@ -211,7 +211,7 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 		crossing := crossingOf(g)
 		room := PlannedRoom{Role: role, Region: RectRegion(b.Interior), Crossing: &crossing, Outdoor: role.IsOutdoor()}
 		room.Markers = g.Markers
-		if g.FacesAway {
+		if role == PlannedTrainingRange {
 			if ref, ok := awayReference(in.Groups, placed); ok {
 				room.Facing = dummyFacing(b.Interior, ref)
 			}

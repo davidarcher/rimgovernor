@@ -28,8 +28,7 @@ func trainingGroups(t testing.TB, stands, markers int) []RoomGroup {
 }
 
 // The graph holds a range and a ring node while the colony asks for them: the
-// exact floor, the training band, the ring beside the range, the range facing
-// away.
+// exact floor, the training band, the ring beside the range.
 func TestTrainingRoomNodes(t *testing.T) {
 	if got := TrainingRoomNodes(0, 0); len(got) != 0 {
 		t.Fatalf("no demand, nodes %+v", got)
@@ -39,11 +38,11 @@ func TestTrainingRoomNodes(t *testing.T) {
 		t.Fatalf("nodes %+v", nodes)
 	}
 	rng, ring := nodes[0], nodes[1]
-	if rng.Role != PlannedTrainingRange || rng.Area != 5*(RangeDistance+1) || rng.Width != RangeDistance+1 || !rng.FacesAway || rng.Beside != "" ||
+	if rng.Role != PlannedTrainingRange || rng.Area != 5*(RangeDistance+1) || rng.Width != RangeDistance+1 || rng.Beside != "" ||
 		rng.Band != TrainingBand() || rng.Reason != ReasonTrainingRoom || rng.Joins || rng.Cold {
 		t.Errorf("range %+v", rng)
 	}
-	if ring.Role != PlannedSparringRing || ring.Area != int(RingSide*RingSide) || ring.Width != RingSide || ring.FacesAway || ring.Markers != 7 ||
+	if ring.Role != PlannedSparringRing || ring.Area != int(RingSide*RingSide) || ring.Width != RingSide || ring.Markers != 7 ||
 		ring.Beside != rng.ID || ring.Band != TrainingBand() {
 		t.Errorf("ring %+v", ring)
 	}
@@ -82,10 +81,10 @@ func TestClusterMakesTrainingGroups(t *testing.T) {
 	if rng.ID < 0 || ring.ID < 0 {
 		t.Fatalf("groups %+v", groups)
 	}
-	if rng.Area != 4*(RangeDistance+1) || rng.Width != RangeDistance+1 || !rng.FacesAway || len(rng.Stations) != 0 {
+	if rng.Area != 4*(RangeDistance+1) || rng.Width != RangeDistance+1 || len(rng.Stations) != 0 {
 		t.Errorf("range %+v", rng)
 	}
-	if ring.Area != int(RingSide*RingSide) || ring.Width != RingSide || ring.Markers != 6 || ring.FacesAway {
+	if ring.Area != int(RingSide*RingSide) || ring.Width != RingSide || ring.Markers != 6 {
 		t.Errorf("ring %+v", ring)
 	}
 	if !slices.ContainsFunc(ring.Links, func(l GroupLink) bool { return l.To == rng.ID && l.Required }) ||
@@ -111,7 +110,7 @@ func embedTraining(t *testing.T, stands, markers int) ([]RoomGroup, EmbedInput, 
 }
 
 // The embedding stands the ring beside the range, keeps the training band from
-// every other room, and leaves the backdrop behind the dummies free.
+// every other room.
 func TestEmbedPlacesRingBesideRange(t *testing.T) {
 	groups, _, emb := embedTraining(t, 4, 6)
 	rid, gid := groupOf(groups, PlannedTrainingRange).ID, groupOf(groups, PlannedSparringRing).ID
@@ -128,56 +127,9 @@ func TestEmbedPlacesRingBesideRange(t *testing.T) {
 		}
 	}
 	for _, d := range emb.Decisions {
-		if d.Reason == ReasonEmbedBand || d.Reason == ReasonEmbedFacing || d.Reason == ReasonEmbedLinkNotAdjacent {
+		if d.Reason == ReasonEmbedBand || d.Reason == ReasonEmbedLinkNotAdjacent {
 			t.Errorf("unsatisfied: %+v", d)
 		}
-	}
-	blocks := placedBlocks(groups, emb.Blocks)
-	ref, ok := awayReference(groups, blocks)
-	if !ok {
-		t.Fatal("no base placed")
-	}
-	strip := backdropStrip(rng, dummyFacing(rng, ref))
-	for j, b := range blocks {
-		if j != rid && b.Width > 0 && intersects(strip, groupFootprint(groups[j], b)) {
-			t.Errorf("group %d at %+v stands in the backdrop %+v", j, b, strip)
-		}
-	}
-}
-
-// The facing is a hard constraint: a room another group stands in the backdrop
-// of does not fit, and a backdrop off the map is refused.
-func TestBackdropIsHard(t *testing.T) {
-	groups := []RoomGroup{
-		{ID: 0, Area: 25},
-		{ID: 1, Area: 4 * (RangeDistance + 1), Width: RangeDistance + 1, FacesAway: true, Band: TrainingBand()},
-		{ID: 2, Area: 25},
-	}
-	s := plusSurvey(100, 60)
-	e := newEmbedder(EmbedInput{Groups: groups, Zones: Zone(s), Survey: s, RoofDistance: testRoof}, 8, newPlanScorer(Zone(s), nil, s), 0)
-	base := Rectangle{X: 40, Z: 30, Width: 5, Height: 5}
-	// A range due east of the base, rows vertical: dummies face east.
-	rng := Rectangle{X: 60, Z: 28, Width: RangeDistance + 1, Height: 4}
-	blocks := []Rectangle{base, rng, {}}
-	if f := dummyFacing(rng, base); f != domain.East {
-		t.Fatalf("facing %v", f)
-	}
-	if !e.backdropClear(1, rng, blocks) {
-		t.Fatal("an open backdrop is refused")
-	}
-	taken := backdropStrip(rng, domain.East)
-	room := Rectangle{X: taken.X + 1, Z: taken.Z + 1, Width: 3, Height: 3}
-	if e.backdropClear(2, room, blocks) {
-		t.Errorf("a room at %+v stands in the backdrop %+v", room, taken)
-	}
-	blocks[2] = room
-	if e.backdropClear(1, rng, blocks) {
-		t.Errorf("a taken backdrop is accepted")
-	}
-	// Off the map is as bad as taken.
-	edge := Rectangle{X: 100 - 5, Z: 28, Width: RangeDistance + 1, Height: 4}
-	if e.backdropClear(1, edge, []Rectangle{{X: 10, Z: 30, Width: 5, Height: 5}, edge, {}}) {
-		t.Errorf("a backdrop off the map is accepted")
 	}
 }
 
@@ -205,7 +157,7 @@ func TestTileWritesFacingAndMarkers(t *testing.T) {
 	if rng.Facing != dummyFacing(rng.Region.Bounds(), ref) {
 		t.Errorf("facing %v", rng.Facing)
 	}
-	// The dummies point away from the base: the backdrop lies on the far side.
+	// The dummies point away from the base:.
 	b := rng.Region.Bounds()
 	switch rng.Facing {
 	case domain.North:

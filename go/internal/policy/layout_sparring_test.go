@@ -44,7 +44,7 @@ func TestRingIsAFixedUnfencedSquareBesideTheRange(t *testing.T) {
 		t.Fatalf("ring %+v", ring)
 	}
 	if rectsOverlap(ringBlock(ring), rangeBlock(rng)) {
-		t.Fatalf("ring %+v overlaps the range backdrop %+v", ringBlock(ring), rangeBlock(rng))
+		t.Fatalf("ring %+v overlaps the range block %+v", ringBlock(ring), rangeBlock(rng))
 	}
 	for _, other := range next.AllRooms() {
 		if other.Role != PlannedSparringRing && rectsOverlap(roomWalls(other), roomWalls(ring)) {

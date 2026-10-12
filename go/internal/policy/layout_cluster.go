@@ -148,12 +148,10 @@ type RoomGroup struct {
 	// Band is the ground the group keeps from the groups outside the band (the
 	// outskirts rooms, #2882); zero for a group that goes anywhere.
 	Band DistanceBand
-	// FacesAway and Markers carry a training room's node (#2887): the range's
-	// dummies point away from the base; the ring's marker count.
-	FacesAway bool
-	Markers   int
-	Requires  []EnvRequirement
-	Links     []GroupLink
+	// Markers carries a sparring ring's node (#2887): its marker count.
+	Markers  int
+	Requires []EnvRequirement
+	Links    []GroupLink
 	// Costs are the throughput the room loses to the environment its stations
 	// do not get; LostEffects the role effects it does not give.
 	Costs       []ConflictCost
@@ -682,7 +680,7 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 // addRoom appends the group of a station-less room node: its asked floor, plus
 // the cooling station a cold group carries.
 func (c *clusterer) addRoom(groups []RoomGroup, decisions []ClusterDecision, node RoomNode) ([]RoomGroup, []ClusterDecision) {
-	g := RoomGroup{ID: len(groups), Clearance: node.Area, Planned: node.Role, Width: node.Width, Band: node.Band, FacesAway: node.FacesAway, Markers: node.Markers}
+	g := RoomGroup{ID: len(groups), Clearance: node.Area, Planned: node.Role, Width: node.Width, Band: node.Band, Markers: node.Markers}
 	d := ClusterDecision{A: node.ID, Verdict: ClusterRoom, Reason: node.Reason}
 	if node.Cold {
 		g.Requires = []EnvRequirement{EnvCold}

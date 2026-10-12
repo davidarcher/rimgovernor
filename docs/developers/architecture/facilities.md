@@ -803,8 +803,8 @@ The range is a planned room (`PlannedTrainingRange`, `layout_range.go`),
 gate, door, roof or floor, so `GroundMatches` is always true, `ShellDoors` is
 empty, `RoomGround` is the interior alone and `Reconcile` diffs only the
 template and the foreign things on the interior. Its blocked footprint
-(`roomWalls`) is the interior with a one-cell margin plus `RangeBackdrop` (4)
-cells behind the dummies, so no later room is planned there. It is demand-grown,
+(`roomWalls`) is the interior with a one-cell margin; no ground behind the dummies
+is kept free, since the drill's shots never hit a pawn (#2938). It is demand-grown,
 like a further graveyard: `RoomDemand.Ranges` (the stand count, merged by the
 store department; `StoreView.TrainingStands`) makes `growRanges` site it through
 `outskirtsCandidatesAt` with `rangeGap` (2) instead of `outskirtsGap`, on the

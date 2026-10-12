@@ -177,9 +177,6 @@ type RoomNode struct {
 	Band DistanceBand
 	// Beside is the room node this one must stand beside (a required link).
 	Beside string
-	// FacesAway is a hard orientation constraint: the room's dummies point away
-	// from the base (the training range, #2887).
-	FacesAway bool
 	// Markers is the marker count of a sparring ring.
 	Markers int
 	Reason  string

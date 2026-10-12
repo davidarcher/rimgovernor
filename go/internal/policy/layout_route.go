@@ -375,8 +375,8 @@ func routeWalk(p LayoutPlan) (map[domain.Cell]int, []PlannedRoom) {
 			for _, r := range rooms {
 				block := roomWalls(r)
 				if r.Unfenced() {
-					// No wall to walk round: the margin and backdrop a range or ring
-					// keeps free of buildings is open ground (#2887).
+					// No wall to walk round: the margin a range or ring keeps
+					// free of buildings is open ground (#2887).
 					block = r.Region.Bounds()
 				}
 				for _, c := range rectCells(block) {

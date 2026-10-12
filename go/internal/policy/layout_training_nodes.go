@@ -8,18 +8,17 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // rooms, and the old planner stays authoritative. Both are unfenced open-air
 // rooms with a fixed floor that rangeBlock/ringBlock keep unchanged, so the
 // node asks the exact floor (stands by RangeDistance+1 cells; RingSide
-// squared) and linkRooms adds no door threshold to it (exactFloor). Three
+// squared) and linkRooms adds no door threshold to it (exactFloor). Two
 // constraints sit on the nodes:
 //
 //   - Band. Both keep the range's own gap (rangeGap) from the base's other
 //     rooms, no more than outskirtsReach beyond them.
 //   - Beside. The ring stands beside the range, a required link as the
 //     incinerator stands beside the waste yard.
-//   - Facing. The range's dummies point away from the base: a hard orientation
-//     constraint. The embedding keeps the RangeBackdrop cells behind the
-//     dummies free of every other room (backdropClear) and reports a range
-//     whose backdrop is taken (ReasonEmbedFacing); the tiler writes the
-//     facing (and the ring's marker count) onto the tiled room.
+//
+// The tiler writes the range's facing (dummies away from the base, as the
+// siting does; nothing behind the dummies is kept free, since a practice shot
+// never hits a pawn) and the ring's marker count onto the tiled room.
 //
 // Both grow by widening in place (widenRange, widenRing): a range gains stands
 // along its rows and a ring gains markers in fixed slots, so a standing piece
@@ -40,7 +39,7 @@ func TrainingRoomNodes(stands, markers int) []RoomNode {
 	var nodes []RoomNode
 	if stands > 0 {
 		n := int32(min(max(stands, RangeMinStands), RangeMaxStands))
-		nodes = append(nodes, RoomNode{ID: string(PlannedTrainingRange), Role: PlannedTrainingRange, Area: int(n * (RangeDistance + 1)), Width: RangeDistance + 1, Band: TrainingBand(), FacesAway: true, Reason: ReasonTrainingRoom})
+		nodes = append(nodes, RoomNode{ID: string(PlannedTrainingRange), Role: PlannedTrainingRange, Area: int(n * (RangeDistance + 1)), Width: RangeDistance + 1, Band: TrainingBand(), Reason: ReasonTrainingRoom})
 	}
 	if markers > 0 {
 		m := min(max(markers, RingMinMarkers), RingMaxMarkers)
@@ -108,34 +107,4 @@ func dummyFacing(r, ref Rectangle) domain.Rotation {
 		return domain.East
 	}
 	return domain.West
-}
-
-// backdropStrip is the RangeBackdrop cells behind the dummies of a range at r
-// facing facing, past its one-cell margin (the part of rangeBlock beyond the
-// padded interior).
-func backdropStrip(r Rectangle, facing domain.Rotation) Rectangle {
-	p := pad(r, 1)
-	switch facing {
-	case domain.North:
-		return Rectangle{X: p.X, Z: p.Z + p.Height, Width: p.Width, Height: RangeBackdrop}
-	case domain.South:
-		return Rectangle{X: p.X, Z: p.Z - RangeBackdrop, Width: p.Width, Height: RangeBackdrop}
-	case domain.East:
-		return Rectangle{X: p.X + p.Width, Z: p.Z, Width: RangeBackdrop, Height: p.Height}
-	}
-	return Rectangle{X: p.X - RangeBackdrop, Z: p.Z, Width: RangeBackdrop, Height: p.Height}
-}
-
-// intersects reports rectangles that share a cell.
-func intersects(a, b Rectangle) bool {
-	return axisGap(a.X, a.Width, b.X, b.Width) < 0 && axisGap(a.Z, a.Height, b.Z, b.Height) < 0
-}
-
-// groupFootprint is the cells group g's block at r occupies: its interior with the
-// wall ring an enclosed room owes (an unfenced room owes none).
-func groupFootprint(g RoomGroup, r Rectangle) Rectangle {
-	if (PlannedRoom{Role: g.Planned}).Unfenced() {
-		return r
-	}
-	return pad(r, 1)
 }

@@ -11,9 +11,7 @@ import (
 // gate, door, roof or floor), the open-air firing range of RangeLayout. Its
 // Interior is the two rows and the lane between them; its Facing says which end
 // the dummies stand at. It is sited near the colony (rangeGap, not the
-// outskirts' outskirtsGap) with its dummy end pointing away from the core, and
-// RangeBackdrop cells behind the dummies are kept free of buildings by the
-// room's blocked footprint (roomWalls). It grows with the colony: the plan holds
+// outskirts' outskirtsGap) with its dummy end pointing away from the core. It grows with the colony: the plan holds
 // as many stands as RoomDemand.Ranges asks for and never fewer.
 
 // PlannedTrainingRange is the training range's plan role.
@@ -23,8 +21,6 @@ const (
 	// RangeMinStands and RangeMaxStands bound the stand count.
 	RangeMinStands = 2
 	RangeMaxStands = 8
-	// RangeBackdrop is the cells behind the dummies kept free of buildings.
-	RangeBackdrop int32 = 4
 	// rangeGap is the clear ground, in cells, between the range and every other
 	// room: less than outskirtsGap, since the range is no dump to keep clear of
 	// living rooms, only a firing line to keep clear of walls.
@@ -66,28 +62,14 @@ func RangeStandCount(r PlannedRoom) int32 {
 }
 
 // rangeBlock is the footprint an unfenced range blocks: its interior with a
-// one-cell margin and RangeBackdrop cells more behind the dummies.
-func rangeBlock(r PlannedRoom) Rectangle {
-	b := pad(r.Region.Bounds(), 1)
-	switch r.Facing {
-	case domain.North:
-		b.Height += RangeBackdrop
-	case domain.South:
-		b.Z -= RangeBackdrop
-		b.Height += RangeBackdrop
-	case domain.East:
-		b.Width += RangeBackdrop
-	case domain.West:
-		b.X -= RangeBackdrop
-		b.Width += RangeBackdrop
-	}
-	return b
-}
+// one-cell margin. A stray practice shot cannot hit a pawn (see the drill), so
+// nothing behind the dummies is kept free.
+func rangeBlock(r PlannedRoom) Rectangle { return pad(r.Region.Bounds(), 1) }
 
 // rangeBlockSize is the footprint of a range of stands stands in the given
 // orientation.
 func rangeBlockSize(stands int32, horizontal bool) (w, h int32) {
-	w, h = stands+2, RangeDistance+1+2+RangeBackdrop
+	w, h = stands+2, RangeDistance+1+2
 	if !horizontal {
 		w, h = h, w
 	}
@@ -97,14 +79,8 @@ func rangeBlockSize(stands int32, horizontal bool) (w, h int32) {
 // rangeFromBlock is the planned range whose blocked footprint is block.
 func rangeFromBlock(block Rectangle, facing domain.Rotation, stands int32) PlannedRoom {
 	in := Rectangle{X: block.X + 1, Z: block.Z + 1, Width: stands, Height: RangeDistance + 1}
-	switch facing {
-	case domain.South:
-		in.Z += RangeBackdrop
-	case domain.East, domain.West:
+	if facing == domain.East || facing == domain.West {
 		in.Width, in.Height = RangeDistance+1, stands
-		if facing == domain.West {
-			in.X += RangeBackdrop
-		}
 	}
 	return PlannedRoom{Role: PlannedTrainingRange, Region: RectRegion(in), Outdoor: true, Facing: facing}
 }
