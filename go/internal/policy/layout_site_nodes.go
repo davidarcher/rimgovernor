@@ -22,7 +22,7 @@ import (
 // stay off the rooms' walls and off each other, on ground the obstacle level
 // the rooms were placed under leaves free. Like a room it may Replace a
 // planned room. The station advice emits the power sites (PowerSiteNodes) and
-// the old planner stays authoritative.
+// the tiler stores them.
 
 // ErrSiteNode marks a site node the embedder cannot read.
 var ErrSiteNode = errors.New("site node")
@@ -59,6 +59,9 @@ func (l SiteLane) WindOutput() float64 { return WindOutput(l.Blocked) }
 // SiteNode is a site element of the station graph.
 type SiteNode struct {
 	ID string
+	// Kind is the stored node kind of a power site the plan keeps as a
+	// PlannedSite (PowerSitesOf); empty for a node the plan stores elsewhere.
+	Kind NodeKind
 	// Footprint is the cells the node stands on, relative to its origin.
 	Footprint Region
 	// Anchor is the cell the origin must land on; nil for a node that goes
@@ -218,6 +221,15 @@ func siteFree(fp Region, rooms []Rectangle, taken []Region) bool {
 // then the least site cost, then the first turn and the lowest cell. It returns
 // the shape taken.
 func (e *embedder) siteOrigin(n SiteNode, rooms []Rectangle, taken []Region, ground *windGround) (SiteNode, domain.Cell, bool) {
+	shape, origin, ok := e.siteOriginIn(n, n.Band, rooms, taken, ground)
+	if !ok && n.Band.Set() {
+		// Nothing in reach: any ground, so the node is not lost to its band.
+		return e.siteOriginIn(n, DistanceBand{}, rooms, taken, ground)
+	}
+	return shape, origin, ok
+}
+
+func (e *embedder) siteOriginIn(n SiteNode, band DistanceBand, rooms []Rectangle, taken []Region, ground *windGround) (SiteNode, domain.Cell, bool) {
 	var best domain.Cell
 	var bestShape SiteNode
 	bestLoss, bestCost, found := 0, 0, false
@@ -229,7 +241,7 @@ func (e *embedder) siteOrigin(n SiteNode, rooms []Rectangle, taken []Region, gro
 			}
 			fp := shape.Footprint.Translate(o.X, o.Z)
 			cost, ok := e.siteCost(fp)
-			if !ok || !siteFree(fp, rooms, taken) || !siteBand(n.Band, fp.Bounds(), rooms) {
+			if !ok || !siteFree(fp, rooms, taken) || !siteBand(band, fp.Bounds(), rooms) {
 				continue
 			}
 			loss := 0

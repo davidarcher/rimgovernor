@@ -14,12 +14,10 @@ func TestLayoutOverlayV2DrawsZonesSpineRoomsReservationsAndTraffic(t *testing.T)
 			{Role: PlannedDining, Region: RectRegion(Rectangle{X: 20, Z: 23, Width: 9, Height: 7}), Door: domain.Cell{X: 24, Z: 22}, DoorRot: domain.South},
 		},
 		Zones: []LayoutZone{{Kind: ZoneField, Runs: []RowRun{{Z: 0, X: 0, Length: 50}, {Z: 1, X: 240, Length: 30}}}},
-		Reservations: []LayoutReservation{
-			{Kind: ReserveTurbineLane, Area: RectRegion(Rectangle{X: 50, Z: 50, Width: 7, Height: 18})},
-		},
 		Sites: []PlannedSite{
 			testSite(NodeKillbox, Rectangle{X: 80, Z: 80, Width: 5, Height: 5}),
 			testSite(NodeRing, Rectangle{X: 5, Z: 5, Width: 120, Height: 120}),
+			testTurbine(),
 		},
 	}
 	o := plan.Overlay(Bounds{Width: 250, Height: 250})
@@ -54,7 +52,7 @@ func TestLayoutOverlayV2DrawsZonesSpineRoomsReservationsAndTraffic(t *testing.T)
 	for _, l := range o.Labels {
 		labels[l.Text] = true
 	}
-	for _, want := range []string{"bedroom", "dining", "turbine lane", "killbox"} {
+	for _, want := range []string{"bedroom", "dining", "turbine", "killbox"} {
 		if !labels[want] {
 			t.Fatalf("label %q missing: %+v", want, o.Labels)
 		}
@@ -70,6 +68,13 @@ func TestLayoutOverlayV2DrawsZonesSpineRoomsReservationsAndTraffic(t *testing.T)
 			t.Fatalf("traffic off the spine %+v", r)
 		}
 	}
+}
+
+// testTurbine is a turbine site at (50, 50) with a wind lane beside it.
+func testTurbine() PlannedSite {
+	s := testSite(NodeTurbine, Rectangle{X: 50, Z: 50, Width: 7, Height: 2})
+	s.Lanes = []SiteLane{{ID: "wind", Region: RectRegion(Rectangle{X: 50, Z: 52, Width: 7, Height: 16}), Wind: true}}
+	return s
 }
 
 func TestSplitFieldsMovesOnlyFieldLayers(t *testing.T) {

@@ -60,9 +60,6 @@ var roomOverlay = map[PlannedRole]overlayStyle{
 
 var reservationOverlay = map[ReservationKind]overlayStyle{
 	ReserveBatteryRoom: {planCyan, "battery room"},
-	ReserveTurbine:     {planCyan, "turbine"},
-	ReserveTurbineLane: {planGreen, "turbine lane"},
-	ReserveSolar:       {planCyan, "solar"},
 	ReserveGeothermal:  {planCyan, "geothermal"},
 	ReserveYard:        {planTan, "materials yard"},
 	ReserveBarn:        {planBrown, "barn"},
@@ -80,6 +77,8 @@ var siteOverlay = map[NodeKind]overlayStyle{
 	NodeCoverClear: {planGray, "clear cover"},
 	NodePocketWall: {planRed, "pocket wall"},
 	NodeVent:       {planCyan, "vent"},
+	NodeTurbine:    {planCyan, "turbine"},
+	NodeSolar:      {planCyan, "solar"},
 	// The defense tiers PlanDefenseTiers cuts under the killbox.
 	NodeDefCorridor: {planRed, "corridor"},
 	NodeDefLane:     {planAmber, "trap lane"},
@@ -98,6 +97,7 @@ var siteOverlay = map[NodeKind]overlayStyle{
 var (
 	bridgeOverlay = overlayStyle{planBrown, "bridge"}
 	gapOverlay    = overlayStyle{planYellow, "open gap"}
+	laneOverlay   = overlayStyle{planGreen, "turbine lane"}
 )
 
 // Overlay draws p inside bounds. Layer order is zones, reservations,
@@ -161,6 +161,9 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 		runs := s.Footprint.Runs
 		if s.Footprint.IsRect() {
 			rects, runs = []Rectangle{s.Footprint.Bounds()}, nil
+		}
+		for _, l := range s.Lanes {
+			add(laneOverlay, OverlayFill, nil, l.Region.Runs)
 		}
 		drawn := add(style, shape, rects, runs)
 		switch {

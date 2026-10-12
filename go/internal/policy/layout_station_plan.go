@@ -100,6 +100,9 @@ type StationFacts struct {
 	// ThroneArea is the interior cells of the throne room a title asks (the
 	// growth's ThroneArea); 0 is none owed, unknown asks for none and says so.
 	ThroneArea domain.Fact[int]
+	// Power raises the turbine and solar nodes of the graph above the plan's own
+	// sites (FirstPowerWants for a first plan, which holds none).
+	Power PowerWants
 }
 
 // seedRooms are the special rooms the plan is owed: the day-1 shelter while
@@ -235,7 +238,7 @@ func (f StationFacts) GraphInput() (StationGraphInput, error) {
 // the caller keys the load beside it.
 func (f StationFacts) InputsKey() string {
 	plan, _ := json.Marshal(f.Plan) // the plan holds pointers; the saved form is its value
-	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Pinned, f.OutdoorCurve, f.ExpectedMood, f.Mismatches, f.Derive, f.ThroneArea) + string(plan)
+	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Pinned, f.OutdoorCurve, f.ExpectedMood, f.Mismatches, f.Derive, f.ThroneArea, f.Power) + string(plan)
 	input, err := f.GraphInput()
 	if err != nil {
 		return key + err.Error()
@@ -276,8 +279,7 @@ type StationAdvice struct {
 	Graph      StationGraph
 	Clustering Clustering
 	Embedding  Embedding
-	// Sites places the plan's power sites (PowerSiteNodes), advisory beside the
-	// authoritative PlanUtilities.
+	// Sites places the power sites (PowerSiteNodes); a tiled plan stores them.
 	Sites  SiteEmbedding
 	Groups []GroupAdvice
 	// Regroup are the regrouping search's moves (layout_regroup.go): each one
@@ -303,7 +305,7 @@ func TileStations(f StationFacts) (StationAdvice, error) {
 		return StationAdvice{}, err
 	}
 	steel, _ := f.Items.MarketValue(siteSteelUnit) // unknown stays zero: the airlocks and vents go unpriced
-	tiled, err := TileEmbedding(TileInput{Groups: out.Clustering.Groups, Embedding: out.Embedding, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, OutdoorCurve: f.OutdoorCurve, RoofDistance: f.RoofDistance, FullRotRateC: f.FullRotRateC, SteelValue: steel, VentAvailable: f.VentAvailable, Light: stationLightPrice(f, steel)})
+	tiled, err := TileEmbedding(TileInput{Groups: out.Clustering.Groups, Embedding: out.Embedding, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, OutdoorCurve: f.OutdoorCurve, RoofDistance: f.RoofDistance, FullRotRateC: f.FullRotRateC, SteelValue: steel, VentAvailable: f.VentAvailable, Light: stationLightPrice(f, steel), Sites: PowerSitesOf(out.Graph.Sites, out.Sites)})
 	if err != nil {
 		return out, err
 	}
@@ -358,7 +360,7 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 		return StationAdvice{}, err
 	}
 	clustering, embedIn, embedding := regrouped.Clustering, regrouped.Embed, regrouped.Embedding
-	graph.Sites = PowerSiteNodes(f.Plan)
+	graph.Sites = PowerSiteNodes(f.Plan, f.Power)
 	out := StationAdvice{Graph: graph, Clustering: clustering, Embedding: embedding, Regroup: regrouped.Decisions, SeedOnly: seedOnly}
 	if len(graph.Sites) > 0 {
 		if out.Sites, err = EmbedSites(SiteEmbedInput{Embed: embedIn, Embedding: embedding, Nodes: graph.Sites}); err != nil {

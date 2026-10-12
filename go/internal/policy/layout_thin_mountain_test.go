@@ -9,11 +9,12 @@ import (
 
 // The power/wind-thin-roof acceptance fixture (PowerFixture "mountain")
 // fills the 100x100 lab with thin-roofed granite around a 30x30 pocket at the
-// centre, a lamp and conduit line in the pocket's north-west corner. The case
-// relies on the layout putting the first turbine on rock beside the pocket,
-// its wind path through rock to dig and unroof. Siting may move the turbine a
-// few cells (it was (45,34), then (45,35) once siting widened), so the test
-// pins that property, not the cell.
+// centre, a lamp and conduit line in the pocket's north-west corner. The
+// tiled plan sites the turbines from site nodes (#2960): rock is no blocker
+// to a wind lane (the game counts only roof, buildings and the map edge), so
+// a turbine stands wherever its lane loses least, and the plan no longer seeks
+// rock to dig. The test pins that the plan holds the first turbines on the
+// map, none of them losing all output to blocked lane cells.
 func TestThinRoofMountainLabPlansTurbineOnRockBesidePocket(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -32,27 +33,24 @@ func TestThinRoofMountainLabPlansTurbineOnRockBesidePocket(t *testing.T) {
 		}
 	}
 	survey := MapSurvey{Bounds: Bounds{Width: size, Height: size}, Cells: cells}
-	plan, ok := oldDerive(survey, 3, TechTierPowered, nil, 0).Value()
+	fact, _, _ := DeriveLayoutPlan(survey, colonyStationFacts(3, survey), nil, 0)
+	plan, ok := fact.Value()
 	if !ok {
 		t.Fatal("no layout plan over the mountain lab")
 	}
-	sites := PlannedPowerSites(plan, WindTurbineDefinition)
-	if len(sites) == 0 {
-		t.Fatal("the layout plan reserves no wind turbine site")
+	if sites := PlannedPowerSites(plan, WindTurbineDefinition); len(sites) != FirstPowerWants().Turbines {
+		t.Fatalf("the layout plan holds %d wind turbine sites, want %d", len(sites), FirstPowerWants().Turbines)
 	}
-	rockIn := func(cells []domain.Cell) (n int) {
-		for _, c := range cells {
-			if c.X < 0 || c.Z < 0 || c.X >= size || c.Z >= size || survey.Cells[int(c.Z)*size+int(c.X)].Rock {
-				n++
+	for _, s := range plan.LiveSites(NodeTurbine) {
+		for _, c := range s.Footprint.Cells() {
+			if c.X < 0 || c.Z < 0 || c.X >= size || c.Z >= size {
+				t.Fatalf("turbine %s stands off the map at %v", s.Node, c)
 			}
 		}
-		return n
-	}
-	first := sites[0]
-	if rock := rockIn(RectangleCells(first.Area)); rock == 0 {
-		t.Fatalf("first turbine %+v holds %d rock cells of %d, want some rock", first, rock, len(RectangleCells(first.Area)))
-	}
-	if rock := rockIn(TurbineWindCells(first.Cell, first.Rotation)); rock == 0 {
-		t.Fatalf("first turbine %+v has no rock on its wind path: nothing for the case to dig", first)
+		for _, l := range s.Lanes {
+			if l.Blocked >= 5 {
+				t.Errorf("turbine %s lane loses all output: %d blocked", s.Node, l.Blocked)
+			}
+		}
 	}
 }

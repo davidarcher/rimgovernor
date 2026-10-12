@@ -18,9 +18,10 @@ const (
 var outerEnclosed = map[ReservationKind]bool{ReserveGeothermal: true}
 
 // innerEnclosed are the reservations the core ring walls in with the rooms:
-// the materials yard, the barns and their pens, the outskirts and the turbine pairs with their
-// lanes stand beside the core, inside its wall, not out in the fields.
-var innerEnclosed = map[ReservationKind]bool{ReserveYard: true, ReserveBarn: true, ReservePen: true, ReserveTurbine: true, ReserveTurbineLane: true, ReserveOutskirts: true}
+// the materials yard, the barns and their pens and the outskirts stand beside
+// the core, inside its wall, not out in the fields. The turbines with their
+// wind lanes are taken in the same way (coreBaseFootprint).
+var innerEnclosed = map[ReservationKind]bool{ReserveYard: true, ReserveBarn: true, ReservePen: true, ReserveOutskirts: true}
 
 // wallRuns walls side sd's open cells into walls, run by run between the
 // positions skip reports (an opening, bare terrain, soft ground), and returns
@@ -161,6 +162,9 @@ func coreBaseFootprint(plan LayoutPlan, w, h int32) []bool {
 		if innerEnclosed[r.Kind] {
 			markRegion(fp, w, h, r.Area.Grow(1))
 		}
+	}
+	for _, s := range plan.LiveSites(NodeTurbine) {
+		markRegion(fp, w, h, s.Footprint.Grow(1))
 	}
 	return fp
 }

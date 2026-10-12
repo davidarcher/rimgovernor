@@ -64,16 +64,18 @@ func TestUtilityGridSkyRock(t *testing.T) {
 // A turbine's catch zone is its own 7x16 wind path, inside the pair's lanes;
 // the other turbine's back zone is not in it.
 func TestTurbineCatchZoneIsTheTurbinesOwnWindPath(t *testing.T) {
-	p := PlanUtilities(corePlan(utilityTestZones(), 3, TechTierCamp), UtilityWants{TurbinePairs: 1})
+	// A facing pair: the lower turbine faces north, the upper south, 12 rows apart.
+	p := LayoutPlan{Sites: []PlannedSite{
+		testTurbineSite("wind-1", domain.North, domain.Cell{X: 40, Z: 56}),
+		testTurbineSite("wind-2", domain.South, domain.Cell{X: 40, Z: 68}),
+	}}
 	sites := PlannedPowerSites(p, WindTurbineDefinition)
 	if len(sites) != 2 {
 		t.Fatal(sites)
 	}
 	var lanes []domain.Cell
-	for _, r := range p.Reservations {
-		if r.Kind == ReserveTurbineLane {
-			lanes = append(lanes, RectangleCells(r.Area.Bounds())...)
-		}
+	for _, s := range p.Sites {
+		lanes = append(lanes, s.Lanes[0].Region.Cells()...)
 	}
 	zones := make([][]domain.Cell, len(sites))
 	for i, site := range sites {
@@ -93,8 +95,8 @@ func TestTurbineCatchZoneIsTheTurbinesOwnWindPath(t *testing.T) {
 			shared++
 		}
 	}
-	if shared != 7*10 || len(lanes) != 7*22 {
-		t.Fatal("zones share", shared, "lanes", len(lanes))
+	if shared != 7*10 {
+		t.Fatal("zones share", shared)
 	}
 	if TurbineCatchZone(p, Rectangle{}) != nil {
 		t.Fatal("lanes for a non-turbine area")

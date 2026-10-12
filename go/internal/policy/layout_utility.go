@@ -2,22 +2,20 @@ package policy
 
 import (
 	"math"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Utility reservations. After the core is laid out the plan
-// holds:
-//   - a battery room off the spine, a room like any other (PlannedBattery);
-//   - wind turbines in facing north/south pairs whose catch zones overlap
-//     in one shared lane, every zone cell a field and none roofed, walled,
-//     rock or core;
-//   - solar on its own clear 4x4 plots;
+// Utility reservations. The plan holds:
+//   - a battery room, a room like any other (PlannedBattery);
+//   - wind turbines and solar plots as stored site nodes (NodeTurbine,
+//     NodeSolar; layout_power_nodes.go), placed with the rooms by the site
+//     embedding, a turbine with the wind lane the game prices;
 //   - a stone enclosure around each geyser's generator;
 //   - an exhaust cell (or dug shaft) behind each room that needs cooling.
-// Turbine, solar and geothermal sites stay out of the core's cross-section
-// band so the spine can keep growing along it, and the generator never builds over
-// a reservation.
+// PlannedPowerSites reads them back; the generator never builds over a
+// reservation.
 
 // PlannedBattery is the battery room: 5 wide, a 1-cell walkway from the
 // door down the middle, batteries (1x2) along both sides with a stone
@@ -33,12 +31,10 @@ const ReserveExhaust ReservationKind = "cooler_exhaust"
 var batteryRoomSize = [2]int32{5, 7}
 
 const (
-	turbineWidth int32 = 7
-	// turbinePairSpan is a facing pair from the north-facing turbine's
-	// back zone to the south-facing one's: 6 back + 2 + 10 lane + 2 + 6.
-	turbinePairSpan int32 = 26
-	solarSide       int32 = 4
-	geothermalSide  int32 = 6
+	// turbineWidth is a turbine's long side, the wind path's width.
+	turbineWidth   int32 = 7
+	solarSide      int32 = 4
+	geothermalSide int32 = 6
 	// geothermalShell is the enclosure's thickness.
 	geothermalShell int32 = 2
 	exhaustMax      int32 = 12
@@ -49,21 +45,12 @@ const (
 // dining room's meals.
 var coolingRoles = []PlannedRole{PlannedFreezer, PlannedTomb, PlannedMorgue, PlannedMealCloset}
 
-// UtilityWants is what PlanUtilities reserves: turbine pairs, solar plots,
-// the steam geysers (each the geyser's 2x2 footprint) and the herd units (barn
-// and vet room) for PenAnimals animals.
+// UtilityWants is what PlanUtilities reserves: the steam geysers (each the
+// geyser's 2x2 footprint) and the herd units (barn and vet room) for
+// PenAnimals animals.
 type UtilityWants struct {
-	TurbinePairs, Solar int
-	PenAnimals          int
-	Geysers             []Rectangle
-	// ThickRoof is the surveyed cells under overhead mountain; non-nil lets
-	// turbines and solar plots be sited on natural rock, dug and unroofed
-	// first, except where a cell is under thick roof (it cannot be
-	// removed). Nil keeps those sites off rock.
-	ThickRoof map[domain.Cell]bool
-	// scorer sites the battery room with the initial siting's costing; nil
-	// takes the nearest slot.
-	scorer *planScorer
+	PenAnimals int
+	Geysers    []Rectangle
 }
 
 // ThickRoofCells is the survey's cells under thick mountain roof, for
@@ -97,9 +84,10 @@ func reserveExhausts(u *utilityGrid, plan *LayoutPlan) {
 	}
 }
 
-// PlanUtilities adds cooler exhausts and the wanted generator sites to plan.
-// Sites that do not fit are left out. The battery room is grown on demand
-// (growDemandRooms), not here.
+// PlanUtilities adds cooler exhausts, the geyser enclosures and the herd units
+// to a spine plan. Sites that do not fit are left out. The battery room is
+// grown on demand (growDemandRooms), not here; the turbines and solar plots
+// are site nodes (PowerSiteNodes).
 func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 	if len(plan.Hallways()) == 0 {
 		return plan
@@ -108,8 +96,6 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 	plan.Reservations = append([]LayoutReservation(nil), plan.Reservations...)
 	plan.Zones = append([]LayoutZone(nil), plan.Zones...)
 	u := newUtilityGrid(plan)
-	u.thick = want.ThickRoof
-	skyRock := want.ThickRoof != nil
 	reserveExhausts(u, &plan)
 	for _, gz := range want.Geysers {
 		area := geothermalArea(gz)
@@ -119,91 +105,13 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 			u.reserve(&plan, LayoutReservation{Kind: ReserveGeothermal, Area: RectRegion(area)})
 		}
 	}
-	pair := int32(0)
-	for _, r := range plan.Reservations {
-		if r.Pair > pair {
-			pair = r.Pair
-		}
-	}
-	for i := 0; i < want.TurbinePairs; i++ {
-		// A pair stands north-south or, turned, east-west: whichever lies
-		// nearer the core, where its lanes double as fields.
-		fx, fz := u.cx, u.cz
-		site, cost, ok := u.siteCost(turbineWidth, turbinePairSpan, skyRock, false, fx, fz, 0)
-		turned := false
-		if t, tcost, tok := u.siteCost(turbinePairSpan, turbineWidth, skyRock, false, fx, fz, 0); tok && (!ok || tcost < cost) {
-			site, turned, ok = t, true, true
-		}
-		if !ok {
-			break
-		}
-		pair++
-		for _, r := range turbinePair(site, pair, turned) {
-			u.reserve(&plan, r)
-		}
-		var runs []RowRun
-		for z := site.Z; z < site.Z+site.Height; z++ {
-			// Cells already planned as farmland are not planned twice.
-			var start int32 = -1
-			flush := func(end int32) {
-				if start >= 0 {
-					runs = append(runs, RowRun{Z: z, X: start, Length: end - start})
-					start = -1
-				}
-			}
-			for x := site.X; x < site.X+site.Width; x++ {
-				dx, dz := x-site.X, z-site.Z
-				if turned {
-					dx, dz = dz, dx
-				}
-				foot := dz == 6 || dz == 7 || dz == 18 || dz == 19 // turbine footprints
-				if foot || u.field[z*u.w+x] {
-					flush(x)
-					continue
-				}
-				if start < 0 {
-					start = x
-				}
-			}
-			flush(site.X + site.Width)
-		}
-		plan.Zones = append(plan.Zones, LayoutZone{Kind: ZoneField, Runs: runs})
-		for _, run := range runs {
-			for x := run.X; x < run.X+run.Length; x++ {
-				u.field[run.Z*u.w+x] = true
-			}
-		}
-	}
-	for i := 0; i < want.Solar; i++ {
-		site, ok := u.site(solarSide, solarSide, skyRock, false, u.cx, u.cz)
-		if !ok {
-			break
-		}
-		u.reserve(&plan, LayoutReservation{Kind: ReserveSolar, Area: RectRegion(site)})
-	}
 	planHerdSites(u, &plan, want.PenAnimals, nil)
 	return plan
 }
 
-// turbinePair lays a facing pair in the 7x26 site: the north-facing
-// turbine at rows 6-7, the south-facing one at rows 18-19, and three lanes
-// (its back zone, the shared 10-row lane, the other's back zone).
-func turbinePair(site Rectangle, pair int32, turned bool) []LayoutReservation {
-	row := func(dz, h int32, kind ReservationKind) LayoutReservation {
-		a := Rectangle{X: site.X, Z: site.Z + dz, Width: turbineWidth, Height: h}
-		if turned {
-			a = Rectangle{X: site.X + dz, Z: site.Z, Width: h, Height: turbineWidth}
-		}
-		return LayoutReservation{Kind: kind, Area: RectRegion(a), Pair: pair}
-	}
-	return []LayoutReservation{
-		row(6, 2, ReserveTurbine), row(18, 2, ReserveTurbine),
-		row(0, 6, ReserveTurbineLane), row(8, 10, ReserveTurbineLane), row(20, 6, ReserveTurbineLane),
-	}
-}
-
-// TurbinePlacement is a turbine reservation's native centre and rotation:
-// the pair's southern turbine faces north, its northern one south.
+// TurbinePlacement is a turbine's native centre and rotation: a turbine facing
+// north or east is "south" (its pair's southern or western one), the others
+// face the other way.
 func TurbinePlacement(area Rectangle, pairSouth bool) (domain.Cell, domain.Rotation) {
 	if area.Width == 2 && area.Height == turbineWidth { // a turned pair: the western one faces east
 		if pairSouth {
@@ -291,24 +199,19 @@ func PlannedPowerSites(plan LayoutPlan, definition string) []PlannedPowerSite {
 			}
 		}
 	case WindTurbineDefinition:
-		for _, r := range plan.Reservations {
-			if r.Kind != ReserveTurbine {
+		for _, s := range plan.LiveSites(NodeTurbine) {
+			i := slices.IndexFunc(turbineTurns, func(t turbineTurn) bool { return t.rot == s.Rotation })
+			if i < 0 {
 				continue
 			}
-			south := true
-			for _, o := range plan.Reservations {
-				if o.Kind == ReserveTurbine && o.Pair == r.Pair && (o.Area.Bounds().Z < r.Area.Bounds().Z || o.Area.Bounds().X < r.Area.Bounds().X) {
-					south = false
-				}
-			}
-			c, rot := TurbinePlacement(r.Area.Bounds(), south)
-			out = append(out, PlannedPowerSite{Cell: c, Rotation: rot, Area: r.Area.Bounds()})
+			area := s.Footprint.Bounds()
+			c, rot := TurbinePlacement(area, turbineTurns[i].south)
+			out = append(out, PlannedPowerSite{Cell: c, Rotation: rot, Area: area})
 		}
 	case SolarDefinition:
-		for _, r := range plan.Reservations {
-			if r.Kind == ReserveSolar {
-				out = append(out, PlannedPowerSite{Cell: domain.Cell{X: r.Area.Bounds().X + 1, Z: r.Area.Bounds().Z + 1}, Rotation: domain.North, Area: r.Area.Bounds()})
-			}
+		for _, s := range plan.LiveSites(NodeSolar) {
+			a := s.Footprint.Bounds()
+			out = append(out, PlannedPowerSite{Cell: domain.Cell{X: a.X + 1, Z: a.Z + 1}, Rotation: domain.North, Area: a})
 		}
 	case GeothermalDefinition:
 		// The 6x6 generator inside the shell, on the geyser's position: a

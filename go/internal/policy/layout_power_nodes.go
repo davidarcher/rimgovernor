@@ -6,11 +6,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The power sites as site nodes of the station graph (#2919). The advisory
-// chain asks for one node per planned turbine, solar plot and geothermal
-// enclosure (PowerSiteNodes) and EmbedSites places them; PlanUtilities stays
-// the authoritative planner until the cutover (#2931), and PlannedPowerSites,
-// TurbinePlacement and TurbineCatchZone stay the read API.
+// The power sites as site nodes of the station graph (#2919, #2960). The chain
+// asks for one node per turbine, solar plot and geothermal enclosure
+// (PowerSiteNodes) and EmbedSites places them; the tiler stores the turbines
+// and plots as PlannedSites (NodeTurbine, NodeSolar) with their wind lanes, and
+// PlannedPowerSites, TurbinePlacement and TurbineCatchZone stay the read API.
 //
 //   - A turbine is a small footprint with a wind lane and four turns. The lane
 //     overlaps fields and other lanes freely: crops do not block wind, so a lane
@@ -51,10 +51,12 @@ const ReasonWindLane = "wind_path"
 
 // turbineTurns are a turbine's four turns, with whether the turbine is the
 // pair's southern one in TurbinePlacement's terms and whether it lies turned.
-var turbineTurns = []struct {
+type turbineTurn struct {
 	rot           domain.Rotation
 	south, turned bool
-}{
+}
+
+var turbineTurns = []turbineTurn{
 	{domain.North, true, false}, {domain.South, false, false}, {domain.East, true, true}, {domain.West, false, true},
 }
 
@@ -72,20 +74,68 @@ func turbineNode(id string) SiteNode {
 		shapes = append(shapes, SiteNode{ID: id, Footprint: RectRegion(pad), Lanes: []SiteLane{lane}, Rotation: rot})
 	}
 	n := shapes[0]
-	n.Alts, n.Reason = shapes[1:], ReasonPowerSite
+	n.Alts, n.Kind, n.Reason = shapes[1:], NodeTurbine, ReasonPowerSite
+	n.Band = DistanceBand{Max: powerSiteReach}
 	return n
 }
 
+// PowerSitesOf are the placed turbines and solar plots as the plan's stored
+// sites, in node order. A geothermal enclosure is anchored on the reservation
+// the plan already holds and a battery room is a room, so neither is stored
+// again; a node that found no ground (no placement) is left out.
+func PowerSitesOf(nodes []SiteNode, placed SiteEmbedding) []PlannedSite {
+	var out []PlannedSite
+	for _, n := range nodes {
+		if n.Kind != NodeTurbine && n.Kind != NodeSolar {
+			continue
+		}
+		if p, ok := placed.Site(n.ID); ok {
+			out = append(out, PlannedSite{SitePlacement: p, Kind: n.Kind, Reason: n.Reason})
+		}
+	}
+	return out
+}
+
+// The power sites a plan is owed, by generator def: turbines stand singly (a
+// facing pair falls out of the wind-lane pricing, not a rule), and a plan owes
+// the two and the one plot the old generator reserved, the day-1 supply
+// (judgment: nothing in the game says how many a first plan holds; the colony's
+// demand grows the rest through SelectPowerMethod, which builds on the planned
+// sites). Registered in DefTables (powerSites).
+var firstPowerSites = map[string]int{WindTurbineDefinition: 2, SolarDefinition: 1}
+
+// powerSiteReach is the most clear ground, in cells, a turbine or solar plot
+// keeps from the nearest room when one stands in reach (judgment: the ring
+// encloses the sites, so ground far from the rooms drags the wall out and
+// the old generator kept them against the core; the embedder falls back to
+// any ground when none lies in reach). Registered with firstPowerSites.
+const powerSiteReach int32 = 6
+
+// Node kinds of the stored power sites.
+const (
+	NodeTurbine NodeKind = "wind_turbine"
+	NodeSolar   NodeKind = "solar"
+)
+
+// PowerWants is how many turbine and solar nodes the graph holds.
+type PowerWants struct{ Turbines, Solar int }
+
+// FirstPowerWants is what a first plan owes (firstPowerSites).
+func FirstPowerWants() PowerWants {
+	return PowerWants{Turbines: firstPowerSites[WindTurbineDefinition], Solar: firstPowerSites[SolarDefinition]}
+}
+
 // PowerSiteNodes are the site nodes for the plan's power sites: a node per
-// planned turbine, solar plot and geothermal enclosure, ids numbered in plan
-// order.
-func PowerSiteNodes(plan LayoutPlan) []SiteNode {
+// turbine, solar plot and geothermal enclosure, ids numbered in plan order.
+// The plan's own sites count, and want raises the counts for a plan that holds
+// fewer (a first plan holds none).
+func PowerSiteNodes(plan LayoutPlan, want PowerWants) []SiteNode {
 	var nodes []SiteNode
-	for i := range PlannedPowerSites(plan, WindTurbineDefinition) {
+	for i := range max(len(PlannedPowerSites(plan, WindTurbineDefinition)), want.Turbines) {
 		nodes = append(nodes, turbineNode(fmt.Sprintf("wind-%d", i+1)))
 	}
-	for i := range PlannedPowerSites(plan, SolarDefinition) {
-		nodes = append(nodes, SiteNode{ID: fmt.Sprintf("solar-%d", i+1), Footprint: RectRegion(Rectangle{Width: solarSide, Height: solarSide}), Reason: ReasonPowerSite})
+	for i := range max(len(PlannedPowerSites(plan, SolarDefinition)), want.Solar) {
+		nodes = append(nodes, SiteNode{ID: fmt.Sprintf("solar-%d", i+1), Kind: NodeSolar, Footprint: RectRegion(Rectangle{Width: solarSide, Height: solarSide}), Band: DistanceBand{Max: powerSiteReach}, Reason: ReasonPowerSite})
 	}
 	i := 0
 	for _, r := range plan.Reservations {

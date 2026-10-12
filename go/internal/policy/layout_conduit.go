@@ -22,8 +22,8 @@ import (
 // and no star forms on any node, the battery room included.
 
 // ConduitRef names one end of a link: "room:<id>" for a planned room or
-// "site:<node id>" for a site. Until site nodes are planned (#2919), a power
-// reservation is a site, named by SiteRef.
+// "site:<node id>" for a site: a stored turbine or solar plot by its node id,
+// a geothermal enclosure or battery-room reservation by ReservationSiteID.
 type ConduitRef string
 
 const (
@@ -77,19 +77,27 @@ type ConduitDecision struct {
 }
 
 // powerSiteKinds are the reservations that stand on the power net: the
-// generators and the battery room.
-var powerSiteKinds = []ReservationKind{ReserveBatteryRoom, ReserveTurbine, ReserveSolar, ReserveGeothermal}
+// geothermal enclosures and the battery room. The turbines and solar plots are
+// stored sites (powerSiteNodes).
+var powerSiteKinds = []ReservationKind{ReserveBatteryRoom, ReserveGeothermal}
 
-// ReservationSiteID names reservation index i as a site node until #2919
-// re-points reservations to site nodes: the kind and its position in
-// LayoutPlan.Reservations.
+// ReservationSiteID names reservation index i as a conduit site: the kind and
+// its position in LayoutPlan.Reservations.
 func ReservationSiteID(kind ReservationKind, i int) string {
 	return string(kind) + "-" + strconv.Itoa(i)
+}
+
+// powerSiteNodes are the stored turbines and solar plots, in plan order.
+func (p LayoutPlan) powerSiteNodes() []PlannedSite {
+	return append(p.LiveSites(NodeTurbine), p.LiveSites(NodeSolar)...)
 }
 
 // conduitSites are the power site node ids the plan holds.
 func (p LayoutPlan) conduitSites() map[string]bool {
 	out := map[string]bool{}
+	for _, s := range p.powerSiteNodes() {
+		out[s.Node] = true
+	}
 	for i, r := range p.Reservations {
 		if slices.Contains(powerSiteKinds, r.Kind) {
 			out[ReservationSiteID(r.Kind, i)] = true
@@ -139,6 +147,11 @@ type conduitNode struct {
 func RouteConduits(plan LayoutPlan, consumers []conduitNode, survey MapSurvey) ([]ConduitLink, []ConduitDecision) {
 	allowed := ConduitCells(survey, plan.AllRooms())
 	var nodes []conduitNode
+	for _, s := range plan.powerSiteNodes() {
+		cells := s.Footprint.Cells()
+		sortCells(cells)
+		nodes = append(nodes, conduitNode{ref: SiteRef(s.Node), cells: cells})
+	}
 	for i, r := range plan.Reservations {
 		if slices.Contains(powerSiteKinds, r.Kind) {
 			cells := r.Area.Cells()

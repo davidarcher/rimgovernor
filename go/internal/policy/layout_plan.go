@@ -108,18 +108,13 @@ type ReservationKind string
 
 const (
 	ReserveBatteryRoom ReservationKind = "battery_room"
-	ReserveTurbine     ReservationKind = "turbine"
-	ReserveTurbineLane ReservationKind = "turbine_lane"
-	ReserveSolar       ReservationKind = "solar"
 	ReserveGeothermal  ReservationKind = "geothermal"
 )
 
-// LayoutReservation is one reserved site; Pair groups a turbine pair with
-// its lanes (0 for every other kind).
+// LayoutReservation is one reserved site.
 type LayoutReservation struct {
 	Kind ReservationKind
 	Area Region
-	Pair int32 `json:",omitempty"`
 	// Facing is the side a walled reservation's door faces (the incinerator).
 	Facing domain.Rotation `json:",omitempty"`
 	// Herd is the race of the herd whose unit a pen, barn or vet room belongs
@@ -619,5 +614,5 @@ func (p LayoutPlan) FieldAnchor(free func(Rectangle) bool) (domain.Cell, bool) {
 
 // Equal reports whether both reservations are the same site.
 func (r LayoutReservation) Equal(o LayoutReservation) bool {
-	return r.Kind == o.Kind && r.Pair == o.Pair && r.Facing == o.Facing && r.Herd == o.Herd && r.Area.Equal(o.Area)
+	return r.Kind == o.Kind && r.Facing == o.Facing && r.Herd == o.Herd && r.Area.Equal(o.Area)
 }

@@ -107,6 +107,46 @@ func TestPowerRouteExtendsFromProducerAndSkipsNativeFootprints(t *testing.T) {
 	}
 }
 
+// The route in a proposal is the planned path (LayoutPlan.Conduits), the built
+// cells skipped, even where a shorter run over the ground exists; a consumer the
+// plan never routed searches the ground.
+func TestPowerRouteFollowsThePlannedConduits(t *testing.T) {
+	v := PowerTopology{Buildings: []PowerSite{powerSite("lamp", 1, -200, 0, ""), powerSite("generator", 14, 1000, 1000, "b")}, Blackout: domain.Known(false)}
+	var cells []SiteCell
+	for z := int32(1); z <= 4; z++ {
+		for x := int32(1); x <= 14; x++ {
+			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Terrain: domain.Known("Soil"), Things: OccupantThings(true)})
+		}
+	}
+	// The plan detours along z=4: lamp (1,2) down to (1,4), across, up to the generator (14,2).
+	planned := []domain.Cell{{X: 14, Z: 2}, {X: 14, Z: 3}}
+	for x := int32(14); x >= 1; x-- {
+		planned = append(planned, domain.Cell{X: x, Z: 4})
+	}
+	planned = append(planned, domain.Cell{X: 1, Z: 3}, domain.Cell{X: 1, Z: 2})
+	plan := LayoutPlan{
+		Sites:    []PlannedSite{solarSite("solar-1", Rectangle{X: 14, Z: 2, Width: 1, Height: 1})},
+		Rooms:    []PlannedRoom{{ID: 1, Role: PlannedWorkshop, Region: RectRegion(Rectangle{X: 1, Z: 2, Width: 1, Height: 1})}},
+		Conduits: []ConduitLink{{From: RoomRef(1), To: SiteRef("solar-1"), Cells: planned}},
+	}
+	planning := testPowerPlanning()
+	straight, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, planning)
+	if err != nil || straight.Method != PowerConnect || len(straight.Cells) != 13 {
+		t.Fatal("without a plan the route is the straight run:", straight, err)
+	}
+	planning.Net = PlannedNetOf(plan)
+	got, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, planning)
+	if err != nil || got.Method != PowerConnect || !reflect.DeepEqual(got.Cells, planned[1:]) {
+		t.Fatalf("proposal %v (%v), want the planned path %v", got.Cells, err, planned[1:])
+	}
+	// A cell already laid is skipped, not laid twice.
+	v.Conduits = []domain.Cell{{X: 14, Z: 3}}
+	got, err = SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, planning)
+	if err != nil || got.Method != PowerConnect || !reflect.DeepEqual(got.Cells, planned[2:]) {
+		t.Fatalf("proposal %v (%v), want the planned path less the built cell", got.Cells, err)
+	}
+}
+
 // One proposal carries the whole route: a 30-cell run is not cut into bounded
 // methods.
 func TestPowerRouteIsOneProposalForALongRun(t *testing.T) {

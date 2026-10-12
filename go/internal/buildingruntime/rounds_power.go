@@ -42,6 +42,9 @@ func (r *RoundsBuildingPlanner) selectPower(facts observation.ColonyProjection, 
 	planning.BatteryAvailable = facts.DefinitionAvailable(policy.BatteryDefinition)
 	planning.GeothermalAvailable = facts.DefinitionAvailable(policy.GeothermalDefinition)
 	planning.PendingDemandW = pendingDemand(facts, pendingConsumers)
+	if plan, ok := facts.LayoutPlan.Value(); ok {
+		planning.Net = policy.PlannedNetOf(plan)
+	}
 	proposal, err := policy.SelectPowerMethod(facts.PowerPlanning, facts.Bounds, facts.Cells, nil, planning)
 	if err != nil {
 		return nil, Verdict{}, err

@@ -150,20 +150,10 @@ func auditSoil(plan policy.LayoutPlan, s policy.MapSurvey, crops [][]domain.Cell
 	wall := plan.WallCells()
 	a.WallCells = len(wall)
 
-	// A turbine lane is zoned as a field of its own under the blades; it
-	// is a utility, not a fertile patch, and is left out.
-	lane := map[domain.Cell]bool{}
-	for _, r := range plan.Reservations {
-		if r.Kind == policy.ReserveTurbineLane {
-			for _, c := range r.Area.Cells() {
-				lane[c] = true
-			}
-		}
-	}
 	var patches []map[domain.Cell]bool
 	owner, zoneOf := map[domain.Cell]int{}, map[domain.Cell]int{}
 	for zi, z := range plan.Zones {
-		if z.Kind != policy.ZoneField || len(z.Runs) == 0 || lane[domain.Cell{X: z.Runs[0].X, Z: z.Runs[0].Z}] {
+		if z.Kind != policy.ZoneField || len(z.Runs) == 0 {
 			continue
 		}
 		// The wall takes in rich soil only: each 4-connected rich part of

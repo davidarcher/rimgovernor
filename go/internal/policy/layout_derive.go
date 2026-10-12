@@ -22,6 +22,9 @@ import (
 // (HerdPlan.PenAnimals), the yards, the perimeter and its mountain pockets. The
 // pens are sited by the replan, once the pasture is read. A geothermal
 // enclosure is reserved on each reported steam geyser and rooms stay off it;
+// the turbines and solar plots (FirstPowerWants) are placed beside the rooms by
+// the site embedding and stored with their wind lanes, and the tiler routes the
+// conduit net to them;
 // the outskirts are rooms of the chain itself. The advice is returned beside
 // the plan for the caller to journal. Unknown when the survey holds no room
 // for a core; the error is the chain's (ErrStationFacts for a fact the colony
@@ -29,7 +32,7 @@ import (
 func DeriveLayoutPlan(s MapSurvey, f StationFacts, geysers []PowerGeyser, animals int) (domain.Fact[LayoutPlan], StationAdvice, error) {
 	zones := Zone(s)
 	footprints := geyserFootprints(geysers)
-	f.Derive, f.Built, f.Survey = true, map[int32]bool{}, s
+	f.Derive, f.Built, f.Survey, f.Power = true, map[int32]bool{}, s, FirstPowerWants()
 	f.Plan = LayoutPlan{Zones: coreWithout(zones, geothermalCells(footprints)), Cold: s.Cold, Hot: s.Hot, Reservations: geothermalReservations(zones, footprints)}
 	advice, err := TileStations(f)
 	if err != nil {

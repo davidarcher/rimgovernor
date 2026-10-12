@@ -140,8 +140,7 @@ func zoneRuns(w, h int32, in func(int32) bool) []RowRun {
 // zoneRichFertility is the fertility above which soil is rich.
 const zoneRichFertility = 1.0
 
-// FieldCells is every cell of the plan's field zones (turbine lanes
-// included, since they are zoned as fields).
+// FieldCells is every cell of the plan's field zones.
 func (p LayoutPlan) FieldCells() map[domain.Cell]bool {
 	out := map[domain.Cell]bool{}
 	for _, z := range p.Zones {

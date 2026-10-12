@@ -87,6 +87,8 @@ func DefTables() []DefTable {
 		// building the cut is walled with.
 		{"perimeterTable", "Verse.ThingDef", []string{perimeterTable.WallDef}},
 		{"windPath", "Verse.ThingDef", []string{WindTurbineDefinition}},
+		// firstPowerSites (#2960): how many turbines and solar plots a first plan owes.
+		{"firstPowerSites", "Verse.ThingDef", sortedKeys(firstPowerSites)},
 	}
 }
 

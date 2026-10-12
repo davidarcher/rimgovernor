@@ -118,6 +118,9 @@ type TileInput struct {
 	// Light is the price of darkness against lamps (layout_light.go); invalid
 	// leaves the lamps unplaced and the decision says so.
 	Light LightPrice
+	// Sites are the power sites the site embedding placed beside the rooms
+	// (PowerSitesOf): stored on the plan, they join the conduit net.
+	Sites []PlannedSite
 }
 
 // TileDecision is one tiling decision for the caller to journal. Group is the
@@ -223,7 +226,7 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 	blocks := slices.Clone(in.Embedding.Blocks)
 	placed := placedBlocks(in.Groups, blocks)
 	sort.Slice(blocks, func(i, j int) bool { return blocks[i].Group < blocks[j].Group })
-	t.plan = LayoutPlan{Zones: in.Zones, Reservations: in.Reservations}
+	t.plan = LayoutPlan{Zones: in.Zones, Reservations: in.Reservations, Sites: slices.Clone(in.Sites)}
 	t.fieldZones() // the placed fields, no walls or doors (layout_field_place.go)
 	// Every group owes a room, placed or not: a group the embedding left out
 	// stays in the hard tier's Missing term instead of hiding behind another

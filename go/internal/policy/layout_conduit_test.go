@@ -99,8 +99,15 @@ func TestRouteCellsNearestStartDeterministic(t *testing.T) {
 	}
 }
 
+// solarSite is a stored solar plot named id.
+func solarSite(id string, r Rectangle) PlannedSite {
+	return newSite(id, NodeSolar, RectRegion(r), ReasonPowerSite)
+}
+
+// conduitPlan holds the 2x2 solar plot "solar-1" at (2, 2) and the reservations.
 func conduitPlan(reservations ...LayoutReservation) LayoutPlan {
 	return LayoutPlan{
+		Sites: []PlannedSite{solarSite("solar-1", Rectangle{X: 2, Z: 2, Width: 2, Height: 2})},
 		Rooms: []PlannedRoom{
 			{ID: 1, Role: PlannedWorkshop, Region: RectRegion(Rectangle{X: 20, Z: 5, Width: 3, Height: 3}), Door: cellAt(19, 6), DoorRot: domain.West},
 			{ID: 2, Role: PlannedKitchen, Region: RectRegion(Rectangle{X: 20, Z: 15, Width: 3, Height: 3}), Door: cellAt(19, 16), DoorRot: domain.West},
@@ -111,10 +118,7 @@ func conduitPlan(reservations ...LayoutReservation) LayoutPlan {
 }
 
 func TestRouteConduitsGrowsOneNetWithSharedCells(t *testing.T) {
-	plan := conduitPlan(
-		LayoutReservation{Kind: ReserveBatteryRoom, Area: RectRegion(Rectangle{X: 2, Z: 10, Width: 2, Height: 2})},
-		LayoutReservation{Kind: ReserveSolar, Area: RectRegion(Rectangle{X: 2, Z: 2, Width: 2, Height: 2})},
-	)
+	plan := conduitPlan(LayoutReservation{Kind: ReserveBatteryRoom, Area: RectRegion(Rectangle{X: 2, Z: 10, Width: 2, Height: 2})})
 	survey := conduitSurvey(30, 24, nil)
 	consumers := []conduitNode{
 		{ref: RoomRef(1), cells: RectRegion(Rectangle{X: 20, Z: 5, Width: 3, Height: 3}).Cells()},
@@ -128,13 +132,13 @@ func TestRouteConduitsGrowsOneNetWithSharedCells(t *testing.T) {
 	if !plan.Valid() {
 		t.Fatal("the routed net must be a valid plan")
 	}
-	// The solar site joins the root (the battery room), not a star centre;
-	// the second consumer joins the nearest cell of the net, which is cells
-	// a previous link laid.
-	if links[0].From != SiteRef("solar-1") || links[0].To != SiteRef("battery_room-0") {
-		t.Fatalf("solar joins the root: %+v", links[0])
+	// The battery room joins the root (the stored solar plot, which leads), not
+	// a star centre; the second consumer joins the nearest cell of the net,
+	// which is cells a previous link laid.
+	if links[0].From != SiteRef("battery_room-0") || links[0].To != SiteRef("solar-1") {
+		t.Fatalf("the battery room joins the root: %+v", links[0])
 	}
-	if links[2].To == SiteRef("battery_room-0") {
+	if links[2].To == SiteRef("solar-1") {
 		t.Fatalf("the kitchen should join the net where it is nearest, not the root: %+v", links[2])
 	}
 	for _, d := range decisions {
@@ -142,14 +146,15 @@ func TestRouteConduitsGrowsOneNetWithSharedCells(t *testing.T) {
 			t.Fatalf("decision: %+v", d)
 		}
 	}
-	again, _ := RouteConduits(conduitPlan(plan.Reservations...), consumers, survey)
+	plan.Conduits = nil
+	again, _ := RouteConduits(plan, consumers, survey)
 	if !reflect.DeepEqual(links, again) {
 		t.Fatal("the net must not vary between runs")
 	}
 }
 
 func TestRouteConduitsReportsBlockedAndSourceless(t *testing.T) {
-	plan := conduitPlan(LayoutReservation{Kind: ReserveSolar, Area: RectRegion(Rectangle{X: 2, Z: 2, Width: 2, Height: 2})})
+	plan := conduitPlan()
 	survey := conduitSurvey(30, 24, func(c *SurveyCell) {
 		if c.Cell.X == 10 { // a water moat splits the map
 			c.Walkable, c.Footing = false, FootingNone
@@ -160,7 +165,9 @@ func TestRouteConduitsReportsBlockedAndSourceless(t *testing.T) {
 	if len(links) != 0 || len(decisions) != 1 || decisions[0].Reason != ReasonConduitBlocked || decisions[0].Verdict != TileUnsatisfied {
 		t.Fatalf("a moated consumer is blocked, not guessed: %v %v", links, decisions)
 	}
-	links, decisions = RouteConduits(conduitPlan(), consumers, survey)
+	bare := conduitPlan()
+	bare.Sites = nil
+	links, decisions = RouteConduits(bare, consumers, survey)
 	if len(links) != 0 || len(decisions) != 1 || decisions[0].Reason != ReasonConduitNoSource {
 		t.Fatalf("no power site, no net: %v %v", links, decisions)
 	}
@@ -177,7 +184,7 @@ func TestTilePlansConduitsForPowerDrawingRooms(t *testing.T) {
 	}
 	in.Catalog.Stations = stations
 	cell := in.Survey.Cells[0].Cell
-	in.Reservations = []LayoutReservation{{Kind: ReserveSolar, Area: RectRegion(Rectangle{X: cell.X, Z: cell.Z, Width: 1, Height: 1})}}
+	in.Sites = []PlannedSite{solarSite("solar-1", Rectangle{X: cell.X, Z: cell.Z, Width: 1, Height: 1})}
 	res, err := TileEmbedding(in)
 	if err != nil {
 		t.Fatal(err)
@@ -197,8 +204,8 @@ func TestTilePlansConduitsForPowerDrawingRooms(t *testing.T) {
 }
 
 func TestConduitValidRejectsBadLinks(t *testing.T) {
-	plan := conduitPlan(LayoutReservation{Kind: ReserveSolar, Area: RectRegion(Rectangle{X: 2, Z: 2, Width: 2, Height: 2})})
-	good := ConduitLink{From: RoomRef(1), To: SiteRef("solar-0"), Cells: []domain.Cell{cellAt(5, 5), cellAt(5, 6)}}
+	plan := conduitPlan()
+	good := ConduitLink{From: RoomRef(1), To: SiteRef("solar-1"), Cells: []domain.Cell{cellAt(5, 5), cellAt(5, 6)}}
 	plan.Conduits = []ConduitLink{good}
 	if !plan.Valid() {
 		t.Fatal("a good link is valid")

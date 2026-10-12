@@ -18,8 +18,31 @@ func utilityTestZones() []LayoutZone {
 	}))
 }
 
+// testTurbineSite is the turbine node's turn facing rot, placed at origin as the
+// site embedding stores it.
+func testTurbineSite(id string, rot domain.Rotation, origin domain.Cell) PlannedSite {
+	node := turbineNode(id)
+	for _, shape := range append([]SiteNode{node}, node.Alts...) {
+		if shape.Rotation != rot {
+			continue
+		}
+		p := SitePlacement{Node: id, Origin: origin, Footprint: shape.Footprint.Translate(origin.X, origin.Z), Rotation: rot}
+		for _, l := range shape.Lanes {
+			p.Lanes = append(p.Lanes, SiteLane{ID: l.ID, Region: l.Region.Translate(origin.X, origin.Z), Reason: l.Reason, Wind: true})
+		}
+		return PlannedSite{SitePlacement: p, Kind: NodeTurbine, Reason: ReasonPowerSite}
+	}
+	panic("no such turn")
+}
+
+// testSolarSite is a stored 4x4 solar plot.
+func testSolarSite(id string, x, z int32) PlannedSite {
+	return newSite(id, NodeSolar, RectRegion(Rectangle{X: x, Z: z, Width: solarSide, Height: solarSide}), ReasonPowerSite)
+}
+
 func TestPlannedPowerSites(t *testing.T) {
-	p := PlanUtilities(withRooms(corePlan(utilityTestZones(), 3, TechTierCamp), PlannedBattery), UtilityWants{TurbinePairs: 1, Solar: 1})
+	p := PlanUtilities(withRooms(corePlan(utilityTestZones(), 3, TechTierCamp), PlannedBattery), UtilityWants{})
+	p.Sites = append(p.Sites, testTurbineSite("wind-1", domain.North, domain.Cell{X: 60, Z: 60}), testTurbineSite("wind-2", domain.South, domain.Cell{X: 60, Z: 90}), testSolarSite("solar-1", 100, 100))
 	batteries := PlannedPowerSites(p, BatteryDefinition)
 	if len(batteries) != 8 || batteries[0].Block != (Rectangle{}) || batteries[1].Block != (Rectangle{}) {
 		t.Fatal(batteries)
@@ -213,23 +236,15 @@ func TestTurbineWindCells(t *testing.T) {
 func TestPlanUtilities(t *testing.T) {
 	zones := utilityTestZones()
 	core := withRooms(growPlan(corePlan(zones, 0, TechTierCamp), 0, 1, TechTierCamp), PlannedBattery)
-	p := PlanUtilities(core, UtilityWants{TurbinePairs: 2, Solar: 2, Geysers: []Rectangle{{X: 20, Z: 190, Width: 2, Height: 2}}})
+	p := PlanUtilities(core, UtilityWants{Geysers: []Rectangle{{X: 20, Z: 190, Width: 2, Height: 2}}})
 	if !p.WithRoomIDs().Valid() {
 		t.Fatal("invalid")
 	}
-	g := newCoreGrid(zones, nil)
 	count := map[ReservationKind]int{}
-	var turbines, lanes []LayoutReservation
 	for _, r := range p.Reservations {
 		count[r.Kind]++
-		switch r.Kind {
-		case ReserveTurbine:
-			turbines = append(turbines, r)
-		case ReserveTurbineLane:
-			lanes = append(lanes, r)
-		}
 	}
-	if count[ReserveTurbine] != 4 || count[ReserveTurbineLane] != 6 || count[ReserveSolar] != 2 || count[ReserveGeothermal] != 1 || count[ReserveExhaust] != 2 {
+	if count[ReserveGeothermal] != 1 || count[ReserveExhaust] != 2 {
 		t.Fatal(count)
 	}
 	// Battery room: 5 wide off the spine, door on the walkway, no lane.
@@ -246,58 +261,6 @@ func TestPlanUtilities(t *testing.T) {
 		t.Fatal("slots", n)
 	}
 	checkCore(t, LayoutPlan{Spine: p.Spine, Rooms: p.Rooms[:len(core.Rooms)], Zones: zones}, 0)
-
-	planned := func(c domain.Cell) bool {
-		for _, r := range p.Rooms {
-			if inRect(roomWalls(r), c) {
-				return true
-			}
-		}
-		for _, s := range p.Spine {
-			if c.X >= s.From.X && c.X <= s.To.X && c.Z >= s.From.Z-1 && c.Z <= s.From.Z+1 {
-				return true
-			}
-		}
-		return false
-	}
-	for _, tb := range turbines {
-		south := false
-		for _, o := range turbines {
-			if o.Pair == tb.Pair && (o.Area.Bounds().Z > tb.Area.Bounds().Z || o.Area.Bounds().X > tb.Area.Bounds().X) {
-				south = true
-			}
-		}
-		center, rot := TurbinePlacement(tb.Area.Bounds(), south)
-		inLane := 0
-		for _, c := range TurbineWindCells(center, rot) {
-			if g.rock[c] || !g.core[c] || planned(c) {
-				t.Fatal("blocked wind cell", c)
-			}
-			for _, o := range turbines {
-				if inRect(o.Area.Bounds(), c) {
-					t.Fatal("turbine in a zone", o, c)
-				}
-			}
-			for _, l := range lanes {
-				if l.Pair == tb.Pair && inRect(l.Area.Bounds(), c) {
-					inLane++
-					break
-				}
-			}
-			field := false
-			for _, z := range p.Zones {
-				for _, run := range z.Runs {
-					field = field || run.Z == c.Z && c.X >= run.X && c.X < run.X+run.Length
-				}
-			}
-			if !field {
-				t.Fatal("wind cell not a field", c)
-			}
-		}
-		if inLane != 112 {
-			t.Fatal("wind cells outside lanes", inLane)
-		}
-	}
 	// The generator never builds over a reservation.
 	grown := growPlan(p, 20, 1, TechTierCamp)
 	for _, r := range grown.Rooms {
@@ -313,7 +276,7 @@ func TestPlanUtilities(t *testing.T) {
 func TestPlanUtilitiesHerdUnit(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	core := corePlan(utilityTestZones(), 3, TechTierCamp)
-	p := PlanUtilities(core, UtilityWants{Solar: 1, PenAnimals: 30})
+	p := PlanUtilities(core, UtilityWants{PenAnimals: 30})
 	var barn *LayoutReservation
 	for i, r := range p.Reservations {
 		if r.Kind == ReserveBarn {
@@ -351,36 +314,23 @@ func TestPlanUtilitiesHerdUnit(t *testing.T) {
 	}
 }
 
-// TestTurnedTurbinePair: an east-west pair faces its turbines across the
-// shared lane and every wind cell lies in the pair's lanes.
-func TestTurnedTurbinePair(t *testing.T) {
-	site := Rectangle{X: 40, Z: 50, Width: turbinePairSpan, Height: turbineWidth}
-	var turbines, lanes []LayoutReservation
-	for _, r := range turbinePair(site, 1, true) {
-		if r.Kind == ReserveTurbine {
-			turbines = append(turbines, r)
-		} else {
-			lanes = append(lanes, r)
+// TestStoredTurbineTurns: a stored turbine reads back in each of its four turns
+// on its own footprint, the turned two as 2x7 pads facing east or west, and the
+// wind lane it carries is exactly the game's wind path of the planned centre.
+func TestStoredTurbineTurns(t *testing.T) {
+	for i, rot := range []domain.Rotation{domain.North, domain.South, domain.East, domain.West} {
+		p := LayoutPlan{Sites: []PlannedSite{testTurbineSite("wind-1", rot, domain.Cell{X: 40, Z: 50 + int32(i)})}}
+		sites := PlannedPowerSites(p, WindTurbineDefinition)
+		if len(sites) != 1 || sites[0].Rotation != rot {
+			t.Fatal(rot, sites)
 		}
-	}
-	if len(turbines) != 2 || turbines[0].Area.Bounds().Width != 2 || turbines[0].Area.Bounds().Height != turbineWidth {
-		t.Fatal(turbines)
-	}
-	rots := map[domain.Rotation]bool{}
-	for i, tb := range turbines {
-		centre, rot := TurbinePlacement(tb.Area.Bounds(), i == 0)
-		rots[rot] = true
-		for _, c := range TurbineWindCells(centre, rot) {
-			in := false
-			for _, l := range lanes {
-				in = in || inRect(l.Area.Bounds(), c)
-			}
-			if !in {
-				t.Fatal("wind cell outside the lanes", rot, c)
-			}
+		turned := rot == domain.East || rot == domain.West
+		if a := sites[0].Area; turned != (a.Width == 2 && a.Height == turbineWidth) || !turned && (a.Width != turbineWidth || a.Height != 2) {
+			t.Fatal("footprint", rot, a)
 		}
-	}
-	if !rots[domain.East] || !rots[domain.West] {
-		t.Fatal(rots)
+		want := RegionOf(TurbineWindCells(sites[0].Cell, sites[0].Rotation))
+		if !want.Equal(p.Sites[0].Lanes[0].Region) {
+			t.Fatal("lane is not the wind path", rot)
+		}
 	}
 }

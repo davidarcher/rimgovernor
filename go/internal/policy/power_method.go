@@ -173,6 +173,10 @@ type PowerPlanning struct {
 	// Light is the terrain defs that afford Light: where the power route and
 	// a shelter may run (SiteCell.SupportsLight).
 	Light LightTerrains
+	// Net is the conduit net the layout plan laid (PlannedNetOf): a connect
+	// proposal runs along it, skipping the built cells, and searches the
+	// ground only where the plan holds no path.
+	Net PlannedNet
 }
 
 func DefaultPowerPlanning() PowerPlanning {
@@ -452,7 +456,7 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 		// the live producer: the new cells are HiddenConduit, so connecting
 		// adds no zzztt exposure and the consumer does not wait out the
 		// upgrade plans.
-		if p, ok := connectLiveBeforeUpgrade(v, existing, unsafeSeen, route); ok {
+		if p, ok := connectLiveBeforeUpgrade(v, existing, unsafeSeen, route, planning.Net); ok {
 			return p, nil
 		}
 		upgrade := append([]domain.Cell(nil), v.UnsafeConduits...)
@@ -591,7 +595,7 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 				p.Method = PowerWaitPlayer
 				return p, nil
 			}
-			path := powerRoute(target.Cell, destinations, route)
+			path := plannedRoute(planning.Net, target.Cell, destinations, route)
 			if len(path) == 0 {
 				p.Method = PowerRouteBlocked
 				return p, nil
@@ -619,7 +623,7 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 // unforbidden, unconnected consumer whose route reaches a producer already
 // outputting power, provided no ordinary conduit on the route lies beyond the
 // first new cell (such a conduit would be newly energized).
-func connectLiveBeforeUpgrade(v PowerTopology, existing, unsafe, route map[domain.Cell]bool) (PowerProposal, bool) {
+func connectLiveBeforeUpgrade(v PowerTopology, existing, unsafe, route map[domain.Cell]bool, net PlannedNet) (PowerProposal, bool) {
 	occupied := map[domain.Cell]bool{}
 	destinations := map[domain.Cell]bool{}
 	for _, b := range v.Buildings {
@@ -647,7 +651,7 @@ func connectLiveBeforeUpgrade(v PowerTopology, existing, unsafe, route map[domai
 		if base >= 0 || !ck || connected || f || !s {
 			continue
 		}
-		path := powerRoute(target.Cell, destinations, route)
+		path := plannedRoute(net, target.Cell, destinations, route)
 		var cells []domain.Cell
 		safe := true
 		for _, c := range path {

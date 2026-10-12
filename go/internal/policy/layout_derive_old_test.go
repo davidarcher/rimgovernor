@@ -14,14 +14,10 @@ func oldDerive(s MapSurvey, pawns int, tier TechTier, geysers []PowerGeyser, ani
 		return domain.Unknown[LayoutPlan]()
 	}
 	plan.Zones = zones
-	want := UtilityWants{TurbinePairs: 1, Solar: 1}
-	want.Geysers, want.PenAnimals, want.ThickRoof = footprints, animals, ThickRoofCells(s)
-	scorer := newPlanScorer(plan.Zones, plan.Reserved(), s)
-	want.scorer = &scorer
-	plan = PlanUtilities(plan, want)
+	plan = PlanUtilities(plan, UtilityWants{Geysers: footprints, PenAnimals: animals})
 	plan = PlanYardSites(plan, YardRoomsWanted(RoomDemand{}))
 	plan, _ = growOutskirts(plan, OutskirtsSize())
-	plan, _ = growOutskirtsRooms(plan, want.ThickRoof)
+	plan, _ = growOutskirtsRooms(plan, ThickRoofCells(s))
 	plan = PlanMountainPockets(PlanPerimeter(plan, s), s)
 	return domain.Known(withoutCore(plan).WithRoomIDs())
 }

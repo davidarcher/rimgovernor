@@ -176,7 +176,7 @@ func TestReplanSitesTheSuccessorThenRetiresThePredecessor(t *testing.T) {
 		}
 	}
 	all := allPins(plan)
-	succ := Successor{Replaces: old.ID, Role: PlannedStorage, Floor: old.Region.Area(), Shortfall: 30, Sizes: [][2]int32{{16, 9}, {9, 16}}}
+	succ := Successor{Replaces: old.ID, Role: PlannedStorage, Floor: old.Region.Area(), Shortfall: 150, Sizes: [][2]int32{{16, 16}, {12, 22}}}
 
 	next, changed, err := ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: all, Built: all, Successor: succ}, 0, 3, 0, TechTierCamp, nil, nil)
 	if err != nil || !changed || !next.Valid() {
@@ -230,7 +230,7 @@ func TestReplanReportsASuccessorItCannotSite(t *testing.T) {
 	}
 	all := allPins(plan)
 	for name, sizes := range map[string][][2]int32{"no block": nil, "too large": {{900, 900}}} {
-		succ := Successor{Replaces: old.ID, Role: PlannedStorage, Floor: old.Region.Area(), Shortfall: 30, Sizes: sizes}
+		succ := Successor{Replaces: old.ID, Role: PlannedStorage, Floor: old.Region.Area(), Shortfall: 150, Sizes: sizes}
 		next, _, err := ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: all, Built: all, Successor: succ}, 0, 3, 0, TechTierCamp, nil, nil)
 		unsited, _ := SplitUnsited(err)
 		if len(unsited) != 1 || unsited[0].Successor.Replaces != old.ID || unsited[0].Reason == "" {
