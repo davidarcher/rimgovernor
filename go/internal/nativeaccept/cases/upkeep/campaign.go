@@ -27,14 +27,11 @@ import (
 // family composed so far, follows the stage's own journal watch and audits
 // the native outcome. A recovered goal that is measured in deficit again
 // starts a new Episode (domain.ReviewStandard). Colony traffic can reopen
-// a goal honestly (dirt tracked into the cleaned kitchen), so the property is
+// a goal honestly (a medicine stock drawn down again), so the property is
 // the issue's: no deficit reopens without recovery. A reopen is recorded and
 // the goal must be recovered again within reopenTicks and before the stage
 // ends; a goal that is rebound, cancelled or invalidated fails at once.
 //
-//	kitchen -- test/cleanliness_prepare (filthy): blood in an enclosed
-//	      kitchen, every colonist's Cleaning at 0, so only
-//	      MaintainCleanFacilities' forced orders clean it.
 //	medicine -- test/medicine_setup: no medicine, MaintainMedicalReserves.
 //	cold   -- routine_sleeping_prepare + routine_temperature_prepare
 //	      (coldSnap: days have passed, so ordinary cold snaps bring
@@ -99,15 +96,12 @@ func campaignStages() []stage {
 			prepare: sc.prepare, watch: sc.watch, verify: sc.verify}
 	}
 	stages := []stage{
-		{name: "kitchen", fixture: "test/cleanliness_prepare", families: []routinefamily.Family{routinefamily.Clean},
-			needs:   []policy.ConcernID{policy.MaintainCleanFacilities},
-			prepare: prepareKitchen, watch: watchKitchen, verify: verifyKitchen},
 		fromScenario(all["medicine"], policy.MaintainMedicalReserves),
 		fromScenario(all["cold"], policy.EnsureTemperatureSafety),
 	}
 	// Days of play have passed by the last stage; the fixture cools the map
 	// with ordinary cold snaps rather than failing on a warm afternoon.
-	stages[2].prepare = prepareColdWith(true)
+	stages[1].prepare = prepareColdWith(true)
 	return stages
 }
 
@@ -126,7 +120,7 @@ func init() {
 		Serve:  &cases.ServeSpec{Families: cumulativeFamilies(stages, len(stages)), Prefix: prefix},
 		Stages: names,
 		Budget: campaignBudget,
-		Crew:   cases.Crew{Size: 3}, Reason: "Three deficits chained on one colony with a service restart between them; each stage alone runs in one to four minutes on the registry runner and the chain is the property under test.",
+		Crew:   cases.Crew{Size: 3}, Reason: "Two deficits chained on one colony with a service restart between them; each stage alone runs in one to four minutes on the registry runner and the chain is the property under test.",
 		Run: runCampaign,
 	})
 }
@@ -152,7 +146,7 @@ func runCampaign(ctx context.Context, s cases.Session) error {
 	stages := campaignStages()
 	for _, st := range stages {
 		if !na.Contains(s.Names(), st.fixture) {
-			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture CleanlinessFixture,UpkeepFixture,ForecastFixture,RoundsSleepingFixture", st.fixture)
+			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture UpkeepFixture,ForecastFixture,RoundsSleepingFixture", st.fixture)
 		}
 	}
 	state, err := restoreCampaignState(s)
@@ -358,9 +352,9 @@ func rebindClosedStandards(ctx context.Context, closed []closedStandard, review 
 }
 
 // reopenTicks bounds how long an earlier stage's goal may sit in deficit
-// again before the campaign fails: three times the cleanliness grace, so a
-// room colonists track dirt into is a new deficit the service must close,
-// not a regression, while a goal that never recovers is.
+// again before the campaign fails: a deficit that colony traffic reopens is
+// a new one the service must close, not a regression, while a goal that
+// never recovers is.
 const reopenTicks = 90000
 
 // recoveredWait bounds the wall time a stage waits after its own watch for
@@ -507,115 +501,4 @@ func (g *closedGuard) stop() error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.err
-}
-
-// ---- kitchen -------------------------------------------------------------
-
-func prepareKitchen(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error) {
-	prepared, err := callFixture(ctx, h, identity, "test/cleanliness_prepare", map[string]any{"scenario": "filthy", "filthPerRoom": 3})
-	if err != nil {
-		return nil, err
-	}
-	report["kitchen_filth"] = len(na.AsSlice(prepared["kitchenFilth"]))
-	return prepared, nil
-}
-
-// kitchenRect reports whether c lies inside the fixture kitchen's wall
-// rectangle.
-func kitchenRect(prepared map[string]any) func(domain.Cell) bool {
-	rect, _ := na.AsMap(prepared["kitchen"])
-	return func(c domain.Cell) bool {
-		return float64(c.X) >= na.AsNumber(rect["minX"]) && float64(c.X) <= na.AsNumber(rect["maxX"]) &&
-			float64(c.Z) >= na.AsNumber(rect["minZ"]) && float64(c.Z) <= na.AsNumber(rect["maxZ"])
-	}
-}
-
-func watchKitchen(ctx context.Context, journal *store.Store, prepared map[string]any, report na.Report) error {
-	deficitCtx, deficitCancel := context.WithTimeout(ctx, 4*time.Minute)
-	defer deficitCancel()
-	if _, err := waitNeed(deficitCtx, journal, policy.MaintainCleanFacilities, domain.FindingUnmet); err != nil {
-		return err
-	}
-	kitchenFilth := map[string]bool{}
-	for _, raw := range na.AsSlice(prepared["kitchenFilth"]) {
-		kitchenFilth[na.AsString(raw)] = true
-	}
-	inKitchen := kitchenRect(prepared)
-	// One forced order per filth (the fixture's blood, or dirt the cleaner
-	// tracked in), every one inside the kitchen, until the measured room
-	// cleanliness recovers the goal.
-	seen := map[domain.PlanID]bool{}
-	orders := 0
-	for {
-		if orders > 12 {
-			return fmt.Errorf("MaintainCleanFacilities not recovered after %d clean orders", orders)
-		}
-		label := fmt.Sprintf("clean_%d", orders)
-		if _, err := followMethodsExcluding(ctx, journal, policy.MaintainCleanFacilities, label, seen, func(a domain.Action) error {
-			clean, ok := a.Clean()
-			if !ok {
-				return fmt.Errorf("not a clean order: %v", a.Kind())
-			}
-			if !kitchenFilth[clean.Filth()] && !inKitchen(clean.Cell()) {
-				return fmt.Errorf("clean order targets %s at %v, outside the kitchen", clean.Filth(), clean.Cell())
-			}
-			return nil
-		}, report); err != nil {
-			return err
-		}
-		orders++
-		report["clean_orders"] = orders
-		if report[label+"_recovered_by"] == "ordinary_work" {
-			break
-		}
-		recoverCtx, recoverCancel := context.WithTimeout(ctx, 90*time.Second)
-		_, err := waitNeed(recoverCtx, journal, policy.MaintainCleanFacilities, domain.FindingMet)
-		recoverCancel()
-		if err == nil {
-			break
-		}
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-	}
-	review, err := journal.LoadRounds(ctx)
-	if err != nil {
-		return err
-	}
-	report["dirty_rooms_after"] = review.Latches.Upkeep.DirtyRooms
-	return nil
-}
-
-func verifyKitchen(ctx context.Context, h *na.Harness, identity, prepared map[string]any, report na.Report) error {
-	observed, err := readColonyFacts(ctx, h, identity, "kitchen-filth-after")
-	if err != nil {
-		return err
-	}
-	section, _ := na.AsMap(observed["upkeep"])
-	_, upkeep, err := na.Outcome(section, "observed")
-	if err != nil {
-		return err
-	}
-	present := map[string]bool{}
-	for _, raw := range na.AsSlice(upkeep["filth"]) {
-		row, _ := na.AsMap(raw)
-		filth, _ := na.AsMap(row["filth"])
-		present[na.AsString(filth["id"])] = true
-	}
-	for _, raw := range na.AsSlice(prepared["kitchenFilth"]) {
-		if id := na.AsString(raw); present[id] {
-			return fmt.Errorf("kitchen filth %s survived natively", id)
-		}
-	}
-	butchery := 0
-	for _, raw := range na.AsSlice(prepared["butcheryFilth"]) {
-		if present[na.AsString(raw)] {
-			butchery++
-		}
-	}
-	report["butchery_filth_after"] = butchery
-	if butchery == 0 {
-		return errors.New("every butchery filth was cleaned; an inherently dirty room is never a target")
-	}
-	return nil
 }

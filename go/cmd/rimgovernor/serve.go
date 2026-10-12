@@ -61,7 +61,6 @@ type serveConfig struct {
 	roundsEquipPlans               bool
 	roundsRepairPlans              bool
 	roundsFireSafetyPlans          bool
-	roundsCleanPlans               bool
 	roundsBurialPlans              bool
 	roundsTrainingPlans            bool
 	roundsIncinerationPlans        bool
@@ -271,7 +270,6 @@ func roundsFamilies(c *serveConfig) []roundsFamily {
 		{routinefamily.Equip, &c.roundsEquipPlans},
 		{routinefamily.Repair, &c.roundsRepairPlans},
 		{routinefamily.Fire, &c.roundsFireSafetyPlans},
-		{routinefamily.Clean, &c.roundsCleanPlans},
 		{routinefamily.Burial, &c.roundsBurialPlans},
 		{routinefamily.Training, &c.roundsTrainingPlans},
 		{routinefamily.Incineration, &c.roundsIncinerationPlans},

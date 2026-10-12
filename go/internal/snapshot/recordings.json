@@ -1,10 +1,5 @@
 [
   {
-    "out": "internal/snapshot/testdata/clean-filthy-kitchen.json.gz",
-    "case": "clean/filthy",
-    "tick": 158107
-  },
-  {
     "out": "internal/snapshot/testdata/food-starving-tribal-no-hunt-row.json.gz",
     "case": "food/starving-tribal",
     "tick": 55502,

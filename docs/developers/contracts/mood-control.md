@@ -43,7 +43,6 @@ them (a thought names every concern providing it):
 | `SleptOutside`, `SleptOnGround`, `SleptInBarracks`, `NeedRoomSize` | `MaintainHousing` |
 | `EnvironmentDark` | `MaintainLighting` |
 | `EnvironmentCold`, `EnvironmentHot` | `EnsureTemperatureSafety` |
-| `NeedBeauty` | `MaintainCleanFacilities` |
 
 When those thoughts carry at least half of the pawn's negative thought offset, the
 pawn's mood state records the owners (most negative first) and the method proposal is

@@ -4662,9 +4662,6 @@
    "v": []
   },
   "Upkeep": {
-   "CleaningWorkers": {
-    "v": 3
-   },
    "Filth": {
     "v": [
      {
@@ -4905,8 +4902,7 @@
       "Priority": 2
      }
     ]
-   },
-   "Tick": 21
+   }
   },
   "UpkeepIssued": {},
   "UrgentPatients": {
@@ -5337,12 +5333,6 @@
  },
  "Policy": {
   "AcquisitionStallTicks": 60000,
-  "Cleanliness": {
-   "EnterC": -1,
-   "ExitC": -0.25,
-   "GraceTicks": 30000,
-   "MaxTargets": 8
-  },
   "ColdEnter": 12,
   "ColdExit": 16,
   "Flooring": {
@@ -5962,10 +5952,6 @@
     "Concern": "MaintainEssentialRepairs"
    },
    {
-    "Standard": "routine-02166dbc97454acb-MaintainCleanFacilities",
-    "Concern": "MaintainCleanFacilities"
-   },
-   {
     "Standard": "routine-02166dbc97454acb-ClearHomeObstructions",
     "Concern": "ClearHomeObstructions"
    },
@@ -6141,14 +6127,6 @@
     "Method": "assess",
     "NextReview": 2521,
     "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainCleanFacilities",
-    "LastProgress": 21,
-    "Method": "assess",
-    "NextReview": 2521
    },
    {
     "Blocked": "no_method",

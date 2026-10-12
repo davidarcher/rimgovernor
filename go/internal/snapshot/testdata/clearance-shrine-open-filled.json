@@ -10218,9 +10218,6 @@
    "v": []
   },
   "Upkeep": {
-   "CleaningWorkers": {
-    "v": 6
-   },
    "Filth": {
     "v": [
      {
@@ -10843,8 +10840,7 @@
       "Priority": 1
      }
     ]
-   },
-   "Tick": 15
+   }
   },
   "UpkeepIssued": {},
   "UrgentPatients": {
@@ -11707,12 +11703,6 @@
  },
  "Policy": {
   "AcquisitionStallTicks": 60000,
-  "Cleanliness": {
-   "EnterC": -1,
-   "ExitC": -0.25,
-   "GraceTicks": 30000,
-   "MaxTargets": 8
-  },
   "ColdEnter": 12,
   "ColdExit": 16,
   "ConcernStallTicks": 2500,
@@ -12092,14 +12082,6 @@
    },
    {
     "Blocked": "no_method",
-    "Concern": "MaintainCleanFacilities",
-    "Expected": "deficit shrinks or the method's work settles",
-    "LastProgress": 15,
-    "Method": "assess",
-    "NextReview": 2515
-   },
-   {
-    "Blocked": "no_method",
     "Concern": "ClearHomeObstructions",
     "Expected": "deficit shrinks or the method's work settles",
     "LastProgress": 15,
@@ -12258,9 +12240,7 @@
      "State": "no_method"
     },
     {
-     "Concerns": [
-      "MaintainCleanFacilities"
-     ],
+     "Concerns": [],
      "ID": "ff685ecfd5a9b68f",
      "Reason": "no plan or proposal",
      "Stage": "none",
@@ -13282,10 +13262,6 @@
    {
     "Concern": "MaintainEssentialRepairs",
     "Standard": "routine-1bf97f76353844d2-MaintainEssentialRepairs"
-   },
-   {
-    "Concern": "MaintainCleanFacilities",
-    "Standard": "routine-1bf97f76353844d2-MaintainCleanFacilities"
    },
    {
     "Concern": "ClearHomeObstructions",

@@ -44,11 +44,11 @@ func TestRecordStepElidesHeldCells(t *testing.T) {
 		reading := observation.ColonyProjection{Facts: base.Facts, Workers: domain.Known(i)}
 		reading.Cells = cells
 		reading.Identity.Tick = base.Tick
-		if err = RecordStep(dir, "building", policy.MaintainCleanFacilities, base.Snapshot, reading); err != nil {
+		if err = RecordStep(dir, "building", policy.MaintainEssentialRepairs, base.Snapshot, reading); err != nil {
 			t.Fatal(err)
 		}
 		var s Step
-		data, _ := Encode(Step{Snapshot: base.Snapshot, Tick: base.Tick, Concern: policy.MaintainCleanFacilities, Planner: "building", Projection: reading})
+		data, _ := Encode(Step{Snapshot: base.Snapshot, Tick: base.Tick, Concern: policy.MaintainEssentialRepairs, Planner: "building", Projection: reading})
 		if err = Decode(data, &s); err != nil {
 			t.Fatal(err)
 		}
@@ -82,7 +82,7 @@ func TestRecordStepElidesHeldCells(t *testing.T) {
 		t.Fatalf("steps naming the cells' section: %v, want [true false true]", named)
 	}
 	for i := range want {
-		got, err := LoadStreamStep(paths[0], StepRead{Planner: "building", Concern: policy.MaintainCleanFacilities, Tick: base.Tick, Seq: i + 1}.String())
+		got, err := LoadStreamStep(paths[0], StepRead{Planner: "building", Concern: policy.MaintainEssentialRepairs, Tick: base.Tick, Seq: i + 1}.String())
 		if err != nil {
 			t.Fatal(err)
 		}

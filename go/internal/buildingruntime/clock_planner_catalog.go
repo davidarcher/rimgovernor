@@ -450,16 +450,6 @@ var plannerCatalog = []plannerEntry{
 			out.Shrine = &method
 			return method.Verdict, nil
 		}},
-	{name: "clean", concern: policy.MaintainCleanFacilities, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.CleanAction}, sections: sectionsBuilding, families: familiesEmergency,
-		configured: func(c *ClockSchedulerConfig) bool { return c.Clean != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			method, err := s.config.Clean.step(ctx, epoch, arbiter)
-			if err != nil {
-				return Verdict{}, err
-			}
-			out.Clean = &method
-			return method.Verdict, nil
-		}},
 	{name: "pollution", concern: policy.ManagePollution, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.AreaAction, domain.SupplyAllowAction, domain.WastepackHaulAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Pollution != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

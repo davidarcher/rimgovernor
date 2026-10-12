@@ -6324,9 +6324,6 @@
    "v": []
   },
   "Upkeep": {
-   "CleaningWorkers": {
-    "v": 0
-   },
    "Filth": {
     "v": [
      {
@@ -6589,8 +6586,7 @@
    },
    "Structures": {
     "v": []
-   },
-   "Tick": 21
+   }
   },
   "UpkeepIssued": {},
   "UrgentPatients": {
@@ -7320,12 +7316,6 @@
  },
  "Policy": {
   "AcquisitionStallTicks": 60000,
-  "Cleanliness": {
-   "EnterC": -1,
-   "ExitC": -0.25,
-   "GraceTicks": 30000,
-   "MaxTargets": 8
-  },
   "ColdEnter": 12,
   "ColdExit": 16,
   "Flooring": {
@@ -7904,10 +7894,6 @@
     "Concern": "MaintainEssentialRepairs"
    },
    {
-    "Standard": "routine-02166dbc97454acb-MaintainCleanFacilities",
-    "Concern": "MaintainCleanFacilities"
-   },
-   {
     "Standard": "routine-02166dbc97454acb-ClearHomeObstructions",
     "Concern": "ClearHomeObstructions"
    },
@@ -8079,14 +8065,6 @@
    {
     "Blocked": "no_method",
     "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainCleanFacilities",
-    "LastProgress": 21,
-    "Method": "assess",
-    "NextReview": 2521
-   },
-   {
-    "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "ClearHomeObstructions",
     "LastProgress": 21,
     "Method": "assess",
@@ -8121,7 +8099,6 @@
   "ReadyWork": {
    "Candidates": [
     {
-     
      "Concerns": [],
      "ID": "2c5d61eca6cc636b",
      "Reason": "no plan or proposal",
@@ -8129,7 +8106,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -8139,7 +8115,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainFoodStorage"
      ],
@@ -8149,7 +8124,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -8159,7 +8133,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainEquipment"
      ],
@@ -8169,7 +8142,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainMedicalReserves"
      ],
@@ -8179,7 +8151,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainHerd"
      ],
@@ -8189,7 +8160,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainResource"
      ],
@@ -8199,7 +8169,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -8209,7 +8178,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "EnsureComfort"
      ],

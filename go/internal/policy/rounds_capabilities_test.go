@@ -54,7 +54,7 @@ func TestRoundsDisabledMethodsPreserveNeeds(t *testing.T) {
 // native read. RecoverDisasterServices is only assessed once a disaster
 // history exists, so it needs an explicit recognition.
 func TestRoundsComposedCapabilitiesValidateOnEmptyFacts(t *testing.T) {
-	all := []ConcernID{EnsureFoodSupply, MaintainFoodStorage, MaintainResource, EnsureCooking, EnsureTemperatureSafety, EnsureBasicPower, EnsureComfort, MaintainHousing, MaintainAnimalContainment, MaintainEssentialRepairs, MaintainCleanFacilities, MaintainIncineration, RecoverDisasterServices, MaintainHerd, MaintainPopulation, MaintainHomeCoverage, MaintainStoneShell, EnsureResearch, RemoveBlight}
+	all := []ConcernID{EnsureFoodSupply, MaintainFoodStorage, MaintainResource, EnsureCooking, EnsureTemperatureSafety, EnsureBasicPower, EnsureComfort, MaintainHousing, MaintainAnimalContainment, MaintainEssentialRepairs, MaintainIncineration, RecoverDisasterServices, MaintainHerd, MaintainPopulation, MaintainHomeCoverage, MaintainStoneShell, EnsureResearch, RemoveBlight}
 	if _, err := InspectRounds(RoundsFacts{AvailableMethods: domain.Known(all)}, RoundsLatches{}, DefaultRoundsPolicy()); err != nil {
 		t.Fatal(err)
 	}

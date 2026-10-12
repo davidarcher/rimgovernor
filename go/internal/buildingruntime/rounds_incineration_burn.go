@@ -229,3 +229,33 @@ func (r *RoundsIncinerationPlanner) commitBurnPlan(call, epoch context.Context, 
 	}
 	return RoundsIncinerationResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
 }
+
+func cleanCandidateFacts(pawn domain.PawnID, row *n.PawnState) policy.CleanCandidateFacts {
+	facts := policy.CleanCandidateFacts{Pawn: pawn, Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), MentalState: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
+	if row.Job != nil && !boundary.IssueField(row.Job.Issues, "player_forced") {
+		facts.PlayerForced = boundary.FactBool(row.Job.PlayerForced)
+	}
+	if health := row.Health; health != nil && !boundary.IssueField(health.Issues, "health") {
+		facts.NeedsTend, facts.Bleeding = boundary.FactBool(health.NeedsTend), boundary.FactBool(health.Bleeding)
+	}
+	if settings := row.Settings; settings != nil && !boundary.IssueField(settings.Issues, "work") {
+		facts.CleaningEnabled = cleaningWorkEnabled(settings.Work)
+	}
+	return facts
+}
+
+func cleaningWorkEnabled(work []*n.WorkSetting) domain.Fact[bool] {
+	for _, w := range work {
+		if w == nil || w.GetDefName() != "Cleaning" {
+			continue
+		}
+		if w.Disabled == nil || w.Priority == nil {
+			return domain.Unknown[bool]()
+		}
+		// A direct clean order is player-forced: native honours it whatever
+		// the Work-tab priority says (OrderTool.FinishWorkGiverPlan); only
+		// real incapability excludes a pawn.
+		return domain.Known(!w.GetDisabled())
+	}
+	return domain.Unknown[bool]()
+}

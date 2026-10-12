@@ -190,7 +190,7 @@ Kept, reason recorded:
 | NativeCaravanOperations.cs | 246 | code | FormCaravanIntent handler: builds the dialog, selects crew and cargo, runs the game form/reform caravan call. |  |  |
 | NativeChoiceDialogOperations.cs | 50 | state | DialogIntent: activates one exact option of the open force-pausing choice dialog. |  |  |
 | NativeClaimBuilding.cs | 92 | state | BuildingPatchIntent claim arm: eligibility check, CAS token and SetFaction on a live building. |  |  |
-| NativeCleanOperations.cs | 75 | state | GiveJob Clean order on one exact filth using WorkGiver_CleanFilth rules. |  |  |
+| NativeCleanOperations.cs | 75 | state | GiveJob Clean order on one exact filth using WorkGiver_CleanFilth rules (incineration ash); also hosts the Giver BenchCleaningGuard uses. |  |  |
 | NativeClearCover.cs | 47 | state | Classifies a map thing as plant/mineable/chunk/building cover and reads standing removal designations. | Mine/CutPlant/Haul/Deconstruct const strings (4 entries) | none needed; designation names are protocol tokens |
 | NativeClearanceObservationTools.cs | 428 | mixed | Clearance target census with salvage evidence cache, ancient-danger and hive-danger checks; mostly live state. | Classify() ThingDefOf.ShipChunk/Wall checks (3 defs); HiveDangerRadius=14; salvageSignatureEveryTicks=60 | Go rule over ThingDef rows (ShipChunk/Wall by defName/thingClass); HiveDangerRadius into GameConstants (#2626) |
 | NativeClockEventProjection.cs | 212 | code | Projects clock-journal event rows into typed Clock.Event protos; clock transport infrastructure. |  |  |

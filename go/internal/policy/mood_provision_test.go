@@ -89,7 +89,7 @@ func TestMoodProvisionValidation(t *testing.T) {
 	if err := (MoodHistory{States: []MoodState{s}}).Validate(); err == nil {
 		t.Fatal("duplicate owner accepted")
 	}
-	for _, def := range []string{"AteWithoutTable", "NeedJoy", "SleptOutside", "SleptOnGround", "EnvironmentDark", "EnvironmentCold", "EnvironmentHot", "NeedBeauty", "NeedRoomSize"} {
+	for _, def := range []string{"AteWithoutTable", "NeedJoy", "SleptOutside", "SleptOnGround", "EnvironmentDark", "EnvironmentCold", "EnvironmentHot", "NeedRoomSize"} {
 		owners := thoughtOwners(def)
 		if len(owners) == 0 {
 			t.Fatal(def)

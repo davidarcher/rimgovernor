@@ -25496,9 +25496,6 @@
    "v": []
   },
   "Upkeep": {
-   "CleaningWorkers": {
-    "v": 6
-   },
    "Filth": {
     "v": []
    },
@@ -28473,8 +28470,7 @@
       "Priority": 1
      }
     ]
-   },
-   "Tick": 40501
+   }
   },
   "UpkeepIssued": {},
   "UrgentPatients": {
@@ -29339,12 +29335,6 @@
  },
  "Policy": {
   "AcquisitionStallTicks": 60000,
-  "Cleanliness": {
-   "EnterC": -1,
-   "ExitC": -0.25,
-   "GraceTicks": 30000,
-   "MaxTargets": 8
-  },
   "ColdEnter": 12,
   "ColdExit": 16,
   "Flooring": {
@@ -29704,10 +29694,6 @@
     "Concern": "MaintainEssentialRepairs"
    },
    {
-    "Standard": "routine-eb99163e6625776b-MaintainCleanFacilities",
-    "Concern": "MaintainCleanFacilities"
-   },
-   {
     "Standard": "routine-eb99163e6625776b-ClearHomeObstructions",
     "Concern": "ClearHomeObstructions"
    },
@@ -29998,7 +29984,6 @@
   "ReadyWork": {
    "Candidates": [
     {
-     
      "Concerns": [
       "MaintainHerd"
      ],
@@ -30008,7 +29993,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainEquipment"
      ],
@@ -30018,7 +30002,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainStoneShell"
      ],
@@ -30028,7 +30011,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "EnsureBasicDefense"
      ],
@@ -30038,7 +30020,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [],
      "ID": "78d80e10938f0d91",
      "Reason": "no plan or proposal",
@@ -30046,7 +30027,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainMedicalReserves"
      ],
@@ -30056,7 +30036,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainResource"
      ],
@@ -30066,7 +30045,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -30076,7 +30054,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainFlooring"
      ],
@@ -30086,7 +30063,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -30096,7 +30072,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainFoodStorage"
      ],

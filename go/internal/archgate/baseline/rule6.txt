@@ -211,13 +211,6 @@ internal/policy/armory.go|-|2500
 internal/policy/burn.go|-|"Filth_Ash"
 internal/policy/candidate.go|-|"Blight"
 internal/policy/child_rooms.go|-|"DeathrestCasket"
-internal/policy/cleanliness.go|-|"Bed"
-internal/policy/cleanliness.go|-|"Campfire"
-internal/policy/cleanliness.go|-|"RoyalBed"
-internal/policy/cleanliness.go|-|"SleepingSpot"
-internal/policy/cleanliness.go|-|"TableButcher"
-internal/policy/cleanliness.go|CleanlinessPolicy.valid|600000
-internal/policy/cleanliness.go|DefaultCleanlinessPolicy|30000
 internal/policy/clearance_ground.go|standInBed|"SleepingSpot"
 internal/policy/clock_window.go|EvaluateClockWindow|1.8e+06
 internal/policy/combat_burnout.go|-|"Door"
@@ -289,6 +282,11 @@ internal/policy/item_facts_fixture.go|CoreItemFacts|"WoodLog"
 internal/policy/item_facts_fixture.go|CoreItemFacts|"Wort"
 internal/policy/item_facts_fixture.go|CoreItemFacts|"Yayo"
 internal/policy/item_facts_fixture.go|CoreItemFacts|30000
+internal/policy/kitchen_separation.go|-|"Bed"
+internal/policy/kitchen_separation.go|-|"Campfire"
+internal/policy/kitchen_separation.go|-|"RoyalBed"
+internal/policy/kitchen_separation.go|-|"SleepingSpot"
+internal/policy/kitchen_separation.go|-|"TableButcher"
 internal/policy/layout_defense.go|-|"Bridge"
 internal/policy/layout_defense.go|-|"HeavyBridge"
 internal/policy/layout_defense.go|-|"WoodLog"

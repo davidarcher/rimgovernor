@@ -10,8 +10,8 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // GiveJobIntent Clean, the bounded cleaning response of
-    // MaintainCleanFacilities: exact spawned filth, an
+    // GiveJobIntent Clean, the incineration planner's ash cleaning:
+    // exact spawned filth, an
     // undrafted worker who can reach it at NativeOrderDanger, plus
     // WorkGiver_CleanFilth's own HasJobOnThing (reservable, thickened at
     // least 600 ticks ago, inside the home area), then one JobDefOf.Clean job whose target queue

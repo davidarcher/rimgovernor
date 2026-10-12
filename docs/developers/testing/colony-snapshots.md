@@ -3,7 +3,7 @@
 A colony snapshot is the input one enabled rounds planned against,
 recorded from a native run and replayed in `go test` (package
 `internal/snapshot`). It turns a question a native case answers in minutes
-("does the review open `MaintainCleanFacilities` on this colony?") into a
+("does the review open `MaintainEssentialRepairs` on this colony?") into a
 millisecond unit test over the facts that colony really produced.
 
 A snapshot proves decisions over recorded facts, never native behavior.
@@ -63,7 +63,7 @@ The acceptance harness passes its environment to the serves it launches, so
 from `go/`:
 
 ```bash
-RIMGOVERNOR_SNAPSHOT_DIR=<abs dir> go run ./internal/nativeaccept/cmd/acceptance run clean/filthy -output <fresh dir>
+RIMGOVERNOR_SNAPSHOT_DIR=<abs dir> go run ./internal/nativeaccept/cmd/acceptance run food/starving-tribal -output <fresh dir>
 ```
 
 records every review of that case. The same variable records each combat
@@ -116,7 +116,7 @@ no longer shows it at that point, so pick another tick by hand.
 ```go
 r, err := snapshot.Load("testdata/clean-filthy-kitchen.json")
 needs, err := r.Detect()                                  // policy.DetectRounds over the recording
-a, err := r.Assessment(policy.MaintainCleanFacilities)   // one concern's assessment
+a, err := r.Assessment(policy.MaintainEssentialRepairs) // one concern's assessment
 ```
 
 A planner is a policy function over the same facts: call it with `r.Facts`

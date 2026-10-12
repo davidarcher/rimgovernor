@@ -27,8 +27,8 @@ func TestFromReviewDropsBedPrice(t *testing.T) {
 	}
 }
 
-// Recorded from acceptance run clean/filthy at e24c531b (the last review of
-// the run, tick 158107): blood filth in a kitchen with no cleaner.
+// Recorded from the retired acceptance case clean/filthy at e24c531b (the last review of
+// the run, tick 158107), then stripped of the MaintainCleanFacilities concern: a general review fixture.
 const cleanFilthy = "testdata/clean-filthy-kitchen.json.gz"
 
 func TestReplayReproducesTheRecordedReview(t *testing.T) {
@@ -58,17 +58,6 @@ func TestReplayReproducesTheRecordedReview(t *testing.T) {
 	}
 	if len(bound) > 0 {
 		t.Error("recorded goals replay did not assess", bound)
-	}
-}
-
-func TestReplayFilthyKitchenOpensCleaning(t *testing.T) {
-	r, err := Load(cleanFilthy)
-	if err != nil {
-		t.Fatal(err)
-	}
-	a, err := r.Assessment(policy.MaintainCleanFacilities)
-	if err != nil || a.Finding != domain.FindingUnmet || a.MethodUnavailable {
-		t.Fatal(a, err)
 	}
 }
 

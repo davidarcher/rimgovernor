@@ -281,7 +281,7 @@ func TestIssue6MatrixCoversEveryCriterion(t *testing.T) {
 	// separation are snapshot
 	// tests in internal/buildingruntime, not native rows.
 	criteria := map[string]bool{
-		"dark benches": false, "filthy vs inherently dirty rooms": false,
+		"dark benches":       false,
 		"unreachable stores": false, "disconnected consumers": false, "exhausted fuel": false,
 	}
 	for i, h := range list {

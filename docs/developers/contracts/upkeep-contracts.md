@@ -201,8 +201,8 @@ Home at a time, nearest the colony center first.
 
 - A fresh clearance census must report deconstructible geometry with no roof blocker,
   ancient danger or casket. A standing deconstruct designation is no hold: the admitted
-  Deconstruction adopts it. Repairs precede clearance, clearance precedes direct
-  cleaning, and shared emergency admission still wins. Removals run through the
+  Deconstruction adopts it. Repairs precede clearance,
+  and shared emergency admission still wins. Removals run through the
   recovery queue (tier 1 room obstructions first, then nearest); the roof-first batch
   takes a roof off before its holders. Each held target and reason is a held
   `RecoveryQueue` entry.
@@ -226,9 +226,9 @@ Home at a time, nearest the colony center first.
   removal is selected per fresh census; dispatch revalidates the census and emergency
   read and resumes without a duplicate designation. Selection never adds Home cells.
 
-### Repairs, cleaning, fire
+### Repairs, fire, bench cleaning
 
-- `MaintainEssentialRepairs`, `MaintainCleanFacilities` and `MaintainFireSafety` keep
+- `MaintainEssentialRepairs` and `MaintainFireSafety` keep
   their concern identities across recovery and recurrence. Any observed target enters
   maintenance; recovery needs no deficit and no unresolved issued action. Missing
   evidence retains active risk; a first unavailable read is an ordinary visible blocker,
@@ -246,18 +246,6 @@ Home at a time, nearest the colony center first.
   review; stable IDs break ties. Medicine and rot deadlines rank hauling; native medical
   beds, temperature controls and generators lead repairs, then roof holders, beds and
   worktables; relative damage ranks within a category before cosmetic repairs.
-- Cleaning targets only home-area filth in a workspace (enclosed kitchen, hospital,
-  laboratory, or enclosed room with a cooking bench) whose native Cleanliness stat has
-  latched dirty (enter below -1, release at -0.25; latch keyed by the room's lowest cell,
-  with its entry tick, persisted in `rounds`), after a 30,000-tick grace when a
-  Cleaning-enabled colonist is present, at once with none. A room's filth is the census
-  filth in the room plus home-area filth on a cell touching it (8-way). Filth elsewhere
-  and in inherently dirty rooms (barns, butcher benches) is ordinary colonist work.
-  A clean order is player-forced: any colonist not incapable of Cleaning carries it, and
-  the worker also cleans what the WorkGiver queues beside it. The controller encodes no
-  filth-age threshold. Admission uses the live preview tick (native revalidates tokens;
-  the executor bounds inspection age in wall time; tick advance between pawn read and
-  preview alone does not stale a preview).
 - Opportunistic bench cleaning is native and needs no Go data (`BenchCleaningGuard`, #2515):
   under `Supervisor.IsActive`, a Harmony postfix on `WorkGiver_DoBill.JobOnThing` replaces an
   unforced bill job with one `Clean` job when home-area filth the clean WorkGiver accepts and
@@ -270,7 +258,6 @@ Home at a time, nearest the colony center first.
   patient's bed before operating; and a `JobDriver_TendPatient` that ends `Succeeded` hands
   the doctor a `Clean` job around the patient's bed through the driver's finalizer-job slot
   (never when the doctor tends herself or the tend was player-forced). Acceptance: `clean/care`.
-  It overlaps the Go `MaintainCleanFacilities` planners only in effect; neither consults the other.
 - Butcher placements never share a room with a cooking bench. EnsureFoodSupply owns the
   butcher facility and owes it whatever the food runway: the planned butchery (beside the
   freezer) takes a `ButcherSpot` first, so hunts have a bench at once, then the real
@@ -537,7 +524,7 @@ service state).
 `MaintainFlooring` reasons from the terrain under each room cell and its native stats
 (`UpkeepFacts.flooring`).
 
-- A clean workspace (cleaning's classification) is deficient while any cell's cleanliness is
+- A clean workspace (an enclosed kitchen, hospital, laboratory or cooking-bench room, never a butchery or barn) is deficient while any cell's cleanliness is
   negative; a living room (bedroom, barracks, dining, recreation) while any cell is natural
   ground. Other roles carry no requirement. No hysteresis; an ordered floor still counts as
   deficient but is never ordered twice; an unknown census preserves the latch. Clean

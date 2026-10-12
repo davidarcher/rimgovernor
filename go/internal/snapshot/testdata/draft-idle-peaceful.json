@@ -6443,9 +6443,6 @@
    "v": []
   },
   "Upkeep": {
-   "CleaningWorkers": {
-    "v": 0
-   },
    "Filth": {
     "v": []
    },
@@ -6483,8 +6480,7 @@
    },
    "Structures": {
     "v": []
-   },
-   "Tick": 15
+   }
   },
   "UpkeepIssued": {},
   "UrgentPatients": {
@@ -7310,12 +7306,6 @@
  },
  "Policy": {
   "AcquisitionStallTicks": 60000,
-  "Cleanliness": {
-   "EnterC": -1,
-   "ExitC": -0.25,
-   "GraceTicks": 30000,
-   "MaxTargets": 8
-  },
   "ColdEnter": 12,
   "ColdExit": 16,
   "Flooring": {
@@ -7711,10 +7701,6 @@
     "Concern": "MaintainEssentialRepairs"
    },
    {
-    "Standard": "routine-c3eb5c5911aed24b-MaintainCleanFacilities",
-    "Concern": "MaintainCleanFacilities"
-   },
-   {
     "Standard": "routine-c3eb5c5911aed24b-ClearHomeObstructions",
     "Concern": "ClearHomeObstructions"
    },
@@ -7916,7 +7902,6 @@
   "ReadyWork": {
    "Candidates": [
     {
-     
      "Concerns": [
       "ClearAncientShrine"
      ],
@@ -7926,7 +7911,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [],
      "ID": "4d09d06126a83ed1",
      "Reason": "no plan or proposal",
@@ -7934,7 +7918,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "ClearHomeObstructions"
      ],

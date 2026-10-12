@@ -642,7 +642,7 @@ MyUncleLost	memory	social xml:Core/Defs/PawnRelationDefs/PawnRelations_FamilyByB
 MyWifeDied	memory	social xml:Core/Defs/PawnRelationDefs/PawnRelations_FamilyByChoice.xml	other	
 MyWifeLost	memory	social xml:Core/Defs/PawnRelationDefs/PawnRelations_FamilyByChoice.xml	other	
 Naked	situational	ThoughtWorker_PsychologicallyNude	apparel	
-NeedBeauty	situational	ThoughtWorker_NeedBeauty	need:beauty	MaintainCleanFacilities
+NeedBeauty	situational	ThoughtWorker_NeedBeauty	need:beauty	
 NeedComfort	situational	ThoughtWorker_NeedComfort	need:comfort	
 NeedFood	situational	ThoughtWorker_NeedFood	hediff;hediff:Malnutrition;need:food	
 NeedIndoors	situational	ThoughtWorker_NeedIndoors	need:indoors	

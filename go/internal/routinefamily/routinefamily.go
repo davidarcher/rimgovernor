@@ -53,7 +53,6 @@ var (
 	Equip               = define("equip")
 	Repair              = define("repair")
 	Fire                = define("fire")
-	Clean               = define("clean")
 	Burial              = define("burial")
 	Training            = define("training")
 	Incineration        = define("incineration")

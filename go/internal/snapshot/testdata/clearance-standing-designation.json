@@ -6493,9 +6493,6 @@
      }
     ]
    },
-   "CleaningWorkers": {
-    "v": 0
-   },
    "Clearance": {
     "v": [
      {
@@ -8313,8 +8310,7 @@
       "Priority": 1
      }
     ]
-   },
-   "Tick": 15
+   }
   },
   "UpkeepIssued": {},
   "UrgentPatients": {
@@ -9175,12 +9171,6 @@
  },
  "Policy": {
   "AcquisitionStallTicks": 60000,
-  "Cleanliness": {
-   "EnterC": -1,
-   "ExitC": -0.25,
-   "GraceTicks": 30000,
-   "MaxTargets": 8
-  },
   "ColdEnter": 12,
   "ColdExit": 16,
   "Flooring": {
@@ -9558,10 +9548,6 @@
     "Concern": "MaintainEssentialRepairs"
    },
    {
-    "Standard": "routine-08df6dcf6e806fe2-MaintainCleanFacilities",
-    "Concern": "MaintainCleanFacilities"
-   },
-   {
     "Standard": "routine-08df6dcf6e806fe2-ClearHomeObstructions",
     "Concern": "ClearHomeObstructions"
    },
@@ -9724,14 +9710,6 @@
    {
     "Blocked": "no_method",
     "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainCleanFacilities",
-    "LastProgress": 15,
-    "Method": "assess",
-    "NextReview": 2515
-   },
-   {
-    "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "ClearHomeObstructions",
     "LastProgress": 15,
     "Method": "assess",
@@ -9776,7 +9754,6 @@
   "ReadyWork": {
    "Candidates": [
     {
-     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -9786,7 +9763,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [],
      "ID": "2d864173bf1e6d39",
      "Reason": "no plan or proposal",
@@ -9794,7 +9770,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainMedicalReserves"
      ],
@@ -9804,7 +9779,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -9814,7 +9788,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -9824,7 +9797,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "ClearAncientShrine"
      ],
@@ -9834,7 +9806,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainEquipment"
      ],
@@ -9844,7 +9815,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [],
      "ID": "94fe56f0883a12d0",
      "Reason": "no plan or proposal",
@@ -9852,7 +9822,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "EnsureBasicDefense"
      ],
@@ -9862,17 +9831,13 @@
      "State": "no_method"
     },
     {
-     
-     "Concerns": [
-      "MaintainCleanFacilities"
-     ],
+     "Concerns": [],
      "ID": "a61b349a3efd287f",
      "Reason": "no plan or proposal",
      "Stage": "none",
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainHerd"
      ],
@@ -9882,7 +9847,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainFoodStorage"
      ],
@@ -9892,7 +9856,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainResource"
      ],
@@ -9902,7 +9865,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "ClearHomeObstructions"
      ],
@@ -9912,7 +9874,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "EnsureComfort"
      ],

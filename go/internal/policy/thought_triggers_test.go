@@ -24,7 +24,6 @@ func TestThoughtTriggerTableOwnsProvisionedThoughts(t *testing.T) {
 		"EnvironmentDark": {"light", MaintainLighting},
 		"EnvironmentCold": {"temperature", EnsureTemperatureSafety},
 		"EnvironmentHot":  {"temperature", EnsureTemperatureSafety},
-		"NeedBeauty":      {"need:beauty", MaintainCleanFacilities},
 		"NeedRoomSize":    {"room", MaintainHousing},
 	}
 	for def, want := range owned {
@@ -50,7 +49,7 @@ func TestThoughtTriggerTableOwnsProvisionedThoughts(t *testing.T) {
 			t.Errorf("%s should be an audited thought with no owner", def)
 		}
 	}
-	for _, concern := range []ConcernID{EnsureCooking, EnsureComfort, MaintainHousing, MaintainLighting, EnsureTemperatureSafety, MaintainCleanFacilities} {
+	for _, concern := range []ConcernID{EnsureCooking, EnsureComfort, MaintainHousing, MaintainLighting, EnsureTemperatureSafety} {
 		if !MoodProvisionConcern(concern) {
 			t.Errorf("%s owns no audited thought", concern)
 		}

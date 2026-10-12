@@ -20,18 +20,18 @@ type campaignRestoreSession struct {
 }
 
 func TestCampaignRebindsGuardsOnlyToLoadedReview(t *testing.T) {
-	old := closedStandard{Stage: "kitchen", Need: policy.MaintainCleanFacilities, Standard: "old-kitchen", Episode: 7}
-	review := store.Rounds{Standards: []store.RoundsStandard{{Concern: old.Need, Standard: "loaded-kitchen"}}}
+	old := closedStandard{Stage: "medicine", Need: policy.MaintainMedicalReserves, Standard: "old-medicine", Episode: 7}
+	review := store.Rounds{Standards: []store.RoundsStandard{{Concern: old.Need, Standard: "loaded-medicine"}}}
 	for _, status := range []domain.StandardStatus{domain.StandardOpen, domain.StandardVoided} {
 		closed := []closedStandard{old}
 		err := rebindClosedStandards(context.Background(), closed, review, func(_ context.Context, id domain.StandardID) (store.StandardState, error) {
-			if id != "loaded-kitchen" {
+			if id != "loaded-medicine" {
 				t.Fatalf("loaded %s instead of current binding", id)
 			}
 			return store.StandardState{Standard: domain.Standard{ID: id, Episode: 2, Status: status}}, nil
 		})
 		if status == domain.StandardOpen {
-			if err != nil || closed[0].Standard != "loaded-kitchen" || closed[0].Episode != 2 || closed[0].Stage != old.Stage {
+			if err != nil || closed[0].Standard != "loaded-medicine" || closed[0].Episode != 2 || closed[0].Stage != old.Stage {
 				t.Fatalf("loaded guard = %+v, %v", closed, err)
 			}
 		} else if err == nil {
@@ -59,7 +59,7 @@ func (s campaignRestoreSession) Resumed() (na.Checkpoint, bool) {
 
 func TestCampaignMedicineStateRestoresGuardIdentities(t *testing.T) {
 	want := campaignState{Timeline: []map[string]any{{"stage": "medicine", "tick_after": float64(12345)}}}
-	for i, st := range campaignStages()[:3] {
+	for i, st := range campaignStages()[:2] {
 		want.Closed = append(want.Closed, closedStandard{Stage: st.name, Need: st.needs[0], Standard: domain.StandardID("goal-" + st.name), Episode: uint64(i + 7)})
 	}
 	data, err := json.Marshal(want)
@@ -91,7 +91,7 @@ func TestCampaignDeclaresStages(t *testing.T) {
 	if err := c.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{"kitchen", "medicine", "cold"}; !reflect.DeepEqual(c.Stages, want) {
+	if want := []string{"medicine", "cold"}; !reflect.DeepEqual(c.Stages, want) {
 		t.Fatalf("stages = %v; want %v", c.Stages, want)
 	}
 }

@@ -58,7 +58,6 @@ const routesPriority = 3
 type RoundsPolicy struct {
 	MedicalReserve                                MedicalReservePolicy
 	FoodStorage                                   FoodStoragePolicy
-	Cleanliness                                   CleanlinessPolicy
 	Lighting                                      LightingPolicy
 	Flooring                                      FlooringPolicy
 	Routes                                        RoutesPolicy
@@ -131,7 +130,7 @@ type RoundsPolicy struct {
 // DefaultRoundsPolicy supplies the routine inspection targets and budgets.
 // Individual planners bound their orders; vanilla priorities schedule pawn work.
 func DefaultRoundsPolicy() RoundsPolicy {
-	return RoundsPolicy{MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3, FoodReserveDays: DefaultFoodReserveDays, PrisonerReleaseAfterDays: 15,
+	return RoundsPolicy{MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3, FoodReserveDays: DefaultFoodReserveDays, PrisonerReleaseAfterDays: 15,
 		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: domain.TicksPerDay / 2, AcquisitionStallTicks: domain.TicksPerDay, ConcernStallTicks: int64(domain.TicksPerDay), ResearchLadder: DefaultResearchLadder(), ColonyStage: StageDevelopment}
 }
 
@@ -141,9 +140,6 @@ func (p RoundsPolicy) Validate() error {
 	}
 	if !p.FoodStorage.valid() {
 		return errors.New("invalid food storage thresholds")
-	}
-	if !p.Cleanliness.valid() {
-		return errors.New("invalid cleanliness thresholds")
 	}
 	for _, n := range []float64{p.FoodMinDays, p.FoodTargetDays, p.FootholdFoodDays, p.FoodReserveDays, p.ColdEnter, p.ColdExit, p.HotExit, p.HotEnter, p.PrisonerReleaseAfterDays} {
 		if math.IsNaN(n) || math.IsInf(n, 0) {
@@ -849,7 +845,7 @@ func InspectRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolicy) (Round
 		return RoundsFindings{}, err
 	}
 	c.refrigeration = c.refrigeration.WithWarmRooms(f.WarmRooms)
-	if c.upkeep, err = ReviewUpkeepWith(f.Upkeep, previous.Upkeep, f.UpkeepIssued, p.Cleanliness); err != nil {
+	if c.upkeep, err = ReviewUpkeep(f.Upkeep, previous.Upkeep, f.UpkeepIssued); err != nil {
 		return RoundsFindings{}, err
 	}
 	if c.lighting, err = ReviewLighting(f.Upkeep.Lighting, previous.Lighting, p.Lighting, SkyDarkHold(f.DisasterConditions, f.OutdoorsDark)); err != nil {

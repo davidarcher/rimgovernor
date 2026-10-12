@@ -17,21 +17,21 @@ func filingOf(goals map[string]policy.ConcernID, verdicts map[string]Verdict) fu
 }
 
 func TestWavePlannerReasonsFilesRefusalsPerGoal(t *testing.T) {
-	goals := map[string]policy.ConcernID{"power": policy.EnsureBasicPower, "equip": policy.EnsureBasicDefense, "gear": policy.MaintainEquipment, "research": policy.EnsureResearch, "clean": policy.MaintainCleanFacilities}
+	goals := map[string]policy.ConcernID{"power": policy.EnsureBasicPower, "equip": policy.EnsureBasicDefense, "gear": policy.MaintainEquipment, "research": policy.EnsureResearch, "repair": policy.MaintainEssentialRepairs}
 	verdicts := map[string]Verdict{
 		"power":    noSpace("power_route"),
 		"equip":    BuildingReasonAdmitted,
 		"gear":     refuse(policy.CauseRetriesSpent, "gear_craft", ""),
 		"research": BuildingReasonNoReview,
-		"clean":    BuildingReasonExistingWork,
+		"repair":   BuildingReasonExistingWork,
 		"naming":   refuse(policy.CauseSharedAdmission, "already_reserved", "wood"),
 	}
-	got := wavePlannerReasons([]string{"power", "equip", "gear", "research", "clean", "naming"}, filingOf(goals, verdicts))
+	got := wavePlannerReasons([]string{"power", "equip", "gear", "research", "repair", "naming"}, filingOf(goals, verdicts))
 	want := map[policy.ConcernID]policy.PlannerNote{
-		policy.EnsureBasicPower:        {Cause: policy.CauseNoSpace, Subject: "power_route"},
-		policy.EnsureBasicDefense:      {},
-		policy.MaintainEquipment:       {Cause: policy.CauseRetriesSpent, Subject: "gear_craft"},
-		policy.MaintainCleanFacilities: {Cause: policy.CauseExistingWork},
+		policy.EnsureBasicPower:         {Cause: policy.CauseNoSpace, Subject: "power_route"},
+		policy.EnsureBasicDefense:       {},
+		policy.MaintainEquipment:        {Cause: policy.CauseRetriesSpent, Subject: "gear_craft"},
+		policy.MaintainEssentialRepairs: {Cause: policy.CauseExistingWork},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("%v", got)

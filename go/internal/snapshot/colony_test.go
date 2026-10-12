@@ -69,11 +69,11 @@ func TestRecordRebuildsDecodedColonyFacts(t *testing.T) {
 		want = append(want, r)
 		reading := projection
 		reading.Identity.Tick = r.Tick
-		if err = RecordStep(dir, "building", policy.MaintainCleanFacilities, r.Snapshot, reading); err != nil {
+		if err = RecordStep(dir, "building", policy.MaintainEssentialRepairs, r.Snapshot, reading); err != nil {
 			t.Fatal(err)
 		}
 		var step Step
-		data, _ := Encode(Step{Snapshot: r.Snapshot, Tick: r.Tick, Concern: policy.MaintainCleanFacilities, Planner: "building", Projection: reading})
+		data, _ := Encode(Step{Snapshot: r.Snapshot, Tick: r.Tick, Concern: policy.MaintainEssentialRepairs, Planner: "building", Projection: reading})
 		if err = Decode(data, &step); err != nil {
 			t.Fatal(err)
 		}

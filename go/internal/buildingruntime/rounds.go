@@ -720,7 +720,6 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		}
 	}
 	reading.Projection.Facts.Upkeep.Rooms = reading.Projection.Rooms
-	reading.Projection.Facts.CleaningContext(reading.Projection.Identity.Tick)
 	if err = p.current(ctx, epoch); err != nil {
 		return store.RoundsResult{}, err
 	}

@@ -121,7 +121,6 @@ type ClockSchedulerConfig struct {
 	Equip               *RoundsEquipPlanner
 	Repair              *RoundsRepairPlanner
 	FireSafety          *RoundsFireSafetyPlanner
-	Clean               *RoundsCleanPlanner
 	Gear                *RoundsGearPlanner
 	Medical             *RoundsMedicalPlanner
 	Surgery             *RoundsSurgeryPlanner
@@ -215,7 +214,6 @@ type ClockSchedulerResult struct {
 	Equip                        *RoundsEquipResult
 	Repair                       *RoundsRepairResult
 	FireSafety                   *RoundsFireSafetyResult
-	Clean                        *RoundsCleanResult
 	Gear                         *RoundsGearResult
 	Medical                      *RoundsMedicalResult
 	Surgery                      *RoundsSurgeryResult
@@ -535,9 +533,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.FireSafety != nil && (config.Rounds == nil || config.FireSafety.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.FireSafety != nil && (config.Rounds == nil || config.FireSafety.reviewer != config.Rounds)", ErrControl)
-	}
-	if config.Clean != nil && (config.Rounds == nil || config.Clean.reviewer != config.Rounds) {
-		return nil, fmt.Errorf("%w: NewClockScheduler: config.Clean != nil && (config.Rounds == nil || config.Clean.reviewer != config.Rounds)", ErrControl)
 	}
 	if config.Incineration != nil && (config.Rounds == nil || config.Incineration.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Incineration != nil && (config.Rounds == nil || config.Incineration.reviewer != config.Rounds)", ErrControl)

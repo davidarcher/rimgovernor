@@ -35,7 +35,6 @@ var concernLabels = map[policy.ConcernID]string{
 	policy.ManageSupplySafety:       "Supply safety",
 	policy.MaintainEquipment:        "Equipment",
 	policy.MaintainEssentialRepairs: "Repairs",
-	policy.MaintainCleanFacilities:  "Cleaning",
 	policy.TradeWithCaravan:         "Trade",
 	policy.ActiveCombat:             "Combat",
 	policy.RemoveBlight:             "Blight",

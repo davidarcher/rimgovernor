@@ -139,15 +139,8 @@ func TestReplayStoneShellReplacesOwnedWoodWall(t *testing.T) {
 
 // upkeep/scattered, ticks 15 and 13749: medicine outdoors beside a covered
 // stockpile and a half-damaged Home wall opens
-// MaintainEssentialRepairs until observed repaired;
-// the outdoor dirt lies outside any workspace, so MaintainCleanFacilities
-// never opens.
+// MaintainEssentialRepairs until observed repaired.
 func TestReplayScatteredSuppliesSecuredAndWallRepaired(t *testing.T) {
 	const open, closed = "testdata/upkeep-scattered.json", "testdata/upkeep-scattered-secured.json"
 	transition(t, open, closed, policy.MaintainEssentialRepairs)
-	for _, path := range []string{open, closed} {
-		if a := assess(t, path, policy.MaintainCleanFacilities); a.Finding == domain.FindingUnmet {
-			t.Errorf("%s: outdoor dirt opened MaintainCleanFacilities", path)
-		}
-	}
 }

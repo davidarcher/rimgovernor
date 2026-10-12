@@ -80,11 +80,11 @@ func TestRecordStreamsMirrorSections(t *testing.T) {
 		reading.Facts = v.Facts
 		reading.Identity.Tick = v.Tick
 		reading.Rooms = domain.Known(policy.RoomObservation{})
-		if err = RecordStep(dir, "building", policy.MaintainCleanFacilities, v.Snapshot, reading); err != nil {
+		if err = RecordStep(dir, "building", policy.MaintainEssentialRepairs, v.Snapshot, reading); err != nil {
 			t.Fatal(err)
 		}
 		var s Step
-		data, _ := Encode(Step{Recorded: "", Snapshot: v.Snapshot, Tick: v.Tick, Concern: policy.MaintainCleanFacilities, Planner: "building", Projection: reading})
+		data, _ := Encode(Step{Recorded: "", Snapshot: v.Snapshot, Tick: v.Tick, Concern: policy.MaintainEssentialRepairs, Planner: "building", Projection: reading})
 		if err = Decode(data, &s); err != nil {
 			t.Fatal(err)
 		}

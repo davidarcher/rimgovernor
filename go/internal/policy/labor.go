@@ -60,11 +60,6 @@ func ConcernLabor(id ConcernID) LaborProfile {
 		// The range shell and its stands are built; the native training job
 		// (#2610) spends the trainees' own hours.
 		return LaborProfile{WorkConstruction}
-	case MaintainCleanFacilities:
-		// The bounded cleaning response is a player-forced order any basic
-		// worker not incapable of Cleaning can carry, and it exists for the
-		// case where nobody has Cleaning at priority > 0.
-		return LaborProfile{WorkCleaning, WorkBasic}
 	case MaintainHerd:
 		return LaborProfile{WorkHandling}
 	case MaintainBabyFeeding:

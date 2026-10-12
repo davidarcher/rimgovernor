@@ -1,3 +1,6 @@
+// Package clean holds the native opportunistic-cleaning cases: the Harmony
+// patches that make a pawn clean before a bill (clean/bench) and around a
+// patient's bed (clean/care).
 package clean
 
 import (

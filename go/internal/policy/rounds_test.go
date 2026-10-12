@@ -213,12 +213,11 @@ func TestRoundsRejectsInvalidFactsAndPolicy(t *testing.T) {
 	}
 }
 
-func TestRoundsRepairAndCleanDeficitsStayMethodAvailable(t *testing.T) {
+func TestRoundsRepairDeficitStaysMethodAvailable(t *testing.T) {
 	f := stableRounds()
 	f.Upkeep.Structures = domain.Known([]UpkeepStructure{{ID: "wall", Home: true, HitPoints: 1, MaxHitPoints: 2}})
-	f.Upkeep.Filth = domain.Known([]UpkeepFilth{{ID: "dirt", Home: true}})
 	r := needs(t, f, RoundsLatches{})
-	for _, id := range []ConcernID{MaintainEssentialRepairs, MaintainCleanFacilities} {
+	for _, id := range []ConcernID{MaintainEssentialRepairs} {
 		found := false
 		for _, g := range r.Concerns {
 			if g.ID == id {

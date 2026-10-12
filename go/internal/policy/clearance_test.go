@@ -46,12 +46,12 @@ func TestClearanceRecoveryUnknownAndIssued(t *testing.T) {
 	}
 }
 
-func TestClearanceAdmissionFollowsRepairsAndPrecedesCleaning(t *testing.T) {
+func TestClearanceAdmissionFollowsRepairs(t *testing.T) {
 	f := stableRounds()
 	f.Upkeep.Clearance = domain.Known([]ClearanceTarget{{EntityID: "ruin", InHome: true, Deconstructible: true}})
 	f.Upkeep.Structures = domain.Known([]UpkeepStructure{{ID: "door", Home: true, HitPoints: 50, MaxHitPoints: 100}})
 	f.Upkeep.Filth = domain.Unknown[[]UpkeepFilth]()
-	previous := RoundsLatches{Upkeep: UpkeepHistory{Cleaning: true}}
+	previous := RoundsLatches{}
 	check := func(repair bool) {
 		r := needs(t, f, previous)
 		found := map[ConcernID]bool{}
@@ -60,11 +60,8 @@ func TestClearanceAdmissionFollowsRepairsAndPrecedesCleaning(t *testing.T) {
 			if g.ID == ClearHomeObstructions && g.MethodUnavailable != repair {
 				t.Fatal("clearance did not defer to repairs", g)
 			}
-			if g.ID == MaintainCleanFacilities && !g.MethodUnavailable {
-				t.Fatal("cleaning preceded clearance", g)
-			}
 		}
-		if !found[ClearHomeObstructions] || !found[MaintainCleanFacilities] {
+		if !found[ClearHomeObstructions] {
 			t.Fatal(found)
 		}
 	}

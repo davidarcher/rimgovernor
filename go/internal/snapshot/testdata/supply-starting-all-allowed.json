@@ -9471,9 +9471,6 @@
    "v": []
   },
   "Upkeep": {
-   "CleaningWorkers": {
-    "v": 6
-   },
    "Filth": {
     "v": [
      {
@@ -11763,8 +11760,7 @@
       "Priority": 1
      }
     ]
-   },
-   "Tick": 95886
+   }
   },
   "UpkeepIssued": {},
   "UrgentPatients": {
@@ -12637,12 +12633,6 @@
  },
  "Policy": {
   "AcquisitionStallTicks": 60000,
-  "Cleanliness": {
-   "EnterC": -1,
-   "ExitC": -0.25,
-   "GraceTicks": 30000,
-   "MaxTargets": 8
-  },
   "ColdEnter": 12,
   "ColdExit": 16,
   "Flooring": {
@@ -12825,10 +12815,6 @@
    {
     "Standard": "routine-69c4ddc65761f9c6-MaintainEssentialRepairs",
     "Concern": "MaintainEssentialRepairs"
-   },
-   {
-    "Standard": "routine-69c4ddc65761f9c6-MaintainCleanFacilities",
-    "Concern": "MaintainCleanFacilities"
    },
    {
     "Standard": "routine-69c4ddc65761f9c6-ClearHomeObstructions",
@@ -13043,20 +13029,6 @@
     "Method": "assess",
     "NextReview": 98386,
     "Observed": 0.748829953198128
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 98386
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainCleanFacilities",
-    "LastProgress": 95886,
-    "Method": "assess",
-    "NextReview": 98386
    },
    {
     "Blocked": "no_method",
@@ -13302,7 +13274,6 @@
      ]
     },
     {
-     
      "Concerns": [
       "MaintainFlooring"
      ],
@@ -13312,7 +13283,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainMedicalReserves"
      ],
@@ -13322,7 +13292,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainEquipment"
      ],
@@ -13332,7 +13301,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [],
      "ID": "41b9eaef06620d35",
      "Reason": "no plan or proposal",
@@ -13340,7 +13308,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "EnsureBasicDefense"
      ],
@@ -13350,7 +13317,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainResource"
      ],
@@ -13360,7 +13326,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainHerd"
      ],
@@ -13370,7 +13335,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -13380,7 +13344,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainStoneShell"
      ],
@@ -13390,7 +13353,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -13400,7 +13362,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -13410,7 +13371,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -13420,7 +13380,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [],
      "ID": "e02ebf5505159d89",
      "Reason": "no plan or proposal",

@@ -20,23 +20,14 @@ func TestUpkeepNativeTargetOrderAndMetrics(t *testing.T) {
 		{ID: "outside", HitPoints: 1, MaxHitPoints: 100},
 	})
 	v.Fires = domain.Known([]UpkeepFire{{ID: "b", Home: true, Size: domain.Known(.5)}, {ID: "a", Home: true, Size: domain.Known(1.0)}, {ID: "outside", Size: domain.Known(4.0)}})
-	// Cleaning targets are filth in a measured dirty workspace whose
-	// coverage failed (no cleaners): the kitchen's; the hospital filth is
-	// outside Home and the loose filth "a" has no room.
-	v.Filth = domain.Known([]UpkeepFilth{{ID: "a", Home: true, Thickness: 1}, {ID: "b", Home: true, Room: "Kitchen", RoomID: domain.Known("k"), Thickness: 2}, {ID: "c", Room: "Hospital", RoomID: domain.Known("h"), Thickness: 3}})
-	v.Rooms = domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{
-		{ID: "k", Role: domain.Known(RoomRoleKitchen), Enclosed: domain.Known(true), Cleanliness: domain.Known(-3.0)},
-		{ID: "h", Role: domain.Known(RoomRoleHospital), Enclosed: domain.Known(true), Cleanliness: domain.Known(-3.0)},
-	}})
-	v.CleaningWorkers = domain.Known(0)
 	r, err := ReviewUpkeep(v, UpkeepHistory{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, want := range [][]string{{"a", "b"}, {"heater", "wall", "door"}, {"b"}} {
+	for i, want := range [][]string{{"a", "b"}, {"heater", "wall", "door"}} {
 		got, known := r.Needs[i].Targets.Value()
 		metric, mk := r.Needs[i].Metric.Value()
-		if !known || !reflect.DeepEqual(got, want) || !mk || metric != []float64{1.5, 149, 2}[i] || !r.Needs[i].Active || r.Needs[i].Unsafe {
+		if !known || !reflect.DeepEqual(got, want) || !mk || metric != []float64{1.5, 149}[i] || !r.Needs[i].Active || r.Needs[i].Unsafe {
 			t.Fatal(r.Needs[i])
 		}
 	}
@@ -51,7 +42,7 @@ func TestUpkeepUnknownRetainsRiskAndIssuedWork(t *testing.T) {
 			t.Fatal("unknown created emergency", n)
 		}
 	}
-	history := UpkeepHistory{Fire: true, Repairs: true, Cleaning: true}
+	history := UpkeepHistory{Fire: true, Repairs: true}
 	r, err = ReviewUpkeep(UpkeepObservation{}, history, nil)
 	if err != nil {
 		t.Fatal(err)

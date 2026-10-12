@@ -11,7 +11,6 @@ import (
 const (
 	MaintainFireSafety       ConcernID = "MaintainFireSafety"
 	MaintainEssentialRepairs ConcernID = "MaintainEssentialRepairs"
-	MaintainCleanFacilities  ConcernID = "MaintainCleanFacilities"
 )
 
 // Each fact is a complete native section. An unavailable section cannot prove
@@ -38,13 +37,8 @@ type UpkeepObservation struct {
 	Structures   domain.Fact[[]UpkeepStructure]
 	Fires        domain.Fact[[]UpkeepFire]
 	Filth        domain.Fact[[]UpkeepFilth]
-	// Rooms, CleaningWorkers and Tick feed the bounded cleaning response
-	// (ReviewCleanliness): the measured room census, the count of workers
-	// with Cleaning enabled, and the review tick the dirty-room latch is
-	// aged against. An unknown census keeps the previous latch.
-	Rooms           domain.Fact[RoomObservation]
-	CleaningWorkers domain.Fact[int]
-	Tick            domain.Tick
+	// Rooms is the measured room census of the same read.
+	Rooms domain.Fact[RoomObservation]
 	// Lighting is the measured work-cell illumination census MaintainLighting
 	// reviews (see lighting.go); unknown when native could not read it.
 	Lighting domain.Fact[LightingObservation]
@@ -81,12 +75,9 @@ type UpkeepFilth struct {
 	Thickness uint32
 }
 type UpkeepHistory struct {
-	Clearance               bool `json:",omitempty"`
-	Shrine                  bool `json:",omitempty"`
-	Fire, Repairs, Cleaning bool
-	// DirtyRooms is MaintainCleanFacilities' per-room latch (see
-	// ReviewCleanliness); empty for a clean colony.
-	DirtyRooms []DirtyRoom `json:",omitempty"`
+	Clearance     bool `json:",omitempty"`
+	Shrine        bool `json:",omitempty"`
+	Fire, Repairs bool
 }
 type UpkeepNeed struct {
 	Concern  ConcernID
@@ -101,14 +92,9 @@ type UpkeepReview struct {
 	Needs   []UpkeepNeed
 }
 
-// ReviewUpkeep ports the five direct native upkeep contracts. Issued work is
+// ReviewUpkeep ports the direct native upkeep contracts. Issued work is
 // supplied by the shared journal, never inferred from a receipt or target loss.
-// Cleaning uses the default CleanlinessPolicy; ReviewUpkeepWith takes one.
 func ReviewUpkeep(v UpkeepObservation, previous UpkeepHistory, issued map[ConcernID]bool) (UpkeepReview, error) {
-	return ReviewUpkeepWith(v, previous, issued, DefaultCleanlinessPolicy())
-}
-
-func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[ConcernID]bool, cleanliness CleanlinessPolicy) (UpkeepReview, error) {
 	r := UpkeepReview{}
 	add := func(goal ConcernID, priority int, active bool, targets domain.Fact[[]string], metric domain.Fact[float64], unsafe bool) bool {
 		if rows, known := targets.Value(); known {
@@ -166,7 +152,6 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Co
 		targets, metric = domain.Known(result), domain.Known(total)
 	}
 	r.History.Repairs = add(MaintainEssentialRepairs, 3, previous.Repairs, targets, metric, false)
-	targets, metric = domain.Unknown[[]string](), domain.Unknown[float64]()
 	if rows, known := v.Filth.Value(); known {
 		seen := map[string]bool{}
 		for _, row := range rows {
@@ -175,21 +160,6 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Co
 			}
 		}
 	}
-	// Cleaning is the bounded response of issue #6 slice 2: only filth in a
-	// latched-dirty workspace whose ordinary coverage has failed is a target.
-	clean, err := ReviewCleanliness(v.Rooms, v.Filth, v.CleaningWorkers, previous.DirtyRooms, v.Tick, cleanliness)
-	if err != nil {
-		return r, err
-	}
-	r.History.DirtyRooms = clean.DirtyRooms
-	if selected, known := clean.Targets.Value(); known {
-		result := []string{}
-		for _, row := range selected {
-			result = append(result, row.ID)
-		}
-		targets, metric = domain.Known(result), clean.Metric
-	}
-	r.History.Cleaning = add(MaintainCleanFacilities, 3, previous.Cleaning, targets, metric, false)
 	for _, n := range r.Needs {
 		if x, k := n.Metric.Value(); k && (math.IsNaN(x) || math.IsInf(x, 0)) {
 			return r, errors.New("upkeep metric overflow")
@@ -244,15 +214,4 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Co
 	}
 	r.History.Shrine = add(ClearAncientShrine, 3, previous.Shrine, shrineTargets, domain.Unknown[float64](), false)
 	return r, nil
-}
-
-// CleaningContext fills the cleaning-response inputs of f.Upkeep from the
-// review's own room census, labor census and tick, so every caller of
-// ReviewUpkeep sees the same coverage picture DetectRounds did.
-func (f *RoundsFacts) CleaningContext(tick domain.Tick) {
-	f.Upkeep.Tick = tick
-	f.Upkeep.CleaningWorkers = domain.Unknown[int]()
-	if labor, known := f.Labor.Value(); known {
-		f.Upkeep.CleaningWorkers = domain.Known(labor[WorkCleaning])
-	}
 }

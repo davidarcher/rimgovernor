@@ -8326,9 +8326,6 @@
      }
     ]
    },
-   "CleaningWorkers": {
-    "v": 6
-   },
    "Clearance": {
     "v": [
      {
@@ -10586,8 +10583,7 @@
       "Priority": 2
      }
     ]
-   },
-   "Tick": 15
+   }
   },
   "UpkeepIssued": {},
   "UrgentPatients": {
@@ -11473,12 +11469,6 @@
  },
  "Policy": {
   "AcquisitionStallTicks": 60000,
-  "Cleanliness": {
-   "EnterC": -1,
-   "ExitC": -0.25,
-   "GraceTicks": 30000,
-   "MaxTargets": 8
-  },
   "ColdEnter": 12,
   "ColdExit": 16,
   "Flooring": {
@@ -11874,10 +11864,6 @@
     "Concern": "MaintainEssentialRepairs"
    },
    {
-    "Standard": "routine-668665f7b6b81406-MaintainCleanFacilities",
-    "Concern": "MaintainCleanFacilities"
-   },
-   {
     "Standard": "routine-668665f7b6b81406-ClearHomeObstructions",
     "Concern": "ClearHomeObstructions"
    },
@@ -12021,14 +12007,6 @@
     "Method": "assess",
     "NextReview": 2515,
     "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainCleanFacilities",
-    "LastProgress": 15,
-    "Method": "assess",
-    "NextReview": 2515
    },
    {
     "Expected": "deficit shrinks or the method's work settles",
@@ -12216,7 +12194,6 @@
      "State": "runnable"
     },
     {
-     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -12226,7 +12203,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainHerd"
      ],
@@ -12236,7 +12212,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainMedicalReserves"
      ],
@@ -12246,7 +12221,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainHomeCoverage"
      ],
@@ -12256,7 +12230,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -12266,7 +12239,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainResource"
      ],
@@ -12276,7 +12248,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainFoodStorage"
      ],
@@ -12286,7 +12257,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainEquipment"
      ],
@@ -12296,7 +12266,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -12306,7 +12275,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [],
      "ID": "cd7ea017cccb74fe",
      "Reason": "no plan or proposal",
@@ -12314,7 +12282,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "EnsureComfort"
      ],

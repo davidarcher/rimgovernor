@@ -65,7 +65,6 @@ var inspections = []Inspection{
 	{EnsureDefensiveLayout, OnceConcern, DepartmentMilitary, []FactFamily{}, inspectDefensiveLayout},
 	{MaintainFireSafety, StandardConcern, DepartmentShelter, []FactFamily{FactColony, FactEmergency}, upkeepInspection(MaintainFireSafety, holdFireSafety)},
 	{MaintainEssentialRepairs, StandardConcern, DepartmentShelter, []FactFamily{FactColony}, upkeepInspection(MaintainEssentialRepairs, nil)},
-	{MaintainCleanFacilities, StandardConcern, DepartmentSanitation, []FactFamily{FactRooms, FactColony}, upkeepInspection(MaintainCleanFacilities, holdCleaning)},
 	{ClearHomeObstructions, StandardConcern, DepartmentShelter, []FactFamily{FactColony}, upkeepInspection(ClearHomeObstructions, holdClearance)},
 	{ClearAncientShrine, OnceConcern, DepartmentMilitary, []FactFamily{FactColony, FactWorld}, upkeepInspection(ClearAncientShrine, holdShrine)},
 	{MaintainHomeCoverage, StandardConcern, DepartmentShelter, []FactFamily{FactColony, FactWorld}, inspectHomeCoverage},

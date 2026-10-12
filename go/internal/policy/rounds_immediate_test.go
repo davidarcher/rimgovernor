@@ -9,7 +9,7 @@ import (
 )
 
 func TestImmediateRoundsInspectOnlySafetyAndKeepOrdinaryLatches(t *testing.T) {
-	previous := RoundsLatches{Food: true, Wood: true, Cold: true, Upkeep: UpkeepHistory{Repairs: true, Cleaning: true}}
+	previous := RoundsLatches{Food: true, Wood: true, Cold: true, Upkeep: UpkeepHistory{Repairs: true}}
 	f := RoundsFacts{Hostiles: domain.Known(int64(1)), CriticalPatients: domain.Known(int64(1)), CleanupPawns: domain.Known(true), SafeAreaOwed: domain.Known(true), Wood: domain.Known(int64(-5)), FoodDays: domain.Known(math.NaN()), Upkeep: UpkeepObservation{Fires: domain.Known([]UpkeepFire{{ID: "fire", Home: true, Size: domain.Known(1.0)}}), Structures: domain.Known([]UpkeepStructure{{ID: "invalid", HitPoints: -1}})}}
 	r, err := InspectImmediateRounds(f, previous, DefaultRoundsPolicy())
 	if err != nil {

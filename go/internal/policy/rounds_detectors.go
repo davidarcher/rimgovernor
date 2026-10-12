@@ -434,7 +434,7 @@ func upkeepInspection(id ConcernID, hold func(c *roundsRun) bool) func(c *rounds
 				if targetsKnown {
 					g.Deficit = domain.Known(1.0)
 				}
-				// MaintainEssentialRepairs, MaintainCleanFacilities,
+				// MaintainEssentialRepairs,
 				// ClearHomeObstructions and ClearAncientShrine have composed
 				// dispatch methods; the rest of the direct upkeep orders
 				// remain visible-only until their own dispatch verticals land.
@@ -469,8 +469,6 @@ func holdShrine(c *roundsRun) bool {
 	}
 	return repairsHold
 }
-
-func holdCleaning(c *roundsRun) bool { return c.upkeep.History.Clearance }
 
 // facilityDetector serves a home-area facility goal: a binary need, like the
 // upkeep goals. A confirmed deficit ranks at Known(1.0); an unknown census
