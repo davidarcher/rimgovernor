@@ -150,14 +150,21 @@ func RunFight(f Fight, seed uint64, tuning policy.CombatTuning) (FightResult, er
 			}
 			last, due = sim.tick, false
 		}
-		orders := append(carried, a.Autonomy()...)
+		// The policy's orders apply first: the holders' Autonomy reads the
+		// pawns as the orders left them, as Wait_Combat does after a new job
+		// replaces it, so a pawn just told to walk does not also open fire.
+		err := sim.Apply(carried)
+		carried = carried[:0]
+		if err != nil {
+			return res, fmt.Errorf("combatsim: step at tick %d: %w", sim.tick, err)
+		}
+		orders := a.Autonomy()
 		if ai != nil {
 			orders = append(orders, ai.Orders()...)
 		}
 		if f.Enemy != nil {
 			orders = append(orders, f.Enemy(sim.snapshot())...)
 		}
-		carried = carried[:0]
 		_, events, err := sim.Step(orders)
 		if err != nil {
 			return res, fmt.Errorf("combatsim: step at tick %d: %w", sim.tick, err)

@@ -418,8 +418,9 @@ func TestPathFailures(t *testing.T) {
 }
 
 func TestBlockedAndStop(t *testing.T) {
-	// a's only way east runs through b's cell: it waits there.
-	s := newSim(t, scenario(t, 6, "a.b.."), 1)
+	// a's only way east runs through hostile b's cell: it waits there (a
+	// friendly would not stop it, see collision_test.go).
+	s := newSim(t, duel(t, testRifle, nil, "a.b.."), 1)
 	ev := run(t, s, []Order{{Pawn: "a", To: cell(4, 0)}}, 200, func(e Event) bool { return e.Kind == EventBlocked })
 	if last := ev[len(ev)-1]; last.Pawn != "a" || last.Cell != cell(2, 0) {
 		t.Errorf("blocked event %v, want pawn a at (2,0)", last)
@@ -498,9 +499,6 @@ func TestUnsupportedScenarios(t *testing.T) {
 		"pawn out of bounds": func(s *Scenario) { s.Pawns[0].Pos = cell(9, 9) },
 		"duplicate id": func(s *Scenario) {
 			s.Pawns = append(s.Pawns, PawnSpec{ID: "a", Pos: cell(2, 1), MoveSpeed: domain.Known(6.0)})
-		},
-		"shared cell": func(s *Scenario) {
-			s.Pawns = append(s.Pawns, PawnSpec{ID: "b", Pos: cell(0, 0), MoveSpeed: domain.Known(6.0)})
 		},
 		"open door that is not a door": func(s *Scenario) { s.OpenDoors = []domain.Cell{cell(1, 1)} },
 	}

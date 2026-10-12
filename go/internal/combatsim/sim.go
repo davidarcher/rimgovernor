@@ -24,7 +24,8 @@
 //
 // Not modeled yet, by design: snow, sand and fire path costs, terrain-tag speed
 // factors, downed/crawling/restrained/carrying movement, door closing and
-// door-open delays, repathing around pawns (a blocked pawn waits), flying.
+// door-open delays, flying. Pawns share cells and only a standing hostile
+// blocks a walker (A35); the rest of PatherTick is a port.
 package combatsim
 
 import (
@@ -226,7 +227,8 @@ type Sim struct {
 	step    int
 	weather float64
 	pawns   []pawn
-	occ     []int32 // cell index -> pawn index + 1, 0 when free
+	cells   cellPawns // who stands where; pawns share cells (A35)
+	applied bool      // Apply ran since the last Step: events are already reset
 	streams Streams
 
 	events []Event
@@ -254,7 +256,7 @@ func (s *Sim) Reset(sc Scenario, seed uint64) (State, error) {
 		Physical: rand.New(rand.NewPCG(seed, physicalStream)),
 		Enemy:    rand.New(rand.NewPCG(seed, enemyStream)),
 	}
-	s.events = s.events[:0]
+	s.events, s.applied = s.events[:0], false
 	s.pending = s.pending[:0]
 	s.ledger = s.ledger[:0]
 	return s.snapshot(), nil
@@ -266,15 +268,31 @@ func (s *Sim) Streams() Streams { return s.streams }
 // Tick is the current game tick (0 after Reset).
 func (s *Sim) Tick() int { return s.tick }
 
+// Apply applies orders at the current tick without advancing it; events they
+// raise join the next Step's. An order naming no pawn is an error and applies
+// nothing after it. A caller that derives orders from the pawns' state (the
+// fire-at-will holders' Autonomy) applies the orders already decided first, so
+// it reads a pawn that has just been told to walk as walking.
+func (s *Sim) Apply(orders []Order) error {
+	if !s.applied {
+		s.events, s.applied = s.events[:0], true
+	}
+	for _, o := range orders {
+		if err := s.apply(o); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Step applies orders, advances StepTicks ticks and returns the new state and
 // the events of those ticks in order. An order naming no pawn is an error and
 // applies nothing after it.
 func (s *Sim) Step(orders []Order) (State, []Event, error) {
-	s.events = s.events[:0]
-	for _, o := range orders {
-		if err := s.apply(o); err != nil {
-			return State{}, nil, err
-		}
+	err := s.Apply(orders)
+	s.applied = false
+	if err != nil {
+		return State{}, nil, err
 	}
 	for range s.step {
 		s.tick++
@@ -354,7 +372,7 @@ func (s *Sim) load(sc Scenario) error {
 	}
 	s.weather = weather
 	s.step = sc.StepTicks
-	s.occ = append(s.occ[:0], make([]int32, n)...)
+	s.cells.head = append(s.cells.head[:0], make([]int32, n)...)
 	s.pawns = s.pawns[:0]
 	for i, ps := range sc.Pawns {
 		speed, known := ps.MoveSpeed.Value()
@@ -363,8 +381,6 @@ func (s *Sim) load(sc Scenario) error {
 			return unsupported("pawn %q move speed unknown or negative", ps.ID)
 		case !g.standable(ps.Pos):
 			return unsupported("pawn %q starts on %v, which is not standable", ps.ID, ps.Pos)
-		case s.occ[g.idx(ps.Pos)] != 0:
-			return unsupported("pawn %q shares cell %v", ps.ID, ps.Pos)
 		case s.pawnIndex(ps.ID) >= 0:
 			return unsupported("duplicate pawn id %q", ps.ID)
 		}
@@ -374,8 +390,8 @@ func (s *Sim) load(sc Scenario) error {
 				return err
 			}
 		}
-		s.occ[g.idx(ps.Pos)] = int32(i + 1)
 		s.pawns = append(s.pawns, np)
+		s.enter(g.idx(ps.Pos), i)
 	}
 	return s.loadCombatWorld(sc)
 }

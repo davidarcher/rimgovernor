@@ -20,6 +20,11 @@ package combatsim
 //     SetupMoveIntoNextCell (cost carry-over); Verse.Pawn.TicksPerMove;
 //     Verse.AI.PathGrid.CalculatedCostAt.
 //
+//   - collision.go: Verse.AI.Pawn_PathFollower.PatherTick (WillCollideWithPawnAt,
+//     the 15-node and 180-tick give-up, NeedNewPath), RimWorld.PawnUtility
+//     ShouldCollideWithPawns, PawnBlockedBy, PawnsCanShareCellBecauseOfBodySize;
+//     Verse.PathGridDoorsBlockedJob and Verse.PathFinderJob (Cost_Blocked).
+//
 //   - combat.go: Verse.Verb.TryStartCastOn, WarmupComplete, VerbTick,
 //     TryCastNextBurstShot, CanHitTargetFrom; Verse.Stance_Warmup, Stance_Busy,
 //     Stance_Cooldown StanceTick; Verse.VerbProperties.AdjustedCooldown,
@@ -51,4 +56,4 @@ const AssemblyCSharpSHA256 = "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04A
 // any change to a port or an approximation that can move an outcome (a rule
 // fix, a new modeled behavior): a calibration pass (combatsim/calibrate) is
 // recorded under it and is stale after a bump.
-const RulesVersion = 3
+const RulesVersion = 4

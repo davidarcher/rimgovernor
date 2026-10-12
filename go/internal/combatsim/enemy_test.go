@@ -474,7 +474,7 @@ func TestFleeingRaiderLeavesTheMap(t *testing.T) {
 	if m := s.Metrics("x"); m.EnemyDeaths != 0 || m.EnemyDowns != 0 || m.EnemyFled != 1 {
 		t.Fatalf("a fled raider was neither killed nor downed: %+v", m)
 	}
-	if s.occ[s.g.idx(cell(8, 5))] != 0 {
+	if s.cells.head[s.g.idx(cell(8, 5))] != 0 {
 		t.Fatal("the exit cell is free again")
 	}
 }

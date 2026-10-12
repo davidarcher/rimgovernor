@@ -1,5 +1,5 @@
 combatsim calibration gate (ranged slice): FAIL
-stamp: assembly 5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A, rules version 3, thresholds version 1, sweep schema 2
+stamp: assembly 5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A, rules version 4, thresholds version 1, sweep schema 2
 thresholds: rank agreement >= 0.80 on held-out fixtures; 0 survival-critical misrankings; colonist deaths and downs within +/-25% of the real mean or +/-1 pawn
 rank agreement: 0.00 over 0 pairs; survival-critical misrankings: 0
   FAILURE: lab-ranged-shield (held-out): the sim does not support this fixture: combatsim: unsupported scenario: combatlab: fixture lab-ranged-shield has a staged condition on a pawn, which the sim does not model
@@ -11,7 +11,7 @@ native regret: not measured (no held-out ranking)
 false-safe variants (sim sees no colonist death, real does): none
 fixtures:
   lab-ranged (calibration): measured
-    default        deaths real 0.00 sim 0.00 (seeds with a death real 0 sim 0) | downs real 0.20 sim 0.20 | damage real 64.2 sim 56.6
+    default        deaths real 0.00 sim 0.00 (seeds with a death real 0 sim 0) | downs real 0.20 sim 0.20 | damage real 64.2 sim 58.3
   lab-ranged-shield (held-out): unsupported: combatsim: unsupported scenario: combatlab: fixture lab-ranged-shield has a staged condition on a pawn, which the sim does not model
   lab-open (held-out): unsupported: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 3 unmodeled, first: pawn h0 wields melee weapon MeleeWeapon_Club: the sim has no melee, the pawn is imported unarmed
   lab-choke (held-out): unsupported: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 9 unmodeled, first: pawn c0 wields melee weapon MeleeWeapon_LongSword: the sim has no melee, the pawn is imported unarmed

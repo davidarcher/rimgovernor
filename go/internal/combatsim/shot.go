@@ -263,21 +263,25 @@ func (s *Sim) interceptAt(si int, c, dest domain.Cell, ox, oz float64) int {
 	if f <= 0 {
 		return -1
 	}
-	j := int(s.occ[s.g.idx(c)]) - 1
-	if j < 0 || j == si || !s.pawns[j].has {
-		return -1
-	}
-	v := &s.pawns[j]
-	chance := 0.4 * math.Min(math.Max(v.bodySize, 0.1), 2)
-	if v.lying() {
-		chance *= 0.1
-	}
-	if v.side == s.pawns[si].side {
-		chance *= s.ff
-	}
-	chance *= f
-	if chance > 1e-5 && s.chance(chance) {
-		return j
+	// Every pawn on the cell gets its roll, in the order they entered it
+	// (the cell's thing list).
+	for k := s.cells.head[s.g.idx(c)]; k != 0; k = s.pawns[k-1].here {
+		j := int(k) - 1
+		if j == si || !s.pawns[j].has {
+			continue
+		}
+		v := &s.pawns[j]
+		chance := 0.4 * math.Min(math.Max(v.bodySize, 0.1), 2)
+		if v.lying() {
+			chance *= 0.1
+		}
+		if v.side == s.pawns[si].side {
+			chance *= s.ff
+		}
+		chance *= f
+		if chance > 1e-5 && s.chance(chance) {
+			return j
+		}
 	}
 	return -1
 }
@@ -339,7 +343,7 @@ func (s *Sim) damage(si, vi int) {
 	}
 	if dead && !v.dead {
 		v.dead = true
-		s.occ[s.g.idx(v.pos)] = 0
+		s.leave(s.g.idx(v.pos), vi)
 		s.emit(Event{Kind: EventDied, Pawn: v.id, Target: a.id, Cell: v.pos})
 	}
 }

@@ -1,7 +1,7 @@
 {
   "Stamp": {
     "assemblyHash": "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A",
-    "rulesVersion": 3,
+    "rulesVersion": 4,
     "thresholdsVersion": 1,
     "sweepVersion": 2
   },
@@ -19,7 +19,7 @@
           "RealDowns": 0.2,
           "SimDowns": 0.2,
           "RealDamage": 64.15,
-          "SimDamage": 56.65,
+          "SimDamage": 58.3,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 0
         }

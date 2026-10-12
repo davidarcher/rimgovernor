@@ -105,7 +105,7 @@ func (s *Sim) findPath(p *pawn, to domain.Cell) ([]int32, bool) {
 			if sr.closed[ni] == sr.gen {
 				continue
 			}
-			gs := sr.gScore[ci] + s.stepCost(p.speed, cc, nb)
+			gs := sr.gScore[ci] + s.stepCost(p.speed, cc, nb) + s.pathPenalty(p, ni, to)
 			if sr.seen[ni] == sr.gen && gs >= sr.gScore[ni] {
 				continue
 			}

@@ -28,6 +28,15 @@ type pawn struct {
 	// next and the overshoot carries into the following cell.
 	costLeft    float64
 	blockedSent bool
+	// lastBlocker is the pawn index + 1 that blocked the previous tick's
+	// entry, 0 when nothing did (Pawn_PathFollower.lastBlocker); lastMoved is
+	// the last tick the pawn paid movement cost or was given a path
+	// (lastMovedTick).
+	lastBlocker int32
+	lastMoved   int
+
+	// here is the next pawn index + 1 on the same cell (cellPawns), 0 last.
+	here int32
 
 	side string
 	combatant
@@ -106,6 +115,7 @@ func (p *pawn) halt() {
 	p.pathAt = 0
 	p.costLeft = 0
 	p.blockedSent = false
+	p.lastBlocker = 0
 	p.dest = p.pos
 }
 
@@ -138,6 +148,7 @@ func (s *Sim) startMove(i int, o Order) {
 	p.moving = true
 	p.dest = o.To
 	p.urgency = o.Urgency
+	p.lastMoved = s.tick
 	s.setupNext(p)
 	s.emit(Event{Kind: EventMoveStarted, Pawn: p.id, Cell: o.To, ETA: s.tick + s.arrivalTicks(p)})
 }
@@ -175,28 +186,34 @@ func (s *Sim) arrivalTicks(p *pawn) int {
 }
 
 // tick advances one pawn one game tick (PatherTick): pay a tick of the next
-// cell's cost, and enter the cell when it is paid.
+// cell's cost, and enter the cell when it is paid. A hostile on the next cell
+// holds the pawn back before any cost is paid (collision.go).
 func (p *pawn) tick(s *Sim, self int) {
 	if !p.moving || p.dead || p.downed || p.stance != stanceIdle {
 		return
 	}
+	g := &s.g
+	ni := g.idx(p.next)
+	// WillCollideWithPawnAt is checked before any cost is paid: a pawn facing
+	// a blocker stands still.
+	if b := s.blockerAt(p, ni); b >= 0 {
+		if !p.blockedSent {
+			p.blockedSent = true
+			s.emit(Event{Kind: EventBlocked, Pawn: p.id, Cell: p.next})
+		}
+		s.blocked(p, self, b)
+		return
+	}
+	p.lastBlocker = 0
+	p.lastMoved = s.tick
 	if p.costLeft > 0 {
 		p.costLeft--
 	}
 	if p.costLeft > 0 {
 		return
 	}
-	g := &s.g
-	ni := g.idx(p.next)
-	if o := s.occ[ni]; o != 0 && int(o) != self+1 {
-		if !p.blockedSent {
-			p.blockedSent = true
-			s.emit(Event{Kind: EventBlocked, Pawn: p.id, Cell: p.next})
-		}
-		return
-	}
-	s.occ[g.idx(p.pos)] = 0
-	s.occ[ni] = int32(self + 1)
+	s.leave(g.idx(p.pos), self)
+	s.enter(ni, self)
 	p.pos = p.next
 	p.pathAt++
 	s.emit(Event{Kind: EventMoved, Pawn: p.id, Cell: p.pos})
@@ -220,7 +237,7 @@ func (s *Sim) leaveMap(i int) {
 	p.halt()
 	p.cancelAttack()
 	p.stance, p.burstLeft = stanceIdle, 0
-	s.occ[s.g.idx(p.pos)] = 0
+	s.leave(s.g.idx(p.pos), i)
 	p.has, p.left = false, true
 	for j := range s.pawns {
 		if o := &s.pawns[j]; o.has && o.target == i {

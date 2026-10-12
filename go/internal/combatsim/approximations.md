@@ -21,7 +21,9 @@ is a candidate to replace by a faithful port. Game sources are in
   scatters a share to neighbours; here the full post-armor amount counts once,
   plus the outer-part duplicates of A34.
 - **A4. A downed pawn stays where it fell** and is not carried, crawling or
-  rescued. A dead pawn frees its cell; a downed one still occupies it.
+  rescued. A downed or dead pawn does not collide (`ShouldCollideWithPawns`), so
+  it never blocks a lane; a downed one stays on its cell's list, where shots
+  still reach it (the 0.1 lying factor), and a dead one leaves the list (A35).
 
 ## Armor
 
@@ -246,20 +248,76 @@ DefinitionCatalog; every derived value is listed with its source in
   redistribution, `ReduceDamageToPreserveOutsideParts`, per-part pain factors;
   the shot's height and depth are not modeled (a bullet has none). Armor stays
   part-agnostic (A5).
-- **A35. The tick-0 formation swap does not play out, so colonists open fire
-  together.** Pawns hold one cell each (`move.go`), so the policy's tick-0 swap
-  of three colonists blocks, and `Autonomy` runs before the carried move orders
-  apply. All four colonists therefore fire their first burst at tick 61; in the
-  game the three movers walk first and open at 91, 91 and 121 (the holder at
-  60). Measured on lab-ranged (#2906): 2.3 of the sim's 18 colonist hits per
-  seed land before tick 100, the real ones never do, and the first-700-tick hit
-  volume is 17.95 against the real 16.0 (+12%), the median raider down tick 478
-  against 499.5 (-4%). Not corrected: pawns passing through each other and
-  fire-after-arrival are a separate movement slice.
+- **A35. Pawns pass through and share cells; only a standing hostile blocks.**
+  Checked against the pinned assembly (`Pawn_PathFollower.PatherTick`,
+  `WillCollideWithPawnAt`, `PawnUtility.ShouldCollideWithPawns`,
+  `PawnBlockedBy`, `PawnsCanShareCellBecauseOfBodySize`, `PathGridDoorsBlockedJob`,
+  `PathFinderJob` Cost_Blocked, `PawnCollisionTweenerUtility`), not assumed:
+  - The pather refuses to enter a next cell only when `PawnBlockedBy(self,
+    occupant)` holds. Both must pass `ShouldCollideWithPawns` (not downed, dead
+    or self-shutdown; `mindState.anyCloseHostilesRecently`, refreshed from
+    `EnemiesAreNearby` over 18-24 regions; `kindDef.collidesWithPawns`, default
+    true). Then the occupant blocks if it `HostileTo` the walker or, for a
+    friendly, only if both pawns' current jobs set `collideWithPawns` (in Core:
+    AttackStatic, AttackMelee, the Cast* abilities, Ignite; never Goto or
+    Wait_Combat). A walking colonist on a Goto is therefore never held by a
+    colonist, and pawns of one side may stand on one cell: `Goto` reserves its
+    destination but does not require it free, and the native bridge sends the
+    exact cell (`RCellFinder.BestOrderedGotoDestNear`, which does pick a free
+    nearby cell, is only the player UI's order path).
+  - Pawns under 1.5 body size whose sizes differ by over 3.57x never block each
+    other (`PawnsCanShareCellBecauseOfBodySize`).
+  - `PawnCollisionTweenerUtility` is only a draw offset (0.32 cell on a regular
+    polygon among the pawns on or heading to the cell); it moves nothing.
+  - The pathfinder has no hard pawn rule: `PathGridDoorsBlockedJob` marks the
+    cell of every pawn that `PawnBlockedBy` would block (within 32 cells
+    Manhattan of the path's start or destination) and `PathFinderJob` adds
+    `Cost_Blocked` = 175 to entering it, so a path goes round a hostile when the
+    detour costs less than 175 more.
+  - Blocked, the pawn pays no movement cost (the collide check precedes the cost
+    payment). `NeedNewPath` (every 30 ticks) re-paths from the pawn's cell when a
+    cell within 20 nodes collides. With fewer than 15 nodes left, a second tick
+    held by the same hostile, or 180 ticks without moving, ends the walk by
+    starting an `AttackMelee` on the blocker (if it can) or `EndCurrentJob`.
+  - A standing pawn that `PawnBlockedBy` says collides with another pawn on its
+    own cell, and has the higher thing id, is moved by `PatherTick`
+    (`CellFinder.TryFindBestPawnStandCell`, Dijkstra over cardinal steps, a
+    teleport to the nearest free cell). That needs a hostile on the cell or two
+    friendlies whose jobs both set `collideWithPawns` (both shooting on
+    AttackStatic), so walkers and a resting pair never trigger it.
+
+  The sim (`collision.go`): a per-cell list in entry order (the thing list;
+  every pawn on a shot's cell gets its intercept roll). `blockerAt` returns a
+  live, up pawn of another side on the cell (hostile = the sides differ; with
+  both alive, "a hostile is near" holds for each, so `anyCloseHostilesRecently`
+  is not tracked: its 100-tick refresh lag and region radius are ignored), minus
+  the body-size exemption. A friendly never blocks. A downed pawn neither blocks
+  nor stops others (A4). A blocked pawn pays nothing, re-paths every 30 ticks
+  (phase = tick + pawn index; the game's is the thing id), and ends the walk
+  (`EventStopped`) on the same-blocker second tick under 15 nodes or after 180
+  ticks without moving; the melee swing is not modeled (no melee, E8). The
+  pathfinder prices a blocker's cell +175 within 32 cells. Not modeled: the
+  stacked-shooter relocation above (it needs two colonists firing from one cell,
+  which only an order stacking them produces; the sim lets them fire together),
+  thing-id tie-breaks, and `lastBlocker` bookkeeping beyond the second-tick rule.
+  `Autonomy` now reads the pawns after the policy's orders applied
+  (`Sim.Apply`), as a Goto replacing Wait_Combat does; before, a walker was
+  seen as idle and also opened fire.
+
+  Effect on lab-ranged (#2909, 20 seeds, default tactic; before -> after, real):
+  colonist openings (median) 61/61/61/61 -> 61/97/97/127 (60/91/91/121),
+  first-700-tick colonist hits 17.95 -> 17.70 (16.0), median raider down tick
+  478 -> 514 (499.5), colonist downs 0.20 -> 0.20 (0.20), damage 56.6 -> 58.3
+  (64.2), raider deaths 3.40 -> 3.65 (about 2.8). The movers still open 6 ticks
+  late (97 against 91, 127 against 121): `Autonomy` runs once per `StepTicks`
+  (6 in the lab), so a walker that arrives at tick 31 shoots from the next step
+  boundary (36), where Wait_Combat's `initAction` runs `CheckForAutoAttack` the
+  tick the job starts; the holder's 1 tick is the first tick's cost. Both are
+  bounded by one step.
 
 ## Out of scope for this slice
 
 Melee, explosives and grenades, specialist abilities, breaches, turrets,
 mechs, sieges, drop pods, non-ranged raider behavior, downed/carried movement,
-doors closing, repathing, fire, snow and sand path costs (see the package
+doors closing, repathing other than round a blocking hostile (A35), fire, snow and sand path costs (see the package
 comment).
