@@ -18,8 +18,6 @@ const spineMaxLen int32 = 64
 // maxCrossings are the centre crossing and one at each end of the main hallway.
 const maxCrossings = 3
 
-func alongX(s SpineSegment) bool { return s.From.Z == s.To.Z }
-
 // onSegment reports r's door opening onto s's hallway.
 func onSegment(r PlannedRoom, s SpineSegment) bool {
 	lo, hi := s.From, s.To

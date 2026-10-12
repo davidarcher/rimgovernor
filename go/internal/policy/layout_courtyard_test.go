@@ -117,17 +117,14 @@ func TestCourtyardHundredColonistsCappedAndReachable(t *testing.T) {
 	s := plusSurvey(300, 80)
 	rich := richSet(s)
 	zones := Zone(s)
-	g := newCoreGrid(zones, nil).withSoil(s)
-	lg := g.withObstacles(g.coreObstacles(zones, obstacleAll))
-	seed, ok := lg.seed()
-	if !ok {
-		t.Fatal("no seed")
-	}
 	targets := make([]float64, 14)
 	for i := range targets {
 		targets[i] = 60 + float64(i)
 	}
-	plan := lg.generate(LayoutPlan{Zones: zones}, seed, 100, 1, TechTierCamp, targets...)
+	plan, ok := generateClear(zones, s, obstacleAll, 100, 1, targets...)
+	if !ok {
+		t.Fatal("no seed")
+	}
 	if !plan.WithRoomIDs().Valid() {
 		t.Fatal("invalid")
 	}

@@ -9,11 +9,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// SiteCore compares plans grown from a deterministic set of candidate seeds.
-// Replans extend the saved plan without moving existing sites.
-
-// siteCandidates bounds the number of seeds evaluated during fresh siting.
-var siteCandidates = 1000
+// Siting seeds and the survey's shared ground state: the candidate seeds the
+// embedder starts from, and the walking distances every score reads.
 
 // Search the best siteSearchTop candidates for at most siteSearchIters moves
 // each. Iteration counts keep results deterministic; hourly replans use a
@@ -23,110 +20,11 @@ const (
 	siteSearchIters = 40
 )
 
-// siteScore is one candidate's result, scored by Score's terms.
-type siteScore struct {
-	seed  domain.Cell
-	score PlanScore
-	plan  LayoutPlan
-}
-
-// SiteCore sites a fresh plan for pawns colonists and tombs tomb rooms: grown
-// from each candidate seed over s, keeping the best-scoring result.
-func SiteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier TechTier) LayoutPlan {
-	return siteCore(plan, s, pawns, tombs, tier, siteSearchIters)
-}
-
-// siteCore is SiteCore with searchIters local-search operators per searched
-// site (0 skips the search: the replay harness's unsearched baseline).
-func siteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier TechTier, searchIters int) LayoutPlan {
-	g := newCoreGrid(plan.Zones, plan.Reserved()).withSoil(s)
-	if len(g.core) == 0 {
-		return plan
-	}
-	scorer := planScorer{g: g, s: s, ground: newSiteGround(s)}
-	var scores []siteScore
-	var lg coreGrid
-	// Each obstacle level sites every seed over the ground left once its
-	// obstacles are out; a level holds only if some plan places every base
-	// room, routes and houses every colonist. The strictest holding level is
-	// kept, and a looser one (fields built on) replaces it only when its best
-	// plan beats the kept one by fieldGain: farmland is worth a core a little
-	// off the best ground, not a core crammed against the map border because
-	// the middle is all field. The last level has no obstacle (rich soil at
-	// cost) and runs only when no level held.
-	held := false
-	for _, level := range obstacleLevels {
-		if held && level == obstacleNone {
-			break
-		}
-		ls, llg := siteLevel(g, scorer, plan, level, pawns, tombs, tier)
-		if level == obstacleNone {
-			scores, lg = ls, llg
-			break
-		}
-		var ok []siteScore
-		for _, sc := range ls {
-			if sc.score.Passes() && bedroomCount(sc.plan) >= pawns {
-				ok = append(ok, sc)
-			}
-		}
-		if len(ok) == 0 {
-			continue
-		}
-		if !held || ok[0].score.Total() > scores[0].score.Total()+planWeights.FieldGain {
-			scores, lg, held = ok, llg, true
-		}
-	}
-	if len(scores) == 0 {
-		return plan
-	}
-	// The wall terms need PlanPerimeter, far dearer than generate, so
-	// only the best siteWallCandidates by core score are walled and reranked.
-	// The best sites by core score are searched (layout_gen_search.go); the
-	// searched plans join the walled pool beside the unsearched ones, so the
-	// winner never scores below what the search started from.
-	walled := append([]siteScore(nil), scores[:min(siteWallCandidates, len(scores))]...)
-	if searchIters > 0 {
-		start := scores[:min(siteSearchTop, len(scores))]
-		searched := make([]siteScore, len(start))
-		eachIndex(len(start), func(i int) {
-			seed := start[i].seed
-			p := lg.generateBase(plan, seed, pawns, tombs, tier)
-			p = lg.finish(lg.search(scorer, p, seed, searchIters))
-			searched[i] = siteScore{seed: seed, score: scorer.core(p), plan: p}
-		})
-		walled = append(walled, searched...)
-	}
-	eachIndex(len(walled), func(i int) {
-		walled[i].score = scorer.walled(walled[i].plan, walled[i].score)
-	})
-	rankSites(walled)
-	return walled[0].plan
-}
-
-// siteLevel generates and scores a plan from each seed of the ground g
-// leaves at level, best first, and returns that ground. A level whose
-// obstacles leave no seed returns none.
-func siteLevel(g coreGrid, scorer planScorer, plan LayoutPlan, level obstacleLevel, pawns, tombs int, tier TechTier) ([]siteScore, coreGrid) {
-	lg := g.withObstacles(g.coreObstacles(plan.Zones, level))
-	if len(lg.core) == 0 {
-		return nil, lg
-	}
-	seeds := lg.siteSeeds(siteCandidates)
-	scores := make([]siteScore, len(seeds))
-	eachIndex(len(seeds), func(i int) {
-		p := lg.generate(plan, seeds[i], pawns, tombs, tier)
-		scores[i] = siteScore{seed: seeds[i], score: scorer.core(p), plan: p}
-	})
-	rankSites(scores)
-	return scores, lg
-}
-
 // siteSeeds is the candidate set, at most n seeds, every one passing
 // column: the centroid seed, then an even share each of cells just
 // outside a rich patch, cells along the rock edge and a coarse grid over
 // the core ground, each stepped evenly through its (Z, X) order.
-func (g coreGrid) siteSeeds(n int) []domain.Cell {
+func (g buildGround) siteSeeds(n int) []domain.Cell {
 	var out []domain.Cell
 	seen := map[domain.Cell]bool{}
 	add := func(c domain.Cell) {
@@ -198,7 +96,7 @@ func newDenseCore(core map[domain.Cell]bool) denseCore {
 	return d
 }
 
-// column is coreGrid.column: the cells (x, z-coreHalf..z+coreHalf) all core.
+// column is buildGround.column: the cells (x, z-coreHalf..z+coreHalf) all core.
 func (d denseCore) column(x, z int32) bool {
 	if x < d.x0 || x >= d.x0+d.w || z-coreHalf < d.z0 || z+coreHalf >= d.z0+d.h {
 		return false
@@ -218,7 +116,7 @@ const siteGridStep = 2
 // siteEdgeGap is how far outside a rich patch an edge seed may sit.
 const siteEdgeGap = 3
 
-func (g coreGrid) nearRich(c domain.Cell) bool {
+func (g buildGround) nearRich(c domain.Cell) bool {
 	for _, d := range [][2]int32{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
 		for k := int32(1); k <= siteEdgeGap; k++ {
 			if g.soil[domain.Cell{X: c.X + d[0]*k, Z: c.Z + d[1]*k}] == soilCostRich {
@@ -229,7 +127,7 @@ func (g coreGrid) nearRich(c domain.Cell) bool {
 	return false
 }
 
-func (g coreGrid) besideRock(c domain.Cell) bool {
+func (g buildGround) besideRock(c domain.Cell) bool {
 	for _, d := range [][2]int32{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
 		if g.rock[domain.Cell{X: c.X + d[0], Z: c.Z + d[1]}] {
 			return true
@@ -255,10 +153,6 @@ func stepped(cs []domain.Cell, k int) []domain.Cell {
 	}
 	return out
 }
-
-// siteWallCandidates bounds perimeter construction and rescoring for the
-// candidates with the best core scores.
-const siteWallCandidates = 16
 
 // siteGround is the map's size, its impassable cells and every cell's
 // walking distance from the nearest open edge cell, shared by every
@@ -351,15 +245,4 @@ func eachIndex(n int, f func(i int)) {
 		}()
 	}
 	wg.Wait()
-}
-
-// rankSites orders scores best first, ties by seed (Z, X).
-func rankSites(scores []siteScore) {
-	sort.SliceStable(scores, func(i, j int) bool {
-		a, b := scores[i], scores[j]
-		if a.score.Better(b.score) != b.score.Better(a.score) {
-			return a.score.Better(b.score)
-		}
-		return a.seed.Z < b.seed.Z || a.seed.Z == b.seed.Z && a.seed.X < b.seed.X
-	})
 }

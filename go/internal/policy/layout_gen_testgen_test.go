@@ -32,6 +32,35 @@ func growPlan(plan LayoutPlan, pawns, tombs int, tier TechTier, suites ...float6
 	return g.generate(plan, seed, pawns, tombs, tier, suites...)
 }
 
+// coreSeed is the siting seed of zones' core candidates.
+func coreSeed(zones []LayoutZone) (domain.Cell, bool) {
+	return newBuildGround(zones, nil).seed()
+}
+
+// generateAt generates plan from seed over zones' core candidates.
+func generateAt(zones []LayoutZone, plan LayoutPlan, seed domain.Cell, pawns, tombs int, tier TechTier, suites ...float64) LayoutPlan {
+	return newCoreGrid(zones, nil).generate(plan, seed, pawns, tombs, tier, suites...)
+}
+
+// generateClear generates a plan from the centroid seed of the ground left
+// once level's obstacles are out of zones' core candidates.
+func generateClear(zones []LayoutZone, s MapSurvey, level obstacleLevel, pawns, tombs int, suites ...float64) (LayoutPlan, bool) {
+	g := newCoreGrid(zones, nil).withSoil(s)
+	lg := g.withObstacles(g.coreObstacles(zones, level))
+	seed, ok := lg.seed()
+	if !ok {
+		return LayoutPlan{}, false
+	}
+	return lg.generate(LayoutPlan{Zones: zones}, seed, pawns, tombs, TechTierCamp, suites...), true
+}
+
+// coldCorePlan is corePlan for three colonists on a cold or temperate map.
+func coldCorePlan(cold bool) LayoutPlan {
+	zones := coreTestZones()
+	seed, _ := coreSeed(zones)
+	return generateAt(zones, LayoutPlan{Zones: zones, Cold: cold}, seed, 3, 0, TechTierCamp).WithRoomIDs()
+}
+
 // withRooms grows the demand-grown core rooms wanted onto plan.
 func withRooms(plan LayoutPlan, wanted ...PlannedRole) LayoutPlan {
 	if len(plan.Hallways()) == 0 {

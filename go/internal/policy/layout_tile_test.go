@@ -189,7 +189,7 @@ func TestTileBuildsAValidPlanDeterministically(t *testing.T) {
 	for _, r := range res.Plan.Rooms {
 		roles[r.Role] = true
 	}
-	for _, role := range coreBaseRooms {
+	for _, role := range defaultOwedRooms {
 		if !roles[role] {
 			t.Errorf("no %s room: %v", role, roles)
 		}
@@ -327,7 +327,7 @@ func TestMissingRoomsIsPerGroup(t *testing.T) {
 	if got := missingRooms(rooms, owed); !slices.Equal(got, []PlannedRole{PlannedBedroom}) {
 		t.Errorf("missing %v, want one bedroom", got)
 	}
-	if got := missingRooms(rooms, nil); len(got) != len(coreBaseRooms)-1 {
+	if got := missingRooms(rooms, nil); len(got) != len(defaultOwedRooms)-1 {
 		t.Errorf("no owed groups keeps the base set once each: missing %v", got)
 	}
 }

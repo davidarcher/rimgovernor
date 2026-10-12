@@ -21,7 +21,7 @@ func perimeterPlanAt(t *testing.T, seed *domain.Cell, cell func(x, z int32) Surv
 	s := zoningSurvey(200, cell)
 	plan := corePlan(Zone(s), 3, TechTierCamp)
 	if seed != nil {
-		plan = newCoreGrid(Zone(s), nil).generate(LayoutPlan{Zones: Zone(s)}, *seed, 3, 1, TechTierCamp)
+		plan = generateAt(Zone(s), LayoutPlan{Zones: Zone(s)}, *seed, 3, 1, TechTierCamp)
 	}
 	p := PlanPerimeter(plan, s)
 	if !p.WithRoomIDs().Valid() {

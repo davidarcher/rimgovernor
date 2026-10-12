@@ -285,22 +285,6 @@ func (p LayoutPlan) addSecondDoors(fixed map[int32]bool) LayoutPlan {
 	return p
 }
 
-// outside is the cell beyond door d, away from the room whose wall side it
-// faces.
-func outside(d domain.Cell, side domain.Rotation) domain.Cell {
-	switch side {
-	case domain.South:
-		d.Z--
-	case domain.North:
-		d.Z++
-	case domain.West:
-		d.X--
-	case domain.East:
-		d.X++
-	}
-	return d
-}
-
 // secondDoorCandidates are the doors r could add: for each wall side and
 // each hallway (other than primary) its wall touches, the middle wall cell
 // of the stretch beside that hallway. A corner, and a cell holding a door

@@ -23,24 +23,6 @@ import (
 // Hallways are trimmed back to what their rooms and wings need after a
 // move, so a room taken from a far end shortens the base.
 
-// searchRand is a splitmix64 stream.
-type searchRand uint64
-
-func newSearchRand(seed domain.Cell) searchRand {
-	return searchRand(uint64(uint32(seed.X))<<32 | uint64(uint32(seed.Z)) ^ 0x9e3779b97f4a7c15)
-}
-
-func (r *searchRand) next() uint64 {
-	*r += 0x9e3779b97f4a7c15
-	z := uint64(*r)
-	z = (z ^ z>>30) * 0xbf58476d1ce4e5b9
-	z = (z ^ z>>27) * 0x94d049bb133111eb
-	return z ^ z>>31
-}
-
-// intn is a value in 0..n-1.
-func (r *searchRand) intn(n int) int { return int(r.next() % uint64(n)) }
-
 // search runs iters operators over plan, a base plan generated on g (before
 // finish), and returns the best plan it saw.
 func (g coreGrid) search(sc planScorer, plan LayoutPlan, seed domain.Cell, iters int) LayoutPlan {

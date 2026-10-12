@@ -66,50 +66,6 @@ func TestGrowKeepsTheOneShelter(t *testing.T) {
 	}
 }
 
-// The gap shrinks, then the shelter takes a hallway slot, when the ground
-// leaves no room for the preferred clearance.
-func TestShelterFallbackLadder(t *testing.T) {
-	zones := coreTestZones()
-	open := corePlan(zones, 3, TechTierCamp)
-	base := open
-	base.Rooms = nil
-	for _, r := range open.Rooms {
-		if r.Role != PlannedShelter {
-			base.Rooms = append(base.Rooms, r)
-		}
-	}
-	seed := open.Spine[0].From
-	size := ShelterSizes(3, ShelterCampfires(false), 0)[0]
-	all := base.AllRooms()
-	halls := spineRects(base.Hallways())
-
-	// Ground within eight cells of the rooms only.
-	g := newCoreGrid(zones, nil)
-	for c := range g.core {
-		keep := false
-		for _, r := range all {
-			if rectsOverlap(Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1}, pad(roomWalls(r), 8)) {
-				keep = true
-			}
-		}
-		if !keep {
-			delete(g.core, c)
-		}
-	}
-	for gap := shelterGap; gap > 4; gap-- {
-		if _, ok := g.shelterOnOpenGround(all, halls, seed, size, gap, false, false); ok {
-			t.Fatalf("shelter sited %d clear on ground that leaves less", gap)
-		}
-	}
-	spine, rooms := g.siteShelter(base.Spine, base.Rooms, base.Wings, seed, 3, false, false)
-	crowded := base
-	crowded.Spine, crowded.Rooms = spine, rooms
-	s := shelterOf(t, crowded)
-	if gap := shelterGapTo(crowded, s); gap >= shelterGap {
-		t.Fatalf("crowded site still sited %d clear", gap)
-	}
-}
-
 func TestShelterSizeGrowsWithColonistsAndCampfires(t *testing.T) {
 	cells := func(n, fires int) int32 {
 		s := ShelterSizes(n, fires, 0)[0]

@@ -118,89 +118,6 @@ func ShelterSizes(colonists, campfires, coolers int) [][2]int32 {
 	return out
 }
 
-// siteShelter adds the shelter to a base plan's rooms unless it holds one.
-// The preferred ground is shelterGap cells clear of every other room; where
-// that fits nowhere the gap shrinks a cell at a time, and last the shelter
-// takes an ordinary slot on a hallway (packRoom), so the first roof is never
-// delayed by a site that cannot be had. g is the core ground the rest of the
-// plan left; seed is the base's centre, the shelter's door faces it.
-func (g coreGrid) siteShelter(spine []SpineSegment, rooms []PlannedRoom, wings []Wing, seed domain.Cell, colonists int, cold, hot bool) ([]SpineSegment, []PlannedRoom) {
-	if g.noShelter {
-		return spine, rooms
-	}
-	for _, r := range rooms {
-		if r.Role == PlannedShelter {
-			return spine, rooms
-		}
-	}
-	sizes := ShelterSizes(colonists, ShelterCampfires(cold), ShelterCoolers(hot))
-	all := append([]PlannedRoom(nil), rooms...)
-	for _, w := range wings {
-		all = append(all, w.Rooms...)
-	}
-	halls := spineRects(LayoutPlan{Spine: spine, Wings: wings}.Hallways())
-	// The old generator's cold-map shelter gets an airlock where the ground has
-	// room for one; where it fits nowhere it is sited without. The tiler prices
-	// its airlocks instead (layout_tile_airlock.go).
-	passes := []bool{false}
-	if cold {
-		passes = []bool{true, false}
-	}
-	for _, airlock := range passes {
-		for gap := shelterGap; gap >= 1; gap-- {
-			for _, size := range sizes {
-				if room, ok := g.shelterOnOpenGround(all, halls, seed, size, gap, airlock, cold); ok {
-					return spine, append(rooms, room...)
-				}
-			}
-		}
-	}
-	for _, size := range sizes {
-		if next, grown, placed, _ := g.packRoom(spine, rooms, wings, PlannedShelter, size); placed {
-			return next, grown
-		}
-	}
-	return spine, rooms
-}
-
-// shelterOnOpenGround is the best site whose walls sit on core ground, clear
-// of the hallways and gap cells from every room: the fewest rich-soil cells,
-// then the nearest to seed. Its door is at the middle of the wall facing seed.
-func (g coreGrid) shelterOnOpenGround(rooms []PlannedRoom, halls []Rectangle, seed domain.Cell, size [2]int32, gap int32, airlock, porch bool) ([]PlannedRoom, bool) {
-	w, d := size[0], size[1]
-	var avoid []Rectangle
-	for _, r := range rooms {
-		avoid = append(avoid, pad(roomWalls(r), gap))
-	}
-	for _, h := range halls {
-		avoid = append(avoid, pad(h, 1))
-	}
-	var best []PlannedRoom
-	bestRich, bestDist, found := 0, int32(0), false
-	for x := seed.X - shelterReach; x <= seed.X+shelterReach; x++ {
-		for z := seed.Z - shelterReach; z <= seed.Z+shelterReach; z++ {
-			in := Rectangle{X: x, Z: z, Width: w, Height: d}
-			room := shelterWithChildren(in, seed, airlock, porch)
-			footprint := pad(in, 1)
-			for _, c := range room[1:] {
-				footprint = unionRect(footprint, c.attachedGround())
-			}
-			if g.skip[in] || shelterBlocked(footprint, avoid) {
-				continue
-			}
-			rich, ok := g.shelterGround(footprint)
-			if !ok {
-				continue
-			}
-			dist := distanceToRect(seed, in)
-			if !found || rich < bestRich || rich == bestRich && dist < bestDist {
-				best, bestRich, bestDist, found = room, rich, dist, true
-			}
-		}
-	}
-	return best, found
-}
-
 func shelterBlocked(walls Rectangle, avoid []Rectangle) bool {
 	for _, a := range avoid {
 		if rectsOverlap(walls, a) {
@@ -208,31 +125,6 @@ func shelterBlocked(walls Rectangle, avoid []Rectangle) bool {
 		}
 	}
 	return false
-}
-
-// shelterGround reports the rich-soil cells under walls and whether every
-// cell is core ground.
-func (g coreGrid) shelterGround(walls Rectangle) (int, bool) {
-	rich := 0
-	for x := walls.X; x < walls.X+walls.Width; x++ {
-		for z := walls.Z; z < walls.Z+walls.Height; z++ {
-			c := domain.Cell{X: x, Z: z}
-			if !g.core[c] {
-				return 0, false
-			}
-			if g.soil[c] == soilCostRich {
-				rich++
-			}
-		}
-	}
-	return rich, true
-}
-
-// distanceToRect is the Chebyshev distance from c to r.
-func distanceToRect(c domain.Cell, r Rectangle) int32 {
-	dx := max(r.X-c.X, 0, c.X-(r.X+r.Width-1))
-	dz := max(r.Z-c.Z, 0, c.Z-(r.Z+r.Height-1))
-	return max(dx, dz)
 }
 
 // shelterRoom is the room on interior in with its door at the middle of the

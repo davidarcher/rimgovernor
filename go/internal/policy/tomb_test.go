@@ -96,7 +96,7 @@ func TestTombOwedFallsBackToAGrave(t *testing.T) {
 }
 
 func TestCoreGrowPlansATomb(t *testing.T) {
-	if coreRoomSize[PlannedTomb] != [2]int32{5, 5} || containsRole(coreBaseRooms, PlannedTomb) {
+	if coreRoomSize[PlannedTomb] != [2]int32{5, 5} || containsRole(defaultOwedRooms, PlannedTomb) {
 		t.Fatal("the tomb is grown on demand, not a base room")
 	}
 	if p := corePlan(coreTestZones(), 3, TechTierCamp); p.TombRooms() != 0 {

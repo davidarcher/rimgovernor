@@ -4,7 +4,7 @@ import (
 	"slices"
 )
 
-// Demand-grown core rooms. A colony starts with only coreBaseRooms and the
+// Demand-grown core rooms. A colony starts with only the base rooms (defaultOwedRooms) and the
 // bedroom wings; every room below joins the plan once its need shows, at the
 // nearest core slot like any other add-on (SiteRoom), beside its anchor when
 // besideRoles names one (the butchery behind the freezer). Nothing is

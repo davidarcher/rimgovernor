@@ -131,3 +131,53 @@ func TestSiteCoreIsIdenticalAtAnyThreadCount(t *testing.T) {
 		t.Fatal("GOMAXPROCS 1 and many sited different plans")
 	}
 }
+
+// roomSize is the default until the search picks a variant.
+func TestRoomSizeDefaultsAndPicksVariants(t *testing.T) {
+	g := coreGrid{}
+	if got := g.roomSize(PlannedKitchen); got != coreRoomSize[PlannedKitchen] {
+		t.Fatalf("default kitchen %v", got)
+	}
+	g.sizes = map[PlannedRole]int{PlannedKitchen: 1, PlannedFreezer: 3}
+	if got := g.roomSize(PlannedKitchen); got != coreRoomVariants[PlannedKitchen][0] {
+		t.Fatalf("variant kitchen %v", got)
+	}
+	if got := g.roomSize(PlannedFreezer); got != coreRoomSize[PlannedFreezer] {
+		t.Fatalf("freezer has no variants, got %v", got)
+	}
+}
+
+// The local search moves a cluster back in other proportions: over many
+// moves the kitchen comes back in both of its shapes, and every plan stays
+// routable with all its base rooms.
+func TestMoveClusterReproportionsRooms(t *testing.T) {
+	g := newCoreGrid(coreTestZones(), nil)
+	seed, ok := g.seed()
+	if !ok {
+		t.Fatal("no seed")
+	}
+	base := g.generateBase(LayoutPlan{Zones: coreTestZones()}, seed, 3, 0, TechTierCamp)
+	shapes := map[[2]int32]bool{}
+	for i := range 300 {
+		rng := searchRand(i + 1)
+		cand, ok := g.moveCluster(base, &rng)
+		if !ok {
+			continue
+		}
+		for _, r := range cand.Rooms {
+			if r.Role == PlannedKitchen {
+				shapes[[2]int32{r.Region.Bounds().Width, r.Region.Bounds().Height}] = true
+			}
+		}
+		if _, err := CheckRoutes(finishForTest(g, cand)); err != nil {
+			t.Fatalf("move %d: routes: %v", i, err)
+		}
+	}
+	for _, want := range [][2]int32{coreRoomSize[PlannedKitchen], coreRoomVariants[PlannedKitchen][0]} {
+		if !shapes[want] {
+			t.Errorf("kitchen never came back %v; saw %v", want, shapes)
+		}
+	}
+}
+
+func finishForTest(g coreGrid, p LayoutPlan) LayoutPlan { return g.finish(routedEntrances(p)) }

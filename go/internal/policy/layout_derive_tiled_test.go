@@ -27,7 +27,7 @@ func TestDeriveLayoutPlanDoesNotReferenceTheOldGenerator(t *testing.T) {
 		t.Fatal("DeriveLayoutPlan not found")
 	}
 	body := text[start : start+end]
-	for _, banned := range []string{"SiteCore", "PlanUtilities", "growOutskirts", "newCoreGrid"} {
+	for _, banned := range []string{"SiteCore", "PlanUtilities", "growOutskirts"} {
 		if strings.Contains(body, banned) {
 			t.Errorf("DeriveLayoutPlan references %s", banned)
 		}

@@ -9,7 +9,7 @@ import (
 
 // Plan scoring: one generator-independent score for a
 // core plan, read by every siting search. It is tiered. The hard tier is
-// pass or fail: every base room placed (coreBaseRooms), CheckRoutes valid,
+// pass or fail: every owed room placed (defaultOwedRooms), CheckRoutes valid,
 // and no rich soil under a room or hallway. A plan failing it ranks below
 // any plan that passes (PlanScore.Better), so rich soil is a loss only when
 // nothing avoids it: when every candidate stands on some, they all share
@@ -118,20 +118,27 @@ func (s PlanScore) String() string {
 
 // planScorer holds the per-survey state every candidate's score shares.
 type planScorer struct {
-	g      coreGrid
+	g      buildGround
 	s      MapSurvey
 	ground siteGround
 }
 
 func newPlanScorer(zones []LayoutZone, reserved []LayoutReservation, s MapSurvey) planScorer {
-	return planScorer{g: newCoreGrid(zones, reserved).withSoil(s), s: s, ground: newSiteGround(s)}
+	return planScorer{g: newBuildGround(zones, reserved).withSoil(s), s: s, ground: newSiteGround(s)}
+}
+
+// defaultOwedRooms is every colony's essential set: the rooms a plan that names
+// none owes, in the order the old generator placed them.
+var defaultOwedRooms = []PlannedRole{
+	PlannedKitchen, PlannedFreezer, PlannedDining,
+	PlannedWorkshop, PlannedStorage,
 }
 
 // missingRooms are the owed rooms rooms lack, one room per entry: a role owed
-// twice needs two rooms. owed empty is the base set.
+// twice needs two rooms. owed empty is defaultOwedRooms.
 func missingRooms(rooms []PlannedRoom, owed []PlannedRole) []PlannedRole {
 	if len(owed) == 0 {
-		owed = coreBaseRooms
+		owed = defaultOwedRooms
 	}
 	have := map[PlannedRole]int{}
 	for _, r := range rooms {

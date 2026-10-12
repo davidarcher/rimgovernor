@@ -30,13 +30,12 @@ func TestColdMapCurve(t *testing.T) {
 func TestShelterIsSizedByTheLatchedClimate(t *testing.T) {
 	t.Parallel()
 	zones := coreTestZones()
-	g := newCoreGrid(zones, nil)
-	seed, ok := g.seed()
+	seed, ok := coreSeed(zones)
 	if !ok {
 		t.Fatal("no seed")
 	}
-	cold := g.generate(LayoutPlan{Zones: zones, Cold: true}, seed, 3, 0, TechTierCamp)
-	warm := g.generate(LayoutPlan{Zones: zones}, seed, 3, 0, TechTierCamp)
+	cold := generateAt(zones, LayoutPlan{Zones: zones, Cold: true}, seed, 3, 0, TechTierCamp)
+	warm := generateAt(zones, LayoutPlan{Zones: zones}, seed, 3, 0, TechTierCamp)
 	if !cold.Cold || warm.Cold {
 		t.Fatalf("latch cold=%v warm=%v", cold.Cold, warm.Cold)
 	}

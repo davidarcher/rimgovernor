@@ -23,6 +23,22 @@ func attachAirlock(door domain.Cell, rot domain.Rotation) PlannedRoom {
 	}
 }
 
+// outside is the cell beyond door d, away from the room whose wall side it
+// faces.
+func outside(d domain.Cell, side domain.Rotation) domain.Cell {
+	switch side {
+	case domain.South:
+		d.Z--
+	case domain.North:
+		d.Z++
+	case domain.West:
+		d.X--
+	case domain.East:
+		d.X++
+	}
+	return d
+}
+
 // Vestibule is the airlock's one floor cell.
 func (r PlannedRoom) Vestibule() domain.Cell {
 	b := r.Region.Bounds()

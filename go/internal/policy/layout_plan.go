@@ -139,7 +139,7 @@ type LayoutPlan struct {
 	// Owed is the room each station group owes the plan, one role per group,
 	// set only by a tiled plan (layout_tile.go). The hard tier's Missing term
 	// counts a room per entry, so two groups of one role need two rooms; empty
-	// keeps the base set (coreBaseRooms), once each.
+	// keeps defaultOwedRooms, once each.
 	Owed []PlannedRole `json:",omitempty"`
 	// Trips are the pawn trips between this plan's rooms with their daily
 	// frequency (the station graph's flows, layout_trips.go). When set, plan

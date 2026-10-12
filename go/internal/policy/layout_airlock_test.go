@@ -7,13 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func coldCorePlan(cold bool) LayoutPlan {
-	zones := coreTestZones()
-	g := newCoreGrid(zones, nil)
-	seed, _ := g.seed()
-	return g.generate(LayoutPlan{Zones: zones, Cold: cold}, seed, 3, 0, TechTierCamp).WithRoomIDs()
-}
-
 // childOf is the one child of room s with role in plan.
 func childOf(t *testing.T, plan LayoutPlan, s PlannedRoom, role PlannedRole) PlannedRoom {
 	t.Helper()

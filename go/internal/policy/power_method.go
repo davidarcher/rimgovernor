@@ -565,7 +565,7 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 				p.Budget = ComputePowerBudget(budget)
 				switch {
 				case p.Budget.GenerationShortfallW > 0:
-					return generate(p, target, producers, planning, v.Geysers, route)
+					return proposeGenerator(p, target, producers, planning, v.Geysers, route)
 				case p.Budget.StorageShortfallWD > 0:
 					return store(p, target, producers, planning, v.Geysers, route)
 				}
@@ -614,7 +614,7 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 			return p, nil
 		}
 		p.Budget = ComputePowerBudget(budget)
-		return generate(p, target, producers, planning, v.Geysers, route)
+		return proposeGenerator(p, target, producers, planning, v.Geysers, route)
 	}
 	return result, nil
 }
@@ -710,7 +710,7 @@ func powerShelter(target PowerSite, cells []SiteCell, protected map[domain.Cell]
 // adds a generator instead, which the observed reserve still justifies.
 func store(p PowerProposal, target PowerSite, producers []PowerSite, planning PowerPlanning, geysers []PowerGeyser, route map[domain.Cell]bool) (PowerProposal, error) {
 	if available, ok := planning.BatteryAvailable.Value(); !ok || !available {
-		return generate(p, target, producers, planning, geysers, route)
+		return proposeGenerator(p, target, producers, planning, geysers, route)
 	}
 	ids := make([]string, 0, len(producers))
 	for _, b := range producers {
@@ -722,13 +722,13 @@ func store(p PowerProposal, target PowerSite, producers []PowerSite, planning Po
 	return p, nil
 }
 
-// generate proposes one more generator for the network of target. Native
+// proposeGenerator proposes one more generator for the network of target. Native
 // producer identity, rather than fluctuating output, distinguishes an
 // additional capacity proposal from replay of the same deficit. A free steam
 // geyser within GeothermalReachCells of the consumer over routeable cells
 // hosts a geothermal generator ahead of every ranked option: it runs around
 // the clock on no fuel.
-func generate(p PowerProposal, target PowerSite, producers []PowerSite, planning PowerPlanning, geysers []PowerGeyser, route map[domain.Cell]bool) (PowerProposal, error) {
+func proposeGenerator(p PowerProposal, target PowerSite, producers []PowerSite, planning PowerPlanning, geysers []PowerGeyser, route map[domain.Cell]bool) (PowerProposal, error) {
 	ids := make([]string, 0, len(producers))
 	for _, b := range producers {
 		ids = append(ids, b.ID)

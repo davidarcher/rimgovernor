@@ -53,7 +53,7 @@ func TestScoreHardTierRanksBelowAnyPass(t *testing.T) {
 	missing := p
 	missing.Rooms = nil
 	for _, r := range p.Rooms {
-		if r.Role != coreBaseRooms[0] {
+		if r.Role != defaultOwedRooms[0] {
 			missing.Rooms = append(missing.Rooms, r)
 		}
 	}

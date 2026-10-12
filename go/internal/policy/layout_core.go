@@ -2,11 +2,11 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// The core has a three-cell-wide main hallway along X, crossed by north-south
-// hallways as it grows. Rooms hang off both sides and share side walls; every room's door sits in its hallway wall,
-// so no room is a thoroughfare. The core takes cells only from the core
-// candidates (ZoneCore); a room over rock (ZoneMining) is Dug. The other
-// zones give way to the core wherever they overlap it.
+// The old generator's core: a three-cell-wide main hallway along X, crossed by
+// north-south hallways as it grows. Rooms hang off both sides and share side
+// walls; every room's door sits in its hallway wall, so no room is a
+// thoroughfare. Only the generator (SiteCore, test scaffolding, #2932) still
+// runs on it; the ground it reads is buildGround (layout_build_ground.go).
 
 // coreRoomSize is a role's interior: width along the spine, depth away
 // from it. Bedrooms live in the wing (layout_wing.go).
@@ -31,28 +31,16 @@ var coreRoomSize = map[PlannedRole][2]int32{
 	PlannedBattery:  batteryRoomSize,
 }
 
-// coreBaseRooms is every colony's essential set, in placement order: pairs
-// that trade goods sit side by side. Each room takes the nearest free slot,
-// so order is centrality: dining lands near the centre. The bedroom
-// wings are sited with them. Every other room is grown when a need shows
-// (demandCoreRooms), so nothing is dug or reserved for a room that is not
-// up for building.
-var coreBaseRooms = []PlannedRole{
-	PlannedKitchen, PlannedFreezer, PlannedDining,
-	PlannedWorkshop, PlannedStorage,
-}
+// coreBaseRooms is the set the generator places first, in placement order:
+// pairs that trade goods sit side by side. Each room takes the nearest free
+// slot, so order is centrality: dining lands near the centre. The bedroom
+// wings are sited with them.
+var coreBaseRooms = defaultOwedRooms
 
-// coreMaxDepth is the deepest interior, which bounds the core's cross-section.
-const coreMaxDepth int32 = 7
-
-// coreHalf is the core cross-section's half height about a hallway line: half
-// the hallway, the deepest room and a wall on each side.
-const coreHalf = SpineWidth/2 + coreMaxDepth + 2
-
+// coreGrid is the generator's ground: the build ground plus the state its
+// search and packer keep.
 type coreGrid struct {
-	core, rock map[domain.Cell]bool
-	// soil is each surveyed cell's build cost; nil costs nothing.
-	soil map[domain.Cell]int
+	buildGround
 	// fixed are the interiors of the rooms a replan must not move or change:
 	// the search operators and the second-door pass leave them be.
 	fixed map[int32]bool
@@ -69,126 +57,22 @@ type coreGrid struct {
 	linkBehind bool
 }
 
-// Soil build costs per cell: rich soil costs more than
-// plain soil, which costs more than anything else (bare ground, rock).
-// Rich soil (fertility above zoneRichFertility, e.g. 140%) is the best
-// farmland on the map, so a room over it costs 50x plain soil: still a cost,
-// not a ban, but only a site with no other ground pays it.
-const (
-	soilCostRich   = 100
-	soilCostNormal = 2
-	soilCostOther  = 0
-)
+// newCoreGrid takes reserved sites out of the core candidates.
+func newCoreGrid(zones []LayoutZone, reserved []LayoutReservation) coreGrid {
+	return coreGrid{buildGround: newBuildGround(zones, reserved)}
+}
 
 // withSoil gives g a per-cell build cost from the survey's fertility.
 func (g coreGrid) withSoil(s MapSurvey) coreGrid {
-	g.soil = surveySoil(s)
+	g.buildGround = g.buildGround.withSoil(s)
 	return g
 }
 
-// surveySoil is each surveyed cell's build cost.
-func surveySoil(s MapSurvey) map[domain.Cell]int {
-	soil := make(map[domain.Cell]int, len(s.Cells))
-	for _, c := range s.Cells {
-		switch {
-		case c.Rock:
-			soil[c.Cell] = soilCostOther
-		case c.Fertility > zoneRichFertility:
-			soil[c.Cell] = soilCostRich
-		case c.Fertility >= zoneFieldFertility:
-			soil[c.Cell] = soilCostNormal
-		default:
-			soil[c.Cell] = soilCostOther
-		}
-	}
-	return soil
-}
-
-// soilCost sums the build cost of r's cells.
-func (g coreGrid) soilCost(r Rectangle) int {
-	n := 0
-	for x := r.X; x < r.X+r.Width; x++ {
-		for z := r.Z; z < r.Z+r.Height; z++ {
-			n += g.soil[domain.Cell{X: x, Z: z}]
-		}
-	}
-	return n
-}
-
-// newCoreGrid takes reserved sites out of the core candidates.
-func newCoreGrid(zones []LayoutZone, reserved []LayoutReservation) coreGrid {
-	g := coreGrid{core: map[domain.Cell]bool{}, rock: map[domain.Cell]bool{}}
-	for _, z := range zones {
-		var set map[domain.Cell]bool
-		switch z.Kind {
-		case ZoneCore:
-			set = g.core
-		case ZoneMining:
-			set = g.rock
-		default:
-			continue
-		}
-		for _, r := range z.Runs {
-			for x := r.X; x < r.X+r.Length; x++ {
-				set[domain.Cell{X: x, Z: r.Z}] = true
-			}
-		}
-	}
-	for _, r := range reserved {
-		for _, c := range r.Area.Cells() {
-			delete(g.core, c)
-		}
-	}
+// withObstacles is a copy of g whose core lacks obs, so slot search, the
+// hallway and the wings all keep off them.
+func (g coreGrid) withObstacles(obs map[domain.Cell]bool) coreGrid {
+	g.buildGround = g.buildGround.without(obs)
 	return g
-}
-
-// column reports the whole core cross-section at x around spine row z:
-// hallway plus the deepest room and its walls on both sides.
-func (g coreGrid) column(x, z int32) bool {
-	half := coreHalf
-	for dz := -half; dz <= half; dz++ {
-		if !g.core[domain.Cell{X: x, Z: z + dz}] {
-			return false
-		}
-	}
-	return true
-}
-
-// seed picks the spine start: the column-fitting cell nearest the core
-// candidates' centroid.
-func (g coreGrid) seed() (domain.Cell, bool) {
-	var sx, sz int64
-	for c := range g.core {
-		sx += int64(c.X)
-		sz += int64(c.Z)
-	}
-	n := int64(len(g.core))
-	cx, cz := int32(sx/n), int32(sz/n)
-	best, found, bestD := domain.Cell{}, false, int64(-1)
-	for c := range g.core {
-		dx, dz := int64(c.X-cx), int64(c.Z-cz)
-		d := dx*dx + dz*dz
-		if found && (d > bestD || d == bestD && (c.Z > best.Z || c.Z == best.Z && c.X > best.X)) {
-			continue
-		}
-		// The seed is a hallway end: its one-cell cap needs core too.
-		if g.column(c.X-1, c.Z) && g.column(c.X, c.Z) && g.column(c.X+1, c.Z) {
-			best, found, bestD = c, true, d
-		}
-	}
-	return best, found
-}
-
-func (g coreGrid) dug(r PlannedRoom) bool {
-	in := r.Region.Bounds()
-	for x := in.X; x < in.X+in.Width; x++ {
-		for z := in.Z; z < in.Z+in.Height; z++ {
-			if g.rock[domain.Cell{X: x, Z: z}] {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // coreRoomVariants are the other proportions a base-cluster room may take:

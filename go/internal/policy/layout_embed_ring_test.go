@@ -23,7 +23,7 @@ func TestCollidesIsTheAxisGapRule(t *testing.T) {
 }
 
 // TestDenseCoreColumnMatchesCoreGrid keeps denseCore.column equal to
-// coreGrid.column, in and past the core's bounding box.
+// buildGround.column, in and past the core's bounding box.
 func TestDenseCoreColumnMatchesCoreGrid(t *testing.T) {
 	rng := rand.New(rand.NewSource(3012))
 	for n := 0; n < 20; n++ {
@@ -35,7 +35,7 @@ func TestDenseCoreColumnMatchesCoreGrid(t *testing.T) {
 				}
 			}
 		}
-		g, d := coreGrid{core: core}, newDenseCore(core)
+		g, d := buildGround{core: core}, newDenseCore(core)
 		for x := int32(0); x < 44; x++ {
 			for z := int32(-12); z < 66; z++ {
 				if g.column(x, z) != d.column(x, z) {

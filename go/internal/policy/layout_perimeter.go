@@ -672,6 +672,8 @@ func rectOf(a, b domain.Cell) Rectangle {
 	return Rectangle{X: x0, Z: z0, Width: max(a.X, b.X) - x0 + 1, Height: max(a.Z, b.Z) - z0 + 1}
 }
 
+func alongX(s SpineSegment) bool { return s.From.Z == s.To.Z }
+
 func pad(r Rectangle, n int32) Rectangle {
 	return Rectangle{X: r.X - n, Z: r.Z - n, Width: r.Width + 2*n, Height: r.Height + 2*n}
 }

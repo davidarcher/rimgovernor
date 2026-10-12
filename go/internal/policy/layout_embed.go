@@ -328,7 +328,7 @@ func newEmbedderFixed(in EmbedInput, depth int, scorer planScorer, level obstacl
 		}
 		e.sky = append(e.sky, slices.Contains(g.Requires, EnvOpenSky))
 	}
-	lg := scorer.g.withObstacles(scorer.g.coreObstaclesFor(in.Zones, level, len(in.Fields) == 0))
+	lg := scorer.g.without(scorer.g.coreObstaclesFor(in.Zones, level, len(in.Fields) == 0))
 	e.level = newPrefix(w, h, func(c domain.Cell) int { return b2i(lg.core[c]) })
 	for c := range lg.core {
 		e.core = append(e.core, c)
