@@ -219,10 +219,11 @@ unavailable and a spot never, so spot owners walk into bedrooms first; neither t
 assignment nor the construction receipt clears the deficit, only the
 colonist's observed sleep in the owned bed does.
 
-Every colony's first shelter is a 9x9 rectangle; when it does not fit, a concave L or a
-two-chamber connector template wraps the obstacle, and only then does
-constrained terrain grow a connected irregular footprint
-(see the room footprint contract in [spatial contracts](../contracts/spatial-contracts.md)).
+Every colony's first shelter is a room of the layout plan: the station-less
+`PlannedShelter` node of the first plan, sized for the colonists and placed by the
+tiler like any other room (see [facilities](facilities.md#the-tiled-plan) and the
+[layout planner contract](../contracts/spatial-contracts.md#layout-planner)). The
+shelter routine builds that room's ring; it does not search for a site.
 A shell whose materials run out mid-build simply holds: dispatched wall
 orders wait for stock with no attempt timeout, and the review neither sites
 a second shell nor reissues an order while the plan is live.
@@ -231,22 +232,20 @@ plants and furniture inside the room stay in place. Full room reconciliation
 also clears the interior for its furniture and flooring.
 Pausing and resuming control keeps the routine concern and its shell plan, so a
 restart mid-construction simply waits on the open plan. Only a world change
-(load token, map, tick rewind) invalidates the concern; the successor then
-recognises the half-built shell from its own earlier shell plans and the
-walls and door standing natively (whatever its shape, template or grown) and
-reissues only its missing cells rather than siting a second shell.
+(load token, map, tick rewind) invalidates the concern; the saved layout plan and
+the walls and door standing natively then let the per-cell reconcile reissue only
+the missing cells rather than siting a second shell.
 
-Digging into a mountain is chosen, not configured. Rock holds its own roof and
-costs no wall material, so a verified rock face within reach of the colonists beats
-the wooden starter shell deterministically. Fog is the reason excavation is staged:
-the game only reveals rock as neighbouring rock is cleared, so each stage designates
-what pawns can currently see and reach, and the next stage is planned from the
-geometry they actually exposed. Support is a property of the whole removed set, not
-of one cell, which is why the site read evaluates the counterfactual removal and why
-an unknown verdict holds the project instead of failing it. What the fog reveals is
-reviewed, not assumed away: an obstacle inside the room is kept and dug around, an
-obstacle in the way in or a lost roof holder ends the project, and the shelter is
-re-sited from the geometry that remains.
+Digging into a mountain is part of the plan, not a choice the routine makes. A planned
+room whose footprint holds natural rock has its interior and door mined before its ring
+is built (`digPlannedRoom`); rock holds its own roof and costs no wall material, and the
+tiler prices ground, not a comparison against a wooden shell. Fog is the reason the dig
+goes in waves: the game only reveals rock as neighbouring rock is cleared, so each wave
+designates the rock cells that touch open walkable ground and the next is taken from the
+geometry the pawns exposed. A dig that settles with rock standing stops (`rock_not_dug`)
+rather than moving the room. The staged excavation machinery with its support reads is
+now used only for ore corridors; see
+[spatial contracts](../contracts/spatial-contracts.md#digging-planned-rooms).
 
 ## Reservations prevent competing promises
 

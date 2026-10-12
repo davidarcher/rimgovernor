@@ -78,7 +78,9 @@ Concern still waits for a finished building. Unknown facts never prove recovery.
 - [Plans and Hands](plans-and-hands.md): admission, dispatch and completion.
 - [Sessions and recovery](sessions-and-recovery.md): saves, authority and uncertain writes.
 - [Space and resources](space-and-resources.md), [supply](supply-model.md),
-  [facilities](facilities.md) and [storage](storage.md): physical colony planning.
+  [facilities](facilities.md) (the station chain and the tiled layout plan, with the
+  [layout planner contract](../contracts/spatial-contracts.md#layout-planner)) and
+  [storage](storage.md): physical colony planning.
 - [Hazard bounds](hazard-detection-bounds.md) and [combat](combat-game-ai.md):
   native timing and tactical responsibilities.
 - [Expert-play roadmap](expert-play-assessment.md): proposed guarantees and their

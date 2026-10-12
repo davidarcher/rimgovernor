@@ -136,103 +136,68 @@ reshape of any size is a list of cells and is covered with no new action. The sp
 limit is the game's roof support, not the actions: an unpropped roof holds only within
 `roof_max_support_distance` of a wall (`RoomFootprint.RoofSupported`, Euclidean, counted
 from every ring cell, so the pillar a hole leaves extends the span). The footprint
-constructor does not enforce it (`UnionFootprint` and `GrowFootprint` do), so a planner
-that proposes a wide room must call `RoofSupported` itself; bounds are 3844 interior
-cells and 255 ring cells. A roof that fails the check is not buildable without
+constructor (`NewRoomFootprint`, reached through `PlannedRoom.Footprint`) does not
+enforce it. The roof limit is enforced where the groups are sized: clustering caps a
+group's area with `RoofSupported` within the bounds of 3844 interior cells and 255 ring
+cells (`layout_cluster.go`). A roof that fails the check is not buildable without
 columns, which the planner does not place.
 
-A composite footprint is the union of one to eight interior rectangles
+`UnionFootprint` and `GrowFootprint` (`domain/room_footprint.go`) have no production
+caller. A composite footprint is the union of one to eight interior rectangles
 (`UnionFootprint`), deduplicated, 4-connected and roof-supported, with its south door
 on the bounding box's entrance edge: the door's inward cell is interior with interior
 on both sides and one cell deeper, so a door never lands in a notch or on a
 connector's mouth; the nearest such cell to the centre line wins.
 
-### Site search
+### Where a shell stands
 
-Every shell searches the same deterministic tiers. The search tries the 9x9
-rectangle at each candidate centre; when it does not fit, concave templates wrap the
-obstacle or span two clearings: `concave-l-ne/nw/se/sw` (35-cell-class L shapes in
-9x9 bounds) and `connector-ew/ns` (two 4x4 chambers joined by a one-cell passage).
-Sites of an earlier tier always outrank a later tier's, however near the anchor;
-within a tier the first template fitting a centre wins. A shell is buildable only
-when every cell is free, lit ground and its door opens onto free ground (a door
-against rock seals the room; the threshold is checked only where observed). When no
-template fits near the anchor, the routine grows a connected footprint from the
-nearest free seed over cells whose eight neighbours are all free, stopping at 49
-interior cells or sooner when terrain runs out (minimum nine), and walls its ring.
-Site score, reserved yard and indoor storage placement are computed from the
-footprint, not a fixed rectangle.
+No routine searches for a site. Every shell is a room of the layout plan, placed by the
+tiler (see Layout planner below), and a routine raises the planned room of its role. The
+shelter is the plan's `PlannedShelter` room: a station-less `RoomNode` sized by
+`ShelterInteriorArea` (`layout_seed_rooms.go`), so the first plan, which is derived
+before any station is built, already holds it. A shell is buildable when the native
+preview accepts its cells; a planned room whose interior holds rock is dug first (see
+Digging planned rooms). There are no starter templates or per-routine search tiers.
 
 ### Initial shelter rungs
 
-On a fresh site the initial shelter runs three rungs under one Episode:
+`stepShelterRoom` (`rounds_shelter_bunks.go`) raises the shelter room. On a fresh site
+the initial shelter runs three rungs under one Episode:
 
-1. Sleeping spots at the first review, one per colonist owed, on the chosen layout's
-   interior.
+1. Sleeping spots at the first review, one per colonist owed, on the room's bunk slots
+   (`shelterBunkSlots`, `policy.BunkCells`).
 2. Wooden beds (`Bed`, north-facing 1x2; bedrolls in stocked fabric or leather while
-   `Bed` is locked) on the same slots, off the ring's corner cells, the entrance aisle
-   and the storage patch. The native refuses a bed over a standing spot, so the bed rung
-   first deletes the standing spots (`shelter-clear-beds`; a bedroll being upgraded is
-   packed to storage instead, never deleted), and places the beds once none stands
-  . The rung waits, holding the ring, while the spots are unbuilt or the
-   deletion is open.
-3. The ring around them.
+   `Bed` is locked) on the same slots. The native refuses a bed over a standing spot, so
+   the bed rung first deletes the standing spots (`shelter-clear-beds`; a bedroll being
+   upgraded is packed to storage instead, never deleted), and places the beds once none
+   stands. The rung waits while the spots are unbuilt or the deletion is open.
+3. The ring around them, one `reconcileRoom` of the planned room with `ringOnly`.
 
-Each rung is one plan (`routine-bunks-*`, methods `shelter-spots`, `shelter-clear-*`,
-`shelter-bedrolls` and `shelter-beds`), admitted one per review; once the beds are
-admitted an open bed rung does not hold the ring, so
-a stalled bed never keeps the walls and door from starting. The store admits a method
-beside open bunk rungs only when it is pure construction on no bunk cell; an open
-shell still holds the concern, and the indoor furnishing step waits for the bunks.
+Each rung is one plan (methods `shelter-spots`, `shelter-bedrolls`, `shelter-beds` and
+`shelter-clear-*`), admitted one per review, and the ring methods are named
+`shelter-shell-<x>-<z>` (`plannedRoomMethod`) with `-build-` waves. The bunk rungs and the
+ring are admitted in the same review when each is admissible: the walls stand on cells
+the bunks never take, so neither waits on the other, and an open ring wave is existing
+work that does not stop the ladder. The bunks wait only for the room's rock to be dug.
+Once the ring stands the ladder still goes up its rungs while the ring waits on its roof.
 
-- Bunk cells count as free to the shell search; the layout enclosing every bunk with
-  no bed on a corner is preferred. The dig is weighed only before any bunk is placed,
-  and a ring already standing is adopted without bunks.
 - A bed rung the native previews refuse whole falls through to the ring in the same
   review.
-- Partial stock pays for the enclosure first: the bed rung holds back the ring's
-  previewed costs and admits only the beds the remainder pays for; the ring follows
-  at the next review.
-- A restart rereads the bound rungs and sites the ring around them rather than
+- Partial stock pays for the enclosure first: the bed rung admits only the beds the
+  stock pays for, and the ring follows.
+- A restart rereads the bound rungs from the journal (`shelterBunks`) rather than
   placing new bunks.
 
-### Shell adoption and repair
+### Planned-room reconcile after a world change
 
 Pausing and resuming control suspends every routine concern and reactivates it in the
 same world with plans still open. A world change (load token, map, tick rewind)
-invalidates the concern and cancels its plans, and the executor cancels the plan's
-native blueprints and frames; the walls and door already built, and the shell plans
-in the journal, are then the only durable records of a shell in progress.
-
-Before siting a shell the routine reads the player wall and door census within 64
-cells of the colony centre and its earlier shell plans (`routine-shell-*`, retired or
-not, the newest 64). For each candidate door, nearest the centre first, it tries
-every earlier plan that placed a door on that cell (its whole ring; how a grown
-irregular shell is recognised), then every starter shape whose south door lands there
-(the 9x9 rectangle, then the concave templates).
-
-- Shapes at one door share their lowest courses, so the adopted shape is the one whose
-  ring the census matches best (most standing cells; an earlier plan, then the
-  earliest template, on a tie), decided before any placement preview. A shape nothing
-  standing matches is never adopted.
-- The admitted plan holds only the shape's missing cells; a ring whose door was
-  cancelled is reissued door first.
-- When a missing cell of the best-matched shape is not placeable now, or it stands
-  whole but the room census lists no enclosed room inside it yet, the review reports
-  `awaiting_plan:earlier_shell` and waits: it never adopts a lesser shape at the same
-  door nor sites a second shell beside an unfinished first.
-- A facility ladder (comfort, workshop, hospital, sleeping) reaches adoption only
-  because its furnishing step found no site, so it passes by every ring that already
-  encloses a census room and sites a fresh shell, at most one per Episode.
-- A controller restarted with an empty journal recognises template shells from the
-  census alone; a grown shell is not recognised and the routine sites afresh.
-
-A shell plan that settles with a cell unsuccessful leaves a gap the concern alone would
-never close, since a suspended-and-resumed concern keeps its epoch and bound method. The
-shell planner therefore walks a repair chain under the epoch (`<method>`,
-`<method>-repair-1`, `-2`, ... up to eight): once the latest bound plan has settled
-short of every cell completed, it binds the next repair method, reissuing exactly the
-cells not standing.
+invalidates the concern and cancels its plans, and the executor cancels the plan's native
+blueprints and frames. The plan itself is the durable record: it is saved
+(see [persistence](persistence-contracts.md)), and the standing walls and doors are read
+from the census, so the per-cell diff of Layout reconcile (`policy.Reconcile`) reissues
+exactly the cells not standing. There is no adoption pass, no earlier-shell
+plan search and no repair-method chain.
 
 Indoor furnishing treats the four orthogonal neighbours of every observed doorway (a
 door, or a door blueprint or frame) as protected: the entrance aisle is never a
@@ -241,33 +206,33 @@ furniture candidate.
 ## Layout geometry
 
 The layout plan is the only colony geometry: no colony grid, snapping or alignment
-term in any site search. Districts are the layout plan's sectors
-(`LayoutPlan.District`, `DistrictAnchor`); `RoomDistrict` maps a room role to its
-district. Each routine anchors its site search on its district (`layoutAnchor`), and
-on the colony centre when the plan has no free cell there.
+term, no district and no per-routine anchor. A routine reads the planned room of its role
+from the plan.
 
-### Layout generator
+### Layout planner
 
-`policy.SiteCore` sites a fresh plan (`go/internal/policy/layout_gen*.go`):
+The plan is made by the station chain (`go/internal/policy/layout_*.go`; design in
+[facilities](../architecture/facilities.md)): `StationCatalog` (the defs) and
+`StationFacts` (the colony) give `StationGraph` (`BuildStationGraph`, or `SeedGraph` while
+a fact is unread on a derive); `ClusterStations` groups it into rooms; `Embed` places the
+groups and the power sites; `TileEmbedding` turns the embedding into the plan;
+`AdviseStations` returns the `StationAdvice` (graph, groups, embedding, comfort, matched
+rooms) that `TileStations` hands to the tiler. `CheckRoutes` proves the plan routes.
+The tiler runs, in order: field zones, link doors (`chooseLinks`), exterior doors
+(`chooseExteriors`), sealed-room joins (`joinSealed`), kept routes, vents (`chooseVents`),
+the build, the furnishing with the interior search, `PlanRoofed`, airlocks, lamps and the
+conduit routes (`routeTileConduits`). The plan holds Rooms, Links, Entrances, Owed, Trips,
+OutsideTrips, Zones, Reservations, Sites, RetiredGround, Roofed, Lamps, Conduits, Cold
+and Hot; `Spine` and `Wings` are leftovers of the old generator.
 
-- **Obstacles.** Core candidates lose their obstacle cells first (rich soil, ore rock,
-  field zones), level by level; a level holds only if some plan places every base room
-  and houses every colonist, else the next, looser level runs.
-- **Clusters.** Base rooms are grouped by affinity (the weighted trip table plus the
-  `besideRoles` pairs), each cluster placed as a unit on the hallways, packed on
-  shared walls with Link doors.
-- **Housing blocks.** Bedrooms go in wings and suites in suite blocks: each a straight
-  corridor off a hallway, sited whole (a wing at most 10 rooms, a suite block at most
-  6) and never grown.
-- **Rings.** Hallway ends are joined into rings where the ground allows, rooms get
-  second doors, and the plan's entrances are the hallway ends that reach outside the
-  base; `CheckRoutes` proves every trip routes.
-- **Tiling (advisory, #2876).** `policy.TileEmbedding` (`layout_tile.go`) turns the
-  station embedding into a hallway-free plan behind `StationFacts.Tile`; the generator
-  above stays authoritative. Doors between rooms in a shared wall are the plan's typed
+- **Tiling.** `policy.TileEmbedding` (`layout_tile.go`) turns the station embedding into
+  a hallway-free plan; `TileStations` calls it after `AdviseStations`, and both
+  `DeriveLayoutPlan` and `ReplanLayout` take its plan as the plan. Doors between rooms
+  in a shared wall are the plan's typed
   door graph, `LayoutPlan.Links` (`RoomLink`: room ids `A < B` plus the wall cell,
-  persisted in `family/layout_plan`); `PlannedRoom.Link/Door/Doors` still carry the
-  older generator's doors. On a plan with no hallways, `Entrances` are the outside
+  persisted in `family/layout_plan`); `PlannedRoom.Door` is the room's exterior door,
+  and `Link` and `Doors` are leftovers of the old generator. On a plan with no
+  hallways, `Entrances` are the outside
   cells beside an exterior door, and `CheckRoutes` walks the open ground between them.
   A room packed in with no door onto the ground is joined through a neighbour. Each
   tiled room carries `PlannedRoom.Crossing` (`RoomCrossing`), read from its station
@@ -279,12 +244,12 @@ on the colony centre when the plan has no free cell there.
   through unless the plan marks it `Through`, which the tiler does only when no link
   door can be dropped (`MayBeThrough`). A sealed room is joined through the neighbour
   triggering the fewest mechanisms (`throughRank`). `CheckRoutes` also demands every
-  tiled room be reachable from an entrance without crossing a closed room. A room the
-  old generator planned has no facts and keeps its role's `noThroughfare` rule; it is
-  not demanded reachable (its shelter stands apart on open ground the walk graph does
-  not model). Any other closed room in the way is `ErrTileClosed`. The tiled plan carries the group flows as
-  `LayoutPlan.Trips` and scoring walks them (`tripWalk`); a plan without trips (the
-  spine generator's) keeps the role-pair table. Hallways are not planned by the tiler:
+  tiled room be reachable from an entrance without crossing a closed room. A room with no
+  `Crossing` (a plan the old generator wrote, or a room a plan holds without a station
+  group) keeps its role's `noThroughfare` rule and is not demanded reachable. Any other
+  closed room in the way is `ErrTileClosed`. The tiled plan carries the group flows as
+  `LayoutPlan.Trips` and scoring walks them (`tripWalk`); a plan without trips keeps the
+  `routeTrips` role-pair table. Hallways are not planned by the tiler:
   they need ground between blocks that only the embedding can reserve. A group's area
   counts the exterior door and one door threshold per required link
   (`RoomGroup.AddRequiredDoors`); other link doors open, after the exterior and
@@ -308,8 +273,8 @@ on the colony centre when the plan has no free cell there.
   watts that hold it through its entrances (`climate.go`, in the `ColdEnter`..`HotEnter`
   band); a roof takes work, not materials. Cells farther than `RoofMaxSupportDistance`
   from a wall stay in the set and are reported (`roof_unsupported`), never vetoed.
-  `TileResult.RoofDecisions` carries the reasons. Advice only: the runtime issues the
-  `BuildRoofAction` at the #2931 cutover.
+  `TileResult.RoofDecisions` carries the reasons. The runtime builds the set through
+  `MaintainClimateEnvelope` (Runtime, below).
   **Tiler airlocks (#2916).** On a roofed map each room's exterior door is priced in
   sustained watts as a door pawns use (`OpeningDoor`: open for the share of the time its
   trips hold it) against an airlock (`attachAirlock`; the second door and two walls at
@@ -360,8 +325,7 @@ on the colony centre when the plan has no free cell there.
   other's closed leak. Circulation rooms are priced like any room; the tiler plans no
   hallways. `TileDecision` carries the reason
   (`tile_airlock`, `_not_paid`, `_no_ground`, `_unpriced`, `_temperate`) and both
-  totals. `airlockPasses` is retired (#2962): the old generator's cold shelter still tries
-an airlock first, the tiler prices its own.
+  totals. `airlockPasses` is deleted: the tiler prices every airlock.
   **Heaters and coolers in the comparison (#2950).** A room's price, for vents
   (`ventPricer.watts`) and for `ClimateOptions` alike, is its mean running watts plus the
   build cost of the heaters and coolers its load needs (`ClimateModel.PlantsW`): whole
@@ -438,7 +402,8 @@ idle. A hallway cell has no ring to wait for: its roof was priced to pay at plan
   (`LightUnpriced`). Not priced: the `EnvironmentDark` mood (deferred to #2878), surgery
   success, partial glow beyond the reach, and the lamps' power wiring (they are in
   `TileResult.Lamps`, not pieces, so the conduit net does not route to them yet).
-  `MaintainLighting` stays the runtime reconciler. Advice only until #2931.
+  `MaintainLighting` is the runtime reconciler: its round builds the plan's `Lamps`
+  (`policy/lighting.go`, `rounds_lighting.go`; see [upkeep](upkeep-contracts.md)).
   **Comfort and beauty (#2975).** Furniture buys mood through two seeker needs the game
   keeps as one shape (`Need_Seeker`: every 150 ticks the level moves toward an instant level
   at `seekerRisePerHour` x 0.06 up or `seekerFallPerHour` x 0.06 down, frozen while asleep
@@ -500,9 +465,8 @@ idle. A hallway cell has no ring to wait for: its roof was priced to pay at plan
   The morgue is cold, so it
   carries the cooler any cold group carries; the incinerator is required beside the waste
   yard. Wind is not a constraint: it has no game effect here. The tiler gives the
-  unfenced graveyard and waste yard no wall, door or entrance. The old outskirts planner
-  and its slots stay authoritative; `OutskirtsArea` as a region, the siting reasons and the
-  perimeter overlap checks are #2886.
+  unfenced graveyard and waste yard no wall, door or entrance. `OutskirtsArea` as a region, the
+  siting reasons and the perimeter overlap checks are #2886.
   **Training rooms (#2887).** The range and the sparring ring are station-less nodes too
   (`TrainingRoomNodes`, `layout_training_nodes.go`; `StationGraphInput.TrainingStands`
   and `TrainingMarkers` ask for them, zero asks for none). Each asks its exact floor
@@ -514,13 +478,13 @@ idle. A hallway cell has no ring to wait for: its roof was priced to pay at plan
   non-target pawns excluded, so it cannot hit a pawn (#2938). The tiler writes `Facing`
   (the dummies point to the end farther from the bounds of the rooms that are part of the
   base, not the outskirts, training or shelter rooms: `apartFromBase`, `dummyFacing`) and
-  `Markers` onto the room. Growth stays widening in place (`widenRange`,
-  `widenRing`); the old siting stays authoritative.
+  `Markers` onto the room. Both are rooms of the tiled plan; the
+  in-place widening (`widenRange`, `widenRing`) is deleted.
   **Power sites (#2919).** `AdviseStations` asks `EmbedSites` for a site node per
   planned turbine, solar plot and geothermal enclosure (`PowerSiteNodes`,
-  `layout_power_nodes.go`); `PlanUtilities` stays authoritative until the cutover
-  (#2931) and `PlannedPowerSites`, `TurbinePlacement` and `TurbineCatchZone` stay the
-  read API. A turbine is a 7x2 footprint with four turns and a wind lane; a geothermal
+  `layout_power_nodes.go`); the sites land in the tiled plan and `PlannedPowerSites`,
+  `TurbinePlacement` and `TurbineCatchZone` are the read API the power rounds use
+  (`rounds_power.go`). `PlanUtilities` has no production caller. A turbine is a 7x2 footprint with four turns and a wind lane; a geothermal
   node is anchored on its enclosure; the battery room stays a planned room. The lane is
   priced only as the game prices it (`windGround`; constants in the `windPath` DefTables
   entry, read from `CompPowerPlantWind`): a path cell that is off the map, under thick
@@ -547,12 +511,32 @@ idle. A hallway cell has no ring to wait for: its roof was priced to pay at plan
   (the game offers no signal for it). There is no bait room: the game picks an
   infestation cell by weighted random over every candidate, so a dark room does not steer
   it (#2944).
-- **Search.** The best sites by score get a deterministic, iteration-bounded local
-  search; wall time is only a hang guard.
-- **Replan.** Two-stage: the same generator runs with every room that has anything of
-  ours on it (built, blueprint or frame, in-flight plan or claim) fixed, and the
-  result replaces the saved plan only when it houses as many colonists and scores
-  clearly better (`planWeights.ReplanGain`, `layout_replan.go`).
+
+**Old generator (pending deletion, #2932).** `policy.SiteCore` (`layout_site_score.go`)
+and the spine generator behind it (`generate`, the `layout_gen*.go` files,
+`layout_spines.go`, `layout_pack.go`, `layout_wing.go`, `layout_suite.go`) are still in
+the tree, but nothing at runtime calls them: only tests call `SiteCore`, and
+`PlanUtilities` (`layout_utility.go`) has no production caller either. They are what
+wrote `LayoutPlan.Spine` and `Wings` and the doors `PlannedRoom.Link` and `Doors` carry;
+those fields are leftovers until the deletion. The `coreGrid` in `layout_core.go` is not
+part of that: `Embed` reads its obstacle levels, siting seeds and `FieldGain`.
+
+**Entry points and what a replan does.** `DeriveLayoutPlan` (`layout_derive.go`) sets
+`StationFacts.Derive` and runs `TileStations`, then merges the field zones and plans the
+herd and yard sites and the perimeter (`PlanHerdSites`, `PlanYardSites`,
+`PlanMountainPockets(PlanPerimeter(...))`). `ReplanLayout` pins the rooms growth holds
+(`TilePinned`, `ReplanTileFacts`) and runs `TileStations` again, so the next plan is the
+tiled plan wholesale. It then puts back the held rooms the tiler left out (`keepHeld`),
+retires the ground of a standing room that has no node (`retiredGround`), carries the
+barns, pens and yards that still clear (`carriedSites`) and traces the perimeter around
+what the defense record holds (`LayPerimeter`). What moves among built rooms is decided
+inside the embedder by the switching price (`switchThreshold`, `layout_switch.go`:
+`ReplanGain` plus `BuiltSwitch` and `BuiltSwitchCell` per cell of the room's area). A failed replan
+(`ErrReplanEmpty`, `ErrStationFacts`) keeps the saved plan. The runtime derives when no
+plan is saved and re-checks every `layoutReplanEvery` (2500 ticks) when the inputs key
+changes (`reviewLayoutPlan`, `colony_plan.go`), journaling `layout_stations`,
+`layout_plan` and `layout_replan_tiled` rows. [Facilities](../architecture/facilities.md)
+holds the station-chain design.
 
 ### Layout reconcile
 
@@ -623,81 +607,50 @@ unknown hit points or quality is not sale gear.
 gear stays in the warehouse. The armory leaves out cells within six of a prison, and layout
 keeps both rooms out of each other's clearance.
 
-### Site selection and spatial program
+### Spatial program
 
-Site selection compares up to the configured method-attempt limit using native
-terrain/fertility, placement, danger, current stock and projected travel to each
-candidate entrance. Comparisons retain refusal evidence without reserving unselected
-sites.
+Where a room stands is the layout plan's (see Layout planner above); the runtime does
+not compare candidate sites. The persisted spatial program describes habitable shelter,
+food services and maintained capacity using existing functional concerns and fresh
+native gates. Population growth reopens shelter capacity. Routine storage development
+waits for observed indoor sleeping capacity; urgent cooking, food acquisition, medical
+care and temperature control keep their priorities. Future phases own no cells or game
+orders.
 
-The persisted spatial program describes habitable shelter, food services and
-maintained capacity using existing functional concerns and fresh native gates.
-Population growth reopens shelter capacity. Routine storage development waits for
-observed indoor sleeping capacity; urgent cooking, food acquisition, medical care and
-temperature control keep their priorities. Future phases own no cells or game orders.
+### Digging planned rooms
 
-### Staged excavation
+A planned room whose footprint holds natural rock is dug before it is walled.
+`plan.RoomRock(room, cells).Dig` lists the rock cells of the interior and door
+(`layout_mining.go`), and `digPlannedRoom` (`rounds_plan_dig.go`) admits them through the
+shared `admitRockStep` as the method `plan-dig-room-<role>-<x>-<z>`, reached from
+outside the room's door. A building that needs open sky also has its roof removed
+(`digPlannedSky`). Each wave designates only the cells with an open walkable cardinal
+neighbour (`exposedFirst`), because a pawn cannot step between two diagonal gaps; up to
+64 waves (`digWaves`) mine the rock each wave exposed. A dig that settles with rock
+still standing refuses with `rock_not_dug` and the layout never repositions: the tiler,
+not the dig, chose the place. The ring is raised beside an open room dig, so a dig does
+not hold the shell planner (`isRoomDigMethod`).
 
-When the initial shelter is due, the planner compares the open-site starter shell with
-a staged excavation into a visible rock face.
+### Staged excavation (ore corridors)
 
-**Target.** An ordered cell set: a one-wide corridor of two to four cells from a known
-walkable access cell, then an interior past the door cell generated by a deterministic
-shape, a rectangle or an integer-membership ellipse (`domain.EllipseInterior`), whose
-parameters, not its cells, travel in the target key. Every target cell must lie within
-the native roof-support radius of a cell left untouched, so the rock left standing
-holds the roof, and must be visible rock under a natural rock roof or fogged inside
-the observed planning window. Any known open, indoor or protected cell inside or
-beside the room rejects it; nothing outside the window is planned.
+The staged machinery is now corridor-only. `policy.CorridorExcavationSites`
+(`tunnel_site.go`) proposes a one-wide corridor from a known walkable access cell into a
+visible rock face toward an ore cell, and `rounds_resource_tunnel.go` drives it; the
+code states that dug rooms are the layout plan's and this only reaches ore. The
+shelter is not a staged excavation. The rules that still hold:
 
-**Choice.** The planner tries shapes at each face in an order that follows the shelter
-style (a neolithic colony digs the round room first, everyone else the rectangle) and
-proposes the first legal shape at the shortest legal corridor; faces rank by distance.
-The planning window carries no reachability; a site no colonist can reach is refused
-at `placement_preview` and the planner moves on. A verified site within planning
-reach of the colony anchor wins over any shell; farther sites win only when no clean
-shell exists or when nearer than the shell.
-
-**Stages.** Work proceeds in stages of at most eight visible, eligible,
-frontier-adjacent cells, each admitted only after a fresh native site read reports the
-stage supported with a miner able to reach the access cell. The next stage waits for
-the previous stage's observed completion and re-reads the geometry rather than
-assuming the fogged interior. The door is built only after every target cell is
-observed cleared or kept; furnishing then follows the ordinary indoor sleeping method.
-
-**Review of changes.**
-
-- A cell that unfogs into something not rock and not clearable is kept: never staged,
-  dug around, and the room completes without it so long as the corridor and the cell
-  past the door stay clear.
-- A kept corridor or entrance cell, or an access cell no miner can reach, blocks the
-  way in: the project is dropped and the same review re-sites the shelter (another
-  verified face first, the shell otherwise), the stage count continuing.
-- A whole-target read that is unsupported with no collapse pending means the roof rock
-  is gone; the project is dropped the same way. A pending collapse, an unknown verdict
-  or a missing miner only wait.
-- A stage admitted before such a change closes through its own executor; a stage
-  action held not ready, unsupported or on changed geometry longer than the stall
-  grace is cancelled so the closed plan lets the review run.
-
-**Restart.** A restarted controller whose concern survives rediscovers the project from
-its durable stage plans. When the concern was invalidated the successor concern resumes the
-most recently planned target from those plans, verified by a fresh native site read
-that still shows rock to dig, before any new face is considered. A cleared cell is
-never re-designated; a project the read reports breached, blocked or fully cleared is
-dropped and the review plans from the geometry the pawns actually opened.
-
-### Adopting an existing shell
-
-Adoption can describe a connected nonrectangular interior of at most 3844 unique cells
-inside the inspected bounds, with an exact boundary entrance and direction.
-`interior_cells` and `entrance_cell` must be supplied together. Native room geometry,
-roof and completed doorway must match, with a verified safe native pawn route to both
-doorway approaches. The observed role and load/map identity are retained. Furnishing
-keeps a connected entrance aisle and every narrow connector. Native neutral structures
-can be reused without claiming them; missing shell pieces need ordinary explicit
-construction and roof completion before adoption. A load requires fresh adoption; an
-altered interior invalidates it.
+- Fogged cells are unknown, never assumed empty or safe, and nothing outside the
+  observed planning window is planned. Native `ReadExcavationSite` is the authority for
+  roof support and for a miner able to reach the access cell.
+- Work proceeds in stages of at most eight cells (`excavationStageLimit`), each admitted
+  only after a fresh native site read reports the stage supported. The next stage waits
+  for the previous stage's observed completion and re-reads the geometry.
+- The target key rides on the stage method id (`excavation-stage-<n>@<key>`,
+  `ExcavationMethod` parses it), so an in-progress project is recovered from the journal
+  alone.
+- A stage action held not ready, unsupported or on changed geometry for longer than
+  `excavationStallTicks` (one hour) is cancelled so the review runs against the geometry
+  that changed under it. A cleared cell is never re-designated.
 
 ## Zone and facing postconditions
 
@@ -880,8 +833,9 @@ eight clearances per method once every tier stands; native refusals of the cover
 ## Perimeter routing cut (#2973)
 
 `policy.PlanPerimeterCut` (`perimeter_cut.go`) advises the perimeter as a routing cut
-beside the ring `PlanPerimeter` traces; nothing reads it yet (the runtime flip is the
-#2931 perimeter child). The wall is about routing: the cheapest set of wall cells such
+beside the ring `PlanPerimeter` traces. The review only logs it (`logPerimeterCut`,
+`colony_plan_cut.go`); nothing reads it, and the plan's ring is still `PlanPerimeter` on a
+derive and `LayPerimeter` on a replan. The wall is about routing: the cheapest set of wall cells such
 that every walk from a map edge, or from the opening's lane, to the core enclosure
 crosses a wall or passes the killbox opening. Only walls are barriers (not sandbags, not
 traps). Terrain a pawn cannot cross (rock, hazard, unwalkable ground) is a free barrier,
@@ -926,8 +880,8 @@ Where a tier stands depends on live cover, trees and standing buildings, so the 
 a function of the plan and a census, not of the survey: they are re-sited from each
 census and are not stored with the plan. The census (`DefenseRequest`: the cell mirror
 window, defenders, definitions and the turret, mortar and IED gates) is an explicit input;
-its Killbox, Home and Region are the plan's. A started tier (built, an attempt admitted, a lost building re-opening it, or any building standing) is pinned, as `replanPins` pins a
-room that holds anything of ours: its node is the built tier where it stands, the census
+its Killbox, Home and Region are the plan's. A started tier (built, an attempt admitted, a lost building re-opening it, or any building standing) is pinned, the way a replan holds a
+room that holds anything of ours (`keepHeld`): its node is the built tier where it stands, the census
 reads its standing buildings as the ground under them so the same census sites the same
 cells, and the tiers still to build are sited around it (a building of theirs on a pinned
 cell is dropped, `tier_displaced_by_built`). A census the layout planner refuses leaves the

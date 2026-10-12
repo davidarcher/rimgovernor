@@ -25,6 +25,21 @@ copy of a fact is a bug, not a cache.
 | SQLite table `concern_transitions` (session journal) | Player-facing explanation history: one row per change of a concern's winning typed cause ([below](#concern_transitions)). Not telemetry, so it is not a telemetry row | Not restored; read by the Grafana dashboards (snapshot copy) and the nightly `explain/every-concern` case |
 | SQLite table `ledger_rows` (session journal) | A derived, replaceable copy of the latest work-ledger review (`policy.LedgerView`), one row per row of each Ledger table, the whole set replaced in one transaction after every review ([below](#ledger_rows)). Not a second store: the controller never reads it back as truth and may delete it any time | Not restored; the next review rewrites it; read by the Grafana `rg-ledger` dashboard (snapshot copy) |
 
+### Layout plan record
+
+The layout plan (`policy.LayoutPlan`, see [spatial contracts](spatial-contracts.md#layout-planner))
+has two homes. In the session database it is the table `colony_layout_plans`
+(`store/layout_plan.go`): `RecordLayoutPlan` refuses a plan that is not `Valid()` and writes
+one row per world (colony, map) and tick, and `LayoutPlan` reads the newest row at or before
+the tick. A row that does not decode or is not `Valid()` reads as none (the record comes back
+`Invalid`), so the review derives a fresh plan (`DeriveLayoutPlan`) rather than adopting it. In
+the save it is the blob `family/layout_plan` (`store/governor_state.go`,
+`GovernorLayoutPlanKey`), which follows the save's timeline. The runtime records a plan only
+when it derives one or a replan succeeds (`reviewLayoutPlan`, `colony_plan.go`); a failed
+replan keeps the saved plan. The `StationAdvice` that produced it (graph, groups, embedding,
+comfort and matched rooms) is not persisted: the Rounder holds it in memory and recomputes it
+at each layout review.
+
 ### concern_transitions
 
 The player-facing explanation history lives in the session SQLite store, not in
