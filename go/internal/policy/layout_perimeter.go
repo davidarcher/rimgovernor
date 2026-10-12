@@ -614,6 +614,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	}
 	ring.Ring.Inner, ring.Ring.Sealed = traceInterior(plan.AllRooms(), wall, band)
 
+	rev := plan.ringRevision()
 	plan = plan.withoutPerimeterSites()
 	plan.Sites = append(plan.Sites, ring)
 	// Each kind in a stable order, its parts as ordinals, so the same inputs
@@ -632,7 +633,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	if !coverBand.Empty() {
 		plan.Sites = append(plan.Sites, newSite("cover-clear", NodeCoverClear, coverBand, ""))
 	}
-	return plan
+	return plan.withRevision(rev)
 }
 
 // neighbours8 are the eight cells around one.

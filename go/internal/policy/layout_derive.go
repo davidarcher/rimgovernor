@@ -101,6 +101,10 @@ type RoomGrowth struct {
 	// Slept are the superseded bedrooms a pawn still owns a bed in
 	// (SleptBedrooms): they stay in the plan after their successor stands.
 	Slept map[int32]bool
+	// Perimeter is what the defense record holds of the ring's nodes: a ring
+	// traced again over a held one is laid as a replacement beside it, and
+	// not at all while a rebuild is in flight (layout_perimeter_replace.go).
+	Perimeter PerimeterHold
 }
 
 // ReplanLayoutWithRooms grows plan for pawns colonists and tombs tomb rooms
@@ -227,13 +231,13 @@ func replanLayout(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawn
 	next.Zones = zones
 	unplacedRooms := errors.Join(unplaced...)
 	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {
-		fresh := withoutCore(PlanMountainPockets(PlanPerimeter(plan, s), s))
+		fresh := layPerimeter(plan, plan, s, growth.Perimeter)
 		return fresh, sited || !sameSites(plan, fresh), unplacedRooms
 	}
 	if len(next.AllRooms()) == 0 {
 		return plan, false, unplacedRooms
 	}
-	return withoutCore(PlanMountainPockets(PlanPerimeter(next, s), s)), true, unplacedRooms
+	return layPerimeter(plan, next, s, growth.Perimeter), true, unplacedRooms
 }
 
 // topUpHerdSites adds the herd sites animals needs to plan, sited over the

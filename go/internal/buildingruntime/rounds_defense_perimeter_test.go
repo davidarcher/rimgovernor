@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -41,20 +42,9 @@ func perimeterRecord(t *testing.T, plan policy.LayoutPlan) store.DefenseLayoutRe
 		Tiers: []store.DefenseTierRecord{{Name: policy.TierTrapCorridor, Buildings: []store.DefenseBuilding{{Definition: "TrapSpike", Cell: k.Entry, Rotation: domain.North, Stuff: "WoodLog"}}}}}
 }
 
-// perimeterCut is a cut at a tick over the plans the world recorded, by tick:
-// the plan current at a tick is the latest recorded at or before it.
-func perimeterCut(plans map[domain.Tick]policy.LayoutPlan, tick domain.Tick, bridge string, transmitters []domain.Cell, spare float64) defenseCut {
-	at := func(t domain.Tick) (policy.LayoutPlan, domain.Tick, bool, error) {
-		var best domain.Tick = -1
-		for recorded := range plans {
-			if recorded <= t && recorded > best {
-				best = recorded
-			}
-		}
-		return plans[best], best, best >= 0, nil
-	}
-	plan, _, _, _ := at(tick)
-	return defenseCut{plan: plan, bridge: bridge, transmitters: transmitters, spare: spare, tick: tick, plans: at}
+// perimeterCut is a cut over a plan.
+func perimeterCut(plan policy.LayoutPlan, bridge string, transmitters []domain.Cell, spare float64) defenseCut {
+	return defenseCut{plan: plan, bridge: bridge, transmitters: transmitters, spare: spare}
 }
 
 func tierBuildings(record store.DefenseLayoutRecord, keep func(store.DefenseTierRecord) bool) map[string]bool {
@@ -90,8 +80,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 	}
 	record := perimeterRecord(t, plan)
 	transmitters := []domain.Cell{{X: plan.Rooms[0].Region.Bounds().X, Z: plan.Rooms[0].Region.Bounds().Z}}
-	history := map[domain.Tick]policy.LayoutPlan{100: plan}
-	if changed, err := defenseRecutPerimeter(&record, perimeterCut(history, 100, policy.PerimeterBridge, transmitters, 1e6)); err != nil || !changed || record.PerimeterRevision != 0 || record.PerimeterKey == "" {
+	if changed, err := defenseRecutPerimeter(&record, perimeterCut(plan, policy.PerimeterBridge, transmitters, 1e6)); err != nil || !changed || record.PerimeterRevision != 0 || record.PerimeterKey == "" {
 		t.Fatal("anchor", changed, err)
 	}
 	wood := tierBuildings(record, func(t store.DefenseTierRecord) bool { return true })
@@ -104,17 +93,16 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 	if pumps == 0 {
 		t.Fatal("no pump tier")
 	}
-	if changed, _ := defenseRecutPerimeter(&record, perimeterCut(history, 100, policy.PerimeterBridge, transmitters, 1e6)); changed {
+	if changed, _ := defenseRecutPerimeter(&record, perimeterCut(plan, policy.PerimeterBridge, transmitters, 1e6)); changed {
 		t.Fatal("an unchanged plan re-cut")
 	}
 	// No tombs: the plan above was derived with none, and a tomb room the
 	// replan adds grows the core and moves the killbox.
-	dried, changed, _ := policy.ReplanLayoutWithRooms(plan, survey(true), policy.RoomGrowth{}, 0, 3, 0, policy.TechTierCamp, nil, nil)
+	dried, changed, _ := policy.ReplanLayoutWithRooms(plan, survey(true), policy.RoomGrowth{Perimeter: record.PerimeterHold()}, 0, 3, 0, policy.TechTierCamp, nil, nil)
 	if !changed {
 		t.Fatal("dried ground kept the plan")
 	}
-	history[200] = dried
-	if changed, err := defenseRecutPerimeter(&record, perimeterCut(history, 200, policy.PerimeterBridge, transmitters, 1e6)); err != nil || !changed || record.PerimeterRevision != 1 {
+	if changed, err := defenseRecutPerimeter(&record, perimeterCut(dried, policy.PerimeterBridge, transmitters, 1e6)); err != nil || !changed || record.PerimeterRevision != 1 {
 		t.Fatal("re-cut", changed, err)
 	}
 	if record.Tiers[0].Name != policy.TierTrapCorridor {
@@ -162,9 +150,9 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 	if !pumpRemoved {
 		t.Fatal("the dropped pump stays")
 	}
-	// The record holds the old ring's nodes (frozen cells) and the new ring's
-	// (resolved from the plan) together. Stored, it keeps the node ids and the
-	// frozen cells and drops the resolved buildings; loaded and hydrated, the
+	// The record holds the old ring's nodes (retired in the plan) and the new
+	// ring's together. Stored, it keeps the node ids and drops the resolved
+	// buildings; loaded and hydrated, the
 	// new tiers stand again; the old stretch demolished, its removals leave and
 	// the new tiers stay.
 	ctx := context.Background()
@@ -185,11 +173,11 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 		if tier.NodeBacked() && len(tier.Buildings) > 0 {
 			t.Fatal("a node tier stored its buildings", tier.Name)
 		}
-		if tier.Remove && (len(tier.Nodes) == 0 || len(tier.Buildings) == 0) {
-			t.Fatal("a removal tier lost its nodes or frozen cells", tier.Name)
+		if tier.Remove && len(tier.Nodes) == 0 {
+			t.Fatal("a removal tier lost its nodes", tier.Name)
 		}
 	}
-	if err = defenseHydrate(&loaded, perimeterCut(history, 200, policy.PerimeterBridge, transmitters, 1e6)); err != nil {
+	if err = defenseHydrate(&loaded, perimeterCut(dried, policy.PerimeterBridge, transmitters, 1e6)); err != nil {
 		t.Fatal(err)
 	}
 	if got := tierBuildings(loaded, func(t store.DefenseTierRecord) bool { return !t.Remove }); len(got) != len(fresh) {
@@ -198,7 +186,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 	demolished := &defenseCensus{edifice: map[domain.Cell]string{}, terrain: map[domain.Cell]string{}}
 	nodeTiers := 0
 	for _, tier := range loaded.Tiers {
-		if tier.NodeBacked() {
+		if tier.NodeBacked() && !tier.Remove {
 			nodeTiers++
 		}
 	}
@@ -219,6 +207,15 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 	if after != nodeTiers {
 		t.Fatal("node tiers lost with the removals", nodeTiers, after)
 	}
+	// Nothing holds the old ring now, so the next replan drops its nodes.
+	if hold := loaded.PerimeterHold(); policy.PerimeterRetirable(dried, hold.Held) {
+		settled, changed, _ := policy.ReplanLayoutWithRooms(dried, survey(true), policy.RoomGrowth{Perimeter: hold}, 0, 3, 0, policy.TechTierCamp, nil, nil)
+		if !changed || policy.PerimeterRetirable(settled, hold.Held) {
+			t.Fatal("the retired nodes stayed", changed)
+		}
+	} else {
+		t.Fatal("the old ring was not retired in the plan")
+	}
 }
 
 // A new pump is planned only while spare watts cover its 150 W; one the
@@ -236,7 +233,6 @@ func TestDefenseRecutPerimeterPumpPower(t *testing.T) {
 		t.Fatal("no plan")
 	}
 	transmitters := []domain.Cell{{X: plan.Rooms[0].Region.Bounds().X, Z: plan.Rooms[0].Region.Bounds().Z}}
-	history := map[domain.Tick]policy.LayoutPlan{100: plan}
 	pumps := func(r store.DefenseLayoutRecord) (n int) {
 		for k := range tierBuildings(r, func(t store.DefenseTierRecord) bool { return !t.Remove }) {
 			if strings.HasPrefix(k, defenseMoisturePump+"@") {
@@ -250,7 +246,7 @@ func TestDefenseRecutPerimeterPumpPower(t *testing.T) {
 		want  func(int) bool
 	}{{0, func(n int) bool { return n == 0 }}, {149, func(n int) bool { return n == 0 }}, {150, func(n int) bool { return n == 1 }}, {1e6, func(n int) bool { return n >= 1 }}} {
 		record := perimeterRecord(t, plan)
-		if _, err := defenseRecutPerimeter(&record, perimeterCut(history, 100, policy.PerimeterBridge, transmitters, c.spare)); err != nil {
+		if _, err := defenseRecutPerimeter(&record, perimeterCut(plan, policy.PerimeterBridge, transmitters, c.spare)); err != nil {
 			t.Fatal(err)
 		}
 		if n := pumps(record); !c.want(n) {
@@ -258,11 +254,11 @@ func TestDefenseRecutPerimeterPumpPower(t *testing.T) {
 		}
 	}
 	record := perimeterRecord(t, plan)
-	if _, err := defenseRecutPerimeter(&record, perimeterCut(history, 100, policy.PerimeterBridge, transmitters, 1e6)); err != nil {
+	if _, err := defenseRecutPerimeter(&record, perimeterCut(plan, policy.PerimeterBridge, transmitters, 1e6)); err != nil {
 		t.Fatal(err)
 	}
 	built := pumps(record)
-	if changed, _ := defenseRecutPerimeter(&record, perimeterCut(history, 100, policy.PerimeterBridge, transmitters, 0)); changed || pumps(record) != built {
+	if changed, _ := defenseRecutPerimeter(&record, perimeterCut(plan, policy.PerimeterBridge, transmitters, 0)); changed || pumps(record) != built {
 		t.Fatal("standing pumps re-priced", changed, pumps(record), built)
 	}
 }
@@ -276,13 +272,12 @@ func TestDefenseRecutPerimeterMovedKillbox(t *testing.T) {
 	if !ok {
 		t.Fatal("no plan")
 	}
-	history := map[domain.Tick]policy.LayoutPlan{100: plan}
 	record := perimeterRecord(t, plan)
-	if _, err := defenseRecutPerimeter(&record, perimeterCut(history, 100, policy.PerimeterBridge, nil, 0)); err != nil {
+	if _, err := defenseRecutPerimeter(&record, perimeterCut(plan, policy.PerimeterBridge, nil, 0)); err != nil {
 		t.Fatal(err)
 	}
 	record.KillboxDigest = "moved"
-	if changed, err := defenseRecutPerimeter(&record, perimeterCut(history, 100, policy.PerimeterBridge, nil, 0)); err != nil || !changed || record.Killbox != "" {
+	if changed, err := defenseRecutPerimeter(&record, perimeterCut(plan, policy.PerimeterBridge, nil, 0)); err != nil || !changed || record.Killbox != "" {
 		t.Fatal("moved killbox kept the anchor", changed, err)
 	}
 }
@@ -302,13 +297,12 @@ func TestDefenseRecutPerimeterHeavyBridges(t *testing.T) {
 	if !ok {
 		t.Fatal("no plan")
 	}
-	history := map[domain.Tick]policy.LayoutPlan{100: plan, 200: plan}
 	record := perimeterRecord(t, plan)
-	if _, err := defenseRecutPerimeter(&record, perimeterCut(history, 100, policy.PerimeterBridge, nil, 0)); err != nil {
+	if _, err := defenseRecutPerimeter(&record, perimeterCut(plan, policy.PerimeterBridge, nil, 0)); err != nil {
 		t.Fatal(err)
 	}
 	bridges := tierBuildings(record, func(t store.DefenseTierRecord) bool { return true })
-	changed, err := defenseRecutPerimeter(&record, perimeterCut(history, 200, policy.PerimeterHeavyBridge, nil, 0))
+	changed, err := defenseRecutPerimeter(&record, perimeterCut(plan, policy.PerimeterHeavyBridge, nil, 0))
 	if err != nil || !changed {
 		t.Fatal("heavy bridges re-cut nothing", err)
 	}
@@ -383,5 +377,140 @@ func TestDefenseRemovalTierOrders(t *testing.T) {
 	gone.edifice[wall], gone.edifice[door] = "", ""
 	if !defenseTierCensus(&record, gone) || len(record.Tiers) != 1 {
 		t.Fatal("a finished removal stayed", len(record.Tiers))
+	}
+}
+
+// The ring replaced end to end (#2924, #2237): the old ring stands and defends
+// while the replacement is unbuilt; the replacement closes; only then does the
+// old one go, and what the new ring wants is never taken down.
+func TestDefenseRingReplaceLifecycle(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
+	t.Parallel()
+	survey := func(dried bool) policy.MapSurvey {
+		return perimeterSurvey(func(x, z int32) policy.SurveyCell {
+			if !dried && z%40 < 4 {
+				return policy.SurveyCell{Walkable: true, Footing: policy.FootingLight, Bridgeable: true, Dries: true, Fertility: 1}
+			}
+			return policy.SurveyCell{Walkable: true, Fertility: 1}
+		})
+	}
+	plan, ok := policy.DeriveLayoutPlan(survey(false), 3, policy.TechTierCamp, nil, 30).Value()
+	if !ok {
+		t.Fatal("no plan")
+	}
+	record := perimeterRecord(t, plan)
+	transmitters := []domain.Cell{{X: plan.Rooms[0].Region.Bounds().X, Z: plan.Rooms[0].Region.Bounds().Z}}
+	if _, err := defenseRecutPerimeter(&record, perimeterCut(plan, policy.PerimeterBridge, transmitters, 1e6)); err != nil {
+		t.Fatal(err)
+	}
+	standing := func(keep func(store.DefenseTierRecord) bool) *defenseCensus {
+		c := &defenseCensus{edifice: map[domain.Cell]string{}, terrain: map[domain.Cell]string{}, conduits: map[domain.Cell]bool{}}
+		for _, tier := range record.Tiers {
+			if !keep(tier) {
+				continue
+			}
+			for _, b := range tier.Buildings {
+				switch {
+				case b.Definition == defenseConduitDefinition:
+					c.conduits[b.Cell] = true
+				case defenseTerrain(b.Definition):
+					c.terrain[b.Cell] = b.Definition
+				default:
+					c.edifice[b.Cell] = b.Definition
+				}
+			}
+		}
+		return c
+	}
+	// The old ring is built and defends.
+	oldRing := standing(func(store.DefenseTierRecord) bool { return true })
+	defenseTierCensus(&record, oldRing)
+	oldKeys := tierBuildings(record, func(tier store.DefenseTierRecord) bool { return policy.IsPerimeterTier(tier.Name) })
+	if len(oldKeys) == 0 {
+		t.Fatal("no old perimeter")
+	}
+	// The ground dries: the replan stands a replacement beside the old ring.
+	dried, changed, _ := policy.ReplanLayoutWithRooms(plan, survey(true), policy.RoomGrowth{Perimeter: record.PerimeterHold()}, 0, 3, 0, policy.TechTierCamp, nil, nil)
+	if !changed {
+		t.Fatal("dried ground kept the plan")
+	}
+	ring, ok := dried.Ring()
+	if !ok || len(ring.ReplacesSites) == 0 || ring.Reason != policy.ReasonRingReplaced {
+		t.Fatal("no replacement ring", ring.Node, ring.ReplacesSites, ring.Reason)
+	}
+	for _, id := range ring.ReplacesSites {
+		if site, ok := dried.Site(id); !ok || site.Node == ring.Node {
+			t.Fatal("the replaced node is not kept", id)
+		}
+	}
+	if changed, err := defenseRecutPerimeter(&record, perimeterCut(dried, policy.PerimeterBridge, transmitters, 1e6)); err != nil || !changed {
+		t.Fatal("re-cut", changed, err)
+	}
+	// Another replan while the old ring is held stands no second replacement:
+	// one rebuild at a time.
+	if again, _, _ := policy.ReplanLayoutWithRooms(dried, survey(true), policy.RoomGrowth{Perimeter: record.PerimeterHold()}, 0, 3, 0, policy.TechTierCamp, nil, nil); policy.PerimeterChanged(dried, again) {
+		t.Fatal("a second replacement began over the first")
+	}
+	// The replacement is unbuilt, the old ring stands: no removal is done and
+	// no new tier reads built.
+	defenseTierCensus(&record, oldRing)
+	removals := 0
+	for _, tier := range record.Tiers {
+		if tier.Remove {
+			removals++
+		}
+		if tier.Remove || !tier.Built {
+			continue
+		}
+		for _, b := range tier.Buildings {
+			if !oldRing.standing(b.Definition, b.Cell) {
+				t.Fatal("an unbuilt replacement reads built", tier.Name, b)
+			}
+		}
+	}
+	if removals == 0 {
+		t.Fatal("no removal queued for the old ring")
+	}
+	// Nothing is stranded: every old building is wanted by the new ring or
+	// removed by a tier.
+	wanted := tierBuildings(record, func(tier store.DefenseTierRecord) bool { return !tier.Remove })
+	removed := tierBuildings(record, func(tier store.DefenseTierRecord) bool { return tier.Remove })
+	for k := range oldKeys {
+		if !wanted[k] && !removed[k] {
+			t.Fatal("stranded", k)
+		}
+	}
+	// The walls on cells the replacement builds on come down first, the rest of
+	// the old ring still standing.
+	seenFresh := false
+	record.Tiers = slices.DeleteFunc(record.Tiers, func(tier store.DefenseTierRecord) bool {
+		seenFresh = seenFresh || (!tier.Remove && policy.IsPerimeterTier(tier.Name))
+		if tier.Remove && tier.Before && seenFresh {
+			t.Fatal("a removal ahead of the new ring queued behind it", tier.Name)
+		}
+		return tier.Remove && tier.Before
+	})
+	// The replacement closes and the old stretch comes down.
+	closed := standing(func(tier store.DefenseTierRecord) bool { return !tier.Remove })
+	if !defenseTierCensus(&record, closed) {
+		t.Fatal("the closed ring changed nothing")
+	}
+	for _, tier := range record.Tiers {
+		if tier.Remove {
+			t.Fatal("removal left", tier.Name, len(tier.Buildings), tier.Buildings[0], closed.edifice[tier.Buildings[0].Cell])
+		}
+		if len(tier.Buildings) > 0 && !tier.Built {
+			t.Fatal("an unbuilt tier after the census", tier.Name)
+		}
+	}
+	// Nothing holds the old nodes now; the next replan drops them and the live
+	// ring is the replacement.
+	hold := record.PerimeterHold()
+	settled, _, _ := policy.ReplanLayoutWithRooms(dried, survey(true), policy.RoomGrowth{Perimeter: hold}, 0, 3, 0, policy.TechTierCamp, nil, nil)
+	if policy.PerimeterRetirable(settled, hold.Held) {
+		t.Fatal("the retired nodes stayed")
+	}
+	if live, ok := settled.Ring(); !ok || live.Node != ring.Node {
+		t.Fatal("the live ring changed", live.Node, ring.Node)
 	}
 }

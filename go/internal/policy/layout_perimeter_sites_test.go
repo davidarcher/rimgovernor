@@ -43,7 +43,7 @@ func TestRingNodeReplacesTheOldRing(t *testing.T) {
 	old := testSite(NodeRing, Rectangle{X: 10, Z: 10, Width: 20, Height: 3})
 	old.Node = "ring-old"
 	next := testSite(NodeRing, Rectangle{X: 5, Z: 5, Width: 30, Height: 3})
-	next.Node, next.ReplacesSite = "ring-new", "ring-old"
+	next.Node, next.ReplacesSites = "ring-new", []string{"ring-old"}
 	p := LayoutPlan{Sites: []PlannedSite{old, next}}
 	ring, ok := p.Ring()
 	if !ok || ring.Node != "ring-new" || len(p.LiveSites(NodeRing)) != 1 {

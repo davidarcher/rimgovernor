@@ -1,6 +1,7 @@
 package buildingruntime
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"fmt"
@@ -28,11 +29,13 @@ import (
 //
 // A tier cut from the plan's site nodes (the ring and its gates, the fence,
 // the pumps, the geothermal enclosure) stores the node ids and its state; the
-// buildings are resolved from the plan after every load (defenseHydrate). The
-// plan regenerates its nodes under fixed ids, so a re-cut cannot read the
-// old tiers' cells from the plan it holds: it reads them from the plan the
-// tiers were cut from (the record keeps its tick) and freezes them into the
-// removal tiers.
+// buildings are resolved from the plan after every load (defenseHydrate). A
+// ring the plan traces again while the record holds the old one is a
+// replacement under new ids, the old nodes retired beside it (#2924,
+// policy.PerimeterHold): the removal tiers name the retired nodes and resolve
+// the old buildings from them, less what the standing tiers want again, so
+// they store no cells. The plan keeps the retired nodes until no tier names
+// them; while one does, or a removal tier stands, it traces no new ring.
 const (
 	defenseMoisturePump     = "MoisturePump"
 	defenseMoistureResearch = "MoisturePump"
@@ -50,21 +53,16 @@ type defenseCut struct {
 	transmitters []domain.Cell
 	spare        float64
 	prison       []policy.PerimeterSection
-	// tick is the round's tick. plans reads the plan record the world held
-	// at a tick, with the tick it was recorded at; a re-cut reads the plan
-	// the record's node tiers were cut from there.
-	tick  domain.Tick
-	plans func(domain.Tick) (plan policy.LayoutPlan, recorded domain.Tick, ok bool, err error)
 }
 
 // defensePerimeterCut gathers the cut's inputs from the round's reading.
-func defensePerimeterCut(read observation.RoundsReading, plans func(domain.Tick) (policy.LayoutPlan, domain.Tick, bool, error)) (defenseCut, bool) {
+func defensePerimeterCut(read observation.RoundsReading) (defenseCut, bool) {
 	projection := read.Projection
 	plan, known := projection.LayoutPlan.Value()
 	if !known {
 		return defenseCut{}, false
 	}
-	cut := defenseCut{plan: plan, bridge: defensePerimeterBridge(projection), tick: projection.Identity.Tick, plans: plans}
+	cut := defenseCut{plan: plan, bridge: defensePerimeterBridge(projection)}
 	q := defenseTurretRequest(read).Turret
 	if defenseResearched(projection, defenseMoistureResearch) {
 		cut.transmitters = q.Transmitters
@@ -182,7 +180,8 @@ func defenseTaken(tiers []store.DefenseTierRecord) map[domain.Cell]bool {
 	return taken
 }
 
-// defenseHydrate fills each node-backed tier's buildings in from the plan.
+// defenseHydrate fills each node-backed tier's buildings in from the plan: the
+// standing tiers' from the live nodes, the removal tiers' from the retired ones.
 func defenseHydrate(record *store.DefenseLayoutRecord, cut defenseCut) error {
 	ring, fences, pumps, err := defenseNodeSections(cut.plan, cut.bridge, cut.transmitters)
 	if err != nil {
@@ -191,20 +190,60 @@ func defenseHydrate(record *store.DefenseLayoutRecord, cut defenseCut) error {
 	sections := slices.Concat(ring, fences, pumps)
 	taken := defenseTaken(record.Tiers)
 	for i := range record.Tiers {
-		if t := record.Tiers[i]; t.NodeBacked() {
+		if t := record.Tiers[i]; t.NodeBacked() && !t.Remove {
 			record.Tiers[i].Buildings = defenseResolve(t, sections, taken)
+		}
+	}
+	wanted, building := defenseWanted(record.Tiers)
+	// The removal tiers of one generation share its sections.
+	cuts := map[string][]policy.PerimeterSection{}
+	for i := range record.Tiers {
+		if t := record.Tiers[i]; t.NodeBacked() && t.Remove {
+			key := t.Bridge + "/" + strings.Join(t.Nodes, ",")
+			if _, ok := cuts[key]; !ok {
+				ring, fences, pumps, err := defenseNodeSections(cut.plan.SiteView(t.Nodes), t.Bridge, cut.transmitters)
+				if err != nil {
+					return err
+				}
+				cuts[key] = slices.Concat(ring, fences, pumps)
+			}
+			record.Tiers[i].Buildings = defenseResolveRemoval(t, cuts[key], taken, wanted, building)
 		}
 	}
 	return nil
 }
 
-// layoutPlans reads the plan records of the world: the plan current at a tick
-// and the tick it was recorded at.
-func (r *RoundsDefenseLayoutPlanner) layoutPlans(ctx context.Context, world domain.GenerationSnapshot) func(domain.Tick) (policy.LayoutPlan, domain.Tick, bool, error) {
-	return func(tick domain.Tick) (policy.LayoutPlan, domain.Tick, bool, error) {
-		rec, ok, err := r.reviewer.player.journal.LayoutPlan(ctx, world, tick)
-		return rec.Plan, rec.Tick, ok, err
+// defenseWanted are the perimeter buildings the standing tiers want, by key,
+// and the cells they build on.
+func defenseWanted(tiers []store.DefenseTierRecord) (wanted map[string]bool, building map[domain.Cell]bool) {
+	wanted, building = map[string]bool{}, map[domain.Cell]bool{}
+	for _, t := range tiers {
+		if !policy.IsPerimeterTier(t.Name) || t.Remove {
+			continue
+		}
+		for _, b := range t.Buildings {
+			wanted[defenseBuildingKey(b)], building[b.Cell] = true, true
+		}
 	}
+	return wanted, building
+}
+
+// defenseResolveRemoval is a removal tier of plan nodes' buildings: what the
+// nodes' sections (cut with the tier's bridge) built that the standing tiers do
+// not want, of the tier's kind (foundations or walls and doors) and side of the
+// new sections (on a cell they build on, or not), less the cells a killbox
+// tier builds on.
+func defenseResolveRemoval(tier store.DefenseTierRecord, sections []policy.PerimeterSection, taken map[domain.Cell]bool, wanted map[string]bool, building map[domain.Cell]bool) []store.DefenseBuilding {
+	var out []store.DefenseBuilding
+	for _, s := range sections {
+		for _, b := range s.Buildings {
+			sb := defenseStored(b)
+			if !taken[sb.Cell] && !wanted[defenseBuildingKey(sb)] && defenseFoundation(sb.Definition) == tier.Foundation && building[sb.Cell] == tier.Before {
+				out = append(out, sb)
+			}
+		}
+	}
+	return out
 }
 
 // defenseRecutPerimeter anchors a fresh record on the layout plan's perimeter
@@ -218,17 +257,22 @@ func (r *RoundsDefenseLayoutPlanner) layoutPlans(ctx context.Context, world doma
 // only while spare watts cover it.
 func defenseRecutPerimeter(record *store.DefenseLayoutRecord, cut defenseCut) (bool, error) {
 	var kept, old []store.DefenseTierRecord
-	have := map[string]bool{}
+	// have are the cells of the pumps the record already holds: a pump kept
+	// across a replacement costs no more power.
+	have := map[domain.Cell]bool{}
 	for _, t := range record.Tiers {
-		if policy.IsPerimeterTier(t.Name) {
-			old = append(old, t)
-			if !t.Remove {
-				for _, id := range t.Nodes {
-					have[id] = true
-				}
-			}
-		} else {
+		if !policy.IsPerimeterTier(t.Name) {
 			kept = append(kept, t)
+			continue
+		}
+		old = append(old, t)
+		if t.Remove {
+			continue
+		}
+		for _, id := range t.Nodes {
+			if site, ok := cut.plan.Site(id); ok && site.Kind == policy.NodePump {
+				have[site.Origin] = true
+			}
 		}
 	}
 	if len(old) > 0 {
@@ -259,7 +303,7 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, cut defenseCut) (b
 	// first new pump spare power cannot carry.
 	spare := cut.spare
 	for i, s := range pumps {
-		if have[s.Nodes[0]] {
+		if site, ok := cut.plan.Site(s.Nodes[0]); ok && have[site.Origin] {
 			continue
 		}
 		if spare < defenseMoisturePumpW {
@@ -276,16 +320,16 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, cut defenseCut) (b
 	// Desired cells key the cut; construction progress does not re-cut it.
 	var keys []string
 	var fresh []store.DefenseTierRecord
-	wanted := map[string]bool{}
 	for _, s := range slices.Concat(ring, pockets, lights, fences, pumps, cut.prison) {
 		t := store.DefenseTierRecord{Name: s.Name, Nodes: s.Nodes}
+		// A replaced ring re-cuts the tiers whatever it kept: they name its nodes.
+		keys = append(keys, "nodes/"+strings.Join(s.Nodes, ","))
 		for _, b := range s.Buildings {
 			if taken[b.Cell()] {
 				continue
 			}
 			rb := defenseStored(b)
 			t.Buildings = append(t.Buildings, rb)
-			wanted[defenseBuildingKey(rb)] = true
 			if rb.Definition != defenseConduitDefinition {
 				keys = append(keys, defenseBuildingKey(rb))
 			}
@@ -302,111 +346,103 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, cut defenseCut) (b
 	if key == record.PerimeterKey {
 		return false, defenseHydrate(record, cut)
 	}
-	// The plan record the new tiers are cut from: a later re-cut reads the
-	// old tiers' cells there.
-	var recorded domain.Tick
-	if cut.plans != nil {
-		_, tick, ok, err := cut.plans(cut.tick)
-		if err != nil {
-			return false, err
-		}
-		if ok {
-			recorded = tick
-		}
-	}
 	if len(old) == 0 {
-		record.PerimeterKey, record.PerimeterPlanTick, record.PerimeterBridge = key, recorded, cut.bridge
+		record.PerimeterKey, record.PerimeterBridge = key, cut.bridge
 		record.Tiers = append(kept, fresh...)
 		return true, record.Validate()
 	}
-	oldBuildings, err := defenseOldBuildings(record, old, cut)
-	if err != nil {
-		return false, err
-	}
-	record.PerimeterKey, record.PerimeterPlanTick, record.PerimeterBridge = key, recorded, cut.bridge
+	previous := cmp.Or(record.PerimeterBridge, cut.bridge)
+	record.PerimeterKey, record.PerimeterBridge = key, cut.bridge
 	record.PerimeterRevision++
 	prefix := fmt.Sprintf("%sr%d-", policy.TierPerimeterPrefix, record.PerimeterRevision)
-	// Removals: a pending one carried over less what the new cut wants
-	// again, then what the old cut built that it does not; deconstructions
-	// before foundation lifts, a wall standing on its bridge. One on a cell
-	// the new cut builds on goes ahead of the new sections, the rest after.
-	building := map[domain.Cell]bool{}
+	wanted, building := map[string]bool{}, map[domain.Cell]bool{}
 	for _, t := range fresh {
 		for _, b := range t.Buildings {
-			building[b.Cell] = true
+			wanted[defenseBuildingKey(b)], building[b.Cell] = true, true
 		}
 	}
-	var decon, lift [2][]store.DefenseTierRecord // [0] before, [1] after the new sections
-	edifices, foundations := 0, 0
-	for i, t := range old {
-		var d, l [2][]store.DefenseBuilding
-		for _, b := range oldBuildings[i] {
-			if wanted[defenseBuildingKey(b)] {
-				continue
+	// Removals, in four stages: walls and doors before foundations (a wall
+	// stands on its bridge), those on a cell the new sections build on ahead of
+	// them, the rest after. A pending removal carries over (its buildings
+	// resolve less what the new cut wants again); the old tiers become removals
+	// of the nodes they were cut from, resolved from the plan, and of the
+	// buildings they stored.
+	var removals [2][2][]store.DefenseTierRecord // [after][foundation]
+	stage := func(t store.DefenseTierRecord) {
+		after, lift := 1, 0
+		if t.Before {
+			after = 0
+		}
+		if t.Foundation {
+			lift = 1
+		}
+		removals[after][lift] = append(removals[after][lift], t)
+	}
+	n := 0
+	name := func(letter string) policy.DefenseTierName {
+		n++
+		return policy.DefenseTierName(fmt.Sprintf("%s%s%02d", prefix, letter, n-1))
+	}
+	var ids []string
+	for _, t := range old {
+		switch {
+		case t.Remove && t.NodeBacked():
+			stage(t)
+		case t.Remove:
+			t.Buildings = slices.DeleteFunc(slices.Clone(t.Buildings), func(b store.DefenseBuilding) bool { return wanted[defenseBuildingKey(b)] })
+			if len(t.Buildings) > 0 {
+				stage(t)
 			}
-			after := 1
-			if building[b.Cell] {
-				after = 0
+		case t.NodeBacked():
+			for _, id := range t.Nodes {
+				if !slices.Contains(ids, id) {
+					ids = append(ids, id)
+				}
 			}
-			if defenseFoundation(b.Definition) {
-				l[after] = append(l[after], b)
-			} else {
-				d[after] = append(d[after], b)
+		default:
+			var split [2][2][]store.DefenseBuilding // [after][foundation]
+			for _, b := range t.Buildings {
+				if wanted[defenseBuildingKey(b)] {
+					continue
+				}
+				after, lift := 1, 0
+				if building[b.Cell] {
+					after = 0
+				}
+				if defenseFoundation(b.Definition) {
+					lift = 1
+				}
+				split[after][lift] = append(split[after][lift], b)
+			}
+			for after := range 2 {
+				for lift := range 2 {
+					if len(split[after][lift]) > 0 {
+						stage(store.DefenseTierRecord{Name: name(map[int]string{0: "x", 1: "u"}[lift]), Buildings: split[after][lift], Remove: true, Before: after == 0, Foundation: lift == 1})
+					}
+				}
 			}
 		}
-		for i := range 2 {
-			if len(d[i]) > 0 {
-				decon[i] = append(decon[i], store.DefenseTierRecord{Name: policy.DefenseTierName(fmt.Sprintf("%sx%02d", prefix, edifices)), Nodes: t.Nodes, Buildings: d[i], Remove: true})
-				edifices++
-			}
-			if len(l[i]) > 0 {
-				lift[i] = append(lift[i], store.DefenseTierRecord{Name: policy.DefenseTierName(fmt.Sprintf("%su%02d", prefix, foundations)), Nodes: t.Nodes, Buildings: l[i], Remove: true})
-				foundations++
+	}
+	if len(ids) > 0 {
+		for after := range 2 {
+			for lift := range 2 {
+				stage(store.DefenseTierRecord{Name: name(map[int]string{0: "x", 1: "u"}[lift]), Nodes: ids, Bridge: previous, Remove: true, Before: after == 0, Foundation: lift == 1})
 			}
 		}
 	}
 	for i := range fresh {
 		fresh[i].Name = policy.DefenseTierName(prefix + strings.TrimPrefix(string(fresh[i].Name), policy.TierPerimeterPrefix))
 	}
-	record.Tiers = slices.Concat(kept, decon[0], lift[0], fresh, decon[1], lift[1])
+	record.Tiers = slices.Concat(kept, removals[0][0], removals[0][1], fresh, removals[1][0], removals[1][1])
 	record.Complete = false
-	return true, record.Validate()
-}
-
-// defenseOldBuildings are the buildings each old perimeter tier stood for
-// before the re-cut: a removal tier's frozen cells, a stored tier's own, and
-// a node tier's as the plan it was cut from (with the bridge it was cut
-// with) resolves them. Where that plan is gone the node tier's cells are
-// unknown and nothing is removed for it.
-func defenseOldBuildings(record *store.DefenseLayoutRecord, old []store.DefenseTierRecord, cut defenseCut) ([][]store.DefenseBuilding, error) {
-	out := make([][]store.DefenseBuilding, len(old))
-	var sections []policy.PerimeterSection
-	resolved := false
-	taken := defenseTaken(record.Tiers)
-	for i, t := range old {
-		if !t.NodeBacked() {
-			out[i] = t.Buildings
-			continue
-		}
-		if !resolved {
-			resolved = true
-			if cut.plans != nil {
-				plan, _, ok, err := cut.plans(record.PerimeterPlanTick)
-				if err != nil {
-					return nil, err
-				}
-				if ok {
-					ring, fences, pumps, err := defenseNodeSections(plan, record.PerimeterBridge, cut.transmitters)
-					if err != nil {
-						return nil, err
-					}
-					sections = slices.Concat(ring, fences, pumps)
-				}
-			}
-		}
-		out[i] = defenseResolve(t, sections, taken)
+	if err = defenseHydrate(record, cut); err != nil {
+		return false, err
 	}
-	return out, nil
+	// A removal of nodes that resolves to nothing has nothing to demolish.
+	record.Tiers = slices.DeleteFunc(record.Tiers, func(t store.DefenseTierRecord) bool {
+		return t.Remove && t.NodeBacked() && len(t.Buildings) == 0
+	})
+	return true, record.Validate()
 }
 
 // defenseFoundation is a perimeter definition laid as a foundation: the

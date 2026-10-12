@@ -28,9 +28,9 @@ type DefenseBuilding struct {
 // from it after every load. Every other tier stores its Buildings: the
 // census-derived ones (the hallway's firing line, funnel and trap corridor,
 // the IEDs, turrets, mortars and prison turrets, the lights) and, until the
-// plan carries them as nodes, the pockets. A removal tier
-// holds the node ids it replaced and the cells it was cut from, frozen when
-// the perimeter was re-cut, since the plan no longer holds the old ring.
+// plan carries them as nodes, the pockets. A removal tier of plan nodes names
+// the retired nodes of the ring it demolishes and stores no cells either; one
+// of stored buildings keeps the cells its old tier stored.
 type DefenseTierRecord struct {
 	Name policy.DefenseTierName
 	// Nodes are the plan's site nodes the tier is cut from.
@@ -56,10 +56,18 @@ type DefenseTierRecord struct {
 	// longer wants: it is built once none of them stands, and then
 	// leaves the record.
 	Remove bool `json:",omitempty"`
+	// A removal tier of plan nodes (Nodes set) holds no cells: they are the
+	// nodes' buildings, cut with Bridge, less what the standing tiers want
+	// again. Foundation selects the bridges (the rest are walls and doors);
+	// Before the buildings on cells the new sections build on, which go ahead
+	// of them, the rest waiting behind.
+	Bridge     string `json:",omitempty"`
+	Foundation bool   `json:",omitempty"`
+	Before     bool   `json:",omitempty"`
 }
 
 // NodeBacked reports whether the tier's buildings come from the plan.
-func (t DefenseTierRecord) NodeBacked() bool { return len(t.Nodes) > 0 && !t.Remove }
+func (t DefenseTierRecord) NodeBacked() bool { return len(t.Nodes) > 0 }
 
 // DefenseLayoutRecord is the one layout the colony committed to for one
 // world and Episode of its Standard. The planner writes it when it first proposes a
@@ -110,11 +118,10 @@ type DefenseLayoutRecord struct {
 	// never reuse an earlier section's plan ids.
 	PerimeterKey      string `json:",omitempty"`
 	PerimeterRevision int    `json:",omitempty"`
-	// PerimeterPlanTick is the tick of the plan the node tiers were last cut
-	// from and PerimeterBridge the bridge definition they were cut with: a
-	// re-cut resolves the old tiers' cells from that plan.
-	PerimeterPlanTick domain.Tick `json:",omitempty"`
-	PerimeterBridge   string      `json:",omitempty"`
+	// PerimeterBridge is the bridge definition the node tiers were last cut
+	// with: a re-cut hands it to the removal tiers of the old ones, whose
+	// cells the plan's retired nodes give back.
+	PerimeterBridge string `json:",omitempty"`
 }
 
 const maxDefenseLayoutBytes = 1024 * 1024
@@ -129,12 +136,12 @@ func (r DefenseLayoutRecord) Validate() error {
 		return errors.New("defense layout geometry out of bounds")
 	}
 	if r.VerifiedTick < 0 || r.TurretsProbedTick < 0 || r.MortarsProbedTick < 0 || len(r.VerifiedCombat) > 512 || len(r.PerimeterKey) > 128 || r.PerimeterRevision < 0 ||
-		r.PerimeterPlanTick < 0 || len(r.PerimeterBridge) > 64 || len(r.Killbox) > 128 || len(r.KillboxDigest) > 64 {
+		len(r.PerimeterBridge) > 64 || len(r.Killbox) > 128 || len(r.KillboxDigest) > 64 {
 		return errors.New("defense layout verification invalid")
 	}
 	seen := map[policy.DefenseTierName]bool{}
 	for _, tier := range r.Tiers {
-		if tier.Name == "" || seen[tier.Name] || len(tier.Buildings) > 512 || len(tier.Reserved) > 512 || len(tier.Nodes) > 256 || len(tier.Refused) > 512 || tier.Attempts < 0 || tier.Attempts > 64 || tier.Reopened < 0 || tier.Reopened > 4096 {
+		if tier.Name == "" || seen[tier.Name] || !tier.NodeBacked() && len(tier.Buildings) > 512 || len(tier.Reserved) > 512 || len(tier.Nodes) > 256 || len(tier.Refused) > 512 || tier.Attempts < 0 || tier.Attempts > 64 || tier.Reopened < 0 || tier.Reopened > 4096 {
 			return errors.New("defense layout tier invalid")
 		}
 		seen[tier.Name] = true
@@ -150,6 +157,19 @@ func (r DefenseLayoutRecord) Validate() error {
 		}
 	}
 	return nil
+}
+
+// PerimeterHold is what the record holds of the plan's ring nodes: every node a
+// tier names, and whether a perimeter removal is under way.
+func (r DefenseLayoutRecord) PerimeterHold() policy.PerimeterHold {
+	hold := policy.PerimeterHold{Held: map[string]bool{}}
+	for _, t := range r.Tiers {
+		for _, id := range t.Nodes {
+			hold.Held[id] = true
+		}
+		hold.Removing = hold.Removing || t.Remove && policy.IsPerimeterTier(t.Name)
+	}
+	return hold
 }
 
 // stored is the record as it is persisted: a node-backed tier carries no

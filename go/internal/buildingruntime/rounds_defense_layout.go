@@ -309,7 +309,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	if err != nil {
 		return RoundsDefenseLayoutResult{}, err
 	}
-	cut, planned := defensePerimeterCut(read, r.layoutPlans(call, state.Snapshot))
+	cut, planned := defensePerimeterCut(read)
 	if !planned {
 		return RoundsDefenseLayoutResult{Verdict: awaitingPlan("layout_plan", "killbox")}, nil
 	}

@@ -392,6 +392,13 @@ func (p LayoutPlan) Valid() bool {
 			return false
 		}
 	}
+	for _, s := range p.Sites {
+		for _, id := range s.ReplacesSites {
+			if !siteIDs[id] || id == s.Node {
+				return false
+			}
+		}
+	}
 	return true
 }
 

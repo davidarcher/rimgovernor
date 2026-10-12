@@ -48,6 +48,10 @@ const (
 	ReasonOpeningRoutes = "opening_most_routes"
 	// ReasonOpeningNone: no route reaches a dry ring position that opens.
 	ReasonOpeningNone = "opening_none"
+	// ReasonRingReplaced: the ring was traced again while the defense record
+	// held the old one, so a replacement stands beside it and the old ring
+	// is demolished once the new one is closed.
+	ReasonRingReplaced = "ring_replaced"
 )
 
 // RingFacts are the ring's own attributes.
@@ -66,17 +70,23 @@ type RingFacts struct {
 	// Opening is why the killbox opening is where it is (the Reason*Opening
 	// values), including why there is none.
 	Opening string
+	// Revision counts the times the ring was replaced while the defense
+	// record held the old one; it suffixes the ids of the ring, its gates, the
+	// fence and the pumps (revisedID).
+	Revision int `json:",omitempty"`
 }
 
 // PlannedSite is one stored site node.
 type PlannedSite struct {
 	SitePlacement
 	Kind NodeKind
-	// ReplacesSite is the ID of the site node this one supersedes; empty for
-	// none. The old and the new ring coexist as two nodes until the old one
-	// is dropped.
-	ReplacesSite string `json:",omitempty"`
-	Reason       string `json:",omitempty"`
+	// ReplacesSites are the IDs of the site nodes this one supersedes; empty
+	// for none. A replacement ring (layout_perimeter_replace.go) names the
+	// whole generation it replaces: the old ring with its gates, fence and
+	// pumps stand beside it as retired nodes, off the live ground, until the
+	// defense record no longer holds them.
+	ReplacesSites []string `json:",omitempty"`
+	Reason        string   `json:",omitempty"`
 	// Ring is set on the ring node only.
 	Ring *RingFacts `json:",omitempty"`
 }
@@ -105,7 +115,16 @@ func (p LayoutPlan) LiveSites(kind NodeKind) []PlannedSite {
 }
 
 func (p LayoutPlan) replacedSite(id string) bool {
-	return slices.ContainsFunc(p.Sites, func(o PlannedSite) bool { return o.ReplacesSite == id })
+	return slices.ContainsFunc(p.Sites, func(o PlannedSite) bool { return slices.Contains(o.ReplacesSites, id) })
+}
+
+// Site is the node with the id, retired or live.
+func (p LayoutPlan) Site(id string) (PlannedSite, bool) {
+	i := slices.IndexFunc(p.Sites, func(s PlannedSite) bool { return s.Node == id })
+	if i < 0 {
+		return PlannedSite{}, false
+	}
+	return p.Sites[i], true
 }
 
 // Ring is the live ring node.
@@ -211,11 +230,14 @@ func PerimeterChanged(prev, next LayoutPlan) bool { return !sameSites(prev, next
 
 // sameSites reports whether a and b hold the same perimeter nodes: the same
 // ground, whatever the reasons they stand (a kept opening reads as chosen).
-func sameSites(a, b LayoutPlan) bool {
+func sameSites(a, b LayoutPlan) bool { return sameSitesOf(a, b, perimeterSiteKinds) }
+
+// sameSitesOf is sameSites over the nodes of the given kinds.
+func sameSitesOf(a, b LayoutPlan, kinds map[NodeKind]bool) bool {
 	pick := func(p LayoutPlan) []PlannedSite {
 		var out []PlannedSite
 		for _, s := range p.Sites {
-			if perimeterSiteKinds[s.Kind] {
+			if kinds[s.Kind] {
 				out = append(out, s)
 			}
 		}
@@ -223,7 +245,7 @@ func sameSites(a, b LayoutPlan) bool {
 	}
 	x, y := pick(a), pick(b)
 	return slices.EqualFunc(x, y, func(m, n PlannedSite) bool {
-		return m.Node == n.Node && m.Kind == n.Kind && m.Footprint.Equal(n.Footprint) && m.Anchored == n.Anchored && m.ReplacesSite == n.ReplacesSite && sameRing(m.Ring, n.Ring)
+		return m.Node == n.Node && m.Kind == n.Kind && m.Footprint.Equal(n.Footprint) && m.Anchored == n.Anchored && slices.Equal(m.ReplacesSites, n.ReplacesSites) && sameRing(m.Ring, n.Ring)
 	})
 }
 
@@ -231,7 +253,7 @@ func sameRing(a, b *RingFacts) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
-	return a.Light.Equal(b.Light) && a.Bridged.Equal(b.Bridged) && a.Gaps.Equal(b.Gaps) && a.Inner.Equal(b.Inner) && a.Sealed.Equal(b.Sealed)
+	return a.Revision == b.Revision && a.Light.Equal(b.Light) && a.Bridged.Equal(b.Bridged) && a.Gaps.Equal(b.Gaps) && a.Inner.Equal(b.Inner) && a.Sealed.Equal(b.Sealed)
 }
 
 // regionRects is the region as the rectangles the wall sections cut: the same

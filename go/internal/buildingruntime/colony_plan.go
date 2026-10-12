@@ -181,7 +181,15 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	// A herd whose grazing outgrew its pens (or has none) is planned the pen it
 	// lacks beside its barn, at most once an hour.
 	pens := haveLayout && policy.PensOwed(layout.Plan, growth.Pens) > 0 && hourly
-	if outgrown || missing || terrain || research || tomb || throne || children || retireShelter || gear || core || outskirts || yard || pens {
+	// A ring replaced beside the old one leaves its retired nodes in the plan
+	// until the defense record no longer names them; a replan drops them.
+	if haveLayout && policy.PerimeterRetirable(layout.Plan, nil) {
+		if growth.Perimeter, err = r.perimeterHold(ctx, snapshot); err != nil {
+			return err
+		}
+	}
+	perimeter := haveLayout && policy.PerimeterRetirable(layout.Plan, growth.Perimeter.Held) && hourly
+	if outgrown || missing || terrain || research || tomb || throne || children || retireShelter || gear || core || outskirts || yard || pens || perimeter {
 		replanned := false
 		if survey, err := r.layoutSurvey(ctx, snapshot, *projection); err != nil {
 			_ = err // a failed survey retries on the next review
@@ -216,12 +224,16 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 					growth.Successor = policy.OutgrownSuccession(advice, projection.Stations, layout.Plan)
 				}
 				growth.Slept = policy.SleptBedrooms(layout.Plan, projection.Rooms, projection.Facts.Sleeping)
+				// The ring is laid around what the defense record holds of it.
+				if growth.Perimeter, err = r.perimeterHold(ctx, snapshot); err != nil {
+					return err
+				}
 				// Every new building moves Occupied; the fixed rooms are its key.
 				keyed := growth
 				keyed.Occupied, keyed.Grazing = nil, nil
 				inputs := layoutInputs{planTick: layout.Tick, key: fmt.Sprint(grown, pawns, tombs, suites, topology.Geysers, keyed, animals), bounds: survey.Bounds, cells: survey.Cells}
 				if !inputs.same(r.planInputs) {
-					reason := layoutReasons(map[string]bool{"outgrown": outgrown, "terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research, "tomb": tomb, "suite": suite, "throne": throne, "children": children, "gear": gear, "core": core, "outskirts": outskirts, "yard": yard, "succession": growth.Successor.Any()})
+					reason := layoutReasons(map[string]bool{"outgrown": outgrown, "terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research, "tomb": tomb, "suite": suite, "throne": throne, "children": children, "gear": gear, "core": core, "outskirts": outskirts, "yard": yard, "succession": growth.Successor.Any(), "perimeter": perimeter})
 					err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, growth, animals, int(pawns), tombs, layoutTier(*projection), reason, topology.Geysers, policy.EmptiedRetiringWings(layout.Plan, projection.Rooms, projection.Facts.Sleeping), suites)
 					if err == nil {
 						r.planGrownFor, r.planPawns = grown, int(pawns)
@@ -304,6 +316,16 @@ func (r *Rounder) drawLayoutOverlay(ctx context.Context, snapshot domain.Generat
 		return
 	}
 	r.overlayKey, r.overlayDrawn, r.overlayCleared = key, tick, false
+}
+
+// perimeterHold reads what the defense record holds of the plan's ring nodes
+// (none while it has no record).
+func (r *Rounder) perimeterHold(ctx context.Context, snapshot domain.GenerationSnapshot) (policy.PerimeterHold, error) {
+	record, ok, err := r.player.journal.LoadDefenseLayout(ctx, store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map})
+	if err != nil || !ok {
+		return policy.PerimeterHold{}, err
+	}
+	return record.PerimeterHold(), nil
 }
 
 // layoutPlan reads the v2 layout plan. A saved plan that no longer

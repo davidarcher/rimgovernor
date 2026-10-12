@@ -243,9 +243,14 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 	if k, found := plan.Killbox(); found {
 		killbox = k.Footprint.Bounds()
 	}
+	geothermalID, nth := "", 0
 	for _, r := range plan.Reservations {
-		if r.Kind == ReserveGeothermal && geothermal.Width == 0 {
-			geothermal = r.Area.Bounds()
+		if r.Kind != ReserveGeothermal {
+			continue
+		}
+		nth++
+		if geothermal.Width == 0 {
+			geothermal, geothermalID = r.Area.Bounds(), geothermalNodeID(nth)
 		}
 	}
 	type piece struct {
@@ -342,7 +347,7 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 			}
 			doorway[c] = true
 		}
-		s := PerimeterSection{Name: TierGeothermal, Nodes: []string{"geothermal-1"}}
+		s := PerimeterSection{Name: TierGeothermal, Nodes: []string{geothermalID}}
 		for _, c := range rectCells(geothermal) {
 			if contains(gen, c) {
 				continue

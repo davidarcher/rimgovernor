@@ -95,10 +95,14 @@ func PowerSiteNodes(plan LayoutPlan) []SiteNode {
 		i++
 		area := r.Area.Bounds()
 		anchor := domain.Cell{X: area.X, Z: area.Z}
-		nodes = append(nodes, SiteNode{ID: fmt.Sprintf("geothermal-%d", i), Footprint: RectRegion(Rectangle{Width: area.Width, Height: area.Height}), Anchor: &anchor, Reason: ReasonPowerSite})
+		nodes = append(nodes, SiteNode{ID: geothermalNodeID(i), Footprint: RectRegion(Rectangle{Width: area.Width, Height: area.Height}), Anchor: &anchor, Reason: ReasonPowerSite})
 	}
 	return nodes
 }
+
+// geothermalNodeID is the id of the i-th (from 1) geothermal enclosure node, in
+// plan order; the defense record names the enclosure's tier by it.
+func geothermalNodeID(i int) string { return fmt.Sprintf("geothermal-%d", i) }
 
 // windGround is the ground a wind path is priced over: the cells the game
 // counts blocked. A cell is blocked off the map, under a thick mountain roof,
