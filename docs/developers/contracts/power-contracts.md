@@ -104,6 +104,33 @@ Method identity is the target consumer plus the sorted producer ids (and, for `s
 capacity), so a repeated deficit replays the same method while a new producer or bank makes a new one.
 Hands correlate completed work against `PowerFamilyDefinitions()`.
 
+## Planned conduit net
+
+A tiled layout plan (`layout_tile.go`) owns its conduit paths: `LayoutPlan.Conduits` is a list of
+`ConduitLink{From, To, Cells}` derived with the plan by `RouteConduits` (`layout_conduit.go`). It is the
+net the planner would lay; `EnsureBasicPower` still decides which sites connect, by which method and at
+what budget, and the `connect` contract above is unchanged. No action kind carries it.
+
+- **Refs.** `From`/`To` are tagged: `room:<id>` for a planned room, `site:<node id>` for a site. Until
+  site nodes are planned (#2919) a power reservation (`battery_room`, `turbine`, `solar`,
+  `geothermal`) is a site, named `<kind>-<index in Reservations>` (`ReservationSiteID`).
+- **Consumers.** Planned rooms holding a station whose def draws power (`Station.BaseW < 0`, read from the
+  power comp into the station catalog); the cells are those stations' footprints, else the whole room.
+  There is no role table.
+- **Topology.** One net grows. The first power site is the root; each later site, then each consumer, routes
+  from its own cells to the nearest cell of the net so far, cells shared. No star forms on any node, the
+  battery room included. A node that cannot reach the net gets a `conduit_no_route` decision and no link;
+  with no power site every consumer gets `conduit_no_source`; a routed link is `conduit_routed`
+  (`TileResult.ConduitDecisions`, for the caller to journal).
+- **Router.** `routeCells` (`conduit_router.go`) is the one deterministic 4-neighbour breadth-first router,
+  shared with `connect` and the turret wiring (`powerRoute`), bounded by `powerRouteBound`. Cells come from
+  `ConduitCells`: conduits ignore buildings, walls and doors (the `Conduits` layer; only another power
+  transmitter conflicts), but need terrain with light footing, so deep water, other terrain without
+  footing, hazards and natural rock (outside a dug room's walls) block, and cells the survey lacks are
+  unknown and never routed.
+- **Valid.** `LayoutPlan.Valid` rejects a link whose end names no room or power site of the plan, equal
+  ends, or cells that are empty, repeat or are not 4-connected.
+
 ## Acceptance
 
 `power/fuel` (`go/internal/nativeaccept/cases/power`) covers the refuel hold natively on the blank lab.

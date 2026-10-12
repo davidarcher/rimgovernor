@@ -39,6 +39,11 @@ type Station struct {
 	// Cooling is set when the station cools its room (a temperature control
 	// that draws heat out); the zero value cools nothing.
 	Cooling StationCooling
+	// BaseW is the def's power comp wattage in the sign the power policy reads
+	// (PowerBuilding.BaseW): negative for a consumer, positive for a producer,
+	// zero for none or a battery. The conduit router wires planned rooms
+	// holding a station with BaseW < 0 (DrawsPower).
+	BaseW float64
 	// Content is the package id of the content that defines the station
 	// ("ludeon.rimworld" for the base game, an expansion's id otherwise); the
 	// station is plannable only while that content is active.
@@ -47,6 +52,9 @@ type Station struct {
 	// can be uninstalled and reinstalled elsewhere (BuiltPiece.Movable).
 	Minifiable bool
 }
+
+// DrawsPower reports a station that consumes grid power.
+func (s Station) DrawsPower() bool { return s.BaseW < 0 }
 
 // StationAccess says whether a station stands on open floor or in a wall.
 type StationAccess string

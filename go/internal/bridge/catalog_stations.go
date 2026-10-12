@@ -76,6 +76,13 @@ func (catalog *DefinitionCatalog) buildStations() (policy.StationCatalog, error)
 			return policy.StationCatalog{}, err
 		}
 		station.Cooling = b.cooling()
+		watts, powered, err := catalog.PowerDraw(row)
+		if err != nil {
+			return policy.StationCatalog{}, err
+		}
+		if powered {
+			station.BaseW = 0 - watts
+		}
 		if station.Access == policy.AccessFloor && len(station.Contributions) == 0 && station.Capacity.Kind == policy.CapacityNone && len(station.Needs) == 0 && !station.Cooling.Cools() {
 			continue
 		}

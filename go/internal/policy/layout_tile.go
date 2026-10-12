@@ -114,6 +114,9 @@ type TileResult struct {
 	// Pieces are each room's stations, set into its region.
 	Pieces    map[int32][]InteriorPiece
 	Decisions []TileDecision
+	// ConduitDecisions are the conduit net's decisions, one per routed or
+	// blocked link (layout_conduit.go).
+	ConduitDecisions []ConduitDecision
 }
 
 // groupCold reports that the group's room is kept cold: it needs cold or holds
@@ -271,6 +274,10 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 		return t.out, fmt.Errorf("%w: the tiled plan is not valid", ErrTile)
 	}
 	t.furnish()
+	t.routeTileConduits()
+	if !t.out.Plan.Valid() {
+		return t.out, fmt.Errorf("%w: the conduit net is not valid", ErrTile)
+	}
 	return t.out, nil
 }
 

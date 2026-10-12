@@ -143,6 +143,9 @@ type LayoutPlan struct {
 	// share, by room id. Only a tiled plan holds it; a spine plan keeps its
 	// freezer and butchery doors on PlannedRoom.Link.
 	Links []RoomLink `json:",omitempty"`
+	// Conduits are the power conduit paths the planner lays, one per node joined
+	// to the net (layout_conduit.go). Only a tiled plan holds them.
+	Conduits []ConduitLink `json:",omitempty"`
 	// Owed is the room each station group owes the plan, one role per group,
 	// set only by a tiled plan (layout_tile.go). The hard tier's Missing term
 	// counts a room per entry, so two groups of one role need two rooms; empty
@@ -341,6 +344,9 @@ func (p LayoutPlan) Valid() bool {
 			return false
 		}
 		seen[l] = true
+	}
+	if !p.validConduits(rooms) {
+		return false
 	}
 	for _, t := range p.Trips {
 		if _, ok := rooms[t.A]; !ok || t.A >= t.B || t.Weight <= 0 {

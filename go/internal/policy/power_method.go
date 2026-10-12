@@ -789,39 +789,3 @@ func powerMethodKey(prefix, identity string) domain.MethodID {
 	digest := sha256.Sum256([]byte(identity))
 	return domain.MethodID(fmt.Sprintf("%s-%x", prefix, digest[:12]))
 }
-
-// powerRouteBound caps the cells one route search visits: enough to reach a
-// geyser GeothermalReachCells away across open ground, or to cross a
-// map-wide perimeter interior to a moisture pump.
-const powerRouteBound = 1 << 17
-
-// The generator-to-consumer order allows successive eight-cell methods to
-// extend one route. Unknown terrain and protected cells never become routes.
-func powerRoute(start domain.Cell, destinations, allowed map[domain.Cell]bool) []domain.Cell {
-	if !allowed[start] {
-		return nil
-	}
-	queue := []domain.Cell{start}
-	previous := map[domain.Cell]domain.Cell{start: start}
-	for i := 0; i < len(queue); i++ {
-		c := queue[i]
-		if destinations[c] {
-			path := []domain.Cell{c}
-			for c != start {
-				c = previous[c]
-				path = append(path, c)
-			}
-			return path
-		}
-		for _, next := range []domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}} {
-			if _, found := previous[next]; allowed[next] && !found {
-				if len(previous) >= powerRouteBound {
-					return nil
-				}
-				previous[next] = c
-				queue = append(queue, next)
-			}
-		}
-	}
-	return nil
-}
