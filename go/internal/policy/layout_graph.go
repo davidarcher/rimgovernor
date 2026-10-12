@@ -116,6 +116,10 @@ type StationNode struct {
 	// this use of it.
 	Needs  []EnvNeed
 	Reason string
+	// DailyWork is the work ticks a day the colony asks of the node's stations
+	// together (recipe runs times the station's work per run); 0 for a node
+	// that is not worked. Conflict costs are priced against it.
+	DailyWork float64
 }
 
 // StationEdge is the wish that two nodes stand together. Weight is the
@@ -443,7 +447,7 @@ func (b *graphBuilder) workLoads() ([]recipeLoad, error) {
 			return nil, err
 		}
 		count := max(1, int(math.Ceil(perStation[def]/float64(domain.TicksPerDay*max(s.Capacity.Slots, 1)))))
-		b.addNode(def, PurposeWork, count, s.Needs, ReasonWorkNutrition)
+		b.nodes[b.addNode(def, PurposeWork, count, s.Needs, ReasonWorkNutrition)].DailyWork = perStation[def]
 	}
 	return out, nil
 }

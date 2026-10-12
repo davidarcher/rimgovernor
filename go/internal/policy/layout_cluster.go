@@ -128,6 +128,33 @@ type RoomGroup struct {
 	Role     RoomRole
 	Requires []EnvRequirement
 	Links    []GroupLink
+	// Costs are the throughput the room loses to the environment its stations
+	// do not get; LostEffects the role effects it does not give.
+	Costs       []ConflictCost
+	LostEffects []LostRoleEffect
+}
+
+// ConflictCost is the work ticks a day a conflict costs the stations of one
+// graph node: the node's daily work times (1/Factor - 1), Factor being the
+// catalog need's rate multiplier (NeedRole x0.8 is a quarter more time;
+// NeedTemperature x0.7 outside the band). Kind is NeedRole or
+// NeedTemperature; Role is the role a NeedRole station wants. No other unit.
+type ConflictCost struct {
+	Kind        EnvNeedKind
+	Node, Def   string
+	Role        RoomRole
+	Count       int
+	Factor      float64
+	TicksPerDay float64
+}
+
+// LostRoleEffect is a role effect (sleep, patient or prison mood, throne,
+// worship) a room does not give, with the sleepers the graph puts in it. Its
+// mood magnitude is unknown until a room is built; #2878 prices it.
+type LostRoleEffect struct {
+	Effect RoleEffect
+	Role   RoomRole
+	Pawns  int
 }
 
 // ClusterDecision is one clustering decision for the caller to journal. A is
@@ -140,6 +167,11 @@ type ClusterDecision struct {
 	// Conflict names an environment conflict between the two parts, if any; it
 	// does not stop a merge.
 	Conflict string
+	// Costs and LostEffects are what a merge would add to its parts (a merge
+	// or a keep) or what the unsplit pool loses (a split): data for the search
+	// (#2877, #2878); nothing here weighs them against flow.
+	Costs       []ConflictCost
+	LostEffects []LostRoleEffect
 }
 
 // Clustering is the room groups and why they are what they are.
@@ -234,6 +266,8 @@ type groupEval struct {
 	openSky   bool
 	clean     bool
 	role      RoomRole
+	costs     []ConflictCost
+	effects   []LostRoleEffect
 }
 
 func (c *clusterer) node(u unit) StationNode { return c.in.Graph.Nodes[u.node] }
@@ -273,6 +307,7 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 	}
 	e := groupEval{lost: map[string]bool{}, role: pred.Role}
 	var intended []RoomRole
+	sleepers := map[RoomRole]int{} // sleepers whose bed is for the role
 	for _, p := range pieces {
 		alone, err := PredictRole(c.in.Catalog, []RoomPiece{p})
 		if err != nil {
@@ -281,6 +316,9 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 		if !slices.Contains(intended, alone.Role) {
 			intended = append(intended, alone.Role)
 		}
+		if cp := c.in.Catalog.Stations[p.Def].Capacity; cp.Kind == CapacitySleepers {
+			sleepers[alone.Role] += cp.Slots
+		}
 	}
 	for _, role := range intended {
 		lost, err := LostEffects(c.in.Catalog, role, pieces)
@@ -288,7 +326,11 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 			return groupEval{}, err
 		}
 		for _, l := range lost {
-			e.lost[fmt.Sprintf("%s|%s|%s", l.Effect, l.Role, l.Def)] = true
+			key := fmt.Sprintf("%s|%s|%s", l.Effect, l.Role, l.Def)
+			if !e.lost[key] && l.Effect != EffectBenchSpeed {
+				e.effects = append(e.effects, LostRoleEffect{Effect: l.Effect, Role: l.Role, Pawns: sleepers[l.Role]})
+			}
+			e.lost[key] = true
 		}
 	}
 	for _, u := range us {
@@ -311,6 +353,7 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 			}
 		}
 	}
+	e.costs = c.costs(us, e)
 	if e.cold && c.hasCooler {
 		e.footprint += c.coolerSize
 		e.clearance++
@@ -454,7 +497,8 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 		if err != nil {
 			return Clustering{}, err
 		}
-		d := ClusterDecision{A: p.na, B: p.nb, Verdict: ClusterKeep, Weight: p.weight}
+		d := ClusterDecision{A: p.na, B: p.nb, Verdict: ClusterKeep, Weight: p.weight,
+			Costs: costsAdded(em.costs, ea.costs, eb.costs), LostEffects: effectsAdded(em.effects, ea.effects, eb.effects)}
 		if coldBandConflict(ea, eb) {
 			d.Conflict = ConflictColdBand
 		}
@@ -489,7 +533,7 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 		if err != nil {
 			return Clustering{}, err
 		}
-		g := RoomGroup{ID: gi, Footprint: e.footprint, Clearance: e.clearance, Area: e.area, Role: e.role, Requires: e.requires()}
+		g := RoomGroup{ID: gi, Footprint: e.footprint, Clearance: e.clearance, Area: e.area, Role: e.role, Requires: e.requires(), Costs: e.costs, LostEffects: e.effects}
 		byNode := map[int]int{}
 		for _, m := range members[r] {
 			byNode[m.node] += m.count
@@ -537,6 +581,94 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 	return out, nil
 }
 
+// costs are the work ticks a day the units' stations lose in a room of
+// evaluation e: a bench whose NeedRole names another role than the room's, and
+// a station with a temperature band in a room kept cold. A unit holds its
+// share of the node's daily work (count over the node's count); a need whose
+// Factor is not a slowdown costs nothing.
+func (c *clusterer) costs(us []unit, e groupEval) []ConflictCost {
+	var out []ConflictCost
+	for _, u := range us {
+		n := c.node(u)
+		if n.DailyWork <= 0 || n.Count <= 0 {
+			continue
+		}
+		for _, need := range n.Needs {
+			if need.Factor <= 0 || need.Factor >= 1 {
+				continue
+			}
+			var role RoomRole
+			switch need.Kind {
+			case NeedRole:
+				if need.Role == e.role {
+					continue
+				}
+				role = need.Role
+			case NeedTemperature:
+				if !e.cold {
+					continue
+				}
+			default:
+				continue
+			}
+			ticks := n.DailyWork * float64(u.count) / float64(n.Count) * (1/need.Factor - 1)
+			if i := slices.IndexFunc(out, func(x ConflictCost) bool { return x.Kind == need.Kind && x.Node == n.ID && x.Role == role }); i >= 0 {
+				out[i].Count += u.count
+				out[i].TicksPerDay += ticks
+				continue
+			}
+			out = append(out, ConflictCost{Kind: need.Kind, Node: n.ID, Def: n.Def, Role: role, Count: u.count, Factor: need.Factor, TicksPerDay: ticks})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		a, b := out[i], out[j]
+		if a.Node != b.Node {
+			return a.Node < b.Node
+		}
+		if a.Kind != b.Kind {
+			return a.Kind < b.Kind
+		}
+		return a.Role < b.Role
+	})
+	return out
+}
+
+// costsAdded are the costs a merged room has beyond its two parts': per cost
+// key, the merged ticks less the parts'.
+func costsAdded(merged, a, b []ConflictCost) []ConflictCost {
+	var out []ConflictCost
+	for _, m := range merged {
+		ticks := m.TicksPerDay
+		for _, part := range [][]ConflictCost{a, b} {
+			for _, p := range part {
+				if p.Kind == m.Kind && p.Node == m.Node && p.Role == m.Role {
+					ticks -= p.TicksPerDay
+				}
+			}
+		}
+		if ticks > 1e-9 {
+			m.TicksPerDay = ticks
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// effectsAdded are the lost role effects of a merged room that neither part
+// lost.
+func effectsAdded(merged, a, b []LostRoleEffect) []LostRoleEffect {
+	var out []LostRoleEffect
+	for _, m := range merged {
+		known := func(list []LostRoleEffect) bool {
+			return slices.ContainsFunc(list, func(x LostRoleEffect) bool { return x.Effect == m.Effect && x.Role == m.Role })
+		}
+		if !known(a) && !known(b) {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
 // newLoss reports a merged group that loses an effect neither part lost.
 func newLoss(merged, a, b groupEval) bool {
 	for k := range merged.lost {
@@ -565,7 +697,7 @@ func (c *clusterer) split(n, count int, decisions *[]ClusterDecision) ([]unit, e
 	if reason == "" || count < 2 {
 		return []unit{u}, nil
 	}
-	*decisions = append(*decisions, ClusterDecision{A: c.node(u).ID, Verdict: ClusterSplit, Reason: reason})
+	*decisions = append(*decisions, ClusterDecision{A: c.node(u).ID, Verdict: ClusterSplit, Reason: reason, Costs: e.costs, LostEffects: e.effects})
 	left, err := c.split(n, (count+1)/2, decisions)
 	if err != nil {
 		return nil, err

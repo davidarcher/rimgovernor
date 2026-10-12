@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"math"
 	"reflect"
 	"slices"
 	"testing"
@@ -209,5 +210,79 @@ func TestClusterStationsReportsNoCooler(t *testing.T) {
 		return d.Verdict == ClusterUnsatisfied && d.Reason == ReasonClusterNoCooler && d.A == cold.ID
 	}) {
 		t.Errorf("no unsatisfied decision: %+v", got.Decisions)
+	}
+}
+
+func costOf(costs []ConflictCost, kind EnvNeedKind, node string) (ConflictCost, bool) {
+	for _, c := range costs {
+		if c.Kind == kind && c.Node == node {
+			return c, true
+		}
+	}
+	return ConflictCost{}, false
+}
+
+// A bench slowed by the wrong role records the ticks it loses: daily work times
+// (1/0.8 - 1), 100 ticks costing 25; a band station in a cold room records the
+// x0.7 band the same way; lost role effects keep their name and sleepers.
+func TestClusterStationsRecordsConflictCosts(t *testing.T) {
+	kitchenNeed := EnvNeed{Kind: NeedRole, Role: RoomRoleKitchen, Factor: 0.8}
+	benchNeed := EnvNeed{Kind: NeedRole, Role: RoomRoleWorkshop, Factor: 0.8}
+	stove := node("Stove", PurposeWork, 1, kitchenNeed, workBand)
+	stove.DailyWork = 300
+	bench := node("Bench", PurposeWork, 1, benchNeed)
+	bench.DailyWork = 100
+	cold := node("ColdShelf", PurposeStoreCold, 1, EnvNeed{Kind: NeedCold})
+	g := StationGraph{
+		Nodes: []StationNode{bench, stove, cold},
+		Edges: []StationEdge{edge(stove, bench, 50, false), edge(stove, cold, 10, true)},
+	}
+	got := clusterOf(t, g)
+
+	var kept ClusterDecision
+	for _, d := range got.Decisions {
+		if d.Reason == ReasonClusterLostEffect {
+			kept = d
+		}
+	}
+	c, ok := costOf(kept.Costs, NeedRole, bench.ID)
+	if !ok || c.TicksPerDay != 25 || c.Role != RoomRoleWorkshop || c.Factor != 0.8 || c.Count != 1 {
+		t.Errorf("bench role cost: %+v", kept)
+	}
+
+	kitchen := groupWith(t, got, stove.ID)
+	c, ok = costOf(kitchen.Costs, NeedTemperature, stove.ID)
+	if want := 300 * (1/0.7 - 1); !ok || math.Abs(c.TicksPerDay-want) > 1e-9 || c.Factor != 0.7 {
+		t.Errorf("stove band cost: %+v", kitchen.Costs)
+	}
+	if _, ok := costOf(kitchen.Costs, NeedRole, stove.ID); ok {
+		t.Errorf("the stove is in a kitchen: %+v", kitchen.Costs)
+	}
+	merged := false
+	for _, d := range got.Decisions {
+		if d.Conflict == ConflictColdBand && d.Verdict == ClusterMerge {
+			_, merged = costOf(d.Costs, NeedTemperature, stove.ID)
+		}
+	}
+	if !merged {
+		t.Errorf("the cold-band merge carries no band cost: %+v", got.Decisions)
+	}
+
+	cat := clusterCatalog()
+	bed := cat.Stations["Bed"]
+	bed.Capacity = StationCapacity{Kind: CapacitySleepers, Slots: 1}
+	cat.Stations["Bed"] = bed
+	in := ClusterInput{Graph: StationGraph{Nodes: []StationNode{node("Bed", PurposeSleep, 3)}}, Catalog: cat, RoofDistance: testRoof}
+	split, err := ClusterStations(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(split.Decisions) == 0 || split.Decisions[0].Verdict != ClusterSplit ||
+		!reflect.DeepEqual(split.Decisions[0].LostEffects, []LostRoleEffect{{Effect: EffectSleepMood, Role: RoomRoleBedroom, Pawns: 3}}) {
+		t.Errorf("split decisions: %+v", split.Decisions)
+	}
+	again, err := ClusterStations(in)
+	if err != nil || !reflect.DeepEqual(split, again) {
+		t.Errorf("not deterministic: %v", err)
 	}
 }

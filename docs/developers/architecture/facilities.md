@@ -139,7 +139,14 @@ bedroom while medical beds stay a hospital. Unit pairs then merge by descending
 flow weight (required links first) unless the merge loses an effect, joins an
 enclosed station with an open-sky one, or exceeds the area limit. A cold room
 beside a station that works in a temperature band is not refused: the decision
-records the conflict (`Conflict`) for the search to price. Cold is met by a
+records the conflict (`Conflict`) for the search to price. Decisions and
+groups also carry the throughput a conflict costs as data (`Costs`): the work
+ticks a day lost, the graph node's `DailyWork` times (1/Factor - 1) for a bench
+outside its `NeedRole` room (x0.8) or a band station in a cold room
+(`NeedTemperature`, x0.7); a decision holds what the merge adds to its parts,
+a split what the unsplit pool loses. `LostEffects` names the role effects lost
+and the sleepers affected; mood magnitudes are unknown until a room is built
+and belong to the search (#2878). Cold is met by a
 cooling station: the catalog marks coolers (`Station.Cooling`, a temperature
 control whose `energyPerSecond` is negative, with its power draw), and a group
 that needs cold gets the one drawing the least power per heat moved

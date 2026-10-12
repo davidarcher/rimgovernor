@@ -37,6 +37,9 @@ func TestStationGraphOrdersSizeBenches(t *testing.T) {
 	if !ok || bench.Count != 2 {
 		t.Fatalf("three runs of half a day need two benches: %+v", g.Nodes)
 	}
+	if bench.DailyWork != 90000 {
+		t.Errorf("three runs of 30000 ticks are 90000 a day: %v", bench.DailyWork)
+	}
 	store, _ := g.Node("Shelf/store")
 	if store.Count != 1 {
 		t.Errorf("two stacks fit one four-slot shelf: %+v", store)
