@@ -1,6 +1,8 @@
 package policy
 
 import (
+	"fmt"
+	"math"
 	"reflect"
 	"slices"
 	"testing"
@@ -8,14 +10,29 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func airlockTileInput(t *testing.T, curve []float64) TileInput {
+// airlockTileBase is a base of the given colonists on the curve, with the shared
+// circulation entrance or a door per room, steel at its recorded value.
+func airlockTileBase(t *testing.T, curve []float64, colonists int, circulation bool) TileInput {
 	t.Helper()
-	in, _ := tileInput(t, plainScoreSurvey(), 3, true)
+	in, _ := tileInputCirculation(t, plainScoreSurvey(), colonists, true, circulation)
 	in.Catalog.Climate = testClimate()
 	in.RoofDistance = testRoof
 	in.OutdoorCurve = domain.Known(curve)
 	in.SteelValue = 1.9
 	in.FullRotRateC = 10
+	return in
+}
+
+func airlockTileInput(t *testing.T, curve []float64) TileInput {
+	return airlockTileBase(t, curve, 3, true)
+}
+
+// cheapSteel makes the airlock's build a fifth of its price (steel worth 9.5
+// silver a unit, not the recorded 1.9) so a fixture this tight places airlocks
+// at all; the recorded price pays only at hundreds of movements a door and the
+// fixtures leave no ground there.
+func cheapSteel(in TileInput) TileInput {
+	in.SteelValue = 9.5
 	return in
 }
 
@@ -36,25 +53,57 @@ func busy(in TileInput, by float64) TileInput {
 	return in
 }
 
+func busiestDoor(r TileResult) float64 {
+	var most float64
+	for _, m := range exteriorDoorMovements(r.Plan) {
+		most = max(most, m)
+	}
+	return most
+}
+
+// A real base of 5 or 10 colonists, on a shared entrance or a door per room,
+// puts a few tens of movements a day through its busiest exterior door, a
+// fraction of the sea-ice break-even (TestAirlockBreakEvenOnSeaIce): no airlock
+// pays for itself and every roofed exterior door reports the totals it lost on.
+func TestRealisticBasesPayForNoAirlockOnSeaIce(t *testing.T) {
+	for _, colonists := range []int{5, 10} {
+		for _, circulation := range []bool{true, false} {
+			res, err := TileEmbedding(airlockTileBase(t, seaIce, colonists, circulation))
+			if err != nil {
+				t.Fatal(err)
+			}
+			name := fmt.Sprintf("%d colonists, circulation %v", colonists, circulation)
+			if n := len(airlockDecisions(res, ReasonTileAirlock)); n != 0 {
+				t.Errorf("%s: %d airlocks placed: %+v", name, n, res.Decisions)
+			}
+			if len(airlockDecisions(res, ReasonTileAirlockNotPaid)) == 0 {
+				t.Errorf("%s: no door was priced: %+v", name, res.Decisions)
+			}
+			if most := busiestDoor(res); most <= 0 || most > 60 {
+				t.Errorf("%s: the busiest exterior door has %.1f movements a day, want a few tens", name, most)
+			}
+		}
+	}
+}
+
+// Past the break-even (at cheap steel) the airlocks come, and more of them as the base grows
+// busier; the busy bases place them only where their decision says they pay.
 func TestTilerAirlocksFollowTheDoorsTraffic(t *testing.T) {
-	quiet, err := TileEmbedding(airlockTileInput(t, seaIce))
-	if err != nil {
-		t.Fatal(err)
+	var placed []int
+	for _, by := range []float64{1, 10, 20} {
+		res, err := TileEmbedding(busy(cheapSteel(airlockTileBase(t, seaIce, 3, true)), by))
+		if err != nil {
+			t.Fatal(err)
+		}
+		placed = append(placed, len(airlockDecisions(res, ReasonTileAirlock)))
 	}
-	if len(airlockDecisions(quiet, ReasonTileAirlock)) != 0 || len(airlockDecisions(quiet, ReasonTileAirlockNotPaid)) == 0 {
-		t.Errorf("a quiet base paid for airlocks: %+v", quiet.Decisions)
-	}
-	loud, err := TileEmbedding(busy(airlockTileInput(t, seaIce), 400))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(airlockDecisions(loud, ReasonTileAirlock)) == 0 {
-		t.Errorf("a busy base placed no airlock: %+v", loud.Decisions)
+	if placed[0] != 0 || placed[2] == 0 || !slices.IsSorted(placed) {
+		t.Errorf("airlocks placed at 1x, 10x and 20x traffic: %v, want none, then a rising count", placed)
 	}
 }
 
 func TestTilerAirlocksAreChildRoomsWhereTheWattsPay(t *testing.T) {
-	in := busy(airlockTileInput(t, seaIce), 400)
+	in := busy(cheapSteel(airlockTileInput(t, seaIce)), 10)
 	res, err := TileEmbedding(in)
 	if err != nil {
 		t.Fatal(err)
@@ -95,7 +144,7 @@ func TestTilerAirlocksAreChildRoomsWhereTheWattsPay(t *testing.T) {
 }
 
 func TestTilerPlacesNoAirlockOnATemperateCurve(t *testing.T) {
-	res, err := TileEmbedding(busy(airlockTileInput(t, temperate), 400))
+	res, err := TileEmbedding(busy(cheapSteel(airlockTileInput(t, temperate)), 20))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,27 +168,102 @@ func TestTilerAirlockNeedsAPriceNotAConstant(t *testing.T) {
 	}
 }
 
-func TestAirlockSavingGrowsWithTheMovements(t *testing.T) {
-	// A trafficked exterior door is open more of the time, so the airlock's
-	// saving over the plain door grows with the movements through it.
-	low := ClimateRoom{Cells: 30, Band: ComfortBand()}
-	price := func(movements float64) float64 {
-		opts, err := ClimateOptions(testClimate(), DefaultSiteTypeWeights(), 1.9, seaIce, low, ClimateSide{Outdoors: true}, DoorOpenFraction(movements), []Opening{OpeningDoor, OpeningAirlock})
-		if err != nil {
-			t.Fatal(err)
-		}
-		return opts[0].TotalW - opts[1].TotalW
+// airlockSaving is the plain door's total watts less the airlock's for a
+// comfort-band room on sea ice with the given movements a day through its door.
+func airlockSaving(t *testing.T, movements float64) float64 {
+	t.Helper()
+	room := ClimateRoom{Cells: 30, Band: ComfortBand()}
+	opts, err := ClimateOptions(testClimate(), DefaultSiteTypeWeights(), 1.9, seaIce, room, ClimateSide{Outdoors: true}, movements, []Opening{OpeningDoor, OpeningAirlock})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if price(200) <= price(2) {
-		t.Errorf("airlock saving %.1f W at 200 a day is not above %.1f W at 2", price(200), price(2))
+	return opts[0].TotalW - opts[1].TotalW
+}
+
+// The sea-ice break-even is the movements a day through one door at which the
+// airlock's operating saving repays its build. The door's window is 181 ticks
+// (45 wait, 26 walking, 110 close delay), so the door is open ~70% of the time
+// at 440 a day. The audit estimated 260-280 from longer windows (a stuffed
+// door opens slower and waits longer); the def's stuff-free window puts it
+// near 440. Either way it is hundreds of movements a door, far above a real
+// base's tens.
+func TestAirlockBreakEvenOnSeaIce(t *testing.T) {
+	even := 0.0
+	for m := 1.0; m <= 3000; m++ {
+		if airlockSaving(t, m) > 0 {
+			even = m
+			break
+		}
+	}
+	if even < 250 || even > 500 {
+		t.Errorf("break-even %.0f movements a door a day, want a few hundred", even)
+	}
+	t.Logf("sea-ice break-even %.0f movements a door a day", even)
+	if airlockSaving(t, even/4) >= 0 {
+		t.Errorf("the airlock pays at a quarter of the break-even")
 	}
 }
 
-func TestDoorOpenFractionIsBoundedAndRises(t *testing.T) {
-	if DoorOpenFraction(0) != 0 || DoorOpenFraction(-3) != 0 {
+// A trafficked exterior door is open more of the time, so the airlock's saving
+// over the plain door grows with the movements through it, up to the ~1000 a day
+// where both doors stand open (a door cannot be open more than always, and the
+// airlock is then 2/3 of one open door, which it saves a third of; past that the
+// saving falls and the 90 W build no longer repays on sea ice).
+func TestAirlockSavingGrowsWithTheMovements(t *testing.T) {
+	last := airlockSaving(t, 1)
+	for _, m := range []float64{10, 100, 400, 800} {
+		saving := airlockSaving(t, m)
+		if saving <= last {
+			t.Errorf("airlock saving %.2f W at %v a day is not above %.2f W at the step before", saving, m, last)
+		}
+		last = saving
+	}
+}
+
+// The simulated game: a one-cell vestibule between two doors that equalise in
+// turn (each event moves min(rate,1)/2 of the way to its side) passes 2/3 of
+// the heat one open door passes per event.
+func TestAirlockOverlapPassesTwoThirdsOfOneOpenDoor(t *testing.T) {
+	const outdoors, indoors, f = -30.0, 20.0, 0.5
+	vestibule := indoors
+	var through float64
+	for i := 0; i < 200; i++ {
+		vestibule += f * (outdoors - vestibule)
+		moved := f * (vestibule - indoors)
+		vestibule -= moved
+		if i >= 100 {
+			through += moved
+		}
+	}
+	perOpenDoor := f * (outdoors - indoors) * 100
+	if ratio := through / perOpenDoor; math.Abs(ratio-2.0/3) > 1e-6 {
+		t.Fatalf("simulated ratio %v, want 2/3", ratio)
+	}
+	m := testClimate()
+	// Every passage window overlaps at a flood of passages.
+	if got, want := m.airlockConductance(1e9), m.DoorOpen.conductance(1)*2/3; math.Abs(got-want) > 1e-9 {
+		t.Errorf("airlock under flood %v, want 2/3 of one open door %v", got, want)
+	}
+	if got, want := m.airlockConductance(0), series(m.DoorClosed.conductance(1), m.DoorClosed.conductance(1)); math.Abs(got-want) > 1e-12 {
+		t.Errorf("idle airlock %v, want two closed doors in series %v", got, want)
+	}
+}
+
+// The door window comes from the def: the wait, two cell moves and the close
+// delay, and a slower door (more wait) is open more of the time.
+func TestDoorWindowFollowsTheDef(t *testing.T) {
+	if w := testClimate().Door.window(); w != 181 {
+		t.Errorf("window %v ticks, want 45 + 26 + 110", w)
+	}
+	slow := testClimate()
+	slow.Door.OpenTicks = 90
+	if !(slow.conductance(ClimateLink{Opening: OpeningDoor}, 30, 100) > testClimate().conductance(ClimateLink{Opening: OpeningDoor}, 30, 100)) {
+		t.Error("a slower door leaks no more")
+	}
+	if openFraction(0, 181) != 0 || openFraction(-3, 181) != 0 {
 		t.Error("no movements must leave the door shut")
 	}
-	a, b, c := DoorOpenFraction(10), DoorOpenFraction(100), DoorOpenFraction(1e9)
+	a, b, c := openFraction(10, 181), openFraction(100, 181), openFraction(1e9, 181)
 	if !(0 < a && a < b && b < c && c <= 1) {
 		t.Errorf("fractions %v %v %v", a, b, c)
 	}

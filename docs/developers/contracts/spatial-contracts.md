@@ -318,9 +318,13 @@ on the colony centre when the plan has no free cell there.
   it onto `RoomGroup.Outside`, the tiler onto `LayoutPlan.OutsideTrips`, and each such trip
   is walked from its room to the nearest entrance. Joy outings, mined, wood and hunt
   hauling and pen visits have no model yet (#2949), so a plan's passages fall short of
-  the audit's 30-50 per colonist a day. `DoorOpenFraction` turns that into time open using the
-  game's door close delay (`climateTable.DoorOpenTicks`). Circulation rooms are priced
-  like any room; the tiler plans no hallways. `TileDecision` carries the reason
+  the audit's 30-50 per colonist a day. Each passage holds a door open for its window,
+  from the def: the wait (`Building_Door.TicksToOpenNow`, 45 over `DoorOpenSpeed`), two
+  cell moves (`climateTable.CellMoveTicks`) and the close delay (`ClimateModel.Door`). An
+  airlock passage has an overlap of one close delay with both doors open (the vestibule
+  passes 2/3 of one open door's heat per event) and otherwise one door open over the
+  other's closed leak. Circulation rooms are priced like any room; the tiler plans no
+  hallways. `TileDecision` carries the reason
   (`tile_airlock`, `_not_paid`, `_no_ground`, `_unpriced`, `_temperate`) and both
   totals. Advice only; `airlockPasses` is replaced at #2931.
   **Lamps (#2945).** A roofed cell has no sky light, so a colonist working or walking on

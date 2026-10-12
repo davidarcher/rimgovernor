@@ -263,6 +263,11 @@ func TestStationCatalogClimateModelIsTheGamesNumbers(t *testing.T) {
 	if m.DoorOpen.IntervalTicks != 34 || m.DoorClosed.IntervalTicks != 375 || m.DoorOpen.Rate != 1 || m.DoorClosed.Rate != 1 {
 		t.Errorf("door open %+v closed %+v", m.DoorOpen, m.DoorClosed)
 	}
+	// TicksToOpenNow 45 over the Door def's DoorOpenSpeed 1, CloseDelayTicks 110 at
+	// close factor 1, and the two cell moves through the door.
+	if m.Door != (policy.DoorTiming{OpenTicks: 45, CloseDelayTicks: 110, MoveTicks: 26}) {
+		t.Errorf("door %+v", m.Door)
+	}
 	if m.SwingC != 7 || m.StepTicks != 250 || m.TicksPerSecond != 60 {
 		t.Errorf("swing %v step %d ticks per second %v", m.SwingC, m.StepTicks, m.TicksPerSecond)
 	}

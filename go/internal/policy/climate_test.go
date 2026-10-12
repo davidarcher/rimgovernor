@@ -20,10 +20,11 @@ var temperate = []float64{2, 4, 8, 12, 16, 19, 21, 20, 16, 11, 6, 3}
 
 // testClimate is the recorded game's numbers (bridge's TestStationCatalogClimate
 // ModelIsTheGamesNumbers pins them): TickRare 250 and vent rate 14, the door's
-// 34 and 375 ticks at rate 1, a 21 heat/s heater at 175 W and cooler at 200 W.
+// 34 and 375 ticks at rate 1 and 45 + 26 + 110 ticks open per passage, a 21 heat/s heater at 175 W and cooler at 200 W.
 func testClimate() ClimateModel {
 	return ClimateModel{
 		Vent: Exchange{250, 14}, DoorOpen: Exchange{34, 1}, DoorClosed: Exchange{375, 1},
+		Door:   DoorTiming{OpenTicks: 45, CloseDelayTicks: 110, MoveTicks: 26},
 		Heater: ClimatePlant{21, 175}, Cooler: ClimatePlant{21, 200},
 		StepTicks: 250, TicksPerSecond: 60, SwingC: 7,
 		Build: ClimateBuildValue{Vent: 57, Door: 18.75, Wall: 3.75},
@@ -144,20 +145,20 @@ func TestClimateAirlockLeaksLessThanOneClosedDoorAndMoreWithTraffic(t *testing.T
 	room := ClimateRoom{Cells: 30, Band: living, Links: outdoorsLink(OpeningAirlock)}
 	closed := mustLoad(t, seaIce, ClimateRoom{Cells: 30, Band: living, Links: outdoorsLink(OpeningDoorClosed)}, 0)
 	still := mustLoad(t, seaIce, room, 0)
-	busy := mustLoad(t, seaIce, room, 0.05)
+	busy := mustLoad(t, seaIce, room, 300)
 	if !(still.MeanW < closed.MeanW && still.MeanW < busy.MeanW) {
 		t.Errorf("airlock still %.2f, busy %.2f, one closed door %.2f", still.MeanW, busy.MeanW, closed.MeanW)
 	}
 	// With the same traffic a lone door that opens stands wide to the cold; an
 	// airlock never does.
-	if ab := mustLoad(t, seaIce, room, 0.05); ab.MeanW >= mustLoad(t, seaIce, ClimateRoom{Cells: 30, Band: living, Links: outdoorsLink(OpeningDoorOpen)}, 0).MeanW {
+	if ab := mustLoad(t, seaIce, room, 300); ab.MeanW >= mustLoad(t, seaIce, ClimateRoom{Cells: 30, Band: living, Links: outdoorsLink(OpeningDoorOpen)}, 0).MeanW {
 		t.Errorf("a busy airlock %.2f leaks like a door held open", ab.MeanW)
 	}
 }
 
 func TestClimateOptionsPriceTheBuildBesideTheOperatingWatts(t *testing.T) {
 	w := DefaultSiteTypeWeights()
-	options, err := ClimateOptions(testClimate(), w, 1.9, seaIce, ClimateRoom{Cells: 30, Band: living}, ClimateSide{Outdoors: true}, 0.02, OpeningOrder)
+	options, err := ClimateOptions(testClimate(), w, 1.9, seaIce, ClimateRoom{Cells: 30, Band: living}, ClimateSide{Outdoors: true}, 50, OpeningOrder)
 	if err != nil {
 		t.Fatal(err)
 	}

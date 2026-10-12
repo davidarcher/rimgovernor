@@ -22,8 +22,8 @@ import (
 // (routeWalk) between its rooms' centres and charges its movements a day to
 // every exterior door on the way, so a room pawns cross to reach the outdoor
 // roles, or a circulation room the sleepers use, carries real traffic and a
-// closet at the end of a corridor carries none. DoorOpenFraction turns
-// movements into the fraction of time open. The airlock is advice beside the
+// closet at the end of a corridor carries none. The door model (climate.go) turns
+// them into the time each door is open. The airlock is advice beside the
 // old planner, which stays authoritative until #2931.
 
 // exteriorDoorMovements are the movements a day through each room's exterior
@@ -170,7 +170,7 @@ func (t *tiler) placeAirlocks() bool {
 			band = Band{MinC: math.Inf(-1), MaxC: t.in.FullRotRateC}
 		}
 		options, err := ClimateOptions(m, DefaultSiteTypeWeights(), t.in.SteelValue, curve, ClimateRoom{Cells: room.Region.Area(), Band: band},
-			ClimateSide{Outdoors: true}, DoorOpenFraction(movements[room.ID]), []Opening{OpeningDoor, OpeningAirlock})
+			ClimateSide{Outdoors: true}, movements[room.ID], []Opening{OpeningDoor, OpeningAirlock})
 		if err != nil {
 			t.noteAirlock(g.ID, ReasonTileAirlockUnpriced, TileUnsatisfied, 0, 0)
 			continue

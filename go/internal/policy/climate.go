@@ -51,14 +51,14 @@ type ClimateTable struct {
 	RaceDef                    string
 	ComfyMinStat, ComfyMaxStat string
 	SunPhase                   float64
-	// DoorOpenTicks is how long a door stays open after a pawn passes
-	// (Building_Door's close delay, a literal in the game's code that no def
-	// states): the time one passage holds it open, which turns movements a day
-	// into the fraction of the time a door is open (DoorOpenFraction).
-	DoorOpenTicks int
+	// CellMoveTicks is the ticks a pawn takes to walk one cell, the move cost
+	// the pathfinder charges (pathMoveCardinal): a pawn walks two cells in a
+	// door's window, into the door's cell and out of it. Pawns differ in speed
+	// and no def states one, so it is a judgment.
+	CellMoveTicks float64
 }
 
-var climateTable = ClimateTable{VentDef: "Vent", DoorDef: ShellDoorDefinition, WallDef: ShellWallDefinition, RaceDef: "Human", ComfyMinStat: "ComfyTemperatureMin", ComfyMaxStat: "ComfyTemperatureMax", SunPhase: 0.32, DoorOpenTicks: 110}
+var climateTable = ClimateTable{VentDef: "Vent", DoorDef: ShellDoorDefinition, WallDef: ShellWallDefinition, RaceDef: "Human", ComfyMinStat: "ComfyTemperatureMin", ComfyMaxStat: "ComfyTemperatureMax", SunPhase: 0.32, CellMoveTicks: pathMoveCardinal}
 
 // ClimateDefs are the building defs the climate options are priced in.
 func ClimateDefs() ClimateTable { return climateTable }
@@ -84,6 +84,35 @@ func (e Exchange) conductance(cells int) float64 {
 
 func (e Exchange) valid() bool { return e.IntervalTicks > 0 && finitePositive(e.Rate) }
 
+// DoorTiming is how long a door pawns use stays open for one passage, from the
+// door's def and the game's constants. OpenTicks is Building_Door.TicksToOpenNow
+// (OpenTicks 45 over the def's DoorOpenSpeed, times the unpowered factor): the
+// pawn waits that long at a closed door, which exchanges heat from the first
+// tick. CloseDelayTicks is the delay after the last pawn leaves
+// (CloseDelayTicks 110 times the def's unpowered close factor). MoveTicks is the
+// walk through the door's cell, two cell moves (climateTable.CellMoveTicks).
+type DoorTiming struct {
+	OpenTicks, CloseDelayTicks, MoveTicks float64
+}
+
+func (t DoorTiming) valid() bool {
+	return finitePositive(t.OpenTicks) && finitePositive(t.CloseDelayTicks) && t.MoveTicks >= 0 && !math.IsInf(t.MoveTicks, 0)
+}
+
+// window is the ticks one passage holds a door open: the wait, the walk
+// through and the close delay.
+func (t DoorTiming) window() float64 { return t.OpenTicks + t.MoveTicks + t.CloseDelayTicks }
+
+// openFraction is the fraction of the time covered by windows of the given
+// ticks when passages a day each start one (a Poisson stream: windows that
+// overlap share the open time).
+func openFraction(passages, ticks float64) float64 {
+	if !(passages > 0) || math.IsInf(passages, 0) || !(ticks > 0) {
+		return 0
+	}
+	return 1 - math.Exp(-passages*ticks/domain.TicksPerDay)
+}
+
 // ClimatePlant is a heater or cooler: the heat it moves per second
 // (CompProperties_TempControl.energyPerSecond, as a positive number) at the
 // power it draws.
@@ -106,6 +135,8 @@ type ClimateModel struct {
 	// TemperatureTuning.Vent_TempEqualizeRate) and of a door (its
 	// BuildingProperties interval and rate, open and closed).
 	Vent, DoorOpen, DoorClosed Exchange
+	// Door is the time one passage holds a door open.
+	Door DoorTiming
 	// Heater and Cooler are the catalog's cheapest powered heater and its
 	// most efficient cooler.
 	Heater, Cooler ClimatePlant
@@ -145,7 +176,7 @@ func (h HeatSource) Pushes() bool { return h.HeatPerSecond != 0 }
 
 // Valid reports a model with every number present.
 func (m ClimateModel) Valid() bool {
-	return m.Vent.valid() && m.DoorOpen.valid() && m.DoorClosed.valid() && m.Heater.valid() && m.Cooler.valid() &&
+	return m.Vent.valid() && m.DoorOpen.valid() && m.DoorClosed.valid() && m.Door.valid() && m.Heater.valid() && m.Cooler.valid() &&
 		m.StepTicks > 0 && finitePositive(m.TicksPerSecond) && !math.IsNaN(m.SwingC) && !math.IsInf(m.SwingC, 0)
 }
 
@@ -158,12 +189,13 @@ const (
 	// OpeningDoorOpen is a door held open and OpeningDoorClosed one held shut.
 	OpeningDoorOpen   Opening = "door_open"
 	OpeningDoorClosed Opening = "door_closed"
-	// OpeningDoor is a door pawns use: open for the traffic fraction of the
-	// time, shut otherwise. It is priced beside an airlock (OpeningOrder, the
+	// OpeningDoor is a door pawns use: open for the share of the time the
+	// passages through it hold it, shut otherwise. It is priced beside an airlock (OpeningOrder, the
 	// list of the vent site, leaves it out).
 	OpeningDoor Opening = "door"
-	// OpeningAirlock is two doors around a one-cell vestibule, never open at
-	// once: the traffic opens one at a time.
+	// OpeningAirlock is two doors around a one-cell vestibule. A pawn opens
+	// them one after the other, and the inner one opens while the outer is
+	// still in its close delay, so each passage has a window with both open.
 	OpeningAirlock Opening = "airlock"
 )
 
@@ -207,9 +239,9 @@ type ClimateWatts struct {
 var ErrClimate = errors.New("climate model")
 
 // conductance is the heat one opening moves per tick per degree of difference.
-// traffic is the fraction of the time each airlock door is open (at most half,
-// as the two are never open together).
-func (m ClimateModel) conductance(l ClimateLink, cells int, traffic float64) float64 {
+// passages is the pawn passages a day through the opening (a door's or an
+// airlock's; the others ignore it).
+func (m ClimateModel) conductance(l ClimateLink, cells int, passages float64) float64 {
 	if !l.Side.Outdoors && l.Side.Cells > 0 {
 		cells = min(cells, l.Side.Cells)
 	}
@@ -221,14 +253,33 @@ func (m ClimateModel) conductance(l ClimateLink, cells int, traffic float64) flo
 	case OpeningDoorClosed:
 		return m.DoorClosed.conductance(cells)
 	case OpeningDoor:
-		f := math.Max(0, math.Min(traffic, 1))
+		f := openFraction(passages, m.Door.window())
 		return f*m.DoorOpen.conductance(cells) + (1-f)*m.DoorClosed.conductance(cells)
 	case OpeningAirlock:
-		open, closed := m.DoorOpen.conductance(airlockVestibuleCells), m.DoorClosed.conductance(airlockVestibuleCells)
-		f := math.Max(0, math.Min(traffic, 0.5))
-		return 2*f*series(open, closed) + (1-2*f)*series(closed, closed)
+		return m.airlockConductance(passages)
 	}
 	return 0
+}
+
+// airlockConductance is the airlock's conductance with passages a day. A
+// passage opens the outer door for the door's window; the pawn walks to the
+// vestibule one wait and one door-cell walk later, where the inner door opens
+// a close delay before the outer shuts. The two are open together for that
+// close delay (the overlap) and each alone for the rest of its window. The
+// time splits into overlap, one door open (the other closed) and both closed,
+// each stream of windows a Poisson cover as a door's.
+//
+// With both open, the one-cell vestibule sits between two events of one
+// interval, each moving the fraction f of the way to its side, so the heat
+// through per event pair is 1/(2-f) of one open door's per event: 2/3 at
+// f=1/2, where a one-cell room moves min(rate, 1)/2. One open door leaves the
+// closed one's leak in series.
+func (m ClimateModel) airlockConductance(passages float64) float64 {
+	open, closed := m.DoorOpen.conductance(airlockVestibuleCells), m.DoorClosed.conductance(airlockVestibuleCells)
+	f := math.Min(m.DoorOpen.Rate, airlockVestibuleCells) / 2
+	both := openFraction(passages, m.Door.CloseDelayTicks)
+	one := math.Min(math.Max(0, 2*(openFraction(passages, m.Door.window())-both)), 1-both)
+	return both*open/(2-f) + one*series(open, closed) + (1-both-one)*series(closed, closed)
 }
 
 // series is the conductance of two openings one after the other.
@@ -238,7 +289,7 @@ func series(a, b float64) float64 { return a * b / (a + b) }
 // (twelve means, C): at each step the room floats to the conductance-weighted
 // mean of what is beyond its openings, is held at the band edge it floats
 // past, and the heat that costs is turned into heater or cooler watts.
-func ClimateLoad(m ClimateModel, curve []float64, room ClimateRoom, traffic float64) (ClimateWatts, error) {
+func ClimateLoad(m ClimateModel, curve []float64, room ClimateRoom, passages float64) (ClimateWatts, error) {
 	if !m.Valid() {
 		return ClimateWatts{}, fmt.Errorf("%w: model has unknown numbers", ErrClimate)
 	}
@@ -250,7 +301,7 @@ func ClimateLoad(m ClimateModel, curve []float64, room ClimateRoom, traffic floa
 	}
 	g := make([]float64, len(room.Links))
 	for i, l := range room.Links {
-		g[i] = m.conductance(l, room.Cells, traffic)
+		g[i] = m.conductance(l, room.Cells, passages)
 	}
 	inside := newInsideHeat(room.Heat, m.TicksPerSecond)
 	var out ClimateWatts
@@ -361,16 +412,6 @@ func (h insideHeat) floats(flow, total float64) float64 {
 	return flow / total
 }
 
-// DoorOpenFraction is the fraction of the time a door is open when
-// movementsPerDay pawns pass it, each holding it open for DoorOpenTicks (a
-// Poisson stream: passages that overlap share the open time).
-func DoorOpenFraction(movementsPerDay float64) float64 {
-	if !(movementsPerDay > 0) || math.IsInf(movementsPerDay, 0) {
-		return 0
-	}
-	return 1 - math.Exp(-movementsPerDay*float64(climateTable.DoorOpenTicks)/domain.TicksPerDay)
-}
-
 // outdoorAt is the outdoor temperature at a tick: the twelfths' means
 // interpolated linearly between their midpoints (around the year), plus the
 // diurnal swing.
@@ -390,8 +431,10 @@ func outdoorAt(temps []float64, swingC float64, tick int) float64 {
 
 // BuildW is the one-time cost of a building list as sustained watts: the cost
 // in steel (its market value over steel's) charged at the layout's own rate, the
-// site pricing's (SiteTypeWeights: Construction per 100 steel a day, amortised
-// over one 60-day year, against Power per kilowatt averaged over the day).
+// site pricing's (SiteTypeWeights: Construction per 100 steel a day against
+// Power per kilowatt averaged over the day). The weights are per day and
+// already amortised: Construction's 2.6 is 100 steel (190 silver) over one
+// 60-day year (DefaultSiteTypeWeights), so the formula divides by no horizon.
 func BuildW(w SiteTypeWeights, value, steelValue float64) float64 {
 	const steelPerCharge = 100
 	if !finitePositive(steelValue) || !finitePositive(w.Power) {
@@ -431,12 +474,12 @@ type ClimateOption struct {
 // ClimateOptions prices each of the openings a room could have toward side,
 // beside the links it already has, cheapest first-listed on a tie. An opening
 // the caller leaves out (an unresearched vent) is absent, not a veto.
-func ClimateOptions(m ClimateModel, w SiteTypeWeights, steelValue float64, curve []float64, room ClimateRoom, side ClimateSide, traffic float64, openings []Opening) ([]ClimateOption, error) {
+func ClimateOptions(m ClimateModel, w SiteTypeWeights, steelValue float64, curve []float64, room ClimateRoom, side ClimateSide, passages float64, openings []Opening) ([]ClimateOption, error) {
 	out := make([]ClimateOption, 0, len(openings))
 	for _, o := range openings {
 		r := room
 		r.Links = append(slices.Clone(room.Links), ClimateLink{Opening: o, Side: side})
-		watts, err := ClimateLoad(m, curve, r, traffic)
+		watts, err := ClimateLoad(m, curve, r, passages)
 		if err != nil {
 			return nil, err
 		}

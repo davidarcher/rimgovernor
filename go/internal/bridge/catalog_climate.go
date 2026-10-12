@@ -1,6 +1,8 @@
 package bridge
 
 import (
+	"math"
+
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
@@ -50,10 +52,23 @@ func (catalog *DefinitionCatalog) climateModel(stations policy.StationCatalog) (
 			return policy.ClimateModel{}, nil
 		}
 	}
-	building := catalog.ThingDefs[table.DoorDef].GetBuilding()
+	doorDef := catalog.ThingDefs[table.DoorDef]
+	building := doorDef.GetBuilding()
 	rare := int(constants.GetGenTicks().GetTickRareInterval())
 	tuning := constants.GetTemperatureTuning()
+	door := constants.GetBuilding_Door()
+	speed, err := catalog.statBase(doorDef, StatDoorOpenSpeed)
+	if err != nil || speed <= 0 {
+		return policy.ClimateModel{}, nil
+	}
 	m := policy.ClimateModel{
+		// Building_Door.TicksToOpenNow (a manual door: the unpowered factor)
+		// and CloseDelayAdjusted, on the def's stuff-free DoorOpenSpeed.
+		Door: policy.DoorTiming{
+			OpenTicks:       math.Round(float64(door.GetOpenTicks()) / speed * float64(building.GetUnpoweredDoorOpenSpeedFactor())),
+			CloseDelayTicks: math.Floor(float64(door.GetCloseDelayTicks()) * float64(building.GetUnpoweredDoorCloseSpeedFactor())),
+			MoveTicks:       2 * table.CellMoveTicks,
+		},
 		Vent:           policy.Exchange{IntervalTicks: rare, Rate: float64(tuning.GetVent_TempEqualizeRate())},
 		DoorOpen:       policy.Exchange{IntervalTicks: int(building.GetDoorTempEqualizeIntervalOpen()), Rate: float64(building.GetDoorTempEqualizeRate())},
 		DoorClosed:     policy.Exchange{IntervalTicks: int(building.GetDoorTempEqualizeIntervalClosed()), Rate: float64(building.GetDoorTempEqualizeRate())},
