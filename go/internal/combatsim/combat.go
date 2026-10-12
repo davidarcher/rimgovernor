@@ -262,6 +262,9 @@ func (s *Sim) startAttack(i int, o Order) error {
 		p.cancelAttack()
 	}
 	p.target, p.once = ti, o.Once
+	if o.Auto && !p.dead && !p.downed {
+		s.startVerb(i) // Wait_Combat's CheckForAutoAttack: TryStartAttack at once
+	}
 	return nil
 }
 
@@ -313,24 +316,35 @@ func (s *Sim) combatTick(i int) {
 		}
 	}
 	// JobDriver_AttackStatic: start the verb whenever the pawn is not busy.
-	if p.stance == stanceIdle && p.target >= 0 {
-		t := &s.pawns[p.target]
-		if t.downed || t.dead || !t.has {
-			s.emit(Event{Kind: EventAttackEnded, Pawn: p.id, Target: t.id})
-			p.target = -1
-		} else if s.canHitFrom(i, p.target) {
-			p.cast = p.target
-			if p.weapon.WarmupSeconds > 0 {
-				p.stance, p.stanceLeft = stanceWarmup, secondsToTicks(p.weapon.WarmupSeconds*p.sh.aim)
-			} else {
-				s.warmupComplete(i)
-			}
-		}
-	}
+	s.startVerb(i)
 	// Verb.VerbTick while Bursting.
 	if p.stance == stanceBurst {
 		if p.nextShot--; p.nextShot <= 0 {
 			s.castBurstShot(i)
+		}
+	}
+}
+
+// startVerb ports Pawn.TryStartAttack / Verb.TryStartCastOn for a pawn with a
+// target and no stance: the warmup stance starts (its countdown begins on the
+// next stance tick), or an instant weapon fires at once. It is what the
+// AttackStatic driver does every tick it is idle, and what Wait_Combat's
+// CheckForAutoAttack does when an Auto order lands.
+func (s *Sim) startVerb(i int) {
+	p := &s.pawns[i]
+	if p.stance != stanceIdle || p.target < 0 {
+		return
+	}
+	t := &s.pawns[p.target]
+	if t.downed || t.dead || !t.has {
+		s.emit(Event{Kind: EventAttackEnded, Pawn: p.id, Target: t.id})
+		p.target = -1
+	} else if s.canHitFrom(i, p.target) {
+		p.cast = p.target
+		if p.weapon.WarmupSeconds > 0 {
+			p.stance, p.stanceLeft = stanceWarmup, secondsToTicks(p.weapon.WarmupSeconds*p.sh.aim)
+		} else {
+			s.warmupComplete(i)
 		}
 	}
 }

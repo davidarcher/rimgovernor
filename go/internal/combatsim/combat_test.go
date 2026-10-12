@@ -235,6 +235,117 @@ func TestTimeToFirstShot(t *testing.T) {
 	}
 }
 
+// firstShot is the tick of pawn id's first EventShot, or -1.
+func firstShot(ev []Event, id domain.PawnID) int {
+	for _, e := range ev {
+		if e.Kind == EventShot && e.Pawn == id {
+			return e.Tick
+		}
+	}
+	return -1
+}
+
+func autoAttack(from, to domain.PawnID) Order {
+	o := attack(from, to)
+	o.Auto = true
+	return o
+}
+
+// Wait_Combat's CheckForAutoAttack runs inside the job's initAction, the tick
+// the job starts (hold_position ordered at tick 0), and Verb.TryStartCastOn sets
+// the warmup stance there; Stance_Warmup.StanceTick first counts it down on the
+// next tick. So the shot comes warmup ticks after the order: tick 90 for a
+// 90-tick warmup. JobDriver_AttackStatic starts the verb in its first tick
+// instead (TestTimeToFirstShot: 91). Ordered on the same tick, the two differ by
+// exactly that tick.
+func TestHolderOrderedAtTickZeroShootsWarmupTicksLater(t *testing.T) {
+	mod := func(id domain.PawnID, c *CombatSpec) {
+		c.Shooter.AimingDelayFactor = domain.Known(1.5)
+		immortal(id, c)
+	}
+	s := newSim(t, duel(t, testRifle, mod, "a.......b", "c.......d"), 3)
+	// c shares a's weapon and side rules; make it a second colonist.
+	s.pawns[s.pawnIndex("c")].side = s.pawns[s.pawnIndex("a")].side
+	_, ev := runUntil(t, s, []Order{autoAttack("a", "b"), attack("c", "d")}, 150, nil)
+	if got := firstShot(ev, "a"); got != 90 {
+		t.Errorf("Wait_Combat auto-attack ordered at tick 0 first shot at %d, want 90", got)
+	}
+	if got := firstShot(ev, "c"); got != 91 {
+		t.Errorf("AttackStatic ordered at tick 0 first shot at %d, want 91", got)
+	}
+}
+
+// A walker that arrives on tick N falls back to Wait_Combat on that tick (the
+// pather runs before the job tracker in Pawn.Tick and ends the Goto), whose
+// initAction starts the verb: the first shot is N + warmup, not N + 1 + warmup.
+func TestMoverArrivingShootsWarmupTicksAfterArrival(t *testing.T) {
+	sc := duel(t, testRifle, func(id domain.PawnID, c *CombatSpec) {
+		c.Shooter.AimingDelayFactor = domain.Known(1.5)
+		immortal(id, c)
+	}, "a.........b")
+	s := newSim(t, sc, 3)
+	var all []Event
+	orders := []Order{{Pawn: "a", Kind: OrderMove, To: domain.Cell{X: 3, Z: 0}}}
+	arrived := -1
+	for s.Tick() < 400 {
+		_, ev, err := s.Step(orders)
+		if err != nil {
+			t.Fatal(err)
+		}
+		orders = nil
+		all = append(all, ev...)
+		if arrived < 0 {
+			for _, e := range ev {
+				if e.Kind == EventArrived && e.Pawn == "a" {
+					arrived, orders = e.Tick, []Order{autoAttack("a", "b")}
+				}
+			}
+		}
+	}
+	if arrived <= 0 {
+		t.Fatal("the mover never arrived")
+	}
+	if got := firstShot(all, "a"); got != arrived+90 {
+		t.Errorf("arrived at %d, first shot at %d, want %d", arrived, got, arrived+90)
+	}
+}
+
+// A weapon with no warmup fires inside the order's own tick: TryStartCastOn
+// calls WarmupComplete at once (the event is stamped with the tick the order
+// landed at, before any tick runs).
+func TestAutoAttackWithoutWarmupFiresOnTheOrderTick(t *testing.T) {
+	s := newSim(t, duel(t, rapid(), immortal, "a....b"), 3)
+	_, ev := runUntil(t, s, []Order{autoAttack("a", "b")}, 3, nil)
+	if got := firstShot(ev, "a"); got != 0 {
+		t.Errorf("first shot at %d, want 0", got)
+	}
+}
+
+// An auto-attack ordered while the pawn is in its cooldown only sets the
+// target: CheckForAutoAttack returns while the stance is busy, and the verb
+// starts the tick the cooldown ends.
+func TestAutoAttackDuringCooldownWaitsForTheStance(t *testing.T) {
+	s := newSim(t, duel(t, testRifle, immortal, "a.......b"), 3)
+	_, ev := runUntil(t, s, []Order{autoAttack("a", "b")}, 300, func(State) bool { return s.pawns[0].stance == stanceCooldown })
+	shots := len(ofKind(ev, EventShot))
+	if shots != 3 {
+		t.Fatalf("%d shots before the cooldown, want 3", shots)
+	}
+	left := s.pawns[0].stanceLeft
+	cooled := s.Tick() + left
+	_, ev = runUntil(t, s, []Order{autoAttack("a", "b")}, 400, nil)
+	var next int
+	for _, e := range ev {
+		if e.Kind == EventShot {
+			next = e.Tick
+			break
+		}
+	}
+	if want := cooled + 60; next != want {
+		t.Errorf("next shot at %d, want %d (cooldown ends %d, warmup 60)", next, want, cooled)
+	}
+}
+
 func TestZeroWarmupShootsOnTheFirstTick(t *testing.T) {
 	w := rapid()
 	s := newSim(t, duel(t, w, immortal, "a....b"), 3)

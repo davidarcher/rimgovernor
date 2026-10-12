@@ -121,6 +121,12 @@ type Order struct {
 	// burst's cooldown ends, as a verb started with Pawn.TryStartAttack does,
 	// so whoever chooses targets chooses again.
 	Once bool
+	// Auto makes an OrderAttack JobDriver_Wait.CheckForAutoAttack's
+	// Pawn.TryStartAttack: the verb starts the moment the order lands (the
+	// tick it is applied at), so its warmup counts down from the next tick. An
+	// attack without Auto is JobDriver_AttackStatic's: the order starts the job
+	// and the job's first tick starts the verb, one tick later.
+	Auto bool
 }
 
 // EventKind names what happened.

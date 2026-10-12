@@ -35,7 +35,7 @@ func (a *Adapter) Autonomy() []Order {
 			}
 		}
 		if best >= 0 {
-			out = append(out, Order{Pawn: p.id, Kind: OrderAttack, Target: s.pawns[best].id})
+			out = append(out, Order{Pawn: p.id, Kind: OrderAttack, Target: s.pawns[best].id, Auto: true})
 		}
 	}
 	return out

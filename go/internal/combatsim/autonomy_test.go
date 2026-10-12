@@ -11,7 +11,7 @@ import (
 func TestAutonomyCoversEveryIdleDraftedColonist(t *testing.T) {
 	sc := duel(t, testRifle, nil, "a.b...")
 	a := adapterFor(t, sc)
-	want := []Order{{Pawn: "a", Kind: OrderAttack, Target: "b"}}
+	want := []Order{{Pawn: "a", Kind: OrderAttack, Target: "b", Auto: true}}
 	if got := a.Autonomy(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("idle colonist with no order: %v, want %v", got, want)
 	}

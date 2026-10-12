@@ -28,7 +28,9 @@ package combatsim
 //   - combat.go: Verse.Verb.TryStartCastOn, WarmupComplete, VerbTick,
 //     TryCastNextBurstShot, CanHitTargetFrom; Verse.Stance_Warmup, Stance_Busy,
 //     Stance_Cooldown StanceTick; Verse.VerbProperties.AdjustedCooldown,
-//     EffectiveMinRange; Verse.Pawn.Tick (stance, job, equipment phase order).
+//     EffectiveMinRange; Verse.Pawn.Tick (stance, job, equipment phase order);
+//     Verse.Pawn.TryStartAttack, Verse.AI.JobDriver_AttackStatic and
+//     Verse.AI.Pawn_JobTracker.StartJob (when a job's verb starts, #2914).
 //
 //   - shot.go: Verse.ShotReport.HitReportFor, HitFactorFromShooter,
 //     AimOnTargetChance_*; Verse.VerbProperties.GetHitChanceFactor;
@@ -56,4 +58,4 @@ const AssemblyCSharpSHA256 = "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04A
 // any change to a port or an approximation that can move an outcome (a rule
 // fix, a new modeled behavior): a calibration pass (combatsim/calibrate) is
 // recorded under it and is stale after a bump.
-const RulesVersion = 4
+const RulesVersion = 5

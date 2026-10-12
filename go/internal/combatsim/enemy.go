@@ -581,7 +581,9 @@ func (e *EnemyAI) autoAttack(out []Order, i int) []Order {
 	p := &s.pawns[i]
 	cands := e.valid(i, p.weapon.Range, p.weapon.MinRange, false)
 	if j := e.pickByScore(i, cands); j >= 0 {
-		return append(out, Order{Pawn: p.id, Kind: OrderAttack, Target: s.pawns[j].id, Once: true})
+		// Auto: the verb starts the tick the raider thinks. No pawn thinks before
+		// the first tick, so a decision at tick 0 is the first tick's.
+		return append(out, Order{Pawn: p.id, Kind: OrderAttack, Target: s.pawns[j].id, Once: true, Auto: s.tick > 0})
 	}
 	return out
 }

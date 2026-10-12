@@ -314,12 +314,48 @@ DefinitionCatalog; every derived value is listed with its source in
   the next boundary (36). The lab now steps one tick (#2910), so `Autonomy`
   and the raiders run every tick: openings 61/92/92/122 (real 60/91/91/121),
   first-700 hits 17.65, median raider down tick 510, damage 56.1, raider deaths
-  3.55, colonist downs 0.20. The remaining 1 tick is the first tick's cost (the
-  game runs `CheckForAutoAttack` on the tick the job starts). Nothing in the
+  3.55, colonist downs 0.20. The remaining 1 tick was the sim starting a
+  Wait_Combat attack a tick late (fixed in #2914, below). Nothing in the
   adapter, the enemy AI or movement counts steps: every cadence, timer and
   expiry is in ticks. Cost: the 4v4 and 12v12 core benchmarks run 2.5-3.5x
   slower per fight (their controller runs every step), a full lab-ranged trial
   (policy and raiders included) about 14% slower.
+
+- **A36. When a job's verb starts (#2914).** `TickManager.DoSingleTick`
+  increments the tick, then ticks the things; `Pawn.Tick` runs the pather, the
+  verbs, the stances, the job driver, then the equipment. A job started by
+  `Pawn_JobTracker.StartJob` runs its first toil's `initAction` inside StartJob,
+  on the tick that starts it (an order issued at a stop, the clock paused, is
+  tick N; a `Goto` that ends in the pather ends there and the next job starts in
+  the same call). `Wait_Combat`'s `initAction` calls `CheckForAutoAttack`, which
+  calls `Pawn.TryStartAttack` -> `Verb.TryStartCastOn`, setting the
+  `Stance_Warmup` at once; `Stance_Busy.StanceTick` first decrements it on tick
+  N+1 and expires it at N + warmup, where `WarmupComplete` fires the first
+  shot. A `JobDriver_AttackStatic` starts the verb in its toil's tick action,
+  one tick after the job starts, so a forced attack opens at N + 1 + warmup. The
+  sim modeled only the second; `Order.Auto` now marks an attack as the first
+  (the colonists' `Autonomy` and the raiders' `autoAttack`): the verb starts the
+  tick the order lands. A burst's cooldown ending already restarted the next
+  warmup in the same tick (stances run before jobs), so only the entry into a
+  fight moved.
+  Raiders: no pawn thinks before the first tick, so a raider's decision at
+  tick 0 stays the first tick's (`Auto` only from tick 1): their first shot
+  remains 61. Later restarts (a cooldown ending, a job starting) are one tick
+  earlier than before.
+  Not modeled: the game ticks a pawn's job driver (`tickIntervalAction`, which
+  `CheckForAutoAttack`'s 4-tick re-scan and `AttackStatic`'s verb start use) and
+  its job-tracker think from `Pawn.TickInterval`, which `Thing.DoTick` calls
+  every `GenTicks.GetCameraUpdateRate` ticks (15 for a pawn the camera does not
+  see, as in a headless run) at a phase set by the thing's hash. A raider's first
+  think, an AttackStatic start and the re-scan can therefore land up to 14 ticks
+  after the sim's. The colonist openings above do not depend on it (they come
+  from `initAction`, and the pather ticks every tick).
+  Effect on lab-ranged (20 seeds, default tactic; before -> after, real):
+  colonist openings 61/92/92/122 -> 60/91/91/121 (60/91/91/121), first-700-tick
+  colonist hits 17.65 -> 17.85 (16.0), median raider down tick 510 -> 513.5
+  (499.5), colonist downs 0.20 -> 0.20 (0.20), damage 56.1 -> 55.5 (64.2), raider
+  deaths 3.55 -> 3.45 (about 2.8). The openings now match; the remaining gap in
+  hits, damage and deaths is not the opening tick.
 
 ## Out of scope for this slice
 
