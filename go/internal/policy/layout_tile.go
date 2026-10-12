@@ -205,7 +205,7 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 		index[b.Group] = len(t.rooms)
 		t.rooms = append(t.rooms, tileRoom{group: b.Group, rect: b.Interior, role: role})
 		crossing := crossingOf(g)
-		room := PlannedRoom{Role: role, Region: RectRegion(b.Interior), Crossing: &crossing}
+		room := PlannedRoom{Role: role, Region: RectRegion(b.Interior), Crossing: &crossing, Outdoor: role.IsOutdoor()}
 		room.Dug = scorer.g.dug(room)
 		t.plan.Rooms = append(t.plan.Rooms, room)
 	}
@@ -229,13 +229,16 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 	}
 	for i := range t.rooms {
 		for j := i + 1; j < len(t.rooms); j++ {
+			if t.open(i) || t.open(j) {
+				continue // an unfenced room has no wall to share
+			}
 			if run := sharedWallRun(pad(t.rooms[i].rect, 1), pad(t.rooms[j].rect, 1)); len(run) > 0 {
 				t.adj[[2]int{i, j}] = run
 			}
 		}
 	}
 	for k := range t.required {
-		if t.required[k] && len(t.adj[k]) == 0 {
+		if t.required[k] && len(t.adj[k]) == 0 && !t.open(k[0]) && !t.open(k[1]) {
 			t.note(t.rooms[k[0]].group, t.rooms[k[1]].group, TileUnsatisfied, ReasonTileNoLink)
 		}
 	}
@@ -260,6 +263,10 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 	t.furnish()
 	return t.out, nil
 }
+
+// open reports room i as unfenced: it has no wall, door or entrance, and every
+// pawn reaches it over open ground (PlannedRoom.Unfenced).
+func (t *tiler) open(i int) bool { return t.plan.Rooms[i].Unfenced() }
 
 func (t *tiler) note(group, other int, verdict, reason string) {
 	t.out.Decisions = append(t.out.Decisions, TileDecision{Group: group, Other: other, Verdict: verdict, Reason: reason})
@@ -388,7 +395,7 @@ func (t *tiler) chooseExteriors(scorer planScorer) {
 			da, db := squaredDistance(cands[a].door, centre), squaredDistance(cands[b].door, centre)
 			return da < db || da == db && cellLess(cands[a].door, cands[b].door)
 		})
-		if len(cands) == 0 {
+		if len(cands) == 0 || t.open(i) {
 			continue
 		}
 		// The placer is the judge of a door: each door keeps its threshold
@@ -489,7 +496,7 @@ func (t *tiler) reach() []bool {
 	ok := make([]bool, len(t.rooms))
 	var queue []int
 	for i := range t.rooms {
-		if t.extDoor[i] != nil {
+		if t.extDoor[i] != nil || t.open(i) {
 			ok[i] = true
 			queue = append(queue, i)
 		}
@@ -651,6 +658,9 @@ func (t *tiler) build() LayoutPlan {
 					break
 				}
 			}
+		}
+		if r.Unfenced() {
+			continue // no ring, no door
 		}
 		r.Door = door
 		r.DoorRot, _ = doorSide(r.Region.Bounds(), door)

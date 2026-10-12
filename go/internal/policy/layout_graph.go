@@ -159,9 +159,25 @@ type RoomNode struct {
 	Width int32
 	// Joins marks a room that exists to connect the rooms that cannot be walked
 	// through (addCirculation).
-	Joins  bool
+	Joins bool
+	// Cold marks a room kept cold: clustering gives it the cooling station a
+	// cold group carries (the morgue).
+	Cold bool
+	// Band is the ground, in cells, the room stands clear of the base's other
+	// rooms; the zero band places the room anywhere (the outskirts, #2882).
+	Band DistanceBand
+	// Beside is the room node this one must stand beside (a required link).
+	Beside string
 	Reason string
 }
+
+// DistanceBand is the ring of clear ground a room keeps from the rooms outside
+// the band: at least Min cells between their walls, and, while any such room
+// stands, no more than Max. The zero band is no constraint.
+type DistanceBand struct{ Min, Max int32 }
+
+// Set reports a band that constrains.
+func (b DistanceBand) Set() bool { return b.Min > 0 || b.Max > 0 }
 
 // StationGraph is the planner's input.
 type StationGraph struct {
@@ -259,6 +275,7 @@ func BuildStationGraph(in StationGraphInput) (StationGraph, error) {
 	b.flows(runs)
 	b.sleepEat(meals)
 	g := b.graph()
+	g.Rooms = OutskirtsRoomNodes()
 	for _, n := range g.Nodes {
 		switch n.Purpose {
 		case PurposeSleep, PurposeSleepMed, PurposeSleepBaby:

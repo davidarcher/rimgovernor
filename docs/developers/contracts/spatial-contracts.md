@@ -306,6 +306,21 @@ on the colony centre when the plan has no free cell there.
   no flow door from a room with beds to a non-circulation room while one stands; the
   corridor's group links carry no flow weight, so `Trips` are unchanged. Colonies whose
   private rooms do not outnumber the public ones get no corridor.
+  **Outskirts rooms (#2882).** The tomb, morgue, graveyard, waste yard and incinerator
+  are station-less room nodes of the same graph (`OutskirtsRoomNodes`,
+  `layout_outskirts_nodes.go`): each asks the floor its slot gives and keeps its role's
+  interior template, and clustering makes a `Planned` group of it. Two constraints ride on
+  the nodes. The distance band (`OutskirtsBand`): every outskirts group keeps at least
+  `outskirtsGap` clear cells between its walls and every other room, one beyond
+  `CorpseSightRadius` (5, `PawnObserver.ObservationRadius` with line of sight in 1.6, read
+  with ilspycmd), so a corpse lying there is out of every indoor pawn's sight, and at most
+  `outskirtsReach` (the siting window); the embedding enforces the minimum on every
+  placement and reports a maximum break (`embed_band_too_far`). The morgue is cold, so it
+  carries the cooler any cold group carries; the incinerator is required beside the waste
+  yard. Wind is not a constraint: it has no game effect here. The tiler gives the
+  unfenced graveyard and waste yard no wall, door or entrance. The old outskirts planner
+  and its slots stay authoritative; `OutskirtsArea` as a region, the siting reasons and the
+  perimeter overlap checks are #2886.
 - **Search.** The best sites by score get a deterministic, iteration-bounded local
   search; wall time is only a hang guard.
 - **Replan.** Two-stage: the same generator runs with every room that has anything of

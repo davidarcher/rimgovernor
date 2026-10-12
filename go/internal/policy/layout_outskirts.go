@@ -23,9 +23,14 @@ import (
 const ReserveOutskirts ReservationKind = "outskirts"
 
 const (
+	// CorpseSightRadius is how far a pawn sees a corpse, in cells: PawnObserver
+	// (1.6, ilspycmd) takes a corpse for observed while it lies within
+	// InHorDistOf(pawn, ObservationRadius = 5) and in line of sight, and gives
+	// the observer ObservedLayingCorpse / ObservedLayingRottingCorpse.
+	CorpseSightRadius int32 = 5
 	// outskirtsGap is the clear ground, in cells, between the cluster and
-	// every room's walls.
-	outskirtsGap int32 = 6
+	// every room's walls: one cell beyond the corpse-sight radius.
+	outskirtsGap int32 = CorpseSightRadius + 1
 	// outskirtsReach is how far beyond the core's extent a side's ground is
 	// counted.
 	outskirtsReach int32 = shelterReach

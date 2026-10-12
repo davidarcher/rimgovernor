@@ -63,6 +63,9 @@ const (
 	ReasonEmbedOpenSkyGround   = "embed_open_sky_ground"
 	ReasonEmbedNoSiteSignal    = "embed_no_site_signal"
 	ReasonEmbedLinkNotAdjacent = "embed_link_not_adjacent"
+	// ReasonEmbedBand: a banded group stands farther than its band's maximum
+	// from the rooms outside it (the minimum is a placement rule, never broken).
+	ReasonEmbedBand = "embed_band_too_far"
 )
 
 // EmbedInput is everything the embedding reads.
@@ -176,8 +179,9 @@ func (p prefix) inside(r Rectangle) bool {
 // embedder is one level's immutable pricing of the site.
 type embedder struct {
 	groups []RoomGroup
-	shapes [][][2]int32 // per group, the interiors (width, height) it may take
-	sky    []bool       // per group: needs open sky
+	shapes [][][2]int32   // per group, the interiors (width, height) it may take
+	sky    []bool         // per group: needs open sky
+	band   []DistanceBand // per group: the ground it keeps from the groups outside its band
 
 	level, base        prefix // core cells at the level / with no obstacle
 	soil, edge, centre prefix // weighted cell costs
@@ -216,6 +220,7 @@ func newEmbedder(in EmbedInput, depth int, scorer planScorer, level obstacleLeve
 	for _, g := range in.Groups {
 		e.shapes = append(e.shapes, groupShapes(g, depth))
 		e.sky = append(e.sky, slices.Contains(g.Requires, EnvOpenSky))
+		e.band = append(e.band, g.Band)
 	}
 	cells := map[domain.Cell]SurveyCell{}
 	for _, c := range in.Survey.Cells {
@@ -288,11 +293,50 @@ func (e *embedder) fits(i int, r Rectangle, blocks []Rectangle, sky bool) bool {
 		return false
 	}
 	for j, b := range blocks {
-		if j != i && b.Width > 0 && collides(r, b) {
+		if j != i && b.Width > 0 && (collides(r, b) || !e.bandAllows(i, r, j, b)) {
 			return false
 		}
 	}
-	return true
+	return e.bandReaches(i, r, blocks)
+}
+
+// bandClear is the clear ground between the walls of two interiors, in cells
+// (the larger of the two axes, as the outskirts siting measures its gap).
+func bandClear(a, b Rectangle) int {
+	return max(axisGap(a.X, a.Width, b.X, b.Width), axisGap(a.Z, a.Height, b.Z, b.Height)) - 2
+}
+
+// bandAllows reports that group i at r keeps the band's minimum from block b of
+// group j: it matters only between a banded group and one outside the band.
+func (e *embedder) bandAllows(i int, r Rectangle, j int, b Rectangle) bool {
+	band := e.band[i]
+	if band.Set() == e.band[j].Set() {
+		return true
+	}
+	if e.band[j].Set() {
+		band = e.band[j]
+	}
+	return bandClear(r, b) >= int(band.Min)
+}
+
+// bandReaches reports that a banded group i at r is within the band's maximum
+// of the nearest placed group outside it; true while none is placed or when i
+// is not banded.
+func (e *embedder) bandReaches(i int, r Rectangle, blocks []Rectangle) bool {
+	band := e.band[i]
+	if band.Max <= 0 {
+		return true
+	}
+	nearest, any := 0, false
+	for j, b := range blocks {
+		if j == i || b.Width == 0 || e.band[j].Set() {
+			continue
+		}
+		if d := bandClear(r, b); !any || d < nearest {
+			nearest, any = d, true
+		}
+	}
+	return !any || nearest <= int(band.Max)
 }
 
 // blockCost is the objective's share of group i at r: cell terms and every
@@ -629,6 +673,9 @@ func (r *embedRun) embedding(in EmbedInput, scorer planScorer) Embedding {
 		out.Score.Soil += int(e.soil.sum(b))
 		out.Score.Centre += int(e.centre.sum(b))
 		out.Score.Edge += int(e.edge.sum(pad(b, 1)))
+		if !e.bandReaches(i, b, r.blocks) {
+			out.Decisions = append(out.Decisions, EmbedDecision{Group: i, Other: -1, Verdict: EmbedUnsatisfied, Reason: ReasonEmbedBand})
+		}
 		for _, req := range g.Requires {
 			unsat := func(reason string) {
 				out.Decisions = append(out.Decisions, EmbedDecision{Group: i, Other: -1, Verdict: EmbedUnsatisfied, Reason: reason, Requirement: req})

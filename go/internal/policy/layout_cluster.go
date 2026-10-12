@@ -70,6 +70,8 @@ const (
 	ClusterMerge = "merge"
 	ClusterKeep  = "keep"
 	ClusterSplit = "split"
+	// ClusterRoom: a station-less room node became a group (#2882).
+	ClusterRoom = "room"
 	// ClusterUnsatisfied: a group needs cold and the catalog has no cooling station.
 	ClusterUnsatisfied = "unsatisfied"
 
@@ -132,7 +134,10 @@ type RoomGroup struct {
 	Planned PlannedRole
 	// Width is the fixed short side of the group's block, 0 for the squarest
 	// (a circulation corridor is a strip).
-	Width    int32
+	Width int32
+	// Band is the ground the group keeps from the groups outside the band (the
+	// outskirts rooms, #2882); zero for a group that goes anywhere.
+	Band     DistanceBand
 	Requires []EnvRequirement
 	Links    []GroupLink
 	// Costs are the throughput the room loses to the environment its stations
@@ -617,7 +622,62 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 		out.Groups, d = addCirculation(out.Groups, r, depth)
 		out.Decisions = append(out.Decisions, d)
 	}
+	// The other room nodes come last: circulation counts the base's rooms.
+	first := len(out.Groups)
+	for _, r := range in.Graph.Rooms {
+		if r.Joins {
+			continue
+		}
+		out.Groups, out.Decisions = c.addRoom(out.Groups, out.Decisions, r)
+	}
+	linkRooms(out.Groups, first, in.Graph.Rooms)
 	return out, nil
+}
+
+// addRoom appends the group of a station-less room node: its asked floor, plus
+// the cooling station a cold group carries.
+func (c *clusterer) addRoom(groups []RoomGroup, decisions []ClusterDecision, node RoomNode) ([]RoomGroup, []ClusterDecision) {
+	g := RoomGroup{ID: len(groups), Clearance: node.Area, Planned: node.Role, Width: node.Width, Band: node.Band}
+	d := ClusterDecision{A: node.ID, Verdict: ClusterRoom, Reason: node.Reason}
+	if node.Cold {
+		g.Requires = []EnvRequirement{EnvCold}
+		if c.hasCooler {
+			g.Stations = append(g.Stations, GroupStation{Node: "cooler", Def: c.cooler, Purpose: PurposeCool, Count: 1})
+			g.Footprint += c.coolerSize
+			g.Clearance++
+		} else {
+			d = ClusterDecision{A: node.ID, Verdict: ClusterUnsatisfied, Reason: ReasonClusterNoCooler}
+		}
+	}
+	g.Area = g.Footprint + g.Clearance
+	return append(groups, g), append(decisions, d)
+}
+
+// linkRooms links the groups first.. of room nodes to the nodes they stand
+// beside: a required link both ways, whose door keeps a threshold clear as
+// every required link does (AddRequiredDoors).
+func linkRooms(groups []RoomGroup, first int, nodes []RoomNode) {
+	at := map[string]int{}
+	i := first
+	for _, n := range nodes {
+		if !n.Joins {
+			at[n.ID] = i
+			i++
+		}
+	}
+	for _, n := range nodes {
+		a, ok := at[n.ID]
+		b, ok2 := at[n.Beside]
+		if n.Joins || n.Beside == "" || !ok || !ok2 {
+			continue
+		}
+		groups[a].Links = append(groups[a].Links, GroupLink{To: b, Required: true})
+		groups[b].Links = append(groups[b].Links, GroupLink{To: a, Required: true})
+		for _, g := range []int{a, b} {
+			groups[g].Clearance++
+			groups[g].Area++
+		}
+	}
 }
 
 // AddRequiredDoors counts the door each required link opens: tiling opens a

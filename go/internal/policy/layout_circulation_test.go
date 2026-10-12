@@ -8,6 +8,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
+// circulationOf are the circulation nodes among a graph's room nodes.
+func circulationOf(rooms []RoomNode) []RoomNode {
+	return slices.DeleteFunc(slices.Clone(rooms), func(r RoomNode) bool { return r.Role != PlannedCirculation })
+}
+
 func circulationNode() RoomNode {
 	return RoomNode{ID: string(PlannedCirculation), Role: PlannedCirculation, Width: CirculationWidth, Joins: true, Reason: ReasonCirculation}
 }
@@ -94,7 +99,7 @@ func TestGraphAndClusteringCarryCirculation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Rooms) != 1 || got.Rooms[0].Role != PlannedCirculation || !got.Rooms[0].Joins || got.Rooms[0].Width != CirculationWidth {
+	if c := circulationOf(got.Rooms); len(c) != 1 || !c[0].Joins || c[0].Width != CirculationWidth {
 		t.Fatalf("graph rooms %+v", got.Rooms)
 	}
 	g.Population = StationPopulation{}
@@ -103,7 +108,7 @@ func TestGraphAndClusteringCarryCirculation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(empty.Rooms) != 1 {
+	if len(circulationOf(empty.Rooms)) != 1 {
 		t.Fatalf("the spare bed is a sleeper: %+v", empty.Rooms)
 	}
 }
