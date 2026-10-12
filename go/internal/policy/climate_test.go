@@ -296,3 +296,76 @@ func TestAdviseStationsAttachesClimateToColdGroups(t *testing.T) {
 		}
 	}
 }
+
+// plantClimate is testClimate with a heater and cooler of the given market
+// values (50 silver is 26 steel at 1.9: 26/100*2.6/4*1000 = 169 W a plant).
+func plantClimate(heater, cooler float64) ClimateModel {
+	m := testClimate()
+	m.Build.Heater, m.Build.Cooler = heater, cooler
+	return m
+}
+
+// hotRoom is a cold store (held under 10 C) whose stations give off heat at any temperature: on
+// a sea-ice map the cold outside can carry it off through a vent.
+func hotRoom(heatPerSecond float64) ClimateRoom {
+	return ClimateRoom{Cells: 30, Band: Band{MinC: math.Inf(-1), MaxC: 10}, Heat: []HeatSource{{HeatPerSecond: heatPerSecond, MinC: -100, MaxC: 100}}}
+}
+
+func optionOf(t *testing.T, m ClimateModel, room ClimateRoom, o Opening) ClimateOption {
+	t.Helper()
+	got, err := ClimateOptions(m, DefaultSiteTypeWeights(), 1.9, seaIce, room, ClimateSide{Outdoors: true}, 0, []Opening{o})
+	if err != nil || len(got) != 1 {
+		t.Fatalf("%v %v", got, err)
+	}
+	return got[0]
+}
+
+// A vent that removes the need for a cooler saves the cooler's steel, so it wins
+// at a lower internal load than when only the vent's own build is counted.
+func TestClimateVentWinsSoonerWhenItRemovesTheCooler(t *testing.T) {
+	first := func(m ClimateModel) float64 {
+		for heat := 0.5; heat < 400; heat += 0.5 {
+			room := hotRoom(heat)
+			if optionOf(t, m, room, OpeningVent).TotalW < optionOf(t, m, room, OpeningDoorClosed).TotalW {
+				return heat
+			}
+		}
+		return math.Inf(1)
+	}
+	without, with := first(plantClimate(0, 0)), first(plantClimate(50, 50))
+	if math.IsInf(with, 1) || !(with < without) {
+		t.Fatalf("vent first wins at %.1f heat/s with plants priced, %.1f without", with, without)
+	}
+	room := hotRoom(with)
+	if v := optionOf(t, plantClimate(50, 50), room, OpeningVent); v.Watts.CoolingPeakW != 0 || v.BuildW != BuildW(DefaultSiteTypeWeights(), 57, 1.9) {
+		t.Errorf("vent option still builds plants: %+v", v)
+	}
+	if c := optionOf(t, plantClimate(50, 50), room, OpeningDoorClosed); c.BuildW <= 0 {
+		t.Errorf("the no-vent baseline builds no cooler: %+v", c)
+	}
+}
+
+// A room that still needs the plant after the vent carries its build on both
+// sides, as many whole plants as the peak draw fills.
+func TestClimatePlantsAreCountedOnBothSides(t *testing.T) {
+	w, priced, free := DefaultSiteTypeWeights(), plantClimate(50, 50), plantClimate(0, 0)
+	room := hotRoom(300)
+	for _, o := range []Opening{OpeningVent, OpeningDoorClosed} {
+		a, b := optionOf(t, priced, room, o), optionOf(t, free, room, o)
+		want := math.Ceil(a.Watts.CoolingPeakW/priced.Cooler.PowerW-1e-9) * BuildW(w, 50, 1.9)
+		if a.Watts != b.Watts || want <= 0 || math.Abs(a.BuildW-b.BuildW-want) > 1e-6 || a.TotalW != a.Watts.MeanW+a.BuildW {
+			t.Errorf("%s: build %.3f vs %.3f, plants should add %.3f", o, a.BuildW, b.BuildW, want)
+		}
+	}
+}
+
+// A plant whose cost is unknown (zero) is unpriced: options price as before.
+func TestClimateUnknownPlantCostIsUnpriced(t *testing.T) {
+	room := hotRoom(300)
+	for _, o := range OpeningOrder {
+		a, b := optionOf(t, plantClimate(0, 0), room, o), optionOf(t, testClimate(), room, o)
+		if a != b || a.BuildW != BuildW(DefaultSiteTypeWeights(), testClimate().Build.buildValue(o), 1.9) {
+			t.Errorf("%s: %+v vs %+v", o, a, b)
+		}
+	}
+}

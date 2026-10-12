@@ -25,7 +25,10 @@ import (
 // comfortable range), the outdoor curve, and a neighbour held at the heater's
 // default target (or, for a cold room, at the top of its band). The vents it
 // would take (how many, coordinate by coordinate over the outdoors and each
-// link) are priced with their build cost as watts (BuildW) against the room
+// link) are priced with their build cost as watts (BuildW) and the heaters and
+// coolers each room then needs built (PlantsW: whole plants, as many as the
+// room's peak draw fills, on both sides, so a vent that removes the cooler saves
+// its steel) against the room
 // with every door closed, with its exterior door held open, and with each
 // link door held open. A vent that is not the cheapest is not placed, and the
 // decision says so. A vent whose research is missing, or whose availability is
@@ -150,7 +153,7 @@ func (t *tiler) linked(r int) []int {
 }
 
 // ventPricer prices rooms in the tiler's climate (see the file comment): a
-// room's mean power with its doors closed or one held open, the vents placed
+// room's mean power and plants with its doors closed or one held open, the vents placed
 // so far and the new vents asked of it.
 type ventPricer struct {
 	t      *tiler
@@ -172,7 +175,8 @@ func (p *ventPricer) side(r int) ClimateSide {
 	return ClimateSide{HeldC: p.t.heldAt(p.band(r)), Cells: p.t.roomCells(r)}
 }
 
-// watts is room r's mean power. open is the door held open (-2 none, -1 the
+// watts is room r's mean power with the heaters and coolers its load needs
+// built (PlantsW). open is the door held open (-2 none, -1 the
 // exterior door, else the neighbour's room index); extra is the new vents toward
 // each room (-1 the outdoors).
 func (p *ventPricer) watts(r, open int, extra map[int]int) float64 {
@@ -220,8 +224,9 @@ func (p *ventPricer) watts(r, open int, extra map[int]int) float64 {
 		p.failed = err
 		return math.Inf(1)
 	}
-	p.memo[key] = w.MeanW
-	return w.MeanW
+	cost := w.MeanW + p.m.PlantsW(DefaultSiteTypeWeights(), t.in.SteelValue, w)
+	p.memo[key] = cost
+	return cost
 }
 
 // chooseVents places the vents of every fenced room (see the file comment).

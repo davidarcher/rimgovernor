@@ -94,6 +94,12 @@ func (catalog *DefinitionCatalog) climateModel(stations policy.StationCatalog) (
 			return policy.ClimateModel{}, err
 		}
 	}
+	// A plant's cost that cannot be read is unpriced (zero), not an error: the
+	// plants then add no build cost and veto nothing.
+	m.Build.Heater, _ = catalog.CheapestCostValue(heater)
+	if cooler, found := stations.BestCooler(); found {
+		m.Build.Cooler, _ = catalog.CheapestCostValue(cooler)
+	}
 	return m, nil
 }
 

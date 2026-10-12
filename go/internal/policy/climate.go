@@ -125,8 +125,10 @@ func (p ClimatePlant) valid() bool {
 }
 
 // ClimateBuildValue is the market value of the cheapest cost list of the
-// buildings the options build: a vent, a door and a wall.
-type ClimateBuildValue struct{ Vent, Door, Wall float64 }
+// buildings the options build: a vent, a door and a wall, and of the heater
+// and cooler the model runs. A plant whose cost is unknown is zero: unpriced,
+// not a veto.
+type ClimateBuildValue struct{ Vent, Door, Wall, Heater, Cooler float64 }
 
 // ClimateModel is everything the game states that the model reads. The zero
 // value is unknown (Valid is false): a hand-built catalog gets no advice.
@@ -230,9 +232,10 @@ type ClimateRoom struct {
 
 // ClimateWatts is the power a room's openings cost over a year: the mean and
 // peak electrical watts of the heaters and coolers that hold its band, and the
-// mean of each.
+// mean and peak of each (the peaks size the plants: a plant is bought for the
+// load it holds at its worst step).
 type ClimateWatts struct {
-	MeanW, PeakW, HeatingW, CoolingW float64
+	MeanW, PeakW, HeatingW, CoolingW, HeatingPeakW, CoolingPeakW float64
 }
 
 // ErrClimate marks a model, room or curve the model cannot price.
@@ -334,6 +337,8 @@ func ClimateLoad(m ClimateModel, curve []float64, room ClimateRoom, passages flo
 		out.HeatingW += heatingW
 		out.CoolingW += coolingW
 		out.PeakW = math.Max(out.PeakW, heatingW+coolingW)
+		out.HeatingPeakW = math.Max(out.HeatingPeakW, heatingW)
+		out.CoolingPeakW = math.Max(out.CoolingPeakW, coolingW)
 	}
 	out.HeatingW /= float64(steps)
 	out.CoolingW /= float64(steps)
@@ -462,8 +467,19 @@ func (b ClimateBuildValue) buildValue(o Opening) float64 {
 	return 0
 }
 
+// PlantsW is the build cost, as sustained watts, of the heaters and coolers
+// that hold watts' load: as many of each as its peak draw fills (a plant is a
+// whole building), each priced at the catalog's heater or cooler. A plant whose
+// cost is unknown adds nothing.
+func (m ClimateModel) PlantsW(w SiteTypeWeights, steelValue float64, watts ClimateWatts) float64 {
+	units := func(peakW, plantW float64) float64 { return math.Ceil(peakW/plantW - 1e-9) }
+	return units(watts.HeatingPeakW, m.Heater.PowerW)*BuildW(w, m.Build.Heater, steelValue) +
+		units(watts.CoolingPeakW, m.Cooler.PowerW)*BuildW(w, m.Build.Cooler, steelValue)
+}
+
 // ClimateOption is one opening's price: the operating watts and the build cost
-// as watts; TotalW is their sum, the number options are compared by.
+// as watts (the opening's own, and the heaters and coolers its load needs);
+// TotalW is their sum, the number options are compared by.
 type ClimateOption struct {
 	Opening Opening
 	Watts   ClimateWatts
@@ -483,7 +499,7 @@ func ClimateOptions(m ClimateModel, w SiteTypeWeights, steelValue float64, curve
 		if err != nil {
 			return nil, err
 		}
-		build := BuildW(w, m.Build.buildValue(o), steelValue)
+		build := BuildW(w, m.Build.buildValue(o), steelValue) + m.PlantsW(w, steelValue, watts)
 		out = append(out, ClimateOption{Opening: o, Watts: watts, BuildW: build, TotalW: watts.MeanW + build})
 	}
 	return out, nil

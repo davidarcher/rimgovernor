@@ -355,6 +355,16 @@ on the colony centre when the plan has no free cell there.
   (`tile_airlock`, `_not_paid`, `_no_ground`, `_unpriced`, `_temperate`) and both
   totals. `airlockPasses` is retired (#2962): the old generator's cold shelter still tries
 an airlock first, the tiler prices its own.
+  **Heaters and coolers in the comparison (#2950).** A room's price, for vents
+  (`ventPricer.watts`) and for `ClimateOptions` alike, is its mean running watts plus the
+  build cost of the heaters and coolers its load needs (`ClimateModel.PlantsW`): whole
+  plants, as many as the peak heating or cooling draw (`ClimateWatts.HeatingPeakW`,
+  `CoolingPeakW`) fills at the def's power draw, each at the cheapest heater's or best
+  cooler's market value (`ClimateBuildValue.Heater`/`Cooler`, read from the defs) at
+  `BuildW`'s rate. Both sides of a comparison carry it, so a vent that removes the cooler
+  saves its steel and a room that still needs it pays the same on each. A plant whose cost
+  cannot be read is zero: unpriced, no veto. `SiteTypeWeights.Power` is a running rate
+  only; it holds no generation capital, and none is counted.
   **Runtime (#2962).** The reconcile library builds the climate plan through the same
 owner path as a room's ring: `OpVentIn` builds each `NodeVent` site over its standing
 wall (`ReconcileInput.VentAvailable` false, an unresearched `Vent`, makes it an absent

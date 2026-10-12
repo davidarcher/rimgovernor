@@ -44,6 +44,14 @@ func ventTiling(t *testing.T, curve []float64, available domain.Fact[bool], heat
 
 func ventTilingHeld(t *testing.T, curve []float64, available domain.Fact[bool], heat HeatSource, heldC float64) TileResult {
 	t.Helper()
+	return ventTilingBuilt(t, curve, available, heat, heldC, testClimate().Build)
+}
+
+// ventTilingBuilt is ventTilingHeld with the catalog's build values given.
+func ventTilingBuilt(t *testing.T, curve []float64, available domain.Fact[bool], heat HeatSource, heldC float64, build ClimateBuildValue) TileResult {
+	t.Helper()
+	cat := ventCatalog(heat, heldC)
+	cat.Climate.Build = build
 	group := func(id int, role RoomRole, purpose StationPurpose, def string, req ...EnvRequirement) RoomGroup {
 		return RoomGroup{ID: id, Role: role, Requires: req, Area: 20, Stations: []GroupStation{{Node: nodeID(def, purpose), Def: def, Purpose: purpose, Count: 1}}}
 	}
@@ -60,7 +68,7 @@ func ventTilingHeld(t *testing.T, curve []float64, available domain.Fact[bool], 
 		{Group: 2, Interior: Rectangle{X: 60, Z: 75, Width: 5, Height: 4}},
 	}}
 	res, err := TileEmbedding(TileInput{
-		Groups: groups, Embedding: emb, Catalog: ventCatalog(heat, heldC), Zones: Zone(plainScoreSurvey()), Survey: plainScoreSurvey(),
+		Groups: groups, Embedding: emb, Catalog: cat, Zones: Zone(plainScoreSurvey()), Survey: plainScoreSurvey(),
 		OutdoorCurve: domain.Known(slices.Clone(curve)), FullRotRateC: 10, SteelValue: 1.9, VentAvailable: available,
 	})
 	if err != nil {
@@ -199,6 +207,28 @@ func TestTileVentsLeaveWallCellsForWallStations(t *testing.T) {
 	free, held := count(stove), count(stove, cooler(3))
 	if free < 1 || held > free {
 		t.Errorf("vents %d without wall stations, %d with three coolers", free, held)
+	}
+}
+
+// A vent that removes the cooler saves the cooler's steel (#2950): with the
+// heaters and coolers priced, a room of heat-giving stations takes vents at a
+// lower load than with only the vent's own build counted.
+func TestTileVentsCountTheCoolerTheyRemove(t *testing.T) {
+	plants := testClimate().Build
+	plants.Heater, plants.Cooler = 50, 50
+	mild := []float64{10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10}
+	firstVented := func(build ClimateBuildValue) float64 {
+		for heat := 10.0; heat <= 300; heat += 10 {
+			res := ventTilingBuilt(t, mild, ventYes, HeatSource{HeatPerSecond: heat, MinC: -99999, MaxC: 99999}, 21, build)
+			if len(ventsWhy(res, ReasonTileVent)) > 0 {
+				return heat
+			}
+		}
+		return 1e9
+	}
+	with, without := firstVented(plants), firstVented(testClimate().Build)
+	if with >= 1e9 || !(with < without) {
+		t.Errorf("vents first placed at %v heat/s with plants priced, %v without", with, without)
 	}
 }
 
