@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -303,5 +304,48 @@ func TestKitchenSuccessorRepointsTheFreezersLink(t *testing.T) {
 		if r.ID == freezer.ID && r.Link != nil {
 			t.Errorf("freezer link = %v, want none with no kitchen beside it", *r.Link)
 		}
+	}
+}
+
+// A tiled plan keeps its doors in LayoutPlan.Links. The freezer's successor
+// moves them: the dining room's door into the successor's wall, and the
+// butchery, which shares no wall with the successor, loses its entry. A built
+// door left without a link is taken out by reconcile, not stranded.
+func TestFreezerSuccessorRepointsTiledLinks(t *testing.T) {
+	kitchen, freezer, dining, butchery := linkedRooms()
+	for _, r := range []*PlannedRoom{&freezer, &dining, &butchery} {
+		r.Link = nil
+	}
+	succ := PlannedRoom{ID: 5, Replaces: 2, Role: PlannedFreezer, Region: RectRegion(Rectangle{X: 16, Z: 0, Width: 4, Height: 5})}
+	plan := LayoutPlan{Rooms: []PlannedRoom{kitchen, freezer, dining, butchery, succ}, NextRoomID: 6, Links: []RoomLink{
+		{A: 1, B: 2, Cell: domain.Cell{X: 5, Z: 2}}, {A: 2, B: 3, Cell: domain.Cell{X: 10, Z: 2}}, {A: 2, B: 4, Cell: domain.Cell{X: 7, Z: 5}},
+	}}
+	built := ringWalls(plan, butchery)
+	growth := RoomGrowth{Built: map[int32]bool{1: true, 2: true, 3: true, 4: true, 5: true}}
+	next, dropped := retireSurplusRooms(plan, growth, growth.Built)
+	if !dropped {
+		t.Fatal("the old freezer stayed")
+	}
+	for _, l := range next.Links {
+		if l.A == 2 || l.B == 2 {
+			t.Errorf("link %+v still names the dropped freezer", l)
+		}
+	}
+	if got := next.LinksOf(dining); len(got) != 1 || !inWall(succ.Region.Bounds(), got[0]) || !inWall(dining.Region.Bounds(), got[0]) {
+		t.Errorf("dining links = %v, want one door in the successor's wall", got)
+	}
+	if got := next.LinksOf(butchery); len(got) != 0 {
+		t.Fatalf("butchery links = %v, want none: it shares no wall with the successor", got)
+	}
+	// The butchery's built door onto the cleared freezer comes out.
+	in := ReconcileInput{Plan: next, Room: butchery, Ground: built, Rooms: RoomObservation{Shapes: testShapes}, WantedFloor: func(domain.Cell) string { return "" }}
+	var out []domain.Cell
+	for _, op := range Reconcile(in).Ready {
+		if op.Kind == OpDoorOut {
+			out = append(out, op.Cells...)
+		}
+	}
+	if !slices.Equal(out, []domain.Cell{{X: 7, Z: 5}}) {
+		t.Fatalf("door_out cells = %v, want the stale door at 7,5", out)
 	}
 }

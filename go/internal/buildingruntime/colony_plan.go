@@ -53,17 +53,19 @@ func grownFor(projection observation.ColonyProjection) string {
 // layoutSurvey is the whole-map survey behind the layout plan, read off the
 // projection's planning window and the load's definition catalog. A
 // reviewer whose native serves no definitions, or a projection without a
-// window, plans nothing.
-func (r *Rounder) layoutSurvey(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection) (policy.MapSurvey, error) {
+// window, plans nothing. The catalog comes back with it so one review reads
+// the definitions once (the station chain reuses it).
+func (r *Rounder) layoutSurvey(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection) (policy.MapSurvey, *bridge.DefinitionCatalog, error) {
 	source, ok := r.native.(observation.DefinitionSource)
 	if !ok || projection.Region == (policy.Rectangle{}) {
-		return policy.MapSurvey{}, errors.New("layout survey: no definitions or planning window")
+		return policy.MapSurvey{}, nil, errors.New("layout survey: no definitions or planning window")
 	}
 	catalog, err := source.DefinitionCatalog(ctx, controlIdentity(snapshot))
 	if err != nil {
-		return policy.MapSurvey{}, err
+		return policy.MapSurvey{}, nil, err
 	}
-	return bridge.SurveyFromCells(projection.Cells, projection.Bounds, catalog)
+	survey, err := bridge.SurveyFromCells(projection.Cells, projection.Bounds, catalog)
+	return survey, catalog, err
 }
 
 // reviewLayoutPlan serves the saved v2 layout plan on the
@@ -191,7 +193,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	perimeter := haveLayout && policy.PerimeterRetirable(layout.Plan, growth.Perimeter.Held) && hourly
 	if outgrown || missing || terrain || research || tomb || throne || children || retireShelter || gear || core || outskirts || yard || pens || perimeter {
 		replanned := false
-		if survey, err := r.layoutSurvey(ctx, snapshot, *projection); err != nil {
+		if survey, catalog, err := r.layoutSurvey(ctx, snapshot, *projection); err != nil {
 			_ = err // a failed survey retries on the next review
 		} else {
 			r.planChecked, r.planSurveyed = tick, true
@@ -220,7 +222,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 				// A room the colony outgrew gets a larger successor: the
 				// station chain at this review, skipped while its inputs
 				// are unchanged.
-				if advice, ok := r.stationAdvice(ctx, snapshot, *projection, layout.Plan, survey); ok {
+				if advice, ok := r.stationAdvice(ctx, snapshot, *projection, layout.Plan, survey, catalog); ok {
 					growth.Successor = policy.OutgrownSuccession(advice, projection.Stations, layout.Plan)
 				}
 				growth.Slept = policy.SleptBedrooms(layout.Plan, projection.Rooms, projection.Facts.Sleeping)

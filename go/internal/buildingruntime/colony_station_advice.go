@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -20,7 +21,7 @@ import (
 // while its inputs are unchanged: the facts' key (StationFacts.InputsKey) and
 // the survey, as for the replan. A run records one layout_stations decision.
 // The advice is false when the chain failed or a fact is unread.
-func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, plan policy.LayoutPlan, survey policy.MapSurvey) (policy.StationAdvice, bool) {
+func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, plan policy.LayoutPlan, survey policy.MapSurvey, catalog *bridge.DefinitionCatalog) (policy.StationAdvice, bool) {
 	f := stationFactsOf(projection, plan, survey, r.demand.get(snapshot).Needs, r.WorkLedgerView())
 	f.Crops, f.FoodReserveDays = growingCrops(projection), r.seasonal(projection.Facts).FoodTargetDays
 	inputs := layoutInputs{key: fmt.Sprint(snapshot.Load, "|", f.InputsKey()), bounds: survey.Bounds, cells: survey.Cells}
@@ -28,7 +29,7 @@ func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationS
 		return r.stationLast, r.stationHeld
 	}
 	start := time.Now()
-	facts, err := r.stationFacts(ctx, snapshot, f)
+	facts, err := stationFacts(catalog, f)
 	decision, advice, ok := stationDecision(facts, err)
 	decision.Dur = time.Since(start)
 	telemetry.Decide(ctx, decision)
@@ -59,15 +60,8 @@ func stationDecision(facts policy.StationFacts, err error) (telemetry.Decision, 
 
 // stationFacts adds the catalog rows (recipe flows, stack limits, rot) to f,
 // the facts the colony read. A part the colony has not read stays unknown.
-func (r *Rounder) stationFacts(ctx context.Context, snapshot domain.GenerationSnapshot, f policy.StationFacts) (policy.StationFacts, error) {
-	source, ok := r.native.(observation.DefinitionSource)
-	if !ok {
-		return policy.StationFacts{}, errors.New("station advice: no definitions")
-	}
-	catalog, err := source.DefinitionCatalog(ctx, controlIdentity(snapshot))
-	if err != nil {
-		return policy.StationFacts{}, err
-	}
+func stationFacts(catalog *bridge.DefinitionCatalog, f policy.StationFacts) (policy.StationFacts, error) {
+	var err error
 	if f.Recipes, err = catalog.StationRecipeFlows(f.Catalog); err != nil {
 		return policy.StationFacts{}, err
 	}

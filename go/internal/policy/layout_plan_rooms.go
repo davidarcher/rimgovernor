@@ -1,6 +1,10 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
+import (
+	"slices"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 // Room queries over a LayoutPlan: every planned room, which stand built,
 // which roles are ended, and dropping rooms by id.
@@ -165,6 +169,8 @@ func dropRooms(plan LayoutPlan, drop map[int32]bool) (LayoutPlan, bool) {
 		}
 	}
 	plan.Rooms = withoutRooms(plan.Rooms, drop)
+	// A door joins two rooms: one that leaves takes its Links entries with it.
+	plan.Links = slices.DeleteFunc(slices.Clone(plan.Links), func(l RoomLink) bool { return drop[l.A] || drop[l.B] })
 	plan.Wings = append([]Wing(nil), plan.Wings...)
 	for i := range plan.Wings {
 		plan.Wings[i].Rooms = withoutRooms(plan.Wings[i].Rooms, drop)

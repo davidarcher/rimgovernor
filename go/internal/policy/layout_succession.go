@@ -346,26 +346,44 @@ func sharedDoor(a, b PlannedRoom) (domain.Cell, bool) {
 }
 
 // repointLinks moves, for each room of drop that a successor replaces, the
-// Link doors that opened into it: to the wall the neighbour shares with the
-// successor, or to none when they share no wall, so no door is left opening on
-// the ground clearance takes.
+// doors that opened into it: a spine plan's Link, a tiled plan's Links entries.
+// Each goes to the wall the neighbour shares with the successor, or to none when
+// they share no wall, so no door is left opening on the ground clearance takes
+// (the room's shell then wants none there and reconcile takes a built one out).
 func repointLinks(plan LayoutPlan, drop map[int32]bool) LayoutPlan {
 	rooms := slices.Clone(plan.Rooms)
+	links := slices.Clone(plan.Links)
 	for _, succ := range plan.AllRooms() {
 		if succ.Replaces == 0 || !drop[succ.Replaces] {
 			continue
 		}
 		for _, n := range linkersOf(plan, succ.Replaces) {
-			i := slices.IndexFunc(rooms, func(r PlannedRoom) bool { return r.ID == n.ID })
-			if i < 0 || drop[n.ID] {
+			if drop[n.ID] {
 				continue
 			}
-			rooms[i].Link = nil
-			if c, ok := sharedDoor(n, succ); ok {
-				rooms[i].Link = &c
+			c, shared := sharedDoor(n, succ)
+			if i := slices.IndexFunc(rooms, func(r PlannedRoom) bool { return r.ID == n.ID }); i >= 0 && rooms[i].Link != nil {
+				rooms[i].Link = nil
+				if shared {
+					rooms[i].Link = &c
+				}
+			}
+			held := false
+			links = slices.DeleteFunc(links, func(l RoomLink) bool {
+				if l.A == succ.Replaces && l.B == n.ID || l.B == succ.Replaces && l.A == n.ID {
+					held = true
+					return true
+				}
+				return false
+			})
+			if held && shared {
+				l := RoomLink{A: min(n.ID, succ.ID), B: max(n.ID, succ.ID), Cell: c}
+				if !slices.Contains(links, l) {
+					links = append(links, l)
+				}
 			}
 		}
 	}
-	plan.Rooms = rooms
+	plan.Rooms, plan.Links = rooms, links
 	return plan
 }
