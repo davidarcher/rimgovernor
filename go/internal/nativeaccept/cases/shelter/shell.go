@@ -211,6 +211,9 @@ func allowSupplies(ctx context.Context, h *na.Harness, label string, report na.R
 	return nil
 }
 
+// errNoHut is a room read that holds no native room of the planned interior.
+var errNoHut = errors.New("no native room whose cells equal the planned interior")
+
 func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, sh *shell, bedCells []domain.Cell, report na.Report) error {
 	if _, err := h.Call(ctx, "pause-for-verify", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
@@ -269,30 +272,28 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 			}
 		}
 		if hut == nil {
-			return fmt.Errorf("no native room whose cells equal the planned interior (%d cells)", len(inside))
+			return errNoHut
 		}
 		return nil
 	}
-	if err := readHut("rooms-after"); err != nil {
-		return err
-	}
 	// Roofing is the game's own work after the ring closes: builders roof an
-	// enclosed room over the following hours. The shell completing last (a
-	// repaired ring) can leave that in progress when the bed lands, so give
-	// it the same four in-game hours the roofing budget allows, stepping
-	// the paused game and re-reading the room. Steps stay short: the bridge
-	// gives one step ten seconds, and an all-DLC game on a CI runner
-	// advanced 474 ticks in that time.
-	const roofStep, roofBudget = 200, 10000
-	waited := 0
-	for na.AsNumber(hut["openRoofCount"]) != 0 && waited < roofBudget {
-		if _, err := h.Call(ctx, fmt.Sprintf("roof-step-%d", waited/roofStep), "rimgovernor/step_game_ticks", map[string]any{"ticks": roofStep}); err != nil {
-			return err
+	// enclosed room over the following hours, and until the last cell is roofed
+	// the room is not a native room of the planned interior at all (an
+	// unroofed cell joins the outdoors). The shell can complete just before
+	// this read, so run the game, re-reading the room, for the roofing budget
+	// (#3018).
+	const roofBudget = 10000
+	waited, err := na.RunUntil(ctx, h, "shell-roofed", roofBudget, na.Wait{Ceiling: buildWait, Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
+		if err := readHut("rooms-after"); errors.Is(err, errNoHut) {
+			return "no-hut", false, nil
+		} else if err != nil {
+			return "", false, err
 		}
-		waited += roofStep
-		if err := readHut(fmt.Sprintf("rooms-after-roof-%d", waited)); err != nil {
-			return err
-		}
+		open := na.AsNumber(hut["openRoofCount"])
+		return fmt.Sprintf("open=%v", open), open == 0, nil
+	})
+	if err != nil {
+		return fmt.Errorf("shell-roofed: %w", err)
 	}
 	report["roof_wait_ticks"] = waited
 	// Doorway rooms are excluded from the typed census unless outdoors rooms
@@ -428,6 +429,25 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 }
 
 func boolOf(v any) bool { b, _ := na.AsBool(v); return b }
+
+// releaseService ends what a killed service leaves running: its clock epoch's
+// lease (up to 30 s) and authority grant outlive the process, and when the
+// lease lapses native stops the clock and pauses the game with no letter, which
+// is the pause waitBuilt otherwise met mid-wait. The harness pauses the game,
+// revokes the grant and then runs the game itself.
+func releaseService(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) error {
+	if _, err := h.Call(ctx, "service-released-pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+		return err
+	}
+	revoked, err := na.ReleaseAuthority(ctx, h, identity)
+	if err != nil {
+		return err
+	}
+	if revoked != nil {
+		report["authority_released"] = revoked
+	}
+	return nil
+}
 
 // waitBuilt runs the game until a built (not blueprint or frame) Wall or
 // Door stands on every shell cell and a built Bed covers every bed cell.

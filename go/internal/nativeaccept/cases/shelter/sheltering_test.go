@@ -4,7 +4,17 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
+
+// The ring's wall stuff is chosen only from stock that covers the shell wall
+// budget; a drop short of it leaves the walls on a stuff the colony does not
+// hold, and the blueprints never get built (#3018).
+func TestBunkWoodCoversShellWallBudget(t *testing.T) {
+	if got, need := baselineWood+bunkWood, int(policy.ShellWallBudget)*5; got < need {
+		t.Fatalf("baseline and dropped wood = %d, below the %d the shell wall budget needs", got, need)
+	}
+}
 
 // An empty journal (a restarted service before its first review) must not
 // read as restored: shelter/toxic_fallout passed its restore wait on map[]

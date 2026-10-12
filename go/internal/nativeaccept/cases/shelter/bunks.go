@@ -18,8 +18,16 @@ import (
 // bunkWood is the WoodLog dropped beside a colonist before the service
 // starts: the baseline's 500 covers eight wooden beds (45 each) but not
 // the hut ring after them, and the frames would otherwise hold for wood
-// the colony has no routine to cut here.
-const bunkWood = 200
+// the colony has no routine to cut here. The wall stuff is the best ranked one
+// whose stock covers policy.ShellWallBudget walls (5 units each, trees
+// counted); when none does it is the best ranked whatever the stock, here
+// BlocksGranite, which this colony holds none of and has no routine to
+// quarry, so the 25 ring blueprints stood unbuilt for the whole wait (#3018).
+// The baseline's wood and this drop must cover that budget.
+const bunkWood = 1000
+
+// baselineWood is the WoodLog the tribal baseline holds.
+const baselineWood = 500
 
 func init() {
 	cases.Register(cases.Case{
@@ -180,6 +188,9 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 	// colonist, all inside.
 	h, err := s.Reattach(ctx)
 	if err != nil {
+		return err
+	}
+	if err := releaseService(ctx, h, s.Identity(), report); err != nil {
 		return err
 	}
 	if err := waitBuilt(ctx, h, s.Identity(), sh, bedCells, report); err != nil {
