@@ -62,7 +62,7 @@ func emptyRows(w, h int, glyphs map[domain.Cell]byte) []string {
 
 func near(t *testing.T, what string, got, want float64) {
 	t.Helper()
-	if math.Abs(got-want) > 1e-9 {
+	if math.Abs(got-want) > 1e-6 {
 		t.Errorf("%s = %v, want %v", what, got, want)
 	}
 }

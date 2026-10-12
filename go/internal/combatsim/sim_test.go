@@ -197,7 +197,8 @@ func TestLeanSourcesOrder(t *testing.T) {
 	}
 }
 
-func approx(a, b float64) bool { return math.Abs(a-b) < 1e-9 }
+// approx compares cover values, which are float (A40).
+func approx(a, b float64) bool { return math.Abs(a-b) < 1e-6 }
 
 func TestCoverBlockChance(t *testing.T) {
 	// Row z=1 with a sandbag beside the target at (3,1), shooter at (0,1).

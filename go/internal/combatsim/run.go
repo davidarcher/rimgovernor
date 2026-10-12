@@ -9,7 +9,7 @@ import (
 )
 
 // defaultBackstopTicks is the decision cadence when a Fight sets none.
-const defaultBackstopTicks = 120
+const defaultBackstopTicks = 300
 
 // Autonomy returns the attack orders the fire-at-will holders give
 // themselves: Wait_Combat's auto-attack, which starts a shot at a hostile in

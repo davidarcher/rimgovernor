@@ -29,7 +29,10 @@ func (g *grid) adjustedCover(shooter, cell, adj domain.Cell) float64 {
 	if !cardinalAdjacent(cell, adj) {
 		diff *= 1.75
 	}
-	chance := g.baseBlockChance(adj)
+	// The game computes the chance in float and the native reply carries the
+	// float widened to double: the policy ties cells on summed cover scores,
+	// and float values sum exactly in a double where doubles do not (A40).
+	chance := float32(g.baseBlockChance(adj))
 	switch {
 	case diff < 15:
 	case diff < 27:
@@ -50,7 +53,7 @@ func (g *grid) adjustedCover(shooter, cell, adj domain.Cell) float64 {
 	case dist < 2.9:
 		chance *= 0.66666
 	}
-	return chance
+	return float64(chance)
 }
 
 // CoverBlockChance ports CoverUtility.CalculateOverallBlockChance for a pawn
@@ -63,15 +66,15 @@ func (s *Sim) CoverBlockChance(target, shooter domain.Cell, canBenefitFromCover 
 		return 0
 	}
 	g := &s.g
-	total := 0.0
+	var total float32
 	for _, off := range adjacent {
 		adj := add(target, off)
 		if !g.inBounds(adj) || adj == shooter {
 			continue
 		}
-		total += (1 - total) * g.adjustedCover(shooter, target, adj)
+		total += (1 - total) * float32(g.adjustedCover(shooter, target, adj))
 	}
-	return total
+	return float64(total)
 }
 
 // coverGivers ports CoverUtility.CalculateCoverGiverSet for a pawn on target

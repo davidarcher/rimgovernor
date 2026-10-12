@@ -149,7 +149,7 @@ is a candidate to replace by a faithful port. Game sources are in
   `Bullet.Impact` passes a null hit part and `Apply` works on a by-value copy,
   so `dinfo.HitPart` is null in `PostApplyDamage`. The shield, lord, melee,
   explosive and mental-state stops are not raised: the sim has none of those
-  things. A backstop (default 120 ticks; the native one is 300) asks the
+  things. A backstop (300 ticks, the native one, #2994) asks the
   policy again. Injuries merge only where the injury def has `canMerge`
   (not for bullets), so each hit is its own injury for both sums.
   Measured on lab-split-ranged over 200 seeds, the two ported triggers moved
@@ -550,6 +550,30 @@ DefinitionCatalog; every derived value is listed with its source in
   length of the fight, not injuries: the sim's colonists win 14 of 20 seeds
   against 5 real, so fewer of them go out (sim 2.25 downs plus deaths per seed
   against at least 3.35 real).
+
+- **A40. Cover is computed in float (#2994).** The game's
+  `CalculateOverallBlockChance` and `TryFindAdjustedCoverInCell` are float
+  arithmetic and the native geometry reply widens the float to a double.
+  `policy.CoverScore` sums those over the hostiles, and `RankByCover` keeps
+  the firing-cell order on equal scores. Float values sum exactly in a double;
+  the sim's double cover values did not, so four firing cells with the same
+  cover (lab-split-ranged: four chunks in a row) ranked by rounding noise and
+  the formation sent every colonist to a neighbour's cell at tick 0. The real
+  service (seed 1 of the #2994 run) orders `hold_position` for all four, the
+  first colonist shots land at tick 60 and not 88, and the colonists keep the
+  line a walk longer. Same seeds 200, sim only, before (backstop 120, double
+  cover) and after: colonist wins 0.48 -> 0.65, downs plus deaths 2.72 -> 2.08,
+  raiders lost 5.39 -> 6.29, fight length (contact to resolution) 2434 ticks
+  against 5189 real. The fix removes a false walk and moves the sim away from
+  the real aggregate: the first timing divergence is gone and a larger one
+  (the real fights run twice as long, with 2.95 downs and 262 damage against
+  2.08 and 206) is what remains. The default backstop is now the native 300
+  (A22); it moves nothing measurable (0.675 -> 0.650 wins).
+  Rescue: the policy emits a `rescue` order only for a route clear of hostile
+  line of fire, or with no hostile left; the sim refuses it `native_refused`
+  (no carry, no tend), but no lab-split-ranged run issues one while hostiles
+  stand, and the real run issued none either (its `TendPatient` jobs are the
+  separate tend planner's, forced between combat stops).
 
 ## Out of scope for this slice
 

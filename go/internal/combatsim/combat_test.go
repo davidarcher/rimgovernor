@@ -183,7 +183,7 @@ func TestShotReportModifiers(t *testing.T) {
 		// A sandbag (fill .55) cardinally next to the target on the firing
 		// line, 5 cells from the shooter: block chance .55, no distance cut.
 		r, _ := build("a....Sb").ShotReport("a", "b")
-		if math.Abs(r.CoverBlock-0.55) > 1e-9 || math.Abs(r.Total-r.Aim*0.45) > 1e-9 {
+		if math.Abs(r.CoverBlock-0.55) > 1e-6 || math.Abs(r.Total-r.Aim*0.45) > 1e-6 {
 			t.Errorf("cover block %v total %v", r.CoverBlock, r.Total)
 		}
 	})

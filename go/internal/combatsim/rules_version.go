@@ -12,7 +12,8 @@ package combatsim
 //     Verse.GenGrid.CanBeSeenOver (Building.CanBeSeenOver),
 //     Verse.GenSight.PointsOnLineOfSight (the IEnumerable overload).
 //
-//   - cover.go: Verse.CoverUtility.CalculateOverallBlockChance,
+//   - cover.go: Verse.CoverUtility.CalculateOverallBlockChance (in float, as the
+//     game and the native reply carry it, #2994),
 //     TryFindAdjustedCoverInCell, BaseBlockChance; Verse.CoverGrid.RecalculateCell;
 //     Verse.GenGeo.AngleDifferenceBetween; Verse.IntVec3.AngleFlat.
 //
@@ -92,4 +93,4 @@ const AssemblyCSharpSHA256 = "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04A
 // any change to a port or an approximation that can move an outcome (a rule
 // fix, a new modeled behavior): a calibration pass (combatsim/calibrate) is
 // recorded under it and is stale after a bump.
-const RulesVersion = 12
+const RulesVersion = 13
