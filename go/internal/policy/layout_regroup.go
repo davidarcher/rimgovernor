@@ -369,7 +369,7 @@ func Regroup(in RegroupInput) (Regrouping, error) {
 			if m.reason == ReasonRegroupFilthMerge && t.signature() != cur.signature() && !t.better(cur) {
 				refused[pairKey(m.a, m.b)] = moveDecision(m, cur, t, RegroupKept, ReasonRegroupFilthKept)
 			}
-			if t.signature() == cur.signature() || !t.better(cur) || best != nil && !t.better(best) {
+			if unplaceable(t.clustering.Groups) > unplaceable(cur.clustering.Groups) || t.signature() == cur.signature() || !t.better(cur) || best != nil && !t.better(best) {
 				continue
 			}
 			best, bestMove = t, m
@@ -399,6 +399,18 @@ func Regroup(in RegroupInput) (Regrouping, error) {
 		decisions = append(decisions, RegroupDecision{Verdict: RegroupKept, Reason: ReasonRegroupNoGain, Before: cur.points, After: cur.points, Lost: cur.lost})
 	}
 	return cur.regrouping(decisions), nil
+}
+
+// unplaceable counts the groups no planned room carries (a barracks): the tiler
+// cannot place them, so no move may add one (#3017).
+func unplaceable(groups []RoomGroup) int {
+	n := 0
+	for _, g := range groups {
+		if _, ok := PlannedRoleOfGroup(g); !ok {
+			n++
+		}
+	}
+	return n
 }
 
 // moveDecision is the move m taking the grouping from → to.

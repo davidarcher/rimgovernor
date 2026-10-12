@@ -50,8 +50,11 @@ func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationS
 // replan produced. Telemetry only; the old plan stays the output. The tile
 // costs seconds (a hundred colonists: tens of seconds), so it runs off the
 // review, one at a time; a replan that finds one running records it skipped.
-func (r *Rounder) tiledReplan(ctx context.Context, next policy.LayoutPlan, survey policy.MapSurvey, geysers []policy.PowerGeyser) {
+// The tile pins only what the review's growth holds (policy.TilePinned), not
+// the old replan's pins the chain's own advice was made with.
+func (r *Rounder) tiledReplan(ctx context.Context, next policy.LayoutPlan, growth policy.RoomGrowth, survey policy.MapSurvey, geysers []policy.PowerGeyser) {
 	facts, held := r.stationFacts, r.stationHeld
+	facts.Pinned = policy.TilePinned(facts.Plan, growth)
 	if held && !r.tiledRunning.CompareAndSwap(false, true) {
 		telemetry.Decide(ctx, telemetry.Decision{Kind: "layout_replan_tiled", Component: "layout", Target: "plan", Verdict: "skipped", Reason: "tile_in_flight"})
 		return
@@ -101,7 +104,11 @@ func tiledReplanDecision(facts policy.StationFacts, held bool, next policy.Layou
 func tiledReplanAttrs(diff policy.ReplanTileDiff, built, tiledRooms int) map[string]any {
 	rooms := make([]map[string]any, 0, len(diff.Rooms))
 	for _, d := range diff.Rooms {
-		rooms = append(rooms, map[string]any{"room": d.Room, "tiled": d.Tiled, "role": string(d.Role), "verdict": d.Verdict, "reason": d.Reason, "built": d.Built})
+		row := map[string]any{"room": d.Room, "tiled": d.Tiled, "role": string(d.Role), "verdict": d.Verdict, "reason": d.Reason, "built": d.Built}
+		if d.Short > 0 {
+			row["short"] = d.Short
+		}
+		rooms = append(rooms, row)
 	}
 	unmatched := make([]map[string]any, 0, len(diff.Unmatched))
 	for _, u := range diff.Unmatched {

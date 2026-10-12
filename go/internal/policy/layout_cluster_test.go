@@ -309,3 +309,29 @@ func TestClusterStationsRecordsConflictCosts(t *testing.T) {
 		t.Errorf("not deterministic: %v", err)
 	}
 }
+
+// Two beds never merge into a barracks, even when a pair rule asks for it: no
+// planned room is a barracks, so the tiler could not place the group (#3017).
+func TestClusterNeverMergesBedsIntoAnUnplaceableBarracks(t *testing.T) {
+	cat := clusterCatalog()
+	bed := cat.Stations["Bed"]
+	bed.Capacity = StationCapacity{Kind: CapacitySleepers, Slots: 1}
+	cat.Stations["Bed"] = bed
+	cat.Stations["Bed2"] = bed
+	a, b := node("Bed", PurposeSleep, 1), node("Bed2", PurposeSleep, 1)
+	got, err := ClusterStations(ClusterInput{Graph: StationGraph{Nodes: []StationNode{a, b}, Edges: []StationEdge{edge(a, b, 5, false)}}, Catalog: cat, RoofDistance: testRoof, Pairs: []NodePair{{A: a.ID, B: b.ID, Rule: PairTogether}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Groups) != 2 {
+		t.Fatalf("groups %+v", got.Groups)
+	}
+	for _, g := range got.Groups {
+		if _, ok := PlannedRoleOfGroup(g); !ok {
+			t.Errorf("group %d predicts %s, no planned room", g.ID, g.Role)
+		}
+	}
+	if len(got.Decisions) == 0 || got.Decisions[len(got.Decisions)-1].Reason != ReasonClusterNoRoom {
+		t.Errorf("decisions %+v", got.Decisions)
+	}
+}

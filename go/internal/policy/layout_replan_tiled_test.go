@@ -2,6 +2,7 @@ package policy
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -143,6 +144,119 @@ func TestDiffReplanTileMatchesUnbuiltRoomsByRole(t *testing.T) {
 	}
 	if diff.Count(TileDiffSame)+diff.Count(TileDiffMoved) == 0 {
 		t.Errorf("no unbuilt room is matched: %+v", diff.Rooms)
+	}
+}
+
+// Bedrooms and suites are nodes of the tiled replan (#3004, J3 of #2965): the
+// sleepers' node and one node per suite wish, a standing bedroom or suite pinned
+// as the block of its node. A raised suite target shows as the floor its group
+// lacks (the embedding does not grow a standing room), a new wish as a new suite
+// that takes one bed off the ordinary sleepers, more colonists as new bedrooms,
+// and fewer as standing bedrooms with no node (retirement-eligible).
+func TestTiledReplanHousesColonistsOnBedroomAndSuiteNodes(t *testing.T) {
+	f := replayFixtures[0]
+	s := f.survey(t)
+	base := colonyStationFacts(8, s)
+	base.Suites = []SuiteWish{{Target: 60}, {Target: 90}}
+	fact, _, err := DeriveLayoutPlan(s, base, nil, 0)
+	plan, ok := fact.Value()
+	if err != nil || !ok {
+		t.Fatalf("derive: %v %v", ok, err)
+	}
+	built := map[int32]bool{}
+	var kept []SuiteWish
+	var suites []int32
+	for _, r := range plan.AllRooms() {
+		built[r.ID] = true
+		if r.Role == PlannedSuite {
+			kept = append(kept, SuiteWish{Kept: r.Region.Area()})
+			suites = append(suites, r.ID)
+		}
+	}
+	if len(suites) != 2 {
+		t.Fatalf("derived suites %v", suites)
+	}
+	// diff tiles the standing plan for colonists colonists and wishes, and
+	// counts the bedroom and suite rows by verdict.
+	diff := func(colonists int, wishes []SuiteWish) (ReplanTileDiff, map[string]int) {
+		facts := colonyStationFacts(colonists, s)
+		facts.Plan, facts.Built, facts.Suites = plan, built, wishes
+		advice, err := TileStations(ReplanTileFacts(facts, s, nil))
+		if err != nil {
+			t.Fatalf("tile: %v", err)
+		}
+		d := DiffReplanTile(plan, built, advice)
+		counts := map[string]int{}
+		for _, r := range d.Rooms {
+			if r.Role == PlannedBedroom || r.Role == PlannedSuite {
+				counts[string(r.Role)+"/"+r.Verdict]++
+			}
+		}
+		return d, counts
+	}
+	row := func(d ReplanTileDiff, id int32) TileRoomDiff {
+		for _, r := range d.Rooms {
+			if r.Room == id {
+				return r
+			}
+		}
+		t.Fatalf("no row for room %d", id)
+		return TileRoomDiff{}
+	}
+	t.Run("standing", func(t *testing.T) {
+		d, counts := diff(8, kept)
+		if counts["bedroom/same"] != 7 || counts["suite/same"] != 2 || len(counts) != 2 || len(d.Unmatched) != 0 {
+			t.Errorf("counts %v, unmatched %+v", counts, d.Unmatched)
+		}
+		// A standing suite is short by at most the cell of its required door (the
+		// group's floor counts the threshold the derived room does not).
+		for _, r := range d.Rooms {
+			if limit := map[PlannedRole]int{PlannedSuite: 1}[r.Role]; r.Short > limit {
+				t.Errorf("room %d (%s) is short %d", r.Room, r.Role, r.Short)
+			}
+		}
+	})
+	t.Run("raised target", func(t *testing.T) {
+		d, counts := diff(8, []SuiteWish{{Kept: kept[0].Kept, Target: 400}, kept[1]})
+		got := row(d, suites[0])
+		if got.Verdict != TileDiffSame || got.Reason != ReasonDiffKept || got.Short <= 1 || row(d, suites[1]).Short > 1 || counts["suite/same"] != 2 {
+			t.Errorf("raised suite row %+v, counts %v", got, counts)
+		}
+	})
+	t.Run("new wish", func(t *testing.T) {
+		d, counts := diff(8, append(slices.Clone(kept), SuiteWish{Target: 70}))
+		if counts["suite/same"] != 2 || counts["suite/new"] != 1 || counts["bedroom/dropped"] != 1 || counts["bedroom/same"] != 6 {
+			t.Errorf("counts %v", counts)
+		}
+		if len(d.Unmatched) != 1 || d.Unmatched[0].Reason != ReasonDiffNoNode {
+			t.Errorf("unmatched %+v", d.Unmatched)
+		}
+	})
+	t.Run("more colonists", func(t *testing.T) {
+		_, counts := diff(14, kept)
+		if counts["bedroom/same"] != 7 || counts["suite/same"] != 2 || counts["bedroom/new"] != 6 {
+			t.Errorf("counts %v", counts)
+		}
+	})
+	t.Run("fewer colonists", func(t *testing.T) {
+		d, counts := diff(4, kept)
+		if counts["bedroom/same"] != 3 || counts["suite/same"] != 2 || counts["bedroom/dropped"] != 4 || len(d.Unmatched) != 4 {
+			t.Errorf("counts %v, unmatched %+v", counts, d.Unmatched)
+		}
+	})
+}
+
+// The tiled replan pins only what is in flight, slept in, in use or a rebuild's
+// pair (#3004); a plan with the census unread keeps every room.
+func TestTilePinned(t *testing.T) {
+	plan := LayoutPlan{Rooms: []PlannedRoom{{ID: 1, Role: PlannedBedroom}, {ID: 2, Role: PlannedBedroom}, {ID: 3, Role: PlannedBedroom}, {ID: 4, Role: PlannedBedroom}, {ID: 5, Role: PlannedBedroom, Replaces: 4}, {ID: 6, Role: PlannedKitchen}}}
+	if got := TilePinned(plan, RoomGrowth{}); len(got) != 6 {
+		t.Errorf("census unread pins %v", got)
+	}
+	growth := RoomGrowth{Fixed: map[int32]bool{1: true, 6: true}, InFlight: map[int32]bool{2: true}, Slept: map[int32]bool{3: true}}
+	want := map[int32]bool{2: true, 3: true, 4: true, 5: true}
+	if got := TilePinned(plan, growth); !reflect.DeepEqual(got, want) {
+		t.Errorf("pins %v, want %v", got, want)
 	}
 }
 

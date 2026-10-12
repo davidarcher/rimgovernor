@@ -38,7 +38,7 @@ func TestTiledReplanSkipsWhileOneRuns(t *testing.T) {
 	defer slog.SetDefault(previous)
 	r := &Rounder{stationHeld: true}
 	r.tiledRunning.Store(true)
-	r.tiledReplan(context.Background(), policy.LayoutPlan{}, policy.MapSurvey{}, nil)
+	r.tiledReplan(context.Background(), policy.LayoutPlan{}, policy.RoomGrowth{}, policy.MapSurvey{}, nil)
 	if got := out.String(); !strings.Contains(got, "layout_replan_tiled") || !strings.Contains(got, "tile_in_flight") {
 		t.Errorf("rows %q", got)
 	}
@@ -50,7 +50,7 @@ func TestTiledReplanSkipsWhileOneRuns(t *testing.T) {
 func TestTiledReplanAttrsCountVerdictsAndListUnmatchedRooms(t *testing.T) {
 	diff := policy.ReplanTileDiff{
 		Rooms: []policy.TileRoomDiff{
-			{Room: 1, Tiled: 1, Role: policy.PlannedKitchen, Verdict: policy.TileDiffSame, Reason: policy.ReasonDiffKept, Built: true},
+			{Room: 1, Tiled: 1, Role: policy.PlannedKitchen, Verdict: policy.TileDiffSame, Reason: policy.ReasonDiffKept, Built: true, Short: 6},
 			{Room: 2, Role: policy.PlannedGraveyard, Verdict: policy.TileDiffDropped, Reason: policy.ReasonDiffOutdoor, Built: true},
 			{Tiled: 5, Role: policy.PlannedTomb, Verdict: policy.TileDiffNew, Reason: policy.ReasonDiffNoOldRoom},
 		},
@@ -63,7 +63,7 @@ func TestTiledReplanAttrsCountVerdictsAndListUnmatchedRooms(t *testing.T) {
 	if got := attrs["unmatched_built"].([]map[string]any); len(got) != 1 || got[0]["role"] != "graveyard" || got[0]["reason"] != policy.ReasonDiffOutdoor {
 		t.Errorf("unmatched = %+v", got)
 	}
-	if got := attrs["rooms"].([]map[string]any); len(got) != 3 || got[2]["verdict"] != policy.TileDiffNew {
+	if got := attrs["rooms"].([]map[string]any); len(got) != 3 || got[2]["verdict"] != policy.TileDiffNew || got[0]["short"] != 6 || got[2]["short"] != nil {
 		t.Errorf("rooms = %+v", got)
 	}
 }

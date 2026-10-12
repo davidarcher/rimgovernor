@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"maps"
 	"slices"
 	"sort"
 )
@@ -50,6 +51,11 @@ type TileRoomDiff struct {
 	Verdict     string
 	Reason      string
 	Built       bool
+	// Short is the floor cells the room's group needs beyond the standing rooms
+	// matched to it (GroupOutgrown); 0 when it has enough. The embedding keeps a
+	// standing room where it stands and does not grow it, so a raised suite
+	// target or a bigger bedroom group shows only here (#3004).
+	Short int
 }
 
 // UnmatchedBuilt is a standing room with no node in the tiled plan. Reason is
@@ -93,6 +99,26 @@ func ReplanTileFacts(f StationFacts, s MapSurvey, geysers []PowerGeyser) Station
 	f.Plan.Sites = slices.DeleteFunc(slices.Clone(f.Plan.Sites), func(p PlannedSite) bool { return perimeterSiteKinds[p.Kind] })
 	f.Survey = s
 	return f
+}
+
+// TilePinned are the rooms the tiled replan holds where they stand (#3004,
+// decision 3 of #2965): the rooms an open journal plan works on (growth.InFlight),
+// the superseded bedrooms and suites a pawn still owns a bed in (growth.Slept),
+// the rooms of an ended role still in use (growth.InUse) and the pairs of a
+// rebuild in flight. Nothing else is pinned: a standing room with no node in the
+// new embedding is retirement-eligible, and one that has a node moves only at
+// the embedder's switching price (#2877). The old replan's pins (ReplanPins)
+// widen Fixed by door links and bedroom wings, which the tiler does not have.
+// With the census unknown (growth.Fixed nil) every room is pinned.
+func TilePinned(plan LayoutPlan, growth RoomGrowth) map[int32]bool {
+	if growth.Fixed == nil {
+		return allPins(plan)
+	}
+	pins := successorPinned(plan)
+	for _, held := range []map[int32]bool{growth.InFlight, growth.Slept, growth.InUse} {
+		maps.Copy(pins, held)
+	}
+	return pins
 }
 
 // DiffReplanTile compares the tiled plan of advice with old, the plan the old
@@ -139,6 +165,12 @@ func DiffReplanTile(old LayoutPlan, built map[int32]bool, advice StationAdvice) 
 			superseded[r.Replaces] = true
 		}
 	}
+	short := map[int]int{}
+	for _, g := range advice.Groups {
+		if g.Outgrown {
+			short[g.Group.ID] = g.Group.Area - g.Capacity
+		}
+	}
 	notBlock := map[int32]bool{}
 	for _, d := range advice.Embedding.Decisions {
 		if d.Reason == ReasonEmbedBuiltNotRect {
@@ -164,7 +196,7 @@ func DiffReplanTile(old LayoutPlan, built map[int32]bool, advice StationAdvice) 
 	for _, r := range rooms {
 		seen[r.ID] = true
 		if c, ok := claims[r.ID]; ok {
-			row := TileRoomDiff{Room: r.ID, Tiled: tiled[c.tiled].ID, Role: r.Role, Built: built[r.ID], Verdict: TileDiffSame, Reason: ReasonDiffKept}
+			row := TileRoomDiff{Room: r.ID, Tiled: tiled[c.tiled].ID, Role: r.Role, Built: built[r.ID], Verdict: TileDiffSame, Reason: ReasonDiffKept, Short: short[blocks[c.tiled].Group]}
 			if c.successor {
 				row.Verdict, row.Reason = TileDiffMoved, ReasonDiffSuccessor
 			} else if tiled[c.tiled].Region.Bounds() != r.Region.Bounds() {

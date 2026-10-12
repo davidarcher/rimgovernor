@@ -93,6 +93,10 @@ const (
 	// ReasonClusterSuite: a target-sized bedroom (StationNode.Floor) is its own
 	// room; no rule merges it with a barracks or another bedroom (#2939).
 	ReasonClusterSuite = "cluster_suite_own_room"
+	// ReasonClusterNoRoom: the merged room would be one no planned room carries
+	// (several beds read as a barracks), which the tiler cannot place (#3017); no
+	// pair rule joins them.
+	ReasonClusterNoRoom = "cluster_no_planned_room"
 
 	// ConflictColdBand is recorded on a decision whose two parts are a cold
 	// group and a station that works in a temperature band: cold is kept below
@@ -537,6 +541,13 @@ func (e groupEval) plannedRole() PlannedRole {
 	return ""
 }
 
+// placeable reports a group some planned room carries (PlannedRoleOfGroup); a
+// barracks, which the game scores a room of several beds, is none.
+func (e groupEval) placeable() bool {
+	_, ok := PlannedRoleOfGroup(RoomGroup{Role: e.role, Planned: e.plannedRole(), Requires: e.requires()})
+	return ok
+}
+
 // coldBandConflict reports a cold group beside a station that works in a
 // temperature band.
 func coldBandConflict(a, b groupEval) bool { return a.cold && b.band || a.band && b.cold }
@@ -684,6 +695,8 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 			d.Reason = ReasonClusterEnvConflict
 		case filthConflict(ea, eb) && rule != PairTogether:
 			d.Reason = ReasonClusterFilthPriced
+		case !em.placeable() && ea.placeable() && eb.placeable():
+			d.Reason = ReasonClusterNoRoom
 		case em.area > c.maxArea:
 			d.Reason = ReasonClusterArea
 		case newLoss(em, ea, eb) && rule != PairTogether:
