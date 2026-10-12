@@ -81,6 +81,10 @@ type RecipeFlow struct {
 	Ingredients [][]Amount
 	Products    []Amount
 	Food        bool
+	// Butchery is set when the recipe's special product is Butchery: the
+	// ingredient's meat and leather come out (the def lists no product, the
+	// race decides): meat to the cold store, leather to the plain one.
+	Butchery bool
 }
 
 // StationGraphInput is every model the graph reads. Callers build the graph
@@ -120,6 +124,15 @@ type StationNode struct {
 	// together (recipe runs times the station's work per run); 0 for a node
 	// that is not worked. Conflict costs are priced against it.
 	DailyWork float64
+	// Filth is set when the colony's orders have the node's stations butcher:
+	// a recipe with the Butchery special product spawns the corpse's blood (or
+	// machine bits) at the butcher's cell (Corpse.ButcherProducts calls
+	// FilthMaker.TryMakeFilth; read by decompiling 1.6, the defs only name the
+	// special product). Filth lowers the room's cleanliness, which the cook's
+	// room reads as RoomStatDefOf.FoodPoisonChance when a meal is made
+	// (CompFoodPoisonable.Notify_RecipeProduced). It is use, not station: the
+	// same bench that dismantles mechanoids also works other recipes.
+	Filth bool
 }
 
 // StationEdge is the wish that two nodes stand together. Weight is the
@@ -447,7 +460,9 @@ func (b *graphBuilder) workLoads() ([]recipeLoad, error) {
 			return nil, err
 		}
 		count := max(1, int(math.Ceil(perStation[def]/float64(domain.TicksPerDay*max(s.Capacity.Slots, 1)))))
-		b.nodes[b.addNode(def, PurposeWork, count, s.Needs, ReasonWorkNutrition)].DailyWork = perStation[def]
+		node := b.nodes[b.addNode(def, PurposeWork, count, s.Needs, ReasonWorkNutrition)]
+		node.DailyWork = perStation[def]
+		node.Filth = slices.ContainsFunc(out, func(l recipeLoad) bool { return l.station == def && b.in.Recipes[l.recipe].Butchery })
 	}
 	return out, nil
 }
@@ -600,9 +615,13 @@ func withoutCold(needs []EnvNeed) []EnvNeed {
 }
 
 // storeFor is the node an item is held in.
-func (b *graphBuilder) storeFor(r Resource) (string, bool) {
+func (b *graphBuilder) storeFor(r Resource) (string, bool) { return b.storeOf(b.in.Perishable[r]) }
+
+// storeOf is the store that holds things that rot (the cold one, else the
+// plain one) or things that keep.
+func (b *graphBuilder) storeOf(perishable bool) (string, bool) {
 	purpose := PurposeStore
-	if b.in.Perishable[r] {
+	if perishable {
 		purpose = PurposeStoreCold
 	}
 	for _, n := range b.nodes {
@@ -642,6 +661,15 @@ func (b *graphBuilder) flows(loads []recipeLoad) {
 			if b.in.Perishable[pick.Resource] {
 				if n := b.nodes[store]; n.Purpose == PurposeStoreCold {
 					b.addEdge(store, work, 0, true, ReasonNeedCold)
+				}
+			}
+			if flow.Butchery {
+				// The yield of a butchered ingredient is meat, which rots, and
+				// leather, which keeps: one haul of each per ingredient.
+				for _, rots := range []bool{true, false} {
+					if out, ok := b.storeOf(rots); ok {
+						b.addEdge(work, out, l.runs*float64(pick.Count), false, ReasonFlowProduct)
+					}
 				}
 			}
 		}

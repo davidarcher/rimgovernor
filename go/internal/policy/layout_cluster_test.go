@@ -31,6 +31,7 @@ func clusterCatalog() StationCatalog {
 	cat.Stations["Shelf"] = shape("Shelf", 2, 1, cat.Stations["Shelf"])
 	cat.Stations["ColdShelf"] = shape("ColdShelf", 2, 1, cold)
 	cat.Stations["Cooler"] = shape("Cooler", 2, 1, Station{Access: AccessWall, Cooling: StationCooling{HeatPerSecond: 12, PowerDraw: 200}})
+	cat.Stations["Butcher"] = shape("Butcher", 3, 1, Station{Contributions: cat.Stations["Stove"].Contributions})
 	cat.Stations["Wasteful"] = shape("Wasteful", 1, 1, Station{Cooling: StationCooling{HeatPerSecond: 12, PowerDraw: 900}})
 	return cat
 }

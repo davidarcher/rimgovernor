@@ -114,6 +114,9 @@ type TileResult struct {
 // game gives its stations, a storeroom that stores cold being the freezer.
 // False when no planned room carries the group's role.
 func PlannedRoleOfGroup(g RoomGroup) (PlannedRole, bool) {
+	if g.Planned != "" {
+		return g.Planned, true
+	}
 	cold := slices.Contains(g.Requires, EnvCold) || slices.ContainsFunc(g.Stations, func(s GroupStation) bool {
 		return s.Purpose == PurposeCool || s.Purpose == PurposeStoreCold
 	})

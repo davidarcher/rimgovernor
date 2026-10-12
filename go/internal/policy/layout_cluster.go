@@ -126,7 +126,10 @@ type RoomGroup struct {
 	// the placer keeps, Area their sum.
 	Footprint, Clearance, Area int
 	// Role is the native role the game would give the room.
-	Role     RoomRole
+	Role RoomRole
+	// Planned is the planned room the group's contents decide when it is not
+	// the one Role gives (the butchery); empty otherwise (PlannedRoleOfGroup).
+	Planned  PlannedRole
 	Requires []EnvRequirement
 	Links    []GroupLink
 	// Costs are the throughput the room loses to the environment its stations
@@ -266,9 +269,12 @@ type groupEval struct {
 	enclosed  bool
 	openSky   bool
 	clean     bool
-	role      RoomRole
-	costs     []ConflictCost
-	effects   []LostRoleEffect
+	// filth: a node's stations spawn filth in the room (StationNode.Filth); closet: every node
+	// of the group does.
+	filth, closet bool
+	role          RoomRole
+	costs         []ConflictCost
+	effects       []LostRoleEffect
 }
 
 func (c *clusterer) node(u unit) StationNode { return c.in.Graph.Nodes[u.node] }
@@ -334,9 +340,12 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 			e.lost[key] = true
 		}
 	}
+	e.closet = len(us) > 0
 	for _, u := range us {
 		n := c.node(u)
 		size := c.in.Catalog.Stations[n.Def].Shape.Size
+		e.filth = e.filth || n.Filth
+		e.closet = e.closet && n.Filth
 		e.footprint += u.count * int(size.X) * int(size.Z)
 		e.clearance += u.count
 		for _, need := range n.Needs {
@@ -378,10 +387,23 @@ func (e groupEval) requires() []EnvRequirement {
 }
 
 // conflict reports two groups whose environments exclude each other: a station
-// under an open sky cannot share a roofed room. Cold against a temperature band
-// is not an exclusion (coldBandConflict).
+// under an open sky cannot share a roofed room, and a station whose work spawns
+// filth shares its room with nothing but other such stations (the filth lowers
+// the cleanliness every station and sleeper of the room is read at, a cook's
+// food-poisoning chance among them), so it stands in a closet of its own. Cold
+// against a temperature band is not an exclusion (coldBandConflict).
 func conflict(a, b groupEval) bool {
-	return a.enclosed && b.openSky || a.openSky && b.enclosed
+	return a.enclosed && b.openSky || a.openSky && b.enclosed || (a.filth || b.filth) && !(a.closet && b.closet)
+}
+
+// plannedRole is the planned room a group's contents decide over what the
+// game predicts: a closet of filth stations the game reads as a kitchen (the
+// butcher table scores as one) is the butchery. Empty when the prediction stands.
+func (e groupEval) plannedRole() PlannedRole {
+	if e.closet && e.role == RoomRoleKitchen {
+		return PlannedButchery
+	}
+	return ""
 }
 
 // coldBandConflict reports a cold group beside a station that works in a
@@ -534,7 +556,7 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 		if err != nil {
 			return Clustering{}, err
 		}
-		g := RoomGroup{ID: gi, Footprint: e.footprint, Clearance: e.clearance, Area: e.area, Role: e.role, Requires: e.requires(), Costs: e.costs, LostEffects: e.effects}
+		g := RoomGroup{ID: gi, Footprint: e.footprint, Clearance: e.clearance, Area: e.area, Role: e.role, Planned: e.plannedRole(), Requires: e.requires(), Costs: e.costs, LostEffects: e.effects}
 		byNode := map[int]int{}
 		for _, m := range members[r] {
 			byNode[m.node] += m.count

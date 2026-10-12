@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
 // StationRecipeFlows are the item flows of every recipe a station works: the
@@ -36,6 +37,7 @@ func (catalog *DefinitionCatalog) StationRecipeFlows(stations policy.StationCata
 				}
 			}
 			slices.SortFunc(flow.Products, func(a, c policy.Amount) int { return compareStrings(string(a.Resource), string(c.Resource)) })
+			flow.Butchery = slices.Contains(row.GetSpecialProducts(), d.SpecialProductType_SPECIAL_PRODUCT_TYPE_BUTCHERY)
 			if flow.Food, err = b.makesHumanFood(row); err != nil {
 				return nil, err
 			}

@@ -163,6 +163,20 @@ enclosed, open sky) and links to other groups, required ones marked. Rooms of a
 role the game gives no effect (dining beside a stove, storage beside a bench)
 share a room with the station that outweighs them.
 
+A butchering order makes the butcher table's node `Filth`
+(`StationNode.Filth`, from the recipe's `Butchery` special product on
+`RecipeFlow`): `Corpse.ButcherProducts` spawns the corpse's blood at the
+butcher's cell (decompiled 1.6; the defs only name the special product), and
+the room's cleanliness feeds `RoomStatDefOf.FoodPoisonChance`, which a cook's
+meal reads (`CompFoodPoisonable`). A filth node merges with no node that is not
+filthy (`cluster_env_conflict`), so it stands in a closet of its own; the
+group's `Planned` role is `PlannedButchery` when the game reads the closet as a
+kitchen (the table scores as one), and `PlannedRoleOfGroup` returns it over the
+role mapping. The graph sends the corpses in from, and the meat and leather
+back to, the cold and plain stores, with the required cold link a perishable
+ingredient implies, so the closet lands beside the freezer and, through the
+stove's own meat flow, the kitchen.
+
 ### Topology embedding
 
 `policy.Embed` (`layout_embed.go`) places the room groups on the site as
