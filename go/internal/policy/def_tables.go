@@ -49,14 +49,6 @@ func DefTables() []DefTable {
 		// CompPowerPlantWind's and WindTurbineUtility.CalculateWindCells's,
 		// read with ilspycmd; keyed by the turbine def so a rename fails the gate.
 		{"windPath", "Verse.ThingDef", []string{WindTurbineDefinition}},
-		// baitGap (20) and pocketReach (6) are judgment constants of the
-		// infestation layout (layout_bait_room.go, layout_infestation.go):
-		// the game offers no signal for them. The bait room is kept 20 cells
-		// off the ring so the fire of its incendiary IED never reaches the
-		// base, and a dark pocket within 6 cells of the ring is one a hive
-		// could dig out beside the colony. Keyed by the bait defs so a rename
-		// fails the gate.
-		{"infestationReach", "Verse.ThingDef", []string{BaitIED, BaitTrap}},
 	}
 }
 

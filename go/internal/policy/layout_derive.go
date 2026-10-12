@@ -38,7 +38,7 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier TechTier, geysers []PowerGeys
 	plan = PlanYardSites(plan, YardRoomsWanted(RoomDemand{}))
 	plan, _ = growOutskirts(plan, OutskirtsSize())
 	plan, _ = growOutskirtsRooms(plan, want.ThickRoof)
-	plan = PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s)
+	plan = PlanMountainPockets(PlanPerimeter(plan, s), s)
 	return domain.Known(withoutCore(plan).WithRoomIDs())
 }
 
@@ -227,13 +227,13 @@ func replanLayout(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawn
 	next.Zones = zones
 	unplacedRooms := errors.Join(unplaced...)
 	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {
-		fresh := withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s))
+		fresh := withoutCore(PlanMountainPockets(PlanPerimeter(plan, s), s))
 		return fresh, sited || !sameSites(plan, fresh), unplacedRooms
 	}
 	if len(next.AllRooms()) == 0 {
 		return plan, false, unplacedRooms
 	}
-	return withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(next, s), s), s)), true, unplacedRooms
+	return withoutCore(PlanMountainPockets(PlanPerimeter(next, s), s)), true, unplacedRooms
 }
 
 // topUpHerdSites adds the herd sites animals needs to plan, sited over the

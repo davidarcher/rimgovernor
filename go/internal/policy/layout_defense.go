@@ -43,7 +43,7 @@ const (
 // nodes it is cut from (the ring and the gates in it, a pump, the fence, the
 // geothermal enclosure): the defense record stores them instead of the
 // buildings, and the buildings are resolved from the plan again by the
-// section's name. A section cut from no node (lights, pockets, bait, prison
+// section's name. A section cut from no node (lights, pockets, prison
 // turrets) names none.
 type PerimeterSection struct {
 	Name      DefenseTierName

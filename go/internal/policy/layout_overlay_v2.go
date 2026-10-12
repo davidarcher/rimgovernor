@@ -56,7 +56,6 @@ var roomOverlay = map[PlannedRole]overlayStyle{
 	PlannedWorship:          {planAmber, "worship room"},
 	PlannedContainmentCell:  {planDarkPurple, "containment cell"},
 	PlannedIsolationRoom:    {planDarkPurple, "isolation room"},
-	PlannedBaitRoom:         {planRed, "bait room"},
 }
 
 var reservationOverlay = map[ReservationKind]overlayStyle{
@@ -79,7 +78,6 @@ var siteOverlay = map[NodeKind]overlayStyle{
 	NodeFence:      {planYellow, "killbox fence"},
 	NodeMortar:     {planRed, "mortar"},
 	NodeCoverClear: {planGray, "clear cover"},
-	NodeBaitWall:   {planRed, "bait wall"},
 	NodePocketWall: {planRed, "pocket wall"},
 }
 
@@ -138,9 +136,6 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 	// region: one label, on its first run.
 	for _, s := range p.Sites {
 		style, ok := siteOverlay[s.Kind]
-		if s.Role != "" {
-			style, ok = roomOverlay[s.Role]
-		}
 		if !ok {
 			continue
 		}

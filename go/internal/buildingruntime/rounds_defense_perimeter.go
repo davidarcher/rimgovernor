@@ -255,12 +255,6 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, cut defenseCut) (b
 	if err != nil {
 		return false, err
 	}
-	// The dark bait room away from the base: stools around an
-	// incendiary IED; jelly (spike traps) is not wanted yet.
-	bait, err := policy.BaitRoomSections(cut.plan, defenseDefinitions.Wall, defenseDefinitions.Door, defenseDefinitions.Bait, false)
-	if err != nil {
-		return false, err
-	}
 	// A later pump's run may ride an earlier one's, so the cut stops at the
 	// first new pump spare power cannot carry.
 	spare := cut.spare
@@ -283,7 +277,7 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, cut defenseCut) (b
 	var keys []string
 	var fresh []store.DefenseTierRecord
 	wanted := map[string]bool{}
-	for _, s := range slices.Concat(ring, pockets, lights, bait, fences, pumps, cut.prison) {
+	for _, s := range slices.Concat(ring, pockets, lights, fences, pumps, cut.prison) {
 		t := store.DefenseTierRecord{Name: s.Name, Nodes: s.Nodes}
 		for _, b := range s.Buildings {
 			if taken[b.Cell()] {

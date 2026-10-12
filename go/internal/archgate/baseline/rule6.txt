@@ -290,7 +290,6 @@ internal/policy/item_facts_fixture.go|CoreItemFacts|"WoodLog"
 internal/policy/item_facts_fixture.go|CoreItemFacts|"Wort"
 internal/policy/item_facts_fixture.go|CoreItemFacts|"Yayo"
 internal/policy/item_facts_fixture.go|CoreItemFacts|30000
-internal/policy/layout_bait_room.go|-|"TrapSpike"
 internal/policy/layout_defense.go|-|"Bridge"
 internal/policy/layout_defense.go|-|"HeavyBridge"
 internal/policy/layout_defense.go|-|"WoodLog"

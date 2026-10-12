@@ -28,7 +28,7 @@ type DefenseBuilding struct {
 // from it after every load. Every other tier stores its Buildings: the
 // census-derived ones (the hallway's firing line, funnel and trap corridor,
 // the IEDs, turrets, mortars and prison turrets, the lights) and, until the
-// plan carries them as nodes, the pockets and the bait room. A removal tier
+// plan carries them as nodes, the pockets. A removal tier
 // holds the node ids it replaced and the cells it was cut from, frozen when
 // the perimeter was re-cut, since the plan no longer holds the old ring.
 type DefenseTierRecord struct {

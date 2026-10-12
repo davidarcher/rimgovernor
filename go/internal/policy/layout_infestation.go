@@ -26,8 +26,7 @@ const (
 	// cave is a room or the infestation response's business.
 	pocketMaxCells = 20
 	// pocketReach is how far outside the perimeter ring a pocket
-	// still counts as beside the base. A judgment constant (DefTables
-	// "infestationReach").
+	// still counts as beside the base. A judgment constant: the game offers no signal for it.
 	pocketReach int32 = 6
 	// lampReach is the distance (cells) a standing lamp keeps ground glow
 	// above the 0.3 darkness line infestations need.
