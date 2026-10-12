@@ -97,6 +97,9 @@ type Adapter struct {
 	inRange   map[domain.PawnID]bool // hostiles that reached a colonist
 	inOurs    map[domain.PawnID]bool // hostiles a colonist reached
 	scanned   bool
+	// waiting marks the pawns that could search for a target at the last
+	// Autonomy (Autonomy's edge detection, A41).
+	waiting []bool
 }
 
 // NewAdapter wraps a Sim that has been Reset from f.Scenario. It returns

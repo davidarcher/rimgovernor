@@ -333,6 +333,7 @@ func (s *Sim) Step(orders []Order) (State, []Event, error) {
 				}
 			}
 			s.combatTick(i)
+			s.healthTick(i)
 		}
 		s.landProjectiles()
 	}

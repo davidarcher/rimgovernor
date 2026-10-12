@@ -18,7 +18,20 @@ const defaultBackstopTicks = 300
 // scenario pawn (approximations.md A21).
 func (a *Adapter) Autonomy() []Order {
 	var out []Order
+	if len(a.waiting) != len(a.sim.pawns) {
+		a.waiting = make([]bool, len(a.sim.pawns))
+	}
 	for i := range a.sim.pawns {
+		// CheckForAutoAttack runs when Wait_Combat starts, when the stance
+		// changes (a cooldown ends) and on the pawn's own 15-tick job tracker
+		// tick (A41): the search is due when the pawn became free to search
+		// since the last tick, or on its tick.
+		free := a.canSearch(i)
+		due := free && (!a.waiting[i] || a.sim.pawns[i].callTick(a.sim.tick))
+		a.waiting[i] = free
+		if !due {
+			continue
+		}
 		if o, ok := a.autoAttack(i); ok {
 			out = append(out, o)
 		}
@@ -26,11 +39,18 @@ func (a *Adapter) Autonomy() []Order {
 	return out
 }
 
-// autoAttack is Autonomy for pawn i.
+// canSearch is whether pawn i is a fire-at-will holder with nothing to do:
+// no walk, no attack order, no burst under way.
+func (a *Adapter) canSearch(i int) bool {
+	p := &a.sim.pawns[i]
+	return a.orderable[p.id] && !a.holdFire[p.id] && p.armed && !p.dead && !p.downed && !p.moving && p.target < 0 && p.stance == stanceIdle
+}
+
+// autoAttack is the search itself for pawn i.
 func (a *Adapter) autoAttack(i int) (Order, bool) {
 	s := a.sim
 	p := &s.pawns[i]
-	if !a.orderable[p.id] || a.holdFire[p.id] || !p.armed || p.dead || p.downed || p.moving || p.target >= 0 || p.stance != stanceIdle {
+	if !a.canSearch(i) {
 		return Order{}, false
 	}
 	best, bestD := -1, 0

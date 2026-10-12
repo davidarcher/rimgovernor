@@ -15,11 +15,19 @@ is a candidate to replace by a faithful port. Game sources are in
   lethal damage threshold decide when a pawn is downed or dead. What is left
   out of that model is listed in A39. A hostile that becomes downable also
   takes the death-on-downed roll (A33).
-- **A2. No blood loss, infection or recovery.** Injuries never decay, heal or
-  get tended. Bleeding is not modeled: the blood-loss hediff's first stage
-  (0.15 severity) takes about 2,250 ticks of the fastest bleeding the lab's
-  hits cause, past the 600-tick fights the sim resolves, and a downed pawn does
-  not bleed out. A fight long enough for bleeding to matter has to be checked.
+- **A2. Blood loss is ported (#3000); infection, healing and tending are not.**
+  Every 60 ticks on the pawn's hash phase `HediffGiver_Bleeding` grows the
+  BloodLoss severity by bleed rate x 0.001 (bleed rate at least 0.1, else it
+  falls by 0.00033), through the stages 0.15/0.30/0.45/0.60 with their
+  Consciousness offsets (-0.1, -0.2, -0.4, -0.4, the last also capped at 0.1),
+  downing on the stage change and killing at severity 1 (no death-on-downed
+  roll: the state change carries no damage info). Injuries never decay, heal or
+  get tended. Measured on lab-split-ranged (200 seeds) it moves nothing to two
+  decimals: bleeding only builds on pawns already downed, after the fight.
+  Tending is skipped on evidence: the real seed-1 run's `TendPatient` jobs are
+  each followed by a policy `Goto` on the same tick, so no colonist leaves the
+  line to tend. Mental breaks are skipped: the log records one `mental_break`
+  stop with no pawn, state or mood data to source a rule from.
 - **A3. Damage lands on one part, plus the outer-part duplicates of A34.** The
   game's shot-height/depth choice does not exist for a projectile hit, so the
   part is drawn by `coverageAbs` x hit chance factor (A39); there is no
@@ -174,11 +182,11 @@ auto-attack, and the `LordJob_AssaultColony` give-up and damage-fraction
 transitions. Every draw comes from the enemy stream (E6 lists what is drawn).
 
 - **E1. Decisions happen at Step boundaries.** `EnemyAI.Orders` runs before
-  each Step. A job that ends mid-Step is replaced at the next boundary, and the
-  auto-attack's four-tick search (staggered by `thingIDNumber` in the game) runs
-  at the first boundary at or after four ticks since the last, or at once when a
-  burst's cooldown has just ended (`Notify_StanceChanged`). With `StepTicks`
-  1 (the lab's) there is no difference; a larger step delays by up to one step.
+  each Step. A job that ends mid-Step is replaced at the next boundary. A job
+  the pawn does not end itself is only seen on the pawn's 15-tick tracker tick,
+  and the auto-attack search runs at job start, when a burst's cooldown ends
+  (`Notify_StanceChanged`) and on that tick (A41). With `StepTicks` 1 (the
+  lab's) there is no other difference; a larger step delays by up to one step.
 - **E2. A self-started attack is one burst.** `Order.Once` models
   `Pawn.TryStartAttack`: after the cooldown the pawn drops its target and the
   AI scores again. Only the raider AI uses it.
@@ -213,7 +221,7 @@ transitions. Every draw comes from the enemy stream (E6 lists what is drawn).
   0/50/100 Manhattan cells, linear between) and ends on arrival. The lord's
   thresholds are drawn once in `NewEnemyAI` (give-up ticks, then damage
   fraction), and each Wait/Goto length when the job starts. The expiry's
-  `IsHashIntervalTick` alignment, `expireRequiresEnemiesNearby`, damage-driven
+  `IsHashIntervalTick` alignment is ported (A41); `expireRequiresEnemiesNearby`, damage-driven
   think overrides (`checkOverrideOnDamage`), job queues, weapon swaps, drugs,
   abilities, trashing buildings, sapping, kidnapping and stealing are not
   modelled; the raid is a plain `AssaultColony` duty with `JobGiver_AIFightEnemies`
@@ -574,6 +582,30 @@ DefinitionCatalog; every derived value is listed with its source in
   (no carry, no tend), but no lab-split-ranged run issues one while hostiles
   stand, and the real run issued none either (its `TendPatient` jobs are the
   separate tend planner's, forced between combat stops).
+
+- **A41. Jobs are seen on a 15-tick think phase (#3000).** The game's
+  `Pawn_JobTracker.JobTrackerTickInterval(15)` runs for a pawn when
+  `(tick + HashOffset(thingIDNumber)) % 15 == 0`; the recorded phases of twelve
+  lab pawns match `thingNumber` and `hashTick`
+  (`TestPawnThinkPhaseMatchesRecordedTicks`). Consequences ported: a job's
+  expiry (`startTick + interval <= now && IsHashIntervalTick(interval, 15)`)
+  fires only on a call tick inside the window that opens once per interval, so
+  a 450-550 tick Wait_Combat lasts up to 1.5x as long (two recorded raider
+  jobs reproduce, `TestWaitCombatExpiryWindowReproducesRecordedEnds`); a null
+  job restarts on the next call tick; `CheckForAutoAttack` runs at job start,
+  on a stance change and on each call tick, not every four ticks. A colonist's
+  `Autonomy` search follows the same rule (on becoming free, or a call tick);
+  a finished walk still searches at once (A36). Same 200 seeds, sim only,
+  before and after both cadence ports: colonist wins 0.65 -> 0.72, downs plus
+  deaths 2.08 -> 1.79, damage 206 -> 195, contact to resolution 2434 -> 2436.
+  This is faithful and moves the headline away from the real 0.25 wins, 262
+  damage: the cause of the colonists' sim advantage is not the cadence. The
+  real contact-to-resolution is mostly a measurement artefact:
+  `combatmetrics.decisiveHit` returns the harness read tick when the loser is
+  absent from the read (a dead colonist, a fled raider), so the real 5189
+  averages exact ends (all four downed, 2832 real against 2810 sim) with read
+  ticks (a colonist dead, 8540 real against 2725 sim; colonist wins, 4270
+  against 2304).
 
 ## Out of scope for this slice
 

@@ -1,6 +1,42 @@
 package combatsim
 
-import "math/rand/v2"
+import (
+	"math"
+	"math/rand/v2"
+)
+
+// thingNumber is the thingIDNumber a pawn id carries after its def name
+// ("Thing_Human7218" is 7218); an id without digits is 0.
+func thingNumber(pawnID string) int32 {
+	n := len(pawnID)
+	for n > 0 && pawnID[n-1] >= '0' && pawnID[n-1] <= '9' {
+		n--
+	}
+	id := 0
+	for _, c := range pawnID[n:] {
+		if id = id*10 + int(c-'0'); id > math.MaxInt32 {
+			return 0
+		}
+	}
+	return int32(id)
+}
+
+// hashTick ports Verse.Gen.IsHashIntervalTick(Thing, interval, delta):
+// |(TicksGame + HashOffset(thingIDNumber)) % interval| < delta. With delta 1 it
+// is the plain interval tick.
+func (c *combatant) hashTick(tick, interval, delta int) bool {
+	r := (tick + int(hashOffset(c.thingNum))) % interval
+	if r < 0 {
+		r = -r
+	}
+	return r < delta
+}
+
+// callTick is a tick on which the pawn's Pawn.TickInterval runs with the
+// off-camera 15-tick delta (GenTicks.GetCameraUpdateRate): its job tracker
+// then expires and starts jobs and Wait_Combat looks for a target. The shot
+// tap's recorded think ticks are exactly these (thinkphase_test.go).
+func (c *combatant) callTick(tick int) bool { return c.hashTick(tick, offCameraInterval, 1) }
 
 // Thing ids and the tick phase they set (A9). The game ticks an off-camera
 // Thing when (TicksGame + Gen.HashOffset(thingID)) % 15 == 0, so a projectile's

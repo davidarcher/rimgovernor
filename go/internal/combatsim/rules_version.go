@@ -84,7 +84,14 @@ package combatsim
 //     CalculatePartEfficiency, CalculateTagEfficiency, CalculateLimbEfficiency)
 //     with the Consciousness, Moving, Manipulation, BloodPumping, Breathing,
 //     BloodFiltration and Metabolism capacity workers, and
-//     Verse.PawnCapacitiesHandler.CanBeAwake (the per-part injury model, #2986).
+//     Verse.PawnCapacitiesHandler.CanBeAwake (the per-part injury model, #2986);
+//     Verse.HediffGiver_Bleeding.OnIntervalPassed, Verse.Hediff.Severity and the
+//     BloodLoss HediffDef stages (blood loss, #3000).
+//
+//   - thingid.go, enemy.go, run.go (job cadence): Verse.AI.Pawn_JobTracker
+//     .JobTrackerTickInterval and its job expiry, Verse.Gen.IsHashIntervalTick,
+//     Verse.AI.JobDriver_Wait (CheckForAutoAttack at job start, on
+//     Notify_StanceChanged and on each tracker tick, #3000).
 //
 // Simplifications of these ports are listed in approximations.md.
 const AssemblyCSharpSHA256 = "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A"
@@ -93,4 +100,4 @@ const AssemblyCSharpSHA256 = "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04A
 // any change to a port or an approximation that can move an outcome (a rule
 // fix, a new modeled behavior): a calibration pass (combatsim/calibrate) is
 // recorded under it and is stale after a bump.
-const RulesVersion = 13
+const RulesVersion = 14

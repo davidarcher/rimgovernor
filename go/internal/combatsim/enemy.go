@@ -31,8 +31,6 @@ const (
 	enemyEngageTicks = 400
 	// ExpiryInterval_ShooterSucceeded, in ticks (inclusive).
 	shooterExpiryMin, shooterExpiryMax = 450, 550
-	// autoAttackInterval is JobDriver_Wait's TargetSearchInterval.
-	autoAttackInterval = 4
 	// recentTargetTicks is the window of the last-attacked-target bonus.
 	recentTargetTicks = 300
 	// The damage trigger's fraction range and minimum damage.
@@ -87,7 +85,6 @@ type enemyPawn struct {
 	enemy      int         // mindState.enemyTarget, -1 none
 	lastEngage int
 	wasBusy    bool
-	nextAuto   int
 }
 
 // EnemyAI drives the hostile ranged pawns of a Sim. Orders is called once
@@ -218,9 +215,8 @@ func (e *EnemyAI) Orders() []Order {
 			out = e.think(out, i)
 		}
 		busy := p.stance != stanceIdle
-		if ep.job == jobWait && p.target < 0 && !busy && (ep.wasBusy || s.tick >= ep.nextAuto) {
+		if ep.job == jobWait && p.target < 0 && !busy && (ep.wasBusy || s.tick == ep.start || p.callTick(s.tick)) {
 			out = e.autoAttack(out, i)
-			ep.nextAuto = s.tick + autoAttackInterval
 		}
 		ep.wasBusy = busy
 	}
@@ -261,14 +257,29 @@ func (e *EnemyAI) jobDone(i int) bool {
 	p, ep := &s.pawns[i], &e.p[i]
 	switch ep.job {
 	case jobWait:
-		return s.tick >= ep.end
+		return e.expired(p, ep.start, ep.end-ep.start)
 	case jobGoto:
-		return !p.moving || s.tick >= ep.end
+		return !p.moving || e.expired(p, ep.start, ep.end-ep.start)
 	case jobGotoNearest:
 		t := &s.pawns[ep.near]
-		return !p.moving || !t.has || t.dead || t.downed || s.tick >= ep.start+distanceExpiry(manhattan(p.pos, t.pos))
+		return !p.moving || !t.has || t.dead || t.downed || e.expired(p, ep.start, distanceExpiry(manhattan(p.pos, t.pos)))
 	}
-	return true
+	// A pawn with no job gets one at its next job tracker tick
+	// (JobTrackerTickInterval: curJob == null, TryFindAndStartJob); the
+	// resumed checkpoint's raiders, at tick 0, decide at once.
+	return s.tick == 0 || p.callTick(s.tick)
+}
+
+// expired ports the job expiry test of Pawn_JobTracker.JobTrackerTickInterval
+// (A41): on a tick the pawn's job tracker runs (every 15 ticks, callTick), a
+// job started before this tick whose expiry interval has passed ends only when
+// pawn.IsHashIntervalTick(expiryInterval, 15) holds as well, that is when
+// |(tick + HashOffset(thingID)) % interval| < 15. That window opens once per
+// interval, so a job of 450 to 550 ticks lasts until the first window at or
+// after its nominal end: 1.5 times as long on average.
+func (e *EnemyAI) expired(p *pawn, start, interval int) bool {
+	t := e.sim.tick
+	return interval > 0 && t != start && t >= start+interval && p.callTick(t) && p.hashTick(t, interval, offCameraInterval)
 }
 
 // distanceExpiry is Pawn_JobTracker.DistanceIntervalCurve: a job scaled by the
@@ -572,7 +583,6 @@ func (e *EnemyAI) startWait(i int) []Order {
 	s := e.sim
 	p, ep := &s.pawns[i], &e.p[i]
 	ep.job, ep.start, ep.end = jobWait, s.tick, s.tick+e.rangeIncl(shooterExpiryMin, shooterExpiryMax)
-	ep.nextAuto = s.tick
 	if p.moving {
 		return []Order{{Pawn: p.id, Kind: OrderStop}}
 	}

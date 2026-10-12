@@ -94,6 +94,58 @@ type injuryState struct {
 	// keep is the product of 1 - min(severity / (75 x HealthScale), 0.95) over
 	// the hits on a part that stay separate hediffs (summaryHealth).
 	keep []float64
+	// blood is the BloodLoss hediff's severity (0 while the pawn has none).
+	blood float64
+}
+
+// The BloodLoss hediff (Core Hediffs_Global_Misc.xml) and the giver that grows
+// it (Verse.HediffGiver_Bleeding, run by Pawn_HealthTracker.HealthTickInterval
+// when pawn.IsHashIntervalTick(60)): severity rises by bleed rate x 0.001 an
+// interval while the rate is at least 0.1 and falls by 1/3000 otherwise; it is
+// lethal at 1. Its stages (minSeverity 0, 0.15, 0.30, 0.45, 0.60) offset the
+// Consciousness capacity by 0, -0.1, -0.2, -0.4, -0.4 and the last also caps it
+// at 0.1.
+const (
+	bloodLossInterval   = 60
+	bloodLossPerBleed   = 0.001
+	bloodLossRecovery   = 0.00033333333
+	bloodLossMinBleed   = 0.1
+	bloodLossLethal     = 1.0
+	bloodLossStageCount = 5
+)
+
+var (
+	bloodStageMin    = [bloodLossStageCount]float64{0, 0.15, 0.30, 0.45, 0.60}
+	bloodStageOffset = [bloodLossStageCount]float64{0, -0.1, -0.2, -0.4, -0.4}
+)
+
+// bloodStage is the index of the BloodLoss stage a severity falls in
+// (Hediff.CurStageIndex: the last stage whose minSeverity it reaches).
+func bloodStage(sev float64) int {
+	i := 0
+	for j, m := range bloodStageMin {
+		if sev >= m {
+			i = j
+		}
+	}
+	return i
+}
+
+// bloodTick ports HediffGiver_Bleeding.OnIntervalPassed for one interval and
+// reports whether the hediff changed stage or became lethal, the cases in
+// which Hediff.Severity notifies the health tracker (CheckForStateChange).
+func (b *Body) bloodTick(st *injuryState) (changed bool) {
+	before := bloodStage(st.blood)
+	if rate := b.bleedRate(st); rate >= bloodLossMinBleed {
+		st.blood += rate * bloodLossPerBleed
+	} else {
+		st.blood = math.Max(st.blood-bloodLossRecovery, 0)
+	}
+	if st.blood >= bloodLossLethal {
+		st.blood = bloodLossLethal
+		return true
+	}
+	return bloodStage(st.blood) != before
 }
 
 func newInjuryState(n int) injuryState {
@@ -286,6 +338,13 @@ func (b *Body) levels(st *injuryState) capacities {
 	c = lerp(c, c*math.Min(pumping, 1), 0.2)
 	c = lerp(c, c*math.Min(breathing, 1), 0.2)
 	c = lerp(c, c*math.Min(filtration, 1), 0.1)
+	if c > 0 { // PawnCapacityUtility.CalculateCapacityLevel: the hediff capMods, BloodLoss's only
+		stage := bloodStage(st.blood)
+		c += bloodStageOffset[stage]
+		if stage == bloodLossStageCount-1 {
+			c = math.Min(c, 0.1)
+		}
+	}
 	c = roundedHundredth(math.Max(c, 0))
 
 	out := capacities{consciousness: c}
@@ -311,7 +370,7 @@ func (b *Body) levels(st *injuryState) capacities {
 // lethal capacity lost, the core part's efficiency gone, or injuries past the
 // lethal damage threshold.
 func (b *Body) shouldBeDead(st *injuryState, caps capacities) bool {
-	return caps.lethalLost || b.partEfficiency(st, 0) <= 0.0001 || st.total >= b.LethalDamage
+	return caps.lethalLost || b.partEfficiency(st, 0) <= 0.0001 || st.total >= b.LethalDamage || st.blood >= bloodLossLethal
 }
 
 // shouldBeDowned ports Pawn_HealthTracker.ShouldBeDowned for a pawn that is

@@ -632,6 +632,39 @@ func (s *Sim) damage(si, vi int) {
 	}
 }
 
+// healthTick runs pawn vi's 60-tick health interval (A2): Pawn_HealthTracker
+// .HealthTickInterval gives the BloodLoss hediff its bleeding growth
+// (HediffGiver_Bleeding). A change of stage runs CheckForStateChange: dead at
+// the lethal severity, else a standing pawn whose Consciousness the stage
+// pushed under what keeps it awake is downed. The check has no DamageInfo and
+// BloodLoss does not canApplyDodChanceForCapacityChanges, so a raider downed
+// this way does not roll the death-on-downed chance.
+func (s *Sim) healthTick(vi int) {
+	v := &s.pawns[vi]
+	if !v.has || v.dead || v.left || v.body == nil || !v.hashTick(s.tick, bloodLossInterval, 1) {
+		return
+	}
+	b, st := v.body, &v.inj
+	if !(b.BleedFactor > 0) || (st.blood == 0 && b.bleedRate(st) < bloodLossMinBleed) {
+		return
+	}
+	if !b.bloodTick(st) {
+		return
+	}
+	caps := b.levels(st)
+	switch {
+	case b.shouldBeDead(st, caps):
+		v.dead = true
+		s.leave(s.g.idx(v.pos), vi)
+		s.emit(Event{Kind: EventDied, Pawn: v.id, Target: v.id, Cell: v.pos})
+	case !v.downed && b.shouldBeDowned(st, caps):
+		v.downed = true
+		v.stance, v.target, v.burstLeft = stanceIdle, -1, 0
+		v.halt()
+		s.emit(Event{Kind: EventDowned, Pawn: v.id, Target: v.id, Cell: v.pos})
+	}
+}
+
 // preserveOutside ports DamageWorker_AddInjury.ReduceDamageToPreserveOutsideParts:
 // a hit on an outside part that would take more than its health leaves the part
 // at 1 health unless the overkill draws the destruction.

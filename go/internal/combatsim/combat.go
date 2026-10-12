@@ -104,6 +104,9 @@ type combatant struct {
 	// capped at the health of its part.
 	damage       float64
 	downed, dead bool
+	// thingNum is the pawn's thingIDNumber, which sets the ticks its
+	// IsHashIntervalTick intervals fall on (hashTick).
+	thingNum int32
 
 	stance     stance
 	stanceLeft int // ticks until warmup completes or cooldown ends
@@ -161,6 +164,7 @@ func (p *pawn) loadCombat(ps PawnSpec) error {
 	}
 	c.body, c.killAt = cs.Body, cs.Body.LethalDamage
 	c.inj = newInjuryState(len(cs.Body.Parts))
+	c.thingNum = thingNumber(id)
 	if !(cs.DeathOnDownedChance >= 0 && cs.DeathOnDownedChance <= 1) {
 		return unsupported("pawn %q death-on-downed chance %v is outside [0, 1]", id, cs.DeathOnDownedChance)
 	}
