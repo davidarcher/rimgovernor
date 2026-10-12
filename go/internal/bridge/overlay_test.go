@@ -28,3 +28,24 @@ func TestOverlayRequestSendsInclusiveRectsAndRuns(t *testing.T) {
 		t.Fatalf("%v", labels)
 	}
 }
+
+func TestOverlayRequestSendsAShapedRoomAsItsRuns(t *testing.T) {
+	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{{ID: 4, Replaces: 2, Role: policy.PlannedKitchen, Region: policy.RegionOfRuns([]policy.RowRun{{Z: 5, X: 3, Length: 2}, {Z: 6, X: 3, Length: 6}})}}}
+	shapes, labels := overlayRequest(plan.Overlay(policy.Bounds{Width: 50, Height: 50}))
+	var outline *p.OverlayShape
+	filled := 0
+	for _, s := range shapes {
+		if s.GetStyle() == p.OverlayStyle_OVERLAY_STYLE_OUTLINE {
+			outline = s
+		}
+		if s.GetStyle() == p.OverlayStyle_OVERLAY_STYLE_FILL {
+			filled++
+		}
+	}
+	if outline == nil || len(outline.Rects) != 0 || len(outline.Runs) < 3 || filled < 1 {
+		t.Fatalf("shapes %v", shapes)
+	}
+	if len(labels) != 1 || labels[0].GetText() != "#4 kitchen (replaces #2)" {
+		t.Fatalf("labels %v", labels)
+	}
+}

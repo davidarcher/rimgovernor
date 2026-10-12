@@ -88,3 +88,37 @@ func TestLightBaseRooms(t *testing.T) {
 		t.Fatalf("sections %+v err %v", sections, err)
 	}
 }
+
+func TestLightShapedRoomsStayOnTheFloor(t *testing.T) {
+	var ring []RowRun
+	for z := int32(0); z < 15; z++ {
+		if z >= 4 && z <= 10 {
+			ring = append(ring, RowRun{Z: z, X: 0, Length: 4}, RowRun{Z: z, X: 11, Length: 4})
+		} else {
+			ring = append(ring, RowRun{Z: z, X: 0, Length: 15})
+		}
+	}
+	for name, region := range map[string]Region{
+		"ring": RegionOfRuns(ring),
+		"L":    RegionOfRuns([]RowRun{{Z: 0, X: 0, Length: 3}, {Z: 1, X: 0, Length: 3}, {Z: 2, X: 0, Length: 20}, {Z: 3, X: 0, Length: 20}}),
+	} {
+		lamps := BaseRoomLamps(LayoutPlan{Rooms: []PlannedRoom{{Role: PlannedWorkshop, Region: region}}})
+		if len(lamps) == 0 {
+			t.Fatalf("%s: no lamps", name)
+		}
+		for _, l := range lamps {
+			if !region.Contains(l) {
+				t.Fatalf("%s: lamp %v off the floor", name, l)
+			}
+		}
+		for _, c := range region.Cells() {
+			best := math.Inf(1)
+			for _, l := range lamps {
+				best = min(best, distance(l, c))
+			}
+			if best > lampReach {
+				t.Fatalf("%s: cell %v is %.1f from a lamp", name, c, best)
+			}
+		}
+	}
+}

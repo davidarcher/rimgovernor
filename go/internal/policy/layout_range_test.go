@@ -259,7 +259,7 @@ func TestRangeRendersInTheOverlayWithoutADoor(t *testing.T) {
 			outline = &overlay.Layers[i]
 		}
 	}
-	if outline == nil || len(outline.Rects) != 1 || outline.Rects[0] != room.Region.Bounds() {
+	if outline == nil || len(outline.Rects) != 0 || len(outline.Runs) != int(room.Region.Bounds().Height) || outline.Runs[0] != room.Region.Runs[0] {
 		t.Fatalf("range outline %+v, want the interior %+v", outline, room.Region.Bounds())
 	}
 	for _, l := range overlay.Layers {

@@ -165,6 +165,10 @@ func BaseRoomLamps(plan LayoutPlan) []domain.Cell {
 		in := r.Region.Bounds()
 		// A lamp covers a square of side lampReach*sqrt2 around it.
 		span := int32(math.Floor(lampReach * math.Sqrt2))
+		if !r.Region.IsRect() {
+			out = append(out, shapedRoomLamps(r.Region, span)...)
+			continue
+		}
 		nx, nz := (in.Width+span-1)/span, (in.Height+span-1)/span
 		for iz := int32(0); iz < nz; iz++ {
 			for ix := int32(0); ix < nx; ix++ {
@@ -191,4 +195,51 @@ func LightSections(plan LayoutPlan, lamp string) ([]PerimeterSection, error) {
 		s.Buildings = append(s.Buildings, b)
 	}
 	return []PerimeterSection{s}, nil
+}
+
+// shapedRoomLamps lights a non-rectangular region (an L, a ring): one lamp
+// on the floor cell nearest the middle of each span-square of the bounds
+// that holds floor, then a lamp on every floor cell still farther than
+// lampReach from all lamps, row-major. Lamps never stand off the floor.
+func shapedRoomLamps(region Region, span int32) []domain.Cell {
+	in := region.Bounds()
+	cells := region.Cells()
+	sort.Slice(cells, func(i, j int) bool {
+		return cells[i].Z < cells[j].Z || cells[i].Z == cells[j].Z && cells[i].X < cells[j].X
+	})
+	nx, nz := (in.Width+span-1)/span, (in.Height+span-1)/span
+	var out []domain.Cell
+	for iz := int32(0); iz < nz; iz++ {
+		for ix := int32(0); ix < nx; ix++ {
+			mid := domain.Cell{X: in.X + (2*ix+1)*in.Width/(2*nx), Z: in.Z + (2*iz+1)*in.Height/(2*nz)}
+			x0, z0 := in.X+ix*in.Width/nx, in.Z+iz*in.Height/nz
+			x1, z1 := in.X+(ix+1)*in.Width/nx, in.Z+(iz+1)*in.Height/nz
+			best, found := domain.Cell{}, false
+			for _, c := range cells {
+				if c.X < x0 || c.X >= x1 || c.Z < z0 || c.Z >= z1 {
+					continue
+				}
+				if !found || distanceSquared(c, mid) < distanceSquared(best, mid) {
+					best, found = c, true
+				}
+			}
+			if found {
+				out = append(out, best)
+			}
+		}
+	}
+	lit := func(c domain.Cell) bool {
+		for _, l := range out {
+			if distance(l, c) <= lampReach {
+				return true
+			}
+		}
+		return false
+	}
+	for _, c := range cells {
+		if !lit(c) {
+			out = append(out, c)
+		}
+	}
+	return out
 }

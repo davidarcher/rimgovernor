@@ -1,6 +1,8 @@
 package policy
 
 import (
+	"fmt"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -141,13 +143,24 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 		if !ok {
 			continue
 		}
-		walls := Rectangle{X: r.Region.Bounds().X - 1, Z: r.Region.Bounds().Z - 1, Width: r.Region.Bounds().Width + 2, Height: r.Region.Bounds().Height + 2}
-		if r.Unfenced() {
-			// No ring: outline the rows and the lane between them.
-			walls = r.Region.Bounds()
+		// The room's own cells, not its bounding box: the outline follows
+		// the floor and its wall ring, so an L or a ring draws as itself.
+		shape := r.Region
+		if !r.Unfenced() {
+			shape = unionRegions(r.Region, r.Region.Walls())
 		}
-		if add(style, OverlayOutline, []Rectangle{walls}, nil) {
-			label(style.label, centre(r.Region.Bounds()))
+		text := style.label
+		if r.ID > 0 {
+			text = fmt.Sprintf("#%d %s", r.ID, style.label)
+		}
+		if r.Replaces > 0 {
+			// A successor also fills its floor, so it reads apart from
+			// the room it replaces.
+			text += fmt.Sprintf(" (replaces #%d)", r.Replaces)
+			add(overlayStyle{style.hue, "successor"}, OverlayFill, nil, r.Region.Runs)
+		}
+		if add(style, OverlayOutline, nil, shape.Runs) {
+			label(text, labelCell(r.Region))
 		}
 	}
 	var doors []domain.Cell
@@ -162,6 +175,20 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 	}
 	add(overlayStyle{planWhite, "door"}, OverlayFill, nil, cellRuns(doors))
 	return out
+}
+
+// labelCell is the region cell nearest the middle of its bounds, so a ring's
+// label lands on its floor rather than in its hole.
+func labelCell(g Region) domain.Cell {
+	b := g.Bounds()
+	mid := domain.Cell{X: b.X + b.Width/2, Z: b.Z + b.Height/2}
+	best, found := mid, false
+	for _, c := range g.Cells() {
+		if !found || distanceSquared(c, mid) < distanceSquared(best, mid) {
+			best, found = c, true
+		}
+	}
+	return best
 }
 
 // spineRects are the hallways' SpineWidth-wide rectangles.
