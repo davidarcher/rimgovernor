@@ -214,7 +214,11 @@ type RoundsFacts struct {
 	DisasterConditions domain.Fact[[]DisasterCondition]
 	// OutdoorsDark is the colony biome's permanent darkness: its map
 	// conditions include a no-sunlight class.
-	OutdoorsDark      domain.Fact[bool]
+	OutdoorsDark domain.Fact[bool]
+	// PlanLit: the built, powered rooms the layout plan lights with a planned
+	// lamp unbuilt (PlanLitRooms); they keep MaintainLighting open beside the
+	// dark benches.
+	PlanLit           domain.Fact[[]int32]
 	RecoveryBuildings domain.Fact[[]RecoveryBuilding]
 	Disaster          *DisasterHistory
 	DisasterTick      domain.Tick
@@ -851,6 +855,7 @@ func InspectRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolicy) (Round
 	if c.lighting, err = ReviewLighting(f.Upkeep.Lighting, previous.Lighting, p.Lighting, SkyDarkHold(f.DisasterConditions, f.OutdoorsDark)); err != nil {
 		return RoundsFindings{}, err
 	}
+	c.lighting = c.lighting.WithPlanned(f.PlanLit)
 	if c.flooring, err = ReviewFlooring(f.Upkeep.Flooring, f.Upkeep.Rooms, previous.Flooring, p.Flooring); err != nil {
 		return RoundsFindings{}, err
 	}

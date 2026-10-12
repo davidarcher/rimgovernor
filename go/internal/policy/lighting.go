@@ -113,6 +113,10 @@ type LightingReview struct {
 	// black it out for good), so a dark outdoor bench is a deficit a torch
 	// answers for as long as that lasts.
 	SkyDark bool
+	// Planned lists the built, powered rooms the layout plan lights whose
+	// planned lamps are not all standing (PlanLitRooms), by room id; set by
+	// WithPlanned, recomputed each review (a standing lamp releases it).
+	Planned []int32
 }
 
 // ReviewLighting measures every roofed work cell against LitGlow. There is
@@ -289,6 +293,18 @@ func SelectLightingMethod(review LightingReview, fact domain.Fact[LightingObserv
 		digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%d,%d", bench, definition, target.Cell.X, target.Cell.Z)))
 		return LightingProposal{Method: LightingBuild, Key: domain.MethodID(fmt.Sprintf("lighting-%x", digest[:12])), Bench: bench, Target: target.Cell, Definition: definition, Cells: candidates, Planned: planned}, nil
 	}
+	// No dark bench to build for: a built, powered room the plan lights with
+	// lamps still missing gets them, the first such room in id order.
+	if source, sk := facts.PoweredSource.Value(); sk && source {
+		for _, id := range review.Planned {
+			planned := unbuiltPlannedLamps(facts.Plan.Lamps[id], v.Lamps)
+			if len(planned) == 0 {
+				continue
+			}
+			digest := sha256.Sum256([]byte(fmt.Sprintf("room/%d/%s/%d,%d", id, planned[0].Def, planned[0].Cell.X, planned[0].Cell.Z)))
+			return LightingProposal{Method: LightingBuild, Key: domain.MethodID(fmt.Sprintf("lighting-%x", digest[:12])), Target: planned[0].Cell, Definition: planned[0].Def, Planned: planned}, nil
+		}
+	}
 	if deferred == "" {
 		return LightingProposal{Method: LightingNoMethod}, nil
 	}
@@ -446,4 +462,45 @@ func unbuiltPlannedLamps(planned []PlannedLamp, standing []Lamp) []PlannedLamp {
 		}
 	}
 	return out
+}
+
+// PlanLitRooms is the plan's lighting deficit: the ids of the rooms the plan
+// lights (LayoutPlan.Lamps, placed only where lighting the dark cost less than
+// leaving it, priced in sustained watts by the tiler) that stand built (an
+// enclosed census room within the planned region) while a planned lamp is
+// unbuilt and a power network has an active source, in room order. A room the
+// plan found darkness cheaper for has no lamps and is never listed; no active
+// source lists nothing (the lamps are electric); an unknown plan, room census,
+// lamp census or source is unknown.
+func PlanLitRooms(plan domain.Fact[LayoutPlan], rooms domain.Fact[RoomObservation], lamps domain.Fact[LightingObservation], powered domain.Fact[bool]) domain.Fact[[]int32] {
+	p, pk := plan.Value()
+	r, rk := rooms.Value()
+	l, lk := lamps.Value()
+	source, sk := powered.Value()
+	if !pk || !rk || !lk || !sk {
+		return domain.Unknown[[]int32]()
+	}
+	var out []int32
+	if !source {
+		return domain.Known(out)
+	}
+	for _, room := range p.AllRooms() {
+		if len(unbuiltPlannedLamps(p.Lamps[room.ID], l.Lamps)) == 0 {
+			continue
+		}
+		if _, built := CensusRoomIn(room, r); built {
+			out = append(out, room.ID)
+		}
+	}
+	return domain.Known(out)
+}
+
+// WithPlanned folds the plan's lighting deficit into the review: a listed room
+// keeps the project open beside the dark benches. An unknown fact adds none.
+func (r LightingReview) WithPlanned(rooms domain.Fact[[]int32]) LightingReview {
+	if ids, known := rooms.Value(); known {
+		r.Planned = ids
+		r.Active = r.Active || len(ids) > 0
+	}
+	return r
 }

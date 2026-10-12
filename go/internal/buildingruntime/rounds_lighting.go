@@ -25,6 +25,12 @@ func NewRoundsLightingPlanner(reviewer *Rounder, native RoundsBuildingSource) (*
 	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainLighting, definition: "TorchLamp"}, nil
 }
 
+// planLitRooms is the review's PlanLit fact for the projection: the built,
+// powered rooms the layout plan lights with a planned lamp still missing.
+func planLitRooms(facts observation.ColonyProjection) domain.Fact[[]int32] {
+	return policy.PlanLitRooms(facts.LayoutPlan, facts.Rooms, facts.Facts.Upkeep.Lighting, poweredSource(facts))
+}
+
 // lightingDefinitions lists every lamp the policy may choose so the census
 // read carries each one's availability.
 func (r *RoundsBuildingPlanner) lightingDefinitions() []string {
@@ -49,6 +55,7 @@ func (r *RoundsBuildingPlanner) selectLighting(facts observation.ColonyProjectio
 	if err != nil {
 		return nil, Verdict{}, err
 	}
+	review = review.WithPlanned(planLitRooms(facts))
 	if !review.Active {
 		return nil, BuildingReasonNoDeficit, nil
 	}

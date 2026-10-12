@@ -523,6 +523,13 @@ service state).
   free, walkable, unzoned cell of the room within two cells of the interaction cell, each
   validated by native preview. A receipt never clears the deficit; the next census must read
   the cell lit.
+- The plan is also a deficit input (`RoundsFacts.PlanLit`, `policy.PlanLitRooms`): a room the plan
+  lights (`LayoutPlan.Lamps`, so lighting its dark cost less than leaving it, in the tiler's
+  sustained watts) that stands built (an enclosed census room within its region) with a planned lamp
+  no observed lamp stands on, while a network has an active source, keeps the project open with no
+  dark bench (`LightingReview.Planned`) and the round builds its planned lamps, after any dark
+  bench. A room the plan left dark, an unbuilt room or no active source yields none; unknown
+  facts add none. The improvised lamp stays: it serves benches in rooms the plan lit nothing in.
 
 `MaintainFlooring` reasons from the terrain under each room cell and its native stats
 (`UpkeepFacts.flooring`).
