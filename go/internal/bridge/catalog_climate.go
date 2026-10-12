@@ -13,6 +13,30 @@ import (
 // most efficient cooler's heat per second and power draw from their temperature
 // control and power comps, and the cheapest cost list of the vent, door and wall.
 // stations is the catalog being built, whose coolers it reads.
+// livingBand is the comfortable temperature range of the colonists' race, its
+// ComfyTemperatureMin and ComfyTemperatureMax stat bases; the zero band when the
+// race states neither.
+func (catalog *DefinitionCatalog) livingBand(table policy.ClimateTable) policy.Band {
+	race, ok := catalog.ThingDefs[table.RaceDef]
+	if !ok {
+		return policy.Band{}
+	}
+	var band policy.Band
+	found := 0
+	for _, m := range race.GetStatBases() {
+		switch m.GetValue().GetStat() {
+		case table.ComfyMinStat:
+			band.MinC, found = float64(m.GetValue().GetValue()), found+1
+		case table.ComfyMaxStat:
+			band.MaxC, found = float64(m.GetValue().GetValue()), found+1
+		}
+	}
+	if found != 2 {
+		return policy.Band{}
+	}
+	return band
+}
+
 func (catalog *DefinitionCatalog) climateModel(stations policy.StationCatalog) (policy.ClimateModel, error) {
 	// A catalog without the defs or constants (a hand-built one) has an unknown
 	// model, not an error: the advice that reads it is left off.
@@ -44,6 +68,8 @@ func (catalog *DefinitionCatalog) climateModel(stations policy.StationCatalog) (
 	control := compOf(catalog.ThingDefs[heater], (*d.CompPropertiesAny).GetCompProperties_TempControl)
 	power := compOf(catalog.ThingDefs[heater], (*d.CompPropertiesAny).GetCompProperties_Power)
 	m.Heater = policy.ClimatePlant{HeatPerSecond: float64(control.GetEnergyPerSecond()), PowerW: float64(power.GetBasePowerConsumption())}
+	m.HeldC = float64(control.GetDefaultTargetTemperature())
+	m.Living = catalog.livingBand(table)
 	if cooler, found := stations.BestCooler(); found {
 		cooling := stations.Stations[cooler].Cooling
 		m.Cooler = policy.ClimatePlant{HeatPerSecond: cooling.HeatPerSecond, PowerW: cooling.PowerDraw}

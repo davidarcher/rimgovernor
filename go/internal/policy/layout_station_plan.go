@@ -73,6 +73,9 @@ type StationFacts struct {
 	// (groupClimate) needs both and is left off while either is unknown.
 	OutdoorCurve domain.Fact[[]float64]
 	FullRotRateC float64
+	// VentAvailable is whether the vent is researched (#2915); unknown or
+	// false leaves vents out of the tiled plan.
+	VentAvailable domain.Fact[bool]
 	// Crops are the crops the colony grows (the caller's choice, not the
 	// chain's) and FoodReserveDays the stored-food buffer their fields budget:
 	// each edible crop with a known capacity target is a field node (#2920).
@@ -246,8 +249,8 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 		}
 	}
 	if f.Tile {
-		steel, _ := f.Items.MarketValue(siteSteelUnit) // unknown stays zero: the airlocks go unpriced
-		tiled, err := TileEmbedding(TileInput{Groups: clustering.Groups, Embedding: embedding, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, OutdoorCurve: f.OutdoorCurve, RoofDistance: f.RoofDistance, FullRotRateC: f.FullRotRateC, SteelValue: steel, Light: stationLightPrice(f, steel)})
+		steel, _ := f.Items.MarketValue(siteSteelUnit) // unknown stays zero: the airlocks and vents go unpriced
+		tiled, err := TileEmbedding(TileInput{Groups: clustering.Groups, Embedding: embedding, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, OutdoorCurve: f.OutdoorCurve, RoofDistance: f.RoofDistance, FullRotRateC: f.FullRotRateC, SteelValue: steel, VentAvailable: f.VentAvailable, Light: stationLightPrice(f, steel)})
 		if err != nil {
 			return StationAdvice{}, err
 		}

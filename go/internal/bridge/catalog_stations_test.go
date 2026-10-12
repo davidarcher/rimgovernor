@@ -272,5 +272,24 @@ func TestStationCatalogClimateModelIsTheGamesNumbers(t *testing.T) {
 	if m.Build.Vent <= 0 || m.Build.Door <= 0 || m.Build.Wall <= 0 {
 		t.Errorf("build values %+v", m.Build)
 	}
+	if !m.HasLiving() || m.Living.MinC != 16 || m.Living.MaxC != 26 || m.HeldC != 21 {
+		t.Errorf("living band %+v held at %v, want the Human's 16..26 and the heater's 21", m.Living, m.HeldC)
+	}
 	t.Logf("%+v", m)
+}
+
+// A station that pushes heat carries the def's heat per second and limits
+// (CompProperties_HeatPusher): the electric stove 3 a second at any
+// temperature, the campfire 21 a second below 28 C.
+func TestStationCatalogHeatIsTheHeatPushersNumbers(t *testing.T) {
+	stations := recordedStations(t)
+	if h := stations.Stations["ElectricStove"].Heat; h.HeatPerSecond != 3 || h.MaxC < 1000 {
+		t.Errorf("electric stove heat %+v", h)
+	}
+	if h := stations.Stations["Campfire"].Heat; h.HeatPerSecond != 21 || h.MaxC != 28 {
+		t.Errorf("campfire heat %+v", h)
+	}
+	if h := stations.Stations["Heater"].Heat; h.Pushes() {
+		t.Errorf("a heater pushes through its temperature control, not a heat pusher: %+v", h)
+	}
 }

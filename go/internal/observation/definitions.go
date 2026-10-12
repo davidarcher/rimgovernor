@@ -8,6 +8,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
@@ -20,6 +21,7 @@ var StarterDefinitions = []string{
 	"Fence", "FenceGate", "FueledStove", "GeothermalGenerator", "Heater", "PartySpot", "PassiveCooler", "PenMarker",
 	"Plant_Corn", "Plant_Potato", "Plant_Rice", "PowerConduit", "Sandbags", "SimpleResearchBench", "SleepingSpot",
 	"SolarGenerator", "StandingLamp", "TableStonecutter", "Wall", "WindTurbine", "WoodFiredGenerator",
+	policy.ClimateDefs().VentDef, // the vent the tiler prices (#2915)
 }
 
 // DefinitionSource serves the load's definition catalog. A colony source

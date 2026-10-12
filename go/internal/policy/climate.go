@@ -20,20 +20,37 @@ import (
 // DefTables entry. The model is advice beside the old planner, which stays
 // authoritative until #2931.
 //
+// The heat given off inside the room (#2915) is in: each station with a
+// CompProperties_HeatPusher (stoves, smelters, torches) pushes heatPerSecond
+// into its room whenever the room's temperature lies between its
+// heatPushMinTemperature and heatPushMaxTemperature (CompHeatPusher.ShouldPushHeatNow;
+// the powered subclass adds only "has power and fuel", always true of a station
+// the colony runs). That load is what a vent sheds faster than a closed door:
+// it wins where the load pushes the room out of its band. A cooler's hot side
+// (Building_Cooler pushes 1.25 times its output) stands on the far side of the
+// wall, so it loads the neighbour, not the room it cools.
+//
 // Left out, because every option pays it alike: heat leaking through walls and
-// roofs, heat given off inside the room, weather offsets and drift inside a
-// twelfth of the year. The room has no thermal inertia: at each step of a day
-// resolved year it is held where the openings would float it, clamped into the
-// band, and the power is the heat that holding it costs.
+// roofs, weather offsets and drift inside a twelfth of the year. The room has no
+// thermal inertia: at each step of a day resolved year it is held where the
+// openings and the heat inside would float it, clamped into the band, and the
+// power is the heat that holding it costs.
 
 // ClimateTable is the model's one judgment table, registered in DefTables so a
 // renamed def fails the dangling-reference gate. The defs are the buildings the
 // options are priced in; SunPhase is the phase of GenTemperature.OffsetFromSunCycle,
 // cos(2pi(dayPct+SunPhase)) times TemperatureTuning.DailyTempVariationAmplitude:
-// a literal in the game's code that no def or constant states.
+// a literal in the game's code that no def or constant states. RaceDef and its
+// two stats are where a room people live in takes its band (the race's
+// comfortable range; the stat def's own base is the unclothed 0..40 and not the
+// range a colonist is comfortable in). A neighbouring room is held at the
+// default target of the catalog's heater (ClimateModel.HeldC): the game's own
+// default for a heated room.
 type ClimateTable struct {
-	VentDef, DoorDef, WallDef string
-	SunPhase                  float64
+	VentDef, DoorDef, WallDef  string
+	RaceDef                    string
+	ComfyMinStat, ComfyMaxStat string
+	SunPhase                   float64
 	// DoorOpenTicks is how long a door stays open after a pawn passes
 	// (Building_Door's close delay, a literal in the game's code that no def
 	// states): the time one passage holds it open, which turns movements a day
@@ -41,7 +58,7 @@ type ClimateTable struct {
 	DoorOpenTicks int
 }
 
-var climateTable = ClimateTable{VentDef: "Vent", DoorDef: ShellDoorDefinition, WallDef: ShellWallDefinition, SunPhase: 0.32, DoorOpenTicks: 110}
+var climateTable = ClimateTable{VentDef: "Vent", DoorDef: ShellDoorDefinition, WallDef: ShellWallDefinition, RaceDef: "Human", ComfyMinStat: "ComfyTemperatureMin", ComfyMaxStat: "ComfyTemperatureMax", SunPhase: 0.32, DoorOpenTicks: 110}
 
 // ClimateDefs are the building defs the climate options are priced in.
 func ClimateDefs() ClimateTable { return climateTable }
@@ -100,7 +117,31 @@ type ClimateModel struct {
 	// SwingC is the sun cycle's amplitude, TemperatureTuning.DailyTempVariationAmplitude.
 	SwingC float64
 	Build  ClimateBuildValue
+	// Living is the band a room people live in is held in (the race's
+	// comfortable range) and HeldC the temperature a heated neighbour is held
+	// at (the heater's default target). Both are zero for a catalog that
+	// cannot state them (HasLiving false); the tiler needs them, the cold
+	// group's advice does not.
+	Living Band
+	HeldC  float64
 }
+
+// HasLiving reports a model that states the living band and the temperature a
+// heated neighbour is held at.
+func (m ClimateModel) HasLiving() bool {
+	return m.Valid() && m.Living.MinC < m.Living.MaxC && !math.IsInf(m.Living.MinC, 0) && !math.IsInf(m.Living.MaxC, 0) &&
+		!math.IsNaN(m.HeldC) && !math.IsInf(m.HeldC, 0)
+}
+
+// HeatSource is the heat a station gives off into its room: HeatPerSecond
+// while the room's temperature is between MinC and MaxC (exclusive), as
+// CompProperties_HeatPusher states. Negative heat cools (the passive cooler).
+type HeatSource struct {
+	HeatPerSecond, MinC, MaxC float64
+}
+
+// Pushes reports a source that gives off any heat.
+func (h HeatSource) Pushes() bool { return h.HeatPerSecond != 0 }
 
 // Valid reports a model with every number present.
 func (m ClimateModel) Valid() bool {
@@ -151,6 +192,8 @@ type ClimateRoom struct {
 	Cells int
 	Band  Band
 	Links []ClimateLink
+	// Heat is what the room's own stations give off.
+	Heat []HeatSource
 }
 
 // ClimateWatts is the power a room's openings cost over a year: the mean and
@@ -209,6 +252,7 @@ func ClimateLoad(m ClimateModel, curve []float64, room ClimateRoom, traffic floa
 	for i, l := range room.Links {
 		g[i] = m.conductance(l, room.Cells, traffic)
 	}
+	inside := newInsideHeat(room.Heat, m.TicksPerSecond)
 	var out ClimateWatts
 	steps := 0
 	for tick := 0; tick < domain.TicksPerYear; tick += m.StepTicks {
@@ -225,13 +269,14 @@ func ClimateLoad(m ClimateModel, curve []float64, room ClimateRoom, traffic floa
 		if total == 0 {
 			continue
 		}
-		// heat and cool are the heat per tick (cell-degrees) held at the edge.
+		// heat and cool are the heat per tick (cell-degrees) held at the edge,
+		// beyond what the room's own stations give off at that temperature.
 		var heat, cool float64
-		switch floating := flow / total; {
+		switch floating := inside.floats(flow, total); {
 		case floating < room.Band.MinC:
-			heat = room.Band.MinC*total - flow
+			heat = math.Max(0, room.Band.MinC*total-flow-inside.pushAt(room.Band.MinC))
 		case floating > room.Band.MaxC:
-			cool = flow - room.Band.MaxC*total
+			cool = math.Max(0, flow+inside.pushAt(room.Band.MaxC)-room.Band.MaxC*total)
 		}
 		heatingW := heat * m.TicksPerSecond / m.Heater.HeatPerSecond * m.Heater.PowerW
 		coolingW := cool * m.TicksPerSecond / m.Cooler.HeatPerSecond * m.Cooler.PowerW
@@ -243,6 +288,77 @@ func ClimateLoad(m ClimateModel, curve []float64, room ClimateRoom, traffic floa
 	out.CoolingW /= float64(steps)
 	out.MeanW = out.HeatingW + out.CoolingW
 	return out, nil
+}
+
+// insideHeat is a room's stations' heat as the model reads it: the heat per
+// tick each gives off between its limits, cut into the temperature intervals
+// the limits bound so that a step finds where the room floats without sorting.
+type insideHeat struct {
+	sources []tickHeat
+	// pieces are the intervals between the limits, lowest first, with the
+	// heat given off throughout each.
+	pieces []heatPiece
+}
+
+type tickHeat struct{ perTick, min, max float64 }
+
+type heatPiece struct{ lo, hi, push float64 }
+
+func newInsideHeat(sources []HeatSource, ticksPerSecond float64) insideHeat {
+	var h insideHeat
+	edges := []float64{math.Inf(-1), math.Inf(1)}
+	for _, s := range sources {
+		if !s.Pushes() || math.IsNaN(s.HeatPerSecond) || math.IsNaN(s.MinC) || math.IsNaN(s.MaxC) {
+			continue
+		}
+		h.sources = append(h.sources, tickHeat{s.HeatPerSecond / ticksPerSecond, s.MinC, s.MaxC})
+		edges = append(edges, s.MinC, s.MaxC)
+	}
+	if len(h.sources) == 0 {
+		return h
+	}
+	slices.Sort(edges)
+	edges = slices.Compact(edges)
+	for i := 0; i+1 < len(edges); i++ {
+		p := heatPiece{lo: edges[i], hi: edges[i+1]}
+		for _, s := range h.sources {
+			if s.min <= p.lo && s.max >= p.hi {
+				p.push += s.perTick
+			}
+		}
+		h.pieces = append(h.pieces, p)
+	}
+	return h
+}
+
+// pushAt is the heat per tick given off with the room held at c.
+func (h insideHeat) pushAt(c float64) float64 {
+	var out float64
+	for _, s := range h.sources {
+		if c > s.min && c < s.max {
+			out += s.perTick
+		}
+	}
+	return out
+}
+
+// floats is the temperature the room settles at when its openings carry flow
+// (conductance times the temperature beyond, summed) over total conductance
+// and its stations give off heat inside their limits: the first temperature
+// where the heat given off at it holds the room there, else the limit a
+// station reaches and switches off at (the room sits there, the station
+// working part of the time).
+func (h insideHeat) floats(flow, total float64) float64 {
+	for i, p := range h.pieces {
+		t := (flow + p.push) / total
+		if t > p.lo && t < p.hi {
+			return t
+		}
+		if t >= p.hi && i+1 < len(h.pieces) && (flow+h.pieces[i+1].push)/total <= p.hi {
+			return p.hi
+		}
+	}
+	return flow / total
 }
 
 // DoorOpenFraction is the fraction of the time a door is open when
@@ -345,6 +461,22 @@ func BestClimateOption(options []ClimateOption) (ClimateOption, bool) {
 	return options[best], true
 }
 
+// GroupHeat is the heat the group's stations give off into its room, one
+// source per station def at its count.
+func (c StationCatalog) GroupHeat(g RoomGroup) []HeatSource {
+	var out []HeatSource
+	for _, s := range g.Stations {
+		st, ok := c.Station(s.Def)
+		if !ok || !st.Heat.Pushes() || s.Count <= 0 {
+			continue
+		}
+		h := st.Heat
+		h.HeatPerSecond *= float64(s.Count)
+		out = append(out, h)
+	}
+	return out
+}
+
 // BestCooler is the catalog's cooling station that draws the least power per
 // heat moved, false when it has none.
 func (c StationCatalog) BestCooler() (string, bool) { return bestCooler(c) }
@@ -373,7 +505,7 @@ func groupClimate(f StationFacts, g RoomGroup) *GroupClimate {
 		return nil
 	}
 	band := Band{MinC: math.Inf(-1), MaxC: f.FullRotRateC}
-	options, err := ClimateOptions(m, DefaultSiteTypeWeights(), steel, curve, ClimateRoom{Cells: g.Area, Band: band}, ClimateSide{Outdoors: true}, 0, OpeningOrder)
+	options, err := ClimateOptions(m, DefaultSiteTypeWeights(), steel, curve, ClimateRoom{Cells: g.Area, Band: band, Heat: f.Catalog.GroupHeat(g)}, ClimateSide{Outdoors: true}, 0, OpeningOrder)
 	if err != nil {
 		return nil
 	}

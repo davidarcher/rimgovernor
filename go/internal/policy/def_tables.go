@@ -44,7 +44,8 @@ func DefTables() []DefTable {
 		{"WoodLatchDefs", "Verse.ThingDef", slices.Clone(WoodLatchDefs)},
 		{"ScenarioThingChoices", "Verse.ThingDef", slices.Clone(ScenarioThingChoices)},
 		{"RhadamantThings", "Verse.ThingDef", rhadamantThingDefs()},
-		{"climateTable", "Verse.ThingDef", []string{climateTable.VentDef, climateTable.DoorDef, climateTable.WallDef}},
+		{"climateTable", "Verse.ThingDef", []string{climateTable.VentDef, climateTable.DoorDef, climateTable.WallDef, climateTable.RaceDef}},
+		{"climateStats", "RimWorld.StatDef", []string{climateTable.ComfyMinStat, climateTable.ComfyMaxStat}},
 		// lightTable: DarkSpeed (0.8) is StatPart_Glow's factor on
 		// WorkSpeedGlobal and MoveSpeed at glow 0, a curve in the def that the
 		// bridge does not read; the lamp is the building the plan places. The

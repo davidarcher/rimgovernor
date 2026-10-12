@@ -388,8 +388,35 @@ func (p LayoutPlan) Valid() bool {
 			return false
 		}
 		siteIDs[s.Node] = true
+		if s.Kind == NodeVent && !p.validVent(s) {
+			return false
+		}
 	}
 	return true
+}
+
+// validVent reports a vent that stands in a room's wall: one cell of a fenced
+// room's wall ring, a corner excluded, that no door, link or entrance holds.
+func (p LayoutPlan) validVent(s PlannedSite) bool {
+	cells := s.Footprint.Cells()
+	if len(cells) != 1 {
+		return false
+	}
+	c := cells[0]
+	if slices.Contains(p.Entrances, c) || slices.ContainsFunc(p.Links, func(l RoomLink) bool { return l.Cell == c }) {
+		return false
+	}
+	inRing := false
+	for _, r := range p.AllRooms() {
+		if r.Unfenced() {
+			continue
+		}
+		if r.Door == c || slices.ContainsFunc(r.Doors, func(d Door) bool { return d.Cell == c }) {
+			return false
+		}
+		inRing = inRing || inWall(r.Region.Bounds(), c)
+	}
+	return inRing
 }
 
 // besideExteriorDoor reports c as the outside cell of a room's own door: it

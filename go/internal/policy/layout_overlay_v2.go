@@ -79,6 +79,7 @@ var siteOverlay = map[NodeKind]overlayStyle{
 	NodeMortar:     {planRed, "mortar"},
 	NodeCoverClear: {planGray, "clear cover"},
 	NodePocketWall: {planRed, "pocket wall"},
+	NodeVent:       {planCyan, "vent"},
 }
 
 // Ring attributes drawn beside the ring itself.

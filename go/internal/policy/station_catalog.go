@@ -45,6 +45,9 @@ type Station struct {
 	// Cooling is set when the station cools its room (a temperature control
 	// that draws heat out); the zero value cools nothing.
 	Cooling StationCooling
+	// Heat is what the station gives off into its room (CompProperties_HeatPusher);
+	// the zero value gives off none.
+	Heat HeatSource
 	// BaseW is the def's power comp wattage in the sign the power policy reads
 	// (PowerBuilding.BaseW): negative for a consumer, positive for a producer,
 	// zero for none or a battery. The conduit router wires planned rooms

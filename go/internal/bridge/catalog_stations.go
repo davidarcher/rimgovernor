@@ -76,6 +76,9 @@ func (catalog *DefinitionCatalog) buildStations() (policy.StationCatalog, error)
 			return policy.StationCatalog{}, err
 		}
 		station.Cooling = b.cooling()
+		if push := compOf(row, (*d.CompPropertiesAny).GetCompProperties_HeatPusher); push != nil {
+			station.Heat = policy.HeatSource{HeatPerSecond: float64(push.GetHeatPerSecond()), MinC: float64(push.GetHeatPushMinTemperature()), MaxC: float64(push.GetHeatPushMaxTemperature())}
+		}
 		watts, powered, err := catalog.PowerDraw(row)
 		if err != nil {
 			return policy.StationCatalog{}, err

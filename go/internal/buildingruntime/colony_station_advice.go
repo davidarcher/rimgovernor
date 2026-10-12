@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -108,6 +109,7 @@ func stationFactsOf(projection observation.ColonyProjection, plan policy.LayoutP
 		Orders: domain.Unknown[[]policy.OrderSpec](), Stock: domain.Unknown[map[policy.Resource]int64](),
 		RoofDistance: projection.RoofSupport, Plan: plan, Survey: survey,
 		OutdoorCurve: projection.OutdoorCurve, FullRotRateC: projection.FullRotRateC,
+		VentAvailable: projection.DefinitionAvailable(policy.ClimateDefs().VentDef),
 	}
 	if rooms, known := projection.Rooms.Value(); known {
 		f.Dining = rooms.Dining
@@ -202,10 +204,22 @@ func stationAdviceAttrs(a policy.StationAdvice) map[string]any {
 	for _, f := range a.Embedding.Fields {
 		fields = append(fields, map[string]any{"field": f.ID, "x": f.Interior.X, "z": f.Interior.Z, "width": f.Interior.Width, "height": f.Interior.Height, "reason": policy.ReasonEmbedFieldPlaced})
 	}
+	// The tiled plan's vents and why a room has none (#2915).
+	var vents, ventIssues []map[string]any
+	if a.Tiled != nil {
+		for _, v := range a.Tiled.Plan.LiveSites(policy.NodeVent) {
+			vents = append(vents, map[string]any{"x": v.Origin.X, "z": v.Origin.Z, "rotation": string(v.Rotation), "reason": v.Reason})
+		}
+		for _, d := range a.Tiled.Decisions {
+			if strings.HasPrefix(d.Reason, "tile_vent") && d.Verdict != policy.TilePlace {
+				ventIssues = append(ventIssues, map[string]any{"group": d.Group, "verdict": d.Verdict, "reason": d.Reason})
+			}
+		}
+	}
 	s := a.Embedding.Score
 	return map[string]any{
 		"nodes": len(a.Graph.Nodes), "edges": len(a.Graph.Edges), "groups": groups, "conflicts": conflicts,
-		"sites": sites, "site_issues": siteIssues,
+		"sites": sites, "site_issues": siteIssues, "vents": vents, "vent_issues": ventIssues,
 		"embed": map[string]any{
 			"level": a.Embedding.ObstacleLevel(), "placed": len(a.Embedding.Blocks), "issues": issues, "fields": fields,
 			"cells": s.Cells, "total": s.Total(), "soil": s.Soil, "edge": s.Edge, "centre": s.Centre, "walk": s.Walk, "unmet_links": s.UnmetLinks,

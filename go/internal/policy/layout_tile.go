@@ -49,6 +49,9 @@ import (
 //     can go, a room that MayBeThrough is marked Through (a decision,
 //     ReasonTilePassThrough) and walked through; a sealed room is joined to the
 //     neighbour crossing costs least (throughRank).
+//   - Vents (layout_tile_vent.go). After the routes are kept, a vent is a 1x1
+//     NodeVent site in a wall cell facing open ground, placed where the climate
+//     model prices it under holding the doors alone (build cost included).
 //   - Trips. The plan carries the group flows as LayoutPlan.Trips between its
 //     rooms; plan scoring walks them (tripWalk), not the role-pair table.
 //
@@ -107,6 +110,9 @@ type TileInput struct {
 	// market value a build cost is counted in) are the airlocks' pricing reads
 	// (layout_tile_airlock.go); either unknown leaves the airlocks unpriced.
 	FullRotRateC, SteelValue float64
+	// VentAvailable is whether the vent is researched; the tiler places vents
+	// (layout_tile_vent.go) over the same curve, rot band and steel value.
+	VentAvailable domain.Fact[bool]
 	// Light is the price of darkness against lamps (layout_light.go); invalid
 	// leaves the lamps unplaced and the decision says so.
 	Light LightPrice
@@ -190,6 +196,7 @@ type tiler struct {
 	extDoor  []*domain.Cell
 	extOut   []domain.Cell
 	free     map[domain.Cell]bool // open ground, as chooseExteriors found it
+	vents    []tileVent
 	plan     LayoutPlan
 	out      TileResult
 }
@@ -299,6 +306,7 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 		t.out.Plan = t.build()
 		return t.out, err
 	}
+	t.chooseVents()
 	t.out.Plan = t.build()
 	if !t.out.Plan.Valid() {
 		return t.out, fmt.Errorf("%w: the tiled plan is not valid", ErrTile)
@@ -722,6 +730,7 @@ func (t *tiler) build() LayoutPlan {
 	}
 	sortCells(p.Entrances)
 	p.Entrances = slices.Compact(p.Entrances)
+	p.Sites = append(slices.Clone(t.plan.Sites), t.ventSites()...)
 	p.Trips = nil
 	for k, w := range t.weight {
 		if w > 0 {

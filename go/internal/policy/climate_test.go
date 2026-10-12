@@ -232,7 +232,7 @@ func TestClimateTableNamesTheDefsItPrices(t *testing.T) {
 	}
 	found := false
 	for _, entry := range DefTables() {
-		found = found || entry.Table == "climateTable" && slices.Equal(entry.Names, []string{table.VentDef, table.DoorDef, table.WallDef})
+		found = found || entry.Table == "climateTable" && slices.Equal(entry.Names, []string{table.VentDef, table.DoorDef, table.WallDef, table.RaceDef})
 	}
 	if !found {
 		t.Error("climateTable is not a DefTables entry")

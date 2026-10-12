@@ -253,16 +253,40 @@ the twelfths interpolated between midpoints plus `cos(2pi(dayPct+0.32))*7`,
 `GenTemperature.OffsetFromSunCycle`, no longitude shift) the room floats to the
 conductance-weighted mean of what lies beyond its openings, is held at the band
 edge it floats past, and that heat becomes watts through the plant's power per
-heat. The room has no thermal inertia, and wall and roof leakage, heat given off
-inside, weather offsets and drift inside a twelfth are left out: every option
-pays them alike. The only judgment, the sun cycle's phase (a literal in the
-game's code), is the `climateTable` DefTables entry with the vent, door and wall
-defs. A build's cost is turned into watts at the site pricing's own rate
+heat. Heat given off inside is in the model (#2915): a station's
+`CompProperties_HeatPusher` (`Station.Heat`: heat per second, with the min and
+max temperatures between which it pushes) enters the room's balance, modelled by
+pieces with a hover at a limit when the pusher cycles; the climate reads each
+station's heat from the defs (`bridge/catalog_stations.go`). A room with its own
+band (`ClimateModel.Living`, the human's comfortable range) is held in it, and
+a neighbour room is held at the heater's default target (`HeldC`). The room has
+no thermal inertia, and wall and roof leakage, weather offsets and drift inside
+a twelfth are left out: every option pays them alike. The only judgment, the sun
+cycle's phase (a literal in the game's code), is the `climateTable` DefTables
+entry with the vent, door and wall defs. A build's cost is turned into watts at the site pricing's own rate
 (`SiteTypeWeights`: construction per 100 steel a day, amortised over one 60-day
 year, against power per kilowatt), so `ClimateOption.TotalW` compares options in
 one unit. The `layout_stations` row carries `climate` with each option's mean,
 peak, heating, cooling, build and total watts. Envelope entrances (#2916) and
-vent placement (#2915) read this model.
+vent placement read this model.
+
+Vents in the tiler (#2915, `layout_tile_vent.go`): after keepRoutes the tiler
+chooses `NodeVent` sites, 1x1 `PlannedSite`s in room wall cells (corners
+excluded, never a door, link or entrance cell) whose outside cell is open
+ground, ordered by `cellLess`. Per room, coordinate descent over vent counts
+prices the room's watts, its linked neighbours' watts and the vents' build watts
+against the doors-only baselines, for two channels: the outdoors (bounded by the
+open outside wall cells minus those wall stations like the cooler need, so the
+two are priced jointly) and each link door's neighbour (cells beside the link
+door). A vent that does not beat the baselines is not placed and the decision
+says `tile_vent_not_cheaper`; `tile_vent_unavailable` (no Vent research or
+unknown) and `tile_vent_climate_unknown` (no curve) name the other absences.
+Nothing is a hard veto. With the recorded defs a vent is about 195 W of build,
+so it wins only for heat loads far above a stove's: about 100 heat/s on a
+sea-ice curve, 200 or more on a temperate one, never on a hot one; the freezer
+(no heat inside) and link vents (neighbour held at about 21 C) do not win. The
+advice map carries `vents` and `vent_issues`. The old planner stays
+authoritative until #2931.
 
 `MatchGroupRooms` matches the standing planned rooms of a native role
 (`BuiltRegions`, through the planned-role to native-role table) to the groups
