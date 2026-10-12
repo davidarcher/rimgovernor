@@ -21,7 +21,7 @@ func (a *Adapter) Autonomy() []Order {
 	var out []Order
 	for i := range s.pawns {
 		p := &s.pawns[i]
-		if !a.hold[p.id] || a.holdFire[p.id] || !p.armed || p.dead || p.downed || p.target >= 0 || p.stance != stanceIdle {
+		if !a.orderable[p.id] || a.holdFire[p.id] || !p.armed || p.dead || p.downed || p.moving || p.target >= 0 || p.stance != stanceIdle {
 			continue
 		}
 		best, bestD := -1, 0

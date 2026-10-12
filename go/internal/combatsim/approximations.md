@@ -78,11 +78,15 @@ is a candidate to replace by a faithful port. Game sources are in
   `1 - damage/DamageToKill` (0 dead); the game's health scale is capacity-based.
   Bleeding, pain, tending and medical skill have no sim state and are not
   reported as facts the policy could misread.
-- **A21. A holder shoots on its own.** `hold_position` is Wait_Combat in the game,
-  whose auto-attack picks a hostile in reach. `Autonomy` gives an idle holder
-  that is not on hold fire an attack on the nearest hostile it can hit (ties to
-  the earlier scenario pawn). The game's target scoring is not ported for
-  colonists (the hostiles' is, E1-E8).
+- **A21. An idle drafted colonist shoots on its own.** A drafted pawn with no job
+  runs Wait_Combat (what `hold_position` starts, and what a finished `move`
+  falls back to), whose auto-attack picks a hostile in reach. `Autonomy` gives
+  every idle, not walking, plan-owned colonist that is not on hold fire an
+  attack on the nearest hostile it can hit (ties to the earlier scenario pawn).
+  It used to cover only `hold_position` pawns, so colonists the policy sent to
+  a cell never fired and the sim shot about a quarter as often as the game
+  (#2899). The game's target scoring is not ported for colonists (the hostiles'
+  is, E1-E8).
 - **A22. Only two stop kinds are raised.** `downed` (a colonist downed or
   killed) and `entered_range` (a hostile came within a colonist's weapon range,
   or a colonist's weapon reached it; distance only, no sight, once per hostile

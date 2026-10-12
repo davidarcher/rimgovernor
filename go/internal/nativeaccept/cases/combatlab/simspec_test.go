@@ -111,10 +111,10 @@ func TestLabFixturesImportAndRunInTheSim(t *testing.T) {
 				}
 			case "lab-choke":
 				// The fixture is a melee fight: the brawlers and slashers are imported
-				// unarmed (Result.Unmodeled), and downed raiders keep their cells (A4), so
-				// the ones behind them cannot reach the gap and the run ends at MaxTicks.
-				if got.Resolved || got.Ticks != fight.MaxTicks {
-					t.Fatalf("choke fight ended early: %+v", got.Metrics)
+				// unarmed (Result.Unmodeled), so the armed colonists, who shoot on their
+				// own once idle (A21), down every raider and win without a scratch.
+				if !got.Resolved || got.Metrics.Winner != "colonist" || got.Metrics.ColonistDowns != 0 {
+					t.Fatalf("choke fight: %+v", got.Metrics)
 				}
 			}
 		})
