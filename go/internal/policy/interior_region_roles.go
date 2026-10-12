@@ -28,11 +28,23 @@ func workshopWants(room InteriorRoom, piece InteriorPieceDef, f regionFrame) ([]
 	}
 	benches := shapeWant("benches", bench, n, 1, numbered("bench", 0))
 	benches.AgainstWall = true
-	return []RegionWant{
-		benches,
+	wants := append([]RegionWant{benches}, room.workChair(benches, bench)...)
+	return append(wants,
 		shapeWant("cabinets", cabinet, n-1, 0, numbered("cabinet", 0)),
 		shapeWant("shelves", shelf, n, 0, numbered("shelf", 0)),
-	}, true
+	), true
+}
+
+// workChair is the want for the work chair chosen for a bench definition
+// (InteriorRoom.WorkChairs): one on each bench's interaction cell, optional. It
+// is empty when none is chosen, the catalog has no 1x1 row for the chair or the
+// bench is not worked from a cell of its own, which leaves the room as it was.
+func (r InteriorRoom) workChair(benches RegionWant, bench InteriorPieceDef) []RegionWant {
+	chair, ok := r.Shapes.Get(r.WorkChairs[bench.Def])
+	if !ok || bench.Interaction == nil || chair.Size != (domain.Cell{X: 1, Z: 1}) {
+		return nil
+	}
+	return []RegionWant{{Slot: benches.Slot + "_chair", Def: chair.Def, Size: chair.Size, Count: benches.Count, OnInteraction: benches.Slot}}
 }
 
 // laboratoryWants: research benches and the analyzer they share. The analyzer
@@ -46,7 +58,7 @@ func laboratoryWants(room InteriorRoom, piece InteriorPieceDef, f regionFrame) (
 	}
 	benches := shapeWant("benches", bench, n, 1, numbered("bench", 1))
 	benches.AgainstWall = true
-	wants := []RegionWant{benches}
+	wants := append([]RegionWant{benches}, room.workChair(benches, bench)...)
 	if analyzer, ok := room.Shapes.Get(room.Shapes.Furniture.Analyzer.Def); ok {
 		wants = append(wants, shapeWant("analyzer", analyzer, 1, 0, func(int) string { return labAnalyzerSlot }))
 	}
@@ -67,7 +79,7 @@ func kitchenWants(room InteriorRoom, piece InteriorPieceDef, f regionFrame) ([]R
 	}
 	stoves := shapeWant("stoves", stove, n, 1, func(i int) string { return fmt.Sprintf("stove.%c", rune('1'+i)) })
 	stoves.AgainstWall = true
-	return []RegionWant{stoves}, true
+	return append([]RegionWant{stoves}, room.workChair(stoves, stove)...), true
 }
 
 // aisleWants is a double-sided room (the tomb, the jail): one piece on each
@@ -247,7 +259,7 @@ func shelterWants(room InteriorRoom, piece InteriorPieceDef, f regionFrame) ([]R
 	if bench, ok := room.benchDef(piece, RoomRoleLaboratory); ok && hosts(CapResearch) && benchRowCapacity(f, bench, 1) >= 1 {
 		research := namedPiece("research", bench, 0)
 		research.AgainstWall = true
-		wants = append(wants, research)
+		wants = append(append(wants, research), room.workChair(research, bench)...)
 	}
 	single := func(slot, def string, count int, name func(i int) string) {
 		if shape, ok := room.Shapes.Get(def); ok && shape.Size == (domain.Cell{X: 1, Z: 1}) && count > 0 {

@@ -72,6 +72,10 @@ type InteriorRoom struct {
 	// them, and the plan holds only the pieces still to stand. The templates
 	// ignore them.
 	Built []InteriorPiece
+	// WorkChairs maps a bench definition to the work chair priced for it
+	// (PlannedRoom.WorkChairs); the region placer stands one on each such bench's
+	// interaction cell. Absent leaves the bench without a chair.
+	WorkChairs map[string]string
 }
 
 // Piece is def's shape for a plan in this room; false when the catalog has
@@ -314,7 +318,7 @@ func InteriorRoomFromLayout(r PlannedRoom, shapes PieceShapes) (InteriorRoom, bo
 	if _, ok := doorSide(r.Region.Bounds(), r.Door); !ok {
 		return InteriorRoom{}, false
 	}
-	out := InteriorRoom{Role: role, Interior: r.Region.Bounds(), Doors: []domain.Cell{r.Door}, Shapes: shapes, Capabilities: CapabilitiesOf(r.Role)}
+	out := InteriorRoom{Role: role, Interior: r.Region.Bounds(), Doors: []domain.Cell{r.Door}, Shapes: shapes, Capabilities: CapabilitiesOf(r.Role), WorkChairs: r.WorkChairs}
 	if !r.Region.IsRect() {
 		out.Region = r.Region
 	}

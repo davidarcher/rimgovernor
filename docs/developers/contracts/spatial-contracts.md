@@ -439,9 +439,15 @@ idle.
   `BedOffset`. An unknown curve, mood model, work-day, steel value or colony mood
   (`StationFacts.ExpectedMood`) leaves the node unpriced at the current behaviour (the
   planner's bed, no chair); nothing is vetoed. Output: `StationAdvice.Comfort`, journaled in
-  `layout_stations`. The furnisher does not read it yet (a work chair stands on the bench's
-  interaction cell, which `PlaceInRegion` keeps open floor); beauty has the shape
-  (`BeautyTarget`) but no decor candidate feeds it.
+  `layout_stations`. The tiler stores a priced work choice on its room
+  (`PlannedRoom.WorkChairs`, bench def to chair def; `TileInput.Comfort`), the room input
+  carries it (`InteriorRoom.WorkChairs`) and the workshop, laboratory, kitchen and shelter
+  research wants add a `RegionWant{OnInteraction}` seat: one single-cell chair on each placed
+  bench's interaction cell, named `<bench slot>_chair`. The seats are added after the
+  placement and the interior search, so the layout is the one without them (the cell was open
+  floor already, and a chair is walked over); a bench without an interaction cell, a catalog
+  without a 1x1 row for the chair or a built bench gets none. No round builds the chair yet.
+  Beauty has the shape (`BeautyTarget`) but no decor candidate feeds it.
   **Circulation (#2911).** The station graph carries station-less room nodes
   (`StationGraph.Rooms`, `RoomNode`: role, area demand, optional strip width; the morgue
   and waste yard of #2882 reuse the kind). Circulation is the corridor that joins rooms

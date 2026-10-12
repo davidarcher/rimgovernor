@@ -55,6 +55,11 @@ type PlannedRoom struct {
 	// stands on its own. A child owns no ring (Unfenced): its parent's ring
 	// takes its walls and doors. See ChildrenOf.
 	Parent int32 `json:",omitempty"`
+	// WorkChairs maps the definition of a worked bench of the room to the work
+	// chair the comfort pricing chose for it (ChooseComfort, #2978); the furnisher
+	// stands one on each such bench's interaction cell. Absent: no chair is chosen
+	// or priced.
+	WorkChairs map[string]string `json:",omitempty"`
 }
 
 // ZoneKind is a whole-map zone's use.

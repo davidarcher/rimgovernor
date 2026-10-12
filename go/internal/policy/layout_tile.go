@@ -129,6 +129,9 @@ type TileInput struct {
 	Graph     StationGraph
 	Furniture RoomFurniture
 	Dining    DiningFurniture
+	// Comfort is the priced comfort tier per node (StationAdvice.Comfort): a
+	// worked bench's chosen chair is stored on its room (PlannedRoom.WorkChairs).
+	Comfort []ComfortChoice
 	// NextRoomID is the plan's room id counter (LayoutPlan.NextRoomID): a room
 	// the tiler hands an id is never given one a retired room had.
 	NextRoomID int32
@@ -272,6 +275,7 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 		crossing := crossingOf(g)
 		room := PlannedRoom{ID: b.Built, Replaces: b.Replaces, Role: role, Region: RectRegion(b.Interior), Crossing: &crossing, Outdoor: role.IsOutdoor()}
 		room.Markers = g.Markers
+		room.WorkChairs = workChairsOf(g, in.Comfort)
 		if role == PlannedTrainingRange {
 			if ref, ok := awayReference(in.Groups, placed); ok {
 				room.Facing = dummyFacing(b.Interior, ref)

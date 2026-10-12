@@ -62,6 +62,28 @@ func ChooseComfort(in ComfortInput) []ComfortChoice {
 	return out
 }
 
+// workChairsOf is the work chairs chosen for the group's worked benches, by
+// bench definition: a priced choice of a chair over the baseline of none. A node
+// left unpriced, or with no chair chosen, adds none, which leaves the bench as
+// it was. Nil when no node has one.
+func workChairsOf(g RoomGroup, comfort []ComfortChoice) map[string]string {
+	var out map[string]string
+	for _, s := range g.Stations {
+		if s.Purpose != PurposeWork {
+			continue
+		}
+		for _, c := range comfort {
+			if c.Node == s.Node && c.Priced && c.Option.Def != "" {
+				if out == nil {
+					out = map[string]string{}
+				}
+				out[s.Def] = c.Option.Def
+			}
+		}
+	}
+	return out
+}
+
 // undominatedWith is the undominated options with base kept: the baseline stays
 // a candidate however the rest rank.
 func undominatedWith(options []ComfortOption, base ComfortOption) []ComfortOption {

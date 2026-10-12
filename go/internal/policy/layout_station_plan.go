@@ -358,7 +358,7 @@ func (f StationFacts) tileInput(out StationAdvice) TileInput {
 	groups, emb := out.Clustering.Groups, out.Embedding
 	held, blocks := heldBlocks(len(groups), emb.Held)
 	groups, emb.Blocks = append(slices.Clone(groups), held...), append(slices.Clone(emb.Blocks), blocks...)
-	return TileInput{Groups: groups, Embedding: emb, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, OutdoorCurve: f.OutdoorCurve, RoofDistance: f.RoofDistance, FullRotRateC: f.FullRotRateC, SteelValue: steel, VentAvailable: f.VentAvailable, Light: stationLightPrice(f, steel), Sites: PowerSitesOf(out.Graph.Sites, out.Sites), Graph: out.Graph, Furniture: f.Furniture, Dining: f.Dining, NextRoomID: f.Plan.NextRoomID, Conduits: f.Plan.Conduits}
+	return TileInput{Groups: groups, Embedding: emb, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, OutdoorCurve: f.OutdoorCurve, RoofDistance: f.RoofDistance, FullRotRateC: f.FullRotRateC, SteelValue: steel, VentAvailable: f.VentAvailable, Light: stationLightPrice(f, steel), Sites: PowerSitesOf(out.Graph.Sites, out.Sites), Graph: out.Graph, Furniture: f.Furniture, Dining: f.Dining, Comfort: out.Comfort, NextRoomID: f.Plan.NextRoomID, Conduits: f.Plan.Conduits}
 }
 
 // AdviseStations runs the station chain over the live colony. It reads the

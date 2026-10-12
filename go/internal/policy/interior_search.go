@@ -103,6 +103,10 @@ func (r InteriorSearchResult) Stood() []InteriorPiece { return r.Pieces[r.fixed:
 func SearchInterior(req RegionPlacement, s InteriorSearch) (InteriorSearchResult, error) {
 	greedy := req
 	greedy.Search = nil
+	// The seats stand on interaction cells, which the layout keeps open, so
+	// they are added to the layout the search ends with and never searched.
+	floor, seats := splitSeats(req.Wants)
+	greedy.Wants, req.Wants = floor, floor
 	pinned := append([]InteriorPiece(nil), s.Pinned...)
 	var movable []InteriorPiece
 	for _, b := range s.Built {
@@ -142,8 +146,13 @@ func SearchInterior(req RegionPlacement, s InteriorSearch) (InteriorSearchResult
 	cur := score(pieces)
 	free := len(pinned)
 	res := InteriorSearchResult{Pieces: pieces, Seed: cur, Score: cur, fixed: free}
+	seated := func(res InteriorSearchResult) (InteriorSearchResult, error) {
+		var err error
+		res.Pieces, err = seatAll(req.Region, res.Pieces, seats)
+		return res, err
+	}
 	if len(req.Doors) == 0 || len(pieces) == free {
-		return res, nil
+		return seated(res)
 	}
 	iters := s.Iterations
 	if iters <= 0 {
@@ -174,7 +183,7 @@ func SearchInterior(req RegionPlacement, s InteriorSearch) (InteriorSearchResult
 		res.Moves = append(res.Moves, SearchMove{Kind: kind, Slot: pieces[at].Slot, Improves: gained})
 	}
 	res.Pieces, res.Score = pieces, cur
-	return res, nil
+	return seated(res)
 }
 
 // perturbPieces applies one random move to a copy of pieces, moving only the

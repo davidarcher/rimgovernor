@@ -39,6 +39,58 @@ type RegionWant struct {
 	// (the wants whose Beside is this Slot) still fit, nearest the doors
 	// first, before any wall preference: a table with room for its chairs.
 	Open bool
+	// OnInteraction names another want (by Slot) whose pieces each get one piece
+	// of this want on their interaction cell, a work chair at its bench: the
+	// worker stands at the chair, so the bench stays usable. The cell stays open
+	// floor to every other piece, and a seat blocks no walk (chairs are walked
+	// over), so the layout is the one without the seats. A seat is named
+	// "<partner slot>_chair"; a partner without an interaction cell, or whose
+	// cell holds a piece, gets none. Count caps the seats and Min is how many
+	// the want requires.
+	OnInteraction string
+}
+
+// seatPieces are the seats of w on the interaction cells of the pieces its
+// OnInteraction names: one per partner up to Count, on a cell of the region no
+// piece covers. A seat is a single cell.
+func seatPieces(g Region, pieces []InteriorPiece, w RegionWant) []InteriorPiece {
+	if w.Size != (domain.Cell{X: 1, Z: 1}) {
+		return nil
+	}
+	covered := map[domain.Cell]bool{}
+	for _, p := range pieces {
+		for _, c := range rectCells(p.Rect) {
+			covered[c] = true
+		}
+	}
+	var out []InteriorPiece
+	for _, p := range pieces {
+		if len(out) >= w.Count {
+			break
+		}
+		c, ok := p.Interaction()
+		if !ok || p.Row != w.OnInteraction || !g.Contains(c) || covered[c] {
+			continue
+		}
+		covered[c] = true
+		seat := NewInteriorPiece(p.Slot+"_chair", w.Def, w.Size, domain.North, c)
+		seat.Row = w.Slot
+		out = append(out, seat)
+	}
+	return out
+}
+
+// splitSeats separates the wants that stand on another want's interaction cell
+// from the wants that take floor.
+func splitSeats(wants []RegionWant) (floor, seats []RegionWant) {
+	for _, w := range wants {
+		if w.OnInteraction != "" {
+			seats = append(seats, w)
+		} else {
+			floor = append(floor, w)
+		}
+	}
+	return floor, seats
 }
 
 // seatsAround is how many of the pieces that sit beside p the floor around it
@@ -212,6 +264,31 @@ func PlaceInRegion(req RegionPlacement) ([]InteriorPiece, error) {
 		}
 		return res.Stood(), nil
 	}
+	floor, seats := splitSeats(req.Wants)
+	req.Wants = floor
+	out, err := placeOnFloor(req)
+	if err != nil {
+		return nil, err
+	}
+	return seatAll(req.Region, out, seats)
+}
+
+// seatAll adds the seat wants' pieces after the floor's, failing when a want
+// seats fewer than its Min.
+func seatAll(g Region, pieces []InteriorPiece, seats []RegionWant) ([]InteriorPiece, error) {
+	out := pieces
+	for _, w := range seats {
+		placed := seatPieces(g, pieces, w)
+		if len(placed) < w.Min {
+			return nil, fmt.Errorf("place in region: %s seats %d of the %d wanted", w.Slot, len(placed), w.Min)
+		}
+		out = append(out, placed...)
+	}
+	return out, nil
+}
+
+// placeOnFloor is the greedy placement of the wants that take floor.
+func placeOnFloor(req RegionPlacement) ([]InteriorPiece, error) {
 	g := req.Region
 	if g.Empty() {
 		return nil, fmt.Errorf("place in region: empty region")
