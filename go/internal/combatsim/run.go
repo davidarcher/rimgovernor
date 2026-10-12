@@ -17,28 +17,45 @@ const defaultBackstopTicks = 120
 // The target is the nearest in range with a line of fire, ties to the earlier
 // scenario pawn (approximations.md A21).
 func (a *Adapter) Autonomy() []Order {
-	s := a.sim
 	var out []Order
-	for i := range s.pawns {
-		p := &s.pawns[i]
-		if !a.orderable[p.id] || a.holdFire[p.id] || !p.armed || p.dead || p.downed || p.moving || p.target >= 0 || p.stance != stanceIdle {
-			continue
-		}
-		best, bestD := -1, 0
-		for j := range s.pawns {
-			t := &s.pawns[j]
-			if !t.has || t.side == p.side || t.dead || t.downed || !s.canHitFrom(i, j) {
-				continue
-			}
-			if d := distSq(p.pos, t.pos); best < 0 || d < bestD {
-				best, bestD = j, d
-			}
-		}
-		if best >= 0 {
-			out = append(out, Order{Pawn: p.id, Kind: OrderAttack, Target: s.pawns[best].id, Auto: true})
+	for i := range a.sim.pawns {
+		if o, ok := a.autoAttack(i); ok {
+			out = append(out, o)
 		}
 	}
 	return out
+}
+
+// autoAttack is Autonomy for pawn i.
+func (a *Adapter) autoAttack(i int) (Order, bool) {
+	s := a.sim
+	p := &s.pawns[i]
+	if !a.orderable[p.id] || a.holdFire[p.id] || !p.armed || p.dead || p.downed || p.moving || p.target >= 0 || p.stance != stanceIdle {
+		return Order{}, false
+	}
+	best, bestD := -1, 0
+	for j := range s.pawns {
+		t := &s.pawns[j]
+		if !t.has || t.side == p.side || t.dead || t.downed || !s.canHitFrom(i, j) {
+			continue
+		}
+		if d := distSq(p.pos, t.pos); best < 0 || d < bestD {
+			best, bestD = j, d
+		}
+	}
+	if best < 0 {
+		return Order{}, false
+	}
+	return Order{Pawn: p.id, Kind: OrderAttack, Target: s.pawns[best].id, Auto: true}, true
+}
+
+// arrived is the pather tick's end of a walk: the job ends and Wait_Combat
+// starts on the same tick, so its auto-attack warmup (started before the
+// stance tick) counts down that tick too (A36).
+func (a *Adapter) arrived(i int) {
+	if o, ok := a.autoAttack(i); ok {
+		_ = a.sim.startAttack(i, o)
+	}
 }
 
 // Remember folds the results of a stop's orders into the fight's memory the
@@ -168,6 +185,9 @@ func RunFight(f Fight, seed uint64, tuning policy.CombatTuning) (FightResult, er
 		_, events, err := sim.Step(orders)
 		if err != nil {
 			return res, fmt.Errorf("combatsim: step at tick %d: %w", sim.tick, err)
+		}
+		if f.Trace != nil {
+			f.Trace(events)
 		}
 		res.Winner, res.Resolved = sim.Resolved()
 		if res.Resolved || sim.tick >= f.MaxTicks {

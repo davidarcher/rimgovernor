@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/combatmetrics"
@@ -75,15 +77,32 @@ const CalibrationDir = "internal/nativeaccept/cases/combatlab/calibration"
 // the loaded lab with the superpawn crew (Crew{Size: 3}, StaffCrew): every
 // colonist skill is na.CrewSkillLevel there, not the staging's level 8 (#2906;
 // at 8 the sim's colonists aimed on target 23% of the time where the real
-// ones did about 48%). The crew's SuperTraits only add move speed, which the
-// sim's stationary colonists do not use.
+// ones did about 48%). The crew's SuperTraits add move speed (SpeedOffset 2 is
+// +0.4 over the 4.6 of a traitless adult): the resumed baselines' movers
+// arrive at ticks 29/29/57 (a 14.0 cost per cell: 60/5.0 + 2), where a pawn
+// at 4.6 would take 15.04 per cell (#2933).
 func CalibrationEnv() SimEnv {
 	env := LabSimEnv()
 	env.ColonistSkill = na.CrewSkillLevel
+	env.ColonistTraits = crewTraits()
 	env.FriendlyFireChanceFactor = domain.Known(0.4)
 	env.DeathOnDowned = domain.Known(simimport.DeathOnDowned{PopulationIntent: 0, EnemyDeathOnDownedChanceFactor: 1})
 	env.ColonistWorn = domain.Known([]simimport.Wear{})
 	return env
+}
+
+// crewTraits are na.SuperTraits ("Def:degree,...") as importer traits.
+func crewTraits() []simimport.Trait {
+	var out []simimport.Trait
+	for _, part := range strings.Split(na.SuperTraits, ",") {
+		def, degree, ok := strings.Cut(part, ":")
+		n, err := strconv.Atoi(degree)
+		if !ok || err != nil {
+			panic("combatlab: na.SuperTraits is not Def:degree pairs: " + na.SuperTraits)
+		}
+		out = append(out, simimport.Trait{Def: def, Degree: int32(n)})
+	}
+	return out
 }
 
 // SimSweep plays the fight under tuning for each seed and returns the sweep

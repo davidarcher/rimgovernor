@@ -29,6 +29,9 @@ type SimEnv struct {
 	// hostiles but not colonists, whose starter clothes the generator picks,
 	// so the fixture cannot say.
 	ColonistWorn domain.Fact[[]simimport.Wear]
+	// ColonistTraits are the traits a staged colonist carries (the metrics
+	// cases' superpawn crew has na.SuperTraits).
+	ColonistTraits []simimport.Trait
 	// HostileLordJob and HostileLordToil are the lord a staged hostile is under:
 	// the stage gives a fixture without a siege, sappers or an arrival an assault
 	// lord, whose first toil is the walk-in assault.
@@ -106,6 +109,7 @@ func SimSpec(f Fixture, env SimEnv) (simimport.Spec, error) {
 			sp.ID = domain.PawnID(fmt.Sprintf("c%d", p.Index))
 			sp.Kind, sp.Worn = env.ColonistKind, env.ColonistWorn
 			sp.Skills = skills(env.ColonistSkill)
+			sp.Traits = env.ColonistTraits
 		case Hostile:
 			sp.ID = domain.PawnID(fmt.Sprintf("h%d", hostiles))
 			hostiles++

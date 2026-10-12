@@ -751,8 +751,9 @@ func TestInterceptionNeedsDistanceAndOrder(t *testing.T) {
 
 func TestInterceptedShotLandsBeforeTheTarget(t *testing.T) {
 	// One slow shot, tried over seeds until it strikes the blocker: the flight
-	// to c at 12.5 cells (speed .55 cells/tick, so 23 ticks) is shorter than
-	// the 45 ticks to b at 24.5.
+	// to c at 12 cells (speed .55 cells/tick over the 3D distance, so 27
+	// ticks, landing up to 14 later on the projectile's tick phase) is shorter
+	// than the flight to b at 24 cells (about 49 ticks).
 	w := rapid()
 	w.CooldownSeconds = 600
 	for seed := uint64(1); seed < 200; seed++ {
@@ -763,7 +764,7 @@ func TestInterceptedShotLandsBeforeTheTarget(t *testing.T) {
 		if len(shots) != 1 || len(hits) == 0 || hits[0].Target != "c" {
 			continue
 		}
-		if flight := hits[0].Tick - shots[0].Tick; flight < 1 || flight > 23 {
+		if flight := hits[0].Tick - shots[0].Tick; flight < 1 || flight > 27+14 {
 			t.Errorf("seed %d: shot at %d hit the blocker at %d", seed, shots[0].Tick, hits[0].Tick)
 		}
 		return

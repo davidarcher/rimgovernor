@@ -32,6 +32,10 @@ type Fight struct {
 	// Enemy, when set, also gives orders each Step from the sim state, for
 	// scripted opponents. The adapter itself never decides for a hostile.
 	Enemy func(State) []Order
+	// Trace, when set, receives the events of every Step in order, before the
+	// next one overwrites them (a calibration read of shots, hits and
+	// arrivals; the slice aliases the sim's buffer).
+	Trace func([]Event)
 	// BackstopTicks is how many ticks pass without a stop before the policy
 	// is asked again, the native tick budget's role. Zero means 120 (two
 	// game seconds), a simulator parameter and not a native value.
@@ -101,6 +105,7 @@ type Adapter struct {
 func NewAdapter(f Fight, sim *Sim) (*Adapter, error) {
 	a := &Adapter{f: f, sim: sim, orderable: map[domain.PawnID]bool{}, hold: map[domain.PawnID]bool{},
 		holdFire: map[domain.PawnID]bool{}, inRange: map[domain.PawnID]bool{}, inOurs: map[domain.PawnID]bool{}}
+	sim.onArrive = a.arrived
 	for id := range f.Facts {
 		if sim.pawnIndex(id) < 0 {
 			return nil, unsupported("facts name pawn %q, which is not in the scenario", id)

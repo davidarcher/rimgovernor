@@ -40,14 +40,34 @@ is a candidate to replace by a faithful port. Game sources are in
   random cell (it can strike a bystander) and a covered shot into the cover
   thing; both here end with no damage and no friendly fire. The wild-miss
   destination (`ChangeDestToMissWild`) and the cover thing choice
-  (`GetRandomCoverToMissInto`) are not ported.
-- **A8. The line is cell centre to cell centre.** Projectiles leave the
-  shooter's cell centre (not the lean cell) and aim at the target's cell centre
-  (the game adds `RandomHorizontalVector(0.3)` to the destination).
-- **A9. Interception is decided at launch.** The flight is walked once, tick by
-  tick, against the pawns standing at the moment of the shot; a pawn that steps
-  into or out of the line while the projectile flies is not seen. The victim and
-  landing tick are fixed then. Damage is applied at the landing tick.
+  (`GetRandomCoverToMissInto`) are not ported. The recorded shots show what
+  this leaves out (#2933): 38 percent of the raiders' shots stop in a sandbag
+  or other non-pawn thing, none of the colonists' do (0.1 percent), while the
+  sim's covered shots are 14 percent. The other 24 points are wild shots
+  (`ChangeDestToMissWild`) that land on the sandbags in front of the colonists;
+  they would also reach the bystanders behind the line that `NonTargetPawns`
+  allows. Not ported: no outcome of the fight rests on them except those hits.
+- **A8. The line is cell centre to cell centre, in 3D, with the game's
+  scatter.** Projectiles leave the shooter's cell centre (not the lean cell,
+  `PawnLeaner`) and aim at the target's cell centre plus
+  `RandomHorizontalVector(0.3)` (uniform within 0.3 on each axis, drawn from the
+  physical stream). `StartingTicksToImpact` divides the 3D distance by the
+  speed: the origin is the pawn's `DrawPos`, at the `Pawn` altitude layer
+  (23 x 0.36585367, 8.41), the destination at y 0, rounded up with a minimum of
+  one tick. At 20 cells that is 39 to 40 ticks, not the flat 37 (#2933).
+- **A9. Interception is decided at launch; projectiles tick every 15 ticks.**
+  The flight is walked once, against the pawns standing at the moment of the
+  shot; a pawn that steps into or out of the line while the projectile flies is
+  not seen. The victim and landing tick are fixed then. Damage is applied at the
+  landing tick. A projectile off camera is ticked by `Thing.TickInterval` every
+  `GenTicks.GetCameraUpdateRate` = 15 ticks at the phase of its thing id hash,
+  `ticksToImpact` falling by the ticks elapsed, so it lands on the first phase
+  tick at or after launch + its 3D flight (0 to 14 ticks later) and is tested
+  for interception per 15-tick segment, the last one included. The phase is a
+  uniform draw from a stream of its own (`Streams.Phase`): the recorded flights
+  (median 46, p25 42, p75 50 over 1526 shots) match; the sim's are one tick
+  short at every quartile, unexplained (the leaning draw position and the 0.3
+  scatter's float32 rounding are the candidates) (#2933).
 - **A10. Only pawns intercept.** A shot aimed at a pawn carries the
   IntendedTarget and NonTargetPawns hit flags only, so walls, doors and cover
   never intercept in flight; they matter through line of fire (`CellCanSeeCell`)
@@ -338,10 +358,15 @@ DefinitionCatalog; every derived value is listed with its source in
   tick the order lands. A burst's cooldown ending already restarted the next
   warmup in the same tick (stances run before jobs), so only the entry into a
   fight moved.
-  Raiders: no pawn thinks before the first tick, so a raider's decision at
-  tick 0 stays the first tick's (`Auto` only from tick 1): their first shot
-  remains 61. Later restarts (a cooldown ending, a job starting) are one tick
-  earlier than before.
+  Raiders: a raider's decision at tick 0 is a resumed checkpoint's pawn that
+  is already in `Wait_Combat`: the recorded stance rows show warmup "left 60"
+  at tick 0 and all 80 raiders' first shot on tick 60, so `Auto` holds at tick
+  0 too (#2933; this replaced the 61 of #2914). A mover that arrives starts the
+  same auto-attack inside the pather tick that ends its walk (the pather runs
+  before the stance tick), so that tick's stance tick already counts the
+  warmup down: the recorded movers arrive 29/29/57 and shoot at 88/88/116,
+  arrival + 59 (`Sim.onArrive`, the adapter's `arrived`). Later restarts (a
+  cooldown ending, a job starting) are one tick earlier than before.
   Not modeled: the game ticks a pawn's job driver (`tickIntervalAction`, which
   `CheckForAutoAttack`'s 4-tick re-scan and `AttackStatic`'s verb start use) and
   its job-tracker think from `Pawn.TickInterval`, which `Thing.DoTick` calls
@@ -356,6 +381,33 @@ DefinitionCatalog; every derived value is listed with its source in
   (499.5), colonist downs 0.20 -> 0.20 (0.20), damage 56.1 -> 55.5 (64.2), raider
   deaths 3.55 -> 3.45 (about 2.8). The openings now match; the remaining gap in
   hits, damage and deaths is not the opening tick.
+
+- **A37. A path request is claimed a tick late (#2933).**
+  `Pawn_PathFollower.StartPath` queues the request on tick N; `PatherTick`
+  claims the result of the async `PathFinder` job on N + 1 and pays the first
+  cell's cost from N + 2. The sim's walk waits one tick before it pays
+  (`pathLatency`, also in the planned arrival). With a speed of 5.0 (a cost of
+  14.0 per cell on the lab's soil) the recorded movers arrive at 29/29/57,
+  where the sim without the tick arrived at 28/28/56.
+  The think phase (every pawn's `JobTrackerTickInterval` is on the same
+  15-tick phase as its projectiles' hash rule) is not modeled. It was checked
+  on 163 recorded pawns and fits, but in the steady cycle every pawn restarts
+  its warmup the tick its cooldown ends (the between-burst gap is exactly 162
+  for 90 percent of the gaps in both), so it quantises nothing observable
+  there. It would delay a colonist's retarget by up to 14 ticks, which shows
+  in the recorded 171, 185, 191 and 238 to 302 tick gaps (about 1 percent of
+  gaps); the sim has none of them (its 99th percentile is 162, the game's
+  288).
+- **A38. Traits that move a stat are read (#2933).** The lab crew's
+  superpawn traits (`SpeedOffset` degree 2, `Industriousness` degree 2,
+  `na.SuperTraits`) are applied after the staging; `SpeedOffset:2` is +0.4
+  `MoveSpeed`, so the recorded colonists walk at 5.0, not the 4.6 of a
+  traitless adult. The importer reads a pawn's `Traits` through the stat
+  engine (`stateval`). Why the *fresh* stage gives arrivals 32/32/62 (a 4.6
+  walker) is not explained: the stats are recomputed on every read, so a stale
+  cache is not it. A real fresh-stage run that logs the colonists' traits and
+  `MoveSpeed` at tick 0 would settle it; the gate's baselines are all resumed
+  runs and use 5.0.
 
 ## Out of scope for this slice
 

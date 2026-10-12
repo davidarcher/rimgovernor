@@ -141,31 +141,53 @@ func (s *Sim) launch(si, ti int) {
 	case t.cover && !s.chance(r.PassCover()):
 		e.Outcome = ShotCover
 	}
-	s.emit(e)
 	if e.Outcome != ShotFlying {
+		s.emit(e)
 		return
 	}
-	victim, at := s.fly(si, ti)
+	// Projectile.Launch: the destination is the cell centre plus a random
+	// horizontal vector of up to 0.3 on each axis, and the projectile is ticked
+	// by the TickList on its own thing id's 15-tick phase (A9).
+	off := [2]float64{
+		(s.streams.Physical.Float64()*2 - 1) * launchScatter,
+		(s.streams.Physical.Float64()*2 - 1) * launchScatter,
+	}
+	phase := s.streams.Phase.IntN(offCameraInterval)
+	victim, at := s.fly(si, ti, off, phase)
 	intended := false
 	if victim < 0 { // reaches the destination cell
-		victim, at = ti, s.tick+s.flightTicks(si, ti)
-		intended = true
+		victim, intended = ti, true
 	}
+	e.ETA = at
+	s.emit(e)
 	s.pending = append(s.pending, projectile{
 		at: at, shooter: int32(si), victim: int32(victim),
 		intended: intended, distal: r.Distance*r.Distance >= 20.25,
 	})
 }
 
-func (s *Sim) flightTicks(si, ti int) int {
-	return max(1, int(math.Ceil(s.startingTicks(si, ti))))
-}
+const (
+	// launchScatter is the bound of Gen.RandomHorizontalVector(0.3f) that
+	// Projectile.Launch adds to the destination cell centre.
+	launchScatter = 0.3
+	// offCameraInterval is the TickInterval cadence of a thing the camera does
+	// not see: min(max(GenTicks.GetCameraUpdateRate, MinTickIntervalRate),
+	// MaxTickIntervalRate) = 15. A lab run is off camera.
+	offCameraInterval = 15
+	// pawnAltitude is the y of a pawn's DrawPos, Altitudes.AltitudeFor(
+	// AltitudeLayer.Pawn): layer 23 times the 0.36585367 layer spacing. The
+	// projectile launches from DrawPos and lands on y 0, so the 3D distance
+	// StartingTicksToImpact divides by speed is longer than the map distance.
+	pawnAltitude = 23 * 0.36585367
+)
 
-// startingTicks is Projectile.StartingTicksToImpact between two cell centres.
-func (s *Sim) startingTicks(si, ti int) float64 {
+// startingTicks is Projectile.StartingTicksToImpact for a shot from pawn si to
+// the centre of pawn ti's cell shifted by off: the 3D origin-to-destination
+// distance over the projectile speed.
+func (s *Sim) startingTicks(si, ti int, off [2]float64) float64 {
 	a, b := s.pawns[si].pos, s.pawns[ti].pos
-	dx, dz := float64(b.X-a.X), float64(b.Z-a.Z)
-	n := math.Sqrt(dx*dx+dz*dz) / s.pawns[si].weapon.ProjectileSpeed
+	dx, dz := float64(b.X-a.X)+off[0], float64(b.Z-a.Z)+off[1]
+	n := math.Sqrt(dx*dx+dz*dz+pawnAltitude*pawnAltitude) / s.pawns[si].weapon.ProjectileSpeed
 	if n <= 0 {
 		return 0.001
 	}
@@ -186,27 +208,38 @@ func interceptFactor(ox, oz float64, c domain.Cell) float64 {
 	}
 }
 
-// fly ports Projectile.CheckForFreeInterceptBetween over a shot's whole
-// flight, one segment per tick. A shot aimed at a pawn carries only the
-// IntendedTarget and NonTargetPawns hit flags, so only other pawns can
-// intercept it (walls and cover were settled by line of fire and the cover
-// roll). It returns the intercepting pawn and the tick it lands, or -1.
-func (s *Sim) fly(si, ti int) (victim, at int) {
+// fly ports Projectile.TickInterval and CheckForFreeInterceptBetween over a
+// shot's whole flight. An off-camera projectile is ticked only on the ticks
+// where (tick + its HashOffset) is a multiple of 15, each call advancing
+// ticksToImpact by the ticks since the last one, and one interception segment
+// is tested per call; it lands on the first call that brings ticksToImpact to
+// 0 or below, so at the first tick of its phase at or after launch + ticks to
+// impact (A9). phase is that tick's residue mod 15. A shot aimed at a pawn
+// carries only the IntendedTarget and NonTargetPawns hit flags, so only other
+// pawns can intercept it (walls and cover were settled by line of fire and the
+// cover roll). It returns the intercepting pawn (or -1 for the aimed-at
+// destination) and the tick the projectile lands.
+func (s *Sim) fly(si, ti int, off [2]float64, phase int) (victim, at int) {
 	a, t := &s.pawns[si], &s.pawns[ti]
 	ox, oz := float64(a.pos.X)+0.5, float64(a.pos.Z)+0.5
-	tx, tz := float64(t.pos.X)+0.5, float64(t.pos.Z)+0.5
-	start := s.startingTicks(si, ti)
+	tx, tz := float64(t.pos.X)+0.5+off[0], float64(t.pos.Z)+0.5+off[1]
+	start := s.startingTicks(si, ti, off)
 	total := max(1, int(math.Ceil(start)))
 	last := [2]float64{ox, oz}
-	for k := 1; k <= total; k++ {
-		frac := math.Min(math.Max(1-float64(total-k)/start, 0), 1)
+	// The first call is the first tick of the phase at or after the launch.
+	first := s.tick + ((phase-s.tick)%offCameraInterval+offCameraInterval)%offCameraInterval
+	for at = first; ; at += offCameraInterval {
+		left := total - (at - s.tick) // ticksToImpact after this call
+		frac := math.Min(math.Max(1-float64(left)/start, 0), 1)
 		now := [2]float64{ox + (tx-ox)*frac, oz + (tz-oz)*frac}
 		if v := s.interceptBetween(si, ti, ox, oz, last, now); v >= 0 {
-			return v, s.tick + k
+			return v, at
+		}
+		if left <= 0 {
+			return -1, at
 		}
 		last = now
 	}
-	return -1, 0
 }
 
 func (s *Sim) interceptBetween(si, ti int, ox, oz float64, last, now [2]float64) int {

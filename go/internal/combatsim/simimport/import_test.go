@@ -62,6 +62,28 @@ func traced(t *testing.T, r Result, subject, field string) Trace {
 	return Trace{}
 }
 
+// SpeedOffset degree 2 adds 0.4 to the 4.6 of a traitless adult (the lab
+// crew's superpawn trait, #2933): the pawn that carries it moves at 5.0.
+func TestImportReadsATraitsMoveSpeedOffset(t *testing.T) {
+	cat := recordedcatalog.Catalog(t)
+	spec := duelSpec()
+	spec.Pawns[0].Traits = []Trait{{Def: "SpeedOffset", Degree: 2}}
+	res, err := Import(cat, spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	speeds := map[domain.PawnID]float64{}
+	for _, p := range res.Fight.Scenario.Pawns {
+		speeds[p.ID], _ = p.MoveSpeed.Value()
+	}
+	if got := speeds[spec.Pawns[0].ID]; math.Abs(got-5.0) > 1e-6 {
+		t.Errorf("SpeedOffset:2 pawn move speed = %v, want 5.0", got)
+	}
+	if got := speeds[spec.Pawns[1].ID]; math.Abs(got-4.6) > 1e-6 {
+		t.Errorf("traitless pawn move speed = %v, want 4.6", got)
+	}
+}
+
 func TestImportDerivesEveryValueFromTheCatalog(t *testing.T) {
 	cat := recordedcatalog.Catalog(t)
 	res, err := Import(cat, duelSpec())

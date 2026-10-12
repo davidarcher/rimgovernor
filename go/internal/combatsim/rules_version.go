@@ -18,7 +18,8 @@ package combatsim
 //
 //   - move.go: Verse.AI.Pawn_PathFollower.CostToMoveIntoCell, CostToPayThisTick,
 //     SetupMoveIntoNextCell (cost carry-over); Verse.Pawn.TicksPerMove;
-//     Verse.AI.PathGrid.CalculatedCostAt.
+//     Verse.AI.PathGrid.CalculatedCostAt; Verse.AI.Pawn_PathFollower.StartPath and
+//     PatherTick (the path request claimed a tick late, #2933).
 //
 //   - collision.go: Verse.AI.Pawn_PathFollower.PatherTick (WillCollideWithPawnAt,
 //     the 15-node and 180-tick give-up, NeedNewPath), RimWorld.PawnUtility
@@ -37,7 +38,10 @@ package combatsim
 //     Verse.Verb_LaunchProjectile.TryCastShot; Verse.Projectile.Launch,
 //     StartingTicksToImpact, CheckForFreeInterceptBetween, CheckForFreeIntercept,
 //     CanHit, ImpactSomething; Verse.VerbUtility.InterceptChanceFactorFromDistance;
-//     Verse.ArmorUtility.GetPostArmorDamage, ApplyArmor; Verse.GenMath.RoundRandom.
+//     Verse.ArmorUtility.GetPostArmorDamage, ApplyArmor; Verse.GenMath.RoundRandom;
+//     Verse.Thing.DoTick and TickInterval, Verse.GenTicks.GetCameraUpdateRate,
+//     Verse.Gen.RandomHorizontalVector, Verse.Altitudes.AltitudeFor (the
+//     projectile's 15-tick phase, 3D flight and scatter, #2933).
 //
 //   - enemy.go: Verse.AI.AttackTargetFinder.BestAttackTarget,
 //     GetAvailableShootingTargetsByScore, GetShootingTargetScore,
@@ -58,4 +62,4 @@ const AssemblyCSharpSHA256 = "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04A
 // any change to a port or an approximation that can move an outcome (a rule
 // fix, a new modeled behavior): a calibration pass (combatsim/calibrate) is
 // recorded under it and is stale after a bump.
-const RulesVersion = 5
+const RulesVersion = 6

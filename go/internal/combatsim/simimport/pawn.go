@@ -1,6 +1,8 @@
 package simimport
 
 import (
+	"fmt"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge/stateval"
 	"github.com/davidarcher/RimGovernor/go/internal/combatmetrics"
@@ -64,10 +66,10 @@ func (im *importer) race(kind string) (race, error) {
 	return r, nil
 }
 
-// baselineAdult is the stat context of a healthy adult with no traits, no
-// hediffs and normal needs: the state a lab-staged pawn is in (A28). Skills are
-// the Spec's; every pawn capacity is at full level.
-func (im *importer) baselineAdult(r race, kind string, skills map[string]int32) (*stateval.StatContext, error) {
+// baselineAdult is the stat context of a healthy adult with no hediffs and
+// normal needs, carrying only the given traits: the state a lab-staged pawn is
+// in (A28). Skills are the Spec's; every pawn capacity is at full level.
+func (im *importer) baselineAdult(r race, kind string, skills map[string]int32, traits []Trait) (*stateval.StatContext, error) {
 	capacities := map[string]float32{}
 	for name := range im.cat.Rows((&d.PawnCapacityDef{}).ProtoReflect().Descriptor().FullName()) {
 		capacities[name] = 1
@@ -105,7 +107,11 @@ func (im *importer) baselineAdult(r race, kind string, skills map[string]int32) 
 	p.Body.Revenant = stateval.Some(stateval.RevenantState{KindDef: kind})
 	p.Base.Skills = stateval.Some(stateval.SkillsState{Present: true, Levels: skills})
 	p.Base.Capacities = stateval.Some(capacities)
-	p.Base.Story = stateval.Some(stateval.StoryState{Present: true})
+	story := stateval.StoryState{Present: true}
+	for _, t := range traits {
+		story.Traits = append(story.Traits, stateval.TraitState{Def: t.Def, Degree: t.Degree})
+	}
+	p.Base.Story = stateval.Some(story)
 	p.Base.Apparel = stateval.Some(stateval.WornGear{Present: true})
 	p.Base.Primary = stateval.Some[*stateval.GearPiece](nil)
 	p.Base.Inspiration = stateval.Some("")
@@ -156,6 +162,18 @@ func (im *importer) deathOnDowned(spec Spec, kind string) (float64, string, erro
 	return chance, "HealthTuning.DeathOnDownedChance_NonColonyHumanlikeFromPopulationIntentCurve" + name + " at population intent * difficulty enemyDeathOnDownedChanceFactor", nil
 }
 
+// traitSource names a pawn's traits for a trace source, "" for none.
+func traitSource(traits []Trait) string {
+	if len(traits) == 0 {
+		return ""
+	}
+	s := " with traits"
+	for _, t := range traits {
+		s += fmt.Sprintf(" %s:%d", t.Def, t.Degree)
+	}
+	return s
+}
+
 // pawn derives one combatant and the view facts about it.
 func (im *importer) pawn(spec Spec, p Pawn, w weapon) (combatsim.PawnSpec, combatsim.PawnFacts, error) {
 	id := string(p.ID)
@@ -175,7 +193,7 @@ func (im *importer) pawn(spec Spec, p Pawn, w weapon) (combatsim.PawnSpec, comba
 	if err != nil {
 		return ps, pf, err
 	}
-	ctx, err := im.baselineAdult(r, p.Kind, p.Skills)
+	ctx, err := im.baselineAdult(r, p.Kind, p.Skills, p.Traits)
 	if err != nil {
 		return ps, pf, err
 	}
@@ -192,7 +210,7 @@ func (im *importer) pawn(spec Spec, p Pawn, w weapon) (combatsim.PawnSpec, comba
 		return ps, pf, err
 	}
 	ps.MoveSpeed = domain.Known(speed)
-	im.trace(id, "MoveSpeed", "stat "+statMoveSpeed+" of race "+r.name)
+	im.trace(id, "MoveSpeed", "stat "+statMoveSpeed+" of race "+r.name+traitSource(p.Traits))
 
 	constants, err := im.cat.GameConstants()
 	if err != nil {

@@ -71,9 +71,18 @@ type Thing struct {
 // Wear is one worn apparel: its def and stuff ("" for none).
 type Wear struct{ Def, Stuff string }
 
-// Pawn is one combatant. Only healthy adult pawns of a humanlike race with no
-// traits are described: their health, capacities and needs are the catalog
-// baseline, and a lab-staged pawn is exactly that.
+// Trait is one trait a pawn carries: its TraitDef and degree. Only its stat
+// offsets and factors are read (the stats of Result.Trace); the front-line
+// split and every other rule treat the pawn as traitless, so a caller lists
+// only traits that touch stats (a lab crew's SpeedOffset).
+type Trait struct {
+	Def    string
+	Degree int32
+}
+
+// Pawn is one combatant. Only healthy adult pawns of a humanlike race are
+// described: their health, capacities and needs are the catalog baseline, and a
+// lab-staged pawn is exactly that. Traits are the one story detail carried.
 type Pawn struct {
 	ID   domain.PawnID
 	Side string
@@ -90,6 +99,9 @@ type Pawn struct {
 	Worn domain.Fact[[]Wear]
 	// Skills are the SkillRecord levels by SkillDef name. Nil fails the import.
 	Skills map[string]int32
+	// Traits are the pawn's story traits (Trait): MoveSpeed and the shooting
+	// stats read their offsets and factors.
+	Traits []Trait
 	// LordJobClass and LordToilClass are the hostile's lord evidence; unknown
 	// reaches the policy as unknown.
 	LordJobClass, LordToilClass domain.Fact[string]

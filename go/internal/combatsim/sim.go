@@ -181,7 +181,8 @@ type Event struct {
 	Kind EventKind
 	Pawn domain.PawnID
 	Cell domain.Cell
-	// ETA is set on EventMoveStarted: the arrival tick.
+	// ETA is set on EventMoveStarted: the arrival tick, and on an EventShot
+	// whose Outcome is ShotFlying: the tick its projectile lands.
 	ETA int
 	// Target, Amount and Outcome are set by the combat events.
 	Target  domain.PawnID
@@ -217,12 +218,17 @@ type State struct {
 type Streams struct {
 	Physical *rand.Rand
 	Enemy    *rand.Rand
+	// Phase draws the hash phases the game derives from thing ids the sim does
+	// not model (A9): which tick of the 15-tick cycle a projectile is ticked on.
+	Phase *rand.Rand
 }
 
-// Stream selectors for the PCG second word: ASCII "physical" and "enemy".
+// Stream selectors for the PCG second word: ASCII "physical", "enemy" and
+// "phase".
 const (
 	physicalStream uint64 = 0x706879736963616c
 	enemyStream    uint64 = 0x656e656d79
+	phaseStream    uint64 = 0x7068617365
 )
 
 // Sim is a combat simulator. The zero value is ready for Reset; a Sim is not
@@ -233,9 +239,12 @@ type Sim struct {
 	step    int
 	weather float64
 	pawns   []pawn
-	cells   cellPawns // who stands where; pawns share cells (A35)
-	applied bool      // Apply ran since the last Step: events are already reset
-	streams Streams
+	// onArrive runs in the pather tick that ends pawn i's walk (the adapter's
+	// Wait_Combat auto-attack).
+	onArrive func(i int)
+	cells    cellPawns // who stands where; pawns share cells (A35)
+	applied  bool      // Apply ran since the last Step: events are already reset
+	streams  Streams
 
 	events []Event
 	state  State
@@ -261,6 +270,7 @@ func (s *Sim) Reset(sc Scenario, seed uint64) (State, error) {
 	s.streams = Streams{
 		Physical: rand.New(rand.NewPCG(seed, physicalStream)),
 		Enemy:    rand.New(rand.NewPCG(seed, enemyStream)),
+		Phase:    rand.New(rand.NewPCG(seed, phaseStream)),
 	}
 	s.events, s.applied = s.events[:0], false
 	s.pending = s.pending[:0]
@@ -304,6 +314,12 @@ func (s *Sim) Step(orders []Order) (State, []Event, error) {
 		s.tick++
 		for i := range s.pawns {
 			s.pawns[i].tick(s, i)
+			if s.pawns[i].arrived {
+				s.pawns[i].arrived = false
+				if s.onArrive != nil {
+					s.onArrive(i)
+				}
+			}
 			s.combatTick(i)
 		}
 		s.landProjectiles()

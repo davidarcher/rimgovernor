@@ -317,6 +317,9 @@ func TestMovementCostsAndArrival(t *testing.T) {
 	for _, c := range cases {
 		s := newSim(t, scenario(t, 6, c.rows...), 1)
 		ev := run(t, s, []Order{{Pawn: "a", To: c.to, Urgency: c.urgency}}, 1000, arrived)
+		// The path request is claimed a tick late (A37): the cost is paid
+		// from the second tick on.
+		c.want += pathLatency
 		if got := arrivalTick(ev); got != c.want {
 			t.Errorf("%s: arrived at tick %d, want %d", c.name, got, c.want)
 		}
@@ -340,8 +343,8 @@ func TestDiagonalAndCarryOverETA(t *testing.T) {
 		t.Errorf("ETA %d != arrival %d", etaOf(ev), arrivalTick(ev))
 	}
 	// 3 diagonal steps of 14.1421: 42.4263 ticks of cost, 43 ticks with carry.
-	if got := arrivalTick(ev); got != 43 {
-		t.Errorf("arrival %d, want 43", got)
+	if got := arrivalTick(ev); got != 43+pathLatency {
+		t.Errorf("arrival %d, want %d", got, 43+pathLatency)
 	}
 	moved := 0
 	for _, e := range ev {
@@ -361,7 +364,7 @@ func TestWeatherAndRoof(t *testing.T) {
 	// Leaving the unroofed start costs 20 (the cost is priced from where the
 	// pawn stands); leaving roofed cells costs 10.
 	ev := run(t, s, []Order{{Pawn: "a", To: cell(3, 0)}}, 1000, arrived)
-	if got, want := arrivalTick(ev), 20+10+10; got != want {
+	if got, want := arrivalTick(ev), 20+10+10+pathLatency; got != want {
 		t.Errorf("arrival %d, want %d", got, want)
 	}
 }

@@ -581,9 +581,12 @@ func (e *EnemyAI) autoAttack(out []Order, i int) []Order {
 	p := &s.pawns[i]
 	cands := e.valid(i, p.weapon.Range, p.weapon.MinRange, false)
 	if j := e.pickByScore(i, cands); j >= 0 {
-		// Auto: the verb starts the tick the raider thinks. No pawn thinks before
-		// the first tick, so a decision at tick 0 is the first tick's.
-		return append(out, Order{Pawn: p.id, Kind: OrderAttack, Target: s.pawns[j].id, Once: true, Auto: s.tick > 0})
+		// Auto: the verb starts the moment the raider decides, and its warmup
+		// counts down that tick. A decision at tick 0 is the resumed
+		// checkpoint's raider already in Wait_Combat: the recorded stance rows
+		// show warmup "left 60" at tick 0 and every raider's first shot on
+		// tick 60 (A36, #2933).
+		return append(out, Order{Pawn: p.id, Kind: OrderAttack, Target: s.pawns[j].id, Once: true, Auto: true})
 	}
 	return out
 }

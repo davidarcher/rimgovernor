@@ -28,6 +28,12 @@ type pawn struct {
 	// next and the overshoot carries into the following cell.
 	costLeft    float64
 	blockedSent bool
+	// pathPending is set by StartPath until the first tick has passed: the
+	// async path request is claimed a tick later (A37).
+	pathPending bool
+	// arrived is set by the pather tick that enters the destination and read
+	// by the same tick's Step (Sim.onArrive).
+	arrived bool
 	// lastBlocker is the pawn index + 1 that blocked the previous tick's
 	// entry, 0 when nothing did (Pawn_PathFollower.lastBlocker); lastMoved is
 	// the last tick the pawn paid movement cost or was given a path
@@ -111,6 +117,7 @@ func (s *Sim) apply(o Order) error {
 
 func (p *pawn) halt() {
 	p.moving = false
+	p.pathPending = false
 	p.path = p.path[:0]
 	p.pathAt = 0
 	p.costLeft = 0
@@ -118,6 +125,11 @@ func (p *pawn) halt() {
 	p.lastBlocker = 0
 	p.dest = p.pos
 }
+
+// pathLatency is the ticks between StartPath and the first cost payment: the
+// request is queued on tick N, claimed in PatherTick on N+1 and paid on N+2
+// by the recorded movers (arrivals 29/29/57 at 14.0 per cell).
+const pathLatency = 1
 
 // startMove finds a path and begins walking it. A pawn already walking to the
 // same destination at the same urgency keeps its place (Pawn_PathFollower
@@ -149,8 +161,9 @@ func (s *Sim) startMove(i int, o Order) {
 	p.dest = o.To
 	p.urgency = o.Urgency
 	p.lastMoved = s.tick
+	p.pathPending = true
 	s.setupNext(p)
-	s.emit(Event{Kind: EventMoveStarted, Pawn: p.id, Cell: o.To, ETA: s.tick + s.arrivalTicks(p)})
+	s.emit(Event{Kind: EventMoveStarted, Pawn: p.id, Cell: o.To, ETA: s.tick + pathLatency + s.arrivalTicks(p)})
 }
 
 // setupNext ports SetupMoveIntoNextCell: choose the next cell, price it, carry
@@ -192,6 +205,12 @@ func (p *pawn) tick(s *Sim, self int) {
 	if !p.moving || p.dead || p.downed || p.stance != stanceIdle {
 		return
 	}
+	if p.pathPending {
+		// The path request is claimed one tick after StartPath queued it
+		// (A37): nothing is paid on the first tick.
+		p.pathPending = false
+		return
+	}
 	g := &s.g
 	ni := g.idx(p.next)
 	// WillCollideWithPawnAt is checked before any cost is paid: a pawn facing
@@ -220,6 +239,7 @@ func (p *pawn) tick(s *Sim, self int) {
 	if p.pathAt >= len(p.path) {
 		p.moving = false
 		p.costLeft = 0
+		p.arrived = true
 		s.emit(Event{Kind: EventArrived, Pawn: p.id, Cell: p.pos})
 		return
 	}
