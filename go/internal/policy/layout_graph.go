@@ -122,6 +122,9 @@ type StationGraphInput struct {
 	// that is not edible or has an unknown target gets no field node.
 	Crops           []CropChoice
 	FoodReserveDays float64
+	// Seed are the special rooms asked beyond the stations: the shelter and the
+	// throne room (#2958).
+	Seed SeedRooms
 }
 
 // StationNode is a class of station and how many the colony needs.
@@ -302,8 +305,7 @@ func BuildStationGraph(in StationGraphInput) (StationGraph, error) {
 	fields := b.fieldNodes(runs)
 	g := b.graph()
 	g.Fields = fields
-	g.Rooms = OutskirtsRoomNodes()
-	g.Rooms = append(g.Rooms, TrainingRoomNodes(in.TrainingStands, in.TrainingMarkers)...)
+	g.Rooms = stationRoomNodes(in)
 	for _, n := range g.Nodes {
 		switch n.Purpose {
 		case PurposeSleep, PurposeSleepMed, PurposeSleepBaby:
@@ -314,6 +316,21 @@ func BuildStationGraph(in StationGraphInput) (StationGraph, error) {
 		}
 	}
 	return g, nil
+}
+
+// stationRoomNodes are the station-less rooms the graph holds: the outskirts,
+// the training rooms and the seed rooms.
+func stationRoomNodes(in StationGraphInput) []RoomNode {
+	nodes := OutskirtsRoomNodes()
+	nodes = append(nodes, TrainingRoomNodes(in.TrainingStands, in.TrainingMarkers)...)
+	return append(nodes, SeedRoomNodes(in.Seed)...)
+}
+
+// SeedGraph is the graph of the rooms that need no live fact: no station and
+// no edge, only the station-less rooms. A first plan derived before the colony
+// is read grows from it, and the rest grows on replan.
+func SeedGraph(in StationGraphInput) StationGraph {
+	return StationGraph{Rooms: stationRoomNodes(in)}
 }
 
 type graphBuilder struct {

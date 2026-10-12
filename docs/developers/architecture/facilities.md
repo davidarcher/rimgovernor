@@ -285,6 +285,27 @@ each group (stations, footprint, clearance, area, predicted role, costs,
 block), the clustering's conflicts and the embedding report; `skipped`
 (`facts_unknown`, naming the fact); or `failed`. The chain runs at most once per change of its inputs (`StationFacts.InputsKey` and the survey; a review with them unchanged reads the last advice and writes no row). Cost on the 250x250 baseline map with a 30-colonist plan and 10 recipes ordered: about 85 ms a run, 0.5 ms for the key (`BenchmarkAdviseStationsLarge`).
 
+#### Derive-time facts and the seed rooms (#2958)
+
+The day-1 shelter and the throne room are kept as special rooms: station-less
+room nodes (`SeedRoomNodes`, `layout_seed_rooms.go`) that the graph holds beside
+the outskirts and training rooms. The node asks the floor the old siting sized
+(`ShelterInteriorArea`; the throne's requested area), the shelter keeps
+`shelterGap` from the base as a band minimum, and the tiler gives both walls, a
+door and, on a bad-climate map, the airlock decision like any room. The
+embedding does not narrow the gap when ground is tight (the old siting does), and the old
+battery porch is not planned. The shelter is owed only to a plan that holds none and
+has nothing standing; the throne room only when `StationFacts.ThroneArea` is
+read, positive and not already held.
+
+`StationFacts.Derive` marks a first plan's facts (survey, colonists, tier, roof
+distance; no projection). The census, orders and stock it has not read leave the
+graph at `SeedGraph` (the seed rooms and the outskirts) instead of failing the
+advice; `StationAdvice.SeedOnly` names the fact and the rest grows on replan.
+Nothing is guessed for an unread fact: an unread colony size or roof distance
+still fails with `ErrStationFacts`. The runtime does not set `Derive` or
+`ThroneArea` yet (#2959).
+
 #### Climate model
 
 Beside the cooling station each `EnvCold` group carries `GroupAdvice.Climate`

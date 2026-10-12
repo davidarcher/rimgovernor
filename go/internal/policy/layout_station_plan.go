@@ -93,6 +93,40 @@ type StationFacts struct {
 	// PredictRole gives their contents (GuardNativeRoles, #2898): a cost input
 	// and a split move of the regrouping.
 	Mismatches []RoleMismatch
+	// Derive marks the facts of a first plan, read from a survey, the colonists
+	// and the tier before the colony is: a station fact the colony has not read
+	// (the census, the orders, the stock) then leaves the graph at the seed rooms
+	// instead of failing the advice, and the rest grows on replan (#2958).
+	Derive bool
+	// ThroneArea is the interior cells of the throne room a title asks (the
+	// growth's ThroneArea); 0 is none owed, unknown asks for none and says so.
+	ThroneArea domain.Fact[int]
+}
+
+// seedRooms are the special rooms the plan is owed: the day-1 shelter while
+// nothing stands and the plan holds none, and the throne room the plan lacks.
+// The shelter needs the colonists; unknown, the advice cannot size it.
+func (f StationFacts) seedRooms() (SeedRooms, error) {
+	var s SeedRooms
+	if area, ok := f.ThroneArea.Value(); ok && area > 0 {
+		if _, held := f.Plan.ThroneRoomFor(area); !held {
+			s.ThroneArea = area
+		}
+	}
+	if slices.ContainsFunc(f.Plan.AllRooms(), func(r PlannedRoom) bool { return r.Role == PlannedShelter }) {
+		return s, nil
+	}
+	for _, standing := range f.Built {
+		if standing {
+			return s, nil
+		}
+	}
+	colonists, ok := f.Colonists.Value()
+	if !ok {
+		return SeedRooms{}, unknownStationFact("colonists")
+	}
+	s.Shelter, s.Colonists, s.Cold, s.Hot = true, int(colonists), f.Survey.Cold, f.Survey.Hot
+	return s, nil
 }
 
 // regroupPrice is what the regrouping prices conflicts with: a colonist's work
@@ -182,11 +216,15 @@ func (f StationFacts) GraphInput() (StationGraphInput, error) {
 	if !ok {
 		return StationGraphInput{}, unknownStationFact("resource demand")
 	}
+	seed, err := f.seedRooms()
+	if err != nil {
+		return StationGraphInput{}, err
+	}
 	return StationGraphInput{
 		Catalog: f.Catalog, Furniture: f.Furniture, Dining: f.Dining, Items: f.Items, Recipes: f.Recipes,
 		Population: population, NutritionPerDay: nutrition, Orders: orders,
 		Stock: stock, StackLimit: f.StackLimit, Perishable: f.Perishable,
-		Crops: f.Crops, FoodReserveDays: f.FoodReserveDays,
+		Crops: f.Crops, FoodReserveDays: f.FoodReserveDays, Seed: seed,
 	}, nil
 }
 
@@ -198,7 +236,7 @@ func (f StationFacts) GraphInput() (StationGraphInput, error) {
 // the caller keys the load beside it.
 func (f StationFacts) InputsKey() string {
 	plan, _ := json.Marshal(f.Plan) // the plan holds pointers; the saved form is its value
-	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Pinned, f.Tile, f.OutdoorCurve, f.ExpectedMood, f.Mismatches) + string(plan)
+	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Pinned, f.Tile, f.OutdoorCurve, f.ExpectedMood, f.Mismatches, f.Derive, f.ThroneArea) + string(plan)
 	input, err := f.GraphInput()
 	if err != nil {
 		return key + err.Error()
@@ -251,6 +289,9 @@ type StationAdvice struct {
 	// Comfort is the priced comfort tier of the bed and each worked bench
 	// (#2975), advisory; nil while the model or a fact is unknown.
 	Comfort []ComfortChoice
+	// SeedOnly names the unknown fact that left a derive-time graph at the seed
+	// rooms (StationFacts.Derive); empty when the full graph was built.
+	SeedOnly string
 }
 
 // AdviseStations runs the station chain over the live colony. It reads the
@@ -259,15 +300,31 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 	if f.Built == nil {
 		return StationAdvice{}, unknownStationFact("construction census")
 	}
-	if f.Dining.Table.Def == "" {
-		return StationAdvice{}, unknownStationFact("dining furniture")
-	}
+	var graph StationGraph
+	var seedOnly string
 	input, err := f.GraphInput()
-	if err != nil {
-		return StationAdvice{}, err
+	if f.Dining.Table.Def == "" {
+		err = unknownStationFact("dining furniture")
 	}
-	graph, err := BuildStationGraph(input)
-	if err != nil {
+	switch {
+	case err == nil:
+		if graph, err = BuildStationGraph(input); err != nil {
+			return StationAdvice{}, err
+		}
+	case f.Derive && errors.Is(err, ErrStationFacts):
+		// A first plan has no census, orders or stock: the graph keeps the
+		// rooms that need none and the rest grows on replan. Nothing is
+		// guessed for the facts left unread.
+		seedOnly = err.Error()
+		seed, serr := f.seedRooms()
+		if serr != nil {
+			return StationAdvice{}, serr
+		}
+		if f.RoofDistance <= 0 {
+			return StationAdvice{}, unknownStationFact("roof support distance")
+		}
+		graph = SeedGraph(StationGraphInput{Catalog: f.Catalog, Seed: seed})
+	default:
 		return StationAdvice{}, err
 	}
 	built := BuiltRegions(f.Plan, f.Built)
@@ -285,7 +342,7 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 	}
 	clustering, embedIn, embedding := regrouped.Clustering, regrouped.Embed, regrouped.Embedding
 	graph.Sites = PowerSiteNodes(f.Plan)
-	out := StationAdvice{Graph: graph, Clustering: clustering, Embedding: embedding, Regroup: regrouped.Decisions}
+	out := StationAdvice{Graph: graph, Clustering: clustering, Embedding: embedding, Regroup: regrouped.Decisions, SeedOnly: seedOnly}
 	if len(graph.Sites) > 0 {
 		if out.Sites, err = EmbedSites(SiteEmbedInput{Embed: embedIn, Embedding: embedding, Nodes: graph.Sites}); err != nil {
 			return StationAdvice{}, err

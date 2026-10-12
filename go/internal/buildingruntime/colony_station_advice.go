@@ -233,7 +233,7 @@ func stationAdviceAttrs(a policy.StationAdvice) map[string]any {
 	}
 	s := a.Embedding.Score
 	return map[string]any{
-		"nodes": len(a.Graph.Nodes), "edges": len(a.Graph.Edges), "groups": groups, "conflicts": conflicts,
+		"nodes": len(a.Graph.Nodes), "edges": len(a.Graph.Edges), "groups": groups, "conflicts": conflicts, "seed_only": a.SeedOnly,
 		"sites": sites, "site_issues": siteIssues, "vents": vents, "vent_issues": ventIssues, "comfort": comfort,
 		"embed": map[string]any{
 			"level": a.Embedding.ObstacleLevel(), "placed": len(a.Embedding.Blocks), "issues": issues, "fields": fields,
