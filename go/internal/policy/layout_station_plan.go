@@ -106,24 +106,43 @@ type StationFacts struct {
 	// ThroneArea is the interior cells of the throne room a title asks (the
 	// growth's ThroneArea); 0 is none owed, unknown asks for none and says so.
 	ThroneArea domain.Fact[int]
+	// RetireShelter is the review's ShelterRetirable: the plan's shelter is no
+	// longer owed a node and leaves with the next plan.
+	RetireShelter bool
+	// Demand is the departments' room demand (the training range's stands and
+	// the ring's markers, #3003); its zero value asks for none.
+	Demand RoomDemand
+	// Child are the shapes of the child rooms the colony owes (ChildRoomShapes);
+	// the playroom, classroom and deathrest chamber among them are room nodes.
+	Child []ChildRoomShape
 }
 
-// seedRooms are the special rooms the plan is owed: the day-1 shelter while
-// nothing stands and the plan holds none, and the throne room the plan lacks.
-// The shelter needs the colonists; unknown, the advice cannot size it.
+// seedRooms are the special rooms the plan is owed or holds: the day-1 shelter
+// while nothing stands and the plan holds none, or while the plan's shelter is
+// not retirable (RetireShelter), and the throne room the plan lacks, or the
+// largest it holds, so a standing one is a node to pin (#3003). The shelter
+// needs the colonists; unknown, the advice cannot size it.
 func (f StationFacts) seedRooms() (SeedRooms, error) {
 	var s SeedRooms
-	if area, ok := f.ThroneArea.Value(); ok && area > 0 {
-		if _, held := f.Plan.ThroneRoomFor(area); !held {
-			s.ThroneArea = area
+	held := 0
+	for _, r := range f.Plan.AllRooms() {
+		if r.Role == PlannedThrone {
+			held = max(held, int(r.Region.Bounds().Width)*int(r.Region.Bounds().Height))
 		}
 	}
-	if slices.ContainsFunc(f.Plan.AllRooms(), func(r PlannedRoom) bool { return r.Role == PlannedShelter }) {
-		return s, nil
+	s.ThroneArea = held
+	if area, ok := f.ThroneArea.Value(); ok && area > held {
+		s.ThroneArea = area
 	}
-	for _, standing := range f.Built {
-		if standing {
+	if slices.ContainsFunc(f.Plan.AllRooms(), func(r PlannedRoom) bool { return r.Role == PlannedShelter }) {
+		if f.RetireShelter {
 			return s, nil
+		}
+	} else {
+		for _, standing := range f.Built {
+			if standing {
+				return s, nil
+			}
 		}
 	}
 	colonists, ok := f.Colonists.Value()
@@ -132,6 +151,21 @@ func (f StationFacts) seedRooms() (SeedRooms, error) {
 	}
 	s.Shelter, s.Colonists, s.Cold, s.Hot = true, int(colonists), f.Survey.Cold, f.Survey.Hot
 	return s, nil
+}
+
+// trainingAsk is the range stands and ring markers the graph holds nodes for
+// (#3003): what the demand asks (RoomDemand.Ranges, Rings) or the plan's
+// standing range and ring already hold, whichever is more, so a standing room
+// is a node to pin and the demand only widens it. Zero asks for no such room.
+func (f StationFacts) trainingAsk() (stands, markers int) {
+	stands, markers = min(f.Demand.Ranges, RangeMaxStands), min(f.Demand.Rings, RingMaxMarkers)
+	if rooms := f.Plan.RangeRooms(); len(rooms) > 0 {
+		stands = max(stands, int(RangeStandCount(rooms[0])))
+	}
+	if rooms := f.Plan.RingRooms(); len(rooms) > 0 {
+		markers = max(markers, rooms[0].Markers)
+	}
+	return stands, markers
 }
 
 // regroupPrice is what the regrouping prices conflicts with: a colonist's work
@@ -225,11 +259,14 @@ func (f StationFacts) GraphInput() (StationGraphInput, error) {
 	if err != nil {
 		return StationGraphInput{}, err
 	}
+	stands, markers := f.trainingAsk()
 	return StationGraphInput{
 		Catalog: f.Catalog, Furniture: f.Furniture, Dining: f.Dining, Items: f.Items, Recipes: f.Recipes,
 		Population: population, NutritionPerDay: nutrition, Orders: orders,
 		Stock: stock, StackLimit: f.StackLimit, Perishable: f.Perishable,
 		Crops: f.Crops, FoodReserveDays: f.FoodReserveDays, Suites: f.Suites, Seed: seed,
+		TrainingStands: stands, TrainingMarkers: markers, Graveyards: max(f.Demand.Graveyards, len(f.Plan.roomsOf(PlannedGraveyard))),
+		Rooms: append(GearRoomNodes(f.Plan, f.Demand), ChildRoomNodes(f.Plan, f.Child)...),
 		Races: f.Races, Pasture: f.Pasture,
 	}, nil
 }
@@ -242,7 +279,7 @@ func (f StationFacts) GraphInput() (StationGraphInput, error) {
 // the caller keys the load beside it.
 func (f StationFacts) InputsKey() string {
 	plan, _ := json.Marshal(f.Plan) // the plan holds pointers; the saved form is its value
-	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Pinned, f.OutdoorCurve, f.ExpectedMood, f.Mismatches, f.Derive, f.ThroneArea) + string(plan)
+	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Pinned, f.OutdoorCurve, f.ExpectedMood, f.Mismatches, f.Derive, f.ThroneArea, f.RetireShelter, f.Demand, f.Child) + string(plan)
 	input, err := f.GraphInput()
 	if err != nil {
 		return key + err.Error()
@@ -410,6 +447,26 @@ var matchedPlanned = map[PlannedRole]RoomRole{
 	PlannedSuite: RoomRoleSuite,
 }
 
+// roomNodeRoles are the planned roles of the station-less room nodes of the
+// graph (circulation, the outskirts rooms, the training rooms, the shelter and
+// the throne room): a standing room of one is matched to the group of its node
+// by planned role, outdoor or without a native role as it may be (#3003). The
+// set is read off the node constructors, so a new node kind joins it by being
+// built there.
+var roomNodeRoles = func() map[PlannedRole]bool {
+	nodes := append(OutskirtsRoomNodes(), TrainingRoomNodes(1, 1)...)
+	nodes = append(nodes, SeedRoomNodes(SeedRooms{Shelter: true, Colonists: 1, ThroneArea: 1})...)
+	nodes = append(nodes, RoomNode{Role: PlannedCirculation})
+	out := map[PlannedRole]bool{}
+	for _, n := range nodes {
+		out[n.Role] = true
+	}
+	for _, role := range append(slices.Clone(gearRooms), childNodeRoles...) {
+		out[role] = true
+	}
+	return out
+}()
+
 // matchKey is the key a room is matched to groups under.
 func (b BuiltRegion) matchKey() string {
 	if b.Planned != "" {
@@ -421,7 +478,7 @@ func (b BuiltRegion) matchKey() string {
 // matchKeyOfGroup is the key a group is matched to rooms under.
 func matchKeyOfGroup(g RoomGroup) string {
 	if p, ok := PlannedRoleOfGroup(g); ok {
-		if _, special := matchedPlanned[p]; special {
+		if _, special := matchedPlanned[p]; special || roomNodeRoles[p] {
 			return string(p)
 		}
 	}
@@ -429,9 +486,10 @@ func matchKeyOfGroup(g RoomGroup) string {
 }
 
 // BuiltRegions are the plan's standing rooms that carry a native role
-// (moduleRoomRoles, and the freezer and butchery of matchedPlanned), by room
-// id. Outdoor rooms and rooms with no native role are left out, and so is a
-// room whose successor stands: the pair is one room.
+// (moduleRoomRoles, and the freezer and butchery of matchedPlanned) or a room
+// node of the graph (roomNodeRoles), by room id. Outdoor rooms and rooms with
+// no native role are left out unless they are a room node's, and so is a room
+// whose successor stands: the pair is one room.
 func BuiltRegions(plan LayoutPlan, built map[int32]bool) []BuiltRegion {
 	var out []BuiltRegion
 	replaced := map[int32]bool{}
@@ -446,7 +504,12 @@ func BuiltRegions(plan LayoutPlan, built map[int32]bool) []BuiltRegion {
 		if native, special := matchedPlanned[r.Role]; special {
 			role, ok, planned = native, true, r.Role
 		}
-		if !ok || r.Outdoor || !built[r.ID] || replaced[r.ID] {
+		if roomNodeRoles[r.Role] {
+			ok, planned = true, r.Role // a room node's room: matched by planned role, outdoor or with no native role
+		} else if r.Outdoor {
+			continue
+		}
+		if !ok || !built[r.ID] || replaced[r.ID] {
 			continue
 		}
 		out = append(out, BuiltRegion{Room: r.ID, Role: role, Planned: planned, Region: r.Region})

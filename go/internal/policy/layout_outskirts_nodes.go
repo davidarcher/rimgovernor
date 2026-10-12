@@ -1,5 +1,7 @@
 package policy
 
+import "fmt"
+
 // The outskirts rooms as station-less room nodes of the station graph (#2882).
 // The tomb, morgue, graveyard, waste yard and incinerator are rooms the plan
 // owes from its start (OutskirtsOwed) that hold no catalog station for the
@@ -26,6 +28,22 @@ package policy
 // ReasonOutskirtsRoom is why the graph holds an outskirts room: the plan owes
 // each from its start.
 const ReasonOutskirtsRoom = "outskirts_room_owed_from_start"
+
+// ReasonGraveyardDemand is why the graph holds a graveyard beyond the first: the
+// graveyards in use are full (RoomDemand.Graveyards) or the plan already holds
+// them (#3003).
+const ReasonGraveyardDemand = "graveyard_demanded"
+
+// GraveyardRoomNodes are the graveyards beyond the first of the outskirts, each
+// of the first one's size; wanted is the graveyards in all (the first is
+// OutskirtsRoomNodes').
+func GraveyardRoomNodes(wanted int) []RoomNode {
+	var nodes []RoomNode
+	for n := 2; n <= wanted; n++ {
+		nodes = append(nodes, RoomNode{ID: fmt.Sprintf("%s-%d", PlannedGraveyard, n), Role: PlannedGraveyard, Area: int(GraveyardW * GraveyardH), Width: GraveyardH, Reason: ReasonGraveyardDemand})
+	}
+	return nodes
+}
 
 // OutskirtsRoomNodes are the five outskirts rooms as graph nodes.
 func OutskirtsRoomNodes() []RoomNode {

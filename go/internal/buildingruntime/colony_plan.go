@@ -224,7 +224,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 				// A room the colony outgrew gets a larger successor: the
 				// station chain at this review (its pins the rooms the replan keeps), skipped while its inputs
 				// are unchanged.
-				if advice, ok := r.stationAdvice(ctx, snapshot, *projection, layout.Plan, policy.ReplanPins(layout.Plan, growth.Fixed, emptied, layoutTier(*projection)), survey, catalog); ok {
+				if advice, ok := r.stationAdvice(ctx, snapshot, *projection, layout.Plan, policy.ReplanPins(layout.Plan, growth.Fixed, emptied, layoutTier(*projection)), growth, demand, survey, catalog); ok {
 					growth.Successor = policy.OutgrownSuccession(advice, projection.Stations, layout.Plan)
 					growth.Fields = fieldBlocks(advice)
 				}

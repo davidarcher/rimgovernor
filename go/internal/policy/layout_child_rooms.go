@@ -89,6 +89,43 @@ func ChildRoomSizes(s ChildRoomShape) [][2]int32 {
 	return out
 }
 
+// ReasonChildRoom is why the graph holds a child room: a pawn of the matching
+// developmental stage lives in the colony, or the plan already holds the room
+// (#3003).
+const ReasonChildRoom = "child_room_owed"
+
+// childNodeRoles are the add-on rooms the graph holds as room nodes, all those of
+// childRoomNeeds but the nursery, which is a station group (the cribs of the
+// babies); the rest have no station.
+var childNodeRoles = []PlannedRole{PlannedPlayroom, PlannedClassroom, PlannedDeathrestChamber, PlannedWorship, PlannedContainmentCell, PlannedIsolationRoom}
+
+// ChildRoomNodes are the playroom, classroom, deathrest chamber, worship room,
+// containment cell and isolation room the colony owes (shapes, ChildRoomShapes) or the plan holds as room nodes. An owed room is
+// the smallest interior that holds its furniture (ChildRoomSizes); a standing
+// one keeps at least the floor it has, so it is a node to pin whether or not
+// its need has ended. The short side is fixed, the long side follows the area.
+func ChildRoomNodes(plan LayoutPlan, shapes []ChildRoomShape) []RoomNode {
+	var nodes []RoomNode
+	for _, role := range childNodeRoles {
+		var w, d int32
+		for _, s := range shapes {
+			if sizes := ChildRoomSizes(s); s.Module == role && len(sizes) > 0 {
+				w, d = sizes[0][0], sizes[0][1]
+				break
+			}
+		}
+		for _, r := range plan.roomsOf(role) {
+			if b := r.Region.Bounds(); b.Width*b.Height > w*d {
+				w, d = b.Width, b.Height
+			}
+		}
+		if w > 0 && d > 0 {
+			nodes = append(nodes, RoomNode{ID: string(role), Role: role, Area: int(w * d), Width: min(w, d), Reason: ReasonChildRoom})
+		}
+	}
+	return nodes
+}
+
 // childRowDemand is the width one row would need for every piece.
 func childRowDemand(s ChildRoomShape) int {
 	w := 0

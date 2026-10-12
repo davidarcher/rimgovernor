@@ -53,7 +53,8 @@ type TileRoomDiff struct {
 }
 
 // UnmatchedBuilt is a standing room with no node in the tiled plan. Reason is
-// ReasonDiffOutdoor or ReasonDiffNoNativeRole (BuiltRegions skips both),
+// ReasonDiffOutdoor or ReasonDiffNoNativeRole (BuiltRegions skips both unless
+// the room is a room node's),
 // ReasonDiffNotBlock (not a rectangle) or ReasonDiffNoNode (a native role whose
 // group had no block for it).
 type UnmatchedBuilt struct {
@@ -251,6 +252,13 @@ func unmatchedReason(r PlannedRoom, notBlock bool) string {
 	_, native := moduleRoomRoles[r.Role]
 	_, special := matchedPlanned[r.Role]
 	switch {
+	case roomNodeRoles[r.Role]:
+		// BuiltRegions pins it (a room node's room); it has no block only
+		// because no node of its role stands in the graph or it is no rectangle.
+		if notBlock {
+			return ReasonDiffNotBlock
+		}
+		return ReasonDiffNoNode
 	case r.Outdoor:
 		return ReasonDiffOutdoor
 	case !native && !special:

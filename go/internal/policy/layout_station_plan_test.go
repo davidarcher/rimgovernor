@@ -94,8 +94,11 @@ func TestBuiltRegionsAreStandingNativeRoles(t *testing.T) {
 		{ID: 5, Role: PlannedArmory, Region: region(4, 4)},
 	}}
 	got := BuiltRegions(plan, map[int32]bool{1: true, 3: true, 4: true, 5: true})
-	if len(got) != 2 || got[0].Room != 1 || got[0].Role != RoomRoleKitchen || got[1].Room != 5 || got[1].Role != RoomRoleStoreroom {
-		t.Fatalf("built regions = %+v, want kitchen 1 and storeroom 5 only", got)
+	// The standing kitchen, the waste yard (a room node's room, outdoor in the
+	// plan or not) and the armory (a storeroom matched by its planned role); the
+	// unbuilt kitchen and the barn (outdoor, no node) are left out.
+	if len(got) != 3 || got[0].Room != 1 || got[0].Role != RoomRoleKitchen || got[1].Room != 4 || got[1].Planned != PlannedWasteYard || got[2].Room != 5 || got[2].Role != RoomRoleStoreroom || got[2].Planned != PlannedArmory {
+		t.Fatalf("built regions = %+v, want kitchen 1, waste yard 4 and armory 5 only", got)
 	}
 }
 

@@ -3,6 +3,8 @@ package policy
 import (
 	"reflect"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // builtReplanAdvice derives the fixture's plan, stands every room of it and
@@ -11,12 +13,16 @@ import (
 func builtReplanAdvice(t *testing.T, f replayFixture) (LayoutPlan, StationFacts, StationAdvice) {
 	t.Helper()
 	s := f.survey(t)
-	fact, _, err := DeriveLayoutPlan(s, replayStationFacts(f, s), nil, 0)
+	facts := replayStationFacts(f, s)
+	// The departments ask for a training range, a sparring ring, an armory and
+	// a wardrobe, and a toddler owes a playroom.
+	facts.Demand = RoomDemand{Known: true, Ranges: 6, Rings: 6, Armory: true, Wardrobe: true}
+	facts.Child = []ChildRoomShape{{Module: PlannedPlayroom, Pieces: []PieceCount{{Size: domain.Cell{X: 2, Z: 1}, Count: 2}}}}
+	fact, _, err := DeriveLayoutPlan(s, facts, nil, 0)
 	plan, ok := fact.Value()
 	if err != nil || !ok {
 		t.Fatalf("derive: %v %v", ok, err)
 	}
-	facts := replayStationFacts(f, s)
 	facts.Plan, facts.Built = plan, map[int32]bool{}
 	for _, r := range plan.AllRooms() {
 		facts.Built[r.ID] = true
@@ -79,17 +85,33 @@ func TestDiffReplanTileKeepsBuiltRoomsAndListsTheUnmatched(t *testing.T) {
 			if diff.Count(TileDiffSame) == 0 {
 				t.Errorf("no built room is kept: %+v", diff.Rooms)
 			}
+			// Every room node's room is pinned: circulation, the outskirts rooms
+			// and the shelter stand as the chain's nodes, outdoor or with no
+			// native role as they may be (J2 of #2965), none a rebuild.
+			for _, r := range plan.AllRooms() {
+				if !roomNodeRoles[r.Role] {
+					continue
+				}
+				if d := byRoom[r.ID]; d.Verdict != TileDiffSame || d.Reason != ReasonDiffKept {
+					t.Errorf("%s %d is not kept as it stands: %+v", r.Role, r.ID, d)
+				}
+			}
 			if f.name == "baseline" {
-				// The standing rooms the chain has no node to pin (J2 of #2965).
-				want := []UnmatchedBuilt{
-					{Room: 7, Role: PlannedCirculation, Reason: ReasonDiffNoNativeRole}, {Room: 8, Role: PlannedTomb, Reason: ReasonDiffNoNode},
-					{Room: 9, Role: PlannedMorgue, Reason: ReasonDiffNoNativeRole}, {Room: 10, Role: PlannedGraveyard, Reason: ReasonDiffOutdoor},
-					{Room: 11, Role: PlannedWasteYard, Reason: ReasonDiffOutdoor}, {Room: 12, Role: PlannedIncinerator, Reason: ReasonDiffNoNativeRole},
-					{Room: 13, Role: PlannedShelter, Reason: ReasonDiffNoNode},
+				for _, role := range []PlannedRole{PlannedTrainingRange, PlannedSparringRing, PlannedArmory, PlannedWardrobe, PlannedPlayroom} {
+					if len(plan.roomsOf(role)) == 0 {
+						t.Errorf("the fixture stands no %s", role)
+					}
 				}
-				if !reflect.DeepEqual(diff.Unmatched, want) {
-					t.Errorf("unmatched %+v, want %+v", diff.Unmatched, want)
+			}
+			for _, r := range plan.RangeRooms() {
+				for _, tr := range advice.Tiled.Plan.RangeRooms() {
+					if tr.ID == r.ID && tr.Facing != r.Facing {
+						t.Errorf("range %d faces %v, tiled %v", r.ID, r.Facing, tr.Facing)
+					}
 				}
+			}
+			if len(diff.Unmatched) != 0 {
+				t.Errorf("unmatched %+v, want none", diff.Unmatched)
 			}
 			if again := DiffReplanTile(plan, facts.Built, advice); !reflect.DeepEqual(again, diff) {
 				t.Error("the diff is not deterministic")
@@ -124,6 +146,59 @@ func TestDiffReplanTileMatchesUnbuiltRoomsByRole(t *testing.T) {
 	}
 }
 
+// The graph holds a node for every training room and graveyard the plan stands
+// or the demand asks for, so each standing one is pinned (#3003): the larger of
+// the two, a graveyard beyond the first with an id of its own, matched by
+// planned role to the standing graveyards in turn.
+func TestRoomNodesFollowStandingAndDemandedRooms(t *testing.T) {
+	f := StationFacts{Demand: RoomDemand{Ranges: 20, Rings: 2}}
+	f.Plan = LayoutPlan{Rooms: []PlannedRoom{
+		{ID: 1, Role: PlannedTrainingRange, Outdoor: true, Facing: domain.North, Region: RectRegion(Rectangle{X: 0, Z: 0, Width: 5, Height: RangeDistance + 1})},
+		{ID: 2, Role: PlannedSparringRing, Outdoor: true, Markers: 9, Region: RectRegion(Rectangle{X: 20, Z: 0, Width: RingSide, Height: RingSide})},
+	}}
+	if stands, markers := f.trainingAsk(); stands != RangeMaxStands || markers != 9 {
+		t.Errorf("training ask %d stands, %d markers", stands, markers)
+	}
+	nodes := GraveyardRoomNodes(3)
+	if len(nodes) != 2 || nodes[0].ID == nodes[1].ID || nodes[0].Role != PlannedGraveyard || GraveyardRoomNodes(1) != nil {
+		t.Errorf("graveyard nodes %+v", nodes)
+	}
+	graveyard := func(id int32, x int32) PlannedRoom {
+		return PlannedRoom{ID: id, Role: PlannedGraveyard, Outdoor: true, Region: RectRegion(Rectangle{X: x, Z: 0, Width: GraveyardW, Height: GraveyardH})}
+	}
+	plan := LayoutPlan{Rooms: []PlannedRoom{graveyard(1, 0), graveyard(2, 30)}}
+	built := BuiltRegions(plan, map[int32]bool{1: true, 2: true})
+	groups := []RoomGroup{{ID: 0, Planned: PlannedGraveyard, Area: 117}, {ID: 1, Planned: PlannedGraveyard, Area: 117}}
+	for _, m := range MatchGroupRooms(groups, built) {
+		if len(m.Rooms) != 1 {
+			t.Errorf("group %d holds %v", m.Group, m.Rooms)
+		}
+	}
+}
+
+// The gear and add-on rooms are nodes while the demand or a shape asks for
+// them or the plan holds one, a standing one at no less than the floor it has.
+func TestGearAndChildRoomNodes(t *testing.T) {
+	held := LayoutPlan{Rooms: []PlannedRoom{
+		{ID: 1, Role: PlannedArmory, Region: RectRegion(Rectangle{X: 0, Z: 0, Width: 7, Height: 5})},
+		{ID: 2, Role: PlannedWorship, Region: RectRegion(Rectangle{X: 10, Z: 0, Width: 8, Height: 6})},
+	}}
+	if nodes := GearRoomNodes(held, RoomDemand{Wardrobe: true}); len(nodes) != 2 || nodes[0].Role != PlannedArmory || nodes[1].Role != PlannedWardrobe {
+		t.Errorf("gear nodes %+v", nodes)
+	}
+	if nodes := GearRoomNodes(LayoutPlan{}, RoomDemand{}); len(nodes) != 0 {
+		t.Errorf("gear nodes with no demand %+v", nodes)
+	}
+	shape := ChildRoomShape{Module: PlannedPlayroom, Pieces: []PieceCount{{Size: domain.Cell{X: 1, Z: 1}, Count: 2}}}
+	nodes := ChildRoomNodes(held, []ChildRoomShape{shape})
+	if len(nodes) != 2 || nodes[0].Role != PlannedPlayroom || nodes[0].Area <= 0 || nodes[1].Role != PlannedWorship || nodes[1].Area != 48 || nodes[1].Width != 6 {
+		t.Errorf("child nodes %+v", nodes)
+	}
+	if nodes := ChildRoomNodes(LayoutPlan{}, nil); len(nodes) != 0 {
+		t.Errorf("child nodes with no need %+v", nodes)
+	}
+}
+
 // A standing room the old replan retired but the chain keeps is a new room in
 // the diff, a superseded standing room is dropped without being listed as
 // unmatched, and one the chain cannot pin is listed and, when the tiler builds
@@ -133,8 +208,8 @@ func TestDiffReplanTileReadsClaimsAndSupersededRooms(t *testing.T) {
 		{ID: 1, Role: PlannedKitchen, Region: RectRegion(Rectangle{X: 0, Z: 0, Width: 4, Height: 4})},
 		{ID: 2, Role: PlannedStorage, Region: RectRegion(Rectangle{X: 10, Z: 0, Width: 4, Height: 4})},
 		{ID: 3, Role: PlannedStorage, Replaces: 2, Region: RectRegion(Rectangle{X: 20, Z: 0, Width: 6, Height: 4})},
-		{ID: 4, Role: PlannedSparringRing, Outdoor: true, Region: RectRegion(Rectangle{X: 30, Z: 0, Width: 6, Height: 6})},
-		{ID: 5, Role: PlannedGraveyard, Region: RectRegion(Rectangle{X: 40, Z: 0, Width: 6, Height: 6})},
+		{ID: 4, Role: PlannedYard, Outdoor: true, Region: RectRegion(Rectangle{X: 30, Z: 0, Width: 6, Height: 6})},
+		{ID: 5, Role: PlannedBattery, Region: RectRegion(Rectangle{X: 40, Z: 0, Width: 6, Height: 6})},
 		{ID: 6, Role: PlannedMorgue, Region: RectRegion(Rectangle{X: 60, Z: 0, Width: 4, Height: 4})},
 	}}
 	advice := StationAdvice{
@@ -170,7 +245,7 @@ func TestDiffReplanTileReadsClaimsAndSupersededRooms(t *testing.T) {
 			t.Errorf("room %d is %+v, want %+v", d.Room, got, want[d.Room])
 		}
 	}
-	wantUnmatched := []UnmatchedBuilt{{Room: 4, Role: PlannedSparringRing, Reason: ReasonDiffOutdoor}, {Room: 5, Role: PlannedGraveyard, Reason: ReasonDiffNoNativeRole}, {Room: 6, Role: PlannedMorgue, Reason: ReasonDiffNoNativeRole}}
+	wantUnmatched := []UnmatchedBuilt{{Room: 4, Role: PlannedYard, Reason: ReasonDiffOutdoor}, {Room: 5, Role: PlannedBattery, Reason: ReasonDiffNoNativeRole}, {Room: 6, Role: PlannedMorgue, Reason: ReasonDiffNoNode}}
 	if !reflect.DeepEqual(diff.Unmatched, wantUnmatched) {
 		t.Errorf("unmatched %+v, want %+v", diff.Unmatched, wantUnmatched)
 	}

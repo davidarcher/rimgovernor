@@ -120,6 +120,13 @@ type StationGraphInput struct {
 	// the colony asks for (RoomDemand.Ranges and Rings); zero asks for no such
 	// room (#2887).
 	TrainingStands, TrainingMarkers int
+	// Graveyards is the graveyards the plan holds or the burial demand asks for
+	// (RoomDemand.Graveyards): each beyond the outskirts' first is a node of its
+	// own (#3003).
+	Graveyards int
+	// Rooms are the further station-less rooms the plan holds or the colony
+	// asks for: the gear rooms and the child rooms (#3003).
+	Rooms []RoomNode
 	// Crops are the crops chosen to grow (crop choice is the caller's) and
 	// FoodReserveDays the stored-food buffer their fields budget (#2885); a crop
 	// that is not edible or has an unknown target gets no field node.
@@ -369,8 +376,9 @@ func BuildStationGraph(in StationGraphInput) (StationGraph, error) {
 // stationRoomNodes are the station-less rooms the graph holds: the outskirts,
 // the training rooms and the seed rooms.
 func stationRoomNodes(in StationGraphInput) []RoomNode {
-	nodes := OutskirtsRoomNodes()
+	nodes := append(OutskirtsRoomNodes(), GraveyardRoomNodes(in.Graveyards)...)
 	nodes = append(nodes, TrainingRoomNodes(in.TrainingStands, in.TrainingMarkers)...)
+	nodes = append(nodes, in.Rooms...)
 	return append(nodes, SeedRoomNodes(in.Seed)...)
 }
 

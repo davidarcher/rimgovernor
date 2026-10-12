@@ -135,9 +135,10 @@ func TestDeriveTimeUnknownFactsAskForNothing(t *testing.T) {
 	}
 }
 
-// The seed rooms are owed to a fresh plan only: a plan that holds a shelter or
-// has anything standing asks for none, and a throne room the plan holds is not
-// asked again.
+// The seed rooms are owed to a fresh plan; a plan that holds them keeps them as
+// nodes at the size they stand (so the chain pins them, #3003), the shelter
+// until it is retirable, and a plan with anything standing but no shelter owes
+// none.
 func TestSeedRoomsAreOwedToAFreshPlanOnly(t *testing.T) {
 	f := deriveFacts(4, false, false, nil)
 	f.ThroneArea = domain.Known(30)
@@ -146,8 +147,12 @@ func TestSeedRoomsAreOwedToAFreshPlanOnly(t *testing.T) {
 	}
 	held := f
 	held.Plan.Rooms = []PlannedRoom{{ID: 1, Role: PlannedShelter, Region: region(4, 4)}, {ID: 2, Role: PlannedThrone, Region: region(6, 6)}}
-	if s, _ := held.seedRooms(); s.Shelter || s.ThroneArea != 0 {
-		t.Errorf("held rooms asked again: %+v", s)
+	if s, _ := held.seedRooms(); !s.Shelter || s.ThroneArea != 36 {
+		t.Errorf("held rooms are nodes at their size: %+v", s)
+	}
+	held.RetireShelter = true
+	if s, _ := held.seedRooms(); s.Shelter || s.ThroneArea != 36 {
+		t.Errorf("a retirable shelter keeps no node: %+v", s)
 	}
 	standing := f
 	standing.Built = map[int32]bool{7: true}
