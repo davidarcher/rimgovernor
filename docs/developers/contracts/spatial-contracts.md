@@ -323,9 +323,17 @@ on the colony centre when the plan has no free cell there.
   amount over interval a day (milk, wool, eggs, chemfuel); feed hauls what the pen's
   grazing leaves of `AdultFeedPerDay` (`PenCells` over the weakest pasture, so a pen is
   hand-fed only past `penCellsCap` or on barren ground) in the richest feed item. Unread
-  yields, hunger, pasture or feed add no flow (#2996). Joy outings and mined, wood and
-  hunt hauling have no model yet (#2949), so a plan's passages fall short of
-  the audit's 30-50 per colonist a day. Each passage holds a door open for its window,
+  yields, hunger, pasture or feed add no flow (#2996). Joy is `StationGraph.Recreation`
+  (`RecreationNode`, from `StationCatalog.Joy`, #2997): the awake fall of the Joy need
+  (`joyGame`: Need_Joy's 0.0015 an interval over the schedule template's awake hours)
+  over the chance-weighted mean session of the joy givers that need no building
+  (`joyGainRate` x `joyDuration` x 0.36/2500), split by the givers the def flags outdoors
+  (`unroofedOnly`, `requiresEnjoyOutdoors`) or `joyOutdoorGivers` (the walk). Each outdoor
+  session is one trip from the bed to the outside node, merged into the day-cycle edge.
+  It is a lower bound: no tolerance, weather, or building-backed givers (they wait on a
+  rec room with stations in the graph, whose indoor sessions are `RecreationNode.Indoor`).
+  Mined, wood and hunt hauling have no model yet (#2949), so a plan's passages fall
+  short of the audit's 30-50 per colonist a day. Each passage holds a door open for its window,
   from the def: the wait (`Building_Door.TicksToOpenNow`, 45 over `DoorOpenSpeed`), two
   cell moves (`climateTable.CellMoveTicks`) and the close delay (`ClimateModel.Door`). An
   airlock passage has an overlap of one close delay with both doors open (the vestibule

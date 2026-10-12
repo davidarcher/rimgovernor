@@ -28,6 +28,9 @@ type StationCatalog struct {
 	// Comfort is the comfort and beauty needs and the furniture that feeds them
 	// (#2975); the zero value is unknown and leaves the furniture unpriced.
 	Comfort ComfortModel
+	// Joy is the joy givers a colonist uses and the game numbers beside them
+	// (#2997); the zero value is unknown and leaves joy outings unsized.
+	Joy JoyModel
 }
 
 // Station is one buildable definition as the planner sees it.

@@ -106,6 +106,9 @@ func (catalog *DefinitionCatalog) buildStations() (policy.StationCatalog, error)
 	if out.Mood, err = catalog.moodModel(); err != nil {
 		return policy.StationCatalog{}, err
 	}
+	if out.Joy, err = catalog.joyModel(); err != nil {
+		return policy.StationCatalog{}, err
+	}
 	return out, nil
 }
 

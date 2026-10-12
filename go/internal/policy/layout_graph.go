@@ -254,8 +254,11 @@ type StationGraph struct {
 	Fields []FieldNode
 	// Pens are the outdoor pen nodes of the herds (layout_pen_nodes.go); their
 	// edges count as trips to the outside node.
-	Pens  []PenNode
-	Edges []StationEdge
+	Pens []PenNode
+	// Recreation is the joy demand (layout_joy_nodes.go); unknown without a joy
+	// model. Its outdoor sessions are edges to the outside node.
+	Recreation domain.Fact[RecreationNode]
+	Edges      []StationEdge
 }
 
 // PlannedCirculation is the corridor that joins the rooms of a large colony:
@@ -351,9 +354,11 @@ func BuildStationGraph(in StationGraphInput) (StationGraph, error) {
 	b.dayCycle()
 	fields := b.fieldNodes(runs)
 	pens := b.penNodes()
+	recreation := b.recreation()
 	g := b.graph()
 	g.Fields = fields
 	g.Pens = pens
+	g.Recreation = recreation
 	g.Rooms = stationRoomNodes(in)
 	b.shelterMeals(g.Rooms, meals)
 	for _, n := range g.Nodes {
@@ -914,8 +919,9 @@ func recipePicks(f RecipeFlow) []Amount {
 // medical bed leaves it at wake and comes back to sleep, one trip a day to the
 // outside node (one way, like every edge; the way back is counted where trips
 // become door passages). Meals are sleepEat's and the pen herds' hauls are
-// penNodes'; what a colonist does between wake and sleep outdoors (joy,
-// hauling mined, wood or hunted goods) has no model yet and adds nothing.
+// penNodes' and the joy outings are recreation's; what a colonist does between
+// wake and sleep outdoors (hauling mined, wood or hunted goods) has no model yet
+// and adds nothing.
 func (b *graphBuilder) dayCycle() {
 	p := b.in.Population
 	if p.Colonists <= 0 {

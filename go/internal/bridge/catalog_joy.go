@@ -171,6 +171,38 @@ func (catalog *DefinitionCatalog) joyPerSession() (map[string]float64, error) {
 	return out, nil
 }
 
+// joyModel is the joy givers a colonist may use with no building: the givers
+// with a job and no thingDefs, each with its chance (baseChance times the share
+// of pawns that ever do it), the joy a session of its job gives before the
+// game's per-tick scale, and whether it is outdoors (the def's own flags, or the
+// table for a class that is). A giver whose job the catalog has no row for is a
+// contract error; a catalog with no NeedDef for joy leaves the model unknown.
+func (catalog *DefinitionCatalog) joyModel() (policy.JoyModel, error) {
+	game := policy.JoyGame()
+	if DefRow[*d.NeedDef](catalog, game.Need) == nil {
+		return policy.JoyModel{}, nil
+	}
+	var model policy.JoyModel
+	for name, giver := range catalog.Defs[(&d.JoyGiverDef{}).ProtoReflect().Descriptor().FullName()] {
+		row, _ := giver.(*d.JoyGiverDef)
+		if row.GetJobDef() == "" || len(row.GetThingDefs()) > 0 {
+			continue
+		}
+		job := DefRow[*d.JobDef](catalog, row.GetJobDef())
+		if job == nil {
+			return policy.JoyModel{}, contract("joy giver %s names job %q the catalog has no row for", name, row.GetJobDef())
+		}
+		model.Sources = append(model.Sources, policy.JoySource{
+			Giver:   name,
+			Weight:  float64(row.GetBaseChance()) * float64(row.GetPctPawnsEverDo()),
+			Session: float64(job.GetJoyGainRate()) * float64(job.GetJoyDuration()),
+			Outdoor: row.GetUnroofedOnly() || row.GetRequiresEnjoyOutdoors() || slices.Contains(game.OutdoorGivers, name),
+		})
+	}
+	slices.SortFunc(model.Sources, func(a, b policy.JoySource) int { return compareStrings(a.Giver, b.Giver) })
+	return model, nil
+}
+
 // costValue is the market value of def's adjusted cost list at stuff.
 func (catalog *DefinitionCatalog) costValue(def, stuff string) (float64, error) {
 	costs, err := catalog.AdjustedCosts(def, stuff)
