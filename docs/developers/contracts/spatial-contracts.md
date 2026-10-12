@@ -841,7 +841,7 @@ Where a tier stands depends on live cover, trees and standing buildings, so the 
 a function of the plan and a census, not of the survey: they are re-sited from each
 census and are not stored with the plan. The census (`DefenseRequest`: the cell mirror
 window, defenders, definitions and the turret, mortar and IED gates) is an explicit input;
-its Killbox, Home and Region are the plan's. A built tier is pinned, as `replanPins` pins a
+its Killbox, Home and Region are the plan's. A started tier (built, an attempt admitted, a lost building re-opening it, or any building standing) is pinned, as `replanPins` pins a
 room that holds anything of ours: its node is the built tier where it stands, the census
 reads its standing buildings as the ground under them so the same census sites the same
 cells, and the tiers still to build are sited around it (a building of theirs on a pinned

@@ -361,7 +361,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	}
 	tick := read.Projection.Identity.Tick
 	pipe.settle(census)
-	r.adviseTiers(call, state, read, record)
+	r.adviseTiers(call, state, read, record, census)
 	// A layout that stood before turrets could be placed (no research, no
 	// network, no steel) gains the tier once the observed gates open.
 	if !pipe.piped() && len(definitions) > 0 && stored && defenseTurretsDue(record, expected.Tick) {

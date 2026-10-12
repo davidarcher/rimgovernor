@@ -58,11 +58,23 @@ func (r *RoundsDefenseLayoutPlanner) defenseCensusRequest(call context.Context, 
 	return request, Verdict{}, true, nil
 }
 
-// defenseTierPins are the record's built killbox tiers, for PlanDefenseTiers:
-// the placements and reserved cells of each tier whose buildings all stand,
-// with the corridor and firing line geometry the proposal observed. A
-// perimeter section, a removal or a turret replacement is not a killbox tier.
-func defenseTierPins(record store.DefenseLayoutRecord) policy.DefenseTierPins {
+// defenseTierStarted reports a tier the plan must keep where it is (#2973): it
+// was built, an attempt was admitted for it, a lost building re-opened it, or
+// any of its buildings stands in the census. A tier mid-construction would
+// otherwise re-site on every census.
+func defenseTierStarted(t store.DefenseTierRecord, census *defenseCensus) bool {
+	if t.Built || t.Attempts > 0 || t.Reopened > 0 {
+		return true
+	}
+	return census != nil && slices.ContainsFunc(t.Buildings, func(b store.DefenseBuilding) bool { return census.standing(b.Definition, b.Cell) })
+}
+
+// defenseTierPins are the record's started killbox tiers, for PlanDefenseTiers:
+// the placements and reserved cells of each tier that is built, has an admitted
+// attempt or has a building standing (defenseTierStarted), with the corridor and
+// firing line geometry the proposal observed. A perimeter section, a removal or
+// a turret replacement is not a killbox tier.
+func defenseTierPins(record store.DefenseLayoutRecord, census *defenseCensus) policy.DefenseTierPins {
 	pins := policy.DefenseTierPins{Tiers: map[policy.DefenseTierName]policy.DefenseTier{}, TrapLane: slices.Clone(record.TrapLane)}
 	for i, cell := range record.Firing {
 		position := policy.FiringPosition{Cell: cell, Cover: cell}
@@ -72,7 +84,7 @@ func defenseTierPins(record store.DefenseLayoutRecord) policy.DefenseTierPins {
 		pins.Firing = append(pins.Firing, position)
 	}
 	for _, t := range record.Tiers {
-		if !t.Built || t.Remove || t.NodeBacked() || policy.IsPerimeterTier(t.Name) {
+		if !defenseTierStarted(t, census) || t.Remove || t.NodeBacked() || policy.IsPerimeterTier(t.Name) {
 			continue
 		}
 		_, buildings, ok := record.Tier(t.Name)
@@ -96,7 +108,7 @@ type tierOverlay struct {
 // overlay and journals the change as layout_plan rows. Advice only: the
 // layout planners above stay authoritative, and a failure here never fails
 // the round.
-func (r *RoundsDefenseLayoutPlanner) adviseTiers(call context.Context, state ControlState, read observation.RoundsReading, record store.DefenseLayoutRecord) {
+func (r *RoundsDefenseLayoutPlanner) adviseTiers(call context.Context, state ControlState, read observation.RoundsReading, record store.DefenseLayoutRecord, tierCensus *defenseCensus) {
 	plan, known := read.Projection.LayoutPlan.Value()
 	if !known {
 		return
@@ -111,7 +123,7 @@ func (r *RoundsDefenseLayoutPlanner) adviseTiers(call context.Context, state Con
 	}
 	census.Mortar = defenseMortarRequest(read).Mortar
 	census.UnitCosts[defenseMortarDefinition] = defenseMortarRequest(read).UnitCosts[defenseMortarDefinition]
-	pins := defenseTierPins(record)
+	pins := defenseTierPins(record, tierCensus)
 	tiers, err := policy.PlanDefenseTiers(plan, census, pins)
 	if err != nil {
 		return
