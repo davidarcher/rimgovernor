@@ -108,6 +108,11 @@ type StationGraphInput struct {
 	Stock      map[Resource]int64
 	StackLimit map[Resource]int64
 	Perishable map[Resource]bool
+	// Crops are the crops chosen to grow (crop choice is the caller's) and
+	// FoodReserveDays the stored-food buffer their fields budget (#2885); a crop
+	// that is not edible or has an unknown target gets no field node.
+	Crops           []CropChoice
+	FoodReserveDays float64
 }
 
 // StationNode is a class of station and how many the colony needs.
@@ -184,7 +189,10 @@ type StationGraph struct {
 	Nodes []StationNode
 	// Rooms are the station-less rooms.
 	Rooms []RoomNode
-	Edges []StationEdge
+	// Fields are the outdoor field nodes (layout_field_nodes.go); edges name them
+	// by ID, and clustering ignores them until fields are placed.
+	Fields []FieldNode
+	Edges  []StationEdge
 }
 
 // PlannedCirculation is the corridor that joins the rooms of a large colony:
@@ -274,7 +282,9 @@ func BuildStationGraph(in StationGraphInput) (StationGraph, error) {
 	}
 	b.flows(runs)
 	b.sleepEat(meals)
+	fields := b.fieldNodes(runs)
 	g := b.graph()
+	g.Fields = fields
 	g.Rooms = OutskirtsRoomNodes()
 	for _, n := range g.Nodes {
 		switch n.Purpose {
