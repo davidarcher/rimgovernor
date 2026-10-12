@@ -556,3 +556,15 @@ func (p LightPrice) cheapestLampW() float64 {
 func (t *tiler) noteLamps(group int, reason, verdict string, darkW, lampW float64) {
 	t.out.Decisions = append(t.out.Decisions, TileDecision{Group: group, Other: -1, Verdict: verdict, Reason: reason, DarkW: darkW, LampW: lampW})
 }
+
+// PlannedLampsAt is the lamps the plan places in the room whose floor holds c,
+// in the order the plan placed them (the most valuable first); nil when c is in
+// no room or its room was planned no lamp.
+func (p LayoutPlan) PlannedLampsAt(c domain.Cell) []PlannedLamp {
+	for _, r := range p.AllRooms() {
+		if r.Region.Contains(c) {
+			return p.Lamps[r.ID]
+		}
+	}
+	return nil
+}

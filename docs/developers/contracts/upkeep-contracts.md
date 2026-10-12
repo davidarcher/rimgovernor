@@ -515,7 +515,10 @@ service state).
 - The method first looks for a fixture reaching the cell: one not lit defers
   (`lamp_power_needed`, `lamp_fuel_needed`, `lamp_repair_needed`, `lamp_switched_off`); a lit
   one within placement radius that leaves the cell dark is blocked; one reaching only from
-  further away does not stop a lamp of its own. Otherwise it places the first affordable lamp
+  further away does not stop a lamp of its own. While a network has an active source, the
+  layout plan's own lamps for the bench's room (`LayoutPlan.Lamps`, standing or wall, those no
+  observed lamp stands on, in plan order) are previewed first, each as its planned definition
+  and facing; a room the plan found darkness cheaper for has none. Otherwise it places the first affordable lamp
   (`StandingLamp` only while a network has an active source, else `TorchLamp`) on the nearest
   free, walkable, unzoned cell of the room within two cells of the interaction cell, each
   validated by native preview. A receipt never clears the deficit; the next census must read

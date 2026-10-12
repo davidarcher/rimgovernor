@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"maps"
 	"math"
 	"slices"
 	"testing"
@@ -158,6 +159,15 @@ func TestTilerLightsRoofedWorkRoomsOnly(t *testing.T) {
 	rooms := map[int32]PlannedRoom{}
 	for _, r := range res.Plan.AllRooms() {
 		rooms[r.ID] = r
+	}
+	// The plan carries the lamps, and finds them from any floor cell of the room.
+	if !maps.EqualFunc(res.Plan.Lamps, res.Lamps, slices.Equal) {
+		t.Errorf("the plan holds %v, not the placed %v", res.Plan.Lamps, res.Lamps)
+	}
+	for id, lamps := range res.Lamps {
+		if got := res.Plan.PlannedLampsAt(rooms[id].Region.Cells()[0]); !slices.Equal(got, lamps) {
+			t.Errorf("room %d: PlannedLampsAt = %v, want %v", id, got, lamps)
+		}
 	}
 	for id, lamps := range res.Lamps {
 		room := rooms[id]

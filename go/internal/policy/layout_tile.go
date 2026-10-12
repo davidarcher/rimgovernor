@@ -328,6 +328,7 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 		t.out.Plan.Roofed, t.out.RoofDecisions = roof.Roofed, roof.Decisions
 	}
 	t.placeLamps()
+	t.out.Plan.Lamps = t.out.Lamps
 	t.routeTileConduits()
 	if !t.out.Plan.Valid() {
 		return t.out, fmt.Errorf("%w: the conduit net is not valid", ErrTile)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -177,6 +178,10 @@ type LightingProposal struct {
 	Target     domain.Cell
 	Definition string
 	Cells      []domain.Cell
+	// Planned are the layout plan's lamps for the target's room not yet standing,
+	// in plan order: tried before Cells, each previewed as its own definition and
+	// facing (a wall lamp hangs on the wall it faces).
+	Planned []PlannedLamp
 }
 
 // LightingFacts is what SelectLightingMethod needs beyond the census.
@@ -193,6 +198,9 @@ type LightingFacts struct {
 	// chosen ahead of the policy's lamps when it is known available, empty
 	// when the tier styles none.
 	Styled string
+	// Plan is the colony's layout plan; its planned lamps answer a dark bench
+	// before a lamp is improvised beside it (zero when no plan is accepted).
+	Plan LayoutPlan
 }
 
 // SelectLightingMethod resolves the lowest-sorted dark bench. An existing
@@ -256,18 +264,30 @@ func SelectLightingMethod(review LightingReview, fact domain.Fact[LightingObserv
 			deferred = firstLightingReason(deferred, method)
 			continue
 		}
+		// The plan's own lamps for the bench's room come first, while the
+		// colony has power for them; the improvised lamp beside the cell stays
+		// as the fallback when none of them can stand yet.
+		var planned []PlannedLamp
+		if source, sk := facts.PoweredSource.Value(); sk && source {
+			planned = unbuiltPlannedLamps(facts.Plan.PlannedLampsAt(target.Cell), v.Lamps)
+		}
 		definition, method := selectLampDefinition(facts, p)
-		if method != "" {
+		var candidates []domain.Cell
+		if method == "" {
+			candidates = lampCells(target.Cell, cellRoom, cells, occupied, p.PlacementRadius)
+			if len(candidates) == 0 {
+				method = LightingNoSpace
+			}
+		}
+		if method != "" && len(planned) == 0 {
 			deferred = firstLightingReason(deferred, method)
 			continue
 		}
-		candidates := lampCells(target.Cell, cellRoom, cells, occupied, p.PlacementRadius)
-		if len(candidates) == 0 {
-			deferred = firstLightingReason(deferred, LightingNoSpace)
-			continue
+		if len(planned) > 0 {
+			definition = planned[0].Def
 		}
 		digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%d,%d", bench, definition, target.Cell.X, target.Cell.Z)))
-		return LightingProposal{Method: LightingBuild, Key: domain.MethodID(fmt.Sprintf("lighting-%x", digest[:12])), Bench: bench, Target: target.Cell, Definition: definition, Cells: candidates}, nil
+		return LightingProposal{Method: LightingBuild, Key: domain.MethodID(fmt.Sprintf("lighting-%x", digest[:12])), Bench: bench, Target: target.Cell, Definition: definition, Cells: candidates, Planned: planned}, nil
 	}
 	if deferred == "" {
 		return LightingProposal{Method: LightingNoMethod}, nil
@@ -414,4 +434,16 @@ func abs32(v int32) int32 {
 		return -v
 	}
 	return v
+}
+
+// unbuiltPlannedLamps are the planned lamps no observed lamp stands on, in
+// plan order.
+func unbuiltPlannedLamps(planned []PlannedLamp, standing []Lamp) []PlannedLamp {
+	var out []PlannedLamp
+	for _, l := range planned {
+		if !slices.ContainsFunc(standing, func(s Lamp) bool { return s.Cell == l.Cell }) {
+			out = append(out, l)
+		}
+	}
+	return out
 }

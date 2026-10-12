@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -31,6 +32,11 @@ func (r *RoundsBuildingPlanner) lightingDefinitions() []string {
 	for _, lamp := range r.reviewer.policy.Lighting.Lamps {
 		out = append(out, lamp.Name)
 	}
+	for _, name := range []string{policy.LightDefs().LampDef, policy.LightDefs().WallLampDef} {
+		if !slices.Contains(out, name) {
+			out = append(out, name)
+		}
+	}
 	return out
 }
 
@@ -52,6 +58,9 @@ func (r *RoundsBuildingPlanner) selectLighting(facts observation.ColonyProjectio
 	lighting := policy.LightingFacts{Cells: facts.Cells, Available: map[string]domain.Fact[bool]{}, PoweredSource: poweredSource(facts), Styled: lampStyle(facts)}
 	if rooms, known := facts.Rooms.Value(); known {
 		lighting.Rooms = rooms.Rooms
+	}
+	if plan, ok := facts.LayoutPlan.Value(); ok {
+		lighting.Plan = plan
 	}
 	for _, d := range facts.Definitions {
 		lighting.Available[d.Name] = d.Available
@@ -86,6 +95,15 @@ func (r *RoundsBuildingPlanner) previewLighting(ctx context.Context, snapshot do
 	guarded := map[domain.Cell]bool{}
 	for _, c := range protected {
 		guarded[c] = true
+	}
+	for _, lamp := range r.lighting.Planned {
+		rotation := lamp.Facing
+		if rotation == "" {
+			rotation = domain.North
+		}
+		if previews, planned, reason, err := r.previewWallBuilding(ctx, snapshot, facts, protected, check, lamp.Def, lamp.Cell, rotation, false); err != nil || reason.IsZero() {
+			return previews, planned, Verdict{}, err
+		}
 	}
 	unknown := false
 	for _, cell := range r.lighting.Cells {

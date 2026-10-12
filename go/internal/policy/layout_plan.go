@@ -171,6 +171,11 @@ type LayoutPlan struct {
 	// (layout_roof.go). Only a tiled plan holds it; advice until #2931 issues
 	// the roofs.
 	Roofed Region `json:",omitzero"`
+	// Lamps are the lamps the plan places in each lit room by room id
+	// (layout_light.go placeLamps): standing or wall, priced against the dark
+	// they light. The lighting round builds them where a bench reads dark; a room
+	// the plan found darkness cheaper for has none. Only a tiled plan holds them.
+	Lamps map[int32][]PlannedLamp `json:",omitempty"`
 	// Cold latches the map's climate when the plan is derived: the
 	// seasonal curve dips below ColdMapBelowC. The shelter is sized for it,
 	// so a replan never resizes or re-sites the room.
