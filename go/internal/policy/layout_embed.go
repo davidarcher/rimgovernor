@@ -48,9 +48,11 @@ import (
 // exposure to cold outside air are the climate envelope (#2880). A clean room
 // has no site signal and is reported unsatisfied with a reason, not guessed at.
 //
-// Obstacle levels work as in SiteCore: the strictest level that places every
-// group is kept, and the last level (soil priced, not banned) runs only when
-// no stricter one places them all.
+// Obstacle levels work as in SiteCore: the strictest level that holds is kept,
+// and a looser one runs only when no stricter one does. A level holds when it
+// places every group and keeps every required link adjacent (SiteCore's
+// "routes"); when none holds, the level with the fewest failures wins, the
+// strictest on a tie. The first block avoids rich soil while any fit does.
 
 // Verdicts and reasons of embedding decisions.
 const (
@@ -193,6 +195,7 @@ type embedder struct {
 	level, base        prefix // core cells at the level / with no obstacle
 	soil, edge, centre prefix // weighted cell costs
 	solid              prefix // rock or mountain roof
+	rich               prefix // rich soil (PlanScore.RichCells)
 	core               []domain.Cell
 	seeds              []domain.Cell
 
@@ -252,6 +255,7 @@ func newEmbedder(in EmbedInput, depth int, scorer planScorer, level obstacleLeve
 	clear := scorer.edgeClear()
 	e.edge = newPrefix(w, h, func(c domain.Cell) int { return -edgeCellCost(scorer.ground, c, clear) })
 	e.centre = newPrefix(w, h, func(c domain.Cell) int { return -scorer.centreCell(c) })
+	e.rich = newPrefix(w, h, func(c domain.Cell) int { return b2i(scorer.g.soil[c] == soilCostRich) })
 	e.solid = newPrefix(w, h, func(c domain.Cell) int { return b2i(scorer.g.rock[c] || cells[c].ThickRoof) })
 	for c := range lg.core {
 		e.core = append(e.core, c)
@@ -440,6 +444,9 @@ func (e *embedder) placeAnywhere(i int, blocks []Rectangle, sky bool, toward *do
 			if toward != nil {
 				dx, dz := float64(r.X+r.Width/2-toward.X), float64(r.Z+r.Height/2-toward.Z)
 				cost = dx*dx + dz*dz
+				if !e.isField(i) && e.rich.sum(r) > 0 {
+					cost += float64(e.level.w) * float64(e.level.w) * float64(e.level.h) * float64(e.level.h) // after every fit clear of rich soil
+				}
 			} else {
 				cost = e.blockCost(i, r, blocks)
 			}
@@ -635,10 +642,10 @@ func Embed(in EmbedInput) (Embedding, error) {
 	var best *embedRun
 	for _, level := range obstacleLevels {
 		run := embedLevel(in, depth, scorer, level)
-		if best == nil || run.unplaced < best.unplaced {
+		if best == nil || run.failed() < best.failed() {
 			best = run
 		}
-		if run.unplaced == 0 {
+		if run.failed() == 0 {
 			break
 		}
 	}
@@ -651,6 +658,29 @@ type embedRun struct {
 	seed     domain.Cell
 	blocks   []Rectangle
 	unplaced int
+	// unmet counts the required links between placed blocks that are not
+	// adjacent.
+	unmet int
+}
+
+// failed counts what the run leaves undone: a room with no block and a
+// required link not adjacent. The plan score prices both at 100000
+// (MissingRoom, BadRoutes), so a looser obstacle level that keeps every
+// required link beats a stricter one that breaks six.
+func (r *embedRun) failed() int { return r.unplaced + r.unmet }
+
+// unmetLinks counts the required links between placed rooms that are not
+// adjacent, once per pair.
+func (e *embedder) unmetLinks(blocks []Rectangle) int {
+	n := 0
+	for i, b := range blocks[:e.nRooms] {
+		for _, l := range e.groups[i].Links {
+			if l.Required && l.To > i && b.Width > 0 && blocks[l.To].Width > 0 && e.gap(i, b, l.To, blocks[l.To]) != 1 {
+				n++
+			}
+		}
+	}
+	return n
 }
 
 func embedLevel(in EmbedInput, depth int, scorer planScorer, level obstacleLevel) *embedRun {
@@ -667,11 +697,12 @@ func embedLevel(in EmbedInput, depth int, scorer planScorer, level obstacleLevel
 				run.unplaced++
 			}
 		}
+		run.unmet = e.unmetLinks(blocks)
 		runs[i] = run
 	})
 	best, bestObj := runs[0], runs[0].e.objective(runs[0].blocks)
 	for _, r := range runs[1:] {
-		if obj := e.objective(r.blocks); r.unplaced < best.unplaced || r.unplaced == best.unplaced && obj < bestObj {
+		if obj := e.objective(r.blocks); r.failed() < best.failed() || r.failed() == best.failed() && obj < bestObj {
 			best, bestObj = r, obj
 		}
 	}

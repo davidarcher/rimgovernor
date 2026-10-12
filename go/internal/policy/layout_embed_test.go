@@ -265,3 +265,15 @@ func TestEmbedColdGroupOnOpenGround(t *testing.T) {
 		t.Fatal("no cold group")
 	}
 }
+
+func TestEmbedRunFailedCountsUnplacedAndUnmetLinks(t *testing.T) {
+	if (&embedRun{unplaced: 1, unmet: 2}).failed() != 3 || (&embedRun{}).failed() != 0 {
+		t.Fatal("failed is unplaced plus unmet")
+	}
+	e := &embedder{nRooms: 2, groups: []RoomGroup{{Links: []GroupLink{{To: 1, Required: true}}}, {}}}
+	near := []Rectangle{{X: 0, Z: 0, Width: 2, Height: 2}, {X: 3, Z: 0, Width: 2, Height: 2}}
+	far := []Rectangle{near[0], {X: 9, Z: 0, Width: 2, Height: 2}}
+	if e.unmetLinks(near) != 0 || e.unmetLinks(far) != 1 || e.unmetLinks([]Rectangle{near[0], {}}) != 0 {
+		t.Fatal("a required link is met only by adjacent placed blocks")
+	}
+}

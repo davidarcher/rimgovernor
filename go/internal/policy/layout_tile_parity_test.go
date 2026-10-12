@@ -47,8 +47,7 @@ func tiledParityPlan(f replayFixture, s MapSurvey) (LayoutPlan, error) {
 // yet bring to parity with the old generator (ParityVerdict), with the reason.
 // The list is the input to the cutover (#2931).
 var tilerParityExpectedFail = map[string]string{
-	"baseline":          "total 2037 below the old generator: Centre -6757 (the tiled rooms sit farther from the map centre) outweighs the Soil, Footprint and Wall gains",
-	"hundred-colonists": "total 198359 below the old generator: Edge -140289 and Centre -46285 (a 100-bedroom block is placed far from the edge and centre the old generator packed to) and Wall -11220",
+	"baseline": "total 2288 below the old generator: Centre -6797 (the tiled rooms sit farther from the map centre) outweighs the Soil, Footprint and Wall gains",
 }
 
 // TestTilerParityGate measures the gap between the station-chain tiler and

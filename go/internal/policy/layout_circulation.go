@@ -20,8 +20,8 @@ import "slices"
 //     public room one of them has a flow to (the table the sleepers eat at): the
 //     door of each opens on the corridor, not on a hub.
 //   - Size. The corridor is CirculationWidth wide. Its length is what its two
-//     sides hold: each joined room takes its block's short side (blockShapes) of
-//     the side plus the wall cell that separates it from the next. A corridor is
+//     sides hold: each joined room takes its block's long side (blockShapes) of
+//     the side plus the wall cell that separates it from the next (frontage). A corridor is
 //     at most the longest strip the shell allows (shellMaxWalls); a colony with
 //     more rooms to join gets more corridors.
 //
@@ -42,6 +42,15 @@ const (
 func privateGroup(g RoomGroup) bool {
 	c := crossingOf(g)
 	return c.Crossable() && c.Mechanisms() > 0
+}
+
+// frontage is the length of corridor side a joined group's block takes with
+// the wall cell that separates it from the next: its block's long side, for
+// the embedder turns a block as the site asks and a corridor sized for the
+// short side runs out of side before the last room is beside it.
+func frontage(g RoomGroup, depth int) int {
+	s := blockShapes(g.Area+1, depth)[0] // the door onto the corridor adds a clear cell
+	return int(max(s[0], s[1])) + 1
 }
 
 // addCirculation appends the circulation corridors the node asks for to groups
@@ -80,7 +89,7 @@ func addCirculation(groups []RoomGroup, node RoomNode, depth int) ([]RoomGroup, 
 	var cur []int
 	used := 0
 	for _, i := range joined {
-		pitch := int(blockShapes(groups[i].Area, depth)[0][1]) + 1
+		pitch := frontage(groups[i], depth)
 		if len(cur) > 0 && (used+pitch+sides-1)/sides > longest {
 			runs = append(runs, cur)
 			cur, used = nil, 0
@@ -93,7 +102,7 @@ func addCirculation(groups []RoomGroup, node RoomNode, depth int) ([]RoomGroup, 
 	for _, run := range runs {
 		sum := 0
 		for _, i := range run {
-			sum += int(blockShapes(groups[i].Area, depth)[0][1]) + 1
+			sum += frontage(groups[i], depth)
 		}
 		length := (sum + sides - 1) / sides
 		area := length * int(node.Width)
