@@ -202,12 +202,14 @@ was recorded) are the real timing data for `combatsim` calibration.
 The combat baselines are sweep outputs: `combatlab/baselines/<fixture>.json` is
 the `combatmetrics.Sweep` of seeds 1..20 recorded from main with the routine
 defense planner serving, and `combatlab.Baseline(name)` returns it (rows and
-summary). A tactic sweeps the same seeds with `-against
+summary). A tactic is first compared on one seed (three at most) and widened in the sim;
+a full sweep of the same seeds runs only when asked or by the nightly, with `-against
 go/internal/nativeaccept/cases/combatlab/baselines` and gets paired deltas row
 by row. Re-record one from `go/` with `acceptance sweep <fixture> -record`
 (seeds 1..20 only; a failed seed, a seed with no contact or no orders, or a
-summary that is not derived from the rows is refused). Re-record after a
-schema bump or an intended change to the fixture, planner or simulator; the
+summary that is not derived from the rows is refused). Re-record only when asked or by the nightly (not as a
+default step of a fix), after a schema bump or an intended change to the
+fixture, planner or simulator; the
 unit test `TestBaselinesCommitted` checks version, seeds and summary. lab-open
 is smoke-only: recorded, but not a tactics signal.
 

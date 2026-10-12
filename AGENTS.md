@@ -73,6 +73,11 @@ edit the main checkout. Details: [landing](docs/developers/development-process.m
   focused race tests. Deadlines guard hangs, not latency; use synchronized
   events/game ticks for behavioral assertions. Do not rerun a full suite for a
   load-sensitive failure that passes alone; record it in the commit.
+- Real-game combat sweeps cost minutes per seed. To compare a change, run one seed
+  (three at most) against the same seed in the committed baseline, and widen in
+  the sim. Run a full 20-seed sweep, a baseline re-record or a variant set only
+  when the user asks or the nightly does; never as a default step of a fix, and
+  never fixture after fixture in a row.
 - The OTLP log ring (`otlp/logs.jsonl`) is the runtime log. Decisions use `telemetry.Decide` with
   `verdict`, stable `reason`, `target`, `dur_ms` and `attrs`. A new emission needs
   a registered [kind and reader](docs/developers/contracts/otel-signals.md).
