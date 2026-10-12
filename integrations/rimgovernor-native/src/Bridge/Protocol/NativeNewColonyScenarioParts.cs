@@ -259,7 +259,7 @@ namespace HomeBridge.BridgeTools
         {
             var field = AccessTools.Field(target.GetType(), name)
                 ?? throw new InvalidOperationException(target.GetType().Name + " has no field " + name + " in this game version.");
-            return (T)field.GetValue(target);
+            return (T)field.GetValue(target)!;
         }
     }
 }

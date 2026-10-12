@@ -1,7 +1,7 @@
 # Native ProtoJSON boundary probe
 
 This probe is now part of the consolidated `NativeContractProbes.csproj`; it no
-longer has its own `.csproj`. This net472 executable compiles the production
+longer has its own `.csproj`. This net10.0 executable compiles the production
 `ProtoBoundary` and `NativeControlAuthority` with explicit journal/game access
 seams. It verifies malformed official ProtoJSON, Unicode and byte limits, exact
 raw/bound argument agreement, payload dictionary serialization, and nonallocating

@@ -1,7 +1,7 @@
 # Compiled observation boundary checks
 
 This probe is now part of the consolidated `NativeContractProbes.csproj`; it no
-longer has its own `.csproj`. Build the merged net472 project and run it with the
+longer has its own `.csproj`. Build the merged net10.0 project and run it with the
 private Bridge DLL, Runtime directory, SDK directory, licensed game managed
 directory and Harmony directory, in that order (same layout as
 native-proto-placement):

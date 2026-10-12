@@ -123,7 +123,7 @@ namespace HomeBridge.BridgeTools
                         {
                             var thresholds = BridgeCommon.PrivateInstanceField(typeof(MechanitorControlGroup), "mechRechargeThresholds")
                                 ?? throw new InvalidOperationException("MechanitorControlGroup.mechRechargeThresholds not found");
-                            var band = (FloatRange)thresholds.GetValue(thresholdGroup);
+                            var band = (FloatRange)thresholds.GetValue(thresholdGroup)!;
                             if (Finite(band.min) && Finite(band.max)) { mech.RechargeBelow = band.min; mech.RechargeAbove = band.max; }
                         }
                     }

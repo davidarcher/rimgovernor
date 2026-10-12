@@ -13,7 +13,7 @@ Use new disposable state; saved-game compatibility is not required.
 | Package builder | `scripts/build_native_mod.ps1`; one About manifest, private build inputs, fresh staging, notices/source and artifact manifest. |
 | Native consumers | the launcher (`go/cmd/launcher`) and the Go native acceptance runner (`go/internal/nativeaccept/cmd/acceptance`) use the unified package in batch and graphical modes. |
 
-Both assemblies target net472 with warnings as errors. Runtime is loaded early
+Both assemblies target net10.0 with warnings as errors. Runtime is loaded early
 for Verse component discovery and startup hooks; the SDK loads tools separately.
 Normal startup leaves headless suppression inactive. Fixture build properties
 include only explicitly requested test sources and must produce separately

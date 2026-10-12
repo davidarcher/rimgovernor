@@ -36,10 +36,10 @@ internal static class NativePawnControlStateProbe
         bridge=Assembly.LoadFrom(Path.GetFullPath(args[0])); foreach(var reference in bridge.GetReferencedAssemblies())Assembly.Load(reference);
         game=AppDomain.CurrentDomain.GetAssemblies().Single(a=>a.GetName().Name=="Assembly-CSharp");
         runtime=AppDomain.CurrentDomain.GetAssemblies().Single(a=>a.GetName().Name=="RimGovernor.Runtime");
-        var nativeGame=FormatterServices.GetUninitializedObject(game.GetType("Verse.Game",true)!);
-        var map=FormatterServices.GetUninitializedObject(game.GetType("Verse.Map",true)!);
-        pawn=FormatterServices.GetUninitializedObject(game.GetType("Verse.Pawn",true)!);
-        drafter=FormatterServices.GetUninitializedObject(game.GetType("RimWorld.Pawn_DraftController",true)!);
+        var nativeGame=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType("Verse.Game",true)!);
+        var map=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType("Verse.Map",true)!);
+        pawn=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType("Verse.Pawn",true)!);
+        drafter=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType("RimWorld.Pawn_DraftController",true)!);
         identity=Activator.CreateInstance(runtime.GetType("HomeBridge.BridgeTools.NativeControlIdentity",true)!,nativeGame,map,"colony","load")!;
         Check(!(bool)Type("NativePawnControlState").GetProperty("IsReady",Flags)!.GetValue(null)!,"read readiness does not install hooks");
         Check(!(bool)Type("DraftOwnership").GetProperty("Healthy",Flags)!.GetValue(null)!,"legacy draft hook remains uninstalled after typed readiness read");

@@ -171,7 +171,7 @@ namespace HomeBridge.BridgeTools
                 return new Lifecycle.LoadReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
                     "ReadLoad requires a request id.") };
 
-            Entry entry;
+            Entry? entry;
             lock (Lock)
             {
                 if (!Entries.TryGetValue(status.RequestId, out entry))

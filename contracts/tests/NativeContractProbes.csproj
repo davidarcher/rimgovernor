@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -25,7 +25,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
     <PackageReference Include="Google.Protobuf" Version="3.31.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
@@ -84,7 +83,6 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAuthorityTools.cs" Link="Production/NativeAuthorityTools.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAuthorityControlTools.cs" Link="Production/NativeAuthorityControlTools.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeQuestTargetIdentity.cs" Link="Production/NativeQuestTargetIdentity.cs" />
-    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NullableAttributes.cs" Link="Production/NullableAttributes.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/ProtoBoundary.cs" Link="Production/ProtoBoundary.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadWatchdog.cs" Link="Production/MainThreadWatchdog.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadAdmission.cs" Link="Production/MainThreadAdmission.cs" />

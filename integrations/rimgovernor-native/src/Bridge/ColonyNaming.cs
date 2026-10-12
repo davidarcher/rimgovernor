@@ -40,8 +40,8 @@ namespace HomeBridge.BridgeTools
             var settlement = Name(dialog, "curSecondName");
             if (string.IsNullOrEmpty(faction) || string.IsNullOrEmpty(settlement)) return;
             var type = typeof(Dialog_NamePlayerFactionAndSettlement);
-            if (!(bool)AccessTools.Method(type, "IsValidName").Invoke(dialog, new object[] { faction! })
-                || !(bool)AccessTools.Method(type, "IsValidSecondName").Invoke(dialog, new object[] { settlement! }))
+            if (!(bool)AccessTools.Method(type, "IsValidName").Invoke(dialog, new object[] { faction! })!
+                || !(bool)AccessTools.Method(type, "IsValidSecondName").Invoke(dialog, new object[] { settlement! })!)
                 return;
             Confirm(dialog, faction!, settlement!);
         }

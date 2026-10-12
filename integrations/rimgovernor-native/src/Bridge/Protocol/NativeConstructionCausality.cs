@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
         private sealed class ReferenceComparer : IEqualityComparer<object>
         {
             internal static readonly ReferenceComparer Instance = new ReferenceComparer();
-            public new bool Equals(object x, object y) => ReferenceEquals(x, y);
+            public new bool Equals(object? x, object? y) => ReferenceEquals(x, y);
             public int GetHashCode(object value) => RuntimeHelpers.GetHashCode(value);
         }
         private readonly HashSet<object> created = new HashSet<object>(ReferenceComparer.Instance);

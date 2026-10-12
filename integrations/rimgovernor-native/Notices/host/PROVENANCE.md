@@ -27,7 +27,7 @@ Tool names were `rimworld/*` and `rimbridge/*` upstream; here they are `rimgover
 
 ## Deviations from the vendored source
 
-- Target framework is net472 only (upstream also built netstandard2.0 and net10.0 for its tests and NuGet SDK).
+- Target framework is net10.0 only (upstream also built netstandard2.0 and net10.0 for its tests and NuGet SDK).
 - Pruned to what RimGovernor calls (#2056): the UI workbench, Lua/script runner and MoonSharp, virtual pointer,
   map click injector, architect, context menus, view/screenshot, DPA, input, selection, notification, mod
   settings/configuration and debug-action modules, the SDK tool client, game clock and evidence helpers, and 118

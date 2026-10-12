@@ -21,7 +21,7 @@ internal static class NativeMovementOperationsProbe
         bridge=Assembly.LoadFrom(Path.GetFullPath(args[0]));foreach(var reference in bridge.GetReferencedAssemblies())Assembly.Load(reference);
         // Drafts are plan-owned: Owns() is an eligible drafted pawn, with no native claim.
         var facts=New("NativePawnFacts");Field(facts,"Spawned",true);Field(facts,"PlayerControlled",true);Field(facts,"Drafted",true);
-        Field(facts,"Drafter",System.Runtime.Serialization.FormatterServices.GetUninitializedObject(
+        Field(facts,"Drafter",System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(
             AppDomain.CurrentDomain.GetAssemblies().Single(a=>a.GetName().Name=="Assembly-CSharp").GetType("RimWorld.Pawn_DraftController",true)!));
         var snapshot=New("NativePawnSnapshot","token",facts);
         Check((bool)Call("NativeMovementOperations","Owns",snapshot),"Eligible drafted pawn accepted");

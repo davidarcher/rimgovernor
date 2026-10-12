@@ -1,7 +1,7 @@
 # Pawn snapshot state
 
 This probe is now part of the consolidated `NativeContractProbes.csproj`; it no
-longer has its own `.csproj`. Build the merged net472 project, then run it with:
+longer has its own `.csproj`. Build the merged net10.0 project, then run it with:
 
 ```powershell
 dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-pawn-control-state <args...>

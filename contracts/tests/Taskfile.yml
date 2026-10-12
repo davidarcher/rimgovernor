@@ -7,7 +7,7 @@ version: '3'
 vars:
   REPO: '{{.TASKFILE_DIR}}/../..'
   EVIDENCE: '{{.REPO}}/.rimgovernor/task/probes'
-  HARMONY_ASSEMBLY: '{{.HARMONY_ASSEMBLY | default "C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll"}}'
+  HARMONY_ASSEMBLY: '{{.HARMONY_ASSEMBLY | default "C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/1.7/Assemblies/0Harmony.dll"}}'
   HOST_ASSEMBLY_DIR: '{{.HOST_ASSEMBLY_DIR | default (printf "%s/../../.rimgovernor/task/native/mod/RimGovernor/Assemblies" .TASKFILE_DIR)}}'
 
 tasks:
@@ -29,21 +29,21 @@ tasks:
     desc: Pure geometry and phase-accounting checks; game-dependent probes run through native acceptance
     deps: [build]
     cmds:
-      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-roof-support'
-      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-designation-guards'
-      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-home-coverage'
-      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-construction-tier-gate'
-      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-team-policy'
-      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-traffic-counts'
-      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-production-bill-settings'
-      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-observation-work'
-      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-reply-encoder'
-      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-threat-classifier'
-      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-acquisition-token'
-      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-ref-index'
-      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-rule-runtime'
-      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe gab-dispatch'
-      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe mod-log'
+      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-roof-support'
+      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-designation-guards'
+      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-home-coverage'
+      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-construction-tier-gate'
+      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-team-policy'
+      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-traffic-counts'
+      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-production-bill-settings'
+      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-observation-work'
+      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-reply-encoder'
+      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-threat-classifier'
+      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-acquisition-token'
+      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-ref-index'
+      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-rule-runtime'
+      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll gab-dispatch'
+      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll mod-log'
       # Binds against the host RimGovernor.Host.dll that native:build staged;
       # reports unavailable only when native:build never ran. A staged native build
       # without the host at HOST_ASSEMBLY_DIR is a wrong path and fails.
@@ -57,10 +57,10 @@ tasks:
           echo "native-proto-boundary: unavailable (missing $server)"
           exit 0
         fi
-        {{if ne OS "windows"}}mono {{end}}"{{.EVIDENCE}}/bin/NativeContractProbes.exe" native-proto-boundary "$server"
+        dotnet "{{.EVIDENCE}}/bin/NativeContractProbes.dll" native-proto-boundary "$server"
       - |
-        if [ ! -f "{{.EVIDENCE}}/hookset/bin/NativeHookSetProbe.exe" ]; then
+        if [ ! -f "{{.EVIDENCE}}/hookset/bin/NativeHookSetProbe.dll" ]; then
           echo "native-hook-set: unavailable (not built; Harmony missing)"
           exit 0
         fi
-        {{if ne OS "windows"}}mono {{end}}"{{.EVIDENCE}}/hookset/bin/NativeHookSetProbe.exe"
+        dotnet "{{.EVIDENCE}}/hookset/bin/NativeHookSetProbe.dll"

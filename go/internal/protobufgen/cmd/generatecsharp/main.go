@@ -1,5 +1,5 @@
 // Command generatecsharp generates canonical Protobuf C# with the pinned
-// official protoc and optionally proves the net472 round trip.
+// official protoc and optionally proves the net10.0 round trip.
 //
 // It orchestrates NuGet, protoc and dotnet; it does not interpret schemas or
 // emit language source. Outputs and native runtime behavior belong to official
@@ -54,7 +54,7 @@ func main() {
 	flag.StringVar(&opts.dotnet, "dotnet", "dotnet", "dotnet executable")
 	flag.StringVar(&opts.output, "output", "", "fresh private restore/build artifact directory (default .rimgovernor/protobuf-<random>)")
 	flag.BoolVar(&opts.check, "check", false, "fail on generated drift without changing checked-in files")
-	flag.BoolVar(&opts.proof, "proof", false, "compile and run net472 round trips; requires .NET Framework on Windows or Mono elsewhere")
+	flag.BoolVar(&opts.proof, "proof", false, "compile and run net10.0 round trips")
 	flag.StringVar(&opts.crossLanguageInputs, "cross-language-inputs", "", "directory containing go-request/go-reply .json and .bin proof artifacts")
 	flag.Parse()
 	if opts.crossLanguageInputs != "" && !opts.proof {
@@ -214,11 +214,8 @@ func run(opts options) error {
 		if _, err := command(private, false, opts.dotnet, "build", project, "--no-restore", "-c", "Release"); err != nil {
 			return err
 		}
-		executable := filepath.Join(filepath.Dir(project), "bin", "Release", "net472", "ProtobufProof.exe")
-		runner := []string{executable}
-		if runtime.GOOS != "windows" {
-			runner = []string{"mono", executable}
-		}
+		assembly := filepath.Join(filepath.Dir(project), "bin", "Release", "net10.0", "ProtobufProof.dll")
+		runner := []string{opts.dotnet, assembly}
 		runner = append(runner, filepath.Join(output, "roundtrip"))
 		if opts.crossLanguageInputs != "" {
 			inputs, err := filepath.Abs(opts.crossLanguageInputs)

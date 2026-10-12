@@ -55,7 +55,7 @@ internal static class NativeProtoResearchProbe
 
         var native = Assembly.Load("Assembly-CSharp");
         var defType = native.GetType("Verse.ResearchProjectDef", true)!;
-        var def = FormatterServices.GetUninitializedObject(defType);
+        var def = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(defType);
         defType.GetField("defName")!.SetValue(def, "Modded_Research");
         var unnamed = Call("Definition", def);
         Check(!(bool)Get(unnamed, "HasLabel") && (string)Get(unnamed, "DefName") == "Modded_Research", "Missing native label stays absent");
@@ -117,7 +117,7 @@ internal static class NativeProtoResearchProbe
         //     spawned Building can be projected -- consistent with native-proto-buildings' own
         //     tests never calling Project() either.
         //   - RimWorld.CompAffectedByFacilities..cctor -> Verse.GenDraw..cctor (ecall), so the
-        //     type cannot even be constructed via FormatterServices.GetUninitializedObject
+        //     type cannot even be constructed via System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject
         //     without the static constructor already having run and failed.
         //   - Verse.ModsConfig..cctor -> Verse.GenFilePaths.get_SaveDataFolderPath (ecall), so
         //     Read()'s very first statement (`ModsConfig.AnomalyActive`) cannot execute, which

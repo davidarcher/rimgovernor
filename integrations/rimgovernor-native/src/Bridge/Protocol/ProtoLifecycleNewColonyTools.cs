@@ -366,7 +366,7 @@ namespace HomeBridge.BridgeTools
         {
             if (status == null || !status.HasRequestId || !ProtoBoundary.IsIdentifier(status.RequestId))
                 return Fail(Common.FailureCode.InvalidRequest, "ReadNewColony requires a request id.");
-            Entry entry;
+            Entry? entry;
             lock (Lock)
             {
                 if (!Entries.TryGetValue(status.RequestId, out entry))

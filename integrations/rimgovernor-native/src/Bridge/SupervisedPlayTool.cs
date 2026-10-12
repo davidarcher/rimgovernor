@@ -17,7 +17,7 @@ namespace HomeBridge.BridgeTools
 {
     internal static partial class Supervisor
     {
-        private static readonly FieldInfo BoostField = typeof(TickManager).GetField("UltraSpeedBoost", BindingFlags.Static | BindingFlags.NonPublic);
+        private static readonly FieldInfo BoostField = typeof(TickManager).GetField("UltraSpeedBoost", BindingFlags.Static | BindingFlags.NonPublic)!;
         // Wall-clock grace for a force pause with no window behind it.
         // An autosave takes about a second; 20 s is generous and still
         // far short of anything a person would sit through.
@@ -192,7 +192,7 @@ namespace HomeBridge.BridgeTools
                 }
                 if (testAcceleration)
                 {
-                    s.PriorBoost = (bool)BoostField.GetValue(null);
+                    s.PriorBoost = (bool)BoostField.GetValue(null)!;
                     s.BoostOwned = true;
                     BoostField.SetValue(null, true);
                 }
@@ -659,7 +659,7 @@ namespace HomeBridge.BridgeTools
             ZoneDigest? span = null;
             foreach (var pair in zones)
             {
-                ZoneDigest old;
+                ZoneDigest? old;
                 if (before.TryGetValue(pair.Key, out old) && old.Count == pair.Value.Count && old.Hash == pair.Value.Hash) continue;
                 changed.Add(pair.Key);
                 span = ZoneDigest.Union(span, pair.Value);
@@ -918,7 +918,7 @@ namespace HomeBridge.BridgeTools
                                     { "reason", "hunting route unsafe; hunt of " + prey.thingIDNumber + " by " + p.thingIDNumber + " withdrawn" } });
                     }
                     var after = InjurySnapshot.Capture(p);
-                    InjurySnapshot before;
+                    InjurySnapshot? before;
                     if (!s.Injuries.TryGetValue(p.thingIDNumber, out before))
                     {
                         // A newly joined/spawned colonist gets a baseline on
@@ -1111,7 +1111,7 @@ namespace HomeBridge.BridgeTools
         /// Milliseconds of injury-stop cooldown still owed to this pawn, or 0.
         private static long InjuryCooldownRemainingMs(int pawnId, long cooldownMs)
         {
-            InjuryStop stop;
+            InjuryStop? stop;
             if (cooldownMs <= 0 || !InjuryStops.TryGetValue(pawnId, out stop)) return 0;
             var remaining = stop.AtMs + cooldownMs - NowMs();
             return remaining > 0 ? remaining : 0;
@@ -1195,7 +1195,7 @@ namespace HomeBridge.BridgeTools
         {
             var windows = Find.WindowStack == null ? null : Find.WindowStack.Windows;
             return windows == null ? new List<string>() : windows
-                .Where(w => w != null && w.forcePause).Select(w => w.GetType().FullName).ToList();
+                .Where(w => w != null && w.forcePause).Select(w => w.GetType().FullName!).ToList();
         }
 
         private static string ClockState()

@@ -1,6 +1,6 @@
 # RimGovernor native mod
 
-One RimWorld 1.6 package, `davidarcher.rimgovernor.native`, contains the runtime
+One RimWorld 1.7 package, `davidarcher.rimgovernor.native`, contains the runtime
 assembly, the GABP host (a vendored fork of RimBridgeServer and Lib.GAB, source in
 `integrations/rimgovernor-host`) and the RimGovernor tools. Harmony loads first. The mod is
 incompatible with `brrainz.rimbridgeserver`: two hosts would double-patch Harmony and fight over

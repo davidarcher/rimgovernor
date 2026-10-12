@@ -26,7 +26,7 @@ namespace HomeBridge.BridgeTools
             var beer = DefDatabase<ThingDef>.GetNamedSilentFail("Beer");
             if (beer != null) __result += bill.Map.resourceCounter.GetCount(beer);
             foreach (var barrel in bill.Map.listerBuildings.allBuildingsColonist.OfType<Building_FermentingBarrel>())
-                __result += (int)AccessTools.Field(typeof(Building_FermentingBarrel), "wortCount").GetValue(barrel);
+                __result += (int)AccessTools.Field(typeof(Building_FermentingBarrel), "wortCount").GetValue(barrel)!;
         }
     }
 }

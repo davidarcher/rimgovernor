@@ -67,7 +67,7 @@ internal static class NativeProtoRoomsProbe
         var game = Assembly.Load("Assembly-CSharp");
         var roomType = game.GetType("Verse.Room", true)!;
         var districtType = game.GetType("Verse.District", true)!;
-        var emptyRoom = System.Runtime.Serialization.FormatterServices.GetUninitializedObject(roomType);
+        var emptyRoom = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(roomType);
         roomType.GetField("districts", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(emptyRoom,
             Activator.CreateInstance(typeof(List<>).MakeGenericType(districtType)));
         Check(!(bool)Call("HasPhysicalRegions", emptyRoom), "Regionless empty room is not physical geometry");
@@ -76,7 +76,7 @@ internal static class NativeProtoRoomsProbe
         Check(!(bool)Call("HasPhysicalRegions", emptyRoom), "Native retained empty district does not invalidate complete physical census");
         roomType.GetField("cachedCellCount", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(emptyRoom, 1);
         Refused(() => Call("HasPhysicalRegions", emptyRoom), "Regionless room with claimed physical cells remains unavailable");
-        ((IList)districtType.GetField("regions", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(district)!).Add(System.Runtime.Serialization.FormatterServices.GetUninitializedObject(game.GetType("Verse.Region", true)!));
+        ((IList)districtType.GetField("regions", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(district)!).Add(System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType("Verse.Region", true)!));
         Check((bool)Call("HasPhysicalRegions", emptyRoom), "Physical room proceeds to full geometry validation");
         var cellType = Assembly.Load("Assembly-CSharp").GetType("Verse.IntVec3", true)!;
         Func<int, int, object> cell = (x,z) => Activator.CreateInstance(cellType, x, 0, z)!;
@@ -112,7 +112,7 @@ internal static class NativeProtoRoomsProbe
         {
             const BindingFlags NF = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
             const BindingFlags SF = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
-            object New(string t) => System.Runtime.Serialization.FormatterServices.GetUninitializedObject(game.GetType(t, true)!);
+            object New(string t) => System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType(t, true)!);
             Type Ty(string t) => game.GetType(t, true)!;
             void Set(object o, string declaringType, string field, object? v)
             {
@@ -155,7 +155,7 @@ internal static class NativeProtoRoomsProbe
             // via DefOfHelper.EnsureInitializedInCtor) can call these incidentally. Skip them
             // outright rather than relying on Log.logDisablers (a *runtime* branch inside
             // those same methods -- it can't prevent the JIT-time crash described above).
-            void PatchDiag(MethodBase m, object prefix)
+            void PatchDiag(MethodBase m, object? prefix)
             {
                 try { patchMethod.Invoke(harmony, new object?[] { m, prefix, null, null, null }); }
                 catch (Exception ex) { throw new Exception("Failed patching " + m.DeclaringType!.FullName + "." + m.Name, ex); }

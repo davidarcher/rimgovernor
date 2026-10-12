@@ -1,6 +1,6 @@
 # Official Protobuf toolchain: generation drift checks for both languages and
-# the C#/Go/C# fixture exchange. Requires the .NET SDK; Linux additionally
-# needs Mono to execute the net472 proof.
+# the C#/Go/C# fixture exchange. Requires the .NET SDK 10; it
+# runs the net10.0 proof.
 version: '3'
 
 vars:
@@ -11,7 +11,6 @@ vars:
   PROTOC: '{{.NUGET_PACKAGES}}/grpc.tools/2.72.0/tools/{{if eq OS "windows"}}windows_x64/protoc.exe{{else}}linux_x64/protoc{{end}}'
   GENERATE: go -C {{.REPO}}/go run ./internal/protobufgen/cmd
   PROOF_GO: go -C {{.TASKFILE_DIR}}/go run -mod=readonly .
-  MONO: '{{if ne OS "windows"}}mono {{end}}'
 
 tasks:
   build:
@@ -39,5 +38,5 @@ tasks:
       - '{{.PROOF_GO}} --output {{.EVIDENCE}}/origin'
       - '{{.GENERATE}}/generatecsharp --check --proof --cross-language-inputs {{.EVIDENCE}}/origin --output {{.EVIDENCE}}/exchange'
       - '{{.PROOF_GO}} --output {{.EVIDENCE}}/return --cross-language-inputs {{.EVIDENCE}}/exchange/roundtrip --check-go-echo'
-      - '{{.MONO}}{{.EVIDENCE}}/exchange/source/tools/protobuf/bin/Release/net472/ProtobufProof.exe --verify-return {{.EVIDENCE}}/exchange/roundtrip {{.EVIDENCE}}/return'
+      - 'dotnet {{.EVIDENCE}}/exchange/source/tools/protobuf/bin/Release/net10.0/ProtobufProof.dll --verify-return {{.EVIDENCE}}/exchange/roundtrip {{.EVIDENCE}}/return'
       - echo "C#/Go/C# exchange verified" > {{.EVIDENCE}}/exchange.ok

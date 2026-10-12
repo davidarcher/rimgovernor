@@ -52,7 +52,7 @@ namespace HomeBridge.BridgeTools
 
         private sealed class IdentityComparer : IEqualityComparer<object>
         {
-            bool IEqualityComparer<object>.Equals(object x, object y) => ReferenceEquals(x, y);
+            bool IEqualityComparer<object>.Equals(object? x, object? y) => ReferenceEquals(x, y);
             int IEqualityComparer<object>.GetHashCode(object value) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(value);
         }
         private readonly Dictionary<MessageDescriptor, Dictionary<string, FieldDescriptor>> arms = new Dictionary<MessageDescriptor, Dictionary<string, FieldDescriptor>>();

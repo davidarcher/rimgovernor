@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <AssemblyName>RimGovernor.Bridge</AssemblyName>
     <OutputPath>../../BridgeTools/RimGovernor/</OutputPath>
@@ -10,7 +10,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <DebugType>none</DebugType>
     <RimWorldDir Condition="'$(RimWorldDir)' == ''">C:/Program Files (x86)/Steam/steamapps/common/RimWorld</RimWorldDir>
-    <HarmonyAssembly Condition="'$(HarmonyAssembly)' == ''">C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll</HarmonyAssembly>
+    <HarmonyAssembly Condition="'$(HarmonyAssembly)' == ''">C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/1.7/Assemblies/0Harmony.dll</HarmonyAssembly>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../../../scripts/fixtures/ResearchObservationFixture.cs" Condition="'$(ResearchObservationFixture)' == 'true'" />
@@ -102,9 +102,6 @@
     <Compile Include="../../../../scripts/fixtures/BabyCareFixture.cs" Condition="'$(BabyCareFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MechGestationFixture.cs" Condition="'$(MechGestationFixture)' == 'true'" />
     <ProjectReference Include="../Runtime/RimGovernor.Runtime.csproj"><Private>false</Private></ProjectReference>
-    <!-- Keep locked restore identical with and without an installed targeting pack. -->
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
     <!-- The host (integrations/rimgovernor-host) ships the SDK and Newtonsoft.Json in the mod's Assemblies/. -->
     <ProjectReference Include="../../../rimgovernor-host/src/Sdk/RimGovernor.Host.Sdk.csproj"><Private>false</Private></ProjectReference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" ExcludeAssets="runtime" />

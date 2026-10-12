@@ -7,7 +7,7 @@ vars:
   REPO: '{{.TASKFILE_DIR}}/../..'
   EVIDENCE: '{{.REPO}}/.rimgovernor/task/native'
   RIMWORLD_DIR: '{{.RIMWORLD_DIR | default "C:/Program Files (x86)/Steam/steamapps/common/RimWorld"}}'
-  HARMONY_ASSEMBLY: '{{.HARMONY_ASSEMBLY | default "C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll"}}'
+  HARMONY_ASSEMBLY: '{{.HARMONY_ASSEMBLY | default "C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/1.7/Assemblies/0Harmony.dll"}}'
 
 tasks:
   build:

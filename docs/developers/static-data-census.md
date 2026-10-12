@@ -340,7 +340,6 @@ Kept, reason recorded:
 | NativeZoneDeletion.cs | 53 | state | Deletes a zone after phantom-cell and haul-grid checks. |  | none |
 | NativeZoneIntent.cs | 50 | code | Routes a ZoneIntent to the create, delete, cell-edit, stockpile or settings handler. |  | none |
 | NativeZoneObservationTools.cs | 138 | mixed | Lists zones with bounds, stockpile priority and filter, and growing-zone farm facts per crop. | Farm facts copy PlantProperties (fertilityMin, minGrowthTemperature, minOptimalGrowthTemperature, maxOptimalGrowthTemperature, maxGrowthTemperature, harvestYield, harvestedThingDef nutrition); FoodStorage scan enumerates DefDatabase<ThingDef> for human food with Rottable comp allowed by the filter (~15 lines) | ThingDef.plant.* (PlantProperties) and harvestedThingDef.ingestible nutrition; FoodStorage as Go rule over ThingDef rows (ingestible, CompProperties_Rottable) and the filter rows |
-| NullableAttributes.cs | 17 | code | net472 shims for NotNullWhen and MaybeNullWhen attributes. |  | none |
 | PlacementProtocol.cs | 148 | code | Validates a placement request and maps native preview results to the wire CandidateReply. |  | none |
 | ProtoBoundary.cs | 617 | code | ProtoJSON parse and encode boundary, main-thread hop timing, identity and context validation, failure and refusal-class mapping. |  | none |
 | ProtoGovernorStateTools.cs | 79 | state | Reads and replaces the opaque governor-state blobs saved with the game. |  | none |

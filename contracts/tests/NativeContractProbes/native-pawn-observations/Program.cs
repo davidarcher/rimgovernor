@@ -91,11 +91,11 @@ internal static class NativePawnObservationsProbe
         foreach(var field in new[]{"needs","health","equipment","biography","settings","social","animal_state"})
             Check(issues.Any(i=>(string)Get(i,"Field")==field&&Get(Get(i,"Unavailable"),"Reason").ToString()=="NotRequested"),"opt-out retains explicit issue "+field);
         var native=Assembly.Load("Assembly-CSharp");
-        var backstory=FormatterServices.GetUninitializedObject(native.GetType("RimWorld.BackstoryDef",true)!);
+        var backstory=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(native.GetType("RimWorld.BackstoryDef",true)!);
         backstory.GetType().GetField("defName")!.SetValue(backstory,"BackstoryWithoutGenericLabel");
         var nativeDefinition=detailsType.GetMethod("Definition",Flags)!.Invoke(null,new[]{backstory})!;
         Check((string)Get(nativeDefinition,"DefName")=="BackstoryWithoutGenericLabel"&&!(bool)Get(nativeDefinition,"HasLabel"),"real native BackstoryDef with null generic label does not crash projection");
-        var emptyPawn=FormatterServices.GetUninitializedObject(native.GetType("Verse.Pawn",true)!);
+        var emptyPawn=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(native.GetType("Verse.Pawn",true)!);
         var missingEquipment=detailsType.GetMethod("Equipment",Flags)!.Invoke(null,new[]{emptyPawn})!;
         Check(!(bool)Get(missingEquipment,"HasArmed"),"missing equipment tracker is not known unarmed");
         Check(!(bool)Get(missingEquipment,"HasInventoryItemCount"),"missing inventory tracker is not zero items");
@@ -119,11 +119,11 @@ internal static class NativePawnObservationsProbe
         try { allNativeTypes=native.GetTypes(); }
         catch(ReflectionTypeLoadException rtle) { allNativeTypes=rtle.Types.Where(t=>t!=null).ToArray()!; }
         var pawnKindDefT=allNativeTypes.First(t=>t.Name=="PawnKindDef");
-        var socialKindDef=FormatterServices.GetUninitializedObject(pawnKindDefT);
+        var socialKindDef=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(pawnKindDefT);
         pawnKindDefT.GetField("defName")!.SetValue(socialKindDef,"Colonist");
         pawnKindDefT.GetField("label")!.SetValue(socialKindDef,"colonist");
         var thingDefT=native.GetType("Verse.ThingDef",true)!;
-        var socialPawnDef=FormatterServices.GetUninitializedObject(thingDefT);
+        var socialPawnDef=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(thingDefT);
         thingDefT.GetField("defName")!.SetValue(socialPawnDef,"Human");
         var socialPawnType=native.GetType("Verse.Pawn",true)!;
         var socialThingType=native.GetType("Verse.Thing",true)!;
@@ -131,17 +131,17 @@ internal static class NativePawnObservationsProbe
         var socialGenderEnum=native.GetType("Verse.Gender",true)!;
         var socialNameSingleT=allNativeTypes.First(t=>t.Name=="NameSingle");
         object MakeSocialPawn(int id,string name) {
-            var p=FormatterServices.GetUninitializedObject(socialPawnType);
+            var p=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(socialPawnType);
             socialThingType.GetField("def",Flags)!.SetValue(p,socialPawnDef);
             socialThingIdField.SetValue(p,id);
             socialPawnType.GetField("kindDef",Flags)!.SetValue(p,socialKindDef);
             socialPawnType.GetField("gender",Flags)!.SetValue(p,Enum.Parse(socialGenderEnum,"Male"));
             socialPawnType.GetField("nameInt",Flags)!.SetValue(p,Activator.CreateInstance(socialNameSingleT,new object?[]{name,false}));
             var mindStateT=allNativeTypes.First(t=>t.Name=="Pawn_MindState");
-            var mindState=FormatterServices.GetUninitializedObject(mindStateT);
+            var mindState=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(mindStateT);
             mindStateT.GetField("pawn",Flags)?.SetValue(mindState,p);
             var mentalHandlerT=allNativeTypes.First(t=>t.Name=="MentalStateHandler");
-            var mentalHandler=FormatterServices.GetUninitializedObject(mentalHandlerT);
+            var mentalHandler=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(mentalHandlerT);
             mentalHandlerT.GetField("pawn",Flags)?.SetValue(mentalHandler,p);
             mindStateT.GetField("mentalStateHandler",Flags)?.SetValue(mindState,mentalHandler);
             socialPawnType.GetField("mindState",Flags)!.SetValue(p,mindState);
@@ -151,16 +151,16 @@ internal static class NativePawnObservationsProbe
         var relTrackerT=allNativeTypes.First(t=>t.Name=="Pawn_RelationsTracker");
         var directRelT=allNativeTypes.First(t=>t.Name=="DirectPawnRelation");
         var pawnRelDefT=allNativeTypes.First(t=>t.Name=="PawnRelationDef");
-        var boTracker=FormatterServices.GetUninitializedObject(relTrackerT);
+        var boTracker=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(relTrackerT);
         relTrackerT.GetField("pawn",Flags)!.SetValue(boTracker,bo);
         relTrackerT.GetField("directRelations",Flags)!.SetValue(boTracker,Activator.CreateInstance(typeof(List<>).MakeGenericType(directRelT)));
         socialPawnType.GetField("relations",Flags)!.SetValue(bo,boTracker);
-        var adaTracker=FormatterServices.GetUninitializedObject(relTrackerT);
+        var adaTracker=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(relTrackerT);
         relTrackerT.GetField("pawn",Flags)!.SetValue(adaTracker,ada);
-        var rivalDef=FormatterServices.GetUninitializedObject(pawnRelDefT);
+        var rivalDef=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(pawnRelDefT);
         pawnRelDefT.GetField("defName")!.SetValue(rivalDef,"Rival");
         pawnRelDefT.GetField("opinionOffset")!.SetValue(rivalDef,-10);
-        var rivalRelation=FormatterServices.GetUninitializedObject(directRelT);
+        var rivalRelation=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(directRelT);
         directRelT.GetField("def")!.SetValue(rivalRelation,rivalDef);
         directRelT.GetField("otherPawn")!.SetValue(rivalRelation,bo);
         directRelT.GetField("startTicks")!.SetValue(rivalRelation,0);
@@ -176,13 +176,13 @@ internal static class NativePawnObservationsProbe
         var memType=native.GetType("RimWorld.Thought_Memory",true)!;
         var sitHandlerT=native.GetType("RimWorld.SituationalThoughtHandler",true)!;
         var sitT=native.GetType("RimWorld.Thought_Situational",true)!;
-        var needsTrackerInst=FormatterServices.GetUninitializedObject(needsTrackerT);
-        var moodInst=FormatterServices.GetUninitializedObject(moodT);
-        var thoughtHandlerInst=FormatterServices.GetUninitializedObject(thoughtHandlerT);
-        var memHandlerInst=FormatterServices.GetUninitializedObject(memHandlerT);
+        var needsTrackerInst=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(needsTrackerT);
+        var moodInst=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(moodT);
+        var thoughtHandlerInst=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(thoughtHandlerT);
+        var memHandlerInst=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(memHandlerT);
         var memoriesList=Activator.CreateInstance(typeof(List<>).MakeGenericType(memType))!;
         memHandlerT.GetField("memories",Flags)!.SetValue(memHandlerInst,memoriesList);
-        var sitHandlerInst=FormatterServices.GetUninitializedObject(sitHandlerT);
+        var sitHandlerInst=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(sitHandlerT);
         var cachedThoughtsList=Activator.CreateInstance(typeof(List<>).MakeGenericType(sitT))!;
         sitHandlerT.GetField("cachedThoughts",Flags)!.SetValue(sitHandlerInst,cachedThoughtsList);
         var cachedSocialThoughts=Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(socialPawnType,sitHandlerT.GetNestedType("CachedSocialThoughts",Flags)!))!;
@@ -237,17 +237,17 @@ internal static class NativePawnObservationsProbe
         // needs/equipment/settings projection for a corpse instead.
         var corpse=MakeSocialPawn(103,"Corpse");
         var healthTrackerT=native.GetType("Verse.Pawn_HealthTracker",true)!;
-        var healthTrackerInst=FormatterServices.GetUninitializedObject(healthTrackerT);
+        var healthTrackerInst=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(healthTrackerT);
         healthTrackerT.GetField("pawn",Flags)!.SetValue(healthTrackerInst,corpse);
         var pawnHealthStateT=native.GetType("Verse.PawnHealthState",true)!;
         healthTrackerT.GetField("healthState",Flags)!.SetValue(healthTrackerInst,Enum.Parse(pawnHealthStateT,"Dead"));
         var hediffSetT=native.GetType("Verse.HediffSet",true)!;
-        var hsInst=FormatterServices.GetUninitializedObject(hediffSetT);
+        var hsInst=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(hediffSetT);
         hediffSetT.GetField("pawn",Flags)!.SetValue(hsInst,corpse);
         hediffSetT.GetField("hediffs",Flags)!.SetValue(hsInst,Activator.CreateInstance(typeof(List<>).MakeGenericType(native.GetType("Verse.Hediff",true)!)));
         healthTrackerT.GetField("hediffSet",Flags)!.SetValue(healthTrackerInst,hsInst);
         var billStackT=native.GetType("RimWorld.BillStack",true)!;
-        var billStackInst=FormatterServices.GetUninitializedObject(billStackT);
+        var billStackInst=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(billStackT);
         billStackT.GetField("bills",Flags)!.SetValue(billStackInst,Activator.CreateInstance(typeof(List<>).MakeGenericType(native.GetType("RimWorld.Bill",true)!)));
         healthTrackerT.GetField("surgeryBills",Flags)!.SetValue(healthTrackerInst,billStackInst);
         socialPawnType.GetField("health",Flags)!.SetValue(corpse,healthTrackerInst);

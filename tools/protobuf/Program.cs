@@ -393,6 +393,6 @@ internal static class Program
             IncomingManifest(descriptors, incoming);
         }
         File.WriteAllLines(Path.Combine(output, "manifest.tsv"), manifest, new UTF8Encoding(false));
-        Console.WriteLine("Official Protobuf net472 proof passed: " + checks + " checks; artifacts " + output);
+        Console.WriteLine("Official Protobuf net10.0 proof passed: " + checks + " checks; artifacts " + output);
     }
 }

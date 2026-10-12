@@ -47,7 +47,7 @@ internal static class NativeGiveJobProbe
 
         var giveJob = bridge.GetType("HomeBridge.BridgeTools.NativeGiveJob", true)!;
         var classify = giveJob.GetMethod("Classify", Flags)!;
-        string Arm(string json) => classify.Invoke(null, new object?[] { Wire("Operations.GiveJobIntent", json), null, null })!.ToString();
+        string Arm(string json) => classify.Invoke(null, new object?[] { Wire("Operations.GiveJobIntent", json), null, null })!.ToString()!;
         Check(Arm("{\"pawn\":{\"id\":\"p\"},\"job\":\"UseItem\",\"targets\":[{\"id\":\"i\"},{\"id\":\"t\"}]}") == "Use", "UseItem arm");
         Check(Arm("{\"pawn\":{\"id\":\"p\"},\"job\":\"UseItem\",\"targets\":[{\"id\":\"i\"},{\"id\":\"p\"}]}") == "Use", "UseItem self-use arm");
         Check(Arm("{\"pawn\":{\"id\":\"p\"},\"job\":\"Repair\",\"targets\":[{\"id\":\"t\"}]}") == "Order", "Repair arm");

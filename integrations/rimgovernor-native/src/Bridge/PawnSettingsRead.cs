@@ -176,7 +176,7 @@ namespace HomeBridge.BridgeTools
                 var s = cached[i];
                 if (s != null && s.Active) live.Add(s);
             }
-            bool? stale = SituationalDirtyField != null ? (bool)SituationalDirtyField.GetValue(sitHandler) : (bool?)null;
+            bool? stale = SituationalDirtyField != null ? (bool)SituationalDirtyField.GetValue(sitHandler)! : (bool?)null;
             return (live, stale);
         }
 

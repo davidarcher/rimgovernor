@@ -13,11 +13,11 @@ internal static class AcquisitionProof
         var thingDef=native.GetType("Verse.ThingDef",true)!;
         var projectileType=native.GetType("Verse.ProjectileProperties",true)!;
         var damageType = native.GetType("Verse.DamageDef", true)!;
-        var bulletDamage = FormatterServices.GetUninitializedObject(damageType);
-        var flameDamage = FormatterServices.GetUninitializedObject(damageType);
+        var bulletDamage = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(damageType);
+        var flameDamage = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(damageType);
         damageType.GetField("workerClass")!.SetValue(flameDamage, native.GetType("Verse.DamageWorker_Flame", true));
         Func<string,float,object> verb=(kind,radius)=> {
-            var definition=FormatterServices.GetUninitializedObject(thingDef)!;
+            var definition=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(thingDef)!;
             thingDef.GetField("thingClass")!.SetValue(definition,native.GetType(kind,true));
             var projectile=Activator.CreateInstance(projectileType)!;
             projectileType.GetField("explosionRadius")!.SetValue(projectile,radius);
@@ -39,7 +39,7 @@ internal static class AcquisitionProof
         check(fact(facts(explosive),"ProjectileKind")!.ToString()=="Other","explosive projectile classified other");
         check(Convert.ToDouble(fact(facts(explosive),"ExplosionRadius"))==2,"blast radius reported");
         check((bool)fact(facts(bullet),"AiWeapon")!,"ai weapon verb reported");
-        var arrowDamage = FormatterServices.GetUninitializedObject(damageType);
+        var arrowDamage = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(damageType);
         damageType.GetField("defName")!.SetValue(arrowDamage, "Arrow");
         var arrow = verb("RimWorld.Bullet", 0);
         var arrowProjectile = thingDef.GetField("projectile")!.GetValue(verbType.GetField("defaultProjectile")!.GetValue(arrow)!)!;

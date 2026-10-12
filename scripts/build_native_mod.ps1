@@ -40,6 +40,7 @@ foreach ($taskRequired in @($taskProject, (Join-Path $RimWorldDir 'Assembly-CSha
 $taskCompiler = (Get-Command $DotNet -ErrorAction Stop).Source
 $taskSdkVersion = (& $taskCompiler --version | Out-String).Trim()
 if ($LASTEXITCODE) { throw 'Could not read .NET SDK version' }
+if ([version]$taskSdkVersion.Split('-')[0] -lt [version]'10.0') { throw "The native build needs .NET SDK 10 (net10.0); found $taskSdkVersion" }
 $taskBuild = Join-Path $taskOutput 'build'
 $taskPackage = Join-Path $taskOutput 'RimGovernor'
 $taskCompiled = Join-Path $taskBuild 'compiled'

@@ -117,7 +117,7 @@ namespace HomeBridge.BridgeTools
             // the drag: keep its receipt in this existing replay window until
             // the load changes. All other intents retain the bounded LRU.
             if ((result.Applied?.Applied?.Observed?.Zone?.Created.Count ?? 0) == 0) order.AddFirst(node);
-            if (order.Count > ReplayCapacity) { replay.Remove(order.Last.Value.Key); order.RemoveLast(); }
+            if (order.Count > ReplayCapacity) { replay.Remove(order.Last!.Value.Key); order.RemoveLast(); }
             return result;
         }
 

@@ -51,11 +51,11 @@ namespace HomeBridge.BridgeTools
         // It must be in the DefDatabase because a Frame on the map is saved by defName.
         private static ThingDef ReplacementFrame(ThingDef original)
         {
-            var clone = (ThingDef)AccessTools.Method(typeof(object), "MemberwiseClone").Invoke(original, null);
+            var clone = (ThingDef)AccessTools.Method(typeof(object), "MemberwiseClone").Invoke(original, null)!;
             clone.defName = "RimGovernor_Replace" + original.defName;
             clone.passability = Traversability.Impassable;
             clone.shortHash = 0;
-            var taken = (Dictionary<Type, HashSet<ushort>>)AccessTools.Field(typeof(ShortHashGiver), "takenHashesPerDeftype").GetValue(null);
+            var taken = (Dictionary<Type, HashSet<ushort>>)AccessTools.Field(typeof(ShortHashGiver), "takenHashesPerDeftype").GetValue(null)!;
             AccessTools.Method(typeof(ShortHashGiver), "GiveShortHash").Invoke(null, new object[] { clone, typeof(ThingDef), taken[typeof(ThingDef)] });
             DefDatabase<ThingDef>.Add(clone);
             return clone;

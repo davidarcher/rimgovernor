@@ -33,7 +33,7 @@ internal static class NativeProtoSuppliesProbe
     // native-proto/native-pawn fixture suites in this repo.
     private static FieldInfo FixtureField(Type t, string name) { for (var x = t; x != null; x = x.BaseType!) { var fi = x.GetField(name, MemberFlags); if (fi != null) return fi; } throw new Exception("field not found: " + name + " on " + t); }
     private static void SetF(object o, string f, object? v) => FixtureField(o.GetType(), f).SetValue(o, v);
-    private static object New(string typeName) => FormatterServices.GetUninitializedObject(game.GetType(typeName, true)!);
+    private static object New(string typeName) => System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType(typeName, true)!);
     private static bool SkipOriginal() => false;
     private static bool EmptyStringResult(ref string __result) { __result = ""; return false; }
     internal static int Invoke(string[] args)
@@ -161,9 +161,9 @@ internal static class NativeProtoSuppliesProbe
         // Current.Game.maps trick so Thing.MapHeld resolves without ever stringifying a Map
         // (Map.ToString()'s reachable GravshipUtility/ModsConfig path is another Unity-only crash).
         var mapType = game.GetType("Verse.Map", true)!;
-        var fixtureMap = FormatterServices.GetUninitializedObject(mapType);
+        var fixtureMap = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(mapType);
         SetF(fixtureMap, "uniqueID", 9);
-        var nativeGame = FormatterServices.GetUninitializedObject(game.GetType("Verse.Game", true)!);
+        var nativeGame = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType("Verse.Game", true)!);
         var mapsList = Activator.CreateInstance(typeof(List<>).MakeGenericType(mapType))!;
         ((IList)mapsList).Add(fixtureMap);
         SetF(nativeGame, "maps", mapsList);
@@ -173,7 +173,7 @@ internal static class NativeProtoSuppliesProbe
         object MakeEntry(object thing, object? holder, string? holderKind, bool ours, bool forbidden, bool fogged,
             bool inHome, bool inStockpile, bool playerFaction, bool otherFaction, bool trader)
         {
-            var e = FormatterServices.GetUninitializedObject(entryType);
+            var e = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(entryType);
             SetF(e, "Thing", thing); SetF(e, "Holder", holder); SetF(e, "HolderKind", holderKind);
             SetF(e, "Position", Activator.CreateInstance(game.GetType("Verse.IntVec3", true)!, 2, 0, 2));
             SetF(e, "Ours", ours); SetF(e, "Forbidden", forbidden); SetF(e, "Fogged", fogged);
@@ -201,22 +201,22 @@ internal static class NativeProtoSuppliesProbe
 
         // ---- Item 1: a corpse with populated inventory descends into its held items ----
         var pawnDef = MakeDef("Human_Test");
-        var race = FormatterServices.GetUninitializedObject(game.GetType("Verse.RaceProperties", true)!);
+        var race = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType("Verse.RaceProperties", true)!);
         SetF(race, "intelligence", Enum.Parse(game.GetType("Verse.Intelligence", true)!, "Humanlike"));
         SetF(pawnDef, "race", race);
         var innerPawn = New("Verse.Pawn");
         SetF(innerPawn, "def", pawnDef); SetF(innerPawn, "thingIDNumber", 601); SetF(innerPawn, "factionInt", null);
         var kindDef = New("Verse.PawnKindDef"); SetF(kindDef, "defName", "Human_Test_Kind"); SetF(kindDef, "label", "test colonist");
         SetF(innerPawn, "kindDef", kindDef);
-        GiveComps(innerPawn, FormatterServices.GetUninitializedObject(game.GetType("RimWorld.CompForbiddable", true)!));
+        GiveComps(innerPawn, System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType("RimWorld.CompForbiddable", true)!));
         var corpse = New("Verse.Corpse");
         SetF(corpse, "def", MakeDef("Corpse_Human_Test")); SetF(corpse, "thingIDNumber", 602); SetF(corpse, "stackCount", 1);
-        GiveComps(corpse, FormatterServices.GetUninitializedObject(game.GetType("RimWorld.CompForbiddable", true)!));
+        GiveComps(corpse, System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType("RimWorld.CompForbiddable", true)!));
         // Corpse.InnerPawn's property setter NREs outside a running game (it depends on
         // machinery Corpse's constructor would normally have wired up); bypass it and construct
         // the backing ThingOwner<Pawn> directly, mirroring how Thing.MapHeld is resolved above.
         var pawnOwnerType = game.GetType("Verse.ThingOwner`1", true)!.MakeGenericType(game.GetType("Verse.Pawn", true)!);
-        var pawnOwner = FormatterServices.GetUninitializedObject(pawnOwnerType);
+        var pawnOwner = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(pawnOwnerType);
         var pawnList = Activator.CreateInstance(typeof(List<>).MakeGenericType(game.GetType("Verse.Pawn", true)!))!;
         ((IList)pawnList).Add(innerPawn);
         SetF(pawnOwner, "innerList", pawnList);
