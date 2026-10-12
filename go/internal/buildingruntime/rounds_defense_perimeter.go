@@ -52,6 +52,7 @@ type defenseCut struct {
 	bridge       string
 	transmitters []domain.Cell
 	spare        float64
+	lampReach    float64
 	prison       []policy.PerimeterSection
 }
 
@@ -62,7 +63,7 @@ func defensePerimeterCut(read observation.RoundsReading) (defenseCut, bool) {
 	if !known {
 		return defenseCut{}, false
 	}
-	cut := defenseCut{plan: plan, bridge: defensePerimeterBridge(projection)}
+	cut := defenseCut{plan: plan, bridge: defensePerimeterBridge(projection), lampReach: projection.Stations.Light.StandingReach()}
 	q := defenseTurretRequest(read).Turret
 	if defenseResearched(projection, defenseMoistureResearch) {
 		cut.transmitters = q.Transmitters
@@ -295,7 +296,7 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, cut defenseCut) (b
 	if err != nil {
 		return false, err
 	}
-	lights, err := policy.LightSections(cut.plan, defenseRoomLamp)
+	lights, err := policy.LightSections(cut.plan, defenseRoomLamp, cut.lampReach)
 	if err != nil {
 		return false, err
 	}

@@ -139,6 +139,10 @@ func (m LampModel) reach() float64 { return glowReach(m.Radius, m.Brightness) }
 // LightModel is the catalog's two lamps; an unknown one is an absent option.
 type LightModel struct{ Standing, Wall LampModel }
 
+// StandingReach is the standing lamp's lit radius in cells (glowReach of its
+// catalog glow); zero when the catalog does not know the lamp.
+func (m LightModel) StandingReach() float64 { return m.Standing.reach() }
+
 // LightSpeed is the speed factor of a pawn on ground of the given glow
 // (StatPart_Glow): linear from DarkSpeed at 0 to 1 at LitGlow.
 func LightSpeed(glow float64) float64 {

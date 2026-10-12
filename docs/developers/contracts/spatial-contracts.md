@@ -380,8 +380,8 @@ roof issuer.
   lamp and 8.2 from a wall lamp (the wiki's "9 to 8 tiles"). The planner measures
   Euclidean distance, so `LightPrice.LampReach` and `WallReach` divide the path reach by
   the worst octile stretch of a diagonal (8.35 and 7.59 cells), keeping every cell inside lit.
-  The earlier flat 6 cells (`lampReach`, still the infestation planner's own number)
-  and its 11/12 scaling undershot both. Constants: `LightTable` in `DefTables`.  A room under the sky (an outdoor role) gets none, and fields stay unroofed (the
+  The earlier flat 6 cells and its 11/12 scaling undershot both; the infestation room-lamp
+  planner (`BaseRoomLamps`) spaces its standing lamps by the same catalog reach. Constants: `LightTable` in `DefTables`.  A room under the sky (an outdoor role) gets none, and fields stay unroofed (the
   grow-lamp price is `PlanSiteType`'s). A roofed hallway's price in the roofed set
   (`RoofDecision.LightW`) includes the same lamps-or-dark for its walkers. An unknown
   price leaves lamps unplaced (`tile_lamps_unpriced`) or the hallway weighed without it

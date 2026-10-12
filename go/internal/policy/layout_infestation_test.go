@@ -58,12 +58,13 @@ func TestWallOffMountainPocket(t *testing.T) {
 }
 
 func TestLightBaseRooms(t *testing.T) {
+	reach := glowReach(12, 214)
 	plan := LayoutPlan{Rooms: []PlannedRoom{
 		{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 10, Z: 10, Width: 4, Height: 4})},
-		{Role: PlannedWorkshop, Region: RectRegion(Rectangle{X: 20, Z: 10, Width: 15, Height: 7})},
-		{Role: PlannedReserve, Region: RectRegion(Rectangle{X: 40, Z: 10, Width: 6, Height: 6})},
+		{Role: PlannedWorkshop, Region: RectRegion(Rectangle{X: 20, Z: 10, Width: 20, Height: 7})},
+		{Role: PlannedReserve, Region: RectRegion(Rectangle{X: 60, Z: 10, Width: 6, Height: 6})},
 	}}
-	lamps := BaseRoomLamps(plan)
+	lamps := BaseRoomLamps(plan, reach)
 	if len(lamps) != 3 {
 		t.Fatalf("lamps %v, want one in the bedroom and two in the workshop", lamps)
 	}
@@ -74,23 +75,27 @@ func TestLightBaseRooms(t *testing.T) {
 				best = min(best, distance(l, c))
 			}
 			if r.Role == PlannedReserve {
-				if best <= lampReach {
+				if best <= reach {
 					t.Fatalf("reserve cell %v lit", c)
 				}
 				continue
 			}
-			if best > lampReach {
+			if best > reach {
 				t.Fatalf("%s cell %v is %.1f from a lamp", r.Role, c, best)
 			}
 		}
 	}
-	sections, err := LightSections(plan, "StandingLamp")
+	if BaseRoomLamps(plan, 0) != nil {
+		t.Fatal("an unknown reach places lamps")
+	}
+	sections, err := LightSections(plan, "StandingLamp", reach)
 	if err != nil || len(sections) != 1 || len(sections[0].Buildings) != 3 || !IsPerimeterTier(sections[0].Name) {
 		t.Fatalf("sections %+v err %v", sections, err)
 	}
 }
 
 func TestLightShapedRoomsStayOnTheFloor(t *testing.T) {
+	reach := glowReach(12, 214)
 	var ring []RowRun
 	for z := int32(0); z < 15; z++ {
 		if z >= 4 && z <= 10 {
@@ -103,7 +108,7 @@ func TestLightShapedRoomsStayOnTheFloor(t *testing.T) {
 		"ring": RegionOfRuns(ring),
 		"L":    RegionOfRuns([]RowRun{{Z: 0, X: 0, Length: 3}, {Z: 1, X: 0, Length: 3}, {Z: 2, X: 0, Length: 20}, {Z: 3, X: 0, Length: 20}}),
 	} {
-		lamps := BaseRoomLamps(LayoutPlan{Rooms: []PlannedRoom{{Role: PlannedWorkshop, Region: region}}})
+		lamps := BaseRoomLamps(LayoutPlan{Rooms: []PlannedRoom{{Role: PlannedWorkshop, Region: region}}}, reach)
 		if len(lamps) == 0 {
 			t.Fatalf("%s: no lamps", name)
 		}
@@ -117,7 +122,7 @@ func TestLightShapedRoomsStayOnTheFloor(t *testing.T) {
 			for _, l := range lamps {
 				best = min(best, distance(l, c))
 			}
-			if best > lampReach {
+			if best > reach {
 				t.Fatalf("%s: cell %v is %.1f from a lamp", name, c, best)
 			}
 		}

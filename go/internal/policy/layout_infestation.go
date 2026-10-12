@@ -28,9 +28,6 @@ const (
 	// pocketReach is how far outside the perimeter ring a pocket
 	// still counts as beside the base. A judgment constant: the game offers no signal for it.
 	pocketReach int32 = 6
-	// lampReach is the distance (cells) a standing lamp keeps ground glow
-	// above the 0.3 darkness line infestations need.
-	lampReach = 6.0
 	// TierPocketPrefix and TierLightPrefix name the pocket-wall and
 	// room-lamp sections under the perimeter's prefix, so the perimeter
 	// recut builds and removes them with the wall.
@@ -130,18 +127,22 @@ func PocketSections(plan LayoutPlan, wall string) ([]PerimeterSection, error) {
 
 // BaseRoomLamps is the lamp cells lighting every built room of plan (all
 // but reserve rooms): a grid over each interior whose lamps sit no farther
-// than lampReach from any floor cell. Rooms keep plan order.
-func BaseRoomLamps(plan LayoutPlan) []domain.Cell {
+// than reach (the standing lamp's glowReach from the catalog) from any floor
+// cell. An unknown reach places none. Rooms keep plan order.
+func BaseRoomLamps(plan LayoutPlan, reach float64) []domain.Cell {
+	if !finitePositive(reach) {
+		return nil
+	}
 	var out []domain.Cell
 	for _, r := range plan.AllRooms() {
 		if r.Role == PlannedReserve {
 			continue
 		}
 		in := r.Region.Bounds()
-		// A lamp covers a square of side lampReach*sqrt2 around it.
-		span := int32(math.Floor(lampReach * math.Sqrt2))
+		// A lamp covers a square of side reach*sqrt2 around it.
+		span := int32(math.Floor(reach * math.Sqrt2))
 		if !r.Region.IsRect() {
-			out = append(out, shapedRoomLamps(r.Region, span)...)
+			out = append(out, shapedRoomLamps(r.Region, span, reach)...)
 			continue
 		}
 		nx, nz := (in.Width+span-1)/span, (in.Height+span-1)/span
@@ -156,8 +157,8 @@ func BaseRoomLamps(plan LayoutPlan) []domain.Cell {
 
 // LightSections is one section holding every lamp placed by
 // BaseRoomLamps, in plan order.
-func LightSections(plan LayoutPlan, lamp string) ([]PerimeterSection, error) {
-	cells := BaseRoomLamps(plan)
+func LightSections(plan LayoutPlan, lamp string, reach float64) ([]PerimeterSection, error) {
+	cells := BaseRoomLamps(plan, reach)
 	if len(cells) == 0 {
 		return nil, nil
 	}
@@ -175,8 +176,8 @@ func LightSections(plan LayoutPlan, lamp string) ([]PerimeterSection, error) {
 // shapedRoomLamps lights a non-rectangular region (an L, a ring): one lamp
 // on the floor cell nearest the middle of each span-square of the bounds
 // that holds floor, then a lamp on every floor cell still farther than
-// lampReach from all lamps, row-major. Lamps never stand off the floor.
-func shapedRoomLamps(region Region, span int32) []domain.Cell {
+// reach from all lamps, row-major. Lamps never stand off the floor.
+func shapedRoomLamps(region Region, span int32, reach float64) []domain.Cell {
 	in := region.Bounds()
 	cells := region.Cells()
 	sort.Slice(cells, func(i, j int) bool {
@@ -205,7 +206,7 @@ func shapedRoomLamps(region Region, span int32) []domain.Cell {
 	}
 	lit := func(c domain.Cell) bool {
 		for _, l := range out {
-			if distance(l, c) <= lampReach {
+			if distance(l, c) <= reach {
 				return true
 			}
 		}
