@@ -235,7 +235,9 @@ func stationFactsOf(projection observation.ColonyProjection, plan policy.LayoutP
 	if len(needs) > 0 {
 		f.Stock = domain.Known(needs)
 	}
-	if ledger.Status == policy.LedgerViewReconciled {
+	// An inactive ledger (no planner declares into it) wants no order: a known
+	// empty list, where an unreviewed or unread one is unknown.
+	if ledger.Status == policy.LedgerViewReconciled || ledger.Status == policy.LedgerViewInactive {
 		orders := make([]policy.OrderSpec, 0, len(ledger.Orders))
 		for _, o := range ledger.Orders {
 			orders = append(orders, policy.OrderSpec{Recipe: o.Recipe, Ingredients: o.Ingredients, Worker: o.Worker, Mode: domain.BillMode(o.Mode), Target: o.Target, BenchKind: o.BenchKind, Product: policy.Resource(o.Product)})

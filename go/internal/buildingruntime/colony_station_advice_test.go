@@ -50,6 +50,16 @@ func TestStationFactsOfReadsLedgerOrdersOnlyWhenReconciled(t *testing.T) {
 	if _, known := f.Stock.Value(); known {
 		t.Error("an empty demand is unknown, not zero stock")
 	}
+	// A serve with no order declarer files an inactive ledger: no order is
+	// wanted, a known empty list (#3015), not an unread one.
+	f = stationFactsOf(projection, policy.LayoutPlan{}, policy.MapSurvey{}, needs, policy.NewLedgerView(policy.LedgerViewInactive, 1))
+	if got, known := f.Orders.Value(); !known || len(got) != 0 {
+		t.Errorf("inactive ledger orders = %+v, known %v, want known empty", got, known)
+	}
+	f = stationFactsOf(projection, policy.LayoutPlan{}, policy.MapSurvey{}, needs, policy.NewLedgerView(policy.LedgerViewNone, 0))
+	if _, known := f.Orders.Value(); known {
+		t.Error("a ledger no review has filed is unknown, not empty")
+	}
 }
 
 // The graph's fields follow the crops the colony's zones are sown with, each
