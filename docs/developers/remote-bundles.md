@@ -28,22 +28,31 @@ Use exact installed dependency versions, not `latest`:
 
 ```powershell
 go run ./cmd/remotebundle pack -repo C:\rg\src `
-  -game C:\inputs\RimWorld -game-version '1.6.4871 rev590' `
-  -harmony C:\inputs\Harmony\Current\Assemblies\0Harmony.dll `
+  -game C:\inputs\RimWorld -game-version '1.7.4976 rev1043' `
+  -harmony C:\inputs\Harmony\1.7\Assemblies\0Harmony.dll `
   -harmony-mod C:\inputs\Harmony -harmony-version <assembly-version> `
   -origin davidarcher/rimgovernor -release-id <numeric-id> `
   -recipient <age-public-recipient> -key-id <rotation-label> `
   -7z C:\tools\7zr.exe -age C:\tools\age.exe -out C:\rg\bundle
 ```
 
-The destination must be new. `GamePaths` in `internal/remotebundle/pack.go` is
-the game inclusion list: executable, Unity/Mono runtime, Core and every official
-expansion's data (the baseline save records all six), version and license
-notices. All Core/Unity media is retained, so rendered cases keep their
-textures/shaders but still need a suitable display/graphics environment;
-headless extraction does not prove rendered-case support. Other mods, profiles
-and player saves are not selected. Harmony is a
-separate inventoried component (the GABP host ships inside the RimGovernor package). Source junctions are materialized into regular
+The destination must be new. `GamePaths` in `internal/remotebundle/pack.go`
+is the game inclusion list for the flat RimWorld 1.7 (Waylith) install: every
+regular file in the install root (`RimWorld.exe`, the .NET runtime and
+assemblies, `Waylith*.dll`, `Assets.zip`, notices; debug symbols excepted), the
+`Rendering` shader sources, and Core plus every official expansion's data (the
+baseline save records all six). Both `Assets.zip` and `Rendering` are required
+at runtime: without `Assets.zip` the world generator throws on null textures,
+and without `Rendering` boot fails with "Unable to locate shader source" (checked
+with `smoke/identity` on a private game copy). Packing refuses an install
+missing `RimWorld.exe`, `Waylith.dll`, `Assembly-CSharp.dll`, `Assets.zip` or
+`Version.txt`. `Mods`, `Mods.disabled`, the empty `RimWorldWin64_Data` and
+driver cache directories, other mods, profiles and player saves are not
+selected. The unpacked game is about 1 GB. Harmony is a separate inventoried
+component: the Workshop item (`About`, `LoadFolders.xml`, and `1.7/Assemblies`
+holding the net10 `0Harmony.dll` and `HarmonyMod.dll`) and `-harmony` must be
+the DLL inside `-harmony-mod`'s `1.7/Assemblies`. The GABP host ships inside the
+RimGovernor package. Source junctions are materialized into regular
 files. Packaging never writes to the source install or copies branch-built
 RimGovernor binaries.
 
@@ -74,6 +83,28 @@ To roll back, select the previous manifest digest and matching age identity.
 Never replace old assets in place. A corrupt download fails validation; retry
 or republish. Key rotation creates a new recipient/key ID and fresh encrypted
 assets; public ciphertext cannot be revoked if its identity is compromised.
+
+A 1.7 bundle replaces the 1.6 one wholesale: publish it as a new release with a
+new manifest, then change the trusted manifest pin. The maintainer publishes;
+agents prepare the `pack` and `publish` commands and do not run `publish`.
+
+## Hosted runner checks
+
+The game runs `-Headless` (no window, no Vulkan device, null audio), so a
+GPU-less hosted Windows runner should be able to run it. That is **untested**:
+the first remote run of a published 1.7 bundle answers it. The check is the
+`smoke/identity` case in a shard (`gh workflow run remote-acceptance.yml --ref main
+-f tier=cases -f cases=smoke/identity -f shards=1`); a Vulkan or device failure
+shows in the shard's `game.log` before the harness connects. Record the result
+on epic #3023.
+
+Shard `s1` also runs the def-mirror drift check against the unpacked bundle
+(`dotnet run --project tools/defmirror -- --game-dir <unpacked game> --check
+--output contracts/proto/defs.proto`), the only CI place with the game files.
+`defs.proto` still reflects 1.6 until #3032 regenerates it, so the step is
+report-only (a warning) until then; `DEFMIRROR_ENFORCE=1` makes it fail the
+shard. #3032 removes that gate. The Ubuntu race job builds protobuf with the .NET
+10 SDK.
 
 ## Fixtures and generated starts
 

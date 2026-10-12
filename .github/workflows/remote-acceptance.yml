@@ -172,7 +172,7 @@ jobs:
         run: go test -race -p 2 -parallel 4 -timeout 40m ./...
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
       - name: Protobuf generation drift
         working-directory: go
         shell: bash

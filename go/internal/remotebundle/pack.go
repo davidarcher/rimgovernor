@@ -22,10 +22,42 @@ type PackOptions struct {
 	HarmonyMod                        string
 }
 
-// GamePaths is the conservative inclusion list. No Core/Unity media is removed.
-// Every official expansion ships: the baseline save records them all.
-// User profiles, workshop trees and unrelated mods are excluded.
-var GamePaths = []string{"RimWorldWin64.exe", "UnityPlayer.dll", "UnityCrashHandler64.exe", "WinPixEventRuntime.dll", "Version.txt", "EULA.txt", "Licenses.txt", "Data/Core", "Data/Royalty", "Data/Ideology", "Data/Biotech", "Data/Anomaly", "Data/Odyssey", "RimWorldWin64_Data", "MonoBleedingEdge"}
+// gameDirs are the directories the 1.7 install ships that a run needs: the
+// official content (every expansion; the baseline save records them all) and
+// Rendering, whose shader sources Waylith reads at boot (without it
+// Verse.BaseContent fails with "Unable to locate shader source"). The flat
+// layout has no _Data or MonoBleedingEdge. Mods, Mods.disabled, the empty
+// RimWorldWin64_Data remnant and driver cache directories are excluded.
+var gameDirs = []string{"Data/Core", "Data/Royalty", "Data/Ideology", "Data/Biotech", "Data/Anomaly", "Data/Odyssey", "Rendering"}
+
+// gameRequired are the files a 1.7 install cannot run without; packing fails
+// when one is missing instead of shipping a bundle that fails at boot.
+// Assets.zip (the texture and audio archive, ~340 MB) is a regular root file
+// and ships: without it the world generator throws on null textures.
+var gameRequired = []string{"RimWorld.exe", "Waylith.dll", "Assembly-CSharp.dll", "Assets.zip", "Version.txt"}
+
+// GamePaths is the inclusion list for a 1.7 install: every regular file in
+// the install root (executable, runtime, Waylith and game assemblies, Assets.zip,
+// notices) except debug symbols, plus gameDirs. User profiles, workshop trees
+// and unrelated mods are excluded.
+func GamePaths(gameDir string) ([]string, error) {
+	for _, f := range gameRequired {
+		if _, err := os.Stat(filepath.Join(gameDir, f)); err != nil {
+			return nil, fmt.Errorf("not a 1.7 install: %w", err)
+		}
+	}
+	entries, err := os.ReadDir(gameDir)
+	if err != nil {
+		return nil, err
+	}
+	var paths []string
+	for _, e := range entries {
+		if !e.IsDir() && !strings.HasSuffix(strings.ToLower(e.Name()), ".pdb") {
+			paths = append(paths, e.Name())
+		}
+	}
+	return append(paths, gameDirs...), nil
+}
 
 type Starts struct {
 	SchemaVersion      int    `json:"schema_version"`
@@ -52,11 +84,12 @@ func Pack(ctx context.Context, o PackOptions) (Manifest, error) {
 		return m, err
 	}
 	defer os.RemoveAll(tree)
-	for _, p := range GamePaths {
+	paths, err := GamePaths(o.GameDir)
+	if err != nil {
+		return m, err
+	}
+	for _, p := range paths {
 		src := filepath.Join(o.GameDir, filepath.FromSlash(p))
-		if _, err := os.Stat(src); os.IsNotExist(err) && (p == "UnityCrashHandler64.exe" || p == "WinPixEventRuntime.dll") {
-			continue
-		}
 		if err := Materialize(src, filepath.Join(tree, "game", filepath.FromSlash(p))); err != nil {
 			return m, fmt.Errorf("game input %s: %w", p, err)
 		}
@@ -71,7 +104,7 @@ func Pack(ctx context.Context, o PackOptions) (Manifest, error) {
 	if o.HarmonyMod == "" {
 		return m, fmt.Errorf("-harmony-mod must name the complete Harmony runtime package")
 	}
-	for _, required := range []string{"About/About.xml", "LoadFolders.xml", "Current/Assemblies/0Harmony.dll", "Current/Assemblies/HarmonyMod.dll"} {
+	for _, required := range []string{"About/About.xml", "LoadFolders.xml", "1.7/Assemblies/0Harmony.dll", "1.7/Assemblies/HarmonyMod.dll"} {
 		if _, err := os.Stat(filepath.Join(o.HarmonyMod, filepath.FromSlash(required))); err != nil {
 			return m, fmt.Errorf("harmony runtime input %s: %w", required, err)
 		}
@@ -80,7 +113,7 @@ func Pack(ctx context.Context, o PackOptions) (Manifest, error) {
 	if err != nil {
 		return m, err
 	}
-	got, _, err := HashFile(filepath.Join(o.HarmonyMod, "Current", "Assemblies", "0Harmony.dll"))
+	got, _, err := HashFile(filepath.Join(o.HarmonyMod, "1.7", "Assemblies", "0Harmony.dll"))
 	if err != nil {
 		return m, err
 	}
