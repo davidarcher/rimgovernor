@@ -196,7 +196,7 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 	if err := waitBuilt(ctx, h, s.Identity(), sh, bedCells, report); err != nil {
 		return err
 	}
-	if err := verifyNative(ctx, h, s.Identity(), sh, bedCells, report); err != nil {
+	if err := verifyNative(ctx, h, s.Identity(), sh, standing, bedCells, report); err != nil {
 		return err
 	}
 	listed, err := na.ListColonists(ctx, h, "colonists-after", false, false)

@@ -16,6 +16,22 @@ func TestBunkWoodCoversShellWallBudget(t *testing.T) {
 	}
 }
 
+// A wall standing on the planned interior before the run stays when the case
+// stops the service and is no room cell: the native room the case matches is
+// the interior less those walls, and a standing wall on the ring or off the
+// interior changes nothing (#3018).
+func TestHutRoomCellsLeavesOutStandingInteriorWalls(t *testing.T) {
+	interior := []domain.Cell{{X: 1, Z: 1}, {X: 2, Z: 1}, {X: 1, Z: 2}, {X: 2, Z: 2}}
+	baseline := map[domain.Cell]bool{{X: 2, Z: 1}: true, {X: 0, Z: 1}: true, {X: 9, Z: 9}: true}
+	room := hutRoomCells(interior, baseline)
+	if len(room) != 3 || room[domain.Cell{X: 2, Z: 1}] || !room[domain.Cell{X: 1, Z: 1}] {
+		t.Fatalf("room cells = %v, want the interior less its standing wall", room)
+	}
+	if got := hutRoomCells(interior, nil); len(got) != len(interior) {
+		t.Fatalf("no standing walls left %d of %d interior cells", len(got), len(interior))
+	}
+}
+
 // An empty journal (a restarted service before its first review) must not
 // read as restored: shelter/toxic_fallout passed its restore wait on map[]
 // and then found the pawns still in the Safe area.

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge/cellgrid"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
@@ -214,7 +215,7 @@ func allowSupplies(ctx context.Context, h *na.Harness, label string, report na.R
 // errNoHut is a room read that holds no native room of the planned interior.
 var errNoHut = errors.New("no native room whose cells equal the planned interior")
 
-func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, sh *shell, bedCells []domain.Cell, report na.Report) error {
+func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, sh *shell, baseline map[domain.Cell]bool, bedCells []domain.Cell, report na.Report) error {
 	if _, err := h.Call(ctx, "pause-for-verify", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
@@ -236,8 +237,10 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 	for _, c := range sh.footprint.Interior() {
 		inside[c] = true
 	}
+	room := hutRoomCells(sh.footprint.Interior(), baseline)
 	door := sh.footprint.Door()
 	var hut, doorway map[string]any
+	var near string
 	readHut := func(label string) error {
 		reply, err := h.Wire(ctx, label, "observations_list_rooms", scope)
 		if err != nil {
@@ -253,6 +256,7 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 		}
 		gridRooms := na.RoomCells(grid)
 		hut, doorway = nil, nil
+		near = ""
 		for _, raw := range na.AsSlice(observed["rooms"]) {
 			row, _ := na.AsMap(raw)
 			cells := gridRooms[na.AsString(row["gridRoom"])]
@@ -260,18 +264,24 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 				doorway = row
 				continue
 			}
-			if len(cells) != len(inside) {
+			if len(cells) != len(room) {
+				if len(cells) > 1 && len(cells) >= len(room)-4 && len(cells) < len(room) {
+					near = describeNear(grid, cells, room, row)
+				}
 				continue
 			}
 			match := true
 			for _, c := range cells {
-				match = match && inside[c]
+				match = match && room[c]
 			}
 			if match {
 				hut = row
 			}
 		}
 		if hut == nil {
+			if near != "" {
+				return fmt.Errorf("%w: %s", errNoHut, near)
+			}
 			return errNoHut
 		}
 		return nil
@@ -293,7 +303,7 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 		return fmt.Sprintf("open=%v", open), open == 0, nil
 	})
 	if err != nil {
-		return fmt.Errorf("shell-roofed: %w", err)
+		return fmt.Errorf("shell-roofed: %w (near miss: %s)", err, near)
 	}
 	report["roof_wait_ticks"] = waited
 	// Doorway rooms are excluded from the typed census unless outdoors rooms
@@ -410,6 +420,9 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 		if dx, dz := int(c.X)-int(centerX), int(c.Z)-int(centerZ); dx*dx+dz*dz > 64*64 {
 			continue
 		}
+		if !ring[c] && baseline[c] {
+			continue // a baseline wall on the interior: not ordered by this run
+		}
 		if !ring[c] {
 			return fmt.Errorf("player %s at %v stands off the hut ring: a second shell was ordered", def, c)
 		}
@@ -489,4 +502,46 @@ func waitBuilt(ctx context.Context, h *na.Harness, expected map[string]any, sh *
 	})
 	report["built_wait_ticks"] = ticks
 	return err
+}
+
+// describeNear names, for a native room one short of the planned interior,
+// the interior cells it lacks and what stands on each, so a near miss says
+// which cell is no room cell and why.
+func describeNear(grid *cellgrid.Grid, cells []domain.Cell, inside map[domain.Cell]bool, row map[string]any) string {
+	held := map[domain.Cell]bool{}
+	for _, c := range cells {
+		held[c] = true
+	}
+	site := map[domain.Cell]policy.SiteCell{}
+	for _, c := range grid.Cells() {
+		site[c.Cell] = c
+	}
+	out := fmt.Sprintf("room %v role %v holds %d of %d interior cells; lacks", row["id"], row["role"], len(cells), len(inside))
+	for c := range inside {
+		if held[c] {
+			continue
+		}
+		s := site[c]
+		var things []string
+		for _, t := range s.Things {
+			things = append(things, t.Def)
+		}
+		out += fmt.Sprintf(" %v{room %v walkable %v roofed %v indoors %v terrain %v things %v}", c, s.Room, s.Walkable, s.Roofed, s.Indoors, s.Terrain, things)
+	}
+	return out
+}
+
+// hutRoomCells are the cells the native room of the planned interior holds:
+// the interior less the walls standing on it before the run. The planner sites
+// the interior over such a wall; the reconcile takes it down only once the
+// ring stands and only while the service runs, and the case stops the service
+// when the ring and beds are placed, so the wall remains and is no room cell.
+func hutRoomCells(interior []domain.Cell, baseline map[domain.Cell]bool) map[domain.Cell]bool {
+	room := map[domain.Cell]bool{}
+	for _, c := range interior {
+		if !baseline[c] {
+			room[c] = true
+		}
+	}
+	return room
 }
