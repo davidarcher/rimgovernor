@@ -198,6 +198,8 @@ type StationGraph struct {
 	Nodes []StationNode
 	// Rooms are the station-less rooms.
 	Rooms []RoomNode
+	// Sites are the nodes with no walls and no door (#2884).
+	Sites []SiteNode
 	// Fields are the outdoor field nodes (layout_field_nodes.go); edges name them
 	// by ID, and clustering ignores them until fields are placed.
 	Fields []FieldNode
