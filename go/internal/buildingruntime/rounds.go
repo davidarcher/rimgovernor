@@ -123,6 +123,9 @@ type Rounder struct {
 	// foodGapZero is the acceptance fault that pins the food plan's gap to
 	// zero (Faults.FoodGapZero); the scheduler sets it.
 	foodGapZero bool
+	// stockDemand is the acceptance fault that raises the stock target the
+	// station chain sizes storage for (Faults.StockDemand); the scheduler sets it.
+	stockDemand map[policy.Resource]int64
 	// foodCredit is the delivery credit's factors, in memory only.
 	foodCredit policy.DeliveryCredit
 	// huntAdmission is the formation hunts the plan opened, in memory only.

@@ -100,7 +100,7 @@ var endToEnd = map[string]bool{
 	"shelter/bunks-first": true, "startup/labor": true,
 	"shelter/retirement": true, "shelter/climate-mild": true, "shelter/climate-cold": true, "shelter/climate-hot": true, "shelter/solo-cold": true, "solo/sea-ice-stock": true, "solo/sea-ice-rhadamant": true,
 	"sustained/colony-stable": true, "sustained/winter": true, "upkeep/campaign": true, "sleeping/suites": true,
-	"layout/ring": true, "layout/rich-soil": true, "layout/sea-ice-envelope": true,
+	"layout/ring": true, "layout/rich-soil": true, "layout/sea-ice-envelope": true, "layout/storage-successor": true,
 	"mood/headroom": true, "mood/ledger": true, "mood/gathering": true,
 	"explain/every-concern": true,
 }

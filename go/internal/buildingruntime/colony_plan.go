@@ -287,7 +287,7 @@ func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.Generati
 	pawns, _ := projection.Facts.Colonists.Value()
 	colonists := int(pawns)
 	start := time.Now()
-	f := FirstPlanFacts(projection, survey, r.demand.get(snapshot).Needs, r.WorkLedgerView())
+	f := FirstPlanFacts(projection, survey, r.stationNeeds(snapshot), r.WorkLedgerView())
 	f.Crops, f.FoodReserveDays = fieldCrops(projection), r.seasonal(projection.Facts).FoodTargetDays
 	f, err := stationFacts(catalog, f)
 	var fact domain.Fact[policy.LayoutPlan]

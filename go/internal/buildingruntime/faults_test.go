@@ -8,18 +8,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 func TestParseFaults(t *testing.T) {
 	t.Parallel()
-	got, err := ParseFaults(" planner:lighting=fail; planner:defense=hang ;renewal=drop;foodgap=zero")
+	got, err := ParseFaults(" planner:lighting=fail; planner:defense=hang ;renewal=drop;foodgap=zero; stock=Steel:30000")
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := Faults{FailPlanners: map[string]bool{"lighting": true}, HangPlanners: map[string]bool{"defense": true}, DropRenewal: true, FoodGapZero: true}
+	want := Faults{FailPlanners: map[string]bool{"lighting": true}, HangPlanners: map[string]bool{"defense": true}, DropRenewal: true, FoodGapZero: true, StockDemand: map[policy.Resource]int64{"Steel": 30000}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("%+v", got)
 	}
@@ -29,7 +31,7 @@ func TestParseFaults(t *testing.T) {
 	if empty, err := ParseFaults(""); err != nil || !empty.Empty() {
 		t.Fatal(empty, err)
 	}
-	for _, bad := range []string{"lighting", "planner:=fail", "planner:lighting=slow", "renewal=keep", "foodgap=small"} {
+	for _, bad := range []string{"lighting", "planner:=fail", "planner:lighting=slow", "renewal=keep", "foodgap=small", "stock=Steel", "stock=Steel:0", "stock=:5", "stock=Steel:x"} {
 		if _, err := ParseFaults(bad); err == nil {
 			t.Fatalf("%q parsed", bad)
 		}
@@ -86,5 +88,25 @@ func TestClockRenewalDropFaultLetsLeaseLapse(t *testing.T) {
 	r, err := s.RenewEpoch(context.Background())
 	if err != nil || r.Renewed || r.Attempt != nil || w.renews != 0 || n.writes != writes {
 		t.Fatal(r, err, w.renews, n.writes)
+	}
+}
+
+// The stock fault raises the station chain's targets to its count and leaves
+// the review's own demand, which the resource planners dispatch on, untouched.
+func TestStationNeedsRaisedByTheStockFault(t *testing.T) {
+	t.Parallel()
+	snapshot := domain.GenerationSnapshot{Colony: "c"}
+	r := &Rounder{}
+	r.demand.set(snapshot, policy.DerivedDemand{Needs: map[policy.Resource]int64{"Steel": 10, "WoodLog": 500}})
+	if got := r.stationNeeds(snapshot); got["Steel"] != 10 || got["WoodLog"] != 500 {
+		t.Fatalf("no fault: %v", got)
+	}
+	r.stockDemand = map[policy.Resource]int64{"Steel": 30000, "Silver": 7}
+	got := r.stationNeeds(snapshot)
+	if got["Steel"] != 30000 || got["Silver"] != 7 || got["WoodLog"] != 500 {
+		t.Fatalf("raised: %v", got)
+	}
+	if need := r.resourceTargets(snapshot); need["Steel"] != 10 || len(need) != 2 {
+		t.Fatalf("the review's demand changed: %v", need)
 	}
 }

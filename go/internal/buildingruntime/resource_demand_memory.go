@@ -1,6 +1,7 @@
 package buildingruntime
 
 import (
+	"maps"
 	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -38,4 +39,23 @@ func (m *resourceDemandMemory) get(snapshot domain.GenerationSnapshot) policy.De
 // the review's demand.
 func (r *Rounder) resourceTargets(snapshot domain.GenerationSnapshot) map[policy.Resource]int64 {
 	return r.demand.get(snapshot).Needs
+}
+
+// stationNeeds is the stock the station chain sizes the colony's rooms for: the
+// review's demand, each resource of the acceptance fault Faults.StockDemand
+// raised to at least its count. It reaches the layout only; no planner
+// acquires it.
+func (r *Rounder) stationNeeds(snapshot domain.GenerationSnapshot) map[policy.Resource]int64 {
+	needs := r.demand.get(snapshot).Needs
+	if len(r.stockDemand) == 0 {
+		return needs
+	}
+	out := maps.Clone(needs)
+	if out == nil {
+		out = map[policy.Resource]int64{}
+	}
+	for resource, count := range r.stockDemand {
+		out[resource] = max(out[resource], count)
+	}
+	return out
 }

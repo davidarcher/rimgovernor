@@ -22,7 +22,7 @@ import (
 // unchanged: the facts' key (StationFacts.InputsKey) and the survey, as for the
 // replan. A run records one layout_stations decision.
 func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, plan policy.LayoutPlan, pinned map[int32]bool, growth policy.RoomGrowth, demand policy.RoomDemand, survey policy.MapSurvey, catalog *bridge.DefinitionCatalog) {
-	f := stationFactsOf(projection, plan, survey, r.demand.get(snapshot).Needs, r.WorkLedgerView())
+	f := stationFactsOf(projection, plan, survey, r.stationNeeds(snapshot), r.WorkLedgerView())
 	f.Pinned, f.ThroneArea, f.RetireShelter = pinned, domain.Known(growth.ThroneArea), growth.RetireShelter
 	f.Demand = demand
 	f.Child = policy.ChildRoomShapes(childRoomNeeds(projection), furnitureDefinitions(projection))

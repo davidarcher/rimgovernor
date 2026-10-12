@@ -4,7 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
+	"strconv"
 	"strings"
+
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // Faults are the acceptance harness's fault injections into a live
@@ -31,11 +36,15 @@ type Faults struct {
 	// FoodGapZero pins every food plan's GapPerDay to zero, so the gates
 	// that wait on a closed food gap (MaintainHousing's expansion) open.
 	FoodGapZero bool
+	// StockDemand raises the stock target the station chain sizes the storage
+	// group for (stationNeeds), so a standing storage room is outgrown and the
+	// tiled replan sizes a successor; no planner reads it as a target to acquire.
+	StockDemand map[policy.Resource]int64
 }
 
 // FaultsEnv names the environment variable serve reads Faults from: a
 // semicolon-separated list of `planner:<name>=fail`, `planner:<name>=hang`
-// `renewal=drop` and `foodgap=zero`.
+// `renewal=drop`, `foodgap=zero` and `stock=<Resource>:<count>` (repeatable).
 const FaultsEnv = "RIMGOVERNOR_FAULT_INJECT"
 
 var errFaultInjected = errors.New("fault injected")
@@ -57,6 +66,16 @@ func ParseFaults(raw string) (Faults, error) {
 			f.DropRenewal = true
 		case key == "foodgap" && value == "zero":
 			f.FoodGapZero = true
+		case key == "stock":
+			def, count, cut := strings.Cut(value, ":")
+			n, err := strconv.ParseInt(count, 10, 64)
+			if !cut || def == "" || err != nil || n <= 0 {
+				return Faults{}, fmt.Errorf("%s: stock fault %q is not Resource:count", FaultsEnv, value)
+			}
+			if f.StockDemand == nil {
+				f.StockDemand = map[policy.Resource]int64{}
+			}
+			f.StockDemand[policy.Resource(def)] = n
 		case strings.HasPrefix(key, "planner:"):
 			name := strings.TrimPrefix(key, "planner:")
 			if name == "" {
@@ -85,7 +104,7 @@ func ParseFaults(raw string) (Faults, error) {
 
 // Empty reports no fault configured.
 func (f Faults) Empty() bool {
-	return len(f.FailPlanners) == 0 && len(f.HangPlanners) == 0 && !f.DropRenewal && !f.FoodGapZero
+	return len(f.FailPlanners) == 0 && len(f.HangPlanners) == 0 && !f.DropRenewal && !f.FoodGapZero && len(f.StockDemand) == 0
 }
 
 // String renders the faults in FaultsEnv's format, for the startup log.
@@ -102,6 +121,9 @@ func (f Faults) String() string {
 	}
 	if f.FoodGapZero {
 		parts = append(parts, "foodgap=zero")
+	}
+	for _, def := range slices.Sorted(maps.Keys(f.StockDemand)) {
+		parts = append(parts, fmt.Sprintf("stock=%s:%d", def, f.StockDemand[def]))
 	}
 	return strings.Join(parts, ";")
 }

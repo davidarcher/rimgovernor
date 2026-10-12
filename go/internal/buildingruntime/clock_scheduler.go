@@ -678,6 +678,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.Rounds != nil {
 		config.Rounds.store = scheduler.facts.store
 		config.Rounds.foodGapZero = config.Faults.FoodGapZero
+		config.Rounds.stockDemand = config.Faults.StockDemand
 	}
 	return scheduler, nil
 }
