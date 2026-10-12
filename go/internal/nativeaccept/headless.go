@@ -599,7 +599,7 @@ func copyFile(source, destination string) error {
 // launches carry it; the player's config (setup.RenderConfig) never does.
 const IdleExitArg = "-rimgovernor-idle-exit=20"
 
-// prepareRendered launches the unified native package without batch-mode
+// prepareRendered launches the unified native package without -Headless
 // flags, for a visible window, and returns the rewritten config directory
 // (root/config). fixtureOps feed the stale-package check's rebuild hint
 // (Config.FixtureOps).
@@ -652,7 +652,7 @@ func prepareRendered(root string, fixtureOps, expansions []string) (string, erro
 // prepare builds the headless-profile subdirectory (copying
 // Prefs.xml/ModsConfig.xml and every profile/Saves/*.rws save into it,
 // Prefs.xml trimmed per HeadlessPrefs), rewrites config.json's args for
-// batch mode, writes config-headless/config.json, and returns that
+// -Headless, writes config-headless/config.json, and returns that
 // directory. fixtureOps feed the stale-package check's rebuild hint
 // (Config.FixtureOps).
 func prepare(root string, fixtureOps, expansions []string, graphics bool) (string, error) {
@@ -726,7 +726,7 @@ func prepare(root string, fixtureOps, expansions []string, graphics bool) (strin
 	// stacks); message lines, exceptions included, stay.
 	args := []any{
 		"-savedatafolder=" + profile, "-NoFileLog", "-DisableLogStackTraces",
-		"-Headless", "-batchmode", "-rimgovernor-pause-on-load", "-rimgovernor-test-acceleration", IdleExitArg,
+		"-Headless", "-rimgovernor-pause-on-load", "-rimgovernor-test-acceleration", IdleExitArg,
 	}
 	if graphics {
 		args = slices.DeleteFunc(args, func(a any) bool { return a == "-Headless" })

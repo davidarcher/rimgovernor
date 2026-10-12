@@ -31,7 +31,7 @@ namespace HomeBridge.BridgeTools
                 try
                 {
                     var driver = Find.CameraDriver;
-                    if (Application.isBatchMode || Find.Camera == null || driver?.config == null)
+                    if (HeadlessRim.HeadlessMode.Active || Find.Camera == null || driver?.config == null)
                         return ProtoBoundary.Encode(new Presentation.CameraReply { Failure = Unavailable("Graphical map camera unavailable.") });
                     var position = driver.MapPosition;
                     var size = driver.config.sizeRange;
@@ -63,7 +63,7 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(new Presentation.SelectionReply { Failure = error });
                 try
                 {
-                    if (Application.isBatchMode || Find.Selector == null)
+                    if (HeadlessRim.HeadlessMode.Active || Find.Selector == null)
                         return ProtoBoundary.Encode(new Presentation.SelectionReply { Failure = Unavailable("Graphical native selection unavailable.") });
                     var objects = Find.Selector.SelectedObjectsListForReading.ToList();
                     var snapshot = new Presentation.SelectionSnapshot { Context = context, Listing = Listing(objects.Count) };

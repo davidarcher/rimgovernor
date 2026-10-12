@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
 
         static GovernorStatusPanel()
         {
-            if (Application.isBatchMode) return;
+            if (HeadlessRim.HeadlessMode.Active) return;
             try
             {
                 new Harmony("rimgovernor.status.panel").Patch(

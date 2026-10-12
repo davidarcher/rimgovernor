@@ -77,8 +77,8 @@ namespace HomeBridge.BridgeTools
 
         public override void MapComponentUpdate()
         {
-            if (!Application.isBatchMode && Find.CurrentMap == map) WidenZoomOut();
-            if (!OverlayVisibility.Master || Application.isBatchMode
+            if (!HeadlessRim.HeadlessMode.Active && Find.CurrentMap == map) WidenZoomOut();
+            if (!OverlayVisibility.Master || HeadlessRim.HeadlessMode.Active
                 || Find.CurrentMap != map || WorldRendererUtility.WorldSelected) return;
             foreach (var (group, draw) in drawers)
             {

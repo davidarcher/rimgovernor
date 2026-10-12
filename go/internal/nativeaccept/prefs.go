@@ -13,7 +13,7 @@ import (
 // (int)(days * 60000f) does not overflow -- overflowed, the autosaver's
 // threshold goes negative and it saves every tick, observed as a long
 // event that never clears), the process kept
-// running unfocused, the smallest window and no eye candy so a -batchmode
+// running unfocused, the smallest window and no eye candy so a -Headless
 // player computes as little as possible, and a crash leaving ModsConfig.xml
 // alone so the next launch still loads the mod. The learning helper
 // (adaptiveTrainingEnabled) is off: its readout and concept popups are

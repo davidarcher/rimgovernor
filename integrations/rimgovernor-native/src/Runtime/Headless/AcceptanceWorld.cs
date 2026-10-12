@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
     // ticking, and the wild plant and animal spawners stop. Plants in a
     // growing zone always tick, so a farm case that opts in still grows its
     // crops. Audio is already off headless (HeadlessPatches skips the sound
-    // root under -batchmode).
+    // root under -Headless).
     public sealed class AcceptanceWorld : GameComponent
     {
         public bool QuietWorld;

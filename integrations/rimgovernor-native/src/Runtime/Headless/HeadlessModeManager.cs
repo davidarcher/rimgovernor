@@ -14,13 +14,12 @@ namespace HeadlessRim
         {
             try
             {
-                string[] args = Environment.GetCommandLineArgs();
                 // The acceptance-only world patches ride on their own launch
-                // gate (-rimgovernor-test-acceleration), not on batch mode.
+                // gate (-rimgovernor-test-acceleration), not on headless mode.
                 HomeBridge.BridgeTools.AcceptanceWorld.Install();
                 // Production patches: the pre_save handshake and no vanilla autosave.
                 HomeBridge.BridgeTools.SaveHandshake.Install();
-                if (!args.Contains("-batchmode")) return;
+                if (!HeadlessMode.Active) return;
 
 
                 // MINIMAL STARTUP PATCHES

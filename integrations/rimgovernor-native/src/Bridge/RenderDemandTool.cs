@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
 
         internal static RenderDemandStatus Lease(int seconds)
         {
-            if (Application.isBatchMode) return new RenderDemandStatus(false, true, false, 0, "Startup headless mode cannot render");
+            if (HeadlessRim.HeadlessMode.Active) return new RenderDemandStatus(false, true, false, 0, "Startup headless mode cannot render");
             if (instance == null)
             {
                 instance = new GameObject("RimGovernorRenderDemand").AddComponent<RenderDemandDriver>();
@@ -58,7 +58,7 @@ namespace HomeBridge.BridgeTools
         // the driver on first use. RenderState needs a true no-op path.)
         internal static RenderDemandStatus Peek()
         {
-            if (Application.isBatchMode) return new RenderDemandStatus(false, true, false, 0, "Startup headless mode cannot render");
+            if (HeadlessRim.HeadlessMode.Active) return new RenderDemandStatus(false, true, false, 0, "Startup headless mode cannot render");
             if (instance == null) return new RenderDemandStatus(true, false, true, 0, null);
             return new RenderDemandStatus(true, Suspended, instance.windowVisible, Mathf.Max(0, until - Time.realtimeSinceStartup), null);
         }

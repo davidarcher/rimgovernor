@@ -49,21 +49,17 @@ namespace HeadlessRim
             // let the unmodified native update execute/save/finish the event.
             Patch(harmony, typeof(LongEventHandler), "LongEventsUpdate", nameof(LongEventUpdatePrefix));
 
-            // MAP MESH GENERATION (Prevents Gameplay NREs). Without a graphics
-            // device the map has nothing to build meshes on; a game launched
-            // with one (Case.Graphics: the colony review's screenshots) keeps
-            // the map's own terrain, wall and floor meshes.
-            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
-            {
-                Patch(harmony, typeof(Section), "RegenerateAllLayers", nameof(SkipPrefix));
-                Patch(harmony, typeof(MapDrawer), "WholeMapChanged", nameof(SkipPrefix));
-                Patch(harmony, typeof(MapDrawer), "SectionChanged", nameof(SkipPrefix));
-                Patch(harmony, typeof(MapDrawer), "RegenerateEverythingNow", nameof(SkipPrefix));
-                Patch(harmony, typeof(MapDrawer), "MapMeshDrawerUpdate_First", nameof(SkipPrefix));
-                Patch(harmony, typeof(MapDrawer), "DrawMapMesh", nameof(SkipPrefix));
-                Patch(harmony, typeof(MapDrawer), "Dispose", nameof(DisposeMapPrefix));
-                Patch(harmony, typeof(Graphic), "Print", nameof(SkipPrefix));
-            }
+            // MAP MESH GENERATION (Prevents Gameplay NREs). Headless has no
+            // graphics device to build meshes on; a game launched without
+            // -Headless (Case.Graphics: the colony review's screenshots) never
+            // reaches this method and keeps the map's own meshes.
+            Patch(harmony, typeof(Section), "RegenerateAllLayers", nameof(SkipPrefix));
+            Patch(harmony, typeof(MapDrawer), "WholeMapChanged", nameof(SkipPrefix));
+            Patch(harmony, typeof(MapDrawer), "RegenerateEverythingNow", nameof(SkipPrefix));
+            Patch(harmony, typeof(MapDrawer), "MapMeshDrawerUpdate_First", nameof(SkipPrefix));
+            Patch(harmony, typeof(MapDrawer), "DrawMapMesh", nameof(SkipPrefix));
+            Patch(harmony, typeof(MapDrawer), "Dispose", nameof(DisposeMapPrefix));
+            Patch(harmony, typeof(Graphic), "Print", nameof(SkipPrefix));
             // Some place workers draw while deciding (PlaceWorker_ShowTurretRadius
             // draws the turret's radius ring inside AllowsPlacing); without a
             // renderer the field-edge mesh faults and a placement preview of a
@@ -80,9 +76,7 @@ namespace HeadlessRim
             Patch(harmony, typeof(MusicManagerEntry), "MusicManagerEntryUpdate", nameof(SkipPrefix));
 
             // PORTRAITS
-            var portraitOriginal = AccessTools.Method(typeof(PortraitsCache), "Get", new Type[] { typeof(Pawn), typeof(Vector2), typeof(Rot4), typeof(Vector3), typeof(float), typeof(bool), typeof(bool), typeof(bool), typeof(bool), typeof(System.Collections.Generic.Dictionary<Apparel, Color>) });
-            if (portraitOriginal != null)
-                harmony.Patch(portraitOriginal, prefix: new HarmonyMethod(typeof(HeadlessPatches), nameof(ReturnNullTexturePrefix)));
+            Patch(harmony, typeof(PortraitsCache), "Get", nameof(ReturnNullTexturePrefix));
 
             // Caravan world-map arrival (e.g. CaravanExitMapUtility.ExitMapAndCreateCaravan
             // routing a caravan straight to a destination) builds a world-tile float menu to
@@ -100,23 +94,23 @@ namespace HeadlessRim
 
         // Helpers
         private static void Patch(Harmony harmony, Type type, string methodName, string patchMethodName)
-        {
-            try
-            {
-                var original = AccessTools.Method(type, methodName);
-                if (original != null) harmony.Patch(original, prefix: new HarmonyMethod(typeof(HeadlessPatches), patchMethodName));
-            }
-            catch (Exception error) { ModLog.Warn("startup", "headless patch failed: " + type.FullName + "." + methodName + ": " + error.Message); }
-        }
+            => Patch(harmony, type, methodName, null, patchMethodName);
 
-        private static void Patch(Harmony harmony, Type type, string methodName, Type[] parameters, string patchMethodName)
+        // A target that no longer resolves is a game-update drift, not a quiet
+        // no-op: it goes to the game log (stdout) as a warning.
+        private static void Patch(Harmony harmony, Type type, string methodName, Type[]? parameters, string patchMethodName)
         {
             try
             {
                 var original = AccessTools.Method(type, methodName, parameters);
-                if (original != null) harmony.Patch(original, prefix: new HarmonyMethod(typeof(HeadlessPatches), patchMethodName));
+                if (original == null)
+                {
+                    Log.Warning("[RimGovernor] headless patch target missing: " + type.FullName + "." + methodName);
+                    return;
+                }
+                harmony.Patch(original, prefix: new HarmonyMethod(typeof(HeadlessPatches), patchMethodName));
             }
-            catch (Exception error) { ModLog.Warn("startup", "headless patch failed: " + type.FullName + "." + methodName + ": " + error.Message); }
+            catch (Exception error) { Log.Warning("[RimGovernor] headless patch failed: " + type.FullName + "." + methodName + ": " + error.Message); }
         }
 
         public static bool SkipPrefix() => false;
@@ -147,6 +141,6 @@ namespace HeadlessRim
         // Preserve native cleanup if any drawing resources do exist.
         public static bool DisposeMapPrefix(Section[,] ___sections, System.Collections.Generic.List<MapDrawLayer> ___global)
             => ___sections != null || ___global != null;
-        public static bool ReturnNullTexturePrefix(ref Texture? __result) { __result = null; return false; }
+        public static bool ReturnNullTexturePrefix(ref RenderTexture? __result) { __result = null; return false; }
     }
 }

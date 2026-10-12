@@ -9,9 +9,10 @@ namespace HeadlessRim
     {
         static HeadlessStartup()
         {
-            if (!System.Linq.Enumerable.Contains(System.Environment.GetCommandLineArgs(), "-batchmode")) return;
+            if (!HeadlessMode.Active) return;
             ModLog.Info("startup", "test mode: rendering disabled, frame cap removed");
-            QualitySettings.vSyncCount = 0;
+            // Waylith has no window to vsync in headless mode (the QualitySettings
+            // vsync setter is a stub); its frame limiter is Application.targetFrameRate.
             Application.targetFrameRate = -1;
         }
     }

@@ -19,9 +19,8 @@ namespace HomeBridge.BridgeTools
     // day. Colony facts are not its business: the run's timeline and
     // telemetry already hold them. It runs from the frame loop, so the
     // controller drives the game undisturbed while it records. Needs a
-    // graphics device: a -batchmode game launched without -nographics
-    // (RIMGOVERNOR_ACCEPT_GRAPHICS=1) renders on demand, it only never
-    // presents a window.
+    // graphics device: a game launched without -Headless
+    // (RIMGOVERNOR_ACCEPT_GRAPHICS=1) renders on demand, in a window.
     public static class ColonyReview
     {
         const int DayTicks = 60000;
@@ -43,7 +42,7 @@ namespace HomeBridge.BridgeTools
         public static object Stop() { dir = null; return Status(); }
 
         public static object Status() => new { success = true, recording = dir != null, dir, interval, size, nextTick, frames,
-            batchMode = Application.isBatchMode, graphics = SystemInfo.graphicsDeviceType.ToString(), lastError };
+            headless = HeadlessRim.HeadlessMode.Active, lastError };
 
         static void EnsurePatched()
         {
@@ -149,7 +148,7 @@ namespace HomeBridge.BridgeTools
 
     public sealed class ColonyReviewFixture
     {
-        [Tool("test/colony_review", Description = "UNSAFE FOR MODEL EXECUTION. Test recorder: action=start renders the colony to a JPEG in dir every intervalTicks of game time (a whole-map shot once a day); stop ends it; status reads it. Needs a graphics device (a game launched without -nographics).")]
+        [Tool("test/colony_review", Description = "UNSAFE FOR MODEL EXECUTION. Test recorder: action=start renders the colony to a JPEG in dir every intervalTicks of game time (a whole-map shot once a day); stop ends it; status reads it. Needs a graphics device (a game launched without -Headless).")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "start, stop or status (default).")] string action = "status",
             [ToolParameter(Description = "Output directory for start.")] string dir = "",
@@ -162,8 +161,8 @@ namespace HomeBridge.BridgeTools
                 {
                     case "start":
                         if (string.IsNullOrEmpty(dir)) throw new ArgumentException("start needs dir.");
-                        if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
-                            throw new InvalidOperationException("No graphics device: launch the game without -nographics.");
+                        if (HeadlessRim.HeadlessMode.Active)
+                            throw new InvalidOperationException("No graphics device: launch the game without -Headless.");
                         return ColonyReview.Start(dir, intervalTicks, size);
                     case "stop": return ColonyReview.Stop();
                     case "status": return ColonyReview.Status();

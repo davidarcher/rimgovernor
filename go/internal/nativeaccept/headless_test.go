@@ -453,15 +453,10 @@ func TestPrepareGraphicsKeepsTheDevice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	batch := false
 	for _, a := range game["args"].([]any) {
 		if a == "-Headless" {
 			t.Fatal("graphics profile still passes -Headless")
 		}
-		batch = batch || a == "-batchmode"
-	}
-	if !batch {
-		t.Fatal("graphics profile lost -batchmode")
 	}
 }
 
@@ -495,11 +490,8 @@ func TestPrepareRewritesHeadlessArgs(t *testing.T) {
 	for i, a := range args {
 		joined[i] = a.(string)
 	}
-	foundBatch, foundHeadless, foundAcceleration, foundIdleExit := false, false, false, false
+	foundHeadless, foundAcceleration, foundIdleExit := false, false, false
 	for _, a := range joined {
-		if a == "-batchmode" {
-			foundBatch = true
-		}
 		if a == "-Headless" {
 			foundHeadless = true
 		}
@@ -510,8 +502,8 @@ func TestPrepareRewritesHeadlessArgs(t *testing.T) {
 			foundAcceleration = true
 		}
 	}
-	if !foundBatch || !foundHeadless {
-		t.Fatalf("headless args missing batch/headless flags: %v", joined)
+	if !foundHeadless {
+		t.Fatalf("headless args missing -Headless: %v", joined)
 	}
 	if !foundIdleExit {
 		t.Fatalf("headless args missing %s: %v", IdleExitArg, joined)
