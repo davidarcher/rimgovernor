@@ -270,11 +270,12 @@ func SurplusRoomsPossible(plan LayoutPlan, throneMin int, demand RoomDemand) boo
 	if demand.Known && (!demand.Armory && len(plan.roomsOf(PlannedArmory)) > 0 || !demand.Wardrobe && len(plan.roomsOf(PlannedWardrobe)) > 0) {
 		return true
 	}
-	return demand.StorageIdle && len(plan.roomsOf(PlannedStorage)) > 1
+	return demand.StorageIdle && plan.RoomChains(PlannedStorage) > 1
 }
 
 // retireSurplusRooms drops the surplus rooms of growth that are unbuilt, plus
-// the built throne rooms a built larger one replaces. It reports whether it
+// the built throne rooms a built larger one replaces and the built room whose
+// built successor stands (layout_succession.go). It reports whether it
 // dropped any.
 func retireSurplusRooms(plan LayoutPlan, growth RoomGrowth, built map[int32]bool) (LayoutPlan, bool) {
 	drop := map[int32]bool{}
@@ -314,12 +315,15 @@ func retireSurplusRooms(plan LayoutPlan, growth RoomGrowth, built map[int32]bool
 		}
 	}
 	if growth.Demand.StorageIdle {
+		// A rebuild in flight is not an extra room: its pair stays.
+		pinned := successorPinned(plan)
 		for i, r := range plan.roomsOf(PlannedStorage) {
-			if i > 0 && !built[r.ID] {
+			if i > 0 && !built[r.ID] && !pinned[r.ID] {
 				drop[r.ID] = true
 			}
 		}
 	}
+	retireSuperseded(plan, built, drop)
 	return dropRooms(plan, drop)
 }
 

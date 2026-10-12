@@ -14,7 +14,10 @@ import (
 func TestStationDecisionSkipsOnUnknownFacts(t *testing.T) {
 	plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{{ID: 1, Role: policy.PlannedKitchen}}}
 	facts := stationFactsOf(observation.ColonyProjection{}, plan, policy.MapSurvey{}, nil, policy.NewLedgerView(policy.LedgerViewNone, 0))
-	d := stationDecision(facts, nil)
+	d, _, held := stationDecision(facts, nil)
+	if held {
+		t.Error("an unread colony made advice")
+	}
 	if d.Kind != "layout_stations" || d.Verdict != "skipped" || d.Reason != "facts_unknown" {
 		t.Fatalf("decision = %+v, want skipped/facts_unknown", d)
 	}

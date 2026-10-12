@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -157,6 +158,22 @@ func (f StationFacts) GraphInput() (StationGraphInput, error) {
 	}, nil
 }
 
+// InputsKey names what the chain varies with: the graph's population,
+// nutrition, orders and stock (or the unknown fact), the dining furniture and
+// roof distance, and the plan with the rooms standing. Two facts with one key
+// give one advice over one survey. The definitions (Catalog, Furniture,
+// Items, Recipes and the stack and rot rows of the stock) are the load's, so
+// the caller keys the load beside it.
+func (f StationFacts) InputsKey() string {
+	plan, _ := json.Marshal(f.Plan) // the plan holds pointers; the saved form is its value
+	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Tile) + string(plan)
+	input, err := f.GraphInput()
+	if err != nil {
+		return key + err.Error()
+	}
+	return key + fmt.Sprint(input.Population, input.NutritionPerDay, input.Orders, input.Stock)
+}
+
 // GroupAdvice is one room group with the built rooms matched to it.
 type GroupAdvice struct {
 	Group RoomGroup
@@ -227,12 +244,18 @@ type BuiltRegion struct {
 
 // BuiltRegions are the plan's standing rooms that carry a native role
 // (moduleRoomRoles), by room id. Outdoor rooms and rooms with no native role
-// are left out.
+// are left out, and so is a room whose successor stands: the pair is one room.
 func BuiltRegions(plan LayoutPlan, built map[int32]bool) []BuiltRegion {
 	var out []BuiltRegion
+	replaced := map[int32]bool{}
+	for _, r := range plan.AllRooms() {
+		if built[r.ID] && r.Replaces != 0 {
+			replaced[r.Replaces] = true
+		}
+	}
 	for _, r := range plan.AllRooms() {
 		role, ok := moduleRoomRoles[r.Role]
-		if !ok || r.Outdoor || !built[r.ID] {
+		if !ok || r.Outdoor || !built[r.ID] || replaced[r.ID] {
 			continue
 		}
 		out = append(out, BuiltRegion{Room: r.ID, Role: role, Region: r.Region})

@@ -13,21 +13,31 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
-// adviseStations runs the station chain over the live colony after a replan
-// and records one layout_stations decision. It is advisory: the plan the old
-// planner recorded is read, never changed, and a failure is only logged.
-func (r *Rounder) adviseStations(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, plan policy.LayoutPlan, survey policy.MapSurvey) {
+// stationAdvice runs the station chain over the live colony at a layout
+// review and returns its advice, which the review reads for a successor room
+// (policy.OutgrownSuccession). The chain is skipped, and the last advice kept,
+// while its inputs are unchanged: the facts' key (StationFacts.InputsKey) and
+// the survey, as for the replan. A run records one layout_stations decision.
+// The advice is false when the chain failed or a fact is unread.
+func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, plan policy.LayoutPlan, survey policy.MapSurvey) (policy.StationAdvice, bool) {
+	f := stationFactsOf(projection, plan, survey, r.demand.get(snapshot).Needs, r.WorkLedgerView())
+	inputs := layoutInputs{key: fmt.Sprint(snapshot.Load, "|", f.InputsKey()), bounds: survey.Bounds, cells: survey.Cells}
+	if inputs.same(r.stationInputs) {
+		return r.stationLast, r.stationHeld
+	}
 	start := time.Now()
-	facts, err := r.stationFacts(ctx, snapshot, projection, plan, survey)
-	decision := stationDecision(facts, err)
+	facts, err := r.stationFacts(ctx, snapshot, f)
+	decision, advice, ok := stationDecision(facts, err)
 	decision.Dur = time.Since(start)
 	telemetry.Decide(ctx, decision)
+	r.stationInputs, r.stationLast, r.stationHeld = inputs, advice, ok
+	return advice, ok
 }
 
 // stationDecision runs the chain over facts (when they were read, err nil) and
 // is the layout_stations row of the outcome: advised, skipped for an unknown
-// fact, or failed.
-func stationDecision(facts policy.StationFacts, err error) telemetry.Decision {
+// fact, or failed. The advice is returned when it was made.
+func stationDecision(facts policy.StationFacts, err error) (telemetry.Decision, policy.StationAdvice, bool) {
 	decision := telemetry.Decision{Kind: "layout_stations", Component: "layout", Target: "plan"}
 	var advice policy.StationAdvice
 	if err == nil {
@@ -40,13 +50,14 @@ func stationDecision(facts policy.StationFacts, err error) telemetry.Decision {
 		decision.Level, decision.Verdict, decision.Reason, decision.Attrs = slog.LevelWarn, "failed", "chain_error", map[string]any{"error": err}
 	default:
 		decision.Verdict, decision.Reason, decision.Attrs = "advised", "station_chain", stationAdviceAttrs(advice)
+		return decision, advice, true
 	}
-	return decision
+	return decision, policy.StationAdvice{}, false
 }
 
-// stationFacts reads the live colony into the station chain's facts. A part
-// the colony has not read stays unknown.
-func (r *Rounder) stationFacts(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, plan policy.LayoutPlan, survey policy.MapSurvey) (policy.StationFacts, error) {
+// stationFacts adds the catalog rows (recipe flows, stack limits, rot) to f,
+// the facts the colony read. A part the colony has not read stays unknown.
+func (r *Rounder) stationFacts(ctx context.Context, snapshot domain.GenerationSnapshot, f policy.StationFacts) (policy.StationFacts, error) {
 	source, ok := r.native.(observation.DefinitionSource)
 	if !ok {
 		return policy.StationFacts{}, errors.New("station advice: no definitions")
@@ -55,7 +66,6 @@ func (r *Rounder) stationFacts(ctx context.Context, snapshot domain.GenerationSn
 	if err != nil {
 		return policy.StationFacts{}, err
 	}
-	f := stationFactsOf(projection, plan, survey, r.demand.get(snapshot).Needs, r.WorkLedgerView())
 	if f.Recipes, err = catalog.StationRecipeFlows(f.Catalog); err != nil {
 		return policy.StationFacts{}, err
 	}

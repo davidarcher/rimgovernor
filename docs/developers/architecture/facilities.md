@@ -197,12 +197,12 @@ cooler, and rock is only the dig cost every group pays); a clean room has no sit
 position fits is reported unplaceable (`embed_no_ground`,
 `embed_open_sky_ground`).
 
-### Advisory station plan
+### Station plan and successor rooms
 
 `policy.AdviseStations` (`layout_station_plan.go`) runs graph, clustering and
-embedding over the live colony and records the result; the old planner stays
-authoritative, so the plan and the rooms built are unchanged. After each
-recorded replan `Rounder.adviseStations` reads `StationFacts` from the
+embedding over the live colony; the old planner stays
+authoritative for what it builds. At each layout review
+`Rounder.stationAdvice` reads `StationFacts` from the
 projection (the unknown stays unknown, never zero): the people (colonists less
 babies, the ward from `SelectHospitalBed`'s ill set, held prisoners, the pen
 herd), the colonists' nutrition a day (the food census consumers' rates), the
@@ -211,14 +211,31 @@ demand as stock, and the catalog's recipe flows, stack limits and rot
 (`StationItemFacts`). It writes one `layout_stations` decision: `advised` with
 each group (stations, footprint, clearance, area, predicted role, costs,
 block), the clustering's conflicts and the embedding report; `skipped`
-(`facts_unknown`, naming the fact); or `failed`.
+(`facts_unknown`, naming the fact); or `failed`. The chain runs at most once per change of its inputs (`StationFacts.InputsKey` and the survey; a review with them unchanged reads the last advice and writes no row). Cost on the 250x250 baseline map with a 30-colonist plan and 10 recipes ordered: about 85 ms a run, 0.5 ms for the key (`BenchmarkAdviseStationsLarge`).
 
 `MatchGroupRooms` matches the standing planned rooms of a native role
 (`BuiltRegions`, through the planned-role to native-role table) to the groups
 of that role: both largest first, the n-th group takes the n-th room, and a
 surplus room goes to the group most short of floor (ties to the lower id).
 `GroupOutgrown` holds when the group's area exceeds the matched rooms' floor; a
-group with no built room is not outgrown. Acting on either is #2863.
+group with no built room is not outgrown. A built pair (a room and the successor that replaces it) is one room: `BuiltRegions` leaves the replaced room out.
+
+Successor rooms (`layout_succession.go`, storage and workshop; the other roles
+are #2864). `OutgrownSuccession` reads the advice at a layout review: an
+outgrown group of those roles whose shortfall (group area less the matched
+rooms' floor) holds the footprint plus one open cell of the smallest station
+in the group asks for a successor. It replaces the smallest matched storage or
+workshop room and is that room's floor plus the shortfall, in the group's
+embedded block shape (the block's depth cut to the floor needed) sited by
+`SiteRoom` with `Replaces` set. The group most short goes first and none starts
+while a predecessor is still in the plan, so one rebuild runs at a time. A
+replan sites the successor ahead of the re-siting (`growSuccessor`);
+`replanPins` pins both rooms; `retireSurplusRooms` drops the predecessor once
+the successor is in `Built`, and clearance takes its ground. A successor with
+no embedded block, or no free core slot, is not built: `successor_unsited`.
+`StorageRoomsOwed` and the storage department's further-warehouse demand count
+a `Replaces` chain as one room, so no twin is added. Stock drains from the old
+zone as vanilla re-hauls it; bills and packed furniture are #2881.
 
 ## Electrical safety
 

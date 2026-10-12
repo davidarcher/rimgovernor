@@ -168,7 +168,7 @@ func DeclaredDemand(view StoreView, stores []Store) RoomDemand {
 	}
 	demand.StorageIdle = idle
 	if storage > 0 && !pending && !idle && full == storage {
-		demand.Storage = len(view.plannedStorageRooms()) + 1
+		demand.Storage = view.storageRoomChains() + 1
 	}
 	if yards > 0 && !waiting && fullYards == yards {
 		demand.Yard = len(view.Layout.YardRooms()) + 1

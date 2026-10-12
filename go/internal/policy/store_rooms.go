@@ -21,15 +21,20 @@ func (r StoreView) plannedStorageRooms() []PlannedRoom {
 	return out
 }
 
-// StorageRoomsOwed is how many storage rooms demand asks for that plan lacks.
-func StorageRoomsOwed(plan LayoutPlan, demand RoomDemand) int {
-	have := 0
-	for _, r := range plan.AllRooms() {
-		if r.Role == PlannedStorage {
-			have++
-		}
+// storageRoomChains is how many storage rooms the plan holds, a room and its
+// successors counting as one.
+func (r StoreView) storageRoomChains() int {
+	if r.Layout == nil {
+		return 0
 	}
-	return max(demand.Storage-have, 0)
+	return r.Layout.RoomChains(PlannedStorage)
+}
+
+// StorageRoomsOwed is how many storage rooms demand asks for that plan lacks.
+// A room and its successors count as one (RoomChains), so a rebuild in flight
+// is not answered with a twin.
+func StorageRoomsOwed(plan LayoutPlan, demand RoomDemand) int {
+	return max(demand.Storage-plan.RoomChains(PlannedStorage), 0)
 }
 
 // growStorageRooms adds the storage room demand asks for and plan lacks, on

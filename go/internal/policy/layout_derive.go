@@ -88,6 +88,11 @@ type RoomGrowth struct {
 	// cluster the plan holds never moves. Its tomb and morgue are placed in
 	// their slots.
 	Outskirts [2]int32
+	// Successor is the room the station chain asks to replace an outgrown
+	// one (OutgrownSuccession); the zero value asks for none. A replan sites
+	// it ahead of the re-siting, keeps both rooms pinned and retires the old
+	// room once the successor stands (Built).
+	Successor Successor
 }
 
 // ReplanLayoutWithRooms grows plan for pawns colonists and tombs tomb rooms
@@ -148,12 +153,22 @@ func replanLayout(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawn
 	dropped = dropped || retired
 	next, retired = retireShelter(next, growth)
 	dropped = dropped || retired
+	// The successor of an outgrown room joins the plan before the replan pins
+	// it; one that cannot be sited is reported and nothing is built.
+	var unplaced []error
+	var successorScorer *planScorer
+	if growth.Successor.Any() {
+		sc := newPlanScorer(next.Zones, next.Reservations, s)
+		successorScorer = &sc
+	}
+	next, successor, err := growSuccessor(next, growth.Successor, successorScorer, blockedCells(next, growth.Occupied))
+	dropped = dropped || successor
+	unplaced = append(unplaced, err)
 	// Growth, then the unbuilt rooms sited again where that scores clearly
 	// better (layout_replan.go); an emptied Retiring wing is among them.
 	rp := newReplanner(next, s, blockedCells(next, growth.Occupied), pawns, tombs, tier, suites)
 	next, resited := rp.replanCore(next, replanPins(next, growth.Fixed, emptied, tier))
 	dropped = dropped || resited
-	var unplaced []error
 	scorer := newPlanScorer(next.Zones, next.Reservations, s)
 	next, throne, err := growThroneRoom(next, growth.ThroneArea, &scorer)
 	dropped = dropped || throne

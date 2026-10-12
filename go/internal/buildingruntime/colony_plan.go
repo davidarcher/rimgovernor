@@ -130,7 +130,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	if haveLayout {
 		needs, defs := childRoomNeeds(*projection), furnitureDefinitions(*projection)
 		growth.Child = policy.ChildRoomsOwed(layout.Plan, needs, defs)
-		if ground, known := colonyGround(*projection); known && (policy.DuplicateRooms(layout.Plan) > 0 || policy.SurplusRoomsPossible(layout.Plan, growth.ThroneMin, demand)) {
+		if ground, known := colonyGround(*projection); known && (policy.DuplicateRooms(layout.Plan) > 0 || policy.SurplusRoomsPossible(layout.Plan, growth.ThroneMin, demand) || policy.SuccessorPending(layout.Plan)) {
 			growth.Shapes, growth.Built = policy.ChildRoomShapes(needs, defs), policy.BuiltRooms(layout.Plan, ground)
 		}
 	}
@@ -202,12 +202,18 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 					// Open plans unknown: no shelter is dropped over work in flight.
 					growth.RetireShelter = false
 				}
+				// A room the colony outgrew gets a larger successor: the
+				// station chain at this review, skipped while its inputs
+				// are unchanged.
+				if advice, ok := r.stationAdvice(ctx, snapshot, *projection, layout.Plan, survey); ok {
+					growth.Successor = policy.OutgrownSuccession(advice, projection.Stations, layout.Plan)
+				}
 				// Every new building moves Occupied; the fixed rooms are its key.
 				keyed := growth
 				keyed.Occupied = nil
 				inputs := layoutInputs{planTick: layout.Tick, key: fmt.Sprint(grown, pawns, tombs, suites, topology.Geysers, keyed, animals), bounds: survey.Bounds, cells: survey.Cells}
 				if !inputs.same(r.planInputs) {
-					reason := layoutReasons(map[string]bool{"outgrown": outgrown, "terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research, "tomb": tomb, "suite": suite, "throne": throne, "children": children, "gear": gear, "core": core, "outskirts": outskirts, "yard": yard})
+					reason := layoutReasons(map[string]bool{"outgrown": outgrown, "terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research, "tomb": tomb, "suite": suite, "throne": throne, "children": children, "gear": gear, "core": core, "outskirts": outskirts, "yard": yard, "succession": growth.Successor.Any()})
 					err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, growth, animals, int(pawns), tombs, layoutTier(*projection), reason, topology.Geysers, policy.EmptiedRetiringWings(layout.Plan, projection.Rooms, projection.Facts.Sleeping), suites)
 					if err == nil {
 						r.planGrownFor, r.planPawns = grown, int(pawns)
@@ -224,8 +230,6 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 			if replanned && haveLayout {
 				// The recorded replan is the plan the same inputs grow next.
 				r.planInputs.planTick = layout.Tick
-				// The station chain reads the plan it left and only records.
-				r.adviseStations(ctx, snapshot, *projection, layout.Plan, survey)
 			}
 		}
 	}
@@ -320,7 +324,9 @@ func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.Generati
 // it when it changed.
 func (r *Rounder) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, growth policy.RoomGrowth, animals, pawns, tombs int, tier policy.TechTier, reason string, geysers []policy.PowerGeyser, emptied map[domain.Cell]bool, suites []float64) error {
 	next, changed, unplaced := policy.ReplanLayoutWithRooms(plan, survey, growth, animals, pawns, tombs, tier, geysers, emptied, suites...)
+	unsited, unplaced := policy.SplitUnsited(unplaced)
 	r.logNoRoom(ctx, pawns, unplaced)
+	r.logUnsited(ctx, pawns, unsited)
 	if !changed {
 		return nil
 	}
@@ -329,7 +335,41 @@ func (r *Rounder) replanLayout(ctx context.Context, snapshot domain.GenerationSn
 	}
 	extra := map[string]any{"tomb_short": max(tombs-next.TombRooms(), 0)}
 	telemetry.Decide(ctx, layoutPlanDecision("replanned", reason, pawns, next.Summary(), extra))
+	planned, retired := policy.SuccessionChanges(plan, next)
+	for _, room := range planned {
+		telemetry.Decide(ctx, successionDecision("planned", "successor_planned", pawns, room, map[string]any{"floor": room.Region.Area(), "old_floor": growth.Successor.Floor, "shortfall": growth.Successor.Shortfall}))
+	}
+	for _, room := range retired {
+		telemetry.Decide(ctx, successionDecision("retired", "successor_retired", pawns, room, map[string]any{"floor": room.Region.Area()}))
+	}
 	return nil
+}
+
+// logUnsited writes a layout_plan refused/successor_unsited row for each
+// successor a replan could not site (nothing is built), once per distinct set
+// so a plan that stays full does not repeat the row each round.
+func (r *Rounder) logUnsited(ctx context.Context, colonists int, unsited []*policy.UnsitedSuccessor) {
+	text := ""
+	for _, u := range unsited {
+		text += u.Error() + "; "
+	}
+	if text == r.unsitedLogged {
+		return
+	}
+	r.unsitedLogged = text
+	for _, u := range unsited {
+		telemetry.Decide(ctx, layoutPlanDecision("refused", "successor_unsited", colonists, "", map[string]any{"role": string(u.Successor.Role), "replaces": u.Successor.Replaces, "floor": u.Successor.Floor, "shortfall": u.Successor.Shortfall, "why": u.Reason}))
+	}
+}
+
+// successionDecision is the layout_plan row of a successor room planned (the
+// room added) or retired (the room it replaced, now leaving the plan).
+func successionDecision(verdict, reason string, colonists int, room policy.PlannedRoom, extra map[string]any) telemetry.Decision {
+	attrs := map[string]any{"colonists": colonists, "role": string(room.Role), "room": room.ID, "replaces": room.Replaces}
+	for k, v := range extra {
+		attrs[k] = v
+	}
+	return telemetry.Decision{Kind: "layout_plan", Component: "layout", Verdict: verdict, Reason: reason, Target: "successor", Attrs: attrs}
 }
 
 // logNoRoom writes a layout_plan refused/no_room row when a replan left

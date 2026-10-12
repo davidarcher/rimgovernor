@@ -141,8 +141,17 @@ type Rounder struct {
 	// planInputs is the last replan's survey and inputs; an hourly check
 	// that finds them unchanged skips the replan.
 	planInputs layoutInputs
+	// stationInputs are the inputs of the last station chain run, stationLast
+	// its advice and stationHeld whether it made one; a review whose inputs
+	// are unchanged reads them instead of running the chain.
+	stationInputs layoutInputs
+	stationLast   policy.StationAdvice
+	stationHeld   bool
 	// suiteClaimsLogged is the last suite claim set logged.
 	suiteClaimsLogged string
+	// unsitedLogged is the unsited successors last logged, so a plan that
+	// stays full is not logged each replan.
+	unsitedLogged string
 	// layoutInvalidLogged: an invalid saved layout plan is logged once.
 	layoutInvalidLogged bool
 	// noRoomLogged is the last unplaced-rooms text logged as layout_plan

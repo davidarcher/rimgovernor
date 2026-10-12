@@ -116,6 +116,9 @@ func replanPins(plan LayoutPlan, fixed map[int32]bool, emptied map[domain.Cell]b
 		return allPins(plan)
 	}
 	pins := maps.Clone(fixed)
+	// A room and the successor that replaces it stay as sited until the
+	// successor stands and the old room leaves the plan.
+	maps.Copy(pins, successorPinned(plan))
 	for changed := true; changed; {
 		changed = false
 		for _, r := range plan.Rooms {
