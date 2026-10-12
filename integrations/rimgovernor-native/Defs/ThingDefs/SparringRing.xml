@@ -16,8 +16,9 @@
       <texPath>Things/Item/Equipment/WeaponMelee/Club</texPath>
       <graphicClass>Graphic_Single</graphicClass>
     </graphicData>
-    <soundInteract>Interact_BluntMedium</soundInteract>
     <tradeability>None</tradeability>
+    <smeltable>false</smeltable>
+    <recipeMaker IsNull="True" />
     <statBases>
       <Mass>1</Mass>
     </statBases>
@@ -55,8 +56,9 @@
       <texPath>Things/Item/Equipment/WeaponMelee/Gladius</texPath>
       <graphicClass>Graphic_Single</graphicClass>
     </graphicData>
-    <soundInteract>Interact_BladeMedium</soundInteract>
     <tradeability>None</tradeability>
+    <smeltable>false</smeltable>
+    <recipeMaker IsNull="True" />
     <statBases>
       <Mass>1</Mass>
     </statBases>
@@ -97,8 +99,9 @@
       <texPath>Things/Item/Equipment/WeaponMelee/LongSword</texPath>
       <graphicClass>Graphic_Single</graphicClass>
     </graphicData>
-    <soundInteract>Interact_BladeMedium</soundInteract>
     <tradeability>None</tradeability>
+    <smeltable>false</smeltable>
+    <recipeMaker IsNull="True" />
     <statBases>
       <Mass>1</Mass>
     </statBases>
@@ -137,11 +140,12 @@
     <description>A fine blunted sword for sparring, kept at a sparring ring. It cannot be made, bought or sold.</description>
     <techLevel>Spacer</techLevel>
     <graphicData>
-      <texPath>Things/Item/Equipment/WeaponMelee/Plasmasword</texPath>
+      <texPath>Things/Item/Equipment/WeaponMelee/PlasmaSword</texPath>
       <graphicClass>Graphic_Single</graphicClass>
     </graphicData>
-    <soundInteract>Interact_BladeMedium</soundInteract>
     <tradeability>None</tradeability>
+    <smeltable>false</smeltable>
+    <recipeMaker IsNull="True" />
     <statBases>
       <Mass>1</Mass>
     </statBases>
@@ -187,6 +191,7 @@
   <ThingDef Name="PracticeApparelBase" ParentName="ApparelBase" Abstract="True">
     <techLevel>Neolithic</techLevel>
     <tradeability>None</tradeability>
+    <smeltable>false</smeltable>
     <statBases>
       <Mass>1</Mass>
       <MaxHitPoints>100</MaxHitPoints>
