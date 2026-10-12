@@ -226,6 +226,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 				// are unchanged.
 				if advice, ok := r.stationAdvice(ctx, snapshot, *projection, layout.Plan, policy.ReplanPins(layout.Plan, growth.Fixed, emptied, layoutTier(*projection)), survey, catalog); ok {
 					growth.Successor = policy.OutgrownSuccession(advice, projection.Stations, layout.Plan)
+					growth.Fields = fieldBlocks(advice)
 				}
 				growth.Slept = policy.SleptBedrooms(layout.Plan, projection.Rooms, projection.Facts.Sleeping)
 				// The ring is laid around what the defense record holds of it.
@@ -359,7 +360,7 @@ func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.Generati
 	colonists := int(pawns)
 	start := time.Now()
 	f := FirstPlanFacts(projection, survey, r.demand.get(snapshot).Needs, r.WorkLedgerView())
-	f.Crops, f.FoodReserveDays = growingCrops(projection), r.seasonal(projection.Facts).FoodTargetDays
+	f.Crops, f.FoodReserveDays = fieldCrops(projection), r.seasonal(projection.Facts).FoodTargetDays
 	f, err := stationFacts(catalog, f)
 	var fact domain.Fact[policy.LayoutPlan]
 	var advice policy.StationAdvice

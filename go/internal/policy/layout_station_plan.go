@@ -343,6 +343,7 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 			return StationAdvice{}, unknownStationFact("roof support distance")
 		}
 		graph = SeedGraph(StationGraphInput{Catalog: f.Catalog, Seed: seed})
+		graph.Fields = f.seedFields()
 	default:
 		return StationAdvice{}, err
 	}

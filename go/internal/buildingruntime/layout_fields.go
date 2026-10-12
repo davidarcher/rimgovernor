@@ -10,9 +10,10 @@ import (
 )
 
 // Outdoor food fields fill the layout plan's field blocks at every tier.
-// A plan field zone is a whole fertile patch;
-// inside it each crop takes its own adjacent crop block, sized by its
-// demand, and grows in place with add-cells.
+// A plan field zone is a block the station chain placed for a crop, sized by
+// FieldCapacityTarget (policy layout_field_replan.go); inside it each crop
+// takes its own adjacent crop block, sized by its demand, and grows in place
+// with add-cells.
 
 // layoutFieldCells is the plan's field cells; false with no plan or no
 // field zones.

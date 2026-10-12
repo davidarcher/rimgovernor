@@ -24,7 +24,7 @@ import (
 func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, plan policy.LayoutPlan, pinned map[int32]bool, survey policy.MapSurvey, catalog *bridge.DefinitionCatalog) (policy.StationAdvice, bool) {
 	f := stationFactsOf(projection, plan, survey, r.demand.get(snapshot).Needs, r.WorkLedgerView())
 	f.Pinned = pinned
-	f.Crops, f.FoodReserveDays = growingCrops(projection), r.seasonal(projection.Facts).FoodTargetDays
+	f.Crops, f.FoodReserveDays = fieldCrops(projection), r.seasonal(projection.Facts).FoodTargetDays
 	f.Suites = suiteWishes(projection, plan, r.stage)
 	inputs := layoutInputs{key: fmt.Sprint(snapshot.Load, "|", f.InputsKey()), bounds: survey.Bounds, cells: survey.Cells}
 	if inputs.same(r.stationInputs) {
@@ -104,6 +104,30 @@ func growingCrops(projection observation.ColonyProjection) []policy.CropChoice {
 		if sown[choice.Name] {
 			out = append(out, choice)
 		}
+	}
+	return out
+}
+
+// fieldCrops are the crops the plan's fields are sized for (#2961): the sown
+// crops, and while none is sown the first of the default table the catalog
+// offers (policy.DefaultFieldCrop, reason ReasonFieldDefaultCrop), because a
+// field node exists only for a crop and a colony that sows nothing would never
+// get a field to sow.
+func fieldCrops(projection observation.ColonyProjection) []policy.CropChoice {
+	if sown := growingCrops(projection); len(sown) > 0 {
+		return sown
+	}
+	if crop, ok := policy.DefaultFieldCrop(cropChoices(projection)); ok {
+		return []policy.CropChoice{crop}
+	}
+	return nil
+}
+
+// fieldBlocks are the interiors of the fields the advice placed.
+func fieldBlocks(a policy.StationAdvice) []policy.Rectangle {
+	out := make([]policy.Rectangle, 0, len(a.Embedding.Fields))
+	for _, f := range a.Embedding.Fields {
+		out = append(out, f.Interior)
 	}
 	return out
 }

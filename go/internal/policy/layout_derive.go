@@ -42,8 +42,8 @@ func DeriveLayoutPlan(s MapSurvey, f StationFacts, geysers []PowerGeyser, animal
 	if len(plan.AllRooms()) == 0 {
 		return domain.Unknown[LayoutPlan](), advice, nil
 	}
-	// The survey's zones, then the fields the tiler placed.
-	plan.Zones = append(slices.Clone(zones), plan.Zones[len(f.Plan.Zones):]...)
+	// The survey's zones less its field patches, then the fields the tiler placed.
+	plan.Zones = append(withFieldZones(zones, nil), plan.Zones[len(f.Plan.Zones):]...)
 	plan.Cold, plan.Hot = s.Cold, s.Hot
 	plan = PlanHerdSites(plan, animals)
 	plan = PlanYardSites(plan, YardRoomsWanted(RoomDemand{}))
@@ -138,6 +138,12 @@ type RoomGrowth struct {
 	// traced again over a held one is laid as a replacement beside it, and
 	// not at all while a rebuild is in flight (layout_perimeter_replace.go).
 	Perimeter PerimeterHold
+	// Fields are the field blocks the station chain placed at this review
+	// (StationAdvice.Embedding.Fields), each sized by FieldCapacityTarget; they
+	// are the plan's field zones. With none (the chain did not run, or the soil
+	// held none) the plan's own field zones stay as they are
+	// (layout_field_replan.go).
+	Fields []Rectangle
 }
 
 // ReplanLayoutWithRooms grows plan for pawns colonists and tombs tomb rooms
@@ -176,6 +182,8 @@ func replanLayout(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawn
 			}
 		}
 	}
+	fields := replanFieldZones(plan, growth, s)
+	zoned := withFieldZones(zones, fields)
 	plan, sited := topUpHerdSites(plan, coreWithout(zones, vents), animals, growth.HerdUnits, growth.Pens, growth.Grazing)
 	plan, yards := topUpYards(plan, coreWithout(zones, vents), YardRoomsWanted(growth.Demand))
 	sited = sited || yards
@@ -187,7 +195,7 @@ func replanLayout(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawn
 	}
 	wings := keepWingRooms(plan.Wings, func(r PlannedRoom) bool { return !rectHits(roomWalls(r), noGo) && !rectHits(roomWalls(r), vents) })
 	next := plan
-	next.Rooms, next.Wings, next.Zones = kept, wings, coreWithout(zones, vents)
+	next.Rooms, next.Wings, next.Zones = kept, wings, coreWithout(zoned, vents)
 	dropped := len(next.AllRooms()) != len(plan.AllRooms())
 	if growth.Built != nil {
 		var retired bool
@@ -261,11 +269,16 @@ func replanLayout(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawn
 	dropped = dropped || ranges
 	next, rings := growRings(next, growth.Demand)
 	dropped = dropped || rings
-	next.Zones = zones
+	next.Zones = zoned
 	unplacedRooms := errors.Join(unplaced...)
 	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {
 		fresh := layPerimeter(plan, plan, s, growth.Perimeter)
-		return fresh, sited || !sameSites(plan, fresh), unplacedRooms
+		// Rooms unchanged, fields resized or moved: the plan changed.
+		moved := !sameFieldZones(plan.Zones, fields)
+		if moved {
+			fresh.Zones = withFieldZones(fresh.Zones, fields)
+		}
+		return fresh, sited || moved || !sameSites(plan, fresh), unplacedRooms
 	}
 	if len(next.AllRooms()) == 0 {
 		return plan, false, unplacedRooms

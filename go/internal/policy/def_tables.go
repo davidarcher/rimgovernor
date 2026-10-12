@@ -78,6 +78,8 @@ func DefTables() []DefTable {
 		// tracked dirt are explained on FilthGame.
 		{"filthGame", "RimWorld.StatDef", []string{filthGame.SpeedStat}},
 		{"seekerNeeds", "RimWorld.NeedDef", seekerNeedDefs()},
+		// fieldCrops (#2961): the crop a field is planned for while none is sown.
+		{"fieldCrops", "Verse.ThingDef", slices.Clone(fieldCrops)},
 		{"seekerThoughts", "RimWorld.ThoughtDef", seekerThoughts()},
 		// The wind path constants (windPathWidth ... windBlockedLoss) are
 		// CompPowerPlantWind's and WindTurbineUtility.CalculateWindCells's,
