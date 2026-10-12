@@ -89,6 +89,8 @@ type PlannedSite struct {
 	Reason        string   `json:",omitempty"`
 	// Ring is set on the ring node only.
 	Ring *RingFacts `json:",omitempty"`
+	// Tier is set on a defense tier node only (PlanDefenseTiers).
+	Tier *TierFacts `json:",omitempty"`
 }
 
 // perimeterSiteKinds are the nodes that stand or fall with the ring:

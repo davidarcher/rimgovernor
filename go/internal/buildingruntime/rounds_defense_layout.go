@@ -135,6 +135,9 @@ type RoundsDefenseLayoutPlanner struct {
 	// unbuilt is the last census summary logged per unbuilt tier, so a tier that
 	// stays unbuilt is logged when its cells change, not on every step.
 	unbuilt map[policy.DefenseTierName]string
+	// tiersLogged digests the tier nodes last journaled, so an unchanged cut
+	// is not logged on every census.
+	tiersLogged string
 }
 type RoundsDefenseLayoutResult struct {
 	Verdict
@@ -356,6 +359,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	}
 	tick := read.Projection.Identity.Tick
 	pipe.settle(census)
+	r.adviseTiers(call, state, read, record)
 	// A layout that stood before turrets could be placed (no research, no
 	// network, no steel) gains the tier once the observed gates open.
 	if !pipe.piped() && len(definitions) > 0 && stored && defenseTurretsDue(record, expected.Tick) {
@@ -1154,41 +1158,13 @@ func defenseMissingBuildings(buildings []domain.Building, census *defenseCensus)
 // verdict then names which of those is missing.
 func (r *RoundsDefenseLayoutPlanner) propose(call, epoch context.Context, goal store.StandardState, review store.Rounds, state ControlState, read observation.RoundsReading) (policy.DefenseLayout, []domain.Cell, Verdict, bool, error) {
 	projection := read.Projection
-	identity := boundary.Identity(state.Snapshot)
 	killbox, region, home, ok := defenseKillbox(projection)
 	if !ok {
 		return policy.DefenseLayout{}, nil, awaitingPlan("layout_plan", "killbox"), false, nil
 	}
-	site, err := r.defenseSite(call, identity, projection, region)
-	if err != nil {
-		return policy.DefenseLayout{}, nil, Verdict{}, false, err
-	}
-	request := defenseTurretRequest(read)
-	request.Bounds, request.Home, request.Killbox = projection.Bounds, home, killbox
-	// Observed arrivals rank the sectors; the bait tier stands only on a
-	// sector a raid used.
-	request.Arrivals, request.Tick = defenseArrivals(projection.Raids, region), projection.Identity.Tick
-	request.Region = policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}
-	for _, cell := range site.Cells {
-		request.Cells = append(request.Cells, defenseCellFacts(cell))
-		if !cell.Fogged && cell.Door && cell.PlayerOwned {
-			request.Entrances = append(request.Entrances, cell.Cell)
-		}
-	}
-	defenders, minRange, ok, err := r.defenderRange(call, state, read)
+	request, held, ok, err := r.defenseCensusRequest(call, state, read, killbox, region, home)
 	if err != nil || !ok {
-		if err != nil {
-			return policy.DefenseLayout{}, nil, Verdict{}, false, err
-		}
-		return policy.DefenseLayout{}, nil, noWorker("ranged_defender"), false, nil
-	}
-	request.Defenders, request.MinRange = defenders, minRange
-	stock, stockKnown := projection.Resources.Value()
-	request.Definitions = policy.DefenseCoverChoice(projection.Facts.Items, request.Definitions, stock, stockKnown,
-		defenseDefinitionAvailable(read, policy.DefenseSandbags), defenseDefinitionAvailable(read, policy.DefenseEmbrasure), defenders)
-	defenseIEDRequest(read, &request)
-	if err = r.markWallSupport(call, identity, &request, site.Cells); err != nil {
-		return policy.DefenseLayout{}, nil, Verdict{}, false, err
+		return policy.DefenseLayout{}, nil, held, false, err
 	}
 	// Rock on the corridor and the defenders' ground is mined first through
 	// the shared rock step; the layout waits on that dig.

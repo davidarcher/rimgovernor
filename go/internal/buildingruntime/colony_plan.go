@@ -301,11 +301,18 @@ func (r *Rounder) drawLayoutOverlay(ctx context.Context, snapshot domain.Generat
 		}
 		return
 	}
+	// The defense tier nodes are cut from the defense round's census, not
+	// stored with the plan: they draw beside it and move with each cut.
+	drawn := layout.Plan
 	key := fmt.Sprint("v2@", layout.Tick)
+	if tiers := r.tiers.Load(); tiers != nil {
+		drawn = drawn.WithDefenseTiers(tiers.nodes)
+		key = fmt.Sprint(key, "/tiers@", tiers.key)
+	}
 	if key == r.overlayKey && tick >= r.overlayDrawn && tick-r.overlayDrawn < overlayRedrawEvery {
 		return
 	}
-	overlay := layout.Plan.Overlay(projection.Bounds)
+	overlay := drawn.Overlay(projection.Bounds)
 	if r.stationHeld {
 		layout.Plan.RequirementOverlay(r.stationLast, projection.Bounds, &overlay)
 	}

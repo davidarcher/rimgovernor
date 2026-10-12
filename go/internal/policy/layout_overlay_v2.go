@@ -80,6 +80,18 @@ var siteOverlay = map[NodeKind]overlayStyle{
 	NodeCoverClear: {planGray, "clear cover"},
 	NodePocketWall: {planRed, "pocket wall"},
 	NodeVent:       {planCyan, "vent"},
+	// The defense tiers PlanDefenseTiers cuts under the killbox.
+	NodeDefCorridor: {planRed, "corridor"},
+	NodeDefLane:     {planAmber, "trap lane"},
+	NodeDefFunnel:   {planRed, "funnel"},
+	NodeDefFence:    {planYellow, "kill fence"},
+	NodeDefTraps:    {planPink, "spike traps"},
+	NodeDefFiring:   {planGreen, "firing line"},
+	NodeDefShooter:  {planBlue, "shooter floor"},
+	NodeDefTurrets:  {planCyan, "turrets"},
+	NodeDefMortars:  {planViolet, "mortars"},
+	NodeDefIEDs:     {planBrown, "IEDs"},
+	NodeDefBait:     {planTan, "bait"},
 }
 
 // Ring attributes drawn beside the ring itself.

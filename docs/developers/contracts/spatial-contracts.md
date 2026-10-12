@@ -826,3 +826,26 @@ mercenaries, tribes, Empire, wasters), so early raids walk and later ones may tu
 The cut is deterministic: the flow network is built in a fixed order and nothing is
 random. The decisions are `layout_plan` rows with target `perimeter_cut` (see
 `otel-signals.md`).
+
+## Defense tier nodes (#2973)
+
+`policy.PlanDefenseTiers(plan, census, pins)` (`defense_tiers.go`) cuts the plan's killbox
+node into the tiers that stand in it, as `PlannedSite` nodes whose `Tier` facts name the
+killbox node they stand under, the defense-record tier they belong to and the placements
+they hold: corridor and trap lane (the raiders' snake, in order), funnel walls, fence
+bar, spike traps, firing line (cover, with the shooters and their retreat cells) and
+shooter floor, turrets, mortars, IEDs and bait. They show in the layout overlay
+(`LayoutPlan.WithDefenseTiers` merges them for drawing).
+
+Where a tier stands depends on live cover, trees and standing buildings, so the nodes are
+a function of the plan and a census, not of the survey: they are re-sited from each
+census and are not stored with the plan. The census (`DefenseRequest`: the cell mirror
+window, defenders, definitions and the turret, mortar and IED gates) is an explicit input;
+its Killbox, Home and Region are the plan's. A built tier is pinned, as `replanPins` pins a
+room that holds anything of ours: its node is the built tier where it stands, the census
+reads its standing buildings as the ground under them so the same census sites the same
+cells, and the tiers still to build are sited around it (a building of theirs on a pinned
+cell is dropped, `tier_displaced_by_built`). A census the layout planner refuses leaves the
+pinned tiers as the nodes (`tier_layout_failed`). Advisory until the defense round reads the
+nodes: `RoundsDefenseLayoutPlanner.adviseTiers` cuts them after each tier census, holds them
+for the overlay and journals them as `layout_plan` rows with target `defense_tiers`.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync/atomic"
 
 	"time"
 
@@ -163,8 +164,11 @@ type Rounder struct {
 	overlayKey     string
 	overlayDrawn   domain.Tick
 	overlayCleared bool
-	heatDrawn      domain.Tick
-	heatCleared    bool
+	// tiers is the defense tier nodes the defense round last cut (#2973),
+	// drawn with the layout plan; the planner stores it from its own step.
+	tiers       atomic.Pointer[tierOverlay]
+	heatDrawn   domain.Tick
+	heatCleared bool
 	// safety is the last safety layer sent; see drawSafetyOverlay.
 	safety overlayState
 	// spots is the last work-spot layer sent; see drawSpotOverlay.
