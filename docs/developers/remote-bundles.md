@@ -101,9 +101,7 @@ on epic #3023.
 Shard `s1` also runs the def-mirror drift check against the unpacked bundle
 (`dotnet run --project tools/defmirror -- --game-dir <unpacked game> --check
 --output contracts/proto/defs.proto`), the only CI place with the game files.
-`defs.proto` still reflects 1.6 until #3032 regenerates it, so the step is
-report-only (a warning) until then; `DEFMIRROR_ENFORCE=1` makes it fail the
-shard. #3032 removes that gate. The Ubuntu race job builds protobuf with the .NET
+Drift, or a mirror that cannot read the game, fails the shard. The Ubuntu race job builds protobuf with the .NET
 10 SDK.
 
 ## Fixtures and generated starts

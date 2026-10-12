@@ -7,9 +7,9 @@ untrimmed catalog with every installed expansion) and the planning-view golden
 recording, names the game it came from:
 
 ```
-game_version=1.6.4871 rev590
+game_version=1.7.4976 rev1043
 dlcs=ludeon.rimworld.anomaly,ludeon.rimworld.biotech,...
-defs_proto_source=Assembly-CSharp 1.6.9676.17735
+defs_proto_source=Assembly-CSharp 1.7.9781.31297
 ```
 
 `game_version` is the install's `Version.txt`, `dlcs` the expansions loaded, and
@@ -58,4 +58,5 @@ game's map generation rewrites per seed, such as `GenStep_Scatter*` counts); the
 `game_constants` message was identical across refreshes.
 
 After a refresh run `go run ./cmd/test` and commit the recording, sidecar and
-golden together; a golden diff is the review of what the new game changed.
+golden together (a new game also changes `internal/archgate/game_constants.txt`;
+regenerate it with the command `TestGameConstantsListIsFresh` prints); a golden diff is the review of what the new game changed.

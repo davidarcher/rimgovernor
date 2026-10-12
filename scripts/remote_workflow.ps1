@@ -215,13 +215,9 @@ switch ($Phase) {
             }
             # Def mirror drift: the game files exist only in the unpacked bundle, so
             # this is the one place defs.proto is checked against a 1.7 install in CI.
-            # One shard runs it (the bundle is identical in every shard). The check is
-            # report-only until #3032 regenerates defs.proto for 1.7; a plain failure
-            # (drift, or a mirror that cannot read the game) is a warning, and
-            # setting DEFMIRROR_ENFORCE=1 on the workflow makes it fail the shard.
-            # TODO(#3032): delete $defMirrorEnforced and always fail on drift.
+            # One shard runs it (the bundle is identical in every shard). Drift, or a
+            # mirror that cannot read the game, fails the shard.
             if ($Shard -ceq 's1' -and $jobs.Count -gt 0) {
-                $defMirrorEnforced = $env:DEFMIRROR_ENFORCE -ceq '1'
                 $defMirrorGame = Join-Path ('C:\rg\' + $jobs[0].role) 'dependencies\game'
                 Push-Location $Repo
                 try {
@@ -230,11 +226,7 @@ switch ($Phase) {
                         & dotnet run --project tools/defmirror -c Release --no-restore --no-launch-profile -- `
                             --game-dir $defMirrorGame --check --output contracts/proto/defs.proto
                     }
-                    if ($LASTEXITCODE) {
-                        if ($defMirrorEnforced) { throw "Def mirror drift check failed ($LASTEXITCODE)" }
-                        Write-Warning 'Def mirror drift check failed; report-only until #3032 regenerates defs.proto for 1.7'
-                        "::warning title=Def mirror drift::defs.proto differs from the bundled 1.7 game (report-only until #3032)" | Write-Host
-                    }
+                    if ($LASTEXITCODE) { throw "Def mirror drift check failed ($LASTEXITCODE)" }
                 } finally { Pop-Location }
             }
             $deadline = [DateTime]::UtcNow.AddMinutes($run.limits.suite_timeout_minutes)

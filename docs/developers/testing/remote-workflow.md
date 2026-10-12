@@ -12,7 +12,7 @@ The nightly
 07:23 UTC schedule selects nightly against its immutable main commit. Both scheduled
 and manually dispatched nightly tiers also run the Go race, protobuf generation drift
 and protobuf proof checks. Shard `s1` additionally checks `defs.proto` against the
-unpacked bundle's game (def mirror drift; report-only until #3032, see
+unpacked bundle's game (def mirror drift fails the shard, see
 [remote bundles](../remote-bundles.md#hosted-runner-checks)).
 The `cases` tier runs only the `cases` input: comma-separated registry names or bare
 areas (`power` selects every `power/*` case). A name matching nothing refuses the plan. Agents use
