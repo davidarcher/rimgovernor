@@ -290,22 +290,39 @@ func (a *Adapter) nearestColonist(from *pawn) domain.Fact[float64] {
 }
 
 // Stop is the stop the events of a Step raise, and whether there is one. A
-// colonist downed or killed raises "downed"; the first hostile to come within
+// colonist downed or killed raises "downed" (a single hit of at least
+// SeriousSingleHitDamage on a colonist raises "serious_injury" unless the
+// same step also downs one); the first hostile to come within
 // reach of a colonist, or a colonist's weapon to reach it, raises
 // "entered_range" (once per hostile each way, the first scan only recording
 // the state at the start). Other native stop kinds are not raised: there are
-// no shields, lords, melee, explosives or mental states in the sim, and a
-// serious-injury floor has no sim equivalent (approximations.md A22).
+// no shields, lords, melee, explosives or mental states in the sim, and the
+// summary-health, bleed and vital-part serious triggers are not ported
+// (approximations.md A22).
 func (a *Adapter) Stop(events []Event) (policy.StopEvent, bool) {
 	var stop policy.StopEvent
 	found := false
+	var serious policy.StopEvent
+	seriousFound := false
 	for _, e := range events {
-		if e.Kind != EventDowned && e.Kind != EventDied {
-			continue
+		switch e.Kind {
+		case EventHit:
+			// Pawn_HealthTracker.PostApplyDamage: one blow of at least
+			// SeriousSingleHitDamage to a colonist is a serious injury (A22).
+			if i := a.sim.pawnIndex(e.Target); !seriousFound && i >= 0 && a.colonist(&a.sim.pawns[i]) && e.Amount >= float64(policy.SeriousSingleHitDamage) {
+				serious, seriousFound = policy.StopEvent{Kind: policy.StopSeriousInjury, Pawn: e.Target}, true
+			}
+		case EventDowned, EventDied:
+			if i := a.sim.pawnIndex(e.Pawn); i >= 0 && a.colonist(&a.sim.pawns[i]) {
+				stop, found = policy.StopEvent{Kind: policy.StopDowned, Pawn: e.Pawn}, true
+			}
 		}
-		if i := a.sim.pawnIndex(e.Pawn); i >= 0 && a.colonist(&a.sim.pawns[i]) {
-			stop, found = policy.StopEvent{Kind: policy.StopDowned, Pawn: e.Pawn}, true
-		}
+	}
+	// A hit that downs the pawn notes the downing first (the game's
+	// CheckForStateChange runs inside PostApplyDamage, before the serious
+	// check), and the first event since the tick boundary wins.
+	if !found && seriousFound {
+		stop, found = serious, true
 	}
 	if h, ok := a.scanRange(); ok && !found {
 		return policy.StopEvent{Kind: stopEnteredRange, Pawn: h}, true

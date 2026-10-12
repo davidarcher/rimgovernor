@@ -170,6 +170,23 @@ func TestStopRaisesDownedAndRange(t *testing.T) {
 	if _, ok = a.Stop([]Event{{Kind: EventDowned, Pawn: "b"}}); ok {
 		t.Fatal("a downed hostile is not a stop")
 	}
+	// One hit of at least SeriousSingleHitDamage on a colonist is a serious
+	// injury (A39); a lighter one, or one on a hostile, is not; a downing in
+	// the same step wins.
+	hit := func(target domain.PawnID, amount float64) Event {
+		return Event{Kind: EventHit, Target: target, Amount: amount}
+	}
+	stop, ok = a.Stop([]Event{hit("a", float64(policy.SeriousSingleHitDamage))})
+	if !ok || stop.Kind != policy.StopSeriousInjury || stop.Pawn != "a" {
+		t.Fatalf("serious stop = %+v %v", stop, ok)
+	}
+	if _, ok = a.Stop([]Event{hit("a", float64(policy.SeriousSingleHitDamage)-1), hit("b", 30)}); ok {
+		t.Fatal("a light hit or a hit on a hostile is not a stop")
+	}
+	stop, _ = a.Stop([]Event{hit("a", 25), {Kind: EventDowned, Pawn: "a"}})
+	if stop.Kind != policy.StopDowned {
+		t.Fatalf("downing and hit stop = %+v", stop)
+	}
 }
 
 func lineSet(r policy.GeometryReply) map[string]bool {

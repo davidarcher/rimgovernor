@@ -1,7 +1,7 @@
 {
   "Stamp": {
     "assemblyHash": "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A",
-    "rulesVersion": 9,
+    "rulesVersion": 10,
     "thresholdsVersion": 1,
     "sweepVersion": 2
   },
@@ -17,9 +17,9 @@
           "RealDeaths": 0,
           "SimDeaths": 0,
           "RealDowns": 0.25,
-          "SimDowns": 0.2,
+          "SimDowns": 0.3,
           "RealDamage": 69.05,
-          "SimDamage": 61.6,
+          "SimDamage": 68.75,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 0
         }
@@ -55,9 +55,9 @@
           "RealDeaths": 0,
           "SimDeaths": 0,
           "RealDowns": 2.95,
-          "SimDowns": 2.15,
+          "SimDowns": 2.1,
           "RealDamage": 262.3,
-          "SimDamage": 213.4,
+          "SimDamage": 207.35,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 0
         },
@@ -66,9 +66,9 @@
           "RealDeaths": 0,
           "SimDeaths": 0,
           "RealDowns": 2.25,
-          "SimDowns": 2.15,
+          "SimDowns": 2.3,
           "RealDamage": 234.1,
-          "SimDamage": 213.4,
+          "SimDamage": 212.3,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 0
         },
@@ -77,9 +77,9 @@
           "RealDeaths": 0,
           "SimDeaths": 0,
           "RealDowns": 2.75,
-          "SimDowns": 2.15,
+          "SimDowns": 2.2,
           "RealDamage": 255.85,
-          "SimDamage": 213.4,
+          "SimDamage": 207.35,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 0
         },
@@ -88,9 +88,9 @@
           "RealDeaths": 0,
           "SimDeaths": 0,
           "RealDowns": 2.7,
-          "SimDowns": 2.2,
+          "SimDowns": 2.55,
           "RealDamage": 262.05,
-          "SimDamage": 214.5,
+          "SimDamage": 231.55,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 0
         },
@@ -99,18 +99,18 @@
           "RealDeaths": 0,
           "SimDeaths": 0,
           "RealDowns": 2.65,
-          "SimDowns": 2.2,
+          "SimDowns": 2.65,
           "RealDamage": 256.395,
-          "SimDamage": 213.95,
+          "SimDamage": 235.4,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 0
         }
       ],
       "pairs": 10,
-      "agreed": 3
+      "agreed": 2
     }
   ],
-  "RankAgreement": 0.3,
+  "RankAgreement": 0.2,
   "RankPairs": 10,
   "Misrankings": null,
   "Regrets": [
@@ -130,6 +130,6 @@
     "lab-open (held-out): the sim does not support this fixture: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 3 unmodeled, first: pawn h0 wields melee weapon MeleeWeapon_Club: the sim has no melee, the pawn is imported unarmed",
     "lab-choke (held-out): the sim does not support this fixture: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 9 unmodeled, first: pawn c0 wields melee weapon MeleeWeapon_LongSword: the sim has no melee, the pawn is imported unarmed",
     "lab-base (held-out): the sim does not support this fixture: combatsim: unsupported scenario: thing \"Turret_MiniTurret\" is a turret, which the sim does not fire",
-    "rank agreement 0.30 over 10 pairs is below 0.80"
+    "rank agreement 0.20 over 10 pairs is below 0.80"
   ]
 }

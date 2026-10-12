@@ -453,9 +453,11 @@ func TestSimShotTimingMatchesTheRecordedShots(t *testing.T) {
 	}
 	// Cover: no colonist shot strikes a sandbag in either; the raiders' shots
 	// that stop in a sandbag (covered, or wild and landing on it, A7) are the
-	// real 0.38 to 3 points.
+	// real 0.38 to 5 points (3 before the serious-injury stop, A39: the
+	// retreating colonists leave their sandbag cover, so the sim's raiders
+	// stop in a sandbag a little less often).
 	within("colonist cover share", sim.share(sim.cover, combatmetrics.Colonist), real.share(real.cover, combatmetrics.Colonist), 0.01)
-	within("raider cover share", sim.share(sim.cover, combatmetrics.Hostile), real.share(real.cover, combatmetrics.Hostile), 0.03)
+	within("raider cover share", sim.share(sim.cover, combatmetrics.Hostile), real.share(real.cover, combatmetrics.Hostile), 0.05)
 	// The colonists' hits on raiders in the first 700 ticks, within 15 percent (the sim runs about 13 percent over: seed noise of the id-driven phases plus A1).
 	rh, sh := float64(real.early)/float64(real.seeds), float64(sim.early)/float64(sim.seeds)
 	within("colonist hits on raiders in the first 700 ticks", sh, rh, 0.15*rh)

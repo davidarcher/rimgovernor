@@ -131,12 +131,15 @@ is a candidate to replace by a faithful port. Game sources are in
   a cell never fired and the sim shot about a quarter as often as the game
   (#2899). The game's target scoring is not ported for colonists (the hostiles'
   is, E1-E8).
-- **A22. Only two stop kinds are raised.** `downed` (a colonist downed or
-  killed) and `entered_range` (a hostile came within a colonist's weapon range,
+- **A22. Three stop kinds are raised.** `downed` (a colonist downed or
+  killed), `entered_range` (a hostile came within a colonist's weapon range,
   or a colonist's weapon reached it; distance only, no sight, once per hostile
-  each way, the first scan recording the start). The native serious-injury,
-  shield, lord, melee, explosive and mental-state stops need state the sim does
-  not hold. A backstop (default 120 ticks) asks the policy again.
+  each way, the first scan recording the start) and `serious_injury` for one
+  hit of at least `policy.SeriousSingleHitDamage` (20) on a colonist (A39).
+  The native summary-health (< 0.5), bleed-rate and vital-part serious
+  triggers, and the shield, lord, melee, explosive and mental-state stops, are
+  not raised: they need per-part or other state the sim does not hold. A
+  backstop (default 120 ticks; the native one is 300) asks the policy again.
 - **A23. Geometry is computed from the current sim world.** Sight lines and
   cover use the ports above; proposals follow the native roles' filters and
   orderings under the same caps (64 cells, 16 hostiles, radius 12). A
@@ -448,6 +451,26 @@ DefinitionCatalog; every derived value is listed with its source in
   cache is not it. A real fresh-stage run that logs the colonists' traits and
   `MoveSpeed` at tick 0 would settle it; the gate's baselines are all resumed
   runs and use 5.0.
+- **A39. The single-hit serious-injury stop is raised (#2985).** The sim
+  colonists killed far more raiders per colonist downed than the real ones on
+  lab-split-ranged. The game's `SupervisedPlayCombatStops` hook on
+  `Pawn_HealthTracker.PostApplyDamage` stops the clock on a hit of at least 20
+  damage (41 percent of the colonist hits in the ledger are 22); the policy's
+  `fallBack` then orders the hurt defender to its Retreat cell, and since a
+  move order does not cancel a running cooldown (A36) the walk waits out the
+  rest of the shot cycle: 80 to 240 ticks of firing lost per such hit. The sim
+  raised only `downed` and `entered_range`, so its colonists never retreated.
+  Order latency (backstop, cooldown-blocked moves) was already modeled and
+  the backstop is not the cause (120, 300 and 600 move nothing). Lab-split-ranged
+  over the 20 baseline seeds (real, sim before, sim after): colonist wins
+  5, 14, 14; colonist downs 2.95, 2.15, 2.10; colonist damage 262, 213, 207;
+  raiders lost 3.75, 4.40 (6.3 before E9), 4.40. Scatter-short vs default
+  downs (the #2982 separation): real 2.25 vs 2.95; sim 2.30 vs 2.10 (before
+  2.15-2.20 for every variant, now spread 2.10 to 2.65, but scatter-short
+  still points the other way). Not modeled and still open: the summary-health,
+  bleed and vital-part serious triggers (more stops, so probably more of the
+  same effect), the 15-tick think phase, and a real retreat that lands 40 to
+  56 ticks later than the sim's after the cooldown.
 
 ## Out of scope for this slice
 
