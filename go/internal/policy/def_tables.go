@@ -48,10 +48,11 @@ func DefTables() []DefTable {
 		{"climateStats", "RimWorld.StatDef", []string{climateTable.ComfyMinStat, climateTable.ComfyMaxStat}},
 		// lightTable: DarkSpeed (0.8) is StatPart_Glow's factor on
 		// WorkSpeedGlobal and MoveSpeed at glow 0, a curve in the def that the
-		// bridge does not read; the lamp is the building the plan places. The
-		// research behind the lamp pricing (every effect of darkness, which are
+		// bridge does not read; the standing and wall lamps are the buildings
+		// the plan places (the wall lamp's reach scales from the standing
+		// lamp's by glow radius, both read from the defs). The research behind the lamp pricing (every effect of darkness, which are
 		// priced and which deferred) is the first comment of issue #2945.
-		{"lightTable", "Verse.ThingDef", []string{lightTable.LampDef}},
+		{"lightTable", "Verse.ThingDef", []string{lightTable.LampDef, lightTable.WallLampDef}},
 		// The wind path constants (windPathWidth ... windBlockedLoss) are
 		// CompPowerPlantWind's and WindTurbineUtility.CalculateWindCells's,
 		// read with ilspycmd; keyed by the turbine def so a rename fails the gate.

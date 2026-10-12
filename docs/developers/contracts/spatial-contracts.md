@@ -335,8 +335,25 @@ on the colony centre when the plan has no free cell there.
   `LightDefs().LampDef`). A work cell is a worker station's interaction cell, charged
   a whole colonist-day; a walked cell is charged the extra time its movements a day
   (`tripCellMovements`, the same walk as the airlocks) take at the dark speed. Lamps stand
-  on floor cells no station holds and light a cell within `lampReach`; the greedy search
-  adds the lamp that lights the most dark cost while that exceeds a lamp's cost.
+  on floor cells no station holds and light a cell within their reach (`lampReach` for the
+  standing lamp); the greedy search adds the lamp that lights the most dark cost, less its
+  own cost, while that is positive.
+  **Wall lamp (#2948).** The second option on the same spots (`LightDefs().WallLampDef`,
+  `LightModel.Wall`). From the defs and `Placeworker_AttachedToWall`: it is not built into
+  a wall cell but stands on a floor cell with the wall in the cardinal direction it faces
+  (`PlannedLamp.Facing`), is Standable with no path cost, and needs a neighbour with
+  `supportsWallAttachments` (a wall or natural rock; not a door or vent). It costs 15 steel
+  to the standing lamp's 20, draws the same 30 W and glows to radius 11 against 12; the
+  glow flood stops at walls, so it lights its own room. Its reach is `lampReach` scaled by
+  the radii (`LightPrice.WallReach`), the falloff being a blend of linear and inverse-square
+  in the distance. Per spot the tiler offers the wall lamp where a neighbour is plain wall
+  (`notPlainWall` excludes room and hallway floor, doors, links, entrances and the vents the
+  tiler placed), and the search takes whichever lamp covers the dark for least. A held wall cell
+  makes the wall lamp absent there and the standing lamp answers, so contention is priced
+  by the substitute, never refused. A catalog without the wall lamp, or either radius,
+  leaves it out. Roofed hallways price standing lamps only (the plan does not say which
+  edge cells are plain wall). Whether a wall lamp may share a cell with low furniture is
+  not read from the game: spots stay cells no station holds.
   A room under the sky (an outdoor role) gets none, and fields stay unroofed (the
   grow-lamp price is `PlanSiteType`'s). A roofed hallway's price in the roofed set
   (`RoofDecision.LightW`) includes the same lamps-or-dark for its walkers. An unknown

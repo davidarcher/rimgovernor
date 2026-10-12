@@ -82,22 +82,40 @@ func (catalog *DefinitionCatalog) climateModel(stations policy.StationCatalog) (
 	return m, nil
 }
 
-// lightModel is the lamp the plan places (policy.LightDefs): the power it draws
-// and the market value of its cheapest cost list. A catalog without the def (a
-// hand-built one) has an unknown model, not an error: the lamps go unpriced.
+// lightModel is the lamps the plan places (policy.LightDefs): for each the power
+// it draws, the market value of its cheapest cost list and its glow radius. A
+// catalog without a def (a hand-built one) has an unknown model for it, not an
+// error: the standing lamp unknown leaves the lamps unpriced, the wall lamp
+// unknown leaves it out of the options.
 func (catalog *DefinitionCatalog) lightModel() (policy.LightModel, error) {
-	def := policy.LightDefs().LampDef
-	row, ok := catalog.ThingDefs[def]
-	if !ok {
-		return policy.LightModel{}, nil
-	}
-	watts, powered, err := catalog.PowerDraw(row)
-	if err != nil || !powered {
-		return policy.LightModel{}, err
-	}
-	build, err := catalog.CheapestCostValue(def)
+	defs := policy.LightDefs()
+	standing, err := catalog.lampModel(defs.LampDef)
 	if err != nil {
 		return policy.LightModel{}, err
 	}
-	return policy.LightModel{LampPowerW: watts, LampBuild: build}, nil
+	wall, err := catalog.lampModel(defs.WallLampDef)
+	if err != nil {
+		return policy.LightModel{}, err
+	}
+	return policy.LightModel{Standing: standing, Wall: wall}, nil
+}
+
+func (catalog *DefinitionCatalog) lampModel(def string) (policy.LampModel, error) {
+	row, ok := catalog.ThingDefs[def]
+	if !ok {
+		return policy.LampModel{}, nil
+	}
+	watts, powered, err := catalog.PowerDraw(row)
+	if err != nil || !powered {
+		return policy.LampModel{}, err
+	}
+	build, err := catalog.CheapestCostValue(def)
+	if err != nil {
+		return policy.LampModel{}, err
+	}
+	radius, _, err := catalog.GlowRadius(def)
+	if err != nil {
+		return policy.LampModel{}, err
+	}
+	return policy.LampModel{PowerW: watts, Build: build, Radius: radius}, nil
 }

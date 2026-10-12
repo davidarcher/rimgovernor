@@ -151,7 +151,7 @@ type TileResult struct {
 	// RoofDecisions are the roofed set's decisions (layout_roof.go).
 	RoofDecisions []RoofDecision
 	// Lamps are the lamp cells of each lit room by room id (layout_light.go).
-	Lamps map[int32][]domain.Cell
+	Lamps map[int32][]PlannedLamp
 }
 
 // groupCold reports that the group's room is kept cold: it needs cold or holds

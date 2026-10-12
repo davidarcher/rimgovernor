@@ -13,7 +13,7 @@ import (
 // (market value 38 against steel's 1.9).
 func testLightPrice() LightPrice {
 	return NewLightPrice(LightPriceInput{
-		Model:        LightModel{LampPowerW: 30, LampBuild: 38},
+		Model:        LightModel{Standing: LampModel{30, 38, 12}, Wall: LampModel{30, 28.5, 11}},
 		Climate:      testClimate(),
 		SteelValue:   1.9,
 		UpkeepPerDay: 1.6, UnitNutrition: 0.055,
@@ -49,10 +49,10 @@ func TestLightPriceCountsTheWorkDayAsFoodUpkeep(t *testing.T) {
 	}
 	for name, in := range map[string]LightPriceInput{
 		"no lamp":  {Climate: testClimate(), SteelValue: 1.9, UpkeepPerDay: 1.6, UnitNutrition: 0.055},
-		"no steel": {Model: LightModel{30, 38}, Climate: testClimate(), UpkeepPerDay: 1.6, UnitNutrition: 0.055},
-		"no food":  {Model: LightModel{30, 38}, Climate: testClimate(), SteelValue: 1.9, UnitNutrition: 0.055},
-		"no crop":  {Model: LightModel{30, 38}, Climate: testClimate(), SteelValue: 1.9, UpkeepPerDay: 1.6},
-		"no clock": {Model: LightModel{30, 38}, SteelValue: 1.9, UpkeepPerDay: 1.6, UnitNutrition: 0.055},
+		"no steel": {Model: LightModel{Standing: LampModel{PowerW: 30, Build: 38}}, Climate: testClimate(), UpkeepPerDay: 1.6, UnitNutrition: 0.055},
+		"no food":  {Model: LightModel{Standing: LampModel{PowerW: 30, Build: 38}}, Climate: testClimate(), SteelValue: 1.9, UnitNutrition: 0.055},
+		"no crop":  {Model: LightModel{Standing: LampModel{PowerW: 30, Build: 38}}, Climate: testClimate(), SteelValue: 1.9, UpkeepPerDay: 1.6},
+		"no clock": {Model: LightModel{Standing: LampModel{PowerW: 30, Build: 38}}, SteelValue: 1.9, UpkeepPerDay: 1.6, UnitNutrition: 0.055},
 	} {
 		if NewLightPrice(in).Valid() {
 			t.Errorf("%s priced", name)
@@ -72,7 +72,7 @@ func TestLampPaysAboveTheWalkBreakEven(t *testing.T) {
 		movements float64
 		lamps     int
 	}{{breakEven * 0.9, 0}, {breakEven, 0}, {breakEven * 1.1, 1}} {
-		got, left := planLamps([]DarkCell{{Cell: cell, W: p.WalkCellW(tc.movements)}}, spots, p.LampW)
+		got, left := planLamps([]DarkCell{{Cell: cell, W: p.WalkCellW(tc.movements)}}, p.standingCands(spots))
 		if len(got) != tc.lamps {
 			t.Errorf("%.0f passages: %d lamps, want %d", tc.movements, len(got), tc.lamps)
 		}
@@ -90,17 +90,17 @@ func TestPlanLampsShareReachAndAreDeterministic(t *testing.T) {
 	for x := int32(0); x < 5; x++ {
 		spots = append(spots, domain.Cell{X: x, Z: 1})
 	}
-	got, left := planLamps(near, spots, p.LampW)
+	got, left := planLamps(near, p.standingCands(spots))
 	if len(got) != 1 || left != 0 {
 		t.Fatalf("two benches within reach: %v, left %v", got, left)
 	}
 	far := []DarkCell{{Cell: domain.Cell{X: 0, Z: 0}, W: w}, {Cell: domain.Cell{X: 20, Z: 0}, W: w}}
 	spots = append(spots, domain.Cell{X: 20, Z: 1})
-	again, _ := planLamps(far, spots, p.LampW)
+	again, _ := planLamps(far, p.standingCands(spots))
 	if len(again) != 2 {
 		t.Fatalf("two benches out of reach: %v", again)
 	}
-	if other, _ := planLamps(far, spots, p.LampW); !slices.Equal(again, other) {
+	if other, _ := planLamps(far, p.standingCands(spots)); !slices.Equal(again, other) {
 		t.Errorf("not deterministic: %v vs %v", again, other)
 	}
 }
@@ -164,7 +164,8 @@ func TestTilerLightsRoofedWorkRoomsOnly(t *testing.T) {
 		if !lightRoofed(room) {
 			t.Errorf("room %d is under the sky and got lamps %v", id, lamps)
 		}
-		for _, c := range lamps {
+		for _, l := range lamps {
+			c := l.Cell
 			if !room.Region.Contains(c) {
 				t.Errorf("room %d lamp %v is off the floor", id, c)
 			}
@@ -190,7 +191,7 @@ func TestTilerLightsRoofedWorkRoomsOnly(t *testing.T) {
 	}
 }
 
-func mapKeys(m map[int32][]domain.Cell) func(yield func(int32) bool) {
+func mapKeys(m map[int32][]PlannedLamp) func(yield func(int32) bool) {
 	return func(yield func(int32) bool) {
 		for k := range m {
 			if !yield(k) {
@@ -205,6 +206,7 @@ func mapKeys(m map[int32][]domain.Cell) func(yield func(int32) bool) {
 func TestTilerKeepsTheDarkWhenLampsCostMore(t *testing.T) {
 	in := lampTileInput(t)
 	in.Light.LampW = in.Light.WorkCellW() * 2
+	in.Light.WallLampW = in.Light.LampW
 	res, err := TileEmbedding(in)
 	if err != nil {
 		t.Fatal(err)
