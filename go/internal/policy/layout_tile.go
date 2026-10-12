@@ -312,10 +312,10 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 		return t.out, fmt.Errorf("%w: the tiled plan is not valid", ErrTile)
 	}
 	t.furnish()
-	roof := PlanRoofed(t.out.Plan, RoofInput{Curve: t.in.OutdoorCurve, Cold: t.in.Survey.Cold, Hot: t.in.Survey.Hot, Climate: t.in.Catalog.Climate, RoofDistance: t.in.RoofDistance, Light: t.in.Light})
+	roof := PlanRoofed(t.out.Plan, t.roofInput())
 	t.out.Plan.Roofed, t.out.RoofDecisions = roof.Roofed, roof.Decisions
 	if t.placeAirlocks() { // the vestibules are rooms too: roof them
-		roof = PlanRoofed(t.out.Plan, RoofInput{Curve: t.in.OutdoorCurve, Cold: t.in.Survey.Cold, Hot: t.in.Survey.Hot, Climate: t.in.Catalog.Climate, RoofDistance: t.in.RoofDistance, Light: t.in.Light})
+		roof = PlanRoofed(t.out.Plan, t.roofInput())
 		t.out.Plan.Roofed, t.out.RoofDecisions = roof.Roofed, roof.Decisions
 	}
 	t.placeLamps()
@@ -800,4 +800,9 @@ func throughRank(r PlannedRoom) int {
 		return math.MinInt
 	}
 	return -r.Crossing.Mechanisms()
+}
+
+// roofInput is what the roofed set reads from the tiler's input.
+func (t *tiler) roofInput() RoofInput {
+	return RoofInput{Curve: t.in.OutdoorCurve, Cold: t.in.Survey.Cold, Hot: t.in.Survey.Hot, Climate: t.in.Catalog.Climate, RoofDistance: t.in.RoofDistance, Light: t.in.Light, Rock: surveyRock(t.in.Survey)}
 }

@@ -338,32 +338,44 @@ on the colony centre when the plan has no free cell there.
   value at `BuildW`'s rate (`StationCatalog.Light`, read by the bridge from
   `LightDefs().LampDef`). A work cell is a worker station's interaction cell, charged
   a whole colonist-day; a walked cell is charged the extra time its movements a day
-  (`tripCellMovements`, the same walk as the airlocks) take at the dark speed. Lamps stand
-  on floor cells no station holds and light a cell within their reach (`lampReach` for the
-  standing lamp); the greedy search adds the lamp that lights the most dark cost, less its
-  own cost, while that is positive.
-  **Wall lamp (#2948).** The second option on the same spots (`LightDefs().WallLampDef`,
+  (`tripCellMovements`, the same walk as the airlocks) take at the dark speed. A standing
+  lamp stands on a floor cell no station or worker holds; a lamp lights a cell within its
+  reach (`glowReach`, below); the greedy search adds the lamp that lights the most dark
+  cost, less its own cost, while that is positive.
+  **Wall lamp (#2948, #2951).** The second option (`LightDefs().WallLampDef`,
   `LightModel.Wall`). From the defs and `Placeworker_AttachedToWall`: it is not built into
   a wall cell but stands on a floor cell with the wall in the cardinal direction it faces
-  (`PlannedLamp.Facing`), is Standable with no path cost, and needs a neighbour with
-  `supportsWallAttachments` (a wall or natural rock; not a door or vent). It costs 15 steel
-  to the standing lamp's 20, draws the same 30 W and glows to radius 11 against 12; the
-  glow flood stops at walls, so it lights its own room. Its reach is `lampReach` scaled by
-  the radii (`LightPrice.WallReach`), the falloff being a blend of linear and inverse-square
-  in the distance. Per spot the tiler offers the wall lamp where a neighbour is plain wall
-  (`notPlainWall` excludes room and hallway floor, doors, links, entrances and the vents the
-  tiler placed), and the search takes whichever lamp covers the dark for least. A held wall cell
-  makes the wall lamp absent there and the standing lamp answers, so contention is priced
-  by the substitute, never refused. A catalog without the wall lamp, or either radius,
-  leaves it out. Roofed hallways price standing lamps only (the plan does not say which
-  edge cells are plain wall). Whether a wall lamp may share a cell with low furniture is
-  not read from the game: spots stay cells no station holds.
-  A room under the sky (an outdoor role) gets none, and fields stay unroofed (the
+  (`PlannedLamp.Facing`), is Standable with no path cost and is not an edifice, so it shares
+  a cell with furniture, a work cell's standing spot included; the place worker refuses only
+  a Full-fill building on its own cell (`Station.FillsCell`: fillPercent over 0.99, a
+  cooler, a crematorium, a nutrient paste dispenser; a piece of unknown def is treated the
+  same) or another attachment facing the same way. It needs a neighbour with
+  `supportsWallAttachments`: a wall or natural rock, not a door, a vent or a fence. It costs
+  15 steel to the standing lamp's 20, draws the same 30 W and glows to radius 11 against 12;
+  the glow flood stops at walls, so it lights its own room. Per cell the tiler offers it
+  where a neighbour is a plain wall (`plainWalls`: the wall ring of every fenced indoor
+  room and the survey's rock, less floor, doors, links, entrances and the vents the tiler
+  placed), for rooms (`roomCands`) and for roofed hallways (`hallwayLightW`, whose edge
+  cells next to a room's ring take wall lamps, and elsewhere only standing lamps), and the
+  search takes whichever lamp covers the dark for least. A held wall cell makes the wall
+  lamp absent there and the standing lamp answers, so contention is priced by the
+  substitute, never refused. A catalog without the wall lamp, its radius or its colour
+  leaves it out; without the standing lamp's radius or colour the lamps are unpriced.
+  **Reach (#2951).** `glowReach` solves the game's falloff for `LitGlow`
+  (`ComputeGlowGridsJob.SetGlowFromDist`: the lamp's colour times a blend of `1-x/radius`
+  and `1/x^2`, x being 1 plus the octile path distance, per channel truncated;
+  `GlowGrid.GroundGlowAt`: brightest channel over 255 times 3.6, lit above 0.3). Both lamps
+  glow (214,148,94), so the radius sets the reach: 9.0 cells along an axis from a standing
+  lamp and 8.2 from a wall lamp (the wiki's "9 to 8 tiles"). The planner measures
+  Euclidean distance, so `LightPrice.LampReach` and `WallReach` divide the path reach by
+  the worst octile stretch of a diagonal (8.35 and 7.59 cells), keeping every cell inside lit.
+  The earlier flat 6 cells (`lampReach`, still the infestation planner's own number)
+  and its 11/12 scaling undershot both. Constants: `LightTable` in `DefTables`.  A room under the sky (an outdoor role) gets none, and fields stay unroofed (the
   grow-lamp price is `PlanSiteType`'s). A roofed hallway's price in the roofed set
   (`RoofDecision.LightW`) includes the same lamps-or-dark for its walkers. An unknown
   price leaves lamps unplaced (`tile_lamps_unpriced`) or the hallway weighed without it
   (`LightUnpriced`). Not priced: the `EnvironmentDark` mood (deferred to #2878), surgery
-  success, partial glow beyond `lampReach`, and the lamps' power wiring (they are in
+  success, partial glow beyond the reach, and the lamps' power wiring (they are in
   `TileResult.Lamps`, not pieces, so the conduit net does not route to them yet).
   `MaintainLighting` stays the runtime reconciler. Advice only until #2931.
   **Circulation (#2911).** The station graph carries station-less room nodes

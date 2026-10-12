@@ -26,6 +26,9 @@ const (
 	// the playroom and nursery workers read.
 	statBabyPlayGain        = "BabyPlayGainFactor"
 	lifeStageHumanlikeChild = "HumanlikeChild"
+
+	// fullFillPercent is the fillPercent above which ThingDef.Fillage is Full.
+	fullFillPercent = 0.99
 )
 
 // StationCatalog is the catalog of buildable stations: for every building
@@ -61,7 +64,7 @@ func (catalog *DefinitionCatalog) buildStations() (policy.StationCatalog, error)
 			continue
 		}
 		b := stationBuilder{catalog: catalog, name: name, row: row, recipes: recipes[name], rec: rec, childSize: childSize, hasChild: hasChild}
-		station := policy.Station{Def: name, Shape: shape, Access: policy.AccessFloor, Content: row.GetModPackageId(), Minifiable: row.GetMinifiedDef() != ""}
+		station := policy.Station{Def: name, Shape: shape, Access: policy.AccessFloor, Content: row.GetModPackageId(), Minifiable: row.GetMinifiedDef() != "", FillsCell: row.GetFillPercent() > fullFillPercent}
 		if row.GetBuilding().GetCanPlaceOverWall() || row.GetBuilding().GetIsPlaceOverableWall() || slices.Contains(row.GetPlaceWorkers(), placeAttachedToWall) {
 			station.Access = policy.AccessWall
 		}

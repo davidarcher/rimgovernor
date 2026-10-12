@@ -66,6 +66,9 @@ type RoofInput struct {
 	// Light prices the lamps a roofed hallway needs for the walkers it carries
 	// (layout_light.go); invalid adds no lamp term and the decision says so.
 	Light LightPrice
+	// Rock is the survey's natural rock cells, which hold a hallway's wall lamps
+	// as a wall does.
+	Rock map[domain.Cell]bool
 }
 
 // RoofResult is the roofed cells and the decisions behind them.
@@ -110,6 +113,7 @@ func PlanRoofed(p LayoutPlan, in RoofInput) RoofResult {
 		out.Decisions = append(out.Decisions, RoofDecision{Room: r.ID, Segment: -1, Verdict: TilePlace, Reason: ReasonRoofRoom})
 	}
 	var moves map[domain.Cell]float64
+	var walls func(domain.Cell) bool
 	for i, rect := range spineRects(p.Hallways()) {
 		saved, held, priced := hallwayRoofPrice(p, in, rect)
 		// A roof takes the sky's light: the walkers it carries need lamps, or
@@ -119,7 +123,10 @@ func PlanRoofed(p LayoutPlan, in RoofInput) RoofResult {
 			if moves == nil {
 				moves = tripCellMovements(p)
 			}
-			lightW = hallwayLightW(rect, moves, in.Light)
+			if walls == nil {
+				walls = plainWalls(p, in.Rock)
+			}
+			lightW = hallwayLightW(rect, moves, walls, in.Light)
 			held += lightW
 		}
 		d := RoofDecision{Segment: i, Verdict: TilePlace, Reason: ReasonRoofHallway, SavedW: saved, HeldW: held, LightW: lightW, LightUnpriced: !in.Light.Valid()}

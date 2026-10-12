@@ -60,6 +60,10 @@ type Station struct {
 	// Minifiable is ThingDef.Minifiable (minifiedDef set): the built building
 	// can be uninstalled and reinstalled elsewhere (BuiltPiece.Movable).
 	Minifiable bool
+	// FillsCell is ThingDef.Fillage == Full (fillPercent over 0.99): no
+	// attachment, a wall lamp among them, may hang on a cell it holds
+	// (Placeworker_AttachedToWall).
+	FillsCell bool
 }
 
 // DrawsPower reports a station that consumes grid power.

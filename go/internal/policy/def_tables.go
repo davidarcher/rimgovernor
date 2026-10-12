@@ -49,8 +49,9 @@ func DefTables() []DefTable {
 		// lightTable: DarkSpeed (0.8) is StatPart_Glow's factor on
 		// WorkSpeedGlobal and MoveSpeed at glow 0, a curve in the def that the
 		// bridge does not read; the standing and wall lamps are the buildings
-		// the plan places (the wall lamp's reach scales from the standing
-		// lamp's by glow radius, both read from the defs). The research behind the lamp pricing (every effect of darkness, which are
+		// the plan places (their reach is solved from each def's glow radius and
+		// colour; GroundScale, FalloffBlend and DiagonalCost are the game's glow
+		// grid constants, read with ilspycmd). The research behind the lamp pricing (every effect of darkness, which are
 		// priced and which deferred) is the first comment of issue #2945.
 		{"lightTable", "Verse.ThingDef", []string{lightTable.LampDef, lightTable.WallLampDef}},
 		// The wind path constants (windPathWidth ... windBlockedLoss) are

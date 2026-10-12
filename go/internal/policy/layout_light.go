@@ -1,6 +1,8 @@
 package policy
 
 import (
+	"math"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -28,8 +30,8 @@ import (
 // (the busiest it can be) and a walked cell costs the extra time its
 // passages take at the slower speed.
 //
-// A lit cell is one within a lamp's reach (the distance a standing lamp
-// holds above LitGlow, lampReach, layout_infestation.go); glow beyond it is not
+// A lit cell is one within a lamp's reach (glowReach: the distance its glow holds
+// above LitGlow, solved from the def's radius and colour); glow beyond it is not
 // credited. The lamps give no heat, so they add nothing to the climate load. The
 // advice sits beside the old planner, which stays authoritative until #2931;
 // MaintainLighting stays the runtime reconciler for what is built.
@@ -44,10 +46,25 @@ import (
 // against the standing lamp's 20, draws the same 30 W, and glows to radius 11
 // against 12. The glow is a flood fill from the lamp's cell that light blockers
 // stop (ComputeGlowGridsJob), so a lamp on a room's floor lights that room and
-// its wall keeps the light in. Glow at path distance d is a blend of 1-d/radius
-// and 1/d^2, so the distance that holds LitGlow scales with the radius: the wall
-// lamp's reach is lampReach times its radius over the standing lamp's (11/12,
-// within 0.1% of solving the falloff for both).
+// its wall keeps the light in.
+//
+// A wall lamp is not an edifice (#2951): Placeworker_AttachedToWall refuses only a
+// Full-fill building on its own cell (fillPercent over 0.99: a cooler, a
+// crematorium, a nutrient paste dispenser) or another attachment facing the same
+// way, and CanPlaceBlueprintOver lets a non-edifice go over any building but
+// natural rock. So it shares a cell with a bench, a bed or a table, and a work
+// cell's interaction spot (it is Standable), and only a Full-fill piece or a piece
+// of unknown def withholds the cell. A room's wall ring and a hallway's edge
+// are walls only where a fenced indoor room's ring stands (plainWalls): an open
+// edge, a fence and a door are not supports.
+//
+// Reach is solved from the game's falloff, not scaled (glowReach): the lamp's
+// colour is multiplied by a blend of 1-x/radius and 1/x^2 at x = 1 + path
+// distance, truncated per channel, and ground glow is the brightest channel over
+// 255 times 3.6. Solving that for LitGlow gives about 9.0 cells from a standing
+// lamp and 8.2 from a wall lamp along an axis (the wiki's "9 to 8 tiles"), and the
+// planner's Euclidean radius is that over the worst octile stretch of a
+// diagonal path.
 //
 // Choosing between them is the same watt price: each step takes the lamp,
 // of either kind at any spot, whose lit dark cost less its own cost is largest.
@@ -60,23 +77,64 @@ import (
 // places and WallLampDef the one hung on a wall; DarkSpeed is StatPart_Glow's
 // factor at glow 0 for WorkSpeedGlobal and MoveSpeed (the end of the curve that
 // the def's curve states, 0.8 at glow 0 to 1 at 0.3; the glow where it reaches 1
-// is the lighting policy's LitGlow).
+// is the lighting policy's LitGlow). The glow constants are the game's, read
+// with ilspycmd: GroundScale is GlowGrid.GroundGlowAt's 3.6 (brightest channel
+// over 255, times it), FalloffBlend ComputeGlowGridsJob.SetGlowFromDist's lerp
+// weight of 1/x^2 against 1-x/radius, and DiagonalCost its 141/100 per diagonal
+// step.
 // Research: https://github.com/davidarcher/rimgovernor/issues/2945 (first comment).
 type LightTable struct {
-	LampDef, WallLampDef string
-	DarkSpeed            float64
+	LampDef, WallLampDef                    string
+	DarkSpeed                               float64
+	GroundScale, FalloffBlend, DiagonalCost float64
 }
 
-var lightTable = LightTable{LampDef: "StandingLamp", WallLampDef: "WallLamp", DarkSpeed: 0.8}
+var lightTable = LightTable{LampDef: "StandingLamp", WallLampDef: "WallLamp", DarkSpeed: 0.8, GroundScale: 3.6, FalloffBlend: 0.4, DiagonalCost: 1.41}
+
+// glowReach is the Euclidean radius (cells) within which a lamp of the given glow
+// radius and brightest colour channel keeps ground glow above LitGlow; zero when
+// either is unknown or the lamp never lights its own neighbour. The flood runs
+// over octile path steps, so a cell at Euclidean distance e is at most
+// sqrt(1+k^2)*e path cells away (k the diagonal's extra cost, at the angle
+// where the path bends most): dividing by it keeps every cell inside lit.
+func glowReach(radius, brightness float64) float64 {
+	if !finitePositive(radius) || !finitePositive(brightness) {
+		return 0
+	}
+	t := lightTable
+	// The channel survives int(brightness*falloff), and ground glow must pass
+	// LitGlow strictly (PsychGlowAtGlow).
+	need := (math.Floor(DefaultLightingPolicy().LitGlow/t.GroundScale*255) + 1) / brightness
+	falloff := func(x float64) float64 { return (1-t.FalloffBlend)*(1-x/radius) + t.FalloffBlend/(x*x) }
+	if falloff(1) < need {
+		return 0
+	}
+	lo, hi := 1.0, radius // the flood stops at the radius
+	if falloff(hi) >= need {
+		lo = hi
+	}
+	for i := 0; i < 60 && hi-lo > 1e-9; i++ {
+		mid := (lo + hi) / 2
+		if falloff(mid) >= need {
+			lo = mid
+		} else {
+			hi = mid
+		}
+	}
+	return (lo - 1) / math.Sqrt(1+(t.DiagonalCost-1)*(t.DiagonalCost-1))
+}
 
 // LightDefs is the buildings the lamp pricing places.
 func LightDefs() LightTable { return lightTable }
 
 // LampModel is one lamp's catalog numbers: the power it draws, the market value
-// of its cheapest cost list and its glow radius. The zero value is unknown.
-type LampModel struct{ PowerW, Build, Radius float64 }
+// of its cheapest cost list, its glow radius and the brightest channel of its
+// glow colour. The zero value is unknown.
+type LampModel struct{ PowerW, Build, Radius, Brightness float64 }
 
 func (m LampModel) priced() bool { return finitePositive(m.PowerW) && finitePositive(m.Build) }
+
+func (m LampModel) reach() float64 { return glowReach(m.Radius, m.Brightness) }
 
 // LightModel is the catalog's two lamps; an unknown one is an absent option.
 type LightModel struct{ Standing, Wall LampModel }
@@ -91,17 +149,18 @@ func LightSpeed(glow float64) float64 {
 
 // LightPrice is what darkness and light cost, in sustained watts. WorkDayW is a
 // colonist's work-day, LampW one standing lamp's draw and amortised build,
-// CellWalkDays the work-days a colonist spends walking one cell. WallLampW and
-// WallReach are the wall lamp's price and reach in cells; zero while the wall
-// lamp is unknown, which leaves it out of the options.
+// CellWalkDays the work-days a colonist spends walking one cell. LampReach is the
+// standing lamp's lit radius in cells. WallLampW and WallReach are the wall
+// lamp's price and reach; zero while the wall lamp is unknown, which leaves it
+// out of the options.
 type LightPrice struct {
-	WorkDayW, LampW, CellWalkDays float64
-	WallLampW, WallReach          float64
+	WorkDayW, LampW, CellWalkDays, LampReach float64
+	WallLampW, WallReach                     float64
 }
 
 // Valid reports a price with every number known.
 func (p LightPrice) Valid() bool {
-	return finitePositive(p.WorkDayW) && finitePositive(p.LampW) && finitePositive(p.CellWalkDays)
+	return finitePositive(p.WorkDayW) && finitePositive(p.LampW) && finitePositive(p.CellWalkDays) && finitePositive(p.LampReach)
 }
 
 // LightPriceInput is what the price reads. UpkeepPerDay is one colonist's
@@ -132,12 +191,16 @@ func NewLightPrice(in LightPriceInput) LightPrice {
 		WorkDayW:     unitsW(w, in.UpkeepPerDay/in.UnitNutrition),
 		LampW:        in.Model.Standing.PowerW + BuildW(w, in.Model.Standing.Build, in.SteelValue),
 		CellWalkDays: in.Climate.TicksPerSecond / colonistMoveSpeed / domain.TicksPerDay,
+		LampReach:    in.Model.Standing.reach(),
 	}
-	// The wall lamp's reach is the standing lamp's scaled by glow radius (see
-	// above); without both radii it cannot be placed, and is left out.
-	if wall := in.Model.Wall; wall.priced() && finitePositive(wall.Radius) && finitePositive(in.Model.Standing.Radius) {
+	// A lamp whose glow is unknown cannot be placed: the standing lamp's leaves
+	// the price invalid, the wall lamp's leaves it out.
+	if !p.Valid() {
+		return LightPrice{}
+	}
+	if wall := in.Model.Wall; wall.priced() && wall.reach() > 0 {
 		p.WallLampW = wall.PowerW + BuildW(w, wall.Build, in.SteelValue)
-		p.WallReach = lampReach * wall.Radius / in.Model.Standing.Radius
+		p.WallReach = wall.reach()
 	}
 	return p
 }
@@ -198,7 +261,7 @@ type lampCand struct {
 func (p LightPrice) standingCands(spots []domain.Cell) []lampCand {
 	out := make([]lampCand, len(spots))
 	for i, s := range spots {
-		out[i] = lampCand{PlannedLamp: PlannedLamp{Def: lightTable.LampDef, Cell: s}, W: p.LampW, Reach: lampReach}
+		out[i] = lampCand{PlannedLamp: PlannedLamp{Def: lightTable.LampDef, Cell: s}, W: p.LampW, Reach: p.LampReach}
 	}
 	return out
 }
@@ -253,9 +316,9 @@ func lightRoofed(r PlannedRoom) bool { return !r.Role.IsOutdoor() && !r.Unfenced
 // hallwayLightW is the price of the dark a roofed hallway segment makes: the
 // cheaper of lighting the movements through it and leaving them dark, as the
 // lamps' cost plus the dark left over. Zero for a segment nobody walks. A
-// hallway's lamps are standing lamps: the plan does not say which of its edge
-// cells are plain wall.
-func hallwayLightW(rect Rectangle, moves map[domain.Cell]float64, p LightPrice) float64 {
+// hallway cell takes a wall lamp where a neighbour is a plain wall of the plan
+// (walls, from plainWalls) and a standing lamp anywhere.
+func hallwayLightW(rect Rectangle, moves map[domain.Cell]float64, walls func(domain.Cell) bool, p LightPrice) float64 {
 	var cells []DarkCell
 	spots := rectCells(rect)
 	for _, c := range spots {
@@ -263,7 +326,7 @@ func hallwayLightW(rect Rectangle, moves map[domain.Cell]float64, p LightPrice) 
 			cells = append(cells, DarkCell{Cell: c, W: p.WalkCellW(m)})
 		}
 	}
-	lamps, left := planLamps(cells, p.standingCands(spots))
+	lamps, left := planLamps(cells, append(p.standingCands(spots), wallLampCands(spots, walls, p)...))
 	return lampsW(lamps) + left
 }
 
@@ -275,13 +338,42 @@ func lampsW(lamps []lampCand) float64 {
 	return total
 }
 
-// notPlainWall are the cells a wall lamp cannot hang on: the floor of every room
-// and hallway, and the wall cells another wall building holds (only a wall and
-// natural rock have supportsWallAttachments): the doors, links and entrances of
-// the plan and the vents the tiler placed (#2915). A lamp that loses its wall to
-// one is priced as the standing lamp that answers it, not refused.
-func (t *tiler) notPlainWall() map[domain.Cell]bool {
-	p := t.out.Plan
+// plainWalls are the cells of the plan a wall lamp can hang on: the wall ring of
+// every fenced indoor room (a fence, or no ring at all, supports nothing), less
+// the cells another building holds (only a wall and natural rock have
+// supportsWallAttachments): the floor of every room and hallway, the doors,
+// links and entrances of the plan and the vents the tiler placed (#2915). A
+// lamp that loses its wall to one is priced as the standing lamp that answers
+// it, not refused. Natural rock supports a lamp as a wall does
+// (RockBase.supportsWallAttachments): a survey rock cell outside the held
+// cells counts, so a room or hallway cut into a mountain keeps its wall lamps.
+func plainWalls(p LayoutPlan, rock map[domain.Cell]bool) func(domain.Cell) bool {
+	held := heldWallCells(p)
+	ring := map[domain.Cell]bool{}
+	for _, r := range p.AllRooms() {
+		if lightRoofed(r) {
+			for _, c := range r.Region.Walls().Cells() {
+				ring[c] = true
+			}
+		}
+	}
+	return func(c domain.Cell) bool { return !held[c] && (ring[c] || rock[c]) }
+}
+
+// surveyRock is the survey's natural rock cells.
+func surveyRock(s MapSurvey) map[domain.Cell]bool {
+	out := map[domain.Cell]bool{}
+	for _, c := range s.Cells {
+		if c.Rock {
+			out[c.Cell] = true
+		}
+	}
+	return out
+}
+
+// heldWallCells are the plan's cells that are not a bare wall: floor, doors,
+// links, entrances and vents.
+func heldWallCells(p LayoutPlan) map[domain.Cell]bool {
 	out := map[domain.Cell]bool{}
 	for _, r := range p.AllRooms() {
 		for _, c := range r.Region.Cells() {
@@ -315,14 +407,14 @@ func (t *tiler) notPlainWall() map[domain.Cell]bool {
 // with a cardinal neighbour that is a plain wall, the first in the plan's
 // direction order carrying the lamp. The lamp stands on the floor and takes no
 // wall cell; it needs only that a wall is there.
-func wallLampCands(spots []domain.Cell, notWall map[domain.Cell]bool, p LightPrice) []lampCand {
-	if p.WallLampW <= 0 || p.WallReach <= 0 {
+func wallLampCands(spots []domain.Cell, isWall func(domain.Cell) bool, p LightPrice) []lampCand {
+	if p.WallLampW <= 0 || p.WallReach <= 0 || isWall == nil {
 		return nil
 	}
 	var out []lampCand
 	for _, s := range spots {
 		for _, dir := range directions {
-			if notWall[addCell(s, dir)] {
+			if !isWall(addCell(s, dir)) {
 				continue
 			}
 			out = append(out, lampCand{PlannedLamp: PlannedLamp{Def: lightTable.WallLampDef, Cell: s, Facing: rotationOf(dir)}, W: p.WallLampW, Reach: p.WallReach})
@@ -342,15 +434,16 @@ const (
 
 // placeLamps lights the roofed rooms where the lamps pay. A room's priced cells
 // are its work cells (a worker station's interaction cell, a full work-day of
-// speed) and every cell the plan's trips walk; its lamps stand on floor cells no
-// station or worker holds, each a standing lamp or a wall lamp hung on a plain
-// wall beside it, whichever lights more dark for its cost. Lamps are placed when
+// speed) and every cell the plan's trips walk; a standing lamp stands on a floor
+// cell no station or worker holds, a wall lamp hangs on a plain wall beside any
+// floor cell a Full-fill station does not hold (it shares the cell with the
+// furniture), whichever lights more dark for its cost. Lamps are placed when
 // lighting the dark costs less than leaving it, never vetoed either way; a room
 // under the sky gets none.
 func (t *tiler) placeLamps() {
 	p := t.out.Plan
 	var moves map[domain.Cell]float64
-	var notWall map[domain.Cell]bool
+	var isWall func(domain.Cell) bool
 	for i := range t.rooms {
 		room := p.Rooms[i]
 		g := t.in.Groups[t.rooms[i].group]
@@ -360,11 +453,14 @@ func (t *tiler) placeLamps() {
 		}
 		work := map[domain.Cell]bool{}
 		taken := map[domain.Cell]bool{}
+		filled := map[domain.Cell]bool{} // cells a wall lamp cannot share
 		for _, piece := range t.out.Pieces[room.ID] {
+			s, known := t.in.Catalog.Station(piece.Def)
 			for _, c := range rectCells(piece.Rect) {
 				taken[c] = true
+				filled[c] = filled[c] || !known || s.FillsCell
 			}
-			if s, ok := t.in.Catalog.Station(piece.Def); ok && s.Capacity.Kind == CapacityWorkers {
+			if known && s.Capacity.Kind == CapacityWorkers {
 				if c, ok := piece.Interaction(); ok && room.Region.Contains(c) {
 					work[c] = true
 				}
@@ -378,10 +474,9 @@ func (t *tiler) placeLamps() {
 		}
 		if moves == nil {
 			moves = tripCellMovements(p)
-			notWall = t.notPlainWall()
+			isWall = plainWalls(p, surveyRock(t.in.Survey))
 		}
 		var cells []DarkCell
-		var spots []domain.Cell
 		for _, c := range room.Region.Cells() {
 			w := t.in.Light.WalkCellW(moves[c])
 			if work[c] {
@@ -390,14 +485,8 @@ func (t *tiler) placeLamps() {
 			if w > 0 {
 				cells = append(cells, DarkCell{Cell: c, W: w})
 			}
-			if !taken[c] && !work[c] {
-				spots = append(spots, c)
-			}
 		}
-		sortCells(spots)
-		cands := t.in.Light.standingCands(spots)
-		cands = append(cands, wallLampCands(spots, notWall, t.in.Light)...)
-		lamps, left := planLamps(cells, cands)
+		lamps, left := planLamps(cells, t.in.Light.roomCands(room.Region.Cells(), taken, work, filled, isWall))
 		total := 0.0
 		for _, c := range cells {
 			total += c.W
@@ -416,6 +505,25 @@ func (t *tiler) placeLamps() {
 		}
 		t.noteLamps(g.ID, ReasonTileLamps, TilePlace, left, lampsW(lamps))
 	}
+}
+
+// roomCands are the lamps a room's floor offers: a standing lamp on each cell no
+// piece or worker holds, and a wall lamp on each cell no Full-fill piece holds
+// (it shares the cell with the furniture and the work cell's standing spot)
+// that has a plain wall beside it.
+func (p LightPrice) roomCands(floor []domain.Cell, held, work, full map[domain.Cell]bool, isWall func(domain.Cell) bool) []lampCand {
+	var standing, wall []domain.Cell
+	for _, c := range floor {
+		if !held[c] && !work[c] {
+			standing = append(standing, c)
+		}
+		if !full[c] {
+			wall = append(wall, c)
+		}
+	}
+	sortCells(standing)
+	sortCells(wall)
+	return append(p.standingCands(standing), wallLampCands(wall, isWall, p)...)
 }
 
 // cheapestLampW is the price of the cheapest lamp of either kind.

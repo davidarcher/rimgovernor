@@ -132,5 +132,11 @@ func (catalog *DefinitionCatalog) lampModel(def string) (policy.LampModel, error
 	if err != nil {
 		return policy.LampModel{}, err
 	}
-	return policy.LampModel{PowerW: watts, Build: build, Radius: radius}, nil
+	// The glow colour's brightest channel sets how far the glow stays lit.
+	var brightness float64
+	if glower := compOf(catalog.ThingDefs[def], (*d.CompPropertiesAny).GetCompProperties_Glower); glower != nil {
+		c := glower.GetGlowColor()
+		brightness = float64(max(c.GetR(), c.GetG(), c.GetB()))
+	}
+	return policy.LampModel{PowerW: watts, Build: build, Radius: radius, Brightness: brightness}, nil
 }
