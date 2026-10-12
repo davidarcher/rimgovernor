@@ -20,7 +20,7 @@ language source; the one exception is the [def mirror](#def-mirror), which emits
 ignored `.rimgovernor/` directories; commit official generated bindings with their
 schemas, except `generated/protobuf/csharp/Defs.cs` (57 MB): it is gitignored and
 generated from `defs.proto` by `generatecsharp` (the pinned Grpc.Tools protoc) at the
-start of `scripts/build_native_ref.sh` and `scripts/build_native_mod.ps1`; run
+start of `scripts/build_native_mod.ps1`; run
 `go -C go run ./internal/protobufgen/cmd/generatecsharp` to produce it for an IDE.
 `--check` does not compare it; `defs.proto` itself is checked by `defmirror:build`.
 The Go binding `defspb/defs.pb.go` stays committed (generating it takes minutes). Review generation drift for the complete file set.
@@ -63,12 +63,13 @@ constants, static curves, `[Unsaved]` data fields and the `*DefOf` names (`defof
 (from `go/`), which also diffs the recording's def rows against the game's XML
 defs and counts the skipped fields by reason.
 
-Inputs. The reference assemblies are the locked NuGet package
-Krafs.Rimworld.Ref 1.6.4871 (`ref/net472`): it exposes every def and comp field
-and all five DLCs, so the generator runs on Linux and in CI without a game
-install, and `defs.proto` is pinned to that version. `--managed-dir <Managed>`
-reflects a game install instead (a PC build for a newer game version); the check
-then reports drift against the committed file.
+Inputs. The assemblies are the game install's (`Assembly-CSharp.dll` and its
+dependencies in the game directory), passed as `--game-dir <RimWorld dir>`;
+`task defmirror:*` defaults it to `RIMWORLD_DIR`. There is no game-free path:
+without an install the check reports `unavailable`. `defs.proto` is pinned to
+the install it was generated from (its `Source:` line names the
+`Assembly-CSharp` version), and `--check` reports drift against the committed
+file.
 
 Mapping, with no allow-list and no name lists:
 

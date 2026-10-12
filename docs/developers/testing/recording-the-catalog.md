@@ -25,9 +25,9 @@ that field and writing a `StatEnv` of the same game (its mods and the default
 difficulty).
 
 `TestCommittedRecordingIsFresh` (`go/cmd/recordcatalog`) fails when the sidecar's
-game version differs from the `Krafs.Rimworld.Ref` pin in
-`tools/defmirror/DefMirror.csproj`, or `defs_proto_source` from `defs.proto`'s
-source line, and names the refresh command. It reads files only, so CI runs it
+`defs_proto_source` differs from `defs.proto`'s source line (the
+`Assembly-CSharp` version of the install it was generated from), and names the
+refresh command. The sidecar's `game_version` (Version.txt) is informational. It reads files only, so CI runs it
 without a game install; CI cannot refresh.
 
 ## Refresh

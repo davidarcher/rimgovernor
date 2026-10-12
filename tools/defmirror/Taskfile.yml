@@ -1,7 +1,7 @@
 # Def mirror generator: contracts/proto/defs.proto from the game's managed
-# assemblies (see contracts/schema-generation.md). Runs on the locked
-# Krafs.Rimworld.Ref reference assemblies; no game install is needed. Pass
-# `-- --managed-dir <RimWorld Managed dir>` to reflect a game install instead.
+# assemblies (see contracts/schema-generation.md). Reflects the installed game
+# (RIMWORLD_DIR, the directory holding Assembly-CSharp.dll); without an install
+# `build` reports `unavailable` and `generate` fails.
 # `generate` writes only defs.proto (def messages and GameConstants); regenerate the Go and C# bindings with the
 # commands in ../protobuf/README.md and ../protobuf/go/README.md.
 version: '3'
@@ -9,17 +9,23 @@ version: '3'
 vars:
   REPO: '{{.TASKFILE_DIR}}/../..'
   DEFS: '{{.REPO}}/contracts/proto/defs.proto'
+  RIMWORLD_DIR: '{{.RIMWORLD_DIR | default "C:/Program Files (x86)/Steam/steamapps/common/RimWorld"}}'
   RUN: dotnet run --project {{.TASKFILE_DIR}} -c Release --no-restore --no-launch-profile --
 
 tasks:
   build:
-    desc: contracts/proto/defs.proto (defs and GameConstants) matches the pinned reference assemblies (locked restore)
+    desc: contracts/proto/defs.proto (defs and GameConstants) matches the installed game's assemblies (locked restore)
     cmds:
-      - dotnet restore {{.TASKFILE_DIR}}/DefMirror.csproj --locked-mode
-      - '{{.RUN}} --check --output {{.DEFS}} {{.CLI_ARGS}}'
+      - |
+        if [ ! -f "{{.RIMWORLD_DIR}}/Assembly-CSharp.dll" ]; then
+          echo "defmirror: unavailable (missing {{.RIMWORLD_DIR}}/Assembly-CSharp.dll)"
+          exit 0
+        fi
+        dotnet restore {{.TASKFILE_DIR}}/DefMirror.csproj --locked-mode
+        {{.RUN}} --game-dir "{{.RIMWORLD_DIR}}" --check --output {{.DEFS}}
 
   generate:
     desc: Regenerate contracts/proto/defs.proto (then the Go and C# bindings)
     cmds:
       - dotnet restore {{.TASKFILE_DIR}}/DefMirror.csproj --locked-mode
-      - '{{.RUN}} --output {{.DEFS}} {{.CLI_ARGS}}'
+      - '{{.RUN}} --game-dir "{{.RIMWORLD_DIR}}" --output {{.DEFS}}'

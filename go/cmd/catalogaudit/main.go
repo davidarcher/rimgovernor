@@ -94,7 +94,7 @@ func reflectGame(defmirror, gameDir string) (string, error) {
 	for _, args := range [][]string{
 		{"restore", project, "--locked-mode"},
 		{"run", "--project", defmirror, "-c", "Release", "--no-restore", "--no-launch-profile", "--",
-			"--managed-dir", gameDir, "--report", tmp.Name()},
+			"--game-dir", gameDir, "--report", tmp.Name()},
 	} {
 		cmd := exec.Command("dotnet", args...)
 		cmd.Stdout = io.Discard

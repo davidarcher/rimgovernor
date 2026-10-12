@@ -58,7 +58,7 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
-        var managed = DefaultManagedDir();
+        string? managed = null;
         string? output = null;
         string? report = null;
         var check = false;
@@ -66,7 +66,7 @@ internal static class Program
         {
             switch (args[i])
             {
-                case "--managed-dir": managed = args[++i]; break;
+                case "--game-dir": managed = args[++i]; break;
                 case "--output": output = args[++i]; break;
                 case "--check": check = true; break;
                 case "--report": report = args[++i]; break;
@@ -74,7 +74,7 @@ internal static class Program
             }
         }
         if (managed == null || (output == null && report == null))
-            return Fail("usage: defmirror (--output <defs.proto> [--check] | --report <file>) [--managed-dir <dir with Assembly-CSharp.dll>]");
+            return Fail("usage: defmirror --game-dir <RimWorld install dir with Assembly-CSharp.dll> (--output <defs.proto> [--check] | --report <file>)");
         if (!File.Exists(Path.Combine(managed, "Assembly-CSharp.dll")))
             return Fail($"{managed} has no Assembly-CSharp.dll");
 
@@ -108,12 +108,6 @@ internal static class Program
         Console.WriteLine($"defmirror: wrote {output} ({summary})");
         return 0;
     }
-
-    // The restored Krafs.Rimworld.Ref package (DefMirror.csproj); a game
-    // install's Managed directory overrides it with --managed-dir.
-    private static string? DefaultManagedDir() =>
-        typeof(Program).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
-            .FirstOrDefault(a => a.Key == "RimWorldManagedDir")?.Value;
 
     private static int Fail(string message)
     {
@@ -156,7 +150,7 @@ internal sealed class Message
 internal sealed class Generator
 {
     private const string Package = "rimgovernor.defs.v1";
-    private static readonly string[] DefAssemblies = { "Assembly-CSharp", "Assembly-CSharp-firstpass" };
+    private static readonly string[] DefAssemblies = { "Assembly-CSharp" };
     private const BindingFlags InstanceFields =
         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
 

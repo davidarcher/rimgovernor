@@ -84,10 +84,8 @@ Resume, staging, breakpoints and fixture iteration are in the
 A Linux checkout without licensed game files runs Go checks but no acceptance.
 Record `Unverified: no acceptance run (remote agent)` in the commit body.
 
-Compile C# with `scripts/build_native_ref.sh`, using public reference assemblies.
-Fixture properties pass through, for example `-p:UpkeepFixture=true`. Install
-`dotnet-sdk-8.0` through the configured package manager; no game installation
-is needed for this compilation.
+Cloud sessions no longer compile C#: the native mod, host and probes build
+only against a RimWorld 1.7 install (Windows).
 
 Use GitHub MCP for GitHub operations in cloud sessions where `gh` and GraphQL
 are blocked. Repository: `davidarcher/rimgovernor`. Read body/comments with

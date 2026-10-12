@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
     // queues. A mech recipe is one whose produced thing is a mechanoid race;
     // the planner reads the mech kind and the mechs' bandwidth cost from the
     // definition catalog. Names confirmed by
-    // reflection over Krafs.Rimworld.Ref 1.6.4871: Bill_Mech (a
+    // reflection over the game's Assembly-CSharp: Bill_Mech (a
     // Bill_Production), Building_MechGestator, RecipeDef.ProducedThingDef /
     // gestationCycles / mechResurrection / mechanitorOnlyRecipe,
     // RaceProperties.IsMechanoid / AnyPawnKind, Pawn_MechanitorTracker
