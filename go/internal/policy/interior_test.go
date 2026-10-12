@@ -29,50 +29,24 @@ func TestOccupiedRectMatchesRimWorld(t *testing.T) {
 	}
 }
 
-func TestBedroomLayoutRepeatsAcrossDoorsAndSizes(t *testing.T) {
+func TestBedroomPlansAcrossDoorsAndSizes(t *testing.T) {
 	for _, size := range [][3]int32{{5, 4, 0}, {5, 4, 1}, {4, 4, 1}, {3, 3, 1}, {6, 5, 2}} {
-		assertInteriorRepeatable(t, RoomRoleBedroom, size[0], size[1], size[2])
-	}
-}
-
-func TestBedroomBedHeadAgainstTheFarWall(t *testing.T) {
-	room := Rectangle{X: 10, Z: 20, Width: 5, Height: 4}
-	cases := []struct {
-		door   domain.Cell
-		rect   Rectangle
-		rot    domain.Rotation
-		anchor domain.Cell
-	}{
-		// The anchor is the head cell (BedUtility.GetSleepingSlotPos): on
-		// the wall opposite the door, feet toward the door.
-		{domain.Cell{X: 12, Z: 19}, Rectangle{X: 12, Z: 22, Width: 1, Height: 2}, domain.South, domain.Cell{X: 12, Z: 23}},
-		{domain.Cell{X: 12, Z: 24}, Rectangle{X: 12, Z: 20, Width: 1, Height: 2}, domain.North, domain.Cell{X: 12, Z: 20}},
-		{domain.Cell{X: 9, Z: 21}, Rectangle{X: 13, Z: 21, Width: 2, Height: 1}, domain.West, domain.Cell{X: 14, Z: 21}},
-	}
-	for _, c := range cases {
-		plan, ok := PlanInterior(InteriorRoom{Shapes: testShapes, Role: RoomRoleBedroom, Interior: room, Doors: []domain.Cell{c.door}}, InteriorPieceDef{})
-		if !ok || len(plan.Pieces) == 0 || plan.Pieces[0].Slot != "bed" {
-			t.Fatalf("door %+v: plan %+v %v", c.door, plan, ok)
-		}
-		bed := plan.Pieces[0]
-		if bed.Rect != c.rect || bed.Rot != c.rot || bed.Anchor() != c.anchor {
-			t.Errorf("door %+v: bed %+v %s at %+v, want %+v %s at %+v", c.door, bed.Rect, bed.Rot, bed.Anchor(), c.rect, c.rot, c.anchor)
+		for _, room := range interiorRoomsAround(RoomRoleBedroom, size[0], size[1], size[2]) {
+			if _, ok := PlanRoomInterior(room, InteriorPieceDef{}); !ok {
+				t.Errorf("%v door %v: no plan", size, room.Doors)
+			}
 		}
 	}
 }
 
-func TestPlanInteriorRefusesUnfitRooms(t *testing.T) {
-	shallow := InteriorRoom{Shapes: testShapes, Role: RoomRoleBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 2}, Doors: []domain.Cell{{X: 1, Z: -1}}}
-	if _, ok := PlanInterior(shallow, InteriorPieceDef{}); ok {
-		t.Error("a two-deep room fits the bedroom template")
-	}
+func TestPlanRoomInteriorRefusesUnfitRooms(t *testing.T) {
 	doorless := InteriorRoom{Shapes: testShapes, Role: RoomRoleBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 4}}
-	if _, ok := PlanInterior(doorless, InteriorPieceDef{}); ok {
+	if _, ok := PlanRoomInterior(doorless, InteriorPieceDef{}); ok {
 		t.Error("a doorless room planned")
 	}
-	untemplated := InteriorRoom{Shapes: testShapes, Role: RoomRole("Untemplated"), Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 4}, Doors: []domain.Cell{{X: 1, Z: -1}}}
-	if _, ok := PlanInterior(untemplated, InteriorPieceDef{}); ok {
-		t.Error("a role without a template planned")
+	unfurnished := InteriorRoom{Shapes: testShapes, Role: RoomRole("Untemplated"), Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 4}, Doors: []domain.Cell{{X: 1, Z: -1}}}
+	if _, ok := PlanRoomInterior(unfurnished, InteriorPieceDef{}); ok {
+		t.Error("a role with no wants planned")
 	}
 }
 
@@ -98,37 +72,13 @@ func TestInteriorRoomFromLayout(t *testing.T) {
 	if !ok || room.Role != RoomRoleBedroom {
 		t.Fatalf("room %+v %v", room, ok)
 	}
-	if _, ok := PlanInterior(room, InteriorPieceDef{}); !ok {
+	if _, ok := PlanRoomInterior(room, InteriorPieceDef{}); !ok {
 		t.Error("a v2 bedroom does not plan")
 	}
 }
 
-func TestRowHelpersAndRegularityChecker(t *testing.T) {
-	starts, ok := RowStarts(9, 3, 0, 3, RowCentred)
-	if !ok || starts[0] != 0 || starts[2] != 6 {
-		t.Fatalf("starts %v", starts)
-	}
+func TestRowCapacity(t *testing.T) {
 	if RowCapacity(10, 3, 1) != 2 || RowCapacity(11, 3, 1) != 3 {
 		t.Error("row capacity")
-	}
-	f := InteriorFrame{Shapes: testShapes, Width: 9, Depth: 5, Doors: []domain.Cell{{X: 4, Z: -1}}, Entrance: 4}
-	var pieces []InteriorPiece
-	starts, _ = RowStarts(f.Width, 3, 0, 2, RowCentred)
-	for i, u := range starts {
-		p := NewInteriorPiece("bench."+string(rune('a'+i)), "TableStonecutter", domain.Cell{X: 3, Z: 1}, domain.North, domain.Cell{X: u, Z: 4})
-		p.Row = "back"
-		pieces = append(pieces, p)
-	}
-	left := NewInteriorPiece("shelf.l", "Shelf", domain.Cell{X: 1, Z: 2}, domain.East, domain.Cell{X: 0, Z: 1})
-	left.Pair = "shelves"
-	pieces = append(pieces, left, f.MirrorPiece(left, "shelf.r"))
-	plan := InteriorPlan{Frame: f, Canonical: pieces}
-	if v := interiorRegularityViolations(plan); len(v) != 0 {
-		t.Errorf("regular plan flagged: %v", v)
-	}
-	pieces[1].Rect.Z = 3
-	pieces[3].Rect.X--
-	if v := interiorRegularityViolations(InteriorPlan{Frame: f, Canonical: pieces}); len(v) != 2 {
-		t.Errorf("violations %v, want the row off its line and the broken pair", v)
 	}
 }

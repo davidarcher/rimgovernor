@@ -121,12 +121,6 @@ func (l DefenseLayout) Tier(name DefenseTierName) (DefenseTier, bool) {
 	return DefenseTier{}, false
 }
 
-// HorseshoesLane is the canonical rectangle a pin at the back wall keeps
-// clear: three cells wide, from the pin five cells toward the entrance.
-func HorseshoesLane(f InteriorFrame) Rectangle {
-	return Rectangle{X: CentreStart(f.Width, 1) - 1, Z: f.Depth - f.Dining.Lane, Width: 3, Height: f.Dining.Lane - 1}
-}
-
 // WoodProposals: each designatable tree is one cut.
 func WoodProposals(goal ConcernID, method domain.MethodID, definition string, trees []string, eligible domain.Fact[bool]) []ReadyProposal {
 	var out []ReadyProposal
@@ -145,20 +139,6 @@ func SupplyHaulProposals(goal ConcernID, method domain.MethodID, definition stri
 	}
 	return out
 }
-
-// MirrorPiece is a piece's mirror image across the frame's centre line,
-// under a new slot name.
-func (f InteriorFrame) MirrorPiece(p InteriorPiece, slot string) InteriorPiece {
-	p.Slot = slot
-	p.Rect.X = MirrorStart(f.Width, p.Rect.X, p.Rect.Width)
-	if p.Rot == domain.East || p.Rot == domain.West {
-		p.Rot = rotateCW(p.Rot, 2)
-	}
-	return p
-}
-
-// MirrorStart is where the mirror image of a span starting at start lies.
-func MirrorStart(length, start, span int32) int32 { return length - start - span }
 
 // Batteries is the number of batteries that close the storage shortfall.
 func (b PowerBudget) Batteries() int {

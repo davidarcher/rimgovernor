@@ -395,7 +395,7 @@ Each unit that holds roamers also gets a barn-attached pen (husbandry-contracts,
   like a first shell and the beds are installed from packed stock first; the concern stays
   open while a step is due
   (`HerdRoomsOwed`). A definition the live catalog lacks fails the review.
-- The barn owes one optional powered heater (`RoomFurniture.Heater`, planned by `planBarn`
+- The barn owes one optional powered heater (`RoomFurniture.Heater`, placed by the region placer
   on the floor furthest from the door, wanted beside the beds); `TemperatureCooling.Conditioned`
   counts a room with one as heated. No barn cooler is planned.
 - Each standing ward bed is flagged medical by a `BedUse` patch. Each bonded animal's master

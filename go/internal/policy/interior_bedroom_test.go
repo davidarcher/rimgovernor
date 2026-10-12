@@ -2,8 +2,6 @@ package policy
 
 import (
 	"testing"
-
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func bedroomSlots(pieces []InteriorPiece) map[string]InteriorPiece {
@@ -14,125 +12,75 @@ func bedroomSlots(pieces []InteriorPiece) map[string]InteriorPiece {
 	return out
 }
 
-// headCells are a canonical South bed's sleeping cells: its top row.
-func headCells(bed InteriorPiece) []domain.Cell {
-	var out []domain.Cell
-	for u := bed.Rect.X; u < bed.Rect.X+bed.Rect.Width; u++ {
-		out = append(out, domain.Cell{X: u, Z: bed.Rect.Z + bed.Rect.Height - 1})
-	}
-	return out
+// bedroomLinks is the facility links the plan serves and wants, priced by the
+// objective the placer and the search use.
+func bedroomLinks(room InteriorRoom, plan InteriorPlan) (served, wanted int) {
+	s := ScoreInterior(InteriorObjective{Region: room.Floor(), Doors: room.Doors, Pieces: plan.Pieces, Shapes: testShapes})
+	return s.LinksServed, s.LinksWanted
 }
 
 func TestBedroomFurnitureLinksToTheBed(t *testing.T) {
 	for _, size := range [][3]int32{{5, 4, 0}, {5, 4, 1}, {4, 4, 1}, {6, 5, 2}, {7, 6, 1}} {
-		plan := assertInteriorRepeatable(t, RoomRoleBedroom, size[0], size[1], size[2])
-		s := bedroomSlots(plan.Canonical)
-		bed := s["bed"]
-		if bed.Rot != domain.South || bed.Rect.Z+bed.Rect.Height != plan.Frame.Depth {
-			t.Errorf("%v: bed %+v %s not headed on the back wall", size, bed.Rect, bed.Rot)
+		room, plan := planAround(t, RoomRoleBedroom, size[0], size[1], size[2], InteriorPieceDef{})
+		s := bedroomSlots(plan.Pieces)
+		for _, slot := range []string{"bed", "end_table", "dresser"} {
+			if _, ok := s[slot]; !ok {
+				t.Fatalf("%v: no %s in %v", size, slot, slotNames(plan.Pieces))
+			}
 		}
-		table, ok := s["end_table"]
-		if !ok {
-			t.Fatalf("%v: no end table in %+v", size, plan.Canonical)
-		}
-		adjacent := false
-		for _, h := range headCells(bed) {
-			d := domain.Cell{X: table.Rect.X - h.X, Z: table.Rect.Z - h.Z}
-			adjacent = adjacent || (d.Z == 0 && (d.X == 1 || d.X == -1)) || (d.X == 0 && (d.Z == 1 || d.Z == -1))
-		}
-		if !adjacent {
-			t.Errorf("%v: end table %+v not cardinal to the bed head", size, table.Rect)
-		}
-		dresser, ok := s["dresser"]
-		if !ok {
-			t.Fatalf("%v: no dresser in %+v", size, plan.Canonical)
-		}
-		dx := float64(2*dresser.Rect.X+dresser.Rect.Width) - float64(2*bed.Rect.X+bed.Rect.Width)
-		dz := float64(2*dresser.Rect.Z+dresser.Rect.Height) - float64(2*bed.Rect.Z+bed.Rect.Height)
-		if dx*dx+dz*dz > 4*36 {
-			t.Errorf("%v: dresser %+v beyond 6 cells of the bed", size, dresser.Rect)
+		if served, wanted := bedroomLinks(room, plan); wanted < 2 || served != wanted {
+			t.Errorf("%v: the end table and dresser serve %d of %d links", size, served, wanted)
 		}
 		// A four-wide back row is full with bed, table and dresser.
-		if _, ok := s["lamp"]; !ok && plan.Frame.Width > 4 {
+		if _, ok := s["lamp"]; !ok && size[0] > 4 {
 			t.Errorf("%v: no lamp", size)
-		}
-		// Everything but the back row stays clear floor.
-		for _, p := range plan.Canonical {
-			if p.Slot != "bed" && p.Rect.Z != plan.Frame.Depth-1 {
-				t.Errorf("%v: %s off the back wall", size, p.Slot)
-			}
 		}
 	}
 }
 
 func TestBedroomCrampedRoomsKeepTheBed(t *testing.T) {
-	plan := assertInteriorRepeatable(t, RoomRoleBedroom, 3, 3, 1)
-	s := bedroomSlots(plan.Canonical)
+	_, plan := planAround(t, RoomRoleBedroom, 3, 3, 1, InteriorPieceDef{})
+	s := bedroomSlots(plan.Pieces)
 	if _, ok := s["bed"]; !ok {
 		t.Fatalf("3x3: no bed")
 	}
 	if _, ok := s["dresser"]; ok {
-		t.Errorf("3x3: a dresser fits beside a centred bed: %+v", plan.Canonical)
-	}
-	for _, size := range [][3]int32{{1, 3, 0}, {2, 3, 0}} {
-		assertInteriorRepeatable(t, RoomRoleBedroom, size[0], size[1], size[2])
+		t.Errorf("3x3: a dresser fits beside a centred bed: %v", slotNames(plan.Pieces))
 	}
 }
 
-func TestBedroomDoubleBedLayout(t *testing.T) {
-	f := InteriorFrame{Shapes: testShapes, Width: 6, Depth: 5, Entrance: 1, Doors: []domain.Cell{{X: 1, Z: -1}}}
-	pieces, ok := planBedroomWith(f, "DoubleBed", domain.Cell{X: 2, Z: 2})
-	if !ok {
-		t.Fatal("no double-bed plan")
-	}
-	plan := InteriorPlan{Template: "bedroom", Frame: f, Canonical: pieces}
-	assertInteriorRegular(t, plan)
-	s := bedroomSlots(pieces)
-	if s["bed"].Rect != (Rectangle{X: 2, Z: 3, Width: 2, Height: 2}) || s["end_table"].Rect.X != 1 || s["dresser"].Rect.X != 4 {
-		t.Errorf("double bed layout %+v", pieces)
-	}
-	if _, ok := planBedroomWith(InteriorFrame{Shapes: testShapes, Width: 1, Depth: 5, Doors: []domain.Cell{{X: 0, Z: -1}}}, "DoubleBed", domain.Cell{X: 2, Z: 2}); ok {
-		t.Error("a double bed planned in a one-wide room")
-	}
-}
-
-// A requested or standing double bed is planned at its 2x2 size, the end
-// table touching a head cell, and repeatably across door sides.
+// A requested or standing double bed is planned at its 2x2 size with the end
+// table linked to it.
 func TestBedroomPlansTheRequestedBed(t *testing.T) {
 	for _, def := range []string{"DoubleBed", "RoyalBed"} {
 		for _, room := range interiorRoomsAround(RoomRoleBedroom, 6, 5, 1) {
-			plan, ok := PlanInterior(room, testShapes.Defs[def])
+			plan, ok := PlanRoomInterior(room, testShapes.Defs[def])
 			if !ok {
 				t.Fatalf("%s %+v: no plan", def, room)
 			}
-			assertInteriorRegular(t, plan)
-			s := bedroomSlots(plan.Canonical)
-			bed, table := s["bed"], s["end_table"]
-			if bed.Def != def || bed.Rect.Width != 2 || bed.Rect.Height != 2 {
-				t.Fatalf("%s: bed %+v", def, bed)
+			s := bedroomSlots(plan.Pieces)
+			bed := s["bed"]
+			if _, ok := s["end_table"]; !ok || bed.Def != def || bed.Rect.Width != 2 || bed.Rect.Height != 2 {
+				t.Fatalf("%s: bed %+v, slots %v", def, bed, slotNames(plan.Pieces))
 			}
-			adjacent := false
-			for _, h := range headCells(bed) {
-				adjacent = adjacent || (table.Rect.Z == h.Z && (table.Rect.X == h.X-1 || table.Rect.X == h.X+1))
-			}
-			if !adjacent {
-				t.Errorf("%s: end table %+v off the head", def, table.Rect)
+			if served, wanted := bedroomLinks(room, plan); served < 1 {
+				t.Errorf("%s: the end table serves %d of %d links", def, served, wanted)
 			}
 			room.Standing = []string{def}
-			standing, ok := PlanInterior(room, InteriorPieceDef{})
-			if !ok || standing.Canonical[0] != plan.Canonical[0] {
-				t.Errorf("%s: standing plan %+v", def, standing.Canonical)
+			standing, ok := PlanRoomInterior(room, InteriorPieceDef{})
+			if !ok || bedroomSlots(standing.Pieces)["bed"].Def != def {
+				t.Errorf("%s: standing plan %v", def, slotNames(standing.Pieces))
 			}
 		}
 	}
 }
 
-func plannedSpace(plan InteriorPlan) float64 {
+func plannedSpace(size [2]int32, plan InteriorPlan) float64 {
 	blocked := 0
-	for _, p := range plan.Canonical {
+	for _, p := range plan.Pieces {
 		blocked += int(p.Rect.Width * p.Rect.Height)
 	}
-	return bedroomSpace(plan.Frame.Width, plan.Frame.Depth, blocked)
+	return bedroomSpace(size[0], size[1], blocked)
 }
 
 // The standard room by tech tier: its size, its furniture set, and
@@ -151,17 +99,17 @@ func TestBedroomStandardRoomByTier(t *testing.T) {
 	}
 	for _, c := range cases {
 		size := c.size
-		plan := assertInteriorRepeatable(t, RoomRoleBedroom, size[0], size[1], size[0]/2)
-		s := bedroomSlots(plan.Canonical)
+		_, plan := planAround(t, RoomRoleBedroom, size[0], size[1], size[0]/2, InteriorPieceDef{})
+		s := bedroomSlots(plan.Pieces)
 		for _, slot := range c.set {
 			if _, ok := s[slot]; !ok {
-				t.Errorf("%s %v: no %s in %+v", c.tier, size, slot, plan.Canonical)
+				t.Errorf("%s %v: no %s in %v", c.tier, size, slot, slotNames(plan.Pieces))
 			}
 		}
-		if len(plan.Canonical) != len(c.set) {
-			t.Errorf("%s %v: pieces %+v, want %v", c.tier, size, plan.Canonical, c.set)
+		if small := size[0]*size[1] < bedroomFullSetTiles; small && len(plan.Pieces) != len(c.set) {
+			t.Errorf("%s %v: pieces %v, want exactly %v", c.tier, size, slotNames(plan.Pieces), c.set)
 		}
-		if space := plannedSpace(plan); space < bedroomMinSpace {
+		if space := plannedSpace(size, plan); space < bedroomMinSpace {
 			t.Errorf("%s %v: space %.1f below %.1f", c.tier, size, space, bedroomMinSpace)
 		}
 	}
@@ -170,9 +118,9 @@ func TestBedroomStandardRoomByTier(t *testing.T) {
 // Optional pieces never take a room below the space floor; only the bed may.
 func TestBedroomSpaceBudgetDropsOptionalPieces(t *testing.T) {
 	for _, size := range [][2]int32{{3, 4}, {4, 4}, {4, 5}, {3, 3}, {5, 4}, {5, 5}} {
-		plan := assertInteriorRepeatable(t, RoomRoleBedroom, size[0], size[1], size[0]/2)
-		if space := plannedSpace(plan); space < bedroomMinSpace && len(plan.Canonical) > 1 {
-			t.Errorf("%v: space %.1f with %+v", size, space, plan.Canonical)
+		_, plan := planAround(t, RoomRoleBedroom, size[0], size[1], size[0]/2, InteriorPieceDef{})
+		if space := plannedSpace(size, plan); space < bedroomMinSpace && len(plan.Pieces) > 1 {
+			t.Errorf("%v: space %.1f with %v", size, space, slotNames(plan.Pieces))
 		}
 	}
 }

@@ -113,9 +113,8 @@ func regionFamilyFixtures() []regionFixture {
 }
 
 // regionFamilies are the roles the region placer furnishes, each at its core
-// size (or one fixture of the sized families). The parity tests hold every one
-// to its template's capacity, slot names and gated objective terms over the
-// sizes in use and two irregular shapes (#2956).
+// size (or one fixture of the sized families). The irregular-floor test holds
+// every one to the greedy layout on two irregular shapes (#2956).
 func regionFamilies() []regionFixture {
 	var out []regionFixture
 	for _, c := range []struct {
@@ -190,81 +189,63 @@ func searchedWith(t *testing.T, f regionFixture, room InteriorRoom, region Regio
 	return res, req, true
 }
 
-// Per family, over the sizes in use: the region plan holds at least the
-// template's count of every definition, carries every slot name the template
-// does (the reconcilers and runtime consumers read them), is feasible, and its
-// searched layout is no worse than the template's on any gated term. Free floor
-// is compared only when the region plan holds no more pieces than the template:
-// more capacity is what #2956 asks for, and costs floor.
-func TestRegionInteriorMatchesTemplates(t *testing.T) {
-	var table strings.Builder
+// regionSlotPrefixes are the slot names, or name prefixes, the reconcilers and
+// runtime consumers read from each role's plan (bench.N, research, bunk.N, the
+// bed slots, the climate slots).
+var regionSlotPrefixes = map[RoomRole][]string{
+	RoomRoleWorkshop:    {"bench.", "shelf."},
+	RoomRoleLaboratory:  {"bench.", labAnalyzerSlot},
+	RoomRoleKitchen:     {"stove."},
+	RoomRoleTomb:        {"sarcophagus."},
+	RoomRolePrisonCell:  {"bed."},
+	RoomRoleHospital:    {"bed.", "monitor."},
+	RoomRoleBedroom:     {"bed", "end_table"},
+	RoomRoleSuite:       {"bed", "end_table"},
+	RoomRoleThroneRoom:  {throneSlot, "brazier."},
+	RoomRoleShelter:     {shelterBunkSlotPrefix, "research", "craft", "campfire."},
+	RoomRoleBarn:        {herdHeaterSlot},
+	RoomRoleDiningRoom:  {"table.", "chair."},
+	RoomRoleRecRoom:     {"table.", "chair."},
+	RoomRoleNursery:     {"child."},
+	RoomRolePlayroom:    {"child."},
+	RoomRoleClassroom:   {"child."},
+	RoomRoleWorshipRoom: {"child."},
+}
+
+// Per family, over the sizes in use: the plan is feasible, holds the role's
+// minimum and carries the slot names the consumers read.
+func TestRegionInteriorCarriesTheConsumerSlotNames(t *testing.T) {
 	for _, f := range regionFamilyFixtures() {
 		key := fmt.Sprintf("%s %s %dx%d", f.Role, f.Name, f.W, f.D)
 		room, region, cands := f.room()
-		tpl, tok := PlanInterior(room, f.Piece)
-		reg, rok := PlanRegionInterior(room, f.Piece)
-		if tok && !rok {
-			t.Errorf("%s: the template plans, the region placer does not", key)
-			continue
-		}
-		if !tok {
-			continue
-		}
-		have, want := defCounts(reg.Pieces), defCounts(tpl.Pieces)
-		// A barn's heater is placed first and may take the floor of one bed in a
-		// tight barn, where the template packs one more bed around it.
-		heaterFloor := 0
-		if f.Role == RoomRoleBarn && slices.ContainsFunc(reg.Pieces, func(p InteriorPiece) bool { return p.Slot == herdHeaterSlot }) {
-			heaterFloor = 1
-		}
-		for def, n := range want {
-			if have[def] < n-heaterFloor {
-				t.Errorf("%s: %s: region plan holds %d, template %d", key, def, have[def], n)
-			}
-		}
-		names := map[string]string{}
-		for _, p := range reg.Pieces {
-			names[p.Slot] = p.Def
-		}
-		for _, p := range tpl.Pieces {
-			// A dining or rec room's pieces are named by table and chair
-			// index; no consumer reads which side of a table a chair is on.
-			if diningRole(f.Role) && (p.Def == testDining.Chair.Def || p.Slot == "lamp") {
-				continue
-			}
-			// A barn's beds are interchangeable: the reconciler takes the ones
-			// nearest the door, whatever the slot is called.
-			if f.Role == RoomRoleBarn && p.Slot != herdHeaterSlot {
-				continue
-			}
-			if names[p.Slot] != p.Def {
-				t.Errorf("%s: template slot %s (%s) is missing from the region plan %v", key, p.Slot, p.Def, names)
-			}
-		}
-		res, req, ok := searchedWith(t, f, room, region, cands)
+		plan, ok := PlanRegionInterior(room, f.Piece)
 		if !ok {
-			t.Errorf("%s: no searched region plan", key)
+			t.Errorf("%s: not furnished", key)
 			continue
 		}
-		in := InteriorObjective{Region: region, Candidates: cands, Doors: room.Doors, Pieces: tpl.Pieces, Required: want, Shapes: testShapes, Dining: testDining, Flows: objectiveFlows(t, f.Role)}
-		ts := ScoreInterior(in)
-		if !res.Score.Feasible() {
-			t.Errorf("%s: region plan breaks hard constraints: %v", key, res.Score.Violations)
+		if s := ScoreInterior(InteriorObjective{Region: region, Candidates: cands, Doors: room.Doors, Pieces: plan.Pieces, Shapes: testShapes, Dining: testDining}); !s.Feasible() {
+			t.Errorf("%s: infeasible: %v", key, s.Violations)
 		}
-		worse := res.Score.WorseTerms(ts)
-		if len(res.Stood()) > len(tpl.Pieces) {
-			worse = slices.DeleteFunc(worse, func(term string) bool { return term == "free" })
+		prefixes := regionSlotPrefixes[f.Role]
+		if f.Role == RoomRoleThroneRoom && f.Piece.Def == "" {
+			// Asked for no throne, the room plans the furniture around it.
+			prefixes = []string{"end_table"}
 		}
-		if len(worse) > 0 {
-			t.Errorf("%s: region plan worse than the template on %v:\n region   %s\n template %s", key, worse, objectiveCells(&res.Score), objectiveCells(&ts))
+		for _, prefix := range prefixes {
+			if !slices.ContainsFunc(plan.Pieces, func(p InteriorPiece) bool { return strings.HasPrefix(p.Slot, prefix) }) {
+				t.Errorf("%s: no %q slot in %v", key, prefix, slotNames(plan.Pieces))
+			}
 		}
-		_ = req
-		fmt.Fprintf(&table, "%-12s %-9s %2dx%d  template: %s | region: %s\n", f.Role, f.Name, f.W, f.D, objectiveCells(&ts), objectiveCells(&res.Score))
 	}
-	t.Log("\n" + table.String())
 }
 
-func diningRole(r RoomRole) bool { return r == RoomRoleDiningRoom || r == RoomRoleRecRoom }
+func slotNames(pieces []InteriorPiece) []string {
+	var out []string
+	for _, p := range pieces {
+		out = append(out, p.Slot)
+	}
+	return out
+}
 
 // Two irregular shapes per role: the plan stays on the floor, keeps the doors
 // and every cell reachable, holds the role's minimum, and is no worse than the
@@ -310,9 +291,9 @@ func TestRegionInteriorFitsIrregularFloors(t *testing.T) {
 	}
 }
 
-// A room the template cannot plan stays unplanned: no door, a floor too shallow
+// A room the role cannot furnish stays unplanned: no door, a floor too shallow
 // for a bench row and its worker row.
-func TestRegionInteriorRefusesWhatTheTemplateRefuses(t *testing.T) {
+func TestRegionInteriorRefusesUnfitRooms(t *testing.T) {
 	shallow := InteriorRoom{Shapes: testShapes, Role: RoomRoleWorkshop, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 2}, Doors: []domain.Cell{{X: 1, Z: -1}}}
 	if _, ok := PlanRegionInterior(shallow, InteriorPieceDef{}); ok {
 		t.Error("a two-deep room planned a workshop")
@@ -433,8 +414,44 @@ func TestRegionClearLaneStaysOpen(t *testing.T) {
 	}
 }
 
-// regionParityIterations is the search budget the parity tests give a room with
-// the station graph flows. At the default budget a flow-weighted workshop 7x5
+// regionParityIterations is the search budget the tests give a room with the
+// station graph flows. At the default budget a flow-weighted workshop 7x5
 // leaves its pair walk at the greedy layout for some seeds (about one in eight);
-// four times the default reached the template or better for every seed tried.
+// four times the default reached the greedy layout or better for every seed.
 const regionParityIterations = 4 * DefaultInteriorSearchIterations
+
+// interiorRoomsAround returns the same width x depth room with its one door
+// at entrance on each of the four walls and at the mirrored position.
+func interiorRoomsAround(role RoomRole, width, depth, entrance int32) []InteriorRoom {
+	at := func(r Rectangle, door domain.Cell) InteriorRoom {
+		return InteriorRoom{Role: role, Interior: r, Doors: []domain.Cell{door}, Dining: testDining, Shapes: testShapes, Campfires: ShelterCampfires(true), Capabilities: CapabilitiesOf(PlannedShelter)}
+	}
+	ns := Rectangle{X: 10, Z: 20, Width: width, Height: depth}
+	ew := Rectangle{X: 10, Z: 20, Width: depth, Height: width}
+	var rooms []InteriorRoom
+	for _, u := range []int32{entrance, width - 1 - entrance} {
+		rooms = append(rooms,
+			at(ns, domain.Cell{X: ns.X + u, Z: ns.Z - 1}),
+			at(ns, domain.Cell{X: ns.X + width - 1 - u, Z: ns.Z + depth}),
+			at(ew, domain.Cell{X: ew.X - 1, Z: ew.Z + width - 1 - u}),
+			at(ew, domain.Cell{X: ew.X + depth, Z: ew.Z + u}),
+		)
+	}
+	return rooms
+}
+
+// planAround plans a room of the role and size with its door on the south wall
+// at entrance and requires a plan that is feasible: on the floor, the doors
+// reachable.
+func planAround(t *testing.T, role RoomRole, width, depth, entrance int32, piece InteriorPieceDef) (InteriorRoom, InteriorPlan) {
+	t.Helper()
+	room := interiorRoomsAround(role, width, depth, entrance)[0]
+	plan, ok := PlanRoomInterior(room, piece)
+	if !ok {
+		t.Fatalf("%s %dx%d door %d: no plan", role, width, depth, entrance)
+	}
+	if s := ScoreInterior(InteriorObjective{Region: room.Floor(), Doors: room.Doors, Pieces: plan.Pieces, Shapes: testShapes, Dining: testDining}); !s.Feasible() {
+		t.Errorf("%s %dx%d door %d: infeasible: %v", role, width, depth, entrance, s.Violations)
+	}
+	return room, plan
+}

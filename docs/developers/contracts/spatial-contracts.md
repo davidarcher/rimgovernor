@@ -272,8 +272,7 @@ Hot and NextRoomID.
   to the want's minimum fall back to any free cell. `Open` seats a want where the most of its
   `Beside` pieces still fit, nearest the doors (a table with room for its chairs); `Clear` keeps a
   lane open in front of a piece (the pin's throw lane; a hard constraint). A role with no
-  `regionRoles` entry has no interior; the `InteriorTemplate`s and `PlanInterior` remain
-  only as the parity tests' baseline until #2957 deletes them. A barn's beds carry a
+  `regionRoles` entry has no interior. A barn's beds carry a
   synthetic front interaction (tended from the cell before them) and its heater is placed first.
   **Roofed set (#2941).** On a bad-climate map (the Cold or Hot latch, or a curve under
   `ColdMapBelowC` or over `HotEnter`) `PlanRoofed` (`layout_roof.go`) puts every

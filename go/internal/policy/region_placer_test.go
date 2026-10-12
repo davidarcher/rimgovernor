@@ -74,8 +74,8 @@ func TestPlaceInRegionRectValidates(t *testing.T) {
 	if err != nil || len(pieces) != 3 {
 		t.Fatalf("pieces %d err %v", len(pieces), err)
 	}
-	if err := ValidateInteriorPieces(InteriorFrame{Width: 6, Depth: 4}, pieces); err != nil {
-		t.Fatal(err)
+	if s := ScoreInterior(InteriorObjective{Region: g, Doors: []domain.Cell{{X: 2, Z: -1}}, Pieces: pieces, Shapes: testShapes}); !s.Feasible() {
+		t.Fatal(s.Violations)
 	}
 }
 

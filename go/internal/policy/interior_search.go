@@ -235,7 +235,7 @@ func perturbPieces(pieces []InteriorPiece, free int, cells []domain.Cell, bounds
 // replaced is p stood at the footprint corner in rotation rot.
 func replaced(p InteriorPiece, rot domain.Rotation, corner domain.Cell) InteriorPiece {
 	q := NewInteriorPiece(p.Slot, p.Def, p.Size, rot, corner)
-	q.InteractionOffset, q.Row, q.Pair, q.Centred = p.InteractionOffset, p.Row, p.Pair, p.Centred
+	q.InteractionOffset, q.Row = p.InteractionOffset, p.Row
 	q.Beside, q.Clear = p.Beside, p.Clear
 	return q
 }

@@ -139,8 +139,8 @@ func TestContainmentCellRoleTables(t *testing.T) {
 	if moduleRoomRoles[PlannedContainmentCell] != RoomRoleContainmentCell {
 		t.Fatal("containment cell tables")
 	}
-	if _, ok := InteriorTemplateFor(RoomRoleContainmentCell); !ok {
-		t.Fatal("no interior template")
+	if _, ok := regionRoles[RoomRoleContainmentCell]; !ok {
+		t.Fatal("no interior wants")
 	}
 	if f, err := Facility(RoomRoleContainmentCell); err != nil || f.Status != FacilityImplemented || !f.FurnitureFromGame || f.Content != "Anomaly" {
 		t.Fatalf("catalog row: %+v %v", f, err)

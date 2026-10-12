@@ -71,33 +71,9 @@ func objectiveRoom(f objectiveFixture) (InteriorRoom, Region, []domain.Cell) {
 	return room, RectRegion(r), cands
 }
 
-// greedyWants asks the placer for the template's inventory: every definition
-// it placed, as many times, in first-seen order.
-func greedyWants(pieces []InteriorPiece) ([]RegionWant, map[string]int) {
-	var wants []RegionWant
-	index := map[string]int{}
-	required := map[string]int{}
-	for _, p := range pieces {
-		required[p.Def]++
-		i, ok := index[p.Def]
-		if !ok {
-			i = len(wants)
-			index[p.Def] = i
-			w := RegionWant{Slot: p.Def, Def: p.Def, Size: p.Size}
-			if p.InteractionOffset != nil {
-				off := *p.InteractionOffset
-				w.Interaction = &off
-			}
-			wants = append(wants, w)
-		}
-		wants[i].Count++
-	}
-	return wants, required
-}
-
 type objectiveRow struct {
-	Fixture                    objectiveFixture
-	Template, Greedy, Searched *InteriorScore
+	Fixture          objectiveFixture
+	Greedy, Searched *InteriorScore
 }
 
 func scoreObjectiveFixtures(t *testing.T) []objectiveRow {
@@ -105,20 +81,21 @@ func scoreObjectiveFixtures(t *testing.T) []objectiveRow {
 	for _, f := range objectiveFixtures() {
 		room, region, cands := objectiveRoom(f)
 		row := objectiveRow{Fixture: f}
-		plan, ok := PlanInterior(room, InteriorPieceDef{})
+		req, ok := regionRequest(room, InteriorPieceDef{})
 		if !ok {
 			rows = append(rows, row)
 			continue
 		}
-		wants, required := greedyWants(plan.Pieces)
-		in := InteriorObjective{Region: region, Candidates: cands, Doors: room.Doors, Pieces: plan.Pieces, Required: required, Shapes: testShapes, Dining: testDining, Flows: objectiveFlows(t, f.Role)}
-		ts := ScoreInterior(in)
-		row.Template = &ts
-		placed, _ := PlaceInRegion(RegionPlacement{Region: region, Doors: room.Doors, Wants: wants})
+		required := map[string]int{}
+		for _, w := range req.Wants {
+			required[w.Def] += w.Min
+		}
+		in := InteriorObjective{Region: region, Candidates: cands, Doors: room.Doors, Required: required, Shapes: testShapes, Dining: testDining, Flows: objectiveFlows(t, f.Role)}
+		placed, _ := PlaceInRegion(req)
 		in.Pieces = placed
 		gs := ScoreInterior(in)
 		row.Greedy = &gs
-		searched, err := SearchInterior(RegionPlacement{Region: region, Doors: room.Doors, Wants: wants}, InteriorSearch{
+		searched, err := SearchInterior(req, InteriorSearch{
 			Candidates: cands, Shapes: testShapes, Dining: testDining, Flows: in.Flows, Seed: searchSeedOf(f.Role, f.W, f.D, f.Freezer),
 		})
 		if err != nil {
@@ -142,24 +119,19 @@ func objectiveCells(s *InteriorScore) string {
 	return fmt.Sprintf("n=%d free=%.2f links=%d/%d gated walk=%.2f (door %.2f pair %.2f, %d edges) info walk=%.2f (%d edges)%s", s.Pieces, s.Free(), s.LinksServed, s.LinksWanted, s.Walk, s.DoorWalk, s.PairWalk, s.WalkEdges, s.InfoWalk, s.InfoEdges, v)
 }
 
-// TestInteriorObjectiveScoresTemplatesAndGreedy prints the score table
-// (go test -run Objective -v): template, greedy placer and seeded search per
-// fixture. The gate is greedy-only (user decision, #2869): the searched layout
-// is feasible, holds the same pieces and is no worse than the greedy placer on
-// any gated term (free floor, links, pair walk, door walk of recipe and item
-// flows). Templates are held to the hard constraints only; where a template
-// beats the greedy or searched layout on a term the table shows it and nothing
-// gates it. Informational walking (meals, sleep, rest) is never compared.
-func TestInteriorObjectiveScoresTemplatesAndGreedy(t *testing.T) {
+// TestInteriorObjectiveScoresGreedyAndSearched prints the score table
+// (go test -run Objective -v): greedy placer and seeded search per fixture.
+// The gate is greedy-only (user decision, #2869): the searched layout is
+// feasible, holds the same pieces and is no worse than the greedy placer on any
+// gated term (free floor, links, pair walk, door walk of recipe and item
+// flows). Informational walking (meals, sleep, rest) is never compared.
+func TestInteriorObjectiveScoresGreedyAndSearched(t *testing.T) {
 	var table strings.Builder
 	for _, row := range scoreObjectiveFixtures(t) {
 		f := row.Fixture
-		fmt.Fprintf(&table, "%-12s %-9s %2dx%d  template: %s | greedy: %s | searched: %s\n", f.Role, f.Name, f.W, f.D, objectiveCells(row.Template), objectiveCells(row.Greedy), objectiveCells(row.Searched))
-		if row.Template == nil {
+		fmt.Fprintf(&table, "%-12s %-9s %2dx%d  greedy: %s | searched: %s\n", f.Role, f.Name, f.W, f.D, objectiveCells(row.Greedy), objectiveCells(row.Searched))
+		if row.Greedy == nil {
 			continue
-		}
-		if !row.Template.Feasible() {
-			t.Errorf("%s %s %dx%d: template breaks hard constraints: %v", f.Role, f.Name, f.W, f.D, row.Template.Violations)
 		}
 		key := fmt.Sprintf("%s %s %dx%d", f.Role, f.Name, f.W, f.D)
 		if !row.Greedy.Feasible() {

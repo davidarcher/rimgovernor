@@ -254,7 +254,7 @@ internal/policy/herd_plan.go|herdProductJob|"Chemfuel"
 internal/policy/hospital.go|SelectHospitalBed|"SleepingSpot"
 internal/policy/hunt_prerequisite.go|-|6000
 internal/policy/interior_helpers.go|-|"StandingLamp"
-internal/policy/interior_workshop.go|-|"ShelfSmall"
+internal/policy/interior_region_roles.go|-|"ShelfSmall"
 internal/policy/item_facts_fixture.go|CoreItemFacts|"Bed"
 internal/policy/item_facts_fixture.go|CoreItemFacts|"Beer"
 internal/policy/item_facts_fixture.go|CoreItemFacts|"BlocksGranite"

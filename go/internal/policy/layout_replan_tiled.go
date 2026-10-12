@@ -2,6 +2,7 @@ package policy
 
 import (
 	"maps"
+	"math"
 	"slices"
 	"sort"
 )
@@ -307,4 +308,11 @@ func unmatchedReason(r PlannedRoom, notBlock bool) string {
 		return ReasonDiffNotBlock
 	}
 	return ReasonDiffNoNode
+}
+
+// rectCentreDistance is the straight distance between two rectangles centres.
+func rectCentreDistance(a, b Rectangle) float64 {
+	dx := float64(2*a.X+a.Width-2*b.X-b.Width) / 2
+	dz := float64(2*a.Z+a.Height-2*b.Z-b.Height) / 2
+	return math.Sqrt(dx*dx + dz*dz)
 }

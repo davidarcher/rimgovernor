@@ -18,10 +18,6 @@ const (
 // table 1, dresser 2, lamp 1), each tile costing the Space stat 0.9.
 const suiteFurnitureTiles = 6
 
-func init() {
-	RegisterInteriorTemplate(RoomRoleSuite, InteriorTemplate{Name: "suite", Plan: planBedroom})
-}
-
 // SuiteSize is the suite interior (width along the corridor, depth away
 // from it) whose space meets an impressiveness target on its own: the
 // Space stat normalised by 125 (room_quality_upgrade.go) reaching

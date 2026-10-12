@@ -20,7 +20,7 @@ func TestShelterCampfireInteractionCellStaysInside(t *testing.T) {
 	for _, size := range [][2]int32{{6, 4}, {7, 5}, {5, 4}} {
 		room := shelterInterior(size[0], size[1], 2)
 		room.Shapes = shapes
-		plan, ok := PlanInterior(room, InteriorPieceDef{})
+		plan, ok := PlanRoomInterior(room, InteriorPieceDef{})
 		if !ok {
 			t.Fatalf("%v: no plan", size)
 		}

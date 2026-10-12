@@ -60,9 +60,8 @@ type regionFrame struct {
 func (r InteriorRoom) regionFrame() regionFrame {
 	probe := r
 	probe.Interior, probe.Region = r.Floor().Bounds(), Region{}
-	if x, ok := newInteriorTransform(probe); ok {
-		f := x.frame()
-		return regionFrame{Width: f.Width, Depth: f.Depth, Entrance: f.Entrance}
+	if f, ok := entranceFrame(probe); ok {
+		return f
 	}
 	b := probe.Interior
 	return regionFrame{Width: max(b.Width, b.Height), Depth: min(b.Width, b.Height), Entrance: max(b.Width, b.Height) / 2}
@@ -170,12 +169,11 @@ func planRegion(room InteriorRoom, piece InteriorPieceDef, search bool) (Interio
 	if err != nil {
 		return InteriorPlan{}, false
 	}
-	return InteriorPlan{Template: "region", Room: room, Pieces: pieces}, true
+	return InteriorPlan{Room: room, Pieces: pieces}, true
 }
 
 // PlanRoomInterior is the live interior entry: the region placer's plan, false
-// for a role with no entry in regionRoles. The role templates and PlanInterior
-// remain only until they are deleted (#2957).
+// for a role with no entry in regionRoles.
 func PlanRoomInterior(room InteriorRoom, piece InteriorPieceDef) (InteriorPlan, bool) {
 	return PlanRegionInterior(room, piece)
 }

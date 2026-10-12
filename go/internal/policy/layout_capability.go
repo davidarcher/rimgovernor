@@ -80,6 +80,3 @@ var capabilityCells = map[Capability]int{CapCraft: 1, CapResearch: 6}
 
 // ShelterHosts reports whether the shelter template hosts the capability.
 func ShelterHosts(c Capability) bool { return slices.Contains(shelterCapabilities, c) }
-
-// hosts reports whether the frame's room hosts the capability.
-func (f InteriorFrame) hosts(c Capability) bool { return slices.Contains(f.Capabilities, c) }

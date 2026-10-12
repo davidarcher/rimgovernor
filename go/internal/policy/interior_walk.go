@@ -1,8 +1,6 @@
 package policy
 
 import (
-	"fmt"
-
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -10,37 +8,6 @@ import (
 // may not cut the aisle between its doors, wall off any floor, or stand on
 // another piece's interaction cell. Reachability is over orthogonal steps,
 // the conservative reading of RimWorld's no-corner-cutting pathing.
-
-// InteriorPlanWalkable checks a plan's world pieces against its room: every
-// door threshold is floor and all thresholds join, every free cell is
-// reachable from them, and every interaction cell inside the room is free.
-func InteriorPlanWalkable(plan InteriorPlan) error {
-	room := plan.Room
-	blocked := map[domain.Cell]bool{}
-	for _, p := range plan.Pieces {
-		for _, c := range rectCells(p.Rect) {
-			blocked[c] = true
-		}
-	}
-	thresholds := interiorThresholds(room)
-	for _, t := range thresholds {
-		if blocked[t] {
-			return fmt.Errorf("a piece stands inside the door at %v", t)
-		}
-	}
-	reach := interiorReach(room.Interior, blocked, thresholds)
-	for _, c := range rectCells(room.Interior) {
-		if !blocked[c] && !reach[c] {
-			return fmt.Errorf("floor at %v is cut off from the doors", c)
-		}
-	}
-	for _, p := range plan.Pieces {
-		if c, ok := p.Interaction(); ok && rectContains(room.Interior, c) && blocked[c] {
-			return fmt.Errorf("%s: interaction cell %v is blocked", p.Slot, c)
-		}
-	}
-	return nil
-}
 
 // InteriorPlacementWalkable reports whether adding a footprint to a room
 // whose blocked cells are given keeps every door threshold and every free

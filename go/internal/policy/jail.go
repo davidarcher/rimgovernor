@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -17,39 +16,6 @@ import (
 // bed: the ring, the floor and the bed, installed from packed stock first. A
 // fresh bed is placed plain and flagged on a later step once it stands.
 // Wardens bring the prisoners to the beds; nothing here hauls.
-
-func init() {
-	RegisterInteriorTemplate(RoomRolePrisonCell, InteriorTemplate{Name: "jail", Plan: planJail})
-}
-
-// planJail lays beds the tomb's way: a 1-cell aisle straight in
-// from the door, beds on both sides, heads to the side walls.
-func planJail(f InteriorFrame, _ InteriorPieceDef) ([]InteriorPiece, bool) {
-	bed, ok := f.Shapes.Get(f.Shapes.Furniture.PrimaryBed())
-	if !ok {
-		return nil, false
-	}
-	aisle := f.Entrance
-	// Turned to face the aisle a bed is Size.Z cells wide and Size.X deep.
-	size, reach := bed.Size, bed.Size.Z
-	var out []InteriorPiece
-	for _, v := range AisleRows(f.Depth, size.X) {
-		if v+size.X > f.Depth {
-			continue
-		}
-		if aisle >= reach {
-			p := NewInteriorPiece(fmt.Sprintf("bed.w%d", v+1), bed.Def, size, domain.West, domain.Cell{X: aisle - reach, Z: v})
-			p.Row = "beds.west"
-			out = append(out, p)
-		}
-		if aisle+1+reach <= f.Width {
-			p := NewInteriorPiece(fmt.Sprintf("bed.e%d", v+1), bed.Def, size, domain.East, domain.Cell{X: aisle + 1, Z: v})
-			p.Row = "beds.east"
-			out = append(out, p)
-		}
-	}
-	return out, len(out) > 0
-}
 
 // JailStepKind is the next jail step.
 type JailStepKind string

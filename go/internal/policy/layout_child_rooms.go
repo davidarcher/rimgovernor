@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -13,12 +12,6 @@ import (
 // Furniture stands in bands of free floor: a band as high as the piece, a
 // free row between bands, the row inside the entrance free, and the
 // entrance's column free the full depth so every band stays reachable.
-
-func init() {
-	for _, role := range []RoomRole{RoomRoleNursery, RoomRolePlayroom, RoomRoleClassroom, RoomRoleWorshipRoom, RoomRoleDeathrestChamber, RoomRoleContainmentCell, RoomRoleIsolationRoom} {
-		RegisterInteriorTemplate(role, InteriorTemplate{Name: "child-room", Plan: planChildRoom})
-	}
-}
 
 // ChildRoomShapes are the shapes of every need whose furniture resolves,
 // planned or not.
@@ -166,14 +159,4 @@ func frameDims(r PlannedRoom) (width, depth int32) {
 		return r.Region.Bounds().Height, r.Region.Bounds().Width
 	}
 	return r.Region.Bounds().Width, r.Region.Bounds().Height
-}
-
-// planChildRoom lays every slot for the piece being placed; the step takes
-// the first free one. A template given no piece plans nothing.
-func planChildRoom(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool) {
-	var out []InteriorPiece
-	for i, c := range childSlots(f.Width, f.Depth, f.Entrance, piece.Size) {
-		out = append(out, NewInteriorPiece(fmt.Sprintf("child.%d", i), piece.Def, piece.Size, domain.South, c))
-	}
-	return out, piece.Def != "" && len(out) > 0
 }

@@ -370,3 +370,31 @@ func diningWants(recFirst bool) regionRole {
 		return wants, true
 	}
 }
+
+// workshopShelfDef is the input shelf beside a bench. It is no facility (no
+// row links it), so the catalog has no rule that names it.
+const workshopShelfDef = "ShelfSmall"
+
+// labAnalyzerSlot names the analyzer's slot.
+const labAnalyzerSlot = "analyzer"
+
+// diningUnitDepth is a table unit: end chair, 1x2 table, end chair along the
+// centre line, with side chairs either side of the table.
+const diningUnitDepth = 4
+
+// Space stat terms: each interior tile adds bedroomSpacePerTile, each tile a
+// blocking piece stands on takes bedroomSpacePerBlocked off again.
+const (
+	bedroomSpacePerTile    = 1.4
+	bedroomSpacePerBlocked = 0.9
+	bedroomMinSpace        = 12.5
+	// bedroomFullSetTiles is the smallest interior that holds the full set;
+	// smaller rooms get the bed and end table only.
+	bedroomFullSetTiles = 16
+)
+
+// bedroomSpace is the planned space of a width x depth room with blocked
+// tiles under furniture.
+func bedroomSpace(width, depth int32, blocked int) float64 {
+	return bedroomSpacePerTile*float64(width*depth) - bedroomSpacePerBlocked*float64(blocked)
+}

@@ -9,8 +9,8 @@ import "fmt"
 // definition's workTableRoomRole, or the bedroom or hospital role of a
 // humanlike bed); and the furniture the room planners place, chosen by rules
 // over the same rows (RoomFurniture). It is a threaded value on the room
-// observation and the colony projection, carried to InteriorRoom and
-// InteriorFrame, never a global.
+// observation and the colony projection, carried to InteriorRoom,
+// never a global.
 type PieceShapes struct {
 	Defs      map[string]InteriorPieceDef
 	Furniture RoomFurniture

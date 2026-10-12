@@ -1,24 +1,10 @@
 package policy
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
-
-// Interior plans lay furniture out inside one rectangular room.
-// A plan is derived, never persisted: PlanInterior is a pure function of the
-// room's role, interior rectangle and door cells, so two rooms of the same
-// role and size get the same layout turned to face their doors.
-//
-// Templates are written in a canonical frame: the room is Width cells along
-// its entrance wall and Depth cells away from it, u runs along the entrance
-// wall, v away from it, the entrance door stands at (Entrance, -1) and the
-// entrance sits on the left half of the wall (a room whose door is right of
-// centre is mirrored). Canonical North is "away from the entrance". A
-// template for a role is one file that calls RegisterInteriorTemplate from
-// init; interior_helpers.go holds the shared geometry.
 
 // InteriorRoom is the input to a plan: the role whose template applies, the
 // floor (walls excluded) and the doors in the walls around it.
@@ -82,40 +68,9 @@ type InteriorRoom struct {
 // no buildable row for it.
 func (r InteriorRoom) Piece(def string) (InteriorPieceDef, bool) { return r.Shapes.Get(def) }
 
-// InteriorFrame is the canonical view of a room a template plans in.
-type InteriorFrame struct {
-	Width, Depth int32
-	// Entrance is the u of the door the frame faces; its inside cell is
-	// (Entrance, 0).
-	Entrance int32
-	// Standing are the shapes of the room's standing definitions.
-	Standing []InteriorPieceDef
-	// Dining is the room's dining furniture (InteriorRoom.Dining).
-	Dining DiningFurniture
-	// Shapes are the room's piece shapes (InteriorRoom.Shapes).
-	Shapes PieceShapes
-	// Required is InteriorRoom.Required.
-	Required []RequiredPiece
-	// Doors are every door of the room in canonical cells, the entrance
-	// included; each lies one cell outside the frame.
-	Doors []domain.Cell
-	// Occupants is InteriorRoom.Occupants.
-	Occupants int
-	// Campfires is InteriorRoom.Campfires.
-	Campfires int
-	// Coolers is InteriorRoom.Coolers.
-	Coolers int
-	// Capabilities is InteriorRoom.Capabilities.
-	Capabilities []Capability
-	// Reserved is InteriorRoom.Reserved in canonical cells, those inside the
-	// frame only.
-	Reserved []domain.Cell
-}
-
-// InteriorPiece is one planned building. In a template's output Rect is
-// canonical; in InteriorPlan.Pieces it is the world footprint.
+// InteriorPiece is one planned building; Rect is its world footprint.
 type InteriorPiece struct {
-	// Slot names the piece within its template ("bed", "bench.2").
+	// Slot names the piece within its room ("bed", "bench.2").
 	Slot string
 	Def  string
 	// Size is the definition's native size at rotation North (x, z).
@@ -125,11 +80,8 @@ type InteriorPiece struct {
 	// InteractionOffset is the definition's interaction cell offset at
 	// rotation North, from the anchor; nil for pieces without one.
 	InteractionOffset *domain.Cell
-	// Row groups the pieces of one wall-band row; Pair names a mirrored
-	// pair; Centred marks a piece on the room's centre line. The
-	// regularity checker holds the plan to them.
-	Row, Pair string
-	Centred   bool
+	// Row names the want the piece was placed for (RegionWant.Slot).
+	Row string
 	// Beside names the Row of the pieces this one must face and touch (a chair
 	// at its table); Clear is the length of the straight lane kept open in
 	// front of the piece, where its user stands (RegionWant.Beside, .Clear).
@@ -149,111 +101,55 @@ func (p InteriorPiece) Interaction() (domain.Cell, bool) {
 	return domain.Cell{X: a.X + o.X, Z: a.Z + o.Z}, true
 }
 
-// InteriorTemplate plans one role's room for the piece being placed:
-// a template whose family holds the piece plans its slots for that
-// definition's footprint, and any other piece gets the template's default
-// layout. Plan returns false when the frame does not fit the template.
-type InteriorTemplate struct {
-	Name string
-	Plan func(InteriorFrame, InteriorPieceDef) ([]InteriorPiece, bool)
-}
-
-var interiorTemplates = map[RoomRole]InteriorTemplate{}
-
-// RegisterInteriorTemplate installs the template for a role; call it from
-// init in the template's own file. One template per role.
-func RegisterInteriorTemplate(role RoomRole, t InteriorTemplate) {
-	if role == "" || t.Name == "" || t.Plan == nil {
-		panic("invalid interior template")
-	}
-	if _, dup := interiorTemplates[role]; dup {
-		panic(fmt.Sprintf("interior template for %s registered twice", role))
-	}
-	interiorTemplates[role] = t
-}
-
-// InteriorTemplateFor returns the registered template for a role.
-func InteriorTemplateFor(role RoomRole) (InteriorTemplate, bool) {
-	t, ok := interiorTemplates[role]
-	return t, ok
-}
-
 // InteriorPlan is a room's derived layout.
 type InteriorPlan struct {
-	Template  string
-	Room      InteriorRoom
-	Frame     InteriorFrame
-	Canonical []InteriorPiece
-	// Pieces are Canonical turned into world footprints, in the same order.
+	Room InteriorRoom
+	// Pieces are the planned footprints, in world cells.
 	Pieces []InteriorPiece
 }
 
-// PlanInterior derives the room's plan from its role's template for the
-// piece being placed (InteriorRoom.Piece). It is false when no template is
-// registered, the room has no door, the template does not fit, or the
-// template's output is malformed.
-func PlanInterior(room InteriorRoom, piece InteriorPieceDef) (InteriorPlan, bool) {
-	t, ok := InteriorTemplateFor(room.Role)
+// entranceFrame is the room's floor seen from its entrance: Width cells along
+// the entrance wall, Depth away from it, the entrance in column Entrance, on the
+// left half of the wall. The entrance is the first door in cell order that
+// opens onto a hallway or outdoors, or the first door when every door leads
+// into another room. False when the room has no door in its walls.
+func entranceFrame(room InteriorRoom) (regionFrame, bool) {
+	r := room.Interior
+	if r.Width <= 0 || r.Height <= 0 || len(room.Doors) == 0 {
+		return regionFrame{}, false
+	}
+	inner := map[domain.Cell]bool{}
+	for _, d := range room.InnerDoors {
+		inner[d] = true
+	}
+	doors := append([]domain.Cell(nil), room.Doors...)
+	sort.SliceStable(doors, func(i, j int) bool {
+		if inner[doors[i]] != inner[doors[j]] {
+			return !inner[doors[i]]
+		}
+		return cellLess(doors[i], doors[j])
+	})
+	side, ok := doorSide(r, doors[0])
 	if !ok {
-		return InteriorPlan{}, false
+		return regionFrame{}, false
 	}
-	x, ok := newInteriorTransform(room)
-	if !ok {
-		return InteriorPlan{}, false
+	d := doors[0]
+	f := regionFrame{Width: r.Width, Depth: r.Height}
+	var u int32
+	switch side {
+	case domain.South:
+		u = d.X - r.X
+	case domain.North:
+		u = r.X + r.Width - 1 - d.X
+	case domain.West:
+		f.Width, f.Depth = r.Height, r.Width
+		u = r.Z + r.Height - 1 - d.Z
+	default:
+		f.Width, f.Depth = r.Height, r.Width
+		u = d.Z - r.Z
 	}
-	frame := x.frame()
-	frame.Dining, frame.Shapes, frame.Required = room.Dining, room.Shapes, room.Required
-	frame.Occupants, frame.Campfires, frame.Coolers = room.Occupants, room.Campfires, room.Coolers
-	frame.Capabilities = room.Capabilities
-	for _, c := range room.Reserved {
-		if rc := x.toCanonical(c); rectContains(room.Interior, c) {
-			frame.Reserved = append(frame.Reserved, rc)
-		}
-	}
-	sort.Slice(frame.Reserved, func(i, j int) bool { return cellLess(frame.Reserved[i], frame.Reserved[j]) })
-	for _, d := range room.Standing {
-		frame.Standing = append(frame.Standing, room.Shapes.standing(d))
-	}
-	pieces, ok := t.Plan(frame, piece)
-	if !ok || ValidateInteriorPieces(frame, pieces) != nil {
-		return InteriorPlan{}, false
-	}
-	plan := InteriorPlan{Template: t.Name, Room: room, Frame: frame, Canonical: pieces}
-	for _, p := range pieces {
-		plan.Pieces = append(plan.Pieces, x.piece(p))
-	}
-	if InteriorPlanWalkable(plan) != nil {
-		return InteriorPlan{}, false
-	}
-	return plan, true
-}
-
-// ValidateInteriorPieces checks a template's canonical output: named unique
-// slots, a definition, a footprint matching the rotated size, inside the
-// frame and overlapping nothing.
-func ValidateInteriorPieces(f InteriorFrame, pieces []InteriorPiece) error {
-	slots := map[string]bool{}
-	used := map[domain.Cell]string{}
-	for _, p := range pieces {
-		if p.Slot == "" || slots[p.Slot] || p.Def == "" {
-			return fmt.Errorf("interior piece %q: missing or duplicate slot or definition", p.Slot)
-		}
-		slots[p.Slot] = true
-		w, h, ok := rotatedSize(p.Size, p.Rot)
-		if !ok || p.Rect.Width != w || p.Rect.Height != h {
-			return fmt.Errorf("interior piece %s: footprint %+v does not match size %+v at %s", p.Slot, p.Rect, p.Size, p.Rot)
-		}
-		if !f.Contains(p.Rect) {
-			return fmt.Errorf("interior piece %s: footprint %+v outside the %dx%d frame", p.Slot, p.Rect, f.Width, f.Depth)
-		}
-		for _, c := range rectCells(p.Rect) {
-			if other, taken := used[c]; taken {
-				return fmt.Errorf("interior pieces %s and %s overlap at %v", other, p.Slot, c)
-			}
-			used[c] = p.Slot
-		}
-	}
-	return nil
+	f.Entrance = min(u, f.Width-1-u)
+	return f, true
 }
 
 // InteriorRoomFromCensus reads a census room as a plan input under the
@@ -421,114 +317,6 @@ func rotateOffset(o domain.Cell, rot domain.Rotation) domain.Cell {
 		return domain.Cell{X: -o.Z, Z: o.X}
 	}
 	return o
-}
-
-// interiorTransform maps a room's canonical frame to the world.
-type interiorTransform struct {
-	room   InteriorRoom
-	away   domain.Rotation // world direction of canonical North
-	mirror bool
-	width  int32
-	depth  int32
-}
-
-// newInteriorTransform faces the frame to the room's entrance and mirrors
-// it so the entrance sits on the wall's left half. The entrance is the
-// first door in cell order that opens onto a hallway or outdoors,
-// or the first door when every door leads into another room; the frame
-// lists it first, the other doors after it in cell order.
-func newInteriorTransform(room InteriorRoom) (interiorTransform, bool) {
-	r := room.Interior
-	if r.Width <= 0 || r.Height <= 0 || len(room.Doors) == 0 {
-		return interiorTransform{}, false
-	}
-	inner := map[domain.Cell]bool{}
-	for _, d := range room.InnerDoors {
-		inner[d] = true
-	}
-	doors := append([]domain.Cell(nil), room.Doors...)
-	sort.SliceStable(doors, func(i, j int) bool {
-		if inner[doors[i]] != inner[doors[j]] {
-			return !inner[doors[i]]
-		}
-		return cellLess(doors[i], doors[j])
-	})
-	side, ok := doorSide(r, doors[0])
-	if !ok {
-		return interiorTransform{}, false
-	}
-	x := interiorTransform{room: room, away: rotateCW(side, 2), width: r.Width, depth: r.Height}
-	if side == domain.East || side == domain.West {
-		x.width, x.depth = r.Height, r.Width
-	}
-	x.room.Doors = doors
-	if u := x.toCanonical(doors[0]).X; u > x.width-1-u {
-		x.mirror = true
-	}
-	return x, true
-}
-
-func (x interiorTransform) toWorld(c domain.Cell) domain.Cell {
-	u, v, r := c.X, c.Z, x.room.Interior
-	if x.mirror {
-		u = x.width - 1 - u
-	}
-	switch x.away {
-	case domain.South:
-		return domain.Cell{X: r.X + r.Width - 1 - u, Z: r.Z + r.Height - 1 - v}
-	case domain.East:
-		return domain.Cell{X: r.X + v, Z: r.Z + r.Height - 1 - u}
-	case domain.West:
-		return domain.Cell{X: r.X + r.Width - 1 - v, Z: r.Z + u}
-	}
-	return domain.Cell{X: r.X + u, Z: r.Z + v}
-}
-
-func (x interiorTransform) toCanonical(c domain.Cell) domain.Cell {
-	r := x.room.Interior
-	var u, v int32
-	switch x.away {
-	case domain.South:
-		u, v = r.X+r.Width-1-c.X, r.Z+r.Height-1-c.Z
-	case domain.East:
-		u, v = r.Z+r.Height-1-c.Z, c.X-r.X
-	case domain.West:
-		u, v = c.Z-r.Z, r.X+r.Width-1-c.X
-	default:
-		u, v = c.X-r.X, c.Z-r.Z
-	}
-	if x.mirror {
-		u = x.width - 1 - u
-	}
-	return domain.Cell{X: u, Z: v}
-}
-
-func (x interiorTransform) frame() InteriorFrame {
-	f := InteriorFrame{Width: x.width, Depth: x.depth}
-	for _, d := range x.room.Doors {
-		f.Doors = append(f.Doors, x.toCanonical(d))
-	}
-	f.Entrance = f.Doors[0].X
-	return f
-}
-
-func (x interiorTransform) rotation(r domain.Rotation) domain.Rotation {
-	if x.mirror && (r == domain.East || r == domain.West) {
-		r = rotateCW(r, 2)
-	}
-	steps, _ := rotationIndex(x.away)
-	return rotateCW(r, steps)
-}
-
-func (x interiorTransform) rect(r Rectangle) Rectangle {
-	a := x.toWorld(domain.Cell{X: r.X, Z: r.Z})
-	b := x.toWorld(domain.Cell{X: r.X + r.Width - 1, Z: r.Z + r.Height - 1})
-	return Rectangle{X: min(a.X, b.X), Z: min(a.Z, b.Z), Width: max(a.X, b.X) - min(a.X, b.X) + 1, Height: max(a.Z, b.Z) - min(a.Z, b.Z) + 1}
-}
-
-func (x interiorTransform) piece(p InteriorPiece) InteriorPiece {
-	p.Rect, p.Rot = x.rect(p.Rect), x.rotation(p.Rot)
-	return p
 }
 
 // passThroughRoles are the roles a door into counts as an entrance, like

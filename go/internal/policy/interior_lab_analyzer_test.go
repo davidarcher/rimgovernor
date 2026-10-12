@@ -20,11 +20,10 @@ func TestPlannedLabHoldsTwoHiTechBenchesAndTheAnalyzerSlot(t *testing.T) {
 	for _, standing := range [][]string{nil, {testResearch}, {testFurniture.AdvancedLab}} {
 		for _, room := range interiorRoomsAround(RoomRoleLaboratory, size[0], size[1], 3) {
 			room.Standing = standing
-			plan, ok := PlanInterior(room, hiTech)
+			plan, ok := PlanRoomInterior(room, hiTech)
 			if !ok {
 				t.Fatalf("%v standing %v: no plan", room.Doors, standing)
 			}
-			assertInteriorRegular(t, plan)
 			var benches, analyzers []InteriorPiece
 			for _, p := range plan.Pieces {
 				switch p.Def {
@@ -62,21 +61,11 @@ func TestPlannedLabHoldsTwoHiTechBenchesAndTheAnalyzerSlot(t *testing.T) {
 	}
 }
 
-// A lab too shallow to leave the entrance row open plans benches only, and a
-// catalog with no analyzer plans no slot for it.
-func TestLabPlansNoAnalyzerSlotWhereItCannotLink(t *testing.T) {
-	shallow, ok := PlanInterior(interiorRoomsAround(RoomRoleLaboratory, 11, 5, 3)[0], InteriorPieceDef{})
-	if !ok {
-		t.Fatal("no plan")
-	}
-	for _, p := range shallow.Pieces {
-		if p.Def == testFurniture.Analyzer.Def {
-			t.Errorf("a 5-deep lab planned the analyzer at %+v", p.Rect)
-		}
-	}
+// A catalog with no analyzer plans no slot for it.
+func TestLabPlansNoAnalyzerSlotWithoutOneInTheCatalog(t *testing.T) {
 	room := interiorRoomsAround(RoomRoleLaboratory, 11, 6, 3)[0]
 	room.Shapes.Furniture.Analyzer = FacilityLink{}
-	plain, ok := PlanInterior(room, InteriorPieceDef{})
+	plain, ok := PlanRoomInterior(room, InteriorPieceDef{})
 	if !ok {
 		t.Fatal("no plan")
 	}

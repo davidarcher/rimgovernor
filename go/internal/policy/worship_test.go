@@ -71,8 +71,8 @@ func TestWorshipRoomRoleTables(t *testing.T) {
 	if moduleRoomRoles[PlannedWorship] != RoomRoleWorshipRoom {
 		t.Fatal("worship room tables")
 	}
-	if _, ok := InteriorTemplateFor(RoomRoleWorshipRoom); !ok {
-		t.Fatal("no interior template")
+	if _, ok := regionRoles[RoomRoleWorshipRoom]; !ok {
+		t.Fatal("no interior wants")
 	}
 	if f, err := Facility(RoomRoleWorshipRoom); err != nil || f.Status != FacilityImplemented || !f.FurnitureFromGame || f.Content != "Ideology" {
 		t.Fatalf("catalog row: %+v %v", f, err)

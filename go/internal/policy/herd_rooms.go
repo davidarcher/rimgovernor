@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"fmt"
 	"slices"
 	"sort"
 
@@ -35,109 +34,13 @@ const herdBarnMinBeds = 8
 // herdSizeSide bounds the interior side a herd room searches.
 const herdSizeSide = 24
 
-func init() {
-	RegisterInteriorTemplate(RoomRoleBarn, InteriorTemplate{Name: "barn", Plan: planBarn})
-}
-
-// planBedGrid is the barn and vet room template: a 1-cell aisle straight in
-// from the door, and on both sides of it rows of beds alternating with free
-// rows (the first free row is the door's), so every bed has a free cell
-// beside it from which a colonist tends the animal. Slots run nearest the
-// door first.
-func planBedGrid(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool) {
-	size := piece.Size
-	if piece.Def == "" || size.X < 1 || size.Z < 1 {
-		return nil, false
-	}
-	var out []InteriorPiece
-	for row, v := 0, size.Z; v+size.Z <= f.Depth; row, v = row+1, v+2*size.Z {
-		col := 0
-		for u := f.Entrance - size.X; u >= 0; u -= size.X {
-			out = append(out, NewInteriorPiece(fmt.Sprintf("bed.%d.w%d", row+1, col+1), piece.Def, size, domain.North, domain.Cell{X: u, Z: v}))
-			col++
-		}
-		col = 0
-		for u := f.Entrance + 1; u+size.X <= f.Width; u += size.X {
-			out = append(out, NewInteriorPiece(fmt.Sprintf("bed.%d.e%d", row+1, col+1), piece.Def, size, domain.North, domain.Cell{X: u, Z: v}))
-			col++
-		}
-	}
-	return out, len(out) > 0
-}
-
 // herdHeaterSlot is the barn's climate slot: the heater the
 // temperature planner counts as conditioning the room and the power planner
 // connects like any other unpowered consumer. It is no bed.
 const herdHeaterSlot = "climate.heater"
 
-// planBarn is planBedGrid plus the climate slot: the catalog's heater
-// (RoomFurniture.Heater) on the free floor furthest from the door where it
-// keeps the room walkable and leaves every bed a free neighbour to be tended
-// from. A room with no such cell, or a catalog with no heater shape, has no
-// climate slot.
-func planBarn(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool) {
-	beds, ok := planBedGrid(f, piece)
-	if !ok {
-		return nil, false
-	}
-	heater, found := f.Shapes.Get(f.Shapes.Furniture.Heater)
-	if !found || heater.Size.X != 1 || heater.Size.Z != 1 {
-		return beds, true
-	}
-	blocked := map[domain.Cell]bool{}
-	for _, b := range beds {
-		for _, c := range rectCells(b.Rect) {
-			blocked[c] = true
-		}
-	}
-	room := InteriorRoom{Interior: Rectangle{Width: f.Width, Height: f.Depth}, Doors: f.Doors}
-	for v := f.Depth - 1; v >= 0; v-- {
-		for _, u := range herdHeaterColumns(f) {
-			cell := domain.Cell{X: u, Z: v}
-			if blocked[cell] || !herdBedsStayTended(f, blocked, cell) || !InteriorPlacementWalkable(room, blocked, []domain.Cell{cell}) {
-				continue
-			}
-			return append(beds, NewInteriorPiece(herdHeaterSlot, heater.Def, heater.Size, domain.North, cell)), true
-		}
-	}
-	return beds, true
-}
-
-// herdHeaterColumns are the frame's columns furthest from the aisle first.
-func herdHeaterColumns(f InteriorFrame) []int32 {
-	var out []int32
-	for u := int32(0); u < f.Width; u++ {
-		out = append(out, u)
-	}
-	sort.SliceStable(out, func(i, j int) bool {
-		return abs64(float64(out[i]-f.Entrance)) > abs64(float64(out[j]-f.Entrance))
-	})
-	return out
-}
-
-// herdBedsStayTended reports whether every bed next to cell keeps a free
-// neighbour other than cell to be tended from.
-func herdBedsStayTended(f InteriorFrame, blocked map[domain.Cell]bool, cell domain.Cell) bool {
-	around := func(c domain.Cell) []domain.Cell {
-		return []domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}}
-	}
-	for _, bed := range around(cell) {
-		if !blocked[bed] {
-			continue
-		}
-		free := false
-		for _, n := range around(bed) {
-			free = free || n != cell && !blocked[n] && n.X >= 0 && n.Z >= 0 && n.X < f.Width && n.Z < f.Depth
-		}
-		if !free {
-			return false
-		}
-	}
-	return true
-}
-
 // herdGridBeds is the 1x1 beds an interior w by h holds whichever wall its
-// door is in: planBedGrid's columns beside the aisle times its bed rows.
+// door is in: the columns beside the barn aisle times its bed rows.
 func herdGridBeds(w, h int32) int {
 	return int(min((w-1)*(h/2), (h-1)*(w/2)))
 }
