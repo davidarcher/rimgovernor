@@ -178,6 +178,7 @@ func TestTiledReplanHousesColonistsOnBedroomAndSuiteNodes(t *testing.T) {
 	}
 	// diff tiles the standing plan for colonists colonists and wishes, and
 	// counts the bedroom and suite rows by verdict.
+	var last StationAdvice
 	diff := func(colonists int, wishes []SuiteWish) (ReplanTileDiff, map[string]int) {
 		facts := colonyStationFacts(colonists, s)
 		facts.Plan, facts.Built, facts.Suites = plan, built, wishes
@@ -185,6 +186,7 @@ func TestTiledReplanHousesColonistsOnBedroomAndSuiteNodes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("tile: %v", err)
 		}
+		last = advice
 		d := DiffReplanTile(plan, built, advice)
 		counts := map[string]int{}
 		for _, r := range d.Rooms {
@@ -208,10 +210,10 @@ func TestTiledReplanHousesColonistsOnBedroomAndSuiteNodes(t *testing.T) {
 		if counts["bedroom/same"] != 7 || counts["suite/same"] != 2 || len(counts) != 2 || len(d.Unmatched) != 0 {
 			t.Errorf("counts %v, unmatched %+v", counts, d.Unmatched)
 		}
-		// A standing suite is short by at most the cell of its required door (the
-		// group's floor counts the threshold the derived room does not).
+		// A standing room is short of nothing: a suite as built already holds the
+		// door cells its group counts (#3020).
 		for _, r := range d.Rooms {
-			if limit := map[PlannedRole]int{PlannedSuite: 1}[r.Role]; r.Short > limit {
+			if r.Short != 0 {
 				t.Errorf("room %d (%s) is short %d", r.Room, r.Role, r.Short)
 			}
 		}
@@ -219,13 +221,25 @@ func TestTiledReplanHousesColonistsOnBedroomAndSuiteNodes(t *testing.T) {
 	t.Run("raised target", func(t *testing.T) {
 		d, counts := diff(8, []SuiteWish{{Kept: kept[0].Kept, Target: 400}, kept[1]})
 		got := row(d, suites[0])
-		if got.Verdict != TileDiffSame || got.Reason != ReasonDiffKept || got.Short <= 1 || row(d, suites[1]).Short > 1 || counts["suite/same"] != 2 {
+		// The outgrown suite is replaced by a larger one beside it (#3020); the
+		// other keeps its room.
+		if got.Verdict != TileDiffMoved || got.Reason != ReasonDiffSuccessor || got.Short <= 1 || row(d, suites[1]).Short != 0 || counts["suite/same"] != 1 || counts["suite/moved"] != 1 {
 			t.Errorf("raised suite row %+v, counts %v", got, counts)
+		}
+		var succ *PlannedRoom
+		for _, r := range last.Tiled.Plan.AllRooms() {
+			if r.Replaces == suites[0] {
+				succ = &r
+			}
+		}
+		old := plan.AllRooms()[slices.IndexFunc(plan.AllRooms(), func(r PlannedRoom) bool { return r.ID == suites[0] })].Region
+		if succ == nil || succ.Region.Area() < old.Area()+got.Short || collides(succ.Region.Bounds(), old.Bounds()) {
+			t.Errorf("successor %+v of the suite at %v short %d", succ, old.Bounds(), got.Short)
 		}
 	})
 	t.Run("new wish", func(t *testing.T) {
 		d, counts := diff(8, append(slices.Clone(kept), SuiteWish{Target: 70}))
-		if counts["suite/same"] != 2 || counts["suite/new"] != 1 || counts["bedroom/dropped"] != 1 || counts["bedroom/same"] != 6 {
+		if counts["suite/same"] != 1 || counts["suite/moved"] != 1 || counts["suite/new"] != 1 || counts["bedroom/dropped"] != 1 || counts["bedroom/same"] != 6 {
 			t.Errorf("counts %v", counts)
 		}
 		if len(d.Unmatched) != 1 || d.Unmatched[0].Reason != ReasonDiffNoNode {

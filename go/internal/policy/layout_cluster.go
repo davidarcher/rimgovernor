@@ -169,6 +169,9 @@ type RoomGroup struct {
 	// Footprint is the cells the stations stand on, Clearance the open cells
 	// the placer keeps, Area their sum.
 	Footprint, Clearance, Area int
+	// Kept is the area of the standing suite the group is (StationNode.Kept):
+	// Area is never below it. 0 otherwise.
+	Kept int
 	// Role is the native role the game would give the room.
 	Role RoomRole
 	// Planned is the planned room the group's contents decide when it is not
@@ -339,8 +342,10 @@ type groupEval struct {
 	role          RoomRole
 	// suite: the group holds a target-sized bedroom (StationNode.Floor); floor
 	// is the interior cells its target asks for.
-	suite   bool
-	floor   int
+	suite bool
+	floor int
+	// kept is the floor of the standing suite (StationNode.Kept).
+	kept    int
 	costs   []ConflictCost
 	effects []LostRoleEffect
 	// filthy and exposed are the nodes that spawn filth and the others whose
@@ -448,6 +453,7 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 		e.filth = e.filth || n.Filth
 		e.suite = e.suite || n.Floor > 0
 		e.floor = max(e.floor, n.Floor)
+		e.kept = max(e.kept, n.Kept)
 		e.closet = e.closet && n.Filth
 		if n.Filth && !slices.Contains(e.filthy, n.ID) {
 			e.filthy = append(e.filthy, n.ID)
@@ -728,7 +734,7 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 		if err != nil {
 			return Clustering{}, err
 		}
-		g := RoomGroup{ID: gi, Footprint: e.footprint, Clearance: e.clearance, Area: e.area, Role: e.role, Planned: e.plannedRole(), Requires: e.requires(), Costs: e.costs, LostEffects: e.effects, Filth: e.filthCosts, Cleaning: e.cleaning}
+		g := RoomGroup{ID: gi, Footprint: e.footprint, Clearance: e.clearance, Area: e.area, Kept: e.kept, Role: e.role, Planned: e.plannedRole(), Requires: e.requires(), Costs: e.costs, LostEffects: e.effects, Filth: e.filthCosts, Cleaning: e.cleaning}
 		byNode := map[int]int{}
 		for _, m := range members[r] {
 			byNode[m.node] += m.count
@@ -822,6 +828,9 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 			}
 		}
 	})
+	for i := range out.Groups {
+		out.Groups[i].holdKept()
+	}
 	return out, nil
 }
 
@@ -887,6 +896,16 @@ func (g *RoomGroup) AddRequiredDoors() {
 			g.Clearance++
 			g.Area++
 		}
+	}
+}
+
+// holdKept keeps the group's area at the floor of the standing suite it is,
+// which already holds its doors: the last step of the clustering, after every
+// door the links add (#3020).
+func (g *RoomGroup) holdKept() {
+	if g.Area < g.Kept {
+		g.Clearance += g.Kept - g.Area
+		g.Area = g.Kept
 	}
 }
 

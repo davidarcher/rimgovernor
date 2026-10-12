@@ -177,10 +177,13 @@ type StationNode struct {
 	// for a node that butchers nothing.
 	FilthRuns, FilthWork float64
 	// Target and Floor mark a target-sized bedroom (a suite, #2939): the
-	// sleeper's room-impressiveness target and the interior cells that meet it,
-	// at least the standing suite's own floor. Zero for an ordinary node.
+	// sleeper's room-impressiveness target and the interior cells that meet it.
+	// Kept is the area of the suite that stands for it, doors included (0 for a
+	// new one): the group's area is never below it, so a suite as built is not
+	// outgrown by the door cells it already holds (#3020). Zero for an ordinary node.
 	Target float64
 	Floor  int
+	Kept   int
 }
 
 // SuiteWish is one suite the colony wants: its owner's target and the floor of
@@ -480,7 +483,7 @@ func (b *graphBuilder) sleepers() error {
 			// target (#2939); the rest sleep in the ordinary node.
 			for i, w := range b.suites() {
 				id := fmt.Sprintf("%s/suite%d", nodeID(k.def, k.purpose), i)
-				b.nodes[id] = &StationNode{ID: id, Def: k.def, Purpose: k.purpose, Count: 1, Reason: ReasonBedsSuite, Target: w.Target, Floor: w.Floor()}
+				b.nodes[id] = &StationNode{ID: id, Def: k.def, Purpose: k.purpose, Count: 1, Reason: ReasonBedsSuite, Target: w.Target, Floor: int(suiteCells(w.Target)), Kept: w.Kept}
 				people -= max(s.Capacity.Slots, 1)
 			}
 			if people <= 0 {

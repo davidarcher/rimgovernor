@@ -232,10 +232,12 @@ type embedder struct {
 	// The built world (layout_built.go): per group the standing room that is
 	// its block (zero Width for none) and its id, whether it must not move,
 	// the retired ground under the map (rich soil is e.rich).
-	home        []Rectangle
-	homeRoom    []int32
-	pinned      []bool
-	inFlight    bool
+	home     []Rectangle
+	homeRoom []int32
+	pinned   []bool
+	inFlight bool
+	// outgrown: the group needs more floor than its standing rooms give.
+	outgrown    []bool
 	builtReport []EmbedDecision
 	held        []HeldRoom
 
@@ -333,7 +335,7 @@ func newEmbedderFixed(in EmbedInput, depth int, scorer planScorer, level obstacl
 	}
 	sortCells(e.core)
 	e.inFlight, e.pinned = in.InFlight, make([]bool, len(in.Groups))
-	e.home, e.homeRoom, e.builtReport = builtHomes(in.Groups[:e.nRooms], in.Built)
+	e.home, e.homeRoom, e.outgrown, e.builtReport = builtHomes(in.Groups[:e.nRooms], in.Built)
 	e.home, e.homeRoom = append(e.home, make([]Rectangle, len(in.Groups)-e.nRooms)...), append(e.homeRoom, make([]int32, len(in.Groups)-e.nRooms)...)
 	for i, h := range e.home { // a room whose ring is off the map is no block
 		if h.Width > 0 && !e.base.inside(pad(h, 1)) {

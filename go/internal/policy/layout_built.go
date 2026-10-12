@@ -40,6 +40,7 @@ const (
 	ReasonEmbedBuiltBelow     = "embed_built_below_threshold"
 	ReasonEmbedBuiltDeferred  = "embed_built_one_rebuild_at_a_time"
 	ReasonEmbedBuiltBadGround = "embed_built_moved_bad_ground"
+	ReasonEmbedBuiltGrown     = "embed_built_grown_by_replacement"
 	ReasonEmbedBuiltMovedGain = "embed_built_moved_score_gain"
 	ReasonEmbedBuiltOffMap    = "embed_built_off_map"
 	ReasonEmbedBuiltNotRect   = "embed_built_not_a_block"
@@ -49,7 +50,8 @@ const (
 // the largest rectangular room MatchGroupRooms gave it (ties to the lower id).
 // Rooms matched to a group beyond that one are not modelled (the group has one
 // block), and a room that is no rectangle is no block.
-func builtHomes(groups []RoomGroup, built []BuiltRegion) (home []Rectangle, room []int32, decisions []EmbedDecision) {
+func builtHomes(groups []RoomGroup, built []BuiltRegion) (home []Rectangle, room []int32, outgrown []bool, decisions []EmbedDecision) {
+	outgrown = make([]bool, len(groups))
 	home, room = make([]Rectangle, len(groups)), make([]int32, len(groups))
 	byID := map[int32]BuiltRegion{}
 	for _, b := range built {
@@ -72,9 +74,10 @@ func builtHomes(groups []RoomGroup, built []BuiltRegion) (home []Rectangle, room
 		}
 		if pick != nil {
 			home[m.Group], room[m.Group] = pick.Region.Bounds(), pick.Room
+			outgrown[m.Group] = GroupOutgrown(groups[m.Group], m)
 		}
 	}
-	return home, room, decisions
+	return home, room, outgrown, decisions
 }
 
 // holdStanding keeps the pinned standing rooms that are no group's home block
@@ -123,7 +126,8 @@ type relocateMove struct {
 	rect   Rectangle
 	cost   float64
 	margin float64
-	bad    bool
+	hard   bool // bad ground or an outgrown room: the hard tier decides, no price
+	grown  bool
 }
 
 // relocate is the relocation pass over a placed embedding: the single built
@@ -146,6 +150,12 @@ func (e *embedder) relocate(blocks []Rectangle) builtRun {
 		if h.Width != h.Height {
 			sizes = append(sizes, [2]int32{h.Height, h.Width})
 		}
+		// A group that outgrew its room is replaced by a block of the size it
+		// needs, beside the old room (#3020).
+		grown := e.outgrown[i]
+		if grown {
+			sizes = e.shapes[i]
+		}
 		richHere := e.rich.sum(h)
 		threshold := float64(switchThreshold(PlannedRoom{Region: RectRegion(h)}))
 		var bestBad, bestGain *relocateMove
@@ -162,8 +172,14 @@ func (e *embedder) relocate(blocks []Rectangle) builtRun {
 				if !any || cand.margin > top {
 					any, top = true, cand.margin
 				}
-				if richHere > 0 && e.rich.sum(r) < richHere {
-					cand.bad = true
+				if grown {
+					cand.hard, cand.grown = true, true
+					cand.margin = float64(e.groups[i].Area - int(h.Width*h.Height)) // the floor it lacks
+					if bestBad == nil || better(cost, r, bestBad.cost, bestBad.rect, true) {
+						bestBad = cand
+					}
+				} else if richHere > 0 && e.rich.sum(r) < richHere {
+					cand.hard = true
 					if bestBad == nil || better(cost, r, bestBad.cost, bestBad.rect, true) {
 						bestBad = cand
 					}
@@ -185,7 +201,7 @@ func (e *embedder) relocate(blocks []Rectangle) builtRun {
 	}
 	for _, i := range slices.Sorted(maps.Keys(trigger)) {
 		t := trigger[i]
-		if best == nil || t.bad && !best.bad || t.bad == best.bad && t.margin > best.margin {
+		if best == nil || t.hard && !best.hard || t.hard == best.hard && t.margin > best.margin {
 			best = &t
 		}
 	}
@@ -201,9 +217,12 @@ func (e *embedder) relocate(blocks []Rectangle) builtRun {
 			d.Reason = ReasonEmbedBuiltInFlight
 		case best != nil && best.group == i:
 			d.Verdict, d.Reason = EmbedMove, ReasonEmbedBuiltMovedGain
-			if best.bad {
+			switch {
+			case best.grown:
+				d.Reason = ReasonEmbedBuiltGrown
+			case best.hard:
 				d.Reason = ReasonEmbedBuiltBadGround
-			} else {
+			default:
 				out.Price = float64(switchThreshold(PlannedRoom{Region: RectRegion(e.home[i])}))
 			}
 		case trigger[i].group == i && trigger[i].rect.Width > 0:
