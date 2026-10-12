@@ -1,7 +1,7 @@
 {
   "Stamp": {
     "assemblyHash": "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A",
-    "rulesVersion": 11,
+    "rulesVersion": 12,
     "thresholdsVersion": 1,
     "sweepVersion": 2
   },
@@ -17,9 +17,9 @@
           "RealDeaths": 0,
           "SimDeaths": 0.05,
           "RealDowns": 0.25,
-          "SimDowns": 0.15,
+          "SimDowns": 0.2,
           "RealDamage": 69.05,
-          "SimDamage": 70.05,
+          "SimDamage": 73.9,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 1
         }
@@ -53,64 +53,64 @@
         {
           "Variant": "default",
           "RealDeaths": 0,
-          "SimDeaths": 0.4,
+          "SimDeaths": 0.2,
           "RealDowns": 2.95,
-          "SimDowns": 1.85,
+          "SimDowns": 1.75,
           "RealDamage": 262.3,
-          "SimDamage": 208.4,
+          "SimDamage": 203.65,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 8
+          "SimDeathSeeds": 4
         },
         {
           "Variant": "scatter-short",
           "RealDeaths": 0,
-          "SimDeaths": 0.5,
+          "SimDeaths": 0.4,
           "RealDowns": 2.25,
-          "SimDowns": 1.8,
+          "SimDowns": 1.65,
           "RealDamage": 234.1,
-          "SimDamage": 213.05,
+          "SimDamage": 202.95,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 9
+          "SimDeathSeeds": 7
         },
         {
           "Variant": "scatter-long",
           "RealDeaths": 0,
-          "SimDeaths": 0.55,
+          "SimDeaths": 0.3,
           "RealDowns": 2.75,
           "SimDowns": 1.7,
           "RealDamage": 255.85,
-          "SimDamage": 214.4,
+          "SimDamage": 204.75,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 9
+          "SimDeathSeeds": 5
         },
         {
           "Variant": "group-gap-tight",
           "RealDeaths": 0,
-          "SimDeaths": 0.5,
+          "SimDeaths": 0.55,
           "RealDowns": 2.7,
-          "SimDowns": 2.15,
+          "SimDowns": 2.5,
           "RealDamage": 262.05,
-          "SimDamage": 227.55,
+          "SimDamage": 238.45,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 9
+          "SimDeathSeeds": 7
         },
         {
           "Variant": "group-gap-wide",
           "RealDeaths": 0,
-          "SimDeaths": 0.4,
+          "SimDeaths": 0.55,
           "RealDowns": 2.65,
-          "SimDowns": 2.35,
+          "SimDowns": 2.6,
           "RealDamage": 256.395,
-          "SimDamage": 233.35,
+          "SimDamage": 240.3,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 7
         }
       ],
       "pairs": 10,
-      "agreed": 5
+      "agreed": 2
     }
   ],
-  "RankAgreement": 0.5,
+  "RankAgreement": 0.2,
   "RankPairs": 10,
   "Misrankings": null,
   "Regrets": [
@@ -130,7 +130,7 @@
       "Variant": "default",
       "Measure": "colonist downs",
       "Real": 2.95,
-      "Sim": 1.85,
+      "Sim": 1.75,
       "Tolerance": 1
     },
     {
@@ -147,8 +147,8 @@
     "lab-open (held-out): the sim does not support this fixture: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 3 unmodeled, first: pawn h0 wields melee weapon MeleeWeapon_Club: the sim has no melee, the pawn is imported unarmed",
     "lab-choke (held-out): the sim does not support this fixture: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 9 unmodeled, first: pawn c0 wields melee weapon MeleeWeapon_LongSword: the sim has no melee, the pawn is imported unarmed",
     "lab-base (held-out): the sim does not support this fixture: combatsim: unsupported scenario: thing \"Turret_MiniTurret\" is a turret, which the sim does not fire",
-    "rank agreement 0.50 over 10 pairs is below 0.80",
-    "lab-split-ranged/default: sim colonist downs mean 1.85 vs real 2.95, outside +/-1.00",
+    "rank agreement 0.20 over 10 pairs is below 0.80",
+    "lab-split-ranged/default: sim colonist downs mean 1.75 vs real 2.95, outside +/-1.00",
     "lab-split-ranged/scatter-long: sim colonist downs mean 1.70 vs real 2.75, outside +/-1.00"
   ]
 }

@@ -139,11 +139,22 @@ is a candidate to replace by a faithful port. Game sources are in
   killed), `entered_range` (a hostile came within a colonist's weapon range,
   or a colonist's weapon reached it; distance only, no sight, once per hostile
   each way, the first scan recording the start) and `serious_injury` for one
-  hit of at least `policy.SeriousSingleHitDamage` (20) on a colonist (A39).
-  The native summary-health (< 0.5), bleed-rate and vital-part serious
-  triggers, and the shield, lord, melee, explosive and mental-state stops, are
-  not raised: they need per-part or other state the sim does not hold. A
-  backstop (default 120 ticks; the native one is 300) asks the policy again.
+  hit of at least `policy.SeriousSingleHitDamage` (20), summary health
+  crossing to or under 0.5 (`Verse.SummaryHealthHandler`: product over parts
+  of 1 - min(impact, 0.95), impact = severity / (75 x HealthScale), a lost
+  part by its hit points) or the total bleed rate crossing to or over 1.0
+  (`Hediff_Injury.BleedRate`: severity x injury x race x part bleed rates, 0 on
+  solid parts, over HealthScale; #2991), on a colonist (A39). The vital-part
+  trigger is not raised because it cannot fire for bullets:
+  `Bullet.Impact` passes a null hit part and `Apply` works on a by-value copy,
+  so `dinfo.HitPart` is null in `PostApplyDamage`. The shield, lord, melee,
+  explosive and mental-state stops are not raised: the sim has none of those
+  things. A backstop (default 120 ticks; the native one is 300) asks the
+  policy again. Injuries merge only where the injury def has `canMerge`
+  (not for bullets), so each hit is its own injury for both sums.
+  Measured on lab-split-ranged over 200 seeds, the two ported triggers moved
+  colonists' wins 0.545 -> 0.480 (real 0.25) and downs+deaths 2.52 -> 2.72
+  (real >= 3.35); the remaining gap is not the stop triggers.
 - **A23. Geometry is computed from the current sim world.** Sight lines and
   cover use the ports above; proposals follow the native roles' filters and
   orderings under the same caps (64 cells, 16 hostiles, radius 12). A

@@ -193,6 +193,10 @@ type Event struct {
 	// StopsInThing is set on an EventShot whose projectile ends in a non-pawn
 	// thing (cover or a wall): it hits no pawn.
 	StopsInThing bool
+	// Health and Bleed are, on an EventHit, the victim's summary health and
+	// total bleed rate after the hit, HealthBefore and BleedBefore before it
+	// (the serious-injury stop's crossing tests, A22).
+	Health, HealthBefore, Bleed, BleedBefore float64
 }
 
 // PawnState is a pawn's observable state.

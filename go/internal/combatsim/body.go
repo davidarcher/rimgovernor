@@ -32,6 +32,14 @@ type Body struct {
 	OverkillLow, OverkillHigh float64
 	// MovingMinForCapable is the Moving capacity's minForCapable.
 	MovingMinForCapable float64
+	// BleedPerSeverity is the injury hediff's injuryProps.bleedRate and
+	// MissingBleedPerSeverity the MissingBodyPart hediff's; BleedFactor is the
+	// race's bleedRateFactor, 0 for a pawn that cannot bleed (no blood def or
+	// not flesh). MergeInjuries is the injury hediff's injuryProps.canMerge.
+	// They feed the summary-health and bleed-rate readings of the serious
+	// injury stop (A22); a zero value reads no bleeding.
+	BleedPerSeverity, MissingBleedPerSeverity, BleedFactor float64
+	MergeInjuries                                          bool
 
 	// Tag lists the capacity workers read: the parts carrying each body part
 	// tag. Empty leaves the capacity part efficiency at 1 (CalculateTagEfficiency).
@@ -57,6 +65,11 @@ type BodyPart struct {
 	MaxHealth float64
 	// Solid is BodyPartDef.IsSolid, Destroyable destroyableByDamage.
 	Solid, Destroyable bool
+	// HitPoints is the def's hitPoints before the HealthScale; BleedRate its
+	// bleedRate; Tagged whether it has any body part tag and HasChildren any
+	// child part (the missing-part summary-health rule reads both).
+	HitPoints, BleedRate float64
+	Tagged, HasChildren  bool
 }
 
 // Limb is one limb core of a limb capacity with the parts the capacity
@@ -78,12 +91,17 @@ type injuryState struct {
 	fresh []bool
 	// total is the severity of every injury (Hediff_Injury).
 	total float64
+	// keep is the product of 1 - min(severity / (75 x HealthScale), 0.95) over
+	// the hits on a part that stay separate hediffs (summaryHealth).
+	keep []float64
 }
 
 func newInjuryState(n int) injuryState {
-	// One backing array for the three slices keeps a pawn's body to a single
-	// allocation of floats.
-	return injuryState{sev: make([]float64, n), missing: make([]bool, n), fresh: make([]bool, n)}
+	st := injuryState{sev: make([]float64, n), missing: make([]bool, n), fresh: make([]bool, n), keep: make([]float64, n)}
+	for i := range st.keep {
+		st.keep[i] = 1
+	}
+	return st
 }
 
 // validate reports why the body cannot be simulated, or "".
@@ -341,6 +359,7 @@ func (b *Body) addInjury(st *injuryState, part int, severity float64) float64 {
 	dealt := math.Min(severity, b.partHealth(st, part))
 	st.sev[part] += severity
 	st.total += severity
+	st.keep[part] *= 1 - math.Min(severity/(75*b.HealthScale), 0.95)
 	if part != 0 && b.partHealth(st, part) == 0 {
 		st.fresh[part] = true
 		b.lose(st, part)
@@ -353,13 +372,13 @@ func (b *Body) addInjury(st *injuryState, part int, severity float64) float64 {
 func (b *Body) lose(st *injuryState, part int) {
 	st.missing[part] = true
 	st.total -= st.sev[part]
-	st.sev[part] = 0
+	st.sev[part], st.keep[part] = 0, 1
 	for i := part + 1; i < len(b.Parts); i++ {
 		if !b.inSubtree(i, part) {
 			continue
 		}
 		st.total -= st.sev[i]
-		st.sev[i] = 0
+		st.sev[i], st.keep[i] = 0, 1
 		st.missing[i], st.fresh[i] = true, false
 	}
 }
@@ -381,4 +400,64 @@ func (b *Body) overkillChance(f float64) float64 {
 		return 0 // Mathf.InverseLerp(a, a, f)
 	}
 	return clamp01((f - b.OverkillLow) / (b.OverkillHigh - b.OverkillLow))
+}
+
+// summaryHealth ports SummaryHealthHandler.SummaryHealthPercent: the product,
+// over the injury hediffs, of 1 - min(severity / (75 x HealthScale), 0.95), and
+// the same for each missing part that is a fresh non-solid outside extremity
+// (Hediff_MissingPart.SummaryHealthPercentImpact: its def hit points over the
+// same scale, when it has tags, child parts or bleeds), clamped to [0.05, 1].
+// The injuries of a part whose hediff can merge are one hediff of the summed
+// severity (Hediff_Injury.TryMergeWith), otherwise each hit is its own.
+func (b *Body) summaryHealth(st *injuryState) float64 {
+	scale := 75 * b.HealthScale
+	out := 1.0
+	for i := range b.Parts {
+		p := &b.Parts[i]
+		switch {
+		case st.missing[i]:
+			if st.fresh[i] && !p.Inside && !p.Solid && (p.Tagged || p.HasChildren || b.partBleed(i) > 0) {
+				out *= 1 - math.Min(p.HitPoints/scale, 0.95)
+			}
+		case b.MergeInjuries:
+			out *= 1 - math.Min(st.sev[i]/scale, 0.95)
+		default:
+			out *= st.keep[i]
+		}
+	}
+	return math.Min(math.Max(out, 0.05), 1)
+}
+
+// partBleed is the bleed rate (before the division by HealthScale) of a
+// destroyed part's Hediff_MissingPart, when it counts: the part's maximum
+// health x the missing-part hediff's bleedRate x the part's bleedRate x the
+// race factor.
+func (b *Body) partBleed(i int) float64 {
+	p := &b.Parts[i]
+	return p.MaxHealth * b.MissingBleedPerSeverity * p.BleedRate * b.BleedFactor
+}
+
+// bleedRate ports HediffSet.CalculateBleedRate for the hediffs held: each
+// injury on a non-solid part bleeds severity x the injury hediff's bleedRate x
+// the part's bleedRate x the race factor (Hediff_Injury.BleedRate; nothing is
+// tended or permanent here), a fresh missing outside non-solid part whose parent
+// is whole bleeds partBleed, all over HealthScale. 0 for a race that cannot
+// bleed (Pawn_HealthTracker.CanBleed).
+func (b *Body) bleedRate(st *injuryState) float64 {
+	if !(b.BleedFactor > 0) {
+		return 0
+	}
+	total := 0.0
+	for i := range b.Parts {
+		p := &b.Parts[i]
+		switch {
+		case st.missing[i]:
+			if st.fresh[i] && !p.Inside && !p.Solid && (p.Parent < 0 || !st.missing[p.Parent]) {
+				total += b.partBleed(i)
+			}
+		case !p.Solid:
+			total += st.sev[i] * b.BleedPerSeverity * p.BleedRate * b.BleedFactor
+		}
+	}
+	return total / b.HealthScale
 }

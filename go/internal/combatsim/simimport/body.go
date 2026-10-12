@@ -54,7 +54,8 @@ var limbCapacities = map[string]string{"Moving": "PawnCapacityWorker_Moving", "M
 // (A39): the body def's parts with their health, coverage and capacity tags, and
 // the scalars from the pawn's stats and the damage def. It fails on anything the
 // ported rules do not cover.
-func (im *importer) body(bodyName string, healthScale, shock, incoming float64, ignoresPainShock bool) (*combatsim.Body, error) {
+func (im *importer) body(race *d.RaceProperties, healthScale, shock, incoming float64, ignoresPainShock bool) (*combatsim.Body, error) {
+	bodyName := race.GetBody()
 	def := bridge.DefRow[*d.BodyDef](im.cat, bodyName)
 	if def == nil || def.GetCorePart() == nil {
 		return nil, unsupported("catalog has no body def %q", bodyName)
@@ -69,10 +70,24 @@ func (im *importer) body(bodyName string, healthScale, shock, incoming float64, 
 	if err != nil {
 		return nil, err
 	}
+	bleed, missingBleed, merge := im.bleedRates()
+	// Pawn_HealthTracker.CanBleed: a blood def, a flesh race, a positive factor.
+	canBleed := race.GetBloodDef() != "" && race.GetBleedRateFactor() > 0
+	fleshName := race.GetFleshType()
+	if fleshName == "" {
+		fleshName = "Normal" // RaceProperties.FleshType: a race with none is Normal
+	}
+	if flesh := bridge.DefRow[*d.FleshTypeDef](im.cat, fleshName); flesh == nil || !flesh.GetIsOrganic() {
+		canBleed = false
+	}
 	b := &combatsim.Body{
 		HealthScale: healthScale, PainPerSeverity: pps, MissingPainPerSeverity: missingPPS, PainShock: shock,
 		IncomingDamageFactor: incoming, HarmAllLayers: im.dmg.harmAllLayers,
 		OverkillLow: im.dmg.overkillLow, OverkillHigh: im.dmg.overkillHigh,
+		BleedPerSeverity: bleed, MissingBleedPerSeverity: missingBleed, MergeInjuries: merge,
+	}
+	if canBleed {
+		b.BleedFactor = float64(race.GetBleedRateFactor())
 	}
 	constants, err := im.cat.GameConstants()
 	if err != nil {
@@ -116,6 +131,8 @@ func (im *importer) body(bodyName string, healthScale, shock, incoming float64, 
 		b.Parts = append(b.Parts, combatsim.BodyPart{
 			Parent: parent, Inside: inside, Coverage: own, HitWeight: weight, MaxHealth: maxHealth,
 			Solid: partDef.GetSolid(), Destroyable: partDef.GetDestroyableByDamage(),
+			HitPoints: float64(partDef.GetHitPoints()), BleedRate: float64(partDef.GetBleedRate()),
+			Tagged: len(partDef.GetTags()) > 0, HasChildren: len(part.GetParts()) > 0,
 		})
 		tags = append(tags, partDef.GetTags())
 		for _, c := range part.GetParts() {
@@ -228,6 +245,15 @@ func (im *importer) painRates() (injury, missing float64, err error) {
 		return 0, 0, unsupported("catalog has no hediff %q", missingPartHediff)
 	}
 	return float64(h.GetInjuryProps().GetPainPerSeverity()), float64(m.GetInjuryProps().GetPainPerSeverity()), nil
+}
+
+// bleedRates reads the bleed rate per severity of the damage's injury hediff and
+// of the missing-part hediff, and whether the injury hediff merges
+// (injuryProps.canMerge). painRates has already checked both hediffs exist.
+func (im *importer) bleedRates() (injury, missing float64, merge bool) {
+	h := bridge.DefRow[*d.HediffDef](im.cat, im.dmg.hediff)
+	m := bridge.DefRow[*d.HediffDef](im.cat, missingPartHediff)
+	return float64(h.GetInjuryProps().GetBleedRate()), float64(m.GetInjuryProps().GetBleedRate()), h.GetInjuryProps().GetCanMerge()
 }
 
 // hitChanceFactor is BodyPartDef.GetHitChanceFactorFor.

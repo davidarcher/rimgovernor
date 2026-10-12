@@ -589,6 +589,8 @@ func (s *Sim) damage(si, vi int) {
 	dealt := s.afterArmor(float64(a.weapon.DamageAmount), a.weapon.ArmorPenetration, v.armor)
 	downed, dead := v.downed, v.dead
 	var landed float64
+	hit := Event{Kind: EventHit, Pawn: a.id, Target: v.id, Cell: v.pos}
+	hit.HealthBefore, hit.BleedBefore = b.summaryHealth(st), b.bleedRate(st)
 	if dealt *= b.IncomingDamageFactor; dealt > 0 && part >= 0 {
 		s.dropFilth()
 		if b.preservesOutside(part) {
@@ -609,7 +611,9 @@ func (s *Sim) damage(si, vi int) {
 		}
 	}
 	v.damage += landed
-	s.emit(Event{Kind: EventHit, Pawn: a.id, Target: v.id, Amount: landed, Cell: v.pos})
+	hit.Amount = landed
+	hit.Health, hit.Bleed = b.summaryHealth(st), b.bleedRate(st)
+	s.emit(hit)
 	s.ledger = append(s.ledger, combatmetrics.Hit{
 		Tick: s.tick, Victim: string(v.id), VictimSide: v.side,
 		Instigator: string(a.id), InstigatorSide: a.side,

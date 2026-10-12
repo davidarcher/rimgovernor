@@ -66,7 +66,10 @@ package combatsim
 //     transition), Notify_PawnLost, Trigger_FractionPawnsLost,
 //     RimWorld.LordToil_PanicFlee (the panic flee, #2983);
 //     Verse.Pawn_HealthTracker.PostApplyDamage and the native
-//     SupervisedPlayCombatStops serious-injury hit floor (#2985).
+//     SupervisedPlayCombatStops serious-injury hit floor (#2985), and its
+//     summary-health and bleed-rate triggers: Verse.SummaryHealthHandler,
+//     Verse.Hediff_Injury.BleedRate, Verse.HediffSet.CalculateBleedRate,
+//     RimWorld.Bullet.Impact (a null HitPart, so no vital-part trigger, #2991).
 //
 //   - body.go, shot.go (damage): Verse.Pawn_HealthTracker (ShouldBeDead,
 //     ShouldBeDowned, InPainShock, CheckForStateChange, LethalDamageThreshold),
@@ -89,4 +92,4 @@ const AssemblyCSharpSHA256 = "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04A
 // any change to a port or an approximation that can move an outcome (a rule
 // fix, a new modeled behavior): a calibration pass (combatsim/calibrate) is
 // recorded under it and is stale after a bump.
-const RulesVersion = 11
+const RulesVersion = 12

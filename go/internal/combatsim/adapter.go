@@ -290,15 +290,14 @@ func (a *Adapter) nearestColonist(from *pawn) domain.Fact[float64] {
 }
 
 // Stop is the stop the events of a Step raise, and whether there is one. A
-// colonist downed or killed raises "downed" (a single hit of at least
-// SeriousSingleHitDamage on a colonist raises "serious_injury" unless the
-// same step also downs one); the first hostile to come within
+// colonist downed or killed raises "downed" (a hit on a colonist that is
+// seriousHit raises "serious_injury" unless the same step also downs one); the
+// first hostile to come within
 // reach of a colonist, or a colonist's weapon to reach it, raises
 // "entered_range" (once per hostile each way, the first scan only recording
 // the state at the start). Other native stop kinds are not raised: there are
 // no shields, lords, melee, explosives or mental states in the sim, and the
-// summary-health, bleed and vital-part serious triggers are not ported
-// (approximations.md A22).
+// vital-part serious trigger cannot fire for bullets (approximations.md A22).
 func (a *Adapter) Stop(events []Event) (policy.StopEvent, bool) {
 	var stop policy.StopEvent
 	found := false
@@ -307,9 +306,9 @@ func (a *Adapter) Stop(events []Event) (policy.StopEvent, bool) {
 	for _, e := range events {
 		switch e.Kind {
 		case EventHit:
-			// Pawn_HealthTracker.PostApplyDamage: one blow of at least
-			// SeriousSingleHitDamage to a colonist is a serious injury (A22).
-			if i := a.sim.pawnIndex(e.Target); !seriousFound && i >= 0 && a.colonist(&a.sim.pawns[i]) && e.Amount >= float64(policy.SeriousSingleHitDamage) {
+			// Pawn_HealthTracker.PostApplyDamage: a serious injury to a
+			// colonist (A22).
+			if i := a.sim.pawnIndex(e.Target); !seriousFound && i >= 0 && a.colonist(&a.sim.pawns[i]) && seriousHit(e) {
 				serious, seriousFound = policy.StopEvent{Kind: policy.StopSeriousInjury, Pawn: e.Target}, true
 			}
 		case EventDowned, EventDied:
@@ -328,6 +327,21 @@ func (a *Adapter) Stop(events []Event) (policy.StopEvent, bool) {
 		return policy.StopEvent{Kind: stopEnteredRange, Pawn: h}, true
 	}
 	return stop, found
+}
+
+// seriousHit is SupervisedPlayCombatStops.SeriousWhy for a hit on a colonist:
+// one blow of at least SeriousSingleHitDamage, summary health crossing from
+// above SeriousSummaryHealthFloor to at or under it, or the total bleed rate
+// crossing from under SeriousBleedRateFloor to at or over it. The vital-part
+// trigger needs DamageInfo.HitPart, which a projectile's DamageInfo leaves null
+// (Bullet.Impact passes no part and Apply works on a copy), so it never fires
+// for the sim's ranged hits.
+func seriousHit(e Event) bool {
+	health, floor := float32(e.Health), policy.SeriousSummaryHealthFloor
+	bleed, bleedFloor := float32(e.Bleed), policy.SeriousBleedRateFloor
+	return e.Amount >= float64(policy.SeriousSingleHitDamage) ||
+		(float32(e.HealthBefore) > floor && health <= floor) ||
+		(float32(e.BleedBefore) < bleedFloor && bleed >= bleedFloor)
 }
 
 // scanRange is SupervisedPlayCombatStops.ScanCombatContact's range half for

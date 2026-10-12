@@ -234,7 +234,7 @@ func (im *importer) pawn(spec Spec, p Pawn, w weapon) (combatsim.PawnSpec, comba
 		}
 	}
 	kd := bridge.DefRow[*d.PawnKindDef](im.cat, p.Kind)
-	body, err := im.body(r.def.GetRace().GetBody(), r.healthSize, shock, incoming, kd.GetIgnoresPainShock())
+	body, err := im.body(r.def.GetRace(), r.healthSize, shock, incoming, kd.GetIgnoresPainShock())
 	if err != nil {
 		return ps, pf, err
 	}
