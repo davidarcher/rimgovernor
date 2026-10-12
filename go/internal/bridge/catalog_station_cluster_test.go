@@ -59,7 +59,8 @@ func TestBaselineClustering(t *testing.T) {
 			circulation++ // seven sleeping rooms outnumber the three public ones (#2911)
 			continue
 		}
-		if g.Band.Set() {
+		switch g.Planned {
+		case policy.PlannedTomb, policy.PlannedMorgue, policy.PlannedGraveyard, policy.PlannedWasteYard, policy.PlannedIncinerator:
 			outskirts++ // the tomb, morgue, graveyard, waste yard and incinerator (#2882)
 			continue
 		}

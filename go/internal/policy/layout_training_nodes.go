@@ -8,11 +8,12 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // rooms, and the old planner stays authoritative. Both are unfenced open-air
 // rooms with a fixed floor that rangeBlock/ringBlock keep unchanged, so the
 // node asks the exact floor (stands by RangeDistance+1 cells; RingSide
-// squared) and linkRooms adds no door threshold to it (exactFloor). Two
-// constraints sit on the nodes:
+// squared) and linkRooms adds no door threshold to it (exactFloor). No distance band sits
+// on them (#2987): the old rangeGap (2 clear cells, "a firing line to keep clear
+// of walls") is a judgment value no game rule or model derives, and the reach
+// (outskirtsReach) was the old siting window; neither is kept. One constraint
+// sits on the nodes:
 //
-//   - Band. Both keep the range's own gap (rangeGap) from the base's other
-//     rooms, no more than outskirtsReach beyond them.
 //   - Beside. The ring stands beside the range, a required link as the
 //     incinerator stands beside the waste yard.
 //
@@ -28,9 +29,6 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // capable adults need a place to train.
 const ReasonTrainingRoom = "training_room_demanded"
 
-// TrainingBand is the ground a training room keeps from the base's other rooms.
-func TrainingBand() DistanceBand { return DistanceBand{Min: rangeGap, Max: outskirtsReach} }
-
 // TrainingRoomNodes are the range and ring nodes for stands range stands and
 // markers ring markers; a count of zero asks for no such room. A first range is
 // asked for at least RangeMinStands and a ring for at least RingMinMarkers, as
@@ -39,11 +37,11 @@ func TrainingRoomNodes(stands, markers int) []RoomNode {
 	var nodes []RoomNode
 	if stands > 0 {
 		n := int32(min(max(stands, RangeMinStands), RangeMaxStands))
-		nodes = append(nodes, RoomNode{ID: string(PlannedTrainingRange), Role: PlannedTrainingRange, Area: int(n * (RangeDistance + 1)), Width: RangeDistance + 1, Band: TrainingBand(), Reason: ReasonTrainingRoom})
+		nodes = append(nodes, RoomNode{ID: string(PlannedTrainingRange), Role: PlannedTrainingRange, Area: int(n * (RangeDistance + 1)), Width: RangeDistance + 1, Reason: ReasonTrainingRoom})
 	}
 	if markers > 0 {
 		m := min(max(markers, RingMinMarkers), RingMaxMarkers)
-		ring := RoomNode{ID: string(PlannedSparringRing), Role: PlannedSparringRing, Area: int(RingSide * RingSide), Width: RingSide, Band: TrainingBand(), Markers: m, Reason: ReasonTrainingRoom}
+		ring := RoomNode{ID: string(PlannedSparringRing), Role: PlannedSparringRing, Area: int(RingSide * RingSide), Width: RingSide, Markers: m, Reason: ReasonTrainingRoom}
 		if stands > 0 {
 			ring.Beside = string(PlannedTrainingRange)
 		}
@@ -71,14 +69,21 @@ func placedBlocks(groups []RoomGroup, blocks []EmbeddedBlock) []Rectangle {
 	return out
 }
 
+// apartFromBase are the roles of the rooms the graph sites by their own terms, not
+// as part of the base: the outskirts rooms, the training rooms and the shelter.
+var apartFromBase = map[PlannedRole]bool{
+	PlannedTomb: true, PlannedMorgue: true, PlannedGraveyard: true, PlannedWasteYard: true, PlannedIncinerator: true,
+	PlannedTrainingRange: true, PlannedSparringRing: true, PlannedShelter: true,
+}
+
 // awayReference is the bounding box of the placed blocks of the groups outside
-// the band: the base a facing group points away from. False while none is
+// the rooms that stand apart (apartFromBase): the base a facing group points away from. False while none is
 // placed.
 func awayReference(groups []RoomGroup, blocks []Rectangle) (Rectangle, bool) {
 	var ref Rectangle
 	found := false
 	for i, b := range blocks {
-		if b.Width == 0 || groups[i].Band.Set() {
+		if b.Width == 0 || apartFromBase[groups[i].Planned] {
 			continue
 		}
 		if !found {

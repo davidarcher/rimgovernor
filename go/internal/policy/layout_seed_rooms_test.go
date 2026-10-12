@@ -48,7 +48,7 @@ func TestSeedRoomNodesAskTheOldSitingsFloor(t *testing.T) {
 	if want := ShelterInteriorArea(4, ShelterCampfires(true), ShelterCoolers(false)); nodes[0].Area != want {
 		t.Errorf("shelter area %d, want %d", nodes[0].Area, want)
 	}
-	if nodes[0].Band != ShelterBand() || nodes[1].Area != 30 || nodes[0].Reason != ReasonShelterRoom || nodes[1].Reason != ReasonThroneRoom {
+	if nodes[1].Area != 30 || nodes[0].Reason != ReasonShelterRoom || nodes[1].Reason != ReasonThroneRoom {
 		t.Errorf("nodes %+v", nodes)
 	}
 	if got := SeedRoomNodes(SeedRooms{}); len(got) != 0 {

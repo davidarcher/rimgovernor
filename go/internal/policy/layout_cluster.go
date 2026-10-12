@@ -173,9 +173,6 @@ type RoomGroup struct {
 	// Width is the fixed short side of the group's block, 0 for the squarest
 	// (a circulation corridor is a strip).
 	Width int32
-	// Band is the ground the group keeps from the groups outside the band (the
-	// outskirts rooms, #2882); zero for a group that goes anywhere.
-	Band DistanceBand
 	// Markers carries a sparring ring's node (#2887): its marker count.
 	Markers  int
 	Requires []EnvRequirement
@@ -786,13 +783,20 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 		out.Groups, out.Decisions = c.addRoom(out.Groups, out.Decisions, r)
 	}
 	linkRooms(out.Groups, first, in.Graph.Rooms)
+	flowRooms(out.Groups, first, in.Graph.Rooms, func(node string, add func(group int, share float64)) {
+		if ia, ok := index[node]; ok && in.Graph.Nodes[ia].Count > 0 {
+			for _, u := range chunks[ia] {
+				add(rootGroup[find(u)], float64(units[u].count)/float64(in.Graph.Nodes[ia].Count))
+			}
+		}
+	})
 	return out, nil
 }
 
 // addRoom appends the group of a station-less room node: its asked floor, plus
 // the cooling station a cold group carries.
 func (c *clusterer) addRoom(groups []RoomGroup, decisions []ClusterDecision, node RoomNode) ([]RoomGroup, []ClusterDecision) {
-	g := RoomGroup{ID: len(groups), Clearance: node.Area, Planned: node.Role, Width: node.Width, Band: node.Band, Markers: node.Markers}
+	g := RoomGroup{ID: len(groups), Clearance: node.Area, Planned: node.Role, Width: node.Width, Markers: node.Markers}
 	d := ClusterDecision{A: node.ID, Verdict: ClusterRoom, Reason: node.Reason}
 	if node.Cold {
 		g.Requires = []EnvRequirement{EnvCold}
@@ -996,4 +1000,41 @@ func bestCooler(cat StationCatalog) (string, bool) {
 		}
 	}
 	return best, best != ""
+}
+
+// flowRooms links the groups first.. of room nodes to the groups holding the
+// station nodes of their flows, a wish weighted by the trips (split over the
+// groups in proportion to the node's stations in each, as the outside node's
+// edges are). holders calls add for each group holding a share of a node; a
+// node the graph lacks adds none, so a flow to nothing prices nothing.
+func flowRooms(groups []RoomGroup, first int, nodes []RoomNode, holders func(node string, add func(group int, share float64))) {
+	i := first
+	for _, n := range nodes {
+		if n.Joins {
+			continue
+		}
+		room := i
+		i++
+		for _, f := range n.Flows {
+			if f.Weight <= 0 {
+				continue
+			}
+			holders(f.With, func(g int, share float64) {
+				groups[room].addLink(g, f.Weight*share)
+				groups[g].addLink(room, f.Weight*share)
+			})
+		}
+		sort.Slice(groups[room].Links, func(a, b int) bool { return groups[room].Links[a].To < groups[room].Links[b].To })
+	}
+}
+
+// addLink adds weight to the wish to stand beside group to, a new link if none.
+func (g *RoomGroup) addLink(to int, weight float64) {
+	for k := range g.Links {
+		if g.Links[k].To == to {
+			g.Links[k].Weight += weight
+			return
+		}
+	}
+	g.Links = append(g.Links, GroupLink{To: to, Weight: weight})
 }

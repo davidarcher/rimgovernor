@@ -204,19 +204,28 @@ type RoomNode struct {
 	// Cold marks a room kept cold: clustering gives it the cooling station a
 	// cold group carries (the morgue).
 	Cold bool
-	// Band is the ground, in cells, the room stands clear of the base's other
-	// rooms; the zero band places the room anywhere (the outskirts, #2882).
-	Band DistanceBand
 	// Beside is the room node this one must stand beside (a required link).
 	Beside string
+	// Flows are the trips a day between the room and station nodes, priced in
+	// the embedding as any link is (the walk the trips cost). A room with none
+	// is not priced by distance: a flow that is not known is not guessed.
+	Flows []RoomFlow
 	// Markers is the marker count of a sparring ring.
 	Markers int
 	Reason  string
 }
 
-// DistanceBand is the ring of clear ground a room keeps from the rooms outside
-// the band: at least Min cells between their walls, and, while any such room
-// stands, no more than Max. The zero band is no constraint.
+// RoomFlow is the trips a day (one way) between a room node and the station node
+// With; Reason says what travels.
+type RoomFlow struct {
+	With   string
+	Weight float64
+	Reason string
+}
+
+// DistanceBand is the ring of clear ground a site footprint keeps from the
+// rooms: at least Min cells between their walls, and, while any room stands, no
+// more than Max. The zero band is no constraint.
 type DistanceBand struct{ Min, Max int32 }
 
 // Set reports a band that constrains.
@@ -330,6 +339,7 @@ func BuildStationGraph(in StationGraphInput) (StationGraph, error) {
 	g := b.graph()
 	g.Fields = fields
 	g.Rooms = stationRoomNodes(in)
+	b.shelterMeals(g.Rooms, meals)
 	for _, n := range g.Nodes {
 		switch n.Purpose {
 		case PurposeSleep, PurposeSleepMed, PurposeSleepBaby:
@@ -917,6 +927,32 @@ func (b *graphBuilder) sleepEat(meals float64) {
 			b.addEdge(n.ID, dine, meals*float64(b.healthySleepers(n))/colonists, false, ReasonFlowMeal)
 		case PurposeSleepMed:
 			b.addEdge(n.ID, dine, meals*injured/colonists, false, ReasonFlowMeal)
+		}
+	}
+}
+
+// ReasonFlowShelterMeal is why the shelter has a flow: the colonists sleeping in
+// it walk to the table for each meal (sleepEat's bed-to-table trips).
+const ReasonFlowShelterMeal = "flow_shelter_meal"
+
+// shelterMeals gives the shelter the meal trips of the colonists it houses, as
+// sleepEat gives a bed: meals a day times the share of the colony sleeping in
+// it, to the dining node. With no table, no meals or no colonists read there is
+// nothing to price and the shelter carries no flow.
+func (b *graphBuilder) shelterMeals(rooms []RoomNode, meals float64) {
+	colonists := b.in.Population.Colonists
+	if meals <= 0 || colonists <= 0 {
+		return
+	}
+	for i := range rooms {
+		if rooms[i].Role != PlannedShelter {
+			continue
+		}
+		for _, n := range b.nodes {
+			if n.Purpose == PurposeDine {
+				share := float64(min(b.in.Seed.Colonists, colonists)) / float64(colonists)
+				rooms[i].Flows = append(rooms[i].Flows, RoomFlow{With: n.ID, Weight: meals * share, Reason: ReasonFlowShelterMeal})
+			}
 		}
 	}
 }

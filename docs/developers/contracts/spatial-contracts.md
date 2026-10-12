@@ -421,13 +421,22 @@ on the colony centre when the plan has no free cell there.
   **Outskirts rooms (#2882).** The tomb, morgue, graveyard, waste yard and incinerator
   are station-less room nodes of the same graph (`OutskirtsRoomNodes`,
   `layout_outskirts_nodes.go`): each asks the floor its slot gives and keeps its role's
-  interior template, and clustering makes a `Planned` group of it. Two constraints ride on
-  the nodes. The distance band (`OutskirtsBand`): every outskirts group keeps at least
-  `outskirtsGap` clear cells between its walls and every other room, one beyond
-  `CorpseSightRadius` (5, `PawnObserver.ObservationRadius` with line of sight in 1.6, read
-  with ilspycmd), so a corpse lying there is out of every indoor pawn's sight, and at most
-  `outskirtsReach` (the siting window); the embedding enforces the minimum on every
-  placement and reports a maximum break (`embed_band_too_far`). The morgue is cold, so it
+  interior template, and clustering makes a `Planned` group of it. No distance band sits on
+  the nodes (#2987): no minimum clear ground (once walls stand, line of sight to a corpse
+  pile is blocked, so `CorpseSightRadius` is no standing rule) and no maximum reach. The
+  only pressure on where a room stands is the hauling cost of the flows that reach it
+  (`RoomNode.Flows`, priced in the embedding as any link is) and, for a room no flow
+  reaches, the enclosure it adds to the base. The repo has no corpse or waste volume
+  model, so these rooms carry no flow yet: they are unpriced by distance, never forced
+  near or far and never guessed. An unpriced room (`embedder.unpriced`: no link of
+  positive weight, so the incinerator beside the waste yard counts) is placed by the cell
+  terms (soil, edge, centre) plus the marginal Wall and Footprint of the plan score
+  (`enclosureCost`, `layout_embed_enclosure.go`, `planWeights`, no new constant): the base
+  pays a wall ring for its size, so a room standing apart pays a ring of its own and one
+  beside the rest shares theirs. The ring is read off rectangles (blocks grown by the
+  killbox yard and `perimeterThick`, only on ground a wall can stand on) and ignores
+  closing, hole filling and shoreline detours, which the plan's own score still prices.
+  The morgue is cold, so it
   carries the cooler any cold group carries; the incinerator is required beside the waste
   yard. Wind is not a constraint: it has no game effect here. The tiler gives the
   unfenced graveyard and waste yard no wall, door or entrance. The old outskirts planner
@@ -438,11 +447,13 @@ on the colony centre when the plan has no free cell there.
   and `TrainingMarkers` ask for them, zero asks for none). Each asks its exact floor
   (stands by `RangeDistance+1`; `RingSide` squared) and clustering adds no door threshold
   to it (`exactFloor`); `rangeBlock` and `ringBlock` keep their rectangle shells. Both
-  keep `TrainingBand` (`rangeGap` to `outskirtsReach`); the ring is required beside the
-  range. Nothing behind the dummies is kept free: a practice shot is cast with
+  no distance band (#2987: the old `rangeGap` of two clear cells is a judgment no game
+  rule derives, and `outskirtsReach` was the old siting window); the ring is required
+  beside the range. Nothing behind the dummies is kept free: a practice shot is cast with
   non-target pawns excluded, so it cannot hit a pawn (#2938). The tiler writes `Facing`
-  (the dummies point to the end farther from the bounds of the rooms outside the band,
-  `dummyFacing`) and `Markers` onto the room. Growth stays widening in place (`widenRange`,
+  (the dummies point to the end farther from the bounds of the rooms that are part of the
+  base, not the outskirts, training or shelter rooms: `apartFromBase`, `dummyFacing`) and
+  `Markers` onto the room. Growth stays widening in place (`widenRange`,
   `widenRing`); the old siting stays authoritative.
   **Power sites (#2919).** `AdviseStations` asks `EmbedSites` for a site node per
   planned turbine, solar plot and geothermal enclosure (`PowerSiteNodes`,

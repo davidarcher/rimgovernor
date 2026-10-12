@@ -11,11 +11,10 @@ package policy
 //
 //   - Shelter. One temporary room, ShelterInteriorArea cells for the colonists
 //     (a bunk each, campfires on a cold map, a cooler on a hot one, the crafting
-//     spot and research table). It keeps shelterGap clear ground from the base's
-//     other rooms so its ground frees when it is demolished, as the siting does;
-//     the embedding enforces it as a band minimum and, unlike the siting, does
-//     not narrow the gap when the ground is tight (the room is then left out and
-//     the embedding says so). The old siting's battery porch is not planned.
+//     spot and research table). It has no distance band (#2987): the walk of its
+//     meal trips to the table (RoomNode.Flows, shelterMeals) is the only pressure
+//     on where it stands; with no table or no meals read it is
+//     unpriced. The old siting's battery porch is not planned.
 //   - Throne. One room of the title's area, sited like any other room.
 //
 // Unknown stays unknown: a shelter needs the colony's size, a throne room the
@@ -39,15 +38,12 @@ type SeedRooms struct {
 	ThroneArea int
 }
 
-// ShelterBand is the ground the shelter keeps from the base's other rooms.
-func ShelterBand() DistanceBand { return DistanceBand{Min: shelterGap} }
-
 // SeedRoomNodes are the shelter and throne nodes for s.
 func SeedRoomNodes(s SeedRooms) []RoomNode {
 	var nodes []RoomNode
 	if s.Shelter {
 		area := ShelterInteriorArea(s.Colonists, ShelterCampfires(s.Cold), ShelterCoolers(s.Hot))
-		nodes = append(nodes, RoomNode{ID: string(PlannedShelter), Role: PlannedShelter, Area: area, Band: ShelterBand(), Reason: ReasonShelterRoom})
+		nodes = append(nodes, RoomNode{ID: string(PlannedShelter), Role: PlannedShelter, Area: area, Reason: ReasonShelterRoom})
 	}
 	if s.ThroneArea > 0 {
 		nodes = append(nodes, RoomNode{ID: string(PlannedThrone), Role: PlannedThrone, Area: s.ThroneArea, Reason: ReasonThroneRoom})

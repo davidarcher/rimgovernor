@@ -175,15 +175,36 @@ func ReplayDeltas(old, cur replayRow) map[string]int {
 	return out
 }
 
+// parityTotal is the total the parity gate compares: the replay row's score
+// terms and hard-tier charges WITHOUT Walk (#2987). Walk is the one term the
+// two generators do not measure alike: the old generator's plan is walked over
+// the fixed role-pair table (routeTrips, layout_route.go) and its figure sits
+// inside the recorded Total with no column of its own, while the tiler's plan
+// carries its own flow-weighted room trips (tripWalk) that price flows the old
+// table has no pair for, such as the shelter's meals. Charging one's walk
+// against the other's would fail a plan for modelling more trips. Every other
+// term (Soil, Footprint, Wall, Edge, Centre, Defense, Expansion) and the
+// hard-tier charges are read alike off both plans, so they are compared. The
+// recorded row is never edited: its Walk is the part of Total these terms do
+// not account for, which is simply left out here.
+func parityTotal(r replayRow) int {
+	t := r.Soil + r.Footprint + r.Wall + r.Edge + r.Centre + r.Defense + r.Expansion
+	t -= planWeights.MissingRoom * r.Missing
+	if r.RoutesErr != "" {
+		t -= planWeights.BadRoutes
+	}
+	return t
+}
+
 // ParityVerdict is the gate a replacement planner must clear on one fixture:
-// its hard tier passes whenever the old generator's did, and its total is at
-// least the old one's. Nil when it clears.
+// its hard tier passes whenever the old generator's did, and its total without
+// Walk (parityTotal) is at least the old one's. Nil when it clears.
 func ParityVerdict(old, cur replayRow) error {
 	if old.Pass && !cur.Pass {
 		return fmt.Errorf("hard tier fails (missing=%d routes=%q rich=%d) where the old generator passed", cur.Missing, cur.RoutesErr, cur.RichCells)
 	}
-	if cur.Total < old.Total {
-		return fmt.Errorf("total %d is below the old generator's %d", cur.Total, old.Total)
+	if o, c := parityTotal(old), parityTotal(cur); c < o {
+		return fmt.Errorf("total without Walk %d is below the old generator's %d", c, o)
 	}
 	return nil
 }
@@ -193,6 +214,12 @@ func ParityVerdict(old, cur replayRow) error {
 // fixture, with the score deltas and the structural diff against the old
 // generator's plan logged. A planner that cannot plan a survey returns an
 // error, which counts as not clearing the gate.
+//
+// The verdict compares the totals WITHOUT Walk (parityTotal): the tiler walks
+// its own flow-weighted room trips, the old generator the fixed role-pair table,
+// and the recorded baseline stays the old generator's frozen numbers. The rows
+// are compared on Soil, Footprint, Wall, Edge, Centre, Defense and Expansion
+// plus the hard-tier charges, and the log prints both totals.
 //
 // The gate is a measurement until the cutover (#2931): expectedFail names, by
 // fixture, the reason it does not yet clear ParityVerdict. A listed fixture
@@ -212,7 +239,7 @@ func RunParityGate(t *testing.T, plan func(f replayFixture, s MapSurvey) (Layout
 			if err == nil {
 				row := newReplayRow(Score(p, s), len(p.AllRooms()))
 				ref := SiteCore(LayoutPlan{Zones: Zone(s)}, s, f.pawns, 1, TechTierCamp)
-				t.Logf("%s deltas vs old: %v\n%s", f.name, ReplayDeltas(old, row), StructuralDiff(ref, p))
+				t.Logf("%s deltas vs old: %v; total without Walk (compared) %d vs old %d, with Walk %d vs %d\n%s", f.name, ReplayDeltas(old, row), parityTotal(row), parityTotal(old), row.Total, old.Total, StructuralDiff(ref, p))
 				err = ParityVerdict(old, row)
 			}
 			reason, expected := expectedFail[f.name]
@@ -252,20 +279,27 @@ func TestStructuralDiff(t *testing.T) {
 }
 
 func TestReplayDeltasAndParity(t *testing.T) {
-	old := replayRow{Pass: true, Total: -100, Soil: -10}
-	if err := ParityVerdict(old, replayRow{Pass: true, Total: -100, Soil: -5}); err != nil {
-		t.Fatal(err)
+	// The recorded Total holds a Walk of -20 that no column carries.
+	old := replayRow{Pass: true, Total: -100, Soil: -80}
+	if err := ParityVerdict(old, replayRow{Pass: true, Total: -85, Soil: -75}); err != nil {
+		t.Fatal(err) // a walk the tiler prices and the old table does not is not charged
 	}
-	if ParityVerdict(old, replayRow{Pass: true, Total: -101}) == nil {
-		t.Fatal("a lower total passed")
+	if err := ParityVerdict(old, replayRow{Pass: true, Total: -300, Soil: -80}); err != nil {
+		t.Fatal("a larger Walk alone failed the gate:", err)
+	}
+	if ParityVerdict(old, replayRow{Pass: true, Total: -81, Soil: -81}) == nil {
+		t.Fatal("a lower total without Walk passed")
 	}
 	if ParityVerdict(old, replayRow{Pass: false, Total: 0}) == nil {
 		t.Fatal("a hard-tier loss passed")
 	}
-	if ParityVerdict(replayRow{Total: -9}, replayRow{Total: -9}) != nil {
+	if ParityVerdict(replayRow{Total: -9, Soil: -9}, replayRow{Total: -9, Soil: -9}) != nil {
 		t.Fatal("an equal failing fixture failed")
 	}
-	if d := ReplayDeltas(old, replayRow{Pass: true, Total: -90}); len(d) != 2 || d["Total"] != 10 || d["Soil"] != 10 {
+	if got := parityTotal(replayRow{Soil: -1, Wall: -2, Missing: 1, RoutesErr: "x"}); got != -3-planWeights.MissingRoom-planWeights.BadRoutes {
+		t.Fatal("hard charges:", got)
+	}
+	if d := ReplayDeltas(old, replayRow{Pass: true, Total: -90, Soil: -70}); len(d) != 2 || d["Total"] != 10 || d["Soil"] != 10 {
 		t.Fatal(d)
 	}
 }

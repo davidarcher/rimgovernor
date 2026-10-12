@@ -34,8 +34,8 @@ func groupOf(groups []RoomGroup, role PlannedRole) RoomGroup {
 	return RoomGroup{ID: -1}
 }
 
-// The graph carries the five outskirts rooms as station-less nodes, each in the
-// band; the game's corpse-sight radius sets the band's floor.
+// The graph carries the five outskirts rooms as station-less nodes, none banded or flowed
+// (no corpse or waste volume model prices them).
 func TestGraphCarriesOutskirtsRoomNodes(t *testing.T) {
 	g, err := BuildStationGraph(graphTestInput())
 	if err != nil {
@@ -47,7 +47,7 @@ func TestGraphCarriesOutskirtsRoomNodes(t *testing.T) {
 			continue
 		}
 		roles = append(roles, r.Role)
-		if r.Band != OutskirtsBand() || r.Joins || r.Reason != ReasonOutskirtsRoom || r.Area <= 0 {
+		if len(r.Flows) != 0 || r.Joins || r.Reason != ReasonOutskirtsRoom || r.Area <= 0 {
 			t.Errorf("room node %+v", r)
 		}
 		if r.Cold != (r.Role == PlannedMorgue) {
@@ -57,9 +57,6 @@ func TestGraphCarriesOutskirtsRoomNodes(t *testing.T) {
 	want := []PlannedRole{PlannedTomb, PlannedMorgue, PlannedGraveyard, PlannedWasteYard, PlannedIncinerator}
 	if !slices.Equal(roles, want) {
 		t.Fatalf("outskirts nodes %v, want %v", roles, want)
-	}
-	if band := OutskirtsBand(); band.Min != CorpseSightRadius+1 || band.Max != outskirtsReach {
-		t.Errorf("band %+v is not one cell beyond the corpse-sight radius %d", band, CorpseSightRadius)
 	}
 }
 
@@ -73,7 +70,7 @@ func TestClusterMakesOutskirtsGroups(t *testing.T) {
 	if groupOf(groups, PlannedGraveyard).ID < 0 || tomb.ID < 0 || morgue.ID < 0 || yard.ID < 0 || inc.ID < 0 {
 		t.Fatalf("groups %+v", groups)
 	}
-	if tomb.Area != 25 || len(tomb.Stations) != 0 || tomb.Band != OutskirtsBand() {
+	if tomb.Area != 25 || len(tomb.Stations) != 0 {
 		t.Errorf("tomb %+v", tomb)
 	}
 	// The morgue's 5x4 floor, the cooler's 2x1 and the cell that keeps it reachable.
@@ -89,9 +86,9 @@ func TestClusterMakesOutskirtsGroups(t *testing.T) {
 	}
 }
 
-// The embedding keeps every outskirts room the band's clear ground from every
-// other room and the incinerator beside the waste yard.
-func TestEmbedKeepsOutskirtsBand(t *testing.T) {
+// The embedding sites every outskirts room with no band and the incinerator
+// beside the waste yard.
+func TestEmbedPlacesOutskirtsWithoutBand(t *testing.T) {
 	groups := outskirtsGroups(t)
 	s := plusSurvey(300, 80)
 	in := EmbedInput{Groups: groups, Zones: Zone(s), Survey: s, RoofDistance: testRoof}
@@ -103,22 +100,10 @@ func TestEmbedKeepsOutskirtsBand(t *testing.T) {
 	if len(emb.Blocks) != len(groups) {
 		t.Fatalf("placed %d of %d: %+v", len(emb.Blocks), len(groups), emb.Decisions)
 	}
-	for _, a := range emb.Blocks {
-		for _, b := range emb.Blocks {
-			if groups[a.Group].Band.Set() && !groups[b.Group].Band.Set() && bandClear(a.Interior, b.Interior) < int(OutskirtsBand().Min) {
-				t.Errorf("group %d (%+v) is %d from group %d (%+v)", a.Group, a.Interior, bandClear(a.Interior, b.Interior), b.Group, b.Interior)
-			}
-		}
-	}
 	yard, _ := emb.Block(groupOf(groups, PlannedWasteYard).ID)
 	inc, _ := emb.Block(groupOf(groups, PlannedIncinerator).ID)
 	if gapDist(yard, inc) != 1 {
 		t.Errorf("incinerator %+v not beside the waste yard %+v", inc, yard)
-	}
-	for _, d := range emb.Decisions {
-		if d.Reason == ReasonEmbedBand {
-			t.Errorf("band maximum broken: %+v", d)
-		}
 	}
 }
 

@@ -304,10 +304,12 @@ block), the clustering's conflicts and the embedding report; `skipped`
 The day-1 shelter and the throne room are kept as special rooms: station-less
 room nodes (`SeedRoomNodes`, `layout_seed_rooms.go`) that the graph holds beside
 the outskirts and training rooms. The node asks the floor the old siting sized
-(`ShelterInteriorArea`; the throne's requested area), the shelter keeps
-`shelterGap` from the base as a band minimum, and the tiler gives both walls, a
-door and, on a bad-climate map, the airlock decision like any room. The
-embedding does not narrow the gap when ground is tight (the old siting does), and the old
+(`ShelterInteriorArea`; the throne's requested area), the shelter has no distance
+band (#2987): it carries the meal flow of the colonists sleeping in it to the dining node
+(`shelterMeals`: meals a day times their share of the colony, `RoomNode.Flows`), which
+is the walk that pulls it near the table, and with no table, no meals or no colonists
+read it carries none and is unpriced. The tiler gives both walls, a
+door and, on a bad-climate map, the airlock decision like any room. The old
 battery porch is not planned. The shelter is owed only to a plan that holds none and
 has nothing standing; the throne room only when `StationFacts.ThroneArea` is
 read, positive and not already held.

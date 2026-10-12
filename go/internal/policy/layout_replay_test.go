@@ -72,9 +72,6 @@ var replayFixtures = []replayFixture{
 		}
 		return SurveyCell{Walkable: true, Fertility: 1}
 	})},
-	{name: "tiny", pawns: 3, mayFail: true, survey: syntheticSurvey(40, func(x, z int32) SurveyCell {
-		return SurveyCell{Walkable: true, Fertility: 1}
-	})},
 }
 
 func TestReplayScoreFixtures(t *testing.T) {

@@ -39,11 +39,11 @@ func TestTrainingRoomNodes(t *testing.T) {
 	}
 	rng, ring := nodes[0], nodes[1]
 	if rng.Role != PlannedTrainingRange || rng.Area != 5*(RangeDistance+1) || rng.Width != RangeDistance+1 || rng.Beside != "" ||
-		rng.Band != TrainingBand() || rng.Reason != ReasonTrainingRoom || rng.Joins || rng.Cold {
+		rng.Reason != ReasonTrainingRoom || rng.Joins || rng.Cold {
 		t.Errorf("range %+v", rng)
 	}
 	if ring.Role != PlannedSparringRing || ring.Area != int(RingSide*RingSide) || ring.Width != RingSide || ring.Markers != 7 ||
-		ring.Beside != rng.ID || ring.Band != TrainingBand() {
+		ring.Beside != rng.ID {
 		t.Errorf("ring %+v", ring)
 	}
 	// Counts clamp as the siting does.
@@ -109,8 +109,7 @@ func embedTraining(t *testing.T, stands, markers int) ([]RoomGroup, EmbedInput, 
 	return groups, in, emb
 }
 
-// The embedding stands the ring beside the range, keeps the training band from
-// every other room.
+// The embedding stands the ring beside the range, keeps with no band.
 func TestEmbedPlacesRingBesideRange(t *testing.T) {
 	groups, _, emb := embedTraining(t, 4, 6)
 	rid, gid := groupOf(groups, PlannedTrainingRange).ID, groupOf(groups, PlannedSparringRing).ID
@@ -119,15 +118,8 @@ func TestEmbedPlacesRingBesideRange(t *testing.T) {
 	if gapDist(rng, ring) != 1 {
 		t.Errorf("ring %+v not beside the range %+v", ring, rng)
 	}
-	for _, a := range emb.Blocks {
-		for _, b := range emb.Blocks {
-			if groups[a.Group].Band.Set() && !groups[b.Group].Band.Set() && bandClear(a.Interior, b.Interior) < int(TrainingBand().Min) {
-				t.Errorf("group %d is %d from group %d", a.Group, bandClear(a.Interior, b.Interior), b.Group)
-			}
-		}
-	}
 	for _, d := range emb.Decisions {
-		if d.Reason == ReasonEmbedBand || d.Reason == ReasonEmbedLinkNotAdjacent {
+		if d.Reason == ReasonEmbedLinkNotAdjacent {
 			t.Errorf("unsatisfied: %+v", d)
 		}
 	}

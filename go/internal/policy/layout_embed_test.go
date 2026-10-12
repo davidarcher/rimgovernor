@@ -171,7 +171,7 @@ func TestEmbedColdAndOpenSkySiteSignal(t *testing.T) {
 
 // A site too small for the colony reports the groups it cannot place.
 func TestEmbedReportsUnplaceable(t *testing.T) {
-	s := replayFixtureNamed("tiny").survey(t)
+	s := syntheticSurvey(40, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })(t)
 	in := embedInput(t, s, 40)
 	emb, err := Embed(in)
 	if err != nil {

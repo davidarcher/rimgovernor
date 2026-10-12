@@ -118,20 +118,5 @@
   "Defense": 0,
   "Expansion": 300,
   "Rooms": 17
- },
- "tiny": {
-  "Pass": false,
-  "Total": -500000,
-  "Missing": 5,
-  "RoutesErr": "",
-  "RichCells": 0,
-  "Soil": 0,
-  "Footprint": 0,
-  "Wall": 0,
-  "Edge": 0,
-  "Centre": 0,
-  "Defense": 0,
-  "Expansion": 0,
-  "Rooms": 0
  }
 }
