@@ -26,8 +26,8 @@ import (
 //	  +-------------------------------------> x
 //
 // Offsets are from the outline's south-west corner:
-//   - tomb outline (0,0), interior 5x5 (coreRoomSize[PlannedTomb]);
-//   - morgue outline (tombW+1, 0), interior 5x4 (coreRoomSize[PlannedMorgue]);
+//   - tomb outline (0,0), interior 5x5 (roomSize(PlannedTomb));
+//   - morgue outline (tombW+1, 0), interior 5x4 (roomSize(PlannedMorgue));
 //     both rooms' back walls lie on the outline's south edge, so their cooler
 //     exhaust (the cell behind the back wall) falls outside the reservation;
 //   - the lane is the row at z = row 0's height;
@@ -80,13 +80,13 @@ type OutskirtsLayout struct {
 
 // outskirtsRow0 is the walled rooms' row height: the taller of the tomb and morgue.
 func outskirtsRow0() int32 {
-	return max(coreRoomSize[PlannedTomb][1], coreRoomSize[PlannedMorgue][1]) + 2
+	return max(roomSize(PlannedTomb)[1], roomSize(PlannedMorgue)[1]) + 2
 }
 
 // OutskirtsSize is the outline (width, height) the outskirts reserves: pass it
 // as RoomGrowth.Outskirts.
 func OutskirtsSize() [2]int32 {
-	tomb, morgue := coreRoomSize[PlannedTomb], coreRoomSize[PlannedMorgue]
+	tomb, morgue := roomSize(PlannedTomb), roomSize(PlannedMorgue)
 	row0 := tomb[0] + 2 + 1 + morgue[0] + 2
 	row1 := GraveyardW + 2 + 1 + WasteYardW + 2
 	return [2]int32{max(row0, row1), outskirtsRow0() + 1 + max(GraveyardH, WasteYardH) + 2}
@@ -109,7 +109,7 @@ func OutskirtsSlots(area Rectangle) (OutskirtsLayout, bool) {
 	yard := func(outline Rectangle) OutskirtsSlot {
 		return OutskirtsSlot{Outline: outline, Interior: pad(outline, -1)}
 	}
-	tomb, morgue := coreRoomSize[PlannedTomb], coreRoomSize[PlannedMorgue]
+	tomb, morgue := roomSize(PlannedTomb), roomSize(PlannedMorgue)
 	row1 := outskirtsRow0() + 1
 	var l OutskirtsLayout
 	l.Tomb = walled(at(0, 0, tomb[0]+2, tomb[1]+2))

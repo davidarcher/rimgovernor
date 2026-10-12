@@ -488,8 +488,6 @@ the rest of the plan carries:
 - **Persistence.** The plan is stored whole; the advice is not
   ([persistence](../contracts/persistence-contracts.md)).
 
-The old generator (`SiteCore`, the spine files) is pending deletion in #2932.
-
 ## Electrical safety
 
 `EnsureBasicPower` uses `HiddenConduit` for new connections and replaces ordinary

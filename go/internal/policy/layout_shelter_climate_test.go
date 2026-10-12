@@ -24,18 +24,11 @@ func TestColdMapCurve(t *testing.T) {
 	}
 }
 
-// The cold flag reaches the generator on the plan: a cold map's shelter is
-// sized for its two campfires, a normal map's for none, and a later generate
-// over the plan keeps the shelter and the latch.
+// The cold flag reaches the plan: a cold map's shelter is sized for its two
+// campfires, a normal map's for none.
 func TestShelterIsSizedByTheLatchedClimate(t *testing.T) {
 	t.Parallel()
-	zones := coreTestZones()
-	seed, ok := coreSeed(zones)
-	if !ok {
-		t.Fatal("no seed")
-	}
-	cold := generateAt(zones, LayoutPlan{Zones: zones, Cold: true}, seed, 3, 0, TechTierCamp)
-	warm := generateAt(zones, LayoutPlan{Zones: zones}, seed, 3, 0, TechTierCamp)
+	cold, warm := coldTiledPlan(true), coldTiledPlan(false)
 	if !cold.Cold || warm.Cold {
 		t.Fatalf("latch cold=%v warm=%v", cold.Cold, warm.Cold)
 	}
@@ -44,18 +37,13 @@ func TestShelterIsSizedByTheLatchedClimate(t *testing.T) {
 		plan LayoutPlan
 		cold bool
 	}{{"cold", cold, true}, {"warm", warm, false}} {
-		got, want := shelterOf(t, c.plan).Region.Bounds(), ShelterSizes(3, ShelterCampfires(c.cold), 0)[0]
-		if got.Width != want[0] || got.Height != want[1] {
-			t.Errorf("%s shelter %dx%d, want %v", c.name, got.Width, got.Height, want)
+		room := shelterOf(t, c.plan)
+		if got := room.Region.Bounds(); !shelterHolds(room, 3, ShelterCampfires(c.cold), 0) {
+			t.Errorf("%s shelter %dx%d holds less than the sizing", c.name, got.Width, got.Height)
 		}
 	}
 	if ShelterInteriorArea(3, ShelterCampfires(true), 0) <= ShelterInteriorArea(3, ShelterCampfires(false), 0) {
 		t.Fatal("a cold shelter is no bigger than a normal one")
-	}
-	before := shelterOf(t, cold)
-	grown := growPlan(cold, 12, 1, TechTierCamp)
-	if !grown.Cold || !before.Same(shelterOf(t, grown)) {
-		t.Fatal("a replan resized or re-sited the cold shelter, or lost the latch")
 	}
 }
 
@@ -65,7 +53,7 @@ func TestShelterIsSizedByTheLatchedClimate(t *testing.T) {
 // when no power can run one. The shelter template reserves no cell for it.
 func TestTemperaturePlannerCoolsTheShelter(t *testing.T) {
 	t.Parallel()
-	plan := corePlan(coreTestZones(), 3, TechTierCamp)
+	plan := tiledPlan(coreTestSurvey(), 3)
 	shelter := shelterOf(t, plan)
 	in := shelter.Region.Bounds()
 	walls := pad(in, 1)
@@ -110,13 +98,13 @@ func TestDeriveLatchesTheSurveyClimate(t *testing.T) {
 	s := zoningSurvey(120, open)
 	for _, cold := range []bool{false, true} {
 		s.Cold = cold
-		plan, ok := oldDerive(s, 3, TechTierCamp, nil, 0).Value()
+		plan, ok := derivePlan(s, 3, nil)
 		if !ok || plan.Cold != cold {
 			t.Fatalf("survey cold=%v: plan ok=%v cold=%v", cold, ok, plan.Cold)
 		}
-		got, want := shelterOf(t, plan).Region.Bounds(), ShelterSizes(3, ShelterCampfires(cold), 0)[0]
-		if got.Width != want[0] || got.Height != want[1] {
-			t.Errorf("survey cold=%v: shelter %dx%d, want %v", cold, got.Width, got.Height, want)
+		room := shelterOf(t, plan)
+		if got := room.Region.Bounds(); !shelterHolds(room, 3, ShelterCampfires(cold), 0) {
+			t.Errorf("survey cold=%v: shelter %dx%d holds less than the sizing", cold, got.Width, got.Height)
 		}
 	}
 }

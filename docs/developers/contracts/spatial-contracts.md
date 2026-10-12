@@ -524,16 +524,15 @@ idle. A hallway cell has no ring to wait for: its roof was priced to pay at plan
   infestation cell by weighted random over every candidate, so a dark room does not steer
   it (#2944).
 
-**Old generator (pending deletion, #2932).** `policy.SiteCore` (`layout_gen.go`)
-and the spine generator behind it (`generate`, the rest of the `layout_gen*.go` files,
-`layout_spines.go`, `layout_pack.go`, `layout_wing.go`, `layout_suite.go`) are still in
-the tree, but nothing at runtime calls them: only tests call `SiteCore`, and
-`PlanUtilities` (`layout_utility.go`) has no production caller either. They are what
-wrote `LayoutPlan.Spine` and `Wings` and the doors `PlannedRoom.Link` and `Doors` carry;
-those fields are leftovers until the deletion. The ground the embedder reads is not
-part of that: `buildGround` (`layout_build_ground.go`) holds the core and rock cells, the
-soil costs and the obstacle levels, and `layout_site_ground.go` the siting seeds, that
-`Embed` uses with `FieldGain`.
+**Old generator (deleted, #2969).** `SiteCore`, the spine generator, the packer and the
+core, kitchen, wing and suite files are gone. `LayoutPlan.Spine` and `Wings`, the doors
+`PlannedRoom.Link` and `Doors` carry, and `PlanUtilities` (`layout_utility.go`, which
+only works on a plan with a hallway and core zones, so it has no production caller) are
+leftovers until #2971. The room sizes the generator kept in its tables are
+`roomSizeTable` (`layout_room_sizes.go`, a `DefTables` entry). The ground the embedder
+reads is `buildGround` (`layout_build_ground.go`: the core and rock cells, the soil costs
+and the obstacle levels) and `layout_site_ground.go` (the siting seeds), that `Embed`
+uses with `FieldGain`.
 
 **Entry points and what a replan does.** `DeriveLayoutPlan` (`layout_derive.go`) sets
 `StationFacts.Derive` and runs `TileStations`, then merges the field zones and plans the

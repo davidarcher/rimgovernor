@@ -27,20 +27,26 @@ func objectiveFixtures() []objectiveFixture {
 		}
 	}
 	for _, c := range []struct {
-		role RoomRole
-		p    PlannedRole
+		role  RoomRole
+		sizes [][2]int32
 	}{
-		{RoomRoleKitchen, PlannedKitchen}, {RoomRoleDiningRoom, PlannedDining}, {RoomRoleRecRoom, PlannedDining},
-		{RoomRoleHospital, PlannedHospital}, {RoomRolePrisonCell, PlannedPrison}, {RoomRoleWorkshop, PlannedWorkshop},
-		{RoomRoleLaboratory, PlannedLab}, {RoomRoleTomb, PlannedTomb},
+		{RoomRoleKitchen, [][2]int32{{6, 5}, {5, 6}}}, {RoomRoleDiningRoom, [][2]int32{{9, 7}, {11, 6}}}, {RoomRoleRecRoom, [][2]int32{{9, 7}}},
+		{RoomRoleHospital, [][2]int32{{7, 5}}}, {RoomRolePrisonCell, [][2]int32{{5, 5}}}, {RoomRoleWorkshop, [][2]int32{{7, 5}, {5, 7}, {6, 6}}},
+		{RoomRoleLaboratory, [][2]int32{{11, 6}}}, {RoomRoleTomb, [][2]int32{roomSize(PlannedTomb)}},
 	} {
-		add(c.role, "core", coreRoomSize[c.p])
-		for _, v := range coreRoomVariants[c.p] {
-			add(c.role, "variant", v)
+		for i, size := range c.sizes {
+			name := "core"
+			if i > 0 {
+				name = "variant"
+			}
+			add(c.role, name, size)
 		}
 	}
-	for _, tier := range []TechTier{TechTierCamp, TechTierPowered, TechTierSpacer} {
-		add(RoomRoleBedroom, fmt.Sprintf("wing/%d", tier), WingRoomSize(tier))
+	for _, c := range []struct {
+		tier TechTier
+		size [2]int32
+	}{{TechTierCamp, [2]int32{3, 4}}, {TechTierPowered, [2]int32{4, 4}}, {TechTierSpacer, [2]int32{4, 5}}} {
+		add(RoomRoleBedroom, fmt.Sprintf("bedroom/%d", c.tier), c.size)
 	}
 	return out
 }

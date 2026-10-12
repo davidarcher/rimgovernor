@@ -127,23 +127,6 @@ func PrisonCells(plan LayoutPlan) []domain.Cell {
 	return out
 }
 
-// weaponClearance is the ground a new room of role keeps off so the armory
-// and the prisons stay prisonWeaponClearance apart: round every
-// prison for an armory (its walls included, as PrisonCells), round every
-// armory interior for a prison.
-func weaponClearance(plan LayoutPlan, role PlannedRole) []Rectangle {
-	var out []Rectangle
-	for _, r := range plan.AllRooms() {
-		switch {
-		case role == PlannedArmory && r.Role == PlannedPrison:
-			out = append(out, pad(r.Region.Bounds(), 1+prisonWeaponClearance))
-		case role == PlannedPrison && r.Role == PlannedArmory:
-			out = append(out, pad(r.Region.Bounds(), prisonWeaponClearance))
-		}
-	}
-	return out
-}
-
 // nearPrison reports whether any cell lies within the weapon clearance of
 // a prison cell.
 func nearPrison(cells, prisons []domain.Cell) bool {

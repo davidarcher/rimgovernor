@@ -13,11 +13,6 @@ import (
 // shelter template's (interior_shelter.go); only the counts are here.
 
 const (
-	// shelterGap is the clear ground, in cells, the shelter prefers between
-	// its walls and every other room's walls.
-	shelterGap int32 = 5
-	// shelterReach bounds the search for open ground round the seed.
-	shelterReach int32 = 40
 	// shelterMaxDepth is the deepest shelter interior.
 	shelterMaxDepth int32 = 6
 	// shelterMinSide is the shortest shelter interior side.
@@ -116,15 +111,6 @@ func ShelterSizes(colonists, campfires, coolers int) [][2]int32 {
 		return abs32(2*a[0]-3*a[1]) < abs32(2*b[0]-3*b[1])
 	})
 	return out
-}
-
-func shelterBlocked(walls Rectangle, avoid []Rectangle) bool {
-	for _, a := range avoid {
-		if rectsOverlap(walls, a) {
-			return true
-		}
-	}
-	return false
 }
 
 // shelterRoom is the room on interior in with its door at the middle of the

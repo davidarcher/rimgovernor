@@ -39,6 +39,7 @@ func DefTables() []DefTable {
 		{"NonFleshMeatDefs", "Verse.ThingDef", slices.Clone(NonFleshMeatDefs)},
 		{"MortarProbeShells", "Verse.ThingDef", slices.Clone(MortarProbeShells)},
 		{"QuestGiftDefs", "Verse.ThingDef", slices.Clone(QuestGiftDefs)},
+		{"roomSizeTable", "Verse.ThingDef", slices.Clone(roomSizeTable.Holds)},
 		{"ShelterHeatDef", "Verse.ThingDef", []string{ShelterHeatDef}},
 		{"ShelterCoolDef", "Verse.ThingDef", []string{ShelterCoolDef}},
 		{"WoodLatchDefs", "Verse.ThingDef", slices.Clone(WoodLatchDefs)},

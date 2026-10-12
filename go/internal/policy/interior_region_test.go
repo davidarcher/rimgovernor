@@ -14,12 +14,14 @@ import (
 // each is sized as. The parity tests hold every one to its template's capacity,
 // slot names and gated objective terms over the sizes in use and two irregular
 // shapes (#2956).
+// Floor is the (width, depth) of the shape the irregular-floor test cuts.
 var regionFamilies = []struct {
 	Role    RoomRole
 	Planned PlannedRole
+	Floor   [2]int32
 }{
-	{RoomRoleWorkshop, PlannedWorkshop}, {RoomRoleLaboratory, PlannedLab}, {RoomRoleKitchen, PlannedKitchen},
-	{RoomRoleTomb, PlannedTomb}, {RoomRolePrisonCell, PlannedPrison}, {RoomRoleHospital, PlannedHospital},
+	{RoomRoleWorkshop, PlannedWorkshop, [2]int32{7, 5}}, {RoomRoleLaboratory, PlannedLab, [2]int32{11, 6}}, {RoomRoleKitchen, PlannedKitchen, [2]int32{6, 5}},
+	{RoomRoleTomb, PlannedTomb, [2]int32{5, 5}}, {RoomRolePrisonCell, PlannedPrison, [2]int32{5, 5}}, {RoomRoleHospital, PlannedHospital, [2]int32{7, 5}},
 }
 
 func regionFamilyFixtures() []objectiveFixture {
@@ -146,7 +148,7 @@ func TestRegionInteriorMatchesTemplates(t *testing.T) {
 // greedy layout on any gated term.
 func TestRegionInteriorFitsIrregularFloors(t *testing.T) {
 	for _, fam := range regionFamilies {
-		fixture := objectiveFixture{Role: fam.Role, Name: "core", W: coreRoomSize[fam.Planned][0], D: coreRoomSize[fam.Planned][1]}
+		fixture := objectiveFixture{Role: fam.Role, Name: "core", W: fam.Floor[0], D: fam.Floor[1]}
 		for _, kind := range []string{"L", "notch"} {
 			room, region, cands := irregularRoom(fixture, kind)
 			key := fmt.Sprintf("%s %s", fam.Role, kind)

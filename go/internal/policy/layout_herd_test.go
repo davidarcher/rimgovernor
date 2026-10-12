@@ -23,7 +23,7 @@ func TestPenAnimalsFollowsThePlanCeilings(t *testing.T) {
 }
 
 func TestHerdSitesABarnAndNoVetRoom(t *testing.T) {
-	core := corePlan(utilityTestZones(), 3, TechTierCamp)
+	core := zonedKitchenPlan()
 	p := PlanUtilities(core, UtilityWants{PenAnimals: 20})
 	barns := herdReservations(p, ReserveBarn)
 	if len(barns) != 1 {

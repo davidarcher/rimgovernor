@@ -126,9 +126,7 @@ func TestEmbedSitesReportsAWindLaneBlockedByAFootprint(t *testing.T) {
 }
 
 func TestPowerSiteNodesFollowThePlan(t *testing.T) {
-	zones := utilityTestZones()
-	core := withRooms(growPlan(corePlan(zones, 0, TechTierCamp), 0, 1, TechTierCamp), PlannedBattery)
-	p := PlanUtilities(core, UtilityWants{Geysers: []Rectangle{{X: 20, Z: 190, Width: 2, Height: 2}}})
+	p := PlanUtilities(batteryRoomPlan(), UtilityWants{Geysers: []Rectangle{{X: 20, Z: 190, Width: 2, Height: 2}}})
 	for i := range int32(2) {
 		p.Sites = append(p.Sites,
 			PlannedSite{Kind: NodeTurbine, SitePlacement: SitePlacement{Node: windNodeID(int(i) + 1), Footprint: RectRegion(Rectangle{X: 60, Z: 10 + 4*i, Width: 7, Height: 2}), Rotation: domain.North}},

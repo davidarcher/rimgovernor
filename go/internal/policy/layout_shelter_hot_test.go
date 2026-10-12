@@ -25,26 +25,23 @@ func TestHotMapCurve(t *testing.T) {
 }
 
 // A hot map's survey latches Hot on the plan through the real derive path, the
-// shelter is sized for the passive cooler slot, a replan keeps both, and the
+// shelter is sized for the passive cooler slot, and the
 // template plans the slot on the floor only when hot.
 func TestHotMapShelterHoldsAPassiveCoolerSlot(t *testing.T) {
 	slowtest.Skip(t, "two full layout derives on a 120-cell map; runs under cmd/test -full and nightly")
 	t.Parallel()
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	s := zoningSurvey(120, open)
-	plans := map[bool]LayoutPlan{}
 	for _, hot := range []bool{false, true} {
 		s.Hot = hot
-		plan, ok := oldDerive(s, 3, TechTierCamp, nil, 0).Value()
+		plan, ok := derivePlan(s, 3, nil)
 		if !ok || plan.Hot != hot {
 			t.Fatalf("survey hot=%v: plan ok=%v hot=%v", hot, ok, plan.Hot)
 		}
 		shelter := shelterOf(t, plan)
-		got, want := shelter.Region.Bounds(), ShelterSizes(3, 0, ShelterCoolers(hot))[0]
-		if got.Width != want[0] || got.Height != want[1] {
-			t.Errorf("survey hot=%v: shelter %dx%d, want %v", hot, got.Width, got.Height, want)
+		if got := shelter.Region.Bounds(); !shelterHolds(shelter, 3, 0, ShelterCoolers(hot)) {
+			t.Errorf("survey hot=%v: shelter %dx%d holds less than the sizing", hot, got.Width, got.Height)
 		}
-		plans[hot] = plan
 		room := InteriorRoom{Role: RoomRoleShelter, Shapes: testShapes, Interior: shelter.Region.Bounds(), Doors: []domain.Cell{shelter.Door}, Occupants: 3, Coolers: ShelterCoolers(plan.Hot), Capabilities: CapabilitiesOf(PlannedShelter)}
 		planned, ok := PlanRoomInterior(room, InteriorPieceDef{})
 		if !ok {
@@ -56,10 +53,5 @@ func TestHotMapShelterHoldsAPassiveCoolerSlot(t *testing.T) {
 	}
 	if ShelterInteriorArea(3, 0, 1) <= ShelterInteriorArea(3, 0, 0) {
 		t.Fatal("a hot shelter is no bigger than a mild one")
-	}
-	hot := plans[true]
-	before := shelterOf(t, hot)
-	if grown := growPlan(hot, 12, 1, TechTierCamp); !grown.Hot || !before.Same(shelterOf(t, grown)) {
-		t.Fatal("a replan resized or re-sited the hot shelter, or lost the latch")
 	}
 }

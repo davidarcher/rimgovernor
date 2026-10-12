@@ -7,17 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// utilityTestZones is coreTestZones on a map wide enough for utility sites
-// beyond the core ring's keep-out.
-func utilityTestZones() []LayoutZone {
-	return Zone(zoningSurvey(220, func(x, z int32) SurveyCell {
-		if x >= 180 {
-			return SurveyCell{Rock: true}
-		}
-		return SurveyCell{Walkable: true, Fertility: 1}
-	}))
-}
-
 // testTurbineSite is the turbine node's turn facing rot, placed at origin as the
 // site embedding stores it.
 func testTurbineSite(id string, rot domain.Rotation, origin domain.Cell) PlannedSite {
@@ -40,8 +29,17 @@ func testSolarSite(id string, x, z int32) PlannedSite {
 	return newSite(id, NodeSolar, RectRegion(Rectangle{X: x, Z: z, Width: solarSide, Height: solarSide}), ReasonPowerSite)
 }
 
+// batteryRoomPlan is a plan holding one battery room at its table size, door
+// on the north wall.
+func batteryRoomPlan() LayoutPlan {
+	size := roomSize(PlannedBattery)
+	room := PlannedRoom{Role: PlannedBattery, Region: RectRegion(Rectangle{X: 40, Z: 40, Width: size[0], Height: size[1]}), Door: domain.Cell{X: 42, Z: 40 + size[1]}, DoorRot: domain.North}
+	hall := SpineSegment{From: domain.Cell{X: 30, Z: room.Door.Z + 2}, To: domain.Cell{X: 60, Z: room.Door.Z + 2}}
+	return LayoutPlan{Zones: utilityTestZones(), Spine: []SpineSegment{hall}, Rooms: []PlannedRoom{room}}.WithRoomIDs()
+}
+
 func TestPlannedPowerSites(t *testing.T) {
-	p := PlanUtilities(withRooms(corePlan(utilityTestZones(), 3, TechTierCamp), PlannedBattery), UtilityWants{})
+	p := batteryRoomPlan()
 	p.Sites = append(p.Sites, testTurbineSite("wind-1", domain.North, domain.Cell{X: 60, Z: 60}), testTurbineSite("wind-2", domain.South, domain.Cell{X: 60, Z: 90}), testSolarSite("solar-1", 100, 100))
 	batteries := PlannedPowerSites(p, BatteryDefinition)
 	if len(batteries) != 8 || batteries[0].Block != (Rectangle{}) || batteries[1].Block != (Rectangle{}) {
@@ -73,40 +71,6 @@ func TestPlannedPowerSites(t *testing.T) {
 	}
 }
 
-// TestBatteryRoomOnCrossing: with bedroom wings filling the main
-// hallway the battery room still gets a site, on a crossing when needed,
-// its slots nearest the door first and every block beside its battery.
-func TestBatteryRoomOnCrossing(t *testing.T) {
-	p := PlanUtilities(withRooms(corePlan(coreTestZones(), 12, TechTierCamp), PlannedBattery), UtilityWants{})
-	batteries := PlannedPowerSites(p, BatteryDefinition)
-	if len(batteries) != 8 {
-		t.Fatal(batteries)
-	}
-	var room PlannedRoom
-	for _, r := range p.AllRooms() {
-		if r.Role == PlannedBattery {
-			room = r
-		}
-	}
-	along := func(c domain.Cell) int32 { return abs32(c.Z - room.Door.Z) }
-	if room.DoorRot == domain.East || room.DoorRot == domain.West {
-		along = func(c domain.Cell) int32 { return abs32(c.X - room.Door.X) }
-	}
-	if along(batteries[0].Cell) > along(batteries[7].Cell) {
-		t.Fatal("first row farther from the door", room, batteries)
-	}
-	for _, b := range batteries {
-		for _, c := range RectangleCells(b.Area) {
-			if !inRect(room.Region.Bounds(), c) {
-				t.Fatal("battery outside the room", room, b)
-			}
-		}
-		if b.Block != (Rectangle{}) && !inRect(room.Region.Bounds(), domain.Cell{X: b.Block.X, Z: b.Block.Z}) {
-			t.Fatal("block outside the room", room, b)
-		}
-	}
-}
-
 // TestBatterySlotsCrossing: an east-door room's slots are the north-door
 // room's transposed, 1x2 along z, and plan north-facing batteries.
 func TestBatterySlotsCrossing(t *testing.T) {
@@ -125,7 +89,7 @@ func TestBatterySlotsCrossing(t *testing.T) {
 // with the cold side in the room and the hot side on the exhaust,
 // on either hallway: the freezer and the soil tomb both get one.
 func TestPlannedCoolerSites(t *testing.T) {
-	p := PlanUtilities(growPlan(corePlan(coreTestZones(), 0, TechTierCamp), 0, 1, TechTierCamp), UtilityWants{})
+	p := zonedCoolerPlan()
 	sites := PlannedCoolerSites(p)
 	if len(sites) != 2 {
 		t.Fatal(sites)
@@ -233,49 +197,9 @@ func TestTurbineWindCells(t *testing.T) {
 	}
 }
 
-func TestPlanUtilities(t *testing.T) {
-	zones := utilityTestZones()
-	core := withRooms(growPlan(corePlan(zones, 0, TechTierCamp), 0, 1, TechTierCamp), PlannedBattery)
-	p := PlanUtilities(core, UtilityWants{Geysers: []Rectangle{{X: 20, Z: 190, Width: 2, Height: 2}}})
-	if !p.WithRoomIDs().Valid() {
-		t.Fatal("invalid")
-	}
-	count := map[ReservationKind]int{}
-	for _, r := range p.Reservations {
-		count[r.Kind]++
-	}
-	if count[ReserveGeothermal] != 1 || count[ReserveExhaust] != 2 {
-		t.Fatal(count)
-	}
-	// Battery room: 5 wide off the spine, door on the walkway, no lane.
-	var battery *PlannedRoom
-	for i := range p.Rooms {
-		if p.Rooms[i].Role == PlannedBattery {
-			battery = &p.Rooms[i]
-		}
-	}
-	if battery == nil || battery.Region.Bounds().Width != 5 || battery.Door.X != battery.Region.Bounds().X+2 {
-		t.Fatal("battery", battery)
-	}
-	if n := len(BatterySlots(*battery)); n != 8 {
-		t.Fatal("slots", n)
-	}
-	checkCore(t, LayoutPlan{Spine: p.Spine, Rooms: p.Rooms[:len(core.Rooms)], Zones: zones}, 0)
-	// The generator never builds over a reservation.
-	grown := growPlan(p, 20, 1, TechTierCamp)
-	for _, r := range grown.Rooms {
-		for _, res := range p.Reservations {
-			w := roomWalls(r)
-			if w.X < res.Area.Bounds().X+res.Area.Bounds().Width && res.Area.Bounds().X < w.X+w.Width && w.Z < res.Area.Bounds().Z+res.Area.Bounds().Height && res.Area.Bounds().Z < w.Z+w.Height {
-				t.Fatal("room over reservation", r, res)
-			}
-		}
-	}
-}
-
 func TestPlanUtilitiesHerdUnit(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	core := corePlan(utilityTestZones(), 3, TechTierCamp)
+	core := zonedKitchenPlan()
 	p := PlanUtilities(core, UtilityWants{PenAnimals: 30})
 	var barn *LayoutReservation
 	for i, r := range p.Reservations {

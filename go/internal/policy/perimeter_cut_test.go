@@ -295,8 +295,7 @@ func TestSapperThickness(t *testing.T) {
 func TestPlanPerimeterCutOverTheRecordedPlan(t *testing.T) {
 	cell := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	s := zoningSurvey(200, cell)
-	p := corePlan(Zone(s), 3, TechTierCamp)
-	p = PlanPerimeter(p, s)
+	p := tiledPlan(s, 3)
 	cut := PlanPerimeterCut(p, s, PerimeterWall{HP: domain.Known(510.0), LightHP: domain.Known(195.0)})
 	if len(cut.Cut) == 0 || len(cut.Decisions) == 0 || cut.Decisions[0].Reason != ReasonCutTraced {
 		t.Fatal("no cut", cut.Decisions)

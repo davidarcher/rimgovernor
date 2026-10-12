@@ -1,16 +1,9 @@
 package policy
 
-import (
-	"testing"
+import "testing"
 
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
-)
-
-// Score replay harness: every fixture survey runs Zone,
-// SiteCore and Score, and `go test ./internal/policy -run Replay -v` prints
-// one row of per-term values and the tier verdict per fixture, so
-// planWeights are tuned by evidence. A fixture is one replayFixtures entry.
+// Replay fixtures: the surveys the tiled-plan tests run over. A fixture is one
+// replayFixtures entry.
 //
 // The baseline survey is the only real one. To capture another, set
 // RIMGOVERNOR_SURVEY_DUMP to a gzip path before running startersite against
@@ -74,59 +67,12 @@ var replayFixtures = []replayFixture{
 	})},
 }
 
-func TestReplayScoreFixtures(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	recorded := map[string]replayRow{}
-	if !updateReplayScores() {
-		recorded = loadReplayScores(t)
-	}
-	got := map[string]replayRow{}
-	for _, f := range replayFixtures {
-		t.Run(f.name, func(t *testing.T) {
-			s := f.survey(t)
-			zones := Zone(s)
-			before := Score(siteCore(LayoutPlan{Zones: zones}, s, f.pawns, 1, TechTierCamp, 0), s)
-			layoutCounters.routed.Store(0)
-			layoutCounters.spineFallbacks.Store(0)
-			layoutCounters.rings.Store(0)
-			layoutCounters.secondDoors.Store(0)
-			plan := SiteCore(LayoutPlan{Zones: zones}, s, f.pawns, 1, TechTierCamp)
-			sc := Score(plan, s)
-			t.Logf("%-16s unsearched %s", f.name, before)
-			if before.Better(sc) {
-				t.Fatalf("searched plan scores below the unsearched one: %d < %d", sc.Total(), before.Total())
-			}
-			t.Logf("%-16s %dx%d rooms=%d %s", f.name, s.Bounds.Width, s.Bounds.Height, len(plan.AllRooms()), sc)
-			t.Logf("%-16s hallways=%d rings=%d secondDoors=%d routedEntrances=%d spineFallbacks=%d", f.name, len(plan.Hallways()),
-				layoutCounters.rings.Load(), layoutCounters.secondDoors.Load(), layoutCounters.routed.Load(), layoutCounters.spineFallbacks.Load())
-			row := newReplayRow(sc, len(plan.AllRooms()))
-			got[f.name] = row
-			if want, ok := recorded[f.name]; !updateReplayScores() {
-				if !ok {
-					t.Errorf("no recorded row (RIMGOVERNOR_UPDATE_SNAPSHOT=1 records one)")
-				} else if err := checkReplayRow(want, row); err != nil {
-					t.Error(err)
-				}
-			}
-			if !f.mayFail && !sc.Passes() {
-				t.Fatalf("hard-fail tier: missing=%v routes=%q rich=%d", sc.Missing, sc.RoutesErr, sc.RichCells)
-			}
-			if sc.RoutesErr == "" && len(plan.AllRooms()) > 0 && !plan.WithRoomIDs().Valid() {
-				t.Fatal("plan is not Valid")
-			}
-			if again := Score(plan, s); again.Total() != sc.Total() {
-				t.Fatal("Score is not deterministic")
-			}
-			for _, r := range plan.AllRooms() {
-				for _, c := range rectCells(r.Region.Bounds()) {
-					if c.X < 0 || c.Z < 0 || c.X >= s.Bounds.Width || c.Z >= s.Bounds.Height {
-						t.Fatal("room cell off the map", r.Role, domain.Cell{X: c.X, Z: c.Z})
-					}
-				}
-			}
-		})
-	}
-	if updateReplayScores() {
-		writeReplayScores(t, got)
-	}
+// centreRichSurvey: a rich patch at the map centre, plain soil around it.
+func centreRichSurvey() MapSurvey {
+	return zoningSurvey(140, func(x, z int32) SurveyCell {
+		if x >= 50 && x < 90 && z >= 50 && z < 90 {
+			return SurveyCell{Walkable: true, Fertility: 1.4}
+		}
+		return SurveyCell{Walkable: true, Fertility: 1}
+	})
 }

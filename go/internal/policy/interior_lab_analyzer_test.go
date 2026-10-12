@@ -12,7 +12,7 @@ import (
 // every worker cell and of the entrance row, and a hi-tech bench placed into
 // a lab already holding a simple one keeps the row and the analyzer.
 func TestPlannedLabHoldsTwoHiTechBenchesAndTheAnalyzerSlot(t *testing.T) {
-	size := coreRoomSize[PlannedLab]
+	size := [2]int32{11, 6}
 	hiTech, _ := testShapes.Get(testFurniture.AdvancedLab)
 	if int32(size[0]) < 2*hiTech.Size.X+1 {
 		t.Fatalf("lab interior %v cannot hold two %s", size, hiTech.Def)

@@ -1,59 +1,11 @@
 package layout
 
 import (
-	"compress/gzip"
-	"encoding/json"
-	"os"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
-
-// The baseline survey is the world layout/rich-soil runs on.
-func baselineSurvey(t *testing.T) policy.MapSurvey {
-	t.Helper()
-	f, err := os.Open("../../../policy/testdata/baseline-survey.json.gz")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	z, err := gzip.NewReader(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var s policy.MapSurvey
-	if err := json.NewDecoder(z).Decode(&s); err != nil {
-		t.Fatal(err)
-	}
-	return s
-}
-
-// The fresh plan the case's colony derives passes the plan assertions
-// offline, and one more colonist outgrows it.
-func TestRichSoilBaselinePlan(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	s := baselineSurvey(t)
-	for _, pawns := range []int{8} {
-		plan, ok := oldDerive(s, pawns, policy.TechTierCamp, 30).Value()
-		if !ok {
-			t.Fatal("no plan")
-		}
-		a := auditSoil(plan, s, nil)
-		t.Logf("%+v", a)
-		t.Logf("rich overlap: %s", a.richOverlap())
-		if err := a.err(); err != nil {
-			t.Fatal(err)
-		}
-		if countBedrooms(plan) < pawns {
-			t.Fatal("the plan does not house the colony")
-		}
-		if a.RichCells == 0 || a.Patches == 0 || a.WallCells == 0 {
-			t.Fatalf("baseline lacks rich soil, patches or a ring: %+v", a)
-		}
-	}
-}
 
 // Rooms and hallways may cover up to 2% of the rich cells, no more.
 func TestRichOverlapBudget(t *testing.T) {
@@ -111,41 +63,6 @@ func TestAuditSoilCatchesSplitsAndGaps(t *testing.T) {
 	}
 }
 
-// plusSurvey is bare ground with a rich plus (not a rectangle) in the
-// middle.
-func plusSurvey(n int32) policy.MapSurvey {
-	mid := n / 2
-	s := policy.MapSurvey{Bounds: policy.Bounds{Width: n, Height: n}}
-	for z := int32(0); z < n; z++ {
-		for x := int32(0); x < n; x++ {
-			f := 0.5
-			if (x >= mid-10 && x < mid+10 && z >= mid-4 && z < mid+4) || (x >= mid-4 && x < mid+4 && z >= mid-10 && z < mid+10) {
-				f = 1.4
-			}
-			s.Cells = append(s.Cells, policy.SurveyCell{Cell: domain.Cell{X: x, Z: z}, Walkable: true, Fertility: f})
-		}
-	}
-	return s
-}
-
-// The courtyard plan on a plus-shaped rich patch passes the audit: the
-// patch is one field zone, nothing is built on it.
-func TestAuditSoilCourtyardPlan(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	s := plusSurvey(140)
-	plan, ok := oldDerive(s, 8, policy.TechTierCamp, 30).Value()
-	if !ok {
-		t.Fatal("no plan")
-	}
-	a := auditSoil(plan, s, nil)
-	if err := a.err(); err != nil {
-		t.Fatal(err, a)
-	}
-	if a.RichBuiltN != 0 || a.RichCells != 256 || a.Patches != 1 {
-		t.Fatalf("courtyard audit: %+v", a)
-	}
-}
-
 // A room standing on the thin neck of a non-rectangular patch is under the
 // overlap budget but splits the patch in two: the audit catches it.
 func TestAuditSoilCatchesPatchSplitByARoom(t *testing.T) {
@@ -195,14 +112,4 @@ func TestAuditSoilCatchesPatchSplitByARoom(t *testing.T) {
 	if len(a.PatchSplit) == 0 || a.err() == nil {
 		t.Fatalf("a patch split by a room passed: %+v", a)
 	}
-}
-
-func countBedrooms(plan policy.LayoutPlan) int {
-	n := 0
-	for _, r := range plan.AllRooms() {
-		if r.Role == policy.PlannedBedroom {
-			n++
-		}
-	}
-	return n
 }

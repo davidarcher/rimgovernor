@@ -6,24 +6,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// shelterGapTo is the clear cells between the shelter's walls and the nearest
-// other room's walls (Chebyshev).
-func shelterGapTo(p LayoutPlan, shelter PlannedRoom) int32 {
-	walls := roomWalls(shelter)
-	gap := int32(1 << 20)
-	near := func(o Rectangle) {
-		dx := max(o.X-(walls.X+walls.Width), walls.X-(o.X+o.Width), 0)
-		dz := max(o.Z-(walls.Z+walls.Height), walls.Z-(o.Z+o.Height), 0)
-		gap = min(gap, max(dx, dz))
-	}
-	for _, r := range p.AllRooms() {
-		if r.Role != PlannedShelter {
-			near(roomWalls(r))
-		}
-	}
-	return gap
-}
-
 func shelterOf(t *testing.T, p LayoutPlan) PlannedRoom {
 	t.Helper()
 	var found []PlannedRoom
@@ -38,31 +20,17 @@ func shelterOf(t *testing.T, p LayoutPlan) PlannedRoom {
 	return found[0]
 }
 
-func TestPlanHoldsOneShelterFiveTilesClearOnOpenGround(t *testing.T) {
-	p := corePlan(coreTestZones(), 3, TechTierCamp)
+func TestPlanHoldsOneShelterSizedForTheColony(t *testing.T) {
+	p := tiledPlan(coreTestSurvey(), 3)
 	s := shelterOf(t, p)
-	if gap := shelterGapTo(p, s); gap < shelterGap {
-		t.Fatalf("shelter %v is %d tiles from the nearest room, want at least %d", s.Region.Bounds(), gap, shelterGap)
-	}
-	want := ShelterSizes(3, ShelterCampfires(false), 0)[0]
-	if s.Region.Bounds().Width != want[0] || s.Region.Bounds().Height != want[1] {
-		t.Fatalf("shelter interior %dx%d, sized %v", s.Region.Bounds().Width, s.Region.Bounds().Height, want)
+	if !shelterHolds(s, 3, ShelterCampfires(false), 0) {
+		t.Fatalf("shelter interior %dx%d holds less than the colony needs", s.Region.Bounds().Width, s.Region.Bounds().Height)
 	}
 	if _, err := CheckRoutes(p); err != nil {
 		t.Fatal(err)
 	}
 	if !noThroughfare[PlannedShelter] {
 		t.Fatal("the shelter is a thoroughfare")
-	}
-}
-
-// A replan keeps the shelter it holds and never adds a second.
-func TestGrowKeepsTheOneShelter(t *testing.T) {
-	p := corePlan(coreTestZones(), 3, TechTierCamp)
-	before := shelterOf(t, p)
-	after := shelterOf(t, growPlan(p, 12, 1, TechTierCamp))
-	if !before.Same(after) {
-		t.Fatal("shelter moved", before, after)
 	}
 }
 

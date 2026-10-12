@@ -112,7 +112,7 @@ func yardStorageRequest(plan LayoutPlan) StoreView {
 func TestDerivedPlanHoldsAYard(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	plan, ok := oldDerive(plusSurvey(140, 0), 8, TechTierCamp, nil, 0).Value()
+	plan, ok := derivePlan(plusSurvey(140, 0), 8, nil)
 	if !ok {
 		t.Fatal("no plan")
 	}

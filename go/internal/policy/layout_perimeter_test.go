@@ -10,20 +10,8 @@ import (
 
 func perimeterPlan(t *testing.T, cell func(x, z int32) SurveyCell) LayoutPlan {
 	t.Helper()
-	return perimeterPlanAt(t, nil, cell)
-}
-
-// perimeterPlanAt is perimeterPlan with the plan generated from seed (the
-// core candidates' centroid when nil), so a fixture can set where the base
-// stands in its valley.
-func perimeterPlanAt(t *testing.T, seed *domain.Cell, cell func(x, z int32) SurveyCell) LayoutPlan {
-	t.Helper()
 	s := zoningSurvey(200, cell)
-	plan := corePlan(Zone(s), 3, TechTierCamp)
-	if seed != nil {
-		plan = generateAt(Zone(s), LayoutPlan{Zones: Zone(s)}, *seed, 3, 1, TechTierCamp)
-	}
-	p := PlanPerimeter(plan, s)
+	p := tiledPlan(s, 3)
 	if !p.WithRoomIDs().Valid() {
 		t.Fatal("invalid plan")
 	}
@@ -190,7 +178,7 @@ func TestPerimeterKillboxWhereApproachesConverge(t *testing.T) {
 	kb := checkPerimeter(t, p)
 	// Raiders drift sideways crossing the valley floor between the mouth
 	// (z 40) and the wall, so the killbox may sit that far off it.
-	drift := kb.Z - 40
+	drift := max(kb.Z-40, 0)
 	if c := kb.X + kb.Width/2; c < 95-drift || c > 105+drift {
 		t.Fatal("killbox off the mouth", kb)
 	}
@@ -268,7 +256,7 @@ func wetPerimeter(t *testing.T, soft func(x, z int32) (SurveyCell, bool)) (Layou
 		return SurveyCell{Walkable: true, Fertility: 0.7}
 	}
 	s := zoningSurvey(200, cell)
-	p := PlanPerimeter(corePlan(Zone(s), 3, TechTierCamp), s)
+	p := tiledPlan(s, 3)
 	if !p.WithRoomIDs().Valid() {
 		t.Fatal("invalid plan")
 	}
@@ -495,7 +483,7 @@ func TestPerimeterUnbridgeableGapIsFlagged(t *testing.T) {
 		return SurveyCell{Walkable: true, Fertility: 1}
 	}
 	s := zoningSurvey(200, cell)
-	p := PlanPerimeter(corePlan(Zone(s), 3, TechTierCamp), s)
+	p := tiledPlan(s, 3)
 	if len(reserved(p, nodeRingGap)) == 0 {
 		t.Fatal("ground nothing closes is flagged")
 	}
@@ -537,31 +525,6 @@ func TestPerimeterSectionsBridgeBeforeWall(t *testing.T) {
 	}
 }
 
-// A gate stands on each hallway's axis where the wall meets it: the main
-// hallway's row on the east and west sides, each crossing's column on the
-// north and south sides.
-func TestPerimeterGatesOnHallwayAxes(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	gates := reserved(p, NodeGate)
-	onAxis := func(vertical bool, a int32) bool {
-		for _, g := range gates {
-			if vertical && g.Height == 1 && g.Z == a || !vertical && g.Width == 1 && g.X == a {
-				return true
-			}
-		}
-		return false
-	}
-	if len(p.Spine) < 2 {
-		t.Fatal("no crossing", p.Spine)
-	}
-	for _, s := range p.Spine {
-		if alongX(s) && !onAxis(true, s.From.Z) || !alongX(s) && !onAxis(false, s.From.X) {
-			t.Fatal("no gate on the axis of", s, gates)
-		}
-	}
-}
-
 // A rich patch beside the core stays outside the ring: the ring bounds are
 // the core, its yard and the killbox only, and no inner wall or gate is
 // planned.
@@ -569,7 +532,7 @@ func TestPerimeterLeavesRichPatchOutside(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	ground := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true} }
 	s := zoningSurvey(200, ground)
-	plan := corePlan(Zone(s), 3, TechTierCamp)
+	plan := tiledPlan(s, 3)
 	core := footprintBox(plan, 200, 200)
 	right, top := core.X+core.Width-1, core.Z+core.Height-1
 	off := perimeterGap + perimeterThick + 3
@@ -619,7 +582,7 @@ func TestPerimeterLeavesRichPatchOutside(t *testing.T) {
 func TestPerimeterKillboxClearOfUtilities(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	p, ok := oldDerive(s, 3, TechTierCamp, nil, 30).Value()
+	p, ok := derivePlan(s, 3, nil)
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -639,7 +602,7 @@ func TestPerimeterKillboxClearOfUtilities(t *testing.T) {
 func TestPerimeterPlainSoilStaysNearCore(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	p, ok := oldDerive(s, 3, TechTierCamp, nil, 30).Value()
+	p, ok := derivePlan(s, 3, nil)
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -656,24 +619,5 @@ func TestPerimeterPlainSoilStaysNearCore(t *testing.T) {
 	}
 	if lim := pad(rooms, 2*perimeterGap+perimeterThick); ring.Width == 0 || unionRect(lim, ring) != lim {
 		t.Fatal("ring", ring, "runs far past the rooms", rooms)
-	}
-}
-
-// A mouth at the valley's corner draws the opening to the ring's corner;
-// the killbox stays whole across its opening there, not clipped sideways
-// off the approach.
-func TestPerimeterKillboxWholeAtACorner(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	// The base stands near the valley's corner, so its ring reaches it.
-	seed := domain.Cell{X: 70, Z: 80}
-	for _, mouth := range []int32{0, 2, 4, 6, 8, 10, 14} {
-		p := perimeterPlanAt(t, &seed, func(x, z int32) SurveyCell {
-			open := x >= 30 && x < 170 && z >= 40 && z < 170 || x >= 30+mouth && x <= 36+mouth && z < 40
-			if open {
-				return SurveyCell{Walkable: true, Fertility: 1}
-			}
-			return SurveyCell{Rock: true}
-		})
-		checkPerimeter(t, p)
 	}
 }

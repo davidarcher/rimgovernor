@@ -54,13 +54,12 @@ func BenchmarkLayoutZone(b *testing.B) {
 	}
 }
 
-func BenchmarkLayoutPlanCore(b *testing.B) {
+func BenchmarkDeriveLayoutPlan(b *testing.B) {
 	s := loadSurvey(b, baselineSurveyPath)
-	zones := Zone(s)
 	for _, pawns := range []int{3, 8} {
 		b.Run(fmt.Sprintf("pawns=%d", pawns), func(b *testing.B) {
 			for b.Loop() {
-				corePlan(zones, pawns, TechTierCamp)
+				derivePlan(s, pawns, nil)
 			}
 		})
 	}
@@ -68,7 +67,7 @@ func BenchmarkLayoutPlanCore(b *testing.B) {
 
 func BenchmarkLayoutPlanPerimeter(b *testing.B) {
 	s := loadSurvey(b, baselineSurveyPath)
-	plan := corePlan(Zone(s), 3, TechTierCamp)
+	plan := tiledPlan(s, 3)
 	b.ResetTimer()
 	for b.Loop() {
 		PlanPerimeter(plan, s)

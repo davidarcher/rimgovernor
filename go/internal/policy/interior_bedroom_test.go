@@ -150,11 +150,7 @@ func TestBedroomStandardRoomByTier(t *testing.T) {
 		{TechTierSpacer, [2]int32{4, 5}, []string{"bed", "end_table", "dresser"}},
 	}
 	for _, c := range cases {
-		size := WingRoomSize(c.tier)
-		if size != c.size {
-			t.Errorf("%s: room %v, want %v", c.tier, size, c.size)
-			continue
-		}
+		size := c.size
 		plan := assertInteriorRepeatable(t, RoomRoleBedroom, size[0], size[1], size[0]/2)
 		s := bedroomSlots(plan.Canonical)
 		for _, slot := range c.set {

@@ -10,13 +10,13 @@ import (
 // south-west corner, the plan core (the anchor for stockpiles and the
 // cooking campfire) lies in that corner, not at the map centre.
 func TestPlanCoreOffCentre(t *testing.T) {
-	zones := Zone(zoningSurvey(120, func(x, z int32) SurveyCell {
+	s := zoningSurvey(120, func(x, z int32) SurveyCell {
 		if x < 50 && z < 50 {
 			return SurveyCell{Walkable: true, Fertility: 1}
 		}
 		return SurveyCell{}
-	}))
-	plan := corePlan(zones, 4, TechTierCamp)
+	})
+	plan := tiledPlan(s, 4)
 	core, ok := plan.Core()
 	if !ok {
 		t.Fatalf("no core in plan %s", plan.Summary())

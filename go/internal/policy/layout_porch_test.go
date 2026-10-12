@@ -7,12 +7,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func TestColdShelterHasAPorchTemperateNone(t *testing.T) {
-	if p := coldCorePlan(false); len(p.roomsOf(PlannedPorch)) != 0 {
-		t.Fatal("temperate shelter has a porch")
+func TestColdShelterPorchLiesAgainstTheRingOppositeTheDoor(t *testing.T) {
+	in, seed := Rectangle{X: 10, Z: 10, Width: 5, Height: 4}, domain.Cell{X: 40, Z: 11}
+	if p, _ := shelterWithKids(in, seed, true, false); len(p.roomsOf(PlannedPorch)) != 0 {
+		t.Fatal("a shelter without a porch has one")
 	}
-	plan := coldCorePlan(true)
-	s := shelterOf(t, plan)
+	plan, s := shelterWithKids(in, seed, true, true)
 	porch := childOf(t, plan, s, PlannedPorch)
 	if got := len(porch.PorchSlots()); got != 2 {
 		t.Fatalf("porch slots %d", got)
@@ -29,8 +29,7 @@ func TestColdShelterHasAPorchTemperateNone(t *testing.T) {
 }
 
 func TestPorchHoldsBatteriesUntilTheBatteryRoomIsPlanned(t *testing.T) {
-	plan := coldCorePlan(true)
-	s := shelterOf(t, plan)
+	plan, s := shelterWithKids(Rectangle{X: 10, Z: 10, Width: 5, Height: 4}, domain.Cell{X: 40, Z: 11}, true, true)
 	sites := PlannedPowerSites(plan, BatteryDefinition)
 	if len(sites) != 2 || sites[0].Area != childOf(t, plan, s, PlannedPorch).PorchSlots()[0] || sites[0].Cell != (domain.Cell{X: sites[0].Area.X, Z: sites[0].Area.Z}) {
 		t.Fatalf("porch sites %+v", sites)
@@ -40,7 +39,8 @@ func TestPorchHoldsBatteriesUntilTheBatteryRoomIsPlanned(t *testing.T) {
 			t.Fatalf("battery cell %v not in the porch roof", c)
 		}
 	}
-	if got := PlannedPowerSites(coldCorePlan(false), BatteryDefinition); len(got) != 0 {
+	if bare, _ := shelterWithKids(Rectangle{X: 10, Z: 10, Width: 5, Height: 4}, domain.Cell{X: 40, Z: 11}, false, false); len(PlannedPowerSites(bare, BatteryDefinition)) != 0 {
+		got := PlannedPowerSites(bare, BatteryDefinition)
 		t.Fatalf("temperate map lists battery sites %+v", got)
 	}
 	plan.Rooms = append(plan.Rooms, PlannedRoom{Role: PlannedBattery, Region: RectRegion(Rectangle{X: 100, Z: 100, Width: 5, Height: 7}), Door: domain.Cell{X: 102, Z: 99}, DoorRot: domain.South})

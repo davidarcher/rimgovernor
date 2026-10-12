@@ -31,7 +31,7 @@ func GearRoomNodes(plan LayoutPlan, demand RoomDemand) []RoomNode {
 	wanted := map[PlannedRole]bool{PlannedArmory: demand.Armory, PlannedWardrobe: demand.Wardrobe}
 	var nodes []RoomNode
 	for _, role := range gearRooms {
-		if size := coreRoomSize[role]; wanted[role] || len(plan.roomsOf(role)) > 0 {
+		if size := roomSize(role); wanted[role] || len(plan.roomsOf(role)) > 0 {
 			nodes = append(nodes, RoomNode{ID: string(role), Role: role, Area: int(size[0] * size[1]), Reason: ReasonGearRoom})
 		}
 	}

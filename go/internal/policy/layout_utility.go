@@ -27,9 +27,6 @@ const PlannedBattery PlannedRole = "battery"
 // ground.
 const ReserveExhaust ReservationKind = "cooler_exhaust"
 
-// batteryRoomSize holds four batteries a side.
-var batteryRoomSize = [2]int32{5, 7}
-
 const (
 	// turbineWidth is a turbine's long side, the wind path's width.
 	turbineWidth   int32 = 7

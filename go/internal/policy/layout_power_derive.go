@@ -68,7 +68,7 @@ func (m PowerModel) known() bool {
 // batteryRoomCapacityWD is the storage of the planned battery room: its slots at
 // the catalog battery's capacity.
 func (m PowerModel) batteryRoomCapacityWD() float64 {
-	room := PlannedRoom{Role: PlannedBattery, Region: RectRegion(Rectangle{Width: batteryRoomSize[0], Height: batteryRoomSize[1]}), DoorRot: domain.South}
+	room := PlannedRoom{Role: PlannedBattery, Region: RectRegion(Rectangle{Width: roomSizeTable.Battery[0], Height: roomSizeTable.Battery[1]}), DoorRot: domain.South}
 	return float64(len(BatterySlots(room))) * m.Battery.CapacityWD
 }
 

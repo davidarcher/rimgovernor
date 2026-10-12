@@ -9,40 +9,6 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // then moves into it, where meals never rot.
 const PlannedMealCloset PlannedRole = "meal_closet"
 
-// besideRoles pairs a role with the neighbour whose side wall it takes, a
-// Link door in the shared wall: the freezer beside the kitchen, so
-// the cook steps straight to the shelf, and the dining room beside the
-// freezer, so the meal stockpile sits in the cold one door from the
-// table, the armory beside the storage room and the wardrobe beside the workshop.
-var besideRoles = map[PlannedRole]relationSpec{
-	PlannedFreezer:  {neighbour: PlannedKitchen},
-	PlannedDining:   {neighbour: PlannedFreezer},
-	PlannedButchery: {neighbour: PlannedFreezer, backFirst: true, endCell: true},
-	PlannedArmory:   {neighbour: PlannedStorage, backLast: true, unlinked: true},
-	PlannedWardrobe: {neighbour: PlannedWorkshop, backLast: true},
-}
-
-// relationSpec places a role against its neighbour's side walls (east, then
-// west), each with a Link door unless unlinked. The back wall, the one
-// opposite the hallway, is tried before the sides when backFirst and after
-// them when backLast. The armory is unlinked: it has no door into the
-// storage room, so haulers never cross its stockpile.
-type relationSpec struct {
-	neighbour PlannedRole
-	backFirst bool
-	backLast  bool
-	unlinked  bool
-	// endCell: the back-wall room overlaps only an end cell of the
-	// neighbour, whose cooler vents out of the middle of that wall.
-	endCell bool
-}
-
-// besideOf is the neighbour role takes its side against, if it has one.
-func besideOf(role PlannedRole) (PlannedRole, bool) {
-	rule, ok := besideRoles[role]
-	return rule.neighbour, ok
-}
-
 // MealClosetOwed is the planned meal closet with nothing standing on it
 // while the planned dining room stands; MaintainRefrigeration shells
 // it.

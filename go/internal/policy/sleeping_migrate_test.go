@@ -6,53 +6,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A tier bump retires the smaller wing and sites a new wing at the new
-// size, keeping every old room in place.
-func TestTierBumpRetiresWingAndSitesNewOne(t *testing.T) {
-	p := corePlan(coreTestZones(), 4, TechTierCamp)
-	old := testBedroomWing(t, p)
-	g := growPlan(p, 4, 1, TechTierPowered)
-	var retiring, active []Wing
-	for _, w := range g.Wings {
-		switch w.Purpose {
-		case WingBedroomsRetiring:
-			retiring = append(retiring, w)
-		case WingBedrooms:
-			active = append(active, w)
-		}
-	}
-	if len(retiring) != 1 || len(retiring[0].Rooms) != len(old.Rooms) {
-		t.Fatalf("retiring %+v, want the old wing", retiring)
-	}
-	for i, r := range old.Rooms {
-		if !retiring[0].Rooms[i].Same(r) {
-			t.Fatal("retired room moved", r)
-		}
-	}
-	if len(active) != 1 || len(active[0].Rooms) != wingMaxRooms {
-		t.Fatalf("active wings %+v, want one full wing", active)
-	}
-	for _, r := range active[0].Rooms {
-		if r.Region.Bounds().Width*r.Region.Bounds().Height != 16 {
-			t.Fatal("new wing room not 4x4", r.Region.Bounds())
-		}
-		for _, o := range old.Rooms {
-			if rectsOverlap(r.Region.Bounds(), roomWalls(o)) {
-				t.Fatal("new room on retiring room", r.Region.Bounds(), o.Region.Bounds())
-			}
-		}
-	}
-	if _, err := CheckRoutes(g); err != nil {
-		t.Fatal("routes:", err)
-	}
-	// The retiring wing stays as it is.
-	for _, w := range growPlan(g, 6, 1, TechTierPowered).Wings {
-		if w.Purpose == WingBedroomsRetiring && len(w.Rooms) != len(old.Rooms) {
-			t.Fatal("retiring wing grew", len(w.Rooms))
-		}
-	}
-}
-
 func migrateFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 	room := func(id, x, replaces int32) PlannedRoom {
 		return PlannedRoom{ID: id, Replaces: replaces, Role: PlannedBedroom, Region: RectRegion(Rectangle{X: x, Z: 0, Width: 4, Height: 4})}

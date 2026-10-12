@@ -281,7 +281,7 @@ func TestTileClusteredGroupsAreValid(t *testing.T) {
 	checkTiled(t, in, res)
 }
 
-// Replay fixtures: the tiled plan against the old generator's. The hard tier is
+// Replay fixtures: the tiled plan on each map. The hard tier is
 // asserted unless the fixture's map cannot pass it; the scores are printed.
 func TestTileReplayFixtures(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
@@ -290,7 +290,6 @@ func TestTileReplayFixtures(t *testing.T) {
 			s := f.survey(t)
 			in, emb := tileInput(t, s, f.pawns, true)
 			res, err := TileEmbedding(in)
-			old := Score(SiteCore(LayoutPlan{Zones: in.Zones}, s, f.pawns, 1, TechTierCamp), s)
 			if err != nil {
 				if f.mayFail {
 					t.Skipf("%s cannot be tiled: %v", f.name, err)
@@ -300,20 +299,11 @@ func TestTileReplayFixtures(t *testing.T) {
 			checkTiled(t, in, res)
 			sc := Score(res.Plan, s)
 			t.Logf("%-16s tile: rooms=%d links=%d entrances=%d unfit=%v %s", f.name, len(res.Plan.Rooms), len(res.Plan.Links), len(res.Plan.Entrances), res.Unfit(), sc)
-			t.Logf("%-16s old:  rooms=%d %s", f.name, len(SiteCore(LayoutPlan{Zones: in.Zones}, s, f.pawns, 1, TechTierCamp).AllRooms()), old)
 			if len(emb.Unplaceable()) == 0 && !sc.Passes() && !f.mayFail {
 				t.Fatalf("hard tier: missing=%v routes=%q rich=%d", sc.Missing, sc.RoutesErr, sc.RichCells)
 			}
 			if len(emb.Unplaceable()) > 0 && len(sc.Missing) < len(emb.Unplaceable()) {
 				t.Errorf("%d groups unplaced but missing=%v", len(emb.Unplaceable()), sc.Missing)
-			}
-			// A hub that carries the doors of sealed neighbours packed in around
-			// it holds more thresholds than its area counts; only hallways
-			// (#2879) take those doors off the hub, so such a plan is exempt.
-			sealed := slices.ContainsFunc(res.Decisions, func(d TileDecision) bool { return d.Reason == ReasonTileSealedRoom && d.Verdict == TilePlace }) &&
-				!slices.ContainsFunc(res.Plan.Rooms, func(r PlannedRoom) bool { return r.Role == PlannedCirculation }) // circulation (#2911) carries those doors
-			if old.Passes() && !sealed && len(res.Unfit()) > 0 {
-				t.Errorf("the old generator furnishes this map but groups %v are unfit", res.Unfit())
 			}
 		})
 	}

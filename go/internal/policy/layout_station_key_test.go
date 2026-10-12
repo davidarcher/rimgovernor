@@ -42,7 +42,7 @@ func TestStationFactsInputsKeyTracksTheChainsInputs(t *testing.T) {
 func BenchmarkAdviseStationsLarge(b *testing.B) {
 	f := stationFactsFixture()
 	f.Survey = loadSurvey(b, baselineSurveyPath)
-	plan, ok := oldDerive(f.Survey, 30, TechTierCamp, nil, 0).Value()
+	plan, ok := derivePlan(f.Survey, 30, nil)
 	if !ok {
 		b.Fatal("no plan")
 	}

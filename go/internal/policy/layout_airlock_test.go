@@ -29,13 +29,13 @@ func shelterWithKids(in Rectangle, seed domain.Cell, airlock, porch bool) (Layou
 	return plan, plan.Rooms[0]
 }
 
-func TestColdShelterHasAnAirlockTemperateNone(t *testing.T) {
-	temperate := coldCorePlan(false)
-	if kids := temperate.ChildrenOf(shelterOf(t, temperate).ID); len(kids) != 0 {
-		t.Fatalf("temperate shelter has children: %+v", kids)
+func TestShelterAirlockIsItsChild(t *testing.T) {
+	in, seed := Rectangle{X: 10, Z: 10, Width: 4, Height: 3}, domain.Cell{X: 40, Z: 11}
+	temperate, bare := shelterWithKids(in, seed, false, false)
+	if kids := temperate.ChildrenOf(bare.ID); len(kids) != 0 {
+		t.Fatalf("a shelter without an airlock has children: %+v", kids)
 	}
-	plan := coldCorePlan(true)
-	s := shelterOf(t, plan)
+	plan, s := shelterWithKids(in, seed, true, false)
 	a := childOf(t, plan, s, PlannedAirlock)
 	if a.Parent != s.ID || a.ID == 0 || a.ID == s.ID {
 		t.Fatalf("airlock %+v not a child of %d", a, s.ID)
@@ -48,9 +48,6 @@ func TestColdShelterHasAnAirlockTemperateNone(t *testing.T) {
 	}
 	if !plan.Valid() {
 		t.Fatal("plan with children is invalid")
-	}
-	if _, err := CheckRoutes(plan); err != nil {
-		t.Fatal(err)
 	}
 }
 

@@ -74,7 +74,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 			return policy.SurveyCell{Walkable: true, Fertility: 1}
 		})
 	}
-	plan, ok := oldDerive(survey(false), 3, policy.TechTierCamp, 30).Value()
+	plan, ok := ringedPlan(survey(false)).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -218,12 +218,12 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 func TestDefenseRecutPerimeterPumpPower(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	plan, ok := oldDerive(perimeterSurvey(func(x, z int32) policy.SurveyCell {
+	plan, ok := ringedPlan(perimeterSurvey(func(x, z int32) policy.SurveyCell {
 		if z%40 < 4 {
 			return policy.SurveyCell{Walkable: true, Footing: policy.FootingLight, Bridgeable: true, Dries: true, Fertility: 1}
 		}
 		return policy.SurveyCell{Walkable: true, Fertility: 1}
-	}), 3, policy.TechTierCamp, 30).Value()
+	})).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -263,7 +263,7 @@ func TestDefenseRecutPerimeterPumpPower(t *testing.T) {
 func TestDefenseRecutPerimeterMovedKillbox(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	plan, ok := oldDerive(perimeterSurvey(func(x, z int32) policy.SurveyCell { return policy.SurveyCell{Walkable: true, Fertility: 1} }), 3, policy.TechTierCamp, 30).Value()
+	plan, ok := ringedPlan(perimeterSurvey(func(x, z int32) policy.SurveyCell { return policy.SurveyCell{Walkable: true, Fertility: 1} })).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -283,12 +283,12 @@ func TestDefenseRecutPerimeterMovedKillbox(t *testing.T) {
 func TestDefenseRecutPerimeterHeavyBridges(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	plan, ok := oldDerive(perimeterSurvey(func(x, z int32) policy.SurveyCell {
+	plan, ok := ringedPlan(perimeterSurvey(func(x, z int32) policy.SurveyCell {
 		if z%40 < 4 {
 			return policy.SurveyCell{Walkable: true, Footing: policy.FootingNone, Bridgeable: true}
 		}
 		return policy.SurveyCell{Walkable: true, Fertility: 1}
-	}), 3, policy.TechTierCamp, 30).Value()
+	})).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -389,7 +389,7 @@ func TestDefenseRingReplaceLifecycle(t *testing.T) {
 			return policy.SurveyCell{Walkable: true, Fertility: 1}
 		})
 	}
-	plan, ok := oldDerive(survey(false), 3, policy.TechTierCamp, 30).Value()
+	plan, ok := ringedPlan(survey(false)).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}

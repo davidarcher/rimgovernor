@@ -7,25 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func TestCheckRoutesPlannedCore(t *testing.T) {
-	p := corePlan(coreTestZones(), 6, TechTierCamp)
-	traffic, err := CheckRoutes(p)
-	if err != nil {
-		t.Fatal(err)
-	}
-	seg := p.Spine[0]
-	busiest := 0
-	for c, n := range traffic {
-		if c.Z >= seg.From.Z-1 && c.Z <= seg.From.Z+1 && n > busiest {
-			busiest = n
-		}
-	}
-	// Six bedroom trips alone share the hallway.
-	if busiest < 6 {
-		t.Fatal("hallway traffic", busiest)
-	}
-}
-
 func TestCheckRoutesRejectsThoroughfare(t *testing.T) {
 	// Storage sits behind a bedroom and its only door opens into it, so the
 	// entrance -> storage trip walks through the bedroom.

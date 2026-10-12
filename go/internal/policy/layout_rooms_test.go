@@ -10,7 +10,11 @@ import (
 // hallRoom is a room of role at interior X ix on the east-west hallway at z0,
 // north of it or south, its door in the hallway wall.
 func hallRoom(role PlannedRole, ix, z0, w, d int32, north bool) PlannedRoom {
-	return hallFrame{along: true, line: z0}.room(role, ix, w, d, north)
+	a, wall, facing := z0-2-d, z0-2, domain.North
+	if north {
+		a, wall, facing = z0+3, z0+2, domain.South
+	}
+	return PlannedRoom{Role: role, Region: RectRegion(Rectangle{X: ix, Z: a, Width: w, Height: d}), Door: domain.Cell{X: ix + w/2, Z: wall}, DoorRot: facing}
 }
 
 func TestPlannedShellsKeepThePlanRectangleAndDoor(t *testing.T) {

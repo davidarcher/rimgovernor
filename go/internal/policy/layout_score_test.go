@@ -15,11 +15,6 @@ func Score(plan LayoutPlan, s MapSurvey) PlanScore {
 	return sc.walled(plan, sc.core(plan))
 }
 
-// edgeOf is the edge term's cost for plan p over ground.
-func edgeOf(p LayoutPlan, b Bounds, ground siteGround) int {
-	return planScorer{s: MapSurvey{Bounds: b}, ground: ground}.edgeCost(p.AllRooms(), nil)
-}
-
 func plainScoreSurvey() MapSurvey {
 	return zoningSurvey(140, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 }
@@ -27,7 +22,7 @@ func plainScoreSurvey() MapSurvey {
 func scoredPlan(t *testing.T) (LayoutPlan, MapSurvey) {
 	t.Helper()
 	s := plainScoreSurvey()
-	p := corePlan(Zone(s), 3, TechTierCamp)
+	p := tiledPlan(s, 3)
 	if len(p.Rooms) == 0 {
 		t.Fatal("no rooms")
 	}
@@ -65,15 +60,6 @@ func TestScoreHardTierRanksBelowAnyPass(t *testing.T) {
 	noEntrance.Entrances = nil
 	if m := Score(noEntrance, s); m.Passes() || m.RoutesErr == "" || !good.Better(m) {
 		t.Fatal("a plan with invalid routes is not in the lower tier:", m)
-	}
-
-	// A thoroughfare: a bedroom's interior placed over the only way into
-	// dining makes the routes invalid or a path cross it; either way the
-	// plan fails. Cut every hallway: no trip has a route.
-	cut := p
-	cut.Spine = nil
-	if m := Score(cut, s); m.Passes() || good.Better(m) == false {
-		t.Fatal("a plan without hallways is not in the lower tier:", m)
 	}
 
 	// Rich soil under a room: the same plan over a survey whose cells
@@ -132,7 +118,7 @@ func TestScoreSoilExpansionAndDefenseTerms(t *testing.T) {
 		t.Fatal("defense term on open ground:", base)
 	}
 	// Expansion: take the free ground next to the plan out of the core.
-	sc := newPlanScorer(p.Zones, p.Reservations, s)
+	sc := newPlanScorer(Zone(s), p.Reservations, s)
 	free := sc.core(p).Expansion
 	if free <= 0 {
 		t.Fatal("no expansion room on open ground")
@@ -144,7 +130,7 @@ func TestScoreSoilExpansionAndDefenseTerms(t *testing.T) {
 		t.Fatal("expansion room did not fall with the free ground gone:", free, boxed)
 	}
 	// Soil and rock under the plan are costs.
-	onRock := newPlanScorer(p.Zones, p.Reservations, s)
+	onRock := newPlanScorer(Zone(s), p.Reservations, s)
 	onRock.g.rock[domain.Cell{X: p.Rooms[0].Region.Bounds().X, Z: p.Rooms[0].Region.Bounds().Z}] = true
 	if got := onRock.core(p).Soil; got >= sc.core(p).Soil {
 		t.Fatal("rock under a room did not lower the soil term:", got)

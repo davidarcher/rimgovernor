@@ -32,7 +32,7 @@ import (
 const (
 	suiteTitleOp = "test/layout_grid_title"
 	// suiteTitle's bedroom floor (70) outgrows a suite sized for Greedy
-	// (50): 7x7 then, 7x8 after (layout_suite.go SuiteSize).
+	// (50): 7x7 then, 7x8 after (layout_suite_role.go SuiteSize).
 	suiteTitle = "Baron"
 )
 

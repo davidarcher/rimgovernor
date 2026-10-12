@@ -9,19 +9,6 @@ func inWall(r Rectangle, c domain.Cell) bool {
 	return onX && c.Z >= r.Z && c.Z < r.Z+r.Height || onZ && c.X >= r.X && c.X < r.X+r.Width
 }
 
-// overlapsRooms reports r's interior within a cell of any room's interior;
-// a single shared wall between them is fine.
-func overlapsRooms(r PlannedRoom, rooms []PlannedRoom) bool {
-	a := r.Region.Bounds()
-	for _, o := range rooms {
-		b := o.Region.Bounds()
-		if a.X-1 < b.X+b.Width && b.X-1 < a.X+a.Width && a.Z-1 < b.Z+b.Height && b.Z-1 < a.Z+a.Height {
-			return true
-		}
-	}
-	return false
-}
-
 func transposeCell(c domain.Cell) domain.Cell { return domain.Cell{X: c.Z, Z: c.X} }
 
 func transposeRot(rot domain.Rotation) domain.Rotation {

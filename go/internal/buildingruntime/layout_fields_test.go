@@ -88,7 +88,7 @@ func TestFieldBlockFarmsCourtyardPatch(t *testing.T) {
 			facts.Cells = append(facts.Cells, policy.SiteCell{Cell: c, Walkable: domain.Known(true), Things: policy.OccupantThings(false), Zone: domain.Known(false), ZoneID: domain.Known(""), Roofed: domain.Known(false), Fertility: domain.Known(f)})
 		}
 	}
-	plan, ok := oldDerive(s, 8, policy.TechTierCamp, 30).Value()
+	plan, ok := ringedPlan(s).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}

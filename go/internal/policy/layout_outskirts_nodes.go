@@ -47,7 +47,7 @@ func GraveyardRoomNodes(wanted int) []RoomNode {
 
 // OutskirtsRoomNodes are the five outskirts rooms as graph nodes.
 func OutskirtsRoomNodes() []RoomNode {
-	tomb, morgue := coreRoomSize[PlannedTomb], coreRoomSize[PlannedMorgue]
+	tomb, morgue := roomSize(PlannedTomb), roomSize(PlannedMorgue)
 	inc := IncineratorOutline - 2
 	node := func(role PlannedRole, w, h, width int32) RoomNode {
 		return RoomNode{ID: string(role), Role: role, Area: int(w * h), Width: width, Reason: ReasonOutskirtsRoom}

@@ -7,16 +7,18 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// gearTestPlan is the tiled plan over its survey's zones, core ground included,
+// the ground the yard and gear sites are cut from.
 func gearTestPlan() LayoutPlan {
-	plan := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, TechTierCamp)
-	plan, _, _ = SiteRoom(plan, nil, PlannedPrison, coreRoomSize[PlannedPrison])
+	plan := tiledPlan(coreTestSurvey(), 6)
+	plan.Zones = coreTestZones()
 	return plan
 }
 
 func TestGearRoomRolesAreRegistered(t *testing.T) {
 	t.Parallel()
 	for _, role := range gearRooms {
-		if _, ok := coreRoomSize[role]; !ok {
+		if roomSize(role) == ([2]int32{}) {
 			t.Errorf("%s has no size", role)
 		}
 		if moduleRoomRoles[role] != RoomRoleStoreroom {
