@@ -5,7 +5,12 @@ assembly, the GABP host (a vendored fork of RimBridgeServer and Lib.GAB, source 
 `integrations/rimgovernor-host`) and the RimGovernor tools. Harmony loads first. The mod is
 incompatible with `brrainz.rimbridgeserver`: two hosts would double-patch Harmony and fight over
 `GABP_SERVER_PORT`.
-Headless presentation suppression activates only with `-batchmode`.
+Headless presentation suppression activates only with `-Headless` (Waylith's
+windowless, GPU-less, null-audio mode); `-batchmode` and `-nographics` do nothing there.
+The runtime, host and Bridge target net10.0. They compile against the install's
+flat layout (`Assembly-CSharp.dll`, `UnityStubs.dll`, `Waylith.dll` beside
+`RimWorld.exe`), found through `-RimWorldDir`/`RimWorldDir`; there is no Krafs
+reference package and no Linux compile path.
 
 Build a complete local development package from the repository root:
 
@@ -41,8 +46,7 @@ Native compilation consumes those checked-in official outputs directly; it does
 not invoke an experimental JSON generator. Regenerate/check with the included
 Go program (`go run scripts/generate_protobuf.go`) and pinned .NET tooling, then rebuild using the included native
 script and your installed game/Harmony dependencies. Native restore is locked.
-A standalone Mono proof needs the standard netstandard framework facade; installed
-game loading and round trips require the fresh native acceptance run.
+Installed game loading and round trips require the fresh native acceptance run.
 
 The implemented [fixed Protobuf methods](../../contracts/native-protobuf-cutover.md)
 cover identity, authority, clock control, bounded observations, placement previews

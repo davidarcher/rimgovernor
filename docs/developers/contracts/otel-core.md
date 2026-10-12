@@ -191,7 +191,7 @@ treats it as opaque, stamps it on its `mod_log` lines and echoes it in `timing.t
 either that form or the older `<trace>/<span>` (`telemetry.ParseWireTrace`).
 
 The mod does **not** ship `System.Diagnostics.DiagnosticSource` (spike #2781 was conditional on an
-in-game check under RimWorld's Unity Mono, and the mod has no exporter, so an `Activity` there would
+in-game check under the game's runtime, and the mod has no exporter, so an `Activity` there would
 only be discarded). Go therefore synthesizes the `native.execute` child span from the echoed timing, so
 a game that never loads DiagnosticSource behaves identically. If a C# `Activity` path is added later it
 must fall back to this echo when the assembly cannot load, and never throw on the game thread.

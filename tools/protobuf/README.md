@@ -21,9 +21,8 @@ set containing imports. `--check` compares generated text while allowing checkou
 line-ending differences. It does not change checked-in outputs. The compiler
 process has a bounded timeout; failed restore/build artifacts remain in the output.
 
-`--proof` compiles all generated messages as .NET Framework 4.7.2 and executes the
-placement binary/ProtoJSON tests. Windows requires .NET Framework; Linux requires
-Mono to execute that target. The proof does not require game files. Its artifacts
+`--proof` compiles all generated messages as net10.0 and executes the
+placement binary/ProtoJSON tests with the .NET 10 SDK. The proof does not require game files. Its artifacts
 include `csharp-request`, `csharp-reply`, and `csharp-u64`, each as `.json` and `.bin`.
 Pass `--cross-language-inputs <directory>` with `--proof` to read the corresponding
 `go-request`, `go-reply` and `go-u64` pairs and re-emit their typed contents. This is
@@ -37,12 +36,10 @@ The project and `packages.lock.json` pin these official dependencies:
   `libprotoc 30.0`. The script runs `protoc` directly; no gRPC service runtime is
   generated or required. Service declarations remain in descriptor output.
 - [Google.Protobuf 3.31.1](https://www.nuget.org/packages/Google.Protobuf/3.31.1),
-  using its .NET Framework 4.5 asset for the .NET Framework 4.7.2 target.
-- Microsoft.NETFramework.ReferenceAssemblies 1.0.3 for compilation.
+  for the net10.0 target.
 
-The development proof uses .NET SDK 8.0.424. The locked .NET Framework runtime
-closure is Google.Protobuf 3.31.1, System.Memory 4.5.3, System.Buffers 4.4.0,
-System.Numerics.Vectors 4.4.0 and System.Runtime.CompilerServices.Unsafe 4.5.2.
+The proof uses the .NET 10 SDK. The locked runtime closure is `packages.lock.json`
+(Google.Protobuf 3.31.1 and its dependencies).
 The native package must stage the runtime closure and required notices when the
 adapter is integrated. Compiler and reference-assembly packages are build inputs,
 not game runtime dependencies. The lock records package content hashes; do not
@@ -82,11 +79,10 @@ official runtimes; they are not all valid native requests.
 
 Run the Go proof to create independent origins, pass that output through
 `--cross-language-inputs`, then run Go again with the resulting C# directory and
-`--check-go-echo`. Finally invoke the generated `ProtobufProof.exe` with
+`--check-go-echo`. Finally invoke the generated `ProtobufProof.dll` with
 `--verify-return <csharp-origin-directory> <go-return-directory>`. This verifies
 the complete original set, message types and values including field presence,
-not only agreement between each returned JSON/binary pair. Linux uses Mono with
-the .NET Framework/netstandard facades (Debian `mono-devel`). `task protobuf:build`
+not only agreement between each returned JSON/binary pair. `task protobuf:build`
 and `task protobuf:test` (this directory's `Taskfile.yml`) run the drift checks and
 the exchange in that order; CI runs them on both platforms and preserves the
 exchange artifacts.

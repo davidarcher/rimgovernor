@@ -29,4 +29,4 @@ actual native loading remains part of N01 package acceptance.
 - [GABP host (vendored RimBridgeServer and Lib.GAB, MIT) notices and commit SHAs](integrations/rimgovernor-native/Notices/host/PROVENANCE.md)
 - [Headless adapter source notice](integrations/rimgovernor-native/Notices/headless/PROVENANCE.md) and GPL-3.0 license
 
-Game files and artwork are supplied separately.
+Game files and artwork are supplied separately. The RimWorld 1.7 install (Waylith engine, its CoreCLR/net10 runtime, UnityStubs and Harmony 3 from the Workshop) is the game and Harmony's own and is neither bundled nor redistributed by the mod; the mod compiles against it. Encrypted remote-acceptance bundles of the install are described in [remote bundles](docs/developers/remote-bundles.md).

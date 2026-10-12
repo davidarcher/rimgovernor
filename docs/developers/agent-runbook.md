@@ -30,10 +30,26 @@ short: setup refuses game-copy paths RimWorld cannot open.
 
 | Location | Contents |
 | --- | --- |
-| `.rimgovernor/native-rimworld/` | Private game executable and mod; game data directories are junctions to Steam. |
+| `.rimgovernor/native-rimworld/` | Private copy of the flat 1.7 install (`RimWorld.exe`, Waylith, `Assembly-CSharp.dll`) and the mod; the `Data` tree is a junction to Steam. |
 | `.rimgovernor/bridge/` | Config, endpoint record, private profile and saves; overridden by `-root`. |
 | `.rimgovernor/native-builds/` | Staged native builds. |
 | `.rimgovernor/bin/` | Controller and acceptance executables. |
+
+RimGovernor supports RimWorld 1.7 (Waylith) only. The install is flat:
+`RimWorld.exe`, `Waylith.dll`, `UnityStubs.dll` and `Assembly-CSharp.dll` sit in
+the install root beside `Data/`, `Rendering/` and `Assets.zip`, with Harmony 3
+from the Workshop item's `1.7/Assemblies`. The native mod, host and probes
+target net10.0 and compile against that root, passed as `RimWorldDir`
+(`-RimWorldDir` for `scripts/build_native_mod.ps1`; setup supplies it).
+
+The game runs windowless and GPU-less only with `-Headless` (the one predicate
+the mod's startup and patches share); `-batchmode` and `-nographics` do nothing.
+A graphics case omits `-Headless` and opens a window. 1.7 ignores `-logFile` and
+writes one `Player.log` at a fixed `LocalLow` path shared by every instance, so
+acceptance launches pass `-NoFileLog` and `-DisableLogStackTraces`. Each
+instance's log is the stdout the gamehost captures to
+`<config>/<game>/game.log`; message and error lines stay, stack traces do not (a
+headless run of a minute or two writes about 5 KB, against about 15 MB a minute with stacks).
 
 Build mods through `acceptance setup -rebuild [-fixture A,B]`, never by invoking
 `scripts/build_native_mod.ps1` directly. Setup supplies paths safely and refuses

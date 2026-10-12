@@ -9,7 +9,7 @@ Use official generators and runtimes:
 
 | Language | Compiler/plugin | Runtime | Generated source |
 | --- | --- | --- | --- |
-| C# net472 | protoc30.0 from Grpc.Tools2.72.0 | Google.Protobuf3.31.1 | `generated/protobuf/csharp` |
+| C# net10.0 | protoc30.0 from Grpc.Tools2.72.0 | Google.Protobuf3.31.1 | `generated/protobuf/csharp` |
 | Go | protoc30.0 and protoc-gen-go1.36.11 | google.golang.org/protobuf1.36.11 | `generated/protobuf/go` |
 
 The repository scripts invoke official tools, restore pinned packages, compare

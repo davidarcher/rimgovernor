@@ -26,6 +26,11 @@ import (
 var scenarioPolicy = map[string]any{
 	"mode": "WATCH_MODE_COLONY", "healthDropFraction": 0.1,
 	"minHealthFraction": 0.5, "hostileWithin": 40, "injuryStopCooldownMs": 0,
+	// Native refuses a policy missing any Go-authored hazard threshold (#2587).
+	"seriousSingleHitDamage": policy.SeriousSingleHitDamage, "seriousSummaryHealthFloor": policy.SeriousSummaryHealthFloor,
+	"seriousBleedRateFloor": policy.SeriousBleedRateFloor, "seriousVitalPartFloor": policy.SeriousVitalPartFloor,
+	"explosiveNearMarginCells": policy.ExplosiveNearMarginCells, "meleeReachCells": policy.MeleeReachCells,
+	"injurySeverityFloorTicks": policy.InjurySeverityFloorTicks, "predatorMarginCells": policy.HuntPredatorMarginCells,
 }
 
 // scenarioHoldReasons are the hold reasons:

@@ -49,6 +49,12 @@ func init() {
 				return fmt.Errorf("loadToken changed under the case: %q then %q", identity["loadToken"], again["loadToken"])
 			}
 			s.Report()["identity_again"] = again
+			// The clock advances: AdvanceGame fails unless the native tick
+			// budget completes exactly, so a game that loads but does not
+			// tick (a frozen 1.7 main loop) fails here, not in a later case.
+			if _, err := s.Advance(ctx, 300); err != nil {
+				return fmt.Errorf("the clock did not advance 300 ticks: %w", err)
+			}
 			// Exercise the typed read against the live game, including the
 			// complete-empty result on a fresh map. This does not admit removal.
 			// The census scopes the scan to Home; on the lab it reads an

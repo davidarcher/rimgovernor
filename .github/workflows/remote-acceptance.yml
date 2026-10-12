@@ -143,7 +143,7 @@ jobs:
   # sees it. Neither is in the landing loop (cmd/test and cmd/land do not
   # run task protobuf:*), so without this nothing runs them. The C#/Go/C#
   # exchange proof (task protobuf:test) stays manual: it proves the pinned
-  # runtime, which only changes with the pins, and needs Mono here.
+  # runtime, which only changes with the pins.
   race:
     needs: plan
     if: github.repository == 'davidarcher/rimgovernor' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'nightly'))

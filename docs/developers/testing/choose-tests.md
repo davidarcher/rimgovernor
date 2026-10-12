@@ -83,7 +83,7 @@ long colony run for a capture benchmark.
 
 [Remote handoff](remote-handoff.md) covers selection, dispatch, diagnostics and
 import. A remote result proves its named selection; retain its provenance and
-do not infer omitted coverage. Game-free Linux compilation is in the
+do not infer omitted coverage. What a cloud session can and cannot run is in the
 [runbook](../agent-runbook.md#remote-agents).
 
 ## Adding a case

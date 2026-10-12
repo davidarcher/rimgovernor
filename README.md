@@ -10,7 +10,7 @@ Double-click `RimGovernor.cmd`, then press **Play**. The launcher builds the
 controller and native mod and starts automatic control. Pause in RimWorld to take
 manual control.
 
-A licensed RimWorld installation is required. Start with
+A licensed RimWorld 1.7 (Waylith) installation is required; 1.6 is not supported. Start with
 [setup](docs/players/setup.md), then the [player guide](docs/players/README.md)
 for launch options, controls and saving.
 

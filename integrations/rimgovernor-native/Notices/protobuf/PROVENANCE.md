@@ -29,9 +29,9 @@ Its (and the vendored `RimGovernor.Host`'s) `RimBridgeExtensionDiscovery` loads 
 BridgeTools root and resolves their dependencies (such as Google.Protobuf) by
 simple name from the same directories. This is a source-level loader
 check. Native package acceptance must still exercise discovery and actual
-Protobuf calls under the installed Mono/Unity runtime, including existing loaded
-assembly/version interactions. The game supplies the netstandard framework
-facade; the package does not replace framework assemblies.
+Protobuf calls under the installed Waylith (CoreCLR, net10) runtime, including existing loaded
+assembly/version interactions. The game supplies the framework assemblies;
+the package does not replace them.
 
 The staged manifest records each runtime package/version/file and SHA-256 for
 all bundled DLLs, notices and source. Existing headless and companion obligations

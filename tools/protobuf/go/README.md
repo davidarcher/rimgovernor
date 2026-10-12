@@ -62,7 +62,7 @@ not used as a canonical identity. The proof includes present zero/false, missing
 stock, int64/uint64 extremes, oneof conflicts, malformed input, and observed binary
 unknown-field retention. Ordinary validators still enforce required fields, supported
 enums, bounded collections/IDs and game invariants. This foundation proof is not
-full-family, native adapter, Mono runtime or gameplay acceptance.
+full-family, native adapter, in-game runtime or gameplay acceptance.
 
 Official sources: [Go release](https://github.com/protocolbuffers/protobuf-go/releases/tag/v1.36.11),
 [Go generation](https://protobuf.dev/reference/go/go-generated/),
