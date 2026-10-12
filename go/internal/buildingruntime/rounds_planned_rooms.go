@@ -3,10 +3,13 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"slices"
 	"sort"
+	"strconv"
 
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -294,4 +297,37 @@ func researchHostRooms(facts observation.ColonyProjection) []policy.InteriorRoom
 		return nil
 	}
 	return plannedShelterRooms(facts)
+}
+
+// roleMismatches are the standing planned rooms whose native role is not the
+// one PredictRole gives their observed stations (policy.GuardNativeRoles);
+// none while the plan, rooms, construction, sleeping census or station
+// catalog is unread.
+func roleMismatches(facts observation.ColonyProjection) ([]policy.RoleMismatch, error) {
+	plan, rooms, known := plannedLayout(facts)
+	construction, ck := facts.Facts.CurrentConstruction.Value()
+	sleeping, sk := facts.Facts.Sleeping.Value()
+	if !known || !ck || !construction.Colony || !sk || len(facts.Stations.Stations) == 0 {
+		return nil, nil
+	}
+	contents := policy.ObservedRoomContents(facts.Stations, plan, rooms, construction.Buildings, sleeping)
+	return policy.GuardNativeRoles(facts.Stations, plan, rooms, contents)
+}
+
+// recordRoleMismatches journals one native_role_differs_from_predicted row per
+// mismatched room. A mismatch is only recorded: nothing re-prices or splits
+// the room (the clustering search that would is #2877).
+func recordRoleMismatches(ctx context.Context, facts observation.ColonyProjection) {
+	mismatches, err := roleMismatches(facts)
+	if err != nil {
+		telemetry.Decide(ctx, telemetry.Decision{Kind: "layout_role_guard", Component: "layout", Level: slog.LevelWarn, Verdict: "failed", Reason: "guard_error", Target: "rooms", Attrs: map[string]any{"error": err}})
+		return
+	}
+	for _, m := range mismatches {
+		scores := make(map[string]float64, len(m.Scores))
+		for role, score := range m.Scores {
+			scores[string(role)] = score
+		}
+		telemetry.Decide(ctx, telemetry.Decision{Kind: "layout_role_guard", Component: "layout", Verdict: "mismatch", Reason: policy.RoleMismatchReason, Target: strconv.Itoa(int(m.Room)), Attrs: map[string]any{"native": string(m.Native), "predicted": string(m.Predicted), "scores": scores}})
+	}
 }

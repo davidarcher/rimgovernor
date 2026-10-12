@@ -122,6 +122,9 @@ func observeRounds(ctx context.Context, source RoundsSource, clock Clock, expect
 		if p.Shapes, err = frame.Catalog.PieceShapes(); err != nil {
 			return RoundsReading{}, err
 		}
+		if p.Stations, err = frame.Catalog.StationCatalog(); err != nil {
+			return RoundsReading{}, err
+		}
 		names := slices.Concat(definitions, roleRows, p.Shapes.Furniture.Definitions())
 		if p.Definitions, err = frameDefinitionFacts(frame).appendDefinitions(p.Definitions, names); err != nil {
 			return RoundsReading{}, err

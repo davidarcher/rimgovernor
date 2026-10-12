@@ -111,7 +111,10 @@ type ColonyProjection struct {
 	// Shapes are the catalog's piece shapes and the furniture its rules choose
 	// (DefinitionCatalog.PieceShapes), set when a catalog is read; the zero
 	// value without one.
-	Shapes              policy.PieceShapes
+	Shapes policy.PieceShapes
+	// Stations is the catalog's station table (DefinitionCatalog.StationCatalog),
+	// set on a rounds reading; the zero value without one.
+	Stations            policy.StationCatalog
 	FoodFields          domain.Fact[[]policy.FoodField]
 	FoodChannels        domain.Fact[FoodChannels]
 	ProductionBenches   domain.Fact[[]policy.ProductionBench]

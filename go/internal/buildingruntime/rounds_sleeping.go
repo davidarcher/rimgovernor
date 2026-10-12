@@ -319,6 +319,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	facts := reading.Projection
 	recordStepRead("building", r.concern, state.Snapshot, facts)
+	recordRoleMismatches(call, facts)
 	if r.phase == policy.ComfortSpot {
 		result, placing, err := r.partySpotStep(call, epoch, state, review, goal, reading)
 		if err != nil || placing == nil {
