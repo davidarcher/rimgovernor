@@ -209,7 +209,7 @@ func TestStationPopulationOfSplitsBabiesAndPatients(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := (StationPopulation{Colonists: 3, Injured: 1, Prisoners: 2, Babies: 1, Animals: 3}); got != want {
+	if want := (StationPopulation{Colonists: 3, Injured: 1, Prisoners: 2, Babies: 1, Animals: 3}); !reflect.DeepEqual(got, want) {
 		t.Errorf("population = %+v, want %+v", got, want)
 	}
 }

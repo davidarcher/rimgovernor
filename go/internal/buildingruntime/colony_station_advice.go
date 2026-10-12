@@ -84,7 +84,7 @@ func stationFacts(catalog *bridge.DefinitionCatalog, f policy.StationFacts) (pol
 		return policy.StationFacts{}, err
 	}
 	stock, _ := f.Stock.Value()
-	f.StackLimit, f.Perishable, err = catalog.StationItemFacts(stock, f.Recipes)
+	f.StackLimit, f.Perishable, err = catalog.StationItemFacts(stock, f.Recipes, policy.PenItems(f.Herds, f.Races))
 	return f, err
 }
 
@@ -141,6 +141,7 @@ func stationFactsOf(projection observation.ColonyProjection, plan policy.LayoutP
 		Colonists: projection.Facts.Colonists, Patients: projection.Facts.MedicalPawns,
 		Surgical:  policy.SurgeryBedShortPatients(projection.Facts.MedicalPawns),
 		Prisoners: domain.Unknown[int](), Animals: projection.Facts.PenAnimals(),
+		Herds: projection.Facts.PenHerds(), Races: projection.Facts.AnimalUpkeep.AnimalRaces, Pasture: projection.Facts.Pasture,
 		WorkPawns: projection.WorkPawns, Food: projection.FoodSupply,
 		Orders: domain.Unknown[[]policy.OrderSpec](), Stock: domain.Unknown[map[policy.Resource]int64](),
 		RoofDistance: projection.RoofSupport, Plan: plan, Survey: survey,

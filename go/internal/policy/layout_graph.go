@@ -74,9 +74,11 @@ const HousingSparePlaces = 1
 // StationPopulation is who needs a place. Colonists are the free people who
 // sleep in a regular bed and eat at a table; Injured are the colonists who
 // need a medical bed now. Prisoners, Babies and Animals sleep in their own
-// kind of bed.
+// kind of bed. Herds are the pen herd by race (the planned ceilings the barns
+// and pens are sized for, #2996); Animals is the misc unit's bed count.
 type StationPopulation struct {
 	Colonists, Injured, Prisoners, Babies, Animals int
+	Herds                                          []StationHerd
 }
 
 // RecipeFlow is what one run of a recipe takes in and puts out, by the
@@ -129,6 +131,11 @@ type StationGraphInput struct {
 	// Seed are the special rooms asked beyond the stations: the shelter and the
 	// throne room (#2958).
 	Seed SeedRooms
+	// Races are the animal races' catalog rows and Pasture what a cell of each
+	// terrain grows a day in the worst quadrum: the products and hunger of the
+	// pen herds (#2996). An unread Pasture leaves feeding unsized.
+	Races   AnimalRaceCatalog
+	Pasture domain.Fact[PastureTable]
 }
 
 // StationNode is a class of station and how many the colony needs.
@@ -245,7 +252,10 @@ type StationGraph struct {
 	// Fields are the outdoor field nodes (layout_field_nodes.go); edges name them
 	// by ID, and clustering ignores them until fields are placed.
 	Fields []FieldNode
-	Edges  []StationEdge
+	// Pens are the outdoor pen nodes of the herds (layout_pen_nodes.go); their
+	// edges count as trips to the outside node.
+	Pens  []PenNode
+	Edges []StationEdge
 }
 
 // PlannedCirculation is the corridor that joins the rooms of a large colony:
@@ -340,8 +350,10 @@ func BuildStationGraph(in StationGraphInput) (StationGraph, error) {
 	b.sleepEat(meals)
 	b.dayCycle()
 	fields := b.fieldNodes(runs)
+	pens := b.penNodes()
 	g := b.graph()
 	g.Fields = fields
+	g.Pens = pens
 	g.Rooms = stationRoomNodes(in)
 	b.shelterMeals(g.Rooms, meals)
 	for _, n := range g.Nodes {
@@ -901,9 +913,9 @@ func recipePicks(f RecipeFlow) []Amount {
 // dayCycle adds the colonist's day at the bed: each colonist who is not in a
 // medical bed leaves it at wake and comes back to sleep, one trip a day to the
 // outside node (one way, like every edge; the way back is counted where trips
-// become door passages). Meals are sleepEat's; what a colonist does between
-// wake and sleep outdoors (joy, hauling mined, wood or hunted goods, pens) has
-// no model yet and adds nothing.
+// become door passages). Meals are sleepEat's and the pen herds' hauls are
+// penNodes'; what a colonist does between wake and sleep outdoors (joy,
+// hauling mined, wood or hunted goods) has no model yet and adds nothing.
 func (b *graphBuilder) dayCycle() {
 	p := b.in.Population
 	if p.Colonists <= 0 {

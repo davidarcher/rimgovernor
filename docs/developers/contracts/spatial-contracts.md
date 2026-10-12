@@ -316,8 +316,15 @@ on the colony centre when the plan has no free cell there.
   (`OutsideNode`, no station, ignored by clustering) carries the colonist day cycle: one
   edge from the bed per healthy colonist a day (wake out, sleep back). Clustering splits
   it onto `RoomGroup.Outside`, the tiler onto `LayoutPlan.OutsideTrips`, and each such trip
-  is walked from its room to the nearest entrance. Joy outings, mined, wood and hunt
-  hauling and pen visits have no model yet (#2949), so a plan's passages fall short of
+  is walked from its room to the nearest entrance. A herd's pen is an outdoor `PenNode`
+  (`StationGraph.Pens`, one per race of `StationPopulation.Herds`, the plan's ceilings;
+  not a station, ignored by the embedder): its edges to the stores count as outside
+  trips. Products haul to the store that keeps them at animals times `RaceProduct`
+  amount over interval a day (milk, wool, eggs, chemfuel); feed hauls what the pen's
+  grazing leaves of `AdultFeedPerDay` (`PenCells` over the weakest pasture, so a pen is
+  hand-fed only past `penCellsCap` or on barren ground) in the richest feed item. Unread
+  yields, hunger, pasture or feed add no flow (#2996). Joy outings and mined, wood and
+  hunt hauling have no model yet (#2949), so a plan's passages fall short of
   the audit's 30-50 per colonist a day. Each passage holds a door open for its window,
   from the def: the wait (`Building_Door.TicksToOpenNow`, 45 over `DoorOpenSpeed`), two
   cell moves (`climateTable.CellMoveTicks`) and the close delay (`ClimateModel.Door`). An

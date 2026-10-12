@@ -47,6 +47,12 @@ type StationFacts struct {
 	Surgical  []PawnID
 	Prisoners domain.Fact[int]
 	Animals   int
+	// Herds are the pen herd by race, Races the animal race rows and Pasture the
+	// worst-quadrum growth per terrain: the pen nodes' products and hunger
+	// (#2996). Herds empty asks for no pen.
+	Herds     []StationHerd
+	Races     AnimalRaceCatalog
+	Pasture   domain.Fact[PastureTable]
 	WorkPawns domain.Fact[[]WorkPawn]
 	// Food is the colonists' food census; its consumers' rates sum to the
 	// nutrition a day.
@@ -158,7 +164,7 @@ func StationPopulationOf(f StationFacts) (StationPopulation, error) {
 		return StationPopulation{}, unknownStationFact("pawn stages")
 	}
 	babies := BabyCount(pawns)
-	return StationPopulation{Colonists: max(int(colonists)-babies, 0), Injured: len(ill), Prisoners: prisoners, Babies: babies, Animals: f.Animals}, nil
+	return StationPopulation{Colonists: max(int(colonists)-babies, 0), Injured: len(ill), Prisoners: prisoners, Babies: babies, Animals: f.Animals, Herds: f.Herds}, nil
 }
 
 // BabyCount is the pawns still in a crib: the newborn and baby stages
@@ -227,6 +233,7 @@ func (f StationFacts) GraphInput() (StationGraphInput, error) {
 		Population: population, NutritionPerDay: nutrition, Orders: orders,
 		Stock: stock, StackLimit: f.StackLimit, Perishable: f.Perishable,
 		Crops: f.Crops, FoodReserveDays: f.FoodReserveDays, Suites: f.Suites, Seed: seed,
+		Races: f.Races, Pasture: f.Pasture,
 	}, nil
 }
 
@@ -243,7 +250,7 @@ func (f StationFacts) InputsKey() string {
 	if err != nil {
 		return key + err.Error()
 	}
-	return key + fmt.Sprint(input.Population, input.NutritionPerDay, input.Orders, input.Stock, input.FoodReserveDays, input.Crops, input.Suites)
+	return key + fmt.Sprint(input.Population, input.NutritionPerDay, input.Orders, input.Stock, input.FoodReserveDays, input.Crops, input.Suites, input.Pasture)
 }
 
 // rebuildPending reports a rebuild in flight: a successor pending in the plan

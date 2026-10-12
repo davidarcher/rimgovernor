@@ -758,13 +758,16 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 		out.Groups[k[0]].Links = append(out.Groups[k[0]].Links, *l)
 	}
 	// The outside node holds no station: its edges weigh the groups holding the
-	// other end, in proportion to the node's stations in each.
+	// other end, in proportion to the node's stations in each. A pen stands
+	// outdoors, so its edges are the outside node's (#2996).
 	for _, e := range in.Graph.Edges {
-		other := e.A
-		if e.A == OutsideNode {
-			other = e.B
-		} else if e.B != OutsideNode {
+		outA, outB := in.Graph.outdoor(e.A), in.Graph.outdoor(e.B)
+		if outA == outB {
 			continue
+		}
+		other := e.A
+		if outA {
+			other = e.B
 		}
 		ia, ok := index[other]
 		if !ok || in.Graph.Nodes[ia].Count <= 0 {

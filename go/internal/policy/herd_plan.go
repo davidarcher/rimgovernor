@@ -63,6 +63,9 @@ func (f RoundsFacts) HerdPolicy() HerdPolicy { return PlanHerd(f.HerdPlanInput()
 // PenAnimals is the herd the layout's pens and barn are sized for.
 func (f RoundsFacts) PenAnimals() int { return PlanHerd(f.HerdPlanInput()).PenAnimals() }
 
+// PenHerds are the herds by race the station graph's pens are sized for.
+func (f RoundsFacts) PenHerds() []StationHerd { return PlanHerd(f.HerdPlanInput()).StationHerds() }
+
 // HerdUnits are the herds the layout gives units of their own.
 func (f RoundsFacts) HerdUnits() []HerdCeiling { return PlanHerd(f.HerdPlanInput()).HerdUnits() }
 

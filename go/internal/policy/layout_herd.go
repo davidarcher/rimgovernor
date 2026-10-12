@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"maps"
 	"math"
 	"slices"
 
@@ -63,6 +64,18 @@ func (p HerdPlan) HerdUnits() []HerdCeiling {
 	out := make([]HerdCeiling, len(herds))
 	for i, race := range herds {
 		out[i] = HerdCeiling{Race: string(race), Animals: int(p.Policy.PopulationMax[race])}
+	}
+	return out
+}
+
+// StationHerds are the plan's races with a ceiling above zero, in name order:
+// the herd by race the station graph's pen nodes are sized from (#2996).
+func (p HerdPlan) StationHerds() []StationHerd {
+	var out []StationHerd
+	for _, race := range slices.Sorted(maps.Keys(p.Policy.PopulationMax)) {
+		if n := p.Policy.PopulationMax[race]; n > 0 {
+			out = append(out, StationHerd{Race: race, Animals: int(n)})
+		}
 	}
 	return out
 }
