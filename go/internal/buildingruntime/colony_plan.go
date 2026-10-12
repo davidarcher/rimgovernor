@@ -116,15 +116,11 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 				err = r.deriveLayoutPlan(ctx, snapshot, tick, *projection, survey, catalog, topology.Geysers, animals, perimeterWall(*projection))
 				r.planGrownFor, r.planPawns, r.planInputs = grown, int(pawns), layoutInputs{}
 			} else {
+				var inputs layoutInputs
 				var growth policy.RoomGrowth
-				if growth, err = r.roomGrowth(ctx, snapshot, *projection, layout.Plan, survey, r.stockpiles.layoutDemand(stockpileWorld(snapshot))); err != nil {
+				if inputs, growth, err = r.layoutInputsOf(ctx, snapshot, *projection, layout, survey, catalog, grown, int(pawns), topology.Geysers, animals); err != nil {
 					return err
 				}
-				// Every new building moves the fixed rooms, which are the key.
-				keyed := growth
-				keyed.Grazing = nil
-				r.stationAdvice(ctx, snapshot, *projection, layout.Plan, policy.TilePinned(layout.Plan, growth), growth, growth.Demand, survey, catalog)
-				inputs := layoutInputs{planTick: layout.Tick, key: fmt.Sprint(grown, pawns, topology.Geysers, keyed, animals, r.stationInputs.key), bounds: survey.Bounds, cells: survey.Cells}
 				if !inputs.same(r.planInputs) {
 					reason := layoutReasons(map[string]bool{"terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research})
 					if replanned, err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, growth, animals, int(pawns), reason, topology.Geysers, perimeterWall(*projection)); err == nil && replanned {
@@ -139,8 +135,11 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 				return err
 			}
 			if replanned && haveLayout {
-				// The recorded replan is the plan the same inputs plan next.
-				r.planInputs.planTick = layout.Tick
+				// The recorded replan is the plan the same inputs plan next: its inputs,
+				// the plan being among them, are read again over it.
+				if r.planInputs, _, err = r.layoutInputsOf(ctx, snapshot, *projection, layout, survey, catalog, r.planGrownFor, r.planPawns, topology.Geysers, animals); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -149,6 +148,21 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	}
 	r.drawLayoutOverlay(ctx, snapshot, projection, layout, haveLayout)
 	return nil
+}
+
+// layoutInputsOf runs the station chain over layout's plan and returns what a
+// replan of it varies with, with the growth it was read under: the chain's facts
+// and the growth, whose fixed rooms every new building moves. The facts hold the
+// plan itself, so a replan that records a plan changes them.
+func (r *Rounder) layoutInputsOf(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, layout store.LayoutPlanRecord, survey policy.MapSurvey, catalog *bridge.DefinitionCatalog, grown string, pawns int, geysers []policy.PowerGeyser, animals int) (layoutInputs, policy.RoomGrowth, error) {
+	growth, err := r.roomGrowth(ctx, snapshot, projection, layout.Plan, survey, r.stockpiles.layoutDemand(stockpileWorld(snapshot)))
+	if err != nil {
+		return layoutInputs{}, growth, err
+	}
+	keyed := growth
+	keyed.Grazing = nil
+	r.stationAdvice(ctx, snapshot, projection, layout.Plan, policy.TilePinned(layout.Plan, growth), growth, growth.Demand, survey, catalog)
+	return layoutInputs{planTick: layout.Tick, key: fmt.Sprint(grown, pawns, geysers, keyed, animals, r.stationInputs.key), bounds: survey.Bounds, cells: survey.Cells}, growth, nil
 }
 
 // roomGrowth is what the review holds of the colony for the replan beyond the

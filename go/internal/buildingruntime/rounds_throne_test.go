@@ -202,6 +202,7 @@ func TestLayoutGrowsAThroneRoomForTheNextTitle(t *testing.T) {
 	snapshot := s.player.session.State().Snapshot
 	projection := observation.ColonyProjection{Identity: observation.Identity{Colony: snapshot.Colony, Map: snapshot.Map, Load: snapshot.Load}}
 	openWindow(&projection, 140)
+	withRecordedCatalog(t, r, &projection)
 	projection.Facts.Colonists = domain.Known(int64(3))
 	projection.TechTier = domain.Known(policy.TechTierCamp)
 	review := func(tick domain.Tick) policy.LayoutPlan {
