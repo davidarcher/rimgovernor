@@ -31,18 +31,32 @@ import (
 // weight to each exterior door on its shortest walk. A trip the plan cannot
 // walk charges nothing.
 func exteriorDoorMovements(p LayoutPlan) map[int32]float64 {
-	owner := map[domain.Cell]int32{}
 	links := map[domain.Cell]bool{}
 	for _, l := range p.Links {
 		links[l.Cell] = true
 	}
+	out := map[int32]float64{}
+	var moves map[domain.Cell]float64
 	for _, r := range p.AllRooms() {
-		if !r.Unfenced() && !links[r.Door] {
-			owner[r.Door] = r.ID
+		if r.Unfenced() || links[r.Door] {
+			continue
+		}
+		if moves == nil {
+			moves = tripCellMovements(p)
+		}
+		if m, ok := moves[r.Door]; ok {
+			out[r.ID] = m
 		}
 	}
-	out := map[int32]float64{}
-	if len(owner) == 0 || len(p.Trips) == 0 {
+	return out
+}
+
+// tripCellMovements are the movements a day through each cell of the plan:
+// every trip charges its weight to each cell on its shortest walk between its
+// rooms' centres (routeWalk). A trip the plan cannot walk charges nothing.
+func tripCellMovements(p LayoutPlan) map[domain.Cell]float64 {
+	out := map[domain.Cell]float64{}
+	if len(p.Trips) == 0 {
 		return out
 	}
 	walk, rooms := routeWalk(p)
@@ -89,9 +103,7 @@ func exteriorDoorMovements(p LayoutPlan) map[int32]float64 {
 				continue
 			}
 			for {
-				if id, ok := owner[at]; ok {
-					out[id] += t.Weight
-				}
+				out[at] += t.Weight
 				next := parent[at]
 				if next == at {
 					break

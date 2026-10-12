@@ -47,6 +47,11 @@ type RoofDecision struct {
 	Cells   []domain.Cell `json:",omitempty"`
 	SavedW  float64       `json:",omitempty"`
 	HeldW   float64       `json:",omitempty"`
+	// LightW is the part of HeldW that lights the dark the roof makes (lamps
+	// plus the dark left over); LightUnpriced says the price was unknown and
+	// the roof was weighed without it.
+	LightW        float64 `json:",omitempty"`
+	LightUnpriced bool    `json:",omitempty"`
 }
 
 // RoofInput is what the roofed set reads beside the plan. Curve is the
@@ -58,6 +63,9 @@ type RoofInput struct {
 	Cold, Hot    bool
 	Climate      ClimateModel
 	RoofDistance float64
+	// Light prices the lamps a roofed hallway needs for the walkers it carries
+	// (layout_light.go); invalid adds no lamp term and the decision says so.
+	Light LightPrice
 }
 
 // RoofResult is the roofed cells and the decisions behind them.
@@ -101,9 +109,20 @@ func PlanRoofed(p LayoutPlan, in RoofInput) RoofResult {
 		cells = append(cells, r.Region.Cells()...)
 		out.Decisions = append(out.Decisions, RoofDecision{Room: r.ID, Segment: -1, Verdict: TilePlace, Reason: ReasonRoofRoom})
 	}
+	var moves map[domain.Cell]float64
 	for i, rect := range spineRects(p.Hallways()) {
 		saved, held, priced := hallwayRoofPrice(p, in, rect)
-		d := RoofDecision{Segment: i, Verdict: TilePlace, Reason: ReasonRoofHallway, SavedW: saved, HeldW: held}
+		// A roof takes the sky's light: the walkers it carries need lamps, or
+		// walk slower in the dark, whichever costs less.
+		var lightW float64
+		if in.Light.Valid() {
+			if moves == nil {
+				moves = tripCellMovements(p)
+			}
+			lightW = hallwayLightW(rect, moves, in.Light)
+			held += lightW
+		}
+		d := RoofDecision{Segment: i, Verdict: TilePlace, Reason: ReasonRoofHallway, SavedW: saved, HeldW: held, LightW: lightW, LightUnpriced: !in.Light.Valid()}
 		switch {
 		case !priced:
 			d.Verdict, d.Reason = TileUnsatisfied, ReasonRoofUnpriced

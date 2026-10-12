@@ -19,6 +19,9 @@ type StationCatalog struct {
 	// Climate is the heat the vent, door, heater and cooler move, from the
 	// defs and the game's constants (#2940); the zero value is unknown.
 	Climate ClimateModel
+	// Light is the lamp's draw and build value (#2945); the zero value is
+	// unknown and leaves the lamps unpriced.
+	Light LightModel
 }
 
 // Station is one buildable definition as the planner sees it.

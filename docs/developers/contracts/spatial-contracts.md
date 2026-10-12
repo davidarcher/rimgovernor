@@ -316,6 +316,28 @@ on the colony centre when the plan has no free cell there.
   like any room; the tiler plans no hallways. `TileDecision` carries the reason
   (`tile_airlock`, `_not_paid`, `_no_ground`, `_unpriced`, `_temperate`) and both
   totals. Advice only; `airlockPasses` is replaced at #2931.
+  **Lamps (#2945).** A roofed cell has no sky light, so a colonist working or walking on
+  it loses speed (`StatPart_Glow`: x0.80 at glow 0 up to x1.00 at `LitGlow` 0.3, on
+  `WorkSpeedGlobal` and `MoveSpeed`; `LightSpeed`). The tiler weighs that against lamps in
+  sustained watts (`layout_light.go`), per roofed room, and places lamps where lighting
+  costs less than the dark; never a veto. A colonist's work-day is priced at their own
+  food upkeep a day (the food census over the colonists, in site-type units against the
+  best crop's `cropRate`, turned into watts by `SiteTypeWeights.Power` as `BuildW` does):
+  a derived lower bound with no new constant. A lamp costs its power draw plus its build
+  value at `BuildW`'s rate (`StationCatalog.Light`, read by the bridge from
+  `LightDefs().LampDef`). A work cell is a worker station's interaction cell, charged
+  a whole colonist-day; a walked cell is charged the extra time its movements a day
+  (`tripCellMovements`, the same walk as the airlocks) take at the dark speed. Lamps stand
+  on floor cells no station holds and light a cell within `lampReach`; the greedy search
+  adds the lamp that lights the most dark cost while that exceeds a lamp's cost.
+  A room under the sky (an outdoor role) gets none, and fields stay unroofed (the
+  grow-lamp price is `PlanSiteType`'s). A roofed hallway's price in the roofed set
+  (`RoofDecision.LightW`) includes the same lamps-or-dark for its walkers. An unknown
+  price leaves lamps unplaced (`tile_lamps_unpriced`) or the hallway weighed without it
+  (`LightUnpriced`). Not priced: the `EnvironmentDark` mood (deferred to #2878), surgery
+  success, partial glow beyond `lampReach`, and the lamps' power wiring (they are in
+  `TileResult.Lamps`, not pieces, so the conduit net does not route to them yet).
+  `MaintainLighting` stays the runtime reconciler. Advice only until #2931.
   **Circulation (#2911).** The station graph carries station-less room nodes
   (`StationGraph.Rooms`, `RoomNode`: role, area demand, optional strip width; the morgue
   and waste yard of #2882 reuse the kind). Circulation is the corridor that joins rooms

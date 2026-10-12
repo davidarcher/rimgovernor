@@ -107,6 +107,9 @@ type TileInput struct {
 	// market value a build cost is counted in) are the airlocks' pricing reads
 	// (layout_tile_airlock.go); either unknown leaves the airlocks unpriced.
 	FullRotRateC, SteelValue float64
+	// Light is the price of darkness against lamps (layout_light.go); invalid
+	// leaves the lamps unplaced and the decision says so.
+	Light LightPrice
 }
 
 // TileDecision is one tiling decision for the caller to journal. Group is the
@@ -121,6 +124,10 @@ type TileDecision struct {
 	// DoorW and AirlockW are an airlock decision's priced options: the plain
 	// door's and the airlock's total sustained watts (operating plus build).
 	DoorW, AirlockW float64 `json:",omitempty"`
+	// DarkW and LampW are a lamp decision's priced options in sustained watts:
+	// the dark cost left unlit and the lamps' cost (a lit room's lamps, or one
+	// lamp when none paid).
+	DarkW, LampW float64 `json:",omitempty"`
 }
 
 // TileResult is the tiled plan with the furniture of every room and the
@@ -137,6 +144,8 @@ type TileResult struct {
 	ConduitDecisions []ConduitDecision
 	// RoofDecisions are the roofed set's decisions (layout_roof.go).
 	RoofDecisions []RoofDecision
+	// Lamps are the lamp cells of each lit room by room id (layout_light.go).
+	Lamps map[int32][]domain.Cell
 }
 
 // groupCold reports that the group's room is kept cold: it needs cold or holds
@@ -295,12 +304,13 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 		return t.out, fmt.Errorf("%w: the tiled plan is not valid", ErrTile)
 	}
 	t.furnish()
-	roof := PlanRoofed(t.out.Plan, RoofInput{Curve: t.in.OutdoorCurve, Cold: t.in.Survey.Cold, Hot: t.in.Survey.Hot, Climate: t.in.Catalog.Climate, RoofDistance: t.in.RoofDistance})
+	roof := PlanRoofed(t.out.Plan, RoofInput{Curve: t.in.OutdoorCurve, Cold: t.in.Survey.Cold, Hot: t.in.Survey.Hot, Climate: t.in.Catalog.Climate, RoofDistance: t.in.RoofDistance, Light: t.in.Light})
 	t.out.Plan.Roofed, t.out.RoofDecisions = roof.Roofed, roof.Decisions
 	if t.placeAirlocks() { // the vestibules are rooms too: roof them
-		roof = PlanRoofed(t.out.Plan, RoofInput{Curve: t.in.OutdoorCurve, Cold: t.in.Survey.Cold, Hot: t.in.Survey.Hot, Climate: t.in.Catalog.Climate, RoofDistance: t.in.RoofDistance})
+		roof = PlanRoofed(t.out.Plan, RoofInput{Curve: t.in.OutdoorCurve, Cold: t.in.Survey.Cold, Hot: t.in.Survey.Hot, Climate: t.in.Catalog.Climate, RoofDistance: t.in.RoofDistance, Light: t.in.Light})
 		t.out.Plan.Roofed, t.out.RoofDecisions = roof.Roofed, roof.Decisions
 	}
+	t.placeLamps()
 	t.routeTileConduits()
 	if !t.out.Plan.Valid() {
 		return t.out, fmt.Errorf("%w: the conduit net is not valid", ErrTile)

@@ -55,3 +55,23 @@ func (catalog *DefinitionCatalog) climateModel(stations policy.StationCatalog) (
 	}
 	return m, nil
 }
+
+// lightModel is the lamp the plan places (policy.LightDefs): the power it draws
+// and the market value of its cheapest cost list. A catalog without the def (a
+// hand-built one) has an unknown model, not an error: the lamps go unpriced.
+func (catalog *DefinitionCatalog) lightModel() (policy.LightModel, error) {
+	def := policy.LightDefs().LampDef
+	row, ok := catalog.ThingDefs[def]
+	if !ok {
+		return policy.LightModel{}, nil
+	}
+	watts, powered, err := catalog.PowerDraw(row)
+	if err != nil || !powered {
+		return policy.LightModel{}, err
+	}
+	build, err := catalog.CheapestCostValue(def)
+	if err != nil {
+		return policy.LightModel{}, err
+	}
+	return policy.LightModel{LampPowerW: watts, LampBuild: build}, nil
+}

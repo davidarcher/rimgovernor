@@ -45,6 +45,12 @@ func DefTables() []DefTable {
 		{"ScenarioThingChoices", "Verse.ThingDef", slices.Clone(ScenarioThingChoices)},
 		{"RhadamantThings", "Verse.ThingDef", rhadamantThingDefs()},
 		{"climateTable", "Verse.ThingDef", []string{climateTable.VentDef, climateTable.DoorDef, climateTable.WallDef}},
+		// lightTable: DarkSpeed (0.8) is StatPart_Glow's factor on
+		// WorkSpeedGlobal and MoveSpeed at glow 0, a curve in the def that the
+		// bridge does not read; the lamp is the building the plan places. The
+		// research behind the lamp pricing (every effect of darkness, which are
+		// priced and which deferred) is the first comment of issue #2945.
+		{"lightTable", "Verse.ThingDef", []string{lightTable.LampDef}},
 		// The wind path constants (windPathWidth ... windBlockedLoss) are
 		// CompPowerPlantWind's and WindTurbineUtility.CalculateWindCells's,
 		// read with ilspycmd; keyed by the turbine def so a rename fails the gate.

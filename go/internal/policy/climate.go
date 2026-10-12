@@ -277,11 +277,18 @@ func outdoorAt(temps []float64, swingC float64, tick int) float64 {
 // site pricing's (SiteTypeWeights: Construction per 100 steel a day, amortised
 // over one 60-day year, against Power per kilowatt averaged over the day).
 func BuildW(w SiteTypeWeights, value, steelValue float64) float64 {
-	const steelPerCharge, wattsPerKilowatt = 100, 1000
+	const steelPerCharge = 100
 	if !finitePositive(steelValue) || !finitePositive(w.Power) {
 		return 0
 	}
-	return value / steelValue / steelPerCharge * w.Construction / w.Power * wattsPerKilowatt
+	return unitsW(w, value/steelValue/steelPerCharge*w.Construction)
+}
+
+// unitsW turns site-type units (a normal-soil cell's harvest per grow day) into
+// sustained watts: Power units are a kilowatt averaged over the day.
+func unitsW(w SiteTypeWeights, units float64) float64 {
+	const wattsPerKilowatt = 1000
+	return units / w.Power * wattsPerKilowatt
 }
 
 // buildValue is what an opening costs to build beyond the door that stands
