@@ -2,7 +2,6 @@ package policy
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -21,10 +20,6 @@ const (
 	// RangeMinStands and RangeMaxStands bound the stand count.
 	RangeMinStands = 2
 	RangeMaxStands = 8
-	// rangeGap is the clear ground, in cells, between the range and every other
-	// room: less than outskirtsGap, since the range is no dump to keep clear of
-	// living rooms, only a firing line to keep clear of walls.
-	rangeGap int32 = 2
 )
 
 // RangeStandsFor is the stand count for a colony of capable adults: one per two,
@@ -42,12 +37,6 @@ func (r PlannedRoom) Unfenced() bool {
 		return true
 	}
 	return false
-}
-
-// rangeHorizontal is true when the range's rows run along X (dummies north or
-// south of the stands).
-func (r PlannedRoom) rangeHorizontal() bool {
-	return r.Facing == domain.North || r.Facing == domain.South
 }
 
 // RangeStandCount is the stands a planned range holds: the length of its rows.
@@ -88,15 +77,6 @@ func rangeFromBlock(block Rectangle, facing domain.Rotation, stands int32) Plann
 // RangeRooms are the plan's training ranges.
 func (p LayoutPlan) RangeRooms() []PlannedRoom { return p.roomsOf(PlannedTrainingRange) }
 
-// RangesOwed is the stands the ranges demand asks for that the plan lacks.
-func RangesOwed(plan LayoutPlan, demand RoomDemand) int {
-	have := 0
-	if rooms := plan.RangeRooms(); len(rooms) > 0 {
-		have = int(RangeStandCount(rooms[0]))
-	}
-	return max(min(demand.Ranges, RangeMaxStands)-have, 0)
-}
-
 // RangeTemplate is the furniture template of a planned range: RangeLayout, one
 // WantedPiece per building.
 func RangeTemplate(room PlannedRoom) []WantedPiece {
@@ -106,77 +86,6 @@ func RangeTemplate(room PlannedRoom) []WantedPiece {
 		out = append(out, WantedPiece{DefName: RangeDefNames[p.Kind], Minimum: p.Cell, Maximum: p.Cell, Slot: fmt.Sprintf("%s-%d", p.Kind, p.Column), Size: domain.Cell{X: 1, Z: 1}, Rot: domain.North})
 	}
 	return out
-}
-
-// growRanges adds the stands the ranges demand asks for and the plan lacks:
-// a first range is sited (siteRange), a standing one is widened along its rows
-// (widenRange). No room moves. It reports whether the plan changed; a range that
-// fits nowhere is left out.
-func growRanges(plan LayoutPlan, demand RoomDemand) (LayoutPlan, bool) {
-	owed := RangesOwed(plan, demand)
-	if owed == 0 {
-		return plan, false
-	}
-	rooms := plan.RangeRooms()
-	if len(rooms) == 0 {
-		want := int32(min(demand.Ranges, RangeMaxStands))
-		room, ok := siteRange(plan, want)
-		if !ok && want > RangeMinStands {
-			room, ok = siteRange(plan, RangeMinStands)
-		}
-		if !ok {
-			return plan, false
-		}
-		plan.Rooms = append(slices.Clone(plan.Rooms), room)
-		return plan, true
-	}
-	grown, ok := widenRange(plan, rooms[0], int32(owed))
-	if !ok {
-		return plan, false
-	}
-	plan.Rooms = slices.Clone(plan.Rooms)
-	for i, r := range plan.Rooms {
-		if r.Same(rooms[0]) {
-			plan.Rooms[i] = grown
-		}
-	}
-	return plan, true
-}
-
-// siteRange sites a range of stands stands: the nearest valid site to the core
-// among those the outskirts search finds with rangeGap, one orientation of the
-// rows at a time. A site whose dummy end points away from the core (the side it
-// lies on) beats one off to the side of the core; a site never faces the core.
-// False when nothing fits.
-func siteRange(plan LayoutPlan, stands int32) (PlannedRoom, bool) {
-	ext, ok := plan.CoreBounds()
-	if !ok {
-		return PlannedRoom{}, false
-	}
-	var best PlannedRoom
-	found, bestRank, bestDist := false, 0, int32(0)
-	for _, horizontal := range []bool{true, false} {
-		w, h := rangeBlockSize(stands, horizontal)
-		cands, _, _, _ := outskirtsCandidatesAt(plan, w, h, rangeGap)
-		for _, side := range outskirtsSides {
-			site, ok := cands[side]
-			if !ok {
-				continue
-			}
-			block := site.Bounds()
-			facing := rangeFacing(side, horizontal, block, ext)
-			rank := 1
-			if facing == side {
-				rank = 0
-			}
-			dx := (block.X + block.Width/2) - (ext.X + ext.Width/2)
-			dz := (block.Z + block.Height/2) - (ext.Z + ext.Height/2)
-			if d := dx*dx + dz*dz; !found || rank < bestRank || rank == bestRank && d < bestDist {
-				best, found, bestRank, bestDist = rangeFromBlock(block, facing, stands), true, rank, d
-			}
-		}
-	}
-	return best, found
 }
 
 // rangeFacing is the direction the dummies point for a site on side of the core
@@ -199,40 +108,4 @@ func rangeFacing(side domain.Rotation, horizontal bool, block, ext Rectangle) do
 		return domain.East
 	}
 	return domain.West
-}
-
-// widenRange adds up to extra stands to room along its rows, as many as the
-// free ground beside it allows (the + end first, then the - end). Standing
-// pieces keep their cells. False when no stand fits.
-func widenRange(plan LayoutPlan, room PlannedRoom, extra int32) (PlannedRoom, bool) {
-	u := newUtilityGrid(plan)
-	if u.w == 0 || u.h == 0 {
-		return PlannedRoom{}, false
-	}
-	block := rangeBlock(room)
-	horizontal := room.rangeHorizontal()
-	for k := min(extra, int32(RangeMaxStands)-RangeStandCount(room)); k > 0; k-- {
-		for _, plus := range []bool{true, false} {
-			strip, grown, gr := block, room, room.Region.Bounds()
-			switch {
-			case horizontal && plus:
-				strip.X, strip.Width = block.X+block.Width, k
-				gr.Width += k
-			case horizontal:
-				strip.X, strip.Width = block.X-k, k
-				gr.X, gr.Width = gr.X-k, gr.Width+k
-			case plus:
-				strip.Z, strip.Height = block.Z+block.Height, k
-				gr.Height += k
-			default:
-				strip.Z, strip.Height = block.Z-k, k
-				gr.Z, gr.Height = gr.Z-k, gr.Height+k
-			}
-			grown.Region = RectRegion(gr)
-			if u.free(strip, false) && u.inset(strip) {
-				return grown, true
-			}
-		}
-	}
-	return PlannedRoom{}, false
 }

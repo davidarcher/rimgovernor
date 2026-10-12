@@ -2,75 +2,10 @@ package policy
 
 import (
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
-
-func storageRooms(plan LayoutPlan) []PlannedRoom {
-	var out []PlannedRoom
-	for _, r := range plan.AllRooms() {
-		if r.Role == PlannedStorage {
-			out = append(out, r)
-		}
-	}
-	return out
-}
-
-// A demanded room no core slot takes is an error naming the room, for the
-// storage and the gear rooms alike; a placed one is not.
-func TestUnplaceableRoomDemandFailsLoudly(t *testing.T) {
-	t.Parallel()
-	plan := gearTestPlan()
-	if _, added, err := growStorageRooms(plan, RoomDemand{Storage: 2}, nil); !added || err != nil {
-		t.Fatalf("placed room added=%v err=%v", added, err)
-	}
-	plan.Zones = nil
-	if _, added, err := growStorageRooms(plan, RoomDemand{Storage: 2}, nil); added || err == nil || !strings.Contains(err.Error(), "storage room") {
-		t.Fatalf("storage added=%v err=%v", added, err)
-	}
-	if _, added, err := growGearRooms(plan, RoomDemand{Armory: true}, nil); added || err == nil || !strings.Contains(err.Error(), "armory room") {
-		t.Fatalf("armory added=%v err=%v", added, err)
-	}
-}
-
-func TestStorageRoomAddedOnDemandKeepsTheCore(t *testing.T) {
-	t.Parallel()
-	plan := gearTestPlan()
-	core, _ := plan.Core()
-	if same, added, _ := growStorageRooms(plan, RoomDemand{}, nil); added || len(same.Rooms) != len(plan.Rooms) {
-		t.Fatal("room added with no demand")
-	}
-	if same, added, _ := growStorageRooms(plan, RoomDemand{Storage: 1}, nil); added || len(same.Rooms) != len(plan.Rooms) {
-		t.Fatal("a standing storage room answers a demand for one")
-	}
-	grown, added, _ := growStorageRooms(plan, RoomDemand{Storage: 2}, nil)
-	if !added || len(grown.Rooms) != len(plan.Rooms)+1 {
-		t.Fatalf("added=%v rooms %d -> %d", added, len(plan.Rooms), len(grown.Rooms))
-	}
-	for i := range plan.Rooms {
-		if !grown.Rooms[i].Same(plan.Rooms[i]) {
-			t.Fatalf("room %d moved", i)
-		}
-	}
-	rooms := storageRooms(grown)
-	if len(rooms) != 2 || rooms[1].Region.Bounds().Width*rooms[1].Region.Bounds().Height != coreRoomSize[PlannedStorage][0]*coreRoomSize[PlannedStorage][1] {
-		t.Fatalf("storage rooms %+v", rooms)
-	}
-	if after, _ := grown.Core(); after != core {
-		t.Fatalf("core moved %v -> %v", core, after)
-	}
-	if _, err := CheckRoutes(grown); err != nil {
-		t.Fatal(err)
-	}
-	if owed := StorageRoomsOwed(grown, RoomDemand{Storage: 2}); owed != 0 {
-		t.Fatalf("owed %d once the room is planned", owed)
-	}
-	if again, added, _ := growStorageRooms(grown, RoomDemand{Storage: 2}, nil); added || len(again.Rooms) != len(grown.Rooms) {
-		t.Fatal("a planned room answers its demand for good")
-	}
-}
 
 // storeColony is two 3x3 storage rooms, the second planned only when two is
 // set, standing when stands is set, each with a warehouse zone over its

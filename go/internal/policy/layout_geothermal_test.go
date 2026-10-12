@@ -68,8 +68,7 @@ func TestDeriveLayoutPlanGeothermal(t *testing.T) {
 	t.Fatal("no geyser offset got a geothermal reservation")
 }
 
-// No planned room covers a geyser's enclosure, on a fresh plan or on a
-// replan of a plan laid out before the geyser was known.
+// No planned room covers a geyser's enclosure on a fresh plan.
 func TestPlannedRoomsKeepOffGeysers(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
@@ -86,15 +85,6 @@ func TestPlannedRoomsKeepOffGeysers(t *testing.T) {
 		for _, room := range plan.AllRooms() {
 			if rectHits(roomWalls(room), vents) {
 				t.Fatalf("fresh plan: %s covers the geyser at %v", room.Role, at)
-			}
-		}
-		next, changed := replanTest(base, s, 5, 1, TechTierCamp, g, nil)
-		if !changed {
-			t.Fatalf("replan kept %s over the geyser at %v", r.Role, at)
-		}
-		for _, room := range next.AllRooms() {
-			if rectHits(roomWalls(room), vents) {
-				t.Fatalf("replan: %s covers the geyser at %v", room.Role, at)
 			}
 		}
 	}

@@ -60,8 +60,8 @@ func TestDeriveLayoutPlanLaysTheTiledPlan(t *testing.T) {
 	if len(plan.Links) == 0 || len(plan.Entrances) == 0 {
 		t.Errorf("links %d, entrances %d", len(plan.Links), len(plan.Entrances))
 	}
-	if len(plan.roomsOf(PlannedShelter)) != 1 || plan.LayoutOutgrown(3) {
-		t.Errorf("shelter %d, outgrown %v: %s", len(plan.roomsOf(PlannedShelter)), plan.LayoutOutgrown(3), plan.Summary())
+	if len(plan.roomsOf(PlannedShelter)) != 1 || (bedroomCount(plan) < 3) {
+		t.Errorf("shelter %d, outgrown %v: %s", len(plan.roomsOf(PlannedShelter)), (bedroomCount(plan) < 3), plan.Summary())
 	}
 	if _, ring := plan.Ring(); !ring {
 		t.Error("no perimeter ring")

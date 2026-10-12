@@ -66,18 +66,6 @@ func sarcophagusAvailable(facts observation.ColonyProjection) domain.Fact[bool] 
 	return domain.Unknown[bool]()
 }
 
-// tombsFull reports every planned tomb's sarcophagus slots taken while a
-// dead colonist waits: the layout owes another tomb room.
-func tombsFull(plan policy.LayoutPlan, facts observation.ColonyProjection) bool {
-	available, ak := sarcophagusAvailable(facts).Value()
-	waste, wk := facts.Facts.Waste.Value()
-	built, bk := facts.Facts.CurrentConstruction.Value()
-	if !ak || !available || !wk || !bk || !built.Colony {
-		return false
-	}
-	return policy.NextTombStep(plan, waste, built.Buildings, facts.Shapes, true, facts.Strangers).Kind == policy.TombFull
-}
-
 // plannedMorgue is the planned morgue a waiting human corpse owes a shell;
 // false while the plan, rooms or waste census is unread.
 func plannedMorgue(facts observation.ColonyProjection) (policy.PlannedRoom, bool) {

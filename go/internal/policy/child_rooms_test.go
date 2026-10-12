@@ -273,32 +273,6 @@ func TestNextChildRoomStepWaitsOnTheCatalogAndThePlan(t *testing.T) {
 	}
 }
 
-func TestGrowChildRoomAddsOneAndKeepsTheRest(t *testing.T) {
-	base := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, TechTierCamp)
-	shape := ChildRoomShape{Module: PlannedNursery, Pieces: []PieceCount{{Size: domain.Cell{X: 1, Z: 1}, Count: 4}}}
-	grown, added, _ := growChildRoom(base, shape, nil)
-	if !added || len(grown.Rooms) != len(base.Rooms)+1 {
-		t.Fatalf("added=%v rooms %d -> %d", added, len(base.Rooms), len(grown.Rooms))
-	}
-	for i := range base.Rooms {
-		if !grown.Rooms[i].Same(base.Rooms[i]) {
-			t.Fatalf("room %d moved", i)
-		}
-	}
-	if _, ok := grown.ChildRoomFor(shape); !ok {
-		t.Fatal("no nursery holds four cribs")
-	}
-	if _, err := CheckRoutes(grown); err != nil {
-		t.Fatal(err)
-	}
-	if again, added, _ := growChildRoom(grown, shape, nil); added || len(again.Rooms) != len(grown.Rooms) {
-		t.Fatal("a nursery already holds the cribs")
-	}
-	if _, added, _ := growChildRoom(grown, ChildRoomShape{Module: PlannedNursery}, nil); added {
-		t.Fatal("no furniture, no room")
-	}
-}
-
 // A room beside a north-south hallway is stored transposed (door east or
 // west); it must still count as holding the shape it was grown for, or every
 // review grows another.

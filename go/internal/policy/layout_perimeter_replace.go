@@ -162,12 +162,12 @@ func sameFamily(a, b LayoutPlan) bool {
 	})
 }
 
-// layPerimeter lays the perimeter around next, the plan a replan grew from
+// LayPerimeter (the perimeter step of ReplanLayout) lays the perimeter around next, the plan a replan grew from
 // prev. While the record holds a retired node or a removal tier the ring is
 // not traced again (one rebuild at a time). A ring that comes out other than
 // prev's, with prev's held by the record, is laid as a replacement beside the
 // old one.
-func layPerimeter(prev, next LayoutPlan, s MapSurvey, hold PerimeterHold) LayoutPlan {
+func LayPerimeter(prev, next LayoutPlan, s MapSurvey, hold PerimeterHold) LayoutPlan {
 	prev, next = prev.withoutUnheldRetired(hold.Held), next.withoutUnheldRetired(hold.Held)
 	if hold.rebuilding(prev) {
 		return next.withPerimeterSitesOf(prev)

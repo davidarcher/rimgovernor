@@ -54,19 +54,3 @@ func (p LayoutPlan) ThroneRoomFor(area int) (PlannedRoom, bool) {
 	}
 	return PlannedRoom{}, false
 }
-
-// growThroneRoom adds a throne room of at least area cells to plan unless
-// it holds one, at the nearest core slot like any other core room. Existing
-// rooms are only retired by the reconcile steps in layout_retire.go and none
-// moves or resizes: a room a later title outgrows stays until a larger one
-// supersedes it. It reports whether a room was added; a plan with no
-// core ground or no slot for any shape is left as it is, with the error.
-func growThroneRoom(plan LayoutPlan, area int, sc *planScorer) (LayoutPlan, bool, error) {
-	if area <= 0 || len(plan.Hallways()) == 0 {
-		return plan, false, nil
-	}
-	if _, ok := plan.ThroneRoomFor(area); ok {
-		return plan, false, nil
-	}
-	return SiteRoom(plan, sc, PlannedThrone, ThroneRoomSizes(area)...)
-}

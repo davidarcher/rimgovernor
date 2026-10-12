@@ -51,21 +51,6 @@ func bedroomTargets(facts observation.ColonyProjection) map[string]policy.RoomTa
 	return policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)
 }
 
-// suiteTargets is the suites the generator keeps and adds for plan and the
-// claims behind them; nil while the room, sleeping or work census is
-// unknown.
-func suiteTargets(facts observation.ColonyProjection, plan policy.LayoutPlan, stage policy.ColonyStage) ([]float64, []policy.SuiteClaim) {
-	rooms, rk := facts.Rooms.Value()
-	sleeping, sk := facts.Facts.Sleeping.Value()
-	traits := sleepingTraits(facts)
-	if !rk || !sk || traits == nil {
-		return nil, nil
-	}
-	targets := bedroomTargets(facts)
-	claims := policy.SuiteClaims(plan, rooms, sleeping, targets, traits, suitePressure(facts), bedroomGate(facts, stage))
-	return policy.SuiteTargets(plan, rooms, sleeping, claims), claims
-}
-
 // suiteWishes are the target-sized bedrooms the station graph sizes (#2939):
 // the plan's suites with their owners' targets and the claims no vacant suite
 // answers; nil while the room, sleeping or work census is unknown.

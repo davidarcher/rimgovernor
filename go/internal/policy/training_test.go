@@ -44,43 +44,6 @@ func TestTrainingReviewCountsTheGapAgainstShooting(t *testing.T) {
 	}
 }
 
-func TestTrainingConcernRaisesTheRangeDeficit(t *testing.T) {
-	t.Parallel()
-	f := stableRounds()
-	f.WorkProfiles = domain.Known([]PawnProfile{combatant("a", 2, 3), combatant("b", 2, 12)})
-	findings, err := InspectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
-	if err != nil {
-		t.Fatal(err)
-	}
-	var raised *RoundsConcern
-	for i, c := range findings.Concerns {
-		if c.ID == MaintainTraining {
-			raised = &findings.Concerns[i]
-		}
-	}
-	if raised == nil {
-		t.Fatal("an open skill gap raised no MaintainTraining deficit")
-	}
-	if share, _ := raised.Deficit.Value(); share != 0.5 {
-		t.Fatalf("deficit %v, want half the colonists", share)
-	}
-	if DepartmentOf(MaintainTraining) != DepartmentMilitary || ConcernTypeOf(MaintainTraining) != StandardConcern {
-		t.Fatal("MaintainTraining is a Military Standard")
-	}
-
-	// The open gap reaches layout as a range the plan lacks, through the
-	// shared store declaration.
-	view := StoreView{TrainingStands: TrainingStands(f.WorkProfiles, f.Research)}
-	demand := DeclareStores(view).Apply(RoomDemand{})
-	if demand.Ranges != RangeMinStands {
-		t.Fatalf("open gap demands %d stands, want %d", demand.Ranges, RangeMinStands)
-	}
-	plan, _ := rangePlan(t, 2)
-	if RangesOwed(LayoutPlan{}, demand) != RangeMinStands || RangesOwed(plan, demand) != 0 {
-		t.Fatalf("owed %d without a range and %d with one", RangesOwed(LayoutPlan{}, demand), RangesOwed(plan, demand))
-	}
-}
-
 func TestTrainingConcernRaisesNothingWithoutAGap(t *testing.T) {
 	t.Parallel()
 	for name, profiles := range map[string]domain.Fact[[]PawnProfile]{

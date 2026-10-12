@@ -69,8 +69,8 @@ type StationFacts struct {
 	// (BuiltRooms); Survey the map it was grown over.
 	Plan  LayoutPlan
 	Built map[int32]bool
-	// Pinned are the rooms the old planner will not move (replanPins widens
-	// FixedRooms): a pinned room stands where it is in the embedding, and one
+	// Pinned are the rooms the replan holds where they stand (TilePinned):
+	// a pinned room stands where it is in the embedding, and one
 	// not yet built is a rebuild in flight, which holds every built room.
 	Pinned map[int32]bool
 	Survey MapSurvey
@@ -338,8 +338,8 @@ type StationAdvice struct {
 
 // TileStations is AdviseStations with the embedding tiled into a plan
 // (TileEmbedding): the fresh derive's planner (DeriveLayoutPlan). The advice at
-// a replan review does not tile, which only the derive reads until the replan
-// moves onto the chain (#2965).
+// a review does not tile on its own: the derive (DeriveLayoutPlan) and the
+// replan (ReplanLayout) tile with it.
 func TileStations(f StationFacts) (StationAdvice, error) {
 	out, err := AdviseStations(f)
 	if err != nil {
@@ -359,7 +359,7 @@ func (f StationFacts) tileInput(out StationAdvice) TileInput {
 	groups, emb := out.Clustering.Groups, out.Embedding
 	held, blocks := heldBlocks(len(groups), emb.Held)
 	groups, emb.Blocks = append(slices.Clone(groups), held...), append(slices.Clone(emb.Blocks), blocks...)
-	return TileInput{Groups: groups, Embedding: emb, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, OutdoorCurve: f.OutdoorCurve, RoofDistance: f.RoofDistance, FullRotRateC: f.FullRotRateC, SteelValue: steel, VentAvailable: f.VentAvailable, Light: stationLightPrice(f, steel), Sites: PowerSitesOf(out.Graph.Sites, out.Sites), Graph: out.Graph, Furniture: f.Furniture, Dining: f.Dining}
+	return TileInput{Groups: groups, Embedding: emb, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, OutdoorCurve: f.OutdoorCurve, RoofDistance: f.RoofDistance, FullRotRateC: f.FullRotRateC, SteelValue: steel, VentAvailable: f.VentAvailable, Light: stationLightPrice(f, steel), Sites: PowerSitesOf(out.Graph.Sites, out.Sites), Graph: out.Graph, Furniture: f.Furniture, Dining: f.Dining, NextRoomID: f.Plan.NextRoomID}
 }
 
 // AdviseStations runs the station chain over the live colony. It reads the
@@ -432,7 +432,7 @@ type BuiltRegion struct {
 	// apart (matchedPlanned): the freezer and the butchery; empty otherwise.
 	Planned PlannedRole
 	Region  Region
-	// Pinned: the old planner must not move the room (replanPins); the
+	// Pinned: the colony holds the room (TilePinned); the
 	// embedding keeps it where it stands. Set by the caller, never by BuiltRegions.
 	Pinned bool
 }

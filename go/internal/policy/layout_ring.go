@@ -2,7 +2,6 @@ package policy
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -74,79 +73,4 @@ func RingTemplate(room PlannedRoom) []WantedPiece {
 		out = append(out, WantedPiece{DefName: RingMarkerDef, Minimum: c, Maximum: c, Slot: fmt.Sprintf("marker-%d", n), Size: domain.Cell{X: 1, Z: 1}, Rot: domain.North})
 	}
 	return out
-}
-
-// RingsOwed is the markers the rings demand asks for that the plan lacks.
-func RingsOwed(plan LayoutPlan, demand RoomDemand) int {
-	have := 0
-	if rooms := plan.RingRooms(); len(rooms) > 0 {
-		have = rooms[0].Markers
-	}
-	return max(min(demand.Rings, RingMaxMarkers)-have, 0)
-}
-
-// growRings adds the markers the rings demand asks for and the plan lacks: a
-// first ring is sited (siteRing), a standing one takes more markers
-// (widenRing). No room moves. It reports whether the plan changed; a ring that
-// fits nowhere is left out.
-func growRings(plan LayoutPlan, demand RoomDemand) (LayoutPlan, bool) {
-	owed := RingsOwed(plan, demand)
-	if owed == 0 {
-		return plan, false
-	}
-	rooms := plan.RingRooms()
-	if len(rooms) == 0 {
-		room, ok := siteRing(plan, min(max(demand.Rings, RingMinMarkers), RingMaxMarkers))
-		if !ok {
-			return plan, false
-		}
-		plan.Rooms = append(slices.Clone(plan.Rooms), room)
-		return plan, true
-	}
-	grown := widenRing(rooms[0], owed)
-	plan.Rooms = slices.Clone(plan.Rooms)
-	for i, r := range plan.Rooms {
-		if r.Same(rooms[0]) {
-			plan.Rooms[i] = grown
-		}
-	}
-	return plan, true
-}
-
-// widenRing is room with up to extra more markers, in the next free slots.
-func widenRing(room PlannedRoom, extra int) PlannedRoom {
-	room.Markers = min(room.Markers+extra, RingMaxMarkers)
-	return room
-}
-
-// siteRing sites a ring of markers markers: among the sites the outskirts
-// search finds with rangeGap, the one nearest the training range when the plan
-// has one (beside it), else nearest the core. False when nothing fits.
-func siteRing(plan LayoutPlan, markers int) (PlannedRoom, bool) {
-	anchor, ok := plan.CoreBounds()
-	if !ok {
-		return PlannedRoom{}, false
-	}
-	if ranges := plan.RangeRooms(); len(ranges) > 0 {
-		anchor = rangeBlock(ranges[0])
-	}
-	cands, _, _, _ := outskirtsCandidatesAt(plan, RingSide+2, RingSide+2, rangeGap)
-	var best Rectangle
-	found, bestDist := false, int32(0)
-	for _, side := range outskirtsSides {
-		site, ok := cands[side]
-		if !ok {
-			continue
-		}
-		block := site.Bounds()
-		dx := (block.X + block.Width/2) - (anchor.X + anchor.Width/2)
-		dz := (block.Z + block.Height/2) - (anchor.Z + anchor.Height/2)
-		if d := dx*dx + dz*dz; !found || d < bestDist {
-			best, found, bestDist = block, true, d
-		}
-	}
-	if !found {
-		return PlannedRoom{}, false
-	}
-	return ringFromBlock(best, markers), true
 }

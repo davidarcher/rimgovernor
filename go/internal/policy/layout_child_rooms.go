@@ -156,20 +156,6 @@ func frameDims(r PlannedRoom) (width, depth int32) {
 	return r.Region.Bounds().Width, r.Region.Bounds().Height
 }
 
-// growChildRoom adds a room holding the shape to plan unless it has one, at
-// the nearest core slot. A room is only ever retired by the reconcile steps
-// in layout_retire.go; none moves or resizes. It reports whether a room was
-// added.
-func growChildRoom(plan LayoutPlan, s ChildRoomShape, sc *planScorer) (LayoutPlan, bool, error) {
-	if len(s.Pieces) == 0 || len(plan.Hallways()) == 0 {
-		return plan, false, nil
-	}
-	if _, ok := plan.ChildRoomFor(s); ok {
-		return plan, false, nil
-	}
-	return SiteRoom(plan, sc, s.Module, ChildRoomSizes(s)...)
-}
-
 // planChildRoom lays every slot for the piece being placed; the step takes
 // the first free one. A template given no piece plans nothing.
 func planChildRoom(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool) {

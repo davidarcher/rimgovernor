@@ -176,7 +176,7 @@ func TestGenerateHundredColonistsGetTenFullWings(t *testing.T) {
 			}
 		}
 	}
-	if plan.LayoutOutgrown(100) {
+	if bedroomCount(plan) < 100 {
 		t.Fatal("outgrown")
 	}
 	// Every bedroom's door opens on its wing's corridor, which hangs off a

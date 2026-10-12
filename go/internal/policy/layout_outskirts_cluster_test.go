@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -57,119 +56,6 @@ func TestOutskirtsSlotsAreDisjointInsideTheOutline(t *testing.T) {
 				t.Errorf("%s door opens into %s", name, other)
 			}
 		}
-	}
-}
-
-func TestOutskirtsPlanHoldsTombAndMorgueFromTheStart(t *testing.T) {
-	plan := outskirtsPlan(150)
-	size := OutskirtsSize()
-	plan, grown := growOutskirts(plan, size)
-	if !grown || !OutskirtsOwed(plan) {
-		t.Fatalf("cluster grown=%v owed=%v", grown, OutskirtsOwed(plan))
-	}
-	plan, added := growOutskirtsRooms(plan, nil)
-	if !added || OutskirtsOwed(plan) {
-		t.Fatalf("rooms added=%v owed=%v", added, OutskirtsOwed(plan))
-	}
-	outskirts, _ := plan.OutskirtsArea()
-	area := outskirts.Bounds()
-	l, _ := OutskirtsSlots(area)
-	tombs, morgues := plan.roomsOf(PlannedTomb), plan.roomsOf(PlannedMorgue)
-	if len(tombs) != 1 || tombs[0].Region.Bounds() != l.Tomb.Interior || tombs[0].Door != l.Tomb.Door {
-		t.Fatalf("tomb %+v want slot %+v", tombs, l.Tomb)
-	}
-	if len(morgues) != 1 || morgues[0].Region.Bounds() != l.Morgue.Interior {
-		t.Fatalf("morgue %+v want slot %+v", morgues, l.Morgue)
-	}
-	for _, r := range []PlannedRoom{tombs[0], morgues[0]} {
-		if _, _, has := plan.CoolerExhaust(r); !has {
-			t.Errorf("%s has no cooler exhaust", r.Role)
-		}
-		for _, other := range plan.AllRooms() {
-			if other.Role != PlannedTomb && other.Role != PlannedMorgue && other.Role != PlannedGraveyard && other.Role != PlannedWasteYard && other.Role != PlannedIncinerator && rectsOverlap(pad(roomWalls(r), outskirtsGap-1), roomWalls(other)) {
-				t.Errorf("%s within the gap of %s", r.Role, other.Role)
-			}
-		}
-	}
-	if again, added := growOutskirtsRooms(plan, nil); added || len(again.Rooms) != len(plan.Rooms) {
-		t.Fatal("rooms grown twice")
-	}
-	// A plan that already holds a tomb elsewhere is owed no second one.
-	core := outskirtsPlan(150)
-	core.Rooms = append(core.Rooms, PlannedRoom{Role: PlannedTomb, Region: RectRegion(Rectangle{X: 1, Z: 1, Width: 5, Height: 5})})
-	core, _ = growOutskirts(core, size)
-	core, _ = growOutskirtsRooms(core, nil)
-	if got := len(core.roomsOf(PlannedTomb)); got != 1 {
-		t.Fatalf("tombs %d", got)
-	}
-}
-
-// The waste yard is an unfenced Outdoor room (no ring, roof or floor owed)
-// planned from the start, with the incinerator's walled room in its far
-// corner and the dump's ground, 52 cells, beside it.
-func TestOutskirtsPlanHoldsWasteYardWithIncineratorInside(t *testing.T) {
-	plan, _ := growOutskirts(outskirtsPlan(150), OutskirtsSize())
-	plan, _ = growOutskirtsRooms(plan, nil)
-	outskirts, _ := plan.OutskirtsArea()
-	area := outskirts.Bounds()
-	l, _ := OutskirtsSlots(area)
-	yards, incs := plan.roomsOf(PlannedWasteYard), plan.IncineratorRooms()
-	if len(yards) != 1 || len(incs) != 1 {
-		t.Fatalf("yards %d incinerators %d", len(yards), len(incs))
-	}
-	yard, inc := yards[0], incs[0]
-	if !yard.Outdoor || !yard.Unfenced() || yard.Region.Bounds() != l.WasteYard.Interior || yard.Door != (domain.Cell{}) {
-		t.Errorf("yard %+v want unfenced slot %+v", yard, l.WasteYard)
-	}
-	if inc.Outdoor || inc.Region.Bounds().Width != 3 || inc.Region.Bounds().Height != 3 || roomWalls(inc) != l.Incinerator {
-		t.Errorf("incinerator %+v outline %+v", inc, l.Incinerator)
-	}
-	if wall, door := inc.RingDefs(); wall != ShellWallDefinition || door != ShellDoorDefinition {
-		t.Errorf("incinerator ring %s %s", wall, door)
-	}
-	if !contains(yard.Region.Bounds(), inc.Door) || !onRing(inc.Door, roomWalls(inc)) {
-		t.Errorf("incinerator door %+v not inside the yard", inc.Door)
-	}
-	free := 0
-	for _, c := range rectCells(yard.Region.Bounds()) {
-		if !contains(roomWalls(inc), c) {
-			free++
-		}
-	}
-	if free != 52 {
-		t.Errorf("dump ground %d cells, want 52", free)
-	}
-	if again, added := growOutskirtsRooms(plan, nil); added || len(again.Rooms) != len(plan.Rooms) {
-		t.Fatal("yard or incinerator planned twice")
-	}
-	// The incinerator is permanent: a replan with no incinerator need keeps it.
-	if len(plan.roomsOf(PlannedIncinerator)) != 1 {
-		t.Fatal("incinerator dropped")
-	}
-}
-
-func TestDeriveLayoutPlanPlansTheOutskirtsRooms(t *testing.T) {
-	slowtest.Skip(t, "two full layout derives on a 220-cell map; runs under cmd/test -full and nightly")
-	survey := zoningSurvey(220, func(x, z int32) SurveyCell {
-		if x >= 150 {
-			return SurveyCell{Rock: true}
-		}
-		return SurveyCell{Walkable: true, Fertility: 1}
-	})
-	plan, known := oldDerive(survey, 3, TechTierCamp, nil, 0).Value()
-	if !known {
-		t.Fatal("no plan")
-	}
-	if OutskirtsOwed(plan) {
-		t.Fatalf("outskirts not planned: %s", plan.Summary())
-	}
-	again, _ := oldDerive(survey, 3, TechTierCamp, nil, 0).Value()
-	a1r, _ := plan.OutskirtsArea()
-	a1 := a1r.Bounds()
-	a2r, _ := again.OutskirtsArea()
-	a2 := a2r.Bounds()
-	if a1 != a2 {
-		t.Fatal("not deterministic", a1, a2)
 	}
 }
 

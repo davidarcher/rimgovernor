@@ -2,7 +2,6 @@ package policy
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -93,62 +92,4 @@ func GravesStanding(plan LayoutPlan, built []CurrentBuilding) (standing, slots i
 		slots += len(GraveyardSlots(r.Region.Bounds()))
 	}
 	return standing, slots
-}
-
-// GraveyardsOwed is the graveyards demand asks for that plan lacks.
-func GraveyardsOwed(plan LayoutPlan, demand RoomDemand) int {
-	return max(demand.Graveyards-len(plan.roomsOf(PlannedGraveyard)), 0)
-}
-
-// growGraveyards adds the graveyards demand asks for and plan lacks. A further
-// graveyard is an Outdoor room of the first one's size, sited like the
-// outskirts cluster (outskirtsCandidates: outskirtsGap clear of every room,
-// off the growth lines, walkable from the core) and, of the sites that fit,
-// the nearest to the cluster. No room moves. It reports whether a graveyard
-// was added; a graveyard that fits
-// nowhere is left out.
-func growGraveyards(plan LayoutPlan, demand RoomDemand) (LayoutPlan, bool) {
-	owed := GraveyardsOwed(plan, demand)
-	added := false
-	for ; owed > 0; owed-- {
-		best, _, _, _ := outskirtsCandidates(plan, GraveyardW+2, GraveyardH+2)
-		area, ok := nearestSite(best, plan)
-		if !ok {
-			break
-		}
-		outline := area.Bounds()
-		in := Rectangle{X: outline.X + 1, Z: outline.Z + 1, Width: GraveyardW, Height: GraveyardH}
-		slot := OutskirtsSlot{Outline: outline, Interior: in}
-		plan.Rooms = append(slices.Clone(plan.Rooms), slotRoom(PlannedGraveyard, slot))
-		added = true
-	}
-	return plan, added
-}
-
-// nearestSite is the candidate nearest (by centre distance) to the outskirts
-// cluster, or to the core when the plan holds none.
-func nearestSite(sites map[domain.Rotation]Region, plan LayoutPlan) (Region, bool) {
-	area, has := plan.OutskirtsArea()
-	from := area.Bounds()
-	if !has {
-		from, has = plan.CoreBounds()
-	}
-	if !has {
-		return Region{}, false
-	}
-	var out Region
-	found, best := false, int32(0)
-	for _, side := range outskirtsSides {
-		site, ok := sites[side]
-		if !ok {
-			continue
-		}
-		s := site.Bounds()
-		dx := (s.X + s.Width/2) - (from.X + from.Width/2)
-		dz := (s.Z + s.Height/2) - (from.Z + from.Height/2)
-		if d := dx*dx + dz*dz; !found || d < best {
-			out, found, best = site, true, d
-		}
-	}
-	return out, found
 }

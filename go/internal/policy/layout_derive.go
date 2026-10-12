@@ -1,6 +1,8 @@
 package policy
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -80,33 +82,15 @@ func geothermalReservations(zones []LayoutZone, footprints []Rectangle) []Layout
 // rooms the plan lacks and the gear rooms Gear asks for.
 type RoomGrowth struct {
 	ThroneArea int
-	// ThroneMin is the title's minimum throne room area, 0 when nobody is
-	// owed a throne room: smaller throne rooms retire once a room holding it
-	// exists.
-	ThroneMin int
-	Child     []ChildRoomShape
-	Demand    RoomDemand
-	// Core are the demand-grown core rooms (demandCoreRooms) the colony now
-	// needs: each the plan lacks is sited (layout_demand_rooms.go).
-	Core []PlannedRole
-	// Shapes are every resolved child-room need and Built the planned rooms
-	// standing: the duplicates of one role reduce to one once Built is
-	// set (the census is known).
-	Shapes []ChildRoomShape
-	Built  map[int32]bool
-	// Ended are the roles whose need is gone and InUse the planned rooms
-	// standing or furnished: an ended role's rooms outside InUse leave the
-	// plan. InUse is set only when an ended role has a room.
-	Ended []PlannedRole
+	Demand     RoomDemand
+	// InUse are the planned rooms of an ended role still standing or furnished;
+	// the replan holds them where they stand.
 	InUse map[int32]bool
 	// Fixed are the interiors of every planned room with anything of ours
 	// on it (FixedRooms), set on every replan once the census is
 	// known (nil while it is not: every room is then kept). A replan
 	// re-sites only the rooms outside it.
 	Fixed map[int32]bool
-	// Occupied are the cells of ours a new or re-sited room must stay off
-	// (the census, sites, claims and in-flight rooms' walls).
-	Occupied map[domain.Cell]bool
 	// RetireShelter is ShelterRetirable at this review; InFlight are
 	// the planned rooms an open journal plan works on, which a retirement
 	// leaves in the plan.
@@ -121,16 +105,6 @@ type RoomGrowth struct {
 	// animal census or the pasture table is unread, which asks for none.
 	Pens    []PenWant
 	Grazing map[domain.Cell]bool
-	// Outskirts is the outline (width, height) of the off-core cluster the
-	// plan is asked to hold (OutskirtsSize); zero asks for none, and a
-	// cluster the plan holds never moves. Its tomb and morgue are placed in
-	// their slots.
-	Outskirts [2]int32
-	// Successor is the room the station chain asks to replace an outgrown
-	// one (OutgrownSuccession); the zero value asks for none. A replan sites
-	// it ahead of the re-siting, keeps both rooms pinned and retires the old
-	// room once the successor stands (Built).
-	Successor Successor
 	// Slept are the superseded bedrooms a pawn still owns a bed in
 	// (SleptBedrooms): they stay in the plan after their successor stands.
 	Slept map[int32]bool
@@ -138,233 +112,132 @@ type RoomGrowth struct {
 	// traced again over a held one is laid as a replacement beside it, and
 	// not at all while a rebuild is in flight (layout_perimeter_replace.go).
 	Perimeter PerimeterHold
-	// Fields are the field blocks the station chain placed at this review
-	// (StationAdvice.Embedding.Fields), each sized by FieldCapacityTarget; they
-	// are the plan's field zones. With none (the chain did not run, or the soil
-	// held none) the plan's own field zones stay as they are
-	// (layout_field_replan.go).
-	Fields []Rectangle
 }
 
-// ReplanLayoutWithRooms grows plan for pawns colonists and tombs tomb rooms
-// over a fresh survey, with the suites: rooms now on no-go ground are
-// dropped, the plan grows what it lacks, and the unbuilt rooms are sited
-// again when that scores clearly better (layout_replan.go); a room
-// with anything of ours on it never moves. With the rooms unchanged the
-// perimeter alone is replanned, which changes the plan when the
-// ground on or near the ring did (ground a moisture pump dried, a mined-out
-// ring cell). It reports whether the plan changed. An emptied Retiring wing
-// (emptied, keyed by its corridor's hallway cell) is dropped only when a
-// beds. It also keeps the rooms of growth, added after the rest of the
-// rooms and before the perimeter is replanned around them. A herd of
-// animals (HerdPlan.PenAnimals; 0 leaves the herd sites as they are) gets
-// animals (HerdPlan.PenAnimals; 0 leaves the herd sites as they are) gets
-// the barn it lacks (PlanHerdSites). The error
-// joins the rooms growth asked for that no core slot took; the plan
-// returned is still the best one, so the caller reports it and carries on.
-func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawns, tombs int, tier TechTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool, error) {
-	plan = plan.WithRoomIDs()
-	next, changed, err := replanLayout(plan, s, growth, animals, pawns, tombs, tier, geysers, emptied, suites...)
-	return next.WithRoomIDs(), changed, err
+// ErrReplanEmpty is a replan whose tiled plan holds no room: the colony keeps
+// the plan it has.
+var ErrReplanEmpty = errors.New("the tiled plan holds no room")
+
+// ReplanLayout is the next plan of a review (#3005, J4 of #2965): the tiled plan
+// of the station chain, wholesale, over the plan prev the colony holds. f are the
+// facts of the review (the plan's Built rooms, the chain's inputs): the tiler
+// keeps every standing room it has a node for, pins the rooms growth holds
+// (TilePinned) and sites the rest again. A standing room with no node in the new
+// embedding leaves the plan and its ground is retired (RetiredGround) for
+// clearance; the embedder's switching price (#2877) decides what moves. The
+// rooms the tiler does not plan are laid over its plan as DeriveLayoutPlan lays
+// them: the barns, pens and yards of prev that clear the new rooms stay and the
+// herd's and the yard's shortfall is sited, then the perimeter is traced around
+// what the defense record holds of it (LayPerimeter). The error is the chain's
+// or the tiler's (ErrStationFacts for a fact the colony has not read, ErrTile*
+// for a plan it cannot tile, ErrReplanEmpty); prev is returned with it, so the
+// caller keeps its plan and journals the error.
+func ReplanLayout(prev LayoutPlan, f StationFacts, s MapSurvey, geysers []PowerGeyser, growth RoomGrowth, animals int) (LayoutPlan, StationAdvice, error) {
+	prev = prev.WithRoomIDs()
+	f.Plan, f.Pinned = prev, TilePinned(prev, growth)
+	f = ReplanTileFacts(f, s, geysers)
+	advice, err := TileStations(f)
+	if err != nil {
+		return prev, advice, err
+	}
+	plan := advice.Tiled.Plan
+	if len(plan.AllRooms()) == 0 {
+		return prev, advice, ErrReplanEmpty
+	}
+	// The survey's zones less its field patches, then the fields the tiler placed.
+	plan.Zones = append(withFieldZones(Zone(s), nil), plan.Zones[len(f.Plan.Zones):]...)
+	plan.Cold, plan.Hot = s.Cold, s.Hot
+	plan = keepHeld(prev, plan, growth)
+	plan.RetiredGround = retiredGround(prev, plan, f.Built)
+	plan.Reservations = append(slices.Clone(plan.Reservations), carriedSites(prev, plan)...)
+	plan = PlanHerdSites(plan, animals, growth.HerdUnits...)
+	plan = PlanPenSites(plan, growth.Grazing, growth.Pens...)
+	plan = PlanYardSites(plan, YardRoomsWanted(growth.Demand))
+	return LayPerimeter(prev, plan, s, growth.Perimeter).WithRoomIDs(), advice, nil
 }
 
-func replanLayout(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawns, tombs int, tier TechTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool, error) {
-	zones := Zone(s)
-	vents := geothermalCells(geyserFootprints(geysers))
-	noGo := map[domain.Cell]bool{}
-	for _, z := range zones {
-		if z.Kind != ZoneNoGo {
+// keepHeld puts back the rooms of prev the colony holds (heldRooms) that the
+// tiled plan left out, with their attached rooms, where they stood: a node-less
+// room an open plan works on, a pawn sleeps in or a role that ended still uses
+// does not leave the plan under it, and nothing demolishes it. A successor that
+// stands keeps the Replaces the tiler dropped, so a bedroom a pawn still sleeps
+// in stays the one the migration moves its sleepers out of.
+func keepHeld(prev, next LayoutPlan, growth RoomGrowth) LayoutPlan {
+	held := heldRooms(prev, growth)
+	have := map[int32]bool{}
+	for _, r := range next.AllRooms() {
+		have[r.ID] = true
+	}
+	before := map[int32]PlannedRoom{}
+	for _, r := range prev.AllRooms() {
+		before[r.ID] = r
+	}
+	next.Rooms = slices.Clone(next.Rooms)
+	for i, r := range next.Rooms {
+		if old := before[r.ID]; r.Replaces == 0 && old.Replaces != 0 && held[old.Replaces] {
+			next.Rooms[i].Replaces = old.Replaces
+		}
+	}
+	for _, r := range prev.AllRooms() {
+		if held[r.ID] && !have[r.ID] && !r.attached() {
+			next.Rooms = append(next.Rooms, r)
+			next.Rooms = append(next.Rooms, prev.ChildrenOf(r.ID)...)
+		}
+	}
+	return next
+}
+
+// retiredGround is the retired ground prev holds that clearance has not cleared,
+// and the ground (ring and attached children) of each standing room of prev the
+// plan next no longer holds: the building comes down through planned-ground
+// clearance.
+func retiredGround(prev, next LayoutPlan, built map[int32]bool) []Region {
+	out := slices.Clone(prev.RetiredGround)
+	held := map[int32]bool{}
+	for _, r := range next.AllRooms() {
+		held[r.ID] = true
+	}
+	for _, r := range prev.AllRooms() {
+		if r.attached() || held[r.ID] || !built[r.ID] {
 			continue
 		}
-		for _, r := range z.Runs {
-			for x := r.X; x < r.X+r.Length; x++ {
-				noGo[domain.Cell{X: x, Z: r.Z}] = true
-			}
+		out = append(out, RectRegion(roomGround(r.Region.Bounds())))
+		for _, c := range prev.ChildrenOf(r.ID) {
+			out = append(out, RectRegion(c.attachedGround()))
 		}
 	}
-	fields := replanFieldZones(plan, growth, s)
-	zoned := withFieldZones(zones, fields)
-	plan, sited := topUpHerdSites(plan, coreWithout(zones, vents), animals, growth.HerdUnits, growth.Pens, growth.Grazing)
-	plan, yards := topUpYards(plan, coreWithout(zones, vents), YardRoomsWanted(growth.Demand))
-	sited = sited || yards
-	var kept []PlannedRoom
-	for _, r := range plan.Rooms {
-		if !rectHits(roomWalls(r), noGo) && !rectHits(roomWalls(r), vents) {
-			kept = append(kept, r)
-		}
-	}
-	wings := keepWingRooms(plan.Wings, func(r PlannedRoom) bool { return !rectHits(roomWalls(r), noGo) && !rectHits(roomWalls(r), vents) })
-	next := plan
-	next.Rooms, next.Wings, next.Zones = kept, wings, coreWithout(zoned, vents)
-	dropped := len(next.AllRooms()) != len(plan.AllRooms())
-	if growth.Built != nil {
-		var retired bool
-		next, retired = retireSurplusRooms(next, growth, growth.Built)
-		dropped = dropped || retired
-	}
-	next, retired := retireAddOnRooms(next, growth)
-	dropped = dropped || retired
-	next, retired = retireShelter(next, growth)
-	dropped = dropped || retired
-	// The successor of an outgrown room joins the plan before the replan pins
-	// it; one that cannot be sited is reported and nothing is built.
-	// A built room that has columns free beside it is enlarged in place
-	// instead (layout_reshape.go), and one rebuild runs at a time.
-	var unplaced []error
-	var successorScorer *planScorer
-	if growth.Successor.Any() || growth.Built != nil {
-		sc := newPlanScorer(next.Zones, next.Reserved(), s)
-		successorScorer = &sc
-	}
-	asked := growth.Successor
-	next, reshaped := reshapeOutgrown(next, asked, growth, blockedCells(next, growth.Occupied))
-	if reshaped || rebuildInFlight(growth) {
-		asked = Successor{}
-	}
-	dropped = dropped || reshaped
-	next, successor, err := growSuccessor(next, asked, successorScorer, blockedCells(next, growth.Occupied))
-	dropped = dropped || successor
-	unplaced = append(unplaced, err)
-	// A built room that is clearly better moved (rich soil under it, or a
-	// score gain past the switching threshold) gets a successor too.
-	if !reshaped && !successor && successorScorer != nil {
-		var relocated bool
-		next, relocated = relocateBuilt(next, *successorScorer, growth, blockedCells(next, growth.Occupied))
-		dropped = dropped || relocated
-	}
-	// Growth, then the unbuilt rooms sited again where that scores clearly
-	// better (layout_replan.go); an emptied Retiring wing is among them.
-	rp := newReplanner(next, s, blockedCells(next, growth.Occupied), pawns, tombs, tier, suites)
-	next, resited := rp.replanCore(next, ReplanPins(next, growth.Fixed, emptied, tier))
-	dropped = dropped || resited
-	scorer := newPlanScorer(next.Zones, next.Reserved(), s)
-	next, throne, err := growThroneRoom(next, growth.ThroneArea, &scorer)
-	dropped = dropped || throne
-	unplaced = append(unplaced, err)
-	for _, shape := range growth.Child {
-		var grown bool
-		next, grown, err = growChildRoom(next, shape, &scorer)
-		dropped = dropped || grown
-		unplaced = append(unplaced, err)
-	}
-	next, gear, err := growGearRooms(next, growth.Demand, &scorer)
-	dropped = dropped || gear
-	unplaced = append(unplaced, err)
-	next, storage, err := growStorageRooms(next, growth.Demand, &scorer)
-	dropped = dropped || storage
-	unplaced = append(unplaced, err)
-	next, core, err := growDemandRooms(next, s, &scorer, growth.Core)
-	dropped = dropped || core
-	unplaced = append(unplaced, err)
-	next, outskirts := growOutskirts(next, growth.Outskirts)
-	dropped = dropped || outskirts
-	if growth.Outskirts != [2]int32{} {
-		var rooms bool
-		next, rooms = growOutskirtsRooms(next, ThickRoofCells(s))
-		dropped = dropped || rooms
-	}
-	next, graves := growGraveyards(next, growth.Demand)
-	dropped = dropped || graves
-	next, ranges := growRanges(next, growth.Demand)
-	dropped = dropped || ranges
-	next, rings := growRings(next, growth.Demand)
-	dropped = dropped || rings
-	next.Zones = zoned
-	unplacedRooms := errors.Join(unplaced...)
-	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {
-		fresh := layPerimeter(plan, plan, s, growth.Perimeter)
-		// Rooms unchanged, fields resized or moved: the plan changed.
-		moved := !sameFieldZones(plan.Zones, fields)
-		if moved {
-			fresh.Zones = withFieldZones(fresh.Zones, fields)
-		}
-		return fresh, sited || moved || !sameSites(plan, fresh), unplacedRooms
-	}
-	if len(next.AllRooms()) == 0 {
-		return plan, false, unplacedRooms
-	}
-	return layPerimeter(plan, next, s, growth.Perimeter), true, unplacedRooms
+	return out
 }
 
-// topUpHerdSites adds the herd sites animals needs to plan, sited over the
-// fresh core candidates and off the current perimeter (which is laid again
-// around them). It reports whether it added any.
-func topUpHerdSites(plan LayoutPlan, core []LayoutZone, animals int, herds []HerdCeiling, pens []PenWant, grazing map[domain.Cell]bool) (LayoutPlan, bool) {
-	if animals <= 0 && len(herds) == 0 && PensOwed(plan, pens) == 0 {
-		return plan, false
+// carriedSites are the barns, pens and yards of prev that stand clear of the
+// rooms and the reserved ground of next: the tiler does not see them, so a new
+// room may land on one, which then goes and is sited again. A site that clears
+// stays where it is, so a replan does not move a barn or a yard that was built.
+func carriedSites(prev, next LayoutPlan) []LayoutReservation {
+	var taken []Rectangle
+	for _, r := range next.AllRooms() {
+		taken = append(taken, roomGround(r.Region.Bounds()))
 	}
-	return topUpSites(plan, core, func(p LayoutPlan) LayoutPlan {
-		return PlanPenSites(PlanHerdSites(p, animals, herds...), grazing, pens...)
-	})
+	for _, r := range next.Reserved() {
+		taken = append(taken, r.Area.Bounds())
+	}
+	var out []LayoutReservation
+	for _, r := range prev.Reservations {
+		if r.Kind != ReserveBarn && r.Kind != ReservePen && r.Kind != ReserveYard {
+			continue
+		}
+		if !slices.ContainsFunc(taken, func(t Rectangle) bool { return rectsOverlap(t, r.Area.Bounds()) }) {
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
-// topUpSites runs add over plan with the fresh core candidates and no site
-// nodes (the perimeter is laid again afterwards), and keeps the reservations
-// it added. It reports whether it added or keyed any.
-func topUpSites(plan LayoutPlan, core []LayoutZone, add func(LayoutPlan) LayoutPlan) (LayoutPlan, bool) {
-	sitePlan := plan
-	sitePlan.Zones, sitePlan.Sites = core, nil
-	topped := add(sitePlan)
-	// A top-up also keys the units of a plan saved without keys.
-	plan.Reservations = slices.Clone(plan.Reservations)
-	changed := false
-	for i := range plan.Reservations {
-		if plan.Reservations[i].Herd != topped.Reservations[i].Herd {
-			plan.Reservations[i].Herd, changed = topped.Reservations[i].Herd, true
-		}
-	}
-	n := len(plan.Reservations)
-	plan.Reservations = append(plan.Reservations, topped.Reservations[n:]...)
-	return plan, changed || len(topped.Reservations) > n
-}
-
-// blockedCells is the occupied cells a replan's rooms must stay off: all but
-// those under the walls of the plan's own rooms, which the plan already
-// keeps (an unfixed room has none, so a room sited again never lands on
-// something built).
-func blockedCells(plan LayoutPlan, occupied map[domain.Cell]bool) map[domain.Cell]bool {
-	if len(occupied) == 0 {
-		return nil
-	}
-	own := map[domain.Cell]bool{}
-	for _, r := range plan.AllRooms() {
-		for _, c := range rectCells(roomWalls(r)) {
-			own[c] = true
-		}
-	}
-	blocked := map[domain.Cell]bool{}
-	for c := range occupied {
-		if !own[c] {
-			blocked[c] = true
-		}
-	}
-	return blocked
-}
-
-// sameInteriors reports whether a and b hold the same rooms in order: a
-// changed interior is not the same plan.
-func sameInteriors(a, b []PlannedRoom) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i].Region.Bounds() != b[i].Region.Bounds() {
-			return false
-		}
-	}
-	return true
-}
-
-// LayoutOutgrown reports fewer bedrooms than colonists: another wing is
-// needed; wings never grow.
-func (p LayoutPlan) LayoutOutgrown(pawns int) bool {
-	n := 0
-	for _, r := range p.AllRooms() {
-		if r.Role == PlannedBedroom {
-			n++
-		}
-	}
-	return n < pawns
+// SamePlan reports whether a and b are the same plan as it is saved.
+func SamePlan(a, b LayoutPlan) bool {
+	x, xerr := json.Marshal(a)
+	y, yerr := json.Marshal(b)
+	return xerr == nil && yerr == nil && bytes.Equal(x, y)
 }
 
 // Summary is the plan's service-log line: rooms by role, zones by kind,

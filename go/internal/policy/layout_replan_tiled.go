@@ -6,11 +6,12 @@ import (
 	"sort"
 )
 
-// The tiler beside the replan (#3002, J1 of #2965). At a replan the station
-// chain already reads the built rooms (Built, Pinned, the plan's RetiredGround);
-// TileStations over ReplanTileFacts tiles them and DiffReplanTile says, room by
-// room, what the tiled plan would do with the plan the old replan produced. It
-// is telemetry: the old plan stays the output.
+// The tiled replan (#3002 to #3005, J1 to J4 of #2965). At a replan the station
+// chain reads the built rooms (Built, Pinned, the plan's RetiredGround);
+// TileStations over ReplanTileFacts tiles them and ReplanLayout (layout_derive.go)
+// takes the tiled plan as the next plan. DiffReplanTile says, room by room, what
+// the tiled plan did with the plan the colony held; it is the layout_replan_tiled
+// row's telemetry.
 
 // Verdicts of a room in the replan diff.
 const (
@@ -69,7 +70,7 @@ type UnmatchedBuilt struct {
 	Reason string
 }
 
-// ReplanTileDiff is the tiled plan against the old replan's plan.
+// ReplanTileDiff is the tiled plan against the plan the colony held.
 type ReplanTileDiff struct {
 	Rooms     []TileRoomDiff
 	Unmatched []UnmatchedBuilt
@@ -88,37 +89,43 @@ func (d ReplanTileDiff) Count(verdict string) int {
 
 // ReplanTileFacts are f, the facts of a replan review (the saved plan, its
 // Built and Pinned rooms), as the tiler reads them: the ground a fresh plan is
-// tiled on (the survey's zones with the core, less the geothermal enclosures'
-// cells), as DeriveLayoutPlan lays it, in place of the saved plan's core-free
-// zones; only the power sites' reservations and sites kept, because the
-// perimeter, the herd and the yard sites are laid over the tiled plan after it
-// (the overlays of DeriveLayoutPlan). f is not changed.
+// tiled on, as DeriveLayoutPlan lays it, in place of the saved plan's core-free
+// zones (the survey's zones with the core, less the geothermal enclosures'
+// cells, and the geysers' enclosures reserved), and no saved site: the power
+// sites are placed again by the chain, and the perimeter, the herd and the yard
+// sites are laid over the tiled plan after it. f is not changed.
 func ReplanTileFacts(f StationFacts, s MapSurvey, geysers []PowerGeyser) StationFacts {
-	f.Plan.Zones = coreWithout(Zone(s), geothermalCells(geyserFootprints(geysers)))
-	f.Plan.Reservations = slices.DeleteFunc(slices.Clone(f.Plan.Reservations), func(r LayoutReservation) bool { return !slices.Contains(powerSiteKinds, r.Kind) })
-	f.Plan.Sites = slices.DeleteFunc(slices.Clone(f.Plan.Sites), func(p PlannedSite) bool { return perimeterSiteKinds[p.Kind] })
+	zones, footprints := Zone(s), geyserFootprints(geysers)
+	f.Plan.Zones = coreWithout(zones, geothermalCells(footprints))
+	f.Plan.Reservations, f.Plan.Sites = geothermalReservations(zones, footprints), nil
 	f.Survey = s
 	return f
 }
 
 // TilePinned are the rooms the tiled replan holds where they stand (#3004,
-// decision 3 of #2965): the rooms an open journal plan works on (growth.InFlight),
-// the superseded bedrooms and suites a pawn still owns a bed in (growth.Slept),
-// the rooms of an ended role still in use (growth.InUse) and the pairs of a
+// decision 3 of #2965): the rooms the colony holds (heldRooms) and the pairs of a
 // rebuild in flight. Nothing else is pinned: a standing room with no node in the
 // new embedding is retirement-eligible, and one that has a node moves only at
-// the embedder's switching price (#2877). The old replan's pins (ReplanPins)
-// widen Fixed by door links and bedroom wings, which the tiler does not have.
-// With the census unknown (growth.Fixed nil) every room is pinned.
+// the embedder's switching price (#2877).
 func TilePinned(plan LayoutPlan, growth RoomGrowth) map[int32]bool {
+	pins := successorPinned(plan)
+	maps.Copy(pins, heldRooms(plan, growth))
+	return pins
+}
+
+// heldRooms are the rooms the colony holds: the rooms an open journal plan
+// works on (growth.InFlight), the superseded bedrooms and suites a pawn still
+// owns a bed in (growth.Slept) and the rooms of an ended role still in use
+// (growth.InUse). With the census unknown (growth.Fixed nil) every room is held.
+func heldRooms(plan LayoutPlan, growth RoomGrowth) map[int32]bool {
 	if growth.Fixed == nil {
 		return allPins(plan)
 	}
-	pins := successorPinned(plan)
-	for _, held := range []map[int32]bool{growth.InFlight, growth.Slept, growth.InUse} {
-		maps.Copy(pins, held)
+	held := map[int32]bool{}
+	for _, m := range []map[int32]bool{growth.InFlight, growth.Slept, growth.InUse} {
+		maps.Copy(held, m)
 	}
-	return pins
+	return held
 }
 
 // DiffReplanTile compares the tiled plan of advice with old, the plan the old

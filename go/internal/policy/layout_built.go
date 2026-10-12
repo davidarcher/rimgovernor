@@ -10,7 +10,7 @@ import (
 // block: the group MatchGroupRooms gives it keeps its interior, and the
 // embedding places the other groups around it. The only way a built room moves
 // is the relocation pass (embedder.relocate), which prices the move the way
-// the old planner does (layout_switch.go) and so adds no constant:
+// the replan always did (layout_switch.go) and so adds no constant:
 //
 //   - score gain: the room's best other position, of the same shape, must beat
 //     staying by switchThreshold: ReplanGain plus BuiltSwitch and BuiltSwitchCell
@@ -22,8 +22,8 @@ import (
 //
 // One rebuild at a time: at most one room moves, the best (bad ground before
 // score gain, then the larger margin, ties to the lower group), and none while
-// a rebuild is in flight (EmbedInput.InFlight). A pinned room, one the old
-// planner would not move (replanPins), never does. Ground the plan retired but
+// a rebuild is in flight (EmbedInput.InFlight). A pinned room (TilePinned), one
+// the colony holds, never moves. Ground the plan retired but
 // has not cleared (EmbedInput.RetiredGround) is closed to new blocks. A moved
 // room's block carries Replaces, the successor path's id of the room it
 // supersedes; the old room is not in the embedding, it stands until the new

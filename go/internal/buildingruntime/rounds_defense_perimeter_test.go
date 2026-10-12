@@ -98,8 +98,8 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 	}
 	// No tombs: the plan above was derived with none, and a tomb room the
 	// replan adds grows the core and moves the killbox.
-	dried, changed, _ := policy.ReplanLayoutWithRooms(plan, survey(true), policy.RoomGrowth{Perimeter: record.PerimeterHold()}, 0, 3, 0, policy.TechTierCamp, nil, nil)
-	if !changed {
+	dried := policy.LayPerimeter(plan, plan, survey(true), record.PerimeterHold())
+	if !policy.PerimeterChanged(plan, dried) {
 		t.Fatal("dried ground kept the plan")
 	}
 	if changed, err := defenseRecutPerimeter(&record, perimeterCut(dried, policy.PerimeterBridge, transmitters, 1e6)); err != nil || !changed || record.PerimeterRevision != 1 {
@@ -208,12 +208,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 		t.Fatal("node tiers lost with the removals", nodeTiers, after)
 	}
 	// Nothing holds the old ring now, so the next replan drops its nodes.
-	if hold := loaded.PerimeterHold(); policy.PerimeterRetirable(dried, hold.Held) {
-		settled, changed, _ := policy.ReplanLayoutWithRooms(dried, survey(true), policy.RoomGrowth{Perimeter: hold}, 0, 3, 0, policy.TechTierCamp, nil, nil)
-		if !changed || policy.PerimeterRetirable(settled, hold.Held) {
-			t.Fatal("the retired nodes stayed", changed)
-		}
-	} else {
+	if hold := loaded.PerimeterHold(); !policy.PerimeterRetirable(dried, hold.Held) {
 		t.Fatal("the old ring was not retired in the plan")
 	}
 }
@@ -430,8 +425,8 @@ func TestDefenseRingReplaceLifecycle(t *testing.T) {
 		t.Fatal("no old perimeter")
 	}
 	// The ground dries: the replan stands a replacement beside the old ring.
-	dried, changed, _ := policy.ReplanLayoutWithRooms(plan, survey(true), policy.RoomGrowth{Perimeter: record.PerimeterHold()}, 0, 3, 0, policy.TechTierCamp, nil, nil)
-	if !changed {
+	dried := policy.LayPerimeter(plan, plan, survey(true), record.PerimeterHold())
+	if !policy.PerimeterChanged(plan, dried) {
 		t.Fatal("dried ground kept the plan")
 	}
 	ring, ok := dried.Ring()
@@ -448,7 +443,7 @@ func TestDefenseRingReplaceLifecycle(t *testing.T) {
 	}
 	// Another replan while the old ring is held stands no second replacement:
 	// one rebuild at a time.
-	if again, _, _ := policy.ReplanLayoutWithRooms(dried, survey(true), policy.RoomGrowth{Perimeter: record.PerimeterHold()}, 0, 3, 0, policy.TechTierCamp, nil, nil); policy.PerimeterChanged(dried, again) {
+	if again := policy.LayPerimeter(dried, dried, survey(true), record.PerimeterHold()); policy.PerimeterChanged(dried, again) {
 		t.Fatal("a second replacement began over the first")
 	}
 	// The replacement is unbuilt, the old ring stands: no removal is done and
@@ -506,7 +501,7 @@ func TestDefenseRingReplaceLifecycle(t *testing.T) {
 	// Nothing holds the old nodes now; the next replan drops them and the live
 	// ring is the replacement.
 	hold := record.PerimeterHold()
-	settled, _, _ := policy.ReplanLayoutWithRooms(dried, survey(true), policy.RoomGrowth{Perimeter: hold}, 0, 3, 0, policy.TechTierCamp, nil, nil)
+	settled := policy.LayPerimeter(dried, dried, survey(true), hold)
 	if policy.PerimeterRetirable(settled, hold.Held) {
 		t.Fatal("the retired nodes stayed")
 	}

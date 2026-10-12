@@ -46,7 +46,7 @@ func TestRichSoilBaselinePlan(t *testing.T) {
 		if err := a.err(); err != nil {
 			t.Fatal(err)
 		}
-		if plan.LayoutOutgrown(pawns) {
+		if countBedrooms(plan) < pawns {
 			t.Fatal("the plan does not house the colony")
 		}
 		if a.RichCells == 0 || a.Patches == 0 || a.WallCells == 0 {
@@ -195,4 +195,14 @@ func TestAuditSoilCatchesPatchSplitByARoom(t *testing.T) {
 	if len(a.PatchSplit) == 0 || a.err() == nil {
 		t.Fatalf("a patch split by a room passed: %+v", a)
 	}
+}
+
+func countBedrooms(plan policy.LayoutPlan) int {
+	n := 0
+	for _, r := range plan.AllRooms() {
+		if r.Role == policy.PlannedBedroom {
+			n++
+		}
+	}
+	return n
 }

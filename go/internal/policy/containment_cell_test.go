@@ -97,41 +97,6 @@ func TestContainmentCellIsOwedWhenTheDesignReachesTheEntity(t *testing.T) {
 	}
 }
 
-// TestContainmentCellIsFurnishedWithALamp: the standing lamp joins the
-// cell once the catalog offers it; until then it is left out and the cell is
-// owed all the same, and the platform's room holds the lamp either way.
-func TestContainmentCellIsFurnishedWithALamp(t *testing.T) {
-	lamp := FurnitureDefinition{Name: ContainmentLampDefinition, Available: domain.Known(true), Size: domain.Known(Bounds{Width: 1, Height: 1})}
-	withLamp := append(platformFurniture(), lamp)
-	need, v := ContainmentCellNeed(planning(1, 100), withLamp, FlooringFacts{})
-	if !v.Owed {
-		t.Fatalf("%+v", v)
-	}
-	pieces, ok := need.resolve(withLamp)
-	if !ok || len(pieces) != 2 || pieces[1].Piece.Def != ContainmentLampDefinition {
-		t.Fatalf("%+v %v", pieces, ok)
-	}
-	lamp.Available = domain.Known(false)
-	pieces, ok = need.resolve(append(platformFurniture(), lamp))
-	if !ok || len(pieces) != 1 || pieces[0].Piece.Def != "HoldingPlatform" {
-		t.Fatalf("an unresearched lamp is left out: %+v %v", pieces, ok)
-	}
-	// The predicted strength counts no glow, so the lamp never makes a cell owed.
-	if _, v := ContainmentCellNeed(planning(1, 400), withLamp, FlooringFacts{}); v.Owed {
-		t.Fatalf("%+v", v)
-	}
-	shape, _ := need.shape(withLamp)
-	plain, _ := need.shape(platformFurniture())
-	base := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, TechTierCamp)
-	grown, added, _ := growChildRoom(base, plain, nil)
-	if !added {
-		t.Fatal("no room grown")
-	}
-	if _, ok := grown.ChildRoomFor(shape); !ok {
-		t.Fatal("a room grown for the platform alone does not hold the lamp's shape")
-	}
-}
-
 func TestContainmentCellOwesNothingAndSaysWhy(t *testing.T) {
 	noDefs := planning(1, 1)
 	noDefs.Defs, noDefs.DefsReason = domain.Unknown[ContainmentDefs](), "no stat"
@@ -179,35 +144,5 @@ func TestContainmentCellRoleTables(t *testing.T) {
 	}
 	if f, err := Facility(RoomRoleContainmentCell); err != nil || f.Status != FacilityImplemented || !f.FurnitureFromGame || f.Content != "Anomaly" {
 		t.Fatalf("catalog row: %+v %v", f, err)
-	}
-}
-
-func TestContainmentCellIsStagedLikeAnyChildRoom(t *testing.T) {
-	need, _ := ContainmentCellNeed(planning(1, 100), platformFurniture(), FlooringFacts{})
-	defs := platformFurniture()
-	shape, ok := need.shape(defs)
-	if !ok || shape.Module != PlannedContainmentCell {
-		t.Fatalf("shape %+v %v", shape, ok)
-	}
-	base := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, TechTierCamp)
-	grown, added, _ := growChildRoom(base, shape, nil)
-	if !added {
-		t.Fatal("no room grown for the platform")
-	}
-	var room PlannedRoom
-	for _, r := range grown.AllRooms() {
-		if r.Role == PlannedContainmentCell {
-			room = r
-		}
-	}
-	if room.Role == "" {
-		t.Fatal("grown plan has no containment cell")
-	}
-	plan := LayoutPlan{Rooms: []PlannedRoom{room}}
-	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, GroundCensus{}, nil, []ChildRoomNeed{need}, defs); step.Kind != ChildRoomReconcile {
-		t.Fatalf("unbuilt room: %+v", step)
-	}
-	if step := NextChildRoomStep(plan, tombStanding(room), ringWalls(plan, room), nil, []ChildRoomNeed{need}, defs); step.Kind != ChildRoomReconcile || len(step.Template) == 0 || step.Template[0].DefName != "HoldingPlatform" {
-		t.Fatalf("standing room: %+v", step)
 	}
 }

@@ -15,8 +15,8 @@ import (
 // The throne room: MaintainHousing's sleeping planner
 // shells the planned room, places the title's throne and furnishes it to the
 // title's impressiveness (policy.NextThroneStep, policy.ThroneRoomTargets).
-// The layout review grows the room from the title's minimum area
-// (policy.ReplanLayoutWithRooms). Once it stands, the throne is assigned to
+// The layout review (policy.ReplanLayout) plans the room from the title's
+// minimum area. Once it stands, the throne is assigned to
 // its holder through the generic Assign action; the step holds
 // MaintainHousing open until the royalty read lists the holder as its owner.
 

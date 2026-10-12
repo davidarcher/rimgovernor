@@ -34,7 +34,28 @@ func growPlan(plan LayoutPlan, pawns, tombs int, tier TechTier, suites ...float6
 
 // withRooms grows the demand-grown core rooms wanted onto plan.
 func withRooms(plan LayoutPlan, wanted ...PlannedRole) LayoutPlan {
-	plan, _, _ = growDemandRooms(plan, MapSurvey{}, nil, wanted)
+	if len(plan.Hallways()) == 0 {
+		return plan
+	}
+	have := map[PlannedRole]bool{}
+	for _, r := range plan.AllRooms() {
+		have[r.Role] = true
+	}
+	grew := false
+	for _, role := range wanted {
+		if have[role] {
+			continue
+		}
+		var added bool
+		if plan, added, _ = SiteRoom(plan, nil, role, coreRoomSize[role]); added {
+			grew = true
+		}
+	}
+	if grew {
+		u := newUtilityGrid(plan)
+		u.thick = ThickRoofCells(MapSurvey{})
+		reserveExhausts(u, &plan)
+	}
 	return plan
 }
 
@@ -46,10 +67,4 @@ func wingOf(wings []Wing, purpose WingPurpose) int {
 		}
 	}
 	return -1
-}
-
-// replanTest is ReplanLayoutWithRooms with no growth asked.
-func replanTest(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier TechTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool) {
-	next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{}, 0, pawns, tombs, tier, geysers, emptied, suites...)
-	return next, changed
 }

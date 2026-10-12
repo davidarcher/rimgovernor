@@ -7,7 +7,7 @@ package policy
 // any room. They hold no catalog station for the graph to size, so the node
 // asks the floor the old siting sized them to and the room keeps its role's
 // template (interior_shelter.go, interior_throne.go), which the interior placer
-// sets. The old planner stays authoritative (siteShelter, growThroneRoom).
+// sets. The tiler places them (layout_tile.go).
 //
 //   - Shelter. One temporary room, ShelterInteriorArea cells for the colonists
 //     (a bunk each, campfires on a cold map, a cooler on a hot one, the crafting

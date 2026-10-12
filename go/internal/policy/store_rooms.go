@@ -29,22 +29,3 @@ func (r StoreView) storageRoomChains() int {
 	}
 	return r.Layout.RoomChains(PlannedStorage)
 }
-
-// StorageRoomsOwed is how many storage rooms demand asks for that plan lacks.
-// A room and its successors count as one (RoomChains), so a rebuild in flight
-// is not answered with a twin.
-func StorageRoomsOwed(plan LayoutPlan, demand RoomDemand) int {
-	return max(demand.Storage-plan.RoomChains(PlannedStorage), 0)
-}
-
-// growStorageRooms adds the storage room demand asks for and plan lacks, on
-// the nearest core slot like any other core room, after the rooms already
-// planned so the first storage room stays the core. A room is only ever
-// retired by the reconcile steps in layout_retire.go; none moves or resizes.
-// It reports whether a room was added.
-func growStorageRooms(plan LayoutPlan, demand RoomDemand, sc *planScorer) (LayoutPlan, bool, error) {
-	if len(plan.Hallways()) == 0 || StorageRoomsOwed(plan, demand) == 0 {
-		return plan, false, nil
-	}
-	return SiteRoom(plan, sc, PlannedStorage, coreRoomSize[PlannedStorage])
-}

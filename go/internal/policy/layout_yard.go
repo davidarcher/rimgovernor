@@ -61,9 +61,3 @@ func PlanYardSites(plan LayoutPlan, want int) LayoutPlan {
 	}
 	return plan
 }
-
-// topUpYards adds the yards want asks for to plan, sited like topUpHerdSites;
-// it reports whether it added any.
-func topUpYards(plan LayoutPlan, core []LayoutZone, want int) (LayoutPlan, bool) {
-	return topUpSites(plan, core, func(p LayoutPlan) LayoutPlan { return PlanYardSites(p, want) })
-}

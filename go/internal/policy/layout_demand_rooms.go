@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"errors"
 	"slices"
 )
 
@@ -34,80 +33,4 @@ func (p LayoutPlan) HostsCapability(c Capability, except PlannedRole) bool {
 		}
 	}
 	return false
-}
-
-// CoreRoomsOwed is the rooms of wanted that plan lacks, in demandCoreRooms
-// order, except a room whose every capability another planned room hosts (the
-// shelter's research bench serves the first laboratory). full names the
-// capabilities whose hosts have no free capacity for the need at hand (the
-// shelter holds the plain bench, not the high-tech one); a role needing one
-// is owed its own room. A role outside demandCoreRooms is ignored.
-func CoreRoomsOwed(plan LayoutPlan, wanted []PlannedRole, full ...Capability) []PlannedRole {
-	var owed []PlannedRole
-	for _, role := range coreRoomsLacking(plan, wanted) {
-		caps := roleCapabilities[role]
-		hosted := len(caps) > 0
-		for _, c := range caps {
-			hosted = hosted && !slices.Contains(full, c) && plan.HostsCapability(c, role)
-		}
-		if !hosted {
-			owed = append(owed, role)
-		}
-	}
-	return owed
-}
-
-// coreRoomsLacking is the rooms of wanted that plan has no room of the role
-// for, in demandCoreRooms order.
-func coreRoomsLacking(plan LayoutPlan, wanted []PlannedRole) []PlannedRole {
-	want := map[PlannedRole]bool{}
-	for _, r := range wanted {
-		want[r] = true
-	}
-	have := map[PlannedRole]bool{}
-	for _, r := range plan.AllRooms() {
-		have[r.Role] = true
-	}
-	var owed []PlannedRole
-	for _, role := range demandCoreRooms {
-		if want[role] && !have[role] {
-			owed = append(owed, role)
-		}
-	}
-	return owed
-}
-
-// growDemandRooms adds each room of wanted that plan lacks and gives a newly
-// cooled room its cooler exhaust. It reports whether a room was added and the
-// rooms it could not place.
-func growDemandRooms(plan LayoutPlan, s MapSurvey, sc *planScorer, wanted []PlannedRole) (LayoutPlan, bool, error) {
-	if len(plan.Hallways()) == 0 {
-		return plan, false, nil
-	}
-	grew := false
-	var unplaced []error
-	// The caller's wanted already weighed hosting (CoreRoomsOwed).
-	for _, role := range coreRoomsLacking(plan, wanted) {
-		var added bool
-		var err error
-		if plan, added, err = SiteRoom(plan, sc, role, coreRoomSize[role]); added {
-			grew = true
-		} else if err != nil {
-			unplaced = append(unplaced, err)
-		}
-	}
-	if grew {
-		u := newUtilityGrid(plan)
-		u.thick = ThickRoofCells(s)
-		reserveExhausts(u, &plan)
-	}
-	return plan, grew, errors.Join(unplaced...)
-}
-
-// WithCoreRooms is plan with the demand rooms of wanted grown on, for a
-// caller that audits a room the start plan no longer holds. It reports the
-// rooms it could not place.
-func WithCoreRooms(plan LayoutPlan, wanted ...PlannedRole) (LayoutPlan, error) {
-	grown, _, err := growDemandRooms(plan, MapSurvey{}, nil, wanted)
-	return grown, err
 }

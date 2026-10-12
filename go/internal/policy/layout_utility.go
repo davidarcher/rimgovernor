@@ -67,7 +67,7 @@ func ThickRoofCells(s MapSurvey) map[domain.Cell]bool {
 
 // reserveExhausts gives each cooling room that has none a cooler exhaust.
 // Rooms already holding one are left alone, so it is safe to run again after
-// a cooled room is grown (growDemandRooms).
+// a cooled room is grown (test scaffolding: withRooms).
 func reserveExhausts(u *utilityGrid, plan *LayoutPlan) {
 	for _, role := range coolingRoles {
 		for _, r := range plan.AllRooms() {
@@ -86,7 +86,7 @@ func reserveExhausts(u *utilityGrid, plan *LayoutPlan) {
 
 // PlanUtilities adds cooler exhausts, the geyser enclosures and the herd units
 // to a spine plan. Sites that do not fit are left out. The battery room is
-// grown on demand (growDemandRooms), not here; the turbines and solar plots
+// a room of the tiler, not here; the turbines and solar plots
 // are site nodes (PowerSiteNodes).
 func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 	if len(plan.Hallways()) == 0 {

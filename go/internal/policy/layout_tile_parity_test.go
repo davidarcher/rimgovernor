@@ -3,10 +3,8 @@ package policy
 import (
 	"errors"
 	"strconv"
-	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // replayStationFacts is the StationFacts of a replay fixture: the test
@@ -49,16 +47,4 @@ func tiledParityPlan(f replayFixture, s MapSurvey) (LayoutPlan, error) {
 		err = errors.New("the derive holds no core")
 	}
 	return plan, err
-}
-
-// tilerParityExpectedFail lists the replay fixtures the tiled plan does not
-// yet bring to parity with the old generator (ParityVerdict), with the reason.
-// The list is the input to the cutover (#2931).
-var tilerParityExpectedFail = map[string]string{}
-
-// TestTilerParityGate measures the gap between the station-chain tiler and
-// the old generator on every replay fixture. It changes nothing at runtime.
-func TestTilerParityGate(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	RunParityGate(t, tiledParityPlan, tilerParityExpectedFail)
 }

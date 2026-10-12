@@ -247,7 +247,7 @@ suite is a target-sized bedroom node, `StationNode.Floor` from `suiteCells` of i
 owner's target (`StationFacts.Suites`, `SuiteWishes`, #2939), its own room
 whatever the pair rules say, `cluster_suite_own_room`, planned as `PlannedSuite`
 and matched only to built suites, so a raised target outgrows its suite and
-`OutgrownSuccession` asks for a larger one, its owner migrating straight to it),
+the tiler plans a larger suite as its successor (`Replaces`), its owner migrating straight to it),
 **split** (two nodes of a room that pays a
 conflict, loses a role effect or carries a role-guard mismatch) and
 **move-a-need** (a station class leaves the room that slows it for a room of the
@@ -317,7 +317,7 @@ block), the clustering's conflicts and the embedding report; `skipped`
 
 A fresh plan (`policy.DeriveLayoutPlan`, #2959) is this chain run through the tiler (`TileStations`, `StationFacts.Derive`): no core grid, hallways or old utilities; the `layout_stations` row carries `derive: true`, and the `layout_plan` row is `skipped` (`facts_unknown` on an unread fact, `no_core` when the map holds no shelter) or `failed` (`chain_error`). Facts the live ledger has not read leave the plan at the seed rooms (`StationAdvice.SeedOnly`). Power sites wait for #2960; replans still grow on the old planner until #2965.
 
-A replan also tiles the chain beside the old plan (#3002, J1 of #2965), telemetry only: the old plan stays the output. `policy.ReplanTileFacts` gives the tiler the review's facts (Built, Pinned, the plan's retired ground) over a fresh survey's zones with the core, as the derive lays them, and only the power sites' reservations and sites; the perimeter, herd and yard sites would be laid over the tiled plan after it. `policy.DiffReplanTile` compares the tiled rooms with the plan the old replan produced and writes the `layout_replan_tiled` row. A standing room the embedding keeps is claimed through its block (`Built`); the rest are matched by role. The standing rooms with no node (`unmatched_built`) are what J2 (#3003) turns into nodes. A room node's room (`roomNodeRoles`: circulation, tomb, morgue, graveyard, waste yard, incinerator, the training range and ring, the shelter and the throne room) is a `BuiltRegion` matched to its group by planned role, outdoor or with no native role as it may be, so the embedding keeps it as the block of its node: a plan that holds a shelter keeps a shelter node until the review's `ShelterRetirable` (`StationFacts.RetireShelter`), and one that holds a throne room keeps a throne node at the size it stands or the title asks. The training range and ring take the larger of the demand's stands and markers (`StationFacts.Demand`, the review's `RoomDemand`) and what the plan's range and ring stand at, and each graveyard beyond the outskirts' first is a node of its own (`GraveyardRoomNodes`). On the replay fixtures with every room built none of those is unmatched. The armory and wardrobe (`GearRoomNodes`) and the playroom, classroom, deathrest chamber, worship room, containment cell and isolation room (`ChildRoomNodes`, from `StationFacts.Child`, the review's `ChildRoomShapes`) are nodes while the demand or a need asks for them or the plan holds one, a standing one at no less than the floor it has. Storage and the core demand rooms (hospital, lab, rec, butchery, prison) are the station groups' own (stock, patients, orders, prisoners); the herd and yard are reservations laid over the tiled plan (`PlanHerdSites`, `PlanYardSites`), not rooms of the chain. Still unmatched are the outdoor rooms with no node (yard, pen) and any other room with no group of its role; the diff shows a room the tiler builds of its own as a rebuild (`tile_unpinned_built`) or a drop. Bedrooms and suites are nodes of the tiled replan too (#3004, J3): the sleepers' node, one node per suite wish (`StationFacts.Suites`, #2939), each standing bedroom or suite pinned as the block of its node. More colonists show as new bedrooms, a new wish as a new suite that takes a bed off the sleepers, fewer colonists as standing bedrooms with no node (`tile_no_node`, retirement-eligible unless pinned), and a raised suite target as a larger successor beside the standing room (`tile_successor`, the old room's `Replaces`) with the row's `short` cells: a group that outgrows its standing room (`GroupOutgrown`) is replaced, not resized, by the relocation pass (`embed_built_grown_by_replacement`; the lack of floor is a hard-tier fact, so like bad ground it waives the switching price), one rebuild at a time and never for a pinned room; a standing suite holds its door cells (`RoomGroup.Kept`, `StationNode.Kept`), so one as built is short of nothing. The tile pins only `policy.TilePinned` (rooms an open plan works on, superseded bedrooms a pawn still owns a bed in, rooms of an ended role in use, a rebuild's pair), not the old replan's `ReplanPins` (door links, bedroom wings, every furnished room). A pinned standing room that no group carries (a surplus bedroom still slept in, a role with no group left, an outdoor room) is held (#3019): `EmbedInput.Standing` makes it an obstacle no block or field overlaps and `Embedding.Held` returns it, `TileStations` tiles it as a stationless group at its own bounds so it stays a room of the tiled plan until it stops being pinned; no group the tiler cannot place is made (#3017): the clustering refuses a merge into a room no planned room carries (several beds read as a barracks) even under a pair rule, and the regrouping adds no such group; the old growth, `suites` argument, `EmptiedRetiringWings` and `LayoutOutgrown` stay until the flip (J4). The tile costs 0.3 to 2 s on a 3-colonist map and about 40 s at 100 colonists, so it runs off the review, one at a time.
+The replan is the tiled plan of the chain (`policy.ReplanLayout`, #3005, J4 of #2965; the diff rows are #3002). `policy.ReplanTileFacts` gives the tiler the review's facts (Built, Pinned, the plan's retired ground) over a fresh survey's zones with the core, as the derive lays them, and only the geothermal reservations; the chain places the power sites again, and the perimeter, herd and yard sites are laid over the tiled plan after it. `policy.DiffReplanTile` compares the tiled rooms with the plan the colony held and writes the `layout_replan_tiled` row. A standing room the embedding keeps is claimed through its block (`Built`); the rest are matched by role. The standing rooms with no node (`unmatched_built`) are what J2 (#3003) turns into nodes. A room node's room (`roomNodeRoles`: circulation, tomb, morgue, graveyard, waste yard, incinerator, the training range and ring, the shelter and the throne room) is a `BuiltRegion` matched to its group by planned role, outdoor or with no native role as it may be, so the embedding keeps it as the block of its node: a plan that holds a shelter keeps a shelter node until the review's `ShelterRetirable` (`StationFacts.RetireShelter`), and one that holds a throne room keeps a throne node at the size it stands or the title asks. The training range and ring take the larger of the demand's stands and markers (`StationFacts.Demand`, the review's `RoomDemand`) and what the plan's range and ring stand at, and each graveyard beyond the outskirts' first is a node of its own (`GraveyardRoomNodes`). On the replay fixtures with every room built none of those is unmatched. The armory and wardrobe (`GearRoomNodes`) and the playroom, classroom, deathrest chamber, worship room, containment cell and isolation room (`ChildRoomNodes`, from `StationFacts.Child`, the review's `ChildRoomShapes`) are nodes while the demand or a need asks for them or the plan holds one, a standing one at no less than the floor it has. Storage and the core demand rooms (hospital, lab, rec, butchery, prison) are the station groups' own (stock, patients, orders, prisoners); the herd and yard are reservations laid over the tiled plan (`PlanHerdSites`, `PlanYardSites`), not rooms of the chain. Still unmatched are the outdoor rooms with no node (yard, pen) and any other room with no group of its role; the diff shows a room the tiler builds of its own as a rebuild (`tile_unpinned_built`) or a drop. Bedrooms and suites are nodes of the tiled replan too (#3004, J3): the sleepers' node, one node per suite wish (`StationFacts.Suites`, #2939), each standing bedroom or suite pinned as the block of its node. More colonists show as new bedrooms, a new wish as a new suite that takes a bed off the sleepers, fewer colonists as standing bedrooms with no node (`tile_no_node`, retirement-eligible), and a raised suite target as the row's `short` cells (the embedding keeps a standing room where it stands and does not grow it). The tile pins only `policy.TilePinned` (rooms an open plan works on, superseded bedrooms a pawn still owns a bed in, rooms of an ended role in use, a rebuild's pair). A pinned standing room that no group carries (a surplus bedroom still slept in, a role with no group left, an outdoor room) is held (#3019): `EmbedInput.Standing` makes it an obstacle no block or field overlaps and `Embedding.Held` returns it, `TileStations` tiles it as a stationless group at its own bounds so it stays a room of the tiled plan until it stops being pinned; no group the tiler cannot place is made (#3017): the clustering refuses a merge into a room no planned room carries (several beds read as a barracks) even under a pair rule, and the regrouping adds no such group; the old replan (`ReplanPins`, the grow family, the `suites` argument, `EmptiedRetiringWings`, `LayoutOutgrown`) is deleted. The tile costs 0.3 to 2 s on a 3-colonist map and about 1.7 s at 100 colonists (#3009, #3010, #3012) and runs inside the review.
 
 #### Derive-time facts and the seed rooms (#2958)
 
@@ -415,58 +415,42 @@ The freezer and the butchery are matched to the group that became them
 (`matchedPlanned`: a cold storeroom group, a filth closet the game reads as a
 kitchen), not to the storage and kitchen groups.
 
-Successor rooms (`layout_succession.go`; storage and workshop #2863, kitchen,
-freezer, butchery, dining, recreation and bedroom wings #2864). Every role has
-the one outgrown test. `OutgrownSuccession` reads the advice at a layout review: an
-outgrown group of those roles whose shortfall (group area less the matched
-rooms' floor) holds the footprint plus one open cell of the smallest station
-in the group asks for a successor. It replaces the smallest matched room of
-those roles and is that room's floor plus the shortfall, in the group's
-embedded block shape (the block's depth cut to the floor needed) sited by
-`SiteRoom` with `Replaces` set. The group most short goes first and none starts
-while a predecessor is still in the plan, so one rebuild runs at a time. A
-replan sites the successor ahead of the re-siting (`growSuccessor`);
-`replanPins` pins both rooms; `retireSurplusRooms` drops the predecessor once
-the successor is in `Built`, and clearance takes its ground. A successor with
-no embedded block, or no free core slot, is not built: `successor_unsited`.
-`StorageRoomsOwed` and the storage department's further-warehouse demand count
-a `Replaces` chain as one room, so no twin is added. Stock drains from the old
-zone as vanilla re-hauls it; bills and packed furniture are #2881.
+Successor rooms (`layout_succession.go`; #2863, #2864, #3005). A built room the
+embedder moves or outgrows is not resized in place: the tiled plan holds a room
+that `Replaces` it (`EmbeddedBlock.Replaces`), the old room stays pinned
+(`successorPinned`) and in use until the successor stands, and then the old room
+is one the new embedding has no node for (`BuiltRegions` leaves out a room whose
+successor stands), so the replan drops it and clearance takes its ground. The
+embedder prices the move (`layout_built.go`, `switchThreshold`, #2877) and starts
+one rebuild at a time. A predecessor in a rebuild in flight is held by
+`ReplanLayout` (`keepHeld`) even when its successor stands, so a slept or used
+room is never demolished. A bedroom the successor replaces stays while a pawn
+owns a bed in it (`SleptBedrooms`) and its sleepers move one pawn a step, each
+straight to a vacant bed (`NextMigrateStep`); a suite's owner moves into the
+larger suite, never into an ordinary bedroom. A `Replaces` chain counts as one
+room (`RoomChains`). Stock drains from the old zone as vanilla re-hauls it; bills
+and packed furniture are #2881.
 
-A successor of a room with a Link door (the freezer's to the kitchen, dining's
-to the freezer, the butchery's) is sited only where it has one: beside the
-neighbour, else on its back wall, and the neighbour a successor of its own
-replaces is passed over for that successor. The Link doors of other rooms into
-the room that leaves are not moved; they open on cleared ground once clearance
-takes it. A bedroom is replaced by wing: the wing holding the outgrown bedroom
-turns `WingBedroomsRetiring`, the next wing is sited at the successor's room
-size (`Successor.WingSize`, never below the tier's), and sleepers move one pawn
-a step straight to a vacant bed in the new wing (`NextMigrateStep`). The old
-wing keeps every bed until no pawn owns one in it (`EmptiedRetiringWings`), so
-no night is spent unbedded. No second bedroom rebuild starts while a wing
-retires.
-
-In-place reshape and moving built rooms (#2865; `layout_reshape.go`,
-`layout_switch.go`). `ReshapeRoom` gives a room a new rectangle region and keeps
-its id, doors and links: it adds or removes columns, moves a wall, and shrinks
-by the same operation (`DiffRegions` is the added/removed floor and walls). It
-refuses a shape whose doors would leave the walls, that takes ground another
-room, a hallway, a reservation or an occupied cell holds, or that is not
-core ground. The ground the old shape held and the new one does not (old walls
-now inside the room, floor now outside, walls beyond the new ring) goes to
-`RetiredGround`; `RetiredGroundOf` keeps only a kept room's wall ring, so an
-old wall inside a reshaped room comes down. The outgrown trigger tries this
-first (`reshapeOutgrown`: a built room, the side that takes the columns with the
-fewest cells over, east/west/south/north) and falls back to the successor. Two more triggers
-site a successor for a built storage or workshop room (`relocateBuilt`, run after
-the outgrown trigger): *bad ground*, the room stands on rich soil the fresh
-survey shows and a free slot has less (the hard tier decides, no score bar), and
-*score gain*, the plan with the room moved scores better by
-`switchThreshold`: `ReplanGain` plus `BuiltSwitch` plus `BuiltSwitchCell` per
-floor cell (`planWeights`), so a replan does not flip-flop. One rebuild at a
-time: nothing reshapes, relocates or sites a successor while a successor is
-pending or another planned room has something of ours on it without standing as
-planned (`rebuildInFlight`).
+The replan (`policy.ReplanLayout`, #3005, J4 of #2965) is the tiled plan of this
+chain, wholesale, over the plan the colony holds. `reviewLayoutPlan` replans
+every hour the survey, the chain's facts or the tier changed. `ReplanTileFacts`
+gives the tiler the fresh survey's zones as the derive lays them, with the
+saved plan's `Built` rooms and `TilePinned` (the rooms an open journal plan works
+on, the superseded bedrooms a pawn still owns a bed in, the rooms of an ended
+role in use, a rebuild's pair; every room while the census is unread). A standing
+room with no node in the new embedding leaves the plan and its walled footprint
+goes to `RetiredGround` for planned-ground clearance (`retiredGround`); a held
+room with no node stays (`keepHeld`). The rooms the tiler does not plan are laid
+over its plan as `DeriveLayoutPlan` lays them: the barns, pens and yards of the
+saved plan that clear the new rooms stay and the herd's and the yard's shortfall
+is sited (`PlanHerdSites`, `PlanPenSites`, `PlanYardSites`), then the perimeter is
+traced around what the defense record holds of it (`LayPerimeter`). The unbuilt
+rooms of a seed-only plan re-tile at the first review with every fact read. A
+chain or tiler that cannot plan (`ErrStationFacts`, `ErrTile*`,
+`ErrReplanEmpty`) keeps the plan the colony has; the `layout_replan_tiled` row
+says why and the next trigger tries again. There is no in-place reshape and no
+relocation trigger of their own: the embedder's switching price decides what
+moves.
 
 ## Electrical safety
 
@@ -532,7 +516,7 @@ capacity beyond the casket allows.
 
 1. The layout review grows a `nursery`, `playroom` or `classroom` core room
    sized to hold the furniture (`policy.ChildRoomSizes`,
-   `policy.ReplanLayoutWithRooms`); existing rooms never move or shrink.
+   `policy.ReplanLayout`); a standing room moves only at the embedder's switching price.
 2. `NextChildRoomStep` owes the room a reconcile (`ChildRoomReconcile`)
    whenever its ring or doors differ from the plan or a piece is missing. The
    step carries the template: each role's standing pieces wanted where they
@@ -765,7 +749,7 @@ title the colony works toward) tightens all of them together. The sleeping
 planner raises it under MaintainHousing, like the tomb:
 
 1. The layout review grows a `throne` core room of at least
-   `MinArea` cells (`policy.ReplanLayoutWithRooms`); existing
+   `MinArea` cells (`policy.ReplanLayout`); existing
    rooms never move, so a title that outgrows the room adds a larger one.
 2. `NextThroneStep` owes the room a reconcile (`ThroneReconcile`) whenever
    its ring or doors differ from the plan, a template piece is missing or a
@@ -961,9 +945,8 @@ template and the foreign things on the interior. Its blocked footprint
 (`roomWalls`) is the interior with a one-cell margin; no ground behind the dummies
 is kept free, since the drill's shots never hit a pawn (#2938). It is demand-grown,
 like a further graveyard: `RoomDemand.Ranges` (the stand count, merged by the
-store department; `StoreView.TrainingStands`) makes `growRanges` site it through
-`outskirtsCandidatesAt` with `rangeGap` (2) instead of `outskirtsGap`, on the
-nearest site to the core. A site on a side of the core faces away from it; when
+store department; `StoreView.TrainingStands`) sizes its room node (`TrainingRoomNodes`) and the
+tiler places it on free ground. A site on a side of the core faces away from it; when
 the sites on the dummy axis are taken (map edge, cliff, water), a site beside the
 core faces along its rows toward the end farther from the core, and none faces
 the core. A standing range only grows: a larger demand widens it along its rows

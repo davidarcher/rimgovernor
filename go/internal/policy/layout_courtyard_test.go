@@ -174,7 +174,7 @@ func TestCourtyardHundredColonistsCappedAndReachable(t *testing.T) {
 	if homes > 10 || suites > 6 || homes == 0 {
 		t.Fatal("wings", homes, "suite blocks", suites)
 	}
-	if plan.LayoutOutgrown(100) {
+	if bedroomCount(plan) < 100 {
 		t.Fatal("outgrown")
 	}
 }

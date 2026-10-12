@@ -4,8 +4,8 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // The training range and the sparring ring as station-less room nodes of the
 // station graph (#2887). Both are already planned rooms sited by
-// growRanges/growRings; the nodes are the station planner's input for the same
-// rooms, and the old planner stays authoritative. Both are unfenced open-air
+// the tiler; the nodes are the station planner's input for the same
+// rooms. Both are unfenced open-air
 // rooms with a fixed floor that rangeBlock/ringBlock keep unchanged, so the
 // node asks the exact floor (stands by RangeDistance+1 cells; RingSide
 // squared) and linkRooms adds no door threshold to it (exactFloor). No distance band sits

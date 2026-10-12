@@ -125,27 +125,3 @@ func InFlightRooms(plan LayoutPlan, origins map[domain.Cell]bool) map[int32]bool
 	}
 	return out
 }
-
-// retireShelter drops the shelter rooms with no open plan working on them
-// once growth says the shelter is retirable.
-func retireShelter(plan LayoutPlan, growth RoomGrowth) (LayoutPlan, bool) {
-	if !growth.RetireShelter {
-		return plan, false
-	}
-	drop := map[int32]bool{}
-	var ground []Region
-	for _, r := range plan.roomsOf(PlannedShelter) {
-		if !growth.InFlight[r.ID] {
-			drop[r.ID] = true
-			ground = append(ground, RectRegion(roomGround(r.Region.Bounds())))
-			for _, c := range plan.ChildrenOf(r.ID) {
-				ground = append(ground, RectRegion(c.attachedGround()))
-			}
-		}
-	}
-	next, dropped := dropRooms(plan, drop)
-	if dropped {
-		next.RetiredGround = append(slices.Clone(plan.RetiredGround), ground...)
-	}
-	return next, dropped
-}

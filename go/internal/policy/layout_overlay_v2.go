@@ -2,6 +2,7 @@ package policy
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -273,4 +274,8 @@ func SplitFields(o LayoutOverlay) (rest, fields LayoutOverlay) {
 		}
 	}
 	return rest, fields
+}
+
+func unionRegions(a, b Region) Region {
+	return RegionOfRuns(append(slices.Clone(a.Runs), b.Runs...))
 }

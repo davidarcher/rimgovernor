@@ -279,36 +279,6 @@ func TestThroneTemplateFurnishesAroundTheThrone(t *testing.T) {
 	}
 }
 
-func TestGrowThroneRoomAddsOneAndKeepsTheRest(t *testing.T) {
-	base := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, TechTierCamp)
-	have := len(base.Rooms)
-	grown, added, _ := growThroneRoom(base, 30, nil)
-	if !added || len(grown.Rooms) != have+1 {
-		t.Fatalf("added=%v rooms %d -> %d", added, have, len(grown.Rooms))
-	}
-	for i := range base.Rooms {
-		if !grown.Rooms[i].Same(base.Rooms[i]) {
-			t.Fatalf("room %d moved", i)
-		}
-	}
-	room, ok := grown.ThroneRoomFor(30)
-	if !ok || room.Region.Bounds().Width*room.Region.Bounds().Height < 30 {
-		t.Fatalf("no throne room of 30 cells: %+v", room)
-	}
-	if _, err := CheckRoutes(grown); err != nil {
-		t.Fatal(err)
-	}
-	if again, added, _ := growThroneRoom(grown, 30, nil); added || len(again.Rooms) != len(grown.Rooms) {
-		t.Fatal("a second room for the same area")
-	}
-	if bigger, added, _ := growThroneRoom(grown, 48, nil); !added || len(bigger.Rooms) != len(grown.Rooms)+1 {
-		t.Fatal("a title that outgrows the room adds a larger one")
-	}
-	if _, added, _ := growThroneRoom(grown, 0, nil); added {
-		t.Fatal("no area asked")
-	}
-}
-
 func TestThroneRoomRoleTables(t *testing.T) {
 	if role, ok := PlannedRoleFor(RoomRoleThroneRoom); !ok || role != PlannedThrone {
 		t.Fatal("the ThroneRoom role has no layout module")

@@ -16,12 +16,12 @@ import (
 )
 
 // stationAdvice runs the station chain over the live colony at a layout
-// review and returns its advice, which the review reads for a successor room
-// (policy.OutgrownSuccession). The chain is skipped, and the last advice kept,
-// while its inputs are unchanged: the facts' key (StationFacts.InputsKey) and
-// the survey, as for the replan. A run records one layout_stations decision.
-// The advice is false when the chain failed or a fact is unread.
-func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, plan policy.LayoutPlan, pinned map[int32]bool, growth policy.RoomGrowth, demand policy.RoomDemand, survey policy.MapSurvey, catalog *bridge.DefinitionCatalog) (policy.StationAdvice, bool) {
+// review and keeps its advice (stationLast, held when the chain made one) and
+// the facts it read (stationFacts), which the replan tiles (policy.ReplanLayout).
+// The chain is skipped, and the last advice kept, while its inputs are
+// unchanged: the facts' key (StationFacts.InputsKey) and the survey, as for the
+// replan. A run records one layout_stations decision.
+func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, plan policy.LayoutPlan, pinned map[int32]bool, growth policy.RoomGrowth, demand policy.RoomDemand, survey policy.MapSurvey, catalog *bridge.DefinitionCatalog) {
 	f := stationFactsOf(projection, plan, survey, r.demand.get(snapshot).Needs, r.WorkLedgerView())
 	f.Pinned, f.ThroneArea, f.RetireShelter = pinned, domain.Known(growth.ThroneArea), growth.RetireShelter
 	f.Demand = demand
@@ -30,7 +30,7 @@ func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationS
 	f.Suites = suiteWishes(projection, plan, r.stage)
 	inputs := layoutInputs{key: fmt.Sprint(snapshot.Load, "|", f.InputsKey()), bounds: survey.Bounds, cells: survey.Cells}
 	if inputs.same(r.stationInputs) {
-		return r.stationLast, r.stationHeld
+		return
 	}
 	start := time.Now()
 	facts, err := stationFacts(catalog, f)
@@ -41,61 +41,6 @@ func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationS
 		telemetry.Decide(ctx, regroupDecision(d))
 	}
 	r.stationInputs, r.stationLast, r.stationHeld, r.stationFacts = inputs, advice, ok, facts
-	return advice, ok
-}
-
-// tiledReplan runs the tiler beside the replan over the facts of the review's
-// station chain (Built, Pinned and the saved plan's retired ground) and records
-// the layout_replan_tiled row: the tiled plan against next, the plan the old
-// replan produced. Telemetry only; the old plan stays the output. The tile
-// costs seconds (a hundred colonists: tens of seconds), so it runs off the
-// review, one at a time; a replan that finds one running records it skipped.
-// The tile pins only what the review's growth holds (policy.TilePinned), not
-// the old replan's pins the chain's own advice was made with.
-func (r *Rounder) tiledReplan(ctx context.Context, next policy.LayoutPlan, growth policy.RoomGrowth, survey policy.MapSurvey, geysers []policy.PowerGeyser) {
-	facts, held := r.stationFacts, r.stationHeld
-	facts.Pinned = policy.TilePinned(facts.Plan, growth)
-	if held && !r.tiledRunning.CompareAndSwap(false, true) {
-		telemetry.Decide(ctx, telemetry.Decision{Kind: "layout_replan_tiled", Component: "layout", Target: "plan", Verdict: "skipped", Reason: "tile_in_flight"})
-		return
-	}
-	if !held {
-		telemetry.Decide(ctx, tiledReplanDecision(facts, held, next, survey, geysers))
-		return
-	}
-	ctx = context.WithoutCancel(ctx)
-	go func() {
-		defer r.tiledRunning.Store(false)
-		telemetry.Decide(ctx, tiledReplanDecision(facts, held, next, survey, geysers))
-	}()
-}
-
-// tiledReplanDecision is the layout_replan_tiled row of facts (held, or not when
-// the station chain made no advice at this review) tiled over survey and compared
-// with next: skipped while no advice is held or a fact is unread, failed on a
-// chain or tiler error, else compared, with the room counts, the per-room diff
-// and the standing rooms with no node. dur_ms is the whole run, the chain
-// included.
-func tiledReplanDecision(facts policy.StationFacts, held bool, next policy.LayoutPlan, survey policy.MapSurvey, geysers []policy.PowerGeyser) telemetry.Decision {
-	decision := telemetry.Decision{Kind: "layout_replan_tiled", Component: "layout", Target: "plan"}
-	if !held {
-		decision.Verdict, decision.Reason = "skipped", "station_advice_unavailable"
-		return decision
-	}
-	start := time.Now()
-	advice, err := policy.TileStations(policy.ReplanTileFacts(facts, survey, geysers))
-	decision.Dur = time.Since(start)
-	switch {
-	case errors.Is(err, policy.ErrStationFacts):
-		decision.Verdict, decision.Reason, decision.Attrs = "skipped", "facts_unknown", map[string]any{"fact": err.Error()}
-		return decision
-	case err != nil:
-		decision.Level, decision.Verdict, decision.Reason, decision.Attrs = slog.LevelWarn, "failed", "tile_error", map[string]any{"error": err}
-		return decision
-	}
-	decision.Verdict, decision.Reason = "compared", "tiled_beside_replan"
-	decision.Attrs = tiledReplanAttrs(policy.DiffReplanTile(next, facts.Built, advice), len(facts.Built), len(advice.Tiled.Plan.AllRooms()))
-	return decision
 }
 
 // tiledReplanAttrs is the layout_replan_tiled row's attrs: the diff's counts per
@@ -199,15 +144,6 @@ func fieldCrops(projection observation.ColonyProjection) []policy.CropChoice {
 		return []policy.CropChoice{crop}
 	}
 	return nil
-}
-
-// fieldBlocks are the interiors of the fields the advice placed.
-func fieldBlocks(a policy.StationAdvice) []policy.Rectangle {
-	out := make([]policy.Rectangle, 0, len(a.Embedding.Fields))
-	for _, f := range a.Embedding.Fields {
-		out = append(out, f.Interior)
-	}
-	return out
 }
 
 // stationFactsOf is every station fact the projection, the resource demand and

@@ -66,7 +66,7 @@ func siteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier TechTier, sea
 		}
 		var ok []siteScore
 		for _, sc := range ls {
-			if sc.score.Passes() && !sc.plan.LayoutOutgrown(pawns) {
+			if sc.score.Passes() && bedroomCount(sc.plan) >= pawns {
 				ok = append(ok, sc)
 			}
 		}

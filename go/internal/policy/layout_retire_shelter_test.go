@@ -1,18 +1,16 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// shelterRetireFixture is a derived plan with every planned room standing
-// and each colonist owning a bed in a bedroom: the shelter is retirable until
-// a test breaks one condition.
+// shelterRetireFixture is a plan with every planned room standing and each
+// colonist owning a bed in a bedroom: the shelter is retirable until a test
+// breaks one condition.
 type shelterRetireFixture struct {
 	plan     LayoutPlan
-	survey   MapSurvey
 	rooms    RoomObservation
 	sleeping SleepingObservation
 	shelter  PlannedRoom
@@ -20,43 +18,24 @@ type shelterRetireFixture struct {
 
 func newShelterRetireFixture(t *testing.T) shelterRetireFixture {
 	t.Helper()
-	slowtest.Skip(t, "full layout derive and replan on a 200-cell map; runs under cmd/test -full and nightly")
-	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	plan, ok := oldDerive(s, 2, TechTierCamp, nil, 30).Value()
-	if !ok {
-		t.Fatal("no plan")
+	at := func(id int32, role PlannedRole, x int32) PlannedRoom {
+		return PlannedRoom{ID: id, Role: role, Region: RectRegion(Rectangle{X: x, Z: 0, Width: 5, Height: 4}), DoorRot: domain.North}
 	}
-	// The laboratory is demand-grown: a replan asked for it sites it.
-	plan, _, _ = ReplanLayoutWithRooms(plan, s, RoomGrowth{Core: []PlannedRole{PlannedLab}}, 0, 2, 0, TechTierCamp, nil, nil)
-	f := shelterRetireFixture{plan: plan, survey: s}
-	if shelters := plan.roomsOf(PlannedShelter); len(shelters) == 1 {
-		f.shelter = shelters[0]
-	} else {
-		t.Fatal("shelters", len(shelters))
-	}
-	for _, role := range []PlannedRole{PlannedWorkshop, PlannedLab} {
-		if len(plan.roomsOf(role)) == 0 {
-			t.Skip("plan has no", role)
-		}
-	}
+	plan := LayoutPlan{Rooms: []PlannedRoom{
+		at(1, PlannedShelter, 0), at(2, PlannedWorkshop, 10), at(3, PlannedLab, 20),
+		at(4, PlannedBedroom, 30), at(5, PlannedBedroom, 40),
+	}}
+	f := shelterRetireFixture{plan: plan, shelter: plan.Rooms[0]}
 	standing := func(id string, r PlannedRoom, role RoomRole, beds ...string) Room {
-		var cells []domain.Cell
-		cells = append(cells, rectCells(r.Region.Bounds())...)
-		return Room{ID: id, Role: domain.Known(role), Enclosed: domain.Known(true), Cells: cells, Beds: beds}
+		return Room{ID: id, Role: domain.Known(role), Enclosed: domain.Known(true), Cells: rectCells(r.Region.Bounds()), Beds: beds}
 	}
-	f.rooms.Rooms = append(f.rooms.Rooms, standing("shelter", f.shelter, RoomRoleBedroom, "spot1", "spot2"))
-	for i, role := range []PlannedRole{PlannedWorkshop, PlannedLab} {
-		for j, r := range plan.roomsOf(role) {
-			f.rooms.Rooms = append(f.rooms.Rooms, standing(string(role)+string(rune('a'+i*4+j)), r, RoomRoleWorkshop))
-		}
+	f.rooms.Rooms = []Room{
+		standing("shelter", plan.Rooms[0], RoomRoleBedroom, "spot1", "spot2"),
+		standing("workshop", plan.Rooms[1], RoomRoleWorkshop),
+		standing("lab", plan.Rooms[2], RoomRoleWorkshop),
+		standing("bedroom1", plan.Rooms[3], RoomRoleBedroom, "bed1"),
+		standing("bedroom2", plan.Rooms[4], RoomRoleBedroom, "bed2"),
 	}
-	bedrooms := plan.roomsOf(PlannedBedroom)
-	if len(bedrooms) < 2 {
-		t.Skip("plan has too few bedrooms")
-	}
-	f.rooms.Rooms = append(f.rooms.Rooms,
-		standing("bedroom1", bedrooms[0], RoomRoleBedroom, "bed1"),
-		standing("bedroom2", bedrooms[1], RoomRoleBedroom, "bed2"))
 	f.sleeping = SleepingObservation{Colonists: 2, People: []SleepingPerson{
 		{ID: "a", OwnedBed: domain.Known("bed1")},
 		{ID: "b", OwnedBed: domain.Known("bed2")},
@@ -64,35 +43,13 @@ func newShelterRetireFixture(t *testing.T) shelterRetireFixture {
 	return f
 }
 
-func (f shelterRetireFixture) replan(t *testing.T, retire bool, inFlight map[int32]bool) (LayoutPlan, bool) {
-	t.Helper()
-	growth := RoomGrowth{RetireShelter: retire, InFlight: inFlight}
-	next, changed, _ := ReplanLayoutWithRooms(f.plan, f.survey, growth, 0, 2, 0, TechTierCamp, nil, nil)
-	return next, changed
-}
-
-// The shelter retires through the real replan only when every colonist owns
-// a bed in a built bedroom and the workshop and laboratory stand.
-func TestShelterRetiresWhenBedroomsWorkshopAndLabStand(t *testing.T) {
+// The shelter is retirable only when every colonist owns a bed in a built
+// bedroom and the workshop and laboratory stand.
+func TestShelterRetirementGates(t *testing.T) {
 	f := newShelterRetireFixture(t)
 	if !ShelterRetirable(f.plan, f.rooms, f.sleeping, nil) {
 		t.Fatal("a housed colony with workshop and lab standing is not retirable")
 	}
-	next, changed := f.replan(t, true, nil)
-	if !changed || len(next.roomsOf(PlannedShelter)) != 0 {
-		t.Fatalf("changed=%v shelters=%d", changed, len(next.roomsOf(PlannedShelter)))
-	}
-	if len(next.roomsOf(PlannedWorkshop)) == 0 || len(next.roomsOf(PlannedLab)) == 0 || len(next.roomsOf(PlannedBedroom)) < 2 {
-		t.Fatal("retirement dropped a room it should keep")
-	}
-	// The gate was not met: the replan leaves the shelter alone.
-	if kept, _ := f.replan(t, false, nil); len(kept.roomsOf(PlannedShelter)) != 1 {
-		t.Fatal("the shelter left the plan without retirement")
-	}
-}
-
-func TestShelterRetirementGates(t *testing.T) {
-	f := newShelterRetireFixture(t)
 	t.Run("joiner without a bed", func(t *testing.T) {
 		s := f.sleeping
 		s.Colonists = 3
@@ -130,12 +87,6 @@ func TestShelterRetirementGates(t *testing.T) {
 					t.Fatalf("retirable with a %s not standing", role)
 				}
 			}
-		}
-	})
-	t.Run("work in flight", func(t *testing.T) {
-		next, changed := f.replan(t, true, map[int32]bool{f.shelter.ID: true})
-		if len(next.roomsOf(PlannedShelter)) != 1 {
-			t.Fatalf("a shelter with open work was dropped (changed=%v)", changed)
 		}
 	})
 }
@@ -204,20 +155,21 @@ func TestInFlightRoomsKeysByInteriorOrigin(t *testing.T) {
 	}
 }
 
-// The retired shelter's footprint is recorded by the real replan and survives
-// the next one; clearance then takes the furniture, the walls and the floor
-// down, and the entry is dropped once the
+// A standing room the next plan no longer holds has its ground recorded
+// (retiredGround) and kept by a later replan; clearance then takes the
+// furniture, the walls and the floor down, and the entry is dropped once the
 // ground is clear.
 func TestRetiredShelterGroundIsDemolishedThenDropped(t *testing.T) {
 	f := newShelterRetireFixture(t)
-	next, _ := f.replan(t, true, nil)
+	kept := LayoutPlan{Rooms: f.plan.Rooms[1:]}
+	next := kept
+	next.RetiredGround = retiredGround(f.plan, kept, map[int32]bool{f.shelter.ID: true})
 	ground := roomGround(f.shelter.Region.Bounds())
-	if len(next.RetiredGround) != 1 || !next.RetiredGround[0].Equal(RectRegion(ground)) || !next.Valid() {
+	if len(next.RetiredGround) != 1 || !next.RetiredGround[0].Equal(RectRegion(ground)) {
 		t.Fatalf("retired ground %v, want %v", next.RetiredGround, ground)
 	}
-	again, _, _ := ReplanLayoutWithRooms(next, f.survey, RoomGrowth{}, 0, 2, 0, TechTierCamp, nil, nil)
-	if len(again.RetiredGround) != 1 {
-		t.Fatalf("a later replan lost the entry: %v", again.RetiredGround)
+	if again := retiredGround(next, kept, nil); len(again) != 1 {
+		t.Fatalf("a later replan lost the entry: %v", again)
 	}
 	in := f.shelter.Region.Bounds()
 	spot := playerRow("spot", "SleepingSpot", "other", domain.Cell{X: in.X, Z: in.Z}, domain.Cell{X: in.X, Z: in.Z + 1}, false)

@@ -28,22 +28,6 @@ func fieldReplanFacts() StationFacts {
 	return f
 }
 
-// advisedFields is the field blocks the station chain places for a food
-// reserve of reserve days (the demand), as a review's growth carries them.
-func advisedFields(t *testing.T, f StationFacts, reserve float64) []Rectangle {
-	t.Helper()
-	f.FoodReserveDays = reserve
-	advice, err := AdviseStations(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var out []Rectangle
-	for _, e := range advice.Embedding.Fields {
-		out = append(out, e.Interior)
-	}
-	return out
-}
-
 // A replan takes its field zones from the station advice, not the survey's
 // whole-map patch, and the zone follows FieldCapacityTarget when the demand
 // changes (#2961).
@@ -57,8 +41,12 @@ func TestReplanFieldZoneTracksFieldCapacityTarget(t *testing.T) {
 		if !ok {
 			t.Fatal("no capacity target")
 		}
-		growth := RoomGrowth{Fields: advisedFields(t, f, reserve)}
-		next, changed, _ := ReplanLayoutWithRooms(plan, survey, growth, 0, 4, 0, TechTierCamp, nil, nil)
+		f.Plan, f.FoodReserveDays = plan, reserve
+		next, _, err := ReplanLayout(plan, f, survey, nil, RoomGrowth{}, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		changed := !SamePlan(plan, next)
 		got := fieldZoneCells(next.Zones)
 		if got < target || got > target+target/10 || got >= patch {
 			t.Errorf("reserve %v days: field zone %d cells, target %d, survey patch %d", reserve, got, target, patch)
@@ -67,19 +55,6 @@ func TestReplanFieldZoneTracksFieldCapacityTarget(t *testing.T) {
 			t.Errorf("reserve %v days: field zone %d (was %d) changed=%t, want it grown and recorded", reserve, got, prev, changed)
 		}
 		prev, plan = got, next
-	}
-}
-
-// A replan without the advice keeps the plan's own field zones, and never
-// restores the survey's whole-map patch.
-func TestReplanWithoutAdviceKeepsFieldZones(t *testing.T) {
-	f := fieldReplanFacts()
-	growth := RoomGrowth{Fields: advisedFields(t, f, DefaultFoodReserveDays)}
-	plan, _, _ := ReplanLayoutWithRooms(f.Plan, f.Survey, growth, 0, 4, 0, TechTierCamp, nil, nil)
-	want := fieldZoneCells(plan.Zones)
-	next, _, _ := ReplanLayoutWithRooms(plan, f.Survey, RoomGrowth{}, 0, 4, 0, TechTierCamp, nil, nil)
-	if got := fieldZoneCells(next.Zones); got != want || want == 0 {
-		t.Errorf("unadvised replan: field zone %d cells, want the plan's %d", got, want)
 	}
 }
 

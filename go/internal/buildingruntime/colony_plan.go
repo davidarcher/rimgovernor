@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -71,16 +72,18 @@ func (r *Rounder) layoutSurvey(ctx context.Context, snapshot domain.GenerationSn
 
 // reviewLayoutPlan serves the saved v2 layout plan on the
 // projection. It derives one at once when none is saved (then at most
-// once an hour) and re-reads the survey every hour, growing the
-// plan when a pawn, tier, research, need or the terrain changed since the
-// last replan. The replan is incremental: built rooms never move.
+// once an hour) and re-reads the survey every hour, replanning when a pawn,
+// tier, research, need or the terrain changed since the last replan. The
+// replan is the station chain's tiled plan (policy.ReplanLayout): the chain
+// keeps the rooms that stand, the rooms a journal plan works on or a pawn
+// sleeps in and the rooms it has a node for, and sites the rest again.
 func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) error {
 	tick := projection.Identity.Tick
 	layout, haveLayout, err := r.layoutPlan(ctx, snapshot, tick)
 	if err != nil {
 		return err
 	}
-	pawns, known := projection.Facts.Colonists.Value()
+	pawns, _ := projection.Facts.Colonists.Value()
 	// The last check is the newer of the saved plan's tick and the last
 	// survey this process read; a rewind past it or a restart falls back
 	// to the plan's tick.
@@ -88,111 +91,16 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	if r.planChecked > checked && r.planChecked <= tick {
 		checked = r.planChecked
 	}
-	outgrown := known && haveLayout && layout.Plan.LayoutOutgrown(int(pawns)) && tick-layout.Tick >= layoutReplanEvery
 	hourly := !r.planSurveyed || tick-checked >= layoutReplanEvery
 	missing := !haveLayout && hourly
+	// Every hour a review re-reads the survey and replans when its inputs
+	// (the chain's facts, the survey) changed: a need, a pawn or a room that
+	// stands is among them, so no trigger of its own is needed.
 	terrain := haveLayout && tick-checked >= layoutTerrainCheckEvery
-	// The barn follows the herd plan's target herd.
-	animals := projection.Facts.PenAnimals()
 	// New research or a new tier: other research unlocks rooms too.
 	grown := grownFor(*projection)
 	research := haveLayout && grown != r.planGrownFor && hourly
-	// Every tomb full: grow one more, at most once an hour.
-	tombs := 0
-	tomb := haveLayout && tombsFull(layout.Plan, *projection)
-	if tomb {
-		tombs = layout.Plan.TombRooms() + 1
-	}
-	tomb = tomb && hourly
-	// A pawn owed a suite no planned suite answers is planned a new
-	// suite block, sized at siting; suites already planned never
-	// change. No trigger of its own: the hourly terrain check re-reads the
-	// survey and the suites are in the replan's inputs key, so a new claim
-	// is planned within the hour.
-	var suites []float64
-	if haveLayout {
-		var claims []policy.SuiteClaim
-		suites, claims = suiteTargets(*projection, layout.Plan, r.stage)
-		r.logSuiteClaims(ctx, claims)
-	}
-	suite := haveLayout && len(suites) > layout.Plan.SuiteRooms()
-	// A colonist who holds or can claim a title that asks for a throne room
-	// the plan lacks: grow one sized to the title's area.
-	var growth policy.RoomGrowth
-	growth.HerdUnits = projection.Facts.HerdUnits()
-	growth.Pens = projection.Facts.PenWants()
-	if need, owed := throneNeed(*projection); haveLayout {
-		growth.ThroneArea = policy.ThroneAreaOwed(layout.Plan, need, owed)
-		if owed {
-			growth.ThroneMin = need.MinArea
-		}
-	}
-	demand := r.stockpiles.layoutDemand(stockpileWorld(snapshot))
-	throne := growth.ThroneArea > 0 && hourly
-	// A baby, toddler or child owed a nursery, playroom or classroom the
-	// plan lacks: grow it, sized to its furniture.
-	if haveLayout {
-		needs, defs := childRoomNeeds(*projection), furnitureDefinitions(*projection)
-		growth.Child = policy.ChildRoomsOwed(layout.Plan, needs, defs)
-		if ground, known := colonyGround(*projection); known && (policy.DuplicateRooms(layout.Plan) > 0 || policy.SurplusRoomsPossible(layout.Plan, growth.ThroneMin, demand) || policy.SuccessorPending(layout.Plan)) {
-			growth.Shapes, growth.Built = policy.ChildRoomShapes(needs, defs), policy.BuiltRooms(layout.Plan, ground)
-		}
-	}
-	// An unbuilt room whose need has ended leaves the plan.
-	if haveLayout {
-		construction, ck := projection.Facts.CurrentConstruction.Value()
-		if ck && construction.Colony {
-			ended := policy.EndedRoomRoles(projection.WorkPawns, projection.Facts.Ideology, projection.Facts.Containment, projection.Isolation, childRoomNeeds(*projection))
-			if policy.RoomsOfRoles(layout.Plan, ended) > 0 {
-				growth.Ended = ended
-				growth.InUse = policy.RoomsInUse(layout.Plan, construction.Buildings, furnitureDefinitions(*projection))
-			}
-		}
-	}
-	children := (len(growth.Child) > 0 || growth.Built != nil || growth.InUse != nil) && hourly
-	// Bedrooms, workshop and laboratory stand and every colonist is housed:
-	// the shelter leaves the plan. Re-read every review, no latch.
-	if haveLayout {
-		census, rk := projection.Rooms.Value()
-		sleeping, sk := projection.Facts.Sleeping.Value()
-		construction, ck := projection.Facts.CurrentConstruction.Value()
-		growth.RetireShelter = rk && sk && ck && construction.Colony && policy.ShelterRetirable(layout.Plan, census, sleeping, construction.Buildings)
-	}
-	retireShelter := growth.RetireShelter && hourly
-	// Stored gear outgrew its zone: the storage planner's demand adds
-	// the armory or wardrobe the plan lacks, at most once an hour.
-	if haveLayout && (len(policy.GearRoomsOwed(layout.Plan, demand)) > 0 || policy.StorageRoomsOwed(layout.Plan, demand) > 0 || policy.YardRoomsOwed(layout.Plan, demand) > 0 || policy.GraveyardsOwed(layout.Plan, demand) > 0 || policy.RangesOwed(layout.Plan, demand) > 0 || policy.SurplusRoomsPossible(layout.Plan, growth.ThroneMin, demand)) {
-		growth.Demand = demand
-	}
-	gear := growth.Demand != (policy.RoomDemand{}) && hourly
-	// A need for a room the plan starts without (hospital, lab, rec, butchery,
-	// prison, battery) plans it, at most once an hour.
-	if haveLayout {
-		wanted, full := coreRoomsWanted(*projection)
-		growth.Core = policy.CoreRoomsOwed(layout.Plan, wanted, full...)
-	}
-	core := len(growth.Core) > 0 && hourly
-	// The outskirts cluster holds the tomb, morgue, waste yard and incinerator from the start; a
-	// plan that predates it is grown one, at most once an hour.
-	if haveLayout && policy.OutskirtsOwed(layout.Plan) {
-		growth.Outskirts = policy.OutskirtsSize()
-	}
-	outskirts := growth.Outskirts != [2]int32{} && hourly
-	// The materials yard is planned from the start; a plan that predates
-	// it, or a full yard (RoomDemand.Yard), is grown one.
-	yard := haveLayout && policy.YardRoomsOwed(layout.Plan, demand) > 0 && hourly
-	// A herd whose grazing outgrew its pens (or has none) is planned the pen it
-	// lacks beside its barn, at most once an hour.
-	pens := haveLayout && policy.PensOwed(layout.Plan, growth.Pens) > 0 && hourly
-	// A ring replaced beside the old one leaves its retired nodes in the plan
-	// until the defense record no longer names them; a replan drops them.
-	if haveLayout && policy.PerimeterRetirable(layout.Plan, nil) {
-		if growth.Perimeter, err = r.perimeterHold(ctx, snapshot); err != nil {
-			return err
-		}
-	}
-	perimeter := haveLayout && policy.PerimeterRetirable(layout.Plan, growth.Perimeter.Held) && hourly
-	if outgrown || missing || terrain || research || tomb || throne || children || retireShelter || gear || core || outskirts || yard || pens || perimeter {
+	if missing || terrain || research {
 		replanned := false
 		if survey, catalog, err := r.layoutSurvey(ctx, snapshot, *projection); err != nil {
 			_ = err // a failed survey retries on the next review
@@ -202,47 +110,25 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 			survey.Cold, _ = projection.ColdMap.Value()
 			survey.Hot, _ = projection.HotMap.Value()
 			topology, _ := projection.PowerPlanning.Value()
-			if pasture, known := projection.Facts.Pasture.Value(); known {
-				growth.Grazing = policy.GrazingGround(survey, pasture)
-			}
+			// The barn follows the herd plan's target herd.
+			animals := projection.Facts.PenAnimals()
 			if !haveLayout {
 				err = r.deriveLayoutPlan(ctx, snapshot, tick, *projection, survey, catalog, topology.Geysers, animals, perimeterWall(*projection))
 				r.planGrownFor, r.planPawns, r.planInputs = grown, int(pawns), layoutInputs{}
 			} else {
-				// Fixed rooms are what the replan keeps: read here, with
-				// the journal's open plans, only once a replan is due. Nil while
-				// the census or the plan catalog is unknown keeps every room.
-				if occupied, origins, ok := r.layoutOccupied(ctx, *projection, layout.Plan); ok {
-					ground, _ := colonyGround(*projection)
-					growth.Fixed, growth.Occupied = policy.FixedRooms(layout.Plan, ground, occupied), occupied
-					growth.InFlight = policy.InFlightRooms(layout.Plan, origins)
-				} else {
-					// Open plans unknown: no shelter is dropped over work in flight.
-					growth.RetireShelter = false
-				}
-				emptied := policy.EmptiedRetiringWings(layout.Plan, projection.Rooms, projection.Facts.Sleeping)
-				// A room the colony outgrew gets a larger successor: the
-				// station chain at this review (its pins the rooms the replan keeps), skipped while its inputs
-				// are unchanged.
-				if advice, ok := r.stationAdvice(ctx, snapshot, *projection, layout.Plan, policy.ReplanPins(layout.Plan, growth.Fixed, emptied, layoutTier(*projection)), growth, demand, survey, catalog); ok {
-					growth.Successor = policy.OutgrownSuccession(advice, projection.Stations, layout.Plan)
-					growth.Fields = fieldBlocks(advice)
-				}
-				growth.Slept = policy.SleptBedrooms(layout.Plan, projection.Rooms, projection.Facts.Sleeping)
-				// The ring is laid around what the defense record holds of it.
-				if growth.Perimeter, err = r.perimeterHold(ctx, snapshot); err != nil {
+				var growth policy.RoomGrowth
+				if growth, err = r.roomGrowth(ctx, snapshot, *projection, layout.Plan, survey, r.stockpiles.layoutDemand(stockpileWorld(snapshot))); err != nil {
 					return err
 				}
-				// Every new building moves Occupied; the fixed rooms are its key.
+				// Every new building moves the fixed rooms, which are the key.
 				keyed := growth
-				keyed.Occupied, keyed.Grazing = nil, nil
-				inputs := layoutInputs{planTick: layout.Tick, key: fmt.Sprint(grown, pawns, tombs, suites, topology.Geysers, keyed, animals), bounds: survey.Bounds, cells: survey.Cells}
+				keyed.Grazing = nil
+				r.stationAdvice(ctx, snapshot, *projection, layout.Plan, policy.TilePinned(layout.Plan, growth), growth, growth.Demand, survey, catalog)
+				inputs := layoutInputs{planTick: layout.Tick, key: fmt.Sprint(grown, pawns, topology.Geysers, keyed, animals, r.stationInputs.key), bounds: survey.Bounds, cells: survey.Cells}
 				if !inputs.same(r.planInputs) {
-					reason := layoutReasons(map[string]bool{"outgrown": outgrown, "terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research, "tomb": tomb, "suite": suite, "throne": throne, "children": children, "gear": gear, "core": core, "outskirts": outskirts, "yard": yard, "succession": growth.Successor.Any(), "perimeter": perimeter})
-					err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, growth, animals, int(pawns), tombs, layoutTier(*projection), reason, topology.Geysers, emptied, suites, perimeterWall(*projection))
-					if err == nil {
-						r.planGrownFor, r.planPawns = grown, int(pawns)
-						r.planInputs, replanned = inputs, true
+					reason := layoutReasons(map[string]bool{"terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research})
+					if replanned, err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, growth, animals, int(pawns), reason, topology.Geysers, perimeterWall(*projection)); err == nil && replanned {
+						r.planGrownFor, r.planPawns, r.planInputs = grown, int(pawns), inputs
 					}
 				}
 			}
@@ -253,7 +139,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 				return err
 			}
 			if replanned && haveLayout {
-				// The recorded replan is the plan the same inputs grow next.
+				// The recorded replan is the plan the same inputs plan next.
 				r.planInputs.planTick = layout.Tick
 			}
 		}
@@ -263,6 +149,48 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	}
 	r.drawLayoutOverlay(ctx, snapshot, projection, layout, haveLayout)
 	return nil
+}
+
+// roomGrowth is what the review holds of the colony for the replan beyond the
+// chain's facts: the throne room the title asks, the shelter's retirement, the
+// rooms with something of ours on them (read here, with the journal's open
+// plans, only once a replan is due), the rooms a journal plan works on, the
+// rooms of an ended role in use, the bedrooms a pawn still sleeps in, the herd
+// and the ring's hold. Fixed stays nil while the census or the plan catalog is
+// unknown, which pins every room.
+func (r *Rounder) roomGrowth(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, plan policy.LayoutPlan, survey policy.MapSurvey, demand policy.RoomDemand) (policy.RoomGrowth, error) {
+	growth := policy.RoomGrowth{HerdUnits: projection.Facts.HerdUnits(), Pens: projection.Facts.PenWants(), Demand: demand}
+	need, owed := throneNeed(projection)
+	growth.ThroneArea = policy.ThroneAreaOwed(plan, need, owed)
+	if pasture, known := projection.Facts.Pasture.Value(); known {
+		growth.Grazing = policy.GrazingGround(survey, pasture)
+	}
+	// A room whose need has ended and that is in use stays.
+	if construction, ck := projection.Facts.CurrentConstruction.Value(); ck && construction.Colony {
+		ended := policy.EndedRoomRoles(projection.WorkPawns, projection.Facts.Ideology, projection.Facts.Containment, projection.Isolation, childRoomNeeds(projection))
+		if policy.RoomsOfRoles(plan, ended) > 0 {
+			growth.InUse = policy.RoomsInUse(plan, construction.Buildings, furnitureDefinitions(projection))
+		}
+	}
+	// Bedrooms, workshop and laboratory stand and every colonist is housed:
+	// the shelter leaves the plan. Re-read every review, no latch.
+	census, rk := projection.Rooms.Value()
+	sleeping, sk := projection.Facts.Sleeping.Value()
+	construction, ck := projection.Facts.CurrentConstruction.Value()
+	growth.RetireShelter = rk && sk && ck && construction.Colony && policy.ShelterRetirable(plan, census, sleeping, construction.Buildings)
+	if occupied, origins, ok := r.layoutOccupied(ctx, projection, plan); ok {
+		ground, _ := colonyGround(projection)
+		growth.Fixed = policy.FixedRooms(plan, ground, occupied)
+		growth.InFlight = policy.InFlightRooms(plan, origins)
+	} else {
+		// Open plans unknown: no shelter is dropped over work in flight.
+		growth.RetireShelter = false
+	}
+	growth.Slept = policy.SleptBedrooms(plan, projection.Rooms, projection.Facts.Sleeping)
+	// The ring is laid around what the defense record holds of it.
+	var err error
+	growth.Perimeter, err = r.perimeterHold(ctx, snapshot)
+	return growth, err
 }
 
 // overlayRedrawEvery is how often an unchanged plan's overlay is redrawn
@@ -371,13 +299,7 @@ func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.Generati
 	row.Dur = time.Since(start)
 	row.Attrs["derive"] = true
 	telemetry.Decide(ctx, row)
-	if advice.Tiled != nil {
-		for _, d := range advice.Tiled.Decisions {
-			if d.Reason == policy.ReasonInteriorSearchMove {
-				telemetry.Decide(ctx, telemetry.Decision{Kind: "layout_interior", Component: "layout", Verdict: d.Verdict, Reason: d.Reason, Target: "interior", Attrs: map[string]any{"group": d.Group, "move": d.Move}})
-			}
-		}
-	}
+	logInterior(ctx, advice)
 	switch {
 	case errors.Is(err, policy.ErrStationFacts):
 		telemetry.Decide(ctx, layoutPlanDecision("skipped", "facts_unknown", colonists, "", map[string]any{"fact": err.Error()}))
@@ -400,6 +322,19 @@ func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.Generati
 	return nil
 }
 
+// logInterior writes the layout_interior row of each interior search move the
+// tiler kept.
+func logInterior(ctx context.Context, advice policy.StationAdvice) {
+	if advice.Tiled == nil {
+		return
+	}
+	for _, d := range advice.Tiled.Decisions {
+		if d.Reason == policy.ReasonInteriorSearchMove {
+			telemetry.Decide(ctx, telemetry.Decision{Kind: "layout_interior", Component: "layout", Verdict: d.Verdict, Reason: d.Reason, Target: "interior", Attrs: map[string]any{"group": d.Group, "move": d.Move}})
+		}
+	}
+}
+
 // logPerimeter writes the layout_plan rows of the traced ring and its opening
 // (target perimeter): the ring is traced, the opening stands where the raider
 // routes cross it or is absent.
@@ -411,86 +346,50 @@ func logPerimeter(ctx context.Context, plan policy.LayoutPlan, colonists int) {
 	}
 }
 
-// replanLayout grows the recorded v2 plan over a fresh survey and records
-// it when it changed.
-func (r *Rounder) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, growth policy.RoomGrowth, animals, pawns, tombs int, tier policy.TechTier, reason string, geysers []policy.PowerGeyser, emptied map[domain.Cell]bool, suites []float64, wall policy.PerimeterWall) error {
-	next, changed, unplaced := policy.ReplanLayoutWithRooms(plan, survey, growth, animals, pawns, tombs, tier, geysers, emptied, suites...)
-	r.tiledReplan(ctx, next, growth, survey, geysers)
-	unsited, unplaced := policy.SplitUnsited(unplaced)
-	r.logNoRoom(ctx, pawns, unplaced)
-	r.logUnsited(ctx, pawns, unsited)
+// replanLayout replans the recorded v2 plan from the station chain's tiled plan
+// over a fresh survey (policy.ReplanLayout) and records it when it changed. A
+// chain or tiler that cannot plan keeps the plan the colony has: the layout_replan_tiled
+// row says why, and the replan is reported undone (false) so the next trigger
+// tries again. It reports whether the plan was replanned, changed or not.
+func (r *Rounder) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, growth policy.RoomGrowth, animals, pawns int, reason string, geysers []policy.PowerGeyser, wall policy.PerimeterWall) (bool, error) {
+	decision := telemetry.Decision{Kind: "layout_replan_tiled", Component: "layout", Target: "plan"}
+	if !r.stationHeld {
+		decision.Verdict, decision.Reason = "skipped", "station_advice_unavailable"
+		telemetry.Decide(ctx, decision)
+		return false, nil
+	}
+	facts := r.stationFacts
+	start := time.Now()
+	next, advice, err := policy.ReplanLayout(plan, facts, survey, geysers, growth, animals)
+	decision.Dur = time.Since(start)
+	switch {
+	case errors.Is(err, policy.ErrStationFacts):
+		decision.Verdict, decision.Reason, decision.Attrs = "skipped", "facts_unknown", map[string]any{"fact": err.Error()}
+		telemetry.Decide(ctx, decision)
+		return false, nil
+	case err != nil:
+		decision.Level, decision.Verdict, decision.Reason, decision.Attrs = slog.LevelWarn, "failed", "tile_error", map[string]any{"error": err}
+		telemetry.Decide(ctx, decision)
+		return false, nil
+	}
+	changed := !policy.SamePlan(plan, next)
+	decision.Verdict, decision.Reason = "replanned", "tiled_plan"
+	decision.Attrs = tiledReplanAttrs(policy.DiffReplanTile(plan, facts.Built, advice), len(facts.Built), len(advice.Tiled.Plan.AllRooms()))
+	decision.Attrs["changed"] = changed
+	telemetry.Decide(ctx, decision)
+	logInterior(ctx, advice)
 	if !changed {
-		return nil
+		return true, nil
 	}
 	if err := r.player.journal.RecordLayoutPlan(ctx, snapshot, tick, next); err != nil {
-		return err
+		return false, err
 	}
-	extra := map[string]any{"tomb_short": max(tombs-next.TombRooms(), 0)}
-	telemetry.Decide(ctx, layoutPlanDecision("replanned", reason, pawns, next.Summary(), extra))
+	telemetry.Decide(ctx, layoutPlanDecision("replanned", reason, pawns, next.Summary(), nil))
 	if policy.PerimeterChanged(plan, next) {
 		logPerimeter(ctx, next, pawns)
 		logPerimeterCut(ctx, next, survey, wall, pawns)
 	}
-	planned, retired := policy.SuccessionChanges(plan, next)
-	for _, room := range planned {
-		if room.Replaces != growth.Successor.Replaces {
-			// Not the outgrown trigger: a built room moved for bad ground or a score gain.
-			telemetry.Decide(ctx, successionDecision("planned", "successor_relocated", pawns, room, map[string]any{"floor": room.Region.Area(), "why": string(policy.RelocationReason(plan, room, survey))}))
-			continue
-		}
-		telemetry.Decide(ctx, successionDecision("planned", "successor_planned", pawns, room, map[string]any{"floor": room.Region.Area(), "old_floor": growth.Successor.Floor, "shortfall": growth.Successor.Shortfall}))
-	}
-	for _, re := range policy.ReshapedRooms(plan, next) {
-		telemetry.Decide(ctx, layoutPlanDecision("reshaped", "room_reshaped", pawns, "", map[string]any{"role": string(re.Room.Role), "room": re.Room.ID, "floor": re.Room.Region.Area(), "added": re.Diff.Added.Area(), "removed": re.Diff.Removed.Area(), "walls_added": re.Diff.WallsAdded.Area(), "walls_removed": re.Diff.WallsRemoved.Area()}))
-	}
-	for _, room := range retired {
-		telemetry.Decide(ctx, successionDecision("retired", "successor_retired", pawns, room, map[string]any{"floor": room.Region.Area()}))
-	}
-	return nil
-}
-
-// logUnsited writes a layout_plan refused/successor_unsited row for each
-// successor a replan could not site (nothing is built), once per distinct set
-// so a plan that stays full does not repeat the row each round.
-func (r *Rounder) logUnsited(ctx context.Context, colonists int, unsited []*policy.UnsitedSuccessor) {
-	text := ""
-	for _, u := range unsited {
-		text += u.Error() + "; "
-	}
-	if text == r.unsitedLogged {
-		return
-	}
-	r.unsitedLogged = text
-	for _, u := range unsited {
-		telemetry.Decide(ctx, layoutPlanDecision("refused", "successor_unsited", colonists, "", map[string]any{"role": string(u.Successor.Role), "replaces": u.Successor.Replaces, "floor": u.Successor.Floor, "shortfall": u.Successor.Shortfall, "why": u.Reason}))
-	}
-}
-
-// successionDecision is the layout_plan row of a successor room planned (the
-// room added) or retired (the room it replaced, now leaving the plan).
-func successionDecision(verdict, reason string, colonists int, room policy.PlannedRoom, extra map[string]any) telemetry.Decision {
-	attrs := map[string]any{"colonists": colonists, "role": string(room.Role), "room": room.ID, "replaces": room.Replaces}
-	for k, v := range extra {
-		attrs[k] = v
-	}
-	return telemetry.Decision{Kind: "layout_plan", Component: "layout", Verdict: verdict, Reason: reason, Target: "successor", Attrs: attrs}
-}
-
-// logNoRoom writes a layout_plan refused/no_room row when a replan left
-// rooms unplaced (the map had no site for them), once per distinct
-// unplaced set so a plan that stays full does not repeat the row each
-// round. A replan that places everything clears the memory.
-func (r *Rounder) logNoRoom(ctx context.Context, colonists int, unplaced error) {
-	if unplaced == nil {
-		r.noRoomLogged = ""
-		return
-	}
-	text := unplaced.Error()
-	if text == r.noRoomLogged {
-		return
-	}
-	r.noRoomLogged = text
-	telemetry.Decide(ctx, layoutPlanDecision("refused", "no_room", colonists, "", map[string]any{"unplaced": text}))
+	return true, nil
 }
 
 // layoutPlanDecision is the layout_plan row of a plan derived (planned),
@@ -515,26 +414,6 @@ func layoutReasons(fired map[string]bool) string {
 	}
 	slices.Sort(out)
 	return strings.Join(out, ",")
-}
-
-// logSuiteClaims logs the suite claims (pawn, reason, target) whenever the
-// set changes, so a run shows who is owed a suite and why.
-func (r *Rounder) logSuiteClaims(ctx context.Context, claims []policy.SuiteClaim) {
-	line := "none"
-	if len(claims) > 0 {
-		line = ""
-		for i, c := range claims {
-			if i > 0 {
-				line += " "
-			}
-			line += fmt.Sprintf("%s:%s:%g", c.Pawn, c.Reason, c.Target)
-		}
-	}
-	if line == r.suiteClaimsLogged || r.suiteClaimsLogged == "" && line == "none" {
-		return
-	}
-	r.suiteClaimsLogged = line
-	telemetry.Decide(ctx, telemetry.Decision{Kind: "layout_plan", Component: "layout", Verdict: "claimed", Target: "suites", Attrs: map[string]any{"claims": len(claims), "summary": line}})
 }
 
 // heatRedrawEvery is how often the traffic heat layers are redrawn (one

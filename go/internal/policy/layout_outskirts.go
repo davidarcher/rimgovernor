@@ -1,8 +1,6 @@
 package policy
 
 import (
-	"slices"
-
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -47,24 +45,6 @@ func (p LayoutPlan) OutskirtsArea() (Region, bool) {
 		}
 	}
 	return Region{}, false
-}
-
-// growOutskirts reserves a w x h outline for the outskirts in plan unless it
-// holds one: an existing cluster never moves. It reports whether it added one.
-// A zero size asks for none.
-func growOutskirts(plan LayoutPlan, size [2]int32) (LayoutPlan, bool) {
-	if size[0] <= 0 || size[1] <= 0 {
-		return plan, false
-	}
-	if _, has := plan.OutskirtsArea(); has {
-		return plan, false
-	}
-	area, ok := SiteOutskirts(plan, size[0], size[1])
-	if !ok {
-		return plan, false
-	}
-	plan.Reservations = append(slices.Clone(plan.Reservations), LayoutReservation{Kind: ReserveOutskirts, Area: area})
-	return plan, true
 }
 
 // SiteOutskirts is the w x h outline for the outskirts on plan's core ground:

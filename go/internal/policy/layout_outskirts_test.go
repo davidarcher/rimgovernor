@@ -62,52 +62,6 @@ func TestOutskirtsSitedOffTheCoreOnTheSideWithLeastGround(t *testing.T) {
 	}
 }
 
-func TestOutskirtsGrowOnceAndNeverMove(t *testing.T) {
-	plan := outskirtsPlan(150)
-	grown, ok := growOutskirts(plan, [2]int32{outskirtsW, outskirtsH})
-	if !ok {
-		t.Fatal("not grown")
-	}
-	areaR, has := grown.OutskirtsArea()
-	area := areaR.Bounds()
-	if !has {
-		t.Fatal("no reservation")
-	}
-	if _, again := growOutskirts(grown, [2]int32{outskirtsW + 4, outskirtsH}); again {
-		t.Fatal("a second cluster")
-	}
-	if _, none := growOutskirts(plan, [2]int32{}); none {
-		t.Fatal("zero size asks for none")
-	}
-	if len(plan.Reservations) == len(grown.Reservations) {
-		t.Fatal("the input plan was changed or nothing added")
-	}
-	if got, _ := grown.OutskirtsArea(); got.Bounds() != area {
-		t.Fatal("moved")
-	}
-}
-
-func TestOutskirtsStayWholeWhenTheCoreGrowsLater(t *testing.T) {
-	plan, _ := growOutskirts(outskirtsPlan(150), [2]int32{outskirtsW, outskirtsH})
-	areaR, _ := plan.OutskirtsArea()
-	area := areaR.Bounds()
-	late, err := WithCoreRooms(plan, PlannedBattery, PlannedWorship)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(late.AllRooms()) <= len(plan.AllRooms()) {
-		t.Fatal("no room grew")
-	}
-	for _, r := range late.AllRooms() {
-		if rectsOverlap(roomWalls(r), area) {
-			t.Fatal("a late room cut into the cluster", r.Role, area)
-		}
-	}
-	if got, _ := late.OutskirtsArea(); got.Bounds() != area {
-		t.Fatal("cluster changed", got, area)
-	}
-}
-
 func TestOutskirtsNeedWalkablePath(t *testing.T) {
 	plan := outskirtsPlan(150)
 	siteR, _ := SiteOutskirts(plan, outskirtsW, outskirtsH)
@@ -125,13 +79,6 @@ func TestOutskirtsNeedWalkablePath(t *testing.T) {
 	next := nextR.Bounds()
 	if ok && rectsOverlap(next, pad(site, 2)) && next == site {
 		t.Fatal("sited behind a rock moat", next)
-	}
-}
-
-func TestOutskirtsReplanGateUnchangedWithoutCluster(t *testing.T) {
-	plan := outskirtsPlan(150)
-	if _, ok := growOutskirts(plan, [2]int32{}); ok {
-		t.Fatal("a plan that asks for none grew one")
 	}
 }
 

@@ -148,21 +148,11 @@ type Rounder struct {
 	stationInputs layoutInputs
 	stationLast   policy.StationAdvice
 	stationHeld   bool
-	// stationFacts are the facts of that run, which the replan tiles beside
-	// its plan (layout_replan_tiled).
+	// stationFacts are the facts of that run, which the replan tiles
+	// (policy.ReplanLayout).
 	stationFacts policy.StationFacts
-	// tiledRunning is set while a tiled replan runs off the review.
-	tiledRunning atomic.Bool
-	// suiteClaimsLogged is the last suite claim set logged.
-	suiteClaimsLogged string
-	// unsitedLogged is the unsited successors last logged, so a plan that
-	// stays full is not logged each replan.
-	unsitedLogged string
 	// layoutInvalidLogged: an invalid saved layout plan is logged once.
 	layoutInvalidLogged bool
-	// noRoomLogged is the last unplaced-rooms text logged as layout_plan
-	// refused/no_room, so a full map logs it once.
-	noRoomLogged string
 	// layoutOverlay draws the layout plan as a native overlay; the
 	// overlay fields record the last draw. See drawLayoutOverlay.
 	layoutOverlay  bool

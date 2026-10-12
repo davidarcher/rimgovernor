@@ -121,14 +121,6 @@ func OutskirtsSlots(area Rectangle) (OutskirtsLayout, bool) {
 	return l, true
 }
 
-// OutskirtsOwed reports whether plan lacks a tomb, morgue, graveyard, waste
-// yard or incinerator: a plan that already holds a room of a role elsewhere (a
-// core tomb, or the rooms the chain tiles in place of the cluster's area) is
-// not owed another.
-func OutskirtsOwed(plan LayoutPlan) bool {
-	return len(outskirtsMissing(plan, OutskirtsLayout{})) > 0
-}
-
 // outskirtsMissing are the roles the cluster owes plan, each with its room.
 // The slots in l place them; with the zero layout only the roles are meaningful.
 func outskirtsMissing(plan LayoutPlan, l OutskirtsLayout) []PlannedRoom {
@@ -165,29 +157,4 @@ func slotRoom(role PlannedRole, slot OutskirtsSlot) PlannedRoom {
 func incineratorRoom(outline Rectangle) PlannedRoom {
 	in := Rectangle{X: outline.X + 1, Z: outline.Z + 1, Width: outline.Width - 2, Height: outline.Height - 2}
 	return PlannedRoom{Role: PlannedIncinerator, Region: RectRegion(in), Door: domain.Cell{X: in.X - 1, Z: in.Z + in.Height/2}, DoorRot: domain.West}
-}
-
-// growOutskirtsRooms places the tomb, the morgue, the graveyard, the waste yard and the
-// incinerator in their slots of the cluster plan holds, unless the plan already
-// holds a room of the role, and reserves each walled room a cooler exhaust. The
-// slots are never on rock: the cluster is sited on open core ground, so no room
-// is dug. It reports whether it added a room.
-func growOutskirtsRooms(plan LayoutPlan, thick map[domain.Cell]bool) (LayoutPlan, bool) {
-	area, has := plan.OutskirtsArea()
-	if !has {
-		return plan, false
-	}
-	l, ok := OutskirtsSlots(area.Bounds())
-	if !ok {
-		return plan, false
-	}
-	missing := outskirtsMissing(plan, l)
-	if len(missing) == 0 {
-		return plan, false
-	}
-	plan.Rooms = append(slices.Clone(plan.Rooms), missing...)
-	u := newUtilityGrid(plan)
-	u.thick = thick
-	reserveExhausts(u, &plan)
-	return plan, true
 }

@@ -19,7 +19,7 @@ import (
 // Where a tier stands depends on live cover, trees and standing buildings, so
 // the nodes are a function of the plan and a census, not of the survey: they
 // are re-sited from every census and are not part of the stored plan. A tier
-// that is started (built, an attempt admitted, or any building standing) is pinned, as replanPins pins a room that holds anything of
+// that is started (built, an attempt admitted, or any building standing) is pinned, as the replan holds a room that holds anything of
 // ours: its node is the built tier where it stands, and the tiers still to
 // build are sited around it. The census is an explicit input.
 

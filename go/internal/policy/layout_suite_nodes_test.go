@@ -88,9 +88,8 @@ func TestClusterKeepsASuiteApartFromBedrooms(t *testing.T) {
 }
 
 // A raised target outgrows the standing suite (its group floor passes the
-// suite's), and the successor is a larger suite.
-func TestRaisedTargetOutgrowsASuiteAndAsksForALargerSuite(t *testing.T) {
-	plan := LayoutPlan{Rooms: []PlannedRoom{{ID: 1, Role: PlannedSuite, Region: region(4, 6)}}, NextRoomID: 2}
+// suite's).
+func TestRaisedTargetOutgrowsASuite(t *testing.T) {
 	wish := SuiteWish{Target: 120, Kept: 24}
 	node := StationNode{ID: "Bed/sleep/suite0", Def: "Bed", Purpose: PurposeSleep, Count: 1, Target: wish.Target, Floor: wish.Floor()}
 	if node.Floor <= 24 {
@@ -102,14 +101,6 @@ func TestRaisedTargetOutgrowsASuiteAndAsksForALargerSuite(t *testing.T) {
 	m := MatchGroupRooms([]RoomGroup{group}, built)
 	if len(m[0].Rooms) != 1 || !GroupOutgrown(group, m[0]) {
 		t.Fatalf("match %+v: the suite group is matched only to the suite and outgrown", m)
-	}
-	advice := StationAdvice{
-		Groups:    []GroupAdvice{{Group: group, Rooms: m[0].Rooms, Capacity: m[0].Capacity, Outgrown: true}},
-		Embedding: Embedding{Blocks: []EmbeddedBlock{{Group: 0, Interior: Rectangle{Width: 10, Height: 8}}}},
-	}
-	got := OutgrownSuccession(advice, successionCatalog(), plan)
-	if got.Replaces != 1 || got.Role != PlannedSuite || got.Floor != 24 || got.Shortfall != node.Floor-24 {
-		t.Fatalf("successor = %+v, want a suite replacing room 1 at 24 + %d", got, node.Floor-24)
 	}
 }
 

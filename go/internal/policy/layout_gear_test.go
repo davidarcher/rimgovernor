@@ -2,7 +2,6 @@ package policy
 
 import (
 	"errors"
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -12,88 +11,6 @@ func gearTestPlan() LayoutPlan {
 	plan := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, TechTierCamp)
 	plan, _, _ = SiteRoom(plan, nil, PlannedPrison, coreRoomSize[PlannedPrison])
 	return plan
-}
-
-func roomOf(p LayoutPlan, role PlannedRole) (PlannedRoom, bool) {
-	for _, r := range p.Rooms {
-		if r.Role == role {
-			return r, true
-		}
-	}
-	return PlannedRoom{}, false
-}
-
-// touches reports two rooms sharing a wall: their interiors a wall apart.
-func touches(a, b Rectangle) bool {
-	xGap := max(a.X-(b.X+b.Width), b.X-(a.X+a.Width))
-	zGap := max(a.Z-(b.Z+b.Height), b.Z-(a.Z+a.Height))
-	return xGap == 1 && zGap < 0 || zGap == 1 && xGap < 0
-}
-
-func TestGearRoomsNeedDemand(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	t.Parallel()
-	plan := gearTestPlan()
-	for _, role := range gearRooms {
-		if _, ok := roomOf(plan, role); ok {
-			t.Fatalf("%s planned with no demand", role)
-		}
-	}
-	if owed := GearRoomsOwed(plan, RoomDemand{}); len(owed) != 0 {
-		t.Fatalf("owed %v with no demand", owed)
-	}
-	if same, added, _ := growGearRooms(plan, RoomDemand{}, nil); added || len(same.Rooms) != len(plan.Rooms) {
-		t.Fatal("rooms added with no demand")
-	}
-}
-
-// gearBesidePlan is a hallway with a storage room and a workshop on it and free
-// ground either side of each: a generated base packs its rooms, so whether
-// an anchor has a free side depends on its layout, not on the gear siting.
-func gearBesidePlan() LayoutPlan {
-	spine := []SpineSegment{{From: domain.Cell{X: 30, Z: 59}, To: domain.Cell{X: 88, Z: 59}}}
-	return LayoutPlan{
-		Zones:     coreTestZones(),
-		Spine:     spine,
-		Entrances: spineEntrances(spine),
-		Rooms: []PlannedRoom{
-			hallRoom(PlannedStorage, 40, 59, 7, 5, false),
-			hallRoom(PlannedWorkshop, 70, 59, 7, 5, false),
-		},
-	}
-}
-
-func TestGearRoomsSitBesideTheirAnchorAndRoute(t *testing.T) {
-	t.Parallel()
-	plan := gearBesidePlan()
-	grown, added, _ := growGearRooms(plan, RoomDemand{Armory: true, Wardrobe: true}, nil)
-	if !added || len(grown.Rooms) != len(plan.Rooms)+2 {
-		t.Fatalf("added=%v rooms %d -> %d", added, len(plan.Rooms), len(grown.Rooms))
-	}
-	for i := range plan.Rooms {
-		if !grown.Rooms[i].Same(plan.Rooms[i]) {
-			t.Fatalf("room %d moved", i)
-		}
-	}
-	for role, anchor := range map[PlannedRole]PlannedRole{PlannedArmory: PlannedStorage, PlannedWardrobe: PlannedWorkshop} {
-		room, ok := roomOf(grown, role)
-		host, hok := roomOf(grown, anchor)
-		if !ok || !hok {
-			t.Fatalf("%s %v %s %v", role, ok, anchor, hok)
-		}
-		if !touches(room.Region.Bounds(), host.Region.Bounds()) {
-			t.Errorf("%s %+v not beside %s %+v", role, room.Region.Bounds(), anchor, host.Region.Bounds())
-		}
-		if room.Link != nil && !inWall(host.Region.Bounds(), *room.Link) {
-			t.Errorf("%s link %v is not in the %s wall", role, *room.Link, anchor)
-		}
-	}
-	if _, err := CheckRoutes(grown); err != nil {
-		t.Fatal(err)
-	}
-	if again, added, _ := growGearRooms(grown, RoomDemand{Armory: true, Wardrobe: true}, nil); added || len(again.Rooms) != len(grown.Rooms) {
-		t.Fatal("a standing room answers its demand for good")
-	}
 }
 
 func TestGearRoomRolesAreRegistered(t *testing.T) {

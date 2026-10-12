@@ -1,7 +1,5 @@
 package policy
 
-import "errors"
-
 // The gear rooms: an armory for weapons and armor and a
 // wardrobe for clothing are core rooms layout adds only when the storage
 // planner signals that stored gear of the kind outgrew its zone
@@ -55,26 +53,4 @@ func GearRoomsOwed(plan LayoutPlan, demand RoomDemand) []PlannedRole {
 		}
 	}
 	return owed
-}
-
-// growGearRooms adds each gear room demand asks for and plan lacks, at the
-// slot beside its anchor room, else the nearest core slot like any other
-// core room. It reports whether a room was added and the rooms it could not
-// place.
-func growGearRooms(plan LayoutPlan, demand RoomDemand, sc *planScorer) (LayoutPlan, bool, error) {
-	if len(plan.Hallways()) == 0 {
-		return plan, false, nil
-	}
-	grew := false
-	var unplaced []error
-	for _, role := range GearRoomsOwed(plan, demand) {
-		var added bool
-		var err error
-		if plan, added, err = SiteRoom(plan, sc, role, coreRoomSize[role]); added {
-			grew = true
-		} else if err != nil {
-			unplaced = append(unplaced, err)
-		}
-	}
-	return plan, grew, errors.Join(unplaced...)
 }

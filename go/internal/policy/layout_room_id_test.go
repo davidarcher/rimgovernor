@@ -57,9 +57,9 @@ func TestRoomIDsAreUniqueStableAndNeverReused(t *testing.T) {
 	}
 }
 
-// A replan that pins rooms keeps their ids, ids stay unique, and the same
+// A derive gives unique ids, and the same
 // input gives the same ids.
-func TestReplanKeepsPinnedRoomIDs(t *testing.T) {
+func TestDeriveGivesStableRoomIDs(t *testing.T) {
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	plan, ok := oldDerive(s, 3, TechTierCamp, nil, 0).Value()
 	if !ok || !plan.Valid() {
@@ -68,27 +68,5 @@ func TestReplanKeepsPinnedRoomIDs(t *testing.T) {
 	again, _ := oldDerive(s, 3, TechTierCamp, nil, 0).Value()
 	if !reflect.DeepEqual(plan, again) {
 		t.Fatal("same input, different ids")
-	}
-	fixed := map[int32]bool{}
-	for i, r := range plan.Rooms {
-		if i%2 == 0 {
-			fixed[r.ID] = true
-		}
-	}
-	next, _, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: fixed}, 0, 8, 1, TechTierCamp, nil, nil)
-	if !next.Valid() {
-		t.Fatal("replanned plan is invalid")
-	}
-	byID := map[int32]PlannedRoom{}
-	for _, r := range next.AllRooms() {
-		byID[r.ID] = r
-	}
-	for _, r := range plan.Rooms {
-		if got, ok := byID[r.ID]; fixed[r.ID] && (!ok || got.Region.Bounds() != r.Region.Bounds()) {
-			t.Fatalf("pinned room %d lost its id or moved", r.ID)
-		}
-	}
-	if next.NextRoomID < plan.NextRoomID {
-		t.Fatal("the counter went backwards")
 	}
 }

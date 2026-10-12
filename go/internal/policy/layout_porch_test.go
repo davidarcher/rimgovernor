@@ -60,11 +60,10 @@ func TestPorchSurvivesTransposeAndRetiresWithTheShelter(t *testing.T) {
 	if again := transposeRoom(transposeRoom(porch)); !again.Same(porch) {
 		t.Fatalf("%+v != %+v", again, porch)
 	}
-	next, dropped := retireShelter(plan, RoomGrowth{RetireShelter: true})
-	if !dropped || !slices.ContainsFunc(RetiredGroundOf(next).Ground, RectRegion(porch.PorchGround()).Equal) {
-		t.Fatalf("retired ground %v lacks the porch %v", next.RetiredGround, porch.PorchGround())
-	}
-	if len(next.Rooms) != 0 {
-		t.Fatalf("the porch outlives its shelter: %+v", next.Rooms)
+	ground := retiredGround(plan, LayoutPlan{}, map[int32]bool{room.ID: true})
+	if !slices.ContainsFunc(ground, func(g Region) bool {
+		return g.Contains(domain.Cell{X: porch.PorchGround().X, Z: porch.PorchGround().Z})
+	}) {
+		t.Fatalf("retired ground %v lacks the porch %v", ground, porch.PorchGround())
 	}
 }
