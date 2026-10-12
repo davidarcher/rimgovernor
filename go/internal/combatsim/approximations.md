@@ -120,8 +120,8 @@ transitions. Every draw comes from the enemy stream (E6 lists what is drawn).
   each Step. A job that ends mid-Step is replaced at the next boundary, and the
   auto-attack's four-tick search (staggered by `thingIDNumber` in the game) runs
   at the first boundary at or after four ticks since the last, or at once when a
-  burst's cooldown has just ended (`Notify_StanceChanged`). With the usual small
-  `StepTicks` the difference is a few ticks.
+  burst's cooldown has just ended (`Notify_StanceChanged`). With `StepTicks`
+  1 (the lab's) there is no difference; a larger step delays by up to one step.
 - **E2. A self-started attack is one burst.** `Order.Once` models
   `Pawn.TryStartAttack`: after the cooldown the pawn drops its target and the
   AI scores again. Only the raider AI uses it.
@@ -308,12 +308,18 @@ DefinitionCatalog; every derived value is listed with its source in
   colonist openings (median) 61/61/61/61 -> 61/97/97/127 (60/91/91/121),
   first-700-tick colonist hits 17.95 -> 17.70 (16.0), median raider down tick
   478 -> 514 (499.5), colonist downs 0.20 -> 0.20 (0.20), damage 56.6 -> 58.3
-  (64.2), raider deaths 3.40 -> 3.65 (about 2.8). The movers still open 6 ticks
-  late (97 against 91, 127 against 121): `Autonomy` runs once per `StepTicks`
-  (6 in the lab), so a walker that arrives at tick 31 shoots from the next step
-  boundary (36), where Wait_Combat's `initAction` runs `CheckForAutoAttack` the
-  tick the job starts; the holder's 1 tick is the first tick's cost. Both are
-  bounded by one step.
+  (64.2), raider deaths 3.40 -> 3.65 (about 2.8). The movers opened 6 ticks
+  late (97 against 91, 127 against 121) while the lab stepped 6 ticks:
+  `Autonomy` ran once per step, so a walker that arrived at tick 31 shot from
+  the next boundary (36). The lab now steps one tick (#2910), so `Autonomy`
+  and the raiders run every tick: openings 61/92/92/122 (real 60/91/91/121),
+  first-700 hits 17.65, median raider down tick 510, damage 56.1, raider deaths
+  3.55, colonist downs 0.20. The remaining 1 tick is the first tick's cost (the
+  game runs `CheckForAutoAttack` on the tick the job starts). Nothing in the
+  adapter, the enemy AI or movement counts steps: every cadence, timer and
+  expiry is in ticks. Cost: the 4v4 and 12v12 core benchmarks run 2.5-3.5x
+  slower per fight (their controller runs every step), a full lab-ranged trial
+  (policy and raiders included) about 14% slower.
 
 ## Out of scope for this slice
 

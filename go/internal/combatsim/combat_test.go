@@ -900,9 +900,13 @@ func TestCombatDoesNotTouchEnemyStream(t *testing.T) {
 func BenchmarkFight4v4(b *testing.B)   { benchFight(b, 4, 36, 16) }
 func BenchmarkFight12v12(b *testing.B) { benchFight(b, 12, 38, 28) }
 
+// benchStepTicks is the lab's sim step (combatlab simStepTicks): one tick.
+const benchStepTicks = 1
+
 func benchFight(b *testing.B, n, w, h int) {
 	const horizon = 3 * 60 * 60
 	sc := openField(b, n, w, h)
+	sc.StepTicks = benchStepTicks
 	side := sides(sc)
 	s := &Sim{}
 	var orders []Order
@@ -936,6 +940,7 @@ func benchFight(b *testing.B, n, w, h int) {
 // (60 ticks) from the opening, the shape a policy search loop pays per probe.
 func BenchmarkRollout4v4(b *testing.B) {
 	sc := openField(b, 4, 36, 16)
+	sc.StepTicks = benchStepTicks
 	side := sides(sc)
 	s := &Sim{}
 	var orders []Order

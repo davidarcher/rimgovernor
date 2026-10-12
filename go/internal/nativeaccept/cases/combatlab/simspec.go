@@ -46,8 +46,9 @@ type SimEnv struct {
 const (
 	labColonistSkill = 8
 	labHostileSkill  = 8
-	// simStepTicks is a sim step: 0.1 game second, a simulator parameter.
-	simStepTicks = 6
+	// simStepTicks is a sim step: one game tick, so the holders and the raiders
+	// decide on the tick a walk or a burst ends (#2910).
+	simStepTicks = 1
 	// simMaxTicks ends an unresolved sim fight at ten game minutes.
 	simMaxTicks = 36000
 )
