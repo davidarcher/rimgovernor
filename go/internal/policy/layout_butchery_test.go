@@ -1,9 +1,12 @@
 package policy
 
 import (
+	"math"
 	"reflect"
 	"slices"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // A node whose stations spawn filth stands in a closet of its own, whichever
@@ -231,4 +234,96 @@ func TestPlanCorePlansButcheryApartFromKitchen(t *testing.T) {
 		t.Fatal("butchery crowds the kitchen")
 	}
 	t.Logf("butchery %+v link %v", butchery.Region.Bounds(), butchery.Link)
+}
+
+// poisonModel is the FoodPoisoning hediff as the defs give it (Hediffs_Global_
+// Misc.xml): severity 1 falling 1 a day through three stages.
+var poisonModel = PoisoningModel{Initial: 1, PerDay: 1, Stages: []PoisonStage{
+	{MinSeverity: 0, WorkFactor: 0.6, VomitMtbDays: 0.4},
+	{MinSeverity: 0.2, WorkFactor: 0.5, VomitMtbDays: 0.2},
+	{MinSeverity: 0.8, WorkFactor: 0.6, VomitMtbDays: 0.3},
+}}
+
+// A poisoning costs half a work-day: 0.2 days at x0.6, 0.6 at x0.5 and 0.2 at
+// x0.6 is 0.46 work-days of lost work, and 4.17 vomits of 600 ticks add 0.042.
+func TestPoisoningWorkDays(t *testing.T) {
+	got := poisonModel.WorkDays()
+	want := 0.46 + (0.2/0.3+0.6/0.2+0.2/0.4)*600/domain.TicksPerDay
+	if math.Abs(got-want) > 1e-9 || math.Abs(got-0.50167) > 1e-4 {
+		t.Errorf("work-days %v, want %v", got, want)
+	}
+	if (PoisoningModel{}).WorkDays() != 0 || (PoisoningModel{Initial: 1, PerDay: 1}).WorkDays() != 0 {
+		t.Error("an unknown model prices a poisoning")
+	}
+}
+
+// filthyKitchen is a cook making meals a day and a butcher the cook's meat flows
+// from, regrouped on a square site of side cells; the blood is heavy enough to
+// poison the merged room (a unit moves its cleanliness past the curve's onset).
+func filthyKitchen(meals float64, side int32, poison PoisoningModel) (Regrouping, StationNode, StationNode, error) {
+	stove := node("Stove", PurposeWork, 1, workBand, EnvNeed{Kind: NeedRoomStat, Input: cleanlinessStat})
+	stove.Meals = meals
+	butcher := node("Butcher", PurposeWork, 1)
+	butcher.Filth = true
+	g := StationGraph{Nodes: []StationNode{butcher, stove}, Edges: []StationEdge{edge(butcher, stove, 50, false)}}
+	in := regroupIn(g, plainSurvey(side))
+	in.Cluster.Catalog.Filth = FilthModel{Def: "Filth_Blood", Cleanliness: -100, Poisoning: poison,
+		FoodPoison: []CurvePoint{{X: -5, Y: 0.05}, {X: -3.5, Y: 0.025}, {X: -2, Y: 0}}}
+	got, err := Regroup(in)
+	return got, butcher, stove, err
+}
+
+// The butcher joins the cook's room when the walk the merge saves exceeds the
+// priced poisoning and stays a closet when it does not; each verdict carries
+// the two parts of its change, and both runs repeat.
+func TestRegroupPricesFilthMergeAgainstWalk(t *testing.T) {
+	cheap, butcher, stove, err := filthyKitchen(0.01, 30, poisonModel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cheap.Clustering.Groups) != 1 || len(cheap.Decisions) != 1 {
+		t.Fatalf("cheap poison: rooms %v decisions %+v", roomsOf(cheap), cheap.Decisions)
+	}
+	d := cheap.Decisions[0]
+	if d.Kind != RegroupMerge || d.Verdict != RegroupApplied || d.Reason != ReasonRegroupFilthMerge || !(d.A == butcher.ID && d.B == stove.ID || d.A == stove.ID && d.B == butcher.ID) {
+		t.Fatalf("decision %+v", d)
+	}
+	if !(d.Walk < 0 && d.Poison > 0 && d.Walk+d.Poison < 0 && math.Abs(d.After-d.Before-(d.Walk+d.Poison)) < 1e-9) {
+		t.Errorf("walk %v poison %v before %v after %v", d.Walk, d.Poison, d.Before, d.After)
+	}
+
+	dear, _, _, err := filthyKitchen(1, 30, poisonModel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(dear.Clustering.Groups) != 2 || len(dear.Pairs) != 0 || len(dear.Decisions) != 1 {
+		t.Fatalf("dear poison: rooms %v decisions %+v", roomsOf(dear), dear.Decisions)
+	}
+	k := dear.Decisions[0]
+	if k.Kind != RegroupMerge || k.Verdict != RegroupKept || k.Reason != ReasonRegroupFilthKept || !(k.Walk < 0 && k.Poison > -k.Walk && k.After > k.Before) {
+		t.Errorf("kept decision %+v", k)
+	}
+	for _, g := range dear.Clustering.Groups {
+		if len(g.Stations) == 1 && g.Stations[0].Node == butcher.ID && g.Planned != PlannedButchery {
+			t.Errorf("closet planned as %q", g.Planned)
+		}
+	}
+	assertReasons(t, cheap)
+	assertReasons(t, dear)
+	again, _, _, err := filthyKitchen(1, 30, poisonModel)
+	if err != nil || !reflect.DeepEqual(dear, again) {
+		t.Errorf("regrouping changed: %v", err)
+	}
+}
+
+// A model that cannot price the poisoning (no hediff row) proposes no merge: the
+// butcher stays in the seed's closet.
+func TestRegroupFilthMergeNeedsAKnownPoisoning(t *testing.T) {
+	got, _, _, err := filthyKitchen(0.01, 30, PoisoningModel{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Clustering.Groups) != 2 || len(got.Pairs) != 0 {
+		t.Errorf("rooms %v pairs %v decisions %+v", roomsOf(got), got.Pairs, got.Decisions)
+	}
 }

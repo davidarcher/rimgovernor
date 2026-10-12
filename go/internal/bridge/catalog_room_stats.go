@@ -76,6 +76,35 @@ func (catalog *DefinitionCatalog) humanlikeBloodDef() string {
 	return best
 }
 
+// poisoningModel is the FoodPoisoning hediff as the price reads it: the
+// severity it starts at and loses a day (its SeverityPerDay comp) and each
+// stage's factor on the work capacity and vomit interval. A catalog without the
+// row, or whose hediff does not fade, prices no poisoning (the zero model).
+func (catalog *DefinitionCatalog) poisoningModel() policy.PoisoningModel {
+	table := policy.FoodPoisonGame()
+	hediff := DefRow[*d.HediffDef](catalog, table.Hediff)
+	if hediff == nil {
+		return policy.PoisoningModel{}
+	}
+	out := policy.PoisoningModel{Initial: float64(hediff.GetInitialSeverity())}
+	for _, comp := range hediff.GetComps() {
+		if perDay := comp.GetValue().GetHediffCompProperties_SeverityPerDay(); perDay != nil && perDay.GetSeverityPerDay() < 0 {
+			out.PerDay = -float64(perDay.GetSeverityPerDay())
+		}
+	}
+	for _, stage := range hediff.GetStages() {
+		s := stage.GetValue()
+		factor := 1.0
+		for _, mod := range s.GetCapMods() {
+			if mod.GetValue().GetCapacity() == table.WorkCapacity {
+				factor *= float64(mod.GetValue().GetPostFactor())
+			}
+		}
+		out.Stages = append(out.Stages, policy.PoisonStage{MinSeverity: float64(s.GetMinSeverity()), WorkFactor: factor, VomitMtbDays: float64(s.GetVomitMtbDays())})
+	}
+	return out
+}
+
 // FilthModel is the price of a butchering to a room, from the defs: the
 // humanlike blood filth's Cleanliness stat and the FoodPoisonChance curve. A
 // catalog without either row prices nothing (the zero model).
@@ -86,7 +115,7 @@ func (catalog *DefinitionCatalog) FilthModel() policy.FilthModel {
 	if blood == nil || stat == nil {
 		return policy.FilthModel{}
 	}
-	out := policy.FilthModel{Def: name}
+	out := policy.FilthModel{Def: name, Poisoning: catalog.poisoningModel()}
 	for _, sm := range blood.GetStatBases() {
 		if sm.GetValue().GetStat() == "Cleanliness" {
 			out.Cleanliness = float64(sm.GetValue().GetValue())

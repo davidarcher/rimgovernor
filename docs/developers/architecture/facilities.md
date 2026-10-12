@@ -246,7 +246,16 @@ exclusion or the area limit is never proposed, and station-less room nodes, the
 suites among them, are never reached), **split** (two nodes of a room that pays a
 conflict, loses a role effect or carries a role-guard mismatch) and
 **move-a-need** (a station class leaves the room that slows it for a room of the
-role it wants, or leaves a cold room).
+role it wants, or leaves a cold room). A **filth merge** (#2955) joins a butcher
+kept in its closet to the room it flows to when the walk saved (the embedding
+score) outweighs the food poisoning it costs that room's cooks: the meals a day
+the exposed stations make (`StationNode.Meals`) times the room's
+`FoodPoisonChance` with the blood standing (`FilthCost.FoodPoisonPerUnit`) are
+the poisonings a day, each the work of the `FoodPoisoning` hediff
+(`PoisoningModel.WorkDays`: each stage's days times the Consciousness it takes,
+plus its vomits, about 0.5 work-days), priced at the work-day rate below;
+`foodPoisonGame` holds the judgments. The impressiveness shift stays recorded
+only (#2954).
 
 The total is in embedding score points, no new constant: `-Score.Total()` plus
 the conflicts. `RoomGroup.Costs` ticks a day become work-days (`TicksPerDay`),

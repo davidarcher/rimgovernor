@@ -25,7 +25,7 @@ import (
 //     merged room loses. A merge that would lose a role effect (a bed with a
 //     bench: PredictRole no longer gives the bedroom) is never proposed, and
 //     neither are the physical exclusions (open sky against a roof, the area
-//     limit); the filth merge is #2955's.
+//     limit); the filth merge is priced below.
 //   - split: two nodes of a room that pays a conflict (a band station in a cold
 //     room, a lost role effect, a role the game disproved) stand in rooms of their
 //     own.
@@ -73,6 +73,11 @@ const (
 	ReasonRegroupMove           = "regroup_move_need_total_falls"
 	ReasonRegroupNoGain         = "regroup_no_move_improves"
 	ReasonRegroupUnpriced       = "regroup_work_price_unknown"
+	// ReasonRegroupFilthMerge: a butcher joined a room of cooks because the walk it
+	// saves outweighs the poisoning it costs; ReasonRegroupFilthKept: it stayed a
+	// closet because the poisoning (Poison) costs more than the walk saved (Walk).
+	ReasonRegroupFilthMerge = "regroup_filth_merge_walk_beats_poison"
+	ReasonRegroupFilthKept  = "regroup_filth_merge_poison_beats_walk"
 )
 
 // The search budget, as siteSearchTop / siteSearchIters bound the embedding's:
@@ -151,6 +156,18 @@ func (p RegroupPrice) group(g RoomGroup, guard []LostRoleEffect) (points float64
 	return points, lost
 }
 
+// poison is the food poisoning a filth node costs the cooks of its room, in
+// points (#2955): the work-days a day the poisoned meals cost (FilthCost.
+// PoisonWorkDays, the hediff's work-days per expected poisoning) through the
+// same work-day to points rate as every other conflict.
+func (p RegroupPrice) poison(g RoomGroup) float64 {
+	days := 0.0
+	for _, f := range g.Filth {
+		days += f.PoisonWorkDays
+	}
+	return p.Work.Points(days)
+}
+
 // RegroupInput is the chain's input up to the embedding. Embed.Groups and
 // Embed.Fields are set per trial.
 type RegroupInput struct {
@@ -171,6 +188,11 @@ type RegroupDecision struct {
 	// grouping before and after the move; Lost the lost role effects after it.
 	Before, After float64
 	Lost          int
+	// Walk and Poison are the move's two parts of Before to After, in score
+	// points: the change of the embedding's score (the walk it saves is
+	// negative) and the poisoning price it adds (#2955); the rest is the
+	// conflicts' ticks and lost effects.
+	Walk, Poison float64
 }
 
 // Regrouping is the groups the search ended on.
@@ -192,6 +214,8 @@ type regroupTrial struct {
 	embedding  Embedding
 	failed     int
 	points     float64
+	embedPts   float64 // the embedding's part of points
+	poisonPts  float64 // the poisoning price's part of points
 	lost       int
 	guarded    map[int]bool // groups that carry a role-guard cost
 }
@@ -242,11 +266,14 @@ func (r *regrouper) evaluate(pairs []NodePair) (*regroupTrial, error) {
 	}
 	t := &regroupTrial{pairs: pairs, clustering: cl, embed: in, embedding: emb, guarded: map[int]bool{}}
 	t.failed = len(emb.Unplaceable()) + emb.Score.UnmetLinks
-	t.points = -float64(emb.Score.Total())
+	t.embedPts = -float64(emb.Score.Total())
+	t.points = t.embedPts
 	guard := r.guardEffects(cl.Groups)
 	for _, g := range cl.Groups {
 		points, lost := r.in.Price.group(g, guard[g.ID])
-		t.points += points
+		poison := r.in.Price.poison(g)
+		t.points += points + poison
+		t.poisonPts += poison
 		t.lost += lost
 		t.guarded[g.ID] = len(guard[g.ID]) > 0
 	}
@@ -324,6 +351,7 @@ func Regroup(in RegroupInput) (Regrouping, error) {
 		return cur.regrouping(decisions), nil
 	}
 	rng := newSearchRand(cur.embedding.Seed)
+	refused := map[[2]string]RegroupDecision{} // filth merges priced higher than the closet, by pair
 	for range regroupRounds {
 		cands := r.candidates(cur)
 		var best *regroupTrial
@@ -332,6 +360,9 @@ func Regroup(in RegroupInput) (Regrouping, error) {
 			t, err := r.evaluate(withRules(cur.pairs, m.rules))
 			if err != nil {
 				return Regrouping{}, err
+			}
+			if m.reason == ReasonRegroupFilthMerge && t.signature() != cur.signature() && !t.better(cur) {
+				refused[pairKey(m.a, m.b)] = moveDecision(m, cur, t, RegroupKept, ReasonRegroupFilthKept)
 			}
 			if t.signature() == cur.signature() || !t.better(cur) || best != nil && !t.better(best) {
 				continue
@@ -345,13 +376,30 @@ func Regroup(in RegroupInput) (Regrouping, error) {
 		if bestMove.kind == RegroupSplit && r.guardedPair(cur, bestMove) {
 			reason = ReasonRegroupSplitRoleGuard
 		}
-		decisions = append(decisions, RegroupDecision{Kind: bestMove.kind, Verdict: RegroupApplied, Reason: reason, A: bestMove.a, B: bestMove.b, Before: cur.points, After: best.points, Lost: best.lost})
+		decisions = append(decisions, moveDecision(bestMove, cur, best, RegroupApplied, reason))
+		delete(refused, pairKey(bestMove.a, bestMove.b))
 		cur = best
+	}
+	keys := make([][2]string, 0, len(refused))
+	for k := range refused {
+		keys = append(keys, k)
+	}
+	slices.SortFunc(keys, func(a, b [2]string) int { return strings.Compare(a[0]+"|"+a[1], b[0]+"|"+b[1]) })
+	for _, k := range keys {
+		if ruleOf(cur.pairs, k[0], k[1]) == 0 {
+			decisions = append(decisions, refused[k])
+		}
 	}
 	if len(decisions) == 0 {
 		decisions = append(decisions, RegroupDecision{Verdict: RegroupKept, Reason: ReasonRegroupNoGain, Before: cur.points, After: cur.points, Lost: cur.lost})
 	}
 	return cur.regrouping(decisions), nil
+}
+
+// moveDecision is the move m taking the grouping from → to.
+func moveDecision(m regroupMove, from, to *regroupTrial, verdict, reason string) RegroupDecision {
+	return RegroupDecision{Kind: m.kind, Verdict: verdict, Reason: reason, A: m.a, B: m.b, Before: from.points, After: to.points, Lost: to.lost,
+		Walk: to.embedPts - from.embedPts, Poison: to.poisonPts - from.poisonPts}
 }
 
 func (t *regroupTrial) regrouping(decisions []RegroupDecision) Regrouping {
@@ -464,6 +512,17 @@ func (r *regrouper) candidates(cur *regroupTrial) []regroupMove {
 			continue
 		}
 		add(regroupMove{kind: RegroupMerge, reason: ReasonRegroupMerge, a: d.A, b: d.B, rules: []NodePair{{A: d.A, B: d.B, Rule: PairTogether}}})
+	}
+	// merge: a filth node kept in its closet joins the room of the node it flows
+	// to, when the walk saved outweighs the poisoning it costs the room's cooks.
+	// A filth model that cannot price the poisoning proposes nothing: the merge
+	// would look free.
+	priced := r.in.Cluster.Catalog.Filth.Def != "" && r.in.Cluster.Catalog.Filth.Poisoning.WorkDays() > 0
+	for _, d := range cur.clustering.Decisions {
+		if !priced || d.Verdict != ClusterKeep || d.Reason != ReasonClusterFilthPriced || d.A == "" || d.B == "" || d.A == d.B || ruleOf(cur.pairs, d.A, d.B) != 0 {
+			continue
+		}
+		add(regroupMove{kind: RegroupMerge, reason: ReasonRegroupFilthMerge, a: d.A, b: d.B, rules: []NodePair{{A: d.A, B: d.B, Rule: PairTogether}}})
 	}
 	groups := cur.clustering.Groups
 	for _, g := range groups {

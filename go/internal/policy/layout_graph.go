@@ -141,6 +141,10 @@ type StationNode struct {
 	// together (recipe runs times the station's work per run); 0 for a node
 	// that is not worked. Conflict costs are priced against it.
 	DailyWork float64
+	// Meals is the food items a day the node's stations make (the runs of the
+	// food recipes they work times what a run makes); 0 for a node that makes
+	// none. A poisoned meal is the exposure of a cook beside filth (#2955).
+	Meals float64
 	// Filth is set when the colony's orders have the node's stations butcher:
 	// a recipe with the Butchery special product spawns the corpse's blood (or
 	// machine bits) at the butcher's cell (Corpse.ButcherProducts calls
@@ -569,6 +573,11 @@ func (b *graphBuilder) workLoads() ([]recipeLoad, error) {
 		count := max(1, int(math.Ceil(perStation[def]/float64(domain.TicksPerDay*max(s.Capacity.Slots, 1)))))
 		node := b.nodes[b.addNode(def, PurposeWork, count, s.Needs, ReasonWorkNutrition)]
 		node.DailyWork = perStation[def]
+		for _, l := range out {
+			if flow := b.in.Recipes[l.recipe]; l.station == def && flow.Food {
+				node.Meals += l.runs * flow.productCount()
+			}
+		}
 		node.Filth = slices.ContainsFunc(out, func(l recipeLoad) bool { return l.station == def && b.in.Recipes[l.recipe].Butchery })
 	}
 	return out, nil

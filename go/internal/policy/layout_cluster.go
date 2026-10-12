@@ -336,6 +336,8 @@ type groupEval struct {
 	// the room when it also holds a node that is not filthy.
 	filthy, exposed []string
 	filthCosts      []FilthCost
+	// meals is the meals a day the exposed nodes' stations in the group make.
+	meals float64
 }
 
 func (c *clusterer) node(u unit) StationNode { return c.in.Graph.Nodes[u.node] }
@@ -432,6 +434,7 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 		}
 		e.footprint += u.count * int(size.X) * int(size.Z)
 		e.clearance += u.count
+		exposedUnit := false
 		for _, need := range n.Needs {
 			switch need.Kind {
 			case NeedCold:
@@ -447,6 +450,10 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 				if need.Input == cleanlinessStat && !slices.Contains(e.exposed, n.ID) {
 					e.exposed = append(e.exposed, n.ID)
 				}
+				if need.Input == cleanlinessStat && n.Count > 0 && !exposedUnit {
+					exposedUnit = true
+					e.meals += n.Meals * float64(u.count) / float64(n.Count)
+				}
 			}
 		}
 	}
@@ -458,7 +465,7 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 	e.clearance++ // the door threshold
 	e.area = e.footprint + e.clearance
 	if e.filth && !e.closet {
-		e.filthCosts = c.in.Catalog.Filth.filthCosts(e.filthy, e.exposed, e.area)
+		e.filthCosts = c.in.Catalog.Filth.filthCosts(e.filthy, e.exposed, e.area, e.meals)
 	}
 	return e, nil
 }

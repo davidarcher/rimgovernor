@@ -122,4 +122,8 @@ func TestFilthModelReadsBloodAndFoodPoisonCurve(t *testing.T) {
 	if !reflect.DeepEqual(m.FoodPoison, want) {
 		t.Errorf("curve %v, want %v", m.FoodPoison, want)
 	}
+	// The FoodPoisoning hediff: half a work-day of lost Consciousness and vomiting.
+	if days := m.Poisoning.WorkDays(); days < 0.50 || days > 0.503 {
+		t.Errorf("poisoning %+v costs %v work-days, want 0.5017", m.Poisoning, days)
+	}
 }

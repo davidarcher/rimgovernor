@@ -67,6 +67,12 @@ func DefTables() []DefTable {
 		// and the beauty impact factor are Need_Comfort's, Need_Beauty's and
 		// Pawn_NeedsTracker's literals, read with ilspycmd; the rise, fall and base
 		// level are the NeedDef rows'.
+		// foodPoisonGame (#2955): the sickness a poisoned meal gives, the capacity of
+		// it that stands for lost work (Consciousness, the judgment) and the job a
+		// vomit starts (JobDriver_Vomit: 300 to 900 ticks).
+		{"foodPoisonHediff", "Verse.HediffDef", []string{foodPoisonGame.Hediff}},
+		{"foodPoisonCapacity", "Verse.PawnCapacityDef", []string{foodPoisonGame.WorkCapacity}},
+		{"foodPoisonVomit", "Verse.JobDef", []string{foodPoisonGame.VomitJob}},
 		{"seekerNeeds", "RimWorld.NeedDef", seekerNeedDefs()},
 		{"seekerThoughts", "RimWorld.ThoughtDef", seekerThoughts()},
 		// The wind path constants (windPathWidth ... windBlockedLoss) are
