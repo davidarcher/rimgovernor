@@ -1723,8 +1723,14 @@ message PasteDispenser { optional string building_id = 1; optional bool powered 
 // The window is climate potential, not a promise of harvestable instances.
 message ForagePlant { optional string def_name = 1; repeated int32 growing_twelfths = 2; optional bool growing_now = 3; }
 message PenGrazing { optional string pen_id = 1; optional double demand_per_day = 2; optional double pasture_per_day = 3; optional double stored_nutrition = 4; }
+// MapPastureNutritionCalculator.CalculateAverageNutritionPerDay(terrain): the
+// nutrition per day one cell of the terrain grows for pasture animals in the
+// map's worst quadrum (the minimum over the four), summed over the biome's wild
+// grazing plants; the figure PenFoodCalculator sums over a pen's cells. One row
+// per TerrainDef with fertility above zero, sorted by def name.
+message PastureTerrain { optional string terrain_def = 1; optional double worst_quadrum_per_day = 2; }
 message FoodSlaughterAnimal { optional string pawn_id = 1; optional string race = 2; optional double meat_amount = 6; }
-message FoodChannelsFacts { FishableWater fishable_water = 1; repeated GatherableAnimal gatherable = 2; repeated EggLayerAnimal egg_layer = 3; repeated PasteDispenser paste_dispenser = 4; optional uint32 polluted_cells = 5; repeated ForagePlant forage = 6; repeated PenGrazing grazing = 8; repeated FoodSlaughterAnimal slaughter = 9; }
+message FoodChannelsFacts { FishableWater fishable_water = 1; repeated GatherableAnimal gatherable = 2; repeated EggLayerAnimal egg_layer = 3; repeated PasteDispenser paste_dispenser = 4; optional uint32 polluted_cells = 5; repeated ForagePlant forage = 6; repeated PenGrazing grazing = 8; repeated FoodSlaughterAnimal slaughter = 9; repeated PastureTerrain pasture_terrain = 10; }
 message FoodChannelsSection { oneof outcome { FoodChannelsFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Discovered DeepResourceGrid cells only, merged into eight-connected components
 // of the same definition. Centre is the member nearest the component centroid

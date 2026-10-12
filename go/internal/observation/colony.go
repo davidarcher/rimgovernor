@@ -516,7 +516,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.Facts.MapBounds = domain.Known(r.Bounds)
 	r.Facts.ShelterArea = shelterArea(r.Policies)
 	r.Facts.NoDangerArea = allowedAreaID(r.Policies, policy.NoDangerAreaLabel)
-	r.Facts.VetRoom.Area = allowedAreaID(r.Policies, policy.VetRoomAreaLabel)
+	r.Facts.AnimalWard.Area = allowedAreaID(r.Policies, policy.HospitalAreaLabel)
 	r.Facts.BarnArea = allowedAreaID(r.Policies, policy.BarnAreaLabel)
 	r.Facts.CompanionArea = allowedAreaID(r.Policies, policy.CompanionAreaLabel)
 	r.Facts.WildArea = allowedAreaID(r.Policies, policy.WildAreaLabel)
@@ -533,6 +533,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	}
 	if channels, known := r.FoodChannels.Value(); known {
 		r.Facts.PenGrazing = domain.Known(channels.Grazing)
+		r.Facts.Pasture = domain.Known(channels.Pasture)
 	}
 	if development := v.GetDevelopment().GetObserved(); development != nil && resolved(buildings, development.Power, (*o.DevelopmentPower).GetBuilding) {
 		power := make([]policy.PowerBuilding, 0, len(development.Power))

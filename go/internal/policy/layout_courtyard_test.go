@@ -41,7 +41,7 @@ func TestCourtyardPlusPatchStaysOneFarmedFieldEnclosedWhole(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := plusSurvey(140, 0)
 	rich := richSet(s)
-	plan, ok := DeriveLayoutPlan(s, 8, TechTierCamp, nil, 30, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 8, TechTierCamp, nil, 30).Value()
 	if !ok || !plan.WithRoomIDs().Valid() {
 		t.Fatal("no valid plan")
 	}
@@ -96,7 +96,7 @@ func TestCourtyardPatchIsNotYardRoom(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := plusSurvey(140, 0)
 	rich := richSet(s)
-	plan, ok := DeriveLayoutPlan(s, 8, TechTierCamp, nil, 30, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 8, TechTierCamp, nil, 30).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}

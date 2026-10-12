@@ -20,6 +20,13 @@ func TestFoodChannelsRejectsMalformedCensus(t *testing.T) {
 		{"invalid grazing", func(f *o.FoodChannelsFacts) {
 			f.Grazing = []*o.PenGrazing{{PenId: proto.String("pen"), PasturePerDay: proto.Float64(-1)}}
 		}},
+		{"negative pasture", func(f *o.FoodChannelsFacts) {
+			f.PastureTerrain = []*o.PastureTerrain{{TerrainDef: proto.String("Soil"), WorstQuadrumPerDay: proto.Float64(-1)}}
+		}},
+		{"duplicate pasture terrain", func(f *o.FoodChannelsFacts) {
+			row := &o.PastureTerrain{TerrainDef: proto.String("Soil"), WorstQuadrumPerDay: proto.Float64(0.1)}
+			f.PastureTerrain = []*o.PastureTerrain{row, row}
+		}},
 		{"duplicate slaughter", func(f *o.FoodChannelsFacts) {
 			row := &o.FoodSlaughterAnimal{PawnId: proto.String("cow"), Race: proto.String("Cow")}
 			f.Slaughter = []*o.FoodSlaughterAnimal{row, row}

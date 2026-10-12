@@ -18,9 +18,9 @@ const (
 var outerEnclosed = map[ReservationKind]bool{ReserveGeothermal: true}
 
 // innerEnclosed are the reservations the core ring walls in with the rooms:
-// the materials yard, the barns and vet rooms, the outskirts and the turbine pairs with their
+// the materials yard, the barns, the outskirts and the turbine pairs with their
 // lanes stand beside the core, inside its wall, not out in the fields.
-var innerEnclosed = map[ReservationKind]bool{ReserveYard: true, ReserveBarn: true, ReserveVetRoom: true, ReserveTurbine: true, ReserveTurbineLane: true, ReserveOutskirts: true}
+var innerEnclosed = map[ReservationKind]bool{ReserveYard: true, ReserveBarn: true, ReserveTurbine: true, ReserveTurbineLane: true, ReserveOutskirts: true}
 
 // wallRuns walls side sd's open cells into walls, run by run between the
 // positions skip reports (an opening, bare terrain, soft ground), and returns
@@ -139,7 +139,7 @@ func pitchGates(gates []Rectangle, stepGates []stepGate, blocked func(domain.Cel
 // not its bounding rectangle.
 func coreFootprint(plan LayoutPlan, w, h int32) []bool {
 	fp := coreBaseFootprint(plan, w, h)
-	gap := yardGap(fp, w, h, plan.YardCells)
+	gap := perimeterGap
 	for _, r := range plan.Reservations {
 		if outerEnclosed[r.Kind] && crowdsCore(fp, w, h, r.Area.Bounds(), gap) {
 			markRect(fp, w, h, pad(r.Area.Bounds(), 1))
@@ -180,7 +180,7 @@ func markRect(fp []bool, w, h int32, r Rectangle) {
 // to clear, so it stands hard against the wall.
 func coreEnclosure(plan LayoutPlan, w, h int32) enclosure {
 	base := coreBaseFootprint(plan, w, h)
-	gap := yardGap(base, w, h, plan.YardCells)
+	gap := perimeterGap
 	tight := make([]bool, len(base))
 	for _, r := range plan.Reservations {
 		if outerEnclosed[r.Kind] && crowdsCore(base, w, h, r.Area.Bounds(), gap) {
@@ -199,32 +199,6 @@ func coreEnclosure(plan LayoutPlan, w, h int32) enclosure {
 // outerClear is how far the outer ring needs a unit to stand off the core
 // footprint: the core ring's yard, its thickness, the gap and the outer ring's thickness.
 const outerClear = perimeterGap + perimeterThick + perimeterOuterGap + perimeterThick
-
-// perimeterGapMax caps how far the herd grows the yard past perimeterGap.
-const perimeterGapMax = perimeterGap + 12
-
-// yardGap is the yard between the core footprint fp and the wall: the
-// smallest gap from perimeterGap up whose ring of cells around fp holds
-// grazing cells, capped at perimeterGapMax. grazing 0 keeps perimeterGap.
-func yardGap(fp []bool, w, h int32, grazing int32) int32 {
-	if grazing <= 0 {
-		return perimeterGap
-	}
-	var count [perimeterGapMax + 1]int32
-	for _, d := range chebyshevField(w, h, fp, perimeterGapMax) {
-		if d >= 1 {
-			count[d]++
-		}
-	}
-	var held int32
-	for g := int32(1); g <= perimeterGapMax; g++ {
-		held += count[g]
-		if g >= perimeterGap && held >= grazing {
-			return g
-		}
-	}
-	return perimeterGapMax
-}
 
 // crowdsCore reports whether area stands within outerClear (Chebyshev), widened by
 // the yard (gap) a herd grew past perimeterGap, of the core footprint. The outer

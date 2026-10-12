@@ -819,7 +819,7 @@ func inspectHerd(c *roundsRun) error {
 	if HerdMasterChoice(f.AnimalUpkeep.Animals, herd, f.WorkProfiles).Method != "" {
 		recovered = domain.Known(false)
 	}
-	if SterilizeChoice(f.AnimalUpkeep.Animals, herd, f.VetRoom).Method != "" {
+	if SterilizeChoice(f.AnimalUpkeep.Animals, herd, f.AnimalWard).Method != "" {
 		recovered = domain.Known(false)
 	}
 	shelter, err := f.AnimalShelterChoice()

@@ -17,6 +17,7 @@ type FoodChannels struct {
 	PollutedCells  domain.Fact[uint32]
 	Forage         []ForagePlant
 	Grazing        []policy.PenGrazing
+	Pasture        policy.PastureTable
 	Slaughter      []policy.SlaughterFoodAnimal
 }
 type FishableWater struct {
@@ -75,6 +76,12 @@ func colonyFoodChannels(section *o.FoodChannelsSection, pawns bridge.Pawns, race
 	r := FoodChannels{PollutedCells: optional(v.PollutedCells)}
 	for _, row := range v.Grazing {
 		r.Grazing = append(r.Grazing, policy.PenGrazing{ID: row.GetPenId(), DemandPerDay: optional(row.DemandPerDay), PasturePerDay: optional(row.PasturePerDay), StoredNutrition: optional(row.StoredNutrition)})
+	}
+	for _, row := range v.PastureTerrain {
+		if r.Pasture == nil {
+			r.Pasture = policy.PastureTable{}
+		}
+		r.Pasture[row.GetTerrainDef()] = row.GetWorstQuadrumPerDay()
 	}
 	for _, row := range v.Slaughter {
 		r.Slaughter = append(r.Slaughter, slaughterFood(row, pawns, races))

@@ -65,7 +65,7 @@ func herdFurniture(facts observation.ColonyProjection) (policy.HerdFurniture, bo
 	return out, usable, nil
 }
 
-// herdStep is the projection's next barn or vet room step. known is false
+// herdStep is the projection's next barn or hospital ward step. known is false
 // while a fact it reads (the animal census, the plan, the room or
 // construction census, an animal bed's size or availability) is.
 func herdStep(facts observation.ColonyProjection) (step policy.HerdStep, known bool, err error) {
@@ -77,7 +77,8 @@ func herdStep(facts observation.ColonyProjection) (step policy.HerdStep, known b
 	if !ak || !pk || !rk || !ck || !sk || !census.Colony {
 		return policy.HerdStep{}, false, nil
 	}
-	if len(animals) == 0 || len(plan.HerdRooms(policy.PlannedBarn))+len(plan.HerdRooms(policy.PlannedVetRoom)) == 0 {
+	ward := policy.WardBeds(animals, facts.Facts.HerdPolicy())
+	if len(animals) == 0 || len(plan.HerdRooms(policy.PlannedBarn)) == 0 && (ward == 0 || len(plan.HerdRooms(policy.PlannedHospital)) == 0) {
 		return policy.HerdStep{}, true, nil
 	}
 	furniture, usable, err := herdFurniture(facts)
@@ -88,12 +89,12 @@ func herdStep(facts observation.ColonyProjection) (step policy.HerdStep, known b
 	if !gk {
 		return policy.HerdStep{}, false, nil
 	}
-	return policy.NextHerdStep(plan, rooms, plan.GroundWithRock(ground, naturalRock(facts)), census.Buildings, sleeping.Beds, len(animals), furniture), true, nil
+	return policy.NextHerdStep(plan, rooms, plan.GroundWithRock(ground, naturalRock(facts)), census.Buildings, sleeping.Beds, len(animals), ward, furniture), true, nil
 }
 
-// vetRoomReady is VetRoom.Ready: known once the plan, room census,
-// construction census and sleeping census are; see policy.VetRoomReady.
-func vetRoomReady(facts observation.ColonyProjection) domain.Fact[bool] {
+// wardReady is AnimalWard.Ready: known once the plan, room census,
+// construction census and sleeping census are; see policy.WardReady.
+func wardReady(facts observation.ColonyProjection) domain.Fact[bool] {
 	plan, pk := facts.LayoutPlan.Value()
 	rooms, rk := facts.Rooms.Value()
 	census, ck := facts.Facts.CurrentConstruction.Value()
@@ -101,11 +102,11 @@ func vetRoomReady(facts observation.ColonyProjection) domain.Fact[bool] {
 	if !pk || !rk || !ck || !sk || !census.Colony {
 		return domain.Unknown[bool]()
 	}
-	return policy.VetRoomReady(plan, rooms, census.Buildings, sleeping.Beds, facts.Shapes.Furniture.AnimalBed)
+	return policy.WardReady(plan, rooms, census.Buildings, sleeping.Beds, facts.Shapes.Furniture.AnimalBed)
 }
 
 // herdRoomsOwed is the review's HerdRoomsOwed fact: known true while a barn
-// or vet room step is due.
+// or hospital ward step is due.
 func herdRoomsOwed(facts observation.ColonyProjection) (domain.Fact[bool], error) {
 	step, known, err := herdStep(facts)
 	if err != nil || !known {
@@ -117,7 +118,7 @@ func herdRoomsOwed(facts observation.ColonyProjection) (domain.Fact[bool], error
 // stageHerdRooms answers the due herd step: the room through the shared build
 // side (reconcileRoom: the ring, door and beds the plan and the template still
 // owe, installed from packed stock first; a lost wall is rebuilt like a first
-// shell) or a vet bed's medical flag. It reads the room census itself, the pen
+// shell) or a ward bed medical flag. It reads the room census itself, the pen
 // steps before it did not need it.
 func (r *RoundsAnimalContainmentPlanner) stageHerdRooms(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, expected observation.Identity, claims domain.Fact[[]policy.ConstructionClaim]) (RoundsAnimalContainmentResult, error) {
 	reading, err := r.reviewer.observeRooms(call, r.reviewer.native, expected, claims, herdDefinitions...)

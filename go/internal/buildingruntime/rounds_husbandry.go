@@ -61,12 +61,12 @@ func (r *RoundsHusbandryPlanner) step(call, epoch context.Context, arbiter *step
 		return RoundsHusbandryResult{}, fmt.Errorf("%w: step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	started := r.reviewer.clock.Now()
-	// The room census: the vet room is ready only once it stands shelled.
+	// The room census: the animal ward is ready only once its hospital stands shelled.
 	read, err := r.reviewer.observeRooms(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
 	if err != nil {
 		return RoundsHusbandryResult{}, err
 	}
-	read.Projection.Facts.VetRoom.Ready = vetRoomReady(read.Projection)
+	read.Projection.Facts.AnimalWard.Ready = wardReady(read.Projection)
 	wait := animalProductWait(read.Projection.Facts.FoodPlan)
 	herd := read.Projection.Facts.HerdPolicy()
 	nativeWorkPending := policy.HerdWorkPending(read.Projection.Facts.AnimalUpkeep.Animals, read.Projection.Facts.AnimalUpkeep.WildAnimals, herd)
@@ -120,7 +120,7 @@ func (r *RoundsHusbandryPlanner) step(call, epoch context.Context, arbiter *step
 		choice = policy.HerdMasterChoice(animals, herd, handlers)
 	}
 	if choice.Reason == policy.HusbandryNoDeficit {
-		choice = policy.SterilizeChoice(animals, herd, read.Projection.Facts.VetRoom)
+		choice = policy.SterilizeChoice(animals, herd, read.Projection.Facts.AnimalWard)
 	}
 	switch choice.Reason {
 	case policy.HusbandryNoDeficit:

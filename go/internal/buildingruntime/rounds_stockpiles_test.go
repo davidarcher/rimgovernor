@@ -134,7 +134,7 @@ func TestNonSleepingPlannedCellsCloseStorage(t *testing.T) {
 		{Role: policy.PlannedShelter, Region: policy.RectRegion(policy.Rectangle{X: 30, Z: 30, Width: 3, Height: 3})},
 		{Role: policy.PlannedShelter, Region: policy.RectRegion(policy.Rectangle{X: 50, Z: 50, Width: 3, Height: 3})},
 		{Role: policy.PlannedBarn, Region: policy.RectRegion(policy.Rectangle{X: 70, Z: 70, Width: 3, Height: 3})},
-		{Role: policy.PlannedVetRoom, Region: policy.RectRegion(policy.Rectangle{X: 90, Z: 90, Width: 3, Height: 3})},
+		{Role: policy.PlannedHospital, Region: policy.RectRegion(policy.Rectangle{X: 90, Z: 90, Width: 3, Height: 3})},
 	}}
 	facts := observation.ColonyProjection{LayoutPlan: domain.Known(plan)}
 	cells := map[domain.Cell]bool{}

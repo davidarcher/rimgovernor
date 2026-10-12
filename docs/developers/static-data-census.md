@@ -736,8 +736,9 @@ Kept, reason recorded:
 | PasteDispenser | message | 1700 | 4 | state | Nutrient paste dispenser power and hopper state |  |  |
 | ForagePlant | message | 1703 | 3 | code | Climate growing twelfths for a forage plant |  |  |
 | PenGrazing | message | 1704 | 4 | code | Pen grazing demand and pasture rates |  |  |
+| PastureTerrain | message | 1731 | 2 | state | Worst-quadrum pasture nutrition per cell per day, per terrain | worst_quadrum_per_day | Derived by the game (MapPastureNutritionCalculator over the biome plants and terrain fertility); the pen food formula (policy.PenCells) runs over it |
 | FoodSlaughterAnimal | message | 1705 | 5 | mixed | Slaughter candidate meat and feed figures | meat_nutrition; feed_per_day; reproduction_days | meat_nutrition = meatAmount stat x RaceProperties.meatDef nutrition (Go rule over race row); feed_per_day = existing race adult_feed_per_day; reproduction_days = RaceProperties.gestationPeriodDays |
-| FoodChannelsFacts | message | 1706 | 8 | state | Food channel census: water, animals, paste, forage, grazing, slaughter |  |  |
+| FoodChannelsFacts | message | 1733 | 9 | state | Food channel census: water, animals, paste, forage, grazing, slaughter |  |  |
 | FoodChannelsSection | message | 1707 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
 | DeepResourceLump | message | 1711 | 4 | state | Discovered deep resource lump |  |  |
 | MineralScannerState | message | 1717 | 8 | mixed | Mineral scanner state | target_resource | building mineableThing config on the scanner def |

@@ -96,6 +96,17 @@ namespace HomeBridge.BridgeTools
                     result.Grazing.Add(new Obs.PenGrazing { PenId = pen.parent.GetUniqueLoadID(), DemandPerDay = Finite(food.SumNutritionConsumptionPerDay),
                         PasturePerDay = Finite(pasture), StoredNutrition = Finite(food.sumStockpiledNutritionAvailableNow) });
                 }
+                // The pasture a cell of each terrain grows in the worst quadrum: the
+                // per-cell term PenFoodCalculator sums over a pen, so Go can size a
+                // pen before it exists.
+                var terrainPasture = new MapPastureNutritionCalculator();
+                terrainPasture.Reset(map);
+                foreach (var terrain in DefDatabase<TerrainDef>.AllDefsListForReading.Where(t => t.fertility > 0f).OrderBy(t => t.defName, StringComparer.Ordinal))
+                {
+                    var perQuadrum = terrainPasture.CalculateAverageNutritionPerDay(terrain);
+                    result.PastureTerrain.Add(new Obs.PastureTerrain { TerrainDef = terrain.defName,
+                        WorstQuadrumPerDay = Finite(Enumerable.Range(0, 4).Min(q => perQuadrum.ForQuadrum((Quadrum)q))) });
+                }
                 foreach (var dispenser in map.listerThings.AllThings.OfType<Building_NutrientPasteDispenser>().Where(b => b.Spawned && b.Faction == Faction.OfPlayerSilentFail).OrderBy(b => b.thingIDNumber))
                 {
                     var row = new Obs.PasteDispenser { BuildingId = dispenser.GetUniqueLoadID() };

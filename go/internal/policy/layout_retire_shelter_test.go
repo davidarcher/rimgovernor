@@ -22,7 +22,7 @@ func newShelterRetireFixture(t *testing.T) shelterRetireFixture {
 	t.Helper()
 	slowtest.Skip(t, "full layout derive and replan on a 200-cell map; runs under cmd/test -full and nightly")
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	plan, ok := DeriveLayoutPlan(s, 2, TechTierCamp, nil, 30, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 2, TechTierCamp, nil, 30).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}

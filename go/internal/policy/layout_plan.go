@@ -171,10 +171,6 @@ type LayoutPlan struct {
 	// seasonal curve peaks above HotEnter, so the shelter holds a floor slot
 	// for a passive cooler.
 	Hot bool `json:",omitempty"`
-	// YardCells latches the grazing the wall's yard is sized for when the
-	// plan is derived (YardCells(herd)); 0 keeps the floor, perimeterGap.
-	// A replan never resizes the yard.
-	YardCells int32 `json:",omitempty"`
 	// NextRoomID is the counter room ids come from: the next id handed out,
 	// latched in the plan so an id is never reused after its room leaves.
 	NextRoomID int32 `json:",omitempty"`

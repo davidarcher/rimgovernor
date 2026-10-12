@@ -6,15 +6,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// VetRoom is what the layout exposes of the vet room to the herd
-// plan. Ready is a vet room reservation with a built medical animal bed;
-// Area is the allowed-area id covering the room, the area an animal is let
-// into for surgery. Either unknown (or Ready false) means no sterilize.
-type VetRoom struct {
-	Ready domain.Fact[bool]
-	Area  domain.Fact[string]
-}
-
 // sterilizeWanted is the animals the plan wants sterilized now: of a race
 // that is superseded (a better race will take its job; it keeps working but
 // stops breeding) or the males beyond the plan's ratio (herdMalesPerFemales)
@@ -74,19 +65,19 @@ func sterilizeWanted(rows []UpkeepAnimal, herd HerdPolicy) map[PawnID]bool {
 	return wanted
 }
 
-// SterilizeChoice sequences the sterilize surgery through the vet room, one
+// SterilizeChoice sequences the sterilize surgery through the hospital ward, one
 // write per cycle, from the animals' current allowed area and sterilize
-// facts alone: let an animal wanted sterilized into the vet room
+// facts alone: let an animal wanted sterilized into the hospital
 // (allowed_area), queue its bill (sterilize), and let it out once it is
 // sterilized (allowed_area cleared). One animal is in the room at a time,
-// and an animal with a bill queued is waited on. An animal in the room that
-// is no longer wanted and has no bill is let out. An unready or unknown vet
+// and an animal with a bill queued is waited on. An animal in the area that
+// is no longer wanted and has no bill is let out. An unready or unknown ward
 // room chooses nothing.
-func SterilizeChoice(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy, vet VetRoom) HusbandryChoice {
+func SterilizeChoice(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy, ward AnimalWard) HusbandryChoice {
 	none := HusbandryChoice{Reason: HusbandryNoDeficit}
 	rows, known := animals.Value()
-	ready, rk := vet.Ready.Value()
-	area, ak := vet.Area.Value()
+	ready, rk := ward.Ready.Value()
+	area, ak := ward.Area.Value()
 	if !known || !rk || !ready || !ak || area == "" {
 		return none
 	}

@@ -37,9 +37,13 @@ func TestFoodChannelsPresenceThroughColonyDecode(t *testing.T) {
 		Gatherable:     []*o.GatherableAnimal{{PawnId: proto.String("cow"), Race: proto.String("Cow"), Fullness: proto.Float64(0), Resource: proto.String("Milk"), HandlerReachable: proto.Bool(false), NutritionPerDay: proto.Float64(.9), WorkPerDay: proto.Float64(400), LeadDays: proto.Float64(1), Active: proto.Bool(true)}, {PawnId: proto.String("dog"), Race: proto.String("LabradorRetriever")}},
 		EggLayer:       []*o.EggLayerAnimal{{PawnId: proto.String("hen"), Race: proto.String("Chicken"), CanLayNow: proto.Bool(false), Progress: proto.Float64(0), Fertilized: proto.Bool(true)}, {PawnId: proto.String("cow"), Race: proto.String("Cow")}},
 		PasteDispenser: []*o.PasteDispenser{{BuildingId: proto.String("paste"), Powered: proto.Bool(false), HopperNutrition: proto.Float64(0), AdjacentRoomId: proto.String("12")}},
+		PastureTerrain: []*o.PastureTerrain{{TerrainDef: proto.String("Soil"), WorstQuadrumPerDay: proto.Float64(0.25)}},
 		PollutedCells:  proto.Uint32(0), Forage: []*o.ForagePlant{{DefName: proto.String("Plant_Berry"), GrowingTwelfths: []int32{3, 4}, GrowingNow: proto.Bool(false)}}}
 	reply.GetObserved().FoodChannels = &o.FoodChannelsSection{Outcome: &o.FoodChannelsSection_Observed{Observed: f}}
 	p, known := decode().FoodChannels.Value()
+	if table, k := decode().Facts.Pasture.Value(); !k || tablePerCell(table, "Soil") != 0.25 {
+		t.Fatal("pasture table lost during colony projection", table)
+	}
 	if pens, k := decode().Facts.PenGrazing.Value(); !k || len(pens) != 1 {
 		t.Fatal("grazing facts lost during colony projection", pens)
 	}
@@ -143,4 +147,9 @@ func TestColonyFishableWaterAppliesPolicy(t *testing.T) {
 	if v, _ := second.Delivering.Value(); !v {
 		t.Fatal("open zone not delivering")
 	}
+}
+
+func tablePerCell(t interface{ PerCell(string) (float64, bool) }, terrain string) float64 {
+	v, _ := t.PerCell(terrain)
+	return v
 }

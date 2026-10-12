@@ -2,20 +2,20 @@ package husbandry
 
 // husbandry/plan proves the herd plan end to end on the blank lab. A lone cow is a founder and is kept; an old milk race
 // (superseded while the cow has no mate) loses one male to sterilize in the
-// vet room, read back sterilized; a wild bull is then tamed as the cow's mate
+// hospital ward, read back sterilized; a wild bull is then tamed as the cow's mate
 // and the old race retires one animal per review, never all at once. The race
 // catalog read is asserted first: cows with a milk product, wild and tame
 // races, minimum handling skill.
 //
 // A Go snapshot test cannot cover it: the assertion is native bed and
-// room use (an animal bed flagged medical in a standing vet room), a surgery
+// room use (an animal bed flagged medical in a standing hospital ward), a surgery
 // bill the game's own doctors perform, and the tame and designation ops
 // landing on live animals; the planner decisions themselves are snapshot
-// tests (policy.PlanHerd, SterilizeChoice, buildingruntime vet room tests).
+// tests (policy.PlanHerd, SterilizeChoice, buildingruntime hospital ward tests).
 //
-// The case stages the vet room ring finished from the controller's own
+// The case stages the hospital ward ring finished from the controller's own
 // LayoutPlan (LayoutPlan.VetRoomCells, test/hut_shell_fixture stage, as the
-// shelter cases did) so the beds, the medical flag, the VetRoom allowed area
+// shelter cases did) so the beds, the medical flag, the Hospital allowed area
 // and the sterilize writes still run the real controller path. The
 // controller holds the GABP slot while it runs, so staging and native
 // readbacks happen between service runs.
@@ -28,10 +28,10 @@ package husbandry
 // - a PawnKindDef shares its race's defName, so lab_spawn can place
 // the old race by the catalog's name;
 // - an AnimalBed can be flagged medical (the sterilize writes only start
-// once the sleeping census reads a standing vet room bed medical);
-// - a doctor performs the sterilize bill on an animal in the vet room
+// once the sleeping census reads a standing hospital ward bed medical);
+// - a doctor performs the sterilize bill on an animal in the hospital ward
 // (the animal reads sterilized afterwards);
-// - the VetRoom allowed area exists and the sterilize flow moves the
+// - the Hospital allowed area exists and the sterilize flow moves the
 // animal into it;
 // - native master ids equal pawn ids (the husbandry plan's animal ids are
 // the lab_spawn load ids);
@@ -69,7 +69,7 @@ const (
 	// surgeryTicks is the game time a sterilize bill gets once the service
 	// has stopped (the harness runs the game for it).
 	surgeryTicks = 3 * na.TicksPerDay
-	// stageWood is the WoodLog dropped beside the vet room: pen fences and
+	// stageWood is the WoodLog dropped beside the hospital ward: pen fences and
 	// beds are built from it.
 	stageWood = 400
 	// oldAge is the old race's age in years: adult, so each adds capacity.
@@ -85,18 +85,18 @@ func init() {
 		Name: "husbandry/plan",
 		Scope: "Herd plan end to end on the lab (#1638): the catalog race rows carry cows with a milk product, wild and tame " +
 			"races and a minimum handling skill; a lone cow founder is kept (never culled or sterilized) beside an old milk race; " +
-			"the old race's surplus male is sterilized in the controller-built vet room (VetRoom area, medical animal bed, " +
+			"the old race's surplus male is sterilized in the controller-built hospital ward (Hospital area, medical animal bed, " +
 			"surgery bill) and reads back sterilized; a wild bull is tamed as the cow's mate and the old race then retires one " +
 			"animal per review. A snapshot test cannot cover it: native bed and room use, surgery, and the tame and designation " +
 			"ops are the signal. Unconfirmed native semantics: wildness stat, combat power and trainables approximation, animal " +
-			"bed medical flag, surgery in the vet bed, bedroom role with a sleeping spot, the VetRoom area, native master ids " +
+			"bed medical flag, surgery in the ward bed, bedroom role with a sleeping spot, the Hospital area, native master ids " +
 			"equal pawn ids.",
 		Start:       cases.LabStart(),
 		RequiredOps: []string{na.LabSpawnTool, hutShellOp},
 		Serve: &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Husbandry, routinefamily.AnimalContainment, routinefamily.Sheltering},
 			NativeTimeout: 60 * time.Second, Prefix: "husbandry-plan"},
 		Budget: 28 * time.Minute,
-		Crew:   cases.Crew{Size: 3}, Reason: "one unstaged run of three service phases: the controller builds the pen, the vet room beds and the medical flag " +
+		Crew:   cases.Crew{Size: 3}, Reason: "one unstaged run of three service phases: the controller builds the pen, the hospital ward beds and the medical flag " +
 			"(construction), the game's doctors then sterilize, and a handler tames the mate before the retirement shows; " +
 			"the pen and beds cannot be staged without leaving the controller path the case exists to prove",
 		Run: runPlan,
@@ -352,25 +352,30 @@ func (p *phase) stop(ctx context.Context, label string) (*na.Harness, error) {
 	return h, nil
 }
 
-// vetRoom is the plan's one vet room and its interior cells.
+// vetRoom is the plan's one hospital ward and its interior cells.
 func vetRoom(plan policy.LayoutPlan) (policy.PlannedRoom, []domain.Cell, error) {
-	rooms := plan.HerdRooms(policy.PlannedVetRoom)
-	if len(rooms) != 1 {
-		return policy.PlannedRoom{}, nil, fmt.Errorf("layout plan has %d vet rooms, want 1", len(rooms))
+	var rooms []policy.PlannedRoom
+	for _, r := range plan.AllRooms() {
+		if r.Role == policy.PlannedHospital {
+			rooms = append(rooms, r)
+		}
 	}
-	cells := plan.VetRoomCells()
+	if len(rooms) != 1 {
+		return policy.PlannedRoom{}, nil, fmt.Errorf("layout plan has %d hospitals, want 1", len(rooms))
+	}
+	cells := plan.HospitalCells()
 	if len(cells) == 0 {
-		return policy.PlannedRoom{}, nil, fmt.Errorf("layout plan vet room has no interior cells")
+		return policy.PlannedRoom{}, nil, fmt.Errorf("layout plan hospital ward has no interior cells")
 	}
 	return rooms[0], cells, nil
 }
 
-// stageRing spawns the vet room's wall ring and door finished and drops the
+// stageRing spawns the hospital ward's wall ring and door finished and drops the
 // build wood beside it.
 func stageRing(ctx context.Context, h *na.Harness, room policy.PlannedRoom, cells []domain.Cell, report na.Report) error {
 	footprint, err := domain.NewRoomFootprint(cells, room.Door, room.DoorRot)
 	if err != nil {
-		return fmt.Errorf("vet room is not a room footprint: %w", err)
+		return fmt.Errorf("hospital ward is not a room footprint: %w", err)
 	}
 	var walls []string
 	for _, c := range footprint.Walls() {
@@ -444,16 +449,16 @@ func runPlan(ctx context.Context, s cases.Session) error {
 	}
 	report["herd"] = map[string]any{"cow": cow, "old_race": oldRace, "old_animals": oldAll, "old_males": oldMales}
 
-	// 3. Phase one: the controller plans the colony and its vet room.
+	// 3. Phase one: the controller plans the colony and its hospital ward.
 	one, err := begin(ctx, s, nil)
 	if err != nil {
 		return err
 	}
 	var room policy.PlannedRoom
 	var cells []domain.Cell
-	err = one.until(ctx, "layout plan with a vet room", func(review store.Rounds, _ []write) (bool, error) {
+	err = one.until(ctx, "layout plan with a hospital ward", func(review store.Rounds, _ []write) (bool, error) {
 		record, ok, err := one.st.LayoutPlan(ctx, review.Snapshot, review.Tick)
-		if err != nil || !ok || len(record.Plan.HerdRooms(policy.PlannedVetRoom)) == 0 {
+		if err != nil || !ok || len(record.Plan.HospitalCells()) == 0 {
 			return false, err
 		}
 		room, cells, err = vetRoom(record.Plan)
@@ -471,7 +476,7 @@ func runPlan(ctx context.Context, s cases.Session) error {
 		return err
 	}
 
-	// 4. Phase two: the vet room is furnished, flagged medical (the sleeping
+	// 4. Phase two: the hospital ward is furnished, flagged medical (the sleeping
 	// census reads it, or the sterilize flow would never start) and one old
 	// male is sterilized; the cow founder is untouched.
 	two, err := begin(ctx, s, one.svc)

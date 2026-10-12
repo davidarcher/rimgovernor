@@ -395,12 +395,12 @@ must be observed in a suitable pen. No breeding, bonding, master or removal sett
 
 Herd layout (`HerdPlan.PenAnimals`, summed population ceilings, at least six):
 a roofed barn with a sleeping spot per animal and an animal flap into the paddock (at
-least eight; placed sites never move), and a vet room with animal beds (one per 10 animals, at least two), all inside
-the outer ring; a herd the rooms cannot hold gets an extra reservation, never a resized one.
-The vet room is outside animal areas (animals enter when carried or via the bot-owned
-`VetRoom` allowed area, `VetRoomAreaKey`).
+least eight; placed sites never move), all inside the outer ring; a herd the barn cannot
+hold gets an extra reservation, never a resized one. There is no vet room: the hospital holds
+`AnimalBed` stations sized from the injured animals (`policy.WardBeds`), and an animal enters
+it when carried or via the bot-owned `Hospital` allowed area (`HospitalAreaKey`).
 
-- Containment reconciles each barn and vet room (`policy.HerdRooms`)
+- Containment reconciles each barn and the hospital's animal ward (`policy.HerdRooms`, `policy.HospitalCells`)
   through the shared build side (`policy.NextHerdStep` returns `HerdReconcile` with the
   template: the `AnimalSleepingSpot`s or `AnimalBed`s and the barn's heater;
   `buildingruntime/rounds_herd_rooms.go` calls `reconcileRoom`), so a lost wall is rebuilt
@@ -412,7 +412,7 @@ The vet room is outside animal areas (animals enter when carried or via the bot-
   counts a room with one as heated. No barn cooler is planned.
 - The barn interior is the bot-owned `Barn` allowed area (`BarnAreaKey`) that pen animals
   enter while exposure endangers their race ([husbandry contracts](husbandry-contracts.md)).
-  Each standing vet bed is flagged medical by a `BedUse` patch. Each bonded animal's master
+  Each standing ward bed is flagged medical by a `BedUse` patch. Each bonded animal's master
   (`policy.CompanionMaster`) with a solo bedroom gets one `AnimalSleepingSpot` per animal
   (`policy.NextCompanionBed`, one per review). Pasture rotation is not built.
 

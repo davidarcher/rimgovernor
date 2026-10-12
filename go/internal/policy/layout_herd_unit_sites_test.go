@@ -7,12 +7,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Each herd gets a barn and vet area of its own, sized from its ceiling,
+// Each herd gets a barn of its own, sized from its ceiling,
 // beside the misc unit's; the misc unit is sized as before and never moves.
 func TestHerdUnitsAreSizedFromTheirCeilingAndLeaveTheMiscUnitAlone(t *testing.T) {
 	misc := herdTestPlan(t, 10)
-	if got := misc.herdUnits(); len(got) != 1 || len(got[0].barns) != 1 || len(got[0].vets) != 1 {
-		t.Fatal("the misc unit is a barn and a vet area", got)
+	if got := misc.herdUnits(); len(got) != 1 || len(got[0].barns) != 1 {
+		t.Fatal("the misc unit is a barn", got)
 	}
 	if alone := PlanHerdSites(misc, 10); len(alone.Reservations) != len(misc.Reservations) {
 		t.Fatal("no herd, no new unit", len(alone.Reservations), len(misc.Reservations))
@@ -27,18 +27,13 @@ func TestHerdUnitsAreSizedFromTheirCeilingAndLeaveTheMiscUnitAlone(t *testing.T)
 	if len(units) != 3 {
 		t.Fatal("the misc unit and one unit per herd", len(units))
 	}
-	if !slices.Equal(units[0].vets, misc.herdUnits()[0].vets) || !slices.Equal(units[0].barns, misc.herdUnits()[0].barns) {
+	if !slices.Equal(units[0].barns, misc.herdUnits()[0].barns) {
 		t.Fatal("the misc unit grew", units[0])
 	}
 	for i, ceiling := range []int{30, 12} {
 		unit := units[i+1]
-		if grown.capacity(unit.barns, PlannedBarn) < ceiling || grown.capacity(unit.vets, PlannedVetRoom) < VetBeds(ceiling) {
-			t.Fatal("the unit holds less than its ceiling", ceiling, grown.capacity(unit.barns, PlannedBarn), grown.capacity(unit.vets, PlannedVetRoom))
-		}
-		for _, vet := range unit.vets {
-			if !slices.ContainsFunc(unit.barns, func(barn Rectangle) bool { _, ok := sharedWallLink(barn, vet); return ok }) {
-				t.Fatal("a vet area stands against a barn of its unit", vet)
-			}
+		if grown.capacity(unit.barns, PlannedBarn) < ceiling {
+			t.Fatal("the unit holds less than its ceiling", ceiling, grown.capacity(unit.barns, PlannedBarn))
 		}
 	}
 	if again := PlanHerdSites(grown, 10, HerdCeiling{"A", 30}, HerdCeiling{"B", 12}); len(again.Reservations) != len(grown.Reservations) {

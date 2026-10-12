@@ -82,7 +82,7 @@ func args(ctx context.Context, h *na.Harness, size int32, bedrooms bool) (map[st
 	tier, _ := facts.TechTier.Value()
 	survey.Cold, _ = facts.ColdMap.Value()
 	survey.Hot, _ = facts.HotMap.Value()
-	plan, known := policy.DeriveLayoutPlan(survey, int(pawns), tier, nil, 0, 0).Value()
+	plan, known := policy.DeriveLayoutPlan(survey, int(pawns), tier, nil, 0).Value()
 	if !known {
 		return nil, fmt.Errorf("no layout plan on this map")
 	}

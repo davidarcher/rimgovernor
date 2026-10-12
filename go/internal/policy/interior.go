@@ -288,7 +288,6 @@ var moduleRoomRoles = map[PlannedRole]RoomRole{
 	PlannedWardrobe:         RoomRoleStoreroom,
 	PlannedPrison:           RoomRolePrisonCell,
 	PlannedBarn:             RoomRoleBarn,
-	PlannedVetRoom:          RoomRoleVetRoom,
 }
 
 // InteriorRoomFromLayout reads a layout room as a plan input.

@@ -62,6 +62,13 @@ func validateFoodChannels(v *o.ColonyFactsSnapshot) error {
 			}
 			dispensers[row.GetBuildingId()] = true
 		}
+		terrains := map[string]bool{}
+		for _, row := range f.PastureTerrain {
+			if row == nil || validID(row.GetTerrainDef()) != nil || terrains[row.GetTerrainDef()] || !combatNumber(row.WorstQuadrumPerDay, true) {
+				return contract("invalid pasture terrain")
+			}
+			terrains[row.GetTerrainDef()] = true
+		}
 		plants := map[string]bool{}
 		for _, row := range f.Forage {
 			if row == nil || validID(row.GetDefName()) != nil || plants[row.GetDefName()] || len(row.GrowingTwelfths) > 12 {

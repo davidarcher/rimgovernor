@@ -252,16 +252,16 @@ an animal designated for removal, or one with an unread `sterilized` or
 `sterilize_queued` fact; and never a sex below its breeding pair of fertile
 animals (1 male, 2 females), which must exist to begin with. A queued bill
 counts as sterile, so bills cannot take a race below the pair. It runs only
-while `RoundsFacts.VetRoom` is ready: `Ready` is `policy.VetRoomReady` (a vet
-room of the plan standing shelled with a standing animal bed the sleeping
+while `RoundsFacts.AnimalWard` is ready: `Ready` is `policy.WardReady` (a hospital
+of the plan standing shelled with a standing animal bed the sleeping
 census reads medical; unknown while a standing bed's census row or flag is
 unread), read by the husbandry planner from the room census; `Area` is the id
-of the bot-owned `VetRoom` allowed area (the room interior, planned by
-MaintainShelter beside the Safe area, which leaves the vet room out; `""`
-until created). An unknown or unready vet room selects nothing. The
+of the bot-owned `Hospital` allowed area (`HospitalAreaKey`, the hospital interior, planned by
+MaintainShelter beside the Safe area, which keeps the hospital in; `""`
+until created). An unknown or unready ward selects nothing. The
 steps are derived each cycle from the animals' allowed area and sterilize
 facts, one write per cycle and one animal in the room at a time: `allowed_area`
-into the vet room, `sterilize`, then `allowed_area` cleared once sterilized
+into the hospital, `sterilize`, then `allowed_area` cleared once sterilized
 (also for an animal in the room that is no longer wanted and has no bill). An
 animal with a bill queued is waited on. Clearing the area does not restore an
 earlier restriction.
@@ -275,11 +275,11 @@ race's comfortable range, `ComfyTemperatureMin`/`Max` read from the def
 mirror into `AnimalRace.Comfort`; no proto change, native read or def-name
 list). An animal with no area restriction is let into the bot-owned `Barn`
 allowed area (`BarnAreaKey`, the interior of a standing planned barn,
-planned by MaintainShelter beside `VetRoom`; `""` until a barn stands, which
+planned by MaintainShelter beside `Hospital`; `""` until a barn stands, which
 chooses nothing). Once its race is out of danger an animal in the `Barn` area
 is released with `allowed_area` cleared: the pen is re-derived from the
 animal's current area each cycle, no prior area is stored. An animal in any
-other area (the vet room) is left to the flow that put it there. A race with
+other area (the hospital) is left to the flow that put it there. A race with
 no comfort range, a race outside the catalog, or an unread condition census
 or temperature fails the review with `ErrAnimalExposure`. The check also keeps
 MaintainHerd in deficit while a write is owed, and it comes before every
@@ -366,9 +366,9 @@ grass, expected harvest and unborn animals cannot certify feed capacity. Animal 
 membership uses the native enclosed, suitable pen lookup; a marker by itself is not
 containment. The pen is the wall's yard (below), claimed by one `PenMarker`; there is no separately fenced pen and no herd-size bound on containment. Area-managed animals use their current allowed-area membership.
 
-**Wall yard.** The defensive wall's yard (the gap between the core footprint and the ring, `perimeterGap` at least) is sized at plan time to hold the herd's grazing: `LayoutPlan.YardCells` latches `YardCells(HerdPlan.YardAnimals())` (the misc unit's herd plus every herd unit's ceiling) times `yardCellsPerAnimal` (24, an estimate; capacity itself stays the native pen food calculation). The yard grows from `perimeterGap` by the smallest gap whose ring around the core holds that many cells, capped at `perimeterGap + 12`, and `outerClear` widens with it. Derivation sets it once and a replan never resizes it; enlarging a standing wall is #2237.
+**Wall yard.** The defensive wall's yard (the gap between the core footprint and the ring, `perimeterGap` at least) is the fixed `perimeterGap`; it is no longer sized to the herd's grazing (`LayoutPlan.YardCells`, `yardCellsPerAnimal` and `YardAnimals` were deleted with #2883). Pen capacity stays the native pen food calculation. `policy.PenCells` reimplements that formula for sizing a pen: demand is the herd's `AdultFeedPerDay` summed by `PenDemand`, supply is the per-cell worst-quadrum pasture nutrition of the pen's terrain, read natively as `FoodChannelsFacts.pasture_terrain` (`MapPastureNutritionCalculator.CalculateAverageNutritionPerDay`, the minimum over the four quadrums, for every terrain with fertility above zero; surfaced as `RoundsFacts.Pasture`). The result is clamped to `penCellsFloor`/`penCellsCap`. The barn-attached pen reservation that consumes it is not planned yet (#2883 follow-up).
 
-**Herd units.** Barns and vet areas are sited as units. The misc unit (the first barn and vet area) holds every animal that is no herd's, sized from the ceilings of the other races. A race is a herd at a fertile breeding pair or `herdMinAnimals` (5) animals, provided it has a policy ceiling (a founder or companion has none and stays misc); it gets a unit of its own, sized from that ceiling and not its headcount, near the misc unit when a site fits. Units are joined by their shared walls and matched to herds by key: every reservation of a herd's unit, a second unit and a top-up included, carries the herd's race in `LayoutReservation.Herd` (saved with the layout plan); the misc unit's carry none. A plan saved before the key is matched once by order (misc first, then races by name) and keyed on its next top-up (deletion candidate: that fallback). Reservations never move or shrink: an outgrown unit gets another reservation of the same kind beside it, and a unit boxed in so that nothing fits beside it founds one whole second unit (barn and vet area, never a part) for the overflow once every primary unit stands. A second unit inherits its herd's key, so a repeat top-up is a no-op and a new herd never takes it. Each barn has its own vet area (`VetBeds`). A vet area stands against its barn (a door in the shared wall). Each barn carries two openings on its ring beside each other, its regular `Door` for colonists and the animal flap into the paddock (the catalog's buildable `Building_Door` that roamers can open, `RoomFurniture.AnimalFlap`; a catalog without one is an error), since the flap lets no colonist through. Assigning animals to units is not planned here.
+**Herd units.** Barns are sited as units. The misc unit (the first barn) holds every animal that is no herd's, sized from the ceilings of the other races. A race is a herd at a fertile breeding pair or `herdMinAnimals` (5) animals, provided it has a policy ceiling (a founder or companion has none and stays misc); it gets a unit of its own, sized from that ceiling and not its headcount, near the misc unit when a site fits. Units are matched to herds by key: every reservation of a herd's unit, a top-up included, carries the herd's race in `LayoutReservation.Herd` (saved with the layout plan); the misc unit's carry none. A plan saved before the key is matched once by order (misc first, then races by name) and keyed on its next top-up (deletion candidate: that fallback). Reservations never move or shrink: an outgrown unit gets another barn beside its existing ones, so a repeat top-up is a no-op and a new herd never takes it. There is no vet room: the barn is the animal bedroom for every animal, and a sick or to-be-sterilized animal is treated in the hospital, which holds `AnimalBed` stations (`policy.WardBeds` sizes them from the animals needing tending, at least one while a sterilize is wanted; `policy.WardSlots` places them on the free floor outside the hospital's human template). Each barn carries two openings on its ring beside each other, its regular `Door` for colonists and the animal flap into the paddock (the catalog's buildable `Building_Door` that roamers can open, `RoomFurniture.AnimalFlap`; a catalog without one is an error), since the flap lets no colonist through. Assigning animals to units is not planned here.
 
 An explicit feed resource, or observed feed used exclusively by animals, creates an
 owned `MaintainResource` concern through the existing acquisition/production methods.
@@ -387,15 +387,15 @@ does not establish indefinite herd sustainability.
 `husbandry/plan` proves the herd plan end to end on the lab: the race
 catalog read (cows with a milk product, wild and tame races, minimum handling
 skill); a lone cow founder kept beside an old milk race; the controller-built
-vet room (its planned ring is staged finished from `LayoutPlan.VetRoomCells`;
-beds, the medical flag, the `VetRoom` area and the sterilize writes are the
+hospital ward (its planned ring is staged finished from `LayoutPlan.HospitalCells`;
+beds, the medical flag, the `Hospital` area and the sterilize writes are the
 controller's) and an old male read back sterilized; a wild bull tamed as the
 cow's mate, after which the old race retires one animal per review. Snapshot
 tests own the planner decisions; the case owns native bed and room use,
 surgery and the tame and designation ops. Its scope lists the native
 semantics still unconfirmed (wildness stat, combat power and trainables
-approximation, animal bed medical flag, surgery in the vet bed, bedroom role
-with a sleeping spot, the `VetRoom` area, native master ids equal pawn ids);
+approximation, animal bed medical flag, surgery in the ward bed, bedroom role
+with a sleeping spot, the `Hospital` area, native master ids equal pawn ids);
 a failure there names the one it hit.
 
 ## Food channel planning

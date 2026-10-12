@@ -1500,7 +1500,7 @@ func nonSleepingPlannedCells(facts observation.ColonyProjection) []domain.Cell {
 	var cells []domain.Cell
 	for _, room := range plan.AllRooms() {
 		switch room.Role {
-		case policy.PlannedKitchen, policy.PlannedLab, policy.PlannedHospital, policy.PlannedPrison, policy.PlannedDining, policy.PlannedRec, policy.PlannedFreezer, policy.PlannedWorkshop, policy.PlannedMealCloset, policy.PlannedButchery, policy.PlannedThrone, policy.PlannedNursery, policy.PlannedPlayroom, policy.PlannedClassroom, policy.PlannedDeathrestChamber, policy.PlannedWorship, policy.PlannedContainmentCell, policy.PlannedIsolationRoom, policy.PlannedStorage, policy.PlannedArmory, policy.PlannedWardrobe, policy.PlannedBarn, policy.PlannedVetRoom:
+		case policy.PlannedKitchen, policy.PlannedLab, policy.PlannedHospital, policy.PlannedPrison, policy.PlannedDining, policy.PlannedRec, policy.PlannedFreezer, policy.PlannedWorkshop, policy.PlannedMealCloset, policy.PlannedButchery, policy.PlannedThrone, policy.PlannedNursery, policy.PlannedPlayroom, policy.PlannedClassroom, policy.PlannedDeathrestChamber, policy.PlannedWorship, policy.PlannedContainmentCell, policy.PlannedIsolationRoom, policy.PlannedStorage, policy.PlannedArmory, policy.PlannedWardrobe, policy.PlannedBarn:
 		default:
 			continue
 		}

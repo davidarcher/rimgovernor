@@ -61,11 +61,11 @@ func TestRoomIDsAreUniqueStableAndNeverReused(t *testing.T) {
 // input gives the same ids.
 func TestReplanKeepsPinnedRoomIDs(t *testing.T) {
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0).Value()
 	if !ok || !plan.Valid() {
 		t.Fatal("no valid plan")
 	}
-	again, _ := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0, 0).Value()
+	again, _ := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0).Value()
 	if !reflect.DeepEqual(plan, again) {
 		t.Fatal("same input, different ids")
 	}

@@ -200,9 +200,9 @@ type RoundsFacts struct {
 	// Recipes are the recipe rows' derived facts: the stuff-made part
 	// installs peg-leg cycling plans around.
 	Recipes RecipeFacts `json:",omitzero"`
-	// VetRoom is the layout's vet room; unread (the zero value) until
+	// AnimalWard is the hospital's animal ward; unread (the zero value) until
 	// the layout exposes it, which keeps sterilize off.
-	VetRoom VetRoom
+	AnimalWard AnimalWard
 	// BarnArea is the id of the bot-owned Barn allowed area, "" until
 	// a standing barn has created it.
 	BarnArea domain.Fact[string]
@@ -219,9 +219,12 @@ type RoundsFacts struct {
 	BabyFeeding          domain.Fact[BabyFeeding]
 	TradeMealIngredients domain.Fact[[]FoodIngredientSlot]
 	PenGrazing           domain.Fact[[]PenGrazing]
-	RecoverySafety       domain.Fact[RecoverySafety]
-	RecoveryWorkers      domain.Fact[[]RecoveryWorker]
-	DisasterConditions   domain.Fact[[]DisasterCondition]
+	// Pasture is what a cell of each terrain grows for grazing in the worst
+	// quadrum, the per-cell term of the game's pen food sum (PastureTable).
+	Pasture            domain.Fact[PastureTable]
+	RecoverySafety     domain.Fact[RecoverySafety]
+	RecoveryWorkers    domain.Fact[[]RecoveryWorker]
+	DisasterConditions domain.Fact[[]DisasterCondition]
 	// OutdoorsDark is the colony biome's permanent darkness: its map
 	// conditions include a no-sunlight class.
 	OutdoorsDark      domain.Fact[bool]

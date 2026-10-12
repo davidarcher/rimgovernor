@@ -6,8 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// readyVet is a vet room with a built bed and its allowed area.
-var readyVet = VetRoom{Ready: domain.Known(true), Area: domain.Known("Area_Vet")}
+// readyVet is a hospital ward with a built bed and its allowed area.
+var readyVet = AnimalWard{Ready: domain.Known(true), Area: domain.Known("Area_Vet")}
 
 // fertileRow is an animal with the sterilize and area facts read.
 func fertileRow(id string, def Resource, gender string) UpkeepAnimal {
@@ -92,10 +92,10 @@ func TestSterilizeSurplusMalesOfAPreferredRace(t *testing.T) {
 	}
 }
 
-func TestSterilizeNeedsAReadyVetRoom(t *testing.T) {
+func TestSterilizeNeedsAReadyWard(t *testing.T) {
 	herd := PlanHerd(milkInput(goatsAwaitingCows(), wildOf("Cow"))).Policy
 	animals := domain.Known(goatsAwaitingCows())
-	for _, vet := range []VetRoom{{}, {Ready: domain.Known(false), Area: domain.Known("Area_Vet")}, {Ready: domain.Known(true)},
+	for _, vet := range []AnimalWard{{}, {Ready: domain.Known(false), Area: domain.Known("Area_Vet")}, {Ready: domain.Known(true)},
 		{Ready: domain.Unknown[bool](), Area: domain.Known("Area_Vet")}} {
 		if got := SterilizeChoice(animals, herd, vet); got.Method != "" || got.Reason != HusbandryNoDeficit {
 			t.Fatal(vet, got)

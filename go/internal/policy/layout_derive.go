@@ -22,7 +22,7 @@ var layoutUtilities = UtilityWants{TurbinePairs: 1, Solar: 1}
 // colonists, with a geothermal enclosure on each reported steam geyser
 // and pens, a barn and a vet room for a herd of animals
 // (HerdPlan.PenAnimals), and a wall yard that holds yardAnimals (HerdPlan.YardAnimals, 0 keeps the floor). Unknown when the survey holds no room for a core.
-func DeriveLayoutPlan(s MapSurvey, pawns int, tier TechTier, geysers []PowerGeyser, animals, yardAnimals int) domain.Fact[LayoutPlan] {
+func DeriveLayoutPlan(s MapSurvey, pawns int, tier TechTier, geysers []PowerGeyser, animals int) domain.Fact[LayoutPlan] {
 	zones := Zone(s)
 	footprints := geyserFootprints(geysers)
 	plan := SiteCore(LayoutPlan{Zones: coreWithout(zones, geothermalCells(footprints)), Cold: s.Cold, Hot: s.Hot}, s, pawns, 0, tier)
@@ -30,7 +30,6 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier TechTier, geysers []PowerGeys
 		return domain.Unknown[LayoutPlan]()
 	}
 	plan.Zones = zones
-	plan.YardCells = YardCells(yardAnimals)
 	want := layoutUtilities
 	want.Geysers, want.PenAnimals, want.ThickRoof = footprints, animals, ThickRoofCells(s)
 	scorer := newPlanScorer(plan.Zones, plan.Reservations, s)

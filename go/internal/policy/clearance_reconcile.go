@@ -50,12 +50,12 @@ func reconcileGround(plan LayoutPlan, g GroundCensus, rows []ClearanceTarget, fl
 }
 
 // herdOwnFurnitureLeft is rows without the animal beds and the heater standing
-// in a barn or vet room's interior. The herd owner builds those beside the
+// in a barn or hospital interior. The herd owner builds those beside the
 // ring (its template is not the clear side's), so while the ring differs from
 // the plan the clear side would deconstruct each one as it is finished and the
 // owner would place it again.
 func herdOwnFurnitureLeft(room PlannedRoom, rows []ClearanceTarget, f RoomFurniture) []ClearanceTarget {
-	if room.Role != PlannedBarn && room.Role != PlannedVetRoom {
+	if room.Role != PlannedBarn && room.Role != PlannedHospital {
 		return rows
 	}
 	var out []ClearanceTarget
