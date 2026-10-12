@@ -210,6 +210,26 @@ cooler, and rock is only the dig cost every group pays); a clean room has no sit
 position fits is reported unplaceable (`embed_no_ground`,
 `embed_open_sky_ground`).
 
+#### Built rooms in the embedding
+
+`EmbedInput.Built` (`BuiltRegions`, with `Pinned` from `StationFacts.Pinned`)
+makes each standing room the fixed block of the group `MatchGroupRooms` gives it
+(`layout_built.go`); unbuilt rooms stay free and are searched around it. The
+local search never moves a built room. One pass after it, `embedder.relocate`,
+may move a single room, priced as the old relocation is (`switchThreshold`:
+`ReplanGain` + `BuiltSwitch` + `BuiltSwitchCell` per cell, which already counts
+walls, floor and furniture built twice): its best other position of the same
+shape must beat staying by that much (`embed_built_moved_score_gain`), or the
+room stands on rich soil and a position has less (`embed_built_moved_bad_ground`,
+no price). Bad ground first, then the larger margin; the rest wait
+(`embed_built_one_rebuild_at_a_time`); a pinned room or a rebuild in flight
+(`EmbedInput.InFlight`) holds all (`embed_built_pinned`, `embed_built_in_flight`).
+A moved block carries `Replaces`, a kept one `Built`; the tiler keeps the standing
+room's id (`tile_room_built`) and sites the mover as a successor
+(`tile_room_successor`). Retired ground not yet cleared takes no new block.
+The cost of the move is `EmbedScore.Switch`. Conflict pricing is not here
+(#2878); advisory until #2931.
+
 ### Station plan and successor rooms
 
 `policy.AdviseStations` (`layout_station_plan.go`) runs graph, clustering and

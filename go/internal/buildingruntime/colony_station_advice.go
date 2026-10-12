@@ -167,14 +167,16 @@ func stationAdviceAttrs(a policy.StationAdvice) map[string]any {
 		}
 		groups = append(groups, row)
 	}
-	var conflicts, issues []map[string]any
+	var conflicts, issues, built []map[string]any
 	for _, d := range a.Clustering.Decisions {
 		if d.Conflict != "" {
 			conflicts = append(conflicts, map[string]any{"a": d.A, "b": d.B, "conflict": d.Conflict})
 		}
 	}
 	for _, d := range a.Embedding.Decisions {
-		if d.Verdict != policy.EmbedPlace {
+		if d.Verdict == policy.EmbedKeep || d.Verdict == policy.EmbedMove {
+			built = append(built, map[string]any{"group": d.Group, "room": d.Room, "verdict": d.Verdict, "reason": d.Reason})
+		} else if d.Verdict != policy.EmbedPlace {
 			issues = append(issues, map[string]any{"group": d.Group, "other": d.Other, "verdict": d.Verdict, "reason": d.Reason, "requirement": string(d.Requirement), "field": d.Field})
 		}
 	}
@@ -216,7 +218,7 @@ func stationAdviceAttrs(a policy.StationAdvice) map[string]any {
 		"sites": sites, "site_issues": siteIssues, "vents": vents, "vent_issues": ventIssues,
 		"embed": map[string]any{
 			"level": a.Embedding.ObstacleLevel(), "placed": len(a.Embedding.Blocks), "issues": issues, "fields": fields,
-			"cells": s.Cells, "total": s.Total(), "soil": s.Soil, "edge": s.Edge, "centre": s.Centre, "walk": s.Walk, "unmet_links": s.UnmetLinks,
+			"cells": s.Cells, "total": s.Total(), "soil": s.Soil, "edge": s.Edge, "centre": s.Centre, "walk": s.Walk, "unmet_links": s.UnmetLinks, "switch": s.Switch, "built": built,
 			"seed": fmt.Sprintf("%d,%d", a.Embedding.Seed.X, a.Embedding.Seed.Z),
 		},
 	}

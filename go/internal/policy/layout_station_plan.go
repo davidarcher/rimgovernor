@@ -61,8 +61,12 @@ type StationFacts struct {
 	// Plan is the saved plan the advice reads zones, reservations and built
 	// rooms from; Built the ids of its rooms that stand as planned
 	// (BuiltRooms); Survey the map it was grown over.
-	Plan   LayoutPlan
-	Built  map[int32]bool
+	Plan  LayoutPlan
+	Built map[int32]bool
+	// Pinned are the rooms the old planner will not move (replanPins widens
+	// FixedRooms): a pinned room stands where it is in the embedding, and one
+	// not yet built is a rebuild in flight, which holds every built room.
+	Pinned map[int32]bool
 	Survey MapSurvey
 	// Tile also tiles the embedding into a plan (TileEmbedding, #2876). Off,
 	// the old planner stays the only one; the tiled plan is advisory until the
@@ -180,12 +184,26 @@ func (f StationFacts) GraphInput() (StationGraphInput, error) {
 // the caller keys the load beside it.
 func (f StationFacts) InputsKey() string {
 	plan, _ := json.Marshal(f.Plan) // the plan holds pointers; the saved form is its value
-	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Tile, f.OutdoorCurve) + string(plan)
+	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Pinned, f.Tile, f.OutdoorCurve) + string(plan)
 	input, err := f.GraphInput()
 	if err != nil {
 		return key + err.Error()
 	}
 	return key + fmt.Sprint(input.Population, input.NutritionPerDay, input.Orders, input.Stock, input.FoodReserveDays, input.Crops)
+}
+
+// rebuildPending reports a rebuild in flight: a successor pending in the plan
+// or a pinned room not yet standing (as rebuildInFlight reads the census).
+func rebuildPending(f StationFacts) bool {
+	if SuccessorPending(f.Plan) {
+		return true
+	}
+	for id := range f.Pinned {
+		if !f.Built[id] {
+			return true
+		}
+	}
+	return false
 }
 
 // GroupAdvice is one room group with the built rooms matched to it.
@@ -236,7 +254,12 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 	if err != nil {
 		return StationAdvice{}, err
 	}
-	embedIn := EmbedInput{Groups: clustering.Groups, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, RoofDistance: f.RoofDistance, Fields: FieldEmbedLinks(graph, clustering.Groups)}
+	built := BuiltRegions(f.Plan, f.Built)
+	for i := range built {
+		built[i].Pinned = f.Pinned[built[i].Room]
+	}
+	embedIn := EmbedInput{Groups: clustering.Groups, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, RoofDistance: f.RoofDistance, Fields: FieldEmbedLinks(graph, clustering.Groups),
+		Built: built, InFlight: rebuildPending(f), RetiredGround: f.Plan.RetiredGround}
 	embedding, err := Embed(embedIn)
 	if err != nil {
 		return StationAdvice{}, err
@@ -256,7 +279,7 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 		}
 		out.Tiled = &tiled
 	}
-	for _, m := range MatchGroupRooms(clustering.Groups, BuiltRegions(f.Plan, f.Built)) {
+	for _, m := range MatchGroupRooms(clustering.Groups, built) {
 		g := clustering.Groups[m.Group]
 		out.Groups = append(out.Groups, GroupAdvice{Group: g, Rooms: m.Rooms, Capacity: m.Capacity, Outgrown: GroupOutgrown(g, m), Climate: groupClimate(f, g)})
 	}
@@ -272,6 +295,9 @@ type BuiltRegion struct {
 	// apart (matchedPlanned): the freezer and the butchery; empty otherwise.
 	Planned PlannedRole
 	Region  Region
+	// Pinned: the old planner must not move the room (replanPins); the
+	// embedding keeps it where it stands. Set by the caller, never by BuiltRegions.
+	Pinned bool
 }
 
 // matchedPlanned are the planned rooms matched to groups by their planned

@@ -82,12 +82,26 @@ type EmbedInput struct {
 	// Fields are the field nodes placed with the groups (layout_field_place.go).
 	// With any, rooms may stand on field soil: the zone obstacle is dropped.
 	Fields []EmbedField
+	// Built are the standing rooms (BuiltRegions): each is the fixed block of
+	// the group MatchGroupRooms gives it, and moves only by the relocation pass
+	// (layout_built.go). Unbuilt rooms are free.
+	Built []BuiltRegion
+	// InFlight: a rebuild is under way (a successor pending or a room being
+	// built), so no built room moves.
+	InFlight bool
+	// RetiredGround is the plan's retired ground not yet cleared; no new block
+	// stands on it.
+	RetiredGround []Region
 }
 
-// EmbeddedBlock is where a group's interior stands.
+// EmbeddedBlock is where a group's interior stands. Built is the standing room
+// the block keeps, Replaces the standing room a moved block supersedes; 0 for
+// neither.
 type EmbeddedBlock struct {
 	Group    int
 	Interior Rectangle
+	Built    int32
+	Replaces int32
 }
 
 // EmbedDecision is one embedding decision for the caller to journal. Other is
@@ -100,6 +114,8 @@ type EmbedDecision struct {
 	Requirement EnvRequirement
 	// Field names the field of a field decision (Group is -1 then).
 	Field string
+	// Room is the standing room of a built-room decision (layout_built.go).
+	Room int32
 }
 
 // EmbedScore is the embedding's per-term values, signed like PlanScore (costs
@@ -109,6 +125,8 @@ type EmbedDecision struct {
 type EmbedScore struct {
 	Soil, Edge, Centre, Walk int
 	UnmetLinks               int
+	// Switch is the cost of the built room that moved (switchThreshold), negative.
+	Switch int
 	// Cells is the interior area placed.
 	Cells int
 }
@@ -118,7 +136,7 @@ func (s EmbedScore) SiteTerms() int { return s.Soil + s.Edge + s.Centre }
 
 // Total is the sum of the terms and the required-link charges.
 func (s EmbedScore) Total() int {
-	return s.Soil + s.Edge + s.Centre + s.Walk - planWeights.BadRoutes*s.UnmetLinks
+	return s.Soil + s.Edge + s.Centre + s.Walk + s.Switch - planWeights.BadRoutes*s.UnmetLinks
 }
 
 // Embedding is the coarse placement.
@@ -199,6 +217,16 @@ type embedder struct {
 	core               []domain.Cell
 	seeds              []domain.Cell
 
+	// The built world (layout_built.go): per group the standing room that is
+	// its block (zero Width for none) and its id, whether it must not move,
+	// the retired ground under the map (rich soil is e.rich).
+	home        []Rectangle
+	homeRoom    []int32
+	pinned      []bool
+	inFlight    bool
+	retired     prefix
+	builtReport []EmbedDecision
+
 	// The groups from nRooms on are the fields (EmbedInput.withFields), each
 	// with the soil mask and candidate cells of its crop.
 	nRooms     int
@@ -262,6 +290,29 @@ func newEmbedder(in EmbedInput, depth int, scorer planScorer, level obstacleLeve
 	}
 	sortCells(e.core)
 	e.fieldMasks(in, scorer)
+	retired := map[domain.Cell]bool{}
+	for _, g := range in.RetiredGround {
+		for _, c := range rectCells(g.Bounds()) {
+			retired[c] = true
+		}
+	}
+	e.retired = newPrefix(w, h, func(c domain.Cell) int { return b2i(retired[c]) })
+	e.inFlight, e.pinned = in.InFlight, make([]bool, len(in.Groups))
+	e.home, e.homeRoom, e.builtReport = builtHomes(in.Groups[:e.nRooms], in.Built)
+	e.home, e.homeRoom = append(e.home, make([]Rectangle, len(in.Groups)-e.nRooms)...), append(e.homeRoom, make([]int32, len(in.Groups)-e.nRooms)...)
+	for i, h := range e.home { // a room whose ring is off the map is no block
+		if h.Width > 0 && !e.base.inside(pad(h, 1)) {
+			e.builtReport = append(e.builtReport, EmbedDecision{Group: i, Other: -1, Verdict: EmbedKeep, Reason: ReasonEmbedBuiltOffMap, Room: e.homeRoom[i]})
+			e.home[i], e.homeRoom[i] = Rectangle{}, 0
+		}
+	}
+	for _, b := range in.Built {
+		for i, r := range e.homeRoom {
+			if r == b.Room {
+				e.pinned[i] = b.Pinned
+			}
+		}
+	}
 	if len(e.core) == 0 {
 		return e
 	}
@@ -314,7 +365,7 @@ func (e *embedder) fits(i int, r Rectangle, blocks []Rectangle, sky bool) bool {
 		e.level.sum(r) != int64(r.Width)*int64(r.Height) {
 		return false
 	}
-	if sky && e.solid.sum(r) != 0 {
+	if sky && e.solid.sum(r) != 0 || e.retired.sum(r) != 0 {
 		return false
 	}
 	for j, b := range blocks {
@@ -459,7 +510,7 @@ func (e *embedder) placeAnywhere(i int, blocks []Rectangle, sky bool, toward *do
 }
 
 // start builds the greedy embedding from a siting seed and searches it.
-func (e *embedder) start(seed domain.Cell, iters int) []Rectangle {
+func (e *embedder) start(seed domain.Cell, iters int) ([]Rectangle, builtRun) {
 	n := len(e.groups)
 	blocks := make([]Rectangle, n)
 	done := make([]bool, n) // tried: placed or unplaceable
@@ -469,6 +520,12 @@ func (e *embedder) start(seed domain.Cell, iters int) []Rectangle {
 			t += l.Weight
 		}
 		return t
+	}
+	placedAny := false
+	for i, h := range e.home { // the standing rooms are the fixed start
+		if h.Width > 0 {
+			blocks[i], done[i], placedAny = h, true, true
+		}
 	}
 	for step := 0; step < n; step++ {
 		pick, pickReq, pickW := -1, false, -1.0
@@ -492,6 +549,9 @@ func (e *embedder) start(seed domain.Cell, iters int) []Rectangle {
 				pick, pickReq, pickW = i, req, w
 			}
 		}
+		if pick < 0 {
+			break
+		}
 		done[pick] = true
 		var anchors []int
 		for _, l := range e.groups[pick].Links {
@@ -503,7 +563,7 @@ func (e *embedder) start(seed domain.Cell, iters int) []Rectangle {
 		var ok bool
 		if len(anchors) > 0 {
 			r, ok = e.placeNear(pick, blocks, anchors)
-		} else if step == 0 {
+		} else if step == 0 && !placedAny {
 			r, ok = e.placeAnywhere(pick, blocks, e.sky[pick], &seed)
 		} else {
 			r, ok = e.placeAnywhere(pick, blocks, e.sky[pick], nil)
@@ -513,24 +573,34 @@ func (e *embedder) start(seed domain.Cell, iters int) []Rectangle {
 		}
 	}
 	e.search(blocks, seed, iters)
-	return blocks
+	// The relocation pass (layout_built.go) is the one place a built room
+	// moves; the unbuilt rooms are searched again around the result.
+	built := e.relocate(blocks)
+	if built.Moved >= 0 {
+		e.search(blocks, seed, iters)
+	}
+	return blocks, built
 }
 
 // search is the seeded local search: siteSearchIters moves per block, a move
-// kept only when the objective strictly falls.
+// kept only when the objective strictly falls. A built room is never moved
+// here (see relocate).
 func (e *embedder) search(blocks []Rectangle, seed domain.Cell, iters int) {
-	var placed []int
+	var placed, movable []int
 	for i, b := range blocks {
 		if b.Width > 0 {
 			placed = append(placed, i)
+			if e.home[i].Width == 0 {
+				movable = append(movable, i)
+			}
 		}
 	}
-	if len(placed) == 0 {
+	if len(movable) == 0 {
 		return
 	}
 	rng := newSearchRand(seed)
 	for range iters * len(placed) {
-		i := placed[rng.intn(len(placed))]
+		i := movable[rng.intn(len(movable))]
 		old := blocks[i]
 		switch rng.intn(4) {
 		case 0, 1: // beside a linked block, else any block
@@ -567,7 +637,7 @@ func (e *embedder) search(blocks []Rectangle, seed domain.Cell, iters int) {
 				blocks[i] = old
 			}
 		default: // swap with another block
-			j := placed[rng.intn(len(placed))]
+			j := movable[rng.intn(len(movable))]
 			if j == i {
 				continue
 			}
@@ -658,6 +728,8 @@ type embedRun struct {
 	seed     domain.Cell
 	blocks   []Rectangle
 	unplaced int
+	// built is the relocation pass's verdict (layout_built.go).
+	built builtRun
 	// unmet counts the required links between placed blocks that are not
 	// adjacent.
 	unmet int
@@ -686,12 +758,19 @@ func (e *embedder) unmetLinks(blocks []Rectangle) int {
 func embedLevel(in EmbedInput, depth int, scorer planScorer, level obstacleLevel) *embedRun {
 	e := newEmbedder(in, depth, scorer, level)
 	if len(in.Groups) == 0 || len(e.core) == 0 {
-		return &embedRun{e: e, level: level, blocks: make([]Rectangle, len(in.Groups)), unplaced: e.nRooms}
+		blocks := make([]Rectangle, len(in.Groups))
+		run := &embedRun{e: e, level: level, blocks: blocks, built: builtRun{Moved: -1}}
+		for i := range e.nRooms { // the standing rooms stand with or without core
+			if blocks[i] = e.home[i]; blocks[i].Width == 0 {
+				run.unplaced++
+			}
+		}
+		return run
 	}
 	runs := make([]*embedRun, len(e.seeds))
 	eachIndex(len(runs), func(i int) {
-		blocks := e.start(e.seeds[i], siteSearchIters)
-		run := &embedRun{e: e, level: level, seed: e.seeds[i], blocks: blocks}
+		blocks, built := e.start(e.seeds[i], siteSearchIters)
+		run := &embedRun{e: e, level: level, seed: e.seeds[i], blocks: blocks, built: built}
 		for _, b := range blocks[:e.nRooms] { // a field no soil fits is the same at every level
 			if b.Width == 0 {
 				run.unplaced++
@@ -700,9 +779,9 @@ func embedLevel(in EmbedInput, depth int, scorer planScorer, level obstacleLevel
 		run.unmet = e.unmetLinks(blocks)
 		runs[i] = run
 	})
-	best, bestObj := runs[0], runs[0].e.objective(runs[0].blocks)
+	best, bestObj := runs[0], e.objective(runs[0].blocks)+runs[0].built.Price
 	for _, r := range runs[1:] {
-		if obj := e.objective(r.blocks); r.failed() < best.failed() || r.failed() == best.failed() && obj < bestObj {
+		if obj := e.objective(r.blocks) + r.built.Price; r.failed() < best.failed() || r.failed() == best.failed() && obj < bestObj {
 			best, bestObj = r, obj
 		}
 	}
@@ -714,6 +793,9 @@ func embedLevel(in EmbedInput, depth int, scorer planScorer, level obstacleLevel
 func (r *embedRun) embedding(in EmbedInput, scorer planScorer) Embedding {
 	e := r.e
 	out := Embedding{Level: r.level, Seed: r.seed}
+	out.Decisions = append(out.Decisions, e.builtReport...)
+	out.Decisions = append(out.Decisions, r.built.Decisions...)
+	out.Score.Switch = -int(r.built.Price)
 	for i, g := range in.Groups {
 		b := r.blocks[i]
 		if e.isField(i) {
@@ -730,7 +812,15 @@ func (r *embedRun) embedding(in EmbedInput, scorer planScorer) Embedding {
 			out.Decisions = append(out.Decisions, EmbedDecision{Group: i, Other: -1, Verdict: EmbedUnplaceable, Reason: reason})
 			continue
 		}
-		out.Blocks = append(out.Blocks, EmbeddedBlock{Group: i, Interior: b})
+		block := EmbeddedBlock{Group: i, Interior: b}
+		if i < e.nRooms && e.home[i].Width > 0 {
+			if r.built.Moved == i {
+				block.Replaces = e.homeRoom[i]
+			} else {
+				block.Built = e.homeRoom[i]
+			}
+		}
+		out.Blocks = append(out.Blocks, block)
 		out.Decisions = append(out.Decisions, EmbedDecision{Group: i, Other: -1, Verdict: EmbedPlace, Reason: ReasonEmbedPlaced})
 		out.Score.Cells += int(b.Width * b.Height)
 		out.Score.Soil += int(e.soil.sum(b))

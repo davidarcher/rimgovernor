@@ -118,8 +118,8 @@ func TestEmbedSearchNeverWorsens(t *testing.T) {
 	}
 	e := newEmbedder(in, depth, scorer, emb.Level)
 	seed := e.seeds[0]
-	searched := e.start(seed, siteSearchIters)
-	greedy := e.start(seed, 0)
+	searched, _ := e.start(seed, siteSearchIters)
+	greedy, _ := e.start(seed, 0)
 	if e.objective(searched) > e.objective(greedy) {
 		t.Fatalf("search worsened the start: %v > %v", e.objective(searched), e.objective(greedy))
 	}

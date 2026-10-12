@@ -65,6 +65,8 @@ const (
 	TileUnsatisfied = "unsatisfied"
 
 	ReasonTileRoom         = "tile_room"
+	ReasonTileRoomBuilt    = "tile_room_built"
+	ReasonTileRoomMoved    = "tile_room_successor"
 	ReasonTileLinkDoor     = "tile_link_door"
 	ReasonTileExteriorDoor = "tile_exterior_door"
 	ReasonTileSealedRoom   = "tile_sealed_room"
@@ -249,7 +251,7 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 		index[b.Group] = len(t.rooms)
 		t.rooms = append(t.rooms, tileRoom{group: b.Group, rect: b.Interior, role: role})
 		crossing := crossingOf(g)
-		room := PlannedRoom{Role: role, Region: RectRegion(b.Interior), Crossing: &crossing, Outdoor: role.IsOutdoor()}
+		room := PlannedRoom{ID: b.Built, Replaces: b.Replaces, Role: role, Region: RectRegion(b.Interior), Crossing: &crossing, Outdoor: role.IsOutdoor()}
 		room.Markers = g.Markers
 		if role == PlannedTrainingRange {
 			if ref, ok := awayReference(in.Groups, placed); ok {
@@ -262,7 +264,14 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 	t.plan = t.plan.WithRoomIDs()
 	for i, r := range t.rooms {
 		t.out.Rooms[r.group] = t.plan.Rooms[i].ID
-		t.note(r.group, -1, TilePlace, ReasonTileRoom)
+		reason := ReasonTileRoom
+		switch b := blocks[slices.IndexFunc(blocks, func(b EmbeddedBlock) bool { return b.Group == r.group })]; {
+		case b.Built != 0:
+			reason = ReasonTileRoomBuilt // the standing room, kept as it stands
+		case b.Replaces != 0:
+			reason = ReasonTileRoomMoved // a successor for the standing room it replaces
+		}
+		t.note(r.group, -1, TilePlace, reason)
 	}
 	for _, b := range blocks {
 		for _, l := range in.Groups[b.Group].Links {
@@ -695,7 +704,7 @@ func (t *tiler) build() LayoutPlan {
 	p.Rooms = slices.Clone(t.plan.Rooms)
 	p.Links, p.Entrances = nil, nil
 	for k, cell := range t.links {
-		p.Links = append(p.Links, RoomLink{A: p.Rooms[k[0]].ID, B: p.Rooms[k[1]].ID, Cell: cell})
+		p.Links = append(p.Links, RoomLink{A: min(p.Rooms[k[0]].ID, p.Rooms[k[1]].ID), B: max(p.Rooms[k[0]].ID, p.Rooms[k[1]].ID), Cell: cell})
 	}
 	sort.Slice(p.Links, func(i, j int) bool {
 		a, b := p.Links[i], p.Links[j]
@@ -734,7 +743,7 @@ func (t *tiler) build() LayoutPlan {
 	p.Trips = nil
 	for k, w := range t.weight {
 		if w > 0 {
-			p.Trips = append(p.Trips, RoomTrip{A: p.Rooms[k[0]].ID, B: p.Rooms[k[1]].ID, Weight: w})
+			p.Trips = append(p.Trips, RoomTrip{A: min(p.Rooms[k[0]].ID, p.Rooms[k[1]].ID), B: max(p.Rooms[k[0]].ID, p.Rooms[k[1]].ID), Weight: w})
 		}
 	}
 	sort.Slice(p.Trips, func(i, j int) bool {
