@@ -36,3 +36,17 @@ func TestAreasSettledNeedsEvidence(t *testing.T) {
 		t.Fatal("cleared pawns did not settle the restore")
 	}
 }
+
+// A baseline wall on the ring is placed without a wave: the planner matches it
+// standing and orders nothing for the cell (#3014).
+func TestLineageMissingCountsStandingWalls(t *testing.T) {
+	a, b, c := domain.Cell{X: 1, Z: 1}, domain.Cell{X: 2, Z: 1}, domain.Cell{X: 3, Z: 1}
+	ring := map[domain.Cell]bool{a: true, b: true, c: true}
+	l := lineage{completed: map[domain.Cell]bool{a: true}}
+	if got := l.missing(ring, nil); got != 2 {
+		t.Fatalf("missing without standing walls = %d, want 2", got)
+	}
+	if got := l.missing(ring, map[domain.Cell]bool{b: true, c: true}); got != 0 {
+		t.Fatalf("missing with the other two standing = %d, want 0", got)
+	}
+}

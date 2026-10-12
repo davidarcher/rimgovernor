@@ -74,6 +74,13 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["furniture"] = furniture
+	// The baseline already stands a few walls, which may sit on the ring the
+	// planner sites: read them before the service so the ring check counts
+	// them placed.
+	standing, err := standingWalls(ctx, s, report)
+	if err != nil {
+		return err
+	}
 	service, err := start(ctx, s, nil)
 	if err != nil {
 		return err
@@ -143,7 +150,7 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 	}
 	// 3. Every wall, the door and every bed is placed (built natively below).
 	if err := waitLineage(ctx, st, sh, w.wait(w.build, service), func(l lineage) bool {
-		return len(l.completed) == len(sh.cells)
+		return l.missing(sh.cells, standing) == 0
 	}); err != nil {
 		service.Stop()
 		return err
@@ -198,6 +205,24 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("%d beds in the roofed hut for %d colonists", len(housed), colonists)
 	}
 	return nil
+}
+
+// standingWalls are the cells holding a built wall before the service starts.
+func standingWalls(ctx context.Context, s cases.Session, report na.Report) (map[domain.Cell]bool, error) {
+	grid, err := s.Harness().MapCells(ctx, "walls-before", s.Identity())
+	if err != nil {
+		return nil, err
+	}
+	standing := map[domain.Cell]bool{}
+	for _, c := range grid.Cells() {
+		for _, t := range c.Things {
+			if t.Def == policy.ShellWallDefinition && t.Has(policy.FlagEdifice) {
+				standing[c.Cell] = true
+			}
+		}
+	}
+	report["standing_walls"] = len(standing)
+	return standing, nil
 }
 
 // unhousedColony reads the colony before the controller starts and returns

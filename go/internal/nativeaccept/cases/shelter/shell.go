@@ -95,6 +95,19 @@ type lineage struct {
 	completed map[domain.Cell]bool
 }
 
+// missing counts the ring cells neither a wave completed nor a wall standing
+// before the run held: the planner matches a standing wall as it is and orders
+// no wave for that cell, so a baseline wall on the ring is placed already.
+func (l lineage) missing(ring, standing map[domain.Cell]bool) int {
+	n := 0
+	for c := range ring {
+		if !l.completed[c] && !standing[c] {
+			n++
+		}
+	}
+	return n
+}
+
 // shellLineage reads the ring's waves from the plan history, retired ones
 // included. A wave ordering anything but a wall or door on the ring is a second
 // shell and fails the run.
