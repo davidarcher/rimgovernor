@@ -53,6 +53,11 @@ type PlannedRoom struct {
 	// the freezer's door into the kitchen. Plans saved before it
 	// have none.
 	Link *domain.Cell
+	// Through marks a room the plan lets pawns walk through to reach other
+	// rooms although its role is private (MayPassThrough): CheckRoutes accepts
+	// a path across it and trip scoring prices the extra steps. Any other room
+	// is walked through by its role's rule (noThroughfare).
+	Through bool `json:",omitempty"`
 	// Dug is a room mined out of natural rock.
 	Dug bool
 	// Outdoor is an open room: a fence and a gate ring (RingDefs, the pen) or none (Unfenced), no roof and no
@@ -136,6 +141,11 @@ type LayoutPlan struct {
 	// share, by room id. Only a tiled plan holds it; a spine plan keeps its
 	// freezer and butchery doors on PlannedRoom.Link.
 	Links []RoomLink `json:",omitempty"`
+	// Trips are the pawn trips between this plan's rooms with their daily
+	// frequency (the station graph's flows, layout_trips.go). When set, plan
+	// scoring walks them instead of the role-pair trip table; a spine plan has
+	// none and keeps the table.
+	Trips []RoomTrip `json:",omitempty"`
 	// Rooms are the rooms hung off the spine; a wing holds its own.
 	Rooms        []PlannedRoom
 	Wings        []Wing `json:",omitempty"`
@@ -280,6 +290,9 @@ func (p LayoutPlan) Valid() bool {
 			return false
 		}
 		ids[r.ID] = true
+		if r.Through && !MayPassThrough(r.Role) {
+			return false
+		}
 		switch r.DoorRot {
 		case domain.North, domain.East, domain.South, domain.West:
 		default:
@@ -300,6 +313,14 @@ func (p LayoutPlan) Valid() bool {
 			return false
 		}
 		seen[l] = true
+	}
+	for _, t := range p.Trips {
+		if _, ok := rooms[t.A]; !ok || t.A >= t.B || t.Weight <= 0 {
+			return false
+		}
+		if _, ok := rooms[t.B]; !ok {
+			return false
+		}
 	}
 	for _, z := range p.Zones {
 		if z.Kind == "" {
@@ -401,7 +422,7 @@ func (r PlannedRoom) Same(o PlannedRoom) bool {
 			return false
 		}
 	}
-	return r.ID == o.ID && r.Replaces == o.Replaces && r.Role == o.Role && r.Region.Bounds() == o.Region.Bounds() && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing && r.Markers == o.Markers && (r.Airlock == nil) == (o.Airlock == nil) && (r.Airlock == nil || *r.Airlock == *o.Airlock) && (r.Porch == nil) == (o.Porch == nil) && (r.Porch == nil || *r.Porch == *o.Porch)
+	return r.ID == o.ID && r.Replaces == o.Replaces && r.Role == o.Role && r.Through == o.Through && r.Region.Bounds() == o.Region.Bounds() && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing && r.Markers == o.Markers && (r.Airlock == nil) == (o.Airlock == nil) && (r.Airlock == nil || *r.Airlock == *o.Airlock) && (r.Porch == nil) == (o.Porch == nil) && (r.Porch == nil || *r.Porch == *o.Porch)
 }
 
 // NearestAnchor is the interior centre of the free planned room of role want

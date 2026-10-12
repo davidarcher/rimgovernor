@@ -223,6 +223,9 @@ const walkUnreachable = 200
 // walkUnreachable; one whose ends the plan lacks costs nothing. Not a score
 // term: the corridor generator measures its gain with it.
 func planWalk(p LayoutPlan) int {
+	if len(p.Trips) > 0 {
+		return tripWalk(p) // a tiled plan carries its own room trips
+	}
 	walk, rooms := routeWalk(p)
 	cells := tripCells(p, rooms)
 	total := 0

@@ -37,9 +37,16 @@ import (
 //   - Pass-through. A room in noThroughfare may not lie on a path between two
 //     other rooms. CheckRoutes finds a violation; the tiler then drops the
 //     crossed room's lightest link door that leaves every room still joined to
-//     an exterior door, required links last, and checks again.
+//     an exterior door, required links last, and checks again. When no door
+//     can go, a room whose role MayPassThrough is marked Through (a decision,
+//     ReasonTilePassThrough) and walked through; a sealed room is joined to a
+//     neighbour anyone may cross first, then a passable one, then any (throughRank).
+//   - Trips. The plan carries the group flows as LayoutPlan.Trips between its
+//     rooms; plan scoring walks them (tripWalk), not the role-pair table.
 //
-// Hallways are not planned here (#2879 adds them on top).
+// Hallways are not planned here: they need ground between the blocks, which
+// only the embedding can reserve. A plan with hallways is scored and routed as
+// before, and the tiler needs none to open a packed base (#2879).
 
 // Verdicts and reasons of tiling decisions.
 const (
@@ -55,6 +62,7 @@ const (
 	ReasonTileNoFit        = "tile_no_fit"
 	ReasonTileRoutes       = "tile_routes"
 	ReasonTileNoLink       = "tile_required_link_not_adjacent"
+	ReasonTilePassThrough  = "tile_pass_through"
 )
 
 // ErrTile marks an embedding that cannot be tiled into a valid plan; ErrTileRole
@@ -63,7 +71,7 @@ var (
 	ErrTile     = errors.New("tile embedding")
 	ErrTileRole = fmt.Errorf("%w: group role has no planned room", ErrTile)
 	// ErrTileClosed: rooms packed wall to wall leave a room with no door onto
-	// the ground and no neighbour it may be walked through (hallways, #2879).
+	// the ground and no neighbour it may be walked through, even marked Through.
 	ErrTileClosed = fmt.Errorf("%w: packed rooms leave no way in", ErrTile)
 )
 
@@ -127,6 +135,7 @@ type tiler struct {
 	required map[[2]int]bool
 	adj      map[[2]int][]domain.Cell
 	links    map[[2]int]domain.Cell
+	through  map[int]bool
 	extDoor  []*domain.Cell
 	extOut   []domain.Cell
 	plan     LayoutPlan
@@ -146,7 +155,7 @@ func pairOf(i, j int) [2]int {
 // furnish stands bare with a TileUnsatisfied decision (TileResult.Unfit).
 func TileEmbedding(in TileInput) (TileResult, error) {
 	scorer := newPlanScorer(in.Zones, in.Reservations, in.Survey)
-	t := &tiler{in: in, weight: map[[2]int]float64{}, required: map[[2]int]bool{}, adj: map[[2]int][]domain.Cell{}, links: map[[2]int]domain.Cell{}}
+	t := &tiler{in: in, weight: map[[2]int]float64{}, required: map[[2]int]bool{}, adj: map[[2]int][]domain.Cell{}, links: map[[2]int]domain.Cell{}, through: map[int]bool{}}
 	t.out.Rooms = map[int]int32{}
 	t.out.Pieces = map[int32][]InteriorPiece{}
 	index := map[int]int{}
@@ -423,12 +432,12 @@ func (t *tiler) reach() []bool {
 
 // joinSealed opens a link door from every room no exterior door reaches into
 // an adjacent room that is reached, preferring a neighbour a room may be
-// walked through, then the heavier flow.
+// walked through (throughRank), then the heavier flow.
 func (t *tiler) joinSealed() error {
 	for {
 		ok := t.reach()
 		var best [2]int
-		bestScore, bestThrough, found := 0.0, false, false
+		bestScore, bestThrough, found := 0.0, -1, false
 		stranded := false
 		for k := range t.adj {
 			for _, e := range [2][2]int{{k[0], k[1]}, {k[1], k[0]}} {
@@ -439,12 +448,12 @@ func (t *tiler) joinSealed() error {
 				if !ok[e[1]] {
 					continue
 				}
-				score, through := t.weight[k], !noThroughfare[t.rooms[e[1]].role]
+				score, through := t.weight[k], throughRank(t.rooms[e[1]].role)
 				if _, linked := t.links[k]; linked {
 					continue
 				}
-				better := through != bestThrough && through || through == bestThrough && score > bestScore
-				if !found || better || through == bestThrough && score == bestScore && k[0]*len(t.rooms)+k[1] < best[0]*len(t.rooms)+best[1] {
+				better := through > bestThrough || through == bestThrough && score > bestScore
+				if !found || better || !better && through == bestThrough && score == bestScore && k[0]*len(t.rooms)+k[1] < best[0]*len(t.rooms)+best[1] {
 					best, bestScore, bestThrough, found = k, score, through, true
 				}
 			}
@@ -517,6 +526,13 @@ func (t *tiler) keepRoutes() error {
 			dropped = true
 			break
 		}
+		if !dropped && room >= 0 && MayPassThrough(t.rooms[room].role) && !t.through[room] {
+			// No door can go without stranding a room: the packed base has no
+			// other way in, so the private room is walked through.
+			t.through[room] = true
+			t.note(t.rooms[room].group, -1, TilePlace, ReasonTilePassThrough)
+			continue
+		}
 		if !dropped {
 			t.note(t.rooms[max(room, 0)].group, -1, TileUnsatisfied, ReasonTileRoutes)
 			return fmt.Errorf("%w: %v", ErrTileClosed, through)
@@ -544,6 +560,7 @@ func (t *tiler) build() LayoutPlan {
 	})
 	for i := range p.Rooms {
 		r := &p.Rooms[i]
+		r.Through = t.through[i]
 		var door domain.Cell
 		if t.extDoor[i] != nil {
 			door = *t.extDoor[i]
@@ -561,6 +578,16 @@ func (t *tiler) build() LayoutPlan {
 	}
 	sortCells(p.Entrances)
 	p.Entrances = slices.Compact(p.Entrances)
+	p.Trips = nil
+	for k, w := range t.weight {
+		if w > 0 {
+			p.Trips = append(p.Trips, RoomTrip{A: p.Rooms[k[0]].ID, B: p.Rooms[k[1]].ID, Weight: w})
+		}
+	}
+	sort.Slice(p.Trips, func(i, j int) bool {
+		a, b := p.Trips[i], p.Trips[j]
+		return a.A < b.A || a.A == b.A && a.B < b.B
+	})
 	return p
 }
 
@@ -596,4 +623,17 @@ func (r TileResult) Unfit() []int {
 		}
 	}
 	return out
+}
+
+// throughRank orders the neighbours a sealed room is joined through: a room
+// anyone may cross (2), then one only a pass-through plan lets them cross (1),
+// then a room nobody may (0), which is joined only when nothing else is left.
+func throughRank(role PlannedRole) int {
+	switch {
+	case !noThroughfare[role]:
+		return 2
+	case MayPassThrough(role):
+		return 1
+	}
+	return 0
 }

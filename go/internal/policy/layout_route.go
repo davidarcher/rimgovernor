@@ -31,11 +31,28 @@ type routeTrip struct {
 	weight   int
 }
 
-// noThroughfare are the roles nobody may walk through.
+// noThroughfare are the roles nobody walks through by default.
 var noThroughfare = map[PlannedRole]bool{
 	PlannedBedroom: true, PlannedSuite: true, PlannedShelter: true, PlannedPrison: true,
 	PlannedKitchen: true, PlannedHospital: true, PlannedLab: true, PlannedThrone: true,
 }
+
+// passableRoles are the noThroughfare roles a plan may nevertheless let pawns
+// walk through (PlannedRoom.Through) when packed rooms leave no other way in.
+// The game reads the cleanliness of exactly these rooms (the bed roles' mood,
+// a kitchen's food poisoning, a hospital's infection), and foot traffic only
+// tracks filth in, so crossing one is a cost the walk term and the cleaners
+// bear, not a rule. The rest stay closed by judgment, no game number: a prison
+// and a shelter are secured or self-contained, a laboratory and a throne room
+// hold work and ceremony nobody should cross.
+var passableRoles = map[PlannedRole]bool{PlannedBedroom: true, PlannedSuite: true, PlannedKitchen: true, PlannedHospital: true}
+
+// MayPassThrough reports that a room of role may be marked Through.
+func MayPassThrough(role PlannedRole) bool { return passableRoles[role] }
+
+// walkedThrough reports that pawns may cross room r on the way between two
+// others: its role allows it, or the plan marks it Through.
+func walkedThrough(r PlannedRoom) bool { return !noThroughfare[r.Role] || r.Through }
 
 // spineEntrances are the cells a plan may be entered from at worst: the
 // end slabs of every spine segment (a wing corridor is a dead end).
@@ -107,7 +124,7 @@ func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 			ends := map[int]bool{walk.at(path[0]): true, walk.at(path[len(path)-1]): true}
 			for _, c := range path {
 				traffic[c]++
-				if i := walk.at(c); i >= 0 && !ends[i] && noThroughfare[rooms[i].Role] {
+				if i := walk.at(c); i >= 0 && !ends[i] && !walkedThrough(rooms[i]) {
 					return nil, &ThroughfareError{From: trip.from, To: trip.to, Crossed: rooms[i].Role, Room: rooms[i].ID, Cell: c}
 				}
 			}

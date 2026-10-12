@@ -269,8 +269,14 @@ on the colony centre when the plan has no free cell there.
   persisted in `family/layout_plan`); `PlannedRoom.Link/Door/Doors` still carry the
   older generator's doors. On a plan with no hallways, `Entrances` are the outside
   cells beside an exterior door, and `CheckRoutes` walks the open ground between them.
-  A room with no way in (packed wall to wall) is `ErrTileClosed` until hallways land
-  (#2879).
+  A room packed in with no door onto the ground is joined through a neighbour. A role in
+  `noThroughfare` is not walked through unless the plan marks the room `Through`, which
+  the tiler does only for `passableRoles` (bedroom, suite, kitchen, hospital: the rooms
+  whose cleanliness the game reads) and only when no link door can be dropped; any other
+  closed room in the way is `ErrTileClosed`. The tiled plan carries the group flows as
+  `LayoutPlan.Trips` and scoring walks them (`tripWalk`); a plan without trips (the
+  spine generator's) keeps the role-pair table. Hallways are not planned by the tiler:
+  they need ground between blocks that only the embedding can reserve.
 - **Search.** The best sites by score get a deterministic, iteration-bounded local
   search; wall time is only a hang guard.
 - **Replan.** Two-stage: the same generator runs with every room that has anything of

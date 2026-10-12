@@ -275,11 +275,6 @@ func TestTileReplayFixtures(t *testing.T) {
 			in, emb := tileInput(t, s, f.pawns, true)
 			res, err := TileEmbedding(in)
 			old := Score(SiteCore(LayoutPlan{Zones: in.Zones}, s, f.pawns, 1, TechTierCamp), s)
-			if errors.Is(err, ErrTileClosed) {
-				// The embedding packs the bedrooms wall to wall; only hallways
-				// (#2879) open the ones the others enclose.
-				t.Skipf("%s: %v", f.name, err)
-			}
 			if err != nil {
 				if f.mayFail {
 					t.Skipf("%s cannot be tiled: %v", f.name, err)
