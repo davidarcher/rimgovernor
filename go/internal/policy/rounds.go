@@ -202,18 +202,9 @@ type RoundsFacts struct {
 	Recipes RecipeFacts `json:",omitzero"`
 	// AnimalWard is the hospital's animal ward; unread (the zero value) until
 	// the layout exposes it, which keeps sterilize off.
-	AnimalWard AnimalWard
-	// BarnArea is the id of the bot-owned Barn allowed area, "" until
-	// a standing barn has created it.
-	BarnArea domain.Fact[string]
-	// CompanionArea and WildArea are the ids of the bot-owned Companion and
-	// Wild allowed areas, "" until created.
-	CompanionArea, WildArea domain.Fact[string]
-	// PaddockClosed is the plan's ring closed around the yard (fed
-	// from the runtime's paddockClosed); unknown leaves animal areas alone.
-	PaddockClosed domain.Fact[bool]
-	FoodPlan      domain.Fact[FoodPlan]
-	FoodReserve   domain.Fact[FoodReserveReview]
+	AnimalWard  AnimalWard
+	FoodPlan    domain.Fact[FoodPlan]
+	FoodReserve domain.Fact[FoodReserveReview]
 	// BabyFeeding is the babies' food review; unknown without
 	// Biotech baby care or consumer facts.
 	BabyFeeding          domain.Fact[BabyFeeding]

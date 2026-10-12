@@ -3,8 +3,6 @@ package policy
 import (
 	"slices"
 	"testing"
-
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // Each herd gets a barn of its own, sized from its ceiling,
@@ -48,53 +46,6 @@ func TestHerdUnitsAreSizedFromTheirCeilingAndLeaveTheMiscUnitAlone(t *testing.T)
 	for i, r := range grown.Reservations {
 		if !more.Reservations[i].Equal(r) {
 			t.Fatal("a placed reservation moved", r)
-		}
-	}
-}
-
-// A barn's animal flap is the cell beside its own door on the same wall (the
-// paddock side): a ring cell that takes a flap, never the door's own cell or
-// a corner, and once it stands the ring matches only with that flap.
-func TestBarnFlapBesideItsDoor(t *testing.T) {
-	plan := PlanHerdSites(herdTestPlan(t, 10), 10, HerdCeiling{"A", 20})
-	flaps := plan.flaps()
-	if len(flaps) != 2 {
-		t.Fatal("one flap per barn", flaps)
-	}
-	for _, unit := range plan.herdUnits() {
-		barn := plan.herdRoom(unit.barns[0], PlannedBarn)
-		flap, ok := plan.barnFlap(unit.barns[0])
-		if !ok || !slices.Contains(plan.FlapCells(barn), flap) || !slices.Contains(plan.ShellDoors(barn), flap) {
-			t.Fatal("the flap is a door cell of the barn's ring", flap, ok)
-		}
-		if flap == barn.Door || !onRing(flap, unit.barns[0]) {
-			t.Fatal("the flap is beside the barn's door, on its ring", flap, barn.Door)
-		}
-		if dx, dz := flap.X-barn.Door.X, flap.Z-barn.Door.Z; dx*dx+dz*dz != 1 {
-			t.Fatal("the flap is the cell next to the door", flap, barn.Door)
-		}
-		// The barn owes its door and the flap, and none once it stands.
-		bare := Reconcile(ReconcileInput{Plan: plan, Room: barn, Ground: GroundOf(nil)})
-		var doorIn []domain.Cell
-		for _, op := range bare.Ready {
-			if op.Kind == OpDoorIn {
-				doorIn = op.Cells
-			}
-		}
-		if !slices.Contains(doorIn, flap) || !slices.Contains(doorIn, barn.Door) {
-			t.Fatal("the barn owes its door and the flap", doorIn)
-		}
-		g := ringWalls(plan, barn)
-		if !plan.GroundMatches(barn, g) {
-			t.Fatal("a barn ringed with its flap stands")
-		}
-		delete(g.flaps, flap)
-		if plan.GroundMatches(barn, g) {
-			t.Fatal("a barn with its flap missing does not match")
-		}
-		g.doors[flap] = true
-		if plan.GroundMatches(barn, g) {
-			t.Fatal("a plain door is no flap")
 		}
 	}
 }

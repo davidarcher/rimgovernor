@@ -12,14 +12,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// The barn and vet room: once the pen stands, MaintainAnimalContainment
-// reconciles each planned herd room (ring, door, animal beds; policy.NextHerdStep
-// over reconcileRoom) and flags the vet room's beds medical. The review holds the goal open while a step is due
-// (HerdRoomsOwed), so a herd that outgrows its beds is topped up.
+// The barn, its pens and the hospital ward: MaintainAnimalContainment
+// reconciles each planned herd room (ring, door or gate, animal beds, a pen's
+// marker; policy.NextHerdStep over reconcileRoom) and flags the ward's beds
+// medical. The review holds the goal open while a step is due (HerdRoomsOwed),
+// so a herd that outgrows its beds is topped up.
 
 // herdDefinitions are the definitions the herd steps read availability,
 // stuff and size for.
-var herdDefinitions = []string{"Wall", "Door"}
+var herdDefinitions = []string{"Wall", "Door", policy.PenFenceDefinition, policy.PenGateDefinition, policy.PenMarkerDefinition}
 
 // herdFurniture reads the two animal bed shapes and the barn's heater from the live catalog. A
 // definition the catalog lacks (a wrong defName, or a game without it) is an
@@ -62,6 +63,14 @@ func herdFurniture(facts observation.ColonyProjection) (policy.HerdFurniture, bo
 			out.Heater = policy.InteriorPieceDef{Def: name, Size: domain.Cell{X: 1, Z: 1}}
 		}
 	}
+	// The pen's marker is optional the same way: until it is buildable, a pen is
+	// ringed and a standing marker is kept, none is planned.
+	if d, found := animalContainmentDefinition(facts.Definitions, policy.PenMarkerDefinition); found {
+		size, sizeKnown := d.Size.Value()
+		if available, known := d.Available.Value(); known && available && sizeKnown && size.Width >= 1 && size.Height >= 1 {
+			out.Marker = policy.InteriorPieceDef{Def: policy.PenMarkerDefinition, Size: domain.Cell{X: size.Width, Z: size.Height}}
+		}
+	}
 	return out, usable, nil
 }
 
@@ -78,7 +87,8 @@ func herdStep(facts observation.ColonyProjection) (step policy.HerdStep, known b
 		return policy.HerdStep{}, false, nil
 	}
 	ward := policy.WardBeds(animals, facts.Facts.HerdPolicy())
-	if len(animals) == 0 || len(plan.HerdRooms(policy.PlannedBarn)) == 0 && (ward == 0 || len(plan.HerdRooms(policy.PlannedHospital)) == 0) {
+	barns := len(plan.HerdRooms(policy.PlannedBarn)) + len(plan.HerdRooms(policy.PlannedPen))
+	if len(animals) == 0 || barns == 0 && (ward == 0 || len(plan.HerdRooms(policy.PlannedHospital)) == 0) {
 		return policy.HerdStep{}, true, nil
 	}
 	furniture, usable, err := herdFurniture(facts)

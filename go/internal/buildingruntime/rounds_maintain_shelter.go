@@ -68,9 +68,9 @@ func (m *safeAreaMemory) review(world string, projection observation.ColonyProje
 	if !known {
 		return domain.Unknown[bool](), nil
 	}
-	var killbox, hospital, isolation, barn []domain.Cell
+	var killbox, hospital, isolation []domain.Cell
 	if plan, ok := projection.LayoutPlan.Value(); ok {
-		killbox, hospital, isolation, barn = plan.KillboxCells(), plan.HospitalCells(), plan.IsolationRoomCells(), plan.BarnCells(rooms)
+		killbox, hospital, isolation = plan.KillboxCells(), plan.HospitalCells(), plan.IsolationRoomCells()
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -85,25 +85,6 @@ func (m *safeAreaMemory) review(world string, projection observation.ColonyProje
 	if len(hospital) > 0 {
 		if err := m.plan(policy.HospitalAreaKey, hospital); err != nil {
 			return domain.Unknown[bool](), err
-		}
-	}
-	// The barn's interior is the area pen animals are sheltered in while
-	// their race is in danger outdoors (AnimalShelterChoice).
-	if len(barn) > 0 {
-		if err := m.plan(policy.BarnAreaKey, barn); err != nil {
-			return domain.Unknown[bool](), err
-		}
-	}
-	// The paddock yard and the map outside it are the areas companions and
-	// predators are kept in (AnimalShelterChoice).
-	if plan, ok := projection.LayoutPlan.Value(); ok {
-		if yard := plan.PaddockCells(); len(yard) > 0 {
-			if err := m.plan(policy.CompanionAreaKey, yard); err != nil {
-				return domain.Unknown[bool](), err
-			}
-			if err := m.plan(policy.WildAreaKey, plan.WildCells(projection.Bounds)); err != nil {
-				return domain.Unknown[bool](), err
-			}
 		}
 	}
 	// The isolation room's interior is the area a creepjoiner is held in

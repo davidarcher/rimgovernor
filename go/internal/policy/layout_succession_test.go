@@ -165,7 +165,7 @@ func TestReplanPinsKeepAPairInFlight(t *testing.T) {
 
 func TestReplanSitesTheSuccessorThenRetiresThePredecessor(t *testing.T) {
 	s := loadSurvey(t, baselineSurveyPath)
-	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -218,7 +218,7 @@ func TestReplanSitesTheSuccessorThenRetiresThePredecessor(t *testing.T) {
 
 func TestReplanReportsASuccessorItCannotSite(t *testing.T) {
 	s := loadSurvey(t, baselineSurveyPath)
-	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}

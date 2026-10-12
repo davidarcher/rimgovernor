@@ -60,7 +60,7 @@ func (f RoundsFacts) HerdPlanInput() HerdPlanInput {
 // HerdPolicy is the population band of the herd plan of f.
 func (f RoundsFacts) HerdPolicy() HerdPolicy { return PlanHerd(f.HerdPlanInput()).Policy }
 
-// PenAnimals is the herd the layout's pens, barn and vet room are sized for.
+// PenAnimals is the herd the layout's pens and barn are sized for.
 func (f RoundsFacts) PenAnimals() int { return PlanHerd(f.HerdPlanInput()).PenAnimals() }
 
 // HerdUnits are the herds the layout gives units of their own.

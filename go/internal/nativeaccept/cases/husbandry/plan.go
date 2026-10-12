@@ -14,7 +14,7 @@ package husbandry
 // tests (policy.PlanHerd, SterilizeChoice, buildingruntime hospital ward tests).
 //
 // The case stages the hospital ward ring finished from the controller's own
-// LayoutPlan (LayoutPlan.VetRoomCells, test/hut_shell_fixture stage, as the
+// LayoutPlan (the planned hospital, test/hut_shell_fixture stage, as the
 // shelter cases did) so the beds, the medical flag, the Hospital allowed area
 // and the sterilize writes still run the real controller path. The
 // controller holds the GABP slot while it runs, so staging and native
@@ -69,7 +69,7 @@ const (
 	// surgeryTicks is the game time a sterilize bill gets once the service
 	// has stopped (the harness runs the game for it).
 	surgeryTicks = 3 * na.TicksPerDay
-	// stageWood is the WoodLog dropped beside the hospital ward: pen fences and
+	// stageWood is the WoodLog dropped beside the hospital ward: the barn, pen fences and
 	// beds are built from it.
 	stageWood = 400
 	// oldAge is the old race's age in years: adult, so each adds capacity.

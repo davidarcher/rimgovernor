@@ -3,7 +3,7 @@
 // game: one rimgovernor/operations_apply batch of BuildingIntents
 // authors a durable Fence/FenceGate enclosure and one PenMarker inside it, the
 // native shape of the paddock the planner claims with a single marker once the
-// defensive wall is closed and its lane fenced (policy.NextPaddockStep;
+// defensive wall is closed and its lane fenced (the pen policy.NextHerdStep raises;
 // the fixture's fenced room stands in for the wall's yard), then real game ticks build it and carry a genuinely uncontained,
 // pen-requiring herd animal into that pen -- observed via
 // rimgovernor/observations_read_colony_facts's native AnimalFeed/AnimalState

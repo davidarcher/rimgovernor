@@ -98,15 +98,7 @@ func (r *RoundsHusbandryPlanner) step(call, epoch context.Context, arbiter *step
 	if pawns, known := read.Projection.WorkPawns.Value(); known {
 		handlers = domain.Known(policy.Profiles(pawns))
 	}
-	// Sheltering a race in danger outdoors comes first: its animals die of
-	// the exposure while a training or surplus write waits a cycle.
-	choice, err := read.Projection.Facts.AnimalShelterChoice()
-	if err != nil {
-		return RoundsHusbandryResult{}, err
-	}
-	if choice.Reason == policy.HusbandryNoDeficit {
-		choice = policy.ReconcileHerdRemoval(animals, herd, read.Projection.Facts.FoodPlan)
-	}
+	choice := policy.ReconcileHerdRemoval(animals, herd, read.Projection.Facts.FoodPlan)
 	if choice.Reason == policy.HusbandryNoDeficit {
 		choice = policy.SelectHusbandryMethod(animals, upkeep.WildAnimals, feedShort, herd, handlers)
 	}

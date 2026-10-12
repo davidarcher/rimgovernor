@@ -10,11 +10,12 @@ import (
 
 // The barn as a real room. Each ReserveBarn reservation is a walled room: its
 // interior is the reservation without the ring, its door faces the colony
-// core. The barn also takes an animal flap beside its door. The room is
-// derived from the reservation, never stored (HerdRooms). The animal-bed
-// planner (NextHerdStep) reconciles each room: its ring and door, then animal
-// sleeping spots in the barn, up to one per kept animal, nearest the door
-// first, through the build-side reconciler (ReconcileRoom). A herd the rooms
+// core; a pen beside it joins it through an animal flap in the wall they share
+// (herd_pen.go). The room is derived from the reservation, never stored
+// (HerdRooms). The animal-bed planner (NextHerdStep) reconciles each room: its
+// ring and door, then animal sleeping spots in the barn, up to one per kept
+// animal, nearest the door first, through the build-side reconciler
+// (ReconcileRoom); then each pen's fence, gate and marker. A herd the rooms
 // cannot hold gets another reservation (PlanHerdSites); a placed room never
 // moves or shrinks. The barn is the bedroom of every animal, bonded ones
 // included; a sick animal is treated in the hospital's animal beds
@@ -23,9 +24,8 @@ import (
 const (
 	// PlannedBarn is the barn's plan role.
 	PlannedBarn PlannedRole = "barn"
-	// PlannedPen is the paddock marker's plan role: the outdoor room the
-	// build side reconciles the one PenMarker through. It is no part of
-	// roomsWithHerd and no reservation holds one.
+	// PlannedPen is the plan role of a pen reservation: an outdoor room, a
+	// fence and a gate round grazing ground, its barn's wall on the shared side.
 	PlannedPen PlannedRole = "pen"
 )
 
@@ -164,14 +164,17 @@ func herdSide(beds int) (w, h int32) {
 
 // herdRole is the plan role of a herd reservation kind.
 func herdRole(kind ReservationKind) (PlannedRole, bool) {
-	if kind == ReserveBarn {
+	switch kind {
+	case ReserveBarn:
 		return PlannedBarn, true
+	case ReservePen:
+		return PlannedPen, true
 	}
 	return "", false
 }
 
-// HerdRooms are the plan's rooms of role (PlannedBarn), one per reservation in
-// plan order.
+// HerdRooms are the plan's rooms of role (PlannedBarn, PlannedPen), one per
+// reservation in plan order.
 func (p LayoutPlan) HerdRooms(role PlannedRole) []PlannedRoom {
 	var out []PlannedRoom
 	for _, r := range p.Reservations {
@@ -186,72 +189,6 @@ func (p LayoutPlan) HerdRooms(role PlannedRole) []PlannedRoom {
 // whose doors and links a ring is matched against.
 func (p LayoutPlan) roomsWithHerd() []PlannedRoom {
 	return append(slices.Clone(p.AllRooms()), p.HerdRooms(PlannedBarn)...)
-}
-
-// barnFlap is the cell of a barn's ring that takes its animal flap:
-// beside the barn's own door, so it opens onto the same ground, the paddock.
-// The flap lets animals through but no colonist; the door is the colonists'.
-// The cell is on the wall's straight run (never a corner), no other
-// reservation stands right outside it.
-func (p LayoutPlan) barnFlap(area Rectangle) (domain.Cell, bool) {
-	room := p.herdRoom(area, PlannedBarn)
-	var step, along domain.Cell
-	switch room.DoorRot {
-	case domain.East:
-		step, along = domain.Cell{X: 1}, domain.Cell{Z: 1}
-	case domain.West:
-		step, along = domain.Cell{X: -1}, domain.Cell{Z: 1}
-	case domain.North:
-		step, along = domain.Cell{Z: 1}, domain.Cell{X: 1}
-	default:
-		step, along = domain.Cell{Z: -1}, domain.Cell{X: 1}
-	}
-	in := room.Region.Bounds()
-	for _, sign := range []int32{1, -1} {
-		c := domain.Cell{X: room.Door.X + sign*along.X, Z: room.Door.Z + sign*along.Z}
-		if along.X != 0 && (c.X < in.X || c.X >= in.X+in.Width) || along.Z != 0 && (c.Z < in.Z || c.Z >= in.Z+in.Height) {
-			continue
-		}
-		if p.doorBlocked(herdDoor{cell: c, sx: step.X, sz: step.Z}, area) {
-			continue
-		}
-		return c, true
-	}
-	return domain.Cell{}, false
-}
-
-// flaps are the animal flap cells of every barn, in plan order.
-func (p LayoutPlan) flaps() []domain.Cell {
-	var out []domain.Cell
-	for _, r := range p.Reservations {
-		if r.Kind != ReserveBarn {
-			continue
-		}
-		if c, ok := p.barnFlap(r.Area.Bounds()); ok {
-			out = append(out, c)
-		}
-	}
-	return out
-}
-
-// FlapCells are the cells of r's ring that take an animal flap: a barn's flap
-// beside its door, none for any other room.
-func (p LayoutPlan) FlapCells(r PlannedRoom) []domain.Cell {
-	return p.ringCells(r, p.flaps())
-}
-
-func (p LayoutPlan) ringCells(r PlannedRoom, cells []domain.Cell) []domain.Cell {
-	if r.Outdoor {
-		return nil
-	}
-	ring := r.wallRing()
-	var out []domain.Cell
-	for _, c := range cells {
-		if ring.Contains(c) {
-			out = append(out, c)
-		}
-	}
-	return out
 }
 
 // herdRoom is the room a barn reservation holds: the door in the middle of the
@@ -383,6 +320,9 @@ type HerdFurniture struct {
 	// is unfinished or its size unread, which plans no heater step (the beds
 	// never wait on it).
 	Heater InteriorPieceDef
+	// Marker is the pen's PenMarker; the zero value while it is not buildable,
+	// which plans no new marker (a standing one is kept).
+	Marker InteriorPieceDef
 }
 
 // HerdStepKind is the next animal-bed step.
@@ -453,6 +393,16 @@ func NextHerdStep(plan LayoutPlan, rooms RoomObservation, ground GroundCensus, b
 		template, absent := herdTemplate(PlannedBarn, f.Spot, f.Heater, layout.Pieces, quota, room, built, taken)
 		if absent || !plan.GroundMatches(room, ground) {
 			return HerdStep{Kind: HerdReconcile, Role: PlannedBarn, Room: room, Template: template}
+		}
+	}
+	for _, room := range plan.HerdRooms(PlannedPen) {
+		piece, marked := penMarkerPiece(room, f.Marker, built, taken)
+		var template []WantedPiece
+		if marked {
+			template = []WantedPiece{piece}
+		}
+		if marked && !PenMarkerStanding(room, built) || !plan.GroundMatches(room, ground) {
+			return HerdStep{Kind: HerdReconcile, Role: PlannedPen, Room: room, Template: template}
 		}
 	}
 	if ward <= 0 || f.Bed.Def == "" {

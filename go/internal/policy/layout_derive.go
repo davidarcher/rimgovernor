@@ -20,8 +20,8 @@ var layoutUtilities = UtilityWants{TurbinePairs: 1, Solar: 1}
 
 // DeriveLayoutPlan lays a fresh plan over the survey for pawns
 // colonists, with a geothermal enclosure on each reported steam geyser
-// and pens, a barn and a vet room for a herd of animals
-// (HerdPlan.PenAnimals), and a wall yard that holds yardAnimals (HerdPlan.YardAnimals, 0 keeps the floor). Unknown when the survey holds no room for a core.
+// and a barn for a herd of animals (HerdPlan.PenAnimals). Its pens are sited by
+// the replan, once the pasture is read. Unknown when the survey holds no room for a core.
 func DeriveLayoutPlan(s MapSurvey, pawns int, tier TechTier, geysers []PowerGeyser, animals int) domain.Fact[LayoutPlan] {
 	zones := Zone(s)
 	footprints := geyserFootprints(geysers)
@@ -80,8 +80,14 @@ type RoomGrowth struct {
 	RetireShelter bool
 	InFlight      map[int32]bool
 	// HerdUnits are the herds' units (HerdPlan.HerdUnits): each gets a
-	// pen, barn and vet area of its own beside the misc unit's.
+	// barn of its own beside the misc unit's.
 	HerdUnits []HerdCeiling
+	// Pens are the pens the herd asks for (HerdPlan.PenWants) and Grazing the
+	// survey cells they may stand on (GrazingGround): each unit short of its
+	// cells gets a pen beside its barn (PlanPenSites). Both are nil while the
+	// animal census or the pasture table is unread, which asks for none.
+	Pens    []PenWant
+	Grazing map[domain.Cell]bool
 	// Outskirts is the outline (width, height) of the off-core cluster the
 	// plan is asked to hold (OutskirtsSize); zero asks for none, and a
 	// cluster the plan holds never moves. Its tomb and morgue are placed in
@@ -107,7 +113,7 @@ type RoomGrowth struct {
 // rooms and before the perimeter is replanned around them. A herd of
 // animals (HerdPlan.PenAnimals; 0 leaves the herd sites as they are) gets
 // animals (HerdPlan.PenAnimals; 0 leaves the herd sites as they are) gets
-// the pens, barn and vet room it lacks (PlanHerdSites). The error
+// the barn it lacks (PlanHerdSites). The error
 // joins the rooms growth asked for that no core slot took; the plan
 // returned is still the best one, so the caller reports it and carries on.
 func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawns, tombs int, tier TechTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool, error) {
@@ -130,7 +136,7 @@ func replanLayout(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawn
 			}
 		}
 	}
-	plan, sited := topUpHerdSites(plan, coreWithout(zones, vents), animals, growth.HerdUnits)
+	plan, sited := topUpHerdSites(plan, coreWithout(zones, vents), animals, growth.HerdUnits, growth.Pens, growth.Grazing)
 	plan, yards := topUpYards(plan, coreWithout(zones, vents), YardRoomsWanted(growth.Demand))
 	sited = sited || yards
 	var kept []PlannedRoom
@@ -233,11 +239,13 @@ func replanLayout(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawn
 // topUpHerdSites adds the herd sites animals needs to plan, sited over the
 // fresh core candidates and off the current perimeter (which is laid again
 // around them). It reports whether it added any.
-func topUpHerdSites(plan LayoutPlan, core []LayoutZone, animals int, herds []HerdCeiling) (LayoutPlan, bool) {
-	if animals <= 0 && len(herds) == 0 {
+func topUpHerdSites(plan LayoutPlan, core []LayoutZone, animals int, herds []HerdCeiling, pens []PenWant, grazing map[domain.Cell]bool) (LayoutPlan, bool) {
+	if animals <= 0 && len(herds) == 0 && PensOwed(plan, pens) == 0 {
 		return plan, false
 	}
-	return topUpSites(plan, core, func(p LayoutPlan) LayoutPlan { return PlanHerdSites(p, animals, herds...) })
+	return topUpSites(plan, core, func(p LayoutPlan) LayoutPlan {
+		return PlanPenSites(PlanHerdSites(p, animals, herds...), grazing, pens...)
+	})
 }
 
 // topUpSites runs add over plan with the fresh core candidates and the

@@ -25,6 +25,9 @@ import (
 const (
 	// ReserveBarn is the roofed barn where the herd sleeps.
 	ReserveBarn ReservationKind = "barn"
+	// ReservePen is a pen beside a barn (herd_pen.go): an outdoor room sharing
+	// one wall with it, keyed to the barn's unit.
+	ReservePen ReservationKind = "pen"
 )
 
 const (
@@ -183,7 +186,7 @@ func planUnit(u *utilityGrid, plan *LayoutPlan, unit herdUnit, herd string, anim
 	w, h := walledSide(herdSide(beds))
 	site, ok := Rectangle{}, false
 	for _, anchor := range unit.barns {
-		if site, ok = u.besideReservation(*plan, anchor, ReserveBarn, w, h); ok {
+		if site, ok = u.besideReservation(*plan, anchor, ReserveBarn, w, h, nil); ok {
 			break
 		}
 	}
@@ -236,9 +239,10 @@ func sharedWallRun(a, b Rectangle) []domain.Cell {
 
 // besideReservation is the nearest w x h outline of kind sharing one wall with
 // anchor (no wall material is wasted on a second parallel wall): every other
-// cell must be free, and no room's door moves or lands on the shared link (the
-// link takes a door, the vet area's, or the animal flap).
-func (u *utilityGrid) besideReservation(plan LayoutPlan, anchor Rectangle, kind ReservationKind, w, h int32) (Rectangle, bool) {
+// cell must be free, no room's door moves or lands on the shared link (the
+// link takes a door, or a pen's animal flap), and accept, when set, takes the
+// outline.
+func (u *utilityGrid) besideReservation(plan LayoutPlan, anchor Rectangle, kind ReservationKind, w, h int32, accept func(Rectangle) bool) (Rectangle, bool) {
 	cx, cz := anchor.X+anchor.Width/2, anchor.Z+anchor.Height/2
 	best, bestCost, found := Rectangle{}, 0.0, false
 	for _, side := range []struct{ dx, dz int32 }{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
@@ -263,7 +267,7 @@ func (u *utilityGrid) besideReservation(plan LayoutPlan, anchor Rectangle, kind 
 			if found && cost >= bestCost {
 				continue
 			}
-			if _, ok := sharedWallLink(r, anchor); !ok || !u.inset(r) || !u.freeBesideWall(r, anchor) || !plan.doorsHold(LayoutReservation{Kind: kind, Area: RectRegion(r)}) {
+			if _, ok := sharedWallLink(r, anchor); !ok || accept != nil && !accept(r) || !u.inset(r) || !u.freeBesideWall(r, anchor) || !plan.doorsHold(LayoutReservation{Kind: kind, Area: RectRegion(r)}) {
 				continue
 			}
 			best, bestCost, found = r, cost, true
@@ -273,8 +277,8 @@ func (u *utilityGrid) besideReservation(plan LayoutPlan, anchor Rectangle, kind 
 }
 
 // doorsHold reports that adding cand to the plan leaves every herd room's door
-// where it was and no two of the rooms' doors, vet links and animal flaps on one
-// cell.
+// where it was and no two of the rooms' doors, links and pens' animal flaps on
+// one cell.
 func (p LayoutPlan) doorsHold(cand LayoutReservation) bool {
 	next := p
 	next.Reservations = append(slices.Clone(p.Reservations), cand)
@@ -292,21 +296,18 @@ func (p LayoutPlan) doorsHold(cand LayoutReservation) bool {
 		if room.Link != nil {
 			cells = append(cells, *room.Link)
 		}
-		if r.Kind == ReserveBarn {
-			flap, has := next.barnFlap(r.Area.Bounds())
-			if was, hadFlap := p.barnFlap(r.Area.Bounds()); !r.Equal(cand) && (was != flap || hadFlap != has) {
-				return false
-			}
-			if has {
-				cells = append(cells, flap)
-			}
-		}
 		for _, c := range cells {
 			if seen[c] {
 				return false
 			}
 			seen[c] = true
 		}
+	}
+	for _, c := range next.flaps() {
+		if seen[c] {
+			return false
+		}
+		seen[c] = true
 	}
 	return true
 }

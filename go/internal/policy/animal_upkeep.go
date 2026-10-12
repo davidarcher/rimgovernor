@@ -145,24 +145,12 @@ const (
 	// ContainmentWaitingNativePen is the ordinary wait once a handler exists;
 	// native AI, not the controller, delivers an already-suitable-penned animal.
 	ContainmentWaitingNativePen AnimalContainmentReason = "waiting_for_native_pen_delivery"
-	ContainmentBuildShell       AnimalContainmentReason = "build_pen_shell"
-	ContainmentAwaitingShell    AnimalContainmentReason = "awaiting_shell_completion"
-	ContainmentPlaceMarker      AnimalContainmentReason = "place_pen_marker"
-	// ContainmentMarkerExhausted is the blocked outcome once a marker
-	// method was already attempted with no observed suitable enclosure yet.
+	// ContainmentNoPen: no pen stands yet (none is planned, or its fence, flap
+	// or marker is still owed): the barn and pen builder works on it.
+	ContainmentNoPen AnimalContainmentReason = "no_standing_pen"
+	// ContainmentMarkerExhausted is the blocked outcome once every pen stands
+	// with its marker and the native lookup still finds no suitable enclosure.
 	ContainmentMarkerExhausted AnimalContainmentReason = "marker_placed_awaiting_native_pen"
-)
-
-// AnimalContainmentShellStage is the pen ring's state: its fences and
-// gate do not match the plan (a lost fence is rebuilt by the diff, the same
-// as a first ring), an open plan is still building it, or it stands. Only a
-// standing ring receives a marker.
-type AnimalContainmentShellStage int
-
-const (
-	ContainmentShellNone AnimalContainmentShellStage = iota
-	ContainmentShellPending
-	ContainmentShellComplete
 )
 
 type AnimalContainmentMethod struct {
@@ -172,10 +160,11 @@ type AnimalContainmentMethod struct {
 
 // SelectAnimalContainmentMethod ports animal_upkeep.containment_method: an
 // already-suitable herd only ever waits for an enabled Handling worker and
-// then native delivery; construction proceeds wall-then-marker, never duplicating a completed shell or retrying
-// an attempted marker without a fresh observation. Native pen eligibility,
-// footprint legality and construction admission remain the building family's.
-func SelectAnimalContainmentMethod(animals []UpkeepAnimal, handlerAvailable domain.Fact[bool], shell AnimalContainmentShellStage, markerAttempted bool) (AnimalContainmentMethod, error) {
+// then native delivery; otherwise the pens (PensStand) are built first and,
+// once they all stand, the wait is on the native lookup. Native pen
+// eligibility, footprint legality and construction admission remain the
+// building family's.
+func SelectAnimalContainmentMethod(animals []UpkeepAnimal, handlerAvailable domain.Fact[bool], pensStand bool) (AnimalContainmentMethod, error) {
 	seen := map[PawnID]bool{}
 	var rows []UpkeepAnimal
 	allSuitable := true
@@ -223,16 +212,10 @@ func SelectAnimalContainmentMethod(animals []UpkeepAnimal, handlerAvailable doma
 		}
 		return AnimalContainmentMethod{Reason: ContainmentWaitingNativePen, Animals: ids}, nil
 	}
-	switch shell {
-	case ContainmentShellNone:
-		return AnimalContainmentMethod{Reason: ContainmentBuildShell, Animals: ids}, nil
-	case ContainmentShellPending:
-		return AnimalContainmentMethod{Reason: ContainmentAwaitingShell, Animals: ids}, nil
+	if !pensStand {
+		return AnimalContainmentMethod{Reason: ContainmentNoPen, Animals: ids}, nil
 	}
-	if markerAttempted {
-		return AnimalContainmentMethod{Reason: ContainmentMarkerExhausted, Animals: ids}, nil
-	}
-	return AnimalContainmentMethod{Reason: ContainmentPlaceMarker, Animals: ids}, nil
+	return AnimalContainmentMethod{Reason: ContainmentMarkerExhausted, Animals: ids}, nil
 }
 
 // RaceProduct is one periodic yield of a race: Kind is milk, wool,
@@ -303,9 +286,6 @@ type AnimalRace struct {
 	// Edible are the foods the race can ever eat (RaceProperties.CanEverEat),
 	// sorted.
 	Edible []string
-	// Comfort is the comfortable outdoor temperature range; unknown
-	// when the game shows neither comfort stat for the race.
-	Comfort domain.Fact[AnimalComfort]
 	// MateMtbHours is RaceProperties.mateMtbHours: the mean hours between
 	// mating attempts of an eligible pair.
 	MateMtbHours domain.Fact[float64]

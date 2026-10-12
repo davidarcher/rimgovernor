@@ -54,8 +54,7 @@ func TestContainmentWaitsNameTheirCause(t *testing.T) {
 		policy.ContainmentWaitingHandler:   "no_worker:animal_handler",
 		policy.ContainmentWaitingNativePen: "awaiting_plan:native_pen:delivery",
 		policy.ContainmentMarkerExhausted:  "awaiting_plan:native_pen:marker_placed",
-		policy.ContainmentAwaitingShell:    "awaiting_plan:paddock:wall_closed",
-		policy.ContainmentBuildShell:       "awaiting_plan:paddock:wall_closed",
+		policy.ContainmentNoPen:            "awaiting_plan:pen:planned",
 	} {
 		if got := containmentWait(reason).String(); got != text {
 			t.Fatalf("%s reads %q, want %q", reason, got, text)

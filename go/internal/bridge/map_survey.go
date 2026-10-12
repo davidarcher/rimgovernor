@@ -121,6 +121,7 @@ func surveyCell(cell policy.SiteCell, roofs policy.RoofRules, catalog *Definitio
 		Hazard:     terrain.GetDangerous() || terrain.GetBurnDamage() > 0 || terrain.GetHeatPerTick() > 0 || terrain.GetToxicBuildupFactor() > 0,
 		ThickRoof:  rule.Thick,
 		Fertility:  value(cell.Fertility),
+		Terrain:    value(cell.Terrain),
 		Ore:        ore,
 		Tree:       tree,
 		// Occupied off rock, player edifice and clearable ruin is a

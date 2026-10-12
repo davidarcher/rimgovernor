@@ -50,7 +50,7 @@ through by orchestration:
   Sleeping bunks and stone-shell walls (Survive), bedroom upgrades, storage
   shelves and food-field infrastructure (Sustain) state their tier at the call.
   Rock steps and excavation preview the owning planner's buildings, so they take
-  that planner's `PlannerTier`; the animal paddock marker is a `PlannedPen`
+  that planner's `PlannerTier`; the animal pen marker is a `PlannedPen`
   piece placed through the room funnel (Comfort).
 - Defense perimeter tiers are previewed and admitted in order every step, with
   no stock-funded admission (#2551); the tier gate decides who gets materials.

@@ -123,7 +123,7 @@ func TestFreezerSuccessorKeepsItsLinkToTheKitchen(t *testing.T) {
 
 func TestSuccessorOfALinkedRoomIsNotSitedWithoutALink(t *testing.T) {
 	s := loadSurvey(t, baselineSurveyPath)
-	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -176,7 +176,7 @@ func TestOutgrownBedroomRetiresItsWingOnce(t *testing.T) {
 
 func TestBedroomWingSuccessorMigratesSleepersWithoutAnUnbeddedNight(t *testing.T) {
 	s := loadSurvey(t, baselineSurveyPath)
-	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0).Value()
 	if !ok || len(bedroomWings(plan.Wings)) == 0 {
 		t.Fatal("no plan with a bedroom wing")
 	}

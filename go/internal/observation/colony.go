@@ -517,9 +517,6 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.Facts.ShelterArea = shelterArea(r.Policies)
 	r.Facts.NoDangerArea = allowedAreaID(r.Policies, policy.NoDangerAreaLabel)
 	r.Facts.AnimalWard.Area = allowedAreaID(r.Policies, policy.HospitalAreaLabel)
-	r.Facts.BarnArea = allowedAreaID(r.Policies, policy.BarnAreaLabel)
-	r.Facts.CompanionArea = allowedAreaID(r.Policies, policy.CompanionAreaLabel)
-	r.Facts.WildArea = allowedAreaID(r.Policies, policy.WildAreaLabel)
 	r.Facts.IsolationArea = allowedAreaID(r.Policies, policy.IsolationAreaLabel)
 	r.Facts.RaidPoints = bridge.ProjectColonyThreat(v).RaidPoints
 	r.Facts.Monolith = monolithFacts(r.Anomaly)

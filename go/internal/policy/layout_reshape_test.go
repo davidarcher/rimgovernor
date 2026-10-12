@@ -166,7 +166,7 @@ func TestReshapeOutgrownEnlargesABuiltRoomOnlyWhenNothingElseIsRebuilt(t *testin
 
 func TestReplanEnlargesAnOutgrownBuiltRoomWithoutASuccessor(t *testing.T) {
 	s := loadSurvey(t, baselineSurveyPath)
-	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}

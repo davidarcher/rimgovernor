@@ -822,13 +822,6 @@ func inspectHerd(c *roundsRun) error {
 	if SterilizeChoice(f.AnimalUpkeep.Animals, herd, f.AnimalWard).Method != "" {
 		recovered = domain.Known(false)
 	}
-	shelter, err := f.AnimalShelterChoice()
-	if err != nil {
-		return err
-	}
-	if shelter.Method != "" {
-		recovered = domain.Known(false)
-	}
 	c.assess(MaintainHerd, 3, recovered)
 	if !positive(recovered) {
 		c.raise(MaintainHerd, 3).MethodUnavailable = true

@@ -89,7 +89,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	hourly := !r.planSurveyed || tick-checked >= layoutReplanEvery
 	missing := !haveLayout && hourly
 	terrain := haveLayout && tick-checked >= layoutTerrainCheckEvery
-	// The pens, barn and vet room follow the herd plan's target herd.
+	// The barn follows the herd plan's target herd.
 	animals := projection.Facts.PenAnimals()
 	// New research or a new tier: other research unlocks rooms too.
 	grown := grownFor(*projection)
@@ -117,6 +117,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	// the plan lacks: grow one sized to the title's area.
 	var growth policy.RoomGrowth
 	growth.HerdUnits = projection.Facts.HerdUnits()
+	growth.Pens = projection.Facts.PenWants()
 	if need, owed := throneNeed(*projection); haveLayout {
 		growth.ThroneArea = policy.ThroneAreaOwed(layout.Plan, need, owed)
 		if owed {
@@ -177,7 +178,10 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	// The materials yard is planned from the start; a plan that predates
 	// it, or a full yard (RoomDemand.Yard), is grown one.
 	yard := haveLayout && policy.YardRoomsOwed(layout.Plan, demand) > 0 && hourly
-	if outgrown || missing || terrain || research || tomb || throne || children || retireShelter || gear || core || outskirts || yard {
+	// A herd whose grazing outgrew its pens (or has none) is planned the pen it
+	// lacks beside its barn, at most once an hour.
+	pens := haveLayout && policy.PensOwed(layout.Plan, growth.Pens) > 0 && hourly
+	if outgrown || missing || terrain || research || tomb || throne || children || retireShelter || gear || core || outskirts || yard || pens {
 		replanned := false
 		if survey, err := r.layoutSurvey(ctx, snapshot, *projection); err != nil {
 			_ = err // a failed survey retries on the next review
@@ -187,6 +191,9 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 			survey.Cold, _ = projection.ColdMap.Value()
 			survey.Hot, _ = projection.HotMap.Value()
 			topology, _ := projection.PowerPlanning.Value()
+			if pasture, known := projection.Facts.Pasture.Value(); known {
+				growth.Grazing = policy.GrazingGround(survey, pasture)
+			}
 			if !haveLayout {
 				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns), layoutTier(*projection), topology.Geysers, animals)
 				r.planGrownFor, r.planPawns, r.planInputs = grown, int(pawns), layoutInputs{}
@@ -210,7 +217,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 				}
 				// Every new building moves Occupied; the fixed rooms are its key.
 				keyed := growth
-				keyed.Occupied = nil
+				keyed.Occupied, keyed.Grazing = nil, nil
 				inputs := layoutInputs{planTick: layout.Tick, key: fmt.Sprint(grown, pawns, tombs, suites, topology.Geysers, keyed, animals), bounds: survey.Bounds, cells: survey.Cells}
 				if !inputs.same(r.planInputs) {
 					reason := layoutReasons(map[string]bool{"outgrown": outgrown, "terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research, "tomb": tomb, "suite": suite, "throne": throne, "children": children, "gear": gear, "core": core, "outskirts": outskirts, "yard": yard, "succession": growth.Successor.Any()})

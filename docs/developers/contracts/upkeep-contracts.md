@@ -394,11 +394,12 @@ the supply-room enclosure checks. Fences or a marker do not complete the concern
 must be observed in a suitable pen. No breeding, bonding, master or removal setting changes.
 
 Herd layout (`HerdPlan.PenAnimals`, summed population ceilings, at least six):
-a roofed barn with a sleeping spot per animal and an animal flap into the paddock (at
+a roofed barn with a sleeping spot per animal (at
 least eight; placed sites never move), all inside the outer ring; a herd the barn cannot
 hold gets an extra reservation, never a resized one. There is no vet room: the hospital holds
 `AnimalBed` stations sized from the injured animals (`policy.WardBeds`), and an animal enters
 it when carried or via the bot-owned `Hospital` allowed area (`HospitalAreaKey`).
+Each unit that holds roamers also gets a barn-attached pen (husbandry-contracts, Pens).
 
 - Containment reconciles each barn and the hospital's animal ward (`policy.HerdRooms`, `policy.HospitalCells`)
   through the shared build side (`policy.NextHerdStep` returns `HerdReconcile` with the
@@ -410,9 +411,7 @@ it when carried or via the bot-owned `Hospital` allowed area (`HospitalAreaKey`)
 - The barn owes one optional powered heater (`RoomFurniture.Heater`, planned by `planBarn`
   on the floor furthest from the door, wanted beside the beds); `TemperatureCooling.Conditioned`
   counts a room with one as heated. No barn cooler is planned.
-- The barn interior is the bot-owned `Barn` allowed area (`BarnAreaKey`) that pen animals
-  enter while exposure endangers their race ([husbandry contracts](husbandry-contracts.md)).
-  Each standing ward bed is flagged medical by a `BedUse` patch. Each bonded animal's master
+- Each standing ward bed is flagged medical by a `BedUse` patch. Each bonded animal's master
   (`policy.CompanionMaster`) with a solo bedroom gets one `AnimalSleepingSpot` per animal
   (`policy.NextCompanionBed`, one per review). Pasture rotation is not built.
 

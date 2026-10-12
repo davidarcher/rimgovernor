@@ -7,21 +7,19 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 // RoundsAnimalContainmentPlanner composes MaintainAnimalContainment's
 // containment-method decision (policy.SelectAnimalContainmentMethod) with the
-// build side of the reconciler: the one PenMarker that claims the yard inside
-// the defensive wall once it is closed and its lane fenced (stagePaddock);
-// the barn and vet room (stageHerdRooms) are raised meanwhile. It is self-contained the way
-// RoundsFieldPlanner is, on purpose: the shared shelter/cooking/comfort switch
-// is actively edited by parallel building-family slices, and this goal's action
-// family needs none of its machinery.
+// build side of the reconciler: the barn, its pens (fence, gate, flap and the
+// PenMarker that claims each pen) and the hospital ward (stageHerdRooms). It is
+// self-contained the way RoundsFieldPlanner is, on purpose: the shared
+// shelter/cooking/comfort switch is actively edited by parallel building-family
+// slices, and this goal's action family needs none of its machinery.
 type RoundsAnimalContainmentPlanner struct {
 	reviewer *Rounder
 	native   RoundsBuildingSource
-	// building raises the marker, barn and vet room (stagePaddock, stageHerdRooms).
+	// building raises the barn, pens and ward (stageHerdRooms).
 	building *RoundsBuildingPlanner
 }
 type RoundsAnimalContainmentResult struct {
@@ -35,24 +33,6 @@ func NewRoundsAnimalContainmentPlanner(reviewer *Rounder, native RoundsBuildingS
 	}
 	building := &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainAnimalContainment}
 	return &RoundsAnimalContainmentPlanner{reviewer: reviewer, native: native, building: building}, nil
-}
-
-// penPlanOpen reports whether the plan is still building the pen: it places a
-// fence, gate or marker and has not finished. The pen is not reconciled again
-// until it has, or the diff would offer cells already under construction.
-func penPlanOpen(spec domain.PlanSpec, plan store.PlanState) bool {
-	if !store.PlanOpen(plan) {
-		return false
-	}
-	for _, action := range spec.Actions() {
-		if b, ok := action.Building(); ok {
-			switch b.Definition() {
-			case policy.PenMarkerDefinition:
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // animalHandlerAvailable ports the enabled-Handling-worker prerequisite:
@@ -122,7 +102,7 @@ func shellSharedStuff(facts observation.ColonyProjection, a, b observation.Plann
 }
 
 // containmentWait is the refusal of a containment step that waits on the
-// handler, the native pen or the shell it needs.
+// handler, the native pen or the pen it needs.
 func containmentWait(reason policy.AnimalContainmentReason) Verdict {
 	switch reason {
 	case policy.ContainmentWaitingHandler:
@@ -131,8 +111,8 @@ func containmentWait(reason policy.AnimalContainmentReason) Verdict {
 		return awaitingPlan("native_pen", "delivery")
 	case policy.ContainmentMarkerExhausted:
 		return awaitingPlan("native_pen", "marker_placed")
-	case policy.ContainmentBuildShell, policy.ContainmentAwaitingShell:
-		return awaitingPlan("paddock", "wall_closed")
+	case policy.ContainmentNoPen:
+		return awaitingPlan("pen", "planned")
 	}
 	return awaitingPlan("pen", string(reason))
 }
@@ -160,14 +140,6 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 	if !workable {
 		return RoundsAnimalContainmentResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	penBuilding := false
-	for _, method := range goal.Methods {
-		plan, err := p.journal.LoadPlan(call, method.Plan)
-		if err != nil {
-			return RoundsAnimalContainmentResult{}, err
-		}
-		penBuilding = penBuilding || penPlanOpen(plan.Spec, plan)
-	}
 	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoundsAnimalContainmentResult{}, err
@@ -179,7 +151,7 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 	if err != nil {
 		return RoundsAnimalContainmentResult{}, err
 	}
-	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims, "PenMarker")
+	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims)
 	if err != nil {
 		return RoundsAnimalContainmentResult{}, err
 	}
@@ -196,37 +168,30 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 	if _, known := handlerAvailable.Value(); !known {
 		return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("animal_handler")}, nil
 	}
-	// The pen is the yard inside the defensive wall: the shell stage
-	// is the ring standing with its lane fenced, the marker the one step
-	// the yard then needs.
-	shellStage, paddock, sited, err := r.paddockStageOf(call, state, facts, penBuilding)
-	if err != nil {
-		return RoundsAnimalContainmentResult{}, err
+	// The barn, its pens and the hospital ward: the ring, flap, beds, fence,
+	// gate and marker, one reconcile at a time.
+	built, err := r.stageHerdRooms(call, epoch, state, review, goal, expected, claims)
+	if err != nil || built.Verdict != BuildingReasonNoDeficit {
+		return built, err
 	}
-	markerStands := shellStage == policy.ContainmentShellComplete && paddock.Marker
-	choice, err := policy.SelectAnimalContainmentMethod(animals, handlerAvailable, shellStage, markerStands)
+	choice, err := policy.SelectAnimalContainmentMethod(animals, handlerAvailable, pensStand(facts))
 	if err != nil {
 		return RoundsAnimalContainmentResult{}, err
 	}
 	if choice.Reason == policy.ContainmentNoDeficit {
-		// The pen stands (or no animal needs one): the barn and vet room.
-		return r.stageHerdRooms(call, epoch, state, review, goal, expected, claims)
+		return RoundsAnimalContainmentResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	switch choice.Reason {
-	case policy.ContainmentBuildShell, policy.ContainmentAwaitingShell:
-		// Barn-bound until the wall closes: the barn is raised meanwhile.
-		if result, err := r.stageHerdRooms(call, epoch, state, review, goal, expected, claims); err != nil || result.Verdict != BuildingReasonNoDeficit {
-			return result, err
-		}
-		return RoundsAnimalContainmentResult{Verdict: containmentWait(choice.Reason)}, nil
-	case policy.ContainmentWaitingHandler, policy.ContainmentWaitingNativePen,
-		policy.ContainmentMarkerExhausted:
-		return RoundsAnimalContainmentResult{Verdict: containmentWait(choice.Reason)}, nil
-	case policy.ContainmentPlaceMarker:
-		if !sited {
-			return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("room_ground")}, nil
-		}
-		return r.stagePaddock(call, epoch, state, review, goal, read, paddock)
+	return RoundsAnimalContainmentResult{Verdict: containmentWait(choice.Reason)}, nil
+}
+
+// pensStand is policy.PensStand over the projection's plan, ground and
+// construction census; false while any is unknown.
+func pensStand(facts observation.ColonyProjection) bool {
+	plan, pk := facts.LayoutPlan.Value()
+	census, ck := facts.Facts.CurrentConstruction.Value()
+	ground, gk := colonyGround(facts)
+	if !pk || !ck || !gk {
+		return false
 	}
-	return RoundsAnimalContainmentResult{}, fmt.Errorf("%w: step: unknown containment reason %s", ErrControl, choice.Reason)
+	return policy.PensStand(plan, plan.GroundWithRock(ground, naturalRock(facts)), census.Buildings)
 }

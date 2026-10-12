@@ -3,8 +3,6 @@ package policy
 import (
 	"math"
 	"sort"
-
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // The pen food formula. The game scores a pen (PenFoodCalculator) as the sum,
@@ -84,13 +82,15 @@ func PenCells(demandPerDay, perCell float64) int {
 	return min(penCellsCap, max(penCellsFloor, int(math.Ceil(demandPerDay/perCell))))
 }
 
-// PenCellsFor is PenCells for the pasture table's terrain, unknown when the
-// table is.
-func PenCellsFor(pasture domain.Fact[PastureTable], terrain string, demandPerDay float64) (int, bool) {
-	t, known := pasture.Value()
-	if !known {
-		return 0, false
+// Weakest is the least nutrition per day a cell of any grazing terrain grows:
+// the per-cell term a pen is sized with before its site, hence its terrain, is
+// known, so a pen on any of them holds the herd. False when no terrain grows.
+func (t PastureTable) Weakest() (float64, bool) {
+	least, found := 0.0, false
+	for _, name := range t.Terrains() {
+		if v, _ := t.PerCell(name); !found || v < least {
+			least, found = v, true
+		}
 	}
-	perCell, _ := t.PerCell(terrain)
-	return PenCells(demandPerDay, perCell), true
+	return least, found
 }

@@ -91,9 +91,6 @@ type variant struct {
 	gates                     func(fixture fixtureFunc, siteX, siteZ int) (map[string]any, error)
 	layoutBuilt               func(layout store.DefenseLayoutRecord, inspect map[string]any) error
 	raided                    func(afterLayout, afterRaid map[string]any) error
-	// herd stages a roamer before the layout and asserts its barn-bound then
-	// paddock phases around the layout build (defense/paddock).
-	herd *paddockHerd
 	// instantWalls has the fixture raise every wall, door and embrasure as
 	// it is placed (the perimeter is ~1600 walls: hauling and building them
 	// took 36 wall minutes of game time, the layout itself is what the case
@@ -253,11 +250,6 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		if err != nil {
 			return err
 		}
-		if v.herd != nil {
-			if err := v.herd.stage(ctx, h, siteX, siteZ, report); err != nil {
-				return err
-			}
-		}
 		if v.gates != nil {
 			gates, err := v.gates(fixture, siteX, siteZ)
 			if err != nil {
@@ -308,23 +300,9 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 			return err
 		}
 		defer svc.stop()
-		env := phaseEnv{ctx: ctx, world: world, statePath: statePath, identity: identity, report: report, reopen: reopenHarness, launch: launch}
-		if v.herd != nil {
-			// The roamer is barn-bound while the ring is open: the service
-			// stops once it is, the game is read, and a fresh one continues.
-			if svc, h, err = v.herd.barnBound(env, svc); err != nil {
-				return fmt.Errorf("barn-bound: %w", err)
-			}
-			defer svc.stop()
-		}
 		layout, err = waitLayoutComplete(ctx, svc.store, world, svc.wait(layoutTimeout), report)
 		if err != nil {
 			return fmt.Errorf("layout: %w", err)
-		}
-		if v.herd != nil {
-			if err = v.herd.awaitPaddock(env, svc); err != nil {
-				return fmt.Errorf("paddock: %w", err)
-			}
 		}
 		svc.stop()
 		report["layout_authority"] = svc.keepAlive.snapshot()
@@ -332,11 +310,6 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		h, err = reopenHarness()
 		if err != nil {
 			return err
-		}
-		if v.herd != nil {
-			if err = v.herd.paddocked(env, h); err != nil {
-				return fmt.Errorf("paddock: %w", err)
-			}
 		}
 	}
 	// The audits below are cheap reads proving the layout stands.
@@ -646,9 +619,6 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	report["raid_outcome"] = map[string]any{"hostiles_on_map": raidersLeft, "dead_or_downed": neutralised}
 	if neutralised == 0 && raidersLeft == len(na.AsSlice(raid["added"])) {
 		return fmt.Errorf("raid did not resolve: no raider dead, downed or gone: %#v", final)
-	}
-	if v.herd != nil {
-		return v.herd.survived(ctx, h, identity, report)
 	}
 	return nil
 }

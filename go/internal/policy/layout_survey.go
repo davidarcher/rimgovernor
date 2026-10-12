@@ -29,6 +29,9 @@ type SurveyCell struct {
 	ThickRoof bool
 	// Fertility is the soil's growing multiplier (0 for rock and floors).
 	Fertility float64
+	// Terrain is the def of the terrain on the cell (a floor included); empty
+	// where unread. A pen is sited where it grows grazing (PastureTable).
+	Terrain string
 	// Ore is rock holding a mineable resource; Tree is a cell under a
 	// tree.
 	Ore, Tree bool

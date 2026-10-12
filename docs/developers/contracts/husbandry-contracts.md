@@ -266,39 +266,7 @@ into the hospital, `sterilize`, then `allowed_area` cleared once sterilized
 animal with a bill queued is waited on. Clearing the area does not restore an
 earlier restriction.
 
-**Exposure shelter.** A pen animal (`requires_pen`, supports allowed
-areas, not marked for release or slaughter) is sheltered while its race is in
-danger outdoors: `RoundsFacts.AnimalShelterChoice` runs `AnimalExposures`
-over the pen animals' races (an active `ColdSnap`, `HeatWave` or
-`ToxicFallout` condition, or the observed outdoor temperature outside the
-race's comfortable range, `ComfyTemperatureMin`/`Max` read from the def
-mirror into `AnimalRace.Comfort`; no proto change, native read or def-name
-list). An animal with no area restriction is let into the bot-owned `Barn`
-allowed area (`BarnAreaKey`, the interior of a standing planned barn,
-planned by MaintainShelter beside `Hospital`; `""` until a barn stands, which
-chooses nothing). Once its race is out of danger an animal in the `Barn` area
-is released with `allowed_area` cleared: the pen is re-derived from the
-animal's current area each cycle, no prior area is stored. An animal in any
-other area (the hospital) is left to the flow that put it there. A race with
-no comfort range, a race outside the catalog, or an unread condition census
-or temperature fails the review with `ErrAnimalExposure`. The check also keeps
-MaintainHerd in deficit while a write is owed, and it comes before every
-other husbandry choice since the animals die of the exposure.
-
-**Threat shelter.** A hostile threat endangers every pen animal:
-while `RoundsFacts.Hostiles > 0` (the emergency census's unsafe-threat holds,
-that is live, discovered, engaging, non-distant Hostile, HuntingPredator and
-hostile-building rows, plus pending drop pods) `AnimalShelterChoice` lets each
-unrestricted pen animal into the `Barn` area, one per cycle, without reading
-the condition census, temperature or race comfort range; once `Hostiles` is
-zero the weather exposure above decides, so a sheltered animal is released
-only when both are clear. An unread hostile count is `ErrAnimalExposure`.
-What else covers a threat: `PlanSheltering` shelters colonists and non-pen
-animals in the Safe area (pen animals are excluded there), and
-`combat_animals.go` uses colony animals as defenders; nothing else protects
-penned animals. Combat orders still do not skip sheltered animals.
-
-Selection order each cycle is exposure shelter, then train, then tame, then
+Selection order each cycle is the herd-removal reconcile, then train, then tame, then
 surplus removal, then master assignment, then sterilize; one write
 per cycle. The recovery planner also produces `allowed_area` changes from fresh
 Auto safety facts: Go assigns a roofed refuge during roof hazards (native does not veto an unroofed area), otherwise unrestricted
@@ -364,11 +332,13 @@ The shared food forecast allocates current stored food among native eligible eat
 using diet, policy, safe reachability, held stock and rot deadlines. Missing reads,
 grass, expected harvest and unborn animals cannot certify feed capacity. Animal pen
 membership uses the native enclosed, suitable pen lookup; a marker by itself is not
-containment. The pen is the wall's yard (below), claimed by one `PenMarker`; there is no separately fenced pen and no herd-size bound on containment. Area-managed animals use their current allowed-area membership.
+containment. Each pen is a barn-attached `PlannedPen` (below), claimed by one `PenMarker`; there is no herd-size bound on containment. Area-managed animals use their current allowed-area membership.
 
-**Wall yard.** The defensive wall's yard (the gap between the core footprint and the ring, `perimeterGap` at least) is the fixed `perimeterGap`; it is no longer sized to the herd's grazing (`LayoutPlan.YardCells`, `yardCellsPerAnimal` and `YardAnimals` were deleted with #2883). Pen capacity stays the native pen food calculation. `policy.PenCells` reimplements that formula for sizing a pen: demand is the herd's `AdultFeedPerDay` summed by `PenDemand`, supply is the per-cell worst-quadrum pasture nutrition of the pen's terrain, read natively as `FoodChannelsFacts.pasture_terrain` (`MapPastureNutritionCalculator.CalculateAverageNutritionPerDay`, the minimum over the four quadrums, for every terrain with fertility above zero; surfaced as `RoundsFacts.Pasture`). The result is clamped to `penCellsFloor`/`penCellsCap`. The barn-attached pen reservation that consumes it is not planned yet (#2883 follow-up).
+**Pens.** A herd unit's roamers (`requires_pen`) are held in a pen beside the unit's barn, not in the defensive wall's yard (the paddock yard, the wall-closed `PenMarker` staging, the `Barn`/`Companion`/`Wild` allowed areas and the exposure and threat shelter writes were deleted with #2883; a barn is the animals' bedroom, nothing moves an animal into it by area). Pen capacity is the native pen food calculation. `policy.PenCells` reimplements that formula for sizing a pen: demand is the herd's `AdultFeedPerDay` summed by `PenDemand`, supply is the per-cell worst-quadrum pasture nutrition of the pen's terrain, read natively as `FoodChannelsFacts.pasture_terrain` (`MapPastureNutritionCalculator.CalculateAverageNutritionPerDay`, the minimum over the four quadrums, for every terrain with fertility above zero; surfaced as `RoundsFacts.Pasture`). The result is clamped to `penCellsFloor`/`penCellsCap`.
 
-**Herd units.** Barns are sited as units. The misc unit (the first barn) holds every animal that is no herd's, sized from the ceilings of the other races. A race is a herd at a fertile breeding pair or `herdMinAnimals` (5) animals, provided it has a policy ceiling (a founder or companion has none and stays misc); it gets a unit of its own, sized from that ceiling and not its headcount, near the misc unit when a site fits. Units are matched to herds by key: every reservation of a herd's unit, a top-up included, carries the herd's race in `LayoutReservation.Herd` (saved with the layout plan); the misc unit's carry none. A plan saved before the key is matched once by order (misc first, then races by name) and keyed on its next top-up (deletion candidate: that fallback). Reservations never move or shrink: an outgrown unit gets another barn beside its existing ones, so a repeat top-up is a no-op and a new herd never takes it. There is no vet room: the barn is the animal bedroom for every animal, and a sick or to-be-sterilized animal is treated in the hospital, which holds `AnimalBed` stations (`policy.WardBeds` sizes them from the animals needing tending, at least one while a sterilize is wanted; `policy.WardSlots` places them on the free floor outside the hospital's human template). Each barn carries two openings on its ring beside each other, its regular `Door` for colonists and the animal flap into the paddock (the catalog's buildable `Building_Door` that roamers can open, `RoomFurniture.AnimalFlap`; a catalog without one is an error), since the flap lets no colonist through. Assigning animals to units is not planned here.
+`HerdPlan.PenWants` asks one pen per unit holding roamers, sized by `PenCells` over the weakest grazing terrain of the pasture table for the larger of the race's `PopulationMax` and the animals kept; nothing is asked while the animal census or the pasture table is unread. `PlanPenSites` (a replan, with the survey's `GrazingGround`: walkable open soil that grows pasture, no rock, tree, ore, ruin, prop, building or hazard) reserves a `ReservePen` rectangle sharing one wall with the unit's first barn that has room, wholly on grazing ground (`LayoutReservation.Herd` keys it to its unit). A pen already placed never moves or shrinks: a unit that outgrows its pens gets another beside the barn (`PensOwed`, the replan trigger in `colony_plan.go`), and a pen that fits nowhere is left out. A pen is an Outdoor `PlannedPen` room: a `Fence` ring with a `FenceGate`, raised by the same room reconcile as the barn (`NextHerdStep`), and one `PenMarker` on its free interior cell nearest the centre. The pen shares its barn's wall; the cell in the middle of that wall run is the animal flap (`penLink`, `LayoutPlan.FlapCells`) between barn and pen, the catalog's buildable `Building_Door` that roamers can open (`RoomFurniture.AnimalFlap`; a catalog without one is an error), so animals pass between the two while colonists use the barn's `Door`. The pen's ring counts the barn's walls and flap as standing. `policy.PensStand` (every pen enclosed with its marker; at least one pen planned) feeds `SelectAnimalContainmentMethod`: with no standing pen the goal waits `no_standing_pen`, with pens standing it waits for the native handlers to rope the animals in (`marker_placed_awaiting_native_pen`).
+
+**Herd units.** Barns are sited as units. The misc unit (the first barn) holds every animal that is no herd's, sized from the ceilings of the other races. A race is a herd at a fertile breeding pair or `herdMinAnimals` (5) animals, provided it has a policy ceiling (a founder or companion has none and stays misc); it gets a unit of its own, sized from that ceiling and not its headcount, near the misc unit when a site fits. Units are matched to herds by key: every reservation of a herd's unit, a top-up included, carries the herd's race in `LayoutReservation.Herd` (saved with the layout plan); the misc unit's carry none. A plan saved before the key is matched once by order (misc first, then races by name) and keyed on its next top-up (deletion candidate: that fallback). Reservations never move or shrink: an outgrown unit gets another barn beside its existing ones, so a repeat top-up is a no-op and a new herd never takes it. There is no vet room: the barn is the animal bedroom for every animal, and a sick or to-be-sterilized animal is treated in the hospital, which holds `AnimalBed` stations (`policy.WardBeds` sizes them from the animals needing tending, at least one while a sterilize is wanted; `policy.WardSlots` places them on the free floor outside the hospital's human template). A barn with a pen carries the animal flap in its wall shared with the pen (see Pens), besides its regular `Door` for colonists. Assigning animals to units is not planned here.
 
 An explicit feed resource, or observed feed used exclusively by animals, creates an
 owned `MaintainResource` concern through the existing acquisition/production methods.

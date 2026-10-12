@@ -117,11 +117,16 @@ func withCells(set map[domain.Cell]bool) map[domain.Cell]bool {
 }
 
 // ring is the standing walls and doors r's ring is matched against: an
-// outdoor room's fences and gates; a barn's flap cells count as a door where a
-// flap stands.
+// outdoor room's fences and gates, the wall (or animal flap) of the barn it
+// shares a side with standing as fence; a barn's flap cells count as a door
+// where a flap stands.
 func (p LayoutPlan) ring(r PlannedRoom, g GroundCensus) (walls, doors map[domain.Cell]bool) {
 	if r.Outdoor {
-		return g.fences, g.gates
+		walls = withCells(g.fences)
+		for _, shared := range []map[domain.Cell]bool{g.walls, g.flaps} {
+			maps.Copy(walls, shared)
+		}
+		return walls, g.gates
 	}
 	walls, doors = g.walls, g.doors
 	if flaps := p.FlapCells(r); len(flaps) > 0 {
