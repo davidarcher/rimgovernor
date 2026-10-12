@@ -151,6 +151,9 @@ type LayoutPlan struct {
 	// scoring walks them instead of the role-pair trip table; a spine plan has
 	// none and keeps the table.
 	Trips []RoomTrip `json:",omitempty"`
+	// OutsideTrips are the rooms' trips to the outside, walked to the nearest
+	// entrance (exteriorDoorMovements); scoring does not read them.
+	OutsideTrips []OutsideTrip `json:",omitempty"`
 	// Rooms are the rooms hung off the spine; a wing holds its own.
 	Rooms        []PlannedRoom
 	Wings        []Wing `json:",omitempty"`

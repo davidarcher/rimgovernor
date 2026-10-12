@@ -28,8 +28,11 @@ import (
 
 // exteriorDoorMovements are the movements a day through each room's exterior
 // door (its Door, when no link door stands there): every trip charges its
-// weight to each exterior door on its shortest walk. A trip the plan cannot
-// walk charges nothing.
+// weight to each exterior door on its shortest walk, and so does each room's
+// trip to the outside (OutsideTrips, walked to the nearest entrance). Trip
+// weights are one way; a visit is a passage in and one out, so a door's
+// passages a day are twice what the walks charge it (#2947). A trip the plan
+// cannot walk charges nothing.
 func exteriorDoorMovements(p LayoutPlan) map[int32]float64 {
 	links := map[domain.Cell]bool{}
 	for _, l := range p.Links {
@@ -45,7 +48,7 @@ func exteriorDoorMovements(p LayoutPlan) map[int32]float64 {
 			moves = tripCellMovements(p)
 		}
 		if m, ok := moves[r.Door]; ok {
-			out[r.ID] = m
+			out[r.ID] = 2 * m
 		}
 	}
 	return out
@@ -56,7 +59,7 @@ func exteriorDoorMovements(p LayoutPlan) map[int32]float64 {
 // rooms' centres (routeWalk). A trip the plan cannot walk charges nothing.
 func tripCellMovements(p LayoutPlan) map[domain.Cell]float64 {
 	out := map[domain.Cell]float64{}
-	if len(p.Trips) == 0 {
+	if len(p.Trips) == 0 && len(p.OutsideTrips) == 0 {
 		return out
 	}
 	walk, rooms := routeWalk(p)
@@ -78,14 +81,31 @@ func tripCellMovements(p LayoutPlan) map[domain.Cell]float64 {
 		}
 		bySource[t.A] = append(bySource[t.A], t)
 	}
+	outside := map[int32]float64{}
+	for _, t := range p.OutsideTrips {
+		if _, ok := centre[t.Room]; !ok {
+			continue
+		}
+		sources = append(sources, t.Room)
+		outside[t.Room] += t.Weight
+	}
+	entrance := map[domain.Cell]bool{}
+	for _, c := range p.Entrances {
+		entrance[c] = true
+	}
 	slices.Sort(sources)
+	sources = slices.Compact(sources)
 	for _, from := range sources {
 		// Breadth-first from the source, each cell remembering where it came
 		// from, in a fixed neighbour order so the path is deterministic.
 		parent := map[domain.Cell]domain.Cell{centre[from]: centre[from]}
 		queue := []domain.Cell{centre[from]}
+		nearest, reached := domain.Cell{}, false
 		for h := 0; h < len(queue); h++ {
 			c := queue[h]
+			if !reached && entrance[c] {
+				nearest, reached = c, true
+			}
 			for _, d := range [4][2]int32{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
 				n := domain.Cell{X: c.X + d[0], Z: c.Z + d[1]}
 				if _, ok := walk[n]; !ok {
@@ -97,19 +117,24 @@ func tripCellMovements(p LayoutPlan) map[domain.Cell]float64 {
 				}
 			}
 		}
-		for _, t := range bySource[from] {
-			at := centre[t.B]
+		charge := func(at domain.Cell, weight float64) {
 			if _, ok := parent[at]; !ok {
-				continue
+				return
 			}
 			for {
-				out[at] += t.Weight
+				out[at] += weight
 				next := parent[at]
 				if next == at {
-					break
+					return
 				}
 				at = next
 			}
+		}
+		for _, t := range bySource[from] {
+			charge(centre[t.B], t.Weight)
+		}
+		if reached && outside[from] > 0 {
+			charge(nearest, outside[from])
 		}
 	}
 	return out

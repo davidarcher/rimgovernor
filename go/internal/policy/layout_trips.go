@@ -55,3 +55,13 @@ func tripWalk(p LayoutPlan) int {
 	}
 	return int(math.Round(total))
 }
+
+// OutsideTrip is the pawn traffic between a room and the outside (the graph's
+// PurposeOutside node, which the tiler maps to the plan's Entrances, not to a
+// room): Weight is the trips a day, one way, as RoomTrip.Weight is (the
+// group's weight to the outside node). Only exteriorDoorMovements counts the
+// way back.
+type OutsideTrip struct {
+	Room   int32
+	Weight float64
+}

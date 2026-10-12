@@ -125,6 +125,28 @@ func TestClusterStationsSplitsAndMerges(t *testing.T) {
 	}
 }
 
+// The outside node holds no station: its edges weigh the groups holding the
+// other end, in proportion to their stations.
+func TestClusterStationsSplitOutsideWeightOverGroups(t *testing.T) {
+	bed := node("Bed", PurposeSleep, 3)
+	table := node("Table", PurposeDine, 1)
+	g := StationGraph{
+		Nodes: []StationNode{bed, table},
+		Edges: []StationEdge{edge(bed, table, 6, false), {A: bed.ID, B: OutsideNode, Weight: 6}},
+	}
+	got := clusterOf(t, g)
+	total := 0.0
+	for _, grp := range got.Groups {
+		if grp.Role == RoomRoleBedroom && grp.Outside != 2 {
+			t.Errorf("a one-bed group weighs 2 of the 6 trips: %+v", grp)
+		}
+		total += grp.Outside
+	}
+	if total != 6 {
+		t.Errorf("outside weight %v, want 6", total)
+	}
+}
+
 // A bench and a stove flip each other's role: they stay apart even with a
 // heavy flow; more tables than the stove can outweigh also separate.
 func TestClusterStationsKeepsLostEffectsApart(t *testing.T) {

@@ -49,6 +49,32 @@ func TestStationGraphOrdersSizeBenches(t *testing.T) {
 	}
 }
 
+// Each colonist out of a medical bed leaves it at wake and returns to sleep:
+// one trip a day to the outside node, one way.
+func TestStationGraphDayCycleLeavesTheBed(t *testing.T) {
+	in := graphTestInput()
+	in.Population = StationPopulation{Colonists: 5, Injured: 2}
+	g, err := BuildStationGraph(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w := g.Weight("Bed/sleep", OutsideNode); w != 3 {
+		t.Errorf("three healthy colonists make 3 trips a day outside, got %v", w)
+	}
+	for _, e := range g.Edges {
+		if (e.A == OutsideNode || e.B == OutsideNode) && e.Reason != ReasonFlowDay {
+			t.Errorf("outside edge %+v has reason %q", e, e.Reason)
+		}
+	}
+	if _, ok := g.Node(OutsideNode); ok {
+		t.Error("the outside node is no station node")
+	}
+	in.Population = StationPopulation{}
+	if g, _ = BuildStationGraph(in); g.Weight("Bed/sleep", OutsideNode) != 0 {
+		t.Error("no colonists, no day cycle")
+	}
+}
+
 // A need the catalog has no station for is an error, not a guess.
 func TestStationGraphUnknownsAreErrors(t *testing.T) {
 	in := graphTestInput()

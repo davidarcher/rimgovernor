@@ -741,6 +741,12 @@ func (t *tiler) build() LayoutPlan {
 		a, b := p.Trips[i], p.Trips[j]
 		return a.A < b.A || a.A == b.A && a.B < b.B
 	})
+	p.OutsideTrips = nil
+	for i, r := range t.rooms {
+		if w := t.in.Groups[r.group].Outside; w > 0 {
+			p.OutsideTrips = append(p.OutsideTrips, OutsideTrip{Room: p.Rooms[i].ID, Weight: w})
+		}
+	}
 	return p
 }
 

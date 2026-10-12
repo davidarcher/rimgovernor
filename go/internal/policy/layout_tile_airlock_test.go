@@ -154,11 +154,67 @@ func TestExteriorDoorMovementsChargeTheDoorsOnTheWalk(t *testing.T) {
 	p := LayoutPlan{Rooms: []PlannedRoom{a, pen}, Entrances: []domain.Cell{{X: 11, Z: 8}}, NextRoomID: 3,
 		Trips: []RoomTrip{{A: 1, B: 2, Weight: 6}}}
 	got := exteriorDoorMovements(p)
-	if got[1] != 6 || got[2] != 6 {
-		t.Errorf("movements %v, want 6 through each door", got)
+	if got[1] != 12 || got[2] != 12 {
+		t.Errorf("movements %v, want 12 passages (6 each way) through each door", got)
 	}
 	p.Trips = nil
 	if got := exteriorDoorMovements(p); len(got) != 0 {
 		t.Errorf("a plan without trips charges %v", got)
+	}
+}
+
+func TestExteriorDoorMovementsCountTheOutsideBothWays(t *testing.T) {
+	// A room's trip to the outside is walked to the nearest entrance: five
+	// trips a day out are ten passages through the room's own door.
+	a := PlannedRoom{ID: 1, Role: PlannedKitchen, Region: RectRegion(Rectangle{X: 10, Z: 10, Width: 4, Height: 4}), Door: domain.Cell{X: 11, Z: 9}, DoorRot: domain.South}
+	p := LayoutPlan{Rooms: []PlannedRoom{a}, Entrances: []domain.Cell{{X: 11, Z: 8}}, NextRoomID: 2,
+		OutsideTrips: []OutsideTrip{{Room: 1, Weight: 5}}}
+	if got := exteriorDoorMovements(p); got[1] != 10 {
+		t.Errorf("movements %v, want 10 passages through the door", got)
+	}
+	if got := tripCellMovements(p); got[a.Door] != 5 {
+		t.Errorf("a cell is charged the one-way weight, got %v", got[a.Door])
+	}
+	p.Entrances = nil
+	if got := exteriorDoorMovements(p); len(got) != 0 {
+		t.Errorf("with no entrance the outside is unreachable, charged %v", got)
+	}
+}
+
+// The base's colonists leave their bedrooms at wake and return to sleep: on
+// sea ice the doors they share pay for airlocks that the same base without
+// that traffic does not.
+func TestTilerAirlockOnABusySharedEntranceFromTheDayCycle(t *testing.T) {
+	in := airlockTileInput(t, seaIce)
+	in.Groups = slices.Clone(in.Groups)
+	for i := range in.Groups {
+		if in.Groups[i].Role == RoomRoleBedroom {
+			in.Groups[i].Outside = 1
+		}
+	}
+	res, err := TileEmbedding(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Plan.OutsideTrips) == 0 {
+		t.Fatalf("no bedroom walks outside: %+v", res.Plan)
+	}
+	moves := exteriorDoorMovements(res.Plan)
+	total := 0.0
+	for _, m := range moves {
+		total += m
+	}
+	if total < 2*float64(len(res.Plan.OutsideTrips)) {
+		t.Errorf("%d bedroom trips out charge only %v door passages", len(res.Plan.OutsideTrips), total)
+	}
+	for i := range in.Groups {
+		in.Groups[i].Outside *= 400
+	}
+	loud, err := TileEmbedding(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(airlockDecisions(loud, ReasonTileAirlock)) == 0 {
+		t.Errorf("a base of busy colonists placed no airlock: %+v", loud.Decisions)
 	}
 }

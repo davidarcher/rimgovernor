@@ -152,6 +152,9 @@ type RoomGroup struct {
 	Markers  int
 	Requires []EnvRequirement
 	Links    []GroupLink
+	// Outside is the group's trips a day (one way) to the outside node: the
+	// graph's PurposeOutside edges, split over the groups holding the node.
+	Outside float64
 	// Costs are the throughput the room loses to the environment its stations
 	// do not get; LostEffects the role effects it does not give.
 	Costs       []ConflictCost
@@ -648,6 +651,23 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 	}
 	for k, l := range links {
 		out.Groups[k[0]].Links = append(out.Groups[k[0]].Links, *l)
+	}
+	// The outside node holds no station: its edges weigh the groups holding the
+	// other end, in proportion to the node's stations in each.
+	for _, e := range in.Graph.Edges {
+		other := e.A
+		if e.A == OutsideNode {
+			other = e.B
+		} else if e.B != OutsideNode {
+			continue
+		}
+		ia, ok := index[other]
+		if !ok || in.Graph.Nodes[ia].Count <= 0 {
+			continue
+		}
+		for _, u := range chunks[ia] {
+			out.Groups[rootGroup[find(u)]].Outside += e.Weight * float64(units[u].count) / float64(in.Graph.Nodes[ia].Count)
+		}
 	}
 	for i := range out.Groups {
 		sort.Slice(out.Groups[i].Links, func(a, b int) bool { return out.Groups[i].Links[a].To < out.Groups[i].Links[b].To })

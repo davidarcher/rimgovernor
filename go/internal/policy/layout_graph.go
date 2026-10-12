@@ -38,6 +38,10 @@ const (
 	PurposeStore       StationPurpose = "store"
 	PurposeStoreCold   StationPurpose = "store_cold"
 	PurposeDine        StationPurpose = "dine"
+	// PurposeOutside is the pseudo-node of the map outside the base, named
+	// OutsideNode in edges. It holds no station: clustering ignores its edges,
+	// and the tiler maps it to the plan's entrances.
+	PurposeOutside StationPurpose = "outside"
 	// PurposeCool is the cooling station clustering adds to a group that needs
 	// cold (a catalog cooler; no graph node has it).
 	PurposeCool StationPurpose = "cool"
@@ -57,6 +61,7 @@ const (
 	ReasonFlowIngredient        = "flow_ingredient"
 	ReasonFlowProduct           = "flow_product"
 	ReasonFlowMeal              = "flow_meal"
+	ReasonFlowDay               = "flow_day_cycle"
 	ReasonNeedCold              = "need_cold"
 )
 
@@ -261,6 +266,9 @@ func orderedPair(a, b string) (string, string) {
 	return a, b
 }
 
+// OutsideNode is the id of the PurposeOutside pseudo-node in edges.
+const OutsideNode = "outside"
+
 func nodeID(def string, purpose StationPurpose) string { return def + "/" + string(purpose) }
 
 // ceilDiv is the stations that serve n at per each.
@@ -290,6 +298,7 @@ func BuildStationGraph(in StationGraphInput) (StationGraph, error) {
 	}
 	b.flows(runs)
 	b.sleepEat(meals)
+	b.dayCycle()
 	fields := b.fieldNodes(runs)
 	g := b.graph()
 	g.Fields = fields
@@ -781,6 +790,24 @@ func recipePicks(f RecipeFlow) []Amount {
 		}
 	}
 	return out
+}
+
+// dayCycle adds the colonist's day at the bed: each colonist who is not in a
+// medical bed leaves it at wake and comes back to sleep, one trip a day to the
+// outside node (one way, like every edge; the way back is counted where trips
+// become door passages). Meals are sleepEat's; what a colonist does between
+// wake and sleep outdoors (joy, hauling mined, wood or hunted goods, pens) has
+// no model yet and adds nothing.
+func (b *graphBuilder) dayCycle() {
+	p := b.in.Population
+	if p.Colonists <= 0 {
+		return
+	}
+	for _, n := range b.nodes {
+		if n.Purpose == PurposeSleep {
+			b.addEdge(n.ID, OutsideNode, float64(p.Colonists-min(p.Injured, p.Colonists)), false, ReasonFlowDay)
+		}
+	}
 }
 
 // sleepEat adds the sleep and eat cycle: each meal a sleeper eats is a trip

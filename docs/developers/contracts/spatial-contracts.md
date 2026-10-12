@@ -311,7 +311,14 @@ on the colony centre when the plan has no free cell there.
   walls and outer door is left out and the decision says so. Door traffic is derived from
   `LayoutPlan.Trips`: each trip is walked between its rooms' centres (`routeWalk`) and
   charges its movements a day to every exterior door on the way
-  (`exteriorDoorMovements`); `DoorOpenFraction` turns that into time open using the
+  (`exteriorDoorMovements`). Trip weights stay one way; `exteriorDoorMovements` doubles
+  them (a visit is a passage in and one out). The graph's `PurposeOutside` node
+  (`OutsideNode`, no station, ignored by clustering) carries the colonist day cycle: one
+  edge from the bed per healthy colonist a day (wake out, sleep back). Clustering splits
+  it onto `RoomGroup.Outside`, the tiler onto `LayoutPlan.OutsideTrips`, and each such trip
+  is walked from its room to the nearest entrance. Joy outings, mined, wood and hunt
+  hauling and pen visits have no model yet (#2949), so a plan's passages fall short of
+  the audit's 30-50 per colonist a day. `DoorOpenFraction` turns that into time open using the
   game's door close delay (`climateTable.DoorOpenTicks`). Circulation rooms are priced
   like any room; the tiler plans no hallways. `TileDecision` carries the reason
   (`tile_airlock`, `_not_paid`, `_no_ground`, `_unpriced`, `_temperate`) and both
