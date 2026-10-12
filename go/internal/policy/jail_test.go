@@ -58,18 +58,20 @@ func TestNextJailStepMarksTheWholeRoomAndReportsStrays(t *testing.T) {
 	bed := func(id string, medical, crib, prisoners bool) SleepingBed {
 		return SleepingBed{ID: id, Crib: crib, Humanlike: domain.Known(true), Medical: domain.Known(medical), Prisoners: domain.Known(prisoners), Room: domain.Known("j")}
 	}
-	beds := []SleepingBed{bed("c", false, false, false), bed("a", false, false, false), bed("b", false, false, false), bed("m", true, false, false), bed("k", false, true, false), bed("p", false, false, true)}
+	slave := bed("s", false, false, false)
+	slave.Slaves = true
+	beds := []SleepingBed{bed("c", false, false, false), bed("a", false, false, false), bed("b", false, false, false), bed("m", true, false, false), bed("k", false, true, false), bed("p", false, false, true), slave}
 	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "j", Cells: []domain.Cell{centre}, Enclosed: domain.Known(true)}}}
 	// One prisoner is held and one bed already marked: the rest still flip.
 	s := NextJailStep(plan, rooms, 1, beds, nil)
-	if s.Kind != JailMark || len(s.Marks) != 3 || s.Marks[0] != "a" || s.Marks[1] != "b" || s.Marks[2] != "c" {
+	if s.Kind != JailMark || len(s.Marks) != 4 || s.Marks[0] != "a" || s.Marks[1] != "b" || s.Marks[2] != "c" || s.Marks[3] != "m" {
 		t.Fatalf("marks: %+v", s)
 	}
-	if len(s.Strays) != 2 || s.Strays[0] != "k" || s.Strays[1] != "m" {
+	if len(s.Strays) != 2 || s.Strays[0] != "k" || s.Strays[1] != "s" {
 		t.Fatalf("strays: %+v", s.Strays)
 	}
 	// Only the stray remains: nothing to mark, the stray is still reported.
-	if s := NextJailStep(plan, rooms, 1, []SleepingBed{bed("m", true, false, false), bed("p", false, false, true)}, nil); s.Kind != JailNone || len(s.Strays) != 1 {
+	if s := NextJailStep(plan, rooms, 1, []SleepingBed{bed("k", false, true, false), bed("p", false, false, true)}, nil); s.Kind != JailNone || len(s.Strays) != 1 {
 		t.Fatalf("stray only: %+v", s)
 	}
 	// A map-edge room is not enclosed in the census: no mark, no stray.

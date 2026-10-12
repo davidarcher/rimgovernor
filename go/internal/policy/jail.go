@@ -11,7 +11,8 @@ import (
 // keeps one bed set for prisoners in a planned jail per held prisoner:
 // it sets every unflagged bed standing in a jail for prisoners at once (owner
 // type is room-level in the game, so a jail is never left mixed), reports
-// the medical and crib beds native refuses as strays, and
+// the crib and slave beds as strays (native refuses a crib; a slave bed is
+// not the jail's to flip), and
 // otherwise reconciles the room (ReconcileRoom) to the next free template
 // bed: the ring, the floor and the bed, installed from packed stock first. A
 // fresh bed is placed plain and flagged on a later step once it stands.
@@ -76,7 +77,8 @@ type JailStep struct {
 	// bed of the jail goes in one pass rather than one bed per pass.
 	Marks []string
 	// Strays are humanlike beds standing in a planned jail that native
-	// refuses for prisoners (medical, crib) and so stay colonist beds: to
+	// refuses for prisoners (crib) or that are slave beds the plan did not put
+	// there, and so stay as they are: to
 	// remove or repurpose, never to mark. Reported on every step.
 	Strays []string
 	// Held is the living prisoners; Beds the beds set for prisoners.
@@ -113,12 +115,12 @@ func NextJailStep(plan LayoutPlan, rooms RoomObservation, held int, beds []Sleep
 		var marks []string
 		for _, b := range beds {
 			humanlike, _ := b.Humanlike.Value()
-			medical, mk := b.Medical.Value()
+			_, mk := b.Medical.Value()
 			prisoners, pk := b.Prisoners.Value()
 			if room, _ := b.Room.Value(); !stands || room != standing.ID || !humanlike || !mk || !pk || prisoners {
 				continue
 			}
-			if medical || b.Crib {
+			if b.Crib || b.Slaves {
 				step.Strays = append(step.Strays, b.ID)
 			} else {
 				marks = append(marks, b.ID)
