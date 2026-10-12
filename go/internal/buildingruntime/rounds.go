@@ -148,6 +148,11 @@ type Rounder struct {
 	stationInputs layoutInputs
 	stationLast   policy.StationAdvice
 	stationHeld   bool
+	// stationFacts are the facts of that run, which the replan tiles beside
+	// its plan (layout_replan_tiled).
+	stationFacts policy.StationFacts
+	// tiledRunning is set while a tiled replan runs off the review.
+	tiledRunning atomic.Bool
 	// suiteClaimsLogged is the last suite claim set logged.
 	suiteClaimsLogged string
 	// unsitedLogged is the unsited successors last logged, so a plan that

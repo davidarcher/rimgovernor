@@ -38,8 +38,77 @@ func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationS
 	for _, d := range advice.Regroup {
 		telemetry.Decide(ctx, regroupDecision(d))
 	}
-	r.stationInputs, r.stationLast, r.stationHeld = inputs, advice, ok
+	r.stationInputs, r.stationLast, r.stationHeld, r.stationFacts = inputs, advice, ok, facts
 	return advice, ok
+}
+
+// tiledReplan runs the tiler beside the replan over the facts of the review's
+// station chain (Built, Pinned and the saved plan's retired ground) and records
+// the layout_replan_tiled row: the tiled plan against next, the plan the old
+// replan produced. Telemetry only; the old plan stays the output. The tile
+// costs seconds (a hundred colonists: tens of seconds), so it runs off the
+// review, one at a time; a replan that finds one running records it skipped.
+func (r *Rounder) tiledReplan(ctx context.Context, next policy.LayoutPlan, survey policy.MapSurvey, geysers []policy.PowerGeyser) {
+	facts, held := r.stationFacts, r.stationHeld
+	if held && !r.tiledRunning.CompareAndSwap(false, true) {
+		telemetry.Decide(ctx, telemetry.Decision{Kind: "layout_replan_tiled", Component: "layout", Target: "plan", Verdict: "skipped", Reason: "tile_in_flight"})
+		return
+	}
+	if !held {
+		telemetry.Decide(ctx, tiledReplanDecision(facts, held, next, survey, geysers))
+		return
+	}
+	ctx = context.WithoutCancel(ctx)
+	go func() {
+		defer r.tiledRunning.Store(false)
+		telemetry.Decide(ctx, tiledReplanDecision(facts, held, next, survey, geysers))
+	}()
+}
+
+// tiledReplanDecision is the layout_replan_tiled row of facts (held, or not when
+// the station chain made no advice at this review) tiled over survey and compared
+// with next: skipped while no advice is held or a fact is unread, failed on a
+// chain or tiler error, else compared, with the room counts, the per-room diff
+// and the standing rooms with no node. dur_ms is the whole run, the chain
+// included.
+func tiledReplanDecision(facts policy.StationFacts, held bool, next policy.LayoutPlan, survey policy.MapSurvey, geysers []policy.PowerGeyser) telemetry.Decision {
+	decision := telemetry.Decision{Kind: "layout_replan_tiled", Component: "layout", Target: "plan"}
+	if !held {
+		decision.Verdict, decision.Reason = "skipped", "station_advice_unavailable"
+		return decision
+	}
+	start := time.Now()
+	advice, err := policy.TileStations(policy.ReplanTileFacts(facts, survey, geysers))
+	decision.Dur = time.Since(start)
+	switch {
+	case errors.Is(err, policy.ErrStationFacts):
+		decision.Verdict, decision.Reason, decision.Attrs = "skipped", "facts_unknown", map[string]any{"fact": err.Error()}
+		return decision
+	case err != nil:
+		decision.Level, decision.Verdict, decision.Reason, decision.Attrs = slog.LevelWarn, "failed", "tile_error", map[string]any{"error": err}
+		return decision
+	}
+	decision.Verdict, decision.Reason = "compared", "tiled_beside_replan"
+	decision.Attrs = tiledReplanAttrs(policy.DiffReplanTile(next, facts.Built, advice), len(facts.Built), len(advice.Tiled.Plan.AllRooms()))
+	return decision
+}
+
+// tiledReplanAttrs is the layout_replan_tiled row's attrs: the diff's counts per
+// verdict and its rooms, the standing rooms with no node, and the standing and
+// tiled room counts.
+func tiledReplanAttrs(diff policy.ReplanTileDiff, built, tiledRooms int) map[string]any {
+	rooms := make([]map[string]any, 0, len(diff.Rooms))
+	for _, d := range diff.Rooms {
+		rooms = append(rooms, map[string]any{"room": d.Room, "tiled": d.Tiled, "role": string(d.Role), "verdict": d.Verdict, "reason": d.Reason, "built": d.Built})
+	}
+	unmatched := make([]map[string]any, 0, len(diff.Unmatched))
+	for _, u := range diff.Unmatched {
+		unmatched = append(unmatched, map[string]any{"room": u.Room, "role": string(u.Role), "reason": u.Reason})
+	}
+	return map[string]any{
+		"same": diff.Count(policy.TileDiffSame), "moved": diff.Count(policy.TileDiffMoved), "new": diff.Count(policy.TileDiffNew), "dropped": diff.Count(policy.TileDiffDropped),
+		"rooms": rooms, "unmatched_built": unmatched, "built": built, "tiled_rooms": tiledRooms,
+	}
 }
 
 // regroupDecision is the layout_regroup row of one regrouping decision: a move

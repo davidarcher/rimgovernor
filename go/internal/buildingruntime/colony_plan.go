@@ -415,6 +415,7 @@ func logPerimeter(ctx context.Context, plan policy.LayoutPlan, colonists int) {
 // it when it changed.
 func (r *Rounder) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, growth policy.RoomGrowth, animals, pawns, tombs int, tier policy.TechTier, reason string, geysers []policy.PowerGeyser, emptied map[domain.Cell]bool, suites []float64, wall policy.PerimeterWall) error {
 	next, changed, unplaced := policy.ReplanLayoutWithRooms(plan, survey, growth, animals, pawns, tombs, tier, geysers, emptied, suites...)
+	r.tiledReplan(ctx, next, survey, geysers)
 	unsited, unplaced := policy.SplitUnsited(unplaced)
 	r.logNoRoom(ctx, pawns, unplaced)
 	r.logUnsited(ctx, pawns, unsited)
