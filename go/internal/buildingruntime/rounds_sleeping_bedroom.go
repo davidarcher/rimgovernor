@@ -66,6 +66,21 @@ func suiteTargets(facts observation.ColonyProjection, plan policy.LayoutPlan, st
 	return policy.SuiteTargets(plan, rooms, sleeping, claims), claims
 }
 
+// suiteWishes are the target-sized bedrooms the station graph sizes (#2939):
+// the plan's suites with their owners' targets and the claims no vacant suite
+// answers; nil while the room, sleeping or work census is unknown.
+func suiteWishes(facts observation.ColonyProjection, plan policy.LayoutPlan, stage policy.ColonyStage) []policy.SuiteWish {
+	rooms, rk := facts.Rooms.Value()
+	sleeping, sk := facts.Facts.Sleeping.Value()
+	traits := sleepingTraits(facts)
+	if !rk || !sk || traits == nil {
+		return nil
+	}
+	targets := bedroomTargets(facts)
+	claims := policy.SuiteClaims(plan, rooms, sleeping, targets, traits, suitePressure(facts), bedroomGate(facts, stage))
+	return policy.SuiteWishes(plan, rooms, sleeping, targets, claims)
+}
+
 // upgradeTargets excludes pawns awaiting a suite; their current rooms receive
 // no in-place quality upgrade.
 func upgradeTargets(facts observation.ColonyProjection, targets map[string]policy.RoomTarget, stage policy.ColonyStage) map[string]policy.RoomTarget {

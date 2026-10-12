@@ -51,6 +51,7 @@ const (
 // decision reasons.
 const (
 	ReasonBedsPopulationReserve = "beds_population_plus_reserve"
+	ReasonBedsSuite             = "beds_suite_of_target"
 	ReasonBedsPatients          = "beds_injured"
 	ReasonBedsPrisoners         = "beds_prisoners"
 	ReasonBedsBabies            = "beds_babies"
@@ -122,6 +123,9 @@ type StationGraphInput struct {
 	// that is not edible or has an unknown target gets no field node.
 	Crops           []CropChoice
 	FoodReserveDays float64
+	// Suites are the target-sized bedrooms colonists are owed (#2939): each
+	// takes one colonist's bed out of the ordinary sleepers' node.
+	Suites []SuiteWish
 	// Seed are the special rooms asked beyond the stations: the shelter and the
 	// throne room (#2958).
 	Seed SeedRooms
@@ -154,7 +158,23 @@ type StationNode struct {
 	// (CompFoodPoisonable.Notify_RecipeProduced). It is use, not station: the
 	// same bench that dismantles mechanoids also works other recipes.
 	Filth bool
+	// Target and Floor mark a target-sized bedroom (a suite, #2939): the
+	// sleeper's room-impressiveness target and the interior cells that meet it,
+	// at least the standing suite's own floor. Zero for an ordinary node.
+	Target float64
+	Floor  int
 }
+
+// SuiteWish is one suite the colony wants: its owner's target and the floor of
+// the suite that stands for it, 0 for a new one (SuiteWishes).
+type SuiteWish struct {
+	Target float64
+	Kept   int
+}
+
+// Floor is the interior cells the wish asks for: what meets the target (without
+// the old generator's size snap), never less than the suite that stands.
+func (w SuiteWish) Floor() int { return max(int(suiteCells(w.Target)), w.Kept) }
 
 // StationEdge is the wish that two nodes stand together. Weight is the
 // movements a day (items or pawn trips) between them. A Required edge is a
@@ -422,9 +442,45 @@ func (b *graphBuilder) sleepers() error {
 		if err != nil {
 			return err
 		}
-		b.addNode(k.def, k.purpose, ceilDiv(k.people, max(s.Capacity.Slots, 1)), nil, k.reason)
+		people := k.people
+		if k.purpose == PurposeSleep {
+			// A suite is one colonist's own bedroom, sized to the colonist's
+			// target (#2939); the rest sleep in the ordinary node.
+			for i, w := range b.suites() {
+				id := fmt.Sprintf("%s/suite%d", nodeID(k.def, k.purpose), i)
+				b.nodes[id] = &StationNode{ID: id, Def: k.def, Purpose: k.purpose, Count: 1, Reason: ReasonBedsSuite, Target: w.Target, Floor: w.Floor()}
+				people -= max(s.Capacity.Slots, 1)
+			}
+			if people <= 0 {
+				continue
+			}
+		}
+		b.addNode(k.def, k.purpose, ceilDiv(people, max(s.Capacity.Slots, 1)), nil, k.reason)
 	}
 	return nil
+}
+
+// suites are the suite wishes the graph holds, widest first (ties by kept
+// floor), no more than the colonists there are to own one.
+func (b *graphBuilder) suites() []SuiteWish {
+	out := slices.Clone(b.in.Suites)
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Floor() != out[j].Floor() {
+			return out[i].Floor() > out[j].Floor()
+		}
+		return out[i].Target > out[j].Target
+	})
+	return out[:min(len(out), max(b.in.Population.Colonists, 0))]
+}
+
+// healthySleepers is how many healthy colonists sleep in the node's beds:
+// a suite holds its one owner, the ordinary node the rest.
+func (b *graphBuilder) healthySleepers(n *StationNode) int {
+	p := b.in.Population
+	if n.Floor > 0 {
+		return 1
+	}
+	return max(p.Colonists-min(p.Injured, p.Colonists)-len(b.suites()), 0)
 }
 
 func first(list []string) string {
@@ -831,7 +887,7 @@ func (b *graphBuilder) dayCycle() {
 	}
 	for _, n := range b.nodes {
 		if n.Purpose == PurposeSleep {
-			b.addEdge(n.ID, OutsideNode, float64(p.Colonists-min(p.Injured, p.Colonists)), false, ReasonFlowDay)
+			b.addEdge(n.ID, OutsideNode, float64(b.healthySleepers(n)), false, ReasonFlowDay)
 		}
 	}
 }
@@ -858,7 +914,7 @@ func (b *graphBuilder) sleepEat(meals float64) {
 	for _, n := range b.nodes {
 		switch n.Purpose {
 		case PurposeSleep:
-			b.addEdge(n.ID, dine, meals*(colonists-injured)/colonists, false, ReasonFlowMeal)
+			b.addEdge(n.ID, dine, meals*float64(b.healthySleepers(n))/colonists, false, ReasonFlowMeal)
 		case PurposeSleepMed:
 			b.addEdge(n.ID, dine, meals*injured/colonists, false, ReasonFlowMeal)
 		}

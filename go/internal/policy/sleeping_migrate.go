@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -27,7 +28,7 @@ func retiringBedrooms(plan LayoutPlan) []PlannedRoom {
 		}
 	}
 	for _, r := range plan.AllRooms() {
-		if r.Role == PlannedBedroom && gone[r.ID] && !inWing[r.ID] {
+		if (r.Role == PlannedBedroom || r.Role == PlannedSuite) && gone[r.ID] && !inWing[r.ID] {
 			out = append(out, r)
 		}
 	}
@@ -46,11 +47,21 @@ func retiringRooms(plan LayoutPlan) map[Rectangle]bool {
 // retiringBeds is the beds standing in the retiring bedrooms.
 func retiringBeds(plan LayoutPlan, rooms RoomObservation) map[string]bool {
 	out := map[string]bool{}
+	for b := range retiringBedRoles(plan, rooms) {
+		out[b] = true
+	}
+	return out
+}
+
+// retiringBedRoles is the retiring beds with the planned role of their room: a
+// pawn leaving a suite moves to a suite, one leaving a bedroom to a bedroom.
+func retiringBedRoles(plan LayoutPlan, rooms RoomObservation) map[string]PlannedRole {
+	out := map[string]PlannedRole{}
 	for _, r := range retiringBedrooms(plan) {
 		// Census: the room's beds are the retiring beds.
 		if room, ok := CensusRoomIn(r, rooms); ok {
 			for _, b := range room.Beds {
-				out[b] = true
+				out[b] = r.Role
 			}
 		}
 	}
@@ -73,7 +84,7 @@ func SleptBedrooms(plan LayoutPlan, rooms domain.Fact[RoomObservation], sleeping
 	gone := plan.superseded()
 	var out map[int32]bool
 	for _, r := range plan.AllRooms() {
-		if r.Role != PlannedBedroom || !gone[r.ID] {
+		if r.Role != PlannedBedroom && r.Role != PlannedSuite || !gone[r.ID] {
 			continue
 		}
 		slept := !rk || !sk
@@ -144,7 +155,7 @@ func vacantColonistBed(b SleepingBed) bool {
 // first unbuilt one (BedroomReconcile). BedroomNone when no single pawn sleeps in a
 // Retiring room (a couple keeps its double bed). One pawn per step.
 func NextMigrateStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation) BedroomStep {
-	old := retiringBeds(plan, rooms)
+	old := retiringBedRoles(plan, rooms)
 	if len(old) == 0 {
 		return BedroomStep{}
 	}
@@ -156,7 +167,7 @@ func NextMigrateStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 		if _, coupled := couples[p.ID]; coupled {
 			continue
 		}
-		if bed, known := p.OwnedBed.Value(); known && old[bed] {
+		if bed, known := p.OwnedBed.Value(); known && old[bed] != "" {
 			movers = append(movers, p)
 		}
 	}
@@ -167,39 +178,47 @@ func NextMigrateStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	for _, b := range sleeping.Beds {
 		beds[b.ID] = b
 	}
-	var empty, unbuilt []PlannedRoom
-	var vacant []string
+	// A pawn leaving a suite moves to a suite and one leaving a bedroom to a
+	// bedroom, so the targets are kept by the planned role.
+	empty, unbuilt := map[PlannedRole][]PlannedRoom{}, map[PlannedRole][]PlannedRoom{}
+	vacant := map[PlannedRole][]string{}
 	retiring := retiringRooms(plan)
 	for _, r := range plan.AllRooms() {
-		if r.Role != PlannedBedroom || retiring[r.Region.Bounds()] {
+		if r.Role != PlannedBedroom && r.Role != PlannedSuite || retiring[r.Region.Bounds()] {
 			continue
 		}
 		// Census: the room's beds say vacant, empty or unbuilt.
 		room, ok := CensusRoomIn(r, rooms)
 		if !ok {
-			unbuilt = append(unbuilt, r)
+			unbuilt[r.Role] = append(unbuilt[r.Role], r)
 			continue
 		}
 		if len(room.Beds) == 0 {
-			empty = append(empty, r)
+			empty[r.Role] = append(empty[r.Role], r)
 		}
 		for _, id := range room.Beds {
 			if b, ok := beds[id]; ok && vacantColonistBed(b) {
-				vacant = append(vacant, id)
+				vacant[r.Role] = append(vacant[r.Role], id)
 			}
 		}
 	}
-	sort.Strings(vacant)
+	for _, ids := range vacant {
+		sort.Strings(ids)
+	}
 	for _, p := range movers {
-		for _, id := range vacant {
+		previous, _ := p.OwnedBed.Value()
+		for _, id := range vacant[old[previous]] {
 			if containsPawn(beds[id].AccessibleTo, p.ID) {
-				previous, _ := p.OwnedBed.Value()
 				return BedroomStep{Kind: BedroomMove, Pawn: p.ID, Bed: id, PreviousBed: previous}
 			}
 		}
 	}
-	if rooms := append(empty, unbuilt...); len(rooms) > 0 {
-		return BedroomStep{Kind: BedroomReconcile, Room: rooms[0]}
+	for _, p := range movers {
+		previous, _ := p.OwnedBed.Value()
+		role := old[previous]
+		if rooms := append(slices.Clone(empty[role]), unbuilt[role]...); len(rooms) > 0 {
+			return BedroomStep{Kind: BedroomReconcile, Room: rooms[0]}
+		}
 	}
 	return BedroomStep{}
 }

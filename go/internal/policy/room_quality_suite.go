@@ -210,6 +210,41 @@ func SuiteTargets(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObser
 	return out
 }
 
+// SuiteWishes are the suites the station graph sizes (StationGraphInput.Suites,
+// #2939): one wish per suite the plan holds, in plan order, its target the
+// sole owner's (an unowned or unread suite asks nothing beyond its own floor)
+// and Kept the area it has, then one per claim of a standard room that no vacant
+// suite answers. A suite smaller than its owner's target is one wish, not a
+// second: its target outgrows the floor, and the successor replaces it
+// (SuiteClaimTooSmall).
+func SuiteWishes(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation, targets map[string]RoomTarget, claims []SuiteClaim) []SuiteWish {
+	owned := map[string]bool{}
+	for _, s := range soloBedrooms(sleeping) {
+		owned[s.room] = true
+	}
+	var out []SuiteWish
+	for _, r := range plan.AllRooms() {
+		if r.Role != PlannedSuite {
+			continue
+		}
+		w := SuiteWish{Kept: r.Region.Area()}
+		if room, ok := CensusRoomIn(r, rooms); ok && owned[room.ID] {
+			w.Target = targets[room.ID].Min
+		}
+		out = append(out, w)
+	}
+	var fresh []SuiteClaim
+	for _, c := range claims {
+		if c.Reason != SuiteClaimTooSmall {
+			fresh = append(fresh, c)
+		}
+	}
+	for _, c := range fresh[min(len(vacantSuites(plan, rooms, sleeping)), len(fresh)):] {
+		out = append(out, SuiteWish{Target: c.Target})
+	}
+	return out
+}
+
 // nextSuiteStep walks the first claim into its suite: the claims take the
 // vacant suites in order, and the first whose suite needs anything gets
 // its shell, then a bed, then the move.

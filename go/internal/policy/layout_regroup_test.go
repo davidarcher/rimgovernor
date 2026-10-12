@@ -100,16 +100,17 @@ func TestRegroupMergesCompatiblePairOnSmallSiteOnly(t *testing.T) {
 
 // Two bedrooms never merge into a barracks: the merged room would lose the
 // sleep effect, the move is not proposed however small the site and however
-// strong the flow. The room nodes of the suites (#2939) are station-less groups
-// no merge reaches.
+// strong the flow. A suite (#2939) is a target-sized bedroom node of its own: a
+// flow to it merges nothing.
 func TestRegroupNeverMergesBedroomsOrSuites(t *testing.T) {
 	bedA := node("Bed", PurposeSleep, 1)
 	bedB := node("Bed", PurposeSleep, 1)
 	bedB.ID = "Bed2"
+	suite := node("Bed", PurposeSleep, 1)
+	suite.ID, suite.Target, suite.Floor = "Bed/sleep/suite0", 40, 28
 	g := StationGraph{
-		Nodes: []StationNode{bedA, bedB},
-		Edges: []StationEdge{edge(bedA, bedB, 500, false)},
-		Rooms: []RoomNode{{ID: "suite", Role: PlannedSuite, Area: 28, Reason: "suite"}},
+		Nodes: []StationNode{bedA, bedB, suite},
+		Edges: []StationEdge{edge(bedA, bedB, 500, false), edge(bedA, suite, 500, false)},
 	}
 	in := regroupIn(g, plainSurvey(25))
 	cat := in.Cluster.Catalog
@@ -129,8 +130,8 @@ func TestRegroupNeverMergesBedroomsOrSuites(t *testing.T) {
 		switch {
 		case grp.Planned == PlannedSuite:
 			suites++
-			if len(grp.Stations) != 0 {
-				t.Errorf("suite holds stations: %+v", grp)
+			if len(grp.Stations) != 1 || grp.Area < 28 {
+				t.Errorf("suite is one bed in a 28 cell room: %+v", grp)
 			}
 		case grp.Role == RoomRoleBedroom && len(grp.Stations) == 1:
 			beds++

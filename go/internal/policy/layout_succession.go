@@ -33,7 +33,9 @@ import (
 // A bedroom is an ordinary successor role: the replaced bedroom stays pinned
 // and in use, its sleepers move one pawn a step, each straight to a vacant bed
 // (NextMigrateStep), and it leaves the plan only once no pawn owns a bed in it
-// (SleptBedrooms), so no night is spent unbedded.
+// (SleptBedrooms), so no night is spent unbedded. A suite is the same: a suite
+// whose owner's target needs more floor than it has (a target-sized bedroom
+// node, #2939) is outgrown, and its pawn moves into the larger successor suite.
 //
 // When the old room leaves, the Link doors of the rooms that opened into it
 // (the dining room and butchery into the freezer, the freezer into the
@@ -43,7 +45,7 @@ import (
 // those rooms when a slot allows it.
 
 // successorRoles are the planned roles a successor may replace.
-var successorRoles = []PlannedRole{PlannedStorage, PlannedWorkshop, PlannedKitchen, PlannedFreezer, PlannedButchery, PlannedDining, PlannedRec, PlannedBedroom}
+var successorRoles = []PlannedRole{PlannedStorage, PlannedWorkshop, PlannedKitchen, PlannedFreezer, PlannedButchery, PlannedDining, PlannedRec, PlannedBedroom, PlannedSuite}
 
 // Successor is the room the plan is asked to add in place of an outgrown one.
 // The zero value asks for none.

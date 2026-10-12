@@ -242,8 +242,13 @@ rooms apart whichever third node bridges them), the groups are embedded, and the
 move is kept when the priced total falls. Tiling runs once on the winner. Moves:
 **merge** (a pair the seed kept for a bench slowed by the wrong role; a merge that
 would lose a role effect, such as two beds becoming a barracks, an open-sky
-exclusion or the area limit is never proposed, and station-less room nodes, the
-suites among them, are never reached), **split** (two nodes of a room that pays a
+exclusion or the area limit is never proposed, and a suite is never reached: a
+suite is a target-sized bedroom node, `StationNode.Floor` from `suiteCells` of its
+owner's target (`StationFacts.Suites`, `SuiteWishes`, #2939), its own room
+whatever the pair rules say, `cluster_suite_own_room`, planned as `PlannedSuite`
+and matched only to built suites, so a raised target outgrows its suite and
+`OutgrownSuccession` asks for a larger one, its owner migrating straight to it),
+**split** (two nodes of a room that pays a
 conflict, loses a role effect or carries a role-guard mismatch) and
 **move-a-need** (a station class leaves the room that slows it for a room of the
 role it wants, or leaves a cold room). A **filth merge** (#2955) joins a butcher

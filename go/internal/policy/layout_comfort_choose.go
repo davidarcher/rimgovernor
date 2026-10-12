@@ -25,7 +25,7 @@ func ChooseComfort(in ComfortInput) []ComfortChoice {
 	var work []StationNode
 	for i, n := range in.Graph.Nodes {
 		switch {
-		case n.Purpose == PurposeSleep && sleep == nil:
+		case n.Purpose == PurposeSleep && n.Floor == 0 && sleep == nil:
 			sleep = &in.Graph.Nodes[i]
 		case n.Purpose == PurposeWork && n.DailyWork > 0 && n.Count > 0:
 			work = append(work, n)

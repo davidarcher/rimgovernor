@@ -24,6 +24,7 @@ import (
 func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, plan policy.LayoutPlan, survey policy.MapSurvey, catalog *bridge.DefinitionCatalog) (policy.StationAdvice, bool) {
 	f := stationFactsOf(projection, plan, survey, r.demand.get(snapshot).Needs, r.WorkLedgerView())
 	f.Crops, f.FoodReserveDays = growingCrops(projection), r.seasonal(projection.Facts).FoodTargetDays
+	f.Suites = suiteWishes(projection, plan, r.stage)
 	inputs := layoutInputs{key: fmt.Sprint(snapshot.Load, "|", f.InputsKey()), bounds: survey.Bounds, cells: survey.Cells}
 	if inputs.same(r.stationInputs) {
 		return r.stationLast, r.stationHeld

@@ -90,6 +90,9 @@ const (
 	ReasonClusterApart    = "cluster_pair_apart"
 	ReasonClusterTogether = "cluster_pair_together"
 	ReasonClusterNoCooler = "cluster_no_cooler"
+	// ReasonClusterSuite: a target-sized bedroom (StationNode.Floor) is its own
+	// room; no rule merges it with a barracks or another bedroom (#2939).
+	ReasonClusterSuite = "cluster_suite_own_room"
 
 	// ConflictColdBand is recorded on a decision whose two parts are a cold
 	// group and a station that works in a temperature band: cold is kept below
@@ -329,8 +332,12 @@ type groupEval struct {
 	// of the group does.
 	filth, closet bool
 	role          RoomRole
-	costs         []ConflictCost
-	effects       []LostRoleEffect
+	// suite: the group holds a target-sized bedroom (StationNode.Floor); floor
+	// is the interior cells its target asks for.
+	suite   bool
+	floor   int
+	costs   []ConflictCost
+	effects []LostRoleEffect
 	// filthy and exposed are the nodes that spawn filth and the others whose
 	// effect reads the room's cleanliness; filthCosts prices the first against
 	// the room when it also holds a node that is not filthy.
@@ -428,6 +435,8 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 		n := c.node(u)
 		size := c.in.Catalog.Stations[n.Def].Shape.Size
 		e.filth = e.filth || n.Filth
+		e.suite = e.suite || n.Floor > 0
+		e.floor = max(e.floor, n.Floor)
 		e.closet = e.closet && n.Filth
 		if n.Filth && !slices.Contains(e.filthy, n.ID) {
 			e.filthy = append(e.filthy, n.ID)
@@ -463,6 +472,9 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 		e.clearance++
 	}
 	e.clearance++ // the door threshold
+	if e.suite {  // the suite's floor is what its target needs, open ground around the bed
+		e.clearance = max(e.clearance, e.floor-e.footprint)
+	}
 	e.area = e.footprint + e.clearance
 	if e.filth && !e.closet {
 		e.filthCosts = c.in.Catalog.Filth.filthCosts(e.filthy, e.exposed, e.area, e.meals)
@@ -503,6 +515,9 @@ func filthConflict(a, b groupEval) bool {
 // game predicts: a closet of filth stations the game reads as a kitchen (the
 // butcher table scores as one) is the butchery. Empty when the prediction stands.
 func (e groupEval) plannedRole() PlannedRole {
+	if e.suite {
+		return PlannedSuite
+	}
 	if e.closet && e.role == RoomRoleKitchen {
 		return PlannedButchery
 	}
@@ -650,6 +665,8 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 		switch {
 		case rule == PairApart:
 			d.Reason = ReasonClusterApart
+		case ea.suite || eb.suite:
+			d.Reason = ReasonClusterSuite
 		case conflict(ea, eb):
 			d.Reason = ReasonClusterEnvConflict
 		case filthConflict(ea, eb) && rule != PairTogether:

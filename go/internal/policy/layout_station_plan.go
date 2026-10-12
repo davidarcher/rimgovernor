@@ -85,6 +85,9 @@ type StationFacts struct {
 	// each edible crop with a known capacity target is a field node (#2920).
 	Crops           []CropChoice
 	FoodReserveDays float64
+	// Suites are the target-sized bedrooms the colony owes (SuiteWishes, #2939):
+	// each is a bedroom node of its own in the graph.
+	Suites []SuiteWish
 	// ExpectedMood is the colonists' mean mood level, 0 to 1, the mood price's
 	// baseline (#2975, #2878); unknown leaves the comfort tiers and the lost role
 	// effects unpriced.
@@ -224,7 +227,7 @@ func (f StationFacts) GraphInput() (StationGraphInput, error) {
 		Catalog: f.Catalog, Furniture: f.Furniture, Dining: f.Dining, Items: f.Items, Recipes: f.Recipes,
 		Population: population, NutritionPerDay: nutrition, Orders: orders,
 		Stock: stock, StackLimit: f.StackLimit, Perishable: f.Perishable,
-		Crops: f.Crops, FoodReserveDays: f.FoodReserveDays, Seed: seed,
+		Crops: f.Crops, FoodReserveDays: f.FoodReserveDays, Suites: f.Suites, Seed: seed,
 	}, nil
 }
 
@@ -241,7 +244,7 @@ func (f StationFacts) InputsKey() string {
 	if err != nil {
 		return key + err.Error()
 	}
-	return key + fmt.Sprint(input.Population, input.NutritionPerDay, input.Orders, input.Stock, input.FoodReserveDays, input.Crops)
+	return key + fmt.Sprint(input.Population, input.NutritionPerDay, input.Orders, input.Stock, input.FoodReserveDays, input.Crops, input.Suites)
 }
 
 // rebuildPending reports a rebuild in flight: a successor pending in the plan
@@ -387,6 +390,9 @@ type BuiltRegion struct {
 var matchedPlanned = map[PlannedRole]RoomRole{
 	PlannedFreezer:  RoomRoleStoreroom,
 	PlannedButchery: RoomRoleKitchen,
+	// A target-sized bedroom (#2939) is matched only to the suites, so a raised
+	// target outgrows its own suite and not an ordinary bedroom.
+	PlannedSuite: RoomRoleSuite,
 }
 
 // matchKey is the key a room is matched to groups under.
