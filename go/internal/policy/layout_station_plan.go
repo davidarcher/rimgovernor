@@ -73,6 +73,11 @@ type StationFacts struct {
 	// advice (ColdExposureFor) needs both and is left off while either is unknown.
 	OutdoorCurve domain.Fact[[]float64]
 	FullRotRateC float64
+	// Crops are the crops the colony grows (the caller's choice, not the
+	// chain's) and FoodReserveDays the stored-food buffer their fields budget:
+	// each edible crop with a known capacity target is a field node (#2920).
+	Crops           []CropChoice
+	FoodReserveDays float64
 }
 
 // StationPopulationOf is the people the graph sizes beds for. Babies sleep in
@@ -160,6 +165,7 @@ func (f StationFacts) GraphInput() (StationGraphInput, error) {
 		Catalog: f.Catalog, Furniture: f.Furniture, Dining: f.Dining, Items: f.Items, Recipes: f.Recipes,
 		Population: population, NutritionPerDay: nutrition, Orders: orders,
 		Stock: stock, StackLimit: f.StackLimit, Perishable: f.Perishable,
+		Crops: f.Crops, FoodReserveDays: f.FoodReserveDays,
 	}, nil
 }
 
@@ -176,7 +182,7 @@ func (f StationFacts) InputsKey() string {
 	if err != nil {
 		return key + err.Error()
 	}
-	return key + fmt.Sprint(input.Population, input.NutritionPerDay, input.Orders, input.Stock)
+	return key + fmt.Sprint(input.Population, input.NutritionPerDay, input.Orders, input.Stock, input.FoodReserveDays, input.Crops)
 }
 
 // GroupAdvice is one room group with the built rooms matched to it.
@@ -223,7 +229,7 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 	if err != nil {
 		return StationAdvice{}, err
 	}
-	embedding, err := Embed(EmbedInput{Groups: clustering.Groups, Zones: f.Plan.Zones, Reservations: f.Plan.Reservations, Survey: f.Survey, RoofDistance: f.RoofDistance})
+	embedding, err := Embed(EmbedInput{Groups: clustering.Groups, Zones: f.Plan.Zones, Reservations: f.Plan.Reservations, Survey: f.Survey, RoofDistance: f.RoofDistance, Fields: FieldEmbedLinks(graph, clustering.Groups)})
 	if err != nil {
 		return StationAdvice{}, err
 	}

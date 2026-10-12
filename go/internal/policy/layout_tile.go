@@ -101,6 +101,8 @@ type TileDecision struct {
 	Group, Other int
 	Verdict      string
 	Reason       string
+	// Field names the field of a field decision (Group is -1 then).
+	Field string
 }
 
 // TileResult is the tiled plan with the furniture of every room and the
@@ -180,6 +182,7 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 	placed := placedBlocks(in.Groups, blocks)
 	sort.Slice(blocks, func(i, j int) bool { return blocks[i].Group < blocks[j].Group })
 	t.plan = LayoutPlan{Zones: in.Zones, Reservations: in.Reservations}
+	t.fieldZones() // the placed fields, no walls or doors (layout_field_place.go)
 	// Every group owes a room, placed or not: a group the embedding left out
 	// stays in the hard tier's Missing term instead of hiding behind another
 	// group of its role. A role no planned room carries is stopped below when

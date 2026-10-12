@@ -52,6 +52,21 @@ func TestStationFactsOfReadsLedgerOrdersOnlyWhenReconciled(t *testing.T) {
 	}
 }
 
+// The graph's fields follow the crops the colony's zones are sown with, each
+// once: never a crop nobody sowed, never a building definition.
+func TestGrowingCropsAreTheSownPlants(t *testing.T) {
+	plant := func(name string) observation.PlanningDefinition {
+		return observation.PlanningDefinition{Name: name, GrowDays: domain.Known(6.0)}
+	}
+	var projection observation.ColonyProjection
+	projection.Definitions = []observation.PlanningDefinition{plant("Plant_Rice"), plant("Plant_Corn"), {Name: "Heater"}}
+	projection.Farms = []observation.FarmZoneFact{{ID: "1", Crop: "Plant_Rice"}, {ID: "2", Crop: "Plant_Rice"}, {ID: "3"}}
+	got := growingCrops(projection)
+	if len(got) != 1 || got[0].Name != "Plant_Rice" {
+		t.Errorf("growing crops %+v", got)
+	}
+}
+
 func TestStationAdviceAttrsListGroupsAndEmbedReport(t *testing.T) {
 	group := policy.RoomGroup{ID: 0, Role: policy.RoomRoleKitchen, Stations: []policy.GroupStation{{Node: "Stove/work", Count: 1}}, Footprint: 3, Clearance: 2, Area: 5,
 		Costs: []policy.ConflictCost{{TicksPerDay: 100}, {TicksPerDay: 50}}}

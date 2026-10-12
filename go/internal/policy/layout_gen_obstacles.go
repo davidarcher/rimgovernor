@@ -29,6 +29,13 @@ var obstacleLevels = []obstacleLevel{obstacleAll, obstacleRich, obstacleNone}
 // coreObstacles are the cells of g.core at level that a room or hallway
 // keeps off. zones supplies the field and ore cells; g.soil the rich cells.
 func (g coreGrid) coreObstacles(zones []LayoutZone, level obstacleLevel) map[domain.Cell]bool {
+	return g.coreObstaclesFor(zones, level, true)
+}
+
+// coreObstaclesFor is coreObstacles with the field ban optional: once fields
+// are nodes of the station graph they are placed by the embedder and occupancy
+// is shared with the rooms (#2920), so the embedder asks for none.
+func (g coreGrid) coreObstaclesFor(zones []LayoutZone, level obstacleLevel, banFields bool) map[domain.Cell]bool {
 	obs := map[domain.Cell]bool{}
 	if level == obstacleNone {
 		return obs
@@ -39,7 +46,7 @@ func (g coreGrid) coreObstacles(zones []LayoutZone, level obstacleLevel) map[dom
 		}
 	}
 	for _, z := range zones {
-		if z.Kind == ZoneMining && z.Ore || z.Kind == ZoneField && level == obstacleAll {
+		if z.Kind == ZoneMining && z.Ore || z.Kind == ZoneField && level == obstacleAll && banFields {
 			for _, r := range z.Runs {
 				for x := r.X; x < r.X+r.Length; x++ {
 					if c := (domain.Cell{X: x, Z: r.Z}); g.core[c] {

@@ -21,6 +21,7 @@ import (
 // The advice is false when the chain failed or a fact is unread.
 func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, plan policy.LayoutPlan, survey policy.MapSurvey) (policy.StationAdvice, bool) {
 	f := stationFactsOf(projection, plan, survey, r.demand.get(snapshot).Needs, r.WorkLedgerView())
+	f.Crops, f.FoodReserveDays = growingCrops(projection), r.seasonal(projection.Facts).FoodTargetDays
 	inputs := layoutInputs{key: fmt.Sprint(snapshot.Load, "|", f.InputsKey()), bounds: survey.Bounds, cells: survey.Cells}
 	if inputs.same(r.stationInputs) {
 		return r.stationLast, r.stationHeld
@@ -72,6 +73,26 @@ func (r *Rounder) stationFacts(ctx context.Context, snapshot domain.GenerationSn
 	stock, _ := f.Stock.Value()
 	f.StackLimit, f.Perishable, err = catalog.StationItemFacts(stock, f.Recipes)
 	return f, err
+}
+
+// growingCrops are the crops the colony's growing zones are sown with, each
+// once, in plant-definition order: the field nodes of the station graph follow
+// the crops the field planner has chosen (cropChoices is its read), never a
+// choice of the chain's.
+func growingCrops(projection observation.ColonyProjection) []policy.CropChoice {
+	sown := map[string]bool{}
+	for _, farm := range projection.Farms {
+		if farm.Crop != "" {
+			sown[farm.Crop] = true
+		}
+	}
+	var out []policy.CropChoice
+	for _, choice := range cropChoices(projection) {
+		if sown[choice.Name] {
+			out = append(out, choice)
+		}
+	}
+	return out
 }
 
 // stationFactsOf is every station fact the projection, the resource demand and
@@ -154,14 +175,18 @@ func stationAdviceAttrs(a policy.StationAdvice) map[string]any {
 	}
 	for _, d := range a.Embedding.Decisions {
 		if d.Verdict != policy.EmbedPlace {
-			issues = append(issues, map[string]any{"group": d.Group, "other": d.Other, "verdict": d.Verdict, "reason": d.Reason, "requirement": string(d.Requirement)})
+			issues = append(issues, map[string]any{"group": d.Group, "other": d.Other, "verdict": d.Verdict, "reason": d.Reason, "requirement": string(d.Requirement), "field": d.Field})
 		}
+	}
+	fields := make([]map[string]any, 0, len(a.Embedding.Fields))
+	for _, f := range a.Embedding.Fields {
+		fields = append(fields, map[string]any{"field": f.ID, "x": f.Interior.X, "z": f.Interior.Z, "width": f.Interior.Width, "height": f.Interior.Height, "reason": policy.ReasonEmbedFieldPlaced})
 	}
 	s := a.Embedding.Score
 	return map[string]any{
 		"nodes": len(a.Graph.Nodes), "edges": len(a.Graph.Edges), "groups": groups, "conflicts": conflicts,
 		"embed": map[string]any{
-			"level": a.Embedding.ObstacleLevel(), "placed": len(a.Embedding.Blocks), "issues": issues,
+			"level": a.Embedding.ObstacleLevel(), "placed": len(a.Embedding.Blocks), "issues": issues, "fields": fields,
 			"cells": s.Cells, "total": s.Total(), "soil": s.Soil, "edge": s.Edge, "centre": s.Centre, "walk": s.Walk, "unmet_links": s.UnmetLinks,
 			"seed": fmt.Sprintf("%d,%d", a.Embedding.Seed.X, a.Embedding.Seed.Z),
 		},

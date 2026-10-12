@@ -80,6 +80,9 @@ type EmbedInput struct {
 	// RoofDistance is the game's roof support distance (as for ClusterInput):
 	// it bounds a block's depth.
 	RoofDistance float64
+	// Fields are the field nodes placed with the groups (layout_field_place.go).
+	// With any, rooms may stand on field soil: the zone obstacle is dropped.
+	Fields []EmbedField
 }
 
 // EmbeddedBlock is where a group's interior stands.
@@ -96,6 +99,8 @@ type EmbedDecision struct {
 	Reason       string
 	// Requirement names the environment of an unsatisfied requirement.
 	Requirement EnvRequirement
+	// Field names the field of a field decision (Group is -1 then).
+	Field string
 }
 
 // EmbedScore is the embedding's per-term values, signed like PlanScore (costs
@@ -124,6 +129,8 @@ type Embedding struct {
 	Level  obstacleLevel
 	Seed   domain.Cell
 	Blocks []EmbeddedBlock
+	// Fields are the placed fields, by input order.
+	Fields []EmbeddedField
 	// Decisions has one entry per group (placed or unplaceable) and one per
 	// unsatisfied requirement or required link.
 	Decisions []EmbedDecision
@@ -192,6 +199,12 @@ type embedder struct {
 	solid              prefix // rock or mountain roof
 	core               []domain.Cell
 	seeds              []domain.Cell
+
+	// The groups from nRooms on are the fields (EmbedInput.withFields), each
+	// with the soil mask and candidate cells of its crop.
+	nRooms     int
+	fieldMask  []prefix
+	fieldCells [][]domain.Cell
 }
 
 // blockShapes are the interiors a group of area cells may take: as deep as
@@ -220,9 +233,13 @@ func groupShapes(g RoomGroup, depth int) [][2]int32 {
 
 func newEmbedder(in EmbedInput, depth int, scorer planScorer, level obstacleLevel) *embedder {
 	w, h := in.Survey.Bounds.Width, in.Survey.Bounds.Height
-	e := &embedder{groups: in.Groups}
-	for _, g := range in.Groups {
-		e.shapes = append(e.shapes, groupShapes(g, depth))
+	e := &embedder{groups: in.Groups, nRooms: len(in.Groups) - len(in.Fields)}
+	for i, g := range in.Groups {
+		if i >= e.nRooms {
+			e.shapes = append(e.shapes, blockShapes(g.Area, g.Area)) // no roof bounds a field
+		} else {
+			e.shapes = append(e.shapes, groupShapes(g, depth))
+		}
 		e.sky = append(e.sky, slices.Contains(g.Requires, EnvOpenSky))
 		e.band = append(e.band, g.Band)
 		e.faces = e.faces || g.FacesAway
@@ -231,7 +248,7 @@ func newEmbedder(in EmbedInput, depth int, scorer planScorer, level obstacleLeve
 	for _, c := range in.Survey.Cells {
 		cells[c.Cell] = c
 	}
-	lg := scorer.g.withObstacles(scorer.g.coreObstacles(in.Zones, level))
+	lg := scorer.g.withObstacles(scorer.g.coreObstaclesFor(in.Zones, level, len(in.Fields) == 0))
 	e.level = newPrefix(w, h, func(c domain.Cell) int { return b2i(lg.core[c]) })
 	e.base = newPrefix(w, h, func(c domain.Cell) int { return b2i(scorer.g.core[c]) })
 	e.soil = newPrefix(w, h, func(c domain.Cell) int {
@@ -245,6 +262,7 @@ func newEmbedder(in EmbedInput, depth int, scorer planScorer, level obstacleLeve
 		e.core = append(e.core, c)
 	}
 	sortCells(e.core)
+	e.fieldMasks(in, scorer)
 	if len(e.core) == 0 {
 		return e
 	}
@@ -289,6 +307,9 @@ func collides(a, b Rectangle) bool {
 }
 
 func (e *embedder) fits(i int, r Rectangle, blocks []Rectangle, sky bool) bool {
+	if e.isField(i) {
+		return e.fieldFits(i, r, blocks)
+	}
 	ring := pad(r, 1)
 	if !e.base.inside(ring) || e.base.sum(ring) != int64(ring.Width)*int64(ring.Height) ||
 		e.level.sum(r) != int64(r.Width)*int64(r.Height) {
@@ -298,7 +319,7 @@ func (e *embedder) fits(i int, r Rectangle, blocks []Rectangle, sky bool) bool {
 		return false
 	}
 	for j, b := range blocks {
-		if j != i && b.Width > 0 && (collides(r, b) || !e.bandAllows(i, r, j, b)) {
+		if j != i && b.Width > 0 && (collides(r, b) || !e.isField(j) && !e.bandAllows(i, r, j, b)) {
 			return false
 		}
 	}
@@ -337,7 +358,7 @@ func (e *embedder) bandReaches(i int, r Rectangle, blocks []Rectangle) bool {
 	}
 	nearest, any := 0, false
 	for j, b := range blocks {
-		if j == i || b.Width == 0 || e.band[j].Set() {
+		if j == i || b.Width == 0 || e.band[j].Set() || e.isField(j) {
 			continue
 		}
 		if d := bandClear(r, b); !any || d < nearest {
@@ -350,10 +371,15 @@ func (e *embedder) bandReaches(i int, r Rectangle, blocks []Rectangle) bool {
 // blockCost is the objective's share of group i at r: cell terms and every
 // link to a placed block. Higher is worse.
 func (e *embedder) blockCost(i int, r Rectangle, blocks []Rectangle) float64 {
-	cost := float64(-(e.soil.sum(r) + e.centre.sum(r) + e.edge.sum(pad(r, 1))))
+	var cost float64
+	if e.isField(i) {
+		cost = e.fieldCellCost(r)
+	} else {
+		cost = float64(-(e.soil.sum(r) + e.centre.sum(r) + e.edge.sum(pad(r, 1))))
+	}
 	for _, l := range e.groups[i].Links {
 		if b := blocks[l.To]; b.Width > 0 && l.To != i {
-			cost += linkCost(l, gapDist(r, b))
+			cost += linkCost(l, e.gap(i, r, l.To, b))
 		}
 	}
 	return cost
@@ -389,7 +415,7 @@ func (e *embedder) placeNear(i int, blocks []Rectangle, anchors []int) (Rectangl
 				for z := ab.Z - sh[1] - int32(ring); z <= ab.Z+ab.Height+int32(ring); z++ {
 					for x := ab.X - sh[0] - int32(ring); x <= ab.X+ab.Width+int32(ring); x++ {
 						r := Rectangle{X: x, Z: z, Width: sh[0], Height: sh[1]}
-						if gapDist(r, ab) != ring || !e.fits(i, r, blocks, e.sky[i]) {
+						if e.gap(i, r, a, ab) != ring || !e.fits(i, r, blocks, e.sky[i]) {
 							continue
 						}
 						if c := e.blockCost(i, r, blocks); better(c, r, bestCost, best, found) {
@@ -412,7 +438,7 @@ func (e *embedder) placeAnywhere(i int, blocks []Rectangle, sky bool, toward *do
 	var best Rectangle
 	var bestCost float64
 	found := false
-	for _, c := range e.core {
+	for _, c := range e.cellsFor(i) {
 		for _, sh := range e.shapes[i] {
 			r := Rectangle{X: c.X, Z: c.Z, Width: sh[0], Height: sh[1]}
 			if !e.fits(i, r, blocks, sky) {
@@ -532,7 +558,8 @@ func (e *embedder) search(blocks []Rectangle, seed domain.Cell, iters int) {
 		case 2: // a random core cell
 			before := e.blockCost(i, old, blocks)
 			blocks[i] = Rectangle{}
-			c := e.core[rng.intn(len(e.core))]
+			cells := e.cellsFor(i)
+			c := cells[rng.intn(len(cells))]
 			sh := e.shapes[i][rng.intn(len(e.shapes[i]))]
 			r := Rectangle{X: c.X, Z: c.Z, Width: sh[0], Height: sh[1]}
 			if e.fits(i, r, blocks, e.sky[i]) && e.blockCost(i, r, blocks) < before {
@@ -592,7 +619,7 @@ func (e *embedder) objective(blocks []Rectangle) float64 {
 		// blockCost counts each link from both ends; the pair is one cost.
 		for _, l := range e.groups[i].Links {
 			if b := blocks[l.To]; b.Width > 0 && l.To > i {
-				total -= linkCost(l, gapDist(r, b))
+				total -= linkCost(l, e.gap(i, r, l.To, b))
 			}
 		}
 	}
@@ -611,6 +638,7 @@ func Embed(in EmbedInput) (Embedding, error) {
 			return Embedding{}, fmt.Errorf("%w: group %d has id %d", ErrCluster, i, g.ID)
 		}
 	}
+	in = in.withFields()
 	scorer := newPlanScorer(in.Zones, in.Reservations, in.Survey)
 	var best *embedRun
 	for _, level := range obstacleLevels {
@@ -636,13 +664,13 @@ type embedRun struct {
 func embedLevel(in EmbedInput, depth int, scorer planScorer, level obstacleLevel) *embedRun {
 	e := newEmbedder(in, depth, scorer, level)
 	if len(in.Groups) == 0 || len(e.core) == 0 {
-		return &embedRun{e: e, level: level, blocks: make([]Rectangle, len(in.Groups)), unplaced: len(in.Groups)}
+		return &embedRun{e: e, level: level, blocks: make([]Rectangle, len(in.Groups)), unplaced: e.nRooms}
 	}
 	runs := make([]*embedRun, len(e.seeds))
 	eachIndex(len(runs), func(i int) {
 		blocks := e.start(e.seeds[i], siteSearchIters)
 		run := &embedRun{e: e, level: level, seed: e.seeds[i], blocks: blocks}
-		for _, b := range blocks {
+		for _, b := range blocks[:e.nRooms] { // a field no soil fits is the same at every level
 			if b.Width == 0 {
 				run.unplaced++
 			}
@@ -665,6 +693,10 @@ func (r *embedRun) embedding(in EmbedInput, scorer planScorer) Embedding {
 	out := Embedding{Level: r.level, Seed: r.seed}
 	for i, g := range in.Groups {
 		b := r.blocks[i]
+		if e.isField(i) {
+			r.embedField(&out, in.Fields[i-e.nRooms].Node.ID, b)
+			continue
+		}
 		if b.Width == 0 {
 			reason := ReasonEmbedNoGround
 			if e.sky[i] {
@@ -701,7 +733,7 @@ func (r *embedRun) embedding(in EmbedInput, scorer planScorer) Embedding {
 			if ob.Width == 0 || l.To < i {
 				continue
 			}
-			gap := gapDist(b, ob)
+			gap := e.gap(i, b, l.To, ob)
 			out.Score.Walk -= int(math.Round(float64(planWeights.Walk) * l.Weight * float64(gap-1)))
 			if l.Required && gap != 1 {
 				out.Score.UnmetLinks++
