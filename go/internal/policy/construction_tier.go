@@ -45,6 +45,7 @@ var plannedRoleTier = map[PlannedRole]domain.ConstructionTier{
 	PlannedBattery:          domain.TierExpand,
 	PlannedArmory:           domain.TierSecure,
 	PlannedWardrobe:         domain.TierSecure,
+	PlannedBaitRoom:         domain.TierSecure,
 	PlannedNursery:          domain.TierExpand,
 	PlannedPlayroom:         domain.TierExpand,
 	PlannedClassroom:        domain.TierExpand,

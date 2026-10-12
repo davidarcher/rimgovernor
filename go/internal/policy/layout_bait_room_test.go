@@ -8,8 +8,8 @@ import (
 
 func TestBaitRoomPlacement(t *testing.T) {
 	plan := withInterior(LayoutPlan{
-		Sites:        []PlannedSite{testSite(NodeRing, Rectangle{X: 10, Z: 10, Width: 20, Height: 3})},
-		Reservations: []LayoutReservation{{Kind: ReserveBaitRoom, Area: RectRegion(Rectangle{X: 1, Z: 1, Width: 5, Height: 5})}},
+		// A stale bait room is replaced, not kept beside the new one.
+		Sites: []PlannedSite{testSite(NodeRing, Rectangle{X: 10, Z: 10, Width: 20, Height: 3}), testSite(NodeBaitRoom, Rectangle{X: 1, Z: 1, Width: 5, Height: 5})},
 	})
 	var cells []SurveyCell
 	set := func(r Rectangle, c SurveyCell) {
@@ -38,21 +38,35 @@ func TestBaitRoomPlacement(t *testing.T) {
 
 	got := PlanBaitRoom(plan, s)
 	var rooms []Rectangle
-	walls := 0
-	for _, r := range got.Reservations {
-		switch r.Kind {
-		case ReserveBaitRoom:
-			rooms = append(rooms, r.Area.Bounds())
-		case ReserveBaitWall:
-			walls++
+	for _, r := range got.Sites {
+		if r.Kind == NodeBaitRoom {
+			rooms = append(rooms, r.Footprint.Bounds())
+			if r.Role != PlannedBaitRoom || r.Reason != ReasonBaitNearest {
+				t.Fatalf("bait room node %+v", r)
+			}
 		}
 	}
+	walls := len(got.LiveSites(NodeBaitWall))
 	want := Rectangle{X: 69, Z: 10, Width: 5, Height: 5}
 	if len(rooms) != 1 || rooms[0] != want || walls != 0 {
 		t.Fatalf("bait rooms %v walls %d, want %v in solid rock", rooms, walls, want)
 	}
-	if !samePerimeter(got, got) || samePerimeter(plan, got) {
+	if !sameSites(got, got) || sameSites(plan, got) {
 		t.Fatal("the bait room is not part of the perimeter's identity")
+	}
+	// The constraints hold on the node: under thick roof, baitGap off the ring.
+	thick := map[domain.Cell]bool{}
+	for _, c := range survey {
+		thick[c.Cell] = c.ThickRoof
+	}
+	ring := plan.Sites[0].Footprint.Bounds()
+	for _, c := range rectCells(want) {
+		if !thick[c] || c.X < ring.X+ring.Width+baitGap {
+			t.Fatalf("bait cell %v is open sky or %d from the ring", c, c.X-ring.X-ring.Width)
+		}
+	}
+	if style := roomOverlay[PlannedBaitRoom]; style.label != "bait room" {
+		t.Fatalf("bait room overlay %+v", style)
 	}
 	if len(BaseRoomLamps(got)) != 0 {
 		t.Fatal("the bait room is lit")
@@ -93,7 +107,7 @@ func TestBaitRoomPlacement(t *testing.T) {
 		t.Fatalf("open wall cell not walled: %+v", sections)
 	}
 
-	if none := PlanBaitRoom(LayoutPlan{}, s); len(none.Reservations) != 0 {
-		t.Fatalf("a plan without a perimeter baits %v", none.Reservations)
+	if none := PlanBaitRoom(LayoutPlan{}, s); len(none.Sites) != 0 {
+		t.Fatalf("a plan without a perimeter baits %v", none.Sites)
 	}
 }

@@ -9,20 +9,25 @@ import (
 // the base, one dark room far from the base is left for them, stocked
 // with cheap flammables and an incendiary IED (or spike traps when insect
 // jelly is wanted) so the hive burns or bleeds where no colonist lives.
+//
+// The room is a NodeBaitRoom site node produced after the ring node (#2925):
+// its footprint is the floor and its wall ring, and it carries PlannedBaitRoom
+// so the overlay draws it as a room. It is not a PlannedRoom: it stands outside
+// the base's room graph and is built by BaitRoomSections. The wall cells that
+// are not natural rock are a NodeBaitWall node beside it.
 
-const (
-	// ReserveBaitRoom is the bait room's footprint, its wall ring included.
-	ReserveBaitRoom ReservationKind = "bait_room"
-	// ReserveBaitWall is one wall-ring cell of the bait room that is not
-	// natural rock and so needs a built wall.
-	ReserveBaitWall ReservationKind = "bait_wall"
-)
+// PlannedBaitRoom is the bait room's plan role, carried by its site node.
+const PlannedBaitRoom PlannedRole = "bait_room"
+
+// ReasonBaitNearest: the bait room stands on the thick-roof spot nearest the
+// ring that keeps baitGap off it.
+const ReasonBaitNearest = "bait_nearest_dark_spot"
 
 const (
 	// baitInterior is the side of the bait room's square floor.
 	baitInterior int32 = 3
 	// baitGap is how far outside the perimeter ring the bait
-	// room's walls must stay.
+	// room's walls must stay. A judgment constant (DefTables "infestationReach").
 	baitGap int32 = 20
 	// TierBaitPrefix names the bait room's section under the perimeter's
 	// prefix, so the perimeter recut builds and removes it with the wall.
@@ -32,37 +37,26 @@ const (
 	BaitTrap = "TrapSpike"
 )
 
-// PlanBaitRoom replaces plan's bait-room reservations with the footprint
+// PlanBaitRoom replaces plan's bait-room nodes with the footprint
 // (wall ring included) of the square room nearest the perimeter ring that
 // lies wholly under thick roof, at least baitGap outside the ring's
 // bounds, on no built cell and no cell another room, hallway or
-// reservation uses, with an open floor and an open door cell at the
-// middle of its south wall. Wall cells may be natural rock; each open one
-// gets a bait-wall reservation. A plan without a perimeter, or a map
+// site node uses, with an open floor and an open door cell at the
+// middle of its south wall. Wall cells may be natural rock; the open ones
+// form the bait-wall node. A plan without a perimeter, or a map
 // with no such spot, holds none.
 func PlanBaitRoom(plan LayoutPlan, s MapSurvey) LayoutPlan {
-	var kept []LayoutReservation
-	var ring Rectangle
-	used := map[domain.Cell]bool{}
-	if node, ok := plan.Ring(); ok {
-		ring = node.Footprint.Bounds()
+	plan = plan.withoutSites(NodeBaitRoom, NodeBaitWall)
+	ring, ok := plan.Ring()
+	if !ok {
+		return plan
 	}
+	bounds := ring.Footprint.Bounds()
+	used := map[domain.Cell]bool{}
 	for _, r := range plan.Reserved() {
-		if r.Kind == ReserveBaitRoom || r.Kind == ReserveBaitWall {
-			continue
-		}
 		for _, c := range r.Area.Cells() {
 			used[c] = true
 		}
-	}
-	for _, r := range plan.Reservations {
-		if r.Kind != ReserveBaitRoom && r.Kind != ReserveBaitWall {
-			kept = append(kept, r)
-		}
-	}
-	plan.Reservations = kept
-	if ring.Width == 0 {
-		return plan
 	}
 	for _, r := range plan.AllRooms() {
 		for _, c := range rectCells(roomWalls(r)) {
@@ -80,7 +74,7 @@ func PlanBaitRoom(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	}
 	wi, _ := planInterior(plan, baitGap)
 	near := wi.near(baitGap)
-	centre := domain.Cell{X: ring.X + ring.Width/2, Z: ring.Z + ring.Height/2}
+	centre := domain.Cell{X: bounds.X + bounds.Width/2, Z: bounds.Z + bounds.Height/2}
 	side := baitInterior + 2
 	var best Rectangle
 	bestD := -1.0
@@ -97,12 +91,18 @@ func PlanBaitRoom(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	if bestD < 0 {
 		return plan
 	}
-	plan.Reservations = append(plan.Reservations, LayoutReservation{Kind: ReserveBaitRoom, Area: RectRegion(best)})
+	room := newSite(string(NodeBaitRoom), NodeBaitRoom, RectRegion(best), ReasonBaitNearest)
+	room.Role = PlannedBaitRoom
+	plan.Sites = append(plan.Sites, room)
 	in, door := pad(best, -1), baitDoor(best)
+	var open []domain.Cell
 	for _, c := range rectCells(best) {
 		if !contains(in, c) && c != door && !cells[c].Rock {
-			plan.Reservations = append(plan.Reservations, LayoutReservation{Kind: ReserveBaitWall, Area: RectRegion(Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1})})
+			open = append(open, c)
 		}
+	}
+	if len(open) > 0 {
+		plan.Sites = append(plan.Sites, newSite(string(NodeBaitWall), NodeBaitWall, RegionOfRuns(cellRuns(open)), ReasonBaitNearest))
 	}
 	return plan
 }
@@ -151,20 +151,18 @@ func BaitRoomSections(plan LayoutPlan, wall, door, flammable string, jelly bool)
 		return err
 	}
 	var area Rectangle
-	for _, r := range plan.Reservations {
-		switch r.Kind {
-		case ReserveBaitRoom:
-			area = r.Area.Bounds()
-		case ReserveBaitWall:
-			for _, c := range r.Area.Cells() {
-				if err := add(wall, c); err != nil {
-					return nil, err
-				}
-			}
-		}
+	for _, r := range plan.LiveSites(NodeBaitRoom) {
+		area = r.Footprint.Bounds()
 	}
 	if area.Width == 0 {
 		return nil, nil
+	}
+	for _, r := range plan.LiveSites(NodeBaitWall) {
+		for _, c := range r.Footprint.Cells() {
+			if err := add(wall, c); err != nil {
+				return nil, err
+			}
+		}
 	}
 	in, doorCell := pad(area, -1), baitDoor(area)
 	entry := domain.Cell{X: doorCell.X, Z: doorCell.Z + 1}

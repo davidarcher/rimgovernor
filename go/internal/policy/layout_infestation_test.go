@@ -10,9 +10,9 @@ import (
 
 func TestWallOffMountainPocket(t *testing.T) {
 	plan := withInterior(LayoutPlan{
-		Rooms:        []PlannedRoom{{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 40, Z: 40, Width: 5, Height: 5}), DoorRot: domain.North}},
-		Sites:        []PlannedSite{testSite(NodeRing, Rectangle{X: 30, Z: 30, Width: 30, Height: 3})},
-		Reservations: []LayoutReservation{{Kind: ReservePocketWall, Area: RectRegion(Rectangle{X: 1, Z: 1, Width: 1, Height: 1})}},
+		Rooms: []PlannedRoom{{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 40, Z: 40, Width: 5, Height: 5}), DoorRot: domain.North}},
+		// A stale pocket is replaced, not kept beside the new ones.
+		Sites: []PlannedSite{testSite(NodeRing, Rectangle{X: 30, Z: 30, Width: 30, Height: 3}), testSite(NodePocketWall, Rectangle{X: 1, Z: 1, Width: 1, Height: 1})},
 	})
 	var cells []SurveyCell
 	open := func(r Rectangle) {
@@ -30,9 +30,9 @@ func TestWallOffMountainPocket(t *testing.T) {
 
 	got := PlanMountainPockets(plan, s)
 	var walled []domain.Cell
-	for _, r := range got.Reservations {
-		if r.Kind == ReservePocketWall {
-			walled = append(walled, rectCells(r.Area.Bounds())...)
+	for _, r := range got.Sites {
+		if r.Kind == NodePocketWall {
+			walled = append(walled, r.Footprint.Cells()...)
 		}
 	}
 	slices.SortFunc(walled, func(a, b domain.Cell) int {
@@ -46,14 +46,14 @@ func TestWallOffMountainPocket(t *testing.T) {
 		t.Fatalf("walled %v, want %v", walled, want)
 	}
 	sections, err := PocketSections(got, "Wall")
-	if err != nil || len(sections) != 2 || len(sections[0].Buildings) != 3 || sections[0].Buildings[0].Definition() != "Wall" || !IsPerimeterTier(sections[0].Name) {
+	if err != nil || len(sections) != 1 || len(sections[0].Buildings) != 6 || sections[0].Buildings[0].Definition() != "Wall" || !IsPerimeterTier(sections[0].Name) {
 		t.Fatalf("sections %+v err %v", sections, err)
 	}
-	if !samePerimeter(got, got) || samePerimeter(plan, got) {
+	if !sameSites(got, got) || sameSites(plan, got) {
 		t.Fatal("pocket walls are not part of the perimeter's identity")
 	}
-	if none := PlanMountainPockets(LayoutPlan{Rooms: plan.Rooms}, s); len(none.Reservations) != 0 {
-		t.Fatalf("a plan without a perimeter walls %v", none.Reservations)
+	if none := PlanMountainPockets(LayoutPlan{Rooms: plan.Rooms}, s); len(none.Sites) != 0 {
+		t.Fatalf("a plan without a perimeter walls %v", none.Sites)
 	}
 }
 

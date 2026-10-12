@@ -35,10 +35,6 @@ import (
 // nothing can close. A moisture pump site covers the soft ring cells within
 // pumpRadius.
 
-// perimeterKinds are the reservations that stand or fall with the ring (the
-// ring and its parts are sites, layout_perimeter_sites.go).
-var perimeterKinds = map[ReservationKind]bool{ReservePocketWall: true, ReserveBaitRoom: true, ReserveBaitWall: true}
-
 const (
 	perimeterThick int32 = 3
 	// perimeterGap is the yard between the core and the wall; it holds
@@ -269,7 +265,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 		// Raiders fight through the killbox: no utility stands in it.
 		for _, r := range plan.Reservations {
-			if !perimeterKinds[r.Kind] && r.Area.OverlapsRect(killbox) {
+			if r.Area.OverlapsRect(killbox) {
 				return false
 			}
 		}
@@ -618,13 +614,6 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	}
 	ring.Ring.Inner, ring.Ring.Sealed = traceInterior(plan.AllRooms(), wall, band)
 
-	kept := plan.Reservations[:0:0]
-	for _, r := range plan.Reservations {
-		if !perimeterKinds[r.Kind] {
-			kept = append(kept, r)
-		}
-	}
-	plan.Reservations = kept
 	plan = plan.withoutPerimeterSites()
 	plan.Sites = append(plan.Sites, ring)
 	// Each kind in a stable order, its parts as ordinals, so the same inputs

@@ -396,7 +396,7 @@ func TestPerimeterPumpsCoverDryingRing(t *testing.T) {
 		}
 		return SurveyCell{Walkable: true, Fertility: 1}
 	})
-	if again := PlanPerimeter(p, s); !samePerimeter(p, again) {
+	if again := PlanPerimeter(p, s); !sameSites(p, again) {
 		t.Fatal("standing pumps moved", reservedCells(again, NodePump))
 	}
 	// Each pump section is the pump and a conduit run joining the network
@@ -465,7 +465,7 @@ func TestPerimeterReadsBuildingsAsGround(t *testing.T) {
 		}
 		return open(x, z)
 	})
-	if !samePerimeter(p, PlanPerimeter(p, s)) {
+	if !sameSites(p, PlanPerimeter(p, s)) {
 		t.Fatal("standing walls moved the ring")
 	}
 }
@@ -628,7 +628,7 @@ func TestPerimeterKillboxClearOfUtilities(t *testing.T) {
 		t.Fatal("killbox", k)
 	}
 	for _, r := range p.Reservations {
-		if !perimeterKinds[r.Kind] && rectsOverlap(k[0], r.Area.Bounds()) {
+		if rectsOverlap(k[0], r.Area.Bounds()) {
 			t.Fatal(r.Kind, r.Area, "inside the killbox", k[0])
 		}
 	}
@@ -649,9 +649,7 @@ func TestPerimeterPlainSoilStaysNearCore(t *testing.T) {
 	}
 	// The herd sites sit inside the ring beside the few essential rooms.
 	for _, r := range p.Reservations {
-		if !perimeterKinds[r.Kind] {
-			rooms = unionRect(rooms, r.Area.Bounds())
-		}
+		rooms = unionRect(rooms, r.Area.Bounds())
 	}
 	for _, r := range reserved(p, NodeRing) {
 		ring = unionRect(ring, r)

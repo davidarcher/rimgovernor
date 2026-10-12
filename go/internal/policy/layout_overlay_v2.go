@@ -56,6 +56,7 @@ var roomOverlay = map[PlannedRole]overlayStyle{
 	PlannedWorship:          {planAmber, "worship room"},
 	PlannedContainmentCell:  {planDarkPurple, "containment cell"},
 	PlannedIsolationRoom:    {planDarkPurple, "isolation room"},
+	PlannedBaitRoom:         {planRed, "bait room"},
 }
 
 var reservationOverlay = map[ReservationKind]overlayStyle{
@@ -67,7 +68,6 @@ var reservationOverlay = map[ReservationKind]overlayStyle{
 	ReserveYard:        {planTan, "materials yard"},
 	ReserveBarn:        {planBrown, "barn"},
 	ReservePen:         {planGreen, "pen"},
-	ReservePocketWall:  {planRed, "pocket wall"},
 	ReserveOutskirts:   {planBrown, "outskirts"},
 }
 
@@ -79,6 +79,8 @@ var siteOverlay = map[NodeKind]overlayStyle{
 	NodeFence:      {planYellow, "killbox fence"},
 	NodeMortar:     {planRed, "mortar"},
 	NodeCoverClear: {planGray, "clear cover"},
+	NodeBaitWall:   {planRed, "bait wall"},
+	NodePocketWall: {planRed, "pocket wall"},
 }
 
 // Ring attributes drawn beside the ring itself.
@@ -136,6 +138,9 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 	// region: one label, on its first run.
 	for _, s := range p.Sites {
 		style, ok := siteOverlay[s.Kind]
+		if s.Role != "" {
+			style, ok = roomOverlay[s.Role]
+		}
 		if !ok {
 			continue
 		}

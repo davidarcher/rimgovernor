@@ -345,6 +345,16 @@ on the colony centre when the plan has no free cell there.
   another lane is free; a turbine's own cells are not in its path. A turn and origin of
   least lost output wins, then least site cost, so pairing follows from cost. The
   `layout_stations` row carries `sites` and `site_issues`.
+  **Infestation ground (#2925).** The bait room and the pocket walls are site nodes
+  produced after the ring node (`PlanMountainPockets`, then `PlanBaitRoom`), dropped and
+  laid again with the ring. `NodeBaitRoom` is the 3x3 floor and its wall ring, wholly
+  under thick roof and at least `baitGap` outside the ring; it carries `PlannedBaitRoom`
+  (drawn from `roomOverlay`) but is not a `PlannedRoom`. `NodeBaitWall` is its cells that
+  are not natural rock. Each `NodePocketWall` is a walled-solid patch of at most 20 cells
+  within `pocketReach` of the ring, with no room. All three build as `TierPerimeterPrefix`
+  sections (`bait-`, `pocket-`), so the perimeter recut builds and removes them with the
+  wall. `baitGap` and `pocketReach` are judgment constants (`infestationReach` DefTables
+  entry).
 - **Search.** The best sites by score get a deterministic, iteration-bounded local
   search; wall time is only a hang guard.
 - **Replan.** Two-stage: the same generator runs with every room that has anything of

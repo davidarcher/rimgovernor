@@ -228,7 +228,7 @@ func replanLayout(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawn
 	unplacedRooms := errors.Join(unplaced...)
 	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {
 		fresh := withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s))
-		return fresh, sited || !samePerimeter(plan, fresh), unplacedRooms
+		return fresh, sited || !sameSites(plan, fresh), unplacedRooms
 	}
 	if len(next.AllRooms()) == 0 {
 		return plan, false, unplacedRooms
@@ -248,33 +248,24 @@ func topUpHerdSites(plan LayoutPlan, core []LayoutZone, animals int, herds []Her
 	})
 }
 
-// topUpSites runs add over plan with the fresh core candidates and the
-// reservations the perimeter does not own, and keeps the reservations it
-// added. It reports whether it added or keyed any.
+// topUpSites runs add over plan with the fresh core candidates and no site
+// nodes (the perimeter is laid again afterwards), and keeps the reservations
+// it added. It reports whether it added or keyed any.
 func topUpSites(plan LayoutPlan, core []LayoutZone, add func(LayoutPlan) LayoutPlan) (LayoutPlan, bool) {
-	var inner []LayoutReservation
-	for _, r := range plan.Reservations {
-		if !perimeterKinds[r.Kind] {
-			inner = append(inner, r)
-		}
-	}
 	sitePlan := plan
-	sitePlan.Zones, sitePlan.Reservations, sitePlan.Sites = core, inner, nil
+	sitePlan.Zones, sitePlan.Sites = core, nil
 	topped := add(sitePlan)
 	// A top-up also keys the units of a plan saved without keys.
 	plan.Reservations = slices.Clone(plan.Reservations)
 	changed := false
-	for i, j := 0, 0; i < len(plan.Reservations); i++ {
-		if perimeterKinds[plan.Reservations[i].Kind] {
-			continue
+	for i := range plan.Reservations {
+		if plan.Reservations[i].Herd != topped.Reservations[i].Herd {
+			plan.Reservations[i].Herd, changed = topped.Reservations[i].Herd, true
 		}
-		if plan.Reservations[i].Herd != topped.Reservations[j].Herd {
-			plan.Reservations[i].Herd, changed = topped.Reservations[j].Herd, true
-		}
-		j++
 	}
-	plan.Reservations = append(plan.Reservations, topped.Reservations[len(inner):]...)
-	return plan, changed || len(topped.Reservations) > len(inner)
+	n := len(plan.Reservations)
+	plan.Reservations = append(plan.Reservations, topped.Reservations[n:]...)
+	return plan, changed || len(topped.Reservations) > n
 }
 
 // blockedCells is the occupied cells a replan's rooms must stay off: all but
@@ -308,31 +299,6 @@ func sameInteriors(a, b []PlannedRoom) bool {
 	}
 	for i := range a {
 		if a[i].Region.Bounds() != b[i].Region.Bounds() {
-			return false
-		}
-	}
-	return true
-}
-
-// samePerimeter reports whether a and b hold the same perimeter nodes and the
-// same reservations that stand or fall with them, in any order.
-func samePerimeter(a, b LayoutPlan) bool {
-	if !sameSites(a, b) {
-		return false
-	}
-	count := map[string]int{}
-	for _, r := range a.Reservations {
-		if perimeterKinds[r.Kind] {
-			count[fmt.Sprint(r)]++
-		}
-	}
-	for _, r := range b.Reservations {
-		if perimeterKinds[r.Kind] {
-			count[fmt.Sprint(r)]--
-		}
-	}
-	for _, n := range count {
-		if n != 0 {
 			return false
 		}
 	}

@@ -32,6 +32,13 @@ const (
 	NodePump       NodeKind = "perimeter_pump"
 	NodeMortar     NodeKind = "mortar"
 	NodeCoverClear NodeKind = "cover_clear"
+	// The infestation ground (#2925) is produced after the ring node on the
+	// same model: the bait room (with its open wall cells) far outside the
+	// ring and the dark pockets beside it walled solid. They stand and fall
+	// with the ring, and their sections keep the perimeter tier's names.
+	NodeBaitRoom   NodeKind = "bait_room"
+	NodeBaitWall   NodeKind = "bait_wall"
+	NodePocketWall NodeKind = "pocket_wall"
 )
 
 // Why the ring and its opening stand as they do; the caller journals them as
@@ -73,12 +80,17 @@ type PlannedSite struct {
 	// is dropped.
 	ReplacesSite string `json:",omitempty"`
 	Reason       string `json:",omitempty"`
+	// Role is the plan role a node that draws as a room carries (the bait
+	// room); empty for the rest.
+	Role PlannedRole `json:",omitempty"`
 	// Ring is set on the ring node only.
 	Ring *RingFacts `json:",omitempty"`
 }
 
-// perimeterSiteKinds are the nodes PlanPerimeter owns.
-var perimeterSiteKinds = map[NodeKind]bool{NodeRing: true, NodeGate: true, NodeKillbox: true, NodeApproach: true, NodeFence: true, NodePump: true, NodeMortar: true, NodeCoverClear: true}
+// perimeterSiteKinds are the nodes that stand or fall with the ring:
+// PlanPerimeter owns them (and drops the lot when it traces again), the bait
+// room and pocket walls are produced after it.
+var perimeterSiteKinds = map[NodeKind]bool{NodeRing: true, NodeGate: true, NodeKillbox: true, NodeApproach: true, NodeFence: true, NodePump: true, NodeMortar: true, NodeCoverClear: true, NodeBaitRoom: true, NodeBaitWall: true, NodePocketWall: true}
 
 func newSite(id string, kind NodeKind, fp Region, reason string) PlannedSite {
 	b := fp.Bounds()
@@ -156,7 +168,7 @@ func (p LayoutPlan) WallCells() map[domain.Cell]bool {
 	return out
 }
 
-// withoutPerimeterSites drops the nodes PlanPerimeter owns.
+// withoutPerimeterSites drops the nodes that stand or fall with the ring.
 func (p LayoutPlan) withoutPerimeterSites() LayoutPlan {
 	var kept []PlannedSite
 	for _, s := range p.Sites {
@@ -168,9 +180,21 @@ func (p LayoutPlan) withoutPerimeterSites() LayoutPlan {
 	return p
 }
 
+// withoutSites drops the nodes of the given kinds.
+func (p LayoutPlan) withoutSites(kinds ...NodeKind) LayoutPlan {
+	var kept []PlannedSite
+	for _, s := range p.Sites {
+		if !slices.Contains(kinds, s.Kind) {
+			kept = append(kept, s)
+		}
+	}
+	p.Sites = kept
+	return p
+}
+
 // PerimeterDecisions are the ring's and the opening's decisions, for the
 // caller to journal: the ring is traced, and the opening is kept, chosen by
-// the routes, or absent.
+// the routes, or absent; then the bait room and each pocket wall placed.
 func PerimeterDecisions(p LayoutPlan) []SiteDecision {
 	ring, ok := p.Ring()
 	if !ok {
@@ -178,9 +202,17 @@ func PerimeterDecisions(p LayoutPlan) []SiteDecision {
 	}
 	out := []SiteDecision{{Node: ring.Node, Verdict: EmbedPlace, Reason: ring.Reason}}
 	if k, ok := p.Killbox(); ok {
-		return append(out, SiteDecision{Node: k.Node, Verdict: EmbedPlace, Reason: k.Reason})
+		out = append(out, SiteDecision{Node: k.Node, Verdict: EmbedPlace, Reason: k.Reason})
+	} else {
+		out = append(out, SiteDecision{Node: string(NodeKillbox), Verdict: EmbedUnplaceable, Reason: ring.Ring.Opening})
 	}
-	return append(out, SiteDecision{Node: string(NodeKillbox), Verdict: EmbedUnplaceable, Reason: ring.Ring.Opening})
+	// The infestation ground produced after the ring.
+	for _, kind := range []NodeKind{NodeBaitRoom, NodePocketWall} {
+		for _, s := range p.LiveSites(kind) {
+			out = append(out, SiteDecision{Node: s.Node, Verdict: EmbedPlace, Reason: s.Reason})
+		}
+	}
+	return out
 }
 
 // PerimeterChanged reports whether next traces other defense ground than prev.

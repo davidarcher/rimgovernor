@@ -38,15 +38,9 @@ type replanner struct {
 
 // newReplanner prepares a replan of plan over survey s. The core ground is
 // plan.Zones less the blocked cells, and plan's reservations (the
-// perimeter, laid again afterwards, excepted).
+// perimeter's nodes, laid again afterwards, are not reservations).
 func newReplanner(plan LayoutPlan, s MapSurvey, blocked map[domain.Cell]bool, pawns, tombs int, tier TechTier, suites []float64) replanner {
-	var inner []LayoutReservation
-	for _, r := range plan.Reservations {
-		if !perimeterKinds[r.Kind] {
-			inner = append(inner, r)
-		}
-	}
-	g := newCoreGrid(coreWithout(plan.Zones, blocked), inner).withSoil(s)
+	g := newCoreGrid(coreWithout(plan.Zones, blocked), plan.Reservations).withSoil(s)
 	return replanner{g: g, sc: planScorer{g: g, s: s, ground: newSiteGround(s)}, pawns: pawns, tombs: tombs, tier: tier, suite: suites}
 }
 

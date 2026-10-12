@@ -13,16 +13,21 @@ import (
 // such ground beside the base is walled solid, and every planned room
 // gets lamps lighting its whole floor above the darkness threshold.
 
-// ReservePocketWall marks open overhead-mountain cells near the base the
-// perimeter tier fills with wall.
-const ReservePocketWall ReservationKind = "pocket_wall"
+// Each pocket is a NodePocketWall site node produced after the ring node
+// (#2925): a fill of open overhead-mountain cells near the base the perimeter
+// tier walls solid. It has no room, only the cells.
+
+// ReasonPocketBesideBase: a small dark pocket touching the ring or within
+// pocketReach of it, that nothing else uses.
+const ReasonPocketBesideBase = "pocket_beside_base"
 
 const (
 	// pocketMaxCells is the largest pocket walled solid; a bigger open
 	// cave is a room or the infestation response's business.
 	pocketMaxCells = 20
 	// pocketReach is how far outside the perimeter ring a pocket
-	// still counts as beside the base.
+	// still counts as beside the base. A judgment constant (DefTables
+	// "infestationReach").
 	pocketReach int32 = 6
 	// lampReach is the distance (cells) a standing lamp keeps ground glow
 	// above the 0.3 darkness line infestations need.
@@ -34,34 +39,21 @@ const (
 	TierLightPrefix  = TierPerimeterPrefix + "light-"
 )
 
-// PlanMountainPockets replaces plan's pocket-wall reservations with one
-// per row run of each small pocket: a 4-connected patch of at most
+// PlanMountainPockets replaces plan's pocket-wall nodes with one
+// per small pocket: a 4-connected patch of at most
 // pocketMaxCells walkable, unbuilt cells under thick roof, touching the
 // perimeter ring or within pocketReach of it, that no room, hallway or
-// other reservation uses. A plan without a perimeter holds none.
+// other site node or reservation uses. A plan without a perimeter holds none.
 func PlanMountainPockets(plan LayoutPlan, s MapSurvey) LayoutPlan {
-	var kept []LayoutReservation
-	var ring Rectangle
-	used := map[domain.Cell]bool{}
-	if node, ok := plan.Ring(); ok {
-		ring = node.Footprint.Bounds()
+	plan = plan.withoutSites(NodePocketWall)
+	if _, ok := plan.Ring(); !ok {
+		return plan
 	}
+	used := map[domain.Cell]bool{}
 	for _, r := range plan.Reserved() {
-		if r.Kind == ReservePocketWall {
-			continue
-		}
 		for _, c := range r.Area.Cells() {
 			used[c] = true
 		}
-	}
-	for _, r := range plan.Reservations {
-		if r.Kind != ReservePocketWall {
-			kept = append(kept, r)
-		}
-	}
-	plan.Reservations = kept
-	if ring.Width == 0 {
-		return plan
 	}
 	for _, r := range plan.AllRooms() {
 		for _, c := range rectCells(roomWalls(r)) {
@@ -113,39 +105,19 @@ func PlanMountainPockets(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		if !beside || !free {
 			continue
 		}
-		plan.Reservations = append(plan.Reservations, pocketRuns(patch)...)
+		id := fmt.Sprintf("%s-%02d", NodePocketWall, len(plan.LiveSites(NodePocketWall)))
+		plan.Sites = append(plan.Sites, newSite(id, NodePocketWall, RegionOfRuns(cellRuns(patch)), ReasonPocketBesideBase))
 	}
 	return plan
 }
 
-// pocketRuns covers cells with 1-high row runs, rows then X ascending.
-func pocketRuns(cells []domain.Cell) []LayoutReservation {
-	sorted := append([]domain.Cell(nil), cells...)
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].Z < sorted[j].Z || sorted[i].Z == sorted[j].Z && sorted[i].X < sorted[j].X
-	})
-	var out []LayoutReservation
-	for i := 0; i < len(sorted); {
-		j := i + 1
-		for j < len(sorted) && sorted[j].Z == sorted[i].Z && sorted[j].X == sorted[j-1].X+1 {
-			j++
-		}
-		out = append(out, LayoutReservation{Kind: ReservePocketWall, Area: RectRegion(Rectangle{X: sorted[i].X, Z: sorted[i].Z, Width: int32(j - i), Height: 1})})
-		i = j
-	}
-	return out
-}
-
-// PocketSections is one section per pocket-wall reservation, each cell a
+// PocketSections is one section per pocket-wall node, each cell a
 // wall with its stuff left for admission to fill.
 func PocketSections(plan LayoutPlan, wall string) ([]PerimeterSection, error) {
 	var out []PerimeterSection
-	for _, r := range plan.Reservations {
-		if r.Kind != ReservePocketWall {
-			continue
-		}
+	for _, r := range plan.LiveSites(NodePocketWall) {
 		s := PerimeterSection{Name: DefenseTierName(fmt.Sprintf("%s%02d", TierPocketPrefix, len(out)))}
-		for _, c := range r.Area.Cells() {
+		for _, c := range r.Footprint.Cells() {
 			b, err := domain.NewBuilding(wall, c, domain.North, "")
 			if err != nil {
 				return nil, err
