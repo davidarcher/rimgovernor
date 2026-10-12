@@ -208,6 +208,11 @@ func declaredStoreEdits(zones []StockpileZone, stores []Store, open stockpileOpe
 			}
 		}
 	}
+	shrinks := storeShrinkEdits(zones, live, open, edits)
+	edits = append(edits, shrinks...)
+	for _, e := range shrinks {
+		touched[e.Zone] = true
+	}
 	edits = append(edits, storeGeometryEdits(zones, live, open, edits)...)
 	edits = append(edits, storeSiteEdits(zones, live, open)...)
 	return edits, touched

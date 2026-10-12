@@ -368,6 +368,14 @@ zone over its declared site; the edits are:
 | grow | a whole-footprint store has reachable cleared cells within its site; add them to the first owned zone by native ID |
 | delete | the department declares the store `Retired` (its purpose is gone); a moved store's new zone is admitted first |
 | consolidate | after growth settles, delete compatible adjacent owned fragments; add their freed cells to the survivor next review |
+| shrink | a zone holds cells outside every serving site's room region, on an `Avoid` cell, or under furniture (a non-shelf building, blueprint or frame); remove exactly those cells (`zone_cell_edit` remove). Stock there drains by vanilla hauling: no haul action. A zone left with no cell is moved or deleted instead |
+
+A store's zone follows its room's `Region`. A grown room is filled by `grow`; a replaced
+room (a successor with `Replaces`) re-points the zone: the new zone is created over the
+region cell for cell (`domain.NewFilteredStockpileCellsZone`, one zone per connected part,
+furniture cells left out) with the declared filter and priority, and the old zone is
+deleted only once it stands, matched by position. Zones are soft for furniture: a zone
+never claims a furnished cell.
 
 Geometry maintenance preserves blockers, unknown ground, exclusions, unrelated
 zones and separate store sites. Fixed-size stores retain their requested size.

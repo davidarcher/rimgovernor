@@ -40,9 +40,10 @@ func insertAction(ctx context.Context, tx *Tx, plan domain.PlanID, ordinal int, 
 	} else if z, ok := a.ZoneCreate(); ok {
 		payload := zonePayload{Kind: z.Kind(), Crop: z.Crop(), Priority: z.Priority(), Cells: z.Cells(), ExtendZoneID: z.ExtendZoneID(), Role: z.Role()}
 		if z.Kind() == domain.StockpileZone {
-			payload.Cells = nil
-			rect := z.Rectangle()
-			payload.Rectangle = &rect
+			if rect := z.Rectangle(); rect.Width > 0 {
+				payload.Cells = nil
+				payload.Rectangle = &rect
+			}
 		}
 		if z.Kind() == domain.StockpileZone {
 			f := z.Filter()
@@ -437,10 +438,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			if payload.Filter == nil {
 				valueErr = errors.New("stockpile zone row missing filter")
 			} else {
-				if payload.Rectangle == nil || len(payload.Cells) != 0 {
-					return domain.Action{}, 0, errors.New("stockpile requires rectangle")
+				if (payload.Rectangle == nil) == (len(payload.Cells) == 0) {
+					return domain.Action{}, 0, errors.New("stockpile requires a rectangle or a cell list")
 				}
-				value, valueErr = domain.NewFilteredStockpileZone(*payload.Filter, payload.Priority, *payload.Rectangle)
+				if payload.Rectangle != nil {
+					value, valueErr = domain.NewFilteredStockpileZone(*payload.Filter, payload.Priority, *payload.Rectangle)
+				} else {
+					value, valueErr = domain.NewFilteredStockpileCellsZone(*payload.Filter, payload.Priority, payload.Cells)
+				}
 			}
 			if valueErr == nil && payload.Role != "" {
 				value, valueErr = value.WithRole(payload.Role)

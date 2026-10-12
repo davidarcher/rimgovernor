@@ -48,7 +48,7 @@ func (r StoreView) mealClosets() []Store {
 	var out []Store
 	for _, closet := range r.Layout.AllRooms() {
 		if closet.Role == PlannedMealCloset {
-			out = append(out, Store{StoreSite: StoreSite{Role: plannedKey(domain.MealsRolePrefix, closet.Region.Bounds()), Interior: closet.Region.Bounds(),
+			out = append(out, Store{StoreSite: StoreSite{Role: plannedKey(domain.MealsRolePrefix, closet.Region.Bounds()), Interior: closet.Region.Bounds(), Region: closet.Region,
 				Filter: domain.MealShelfFilter(), Priority: domain.CriticalPriority}})
 		}
 	}

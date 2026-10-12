@@ -22,13 +22,13 @@ func (storageOwner) Stores(v StoreView) []Store {
 	var out []Store
 	for _, room := range v.plannedStorageRooms() {
 		out = append(out, Store{
-			StoreSite: StoreSite{Role: domain.GeneralRole, Interior: room.Region.Bounds(), Filter: domain.GeneralFilter(), Priority: domain.LowPriority},
+			StoreSite: StoreSite{Role: domain.GeneralRole, Interior: room.Region.Bounds(), Region: room.Region, Filter: domain.GeneralFilter(), Priority: domain.LowPriority},
 			Further:   PlannedStorage,
 		})
 	}
 	for _, room := range v.Layout.YardRooms() {
 		out = append(out, Store{
-			StoreSite: StoreSite{Role: domain.YardRole, Interior: room.Region.Bounds(), Filter: domain.YardFilter(), Priority: domain.LowPriority},
+			StoreSite: StoreSite{Role: domain.YardRole, Interior: room.Region.Bounds(), Region: room.Region, Filter: domain.YardFilter(), Priority: domain.LowPriority},
 			Further:   PlannedYard,
 		})
 	}

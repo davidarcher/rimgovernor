@@ -42,6 +42,10 @@ type StoreSite struct {
 	Avoid    []domain.Cell
 	Filter   domain.StockpileFilter
 	Priority domain.StockpilePriority
+	// Region, when set, is the room's exact floor: the footprint of a
+	// whole-footprint store instead of the bounding Interior, so a reshaped
+	// room's zone follows it cell for cell.
+	Region Region
 
 	// regions, when set, are the rectangular placement areas of the site, and
 	// exact matches a zone by the whole role key (a bench ID, unlike a census
@@ -59,8 +63,18 @@ func (s StoreSite) footprint() []domain.Cell {
 		}
 		return cells
 	}
+	if !s.Region.Empty() {
+		return s.Region.Cells()
+	}
 	return rectCells(s.Interior)
 }
+
+// wholeFootprint reports a store that covers its whole ground rather than a
+// patch of it.
+func (s StoreSite) wholeFootprint() bool { return s.Width <= 0 || s.Height <= 0 }
+
+// reshaped reports a footprint that is not the Interior rectangle.
+func (s StoreSite) reshaped() bool { return !s.Region.Empty() && !s.Region.IsRect() }
 
 // serves reports whether a zone belongs to the site: its role matches and it
 // stands on the site's footprint.
@@ -89,7 +103,11 @@ func (s StoreSite) Rectangles(open stockpileOpen) []Rectangle {
 	if s.regions == nil {
 		// The zone waits until the interior is settled: no stand-in
 		// store covers a room still being dug, unseen or cleared.
-		reading := readInterior(s.Interior, func(c domain.Cell) (SiteCell, bool) { sc, ok := open.cells[c]; return sc, ok })
+		lookup := func(c domain.Cell) (SiteCell, bool) { sc, ok := open.cells[c]; return sc, ok }
+		reading := readInterior(s.Interior, lookup)
+		if s.reshaped() {
+			reading = readCells(s.Region.Cells(), lookup)
+		}
 		if !reading.Ready() {
 			return nil
 		}
@@ -101,7 +119,7 @@ func (s StoreSite) Rectangles(open stockpileOpen) []Rectangle {
 		}
 		// Only policy exclusions change the drag. Native handles obstacles.
 		allowed := cellSet(withoutCells(s.footprint(), s.Avoid))
-		changed := len(s.Avoid) != 0
+		changed := len(s.Avoid) != 0 || s.reshaped()
 		for c := range allowed {
 			if open.protected[c] || open.taken[c] {
 				delete(allowed, c)
@@ -232,7 +250,19 @@ func storeSiteEdits(zones []StockpileZone, sites []StoreSite, open stockpileOpen
 		if storeServed(zones, site) {
 			continue
 		}
-		for _, r := range site.Rectangles(open) {
+		rects := site.Rectangles(open)
+		cover := site.Cells(open)
+		if site.wholeFootprint() && site.regions == nil && len(rects) > 0 && (site.reshaped() || len(rects) > 1 || len(cover) != int(rects[0].Width*rects[0].Height)) {
+			// A reshaped room, or ground with furniture on it, is covered cell
+			// for cell, furniture left out: one zone per connected part.
+			for _, part := range connectedComponents(cover) {
+				open.taken.Claim(part)
+				out = append(out, StockpileEdit{Kind: StockpileCreate, Role: site.Role, CellList: part, Filter: site.Filter, Priority: site.Priority,
+					Explanation: fmt.Sprintf("stockpile role %s: create over %d region cells from (%d,%d)", site.Role, len(part), part[0].X, part[0].Z)})
+			}
+			continue
+		}
+		for _, r := range rects {
 			open.taken.Claim(rectCells(r))
 			out = append(out, StockpileEdit{Kind: StockpileCreate, Role: site.Role, Rectangle: r, Filter: site.Filter, Priority: site.Priority,
 				Explanation: fmt.Sprintf("stockpile role %s: create rectangle %dx%d at (%d,%d)", site.Role, r.Width, r.Height, r.X, r.Z)})

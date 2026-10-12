@@ -45,6 +45,35 @@ func TestStockpileZoneCanonicalAndClosedToFoodImportant(t *testing.T) {
 	}
 }
 
+// A stockpile over a cell list is canonical, connected, filter-checked and
+// survives reconstruction with its role.
+func TestStockpileCellsZoneIsCanonicalAndConnected(t *testing.T) {
+	z, err := NewFilteredStockpileCellsZone(GeneralFilter(), LowPriority, []Cell{{X: 2, Z: 2}, {X: 1, Z: 1}, {X: 1, Z: 2}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	same, err := NewFilteredStockpileCellsZone(GeneralFilter(), LowPriority, []Cell{{X: 1, Z: 1}, {X: 1, Z: 2}, {X: 2, Z: 2}})
+	if err != nil || z != same || len(z.Cells()) != 3 || z.Rectangle().Width != 0 {
+		t.Fatal("not canonical", z, err)
+	}
+	tagged, err := z.WithRole("general")
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := ReconstructZone(tagged)
+	if err != nil || back != tagged {
+		t.Fatal("reconstruct", back, err)
+	}
+	for _, bad := range [][]Cell{nil, {{X: 1, Z: 1}, {X: 3, Z: 1}}, {{X: -1, Z: 0}}} {
+		if _, err := NewFilteredStockpileCellsZone(GeneralFilter(), LowPriority, bad); err == nil {
+			t.Fatal(bad)
+		}
+	}
+	if _, err := NewFilteredStockpileCellsZone(GeneralFilter(), "urgent", []Cell{{X: 1, Z: 1}}); err == nil {
+		t.Fatal("bad priority")
+	}
+}
+
 // The named filters keep the labels their retired presets sent native.
 func TestStockpileLabelsFollowFilters(t *testing.T) {
 	cells := []Cell{{X: 1, Z: 1}}

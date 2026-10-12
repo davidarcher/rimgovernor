@@ -136,6 +136,12 @@ func stockpileEditAction(id domain.ActionID, e policy.StockpileEdit) (domain.Act
 			return domain.Action{}, err
 		}
 		return domain.NewZoneCellEditAction(id, edit)
+	case policy.StockpileShrink:
+		edit, err := domain.NewZoneCellEdit(e.Zone, domain.RemoveZoneCells, e.RemovedCells)
+		if err != nil {
+			return domain.Action{}, err
+		}
+		return domain.NewZoneCellEditAction(id, edit)
 	case policy.StockpileRetarget:
 		patch, err := domain.NewStockpilePatch(domain.StorageZoneTarget, e.Zone, e.Filter, e.Priority, e.Role)
 		if err != nil {
@@ -191,7 +197,13 @@ func (z stockpileZones) create(call, epoch context.Context, state ControlState, 
 	var previews []policy.Preview
 	var admitted []policy.StockpileEdit
 	for _, e := range edits {
-		value, err := domain.NewFilteredStockpileZone(e.Filter, e.Priority, domain.GroundRect{Origin: domain.Cell{X: e.Rectangle.X, Z: e.Rectangle.Z}, Width: e.Rectangle.Width, Height: e.Rectangle.Height})
+		var value domain.ZoneCreate
+		var err error
+		if len(e.CellList) > 0 {
+			value, err = domain.NewFilteredStockpileCellsZone(e.Filter, e.Priority, e.CellList)
+		} else {
+			value, err = domain.NewFilteredStockpileZone(e.Filter, e.Priority, domain.GroundRect{Origin: domain.Cell{X: e.Rectangle.X, Z: e.Rectangle.Z}, Width: e.Rectangle.Width, Height: e.Rectangle.Height})
+		}
 		if err == nil {
 			value, err = value.WithRole(e.Role)
 		}

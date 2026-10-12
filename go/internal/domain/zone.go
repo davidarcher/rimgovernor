@@ -153,6 +153,20 @@ func NewFilteredStockpileZone(filter StockpileFilter, priority StockpilePriority
 	return ZoneCreate{kind: StockpileZone, priority: priority, rectangle: rectangle, filter: filter}, nil
 }
 
+// NewFilteredStockpileCellsZone requests a stockpile over an explicit connected
+// cell list (a room region, not a rectangle), modelled on NewZoneCreate.
+func NewFilteredStockpileCellsZone(filter StockpileFilter, priority StockpilePriority, cells []Cell) (ZoneCreate, error) {
+	canonical, err := ReconstructStockpileFilter(filter)
+	if err != nil || canonical != filter || !validStockpilePriority(priority) {
+		return ZoneCreate{}, errors.New("invalid stockpile zone configuration")
+	}
+	data, err := canonicalConnectedCells(cells)
+	if err != nil {
+		return ZoneCreate{}, err
+	}
+	return ZoneCreate{kind: StockpileZone, priority: priority, cells: data, filter: filter}, nil
+}
+
 // WithRole tags a stockpile with the role key its planner claims it by.
 func (z ZoneCreate) WithRole(role string) (ZoneCreate, error) {
 	if z.kind != StockpileZone || !validID(role) || len(role) > 128 {
@@ -176,7 +190,13 @@ func ReconstructZone(z ZoneCreate) (ZoneCreate, error) {
 	case GrowingZone:
 		return NewZoneCreate(z.kind, z.crop, z.Cells())
 	case StockpileZone:
-		out, err := NewFilteredStockpileZone(z.filter, z.priority, z.rectangle)
+		var out ZoneCreate
+		var err error
+		if z.cells != "" {
+			out, err = NewFilteredStockpileCellsZone(z.filter, z.priority, z.Cells())
+		} else {
+			out, err = NewFilteredStockpileZone(z.filter, z.priority, z.rectangle)
+		}
 		if err == nil && z.role != "" {
 			out, err = out.WithRole(z.role)
 		}
@@ -192,7 +212,7 @@ func (z ZoneCreate) Priority() StockpilePriority { return z.priority }
 
 // Cells is the requested ground; stockpile receipts hold actual created cells.
 func (z ZoneCreate) Cells() []Cell {
-	if z.kind == StockpileZone {
+	if z.kind == StockpileZone && z.cells == "" {
 		return z.rectangle.Cells()
 	}
 	var cells []Cell

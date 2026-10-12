@@ -25,8 +25,10 @@ func ZoneConfiguration(zone domain.ZoneCreate) *op.ZoneIntent {
 			command.Zone = zoneRef(zone.ExtendZoneID())
 		}
 	case domain.StockpileZone:
-		rect := zone.Rectangle()
-		command.AddCells = &op.Cells{Selection: &op.Cells_Rectangle{Rectangle: &op.Rectangle{Origin: &c.Cell{X: proto.Int32(rect.Origin.X), Z: proto.Int32(rect.Origin.Z)}, Width: proto.Int32(rect.Width), Height: proto.Int32(rect.Height)}}}
+		// A cell-list stockpile keeps the explicit list built above.
+		if rect := zone.Rectangle(); rect.Width > 0 {
+			command.AddCells = &op.Cells{Selection: &op.Cells_Rectangle{Rectangle: &op.Rectangle{Origin: &c.Cell{X: proto.Int32(rect.Origin.X), Z: proto.Int32(rect.Origin.Z)}, Width: proto.Int32(rect.Width), Height: proto.Int32(rect.Height)}}}
+		}
 		command.Kind = op.ZoneType_ZONE_TYPE_STOCKPILE.Enum()
 		command.Stockpile = stockpileSettings(zone)
 	default:

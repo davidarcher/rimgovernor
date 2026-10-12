@@ -33,8 +33,13 @@ func InteriorOf(interior Rectangle, cells []SiteCell) InteriorReading {
 }
 
 func readInterior(interior Rectangle, lookup func(domain.Cell) (SiteCell, bool)) InteriorReading {
+	return readCells(rectCells(interior), lookup)
+}
+
+// readCells is readInterior over an exact cell list (a non-rectangular region).
+func readCells(cells []domain.Cell, lookup func(domain.Cell) (SiteCell, bool)) InteriorReading {
 	var r InteriorReading
-	for _, cell := range rectCells(interior) {
+	for _, cell := range cells {
 		c, listed := lookup(cell)
 		walkable, known := c.Walkable.Value()
 		ruin := c.Ruin()
