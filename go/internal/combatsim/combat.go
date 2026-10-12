@@ -289,6 +289,9 @@ func (s *Sim) combatTick(i int) {
 		t := &s.pawns[p.cast]
 		if t.downed || t.dead || !t.has || !s.canHitFrom(i, p.cast) {
 			p.stance = stanceIdle
+			if p.once { // TryStartAttack keeps no order: the dropped warmup leaves Wait_Combat to scan again
+				p.target, p.once = -1, false
+			}
 			break
 		}
 		if p.stanceLeft--; p.stanceLeft <= 0 {

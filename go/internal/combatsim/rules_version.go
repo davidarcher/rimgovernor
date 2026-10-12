@@ -91,7 +91,9 @@ package combatsim
 //   - thingid.go, enemy.go, run.go (job cadence): Verse.AI.Pawn_JobTracker
 //     .JobTrackerTickInterval and its job expiry, Verse.Gen.IsHashIntervalTick,
 //     Verse.AI.JobDriver_Wait (CheckForAutoAttack at job start, on
-//     Notify_StanceChanged and on each tracker tick, #3000).
+//     Notify_StanceChanged and on each tracker tick, #3000); combat.go:
+//     Verse.Stance_Warmup.StanceTick (a warmup that can no longer hit drops to
+//     Stance_Mobile and the raider's self-started order dies with it, #3001).
 //
 // Simplifications of these ports are listed in approximations.md.
 const AssemblyCSharpSHA256 = "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A"
@@ -100,4 +102,4 @@ const AssemblyCSharpSHA256 = "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04A
 // any change to a port or an approximation that can move an outcome (a rule
 // fix, a new modeled behavior): a calibration pass (combatsim/calibrate) is
 // recorded under it and is stale after a bump.
-const RulesVersion = 14
+const RulesVersion = 15

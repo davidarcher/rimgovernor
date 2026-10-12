@@ -373,6 +373,41 @@ func TestWaitingRaiderAutoAttacksAndDropsTheTargetAfterOneBurst(t *testing.T) {
 	}
 }
 
+// A warmup that loses its target (it stepped out of reach) is dropped, and
+// TryStartAttack keeps no order: the raider scans again from Wait_Combat and
+// aims at a colonist it can still hit instead of waiting on the lost one.
+func TestRaiderRescansWhenItsWarmupLosesTheTarget(t *testing.T) {
+	rows := emptyRows(80, 20, map[domain.Cell]byte{cell(10, 10): 'h', cell(14, 10): 'a', cell(16, 10): 'b'})
+	sc := raidScene(t, testRifle, "ab", rows...)
+	s, e := raidAI(t, sc, 3, EnemyConfig{})
+	h := s.pawnIndex("h")
+	first := -1
+	var second Order
+	for range 200 {
+		orders := e.Orders()
+		if o, ok := orderFor(orders, "h"); ok && o.Kind == OrderAttack {
+			if first < 0 {
+				first = s.pawnIndex(o.Target)
+			} else {
+				second = o
+				break
+			}
+		}
+		if _, _, err := s.Step(orders); err != nil {
+			t.Fatal(err)
+		}
+		if first >= 0 && s.pawns[h].stance == stanceWarmup && s.pawns[first].pos.X < 70 {
+			s.pawns[first].pos = cell(70, 10) // out of the rifle's 30 cells
+		}
+	}
+	if first < 0 || second.Kind != OrderAttack {
+		t.Fatalf("no second auto-attack after the warmup lost its target (first %d)", first)
+	}
+	if s.pawnIndex(second.Target) == first {
+		t.Fatalf("rescan aimed at the unreachable target %q", second.Target)
+	}
+}
+
 func TestFleeTriggers(t *testing.T) {
 	rows := emptyRows(60, 20, map[domain.Cell]byte{cell(10, 10): 'h', cell(30, 10): 'a', cell(1, 1): '.'})
 	sc := raidScene(t, longRifle(), "a", rows...)

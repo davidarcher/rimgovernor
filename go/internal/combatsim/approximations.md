@@ -119,7 +119,13 @@ is a candidate to replace by a faithful port. Game sources are in
 - **A15. A shooter that cannot hit waits.** The game's attack job may reposition
   or fail; here the pawn idles until the target is in range and line of fire,
   and an out-of-sight warmup is dropped and retried. A burst stops when sight is
-  lost (`stopBurstWithoutLos`) and the cooldown starts.
+  lost (`stopBurstWithoutLos`) and the cooldown starts. A raider's self-started
+  attack (E2) is not retried: `Stance_Warmup.StanceTick` drops the warmup to
+  `Stance_Mobile` when the target can no longer be hit, `TryStartAttack` keeps
+  no order, and `Notify_StanceChanged` runs `CheckForAutoAttack`, so the raider
+  scans again at once and aims at whatever it can still hit (#3001). Before
+  that the sim kept the order and the raider stared at a colonist that had
+  walked out of reach, never scanning, until its 450-550 tick wait ended.
 - **A16. Stuns, staggering, mental breaks and equipment swaps do not exist.**
   Nothing interrupts a burst except losing sight of a live target.
 - **A17. No ammo, reloading or fuel.**
@@ -606,6 +612,21 @@ DefinitionCatalog; every derived value is listed with its source in
   averages exact ends (all four downed, 2832 real against 2810 sim) with read
   ticks (a colonist dead, 8540 real against 2725 sim; colonist wins, 4270
   against 2304).
+
+- **A42. A dropped raider warmup rescans (#3001).** The stale-order bug above
+  was the main cause of the sim's raiders firing too little on lab-split-ranged
+  (colonists step back from 40 to 35 cells at about tick 110, which carries
+  them out of the rifle's 30.9 cells from the raiders' rows; the real raiders
+  keep firing at the colonist left in reach, the sim's stood silent for
+  a wait). Same 200 seeds, sim only, before -> after (real in brackets; the
+  real shot ledger is the one committed seed-1 run, 129 hostile shots, 12 on
+  pawns): hostile shots 91.0 -> 116.6 (129), hostile pawn-hit share 0.143 ->
+  0.138 (0.093), colonist shots 55.5 -> 53.6 (64) at 0.423 -> 0.428 (0.42),
+  colonist wins 0.72 -> 0.52 (0.25), downs plus deaths 1.79 -> 2.80 (2.95
+  downs, deaths read as 0), damage 195 -> 239 (262). The raiders' hit share
+  stays above the real one, on lab-ranged as well (0.122 sim, 0.099 real over
+  707 shots): the real raiders' shots end in cover more (0.378 against 0.357)
+  and aim at the target cell only 61 percent of the time (colonists 96).
 
 ## Out of scope for this slice
 

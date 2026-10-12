@@ -1,7 +1,7 @@
 {
   "Stamp": {
     "assemblyHash": "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A",
-    "rulesVersion": 14,
+    "rulesVersion": 15,
     "thresholdsVersion": 1,
     "sweepVersion": 2
   },
@@ -53,93 +53,83 @@
         {
           "Variant": "default",
           "RealDeaths": 0,
-          "SimDeaths": 0.1,
+          "SimDeaths": 0.3,
           "RealDowns": 2.95,
-          "SimDowns": 2.05,
+          "SimDowns": 2.65,
           "RealDamage": 262.3,
-          "SimDamage": 207.45,
+          "SimDamage": 248.4,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 2
+          "SimDeathSeeds": 6
         },
         {
           "Variant": "scatter-short",
           "RealDeaths": 0,
-          "SimDeaths": 0.2,
+          "SimDeaths": 0.3,
           "RealDowns": 2.25,
-          "SimDowns": 1.8,
+          "SimDowns": 2.55,
           "RealDamage": 234.1,
-          "SimDamage": 200.15,
+          "SimDamage": 247.2,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 4
+          "SimDeathSeeds": 6
         },
         {
           "Variant": "scatter-long",
           "RealDeaths": 0,
-          "SimDeaths": 0.2,
+          "SimDeaths": 0.4,
           "RealDowns": 2.75,
-          "SimDowns": 1.7,
+          "SimDowns": 2.35,
           "RealDamage": 255.85,
-          "SimDamage": 197.05,
+          "SimDamage": 246.55,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 4
+          "SimDeathSeeds": 7
         },
         {
           "Variant": "group-gap-tight",
           "RealDeaths": 0,
           "SimDeaths": 0.35,
           "RealDowns": 2.7,
-          "SimDowns": 2.05,
+          "SimDowns": 2.65,
           "RealDamage": 262.05,
-          "SimDamage": 217.8,
+          "SimDamage": 253.95,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 7
         },
         {
           "Variant": "group-gap-wide",
           "RealDeaths": 0,
-          "SimDeaths": 0.35,
+          "SimDeaths": 0.5,
           "RealDowns": 2.65,
-          "SimDowns": 1.95,
+          "SimDowns": 2.45,
           "RealDamage": 256.395,
-          "SimDamage": 215.05,
+          "SimDamage": 255.75,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 7
+          "SimDeathSeeds": 8
         }
       ],
       "pairs": 10,
-      "agreed": 3
+      "agreed": 5
     }
   ],
-  "RankAgreement": 0.3,
+  "RankAgreement": 0.5,
   "RankPairs": 10,
   "Misrankings": null,
   "Regrets": [
     {
       "Fixture": "lab-split-ranged",
-      "SimPick": "default",
+      "SimPick": "scatter-short",
       "RealBest": "scatter-short",
       "Deaths": 0,
-      "Downs": 0.7000000000000002,
-      "Damage": 28.200000000000017
+      "Downs": 0,
+      "Damage": 0
     }
   ],
   "FalseSafe": null,
-  "Gaps": [
-    {
-      "Fixture": "lab-split-ranged",
-      "Variant": "scatter-long",
-      "Measure": "colonist downs",
-      "Real": 2.75,
-      "Sim": 1.7,
-      "Tolerance": 1
-    }
-  ],
+  "Gaps": null,
   "Failures": [
     "lab-ranged-shield (held-out): the sim does not support this fixture: combatsim: unsupported scenario: combatlab: fixture lab-ranged-shield has a staged condition on a pawn, which the sim does not model",
     "lab-open (held-out): the sim does not support this fixture: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 3 unmodeled, first: pawn h0 wields melee weapon MeleeWeapon_Club: the sim has no melee, the pawn is imported unarmed",
     "lab-choke (held-out): the sim does not support this fixture: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 9 unmodeled, first: pawn c0 wields melee weapon MeleeWeapon_LongSword: the sim has no melee, the pawn is imported unarmed",
     "lab-base (held-out): the sim does not support this fixture: combatsim: unsupported scenario: thing \"Turret_MiniTurret\" is a turret, which the sim does not fire",
-    "rank agreement 0.30 over 10 pairs is below 0.80",
-    "lab-split-ranged/scatter-long: sim colonist downs mean 1.70 vs real 2.75, outside +/-1.00"
+    "rank agreement 0.50 over 10 pairs is below 0.80"
   ]
 }
