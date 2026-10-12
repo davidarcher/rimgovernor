@@ -40,6 +40,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
+	"math"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -312,6 +313,11 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 			return err
 		}
 	}
+	// The opening the layout was proposed on is the plan's killbox node.
+	opening, err := planOpening(ctx, statePath, world)
+	if err != nil {
+		return err
+	}
 	// The audits below are cheap reads proving the layout stands.
 	after, err := fixture("inspect-after-layout", map[string]any{"op": "inspect"})
 	if err != nil {
@@ -364,7 +370,7 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		}
 	}
 	access, err := h.Wire(ctx, "spatial-access", "observations_read_spatial_access", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "blockedCells": cellsJSON(impassable), "targetCells": cellsJSON(append([]domain.Cell{layout.Entry}, layout.Entrances...)),
+		"scope": map[string]any{"expectedIdentity": identity}, "blockedCells": cellsJSON(impassable), "targetCells": cellsJSON(append([]domain.Cell{opening.Entry}, layout.Entrances...)),
 	})
 	if err != nil {
 		return err
@@ -441,7 +447,7 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	// off the line and rightly gets no hold, so pin the edge the
 	// corridor faces: Toward runs from that edge toward Home.
 	raidArgs := map[string]any{"op": "raid", "strategy": v.strategy, "arrival": v.arrival,
-		"x": int(layout.Entry.X), "z": int(layout.Entry.Z), "side": edgeSide(layout.Toward)}
+		"x": int(opening.Entry.X), "z": int(opening.Entry.Z), "side": edgeSide(opening.Toward)}
 	// The ring stops here: a resume replays the pre-raid audits above, and
 	// a world captured after the raid has sprung traps the repair may not
 	// have replaced yet, so every resume starts from a pre-raid entry and
@@ -744,6 +750,25 @@ func (b *buildProgress) signature(open []string, record store.DefenseLayoutRecor
 		return ""
 	}
 	return fmt.Sprint(tick)
+}
+
+// planOpening reads the killbox opening of the layout plan the journal holds.
+func planOpening(ctx context.Context, statePath string, world store.World) (policy.DefenseKillbox, error) {
+	stored, err := store.Open(ctx, statePath)
+	if err != nil {
+		return policy.DefenseKillbox{}, fmt.Errorf("open store for the plan: %w", err)
+	}
+	defer stored.Close()
+	snapshot := domain.GenerationSnapshot{Colony: world.Colony, Map: world.Map, Load: world.Load, Plan: "audit", Revision: 1}
+	rec, ok, err := stored.LayoutPlan(ctx, snapshot, math.MaxInt32)
+	if err != nil || !ok {
+		return policy.DefenseKillbox{}, fmt.Errorf("layout plan for the opening: found %v: %w", ok, err)
+	}
+	k, ok := policy.KillboxOpening(rec.Plan)
+	if !ok {
+		return policy.DefenseKillbox{}, errors.New("layout plan holds no killbox opening")
+	}
+	return k, nil
 }
 
 // waitLayoutComplete polls the journal until the stored layout for world is

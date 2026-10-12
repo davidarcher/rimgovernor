@@ -258,23 +258,28 @@ func TestDefenseReverifyDueAfterCombatOrInterval(t *testing.T) {
 	}
 }
 
+// cellRect is the one-cell rectangle at x, z: a killbox region reduced to its anchor.
+func cellRect(x, z int32) bridge.CellRect {
+	return bridge.CellRect{Min: domain.Cell{X: x, Z: z}, Max: domain.Cell{X: x, Z: z}}
+}
+
 func TestDefenseRecordRegionCoversEveryTier(t *testing.T) {
-	record := store.DefenseLayoutRecord{Chokepoint: domain.Cell{X: 142, Z: 133}, Tiers: []store.DefenseTierRecord{
+	record := store.DefenseLayoutRecord{Tiers: []store.DefenseTierRecord{
 		{Name: "funnel", Buildings: []store.DefenseBuilding{{Cell: domain.Cell{X: 141, Z: 128}, Definition: "Wall"}, {Cell: domain.Cell{X: 144, Z: 133}, Definition: "Wall"}}},
 		{Name: "firing_line", Buildings: []store.DefenseBuilding{{Cell: domain.Cell{X: 143, Z: 125}, Definition: "Barricade"}}},
 		{Name: "perimeter-00", Buildings: []store.DefenseBuilding{{Cell: domain.Cell{X: 10, Z: 10}, Definition: "Wall"}, {Cell: domain.Cell{X: 12, Z: 11}, Definition: "Wall"}}},
 	}}
-	got := defenseRecordRegion(record, policy.Bounds{Width: 250, Height: 250}, "")
+	got := defenseRecordRegion(record, policy.Bounds{Width: 250, Height: 250}, cellRect(142, 133), "")
 	want := bridge.CellRect{Min: domain.Cell{X: 140, Z: 124}, Max: domain.Cell{X: 145, Z: 134}}
 	if got != want {
 		t.Fatalf("region %+v, want %+v", got, want)
 	}
-	edge := defenseRecordRegion(store.DefenseLayoutRecord{Chokepoint: domain.Cell{X: 0, Z: 249}}, policy.Bounds{Width: 250, Height: 250}, "")
+	edge := defenseRecordRegion(store.DefenseLayoutRecord{}, policy.Bounds{Width: 250, Height: 250}, cellRect(0, 249), "")
 	if edge != (bridge.CellRect{Min: domain.Cell{X: 0, Z: 248}, Max: domain.Cell{X: 1, Z: 249}}) {
 		t.Fatalf("edge region %+v", edge)
 	}
 	// A perimeter section is read on its own.
-	if got := defenseRecordRegion(record, policy.Bounds{Width: 250, Height: 250}, "perimeter-00"); got != (bridge.CellRect{Min: domain.Cell{X: 9, Z: 9}, Max: domain.Cell{X: 13, Z: 12}}) {
+	if got := defenseRecordRegion(record, policy.Bounds{Width: 250, Height: 250}, cellRect(142, 133), "perimeter-00"); got != (bridge.CellRect{Min: domain.Cell{X: 9, Z: 9}, Max: domain.Cell{X: 13, Z: 12}}) {
 		t.Fatalf("section region %+v", got)
 	}
 }
@@ -283,7 +288,7 @@ func TestDefenseRecordRegionCoversEveryTier(t *testing.T) {
 // every cell of a ring of many perimeter sections.
 func TestDefenseCensusRegionCoversRingInOneRead(t *testing.T) {
 	bounds := policy.Bounds{Width: 250, Height: 250}
-	record := store.DefenseLayoutRecord{Chokepoint: domain.Cell{X: 142, Z: 133}, Tiers: []store.DefenseTierRecord{
+	record := store.DefenseLayoutRecord{Tiers: []store.DefenseTierRecord{
 		{Name: "firing_line", Buildings: []store.DefenseBuilding{{Cell: domain.Cell{X: 143, Z: 125}, Definition: "Barricade"}}},
 	}}
 	for i := int32(0); i < 40; i++ {
@@ -291,7 +296,7 @@ func TestDefenseCensusRegionCoversRingInOneRead(t *testing.T) {
 		record.Tiers = append(record.Tiers, store.DefenseTierRecord{Name: policy.DefenseTierName(fmt.Sprintf("perimeter-%02d", i)),
 			Buildings: []store.DefenseBuilding{{Cell: domain.Cell{X: x, Z: z}, Definition: "Wall"}}})
 	}
-	got := defenseCensusRegion(record, bounds)
+	got := defenseCensusRegion(record, bounds, cellRect(142, 133))
 	inside := func(c domain.Cell) bool {
 		return c.X >= got.Min.X && c.X <= got.Max.X && c.Z >= got.Min.Z && c.Z <= got.Max.Z
 	}
@@ -304,7 +309,7 @@ func TestDefenseCensusRegionCoversRingInOneRead(t *testing.T) {
 			}
 		}
 	}
-	if !inside(record.Chokepoint) {
+	if !inside(domain.Cell{X: 142, Z: 133}) {
 		t.Fatalf("census region %+v misses the chokepoint", got)
 	}
 	if want := (bridge.CellRect{Min: domain.Cell{X: 99, Z: 99}, Max: domain.Cell{X: 179, Z: 155}}); got != want {

@@ -135,6 +135,10 @@ func replayDefenseSteps(t *testing.T, frame replayFrame, steps ...snapshot.Defen
 				if err = db.SaveDefenseLayout(ctx, layout); err != nil {
 					t.Fatal(err)
 				}
+				// Combat reads the direction toward home from the plan's opening.
+				if err = db.RecordLayoutPlan(ctx, current, 0, policy.OpeningPlan(step.Toward)); err != nil {
+					t.Fatal(err)
+				}
 			}
 			review, err := db.LoadRounds(ctx)
 			if err != nil {

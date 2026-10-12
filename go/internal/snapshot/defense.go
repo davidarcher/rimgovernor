@@ -23,7 +23,10 @@ type Defense struct {
 	Tick     domain.Tick
 	// Layout is the stored defensive layout the step read; nil when the
 	// colony has none.
-	Layout    *store.DefenseLayoutRecord
+	Layout *store.DefenseLayoutRecord
+	// Toward is the direction toward home of the layout plan's killbox
+	// opening, which the stored layout no longer carries.
+	Toward    domain.Rotation `json:",omitempty"`
 	Emergency policy.EmergencyFacts
 	// EmergencyContext, CombatPawns and LinesContext are protojson: the
 	// emergency read's ObservationContext, the ListPawnsReply of the combat

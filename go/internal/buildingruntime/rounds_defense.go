@@ -186,13 +186,20 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 	}
 	var held domain.Fact[policy.CombatLayout]
 	if ok && layout.Complete {
-		combatLayout := policy.CombatLayout{Firing: layout.Firing, Retreat: layout.Retreat, Toward: layout.Toward}
-		if n := len(layout.TrapLane); n > 0 {
-			// The snake runs entry to exit; its last cell is the mouth
-			// into the kill zone, where blockers hold.
-			combatLayout.Choke = domain.Known(layout.TrapLane[n-1])
+		// The opening's direction is the plan's, not the record's.
+		rec, planned, err := p.journal.LayoutPlan(call, state.Snapshot, domain.Tick(combat.Context.GetTick()))
+		if err != nil {
+			return RoundsDefenseResult{}, err
 		}
-		held = domain.Known(combatLayout)
+		if k, found := policy.KillboxOpening(rec.Plan); planned && found {
+			combatLayout := policy.CombatLayout{Firing: layout.Firing, Retreat: layout.Retreat, Toward: k.Toward}
+			if n := len(layout.TrapLane); n > 0 {
+				// The snake runs entry to exit; its last cell is the mouth
+				// into the kill zone, where blockers hold.
+				combatLayout.Choke = domain.Known(layout.TrapLane[n-1])
+			}
+			held = domain.Known(combatLayout)
+		}
 	}
 	items, err := r.reviewer.itemFacts(call, state.Snapshot)
 	if err != nil {

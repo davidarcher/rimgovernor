@@ -394,17 +394,15 @@ func storeLayout(ctx context.Context, h *na.Harness, identity map[string]any, l 
 	record := store.DefenseLayoutRecord{
 		World:    store.World{Colony: domain.ColonyID(typed.GetColonyId()), Load: domain.LoadID(typed.GetLoadToken()), Map: domain.MapID(typed.GetMapId())},
 		Standard: "combatlab-layout",
-		Toward:   domain.Rotation(l.Toward),
 		Firing:   cells(l.Firing), Retreat: cells(l.Retreat),
 		// Validate wants a tier; a fixture's structures are staged, not
 		// built by the planner, so its one tier names no buildings.
 		Tiers:    []store.DefenseTierRecord{{Name: policy.TierFiringLine, Built: true}},
-		Complete: true, Anchored: true,
+		Complete: true,
 	}
 	if l.Choke != nil {
 		// Combat's choke is the trap lane's last cell.
 		record.TrapLane = []domain.Cell{{X: int32(l.Choke.X), Z: int32(l.Choke.Z)}}
-		record.Chokepoint = record.TrapLane[0]
 	}
 	if err = record.Validate(); err != nil {
 		return record, err
@@ -433,6 +431,18 @@ func storeLayout(ctx context.Context, h *na.Harness, identity map[string]any, l 
 		blobs[key] = na.AsString(value)
 	}
 	blobs[store.GovernorDefenseLayoutKey] = string(blob)
+	// Combat reads the direction toward home from the plan's killbox opening,
+	// so the staged world holds a plan whose only content is that opening.
+	plan, err := json.Marshal(policy.OpeningPlan(domain.Rotation(l.Toward)))
+	if err != nil {
+		return record, err
+	}
+	scope := store.GovernorScope{Colony: record.World.Colony, Map: record.World.Map}
+	planBlob, err := json.Marshal(store.GovernorFamilyBlob{SchemaVersion: store.GovernorStateSchemaVersion, Scope: &scope, Record: plan})
+	if err != nil {
+		return record, err
+	}
+	blobs[store.GovernorLayoutPlanKey] = string(planBlob)
 	reply, err := h.Wire(ctx, "store-layout", "lifecycle_put_governor_state_batch", map[string]any{"blobs": blobs})
 	if err != nil {
 		return record, err

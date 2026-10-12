@@ -25,9 +25,9 @@ func TestRebuildFamiliesRoundTripsEachFamily(t *testing.T) {
 	}
 	world := World{Colony: "colony", Load: "load-1", Map: 1}
 	wall, _ := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 4}, domain.North, "BlocksGranite")
-	layout := policy.DefenseLayout{Chokepoint: domain.Cell{X: 9, Z: 15}, Entry: domain.Cell{X: 9, Z: 8}, Toward: domain.North, Width: 3,
+	layout := policy.DefenseLayout{Entry: domain.Cell{X: 9, Z: 8}, Toward: domain.North, Width: 3,
 		Firing: []policy.FiringPosition{{Cell: domain.Cell{X: 9, Z: 22}}}, Tiers: []policy.DefenseTier{{Name: policy.TierChokepoint, Buildings: []domain.Building{wall}, Reserved: []domain.Cell{{X: 3, Z: 4}}}}}
-	defense, err := NewDefenseLayoutRecord(world, "standard-1", 1, layout, []domain.Cell{{X: 9, Z: 30}})
+	defense, err := NewDefenseLayoutRecord(world, "standard-1", 1, layout, []domain.Cell{{X: 9, Z: 30}}, "killbox", "digest")
 	if err != nil {
 		t.Fatal(err)
 	}

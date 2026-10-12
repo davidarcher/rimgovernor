@@ -131,7 +131,7 @@ func TestDefenseReplayDropUsesPositionRelativeToLine(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if behind := policy.BehindFiringLine(step.Layout.Firing, step.Layout.Toward, tc.cell); behind != (tc.tactic == policy.TacticSquad) {
+			if behind := policy.BehindFiringLine(step.Layout.Firing, step.Toward, tc.cell); behind != (tc.tactic == policy.TacticSquad) {
 				t.Fatalf("hostile %v behind line: %t", tc.cell, behind)
 			}
 			results, methods, db := replayDefenseSteps(t, replayFrame{}, step)
@@ -420,7 +420,10 @@ func TestDefenseReplayStockedColonyProposesMoreTurrets(t *testing.T) {
 func TestDefenseReplayRaidCrossingOrdersCoverCleared(t *testing.T) {
 	t.Parallel()
 	l := loadLayout(t, "testdata/defense/layout-cover-after-raid.json.gz", snapshot.LayoutCover)
-	layout, err := defenseRecordLayout(*l.Record)
+	// The recorded opening: the plan's killbox, which the stored layout no
+	// longer carries.
+	killbox := policy.DefenseKillbox{Entry: domain.Cell{X: 112, Z: 136}, Toward: domain.South, Width: 3}
+	layout, err := defenseRecordLayout(*l.Record, killbox)
 	if err != nil {
 		t.Fatal(err)
 	}

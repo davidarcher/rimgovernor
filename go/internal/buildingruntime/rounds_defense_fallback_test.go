@@ -93,9 +93,12 @@ func crossedHoldFight(t *testing.T) {
 	}
 	snapshot := session.State().Snapshot
 	world := store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map}
-	layout := store.DefenseLayoutRecord{World: world, Standard: "layout-goal", Episode: 1, Complete: true, Toward: domain.North, Chokepoint: domain.Cell{X: 9, Z: 10}, Entry: domain.Cell{X: 9, Z: 10},
+	layout := store.DefenseLayoutRecord{World: world, Standard: "layout-goal", Episode: 1, Complete: true,
 		Firing: []domain.Cell{{X: 9, Z: 23}, {X: 8, Z: 23}}, Tiers: []store.DefenseTierRecord{{Name: policy.TierFiringLine, Built: true}}}
 	if err := db.SaveDefenseLayout(ctx, layout); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.RecordLayoutPlan(ctx, snapshot, 0, policy.OpeningPlan(domain.North)); err != nil {
 		t.Fatal(err)
 	}
 	current, err := db.LoadRounds(ctx)
@@ -184,9 +187,12 @@ func TestRoundsDefenseHoldFallbackNeedsProof(t *testing.T) {
 		t.Fatal(err)
 	}
 	snapshot := session.State().Snapshot
-	layout := store.DefenseLayoutRecord{World: store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map}, Standard: "layout-goal", Episode: 1, Complete: true, Toward: domain.North,
-		Chokepoint: domain.Cell{X: 9, Z: 10}, Entry: domain.Cell{X: 9, Z: 10}, Firing: []domain.Cell{{X: 9, Z: 23}}, Tiers: []store.DefenseTierRecord{{Name: policy.TierFiringLine, Built: true}}}
+	layout := store.DefenseLayoutRecord{World: store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map}, Standard: "layout-goal", Episode: 1, Complete: true,
+		Firing: []domain.Cell{{X: 9, Z: 23}}, Tiers: []store.DefenseTierRecord{{Name: policy.TierFiringLine, Built: true}}}
 	if err := db.SaveDefenseLayout(ctx, layout); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.RecordLayoutPlan(ctx, snapshot, 0, policy.OpeningPlan(domain.North)); err != nil {
 		t.Fatal(err)
 	}
 	current, err := db.LoadRounds(ctx)

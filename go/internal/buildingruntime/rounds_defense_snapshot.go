@@ -109,6 +109,13 @@ func (r *RoundsDefensePlanner) defenseSnapshot(ctx context.Context, rec *defense
 	}
 	if ok {
 		d.Layout = &layout
+		rec, found, err := p.journal.LayoutPlan(ctx, current, tick)
+		if err != nil {
+			return d, err
+		}
+		if k, opening := policy.KillboxOpening(rec.Plan); found && opening {
+			d.Toward = k.Toward
+		}
 	}
 	if result.Plan == "" {
 		return d, nil

@@ -80,7 +80,7 @@ func TestTurretReplacementReplaysDeconstructThenRebuild(t *testing.T) {
 	if !removal.Remove || removal.Name != "turrets-replace-13-23-1" || !reflect.DeepEqual(removal.Buildings, []store.DefenseBuilding{{Definition: policy.TurretMini, Cell: east, Rotation: domain.North}}) {
 		t.Fatalf("%+v", removal)
 	}
-	if g := defenseRecordGeometry(record); slices.Contains(g.Reserved, east) {
+	if g := defenseRecordGeometry(record, policy.DefenseKillbox{}); slices.Contains(g.Reserved, east) {
 		t.Fatal("replacement tier reserved in the geometry")
 	}
 	// The mini turret still stands: the removal is pending, the turret tier

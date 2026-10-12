@@ -170,7 +170,7 @@ func TestDefenseLayoutKillboxShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if layout.Chokepoint != (domain.Cell{X: 15, Z: 5}) || layout.Toward != domain.North || layout.Width != 3 || layout.Entry != layout.Chokepoint {
+	if layout.Entry != (domain.Cell{X: 15, Z: 5}) || layout.Toward != domain.North || layout.Width != 3 {
 		t.Fatalf("%+v", layout)
 	}
 	if !reflect.DeepEqual(layout.TrapLane[:3], cells(15, 5, 15, 6, 15, 7)) || layout.KillZone() != (domain.Cell{X: 18, Z: 19}) {

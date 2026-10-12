@@ -30,12 +30,12 @@ const (
 )
 
 // defenseRecordLayout rebuilds the accepted geometry the approaches keep
-// protected: lanes, firing cells and every tier's placements and reserved
-// cells. A firing position's cover cell is a tier placement, so the firing
+// protected: the plan's killbox opening, lanes, firing cells and every tier's
+// placements and reserved cells. A firing position's cover cell is a tier placement, so the firing
 // cell stands for it; its retreat cell is the recorded inner line,
 // the firing cell on a record that predates it.
-func defenseRecordLayout(record store.DefenseLayoutRecord) (policy.DefenseLayout, error) {
-	l := policy.DefenseLayout{Chokepoint: record.Chokepoint, Toward: record.Toward, Width: record.Width, Entry: record.Entry,
+func defenseRecordLayout(record store.DefenseLayoutRecord, killbox policy.DefenseKillbox) (policy.DefenseLayout, error) {
+	l := policy.DefenseLayout{Toward: killbox.Toward, Width: int(killbox.Width), Entry: killbox.Entry,
 		TrapLane: append([]domain.Cell{}, record.TrapLane...)}
 	for i, cell := range record.Firing {
 		retreat := cell
@@ -190,7 +190,7 @@ func (r *RoundsDefenseLayoutPlanner) clearCover(call, epoch context.Context, goa
 		return RoundsDefenseLayoutResult{}, false, nil
 	}
 	request.Defenders, request.MinRange = defenders, minRange
-	layout, err := defenseRecordLayout(record)
+	layout, err := defenseRecordLayout(record, killbox)
 	if err != nil {
 		return RoundsDefenseLayoutResult{}, false, err
 	}

@@ -1,8 +1,12 @@
 package policy
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"regexp"
+	"slices"
 	"sort"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -35,18 +39,115 @@ const (
 	PerimeterLightStuff    = "WoodLog"
 )
 
-// PerimeterSection is one staged piece of the wall.
+// PerimeterSection is one staged piece of the wall. Nodes are the plan's site
+// nodes it is cut from (the ring and the gates in it, a pump, the fence, the
+// geothermal enclosure): the defense record stores them instead of the
+// buildings, and the buildings are resolved from the plan again by the
+// section's name. A section cut from no node (lights, pockets, bait, prison
+// turrets) names none.
 type PerimeterSection struct {
 	Name      DefenseTierName
+	Nodes     []string
 	Buildings []domain.Building
+}
+
+// PerimeterSectionBase is the section's name before a re-cut put its
+// revision in front: perimeter-r2-03 and perimeter-03 are both "03".
+func PerimeterSectionBase(name DefenseTierName) string {
+	rest := strings.TrimPrefix(string(name), TierPerimeterPrefix)
+	if m := perimeterRevision.FindString(rest); m != "" {
+		rest = rest[len(m):]
+	}
+	return rest
+}
+
+var perimeterRevision = regexp.MustCompile(`^r\d+-`)
+
+// KillboxNode is the live killbox node's id and a digest of its footprint,
+// the identity a stored defense layout was proposed on. ok is false while the
+// plan has no opening.
+func KillboxNode(plan LayoutPlan) (id, digest string, ok bool) {
+	node, found := plan.Killbox()
+	if !found {
+		return "", "", false
+	}
+	h := sha256.New()
+	for _, c := range node.Footprint.Cells() {
+		fmt.Fprintf(h, "%d,%d;", c.X, c.Z)
+	}
+	return node.Node, fmt.Sprintf("%x", h.Sum(nil)[:8]), true
+}
+
+// KillboxOpening reads the plan's killbox opening alone: the anchor cell, the
+// direction toward home, the width and depth. ok is false while the plan has no
+// opening.
+func KillboxOpening(plan LayoutPlan) (k DefenseKillbox, ok bool) {
+	k, _, _, ok = layoutOpening(plan)
+	return k, ok
+}
+
+// OpeningPlan is the smallest valid layout plan whose killbox opens toward the
+// given rotation: a 21x21 killbox beyond the entry cell (30, 30), the 3-wide approach leg
+// ending beside the entry cell and one room to make the plan valid. A fixture
+// or replay that stands for a world's plan only for the direction combat
+// reads from it builds this.
+func OpeningPlan(toward domain.Rotation) LayoutPlan {
+	// The killbox lies on the far side of the entry, past the wall's depth.
+	approach, killbox := Rectangle{X: 29, Z: 29, Width: 3, Height: 1}, Rectangle{X: 20, Z: 33, Width: 21, Height: 21}
+	switch toward {
+	case domain.South:
+		approach, killbox = Rectangle{X: 29, Z: 31, Width: 3, Height: 1}, Rectangle{X: 20, Z: 7, Width: 21, Height: 21}
+	case domain.East:
+		approach, killbox = Rectangle{X: 29, Z: 29, Width: 1, Height: 3}, Rectangle{X: 33, Z: 20, Width: 21, Height: 21}
+	case domain.West:
+		approach, killbox = Rectangle{X: 31, Z: 29, Width: 1, Height: 3}, Rectangle{X: 7, Z: 20, Width: 21, Height: 21}
+	}
+	site := func(id string, kind NodeKind, r Rectangle) PlannedSite {
+		return PlannedSite{SitePlacement: SitePlacement{Node: id, Footprint: RectRegion(r)}, Kind: kind}
+	}
+	return LayoutPlan{
+		Rooms:      []PlannedRoom{{ID: 1, Role: PlannedStorage, Region: RectRegion(Rectangle{X: 10, Z: 10, Width: 6, Height: 4}), Door: domain.Cell{X: 12, Z: 14}, DoorRot: domain.South}},
+		NextRoomID: 2,
+		Sites: []PlannedSite{
+			site("killbox", NodeKillbox, killbox),
+			site("killbox_approach-00", NodeApproach, approach),
+		},
+	}
 }
 
 // LayoutKillbox reads the plan's killbox opening: the anchor, the census
 // region around it (inside bounds) and the home
 // cell behind the killbox's back wall. ok is false while the plan has no opening.
 func LayoutKillbox(plan LayoutPlan, bounds Bounds) (k DefenseKillbox, region Rectangle, home domain.Cell, ok bool) {
-	var killbox Rectangle
-	var approaches []Rectangle
+	k, killbox, approaches, ok := layoutOpening(plan)
+	if !ok {
+		return DefenseKillbox{}, Rectangle{}, domain.Cell{}, false
+	}
+	// Home is the yard cell behind the killbox's back-wall doorway.
+	home = addCell(k.Entry, scale(directionOf(k.Toward), perimeterThick+k.Depth))
+	cover := killbox
+	for _, a := range append(approaches, rectOf(k.Entry, k.Entry)) {
+		cover = unionRect(cover, a)
+	}
+	region = clipRect(pad(cover, 3), Rectangle{Width: bounds.Width, Height: bounds.Height})
+	if region.Width == 0 || !contains(region, home) {
+		return DefenseKillbox{}, Rectangle{}, domain.Cell{}, false
+	}
+	// Only the wall near the opening matters to the funnel.
+	var near []domain.Cell
+	for _, c := range k.Walled {
+		if contains(region, c) {
+			near = append(near, c)
+		}
+	}
+	k.Walled = near
+	return k, region, home, true
+}
+
+// layoutOpening is the opening LayoutKillbox and KillboxOpening read: the
+// anchor with the whole ring as its walled cells, the killbox rectangle and
+// the approach legs.
+func layoutOpening(plan LayoutPlan) (k DefenseKillbox, killbox Rectangle, approaches []Rectangle, ok bool) {
 	if node, found := plan.Killbox(); found {
 		killbox = node.Footprint.Bounds()
 	}
@@ -57,7 +158,7 @@ func LayoutKillbox(plan LayoutPlan, bounds Bounds) (k DefenseKillbox, region Rec
 		k.Walled = ring.Footprint.Cells()
 	}
 	if killbox.Width == 0 {
-		return DefenseKillbox{}, Rectangle{}, domain.Cell{}, false
+		return DefenseKillbox{}, Rectangle{}, nil, false
 	}
 	// The straight approach leg is 3 wide and ends one cell outside the
 	// opening's outer face; the killbox starts perimeterThick cells in.
@@ -93,27 +194,9 @@ func LayoutKillbox(plan LayoutPlan, bounds Bounds) (k DefenseKillbox, region Rec
 		}
 	}
 	if !found {
-		return DefenseKillbox{}, Rectangle{}, domain.Cell{}, false
+		return DefenseKillbox{}, Rectangle{}, nil, false
 	}
-	// Home is the yard cell behind the killbox's back-wall doorway.
-	home = addCell(k.Entry, scale(directionOf(k.Toward), perimeterThick+k.Depth))
-	cover := killbox
-	for _, a := range append(approaches, rectOf(k.Entry, k.Entry)) {
-		cover = unionRect(cover, a)
-	}
-	region = clipRect(pad(cover, 3), Rectangle{Width: bounds.Width, Height: bounds.Height})
-	if region.Width == 0 || !contains(region, home) {
-		return DefenseKillbox{}, Rectangle{}, domain.Cell{}, false
-	}
-	// Only the wall near the opening matters to the funnel.
-	var near []domain.Cell
-	for _, c := range k.Walled {
-		if contains(region, c) {
-			near = append(near, c)
-		}
-	}
-	k.Walled = near
-	return k, region, home, true
+	return k, killbox, approaches, true
 }
 
 // PerimeterSections cuts the plan's wall into sections of about 60 blocks,
@@ -129,6 +212,7 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 	woodInner := map[domain.Cell]bool{} // light-footing wall cells: wood to start
 	var runs []Rectangle
 	var killbox, geothermal Rectangle
+	gateNode := map[domain.Cell]string{}
 	for _, g := range plan.LiveSites(NodeGate) {
 		// An airlock: a door on each face of the wall, the
 		// cells between left open, enclosed by the wall beside them.
@@ -137,6 +221,7 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 			ends = g.Footprint.Bounds().Height
 		}
 		for i, c := range g.Footprint.Cells() {
+			gateNode[c] = g.Node
 			if i == 0 || int32(i) == ends-1 {
 				gates[c] = true
 			} else {
@@ -144,7 +229,9 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 			}
 		}
 	}
+	ringID := ""
 	if ring, found := plan.Ring(); found {
+		ringID = ring.Node
 		runs = regionRects(ring.Footprint)
 		for _, c := range ring.Ring.Light.Cells() {
 			woodInner[c] = true
@@ -191,7 +278,7 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 	})
 	var out []PerimeterSection
 	next := func() PerimeterSection {
-		return PerimeterSection{Name: DefenseTierName(fmt.Sprintf("%s%02d", TierPerimeterPrefix, len(out)))}
+		return PerimeterSection{Name: DefenseTierName(fmt.Sprintf("%s%02d", TierPerimeterPrefix, len(out))), Nodes: []string{ringID}}
 	}
 	for _, p := range pieces {
 		under := next()
@@ -225,6 +312,9 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 				return nil, err
 			}
 			section.Buildings = append(section.Buildings, b)
+			if id := gateNode[c]; id != "" && !slices.Contains(section.Nodes, id) {
+				section.Nodes = append(section.Nodes, id)
+			}
 		}
 		if len(section.Buildings) > 0 {
 			out = append(out, section)
@@ -252,7 +342,7 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 			}
 			doorway[c] = true
 		}
-		s := PerimeterSection{Name: TierGeothermal}
+		s := PerimeterSection{Name: TierGeothermal, Nodes: []string{"geothermal-1"}}
 		for _, c := range rectCells(geothermal) {
 			if contains(gen, c) {
 				continue
@@ -284,11 +374,12 @@ const TierPumpPrefix = TierPerimeterPrefix + "pump-"
 func PerimeterPumps(plan LayoutPlan, pump, conduit string, transmitters []domain.Cell) ([]PerimeterSection, error) {
 	var killbox Rectangle
 	var sites []domain.Cell
+	var ids []string
 	if k, found := plan.Killbox(); found {
 		killbox = k.Footprint.Bounds()
 	}
 	for _, p := range plan.LiveSites(NodePump) {
-		sites = append(sites, p.Origin)
+		sites, ids = append(sites, p.Origin), append(ids, p.Node)
 	}
 	if len(sites) == 0 || len(transmitters) == 0 {
 		return nil, nil
@@ -305,12 +396,12 @@ func PerimeterPumps(plan LayoutPlan, pump, conduit string, transmitters []domain
 		allowed[c], carry[c] = true, true
 	}
 	var out []PerimeterSection
-	for _, site := range sites {
+	for i, site := range sites {
 		chain, ok := defenseSite{}.conduitChain(site, carry, allowed)
 		if !ok {
 			continue
 		}
-		s := PerimeterSection{Name: DefenseTierName(fmt.Sprintf("%s%02d", TierPumpPrefix, len(out)))}
+		s := PerimeterSection{Name: DefenseTierName(fmt.Sprintf("%s%02d", TierPumpPrefix, len(out))), Nodes: []string{ids[i]}}
 		b, err := domain.NewBuilding(pump, site, domain.North, "")
 		if err != nil {
 			return nil, err
@@ -338,7 +429,7 @@ const TierFencePrefix = TierPerimeterPrefix + "fence-"
 func FenceSections(plan LayoutPlan, fence, stuff string) ([]PerimeterSection, error) {
 	var out []PerimeterSection
 	for _, f := range plan.LiveSites(NodeFence) {
-		s := PerimeterSection{Name: DefenseTierName(fmt.Sprintf("%s%02d", TierFencePrefix, len(out)))}
+		s := PerimeterSection{Name: DefenseTierName(fmt.Sprintf("%s%02d", TierFencePrefix, len(out))), Nodes: []string{f.Node}}
 		for _, c := range f.Footprint.Cells() {
 			b, err := domain.NewBuilding(fence, c, domain.North, stuff)
 			if err != nil {

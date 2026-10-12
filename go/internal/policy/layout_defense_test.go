@@ -7,6 +7,17 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// OpeningPlan is a valid plan whose opening faces the rotation it was built for.
+func TestOpeningPlanFacesItsRotation(t *testing.T) {
+	t.Parallel()
+	for _, toward := range []domain.Rotation{domain.North, domain.East, domain.South, domain.West} {
+		plan := OpeningPlan(toward)
+		if k, ok := KillboxOpening(plan); !plan.Valid() || !ok || k.Toward != toward {
+			t.Fatal(toward, plan.Valid(), ok, k.Toward)
+		}
+	}
+}
+
 func TestLayoutKillboxAnchorsTheCorridor(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })

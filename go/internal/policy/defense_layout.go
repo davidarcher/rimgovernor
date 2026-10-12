@@ -148,7 +148,6 @@ type FiringPosition struct {
 // DefenseLayout is a deterministic proposal. Native placement previews and
 // the access audit still decide legality; only admitted actions reserve cells.
 type DefenseLayout struct {
-	Chokepoint domain.Cell
 	// Toward is the corridor direction from the map edge toward Home.
 	Toward domain.Rotation
 	// Width is the passable width across the chokepoint before construction.
@@ -529,7 +528,7 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 	at := func(k, a int32) domain.Cell {
 		return addCell(entry, addCell(scale(d, perimeterThick+k), scale(p, a)))
 	}
-	layout := DefenseLayout{Chokepoint: entry, Toward: rotationOf(d), Width: int(kb.Width), Entry: entry}
+	layout := DefenseLayout{Toward: rotationOf(d), Width: int(kb.Width), Entry: entry}
 	half, legs, err := defenseShape(r)
 	if err != nil {
 		return DefenseLayout{}, err

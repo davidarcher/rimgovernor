@@ -69,14 +69,15 @@ func TestDefenseCoverSelectionMapsKindsAndHolds(t *testing.T) {
 // The record's geometry rebuilds as a layout whose tiers, lanes and firing
 // cells the approaches protect from clearance.
 func TestDefenseRecordLayoutKeepsGeometry(t *testing.T) {
-	record := store.DefenseLayoutRecord{Chokepoint: domain.Cell{X: 10, Z: 10}, Entry: domain.Cell{X: 10, Z: 4}, Toward: domain.North, Width: 3,
-		TrapLane: []domain.Cell{{X: 10, Z: 5}}, SafeLane: []domain.Cell{{X: 11, Z: 5}}, Firing: []domain.Cell{{X: 10, Z: 14}},
+	killbox := policy.DefenseKillbox{Entry: domain.Cell{X: 10, Z: 4}, Toward: domain.North, Width: 3}
+	record := store.DefenseLayoutRecord{
+		TrapLane: []domain.Cell{{X: 10, Z: 5}}, Firing: []domain.Cell{{X: 10, Z: 14}},
 		Tiers: []store.DefenseTierRecord{{Name: policy.TierFunnel, Buildings: []store.DefenseBuilding{{Definition: "Wall", Cell: domain.Cell{X: 9, Z: 5}, Rotation: domain.North, Stuff: "WoodLog"}}, Reserved: []domain.Cell{{X: 12, Z: 5}}}}}
-	layout, err := defenseRecordLayout(record)
+	layout, err := defenseRecordLayout(record, killbox)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if layout.Entry != record.Entry || layout.Toward != domain.North || len(layout.Firing) != 1 || layout.Firing[0].Cell != record.Firing[0] || len(layout.Tiers) != 1 || len(layout.Tiers[0].Buildings) != 1 || layout.Tiers[0].Buildings[0].Cell() != (domain.Cell{X: 9, Z: 5}) || !reflect.DeepEqual(layout.Tiers[0].Reserved, record.Tiers[0].Reserved) {
+	if layout.Entry != killbox.Entry || layout.Toward != domain.North || len(layout.Firing) != 1 || layout.Firing[0].Cell != record.Firing[0] || len(layout.Tiers) != 1 || len(layout.Tiers[0].Buildings) != 1 || layout.Tiers[0].Buildings[0].Cell() != (domain.Cell{X: 9, Z: 5}) || !reflect.DeepEqual(layout.Tiers[0].Reserved, record.Tiers[0].Reserved) {
 		t.Fatalf("layout %+v", layout)
 	}
 }

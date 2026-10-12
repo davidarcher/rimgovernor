@@ -221,13 +221,14 @@ func TestDefenseCensusStandsConduitsAndPower(t *testing.T) {
 
 func TestDefenseRecordGeometryAndTurretTier(t *testing.T) {
 	t.Parallel()
-	record := store.DefenseLayoutRecord{World: store.World{Colony: "c", Load: "l"}, Standard: "g", Episode: 1, Entry: domain.Cell{X: 9, Z: 14}, Toward: domain.North, Firing: []domain.Cell{{X: 9, Z: 23}},
-		TrapLane: []domain.Cell{{X: 9, Z: 14}}, SafeLane: []domain.Cell{{X: 8, Z: 14}}, Tiers: []store.DefenseTierRecord{
+	record := store.DefenseLayoutRecord{World: store.World{Colony: "c", Load: "l"}, Standard: "g", Episode: 1, Firing: []domain.Cell{{X: 9, Z: 23}},
+		TrapLane: []domain.Cell{{X: 9, Z: 14}}, Tiers: []store.DefenseTierRecord{
 			{Name: policy.TierFiringLine, Reserved: []domain.Cell{{X: 9, Z: 22}}, Buildings: []store.DefenseBuilding{{Definition: "Barricade", Cell: domain.Cell{X: 9, Z: 22}}}},
 			{Name: policy.TierTurrets, Reserved: []domain.Cell{{X: 5, Z: 23}}, Buildings: []store.DefenseBuilding{{Definition: defenseTurretDefinition, Cell: domain.Cell{X: 5, Z: 23}}}},
 		}}
-	g := defenseRecordGeometry(record)
-	want := policy.DefenseGeometry{Entry: record.Entry, Approach: []domain.Cell{{X: 9, Z: 14}}, Toward: domain.North, Firing: []domain.Cell{{X: 9, Z: 23}}, Lanes: []domain.Cell{{X: 9, Z: 14}, {X: 8, Z: 14}}, Reserved: []domain.Cell{{X: 9, Z: 22}, {X: 9, Z: 22}}}
+	killbox := policy.DefenseKillbox{Entry: domain.Cell{X: 9, Z: 14}, Toward: domain.North}
+	g := defenseRecordGeometry(record, killbox)
+	want := policy.DefenseGeometry{Entry: killbox.Entry, Approach: []domain.Cell{{X: 9, Z: 14}}, Toward: domain.North, Firing: []domain.Cell{{X: 9, Z: 23}}, Lanes: []domain.Cell{{X: 9, Z: 14}}, Reserved: []domain.Cell{{X: 9, Z: 22}, {X: 9, Z: 22}}}
 	if !reflect.DeepEqual(g, want) {
 		t.Fatalf("%+v", g)
 	}
@@ -287,7 +288,7 @@ func TestDefenseMortarRequestOpensAfterResearchAtRaidPoints(t *testing.T) {
 		t.Fatal("open below the budget's raid points")
 	}
 	record := store.DefenseLayoutRecord{Tiers: []store.DefenseTierRecord{{Name: policy.TierTurrets, Buildings: []store.DefenseBuilding{{Definition: defenseTurretDefinition, Cell: domain.Cell{X: 4, Z: 5}, Rotation: domain.North}}}}}
-	if g := defenseMortarGeometry(record); !reflect.DeepEqual(g.Turrets, []domain.Cell{{X: 4, Z: 5}}) {
+	if g := defenseMortarGeometry(record, policy.DefenseKillbox{}); !reflect.DeepEqual(g.Turrets, []domain.Cell{{X: 4, Z: 5}}) {
 		t.Fatal(g.Turrets)
 	}
 	if !defenseMortarsDue(record, 10) {
