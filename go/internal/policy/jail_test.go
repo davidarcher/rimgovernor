@@ -18,7 +18,7 @@ func TestNextJailStepReconcilesAndMarks(t *testing.T) {
 	centre := domain.Cell{X: jail.Region.Bounds().X + 2, Z: jail.Region.Bounds().Z + 2}
 	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "j", Cells: []domain.Cell{centre}, Enclosed: domain.Known(true)}}}
 	plain := SleepingBed{ID: "bed1", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), Room: domain.Known("j")}
-	if s := NextJailStep(plan, rooms, 1, []SleepingBed{plain}, nil); s.Kind != JailMark || s.Bed != "bed1" {
+	if s := NextJailStep(plan, rooms, 1, []SleepingBed{plain}, nil); s.Kind != JailMark || len(s.Marks) != 1 || s.Marks[0] != "bed1" {
 		t.Fatalf("plain bed in the jail: %+v", s)
 	}
 	s := NextJailStep(plan, rooms, 1, nil, nil)
@@ -49,4 +49,32 @@ func mustJailPieces(t *testing.T, r PlannedRoom) []InteriorPiece {
 		t.Fatal("jail template placed no bed")
 	}
 	return plan.Pieces
+}
+
+func TestNextJailStepMarksTheWholeRoomAndReportsStrays(t *testing.T) {
+	jail := hallRoom(PlannedPrison, 10, 30, 5, 5, true)
+	plan := LayoutPlan{Rooms: []PlannedRoom{jail}}
+	centre := domain.Cell{X: jail.Region.Bounds().X + 2, Z: jail.Region.Bounds().Z + 2}
+	bed := func(id string, medical, crib, prisoners bool) SleepingBed {
+		return SleepingBed{ID: id, Crib: crib, Humanlike: domain.Known(true), Medical: domain.Known(medical), Prisoners: domain.Known(prisoners), Room: domain.Known("j")}
+	}
+	beds := []SleepingBed{bed("c", false, false, false), bed("a", false, false, false), bed("b", false, false, false), bed("m", true, false, false), bed("k", false, true, false), bed("p", false, false, true)}
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "j", Cells: []domain.Cell{centre}, Enclosed: domain.Known(true)}}}
+	// One prisoner is held and one bed already marked: the rest still flip.
+	s := NextJailStep(plan, rooms, 1, beds, nil)
+	if s.Kind != JailMark || len(s.Marks) != 3 || s.Marks[0] != "a" || s.Marks[1] != "b" || s.Marks[2] != "c" {
+		t.Fatalf("marks: %+v", s)
+	}
+	if len(s.Strays) != 2 || s.Strays[0] != "k" || s.Strays[1] != "m" {
+		t.Fatalf("strays: %+v", s.Strays)
+	}
+	// Only the stray remains: nothing to mark, the stray is still reported.
+	if s := NextJailStep(plan, rooms, 1, []SleepingBed{bed("m", true, false, false), bed("p", false, false, true)}, nil); s.Kind != JailNone || len(s.Strays) != 1 {
+		t.Fatalf("stray only: %+v", s)
+	}
+	// A map-edge room is not enclosed in the census: no mark, no stray.
+	edge := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "j", Cells: []domain.Cell{centre}, Enclosed: domain.Known(false)}}}
+	if s := NextJailStep(plan, edge, 1, beds, nil); s.Kind == JailMark || len(s.Marks) != 0 || len(s.Strays) != 0 {
+		t.Fatalf("map-edge room: %+v", s)
+	}
 }

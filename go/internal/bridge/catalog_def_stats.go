@@ -96,6 +96,16 @@ func (catalog *DefinitionCatalog) RepairPriority(def string, medicalBed bool) (i
 	return 2, nil
 }
 
+// BedCrib is whether the def is a crib (building.bed_crib): native refuses a
+// crib for prisoners (Building_Bed.RoomCanBePrisonCell).
+func (catalog *DefinitionCatalog) BedCrib(def string) (bool, error) {
+	row, err := catalog.thingRow(def)
+	if err != nil {
+		return false, err
+	}
+	return row.GetBuilding().GetBedCrib(), nil
+}
+
 // BedHumanlike is BuildingProperties.bed_humanlike of the def.
 func (catalog *DefinitionCatalog) BedHumanlike(def string) (bool, error) {
 	row, err := catalog.thingRow(def)

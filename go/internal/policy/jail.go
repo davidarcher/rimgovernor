@@ -2,13 +2,16 @@ package policy
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // Furnishing the jail. While a prisoner is held, MaintainPopulation
 // keeps one bed set for prisoners in a planned jail per held prisoner:
-// it sets an unflagged bed standing in a jail for prisoners first, and
+// it sets every unflagged bed standing in a jail for prisoners at once (owner
+// type is room-level in the game, so a jail is never left mixed), reports
+// the medical and crib beds native refuses as strays, and
 // otherwise reconciles the room (ReconcileRoom) to the next free template
 // bed: the ring, the floor and the bed, installed from packed stock first. A
 // fresh bed is placed plain and flagged on a later step once it stands.
@@ -57,7 +60,8 @@ const (
 	// JailReconcile: reconcile Room to Template, its next free bed
 	// (ReconcileRoom): whatever the ring, floor and bed still owe.
 	JailReconcile JailStepKind = "reconcile"
-	// JailMark: set Bed, standing in a jail, for prisoners.
+	// JailMark: set Marks, every markable bed standing in a planned jail,
+	// for prisoners.
 	JailMark JailStepKind = "mark"
 )
 
@@ -67,7 +71,14 @@ type JailStep struct {
 	Room PlannedRoom
 	// Template is a JailReconcile's wanted furniture: the next free bed.
 	Template []WantedPiece
-	Bed      string
+	// Marks are a JailMark's beds. Bed owner type is room-level in the game
+	// (SetBedOwnerTypeByInterface flips the whole room), so every markable
+	// bed of the jail goes in one pass rather than one bed per pass.
+	Marks []string
+	// Strays are humanlike beds standing in a planned jail that native
+	// refuses for prisoners (medical, crib) and so stay colonist beds: to
+	// remove or repurpose, never to mark. Reported on every step.
+	Strays []string
 	// Held is the living prisoners; Beds the beds set for prisoners.
 	Held, Beds int
 }
@@ -81,7 +92,7 @@ func NextJailStep(plan LayoutPlan, rooms RoomObservation, held int, beds []Sleep
 			step.Beds++
 		}
 	}
-	if held == 0 || step.Beds >= held {
+	if held == 0 {
 		return JailStep{}
 	}
 	taken := map[domain.Cell]bool{}
@@ -90,30 +101,44 @@ func NextJailStep(plan LayoutPlan, rooms RoomObservation, held int, beds []Sleep
 			taken[c] = true
 		}
 	}
+	var act JailStep
 	for _, r := range plan.AllRooms() {
 		if r.Role != PlannedPrison {
 			continue
 		}
-		// Census: the room's id keys the beds read inside it.
+		// Census: the room's id keys the beds read inside it. A room the
+		// census does not show enclosed (a map-edge room is not) stands
+		// for nothing: native would force its beds back to colonist.
 		standing, stands := CensusRoomIn(r, rooms)
+		var marks []string
 		for _, b := range beds {
-			if !stands {
-				break
-			}
 			humanlike, _ := b.Humanlike.Value()
-			medical, _ := b.Medical.Value()
+			medical, mk := b.Medical.Value()
 			prisoners, pk := b.Prisoners.Value()
-			if room, _ := b.Room.Value(); room == standing.ID && humanlike && !medical && pk && !prisoners {
-				step.Room, step.Kind, step.Bed = r, JailMark, b.ID
-				return step
+			if room, _ := b.Room.Value(); !stands || room != standing.ID || !humanlike || !mk || !pk || prisoners {
+				continue
+			}
+			if medical || b.Crib {
+				step.Strays = append(step.Strays, b.ID)
+			} else {
+				marks = append(marks, b.ID)
 			}
 		}
-		if piece, ok := jailSlot(r, rooms.Shapes, taken); ok {
-			step.Room, step.Kind, step.Template = r, JailReconcile, []WantedPiece{piece.Wanted()}
-			return step
+		if act.Kind != JailNone {
+			continue
+		}
+		if len(marks) > 0 {
+			sort.Strings(marks)
+			act.Room, act.Kind, act.Marks = r, JailMark, marks
+		} else if step.Beds < held {
+			if piece, ok := jailSlot(r, rooms.Shapes, taken); ok {
+				act.Room, act.Kind, act.Template = r, JailReconcile, []WantedPiece{piece.Wanted()}
+			}
 		}
 	}
-	return JailStep{}
+	sort.Strings(step.Strays)
+	step.Room, step.Kind, step.Template, step.Marks = act.Room, act.Kind, act.Template, act.Marks
+	return step
 }
 
 // jailSlot is the room's first template bed slot nothing stands on.

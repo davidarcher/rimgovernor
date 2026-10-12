@@ -50,11 +50,15 @@ func colonySleeping(v *o.ColonyFactsSnapshot, buildings bridge.Buildings, catalo
 		if err != nil {
 			return domain.Unknown[policy.SleepingObservation](), fmt.Errorf("sleeping bed %s: %w", b.Bed.GetId(), err)
 		}
+		crib, err := catalog.BedCrib(head.GetDefName())
+		if err != nil {
+			return domain.Unknown[policy.SleepingObservation](), fmt.Errorf("sleeping bed %s: %w", b.Bed.GetId(), err)
+		}
 		rest, err := catalog.PlannerStatValue(head.GetDefName(), b.GetStuff(), bridge.StatBedRestEffectiveness)
 		if err != nil {
 			return domain.Unknown[policy.SleepingObservation](), fmt.Errorf("sleeping bed %s: %w", b.Bed.GetId(), err)
 		}
-		r.Beds = append(r.Beds, policy.SleepingBed{ID: b.Bed.GetId(), Definition: policy.Resource(head.GetDefName()), Humanlike: domain.Known(humanlike), Medical: optional(b.Medical), Prisoners: optional(b.Prisoners), Slaves: b.GetForSlaves(), Roofed: optional(b.Roofed), RestEffectiveness: domain.Known(float64(rest)), Temperature: optional(b.TemperatureC), Owners: ids(bridge.RefIDs(b.Owners)), Users: ids(bridge.RefIDs(b.Users)), AccessibleTo: ids(bridge.RefIDs(b.AccessibleTo)), Room: optionalRef(b.Room), Quality: optional(b.Quality), Stuff: optional(b.Stuff), Cell: domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()}})
+		r.Beds = append(r.Beds, policy.SleepingBed{ID: b.Bed.GetId(), Definition: policy.Resource(head.GetDefName()), Humanlike: domain.Known(humanlike), Crib: crib, Medical: optional(b.Medical), Prisoners: optional(b.Prisoners), Slaves: b.GetForSlaves(), Roofed: optional(b.Roofed), RestEffectiveness: domain.Known(float64(rest)), Temperature: optional(b.TemperatureC), Owners: ids(bridge.RefIDs(b.Owners)), Users: ids(bridge.RefIDs(b.Users)), AccessibleTo: ids(bridge.RefIDs(b.AccessibleTo)), Room: optionalRef(b.Room), Quality: optional(b.Quality), Stuff: optional(b.Stuff), Cell: domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()}})
 	}
 	return domain.Known(r), nil
 }

@@ -28,7 +28,9 @@ type SleepingBed struct {
 	Definition                            Resource
 	Humanlike, Medical, Prisoners, Roofed domain.Fact[bool]
 	// Slaves is Building_Bed.ForSlaves; false without Ideology.
-	Slaves                         bool
+	Slaves bool
+	// Crib is the def's bed_crib flag: native never makes a crib a prisoner bed.
+	Crib                           bool
 	RestEffectiveness, Temperature domain.Fact[float64]
 	Owners, Users, AccessibleTo    []PawnID
 	// Room is the native room id (RoomQuality.ID); Quality the native

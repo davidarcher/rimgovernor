@@ -156,7 +156,18 @@ func (r *RoundsPrisonerInteractionPlanner) stageJail(call, epoch context.Context
 		stock := newPackedStock(r.reviewer.native, boundary.Identity(state.Snapshot))
 		result, err = r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{room: step.Room, template: step.Template, name: roomName("jail", step.Room), reason: "jail"})
 	case policy.JailMark:
-		result, err = r.markJailBed(call, epoch, state, goal, reading.Projection, step.Bed)
+		// The whole room in one pass: a bed already marked this Episode
+		// is skipped, the admitted ones decide the verdict.
+		result.Verdict = waitFor(policy.CauseMethodUsed, "jail_bed_method")
+		for _, bed := range step.Marks {
+			var one RoundsBuildingResult
+			if one, err = r.markJailBed(call, epoch, state, goal, reading.Projection, bed); err != nil {
+				break
+			}
+			if one.Verdict == BuildingReasonAdmitted || result.Verdict.Is(policy.CauseMethodUsed) {
+				result = one
+			}
+		}
 	}
 	if err != nil || result.Verdict.Is(policy.CauseMethodUsed) || result.Verdict.Is(policy.CauseExistingWork) || result.Verdict.Is(policy.CauseNoSpace) || result.Verdict.Is(policy.CauseFieldUnavailable) || result.Verdict.Is(policy.CauseSharedAdmission) {
 		return RoundsPrisonerInteractionResult{}, false, err
