@@ -2,6 +2,7 @@ package combatsim
 
 import (
 	"math"
+	"math/rand/v2"
 	"slices"
 	"sync/atomic"
 
@@ -114,18 +115,17 @@ type EnemyAI struct {
 	gained   int
 	panicked bool
 
-	seen    []bool
-	comp    []int32
-	queue   []int32
-	weights []float64
-	cand    []int
+	targetPicker
+
+	comp  []int32
+	queue []int32
 }
 
 // NewEnemyAI binds an AI to a Sim that has been Reset, and draws the raid
 // lord's random thresholds from its enemy stream. It returns ErrUnsupported
 // for a raid that can flee without an exit or a colony health.
 func NewEnemyAI(sim *Sim, cfg EnemyConfig) (*EnemyAI, error) {
-	e := &EnemyAI{sim: sim, cfg: cfg, p: make([]enemyPawn, len(sim.pawns))}
+	e := &EnemyAI{sim: sim, cfg: cfg, p: make([]enemyPawn, len(sim.pawns)), targetPicker: targetPicker{sim: sim}}
 	for i := range e.p {
 		e.p[i] = enemyPawn{enemy: -1, lastEngage: noTick, near: -1}
 	}
@@ -377,7 +377,7 @@ func (e *EnemyAI) findAttackTarget(i int) int {
 	cands := e.valid(i, enemyAcquireRadius, 0, true)
 	for _, j := range cands {
 		if s.canHitFrom(i, j) {
-			return e.pickByScore(i, cands)
+			return e.pickByScore(i, cands, s.streams.Enemy)
 		}
 	}
 	reach := e.flood(p.pos)
@@ -390,14 +390,24 @@ func (e *EnemyAI) findAttackTarget(i int) int {
 	return best
 }
 
+// targetPicker is AttackTargetFinder.BestAttackTarget's scored random pick, the
+// same code for a raider and for a drafted colonist's CheckForAutoAttack
+// (A46). It holds the scratch the pick reuses.
+type targetPicker struct {
+	sim     *Sim
+	seen    []bool
+	weights []float64
+	cand    []int
+}
+
 // valid lists, in scenario order, the pawns BestAttackTarget's validator lets
 // through for searcher i: a live standing hostile within radius, farther than
 // minDist and (unless canTakeCloser) than the weapon's minimum range, with
 // line of sight. A downed pawn is never listed: the sim cannot shoot one.
-func (e *EnemyAI) valid(i int, radius, minDist float64, canTakeCloser bool) []int {
-	s := e.sim
+func (tp *targetPicker) valid(i int, radius, minDist float64, canTakeCloser bool) []int {
+	s := tp.sim
 	p := &s.pawns[i]
-	e.cand = e.cand[:0]
+	tp.cand = tp.cand[:0]
 	for j := range s.pawns {
 		t := &s.pawns[j]
 		if j == i || !t.has || t.side == p.side || t.dead || t.downed {
@@ -414,34 +424,34 @@ func (e *EnemyAI) valid(i int, radius, minDist float64, canTakeCloser bool) []in
 		case !s.CellCanSeeCell(p.pos, t.pos):
 			continue
 		}
-		e.cand = append(e.cand, j)
+		tp.cand = append(tp.cand, j)
 	}
-	return e.cand
+	return tp.cand
 }
 
 // pickByScore ports GetRandomShootingTargetByScore over the pawns that can be
 // shot from i's cell, drawing from the enemy stream. It returns -1 when none can.
-func (e *EnemyAI) pickByScore(i int, cands []int) int {
-	s := e.sim
+func (tp *targetPicker) pickByScore(i int, cands []int, rng *rand.Rand) int {
+	s := tp.sim
 	scores := make([]float64, len(cands))
 	for k, j := range cands {
 		scores[k] = math.Inf(-1)
 		if s.canHitFrom(i, j) {
-			scores[k] = e.score(i, j)
+			scores[k] = tp.score(i, j)
 		}
 	}
-	e.weights = selectionWeights(scores, e.weights[:0])
+	tp.weights = selectionWeights(scores, tp.weights[:0])
 	total := 0.0
-	for _, w := range e.weights {
+	for _, w := range tp.weights {
 		total += w
 	}
 	if total <= 0 {
 		return -1
 	}
 	// TryRandomElementByWeight: walk the list taking weight off a uniform draw.
-	r := s.streams.Enemy.Float64() * total
+	r := rng.Float64() * total
 	pick := -1
-	for k, w := range e.weights {
+	for k, w := range tp.weights {
 		if w <= 0 {
 			continue
 		}
@@ -483,8 +493,8 @@ func selectionWeights(scores, out []float64) []float64 {
 // score ports GetShootingTargetScore for pawn i choosing target j. Target
 // priority is 1 for pawns; the non-combatant, juvenile, downed and blast
 // radius terms are 0 or unreachable for this slice (approximations.md).
-func (e *EnemyAI) score(i, j int) float64 {
-	s := e.sim
+func (tp *targetPicker) score(i, j int) float64 {
+	s := tp.sim
 	a, b := &s.pawns[i], &s.pawns[j]
 	num := 60.0
 	num -= math.Min(math.Sqrt(float64(distSq(b.pos, a.pos))), 40)
@@ -498,7 +508,7 @@ func (e *EnemyAI) score(i, j int) float64 {
 	if b.armed {
 		num += a.weapon.TargetHasRangedAttackScoreOffset
 	}
-	return num + e.coneOffset(i, j)
+	return num + tp.coneOffset(i, j)
 }
 
 // coneOffset ports FriendlyFireConeTargetScoreOffset for a humanlike shooter
@@ -507,12 +517,12 @@ func (e *EnemyAI) score(i, j int) float64 {
 // sight) weigh every other pawn there by how likely it is to intercept: 18,
 // scaled by distance, +0.6 of it when the pawn is a hostile of the shooter
 // and -1 of it when a friend.
-func (e *EnemyAI) coneOffset(i, j int) float64 {
-	s := e.sim
+func (tp *targetPicker) coneOffset(i, j int) float64 {
+	s := tp.sim
 	a, b := &s.pawns[i], &s.pawns[j]
 	radius := math.Max(adjustedForcedMiss(a.weapon.ForcedMissRadius, distSq(b.pos, a.pos)), 1.5)
-	if e.seen == nil || len(e.seen) != s.g.w*s.g.h {
-		e.seen = make([]bool, s.g.w*s.g.h)
+	if tp.seen == nil || len(tp.seen) != s.g.w*s.g.h {
+		tp.seen = make([]bool, s.g.w*s.g.h)
 	}
 	ox, oz := float64(a.pos.X)+0.5, float64(a.pos.Z)+0.5
 	var visited []domain.Cell
@@ -531,8 +541,8 @@ func (e *EnemyAI) coneOffset(i, j int) float64 {
 				if open = s.g.canBeSeenOver(c); !open {
 					return false
 				}
-				if ci := s.g.idx(c); !e.seen[ci] {
-					e.seen[ci] = true
+				if ci := s.g.idx(c); !tp.seen[ci] {
+					tp.seen[ci] = true
 					visited = append(visited, c)
 				}
 				return true
@@ -545,7 +555,7 @@ func (e *EnemyAI) coneOffset(i, j int) float64 {
 	}
 	total := 0.0
 	for _, c := range visited {
-		e.seen[s.g.idx(c)] = false
+		tp.seen[s.g.idx(c)] = false
 		f := interceptFactor(ox, oz, c)
 		if f <= 0 {
 			continue
@@ -653,7 +663,7 @@ func (e *EnemyAI) autoAttack(out []Order, i int) []Order {
 	s := e.sim
 	p := &s.pawns[i]
 	cands := e.valid(i, p.weapon.Range, p.weapon.MinRange, false)
-	j := e.pickByScore(i, cands)
+	j := e.pickByScore(i, cands, s.streams.Enemy)
 	if t, ok := e.cfg.FirstTargets[p.id]; ok && s.tick == 0 {
 		if k := s.pawnIndex(t); k >= 0 && slices.Contains(cands, k) {
 			j = k

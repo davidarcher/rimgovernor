@@ -1,7 +1,7 @@
 {
   "Stamp": {
     "assemblyHash": "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A",
-    "rulesVersion": 18,
+    "rulesVersion": 19,
     "thresholdsVersion": 1,
     "sweepVersion": 2
   },
@@ -17,9 +17,9 @@
           "RealDeaths": 0,
           "SimDeaths": 0,
           "RealDowns": 0.25,
-          "SimDowns": 0.3,
+          "SimDowns": 0.05,
           "RealDamage": 69.05,
-          "SimDamage": 67.9,
+          "SimDamage": 50.55,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 0
         }
@@ -53,74 +53,74 @@
         {
           "Variant": "default",
           "RealDeaths": 0,
-          "SimDeaths": 0.45,
+          "SimDeaths": 0.3,
           "RealDowns": 2.95,
           "SimDowns": 2.8,
           "RealDamage": 262.3,
-          "SimDamage": 262.55,
+          "SimDamage": 252.55,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 8
+          "SimDeathSeeds": 6
         },
         {
           "Variant": "scatter-short",
           "RealDeaths": 0,
-          "SimDeaths": 0.35,
+          "SimDeaths": 0.25,
           "RealDowns": 2.25,
-          "SimDowns": 2.65,
+          "SimDowns": 2.75,
           "RealDamage": 234.1,
-          "SimDamage": 252.4,
+          "SimDamage": 247.8,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 7
+          "SimDeathSeeds": 5
         },
         {
           "Variant": "scatter-long",
           "RealDeaths": 0,
-          "SimDeaths": 0.45,
+          "SimDeaths": 0.3,
           "RealDowns": 2.75,
-          "SimDowns": 2.45,
+          "SimDowns": 2.7,
           "RealDamage": 255.85,
-          "SimDamage": 251.7,
+          "SimDamage": 250.8,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 9
+          "SimDeathSeeds": 6
         },
         {
           "Variant": "group-gap-tight",
           "RealDeaths": 0,
           "SimDeaths": 0.3,
           "RealDowns": 2.7,
-          "SimDowns": 2.7,
+          "SimDowns": 1.95,
           "RealDamage": 262.05,
-          "SimDamage": 243.95,
+          "SimDamage": 221,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 5
         },
         {
           "Variant": "group-gap-wide",
           "RealDeaths": 0,
-          "SimDeaths": 0.35,
+          "SimDeaths": 0.3,
           "RealDowns": 2.65,
-          "SimDowns": 2.5,
+          "SimDowns": 2,
           "RealDamage": 256.395,
-          "SimDamage": 241.3,
+          "SimDamage": 219.95,
           "RealDeathSeeds": 0,
-          "SimDeathSeeds": 6
+          "SimDeathSeeds": 5
         }
       ],
       "pairs": 10,
-      "agreed": 7
+      "agreed": 9
     }
   ],
-  "RankAgreement": 0.7,
+  "RankAgreement": 0.9,
   "RankPairs": 10,
   "Misrankings": null,
   "Regrets": [
     {
       "Fixture": "lab-split-ranged",
-      "SimPick": "group-gap-tight",
+      "SimPick": "scatter-short",
       "RealBest": "scatter-short",
       "Deaths": 0,
-      "Downs": 0.4500000000000002,
-      "Damage": 27.950000000000017
+      "Downs": 0,
+      "Damage": 0
     }
   ],
   "FalseSafe": null,
@@ -129,7 +129,6 @@
     "lab-ranged-shield (held-out): the sim does not support this fixture: combatsim: unsupported scenario: combatlab: fixture lab-ranged-shield has a staged condition on a pawn, which the sim does not model",
     "lab-open (held-out): the sim does not support this fixture: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 3 unmodeled, first: pawn h0 wields melee weapon MeleeWeapon_Club: the sim has no melee, the pawn is imported unarmed",
     "lab-choke (held-out): the sim does not support this fixture: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 9 unmodeled, first: pawn c0 wields melee weapon MeleeWeapon_LongSword: the sim has no melee, the pawn is imported unarmed",
-    "lab-base (held-out): the sim does not support this fixture: combatsim: unsupported scenario: thing \"Turret_MiniTurret\" is a turret, which the sim does not fire",
-    "rank agreement 0.70 over 10 pairs is below 0.80"
+    "lab-base (held-out): the sim does not support this fixture: combatsim: unsupported scenario: thing \"Turret_MiniTurret\" is a turret, which the sim does not fire"
   ]
 }

@@ -14,8 +14,8 @@ const defaultBackstopTicks = 300
 // Autonomy returns the attack orders the fire-at-will holders give
 // themselves: Wait_Combat's auto-attack, which starts a shot at a hostile in
 // reach of the pawn's cell whenever it has no target and is not on hold fire.
-// The target is the nearest in range with a line of fire, ties to the earlier
-// scenario pawn (approximations.md A21).
+// The target is the game's scored random pick among the hostiles in range with
+// a line of fire (approximations.md A21, A46).
 func (a *Adapter) Autonomy() []Order {
 	var out []Order
 	if len(a.waiting) != len(a.sim.pawns) {
@@ -53,16 +53,11 @@ func (a *Adapter) autoAttack(i int) (Order, bool) {
 	if !a.canSearch(i) {
 		return Order{}, false
 	}
-	best, bestD := -1, 0
-	for j := range s.pawns {
-		t := &s.pawns[j]
-		if !t.has || t.side == p.side || t.dead || t.downed || !s.canHitFrom(i, j) {
-			continue
-		}
-		if d := distSq(p.pos, t.pos); best < 0 || d < bestD {
-			best, bestD = j, d
-		}
-	}
+	// BestShootTargetFromCurrentPosition: the scored random pick over the
+	// hostiles in weapon range with a line of sight (A46).
+	a.picker.sim = s
+	cands := a.picker.valid(i, p.weapon.Range, p.weapon.MinRange, false)
+	best := a.picker.pickByScore(i, cands, s.streams.Colonist)
 	if best < 0 {
 		return Order{}, false
 	}

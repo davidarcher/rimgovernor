@@ -100,6 +100,8 @@ type Adapter struct {
 	// waiting marks the pawns that could search for a target at the last
 	// Autonomy (Autonomy's edge detection, A41).
 	waiting []bool
+	// picker is the colonists' CheckForAutoAttack target pick (A46).
+	picker targetPicker
 }
 
 // NewAdapter wraps a Sim that has been Reset from f.Scenario. It returns

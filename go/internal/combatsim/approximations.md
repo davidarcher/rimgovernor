@@ -144,11 +144,11 @@ is a candidate to replace by a faithful port. Game sources are in
   runs Wait_Combat (what `hold_position` starts, and what a finished `move`
   falls back to), whose auto-attack picks a hostile in reach. `Autonomy` gives
   every idle, not walking, plan-owned colonist that is not on hold fire an
-  attack on the nearest hostile it can hit (ties to the earlier scenario pawn).
+  attack on a hostile it can hit, picked by the game's scored random draw
+  (A46; it was the nearest, ties to the earlier scenario pawn, until #3016).
   It used to cover only `hold_position` pawns, so colonists the policy sent to
   a cell never fired and the sim shot about a quarter as often as the game
-  (#2899). The game's target scoring is not ported for colonists (the hostiles'
-  is, E1-E8).
+  (#2899).
 - **A22. Three stop kinds are raised.** `downed` (a colonist downed or
   killed), `entered_range` (a hostile came within a colonist's weapon range,
   or a colonist's weapon reached it; distance only, no sight, once per hostile
@@ -717,6 +717,48 @@ DefinitionCatalog; every derived value is listed with its source in
   lab-split-ranged); the table keeps lab-split-ranged only, lab-ranged keeps
   the ledger, and every other combatlab fixture is unsupported by the sim
   (turret, sapper, melee, staged condition, mech, pods, siege).
+
+- **A46. A drafted colonist picks its target by score, not by distance
+  (#3016).** `JobDriver_Wait.CheckForAutoAttack` hands every Wait_Combat pawn,
+  colonist or raider, to `AttackTargetFinder.BestShootTargetFromCurrentPosition`
+  -> `BestAttackTarget` (decompiled against the pinned assembly: no colonist
+  branch before `GetRandomShootingTargetByScore`; the only differences are the
+  weapon's range and minimum range as the distance window, no lord validator,
+  and a fog check that does not apply on the lab map). The sim gave colonists
+  the nearest hostile (A21), so on lab-split-ranged c0 and c1 always opened on
+  h1 and c2 and c3 on h2, the two nearest of the front row, in every run. The
+  real ledgers show a draw: lab-ranged colonist 7198's first target is each of
+  the four raiders in front of it across the 20 seeds (7264 3, 7275 6, 7286 8,
+  7297 3 times; the directly opposite one is not preferred), and the
+  lab-split-ranged seed-1 colonists opened on the far row (7307 three times, 7273
+  once). The colonists now draw from `targetPicker` (`valid`, `score`,
+  `coneOffset`, `pickByScore`, shared with the raiders, A44) with their own
+  random stream (`Streams.Colonist`) so that colonist choices never shift the
+  raiders' draws. Same 200 seeds, sim only, lab-split-ranged, before -> after
+  (real, 20 seeds, in brackets): colonist wins 0.435 -> 0.370 (0.25), raiders
+  downed or killed 5 or more 0.435 -> 0.370 (0.25), raiders lost per run 3.96
+  -> 3.53 (3.55), colonist downs plus deaths 3.00 -> 3.12 (2.95, a floor: the
+  baselines read a dead colonist as neither dead nor down, so the real
+  figure is higher), colonist damage 247.4 -> 251.9 (262.3). Which raiders go
+  down is no longer fixed by geometry: h1 and h2 fell in 0.98 and 0.99 of runs
+  and h4 to h7 in 0.14 to 0.24, now 0.64 and 0.57 against 0.27 to 0.42. The
+  distribution of raiders lost matches the real mode better, 4 lost is the real
+  mode (8 of 20 runs; 13 percent of the sim's, where 5 is: 32 percent against
+  20 percent real). Given a colonist win the sim reproduces the seed-1 ledger
+  (a colonist win): 5 raiders lost by tick 1713 (median; real 673 to 1022, one
+  run), 62.8 colonist shots at 0.43 hit (64, 0.42), 127 raider shots, 14.2 on
+  pawns (129, 12); losing runs end with colonist damage 281 (real 289) and
+  2.6 raiders lost (3.3). On lab-ranged (400 sim seeds) the raiders' shots land
+  within a cell of the target 0.575 -> 0.621 (real 0.610), stop in cover 0.303
+  -> 0.311 (0.378, the A44 gap), hit a pawn 0.113 -> 0.123 (0.099) and
+  colonist damage is 64.3 -> 64.7 (69.0). The shot-timing gate now plays 100
+  runs, not the ledger's 20: with drawn colonist targets a 20-run sample moved
+  the raiders' cover share by a full tolerance. Left: the win rate 0.370 is
+  1.2 sigma of 20 real seeds above 0.25 (5 wins of 20; 7.4 expected, sd 2.2),
+  and the real mode of 4 lost (40 percent against 13) is the remaining shape
+  difference, together within what 20 real runs can show; the real colonist
+  deaths are unread in the committed baselines, so downs plus deaths cannot be
+  compared exactly until a post-#2989 baseline exists.
 
 ## Out of scope for this slice
 

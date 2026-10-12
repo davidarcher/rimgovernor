@@ -234,6 +234,9 @@ type Streams struct {
 	// Phase draws the thing ids the sim does not model (A9): where a run's
 	// ids start and which hits drop a filth that takes one.
 	Phase *rand.Rand
+	// Colonist draws the drafted colonists' target picks (A46); apart from
+	// Enemy so that colonists choosing never shifts the raiders' draws.
+	Colonist *rand.Rand
 }
 
 // Stream selectors for the PCG second word: ASCII "physical", "enemy" and
@@ -242,6 +245,7 @@ const (
 	physicalStream uint64 = 0x706879736963616c
 	enemyStream    uint64 = 0x656e656d79
 	phaseStream    uint64 = 0x7068617365
+	colonistStream uint64 = 0x636f6c6f6e697374 // ASCII "colonist"
 )
 
 // Sim is a combat simulator. The zero value is ready for Reset; a Sim is not
@@ -286,6 +290,7 @@ func (s *Sim) Reset(sc Scenario, seed uint64) (State, error) {
 		Physical: rand.New(rand.NewPCG(seed, physicalStream)),
 		Enemy:    rand.New(rand.NewPCG(seed, enemyStream)),
 		Phase:    rand.New(rand.NewPCG(seed, phaseStream)),
+		Colonist: rand.New(rand.NewPCG(seed, colonistStream)),
 	}
 	s.events, s.applied = s.events[:0], false
 	s.nextID = firstThingID(s.streams.Phase)

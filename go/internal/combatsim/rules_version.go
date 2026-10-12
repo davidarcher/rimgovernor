@@ -103,6 +103,12 @@ package combatsim
 //     (PartEfficiencySpecialWeight 0.75) in body.go: an injured shooter's
 //     Manipulation and Sight lower its accuracy per cell (#3006).
 //
+//   - run.go (colonist auto-attack), enemy.go (targetPicker):
+//     Verse.AI.JobDriver_Wait.CheckForAutoAttack for a drafted colonist ->
+//     Verse.AI.AttackTargetFinder.BestShootTargetFromCurrentPosition and
+//     BestAttackTarget, the same GetRandomShootingTargetByScore a raider uses
+//     (#3016).
+//
 // Simplifications of these ports are listed in approximations.md.
 const AssemblyCSharpSHA256 = "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04AC5A1AA5926356A"
 
@@ -110,4 +116,4 @@ const AssemblyCSharpSHA256 = "5CF1B5BE399D5B1C9C56CA72C9D35B4ECF307FEACF5859D04A
 // any change to a port or an approximation that can move an outcome (a rule
 // fix, a new modeled behavior): a calibration pass (combatsim/calibrate) is
 // recorded under it and is stale after a bump.
-const RulesVersion = 18
+const RulesVersion = 19

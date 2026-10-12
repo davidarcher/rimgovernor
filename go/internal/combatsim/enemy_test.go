@@ -107,7 +107,7 @@ func TestTargetChoiceDistribution(t *testing.T) {
 	const n = 10000
 	count := map[int]int{}
 	for range n {
-		count[e.pickByScore(h, e.valid(h, enemyAcquireRadius, 0, true))]++
+		count[e.pickByScore(h, e.valid(h, enemyAcquireRadius, 0, true), s.streams.Enemy)]++
 	}
 	total := 1 + 0.5 + 2.0/30
 	within(t, "a", count[a], n, 1/total)
