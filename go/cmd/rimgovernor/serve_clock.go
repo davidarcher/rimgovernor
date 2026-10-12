@@ -311,10 +311,20 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if !ok {
 				return nil, errors.New("defense plans require typed combat observations")
 			}
-			config.Defense, err = buildingruntime.NewRoundsDefensePlanner(reviewer, defenseNative, session)
+			defensePlanner, err := buildingruntime.NewRoundsDefensePlanner(reviewer, defenseNative, session)
 			if err != nil {
 				return nil, err
 			}
+			// Test-only tactic override for calibration sweeps; invalid
+			// fails the start loudly, unset is inert.
+			tuning, err := policy.ParseCombatTuning(os.Getenv(policy.CombatTuningEnv))
+			if err != nil {
+				return nil, err
+			}
+			if tuning != nil {
+				fmt.Fprintf(os.Stderr, "defense: combat tuning override active: %+v\n", *tuning)
+			}
+			config.Defense = defensePlanner.WithCombatTuning(tuning)
 		}
 		if tend {
 			tendNative, ok := reads.(buildingruntime.RoundsTendSource)

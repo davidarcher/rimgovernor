@@ -40,7 +40,26 @@ type RoundsDefensePlanner struct {
 	hands    CombatHands
 	reviewer *Rounder
 	native   RoundsDefenseSource
+	// tuning is the test-only policy.CombatTuningEnv override; nil in play.
+	tuning *policy.CombatTuning
 }
+
+// WithCombatTuning seeds every fight this planner opens with t (nil keeps
+// the default). Serve passes the parsed policy.CombatTuningEnv.
+func (r *RoundsDefensePlanner) WithCombatTuning(t *policy.CombatTuning) *RoundsDefensePlanner {
+	r.tuning = t
+	return r
+}
+
+// newFightMemory is a fight's starting memory, carrying the override.
+func (r *RoundsDefensePlanner) newFightMemory(tick domain.Tick) policy.CombatMemory {
+	m := policy.CombatMemory{Tick: tick}
+	if r.tuning != nil {
+		m = m.WithTuning(*r.tuning)
+	}
+	return m
+}
+
 type RoundsDefenseResult struct {
 	Verdict
 	Plan domain.PlanID
@@ -170,7 +189,7 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 		return result, err
 	}
 	var orderable []domain.PawnID
-	var memory policy.CombatMemory
+	memory := r.newFightMemory(0)
 	if fight != nil {
 		memory = fight.Memory
 		orderable = fightOrderable(*fight, rows)

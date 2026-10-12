@@ -44,12 +44,85 @@
       "name": "lab-base",
       "role": "held-out",
       "status": "unsupported: combatsim: unsupported scenario: thing \"Turret_MiniTurret\" is a turret, which the sim does not fire"
+    },
+    {
+      "name": "lab-split-ranged",
+      "role": "held-out",
+      "status": "measured",
+      "cells": [
+        {
+          "Variant": "default",
+          "RealDeaths": 0,
+          "SimDeaths": 0,
+          "RealDowns": 2.65,
+          "SimDowns": 3.05,
+          "RealDamage": 254.75,
+          "SimDamage": 251.9,
+          "RealDeathSeeds": 0,
+          "SimDeathSeeds": 0
+        },
+        {
+          "Variant": "scatter-short",
+          "RealDeaths": 0,
+          "SimDeaths": 0,
+          "RealDowns": 2.65,
+          "SimDowns": 3.05,
+          "RealDamage": 260.65,
+          "SimDamage": 251.9,
+          "RealDeathSeeds": 0,
+          "SimDeathSeeds": 0
+        },
+        {
+          "Variant": "scatter-long",
+          "RealDeaths": 0,
+          "SimDeaths": 0,
+          "RealDowns": 2.7,
+          "SimDowns": 3.05,
+          "RealDamage": 270.1,
+          "SimDamage": 252.45,
+          "RealDeathSeeds": 0,
+          "SimDeathSeeds": 0
+        },
+        {
+          "Variant": "group-gap-tight",
+          "RealDeaths": 0,
+          "SimDeaths": 0,
+          "RealDowns": 2.75,
+          "SimDowns": 3.1,
+          "RealDamage": 242.5,
+          "SimDamage": 251.9,
+          "RealDeathSeeds": 0,
+          "SimDeathSeeds": 0
+        },
+        {
+          "Variant": "group-gap-wide",
+          "RealDeaths": 0,
+          "SimDeaths": 0,
+          "RealDowns": 2.6,
+          "SimDowns": 3.1,
+          "RealDamage": 259.15,
+          "SimDamage": 251.35,
+          "RealDeathSeeds": 0,
+          "SimDeathSeeds": 0
+        }
+      ],
+      "pairs": 10,
+      "agreed": 6
     }
   ],
-  "RankAgreement": 0,
-  "RankPairs": 0,
+  "RankAgreement": 0.6,
+  "RankPairs": 10,
   "Misrankings": null,
-  "Regrets": null,
+  "Regrets": [
+    {
+      "Fixture": "lab-split-ranged",
+      "SimPick": "default",
+      "RealBest": "group-gap-wide",
+      "Deaths": 0,
+      "Downs": 0.04999999999999982,
+      "Damage": -4.399999999999977
+    }
+  ],
   "FalseSafe": null,
   "Gaps": null,
   "Failures": [
@@ -57,6 +130,6 @@
     "lab-open (held-out): the sim does not support this fixture: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 3 unmodeled, first: pawn h0 wields melee weapon MeleeWeapon_Club: the sim has no melee, the pawn is imported unarmed",
     "lab-choke (held-out): the sim does not support this fixture: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 9 unmodeled, first: pawn c0 wields melee weapon MeleeWeapon_LongSword: the sim has no melee, the pawn is imported unarmed",
     "lab-base (held-out): the sim does not support this fixture: combatsim: unsupported scenario: thing \"Turret_MiniTurret\" is a turret, which the sim does not fire",
-    "no held-out fixture was measured: rank agreement and survival misrankings are unmeasured"
+    "rank agreement 0.60 over 10 pairs is below 0.80"
   ]
 }

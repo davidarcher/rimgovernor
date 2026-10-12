@@ -18,12 +18,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/childproc"
 	"github.com/davidarcher/RimGovernor/go/internal/combatdispatch"
 	"github.com/davidarcher/RimGovernor/go/internal/combatmetrics"
+	"github.com/davidarcher/RimGovernor/go/internal/combatsim/calibrate"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/combatlab"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-const sweepUsage = `  acceptance sweep <fixture>... -root <dir> -output <dir> -rimgovernor <bin> [-n 20 | -seeds 1,2,5 -workers 1|2 -against <sweep.json|dir> -restage -record -shots <file> -game <id> -case-timeout <d>]
+const sweepUsage = `  acceptance sweep <fixture>... -root <dir> -output <dir> -rimgovernor <bin> [-n 20 | -seeds 1,2,5 -workers 1|2 -against <sweep.json|dir> -restage -record -variant <name> -shots <file> -game <id> -case-timeout <d>]
     runs combatlab/metrics-<fixture> once per seed from one staged checkpoint (seed s reseeds the RNG after the load, -run-seed),
     on 1 or 2 private clones of -root, and writes <output>/<fixture>/sweep.json (per-seed rows plus summary) with the report printed
     deaths and downs first; -against pairs the seeds with an earlier sweep.json (or <dir>/<fixture>/sweep.json) and exits 1 on a survival regression
@@ -41,6 +43,10 @@ type sweepOptions struct {
 	Restage     bool
 	Record      bool
 	Shots       string
+	// Variant names a combatlab.Variants tactic variant; TuningEnv is its
+	// policy.CombatTuningEnv value, set on every child service.
+	Variant     string
+	TuningEnv   string
 	CaseTimeout time.Duration
 }
 
@@ -66,6 +72,7 @@ func parseSweep(args []string, stderr io.Writer) (sweepOptions, error) {
 	fs.IntVar(&opts.Workers, "workers", 1, "private game copies running seeds at once (1 or 2)")
 	fs.StringVar(&opts.Against, "against", "", "earlier sweep.json (or a directory of <fixture>/sweep.json) to pair seeds with")
 	fs.StringVar(&opts.Shots, "shots", "", "write the sweep's shot tap rows, each stamped with its seed, to this absolute file (one fixture)")
+	fs.StringVar(&opts.Variant, "variant", "", "tactic variant (a combatlab.Variants name): sets "+policy.CombatTuningEnv+" on the service; with -record writes calibration/variants/<fixture>/<variant>.json instead of the baseline")
 	fs.BoolVar(&opts.Restage, "restage", false, "discard the cached stage bundle and stage again")
 	fs.DurationVar(&opts.CaseTimeout, "case-timeout", 0, "per-seed run safety net (default: the runner's)")
 	if err := fs.Parse(flagArgs); err != nil {
@@ -94,6 +101,11 @@ func parseSweep(args []string, stderr io.Writer) (sweepOptions, error) {
 		opts.Against = mustAbs(opts.Against)
 	}
 	var err error
+	if opts.Variant != "" {
+		if opts.TuningEnv, err = variantEnv(opts.Variant); err != nil {
+			return opts, err
+		}
+	}
 	if opts.Seeds, err = sweepSeeds(*n, *seeds); err != nil {
 		return opts, err
 	}
@@ -104,6 +116,32 @@ func parseSweep(args []string, stderr io.Writer) (sweepOptions, error) {
 		return opts, fmt.Errorf("-workers must be 1 to %d", combatdispatch.MaxWorkers)
 	}
 	return opts, nil
+}
+
+// variantEnv is the CombatTuningEnv value of a named non-default variant. The
+// default variant is the committed baseline: sweep it without -variant.
+func variantEnv(name string) (string, error) {
+	for _, v := range combatlab.Variants() {
+		if v.Name != name {
+			continue
+		}
+		if name == calibrate.DefaultVariant {
+			return "", fmt.Errorf("-variant %s is the baseline: sweep without -variant", name)
+		}
+		data, err := json.Marshal(v.Tuning)
+		if err != nil {
+			return "", err
+		}
+		if _, err := policy.ParseCombatTuning(string(data)); err != nil {
+			return "", err
+		}
+		return string(data), nil
+	}
+	var names []string
+	for _, v := range combatlab.Variants() {
+		names = append(names, v.Name)
+	}
+	return "", fmt.Errorf("unknown -variant %q (have %s)", name, strings.Join(names, ", "))
 }
 
 // sweepSeeds is the explicit list or 1..n; seed 0 means no reseed and is refused.
@@ -230,11 +268,15 @@ func sweepFixture(ctx context.Context, c cases.Case, fixture string, opts sweepO
 		fmt.Fprintf(stdout, "  shot dataset %s\n", opts.Shots)
 	}
 	if opts.Record {
-		if err := recordBaseline(result); err != nil {
+		if err := recordSweep(result, opts.Variant); err != nil {
 			fmt.Fprintf(stdout, "FAIL\t%s\tnot recorded: %v\n", fixture, err)
 			return 1
 		}
-		fmt.Fprintf(stdout, "  recorded baseline %s\n", fixture)
+		if opts.Variant != "" {
+			fmt.Fprintf(stdout, "  recorded variant %s/%s\n", fixture, opts.Variant)
+		} else {
+			fmt.Fprintf(stdout, "  recorded baseline %s\n", fixture)
+		}
 	}
 	if opts.Against != "" {
 		cmp, err := compareAgainst(opts.Against, result)
@@ -253,9 +295,10 @@ func sweepFixture(ctx context.Context, c cases.Case, fixture string, opts sweepO
 	return code
 }
 
-// recordBaseline writes a clean sweep over the fixture's committed baseline in
-// the module's source tree (the working directory must be inside go/).
-func recordBaseline(s combatmetrics.Sweep) error {
+// recordSweep writes a clean sweep over the fixture's committed baseline, or
+// with a variant over its calibration variant file, in the module's source
+// tree (the working directory must be inside go/).
+func recordSweep(s combatmetrics.Sweep, variant string) error {
 	if d := s.Defects(); len(d) > 0 {
 		return fmt.Errorf("sweep is not a baseline: %s", strings.Join(d, "; "))
 	}
@@ -272,6 +315,9 @@ func recordBaseline(s combatmetrics.Sweep) error {
 			continue
 		}
 		return errors.New("no go.mod above the working directory: run -record from go/")
+	}
+	if variant != "" {
+		return writeJSON(filepath.Join(dir, filepath.FromSlash(combatlab.CalibrationDir), "variants", s.Fixture, variant+".json"), s)
 	}
 	return writeJSON(filepath.Join(dir, filepath.FromSlash(combatlab.BaselinesDir), s.Fixture+".json"), s)
 }
@@ -352,6 +398,9 @@ func runChild(ctx context.Context, c cases.Case, opts sweepOptions, self, root, 
 	cmd := exec.CommandContext(ctx, self, argv...)
 	childproc.HideConsole(cmd)
 	cmd.Env = append(os.Environ(), na.KeepGameEnv+"=1")
+	if opts.TuningEnv != "" {
+		cmd.Env = append(cmd.Env, policy.CombatTuningEnv+"="+opts.TuningEnv)
+	}
 	cmd.Stdout, cmd.Stderr = log, log
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("%s: %w (see %s)", c.Name, err, log.Name())

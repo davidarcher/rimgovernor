@@ -1,12 +1,48 @@
 package policy
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+)
+
+// CombatTuningEnv names the test-only environment variable the live service
+// reads a CombatTuning from. The value is a JSON object whose fields override
+// DefaultCombatTuning; the result must pass Validate. Unset or empty, the
+// override is inert and production keeps the default. The calibration sweep
+// (`acceptance sweep -variant`) sets it on the child service to measure a
+// tactic variant in the real game. Policy never reads the environment: serve
+// reads the variable and hands ParseCombatTuning's result to the defense
+// planner, which seeds every new fight's CombatMemory with it.
+const CombatTuningEnv = "RIMGOVERNOR_COMBAT_TUNING"
+
+// ParseCombatTuning decodes CombatTuningEnv's value over the default tuning.
+// An empty value is no override (nil, nil); unknown fields, trailing data and
+// out-of-range values are errors.
+func ParseCombatTuning(raw string) (*CombatTuning, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	t := DefaultCombatTuning()
+	dec := json.NewDecoder(strings.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&t); err != nil {
+		return nil, fmt.Errorf("%s: %w", CombatTuningEnv, err)
+	}
+	if dec.More() {
+		return nil, fmt.Errorf("%s: trailing data after the JSON object", CombatTuningEnv)
+	}
+	if err := t.Validate(); err != nil {
+		return nil, fmt.Errorf("%s: %w", CombatTuningEnv, err)
+	}
+	return &t, nil
+}
 
 // CombatTuning is the curated subset of DecideCombat's constants that a
 // search may override per trial. It rides in CombatMemory.Tuning, so
 // parallel trials each own theirs and DecideCombat stays pure; production
-// leaves it nil and gets DefaultCombatTuning. Every other combat constant
-// stays a package const.
+// leaves it nil and gets DefaultCombatTuning (the test-only CombatTuningEnv
+// override aside). Every other combat constant stays a package const.
 //
 // Each field documents its valid range; Validate enforces it.
 type CombatTuning struct {

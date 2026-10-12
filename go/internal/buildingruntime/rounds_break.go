@@ -277,7 +277,7 @@ func (r *RoundsDefensePlanner) planBreak(call, epoch context.Context, incident s
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoundsDefenseResult{}, fmt.Errorf("%w: planBreak: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitCombatFight(call, incident.Incident.ID, method, plan, policy.CombatMemory{Tick: tick}, playerWorld(state.Snapshot), chosen); err != nil {
+	if _, err = p.journal.CommitCombatFight(call, incident.Incident.ID, method, plan, r.newFightMemory(tick), playerWorld(state.Snapshot), chosen); err != nil {
 		return RoundsDefenseResult{}, err
 	}
 	return RoundsDefenseResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

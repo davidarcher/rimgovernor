@@ -156,7 +156,7 @@ const (
 
 // Names lists fixtures with committed metrics baselines. lab-infestation can be built but
 // has no metrics baseline.
-var Names = []string{"lab-open", "lab-choke", "lab-ranged", "lab-pods", "lab-breach", "lab-siege", "lab-manhunter", "lab-mech", "lab-ranged-shield", "lab-mech-line", "lab-base"}
+var Names = []string{"lab-open", "lab-choke", "lab-ranged", "lab-pods", "lab-breach", "lab-siege", "lab-manhunter", "lab-mech", "lab-ranged-shield", "lab-mech-line", "lab-base", "lab-split-ranged"}
 
 // Build returns the named fixture around the lab centre (cx, cz).
 func Build(name string, cx, cz int) (Fixture, error) {
@@ -165,6 +165,8 @@ func Build(name string, cx, cz int) (Fixture, error) {
 		return open(cx, cz), nil
 	case "lab-choke":
 		return choke(cx, cz), nil
+	case "lab-split-ranged":
+		return splitRanged(cx, cz), nil
 	case "lab-ranged":
 		return ranged(cx, cz), nil
 	case "lab-ranged-shield":
@@ -313,6 +315,35 @@ func open(cx, cz int) Fixture {
 	for i, dx := range []int{-2, 0, 2} {
 		f.Pawns = append(f.Pawns, Pawn{Side: Colonist, Index: i, X: cx + dx, Z: cz - 10, Weapon: rifle})
 		f.Pawns = append(f.Pawns, Pawn{Side: Hostile, Kind: slasher, X: cx + dx, Z: cz + 10, Weapon: club, WeaponStuff: "WoodLog"})
+	}
+	return f
+}
+
+// splitRanged: four riflemen on an open field behind four stone chunks with
+// a hand-written layout, and a ranged raid of six Mercenary_Gunner rifle
+// raiders 14 cells north in two clusters of three: gunners four cells apart
+// within a cluster, the clusters twelve cells apart. The ranged-only held-out
+// fixture of the calibration gate (#2900), built so both tuning knobs the gate
+// varies act: the layout and the outmatched line (four against six) let
+// ScatterCells apply once the line falls below half, and the two clusters
+// split into two raid groups at the default GroupGap 8, stay singletons
+// (below the group minimum) at 3, and merge into one at 20. Nothing melee, no
+// shield, no turret, no staged condition, so the ranged-slice sim can import it.
+func splitRanged(cx, cz int) Fixture {
+	f := Fixture{Name: "lab-split-ranged", Colonists: 4}
+	for _, dx := range []int{-3, -1, 1, 3} {
+		f.Things = append(f.Things, Thing{Def: "ChunkGranite", X: cx + dx, Z: cz - 9})
+	}
+	f.Layout = &Layout{Toward: "south"}
+	for i, dx := range []int{-3, -1, 1, 3} {
+		f.Pawns = append(f.Pawns, Pawn{Side: Colonist, Index: i, X: cx + dx, Z: cz - 10, Weapon: rifle})
+		f.Layout.Firing = append(f.Layout.Firing, Cell{cx + dx, cz - 10})
+		f.Layout.Retreat = append(f.Layout.Retreat, Cell{cx + dx, cz - 15})
+	}
+	for _, dz := range []int{14, 18} {
+		for _, dx := range []int{-12, -8, 8, 12} {
+			f.Pawns = append(f.Pawns, Pawn{Side: Hostile, Kind: gunner, X: cx + dx, Z: cz + dz, Weapon: rifle})
+		}
 	}
 	return f
 }

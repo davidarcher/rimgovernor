@@ -181,7 +181,20 @@ Every metrics run also records the shot tap (`LabShotLedger` in
 `scripts/fixtures/DebugStartFixture.cs`, harness only): each projectile launch
 and impact, job starts, stances, draft changes and each pawn's first think
 ticks, read with `test/lab_stage` action `shots` into `combat_shots.jsonl` in the
-bundle. `acceptance sweep <fixture> -shots <file>` concatenates the seeds' rows,
+bundle. `acceptance sweep <fixture> -variant <name>` sweeps a tactic variant of
+`combatlab.Variants()` in the real game: it sets the test-only
+`RIMGOVERNOR_COMBAT_TUNING` environment variable on the child service, and with
+`-record` writes `combatlab/calibration/variants/<fixture>/<variant>.json`
+instead of the baseline (the `default` variant is the baseline and is refused).
+The variable is a JSON `policy.CombatTuning` (fields over `DefaultCombatTuning`,
+unknown fields and out-of-range values refused at service start, unset means
+inert); serve reads it, the defense planner seeds every new fight's
+`CombatMemory.Tuning` with it (the ordinary admission and the sapper break), and
+`policy` itself never reads the environment. A variant moves a fight only where
+its knob is read: `ScatterCells` and `GroupGap` act under a layout (a hold that
+collapses, a raid split into groups), so a layout-less fixture measures the same
+play under every variant.
+`acceptance sweep <fixture> -shots <file>` concatenates the seeds' rows,
 stamped with the seed and with the damage each impact dealt. The committed
 `combatlab/calibration/shots/lab-ranged.jsonl` and its README (fields, how it
 was recorded) are the real timing data for `combatsim` calibration.
@@ -225,6 +238,15 @@ recorded output, stamped with the pinned assembly hash,
 stale. Bump `RulesVersion` with any port or approximation change that can move
 an outcome, then re-record. A failing report is a valid record; the sim is
 trusted only where `calibrate.Trusted` accepts a passing report of this build.
+`lab-split-ranged` is the held-out fixture built so both variant knobs act: four
+riflemen with a hand-written layout (firing line behind four stone chunks)
+against eight rifle gunners in two clusters (four cells apart inside a cluster,
+sixteen between the clusters). The line is outmatched, so `ScatterCells` applies
+once it falls below half; the clusters are two raid groups at `GroupGap` 8,
+singletons (below the group minimum) at 3 and one group at 20. Its
+`combatlab/calibration/variants/lab-split-ranged/` files are the four
+non-default sweeps.
+
 A held-out fixture joins the gate by becoming importable and gaining real
 variant sweeps; the fixture lists and variants are fixed before measuring.
 

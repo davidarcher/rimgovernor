@@ -28,7 +28,7 @@ var (
 	// HeldOutFixtures are the lab fixtures whose hostiles a ranged-slice sim
 	// would have to fight: gunners behind or with melee raiders, a walled
 	// base with turrets, and the shield-belt tank.
-	HeldOutFixtures = []string{"lab-ranged-shield", "lab-open", "lab-choke", "lab-base"}
+	HeldOutFixtures = []string{"lab-ranged-shield", "lab-open", "lab-choke", "lab-base", "lab-split-ranged"}
 )
 
 // Variant is a tactic variant: a named CombatTuning swept in the real game and
