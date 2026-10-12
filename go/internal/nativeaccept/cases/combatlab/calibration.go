@@ -70,8 +70,16 @@ const CalibrationDir = "internal/nativeaccept/cases/combatlab/calibration"
 // enemyDeathOnDownedChanceFactor is 1 on every difficulty from Medium up and
 // unwaveringPrisoners is off. The 0.85 this gives agrees with the real
 // ledger: 56 of 67 raiders that crossed the pain-shock total died there.
+//
+// The real runs the gate compares with are the metrics cases, which staff
+// the loaded lab with the superpawn crew (Crew{Size: 3}, StaffCrew): every
+// colonist skill is na.CrewSkillLevel there, not the staging's level 8 (#2906;
+// at 8 the sim's colonists aimed on target 23% of the time where the real
+// ones did about 48%). The crew's SuperTraits only add move speed, which the
+// sim's stationary colonists do not use.
 func CalibrationEnv() SimEnv {
 	env := LabSimEnv()
+	env.ColonistSkill = na.CrewSkillLevel
 	env.FriendlyFireChanceFactor = domain.Known(0.4)
 	env.DeathOnDowned = domain.Known(simimport.DeathOnDowned{PopulationIntent: 0, EnemyDeathOnDownedChanceFactor: 1})
 	env.ColonistWorn = domain.Known([]simimport.Wear{})

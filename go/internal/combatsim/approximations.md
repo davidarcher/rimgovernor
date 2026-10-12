@@ -205,10 +205,17 @@ DefinitionCatalog; every derived value is listed with its source in
 - **A30. Things are one per cell and stuff is ignored.** Fill percent, path
   cost and passability come from the ThingDef (fillage thresholds 0.01/0.99,
   doors by thingClass); stuff does not change them.
-- **A31. Lab assumptions are caller-stated.** Skills 8, an assault lord toil
+- **A31. Lab assumptions are caller-stated.** Skills, an assault lord toil
   for hostiles, hostile apparel destroyed, colonist apparel and the difficulty
   friendly-fire factor are inputs (`combatlab.SimEnv`), not readings; the last
-  two stay unknown, and the import fails, until stated.
+  two stay unknown, and the import fails, until stated. The lab staging sets
+  every skill to 8, but the real runs the calibration gate compares with (the
+  metrics cases) staff the lab with the superpawn crew afterwards (`test/lab_crew`,
+  every skill 20, plus Jogger and Industrious), so `CalibrationEnv` states
+  colonist skill 20 and hostile skill 8 (#2906). Stating 8 for both made the
+  sim's colonists aim on target 23% of the time at 25 cells where the real crew
+  did about 48%, and the sim landed two thirds of the real hit volume. The crew's
+  traits only add move speed (not modeled; A28).
 
 - **A32. The raid lord's constants come from the catalog, its exit and colony
   health are derived.** `Spec.Raid` makes the importer set `Fight.EnemyAI`:
@@ -239,6 +246,16 @@ DefinitionCatalog; every derived value is listed with its source in
   redistribution, `ReduceDamageToPreserveOutsideParts`, per-part pain factors;
   the shot's height and depth are not modeled (a bullet has none). Armor stays
   part-agnostic (A5).
+- **A35. The tick-0 formation swap does not play out, so colonists open fire
+  together.** Pawns hold one cell each (`move.go`), so the policy's tick-0 swap
+  of three colonists blocks, and `Autonomy` runs before the carried move orders
+  apply. All four colonists therefore fire their first burst at tick 61; in the
+  game the three movers walk first and open at 91, 91 and 121 (the holder at
+  60). Measured on lab-ranged (#2906): 2.3 of the sim's 18 colonist hits per
+  seed land before tick 100, the real ones never do, and the first-700-tick hit
+  volume is 17.95 against the real 16.0 (+12%), the median raider down tick 478
+  against 499.5 (-4%). Not corrected: pawns passing through each other and
+  fire-after-arrival are a separate movement slice.
 
 ## Out of scope for this slice
 

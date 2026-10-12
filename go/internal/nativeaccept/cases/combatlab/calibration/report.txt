@@ -11,7 +11,7 @@ native regret: not measured (no held-out ranking)
 false-safe variants (sim sees no colonist death, real does): none
 fixtures:
   lab-ranged (calibration): measured
-    default        deaths real 0.00 sim 0.00 (seeds with a death real 0 sim 0) | downs real 0.20 sim 0.75 | damage real 64.2 sim 112.8
+    default        deaths real 0.00 sim 0.00 (seeds with a death real 0 sim 0) | downs real 0.20 sim 0.20 | damage real 64.2 sim 56.6
   lab-ranged-shield (held-out): unsupported: combatsim: unsupported scenario: combatlab: fixture lab-ranged-shield has a staged condition on a pawn, which the sim does not model
   lab-open (held-out): unsupported: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 3 unmodeled, first: pawn h0 wields melee weapon MeleeWeapon_Club: the sim has no melee, the pawn is imported unarmed
   lab-choke (held-out): unsupported: combatsim: unsupported scenario: the fixture holds what the sim leaves out (melee pawns act as unarmed, E8): 9 unmodeled, first: pawn c0 wields melee weapon MeleeWeapon_LongSword: the sim has no melee, the pawn is imported unarmed

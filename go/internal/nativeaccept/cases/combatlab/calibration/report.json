@@ -17,9 +17,9 @@
           "RealDeaths": 0,
           "SimDeaths": 0,
           "RealDowns": 0.2,
-          "SimDowns": 0.75,
+          "SimDowns": 0.2,
           "RealDamage": 64.15,
-          "SimDamage": 112.75,
+          "SimDamage": 56.65,
           "RealDeathSeeds": 0,
           "SimDeathSeeds": 0
         }

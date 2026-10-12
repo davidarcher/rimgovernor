@@ -313,12 +313,16 @@ func applyQuiet(ctx context.Context, h *Harness, apply bool, action string) (map
 // (Industriousness 2).
 const SuperTraits = "SpeedOffset:2,Industriousness:2"
 
+// CrewSkillLevel is the level StaffCrew sets every skill of a crew colonist
+// to.
+const CrewSkillLevel = 20
+
 // StaffCrew makes the loaded colony a crew of superpawns (LabCrewTool): it
 // tops the free colonists up to size with fixture-made adults, then makes
 // each capable of every work type with every skill at 20 and SuperTraits. A
 // colony already larger than size is left as it is.
 func StaffCrew(ctx context.Context, h *Harness, size int) (colonists, added int, err error) {
-	reply, err := h.Call(ctx, "lab-crew", LabCrewTool, map[string]any{"size": size, "level": 20, "traits": SuperTraits})
+	reply, err := h.Call(ctx, "lab-crew", LabCrewTool, map[string]any{"size": size, "level": CrewSkillLevel, "traits": SuperTraits})
 	if err != nil {
 		return 0, 0, fmt.Errorf("%s: %w", LabCrewTool, err)
 	}
