@@ -156,22 +156,27 @@ func (r *RoundsBuildingPlanner) previewRefrigeration(ctx context.Context, snapsh
 	if r.refrigeration == nil || r.refrigeration.Method != policy.RefrigerationBuild {
 		return nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, Verdict{}, fmt.Errorf("%w: previewRefrigeration: r.refrigeration == nil || r.refrigeration.Method != policy.RefrigerationBuild", ErrControl)
 	}
-	return r.previewCoolerWall(ctx, snapshot, facts, protected, check, r.refrigeration.Cell, r.refrigeration.Rotation, false)
+	return r.previewWallBuilding(ctx, snapshot, facts, protected, check, string(policy.RefrigerationBuild), r.refrigeration.Cell, r.refrigeration.Rotation, false)
 }
 
-// previewCoolerWall previews one Cooler on the exact wall cell and rotation
-// a policy chose (the refrigeration family for a food store, the
-// temperature family for a sleeping room); there is no fallback cell.
-// overRock previews it as though natural rock on the cell were mined, for
-// the exhaust dig that mines the cell in the same plan.
-func (r *RoundsBuildingPlanner) previewCoolerWall(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error, cell domain.Cell, rotation domain.Rotation, overRock bool) ([]policy.Preview, policy.StockObservation, Verdict, error) {
+// previewWallBuilding previews one wall-embedded def (a Cooler, a Vent) on
+// the exact wall cell and rotation a policy chose (the refrigeration family
+// for a food store, the temperature family for a sleeping room); there is no
+// fallback cell. A def whose research prerequisites are not finished is an
+// absent option, a field-unavailable refusal rather than a veto. overRock
+// previews it as though natural rock on the cell were mined, for the exhaust
+// dig that mines the cell in the same plan.
+func (r *RoundsBuildingPlanner) previewWallBuilding(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error, def string, cell domain.Cell, rotation domain.Rotation, overRock bool) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	for _, c := range protected {
 		if c == cell {
 			return nil, stock, BuildingReasonExistingWork, nil
 		}
 	}
-	building, err := domain.NewBuilding("Cooler", cell, rotation, "")
+	if available, known := facts.DefinitionAvailable(def).Value(); known && !available {
+		return nil, stock, fieldUnavailable(def + "_research"), nil
+	}
+	building, err := domain.NewBuilding(def, cell, rotation, "")
 	if err != nil {
 		return nil, stock, Verdict{}, err
 	}
@@ -180,7 +185,7 @@ func (r *RoundsBuildingPlanner) previewCoolerWall(ctx context.Context, snapshot 
 		return nil, stock, reason, err
 	}
 	if footprint, _ := previews[0].Footprint.Value(); len(footprint) != 1 || footprint[0] != cell {
-		return nil, stock, noSpace("cooler_wall_footprint"), nil
+		return nil, stock, noSpace(def + "_wall_footprint"), nil
 	}
 	return previews, stock, Verdict{}, nil
 }

@@ -103,7 +103,6 @@ internal/buildingruntime/rounds_prisoner_interaction.go|NewRoundsPrisonerInterac
 internal/buildingruntime/rounds_prisoner_interaction.go|RoundsPrisonerInteractionPlanner.stageJail|"Door"
 internal/buildingruntime/rounds_prisoner_interaction.go|RoundsPrisonerInteractionPlanner.stageJail|"Wall"
 internal/buildingruntime/rounds_refrigeration.go|NewRoundsRefrigerationPlanner|"Cooler"
-internal/buildingruntime/rounds_refrigeration.go|RoundsBuildingPlanner.previewCoolerWall|"Cooler"
 internal/buildingruntime/rounds_refrigeration.go|RoundsBuildingPlanner.selectRefrigeration|"Cooler"
 internal/buildingruntime/rounds_refrigeration.go|refrigerationNativeWorkTicks|"Cooler"
 internal/buildingruntime/rounds_research.go|-|2500
