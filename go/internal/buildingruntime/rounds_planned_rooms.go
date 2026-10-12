@@ -315,8 +315,8 @@ func roleMismatches(facts observation.ColonyProjection) ([]policy.RoleMismatch, 
 }
 
 // recordRoleMismatches journals one native_role_differs_from_predicted row per
-// mismatched room. A mismatch is only recorded: nothing re-prices or splits
-// the room (the clustering search that would is #2877).
+// mismatched room. The rows are the record; the station chain reads the same
+// mismatches as a cost and a split move (policy.Regroup, StationFacts.Mismatches).
 func recordRoleMismatches(ctx context.Context, facts observation.ColonyProjection) {
 	mismatches, err := roleMismatches(facts)
 	if err != nil {

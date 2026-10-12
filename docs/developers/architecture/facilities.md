@@ -181,8 +181,9 @@ units until it leaves zero (the curve is flat from cleanliness -2 up), and the
 shift of the `Impressiveness` cleanliness input (`1 + cleanliness / 2.5`); all
 read from the defs (`DefinitionCatalog.FilthModel`), the cooks in the room named
 as exposed. The seed keeps the pair apart (`cluster_filth_priced`, a keep that
-carries the price) unless `ClusterInput.MergeFilth` is set, which the layout
-search sets where the walk saved is worth the price. Kept apart, the butcher
+carries the price) unless a `PairTogether` rule in `ClusterInput.Pairs` joins
+the pair (the regrouping's per-pair override, below; the price-versus-walk
+comparison for filth is #2955). Kept apart, the butcher
 stands in a closet of its own, and the group's `Planned` role is `PlannedButchery` when the game reads the closet as a
 kitchen (the table scores as one), and `PlannedRoleOfGroup` returns it over the
 role mapping. The graph sends the corpses in from, and the meat and leather
@@ -227,8 +228,46 @@ no price). Bad ground first, then the larger margin; the rest wait
 A moved block carries `Replaces`, a kept one `Built`; the tiler keeps the standing
 room's id (`tile_room_built`) and sites the mover as a successor
 (`tile_room_successor`). Retired ground not yet cleared takes no new block.
-The cost of the move is `EmbedScore.Switch`. Conflict pricing is not here
-(#2878); advisory until #2931.
+The cost of the move is `EmbedScore.Switch`. Conflict pricing is the
+regrouping's, below; advisory until #2931.
+
+### Regrouping
+
+`policy.Regroup` (`layout_regroup.go`, #2878) is the outer search over the room
+groups that `AdviseStations` runs: `ClusterStations` is the conservative seed and
+the embedding moves blocks of a fixed group set, so a move is proposed, the
+stations are clustered again under a per-pair rule (`ClusterInput.Pairs`:
+`PairTogether` merges past a lost-effect or filth refusal, `PairApart` keeps two
+rooms apart whichever third node bridges them), the groups are embedded, and the
+move is kept when the priced total falls. Tiling runs once on the winner. Moves:
+**merge** (a pair the seed kept for a bench slowed by the wrong role; a merge that
+would lose a role effect, such as two beds becoming a barracks, an open-sky
+exclusion or the area limit is never proposed, and station-less room nodes, the
+suites among them, are never reached), **split** (two nodes of a room that pays a
+conflict, loses a role effect or carries a role-guard mismatch) and
+**move-a-need** (a station class leaves the room that slows it for a room of the
+role it wants, or leaves a cold room).
+
+The total is in embedding score points, no new constant: `-Score.Total()` plus
+the conflicts. `RoomGroup.Costs` ticks a day become work-days (`TicksPerDay`),
+and a work-day is `planWeights.Walk / WorkPrice.CellWalkDays` points: the score
+already prices a movement as a point per cell, and a cell costs a colonist
+`CellWalkDays` of a work-day (move speed); the colonist's food-upkeep work-day
+(#2945, `WorkPrice.WorkDayW`) is the unit `PriceMood` works in. A lost role effect
+is priced by the mood currency (#2954): `MoodModel.LostPoints` at the planned
+room's impressiveness stage (`moodGame.PlannedStage`, 0, the plain room) taken
+from each sleeper at the colonists' mean mood, as break risk. The role guard
+(`StationFacts.Mismatches`, #2898) is a cost input (the effect of the role the
+mixed room predicts, lost to the native role the standing room is read as) and
+the reason of a split. A lost effect whose mood is unknown (no model, no mood
+census) is counted and breaks ties between equal totals, fewer first. A trial
+ranks by what it leaves undone (no ground, a required link not adjacent), then
+the total, then the lost effects. Nothing is vetoed by a constant. The search is
+seeded by the embedding's seed (`regroupProposals` moves a round, `regroupRounds`
+rounds, as `siteSearchTop` bounds the embedding), so it is the same at any
+thread count. With no work price (food census, colonists or a crop unread) the
+seed stands (`regroup_work_price_unknown`). Each applied move, or the reason none
+was, is a `layout_regroup` decision.
 
 ### Station plan and successor rooms
 

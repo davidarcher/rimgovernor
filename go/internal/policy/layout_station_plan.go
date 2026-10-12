@@ -86,8 +86,19 @@ type StationFacts struct {
 	Crops           []CropChoice
 	FoodReserveDays float64
 	// ExpectedMood is the colonists' mean mood level, 0 to 1, the mood price's
-	// baseline (#2975); unknown leaves the comfort tiers unpriced.
+	// baseline (#2975, #2878); unknown leaves the comfort tiers and the lost role
+	// effects unpriced.
 	ExpectedMood domain.Fact[float64]
+	// Mismatches are the standing rooms whose native role is not the one
+	// PredictRole gives their contents (GuardNativeRoles, #2898): a cost input
+	// and a split move of the regrouping.
+	Mismatches []RoleMismatch
+}
+
+// regroupPrice is what the regrouping prices conflicts with: a colonist's work
+// from the food census and crops, the mood model and the expected mood.
+func (f StationFacts) regroupPrice() RegroupPrice {
+	return RegroupPrice{Work: stationWorkPrice(f), Mood: f.Catalog.Mood, Expected: f.ExpectedMood}
 }
 
 // StationPopulationOf is the people the graph sizes beds for. Babies sleep in
@@ -187,7 +198,7 @@ func (f StationFacts) GraphInput() (StationGraphInput, error) {
 // the caller keys the load beside it.
 func (f StationFacts) InputsKey() string {
 	plan, _ := json.Marshal(f.Plan) // the plan holds pointers; the saved form is its value
-	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Pinned, f.Tile, f.OutdoorCurve, f.ExpectedMood) + string(plan)
+	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Pinned, f.Tile, f.OutdoorCurve, f.ExpectedMood, f.Mismatches) + string(plan)
 	input, err := f.GraphInput()
 	if err != nil {
 		return key + err.Error()
@@ -232,6 +243,9 @@ type StationAdvice struct {
 	// authoritative PlanUtilities.
 	Sites  SiteEmbedding
 	Groups []GroupAdvice
+	// Regroup are the regrouping search's moves (layout_regroup.go): each one
+	// applied, or the single reason none was.
+	Regroup []RegroupDecision
 	// Tiled is the embedding tiled into a plan; nil unless StationFacts.Tile.
 	Tiled *TileResult
 	// Comfort is the priced comfort tier of the bed and each worked bench
@@ -256,22 +270,22 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 	if err != nil {
 		return StationAdvice{}, err
 	}
-	clustering, err := ClusterStations(ClusterInput{Graph: graph, Catalog: f.Catalog, RoofDistance: f.RoofDistance})
-	if err != nil {
-		return StationAdvice{}, err
-	}
 	built := BuiltRegions(f.Plan, f.Built)
 	for i := range built {
 		built[i].Pinned = f.Pinned[built[i].Room]
 	}
-	embedIn := EmbedInput{Groups: clustering.Groups, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, RoofDistance: f.RoofDistance, Fields: FieldEmbedLinks(graph, clustering.Groups),
-		Built: built, InFlight: rebuildPending(f), RetiredGround: f.Plan.RetiredGround}
-	embedding, err := Embed(embedIn)
+	regrouped, err := Regroup(RegroupInput{
+		Cluster:    ClusterInput{Graph: graph, Catalog: f.Catalog, RoofDistance: f.RoofDistance},
+		Embed:      EmbedInput{Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, RoofDistance: f.RoofDistance, Built: built, InFlight: rebuildPending(f), RetiredGround: f.Plan.RetiredGround},
+		Price:      f.regroupPrice(),
+		Mismatches: f.Mismatches,
+	})
 	if err != nil {
 		return StationAdvice{}, err
 	}
+	clustering, embedIn, embedding := regrouped.Clustering, regrouped.Embed, regrouped.Embedding
 	graph.Sites = PowerSiteNodes(f.Plan)
-	out := StationAdvice{Graph: graph, Clustering: clustering, Embedding: embedding}
+	out := StationAdvice{Graph: graph, Clustering: clustering, Embedding: embedding, Regroup: regrouped.Decisions}
 	if len(graph.Sites) > 0 {
 		if out.Sites, err = EmbedSites(SiteEmbedInput{Embed: embedIn, Embedding: embedding, Nodes: graph.Sites}); err != nil {
 			return StationAdvice{}, err

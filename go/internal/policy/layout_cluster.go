@@ -28,7 +28,7 @@ import (
 //     a temperature band is not refused: the decision records the conflict
 //     (Conflict) for the search to price. A filth node (a butcher) beside
 //     stations that are not filthy is priced too (FilthCost) and kept apart
-//     unless MergeFilth is set.
+//     unless a PairTogether rule joins the pair (Regroup, #2878).
 //   - Intended role. What a station is for is what the game makes of it alone:
 //     PredictRole of the single station (a stove is a kitchen, a bed a
 //     bedroom, a medical bed a hospital).
@@ -82,9 +82,14 @@ const (
 	ReasonClusterEnvConflict = "cluster_env_conflict"
 	ReasonClusterArea        = "cluster_area"
 	// ReasonClusterFilthPriced: a filth node was kept from a room of other
-	// stations because MergeFilth is off; the decision carries the price.
+	// stations because no PairTogether rule joins them; the decision carries
+	// the price.
 	ReasonClusterFilthPriced = "cluster_filth_priced"
-	ReasonClusterNoCooler    = "cluster_no_cooler"
+	// ReasonClusterApart and ReasonClusterTogether: a pair rule
+	// (ClusterInput.Pairs) kept two rooms apart or merged them past a refusal.
+	ReasonClusterApart    = "cluster_pair_apart"
+	ReasonClusterTogether = "cluster_pair_together"
+	ReasonClusterNoCooler = "cluster_no_cooler"
 
 	// ConflictColdBand is recorded on a decision whose two parts are a cold
 	// group and a station that works in a temperature band: cold is kept below
@@ -107,12 +112,32 @@ type ClusterInput struct {
 	// RoofDistance is the game's RoofCollapseUtility.RoofMaxSupportDistance
 	// (the catalog's roof_max_support_distance).
 	RoofDistance float64
-	// MergeFilth lets a filth node (a butcher) share a room with stations that
-	// are not filthy, its price recorded (FilthCost). The default keeps them in
-	// a closet of their own, still priced on the decision; the layout search
-	// sets it where the walk a merge saves is worth the price.
-	MergeFilth bool
+	// Pairs are per-pair overrides of the merge, set by the layout search
+	// (Regroup). The seed with none is the conservative clustering.
+	Pairs []NodePair
 }
+
+// PairRule is a per-pair override of the merge.
+type PairRule int
+
+const (
+	// PairTogether merges two rooms that hold the pair's nodes past a refusal
+	// for a lost effect or filth (the merge is then priced by the search). An
+	// environment exclusion and the area limit still refuse it.
+	PairTogether PairRule = iota + 1
+	// PairApart keeps two rooms that hold the pair's nodes from ever merging.
+	PairApart
+)
+
+// NodePair is a rule between two graph nodes, by id; it holds between any two
+// rooms that hold one node each, so a third node cannot bridge an Apart pair.
+// Apart beats Together.
+type NodePair struct {
+	A, B string
+	Rule PairRule
+}
+
+func (p NodePair) names(a, b string) bool { return p.A == a && p.B == b || p.A == b && p.B == a }
 
 // GroupStation is the stations of one graph node in a group.
 type GroupStation struct {
@@ -314,6 +339,26 @@ type groupEval struct {
 }
 
 func (c *clusterer) node(u unit) StationNode { return c.in.Graph.Nodes[u.node] }
+
+// ruleBetween is the rule of the pairs that name a node of a and a node of b:
+// Apart when any is, else Together when any is, else 0.
+func (c *clusterer) ruleBetween(a, b []unit) PairRule {
+	var out PairRule
+	for _, p := range c.in.Pairs {
+		for _, ua := range a {
+			for _, ub := range b {
+				if !p.names(c.node(ua).ID, c.node(ub).ID) {
+					continue
+				}
+				if p.Rule == PairApart {
+					return PairApart
+				}
+				out = PairTogether
+			}
+		}
+	}
+	return out
+}
 
 // pieceState is the instance state of a node's stations: the bed state the
 // purpose gives a humanlike bed.
@@ -520,6 +565,21 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 			}
 		}
 	}
+	for _, rule := range in.Pairs { // a Together rule is a pair even where the graph has no flow
+		if rule.Rule != PairTogether {
+			continue
+		}
+		ia, okA := index[rule.A]
+		ib, okB := index[rule.B]
+		if !okA || !okB {
+			continue
+		}
+		for _, ua := range chunks[ia] {
+			for _, ub := range chunks[ib] {
+				pairs = append(pairs, pair{ua, ub, 0, false, rule.A, rule.B})
+			}
+		}
+	}
 	sort.SliceStable(pairs, func(i, j int) bool {
 		p, q := pairs[i], pairs[j]
 		if p.required != q.required {
@@ -579,17 +639,23 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 		if filthConflict(ea, eb) {
 			d.Filth = em.filthCosts
 		}
+		rule := c.ruleBetween(members[ra], members[rb])
 		switch {
+		case rule == PairApart:
+			d.Reason = ReasonClusterApart
 		case conflict(ea, eb):
 			d.Reason = ReasonClusterEnvConflict
-		case filthConflict(ea, eb) && !c.in.MergeFilth:
+		case filthConflict(ea, eb) && rule != PairTogether:
 			d.Reason = ReasonClusterFilthPriced
 		case em.area > c.maxArea:
 			d.Reason = ReasonClusterArea
-		case newLoss(em, ea, eb):
+		case newLoss(em, ea, eb) && rule != PairTogether:
 			d.Reason = ReasonClusterLostEffect
 		default:
 			d.Verdict, d.Reason = ClusterMerge, ReasonClusterAffinity
+			if rule == PairTogether {
+				d.Reason = ReasonClusterTogether
+			}
 			lo, hi := min(ra, rb), max(ra, rb)
 			parent[hi] = lo
 			members[lo] = merged

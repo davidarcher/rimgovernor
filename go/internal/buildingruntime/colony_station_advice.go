@@ -33,8 +33,19 @@ func (r *Rounder) stationAdvice(ctx context.Context, snapshot domain.GenerationS
 	decision, advice, ok := stationDecision(facts, err)
 	decision.Dur = time.Since(start)
 	telemetry.Decide(ctx, decision)
+	for _, d := range advice.Regroup {
+		telemetry.Decide(ctx, regroupDecision(d))
+	}
 	r.stationInputs, r.stationLast, r.stationHeld = inputs, advice, ok
 	return advice, ok
+}
+
+// regroupDecision is the layout_regroup row of one regrouping decision: a move
+// applied (kind merge, split or move, the pair of nodes it rules and the total
+// before and after, in score points) or the reason none was.
+func regroupDecision(d policy.RegroupDecision) telemetry.Decision {
+	return telemetry.Decision{Kind: "layout_regroup", Component: "layout", Verdict: d.Verdict, Reason: d.Reason, Target: "groups",
+		Attrs: map[string]any{"move": d.Kind, "a": d.A, "b": d.B, "before": d.Before, "after": d.After, "lost_effects": d.Lost}}
 }
 
 // stationDecision runs the chain over facts (when they were read, err nil) and
@@ -105,6 +116,9 @@ func stationFactsOf(projection observation.ColonyProjection, plan policy.LayoutP
 		OutdoorCurve: projection.OutdoorCurve, FullRotRateC: projection.FullRotRateC,
 		VentAvailable: projection.DefinitionAvailable(policy.ClimateDefs().VentDef),
 		ExpectedMood:  expectedMood(projection.Facts.MoodPawns),
+	}
+	if mismatches, err := roleMismatches(projection); err == nil { // an unread or inconsistent census leaves the guard off
+		f.Mismatches = mismatches
 	}
 	if rooms, known := projection.Rooms.Value(); known {
 		f.Dining = rooms.Dining

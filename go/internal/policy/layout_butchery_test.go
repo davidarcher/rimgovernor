@@ -60,7 +60,11 @@ func butcherKitchen(t *testing.T, merge bool) (Clustering, StationNode, StationN
 	}
 	cat := clusterCatalog()
 	cat.Filth = bloodModel
-	got, err := ClusterStations(ClusterInput{Graph: g, Catalog: cat, RoofDistance: testRoof, MergeFilth: merge})
+	var pairs []NodePair
+	if merge {
+		pairs = []NodePair{{A: butcher.ID, B: stove.ID, Rule: PairTogether}}
+	}
+	got, err := ClusterStations(ClusterInput{Graph: g, Catalog: cat, RoofDistance: testRoof, Pairs: pairs})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +112,7 @@ func TestButcheryKeptApartIsPriced(t *testing.T) {
 	}
 }
 
-// With MergeFilth the same graph merges the butcher into the room of the
+// With a PairTogether rule the same graph merges the butcher into the room of the
 // stove or the shelf it hauls to: no refusal, the price rides on the merge
 // decision and on the merged group, and the cook is named as exposed.
 func TestButcheryMergesWhenPriced(t *testing.T) {

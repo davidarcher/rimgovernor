@@ -73,6 +73,11 @@ type MoodGameTable struct {
 	HediffBreaks   map[string]string
 	DarkThought    string
 	RoleThoughts   map[RoomRole]string
+	// PlannedStage is the impressiveness stage a room not yet furnished is
+	// priced at (the planner's judgment, #2878): a planned room has no furniture
+	// to score, so a lost role effect costs what the plain room's stage 0 does;
+	// what stands inside a room is #2881's.
+	PlannedStage int
 }
 
 var moodGame = MoodGameTable{
