@@ -200,11 +200,21 @@ func blockShapes(area, depth int) [][2]int32 {
 	return out
 }
 
+// groupShapes are the interiors a group may take: a strip of its Width and the
+// length its area needs, and its turn, else the squarest blocks.
+func groupShapes(g RoomGroup, depth int) [][2]int32 {
+	if g.Width <= 0 {
+		return blockShapes(g.Area, depth)
+	}
+	length := int32((max(g.Area, 1) + int(g.Width) - 1) / int(g.Width))
+	return [][2]int32{{length, g.Width}, {g.Width, length}}
+}
+
 func newEmbedder(in EmbedInput, depth int, scorer planScorer, level obstacleLevel) *embedder {
 	w, h := in.Survey.Bounds.Width, in.Survey.Bounds.Height
 	e := &embedder{groups: in.Groups}
 	for _, g := range in.Groups {
-		e.shapes = append(e.shapes, blockShapes(g.Area, depth))
+		e.shapes = append(e.shapes, groupShapes(g, depth))
 		e.sky = append(e.sky, slices.Contains(g.Requires, EnvOpenSky))
 	}
 	cells := map[domain.Cell]SurveyCell{}

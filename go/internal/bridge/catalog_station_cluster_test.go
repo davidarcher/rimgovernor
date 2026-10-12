@@ -53,8 +53,16 @@ func TestBaselineClustering(t *testing.T) {
 		policy.RoomRoleBedroom: 6, policy.RoomRoleHospital: 1, policy.RoomRolePrisonCell: 1,
 	}
 	have := map[policy.RoomRole]int{}
+	circulation := 0
 	for _, g := range got.Groups {
+		if g.Planned == policy.PlannedCirculation {
+			circulation++ // seven sleeping rooms outnumber the three public ones (#2911)
+			continue
+		}
 		have[g.Role]++
+	}
+	if circulation != 1 {
+		t.Errorf("%d circulation corridors, want 1", circulation)
 	}
 	if !reflect.DeepEqual(have, want) {
 		t.Errorf("roles %v, want %v\n%+v", have, want, got.Groups)

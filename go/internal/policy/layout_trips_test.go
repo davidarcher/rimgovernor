@@ -144,10 +144,10 @@ func TestSpinePlanWalkIsTheRolePairWalk(t *testing.T) {
 	}
 }
 
-// Packed bedrooms with no way out but through each other are walked through
+// Without circulation, packed bedrooms with no way out but through each other are walked through
 // rather than failing closed.
 func TestTilePassesThroughPackedRooms(t *testing.T) {
-	in, _ := tileInput(t, plainScoreSurvey(), 30, true)
+	in, _ := tileInputCirculation(t, plainScoreSurvey(), 30, true, false)
 	res, err := TileEmbedding(in)
 	if err != nil {
 		t.Fatal(err)

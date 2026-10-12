@@ -129,7 +129,10 @@ type RoomGroup struct {
 	Role RoomRole
 	// Planned is the planned room the group's contents decide when it is not
 	// the one Role gives (the butchery); empty otherwise (PlannedRoleOfGroup).
-	Planned  PlannedRole
+	Planned PlannedRole
+	// Width is the fixed short side of the group's block, 0 for the squarest
+	// (a circulation corridor is a strip).
+	Width    int32
 	Requires []EnvRequirement
 	Links    []GroupLink
 	// Costs are the throughput the room loses to the environment its stations
@@ -601,6 +604,18 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 	for i := range out.Groups {
 		sort.Slice(out.Groups[i].Links, func(a, b int) bool { return out.Groups[i].Links[a].To < out.Groups[i].Links[b].To })
 		out.Groups[i].AddRequiredDoors()
+	}
+	depth, _, err := roomLimits(in.RoofDistance)
+	if err != nil {
+		return Clustering{}, err
+	}
+	for _, r := range in.Graph.Rooms {
+		if !r.Joins {
+			continue
+		}
+		var d ClusterDecision
+		out.Groups, d = addCirculation(out.Groups, r, depth)
+		out.Decisions = append(out.Decisions, d)
 	}
 	return out, nil
 }

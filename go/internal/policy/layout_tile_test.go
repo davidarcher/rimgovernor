@@ -57,9 +57,19 @@ func baseRoomGroups(pawns int) []RoomGroup {
 // the test catalog's clustering of the same colony.
 func tileInput(t testing.TB, s MapSurvey, pawns int, base bool) (TileInput, Embedding) {
 	t.Helper()
+	return tileInputCirculation(t, s, pawns, base, true)
+}
+
+// tileInputCirculation is tileInput with or without the circulation corridor
+// that a base of many bedrooms gets (#2911).
+func tileInputCirculation(t testing.TB, s MapSurvey, pawns int, base, circulation bool) (TileInput, Embedding) {
+	t.Helper()
 	in := embedInput(t, s, pawns)
 	if base {
 		in.Groups = baseRoomGroups(pawns)
+		if circulation {
+			in.Groups, _ = addCirculation(in.Groups, circulationNode(), testDepth(t))
+		}
 	}
 	emb, err := Embed(in)
 	if err != nil {
@@ -300,7 +310,8 @@ func TestTileReplayFixtures(t *testing.T) {
 			// A hub that carries the doors of sealed neighbours packed in around
 			// it holds more thresholds than its area counts; only hallways
 			// (#2879) take those doors off the hub, so such a plan is exempt.
-			sealed := slices.ContainsFunc(res.Decisions, func(d TileDecision) bool { return d.Reason == ReasonTileSealedRoom && d.Verdict == TilePlace })
+			sealed := slices.ContainsFunc(res.Decisions, func(d TileDecision) bool { return d.Reason == ReasonTileSealedRoom && d.Verdict == TilePlace }) &&
+				!slices.ContainsFunc(res.Plan.Rooms, func(r PlannedRoom) bool { return r.Role == PlannedCirculation }) // circulation (#2911) carries those doors
 			if old.Passes() && !sealed && len(res.Unfit()) > 0 {
 				t.Errorf("the old generator furnishes this map but groups %v are unfit", res.Unfit())
 			}

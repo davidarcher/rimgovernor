@@ -331,13 +331,25 @@ func (t *tiler) chooseLinks(required bool) {
 			continue
 		}
 		cell, fits := t.pickLink(k)
-		if !required && (t.weight[k] <= 0 || find(k[0]) == find(k[1]) || !fits) {
+		if !required && (t.weight[k] <= 0 || find(k[0]) == find(k[1]) || !fits || t.sleepersUseCirculation(k)) {
 			continue
 		}
 		t.links[k] = cell
 		t.parent[find(k[0])] = find(k[1])
 		t.note(t.rooms[k[0]].group, t.rooms[k[1]].group, TilePlace, ReasonTileLinkDoor)
 	}
+}
+
+// sleepersUseCirculation reports a flow door between a room with beds and a
+// room that is not circulation, while the plan has circulation: the sleepers'
+// way to the hubs is the corridor, so no hub carries a bedroom door.
+func (t *tiler) sleepersUseCirculation(k [2]int) bool {
+	if !slices.ContainsFunc(t.plan.Rooms, func(r PlannedRoom) bool { return r.Role == PlannedCirculation }) {
+		return false
+	}
+	sleeps := func(i int) bool { c := t.plan.Rooms[i].Crossing; return c != nil && c.Beds > 0 }
+	circulation := func(i int) bool { return t.plan.Rooms[i].Role == PlannedCirculation }
+	return (sleeps(k[0]) || sleeps(k[1])) && !circulation(k[0]) && !circulation(k[1])
 }
 
 // chooseExteriors gives every room the door nearest the middle of the blocks
@@ -698,6 +710,9 @@ func (r TileResult) Unfit() []int {
 // and a cold room, which is never crossed, comes last, joined only when
 // nothing else is left.
 func throughRank(r PlannedRoom) int {
+	if r.Role == PlannedCirculation {
+		return math.MaxInt // a room that exists to be walked through comes first
+	}
 	if r.Crossing == nil {
 		return 0
 	}

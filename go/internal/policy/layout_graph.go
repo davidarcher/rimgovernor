@@ -145,11 +145,46 @@ type StationEdge struct {
 	Reason   string
 }
 
+// RoomNode is a room the colony needs that holds no station: a node of the
+// graph with a role and an area demand, nothing to furnish. Circulation is the
+// first (#2911); the morgue and the waste yard (#2882) are the same kind.
+type RoomNode struct {
+	ID   string
+	Role PlannedRole
+	// Area is the interior cells the room is asked for. 0 for a room that joins
+	// others: clustering sizes it from the rooms it joins (Joins).
+	Area int
+	// Width is the fixed short side of the room in cells, 0 for the squarest
+	// block: a corridor is a strip.
+	Width int32
+	// Joins marks a room that exists to connect the rooms that cannot be walked
+	// through (addCirculation).
+	Joins  bool
+	Reason string
+}
+
 // StationGraph is the planner's input.
 type StationGraph struct {
 	Nodes []StationNode
+	// Rooms are the station-less rooms.
+	Rooms []RoomNode
 	Edges []StationEdge
 }
+
+// PlannedCirculation is the corridor that joins the rooms of a large colony:
+// a room with no station, walked by everyone.
+const PlannedCirculation PlannedRole = "circulation"
+
+// CirculationWidth is a circulation corridor's width in cells. One: in peace
+// pawns neither block nor slow each other (PawnUtility.PawnBlockedBy is false
+// unless a hostile is near or the job collides), the pather has no wall-hugging
+// cost and door costs do not depend on width, so width buys nothing before an
+// attack; the wider lanes that give bypass under hostile pressure are the
+// defense planner's (#2886). Read from game code, recorded on #2911.
+const CirculationWidth int32 = 1
+
+// ReasonCirculation is why the graph holds a corridor.
+const ReasonCirculation = "circulation_joins_private_rooms"
 
 // Node is the node with the id.
 func (g StationGraph) Node(id string) (StationNode, bool) {
@@ -223,7 +258,17 @@ func BuildStationGraph(in StationGraphInput) (StationGraph, error) {
 	}
 	b.flows(runs)
 	b.sleepEat(meals)
-	return b.graph(), nil
+	g := b.graph()
+	for _, n := range g.Nodes {
+		switch n.Purpose {
+		case PurposeSleep, PurposeSleepMed, PurposeSleepBaby:
+			// Somebody sleeps in a room nobody may walk through (RoomCrossing.Beds):
+			// the colony may need a way to reach it that crosses no other room.
+			g.Rooms = append(g.Rooms, RoomNode{ID: string(PlannedCirculation), Role: PlannedCirculation, Width: CirculationWidth, Joins: true, Reason: ReasonCirculation})
+			return g, nil
+		}
+	}
+	return g, nil
 }
 
 type graphBuilder struct {

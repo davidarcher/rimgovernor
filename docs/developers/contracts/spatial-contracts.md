@@ -292,6 +292,20 @@ on the colony centre when the plan has no free cell there.
   cannot furnish stands bare: `TileResult.Unfit`). The tiled plan's `Owed` lists one
   room role per station group, and the hard tier's Missing term counts a room per
   entry instead of per role (empty keeps `coreBaseRooms`).
+  **Circulation (#2911).** The station graph carries station-less room nodes
+  (`StationGraph.Rooms`, `RoomNode`: role, area demand, optional strip width; the morgue
+  and waste yard of #2882 reuse the kind). Circulation is the corridor that joins rooms
+  nobody may walk through: when the private rooms (`RoomCrossing.Mechanisms() > 0`, not
+  cold) outnumber the public ones, some hub would carry two bedroom doors, so clustering
+  adds `PlannedCirculation` strips (`addCirculation`, `layout_circulation.go`), required
+  beside every private room and the hubs they have flows to, sized from the short sides
+  of the rooms joined plus a wall each over its two sides, and at most the longest strip
+  the shell allows. Width is `CirculationWidth` = 1: in peacetime pawns neither block
+  nor slow each other, so width buys nothing; wider lanes are the defense planner's
+  (#2886). The tiler joins a sealed room to circulation first (`throughRank`) and opens
+  no flow door from a room with beds to a non-circulation room while one stands; the
+  corridor's group links carry no flow weight, so `Trips` are unchanged. Colonies whose
+  private rooms do not outnumber the public ones get no corridor.
 - **Search.** The best sites by score get a deterministic, iteration-bounded local
   search; wall time is only a hang guard.
 - **Replan.** Two-stage: the same generator runs with every room that has anything of
