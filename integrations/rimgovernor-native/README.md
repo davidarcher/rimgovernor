@@ -10,7 +10,7 @@ Headless presentation suppression activates only with `-batchmode`.
 Build a complete local development package from the repository root:
 
 ```powershell
-./scripts/build_native_mod.ps1 -RimWorldManagedDir 'C:/path/to/RimWorldWin64_Data/Managed' -HarmonyAssembly 'C:/path/to/0Harmony.dll' -DotNet 'C:/path/to/dotnet.exe'
+./scripts/build_native_mod.ps1 -RimWorldDir 'C:/path/to/RimWorld' -HarmonyAssembly 'C:/path/to/0Harmony.dll' -DotNet 'C:/path/to/dotnet.exe'
 ```
 
 The command prints the staged `RimGovernor` directory. `-OutputRoot` chooses a

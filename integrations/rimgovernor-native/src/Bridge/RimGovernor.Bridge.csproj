@@ -9,7 +9,7 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <DebugType>none</DebugType>
-    <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == ''">C:/Program Files (x86)/Steam/steamapps/common/RimWorld/RimWorldWin64_Data/Managed</RimWorldManagedDir>
+    <RimWorldDir Condition="'$(RimWorldDir)' == ''">C:/Program Files (x86)/Steam/steamapps/common/RimWorld</RimWorldDir>
     <HarmonyAssembly Condition="'$(HarmonyAssembly)' == ''">C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll</HarmonyAssembly>
   </PropertyGroup>
   <ItemGroup>
@@ -109,13 +109,9 @@
     <ProjectReference Include="../../../rimgovernor-host/src/Sdk/RimGovernor.Host.Sdk.csproj"><Private>false</Private></ProjectReference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" ExcludeAssets="runtime" />
     <Reference Include="0Harmony"><HintPath>$(HarmonyAssembly)</HintPath><Private>false</Private></Reference>
-    <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldManagedDir)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine"><HintPath>$(RimWorldManagedDir)/UnityEngine.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.CoreModule"><HintPath>$(RimWorldManagedDir)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Unity.Collections"><HintPath>$(RimWorldManagedDir)/Unity.Collections.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.ImageConversionModule"><HintPath>$(RimWorldManagedDir)/UnityEngine.ImageConversionModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.ScreenCaptureModule"><HintPath>$(RimWorldManagedDir)/UnityEngine.ScreenCaptureModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.IMGUIModule"><HintPath>$(RimWorldManagedDir)/UnityEngine.IMGUIModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldDir)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityStubs"><HintPath>$(RimWorldDir)/UnityStubs.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Waylith"><HintPath>$(RimWorldDir)/Waylith.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
   <Target Name="RecordNativeRuntimeDependencies" AfterTargets="Build">
     <WriteLinesToFile File="$(OutputPath)runtime-dependencies.tsv"

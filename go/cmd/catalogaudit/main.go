@@ -71,7 +71,7 @@ func run(out io.Writer, rimworld, recording, defsProto, defmirror string) (bool,
 	}
 	fmt.Fprint(out, FormatSkipped(SkippedByReason(string(header))))
 
-	report, err := reflectGame(defmirror, in.ManagedDir)
+	report, err := reflectGame(defmirror, in.RimWorldDir)
 	if err != nil {
 		return false, err
 	}
@@ -81,9 +81,9 @@ func run(out io.Writer, rimworld, recording, defsProto, defmirror string) (bool,
 	return cov.Failed(), nil
 }
 
-// reflectGame runs tools/defmirror --report against the game's Managed
+// reflectGame runs tools/defmirror --report against the game
 // directory and returns the report text.
-func reflectGame(defmirror, managed string) (string, error) {
+func reflectGame(defmirror, gameDir string) (string, error) {
 	tmp, err := os.CreateTemp("", "catalogaudit-*.tsv")
 	if err != nil {
 		return "", err
@@ -94,7 +94,7 @@ func reflectGame(defmirror, managed string) (string, error) {
 	for _, args := range [][]string{
 		{"restore", project, "--locked-mode"},
 		{"run", "--project", defmirror, "-c", "Release", "--no-restore", "--no-launch-profile", "--",
-			"--managed-dir", managed, "--report", tmp.Name()},
+			"--managed-dir", gameDir, "--report", tmp.Name()},
 	} {
 		cmd := exec.Command("dotnet", args...)
 		cmd.Stdout = io.Discard

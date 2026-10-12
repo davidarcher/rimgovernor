@@ -8,7 +8,7 @@ version: '3'
 vars:
   REPO: '{{.TASKFILE_DIR}}/../..'
   EVIDENCE: '{{.REPO}}/.rimgovernor/task/native'
-  RIMWORLD_MANAGED_DIR: '{{.RIMWORLD_MANAGED_DIR | default "C:/Program Files (x86)/Steam/steamapps/common/RimWorld/RimWorldWin64_Data/Managed"}}'
+  RIMWORLD_DIR: '{{.RIMWORLD_DIR | default "C:/Program Files (x86)/Steam/steamapps/common/RimWorld"}}'
   HARMONY_ASSEMBLY: '{{.HARMONY_ASSEMBLY | default "C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll"}}'
 
 tasks:
@@ -22,7 +22,7 @@ tasks:
       - '{{.REPO}}/contracts/proto/**/*'
       - '{{.REPO}}/contracts/generated/protobuf/csharp/**/*'
       - '{{.REPO}}/scripts/build_native_mod.ps1'
-      - '{{.RIMWORLD_MANAGED_DIR}}/*.dll'
+      - '{{.RIMWORLD_DIR}}/*.dll'
       - '{{.HARMONY_ASSEMBLY}}'
       - exclude: '**/bin/**'
       - exclude: '**/obj/**'
@@ -31,7 +31,7 @@ tasks:
     cmds:
       - |
         missing=""
-        for input in "{{.RIMWORLD_MANAGED_DIR}}/Assembly-CSharp.dll" "{{.HARMONY_ASSEMBLY}}"; do
+        for input in "{{.RIMWORLD_DIR}}/Assembly-CSharp.dll" "{{.HARMONY_ASSEMBLY}}"; do
           [ -f "$input" ] || missing="$missing $input"
         done
         if [ -n "$missing" ]; then
@@ -41,7 +41,7 @@ tasks:
         rm -rf "{{.EVIDENCE}}/mod"
         mkdir -p "{{.EVIDENCE}}"
         pwsh -NoProfile -File "{{.REPO}}/scripts/build_native_mod.ps1" \
-          -RimWorldManagedDir "{{.RIMWORLD_MANAGED_DIR}}" -HarmonyAssembly "{{.HARMONY_ASSEMBLY}}" \
+          -RimWorldDir "{{.RIMWORLD_DIR}}" -HarmonyAssembly "{{.HARMONY_ASSEMBLY}}" \
           -OutputRoot "{{.EVIDENCE}}/mod"
 
   test:

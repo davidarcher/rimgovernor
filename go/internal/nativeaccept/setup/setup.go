@@ -541,8 +541,8 @@ func runBuildScript(ctx context.Context, l Layout, in *Inputs, fixtures []string
 		}
 	}
 	q := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
-	command := fmt.Sprintf("& %s -RimWorldManagedDir %s -HarmonyAssembly %s -OutputRoot %s",
-		q(filepath.Join(l.Repo, filepath.FromSlash(BuildScript))), q(in.ManagedDir), q(in.Harmony), q(output))
+	command := fmt.Sprintf("& %s -RimWorldDir %s -HarmonyAssembly %s -OutputRoot %s",
+		q(filepath.Join(l.Repo, filepath.FromSlash(BuildScript))), q(in.RimWorldDir), q(in.Harmony), q(output))
 	if len(fixtures) > 0 {
 		var qs []string
 		for _, f := range fixtures {

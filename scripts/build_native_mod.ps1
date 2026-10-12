@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)][string]$RimWorldManagedDir,
+    [Parameter(Mandatory = $true)][string]$RimWorldDir,
     [Parameter(Mandatory = $true)][string]$HarmonyAssembly,
     [string]$DotNet = 'dotnet',
     [string]$OutputRoot = '',
@@ -27,9 +27,9 @@ if (-not $OutputRoot) {
 }
 $taskOutput = [IO.Path]::GetFullPath($OutputRoot)
 if (Test-Path -LiteralPath $taskOutput) { throw "Build output must be fresh: $taskOutput" }
-$RimWorldManagedDir = (Resolve-Path -LiteralPath $RimWorldManagedDir).Path
+$RimWorldDir = (Resolve-Path -LiteralPath $RimWorldDir).Path
 $HarmonyAssembly = (Resolve-Path -LiteralPath $HarmonyAssembly).Path
-foreach ($taskRequired in @($taskProject, (Join-Path $RimWorldManagedDir 'Assembly-CSharp.dll'),
+foreach ($taskRequired in @($taskProject, (Join-Path $RimWorldDir 'Assembly-CSharp.dll'),
         $HarmonyAssembly, $taskHostProject,
         (Join-Path $taskSource 'Notices/host/PROVENANCE.md'),
         (Join-Path $taskSource 'Notices/headless/LICENSE'),
@@ -122,12 +122,12 @@ try {
 $taskHostCompiled = Join-Path $taskBuild 'host-compiled'
 $taskHostArgs = @('build', (Join-Path $taskCopyHost 'src/Host/RimGovernor.Host.csproj'),
     '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskHostCompiled/",
-    "-p:RimWorldManagedDir=$RimWorldManagedDir", "-p:HarmonyAssembly=$HarmonyAssembly")
+    "-p:RimWorldDir=$RimWorldDir", "-p:HarmonyAssembly=$HarmonyAssembly")
 & $taskCompiler @taskHostArgs *> (Join-Path $taskBuild 'host-build.log')
 if ($LASTEXITCODE) { throw "Host build failed; inspect $taskBuild/host-build.log" }
 $taskArgs = @('build', (Join-Path $taskCopyNative 'src/Bridge/RimGovernor.Bridge.csproj'),
     '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskCompiled/",
-    "-p:RimWorldManagedDir=$RimWorldManagedDir", "-p:HarmonyAssembly=$HarmonyAssembly")
+    "-p:RimWorldDir=$RimWorldDir", "-p:HarmonyAssembly=$HarmonyAssembly")
 foreach ($taskFlag in $taskFixtures) { $taskArgs += "-p:${taskFlag}=true" }
 & $taskCompiler @taskArgs *> (Join-Path $taskBuild 'build.log')
 if ($LASTEXITCODE) { throw "Native build failed; inspect $taskBuild/build.log" }
@@ -183,7 +183,7 @@ foreach ($taskFile in Get-ChildItem -LiteralPath $taskCopyRoot -Recurse -File | 
     New-Item -ItemType Directory -Path (Split-Path $taskDestination -Parent) -Force | Out-Null
     Copy-Item -LiteralPath $taskFile.FullName -Destination $taskDestination
 }
-$taskInputs = @($HarmonyAssembly) + @(Get-ChildItem -LiteralPath $RimWorldManagedDir -Filter '*.dll' -File | ForEach-Object FullName)
+$taskInputs = @($HarmonyAssembly) + @('Assembly-CSharp.dll', 'UnityStubs.dll', 'Waylith.dll' | ForEach-Object { Join-Path $RimWorldDir $_ })
 $taskManifest = [ordered]@{
     formatVersion = 1
     packageId = 'davidarcher.rimgovernor.native'

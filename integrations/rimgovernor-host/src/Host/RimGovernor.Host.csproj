@@ -17,15 +17,15 @@
     <Reference Include="0Harmony"><HintPath>$(HarmonyAssembly)</HintPath><Private>false</Private></Reference>
     <!-- The host reads private game members (the vendored source was written against a publicised Assembly-CSharp); Mono does not enforce member visibility. -->
     <PackageReference Include="TaskPubliciser" Version="1.0.3" PrivateAssets="all" />
-    <Reference Include="$(RimWorldManagedDir)/UnityEngine*.dll" Private="false" />
-    <Reference Include="Unity.Collections"><HintPath>$(RimWorldManagedDir)/Unity.Collections.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityStubs"><HintPath>$(RimWorldDir)/UnityStubs.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Waylith"><HintPath>$(RimWorldDir)/Waylith.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
   <Target Name="PubliciseAssemblyCSharp" BeforeTargets="ResolveAssemblyReferences;FindReferenceAssembliesForReferences">
     <PropertyGroup>
       <PubliciseDir>$(MSBuildProjectDirectory)/$(IntermediateOutputPath)publicised/</PubliciseDir>
     </PropertyGroup>
     <MakeDir Directories="$(PubliciseDir)" />
-    <Publicise TargetAssemblyPath="$(RimWorldManagedDir)/Assembly-CSharp.dll" OutputPath="$(PubliciseDir)" />
+    <Publicise TargetAssemblyPath="$(RimWorldDir)/Assembly-CSharp.dll" OutputPath="$(PubliciseDir)" />
     <ItemGroup>
       <Reference Include="Assembly-CSharp"><HintPath>$(PubliciseDir)Assembly-CSharp_publicised.dll</HintPath><Private>false</Private></Reference>
     </ItemGroup>

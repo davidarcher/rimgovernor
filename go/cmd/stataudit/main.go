@@ -61,7 +61,7 @@ func run(rimworld, out, decompiled string, check bool) error {
 		if _, err := exec.LookPath("ilspycmd"); err != nil {
 			return fmt.Errorf("ilspycmd not found; install it with: dotnet tool install -g ilspycmd")
 		}
-		cmd := exec.Command("ilspycmd", "-p", "-o", decompiled, filepath.Join(in.ManagedDir, "Assembly-CSharp.dll"))
+		cmd := exec.Command("ilspycmd", "-p", "-o", decompiled, filepath.Join(in.RimWorldDir, "Assembly-CSharp.dll"))
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("ilspycmd: %w", err)

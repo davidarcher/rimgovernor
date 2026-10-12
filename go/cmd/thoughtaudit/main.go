@@ -9,7 +9,7 @@
 //
 //	dotnet tool install -g ilspycmd
 //
-// The tool decompiles RimWorldWin64_Data/Managed/Assembly-CSharp.dll
+// The tool decompiles Assembly-CSharp.dll in the game directory
 // (into -decompiled, default a temporary directory; an existing non-empty
 // -decompiled is reused), reads every ThoughtDef under Data/*/Defs, and
 // writes -out (default internal/policy/thought_triggers.tsv relative to
@@ -58,7 +58,7 @@ func run(rimworld, out, decompiled string) error {
 		if _, err := exec.LookPath("ilspycmd"); err != nil {
 			return fmt.Errorf("ilspycmd not found; install it with: dotnet tool install -g ilspycmd")
 		}
-		cmd := exec.Command("ilspycmd", "-p", "-o", decompiled, filepath.Join(in.ManagedDir, "Assembly-CSharp.dll"))
+		cmd := exec.Command("ilspycmd", "-p", "-o", decompiled, filepath.Join(in.RimWorldDir, "Assembly-CSharp.dll"))
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("ilspycmd: %w", err)

@@ -41,7 +41,7 @@ const GameImage = "RimWorld.exe"
 var HarmonyAssemblies = filepath.Join("1.7", "Assemblies")
 
 // Inputs are the machine's shared game files the setup reads from and
-// never writes: what build_native_mod.ps1 takes as -RimWorldManagedDir,
+// never writes: what build_native_mod.ps1 takes as -RimWorldDir,
 // and -HarmonyAssembly, plus the install the copy junctions into.
 type Inputs struct {
 	HarmonyMod string
@@ -49,9 +49,6 @@ type Inputs struct {
 	CleanProfile bool
 	// RimWorldDir holds RimWorld.exe.
 	RimWorldDir string
-	// ManagedDir holds Assembly-CSharp.dll: the flat 1.7 install root (#3026
-	// replaces it).
-	ManagedDir string
 	// Harmony is 0Harmony.dll.
 	Harmony string
 	// How each input was found, for the summary.
@@ -113,9 +110,8 @@ func Discover(o Overrides) (*Inputs, error) {
 		return nil, fmt.Errorf("%s (%s) holds no %s", dir, source, GameImage)
 	}
 	in.RimWorldDir, in.Sources["rimworld"] = dir, source
-	in.ManagedDir = dir
-	if !isFile(filepath.Join(in.ManagedDir, "Assembly-CSharp.dll")) {
-		return nil, fmt.Errorf("%s holds no Assembly-CSharp.dll", in.ManagedDir)
+	if !isFile(filepath.Join(in.RimWorldDir, "Assembly-CSharp.dll")) {
+		return nil, fmt.Errorf("%s holds no Assembly-CSharp.dll", in.RimWorldDir)
 	}
 
 	harmony, source := o.Harmony, "-harmony"
