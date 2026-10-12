@@ -69,8 +69,8 @@ type StationFacts struct {
 	// epic (#2855) switches over.
 	Tile bool
 	// OutdoorCurve is the seasonal outdoor temperature curve (twelve means, C)
-	// and FullRotRateC the catalog's full-rot temperature; the cold exposure
-	// advice (ColdExposureFor) needs both and is left off while either is unknown.
+	// and FullRotRateC the catalog's full-rot temperature; the climate advice
+	// (groupClimate) needs both and is left off while either is unknown.
 	OutdoorCurve domain.Fact[[]float64]
 	FullRotRateC float64
 	// Crops are the crops the colony grows (the caller's choice, not the
@@ -193,9 +193,10 @@ type GroupAdvice struct {
 	Capacity int
 	// Outgrown: the group needs more floor than its built rooms give.
 	Outgrown bool
-	// Exposure is the cold room's vent-to-outdoors answer, beside its cooling
-	// station; nil for a group that does not require cold or when the curve is unknown.
-	Exposure *ColdExposure
+	// Climate is the cold room's climate answer, beside its cooling station:
+	// the watts of each opening to the outdoors (#2940); nil for a group that
+	// does not require cold or when the curve or the game's numbers are unknown.
+	Climate *GroupClimate
 }
 
 // StationAdvice is the chain's result over the live colony.
@@ -253,7 +254,7 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 	}
 	for _, m := range MatchGroupRooms(clustering.Groups, BuiltRegions(f.Plan, f.Built)) {
 		g := clustering.Groups[m.Group]
-		out.Groups = append(out.Groups, GroupAdvice{Group: g, Rooms: m.Rooms, Capacity: m.Capacity, Outgrown: GroupOutgrown(g, m), Exposure: groupExposure(f, g)})
+		out.Groups = append(out.Groups, GroupAdvice{Group: g, Rooms: m.Rooms, Capacity: m.Capacity, Outgrown: GroupOutgrown(g, m), Climate: groupClimate(f, g)})
 	}
 	return out, nil
 }

@@ -16,6 +16,9 @@ type StationCatalog struct {
 	// Filth prices the filth a butchering spawns (FilthModel); the zero value
 	// prices nothing.
 	Filth FilthModel
+	// Climate is the heat the vent, door, heater and cooler move, from the
+	// defs and the game's constants (#2940); the zero value is unknown.
+	Climate ClimateModel
 }
 
 // Station is one buildable definition as the planner sees it.

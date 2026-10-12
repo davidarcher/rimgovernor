@@ -44,7 +44,7 @@ func DefTables() []DefTable {
 		{"WoodLatchDefs", "Verse.ThingDef", slices.Clone(WoodLatchDefs)},
 		{"ScenarioThingChoices", "Verse.ThingDef", slices.Clone(ScenarioThingChoices)},
 		{"RhadamantThings", "Verse.ThingDef", rhadamantThingDefs()},
-		{"exposureLiterals", "Verse.ThingDef", sortedKeys(exposureLiterals)},
+		{"climateTable", "Verse.ThingDef", []string{climateTable.VentDef, climateTable.DoorDef, climateTable.WallDef}},
 		// The wind path constants (windPathWidth ... windBlockedLoss) are
 		// CompPowerPlantWind's and WindTurbineUtility.CalculateWindCells's,
 		// read with ilspycmd; keyed by the turbine def so a rename fails the gate.

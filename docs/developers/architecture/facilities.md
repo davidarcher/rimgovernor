@@ -157,7 +157,7 @@ that needs cold gets the one drawing the least power per heat moved
 (`PurposeCool`) with its footprint and a clearance cell in the area, or an
 `unsatisfied` decision (`cluster_no_cooler`) when the catalog has none. Cooler
 power and wiring stay with the refrigeration planner; exposure to cold outside
-air is advised beside the cooler (see Cold exposure below) and the thermal benefit of thick roof belongs to the climate envelope
+air is advised beside the cooler (see Climate model below) and the thermal benefit of thick roof belongs to the climate envelope
 (#2880). Area is the stations'
 catalog footprints plus the placer's clearance (one open cell per station and
 the door threshold); the limit is the largest room the roof support distance
@@ -226,28 +226,43 @@ each group (stations, footprint, clearance, area, predicted role, costs,
 block), the clustering's conflicts and the embedding report; `skipped`
 (`facts_unknown`, naming the fact); or `failed`. The chain runs at most once per change of its inputs (`StationFacts.InputsKey` and the survey; a review with them unchanged reads the last advice and writes no row). Cost on the 250x250 baseline map with a 30-colonist plan and 10 recipes ordered: about 85 ms a run, 0.5 ms for the key (`BenchmarkAdviseStationsLarge`).
 
-#### Cold exposure
+#### Climate model
 
-Beside the cooling station each `EnvCold` group carries `GroupAdvice.Exposure`
-(`policy.ColdExposureFor`, `cold_exposure.go`): whether vents to the outdoors
-alone keep that roofed room under rot, so a cold map needs no cooler. The
-facts are `StationFacts.OutdoorCurve` (the twelve seasonal means, from the
-projection beside `ColdMap`/`HotMap`) and `FullRotRateC`; without either the
-group has no exposure answer. The test simulates the room over two laps of a
-year at the vent's 250-tick step, starting at the outdoor temperature. Outdoors
-is the twelfths' means interpolated between their midpoints plus the diurnal
-swing `cos(2pi(dayPct+0.32))*7` (`GenTemperature.OffsetFromSunCycle`; no
-longitude shift). Each vent moves the room `(T_out-T_in)/2*min(14/cells,1)` of
-the way to outdoors per step (`Building_Vent.TickRare`, rate 14). These
-literals are the `exposureLiterals` DefTables entry, keyed by the `Vent` def.
-Weather offsets, drift inside a twelfth, door traffic and wall or roof leakage
-are not modelled. Under rot means the second lap's peak room temperature is
-below `FullRotRateC` (10 C): that slows rot, it does not stop it, and the
-`layout_stations` row says `rot: slowed`. The answer is the fewest vents up to
-`ExposureMaxVents` that stay under rot, or none. More vents only follow the
-weather more closely, so the peak never falls as vents are added and the answer
-is one vent whenever any count works. Envelope entrances (#2916) and vent
-placement (#2915) are separate.
+Beside the cooling station each `EnvCold` group carries `GroupAdvice.Climate`
+(`policy.groupClimate`, `climate.go`, #2940): the sustained heater or cooler
+watts that hold the room under the full-rot temperature (`FullRotRateC`, 10 C;
+that slows rot, it does not stop it) through each opening to the outdoors, as
+`ClimateOptions` lists them: vent, door held open, door held closed, airlock.
+The facts are `StationFacts.OutdoorCurve` (the twelve seasonal means) and
+`FullRotRateC`; without either, the catalog's `Climate` model or steel's market
+value, the group has no answer. Nothing is a veto: an opening the caller leaves
+out (an unresearched vent) is absent.
+
+Every heat number is the game's. `ClimateModel` (`bridge/catalog_climate.go`)
+reads the vent's interval and rate (`GenTicks.TickRareInterval`,
+`TemperatureTuning.Vent_TempEqualizeRate`, the `14f` in `Building_Vent.TickRare`),
+the Door def's `doorTempEqualizeIntervalOpen`/`Closed` and `doorTempEqualizeRate`
+(`BuildingProperties`), the swing `TemperatureTuning.DailyTempVariationAmplitude`,
+and the cheapest heater's and most efficient cooler's heat per second and power
+draw. One `GenTemperature.EqualizeTemperaturesThroughBuilding` call moves
+`(difference/2)*min(rate, cells)` cell-degrees into the smaller room, so an
+opening conducts `min(rate, cells)/2/interval` per tick per degree. The airlock
+is two closed doors in series round a one-cell vestibule, one open at a time
+under the caller's traffic. Per 250-tick step of a day-resolved year (outdoors is
+the twelfths interpolated between midpoints plus `cos(2pi(dayPct+0.32))*7`,
+`GenTemperature.OffsetFromSunCycle`, no longitude shift) the room floats to the
+conductance-weighted mean of what lies beyond its openings, is held at the band
+edge it floats past, and that heat becomes watts through the plant's power per
+heat. The room has no thermal inertia, and wall and roof leakage, heat given off
+inside, weather offsets and drift inside a twelfth are left out: every option
+pays them alike. The only judgment, the sun cycle's phase (a literal in the
+game's code), is the `climateTable` DefTables entry with the vent, door and wall
+defs. A build's cost is turned into watts at the site pricing's own rate
+(`SiteTypeWeights`: construction per 100 steel a day, amortised over one 60-day
+year, against power per kilowatt), so `ClimateOption.TotalW` compares options in
+one unit. The `layout_stations` row carries `climate` with each option's mean,
+peak, heating, cooling, build and total watts. Envelope entrances (#2916) and
+vent placement (#2915) read this model.
 
 `MatchGroupRooms` matches the standing planned rooms of a native role
 (`BuiltRegions`, through the planned-role to native-role table) to the groups

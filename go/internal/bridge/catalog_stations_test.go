@@ -248,3 +248,29 @@ func TestStationCatalogHasCoolers(t *testing.T) {
 		t.Error("a heater cools")
 	}
 }
+
+// The climate model is the game's numbers: the vent's TickRare interval and
+// 14f rate, the Door def's equalize fields (the TemperatureTuning defaults),
+// the Heater's and Cooler's temperature control and power comps.
+func TestStationCatalogClimateModelIsTheGamesNumbers(t *testing.T) {
+	m := recordedStations(t).Climate
+	if !m.Valid() {
+		t.Fatalf("climate model %+v", m)
+	}
+	if m.Vent.IntervalTicks != 250 || m.Vent.Rate != 14 {
+		t.Errorf("vent %+v, want TickRare 250 and rate 14", m.Vent)
+	}
+	if m.DoorOpen.IntervalTicks != 34 || m.DoorClosed.IntervalTicks != 375 || m.DoorOpen.Rate != 1 || m.DoorClosed.Rate != 1 {
+		t.Errorf("door open %+v closed %+v", m.DoorOpen, m.DoorClosed)
+	}
+	if m.SwingC != 7 || m.StepTicks != 250 || m.TicksPerSecond != 60 {
+		t.Errorf("swing %v step %d ticks per second %v", m.SwingC, m.StepTicks, m.TicksPerSecond)
+	}
+	if m.Heater.HeatPerSecond != 21 || m.Heater.PowerW <= 0 {
+		t.Errorf("heater %+v", m.Heater)
+	}
+	if m.Build.Vent <= 0 || m.Build.Door <= 0 || m.Build.Wall <= 0 {
+		t.Errorf("build values %+v", m.Build)
+	}
+	t.Logf("%+v", m)
+}

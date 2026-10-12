@@ -127,7 +127,7 @@ type ColonyProjection struct {
 	// HotMap is whether the curve peaks above HotEnter (policy.HotMapCurve); unknown without the curve.
 	HotMap domain.Fact[bool]
 	// OutdoorCurve is the twelve seasonal means themselves (C) and FullRotRateC the
-	// catalog's full-rot temperature, which the cold exposure advice reads.
+	// catalog's full-rot temperature, which the climate advice reads.
 	OutdoorCurve domain.Fact[[]float64]
 	FullRotRateC float64
 

@@ -159,8 +159,12 @@ func stationAdviceAttrs(a policy.StationAdvice) map[string]any {
 			"cost_ticks_per_day": costTicks, "lost_effects": len(g.Group.LostEffects),
 			"rooms": g.Rooms, "built_area": g.Capacity, "outgrown": g.Outgrown,
 		}
-		if e := g.Exposure; e != nil {
-			row["exposure"] = map[string]any{"satisfied": e.Satisfied, "vents": e.Vents, "peak_c": e.PeakC, "threshold_c": e.ThresholdC, "rot": "slowed"}
+		if c := g.Climate; c != nil {
+			options := make([]map[string]any, 0, len(c.Options))
+			for _, o := range c.Options {
+				options = append(options, map[string]any{"opening": string(o.Opening), "mean_w": o.Watts.MeanW, "peak_w": o.Watts.PeakW, "heating_w": o.Watts.HeatingW, "cooling_w": o.Watts.CoolingW, "build_w": o.BuildW, "total_w": o.TotalW})
+			}
+			row["climate"] = map[string]any{"cells": c.Cells, "max_c": c.Band.MaxC, "best": string(c.Best), "options": options}
 		}
 		if b, ok := blocks[g.Group.ID]; ok {
 			row["block"] = map[string]any{"x": b.X, "z": b.Z, "width": b.Width, "height": b.Height}

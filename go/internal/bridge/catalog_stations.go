@@ -88,6 +88,9 @@ func (catalog *DefinitionCatalog) buildStations() (policy.StationCatalog, error)
 		}
 		out.Stations[name] = station
 	}
+	if out.Climate, err = catalog.climateModel(out); err != nil {
+		return policy.StationCatalog{}, err
+	}
 	return out, nil
 }
 
