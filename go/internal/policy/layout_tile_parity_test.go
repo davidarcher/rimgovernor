@@ -47,7 +47,7 @@ func tiledParityPlan(f replayFixture, s MapSurvey) (LayoutPlan, error) {
 // yet bring to parity with the old generator (ParityVerdict), with the reason.
 // The list is the input to the cutover (#2931).
 var tilerParityExpectedFail = map[string]string{
-	"baseline": "total 2288 below the old generator: Centre -6797 (the tiled rooms sit farther from the map centre) outweighs the Soil, Footprint and Wall gains",
+	"tiny": "both fail the hard tier on a 40x40 map: the old generator places nothing (5 rooms missing, -500000), the tiler places 8 of 13 and misses 5 (the outskirts rooms and, since #2958, the shelter), so its soft terms for what it placed sit 2491 below an empty plan",
 }
 
 // TestTilerParityGate measures the gap between the station-chain tiler and

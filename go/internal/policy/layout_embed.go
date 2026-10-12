@@ -48,11 +48,12 @@ import (
 // exposure to cold outside air are the climate envelope (#2880). A clean room
 // has no site signal and is reported unsatisfied with a reason, not guessed at.
 //
-// Obstacle levels work as in SiteCore: the strictest level that holds is kept,
-// and a looser one runs only when no stricter one does. A level holds when it
-// places every group and keeps every required link adjacent (SiteCore's
-// "routes"); when none holds, the level with the fewest failures wins, the
-// strictest on a tie. The first block avoids rich soil while any fit does.
+// Obstacle levels work as in SiteCore: every level runs and the one with the fewest failures wins (a
+// room with no block, a required link not adjacent: SiteCore's "routes"). On
+// equal failures the strictest keeps the plan unless a looser one beats its
+// objective by FieldGain, as SiteCore's fields do: a stricter level that must
+// push the colony to a far edge to dodge rich soil or a field loses to the
+// looser level that stays near the middle (#2979). The first block avoids rich soil while any fit does.
 
 // Verdicts and reasons of embedding decisions.
 const (
@@ -712,11 +713,11 @@ func Embed(in EmbedInput) (Embedding, error) {
 	var best *embedRun
 	for _, level := range obstacleLevels {
 		run := embedLevel(in, depth, scorer, level)
-		if best == nil || run.failed() < best.failed() {
+		// A looser level takes over only by FieldGain, as in SiteCore: the
+		// strictest level keeps the plan unless the ground it spares costs
+		// more than that.
+		if best == nil || run.failed() < best.failed() || run.failed() == best.failed() && run.obj+float64(planWeights.FieldGain) < best.obj {
 			best = run
-		}
-		if run.failed() == 0 {
-			break
 		}
 	}
 	return best.embedding(in, scorer), nil
@@ -733,6 +734,8 @@ type embedRun struct {
 	// unmet counts the required links between placed blocks that are not
 	// adjacent.
 	unmet int
+	// obj is the objective plus the relocation price.
+	obj float64
 }
 
 // failed counts what the run leaves undone: a room with no block and a
@@ -779,10 +782,13 @@ func embedLevel(in EmbedInput, depth int, scorer planScorer, level obstacleLevel
 		run.unmet = e.unmetLinks(blocks)
 		runs[i] = run
 	})
-	best, bestObj := runs[0], e.objective(runs[0].blocks)+runs[0].built.Price
+	for _, r := range runs {
+		r.obj = e.objective(r.blocks) + r.built.Price
+	}
+	best := runs[0]
 	for _, r := range runs[1:] {
-		if obj := e.objective(r.blocks) + r.built.Price; r.failed() < best.failed() || r.failed() == best.failed() && obj < bestObj {
-			best, bestObj = r, obj
+		if r.failed() < best.failed() || r.failed() == best.failed() && r.obj < best.obj {
+			best = r
 		}
 	}
 	return best

@@ -195,8 +195,8 @@ stove's own meat flow, the kitchen.
 
 `policy.Embed` (`layout_embed.go`) places the room groups on the site as
 area-sized rectangular blocks, coarsely (tiling to regions is a later stage). It
-reuses the siting machinery: SiteCore's obstacle levels (the strictest level
-that places every group wins) and candidate seeds, the PlanScore soil, rock,
+reuses the siting machinery: SiteCore's obstacle levels (the level with the fewest
+failures wins; a looser one displaces a stricter one only by `FieldGain`) and candidate seeds, the PlanScore soil, rock,
 edge and centre terms per cell (prefix sums, so pricing a block is O(1)),
 `planWeights` for every weight and the seeded `searchRand`. The walking term is
 `Walk x link weight x (gap - 1)` with the cluster's summed flow weights, so
