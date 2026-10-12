@@ -71,6 +71,12 @@ const (
 	ReasonTileRoutes       = "tile_routes"
 	ReasonTileNoLink       = "tile_required_link_not_adjacent"
 	ReasonTilePassThrough  = "tile_pass_through"
+
+	ReasonTileAirlock          = "tile_airlock"
+	ReasonTileAirlockNotPaid   = "tile_airlock_not_paid"
+	ReasonTileAirlockNoGround  = "tile_airlock_no_ground"
+	ReasonTileAirlockUnpriced  = "tile_airlock_unpriced"
+	ReasonTileAirlockTemperate = "tile_airlock_temperate"
 )
 
 // ErrTile marks an embedding that cannot be tiled into a valid plan; ErrTileRole
@@ -97,6 +103,10 @@ type TileInput struct {
 	// unroofed and the decision says so.
 	OutdoorCurve domain.Fact[[]float64]
 	RoofDistance float64
+	// FullRotRateC (the band a cold room is held under) and SteelValue (the
+	// market value a build cost is counted in) are the airlocks' pricing reads
+	// (layout_tile_airlock.go); either unknown leaves the airlocks unpriced.
+	FullRotRateC, SteelValue float64
 }
 
 // TileDecision is one tiling decision for the caller to journal. Group is the
@@ -108,6 +118,9 @@ type TileDecision struct {
 	Reason       string
 	// Field names the field of a field decision (Group is -1 then).
 	Field string
+	// DoorW and AirlockW are an airlock decision's priced options: the plain
+	// door's and the airlock's total sustained watts (operating plus build).
+	DoorW, AirlockW float64 `json:",omitempty"`
 }
 
 // TileResult is the tiled plan with the furniture of every room and the
@@ -167,6 +180,7 @@ type tiler struct {
 	through  map[int]bool
 	extDoor  []*domain.Cell
 	extOut   []domain.Cell
+	free     map[domain.Cell]bool // open ground, as chooseExteriors found it
 	plan     LayoutPlan
 	out      TileResult
 }
@@ -283,6 +297,10 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 	t.furnish()
 	roof := PlanRoofed(t.out.Plan, RoofInput{Curve: t.in.OutdoorCurve, Cold: t.in.Survey.Cold, Hot: t.in.Survey.Hot, Climate: t.in.Catalog.Climate, RoofDistance: t.in.RoofDistance})
 	t.out.Plan.Roofed, t.out.RoofDecisions = roof.Roofed, roof.Decisions
+	if t.placeAirlocks() { // the vestibules are rooms too: roof them
+		roof = PlanRoofed(t.out.Plan, RoofInput{Curve: t.in.OutdoorCurve, Cold: t.in.Survey.Cold, Hot: t.in.Survey.Hot, Climate: t.in.Catalog.Climate, RoofDistance: t.in.RoofDistance})
+		t.out.Plan.Roofed, t.out.RoofDecisions = roof.Roofed, roof.Decisions
+	}
 	t.routeTileConduits()
 	if !t.out.Plan.Valid() {
 		return t.out, fmt.Errorf("%w: the conduit net is not valid", ErrTile)
@@ -398,6 +416,7 @@ func (t *tiler) chooseExteriors(scorer planScorer) {
 		cz += int64(r.rect.Z + r.rect.Height/2)
 	}
 	open := tileOpenGround(scorer, occupied)
+	t.free = open
 	var centre domain.Cell
 	if n := int64(len(t.rooms)); n > 0 {
 		centre = domain.Cell{X: int32(cx / n), Z: int32(cz / n)}

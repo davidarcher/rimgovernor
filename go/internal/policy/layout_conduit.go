@@ -200,6 +200,9 @@ func RouteConduits(plan LayoutPlan, consumers []conduitNode, survey MapSurvey) (
 func (t *tiler) routeTileConduits() {
 	var consumers []conduitNode
 	for i, room := range t.out.Plan.Rooms {
+		if i >= len(t.rooms) {
+			break // the airlocks follow the group rooms and draw nothing
+		}
 		g := t.in.Groups[t.rooms[i].group]
 		draws := map[string]bool{}
 		for _, s := range g.Stations {

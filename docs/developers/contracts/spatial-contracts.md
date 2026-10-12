@@ -303,6 +303,19 @@ on the colony centre when the plan has no free cell there.
   from a wall stay in the set and are reported (`roof_unsupported`), never vetoed.
   `TileResult.RoofDecisions` carries the reasons. Advice only: the runtime issues the
   `BuildRoofAction` at the #2931 cutover.
+  **Tiler airlocks (#2916).** On a roofed map each room's exterior door is priced in
+  sustained watts as a door pawns use (`OpeningDoor`: open for the share of the time its
+  trips hold it) against an airlock (`attachAirlock`; the second door and two walls at
+  `BuildW`'s rate). The airlock is placed, as a child room with `Parent` set, when its
+  total is lower; no veto, though a priced airlock with no free ground for its vestibule,
+  walls and outer door is left out and the decision says so. Door traffic is derived from
+  `LayoutPlan.Trips`: each trip is walked between its rooms' centres (`routeWalk`) and
+  charges its movements a day to every exterior door on the way
+  (`exteriorDoorMovements`); `DoorOpenFraction` turns that into time open using the
+  game's door close delay (`climateTable.DoorOpenTicks`). Circulation rooms are priced
+  like any room; the tiler plans no hallways. `TileDecision` carries the reason
+  (`tile_airlock`, `_not_paid`, `_no_ground`, `_unpriced`, `_temperate`) and both
+  totals. Advice only; `airlockPasses` is replaced at #2931.
   **Circulation (#2911).** The station graph carries station-less room nodes
   (`StationGraph.Rooms`, `RoomNode`: role, area demand, optional strip width; the morgue
   and waste yard of #2882 reuse the kind). Circulation is the corridor that joins rooms

@@ -34,9 +34,14 @@ import (
 type ClimateTable struct {
 	VentDef, DoorDef, WallDef string
 	SunPhase                  float64
+	// DoorOpenTicks is how long a door stays open after a pawn passes
+	// (Building_Door's close delay, a literal in the game's code that no def
+	// states): the time one passage holds it open, which turns movements a day
+	// into the fraction of the time a door is open (DoorOpenFraction).
+	DoorOpenTicks int
 }
 
-var climateTable = ClimateTable{VentDef: "Vent", DoorDef: ShellDoorDefinition, WallDef: ShellWallDefinition, SunPhase: 0.32}
+var climateTable = ClimateTable{VentDef: "Vent", DoorDef: ShellDoorDefinition, WallDef: ShellWallDefinition, SunPhase: 0.32, DoorOpenTicks: 110}
 
 // ClimateDefs are the building defs the climate options are priced in.
 func ClimateDefs() ClimateTable { return climateTable }
@@ -112,6 +117,10 @@ const (
 	// OpeningDoorOpen is a door held open and OpeningDoorClosed one held shut.
 	OpeningDoorOpen   Opening = "door_open"
 	OpeningDoorClosed Opening = "door_closed"
+	// OpeningDoor is a door pawns use: open for the traffic fraction of the
+	// time, shut otherwise. It is priced beside an airlock (OpeningOrder, the
+	// list of the vent site, leaves it out).
+	OpeningDoor Opening = "door"
 	// OpeningAirlock is two doors around a one-cell vestibule, never open at
 	// once: the traffic opens one at a time.
 	OpeningAirlock Opening = "airlock"
@@ -168,6 +177,9 @@ func (m ClimateModel) conductance(l ClimateLink, cells int, traffic float64) flo
 		return m.DoorOpen.conductance(cells)
 	case OpeningDoorClosed:
 		return m.DoorClosed.conductance(cells)
+	case OpeningDoor:
+		f := math.Max(0, math.Min(traffic, 1))
+		return f*m.DoorOpen.conductance(cells) + (1-f)*m.DoorClosed.conductance(cells)
 	case OpeningAirlock:
 		open, closed := m.DoorOpen.conductance(airlockVestibuleCells), m.DoorClosed.conductance(airlockVestibuleCells)
 		f := math.Max(0, math.Min(traffic, 0.5))
@@ -231,6 +243,16 @@ func ClimateLoad(m ClimateModel, curve []float64, room ClimateRoom, traffic floa
 	out.CoolingW /= float64(steps)
 	out.MeanW = out.HeatingW + out.CoolingW
 	return out, nil
+}
+
+// DoorOpenFraction is the fraction of the time a door is open when
+// movementsPerDay pawns pass it, each holding it open for DoorOpenTicks (a
+// Poisson stream: passages that overlap share the open time).
+func DoorOpenFraction(movementsPerDay float64) float64 {
+	if !(movementsPerDay > 0) || math.IsInf(movementsPerDay, 0) {
+		return 0
+	}
+	return 1 - math.Exp(-movementsPerDay*float64(climateTable.DoorOpenTicks)/domain.TicksPerDay)
 }
 
 // outdoorAt is the outdoor temperature at a tick: the twelfths' means

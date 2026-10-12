@@ -246,7 +246,8 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 		}
 	}
 	if f.Tile {
-		tiled, err := TileEmbedding(TileInput{Groups: clustering.Groups, Embedding: embedding, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, OutdoorCurve: f.OutdoorCurve, RoofDistance: f.RoofDistance})
+		steel, _ := f.Items.MarketValue(siteSteelUnit) // unknown stays zero: the airlocks go unpriced
+		tiled, err := TileEmbedding(TileInput{Groups: clustering.Groups, Embedding: embedding, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reserved(), Survey: f.Survey, OutdoorCurve: f.OutdoorCurve, RoofDistance: f.RoofDistance, FullRotRateC: f.FullRotRateC, SteelValue: steel})
 		if err != nil {
 			return StationAdvice{}, err
 		}
