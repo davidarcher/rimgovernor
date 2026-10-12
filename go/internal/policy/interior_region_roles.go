@@ -2,6 +2,9 @@ package policy
 
 import (
 	"fmt"
+	"slices"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // The wants of each role the region placer furnishes. A want's count is the
@@ -230,6 +233,48 @@ func childRoomWants(_ InteriorRoom, piece InteriorPieceDef, f regionFrame) ([]Re
 		return nil, false
 	}
 	return []RegionWant{shapeWant("child", piece, n, 1, numbered("child", 0))}, true
+}
+
+// shelterWants: the research table, a crafting spot, the campfires and coolers
+// the climate asks for, then one bunk per occupant (every bunk that fits for
+// 0). A piece is planned only for a capability the room hosts, and only the
+// bunks matter: a cramped room, or a catalog without a row for a piece, gets
+// the bunks alone rather than no plan. A bunk is a 1x2 whatever it is made of
+// (a sleeping spot, a bed, a bedroll), the slot a spot and its bed share.
+func shelterWants(room InteriorRoom, piece InteriorPieceDef, f regionFrame) ([]RegionWant, bool) {
+	hosts := func(c Capability) bool { return slices.Contains(room.Capabilities, c) }
+	var wants []RegionWant
+	if bench, ok := room.benchDef(piece, RoomRoleLaboratory); ok && hosts(CapResearch) && benchRowCapacity(f, bench, 1) >= 1 {
+		research := namedPiece("research", bench, 0)
+		research.AgainstWall = true
+		wants = append(wants, research)
+	}
+	single := func(slot, def string, count int, name func(i int) string) {
+		if shape, ok := room.Shapes.Get(def); ok && shape.Size == (domain.Cell{X: 1, Z: 1}) && count > 0 {
+			wants = append(wants, shapeWant(slot, shape, count, 0, name))
+		}
+	}
+	if hosts(CapCraft) {
+		single("craft", shelterCraftingDef, 1, func(int) string { return "craft" })
+	}
+	if hosts(CapHeat) {
+		single("campfire", ShelterHeatDef, room.Campfires, numbered("campfire", 1))
+	}
+	single("cooler", ShelterCoolDef, room.Coolers, numbered(ShelterCoolerSlotPrefix[:len(ShelterCoolerSlotPrefix)-1], 1))
+	bunkDef := room.Shapes.Furniture.PrimaryBed()
+	if piece.Family == RoomRoleBedroom && piece.Size == shelterBunkSize {
+		bunkDef = piece.Def
+	}
+	if bunkDef == "" {
+		bunkDef = SleepingSpotDefinition
+	}
+	n := room.Occupants
+	if n <= 0 {
+		n = room.Floor().Area() / 2
+	}
+	bunk := InteriorPieceDef{Def: bunkDef, Size: shelterBunkSize}
+	wants = append(wants, shapeWant("bunk", bunk, n, 0, numbered(shelterBunkSlotPrefix[:len(shelterBunkSlotPrefix)-1], 1)))
+	return wants, true
 }
 
 // diningWants: the throw pin with its clear lane, then tables each ringed by

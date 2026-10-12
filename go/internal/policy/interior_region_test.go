@@ -16,12 +16,25 @@ type regionFixture struct {
 	objectiveFixture
 	Piece    InteriorPieceDef
 	Required []RequiredPiece
+	// Occupants and Coolers are a shelter's sleepers and passive coolers; its
+	// campfires are a cold map's.
+	Occupants, Coolers int
 }
 
 func (f regionFixture) room() (InteriorRoom, Region, []domain.Cell) {
 	room, region, cands := objectiveRoom(f.objectiveFixture)
 	room.Required = f.Required
+	if f.Role == RoomRoleShelter {
+		room.Occupants, room.Coolers = f.Occupants, f.Coolers
+		room.Campfires, room.Capabilities = ShelterCampfires(true), CapabilitiesOf(PlannedShelter)
+	}
 	return room, region, cands
+}
+
+func shelterFixture(name string, w, d int32, occupants, coolers int) regionFixture {
+	f := sizedFixture(RoomRoleShelter, name, w, d, InteriorPieceDef{})
+	f.Occupants, f.Coolers = occupants, coolers
+	return f
 }
 
 func sizedFixture(role RoomRole, name string, w, d int32, piece InteriorPieceDef, required ...RequiredPiece) regionFixture {
@@ -49,6 +62,13 @@ func regionSizedFixtures() []regionFixture {
 	for _, s := range [][2]int32{{5, 6}, {7, 8}} {
 		out = append(out, sizedFixture(RoomRoleSuite, "suite", s[0], s[1], InteriorPieceDef{}))
 	}
+	// The shelter sizes the layout plan picks for n colonists, a shelter filled
+	// with every bunk that fits, and a hot map's cooler.
+	for _, n := range []int{1, 2, 3, 4, 6, 8, 12} {
+		s := ShelterSizes(n, ShelterCampfires(true), 0)[0]
+		out = append(out, shelterFixture(fmt.Sprintf("%d sleepers", n), s[0], s[1], n, 0))
+	}
+	out = append(out, shelterFixture("fill", 7, 5, 0, 0), shelterFixture("cooler", 6, 5, 2, 1))
 	// Deep enough for the pin's lane and a table beside it, then for several.
 	for _, role := range []RoomRole{RoomRoleDiningRoom, RoomRoleRecRoom} {
 		for _, s := range [][2]int32{{9, 11}, {9, 16}, {12, 12}} {
@@ -103,6 +123,7 @@ func regionFamilies() []regionFixture {
 	} {
 		out = append(out, sizedFixture(c.role, "core", c.w, c.d, InteriorPieceDef{}))
 	}
+	out = append(out, shelterFixture("core", 7, 5, 3, 0))
 	seen := map[RoomRole]bool{}
 	for _, f := range regionSizedFixtures() {
 		if !seen[f.Role] && f.W >= 5 && f.D >= 5 {

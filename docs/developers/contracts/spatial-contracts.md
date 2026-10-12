@@ -266,7 +266,7 @@ and Hot; `Spine` and `Wings` are leftovers of the old generator.
   than greedy on a gated term; the tiler has no built input, so nothing is pinned or moved free.
   **Live furnishing (#2956).** The runtime reads a room's furniture slots from
   `PlanRoomInterior` (`interior_region.go`). A role in `regionRoles` (workshop, laboratory,
-  kitchen, tomb, prison cell, hospital, bedroom, suite, throne room, the child rooms, dining and rec room so far) states what its floor should hold as
+  kitchen, tomb, prison cell, hospital, bedroom, suite, throne room, the child rooms, dining, rec room and shelter so far) states what its floor should hold as
   `RegionWant`s (`interior_region_roles.go`: the capacity its template had along the entrance
   wall or aisle, the pieces named as the reconcilers and consumers read them) and the placer
   seats them on `InteriorRoom.Floor()`, the planned room's region, so an L or notched room is

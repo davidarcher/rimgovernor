@@ -85,6 +85,7 @@ var regionRoles = map[RoomRole]regionRole{
 	RoomRoleBedroom:    bedroomWants,
 	RoomRoleSuite:      bedroomWants,
 	RoomRoleThroneRoom: throneWants,
+	RoomRoleShelter:    shelterWants,
 	RoomRoleDiningRoom: diningWants(false),
 	RoomRoleRecRoom:    diningWants(true),
 

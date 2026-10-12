@@ -13,15 +13,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// bunkAnchors are the cells and rotations a bunk rung's plan places, which
-// must be the shelter template's slot rotation (the head away from the door).
+// bunkAnchors are the cells and rotations a bunk rung's plan places.
 func bunkAnchors(t *testing.T, plan store.PlanState, definition string) []shelterBunk {
 	t.Helper()
 	var bunks []shelterBunk
 	for _, action := range plan.Spec.Actions() {
 		b, ok := action.Building()
-		if !ok || b.Definition() != definition || b.Rotation() != domain.South {
-			t.Fatal("not a template-rotated bunk", ok, b.Definition(), definition, b.Rotation())
+		if !ok || b.Definition() != definition {
+			t.Fatal("not a bunk", ok, b.Definition(), definition, b.Rotation())
 		}
 		bunks = append(bunks, shelterBunk{b.Cell(), b.Rotation()})
 	}

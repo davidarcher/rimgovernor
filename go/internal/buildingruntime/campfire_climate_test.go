@@ -13,7 +13,7 @@ import (
 )
 
 // campfireSearch runs the real placement search for the cooking campfire on
-// the sleeping fixture's 5x5 site with a 4x4 shelter standing on the layout
+// the sleeping fixture's 5x5 site with a 5x4 shelter standing on the layout
 // plan, and returns the chosen cell and the shelter template's campfire slot
 // anchors for the plan's climate.
 func campfireSearch(t *testing.T, cold bool) (chosen domain.Cell, slots []domain.Cell, interior policy.Rectangle, wait Verdict) {
@@ -58,7 +58,7 @@ func campfireSearchBlocked(t *testing.T, cold bool, refused func(domain.Cell) bo
 		t.Fatal(err)
 	}
 	planner.concern, planner.definition, planner.environment = policy.EnsureCooking, "Campfire", policy.PlacementAnywhere
-	interior = policy.Rectangle{X: 0, Z: 0, Width: 4, Height: 4}
+	interior = policy.Rectangle{X: 0, Z: 0, Width: 5, Height: 4}
 	door := domain.Cell{X: 2, Z: 4}
 	facts := reading.Projection
 	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Cold: cold, Rooms: []policy.PlannedRoom{{Role: policy.PlannedShelter, Region: policy.RectRegion(interior), Door: door, DoorRot: domain.North}}})
@@ -121,7 +121,8 @@ func TestShelterSlotRefusedOnAPlantLeavesItsCutWave(t *testing.T) {
 	if got != slots[1] && got != (domain.Cell{}) {
 		t.Fatalf("campfire at %v, want the plant-free slot or a wait", got)
 	}
-	if got == (domain.Cell{}) {
+	// The zero cell is both "no campfire" and a corner slot of the plan.
+	if got == (domain.Cell{}) && got != slots[1] {
 		want := "shelter_slot:blocked:Campfire@"
 		if !wait.Is(policy.CauseExistingWork) || !strings.HasPrefix(wait.Refusal.Subject, want) {
 			t.Fatalf("wait %+v, want an existing-work wait naming %q", wait, want)
@@ -196,12 +197,29 @@ func TestShelterFurnitureCellsCoverTheCampfireSlotsNotTheBunks(t *testing.T) {
 	facts.Shapes = testPieceShapes
 	facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes})
 	cells := shelterFurnitureCells(facts)
-	for _, want := range []domain.Cell{{X: 62, Z: 82}, {X: 67, Z: 79}} {
-		if !slices.Contains(cells, want) {
-			t.Fatalf("campfire slot %v is not protected from loose spots: %v", want, cells)
+	rooms := plannedShelterRooms(facts)
+	if len(rooms) != 1 {
+		t.Fatalf("%d planned shelters", len(rooms))
+	}
+	plan, ok := policy.PlanRoomInterior(rooms[0], policy.InteriorPieceDef{})
+	if !ok {
+		t.Fatal("no shelter plan")
+	}
+	fires := 0
+	for _, p := range plan.Pieces {
+		for _, c := range rectCells(p.Rect) {
+			switch {
+			case p.IsBunk() && slices.Contains(cells, c):
+				t.Fatalf("a bunk slot %v is protected: %v", c, cells)
+			case !p.IsBunk() && !slices.Contains(cells, c):
+				t.Fatalf("%s slot %v is not protected from loose spots: %v", p.Slot, c, cells)
+			}
+		}
+		if strings.HasPrefix(p.Slot, "campfire.") {
+			fires++
 		}
 	}
-	if slices.Contains(cells, domain.Cell{X: 63, Z: 82}) {
-		t.Fatalf("a bunk slot is protected: %v", cells)
+	if fires != 2 {
+		t.Fatalf("a cold shelter plans %d campfire slots, want 2", fires)
 	}
 }
