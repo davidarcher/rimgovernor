@@ -191,9 +191,14 @@ func ParityVerdict(old, cur replayRow) error {
 // RunParityGate plans every replayFixtures survey with plan and checks it
 // against the recorded old-generator rows: one subtest and one verdict per
 // fixture, with the score deltas and the structural diff against the old
-// generator's plan logged. The planner children call it before the old
-// generator is deleted.
-func RunParityGate(t *testing.T, plan func(s MapSurvey, pawns int) LayoutPlan) {
+// generator's plan logged. A planner that cannot plan a survey returns an
+// error, which counts as not clearing the gate.
+//
+// The gate is a measurement until the cutover (#2931): expectedFail names, by
+// fixture, the reason it does not yet clear ParityVerdict. A listed fixture
+// that fails is logged; a listed fixture that clears, or an unlisted one that
+// fails, is an error, so a regression and an unexpected pass both show.
+func RunParityGate(t *testing.T, plan func(f replayFixture, s MapSurvey) (LayoutPlan, error), expectedFail map[string]string) {
 	t.Helper()
 	recorded := loadReplayScores(t)
 	for _, f := range replayFixtures {
@@ -203,17 +208,25 @@ func RunParityGate(t *testing.T, plan func(s MapSurvey, pawns int) LayoutPlan) {
 				t.Fatal("no recorded row for the fixture")
 			}
 			s := f.survey(t)
-			p := plan(s, f.pawns)
-			row := newReplayRow(Score(p, s), len(p.AllRooms()))
-			ref := SiteCore(LayoutPlan{Zones: Zone(s)}, s, f.pawns, 1, TechTierCamp)
-			t.Logf("%s deltas vs old: %v\n%s", f.name, ReplayDeltas(old, row), StructuralDiff(ref, p))
-			if err := ParityVerdict(old, row); err != nil {
-				t.Error(err)
+			p, err := plan(f, s)
+			if err == nil {
+				row := newReplayRow(Score(p, s), len(p.AllRooms()))
+				ref := SiteCore(LayoutPlan{Zones: Zone(s)}, s, f.pawns, 1, TechTierCamp)
+				t.Logf("%s deltas vs old: %v\n%s", f.name, ReplayDeltas(old, row), StructuralDiff(ref, p))
+				err = ParityVerdict(old, row)
+			}
+			reason, expected := expectedFail[f.name]
+			switch {
+			case err != nil && expected:
+				t.Logf("%s does not clear the gate (expected: %s): %v", f.name, reason, err)
+			case err != nil:
+				t.Errorf("%s regressed from clearing the gate: %v", f.name, err)
+			case expected:
+				t.Errorf("%s clears the gate but is listed as failing (%s): remove it from the list", f.name, reason)
 			}
 		})
 	}
 }
-
 func TestStructuralDiff(t *testing.T) {
 	a := LayoutPlan{Rooms: []PlannedRoom{
 		{Role: PlannedBedroom, Region: RectRegion(Rectangle{X: 0, Z: 0, Width: 4, Height: 4})},
