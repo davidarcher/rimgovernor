@@ -66,6 +66,9 @@ const (
 	// ReasonEmbedBand: a banded group stands farther than its band's maximum
 	// from the rooms outside it (the minimum is a placement rule, never broken).
 	ReasonEmbedBand = "embed_band_too_far"
+	// ReasonEmbedFacing: a range whose backdrop (the cells behind its dummies)
+	// is off the map or taken by another room (#2887).
+	ReasonEmbedFacing = "embed_backdrop_taken"
 )
 
 // EmbedInput is everything the embedding reads.
@@ -182,6 +185,7 @@ type embedder struct {
 	shapes [][][2]int32   // per group, the interiors (width, height) it may take
 	sky    []bool         // per group: needs open sky
 	band   []DistanceBand // per group: the ground it keeps from the groups outside its band
+	faces  bool           // some group faces away from the base (#2887)
 
 	level, base        prefix // core cells at the level / with no obstacle
 	soil, edge, centre prefix // weighted cell costs
@@ -221,6 +225,7 @@ func newEmbedder(in EmbedInput, depth int, scorer planScorer, level obstacleLeve
 		e.shapes = append(e.shapes, groupShapes(g, depth))
 		e.sky = append(e.sky, slices.Contains(g.Requires, EnvOpenSky))
 		e.band = append(e.band, g.Band)
+		e.faces = e.faces || g.FacesAway
 	}
 	cells := map[domain.Cell]SurveyCell{}
 	for _, c := range in.Survey.Cells {
@@ -296,6 +301,9 @@ func (e *embedder) fits(i int, r Rectangle, blocks []Rectangle, sky bool) bool {
 		if j != i && b.Width > 0 && (collides(r, b) || !e.bandAllows(i, r, j, b)) {
 			return false
 		}
+	}
+	if !e.backdropClear(i, r, blocks) {
+		return false
 	}
 	return e.bandReaches(i, r, blocks)
 }
@@ -676,6 +684,9 @@ func (r *embedRun) embedding(in EmbedInput, scorer planScorer) Embedding {
 		if !e.bandReaches(i, b, r.blocks) {
 			out.Decisions = append(out.Decisions, EmbedDecision{Group: i, Other: -1, Verdict: EmbedUnsatisfied, Reason: ReasonEmbedBand})
 		}
+		if g.FacesAway && !e.backdropClear(i, b, r.blocks) {
+			out.Decisions = append(out.Decisions, EmbedDecision{Group: i, Other: -1, Verdict: EmbedUnsatisfied, Reason: ReasonEmbedFacing})
+		}
 		for _, req := range g.Requires {
 			unsat := func(reason string) {
 				out.Decisions = append(out.Decisions, EmbedDecision{Group: i, Other: -1, Verdict: EmbedUnsatisfied, Reason: reason, Requirement: req})
@@ -704,3 +715,36 @@ func (r *embedRun) embedding(in EmbedInput, scorer planScorer) Embedding {
 // ObstacleLevel is the obstacle level the blocks were placed under: 0 is the
 // strictest (every field cell and rich soil avoided), higher is looser.
 func (e Embedding) ObstacleLevel() int { return int(e.Level) }
+
+// backdropClear reports group i at r clear of every facing range's backdrop
+// (#2887): when i faces away from the base, the cells behind its dummies are
+// on the map and hold no other placed room; and whichever i is, it stands in no
+// placed range's backdrop. Until a room outside the band is placed there is no
+// base to face away from, and a range has no backdrop to keep yet.
+func (e *embedder) backdropClear(i int, r Rectangle, blocks []Rectangle) bool {
+	if !e.faces {
+		return true
+	}
+	ref, ok := awayReference(e.groups, blocks)
+	if !ok {
+		return true
+	}
+	own := groupFootprint(e.groups[i], r)
+	if e.groups[i].FacesAway {
+		strip := backdropStrip(r, dummyFacing(r, ref))
+		if !e.base.inside(strip) {
+			return false
+		}
+		for j, b := range blocks {
+			if j != i && b.Width > 0 && intersects(strip, groupFootprint(e.groups[j], b)) {
+				return false
+			}
+		}
+	}
+	for j, b := range blocks {
+		if j != i && b.Width > 0 && e.groups[j].FacesAway && intersects(backdropStrip(b, dummyFacing(b, ref)), own) {
+			return false
+		}
+	}
+	return true
+}

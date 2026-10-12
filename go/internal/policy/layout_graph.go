@@ -108,6 +108,10 @@ type StationGraphInput struct {
 	Stock      map[Resource]int64
 	StackLimit map[Resource]int64
 	Perishable map[Resource]bool
+	// TrainingStands and TrainingMarkers are the range stands and ring markers
+	// the colony asks for (RoomDemand.Ranges and Rings); zero asks for no such
+	// room (#2887).
+	TrainingStands, TrainingMarkers int
 	// Crops are the crops chosen to grow (crop choice is the caller's) and
 	// FoodReserveDays the stored-food buffer their fields budget (#2885); a crop
 	// that is not edible or has an unknown target gets no field node.
@@ -173,7 +177,12 @@ type RoomNode struct {
 	Band DistanceBand
 	// Beside is the room node this one must stand beside (a required link).
 	Beside string
-	Reason string
+	// FacesAway is a hard orientation constraint: the room's dummies point away
+	// from the base (the training range, #2887).
+	FacesAway bool
+	// Markers is the marker count of a sparring ring.
+	Markers int
+	Reason  string
 }
 
 // DistanceBand is the ring of clear ground a room keeps from the rooms outside
@@ -286,6 +295,7 @@ func BuildStationGraph(in StationGraphInput) (StationGraph, error) {
 	g := b.graph()
 	g.Fields = fields
 	g.Rooms = OutskirtsRoomNodes()
+	g.Rooms = append(g.Rooms, TrainingRoomNodes(in.TrainingStands, in.TrainingMarkers)...)
 	for _, n := range g.Nodes {
 		switch n.Purpose {
 		case PurposeSleep, PurposeSleepMed, PurposeSleepBaby:

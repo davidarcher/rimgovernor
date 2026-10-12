@@ -177,6 +177,7 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 	t.out.Pieces = map[int32][]InteriorPiece{}
 	index := map[int]int{}
 	blocks := slices.Clone(in.Embedding.Blocks)
+	placed := placedBlocks(in.Groups, blocks)
 	sort.Slice(blocks, func(i, j int) bool { return blocks[i].Group < blocks[j].Group })
 	t.plan = LayoutPlan{Zones: in.Zones, Reservations: in.Reservations}
 	// Every group owes a room, placed or not: a group the embedding left out
@@ -206,6 +207,12 @@ func TileEmbedding(in TileInput) (TileResult, error) {
 		t.rooms = append(t.rooms, tileRoom{group: b.Group, rect: b.Interior, role: role})
 		crossing := crossingOf(g)
 		room := PlannedRoom{Role: role, Region: RectRegion(b.Interior), Crossing: &crossing, Outdoor: role.IsOutdoor()}
+		room.Markers = g.Markers
+		if g.FacesAway {
+			if ref, ok := awayReference(in.Groups, placed); ok {
+				room.Facing = dummyFacing(b.Interior, ref)
+			}
+		}
 		room.Dug = scorer.g.dug(room)
 		t.plan.Rooms = append(t.plan.Rooms, room)
 	}

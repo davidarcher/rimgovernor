@@ -147,9 +147,13 @@ type RoomGroup struct {
 	Width int32
 	// Band is the ground the group keeps from the groups outside the band (the
 	// outskirts rooms, #2882); zero for a group that goes anywhere.
-	Band     DistanceBand
-	Requires []EnvRequirement
-	Links    []GroupLink
+	Band DistanceBand
+	// FacesAway and Markers carry a training room's node (#2887): the range's
+	// dummies point away from the base; the ring's marker count.
+	FacesAway bool
+	Markers   int
+	Requires  []EnvRequirement
+	Links     []GroupLink
 	// Costs are the throughput the room loses to the environment its stations
 	// do not get; LostEffects the role effects it does not give.
 	Costs       []ConflictCost
@@ -678,7 +682,7 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 // addRoom appends the group of a station-less room node: its asked floor, plus
 // the cooling station a cold group carries.
 func (c *clusterer) addRoom(groups []RoomGroup, decisions []ClusterDecision, node RoomNode) ([]RoomGroup, []ClusterDecision) {
-	g := RoomGroup{ID: len(groups), Clearance: node.Area, Planned: node.Role, Width: node.Width, Band: node.Band}
+	g := RoomGroup{ID: len(groups), Clearance: node.Area, Planned: node.Role, Width: node.Width, Band: node.Band, FacesAway: node.FacesAway, Markers: node.Markers}
 	d := ClusterDecision{A: node.ID, Verdict: ClusterRoom, Reason: node.Reason}
 	if node.Cold {
 		g.Requires = []EnvRequirement{EnvCold}
@@ -715,6 +719,9 @@ func linkRooms(groups []RoomGroup, first int, nodes []RoomNode) {
 		groups[a].Links = append(groups[a].Links, GroupLink{To: b, Required: true})
 		groups[b].Links = append(groups[b].Links, GroupLink{To: a, Required: true})
 		for _, g := range []int{a, b} {
+			if exactFloor(groups[g].Planned) {
+				continue
+			}
 			groups[g].Clearance++
 			groups[g].Area++
 		}

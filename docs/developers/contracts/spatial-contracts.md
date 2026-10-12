@@ -321,6 +321,18 @@ on the colony centre when the plan has no free cell there.
   unfenced graveyard and waste yard no wall, door or entrance. The old outskirts planner
   and its slots stay authoritative; `OutskirtsArea` as a region, the siting reasons and the
   perimeter overlap checks are #2886.
+  **Training rooms (#2887).** The range and the sparring ring are station-less nodes too
+  (`TrainingRoomNodes`, `layout_training_nodes.go`; `StationGraphInput.TrainingStands`
+  and `TrainingMarkers` ask for them, zero asks for none). Each asks its exact floor
+  (stands by `RangeDistance+1`; `RingSide` squared) and clustering adds no door threshold
+  to it (`exactFloor`); `rangeBlock` and `ringBlock` keep their rectangle shells. Both
+  keep `TrainingBand` (`rangeGap` to `outskirtsReach`); the ring is required beside the
+  range. The range's `FacesAway` is a hard orientation constraint: the dummies point to
+  the end farther from the bounds of the rooms outside the band (`dummyFacing`), and the
+  `RangeBackdrop` cells behind them stay on the map and free of other rooms
+  (`backdropClear`; a taken backdrop is `embed_backdrop_taken`). The tiler writes `Facing`
+  and `Markers` onto the room. Growth stays widening in place (`widenRange`,
+  `widenRing`); the old siting stays authoritative.
 - **Search.** The best sites by score get a deterministic, iteration-bounded local
   search; wall time is only a hang guard.
 - **Replan.** Two-stage: the same generator runs with every room that has anything of
