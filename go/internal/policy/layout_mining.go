@@ -160,27 +160,3 @@ func zoneHas(z LayoutZone, cell domain.Cell) bool {
 	}
 	return false
 }
-
-// hallwayCells is every cell of the plan's hallways, SpineWidth across.
-func (p LayoutPlan) hallwayCells() map[domain.Cell]bool {
-	out := map[domain.Cell]bool{}
-	for _, s := range p.Hallways() {
-		lo, hi := s.From, s.To
-		if lo.X > hi.X || lo.Z > hi.Z {
-			lo, hi = hi, lo
-		}
-		alongX := lo.Z == hi.Z
-		for x := lo.X; x <= hi.X; x++ {
-			for z := lo.Z; z <= hi.Z; z++ {
-				for d := -SpineWidth / 2; d <= SpineWidth/2; d++ {
-					if alongX {
-						out[domain.Cell{X: x, Z: z + d}] = true
-					} else {
-						out[domain.Cell{X: x + d, Z: z}] = true
-					}
-				}
-			}
-		}
-	}
-	return out
-}

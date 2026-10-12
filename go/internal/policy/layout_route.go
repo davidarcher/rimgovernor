@@ -111,34 +111,6 @@ func walkedThrough(r PlannedRoom) bool {
 	return r.Crossing.Mechanisms() == 0 || r.Through
 }
 
-// spineEntrances are the cells a plan may be entered from at worst: the
-// end slabs of every spine segment (a wing corridor is a dead end).
-func spineEntrances(spine []SpineSegment) []domain.Cell {
-	var out []domain.Cell
-	for _, s := range spine {
-		lo, hi := s.From, s.To
-		if lo.X > hi.X || lo.Z > hi.Z {
-			lo, hi = hi, lo
-		}
-		alongX := lo.Z == hi.Z
-		for x := lo.X; x <= hi.X; x++ {
-			for z := lo.Z; z <= hi.Z; z++ {
-				if alongX && x != lo.X && x != hi.X || !alongX && z != lo.Z && z != hi.Z {
-					continue
-				}
-				for d := -SpineWidth / 2; d <= SpineWidth/2; d++ {
-					if alongX {
-						out = append(out, domain.Cell{X: x, Z: z + d})
-					} else {
-						out = append(out, domain.Cell{X: x + d, Z: z})
-					}
-				}
-			}
-		}
-	}
-	return out
-}
-
 // ThroughfareError is a trip whose shortest path crosses a room nobody may
 // walk through; Room is that room's id.
 type ThroughfareError struct {
@@ -309,23 +281,8 @@ func tripCells(p LayoutPlan, rooms []PlannedRoom) func(PlannedRole) [][]domain.C
 func routeWalk(p LayoutPlan) (map[domain.Cell]int, []PlannedRoom) {
 	walk := map[domain.Cell]int{}
 	rooms := p.AllRooms()
-	for _, s := range p.Hallways() {
-		lo, hi := s.From, s.To
-		if lo.X > hi.X || lo.Z > hi.Z {
-			lo, hi = hi, lo
-		}
-		alongX := lo.Z == hi.Z
-		for x := lo.X; x <= hi.X; x++ {
-			for z := lo.Z; z <= hi.Z; z++ {
-				for d := -SpineWidth / 2; d <= SpineWidth/2; d++ {
-					c := domain.Cell{X: x, Z: z + d}
-					if !alongX {
-						c = domain.Cell{X: x + d, Z: z}
-					}
-					walk[c] = -1
-				}
-			}
-		}
+	for c := range p.hallwayCells() {
+		walk[c] = -1
 	}
 	for i, r := range rooms {
 		if r.attached() {

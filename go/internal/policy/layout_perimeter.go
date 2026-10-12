@@ -105,8 +105,8 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 				return true
 			}
 		}
-		for _, sg := range plan.Hallways() {
-			if contains(pad(rectOf(sg.From, sg.To), SpineWidth/2), c) {
+		for _, h := range plan.hallwayFootprints() {
+			if contains(h, c) {
 				return true
 			}
 		}
@@ -426,7 +426,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	// ones on the east and west sides, the crossings on the others.
 	axes := func(sd ringSide) []int32 {
 		var out []int32
-		for _, sg := range plan.Spine {
+		for _, sg := range plan.Hallways() {
 			if alongX(sg) == sd.vertical {
 				out = append(out, sd.pos(sg.From))
 			}

@@ -133,7 +133,7 @@ func pitchGates(gates []Rectangle, stepGates []stepGate, blocked func(domain.Cel
 }
 
 // coreFootprint marks the cells of a w x h map the core ring walls in: each
-// room's interior with its walls, each hallway padded by SpineWidth/2, the
+// room's interior with its walls, each hallway with its walls, the
 // pen, barn, vet room and turbine pairs beside them, and any
 // geothermal crowding that footprint. It follows the plan's real outline,
 // not its bounding rectangle.
@@ -154,8 +154,8 @@ func coreBaseFootprint(plan LayoutPlan, w, h int32) []bool {
 	for _, r := range plan.AllRooms() {
 		markRect(fp, w, h, pad(r.Region.Bounds(), 1))
 	}
-	for _, sg := range plan.Hallways() {
-		markRect(fp, w, h, pad(rectOf(sg.From, sg.To), SpineWidth/2))
+	for _, hall := range plan.hallwayFootprints() {
+		markRect(fp, w, h, hall)
 	}
 	for _, r := range plan.Reservations {
 		if innerEnclosed[r.Kind] {

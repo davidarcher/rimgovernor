@@ -169,8 +169,8 @@ func (sc planScorer) core(p LayoutPlan) PlanScore {
 			under[c] = true
 		}
 	}
-	for _, h := range p.Hallways() {
-		for _, c := range rectCells(pad(rectOf(h.From, h.To), SpineWidth/2)) {
+	for _, h := range p.hallwayFootprints() {
+		for _, c := range rectCells(h) {
 			under[c] = true
 		}
 	}

@@ -59,8 +59,8 @@ func PlanMountainPockets(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			used[c] = true
 		}
 	}
-	for _, sg := range plan.Hallways() {
-		for _, c := range rectCells(pad(rectOf(sg.From, sg.To), SpineWidth/2)) {
+	for _, hall := range plan.hallwayFootprints() {
+		for _, c := range rectCells(hall) {
 			used[c] = true
 		}
 	}

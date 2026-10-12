@@ -177,3 +177,74 @@ func dropRooms(plan LayoutPlan, drop map[int32]bool) (LayoutPlan, bool) {
 	}
 	return plan, true
 }
+
+// The hallway geometry below is the one place the perimeter, routes, mining,
+// scoring and overlay learn how wide a hallway is. A tiled plan holds no
+// hallways (its rooms touch and link by doors), so each reader's hallway branch
+// is empty there; a replanned plan still carries them until the Spine field
+// goes.
+
+// spineRects are the hallways' SpineWidth-wide rectangles.
+func spineRects(segments []SpineSegment) []Rectangle {
+	out := make([]Rectangle, 0, len(segments))
+	for _, s := range segments {
+		loX, hiX := min(s.From.X, s.To.X), max(s.From.X, s.To.X)
+		loZ, hiZ := min(s.From.Z, s.To.Z), max(s.From.Z, s.To.Z)
+		if loZ == hiZ {
+			out = append(out, Rectangle{X: loX, Z: loZ - SpineWidth/2, Width: hiX - loX + 1, Height: SpineWidth})
+		} else {
+			out = append(out, Rectangle{X: loX - SpineWidth/2, Z: loZ, Width: SpineWidth, Height: hiZ - loZ + 1})
+		}
+	}
+	return out
+}
+
+// hallwayFootprints are the hallways' rectangles padded by half a hallway on
+// every side: the ground a hallway holds with its walls.
+func (p LayoutPlan) hallwayFootprints() []Rectangle {
+	halls := p.Hallways()
+	out := make([]Rectangle, 0, len(halls))
+	for _, s := range halls {
+		out = append(out, pad(rectOf(s.From, s.To), SpineWidth/2))
+	}
+	return out
+}
+
+// hallwayCells is every cell of the plan's hallways, SpineWidth across.
+func (p LayoutPlan) hallwayCells() map[domain.Cell]bool {
+	out := map[domain.Cell]bool{}
+	for _, r := range spineRects(p.Hallways()) {
+		for _, c := range rectCells(r) {
+			out[c] = true
+		}
+	}
+	return out
+}
+
+// spineEntrances are the cells a plan may be entered from at worst: the
+// end slabs of every spine segment (a wing corridor is a dead end).
+func spineEntrances(spine []SpineSegment) []domain.Cell {
+	var out []domain.Cell
+	for _, s := range spine {
+		lo, hi := s.From, s.To
+		if lo.X > hi.X || lo.Z > hi.Z {
+			lo, hi = hi, lo
+		}
+		alongX := lo.Z == hi.Z
+		for x := lo.X; x <= hi.X; x++ {
+			for z := lo.Z; z <= hi.Z; z++ {
+				if alongX && x != lo.X && x != hi.X || !alongX && z != lo.Z && z != hi.Z {
+					continue
+				}
+				for d := -SpineWidth / 2; d <= SpineWidth/2; d++ {
+					if alongX {
+						out = append(out, domain.Cell{X: x, Z: z + d})
+					} else {
+						out = append(out, domain.Cell{X: x + d, Z: z})
+					}
+				}
+			}
+		}
+	}
+	return out
+}

@@ -228,21 +228,6 @@ func labelCell(g Region) domain.Cell {
 	return best
 }
 
-// spineRects are the hallways' SpineWidth-wide rectangles.
-func spineRects(segments []SpineSegment) []Rectangle {
-	out := make([]Rectangle, 0, len(segments))
-	for _, s := range segments {
-		loX, hiX := min(s.From.X, s.To.X), max(s.From.X, s.To.X)
-		loZ, hiZ := min(s.From.Z, s.To.Z), max(s.From.Z, s.To.Z)
-		if loZ == hiZ {
-			out = append(out, Rectangle{X: loX, Z: loZ - SpineWidth/2, Width: hiX - loX + 1, Height: SpineWidth})
-		} else {
-			out = append(out, Rectangle{X: loX - SpineWidth/2, Z: loZ, Width: SpineWidth, Height: hiZ - loZ + 1})
-		}
-	}
-	return out
-}
-
 // busiestSpineCells are the spine cells carrying at least half the busiest
 // spine cell's routes; none when the routes fail.
 func busiestSpineCells(p LayoutPlan, spine []Rectangle) []domain.Cell {
