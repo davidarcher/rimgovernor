@@ -292,11 +292,7 @@ func (p LayoutPlan) doorsHold(cand LayoutReservation) bool {
 		if !r.Equal(cand) && p.herdRoom(r.Area.Bounds(), role).Door != room.Door {
 			return false
 		}
-		cells := []domain.Cell{room.Door}
-		if room.Link != nil {
-			cells = append(cells, *room.Link)
-		}
-		for _, c := range cells {
+		for _, c := range next.DoorsOf(room) {
 			if seen[c] {
 				return false
 			}

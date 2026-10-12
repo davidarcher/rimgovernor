@@ -345,16 +345,10 @@ func routeWalk(p LayoutPlan) (map[domain.Cell]int, []PlannedRoom) {
 		if r.Unfenced() {
 			continue // no door
 		}
-		if _, ok := walk[r.Door]; !ok {
-			walk[r.Door] = -1
-		}
-		for _, d := range r.Doors {
-			if _, ok := walk[d.Cell]; !ok {
-				walk[d.Cell] = -1
+		for _, c := range p.DoorsOf(r) {
+			if _, ok := walk[c]; !ok {
+				walk[c] = -1
 			}
-		}
-		if r.Link != nil {
-			walk[*r.Link] = -1
 		}
 	}
 	for _, l := range p.Links {

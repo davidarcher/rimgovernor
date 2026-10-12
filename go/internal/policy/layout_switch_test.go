@@ -20,7 +20,7 @@ func switchFixture(t *testing.T) (MapSurvey, LayoutPlan, PlannedRoom, RoomGrowth
 			store = r
 		}
 	}
-	if !relocatable(store) {
+	if !plan.relocatable(store) {
 		t.Fatalf("storeroom %+v is not relocatable", store)
 	}
 	all := allPins(plan)

@@ -184,7 +184,7 @@ func CensusRoomIn(r PlannedRoom, rooms RoomObservation) (Room, bool) {
 func (r PlannedRoom) Footprint() (domain.RoomFootprint, error) {
 	cells := r.Region.Cells()
 	var extra []domain.RoomDoor
-	for _, d := range r.Doors {
+	for _, d := range r.BoundaryDoors()[1:] {
 		extra = append(extra, domain.RoomDoor{Cell: d.Cell, Entrance: d.Rot})
 	}
 	return domain.NewRoomFootprint(cells, r.Door, r.DoorRot, extra...)
@@ -198,25 +198,20 @@ func (p LayoutPlan) ShellDoors(r PlannedRoom) []domain.Cell {
 	if r.Unfenced() {
 		return nil
 	}
-	doors := []domain.Cell{r.Door}
-	for _, d := range r.Doors {
-		doors = append(doors, d.Cell)
-	}
-	if r.Link != nil {
-		doors = append(doors, *r.Link)
-	}
-	doors = append(doors, p.LinkCells(r.ID)...)
+	doors := p.DoorsOf(r)
 	for _, a := range p.childrenOfRole(r.ID, PlannedAirlock) {
 		doors = append(doors, a.Door)
 	}
 	doors = append(doors, p.FlapCells(r)...)
 	ring := r.Region.Walls()
 	for _, o := range p.roomsWithHerd() {
-		if o.Link == nil || slices.Equal(o.Region.Runs, r.Region.Runs) {
+		if slices.Equal(o.Region.Runs, r.Region.Runs) {
 			continue
 		}
-		if l := *o.Link; ring.Contains(l) && r.Region.adjacent(l) {
-			doors = append(doors, l)
+		for _, l := range p.LinksOf(o) {
+			if ring.Contains(l) && r.Region.adjacent(l) && !slices.Contains(doors, l) {
+				doors = append(doors, l)
+			}
 		}
 	}
 	return doors

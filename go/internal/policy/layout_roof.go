@@ -182,7 +182,7 @@ func hallwayRoofPrice(p LayoutPlan, in RoofInput, rect Rectangle) (saved, held f
 		if r.Role.IsOutdoor() || r.Unfenced() {
 			continue
 		}
-		for _, d := range append([]Door{{Cell: r.Door, Rot: r.DoorRot}}, r.Doors...) {
+		for _, d := range r.BoundaryDoors() {
 			if !contains(rect, domain.RoomDoor{Cell: d.Cell, Entrance: d.Rot}.Threshold()) {
 				continue
 			}

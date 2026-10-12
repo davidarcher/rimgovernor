@@ -195,10 +195,7 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 		if r.Unfenced() {
 			continue
 		}
-		doors = append(doors, r.Door)
-		for _, d := range r.Doors {
-			doors = append(doors, d.Cell)
-		}
+		doors = append(doors, p.DoorsOf(r)...)
 	}
 	add(overlayStyle{planWhite, "door"}, OverlayFill, nil, cellRuns(doors))
 	p.linesOverlay(bounds, &out)

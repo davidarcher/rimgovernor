@@ -2,6 +2,7 @@ package policy
 
 import (
 	"maps"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -117,7 +118,7 @@ func replanPins(plan LayoutPlan, fixed map[int32]bool, emptied map[domain.Cell]b
 		changed = false
 		for _, r := range plan.Rooms {
 			for _, o := range plan.Rooms {
-				if pins[r.ID] && !pins[o.ID] && linked(r, o) || pins[o.ID] && !pins[r.ID] && linked(o, r) {
+				if pins[r.ID] && !pins[o.ID] && plan.linked(r, o) || pins[o.ID] && !pins[r.ID] && plan.linked(o, r) {
 					pins[r.ID], pins[o.ID] = true, true
 					changed = true
 				}
@@ -140,9 +141,9 @@ func replanPins(plan LayoutPlan, fixed map[int32]bool, emptied map[domain.Cell]b
 	return pins
 }
 
-// linked reports a's Link door on b's walls.
-func linked(a, b PlannedRoom) bool {
-	return a.Link != nil && a.Region.Bounds() != b.Region.Bounds() && contains(roomWalls(b), *a.Link)
+// linked reports one of a's link doors on b's walls.
+func (p LayoutPlan) linked(a, b PlannedRoom) bool {
+	return a.Region.Bounds() != b.Region.Bounds() && slices.ContainsFunc(p.LinksOf(a), func(l domain.Cell) bool { return contains(roomWalls(b), l) })
 }
 
 // wingPinned reports a pinned room in w: the wing stays as sited.

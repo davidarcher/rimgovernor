@@ -60,8 +60,7 @@ func inRoomRing(in Rectangle, cell domain.Cell) bool {
 func (p LayoutPlan) RoomRock(room PlannedRoom, cells []SiteCell) RockStepResult {
 	var planned []RoleCell
 	add := func(c domain.Cell) { planned = append(planned, RoleCell{Cell: c, Role: RockNeedsFloor}) }
-	add(room.Door)
-	for _, d := range room.Doors {
+	for _, d := range room.BoundaryDoors() {
 		add(d.Cell)
 	}
 	for _, c := range RectangleCells(room.Region.Bounds()) {
@@ -114,14 +113,13 @@ func (p LayoutPlan) RoomRock(room PlannedRoom, cells []SiteCell) RockStepResult 
 	return RockStep(planned, cells)
 }
 
-// linkedNeighbour is the other room whose wall holds room's Link door.
+// linkedNeighbour is the other room whose wall holds one of room's link doors.
 func (p LayoutPlan) linkedNeighbour(room PlannedRoom) (PlannedRoom, bool) {
-	if room.Link == nil {
-		return PlannedRoom{}, false
-	}
-	for _, o := range p.AllRooms() {
-		if o.Region.Bounds() != room.Region.Bounds() && inWall(o.Region.Bounds(), *room.Link) {
-			return o, true
+	for _, link := range p.LinksOf(room) {
+		for _, o := range p.AllRooms() {
+			if o.Region.Bounds() != room.Region.Bounds() && inWall(o.Region.Bounds(), link) {
+				return o, true
+			}
 		}
 	}
 	return PlannedRoom{}, false

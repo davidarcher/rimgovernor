@@ -109,8 +109,8 @@ func (r StoreView) freezerStores() []Store {
 		return nil
 	}
 	anchor := freezer.Door
-	if freezer.Link != nil {
-		anchor = *freezer.Link
+	if link, ok := r.Layout.linkInto(freezer, PlannedDining); ok {
+		anchor = link
 	}
 	var out []Store
 	for _, shelf := range []struct {

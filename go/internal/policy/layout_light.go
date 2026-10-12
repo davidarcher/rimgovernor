@@ -379,18 +379,14 @@ func heldWallCells(p LayoutPlan) map[domain.Cell]bool {
 		for _, c := range r.Region.Cells() {
 			out[c] = true
 		}
-		out[r.Door] = true
-		for _, d := range r.Doors {
-			out[d.Cell] = true
+		for _, c := range p.DoorsOf(r) {
+			out[c] = true
 		}
 	}
 	for _, rect := range spineRects(p.Hallways()) {
 		for _, c := range rectCells(rect) {
 			out[c] = true
 		}
-	}
-	for _, l := range p.Links {
-		out[l.Cell] = true
 	}
 	for _, c := range p.Entrances {
 		out[c] = true

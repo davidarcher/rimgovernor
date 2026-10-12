@@ -93,15 +93,7 @@ func reshapeFits(plan LayoutPlan, r PlannedRoom, to Region, blocked map[domain.C
 		return false
 	}
 	b := to.Bounds()
-	doors := []domain.Cell{r.Door}
-	for _, d := range r.Doors {
-		doors = append(doors, d.Cell)
-	}
-	if r.Link != nil {
-		doors = append(doors, *r.Link)
-	}
-	doors = append(doors, plan.LinkCells(r.ID)...)
-	for _, d := range doors {
+	for _, d := range plan.DoorsOf(r) {
 		if !inWall(b, d) {
 			return false
 		}

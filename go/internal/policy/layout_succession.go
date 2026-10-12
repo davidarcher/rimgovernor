@@ -223,7 +223,7 @@ func OutgrownSuccession(advice StationAdvice, catalog StationCatalog, plan Layou
 		if old == nil || best.Any() && shortfall <= best.Shortfall {
 			continue
 		}
-		best = Successor{Replaces: old.ID, Role: old.Role, Linked: old.Link != nil, Floor: old.Region.Area(), Shortfall: shortfall}
+		best = Successor{Replaces: old.ID, Role: old.Role, Linked: len(plan.LinksOf(*old)) > 0, Floor: old.Region.Area(), Shortfall: shortfall}
 		if block, placed := advice.Embedding.Block(ga.Group.ID); placed {
 			best.Sizes = successorSizes(block, best.Floor+shortfall)
 		}
@@ -284,7 +284,7 @@ func growSuccessor(plan LayoutPlan, s Successor, sc *planScorer, blocked map[dom
 	// anywhere that keeps the successor's own Link.
 	var accept func(PlannedRoom) bool
 	if s.Linked {
-		accept = func(r PlannedRoom) bool { return r.Link != nil }
+		accept = func(r PlannedRoom) bool { return len(siting.LinksOf(r)) > 0 }
 	}
 	var sited LayoutPlan
 	ok, err := false, error(nil)
@@ -319,7 +319,7 @@ func linkersOf(plan LayoutPlan, id int32) []PlannedRoom {
 	}
 	var out []PlannedRoom
 	for _, r := range plan.Rooms {
-		if r.ID != id && linked(r, old) {
+		if r.ID != id && plan.linked(r, old) {
 			out = append(out, r)
 		}
 	}

@@ -71,8 +71,8 @@ var relocatableRoles = []PlannedRole{PlannedStorage, PlannedWorkshop}
 // relocatable reports a room that may be sited again as it is: a plain
 // rectangle of a relocatable role in the plan's own rooms, with no link door,
 // airlock or porch of its own.
-func relocatable(r PlannedRoom) bool {
-	return slices.Contains(relocatableRoles, r.Role) && !r.Unfenced() && !r.Dug && !r.Outdoor && r.Link == nil && r.Parent == 0 && r.Region.IsRect()
+func (p LayoutPlan) relocatable(r PlannedRoom) bool {
+	return slices.Contains(relocatableRoles, r.Role) && !r.Unfenced() && !r.Dug && !r.Outdoor && len(p.LinksOf(r)) == 0 && r.Parent == 0 && r.Region.IsRect()
 }
 
 // relocation is one built room's move: plan with its replacement sited, the
@@ -116,7 +116,7 @@ func relocations(plan LayoutPlan, sc planScorer, built map[int32]bool, blocked m
 	here := sc.core(plan)
 	var out []relocation
 	for _, r := range plan.Rooms {
-		if !built[r.ID] || !relocatable(r) {
+		if !built[r.ID] || !plan.relocatable(r) {
 			continue
 		}
 		b := r.Region.Bounds()

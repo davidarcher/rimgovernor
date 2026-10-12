@@ -421,7 +421,7 @@ func (p LayoutPlan) validVent(s PlannedSite) bool {
 		if r.Unfenced() {
 			continue
 		}
-		if r.Door == c || slices.ContainsFunc(r.Doors, func(d Door) bool { return d.Cell == c }) {
+		if slices.Contains(p.DoorsOf(r), c) {
 			return false
 		}
 		inRing = inRing || inWall(r.Region.Bounds(), c)
@@ -436,12 +436,8 @@ func (p LayoutPlan) besideExteriorDoor(c domain.Cell) bool {
 		if r.Unfenced() || r.Region.Contains(c) {
 			continue
 		}
-		doors := []domain.Cell{r.Door}
-		for _, d := range r.Doors {
-			doors = append(doors, d.Cell)
-		}
-		for _, d := range doors {
-			if abs32(d.X-c.X)+abs32(d.Z-c.Z) == 1 {
+		for _, d := range r.BoundaryDoors() {
+			if abs32(d.Cell.X-c.X)+abs32(d.Cell.Z-c.Z) == 1 {
 				return true
 			}
 		}
@@ -458,6 +454,68 @@ func (p LayoutPlan) LinkCells(id int32) []domain.Cell {
 		}
 	}
 	return out
+}
+
+// BoundaryDoors are the room's own doors with the side each faces: Door, then
+// Doors. A link door in a wall shared with a neighbour is not among them
+// (LayoutPlan.LinksOf).
+func (r PlannedRoom) BoundaryDoors() []Door {
+	return append([]Door{{Cell: r.Door, Rot: r.DoorRot}}, r.Doors...)
+}
+
+// LinksOf are the cells of the link doors room r holds in walls it shares with
+// a neighbour: its Link on a plan the old generator wrote, the door graph's
+// links (LinkCells) on a tiled plan. Herd rooms (barn, pen) are reservations
+// without room ids and own no link, so they give none.
+func (p LayoutPlan) LinksOf(r PlannedRoom) []domain.Cell {
+	var out []domain.Cell
+	if r.Link != nil {
+		out = append(out, *r.Link)
+	}
+	if r.ID != 0 {
+		for _, c := range p.LinkCells(r.ID) {
+			if !slices.Contains(out, c) {
+				out = append(out, c)
+			}
+		}
+	}
+	return out
+}
+
+// DoorsOf are the cells of every door of room r, one door API for both plans:
+// Door, then Doors, then its links (LinksOf), each cell once.
+func (p LayoutPlan) DoorsOf(r PlannedRoom) []domain.Cell {
+	var out []domain.Cell
+	for _, d := range r.BoundaryDoors() {
+		if !slices.Contains(out, d.Cell) {
+			out = append(out, d.Cell)
+		}
+	}
+	for _, c := range p.LinksOf(r) {
+		if !slices.Contains(out, c) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// linkInto is the cell of r's link door that opens into a room of role, else
+// its first link; false when r holds none. The freezer's door into the kitchen
+// and the butchery's into the freezer pick their link this way, where a tiled
+// room may hold several.
+func (p LayoutPlan) linkInto(r PlannedRoom, role PlannedRole) (domain.Cell, bool) {
+	links := p.LinksOf(r)
+	for _, c := range links {
+		for _, o := range p.AllRooms() {
+			if o.ID != r.ID && o.Role == role && inWall(o.Region.Bounds(), c) {
+				return c, true
+			}
+		}
+	}
+	if len(links) == 0 {
+		return domain.Cell{}, false
+	}
+	return links[0], true
 }
 
 // Extent is the bounding rectangle of what the plan builds: every room

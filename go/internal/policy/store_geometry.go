@@ -34,8 +34,11 @@ func roomPool(room []domain.Cell, cells []SiteCell, avoid []domain.Cell) []domai
 // (into the freezer), else false.
 func butcheryDoor(layout LayoutPlan) (domain.Cell, bool) {
 	for _, r := range layout.AllRooms() {
-		if r.Role == PlannedButchery && r.Link != nil {
-			return *r.Link, true
+		if r.Role != PlannedButchery {
+			continue
+		}
+		if c, ok := layout.linkInto(r, PlannedFreezer); ok {
+			return c, true
 		}
 	}
 	return domain.Cell{}, false

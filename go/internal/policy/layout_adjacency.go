@@ -84,9 +84,9 @@ func (p LayoutPlan) FreezerDoorInto(dining PlannedRoom) (PlannedRoom, domain.Cel
 		if f.Role != PlannedFreezer {
 			continue
 		}
-		for _, link := range []*domain.Cell{f.Link, dining.Link} {
-			if link != nil && inWall(f.Region.Bounds(), *link) && inWall(dining.Region.Bounds(), *link) {
-				return f, *link, true
+		for _, link := range append(p.LinksOf(f), p.LinksOf(dining)...) {
+			if inWall(f.Region.Bounds(), link) && inWall(dining.Region.Bounds(), link) {
+				return f, link, true
 			}
 		}
 	}
