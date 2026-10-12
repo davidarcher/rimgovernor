@@ -207,9 +207,9 @@ type Config struct {
 	Root     string
 	Output   string
 	Headless bool
-	// Graphics keeps a graphics device in the headless profile (no
-	// -nographics): the game still opens no window, but a camera can
-	// render on demand (Case.Graphics).
+	// Graphics keeps a graphics device (no -Headless): on 1.7 that also
+	// opens the game window, but a camera can render on demand
+	// (Case.Graphics).
 	Graphics      bool
 	GameID        string
 	Timeout       time.Duration

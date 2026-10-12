@@ -19,12 +19,13 @@ report to GitHub Pages for a person (or a model) to skim for bugs.
   `map-<tick>.jpg`. It records no colony facts: the run's timeline already
   samples the colony census and every `sustained.ColonyConcerns` concern each
   in-game hour. It needs a graphics device: the case sets `Graphics`, which
-  drops `-nographics` from the headless profile (the camera renders on
-  demand and no window opens, so it runs on hosted runners, unlike a
-  `Rendered` case) and always launches a fresh game. With a device the
-  headless mod keeps terrain, wall and floor meshes (`HeadlessPatches`
-  skips them only when the device is Null); that is why other cases keep
-  `-nographics` (a one-day trial took 3m05s against 2m37s).
+  drops `-Headless` from the headless profile (the camera renders on
+  demand; on 1.7 the device brings a window, and whether hosted runners
+  have a GPU for it is #3031) and always launches a fresh game. With a
+  device the headless mod keeps terrain, wall and floor meshes
+  (`HeadlessPatches` skips them only when the device is Null); that is why
+  other cases keep `-Headless` (a one-day trial took 3m05s against 2m37s
+  on 1.6).
 - **Report** `go run ./cmd/colonyreview report -in <case output> -out <run dir>`
   reads `result.json`'s timeline and the screenshots and writes `index.html`
   and `run.json`; `site -runs <dir> -out <site>` indexes run dirs. The page is

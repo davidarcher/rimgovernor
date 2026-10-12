@@ -17,11 +17,11 @@ func TestWorktreeOf(t *testing.T) {
 		p    setup.Process
 		want string
 	}{
-		{"exe path", setup.Process{Path: filepath.Join(wt, ".rimgovernor", "native-rimworld", "RimWorldWin64.exe")}, wt},
-		{"quoted command line only", setup.Process{CommandLine: `"` + filepath.Join(wt, ".rimgovernor", "native-rimworld", "RimWorldWin64.exe") + `" -savedatafolder=` + filepath.Join(wt, ".rimgovernor", "bridge", "profile")}, wt},
+		{"exe path", setup.Process{Path: filepath.Join(wt, ".rimgovernor", "native-rimworld", "RimWorld.exe")}, wt},
+		{"quoted command line only", setup.Process{CommandLine: `"` + filepath.Join(wt, ".rimgovernor", "native-rimworld", "RimWorld.exe") + `" -savedatafolder=` + filepath.Join(wt, ".rimgovernor", "bridge", "profile")}, wt},
 		{"forward slashes", setup.Process{Path: "C:/Users/x/code/rimgovernor/.claude/worktrees/github-issue-170-abc/.rimgovernor/bin/rimgovernor.exe"}, wt},
-		{"main checkout", setup.Process{Path: filepath.Join(main, ".rimgovernor", "native-rimworld", "RimWorldWin64.exe")}, ""},
-		{"steam install", setup.Process{Path: `C:\Program Files (x86)\Steam\steamapps\common\RimWorld\RimWorldWin64.exe`}, ""},
+		{"main checkout", setup.Process{Path: filepath.Join(main, ".rimgovernor", "native-rimworld", "RimWorld.exe")}, ""},
+		{"steam install", setup.Process{Path: `C:\Program Files (x86)\Steam\steamapps\common\RimWorld\RimWorld.exe`}, ""},
 	} {
 		if got := worktreeOf(tc.p); got != tc.want {
 			t.Errorf("%s: worktreeOf = %q, want %q", tc.name, got, tc.want)
@@ -33,14 +33,14 @@ func TestOrphansAgainstKnownWorktrees(t *testing.T) {
 	main := filepath.FromSlash("C:/Users/x/code/rimgovernor")
 	other := filepath.FromSlash("D:/other/repo")
 	game := func(root, name string) setup.Process {
-		return setup.Process{PID: len(name), Name: "RimWorldWin64.exe", Path: filepath.Join(root, ".claude", "worktrees", name, ".rimgovernor", "native-rimworld", "RimWorldWin64.exe")}
+		return setup.Process{PID: len(name), Name: "RimWorld.exe", Path: filepath.Join(root, ".claude", "worktrees", name, ".rimgovernor", "native-rimworld", "RimWorld.exe")}
 	}
 	procs := []setup.Process{
 		game(main, "live"),
 		game(main, "gone"),
 		{PID: 99, Name: "rimgovernor.exe", Path: filepath.Join(main, ".claude", "worktrees", "gone", ".rimgovernor", "bin", "rimgovernor.exe")},
 		game(other, "unknowable"),
-		{PID: 7, Name: "RimWorldWin64.exe", Path: filepath.Join(main, ".rimgovernor", "native-rimworld", "RimWorldWin64.exe")},
+		{PID: 7, Name: "RimWorld.exe", Path: filepath.Join(main, ".rimgovernor", "native-rimworld", "RimWorld.exe")},
 	}
 	calls := 0
 	known := func(m string) (map[string]bool, error) {

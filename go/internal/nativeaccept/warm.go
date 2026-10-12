@@ -106,7 +106,7 @@ func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 			reason = "checkpoint"
 		}
 		if cfg.Graphics {
-			// A kept game may have launched with -nographics.
+			// A kept game may have launched with -Headless.
 			reason = "graphics"
 		}
 		if reason != "" {

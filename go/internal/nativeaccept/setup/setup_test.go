@@ -106,7 +106,7 @@ func TestRenderConfigLaunchesTheCopy(t *testing.T) {
 	if !ok {
 		t.Fatalf("no %s game: %v", GameID, config.Games)
 	}
-	if g.LaunchMode != "DirectPath" || g.WorkingDir != l.GameCopy || g.Target != filepath.Join(l.GameCopy, "RimWorldWin64.exe") {
+	if g.LaunchMode != "DirectPath" || g.WorkingDir != l.GameCopy || g.Target != filepath.Join(l.GameCopy, GameImage) {
 		t.Fatalf("game = %+v", g)
 	}
 	if g.Args[0] != "-savedatafolder="+filepath.Join(l.Root, "profile") {

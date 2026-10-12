@@ -97,17 +97,17 @@ func (t *timeline) row(kind string, fields map[string]any) {
 
 func (t *timeline) close() { t.w.Flush(); t.f.Close() }
 
-// processSample reads RimWorldWin64.exe memory from tasklist; it is diagnostic
+// processSample reads RimWorld.exe memory from tasklist; it is diagnostic
 // only and never fails the run.
 func processSample() map[string]any {
-	out, err := exec.Command("tasklist", "/FI", "IMAGENAME eq RimWorldWin64.exe", "/FO", "CSV", "/NH").Output()
+	out, err := exec.Command("tasklist", "/FI", "IMAGENAME eq RimWorld.exe", "/FO", "CSV", "/NH").Output()
 	if err != nil {
 		return map[string]any{"error": err.Error()}
 	}
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	var rows []string
 	for _, l := range lines {
-		if strings.HasPrefix(l, "\"RimWorldWin64.exe\"") {
+		if strings.HasPrefix(l, "\"RimWorld.exe\"") {
 			rows = append(rows, strings.TrimSpace(l))
 		}
 	}

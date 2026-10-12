@@ -6,7 +6,7 @@ import (
 )
 
 func TestParseProcesses(t *testing.T) {
-	out := "66460\tRimWorldWin64.exe\t120365056\t100660937500\t2026-09-19T13:21:37.1234567Z\tC:\\wt\\a\\.rimgovernor\\native-rimworld\\RimWorldWin64.exe\t\"C:\\wt\\a\\.rimgovernor\\native-rimworld\\RimWorldWin64.exe\" -savedatafolder=C:\\wt\\a\\.rimgovernor\\bridge\\profile\r\n" +
+	out := "66460\tRimWorld.exe\t120365056\t100660937500\t2026-09-19T13:21:37.1234567Z\tC:\\wt\\a\\.rimgovernor\\native-rimworld\\RimWorld.exe\t\"C:\\wt\\a\\.rimgovernor\\native-rimworld\\RimWorld.exe\" -savedatafolder=C:\\wt\\a\\.rimgovernor\\bridge\\profile\r\n" +
 		"12\trimgovernor.exe\t\t0\t\t\t\r\n" +
 		"garbage line\r\n"
 	procs := parseProcesses(out)
@@ -14,7 +14,7 @@ func TestParseProcesses(t *testing.T) {
 		t.Fatalf("parsed %d rows, want 2: %+v", len(procs), procs)
 	}
 	p := procs[0]
-	if p.PID != 66460 || p.Name != "RimWorldWin64.exe" || p.WorkingSet != 120365056 {
+	if p.PID != 66460 || p.Name != "RimWorld.exe" || p.WorkingSet != 120365056 {
 		t.Errorf("row 0 = %+v", p)
 	}
 	if want := time.Duration(100660937500) * 100 * time.Nanosecond; p.CPU != want {

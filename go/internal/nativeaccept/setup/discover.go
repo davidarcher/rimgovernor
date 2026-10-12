@@ -19,7 +19,7 @@ import (
 // layout the registry does not describe (or no Steam at all).
 const (
 	// RimWorldDirEnv names the RimWorld install (the directory holding
-	// RimWorldWin64.exe).
+	// RimWorld.exe).
 	RimWorldDirEnv = "RIMGOVERNOR_RIMWORLD_DIR"
 	// HarmonyEnv names 0Harmony.dll.
 	HarmonyEnv = "RIMGOVERNOR_HARMONY_DLL"
@@ -32,6 +32,14 @@ const RimWorldAppID = "294100"
 // HarmonyWorkshopID is the Harmony mod's workshop item id.
 const HarmonyWorkshopID = "2009463077"
 
+// GameImage is the game's executable and the install marker: the flat 1.7
+// layout has no RimWorldWin64.exe, _Data or MonoBleedingEdge.
+const GameImage = "RimWorld.exe"
+
+// HarmonyAssemblies is where the Harmony mod keeps its 1.7 (net10) build,
+// relative to the mod root.
+var HarmonyAssemblies = filepath.Join("1.7", "Assemblies")
+
 // Inputs are the machine's shared game files the setup reads from and
 // never writes: what build_native_mod.ps1 takes as -RimWorldManagedDir,
 // and -HarmonyAssembly, plus the install the copy junctions into.
@@ -39,9 +47,10 @@ type Inputs struct {
 	HarmonyMod string
 	// CleanProfile prevents importing any machine-local player preferences.
 	CleanProfile bool
-	// RimWorldDir holds RimWorldWin64.exe.
+	// RimWorldDir holds RimWorld.exe.
 	RimWorldDir string
-	// ManagedDir is RimWorldDir/RimWorldWin64_Data/Managed.
+	// ManagedDir holds Assembly-CSharp.dll: the flat 1.7 install root (#3026
+	// replaces it).
 	ManagedDir string
 	// Harmony is 0Harmony.dll.
 	Harmony string
@@ -73,7 +82,7 @@ func Discover(o Overrides) (*Inputs, error) {
 			return nil, fmt.Errorf("explicit setup requires -rimworld, -harmony and -harmony-mod")
 		}
 		in.CleanProfile = true
-		if !isFile(filepath.Join(o.HarmonyMod, "About", "About.xml")) || !isFile(filepath.Join(o.HarmonyMod, "Current", "Assemblies", "HarmonyMod.dll")) {
+		if !isFile(filepath.Join(o.HarmonyMod, "About", "About.xml")) || !isFile(filepath.Join(o.HarmonyMod, HarmonyAssemblies, "HarmonyMod.dll")) {
 			return nil, fmt.Errorf("explicit setup requires the complete Harmony runtime mod, not only 0Harmony.dll")
 		}
 	} else {
@@ -87,7 +96,7 @@ func Discover(o Overrides) (*Inputs, error) {
 	if dir == "" {
 		for _, lib := range libraries {
 			candidate := filepath.Join(lib, "steamapps", "common", "RimWorld")
-			if isFile(filepath.Join(candidate, "RimWorldWin64.exe")) {
+			if isFile(filepath.Join(candidate, GameImage)) {
 				dir, source = candidate, "steam library "+lib
 				break
 			}
@@ -100,11 +109,11 @@ func Discover(o Overrides) (*Inputs, error) {
 		return nil, fmt.Errorf("no RimWorld install in the Steam libraries %v; set %s or pass -rimworld", libraries, RimWorldDirEnv)
 	}
 	dir = absClean(dir)
-	if !isFile(filepath.Join(dir, "RimWorldWin64.exe")) {
-		return nil, fmt.Errorf("%s (%s) holds no RimWorldWin64.exe", dir, source)
+	if !isFile(filepath.Join(dir, GameImage)) {
+		return nil, fmt.Errorf("%s (%s) holds no %s", dir, source, GameImage)
 	}
 	in.RimWorldDir, in.Sources["rimworld"] = dir, source
-	in.ManagedDir = filepath.Join(dir, "RimWorldWin64_Data", "Managed")
+	in.ManagedDir = dir
 	if !isFile(filepath.Join(in.ManagedDir, "Assembly-CSharp.dll")) {
 		return nil, fmt.Errorf("%s holds no Assembly-CSharp.dll", in.ManagedDir)
 	}
@@ -133,12 +142,12 @@ func Discover(o Overrides) (*Inputs, error) {
 		if err != nil {
 			return nil, err
 		}
-		runtimeInfo, err := os.Stat(filepath.Join(o.HarmonyMod, "Current", "Assemblies", "0Harmony.dll"))
+		runtimeInfo, err := os.Stat(filepath.Join(o.HarmonyMod, HarmonyAssemblies, "0Harmony.dll"))
 		if err != nil {
 			return nil, fmt.Errorf("harmony runtime DLL: %w", err)
 		}
 		if !os.SameFile(buildInfo, runtimeInfo) {
-			return nil, fmt.Errorf("-harmony must name the DLL inside -harmony-mod/Current/Assemblies")
+			return nil, fmt.Errorf("-harmony must name the DLL inside -harmony-mod/%s", HarmonyAssemblies)
 		}
 	}
 	in.Harmony, in.Sources["harmony"] = harmony, source
@@ -151,7 +160,7 @@ func Discover(o Overrides) (*Inputs, error) {
 // any library (the game's own library first), then a copy under the
 // game's Mods.
 func harmonyCandidates(rimworld string, libraries []string) []string {
-	tail := filepath.Join("steamapps", "workshop", "content", RimWorldAppID, HarmonyWorkshopID, "Current", "Assemblies", "0Harmony.dll")
+	tail := filepath.Join("steamapps", "workshop", "content", RimWorldAppID, HarmonyWorkshopID, HarmonyAssemblies, "0Harmony.dll")
 	var out []string
 	if own := filepath.Dir(filepath.Dir(filepath.Dir(rimworld))); filepath.Base(filepath.Dir(rimworld)) == "common" {
 		out = append(out, filepath.Join(own, tail))
@@ -159,7 +168,7 @@ func harmonyCandidates(rimworld string, libraries []string) []string {
 	for _, lib := range libraries {
 		out = append(out, filepath.Join(lib, tail))
 	}
-	out = append(out, filepath.Join(rimworld, "Mods", "Harmony", "Current", "Assemblies", "0Harmony.dll"))
+	out = append(out, filepath.Join(rimworld, "Mods", "Harmony", HarmonyAssemblies, "0Harmony.dll"))
 	return out
 }
 

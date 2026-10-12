@@ -95,9 +95,9 @@ func Dispatch[T any](ctx context.Context, seeds []int, workers int, load string,
 // Native timing degrades with peers, so the count is the evidence a reader
 // weighs a timing-dependent metric against.
 func LoadNote() string {
-	out, err := exec.Command("tasklist", "/FI", "IMAGENAME eq RimWorldWin64.exe", "/FO", "CSV", "/NH").Output()
+	out, err := exec.Command("tasklist", "/FI", "IMAGENAME eq RimWorld.exe", "/FO", "CSV", "/NH").Output()
 	if err != nil {
 		return "rimworld processes: unknown"
 	}
-	return fmt.Sprintf("rimworld processes before dispatch: %d", strings.Count(string(out), "\"RimWorldWin64.exe\""))
+	return fmt.Sprintf("rimworld processes before dispatch: %d", strings.Count(string(out), "\"RimWorld.exe\""))
 }

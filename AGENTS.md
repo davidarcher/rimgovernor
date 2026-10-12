@@ -86,7 +86,7 @@ edit the main checkout. Details: [landing](docs/developers/development-process.m
 ## Shared machine
 
 - Stop only your game, by `acceptance stop -root <root>` or verified PID.
-  Never kill `RimWorldWin64.exe` by image name.
+  Never kill `RimWorld.exe` by image name.
 - Build the mod through `acceptance setup -rebuild`, into your private
   `.rimgovernor/native-rimworld/`. Stop games using that copy first. Never
   replace DLLs in Steam or the shared isolated copy, or rebuild binaries a

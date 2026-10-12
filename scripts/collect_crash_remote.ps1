@@ -11,7 +11,7 @@ param(
 # leaves, with runner paths reduced to [runner-path].
 $ErrorActionPreference = 'Continue'
 New-Item -ItemType Directory -Force $Out | Out-Null
-$names = 'RimWorldWin64|rimgovernor|acceptance'
+$names = 'RimWorld|rimgovernor|acceptance'
 function Get-CleanText([string]$s) { ($s -replace '(?i)[a-z]:[\\/][^\s"<>]*', '[runner-path]') }
 function Save([string]$name, [string[]]$lines) {
     $text = ($lines | ForEach-Object { Get-CleanText $_ }) -join "`n"

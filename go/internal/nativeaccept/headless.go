@@ -721,10 +721,10 @@ func prepare(root string, fixtureOps, expansions []string, graphics bool) (strin
 	// never does.
 	args := []any{
 		"-savedatafolder=" + profile, "-logFile", filepath.Join(root, "HeadlessPlayer.log"),
-		"-batchmode", "-nographics", "-rimgovernor-pause-on-load", "-rimgovernor-test-acceleration", IdleExitArg,
+		"-Headless", "-batchmode", "-rimgovernor-pause-on-load", "-rimgovernor-test-acceleration", IdleExitArg,
 	}
 	if graphics {
-		args = slices.DeleteFunc(args, func(a any) bool { return a == "-nographics" })
+		args = slices.DeleteFunc(args, func(a any) bool { return a == "-Headless" })
 	}
 	game["args"] = args
 	destination := filepath.Join(root, "config-headless")

@@ -41,7 +41,7 @@ func parseSetup(args []string, stderr io.Writer) (setupOptions, error) {
 	fs.StringVar(&o.layoutDir, "layout", "", "private writable layout directory (default: <worktree>/.rimgovernor)")
 	fs.StringVar(&o.overrides.HarmonyMod, "harmony-mod", "", "explicit complete Harmony runtime mod directory")
 	fs.BoolVar(&o.overrides.Explicit, "explicit", false, "require every dependency path and create a clean profile without machine discovery")
-	fs.StringVar(&o.overrides.RimWorldDir, "rimworld", "", "RimWorld install holding RimWorldWin64.exe (default: Steam, or $"+setup.RimWorldDirEnv+")")
+	fs.StringVar(&o.overrides.RimWorldDir, "rimworld", "", "RimWorld install holding RimWorld.exe (default: Steam, or $"+setup.RimWorldDirEnv+")")
 	fs.StringVar(&o.overrides.Harmony, "harmony", "", "0Harmony.dll (default: the Steam workshop item, or $"+setup.HarmonyEnv+")")
 	fs.StringVar(&fixtures, "fixture", "", "comma-separated fixture classes for the mod build (default: all)")
 	fs.BoolVar(&o.run.Rebuild, "rebuild", false, "rebuild and reinstall the mod even when the installed build is current")

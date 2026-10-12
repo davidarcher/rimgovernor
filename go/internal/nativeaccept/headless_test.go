@@ -455,8 +455,8 @@ func TestPrepareGraphicsKeepsTheDevice(t *testing.T) {
 	}
 	batch := false
 	for _, a := range game["args"].([]any) {
-		if a == "-nographics" {
-			t.Fatal("graphics profile still passes -nographics")
+		if a == "-Headless" {
+			t.Fatal("graphics profile still passes -Headless")
 		}
 		batch = batch || a == "-batchmode"
 	}
@@ -495,13 +495,13 @@ func TestPrepareRewritesHeadlessArgs(t *testing.T) {
 	for i, a := range args {
 		joined[i] = a.(string)
 	}
-	foundBatch, foundNoGraphics, foundAcceleration, foundIdleExit := false, false, false, false
+	foundBatch, foundHeadless, foundAcceleration, foundIdleExit := false, false, false, false
 	for _, a := range joined {
 		if a == "-batchmode" {
 			foundBatch = true
 		}
-		if a == "-nographics" {
-			foundNoGraphics = true
+		if a == "-Headless" {
+			foundHeadless = true
 		}
 		if a == IdleExitArg {
 			foundIdleExit = true
@@ -510,8 +510,8 @@ func TestPrepareRewritesHeadlessArgs(t *testing.T) {
 			foundAcceleration = true
 		}
 	}
-	if !foundBatch || !foundNoGraphics {
-		t.Fatalf("headless args missing batch/nographics flags: %v", joined)
+	if !foundBatch || !foundHeadless {
+		t.Fatalf("headless args missing batch/headless flags: %v", joined)
 	}
 	if !foundIdleExit {
 		t.Fatalf("headless args missing %s: %v", IdleExitArg, joined)
@@ -585,7 +585,7 @@ func TestPrepareRenderedRewritesWindowedArgs(t *testing.T) {
 			t.Fatalf("windowed args missing %s: %v", flag, args)
 		}
 	}
-	if joined["-batchmode"] || joined["-nographics"] {
+	if joined["-batchmode"] || joined["-Headless"] {
 		t.Fatalf("rendered args must not include batch flags: %v", args)
 	}
 	// The saved prefs override the launch arguments at startup, so the

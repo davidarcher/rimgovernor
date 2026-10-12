@@ -142,7 +142,7 @@ func Run(ctx context.Context, o Options) (*Summary, error) {
 }
 
 // MaxGameCopyPath bounds the copy's path: the deepest Core Defs path under
-// it is ~120 characters and Mono's memory-mapped file open has no long-path
+// it is ~120 characters and the engine's memory-mapped file open has no long-path
 // support, so a copy past this fails to load the game's own XML. The
 // .claude/worktrees layout sits at ~100.
 const MaxGameCopyPath = 140
@@ -150,7 +150,7 @@ const MaxGameCopyPath = 140
 // JunctionDirs are the install's directories the copy junctions to Steam
 // instead of copying: the bulk of the game, read-only for a DirectPath
 // launch.
-var JunctionDirs = []string{"Data", "RimWorldWin64_Data", "MonoBleedingEdge"}
+var JunctionDirs = []string{"Data"}
 
 // gameCopy makes dest the private install: the loose top-level files
 // copied (refreshed when Steam's differ in size or mtime), JunctionDirs
@@ -340,7 +340,7 @@ func RenderConfig(l Layout) string {
 				"id":         GameID,
 				"name":       "RimGovernor",
 				"launchMode": "DirectPath",
-				"target":     filepath.Join(l.GameCopy, "RimWorldWin64.exe"),
+				"target":     filepath.Join(l.GameCopy, GameImage),
 				"workingDir": l.GameCopy,
 				"args": []string{
 					"-savedatafolder=" + profile, "-logFile", filepath.Join(l.Root, "Player.log"),

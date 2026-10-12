@@ -41,7 +41,7 @@ func fakeRoot(t *testing.T) (Options, setup.Layout) {
 	repo := t.TempDir()
 	l := setup.NewLayout(repo)
 	write(t, filepath.Join(l.Root, "config", "config.json"), setup.RenderConfig(l))
-	write(t, filepath.Join(l.GameCopy, "RimWorldWin64.exe"), "")
+	write(t, filepath.Join(l.GameCopy, "RimWorld.exe"), "")
 	pkg := filepath.Join(l.GameCopy, "Mods", "RimGovernor")
 	write(t, filepath.Join(pkg, "About", "About.xml"), "<ModMetaData><packageId>"+na.NativePackage+"</packageId></ModMetaData>")
 	write(t, filepath.Join(pkg, "Assemblies", "RimGovernor.Runtime.dll"), "")

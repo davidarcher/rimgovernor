@@ -30,7 +30,7 @@ type Process struct {
 }
 
 // HarnessImages are the images a root launches: the game and the serve binary.
-var HarnessImages = []string{"RimWorldWin64.exe", "rimgovernor.exe"}
+var HarnessImages = []string{GameImage, "rimgovernor.exe"}
 
 // ListProcesses lists the running processes of the named images (every
 // one on the machine, peers' included; callers narrow by path).
@@ -89,7 +89,7 @@ func (p Process) Under(dir string) bool {
 
 func slashed(path string) string { return strings.ReplaceAll(path, "\\", "/") }
 
-// RunningGames lists the PIDs of RimWorldWin64.exe processes whose
+// RunningGames lists the PIDs of GameImage processes whose
 // executable lives under gameCopy: this worktree's own games, never a
 // peer's (AGENTS.md: stop your own by root or pid).
 func RunningGames(gameCopy string) ([]int, error) {
@@ -106,7 +106,7 @@ func RunningGames(gameCopy string) ([]int, error) {
 
 // RunningGameProcesses is RunningGames with each process's full row.
 func RunningGameProcesses(gameCopy string) ([]Process, error) {
-	all, err := ListProcesses("RimWorldWin64.exe")
+	all, err := ListProcesses(GameImage)
 	if err != nil {
 		return nil, fmt.Errorf("list RimWorld processes: %w", err)
 	}
@@ -137,7 +137,7 @@ func StopPIDs(ctx context.Context, pids []int) error {
 	return nil
 }
 
-// StopGames stops every RimWorldWin64.exe running from gameCopy by pid
+// StopGames stops every GameImage process running from gameCopy by pid
 // (RunningGames: this worktree's own games, never a peer's, since each
 // worktree launches its private copy) and waits until none is left, so a
 // rebuilt mod can be installed under nobody. It returns the pids it
