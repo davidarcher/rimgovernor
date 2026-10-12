@@ -62,6 +62,13 @@ func DefTables() []DefTable {
 		{"moodUnpricedBreaks", "Verse.MentalBreakDef", slices.Clone(moodGame.Unpriced)},
 		{"moodHediffBreaks", "Verse.MentalBreakDef", sortedKeys(moodGame.HediffBreaks)},
 		{"moodBreakHediffs", "Verse.HediffDef", moodBreakHediffs()},
+		// seekerGame (#2975): the comfort and beauty needs and the thoughts their
+		// levels read through. The category thresholds, the 150-tick need interval
+		// and the beauty impact factor are Need_Comfort's, Need_Beauty's and
+		// Pawn_NeedsTracker's literals, read with ilspycmd; the rise, fall and base
+		// level are the NeedDef rows'.
+		{"seekerNeeds", "RimWorld.NeedDef", seekerNeedDefs()},
+		{"seekerThoughts", "RimWorld.ThoughtDef", seekerThoughts()},
 		// The wind path constants (windPathWidth ... windBlockedLoss) are
 		// CompPowerPlantWind's and WindTurbineUtility.CalculateWindCells's,
 		// read with ilspycmd; keyed by the turbine def so a rename fails the gate.

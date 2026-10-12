@@ -211,17 +211,40 @@ func NewLightPrice(in LightPriceInput) LightPrice {
 // make, which keeps the work-day a lower bound). Invalid while the census, the
 // colonists, a crop or the lamp is unknown.
 func stationLightPrice(f StationFacts, steel float64) LightPrice {
+	upkeep, unit, ok := stationUpkeep(f)
+	if !ok {
+		return LightPrice{}
+	}
+	return NewLightPrice(LightPriceInput{Model: f.Catalog.Light, Climate: f.Catalog.Climate, SteelValue: steel, UpkeepPerDay: upkeep, UnitNutrition: unit})
+}
+
+// stationUpkeep is a colonist's nutrition a day (the food census over the
+// colonists) and a site-type unit's nutrition a day (the best crop on normal
+// soil); false while the census or the colonists are unknown. A unit of 0 is a
+// colony with no crop: the caller's price stays invalid.
+func stationUpkeep(f StationFacts) (upkeep, unit float64, ok bool) {
 	supply, sk := f.Food.Value()
 	colonists, ck := f.Colonists.Value()
 	nutrition, nk := HumanNutritionPerDay(supply)
 	if !sk || !ck || colonists <= 0 || !nk {
-		return LightPrice{}
+		return 0, 0, false
 	}
-	unit := 0.0
 	for _, crop := range f.Crops {
 		unit = max(unit, cropRate(crop, 1))
 	}
-	return NewLightPrice(LightPriceInput{Model: f.Catalog.Light, Climate: f.Catalog.Climate, SteelValue: steel, UpkeepPerDay: nutrition / float64(colonists), UnitNutrition: unit})
+	return nutrition / float64(colonists), unit, true
+}
+
+// stationWorkDayW is a colonist's work-day in sustained watts, the lamp price's
+// own (NewLightPrice): upkeep over the best crop's unit at the site-type
+// weights. Zero while unknown.
+func stationWorkDayW(f StationFacts) float64 {
+	upkeep, unit, ok := stationUpkeep(f)
+	if !ok || !finitePositive(unit) {
+		return 0
+	}
+	w := DefaultSiteTypeWeights()
+	return unitsW(w, upkeep/unit)
 }
 
 // DarkCell is a cell that costs W watts a day while it stays dark.

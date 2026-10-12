@@ -85,6 +85,9 @@ type StationFacts struct {
 	// each edible crop with a known capacity target is a field node (#2920).
 	Crops           []CropChoice
 	FoodReserveDays float64
+	// ExpectedMood is the colonists' mean mood level, 0 to 1, the mood price's
+	// baseline (#2975); unknown leaves the comfort tiers unpriced.
+	ExpectedMood domain.Fact[float64]
 }
 
 // StationPopulationOf is the people the graph sizes beds for. Babies sleep in
@@ -184,7 +187,7 @@ func (f StationFacts) GraphInput() (StationGraphInput, error) {
 // the caller keys the load beside it.
 func (f StationFacts) InputsKey() string {
 	plan, _ := json.Marshal(f.Plan) // the plan holds pointers; the saved form is its value
-	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Pinned, f.Tile, f.OutdoorCurve) + string(plan)
+	key := fmt.Sprint(f.Dining, f.RoofDistance, f.Built, f.Pinned, f.Tile, f.OutdoorCurve, f.ExpectedMood) + string(plan)
 	input, err := f.GraphInput()
 	if err != nil {
 		return key + err.Error()
@@ -231,6 +234,9 @@ type StationAdvice struct {
 	Groups []GroupAdvice
 	// Tiled is the embedding tiled into a plan; nil unless StationFacts.Tile.
 	Tiled *TileResult
+	// Comfort is the priced comfort tier of the bed and each worked bench
+	// (#2975), advisory; nil while the model or a fact is unknown.
+	Comfort []ComfortChoice
 }
 
 // AdviseStations runs the station chain over the live colony. It reads the
@@ -279,6 +285,8 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 		}
 		out.Tiled = &tiled
 	}
+	comfortSteel, _ := f.Items.MarketValue(siteSteelUnit)
+	out.Comfort = adviseComfort(f, graph, comfortSteel)
 	for _, m := range MatchGroupRooms(clustering.Groups, built) {
 		g := clustering.Groups[m.Group]
 		out.Groups = append(out.Groups, GroupAdvice{Group: g, Rooms: m.Rooms, Capacity: m.Capacity, Outgrown: GroupOutgrown(g, m), Climate: groupClimate(f, g)})

@@ -25,6 +25,9 @@ type StationCatalog struct {
 	// Mood is the break curve and the thought stages the mood price reads
 	// (#2954); the zero value is unknown and leaves mood unpriced.
 	Mood MoodModel
+	// Comfort is the comfort and beauty needs and the furniture that feeds them
+	// (#2975); the zero value is unknown and leaves the furniture unpriced.
+	Comfort ComfortModel
 }
 
 // Station is one buildable definition as the planner sees it.

@@ -53,7 +53,7 @@ func (catalog *DefinitionCatalog) moodModel() (policy.MoodModel, error) {
 		}
 		model.Break.Tiers[tier] = model.Break.Tiers[tier].Add(float64(row.GetBaseCommonality()), days)
 	}
-	thoughts := []string{game.DarkThought}
+	thoughts := append([]string{game.DarkThought}, policy.SeekerGame().Comfort.Thought, policy.SeekerGame().Beauty.Thought)
 	for _, thought := range game.RoleThoughts {
 		thoughts = append(thoughts, thought)
 	}

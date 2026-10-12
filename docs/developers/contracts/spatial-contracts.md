@@ -378,6 +378,32 @@ on the colony centre when the plan has no free cell there.
   success, partial glow beyond the reach, and the lamps' power wiring (they are in
   `TileResult.Lamps`, not pieces, so the conduit net does not route to them yet).
   `MaintainLighting` stays the runtime reconciler. Advice only until #2931.
+  **Comfort and beauty (#2975).** Furniture buys mood through two seeker needs the game
+  keeps as one shape (`Need_Seeker`: every 150 ticks the level moves toward an instant level
+  at `seekerRisePerHour` x 0.06 up or `seekerFallPerHour` x 0.06 down, frozen while asleep
+  if `freezeWhileSleeping`). `SeekerNeed` (`layout_comfort.go`) is that shape with the
+  `NeedDef` curve (comfort 0.60 up, 0.04 down; beauty 0.32 up, 0.08 down, base 0.4, frozen
+  asleep) and the thought's category thresholds (`SeekerGame`, in `DefTables`: comfort's are
+  `level <` edge at 0.1/0.6/0.7/0.8/0.9, stages -3/+4/+6/+8/+10; beauty's `level >` edge at
+  0.01/0.15/0.35/0.65/0.85/0.99, stages -15/-10/-5/none/+5/+10/+15). Comfort's instant level
+  is the stat of the building the pawn stands on while it was used in the last 15 ticks, else
+  0: a bed while lying (`Toils_LayDown`), any edifice while eating, a sittable building only
+  while working a recipe or research (`chairsOnly`). Beauty's is 0.4 + 0.1 x the mean beauty
+  of the cells its room shows within 8.9. `ChooseComfort` lays a colonist's day out from the
+  schedule template (the 8 sleep hours on the bed, then the spots over the Anything hours,
+  the rest idle), repeats it to its steady level, reads the time-averaged mood of the stages,
+  and prices the difference with `PriceMood` against the piece's `BuildW`: the bed first
+  against the planner's own, then each worked bench in graph order against the choices so
+  far, so a bed that holds the level makes a work chair worth little. A bench's dwell is its
+  node's `DailyWork` over the colonists at work speed 1; dining (needs the ingest time) and
+  recreation (no model) are not dwelled yet, so the day is a lower bound of the level. Quality
+  is the crafter's and priced at Normal; the end table and dresser's offsets are a sunk
+  `BedOffset`. An unknown curve, mood model, work-day, steel value or colony mood
+  (`StationFacts.ExpectedMood`) leaves the node unpriced at the current behaviour (the
+  planner's bed, no chair); nothing is vetoed. Output: `StationAdvice.Comfort`, journaled in
+  `layout_stations`. The furnisher does not read it yet (a work chair stands on the bench's
+  interaction cell, which `PlaceInRegion` keeps open floor); beauty has the shape
+  (`BeautyTarget`) but no decor candidate feeds it.
   **Circulation (#2911).** The station graph carries station-less room nodes
   (`StationGraph.Rooms`, `RoomNode`: role, area demand, optional strip width; the morgue
   and waste yard of #2882 reuse the kind). Circulation is the corridor that joins rooms

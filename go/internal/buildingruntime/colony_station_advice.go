@@ -104,6 +104,7 @@ func stationFactsOf(projection observation.ColonyProjection, plan policy.LayoutP
 		RoofDistance: projection.RoofSupport, Plan: plan, Survey: survey,
 		OutdoorCurve: projection.OutdoorCurve, FullRotRateC: projection.FullRotRateC,
 		VentAvailable: projection.DefinitionAvailable(policy.ClimateDefs().VentDef),
+		ExpectedMood:  expectedMood(projection.Facts.MoodPawns),
 	}
 	if rooms, known := projection.Rooms.Value(); known {
 		f.Dining = rooms.Dining
@@ -212,14 +213,41 @@ func stationAdviceAttrs(a policy.StationAdvice) map[string]any {
 			}
 		}
 	}
+	comfort := make([]map[string]any, 0, len(a.Comfort))
+	for _, c := range a.Comfort {
+		comfort = append(comfort, map[string]any{"node": c.Node, "def": c.Option.Def, "stuff": c.Option.Stuff, "comfort": c.Option.Comfort, "priced": c.Priced, "gain": c.Gain, "benefit_w": c.BenefitW, "cost_w": c.CostW})
+	}
 	s := a.Embedding.Score
 	return map[string]any{
 		"nodes": len(a.Graph.Nodes), "edges": len(a.Graph.Edges), "groups": groups, "conflicts": conflicts,
-		"sites": sites, "site_issues": siteIssues, "vents": vents, "vent_issues": ventIssues,
+		"sites": sites, "site_issues": siteIssues, "vents": vents, "vent_issues": ventIssues, "comfort": comfort,
 		"embed": map[string]any{
 			"level": a.Embedding.ObstacleLevel(), "placed": len(a.Embedding.Blocks), "issues": issues, "fields": fields,
 			"cells": s.Cells, "total": s.Total(), "soil": s.Soil, "edge": s.Edge, "centre": s.Centre, "walk": s.Walk, "unmet_links": s.UnmetLinks, "switch": s.Switch, "built": built,
 			"seed": fmt.Sprintf("%d,%d", a.Embedding.Seed.X, a.Embedding.Seed.Z),
 		},
 	}
+}
+
+// expectedMood is the colonists' mean mood level, each colonist at the level
+// its thoughts forecast (Target) or else its current one: the mood price's
+// baseline (#2975). Unknown while any colonist has neither, so the comfort tiers
+// go unpriced rather than priced on part of the colony.
+func expectedMood(pawns domain.Fact[[]policy.MoodPawn]) domain.Fact[float64] {
+	rows, ok := pawns.Value()
+	if !ok || len(rows) == 0 {
+		return domain.Unknown[float64]()
+	}
+	sum := 0.0
+	for _, p := range rows {
+		level, known := p.Target.Value()
+		if !known {
+			level, known = p.Mood.Value()
+		}
+		if !known {
+			return domain.Unknown[float64]()
+		}
+		sum += level
+	}
+	return domain.Known(sum / float64(len(rows)))
 }

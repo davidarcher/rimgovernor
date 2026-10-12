@@ -100,6 +100,9 @@ func (catalog *DefinitionCatalog) buildStations() (policy.StationCatalog, error)
 	if out.Light, err = catalog.lightModel(); err != nil {
 		return policy.StationCatalog{}, err
 	}
+	if out.Comfort, err = catalog.comfortModel(shapes.Furniture); err != nil {
+		return policy.StationCatalog{}, err
+	}
 	if out.Mood, err = catalog.moodModel(); err != nil {
 		return policy.StationCatalog{}, err
 	}
