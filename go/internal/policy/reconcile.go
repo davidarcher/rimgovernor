@@ -47,10 +47,15 @@ const (
 	OpBuild        OpKind = "build"
 	// The foreign-thing kinds: claim a ruin as ring wall, cut an
 	// impassable plant, move a haulable item off the ground.
-	OpClaim        OpKind = "claim"
-	OpCut          OpKind = "cut"
-	OpHaulOut      OpKind = "haul_out"
-	opKindsInOrder        = "roof_off door_out wall_out claim cut haul_out wall_in wall_up door_in pack furniture_out pack_in_use floor_out floor_in install build"
+	OpClaim   OpKind = "claim"
+	OpCut     OpKind = "cut"
+	OpHaulOut OpKind = "haul_out"
+	// OpVentIn builds a planned vent over a standing ring wall; OpRoofIn
+	// designates the Build Roof area over a roofed-set cell still open to the
+	// sky (#2962).
+	OpVentIn       OpKind = "vent_in"
+	OpRoofIn       OpKind = "roof_in"
+	opKindsInOrder        = "roof_off door_out wall_out claim cut haul_out wall_in wall_up door_in pack furniture_out pack_in_use floor_out floor_in install build vent_in roof_in"
 )
 
 // WantedPiece is one piece of the room's furniture template: a def and the
@@ -117,6 +122,12 @@ type ReconcileInput struct {
 	Cells []SiteCell
 	// Stock counts the packed pieces in storage by def.
 	Stock map[string]int
+	// VentAvailable is whether the vent can be built: a planned vent whose def
+	// is unresearched or unknown is an absent option, owed nothing (#2962).
+	VentAvailable bool
+	// Unroofed are the cells the mirror reads open to the sky; the plan's
+	// roofed set decides which of the room's are owed a roof (#2962).
+	Unroofed map[domain.Cell]bool
 }
 
 // Reconciliation is what a room owes (Owed) and the part of it whose
@@ -153,6 +164,15 @@ func Reconcile(in ReconcileInput) Reconciliation {
 	}
 	wallDef, doorDef := r.RingDefs()
 	walls, doors := in.Plan.ring(r, in.Ground)
+	// The vents the plan stands in this ring, by cell (#2962).
+	vents := map[domain.Cell]PlannedSite{}
+	if !r.Outdoor {
+		for _, s := range in.Plan.LiveSites(NodeVent) {
+			if ring.Contains(s.Origin) && !doorWanted[s.Origin] {
+				vents[s.Origin] = s
+			}
+		}
+	}
 	var items []*reconcileItem
 	add := func(it reconcileItem) *reconcileItem { items = append(items, &it); return items[len(items)-1] }
 
@@ -182,6 +202,10 @@ func Reconcile(in ReconcileInput) Reconciliation {
 		}
 		if strings.HasPrefix(row.DefName, "Frame_") || standInBed(row) {
 			cover(row)
+			continue
+		}
+		if _, planned := vents[row.Minimum]; planned && row.DefName == climateTable.VentDef {
+			cover(row) // the planned vent stands in the ring: no furniture to remove
 			continue
 		}
 		hit := -1
@@ -295,6 +319,41 @@ func Reconcile(in ReconcileInput) Reconciliation {
 	for _, c := range roof {
 		add(reconcileItem{kind: OpRoofOff, cell: c, ready: true})
 	}
+	// A planned vent goes over the standing wall, never in an empty cell nor
+	// over rock; an unresearched vent is an absent option (#2962).
+	if in.VentAvailable {
+		ventCells := make([]domain.Cell, 0, len(vents))
+		for c := range vents {
+			ventCells = append(ventCells, c)
+		}
+		slices.SortFunc(ventCells, func(a, b domain.Cell) int {
+			if cellLess(a, b) {
+				return -1
+			}
+			return 1
+		})
+		for _, c := range ventCells {
+			if walls[c] && !in.Ground.vents[c] && !in.Ground.rock[c] {
+				add(reconcileItem{kind: OpVentIn, cell: c})
+			}
+		}
+	}
+	// The roofed set roofs the room once its ring stands: its interior and the
+	// vestibules of its airlocks, whatever the mirror reads open to the sky.
+	if len(in.Unroofed) > 0 && !r.Unfenced() && !r.Outdoor && !r.Role.IsOutdoor() && !in.Plan.Roofed.Empty() &&
+		!slices.ContainsFunc(items, func(it *reconcileItem) bool {
+			return it.kind == OpWallIn || it.kind == OpDoorIn || it.kind == OpDoorOut || it.kind == OpWallOut || it.kind == OpRoofOff
+		}) {
+		cells := r.Region.Cells()
+		for _, a := range in.Plan.childrenOfRole(r.ID, PlannedAirlock) {
+			cells = append(cells, a.Vestibule())
+		}
+		for _, c := range cells {
+			if in.Plan.Roofed.Contains(c) && in.Unroofed[c] {
+				add(reconcileItem{kind: OpRoofIn, cell: c, ready: true})
+			}
+		}
+	}
 
 	// Floors.
 	actual := map[domain.Cell]string{}
@@ -373,6 +432,8 @@ func Reconcile(in ReconcileInput) Reconciliation {
 			it.ready = !removalCells[it.cell]
 		case OpDoorIn:
 			it.ready = !walls[it.cell] && !removalCells[it.cell]
+		case OpVentIn:
+			it.ready = !removalCells[it.cell]
 		case OpPack, OpFurnitureOut:
 			it.ready = true
 		case OpPackInUse:

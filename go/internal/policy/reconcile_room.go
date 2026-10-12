@@ -66,13 +66,14 @@ func (p LayoutPlan) GroundWithRock(g GroundCensus, rock []domain.Cell) GroundCen
 			doors[d] = true
 		}
 	}
-	out := GroundCensus{walls: map[domain.Cell]bool{}, doors: g.doors, fences: g.fences, gates: g.gates, flaps: g.flaps, stuff: g.stuff}
+	out := GroundCensus{walls: map[domain.Cell]bool{}, doors: g.doors, fences: g.fences, gates: g.gates, flaps: g.flaps, stuff: g.stuff, vents: g.vents, rock: map[domain.Cell]bool{}}
 	for c := range g.walls {
 		out.walls[c] = true
 	}
 	for _, c := range rock {
 		if !doors[c] {
 			out.walls[c] = true
+			out.rock[c] = true
 		}
 	}
 	return out

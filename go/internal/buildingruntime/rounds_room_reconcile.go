@@ -56,11 +56,32 @@ func roomRingInput(facts observation.ColonyProjection, plan policy.LayoutPlan, r
 		return policy.ReconcileInput{}, false
 	}
 	cells := cellsOn(facts.Cells, room.RoomGround())
+	// The cells open to the sky: the room's ground and its airlocks' vestibules.
+	unroofed := map[domain.Cell]bool{}
+	vestibules := map[domain.Cell]bool{}
+	for _, child := range plan.ChildrenOf(room.ID) {
+		if child.Role == policy.PlannedAirlock {
+			vestibules[child.Vestibule()] = true
+		}
+	}
+	if !plan.Roofed.Empty() {
+		for _, c := range facts.Cells {
+			if roofed, known := c.Roofed.Value(); known && !roofed && vestibules[c.Cell] {
+				unroofed[c.Cell] = true
+			}
+		}
+		for _, c := range cells {
+			if roofed, known := c.Roofed.Value(); known && !roofed {
+				unroofed[c.Cell] = true
+			}
+		}
+	}
 	in := room.Region.Bounds()
 	cells = slices.DeleteFunc(cells, func(c policy.SiteCell) bool {
 		return c.Cell.X >= in.X && c.Cell.X < in.X+in.Width && c.Cell.Z >= in.Z && c.Cell.Z < in.Z+in.Height
 	})
-	return policy.ReconcileInput{Plan: plan, Room: room, Ground: plan.GroundWithRock(buildings, naturalRock(facts)), Rooms: colonyRooms(facts), Cells: cells}, true
+	vent, known := facts.DefinitionAvailable(policy.ClimateDefs().VentDef).Value()
+	return policy.ReconcileInput{Plan: plan, Room: room, Ground: plan.GroundWithRock(buildings, naturalRock(facts)), Rooms: colonyRooms(facts), Cells: cells, VentAvailable: known && vent, Unroofed: unroofed}, true
 }
 
 // cellsOn is the mirror cells inside ground: the room's foreign things are read
@@ -310,7 +331,44 @@ func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state
 			return result, err
 		}
 	}
+	if result, done, err := b.commitRoof(call, epoch, state, goal, w); done || err != nil {
+		return result, err
+	}
 	return b.commitBuilds(call, epoch, state, review, goal, reading, plan, w)
+}
+
+// commitRoof designates the Build Roof area over the cells of the plan's roofed
+// set the room owes once its ring stands (policy.OpRoofIn), one method per cell
+// set so a designation pawns have not finished is not repeated (#2962). done is
+// false when nothing is owed or the set was designated before.
+func (b *RoundsBuildingPlanner) commitRoof(call, epoch context.Context, state ControlState, goal store.StandardState, w roomWork) (RoundsBuildingResult, bool, error) {
+	var cells []domain.Cell
+	for _, op := range w.ops {
+		if op.Kind == policy.OpRoofIn {
+			cells = op.Cells
+		}
+	}
+	if len(cells) == 0 {
+		return RoundsBuildingResult{}, false, nil
+	}
+	roof, err := domain.NewBuildRoof(cells)
+	if err != nil {
+		return RoundsBuildingResult{}, false, err
+	}
+	id := domain.MintPlanID()
+	action, err := domain.NewBuildRoofAction(domain.ActionID(fmt.Sprintf("%s-0", id)), roof)
+	if err != nil {
+		return RoundsBuildingResult{}, false, err
+	}
+	digest := sha256.Sum256([]byte(fmt.Sprint(roof.Cells())))
+	method := domain.MethodID(fmt.Sprintf("%s-roof-%x", w.rr.name, digest[:8]))
+	if once, err := b.methodOnce(call, goal, method); err != nil {
+		return RoundsBuildingResult{}, false, err
+	} else if !once {
+		return RoundsBuildingResult{}, false, nil
+	}
+	result, err := b.commitOwnerActions(call, epoch, state, goal, method, id, []domain.Action{action})
+	return result, true, err
 }
 
 // methodOnce is true when the owner has not committed method yet.
@@ -486,11 +544,24 @@ type roomBuild struct {
 	rot        domain.Rotation
 	// ring marks a wall, fence, door or gate of the room's ring.
 	ring bool
+	// vent marks a planned vent standing in a ring wall: the ring's optional
+	// piece, so a refusal never stops the room's owner (#2962).
+	vent bool
+}
+
+// ventRotation is the facing the plan sited the vent on cell with.
+func ventRotation(plan policy.LayoutPlan, cell domain.Cell) domain.Rotation {
+	for _, s := range plan.LiveSites(policy.NodeVent) {
+		if s.Origin == cell && s.Rotation != "" {
+			return s.Rotation
+		}
+	}
+	return domain.North
 }
 
 // roomBuildKinds is the order a wave's buildings are admitted in: doors first,
-// then walls, floors and furniture.
-var roomBuildKinds = []policy.OpKind{policy.OpDoorIn, policy.OpWallIn, policy.OpWallUp, policy.OpFloorIn, policy.OpBuild}
+// then walls, floors and furniture, the vents last.
+var roomBuildKinds = []policy.OpKind{policy.OpDoorIn, policy.OpWallIn, policy.OpWallUp, policy.OpFloorIn, policy.OpBuild, policy.OpVentIn}
 
 // commitBuilds previews every ready on-site building of the room, one kind at
 // a time, and admits those native accepts as one method; a refused placement
@@ -544,6 +615,10 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 			case policy.OpBuild:
 				for _, piece := range op.Pieces {
 					builds = append(builds, roomBuild{def: piece.DefName, stuff: facts.BulkBuildStuff(piece.DefName, 1), cell: piece.Anchor(), rot: piece.Rot})
+				}
+			case policy.OpVentIn:
+				for _, c := range op.Cells {
+					builds = append(builds, roomBuild{def: policy.ClimateDefs().VentDef, cell: c, rot: ventRotation(plan, c), ring: true, vent: true})
 				}
 			}
 		}
@@ -611,7 +686,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 					v.Blockers = rest
 				}
 			}
-			if build.ring && (rr.room.Outdoor || rr.ringOnly) {
+			if build.ring && !build.vent && (rr.room.Outdoor || rr.ringOnly) {
 				// The planner sited this ring: a cell the native refuses is
 				// reported and left to the plan's replan, never moved to
 				// another site.
@@ -631,6 +706,11 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 		fmt.Fprintf(&key, "%s@%d,%d;", build.def, build.cell.X, build.cell.Z)
 	}
 	if len(selected) == 0 {
+		if rr.ringOnly && !slices.ContainsFunc(builds, func(b roomBuild) bool { return !b.vent }) {
+			// Only vents are owed and the native refused them: the owner goes on
+			// to its own placement.
+			return RoundsBuildingResult{Verdict: noSpace("room_ring")}, nil
+		}
 		return waitingHeld(call, rr.name, w, refused...), nil
 	}
 	digest := sha256.Sum256([]byte(key.String()))

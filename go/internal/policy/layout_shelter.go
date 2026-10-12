@@ -139,9 +139,14 @@ func (g coreGrid) siteShelter(spine []SpineSegment, rooms []PlannedRoom, wings [
 		all = append(all, w.Rooms...)
 	}
 	halls := spineRects(LayoutPlan{Spine: spine, Wings: wings}.Hallways())
-	// A cold map's shelter gets an airlock where the ground has room for
-	// one; where it fits nowhere the shelter is sited without.
-	for _, airlock := range airlockPasses(cold) {
+	// The old generator's cold-map shelter gets an airlock where the ground has
+	// room for one; where it fits nowhere it is sited without. The tiler prices
+	// its airlocks instead (layout_tile_airlock.go).
+	passes := []bool{false}
+	if cold {
+		passes = []bool{true, false}
+	}
+	for _, airlock := range passes {
 		for gap := shelterGap; gap >= 1; gap-- {
 			for _, size := range sizes {
 				if room, ok := g.shelterOnOpenGround(all, halls, seed, size, gap, airlock, cold); ok {

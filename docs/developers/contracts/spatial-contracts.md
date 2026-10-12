@@ -326,7 +326,18 @@ on the colony centre when the plan has no free cell there.
   other's closed leak. Circulation rooms are priced like any room; the tiler plans no
   hallways. `TileDecision` carries the reason
   (`tile_airlock`, `_not_paid`, `_no_ground`, `_unpriced`, `_temperate`) and both
-  totals. Advice only; `airlockPasses` is replaced at #2931.
+  totals. `airlockPasses` is retired (#2962): the old generator's cold shelter still tries
+an airlock first, the tiler prices its own.
+  **Runtime (#2962).** The reconcile library builds the climate plan through the same
+owner path as a room's ring: `OpVentIn` builds each `NodeVent` site over its standing
+wall (`ReconcileInput.VentAvailable` false, an unresearched `Vent`, makes it an absent
+option; rock and a standing vent owe nothing; a vent row on a planned vent is no
+furniture to remove), and `OpRoofIn` roofs the room's `Roofed` cells that the mirror reads
+open to the sky (`ReconcileInput.Unroofed`), with its airlock children's vestibules, once
+the ring stands. An airlock's walls and outer door are the parent ring's. The reconcile
+runs only while the owner's own predicate holds, so a room whose owner has stopped
+reconciling is not roofed or vented by it; spine-hallway cells outside any room have no
+roof issuer.
   **Lamps (#2945).** A roofed cell has no sky light, so a colonist working or walking on
   it loses speed (`StatPart_Glow`: x0.80 at glow 0 up to x1.00 at `LitGlow` 0.3, on
   `WorkSpeedGlobal` and `MoveSpeed`; `LightSpeed`). The tiler weighs that against lamps in

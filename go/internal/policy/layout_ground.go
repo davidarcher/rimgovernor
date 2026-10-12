@@ -19,6 +19,12 @@ type GroundCensus struct {
 	flaps map[domain.Cell]bool
 	// stuff is the stuff of each standing wall, where the census names one.
 	stuff map[domain.Cell]string
+	// vents are the cells a vent stands in; a vent stands in a wall, so each is
+	// also a wall (#2962).
+	vents map[domain.Cell]bool
+	// rock are the natural rock cells counted as wall (GroundWithRock): nothing
+	// builds over them.
+	rock map[domain.Cell]bool
 }
 
 // GroundOf reads the walls and doors out of the colony's built buildings.
@@ -27,11 +33,14 @@ func GroundOf(buildings []CurrentBuilding) GroundCensus { return GroundOfWithFla
 // GroundOfWithFlap is GroundOf with the animal flap's def (the catalog's,
 // RoomFurniture.AnimalFlap) read as a flap, never as a door; "" reads none.
 func GroundOfWithFlap(buildings []CurrentBuilding, flap string) GroundCensus {
-	g := GroundCensus{walls: map[domain.Cell]bool{}, doors: map[domain.Cell]bool{}, fences: map[domain.Cell]bool{}, gates: map[domain.Cell]bool{}, flaps: map[domain.Cell]bool{}, stuff: map[domain.Cell]string{}}
+	g := GroundCensus{walls: map[domain.Cell]bool{}, doors: map[domain.Cell]bool{}, fences: map[domain.Cell]bool{}, gates: map[domain.Cell]bool{}, flaps: map[domain.Cell]bool{}, stuff: map[domain.Cell]string{}, vents: map[domain.Cell]bool{}}
 	for _, b := range buildings {
 		def := b.Building.Definition()
 		for _, c := range b.Cells {
 			switch {
+			case def == climateTable.VentDef:
+				g.vents[c] = true
+				g.walls[c] = true
 			case flap != "" && def == flap:
 				g.flaps[c] = true
 			case def == PenFenceDefinition:

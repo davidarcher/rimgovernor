@@ -84,12 +84,3 @@ func (p LayoutPlan) airlockCells(r PlannedRoom) []domain.Cell {
 	}
 	return out
 }
-
-// airlockPasses are the sitings tried for a shelter: with an airlock then
-// without on a cold map, without alone elsewhere.
-func airlockPasses(cold bool) []bool {
-	if cold {
-		return []bool{true, false}
-	}
-	return []bool{false}
-}
