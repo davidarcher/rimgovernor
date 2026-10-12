@@ -124,7 +124,7 @@ func TestRouteConduitsGrowsOneNetWithSharedCells(t *testing.T) {
 		{ref: RoomRef(1), cells: RectRegion(Rectangle{X: 20, Z: 5, Width: 3, Height: 3}).Cells()},
 		{ref: RoomRef(2), cells: RectRegion(Rectangle{X: 20, Z: 15, Width: 3, Height: 3}).Cells()},
 	}
-	links, decisions := RouteConduits(plan, consumers, survey)
+	links, decisions := RouteConduits(plan, consumers, survey, nil)
 	if len(links) != 3 || len(decisions) != 3 {
 		t.Fatalf("one link per non-root node: %v %v", links, decisions)
 	}
@@ -147,7 +147,7 @@ func TestRouteConduitsGrowsOneNetWithSharedCells(t *testing.T) {
 		}
 	}
 	plan.Conduits = nil
-	again, _ := RouteConduits(plan, consumers, survey)
+	again, _ := RouteConduits(plan, consumers, survey, nil)
 	if !reflect.DeepEqual(links, again) {
 		t.Fatal("the net must not vary between runs")
 	}
@@ -161,13 +161,13 @@ func TestRouteConduitsReportsBlockedAndSourceless(t *testing.T) {
 		}
 	})
 	consumers := []conduitNode{{ref: RoomRef(1), cells: RectRegion(Rectangle{X: 20, Z: 5, Width: 3, Height: 3}).Cells()}}
-	links, decisions := RouteConduits(plan, consumers, survey)
+	links, decisions := RouteConduits(plan, consumers, survey, nil)
 	if len(links) != 0 || len(decisions) != 1 || decisions[0].Reason != ReasonConduitBlocked || decisions[0].Verdict != TileUnsatisfied {
 		t.Fatalf("a moated consumer is blocked, not guessed: %v %v", links, decisions)
 	}
 	bare := conduitPlan()
 	bare.Sites = nil
-	links, decisions = RouteConduits(bare, consumers, survey)
+	links, decisions = RouteConduits(bare, consumers, survey, nil)
 	if len(links) != 0 || len(decisions) != 1 || decisions[0].Reason != ReasonConduitNoSource {
 		t.Fatalf("no power site, no net: %v %v", links, decisions)
 	}

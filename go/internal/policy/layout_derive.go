@@ -147,7 +147,11 @@ func ReplanLayout(prev LayoutPlan, f StationFacts, s MapSurvey, geysers []PowerG
 	// The survey's zones less its field patches, then the fields the tiler placed.
 	plan.Zones = append(withFieldZones(Zone(s), nil), plan.Zones[len(f.Plan.Zones):]...)
 	plan.Cold, plan.Hot = s.Cold, s.Hot
+	tiled := plan
 	plan = keepHeld(prev, plan, growth)
+	var joined []ConduitDecision
+	plan.Conduits, joined = rejoinHeld(prev, tiled, plan, s)
+	advice.Tiled.ConduitDecisions = append(advice.Tiled.ConduitDecisions, joined...)
 	plan.RetiredGround = retiredGround(prev, plan, f.Built)
 	plan.Reservations = append(slices.Clone(plan.Reservations), carriedSites(prev, plan)...)
 	plan = PlanHerdSites(plan, animals, growth.HerdUnits...)
@@ -185,6 +189,37 @@ func keepHeld(prev, next LayoutPlan, growth RoomGrowth) LayoutPlan {
 		}
 	}
 	return next
+}
+
+// rejoinHeld joins the rooms keepHeld put back into the tiled plan's conduit
+// net (#2966). The tiler routes only the rooms it planned; a held room that
+// drew power through a link in prev (or its predecessor's) keeps that link where
+// it still holds, else it routes to the net the new plan lays. The conduits a
+// replan moves are laid before the old ones are given up: nothing ever removes
+// a built conduit (clearance takes down walls and doors, not conduits), so the
+// old path stays live until the new one carries the load and a link the plan
+// drops is simply not laid again.
+func rejoinHeld(prev, tiled, plan LayoutPlan, s MapSurvey) ([]ConduitLink, []ConduitDecision) {
+	planned := map[int32]bool{}
+	for _, r := range tiled.AllRooms() {
+		planned[r.ID] = true
+	}
+	held := heldLinks(prev.Conduits, plan)
+	var consumers []conduitNode
+	for _, r := range plan.AllRooms() {
+		if planned[r.ID] || r.attached() {
+			continue
+		}
+		if _, drew := held[RoomRef(r.ID)]; drew {
+			cells := r.Region.Cells()
+			sortCells(cells)
+			consumers = append(consumers, conduitNode{ref: RoomRef(r.ID), cells: cells})
+		}
+	}
+	if len(consumers) == 0 {
+		return plan.Conduits, nil
+	}
+	return JoinConduits(plan, consumers, s, prev.Conduits)
 }
 
 // retiredGround is the retired ground prev holds that clearance has not cleared,

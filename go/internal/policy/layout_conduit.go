@@ -64,6 +64,7 @@ type ConduitLink struct {
 // Conduit decisions; the caller journals them with telemetry.Decide.
 const (
 	ReasonConduitRouted   = "conduit_routed"
+	ReasonConduitKept     = "conduit_kept"
 	ReasonConduitBlocked  = "conduit_no_route"
 	ReasonConduitNoSource = "conduit_no_source"
 )
@@ -140,68 +141,179 @@ type conduitNode struct {
 	cells []domain.Cell
 }
 
-// RouteConduits lays the plan's conduit net. sites are the power
-// reservations (in reservation order) and consumers the rooms holding a
-// station that draws power, with the cells those stations stand on (the whole
-// room where none are set). The result is deterministic in its inputs.
-func RouteConduits(plan LayoutPlan, consumers []conduitNode, survey MapSurvey) ([]ConduitLink, []ConduitDecision) {
-	allowed := ConduitCells(survey, plan.AllRooms())
+// conduitNet is the net as it grows: the cells the router may use, the cells
+// laid, who laid each, and the links the colony already holds (heldLinks).
+type conduitNet struct {
+	allowed map[domain.Cell]bool
+	net     map[domain.Cell]bool
+	owner   map[domain.Cell]ConduitRef
+	held    map[ConduitRef]ConduitLink
+}
+
+// stand puts a node's own cells into the net, where no earlier node laid them.
+func (g *conduitNet) stand(n conduitNode) {
+	for _, c := range n.cells {
+		if !g.net[c] {
+			g.net[c], g.owner[c] = true, n.ref
+		}
+	}
+}
+
+// keeps reports the held link of n as still good: it starts on n, every cell
+// is ground a conduit may cross, and it ends on the net so far. A link that
+// holds is the path already built or ordered, so a change elsewhere in the
+// plan does not move it.
+func (g *conduitNet) keeps(n conduitNode, l ConduitLink) bool {
+	if len(l.Cells) == 0 || !slices.Contains(n.cells, l.Cells[0]) || !g.net[l.Cells[len(l.Cells)-1]] {
+		return false
+	}
+	for _, c := range l.Cells {
+		if !g.allowed[c] {
+			return false
+		}
+	}
+	return true
+}
+
+// lay joins node n to the net: its held link where that still holds, else the
+// shortest path to the net. ok is false for a node the net cannot reach.
+func (g *conduitNet) lay(n conduitNode) (ConduitLink, ConduitDecision, bool) {
+	link, reason := g.held[n.ref], ReasonConduitKept
+	if !g.keeps(n, link) {
+		path := routeCells(n.cells, g.net, g.allowed)
+		if len(path) == 0 {
+			return ConduitLink{}, ConduitDecision{From: n.ref, Verdict: TileUnsatisfied, Reason: ReasonConduitBlocked}, false
+		}
+		slices.Reverse(path) // from the node to the net
+		link, reason = ConduitLink{Cells: path}, ReasonConduitRouted
+	}
+	link.From = n.ref
+	link.To = g.owner[link.Cells[len(link.Cells)-1]]
+	for _, c := range link.Cells {
+		if !g.net[c] {
+			g.net[c], g.owner[c] = true, n.ref
+		}
+	}
+	g.stand(n)
+	return link, ConduitDecision{From: n.ref, To: link.To, Verdict: TilePlace, Reason: reason}, true
+}
+
+// newConduitNet is the ground the plan's nodes may route over: the survey's
+// conduit cells, and each node's own cells, which are the plan's ground
+// whatever the survey holds there.
+func newConduitNet(plan LayoutPlan, nodes []conduitNode, survey MapSurvey, held map[ConduitRef]ConduitLink) *conduitNet {
+	g := &conduitNet{allowed: ConduitCells(survey, plan.AllRooms()), net: map[domain.Cell]bool{}, owner: map[domain.Cell]ConduitRef{}, held: held}
+	for _, n := range nodes {
+		for _, c := range n.cells {
+			g.allowed[c] = true
+		}
+	}
+	return g
+}
+
+// siteNodes are the power sites of the plan as net nodes, in plan order.
+func (p LayoutPlan) siteNodes() []conduitNode {
 	var nodes []conduitNode
-	for _, s := range plan.powerSiteNodes() {
+	for _, s := range p.powerSiteNodes() {
 		cells := s.Footprint.Cells()
 		sortCells(cells)
 		nodes = append(nodes, conduitNode{ref: SiteRef(s.Node), cells: cells})
 	}
-	for i, r := range plan.Reservations {
+	for i, r := range p.Reservations {
 		if slices.Contains(powerSiteKinds, r.Kind) {
 			cells := r.Area.Cells()
 			sortCells(cells)
 			nodes = append(nodes, conduitNode{ref: SiteRef(ReservationSiteID(r.Kind, i)), cells: cells})
 		}
 	}
-	sites := len(nodes)
-	nodes = append(nodes, consumers...)
-	var links []ConduitLink
-	var decisions []ConduitDecision
-	if sites == 0 {
+	return nodes
+}
+
+// heldLinks are the links prev holds, by their From end, for the plan to keep
+// where they still hold (#2966). A link of a room the plan replaces, or of a
+// site it replaces, is the successor's: the successor joins the net by the path
+// its predecessor's power runs on, so a replaced room keeps its conduit.
+func heldLinks(prev []ConduitLink, plan LayoutPlan) map[ConduitRef]ConduitLink {
+	held := map[ConduitRef]ConduitLink{}
+	for _, l := range prev {
+		held[l.From] = l
+	}
+	for _, r := range plan.AllRooms() {
+		if l, ok := held[RoomRef(r.Replaces)]; ok && r.Replaces != 0 {
+			if _, own := held[RoomRef(r.ID)]; !own {
+				held[RoomRef(r.ID)] = l
+			}
+		}
+	}
+	for _, s := range plan.Sites {
+		for _, old := range s.ReplacesSites {
+			if l, ok := held[SiteRef(old)]; ok {
+				if _, own := held[SiteRef(s.Node)]; !own {
+					held[SiteRef(s.Node)] = l
+				}
+			}
+		}
+	}
+	return held
+}
+
+// RouteConduits lays the plan's conduit net. sites are the power
+// reservations (in reservation order) and consumers the rooms holding a
+// station that draws power, with the cells those stations stand on (the whole
+// room where none are set). prev are the links the colony holds: a node whose
+// held link still holds keeps it (conduit_kept) and only the nodes it no
+// longer serves route anew, so a changed wall or room moves the conduits it
+// touches and no other. The result is deterministic in its inputs.
+func RouteConduits(plan LayoutPlan, consumers []conduitNode, survey MapSurvey, prev []ConduitLink) ([]ConduitLink, []ConduitDecision) {
+	nodes := plan.siteNodes()
+	if len(nodes) == 0 {
+		var decisions []ConduitDecision
 		for _, n := range consumers {
 			decisions = append(decisions, ConduitDecision{From: n.ref, Verdict: TileUnsatisfied, Reason: ReasonConduitNoSource})
 		}
 		return nil, decisions
 	}
-	// Each node's own cells stand in the router's reach: they are the plan's
-	// ground, whatever the survey holds there.
-	for _, n := range nodes {
-		for _, c := range n.cells {
-			allowed[c] = true
-		}
-	}
-	owner := map[domain.Cell]ConduitRef{}
-	net := map[domain.Cell]bool{}
-	root := nodes[0]
-	for _, c := range root.cells {
-		net[c], owner[c] = true, root.ref
-	}
+	nodes = append(nodes, consumers...)
+	g := newConduitNet(plan, nodes, survey, heldLinks(prev, plan))
+	g.stand(nodes[0])
+	var links []ConduitLink
+	var decisions []ConduitDecision
 	for _, n := range nodes[1:] {
-		path := routeCells(n.cells, net, allowed)
-		if len(path) == 0 {
-			decisions = append(decisions, ConduitDecision{From: n.ref, Verdict: TileUnsatisfied, Reason: ReasonConduitBlocked})
-			continue
+		link, d, ok := g.lay(n)
+		if ok {
+			links = append(links, link)
 		}
-		slices.Reverse(path) // from the node to the net
-		to := owner[path[len(path)-1]]
-		links = append(links, ConduitLink{From: n.ref, To: to, Cells: path})
-		decisions = append(decisions, ConduitDecision{From: n.ref, To: to, Verdict: TilePlace, Reason: ReasonConduitRouted})
-		for _, c := range path {
-			if !net[c] {
-				net[c], owner[c] = true, n.ref
+		decisions = append(decisions, d)
+	}
+	return links, decisions
+}
+
+// JoinConduits joins consumers to the net the plan already holds (plan.Conduits
+// and its power sites): the rooms a replan keeps that the tiler did not plan.
+// Each keeps the link prev held where it still holds, else routes to the
+// nearest cell of the net. It returns the plan's links with theirs and one
+// decision per consumer.
+func JoinConduits(plan LayoutPlan, consumers []conduitNode, survey MapSurvey, prev []ConduitLink) ([]ConduitLink, []ConduitDecision) {
+	sites := plan.siteNodes()
+	g := newConduitNet(plan, append(slices.Clone(sites), consumers...), survey, heldLinks(prev, plan))
+	for _, n := range sites {
+		g.stand(n)
+	}
+	for _, l := range plan.Conduits {
+		for _, c := range l.Cells {
+			if !g.net[c] {
+				g.net[c], g.owner[c] = true, l.From
 			}
 		}
-		for _, c := range n.cells {
-			if !net[c] {
-				net[c], owner[c] = true, n.ref
-			}
+	}
+	links := slices.Clone(plan.Conduits)
+	var decisions []ConduitDecision
+	for _, n := range consumers {
+		link, d, ok := g.lay(n)
+		if ok {
+			links = append(links, link)
 		}
+		decisions = append(decisions, d)
 	}
 	return links, decisions
 }
@@ -239,7 +351,7 @@ func (t *tiler) routeTileConduits() {
 		cells = slices.Compact(cells)
 		consumers = append(consumers, conduitNode{ref: RoomRef(room.ID), cells: cells})
 	}
-	links, decisions := RouteConduits(t.out.Plan, consumers, t.in.Survey)
+	links, decisions := RouteConduits(t.out.Plan, consumers, t.in.Survey, t.in.Conduits)
 	t.out.Plan.Conduits = links
 	t.out.ConduitDecisions = decisions
 }

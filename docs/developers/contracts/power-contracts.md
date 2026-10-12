@@ -122,6 +122,15 @@ what budget, and the `connect` contract above is unchanged. No action kind carri
   battery room included. A node that cannot reach the net gets a `conduit_no_route` decision and no link;
   with no power site every consumer gets `conduit_no_source`; a routed link is `conduit_routed`
   (`TileResult.ConduitDecisions`, for the caller to journal).
+- **Replan (#2966).** A replan routes against the links the colony holds (`TileInput.Conduits`): a node
+  whose held link still starts on it, crosses only `ConduitCells` ground and ends on the net so far keeps it
+  (`conduit_kept`); only the nodes a change broke route anew (`conduit_routed`). A room that replaces another
+  (`Replaces`) or a site that replaces another (`ReplacesSites`) inherits its predecessor's link. A retired
+  site or room has no node, so its path is not laid again. The rooms `keepHeld` puts back, which the tiler
+  did not plan, join the net through `JoinConduits` by the link they held (`rejoinHeld`). Re-routing never
+  cuts live power: nothing removes a built conduit (planned-ground clearance takes down walls, doors and
+  furniture, not the `Conduits` layer), so an old path stays until the new one is built and `connect`
+  builds only the cells of the planned path that are missing.
 - **Router.** `routeCells` (`conduit_router.go`) is the one deterministic 4-neighbour breadth-first router,
   shared with `connect` and the turret wiring (`powerRoute`), bounded by `powerRouteBound`. Cells come from
   `ConduitCells`: conduits ignore buildings, walls and doors (the `Conduits` layer; only another power

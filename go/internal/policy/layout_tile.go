@@ -135,6 +135,9 @@ type TileInput struct {
 	// NextRoomID is the plan's room id counter (LayoutPlan.NextRoomID): a room
 	// the tiler hands an id is never given one a retired room had.
 	NextRoomID int32
+	// Conduits are the links the colony holds (LayoutPlan.Conduits): a link that
+	// still holds is kept, so a replan moves only the conduits a change broke.
+	Conduits []ConduitLink
 }
 
 // TileDecision is one tiling decision for the caller to journal. Group is the
