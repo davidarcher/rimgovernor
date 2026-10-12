@@ -2,7 +2,7 @@ package policy
 
 // RoomSizeTable is the interior (width, depth) of the rooms whose size the
 // tiler does not derive from a station set: the outskirts' tomb and morgue
-// (layout_outskirts_cluster.go), the gear rooms added on demand
+// (layout_outskirts_nodes.go), the gear rooms added on demand
 // (layout_gear.go) and the battery room (layout_power_derive.go). Each is a
 // judgment, kept in one registered table so the numbers have an owner and the
 // defs the rooms are built to hold fail the dangling-reference gate when the

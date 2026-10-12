@@ -1,28 +1,24 @@
 package policy
 
-// The outskirts: one off-core cluster per colony holding
-// the morgue, tomb, graveyard, waste yard and incinerator. It is a reservation
-// set back outskirtsGap cells from every room (the dump clearance and the
-// corpse-sight radius). The tiler sites it.
-
-// ReserveOutskirts is the outskirts cluster's outline: the region its rooms
-// are sited in, reserved so later sites leave it whole.
-const ReserveOutskirts ReservationKind = "outskirts"
+// The outskirts rooms (morgue, tomb, graveyard, waste yard, incinerator) are
+// ordinary graph nodes the tiler sites; their interior sizes are below.
 
 const (
-	// CorpseSightRadius is how far a pawn sees a corpse, in cells: PawnObserver
-	// (1.6, ilspycmd) takes a corpse for observed while it lies within
-	// InHorDistOf(pawn, ObservationRadius = 5) and in line of sight, and gives
-	// the observer ObservedLayingCorpse / ObservedLayingRottingCorpse.
-	CorpseSightRadius int32 = 5
+	// GraveyardW and GraveyardH are the graveyard's interior.
+	GraveyardW int32 = 11
+	GraveyardH int32 = 7
+	// WasteYardW and WasteYardH are the waste yard's interior: 77
+	// cells, the incinerator room takes a corner, the dump the rest.
+	WasteYardW int32 = 11
+	WasteYardH int32 = 7
+	// IncineratorOutline is the incinerator room's walled outline side: a 3x3
+	// interior and its ring.
+	IncineratorOutline int32 = 5
 )
 
-// OutskirtsArea is the plan's outskirts reservation, false when it holds none.
-func (p LayoutPlan) OutskirtsArea() (Region, bool) {
-	for _, r := range p.Reservations {
-		if r.Kind == ReserveOutskirts {
-			return r.Area, true
-		}
-	}
-	return Region{}, false
-}
+// PlannedWasteYard is the waste yard's plan role: an Outdoor room that
+// holds the dump zone's ground and the incinerator room.
+const PlannedWasteYard PlannedRole = "waste_yard"
+
+// WasteYardRooms are the plan's waste yards.
+func (p LayoutPlan) WasteYardRooms() []PlannedRoom { return p.roomsOf(PlannedWasteYard) }

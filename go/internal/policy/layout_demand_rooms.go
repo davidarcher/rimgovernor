@@ -10,7 +10,7 @@ import (
 // besideRoles names one (the butchery behind the freezer). Nothing is
 // reserved ahead of the need, so no rock is dug and no ground held for a room
 // that is not up for building. The tomb and the morgue are planned from the start in the outskirts cluster
-// (layout_outskirts_cluster.go); a further tomb is grown through the replan's
+// (layout_outskirts_nodes.go); a further tomb is grown through the replan's
 // tomb count (RoomGrowth is not asked for it).
 
 // demandCoreRooms are the rooms RoomGrowth.Core may ask for, in the order

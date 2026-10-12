@@ -63,7 +63,6 @@ var reservationOverlay = map[ReservationKind]overlayStyle{
 	ReserveYard:        {planTan, "materials yard"},
 	ReserveBarn:        {planBrown, "barn"},
 	ReservePen:         {planGreen, "pen"},
-	ReserveOutskirts:   {planBrown, "outskirts"},
 }
 
 var siteOverlay = map[NodeKind]overlayStyle{

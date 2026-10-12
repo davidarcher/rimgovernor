@@ -11,8 +11,8 @@ import (
 )
 
 // MaintainClimateEnvelope (#2962): the plan-wide owner of every planned room's
-// vents and roof, and of the roofed hallway cells outside any room. A room's
-// own concern builds them only while its mismatch check holds (reconcileRoom),
+// vents and roof. A room's own
+// concern builds them only while its mismatch check holds (reconcileRoom),
 // so a built room whose owner has stopped reconciling would stand open to the
 // sky and without its vent. This planner asks the plan instead: each top-level
 // planned room is diffed ring-only and the vents and roofs the diff owes
@@ -21,28 +21,12 @@ import (
 // touched. Roofs wait for the ring and vents for a standing wall, so a
 // room not yet built owes nothing here.
 
-// envelopeUnroofed is the mirror cells read open to the sky; empty while the
-// roofed set is.
-func envelopeUnroofed(facts observation.ColonyProjection, plan policy.LayoutPlan) map[domain.Cell]bool {
-	out := map[domain.Cell]bool{}
-	if plan.Roofed.Empty() {
-		return out
-	}
-	for _, c := range facts.Cells {
-		if roofed, known := c.Roofed.Value(); known && !roofed {
-			out[c.Cell] = true
-		}
-	}
-	return out
-}
-
-// envelopeWork is the planned rooms owed a vent or a roof and the roofed
-// hallway cells open to the sky; unknown while the plan or the construction
-// census is.
-func envelopeWork(facts observation.ColonyProjection) (rooms []policy.PlannedRoom, hallway []domain.Cell, known bool) {
+// envelopeWork is the planned rooms owed a vent or a roof; unknown while the
+// plan or the construction census is.
+func envelopeWork(facts observation.ColonyProjection) (rooms []policy.PlannedRoom, known bool) {
 	plan, planned := facts.LayoutPlan.Value()
 	if !planned {
-		return nil, nil, false
+		return nil, false
 	}
 	for _, room := range plan.Rooms {
 		if room.Parent != 0 {
@@ -50,25 +34,25 @@ func envelopeWork(facts observation.ColonyProjection) (rooms []policy.PlannedRoo
 		}
 		in, ground := roomRingInput(facts, plan, room)
 		if !ground {
-			return nil, nil, false
+			return nil, false
 		}
 		if len(policy.EnvelopeOps(policy.ReconcileRoom(in))) > 0 {
 			rooms = append(rooms, room)
 		}
 	}
 	if _, ground := colonyGround(facts); !ground {
-		return nil, nil, false
+		return nil, false
 	}
-	return rooms, policy.EnvelopeHallwayRoof(plan, envelopeUnroofed(facts, plan)), true
+	return rooms, true
 }
 
 // envelopeOwed is the review's EnvelopeOwed fact.
 func envelopeOwed(facts observation.ColonyProjection) domain.Fact[bool] {
-	rooms, hallway, known := envelopeWork(facts)
+	rooms, known := envelopeWork(facts)
 	if !known {
 		return domain.Unknown[bool]()
 	}
-	return domain.Known(len(rooms) > 0 || len(hallway) > 0)
+	return domain.Known(len(rooms) > 0)
 }
 
 // RoundsEnvelopePlanner stages the vents and roofs of MaintainClimateEnvelope.
@@ -140,7 +124,7 @@ func (r *RoundsEnvelopePlanner) step(call, epoch context.Context, _ *stepArbiter
 	if err != nil {
 		return RoundsEnvelopeResult{}, err
 	}
-	rooms, hallway, known := envelopeWork(reading.Projection)
+	rooms, known := envelopeWork(reading.Projection)
 	if !known {
 		return RoundsEnvelopeResult{Verdict: fieldUnavailable("layout_plan")}, nil
 	}
@@ -156,19 +140,6 @@ func (r *RoundsEnvelopePlanner) step(call, epoch context.Context, _ *stepArbiter
 		// native refused) leaves the next its turn; work staged ends the step.
 		if verdict.Outcome == OutcomeAdmitted {
 			return RoundsEnvelopeResult{Verdict: verdict}, nil
-		}
-	}
-	if len(hallway) > 0 {
-		w := roomWork{rr: roomReconcile{name: "envelope-hallway", reason: "envelope"}, ops: []policy.Operation{{Kind: policy.OpRoofIn, Cells: hallway}}}
-		result, done, err := r.building.commitRoof(call, epoch, state, goal, w)
-		if err != nil {
-			return RoundsEnvelopeResult{}, err
-		}
-		if done {
-			return RoundsEnvelopeResult{Verdict: result.Verdict}, nil
-		}
-		if len(rooms) == 0 {
-			verdict = BuildingReasonExistingWork
 		}
 	}
 	return RoundsEnvelopeResult{Verdict: verdict}, nil

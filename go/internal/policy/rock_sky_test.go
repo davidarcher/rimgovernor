@@ -49,18 +49,6 @@ func TestRockStepNeedsSky(t *testing.T) {
 	}
 }
 
-// A sky site crosses rock but never a thick-roof cell, and rock costs.
-func TestUtilityGridSkyRock(t *testing.T) {
-	u := &utilityGrid{w: 4, h: 4, rock: make([]bool, 16), thick: map[domain.Cell]bool{{X: 3, Z: 3}: true}}
-	u.rock[5], u.rock[6] = true, true
-	if n := u.skyRock(Rectangle{X: 0, Z: 0, Width: 3, Height: 3}); n != 2 {
-		t.Fatal("rock cells", n)
-	}
-	if n := u.skyRock(Rectangle{X: 2, Z: 2, Width: 2, Height: 2}); n != -1 {
-		t.Fatal("thick roof site accepted", n)
-	}
-}
-
 // A turbine's catch zone is its own 7x16 wind path, inside the pair's lanes;
 // the other turbine's back zone is not in it.
 func TestTurbineCatchZoneIsTheTurbinesOwnWindPath(t *testing.T) {

@@ -53,7 +53,7 @@ func PlanYardSites(plan LayoutPlan, want int) LayoutPlan {
 	u := newUtilityGrid(plan)
 	w, h := walledSide(YardW, YardH)
 	for ; have < want; have++ {
-		site, ok := u.site(w, h, false, false, u.cx, u.cz)
+		site, ok := u.site(w, h, u.cx, u.cz)
 		if !ok {
 			break
 		}

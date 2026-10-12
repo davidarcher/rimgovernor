@@ -204,7 +204,7 @@ func planUnit(u *utilityGrid, plan *LayoutPlan, unit herdUnit, herd string, anim
 		}
 	}
 	if !ok {
-		site, ok = u.site(w, h, false, false, cx, cz)
+		site, ok = u.site(w, h, cx, cz)
 	}
 	if ok {
 		u.reserve(plan, LayoutReservation{Kind: ReserveBarn, Area: RectRegion(site), Herd: herd})

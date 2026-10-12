@@ -5,8 +5,8 @@ import "fmt"
 // The outskirts rooms as station-less room nodes of the station graph (#2882).
 // The tomb, morgue, graveyard, waste yard and incinerator are rooms the plan
 // owes from its start (OutskirtsOwed) that hold no catalog station for the
-// graph to size: the node asks the floor the room's slot gives
-// (OutskirtsSlots) and the room keeps its role's template (the tomb's
+// graph to size: the node asks the floor the room's role gives
+// and the room keeps its role's template (the tomb's
 // sarcophagus, the graveyard's graves, the incinerator itself), which the
 // interior placer sets. No distance band sits on the nodes (#2987): no minimum
 // clear ground and no maximum reach, since once walls go up a corpse lying in

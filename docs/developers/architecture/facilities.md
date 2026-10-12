@@ -857,9 +857,8 @@ Royalty, no throne room is owed.
 ### Tomb, jail and morgue
 
 The tomb and the morgue are planned from the start in the outskirts cluster
-(`layout_outskirts_cluster.go`, #2185): one `ReserveOutskirts` outline of
-`OutskirtsSize()` holds fixed slots (`OutskirtsSlots`) for the tomb, morgue,
-graveyard and waste yard with its incinerator, so the first corpse has a store.
+(`layout_outskirts_nodes.go`, #2185): the tomb, morgue, graveyard, waste yard
+and incinerator are room nodes of the station graph, so the first corpse has a store.
 The morgue is shelled when any human corpse waits (`MorgueWaiting`), cooling
 never gates a shell, and `WarmCoolingRooms` owes a cooler to every standing
 tomb, morgue and meal closet that measures above `TombMaxC`, empty or not.

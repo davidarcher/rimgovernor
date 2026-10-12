@@ -11,9 +11,22 @@ import (
 
 // concaveClaims builds the Wall/Door claims of two 4x4 chambers joined by
 // a one-cell connector, centred on c.
+// concaveInterior is the two chambers and the connector between them, centred on c.
+func concaveInterior(c domain.Cell) []domain.Cell {
+	var cells []domain.Cell
+	for _, r := range [][4]int32{{c.X - 5, c.Z - 2, 4, 4}, {c.X - 1, c.Z, 3, 1}, {c.X + 2, c.Z - 2, 4, 4}} {
+		for z := r[1]; z < r[1]+r[3]; z++ {
+			for x := r[0]; x < r[0]+r[2]; x++ {
+				cells = append(cells, domain.Cell{X: x, Z: z})
+			}
+		}
+	}
+	return cells
+}
+
 func concaveClaims(t *testing.T, plan domain.PlanID, c domain.Cell) ([]policy.ConstructionClaim, domain.RoomFootprint) {
 	t.Helper()
-	shell, err := domain.UnionFootprint([]domain.InteriorRect{{X: c.X - 5, Z: c.Z - 2, Width: 4, Height: 4}, {X: c.X - 1, Z: c.Z, Width: 3, Height: 1}, {X: c.X + 2, Z: c.Z - 2, Width: 4, Height: 4}}, domain.South, 6.9)
+	shell, err := domain.NewRoomFootprint(concaveInterior(c), domain.Cell{X: c.X - 3, Z: c.Z - 3}, domain.South)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -18,10 +18,10 @@ const (
 var outerEnclosed = map[ReservationKind]bool{ReserveGeothermal: true}
 
 // innerEnclosed are the reservations the core ring walls in with the rooms:
-// the materials yard, the barns and their pens and the outskirts stand beside
+// the materials yard, the barns and their pens stand beside
 // the core, inside its wall, not out in the fields. The turbines with their
 // wind lanes are taken in the same way (coreBaseFootprint).
-var innerEnclosed = map[ReservationKind]bool{ReserveYard: true, ReserveBarn: true, ReservePen: true, ReserveOutskirts: true}
+var innerEnclosed = map[ReservationKind]bool{ReserveYard: true, ReserveBarn: true, ReservePen: true}
 
 // wallRuns walls side sd's open cells into walls, run by run between the
 // positions skip reports (an opening, bare terrain, soft ground), and returns
@@ -223,20 +223,4 @@ func crowdsCore(fp []bool, w, h int32, area Region, gap int32) bool {
 		}
 	}
 	return false
-}
-
-// outerKeepOut marks the cells of a w x h map the core ring will occupy or
-// crowd: the core's enclosure and everything the outer ring must stand
-// clear of it. A unit sited off these is enclosed by the outer ring whole;
-// the core's footprint stands in for the ring.
-func outerKeepOut(plan LayoutPlan, w, h int32) []bool {
-	out := make([]bool, max(w, 0)*max(h, 0))
-	if w < 1 || h < 1 || len(plan.Rooms) == 0 {
-		return out
-	}
-	enc := coreEnclosure(plan, w, h)
-	for i, d := range chebyshevField(w, h, enc.in, perimeterThick+perimeterOuterGap+perimeterThick) {
-		out[i] = d >= 0
-	}
-	return out
 }

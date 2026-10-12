@@ -24,7 +24,6 @@ import (
 const (
 	ReasonRoofTemperate   = "roof_temperate"
 	ReasonRoofRoom        = "roof_room"
-	ReasonRoofHallway     = "roof_hallway"
 	ReasonRoofUnsupported = "roof_unsupported"
 	ReasonRoofSupportless = "roof_support_unknown"
 )

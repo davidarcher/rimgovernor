@@ -227,8 +227,6 @@ type utilityGrid struct {
 	w, h     int32
 	ok, rock []bool // core candidate; natural rock
 	field    []bool // planned farmland: sites avoid it
-	thick    map[domain.Cell]bool
-	keepOut  []bool // the core ring and the clearance the outer ring needs
 	used     []bool // planned rooms and reservations
 	cx, cz   int32  // the plan core (LayoutPlan.Core)
 }
@@ -269,7 +267,6 @@ func newUtilityGrid(plan LayoutPlan) *utilityGrid {
 	for _, r := range plan.Reserved() {
 		u.markRegion(r.Area)
 	}
-	u.keepOut = outerKeepOut(plan, u.w, u.h)
 	if c, ok := plan.Core(); ok {
 		u.cx, u.cz = c.X, c.Z
 	}
@@ -356,33 +353,9 @@ func (u *utilityGrid) fieldCells(r Rectangle) int {
 	return n
 }
 
-func (u *utilityGrid) outside(r Rectangle) bool {
-	for z := r.Z; z < r.Z+r.Height; z++ {
-		for x := r.X; x < r.X+r.Width; x++ {
-			if u.in(x, z) && u.keepOut[z*u.w+x] {
-				return false
-			}
-		}
-	}
-	return true
-}
-
 // site is the free w x h rectangle nearest (cx, cz), a site wholly on
-// planned farmland counting siteFieldReach cells farther. beyondRing keeps
-// it off the core ring's keep-out, for sites the outer ring encloses.
-func (u *utilityGrid) site(w, h int32, rockOK, beyondRing bool, cx, cz int32) (Rectangle, bool) {
-	r, _, ok := u.siteCost(w, h, rockOK, beyondRing, cx, cz, siteFieldReach)
-	return r, ok
-}
-
-// skyRockPenalty is how many cells farther a site wholly on rock is worth
-// moving to reach open ground: digging and unroofing cost far more.
-const skyRockPenalty = 30.0
-
-// siteCost is site with an explicit farmland penalty (0 for sites that
-// belong on farmland) and the winning cost. A rockOK site is a sky site:
-// it crosses rock but never a thick-roof cell, and rock costs extra.
-func (u *utilityGrid) siteCost(w, h int32, rockOK, beyondRing bool, cx, cz int32, fieldReach float64) (Rectangle, float64, bool) {
+// planned farmland counting siteFieldReach cells farther.
+func (u *utilityGrid) site(w, h, cx, cz int32) (Rectangle, bool) {
 	best, found, bestCost := Rectangle{}, false, 0.0
 	for z := int32(0); z+h <= u.h; z++ {
 		for x := int32(0); x+w <= u.w; x++ {
@@ -392,43 +365,16 @@ func (u *utilityGrid) siteCost(w, h int32, rockOK, beyondRing bool, cx, cz int32
 				continue
 			}
 			r := Rectangle{X: x, Z: z, Width: w, Height: h}
-			cost += fieldReach * float64(u.fieldCells(r)) / float64(w*h)
+			cost += siteFieldReach * float64(u.fieldCells(r)) / float64(w*h)
 			if found && cost >= bestCost {
 				continue
 			}
-			rock := 0
-			if rockOK {
-				rock = u.skyRock(r)
-			}
-			if rock < 0 {
-				continue
-			}
-			cost += skyRockPenalty * float64(rock) / float64(w*h)
-			if found && cost >= bestCost {
-				continue
-			}
-			if u.free(r, rockOK) && (beyondRing && u.outside(r) || !beyondRing && u.inset(r)) {
+			if u.free(r, false) && u.inset(r) {
 				best, found, bestCost = r, true, cost
 			}
 		}
 	}
-	return best, bestCost, found
-}
-
-// skyRock counts r's rock cells, or -1 when any cell is under thick roof.
-func (u *utilityGrid) skyRock(r Rectangle) int {
-	n := 0
-	for z := max(r.Z, 0); z < min(r.Z+r.Height, u.h); z++ {
-		for x := max(r.X, 0); x < min(r.X+r.Width, u.w); x++ {
-			if u.thick[domain.Cell{X: x, Z: z}] {
-				return -1
-			}
-			if u.rock[z*u.w+x] {
-				n++
-			}
-		}
-	}
-	return n
+	return best, found
 }
 
 // TurbineCatchZone is the cells the turbine standing on area must keep

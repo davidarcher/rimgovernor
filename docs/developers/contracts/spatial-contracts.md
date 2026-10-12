@@ -142,13 +142,6 @@ group's area with `RoofSupported` within the bounds of 3844 interior cells and 2
 cells (`layout_cluster.go`). A roof that fails the check is not buildable without
 columns, which the planner does not place.
 
-`UnionFootprint` and `GrowFootprint` (`domain/room_footprint.go`) have no production
-caller. A composite footprint is the union of one to eight interior rectangles
-(`UnionFootprint`), deduplicated, 4-connected and roof-supported, with its south door
-on the bounding box's entrance edge: the door's inward cell is interior with interior
-on both sides and one cell deeper, so a door never lands in a notch or on a
-connector's mouth; the nearest such cell to the centre line wins.
-
 ### Where a shell stands
 
 No routine searches for a site. Every shell is a room of the layout plan, placed by the
@@ -467,7 +460,7 @@ idle.
   `layout_outskirts_nodes.go`): each asks the floor its slot gives and keeps its role's
   interior template, and clustering makes a `Planned` group of it. No distance band sits on
   the nodes (#2987): no minimum clear ground (once walls stand, line of sight to a corpse
-  pile is blocked, so `CorpseSightRadius` is no standing rule) and no maximum reach. The
+  pile is blocked, so no corpse-sight radius is a standing rule) and no maximum reach. The
   only pressure on where a room stands is the hauling cost of the flows that reach it
   (`RoomNode.Flows`, priced in the embedding as any link is) and, for a room no flow
   reaches, the enclosure it adds to the base. The repo has no corpse or waste volume
@@ -483,8 +476,7 @@ idle.
   The morgue is cold, so it
   carries the cooler any cold group carries; the incinerator is required beside the waste
   yard. Wind is not a constraint: it has no game effect here. The tiler gives the
-  unfenced graveyard and waste yard no wall, door or entrance. `OutskirtsArea` as a region, the
-  siting reasons and the perimeter overlap checks are #2886.
+  unfenced graveyard and waste yard no wall, door or entrance. The siting reasons and the perimeter overlap checks are #2886.
   **Training rooms (#2887).** The range and the sparring ring are station-less nodes too
   (`TrainingRoomNodes`, `layout_training_nodes.go`; `StationGraphInput.TrainingStands`
   and `TrainingMarkers` ask for them, zero asks for none). Each asks its exact floor

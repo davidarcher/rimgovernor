@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -36,24 +35,5 @@ func TestEnvelopeOpsKeepsVentsAndRoofsOnly(t *testing.T) {
 	got := EnvelopeOps(ops)
 	if len(got) != 2 || got[0].Kind != OpVentIn || got[1].Kind != OpRoofIn {
 		t.Fatalf("EnvelopeOps = %+v", got)
-	}
-}
-
-func TestEnvelopeHallwayRoofIsTheRoofedSetOutsideEveryRoom(t *testing.T) {
-	in, _ := climateFixture()
-	hall := domain.Cell{X: 20, Z: 20}
-	inside := domain.Cell{X: 10, Z: 10}
-	plan := in.Plan
-	plan.Roofed = RegionOf(append(plan.Roofed.Cells(), hall))
-	open := map[domain.Cell]bool{hall: true, inside: true, {X: 30, Z: 30}: true}
-	if got := EnvelopeHallwayRoof(plan, open); !slices.Equal(got, []domain.Cell{hall}) {
-		t.Fatalf("hallway roof = %v, want only %v", got, hall)
-	}
-	if got := EnvelopeHallwayRoof(plan, map[domain.Cell]bool{}); len(got) != 0 {
-		t.Fatalf("a roofed hallway is owed %v", got)
-	}
-	plan.Roofed = Region{}
-	if got := EnvelopeHallwayRoof(plan, open); len(got) != 0 {
-		t.Fatalf("a temperate plan roofs %v", got)
 	}
 }

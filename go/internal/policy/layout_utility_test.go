@@ -230,8 +230,8 @@ func TestPlanHerdSitesHerdUnit(t *testing.T) {
 	}
 	// The site search follows the centre it is given.
 	w, h := walledSide(herdSide(30))
-	near, _ := u.site(w, h, false, false, 10, 10)
-	far, _ := u.site(w, h, false, false, 70, 110)
+	near, _ := u.site(w, h, 10, 10)
+	far, _ := u.site(w, h, 70, 110)
 	if near.X >= far.X && near.Z >= far.Z || near == far {
 		t.Fatal("site ignores its centre", near, far)
 	}

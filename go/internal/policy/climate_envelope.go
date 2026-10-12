@@ -1,10 +1,8 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
-
 // MaintainClimateEnvelope is the Shelter department's plan-wide climate
-// envelope (#2962): every planned room's missing vents and roofs, and the
-// roofed hallway cells outside any room, whichever owner (or none) reconciles
+// envelope (#2962): every planned room's missing vents and roofs,
+// whichever owner (or none) reconciles
 // the room. An owner builds a room's vents and roofs only while its own
 // mismatch check holds (reconcileRoom), so a room whose owner has stopped
 // reconciling would never get them; this Standard asks the plan itself. It is a
@@ -33,32 +31,6 @@ func EnvelopeOps(ops []Operation) []Operation {
 	for _, op := range ops {
 		if op.Kind == OpVentIn || op.Kind == OpRoofIn {
 			out = append(out, op)
-		}
-	}
-	return out
-}
-
-// EnvelopeHallwayRoof is the cells of the plan's roofed set that no room
-// covers (the hallways) and the mirror reads open to the sky. A hallway has no
-// ring to wait for: its roof was priced to pay at plan time (PlanRoofed), and
-// the game accepts a roof only within support distance of a wall.
-func EnvelopeHallwayRoof(plan LayoutPlan, unroofed map[domain.Cell]bool) []domain.Cell {
-	if plan.Roofed.Empty() || len(unroofed) == 0 {
-		return nil
-	}
-	inRoom := map[domain.Cell]bool{}
-	for _, r := range plan.Rooms {
-		for _, c := range r.groundRegion().Cells() {
-			inRoom[c] = true
-		}
-		if r.Role == PlannedAirlock {
-			inRoom[r.Vestibule()] = true
-		}
-	}
-	var out []domain.Cell
-	for _, c := range plan.Roofed.Cells() {
-		if unroofed[c] && !inRoom[c] {
-			out = append(out, c)
 		}
 	}
 	return out

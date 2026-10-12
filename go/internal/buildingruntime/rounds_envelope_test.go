@@ -10,16 +10,16 @@ import (
 
 // envelopeColony is a built 3x3 storage room (its 16-cell wall ring standing)
 // whose planned vent is not built, its interior open to the sky on a
-// bad-climate plan, plus a roofed hallway cell outside any room (#2962).
-func envelopeColony(t *testing.T) (observation.ColonyProjection, domain.Cell, domain.Cell) {
+// bad-climate plan (#2962).
+func envelopeColony(t *testing.T) (observation.ColonyProjection, domain.Cell) {
 	t.Helper()
 	room := policy.PlannedRoom{ID: 1, Role: policy.PlannedStorage, Region: policy.RectRegion(policy.Rectangle{X: 10, Z: 10, Width: 3, Height: 3})}
-	vent, hall := domain.Cell{X: 13, Z: 11}, domain.Cell{X: 30, Z: 30}
+	vent := domain.Cell{X: 13, Z: 11}
 	plan := policy.LayoutPlan{
 		Rooms: []policy.PlannedRoom{room},
 		Sites: []policy.PlannedSite{{SitePlacement: policy.SitePlacement{Node: "vent-1", Origin: vent}, Kind: policy.NodeVent}},
 	}
-	plan.Roofed = policy.RegionOf(append(room.Region.Cells(), hall))
+	plan.Roofed = room.Region
 	var built []policy.CurrentBuilding
 	var cells []policy.SiteCell
 	for x := int32(9); x <= 13; x++ {
@@ -36,18 +36,17 @@ func envelopeColony(t *testing.T) (observation.ColonyProjection, domain.Cell, do
 			built = append(built, policy.CurrentBuilding{ID: "w", Building: b, Cells: []domain.Cell{c}})
 		}
 	}
-	cells = append(cells, policy.SiteCell{Cell: hall, Roofed: domain.Known(false)})
 	facts := observation.ColonyProjection{Cells: cells, Definitions: []observation.PlanningDefinition{{Name: policy.ClimateDefs().VentDef, Available: domain.Known(true)}}}
 	facts.LayoutPlan = domain.Known(plan)
 	facts.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: built})
-	return facts, vent, hall
+	return facts, vent
 }
 
 func TestEnvelopeWorkBuildsABuiltRoomWithoutItsOwner(t *testing.T) {
-	facts, _, hall := envelopeColony(t)
-	rooms, hallway, known := envelopeWork(facts)
-	if !known || len(rooms) != 1 || len(hallway) != 1 || hallway[0] != hall {
-		t.Fatalf("rooms=%v hallway=%v known=%v", rooms, hallway, known)
+	facts, _ := envelopeColony(t)
+	rooms, known := envelopeWork(facts)
+	if !known || len(rooms) != 1 {
+		t.Fatalf("rooms=%v known=%v", rooms, known)
 	}
 	if owed, _ := envelopeOwed(facts).Value(); !owed {
 		t.Fatal("a built room missing its vent and roof owes nothing")
@@ -69,7 +68,7 @@ func TestEnvelopeWorkBuildsABuiltRoomWithoutItsOwner(t *testing.T) {
 }
 
 func TestEnvelopeIdleWhenNothingIsMissing(t *testing.T) {
-	facts, vent, _ := envelopeColony(t)
+	facts, vent := envelopeColony(t)
 	// Roofed everywhere, and the vent stands in its wall.
 	for i := range facts.Cells {
 		facts.Cells[i].Roofed = domain.Known(true)
@@ -91,11 +90,11 @@ func TestEnvelopeIdleWhenNothingIsMissing(t *testing.T) {
 }
 
 func TestEnvelopeWaitsForRingVentAvailabilityAndFacts(t *testing.T) {
-	facts, _, _ := envelopeColony(t)
+	facts, _ := envelopeColony(t)
 	unavailable := facts
 	unavailable.Definitions = []observation.PlanningDefinition{{Name: policy.ClimateDefs().VentDef, Available: domain.Known(false)}}
-	// Only the roof and hallway remain; the unavailable vent adds nothing.
-	rooms, _, _ := envelopeWork(unavailable)
+	// Only the roof remains; the unavailable vent adds nothing.
+	rooms, _ := envelopeWork(unavailable)
 	if len(rooms) != 1 {
 		t.Fatalf("the roof is still owed: %v", rooms)
 	}
@@ -106,11 +105,11 @@ func TestEnvelopeWaitsForRingVentAvailabilityAndFacts(t *testing.T) {
 			t.Fatalf("an unavailable vent is owed: %+v", op)
 		}
 	}
-	// No ring yet: neither a vent nor a roof is owed, so only the hallway is.
+	// No ring yet: neither a vent nor a roof is owed.
 	bare := facts
 	bare.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true})
-	if rooms, hallway, known := envelopeWork(bare); !known || len(rooms) != 0 || len(hallway) != 1 {
-		t.Fatalf("unbuilt ring: rooms=%v hallway=%v known=%v", rooms, hallway, known)
+	if rooms, known := envelopeWork(bare); !known || len(rooms) != 0 {
+		t.Fatalf("unbuilt ring: rooms=%v known=%v", rooms, known)
 	}
 	// An unread construction census is unknown, never idle.
 	unread := facts
@@ -124,7 +123,7 @@ func TestEnvelopeWaitsForRingVentAvailabilityAndFacts(t *testing.T) {
 	plan.Rooms[0].Outdoor = true
 	outdoor := facts
 	outdoor.LayoutPlan = domain.Known(plan)
-	if rooms, _, _ := envelopeWork(outdoor); len(rooms) != 0 {
+	if rooms, _ := envelopeWork(outdoor); len(rooms) != 0 {
 		t.Fatalf("outdoor room owed %v", rooms)
 	}
 }

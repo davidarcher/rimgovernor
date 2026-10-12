@@ -6,8 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The outskirts cluster's composition. The one
-// ReserveOutskirts outline holds four rooms in fixed slots, so the tomb and
+// The outskirts cluster fixture: an outline holding
+// four rooms in fixed slots, so the tomb and
 // morgue, the graveyard and the waste yard with its incinerator
 // never collide. Every rectangle below is an outline: the room's
 // interior plus its one-cell ring (walls, or the yards' fence). Rooms stand
@@ -40,27 +40,6 @@ import (
 // row 0, the lane and the taller yard. Rooms placed in a slot keep the outline
 // whole, so the siting's 6-cell clearance from living rooms (outskirtsGap)
 // holds for every room.
-
-const (
-	// GraveyardW and GraveyardH are the graveyard's interior: the
-	// 12-grave template of GraveyardSlots fills it.
-	GraveyardW int32 = 11
-	GraveyardH int32 = 7
-	// WasteYardW and WasteYardH are the waste yard's interior: 77
-	// cells, the incinerator room takes a corner, the dump the rest.
-	WasteYardW int32 = 11
-	WasteYardH int32 = 7
-	// IncineratorOutline is the incinerator room's walled outline side: a 3x3
-	// interior and its ring.
-	IncineratorOutline int32 = 5
-)
-
-// PlannedWasteYard is the waste yard's plan role: an Outdoor room that
-// holds the dump zone's ground and the incinerator room.
-const PlannedWasteYard PlannedRole = "waste_yard"
-
-// WasteYardRooms are the plan's waste yards.
-func (p LayoutPlan) WasteYardRooms() []PlannedRoom { return p.roomsOf(PlannedWasteYard) }
 
 // OutskirtsSlot is one room's slot: the outline it stands in, its interior, and
 // the wall cell its door (an Outdoor room's gate) takes with the side it faces.

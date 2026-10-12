@@ -43,10 +43,6 @@ type RoomDoor struct {
 // Python RoomBounds.cells() use.
 func cellBefore(a, b Cell) bool { return a.Z < b.Z || a.Z == b.Z && a.X < b.X }
 
-func neighbours4(c Cell) [4]Cell {
-	return [4]Cell{{c.X + 1, c.Z}, {c.X, c.Z + 1}, {c.X - 1, c.Z}, {c.X, c.Z - 1}}
-}
-
 func neighbours8(c Cell) [8]Cell {
 	return [8]Cell{{c.X + 1, c.Z}, {c.X + 1, c.Z + 1}, {c.X, c.Z + 1}, {c.X - 1, c.Z + 1}, {c.X - 1, c.Z}, {c.X - 1, c.Z - 1}, {c.X, c.Z - 1}, {c.X + 1, c.Z - 1}}
 }
@@ -293,82 +289,6 @@ func RectangleFootprint(bounds RoomBounds, entrance Rotation) (RoomFootprint, er
 	return NewRoomFootprint(interior, door, entrance)
 }
 
-// GrowFootprint carves a connected interior over constrained terrain: a
-// breadth-first walk from seed, in east, north, west, south order, until
-// target interior cells are held. A cell joins the interior only when it and
-// all eight of its neighbours are free, so the wall ring that surrounds the
-// result is buildable by construction and the room hugs whatever blocks it
-// without ever needing a wall on rock or water. The door is the first wall
-// cell, scanning entrance sides south, east, north then west and cells in
-// z-outer, x-inner order, whose inward neighbour is interior and whose outward
-// neighbour is free. It reports false when no such room of at least nine
-// cells exists.
-func GrowFootprint(seed Cell, free func(Cell) bool, target int, roofDistance float64) (RoomFootprint, bool) {
-	if free == nil || target < 9 || target > 3844 {
-		return RoomFootprint{}, false
-	}
-	admissible := func(c Cell) bool {
-		if c.X < 1 || c.Z < 1 || !free(c) {
-			return false
-		}
-		for _, next := range neighbours8(c) {
-			if !free(next) {
-				return false
-			}
-		}
-		return true
-	}
-	if !admissible(seed) {
-		return RoomFootprint{}, false
-	}
-	inside := map[Cell]bool{seed: true}
-	interior := []Cell{seed}
-	for i := 0; i < len(interior) && len(interior) < target; i++ {
-		for _, next := range neighbours4(interior[i]) {
-			if len(interior) >= target {
-				break
-			}
-			if inside[next] || !admissible(next) {
-				continue
-			}
-			inside[next] = true
-			interior = append(interior, next)
-		}
-	}
-	if len(interior) < 9 {
-		return RoomFootprint{}, false
-	}
-	wall := map[Cell]bool{}
-	for _, cell := range interior {
-		for _, next := range neighbours8(cell) {
-			if !inside[next] {
-				wall[next] = true
-			}
-		}
-	}
-	walls := make([]Cell, 0, len(wall))
-	for cell := range wall {
-		walls = append(walls, cell)
-	}
-	sort.Slice(walls, func(i, j int) bool { return cellBefore(walls[i], walls[j]) })
-	for _, entrance := range []Rotation{South, East, North, West} {
-		step := entrance.outward()
-		for _, door := range walls {
-			in := Cell{X: door.X - step.X, Z: door.Z - step.Z}
-			out := Cell{X: door.X + step.X, Z: door.Z + step.Z}
-			if !inside[in] || inside[out] || wall[out] || !free(out) {
-				continue
-			}
-			footprint, err := NewRoomFootprint(interior, door, entrance)
-			if err != nil || !footprint.RoofSupported(roofDistance) {
-				continue
-			}
-			return footprint, true
-		}
-	}
-	return RoomFootprint{}, false
-}
-
 // RoomBounds is one room rectangle: a nonnegative anchor and a 4..64 extent on
 // each axis. The lower bound of four is what gives a shell an interior at all.
 type RoomBounds struct{ X, Z, Width, Height int32 }
@@ -399,10 +319,9 @@ func (r Rotation) outward() Cell {
 	}
 }
 
-// connectedCells is the port of Python shell_site.connected_cells: the
-// orthogonally connected region of points reachable from seed. It reports
-// whether that region is the whole set, which is the only question the caller
-// asks, so it allocates one visited map and no result slice.
+// connectedCells reports whether the orthogonally connected region of points
+// reachable from seed is the whole set. It allocates one visited map and no
+// result slice.
 func connectedCells(seed Cell, points map[Cell]bool) bool {
 	if !points[seed] {
 		return false
@@ -420,122 +339,4 @@ func connectedCells(seed Cell, points map[Cell]bool) bool {
 		}
 	}
 	return len(seen) == len(points)
-}
-
-// InteriorRect is a rectangle of interior cells, the building block of a
-// composite room. Unlike RoomBounds it holds no walls: the ring is grown
-// around the union afterwards.
-type InteriorRect struct{ X, Z, Width, Height int32 }
-
-func (r InteriorRect) cells() []Cell {
-	cells := make([]Cell, 0, int(r.Width)*int(r.Height))
-	for z := r.Z; z < r.Z+r.Height; z++ {
-		for x := r.X; x < r.X+r.Width; x++ {
-			cells = append(cells, Cell{X: x, Z: z})
-		}
-	}
-	return cells
-}
-
-// UnionFootprint joins one to eight rectangles of interior cells into one
-// room: an L-shaped chamber, a chamber with a wing, two chambers joined by a
-// narrow connector. The parts may overlap or touch; their union must be
-// orthogonally connected and, like every autopilot shape, roof itself. The
-// door stands on the bounding box's entrance edge (never in a notch, where
-// it would open into the room's own recess), on the wall cell nearest the
-// box's centre line whose inward cell has interior on both sides across the
-// entrance axis and interior again behind it -- never a corner and never
-// the mouth or flank of a one-cell connector, which is the room's aisle --
-// and whose outward cell is clear.
-func UnionFootprint(parts []InteriorRect, entrance Rotation, roofDistance float64) (RoomFootprint, error) {
-	if len(parts) == 0 || len(parts) > 8 {
-		return RoomFootprint{}, errors.New("a composite room takes one to eight parts")
-	}
-	inside := map[Cell]bool{}
-	var interior []Cell
-	for _, part := range parts {
-		if part.X < 1 || part.Z < 1 || part.Width < 1 || part.Height < 1 || part.Width > 62 || part.Height > 62 {
-			return RoomFootprint{}, errors.New("composite room part out of range")
-		}
-		for _, cell := range part.cells() {
-			if !inside[cell] {
-				inside[cell] = true
-				interior = append(interior, cell)
-			}
-		}
-	}
-	door, ok := unionDoor(interior, inside, entrance)
-	if !ok {
-		return RoomFootprint{}, errors.New("composite room has no door site on its entrance side")
-	}
-	footprint, err := NewRoomFootprint(interior, door, entrance)
-	if err != nil {
-		return RoomFootprint{}, err
-	}
-	if !footprint.RoofSupported(roofDistance) {
-		return RoomFootprint{}, errors.New("composite room interior exceeds roof support")
-	}
-	return footprint, nil
-}
-
-// unionDoor is UnionFootprint's door rule over an interior set.
-func unionDoor(interior []Cell, inside map[Cell]bool, entrance Rotation) (Cell, bool) {
-	wall := map[Cell]bool{}
-	minX, minZ, maxX, maxZ := interior[0].X, interior[0].Z, interior[0].X, interior[0].Z
-	for c := range inside {
-		minX, maxX = min(minX, c.X), max(maxX, c.X)
-		minZ, maxZ = min(minZ, c.Z), max(maxZ, c.Z)
-		for _, next := range neighbours8(c) {
-			if !inside[next] {
-				wall[next] = true
-			}
-		}
-	}
-	// The centre line in cell units doubled, so an even extent needs no
-	// rounding: |2·coordinate - (min+max)|.
-	axis := int64(minX + maxX)
-	step := entrance.outward()
-	side := Cell{X: 1}
-	if step.X != 0 {
-		axis = int64(minZ + maxZ)
-		side = Cell{Z: 1}
-	}
-	var edge Cell
-	switch entrance {
-	case North:
-		edge = Cell{Z: maxZ + 1}
-	case South:
-		edge = Cell{Z: minZ - 1}
-	case East:
-		edge = Cell{X: maxX + 1}
-	default:
-		edge = Cell{X: minX - 1}
-	}
-	var door Cell
-	best := int64(-1)
-	for w := range wall {
-		if step.X != 0 && w.X != edge.X || step.Z != 0 && w.Z != edge.Z {
-			continue
-		}
-		in := Cell{X: w.X - step.X, Z: w.Z - step.Z}
-		out := Cell{X: w.X + step.X, Z: w.Z + step.Z}
-		if !inside[in] || inside[out] || wall[out] {
-			continue
-		}
-		deeper := Cell{X: in.X - step.X, Z: in.Z - step.Z}
-		if !inside[deeper] || !inside[Cell{X: in.X + side.X, Z: in.Z + side.Z}] || !inside[Cell{X: in.X - side.X, Z: in.Z - side.Z}] {
-			continue
-		}
-		off := 2*int64(w.X) - axis
-		if step.X != 0 {
-			off = 2*int64(w.Z) - axis
-		}
-		if off < 0 {
-			off = -off
-		}
-		if best < 0 || off < best || off == best && cellBefore(w, door) {
-			best, door = off, w
-		}
-	}
-	return door, best >= 0
 }
