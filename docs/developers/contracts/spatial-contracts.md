@@ -849,3 +849,20 @@ cell is dropped, `tier_displaced_by_built`). A census the layout planner refuses
 pinned tiers as the nodes (`tier_layout_failed`). Advisory until the defense round reads the
 nodes: `RoundsDefenseLayoutPlanner.adviseTiers` cuts them after each tier census, holds them
 for the overlay and journals them as `layout_plan` rows with target `defense_tiers`.
+
+### A blocked tier
+
+When a tree, a rock chunk or a new building stands on a cell a pinned tier needs
+(`DefenseCell.Cover`), `policy.PriceTierBlocks` (`defense_block.go`) prices both ways out
+in the layout's units and takes the cheaper; neither is a veto, and a tie keeps the tier.
+Clear is the work from the game's defs (a plant's `harvestWork`, a building's
+`WorkToBuild` clamped to `JobDriver_Deconstruct`'s limits; `DefinitionCatalog.ClearRow`)
+over the work ticks of a colonist's work-day (the available colonists' timetable work hours
+at their work speed, `ColonistWorkTicksPerDay`), charged at the #2945 work-day price
+(`StationWorkPrice`), net of the yield (a felled tree's wood, a deconstruction's refund). A
+hauled chunk costs the walk of one cell, the lower bound of a haul; rock needs mining,
+whose work the defs do not state, so it is unpriced. Move is the build cost of the tier at
+the place the census sites it with nothing pinned plus the deconstruct work of the old
+tier's standing buildings. The downtime, the days the old tier no longer covers the lane,
+is not priced, so a move's price is a lower bound and a move taken says so in its reason.
+Journaled as `layout_plan` rows with target `defense_tier_block`.

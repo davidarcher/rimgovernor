@@ -98,7 +98,7 @@ type StationFacts struct {
 // regroupPrice is what the regrouping prices conflicts with: a colonist's work
 // from the food census and crops, the mood model and the expected mood.
 func (f StationFacts) regroupPrice() RegroupPrice {
-	return RegroupPrice{Work: stationWorkPrice(f), Mood: f.Catalog.Mood, Expected: f.ExpectedMood}
+	return RegroupPrice{Work: StationWorkPrice(f), Mood: f.Catalog.Mood, Expected: f.ExpectedMood}
 }
 
 // StationPopulationOf is the people the graph sizes beds for. Babies sleep in

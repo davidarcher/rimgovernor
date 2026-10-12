@@ -138,6 +138,8 @@ type RoundsDefenseLayoutPlanner struct {
 	// tiersLogged digests the tier nodes last journaled, so an unchanged cut
 	// is not logged on every census.
 	tiersLogged string
+	// blocksLogged is the same for the blocked-tier prices.
+	blocksLogged string
 }
 type RoundsDefenseLayoutResult struct {
 	Verdict
@@ -1587,6 +1589,7 @@ func defenseCellFacts(cell bridge.DefenseCell) policy.DefenseCell {
 	out.PlayerOwned, out.NaturalRock, out.EdgeReachable = domain.Known(cell.PlayerOwned), domain.Known(cell.NaturalRock), domain.Known(cell.EdgeReachable)
 	out.Door, out.CoverFill, out.Edifice = domain.Known(cell.Door), domain.Known(cell.CoverFill), cell.EdificeDefName
 	out.Roofed = domain.Known(cell.Roofed)
+	out.Cover = defenseCover(cell)
 	return out
 }
 

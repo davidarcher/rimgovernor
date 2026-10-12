@@ -120,6 +120,9 @@ type DefenseTiers struct {
 	// Refusal is why the layout planner sited nothing, when it refused.
 	Refusal   string
 	Decisions []SiteDecision
+	// Sited are the tiers the census sites with nothing pinned: the places a
+	// blocked tier could move to (PriceTierBlocks).
+	Sited []DefenseTier
 }
 
 // defenseTierOrder is the order tiers become nodes in, and so the order of
@@ -168,6 +171,7 @@ func PlanDefenseTiers(plan LayoutPlan, census DefenseRequest, pins DefenseTierPi
 		out.Decisions = append(out.Decisions, SiteDecision{Node: id, Verdict: EmbedUnplaceable, Reason: ReasonTierLayoutFailed})
 		out.Refusal = err.Error()
 	}
+	out.Sited = slices.Clone(layout.Tiers)
 	pinned := applyPins(&layout, pins)
 	if out.Layout = layout; len(pinned) == 0 && err != nil {
 		return out, nil

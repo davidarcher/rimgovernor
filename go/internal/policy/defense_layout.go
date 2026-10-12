@@ -26,6 +26,9 @@ type DefenseCell struct {
 	TrapSupport domain.Fact[bool]
 	CoverFill   domain.Fact[float64]
 	Edifice     string
+	// Cover is the thing the game's designators could remove that stands on
+	// the cell, when the census identified one (defense_block.go prices it).
+	Cover CoverThing
 }
 
 // DefenseDefinitions names the native buildings each tier places. Stuff

@@ -13,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
 // defenseCensusRequest is the census the layout planners site from, read off
@@ -110,10 +111,12 @@ func (r *RoundsDefenseLayoutPlanner) adviseTiers(call context.Context, state Con
 	}
 	census.Mortar = defenseMortarRequest(read).Mortar
 	census.UnitCosts[defenseMortarDefinition] = defenseMortarRequest(read).UnitCosts[defenseMortarDefinition]
-	tiers, err := policy.PlanDefenseTiers(plan, census, defenseTierPins(record))
+	pins := defenseTierPins(record)
+	tiers, err := policy.PlanDefenseTiers(plan, census, pins)
 	if err != nil {
 		return
 	}
+	r.adviseBlocks(call, state, read, census, pins, tiers)
 	key := tierKey(tiers.Nodes)
 	r.reviewer.tiers.Store(&tierOverlay{key: key, nodes: tiers.Nodes})
 	if key == r.tiersLogged {
@@ -124,6 +127,66 @@ func (r *RoundsDefenseLayoutPlanner) adviseTiers(call context.Context, state Con
 		telemetry.Decide(call, telemetry.Decision{Kind: "layout_plan", Component: "layout", Level: slog.LevelInfo, Verdict: d.Verdict, Reason: d.Reason, Target: "defense_tiers",
 			Attrs: map[string]any{"node": d.Node, "nodes": len(tiers.Nodes), "why": tiers.Refusal}})
 	}
+}
+
+// adviseBlocks prices each pinned tier a tree, chunk or new building blocks
+// (clear it or move the tier, the cheaper; downtime unpriced) and journals the
+// choice as a layout_plan row with target defense_tier_block. The prices read
+// the catalog's work amounts, a colonist's work-day from the pawns' schedules
+// and the #2945 work-day price. Advice only.
+func (r *RoundsDefenseLayoutPlanner) adviseBlocks(call context.Context, state ControlState, read observation.RoundsReading, census policy.DefenseRequest, pins policy.DefenseTierPins, tiers policy.DefenseTiers) {
+	things := policy.BlockedThings(census.Cells, pins)
+	if len(things) == 0 {
+		r.blocksLogged = ""
+		return
+	}
+	catalog, err := pawnCatalog(call, r.native, boundary.Identity(state.Snapshot))
+	if err != nil || catalog == nil {
+		return
+	}
+	rows := map[string]policy.ClearRow{}
+	for _, thing := range things {
+		if row, ok, err := catalog.ClearRow(thing.Def, thing.Stuff); err == nil && ok {
+			rows[policy.ClearKey(thing.Def, thing.Stuff)] = row
+		}
+	}
+	p := read.Projection
+	facts := policy.StationFacts{Catalog: p.Stations, Items: p.Facts.Items, Colonists: p.Facts.Colonists, Food: p.FoodSupply, WorkPawns: p.WorkPawns, Crops: growingCrops(p)}
+	decisions := policy.PriceTierBlocks(census.Cells, pins, tiers.Sited, policy.NewBlockPricing(facts, census.UnitCosts, rows))
+	key := fmt.Sprint(decisions)
+	if key == r.blocksLogged {
+		return
+	}
+	r.blocksLogged = key
+	for _, d := range decisions {
+		verdict := string(d.Choice)
+		telemetry.Decide(call, telemetry.Decision{Kind: "layout_plan", Component: "layout", Level: slog.LevelInfo, Verdict: verdict, Reason: d.Reason, Target: "defense_tier_block",
+			Attrs: map[string]any{"tier": string(d.Tier), "blocked": len(d.Blocked), "clear_w": d.ClearW, "clear_known": d.ClearKnown, "move_w": d.MoveW, "move_known": d.MoveKnown,
+				"downtime": "unpriced"}})
+	}
+}
+
+// defenseCover is the census cell's removable cover as the policy reads it: the
+// thing, its stuff when it is the edifice, and the kind of removal it takes.
+func defenseCover(cell bridge.DefenseCell) policy.CoverThing {
+	if cell.Cover == nil {
+		return policy.CoverThing{}
+	}
+	thing := policy.CoverThing{Def: cell.Cover.DefName}
+	switch cell.Cover.Kind {
+	case o.CoverKind_COVER_KIND_PLANT:
+		thing.Kind = policy.CoverPlant
+	case o.CoverKind_COVER_KIND_CHUNK:
+		thing.Kind = policy.CoverChunk
+	case o.CoverKind_COVER_KIND_MINEABLE:
+		thing.Kind = policy.CoverMineable
+	case o.CoverKind_COVER_KIND_BUILDING:
+		thing.Kind = policy.CoverBuilding
+		if cell.EdificeDefName == thing.Def {
+			thing.Stuff = cell.EdificeStuff
+		}
+	}
+	return thing
 }
 
 // tierKey digests the tier nodes: their ids, kinds, pinned state and cells.

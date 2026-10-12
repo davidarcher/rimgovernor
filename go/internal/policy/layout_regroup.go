@@ -96,11 +96,11 @@ func (p WorkPrice) Points(workDays float64) float64 {
 	return float64(planWeights.Walk) * workDays / p.CellWalkDays
 }
 
-// stationWorkPrice prices a colonist's time from the station facts: the lamp
+// StationWorkPrice prices a colonist's time from the station facts: the lamp
 // price's own work-day (stationWorkDayW) and the walk of a cell at the game's
 // ticks a second and a colonist's move speed. Invalid while the food census, the
 // colonists, a crop or the game's tick rate is unknown.
-func stationWorkPrice(f StationFacts) WorkPrice {
+func StationWorkPrice(f StationFacts) WorkPrice {
 	ticks := f.Catalog.Climate.TicksPerSecond
 	if !finitePositive(ticks) {
 		return WorkPrice{}
