@@ -493,6 +493,9 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	}
 	reading.Projection.Facts.WarmRooms = warmCoolingRooms(reading.Projection)
 	reading.Projection.Facts.PlanLit = planLitRooms(reading.Projection)
+	if r.methodEnabled(policy.MaintainClimateEnvelope) {
+		reading.Projection.Facts.EnvelopeOwed = envelopeOwed(reading.Projection)
+	}
 	reading.Projection.Facts.MealClosetOwed = mealClosetOwed(reading.Projection)
 	reading.Projection.Facts.CampfireRetireOwed = campfireRetireOwed(reading.Projection)
 	if reading.Projection.Facts.CraftingSpotRetireOwed, err = r.craftingSpotRetireOwed(ctx, state.Snapshot, reading.Projection); err != nil {

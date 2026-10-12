@@ -44,6 +44,7 @@ var concernLabels = map[policy.ConcernID]string{
 	policy.MaintainWorkLedger:       "Production orders",
 	policy.MaintainIncineration:     "Incineration",
 	policy.MaintainTraining:         "Training",
+	policy.MaintainClimateEnvelope:  "Climate envelope",
 	policy.MaintainHerd:             "Herd",
 	policy.MaintainPopulation:       "Population",
 	domain.TradeMissionConcern:      "Trade mission",

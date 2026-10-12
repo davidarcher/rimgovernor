@@ -536,6 +536,16 @@ var plannerCatalog = []plannerEntry{
 			out.Training = &method
 			return method.Verdict, nil
 		}},
+	{name: "envelope", concern: policy.MaintainClimateEnvelope, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction, domain.BuildRoofAction}, sections: sectionsBuilding,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Envelope != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
+			method, err := s.config.Envelope.step(ctx, epoch, arbiter)
+			if err != nil {
+				return Verdict{}, err
+			}
+			out.Envelope = &method
+			return method.Verdict, nil
+		}},
 	{name: "incineration", concern: policy.MaintainIncineration, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction, domain.EquipAction, domain.OwnedDraftAction, domain.IgniteAction, domain.CleanAction}, sections: sectionsBuilding, families: familiesEmergency,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Incineration != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

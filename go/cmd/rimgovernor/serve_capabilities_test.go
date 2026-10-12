@@ -22,6 +22,7 @@ func TestRoundsCapabilitiesDeclareSelectedGoals(t *testing.T) {
 		{"fire", policy.MaintainFireSafety},
 		{"burial", policy.MaintainBurial},
 		{"training", policy.MaintainTraining},
+		{"envelope", policy.MaintainClimateEnvelope},
 		{"incineration", policy.MaintainIncineration},
 		{"pollution", policy.ManagePollution},
 		{"mechcharger", policy.EnsureMechCharger},

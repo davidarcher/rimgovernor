@@ -55,6 +55,7 @@ var (
 	Fire                = define("fire")
 	Burial              = define("burial")
 	Training            = define("training")
+	Envelope            = define("envelope")
 	Incineration        = define("incineration")
 	Blight              = define("blight")
 	Pollution           = define("pollution")

@@ -41,6 +41,10 @@ type roomReconcile struct {
 	// no packed stock (dining, kitchen, the gear rooms, the incinerator) can use
 	// it. A ring cell the native refuses is no_space, as for an outdoor ring.
 	ringOnly bool
+	// climateOnly narrows a ringOnly reconcile to the room's planned vents and
+	// roofs (policy.EnvelopeOps): the plan-wide climate envelope's call, which
+	// owns nothing else of the room (#2962).
+	climateOnly bool
 	// stuff overrides the wall's and door's stuff (the incinerator's fireproof
 	// choice); nil builds both from the one shared shell stuff.
 	stuff shellStuff
@@ -301,6 +305,9 @@ func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state
 		in.Stock = left
 	}
 	ops, holds := policy.ReconcileRoomHolds(in)
+	if rr.climateOnly {
+		ops, holds = policy.EnvelopeOps(ops), nil
+	}
 	var standing []policy.ConstructionSite
 	if census, known := facts.Facts.CurrentConstruction.Value(); known {
 		standing = roomSites(census.Sites, rr.room.RoomGround())

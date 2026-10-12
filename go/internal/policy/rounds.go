@@ -293,6 +293,10 @@ type RoundsFacts struct {
 	// plant or an undesignated wooden ruin (FirebreakOwed); it holds
 	// MaintainFirebreak open. Unknown unless the method is composed.
 	FirebreakOwed domain.Fact[bool]
+	// EnvelopeOwed: a planned room is owed a vent or a roof, or the roofed
+	// hallway is open to the sky (#2962); it holds MaintainClimateEnvelope open.
+	// Unknown unless the method is composed.
+	EnvelopeOwed domain.Fact[bool]
 	// MechGestationOwed: a mechanitor can afford the next mech, a gestator
 	// is idle and no waste is uncleared (MechGestationOwed); it holds
 	// MaintainMechs open. Unknown unless the method is composed.

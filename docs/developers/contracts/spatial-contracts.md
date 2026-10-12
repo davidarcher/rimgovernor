@@ -341,10 +341,16 @@ wall (`ReconcileInput.VentAvailable` false, an unresearched `Vent`, makes it an 
 option; rock and a standing vent owe nothing; a vent row on a planned vent is no
 furniture to remove), and `OpRoofIn` roofs the room's `Roofed` cells that the mirror reads
 open to the sky (`ReconcileInput.Unroofed`), with its airlock children's vestibules, once
-the ring stands. An airlock's walls and outer door are the parent ring's. The reconcile
-runs only while the owner's own predicate holds, so a room whose owner has stopped
-reconciling is not roofed or vented by it; spine-hallway cells outside any room have no
-roof issuer.
+the ring stands. An airlock's walls and outer door are the parent ring's. An owner
+reconciles only while its own predicate holds, so the plan-wide `MaintainClimateEnvelope`
+(Shelter, family `envelope`, `RoundsEnvelopePlanner`) asks the plan itself: it diffs every
+top-level planned room ring-only, keeps just its `OpVentIn` and `OpRoofIn`
+(`policy.EnvelopeOps`) and commits them through the same `reconcileRoom` path with
+`climateOnly`, whatever the owner is doing, and designates the roofed-set cells outside
+every room (the hallways, `policy.EnvelopeHallwayRoof`) that the mirror reads open. It is
+open while `RoundsFacts.EnvelopeOwed` is true and idle once every planned vent stands and
+every roofed-set cell is roofed; an unread plan or construction census is unknown, never
+idle. A hallway cell has no ring to wait for: its roof was priced to pay at plan time.
   **Lamps (#2945).** A roofed cell has no sky light, so a colonist working or walking on
   it loses speed (`StatPart_Glow`: x0.80 at glow 0 up to x1.00 at `LitGlow` 0.3, on
   `WorkSpeedGlobal` and `MoveSpeed`; `LightSpeed`). The tiler weighs that against lamps in

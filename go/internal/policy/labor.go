@@ -66,6 +66,10 @@ func ConcernLabor(id ConcernID) LaborProfile {
 		return LaborProfile{WorkCooking}
 	case MaintainFireSafety:
 		return LaborProfile{WorkFirefighter}
+	case MaintainClimateEnvelope:
+		// Vents are built over standing walls and roofs are designated for
+		// builders.
+		return LaborProfile{WorkConstruction}
 	case MaintainFirebreak:
 		// Plants are cut by plant cutters, wooden ruins taken down by
 		// builders.

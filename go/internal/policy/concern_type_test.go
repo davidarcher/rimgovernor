@@ -57,15 +57,16 @@ func TestConcernTypeOfCoversEveryConcernID(t *testing.T) {
 		t.Error("DepartmentOf misclassifies a mood goal or an unknown id")
 	}
 	for id, want := range map[ConcernID]ConcernType{
-		EnsureMood:           IncidentConcern,
-		EnsureFoodSupply:     StandardConcern,
-		EnsureBasicDefense:   StandardConcern,
-		TradeWithCaravan:     IncidentConcern,
-		EnsureCooking:        OnceConcern,
-		MaintainIncineration: StandardConcern,
-		MaintainBurial:       StandardConcern,
-		MaintainTraining:     StandardConcern,
-		"NotAGoal":           UnknownConcern,
+		EnsureMood:              IncidentConcern,
+		EnsureFoodSupply:        StandardConcern,
+		EnsureBasicDefense:      StandardConcern,
+		TradeWithCaravan:        IncidentConcern,
+		EnsureCooking:           OnceConcern,
+		MaintainIncineration:    StandardConcern,
+		MaintainBurial:          StandardConcern,
+		MaintainTraining:        StandardConcern,
+		MaintainClimateEnvelope: StandardConcern,
+		"NotAGoal":              UnknownConcern,
 	} {
 		if got := ConcernTypeOf(id); got != want {
 			t.Errorf("ConcernTypeOf(%s) = %q, want %q", id, got, want)
