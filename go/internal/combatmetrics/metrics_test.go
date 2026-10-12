@@ -34,6 +34,23 @@ func TestAggregateLedgerDeadHostileIsNotFled(t *testing.T) {
 	}
 }
 
+// The native read omits a dead colonist as well (#2989): the ledger's dead:true
+// hit makes it a death rather than a colonist who simply is not there, and a
+// colonist still lying downed in the read stays a down.
+func TestAggregateLedgerDeadColonistIsADeath(t *testing.T) {
+	staged := map[string]string{"dead": Colonist, "down": Colonist, "h": Hostile}
+	m := Aggregate("x", staged, []Read{
+		{Tick: 100, Pawns: []Pawn{{ID: "dead"}, {ID: "down"}, {ID: "h"}}},
+		{Tick: 600, Pawns: []Pawn{{ID: "down", Downed: true}, {ID: "h"}}, Damage: []Hit{
+			{Tick: 300, Victim: "dead", VictimSide: Colonist, InstigatorSide: Hostile, Dealt: 11, Downed: true, Dead: true},
+			{Tick: 400, Victim: "down", VictimSide: Colonist, InstigatorSide: Hostile, Dealt: 22, Downed: true},
+		}},
+	})
+	if m.ColonistDeaths != 1 || m.ColonistDowns != 1 || m.Winner != Hostile {
+		t.Fatalf("%+v", m)
+	}
+}
+
 func TestAggregateNoReads(t *testing.T) {
 	if m := Aggregate("x", nil, nil); m != New("x") {
 		t.Fatalf("%+v", m)

@@ -507,7 +507,7 @@ DefinitionCatalog; every derived value is listed with its source in
   part-specific armor (A5); the move-speed loss from pain or a damaged leg
   (only the Moving capacity's down threshold is read); a pawn that has dropped
   its weapon does not take up melee; instant-kill protection for colonists
-  (`allowInstantKillChance`, which the lab leaves at 1); added parts and other
+  (`allowInstantKillChance`, which the lab leaves at 1, so none applies); added parts and other
   hediffs; sight, hearing and other capacities no rule here reads.
   Calibration (lab-ranged, 20 resumed seeds, after the E10 serious-injury stop
   merged): colonist shots per pawn 11.71 -> 11.25 (real 10.24), raiders 9.75 ->
@@ -516,9 +516,29 @@ DefinitionCatalog; every derived value is listed with its source in
   the 64 pain-shock line crossed by whole 11-point hits), so the rest of the gap
   is hit timing and volume, not the health model. The #2986 target of 10.24 /
   8.84 / 499 was not reached: shots per pawn improved, the down tick did not.
-  Open gap: lab-split-ranged shows 0.40 colonist deaths per seed in the sim
-  against 0 in the real runs (colonist downs 1.85 against 2.95); the cause (brain
-  and core hits killing a colonist the real game left downed) is not found.
+  Colonist deaths (#2989): the "0 real deaths" was a measurement gap, not a
+  property of the game. The decompile finds no colonist protection in the
+  damage path: `FinalizeAndAddInjury` softens a would-be instant kill only when
+  `!Rand.Chance(allowInstantKillChance)`, and the difficulty's value is 1 (the
+  `Difficulty.CopyFrom` default; no `DifficultyDef` sets it), so a colonist's
+  brain, heart or core part is destroyed exactly as a raider's is, and
+  `CheckForStateChange` has no colonist branch except that the death-on-downed
+  roll skips the player faction. The sim's deaths on lab-split-ranged are the
+  rules at work: an 11-point hit on the 10-health brain (5 of the 8 deaths over
+  20 seeds) and stray hits that destroy the 40-health torso of a colonist
+  already down (3). The real sweep scores a colonist from the final read, and
+  `MapPawns.AllPawns` omits the dead, so a dead colonist counted as neither dead
+  nor down (only hostiles were recovered from the ledger). The baselines show
+  it: the raiders won 15 of the 20 lab-split-ranged seeds, which needs all four
+  colonists out, yet the downs are fewer than four in 7 of them (3 in six, 2 in
+  one), so the real runs lost at least 8 colonists in 20 seeds, 0.40 per seed,
+  the sim's 0.40 (the 5 colonist-win seeds, and lab-ranged, cannot be bounded).
+  `combatmetrics.Aggregate` now takes colonist deaths from the ledger's `dead`
+  hits; the committed sweeps stay as recorded (the calibration report says so)
+  and the next recording counts them. What remains of the downs gap is the
+  length of the fight, not injuries: the sim's colonists win 14 of 20 seeds
+  against 5 real, so fewer of them go out (sim 2.25 downs plus deaths per seed
+  against at least 3.35 real).
 
 ## Out of scope for this slice
 

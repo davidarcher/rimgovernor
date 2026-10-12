@@ -135,20 +135,24 @@ func PostFightNext(worn domain.Fact[bool], strip StripState) PostFightStep {
 // ties by id: the order gunners focus fire in. A pawn hidden from the player
 // is not one a gunner can be ordered at.
 func rankThreats(view CombatView) []CombatPawnState {
-	state := map[domain.PawnID]CombatPawnState{}
-	for _, p := range view.Pawns {
-		state[p.ID] = p
+	// Index the pawn rows rather than copying them into a map: the later row
+	// of a repeated id wins, as it did, and this runs dozens of times per stop.
+	state := make(map[domain.PawnID]int, len(view.Pawns))
+	for i, p := range view.Pawns {
+		state[p.ID] = i
 	}
-	colonists := map[domain.PawnID]bool{}
+	colonists := make(map[domain.PawnID]bool, len(view.Defenders))
 	for _, d := range view.Defenders {
 		colonists[d.ID] = true
 	}
 	var out []CombatPawnState
-	tier := map[domain.PawnID]int{}
+	tier := make(map[domain.PawnID]int, len(view.Threats))
 	for _, t := range view.Threats {
 		id := domain.PawnID(t.ID)
-		s, seen := state[id]
-		if !seen {
+		var s CombatPawnState
+		if i, seen := state[id]; seen {
+			s = view.Pawns[i]
+		} else {
 			s = CombatPawnState{ID: id}
 		}
 		if t.Building || positive(t.Dead) || positive(t.Downed) || s.Dead || s.Downed || hiddenFromPlayer(t) {
@@ -157,6 +161,9 @@ func rankThreats(view CombatView) []CombatPawnState {
 		tier[id] = threatTier(s, colonists)
 		if ritualCaster(t) {
 			tier[id] = threatRitualCaster
+		}
+		if out == nil {
+			out = make([]CombatPawnState, 0, len(view.Threats))
 		}
 		out = append(out, s)
 	}

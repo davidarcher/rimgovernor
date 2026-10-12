@@ -40,6 +40,7 @@ func (r Report) Text() string {
 		r.Stamp.AssemblyHash, r.Stamp.RulesVersion, r.Stamp.ThresholdsVersion, r.Stamp.SweepVersion)
 	fmt.Fprintf(&b, "thresholds: rank agreement >= %.2f on held-out fixtures; %d survival-critical misrankings; colonist deaths and downs within +/-%.0f%% of the real mean or +/-%.0f pawn\n",
 		MinRankAgreement, MaxMisrankings, RelTolerance*100, SmallMeanPawns)
+	b.WriteString("caveat: committed real sweeps predate #2989 and read a dead colonist as neither dead nor down (the native read omits the dead), so their colonist deaths are a floor of 0 and their downs leave out the dead\n")
 	fmt.Fprintf(&b, "rank agreement: %.2f over %d pairs; survival-critical misrankings: %d\n", r.RankAgreement, r.RankPairs, len(r.Misrankings))
 	for _, f := range r.Failures {
 		fmt.Fprintf(&b, "  FAILURE: %s\n", f)

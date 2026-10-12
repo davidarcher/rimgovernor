@@ -32,6 +32,15 @@ func labRangedFight(tb testing.TB) combatsim.Fight {
 // BenchmarkLabRangedTrial is the cost of one complete lab-ranged trial through
 // RunFight, which the constants search (#2848) runs thousands of times. Run it
 // with -cpu 1,8,16 to see the parallel trials/s.
+//
+// Measured on a 16-core Ryzen 9 9950X (#2989, after the E9 to E11 merges, a
+// shared box so single runs vary by about 30%): 1 worker 170-260 trials/s
+// (was 425 before E9), 4 workers ~815, 8 workers ~1,550, 16 workers ~2,400
+// (best runs ~3,100). The research note's 1,000 trials/s target therefore holds
+// from 5 to 6 workers, not on one. A trial is about 4 ms; the per-part injury
+// model is under 1% of it (the cost is the policy's per-stop decision, the
+// raiders' AI and the garbage they make: rankThreats alone was a third of the
+// allocated bytes before it stopped copying pawn rows into a map).
 func BenchmarkLabRangedTrial(b *testing.B) {
 	fight := labRangedFight(b)
 	tuning := policy.DefaultCombatTuning()

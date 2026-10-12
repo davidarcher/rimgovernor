@@ -116,8 +116,11 @@ func Aggregate(fixture string, staged map[string]string, reads []Read) Metrics {
 	}
 	last := reads[len(reads)-1]
 	final := index(last.Pawns)
-	// The native read omits a dead hostile from the pawns, so the ledger is
-	// the only record of its death.
+	// The native read omits every dead pawn, a colonist as much as a hostile
+	// (Verse.MapPawns.AllPawns drops the dead), so the ledger is the only
+	// record of a death. Sweeps recorded before #2989 counted a missing
+	// colonist as neither dead nor down, so their colonistDeaths are 0 and
+	// their colonistDowns count only the colonists that were still lying there.
 	killed := map[string]bool{}
 	for _, h := range last.Damage {
 		if h.Dead {
@@ -127,7 +130,7 @@ func Aggregate(fixture string, staged map[string]string, reads []Read) Metrics {
 	for id, side := range staged {
 		row, present := final[id]
 		switch {
-		case side == Colonist && row.Dead:
+		case side == Colonist && (row.Dead || killed[id]):
 			m.ColonistDeaths++
 		case side == Colonist && row.Downed:
 			m.ColonistDowns++
