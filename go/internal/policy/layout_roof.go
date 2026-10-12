@@ -11,8 +11,7 @@ import (
 // pawns, every room except the outdoor roles is roofed, so the roofed rooms are
 // one envelope (no outer climate wall; the raider perimeter is separate). A
 // room roofs itself when its ring closes, so a room is roofed without a price.
-// The set is advice beside the old planner, which stays authoritative until
-// #2931 issues the roofs.
+// The climate envelope round roofs the set (MaintainClimateEnvelope).
 //
 // Bad climate is the map's two existing latches, no new constant: the seasonal
 // curve dips below ColdMapBelowC or peaks above HotEnter (ColdMapCurve,

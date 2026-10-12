@@ -2,7 +2,6 @@ package policy
 
 import (
 	"errors"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -12,29 +11,6 @@ import (
 
 func openSurvey(size int32) MapSurvey {
 	return zoningSurvey(size, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-}
-
-// The fresh derive runs the tiler; the old generator is not on its path.
-func TestDeriveLayoutPlanDoesNotReferenceTheOldGenerator(t *testing.T) {
-	src, err := os.ReadFile("layout_derive.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	text := string(src)
-	start := strings.Index(text, "func DeriveLayoutPlan(")
-	end := strings.Index(text[start:], "\n}\n")
-	if start < 0 || end < 0 {
-		t.Fatal("DeriveLayoutPlan not found")
-	}
-	body := text[start : start+end]
-	for _, banned := range []string{"SiteCore", "growOutskirts"} {
-		if strings.Contains(body, banned) {
-			t.Errorf("DeriveLayoutPlan references %s", banned)
-		}
-	}
-	if !strings.Contains(body, "TileStations") {
-		t.Error("DeriveLayoutPlan does not run the tiler")
-	}
 }
 
 // A fresh plan is the tiled plan with the perimeter, the yard and the barn

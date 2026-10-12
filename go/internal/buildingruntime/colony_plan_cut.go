@@ -43,7 +43,7 @@ func perimeterWall(projection observation.ColonyProjection) policy.PerimeterWall
 // logPerimeterCut writes the layout_plan rows of the advised routing cut
 // (target perimeter_cut, #2973): whether it closes every route but the
 // opening, and the thickness of each of its segments. Advice only: nothing
-// reads the cut yet.
+// builds from the cut; the defense round builds the ring PlanPerimeter traces.
 func logPerimeterCut(ctx context.Context, plan policy.LayoutPlan, survey policy.MapSurvey, wall policy.PerimeterWall, colonists int) {
 	for _, d := range policy.PlanPerimeterCut(plan, survey, wall).Decisions {
 		attrs := map[string]any{"colonists": colonists}

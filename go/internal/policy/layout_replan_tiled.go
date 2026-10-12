@@ -128,8 +128,8 @@ func heldRooms(plan LayoutPlan, growth RoomGrowth) map[int32]bool {
 	return held
 }
 
-// DiffReplanTile compares the tiled plan of advice with old, the plan the old
-// replan produced from the plan whose standing rooms are built. A standing room
+// DiffReplanTile compares the tiled plan of advice with old, the plan the
+// colony held, whose standing rooms are built. A standing room
 // the embedding kept or superseded is claimed through its block (Built,
 // Replaces); the unbuilt rooms are matched to the blocks left over by role,
 // the identical interior first and the nearest after. Attached rooms (airlocks,

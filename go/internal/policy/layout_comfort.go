@@ -52,8 +52,8 @@ import (
 // the station graph (the node's DailyWork over the colonists, who share the
 // work evenly at work speed 1), and a spot with no dwell model (dining, which
 // needs the ingest time, and recreation, which has no model yet) is left out:
-// the day without it is a lower bound of the level. The advice is advisory beside
-// the old planner, which stays authoritative until #2931.
+// the day without it is a lower bound of the level. The furnisher does not read
+// the advice (StationAdvice.Comfort) yet.
 
 // SeekerBands maps a need level to a thought stage (-1 for no stage). Level is
 // in the band k when it is below Edges[k] (at most it, when UpperClosed), and in

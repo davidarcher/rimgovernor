@@ -120,7 +120,7 @@ func chooseOption(need SeekerNeed, price EnvPrice, node string, baseDay []EnvSeg
 // adviseComfort prices the comfort tiers over the station graph and the colony's
 // facts: the colonists, a work-day in watts, steel's value and the colonists'
 // mean mood. Nil while the comfort model or any fact is unknown, which leaves
-// the old planner's furniture as it is.
+// the furnisher's choice as it is.
 func adviseComfort(f StationFacts, graph StationGraph, steel float64) []ComfortChoice {
 	colonists, ok := f.Colonists.Value()
 	mood, mk := f.ExpectedMood.Value()

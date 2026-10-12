@@ -12,8 +12,8 @@ import (
 )
 
 // digGeothermal mines the rock on a geothermal generator's footprint ahead
-// of the generator. The layout reserves the enclosure over rock
-// (utilityGrid.free with rockOK), so rock under the generator is reachable;
+// of the generator. The plan reserves the enclosure over the geyser
+// (policy geothermalArea), so rock under the generator is reachable;
 // every other power site is chosen over open ground and needs no dig. The
 // footprint is the native definition's, so it is read from a preview of the
 // generator on its geyser, then handed to the shared rock step

@@ -17,8 +17,8 @@ import (
 // and the game's constants (ClimateModel, read by the bridge), the heater's
 // and cooler's heat per second and power draw from the catalog, and the one
 // judgment (the sun cycle's phase, which no def carries) from climateTable, a
-// DefTables entry. The model is advice beside the old planner, which stays
-// authoritative until #2931.
+// DefTables entry. The tiler prices vents and airlocks with it and the climate
+// envelope round builds what it chose.
 //
 // The heat given off inside the room (#2915) is in: each station with a
 // CompProperties_HeatPusher (stoves, smelters, torches) pushes heatPerSecond

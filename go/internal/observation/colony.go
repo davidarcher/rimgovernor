@@ -184,7 +184,7 @@ type ColonyProjection struct {
 	// reading served the research census.
 	TechTier domain.Fact[policy.TechTier]
 	// LayoutPlan is the persisted v2 layout, served by the routine
-	// review; unknown until one is derived. layoutAnchor reads it.
+	// review; unknown until one is derived.
 	LayoutPlan domain.Fact[policy.LayoutPlan]
 	// Royalty is the Empire ladder, permits and holdings; unknown
 	// without Royalty or a royalty source.

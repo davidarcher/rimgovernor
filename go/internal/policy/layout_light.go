@@ -33,8 +33,7 @@ import (
 // A lit cell is one within a lamp's reach (glowReach: the distance its glow holds
 // above LitGlow, solved from the def's radius and colour); glow beyond it is not
 // credited. The lamps give no heat, so they add nothing to the climate load. The
-// advice sits beside the old planner, which stays authoritative until #2931;
-// MaintainLighting stays the runtime reconciler for what is built.
+// lighting round (MaintainLighting) builds the plan's lamps.
 //
 // The wall lamp (#2948) is the second option. From the game (ilspycmd and
 // Buildings_Furniture.xml): it is not built into a wall cell but hung on one,

@@ -43,8 +43,8 @@ var replayFixtures = []replayFixture{
 	{name: "all-rich-valley", pawns: 3, mayFail: true, survey: syntheticSurvey(140, func(x, z int32) SurveyCell {
 		return SurveyCell{Walkable: true, Fertility: 1.4}
 	})},
-	// A full SiteCore on 300x300 takes ~24 s; the case runs only under
-	// the long tier because this whole test does.
+	// The case runs only under the long tier because this whole test
+	// does.
 	{name: "hundred-colonists", pawns: 100, survey: func(testing.TB) MapSurvey { return plusSurvey(300, 80) }},
 	// A closed ice pack: one walkable plate in a ring of open water, no rock.
 	{name: "sea-ice", pawns: 3, survey: syntheticSurvey(140, func(x, z int32) SurveyCell {

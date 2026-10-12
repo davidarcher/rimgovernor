@@ -3,11 +3,10 @@ package policy
 // The outskirts: one off-core cluster per colony holding
 // the morgue, tomb, graveyard, waste yard and incinerator. It is a reservation
 // set back outskirtsGap cells from every room (the dump clearance and the
-// corpse-sight radius). The tiler sites it; the old generator's side-by-side
-// siting is gone.
+// corpse-sight radius). The tiler sites it.
 
 // ReserveOutskirts is the outskirts cluster's outline: the region its rooms
-// are sited in, reserved so the packer and later sites leave it whole.
+// are sited in, reserved so later sites leave it whole.
 const ReserveOutskirts ReservationKind = "outskirts"
 
 const (

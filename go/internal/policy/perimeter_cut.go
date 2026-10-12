@@ -33,8 +33,8 @@ import (
 // mercenaries, tribes, the Empire, wasters), so early raids walk and later ones
 // may tunnel; the thickness is designed for the later ones.
 //
-// The cut is advice beside the ring PlanPerimeter traces; the runtime flips to
-// it with the #2931 perimeter child.
+// The cut is advice beside the ring PlanPerimeter traces: the runtime only
+// journals it (logPerimeterCut).
 
 // PerimeterTable is the cut's one judgment table, registered in DefTables so a
 // renamed def fails the dangling-reference gate. WallDef is the building the

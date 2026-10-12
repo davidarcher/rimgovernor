@@ -327,7 +327,7 @@ func TestGearAndChildRoomNodes(t *testing.T) {
 	}
 }
 
-// A standing room the old replan retired but the chain keeps is a new room in
+// A block that continues a room the plan no longer holds is a new room in
 // the diff, a superseded standing room is dropped without being listed as
 // unmatched, and one the chain cannot pin is listed and, when the tiler builds
 // a room of its role, resited.

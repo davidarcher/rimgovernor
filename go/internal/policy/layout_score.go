@@ -128,7 +128,7 @@ func newPlanScorer(zones []LayoutZone, reserved []LayoutReservation, s MapSurvey
 }
 
 // defaultOwedRooms is every colony's essential set: the rooms a plan that names
-// none owes, in the order the old generator placed them.
+// none owes.
 var defaultOwedRooms = []PlannedRole{
 	PlannedKitchen, PlannedFreezer, PlannedDining,
 	PlannedWorkshop, PlannedStorage,

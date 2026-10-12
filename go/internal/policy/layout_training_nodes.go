@@ -20,10 +20,6 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // The tiler writes the range's facing (dummies away from the base, as the
 // siting does; nothing behind the dummies is kept free, since a practice shot
 // never hits a pawn) and the ring's marker count onto the tiled room.
-//
-// Both grow by widening in place (widenRange, widenRing): a range gains stands
-// along its rows and a ring gains markers in fixed slots, so a standing piece
-// never moves.
 
 // ReasonTrainingRoom is why the graph holds a training room: the colony's
 // capable adults need a place to train.

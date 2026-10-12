@@ -228,8 +228,7 @@ func crowdsCore(fp []bool, w, h int32, area Region, gap int32) bool {
 // outerKeepOut marks the cells of a w x h map the core ring will occupy or
 // crowd: the core's enclosure and everything the outer ring must stand
 // clear of it. A unit sited off these is enclosed by the outer ring whole;
-// PlanUtilities runs before PlanPerimeter, so the core's
-// footprint stands in for the ring.
+// the core's footprint stands in for the ring.
 func outerKeepOut(plan LayoutPlan, w, h int32) []bool {
 	out := make([]bool, max(w, 0)*max(h, 0))
 	if w < 1 || h < 1 || len(plan.Rooms) == 0 {

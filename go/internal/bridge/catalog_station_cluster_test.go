@@ -34,10 +34,10 @@ func baselineClustering(t *testing.T) (policy.StationGraphInput, policy.Clusteri
 }
 
 // The baseline colony's groups come from its stations alone and cover the
-// roles the old planner built, except where a role has no gameplay effect to
+// room types the layout names, except where a role has no gameplay effect to
 // protect: the dining room and the storeroom beside a bench share a room
-// with the stove or the bench that outweighs them (the old planner kept
-// those apart as room types).
+// with the stove or the bench that outweighs them (room types kept
+// those apart).
 //
 //	kitchen   stove + table + cold shelf + cooler -> Kitchen, cold (old: kitchen,
 //	          dining, freezer; the cold shelf joins the stove it has a required

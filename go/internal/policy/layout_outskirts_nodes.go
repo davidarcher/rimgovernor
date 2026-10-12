@@ -21,9 +21,7 @@ import "fmt"
 //     footprint and a clearance cell), as for a freezer.
 //
 // The incinerator also stands beside the waste yard, a required link: the dump
-// hauls its burnable waste into the incinerator (incinerationOwner). The rooms
-// of the old cluster stand in fixed slots; this is the station planner's input
-// for the same rooms, and the old planner stays authoritative.
+// hauls its burnable waste into the incinerator (incinerationOwner).
 
 // ReasonOutskirtsRoom is why the graph holds an outskirts room: the plan owes
 // each from its start.

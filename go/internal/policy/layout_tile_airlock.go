@@ -23,9 +23,7 @@ import (
 // every exterior door on the way, so a room pawns cross to reach the outdoor
 // roles, or a circulation room the sleepers use, carries real traffic and a
 // closet at the end of a corridor carries none. The door model (climate.go) turns
-// them into the time each door is open. The airlock is advice beside the
-// old planner, which stays authoritative until #2931.
-
+// them into the time each door is open.
 // exteriorDoorMovements are the movements a day through each room's exterior
 // door (its Door, when no link door stands there): every trip charges its
 // weight to each exterior door on its shortest walk, and so does each room's

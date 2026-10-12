@@ -27,8 +27,8 @@ type RoomFootprint struct {
 	walls    []Cell
 	door     Cell
 	entrance Rotation
-	// extra are further boundary doors of a room that touches a second
-	// hallway, in the order given; nil for a single-door room.
+	// extra are the boundary doors after the first, in the order given; nil
+	// for a single-door room.
 	extra []RoomDoor
 }
 

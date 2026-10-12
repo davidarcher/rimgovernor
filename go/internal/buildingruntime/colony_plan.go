@@ -459,7 +459,7 @@ func (r *Rounder) drawHeatOverlay(ctx context.Context, native LayoutOverlayNativ
 	r.heatDrawn, r.heatCleared = tick, !on
 }
 
-// layoutTier is the tech tier new bedroom wings are sized for; an
+// layoutTier is the tech tier new bedrooms are sized for; an
 // unknown tier reads Camp.
 func layoutTier(projection observation.ColonyProjection) policy.TechTier {
 	tier, _ := projection.TechTier.Value()

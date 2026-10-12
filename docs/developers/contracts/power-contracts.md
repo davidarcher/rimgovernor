@@ -111,9 +111,10 @@ A tiled layout plan (`layout_tile.go`) owns its conduit paths: `LayoutPlan.Condu
 net the planner would lay; `EnsureBasicPower` still decides which sites connect, by which method and at
 what budget, and the `connect` contract above is unchanged. No action kind carries it.
 
-- **Refs.** `From`/`To` are tagged: `room:<id>` for a planned room, `site:<node id>` for a site. Until
-  site nodes are planned (#2919) a power reservation (`battery_room`, `turbine`, `solar`,
-  `geothermal`) is a site, named `<kind>-<index in Reservations>` (`ReservationSiteID`).
+- **Refs.** `From`/`To` are tagged: `room:<id>` for a planned room, `site:<node id>` for a site: a
+  turbine or solar plot site node (`NodeTurbine`, `NodeSolar`) by its node id, or a
+  `battery_room` or `geothermal` reservation, named `<kind>-<index in Reservations>`
+  (`ReservationSiteID`).
 - **Consumers.** Planned rooms holding a station whose def draws power (`Station.BaseW < 0`, read from the
   power comp into the station catalog); the cells are those stations' footprints, else the whole room.
   There is no role table.

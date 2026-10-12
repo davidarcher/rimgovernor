@@ -10,12 +10,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The station chain in advisory mode. At replan time the live colony is read
-// into StationFacts, the chain (BuildStationGraph, ClusterStations, Embed) runs
-// over it, and each group is matched to the rooms already built for its
-// predicted role. The result is a StationAdvice the caller records; nothing
-// here changes what the old planner builds. Unknown facts are never zero: a
-// fact the colony has not read fails the advice with ErrStationFacts.
+// The station chain over the live colony. The colony is read into
+// StationFacts, the chain (BuildStationGraph, ClusterStations, Embed) runs over
+// it, and each group is matched to the rooms already built for its predicted
+// role. The result is a StationAdvice; TileStations tiles its embedding into
+// the plan. Unknown facts are never zero: a fact the colony has not read fails
+// the advice with ErrStationFacts.
 
 // ErrStationFacts marks advice that could not be assembled because a fact it
 // reads is unknown; the error text names the fact.
@@ -337,9 +337,8 @@ type StationAdvice struct {
 }
 
 // TileStations is AdviseStations with the embedding tiled into a plan
-// (TileEmbedding): the fresh derive's planner (DeriveLayoutPlan). The advice at
-// a review does not tile on its own: the derive (DeriveLayoutPlan) and the
-// replan (ReplanLayout) tile with it.
+// (TileEmbedding): the planner of the derive (DeriveLayoutPlan) and the replan
+// (ReplanLayout). The review that only records advice calls AdviseStations.
 func TileStations(f StationFacts) (StationAdvice, error) {
 	out, err := AdviseStations(f)
 	if err != nil {

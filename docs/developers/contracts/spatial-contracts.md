@@ -205,8 +205,7 @@ furniture candidate.
 
 ## Layout geometry
 
-The layout plan is the only colony geometry: no colony grid, snapping or alignment
-term, no district and no per-routine anchor. A routine reads the planned room of its role
+The layout plan is the only colony geometry. A routine reads the planned room of its role
 from the plan.
 
 ### Layout planner
@@ -223,16 +222,15 @@ The tiler runs, in order: field zones, link doors (`chooseLinks`), exterior door
 the build, the furnishing with the interior search, `PlanRoofed`, airlocks, lamps and the
 conduit routes (`routeTileConduits`). The plan holds Rooms, Links, Entrances, Owed, Trips,
 OutsideTrips, Zones, Reservations, Sites, RetiredGround, Roofed, Lamps, Conduits, Cold
-and Hot; `Spine` and `Wings` are leftovers of the old generator.
+Hot and NextRoomID.
 
 - **Tiling.** `policy.TileEmbedding` (`layout_tile.go`) turns the station embedding into
-  a hallway-free plan; `TileStations` calls it after `AdviseStations`, and both
+  a plan; `TileStations` calls it after `AdviseStations`, and both
   `DeriveLayoutPlan` and `ReplanLayout` take its plan as the plan. Doors between rooms
   in a shared wall are the plan's typed
   door graph, `LayoutPlan.Links` (`RoomLink`: room ids `A < B` plus the wall cell,
-  persisted in `family/layout_plan`); `PlannedRoom.Door` is the room's exterior door,
-  and `Link` and `Doors` are leftovers of the old generator. On a plan with no
-  hallways, `Entrances` are the outside
+  persisted in `family/layout_plan`); `PlannedRoom.Door` is the room's exterior door.
+  `Entrances` are the outside
   cells beside an exterior door, and `CheckRoutes` walks the open ground between them.
   A room packed in with no door onto the ground is joined through a neighbour. Each
   tiled room carries `PlannedRoom.Crossing` (`RoomCrossing`), read from its station
@@ -245,12 +243,11 @@ and Hot; `Spine` and `Wings` are leftovers of the old generator.
   door can be dropped (`MayBeThrough`). A sealed room is joined through the neighbour
   triggering the fewest mechanisms (`throughRank`). `CheckRoutes` also demands every
   tiled room be reachable from an entrance without crossing a closed room. A room with no
-  `Crossing` (a plan the old generator wrote, or a room a plan holds without a station
+  `Crossing` (a room a plan holds without a station
   group) keeps its role's `noThroughfare` rule and is not demanded reachable. Any other
   closed room in the way is `ErrTileClosed`. The tiled plan carries the group flows as
   `LayoutPlan.Trips` and scoring walks them (`tripWalk`); a plan without trips keeps the
-  `routeTrips` role-pair table. Hallways are not planned by the tiler:
-  they need ground between blocks that only the embedding can reserve. A group's area
+  `routeTrips` role-pair table. A group's area
   counts the exterior door and one door threshold per required link
   (`RoomGroup.AddRequiredDoors`); other link doors open, after the exterior and
   sealed-room doors, only where the placer still furnishes both rooms (a room it
@@ -262,7 +259,7 @@ and Hot; `Spine` and `Wings` are leftovers of the old generator.
   siting seed (no wall time, default move budget), door candidates the room's chosen link
   and exterior doors (doors are inputs, not variables), flows `GraphFlows` over the station
   graph. A kept move is a `TileDecision` (`interior_search_move`, `Move` = slot:kind:terms
-  improved), journalled as `layout_interior` by `deriveLayoutPlan`. The result is never worse
+  improved), journalled as `layout_interior` (`logInterior`, on a derive and on a replan). The result is never worse
   than greedy on a gated term; the tiler has no built input, so nothing is pinned or moved free.
   **Live furnishing (#2956).** The runtime reads a room's furniture slots from
   `PlanRoomInterior` (`interior_region.go`). A role in `regionRoles` (workshop, laboratory,
@@ -287,12 +284,9 @@ and Hot; `Spine` and `Wings` are leftovers of the old generator.
   synthetic front interaction (tended from the cell before them) and its heater is placed first.
   **Roofed set (#2941).** On a bad-climate map (the Cold or Hot latch, or a curve under
   `ColdMapBelowC` or over `HotEnter`) `PlanRoofed` (`layout_roof.go`) puts every
-  room's floor and every priced hallway into `LayoutPlan.Roofed`, except the outdoor
+  room's floor into `LayoutPlan.Roofed`, except the outdoor
   roles (`Valid` rejects a roofed cell on one); a temperate map's set is empty. There is
-  no outer climate wall: the envelope is the roofed rooms and hallways. A hallway is
-  roofed only when the watts its roof saves the doors that open onto it exceed the
-  watts that hold it through its entrances (`climate.go`, in the `ColdEnter`..`HotEnter`
-  band); a roof takes work, not materials. Cells farther than `RoofMaxSupportDistance`
+  no outer climate wall: the envelope is the roofed rooms. Cells farther than `RoofMaxSupportDistance`
   from a wall stay in the set and are reported (`roof_unsupported`), never vetoed.
   `TileResult.RoofDecisions` carries the reasons. The runtime builds the set through
   `MaintainClimateEnvelope` (Runtime, below).
@@ -343,10 +337,9 @@ and Hot; `Spine` and `Wings` are leftovers of the old generator.
   cell moves (`climateTable.CellMoveTicks`) and the close delay (`ClimateModel.Door`). An
   airlock passage has an overlap of one close delay with both doors open (the vestibule
   passes 2/3 of one open door's heat per event) and otherwise one door open over the
-  other's closed leak. Circulation rooms are priced like any room; the tiler plans no
-  hallways. `TileDecision` carries the reason
+  other's closed leak. Circulation rooms are priced like any room. `TileDecision` carries the reason
   (`tile_airlock`, `_not_paid`, `_no_ground`, `_unpriced`, `_temperate`) and both
-  totals. `airlockPasses` is deleted: the tiler prices every airlock.
+  totals. The tiler prices every airlock.
   **Heaters and coolers in the comparison (#2950).** A room's price, for vents
   (`ventPricer.watts`) and for `ClimateOptions` alike, is its mean running watts plus the
   build cost of the heaters and coolers its load needs (`ClimateModel.PlantsW`): whole
@@ -368,11 +361,12 @@ reconciles only while its own predicate holds, so the plan-wide `MaintainClimate
 (Shelter, family `envelope`, `RoundsEnvelopePlanner`) asks the plan itself: it diffs every
 top-level planned room ring-only, keeps just its `OpVentIn` and `OpRoofIn`
 (`policy.EnvelopeOps`) and commits them through the same `reconcileRoom` path with
-`climateOnly`, whatever the owner is doing, and designates the roofed-set cells outside
-every room (the hallways, `policy.EnvelopeHallwayRoof`) that the mirror reads open. It is
+`climateOnly`, whatever the owner is doing, and designates any roofed-set cell outside
+every room (`policy.EnvelopeHallwayRoof`; `PlanRoofed` roofs only room floors, so it is
+empty) that the mirror reads open. It is
 open while `RoundsFacts.EnvelopeOwed` is true and idle once every planned vent stands and
 every roofed-set cell is roofed; an unread plan or construction census is unknown, never
-idle. A hallway cell has no ring to wait for: its roof was priced to pay at plan time.
+idle.
   **Lamps (#2945).** A roofed cell has no sky light, so a colonist working or walking on
   it loses speed (`StatPart_Glow`: x0.80 at glow 0 up to x1.00 at `LitGlow` 0.3, on
   `WorkSpeedGlobal` and `MoveSpeed`; `LightSpeed`). The tiler weighs that against lamps in
@@ -401,8 +395,7 @@ idle. A hallway cell has no ring to wait for: its roof was priced to pay at plan
   the glow flood stops at walls, so it lights its own room. Per cell the tiler offers it
   where a neighbour is a plain wall (`plainWalls`: the wall ring of every fenced indoor
   room and the survey's rock, less floor, doors, links, entrances and the vents the tiler
-  placed), for rooms (`roomCands`) and for roofed hallways (`hallwayLightW`, whose edge
-  cells next to a room's ring take wall lamps, and elsewhere only standing lamps), and the
+  placed), for rooms (`roomCands`), and the
   search takes whichever lamp covers the dark for least. A held wall cell makes the wall
   lamp absent there and the standing lamp answers, so contention is priced by the
   substitute, never refused. A catalog without the wall lamp, its radius or its colour
@@ -417,10 +410,8 @@ idle. A hallway cell has no ring to wait for: its roof was priced to pay at plan
   the worst octile stretch of a diagonal (8.35 and 7.59 cells), keeping every cell inside lit.
   The earlier flat 6 cells and its 11/12 scaling undershot both; the infestation room-lamp
   planner (`BaseRoomLamps`) spaces its standing lamps by the same catalog reach. Constants: `LightTable` in `DefTables`.  A room under the sky (an outdoor role) gets none, and fields stay unroofed (the
-  grow-lamp price is `PlanSiteType`'s). A roofed hallway's price in the roofed set
-  (`RoofDecision.LightW`) includes the same lamps-or-dark for its walkers. An unknown
-  price leaves lamps unplaced (`tile_lamps_unpriced`) or the hallway weighed without it
-  (`LightUnpriced`). Not priced: the `EnvironmentDark` mood (deferred to #2878), surgery
+  grow-lamp price is `PlanSiteType`'s). An unknown
+  price leaves lamps unplaced (`tile_lamps_unpriced`). Not priced: the `EnvironmentDark` mood (deferred to #2878), surgery
   success, partial glow beyond the reach, and the lamps' power wiring (they are in
   `TileResult.Lamps`, not pieces, so the conduit net does not route to them yet).
   `MaintainLighting` is the runtime reconciler: its round builds the plan's `Lamps`
@@ -499,13 +490,12 @@ idle. A hallway cell has no ring to wait for: its roof was priced to pay at plan
   non-target pawns excluded, so it cannot hit a pawn (#2938). The tiler writes `Facing`
   (the dummies point to the end farther from the bounds of the rooms that are part of the
   base, not the outskirts, training or shelter rooms: `apartFromBase`, `dummyFacing`) and
-  `Markers` onto the room. Both are rooms of the tiled plan; the
-  in-place widening (`widenRange`, `widenRing`) is deleted.
+  `Markers` onto the room. Both are rooms of the tiled plan.
   **Power sites (#2919).** `AdviseStations` asks `EmbedSites` for a site node per
   planned turbine, solar plot and geothermal enclosure (`PowerSiteNodes`,
   `layout_power_nodes.go`); the sites land in the tiled plan and `PlannedPowerSites`,
   `TurbinePlacement` and `TurbineCatchZone` are the read API the power rounds use
-  (`rounds_power.go`). `PlanUtilities` has no production caller. A turbine is a 7x2 footprint with four turns and a wind lane; a geothermal
+  (`rounds_power.go`). A turbine is a 7x2 footprint with four turns and a wind lane; a geothermal
   node is anchored on its enclosure; the battery room stays a planned room. The lane is
   priced only as the game prices it (`windGround`; constants in the `windPath` DefTables
   entry, read from `CompPowerPlantWind`): a path cell that is off the map, under thick
@@ -533,15 +523,10 @@ idle. A hallway cell has no ring to wait for: its roof was priced to pay at plan
   infestation cell by weighted random over every candidate, so a dark room does not steer
   it (#2944).
 
-**Old generator (deleted, #2969).** `SiteCore`, the spine generator, the packer and the
-core, kitchen, wing and suite files are gone. `LayoutPlan.Spine` and `Wings`, the doors
-`PlannedRoom.Link` and `Doors` carry, and `PlanUtilities` (`layout_utility.go`, which
-only works on a plan with a hallway and core zones, so it has no production caller) are
-leftovers until #2971. The room sizes the generator kept in its tables are
-`roomSizeTable` (`layout_room_sizes.go`, a `DefTables` entry). The ground the embedder
-reads is `buildGround` (`layout_build_ground.go`: the core and rock cells, the soil costs
-and the obstacle levels) and `layout_site_ground.go` (the siting seeds), that `Embed`
-uses with `FieldGain`.
+**Room sizes and ground.** The room sizes are `roomSizeTable` (`layout_room_sizes.go`, a
+`DefTables` entry). The ground the embedder reads is `buildGround`
+(`layout_build_ground.go`: the core and rock cells, the soil costs and the obstacle levels)
+and `layout_site_ground.go` (the siting seeds), that `Embed` uses with `FieldGain`.
 
 **Entry points and what a replan does.** `DeriveLayoutPlan` (`layout_derive.go`) sets
 `StationFacts.Derive` and runs `TileStations`, then merges the field zones and plans the

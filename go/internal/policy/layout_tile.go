@@ -14,8 +14,8 @@ import (
 // placed group on the group's block, a door graph over the walls the blocks
 // share, an exterior door and entrance per room, and the group's stations set
 // into the room by PlaceInRegion. It is a pure function of the embedding and
-// the survey; the derive and the replan (DeriveLayoutPlan, ReplanLayout) tile with it
-// when StationFacts.Tile is set. No constant is new:
+// the survey; the derive and the replan (DeriveLayoutPlan, ReplanLayout) tile with it. No
+// constant is new:
 //
 //   - Role. A group's PlannedRole comes from what the game makes of its
 //     stations (the group's predicted native role, PlannedRoleOf) and its cold
@@ -55,9 +55,6 @@ import (
 //   - Trips. The plan carries the group flows as LayoutPlan.Trips between its
 //     rooms; plan scoring walks them (tripWalk), not the role-pair table.
 //
-// Hallways are not planned here: they need ground between the blocks, which
-// only the embedding can reserve. A plan with hallways is scored and routed as
-// before, and the tiler needs none to open a packed base (#2879).
 
 // Verdicts and reasons of tiling decisions.
 const (
@@ -108,8 +105,8 @@ type TileInput struct {
 	Reservations []LayoutReservation
 	Survey       MapSurvey
 	// OutdoorCurve and RoofDistance are the roofed set's reads (layout_roof.go);
-	// the climate model is Catalog.Climate. An unknown read leaves the hallways
-	// unroofed and the decision says so.
+	// the climate model is Catalog.Climate. An unknown read leaves the roofed set
+	// empty and the decision says so.
 	OutdoorCurve domain.Fact[[]float64]
 	RoofDistance float64
 	// FullRotRateC (the band a cold room is held under) and SteelValue (the

@@ -135,8 +135,8 @@ type LayoutPlan struct {
 	RetiredGround []Region `json:",omitempty"`
 	// Roofed is the cells the plan roofs on a map whose outdoor temperature is
 	// not good for pawns: every room except the outdoor roles
-	// (layout_roof.go). Only a tiled plan holds it; advice until #2931 issues
-	// the roofs.
+	// (layout_roof.go). Only a tiled plan holds it; the climate envelope
+	// round roofs it (MaintainClimateEnvelope).
 	Roofed Region `json:",omitzero"`
 	// Lamps are the lamps the plan places in each lit room by room id
 	// (layout_light.go placeLamps): standing or wall, priced against the dark

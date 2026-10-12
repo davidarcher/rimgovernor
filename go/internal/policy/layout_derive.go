@@ -357,7 +357,7 @@ func geyserFootprints(geysers []PowerGeyser) []Rectangle {
 	return out
 }
 
-// geothermalArea is the enclosure PlanUtilities reserves over a geyser: the
+// geothermalArea is the enclosure the plan reserves over a geyser: the
 // generator centred on it and its shell.
 func geothermalArea(geyser Rectangle) Rectangle {
 	cx, cz := geyser.X+geyser.Width/2, geyser.Z+geyser.Height/2

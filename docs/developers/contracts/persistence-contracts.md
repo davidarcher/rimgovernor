@@ -32,7 +32,10 @@ has two homes. In the session database it is the table `colony_layout_plans`
 (`store/layout_plan.go`): `RecordLayoutPlan` refuses a plan that is not `Valid()` and writes
 one row per world (colony, map) and tick, and `LayoutPlan` reads the newest row at or before
 the tick. A row that does not decode or is not `Valid()` reads as none (the record comes back
-`Invalid`), so the review derives a fresh plan (`DeriveLayoutPlan`) rather than adopting it. In
+`Invalid`), so the review derives a fresh plan (`DeriveLayoutPlan`) rather than adopting it. The
+stored JSON is the `LayoutPlan` fields (Rooms, Links, Entrances, Owed, Trips, OutsideTrips, Zones,
+Reservations, Sites, RetiredGround, Roofed, Lamps, Conduits, Cold, Hot, NextRoomID) and decoding
+rejects an unknown field, so a plan written with a field since removed reads as none. In
 the save it is the blob `family/layout_plan` (`store/governor_state.go`,
 `GovernorLayoutPlanKey`), which follows the save's timeline. The runtime records a plan only
 when it derives one or a replan succeeds (`reviewLayoutPlan`, `colony_plan.go`); a failed

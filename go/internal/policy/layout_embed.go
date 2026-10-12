@@ -11,7 +11,7 @@ import (
 // Topology embedding places the room groups (layout_cluster.go) on the site
 // as area-sized rectangular blocks, coarsely: no regions, doors or walls yet
 // (tiling is the next stage). It reuses the siting machinery rather than a
-// parallel one: SiteCore's obstacle levels and candidate seeds, the PlanScore
+// parallel one: the obstacle levels (layout_build_ground.go) and candidate seeds (layout_site_ground.go), the PlanScore
 // terms per cell (soil and rock, edge, centre), planWeights for every weight
 // and the seeded searchRand. No constant is new.
 //
@@ -36,7 +36,7 @@ import (
 // a time and puts it back beside a linked block, beside any block, or at a
 // random core cell, or swaps two blocks, keeping only strict gains. Why it
 // should not plateau: the start is a different tree for each of siteSearchTop
-// siting seeds (the same seeds SiteCore draws, spread over rich edges, rock
+// siting seeds (spread over rich edges, rock
 // edges and a grid), the random-cell and swap moves leave any basin the
 // ring moves cannot, and the budget is siteSearchIters moves per block, so a
 // big colony searches in proportion. The best start wins, so the result never
@@ -50,10 +50,10 @@ import (
 // exposure to cold outside air are the climate envelope (#2880). A clean room
 // has no site signal and is reported unsatisfied with a reason, not guessed at.
 //
-// Obstacle levels work as in SiteCore: every level runs and the one with the fewest failures wins (a
-// room with no block, a required link not adjacent: SiteCore's "routes"). On
+// Obstacle levels: every level runs and the one with the fewest failures wins (a
+// room with no block, a required link not adjacent). On
 // equal failures the strictest keeps the plan unless a looser one beats its
-// objective by FieldGain, as SiteCore's fields do: a stricter level that must
+// objective by FieldGain: a stricter level that must
 // push the colony to a far edge to dodge rich soil or a field loses to the
 // looser level that stays near the middle (#2979). The first block avoids rich soil while any fit does.
 
@@ -144,7 +144,7 @@ type EmbedScore struct {
 	Cells int
 }
 
-// SiteTerms is the terms the old plan scores the same way: soil, edge, centre.
+// SiteTerms is the cell terms alone: soil, edge, centre.
 func (s EmbedScore) SiteTerms() int { return s.Soil + s.Edge + s.Centre }
 
 // Total is the sum of the terms and the required-link charges.
@@ -794,7 +794,7 @@ func Embed(in EmbedInput) (Embedding, error) {
 	var best *embedRun
 	for _, level := range obstacleLevels {
 		run := embedLevel(in, depth, scorer, level, fixed)
-		// A looser level takes over only by FieldGain, as in SiteCore: the
+		// A looser level takes over only by FieldGain: the
 		// strictest level keeps the plan unless the ground it spares costs
 		// more than that.
 		if best == nil || run.failed() < best.failed() || run.failed() == best.failed() && run.obj+float64(planWeights.FieldGain) < best.obj {

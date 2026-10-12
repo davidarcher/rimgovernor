@@ -193,8 +193,8 @@ type SuiteWish struct {
 	Kept   int
 }
 
-// Floor is the interior cells the wish asks for: what meets the target (without
-// the old generator's size snap), never less than the suite that stands.
+// Floor is the interior cells the wish asks for: what meets the target (no size
+// snap), never less than the suite that stands.
 func (w SuiteWish) Floor() int { return max(int(suiteCells(w.Target)), w.Kept) }
 
 // StationEdge is the wish that two nodes stand together. Weight is the

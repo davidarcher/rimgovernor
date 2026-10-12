@@ -32,8 +32,9 @@ type routeTrip struct {
 	weight   int
 }
 
-// noThroughfare are the roles nobody walks through in a plan the old generator
-// made; a room the tiler made carries its own RoomCrossing instead.
+// noThroughfare are the roles nobody walks through in a room with no
+// RoomCrossing (one that is not a station group); a station group's room
+// carries its own RoomCrossing instead.
 var noThroughfare = map[PlannedRole]bool{
 	PlannedBedroom: true, PlannedSuite: true, PlannedShelter: true, PlannedPrison: true,
 	PlannedKitchen: true, PlannedHospital: true, PlannedLab: true, PlannedThrone: true,
