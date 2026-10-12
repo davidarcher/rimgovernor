@@ -17,10 +17,12 @@ import (
 // the caller seeds (room id and plan generation); the iteration count is the
 // whole budget and wall time never enters.
 //
-// Not searched here: doors (they stay as given) and built furniture. Moving a
-// built piece, or a built door, needs a rate between labor (MoveBuilding or a
-// door rebuild) and the objective's terms, and no game or model source gives
-// one; such pieces are Pinned and stay where they stand.
+// Built furniture moves for free when BuiltPiece.Movable: uninstall and
+// reinstall labor is negligible (user decision, #2869), and the strictly-better
+// acceptance rule already prevents churn, so no labor-to-score rate exists.
+// Every other built piece is Pinned. Doors are not searched (they stay as
+// given); moving one needs a rate between rebuild labor and the objective's
+// terms, which is a later priced variable.
 
 // DefaultInteriorSearchIterations is the move budget when InteriorSearch
 // names none: a compute bound, not a game value. Every fixture of the score
@@ -39,14 +41,34 @@ type InteriorSearch struct {
 	// zero, so only free floor and facility links can improve.
 	Flows  InteriorFlows
 	Beauty map[string]float64
-	// Pinned are built pieces the search keeps where they stand. They block
-	// their cells for the greedy seed and count toward required counts.
+	// Pinned are pieces the search keeps where they stand. They block their
+	// cells for the greedy seed and count toward required counts.
 	Pinned []InteriorPiece
+	// Built are the room's built pieces. The movable ones (BuiltPiece.Movable)
+	// join the search at their current cells; the rest are pinned.
+	Built []BuiltPiece
 	// Seed seeds the move stream.
 	Seed uint64
 	// Iterations is the move budget; 0 is DefaultInteriorSearchIterations.
 	Iterations int
 }
+
+// BuiltPiece is a piece already standing in the room, with the two facts the
+// move rule needs.
+type BuiltPiece struct {
+	Piece InteriorPiece
+	// Minifiable is the def's Station.Minifiable (ThingDef.Minifiable).
+	Minifiable bool
+	// HoldsState is set when the building carries state a move cannot keep: a
+	// bed with owners or a set medical/prisoner/slave use (DeSpawn clears
+	// them), a workbench with bills (#2881), a storage building with contents.
+	HoldsState bool
+}
+
+// Movable is the move rule: a built piece is searched when the game can pack
+// it (minifiable) and it holds no state the move would lose. Anything else is
+// pinned.
+func (b BuiltPiece) Movable() bool { return b.Minifiable && !b.HoldsState }
 
 // SearchMove is one kept move, with the gated terms it improved: the reason
 // the caller journals (telemetry.Decide "interior_search_move").
@@ -61,13 +83,19 @@ func (m SearchMove) Reason() string { return m.Kind + ":" + strings.Join(m.Impro
 
 // InteriorSearchResult is a searched layout.
 type InteriorSearchResult struct {
-	// Pieces are pinned pieces first, then the placed ones.
+	// Pieces are the pinned pieces first (Pinned, then the unmovable Built),
+	// then the ones that stand where the search put them: movable built pieces,
+	// then the newly placed ones.
 	Pieces []InteriorPiece
+	fixed  int
 	// Seed and Score are the greedy layout's and the searched layout's
 	// measures.
 	Seed, Score InteriorScore
 	Moves       []SearchMove
 }
+
+// Stood is the pieces the caller must stand: everything but the pinned ones.
+func (r InteriorSearchResult) Stood() []InteriorPiece { return r.Pieces[r.fixed:] }
 
 // SearchInterior places req's wants with the greedy placer and improves the
 // layout by seeded local search. It fails when the greedy seed does, and
@@ -75,7 +103,16 @@ type InteriorSearchResult struct {
 func SearchInterior(req RegionPlacement, s InteriorSearch) (InteriorSearchResult, error) {
 	greedy := req
 	greedy.Search = nil
-	for _, p := range s.Pinned {
+	pinned := append([]InteriorPiece(nil), s.Pinned...)
+	var movable []InteriorPiece
+	for _, b := range s.Built {
+		if b.Movable() {
+			movable = append(movable, b.Piece)
+		} else {
+			pinned = append(pinned, b.Piece)
+		}
+	}
+	for _, p := range append(append([]InteriorPiece(nil), pinned...), movable...) {
 		greedy.Reserved = append(greedy.Reserved, rectCells(p.Rect)...)
 		if c, ok := p.Interaction(); ok {
 			greedy.Reserved = append(greedy.Reserved, c)
@@ -85,9 +122,12 @@ func SearchInterior(req RegionPlacement, s InteriorSearch) (InteriorSearchResult
 	if err != nil {
 		return InteriorSearchResult{}, err
 	}
-	pieces := append(append([]InteriorPiece(nil), s.Pinned...), placed...)
+	pieces := append(append(append([]InteriorPiece(nil), pinned...), movable...), placed...)
 	required := map[string]int{}
-	for _, p := range s.Pinned {
+	for _, p := range pinned {
+		required[p.Def]++
+	}
+	for _, p := range movable {
 		required[p.Def]++
 	}
 	for _, w := range req.Wants {
@@ -103,8 +143,8 @@ func SearchInterior(req RegionPlacement, s InteriorSearch) (InteriorSearchResult
 		return ScoreInterior(o)
 	}
 	cur := score(pieces)
-	res := InteriorSearchResult{Pieces: pieces, Seed: cur, Score: cur}
-	free := len(s.Pinned)
+	free := len(pinned)
+	res := InteriorSearchResult{Pieces: pieces, Seed: cur, Score: cur, fixed: free}
 	if len(req.Doors) == 0 || len(pieces) == free {
 		return res, nil
 	}

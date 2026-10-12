@@ -40,6 +40,9 @@ type Station struct {
 	// ("ludeon.rimworld" for the base game, an expansion's id otherwise); the
 	// station is plannable only while that content is active.
 	Content string
+	// Minifiable is ThingDef.Minifiable (minifiedDef set): the built building
+	// can be uninstalled and reinstalled elsewhere (BuiltPiece.Movable).
+	Minifiable bool
 }
 
 // StationAccess says whether a station stands on open floor or in a wall.

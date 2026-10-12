@@ -47,7 +47,7 @@ func PlaceInRegion(req RegionPlacement) ([]InteriorPiece, error) {
 		if err != nil {
 			return nil, err
 		}
-		return res.Pieces[len(req.Search.Pinned):], nil
+		return res.Stood(), nil
 	}
 	g := req.Region
 	if g.Empty() {

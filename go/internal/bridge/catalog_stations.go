@@ -61,7 +61,7 @@ func (catalog *DefinitionCatalog) buildStations() (policy.StationCatalog, error)
 			continue
 		}
 		b := stationBuilder{catalog: catalog, name: name, row: row, recipes: recipes[name], rec: rec, childSize: childSize, hasChild: hasChild}
-		station := policy.Station{Def: name, Shape: shape, Access: policy.AccessFloor, Content: row.GetModPackageId()}
+		station := policy.Station{Def: name, Shape: shape, Access: policy.AccessFloor, Content: row.GetModPackageId(), Minifiable: row.GetMinifiedDef() != ""}
 		if row.GetBuilding().GetCanPlaceOverWall() || row.GetBuilding().GetIsPlaceOverableWall() || slices.Contains(row.GetPlaceWorkers(), placeAttachedToWall) {
 			station.Access = policy.AccessWall
 		}
