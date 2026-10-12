@@ -15,7 +15,7 @@
     <ProjectReference Include="../Gab/RimGovernor.Host.Gab.csproj" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <Reference Include="0Harmony"><HintPath>$(HarmonyAssembly)</HintPath><Private>false</Private></Reference>
-    <!-- The host reads private game members (the vendored source was written against a publicised Assembly-CSharp); Mono does not enforce member visibility. -->
+    <!-- The host reads private game members (the vendored source was written against a publicised Assembly-CSharp); the publicised copy is compile-time only and the engine skips runtime access checks. -->
     <PackageReference Include="TaskPubliciser" Version="1.0.3" PrivateAssets="all" />
     <Reference Include="UnityStubs"><HintPath>$(RimWorldDir)/UnityStubs.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Waylith"><HintPath>$(RimWorldDir)/Waylith.dll</HintPath><Private>false</Private></Reference>
