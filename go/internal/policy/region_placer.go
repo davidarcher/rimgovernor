@@ -29,6 +29,10 @@ type RegionPlacement struct {
 	Doors    []domain.Cell
 	Reserved []domain.Cell
 	Wants    []RegionWant
+	// Search, when set, improves the greedy layout by the seeded interior
+	// search (SearchInterior) and returns the searched one, never worse than
+	// the greedy layout on a gated objective term. Nil is the greedy layout.
+	Search *InteriorSearch
 }
 
 // PlaceInRegion fits furniture into any region: pieces stay on region cells,
@@ -38,6 +42,13 @@ type RegionPlacement struct {
 // floor, rotations North, East, South, West, then row-major corners. Pieces
 // carry world footprints. It fails when a want places fewer than its Min.
 func PlaceInRegion(req RegionPlacement) ([]InteriorPiece, error) {
+	if req.Search != nil {
+		res, err := SearchInterior(req, *req.Search)
+		if err != nil {
+			return nil, err
+		}
+		return res.Pieces[len(req.Search.Pinned):], nil
+	}
 	g := req.Region
 	if g.Empty() {
 		return nil, fmt.Errorf("place in region: empty region")
