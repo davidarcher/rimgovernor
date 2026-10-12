@@ -49,6 +49,10 @@ var planWeights = struct {
 	// FieldGain is the score a plan built on field ground must beat the best
 	// plan off it by before siting uses it (siteCore's obstacle levels).
 	FieldGain int
+	// BuiltSwitch and BuiltSwitchCell price moving a room that stands: what a
+	// relocation must gain beyond ReplanGain, per room and per floor cell (the
+	// walls, floor and furniture built twice; layout_switch.go).
+	BuiltSwitch, BuiltSwitchCell int
 }{
 	MissingRoom: 100000, BadRoutes: 100000,
 	// Rock is a dig, but its walls and floor come with it: a little dearer
@@ -65,6 +69,7 @@ var planWeights = struct {
 	Walk:      1,
 	Expansion: 1, ExpansionReach: 6, ExpansionCap: 300,
 	ReplanGain: 100, FieldGain: 2000,
+	BuiltSwitch: 200, BuiltSwitchCell: 4,
 }
 
 // PlanScore is a plan's per-term values and tier verdict. The soft terms

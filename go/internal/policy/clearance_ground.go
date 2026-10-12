@@ -78,7 +78,9 @@ type RetiredGround struct {
 func RetiredGroundOf(plan LayoutPlan) RetiredGround {
 	out := RetiredGround{Ground: plan.RetiredGround}
 	for _, r := range plan.roomsWithHerd() {
-		out.Kept = append(out.Kept, RectRegion(roomWalls(r)))
+		// Only the ring: an old wall that now stands inside a reshaped room
+		// is not its wall.
+		out.Kept = append(out.Kept, r.wallRing())
 	}
 	return out
 }

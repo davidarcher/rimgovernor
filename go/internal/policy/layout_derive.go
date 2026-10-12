@@ -155,15 +155,30 @@ func replanLayout(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawn
 	dropped = dropped || retired
 	// The successor of an outgrown room joins the plan before the replan pins
 	// it; one that cannot be sited is reported and nothing is built.
+	// A built room that has columns free beside it is enlarged in place
+	// instead (layout_reshape.go), and one rebuild runs at a time.
 	var unplaced []error
 	var successorScorer *planScorer
-	if growth.Successor.Any() {
+	if growth.Successor.Any() || growth.Built != nil {
 		sc := newPlanScorer(next.Zones, next.Reservations, s)
 		successorScorer = &sc
 	}
-	next, successor, err := growSuccessor(next, growth.Successor, successorScorer, blockedCells(next, growth.Occupied))
+	asked := growth.Successor
+	next, reshaped := reshapeOutgrown(next, asked, growth, blockedCells(next, growth.Occupied))
+	if reshaped || rebuildInFlight(growth) {
+		asked = Successor{}
+	}
+	dropped = dropped || reshaped
+	next, successor, err := growSuccessor(next, asked, successorScorer, blockedCells(next, growth.Occupied))
 	dropped = dropped || successor
 	unplaced = append(unplaced, err)
+	// A built room that is clearly better moved (rich soil under it, or a
+	// score gain past the switching threshold) gets a successor too.
+	if !reshaped && !successor && successorScorer != nil {
+		var relocated bool
+		next, relocated = relocateBuilt(next, *successorScorer, growth, blockedCells(next, growth.Occupied))
+		dropped = dropped || relocated
+	}
 	// Growth, then the unbuilt rooms sited again where that scores clearly
 	// better (layout_replan.go); an emptied Retiring wing is among them.
 	rp := newReplanner(next, s, blockedCells(next, growth.Occupied), pawns, tombs, tier, suites)

@@ -337,7 +337,15 @@ func (r *Rounder) replanLayout(ctx context.Context, snapshot domain.GenerationSn
 	telemetry.Decide(ctx, layoutPlanDecision("replanned", reason, pawns, next.Summary(), extra))
 	planned, retired := policy.SuccessionChanges(plan, next)
 	for _, room := range planned {
+		if room.Replaces != growth.Successor.Replaces {
+			// Not the outgrown trigger: a built room moved for bad ground or a score gain.
+			telemetry.Decide(ctx, successionDecision("planned", "successor_relocated", pawns, room, map[string]any{"floor": room.Region.Area(), "why": string(policy.RelocationReason(plan, room, survey))}))
+			continue
+		}
 		telemetry.Decide(ctx, successionDecision("planned", "successor_planned", pawns, room, map[string]any{"floor": room.Region.Area(), "old_floor": growth.Successor.Floor, "shortfall": growth.Successor.Shortfall}))
+	}
+	for _, re := range policy.ReshapedRooms(plan, next) {
+		telemetry.Decide(ctx, layoutPlanDecision("reshaped", "room_reshaped", pawns, "", map[string]any{"role": string(re.Room.Role), "room": re.Room.ID, "floor": re.Room.Region.Area(), "added": re.Diff.Added.Area(), "removed": re.Diff.Removed.Area(), "walls_added": re.Diff.WallsAdded.Area(), "walls_removed": re.Diff.WallsRemoved.Area()}))
 	}
 	for _, room := range retired {
 		telemetry.Decide(ctx, successionDecision("retired", "successor_retired", pawns, room, map[string]any{"floor": room.Region.Area()}))

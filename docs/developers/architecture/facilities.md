@@ -269,6 +269,28 @@ no embedded block, or no free core slot, is not built: `successor_unsited`.
 a `Replaces` chain as one room, so no twin is added. Stock drains from the old
 zone as vanilla re-hauls it; bills and packed furniture are #2881.
 
+In-place reshape and moving built rooms (#2865; `layout_reshape.go`,
+`layout_switch.go`). `ReshapeRoom` gives a room a new rectangle region and keeps
+its id, doors and links: it adds or removes columns, moves a wall, and shrinks
+by the same operation (`DiffRegions` is the added/removed floor and walls). It
+refuses a shape whose doors would leave the walls, that takes ground another
+room, a hallway, a reservation or an occupied cell holds, or that is not
+core ground. The ground the old shape held and the new one does not (old walls
+now inside the room, floor now outside, walls beyond the new ring) goes to
+`RetiredGround`; `RetiredGroundOf` keeps only a kept room's wall ring, so an
+old wall inside a reshaped room comes down. The outgrown trigger tries this
+first (`reshapeOutgrown`: a built room, the side that takes the columns with the
+fewest cells over, east/west/south/north) and falls back to the successor. Two more triggers
+site a successor for a built storage or workshop room (`relocateBuilt`, run after
+the outgrown trigger): *bad ground*, the room stands on rich soil the fresh
+survey shows and a free slot has less (the hard tier decides, no score bar), and
+*score gain*, the plan with the room moved scores better by
+`switchThreshold`: `ReplanGain` plus `BuiltSwitch` plus `BuiltSwitchCell` per
+floor cell (`planWeights`), so a replan does not flip-flop. One rebuild at a
+time: nothing reshapes, relocates or sites a successor while a successor is
+pending or another planned room has something of ours on it without standing as
+planned (`rebuildInFlight`).
+
 ## Electrical safety
 
 `EnsureBasicPower` uses `HiddenConduit` for new connections and replaces ordinary
