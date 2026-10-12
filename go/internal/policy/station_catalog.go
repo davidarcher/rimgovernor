@@ -13,6 +13,9 @@ import (
 // classes (Hosting).
 type StationCatalog struct {
 	Stations map[string]Station
+	// Filth prices the filth a butchering spawns (FilthModel); the zero value
+	// prices nothing.
+	Filth FilthModel
 }
 
 // Station is one buildable definition as the planner sees it.

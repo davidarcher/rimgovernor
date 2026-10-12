@@ -54,7 +54,7 @@ func (catalog *DefinitionCatalog) buildStations() (policy.StationCatalog, error)
 		return policy.StationCatalog{}, err
 	}
 	childSize, hasChild := lifeStageBodySize(catalog)
-	out := policy.StationCatalog{Stations: map[string]policy.Station{}}
+	out := policy.StationCatalog{Stations: map[string]policy.Station{}, Filth: catalog.FilthModel()}
 	for name, row := range catalog.ThingDefs {
 		shape, ok := shapes.Defs[name]
 		if !ok || row.GetCategory() != d.ThingCategory_THING_CATEGORY_BUILDING {

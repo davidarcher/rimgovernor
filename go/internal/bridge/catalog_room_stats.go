@@ -52,3 +52,48 @@ func (catalog *DefinitionCatalog) ImpressivenessLevels() (policy.ImpressivenessL
 	}
 	return out, nil
 }
+
+// roomStatFoodPoisonChance is the RoomStatDef a cook's meals read; its input
+// is the room's Cleanliness.
+const roomStatFoodPoisonChance = "FoodPoisonChance"
+
+// humanlikeBloodDef is the BloodDef most humanlike races name, the filth
+// Corpse.ButcherProducts spawns once per butchered colonist-sized corpse
+// (ties by name); empty when no humanlike race names one.
+func (catalog *DefinitionCatalog) humanlikeBloodDef() string {
+	count := map[string]int{}
+	for _, row := range catalog.ThingDefs {
+		if race := row.GetRace(); race.GetIntelligence() >= d.Intelligence_INTELLIGENCE_HUMANLIKE && race.GetBloodDef() != "" {
+			count[race.GetBloodDef()]++
+		}
+	}
+	best := ""
+	for def, n := range count {
+		if n > count[best] || n == count[best] && (best == "" || def < best) {
+			best = def
+		}
+	}
+	return best
+}
+
+// FilthModel is the price of a butchering to a room, from the defs: the
+// humanlike blood filth's Cleanliness stat and the FoodPoisonChance curve. A
+// catalog without either row prices nothing (the zero model).
+func (catalog *DefinitionCatalog) FilthModel() policy.FilthModel {
+	name := catalog.humanlikeBloodDef()
+	blood := catalog.ThingDefs[name]
+	stat := DefRow[*d.RoomStatDef](catalog, roomStatFoodPoisonChance)
+	if blood == nil || stat == nil {
+		return policy.FilthModel{}
+	}
+	out := policy.FilthModel{Def: name}
+	for _, sm := range blood.GetStatBases() {
+		if sm.GetValue().GetStat() == "Cleanliness" {
+			out.Cleanliness = float64(sm.GetValue().GetValue())
+		}
+	}
+	for _, p := range stat.GetCurve().GetPoints() {
+		out.FoodPoison = append(out.FoodPoison, policy.CurvePoint{X: float64(p.GetLoc().GetX()), Y: float64(p.GetLoc().GetY())})
+	}
+	return out
+}

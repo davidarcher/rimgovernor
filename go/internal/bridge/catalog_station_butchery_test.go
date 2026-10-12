@@ -110,3 +110,16 @@ func TestButcherOrderMakesAButcheryGroup(t *testing.T) {
 		t.Error("clustering changed")
 	}
 }
+
+// The price of a butchering is read from the defs: blood's Cleanliness stat
+// and the FoodPoisonChance curve, flat at zero from cleanliness -2 up.
+func TestFilthModelReadsBloodAndFoodPoisonCurve(t *testing.T) {
+	m := sharedRecordedCatalog(t).FilthModel()
+	if m.Def != "Filth_Blood" || m.Cleanliness != -10 {
+		t.Errorf("model %+v", m)
+	}
+	want := []policy.CurvePoint{{X: -5, Y: float64(float32(0.05))}, {X: -3.5, Y: float64(float32(0.025))}, {X: -2, Y: 0}}
+	if !reflect.DeepEqual(m.FoodPoison, want) {
+		t.Errorf("curve %v, want %v", m.FoodPoison, want)
+	}
+}

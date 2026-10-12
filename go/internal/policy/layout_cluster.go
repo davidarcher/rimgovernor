@@ -26,7 +26,9 @@ import (
 //     reads as barracks), would join an enclosed room with an open-sky one, or
 //     would not fit the area limit. A cold room beside a station that works in
 //     a temperature band is not refused: the decision records the conflict
-//     (Conflict) for the search to price.
+//     (Conflict) for the search to price. A filth node (a butcher) beside
+//     stations that are not filthy is priced too (FilthCost) and kept apart
+//     unless MergeFilth is set.
 //   - Intended role. What a station is for is what the game makes of it alone:
 //     PredictRole of the single station (a stove is a kitchen, a bed a
 //     bedroom, a medical bed a hospital).
@@ -79,6 +81,9 @@ const (
 	ReasonClusterLostEffect  = "cluster_lost_effect"
 	ReasonClusterEnvConflict = "cluster_env_conflict"
 	ReasonClusterArea        = "cluster_area"
+	// ReasonClusterFilthPriced: a filth node was kept from a room of other
+	// stations because MergeFilth is off; the decision carries the price.
+	ReasonClusterFilthPriced = "cluster_filth_priced"
 	ReasonClusterNoCooler    = "cluster_no_cooler"
 
 	// ConflictColdBand is recorded on a decision whose two parts are a cold
@@ -102,6 +107,11 @@ type ClusterInput struct {
 	// RoofDistance is the game's RoofCollapseUtility.RoofMaxSupportDistance
 	// (the catalog's roof_max_support_distance).
 	RoofDistance float64
+	// MergeFilth lets a filth node (a butcher) share a room with stations that
+	// are not filthy, its price recorded (FilthCost). The default keeps them in
+	// a closet of their own, still priced on the decision; the layout search
+	// sets it where the walk a merge saves is worth the price.
+	MergeFilth bool
 }
 
 // GroupStation is the stations of one graph node in a group.
@@ -144,6 +154,9 @@ type RoomGroup struct {
 	// do not get; LostEffects the role effects it does not give.
 	Costs       []ConflictCost
 	LostEffects []LostRoleEffect
+	// Filth is the price of the filth nodes sharing the room with stations
+	// they are not for (empty for a closet), in game units.
+	Filth []FilthCost
 }
 
 // ConflictCost is the work ticks a day a conflict costs the stations of one
@@ -184,6 +197,9 @@ type ClusterDecision struct {
 	// (#2877, #2878); nothing here weighs them against flow.
 	Costs       []ConflictCost
 	LostEffects []LostRoleEffect
+	// Filth is what a merge of a filth node with other stations costs or, on a
+	// merge, what the room now pays (FilthCost).
+	Filth []FilthCost
 }
 
 // Clustering is the room groups and why they are what they are.
@@ -283,6 +299,11 @@ type groupEval struct {
 	role          RoomRole
 	costs         []ConflictCost
 	effects       []LostRoleEffect
+	// filthy and exposed are the nodes that spawn filth and the others whose
+	// effect reads the room's cleanliness; filthCosts prices the first against
+	// the room when it also holds a node that is not filthy.
+	filthy, exposed []string
+	filthCosts      []FilthCost
 }
 
 func (c *clusterer) node(u unit) StationNode { return c.in.Graph.Nodes[u.node] }
@@ -354,6 +375,9 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 		size := c.in.Catalog.Stations[n.Def].Shape.Size
 		e.filth = e.filth || n.Filth
 		e.closet = e.closet && n.Filth
+		if n.Filth && !slices.Contains(e.filthy, n.ID) {
+			e.filthy = append(e.filthy, n.ID)
+		}
 		e.footprint += u.count * int(size.X) * int(size.Z)
 		e.clearance += u.count
 		for _, need := range n.Needs {
@@ -368,6 +392,9 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 				e.openSky = true
 			case NeedRoomStat:
 				e.clean = e.clean || need.Input == cleanlinessStat
+				if need.Input == cleanlinessStat && !slices.Contains(e.exposed, n.ID) {
+					e.exposed = append(e.exposed, n.ID)
+				}
 			}
 		}
 	}
@@ -378,6 +405,9 @@ func (c *clusterer) eval(us []unit) (groupEval, error) {
 	}
 	e.clearance++ // the door threshold
 	e.area = e.footprint + e.clearance
+	if e.filth && !e.closet {
+		e.filthCosts = c.in.Catalog.Filth.filthCosts(e.filthy, e.exposed, e.area)
+	}
 	return e, nil
 }
 
@@ -395,13 +425,19 @@ func (e groupEval) requires() []EnvRequirement {
 }
 
 // conflict reports two groups whose environments exclude each other: a station
-// under an open sky cannot share a roofed room, and a station whose work spawns
-// filth shares its room with nothing but other such stations (the filth lowers
-// the cleanliness every station and sleeper of the room is read at, a cook's
-// food-poisoning chance among them), so it stands in a closet of its own. Cold
-// against a temperature band is not an exclusion (coldBandConflict).
+// under an open sky cannot share a roofed room. Cold against a temperature
+// band (coldBandConflict) and filth against other stations (filthConflict) are
+// not exclusions: they have a price.
 func conflict(a, b groupEval) bool {
-	return a.enclosed && b.openSky || a.openSky && b.enclosed || (a.filth || b.filth) && !(a.closet && b.closet)
+	return a.enclosed && b.openSky || a.openSky && b.enclosed
+}
+
+// filthConflict reports a station whose work spawns filth beside stations that
+// are not such: the filth lowers the cleanliness every station and sleeper of
+// the room is read at (a cook's food-poisoning chance among them), which
+// FilthCost prices.
+func filthConflict(a, b groupEval) bool {
+	return (a.filth || b.filth) && !(a.closet && b.closet)
 }
 
 // plannedRole is the planned room a group's contents decide over what the
@@ -533,9 +569,14 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 		if coldBandConflict(ea, eb) {
 			d.Conflict = ConflictColdBand
 		}
+		if filthConflict(ea, eb) {
+			d.Filth = em.filthCosts
+		}
 		switch {
 		case conflict(ea, eb):
 			d.Reason = ReasonClusterEnvConflict
+		case filthConflict(ea, eb) && !c.in.MergeFilth:
+			d.Reason = ReasonClusterFilthPriced
 		case em.area > c.maxArea:
 			d.Reason = ReasonClusterArea
 		case newLoss(em, ea, eb):
@@ -564,7 +605,7 @@ func ClusterStations(in ClusterInput) (Clustering, error) {
 		if err != nil {
 			return Clustering{}, err
 		}
-		g := RoomGroup{ID: gi, Footprint: e.footprint, Clearance: e.clearance, Area: e.area, Role: e.role, Planned: e.plannedRole(), Requires: e.requires(), Costs: e.costs, LostEffects: e.effects}
+		g := RoomGroup{ID: gi, Footprint: e.footprint, Clearance: e.clearance, Area: e.area, Role: e.role, Planned: e.plannedRole(), Requires: e.requires(), Costs: e.costs, LostEffects: e.effects, Filth: e.filthCosts}
 		byNode := map[int]int{}
 		for _, m := range members[r] {
 			byNode[m.node] += m.count

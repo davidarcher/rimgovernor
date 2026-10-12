@@ -168,9 +168,18 @@ A butchering order makes the butcher table's node `Filth`
 `RecipeFlow`): `Corpse.ButcherProducts` spawns the corpse's blood at the
 butcher's cell (decompiled 1.6; the defs only name the special product), and
 the room's cleanliness feeds `RoomStatDefOf.FoodPoisonChance`, which a cook's
-meal reads (`CompFoodPoisonable`). A filth node merges with no node that is not
-filthy (`cluster_env_conflict`), so it stands in a closet of its own; the
-group's `Planned` role is `PlannedButchery` when the game reads the closet as a
+meal reads (`CompFoodPoisonable`). Sharing a room with a node that is not
+filthy is priced, not refused: `FilthCost` (on the decision and the merged
+group, `RoomGroup.Filth`) gives one blood unit's cleanliness shift (the filth's
+`Cleanliness` stat, -10 for `Filth_Blood`, over the room's cells, per
+`RoomStatWorker_Cleanliness`), the `FoodPoisonChance` curve at that shift and the
+units until it leaves zero (the curve is flat from cleanliness -2 up), and the
+shift of the `Impressiveness` cleanliness input (`1 + cleanliness / 2.5`); all
+read from the defs (`DefinitionCatalog.FilthModel`), the cooks in the room named
+as exposed. The seed keeps the pair apart (`cluster_filth_priced`, a keep that
+carries the price) unless `ClusterInput.MergeFilth` is set, which the layout
+search sets where the walk saved is worth the price. Kept apart, the butcher
+stands in a closet of its own, and the group's `Planned` role is `PlannedButchery` when the game reads the closet as a
 kitchen (the table scores as one), and `PlannedRoleOfGroup` returns it over the
 role mapping. The graph sends the corpses in from, and the meat and leather
 back to, the cold and plain stores, with the required cold link a perishable
