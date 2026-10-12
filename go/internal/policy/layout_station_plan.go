@@ -203,7 +203,10 @@ type StationAdvice struct {
 	Graph      StationGraph
 	Clustering Clustering
 	Embedding  Embedding
-	Groups     []GroupAdvice
+	// Sites places the plan's power sites (PowerSiteNodes), advisory beside the
+	// authoritative PlanUtilities.
+	Sites  SiteEmbedding
+	Groups []GroupAdvice
 	// Tiled is the embedding tiled into a plan; nil unless StationFacts.Tile.
 	Tiled *TileResult
 }
@@ -229,11 +232,18 @@ func AdviseStations(f StationFacts) (StationAdvice, error) {
 	if err != nil {
 		return StationAdvice{}, err
 	}
-	embedding, err := Embed(EmbedInput{Groups: clustering.Groups, Zones: f.Plan.Zones, Reservations: f.Plan.Reservations, Survey: f.Survey, RoofDistance: f.RoofDistance, Fields: FieldEmbedLinks(graph, clustering.Groups)})
+	embedIn := EmbedInput{Groups: clustering.Groups, Zones: f.Plan.Zones, Reservations: f.Plan.Reservations, Survey: f.Survey, RoofDistance: f.RoofDistance, Fields: FieldEmbedLinks(graph, clustering.Groups)}
+	embedding, err := Embed(embedIn)
 	if err != nil {
 		return StationAdvice{}, err
 	}
+	graph.Sites = PowerSiteNodes(f.Plan)
 	out := StationAdvice{Graph: graph, Clustering: clustering, Embedding: embedding}
+	if len(graph.Sites) > 0 {
+		if out.Sites, err = EmbedSites(SiteEmbedInput{Embed: embedIn, Embedding: embedding, Nodes: graph.Sites}); err != nil {
+			return StationAdvice{}, err
+		}
+	}
 	if f.Tile {
 		tiled, err := TileEmbedding(TileInput{Groups: clustering.Groups, Embedding: embedding, Catalog: f.Catalog, Zones: f.Plan.Zones, Reservations: f.Plan.Reservations, Survey: f.Survey})
 		if err != nil {

@@ -654,17 +654,18 @@ func TurbineCatchZone(plan LayoutPlan, area Rectangle) []domain.Cell {
 // wind-blocking thing, on a cell cuts the output by 20 percent; the
 // turbine's size does not enter.
 func TurbineWindCells(center domain.Cell, rot domain.Rotation) []domain.Cell {
-	off, front, back := int32(0), int32(9), int32(5)
+	off, front, back := int32(0), windPathAhead-1, windPathBehind-1
 	if rot != domain.North && rot != domain.East {
-		off, front, back = -1, 5, 9
+		off, front, back = -1, windPathBehind-1, windPathAhead-1
 	}
+	half := windPathWidth / 2
 	var a, b Rectangle // X, Z, Width, Height as min/extent
 	if rot == domain.East || rot == domain.West {
-		a = Rectangle{X: center.X + 2 + off, Z: center.Z - 3, Width: front + 1, Height: 7}
-		b = Rectangle{X: center.X - 1 - back + off, Z: center.Z - 3, Width: back + 1, Height: 7}
+		a = Rectangle{X: center.X + windPathStart + off, Z: center.Z - half, Width: front + 1, Height: windPathWidth}
+		b = Rectangle{X: center.X - 1 - back + off, Z: center.Z - half, Width: back + 1, Height: windPathWidth}
 	} else {
-		a = Rectangle{X: center.X - 3, Z: center.Z + 2 + off, Width: 7, Height: front + 1}
-		b = Rectangle{X: center.X - 3, Z: center.Z - 1 - back + off, Width: 7, Height: back + 1}
+		a = Rectangle{X: center.X - half, Z: center.Z + windPathStart + off, Width: windPathWidth, Height: front + 1}
+		b = Rectangle{X: center.X - half, Z: center.Z - 1 - back + off, Width: windPathWidth, Height: back + 1}
 	}
 	var out []domain.Cell
 	for _, r := range []Rectangle{a, b} {

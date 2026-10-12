@@ -15,13 +15,14 @@ import (
 // fixed Anchor (a geyser, a vent) that the origin lands on; and Lanes, regions
 // that travel with the footprint but reserve nothing: a turbine's wind lane
 // may lie across fields and across other turbines' lanes. The embedder never
-// refuses or moves a node for a lane, and prices none: what the game charges
-// for a blocked lane cell (the lost wind output) is the consumers' to price in
-// game units, once they move onto the node. Footprints are exclusive: they
+// refuses a node for a lane. A Wind lane is priced as the game prices it
+// (layout_power_nodes.go): the cells that are roofed, off the map or held by a
+// thing that blocks wind cost output, and a node with turns takes the one that
+// loses least. Footprints are exclusive: they
 // stay off the rooms' walls and off each other, on ground the obstacle level
 // the rooms were placed under leaves free. Like a room it may Replace a
-// planned room. Nothing in the graph builder emits site nodes yet and the old
-// planner stays authoritative.
+// planned room. The station advice emits the power sites (PowerSiteNodes) and
+// the old planner stays authoritative.
 
 // ErrSiteNode marks a site node the embedder cannot read.
 var ErrSiteNode = errors.New("site node")
@@ -34,6 +35,10 @@ const (
 	// ReasonSiteAnchorBlocked: the anchor is fixed, so the node stands there
 	// although its footprint touches a room's walls or another footprint.
 	ReasonSiteAnchorBlocked = "site_anchor_blocked"
+	// ReasonSiteWindBlocked: cells of the wind lane are roofed, off the map or
+	// held by a thing that blocks wind; the node stands, at the output the
+	// game leaves it.
+	ReasonSiteWindBlocked = "site_wind_lane_blocked"
 )
 
 // SiteLane is a region that belongs to a site node and is never an exclusive
@@ -42,7 +47,14 @@ type SiteLane struct {
 	ID     string
 	Region Region
 	Reason string
+	// Wind marks a turbine's wind path: the embedder prices it as the game does
+	// (windBlocked, WindOutput) and Blocked is the cells found blocked.
+	Wind    bool
+	Blocked int
 }
+
+// WindOutput is the fraction of its rated output a wind lane leaves.
+func (l SiteLane) WindOutput() float64 { return WindOutput(l.Blocked) }
 
 // SiteNode is a site element of the station graph.
 type SiteNode struct {
@@ -60,6 +72,12 @@ type SiteNode struct {
 	// Replaces is the planned room ID this node supersedes; 0 for none.
 	Replaces int32
 	Reason   string
+	// Rotation is the way the node faces (a turbine's wind side).
+	Rotation domain.Rotation
+	// Alts are the other shapes the same node may take, its turns: only
+	// Footprint, Lanes and Rotation are read from them. A free node takes the
+	// shape and origin of least lost output, then least site cost.
+	Alts []SiteNode
 }
 
 // SitePlacement is where a site node landed. Lanes are in map cells, as the
@@ -69,6 +87,7 @@ type SitePlacement struct {
 	Origin    domain.Cell
 	Footprint Region
 	Lanes     []SiteLane
+	Rotation  domain.Rotation
 	Anchored  bool
 	Replaces  int32
 }
@@ -134,11 +153,13 @@ func EmbedSites(in SiteEmbedInput) (SiteEmbedding, error) {
 	}
 	order := slices.Clone(in.Nodes)
 	slices.SortStableFunc(order, func(a, b SiteNode) int { return b2i(b.Anchor != nil) - b2i(a.Anchor != nil) })
+	ground := newWindGround(in)
 	var out SiteEmbedding
 	var taken []Region
 	for _, n := range order {
-		p := SitePlacement{Node: n.ID, Replaces: n.Replaces}
+		p := SitePlacement{Node: n.ID, Replaces: n.Replaces, Rotation: n.Rotation}
 		verdict, reason := EmbedPlace, ReasonSiteAnchored
+		lanes := n.Lanes
 		if n.Anchor != nil {
 			p.Origin, p.Anchored = *n.Anchor, true
 			p.Footprint = n.Footprint.Translate(p.Origin.X, p.Origin.Z)
@@ -146,20 +167,35 @@ func EmbedSites(in SiteEmbedInput) (SiteEmbedding, error) {
 				verdict, reason = EmbedUnsatisfied, ReasonSiteAnchorBlocked
 			}
 		} else {
-			origin, ok := e.siteOrigin(n, rooms, taken)
+			shape, origin, ok := e.siteOrigin(n, rooms, taken, ground)
 			if !ok {
 				out.Decisions = append(out.Decisions, SiteDecision{Node: n.ID, Verdict: EmbedUnplaceable, Reason: ReasonSiteNoGround})
 				continue
 			}
-			p.Origin, p.Footprint = origin, n.Footprint.Translate(origin.X, origin.Z)
+			p.Origin, p.Rotation, lanes = origin, shape.Rotation, shape.Lanes
+			p.Footprint = shape.Footprint.Translate(origin.X, origin.Z)
 			reason = ReasonSiteFree
 		}
-		for _, l := range n.Lanes {
-			p.Lanes = append(p.Lanes, SiteLane{ID: l.ID, Region: l.Region.Translate(p.Origin.X, p.Origin.Z), Reason: l.Reason})
+		for _, l := range lanes {
+			p.Lanes = append(p.Lanes, SiteLane{ID: l.ID, Region: l.Region.Translate(p.Origin.X, p.Origin.Z), Reason: l.Reason, Wind: l.Wind})
 		}
 		taken = append(taken, p.Footprint)
+		ground.add(p.Footprint)
 		out.Sites = append(out.Sites, p)
 		out.Decisions = append(out.Decisions, SiteDecision{Node: n.ID, Verdict: verdict, Reason: reason})
+	}
+	// Footprints placed after a lane can block it too: the lane is priced last,
+	// against every other footprint.
+	for i := range out.Sites {
+		for j, l := range out.Sites[i].Lanes {
+			if !l.Wind {
+				continue
+			}
+			out.Sites[i].Lanes[j].Blocked = ground.blocked(l.Region, out.Sites[i].Footprint)
+			if out.Sites[i].Lanes[j].Blocked > 0 {
+				out.Decisions = append(out.Decisions, SiteDecision{Node: out.Sites[i].Node, Verdict: EmbedUnsatisfied, Reason: ReasonSiteWindBlocked})
+			}
+		}
 	}
 	return out, nil
 }
@@ -178,24 +214,36 @@ func siteFree(fp Region, rooms []Rectangle, taken []Region) bool {
 
 // siteOrigin is the origin of least cost where the node's footprint fits the
 // envelope, its band and the taken ground.
-func (e *embedder) siteOrigin(n SiteNode, rooms []Rectangle, taken []Region) (domain.Cell, bool) {
+// A node with turns (Alts) is tried in each; the least lost wind output wins,
+// then the least site cost, then the first turn and the lowest cell. It returns
+// the shape taken.
+func (e *embedder) siteOrigin(n SiteNode, rooms []Rectangle, taken []Region, ground *windGround) (SiteNode, domain.Cell, bool) {
 	var best domain.Cell
-	bestCost, found := 0, false
-	shape := n.Footprint.Bounds()
-	for _, o := range e.core {
-		if !e.level.inside(Rectangle{X: shape.X + o.X, Z: shape.Z + o.Z, Width: shape.Width, Height: shape.Height}) {
-			continue
-		}
-		fp := n.Footprint.Translate(o.X, o.Z)
-		cost, ok := e.siteCost(fp)
-		if !ok || !siteFree(fp, rooms, taken) || !siteBand(n.Band, fp.Bounds(), rooms) {
-			continue
-		}
-		if !found || cost < bestCost {
-			best, bestCost, found = o, cost, true
+	var bestShape SiteNode
+	bestLoss, bestCost, found := 0, 0, false
+	for _, shape := range append([]SiteNode{n}, n.Alts...) {
+		box := shape.Footprint.Bounds()
+		for _, o := range e.core {
+			if !e.level.inside(Rectangle{X: box.X + o.X, Z: box.Z + o.Z, Width: box.Width, Height: box.Height}) {
+				continue
+			}
+			fp := shape.Footprint.Translate(o.X, o.Z)
+			cost, ok := e.siteCost(fp)
+			if !ok || !siteFree(fp, rooms, taken) || !siteBand(n.Band, fp.Bounds(), rooms) {
+				continue
+			}
+			loss := 0
+			for _, l := range shape.Lanes {
+				if l.Wind {
+					loss += ground.blocked(l.Region.Translate(o.X, o.Z), fp)
+				}
+			}
+			if !found || loss < bestLoss || loss == bestLoss && cost < bestCost {
+				best, bestShape, bestLoss, bestCost, found = o, shape, loss, cost, true
+			}
 		}
 	}
-	return best, found
+	return bestShape, best, found
 }
 
 // siteCost is the cost of a footprint on the site, in the embedding's terms;

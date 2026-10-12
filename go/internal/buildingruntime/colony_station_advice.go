@@ -178,6 +178,22 @@ func stationAdviceAttrs(a policy.StationAdvice) map[string]any {
 			issues = append(issues, map[string]any{"group": d.Group, "other": d.Other, "verdict": d.Verdict, "reason": d.Reason, "requirement": string(d.Requirement), "field": d.Field})
 		}
 	}
+	var sites []map[string]any
+	for _, p := range a.Sites.Sites {
+		row := map[string]any{"node": p.Node, "x": p.Origin.X, "z": p.Origin.Z, "anchored": p.Anchored}
+		for _, l := range p.Lanes {
+			if l.Wind {
+				row["rotation"], row["blocked"], row["output"] = string(p.Rotation), l.Blocked, l.WindOutput()
+			}
+		}
+		sites = append(sites, row)
+	}
+	var siteIssues []map[string]any
+	for _, d := range a.Sites.Decisions {
+		if d.Verdict != policy.EmbedPlace {
+			siteIssues = append(siteIssues, map[string]any{"node": d.Node, "verdict": d.Verdict, "reason": d.Reason})
+		}
+	}
 	fields := make([]map[string]any, 0, len(a.Embedding.Fields))
 	for _, f := range a.Embedding.Fields {
 		fields = append(fields, map[string]any{"field": f.ID, "x": f.Interior.X, "z": f.Interior.Z, "width": f.Interior.Width, "height": f.Interior.Height, "reason": policy.ReasonEmbedFieldPlaced})
@@ -185,6 +201,7 @@ func stationAdviceAttrs(a policy.StationAdvice) map[string]any {
 	s := a.Embedding.Score
 	return map[string]any{
 		"nodes": len(a.Graph.Nodes), "edges": len(a.Graph.Edges), "groups": groups, "conflicts": conflicts,
+		"sites": sites, "site_issues": siteIssues,
 		"embed": map[string]any{
 			"level": a.Embedding.ObstacleLevel(), "placed": len(a.Embedding.Blocks), "issues": issues, "fields": fields,
 			"cells": s.Cells, "total": s.Total(), "soil": s.Soil, "edge": s.Edge, "centre": s.Centre, "walk": s.Walk, "unmet_links": s.UnmetLinks,

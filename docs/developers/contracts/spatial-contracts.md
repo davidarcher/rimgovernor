@@ -332,6 +332,19 @@ on the colony centre when the plan has no free cell there.
   (the dummies point to the end farther from the bounds of the rooms outside the band,
   `dummyFacing`) and `Markers` onto the room. Growth stays widening in place (`widenRange`,
   `widenRing`); the old siting stays authoritative.
+  **Power sites (#2919).** `AdviseStations` asks `EmbedSites` for a site node per
+  planned turbine, solar plot and geothermal enclosure (`PowerSiteNodes`,
+  `layout_power_nodes.go`); `PlanUtilities` stays authoritative until the cutover
+  (#2931) and `PlannedPowerSites`, `TurbinePlacement` and `TurbineCatchZone` stay the
+  read API. A turbine is a 7x2 footprint with four turns and a wind lane; a geothermal
+  node is anchored on its enclosure; the battery room stays a planned room. The lane is
+  priced only as the game prices it (`windGround`; constants in the `windPath` DefTables
+  entry, read from `CompPowerPlantWind`): a path cell that is off the map, under thick
+  roof, in a fenced room or under another footprint removes 20% of the output
+  (`WindOutput`; zero at five). Crops do not block wind, so a lane over a field or over
+  another lane is free; a turbine's own cells are not in its path. A turn and origin of
+  least lost output wins, then least site cost, so pairing follows from cost. The
+  `layout_stations` row carries `sites` and `site_issues`.
 - **Search.** The best sites by score get a deterministic, iteration-bounded local
   search; wall time is only a hang guard.
 - **Replan.** Two-stage: the same generator runs with every room that has anything of
