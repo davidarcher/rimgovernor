@@ -181,3 +181,12 @@ A port child works through this in order. `internal/domain` is the worked exampl
 
 `task build` runs `brain:build` (restore in locked mode, `dotnet build` with warnings
 as errors). `task test` runs `brain:test`; it is empty until a bug needs a test.
+
+## Protobuf bindings (temporary)
+
+`RimGovernor.Brain.Wire` link-compiles the generated protobuf C#
+(`contracts/generated/protobuf/csharp`) so ports that still touch wire types can build;
+its generated-code relaxations (nullable annotations, no analyzers, warnings not errors)
+are scoped to that project. `brain:build` first generates the gitignored `Defs.cs`. It
+goes away when protobuf collapses to plain records (#3100). `RimGovernor.Brain.Policy`
+(Domain + Wire) hosts the policy ports.
