@@ -152,7 +152,7 @@ public static partial class PolicyFunctions
                     }
                 }
                 long needed = 0;
-                f.ResourceNeeds?.TryGetValue(def, out needed);
+                f.ResourceNeeds.TryGetValue(def, out needed);
                 if (have - Math.Max(0L, needed) < remaining)
                 {
                     return result with { Reason = "gift_unaffordable" };

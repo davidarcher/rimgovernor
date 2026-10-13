@@ -393,7 +393,7 @@ public sealed partial class Rounder
                 Tel.Decide(LayoutPlanning.LayoutPlanDecision("skipped", "facts_unknown", colonists, "", new Dictionary<string, object?> { ["fact"] = error.Message }));
                 return;
             case not null:
-                Tel.Decide(LayoutPlanning.LayoutPlanDecision("failed", "chain_error", colonists, "", new Dictionary<string, object?> { ["error"] = error.Message }));
+                Tel.Decide(LayoutPlanning.LayoutPlanDecision("failed", "chain_error", colonists, "", new Dictionary<string, object?> { ["error"] = error.ToString() }));
                 return;
         }
         if (!fact.TryGetValue(out var plan))
@@ -446,7 +446,7 @@ public sealed partial class Rounder
             decision = decision with { Level = TelemetryLevel.Warn };
             decision = decision with { Verdict = "failed" };
             decision = decision with { Reason = "tile_error" };
-            decision = decision with { Attrs = new Dictionary<string, object?> { ["error"] = e } };
+            decision = decision with { Attrs = new Dictionary<string, object?> { ["error"] = e.ToString() } };
             Tel.Decide(decision);
             return false;
         }

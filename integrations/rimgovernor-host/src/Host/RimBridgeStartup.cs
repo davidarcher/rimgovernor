@@ -127,7 +127,7 @@ internal static class RimBridgeStartup
                 using (RimBridgeStartupTiming.Phase("gabp.server.build"))
                 {
                     _server = builder
-                        .UsePortIfNotSet(5174)
+                        .UsePortIfNotSet(usingGabsConfig ? 5174 : 0) // ephemeral outside GABS: two games on one machine must not collide (#3137)
                         .EnableAttentionSupport()
                         .Build();
                 }

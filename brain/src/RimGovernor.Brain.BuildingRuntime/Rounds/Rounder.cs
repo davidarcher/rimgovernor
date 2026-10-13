@@ -584,9 +584,9 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { MedicineCarryOwed = PolicyApi.MedicineCarryOwed(reading.Projection.WorkPawns, medicine) });
         reading = reading.WithFacts(rf => rf with { EatTriggerOwed = PolicyApi.EatTriggerOwed(reading.Projection.WorkPawns, EatTriggerColony(reading.Projection.Facts, Seasonal(reading.Projection.Facts))) });
         // A prisoner surgery blocked only by the herbal care limit.
-        reading = reading.WithFacts(rf => rf with { ResourceNeeds = PolicyApi.PrisonerHerbalNeeds(reading.Projection.Facts.ResourceNeeds ?? new Dictionary<Resource, long>(), reading.Projection.Facts, PolicyApi.RoundsSilverShort(reading.Projection.Facts, Policy, medicine.Active)) });
+        reading = reading.WithFacts(rf => rf with { ResourceNeeds = PolicyApi.PrisonerHerbalNeeds(reading.Projection.Facts.ResourceNeeds, reading.Projection.Facts, PolicyApi.RoundsSilverShort(reading.Projection.Facts, Policy, medicine.Active)) });
         // A willing colonist's psylink neuroformer, bought or made by the resource ladder.
-        reading = reading.WithFacts(rf => rf with { ResourceNeeds = PolicyApi.NeuroformerNeeds(reading.Projection.Facts.ResourceNeeds ?? new Dictionary<Resource, long>(), reading.Projection.Royalty, psylinkCandidates) });
+        reading = reading.WithFacts(rf => rf with { ResourceNeeds = PolicyApi.NeuroformerNeeds(reading.Projection.Facts.ResourceNeeds, reading.Projection.Royalty, psylinkCandidates) });
         // The work goal's coverage reads the demand the last review derived: the value the work planner dispatches on.
         var resourceTargets = ResourceTargets(state.Snapshot);
         if (reading.Projection.WorkPawns.TryGetValue(out var pawns))

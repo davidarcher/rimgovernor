@@ -48,7 +48,7 @@ public static partial class PolicyFunctions
         {
             works = new Dictionary<Resource, long>(ResourceConcernTargets(works, source));
         }
-        var needs = ResourceConcernTargets(ResourceConcernTargets(f!.ResourceNeeds!, works), ResourceRunwayTargets(f.ResourceRunways));
+        var needs = ResourceConcernTargets(ResourceConcernTargets(f.ResourceNeeds, works), ResourceRunwayTargets(f.ResourceRunways));
         return new DerivedDemand
         {
             Needs = needs,

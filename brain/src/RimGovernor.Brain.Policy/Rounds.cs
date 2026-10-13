@@ -595,7 +595,7 @@ public sealed record RoundsFacts
     /// the census found no stock of); ResourceGoalTargets merges them into the operator's MaintainResource
     /// targets, never lowering a configured floor.
     /// </summary>
-    public IReadOnlyDictionary<Resource, long>? ResourceNeeds { get; init; }
+    public IReadOnlyDictionary<Resource, long> ResourceNeeds { get; init; } = new Dictionary<Resource, long>();
 
     /// <summary>Journal evidence for EnsureDefensiveLayout: known true while the stored layout was verified complete and every tier still stood at the last census, so a standing layout no longer outranks the upkeep goals (repairs, power) that keep it working.</summary>
     public Fact<bool> DefensiveLayoutStanding { get; init; }

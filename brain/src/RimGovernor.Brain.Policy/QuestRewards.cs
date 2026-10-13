@@ -101,7 +101,7 @@ public static partial class PolicyFunctions
         }
         var stockKnown = f.Resources.TryGetValue(out var stock);
         var need = new Dictionary<Resource, long>();
-        if (stockKnown && f.ResourceNeeds is not null)
+        if (stockKnown)
         {
             foreach (var (def, floor) in f.ResourceNeeds)
             {

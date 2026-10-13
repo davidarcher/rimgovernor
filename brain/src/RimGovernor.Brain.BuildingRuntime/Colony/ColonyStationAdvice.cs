@@ -147,7 +147,7 @@ internal static class StationAdviceLog
                 decision = decision with { Level = TelemetryLevel.Warn };
                 decision = decision with { Verdict = "failed" };
                 decision = decision with { Reason = "chain_error" };
-                decision = decision with { Attrs = new Dictionary<string, object?> { ["error"] = error } };
+                decision = decision with { Attrs = new Dictionary<string, object?> { ["error"] = error.ToString() } };
                 break;
             default:
                 decision = decision with { Verdict = "advised" };

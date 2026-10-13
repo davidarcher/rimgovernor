@@ -45,7 +45,7 @@ public static partial class PolicyFunctions
         var contents = (ShelterBunkCells * Math.Max(colonists, 1)) + (ShelterCampfireCell * Math.Max(campfires, 0)) + (ShelterCoolerCell * Math.Max(coolers, 0));
         foreach (var c in ShelterCapabilities)
         {
-            contents += CapabilityCells[c];
+            contents += CapabilityCells.GetValueOrDefault(c);
         }
         return ((contents * 3) + 1) / 2;
     }
