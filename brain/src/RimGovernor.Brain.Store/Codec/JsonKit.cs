@@ -246,20 +246,42 @@ public static class JsonFields
     public static bool Has(this JsonElement e, string name) => e.TryGetProperty(name, out var field) && field.ValueKind != JsonValueKind.Null;
 }
 
-/// <summary>A <see cref="Fact{T}"/> persists as JSON null when unknown and as the value when known.</summary>
+/// <summary>
+/// A <see cref="Fact{T}"/> persists as JSON null when unknown and as the value when known. A known absence (a
+/// Fact of a nullable record that is known to have none, as a pawn who is no mechanitor) persists as {"none":true}.
+/// </summary>
 public sealed class FactCodec<T> : ICodec<Fact<T>>
 {
-    public Fact<T> Decode(JsonElement e, Codecs codecs) => e.ValueKind == JsonValueKind.Null ? default : Fact.Known(codecs.Read<T>(e));
+    private const string None = "none";
+
+    public Fact<T> Decode(JsonElement e, Codecs codecs)
+    {
+        if (e.ValueKind == JsonValueKind.Null)
+        {
+            return default;
+        }
+        if (!typeof(T).IsValueType && e.ValueKind == JsonValueKind.Object && e.TryGetProperty(None, out var none) && none.ValueKind == JsonValueKind.True)
+        {
+            return Fact.Known<T>(default!);
+        }
+        return Fact.Known(codecs.Read<T>(e));
+    }
 
     public void Encode(Utf8JsonWriter w, Fact<T> value, Codecs codecs)
     {
-        if (value.TryGetValue(out var known))
+        if (!value.TryGetValue(out var known))
         {
-            codecs.Write(w, known);
+            w.WriteNullValue();
+        }
+        else if (known is null)
+        {
+            w.WriteStartObject();
+            w.WriteBoolean(None, true);
+            w.WriteEndObject();
         }
         else
         {
-            w.WriteNullValue();
+            codecs.Write(w, known);
         }
     }
 }
