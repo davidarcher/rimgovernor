@@ -21,6 +21,7 @@ public static class CaseCatalog
         CombatCases.Register(registry);
         CustodyCases.Register(registry);
         DraftCases.Register(registry);
+        LabCases.Register(registry);
         LetterCases.Register(registry);
         LifecycleCases.Register(registry);
         NeedsCases.Register(registry);
