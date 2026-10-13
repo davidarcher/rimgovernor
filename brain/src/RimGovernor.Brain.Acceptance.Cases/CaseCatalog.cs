@@ -30,6 +30,7 @@ public static class CaseCatalog
         LetterCases.Register(registry);
         LifecycleCases.Register(registry);
         NeedsCases.Register(registry);
+        PawnCases.Register(registry);
         ProductionCases.Register(registry);
         QuestCases.Register(registry);
         RecoveryCases.Register(registry);

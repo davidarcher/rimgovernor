@@ -13,7 +13,17 @@ public static class WallCases
     {
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(WallAdoption.Case());
+        registry.Register(WallClearedFloor.Case());
+        registry.Register(WallClearedRoom.Case());
+        registry.Register(WallConstructionSkill.Case());
         registry.Register(WallDeconstruct.Case());
+        registry.Register(WallDoorSwap.Case());
+        registry.Register(WallLayers.Case());
+        registry.Register(WallRemotePickup.Case());
+        registry.Register(WallRemoval.Case());
+        registry.Register(WallReplace.Case());
+        registry.Register(WallTierGate.Case());
+        registry.Register(WallUpgrade.Case());
     }
 
     /// <summary>The enclosure-guarded DECONSTRUCT Designate arm of one building, with extra DesignateIntent fields (replaceWithWall).</summary>
