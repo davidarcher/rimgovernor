@@ -11,7 +11,7 @@ namespace RimGovernor.Launcher;
 public sealed record Settings
 {
     /// <summary>The launcher's JSON dialect: camelCase, case-insensitive on read, the page's own.</summary>
-    public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    public static readonly JsonSerializerOptions Json = LauncherJson.Indented;
 
     /// <summary>The game launch flag that asks the mod to host the brain (<c>InProcLaunch.Flag</c> of Brain.Host).</summary>
     public const string InProcFlag = "-rimgovernor-inproc";
@@ -32,6 +32,9 @@ public sealed record Settings
 
     /// <summary>Free text split on whitespace (double quotes group) and appended to the game's command line.</summary>
     public string ExtraArgs { get; init; } = "";
+
+    /// <summary>The last New colony form; absent until one is generated.</summary>
+    public NewColonySpec? NewColony { get; init; }
 
     /// <summary>Reads <paramref name="path"/> over the defaults; a missing file is the defaults. Throws <see cref="LauncherException"/> for an unreadable one.</summary>
     public static Settings Load(string path)

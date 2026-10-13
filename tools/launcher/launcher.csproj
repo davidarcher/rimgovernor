@@ -32,5 +32,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\brain\src\RimGovernor.Brain.Acceptance\RimGovernor.Brain.Acceptance.csproj" />
     <ProjectReference Include="..\..\brain\src\RimGovernor.Brain.Acceptance.Cases\RimGovernor.Brain.Acceptance.Cases.csproj" />
+    <ProjectReference Include="..\..\brain\src\RimGovernor.Brain.Bridge.Contracts\RimGovernor.Brain.Bridge.Contracts.csproj" />
   </ItemGroup>
 </Project>
