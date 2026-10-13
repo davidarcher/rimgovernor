@@ -67,6 +67,7 @@ public static class CaseCatalog
         SoloCases.Register(registry);
         SpeedmatrixCases.Register(registry);
         StartupCases.Register(registry);
+        StatsCases.Register(registry);
         StorageCases.Register(registry);
         SuppliesCases.Register(registry);
         SustainedCases.Register(registry);
