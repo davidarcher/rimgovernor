@@ -4,6 +4,8 @@
   <PropertyGroup>
     <RootNamespace>RimGovernor.Brain.Bridge</RootNamespace>
     <AssemblyName>RimGovernor.Brain.Bridge</AssemblyName>
+    <!-- tools/rg publishes win-x64 ReadyToRun and restores this project with that RID; declaring it keeps the lock file stable. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <Import Project="../../Game.props" />
   <ItemGroup>

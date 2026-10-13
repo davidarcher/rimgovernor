@@ -13,6 +13,8 @@ public static class AcceptanceCommand
 
           acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [-tier nightly|smoke] [<case>|<area>/...]...
           acceptance stop -root <dir> [-game <id>]
+          acceptance run [flags] <case>|<area>/...   (acceptance run -help)
+          acceptance resume | why | suite | plan | dev | warm | fixture | fetch-fixture | profile-compare   (<subcommand> -help)
           acceptance setup ... (acceptance setup -help)
           acceptance doctor -root <dir> [-output <dir> -game <id> -worktree <dir> -heal]
           acceptance prune -output <dir> [-keep n -dry-run]
@@ -36,6 +38,13 @@ public static class AcceptanceCommand
             return args.Count == 0 ? 2 : 0;
         }
 
+        // The default wiring of the run machinery: ring and stage planner, doctor/heal preflight, scenario clock.
+        RunDependencies.Current ??= new RunDependencies
+        {
+            Checkpointing = new RunCheckpointing(),
+            Preflight = RunPreflight.Instance,
+            Scenario = new ScenarioDriver(),
+        };
         IReadOnlyList<string> rest = [.. args.Skip(1)];
         switch (args[0])
         {
@@ -47,6 +56,26 @@ public static class AcceptanceCommand
                 return await new AcceptanceSetup().RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
             case "doctor":
                 return await AcceptanceDoctor.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
+            case "run":
+                return await RunCommand.RunAsync(rest, registry, stdout, stderr, cancellationToken).ConfigureAwait(false);
+            case "resume":
+                return await ResumeCommand.RunAsync(rest, new RunCommandResumeRunner(registry, RunDependencies.Current ?? throw new AcceptanceException("run dependencies are not wired")), stdout, stderr, cancellationToken).ConfigureAwait(false);
+            case "why":
+                return await WhyCommand.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
+            case "suite":
+                return await SuiteCommand.RunAsync(rest, registry, stdout, stderr, cancellationToken).ConfigureAwait(false);
+            case "plan":
+                return await PlanCommand.RunAsync(rest, registry, stdout, stderr, cancellationToken).ConfigureAwait(false);
+            case "dev":
+                return await DevCommand.RunAsync(rest, registry, RunDependencies.Current ?? throw new AcceptanceException("run dependencies are not wired"), Console.In, stdout, stderr, cancellationToken).ConfigureAwait(false);
+            case "warm":
+                return await WarmCommand.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
+            case "fixture":
+                return await FixtureCommand.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
+            case "fetch-fixture":
+                return await CiFixture.FetchFixtureAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
+            case "profile-compare":
+                return await ProfileCompareCommand.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
             case "prune":
                 return await AcceptancePrune.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
             default:
@@ -194,6 +223,7 @@ public static class AcceptanceCommand
 
         try
         {
+            ResumeCommand.DiscardBreaks(Path.GetFullPath(root), stdout);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromMinutes(2));
             bool stopped = await Game.StopGameAsync(Path.GetFullPath(root), game, timeout.Token).ConfigureAwait(false);

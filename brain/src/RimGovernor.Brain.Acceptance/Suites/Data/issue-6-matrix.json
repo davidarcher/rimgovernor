@@ -1,0 +1,22 @@
+[
+  {
+    "name": "light/dark",
+    "acceptance": "dark benches: a measured-dark roofed work cell gets one affordable lamp beside it"
+  },
+  {
+    "name": "floor/kitchen",
+    "acceptance": "role-driven floors: the clean tier floors the kitchen from the measured terrain census"
+  },
+  {
+    "name": "route/stockpile",
+    "acceptance": "unreachable stores: a sealed stockpile is opened by a door on an observed breach wall"
+  },
+  {
+    "name": "power/fuel",
+    "acceptance": "exhausted fuel: an out-of-fuel generator holds for refuel and raises the fuel stock target"
+  },
+  {
+    "name": "refrigeration/build",
+    "acceptance": "disconnected consumers: no cooler at all, one is admitted on a vented wall and measured cooling follows"
+  }
+]

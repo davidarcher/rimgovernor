@@ -31,6 +31,23 @@
         "resolved": "2.1.11",
         "contentHash": "PK0GLFkfhZzLQeR3PJf71FmhtHox+U3vcY6ZtswoMjrefkB9k6ErNJEnwXqc5KgXDSjige2XXrezqS39gkpQKA=="
       },
+      "rimgovernor.brain.bridge": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.bridge.contracts": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )",
+          "RimGovernor.Brain.Telemetry": "[1.0.0, )"
+        }
+      },
       "rimgovernor.brain.contracts": {
         "type": "Project",
         "dependencies": {
@@ -51,6 +68,15 @@
         "dependencies": {
           "RimGovernor.Brain.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.simulation": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Bridge": "[1.0.0, )",
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )"
         }
       },
       "rimgovernor.brain.telemetry": {

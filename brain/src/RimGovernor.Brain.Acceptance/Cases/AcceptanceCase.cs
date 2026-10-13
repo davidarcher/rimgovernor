@@ -105,6 +105,9 @@ public sealed record AcceptanceCase
     /// <summary>Whether the runner staffs the case's game with its crew.</summary>
     public bool Staffed => Start is not OwnedStart && !Crew.Ordinary;
 
+    /// <summary><see cref="Keep"/> as the lifecycle's need names (Go <c>keepNeeds</c>).</summary>
+    public IReadOnlyList<NeedDef> KeepNeeds() => [.. Keep.Select(need => new NeedDef(need))];
+
     /// <summary>
     /// The test ops the case's Start calls, outermost last: what the installed build must register for the case to start,
     /// followed by RequiredOps used by Run or service hooks.

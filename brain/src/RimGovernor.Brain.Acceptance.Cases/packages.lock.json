@@ -15,9 +15,27 @@
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.HttpChannel": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )",
+          "RimGovernor.Brain.Simulation": "[1.0.0, )",
           "RimGovernor.Brain.Telemetry": "[1.0.0, )",
           "SQLitePCLRaw.provider.e_sqlite3": "[2.1.11, )",
           "SourceGear.sqlite3": "[3.53.4, )"
+        }
+      },
+      "rimgovernor.brain.bridge": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.bridge.contracts": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )",
+          "RimGovernor.Brain.Telemetry": "[1.0.0, )"
         }
       },
       "rimgovernor.brain.contracts": {
@@ -40,6 +58,15 @@
         "dependencies": {
           "RimGovernor.Brain.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.simulation": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Bridge": "[1.0.0, )",
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )"
         }
       },
       "rimgovernor.brain.telemetry": {

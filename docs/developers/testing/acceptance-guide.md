@@ -6,6 +6,12 @@ The runner is `go/internal/nativeaccept/cmd/acceptance`; cases live in
 `go/internal/nativeaccept/cases/<area>`. Run commands from `go/`, or build
 the runner and use `acceptance` below. `acceptance <subcommand> -h` lists flags.
 
+The C# port of the harness (#3087) is `RimGovernor.cmd acceptance <subcommand>`: the harness core, registry, setup,
+doctor, postmortem, run, suite and the other subcommands live in `brain/src/RimGovernor.Brain.Acceptance`, and cases
+register from `brain/src/RimGovernor.Brain.Acceptance.Cases` (cases arrive with #3090 and #3093, so its registry is
+empty until then and the Go runner stays authoritative until #3102). The C# harness drives the game over the mod's
+local HTTP channel; there is no `serve` child and no `games_stop`, a stop kills the recorded process tree.
+
 ## Run and diagnose
 
 ```text
