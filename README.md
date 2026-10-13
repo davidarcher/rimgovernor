@@ -20,10 +20,10 @@ The controller and launcher are Go; the game host and native bridge are C#.
 Start with the [architecture](docs/developers/architecture/overview.md) and
 [source map](docs/developers/source-map.md).
 
-From `go/`, the development check needs no game installation:
+From the repository root, the development check needs no game installation:
 
 ```powershell
-go run ./cmd/test > ../test.out 2>&1
+.\RimGovernor.cmd test > test.out 2>&1
 ```
 
 See the [workflow](docs/developers/development-process.md) for landing changes

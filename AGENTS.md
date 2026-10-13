@@ -10,17 +10,17 @@
 
 1. Use a task branch in your own worktree. At session start, fetch `origin main`
    and merge `origin/main` once; local `main` may be behind.
-2. Make one coherent milestone. From `go/`, run
-   `go run ./cmd/test > ../test.out 2>&1` and wait for its final PASS/FAIL.
+2. Make one coherent milestone. From the worktree root, run
+   `RimGovernor.cmd test > test.out 2>&1` and wait for its final PASS/FAIL.
    Do not pipe it, rerun it to filter output, or follow it with `go test ./...`.
    Use `-full` only at an epic's end or for changed code covered by skipped tests.
    No native acceptance run is required before landing; the nightly supplies
    that evidence. C#/protobuf changes also require `task build` and `task test`.
 3. Commit the milestone with checks and anything left unverified in the body.
    Make its subject the branch tip: the lane uses it for the squash title.
-4. From `go/`, run `go run ./cmd/land` once, then fetch `origin main` and
+4. From the worktree root, run `RimGovernor.cmd land` once, then fetch `origin main` and
    `git push origin main`. The lane locks, updates main, merges, squash-lands
-   and resets the branch; it does not push. Do not combine `cmd/test` with
+   and resets the branch; it does not push. Do not combine `test` with
    `land -test`. A rejected push requires fetch, re-land and push, without
    retesting. Resolve lane-reported conflicts, then build; vet touched Go
    packages when Go files conflicted. Main moving is not a reason to rerun tests.
@@ -93,7 +93,7 @@ edit the main checkout. Details: [landing](docs/developers/development-process.m
   running harness uses.
 - Keep the shared Go cache: no `go clean -cache` or private `GOCACHE`.
 - Keep builds, logs, saves, databases and temporary scripts out of commits.
-  Repository tooling is Go; no Python additions.
+  Repository tooling is Go or C# (`tools/rg`); no Python additions.
 - Use absolute harness paths. Detached Windows processes use
   `Start-Process -WindowStyle Hidden`; do not use sleep/poll shell loops.
   Remote setup and game-free checks are in the [runbook](docs/developers/agent-runbook.md#remote-agents).
@@ -108,7 +108,7 @@ Track out-of-scope bugs, deferred work and decisions in GitHub issues, one item
 per issue. Check for an existing match first. Include concrete evidence and a
 completion condition; use `priority:P0`/`P1`/`P2` or an applicable area label.
 Do not file issues merely for unverified coverage. Read issues from `go/` with
-`go run ./cmd/issue -last <n> <issue>` (flags first); remote agents use GitHub
+`RimGovernor.cmd issue -last <n> <issue>` (flags first); remote agents use GitHub
 MCP when the CLI is unavailable. Put ongoing issue status in comments.
 
 Landing reports state the result, verification, rules 7–9 review and

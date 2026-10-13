@@ -30,6 +30,7 @@ includes:
   native: { taskfile: integrations/rimgovernor-native, dir: integrations/rimgovernor-native }
   probes: { taskfile: contracts/tests, dir: contracts/tests }
   brain: { taskfile: brain, dir: brain }
+  rg: { taskfile: tools/rg, dir: tools/rg }
 
 tasks:
   build:
@@ -43,6 +44,7 @@ tasks:
       - task: native:build
       - task: probes:build
       - task: brain:build
+      - task: rg:build
 
   test:
     desc: Tests for every project, run concurrently; the Go suite last, alone
@@ -55,5 +57,6 @@ tasks:
       - native:test
       - probes:test
       - brain:test
+      - rg:test
     cmds:
       - task: go:test

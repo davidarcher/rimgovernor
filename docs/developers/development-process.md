@@ -18,10 +18,10 @@ the pawn finished the work or the owning Concern is satisfied.
 
 ## Verify
 
-From `go/`:
+From the worktree root:
 
 ```powershell
-go run ./cmd/test > ../test.out 2>&1
+.\RimGovernor.cmd test > test.out 2>&1
 ```
 
 Wait for the final `test: PASS` or `test: FAIL`. The command formats changed Go
@@ -37,10 +37,10 @@ Native acceptance is a nightly signal, not a pre-landing gate.
 ## Landing
 
 Commit each coherent milestone, with the final subject on the branch tip.
-From `go/` in the branch worktree:
+From the branch worktree's root:
 
 ```powershell
-go run ./cmd/land
+.\RimGovernor.cmd land
 git fetch origin main
 git push origin main
 ```
@@ -51,7 +51,7 @@ It does not push. It closes the issue named by an `issue-<n>-...` branch or
 `-issue <n>`; `-no-close` suppresses that close.
 
 - Run the lane once per ready milestone. `land -test` is an alternative to
-  `cmd/test`, not an additional check.
+  `test`, not an additional check.
 - On a rejected push, fetch, re-land and push without retesting.
 - Resolve a reported merge conflict in the task branch. Run `go build ./...`;
   also vet touched packages if Go files conflicted. For generated protobuf

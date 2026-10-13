@@ -5,7 +5,7 @@
 
 ## Testing budget and evidence reuse
 
-Run `go run ./cmd/test > ../test.out 2>&1` from `go/` once per milestone.
+Run `RimGovernor.cmd test > test.out 2>&1` from the worktree root once per milestone.
 It formats changed Go files, runs vet/staticcheck and `go test -short ./...`,
 and builds affected probes. The Go cache reuses unchanged package results.
 Wait for the final PASS/FAIL; do not pipe it or follow it with a full Go suite.

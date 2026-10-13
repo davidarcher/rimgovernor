@@ -1,0 +1,20 @@
+# Repo tool host (#3086): the C# console tool behind RimGovernor.cmd (land, test, issue, affected).
+# Needs only the .NET SDK 10. RimGovernor.cmd publishes it ReadyToRun into .rimgovernor/tools/;
+# this build is the static gate (nullable, warnings as errors).
+version: '3'
+
+tasks:
+  build:
+    desc: Tool host with nullable and warnings as errors
+    sources:
+      - '**/*.cs'
+      - '*.csproj'
+      - exclude: 'bin/**'
+      - exclude: 'obj/**'
+    cmds:
+      - dotnet build rg.csproj --configuration Release --nologo -p:TreatWarningsAsErrors=true
+
+  test:
+    desc: Smoke test that the built tool starts and lists its tools (no unit tests; production code only)
+    cmds:
+      - dotnet bin/Release/rg.dll --help
