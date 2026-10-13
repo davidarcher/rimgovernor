@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Brain.Domain</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.Domain</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Go's Known(v) / Unknown[T]() read the same in C#: Known(v), Unknown<T>(). -->
+    <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
+  </ItemGroup>
+</Project>

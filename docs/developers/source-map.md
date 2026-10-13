@@ -21,6 +21,7 @@
 | [go/internal/archgate](../../go/internal/archgate) | Architecture gates and shrink-only baselines |
 | [integrations/rimgovernor-native/src/Bridge](../../integrations/rimgovernor-native/src/Bridge) | Colony observations, operations, supervision and rendering |
 | [integrations/rimgovernor-host/src](../../integrations/rimgovernor-host/src) | GABP server, tool discovery, lifecycle tools and main-thread dispatch |
+| [brain](../../brain) | C# solution the Go packages are being ported into ([conventions](architecture/go-to-csharp-port-conventions.md)); `RimGovernor.Brain.Domain` ports `go/internal/domain` |
 | [contracts](../../contracts) | Wire schemas, generated types and protocol probes |
 | [scripts/fixtures](../../scripts/fixtures) | Native test fixture implementations |
 

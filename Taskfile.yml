@@ -29,6 +29,7 @@ includes:
   defmirror: { taskfile: tools/defmirror, dir: tools/defmirror }
   native: { taskfile: integrations/rimgovernor-native, dir: integrations/rimgovernor-native }
   probes: { taskfile: contracts/tests, dir: contracts/tests }
+  brain: { taskfile: brain, dir: brain }
 
 tasks:
   build:
@@ -41,6 +42,7 @@ tasks:
       - task: defmirror:build
       - task: native:build
       - task: probes:build
+      - task: brain:build
 
   test:
     desc: Tests for every project, run concurrently; the Go suite last, alone
@@ -52,5 +54,6 @@ tasks:
       - protobuf:test
       - native:test
       - probes:test
+      - brain:test
     cmds:
       - task: go:test

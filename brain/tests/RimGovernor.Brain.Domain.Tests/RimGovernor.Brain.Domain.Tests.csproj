@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Bug-driven tests only: the port is not gated on porting Go tests (epic #3043). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>RimGovernor.Brain.Domain.Tests</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.Domain.Tests</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
+  </ItemGroup>
+</Project>

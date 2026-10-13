@@ -1,0 +1,25 @@
+# C# brain solution (epic #3043): Go packages ported by hand into in-process libraries.
+# Conventions: docs/developers/architecture/go-to-csharp-port-conventions.md.
+# Needs only the .NET SDK 10; the projects reference game assemblies through RimWorldDir
+# once a port needs them, and then report `unavailable` the way the native build does.
+version: '3'
+
+tasks:
+  build:
+    desc: Brain solution with nullable and warnings as errors, restored in locked mode
+    sources:
+      - '**/*.cs'
+      - '**/*.csproj'
+      - '**/*.props'
+      - '**/*.editorconfig'
+      - '**/packages.lock.json'
+      - 'RimGovernor.Brain.sln'
+      - exclude: '**/bin/**'
+      - exclude: '**/obj/**'
+    cmds:
+      - dotnet build RimGovernor.Brain.sln --configuration Release --nologo -p:RestoreLockedMode=true -p:TreatWarningsAsErrors=true
+
+  test:
+    desc: Brain tests (bug-driven only; the suite is empty until a bug needs one)
+    cmds:
+      - dotnet test RimGovernor.Brain.sln --configuration Release --nologo --no-build
