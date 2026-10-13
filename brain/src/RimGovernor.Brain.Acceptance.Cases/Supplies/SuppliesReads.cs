@@ -364,32 +364,16 @@ internal static class SuppliesReads
     }
 
     /// <summary>
-    /// Asserts <paramref name="value"/> is a canonical ProtoJSON int64 quantity string: ASCII decimal digits only, no
-    /// leading zero (except the literal "0"), no sign, and within int64 range. A missing quantity (null, a bare number
-    /// or a malformed string) is never read as zero.
+    /// Asserts <paramref name="value"/> is a JSON integer quantity: a non-negative whole number within int64 range. A
+    /// missing quantity (null, a string or a fraction) is never read as zero.
     /// </summary>
     private static long Count(JsonNode? value, string what)
     {
-        if (value is not JsonValue json || !json.TryGetValue<string>(out var text))
+        if (value is not JsonValue json || !json.TryGetValue<long>(out var n))
         {
-            throw new AcceptanceException($"{what}: missing/noncanonical ProtoJSON quantity: {value.ToJson()}");
+            throw new AcceptanceException($"{what}: missing/non-integer quantity: {value.ToJson()}");
         }
 
-        if (text.Length == 0 || text.Any(ch => ch is < '0' or > '9'))
-        {
-            throw new AcceptanceException($"{what}: missing/noncanonical ProtoJSON quantity: {value.ToJson()}");
-        }
-
-        if (text != "0" && text[0] == '0')
-        {
-            throw new AcceptanceException($"{what}: noncanonical leading zero: {value.ToJson()}");
-        }
-
-        if (!ulong.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var n))
-        {
-            throw new AcceptanceException($"{what}: quantity is not a valid uint64: {value.ToJson()}");
-        }
-
-        return n > long.MaxValue ? throw new AcceptanceException($"{what}: quantity exceeds int64 max: {value.ToJson()}") : (long)n;
+        return n < 0 ? throw new AcceptanceException($"{what}: negative quantity: {value.ToJson()}") : n;
     }
 }

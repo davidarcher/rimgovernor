@@ -39,7 +39,7 @@ internal static class ZoneInvalidation
         _ = await h.WireAsync(
             "invalidation-prime",
             "clock_read_events",
-            new JsonObject { ["identity"] = identity.DeepClone(), ["afterCursor"] = "0", ["limit"] = 1 },
+            new JsonObject { ["identity"] = identity.DeepClone(), ["afterCursor"] = 0, ["limit"] = 1 },
             cancellationToken).ConfigureAwait(false);
         var statusReply = await h.WireAsync(
             "invalidation-cursor",
@@ -65,7 +65,7 @@ internal static class ZoneInvalidation
                     {
                         ["controllerSessionId"] = SessionOwner,
                         ["actionId"] = "zone-invalidation-start",
-                        ["attemptId"] = "1",
+                        ["attemptId"] = 1,
                     },
                 },
                 ["speed"] = "SPEED_NORMAL",
@@ -99,7 +99,7 @@ internal static class ZoneInvalidation
                 new JsonObject
                 {
                     ["identity"] = identity.DeepClone(),
-                    ["afterCursor"] = cursor.ToString(CultureInfo.InvariantCulture),
+                    ["afterCursor"] = cursor,
                     ["limit"] = 128,
                 },
                 cancellationToken).ConfigureAwait(false);

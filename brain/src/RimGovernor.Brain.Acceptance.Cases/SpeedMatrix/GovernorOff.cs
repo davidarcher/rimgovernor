@@ -156,21 +156,7 @@ internal sealed partial class SpeedmatrixRun
     {
         var envelope = await h.CallAsync(label, "rimgovernor/lifecycle_read_tick", new JsonObject { ["request"] = "{}" }, cancellationToken).ConfigureAwait(false);
         _ = account.Reply(envelope);
-        if (envelope["payload"] is not JsonValue value || !value.TryGetValue<string>(out var payload))
-        {
-            throw new AcceptanceException("lifecycle_read_tick: reply did not preserve the ProtoJSON string envelope");
-        }
-
-        JsonObject message;
-        try
-        {
-            message = JsonNode.Parse(payload) as JsonObject ?? throw new AcceptanceException("lifecycle_read_tick: invalid ProtoJSON reply: not an object");
-        }
-        catch (System.Text.Json.JsonException e)
-        {
-            throw new AcceptanceException("lifecycle_read_tick: invalid ProtoJSON reply: " + e.Message, e);
-        }
-
+        var (message, _) = Harness.DecodeEnvelope("lifecycle_read_tick", envelope);
         var (_, loaded) = Harness.Outcome(message, "loaded");
         return (ulong)loaded["context"].AsMap()?["tick"].AsNumber()!;
     }

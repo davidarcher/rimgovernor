@@ -32,18 +32,11 @@ public static class ScenarioProjection
     /// </summary>
     public static string NamedStopReason(string reason) => reason.Length == 0 ? "an unreported reason" : reason;
 
-    /// <summary>Decodes a ProtoJSON integer (number, uint64 or decimal string) as a non-negative integer.</summary>
+    /// <summary>Decodes a JSON number as a non-negative integer.</summary>
     public static ulong ScenarioInteger(JsonNode? value)
     {
         if (value is JsonValue json)
         {
-            if (json.TryGetValue<string>(out var text))
-            {
-                return ulong.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed)
-                    ? parsed
-                    : throw new AcceptanceException($"expected an integer string, found \"{text}\"");
-            }
-
             if (json.TryGetValue<double>(out var number) && number < 0)
             {
                 throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"expected a non-negative integer, found {number}"));

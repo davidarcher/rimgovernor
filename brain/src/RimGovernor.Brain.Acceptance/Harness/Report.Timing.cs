@@ -183,7 +183,7 @@ public static class TickStats
     }
 
     /// <summary>
-    /// The game tick a decoded reply carries, when it does: any <c>rimgovernor/*</c> ProtoJSON reply whose payload is a
+    /// The game tick a decoded reply carries, when it does: any <c>rimgovernor/*</c> wire reply whose payload is a
     /// lifecycle <c>loaded</c> context (an identity read, a load, an authority acquisition) or an <c>observed</c>
     /// snapshot context (the typed colony facts).
     /// </summary>
@@ -202,7 +202,7 @@ public static class TickStats
 
         try
         {
-            return WireTick(JsonNode.Parse(text) as JsonObject);
+            return WireTick(WireCodec.TryDecodeReply(tool, text));
         }
         catch (System.Text.Json.JsonException)
         {

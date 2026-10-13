@@ -341,7 +341,7 @@ public static class CellReads
         Observations.CellsSnapshot snapshot;
         try
         {
-            snapshot = WireJson.Deserialize<Observations.CellsSnapshot>(observed.ToJsonString());
+            snapshot = WireCodec.ToRecord<Observations.CellsSnapshot>(observed);
         }
         catch (JsonException e)
         {

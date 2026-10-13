@@ -409,11 +409,10 @@ public static class HazardCases
     private static bool HasFamily(JsonObject row, string family) =>
         row["families"].AsSlice().Any(raw => raw.AsString() == "FACT_FAMILY_" + family);
 
-    // Reads a JSON integer the wire carries as a number or a string.
+    // Reads a JSON integer the wire carries as a number.
     private static long? Int64Of(JsonNode? value) => value switch
     {
         null => null,
-        JsonValue v when v.TryGetValue<string>(out var text) => long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : null,
         _ => (long)value.AsNumber(),
     };
 }

@@ -60,8 +60,8 @@ internal static class AuthorityWarm
                     ["authority"] = new JsonObject
                     {
                         ["identity"] = identity.DeepClone(),
-                        ["expectedGeneration"] = generation.ToString(CultureInfo.InvariantCulture),
-                        ["attempt"] = new JsonObject { ["controllerSessionId"] = WarmController, ["actionId"] = "clock-start", ["attemptId"] = "1" },
+                        ["expectedGeneration"] = generation,
+                        ["attempt"] = new JsonObject { ["controllerSessionId"] = WarmController, ["actionId"] = "clock-start", ["attemptId"] = 1 },
                     },
                     ["speed"] = "SPEED_SUPERFAST",
                     ["leaseMs"] = 30000,
@@ -156,7 +156,7 @@ internal static class AuthorityWarm
             var eventsReply = await h.WireAsync(
                 "p2-clock-events",
                 "clock_read_events",
-                new JsonObject { ["identity"] = identity.DeepClone(), ["afterCursor"] = "0", ["limit"] = 50 },
+                new JsonObject { ["identity"] = identity.DeepClone(), ["afterCursor"] = 0, ["limit"] = 50 },
                 cancellationToken).ConfigureAwait(false);
             JsonObject page;
             try

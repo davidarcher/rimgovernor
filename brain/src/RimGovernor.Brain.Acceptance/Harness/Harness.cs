@@ -40,8 +40,9 @@ public sealed partial class Harness : IAsyncDisposable
         CallCoreAsync(label, tool, arguments ?? [], retry: true, cancellationToken);
 
     /// <summary>
-    /// Calls a <c>rimgovernor/*</c> ProtoJSON tool: wraps <paramref name="request"/> as <c>{"request": json}</c> and
-    /// unwraps the ProtoJSON string payload from the reply's <c>payload</c> field.
+    /// Calls a <c>rimgovernor/*</c> wire method: <see cref="WireCodec"/> turns <paramref name="request"/> (the cases' flat
+    /// oneof view) into the host's Contracts JSON, wraps it as <c>{"request": json}</c>, and turns the reply's string
+    /// <c>payload</c> back into the flat view.
     /// </summary>
     public async Task<JsonObject> WireAsync(string label, string method, JsonNode? request, CancellationToken cancellationToken)
     {
@@ -52,46 +53,45 @@ public sealed partial class Harness : IAsyncDisposable
     /// <summary>Wire returning the reply payload's ProtoJSON byte count beside the decoded message.</summary>
     public async Task<(JsonObject Message, int Bytes)> WireBytesAsync(string label, string method, JsonNode? request, CancellationToken cancellationToken)
     {
-        var encoded = request is null ? "null" : request.ToJsonString();
+        var encoded = WireCodec.EncodeRequest(method, request);
         var reply = await CallAsync(label, "rimgovernor/" + method, new JsonObject { ["request"] = encoded }, cancellationToken).ConfigureAwait(false);
-        if (reply["payload"] is not JsonValue value || !value.TryGetValue<string>(out var payload))
+        var decoded = DecodeEnvelope(method, reply);
+
+        // The host's refusal of a request it cannot read names no field; add the Contracts deserializer's own reason.
+        if (decoded.Message["failure"] is JsonObject failure
+            && failure["detail"].AsString().StartsWith("request is not valid JSON", StringComparison.Ordinal)
+            && WireCodec.Diagnose(method, encoded) is { } why)
         {
-            throw new AcceptanceException($"{method}: reply did not preserve the ProtoJSON string envelope");
+            failure["harnessDiagnosis"] = why;
+        }
+
+        return decoded;
+    }
+
+    /// <summary>
+    /// Decodes a wire call's reply envelope (<c>{"payload": "&lt;JSON&gt;"}</c>) into the cases' flat view, with the
+    /// payload's byte count. For a caller that made the raw call itself to keep the envelope's timing block.
+    /// </summary>
+    public static (JsonObject Message, int Bytes) DecodeEnvelope(string method, JsonObject envelope)
+    {
+        if (envelope["payload"] is not JsonValue value || !value.TryGetValue<string>(out var payload))
+        {
+            throw new AcceptanceException($"{method}: reply did not preserve the JSON string envelope");
         }
 
         try
         {
-            if (JsonNode.Parse(payload) is not JsonObject message)
-            {
-                throw new AcceptanceException($"{method}: invalid ProtoJSON reply: not an object");
-            }
-
-            return (UnwrapOutcome(message), System.Text.Encoding.UTF8.GetByteCount(payload));
+            return (WireCodec.DecodeReply(method, payload), System.Text.Encoding.UTF8.GetByteCount(payload));
         }
         catch (JsonException e)
         {
-            throw new AcceptanceException($"{method}: invalid ProtoJSON reply: {e.Message}", e);
+            throw new AcceptanceException($"{method}: invalid reply: {e.Message}", e);
         }
     }
 
     /// <summary>Adapts <see cref="WireAsync"/> to the <see cref="WireFunc"/> the authority helpers and the scenario clock take.</summary>
     public WireFunc WireFunc() =>
         (label, method, request, cancellationToken) => WireAsync(label, method, request, cancellationToken);
-
-    /// <summary>
-    /// The in-process brain's Contracts records encode a reply's oneof as <c>{"outcome":{"type":"pending","value":{...}}}</c>;
-    /// the cases and <see cref="Outcome"/> read the single-field form <c>{"pending":{...}}</c>. A reply of the first shape
-    /// is rewritten to the second; any other reply passes through.
-    /// </summary>
-    internal static JsonObject UnwrapOutcome(JsonObject message)
-    {
-        if (message.Count != 1 || message["outcome"] is not JsonObject outcome || outcome["type"] is not JsonValue type || !type.TryGetValue<string>(out var name))
-        {
-            return message;
-        }
-
-        return new JsonObject { [name] = outcome["value"] is JsonNode value ? value.DeepClone() : new JsonObject() };
-    }
 
     /// <summary>
     /// Asserts the wire reply is exactly the single-field oneof named by one of <paramref name="cases"/> and returns

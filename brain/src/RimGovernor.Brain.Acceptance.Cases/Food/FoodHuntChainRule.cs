@@ -101,7 +101,7 @@ internal static class FoodHuntChainRule
                 {
                     ["identity"] = identity.DeepClone(),
                     ["rules"] = new JsonArray([.. rules.Select(r => (JsonNode?)r)]),
-                    ["expiresAtTick"] = ((long)(start["tick"].AsNumber() + lease)).ToString(CultureInfo.InvariantCulture),
+                    ["expiresAtTick"] = (long)(start["tick"].AsNumber() + lease),
                 },
                 cancellationToken).ConfigureAwait(false);
             return Harness.Outcome(reply, "attached").Value;

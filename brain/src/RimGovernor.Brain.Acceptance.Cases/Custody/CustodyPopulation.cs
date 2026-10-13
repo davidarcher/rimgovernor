@@ -208,7 +208,7 @@ internal static class CustodyPopulation
         }
 
         // The routine release path's facts: a current prisoner carries native's recruit resistance and the
-        // TimeAsPrisoner record, which ProtoJSON renders as a decimal string for int64.
+        // TimeAsPrisoner record.
         if (!prisonerBefore.ContainsKey("resistance"))
         {
             throw new AcceptanceException($"prisoner-before: expected resistance on the captured prisoner: {prisonerBefore.ToJson()}");

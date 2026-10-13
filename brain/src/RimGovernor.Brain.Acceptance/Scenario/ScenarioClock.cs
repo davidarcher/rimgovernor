@@ -137,7 +137,7 @@ public sealed class ScenarioClock
             {
                 ["controllerSessionId"] = Owner,
                 ["actionId"] = "typed-clock-" + _counter.ToString(CultureInfo.InvariantCulture),
-                ["attemptId"] = "1",
+                ["attemptId"] = 1,
             },
         };
     }
@@ -385,7 +385,7 @@ public sealed class ScenarioClock
                     new JsonObject
                     {
                         ["identity"] = Identity.DeepClone(),
-                        ["afterCursor"] = after.ToString(CultureInfo.InvariantCulture),
+                        ["afterCursor"] = after,
                         ["limit"] = arguments?["limit"]?.DeepClone(),
                     },
                     cancellationToken).ConfigureAwait(false);
@@ -417,7 +417,7 @@ public sealed class ScenarioClock
                         ["owner"] = new JsonObject
                         {
                             ["controllerSessionId"] = owner,
-                            ["epoch"] = (arguments?["epoch"].AsUInt64() ?? 0).ToString(CultureInfo.InvariantCulture),
+                            ["epoch"] = arguments?["epoch"].AsUInt64() ?? 0,
                         },
                     },
                     cancellationToken).ConfigureAwait(false);

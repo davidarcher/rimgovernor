@@ -53,7 +53,7 @@ public static class Authority
             ["setMode"] = new JsonObject
             {
                 ["identity"] = identity.DeepClone(),
-                ["expectedGeneration"] = expected.ToString(CultureInfo.InvariantCulture),
+                ["expectedGeneration"] = expected,
                 ["mode"] = "MODE_AUTO",
             },
         };

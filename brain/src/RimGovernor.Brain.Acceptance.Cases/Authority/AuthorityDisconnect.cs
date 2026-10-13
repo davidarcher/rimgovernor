@@ -123,7 +123,7 @@ internal static class AuthorityDisconnect
                 ["setMode"] = new JsonObject
                 {
                     ["identity"] = identity.DeepClone(),
-                    ["expectedGeneration"] = granted.ToString(CultureInfo.InvariantCulture),
+                    ["expectedGeneration"] = granted,
                     ["mode"] = "MODE_AUTO",
                 },
             },
@@ -150,8 +150,8 @@ internal static class AuthorityDisconnect
         ["authority"] = new JsonObject
         {
             ["identity"] = identity.DeepClone(),
-            ["expectedGeneration"] = generation.ToString(CultureInfo.InvariantCulture),
-            ["attempt"] = new JsonObject { ["controllerSessionId"] = Controller, ["actionId"] = actionId, ["attemptId"] = "1" },
+            ["expectedGeneration"] = generation,
+            ["attempt"] = new JsonObject { ["controllerSessionId"] = Controller, ["actionId"] = actionId, ["attemptId"] = 1 },
         },
         ["speed"] = "SPEED_NORMAL",
         ["leaseMs"] = 1000,

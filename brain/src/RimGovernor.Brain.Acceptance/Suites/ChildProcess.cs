@@ -51,6 +51,9 @@ internal static class ChildProcess
     /// <summary>The outcome of a child that started: its exit code.</summary>
     internal readonly record struct Exit(int Code);
 
+    /// <summary>How long output already written by an exited child is given to reach the log before the wait for pipe EOF ends.</summary>
+    private static readonly TimeSpan PumpDrainGrace = TimeSpan.FromSeconds(3);
+
     /// <summary>
     /// Runs <paramref name="executable"/> with <paramref name="arguments"/>, <paramref name="extraEnvironment"/> added to
     /// this process's environment, stdout and stderr written to <paramref name="logPath"/>. Cancelling the token kills the
@@ -113,20 +116,32 @@ internal static class ChildProcess
                 throw;
             }
 
-            await Task.WhenAll(pumps).ConfigureAwait(false);
+            // The child's exit is the case's end. A game the child kept running (Game.KeepGameEnv) is created with handle
+            // inheritance on (GameProcess.CreateDetached), so it holds a copy of the child's stdout/stderr pipes and the pumps
+            // see no EOF until the game dies: a case that failed in 22s held its worker ~10 minutes (#3123). Drain what the
+            // child wrote, then stop waiting for EOF.
+            _ = await Task.WhenAny(Task.WhenAll(pumps), Task.Delay(PumpDrainGrace, CancellationToken.None)).ConfigureAwait(false);
             return new Exit(process.ExitCode);
         }
     }
 
     private static async Task PumpAsync(StreamReader source, StreamWriter log, Lock gate)
     {
-        string? line;
-        while ((line = await source.ReadLineAsync().ConfigureAwait(false)) is not null)
+        try
         {
-            lock (gate)
+            string? line;
+            while ((line = await source.ReadLineAsync().ConfigureAwait(false)) is not null)
             {
-                log.WriteLine(line);
+                lock (gate)
+                {
+                    log.WriteLine(line);
+                }
             }
+        }
+        catch (Exception e) when (e is ObjectDisposedException or IOException)
+        {
+            // The run ended and closed the log (or the pipe) while a surviving grandchild still held the pipe.
+            return;
         }
     }
 

@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.Json.Serialization.Metadata;
 using RimGovernor.Contracts.Wire;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -79,24 +78,24 @@ internal static class SmokeIdentity
         var scope = new JsonObject { ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() } };
         var clearance = await h.WireAsync("clearance", "observations_get_clearance_targets", scope, cancellationToken).ConfigureAwait(false);
         var (_, observed) = Harness.Outcome(clearance, "observed");
-        _ = Decode("clearance targets", WireJsonContext.Default.ObservationsClearanceTargetsSnapshot, observed, identity);
+        _ = Decode<RimGovernor.Contracts.Wire.Observations.ClearanceTargetsSnapshot>("clearance targets", observed, identity);
         s.Report["clearance"] = observed.DeepClone();
 
         var shrines = await h.WireAsync("shrines", "observations_get_ancient_shrines", scope.DeepClone(), cancellationToken).ConfigureAwait(false);
         (_, observed) = Harness.Outcome(shrines, "observed");
-        _ = Decode("ancient shrines", WireJsonContext.Default.ObservationsAncientShrinesSnapshot, observed, identity);
+        _ = Decode<RimGovernor.Contracts.Wire.Observations.AncientShrinesSnapshot>("ancient shrines", observed, identity);
         s.Report["shrines"] = observed.DeepClone();
     }
 
     // Go decoded the section into its protobuf type (strict about unknown fields) and ran the bridge validator, whose
     // first check is that the read context is the expected world; the typed decode and that identity check are what the
     // C# harness can hold the reply to.
-    private static T Decode<T>(string what, JsonTypeInfo<T> info, JsonObject observed, JsonObject identity)
+    private static T Decode<T>(string what, JsonObject observed, JsonObject identity)
     {
         T snapshot;
         try
         {
-            snapshot = JsonSerializer.Deserialize(observed.ToJsonString(), info)!;
+            snapshot = WireCodec.ToRecord<T>(observed);
         }
         catch (JsonException e)
         {

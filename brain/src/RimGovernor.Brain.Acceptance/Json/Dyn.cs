@@ -41,8 +41,7 @@ public static class Dyn
     }
 
     /// <summary>
-    /// The number as a double. A numeric string is read as a number (ProtoJSON carries 64-bit counters as
-    /// strings); anything else is -1, as in Go.
+    /// The number as a double; anything that is not a JSON number (a numeric string included) is -1, as in Go.
     /// </summary>
     public static double AsNumber(this JsonNode? value)
     {
@@ -61,15 +60,10 @@ public static class Dyn
             return l;
         }
 
-        if (json.TryGetValue<string>(out var s) && double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
-        {
-            return parsed;
-        }
-
         return -1;
     }
 
-    /// <summary>A non-negative integer as JSON or ProtoJSON (a string) carries it.</summary>
+    /// <summary>A non-negative JSON integer; null for anything else (a numeric string included).</summary>
     public static ulong? AsUInt64(this JsonNode? value)
     {
         if (value is not JsonValue json)
@@ -90,11 +84,6 @@ public static class Dyn
         if (json.TryGetValue<double>(out var d))
         {
             return d >= 0 && d == Math.Floor(d) && d < 1.8446744073709552E19 ? (ulong)d : null;
-        }
-
-        if (json.TryGetValue<string>(out var s) && ulong.TryParse(s, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed))
-        {
-            return parsed;
         }
 
         return null;
