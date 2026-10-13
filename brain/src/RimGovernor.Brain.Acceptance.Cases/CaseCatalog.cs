@@ -26,6 +26,7 @@ public static class CaseCatalog
         SuppliesCases.Register(registry);
         TickbudgetCases.Register(registry);
         WallCases.Register(registry);
+        WasteCases.Register(registry);
         ZoneCases.Register(registry);
     }
 }
