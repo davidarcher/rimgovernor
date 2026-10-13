@@ -140,6 +140,28 @@ an OTLP file receiver. The cost is repeating resource and scope on every line.
 An attribute string is capped at 64 KiB by the SDK limits (the recorder's old
 payload cap).
 
+## C# writer and readers (`RimGovernor.Brain.Telemetry/Otlp`, #3083)
+
+The in-process brain writes the same rings through `OtlpFileWriter`, the production `ITelemetrySink`. File
+names, ring sizes (traces 16 MiB x 8, logs 32 MiB x 16, metrics 8 MiB x 4), line format, the
+`rimgovernor.telemetry.dropped` counter and the durable-batch fsync are as above, so the Go readers, the
+provisioned Grafana dashboards and `tools/observability` read its files unchanged.
+
+- `OtlpFileWriter.Start(OtlpFileConfig)` opens the rings (throws `OtlpException` for an unusable directory; the
+  caller then runs without telemetry), listens to every `ActivitySource` and `Meter` under
+  `github.com/davidarcher/RimGovernor/` and receives log rows as the `TelemetryEmitter` sink. `ForceFlushAsync`,
+  `ShutdownAsync` (final metric collection, fsync, close) and `Drops()` mirror the Go API. Nothing starts it yet:
+  the brain host (#3082) owns the call and supplies the directory and run id.
+- Each signal has a bounded queue (`Channel` plus a counter) and one writer task; `Offer` never blocks. Metrics are
+  pulled every `MetricInterval` (10 s) from a `MeterListener` into cumulative sums, last-value gauges and
+  explicit-bucket histograms (bounds from the instrument's advice, the SDK default set otherwise).
+- Not carried over: the collector exporter (gRPC / http-protobuf to `--otlp-endpoint`), `OTEL_RESOURCE_ATTRIBUTES`
+  and the per-batch export timeout (a file write has none). Point a collector's file receiver at the rings instead.
+- Readers: `OtlpRing` (`Segments`, `Scan`, `ReadLines`), `OtlpReader` (`ReadLogs`, `ReadSpans`, `ReadMetrics`,
+  `DecodeLog`) and `OtlpTimeline.Read(path)`, the C# `ReadOTLPTimeline` (rows with `Kind`, `Sequence`, `Run`,
+  `WallTime`, `Context`, `Payload`; numbers are `double`). All skip torn or invalid lines and open segments shared, so
+  they follow a ring a live writer owns.
+
 ## Collector exporter
 
 Enabled when an endpoint is configured; absent that, there is no collector
