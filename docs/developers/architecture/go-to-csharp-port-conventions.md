@@ -188,8 +188,35 @@ as errors). `task test` runs `brain:test`; it is empty until a bug needs a test.
 (`contracts/generated/protobuf/csharp`) so ports that still touch wire types can build;
 its generated-code relaxations (nullable annotations, no analyzers, warnings not errors)
 are scoped to that project. `brain:build` first generates the gitignored `Defs.cs`. It
-goes away when protobuf collapses to plain records (#3100). `RimGovernor.Brain.Policy`
-(Domain + Wire) hosts the policy ports.
+goes away when protobuf collapses to plain records (#3100; its replacement,
+`RimGovernor.Brain.Contracts`, is described below, and consumers move over increment by increment).
+`RimGovernor.Brain.Policy` (Domain + Wire) hosts the policy ports.
+
+## Wire records (`RimGovernor.Brain.Contracts`, #3100)
+
+The wire contracts are plain C# records in `RimGovernor.Brain.Contracts` (namespace
+`RimGovernor.Contracts.Wire.<Package>`, one file per former `.proto`), referenced by the brain and the native
+mod. They were generated once from `contracts/proto` and are now owned by hand; the schemas in
+`contracts/proto` are no longer the source of truth for C#. Shape rules:
+
+- `sealed record` per message with `init` properties; a message-typed field is `T?`, a field with presence
+  (`optional`) is `T?`, a field without presence is `T` with its zero value, a string defaults to `""`.
+- A list is `EquatableArray<T>` (collection expressions build it); a map is `IReadOnlyDictionary<K,V>`; bytes are `byte[]`.
+- An enum keeps the proto member names (prefix stripped, `Unspecified = 0`) and `[WireName("PROTO_NAME")]`; JSON
+  uses that name as a string.
+- A `oneof` is an abstract record `<Message><Oneof>` with one `<Case>Case(T Value)` record per arm, discriminated by
+  `type` through `[JsonPolymorphic]`, and an implicit conversion from each message-typed payload. The message holds
+  it in a nullable property named after the oneof (`reply.Outcome is ...Outcome.FailureCase { Value: var failure }`).
+- JSON is source-generated `System.Text.Json` (`WireJsonContext`, entry point `WireJson`): camelCase property names
+  (the names ProtoJSON emits), enums as strings, 64-bit integers as numbers, defaults omitted, unknown members
+  refused, `type` accepted anywhere in an object. Changing the casing is the single
+  `PropertyNamingPolicy` in `WireJsonContext`.
+- The def mirror (`defs.proto`) is not a wire contract here: only the six game enums the observations carry
+  (`Defs.cs`) exist; the catalog replies drop `defs`, `thing_defs`, `terrain_defs` and `game_constants` (the brain
+  reads Def data directly). Four type names changed to satisfy analyzers: `Clock.Event` is `ClockEvent`,
+  `Mirror.ThingFlag` is `ThingFlagBit`, `Observations.BillStack` is `BillStackRow`; six properties named like
+  their message got a different name (`Letters.Items`, `Messages.Items`, `Alerts.Items`, `Amount.Value`,
+  `Thing.Entity`, `Trader.Entity`) and keep their JSON name.
 
 ## Stat reads and the game assemblies (A1b, #3056)
 

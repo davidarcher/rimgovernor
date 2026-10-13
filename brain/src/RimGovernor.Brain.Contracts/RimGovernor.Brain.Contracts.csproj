@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The plain-record wire contracts shared by the in-process brain and the native mod (#3100): sealed records,
+       EquatableArray lists, [WireName] enums, source-generated System.Text.Json. Replaces Brain.Wire. -->
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Contracts.Wire</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.Contracts</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
+  </ItemGroup>
+</Project>
