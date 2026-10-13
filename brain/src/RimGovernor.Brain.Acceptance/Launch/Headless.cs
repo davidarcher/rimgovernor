@@ -48,6 +48,16 @@ public static partial class HeadlessProfile
     public const string StateVariable = "RIMGOVERNOR_STATE";
 
     /// <summary>
+    /// The game launch flag that asks the mod to host the brain in-process (<c>InProcLaunch.Flag</c> of Brain.Host, which
+    /// this assembly does not reference). Every harness profile and the launcher carry it: in-process is the only launch
+    /// mode since the cutover (#3085), and the C# harness cannot drive the Go <c>serve</c> child.
+    /// </summary>
+    public const string InProcArg = "-rimgovernor-inproc";
+
+    /// <summary>The variable that turns the host's auto-resume and layout overlay off (<c>InProcEnvironment.Observe</c>).</summary>
+    public const string ObserveVariable = "RIMGOVERNOR_OBSERVE";
+
+    /// <summary>
     /// Makes a harness-launched game quit after 20 minutes without a call (native IdleExit), so a warm game kept at the
     /// main menu that no run comes back to does not linger. Only acceptance launches carry it; the player's config never does.
     /// </summary>
@@ -661,6 +671,7 @@ public static partial class HeadlessProfile
             "720",
             "-rimgovernor-pause-on-load",
             "-rimgovernor-test-acceleration",
+            InProcArg,
             IdleExitArg);
         WriteConfig(Path.Combine(configuration, "config.json"), config);
         return configuration;
@@ -720,6 +731,7 @@ public static partial class HeadlessProfile
             "-Headless",
             "-rimgovernor-pause-on-load",
             "-rimgovernor-test-acceleration",
+            InProcArg,
             IdleExitArg,
         };
         if (graphics)

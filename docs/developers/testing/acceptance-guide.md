@@ -8,9 +8,71 @@ the runner and use `acceptance` below. `acceptance <subcommand> -h` lists flags.
 
 The C# port of the harness (#3087) is `RimGovernor.cmd acceptance <subcommand>`: the harness core, registry, setup,
 doctor, postmortem, run, suite and the other subcommands live in `brain/src/RimGovernor.Brain.Acceptance`, and cases
-register from `brain/src/RimGovernor.Brain.Acceptance.Cases` (cases arrive with #3090 and #3093, so its registry is
-empty until then and the Go runner stays authoritative until #3102). The C# harness drives the game over the mod's
+register from `brain/src/RimGovernor.Brain.Acceptance.Cases`. Since the cutover (#3085) it is the harness the nightly
+and the remote workflows run, against the in-process C# brain. The C# harness drives the game over the mod's
 local HTTP channel; there is no `serve` child and no `games_stop`, a stop kills the recorded process tree.
+Every game it launches (headless, rendered, warm) carries `-rimgovernor-inproc` and `RIMGOVERNOR_OBSERVE=1`: the mod
+hosts the brain, and a case starts the bot through the player API instead of the host's auto-resume. There is no
+opt-out; the Go `serve` is no longer driven by any launcher or workflow (it is deleted by #3102). The launcher's Play
+passes the same flag.
+
+## Cutover checklist: the nightly-tier subset against the in-process bot (#3085)
+
+Nothing blocks landing on a local acceptance run; the nightly supplies the evidence. To run the subset by hand on a
+prepared root (`RimGovernor.cmd acceptance setup` once, then one game at a time):
+
+```text
+RimGovernor.cmd acceptance list -tier smoke
+RimGovernor.cmd acceptance suite -tier smoke   -root <abs root> -output <fresh dir>
+RimGovernor.cmd acceptance suite -tier nightly -root <abs root> -output <fresh dir> -workers 1
+RimGovernor.cmd acceptance run <area>/<case>   -root <abs root> -output <fresh dir>   # one failing case
+RimGovernor.cmd acceptance why <output>/<area>/<case>
+```
+
+The remote workflow's `nightly` tier is the same set (`Tiers.CasesOf("nightly")`, minus rendered cases). Run the smoke
+tier first (`smoke/identity` proves the in-proc launch and fixtures, `light/dark` the first serve-driven case), then
+the nightly tier. The nightly-tier subset is `Tiers.EndToEnd` in `brain/src/RimGovernor.Brain.Acceptance/Cost/Tiers.cs`:
+
+- combatlab/native-hold
+- campaign/foothold, campaign/recovery, clearance/shrine-breach
+- defense/perimeter, food/reserve, food/starving-tribal-recovery, production/ladder
+- shelter/bunks-first, shelter/retirement, shelter/climate-mild, shelter/climate-cold, shelter/climate-hot, shelter/solo-cold
+- startup/labor, solo/sea-ice-stock, solo/sea-ice-rhadamant
+- sustained/colony-stable, sustained/winter, upkeep/campaign, sleeping/suites
+- layout/ring, layout/rich-soil, layout/sea-ice-envelope, layout/storage-successor
+- mood/headroom, mood/ledger, mood/gathering
+- explain/every-concern
+
+Filing failures: one GitHub issue per distinct failure (check for an existing match first), labelled `area:tooling`
+for harness/mod-host faults or the owning area label and `priority:P1`/`P2`, titled with the case name. Include the
+case name, the commit, the `result.json` verdict, the `acceptance why` digest, the game-log slice and whether it
+reproduces alone (`-repeat N`). Say whether the failure is the bot (brain), the in-process host (bootstrap, channel,
+`RIMGOVERNOR_*` environment), or the harness; a case that fails to start or a missing route belongs to the host.
+Epic #3043's remaining failures are fixed forward. A load-sensitive failure that passes alone is recorded, not rerun
+as a suite.
+
+### Deliberate differences from #3117 to confirm
+
+Compile-checked only; each is confirmed by a passing nightly run of the named case, or filed:
+
+- Cases adapted in-process (item 11): ideology/first-ritual, odyssey/lava-field, service/restart, presentation/roster,
+  tools/baselinegen, tools/deepresources, review/colony-week, authority/disconnect (transport-drop phase trimmed),
+  the mood/headroom sample shape, surgery history polling.
+- Reduced assertions (item 18): lifecycle/ideoligion-design (no exact-equality or determinism check until a
+  creation-catalog decoder exists), lifecycle/reuse (no binary, state DB or session token), lifecycle/headless-soak
+  (no schema dump or reconnect probe), lowercase shelter report keys and the describeNear ordering, the upkeep
+  impressiveness constant 50.0, combatlab metrics without baseline summaries. `SimSpec`, `CalibrationInputs`,
+  `SimSweep`, `importFight`, `CalibrationEnv` and `stagedTargets` are not ported (only `combatcalibrate` used
+  them); `combatcalibrate` stays `-show` only until the combat lab fixtures run.
+- A3 adaptations: the catalog readers and their Async entry points take the Harness (the read-only
+  `rimgovernor/acceptance_read_*` tool call needs it); the first layout plan is derived as Go startersite did (no
+  ledger, no stock, no StationFacts catalog rows) and can differ from a running service's plan; the map survey is
+  packed cell arrays (about 2 MB) returned only when asked, with Cold/Hot set (Go left them unset); the pack-reinstall
+  phase adapters were not needed (`IPhaseSession`/`IPhaseService`/`IPhaseStore`/`StagePhase` have no consumer, a
+  deletion candidate).
+- Also unconfirmed from the A2/A3 wiring: `PawnKinds` vanilla defName table against real defs (item 17), defense and
+  upkeep journal readers assuming `<output>/service.sqlite`, perimeter audits counting zero sections, and the
+  harness's `RIMGOVERNOR_OBSERVE=1` default (a case that needs auto-resume sets it off through `ServeSpec.Env`).
 
 ## Run and diagnose
 

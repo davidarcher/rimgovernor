@@ -113,7 +113,8 @@ Decided (user, 2026-10-13):
   incompatible-schema reset affects them all. Launcher Telemetry is intentionally unmapped (not a bug, #3117): the
   host writes OTLP files and has no endpoint to send to, so the saved setting has nothing to drive, and
   `RIMGOVERNOR_PROFILE` stays unset by the harness. `-rimgovernor-test-acceleration` also sets `ClockTestAcceleration`.
-- **Acceptance harness.** The out-of-process harness sets `RIMGOVERNOR_STATE=<Output>/service.sqlite` (plus a case's
+- **Acceptance harness.** The out-of-process harness launches every game with `-rimgovernor-inproc` and
+  `RIMGOVERNOR_OBSERVE=1` (a case starts the bot through the player API; a `ServeSpec.Env` entry can override), and sets `RIMGOVERNOR_STATE=<Output>/service.sqlite` (plus a case's
   serve flags named like environment variables, `ServeSpec.Env`) in the launched game's environment and records the
   launch environment in the save-data folder (`RimGovernorLaunchedEnv.json`). The game reads its environment once, so a
   kept game launched without a case's flags is relaunched (reason `env`); the state path never forces a relaunch, and a

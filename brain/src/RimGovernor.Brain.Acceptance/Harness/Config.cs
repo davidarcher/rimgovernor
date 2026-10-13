@@ -65,7 +65,12 @@ public sealed partial class Config
     /// state database, <c>&lt;Output&gt;/service.sqlite</c>) and the case's serve flags (<c>ServeSpec.Env</c> entries named
     /// like environment variables). A kept process launched without them is replaced (relaunch reason "env").
     /// </summary>
-    public Dictionary<string, string> LaunchEnv { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, string> LaunchEnv { get; set; } = new(StringComparer.Ordinal)
+    {
+        // The brain is hosted in the game (-rimgovernor-inproc), but a case starts it through the player API: the host's
+        // auto-resume would race that start and run the bot in native-only cases. A ServeSpec.Env entry overrides this.
+        [HeadlessProfile.ObserveVariable] = "1",
+    };
 
     /// <summary>The profile directory services launched under this configuration use.</summary>
     public string ServiceProfileDir() => ServiceProfile.Length > 0 ? ServiceProfile : Path.Combine(Output, "service-profile");
