@@ -22,6 +22,31 @@ public static class ServiceJournal
         return System.IO.Path.Combine(config.Output, Checkpoints.CheckpointStoreFile);
     }
 
+    /// <summary>Opens the run's durable journal (Go <c>service.Store(ctx)</c>), retrying while the service is still creating it.</summary>
+    public static Task<Journal> OpenWithRetryAsync(Config config, CancellationToken cancellationToken) =>
+        OpenWithRetryAsync(PathOf(config), cancellationToken);
+
+    /// <summary>The most recently committed plans admitted under a method matching the GLOB pattern (Go <c>PlanHistoryWithMethods(ctx, 256, pattern)</c>).</summary>
+    public static Task<IReadOnlyList<PlanState>> PlanHistoryAsync(Journal journal, string pattern, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(journal);
+        return Task.Run(() => journal.PlanHistoryWithMethods(256, [pattern], cancellationToken), cancellationToken);
+    }
+
+    /// <summary>The persisted review (Go <c>st.LoadRounds</c>), or null while none was persisted yet.</summary>
+    public static async Task<ReviewRecord?> TryRoundsAsync(Journal journal, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(journal);
+        try
+        {
+            return await Task.Run(() => journal.LoadRounds(cancellationToken), cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Runs <paramref name="body"/> under a time limit; running out of time is an <see cref="AcceptanceException"/>, the caller's own cancellation stays a cancellation.</summary>
     public static async Task<T> BoundedAsync<T>(TimeSpan limit, Func<CancellationToken, Task<T>> body, CancellationToken cancellationToken)
     {
@@ -139,10 +164,28 @@ public static class ServiceJournal
     /// progress signature is the review's latches and goal bindings, so a review that keeps revising without moving
     /// either stalls.
     /// </summary>
-    public static async Task<ReviewRecord> WaitReviewAsync(Journal journal, Wait w, Func<ReviewRecord, bool> ready, CancellationToken cancellationToken)
+    public static Task<ReviewRecord> WaitReviewAsync(Journal journal, Wait w, Func<ReviewRecord, bool> ready, CancellationToken cancellationToken) =>
+        WaitReviewAsync(
+            journal,
+            w,
+            ready,
+            review => Wait.Signature(review.Latches.ToString(), string.Join(';', review.Standards.Select(b => b.Concern + "=" + b.Standard))),
+            cancellationToken);
+
+    /// <summary>
+    /// <see cref="WaitReviewAsync(Journal, Wait, Func{ReviewRecord, bool}, CancellationToken)"/> with the caller's own
+    /// progress signature (the wait stalls when it stops changing).
+    /// </summary>
+    public static async Task<ReviewRecord> WaitReviewAsync(
+        Journal journal,
+        Wait w,
+        Func<ReviewRecord, bool> ready,
+        Func<ReviewRecord, string> signature,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(journal);
         ArgumentNullException.ThrowIfNull(ready);
+        ArgumentNullException.ThrowIfNull(signature);
         var review = new ReviewRecord();
         var wait = w.Interval <= TimeSpan.Zero ? w with { Interval = TimeSpan.FromSeconds(1) } : w;
         try
@@ -155,8 +198,7 @@ public static class ServiceJournal
                     return ("", true);
                 }
 
-                var needs = review.Standards.Select(b => b.Concern + "=" + b.Standard).ToArray();
-                return (Wait.Signature(review.Latches.ToString(), string.Join(';', needs)), false);
+                return (signature(review), false);
             }, cancellationToken).ConfigureAwait(false);
         }
         catch (WaitError e)

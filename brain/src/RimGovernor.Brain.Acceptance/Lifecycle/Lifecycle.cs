@@ -204,8 +204,6 @@ public static class StartOps
         return row;
     }
 
-    // A Save start's timeout, mod-compatibility and resumed flags are not on the SaveStart record yet: the defaults
-    // are Go's zero values (90 s, strict mods, apply).
     private static async Task<JsonObject> LoadSaveAsync(SaveStart save, Session session, QuietMode quiet, CancellationToken cancellationToken)
     {
         if (save.Name.Length == 0)
@@ -213,9 +211,9 @@ public static class StartOps
             throw new AcceptanceException("save start: empty save name");
         }
 
-        await LoadSaveModsAsync(session.Harness, save.Name, TimeSpan.Zero, ignoreMods: false, cancellationToken).ConfigureAwait(false);
+        await LoadSaveModsAsync(session.Harness, save.Name, save.Timeout, save.IgnoreModCompatibility, cancellationToken).ConfigureAwait(false);
         var apply = QuietDecision(session.Names, quiet);
-        var quietReply = await DebugGame.ApplyQuietAsync(session.Harness, apply, "apply", cancellationToken).ConfigureAwait(false);
+        var quietReply = await DebugGame.ApplyQuietAsync(session.Harness, apply, save.QuietAction, cancellationToken).ConfigureAwait(false);
         session.Report["quiet"] = quietReply is not null;
         return new JsonObject { ["kind"] = "save", ["save"] = save.Name };
     }

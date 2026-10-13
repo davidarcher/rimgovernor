@@ -28,6 +28,9 @@ public sealed record FixtureOptions
     public TimeSpan Timeout { get; init; }
 
     public bool Json { get; init; }
+
+    /// <summary>Loads a save whose recorded mods are not all active (a CI bundle may record mods since retired from the build).</summary>
+    public bool IgnoreMods { get; init; }
 }
 
 /// <summary>
@@ -172,11 +175,11 @@ public static class FixtureCommand
         }
     }
 
-    private static async Task ExecuteAsync(FixtureOptions o, JsonObject result, CancellationToken cancellationToken)
+    internal static async Task ExecuteAsync(FixtureOptions o, JsonObject result, CancellationToken cancellationToken)
     {
         var output = result["output"].AsString();
         Directory.CreateDirectory(output);
-        Start start = o.Loaded ? new LoadedStart() : new SaveStart { Name = o.Save };
+        Start start = o.Loaded ? new LoadedStart() : new SaveStart { Name = o.Save, IgnoreModCompatibility = o.IgnoreMods };
 
         // FixtureOps names the op so the stale-package check's rebuild hint does; Prepare stages the baseline save into the
         // profile.
@@ -250,7 +253,7 @@ public static class FixtureCommand
 
     // Writes the result: one JSON object, or the response block followed by a short census (tick, pause, authority, drafts
     // and the non-zero stocks in name order).
-    private static async Task PrintAsync(TextWriter w, bool asJson, JsonObject r)
+    internal static async Task PrintAsync(TextWriter w, bool asJson, JsonObject r)
     {
         if (asJson)
         {

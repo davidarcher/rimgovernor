@@ -84,7 +84,7 @@ internal static class ShelterSolo
                 throw new AcceptanceException($"a solo colony's plan holds {labs} laboratories; the shelter hosts research");
             }
 
-            using var journal = await ShelterStage.OpenJournalAsync(s, cancellationToken).ConfigureAwait(false);
+            using var journal = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
             var seen = new List<Cell>();
             Cell cell;
             try

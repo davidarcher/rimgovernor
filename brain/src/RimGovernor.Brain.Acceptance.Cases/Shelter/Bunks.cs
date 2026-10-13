@@ -72,7 +72,7 @@ internal static class ShelterBunks
         Journal st;
         try
         {
-            st = await ShelterStage.OpenJournalAsync(s, cancellationToken).ConfigureAwait(false);
+            st = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
         }
         catch
         {

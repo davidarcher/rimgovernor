@@ -98,7 +98,7 @@ internal static class AnomalyHorror
         {
             _ = await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
             service.KeepAuthority(cancellationToken);
-            var store = await ChildCases.OpenJournalAsync(s, cancellationToken).ConfigureAwait(false);
+            var store = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
             try
             {
                 // The colony's answer is journalled: the ActiveCombat goal binds when the arrivals are seen and recovers
@@ -114,14 +114,14 @@ internal static class AnomalyHorror
                         Ticks = FightTicks,
                         Tick = async ct =>
                         {
-                            var review = await ChildCases.TryRoundsAsync(store, ct).ConfigureAwait(false) ?? throw new AcceptanceException("no persisted review");
+                            var review = await ServiceJournal.TryRoundsAsync(store, ct).ConfigureAwait(false) ?? throw new AcceptanceException("no persisted review");
                             return (ulong)review.Tick.Value;
                         },
                     }.WaitProgressAsync(
                         async ct =>
                         {
                             // Go fightState: an unreadable review reads as no binding.
-                            var review = await ChildCases.TryRoundsAsync(store, ct).ConfigureAwait(false);
+                            var review = await ServiceJournal.TryRoundsAsync(store, ct).ConfigureAwait(false);
                             var binding = review?.Incident(PolicyFunctions.ActiveCombat);
                             var bound = binding is not null;
                             var need = binding is { } b ? Wire.Name(b.Situation) : "";

@@ -218,7 +218,7 @@ public sealed class AcceptanceSetup
         if (o.Repo.Length == 0)
         {
             var cwd = Directory.GetCurrentDirectory();
-            o.Repo = SetupPackage.FindRepo(cwd) ?? throw new SetupException($"no checkout encloses {cwd}; pass -worktree");
+            o.Repo = NativeSourceInputs.FindRepo(cwd) ?? throw new SetupException($"no checkout encloses {cwd}; pass -worktree");
         }
         else if (!Directory.Exists(Path.Combine(o.Repo, ".git")) && !File.Exists(Path.Combine(o.Repo, ".git")))
         {

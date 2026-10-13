@@ -157,7 +157,7 @@ internal static class PawnReads
         {
             try
             {
-                RequireSnapshot(row["pawnSnapshot"]);
+                NativeAssert.RequireSnapshot(row["pawnSnapshot"]);
             }
             catch (AcceptanceException e)
             {
@@ -261,7 +261,7 @@ internal static class PawnReads
     private static void DraftControl(JsonObject row, JsonNode? context)
     {
         var pawn = row["pawn"].AsMap() ?? [];
-        RequireIdentifier(pawn["id"], "pawn id");
+        NativeAssert.RequireIdentifier(pawn["id"], "pawn id");
         if (!row.ContainsKey("pawnSnapshot"))
         {
             var reason = SnapshotIssueReason(row);
@@ -284,7 +284,7 @@ internal static class PawnReads
             var snapshot = row["pawnSnapshot"];
             try
             {
-                RequireSnapshot(snapshot);
+                NativeAssert.RequireSnapshot(snapshot);
             }
             catch (AcceptanceException e)
             {
@@ -307,7 +307,7 @@ internal static class PawnReads
         {
             try
             {
-                RequireSnapshot(health.Member("snapshot"));
+                NativeAssert.RequireSnapshot(health.Member("snapshot"));
             }
             catch (AcceptanceException e)
             {
@@ -317,7 +317,7 @@ internal static class PawnReads
 
         if (row.ContainsKey("social"))
         {
-            RequireSocial(row);
+            NativeAssert.RequireSocial(row);
         }
     }
 
@@ -355,7 +355,7 @@ internal static class PawnReads
             var id = row["pawn"].Member("id").AsString();
             try
             {
-                RequireSnapshot(row["health"].Member("snapshot"));
+                NativeAssert.RequireSnapshot(row["health"].Member("snapshot"));
             }
             catch (AcceptanceException e)
             {
@@ -364,69 +364,12 @@ internal static class PawnReads
 
             try
             {
-                RequireSocial(row);
+                NativeAssert.RequireSocial(row);
             }
             catch (AcceptanceException e)
             {
                 throw new AcceptanceException($"colonist {id}: {e.Message}", e);
             }
-        }
-    }
-
-    /// <summary>Asserts <paramref name="value"/> is a non-blank identifier string of at most 256 UTF-8 bytes (Go <c>RequireIdentifier</c>).</summary>
-    private static void RequireIdentifier(JsonNode? value, string what)
-    {
-        if (value is not JsonValue || value.GetValueKind() != System.Text.Json.JsonValueKind.String)
-        {
-            throw new AcceptanceException($"{what}: expected an identifier string, found {value.ToJson()}");
-        }
-
-        var text = value.AsString();
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            throw new AcceptanceException($"{what}: identifier is empty or whitespace-only: \"{text}\"");
-        }
-
-        if (text.Contains('\0', StringComparison.Ordinal))
-        {
-            throw new AcceptanceException($"{what}: identifier contains a null byte");
-        }
-
-        if (System.Text.Encoding.UTF8.GetByteCount(text) > 256)
-        {
-            throw new AcceptanceException($"{what}: identifier exceeds 256 UTF-8 bytes");
-        }
-    }
-
-    /// <summary>Asserts a populated <c>{context, entityId, token}</c> CAS snapshot (Go <c>RequireSnapshot</c>).</summary>
-    private static void RequireSnapshot(JsonNode? value)
-    {
-        if (value.AsMap() is not { } snapshot)
-        {
-            throw new AcceptanceException($"expected a populated CAS snapshot object, found {value.ToJson()}");
-        }
-
-        if (snapshot["context"].AsMap() is null)
-        {
-            throw new AcceptanceException($"snapshot missing context: {snapshot.ToJson()}");
-        }
-
-        RequireIdentifier(snapshot["entityId"], "snapshot entityId");
-        RequireIdentifier(snapshot["token"], "snapshot token");
-    }
-
-    /// <summary>Asserts a populated <c>social</c> block with its explicit staleness flag (Go <c>RequireSocial</c>).</summary>
-    private static void RequireSocial(JsonObject row)
-    {
-        if (row["social"].AsMap() is not { } social)
-        {
-            throw new AcceptanceException($"expected a populated \"social\" block, found {row["social"].ToJson()}");
-        }
-
-        // memories and relations are repeated fields the wire omits when empty, so their absence is not a failure.
-        if (social["situationalCacheStale"].AsBool() is null)
-        {
-            throw new AcceptanceException($"social.situationalCacheStale must be an explicit boolean: {social.ToJson()}");
         }
     }
 }

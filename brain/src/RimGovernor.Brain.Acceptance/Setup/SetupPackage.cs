@@ -1,9 +1,6 @@
 using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -31,7 +28,7 @@ public sealed class SetupPackageManifest
 /// <c>nativeaccept/inputs</c> (<c>SourceTreeHash</c>, <c>FindRepo</c>) own these; they are re-stated here, narrowly, so the
 /// setup stands alone.
 /// </summary>
-public static partial class SetupPackage
+public static class SetupPackage
 {
     /// <summary>The unified native mod's package ID.</summary>
     public const string NativePackage = "davidarcher.rimgovernor.native";
@@ -46,28 +43,6 @@ public static partial class SetupPackage
         "brrainz.rimbridgeserver",
         "redeyedev.headlessrim",
     };
-
-    private static readonly (string Repo, string Copy, Func<string, bool>? Keep)[] NativeSourceInputs =
-    [
-        ("integrations/rimgovernor-native/src", "integrations/rimgovernor-native/src", NotNativeBuildOutput),
-        ("integrations/rimgovernor-native/About", "integrations/rimgovernor-native/About", NotNativeBuildOutput),
-        ("integrations/rimgovernor-native/Defs", "integrations/rimgovernor-native/Defs", NotNativeBuildOutput),
-        ("integrations/rimgovernor-native/Textures", "integrations/rimgovernor-native/Textures", NotNativeBuildOutput),
-        ("integrations/rimgovernor-native/Notices", "integrations/rimgovernor-native/Notices", NotNativeBuildOutput),
-        ("integrations/rimgovernor-native/README.md", "integrations/rimgovernor-native/README.md", null),
-        ("integrations/rimgovernor-host/src", "integrations/rimgovernor-host/src", NotBuildOutput),
-        ("integrations/rimgovernor-host/Directory.Build.props", "integrations/rimgovernor-host/Directory.Build.props", null),
-        ("brain/Directory.Build.props", "brain/Directory.Build.props", null),
-        ("brain/Directory.Packages.props", "brain/Directory.Packages.props", null),
-        ("brain/src/RimGovernor.Brain.Domain", "brain/src/RimGovernor.Brain.Domain", NotBuildOutput),
-        ("brain/src/RimGovernor.Brain.Contracts", "brain/src/RimGovernor.Brain.Contracts", NotBuildOutput),
-        ("brain/src/RimGovernor.Brain.NativeFacade", "brain/src/RimGovernor.Brain.NativeFacade", NotBuildOutput),
-        ("brain/src/RimGovernor.Brain.HttpChannel", "brain/src/RimGovernor.Brain.HttpChannel", NotBuildOutput),
-        ("brain/src/RimGovernor.Brain.Telemetry", "brain/src/RimGovernor.Brain.Telemetry", NotBuildOutput),
-        ("scripts/build_native_mod.ps1", "scripts/build_native_mod.ps1", null),
-        ("scripts/fixtures", "scripts/fixtures", FixtureSource),
-        ("THIRD_PARTY.md", "THIRD_PARTY.md", null),
-    ];
 
     /// <summary>Reads <paramref name="pkg"/>'s native-manifest.json. Throws <see cref="IOException"/> when absent and <see cref="JsonException"/> when malformed.</summary>
     public static SetupPackageManifest ReadPackageManifest(string pkg)
@@ -99,87 +74,16 @@ public static partial class SetupPackage
 
     private static string Str(JsonObject o, string key) => o[key] is JsonValue v && v.TryGetValue<string>(out var s) ? s : "";
 
-    /// <summary>
-    /// The hash build_native_mod.ps1 records as sourceTree: over the sorted list of the build's copied source files, one
-    /// <c>&lt;path&gt;\t&lt;sha256&gt;\n</c> line each with the path relative to the copy root (forward slashes), the hex
-    /// SHA-256 of those lines. Computed over the worktree at <paramref name="repo"/>, it equals the manifest's when the
-    /// installed build was made from these exact sources. Keep <c>NativeSourceInputs</c> in step with the build script.
-    /// </summary>
+    /// <summary>The sourceTree hash of the build inputs under <paramref name="repo"/> (<see cref="NativeSourceInputs.SourceTreeHash"/>), a missing input reported as a <see cref="SetupException"/>.</summary>
     public static string SourceTreeHash(string repo)
     {
-        var lines = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var (repoPath, copy, keep) in NativeSourceInputs)
+        try
         {
-            var root = Path.Combine(repo, repoPath.Replace('/', Path.DirectorySeparatorChar));
-            if (File.Exists(root))
-            {
-                lines[copy] = FileHash(root);
-                continue;
-            }
-
-            if (!Directory.Exists(root))
-            {
-                throw new SetupException("native build input " + repoPath + ": not found");
-            }
-
-            foreach (var path in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
-            {
-                var relative = Path.GetRelativePath(root, path).Replace('\\', '/');
-                if (keep is not null && !keep(relative))
-                {
-                    continue;
-                }
-
-                lines[copy + "/" + relative] = FileHash(path);
-            }
+            return NativeSourceInputs.SourceTreeHash(repo);
         }
-
-        var builder = new StringBuilder();
-        foreach (var path in lines.Keys.Order(StringComparer.Ordinal))
+        catch (AcceptanceException e) when (e is not SetupException)
         {
-            _ = builder.Append(path).Append('\t').Append(lines[path]).Append('\n');
-        }
-
-        return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString())));
-    }
-
-    private static string FileHash(string path) => Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(path)));
-
-    private static bool NotNativeBuildOutput(string relative) => !NativeBuildDir().IsMatch(relative);
-
-    private static bool NotBuildOutput(string relative) => !BuildOutputDir().IsMatch(relative);
-
-    private static bool FixtureSource(string relative)
-    {
-        var ext = Path.GetExtension(relative).ToUpperInvariant();
-        return ext is ".CS" or ".CSPROJ" && !BuildOutputDir().IsMatch(relative);
-    }
-
-    [GeneratedRegex("(^|/)(obj|bin)(/|$)", RegexOptions.CultureInvariant)]
-    private static partial Regex BuildOutputDir();
-
-    [GeneratedRegex("(^|/)(obj|bin|Assemblies|BridgeTools)(/|$)", RegexOptions.CultureInvariant)]
-    private static partial Regex NativeBuildDir();
-
-    /// <summary>Walks up from <paramref name="dir"/> to the checkout root (the directory holding .git: a directory in the main checkout, a file in a worktree); null when none encloses it.</summary>
-    public static string? FindRepo(string dir)
-    {
-        var current = Path.GetFullPath(dir);
-        while (true)
-        {
-            var git = Path.Combine(current, ".git");
-            if (Directory.Exists(git) || File.Exists(git))
-            {
-                return current;
-            }
-
-            var parent = Path.GetDirectoryName(current);
-            if (parent is null || string.Equals(parent, current, StringComparison.Ordinal))
-            {
-                return null;
-            }
-
-            current = parent;
+            throw new SetupException(e.Message, e);
         }
     }
 

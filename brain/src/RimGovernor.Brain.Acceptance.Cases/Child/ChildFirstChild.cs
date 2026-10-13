@@ -50,7 +50,7 @@ internal static class ChildFirstChild
     /// <summary>Whether the journal holds a completed bill for a baby-edible recipe on the fixture's stove; the planner picks among the recipes, so any counts.</summary>
     private static async Task<bool> BabyFoodBillPlacedAsync(Journal journal, string bench, List<string> recipes, CancellationToken cancellationToken)
     {
-        foreach (var plan in await ChildCases.PlanHistoryAsync(journal, "bill-*", cancellationToken).ConfigureAwait(false))
+        foreach (var plan in await ServiceJournal.PlanHistoryAsync(journal, "bill-*", cancellationToken).ConfigureAwait(false))
         {
             foreach (var progress in plan.Progress)
             {
@@ -87,7 +87,7 @@ internal static class ChildFirstChild
         {
             _ = await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
             service.KeepAuthority(cancellationToken);
-            var store = await ChildCases.OpenJournalAsync(s, cancellationToken).ConfigureAwait(false);
+            var store = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
             try
             {
                 // The colony's own answer to a baby it cannot breastfeed: the standing baby food bill on its stove.

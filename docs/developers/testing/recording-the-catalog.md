@@ -63,5 +63,6 @@ game's map generation rewrites per seed, such as `GenStep_Scatter*` counts); the
 `game_constants` message was identical across refreshes.
 
 After a refresh run `go run ./cmd/test` and commit the recording, sidecar and
-golden together (a new game also changes `internal/archgate/game_constants.txt`;
-regenerate it with the command `TestGameConstantsListIsFresh` prints); a golden diff is the review of what the new game changed.
+golden together (a new game also changes the game-constants list: `go/internal/archgate/game_constants.txt`, which the Go
+`TestGameConstantsListIsFresh` regenerates until #3102, and its copy
+`brain/analyzers/RimGovernor.Brain.Analyzers/data/game_constants.txt` that RGARCH006 embeds; copy the regenerated file over it); a golden diff is the review of what the new game changed.

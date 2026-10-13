@@ -108,7 +108,7 @@ internal static class ShelterRetirement
         LayoutPlan? final = null;
         try
         {
-            using var journal = await ShelterStage.OpenJournalAsync(s, cancellationToken).ConfigureAwait(false);
+            using var journal = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
             Exception? readError = null;
             AcceptanceException? waitError = null;
             try

@@ -231,10 +231,12 @@ public static partial class Postmortems
             return s;
         }
 
-        // An older schema without the actions columns still has the transitions; the action's kind is then left blank.
+        // The C# store keeps every table the Go postmortem read (rounds, standards, standard_methods, plans, transitions,
+        // actions), so no table is added for the digest. Its actions carry kind and a JSON body but no definition/pawn
+        // columns (the Go store's), so the action line names the kind only; a journal predating the actions table still
+        // has the transitions, and the kind is then blank.
         string[] queries =
         [
-            "SELECT t.sequence, t.action_id, t.payload, COALESCE(a.kind,''), COALESCE(a.definition,''), COALESCE(a.pawn,'') FROM transitions t LEFT JOIN actions a ON a.id=t.action_id ORDER BY t.sequence",
             "SELECT t.sequence, t.action_id, t.payload, COALESCE(a.kind,''), '', '' FROM transitions t LEFT JOIN actions a ON a.id=t.action_id ORDER BY t.sequence",
             "SELECT sequence, action_id, payload, '', '', '' FROM transitions ORDER BY sequence",
         ];

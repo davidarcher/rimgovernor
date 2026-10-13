@@ -88,7 +88,7 @@ internal static class ShelterSheltering
         var service = await ShelterShell.StartAsync(s, null, cancellationToken).ConfigureAwait(false);
         try
         {
-            using var st = await ShelterStage.OpenJournalAsync(s, cancellationToken).ConfigureAwait(false);
+            using var st = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
             await WaitAreasAsync(st, expected, true, ShelterShell.WaitOf(ShelterWait, service), report, "shelter", cancellationToken).ConfigureAwait(false);
         }
         catch
@@ -131,7 +131,7 @@ internal static class ShelterSheltering
         service = await ShelterShell.StartAsync(s, service, cancellationToken).ConfigureAwait(false);
         try
         {
-            using var st = await ShelterStage.OpenJournalAsync(s, cancellationToken).ConfigureAwait(false);
+            using var st = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
             await WaitAreasAsync(st, expected, false, ShelterShell.WaitOf(ShelterWait, service), report, "restore", cancellationToken).ConfigureAwait(false);
         }
         catch

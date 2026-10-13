@@ -57,6 +57,24 @@ public sealed record SaveStart : Start
 {
     public string Name { get; init; } = "";
 
+    /// <summary>Bounds the load; zero is 90 s.</summary>
+    public TimeSpan Timeout { get; init; }
+
+    /// <summary>
+    /// Loads a save whose recorded mods are not all active: a downloaded CI bundle predates mods the build has since
+    /// dropped (the retired RimBridgeServer).
+    /// </summary>
+    public bool IgnoreModCompatibility { get; init; }
+
+    /// <summary>
+    /// Marks a bundle captured by this harness after the quiet op ran (a ring or stage bundle): the quiet op is restored
+    /// on it without removing the pawns and hives the capture holds, which a staged fight's raiders are.
+    /// </summary>
+    public bool Resumed { get; init; }
+
+    /// <summary>The quiet op action a load of this save ends with.</summary>
+    public string QuietAction => Resumed ? "restore" : "apply";
+
     public override JsonObject Describe() => new() { ["kind"] = "save", ["name"] = Name };
 }
 

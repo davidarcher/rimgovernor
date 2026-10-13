@@ -70,7 +70,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// The generated thought-to-trigger row of the def, false when the table has none (go run ./cmd/thoughtaudit
+    /// The generated thought-to-trigger row of the def, false when the table has none (RimGovernor.cmd thoughtaudit
     /// regenerates the table; see docs/developers/contracts/mood-control.md).
     /// </summary>
     public static (ThoughtAudit Row, bool Ok) ThoughtAuditRow(string def) =>

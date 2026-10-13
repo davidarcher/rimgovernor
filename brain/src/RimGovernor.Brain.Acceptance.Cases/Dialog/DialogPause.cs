@@ -267,7 +267,7 @@ internal static class DialogPause
         {
             _ = await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
             service.KeepAuthority(cancellationToken);
-            using var store = await ChildCases.OpenJournalAsync(s, cancellationToken).ConfigureAwait(false);
+            using var store = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
 
             // The service's clock inbox is keyed by its profile directory (the serve puts it beside the state under the case's output).
             var profile = s.Config.ServiceProfileDir();

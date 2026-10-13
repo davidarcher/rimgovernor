@@ -15,9 +15,6 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 internal sealed class ControllerJournal : IDisposable
 {
-    /// <summary>The journal's file name inside the case output directory.</summary>
-    internal const string FileName = "service.sqlite";
-
     private ControllerJournal(ServiceProcess service, JournalStore store)
     {
         Service = service;
@@ -35,7 +32,7 @@ internal sealed class ControllerJournal : IDisposable
     {
         ArgumentNullException.ThrowIfNull(s);
         ArgumentNullException.ThrowIfNull(service);
-        var path = Path.Combine(s.Config.Output, FileName);
+        var path = ServiceJournal.PathOf(s.Config);
         return new ControllerJournal(service, JournalStore.Open(path, cancellationToken));
     }
 
@@ -46,7 +43,7 @@ internal sealed class ControllerJournal : IDisposable
     internal static JournalStore OpenStore(ISession s, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(s);
-        return JournalStore.Open(Path.Combine(s.Config.Output, FileName), cancellationToken);
+        return JournalStore.Open(ServiceJournal.PathOf(s.Config), cancellationToken);
     }
 
     /// <summary>The stored review; an empty journal has the zero review.</summary>
@@ -56,27 +53,13 @@ internal sealed class ControllerJournal : IDisposable
     /// Polls the review under <paramref name="w"/> until <paramref name="ready"/> accepts it (Go <c>na.WaitReview</c>);
     /// the progress signature is the review's revision and tick.
     /// </summary>
-    internal async Task<StoreRounds> WaitReviewAsync(Wait w, Func<StoreRounds, bool> ready, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(ready);
-        var review = await Store.LoadRoundsAsync(cancellationToken).ConfigureAwait(false);
-        if (w.Interval <= TimeSpan.Zero)
-        {
-            w = w with { Interval = TimeSpan.FromSeconds(1) };
-        }
-
-        if (w.Terminal is null)
-        {
-            w = w with { Terminal = Service.Exited };
-        }
-
-        await w.WaitProgressAsync(async ct =>
-        {
-            review = await Store.LoadRoundsAsync(ct).ConfigureAwait(false);
-            return ready(review) ? ("", true) : (Wait.Signature(review.Revision, review.Tick.Value), false);
-        }, cancellationToken).ConfigureAwait(false);
-        return review;
-    }
+    internal Task<StoreRounds> WaitReviewAsync(Wait w, Func<StoreRounds, bool> ready, CancellationToken cancellationToken) =>
+        ServiceJournal.WaitReviewAsync(
+            Store,
+            w.Terminal is null ? w with { Terminal = Service.Exited } : w,
+            ready,
+            review => Wait.Signature(review.Revision, review.Tick.Value),
+            cancellationToken);
 
     public void Dispose() => Store.Dispose();
 }

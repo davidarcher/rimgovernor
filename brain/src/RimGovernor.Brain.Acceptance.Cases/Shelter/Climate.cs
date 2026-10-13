@@ -153,7 +153,7 @@ internal static class ShelterClimate
 
         // The temperature building waits for no standing shelter and the shelter's slots are keyed on the planned interior: no
         // stage is needed, and a placement outside the room that owns it fails the case.
-        using var journal = await ShelterStage.OpenJournalAsync(s, cancellationToken).ConfigureAwait(false);
+        using var journal = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
         var ownerBounds = owner.Region.Bounds();
         List<Cell> seen = [];
         Cell cell;

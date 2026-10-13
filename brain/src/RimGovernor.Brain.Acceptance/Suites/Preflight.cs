@@ -117,7 +117,7 @@ public static class PreflightPass
         ArgumentNullException.ThrowIfNull(opts);
         ArgumentNullException.ThrowIfNull(log);
         var cwd = Directory.GetCurrentDirectory();
-        var repo = SetupPackage.FindRepo(cwd)
+        var repo = NativeSourceInputs.FindRepo(cwd)
             ?? throw new AcceptanceException($"no checkout encloses {cwd}; run from the worktree");
         var layout = SetupLayout.For(repo);
         var gameCopy = RootGameCopy(setup, opts);

@@ -142,7 +142,7 @@ public sealed class CaseSession : ISession, IRingHost
         var opened = Opened;
 
         // The player's speed lives in the loaded game, so a relaunch keeps the one written before the first launch.
-        await WritePlayerSpeedAsync(opened.Harness, launch.PlayerSpeed, cancellationToken).ConfigureAwait(false);
+        await ServiceProcess.WritePlayerSpeedAsync(opened.Harness, launch.PlayerSpeed, cancellationToken).ConfigureAwait(false);
         Release();
         var service = await ServiceProcess.LaunchServiceAsync(Config, launch, _report, cancellationToken).ConfigureAwait(false);
         _services.Add(service);
@@ -355,31 +355,6 @@ public sealed class CaseSession : ISession, IRingHost
         var cause = new StagedThroughException(name, outcome);
         CutRun?.Invoke(cause);
         throw cause;
-    }
-
-    // Writes the speed the service will follow as the player's own choice, as ServiceProcess.ServeAsync does for a case
-    // that lets it load: a boosted run (Ultrafast, the headless profile's test acceleration) writes nothing.
-    private static async Task WritePlayerSpeedAsync(Harness harness, string playerSpeed, CancellationToken cancellationToken)
-    {
-        var speed = playerSpeed;
-        if (speed.Length == 0)
-        {
-            speed = Environment.GetEnvironmentVariable(ServiceProcess.ClockSpeedEnv) is { Length: > 0 } configured ? configured : "Ultrafast";
-            if (speed == "Ultrafast")
-            {
-                return;
-            }
-        }
-
-        _ = await harness.WireAsync("player-speed-hook", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        foreach (var value in new[] { speed, "Paused" })
-        {
-            _ = await harness.CallAsync(
-                "player-speed-" + value.ToLowerInvariant(),
-                "rimgovernor/set_time_speed",
-                new JsonObject { ["speed"] = value, ["ultraSpeedBoost"] = false },
-                cancellationToken).ConfigureAwait(false);
-        }
     }
 
     internal static string Tag(int value) => value.ToString(CultureInfo.InvariantCulture);

@@ -60,7 +60,7 @@ internal static class AnomalyHoldStudy
     {
         var captured = false;
         var studyOwner = false;
-        foreach (var plan in await ChildCases.PlanHistoryAsync(journal, "population-capture-*", cancellationToken).ConfigureAwait(false))
+        foreach (var plan in await ServiceJournal.PlanHistoryAsync(journal, "population-capture-*", cancellationToken).ConfigureAwait(false))
         {
             foreach (var progress in plan.Progress)
             {
@@ -72,7 +72,7 @@ internal static class AnomalyHoldStudy
         }
 
         var darkStudy = Wire.Name(WorkType.DarkStudy);
-        foreach (var plan in await ChildCases.PlanHistoryAsync(journal, "work-*", cancellationToken).ConfigureAwait(false))
+        foreach (var plan in await ServiceJournal.PlanHistoryAsync(journal, "work-*", cancellationToken).ConfigureAwait(false))
         {
             foreach (var progress in plan.Progress)
             {
@@ -112,7 +112,7 @@ internal static class AnomalyHoldStudy
         {
             _ = await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
             service.KeepAuthority(cancellationToken);
-            var store = await ChildCases.OpenJournalAsync(s, cancellationToken).ConfigureAwait(false);
+            var store = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
             try
             {
                 // The colony's answer is journalled: the capture order for the entity, then the DarkStudy owner the work

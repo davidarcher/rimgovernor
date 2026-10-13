@@ -16,26 +16,43 @@ public static class NativeAssert
     /// Asserts <paramref name="value"/> is a populated, non-whitespace-only identifier string with no embedded null
     /// character and at most 256 UTF-8 bytes. Throws otherwise.
     /// </summary>
-    public static void RequireIdentifier(JsonNode? value)
+    public static void RequireIdentifier(JsonNode? value, string what = "")
     {
+        var prefix = what.Length == 0 ? "" : what + ": ";
         if (value is not JsonValue json || !json.TryGetValue<string>(out var text))
         {
-            throw new AcceptanceException($"expected an identifier string, found {value.ToJson()}");
+            throw new AcceptanceException($"{prefix}expected an identifier string, found {value.ToJson()}");
         }
 
         if (string.IsNullOrWhiteSpace(text))
         {
-            throw new AcceptanceException($"identifier is empty or whitespace-only: {value.ToJson()}");
+            throw new AcceptanceException($"{prefix}identifier is empty or whitespace-only: {value.ToJson()}");
         }
 
         if (text.Contains('\0', StringComparison.Ordinal))
         {
-            throw new AcceptanceException($"identifier contains a null byte: {value.ToJson()}");
+            throw new AcceptanceException($"{prefix}identifier contains a null byte: {value.ToJson()}");
         }
 
         if (Encoding.UTF8.GetByteCount(text) > MaxIdentifierBytes)
         {
-            throw new AcceptanceException($"identifier exceeds 256 UTF-8 bytes: {value.ToJson()}");
+            throw new AcceptanceException($"{prefix}identifier exceeds 256 UTF-8 bytes: {value.ToJson()}");
+        }
+    }
+
+    /// <summary>Asserts a populated <c>social</c> block on a pawn row with its explicit staleness flag (Go <c>RequireSocial</c>).</summary>
+    public static void RequireSocial(JsonObject row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        if (row["social"].AsMap() is not { } social)
+        {
+            throw new AcceptanceException($"expected a populated \"social\" block, found {row["social"].ToJson()}");
+        }
+
+        // memories and relations are repeated fields the wire omits when empty, so their absence is not a failure.
+        if (social["situationalCacheStale"].AsBool() is null)
+        {
+            throw new AcceptanceException($"social.situationalCacheStale must be an explicit boolean: {social.ToJson()}");
         }
     }
 
@@ -56,23 +73,8 @@ public static class NativeAssert
             throw new AcceptanceException($"snapshot missing context: {snapshot.ToJson()}");
         }
 
-        try
-        {
-            RequireIdentifier(snapshot["entityId"]);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException("snapshot entityId: " + e.Message, e);
-        }
-
-        try
-        {
-            RequireIdentifier(snapshot["token"]);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException("snapshot token: " + e.Message, e);
-        }
+        RequireIdentifier(snapshot["entityId"], "snapshot entityId");
+        RequireIdentifier(snapshot["token"], "snapshot token");
     }
 
     /// <summary>Whether <paramref name="issues"/> holds a row for <paramref name="field"/> whose unavailable reason is <paramref name="reason"/>.</summary>

@@ -48,9 +48,11 @@ names its class. The Go and C# bindings are generated from it by the usual
 generators. `task defmirror:generate` rewrites `defs.proto`; `task build` runs
 `defmirror:build`, which fails when the committed file differs from what the
 pinned assemblies produce. `defmirror --report <file>` instead lists the game's
-constants, static curves, `[Unsaved]` data fields and the `*DefOf` names (`defof` lines, source of archgate rule 6) for `go run ./cmd/catalogaudit`
+constants, static curves, `[Unsaved]` data fields and the `*DefOf` names (`defof` lines, the source of the
+game-data analyzer's `data/defof_names.txt`, RGARCH006) for the Go `cmd/catalogaudit`
 (from `go/`), which also diffs the recording's def rows against the game's XML
-defs and counts the skipped fields by reason.
+defs and counts the skipped fields by reason. `catalogaudit` is not ported to the tool host
+(the in-process brain reads Def data directly) and stays until #3102.
 
 Inputs. The assemblies are the game install's (`Assembly-CSharp.dll` and its
 dependencies in the game directory), passed as `--game-dir <RimWorld dir>`;

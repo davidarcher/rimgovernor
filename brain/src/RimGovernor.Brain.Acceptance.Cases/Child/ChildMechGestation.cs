@@ -57,7 +57,7 @@ internal static class ChildMechGestation
     /// <summary>Whether the journal holds a completed bill on the gestator.</summary>
     private static async Task<bool> MechBillPlacedAsync(Journal journal, string gestator, CancellationToken cancellationToken)
     {
-        foreach (var plan in await ChildCases.PlanHistoryAsync(journal, "bill-*", cancellationToken).ConfigureAwait(false))
+        foreach (var plan in await ServiceJournal.PlanHistoryAsync(journal, "bill-*", cancellationToken).ConfigureAwait(false))
         {
             foreach (var progress in plan.Progress)
             {
@@ -74,7 +74,7 @@ internal static class ChildMechGestation
     /// <summary>Whether the journal holds a completed mech work mode setting.</summary>
     private static async Task<bool> MechModeWrittenAsync(Journal journal, CancellationToken cancellationToken)
     {
-        foreach (var plan in await ChildCases.PlanHistoryAsync(journal, "work-*", cancellationToken).ConfigureAwait(false))
+        foreach (var plan in await ServiceJournal.PlanHistoryAsync(journal, "work-*", cancellationToken).ConfigureAwait(false))
         {
             foreach (var progress in plan.Progress)
             {
@@ -149,7 +149,7 @@ internal static class ChildMechGestation
             {
                 _ = await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
                 service.KeepAuthority(cancellationToken);
-                var store = await ChildCases.OpenJournalAsync(s, cancellationToken).ConfigureAwait(false);
+                var store = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
                 try
                 {
                     try
@@ -157,7 +157,7 @@ internal static class ChildMechGestation
                         await new Wait { Ceiling = ceiling, Stall = Wait.StallBudget(), Terminal = service.Exited }.WaitProgressAsync(
                             async ct =>
                             {
-                                var review = await ChildCases.TryRoundsAsync(store, ct).ConfigureAwait(false);
+                                var review = await ServiceJournal.TryRoundsAsync(store, ct).ConfigureAwait(false);
                                 if (review is null)
                                 {
                                     return (Wait.Signature("no-review"), false);

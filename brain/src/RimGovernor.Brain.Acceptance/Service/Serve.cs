@@ -129,7 +129,7 @@ public sealed partial class ServiceProcess : ICheckpointService
                 }
             }
 
-            await WritePlayerSpeedAsync(harness, spec, cancellationToken).ConfigureAwait(false);
+            await WritePlayerSpeedAsync(harness, spec.PlayerSpeed, cancellationToken).ConfigureAwait(false);
             launch = s_launches.AddOrUpdate(Path.GetFullPath(output), 1, (_, count) => count + 1);
         }
 

@@ -336,9 +336,9 @@ public sealed partial class ServiceProcess
     /// native test acceleration of the headless profile) ignores it and nothing is written. The identity read first
     /// is a typed hop, which installs native's speed hook if nothing has yet.
     /// </summary>
-    private static async Task WritePlayerSpeedAsync(Harness harness, ServeSpec spec, CancellationToken cancellationToken)
+    internal static async Task WritePlayerSpeedAsync(Harness harness, string playerSpeed, CancellationToken cancellationToken)
     {
-        var speed = spec.PlayerSpeed;
+        var speed = playerSpeed;
         if (speed.Length == 0)
         {
             speed = ClockSpeed();

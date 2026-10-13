@@ -14,6 +14,6 @@ internal static class AcceptanceTool
     {
         var registry = new CaseRegistry();
         CaseCatalog.Register(registry);
-        return await AcceptanceCommand.RunAsync(args, registry, Console.Out, Console.Error, cancellationToken).ConfigureAwait(false);
+        return await AcceptanceCommand.RunAsync(args, registry, Console.Out, Console.Error, cancellationToken, new CombatLab()).ConfigureAwait(false);
     }
 }

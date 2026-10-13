@@ -391,7 +391,7 @@ public sealed class CaseRunner
             // lands where the service opens it, and its journal is read at a fresh launch.
             var entry = resumed.Entry!;
             var save = Wrap("stage checkpoint", () => Checkpoints.StageCheckpoint(opts.Root, entry, Path.Combine(output, "service.sqlite")));
-            start = new SaveStart { Name = save };
+            start = new SaveStart { Name = save, Resumed = true };
             cfg.Resumed = true;
             if (entry.Store && entry.ServiceProfile.Length > 0)
             {
@@ -414,7 +414,7 @@ public sealed class CaseRunner
             // A stage bundle opens the way a resume does: its save replaces the Start, its store is restored.
             var entry = staged.Entry!;
             var save = Wrap("stage bundle", () => Checkpoints.StageCheckpoint(opts.Root, entry, Path.Combine(output, "service.sqlite")));
-            start = new SaveStart { Name = save };
+            start = new SaveStart { Name = save, Resumed = true };
             cfg.Resumed = true;
             if (entry.Store && entry.ServiceProfile.Length > 0)
             {
@@ -759,7 +759,7 @@ public sealed class CaseRunner
         }
 
         await StopOtherProfileAsync(c, opts, report, cancellationToken).ConfigureAwait(false);
-        var lifecycle = await Session.OpenAsync(cfg, new RunnerHost(_host, c.NoKeep), report, new SaveStart { Name = save }, c.Quiet, c.KeepNeeds(), cancellationToken).ConfigureAwait(false);
+        var lifecycle = await Session.OpenAsync(cfg, new RunnerHost(_host, c.NoKeep), report, new SaveStart { Name = save, Resumed = true }, c.Quiet, c.KeepNeeds(), cancellationToken).ConfigureAwait(false);
         try
         {
             report["quiet_mode"] = QuietText(c.Quiet);

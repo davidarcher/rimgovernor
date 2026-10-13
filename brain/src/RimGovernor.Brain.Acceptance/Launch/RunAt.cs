@@ -85,27 +85,10 @@ public static class RunAt
     public static readonly TimeSpan RunInterval = TimeSpan.FromMilliseconds(250);
 
     /// <summary>Removes one letter from the stack (scripts/fixtures/LetterFixture.cs); every fixture build carries it.</summary>
-    public const string DismissLetterTool = "test/dismiss_letter";
+    public const string DismissLetterTool = ScenarioRuntime.DismissLetterTool;
 
-    // The letter defs a running wait acknowledges by default: informational events and the choice letters whose
-    // unanswered outcome is harmless to an assertion (a joiner leaves, a quest stays offered). Threat letters are never
-    // here. (Go AcknowledgedLetterDefs lives in scenario.go; the scenario port owns the shared copy.)
-    private static readonly HashSet<string> AcknowledgedLetterDefs = new(StringComparer.Ordinal)
-    {
-        "NeutralEvent",
-        "PositiveEvent",
-        "NegativeEvent",
-        "NewQuest",
-        "AcceptJoiner",
-        "AcceptVisitors",
-        "AcceptCreepJoiner",
-        "RitualOutcomePositive",
-        "RitualOutcomeNegative",
-        "BabyBirth",
-        "BabyToChild",
-        "ChildToAdult",
-        "ChildBirthday",
-    };
+    // The letter defs a running wait acknowledges by default are the scenario runtime's: one list for both waits.
+    private static IReadOnlySet<string> AcknowledgedLetterDefs => ScenarioRuntime.AcknowledgedLetterDefs;
 
     /// <summary>
     /// The game's pause state and its visible causes: lifecycle_read_tick's paused, forcePaused, timeSpeed, tick and

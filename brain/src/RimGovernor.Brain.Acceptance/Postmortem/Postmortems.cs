@@ -89,7 +89,7 @@ public static partial class Postmortems
         }
 
         s.Lines.Add(new DigestLine(text, "result.json installed_package.source_revision"));
-        var repo = FindRepo(Directory.GetCurrentDirectory());
+        var repo = NativeSourceInputs.FindRepo(Directory.GetCurrentDirectory());
         if (repo is null)
         {
             s.Note = "no enclosing checkout: compare against main by hand";
@@ -148,21 +148,6 @@ public static partial class Postmortems
     }
 
     private static string Short(string rev) => rev.Length > 12 ? rev[..12] : rev;
-
-    /// <summary>The checkout enclosing <paramref name="dir"/>: the nearest ancestor holding .git (a directory in the main checkout and a file in a worktree); null outside one.</summary>
-    private static string? FindRepo(string dir)
-    {
-        for (var d = new DirectoryInfo(Path.GetFullPath(dir)); d is not null; d = d.Parent)
-        {
-            var git = Path.Combine(d.FullName, ".git");
-            if (Directory.Exists(git) || File.Exists(git))
-            {
-                return d.FullName;
-            }
-        }
-
-        return null;
-    }
 
     private readonly record struct GitResult(bool Ok, string Output, string Error);
 

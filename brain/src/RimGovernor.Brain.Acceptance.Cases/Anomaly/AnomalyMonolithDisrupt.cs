@@ -68,7 +68,7 @@ internal static class AnomalyMonolithDisrupt
         var awakened = false;
         var interacts = new HashSet<string>(StringComparer.Ordinal);
         var windows = new HashSet<int>();
-        foreach (var plan in await ChildCases.PlanHistoryAsync(journal, "population-monolith-*", cancellationToken).ConfigureAwait(false))
+        foreach (var plan in await ServiceJournal.PlanHistoryAsync(journal, "population-monolith-*", cancellationToken).ConfigureAwait(false))
         {
             foreach (var progress in plan.Progress)
             {
@@ -133,7 +133,7 @@ internal static class AnomalyMonolithDisrupt
         {
             _ = await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
             service.KeepAuthority(cancellationToken);
-            var store = await ChildCases.OpenJournalAsync(s, cancellationToken).ConfigureAwait(false);
+            var store = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
             try
             {
                 // The colony's answer is journalled: the awakening order, the interactions the quest offers (a structure,

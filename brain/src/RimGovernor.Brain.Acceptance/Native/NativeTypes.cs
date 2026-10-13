@@ -72,6 +72,15 @@ public sealed class NativeRefusedException : AcceptanceException
     public NativeResult Result { get; }
 }
 
+/// <summary>The channel answered 404/405 for the tool: the game's build does not route it (an optional channel such as attention is then absent).</summary>
+public sealed class NativeToolNotRoutedException : NativeTransportException
+{
+    public NativeToolNotRoutedException(string message)
+        : base(message)
+    {
+    }
+}
+
 /// <summary>The session was closed or released (Go <c>ErrClosed</c>); calls through that harness are a stale reference.</summary>
 public sealed class HarnessClosedException : AcceptanceException
 {

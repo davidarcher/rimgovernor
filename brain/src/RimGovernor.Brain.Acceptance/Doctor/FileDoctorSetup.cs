@@ -26,19 +26,7 @@ public sealed class FileDoctorSetup : IDoctorSetup
 
     public string PackageManifestName => "native-manifest.json";
 
-    public string? FindRepo(string dir)
-    {
-        for (DirectoryInfo? d = new(dir); d is not null; d = d.Parent)
-        {
-            string git = Path.Combine(d.FullName, ".git");
-            if (Directory.Exists(git) || File.Exists(git))
-            {
-                return d.FullName;
-            }
-        }
-
-        return null;
-    }
+    public string? FindRepo(string dir) => NativeSourceInputs.FindRepo(dir);
 
     public DoctorGameSection ReadGameSection(string root, string gameId)
     {

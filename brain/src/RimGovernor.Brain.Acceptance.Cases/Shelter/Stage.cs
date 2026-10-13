@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -131,8 +130,4 @@ internal static class ShelterStage
 
     /// <summary>A cell as message text.</summary>
     internal static string Describe(Cell c) => string.Create(CultureInfo.InvariantCulture, $"{{{c.X} {c.Z}}}");
-
-    /// <summary>The journal opened on the run's service journal.</summary>
-    internal static Task<Journal> OpenJournalAsync(ISession s, CancellationToken cancellationToken) =>
-        ServiceJournal.OpenWithRetryAsync(ServiceJournal.PathOf(s.Config), cancellationToken);
 }

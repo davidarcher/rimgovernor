@@ -209,7 +209,7 @@ internal sealed class Generator
     // and "curve" a static SimpleCurve, both in the gameplay namespaces of
     // Assembly-CSharp; "unsaved" is an [Unsaved] data field (not runtime state)
     // declared by a Verse.Def class; "defof" is a static field of a *DefOf class,
-    // whose name is the def name the game itself looks up (archgate rule 6).
+    // whose name is the def name the game itself looks up (RGARCH006).
     // Columns: kind, declaring class, member.
     public string Report()
     {

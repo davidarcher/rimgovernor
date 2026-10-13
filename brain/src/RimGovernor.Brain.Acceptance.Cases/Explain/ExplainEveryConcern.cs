@@ -46,7 +46,7 @@ internal static class ExplainEveryConcern
         {
             _ = await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
             service.KeepAuthority(cancellationToken);
-            using var store = await ChildCases.OpenJournalAsync(s, cancellationToken).ConfigureAwait(false);
+            using var store = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
 
             // The active set: every concern the review held a progress record for at any poll of the window, with the last
             // planner cause filed on it.
@@ -56,7 +56,7 @@ internal static class ExplainEveryConcern
                 await new Wait { Stall = Wait.StallBudget(), Interval = TimeSpan.FromSeconds(2), Terminal = service.Exited }.WaitProgressAsync(
                     async ct =>
                     {
-                        var review = await ChildCases.TryRoundsAsync(store, ct).ConfigureAwait(false);
+                        var review = await ServiceJournal.TryRoundsAsync(store, ct).ConfigureAwait(false);
                         if (review is null || review.Tick.Value == 0)
                         {
                             return (Wait.Signature("no-review"), false);

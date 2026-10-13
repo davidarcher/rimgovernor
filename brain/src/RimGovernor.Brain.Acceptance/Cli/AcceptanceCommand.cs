@@ -14,7 +14,7 @@ public static class AcceptanceCommand
           acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [-tier nightly|smoke] [<case>|<area>/...]...
           acceptance stop -root <dir> [-game <id>]
           acceptance run [flags] <case>|<area>/...   (acceptance run -help)
-          acceptance resume | why | suite | plan | dev | warm | fixture | fetch-fixture | profile-compare   (<subcommand> -help)
+          acceptance resume | why | suite | plan | dev | warm | fixture | fetch-fixture | profile-capture | profile-compare | sweep   (<subcommand> -help)
           acceptance setup ... (acceptance setup -help)
           acceptance doctor -root <dir> [-output <dir> -game <id> -worktree <dir> -heal]
           acceptance prune -output <dir> [-keep n -dry-run]
@@ -26,7 +26,8 @@ public static class AcceptanceCommand
         CaseRegistry registry,
         TextWriter stdout,
         TextWriter stderr,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ICombatLab? combatLab = null)
     {
         ArgumentNullException.ThrowIfNull(args);
         ArgumentNullException.ThrowIfNull(registry);
@@ -74,6 +75,16 @@ public static class AcceptanceCommand
                 return await FixtureCommand.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
             case "fetch-fixture":
                 return await CiFixture.FetchFixtureAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
+            case "profile-capture":
+                return await ProfileCaptureCommand.RunAsync(rest, ProfileFixtureHost.Instance, stdout, stderr, cancellationToken).ConfigureAwait(false);
+            case "sweep":
+                if (combatLab is null)
+                {
+                    await stderr.WriteLineAsync("sweep: the host wired no combat lab").ConfigureAwait(false);
+                    return 2;
+                }
+
+                return await SweepCommand.RunAsync(rest, registry, combatLab, stdout, stderr, cancellationToken).ConfigureAwait(false);
             case "profile-compare":
                 return await ProfileCompareCommand.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
             case "prune":
