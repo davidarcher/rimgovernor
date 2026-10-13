@@ -14,16 +14,20 @@ public static class CaseCatalog
 
         // The case areas land with #3090 and #3093; each area adds one line below (sorted by area).
         AnimalsCases.Register(registry);
+        AnomalyCases.Register(registry);
         AuthorityCases.Register(registry);
         BedCases.Register(registry);
         BillsCases.Register(registry);
         CampaignCases.Register(registry);
         CaravanCases.Register(registry);
+        ChildCases.Register(registry);
         CleanCases.Register(registry);
         CombatCases.Register(registry);
         CombatLabCases.Register(registry);
         CustodyCases.Register(registry);
+        DialogCases.Register(registry);
         DraftCases.Register(registry);
+        ExplainCases.Register(registry);
         FarmCases.Register(registry);
         FoodCases.Register(registry);
         HusbandryCases.Register(registry);
