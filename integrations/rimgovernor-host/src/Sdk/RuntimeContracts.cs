@@ -35,6 +35,33 @@ public interface IRimBridgeMainThread
 /// facade, #3080): a tool reaches the game thread through <see cref="IRimBridgeContext.MainThread"/>, a caller
 /// without a context through this. The host sets it in its mod constructor, before any tool is discovered.
 /// </summary>
+public interface IRimBridgeToolInvoker
+{
+    /// <summary>The canonical tool names (<c>rimgovernor/set_time_speed</c>, <c>test/lab_start</c>) registered now.</summary>
+    IReadOnlyCollection<string> ToolNames { get; }
+
+    /// <summary>
+    /// Runs <paramref name="tool"/> with the caller's named arguments and returns its result object. A tool failure,
+    /// cancellation or timeout is thrown as an <see cref="InvalidOperationException"/> carrying the host's message.
+    /// </summary>
+    Task<object> InvokeAsync(string tool, IDictionary<string, object> arguments, TimeSpan timeout, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Where the host publishes <see cref="IRimBridgeToolInvoker"/> (every registered tool by name, whatever arguments
+/// it takes, run as a GABP call runs it) for the mod's HTTP control channel. Null until the host's registry is built.
+/// </summary>
+public static class RimBridgeToolAccess
+{
+    private static IRimBridgeToolInvoker _current;
+
+    public static IRimBridgeToolInvoker Current
+    {
+        get => Volatile.Read(ref _current);
+        set => Volatile.Write(ref _current, value);
+    }
+}
+
 public static class RimBridgeMainThreadAccess
 {
     private static IRimBridgeMainThread _current;

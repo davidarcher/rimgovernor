@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using RimGovernor.Brain.HttpChannel;
 using RimGovernor.Host.Sdk;
 using Verse;
@@ -26,7 +27,24 @@ namespace HomeBridge.BridgeTools
 
         private NativeToolInvoker(Dictionary<string, Tool> tools) { _tools = tools; }
 
-        public IReadOnlyCollection<string> ToolNames => _tools.Keys;
+        /// <summary>
+        /// The ProtoJSON tools of this assembly plus every other tool the host registry knows (the host's own
+        /// <c>rimgovernor/set_time_speed</c>, <c>test/*</c> fixture ops, tools with other arguments). The registry fills
+        /// in as the host starts, so the second part is read on each call.
+        /// </summary>
+        public IReadOnlyCollection<string> ToolNames
+        {
+            get
+            {
+                var names = new HashSet<string>(_tools.Keys, StringComparer.Ordinal);
+                foreach (var name in RimBridgeToolAccess.Current?.ToolNames ?? Array.Empty<string>()) names.Add(RouteName(name));
+                return names;
+            }
+        }
+
+        /// <summary>The route name of a canonical tool name: <c>rimgovernor/x</c> is <c>x</c>, any other name keeps its path.</summary>
+        private static string RouteName(string canonical) =>
+            canonical.StartsWith(Prefix, StringComparison.Ordinal) ? canonical.Substring(Prefix.Length) : canonical;
 
         /// <summary>
         /// Every <c>[Tool]</c> of the assembly whose only caller argument is <c>request</c>: the ProtoJSON tools.
@@ -73,7 +91,7 @@ namespace HomeBridge.BridgeTools
 
         public async Task<NativeToolReply> InvokeAsync(string tool, string requestJson, string? admissionClass, string? trace, CancellationToken cancellationToken)
         {
-            if (!_tools.TryGetValue(tool, out var entry)) throw new KeyNotFoundException(tool);
+            if (!_tools.TryGetValue(tool, out var entry)) return await InvokeRegisteredAsync(tool, requestJson, cancellationToken).ConfigureAwait(false);
             var mainThread = RimBridgeMainThreadAccess.Current ?? throw new InvalidOperationException("The host's game-thread access is not available.");
             var arguments = new Dictionary<string, object>(StringComparer.Ordinal) { ["request"] = requestJson };
             if (!string.IsNullOrEmpty(admissionClass)) arguments[MainThreadAdmission.ClassArgument] = admissionClass!;
@@ -92,6 +110,44 @@ namespace HomeBridge.BridgeTools
             string? timing = null;
             if (reply.TryGetValue("timing", out var raw) && raw != null) timing = JsonConvert.SerializeObject(raw);
             return new NativeToolReply(json, timing);
+        }
+
+        /// <summary>
+        /// A tool that takes named arguments rather than one ProtoJSON <c>request</c>: the body is a JSON object of its
+        /// arguments, the host registry runs it as a GABP call would, and the reply is its result as a JSON object (a
+        /// non-object result is wrapped as <c>{"result": ...}</c>). The registry alias is the canonical name, which
+        /// is the route name with the <c>rimgovernor/</c> prefix put back when the route had none of its own.
+        /// </summary>
+        private static async Task<NativeToolReply> InvokeRegisteredAsync(string route, string argumentsJson, CancellationToken cancellationToken)
+        {
+            var host = RimBridgeToolAccess.Current ?? throw new KeyNotFoundException(route);
+            var canonical = host.ToolNames.Contains(route, StringComparer.Ordinal) ? route : Prefix + route;
+            if (!host.ToolNames.Contains(canonical, StringComparer.Ordinal)) throw new KeyNotFoundException(route);
+            var parsed = JToken.Parse(string.IsNullOrWhiteSpace(argumentsJson) ? "{}" : argumentsJson);
+            if (parsed is not JObject body) throw new ArgumentException($"{canonical} takes a JSON object of arguments.");
+            var arguments = (Dictionary<string, object>)Plain(body);
+            var result = await host.InvokeAsync(canonical, arguments, NativeRoutes.CallTimeout - TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
+            var token = result == null ? new JObject() : JToken.FromObject(result);
+            if (token is not JObject reply) reply = new JObject { ["result"] = token };
+            return new NativeToolReply(reply.ToString(Formatting.None), null);
+        }
+
+        /// <summary>Newtonsoft tokens as the plain values the host binder reads: objects as dictionaries, arrays as lists, scalars as themselves.</summary>
+        private static object Plain(JToken token)
+        {
+            switch (token)
+            {
+                case JObject obj:
+                    var map = new Dictionary<string, object>(StringComparer.Ordinal);
+                    foreach (var property in obj.Properties()) map[property.Name] = Plain(property.Value);
+                    return map;
+                case JArray array:
+                    return array.Select(Plain).ToList();
+                case JValue value:
+                    return value.Value!;
+                default:
+                    return token.ToString(Formatting.None);
+            }
         }
 
         private sealed record Tool(string CapabilityId, object? Instance, MethodInfo Method);
@@ -147,7 +203,9 @@ namespace HomeBridge.BridgeTools
                 {
                     var routes = new RouteTable();
                     NativeRoutes.RegisterHealth(routes);
-                    NativeRoutes.Register(routes, NativeToolInvoker.Discover(typeof(HttpChannelBootstrap).Assembly));
+                    var invoker = NativeToolInvoker.Discover(typeof(HttpChannelBootstrap).Assembly);
+                    NativeRoutes.RegisterToolList(routes, invoker);
+                    NativeRoutes.Register(routes, invoker);
                     var options = new HttpChannelOptions { EndpointDirectory = directory, RunId = string.IsNullOrWhiteSpace(runId) ? Guid.NewGuid().ToString("N") : runId! };
                     var started = new HttpChannelServer(options, routes);
                     started.Start();

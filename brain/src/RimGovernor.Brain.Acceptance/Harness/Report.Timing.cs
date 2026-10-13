@@ -122,6 +122,18 @@ public static class TickStats
         }
     }
 
+    /// <summary>The newest tick a reply carried since the last load, or null before one did (Go <c>lastObservedTick</c>).</summary>
+    public static ulong? Last
+    {
+        get
+        {
+            lock (Gate)
+            {
+                return _seen ? _last : null;
+            }
+        }
+    }
+
     public static void Observe(ulong tick)
     {
         lock (Gate)

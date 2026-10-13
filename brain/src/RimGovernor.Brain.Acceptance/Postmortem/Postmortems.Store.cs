@@ -13,7 +13,7 @@ public static partial class Postmortems
     private static bool _providerReady;
 
     /// <summary>Registers the native SQLite provider once (the same SourceGear e_sqlite3 library the store uses).</summary>
-    private static void EnsureProvider()
+    internal static void EnsureProvider()
     {
         lock (ProviderGate)
         {

@@ -226,6 +226,9 @@ public static class RingPlanning
             SourceRevision = MetricSeries.SourceRevision(),
             Bridge = () => host.LiveHarness,
 
+            // A native-only case has no service to ask: the newest tick a harness reply carried stands in.
+            ObservedTick = () => TickStats.Last,
+
             // A restarted service is not on the case's own list; the host tracks the latest launch.
             Service = host.LatestService,
         };

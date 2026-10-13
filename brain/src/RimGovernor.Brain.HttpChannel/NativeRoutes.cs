@@ -49,6 +49,35 @@ public static class NativeRoutes
             new RouteOptions { MaxBodyBytes = MaxRequestBytes, Timeout = CallTimeout });
     }
 
+    /// <summary>
+    /// Registers <c>GET /api/tools</c>: the route names <c>POST /native/&lt;name&gt;</c> answers right now (the list can
+    /// grow while the game starts, as the host registers its tools), for a controller that checks a tool exists.
+    /// </summary>
+    public static IDisposable RegisterToolList(RouteTable routes, INativeToolInvoker invoker)
+    {
+        return routes.Map(
+            "GET",
+            "/api/tools",
+            (_, _) =>
+            {
+                using var stream = new MemoryStream();
+                using (var writer = new Utf8JsonWriter(stream))
+                {
+                    writer.WriteStartObject();
+                    writer.WriteStartArray("tools");
+                    foreach (var name in invoker.ToolNames.OrderBy(n => n, StringComparer.Ordinal))
+                    {
+                        writer.WriteStringValue(name);
+                    }
+
+                    writer.WriteEndArray();
+                    writer.WriteEndObject();
+                }
+
+                return Task.FromResult(ChannelResponse.Json(200, Encoding.UTF8.GetString(stream.ToArray())));
+            });
+    }
+
     /// <summary>Registers <c>GET /api/health</c>: the channel is up and which process answers.</summary>
     public static IDisposable RegisterHealth(RouteTable routes)
     {
@@ -119,21 +148,39 @@ public static class NativeRoutes
         }
     }
 
-    private static bool IsToolName(string name)
+    /// <summary>
+    /// A route name is one or more <c>/</c>-separated segments of lowercase letters, digits and <c>_ - .</c>, none
+    /// empty: <c>operations_apply</c> for a <c>rimgovernor/</c> tool, <c>test/lab_start</c> for a fixture op.
+    /// </summary>
+    internal static bool IsToolName(string name)
     {
         if (name.Length is 0 or > 96)
         {
             return false;
         }
 
+        var segmentLength = 0;
         foreach (var c in name)
         {
+            if (c == '/')
+            {
+                if (segmentLength == 0)
+                {
+                    return false;
+                }
+
+                segmentLength = 0;
+                continue;
+            }
+
             if (!(c is >= 'a' and <= 'z' or >= '0' and <= '9' or '_' or '-' or '.'))
             {
                 return false;
             }
+
+            segmentLength++;
         }
 
-        return true;
+        return segmentLength > 0 && !name.Split('/').Any(segment => segment.All(c => c == '.'));
     }
 }

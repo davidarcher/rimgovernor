@@ -80,7 +80,44 @@ public sealed class HttpNativeTransport : INativeTransport
         }
     }
 
-    public Task<IReadOnlyList<string>?> ToolNamesAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<string>?>(null);
+    /// <summary>
+    /// The tools the channel routes right now (<c>GET /api/tools</c>), in the names a caller uses: a route without a
+    /// namespace is a <c>rimgovernor/</c> tool, <c>test/lab_start</c> keeps its own. Null when the channel cannot say,
+    /// so callers assume a tool is present.
+    /// </summary>
+    public async Task<IReadOnlyList<string>?> ToolNamesAsync(CancellationToken cancellationToken)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(_timeout);
+        try
+        {
+            var address = await ResolveAddressAsync(timeout.Token).ConfigureAwait(false);
+            using var response = await _client.GetAsync(address + "/api/tools", timeout.Token).ConfigureAwait(false);
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                return null;
+            }
+
+            var text = await response.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false);
+            if (JsonNode.Parse(text) is not JsonObject { } reply || reply["tools"] is not JsonArray tools)
+            {
+                return null;
+            }
+
+            return [.. tools.Select(t => t?.GetValue<string>() ?? "").Where(t => t.Length > 0).Select(ToolName)];
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return null;
+        }
+        catch (Exception e) when (e is HttpRequestException or JsonException or NativeTransportException or InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>The tool name of a route name (the inverse of <see cref="RoutePath"/>).</summary>
+    internal static string ToolName(string route) => route.Contains('/', StringComparison.Ordinal) ? route : ToolPrefix + route;
 
     /// <summary>The attention read tool the mod's attention manager answers (the GABP <c>games_get_attention</c> hop).</summary>
     internal const string GetAttentionTool = "games_get_attention";
