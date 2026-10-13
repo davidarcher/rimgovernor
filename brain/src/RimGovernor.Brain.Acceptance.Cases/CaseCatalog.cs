@@ -62,6 +62,7 @@ public static class CaseCatalog
         SleepingCases.Register(registry);
         SmokeCases.Register(registry);
         SoloCases.Register(registry);
+        SpeedmatrixCases.Register(registry);
         StartupCases.Register(registry);
         StorageCases.Register(registry);
         SustainedCases.Register(registry);
