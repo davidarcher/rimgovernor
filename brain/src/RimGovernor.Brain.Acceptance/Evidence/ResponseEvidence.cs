@@ -30,9 +30,9 @@ public sealed class ResponseEvidence
 
     public long? OnsetTick { get; }
 
-    public long? DetectionTick { get; private set; }
+    public long? DetectionTick { get; set; }
 
-    public string DetectionSource { get; }
+    public string DetectionSource { get; set; }
 
     public long? DecisionTick { get; private set; }
 
