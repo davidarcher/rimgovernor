@@ -2,8 +2,8 @@
 
 This probe is now part of the consolidated `NativeContractProbes.csproj`; it no
 longer has its own `.csproj`. Build the private native package with
-`go run ./internal/nativeaccept/cmd/acceptance setup -production -skip-binaries`
-from `go/`, then build the merged project in Release. Run it
+`RimGovernor.cmd acceptance setup -production -skip-binaries`
+from the repository root, then build the merged project in Release. Run it
 with:
 
 ```powershell

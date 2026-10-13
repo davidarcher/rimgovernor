@@ -21,7 +21,7 @@ internal static class ThoughtAuditCommand
 {
     private const string Usage = "usage: thoughtaudit [-rimworld dir] [-out table] [-decompiled dir]";
 
-    private static readonly string[] DefaultTable = ["go", "internal", "policy", "thought_triggers.tsv"];
+    private static readonly string[] DefaultTable = ["brain", "src", "RimGovernor.Brain.Policy", "thought_triggers.tsv"];
 
     public static async Task<int> RunAsync(string[] args, CancellationToken ct)
     {
@@ -30,7 +30,7 @@ internal static class ThoughtAuditCommand
         {
             Log.Info(Usage);
             Log.Info($"  -rimworld    RimWorld install directory (default: discovered, or ${SetupDiscovery.RimWorldDirEnv})");
-            Log.Info("  -out         table to write (default go/internal/policy/thought_triggers.tsv in the checkout)");
+            Log.Info("  -out         table to write (default brain/src/RimGovernor.Brain.Policy/thought_triggers.tsv in the checkout)");
             Log.Info("  -decompiled  directory for the decompiled sources (default: temporary, removed afterwards)");
             return 0;
         }

@@ -28,12 +28,12 @@ internal static partial class Program
     /// <summary>The checkout the launcher belongs to: the one enclosing its executable, else the working directory's.</summary>
     private static string? FindRepo()
     {
-        if (Environment.ProcessPath is { } exe && Path.GetDirectoryName(exe) is { } dir && SetupPackage.FindRepo(dir) is { } found)
+        if (Environment.ProcessPath is { } exe && Path.GetDirectoryName(exe) is { } dir && NativeSourceInputs.FindRepo(dir) is { } found)
         {
             return found;
         }
 
-        return SetupPackage.FindRepo(Directory.GetCurrentDirectory());
+        return NativeSourceInputs.FindRepo(Directory.GetCurrentDirectory());
     }
 
     private static int Fatal(string message)

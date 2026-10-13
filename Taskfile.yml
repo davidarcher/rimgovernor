@@ -3,30 +3,17 @@
 # `task build` and `task test` fan out to every project with its own toolchain
 # root; each project ships a Taskfile.yml implementing both, so a missing one
 # fails to load instead of being skipped. `build` includes the static gates that
-# produce a build failure (gofmt, vet, staticcheck, tsc, eslint, warnings as
-# errors, locked restores); `test` is tests only and runs every project
-# concurrently, the Go suite last on its own (per-test wall-clock ceiling).
+# produce a build failure (warnings as errors, locked restores, architecture
+# analyzers); `test` is tests only and runs every project concurrently.
 # Projects needing machine-local inputs (game DLLs) report
 # `unavailable` with the missing path rather than pass.
 # Build outputs and evidence land under .rimgovernor/task. Hosted workflows
 # (.github/workflows) cover remote acceptance only; the gate runs locally before work lands on main.
 #
-# Install: `winget install Task.Task` or
-# `go install github.com/go-task/task/v3/cmd/task@latest`.
+# Install: `winget install Task.Task`.
 version: '3'
 
-env:
-  # Go version pin; go/.go-version and every go.mod `go` directive must agree.
-  GOTOOLCHAIN: go1.27.1
-  GOWORK: 'off'
-  CGO_ENABLED: '0'
-
 includes:
-  go: { taskfile: go, dir: go }
-  wire: { taskfile: contracts/generated/protobuf/go, dir: contracts/generated/protobuf/go }
-  protobuf: { taskfile: tools/protobuf, dir: tools/protobuf }
-  protobuf-go: { taskfile: tools/protobuf/go, dir: tools/protobuf/go }
-  defmirror: { taskfile: tools/defmirror, dir: tools/defmirror }
   native: { taskfile: integrations/rimgovernor-native, dir: integrations/rimgovernor-native }
   probes: { taskfile: contracts/tests, dir: contracts/tests }
   brain: { taskfile: brain, dir: brain }
@@ -37,11 +24,6 @@ tasks:
   build:
     desc: Static gates and builds for every project
     cmds:
-      - task: go:build
-      - task: wire:build
-      - task: protobuf-go:build
-      - task: protobuf:build
-      - task: defmirror:build
       - task: native:build
       - task: probes:build
       - task: brain:build
@@ -49,17 +31,10 @@ tasks:
       - task: launcher:build
 
   test:
-    desc: Tests for every project, run concurrently; the Go suite last, alone
-    # Run Go tests after concurrent dependencies finish to keep protobuf and dotnet load from
-    # consuming their wall-clock hang budgets.
+    desc: Tests for every project, run concurrently
     deps:
-      - wire:test
-      - protobuf-go:test
-      - protobuf:test
       - native:test
       - probes:test
       - brain:test
       - rg:test
       - launcher:test
-    cmds:
-      - task: go:test

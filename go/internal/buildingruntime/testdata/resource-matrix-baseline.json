@@ -1,8 +1,0 @@
-{
-  "failing": {
-    "StoneBlocks/mine+produce/destroy#restore": "StoneBlocks stock stayed under 150 for 25 days after day 15 (min runway 0)",
-    "StoneBlocks/mine+produce/surge#restore": "StoneBlocks stock stayed under 150 for 25 days after day 18 (min runway 0)",
-    "StoneBlocks/produce/destroy#restore": "StoneBlocks stock stayed under 150 for 25 days after day 15 (min runway 0)",
-    "StoneBlocks/produce/surge#restore": "StoneBlocks stock stayed under 150 for 25 days after day 18 (min runway 0)"
-  }
-}

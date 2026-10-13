@@ -214,22 +214,6 @@ switch ($Phase) {
                 # Newer .NET hosts preserve empty values; remove the entry too.
                 Remove-Item -LiteralPath ("Env:" + $_.Name) -ErrorAction SilentlyContinue
             }
-            # Def mirror drift: the game files exist only in the unpacked bundle, so
-            # this is the one place defs.proto is checked against a 1.7 install in CI.
-            # One shard runs it (the bundle is identical in every shard). Drift, or a
-            # mirror that cannot read the game, fails the shard.
-            if ($Shard -ceq 's1' -and $jobs.Count -gt 0) {
-                $defMirrorGame = Join-Path ('C:\rg\' + $jobs[0].role) 'dependencies\game'
-                Push-Location $Repo
-                try {
-                    & dotnet restore tools/defmirror/DefMirror.csproj --locked-mode
-                    if ($LASTEXITCODE -eq 0) {
-                        & dotnet run --project tools/defmirror -c Release --no-restore --no-launch-profile -- `
-                            --game-dir $defMirrorGame --check --output contracts/proto/defs.proto
-                    }
-                    if ($LASTEXITCODE) { throw "Def mirror drift check failed ($LASTEXITCODE)" }
-                } finally { Pop-Location }
-            }
             $deadline = [DateTime]::UtcNow.AddMinutes($run.limits.suite_timeout_minutes)
             foreach ($job in $jobs) {
                 $boot = Read-JSON $job.bootstrap

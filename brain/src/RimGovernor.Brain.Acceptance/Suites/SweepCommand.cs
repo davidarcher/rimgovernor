@@ -34,7 +34,7 @@ public interface ICombatLab
     /// <summary>
     /// The file a recorded sweep of <paramref name="fixture"/> lands in: the committed baseline, or with a non-empty
     /// <paramref name="variant"/> the calibration variant file. Throws <see cref="AcceptanceException"/> when the source tree
-    /// cannot be found (Go resolved <c>BaselinesDir</c> / <c>CalibrationDir</c> against the nearest go.mod).
+    /// cannot be found (resolved against the nearest .git).
     /// </summary>
     string RecordPath(string fixture, string variant);
 }

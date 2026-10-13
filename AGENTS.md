@@ -12,18 +12,18 @@
    and merge `origin/main` once; local `main` may be behind.
 2. Make one coherent milestone. From the worktree root, run
    `RimGovernor.cmd test > test.out 2>&1` and wait for its final PASS/FAIL.
-   Do not pipe it, rerun it to filter output, or follow it with `go test ./...`.
+   Do not pipe it, rerun it to filter output, or follow it with `task build` or `task test`; it runs them when C# changed.
    Use `-full` only at an epic's end or for changed code covered by skipped tests.
    No native acceptance run is required before landing; the nightly supplies
-   that evidence. C#/protobuf changes also require `task build` and `task test`.
+   that evidence. C# changes are gated by `task build` and `task test`, which `test` runs for you.
 3. Commit the milestone with checks and anything left unverified in the body.
    Make its subject the branch tip: the lane uses it for the squash title.
 4. From the worktree root, run `RimGovernor.cmd land` once, then fetch `origin main` and
    `git push origin main`. The lane locks, updates main, merges, squash-lands
    and resets the branch; it does not push. Do not combine `test` with
    `land -test`. A rejected push requires fetch, re-land and push, without
-   retesting. Resolve lane-reported conflicts, then build; vet touched Go
-   packages when Go files conflicted. Main moving is not a reason to rerun tests.
+   retesting. Resolve lane-reported conflicts, then build.
+   Main moving is not a reason to rerun tests.
 5. Continue authorized milestones. Close an issue when its stated acceptance
    is met; a registered, compiling acceptance case satisfies a case-writing
    task. Later nightly failures are separate issues.
@@ -56,7 +56,7 @@ edit the main checkout. Details: [landing](docs/developers/development-process.m
   save, the session journal in SQLite, derived state in memory, telemetry in
   the OTLP files.
 - Wire changes edit the records in `brain/src/RimGovernor.Brain.Contracts` (the C# source of truth since #3100);
-  the `.proto` files and Go bindings are frozen until #3102. Delete removed fields outright:
+  Delete removed fields outright:
   no `reserved` fields/names and no compatibility shims.
 - Use current vocabulary: Rounds inspect Concerns in Departments; Types are
   Standard, Project and Incident. Safeguards veto admission. See the
@@ -64,7 +64,7 @@ edit the main checkout. Details: [landing](docs/developers/development-process.m
 
 ## Evidence and diagnostics
 
-- Test planner decisions with Go snapshots; native cases prove native reads,
+- Test planner decisions with snapshot tests; native cases prove native reads,
   operations or simulation. An accepted order is not completed pawn work.
 - New native cases start from a prepared fixture, normally `cases.LabStart()`;
   state why a snapshot test cannot prove the claim. Use a small quiet world,
@@ -92,9 +92,8 @@ edit the main checkout. Details: [landing](docs/developers/development-process.m
   `.rimgovernor/native-rimworld/`. Stop games using that copy first. Never
   replace DLLs in Steam or the shared isolated copy, or rebuild binaries a
   running harness uses.
-- Keep the shared Go cache: no `go clean -cache` or private `GOCACHE`.
 - Keep builds, logs, saves, databases and temporary scripts out of commits.
-  Repository tooling is Go or C# (`tools/rg`); no Python additions.
+  Repository tooling is C# (`tools/rg`); no Python additions.
 - Use absolute harness paths. Detached Windows processes use
   `Start-Process -WindowStyle Hidden`; do not use sleep/poll shell loops.
   Remote setup and game-free checks are in the [runbook](docs/developers/agent-runbook.md#remote-agents).
@@ -108,7 +107,7 @@ and useful rationale, not change diaries or duplicated source inventories.
 Track out-of-scope bugs, deferred work and decisions in GitHub issues, one item
 per issue. Check for an existing match first. Include concrete evidence and a
 completion condition; use `priority:P0`/`P1`/`P2` or an applicable area label.
-Do not file issues merely for unverified coverage. Read issues from `go/` with
+Do not file issues merely for unverified coverage. Read issues from the worktree root with
 `RimGovernor.cmd issue -last <n> <issue>` (flags first); remote agents use GitHub
 MCP when the CLI is unavailable. Put ongoing issue status in comments.
 

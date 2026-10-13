@@ -1,13 +1,5 @@
-*.go text eol=lf
-*.proto text eol=lf
-go/go.mod text eol=lf
-go/go.sum text eol=lf
-go/.go-version text eol=lf
-contracts/generated/** text eol=lf
 *.sh text eol=lf
 *.rws text eol=lf -diff
 *.jsonl text eol=lf
-go/internal/supplysim/testdata/*.json text eol=lf
-go/** text=auto eol=lf
 contracts/fixtures/** text eol=lf
 *.cmd text eol=crlf

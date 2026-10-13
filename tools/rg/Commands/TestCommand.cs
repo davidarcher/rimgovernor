@@ -3,14 +3,12 @@ using RimGovernor.Tools.Common;
 namespace RimGovernor.Tools.Commands;
 
 /// <summary>
-/// Runs the checks a change owes: gofmt on the changed files, go vet and staticcheck on the module, then
-/// go test -short ./... (Go's test cache replays unchanged packages), plus the native contract probes build when its
-/// inputs changed (Go: <c>cmd/test</c>).
+/// Runs the checks a change owes: the native contract probes build when its inputs changed, then task build and
+/// task test when any C# project changed.
 /// <code>RimGovernor.cmd test [-base main] [-full]</code>
 /// Run from anywhere inside the worktree. It diffs the working tree (committed, staged, unstaged and untracked)
 /// against -base, so it is the edit/test loop's check as well as the pre-land one; the landing lane does not test.
-/// -short skips the slow tests so the default run stays near 30 s; -full runs them, as the nightly does, even with
-/// no changed Go files.
+/// -full runs the gate even with no changed C# project.
 /// </summary>
 internal static class TestCommand
 {
@@ -21,7 +19,7 @@ internal static class TestCommand
         {
             Log.Info("usage: test [-base main] [-full]");
             Log.Info("  -base   revision to diff the working tree against (default main)");
-            Log.Info("  -full   check the whole module including slow tests, even without changes; for the end of an epic");
+            Log.Info("  -full   run task build and task test even without changes; for the end of an epic");
             return 0;
         }
         var repo = Repo.Require(Directory.GetCurrentDirectory());

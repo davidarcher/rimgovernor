@@ -27,7 +27,7 @@ internal static class CombatCalibrateCommand
 {
     private const string Usage = "usage: combatcalibrate [-record] [-show report.json]";
 
-    private static readonly string[] CalibrationDir = ["go", "internal", "nativeaccept", "cases", "combatlab", "calibration"];
+    private static readonly string[] CalibrationDir = ["brain", "src", "RimGovernor.Brain.Acceptance.Cases", "CombatLab", "calibration"];
 
     /// <summary>The fixture measurements provider; null until the acceptance case slices register one.</summary>
     public static ICalibrationInputs? Inputs { get; set; }

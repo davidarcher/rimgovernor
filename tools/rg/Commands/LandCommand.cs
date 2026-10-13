@@ -49,7 +49,7 @@ internal static partial class LandCommand
             Log.Info("  -m           squash commit subject and body (the trailers are appended)");
             Log.Info("  -F           file holding the squash commit subject and body");
             Log.Info("  -lock-timeout how long to wait for another landing to finish (default 15m)");
-            Log.Info("  -test        also run the affected Go tests against the merged tree before landing");
+            Log.Info("  -test        also run the affected checks against the merged tree before landing");
             Log.Info("  -issue       GitHub issue to close with the landing commit (default: the number in the branch name)");
             Log.Info("  -no-close    do not close a GitHub issue");
             return 0;
