@@ -71,8 +71,9 @@ public static class GameSessions
     /// Runs right before a launch (not an attach): the prepared ModsConfig.xml and the installed package's hashes are
     /// snapshotted so a later open can tell what the process runs with.
     /// </summary>
-    public static void PrepareFreshLaunch(string configDir)
+    public static void PrepareFreshLaunch(string configDir, IReadOnlyDictionary<string, string>? launchEnv = null)
     {
+        HeadlessProfile.RecordLaunchedEnv(configDir, launchEnv ?? new Dictionary<string, string>());
         HeadlessProfile.RecordLaunchedMods(configDir);
         HeadlessProfile.RecordLaunchedPackage(configDir);
     }
@@ -82,7 +83,7 @@ public static class GameSessions
     /// <paramref name="configDir"/>), then connects and waits for the channel to answer. On any failure the session is
     /// disposed before the exception leaves, so callers never leak a half-open one.
     /// </summary>
-    public static async Task<INativeTransport> OpenBridgeSessionAsync(string configDir, string gameId, TimeSpan timeout, CancellationToken cancellationToken)
+    public static async Task<INativeTransport> OpenBridgeSessionAsync(string configDir, string gameId, TimeSpan timeout, CancellationToken cancellationToken, IReadOnlyDictionary<string, string>? launchEnv = null)
     {
         var transport = CreateTransport(configDir, gameId, timeout);
         var ok = false;
@@ -90,10 +91,10 @@ public static class GameSessions
         {
             if (!HeadlessProfile.GameRunning(HeadlessProfile.MustAbs(configDir), gameId))
             {
-                PrepareFreshLaunch(configDir);
+                PrepareFreshLaunch(configDir, launchEnv);
             }
 
-            var game = StartOrAttach(configDir, gameId);
+            var game = StartOrAttach(configDir, gameId, launchEnv);
             await ConnectAsync(transport, game, configDir, gameId, ConnectBudget, cancellationToken).ConfigureAwait(false);
             ok = true;
             return transport;
@@ -137,7 +138,7 @@ public static class GameSessions
     /// configured game with the channel directory and a new run id in its environment (the mod starts its HTTP channel only
     /// then). A stale endpoint file from an earlier process is removed first so nothing connects to it.
     /// </summary>
-    public static GameProcess StartOrAttach(string configDir, string gameId)
+    public static GameProcess StartOrAttach(string configDir, string gameId, IReadOnlyDictionary<string, string>? launchEnv = null)
     {
         var stateDir = HeadlessProfile.MustAbs(configDir);
         var existing = GameProcess.Attach(stateDir, gameId);
@@ -158,11 +159,14 @@ public static class GameSessions
             throw new AcceptanceException($"remove stale {stale}: {e.Message}", e);
         }
 
-        var env = new Dictionary<string, string>(spec.Env, StringComparer.Ordinal)
+        var env = new Dictionary<string, string>(spec.Env, StringComparer.Ordinal);
+        foreach (var (name, value) in launchEnv ?? new Dictionary<string, string>())
         {
-            [OtlpDirectoryVariable] = directory,
-            [RunIdVariable] = Guid.NewGuid().ToString("N"),
-        };
+            env[name] = value;
+        }
+
+        env[OtlpDirectoryVariable] = directory;
+        env[RunIdVariable] = Guid.NewGuid().ToString("N");
         try
         {
             return GameProcess.StartDetached(new GameLaunchSpec

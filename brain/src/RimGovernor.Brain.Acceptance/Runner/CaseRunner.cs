@@ -898,15 +898,25 @@ public sealed class CaseRunner
         }
     }
 
-    private static Config NewConfig(AcceptanceCase c, RunOptions opts, string output) => new()
+    private static Config NewConfig(AcceptanceCase c, RunOptions opts, string output)
     {
-        Root = opts.Root,
-        Output = output,
-        Headless = opts.Headless && !c.Rendered,
-        Graphics = c.Graphics,
-        GameId = opts.GameId,
-        QuietWorld = c.QuietWorld,
-    };
+        var cfg = new Config
+        {
+            Root = opts.Root,
+            Output = output,
+            Headless = opts.Headless && !c.Rendered,
+            Graphics = c.Graphics,
+            GameId = opts.GameId,
+            QuietWorld = c.QuietWorld,
+        };
+        cfg.LaunchEnv[HeadlessProfile.StateVariable] = Path.Combine(output, Checkpoints.CheckpointStoreFile);
+        foreach (var (name, value) in ServiceLaunchEnv.Applied(c.Serve?.Env ?? []))
+        {
+            cfg.LaunchEnv[name] = value;
+        }
+
+        return cfg;
+    }
 
     // Runs a checkpoint/stage planning step, naming the step in the failure like Go's fmt.Errorf("...: %w").
     private static T Wrap<T>(string what, Func<T> step)

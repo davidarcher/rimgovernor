@@ -90,6 +90,12 @@ public sealed class Game : IGameHold
         if (reused)
         {
             var reason = HeadlessProfile.LaunchedMismatch(config.Configuration);
+            if (reason.Length == 0)
+            {
+                // The game reads its environment once: serve flags a case asks for need a fresh process.
+                reason = HeadlessProfile.LaunchedEnvMismatch(config.Configuration, config.LaunchEnv);
+            }
+
             if (config.Resumed)
             {
                 reason = "checkpoint";
@@ -117,7 +123,7 @@ public sealed class Game : IGameHold
             }
         }
 
-        var transport = await GameSessions.OpenBridgeSessionAsync(config.Configuration, gameId, TimeSpan.FromSeconds(60), cancellationToken).ConfigureAwait(false);
+        var transport = await GameSessions.OpenBridgeSessionAsync(config.Configuration, gameId, TimeSpan.FromSeconds(60), cancellationToken, config.LaunchEnv).ConfigureAwait(false);
         var harness = new Harness(transport, config.Output);
 
         // Evidence for the unloads goes under its own directory so its numbering never collides with the harness's own.

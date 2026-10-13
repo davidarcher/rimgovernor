@@ -37,6 +37,17 @@ public static partial class HeadlessProfile
     public const string LaunchedPackageFile = "RimGovernorLaunchedPackage.json";
 
     /// <summary>
+    /// The profile-directory file recording the environment entries (beyond the channel directory and run id) a process
+    /// was launched with: the game reads its environment once, so a kept process whose entries differ from what a case
+    /// wants cannot be reused (<see cref="LaunchedEnvMismatch"/>), and the readers of the brain's state database find it
+    /// at the recorded <c>RIMGOVERNOR_STATE</c> (<see cref="LaunchedEnvValue"/>).
+    /// </summary>
+    public const string LaunchedEnvFile = "RimGovernorLaunchedEnv.json";
+
+    /// <summary>The environment variable naming the brain's state database (<c>InProcEnvironment.State</c>).</summary>
+    public const string StateVariable = "RIMGOVERNOR_STATE";
+
+    /// <summary>
     /// Makes a harness-launched game quit after 20 minutes without a call (native IdleExit), so a warm game kept at the
     /// main menu that no run comes back to does not linger. Only acceptance launches carry it; the player's config never does.
     /// </summary>
@@ -412,6 +423,76 @@ public static partial class HeadlessProfile
         }
 
         return Harness.PackageFiles(workingDir);
+    }
+
+    /// <summary>Snapshots the environment entries a fresh launch adds to <see cref="LaunchedEnvFile"/>; a missing profile is not an error.</summary>
+    public static void RecordLaunchedEnv(string configDir, IReadOnlyDictionary<string, string> env)
+    {
+        string profile;
+        try
+        {
+            profile = SaveDataFolder(configDir);
+        }
+        catch (AcceptanceException)
+        {
+            return;
+        }
+
+        var snapshot = new JsonObject();
+        foreach (var (name, value) in env.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        {
+            snapshot[name] = value;
+        }
+
+        Directory.CreateDirectory(profile);
+        File.WriteAllBytes(Path.Combine(profile, LaunchedEnvFile), new UTF8Encoding(false).GetBytes(snapshot.ToJsonString(IndentedOptions)));
+    }
+
+    /// <summary>The environment a process was launched with (<see cref="RecordLaunchedEnv"/>), or null when none was recorded.</summary>
+    public static IReadOnlyDictionary<string, string>? ReadLaunchedEnv(string configDir)
+    {
+        try
+        {
+            var path = Path.Combine(SaveDataFolder(configDir), LaunchedEnvFile);
+            if (!File.Exists(path) || JsonNode.Parse(File.ReadAllText(path, new UTF8Encoding(false))) is not JsonObject recorded)
+            {
+                return null;
+            }
+
+            return recorded.ToDictionary(pair => pair.Key, pair => pair.Value?.GetValue<string>() ?? "", StringComparer.Ordinal);
+        }
+        catch (Exception e) when (e is AcceptanceException or IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>One recorded launch-environment value, "" when absent.</summary>
+    public static string LaunchedEnvValue(string configDir, string name) =>
+        ReadLaunchedEnv(configDir) is { } env && env.TryGetValue(name, out var value) ? value : "";
+
+    /// <summary>
+    /// "env" when the process was launched without an entry <paramref name="wanted"/> asks for (or with another value),
+    /// else "". The state database path (<see cref="StateVariable"/>) differs per run by design, so it never forces a
+    /// relaunch: the readers follow the recorded path instead.
+    /// </summary>
+    public static string LaunchedEnvMismatch(string configDir, IReadOnlyDictionary<string, string> wanted)
+    {
+        var launched = ReadLaunchedEnv(configDir) ?? new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (name, value) in wanted)
+        {
+            if (name == StateVariable)
+            {
+                continue;
+            }
+
+            if (!launched.TryGetValue(name, out var have) || !string.Equals(have, value, StringComparison.Ordinal))
+            {
+                return "env";
+            }
+        }
+
+        return "";
     }
 
     /// <summary>

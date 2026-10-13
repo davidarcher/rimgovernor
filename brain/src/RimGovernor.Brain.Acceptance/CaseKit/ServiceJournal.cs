@@ -19,6 +19,13 @@ public static class ServiceJournal
     public static string PathOf(Config config)
     {
         ArgumentNullException.ThrowIfNull(config);
+
+        // A kept game keeps the state path it was launched with, which an earlier run's output may name.
+        if (config.Configuration.Length > 0 && HeadlessProfile.LaunchedEnvValue(config.Configuration, HeadlessProfile.StateVariable) is { Length: > 0 } launched)
+        {
+            return launched;
+        }
+
         return System.IO.Path.Combine(config.Output, Checkpoints.CheckpointStoreFile);
     }
 

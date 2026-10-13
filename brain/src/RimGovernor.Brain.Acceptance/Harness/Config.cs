@@ -60,6 +60,13 @@ public sealed partial class Config
     /// </summary>
     public string ServiceProfile { get; set; } = "";
 
+    /// <summary>
+    /// The environment entries a fresh game launch under this configuration adds: <c>RIMGOVERNOR_STATE</c> (the brain's
+    /// state database, <c>&lt;Output&gt;/service.sqlite</c>) and the case's serve flags (<c>ServeSpec.Env</c> entries named
+    /// like environment variables). A kept process launched without them is replaced (relaunch reason "env").
+    /// </summary>
+    public Dictionary<string, string> LaunchEnv { get; set; } = new(StringComparer.Ordinal);
+
     /// <summary>The profile directory services launched under this configuration use.</summary>
     public string ServiceProfileDir() => ServiceProfile.Length > 0 ? ServiceProfile : Path.Combine(Output, "service-profile");
 }

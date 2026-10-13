@@ -110,8 +110,17 @@ Decided (user, 2026-10-13):
   | `RIMGOVERNOR_LAYOUT_OVERLAY` | launcher Layout overlay (`--layout-overlay`) | on |
 
   The launcher sets the last three from its saved settings. The default database is shared by every save, so an
-  incompatible-schema reset affects them all. Launcher Telemetry has no host input: the host writes OTLP files and has
-  no endpoint to send to. `-rimgovernor-test-acceleration` also sets `ClockTestAcceleration`.
+  incompatible-schema reset affects them all. Launcher Telemetry is intentionally unmapped (not a bug, #3117): the
+  host writes OTLP files and has no endpoint to send to, so the saved setting has nothing to drive, and
+  `RIMGOVERNOR_PROFILE` stays unset by the harness. `-rimgovernor-test-acceleration` also sets `ClockTestAcceleration`.
+- **Acceptance harness.** The out-of-process harness sets `RIMGOVERNOR_STATE=<Output>/service.sqlite` (plus a case's
+  serve flags named like environment variables, `ServeSpec.Env`) in the launched game's environment and records the
+  launch environment in the save-data folder (`RimGovernorLaunchedEnv.json`). The game reads its environment once, so a
+  kept game launched without a case's flags is relaunched (reason `env`); the state path never forces a relaunch, and a
+  kept game's readers follow the recorded path. `HostSeams.Install()` (called from `CaseCatalog.Register`) wires the
+  store-backed case readers over that file. Readers that need the game's own data (`StarterSite.Planner`,
+  `LayoutSiteHost.Surveyor`, `ColonyFactsSource.Reader`, the catalog and blight readers) stay unwired until a mod route
+  or in-mod publication exists.
 - **Catalog.** `BrainCompositionOptions.CatalogFactory` is `NativeCatalogFactory.Create` and `StartingIdeoligion` is
   `NativeCatalogFactory.StartingIdeoligion`; both run on the brain's threads, never the game thread.
 - **Clock native.** Nothing to build: `FacadeNativeClient` already implements `IClockDriverNative`.

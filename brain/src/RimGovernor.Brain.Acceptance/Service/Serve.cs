@@ -20,7 +20,11 @@ public sealed record ServiceLaunch
     /// <summary>The routine families the brain must be composed with (RIMGOVERNOR_ROUTINE_FAMILIES); null accepts whatever it runs.</summary>
     public IReadOnlyList<string>? Families { get; init; }
 
-    /// <summary>Further environment entries (KEY=value). The brain already runs inside the game, so they cannot be applied; they are recorded on the launch entry.</summary>
+    /// <summary>
+    /// Further environment entries (KEY=value). An entry named like an environment variable is added to the game's launch
+    /// environment (a kept game launched without it is relaunched); any other entry (a Go flag with no in-process
+    /// equivalent, such as <c>serve_args=...</c>) is recorded on the launch entry as <c>env_unapplied</c>.
+    /// </summary>
     public IReadOnlyList<string> Env { get; init; } = [];
 
     /// <summary>
@@ -77,6 +81,7 @@ public sealed partial class ServiceProcess : ICheckpointService
 
     private readonly Lock _gate = new();
     private string _output = "";
+    private string _configDir = "";
     private Harness? _harness;
     private Report? _report;
     private JsonObject _entry = [];
@@ -105,11 +110,11 @@ public sealed partial class ServiceProcess : ICheckpointService
     public static Task<ServiceProcess> ServeAsync(Config cfg, Harness? harness, JsonObject? identity, ServeSpec spec, Report? report, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(cfg);
-        return ServeCoreAsync(cfg.Output, harness, identity, spec, 1, report, cancellationToken);
+        return ServeCoreAsync(cfg.Output, harness, identity, spec, 1, report, cancellationToken, cfg.Configuration);
     }
 
     // Serve with the launch number a harness-less restart carries; with a harness the output's own count wins.
-    private static async Task<ServiceProcess> ServeCoreAsync(string output, Harness? harness, JsonObject? identity, ServeSpec spec, int launch, Report? report, CancellationToken cancellationToken)
+    private static async Task<ServiceProcess> ServeCoreAsync(string output, Harness? harness, JsonObject? identity, ServeSpec spec, int launch, Report? report, CancellationToken cancellationToken, string configDir = "")
     {
         ArgumentException.ThrowIfNullOrEmpty(output);
         ArgumentNullException.ThrowIfNull(spec);
@@ -138,7 +143,7 @@ public sealed partial class ServiceProcess : ICheckpointService
             throw new AcceptanceException("serve: the loaded identity is required once the harness session is released");
         }
 
-        var p = await LaunchServeAsync(output, harness, spec, launch, report, cancellationToken).ConfigureAwait(false);
+        var p = await LaunchServeAsync(output, harness, spec, launch, report, cancellationToken, configDir).ConfigureAwait(false);
         p.Identity = identity.DeepClone().AsObject();
         try
         {
@@ -163,7 +168,7 @@ public sealed partial class ServiceProcess : ICheckpointService
         ArgumentNullException.ThrowIfNull(launch);
         report = launch.Report ?? report;
         var spec = new ServeSpec { Families = launch.Families, Env = launch.Env, PlayerSpeed = launch.PlayerSpeed };
-        return LaunchServeAsync(launch.Output.Length > 0 ? launch.Output : cfg.Output, null, spec, 1, report, cancellationToken);
+        return LaunchServeAsync(launch.Output.Length > 0 ? launch.Output : cfg.Output, null, spec, 1, report, cancellationToken, cfg.Configuration);
     }
 
     /// <summary>
@@ -195,7 +200,7 @@ public sealed partial class ServiceProcess : ICheckpointService
             Prefix = Spec.Prefix,
             PlayerSpeed = Spec.PlayerSpeed,
         };
-        var next = await ServeCoreAsync(_output, _harness, Identity, spec, Launch + 1, _report, cancellationToken).ConfigureAwait(false);
+        var next = await ServeCoreAsync(_output, _harness, Identity, spec, Launch + 1, _report, cancellationToken, _configDir).ConfigureAwait(false);
         lock (next._gate)
         {
             next._entry["restart"] = "re-attached to the in-mod brain; it was not restarted";
@@ -206,7 +211,7 @@ public sealed partial class ServiceProcess : ICheckpointService
 
     // Finds the player API under output/service (output/service-N for a restart), checks the brain answers as the
     // process the endpoint file names and records the launch on the report.
-    private static async Task<ServiceProcess> LaunchServeAsync(string output, Harness? harness, ServeSpec spec, int launch, Report? report, CancellationToken cancellationToken)
+    private static async Task<ServiceProcess> LaunchServeAsync(string output, Harness? harness, ServeSpec spec, int launch, Report? report, CancellationToken cancellationToken, string configDir = "")
     {
         var serviceDir = Path.Combine(output, "service");
         var key = "service";
@@ -232,7 +237,27 @@ public sealed partial class ServiceProcess : ICheckpointService
 
         if (spec.Env.Count > 0)
         {
-            entry["env_unapplied"] = new JsonArray([.. spec.Env.Select(e => (JsonNode?)JsonValue.Create(e))]);
+            // The game reads its environment once, at launch: the runner put the flags in the launch environment (relaunching
+            // a kept process that lacked them), and the record of that environment says which this game really has.
+            var launched = configDir.Length > 0 ? HeadlessProfile.ReadLaunchedEnv(configDir) : null;
+            var applied = new JsonArray();
+            var unapplied = new JsonArray();
+            foreach (var flag in spec.Env)
+            {
+                var (name, value) = ServiceLaunchEnv.Split(flag);
+                var live = ServiceLaunchEnv.IsVariable(name) && launched is not null && launched.TryGetValue(name, out var have) && have == value;
+                (live ? applied : unapplied).Add(flag);
+            }
+
+            if (applied.Count > 0)
+            {
+                entry["env_applied"] = applied;
+            }
+
+            if (unapplied.Count > 0)
+            {
+                entry["env_unapplied"] = unapplied;
+            }
         }
 
         var (url, pid) = await ResolveEndpointAsync(endpointDir, entry, cancellationToken).ConfigureAwait(false);
@@ -244,6 +269,7 @@ public sealed partial class ServiceProcess : ICheckpointService
             Spec = spec,
             LogPath = ServiceLogs.LogsPath(otlpDir),
             _output = output,
+            _configDir = configDir,
             _harness = harness,
             _report = report,
             _entry = entry,
