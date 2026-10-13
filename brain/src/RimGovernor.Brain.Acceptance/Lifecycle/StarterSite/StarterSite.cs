@@ -34,6 +34,15 @@ public sealed class StarterSite
         _planner = planner ?? throw new ArgumentNullException(nameof(planner));
     }
 
+    /// <summary>The planner the host installs once (the in-process brain's observation layers own its inputs); <see cref="DefaultArgsAsync"/> fails until it is set.</summary>
+    public static IStarterSitePlanner? Planner { get; set; }
+
+    /// <summary>A case's <see cref="FixtureStart.ArgsFrom"/> for the 9x9 hut (Go <c>startersite.Args</c>) over the installed <see cref="Planner"/>.</summary>
+    public static Task<JsonObject?> DefaultArgsAsync(Harness harness, CancellationToken cancellationToken) =>
+        Planner is { } planner
+            ? new StarterSite(planner).ArgsAsync(harness, cancellationToken)
+            : throw new AcceptanceException("no starter-site planner is installed (StarterSite.Planner)");
+
     /// <summary>Args for the 9x9 fixture hut's site.</summary>
     public Task<JsonObject?> ArgsAsync(Harness harness, CancellationToken cancellationToken) => ArgsCoreAsync(harness, 9, bedrooms: false, cancellationToken);
 

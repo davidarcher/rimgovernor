@@ -49,7 +49,9 @@ public static class CaseCatalog
         RouteCases.Register(registry);
         ScheduleCases.Register(registry);
         ServiceCases.Register(registry);
+        SleepingCases.Register(registry);
         SmokeCases.Register(registry);
+        SoloCases.Register(registry);
         StartupCases.Register(registry);
         StorageCases.Register(registry);
         SustainedCases.Register(registry);
