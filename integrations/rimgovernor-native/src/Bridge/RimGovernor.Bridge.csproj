@@ -29,6 +29,16 @@
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.HttpChannel/RimGovernor.Brain.HttpChannel.csproj" />
     <!-- The definition catalog the in-process brain plans over is built over the game's Def objects (NativeCatalogFactory, #3116); Bridge brings Policy and Bridge.Contracts with it. -->
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Bridge/RimGovernor.Brain.Bridge.csproj" />
+    <!-- The in-process brain host (#3115): BrainBootstrap starts it. Its graph (Store carries native SQLite) is referenced directly, as Policy is, so each assembly is a project output beside the Bridge and not a recorded NuGet runtime dependency. -->
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Host/RimGovernor.Brain.Host.csproj" />
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Snapshot/RimGovernor.Brain.Snapshot.csproj" />
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Observation/RimGovernor.Brain.Observation.csproj" />
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Store/RimGovernor.Brain.Store.csproj" />
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Executor/RimGovernor.Brain.Executor.csproj" />
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.BuildingRuntime/RimGovernor.Brain.BuildingRuntime.csproj" />
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.PlayerApi/RimGovernor.Brain.PlayerApi.csproj" />
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Facts/RimGovernor.Brain.Facts.csproj" />
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Simulation/RimGovernor.Brain.Simulation.csproj" />
     <!-- Direct references, like Telemetry below: a transitive project would be recorded as a NuGet runtime dependency. -->
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Bridge.Contracts/RimGovernor.Brain.Bridge.Contracts.csproj" />

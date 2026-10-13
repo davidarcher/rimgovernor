@@ -119,13 +119,26 @@ namespace HomeBridge.BridgeTools
         internal const string DirectoryVariable = "RIMGOVERNOR_OTLP_DIR";
         internal const string RunIdVariable = "RIMGOVERNOR_RUN_ID";
         private static HttpChannelServer? server;
+        private static readonly TaskCompletionSource<RouteTable?> published = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>
+        /// The route table the running channel serves, for the in-process brain's player routes (#3115): completes with
+        /// the table once the channel is listening, or with null when it will not run (no <see cref="DirectoryVariable"/>,
+        /// or it failed to start). The brain registers on this one table so <c>/player/*</c> shares the endpoint file and
+        /// the request guard with <c>/native/*</c>.
+        /// </summary>
+        internal static Task<RouteTable?> Routes => published.Task;
 
 #pragma warning disable CA2255 // See NativeFacadeBootstrap: the host has no startup hook for a plugin assembly.
         [ModuleInitializer]
         internal static void Start()
         {
             var directory = Environment.GetEnvironmentVariable(DirectoryVariable);
-            if (string.IsNullOrWhiteSpace(directory)) return;
+            if (string.IsNullOrWhiteSpace(directory))
+            {
+                published.TrySetResult(null);
+                return;
+            }
             var runId = Environment.GetEnvironmentVariable(RunIdVariable);
             // Binding and writing the file are off the loading thread: a slow disk must not delay the host's mod load.
             Task.Run(() =>
@@ -140,9 +153,11 @@ namespace HomeBridge.BridgeTools
                     started.Start();
                     server = started;
                     AppDomain.CurrentDomain.ProcessExit += (_, _) => started.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
+                    published.TrySetResult(routes);
                 }
                 catch (Exception e)
                 {
+                    published.TrySetResult(null);
                     Log.Warning($"[RimGovernor] HTTP control channel did not start: {e.Message}");
                 }
             });

@@ -58,9 +58,12 @@ once the channel answers. There is no controller process: the brain runs inside
 the game, so Stop and Close game both end RimWorld.
 
 Settings are saved in `.rimgovernor/launcher.json`. Extra arguments and the save
-to load act on a start today. Observe, continue, layout overlay and telemetry
-are kept in the file but the in-process host reads no such inputs yet (#3115),
-so they have no effect; Observe still blocks colony generation in the launcher.
+to load act in the launcher. Observe, continue and layout overlay reach the
+in-process host as the `RIMGOVERNOR_OBSERVE`, `RIMGOVERNOR_CONTINUE_STATE` and
+`RIMGOVERNOR_LAYOUT_OVERLAY` environment variables of the game
+([brain host](brain-host.md#hosting-in-the-mod-3115)); Observe also blocks colony
+generation in the launcher. Telemetry is kept in the file but has no host input
+yet: the host writes the OTLP files and has no endpoint to send to.
 Journal selection and save behavior are described in
 [save and resume](../../players/save-and-resume.md).
 

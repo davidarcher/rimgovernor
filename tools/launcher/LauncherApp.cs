@@ -614,6 +614,11 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
             ["RIMGOVERNOR_OTLP_DIR"] = endpointDir,
             ["RIMGOVERNOR_RUN_ID"] = Guid.NewGuid().ToString("N"),
         };
+        foreach (var (name, value) in settings.HostEnvironment())
+        {
+            env[name] = value;
+        }
+
         string[] args = [.. spec.Args, .. settings.GameArguments()];
         GameProcess game;
         try

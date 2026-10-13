@@ -72,9 +72,10 @@ foreach ($taskFile in @(Get-ChildItem -LiteralPath (Join-Path $taskHostSource 's
 }
 # The brain assemblies the mod shares with the in-process brain (#3080): Domain, Policy, Contracts (the wire records, #3100), Bridge (the definition catalog over the game's Defs, #3116) with Bridge.Contracts,
 # NativeFacade and HttpChannel (the local control channel, #3083) with the Telemetry
-# it reports access rows through, with the shared build props and package versions. Policy embeds the Go-owned
+# it reports access rows through, and the host (#3115) with its graph: Snapshot, Observation, Store (native SQLite),
+# Executor, BuildingRuntime, PlayerApi, Facts and Simulation, with the shared build props and package versions. Policy embeds the Go-owned
 # thought trigger table (go/internal/policy/thought_triggers.tsv) until the Go tree goes (#3102).
-foreach ($taskBrainItem in @('brain/Directory.Build.props', 'brain/Directory.Packages.props', 'brain/Game.props', 'brain/src/RimGovernor.Brain.Domain', 'brain/src/RimGovernor.Brain.Policy', 'brain/src/RimGovernor.Brain.Contracts', 'brain/src/RimGovernor.Brain.Bridge', 'brain/src/RimGovernor.Brain.Bridge.Contracts', 'brain/src/RimGovernor.Brain.NativeFacade', 'brain/src/RimGovernor.Brain.HttpChannel', 'brain/src/RimGovernor.Brain.Telemetry', 'go/internal/policy/thought_triggers.tsv')) {
+foreach ($taskBrainItem in @('brain/Directory.Build.props', 'brain/Directory.Packages.props', 'brain/Game.props', 'brain/src/RimGovernor.Brain.Domain', 'brain/src/RimGovernor.Brain.Policy', 'brain/src/RimGovernor.Brain.Contracts', 'brain/src/RimGovernor.Brain.Bridge', 'brain/src/RimGovernor.Brain.Bridge.Contracts', 'brain/src/RimGovernor.Brain.NativeFacade', 'brain/src/RimGovernor.Brain.HttpChannel', 'brain/src/RimGovernor.Brain.Telemetry', 'brain/src/RimGovernor.Brain.Host', 'brain/src/RimGovernor.Brain.Snapshot', 'brain/src/RimGovernor.Brain.Observation', 'brain/src/RimGovernor.Brain.Store', 'brain/src/RimGovernor.Brain.Executor', 'brain/src/RimGovernor.Brain.BuildingRuntime', 'brain/src/RimGovernor.Brain.PlayerApi', 'brain/src/RimGovernor.Brain.Facts', 'brain/src/RimGovernor.Brain.Simulation', 'go/internal/policy/thought_triggers.tsv')) {
     $taskBrainFrom = Get-Item -LiteralPath (Join-Path $taskRepo $taskBrainItem)
     $taskBrainFiles = if ($taskBrainFrom.PSIsContainer) {
         @(Get-ChildItem -LiteralPath $taskBrainFrom.FullName -Recurse -File | Where-Object { $_.FullName -notmatch '[\\/](obj|bin)[\\/]' })
@@ -159,7 +160,13 @@ foreach ($taskLine in Get-Content -LiteralPath (Join-Path $taskCompiled 'runtime
     if ($taskFields.Count -ne 3 -or -not $taskFields[0]) { throw "Unidentified runtime dependency: $taskLine" }
     $taskNotice = Join-Path $taskCopyNative ('Notices/bridge/' + $taskFields[0].ToLowerInvariant() + '/' + $taskFields[1])
     if (-not (Test-Path -LiteralPath (Join-Path $taskNotice 'LICENSE'))) { throw "Missing runtime dependency notice: $taskLine" }
+    # Native SQLite (Brain.Store, #3115) is a RID-specific asset: it builds to runtimes/<rid>/native and is listed once
+    # per RID. The game is win-x64, and the runtime probes the requesting assembly's own directory for a native
+    # library, not runtimes/, so only the win-x64 binary ships, flat beside the Bridge.
     $taskDll = Join-Path $taskCompiled $taskFields[2]
+    if (-not (Test-Path -LiteralPath $taskDll -PathType Leaf)) { $taskDll = Join-Path $taskCompiled ('runtimes/win-x64/native/' + $taskFields[2]) }
+    if (-not (Test-Path -LiteralPath $taskDll -PathType Leaf)) { throw "Runtime dependency output missing: $taskLine" }
+    if ($taskRuntimeDependencies | Where-Object { $_.package -eq $taskFields[0] -and $_.file -eq $taskFields[2] }) { continue }
     Copy-Item -LiteralPath $taskDll -Destination (Join-Path $taskPackage 'BridgeTools/RimGovernor')
     $taskRuntimeDependencies += [ordered]@{ package = $taskFields[0]; version = $taskFields[1]; file = $taskFields[2] }
 }
@@ -167,7 +174,7 @@ foreach ($taskLine in Get-Content -LiteralPath (Join-Path $taskCompiled 'runtime
 foreach ($taskDll in Get-ChildItem -LiteralPath $taskCompiled -Filter 'RimGovernor.Brain.*.dll' -File) {
     Copy-Item -LiteralPath $taskDll.FullName -Destination (Join-Path $taskPackage 'BridgeTools/RimGovernor')
 }
-foreach ($taskBrain in @('RimGovernor.Brain.Domain.dll', 'RimGovernor.Brain.Policy.dll', 'RimGovernor.Brain.Contracts.dll', 'RimGovernor.Brain.Bridge.dll', 'RimGovernor.Brain.Bridge.Contracts.dll', 'RimGovernor.Brain.NativeFacade.dll', 'RimGovernor.Brain.HttpChannel.dll', 'RimGovernor.Brain.Telemetry.dll')) {
+foreach ($taskBrain in @('RimGovernor.Brain.Domain.dll', 'RimGovernor.Brain.Policy.dll', 'RimGovernor.Brain.Contracts.dll', 'RimGovernor.Brain.Bridge.dll', 'RimGovernor.Brain.Bridge.Contracts.dll', 'RimGovernor.Brain.NativeFacade.dll', 'RimGovernor.Brain.HttpChannel.dll', 'RimGovernor.Brain.Telemetry.dll', 'RimGovernor.Brain.Host.dll', 'RimGovernor.Brain.Snapshot.dll', 'RimGovernor.Brain.Observation.dll', 'RimGovernor.Brain.Store.dll', 'RimGovernor.Brain.Executor.dll', 'RimGovernor.Brain.BuildingRuntime.dll', 'RimGovernor.Brain.PlayerApi.dll', 'RimGovernor.Brain.Facts.dll', 'RimGovernor.Brain.Simulation.dll')) {
     if (-not (Test-Path -LiteralPath (Join-Path $taskPackage "BridgeTools/RimGovernor/$taskBrain") -PathType Leaf)) { throw "Expected brain output missing: $taskBrain" }
 }Copy-Item -LiteralPath (Join-Path $taskCopyNative 'About'), (Join-Path $taskCopyNative 'Defs'), (Join-Path $taskCopyNative 'Textures'), (Join-Path $taskCopyNative 'Notices') -Destination $taskPackage -Recurse
 Copy-Item -LiteralPath (Join-Path $taskCopyNative 'README.md') -Destination $taskPackage

@@ -58,8 +58,8 @@ host wraps the lifecycle in `FlushedLifecycle` (the governor state is flushed be
 `Autosaver` (one in-game day, five rotating `Autosave-N` slots, baseline on the first stop or a rewound tick), which
 the composition passes to the clock windows as `ClockWindowConfig.Autosave`.
 
-Not in the client: the mod-side hosting (#3115). The catalog reads need `CatalogFactory` and the `governor_ideoligion`
-resolver `StartingIdeoligion`; until the mod host installs them they throw. Both live in the mod
+The catalog reads need `CatalogFactory` and the `governor_ideoligion` resolver `StartingIdeoligion`; the mod's
+`BrainBootstrap` installs both (see below). Both live in the mod
 (`NativeCatalogFactory`), because only the mod may read the Def databases (rule 7): the catalog is built over the game's
 Def objects, the wire catalog's derived and race facts and `INativeFacade.Stats`, and the catalog reply carries no def
 rows or game constants. Both run off the game thread, as the stat source blocks until the game thread drains it. Every
@@ -81,9 +81,47 @@ starting point, not a port:
 
 They are unmeasured against a live game; tune them from the clock-step telemetry once the acceptance run (#3085) exists.
 
+## Hosting in the mod (#3115)
+
+Decided (user, 2026-10-13):
+
+- **Who starts it.** `BrainBootstrap` (Bridge, `Protocol/`) is a `[ModuleInitializer]` like `NativeFacadeBootstrap` and
+  `HttpChannelBootstrap`: the Bridge has no game-side startup hook. Without `-rimgovernor-inproc`
+  (`InProcLaunch.Requested(Environment.GetCommandLineArgs())`) it does nothing: no thread, database or file. With it,
+  one task polls the game thread (a facade hop, so it is also "not yet" until the host has set up game-thread access)
+  until `PlayDataLoader.Loaded` and the Defs exist, for up to 20 minutes; resolves the environment; takes the route
+  table; and calls `BrainHost.StartAsync`. Every failure is logged and none reaches the loading host. The brain lives
+  per process, not per save. `ProcessExit` stops it within 15 s (one drain attempt of 8 s instead of the host's
+  3 x 10 s, which would hold the game's exit hostage).
+- **Routes.** `HttpChannelBootstrap.Routes` completes with the one `RouteTable` the running channel serves (null when
+  it will not run: `RIMGOVERNOR_OTLP_DIR` unset, or the start failed). The brain passes it as
+  `BrainHostOptions.Routes`, so `/player/*` shares the endpoint file and request guard with `/native/*`. With no
+  channel (or none within 30 s) the brain runs with `Routes = null` and logs one warning.
+- **Settings.** The mod has no CLI; `InProcEnvironment` (Host, game-free) resolves environment variables. Paths must be
+  absolute; a bad value stops the start with a warning naming the variable.
+
+  | Variable | Meaning | Default |
+  | --- | --- | --- |
+  | `RIMGOVERNOR_STATE` | state database (Go `--state`) | `<save-data>/RimGovernor/brain-state.db`; a stamped `brain-state-yyyyMMdd-HHmmss.db` when continue is off |
+  | `RIMGOVERNOR_PROFILE` | shared game profile directory (Go `--profile`) | the game's save-data folder |
+  | `RIMGOVERNOR_OTLP_DIR`, `RIMGOVERNOR_RUN_ID` | the Bridge's existing variables | `<save-data>/RimGovernor/otlp`, a fresh GUID |
+  | `RIMGOVERNOR_OBSERVE` | launcher Observe: no auto-resume, no layout overlay | off |
+  | `RIMGOVERNOR_CONTINUE_STATE` | launcher Continue: reuse the default database | on |
+  | `RIMGOVERNOR_LAYOUT_OVERLAY` | launcher Layout overlay (`--layout-overlay`) | on |
+
+  The launcher sets the last three from its saved settings. The default database is shared by every save, so an
+  incompatible-schema reset affects them all. Launcher Telemetry has no host input: the host writes OTLP files and has
+  no endpoint to send to. `-rimgovernor-test-acceleration` also sets `ClockTestAcceleration`.
+- **Catalog.** `BrainCompositionOptions.CatalogFactory` is `NativeCatalogFactory.Create` and `StartingIdeoligion` is
+  `NativeCatalogFactory.StartingIdeoligion`; both run on the brain's threads, never the game thread.
+- **Clock native.** Nothing to build: `FacadeNativeClient` already implements `IClockDriverNative`.
+- **Loading.** The default load context, with the brain assemblies beside the Bridge, not a collectible one. The
+  package ships the Host's whole graph (Snapshot, Observation, Store, Executor, BuildingRuntime, PlayerApi, Facts,
+  Simulation) and Store's native SQLite as a flat `e_sqlite3.dll` (win-x64 only) in `BridgeTools/RimGovernor`, because
+  the runtime probes the requesting assembly's own directory, not `runtimes/<rid>/native`. Verified on a stock .NET 10
+  runtime; not yet on the game's own CLR.
+
 ## Open decisions
 
-What a suspended planner reports (today the whole brain is
-suspended, since `ClockScheduler` cannot drop one planner); how the host is loaded in the game and whether it sits in a
-collectible load context; the shared-assembly binding assumption from #3080; the profile/state path settings; how the
-Bridge hands its `RouteTable` to the host.
+What a suspended planner reports (today the whole brain is suspended, since `ClockScheduler` cannot drop one planner);
+the shared-assembly binding assumption from #3080.
