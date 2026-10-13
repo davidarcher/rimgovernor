@@ -307,9 +307,10 @@ internal static class LetterPause
             {
                 await SetPauseMode(initial["mode"].AsString(), CancellationToken.None).ConfigureAwait(false);
             }
-            catch (AcceptanceException)
+            catch (AcceptanceException tolerated)
             {
                 // Best effort, as in Go: the case's own verdict stands.
+                Tolerated.Note("pause mode restore", tolerated);
             }
         }
     }

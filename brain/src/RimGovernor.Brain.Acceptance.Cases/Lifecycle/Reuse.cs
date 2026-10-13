@@ -184,13 +184,15 @@ internal static class LifecycleReuse
             {
                 await reuse.RetireAsync("run complete", retire.Token).ConfigureAwait(false);
             }
-            catch (AcceptanceException)
+            catch (AcceptanceException tolerated)
             {
                 // Best effort; the case's own result stands.
+                Tolerated.Note("retire", tolerated);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException tolerated)
             {
                 // Same.
+                Tolerated.Note("retire", tolerated);
             }
 
             reuse.Record(report);
@@ -204,9 +206,10 @@ internal static class LifecycleReuse
         {
             await reuse.EndCaseAsync(c, true, cancellationToken).ConfigureAwait(false);
         }
-        catch (AcceptanceException)
+        catch (AcceptanceException tolerated)
         {
             // Ignored: the failure being reported is the case's.
+            Tolerated.Note("end case", tolerated);
         }
     }
 

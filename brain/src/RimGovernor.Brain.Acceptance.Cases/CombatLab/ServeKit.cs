@@ -55,9 +55,10 @@ internal static class CombatServe
                 return (int)tick.AsNumber();
             }
         }
-        catch (AcceptanceException)
+        catch (AcceptanceException tolerated)
         {
             // The poll is a probe: an answer that did not arrive is retried on the next round.
+            Tolerated.Note("served tick poll", tolerated);
         }
 
         return last;

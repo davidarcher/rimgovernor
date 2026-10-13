@@ -109,9 +109,10 @@ internal static class RefrigerationBuild
                                 ct).ConfigureAwait(false);
                             s.Report["threats_postmortem"] = Harness.Outcome(reply, "observed").Value["threats"]?.DeepClone();
                         }
-                        catch (AcceptanceException)
+                        catch (AcceptanceException tolerated)
                         {
                             // The threat census is best-effort evidence.
+                            Tolerated.Note("threat census", tolerated);
                         }
                     }).ConfigureAwait(false);
             }

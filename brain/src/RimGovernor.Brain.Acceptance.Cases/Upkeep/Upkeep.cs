@@ -273,9 +273,10 @@ internal static class UpkeepSupport
                     {
                         goal = await journal.Store.LoadStandardAsync(binding.Standard, ct).ConfigureAwait(false);
                     }
-                    catch (RimGovernor.Brain.Store.NotFoundException)
+                    catch (RimGovernor.Brain.Store.NotFoundException tolerated)
                     {
                         // The binding is ahead of the goal's row; read again next poll.
+                        Tolerated.Note("goal row not yet written", tolerated);
                     }
 
                     if (goal is not null && goal.Standard.Finding == state)
@@ -521,6 +522,7 @@ internal static class UpkeepSupport
                 catch (Exception e) when (e is AcceptanceException or OperationCanceledException)
                 {
                     // The wait was ended on purpose.
+                    Tolerated.Note("terminal wait ended", e);
                 }
 
                 return (null, false, true);

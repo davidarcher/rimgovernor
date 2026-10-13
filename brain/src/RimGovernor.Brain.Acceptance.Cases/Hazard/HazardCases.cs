@@ -129,18 +129,20 @@ public static class HazardCases
             {
                 _ = await h.CallAsync("cleanup", "test/hazard_inject", new JsonObject { ["op"] = "cleanup" }, CancellationToken.None).ConfigureAwait(false);
             }
-            catch (AcceptanceException)
+            catch (AcceptanceException tolerated)
             {
                 // Best effort, as the deferred cleanup is.
+                Tolerated.Note("hazard cleanup", tolerated);
             }
 
             try
             {
                 await SetPauseMode(initial["mode"].AsString(), CancellationToken.None).ConfigureAwait(false);
             }
-            catch (AcceptanceException)
+            catch (AcceptanceException tolerated)
             {
                 // Best effort, as the deferred restore is.
+                Tolerated.Note("pause mode restore", tolerated);
             }
         }
     }

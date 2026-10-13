@@ -263,9 +263,10 @@ internal sealed class CampaignRun
                     var state = await service.ApiAsync("GET", "/api/state", null, "", cancellationToken).ConfigureAwait(false);
                     p.Mode = state.Body.Member("mode").AsString();
                 }
-                catch (AcceptanceException)
+                catch (AcceptanceException tolerated)
                 {
                     // The mode stays empty; assertPlaying names it.
+                    Tolerated.Note("state read", tolerated);
                 }
             }
 
@@ -280,9 +281,10 @@ internal sealed class CampaignRun
             {
                 p.Logs = ServiceLogs.ReadLogs(service.LogPath);
             }
-            catch (IOException)
+            catch (IOException tolerated)
             {
                 // A recorder that cannot be read leaves the phase without rows.
+                Tolerated.Note("recorder read", tolerated);
             }
 
             var row = new JsonObject
@@ -348,9 +350,10 @@ internal sealed class CampaignRun
                     row["blocked"].AsString()));
             }
         }
-        catch (AcceptanceException)
+        catch (AcceptanceException tolerated)
         {
             // Go ignored the read error: the phase keeps no progress records, and assertProgress names that.
+            Tolerated.Note("progress read", tolerated);
         }
 
         return records;

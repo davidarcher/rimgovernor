@@ -204,9 +204,10 @@ public static class CombatLabResume
                     return;
                 }
             }
-            catch (AcceptanceException)
+            catch (AcceptanceException tolerated)
             {
                 // The poll is a probe: the restarted controller may not answer yet.
+                Tolerated.Note("automate poll", tolerated);
             }
 
             if (DateTimeOffset.UtcNow > deadline)

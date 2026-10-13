@@ -117,9 +117,10 @@ internal static class LabSparringMeasure
                 {
                     first = new AcceptanceException($"{st.Name}: {e.Message}", e);
                 }
-                catch (AcceptanceException)
+                catch (AcceptanceException later)
                 {
-                    // Only the first failed check is reported.
+                    // Only the first failed check is reported; later ones are logged.
+                    Tolerated.Note("later sparring check", later);
                 }
             }
 

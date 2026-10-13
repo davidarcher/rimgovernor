@@ -343,6 +343,7 @@ internal static class UpkeepCampaign
             catch (Exception e) when (e is not OperationCanceledException)
             {
                 // Evidence only.
+                Tolerated.Note("rounds review at failure", e);
             }
 
             throw watchError is AcceptanceException ? watchError : new AcceptanceException(watchError.Message, watchError);
@@ -557,9 +558,10 @@ internal static class UpkeepCampaign
                         _ = await tracker.CheckAsync(journal, _cts.Token).ConfigureAwait(false);
                     }
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException tolerated)
                 {
                     // Stopped, or the run ended.
+                    Tolerated.Note("guard stopped", tolerated);
                 }
                 catch (AcceptanceException e)
                 {

@@ -355,9 +355,10 @@ internal static class LifecycleHeadlessSoak
             var logs = await h.CallAsync("logs", "rimgovernor/list_logs", new JsonObject(), cancellationToken).ConfigureAwait(false);
             report["log_keys"] = NewColonyKit.Strings(logs.Select(pair => pair.Key));
         }
-        catch (AcceptanceException)
+        catch (AcceptanceException tolerated)
         {
             // The log listing is optional evidence.
+            Tolerated.Note("log listing", tolerated);
         }
 
         report["tick_end"] = last;

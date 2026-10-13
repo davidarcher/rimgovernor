@@ -199,6 +199,7 @@ internal static class TickbudgetBoundaries
             catch (AcceptanceException e) when (e.Message.Contains("external clock hold", StringComparison.Ordinal))
             {
                 // The documented refusal: an external hold stays until the player resumes.
+                Tolerated.Note("external hold refusal", e);
             }
 
             clock.Hold = "";

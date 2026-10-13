@@ -1358,9 +1358,10 @@ internal sealed class DefenseService : IAsyncDisposable
                 ["expected"] = _identity.DeepClone(),
             }, "", CancellationToken.None).ConfigureAwait(false);
         }
-        catch (AcceptanceException)
+        catch (AcceptanceException tolerated)
         {
             // Best effort, as in Go: a refused pause leaves the next acquire to resolve it.
+            Tolerated.Note("pause on stop", tolerated);
         }
 
         ControllerJournal.Dispose();

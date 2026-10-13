@@ -59,9 +59,10 @@ internal static class FoodStarving
                     sample["foodChannels"] = facts["foodChannels"].Copy();
                     sample["foodNutrition"] = facts["foodNutrition"].Copy();
                 }
-                catch (AcceptanceException)
+                catch (AcceptanceException tolerated)
                 {
                     // The census is evidence only: a read that fails leaves the sample without it.
+                    Tolerated.Note("food census", tolerated);
                 }
 
                 var plan = r.Colony["foodPlan"].AsMap();

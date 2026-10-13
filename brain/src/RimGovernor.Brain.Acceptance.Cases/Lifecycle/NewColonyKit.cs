@@ -85,13 +85,15 @@ internal static class NewColonyKit
             {
                 await reuse.RetireAsync(name + " launch complete", retire.Token).ConfigureAwait(false);
             }
-            catch (AcceptanceException)
+            catch (AcceptanceException tolerated)
             {
                 // Retiring is best effort; the case's own result stands.
+                Tolerated.Note("retire", tolerated);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException tolerated)
             {
                 // Same.
+                Tolerated.Note("retire", tolerated);
             }
         }
     }
