@@ -35,7 +35,10 @@ public static class CaseCatalog
         RecoveryCases.Register(registry);
         ResearchCases.Register(registry);
         RoomsCases.Register(registry);
+        RouteCases.Register(registry);
+        ScheduleCases.Register(registry);
         SmokeCases.Register(registry);
+        StartupCases.Register(registry);
         StorageCases.Register(registry);
         SustainedCases.Register(registry);
         SuppliesCases.Register(registry);
