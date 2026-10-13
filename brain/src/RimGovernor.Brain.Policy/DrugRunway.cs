@@ -75,7 +75,7 @@ public static partial class PolicyFunctions
             if (rate > 0)
             {
                 stockDays = stock / rate;
-                rowShortfall = RunwayShortfall(stockDays, ProjectionHorizonDays);
+                rowShortfall = RunwayShortfall(stockDays, MaintenanceHorizonDays);
             }
             shortfall = Math.Max(shortfall, rowShortfall);
             resources.Add(new StockRunway(row.Resource, rate, stock, stockDays, rowShortfall));

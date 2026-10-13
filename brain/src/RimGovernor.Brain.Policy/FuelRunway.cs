@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 // Fuel runway. A refuelable building (a generator, a turret barrel) holds fuel units and burns them at its def's
-// rate; the runway is the fuel it holds and the stock behind it over that burn, against ProjectionHorizonDays.
+// rate; the runway is the fuel it holds and the stock behind it over that burn, against MaintenanceHorizonDays.
 // The shortfall is a forward-projector domain and the items to stock ahead of it are a MaintainResource level in
 // the Rounder's construction memory, like ClothingRunway.
 
@@ -172,7 +172,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Go <c>PlanFuelRunway</c>: rolls every refuelable building forward over ProjectionHorizonDays. A building
+    /// Go <c>PlanFuelRunway</c>: rolls every refuelable building forward over MaintenanceHorizonDays. A building
     /// that burns at a known daily rate needs the horizon's burn less its tank; one already empty needs its refill
     /// (runway zero, whatever its rate). A building that burns per use and still holds fuel has no runway and is
     /// listed in Gaps. An unread census or stock, or a building whose fuel, rate gate, fuel item or unit
@@ -204,7 +204,7 @@ public static partial class PolicyFunctions
             double need;
             if (rk)
             {
-                need = Math.Max(0, (rate * ProjectionHorizonDays) - fuel);
+                need = Math.Max(0, (rate * MaintenanceHorizonDays) - fuel);
             }
             else if (ek && empty)
             {
@@ -260,10 +260,10 @@ public static partial class PolicyFunctions
             if (need > have)
             {
                 var shortItems = need - have;
-                var days = ProjectionHorizonDays;
+                var days = MaintenanceHorizonDays;
                 if (a.Empty == 0 && a.Burn > 0)
                 {
-                    days = Math.Min(ProjectionHorizonDays, shortItems * units[item] / a.Burn);
+                    days = Math.Min(MaintenanceHorizonDays, shortItems * units[item] / a.Burn);
                 }
                 row = row with { MissingItems = shortItems, ShortfallDays = days };
                 needs[item] = row.Need;

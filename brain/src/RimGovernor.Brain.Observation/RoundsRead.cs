@@ -173,9 +173,9 @@ public static partial class ObservationPackage
         p = p with { Facts = p.Facts with { BillReservations = BillReservations(frame.Bills) } };
         if (p.PowerPlanning.TryGetValue(out var topology))
         {
-            p = p with { Facts = p.Facts with { Forward = p.Facts.Forward with { Power = topology.Networks } } };
+            p = p with { Facts = p.Facts with { ForecastObserved = p.Facts.ForecastObserved with { Power = topology.Networks } } };
         }
-        p = p with { Facts = p.Facts with { Forward = p.Facts.Forward with { Turrets = p.DefenseTurrets } } };
+        p = p with { Facts = p.Facts with { ForecastObserved = p.Facts.ForecastObserved with { Turrets = p.DefenseTurrets } } };
         var pawns = RoundsPawnsOf(frame, id);
         p = p with
         {

@@ -85,3 +85,5 @@ Concern still waits for a finished building. Unknown facts never prove recovery.
   native timing and tactical responsibilities.
 - [Expert-play roadmap](expert-play-assessment.md): proposed guarantees and their
   evaluation criteria.
+- [ColonyForecast](colony-forecast.md): baseline/delta inventory accounting,
+  current diagnostics and the migration to coupled production planning.

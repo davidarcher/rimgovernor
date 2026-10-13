@@ -1,8 +1,11 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>The facts one projection reads. Shadow only: nothing in admission consumes the result. (Go <c>ForwardInputs</c>.)</summary>
-public sealed record ForwardInputs
+/// <summary>The facts one projection reads. Observed diagnostics are separate from proposed inventory changes.</summary>
+public sealed record ColonyForecastFacts
 {
+    /// <summary>Complete observed resource census. Known empty means zero stock, not unavailable.</summary>
+    public Fact<EquatableArray<Amount>> Stock { get; init; }
+
     public FoodSupply Food { get; init; } = new();
 
     public IReadOnlyList<PowerNetworkFact> Power { get; init; } = [];
@@ -36,10 +39,10 @@ public sealed record SleepingRange
 }
 
 /// <summary>
-/// Rolls each resource forward over HorizonDays. A resource whose inputs are not all observed is an unknown
-/// fact, never a default. (Go <c>ForwardProjection</c>.)
+/// Describes current conditions against the maintenance horizon. These are not plan trajectories. An unread input is an unknown
+/// fact, never a default.
 /// </summary>
-public sealed record ForwardProjection
+public sealed record ColonyDiagnostics
 {
     public double HorizonDays { get; init; }
 
@@ -92,19 +95,19 @@ public sealed record DefenseProjection(int Turrets, double Dps, int DisabledCoun
 
 public static partial class PolicyFunctions
 {
-    /// <summary>Bounds the shared forecast.</summary>
-    public const double ProjectionHorizonDays = 5.0;
+    /// <summary>Existing maintenance target window; independent of the requested plan horizon.</summary>
+    public const double MaintenanceHorizonDays = 5.0;
 
-    /// <summary>Go <c>ProjectForward</c>: projects food, power, temperature and defense over <see cref="ProjectionHorizonDays"/>.</summary>
-    public static ForwardProjection ProjectForward(ForwardInputs input) =>
+    /// <summary>Retains current-condition diagnostics without treating planned effects as observations.</summary>
+    private static ColonyDiagnostics DiagnoseColony(ColonyForecastFacts input) =>
         new()
         {
-            HorizonDays = ProjectionHorizonDays,
+            HorizonDays = MaintenanceHorizonDays,
             Food = ProjectFood(input.Food),
             Power = ProjectPower(input.Power),
             Temperature = ProjectTemperature(input),
             Defense = ProjectDefense(input.Turrets),
-            Construction = ProjectConstruction(input.Construction),
+            Construction = ProjectConstruction(input.Construction, input.Stock),
             Fuel = PlanFuelRunway(input.Fuel).Projection,
             Drugs = PlanDrugRunway(input.Runways, input.Items),
             Resources = PlanMaterialRunway(input.Runways, input.Items),
@@ -130,7 +133,7 @@ public static partial class PolicyFunctions
         {
             return Unknown<FoodProjection>();
         }
-        return Known(new FoodProjection(days, RunwayShortfall(days, ProjectionHorizonDays)));
+        return Known(new FoodProjection(days, RunwayShortfall(days, MaintenanceHorizonDays)));
     }
 
     private static Fact<PowerProjection> ProjectPower(IReadOnlyList<PowerNetworkFact> nets)
@@ -147,14 +150,14 @@ public static partial class PolicyFunctions
             {
                 return Unknown<PowerProjection>();
             }
-            var row = new PowerNetProjection(n.Id, days, RunwayShortfall(days, ProjectionHorizonDays));
+            var row = new PowerNetProjection(n.Id, days, RunwayShortfall(days, MaintenanceHorizonDays));
             shortfall = Math.Max(shortfall, row.ShortfallDays);
             rows.Add(row);
         }
         return Known(new PowerProjection { Nets = [.. rows.OrderBy(n => n.Id, StringComparer.Ordinal)], ShortfallDays = shortfall });
     }
 
-    private static Fact<TemperatureProjection> ProjectTemperature(ForwardInputs input)
+    private static Fact<TemperatureProjection> ProjectTemperature(ColonyForecastFacts input)
     {
         var lk = input.Sleeping.Min.TryGetValue(out var lo);
         var hk = input.Sleeping.Max.TryGetValue(out var hi);
@@ -166,8 +169,8 @@ public static partial class PolicyFunctions
         {
             return Unknown<TemperatureProjection>();
         }
-        var breach = lo < input.Policy.ColdEnter || hi > input.Policy.HotEnter ? ProjectionHorizonDays : 0;
-        return Known(new TemperatureProjection(lo, hi, breach, Math.Min(ProjectionHorizonDays, (double)ticks / GameTime.TicksPerDay)));
+        var breach = lo < input.Policy.ColdEnter || hi > input.Policy.HotEnter ? MaintenanceHorizonDays : 0;
+        return Known(new TemperatureProjection(lo, hi, breach, Math.Min(MaintenanceHorizonDays, (double)ticks / GameTime.TicksPerDay)));
     }
 
     private static Fact<DefenseProjection> ProjectDefense(Fact<EquatableArray<DefenseTurretFacts>> turrets)

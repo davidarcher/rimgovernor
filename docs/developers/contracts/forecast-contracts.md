@@ -5,6 +5,13 @@
 Forecasts are read-only and use native definitions and rates. One forecast
 implementation serves deterministic facts and player fact inspection.
 
+The pure C# [ColonyForecast](../architecture/colony-forecast.md) evaluates
+supplied commitment deltas separately from these observed diagnostics.
+Its requested plan horizon does not change the existing maintenance window.
+Construction shortfalls are exact-resource units, not completion days.
+Timed inventory effects are conditional estimates, never observed stock
+or proof of native work completion.
+
 | Projection | Observed inputs | Bound |
 | --- | --- | --- |
 | Food and animal feed | Fed food fall, nutrition per eligible eater, food policy, safe reachability, holder and rot deadline | Demand-weighted allocation at current temperature/access; no grazing, future hauling or harvest credit. Downed pawns need assistance, which is not presumed. |

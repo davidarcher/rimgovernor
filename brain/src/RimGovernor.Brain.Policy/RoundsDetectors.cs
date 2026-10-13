@@ -406,7 +406,7 @@ public static partial class PolicyFunctions
                 if (runway.DaysLeft.TryGetValue(out var days))
                 {
                     resourceDeficit.TryGetValue(out var old);
-                    resourceDeficit = Known(Math.Max(old, 1 - days / ProjectionHorizonDays));
+                    resourceDeficit = Known(Math.Max(old, 1 - days / MaintenanceHorizonDays));
                 }
             }
         }

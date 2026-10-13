@@ -141,7 +141,7 @@ internal static class ReadProjections
         r.Resource.Value,
         r.Tick.Value,
         r.WindowDays,
-        PolicyFunctions.ProjectionHorizonDays,
+        PolicyFunctions.MaintenanceHorizonDays,
         r.Reserve,
         Value(r.Stock),
         Value(r.SurfaceOre),

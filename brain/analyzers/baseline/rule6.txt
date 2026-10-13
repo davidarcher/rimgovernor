@@ -210,7 +210,6 @@ Policy/CombatBurnout.cs|PolicyFunctions.BurnWallDef|"Wall"
 Policy/CombatCast.cs|PolicyFunctions._psycastFamilies|"Flashstorm"
 Policy/ConcernProgress.cs|PolicyFunctions.ProgressCooldownMax|180000
 Policy/ConstructionDemand.cs|PolicyFunctions.ConstructionWoodLog|"WoodLog"
-Policy/ConstructionProjection.cs|ConstructionInputs.ClassOf|"Steel"
 Policy/ContainmentCell.cs|PolicyFunctions.ShellDoorDefinition|"Door"
 Policy/ContainmentCell.cs|PolicyFunctions.ShellWallDefinition|"Wall"
 Policy/CoupleBed.cs|PolicyFunctions.PackedFurnitureDefinition|"MinifiedThing"

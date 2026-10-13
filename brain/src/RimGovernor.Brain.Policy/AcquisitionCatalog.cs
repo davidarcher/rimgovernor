@@ -140,7 +140,7 @@ public static partial class PolicyFunctions
                 line = Math.Max(0, row.Reserve);
                 if (row.ConsumptionPerDay.TryGetValue(out var rate) && Finite(rate) && rate > 0)
                 {
-                    line += Math.Ceiling(rate * ProjectionHorizonDays);
+                    line += Math.Ceiling(rate * MaintenanceHorizonDays);
                 }
             }
 

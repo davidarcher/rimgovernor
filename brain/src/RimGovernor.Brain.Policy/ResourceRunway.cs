@@ -38,7 +38,7 @@ public sealed record ResourceRunway
         {
             return (0, false);
         }
-        return (Reserve + (long)Math.Ceiling(rate * PolicyFunctions.ProjectionHorizonDays), true);
+        return (Reserve + (long)Math.Ceiling(rate * PolicyFunctions.MaintenanceHorizonDays), true);
     }
 }
 
@@ -72,8 +72,8 @@ public static partial class PolicyFunctions
         output = output with { StockDays = Known(usable / rate) };
         ore.TryGetValue(out var remaining);
         var days = (usable + (double)Math.Max(0, remaining)) / rate;
-        output = output with { DaysLeft = Known(days), Deficit = Known(days < ProjectionHorizonDays) };
-        if (days < ProjectionHorizonDays)
+        output = output with { DaysLeft = Known(days), Deficit = Known(days < MaintenanceHorizonDays) };
+        if (days < MaintenanceHorizonDays)
         {
             output = output with { Target = output.ProtectedLine().Line };
         }

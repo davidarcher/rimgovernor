@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 // Go: animal_feed_runway.go
 // Animal feed runway. Each race group of the kept herd eats NutritionPerDay (the food forecast's per-animal
 // rate); the pasture of the pens feeds part of it and the unheld stock every animal of the group can eat the
-// rest. The runway is that stock over the net daily consumption, against ProjectionHorizonDays. The shortfall is
+// rest. The runway is that stock over the net daily consumption, against MaintenanceHorizonDays. The shortfall is
 // a forward-projector domain and the feed to stock ahead of it is a MaintainResource level in the Rounder's
 // construction memory, like FuelRunway. Unknown consumption, pasture, stock or feed leaves the projection
 // unknown, never defaulted.
@@ -197,7 +197,7 @@ public static partial class PolicyFunctions
     internal static (double Missing, double RunwayDays) RunwayOver(double baseRate, double pasture, double stock, IEnumerable<FeedStep> steps)
     {
         var ordered = PolicySort.ByLess(steps, (a, b) => a.Tick < b.Tick);
-        double horizon = ProjectionHorizonDays;
+        double horizon = MaintenanceHorizonDays;
         double at = 0.0, rate = baseRate, eaten = 0.0;
         var runwayDays = horizon;
         var exhausted = false;
@@ -321,7 +321,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Rolls every race group of the herd forward over ProjectionHorizonDays: the group eats its animals'
+    /// Rolls every race group of the herd forward over MaintenanceHorizonDays: the group eats its animals'
     /// NutritionPerDay less its share of the pens' pasture, the stock every animal of it can eat covers the
     /// rest for a runway of days, and a shorter runway demands the items of the feed (the stock's, else the
     /// cheapest producible) the horizon's missing nutrition takes, as an absolute stock level counted only where
@@ -438,7 +438,7 @@ public static partial class PolicyFunctions
             var (missing, runway) = RunwayOver(g.NutritionPerDay, g.PasturePerDay, g.StockNutrition, g.Steps);
             if (missing > 0)
             {
-                g.ShortfallDays = ProjectionHorizonDays - runway;
+                g.ShortfallDays = MaintenanceHorizonDays - runway;
                 var (item, perItem, ok, known) = FeedItem(g.Animals, g.Definition, supply.Stocks, input.Races);
                 if (!known)
                 {

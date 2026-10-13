@@ -1,10 +1,9 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// The projector inputs the routine facts do not already carry (food, sleeping range and conditions are read
-/// from the facts). (Go <c>ForwardObserved</c>.)
+/// Additional observed diagnostic inputs collected with the routine frame.
 /// </summary>
-public sealed record ForwardObserved
+public sealed record ColonyForecastObserved
 {
     public IReadOnlyList<PowerNetworkFact> Power { get; init; } = [];
 
@@ -13,17 +12,18 @@ public sealed record ForwardObserved
 
 public static partial class PolicyFunctions
 {
-    /// <summary>Go <c>ForwardInputsOf</c>: assembles the projector inputs from the routine facts.</summary>
-    public static ForwardInputs ForwardInputsOf(RoundsFacts f, RoundsPolicy p)
+    /// <summary>Assembles observed facts, never proposed stock or duplicated resource targets.</summary>
+    public static ColonyForecastFacts ColonyForecastFactsOf(RoundsFacts f, RoundsPolicy p)
     {
-        var input = new ForwardInputs
+        var input = new ColonyForecastFacts
         {
-            Power = f.Forward.Power,
+            Stock = f.Resources,
+            Power = f.ForecastObserved.Power,
             Sleeping = new SleepingRange { Min = f.SleepingMin, Max = f.SleepingMax },
             Conditions = f.DisasterConditions,
-            Turrets = f.Forward.Turrets,
+            Turrets = f.ForecastObserved.Turrets,
             Policy = p,
-            Construction = new ConstructionInputs { Deficit = f.ConstructionDeficit, Admitted = f.Admitted, Stock = f.Resources, Items = f.Items },
+            Construction = new ConstructionInputs { Deficit = f.ConstructionDeficit, Admitted = f.Admitted },
             Fuel = new FuelInputs { Consumers = f.Fuel, Stock = new StockReader { Resources = f.Resources, Wood = f.Wood } },
             AnimalFeed = AnimalFeedRunwayExtensions.AnimalFeedInputsOf(f),
             Runways = f.ResourceRunways,

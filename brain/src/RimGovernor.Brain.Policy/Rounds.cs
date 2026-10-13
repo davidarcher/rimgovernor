@@ -554,8 +554,8 @@ public sealed record RoundsFacts
 
     public Fact<double> PowerHeadroom { get; init; }
 
-    /// <summary>The shadow projector inputs the facts above lack.</summary>
-    public ForwardObserved Forward { get; init; } = new();
+    /// <summary>Observed ColonyForecast diagnostics not carried by the facts above.</summary>
+    public ColonyForecastObserved ForecastObserved { get; init; } = new();
 
     public Fact<long> Wood { get; init; }
 
