@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
     {
         internal const string ToolName = "rimgovernor/observations_read_definition_catalog";
 
-        [Tool(ToolName, Title = "Read the definition catalog", Description = "Static planning facts of every player-buildable or sowable ThingDef and buildable TerrainDef, plus every ThingDef and TerrainDef with all its fields and the game constants. Fixed for a load. Read-only.")]
+        [Tool(ToolName, Title = "Read the definition catalog", Description = "What the game computes in code for the definitions the brain reads from its own Def objects: derived facts, per-race facts, the stat environment and class chains. Fixed for a load. Read-only.")]
         [ToolResponse("payload", "string", "Official DefinitionCatalogReply ProtoJSON.", Always = true)]
         public async Task<object> ReadDefinitionCatalog(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw DefinitionCatalogRequest ProtoJSON string.")] object? request = null)
@@ -44,7 +44,8 @@ namespace HomeBridge.BridgeTools
                     return new Obs.DefinitionCatalogReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Creation catalog requires a fresh main menu and no map scope.") };
                 try
                 {
-                    // TODO(#3100): defs (the def sets and game constants are no longer carried).
+                    // The creation reply carries no def sets or game constants (#3100); the governor's starting
+                    // ideoligion reads the Defs directly (NativeCatalogFactory.StartingIdeoligion).
                     var creation = new Obs.CreationDefinitionCatalog { ClassChains = DefMirrorFill.ClassChains(DefClasses()) };
                     return new Obs.DefinitionCatalogReply { Outcome = creation };
                 }
@@ -73,10 +74,11 @@ namespace HomeBridge.BridgeTools
             var catalog = new Obs.DefinitionCatalog { Context = context, Fingerprint = fingerprint, StatEnv = StatEnv() };
             // The caller holds this static part: only what changes per load is sent.
             if (heldFingerprint == fingerprint) return catalog;
-            // TODO(#3100): defs (the ThingDef/TerrainDef rows, def sets and game constants are no longer carried).
+            // The reply carries no def rows or game constants (#3100): the in-process brain builds its catalog over the
+            // game's Def objects (NativeCatalogFactory), so only what the game computes in code is sent.
             // The base chains of the def classes the game has.
             catalog = catalog with { ClassChains = DefMirrorFill.ClassChains(DefClasses()) };
-            catalog = catalog with { Derived = Derived() };
+            catalog = catalog with { Derived = DerivedFacts() };
             var facts = new List<Obs.ThingDefFacts>();
             foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.race != null).OrderBy(d => Named(d.defName, "ThingDef"), StringComparer.Ordinal))
                 facts.Add(NativeFoodPolicy.Facts(def));
@@ -131,7 +133,7 @@ namespace HomeBridge.BridgeTools
         private static string Named(string defName, string kind) =>
             ProtoBoundary.IsIdentifier(defName) ? defName : throw new InvalidOperationException($"{kind} defName '{defName}' is not an identifier.");
 
-        private static Obs.CatalogDerived Derived() => new Obs.CatalogDerived
+        internal static Obs.CatalogDerived DerivedFacts() => new Obs.CatalogDerived
         {
             // Tradeable.IsCurrency is "def == ThingDefOf.Silver".
             CurrencyDef = ThingDefOf.Silver?.defName ?? throw new InvalidOperationException("ThingDefOf.Silver is not loaded."),

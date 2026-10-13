@@ -70,10 +70,11 @@ foreach ($taskFile in @(Get-ChildItem -LiteralPath (Join-Path $taskHostSource 's
     New-Item -ItemType Directory -Path (Split-Path $taskTo -Parent) -Force | Out-Null
     Copy-Item -LiteralPath $taskFile.FullName -Destination $taskTo
 }
-# The brain assemblies the mod shares with the in-process brain (#3080): Domain, Contracts (the wire records, #3100),
+# The brain assemblies the mod shares with the in-process brain (#3080): Domain, Policy, Contracts (the wire records, #3100), Bridge (the definition catalog over the game's Defs, #3116) with Bridge.Contracts,
 # NativeFacade and HttpChannel (the local control channel, #3083) with the Telemetry
-# it reports access rows through, with the shared build props and package versions.
-foreach ($taskBrainItem in @('brain/Directory.Build.props', 'brain/Directory.Packages.props', 'brain/src/RimGovernor.Brain.Domain', 'brain/src/RimGovernor.Brain.Contracts', 'brain/src/RimGovernor.Brain.NativeFacade', 'brain/src/RimGovernor.Brain.HttpChannel', 'brain/src/RimGovernor.Brain.Telemetry')) {
+# it reports access rows through, with the shared build props and package versions. Policy embeds the Go-owned
+# thought trigger table (go/internal/policy/thought_triggers.tsv) until the Go tree goes (#3102).
+foreach ($taskBrainItem in @('brain/Directory.Build.props', 'brain/Directory.Packages.props', 'brain/Game.props', 'brain/src/RimGovernor.Brain.Domain', 'brain/src/RimGovernor.Brain.Policy', 'brain/src/RimGovernor.Brain.Contracts', 'brain/src/RimGovernor.Brain.Bridge', 'brain/src/RimGovernor.Brain.Bridge.Contracts', 'brain/src/RimGovernor.Brain.NativeFacade', 'brain/src/RimGovernor.Brain.HttpChannel', 'brain/src/RimGovernor.Brain.Telemetry', 'go/internal/policy/thought_triggers.tsv')) {
     $taskBrainFrom = Get-Item -LiteralPath (Join-Path $taskRepo $taskBrainItem)
     $taskBrainFiles = if ($taskBrainFrom.PSIsContainer) {
         @(Get-ChildItem -LiteralPath $taskBrainFrom.FullName -Recurse -File | Where-Object { $_.FullName -notmatch '[\\/](obj|bin)[\\/]' })
@@ -166,7 +167,7 @@ foreach ($taskLine in Get-Content -LiteralPath (Join-Path $taskCompiled 'runtime
 foreach ($taskDll in Get-ChildItem -LiteralPath $taskCompiled -Filter 'RimGovernor.Brain.*.dll' -File) {
     Copy-Item -LiteralPath $taskDll.FullName -Destination (Join-Path $taskPackage 'BridgeTools/RimGovernor')
 }
-foreach ($taskBrain in @('RimGovernor.Brain.Domain.dll', 'RimGovernor.Brain.Contracts.dll', 'RimGovernor.Brain.NativeFacade.dll', 'RimGovernor.Brain.HttpChannel.dll', 'RimGovernor.Brain.Telemetry.dll')) {
+foreach ($taskBrain in @('RimGovernor.Brain.Domain.dll', 'RimGovernor.Brain.Policy.dll', 'RimGovernor.Brain.Contracts.dll', 'RimGovernor.Brain.Bridge.dll', 'RimGovernor.Brain.Bridge.Contracts.dll', 'RimGovernor.Brain.NativeFacade.dll', 'RimGovernor.Brain.HttpChannel.dll', 'RimGovernor.Brain.Telemetry.dll')) {
     if (-not (Test-Path -LiteralPath (Join-Path $taskPackage "BridgeTools/RimGovernor/$taskBrain") -PathType Leaf)) { throw "Expected brain output missing: $taskBrain" }
 }Copy-Item -LiteralPath (Join-Path $taskCopyNative 'About'), (Join-Path $taskCopyNative 'Defs'), (Join-Path $taskCopyNative 'Textures'), (Join-Path $taskCopyNative 'Notices') -Destination $taskPackage -Recurse
 Copy-Item -LiteralPath (Join-Path $taskCopyNative 'README.md') -Destination $taskPackage

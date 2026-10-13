@@ -87,7 +87,7 @@ namespace HomeBridge.BridgeTools
         // Authority.
 
         public Task<Authority.StatusReply> ReadAuthorityStatusAsync(Authority.StatusRequest request, CancellationToken cancellationToken)
-            => Read("authority_status", request, () => NativeAuthorityTools.HandleReadStatus(request), cancellationToken);
+            => Read("authority_read_status", request, () => NativeAuthorityTools.HandleReadStatus(request), cancellationToken);
 
         public Task<Authority.ControlReply> ControlAuthorityAsync(Authority.ControlRequest request, CancellationToken cancellationToken)
             => Write("authority_control", request, () => NativeAuthorityControlTools.Apply(request), cancellationToken);
@@ -98,7 +98,7 @@ namespace HomeBridge.BridgeTools
             => Read("placement_preview", request, () => PlacementPreviewsTools.HandlePreview(request, cancellationToken), cancellationToken);
 
         public Task<Operations.ZonePreviewReply> PreviewZoneAsync(Operations.ZonePreviewRequest request, CancellationToken cancellationToken)
-            => Read("zone_preview", request, () => NativeOperationTools.HandlePreviewZone(request), cancellationToken);
+            => Read("zones_preview", request, () => NativeOperationTools.HandlePreviewZone(request), cancellationToken);
 
         // Observations.
 
@@ -147,7 +147,7 @@ namespace HomeBridge.BridgeTools
             => Write("rules_clear", request, () => NativeRuleTools.HandleClear(request), cancellationToken);
 
         public Task<Operations.RulesStatusReply> ReadRulesStatusAsync(Operations.RulesStatusRequest request, CancellationToken cancellationToken)
-            => Read("rules_status", request, () => NativeRuleTools.HandleReadStatus(request), cancellationToken);
+            => Read("rules_read_status", request, () => NativeRuleTools.HandleReadStatus(request), cancellationToken);
 
         public Task<Receipts.LookupReply> LookupReceiptAsync(Receipts.LookupRequest request, CancellationToken cancellationToken)
             => Read("receipts_lookup", request, () => NativeOperationTools.HandleLookup(request), cancellationToken);
@@ -167,13 +167,13 @@ namespace HomeBridge.BridgeTools
             => Write("clock_pause", request, () => NativeClockTools.HandlePause(request), cancellationToken);
 
         public Task<Clock.StatusReply> ReadClockStatusAsync(Clock.StatusRequest request, CancellationToken cancellationToken)
-            => Read("clock_status", request, () => NativeClockTools.HandleReadStatus(request), cancellationToken);
+            => Read("clock_read_status", request, () => NativeClockTools.HandleReadStatus(request), cancellationToken);
 
         public Task<Clock.EventsReply> ReadClockEventsAsync(Clock.EventsRequest request, CancellationToken cancellationToken)
-            => Read("clock_events", request, () => NativeClockTools.HandleReadEvents(request), cancellationToken);
+            => Read("clock_read_events", request, () => NativeClockTools.HandleReadEvents(request), cancellationToken);
 
         public Task<Clock.AttemptReply> ReadClockAttemptAsync(Clock.AttemptRequest request, CancellationToken cancellationToken)
-            => Read("clock_attempt", request, () => NativeClockTools.HandleReadAttempt(request), cancellationToken);
+            => Read("clock_read_attempt", request, () => NativeClockTools.HandleReadAttempt(request), cancellationToken);
 
         // Presentation reads.
 

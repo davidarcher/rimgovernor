@@ -27,6 +27,11 @@
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.NativeFacade/RimGovernor.Brain.NativeFacade.csproj" />
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.HttpChannel/RimGovernor.Brain.HttpChannel.csproj" />
+    <!-- The definition catalog the in-process brain plans over is built over the game's Def objects (NativeCatalogFactory, #3116); Bridge brings Policy and Bridge.Contracts with it. -->
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Bridge/RimGovernor.Brain.Bridge.csproj" />
+    <!-- Direct references, like Telemetry below: a transitive project would be recorded as a NuGet runtime dependency. -->
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Bridge.Contracts/RimGovernor.Brain.Bridge.Contracts.csproj" />
     <!-- HttpChannel reports access rows through Telemetry; a direct reference keeps it a project output, not a recorded NuGet runtime dependency. -->
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
     <Compile Include="../../../../scripts/fixtures/ThroughputFixture.cs" Condition="'$(ThroughputFixture)' == 'true'" />

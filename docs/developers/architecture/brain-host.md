@@ -58,9 +58,13 @@ host wraps the lifecycle in `FlushedLifecycle` (the governor state is flushed be
 `Autosaver` (one in-game day, five rotating `Autosave-N` slots, baseline on the first stop or a rewound tick), which
 the composition passes to the clock windows as `ClockWindowConfig.Autosave`.
 
-Not in the client: the mod-side hosting (#3115), and the catalog's Def-backed factory, the `governor_ideoligion`
-resolver and facade label checks (#3116). The catalog reads need `CatalogFactory`, which supplies the game's Defs and
-stat source; until the mod host installs it they throw.
+Not in the client: the mod-side hosting (#3115). The catalog reads need `CatalogFactory` and the `governor_ideoligion`
+resolver `StartingIdeoligion`; until the mod host installs them they throw. Both live in the mod
+(`NativeCatalogFactory`), because only the mod may read the Def databases (rule 7): the catalog is built over the game's
+Def objects, the wire catalog's derived and race facts and `INativeFacade.Stats`, and the catalog reply carries no def
+rows or game constants. Both run off the game thread, as the stat source blocks until the game thread drains it. Every
+`InProcessNativeFacade` operation label must name a registered tool; `NativeFacadeLabelTests` (brain tests) checks it
+from the sources.
 
 ## Watchdog thresholds
 

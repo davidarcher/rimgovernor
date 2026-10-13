@@ -9,11 +9,11 @@ namespace HomeBridge.BridgeTools
 {
     // The def mirror (defs.proto: every def field filled by protobuf reflection
     // from the game's def objects) is not a wire contract of the record
-    // contracts: the catalog reply no longer carries the def rows, the creation
-    // def sets or the game constants.
-    // TODO(#3100): defs. What stays is the class-chain table, the base classes of
-    // each game class the catalog names, which the planner's def checks resolve
-    // class relations against.
+    // contracts: the catalog reply carries no def rows, creation def sets or
+    // game constants, because the in-process brain reads the game's Def objects
+    // itself (NativeCatalogFactory, #3116). What stays is the class-chain table,
+    // the base classes of each game class the catalog names, which the planner's
+    // def checks resolve class relations against.
     internal static class DefMirrorFill
     {
         // Every class with its base classes, nearest first, up to but not
