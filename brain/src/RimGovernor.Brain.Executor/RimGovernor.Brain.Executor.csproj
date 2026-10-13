@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Brain.Executor</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.Executor</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Store/RimGovernor.Brain.Store.csproj" />
+  </ItemGroup>
+</Project>

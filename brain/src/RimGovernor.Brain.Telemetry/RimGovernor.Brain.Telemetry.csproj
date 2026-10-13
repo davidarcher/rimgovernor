@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Brain.Telemetry</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.Telemetry</AssemblyName>
+  </PropertyGroup>
+</Project>
