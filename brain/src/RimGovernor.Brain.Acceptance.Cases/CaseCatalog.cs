@@ -13,6 +13,11 @@ public static class CaseCatalog
         ArgumentNullException.ThrowIfNull(registry);
 
         // The case areas land with #3090 and #3093; each area adds one line below (sorted by area).
+        RecoveryCases.Register(registry);
+        ResearchCases.Register(registry);
+        RoomsCases.Register(registry);
+        SuppliesCases.Register(registry);
+        TickbudgetCases.Register(registry);
         WallCases.Register(registry);
         ZoneCases.Register(registry);
     }
