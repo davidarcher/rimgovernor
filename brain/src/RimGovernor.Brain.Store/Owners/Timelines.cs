@@ -77,7 +77,7 @@ public sealed partial class Store
                 if (i > 0)
                 {
                     var before = c.Provenance[i - 1];
-                    DomainException.Require(before.Origin < p.Origin || (before.Origin == p.Origin && string.CompareOrdinal(before.Facility, p.Facility) <= 0), "invalid established extent region");
+                    DomainException.Require(string.CompareOrdinal(Wire.Name(before.Origin), Wire.Name(p.Origin)) < 0 || (before.Origin == p.Origin && string.CompareOrdinal(before.Facility, p.Facility) <= 0), "invalid established extent region");
                 }
             }
         }
