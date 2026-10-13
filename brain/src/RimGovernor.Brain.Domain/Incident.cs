@@ -36,6 +36,16 @@ public sealed record Incident
 
     public Tick Ended { get; init; }
 
+    /// <summary>
+    /// The squad prey of the latest assessment: non-empty only while the food plan raises the occurrence
+    /// with no hostile standing (its hunt origin). Replaces Go's opaque <c>Payload</c>, of which hunt was the
+    /// only producer; persisted as a plain column.
+    /// </summary>
+    public EquatableArray<PawnId> HuntPrey { get; init; }
+
+    /// <summary>Largest encoded hunt-prey list the Go payload cap (4096 bytes of JSON) allowed.</summary>
+    public const int MaxHuntPreyBytes = 4096;
+
     public void Validate()
     {
         DomainException.Require(Id.IsValid && Kind.IsValid && (Subject.IsEmpty || Subject.IsValid), "invalid incident identity");
@@ -48,6 +58,22 @@ public sealed record Incident
             "invalid incident assessment"
         );
         DomainException.Require(!(Closed && Ended < Started) && !(!Closed && Ended.Value != 0), "invalid incident lifetime");
+        DomainException.Require(HuntPreyIsValid(), "invalid incident hunt prey");
+    }
+
+    private bool HuntPreyIsValid()
+    {
+        // The Go payload was {"prey":[...]} capped at 4096 bytes; the cap is kept on the same measure.
+        var bytes = 11;
+        foreach (var prey in HuntPrey)
+        {
+            if (!prey.IsValid)
+            {
+                return false;
+            }
+            bytes += Encoding.UTF8.GetByteCount(prey.Value) + 3;
+        }
+        return bytes <= MaxHuntPreyBytes;
     }
 
     /// <summary>Go's <c>utf8.ValidString</c>: no unpaired surrogates.</summary>
