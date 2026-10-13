@@ -88,28 +88,32 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, NativeWorldObservation.ToolName, request!, out Obs.WorldRequest? parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.WorldReply { Outcome = new Obs.WorldReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThread(ctx, () =>
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadWorld(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Obs.WorldReply HandleReadWorld(Obs.WorldRequest request)
+        {
+            if (!Validate(request, out var failure))
+                return new Obs.WorldReply { Outcome = new Obs.WorldReplyOutcome.FailureCase(failure) };
+            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out failure))
+                return new Obs.WorldReply { Outcome = new Obs.WorldReplyOutcome.FailureCase(failure) };
+            try
             {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.WorldReply { Outcome = new Obs.WorldReplyOutcome.FailureCase(failure) });
-                try
+                var tile = request.Tile is int tileId ? new PlanetTile(tileId) : (PlanetTile?)null;
+                var radius = request.SettlementRadius ?? 0d;
+                var snapshot = new Obs.WorldSnapshot { Context = context };
+                if (tile.HasValue && tile.Value.Valid)
                 {
-                    var tile = parsed.Tile is int tileId ? new PlanetTile(tileId) : (PlanetTile?)null;
-                    var radius = parsed.SettlementRadius ?? 0d;
-                    var snapshot = new Obs.WorldSnapshot { Context = context };
-                    if (tile.HasValue && tile.Value.Valid)
-                    {
-                        var rows = Find.WorldObjects.Settlements
-                            .Where(s => Find.WorldGrid.ApproxDistanceInTiles(tile.Value, s.Tile) <= radius)
-                            .Select(s => NativeWorldObservation.SettlementRow(context, s, tile)).ToList();
-                        snapshot = snapshot with { Settlements = [.. snapshot.Settlements, .. rows] };
-                    }
-                    var reply = new Obs.WorldReply { Outcome = snapshot };
-                    return ProtoBoundary.Encode(reply);
+                    var rows = Find.WorldObjects.Settlements
+                        .Where(s => Find.WorldGrid.ApproxDistanceInTiles(tile.Value, s.Tile) <= radius)
+                        .Select(s => NativeWorldObservation.SettlementRow(context, s, tile)).ToList();
+                    snapshot = snapshot with { Settlements = [.. snapshot.Settlements, .. rows] };
                 }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.WorldReply { Outcome =
-                    new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native world read could not complete." } }); }
-            }, cancellationToken).ConfigureAwait(false);
+                var reply = new Obs.WorldReply { Outcome = snapshot };
+                return reply;
+            }
+            catch (Exception) { return new Obs.WorldReply { Outcome =
+                new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native world read could not complete." } }; }
         }
 
         private static bool Validate(Obs.WorldRequest request, out Common.Failure failure)

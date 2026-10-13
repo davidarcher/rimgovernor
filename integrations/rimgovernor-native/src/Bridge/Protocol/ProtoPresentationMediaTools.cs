@@ -21,11 +21,16 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse<Presentation.ReadRequest>(ctx, "rimgovernor/presentation_render_state", request, out var parsed, out var failure)
                 || !NativePresentationReadTools.ValidateRead(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.RenderReply { Outcome = new Presentation.RenderReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateViewedIdentity(parsed.Identity, out var context, out var error))
-                    return ProtoBoundary.Encode(new Presentation.RenderReply { Outcome = error });
-                return ProtoBoundary.Encode(new Presentation.RenderReply { Outcome = Status(context, RenderDemandDriver.Peek()) });
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleRenderState(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool.
+        internal static Presentation.RenderReply HandleRenderState(Presentation.ReadRequest parsed)
+        {
+            if (!NativePresentationReadTools.ValidateRead(parsed, out var failure0)) return new Presentation.RenderReply { Outcome = new Presentation.RenderReplyOutcome.FailureCase(failure0) };
+            if (!ProtoBoundary.ValidateViewedIdentity(parsed.Identity, out var context, out var error))
+                return new Presentation.RenderReply { Outcome = error };
+            return new Presentation.RenderReply { Outcome = Status(context, RenderDemandDriver.Peek()) };
         }
 
         [Tool("rimgovernor/presentation_render_demand", Title = "Demand native rendering", Description = "Controller rendering lease. No simulation or game-speed changes. Visible game window always renders. PlayerIdentity's direction/viewer fields are informational only; they authenticate nothing.")]
@@ -35,12 +40,17 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse<Presentation.RenderDemand>(ctx, "rimgovernor/presentation_render_demand", request, out var parsed, out var failure)
                 || !ValidateDemand(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.RenderReply { Outcome = new Presentation.RenderReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateViewedIdentity(parsed?.Viewer?.Identity, out var context, out var error))
-                    return ProtoBoundary.Encode(new Presentation.RenderReply { Outcome = error });
-                var status = RenderDemandDriver.Lease((int)(parsed?.LeaseSeconds).GetValueOrDefault());
-                return ProtoBoundary.Encode(new Presentation.RenderReply { Outcome = Status(context, status) });
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleDemandRendering(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool.
+        internal static Presentation.RenderReply HandleDemandRendering(Presentation.RenderDemand parsed)
+        {
+            if (!ValidateDemand(parsed, out var failure0)) return new Presentation.RenderReply { Outcome = new Presentation.RenderReplyOutcome.FailureCase(failure0) };
+            if (!ProtoBoundary.ValidateViewedIdentity(parsed?.Viewer?.Identity, out var context, out var error))
+                return new Presentation.RenderReply { Outcome = error };
+            var status = RenderDemandDriver.Lease((int)(parsed?.LeaseSeconds).GetValueOrDefault());
+            return new Presentation.RenderReply { Outcome = Status(context, status) };
         }
 
         private static Presentation.RenderStatus Status(Common.ObservationContext context, RenderDemandStatus status)

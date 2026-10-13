@@ -84,12 +84,17 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse<Obs.ExcavationSiteRequest>(ctx, "rimgovernor/observations_read_excavation_site", request!, out var parsed, out var failure)
                 || !NativeExcavationSite.Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Outcome = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
-                    return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Outcome = failure });
-                try { return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Outcome = NativeExcavationSite.Read(map, parsed, context) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native excavation site facts could not be read completely.") }); }
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadExcavationSite(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool.
+        internal static Obs.ExcavationSiteReply HandleReadExcavationSite(Obs.ExcavationSiteRequest parsed)
+        {
+            if (!NativeExcavationSite.Validate(parsed, out var failure0)) return new Obs.ExcavationSiteReply { Outcome = failure0 };
+            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
+                return new Obs.ExcavationSiteReply { Outcome = failure };
+            try { return new Obs.ExcavationSiteReply { Outcome = NativeExcavationSite.Read(map, parsed, context) }; }
+            catch (Exception) { return new Obs.ExcavationSiteReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native excavation site facts could not be read completely.") }; }
         }
 
 

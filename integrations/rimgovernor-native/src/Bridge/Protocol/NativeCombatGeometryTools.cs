@@ -44,13 +44,16 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse<Mirror.CombatGeometryRequest>(ctx, ToolName, request!, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Mirror.CombatGeometryReply { Outcome = new Mirror.CombatGeometryReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThread(ctx, () =>
-            {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out Map? map, out var context, out var stale))
-                    return ProtoBoundary.Encode(new Mirror.CombatGeometryReply { Outcome = stale });
-                try { return ProtoBoundary.Encode(new Mirror.CombatGeometryReply { Outcome = Geometry(map, parsed, context) }); }
-                catch (GeometryRefused refused) { return ProtoBoundary.Encode(new Mirror.CombatGeometryReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, refused.Message) }); }
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleRead(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Mirror.CombatGeometryReply HandleRead(Mirror.CombatGeometryRequest request)
+        {
+            if (!Validate(request, out var failure0)) return new Mirror.CombatGeometryReply { Outcome = new Mirror.CombatGeometryReplyOutcome.FailureCase(failure0) };
+            if (!ProtoBoundary.ValidateIdentity(request.Identity, out Map? map, out var context, out var stale))
+                return new Mirror.CombatGeometryReply { Outcome = stale };
+            try { return new Mirror.CombatGeometryReply { Outcome = Geometry(map, request, context) }; }
+            catch (GeometryRefused refused) { return new Mirror.CombatGeometryReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, refused.Message) }; }
         }
 
         private sealed class GeometryRefused : Exception { public GeometryRefused(string message) : base(message) { } }

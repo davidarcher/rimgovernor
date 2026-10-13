@@ -28,18 +28,22 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Encode(new Obs.EvaluateStatReply { Outcome = new Obs.EvaluateStatReplyOutcome.FailureCase(failure) });
             if (parsed.Scope?.ExpectedIdentity == null || string.IsNullOrEmpty(parsed.Stat) || parsed.Subject?.Subject == null)
                 return ProtoBoundary.Encode(new Obs.EvaluateStatReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, stat and subject are required.") });
-            return await ProtoBoundary.OnMainThread(ctx, () =>
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleEvaluateStat(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Obs.EvaluateStatReply HandleEvaluateStat(Obs.EvaluateStatRequest request)
+        {
+            if (request.Scope?.ExpectedIdentity == null || string.IsNullOrEmpty(request.Stat) || request.Subject?.Subject == null)
+                return new Obs.EvaluateStatReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, stat and subject are required.") };
+            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var map, out var context, out var failure))
+                return new Obs.EvaluateStatReply { Outcome = new Obs.EvaluateStatReplyOutcome.FailureCase(failure) };
+            try { return Evaluate(map, context, request); }
+            catch (Exception ex)
             {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.EvaluateStatReply { Outcome = new Obs.EvaluateStatReplyOutcome.FailureCase(failure) });
-                try { return ProtoBoundary.Encode(Evaluate(map, context, parsed)); }
-                catch (Exception ex)
-                {
-                    ObservationWork.Failed("evaluateStat", ex);
-                    return ProtoBoundary.Encode(new Obs.EvaluateStatReply { Outcome = new Common.Unavailable
-                        { Reason = Common.UnavailableReason.ReadFailed, Detail = $"Stat {parsed.Stat} could not be evaluated: {ex.Message}" } });
-                }
-            }, cancellationToken).ConfigureAwait(false);
+                ObservationWork.Failed("evaluateStat", ex);
+                return new Obs.EvaluateStatReply { Outcome = new Common.Unavailable
+                    { Reason = Common.UnavailableReason.ReadFailed, Detail = $"Stat {request.Stat} could not be evaluated: {ex.Message}" } };
+            }
         }
 
         private static Obs.EvaluateStatReply Refuse(Common.FailureCode code, string detail) =>

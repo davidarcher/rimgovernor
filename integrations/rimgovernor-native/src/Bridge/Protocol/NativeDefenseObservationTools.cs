@@ -30,17 +30,21 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse<Obs.DefenseSiteRequest>(ctx, "rimgovernor/observations_read_defense_site", request!, out var parsed, out var failure)
                 || !ValidateSite(parsed, out failure)) return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Outcome = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Outcome = failure });
-                try {
-                    var cells = Region(parsed.Region, map);
-                    if (cells == null) return ProtoBoundary.Encode(new Obs.DefenseSiteReply {
-                        Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region is outside the current map.") });
-                    return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Outcome = Site(map, parsed.Region ?? new Obs.Rectangle(), cells, context) });
-                }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native defense site facts could not be read completely.") }); }
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadDefenseSite(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Obs.DefenseSiteReply HandleReadDefenseSite(Obs.DefenseSiteRequest request)
+        {
+            if (!ValidateSite(request, out var failure0)) return new Obs.DefenseSiteReply { Outcome = failure0 };
+            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
+                return new Obs.DefenseSiteReply { Outcome = failure };
+            try {
+                var cells = Region(request.Region, map);
+                if (cells == null) return new Obs.DefenseSiteReply {
+                    Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region is outside the current map.") };
+                return new Obs.DefenseSiteReply { Outcome = Site(map, request.Region ?? new Obs.Rectangle(), cells, context) };
+            }
+            catch (Exception) { return new Obs.DefenseSiteReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native defense site facts could not be read completely.") }; }
         }
 
         [Tool("rimgovernor/observations_read_lines_of_fire", Title = "Read lines of fire",
@@ -51,17 +55,21 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse<Obs.LinesOfFireRequest>(ctx, "rimgovernor/observations_read_lines_of_fire", request!, out var parsed, out var failure)
                 || !ValidateLines(parsed, out failure)) return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Outcome = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Outcome = failure });
-                try {
-                    var firing = parsed.FiringCells.Select(Native).ToList(); var approach = parsed.ApproachCells.Select(Native).ToList();
-                    if (firing.Concat(approach).Any(c => !c.InBounds(map))) return ProtoBoundary.Encode(new Obs.LinesOfFireReply {
-                        Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cell is outside the current map.") });
-                    return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Outcome = Lines(map, firing, approach, context, parsed.BudgetMs) });
-                }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native lines of fire could not be read completely.") }); }
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadLinesOfFire(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Obs.LinesOfFireReply HandleReadLinesOfFire(Obs.LinesOfFireRequest request)
+        {
+            if (!ValidateLines(request, out var failure0)) return new Obs.LinesOfFireReply { Outcome = failure0 };
+            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
+                return new Obs.LinesOfFireReply { Outcome = failure };
+            try {
+                var firing = request.FiringCells.Select(Native).ToList(); var approach = request.ApproachCells.Select(Native).ToList();
+                if (firing.Concat(approach).Any(c => !c.InBounds(map))) return new Obs.LinesOfFireReply {
+                    Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cell is outside the current map.") };
+                return new Obs.LinesOfFireReply { Outcome = Lines(map, firing, approach, context, request.BudgetMs) };
+            }
+            catch (Exception) { return new Obs.LinesOfFireReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native lines of fire could not be read completely.") }; }
         }
 
         internal static bool ValidateSite(Obs.DefenseSiteRequest request, out Common.Failure failure)

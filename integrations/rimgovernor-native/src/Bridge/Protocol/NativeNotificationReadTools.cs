@@ -39,31 +39,35 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse<Presentation.NotificationsRequest>(ctx, "rimgovernor/presentation_notifications", request, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.NotificationsReply { Outcome = new Presentation.NotificationsReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var error))
-                    return ProtoBoundary.Encode(new Presentation.NotificationsReply { Outcome = new Presentation.NotificationsReplyOutcome.FailureCase(error) });
-                try
-                {
-                    var snapshot = new Presentation.NotificationsSnapshot { Context = context };
-                    var tick = Find.TickManager.TicksGame;
-                    if (parsed.IncludeLetters ?? true)
-                        snapshot = snapshot with { Letters = Section(() => ReadLetters(Limit(parsed.LetterLimit, DefaultLetterLimit), tick),
-                            (Presentation.Letters v) => new Presentation.LetterSection { Outcome = v }, u => new Presentation.LetterSection { Outcome = u }) };
-                    if (parsed.IncludeMessages ?? true)
-                        snapshot = snapshot with { Messages = Section(() => ReadMessages(Limit(parsed.MessageLimit, DefaultMessageLimit), tick),
-                            (Presentation.Messages v) => new Presentation.MessageSection { Outcome = v }, u => new Presentation.MessageSection { Outcome = u }) };
-                    if (parsed.IncludeAlerts ?? true)
-                        snapshot = snapshot with { Alerts = Section(() => ReadAlerts(Limit(parsed.AlertLimit, DefaultAlertLimit)),
-                            (Presentation.Alerts v) => new Presentation.AlertSection { Outcome = v }, u => new Presentation.AlertSection { Outcome = u }) };
-                    return NativePresentationReadTools.Encode(new Presentation.NotificationsReply { Outcome = snapshot });
-                }
-                catch (Exception errorRead)
-                {
-                    return ProtoBoundary.Encode(new Presentation.NotificationsReply { Outcome = ProtoBoundary.Fail(
-                        errorRead is NativePresentationReadTools.ReadLimit ? Common.FailureCode.CapacityExhausted : Common.FailureCode.Unavailable,
-                        errorRead is NativePresentationReadTools.ReadLimit ? errorRead.Message : "Native notifications could not be read completely.") });
-                }
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleNotifications(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Presentation.NotificationsReply HandleNotifications(Presentation.NotificationsRequest request)
+        {
+            if (!Validate(request, out var failure0)) return new Presentation.NotificationsReply { Outcome = new Presentation.NotificationsReplyOutcome.FailureCase(failure0) };
+            if (!ProtoBoundary.ValidateIdentity(request.Identity, out var context, out var error))
+                return new Presentation.NotificationsReply { Outcome = new Presentation.NotificationsReplyOutcome.FailureCase(error) };
+            try
+            {
+                var snapshot = new Presentation.NotificationsSnapshot { Context = context };
+                var tick = Find.TickManager.TicksGame;
+                if (request.IncludeLetters ?? true)
+                    snapshot = snapshot with { Letters = Section(() => ReadLetters(Limit(request.LetterLimit, DefaultLetterLimit), tick),
+                        (Presentation.Letters v) => new Presentation.LetterSection { Outcome = v }, u => new Presentation.LetterSection { Outcome = u }) };
+                if (request.IncludeMessages ?? true)
+                    snapshot = snapshot with { Messages = Section(() => ReadMessages(Limit(request.MessageLimit, DefaultMessageLimit), tick),
+                        (Presentation.Messages v) => new Presentation.MessageSection { Outcome = v }, u => new Presentation.MessageSection { Outcome = u }) };
+                if (request.IncludeAlerts ?? true)
+                    snapshot = snapshot with { Alerts = Section(() => ReadAlerts(Limit(request.AlertLimit, DefaultAlertLimit)),
+                        (Presentation.Alerts v) => new Presentation.AlertSection { Outcome = v }, u => new Presentation.AlertSection { Outcome = u }) };
+                return new Presentation.NotificationsReply { Outcome = snapshot };
+            }
+            catch (Exception errorRead)
+            {
+                return new Presentation.NotificationsReply { Outcome = ProtoBoundary.Fail(
+                    errorRead is NativePresentationReadTools.ReadLimit ? Common.FailureCode.CapacityExhausted : Common.FailureCode.Unavailable,
+                    errorRead is NativePresentationReadTools.ReadLimit ? errorRead.Message : "Native notifications could not be read completely.") };
+            }
         }
 
         internal static bool Validate(Presentation.NotificationsRequest request, out Common.Failure failure)

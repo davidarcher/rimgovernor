@@ -43,35 +43,40 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request, out Obs.WallUpgradeSitesRequest? parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Outcome = new Obs.WallUpgradeSitesReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                    return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Outcome = error });
-                try
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleListWallUpgradeSites(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Obs.WallUpgradeSitesReply HandleListWallUpgradeSites(Obs.WallUpgradeSitesRequest request)
+        {
+            if (!Validate(request, out var failure))
+                return new Obs.WallUpgradeSitesReply { Outcome = new Obs.WallUpgradeSitesReplyOutcome.FailureCase(failure) };
+            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var error))
+                return new Obs.WallUpgradeSitesReply { Outcome = error };
+            try
+            {
+                if (Faction.OfPlayerSilentFail == null || map.listerBuildings == null || map.roofGrid == null || map.zoneManager == null)
+                    return new Obs.WallUpgradeSitesReply { Outcome = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction or map structure trackers are unavailable.") };
+                var walls = map.listerBuildings.allBuildingsColonist.Where(b => b.def == ThingDefOf.Wall && b.Spawned).ToList();
+                var rows = new List<Obs.WallUpgradeSite>();
+                if (request.TargetId is not null)
                 {
-                    if (Faction.OfPlayerSilentFail == null || map.listerBuildings == null || map.roofGrid == null || map.zoneManager == null)
-                        return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Outcome = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction or map structure trackers are unavailable.") });
-                    var walls = map.listerBuildings.allBuildingsColonist.Where(b => b.def == ThingDefOf.Wall && b.Spawned).ToList();
-                    var rows = new List<Obs.WallUpgradeSite>();
-                    if (parsed.TargetId is not null)
-                    {
-                        var wall = walls.ById(parsed.TargetId);
-                        if (wall == null)
-                            return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned colonist wall with that id is on the current map.") });
-                        foreach (var normal in WallUpgradeSafety.Directions)
-                            if (Replacement(map, wall, normal, context) is Obs.WallUpgradeSite row) rows.Add(row);
-                    }
-                    else
-                    {
-                        foreach (var wall in walls.Where(WallUpgradeSafety.Stone).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal))
-                            foreach (var normal in WallUpgradeSafety.Directions.Where(n => !WallUpgradeSafety.Corner(n)))
-                                if (Cleanup(map, wall, normal, context) is Obs.WallUpgradeSite row) rows.Add(row);
-                    }
-                    var snapshot = new Obs.WallUpgradeSnapshot { Context = context};
-                    snapshot = snapshot with { Sites = [.. snapshot.Sites, .. rows] };
-                    return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Outcome = snapshot });
+                    var wall = walls.ById(request.TargetId);
+                    if (wall == null)
+                        return new Obs.WallUpgradeSitesReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned colonist wall with that id is on the current map.") };
+                    foreach (var normal in WallUpgradeSafety.Directions)
+                        if (Replacement(map, wall, normal, context) is Obs.WallUpgradeSite row) rows.Add(row);
                 }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Wall, room or roof facts could not be read completely.") }); }
-            }, cancellationToken).ConfigureAwait(false);
+                else
+                {
+                    foreach (var wall in walls.Where(WallUpgradeSafety.Stone).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal))
+                        foreach (var normal in WallUpgradeSafety.Directions.Where(n => !WallUpgradeSafety.Corner(n)))
+                            if (Cleanup(map, wall, normal, context) is Obs.WallUpgradeSite row) rows.Add(row);
+                }
+                var snapshot = new Obs.WallUpgradeSnapshot { Context = context};
+                snapshot = snapshot with { Sites = [.. snapshot.Sites, .. rows] };
+                return new Obs.WallUpgradeSitesReply { Outcome = snapshot };
+            }
+            catch (Exception) { return new Obs.WallUpgradeSitesReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Wall, room or roof facts could not be read completely.") }; }
         }
 
         internal static bool Validate(Obs.WallUpgradeSitesRequest request, out Common.Failure failure)

@@ -31,85 +31,88 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse<Obs.AncientShrinesRequest>(ctx, ToolName, request, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Obs.AncientShrinesReply { Outcome = new Obs.AncientShrinesReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                    return ProtoBoundary.Encode(new Obs.AncientShrinesReply { Outcome = error });
-                try {
-                    var player = Faction.OfPlayerSilentFail;
-                    if (player == null || map.areaManager?.Home == null || map.listerThings == null || map.roofGrid == null || map.fogGrid == null)
-                        return Missing(Common.UnavailableReason.NativeComponentMissing, "Player, Home, thing or fog trackers unavailable.");
-                    var groups = new Dictionary<int, List<Building_AncientCryptosleepCasket>>();
-                    foreach (var casket in map.listerThings.AllThings.OfType<Building_AncientCryptosleepCasket>()) {
-                        if (!casket.Spawned || !casket.Position.InBounds(map)) continue;
-                        var key = casket.groupID >= 0 ? casket.groupID : -1 - casket.thingIDNumber;
-                        if (!groups.TryGetValue(key, out var list)) groups[key] = list = new List<Building_AncientCryptosleepCasket>();
-                        list.Add(casket);
-                    }
-                    var snapshot = new Obs.AncientShrinesSnapshot { Context = context };
-                    var home = map.areaManager.Home;
-                    foreach (var pair in groups.OrderBy(p => p.Key)) {
-                        var caskets = pair.Value.OrderBy(c => c.thingIDNumber).ToList();
-                        var fogged = caskets.Any(c => c.Position.Fogged(map));
-                        var rooms = new HashSet<Room>();
-                        foreach (var casket in caskets)
-                            if (casket.GetRoom() is Room room && room.ProperRoom && !room.TouchesMapEdge && !room.PsychologicallyOutdoors) rooms.Add(room);
-                        var cells = rooms.Count > 0 ? rooms.SelectMany(r => r.Cells).ToList() : caskets.Select(c => c.Position).ToList();
-                        var rect = CellRect.FromCellList(cells);
-                        if (rooms.Count == 0) rect = rect.ExpandedBy(2).ClipInsideMap(map);
-                        var sealedRoom = rooms.Count > 0 && fogged && rooms.All(r => r.OpenRoofCount == 0);
-                        var row = new Obs.AncientShrine {
-                            ShrineId = Id(pair.Key >= 0 ? "AncientShrineGroup_" + pair.Key : caskets[0].GetUniqueLoadID()),
-                            Room = new Obs.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) },
-                            Sealed = sealedRoom, InHome = rect.Cells.Any(c => c.InBounds(map) && home[c]), GuardsKnown = !fogged
-                        };
-                        foreach (var casket in caskets) {
-                            if (casket.Position.Fogged(map)) continue;
-                            row = row with { Caskets = [.. row.Caskets, new Obs.ShrineCasket {
-                                EntityId = Id(casket.GetUniqueLoadID()), Cell = Cell(casket.Position.x, casket.Position.z),
-                                HitPoints = (uint)Math.Max(0, casket.HitPoints),
-                                HasContents = casket.HasAnyContents, PlayerClaimed = casket.Faction == player,
-                                InteractionCell = Cell(casket.InteractionCell.x, casket.InteractionCell.z)
-                            }] };
-                        }
-                        if (!fogged) {
-                            var things = rooms.Count > 0 ? rooms.SelectMany(r => r.ContainedAndAdjacentThings) : rect.Cells.Where(c => c.InBounds(map)).SelectMany(c => c.GetThingList(map));
-                            var seen = new HashSet<int>();
-                            foreach (var thing in things) {
-                                if (!seen.Add(thing.thingIDNumber)) continue;
-                                var guard = Guard(thing, player);
-                                if (guard == null) continue;
-                                row = row with { Guards = [.. row.Guards, guard] };
-                            }
-                            foreach (var thing in things) {
-                                var occupant = Occupant(thing, player);
-                                if (occupant == null || row.Occupants.Any(o => (o.EntityId ?? "") == (occupant.EntityId ?? ""))) continue;
-                                row = row with { Occupants = [.. row.Occupants, occupant] };
-                            }
-                        }
-                        foreach (var room in rooms.OrderBy(r => r.ID)) {
-                            var inside = new HashSet<IntVec3>(room.Cells);
-                            foreach (var cell in room.BorderCellsCardinal.Distinct().OrderBy(c => c.x).ThenBy(c => c.z)) {
-                                if (!cell.InBounds(map) || cell.Fogged(map) || inside.Contains(cell)) continue;
-                                if (!(cell.GetEdifice(map) is Building wall) || wall.Faction == player || wall.def != ThingDefOf.Wall && !(wall is Building_Door) || !wall.DeconstructibleBy(player)) continue;
-                                if (row.BreachWalls.Any(w => (w.EntityId ?? "") == wall.GetUniqueLoadID())) continue;
-                                if (NativeShrineBreachSafety.RoofBlocker(wall) != null) continue;
-                                IntVec3? outside = null;
-                                foreach (var offset in GenAdj.CardinalDirections) {
-                                    var near = cell + offset;
-                                    if (near.InBounds(map) && !inside.Contains(near) && near.Walkable(map) && !near.Fogged(map)) { outside = near; break; }
-                                }
-                                if (outside == null) continue;
-                                row = row with { BreachWalls = [.. row.BreachWalls, new Obs.ShrineBreachWall { EntityId = Id(wall.GetUniqueLoadID()), DefName = Id(wall.def.defName), Cell = Cell(cell.x, cell.z), Outside = Cell(outside.Value.x, outside.Value.z) }] };
-                            }
-                        }
-                        snapshot = snapshot with { Shrines = [.. snapshot.Shrines, row] };
-                    }
-                    var count = (ulong)snapshot.Shrines.Count;
-                    var reply = new Obs.AncientShrinesReply { Outcome = snapshot };
-                    return ProtoBoundary.Encode(reply);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleAncientShrines(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Obs.AncientShrinesReply HandleAncientShrines(Obs.AncientShrinesRequest request)
+        {
+            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var error))
+                return new Obs.AncientShrinesReply { Outcome = error };
+            try {
+                var player = Faction.OfPlayerSilentFail;
+                if (player == null || map.areaManager?.Home == null || map.listerThings == null || map.roofGrid == null || map.fogGrid == null)
+                    return Missing(Common.UnavailableReason.NativeComponentMissing, "Player, Home, thing or fog trackers unavailable.");
+                var groups = new Dictionary<int, List<Building_AncientCryptosleepCasket>>();
+                foreach (var casket in map.listerThings.AllThings.OfType<Building_AncientCryptosleepCasket>()) {
+                    if (!casket.Spawned || !casket.Position.InBounds(map)) continue;
+                    var key = casket.groupID >= 0 ? casket.groupID : -1 - casket.thingIDNumber;
+                    if (!groups.TryGetValue(key, out var list)) groups[key] = list = new List<Building_AncientCryptosleepCasket>();
+                    list.Add(casket);
                 }
-                catch (Exception) { return Missing(Common.UnavailableReason.ReadFailed, "Shrine facts could not be read completely."); }
-            }, cancellationToken).ConfigureAwait(false);
+                var snapshot = new Obs.AncientShrinesSnapshot { Context = context };
+                var home = map.areaManager.Home;
+                foreach (var pair in groups.OrderBy(p => p.Key)) {
+                    var caskets = pair.Value.OrderBy(c => c.thingIDNumber).ToList();
+                    var fogged = caskets.Any(c => c.Position.Fogged(map));
+                    var rooms = new HashSet<Room>();
+                    foreach (var casket in caskets)
+                        if (casket.GetRoom() is Room room && room.ProperRoom && !room.TouchesMapEdge && !room.PsychologicallyOutdoors) rooms.Add(room);
+                    var cells = rooms.Count > 0 ? rooms.SelectMany(r => r.Cells).ToList() : caskets.Select(c => c.Position).ToList();
+                    var rect = CellRect.FromCellList(cells);
+                    if (rooms.Count == 0) rect = rect.ExpandedBy(2).ClipInsideMap(map);
+                    var sealedRoom = rooms.Count > 0 && fogged && rooms.All(r => r.OpenRoofCount == 0);
+                    var row = new Obs.AncientShrine {
+                        ShrineId = Id(pair.Key >= 0 ? "AncientShrineGroup_" + pair.Key : caskets[0].GetUniqueLoadID()),
+                        Room = new Obs.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) },
+                        Sealed = sealedRoom, InHome = rect.Cells.Any(c => c.InBounds(map) && home[c]), GuardsKnown = !fogged
+                    };
+                    foreach (var casket in caskets) {
+                        if (casket.Position.Fogged(map)) continue;
+                        row = row with { Caskets = [.. row.Caskets, new Obs.ShrineCasket {
+                            EntityId = Id(casket.GetUniqueLoadID()), Cell = Cell(casket.Position.x, casket.Position.z),
+                            HitPoints = (uint)Math.Max(0, casket.HitPoints),
+                            HasContents = casket.HasAnyContents, PlayerClaimed = casket.Faction == player,
+                            InteractionCell = Cell(casket.InteractionCell.x, casket.InteractionCell.z)
+                        }] };
+                    }
+                    if (!fogged) {
+                        var things = rooms.Count > 0 ? rooms.SelectMany(r => r.ContainedAndAdjacentThings) : rect.Cells.Where(c => c.InBounds(map)).SelectMany(c => c.GetThingList(map));
+                        var seen = new HashSet<int>();
+                        foreach (var thing in things) {
+                            if (!seen.Add(thing.thingIDNumber)) continue;
+                            var guard = Guard(thing, player);
+                            if (guard == null) continue;
+                            row = row with { Guards = [.. row.Guards, guard] };
+                        }
+                        foreach (var thing in things) {
+                            var occupant = Occupant(thing, player);
+                            if (occupant == null || row.Occupants.Any(o => (o.EntityId ?? "") == (occupant.EntityId ?? ""))) continue;
+                            row = row with { Occupants = [.. row.Occupants, occupant] };
+                        }
+                    }
+                    foreach (var room in rooms.OrderBy(r => r.ID)) {
+                        var inside = new HashSet<IntVec3>(room.Cells);
+                        foreach (var cell in room.BorderCellsCardinal.Distinct().OrderBy(c => c.x).ThenBy(c => c.z)) {
+                            if (!cell.InBounds(map) || cell.Fogged(map) || inside.Contains(cell)) continue;
+                            if (!(cell.GetEdifice(map) is Building wall) || wall.Faction == player || wall.def != ThingDefOf.Wall && !(wall is Building_Door) || !wall.DeconstructibleBy(player)) continue;
+                            if (row.BreachWalls.Any(w => (w.EntityId ?? "") == wall.GetUniqueLoadID())) continue;
+                            if (NativeShrineBreachSafety.RoofBlocker(wall) != null) continue;
+                            IntVec3? outside = null;
+                            foreach (var offset in GenAdj.CardinalDirections) {
+                                var near = cell + offset;
+                                if (near.InBounds(map) && !inside.Contains(near) && near.Walkable(map) && !near.Fogged(map)) { outside = near; break; }
+                            }
+                            if (outside == null) continue;
+                            row = row with { BreachWalls = [.. row.BreachWalls, new Obs.ShrineBreachWall { EntityId = Id(wall.GetUniqueLoadID()), DefName = Id(wall.def.defName), Cell = Cell(cell.x, cell.z), Outside = Cell(outside.Value.x, outside.Value.z) }] };
+                        }
+                    }
+                    snapshot = snapshot with { Shrines = [.. snapshot.Shrines, row] };
+                }
+                var count = (ulong)snapshot.Shrines.Count;
+                var reply = new Obs.AncientShrinesReply { Outcome = snapshot };
+                return reply;
+            }
+            catch (Exception) { return Missing(Common.UnavailableReason.ReadFailed, "Shrine facts could not be read completely."); }
         }
 
         // Occupant is any non-player humanlike in the room or its
@@ -154,6 +157,6 @@ namespace HomeBridge.BridgeTools
 
         private static Common.Cell Cell(int x, int z) => new Common.Cell { X = x, Z = z };
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
-        private static object Missing(Common.UnavailableReason reason, string detail) => ProtoBoundary.Encode(new Obs.AncientShrinesReply { Outcome = new Common.Unavailable { Reason = reason, Detail = detail } });
+        private static Obs.AncientShrinesReply Missing(Common.UnavailableReason reason, string detail) => new Obs.AncientShrinesReply { Outcome = new Common.Unavailable { Reason = reason, Detail = detail } };
     }
 }

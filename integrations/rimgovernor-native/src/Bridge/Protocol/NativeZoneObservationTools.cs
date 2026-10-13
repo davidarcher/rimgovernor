@@ -27,11 +27,16 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request, out Obs.ListZonesRequest? parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ListZonesReply { Outcome = new Obs.ListZonesReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                    return ProtoBoundary.Encode(new Obs.ListZonesReply { Outcome = error });
-                return ProtoBoundary.Encode(Read(map, parsed, context));
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleListZones(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Obs.ListZonesReply HandleListZones(Obs.ListZonesRequest request)
+        {
+            if (!Validate(request, out var failure))
+                return new Obs.ListZonesReply { Outcome = new Obs.ListZonesReplyOutcome.FailureCase(failure) };
+            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var error))
+                return new Obs.ListZonesReply { Outcome = error };
+            return Read(map, request, context);
         }
 
         // Read is the read on the main thread under a validated identity: the

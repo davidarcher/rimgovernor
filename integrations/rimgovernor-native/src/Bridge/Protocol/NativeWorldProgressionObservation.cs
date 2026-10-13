@@ -370,19 +370,23 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, NativeWorldProgressionObservation.ToolName, request!, out Obs.WorldProgressionRequest? parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.WorldProgressionReply { Outcome = new Obs.WorldProgressionReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThread(ctx, () =>
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadWorldProgression(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Obs.WorldProgressionReply HandleReadWorldProgression(Obs.WorldProgressionRequest request)
+        {
+            if (!Validate(request, out var failure))
+                return new Obs.WorldProgressionReply { Outcome = new Obs.WorldProgressionReplyOutcome.FailureCase(failure) };
+            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out failure))
+                return new Obs.WorldProgressionReply { Outcome = new Obs.WorldProgressionReplyOutcome.FailureCase(failure) };
+            try
             {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.WorldProgressionReply { Outcome = new Obs.WorldProgressionReplyOutcome.FailureCase(failure) });
-                try
-                {
-                    var snapshot = NativeWorldProgressionObservation.Build(context, parsed.IncludeStorage.GetValueOrDefault());
-                    var reply = new Obs.WorldProgressionReply { Outcome = snapshot };
-                    return ProtoBoundary.Encode(reply);
-                }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.WorldProgressionReply { Outcome =
-                    new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native world progression could not be read completely." } }); }
-            }, cancellationToken).ConfigureAwait(false);
+                var snapshot = NativeWorldProgressionObservation.Build(context, request.IncludeStorage.GetValueOrDefault());
+                var reply = new Obs.WorldProgressionReply { Outcome = snapshot };
+                return reply;
+            }
+            catch (Exception) { return new Obs.WorldProgressionReply { Outcome =
+                new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native world progression could not be read completely." } }; }
         }
 
         private static bool Validate(Obs.WorldProgressionRequest request, out Common.Failure failure)

@@ -142,14 +142,18 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse<Obs.TradeAcquisitionRequest>(ctx, NativeTradeAcquisition.ToolName, request!, out var parsed, out var failure)
                 || parsed.Scope?.ExpectedIdentity == null)
                 return ProtoBoundary.Encode(new Obs.TradeAcquisitionReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") });
-            return await ProtoBoundary.OnMainThread(ctx, () =>
-            {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.TradeAcquisitionReply { Outcome = failure });
-                try { return ProtoBoundary.Encode(new Obs.TradeAcquisitionReply { Outcome = Read(map, context, parsed) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.TradeAcquisitionReply { Outcome = new Common.Unavailable
-                    { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native trade prerequisites could not be read completely." } }); }
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadTradeAcquisition(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Obs.TradeAcquisitionReply HandleReadTradeAcquisition(Obs.TradeAcquisitionRequest request)
+        {
+            if (request.Scope?.ExpectedIdentity == null)
+                return new Obs.TradeAcquisitionReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") };
+            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var map, out var context, out var failure))
+                return new Obs.TradeAcquisitionReply { Outcome = failure };
+            try { return new Obs.TradeAcquisitionReply { Outcome = Read(map, context, request) }; }
+            catch (Exception) { return new Obs.TradeAcquisitionReply { Outcome = new Common.Unavailable
+                { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native trade prerequisites could not be read completely." } }; }
         }
     }
 }

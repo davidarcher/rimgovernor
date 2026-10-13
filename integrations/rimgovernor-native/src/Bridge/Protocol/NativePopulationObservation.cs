@@ -32,12 +32,16 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse<Obs.PopulationRequest>(ctx, "rimgovernor/observations_read_population", request!, out var parsed, out var failure)
                 || !ValidatePopulation(parsed, out failure)) return ProtoBoundary.Encode(new Obs.PopulationReply { Outcome = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.PopulationReply { Outcome = failure });
-                try { return ProtoBoundary.Encode(new Obs.PopulationReply { Outcome = Population(map, parsed, context) }); }
-                catch (Exception error) { ModLog.Error("observe", "Population read failed: " + error); return ProtoBoundary.Encode(new Obs.PopulationReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Native population facts could not be read completely: " + error.GetType().Name + ": " + error.Message)) }); }
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadPopulation(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Obs.PopulationReply HandleReadPopulation(Obs.PopulationRequest request)
+        {
+            if (!ValidatePopulation(request, out var failure0)) return new Obs.PopulationReply { Outcome = failure0 };
+            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
+                return new Obs.PopulationReply { Outcome = failure };
+            try { return new Obs.PopulationReply { Outcome = Population(map, request, context) }; }
+            catch (Exception error) { ModLog.Error("observe", "Population read failed: " + error); return new Obs.PopulationReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Native population facts could not be read completely: " + error.GetType().Name + ": " + error.Message)) }; }
         }
 
         internal static bool ValidatePopulation(Obs.PopulationRequest request, out Common.Failure failure)

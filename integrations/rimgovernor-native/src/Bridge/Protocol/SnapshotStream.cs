@@ -79,8 +79,12 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse<Obs.FlushSnapshotRequest>(ctx, FlushToolName, request!, out _, out var failure))
                 return Task.FromResult<object>(ProtoBoundary.Encode(new Obs.FlushSnapshotReply { Outcome = new Obs.FlushSnapshotReplyOutcome.FailureCase(failure) }));
-            return Task.FromResult<object>(ProtoBoundary.Encode(new Obs.FlushSnapshotReply { Outcome = new Obs.FlushSnapshotReplyOutcome.FlushedCase(SnapshotStream.Flush()) }));
+            return Task.FromResult<object>(ProtoBoundary.Encode(HandleFlush()));
         }
+
+        // Any thread: the typed core of the flush tool.
+        internal static Obs.FlushSnapshotReply HandleFlush() =>
+            new Obs.FlushSnapshotReply { Outcome = new Obs.FlushSnapshotReplyOutcome.FlushedCase(SnapshotStream.Flush()) };
     }
 
     internal static class SnapshotStream

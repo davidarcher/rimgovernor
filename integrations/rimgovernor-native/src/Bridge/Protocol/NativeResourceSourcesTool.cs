@@ -33,11 +33,16 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request!, out Obs.ResourceSourcesRequest? parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ResourceSourcesReply { Outcome = new Obs.ResourceSourcesReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                    return ProtoBoundary.Encode(new Obs.ResourceSourcesReply { Outcome = error });
-                return ProtoBoundary.Encode(Read(map, parsed, context));
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleListResourceSources(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Obs.ResourceSourcesReply HandleListResourceSources(Obs.ResourceSourcesRequest request)
+        {
+            if (!Validate(request, out var failure))
+                return new Obs.ResourceSourcesReply { Outcome = new Obs.ResourceSourcesReplyOutcome.FailureCase(failure) };
+            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var error))
+                return new Obs.ResourceSourcesReply { Outcome = error };
+            return Read(map, request, context);
         }
 
         // Cheap is the read's speed switch: on, the census reads only

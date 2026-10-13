@@ -33,21 +33,26 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_spatial_access", request!, out Obs.SpatialAccessRequest? parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Outcome = new Obs.SpatialAccessReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Outcome = new Obs.SpatialAccessReplyOutcome.FailureCase(failure) });
-                if ((long)map.Size.x * map.Size.z > MaximumMapCells)
-                    return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Outcome = Unavailable(Common.UnavailableReason.LimitExceeded, "Map exceeds the bounded spatial audit size.") });
-                try {
-                    var blocked = new HashSet<IntVec3>(parsed.BlockedCells.Select(Native));
-                    var targets = parsed.TargetCells.Select(Native).ToList();
-                    if (blocked.Concat(targets).Any(c => !c.InBounds(map))) return ProtoBoundary.Encode(new Obs.SpatialAccessReply {
-                        Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cell is outside the current map.") });
-                    return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Outcome = Audit(map, blocked, targets, parsed.PawnIds.ToList(), context, parsed.BudgetMs) });
-                }
-                catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Outcome = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native spatial access could not be read completely.") }); }
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadSpatialAccess(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Obs.SpatialAccessReply HandleReadSpatialAccess(Obs.SpatialAccessRequest request)
+        {
+            if (!Validate(request, out var failure))
+                return new Obs.SpatialAccessReply { Outcome = new Obs.SpatialAccessReplyOutcome.FailureCase(failure) };
+            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out failure))
+                return new Obs.SpatialAccessReply { Outcome = new Obs.SpatialAccessReplyOutcome.FailureCase(failure) };
+            if ((long)map.Size.x * map.Size.z > MaximumMapCells)
+                return new Obs.SpatialAccessReply { Outcome = Unavailable(Common.UnavailableReason.LimitExceeded, "Map exceeds the bounded spatial audit size.") };
+            try {
+                var blocked = new HashSet<IntVec3>(request.BlockedCells.Select(Native));
+                var targets = request.TargetCells.Select(Native).ToList();
+                if (blocked.Concat(targets).Any(c => !c.InBounds(map))) return new Obs.SpatialAccessReply {
+                    Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cell is outside the current map.") };
+                return new Obs.SpatialAccessReply { Outcome = Audit(map, blocked, targets, request.PawnIds.ToList(), context, request.BudgetMs) };
+            }
+            catch (ReadLimit error) { return new Obs.SpatialAccessReply { Outcome = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }; }
+            catch (Exception) { return new Obs.SpatialAccessReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native spatial access could not be read completely.") }; }
         }
 
         internal static bool Validate(Obs.SpatialAccessRequest request, out Common.Failure failure)

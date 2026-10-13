@@ -236,14 +236,18 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, NativeTradeObservation.TradersToolName, request!, out Obs.TradersRequest? parsed, out var failure)
                 || parsed.Scope?.ExpectedIdentity == null) return ProtoBoundary.Encode(new Obs.TradersReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") });
-            return await ProtoBoundary.OnMainThread(ctx, () =>
-            {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.TradersReply { Outcome = new Obs.TradersReplyOutcome.FailureCase(failure) });
-                try { return ProtoBoundary.Encode(new Obs.TradersReply { Outcome = NativeTradeObservation.Traders(map, context) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.TradersReply { Outcome =
-                    new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native trader census could not be read completely." } }); }
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleListTraders(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Obs.TradersReply HandleListTraders(Obs.TradersRequest request)
+        {
+            if (request.Scope?.ExpectedIdentity == null)
+                return new Obs.TradersReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") };
+            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var map, out var context, out var failure))
+                return new Obs.TradersReply { Outcome = new Obs.TradersReplyOutcome.FailureCase(failure) };
+            try { return new Obs.TradersReply { Outcome = NativeTradeObservation.Traders(map, context) }; }
+            catch (Exception) { return new Obs.TradersReply { Outcome =
+                new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native trader census could not be read completely." } }; }
         }
 
         [Tool(NativeTradeObservation.SessionToolName, Title = "Read the adapter's live trade session or walk",
@@ -254,14 +258,18 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, NativeTradeObservation.SessionToolName, request!, out Obs.TradeSessionRequest? parsed, out var failure)
                 || parsed.Scope?.ExpectedIdentity == null) return ProtoBoundary.Encode(new Obs.TradeSessionReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") });
-            return await ProtoBoundary.OnMainThread(ctx, () =>
-            {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.TradeSessionReply { Outcome = new Obs.TradeSessionReplyOutcome.FailureCase(failure) });
-                try { return ProtoBoundary.Encode(new Obs.TradeSessionReply { Outcome = NativeTradeObservation.Session(context) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.TradeSessionReply { Outcome =
-                    new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native trade session could not be read." } }); }
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadTradeSession(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Obs.TradeSessionReply HandleReadTradeSession(Obs.TradeSessionRequest request)
+        {
+            if (request.Scope?.ExpectedIdentity == null)
+                return new Obs.TradeSessionReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") };
+            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var context, out var failure))
+                return new Obs.TradeSessionReply { Outcome = new Obs.TradeSessionReplyOutcome.FailureCase(failure) };
+            try { return new Obs.TradeSessionReply { Outcome = NativeTradeObservation.Session(context) }; }
+            catch (Exception) { return new Obs.TradeSessionReply { Outcome =
+                new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native trade session could not be read." } }; }
         }
 
         [Tool(NativeTradeObservation.SheetToolName, Title = "Read the open trade session's sheet",
@@ -272,20 +280,24 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, NativeTradeObservation.SheetToolName, request!, out Obs.TradeSheetRequest? parsed, out var failure)
                 || parsed.Scope?.ExpectedIdentity == null) return ProtoBoundary.Encode(new Obs.TradeSheetReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") });
-            return await ProtoBoundary.OnMainThread(ctx, () =>
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadTradeSheet(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Obs.TradeSheetReply HandleReadTradeSheet(Obs.TradeSheetRequest request)
+        {
+            if (request.Scope?.ExpectedIdentity == null)
+                return new Obs.TradeSheetReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") };
+            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var context, out var failure))
+                return new Obs.TradeSheetReply { Outcome = new Obs.TradeSheetReplyOutcome.FailureCase(failure) };
+            try
             {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.TradeSheetReply { Outcome = new Obs.TradeSheetReplyOutcome.FailureCase(failure) });
-                try
-                {
-                    if (!NativeTradeObservation.Sheet(context, parsed.SessionId, out var sheet, out failure))
-                        return ProtoBoundary.Encode(new Obs.TradeSheetReply { Outcome = new Obs.TradeSheetReplyOutcome.FailureCase(failure) });
-                    var reply = new Obs.TradeSheetReply { Outcome = sheet };
-                    return ProtoBoundary.Encode(reply);
-                }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.TradeSheetReply { Outcome =
-                    new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native trade sheet could not be read completely." } }); }
-            }, cancellationToken).ConfigureAwait(false);
+                if (!NativeTradeObservation.Sheet(context, request.SessionId, out var sheet, out failure))
+                    return new Obs.TradeSheetReply { Outcome = new Obs.TradeSheetReplyOutcome.FailureCase(failure) };
+                var reply = new Obs.TradeSheetReply { Outcome = sheet };
+                return reply;
+            }
+            catch (Exception) { return new Obs.TradeSheetReply { Outcome =
+                new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native trade sheet could not be read completely." } }; }
         }
     }
 }

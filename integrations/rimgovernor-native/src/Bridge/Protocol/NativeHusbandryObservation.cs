@@ -29,12 +29,16 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_husbandry", request!, out Obs.HusbandryRequest? parsed, out var failure)
                 || !ValidateHusbandry(parsed, out failure)) return ProtoBoundary.Encode(new Obs.HusbandryReply { Outcome = new Obs.HusbandryReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.HusbandryReply { Outcome = new Obs.HusbandryReplyOutcome.FailureCase(failure) });
-                try { return ProtoBoundary.Encode(new Obs.HusbandryReply { Outcome = Husbandry(map, parsed, context) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.HusbandryReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native husbandry facts could not be read completely.") }); }
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadHusbandry(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static Obs.HusbandryReply HandleReadHusbandry(Obs.HusbandryRequest request)
+        {
+            if (!ValidateHusbandry(request, out var failure0)) return new Obs.HusbandryReply { Outcome = new Obs.HusbandryReplyOutcome.FailureCase(failure0) };
+            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
+                return new Obs.HusbandryReply { Outcome = new Obs.HusbandryReplyOutcome.FailureCase(failure) };
+            try { return new Obs.HusbandryReply { Outcome = Husbandry(map, request, context) }; }
+            catch (Exception) { return new Obs.HusbandryReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native husbandry facts could not be read completely.") }; }
         }
 
         internal static bool ValidateHusbandry(Obs.HusbandryRequest request, out Common.Failure failure)

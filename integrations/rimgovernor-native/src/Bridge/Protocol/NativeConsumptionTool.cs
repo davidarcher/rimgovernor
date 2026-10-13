@@ -21,11 +21,12 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request, out Obs.ConsumptionRequest? parsed, out var failure))
                 return ProtoBoundary.Encode(new Obs.ConsumptionReply { Outcome = new Obs.ConsumptionReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => Read(parsed.SinceHour ?? -1), cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadConsumption(parsed), cancellationToken).ConfigureAwait(false);
         }
 
-        internal static Obs.ConsumptionReply Read(int sinceHour)
+        internal static Obs.ConsumptionReply HandleReadConsumption(Obs.ConsumptionRequest request)
         {
+            var sinceHour = request.SinceHour ?? -1;
             if (Current.Game == null || Find.TickManager == null)
                 return new Obs.ConsumptionReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "No game is loaded." } };
             var state = ConsumptionState.For(Current.Game);

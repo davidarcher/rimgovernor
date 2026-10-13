@@ -8,6 +8,7 @@ using RimGovernor.Brain.NativeFacade;
 using Authority = RimGovernor.Contracts.Wire.Authority;
 using Clock = RimGovernor.Contracts.Wire.Clock;
 using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
+using Mirror = RimGovernor.Contracts.Wire.Mirror;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 using Operations = RimGovernor.Contracts.Wire.Operations;
 using Placement = RimGovernor.Contracts.Wire.Placement;
@@ -184,6 +185,98 @@ namespace HomeBridge.BridgeTools
 
         public Task<Presentation.ColonistRosterReply> ReadColonistsAsync(Presentation.ColonistRosterRequest request, CancellationToken cancellationToken)
             => Read("presentation_colonists", request, () => NativePresentationReadTools.HandleColonists(request), cancellationToken);
+
+        // The remaining native tools (#3100).
+
+        public Task<Obs.ClearanceTargetsReply> ReadClearanceTargetsAsync(Obs.ClearanceTargetsRequest request, CancellationToken cancellationToken)
+            => Read("observations_get_clearance_targets", request, () => NativeClearanceObservationTools.HandleRead(request), cancellationToken);
+
+        public Task<Mirror.CombatGeometryReply> ReadCombatGeometryAsync(Mirror.CombatGeometryRequest request, CancellationToken cancellationToken)
+            => Read("combat_geometry", request, () => NativeCombatGeometryTools.HandleRead(request), cancellationToken);
+
+        public Task<Obs.ConsumptionReply> ReadConsumptionAsync(Obs.ConsumptionRequest request, CancellationToken cancellationToken)
+            => Read("observations_read_consumption", request, () => NativeConsumptionTool.HandleReadConsumption(request), cancellationToken);
+
+        public Task<Obs.DefenseSiteReply> ReadDefenseSiteAsync(Obs.DefenseSiteRequest request, CancellationToken cancellationToken)
+            => Read("observations_read_defense_site", request, () => NativeDefenseObservationTools.HandleReadDefenseSite(request), cancellationToken);
+
+        public Task<Obs.LinesOfFireReply> ReadLinesOfFireAsync(Obs.LinesOfFireRequest request, CancellationToken cancellationToken)
+            => Read("observations_read_lines_of_fire", request, () => NativeDefenseObservationTools.HandleReadLinesOfFire(request), cancellationToken);
+
+        public Task<Obs.HusbandryReply> ReadHusbandryAsync(Obs.HusbandryRequest request, CancellationToken cancellationToken)
+            => Read("observations_read_husbandry", request, () => NativeHusbandryObservation.HandleReadHusbandry(request), cancellationToken);
+
+        public Task<Presentation.NotificationsReply> ReadNotificationsAsync(Presentation.NotificationsRequest request, CancellationToken cancellationToken)
+            => Read("presentation_notifications", request, () => NativeNotificationReadTools.HandleNotifications(request), cancellationToken);
+
+        public Task<Obs.PopulationReply> ReadPopulationAsync(Obs.PopulationRequest request, CancellationToken cancellationToken)
+            => Read("observations_read_population", request, () => NativePopulationObservation.HandleReadPopulation(request), cancellationToken);
+
+        public Task<Obs.ResourceSourcesReply> ListResourceSourcesAsync(Obs.ResourceSourcesRequest request, CancellationToken cancellationToken)
+            => Read("observations_list_resource_sources", request, () => NativeResourceSourcesTool.HandleListResourceSources(request), cancellationToken);
+
+        public Task<Obs.AncientShrinesReply> ReadAncientShrinesAsync(Obs.AncientShrinesRequest request, CancellationToken cancellationToken)
+            => Read("observations_get_ancient_shrines", request, () => NativeShrineObservationTools.HandleAncientShrines(request), cancellationToken);
+
+        public Task<Obs.SpatialAccessReply> ReadSpatialAccessAsync(Obs.SpatialAccessRequest request, CancellationToken cancellationToken)
+            => Read("observations_read_spatial_access", request, () => NativeSpatialAccessTool.HandleReadSpatialAccess(request), cancellationToken);
+
+        public Task<Obs.EvaluateStatReply> EvaluateStatAsync(Obs.EvaluateStatRequest request, CancellationToken cancellationToken)
+            => Read("observations_evaluate_stat", request, () => NativeStatTool.HandleEvaluateStat(request), cancellationToken);
+
+        public Task<Obs.TradeAcquisitionReply> ReadTradeAcquisitionAsync(Obs.TradeAcquisitionRequest request, CancellationToken cancellationToken)
+            => Read("observations_read_trade_acquisition", request, () => NativeTradeAcquisitionTools.HandleReadTradeAcquisition(request), cancellationToken);
+
+        public Task<Obs.TradersReply> ListTradersAsync(Obs.TradersRequest request, CancellationToken cancellationToken)
+            => Read("observations_list_traders", request, () => NativeTradeObservationTools.HandleListTraders(request), cancellationToken);
+
+        public Task<Obs.TradeSessionReply> ReadTradeSessionAsync(Obs.TradeSessionRequest request, CancellationToken cancellationToken)
+            => Read("observations_read_trade_session", request, () => NativeTradeObservationTools.HandleReadTradeSession(request), cancellationToken);
+
+        public Task<Obs.TradeSheetReply> ReadTradeSheetAsync(Obs.TradeSheetRequest request, CancellationToken cancellationToken)
+            => Read("observations_read_trade_sheet", request, () => NativeTradeObservationTools.HandleReadTradeSheet(request), cancellationToken);
+
+        public Task<Obs.WallUpgradeSitesReply> ListWallUpgradeSitesAsync(Obs.WallUpgradeSitesRequest request, CancellationToken cancellationToken)
+            => Read("observations_list_wall_upgrade_sites", request, () => NativeWallUpgradeObservationTools.HandleListWallUpgradeSites(request), cancellationToken);
+
+        public Task<Obs.WorldReply> ReadWorldAsync(Obs.WorldRequest request, CancellationToken cancellationToken)
+            => Read("observations_read_world", request, () => NativeWorldObservationTools.HandleReadWorld(request), cancellationToken);
+
+        public Task<Obs.WorldProgressionReply> ReadWorldProgressionAsync(Obs.WorldProgressionRequest request, CancellationToken cancellationToken)
+            => Read("observations_read_world_progression", request, () => NativeWorldProgressionObservationTools.HandleReadWorldProgression(request), cancellationToken);
+
+        public Task<Obs.ListZonesReply> ListZonesAsync(Obs.ListZonesRequest request, CancellationToken cancellationToken)
+            => Read("observations_list_zones", request, () => NativeZoneObservationTools.HandleListZones(request), cancellationToken);
+
+        public Task<Obs.ExcavationSiteReply> ReadExcavationSiteAsync(Obs.ExcavationSiteRequest request, CancellationToken cancellationToken)
+            => Read("observations_read_excavation_site", request, () => NativeObservationTools.HandleReadExcavationSite(request), cancellationToken);
+
+        public Task<Lifecycle.LoadReply> StartLoadAsync(Lifecycle.LoadRequest request, CancellationToken cancellationToken)
+            => Write("lifecycle_load", request, () => ProtoLifecycleLoadTools.StartLoad(request), cancellationToken);
+
+        public Task<Lifecycle.LoadReply> PollLoadAsync(Lifecycle.RequestStatus request, CancellationToken cancellationToken)
+            => Write("lifecycle_read_load", request, () => ProtoLifecycleLoadTools.PollLoad(request), cancellationToken);
+
+        public Task<Lifecycle.NewColonyReply> StartNewColonyAsync(Lifecycle.NewColonyRequest request, CancellationToken cancellationToken)
+            => Write("lifecycle_new_colony", request, () => ProtoLifecycleNewColonyTools.StartNewColony(request), cancellationToken);
+
+        public Task<Lifecycle.NewColonyReply> PollNewColonyAsync(Lifecycle.RequestStatus request, CancellationToken cancellationToken)
+            => Write("lifecycle_read_new_colony", request, () => ProtoLifecycleNewColonyTools.PollNewColony(request), cancellationToken);
+
+        public Task<Lifecycle.SaveReply> SaveGameAsync(Lifecycle.SaveRequest request, CancellationToken cancellationToken)
+            => Write("lifecycle_save", request, () => ProtoLifecycleSaveTools.Apply(request), cancellationToken);
+
+        public Task<Lifecycle.SaveReply> PollSaveAsync(Lifecycle.RequestStatus request, CancellationToken cancellationToken)
+            => Read("lifecycle_read_save", request, () => ProtoLifecycleSaveTools.PollSave(request), cancellationToken);
+
+        public Task<Presentation.OverlayReply> ApplyOverlayAsync(Presentation.OverlayRequest request, CancellationToken cancellationToken)
+            => Write("presentation_overlay", request, () => ProtoOverlayTools.Apply(request), cancellationToken);
+
+        public Task<Presentation.RenderReply> ReadRenderStateAsync(Presentation.ReadRequest request, CancellationToken cancellationToken)
+            => Read("presentation_render_state", request, () => ProtoPresentationMediaTools.HandleRenderState(request), cancellationToken);
+
+        public Task<Presentation.RenderReply> DemandRenderingAsync(Presentation.RenderDemand request, CancellationToken cancellationToken)
+            => Write("presentation_render_demand", request, () => ProtoPresentationMediaTools.HandleDemandRendering(request), cancellationToken);
 
         // Frame handoff.
 
