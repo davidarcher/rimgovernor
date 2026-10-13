@@ -2,9 +2,8 @@
 using System;
 using System.Linq;
 using System.Text;
-using Google.Protobuf;
-using RimGovernor.Protocol.Common;
-using Wire = RimGovernor.Protocol.Placement;
+using RimGovernor.Contracts.Wire.Common;
+using Wire = RimGovernor.Contracts.Wire.Placement;
 
 namespace HomeBridge.BridgeTools
 {
@@ -17,9 +16,9 @@ namespace HomeBridge.BridgeTools
             failure = new Failure { Code = FailureCode.InvalidRequest, Detail = "Placement request requires identity and 1..64 complete candidates." };
             if (request.Identity == null || request.Placements.Count < 1 || request.Placements.Count > 64) return false;
             foreach (var row in request.Placements)
-                if (!row.HasDefName || !ProtoBoundary.IsIdentifier(row.DefName) || !row.HasX || !row.HasZ
-                    || !row.HasRotation || row.Rotation < Wire.Rotation.North || row.Rotation > Wire.Rotation.All
-                    || row.HasStuff && row.Stuff.Length != 0 && !ProtoBoundary.IsIdentifier(row.Stuff)) return false;
+                if (row.DefName is null || !ProtoBoundary.IsIdentifier(row.DefName) || row.X is null || row.Z is null
+                    || row.Rotation is null || row.Rotation.GetValueOrDefault() < Wire.Rotation.North || row.Rotation.GetValueOrDefault() > Wire.Rotation.All
+                    || row.Stuff is not null && (row.Stuff ?? "").Length != 0 && !ProtoBoundary.IsIdentifier(row.Stuff)) return false;
             return true;
         }
 
@@ -55,9 +54,9 @@ namespace HomeBridge.BridgeTools
                 {
                     if (!ProtoBoundary.IsIdentifier(cost.defName) || cost.count < 0)
                         throw new InvalidOperationException("Native cost is invalid.");
-                    wire.CostList.Add(new Wire.PlacementCost { DefName = cost.defName, Count = cost.count });
+                    wire = wire with { CostList = [.. wire.CostList, new Wire.PlacementCost { DefName = cost.defName, Count = cost.count }] };
                 }
-                wire.Materials = Materials(value.materials, value.costList.Select(row => row.defName).Distinct().ToArray());
+                wire = wire with { Materials = Materials(value.materials, value.costList.Select(row => row.defName).Distinct().ToArray()) };
                 foreach (var row in value.rotations)
                 {
                     if (row.occupiedCells.Count < 1)
@@ -67,24 +66,24 @@ namespace HomeBridge.BridgeTools
                         Reason = PlacementPreviewOperation.Diagnostic(row.reason)
                     };
                     foreach (var cell in row.occupiedCells)
-                        rotation.OccupiedCells.Add(new Cell { X = cell.x, Z = cell.z });
+                        rotation = rotation with { OccupiedCells = [.. rotation.OccupiedCells, new Cell { X = cell.x, Z = cell.z }] };
                     foreach (var cell in row.interactionCells)
-                        rotation.InteractionCells.Add(new Cell { X = cell.x, Z = cell.z });
-                    if (row.watchCellsAccessible.HasValue) rotation.WatchCellsAccessible = row.watchCellsAccessible.Value;
-                    if (row.windBlockedCells.HasValue) rotation.WindBlockedCells = (uint)row.windBlockedCells.Value;
+                        rotation = rotation with { InteractionCells = [.. rotation.InteractionCells, new Cell { X = cell.x, Z = cell.z }] };
+                    if (row.watchCellsAccessible.HasValue) rotation = rotation with { WatchCellsAccessible = row.watchCellsAccessible.Value };
+                    if (row.windBlockedCells.HasValue) rotation = rotation with { WindBlockedCells = (uint)row.windBlockedCells.Value };
                     foreach (var blocker in row.blockingThings)
                     {
                         if (!ProtoBoundary.IsIdentifier(blocker.category)) throw new InvalidOperationException("Native blocker category unavailable.");
-                        rotation.BlockingThings.Add(new Wire.PlacementBlocker {
+                        rotation = rotation with { BlockingThings = [.. rotation.BlockingThings, new Wire.PlacementBlocker {
                             Category = blocker.category, DefName = blocker.Thing.def.defName, IsBlueprint = blocker.isBlueprint, IsFrame = blocker.isFrame,
                             WouldBeWiped = blocker.wouldBeWiped, FrameWouldBeCancelled = blocker.frameWouldBeCancelled
-                        });
+                        }] };
                     }
-                    wire.Rotations.Add(rotation);
+                    wire = wire with { Rotations = [.. wire.Rotations, rotation] };
                 }
-                if (wire.Rotations.Select(row => row.Rotation).Distinct().Count() != wire.Rotations.Count)
+                if (wire.Rotations.Select(row => row.Rotation.GetValueOrDefault()).Distinct().Count() != wire.Rotations.Count)
                     throw new InvalidOperationException("Native rotation scan contains duplicates.");
-                return new Wire.CandidateReply { Evaluated = wire };
+                return new Wire.CandidateReply { Outcome = wire };
             }
             catch (Exception error)
             { return Fail(FailureCode.Unavailable, "Native preview mapping failed: " + error.Message, context); }
@@ -96,7 +95,7 @@ namespace HomeBridge.BridgeTools
                 || materials.rows.Select(row => row.defName).Distinct().Count() != materials.rows.Count
                 || !definitions.OrderBy(name => name, StringComparer.Ordinal).SequenceEqual(
                     materials.rows.Select(row => row.defName).OrderBy(name => name, StringComparer.Ordinal)))
-                return new Wire.PlacementMaterials { Unavailable = new Unavailable {
+                return new Wire.PlacementMaterials { Availability = new Unavailable {
                     Reason = UnavailableReason.ReadFailed, Detail = "Complete native material stock could not be read." } };
             var known = new Wire.MaterialRows();
             foreach (var row in materials.rows)
@@ -104,14 +103,14 @@ namespace HomeBridge.BridgeTools
                 if (!ProtoBoundary.IsIdentifier(row.defName) || row.available < 0)
                     throw new InvalidOperationException("Invalid native material stock.");
                 var stock = new Wire.PlacementMaterialStock { DefName = row.defName };
-                if (row.available.HasValue) stock.Available = row.available.Value;
-                known.Rows.Add(stock);
+                if (row.available.HasValue) stock = stock with { Available = row.available.Value };
+                known = known with { Rows = [.. known.Rows, stock] };
             }
-            return new Wire.PlacementMaterials { Known = known };
+            return new Wire.PlacementMaterials { Availability = known };
         }
 
         private static Wire.CandidateReply Fail(FailureCode code, string detail, ObservationContext context) =>
-            new Wire.CandidateReply { Failure = new Failure { Code = code,
+            new Wire.CandidateReply { Outcome = new Failure { Code = code,
                 Detail = PlacementPreviewOperation.Diagnostic(detail), ObservedContext = context } };
         private static FailureCode Code(PlacementFailureKind kind)
         {

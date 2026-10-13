@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -27,51 +27,51 @@ namespace HomeBridge.BridgeTools
     // replayed on resend while it stays in the in-memory window (never saved).
     internal static class NativeActionDispatch
     {
-        private static readonly Dictionary<Operations.Action.IntentOneofCase, IActionHandler> Handlers = new Dictionary<Operations.Action.IntentOneofCase, IActionHandler>
+        private static readonly Dictionary<Type, IActionHandler> Handlers = new Dictionary<Type, IActionHandler>
         {
-            [Operations.Action.IntentOneofCase.Trade] = new TradeActionHandler(),
-            [Operations.Action.IntentOneofCase.CommsTradeRequest] = new CommsTradeRequestActionHandler(),
-            [Operations.Action.IntentOneofCase.Building] = new BuildingActionHandler(),
-            [Operations.Action.IntentOneofCase.Move] = new MoveActionHandler(),
-            [Operations.Action.IntentOneofCase.Haul] = new HaulActionHandler(),
-            [Operations.Action.IntentOneofCase.Draft] = new DraftActionHandler(),
-            [Operations.Action.IntentOneofCase.CombatOrders] = new CombatOrdersActionHandler(),
-            [Operations.Action.IntentOneofCase.ApparelPolicy] = new ApparelPolicyActionHandler(),
-            [Operations.Action.IntentOneofCase.Research] = new ResearchActionHandler(),
-            [Operations.Action.IntentOneofCase.Dialog] = new DialogActionHandler(),
-            [Operations.Action.IntentOneofCase.Prisoner] = new PrisonerInteractionActionHandler(),
-            [Operations.Action.IntentOneofCase.AcceptQuest] = new AcceptQuestActionHandler(),
-            [Operations.Action.IntentOneofCase.QuestShuttle] = new QuestShuttleActionHandler(),
-            [Operations.Action.IntentOneofCase.HackDesignation] = new HackDesignationActionHandler(),
-            [Operations.Action.IntentOneofCase.GiveItem] = new GiveItemActionHandler(),
-            [Operations.Action.IntentOneofCase.Ritual] = new RitualActionHandler(),
-            [Operations.Action.IntentOneofCase.Gathering] = new GatheringActionHandler(),
-            [Operations.Action.IntentOneofCase.IdeoligionReform] = new IdeoligionReformActionHandler(),
-            [Operations.Action.IntentOneofCase.Ability] = new AbilityActionHandler(),
-            [Operations.Action.IntentOneofCase.Ignite] = new IgniteActionHandler(),
-            [Operations.Action.IntentOneofCase.FormCaravan] = new FormCaravanActionHandler(),
-            [Operations.Action.IntentOneofCase.Assign] = new AssignActionHandler(),
-            [Operations.Action.IntentOneofCase.WorkSettings] = new WorkSettingsActionHandler(),
-            [Operations.Action.IntentOneofCase.ProductionBill] = new ProductionBillActionHandler(),
-            [Operations.Action.IntentOneofCase.Husbandry] = new HusbandryActionHandler(),
-            [Operations.Action.IntentOneofCase.Zone] = new ZoneActionHandler(),
-            [Operations.Action.IntentOneofCase.RemoveFloor] = new FloorRemovalActionHandler(),
-            [Operations.Action.IntentOneofCase.Designate] = new DesignateActionHandler(),
-            [Operations.Action.IntentOneofCase.Relocate] = new RelocateActionHandler(),
-            [Operations.Action.IntentOneofCase.BuildingPatch] = new BuildingPatchActionHandler(),
-            [Operations.Action.IntentOneofCase.GiveJob] = new GiveJobActionHandler(),
-            [Operations.Action.IntentOneofCase.Area] = new AreaActionHandler(),
-            [Operations.Action.IntentOneofCase.PolicyPrune] = new PolicyPruneActionHandler(),
-            [Operations.Action.IntentOneofCase.RemoveRoof] = new RemoveRoofActionHandler(),
-            [Operations.Action.IntentOneofCase.BuildRoof] = new BuildRoofActionHandler(),
-            [Operations.Action.IntentOneofCase.AreaPlantCut] = new AreaPlantCutActionHandler(),
-            [Operations.Action.IntentOneofCase.ReadingPolicy] = new ReadingPolicyActionHandler(),
-            [Operations.Action.IntentOneofCase.DrugPolicy] = new DrugPolicyActionHandler(),
-            [Operations.Action.IntentOneofCase.FoodPolicy] = new FoodPolicyActionHandler(),
-            [Operations.Action.IntentOneofCase.AutoHomeArea] = new AutoHomeAreaActionHandler(),
-            [Operations.Action.IntentOneofCase.PawnSettings] = new PawnSettingsActionHandler(),
-            [Operations.Action.IntentOneofCase.RulesAttach] = new RulesAttachActionHandler(),
-            [Operations.Action.IntentOneofCase.RemoveProductionBill] = new RemoveProductionBillActionHandler(),
+            [typeof(Operations.ActionIntent.TradeCase)] = new TradeActionHandler(),
+            [typeof(Operations.ActionIntent.CommsTradeRequestCase)] = new CommsTradeRequestActionHandler(),
+            [typeof(Operations.ActionIntent.BuildingCase)] = new BuildingActionHandler(),
+            [typeof(Operations.ActionIntent.MoveCase)] = new MoveActionHandler(),
+            [typeof(Operations.ActionIntent.HaulCase)] = new HaulActionHandler(),
+            [typeof(Operations.ActionIntent.DraftCase)] = new DraftActionHandler(),
+            [typeof(Operations.ActionIntent.CombatOrdersCase)] = new CombatOrdersActionHandler(),
+            [typeof(Operations.ActionIntent.ApparelPolicyCase)] = new ApparelPolicyActionHandler(),
+            [typeof(Operations.ActionIntent.ResearchCase)] = new ResearchActionHandler(),
+            [typeof(Operations.ActionIntent.DialogCase)] = new DialogActionHandler(),
+            [typeof(Operations.ActionIntent.PrisonerCase)] = new PrisonerInteractionActionHandler(),
+            [typeof(Operations.ActionIntent.AcceptQuestCase)] = new AcceptQuestActionHandler(),
+            [typeof(Operations.ActionIntent.QuestShuttleCase)] = new QuestShuttleActionHandler(),
+            [typeof(Operations.ActionIntent.HackDesignationCase)] = new HackDesignationActionHandler(),
+            [typeof(Operations.ActionIntent.GiveItemCase)] = new GiveItemActionHandler(),
+            [typeof(Operations.ActionIntent.RitualCase)] = new RitualActionHandler(),
+            [typeof(Operations.ActionIntent.GatheringCase)] = new GatheringActionHandler(),
+            [typeof(Operations.ActionIntent.IdeoligionReformCase)] = new IdeoligionReformActionHandler(),
+            [typeof(Operations.ActionIntent.AbilityCase)] = new AbilityActionHandler(),
+            [typeof(Operations.ActionIntent.IgniteCase)] = new IgniteActionHandler(),
+            [typeof(Operations.ActionIntent.FormCaravanCase)] = new FormCaravanActionHandler(),
+            [typeof(Operations.ActionIntent.AssignCase)] = new AssignActionHandler(),
+            [typeof(Operations.ActionIntent.WorkSettingsCase)] = new WorkSettingsActionHandler(),
+            [typeof(Operations.ActionIntent.ProductionBillCase)] = new ProductionBillActionHandler(),
+            [typeof(Operations.ActionIntent.HusbandryCase)] = new HusbandryActionHandler(),
+            [typeof(Operations.ActionIntent.ZoneCase)] = new ZoneActionHandler(),
+            [typeof(Operations.ActionIntent.RemoveFloorCase)] = new FloorRemovalActionHandler(),
+            [typeof(Operations.ActionIntent.DesignateCase)] = new DesignateActionHandler(),
+            [typeof(Operations.ActionIntent.RelocateCase)] = new RelocateActionHandler(),
+            [typeof(Operations.ActionIntent.BuildingPatchCase)] = new BuildingPatchActionHandler(),
+            [typeof(Operations.ActionIntent.GiveJobCase)] = new GiveJobActionHandler(),
+            [typeof(Operations.ActionIntent.AreaCase)] = new AreaActionHandler(),
+            [typeof(Operations.ActionIntent.PolicyPruneCase)] = new PolicyPruneActionHandler(),
+            [typeof(Operations.ActionIntent.RemoveRoofCase)] = new RemoveRoofActionHandler(),
+            [typeof(Operations.ActionIntent.BuildRoofCase)] = new BuildRoofActionHandler(),
+            [typeof(Operations.ActionIntent.AreaPlantCutCase)] = new AreaPlantCutActionHandler(),
+            [typeof(Operations.ActionIntent.ReadingPolicyCase)] = new ReadingPolicyActionHandler(),
+            [typeof(Operations.ActionIntent.DrugPolicyCase)] = new DrugPolicyActionHandler(),
+            [typeof(Operations.ActionIntent.FoodPolicyCase)] = new FoodPolicyActionHandler(),
+            [typeof(Operations.ActionIntent.AutoHomeAreaCase)] = new AutoHomeAreaActionHandler(),
+            [typeof(Operations.ActionIntent.PawnSettingsCase)] = new PawnSettingsActionHandler(),
+            [typeof(Operations.ActionIntent.RulesAttachCase)] = new RulesAttachActionHandler(),
+            [typeof(Operations.ActionIntent.RemoveProductionBillCase)] = new RemoveProductionBillActionHandler(),
         };
 
         private const int ReplayCapacity = 256;
@@ -82,8 +82,8 @@ namespace HomeBridge.BridgeTools
         // Fails the mod load when an Action arm has no handler.
         internal static void AssertComplete()
         {
-            var missing = Enum.GetValues(typeof(Operations.Action.IntentOneofCase)).Cast<Operations.Action.IntentOneofCase>()
-                .Where(c => c != Operations.Action.IntentOneofCase.None && !Handlers.ContainsKey(c)).ToList();
+            var missing = typeof(Operations.ActionIntent).GetNestedTypes()
+                .Where(c => c.BaseType == typeof(Operations.ActionIntent) && !Handlers.ContainsKey(c)).Select(c => c.Name).ToList();
             if (missing.Count > 0)
                 throw new InvalidOperationException("Actions/Apply has no handler for: " + string.Join(", ", missing));
         }
@@ -92,66 +92,66 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.ValidateIdentity(request.Identity, out var context, out var failure))
                 return new Operations.ApplyReply { BatchFailure = failure };
-            var reply = new Operations.ApplyReply();
+            var results = new List<Operations.ActionResult>();
             foreach (var action in request.Actions)
-                reply.Results.Add(ApplyOne(action, context));
-            return reply;
+                results.Add(ApplyOne(action, context));
+            return new Operations.ApplyReply { Results = [.. results] };
         }
 
         private static Operations.ActionResult ApplyOne(Operations.Action action, Common.ObservationContext context)
         {
-            if (!action.HasKey || !ProtoBoundary.IsIdentifier(action.Key))
-                return Refused(action.Key, Common.FailureCode.InvalidRequest, "An action requires an identifier key.");
-            var slot = context.Identity.ColonyId + "/" + context.Identity.LoadToken + "/" + action.Key;
-            var load = context.Identity.ColonyId + "/" + context.Identity.LoadToken;
+            if (action.Key is null || !ProtoBoundary.IsIdentifier(action.Key))
+                return Refused((action.Key ?? ""), Common.FailureCode.InvalidRequest, "An action requires an identifier key.");
+            var slot = (context.Identity?.ColonyId ?? "") + "/" + (context.Identity?.LoadToken ?? "") + "/" + (action.Key ?? "");
+            var load = (context.Identity?.ColonyId ?? "") + "/" + (context.Identity?.LoadToken ?? "");
             if (load != replayLoad) { replay.Clear(); order.Clear(); replayLoad = load; }
             if (replay.TryGetValue(slot, out var seen))
             {
                 if (seen.List != null) { order.Remove(seen); order.AddFirst(seen); }
-                return seen.Value.Value.Clone();
+                return seen.Value.Value;
             }
-            var result = Decide(action, context.Clone());
-            var node = new LinkedListNode<KeyValuePair<string, Operations.ActionResult>>(new KeyValuePair<string, Operations.ActionResult>(slot, result.Clone()));
+            var result = Decide(action, context);
+            var node = new LinkedListNode<KeyValuePair<string, Operations.ActionResult>>(new KeyValuePair<string, Operations.ActionResult>(slot, result));
             replay[slot] = node;
             // Stockpile creation cannot be reconstructed by adopting zones on
             // the drag: keep its receipt in this existing replay window until
             // the load changes. All other intents retain the bounded LRU.
-            if ((result.Applied?.Applied?.Observed?.Zone?.Created.Count ?? 0) == 0) order.AddFirst(node);
+            if ((result.Outcome?.Applied?.Outcome?.Applied?.Observed?.Effect?.Zone?.Created.Count ?? 0) == 0) order.AddFirst(node);
             if (order.Count > ReplayCapacity) { replay.Remove(order.Last!.Value.Key); order.RemoveLast(); }
             return result;
         }
 
         private static Operations.ActionResult Decide(Operations.Action action, Common.ObservationContext context)
         {
-            if (!Handlers.TryGetValue(action.IntentCase, out var handler))
-                return Refused(action.Key, Common.FailureCode.Unsupported, "No handler for this action kind.");
+            if (action.Intent is null || !Handlers.TryGetValue(action.Intent.GetType(), out var handler))
+                return Refused((action.Key ?? ""), Common.FailureCode.Unsupported, "No handler for this action kind.");
             try
             {
                 var refusal = handler.Validate(action, context);
-                if (refusal != null) return Refused(action.Key, refusal.Code, refusal.Detail, refusal.RefusalClass);
+                if (refusal != null) return Refused((action.Key ?? ""), refusal.Code.GetValueOrDefault(), (refusal.Detail ?? ""), refusal.RefusalClass.GetValueOrDefault());
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
-                    return Refused(action.Key, Common.FailureCode.AuthorityRequired, "Current native authority is required.");
+                    return Refused((action.Key ?? ""), Common.FailureCode.AuthorityRequired, "Current native authority is required.");
                 Receipts.EffectEvidence evidence;
                 using (authority.Owned())
                 using (BridgeTools.OperationIntent.Scope(action.Purpose)) evidence = handler.Apply(action, context);
-                return new Operations.ActionResult { Key = action.Key, Applied = new Receipts.Receipt
-                    { AdmittedContext = context, Applied = new Receipts.Applied { Observed = evidence } } };
+                return new Operations.ActionResult { Key = action.Key, Outcome = new Receipts.Receipt
+                    { AdmittedContext = context, Outcome = new Receipts.Applied { Observed = evidence } } };
             }
             catch (ApplyRefusedException refused)
             {
-                return Refused(action.Key, refused.Code, refused.Message, refused.RefusalClass);
+                return Refused((action.Key ?? ""), refused.Code, refused.Message, refused.RefusalClass);
             }
             catch (Exception error)
             {
-                ModLog.Error("action", "Action " + action.IntentCase + " failed: " + error);
-                return new Operations.ActionResult { Key = action.Key, Failed = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Action failed: " + error.GetType().Name) };
+                ModLog.Error("action", "Action " + action.Intent?.GetType().Name + " failed: " + error);
+                return new Operations.ActionResult { Key = action.Key, Outcome = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Action failed: " + error.GetType().Name) };
             }
         }
 
         // Every refusal leaves here with a class: the site's own, else the one its
         // code implies (ProtoBoundary.RefusalClassOf).
         private static Operations.ActionResult Refused(string key, Common.FailureCode code, string reason, Common.RefusalClass refusalClass = Common.RefusalClass.Unspecified) => new Operations.ActionResult
-        { Key = key ?? "", Refused = new Operations.Refusal { Code = code, Reason = reason ?? "", RefusalClass = refusalClass != Common.RefusalClass.Unspecified ? refusalClass : ProtoBoundary.RefusalClassOf(code) } };
+        { Key = key ?? "", Outcome = new Operations.Refusal { Code = code, Reason = reason ?? "", RefusalClass = refusalClass != Common.RefusalClass.Unspecified ? refusalClass : ProtoBoundary.RefusalClassOf(code) } };
     }
 
     // Thrown from Apply when native state already changed but the intent's
@@ -161,15 +161,15 @@ namespace HomeBridge.BridgeTools
         internal Common.FailureCode Code { get; }
         internal Common.RefusalClass RefusalClass { get; }
         internal ApplyRefusedException(Common.FailureCode code, string message, Common.RefusalClass refusalClass = Common.RefusalClass.Unspecified) : base(message) { Code = code; RefusalClass = refusalClass; }
-        internal ApplyRefusedException(Common.Failure failure) : this(failure.Code, failure.Detail, failure.RefusalClass) { }
+        internal ApplyRefusedException(Common.Failure failure) : this(failure.Code.GetValueOrDefault(), (failure.Detail ?? ""), failure.RefusalClass.GetValueOrDefault()) { }
     }
 
     internal sealed class TradeActionHandler : IActionHandler
     {
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) =>
-            NativeTradeOperations.Validate(action.Trade, context.Identity);
+            NativeTradeOperations.Validate(action.Intent?.Trade ?? new Operations.TradeIntent(), context.Identity ?? new Common.Identity());
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) =>
-            NativeTradeOperations.Apply(action.Trade, context);
+            NativeTradeOperations.Apply(action.Intent?.Trade ?? new Operations.TradeIntent(), context);
     }
 
     // BuildingIntent: place one ordinary blueprint (or an instant building)
@@ -181,38 +181,42 @@ namespace HomeBridge.BridgeTools
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
         {
             var map = ProtoBoundary.LoadedMap(context);
-            var intent = action.Building;
-            if (intent.HasMinimumFinishingSkill && (intent.MinimumFinishingSkill < 0 || intent.MinimumFinishingSkill > 1000)
-                || intent.HasTier && (intent.Tier < 0 || intent.Tier > ConstructionSkillGuard.MaxTier)
-                || intent.HasExistingTargetId && !intent.HasMinimumFinishingSkill && !intent.HasTier
-                || intent.ReplaceWall && intent.HasExistingTargetId)
+            var intent = action.Intent?.Building ?? new Operations.BuildingIntent();
+            var hasSkill = intent.MinimumFinishingSkill is not null;
+            var hasTier = intent.Tier is not null;
+            var hasTarget = intent.ExistingTargetId is not null;
+            var replaceWall = intent.ReplaceWall.GetValueOrDefault();
+            if (hasSkill && (intent.MinimumFinishingSkill < 0 || intent.MinimumFinishingSkill > 1000)
+                || hasTier && (intent.Tier < 0 || intent.Tier > ConstructionSkillGuard.MaxTier)
+                || hasTarget && !hasSkill && !hasTier
+                || replaceWall && hasTarget)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Invalid construction setting.");
-            if (intent.HasMinimumFinishingSkill)
+            if (hasSkill)
             {
-                if (intent.Placement == null || !PlacementPreviewOperation.TryResolveBuildable(intent.Placement.DefName, out var definition, out _)
+                if (intent.Placement == null || !PlacementPreviewOperation.TryResolveBuildable(intent.Placement.DefName ?? "", out var definition, out _)
                     || !(definition is ThingDef qualityDef) || !qualityDef.HasComp(typeof(CompQuality)))
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Finishing minimum requires a quality-bearing building.");
             }
-            if (intent.HasMinimumFinishingSkill || intent.HasTier)
+            if (hasSkill || hasTier)
             {
                 var existing = Existing(map, intent.Placement);
                 if (existing != null && !(existing.Value.Thing is Blueprint_Build || existing.Value.Thing is Frame))
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Completed building has no finishing work.");
                 var set = existing == null ? null : ConstructionSkillGuard.Setting(existing.Value.Thing);
-                if (intent.HasMinimumFinishingSkill && set != null && set.Minimum != ConstructionSkillSetting.None && set.Minimum != intent.MinimumFinishingSkill)
+                if (hasSkill && set != null && set.Minimum != ConstructionSkillSetting.None && set.Minimum != intent.MinimumFinishingSkill)
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Construction minimum is already set.");
             }
-            if (intent.HasExistingTargetId)
+            if (hasTarget)
             {
                 var target = Existing(map, intent.Placement);
                 if (target == null || target.Value.Thing.GetUniqueLoadID() != intent.ExistingTargetId
                     || !(target.Value.Thing is Blueprint_Build || target.Value.Thing is Frame)
-                    || intent.HasMinimumFinishingSkill && !ConstructionSkillGuard.Quality(target.Value.Thing))
+                    || hasSkill && !ConstructionSkillGuard.Quality(target.Value.Thing))
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Construction setting target is stale.");
             }
-            if (Existing(map, action.Building.Placement) != null) return null;
-            return intent.ReplaceWall ? WallReplacement(map, intent, context, out _)
-                : NativeConstructionPlan.Prepare(map, action.Building.Placement, context, out _, out _, out var failure) ? null : failure;
+            if (Existing(map, intent.Placement) != null) return null;
+            return replaceWall ? WallReplacement(map, intent, context, out _)
+                : NativeConstructionPlan.Prepare(map, intent.Placement, context, out _, out _, out var failure) ? null : failure;
         }
 
         // In-place wall swap (#2529): refuse with a typed code when no built wall
@@ -222,9 +226,9 @@ namespace HomeBridge.BridgeTools
         {
             plan = null;
             var candidate = intent.Placement;
-            if (candidate == null || !candidate.HasX || !candidate.HasZ)
+            if (candidate == null || candidate.X is null || candidate.Z is null)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Wall replacement requires a placement cell.");
-            var wall = WallLayerGuard.BuiltWall(map, new IntVec3(candidate.X, 0, candidate.Z));
+            var wall = WallLayerGuard.BuiltWall(map, new IntVec3(candidate.X.GetValueOrDefault(), 0, candidate.Z.GetValueOrDefault()));
             if (wall == null) return ProtoBoundary.Fail(Common.FailureCode.NoWallToReplace, "No built wall stands at the cell.");
             if (!NativeConstructionPlan.Prepare(map, candidate, context, out plan, out _, out var failure)
                 || !(plan.Definition is ThingDef built) || built.passability != Traversability.Impassable)
@@ -236,44 +240,43 @@ namespace HomeBridge.BridgeTools
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
             var map = ProtoBoundary.LoadedMap(context);
-            var candidate = action.Building.Placement;
-            var existing = Existing(map, candidate);
-            if (existing != null)
+            var intent = action.Intent?.Building ?? new Operations.BuildingIntent();
+            var candidate = intent.Placement;
+            if (candidate is not null && Existing(map, candidate) is { } existing)
             {
-                if (action.Building.HasExistingTargetId && existing.Value.Thing.GetUniqueLoadID() != action.Building.ExistingTargetId)
+                if (intent.ExistingTargetId is not null && existing.Thing.GetUniqueLoadID() != intent.ExistingTargetId)
                     throw new InvalidOperationException("Construction setting target changed.");
-                if (action.Building.HasMinimumFinishingSkill) ConstructionSkillGuard.Set(existing.Value.Thing, action.Building.MinimumFinishingSkill);
-                if (action.Building.HasTier) ConstructionSkillGuard.SetTier(existing.Value.Thing, action.Building.Tier);
-                return new Receipts.EffectEvidence { Construction = Effect(existing.Value.Thing, candidate) };
+                if (intent.MinimumFinishingSkill is { } skill) ConstructionSkillGuard.Set(existing.Thing, skill);
+                if (intent.Tier is { } existingTier) ConstructionSkillGuard.SetTier(existing.Thing, existingTier);
+                return new Receipts.EffectEvidence { Effect = Effect(existing.Thing, candidate) };
             }
-            if (action.Building.HasExistingTargetId) throw new InvalidOperationException("Construction setting target disappeared.");
+            if (intent.ExistingTargetId is not null) throw new InvalidOperationException("Construction setting target disappeared.");
             if (!NativeConstructionPlan.Prepare(map, candidate, context, out var plan, out _, out var failure))
-                throw new InvalidOperationException("Placement became invalid: " + failure.Detail);
+                throw new InvalidOperationException("Placement became invalid: " + (failure.Detail ?? ""));
             var observed = plan.Proposed();
-            var placed = plan.Place(observed, action.Building.ReplaceWall) ??throw new InvalidOperationException("Native placement returned no object.");
-            if (action.Building.HasMinimumFinishingSkill) ConstructionSkillGuard.Set(placed, action.Building.MinimumFinishingSkill);
+            var placed = plan.Place(ref observed, intent.ReplaceWall.GetValueOrDefault()) ??throw new InvalidOperationException("Native placement returned no object.");
+            if (intent.MinimumFinishingSkill is { } placedSkill) ConstructionSkillGuard.Set(placed, placedSkill);
             // An instant building is placed finished: there is no site to gate, so the tier has nothing to bind (#2733).
-            if (action.Building.HasTier && (placed is Blueprint_Build || placed is Frame)) ConstructionSkillGuard.SetTier(placed, action.Building.Tier);
-            observed.OriginThingId = observed.CurrentThingId = placed.GetUniqueLoadID();
-            observed.Stage = Stage(placed);
-            observed.Present = true; observed.Started = true; observed.Failed = false;
-            return new Receipts.EffectEvidence { Construction = observed };
+            if (intent.Tier is { } tier && (placed is Blueprint_Build || placed is Frame)) ConstructionSkillGuard.SetTier(placed, tier);
+            observed = observed with { OriginThingId = placed.GetUniqueLoadID(), CurrentThingId = placed.GetUniqueLoadID() };
+            observed = observed with { Stage = Stage(placed), Present = true, Started = true, Failed = false };
+            return new Receipts.EffectEvidence { Effect = observed };
         }
 
         // Existing is the player's blueprint, frame or building of the
         // candidate's definition, stuff and rotation anchored on its cell.
-        private static (Thing Thing, BuildableDef Definition)? Existing(Map map, RimGovernor.Protocol.Placement.PlacementCandidate? candidate)
+        private static (Thing Thing, BuildableDef Definition)? Existing(Map map, RimGovernor.Contracts.Wire.Placement.PlacementCandidate? candidate)
         {
-            if (candidate == null || !candidate.HasX || !candidate.HasZ || !candidate.HasDefName) return null;
-            if (!PlacementPreviewOperation.TryResolveBuildable(candidate.DefName, out var definition, out _) || !(definition is ThingDef thingDef)) return null;
-            var cell = new IntVec3(candidate.X, 0, candidate.Z);
+            if (candidate == null || candidate.X is null || candidate.Z is null || candidate.DefName is null) return null;
+            if (!PlacementPreviewOperation.TryResolveBuildable((candidate.DefName ?? ""), out var definition, out _) || !(definition is ThingDef thingDef)) return null;
+            var cell = new IntVec3(candidate.X.GetValueOrDefault(), 0, candidate.Z.GetValueOrDefault());
             var player = Faction.OfPlayerSilentFail;
             if (player == null || !cell.InBounds(map)) return null;
             var stuff = thingDef.MadeFromStuff
-                ? (candidate.HasStuff && candidate.Stuff.Length > 0 ? PlacementPreviewOperation.ResolveThingDef(candidate.Stuff) : GenStuff.DefaultStuffFor(thingDef))
+                ? (candidate.Stuff is not null && (candidate.Stuff ?? "").Length > 0 ? PlacementPreviewOperation.ResolveThingDef((candidate.Stuff ?? "")) : GenStuff.DefaultStuffFor(thingDef))
                 : null;
-            var rotation = candidate.HasRotation && candidate.Rotation != RimGovernor.Protocol.Placement.Rotation.All && candidate.Rotation != RimGovernor.Protocol.Placement.Rotation.Unspecified
-                ? new Rot4((int)candidate.Rotation - 1) : Rot4.North;
+            var rotation = candidate.Rotation is not null && candidate.Rotation.GetValueOrDefault() != RimGovernor.Contracts.Wire.Placement.Rotation.All && candidate.Rotation.GetValueOrDefault() != RimGovernor.Contracts.Wire.Placement.Rotation.Unspecified
+                ? new Rot4((int)candidate.Rotation.GetValueOrDefault() - 1) : Rot4.North;
             foreach (var thing in map.thingGrid.ThingsListAt(cell))
             {
                 if (thing.Destroyed || thing.Position != cell || thing.Faction != player) continue;
@@ -289,7 +292,7 @@ namespace HomeBridge.BridgeTools
         private static Receipts.ConstructionStage Stage(Thing thing) => thing is Frame ? Receipts.ConstructionStage.Frame
             : thing is Blueprint ? Receipts.ConstructionStage.Blueprint : Receipts.ConstructionStage.Building;
 
-        private static Receipts.ConstructionEffect Effect(Thing thing, RimGovernor.Protocol.Placement.PlacementCandidate candidate) => new Receipts.ConstructionEffect
+        private static Receipts.ConstructionEffect Effect(Thing thing, RimGovernor.Contracts.Wire.Placement.PlacementCandidate candidate) => new Receipts.ConstructionEffect
         {
             DefName = candidate.DefName, Stuff = candidate.Stuff ?? "", Cell = new Common.Cell { X = candidate.X, Z = candidate.Z },
             Rotation = candidate.Rotation, OriginThingId = thing.GetUniqueLoadID(), CurrentThingId = thing.GetUniqueLoadID(),
@@ -306,7 +309,7 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Apply(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official operations ApplyRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/operations_apply", request, Operations.ApplyRequest.Parser, out var parsed, out var failure))
+            if (!ProtoBoundary.TryParse<Operations.ApplyRequest>(ctx, "rimgovernor/operations_apply", request, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Operations.ApplyReply { BatchFailure = failure });
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleApply(parsed), cancellationToken).ConfigureAwait(false);
         }
@@ -314,7 +317,7 @@ namespace HomeBridge.BridgeTools
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Operations.ApplyReply HandleApply(Operations.ApplyRequest parsed)
         {
-            try { return NativeActionDispatch.Apply(parsed); } finally { SnapshotStream.NoteWrite(parsed.DeferSnapshot); }
+            try { return NativeActionDispatch.Apply(parsed); } finally { SnapshotStream.NoteWrite(parsed.DeferSnapshot.GetValueOrDefault()); }
         }
     }
 }

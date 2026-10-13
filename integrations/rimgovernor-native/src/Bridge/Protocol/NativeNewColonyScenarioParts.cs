@@ -5,7 +5,7 @@ using System.Linq;
 using HarmonyLib;
 using RimWorld;
 using Verse;
-using Lifecycle = RimGovernor.Protocol.Lifecycle;
+using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace HomeBridge.BridgeTools
 {
@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
             foreach (var naked in spec.Naked)
             {
                 var part = Make("Naked");
-                SetModifier(part, naked.Chance, naked.Context);
+                SetModifier(part, naked.Chance.GetValueOrDefault(), naked.Context.GetValueOrDefault());
                 plan.Parts.Add(part);
             }
             for (var i = 0; i < spec.SetNeedLevels.Count; i++) plan.Parts.Add(Need(spec.SetNeedLevels[i], "set_need_levels[" + i + "]"));
@@ -103,15 +103,15 @@ namespace HomeBridge.BridgeTools
                 Set(part, "incident", Named<IncidentDef>(spec.DisabledIncidents[i], "disabled_incidents[" + i + "]"));
                 plan.Parts.Add(part);
             }
-            if (spec.HasPlayerFaction)
+            if (spec.PlayerFaction is not null)
             {
-                var name = spec.PlayerFaction == Lifecycle.ScenarioPlayerFaction.NewTribe ? "PlayerTribe" : "PlayerColony";
+                var name = spec.PlayerFaction.GetValueOrDefault() == Lifecycle.ScenarioPlayerFaction.NewTribe ? "PlayerTribe" : "PlayerColony";
                 var faction = Named<FactionDef>(name, "player_faction");
                 if (!faction.isPlayer) throw new PartRefusal("player_faction " + name + " is not a player faction.");
                 plan.PlayerFaction = faction;
             }
-            if (spec.HasArrivalMethod)
-                plan.ArrivalMethod = spec.ArrivalMethod == Lifecycle.ScenarioArrivalMethod.DropPods ? PlayerPawnsArriveMethod.DropPods : PlayerPawnsArriveMethod.Standing;
+            if (spec.ArrivalMethod is not null)
+                plan.ArrivalMethod = spec.ArrivalMethod.GetValueOrDefault() == Lifecycle.ScenarioArrivalMethod.DropPods ? PlayerPawnsArriveMethod.DropPods : PlayerPawnsArriveMethod.Standing;
 
             // The editor drops a part that cannot coexist with another (the same
             // trait for overlapping pawns, clashing conditions); here it is a refusal.
@@ -149,28 +149,28 @@ namespace HomeBridge.BridgeTools
 
         private static ScenPart Thing(Lifecycle.StartingThing thing, string field)
         {
-            var definition = Named<ThingDef>(thing.ThingDef, field + ".thing_def");
+            var definition = Named<ThingDef>((thing.ThingDef ?? ""), field + ".thing_def");
             if (definition.category != ThingCategory.Item && definition.category != ThingCategory.Building)
                 throw new PartRefusal(field + ".thing_def " + definition.defName + " is neither an item nor a building.");
-            var name = thing.Placement == Lifecycle.StartingThingPlacement.StartWith ? "StartingThing_Defined"
-                : thing.Placement == Lifecycle.StartingThingPlacement.StartNear ? "ScatterThingsNearPlayerStart"
+            var name = thing.Placement.GetValueOrDefault() == Lifecycle.StartingThingPlacement.StartWith ? "StartingThing_Defined"
+                : thing.Placement.GetValueOrDefault() == Lifecycle.StartingThingPlacement.StartNear ? "ScatterThingsNearPlayerStart"
                 : "ScatterThingsAnywhere";
-            if (thing.Placement == Lifecycle.StartingThingPlacement.StartWith && definition.category == ThingCategory.Building && !definition.Minifiable)
+            if (thing.Placement.GetValueOrDefault() == Lifecycle.StartingThingPlacement.StartWith && definition.category == ThingCategory.Building && !definition.Minifiable)
                 throw new PartRefusal(field + ".thing_def " + definition.defName + " is a building that cannot be minified, so it cannot be a starting item.");
             ThingDef? stuff = null;
             if (definition.MadeFromStuff)
             {
-                stuff = thing.HasStuff ? Named<ThingDef>(thing.Stuff, field + ".stuff") : GenStuff.DefaultStuffFor(definition);
+                stuff = thing.Stuff is not null ? Named<ThingDef>((thing.Stuff ?? ""), field + ".stuff") : GenStuff.DefaultStuffFor(definition);
                 if (stuff == null || !GenStuff.AllowedStuffsFor(definition).Contains(stuff))
                     throw new PartRefusal(field + ".stuff " + (stuff?.defName ?? "(none)") + " is not a material " + definition.defName + " can be made from.");
             }
-            else if (thing.HasStuff)
+            else if (thing.Stuff is not null)
                 throw new PartRefusal(field + ".stuff given, but " + definition.defName + " is not made from stuff.");
             QualityCategory? quality = null;
-            if (thing.HasQuality)
+            if (thing.Quality is not null)
             {
                 if (!Enum.TryParse(thing.Quality, out QualityCategory parsed) || !Enum.IsDefined(typeof(QualityCategory), parsed))
-                    throw new PartRefusal("Unknown " + field + ".quality \"" + thing.Quality + "\" (" + string.Join(", ", Enum.GetNames(typeof(QualityCategory))) + ").");
+                    throw new PartRefusal("Unknown " + field + ".quality \"" + (thing.Quality ?? "") + "\" (" + string.Join(", ", Enum.GetNames(typeof(QualityCategory))) + ").");
                 if (!definition.HasComp(typeof(CompQuality)))
                     throw new PartRefusal(field + ".quality given, but " + definition.defName + " has no quality.");
                 quality = parsed;
@@ -178,49 +178,49 @@ namespace HomeBridge.BridgeTools
             var part = Make(name);
             Set(part, "thingDef", definition);
             Set(part, "stuff", stuff);
-            Set(part, "count", (int)thing.Count);
+            Set(part, "count", (int)thing.Count.GetValueOrDefault());
             Set(part, "quality", quality);
-            if (part is ScenPart_ScatterThings scatter && thing.HasAllowRoofed) scatter.allowRoofed = thing.AllowRoofed;
+            if (part is ScenPart_ScatterThings scatter && thing.AllowRoofed is not null) scatter.allowRoofed = thing.AllowRoofed.GetValueOrDefault();
             return part;
         }
 
         private static ScenPart Trait(Lifecycle.ForcedTrait forced, string field)
         {
-            var trait = Named<TraitDef>(forced.Trait, field + ".trait");
-            if (!trait.degreeDatas.Any(d => d.degree == forced.Degree))
-                throw new PartRefusal(field + ".degree " + forced.Degree + " is not a degree of " + trait.defName + " ("
+            var trait = Named<TraitDef>((forced.Trait ?? ""), field + ".trait");
+            if (!trait.degreeDatas.Any(d => d.degree == forced.Degree.GetValueOrDefault()))
+                throw new PartRefusal(field + ".degree " + forced.Degree.GetValueOrDefault() + " is not a degree of " + trait.defName + " ("
                     + string.Join(", ", trait.degreeDatas.Select(d => d.degree)) + ").");
             var part = Make("ForcedTrait");
             Set(part, "trait", trait);
-            Set(part, "degree", forced.Degree);
-            SetModifier(part, forced.Chance, forced.Context);
+            Set(part, "degree", forced.Degree.GetValueOrDefault());
+            SetModifier(part, forced.Chance.GetValueOrDefault(), forced.Context.GetValueOrDefault());
             return part;
         }
 
         private static ScenPart Hediff(Lifecycle.ForcedHediff forced, string field)
         {
-            var hediff = Named<HediffDef>(forced.Hediff, field + ".hediff");
+            var hediff = Named<HediffDef>((forced.Hediff ?? ""), field + ".hediff");
             if (!hediff.scenarioCanAdd)
                 throw new PartRefusal(field + ".hediff " + hediff.defName + " cannot be added by a scenario.");
             var max = hediff.lethalSeverity > 0f ? hediff.lethalSeverity * 0.99f : 1f;
-            if (forced.Severity > max)
-                throw new PartRefusal(field + ".severity " + forced.Severity + " exceeds " + max + " for " + hediff.defName + ".");
+            if (forced.Severity.GetValueOrDefault() > max)
+                throw new PartRefusal(field + ".severity " + forced.Severity.GetValueOrDefault() + " exceeds " + max + " for " + hediff.defName + ".");
             var part = Make("ForcedHediff");
             Set(part, "hediff", hediff);
-            Set(part, "severityRange", new FloatRange(forced.Severity, forced.Severity));
-            SetModifier(part, forced.Chance, forced.Context);
+            Set(part, "severityRange", new FloatRange(forced.Severity.GetValueOrDefault(), forced.Severity.GetValueOrDefault()));
+            SetModifier(part, forced.Chance.GetValueOrDefault(), forced.Context.GetValueOrDefault());
             return part;
         }
 
         private static ScenPart Need(Lifecycle.SetNeedLevel set, string field)
         {
-            var need = Named<NeedDef>(set.Need, field + ".need");
+            var need = Named<NeedDef>((set.Need ?? ""), field + ".need");
             if (!need.major)
                 throw new PartRefusal(field + ".need " + need.defName + " is not a major need.");
             var part = Make("SetNeedLevel");
             Set(part, "need", need);
-            Set(part, "levelRange", new FloatRange(set.Level, set.Level));
-            SetModifier(part, set.Chance, set.Context);
+            Set(part, "levelRange", new FloatRange(set.Level.GetValueOrDefault(), set.Level.GetValueOrDefault()));
+            SetModifier(part, set.Chance.GetValueOrDefault(), set.Context.GetValueOrDefault());
             return part;
         }
 

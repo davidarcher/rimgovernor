@@ -6,10 +6,10 @@ using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -65,17 +65,17 @@ namespace HomeBridge.BridgeTools
         }
 
         private static ChoiceLetter_AcceptCreepJoiner? ResolveCreepJoiner(Operations.DialogIntent c) =>
-            PendingCreepJoiners().SingleOrDefault(l => l.ID == c.WindowId && CreepJoinerToken(l) == c.JoinerLetterToken);
+            PendingCreepJoiners().SingleOrDefault(l => l.ID == c.WindowId.GetValueOrDefault() && CreepJoinerToken(l) == (c.JoinerLetterToken ?? ""));
 
         private static bool CreepJoinerAccepted(Operations.DialogIntent c) =>
             Find.Archive.ArchivablesListForReading.OfType<ChoiceLetter_AcceptCreepJoiner>()
-                .FirstOrDefault(l => l.ID == c.WindowId) is ChoiceLetter_AcceptCreepJoiner letter && letter.ArchivedOnly && letter.pawn != null
+                .FirstOrDefault(l => l.ID == c.WindowId.GetValueOrDefault()) is ChoiceLetter_AcceptCreepJoiner letter && letter.ArchivedOnly && letter.pawn != null
                 && !letter.pawn.Dead && letter.pawn.IsFreeColonist;
 
         private static Common.Failure? ValidateCreepJoiner(Operations.DialogIntent c)
         {
             if (CreepJoinerAccepted(c)) return null;
-            if (!c.HasWindowId || string.IsNullOrEmpty(c.JoinerLetterToken))
+            if (c.WindowId is null || string.IsNullOrEmpty(c.JoinerLetterToken))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A creepjoiner answer needs the letter and the letter token.");
             return ResolveCreepJoiner(c) == null ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Creepjoiner letter changed or expired; inspect again.") : null;
         }
@@ -91,8 +91,8 @@ namespace HomeBridge.BridgeTools
                 Find.LetterStack.RemoveLetter(letter);
                 if (pawn.Dead || !pawn.IsFreeColonist) throw new InvalidOperationException("Creepjoiner did not join.");
             }
-            var joined = Find.Archive.ArchivablesListForReading.OfType<ChoiceLetter_AcceptCreepJoiner>().First(l => l.ID == c.WindowId).pawn;
-            return new Receipts.EffectEvidence { Dialog = new Receipts.DialogEffect { WindowId = c.WindowId, OptionIndex = 0,
+            var joined = Find.Archive.ArchivablesListForReading.OfType<ChoiceLetter_AcceptCreepJoiner>().First(l => l.ID == c.WindowId.GetValueOrDefault()).pawn;
+            return new Receipts.EffectEvidence { Effect = new Receipts.DialogEffect { WindowId = c.WindowId, OptionIndex = 0,
                 OptionLabel = c.OptionLabel, JoinerLetterToken = c.JoinerLetterToken, JoinerPawnId = joined.GetUniqueLoadID(),
                 Activated = true, Closed = true, Advanced = false, Joined = true } };
         }
@@ -116,14 +116,14 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(Operations.DialogIntent c, out ChoiceLetter_AcceptJoiner letter, out Pawn pawn, out DiaOption option)
         {
             letter = null!; pawn = null!; option = null!;
-            if (!c.HasWindowId || !c.HasOptionIndex || c.OptionIndex != 0 || !c.HasOptionLabel || string.IsNullOrEmpty(c.JoinerLetterToken))
+            if (c.WindowId is null || c.OptionIndex is null || c.OptionIndex.GetValueOrDefault() != 0 || c.OptionLabel is null || string.IsNullOrEmpty(c.JoinerLetterToken))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A joiner answer needs the letter, option 0, its label and the letter token.");
-            var found = Pending().SingleOrDefault(l => l.ID == c.WindowId);
+            var found = Pending().SingleOrDefault(l => l.ID == c.WindowId.GetValueOrDefault());
             var joiner = found == null ? null : Joiner(found);
-            if (found == null || joiner == null || joiner.Dead || joiner.Faction == Faction.OfPlayer || Token(found, joiner) != c.JoinerLetterToken)
+            if (found == null || joiner == null || joiner.Dead || joiner.Faction == Faction.OfPlayer || Token(found, joiner) != (c.JoinerLetterToken ?? ""))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Joiner letter changed or expired; inspect again.");
             var accept = found.Choices.First();
-            if (accept.disabled || accept.action == null || ChoiceDialogTools.Label(accept) != c.OptionLabel)
+            if (accept.disabled || accept.action == null || ChoiceDialogTools.Label(accept) != (c.OptionLabel ?? ""))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The joiner letter's accept option changed or is disabled.");
             letter = found; pawn = joiner; option = accept;
             return null;
@@ -134,7 +134,7 @@ namespace HomeBridge.BridgeTools
         // intent applies again as it stands.
         private static bool Accepted(Operations.DialogIntent c, out ChoiceLetter_AcceptJoiner letter, out Pawn pawn)
         {
-            letter = Find.Archive.ArchivablesListForReading.OfType<ChoiceLetter_AcceptJoiner>().FirstOrDefault(l => l.ID == c.WindowId)!;
+            letter = Find.Archive.ArchivablesListForReading.OfType<ChoiceLetter_AcceptJoiner>().FirstOrDefault(l => l.ID == c.WindowId.GetValueOrDefault())!;
             pawn = letter == null ? null! : Joiner(letter)!;
             return letter != null && pawn != null && letter.ArchivedOnly && Joined(letter, pawn);
         }
@@ -142,23 +142,23 @@ namespace HomeBridge.BridgeTools
         private static bool Joined(ChoiceLetter_AcceptJoiner letter, Pawn pawn) =>
             !pawn.Dead && pawn.Spawned && pawn.Map == letter.MapToUse && pawn.IsFreeColonist;
 
-        internal static Common.Failure? Validate(Operations.DialogIntent c) => c.JoinerLetterToken.StartsWith(CreepJoinerTokenPrefix, StringComparison.Ordinal) ? ValidateCreepJoiner(c) : Accepted(c, out _, out _) ? null : Resolve(c, out _, out _, out _);
+        internal static Common.Failure? Validate(Operations.DialogIntent c) => (c.JoinerLetterToken ?? "").StartsWith(CreepJoinerTokenPrefix, StringComparison.Ordinal) ? ValidateCreepJoiner(c) : Accepted(c, out _, out _) ? null : Resolve(c, out _, out _, out _);
 
         internal static Receipts.EffectEvidence Apply(Operations.DialogIntent c)
         {
-            if (c.JoinerLetterToken.StartsWith(CreepJoinerTokenPrefix, StringComparison.Ordinal)) return ApplyCreepJoiner(c);
+            if ((c.JoinerLetterToken ?? "").StartsWith(CreepJoinerTokenPrefix, StringComparison.Ordinal)) return ApplyCreepJoiner(c);
             if (!Accepted(c, out var letter, out var pawn))
             {
                 var failure = Resolve(c, out letter, out pawn, out var option);
-                if (failure != null) throw new InvalidOperationException("Joiner letter changed before apply: " + failure.Detail);
+                if (failure != null) throw new InvalidOperationException("Joiner letter changed before apply: " + (failure.Detail ?? ""));
                 // Letter choices have no owning Dialog_NodeTree until opened.
                 // Run the native button action, as the headless fixture does;
                 // DiaOption.Activate would dereference that absent window.
                 option.action();
                 if (!letter.ArchivedOnly || !Joined(letter, pawn)) throw new InvalidOperationException("Joiner did not arrive.");
             }
-            return new Receipts.EffectEvidence { Dialog = new Receipts.DialogEffect { WindowId = c.WindowId, OptionIndex = 0,
-                OptionLabel = c.OptionLabel, JoinerLetterToken = c.JoinerLetterToken, JoinerPawnId = pawn.GetUniqueLoadID(),
+            return new Receipts.EffectEvidence { Effect = new Receipts.DialogEffect { WindowId = c.WindowId, OptionIndex = 0,
+                OptionLabel = c.OptionLabel, JoinerLetterToken = (c.JoinerLetterToken ?? ""), JoinerPawnId = pawn.GetUniqueLoadID(),
                 Activated = true, Closed = true, Advanced = false, Joined = true } };
         }
     }

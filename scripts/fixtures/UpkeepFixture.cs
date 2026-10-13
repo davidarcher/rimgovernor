@@ -63,17 +63,18 @@ namespace HomeBridge.BridgeTools
                 var delta = CellGridEncoder.Encode(after, before);
                 if (delta == null) return new { success = false, error = "Every array changed" };
                 var arrays = new System.Collections.Generic.List<object>();
-                var descriptor = RimGovernor.Protocol.Mirror.CellGrid.Descriptor;
                 for (int i = 0; i < CellGridEncoder.FieldCount; i++) {
                     var name = CellGridEncoder.FieldName(i);
-                    if (!(descriptor.FindFieldByName(name).Accessor.GetValue(delta) is RimGovernor.Protocol.Mirror.FieldArray array)) continue;
-                    arrays.Add(new { field = name, form = array.FormCase.ToString(), entries = array.FormCase == RimGovernor.Protocol.Mirror.FieldArray.FormOneofCase.Sparse ? array.Sparse.Index.Count : -1,
-                        wallCell = array.FormCase == RimGovernor.Protocol.Mirror.FieldArray.FormOneofCase.Sparse && array.Sparse.Index.Contains((uint)(z * map.Size.x + x)) });
+                    var property = typeof(RimGovernor.Contracts.Wire.Mirror.CellGrid).GetProperty(string.Concat(name.Split('_').Select(w => char.ToUpperInvariant(w[0]) + w.Substring(1))));
+                    if (!(property.GetValue(delta) is RimGovernor.Contracts.Wire.Mirror.FieldArray array)) continue;
+                    var sparse = (array.Form as RimGovernor.Contracts.Wire.Mirror.FieldArrayForm.SparseCase)?.Value;
+                    arrays.Add(new { field = name, form = array.Form?.GetType().Name.Replace("Case", ""), entries = sparse != null ? sparse.Index.Count : -1,
+                        wallCell = sparse != null && sparse.Index.Contains((uint)(z * map.Size.x + x)) });
                 }
                 // The thing list is not a column: it rides the delta as sparse cell lists.
                 if (delta.Things != null)
                     arrays.Add(new { field = "things", form = "Sparse", entries = delta.Things.Cells.Count, wallCell = delta.Things.Cells.Contains((uint)(z * map.Size.x + x)) });
-                return new { success = true, wall = wall.GetUniqueLoadID(), keyframeBytes = keyframe.CalculateSize(), deltaBytes = delta.CalculateSize(), arrays };
+                return new { success = true, wall = wall.GetUniqueLoadID(), keyframeBytes = RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(keyframe).Length, deltaBytes = RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(delta).Length, arrays };
             }, cancellationToken);
 
         // The thing list probe: spawns one of each thing category on a
@@ -114,8 +115,8 @@ namespace HomeBridge.BridgeTools
                 watch.Restart();
                 var wire = CellGridEncoder.Encode(whole, null)!;
                 var encodeMs = watch.Elapsed.TotalMilliseconds;
-                return new { success = true, grid = Convert.ToBase64String(Google.Protobuf.MessageExtensions.ToByteArray(row)),
-                    frameId = frame.thingIDNumber, wallId = wall.thingIDNumber, steelId = steel.thingIDNumber, readMs, encodeMs, keyframeBytes = wire.CalculateSize() };
+                return new { success = true, grid = Convert.ToBase64String(RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(row)),
+                    frameId = frame.thingIDNumber, wallId = wall.thingIDNumber, steelId = steel.thingIDNumber, readMs, encodeMs, keyframeBytes = RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(wire).Length };
             }, cancellationToken);
 
         [Tool("test/roof_cells", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture (#1366): with set, put a constructed roof over exact cells (\"x,z;x,z\"); always reply how many of them are roofed. Test builds only.")]

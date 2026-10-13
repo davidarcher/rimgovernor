@@ -1,24 +1,21 @@
 using System;
 using System.Linq;
 using HomeBridge.BridgeTools;
-using Operations = RimGovernor.Protocol.Operations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 // The declarative rule book (#2152): attach is replace-all and idempotent by id, a rule outside the v1
 // whitelist is refused with a reason, and a lease expires once and deactivates every rule. The game side (kill hook, target search, the Hunt write) runs in acceptance.
 internal static class NativeRuleRuntimeProbe
 {
-    private static Operations.Rule Hunt(string id, Action<Operations.Rule> edit = null)
+    private static Operations.Rule Hunt(string id, Func<Operations.Rule, Operations.Rule> edit = null)
     {
         var rule = new Operations.Rule
         {
             Id = id, Trigger = Operations.RuleTrigger.PreyKilled, Action = Operations.RuleAction.GiveJob, Job = "Hunt",
             Target = Operations.RuleTargetSelector.NearestDesignatedPrey, Radius = 40, PredatorMarginCells = 25,
+            Predicates = [Operations.RulePredicate.ActorUndrafted, Operations.RulePredicate.ActorHuntingWorkActive, Operations.RulePredicate.TargetAvailable],
         };
-        rule.Predicates.Add(Operations.RulePredicate.ActorUndrafted);
-        rule.Predicates.Add(Operations.RulePredicate.ActorHuntingWorkActive);
-        rule.Predicates.Add(Operations.RulePredicate.TargetAvailable);
-        edit?.Invoke(rule);
-        return rule;
+        return edit == null ? rule : edit(rule);
     }
 
     internal static void Invoke()
@@ -38,14 +35,14 @@ internal static class NativeRuleRuntimeProbe
         var cases = new (string Name, Operations.Rule Rule, Operations.RuleRefusalReason Reason)[]
         {
             ("blank id", Hunt(" "), Operations.RuleRefusalReason.InvalidId),
-            ("trigger", Hunt("t", r => r.Trigger = Operations.RuleTrigger.Unspecified), Operations.RuleRefusalReason.UnsupportedTrigger),
-            ("predicate", Hunt("p", r => r.Predicates.Add(Operations.RulePredicate.Unspecified)), Operations.RuleRefusalReason.UnsupportedPredicate),
-            ("repeated predicate", Hunt("q", r => r.Predicates.Add(Operations.RulePredicate.ActorUndrafted)), Operations.RuleRefusalReason.UnsupportedPredicate),
-            ("action", Hunt("x", r => r.Action = Operations.RuleAction.Unspecified), Operations.RuleRefusalReason.UnsupportedAction),
-            ("draft job", Hunt("d", r => r.Job = "Draft"), Operations.RuleRefusalReason.UnsupportedJob),
-            ("selector", Hunt("s", r => r.Target = Operations.RuleTargetSelector.Unspecified), Operations.RuleRefusalReason.UnsupportedTarget),
-            ("margin zero", Hunt("m0", r => r.PredatorMarginCells = 0), Operations.RuleRefusalReason.InvalidPredatorMargin),
-            ("margin absent", Hunt("m1", r => r.ClearPredatorMarginCells()), Operations.RuleRefusalReason.InvalidPredatorMargin),
+            ("trigger", Hunt("t", r => r with { Trigger = Operations.RuleTrigger.Unspecified }), Operations.RuleRefusalReason.UnsupportedTrigger),
+            ("predicate", Hunt("p", r => r with { Predicates = [.. r.Predicates, Operations.RulePredicate.Unspecified] }), Operations.RuleRefusalReason.UnsupportedPredicate),
+            ("repeated predicate", Hunt("q", r => r with { Predicates = [.. r.Predicates, Operations.RulePredicate.ActorUndrafted] }), Operations.RuleRefusalReason.UnsupportedPredicate),
+            ("action", Hunt("x", r => r with { Action = Operations.RuleAction.Unspecified }), Operations.RuleRefusalReason.UnsupportedAction),
+            ("draft job", Hunt("d", r => r with { Job = "Draft" }), Operations.RuleRefusalReason.UnsupportedJob),
+            ("selector", Hunt("s", r => r with { Target = Operations.RuleTargetSelector.Unspecified }), Operations.RuleRefusalReason.UnsupportedTarget),
+            ("margin zero", Hunt("m0", r => r with { PredatorMarginCells = 0 }), Operations.RuleRefusalReason.InvalidPredatorMargin),
+            ("margin absent", Hunt("m1", r => r with { PredatorMarginCells = null }), Operations.RuleRefusalReason.InvalidPredatorMargin),
         };
         foreach (var c in cases)
         {
@@ -65,19 +62,19 @@ internal static class NativeRuleRuntimeProbe
         var status = book.Status(1000);
         Require(status.Rules.Count == 2 && status.Rules[0].FiringCount == 1 && status.Rules[0].LastFiredTick == 100
             && status.Rules[0].LastActorId == "Thing_Human1" && status.Rules[0].LastTargetId == "Thing_Deer2" && status.Rules[1].FiringCount == 0, "status carries the firing history");
-        Require(status.ExpiresAtTick == 2500 && status.LeaseRemainingTicks == 1500 && !status.LeaseExpired, "status carries the lease");
+        Require(status.ExpiresAtTick == 2500 && status.LeaseRemainingTicks == 1500 && status.LeaseExpired != true, "status carries the lease");
 
         // Lease expiry: nothing before the tick, one expiry at it, every rule deactivated, no second expiry.
         Require(!book.TryExpire(2499, out _) && book.Active.Count == 2, "no expiry before the lease tick");
         Require(book.TryExpire(2500, out var deactivated) && deactivated == 2 && book.Active.Count == 0, "the lease tick deactivates every rule");
         Require(!book.TryExpire(2501, out _), "expiry is reported once");
         status = book.Status(2600);
-        Require(status.Rules.Count == 0 && status.LeaseExpired && status.LeaseRemainingTicks == 0, "status reads the expiry");
+        Require(status.Rules.Count == 0 && status.LeaseExpired == true && status.LeaseRemainingTicks == 0, "status reads the expiry");
         book.Attach(new[] { Hunt("a") }, 3000);
-        Require(!book.Status(2600).LeaseExpired && book.Active.Count == 1, "a new attach renews after expiry");
+        Require(book.Status(2600).LeaseExpired != true && book.Active.Count == 1, "a new attach renews after expiry");
 
         // Clear.
-        Require(book.Clear() == 1 && book.Active.Count == 0 && !book.Status(2600).LeaseExpired, "clear removes the rules");
+        Require(book.Clear() == 1 && book.Active.Count == 0 && book.Status(2600).LeaseExpired != true, "clear removes the rules");
         Require(book.Clear() == 0 && !book.TryExpire(9000, out _), "clearing nothing expires nothing");
         Console.WriteLine("native-rule-runtime: ok");
     }

@@ -8,12 +8,12 @@ using System.IO.Compression;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RimGovernor.Host.Sdk;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
+using RimGovernor.Contracts.Wire;
+using Common = RimGovernor.Contracts.Wire.Common;
 
 namespace HomeBridge.BridgeTools
 {
@@ -22,7 +22,7 @@ namespace HomeBridge.BridgeTools
         private static readonly Encoding Utf8 = new UTF8Encoding(false, true);
 
         internal static bool TryParse<T>(IRimBridgeContext ctx, string toolName, object? request,
-            MessageParser<T> parser, [NotNullWhen(true)] out T? value, [NotNullWhen(false)] out Common.Failure? failure) where T : class, IMessage<T>
+            [NotNullWhen(true)] out T? value, [NotNullWhen(false)] out Common.Failure? failure) where T : class
         {
             value = null;
             callerForm.Value = FormOf(ctx);
@@ -43,24 +43,24 @@ namespace HomeBridge.BridgeTools
             if (!arguments.TryGetValue("request", out var raw) || !TryString(raw, out var json)
                 || !(request is string expected) || !string.Equals(json, expected, StringComparison.Ordinal))
             {
-                failure = Fail(Common.FailureCode.InvalidRequest, "request must be a ProtoJSON string.");
+                failure = Fail(Common.FailureCode.InvalidRequest, "request must be a JSON string.");
                 return false;
             }
             try
             {
                 Utf8.GetByteCount(json); // strict: invalid Unicode throws below
-                value = parser.ParseJson(json);
+                value = WireJson.Deserialize<T>(json);
                 failure = null;
                 return true;
             }
-            catch (InvalidProtocolBufferException)
+            catch (System.Text.Json.JsonException)
             {
-                failure = Fail(Common.FailureCode.InvalidRequest, "request is not valid ProtoJSON for this method.");
+                failure = Fail(Common.FailureCode.InvalidRequest, "request is not valid JSON for this method.");
                 return false;
             }
-            catch (InvalidJsonException)
+            catch (NotSupportedException)
             {
-                failure = Fail(Common.FailureCode.InvalidRequest, "request is not valid JSON.");
+                failure = Fail(Common.FailureCode.InvalidRequest, "request is not valid JSON for this method.");
                 return false;
             }
             catch (EncoderFallbackException)
@@ -82,28 +82,13 @@ namespace HomeBridge.BridgeTools
 
         // The SDK recognizes this concrete envelope; generated CLR properties are not its wire format.
         // Every pass is charged to the open observation hop, including
-        // the repeated passes a size check pays for.
-        internal static string Format(IMessage reply, bool compact = false)
+        // the repeated passes a size check pays for. WireJson output is already
+        // compact, so compact only documents the caller's intent.
+        internal static string Format<T>(T reply, bool compact = false) where T : class
         {
             var began = Stopwatch.GetTimestamp();
-            try { return FormatPass(reply, compact); }
+            try { return WireJson.Serialize(reply); }
             finally { ObservationWork.Formatted(Stopwatch.GetTimestamp() - began); }
-        }
-
-        private static string FormatPass(IMessage reply, bool compact)
-        {
-            var payload = JsonFormatter.Default.Format(reply);
-            if (!compact) return payload;
-            // Keep official ProtoJSON values and field names; only omit formatting.
-            // Identifier strings must never be interpreted as dates.
-            using (var input = new StringReader(payload))
-            using (var reader = new JsonTextReader(input) { DateParseHandling = DateParseHandling.None })
-            using (var output = new StringWriter(System.Globalization.CultureInfo.InvariantCulture))
-            using (var writer = new JsonTextWriter(output) { Formatting = Formatting.None }) {
-                writer.WriteToken(reader);
-                writer.Flush();
-                return output.ToString();
-            }
         }
 
         // The Go controller always sends encoding=proto-gzip and accepts
@@ -157,7 +142,7 @@ namespace HomeBridge.BridgeTools
 
         // The reply body in the form this thread's caller asked for, and the
         // envelope field that carries it; charged to the hop like Format.
-        private static object Body(IMessage reply, bool compact, out string field)
+        private static object Body<T>(T reply, bool compact, out string field) where T : class
         {
             var wanted = form ?? callerForm.Value;
             if (wanted == ReplyForm.Payload)
@@ -169,9 +154,9 @@ namespace HomeBridge.BridgeTools
             var began = Stopwatch.GetTimestamp();
             try
             {
-                if (wanted == ReplyForm.Shm && reply.CalculateSize() >= ReplyRing.InlineBytes)
+                var raw = WireJson.SerializeToUtf8Bytes(reply);
+                if (wanted == ReplyForm.Shm && raw.Length >= ReplyRing.InlineBytes)
                 {
-                    var raw = reply.ToByteArray();
                     var slot = ReplyRing.Write(raw);
                     if (slot != null)
                     {
@@ -183,7 +168,7 @@ namespace HomeBridge.BridgeTools
                 using (var buffer = new MemoryStream())
                 {
                     using (var gzip = new GZipStream(buffer, CompressionLevel.Fastest, true))
-                        reply.WriteTo(gzip);
+                        gzip.Write(raw, 0, raw.Length);
                     return Convert.ToBase64String(buffer.GetBuffer(), 0, (int)buffer.Length);
                 }
             }
@@ -199,14 +184,13 @@ namespace HomeBridge.BridgeTools
 
         private sealed class Pending
         {
-            internal readonly IMessage Reply;
-            internal readonly bool Compact;
-            internal Pending(IMessage reply, bool compact) { Reply = reply; Compact = compact; }
+            internal readonly Func<Dictionary<string, object?>> Encode;
+            internal Pending(Func<Dictionary<string, object?>> encode) { Encode = encode; }
         }
 
-        internal static Dictionary<string, object?> Encode(IMessage reply, bool compact = false)
+        internal static Dictionary<string, object?> Encode<T>(T reply, bool compact = false) where T : class
         {
-            if (deferEncode) return Envelope(PendingField, new Pending(reply, compact));
+            if (deferEncode) return Envelope(PendingField, new Pending(() => Encode(reply, compact)));
             var payload = Body(reply, compact, out var field);
             if (payload is string text) Measure(text);
             return Envelope(field, payload);
@@ -253,7 +237,7 @@ namespace HomeBridge.BridgeTools
             var captured = (Captured<object>)await RunHop(ctx, body, (value, hop) => new Captured<object>(value, hop), cancellationToken, defer: true).ConfigureAwait(false);
             var hop = captured.Hop;
             if (captured.Value is Dictionary<string, object?> envelope && envelope.Count == 1 && envelope.TryGetValue(PendingField, out var value) && value is Pending pending)
-                return await EncodeDetached(new Captured<IMessage>(pending.Reply, hop), null, reply => Encode(reply, pending.Compact), CancellationToken.None).ConfigureAwait(false);
+                return await EncodeDetached(new Captured<Pending>(pending, hop), null, p => p.Encode(), CancellationToken.None).ConfigureAwait(false);
             return WithTiming(captured.Value, hop.Queued, hop.Started, hop.Finished, hop.Trace, hop.Class, hop.Depth, hop.Work);
         }
 
@@ -449,7 +433,7 @@ namespace HomeBridge.BridgeTools
         }
 
         /// <summary>A main-thread reply, encoded off the game thread (OnMainThread).</summary>
-        internal static Task<object> OnMainThreadEncoded(IRimBridgeContext ctx, Func<IMessage> body, CancellationToken cancellationToken)
+        internal static Task<object> OnMainThreadEncoded<T>(IRimBridgeContext ctx, Func<T> body, CancellationToken cancellationToken) where T : class
             => OnMainThread(ctx, () => Encode(body()), cancellationToken);
 
         internal static object WithTiming(object reply, long queued, long started, long finished, string? trace = null, string? cls = null, int queueDepth = -1,
@@ -486,7 +470,7 @@ namespace HomeBridge.BridgeTools
         internal static Common.Failure Fail(Common.FailureCode code, string detail, Common.RefusalClass refusalClass = Common.RefusalClass.Unspecified)
         {
             var failure = new Common.Failure { Code = code, Detail = detail };
-            if (refusalClass != Common.RefusalClass.Unspecified) failure.RefusalClass = refusalClass;
+            if (refusalClass != Common.RefusalClass.Unspecified) failure = failure with { RefusalClass = refusalClass };
             return failure;
         }
 
@@ -525,8 +509,8 @@ namespace HomeBridge.BridgeTools
             catch (EncoderFallbackException) { return false; }
         }
 
-        internal static bool Complete([NotNullWhen(true)] Common.Identity? expected) => expected != null && expected.HasColonyId && expected.HasLoadToken
-            && expected.HasMapId && IsIdentifier(expected.ColonyId) && IsIdentifier(expected.LoadToken) && expected.MapId >= 0;
+        internal static bool Complete([NotNullWhen(true)] Common.Identity? expected) => expected != null && expected.ColonyId is not null && expected.LoadToken is not null
+            && expected.MapId is not null && IsIdentifier(expected.ColonyId) && IsIdentifier(expected.LoadToken) && expected.MapId.GetValueOrDefault() >= 0;
 
         /// <summary>
         /// The loaded map the identity names, or null. Every typed read and
@@ -537,7 +521,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!Complete(expected) || Current.Game == null || Find.Maps == null) return null;
             foreach (var map in Find.Maps)
-                if (map != null && map.uniqueID == expected.MapId) return map;
+                if (map != null && map.uniqueID == expected.MapId.GetValueOrDefault()) return map;
             return null;
         }
 
@@ -596,19 +580,19 @@ namespace HomeBridge.BridgeTools
                 // The named map is no longer loaded but the game is: stale, with
                 // the viewed map's context so the caller can re-anchor.
                 failure = Fail(Common.FailureCode.StaleIdentity, "The map this identity names is no longer loaded.");
-                failure.ObservedContext = context;
+                failure = failure with { ObservedContext = context };
                 context = null;
                 return false;
             }
             if (!TryReadContext(map, out context, out var unavailable))
             {
-                failure = Fail(Common.FailureCode.Unavailable, unavailable.Detail);
+                failure = Fail(Common.FailureCode.Unavailable, (unavailable.Detail ?? ""));
                 return false;
             }
             if (!expected.Equals(context.Identity))
             {
                 failure = Fail(Common.FailureCode.StaleIdentity, "The colony, load or map identity has changed.");
-                failure.ObservedContext = context;
+                failure = failure with { ObservedContext = context };
                 return false;
             }
             failure = null;
@@ -640,7 +624,7 @@ namespace HomeBridge.BridgeTools
                 Tick = Find.TickManager.TicksGame
             };
             if (NativeControlAuthority.TryGetForGame(Current.Game, out var authority) && authority != null)
-                context.NativeGeneration = authority.Status().Generation;
+                context = context with { NativeGeneration = authority.Status().Generation };
             unavailable = null;
             return true;
         }

@@ -2,17 +2,17 @@
   "version": 1,
   "dependencies": {
     "net10.0": {
-      "Google.Protobuf": {
-        "type": "Direct",
-        "requested": "[3.31.1, )",
-        "resolved": "3.31.1",
-        "contentHash": "gSnJbUmGiOTdWddPhqzrEscHq9Ls6sqRDPB9WptckyjTUyx70JOOAaDLkFff8gManZNN3hllQ4aQInnQyq/Z/A=="
-      },
       "Newtonsoft.Json": {
         "type": "Direct",
         "requested": "[13.0.4, )",
         "resolved": "13.0.4",
         "contentHash": "pdgNNMai3zv51W5aq268sujXUyx7SNdE2bj1wZcWjAQrKMFZV260lbqYop1d2GM67JI1huLRwxo9ZqnfF/lC6A=="
+      },
+      "rimgovernor.brain.contracts": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Domain": "[1.0.0, )"
+        }
       },
       "rimgovernor.brain.domain": {
         "type": "Project"
@@ -26,18 +26,12 @@
       "rimgovernor.brain.nativefacade": {
         "type": "Project",
         "dependencies": {
-          "RimGovernor.Brain.Domain": "[1.0.0, )",
-          "RimGovernor.Brain.Wire": "[1.0.0, )"
+          "RimGovernor.Brain.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )"
         }
       },
       "rimgovernor.brain.telemetry": {
         "type": "Project"
-      },
-      "rimgovernor.brain.wire": {
-        "type": "Project",
-        "dependencies": {
-          "Google.Protobuf": "[3.31.1, )"
-        }
       },
       "rimgovernor.host.sdk": {
         "type": "Project"

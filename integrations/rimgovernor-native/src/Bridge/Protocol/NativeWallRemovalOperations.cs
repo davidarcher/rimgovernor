@@ -4,10 +4,10 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
             if (site == null) return null;
             // A standing demolition designation no record claims is no veto:
             // admission adopts it under this ledger's record.
-            if (site.HasBlocker) { lastBlocker = site.Blocker; return null; }
+            if (site.Blocker is not null) { lastBlocker = site.Blocker; return null; }
             var candidate = new Candidate { Record = record, Site = site, Reread = reread };
             var blocker = WallUpgradeSafety.Prepare(record);
             if (blocker != null) lastBlocker = blocker;
@@ -61,11 +61,11 @@ namespace HomeBridge.BridgeTools
                 Func<Obs.WallUpgradeSite?> reread = () => NativeWallUpgradeObservationTools.Replacement(map, wall, n, context);
                 var site = reread();
                 if (site == null) continue;
-                var left = site.LeftSupport.Id; var right = site.RightSupport.Id;
+                var left = (site.LeftSupport?.Id ?? ""); var right = (site.RightSupport?.Id ?? "");
                 if (!WallUpgradeSafety.Corner(normal))
                 {
                     if (site.CompletedBackups.Count != site.BackupCells.Count || site.BackupCells.Count == 0) continue;
-                    var record = WallUpgradeSafety.NewRecord(map, id, id, left, right, site.CompletedBackups.Select(b => b.Id), "", "",
+                    var record = WallUpgradeSafety.NewRecord(map, id, id, left, right, site.CompletedBackups.Select(b => (b.Id ?? "")), "", "",
                         wall.Position.x, wall.Position.z, normal.x, normal.z);
                     if (Try(record, site, reread) is Candidate found) straight.Add(found);
                     continue;
@@ -89,9 +89,9 @@ namespace HomeBridge.BridgeTools
                         var n = normal; var p = permanent;
                         Func<Obs.WallUpgradeSite?> reread = () => NativeWallUpgradeObservationTools.Cleanup(map, p, n, context);
                         var site = reread();
-                        if (site == null || !site.CompletedBackups.Any(b => b.Id == id)) continue;
-                        var record = WallUpgradeSafety.NewRecord(map, id, permanent.GetUniqueLoadID(), site.LeftSupport.Id, site.RightSupport.Id,
-                            site.CompletedBackups.Select(b => b.Id), permanent.GetUniqueLoadID(), "", origin.x, origin.z, normal.x, normal.z);
+                        if (site == null || !site.CompletedBackups.Any(b => (b.Id ?? "") == id)) continue;
+                        var record = WallUpgradeSafety.NewRecord(map, id, permanent.GetUniqueLoadID(), (site.LeftSupport?.Id ?? ""), (site.RightSupport?.Id ?? ""),
+                            site.CompletedBackups.Select(b => (b.Id ?? "")), permanent.GetUniqueLoadID(), "", origin.x, origin.z, normal.x, normal.z);
                         if (Try(record, site, reread) is Candidate found) cleanup.Add(found);
                     }
                 }
@@ -107,14 +107,14 @@ namespace HomeBridge.BridgeTools
             out Building? wall, out GuardedDesignation? pending, out Candidate? candidate, out Common.FailureCode code)
         {
             wall = null; pending = null; candidate = null; code = Common.FailureCode.InvalidRequest;
-            var expected = intent.Target?.Id;
-            if (intent.Cell == null || !intent.Cell.HasX || !intent.Cell.HasZ || intent.Target != null && !ProtoBoundary.IsIdentifier(expected))
+            var expected = (intent.Target?.Id ?? "");
+            if (intent.Cell == null || intent.Cell.X is null || intent.Cell.Z is null || intent.Target != null && !ProtoBoundary.IsIdentifier(expected))
                 return "The wall_upgrade guard requires one wall cell.";
-            if (intent.Designation != Operations.ThingDesignation.Deconstruct || intent.ReplaceWithWall || intent.HasExpectedDef || intent.HasThingId)
+            if (intent.Designation.GetValueOrDefault() != Operations.ThingDesignation.Deconstruct || intent.ReplaceWithWall.GetValueOrDefault() || intent.ExpectedDef is not null || intent.ThingId is not null)
                 return "The wall_upgrade guard takes DECONSTRUCT on a cell and an optional target only.";
             var map = ProtoBoundary.ResolveMap(context);
             if (map == null) return "Loaded map required.";
-            var cell = new IntVec3(intent.Cell.X, 0, intent.Cell.Z);
+            var cell = new IntVec3(intent.Cell.X.GetValueOrDefault(), 0, intent.Cell.Z.GetValueOrDefault());
             if (!cell.InBounds(map)) return "Wall cell is outside the map.";
             wall = NativeWallUpgradeObservationTools.ColonistWall(map, cell);
             if (wall == null) return null;
@@ -142,20 +142,19 @@ namespace HomeBridge.BridgeTools
             var refusal = Refusal(intent, context, out var wall, out var pending, out var candidate, out _);
             if (refusal != null) throw new InvalidOperationException("Wall removal prerequisites changed before apply: " + refusal);
             if (wall == null)
-                return new Receipts.EffectEvidence { Wall = new Receipts.WallEffect { TargetId = intent.Target?.Id ?? "", DemolitionObserved = false } };
+                return new Receipts.EffectEvidence { Effect = new Receipts.WallEffect { TargetId = intent.Target?.Id ?? "", DemolitionObserved = false } };
             var id = wall.GetUniqueLoadID();
             if (pending != null)
-                return new Receipts.EffectEvidence { Wall = new Receipts.WallEffect { TargetId = id, RemovalId = pending.Id, DemolitionObserved = false } };
+                return new Receipts.EffectEvidence { Effect = new Receipts.WallEffect { TargetId = id, RemovalId = pending.Id, DemolitionObserved = false } };
             var chosen = candidate!;
             var before = chosen.Site.Snapshot?.Token ?? "";
             if (WallUpgradeSafety.Prepare(chosen.Record) != null) throw new InvalidOperationException("Wall removal site changed before designation.");
             var blocker = WallUpgradeSafety.Commit(chosen.Record);
             if (blocker != null) throw new InvalidOperationException(blocker);
-            var effect = new Receipts.WallEffect { TargetId = id, RemovalId = chosen.Record.Id, DemolitionObserved = false,
-                Site = new Receipts.SnapshotEvidence { EntityId = id, BeforeToken = before } };
             var after = chosen.Reread();
-            if (after?.Snapshot != null) effect.Site.AfterToken = after.Snapshot.Token;
-            return new Receipts.EffectEvidence { Wall = effect };
+            var effect = new Receipts.WallEffect { TargetId = id, RemovalId = chosen.Record.Id, DemolitionObserved = false,
+                Site = new Receipts.SnapshotEvidence { EntityId = id, BeforeToken = before, AfterToken = after?.Snapshot is { } afterSnapshot ? afterSnapshot.Token : null } };
+            return new Receipts.EffectEvidence { Effect = effect };
         }
     }
 }

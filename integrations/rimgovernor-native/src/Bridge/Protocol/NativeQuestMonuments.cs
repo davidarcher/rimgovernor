@@ -5,8 +5,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -33,13 +33,13 @@ namespace HomeBridge.BridgeTools
                 MapId = map.uniqueID, Packed = !offered && pack != null, Installed = marker.Spawned, Offered = offered, Complete = marker.complete,
                 DisallowedTicks = marker.ticksSinceDisallowedBuilding };
             if (offered)
-                row.SuppliedResources.Add(delivery[0].Part.Things.Where(t => t.def.category == ThingCategory.Item && !(t.GetInnerIfMinified() is MonumentMarker))
-                    .GroupBy(t => t.def).Select(g => new Obs.Quantity { DefName = g.Key.defName, Units = g.Sum(t => (long)t.stackCount) }));
+                row = row with { SuppliedResources = [.. delivery[0].Part.Things.Where(t => t.def.category == ThingCategory.Item && !(t.GetInnerIfMinified() is MonumentMarker))
+                    .GroupBy(t => t.def).Select(g => new Obs.Quantity { DefName = g.Key.defName, Units = g.Sum(t => (long)t.stackCount) })] };
             if (marker.Spawned)
             {
-                row.AllDone = marker.AllDone;
-                row.Cell = Cell(marker.Position);
-                if (marker.FirstDisallowedBuilding != null) row.DisallowedBuildingId = marker.FirstDisallowedBuilding.GetUniqueLoadID();
+                row = row with { AllDone = marker.AllDone };
+                row = row with { Cell = Cell(marker.Position) };
+                if (marker.FirstDisallowedBuilding != null) row = row with { DisallowedBuildingId = marker.FirstDisallowedBuilding.GetUniqueLoadID() };
             }
             else
             {
@@ -47,10 +47,10 @@ namespace HomeBridge.BridgeTools
                 foreach (var cell in map.AllCells.OrderBy(c => c.DistanceToSquared(map.Center)))
                 {
                     if (cell.Fogged(map) || !GenConstruct.CanPlaceBlueprintAt(marker.def, cell, Rot4.North, map, false, pack, marker).Accepted) continue;
-                    row.InstallCells.Add(Cell(cell));
+                    row = row with { InstallCells = [.. row.InstallCells, Cell(cell)] };
                     if (row.InstallCells.Count == 32) break;
                 }
-                row.ClearSite = row.InstallCells.Count > 0;
+                row = row with { ClearSite = row.InstallCells.Count > 0 };
             }
             var materials = new HashSet<ThingDef>();
             foreach (var entity in marker.sketch.Entities.OfType<SketchBuildable>())
@@ -58,26 +58,26 @@ namespace HomeBridge.BridgeTools
                 var piece = new Obs.QuestMonumentPiece { DefName = entity.Buildable.defName, Stuff = entity.Stuff?.defName ?? "",
                     Offset = Cell(entity.pos), Rotation = entity is SketchThing thing ? thing.rot.AsInt : Rot4.North.AsInt };
                 var stuffs = marker.AllowedStuffsFor(entity);
-                foreach (var cell in entity.OccupiedRect) piece.Footprint.Add(Cell(cell));
+                foreach (var cell in entity.OccupiedRect) piece = piece with { Footprint = [.. piece.Footprint, Cell(cell)] };
                 foreach (var stuff in stuffs) materials.Add(stuff);
                 if (!entity.Buildable.MadeFromStuff || entity.Stuff != null)
                     foreach (var cost in entity.Buildable.CostListAdjusted(entity.Stuff, false)) materials.Add(cost.thingDef);
                 if (marker.Spawned)
                 {
                     var cell = marker.Position + entity.pos;
-                    piece.Built = entity.IsSameSpawned(cell, map);
-                    piece.Queued = entity.IsSameSpawnedOrBlueprintOrFrame(cell, map);
-                    piece.Allowed = !entity.IsSpawningBlocked(cell, map) && BuildCopyCommandUtility.FindAllowedDesignator(entity.Buildable) != null
-                        && marker.AllowsPlacingBlueprint(entity.Buildable, cell, new Rot4(piece.Rotation), entity.Stuff);
+                    piece = piece with { Built = entity.IsSameSpawned(cell, map) };
+                    piece = piece with { Queued = entity.IsSameSpawnedOrBlueprintOrFrame(cell, map) };
+                    piece = piece with { Allowed = !entity.IsSpawningBlocked(cell, map) && BuildCopyCommandUtility.FindAllowedDesignator(entity.Buildable) != null
+                        && marker.AllowsPlacingBlueprint(entity.Buildable, cell, new Rot4(piece.Rotation.GetValueOrDefault()), entity.Stuff) };
                 }
-                row.Pieces.Add(piece);
+                row = row with { Pieces = [.. row.Pieces, piece] };
             }
             var haulers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState
                 && p.workSettings?.WorkIsActive(WorkTypeDefOf.Hauling) == true).ToArray();
-            row.AvailableResources.Add(map.listerThings.AllThings.Where(t => t.def.category == ThingCategory.Item && materials.Contains(t.def)
+            row = row with { AvailableResources = [.. map.listerThings.AllThings.Where(t => t.def.category == ThingCategory.Item && materials.Contains(t.def)
                     && !t.Position.Fogged(map) && !t.IsForbidden(Faction.OfPlayer)
                     && map.mapPawns.FreeColonistsSpawned.Any(p => p.CanReserveAndReach(t, PathEndMode.Touch, Danger.None)))
-                .GroupBy(t => t.def).Select(g => new Obs.Quantity { DefName = g.Key.defName, Units = g.Sum(t => (long)t.stackCount) }));
+                .GroupBy(t => t.def).Select(g => new Obs.Quantity { DefName = g.Key.defName, Units = g.Sum(t => (long)t.stackCount) })] };
             foreach (var item in map.listerThings.AllThings.Where(t => t.def.category == ThingCategory.Item && materials.Contains(t.def)
                 && !t.Position.Fogged(map) && !t.IsForbidden(Faction.OfPlayer) && !t.IsInAnyStorage()).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal))
             {
@@ -85,8 +85,8 @@ namespace HomeBridge.BridgeTools
                 foreach (var pawn in haulers)
                     if (pawn.CanReserveAndReach(item, PathEndMode.Touch, Danger.None)
                         && StoreUtility.TryFindBestBetterStoreCellFor(item, pawn, map, StoragePriority.Unstored, Faction.OfPlayer, out _))
-                        resource.EligibleHaulers.Add(pawn.GetUniqueLoadID());
-                row.Resources.Add(resource);
+                        resource = resource with { EligibleHaulers = [.. resource.EligibleHaulers, pawn.GetUniqueLoadID()] };
+                row = row with { Resources = [.. row.Resources, resource] };
             }
             return row;
         }

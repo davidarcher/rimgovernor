@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using RimWorld;
 using Verse;
-using Obs = RimGovernor.Protocol.Observations;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -20,13 +20,13 @@ namespace HomeBridge.BridgeTools
             var race = def.race;
             var row = new Obs.RaceFacts();
             foreach (var food in NativeFoodPolicy.Foods().Where(f => race.CanEverEat(f)))
-                row.EdibleDefs.Add(Named(food.defName));
-            row.TamenessCanDecay = TrainableUtility.TamenessCanDecay(def);
-            row.TamenessDecayPeriodTicks = TrainableUtility.DegradationPeriodTicks(def);
-            row.TameChanceFactor = TameChanceFactorCurve().Evaluate(def.GetStatValueAbstract(StatDefOf.Wildness));
+                row = row with { EdibleDefs = [.. row.EdibleDefs, Named(food.defName)] };
+            row = row with { TamenessCanDecay = TrainableUtility.TamenessCanDecay(def) };
+            row = row with { TamenessDecayPeriodTicks = TrainableUtility.DegradationPeriodTicks(def) };
+            row = row with { TameChanceFactor = TameChanceFactorCurve().Evaluate(def.GetStatValueAbstract(StatDefOf.Wildness)) };
             var stages = race.lifeStageAges;
             if (stages != null && stages.Count > 0)
-                row.AdultFeedPerDay = SimplifiedPastureNutritionSimulator.NutritionConsumedPerDay(def, stages[stages.Count - 1].def);
+                row = row with { AdultFeedPerDay = SimplifiedPastureNutritionSimulator.NutritionConsumedPerDay(def, stages[stages.Count - 1].def) };
             return row;
         }
 

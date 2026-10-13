@@ -6,14 +6,13 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
-using Common = RimGovernor.Protocol.Common;
-using Defs = RimGovernor.Protocol.Defs;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Defs = RimGovernor.Contracts.Wire.Defs;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -25,19 +24,19 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadStatus(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a StatusRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_status", request!, Obs.StatusRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.StatusReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Obs.StatusRequest>(ctx, "rimgovernor/observations_read_status", request!, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.StatusReply { Outcome = failure });
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadStatus(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.StatusReply HandleReadStatus(Obs.StatusRequest parsed)
         {
-            if (!ValidateStatus(parsed, out var invalidRequest)) return new Obs.StatusReply { Failure = invalidRequest };
+            if (!ValidateStatus(parsed, out var invalidRequest)) return new Obs.StatusReply { Outcome = invalidRequest };
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
-                return new Obs.StatusReply { Failure = failure };
-            try { return new Obs.StatusReply { Observed = Status(map, parsed, context) }; }
-            catch (Exception) { return new Obs.StatusReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native status facts could not be read completely.") }; }
+                return new Obs.StatusReply { Outcome = failure };
+            try { return new Obs.StatusReply { Outcome = Status(map, parsed, context) }; }
+            catch (Exception) { return new Obs.StatusReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native status facts could not be read completely.") }; }
         }
 
         [Tool("rimgovernor/observations_get_cells", Title = "Read map cells",
@@ -46,17 +45,17 @@ namespace HomeBridge.BridgeTools
         public async Task<object> GetCells(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a GetCellsRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_get_cells", request!, Obs.GetCellsRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.GetCellsReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Obs.GetCellsRequest>(ctx, "rimgovernor/observations_get_cells", request!, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.GetCellsReply { Outcome = failure });
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleGetCells(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.GetCellsReply HandleGetCells(Obs.GetCellsRequest parsed)
         {
-            if (!ValidateCells(parsed, out var invalidRequest)) return new Obs.GetCellsReply { Failure = invalidRequest };
+            if (!ValidateCells(parsed, out var invalidRequest)) return new Obs.GetCellsReply { Outcome = invalidRequest };
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
-                return new Obs.GetCellsReply { Failure = failure };
+                return new Obs.GetCellsReply { Outcome = failure };
             return ReadCells(map, parsed, context);
         }
 
@@ -65,16 +64,16 @@ namespace HomeBridge.BridgeTools
         internal static Obs.GetCellsReply ReadCells(Map map, Obs.GetCellsRequest parsed, Common.ObservationContext context)
         {
             try {
-                var min = parsed.Rectangle.Minimum; var max = parsed.Rectangle.Maximum;
-                if (!new IntVec3(min.X, 0, min.Z).InBounds(map) || !new IntVec3(max.X, 0, max.Z).InBounds(map)) return new Obs.GetCellsReply {
-                    Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Selected cell is outside the current map.") };
-                var read = CellGridEncoder.Read(map, min.X, min.Z, max.X - min.X + 1, max.Z - min.Z + 1);
+                var min = parsed.Rectangle?.Minimum ?? new Common.Cell(); var max = parsed.Rectangle?.Maximum ?? new Common.Cell();
+                if (!new IntVec3(min.X.GetValueOrDefault(), 0, min.Z.GetValueOrDefault()).InBounds(map) || !new IntVec3(max.X.GetValueOrDefault(), 0, max.Z.GetValueOrDefault()).InBounds(map)) return new Obs.GetCellsReply {
+                    Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Selected cell is outside the current map.") };
+                var read = CellGridEncoder.Read(map, min.X.GetValueOrDefault(), min.Z.GetValueOrDefault(), max.X.GetValueOrDefault() - min.X.GetValueOrDefault() + 1, max.Z.GetValueOrDefault() - min.Z.GetValueOrDefault() + 1);
                 var snapshot = new Obs.CellsSnapshot { Context = context,
                     MapSize = new Obs.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) },
                     Grid = CellGridEncoder.Encode(read, null) };
-                return new Obs.GetCellsReply { Observed = snapshot };
+                return new Obs.GetCellsReply { Outcome = snapshot };
             }
-            catch (Exception) { return new Obs.GetCellsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native cell facts could not be read completely.") }; }
+            catch (Exception) { return new Obs.GetCellsReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native cell facts could not be read completely.") }; }
         }
 
         [Tool("rimgovernor/observations_read_excavation_site", Title = "Read excavation site",
@@ -83,13 +82,13 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadExcavationSite(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be an ExcavationSiteRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_excavation_site", request!, Obs.ExcavationSiteRequest.Parser, out var parsed, out var failure)
-                || !NativeExcavationSite.Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Obs.ExcavationSiteRequest>(ctx, "rimgovernor/observations_read_excavation_site", request!, out var parsed, out var failure)
+                || !NativeExcavationSite.Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Outcome = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
-                    return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Failure = failure });
-                try { return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Observed = NativeExcavationSite.Read(map, parsed, context) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native excavation site facts could not be read completely.") }); }
+                    return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Outcome = failure });
+                try { return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Outcome = NativeExcavationSite.Read(map, parsed, context) }); }
+                catch (Exception) { return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native excavation site facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -102,15 +101,15 @@ namespace HomeBridge.BridgeTools
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity scope and finite nonnegative predator radius required.");
             return request != null && request.Scope?.ExpectedIdentity != null
-                && (!request.HasPredatorRadius || !double.IsNaN(request.PredatorRadius) && !double.IsInfinity(request.PredatorRadius) && request.PredatorRadius >= 0);
+                && (request.PredatorRadius is null || !double.IsNaN(request.PredatorRadius.GetValueOrDefault()) && !double.IsInfinity(request.PredatorRadius.GetValueOrDefault()) && request.PredatorRadius.GetValueOrDefault() >= 0);
         }
         internal static bool ValidateCells(Obs.GetCellsRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity and an inclusive rectangle of at most 1048576 cells required.");
             if (request == null || request.Scope?.ExpectedIdentity == null) return false;
             var min = request.Rectangle?.Minimum; var max = request.Rectangle?.Maximum;
-            if (min == null || max == null || !min.HasX || !min.HasZ || !max.HasX || !max.HasZ || min.X < 0 || min.Z < 0 || max.X < min.X || max.Z < min.Z) return false;
-            return ((long)max.X - min.X + 1) * ((long)max.Z - min.Z + 1) <= 1 << 20;
+            if (min == null || max == null || min.X is null || min.Z is null || max.X is null || max.Z is null || min.X.GetValueOrDefault() < 0 || min.Z.GetValueOrDefault() < 0 || max.X.GetValueOrDefault() < min.X.GetValueOrDefault() || max.Z.GetValueOrDefault() < min.Z.GetValueOrDefault()) return false;
+            return ((long)max.X.GetValueOrDefault() - min.X.GetValueOrDefault() + 1) * ((long)max.Z.GetValueOrDefault() - min.Z.GetValueOrDefault() + 1) <= 1 << 20;
         }
 
         // The status read as a bundle section: the same facts ReadStatus
@@ -125,35 +124,35 @@ namespace HomeBridge.BridgeTools
         private static Obs.StatusSnapshot Status(Map map, Obs.StatusRequest request, Common.ObservationContext context)
         {
             var result = new Obs.StatusSnapshot { Context = context };
-            var wantColonists = !request.HasColonists || request.Colonists;
-            var wantThreats = !request.HasThreats || request.Threats;
+            var wantColonists = request.Colonists is null || request.Colonists.GetValueOrDefault();
+            var wantThreats = request.Threats is null || request.Threats.GetValueOrDefault();
             if (!wantColonists && !wantThreats) {
-                result.Issues.Add(Issue("colonists", Common.UnavailableReason.NotRequested, "Colonist section not requested."));
-                result.Issues.Add(Issue("threats", Common.UnavailableReason.NotRequested, "Threat section not requested.")); return result;
+                result = result with { Issues = [.. result.Issues, Issue("colonists", Common.UnavailableReason.NotRequested, "Colonist section not requested.")] };
+                result = result with { Issues = [.. result.Issues, Issue("threats", Common.UnavailableReason.NotRequested, "Threat section not requested.")] }; return result;
             }
             var spawned = map.mapPawns.AllPawnsSpawned.ToList();
             var colonists = spawned.Where(p => !p.Dead && p.IsFreeColonist).ToList();
             // Colonists and threats are pawn table references.
-            if (wantColonists) foreach (var pawn in colonists) result.Colonists.Add(NativePawnObservationTools.Ref(pawn));
-            else result.Issues.Add(Issue("colonists", Common.UnavailableReason.NotRequested, "Colonist section not requested."));
-            if (!wantThreats) { result.Issues.Add(Issue("threats", Common.UnavailableReason.NotRequested, "Threat section not requested.")); return result; }
+            if (wantColonists) foreach (var pawn in colonists) result = result with { Colonists = [.. result.Colonists, NativePawnObservationTools.Ref(pawn)] };
+            else result = result with { Issues = [.. result.Issues, Issue("colonists", Common.UnavailableReason.NotRequested, "Colonist section not requested.")] };
+            if (!wantThreats) { result = result with { Issues = [.. result.Issues, Issue("threats", Common.UnavailableReason.NotRequested, "Threat section not requested.")] }; return result; }
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
-            var threats = new Obs.ThreatsSnapshot(); var radius = request.HasPredatorRadius ? request.PredatorRadius : 30;
+            var threats = new Obs.ThreatsSnapshot(); var radius = request.PredatorRadius is not null ? request.PredatorRadius.GetValueOrDefault() : 30;
             var colonistCells = colonists.Select(p => (p.Position.x, p.Position.z)).ToList();
             NativeThreatClassifier.Collect(spawned.Where(p => !p.Dead && !p.IsColonist).ToList(), pawn => ThreatFactsOf(pawn, player),
-                colonistCells, radius, NativePawnObservationTools.Ref, pawn => NativeRef.Thing(HuntedPawn(pawn)!), threats);
+                colonistCells, radius, NativePawnObservationTools.Ref, pawn => NativeRef.Thing(HuntedPawn(pawn)!), ref threats);
             foreach (var building in HostileBuildings(map, player)) {
                 var row = new Obs.ThreatBuilding { Building = Entity(building), HostileReason = "faction:"+building.Faction!.GetUniqueLoadID(),
                     HitPoints = building.HitPoints };
-                row.BuildingSnapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = row.Building.Id, Token = Token(context.Identity, building) };
-                if (colonists.Count > 0) row.NearestColonistDistance = colonists.Min(p => Math.Max(Math.Abs(p.Position.x-building.Position.x),Math.Abs(p.Position.z-building.Position.z)));
+                row = row with { BuildingSnapshot = new Obs.SnapshotRef { Context = context, EntityId = row.Building.Id, Token = Token(context.Identity, building) } };
+                if (colonists.Count > 0) row = row with { NearestColonistDistance = colonists.Min(p => Math.Max(Math.Abs(p.Position.x-building.Position.x),Math.Abs(p.Position.z-building.Position.z))) };
                 var rect = building.OccupiedRect();
-                row.Occupied = new Obs.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) };
-                if (building is Hive) row.Passive = !HiveEngaging(building, colonists, spawned, player);
-                else if (Dormant(building) is bool dormant) row.Passive = dormant;
-                threats.HostileBuildings.Add(row);
+                row = row with { Occupied = new Obs.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) } };
+                if (building is Hive) row = row with { Passive = !HiveEngaging(building, colonists, spawned, player) };
+                else if (Dormant(building) is bool dormant) row = row with { Passive = dormant };
+                threats = threats with { HostileBuildings = [.. threats.HostileBuildings, row] };
             }
-            result.Threats=threats; return result;
+            result = result with { Threats = threats }; return result;
         }
 
         // The cheap facts the threat filter branches on and its rows carry
@@ -225,13 +224,13 @@ namespace HomeBridge.BridgeTools
             if (queuedJobs < 0) throw new InvalidOperationException("Negative native queued job count.");
             var row = new Obs.JobEvidence { PlayerForced = job?.playerForced ?? false, QueuedJobs = (uint)queuedJobs };
             if (job != null) {
-                row.DefName = Identifier(job.def.defName);
-                row.LoadId = job.loadID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                row = row with { DefName = Identifier(job.def.defName) };
+                row = row with { LoadId = job.loadID.ToString(System.Globalization.CultureInfo.InvariantCulture) };
                 // The work giver's WorkTypeDef names the labor the job spends
                 // (a cut designation, a bill, a frame); a job no giver issued
                 // (a forced order, rest, a meal, wandering) carries none.
                 var workType = job.workGiverDef?.workType?.defName;
-                if (workType != null) row.WorkTypeDefName = Identifier(workType);
+                if (workType != null) row = row with { WorkTypeDefName = Identifier(workType) };
                 // targetA attributes the job to the thing or cell it works
                 //: a haul for one concern is no evidence for another.
                 // A thing target is its Ref and cell; an invalid target reads
@@ -240,11 +239,11 @@ namespace HomeBridge.BridgeTools
                 // targetA and works for the frame or bench in targetB.
                 var target = job.def == JobDefOf.HaulToContainer && job.targetB.HasThing ? job.targetB : job.targetA;
                 if (target.HasThing) {
-                    row.TargetA = new Obs.TargetRef { Entity = NativeRef.Thing(target.Thing) };
-                    if (target.Thing.Spawned) row.TargetACell = Cell(target.Thing.Position.x, target.Thing.Position.z);
-                } else if (target.IsValid) row.TargetA = new Obs.TargetRef { Cell = Cell(target.Cell.x, target.Cell.z) };
-                else row.TargetA = new Obs.TargetRef { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotApplicable, Detail = "Job has no target." } };
-            } else row.Issues.Add(Issue("current_job", Common.UnavailableReason.NotApplicable, "Pawn has no current job."));
+                    row = row with { TargetA = new Obs.TargetRef { Target = NativeRef.Thing(target.Thing) } };
+                    if (target.Thing.Spawned) row = row with { TargetACell = Cell(target.Thing.Position.x, target.Thing.Position.z) };
+                } else if (target.IsValid) row = row with { TargetA = new Obs.TargetRef { Target = Cell(target.Cell.x, target.Cell.z) } };
+                else row = row with { TargetA = new Obs.TargetRef { Target = new Common.Unavailable { Reason = Common.UnavailableReason.NotApplicable, Detail = "Job has no target." } } };
+            } else row = row with { Issues = [.. row.Issues, Issue("current_job", Common.UnavailableReason.NotApplicable, "Pawn has no current job.")] };
             return row;
         }
 
@@ -254,61 +253,61 @@ namespace HomeBridge.BridgeTools
                 Drafted=pawn.drafter?.Drafted == true, InBed=RestUtility.InBed(pawn), Colonist=pawn.IsColonist, FreeColonist=pawn.IsFreeColonist,
                 Prisoner=pawn.IsPrisoner, Humanlike=pawn.RaceProps.Humanlike, Animal=pawn.RaceProps.Animal, Mechanoid=pawn.RaceProps.IsMechanoid };
             var constructionCapable = ConstructionSkillGuard.Capability(pawn);
-            if (constructionCapable.HasValue) row.ConstructionCapable = constructionCapable.Value;
-            if (pawn.Faction != null) row.Faction=NativeRef.Of(Identifier(pawn.Faction.GetUniqueLoadID()));
+            if (constructionCapable.HasValue) row = row with { ConstructionCapable = constructionCapable.Value };
+            if (pawn.Faction != null) row = row with { Faction = NativeRef.Of(Identifier(pawn.Faction.GetUniqueLoadID())) };
             // Fog is the discovery fact, not a guess at reachability: a hostile
             // the colony has never seen is no emergency.
-            row.Fogged = pawn.Spawned && pawn.Map != null && pawn.Position.Fogged(pawn.Map);
+            row = row with { Fogged = pawn.Spawned && pawn.Map != null && pawn.Position.Fogged(pawn.Map) };
             var mental = pawn.MentalState;
             if (mental != null) {
-                row.MentalState=Identifier(mental.def.defName);
-                row.MentalStateIsAggro=mental.def.IsAggro;
-                row.MentalStateTicks=mental.Age;
+                row = row with { MentalState = Identifier(mental.def.defName) };
+                row = row with { MentalStateIsAggro = mental.def.IsAggro };
+                row = row with { MentalStateTicks = mental.Age };
             }
             // Inspiration: empty is a known "none"; a pawn without a
             // mind state handler leaves the field absent (unknown).
             if (pawn.mindState?.inspirationHandler != null)
-                row.Inspiration=pawn.mindState.inspirationHandler.CurStateDef?.defName ?? "";
+                row = row with { Inspiration = pawn.mindState.inspirationHandler.CurStateDef?.defName ?? "" };
             // Lord evidence is the game's own group-AI class names: a raid's job
             // (assault/siege/stage-then-attack) and its current toil (the sapper
             // and breach toils are distinct classes). No lord means no field.
             var lord = pawn.GetLord();
-            if (lord?.LordJob != null) { row.LordJobClass=Identifier(lord.LordJob.GetType().Name); if (lord.CurLordToil != null) row.LordToilClass=Identifier(lord.CurLordToil.GetType().Name); }
-            if (pawn.jobs?.jobQueue != null) row.Job=JobRow(pawn.CurJob, pawn.jobs.jobQueue.Count);
-            else row.Issues.Add(Issue("job",Common.UnavailableReason.NativeComponentMissing,"Pawn job tracker or queue is unavailable."));
-            row.Biotech = NativeBiotechFacts.Pawn(pawn);
-            row.Anomaly = NativeAnomalyFacts.Pawn(pawn);
-            NativePawnRoyalty.Apply(pawn, row);
-            NativePawnControlObservation.Apply(pawn, row, context);
-            var needs=new Obs.PawnNeeds(); row.Needs=needs;
-            if (pawn.needs?.mood != null) needs.Mood=Finite(pawn.needs.mood.CurLevelPercentage);
-            else needs.Issues.Add(Issue("mood",Common.UnavailableReason.NativeComponentMissing,"Mood tracker unavailable."));
+            if (lord?.LordJob != null) { row = row with { LordJobClass = Identifier(lord.LordJob.GetType().Name) }; if (lord.CurLordToil != null) row = row with { LordToilClass = Identifier(lord.CurLordToil.GetType().Name) }; }
+            if (pawn.jobs?.jobQueue != null) row = row with { Job = JobRow(pawn.CurJob, pawn.jobs.jobQueue.Count) };
+            else row = row with { Issues = [.. row.Issues, Issue("job",Common.UnavailableReason.NativeComponentMissing,"Pawn job tracker or queue is unavailable.")] };
+            row = row with { Biotech = NativeBiotechFacts.Pawn(pawn) };
+            row = row with { Anomaly = NativeAnomalyFacts.Pawn(pawn) };
+            row = NativePawnRoyalty.Apply(pawn, row);
+            row = NativePawnControlObservation.Apply(pawn, row, context);
+            var needs=new Obs.PawnNeeds(); row = row with { Needs = needs };
+            if (pawn.needs?.mood != null) needs = needs with { Mood = Finite(pawn.needs.mood.CurLevelPercentage) };
+            else needs = needs with { Issues = [.. needs.Issues, Issue("mood",Common.UnavailableReason.NativeComponentMissing,"Mood tracker unavailable.")] };
             if (detail) {
-                if(pawn.needs?.food != null) { needs.Food=Finite(pawn.needs.food.CurLevelPercentage); needs.HungerCategory=(Defs.HungerCategory)(int)pawn.needs.food.CurCategory; }
-                else needs.Issues.Add(Issue("food",Common.UnavailableReason.NativeComponentMissing,"Food tracker unavailable."));
-                if(pawn.needs?.rest != null) needs.Rest=Finite(pawn.needs.rest.CurLevelPercentage); else needs.Issues.Add(Issue("rest",Common.UnavailableReason.NativeComponentMissing,"Rest tracker unavailable."));
-                if(pawn.needs?.joy != null) needs.Joy=Finite(pawn.needs.joy.CurLevelPercentage); else needs.Issues.Add(Issue("joy",Common.UnavailableReason.NativeComponentMissing,"Joy tracker unavailable."));
+                if(pawn.needs?.food != null) { needs = needs with { Food = Finite(pawn.needs.food.CurLevelPercentage) }; needs = needs with { HungerCategory = (Defs.HungerCategory)(int)pawn.needs.food.CurCategory }; }
+                else needs = needs with { Issues = [.. needs.Issues, Issue("food",Common.UnavailableReason.NativeComponentMissing,"Food tracker unavailable.")] };
+                if(pawn.needs?.rest != null) needs = needs with { Rest = Finite(pawn.needs.rest.CurLevelPercentage) }; else needs = needs with { Issues = [.. needs.Issues, Issue("rest",Common.UnavailableReason.NativeComponentMissing,"Rest tracker unavailable.")] };
+                if(pawn.needs?.joy != null) needs = needs with { Joy = Finite(pawn.needs.joy.CurLevelPercentage) }; else needs = needs with { Issues = [.. needs.Issues, Issue("joy",Common.UnavailableReason.NativeComponentMissing,"Joy tracker unavailable.")] };
             }
             // Psyfocus: absent without Royalty or a psylink.
             if (ModsConfig.RoyaltyActive && pawn.psychicEntropy != null) { var psylink=pawn.GetPsylinkLevel();
-                if (psylink > 0) { needs.Psyfocus=Finite(pawn.psychicEntropy.CurrentPsyfocus); needs.PsyfocusTarget=Finite(pawn.psychicEntropy.TargetPsyfocus); needs.PsylinkLevel=psylink; } }
+                if (psylink > 0) { needs = needs with { Psyfocus = Finite(pawn.psychicEntropy.CurrentPsyfocus) }; needs = needs with { PsyfocusTarget = Finite(pawn.psychicEntropy.TargetPsyfocus) }; needs = needs with { PsylinkLevel = psylink }; } }
             var breaker=pawn.mindState?.mentalBreaker;
-            if(breaker != null) { needs.BreakThresholdMinor=Finite(breaker.BreakThresholdMinor); needs.BreakThresholdMajor=Finite(breaker.BreakThresholdMajor); needs.BreakThresholdExtreme=Finite(breaker.BreakThresholdExtreme);
-                if(needs.HasMood) needs.BreakRisk=needs.Mood<=needs.BreakThresholdExtreme?Obs.BreakRisk.Extreme:needs.Mood<=needs.BreakThresholdMajor?Obs.BreakRisk.Major:needs.Mood<=needs.BreakThresholdMinor?Obs.BreakRisk.Minor:Obs.BreakRisk.None; }
-            else needs.Issues.Add(Issue("break_thresholds",Common.UnavailableReason.NativeComponentMissing,"Mental breaker unavailable."));
-            if(pawn.health?.summaryHealth == null || pawn.health.hediffSet == null) row.Issues.Add(Issue("health",Common.UnavailableReason.NativeComponentMissing,"Health tracker unavailable."));
+            if(breaker != null) { needs = needs with { BreakThresholdMinor = Finite(breaker.BreakThresholdMinor) }; needs = needs with { BreakThresholdMajor = Finite(breaker.BreakThresholdMajor) }; needs = needs with { BreakThresholdExtreme = Finite(breaker.BreakThresholdExtreme) };
+                if(needs.Mood is not null) needs = needs with { BreakRisk = needs.Mood.GetValueOrDefault()<=needs.BreakThresholdExtreme.GetValueOrDefault()?Obs.BreakRisk.Extreme:needs.Mood.GetValueOrDefault()<=needs.BreakThresholdMajor.GetValueOrDefault()?Obs.BreakRisk.Major:needs.Mood.GetValueOrDefault()<=needs.BreakThresholdMinor.GetValueOrDefault()?Obs.BreakRisk.Minor:Obs.BreakRisk.None }; }
+            else needs = needs with { Issues = [.. needs.Issues, Issue("break_thresholds",Common.UnavailableReason.NativeComponentMissing,"Mental breaker unavailable.")] };
+            if(pawn.health?.summaryHealth == null || pawn.health.hediffSet == null) row = row with { Issues = [.. row.Issues, Issue("health",Common.UnavailableReason.NativeComponentMissing,"Health tracker unavailable.")] };
             else {
                 var health=new Obs.PawnHealth { SummaryFraction=Finite(pawn.health.summaryHealth.SummaryHealthPercent), NeedsTend=pawn.health.HasHediffsNeedingTend(false), BleedRatePerDay=Finite(pawn.health.hediffSet.BleedRateTotal) };
-                health.Bleeding=health.BleedRatePerDay>0;
+                health = health with { Bleeding = health.BleedRatePerDay.GetValueOrDefault()>0 };
                 if(detail) {
                     foreach(var h in pawn.health.hediffSet.hediffs) {
                         var condition=new Obs.Hediff { DefName=Identifier(h.def.defName), Severity=Finite(h.Severity), Visible=h.Visible };
-                        if(h.Part != null) { condition.PartDefName=Identifier(h.Part.def.defName); condition.PartIndex=pawn.RaceProps.body.AllParts.IndexOf(h.Part); }
-                        health.Hediffs.Add(condition);
+                        if(h.Part != null) { condition = condition with { PartDefName = Identifier(h.Part.def.defName) }; condition = condition with { PartIndex = pawn.RaceProps.body.AllParts.IndexOf(h.Part) }; }
+                        health = health with { Hediffs = [.. health.Hediffs, condition] };
                     }
-                    health.HediffCompleteness=Complete(health.Hediffs.Count);
-                } else health.Issues.Add(Issue("hediffs",Common.UnavailableReason.NotRequested,"Hediff detail not requested."));
-                row.Health=health;
+                    health = health with { HediffCompleteness = Complete(health.Hediffs.Count) };
+                } else health = health with { Issues = [.. health.Issues, Issue("hediffs",Common.UnavailableReason.NotRequested,"Hediff detail not requested.")] };
+                row = row with { Health = health };
             }
             return row;
         }
@@ -316,20 +315,21 @@ namespace HomeBridge.BridgeTools
         {
             var row = new Obs.EntityRef { Id=Identifier(thing.GetUniqueLoadID()), DefName=Identifier(thing.def.defName), Label=Diagnostic(thing.LabelCap) };
             // A held thing (gear, a buried corpse) is at its holder's cell.
-            if (thing.MapHeld != null) { row.MapId=thing.MapHeld.uniqueID; row.Position=Cell(thing.PositionHeld.x,thing.PositionHeld.z); }
+            if (thing.MapHeld != null) { row = row with { MapId = thing.MapHeld.uniqueID }; row = row with { Position = Cell(thing.PositionHeld.x,thing.PositionHeld.z) }; }
             return row;
         }
         // Self-computed, self-checked CAS token for one thing; the hash input
         // is a wire contract (observation rows and combat orders compare it).
-        internal static string Token(Common.Identity identity, Thing thing)
+        internal static string Token(Common.Identity? identity, Thing thing)
         {
+            identity ??= new Common.Identity();
             var rot = thing.TryGetComp<CompRottable>();
             var corpse = thing as Corpse;
             using (var bytes = new System.IO.MemoryStream())
             {
                 using (var writer = new System.IO.BinaryWriter(bytes, Encoding.UTF8, true))
                 {
-                    writer.Write(identity.ColonyId); writer.Write(identity.LoadToken); writer.Write(identity.MapId);
+                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId.GetValueOrDefault());
                     writer.Write(thing.GetUniqueLoadID()); writer.Write(thing.def.defName);
                     writer.Write(thing.Position.x); writer.Write(thing.Position.z); writer.Write(thing.stackCount);
                     writer.Write(thing.IsForbidden(Faction.OfPlayer)); writer.Write(rot?.Stage.ToString() ?? "");
@@ -348,35 +348,36 @@ namespace HomeBridge.BridgeTools
         {
             var entity = Entity(thing);
             var row = new Obs.Thing {
-                Thing_ = entity, Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = entity.Id, Token = Token(context.Identity, thing) }, StackCount = thing.stackCount,
+                Entity = entity, Snapshot = new Obs.SnapshotRef { Context = context, EntityId = entity.Id, Token = Token(context.Identity, thing) }, StackCount = thing.stackCount,
                 Forbidden = thing.IsForbidden(Faction.OfPlayer),
             };
             // The stuff a thing is made of keys its catalog stat row (def, stuff).
-            if (thing.Stuff != null) row.Stuff = Identifier(thing.Stuff.defName);
+            if (thing.Stuff != null) row = row with { Stuff = Identifier(thing.Stuff.defName) };
             // A plant's growth marks the cell sown.
-            if (thing is Plant plant) { row.Growth = Finite(plant.Growth); row.HarvestableNow = plant.HarvestableNow; }
-            if (thing.def.category == ThingCategory.Item && (thing is Corpse || thing.def.IsIngestible)) FoodFacts(thing, row);
+            if (thing is Plant plant) { row = row with { Growth = Finite(plant.Growth) }; row = row with { HarvestableNow = plant.HarvestableNow }; }
+            if (thing.def.category == ThingCategory.Item && (thing is Corpse || thing.def.IsIngestible)) row = FoodFacts(thing, row);
             return row;
         }
 
         // The food facts of an ingestible item or a corpse.
-        private static void FoodFacts(Thing thing, Obs.Thing row)
+        private static Obs.Thing FoodFacts(Thing thing, Obs.Thing row)
         {
             var rot = thing.TryGetComp<CompRottable>();
-            if (rot != null && rot.Active) row.RotTicks = Math.Max(0, rot!.TicksUntilRotAtCurrentTemp);
-            row.TemperatureC = Finite(thing.AmbientTemperature);
+            if (rot != null && rot.Active) row = row with { RotTicks = Math.Max(0, rot!.TicksUntilRotAtCurrentTemp) };
+            row = row with { TemperatureC = Finite(thing.AmbientTemperature) };
             if (thing.Spawned) {
-                row.Roofed = thing.Position.Roofed(thing.Map);
+                row = row with { Roofed = thing.Position.Roofed(thing.Map) };
                 var room = thing.Position.GetRoom(thing.Map);
-                if (room != null) row.Room = NativeRef.Room(room);
+                if (room != null) row = row with { Room = NativeRef.Room(room) };
             }
-            row.IsHumanMeat = HumanFoodFacts.ContainsHumanMeat(thing);
-            row.Corpse = thing is Corpse;
+            row = row with { IsHumanMeat = HumanFoodFacts.ContainsHumanMeat(thing) };
+            row = row with { Corpse = thing is Corpse };
             if (thing is Corpse corpse) {
-                row.MeatAmount = Finite(Math.Max(0, corpse.InnerPawn.GetStatValue(StatDefOf.MeatAmount)));
-                row.BodySize = Finite(corpse.InnerPawn.BodySize);
-                row.TileFootprint = 1;
+                row = row with { MeatAmount = Finite(Math.Max(0, corpse.InnerPawn.GetStatValue(StatDefOf.MeatAmount))) };
+                row = row with { BodySize = Finite(corpse.InnerPawn.BodySize) };
+                row = row with { TileFootprint = 1 };
             }
+            return row;
         }
 
         // The bundle's things table: the rows of things, each once,
@@ -385,7 +386,7 @@ namespace HomeBridge.BridgeTools
         {
             var result = new Obs.ThingsSnapshot { Context = context };
             foreach (var thing in things.GroupBy(t => t.GetUniqueLoadID()).Select(g => g.First()).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal))
-                result.Things.Add(ThingRow(thing, context));
+                result = result with { Things = [.. result.Things, ThingRow(thing, context)] };
             return result;
         }
 

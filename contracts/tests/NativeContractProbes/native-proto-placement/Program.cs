@@ -7,7 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 
-// Exercises the actual compiled production mapper and official protobuf classes.
+// Exercises the actual compiled production mapper and the Contracts wire records.
 // No game is created, no static definition database is seeded, no native outcome claimed.
 internal static class NativeProtoPlacementProbe
 {
@@ -21,24 +21,23 @@ internal static class NativeProtoPlacementProbe
     private static void Assert(bool condition, string detail) { if (!condition) throw new InvalidOperationException(detail); checks++; }
     private static object Wire(string name, string json)
     {
-        var type = AppDomain.CurrentDomain.GetAssemblies().Select(a => a.GetType(name)).First(t => t != null)!;
-        var parser = type.GetProperty("Parser")!.GetValue(null)!;
-        return parser.GetType().GetMethod("ParseJson")!.Invoke(parser, new object[] { json })!;
+        var type = typeof(RimGovernor.Contracts.Wire.WireJson).Assembly.GetType(name, true)!;
+        return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize", new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
     }
     private static bool Valid(string json)
     {
-        var request = Wire("RimGovernor.Protocol.Placement.PlacementRequest", json);
+        var request = Wire("RimGovernor.Contracts.Wire.Placement.PlacementRequest", json);
         var arguments = new[] { request, null };
         return (bool)mapper.GetMethod("Validate", Members)!.Invoke(null, arguments)!;
     }
     private static void ParserRefuses(string json)
     {
-        try { Wire("RimGovernor.Protocol.Placement.PlacementRequest", json); }
+        try { Wire("RimGovernor.Contracts.Wire.Placement.PlacementRequest", json); }
         catch (TargetInvocationException error)
         {
             var kind = error.InnerException?.GetType().FullName;
-            Assert(kind == "Google.Protobuf.InvalidProtocolBufferException" || kind == "Google.Protobuf.InvalidJsonException",
-                "Official parser raises a classified boundary exception: " + kind);
+            Assert(error.InnerException is System.Text.Json.JsonException,
+                "Wire decoder raises a classified boundary exception: " + kind);
             return;
         }
         throw new InvalidOperationException("Malformed request was parsed: " + json);
@@ -86,36 +85,38 @@ internal static class NativeProtoPlacementProbe
         foreach (var missing in new[] { "\"defName\":\"SleepingSpot\",", "\"x\":0,", "\"z\":0,", ",\"rotation\":\"ROTATION_NORTH\"" })
             Assert(!Valid(request(row.Replace(missing, ""))), "required candidate field " + missing);
         Assert(!Valid(request(row.Replace("ROTATION_NORTH", "ROTATION_UNSPECIFIED"))), "zero rotation refused");
-        Assert(!Valid(request(row.Replace("\"ROTATION_NORTH\"", "999"))), "unknown numeric rotation refused");
         Assert(!Valid(request(row.Replace("SleepingSpot", new string('x', 257)))), "identifier byte limit");
         Assert(!Valid(request(row.Replace("SleepingSpot", " "))), "blank definition refused");
         foreach (var malformed in new[] { "{", "[]", "{\"unknown\":1}", "{\"placements\":{}}",
             request(row.Replace("\"x\":0", "\"x\":2147483648")),
             request(row.Replace("\"x\":0", "\"x\":[]")),
+            // an enum is only ever its wire name: a bare number is refused by the decoder (it parsed and was refused by Validate under protobuf)
+            request(row.Replace("\"ROTATION_NORTH\"", "999")),
             request(row.Replace("ROTATION_NORTH", "ROTATION_FUTURE")) }) ParserRefuses(malformed);
-        Assert(!Valid("{" + identity + ",\"placements\":null}"), "null repeated field has no candidates");
+        // a JSON null list parsed to no candidates under protobuf; the wire decoder refuses it before Validate runs
+        ParserRefuses("{" + identity + ",\"placements\":null}");
         Assert(!Valid(request(row.Replace("\"x\":0", "\"x\":null"))), "null coordinate does not have presence");
-        var context = Wire("RimGovernor.Protocol.Common.ObservationContext", "{" + identity + ",\"tick\":\"0\"}");
+        var context = Wire("RimGovernor.Contracts.Wire.Common.ObservationContext", "{" + identity + ",\"tick\":0}");
         var domain = Evaluation();
         var projected = Map(domain, context);
-        Assert(Get(projected, "OutcomeCase").ToString() == "Evaluated", "false native placement is evaluated");
-        var evaluated = Get(projected, "Evaluated");
-        Assert((bool)Get(evaluated, "HasCanPlace") && !(bool)Get(evaluated, "CanPlace"), "explicit false preserved");
-        Assert(Get(Get(evaluated, "Materials"), "AvailabilityCase").ToString() == "Known", "complete empty material list is known");
+        Assert(Get(projected, "Outcome").GetType().Name == "EvaluatedCase", "false native placement is evaluated");
+        var evaluated = Get(Get(projected, "Outcome"), "Evaluated");
+        Assert(Get(evaluated, "CanPlace") is false, "explicit false preserved");
+        Assert(Get(Get(evaluated, "Materials"), "Availability").GetType().Name == "KnownCase", "complete empty material list is known");
         Set(Get(domain, "materials"), "unreadable", true);
-        Assert(Get(Get(Get(Map(domain, context), "Evaluated"), "Materials"), "AvailabilityCase").ToString() == "Unavailable", "unreadable materials remain unavailable");
+        Assert(Get(Get(Get(Get(Map(domain, context), "Outcome"), "Evaluated"), "Materials"), "Availability").GetType().Name == "UnavailableCase", "unreadable materials remain unavailable");
         var rotation = ((IList)Get(domain, "rotations"))[0]!;
         ((IList)Get(rotation, "occupiedCells")).Clear();
-        Assert(Get(Map(domain, context), "OutcomeCase").ToString() == "Failure", "empty footprint fails candidate");
+        Assert(Get(Get(Map(domain, context), "Outcome"), "Failure") != null, "empty footprint fails candidate");
         domain = Evaluation();
         Set(domain, "passability", "future-native-value");
-        Assert(Get(Map(domain, context), "OutcomeCase").ToString() == "Failure", "unknown passability fails candidate");
+        Assert(Get(Get(Map(domain, context), "Outcome"), "Failure") != null, "unknown passability fails candidate");
         domain = Evaluation();
         ((IList)Get(domain, "rotations")).Add(((IList)Get(domain, "rotations"))[0]);
-        Assert(Get(Map(domain, context), "OutcomeCase").ToString() == "Failure", "duplicate rotations fail candidate");
-        var oversized = Wire("RimGovernor.Protocol.Placement.PlacementReply", "{\"failure\":{\"code\":\"FAILURE_CODE_UNAVAILABLE\",\"detail\":\"" + new string('x', 1024 * 1024) + "\"}}");
+        Assert(Get(Get(Map(domain, context), "Outcome"), "Failure") != null, "duplicate rotations fail candidate");
+        var oversized = Wire("RimGovernor.Contracts.Wire.Placement.PlacementReply", "{\"outcome\":{\"type\":\"failure\",\"value\":{\"code\":\"FAILURE_CODE_UNAVAILABLE\",\"detail\":\"" + new string('x', 1024 * 1024) + "\"}}}");
         var bounded = mapper.GetMethod("Bounded", Members)!.Invoke(null, new[] { oversized })!;
-        Assert(Get(Get(bounded, "Failure"), "Code").ToString() == "CapacityExhausted", "oversized result explicitly fails");
+        Assert(Get(Get(Get(bounded, "Outcome"), "Failure"), "Code").ToString() == "CapacityExhausted", "oversized result explicitly fails");
         CheckSdk(directories, bounded, request(row));
         Console.WriteLine(checks + " compiled placement protocol assertions passed; no gameplay assertions.");
         return 0;
@@ -142,12 +143,12 @@ internal static class NativeProtoPlacementProbe
             method, new Dictionary<string, object>(), null, CancellationToken.None })!;
         Assert(missing[2] == null, "Actual SDK passes missing optional CLR request to validation");
         var boundary = bridge.GetType("HomeBridge.BridgeTools.ProtoBoundary", true)!;
-        var envelope = boundary.GetMethod("Encode", Members)!.Invoke(null, new[] { reply })!;
+        var envelope = boundary.GetMethod("Encode", Members)!.MakeGenericMethod(reply.GetType()).Invoke(null, new object?[] { reply, false })!;
         var normalize = server.GetType("RimGovernor.Host.LegacyToolExecution", true)!.GetMethod("ToDictionary", Members)!;
         var normalized = (IDictionary)normalize.Invoke(null, new[] { envelope })!;
         Assert(normalized.Count == 1 && normalized.Contains("payload") && normalized["payload"] is string,
             "Actual SDK retains sole ProtoJSON payload field, no reflected generated CLR union");
-        var decoded = Wire("RimGovernor.Protocol.Placement.PlacementReply", (string)normalized["payload"]!);
-        Assert(Get(Get(decoded, "Failure"), "Code").ToString() == "CapacityExhausted", "SDK payload roundtrips with official parser");
+        var decoded = Wire("RimGovernor.Contracts.Wire.Placement.PlacementReply", (string)normalized["payload"]!);
+        Assert(Get(Get(Get(decoded, "Outcome"), "Failure"), "Code").ToString() == "CapacityExhausted", "SDK payload roundtrips with the wire decoder");
     }
 }

@@ -4,9 +4,9 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {

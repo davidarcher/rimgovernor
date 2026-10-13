@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Defs = RimGovernor.Protocol.Defs;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Defs = RimGovernor.Contracts.Wire.Defs;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 using static HomeBridge.BridgeTools.NativePawnObservationTools;
 
 namespace HomeBridge.BridgeTools
@@ -19,8 +19,8 @@ namespace HomeBridge.BridgeTools
             long Lap() { var now = System.Diagnostics.Stopwatch.GetTimestamp(); var spent = now - mark; mark = now; return spent; }
             using var memo = new CensusMemo();
             var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
-            var result = new Obs.GearSnapshot { Context = context.Clone()};
-            ReadClimate(map, result);
+            var result = new Obs.GearSnapshot { Context = context};
+            result = ReadClimate(map, result);
             var catalog = Catalog();
             var apparelOnMap = map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>().ToList();
             var byId = new Dictionary<string, Apparel>();
@@ -33,10 +33,11 @@ namespace HomeBridge.BridgeTools
                     Quality = a.TryGetQuality(out var q) ? (int)q : 2,
                     Band = a.def.useHitPoints ? Math.Min(9, (int)(10f * a.HitPoints / a.MaxHitPoints)) : 9 })
                 .OrderBy(g => g.Key.Def).ThenBy(g => g.Key.Stuff).ThenBy(g => g.Key.Quality).ThenBy(g => g.Key.Band).ToList();
-            result.StoredApparel = new Obs.GearStorage { };
+            var storedRows = new List<Obs.GearStock>();
             foreach (var group in stored)
-                result.StoredApparel.Rows.Add(new Obs.GearStock { DefName = group.Key.Def, Stuff = group.Key.Stuff,
+                storedRows.Add(new Obs.GearStock { DefName = group.Key.Def, Stuff = group.Key.Stuff,
                     Quality = group.Key.Quality, HpBand = group.Key.Band, Count = group.Sum(a => a.stackCount) });
+            result = result with { StoredApparel = new Obs.GearStorage { Rows = [.. storedRows] } };
             ObservationWork.Detail("cf.gear.stored", Lap());
             // The census carries each candidate's supply token the way the
             // supply census does; the WEAR pawn order
@@ -50,7 +51,7 @@ namespace HomeBridge.BridgeTools
                 var equipment = Equipment(pawn); equipTicks += Lap();
                 var row = new Obs.GearLoadout {
                     Pawn = NativeRef.Thing(pawn),
-                    Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = Id(pawn.GetUniqueLoadID()), Token = token },
+                    Snapshot = new Obs.SnapshotRef { Context = context, EntityId = Id(pawn.GetUniqueLoadID()), Token = token },
                     ComfortableMinC = comfyMin,
                     ComfortableMaxC = comfyMax,
                     ApparelPolicy = policy,
@@ -60,9 +61,9 @@ namespace HomeBridge.BridgeTools
                     Gender = (Defs.Gender)(int)pawn.gender,
                     DevelopmentalStage = (Defs.DevelopmentalStage)(int)pawn.DevelopmentalStage
                 };
-                row.BodyPartGroups.Add(PresentGroups(pawn));
+                row = row with { BodyPartGroups = [.. PresentGroups(pawn)] };
                 rowTicks += Lap();
-                if (refusal != null) row.Blocker = Text(refusal);
+                if (refusal != null) row = row with { Blocker = Text(refusal) };
                 if (refusal == null) {
                     // Every eligible loose item is offered, best gain first
                     // (truncation biases every pawn toward the same few shirts).
@@ -89,12 +90,12 @@ namespace HomeBridge.BridgeTools
                         return found;
                     });
                     foreach (var candidate in candidates.OrderByDescending(c => c.Value).ThenBy(c => c.Key.thingIDNumber))
-                        row.Candidates.Add(new Obs.GearCandidate { Item = Candidate(candidate.Key, context), Gain = Number(candidate.Value) });
+                        row = row with { Candidates = [.. row.Candidates, new Obs.GearCandidate { Item = Candidate(candidate.Key, context), Gain = Number(candidate.Value) }] };
                 }
                 Lap();
-                row.LoadoutModel = Model(map, pawn, row, catalog, byId, billOptions);
+                row = row with { LoadoutModel = Model(map, pawn, row, catalog, byId, billOptions) };
                 modelTicks += Lap();
-                result.Pawns.Add(row);
+                result = result with { Pawns = [.. result.Pawns, row] };
             }
             ObservationWork.Detail("cf.gear.rows", rowTicks);
             ObservationWork.Detail("cf.gear.available", availTicks);
@@ -129,23 +130,23 @@ namespace HomeBridge.BridgeTools
         {
             var model = new Obs.GearLoadoutModel();
             if (pawn.story?.traits != null)
-                foreach (var trait in pawn.story.traits.allTraits) model.Traits.Add(new Obs.Trait { DefName = Id(trait.def.defName), Degree = trait.Degree });
+                foreach (var trait in pawn.story.traits.allTraits) model = model with { Traits = [.. model.Traits, new Obs.Trait { DefName = Id(trait.def.defName), Degree = trait.Degree }] };
             if (pawn.apparel != null)
                 foreach (var worn in pawn.apparel.WornApparel) {
                     var option = Physical(worn, "worn");
-                    option.Locked = pawn.apparel.IsLocked(worn) || pawn.outfits?.forcedHandler.AllowedToAutomaticallyDrop(worn) == false;
-                    model.Worn.Add(option);
+                    option = option with { Locked = pawn.apparel.IsLocked(worn) || pawn.outfits?.forcedHandler.AllowedToAutomaticallyDrop(worn) == false };
+                    model = model with { Worn = [.. model.Worn, option] };
                 }
             foreach (var candidate in row.Candidates)
-                if (things.TryGetValue(candidate.Item.Thing.Id, out var apparel))
-                    model.Options.Add(Physical(apparel, apparel.IsInValidStorage() ? "stored" : "loose"));
+                if (things.TryGetValue((candidate.Item?.Thing?.Id ?? ""), out var apparel))
+                    model = model with { Options = [.. model.Options, Physical(apparel, apparel.IsInValidStorage() ? "stored" : "loose")] };
             foreach (var recipe in catalog) {
                 var def = recipe.ProducedThingDef;
                 if (!def.apparel.CorrectGenderForWearing(pawn.gender) || !def.apparel.developmentalStageFilter.Has(pawn.DevelopmentalStage)
                     || !ApparelUtility.HasPartsToWear(pawn, def)) continue;
                 // A bill option does not depend on the pawn: built once per census.
                 if (!billOptions.TryGetValue(recipe, out var option)) billOptions[recipe] = option = BillOption(map, recipe);
-                if (option != null) model.Options.Add(option.Clone());
+                if (option != null) model = model with { Options = [.. model.Options, option] };
             }
             return model;
         }
@@ -163,9 +164,9 @@ namespace HomeBridge.BridgeTools
         private static Obs.GearLoadoutOption Physical(Apparel apparel, string source)
         {
             var row = Option(apparel.GetUniqueLoadID(), apparel.def, apparel.Stuff, source);
-            if (apparel.TryGetQuality(out var quality)) row.Quality = (int)quality;
-            if (apparel.def.useHitPoints) row.Condition = Number(Math.Min(1.0, (double)apparel.HitPoints / apparel.MaxHitPoints));
-            row.Tainted = apparel.WornByCorpse;
+            if (apparel.TryGetQuality(out var quality)) row = row with { Quality = (int)quality };
+            if (apparel.def.useHitPoints) row = row with { Condition = Number(Math.Min(1.0, (double)apparel.HitPoints / apparel.MaxHitPoints)) };
+            row = row with { Tainted = apparel.WornByCorpse };
             return row;
         }
 
@@ -175,24 +176,24 @@ namespace HomeBridge.BridgeTools
         {
             var row = new Obs.GearLoadoutOption { Id = Id(id), DefName = Id(def.defName), Source = source, Quality = (int)QualityCategory.Normal,
                 Condition = 1 };
-            if (stuff != null) row.Stuff = Id(stuff.defName);
+            if (stuff != null) row = row with { Stuff = Id(stuff.defName) };
             return row;
         }
 
-        private static void ReadClimate(Map map, Obs.GearSnapshot result)
+        private static Obs.GearSnapshot ReadClimate(Map map, Obs.GearSnapshot result)
         {
             var longitude = Find.WorldGrid.LongLatOf(map.Tile).x;
             var offset = GenDate.LocalTicksOffsetFromLongitude(longitude);
             var localTicks = (long)GenTicks.TicksAbs + offset;
-            result.CurrentTwelfth = (uint)GenDate.Twelfth(GenTicks.TicksAbs, longitude);
-            result.TicksToNextTwelfth = GenDate.TicksPerTwelfth
-                - (int)((localTicks % GenDate.TicksPerTwelfth + GenDate.TicksPerTwelfth) % GenDate.TicksPerTwelfth);
+            result = result with { CurrentTwelfth = (uint)GenDate.Twelfth(GenTicks.TicksAbs, longitude) };
+            result = result with { TicksToNextTwelfth = GenDate.TicksPerTwelfth
+                - (int)((localTicks % GenDate.TicksPerTwelfth + GenDate.TicksPerTwelfth) % GenDate.TicksPerTwelfth) };
             // Sample the middle of each local-calendar twelfth. Seasonal
             // temperature excludes weather and indoor heating; Go applies the
             // bounded weather row only while the condition remains active.
             for (var twelfth = 0; twelfth < GenDate.TwelfthsPerYear; twelfth++) {
                 var sampleTick = (int)(twelfth * GenDate.TicksPerTwelfth + GenDate.TicksPerTwelfth / 2 - offset);
-                result.OutdoorTemperatureByTwelfthC.Add(GenTemperature.GetTemperatureFromSeasonAtTile(sampleTick, map.Tile));
+                result = result with { OutdoorTemperatureByTwelfthC = [.. result.OutdoorTemperatureByTwelfthC, GenTemperature.GetTemperatureFromSeasonAtTile(sampleTick, map.Tile)] };
             }
             var conditions = new List<GameCondition>();
             map.gameConditionManager.GetAllGameConditionsAffectingMap(map, conditions);
@@ -202,35 +203,36 @@ namespace HomeBridge.BridgeTools
             var weather = conditions
                 .Where(c => c.TemperatureOffset() != 0f && (c.Permanent || c.TicksLeft > 0))
                 .OrderByDescending(c => Math.Abs(c.TemperatureOffset())).ThenBy(c => c.uniqueID).FirstOrDefault();
-            if (weather != null) result.ActiveWeather = new Obs.GearWeatherCondition {
+            if (weather != null) result = result with { ActiveWeather = new Obs.GearWeatherCondition {
                 DefName = weather.def.defName,
                 RemainingTicks = weather.Permanent ? -1 : Math.Max(0, weather.TicksLeft),
                 TemperatureOffsetC = weather.TemperatureOffset()
-            };
+            } };
+            return result;
         }
 
         private static Obs.PawnEquipment Equipment(Pawn pawn)
         {
             var result = new Obs.PawnEquipment();
-            if (pawn.equipment == null) result.Issues.Add(Issue("equipped", Common.UnavailableReason.ReadFailed, "No equipment tracker."));
+            if (pawn.equipment == null) result = result with { Issues = [.. result.Issues, Issue("equipped", Common.UnavailableReason.ReadFailed, "No equipment tracker.")] };
             else {
-                foreach (var thing in pawn.equipment.AllEquipmentListForReading) result.Equipped.Add(Gear(thing));
-                result.Armed = pawn.equipment.Primary != null;
-                if (pawn.equipment.Primary != null) result.PrimaryId = Id(pawn.equipment.Primary.GetUniqueLoadID());
-                else result.Issues.Add(Issue("primary_id", Common.UnavailableReason.NotApplicable, "No equipped primary weapon."));
+                foreach (var thing in pawn.equipment.AllEquipmentListForReading) result = result with { Equipped = [.. result.Equipped, Gear(thing)] };
+                result = result with { Armed = pawn.equipment.Primary != null };
+                if (pawn.equipment.Primary != null) result = result with { PrimaryId = Id(pawn.equipment.Primary.GetUniqueLoadID()) };
+                else result = result with { Issues = [.. result.Issues, Issue("primary_id", Common.UnavailableReason.NotApplicable, "No equipped primary weapon.")] };
             }
-            if (pawn.apparel == null) result.Issues.Add(Issue("apparel", Common.UnavailableReason.ReadFailed, "No apparel tracker."));
+            if (pawn.apparel == null) result = result with { Issues = [.. result.Issues, Issue("apparel", Common.UnavailableReason.ReadFailed, "No apparel tracker.")] };
             else {
                 foreach (var apparel in pawn.apparel.WornApparel) {
                     var item = Gear(apparel);
-                    item.Forced = !pawn.outfits.forcedHandler.AllowedToAutomaticallyDrop(apparel);
-                    item.Locked = pawn.apparel.IsLocked(apparel);
-                    result.Apparel.Add(item);
+                    item = item with { Forced = !pawn.outfits.forcedHandler.AllowedToAutomaticallyDrop(apparel) };
+                    item = item with { Locked = pawn.apparel.IsLocked(apparel) };
+                    result = result with { Apparel = [.. result.Apparel, item] };
                 }
             }
-            result.Issues.Add(Issue("inventory_weapons", Common.UnavailableReason.NotRequested, "Loadout upkeep excludes inventory."));
-            result.Issues.Add(Issue("inventory_item_count", Common.UnavailableReason.NotRequested, "Loadout upkeep excludes inventory."));
-            result.Issues.Add(Issue("carried_thing_id", Common.UnavailableReason.NotRequested, "Loadout upkeep excludes carried items."));
+            result = result with { Issues = [.. result.Issues, Issue("inventory_weapons", Common.UnavailableReason.NotRequested, "Loadout upkeep excludes inventory.")] };
+            result = result with { Issues = [.. result.Issues, Issue("inventory_item_count", Common.UnavailableReason.NotRequested, "Loadout upkeep excludes inventory.")] };
+            result = result with { Issues = [.. result.Issues, Issue("carried_thing_id", Common.UnavailableReason.NotRequested, "Loadout upkeep excludes carried items.")] };
             return result;
         }
 
@@ -239,15 +241,16 @@ namespace HomeBridge.BridgeTools
         {
             var row = Gear(thing);
             var snapshot = NativeSupplyAllow.Snapshot(thing, context);
-            if (snapshot != null) row.ThingSnapshot = snapshot;
+            if (snapshot != null) row = row with { ThingSnapshot = snapshot };
             return row;
         }
 
-        internal static void Biocode(Thing thing, Obs.GearItem row)
+        internal static Obs.GearItem Biocode(Thing thing, Obs.GearItem row)
         {
             var comp = thing.TryGetComp<CompBiocodable>();
-            row.Biocoded = comp?.Biocoded == true;
-            if (row.Biocoded && comp?.CodedPawn != null) row.BiocodedTo = Id(comp.CodedPawn.GetUniqueLoadID());
+            row = row with { Biocoded = comp?.Biocoded == true };
+            if (row.Biocoded.GetValueOrDefault() && comp?.CodedPawn != null) row = row with { BiocodedTo = Id(comp.CodedPawn.GetUniqueLoadID()) };
+            return row;
         }
 
         // Planning census, not simulated damage: natural armor or strongest worn layer.
@@ -279,11 +282,11 @@ namespace HomeBridge.BridgeTools
                 ArmorSharp = Number(thing.GetStatValue(StatDefOf.ArmorRating_Sharp)), ArmorBlunt = Number(thing.GetStatValue(StatDefOf.ArmorRating_Blunt)),
                 InsulationCold = Number(thing.GetStatValue(StatDefOf.Insulation_Cold)), InsulationHeat = Number(thing.GetStatValue(StatDefOf.Insulation_Heat)) };
             Biocode(thing, row);
-            if (thing.Stuff != null) row.Stuff = Id(thing.Stuff.defName);
-            if (thing.TryGetQuality(out var quality)) row.Quality = (Defs.QualityCategory)(int)quality;
+            if (thing.Stuff != null) row = row with { Stuff = Id(thing.Stuff.defName) };
+            if (thing.TryGetQuality(out var quality)) row = row with { Quality = (Defs.QualityCategory)(int)quality };
             if (thing.def.useHitPoints) {
-                row.HitPoints = thing.HitPoints; row.MaxHitPoints = thing.MaxHitPoints;
-                row.ConditionFraction = Number((double)thing.HitPoints / thing.MaxHitPoints);
+                row = row with { HitPoints = thing.HitPoints }; row = row with { MaxHitPoints = thing.MaxHitPoints };
+                row = row with { ConditionFraction = Number((double)thing.HitPoints / thing.MaxHitPoints) };
             }
             return row;
         }

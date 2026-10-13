@@ -7,12 +7,12 @@ using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using RimGovernor.Host.Sdk;
 using UnityEngine;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -61,11 +61,11 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Open(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a SnapshotStreamRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request!, Obs.SnapshotStreamRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.SnapshotStreamReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Obs.SnapshotStreamRequest>(ctx, ToolName, request!, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.SnapshotStreamReply { Outcome = new Obs.SnapshotStreamReplyOutcome.FailureCase(failure) });
             foreach (var resource in parsed.ResourceSources)
                 if (!ProtoBoundary.IsIdentifier(resource))
-                    return ProtoBoundary.Encode(new Obs.SnapshotStreamReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Resource sources must be identifiers.") });
+                    return ProtoBoundary.Encode(new Obs.SnapshotStreamReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Resource sources must be identifiers.") });
             return await ProtoBoundary.OnMainThread(ctx, () => ProtoBoundary.Encode(SnapshotStream.Open(parsed)), cancellationToken).ConfigureAwait(false);
         }
 
@@ -77,9 +77,9 @@ namespace HomeBridge.BridgeTools
         public Task<object> Flush(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a FlushSnapshotRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, FlushToolName, request!, Obs.FlushSnapshotRequest.Parser, out _, out var failure))
-                return Task.FromResult<object>(ProtoBoundary.Encode(new Obs.FlushSnapshotReply { Failure = failure }));
-            return Task.FromResult<object>(ProtoBoundary.Encode(new Obs.FlushSnapshotReply { Flushed = SnapshotStream.Flush() }));
+            if (!ProtoBoundary.TryParse<Obs.FlushSnapshotRequest>(ctx, FlushToolName, request!, out _, out var failure))
+                return Task.FromResult<object>(ProtoBoundary.Encode(new Obs.FlushSnapshotReply { Outcome = new Obs.FlushSnapshotReplyOutcome.FailureCase(failure) }));
+            return Task.FromResult<object>(ProtoBoundary.Encode(new Obs.FlushSnapshotReply { Outcome = new Obs.FlushSnapshotReplyOutcome.FlushedCase(SnapshotStream.Flush()) }));
         }
     }
 
@@ -103,7 +103,7 @@ namespace HomeBridge.BridgeTools
 
         /// The shape the stream captures now (the default request until a
         /// controller subscribes); test/profile_capture profiles it.
-        internal static Obs.SnapshotStreamRequest Subscription { get { lock (Gate) return subscription.Clone(); } }
+        internal static Obs.SnapshotStreamRequest Subscription { get { lock (Gate) return subscription; } }
         // Game-thread state: what the last capture saw.
         private static long writes, capturedWrites = -1;
         // due: the write count the next frame must reflect. A deferred
@@ -165,15 +165,15 @@ namespace HomeBridge.BridgeTools
                 }
                 catch (Exception e)
                 {
-                    return new Obs.SnapshotStreamReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "Snapshot ring could not be created: " + e.Message } };
+                    return new Obs.SnapshotStreamReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "Snapshot ring could not be created: " + e.Message } };
                 }
                 // A keyframe request keeps the subscription; every
                 // open makes the next frame carry every section.
-                if (!request.Keyframe) subscription = request.Clone();
+                if (!request.Keyframe.GetValueOrDefault()) subscription = request;
                 Interlocked.Exchange(ref keyframeDue, 1);
                 capturedWrites = -1; // the new subscription publishes at once
-                if (inProcess) return new Obs.SnapshotStreamReply { Opened = new Obs.SnapshotStreamOpened { Name = "in-process" } };
-                return new Obs.SnapshotStreamReply { Opened = new Obs.SnapshotStreamOpened { Name = ring!.Name, Slots = Slots, SlotBytes = SlotBytes } };
+                if (inProcess) return new Obs.SnapshotStreamReply { Outcome = new Obs.SnapshotStreamOpened { Name = "in-process" } };
+                return new Obs.SnapshotStreamReply { Outcome = new Obs.SnapshotStreamOpened { Name = ring!.Name, Slots = Slots, SlotBytes = SlotBytes } };
             }
         }
 
@@ -237,6 +237,7 @@ namespace HomeBridge.BridgeTools
             capturedAt = Stopwatch.GetTimestamp(); lastCaptureMicros = captureMicros;
             if (frame == null) { Interlocked.Exchange(ref pending, 0); return; }
             var keyframe = !failed && Interlocked.Exchange(ref keyframeDue, 0) == 1;
+            var captured = frame;
             Task.Factory.StartNew(() =>
             {
                 try
@@ -247,14 +248,15 @@ namespace HomeBridge.BridgeTools
                     RimGovernor.Brain.NativeFacade.NativeFrame? whole = null;
                     if (Handoff.Attached)
                     {
-                        var copy = r != null ? frame.Clone() : frame;
-                        if (!failed) CellGridEncoder.AttachWhole(copy, grid);
+                        var copy = captured;
+                        if (!failed) copy = CellGridEncoder.AttachWhole(copy, grid);
                         whole = new RimGovernor.Brain.NativeFacade.NativeFrame(copy, w, captureMicros);
                     }
                     if (r != null)
                     {
-                        if (!failed) { SnapshotSections.Elide(frame, keyframe); CellGridEncoder.Attach(frame, grid, keyframe); }
-                        r.Publish(frame, w, captureMicros);
+                        var ringFrame = captured;
+                        if (!failed) { ringFrame = SnapshotSections.Elide(ringFrame, keyframe); ringFrame = CellGridEncoder.Attach(ringFrame, grid, keyframe); }
+                        r.Publish(ringFrame, w, captureMicros);
                     }
                     if (whole != null) Handoff.Publish(whole);
                 }
@@ -358,7 +360,7 @@ namespace HomeBridge.BridgeTools
             internal void Publish(Obs.BundleSnapshot frame, long capturedAt, uint captureMicros)
             {
                 var encodeStarted = Stopwatch.GetTimestamp();
-                var payload = frame.ToByteArray();
+                var payload = WireJson.SerializeToUtf8Bytes(frame);
                 var encodeMicros = Micros(encodeStarted);
                 if (payload.Length > SlotBytes - SlotHeaderBytes)
                 {

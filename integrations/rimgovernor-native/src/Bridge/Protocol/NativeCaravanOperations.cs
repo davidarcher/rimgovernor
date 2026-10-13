@@ -7,9 +7,9 @@ using RimWorld;
 using RimWorld.Planet;
 using Verse;
 using Verse.AI.Group;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -27,9 +27,9 @@ namespace HomeBridge.BridgeTools
             && command.PawnIds.Count > 0
             && command.PawnIds.All(ProtoBoundary.IsIdentifier)
             && command.PawnIds.Distinct().Count() == command.PawnIds.Count
-            && command.Cargo.All(c => c.HasDefName && ProtoBoundary.IsIdentifier(c.DefName) && c.HasCount && c.Count > 0)
-            && command.Cargo.Select(c => c.DefName).Distinct().Count() == command.Cargo.Count
-            && command.HasDestinationTile && command.DestinationTile >= 0;
+            && command.Cargo.All(c => c.DefName is not null && ProtoBoundary.IsIdentifier(c.DefName) && c.Count is not null && c.Count.GetValueOrDefault() > 0)
+            && command.Cargo.Select(c => (c.DefName ?? "")).Distinct().Count() == command.Cargo.Count
+            && command.DestinationTile is not null && command.DestinationTile.GetValueOrDefault() >= 0;
 
         private static string[] Sorted(IEnumerable<string> ids) => ids.OrderBy(id => id, StringComparer.Ordinal).ToArray();
 
@@ -49,13 +49,13 @@ namespace HomeBridge.BridgeTools
                 if (lord == null || !(lord.LordJob is LordJob_FormAndSendCaravan)) return false;
                 lords.Add(lord);
             }
-            return lords.Count == 1 && ((PlanetTile)typeof(LordJob_FormAndSendCaravan).GetField("destinationTile", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(lords.Single().LordJob)!).tileId == command.DestinationTile;
+            return lords.Count == 1 && ((PlanetTile)typeof(LordJob_FormAndSendCaravan).GetField("destinationTile", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(lords.Single().LordJob)!).tileId == command.DestinationTile.GetValueOrDefault();
         }
 
         private static Common.Failure? Arrival(Operations.FormCaravanIntent command, out CaravanArrivalAction? action)
         {
             action = null;
-            var objects = Find.WorldObjects.AllWorldObjects.Where(w => w.Spawned && w.Tile.tileId == command.DestinationTile)
+            var objects = Find.WorldObjects.AllWorldObjects.Where(w => w.Spawned && w.Tile.tileId == command.DestinationTile.GetValueOrDefault())
                 .Where(w => w is Site || w is PeaceTalks || w is MapParent mp && mp.HasMap && mp.Map.IsPlayerHome).ToArray();
             if (objects.Length > 1)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The destination has multiple native arrival targets.");
@@ -70,7 +70,7 @@ namespace HomeBridge.BridgeTools
         // never added to a world caravan here; reform owns the packing write.
         private static Common.Failure? RouteFailure(Operations.FormCaravanIntent command, Caravan caravan)
         {
-            var tile = new PlanetTile(command.DestinationTile);
+            var tile = new PlanetTile(command.DestinationTile.GetValueOrDefault());
             if (!tile.Valid || tile.tileId >= Find.WorldGrid.TilesCount)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The destination tile is invalid.");
             var failure = Arrival(command, out var arrival);
@@ -78,7 +78,7 @@ namespace HomeBridge.BridgeTools
             if (arrival != null && !arrival.StillValid(caravan, tile))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The native destination arrival is unavailable.");
             foreach (var requested in command.Cargo)
-                if (caravan.PawnsListForReading.Sum(p => p.inventory.innerContainer.Where(t => t.def.defName == requested.DefName).Sum(t => t.stackCount)) < requested.Count)
+                if (caravan.PawnsListForReading.Sum(p => p.inventory.innerContainer.Where(t => t.def.defName == (requested.DefName ?? "")).Sum(t => t.stackCount)) < requested.Count.GetValueOrDefault())
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A formed caravan cannot acquire new cargo through routing.");
             return null;
         }
@@ -88,7 +88,7 @@ namespace HomeBridge.BridgeTools
             var failure = RouteFailure(command, caravan);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
             Arrival(command, out var arrival);
-            var tile = new PlanetTile(command.DestinationTile);
+            var tile = new PlanetTile(command.DestinationTile.GetValueOrDefault());
             var current = caravan.pather.ArrivalAction;
             if (caravan.pather.Moving && caravan.pather.Destination == tile
                 && current?.GetType() == arrival?.GetType()
@@ -127,8 +127,8 @@ namespace HomeBridge.BridgeTools
             }
             foreach (var item in command.Cargo)
             {
-                var remaining = item.Count;
-                var groups = built.transferables.Where(g => !(g.AnyThing is Pawn) && g.ThingDef.defName == item.DefName)
+                var remaining = item.Count.GetValueOrDefault();
+                var groups = built.transferables.Where(g => !(g.AnyThing is Pawn) && g.ThingDef.defName == (item.DefName ?? ""))
                     .OrderByDescending(g => g.things.Any(t => t.Spawned && t.IsForbidden(Faction.OfPlayer))).ThenByDescending(ShelfDays).ToList();
                 foreach (var group in groups)
                 {
@@ -138,9 +138,9 @@ namespace HomeBridge.BridgeTools
                     remaining -= take;
                 }
                 if (remaining > 0)
-                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Not enough " + item.DefName + " is available to pack.");
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Not enough " + (item.DefName ?? "") + " is available to pack.");
             }
-            var tile = new PlanetTile(command.DestinationTile);
+            var tile = new PlanetTile(command.DestinationTile.GetValueOrDefault());
             if (!tile.Valid || tile.tileId >= Find.WorldGrid.TilesCount || tile == map.Tile)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Choose a different valid surface tile.");
             var exit = CaravanExitMapUtility.BestExitTileToGoTo(tile, map);
@@ -163,40 +163,40 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static RimGovernor.Protocol.Observations.TradePackEstimate Preview(Operations.FormCaravanIntent command, Common.ObservationContext context)
+        internal static RimGovernor.Contracts.Wire.Observations.TradePackEstimate Preview(Operations.FormCaravanIntent command, Common.ObservationContext context)
         {
-            var row = new RimGovernor.Protocol.Observations.TradePackEstimate();
-            if (!Valid(command)) { row.CanPack = false; row.Reason = "invalid_pack"; return row; }
+            var row = new RimGovernor.Contracts.Wire.Observations.TradePackEstimate();
+            if (!Valid(command)) { row = row with { CanPack = false }; row = row with { Reason = "invalid_pack" }; return row; }
             var failure = PreparePacking(command, context, out var dialog);
-            if (failure != null || dialog == null) { row.CanPack = false; row.Reason = failure?.Detail ?? "pack_unavailable"; return row; }
-            row.CanPack = true; row.Reason = "packing_ready";
-            row.MassUsage = dialog.MassUsage; row.MassCapacity = dialog.MassCapacity;
+            if (failure != null || dialog == null) { row = row with { CanPack = false }; row = row with { Reason = failure?.Detail ?? "pack_unavailable" }; return row; }
+            row = row with { CanPack = true }; row = row with { Reason = "packing_ready" };
+            row = row with { MassUsage = dialog.MassUsage }; row = row with { MassCapacity = dialog.MassCapacity };
             var food = NativeCaravanCatalog.FoodDays(dialog);
-            if (!float.IsNaN(food.days) && !float.IsInfinity(food.days)) row.FoodDays = food.days;
-            if (!float.IsNaN(food.tillRot) && !float.IsInfinity(food.tillRot)) row.FoodRotDays = food.tillRot;
+            if (!float.IsNaN(food.days) && !float.IsInfinity(food.days)) row = row with { FoodDays = food.days };
+            if (!float.IsNaN(food.tillRot) && !float.IsInfinity(food.tillRot)) row = row with { FoodRotDays = food.tillRot };
             var map = ProtoBoundary.ResolveMap(context)!;
-            var destination = new PlanetTile(command.DestinationTile);
+            var destination = new PlanetTile(command.DestinationTile.GetValueOrDefault());
             var crew = dialog.transferables.Where(g => g.AnyThing is Pawn && g.CountToTransfer > 0).Select(g => (Pawn)g.AnyThing).ToList();
-            var ticks = CaravanTicksPerMoveUtility.GetTicksPerMove(crew, (float)row.MassUsage, (float)row.MassCapacity);
-            row.Outbound = RouteEstimate(map.Tile, destination, ticks, GenTicks.TicksAbs);
-            row.Home = RouteEstimate(destination, map.Tile, ticks, GenTicks.TicksAbs + (int)row.Outbound.EstimatedTicks);
+            var ticks = CaravanTicksPerMoveUtility.GetTicksPerMove(crew, (float)row.MassUsage.GetValueOrDefault(), (float)row.MassCapacity.GetValueOrDefault());
+            row = row with { Outbound = RouteEstimate(map.Tile, destination, ticks, GenTicks.TicksAbs) };
+            row = row with { Home = RouteEstimate(destination, map.Tile, ticks, GenTicks.TicksAbs + (int)row.Outbound.EstimatedTicks.GetValueOrDefault()) };
             return row;
         }
 
-        private static RimGovernor.Protocol.Observations.WorldRoute RouteEstimate(PlanetTile from, PlanetTile to, int ticksPerMove, int departure)
+        private static RimGovernor.Contracts.Wire.Observations.WorldRoute RouteEstimate(PlanetTile from, PlanetTile to, int ticksPerMove, int departure)
         {
-            var row = new RimGovernor.Protocol.Observations.WorldRoute { Destination = to.tileId };
+            var row = new RimGovernor.Contracts.Wire.Observations.WorldRoute { Destination = to.tileId };
             using var path = from.Layer.Pather.FindPath(from, to, null);
-            row.Reachable = path.Found;
-            if (path.Found) row.EstimatedTicks = CaravanArrivalTimeEstimator.EstimatedTicksToArrive(from, to, path, 0, ticksPerMove, departure);
+            row = row with { Reachable = path.Found };
+            if (path.Found) row = row with { EstimatedTicks = CaravanArrivalTimeEstimator.EstimatedTicksToArrive(from, to, path, 0, ticksPerMove, departure) };
             return row;
         }
         private static Receipts.EffectEvidence Evidence(Operations.FormCaravanIntent command, Caravan? caravan)
         {
             var effect = new Receipts.CaravanEffect { AssemblyStarted = true, PathStarted = caravan != null && caravan.pather.Moving, DestinationTile = command.DestinationTile };
-            if (caravan != null) effect.CaravanId = caravan.GetUniqueLoadID();
-            effect.PawnIds.Add(command.PawnIds);
-            return new Receipts.EffectEvidence { Caravan = effect };
+            if (caravan != null) effect = effect with { CaravanId = caravan.GetUniqueLoadID() };
+            effect = effect with { PawnIds = [.. effect.PawnIds, .. command.PawnIds] };
+            return new Receipts.EffectEvidence { Effect = effect };
         }
 
         internal static Common.Failure? Validate(Operations.FormCaravanIntent? command, Common.ObservationContext context)
@@ -215,7 +215,7 @@ namespace HomeBridge.BridgeTools
                 return Evidence(command, existing);
             }
             var failure = Prepare(command, context, out var dialog);
-            if (failure != null || dialog == null) throw new InvalidOperationException("Caravan formation prerequisites changed before apply: " + failure?.Detail);
+            if (failure != null || dialog == null) throw new InvalidOperationException("Caravan formation prerequisites changed before apply: " + (failure?.Detail ?? ""));
             // TryFormAndSendCaravan returns false without forming when the
             // game's CheckForWarnings raises a concern; it then opens a
             // Dialog_MessageBox whose confirm action forms the caravan, which
@@ -240,7 +240,7 @@ namespace HomeBridge.BridgeTools
 
     internal sealed class FormCaravanActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeCaravanOperations.Validate(action.FormCaravan, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeCaravanOperations.Apply(action.FormCaravan, context);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeCaravanOperations.Validate(action.Intent?.FormCaravan ?? new Operations.FormCaravanIntent(), context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeCaravanOperations.Apply(action.Intent?.FormCaravan ?? new Operations.FormCaravanIntent(), context);
     }
 }

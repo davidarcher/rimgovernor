@@ -4,13 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -62,17 +61,17 @@ namespace HomeBridge.BridgeTools
             {
                 Id = settlement.GetUniqueLoadID(), Label = settlement.Label ?? "", Tile = settlement.Tile.tileId,
                 Player = faction != null && faction.IsPlayer, CanTrade = settlement.CanTradeNow,
-                Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = settlement.GetUniqueLoadID(), Token = SettlementToken(settlement) },
+                Snapshot = new Obs.SnapshotRef { Context = context, EntityId = settlement.GetUniqueLoadID(), Token = SettlementToken(settlement) },
             };
-            if (settlement.TraderKind != null) row.TraderKind = settlement.TraderKind.defName;
-            if (from.HasValue) { try { row.DistanceTiles = Find.WorldGrid.ApproxDistanceInTiles(from.Value, settlement.Tile); } catch (Exception) { } }
+            if (settlement.TraderKind != null) row = row with { TraderKind = settlement.TraderKind.defName };
+            if (from.HasValue) { try { row = row with { DistanceTiles = Find.WorldGrid.ApproxDistanceInTiles(from.Value, settlement.Tile) }; } catch (Exception) { } }
             if (faction != null)
             {
-                row.Faction = NativeRef.Of(faction);
-                row.FactionDefName = faction.def.defName;
-                row.Relation = faction.IsPlayer ? "player" : faction.HostileTo(Faction.OfPlayer) ? "hostile" : "neutral";
-                if (!faction.IsPlayer) row.Goodwill = faction.PlayerGoodwill;
-                row.FactionSnapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = faction.GetUniqueLoadID(), Token = FactionToken(faction) };
+                row = row with { Faction = NativeRef.Of(faction) };
+                row = row with { FactionDefName = faction.def.defName };
+                row = row with { Relation = faction.IsPlayer ? "player" : faction.HostileTo(Faction.OfPlayer) ? "hostile" : "neutral" };
+                if (!faction.IsPlayer) row = row with { Goodwill = faction.PlayerGoodwill };
+                row = row with { FactionSnapshot = new Obs.SnapshotRef { Context = context, EntityId = faction.GetUniqueLoadID(), Token = FactionToken(faction) } };
             }
             return row;
         }
@@ -87,28 +86,28 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadWorld(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a WorldRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, NativeWorldObservation.ToolName, request!, Obs.WorldRequest.Parser, out var parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.WorldReply { Failure = failure });
+            if (!ProtoBoundary.TryParse(ctx, NativeWorldObservation.ToolName, request!, out Obs.WorldRequest? parsed, out var failure)
+                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.WorldReply { Outcome = new Obs.WorldReplyOutcome.FailureCase(failure) });
             return await ProtoBoundary.OnMainThread(ctx, () =>
             {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.WorldReply { Failure = failure });
+                    return ProtoBoundary.Encode(new Obs.WorldReply { Outcome = new Obs.WorldReplyOutcome.FailureCase(failure) });
                 try
                 {
-                    var tile = parsed.HasTile ? new PlanetTile(parsed.Tile) : (PlanetTile?)null;
-                    var radius = parsed.HasSettlementRadius ? parsed.SettlementRadius : 0d;
-                    var snapshot = new Obs.WorldSnapshot { Context = context.Clone() };
+                    var tile = parsed.Tile is int tileId ? new PlanetTile(tileId) : (PlanetTile?)null;
+                    var radius = parsed.SettlementRadius ?? 0d;
+                    var snapshot = new Obs.WorldSnapshot { Context = context };
                     if (tile.HasValue && tile.Value.Valid)
                     {
                         var rows = Find.WorldObjects.Settlements
                             .Where(s => Find.WorldGrid.ApproxDistanceInTiles(tile.Value, s.Tile) <= radius)
                             .Select(s => NativeWorldObservation.SettlementRow(context, s, tile)).ToList();
-                        snapshot.Settlements.Add(rows);
+                        snapshot = snapshot with { Settlements = [.. snapshot.Settlements, .. rows] };
                     }
-                    var reply = new Obs.WorldReply { Observed = snapshot };
+                    var reply = new Obs.WorldReply { Outcome = snapshot };
                     return ProtoBoundary.Encode(reply);
                 }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.WorldReply { Unavailable =
+                catch (Exception) { return ProtoBoundary.Encode(new Obs.WorldReply { Outcome =
                     new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native world read could not complete." } }); }
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -117,7 +116,7 @@ namespace HomeBridge.BridgeTools
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity and a nonnegative settlement_radius are required.");
             return request?.Scope?.ExpectedIdentity != null
-                && (!request.HasSettlementRadius || request.SettlementRadius >= 0);
+                && (request.SettlementRadius is null || request.SettlementRadius.GetValueOrDefault() >= 0);
         }
     }
 }

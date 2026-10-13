@@ -1,6 +1,6 @@
 #nullable enable
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -8,7 +8,7 @@ namespace HomeBridge.BridgeTools
     {
         // Identity-only check for a target that carries no CAS token.
         internal static bool ValidEntityId(Operations.EntityPrecondition? entity) => entity != null
-            && entity.HasEntityId && ProtoBoundary.IsIdentifier(entity.EntityId);
+            && entity.EntityId is not null && ProtoBoundary.IsIdentifier(entity.EntityId);
 
         // ValidEntityTokenOptional accepts an entity precondition with or
         // without its snapshot token: the kinds the controller dispatches
@@ -17,7 +17,7 @@ namespace HomeBridge.BridgeTools
         internal static bool ValidEntityTokenOptional(Operations.EntityPrecondition? entity) => ValidEntityId(entity)
             && (!TokenSent(entity!) || ProtoBoundary.IsIdentifier(entity!.ExpectedSnapshotToken));
 
-        internal static bool TokenSent(Operations.EntityPrecondition entity) => entity.HasExpectedSnapshotToken && entity.ExpectedSnapshotToken.Length > 0;
+        internal static bool TokenSent(Operations.EntityPrecondition entity) => entity.ExpectedSnapshotToken is not null && (entity.ExpectedSnapshotToken ?? "").Length > 0;
 
         internal static Common.Failure Failure(NativePawnControlResult result, Common.ObservationContext context) => new Common.Failure
         {
@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools
                 : result == NativePawnControlResult.StaleSnapshot ? Common.FailureCode.OwnerConflict
                 : Common.FailureCode.Unavailable,
             Detail = "Native pawn control guard refused: " + result,
-            ObservedContext = context.Clone()
+            ObservedContext = context
         };
     }
 }

@@ -4,8 +4,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Obs=RimGovernor.Protocol.Observations;
-using Common=RimGovernor.Protocol.Common;
+using Obs=RimGovernor.Contracts.Wire.Observations;
+using Common=RimGovernor.Contracts.Wire.Common;
 
 namespace HomeBridge.BridgeTools
 {
@@ -63,17 +63,18 @@ namespace HomeBridge.BridgeTools
             .OrderBy(g => g.Key, System.StringComparer.Ordinal)
             .Select(g => new Obs.HumanCorpseMeat { Race = g.Key, MeatAmount = g.Sum(c => (double)c.InnerPawn.GetStatValue(StatDefOf.MeatAmount)) });
 
-        internal static void Fill(Obs.ButcheringFacts row, Thing bench)
+        internal static Obs.ButcheringFacts Fill(Obs.ButcheringFacts row, Thing bench)
         {
             var map=bench.Map;
             var people=map.mapPawns.FreeColonistsSpawned;
             foreach(var pawn in people.OrderBy(p=>p.GetUniqueLoadID(),System.StringComparer.Ordinal)) {
                 var candidate=new Obs.HumanButcherCandidate{PawnId=pawn.GetUniqueLoadID(),
                     CanWork=CanWorkButcher(pawn,bench) && IdeoUtility.DoerWillingToDo(HistoryEventDefOf.ButcheredHuman,pawn)};
-                if(pawn.story?.traits!=null)candidate.PawnTraits.Add(pawn.story.traits.allTraits.Select(t=>new Obs.Trait{DefName=t.def.defName,Degree=t.Degree}));
-                row.HumanButchers.Add(candidate);
+                if(pawn.story?.traits!=null)candidate = candidate with { PawnTraits = [.. candidate.PawnTraits, .. pawn.story.traits.allTraits.Select(t=>new Obs.Trait{DefName=t.def.defName,Degree=t.Degree})] };
+                row = row with { HumanButchers = [.. row.HumanButchers, candidate] };
             }
-            row.HumanCorpseMeat.Add(CorpseMeat(bench));
+            row = row with { HumanCorpseMeat = [.. row.HumanCorpseMeat, .. CorpseMeat(bench)] };
+            return row;
         }
     }
 }

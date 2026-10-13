@@ -14,7 +14,7 @@ internal static class NativeProtoObservationsProbe
     private static int checks;
     private const BindingFlags Flags=BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Static|BindingFlags.Instance;
     private static void Check(bool value,string message) { if(!value) throw new InvalidOperationException(message);checks++; }
-    private static object Wire(string name,string json) { var type=bridge.GetType("RimGovernor.Protocol.Observations."+name,true)!;var parser=type.GetProperty("Parser")!.GetValue(null)!;return parser.GetType().GetMethod("ParseJson")!.Invoke(parser,new object[]{json})!; }
+    private static object Wire(string name,string json) { var type=typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType("RimGovernor.Contracts.Wire.Observations."+name,true)!;return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize",new[]{typeof(string)})!.MakeGenericMethod(type).Invoke(null,new object[]{json})!; }
     private static object Get(object value,string name)=>value.GetType().GetProperty(name)!.GetValue(value)!;
     private static bool Valid(string method,string message,string json)=> (bool)tools.GetMethod(method,Flags)!.Invoke(null,new object?[]{Wire(message,json),null})!;
     internal static int Invoke(string[] args)
@@ -25,9 +25,9 @@ internal static class NativeProtoObservationsProbe
         tools=bridge.GetType("HomeBridge.BridgeTools.NativeObservationTools",true)!;
         foreach (var queued in new[] { 0, 2, 256 }) {
             var idle=tools.GetMethod("JobRow",Flags)!.Invoke(null,new object?[]{null,queued})!;
-            Check((bool)Get(idle,"HasPlayerForced") && !(bool)Get(idle,"PlayerForced"),"idle current job is known not player forced");
-            Check((bool)Get(idle,"HasQueuedJobs") && (uint)Get(idle,"QueuedJobs")==queued,"idle queue remains independently observed");
-            Check(!(bool)Get(idle,"HasDefName") && !(bool)Get(idle,"HasLoadId"),"idle has no invented current job identity");
+            Check(Get(idle,"PlayerForced") is false,"idle current job is known not player forced");
+            Check(Get(idle,"QueuedJobs") is uint queuedJobs && queuedJobs==queued,"idle queue remains independently observed");
+            Check(Get(idle,"DefName")==null && Get(idle,"LoadId")==null,"idle has no invented current job identity");
         }
         foreach (var invalidQueue in new[] {-1,257}) {
             bool refused=false;
@@ -56,8 +56,8 @@ internal static class NativeProtoObservationsProbe
         var snapshotType=bridge.GetType("HomeBridge.BridgeTools.NativeObservationSnapshot",true)!;
         var cursorType=snapshotType.GetNestedType("Cursor",Flags)!;
         object ParseCommon(string type,string json) {
-            var parser=bridge.GetType("RimGovernor.Protocol.Common."+type,true)!.GetProperty("Parser")!.GetValue(null)!;
-            return parser.GetType().GetMethod("ParseJson")!.Invoke(parser,new object[]{json})!;
+            var commonType=typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType("RimGovernor.Contracts.Wire.Common."+type,true)!;
+            return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize",new[]{typeof(string)})!.MakeGenericMethod(commonType).Invoke(null,new object[]{json})!;
         }
         var identityA=ParseCommon("Identity","{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}");
         var identityB=ParseCommon("Identity","{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":1}");
@@ -76,7 +76,7 @@ internal static class NativeProtoObservationsProbe
             Check(!(bool)tryDecode.Invoke(null,new object?[]{identityA,"seed-1",garbage,null})!,"malformed cursor is refused, not thrown: "+garbage);
         var snapshotMethod=snapshotType.GetMethod("Snapshot",Flags)!;
         var writerParam=snapshotMethod.GetParameters().Last().ParameterType;
-        var context=ParseCommon("ObservationContext","{\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0},\"tick\":\"1\"}");
+        var context=ParseCommon("ObservationContext","{\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0},\"tick\":1}");
         var noOp=Delegate.CreateDelegate(writerParam,typeof(NativeProtoObservationsProbe).GetMethod(nameof(WriteNothing),Flags)!);
         var tokenA=snapshotMethod.Invoke(null,new object?[]{"kind",context,"entity-1",noOp});
         var tokenB=snapshotMethod.Invoke(null,new object?[]{"kind",context,"entity-1",noOp});
@@ -95,9 +95,7 @@ internal static class NativeProtoObservationsProbe
             ("NativeBuildingObservationTools","ListBuildingsRequest"),
         }) {
             var toolTypeRef=bridge.GetType("HomeBridge.BridgeTools."+toolType,true)!;
-            var requestTypeRef=bridge.GetType("RimGovernor.Protocol.Observations."+requestType,true)!;
-            var parser=requestTypeRef.GetProperty("Parser")!.GetValue(null)!;
-            object Parse(string cursorValue)=>parser.GetType().GetMethod("ParseJson")!.Invoke(parser,new object[]{"{"+scope+",\"page\":{\"cursor\":\""+cursorValue+"\"}}"})!;
+            object Parse(string cursorValue)=>Wire(requestType,"{"+scope+",\"page\":{\"cursor\":\""+cursorValue+"\"}}");
             bool Accepts(object request)=>(bool)toolTypeRef.GetMethod("Validate",Flags)!.Invoke(null,new object?[]{request,null})!;
             Check(Accepts(Parse(boundedCursor)),"a within-bound nonempty cursor is now accepted by "+toolType);
             Check(!Accepts(Parse(oversizedCursor)),"an oversized cursor is still refused by "+toolType);

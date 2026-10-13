@@ -4,10 +4,10 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Placement = RimGovernor.Protocol.Placement;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Placement = RimGovernor.Contracts.Wire.Placement;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -32,14 +32,14 @@ namespace HomeBridge.BridgeTools
             RefIndex.Thing(map, id) as MinifiedThing ?? RefIndex.ThingOrMinified(map, id)?.ParentHolder as MinifiedThing;
 
         private static bool Valid(Operations.RelocateIntent intent) => ProtoBoundary.IsIdentifier(intent.ThingId)
-            && intent.Destination != null && intent.Destination.HasX && intent.Destination.HasZ && intent.HasRotation
-            && intent.Rotation >= Placement.Rotation.North && intent.Rotation <= Placement.Rotation.West;
+            && intent.Destination != null && intent.Destination.X is not null && intent.Destination.Z is not null && intent.Rotation is not null
+            && intent.Rotation.GetValueOrDefault() >= Placement.Rotation.North && intent.Rotation.GetValueOrDefault() <= Placement.Rotation.West;
 
-        private static Rot4 Rotation(Operations.RelocateIntent intent) => new Rot4((int)intent.Rotation - 1);
+        private static Rot4 Rotation(Operations.RelocateIntent intent) => new Rot4((int)intent.Rotation.GetValueOrDefault() - 1);
 
         private static bool PreparePacked(Operations.RelocateIntent intent, Map map, MinifiedThing mini, out Common.Failure failure)
         {
-            var cell = new IntVec3(intent.Destination.X, 0, intent.Destination.Z);
+            var cell = new IntVec3((intent.Destination?.X).GetValueOrDefault(), 0, (intent.Destination?.Z).GetValueOrDefault());
             var rotation = Rotation(intent);
             var inner = mini.InnerThing;
             var rules = new ApplyPreconditions(Kind)
@@ -59,10 +59,10 @@ namespace HomeBridge.BridgeTools
             piece = null; building = null; queued = null;
             if (!Valid(intent)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A move requires an exact building, a destination cell and a cardinal rotation.");
             var map = ProtoBoundary.LoadedMap(context);
-            var cell = new IntVec3(intent.Destination.X, 0, intent.Destination.Z);
+            var cell = new IntVec3((intent.Destination?.X).GetValueOrDefault(), 0, (intent.Destination?.Z).GetValueOrDefault());
             var rotation = Rotation(intent);
-            var found = Find(map, intent.ThingId);
-            if (found == null && FindPacked(map, intent.ThingId) is MinifiedThing mini)
+            var found = Find(map, (intent.ThingId ?? ""));
+            if (found == null && FindPacked(map, (intent.ThingId ?? "")) is MinifiedThing mini)
             {
                 piece = mini;
                 building = mini.InnerThing;
@@ -93,29 +93,29 @@ namespace HomeBridge.BridgeTools
 
         internal static Common.Failure? Validate(Operations.RelocateIntent? intent, Common.ObservationContext context) =>
             intent == null ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Relocate intent missing.")
-            : intent.Uninstall ? NativeUninstallBuilding.Validate(intent, context) : Resolve(intent, context, out _, out _, out _);
+            : intent.Uninstall.GetValueOrDefault() ? NativeUninstallBuilding.Validate(intent, context) : Resolve(intent, context, out _, out _, out _);
 
         internal static Receipts.EffectEvidence Apply(Operations.RelocateIntent? intent, Common.ObservationContext context)
         {
             if (intent == null) throw new InvalidOperationException("Relocate intent missing.");
-            if (intent.Uninstall) return NativeUninstallBuilding.Apply(intent, context);
+            if (intent.Uninstall.GetValueOrDefault()) return NativeUninstallBuilding.Apply(intent, context);
             var failure = Resolve(intent, context, out var piece, out var building, out var queued);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            var cell = new IntVec3(intent.Destination.X, 0, intent.Destination.Z);
+            var cell = new IntVec3((intent.Destination?.X).GetValueOrDefault(), 0, (intent.Destination?.Z).GetValueOrDefault());
             var blueprint = queued ?? (piece is MinifiedThing mini
                 ? GenConstruct.PlaceBlueprintForInstall(mini, cell, mini.Map, Rotation(intent), Faction.OfPlayer)
                 : GenConstruct.PlaceBlueprintForReinstall((Building)building!, cell, building!.Map, Rotation(intent), Faction.OfPlayer));
             if (blueprint == null || !blueprint.Spawned) throw new InvalidOperationException("Native install blueprint was not observed.");
-            return new Receipts.EffectEvidence { Installation = new Receipts.InstallationEffect {
+            return new Receipts.EffectEvidence { Effect = new Receipts.InstallationEffect {
                 InnerThingId = building!.GetUniqueLoadID(), DefName = building.def.defName, Stuff = building.Stuff?.defName ?? "",
-                Cell = new Common.Cell { X = intent.Destination.X, Z = intent.Destination.Z }, Rotation = intent.Rotation,
+                Cell = new Common.Cell { X = intent.Destination?.X, Z = intent.Destination?.Z }, Rotation = intent.Rotation,
                 Stage = Receipts.InstallationStage.Queued, BlueprintId = blueprint.GetUniqueLoadID() } };
         }
     }
 
     internal sealed class RelocateActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeMoveBuilding.Validate(action.Relocate, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeMoveBuilding.Apply(action.Relocate, context);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeMoveBuilding.Validate(action.Intent?.Relocate, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeMoveBuilding.Apply(action.Intent?.Relocate, context);
     }
 }

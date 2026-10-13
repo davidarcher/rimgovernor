@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- The typed boundary between the in-process brain and the native mod (#3080): INativeFacade, the frame
-       handoff and the facade registry. Referenced by both sides, so it depends on Domain (the stat source) and Wire (the request and
+       handoff and the facade registry. Referenced by both sides, so it depends on Domain (the stat source) and Contracts (the request and
        reply messages it carries) and on no game assembly. Wire is replaced by plain records in #3100. -->
   <PropertyGroup>
     <RootNamespace>RimGovernor.Brain.NativeFacade</RootNamespace>
@@ -8,6 +8,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
-    <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Contracts/RimGovernor.Brain.Contracts.csproj" />
   </ItemGroup>
 </Project>

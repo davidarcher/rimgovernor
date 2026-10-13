@@ -1,6 +1,5 @@
 #nullable enable
 using System.Collections.Generic;
-using Google.Protobuf;
 
 namespace HomeBridge.BridgeTools
 {
@@ -28,7 +27,7 @@ namespace HomeBridge.BridgeTools
         internal void Reset() => held.Clear();
 
         /// FNV-1a over the row's encoding with context ticks cleared.
-        internal static ulong Hash<T>(T row) where T : class, IMessage<T>
+        internal static ulong Hash<T>(T row) where T : class
         {
             ulong h = 14695981039346656037UL;
             foreach (var b in SnapshotSections.Normalized(row)) { h ^= b; h *= 1099511628211UL; }
@@ -37,7 +36,7 @@ namespace HomeBridge.BridgeTools
 
         /// Compares rows with the previous step's and keeps their hashes.
         /// A duplicate id keeps its last row.
-        internal Result Step<T>(IEnumerable<KeyValuePair<string, T>> rows) where T : class, IMessage<T>
+        internal Result Step<T>(IEnumerable<KeyValuePair<string, T>> rows) where T : class
         {
             var result = new Result();
             var next = new Dictionary<string, ulong>(held.Count, System.StringComparer.Ordinal);

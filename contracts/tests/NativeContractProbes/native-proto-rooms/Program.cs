@@ -16,8 +16,12 @@ internal static class NativeProtoRoomsProbe
     private static void Check(bool value, string label) { if (!value) throw new Exception(label); checks++; }
     private static object Wire(string name, string json)
     {
-        var parser = bridge.GetType("RimGovernor.Protocol.Observations." + name, true)!.GetProperty("Parser")!.GetValue(null)!;
-        return parser.GetType().GetMethod("ParseJson")!.Invoke(parser, new object[] { json })!;
+        return WireOf("RimGovernor.Contracts.Wire.Observations." + name, json);
+    }
+    private static object WireOf(string fullName, string json)
+    {
+        var type = typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType(fullName, true)!;
+        return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize", new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
     }
     private static object Get(object value, string property) => value.GetType().GetProperty(property)!.GetValue(value)!;
     private static object Call(string name, params object?[] values) => tools.GetMethod(name, Flags)!.Invoke(null, values)!;
@@ -96,13 +100,13 @@ internal static class NativeProtoRoomsProbe
             var bound = (object[])binder.Invoke(null,new object?[] { tools.GetMethod("ListRooms"),new Dictionary<string,object?> { ["request"]=value },null,CancellationToken.None })!;
             Check(ReferenceEquals(bound[2],value),"SDK preserves raw boundary type");
         }
-        var reply = (IDictionary)Call("Encode", Wire("ListRoomsReply", "{\"observed\":{\"rooms\":[{\"id\":\"0\",\"temperatureC\":0,\"outdoors\":false,\"stats\":[{\"defName\":\"Wealth\",\"unavailable\":{\"reason\":\"UNAVAILABLE_REASON_READ_FAILED\"}}]}]}}"));
-        var room = ((IList)Get(Get(Wire("ListRoomsReply",(string)reply["payload"]!),"Observed"),"Rooms"))[0]!;
-        Check((bool)Get(room,"HasTemperatureC") && (double)Get(room,"TemperatureC")==0,"Known zero temperature survives encoding");
-        Check((bool)Get(room,"HasOutdoors") && !(bool)Get(room,"Outdoors"),"Known indoor false survives encoding");
-        var stat = ((IList)Get(room,"Stats"))[0]!; Check(!(bool)Get(stat,"HasValue") && Get(stat,"Unavailable")!=null,"Unavailable stat is not zero");
-        var oversized=(IDictionary)Call("Encode",Wire("ListRoomsReply","{\"unavailable\":{\"detail\":\""+new string('x',1024*1024)+"\"}}"));
-        Check(Get(Wire("ListRoomsReply",(string)oversized["payload"]!),"Unavailable")!=null,"Oversized result refuses instead of truncating facts");
+        var reply = (IDictionary)Call("Encode", Wire("ListRoomsReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"rooms\":[{\"id\":\"0\",\"temperatureC\":0,\"outdoors\":false,\"stats\":[{\"defName\":\"Wealth\",\"unavailable\":{\"reason\":\"UNAVAILABLE_REASON_READ_FAILED\"}}]}]}}}"));
+        var room = ((IList)Get(Get(Get(Wire("ListRoomsReply",(string)reply["payload"]!),"Outcome"),"Observed"),"Rooms"))[0]!;
+        Check(Get(room,"TemperatureC") is double temperatureC && temperatureC==0,"Known zero temperature survives encoding");
+        Check(Get(room,"Outdoors") is false,"Known indoor false survives encoding");
+        var stat = ((IList)Get(room,"Stats"))[0]!; Check(Get(stat,"Value")==null && Get(stat,"Unavailable")!=null,"Unavailable stat is not zero");
+        var oversized=(IDictionary)Call("Encode",Wire("ListRoomsReply","{\"outcome\":{\"type\":\"unavailable\",\"value\":{\"detail\":\""+new string('x',1024*1024)+"\"}}}"));
+        Check(Get(Get(Wire("ListRoomsReply",(string)oversized["payload"]!),"Outcome"),"Unavailable")!=null,"Oversized result refuses instead of truncating facts");
 
         // ---- N01.03: Project() fixture -- bed/stockpile membership + CAS token ----
         // Builds a minimal but real Room/District/Region/Map graph via reflection so
@@ -121,7 +125,7 @@ internal static class NativeProtoRoomsProbe
                 f.SetValue(f.IsStatic ? null : o, v);
             }
             object ListOf(string elementType) => Activator.CreateInstance(typeof(List<>).MakeGenericType(Ty(elementType)))!;
-            object WireCommon(string name, string json) { var parser = bridge.GetType("RimGovernor.Protocol.Common." + name, true)!.GetProperty("Parser")!.GetValue(null)!; return parser.GetType().GetMethod("ParseJson")!.Invoke(parser, new object[] { json })!; }
+            object WireCommon(string name, string json) => WireOf("RimGovernor.Contracts.Wire.Common." + name, json);
             var cell2Type = Ty("Verse.IntVec2");
             object cell2(int x, int z) => Activator.CreateInstance(cell2Type, x, z)!;
             string LoadId(object o) => (string)o.GetType().GetMethod("GetUniqueLoadID")!.Invoke(o, null)!;

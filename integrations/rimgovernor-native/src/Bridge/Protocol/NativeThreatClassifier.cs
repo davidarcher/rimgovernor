@@ -2,7 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using Obs = RimGovernor.Protocol.Observations;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -55,7 +55,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Scan Collect<T>(IReadOnlyList<T> pawns, Func<T, ThreatFacts> facts,
             IReadOnlyList<(int X, int Z)> colonists, double radius,
-            Func<T, RimGovernor.Protocol.Common.Ref> project, Func<T, RimGovernor.Protocol.Common.Ref> prey, Obs.ThreatsSnapshot threats)
+            Func<T, RimGovernor.Contracts.Wire.Common.Ref> project, Func<T, RimGovernor.Contracts.Wire.Common.Ref> prey, ref Obs.ThreatsSnapshot threats)
         {
             var scan = new Scan();
             foreach (var pawn in pawns) {
@@ -72,12 +72,12 @@ namespace HomeBridge.BridgeTools
                 scan.Projections++;
                 var row = new Obs.ThreatPawn { Pawn = project(pawn), Ours = f.Ours, FactionHostile = f.FactionHostile, PrisonBreak = f.PrisonBreak,
                     PredatorHunt = f.PredatorHunt, Predator = f.Predator, Downed = f.Downed };
-                if (nearest.HasValue) row.NearestColonistDistance = nearest.Value;
-                if (f.Mental != null) row.MentalState = f.Mental;
-                if (f.FactionId != null) row.Faction = new RimGovernor.Protocol.Common.Ref { Id = f.FactionId };
-                if (f.Passive.HasValue) row.Passive = f.Passive.Value;
-                if (f.HasPrey) { row.Prey = prey(pawn); row.PreyIsOurs = f.PreyOurs; }
-                threats.Pawns.Add(row);
+                if (nearest.HasValue) row = row with { NearestColonistDistance = nearest.Value };
+                if (f.Mental != null) row = row with { MentalState = f.Mental };
+                if (f.FactionId != null) row = row with { Faction = new RimGovernor.Contracts.Wire.Common.Ref { Id = f.FactionId } };
+                if (f.Passive.HasValue) row = row with { Passive = f.Passive.Value };
+                if (f.HasPrey) { row = row with { Prey = prey(pawn) }; row = row with { PreyIsOurs = f.PreyOurs }; }
+                threats = threats with { Pawns = [.. threats.Pawns, row] };
             }
             ObservationWork.ThreatScan(scan.Examined, scan.Candidates, scan.Projections, scan.ProximityChecks);
             return scan;

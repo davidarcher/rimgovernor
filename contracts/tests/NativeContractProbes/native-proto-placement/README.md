@@ -17,8 +17,8 @@ dotnet run --project contracts/tests/NativeContractProbes.csproj -c Release -- n
 4. Licensed RimWorld managed assemblies directory.
 5. Harmony assemblies directory.
 
-The executable loads the actual compiled adapter and official generated messages.
-It checks request presence and parser errors, explicit evaluated refusal, material
+The executable loads the actual compiled adapter and the Contracts wire records.
+It checks request presence and decoder errors (`System.Text.Json.JsonException`), explicit evaluated refusal, material
 unavailability, complete geometry validation and oversized-response refusal.
 It also invokes the actual SDK argument binder against the production method and
 its root dictionary normalizer against ProtoBoundary.Encode. Missing and malformed

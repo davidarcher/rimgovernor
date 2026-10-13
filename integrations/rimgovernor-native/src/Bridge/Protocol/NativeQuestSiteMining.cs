@@ -4,8 +4,8 @@ using System.Linq;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {

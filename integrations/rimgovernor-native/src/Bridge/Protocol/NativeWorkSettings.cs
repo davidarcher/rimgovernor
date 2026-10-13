@@ -7,10 +7,10 @@ using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -52,25 +52,25 @@ namespace HomeBridge.BridgeTools
         internal WorkSettingsActionHandler() { NativeDrugPolicy.Install(); }
 
         private static bool ValidArea(Operations.Assignment? area) => area == null
-            || area.ValueCase == Operations.Assignment.ValueOneofCase.Clear
-            || (area.ValueCase == Operations.Assignment.ValueOneofCase.EntityId && ProtoBoundary.IsIdentifier(area.EntityId));
+            || area.Value is Operations.AssignmentValue.ClearCase
+            || (area.Value is Operations.AssignmentValue.EntityIdCase && ProtoBoundary.IsIdentifier(area.Value?.EntityId));
 
         private static bool ValidSchedule(Operations.Schedule? schedule) => schedule == null
             || (schedule.AssignmentDefs.Count == NativeWorkSettings.ScheduleHours && schedule.AssignmentDefs.All(ProtoBoundary.IsIdentifier));
 
         private static bool Valid(Operations.WorkSettingsIntent? intent) => intent != null
-            && intent.HasPawnId && ProtoBoundary.IsIdentifier(intent.PawnId)
+            && intent.PawnId is not null && ProtoBoundary.IsIdentifier(intent.PawnId)
             && (intent.Work.Count > 0 || intent.AllowedArea != null || intent.Schedule != null)
-                && intent.Work.All(w => w.HasWorkTypeDef && ProtoBoundary.IsIdentifier(w.WorkTypeDef) && w.HasPriority && w.Priority >= 0 && w.Priority <= 4)
-                && intent.Work.Select(w => w.WorkTypeDef).Distinct(StringComparer.Ordinal).Count() == intent.Work.Count
+                && intent.Work.All(w => w.WorkTypeDef is not null && ProtoBoundary.IsIdentifier(w.WorkTypeDef) && w.Priority is not null && w.Priority.GetValueOrDefault() >= 0 && w.Priority.GetValueOrDefault() <= 4)
+                && intent.Work.Select(w => (w.WorkTypeDef ?? "")).Distinct(StringComparer.Ordinal).Count() == intent.Work.Count
                 && ValidSchedule(intent.Schedule) && ValidArea(intent.AllowedArea);
 
         private static bool AreaResolves(Operations.WorkSettingsIntent intent, Pawn pawn, out Area_Allowed? area)
         {
             area = null;
             if (intent.AllowedArea == null) return true;
-            if (intent.AllowedArea.ValueCase == Operations.Assignment.ValueOneofCase.Clear) return NativeWorkSettings.AreaReachable(pawn, null);
-            area = NativeWorkSettings.ResolveArea(pawn, intent.AllowedArea.EntityId);
+            if (intent.AllowedArea.Value is Operations.AssignmentValue.ClearCase) return NativeWorkSettings.AreaReachable(pawn, null);
+            area = NativeWorkSettings.ResolveArea(pawn, intent.AllowedArea.Value?.EntityId ?? "");
             return area != null && NativeWorkSettings.AreaReachable(pawn, area);
         }
 
@@ -79,15 +79,15 @@ namespace HomeBridge.BridgeTools
         {
             if (intent.Work.Count > 0 && pawn.workSettings?.Initialized != true) return false;
             if (!intent.Work.All(row => {
-                var def = DefDatabase<WorkTypeDef>.GetNamedSilentFail(row.WorkTypeDef);
-                return def != null && pawn.workSettings.GetPriority(def) == row.Priority;
+                var def = DefDatabase<WorkTypeDef>.GetNamedSilentFail((row.WorkTypeDef ?? ""));
+                return def != null && pawn.workSettings.GetPriority(def) == row.Priority.GetValueOrDefault();
             })) return false;
             if (intent.Schedule != null && !NativeWorkSettings.CurrentSchedule(pawn).SequenceEqual(intent.Schedule.AssignmentDefs, StringComparer.Ordinal)) return false;
             if (intent.AllowedArea == null) return true;
             var current = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
-            if (intent.AllowedArea.ValueCase == Operations.Assignment.ValueOneofCase.Clear) return current == null;
-            return current != null && (RefIndex.Is(current, intent.AllowedArea.EntityId)
-                || current.ID.ToString(CultureInfo.InvariantCulture) == intent.AllowedArea.EntityId);
+            if (intent.AllowedArea.Value is Operations.AssignmentValue.ClearCase) return current == null;
+            return current != null && (RefIndex.Is(current, intent.AllowedArea.Value?.EntityId)
+                || current.ID.ToString(CultureInfo.InvariantCulture) == intent.AllowedArea.Value?.EntityId);
         }
 
         // Resolve finds the pawn and returns null when the intent applies:
@@ -96,11 +96,11 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(Operations.WorkSettingsIntent? intent, Common.ObservationContext context, out Pawn pawn, out bool holds)
         {
             pawn = null!; holds = false;
-            if (!Valid(intent))
+            if (intent is null || !Valid(intent))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require an exact pawn and a supported settings change.");
-            var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent!.PawnId);
+            var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.PawnId);
             bool Target(Pawn p) => !p.Dead && p.IsFreeColonist;
-            if (found != null && Target(found) && Holds(found, intent!)) { pawn = found; holds = true; return null; }
+            if (found != null && Target(found) && Holds(found, intent)) { pawn = found; holds = true; return null; }
             var manual = PawnSettingsRead.ManualPriorities();
             var rules = new ApplyPreconditions(Kind)
                 .Present(() => found != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact pawn is no longer spawned on this map")
@@ -110,9 +110,9 @@ namespace HomeBridge.BridgeTools
                     .Require(() => !found!.InMentalState, "the pawn is in a mental state")
                     .Require(() => found!.workSettings?.Initialized == true && found.workSettings.EverWork, "the pawn has no work settings")
                     .Require(() => manual.HasValue, "the game's manual-priorities setting is unreadable")
-                    .Require(() => intent.Work.All(row => DefDatabase<WorkTypeDef>.GetNamedSilentFail(row.WorkTypeDef) != null), "a requested work type is not defined")
-                    .Require(() => intent.Work.All(row => row.Priority == 0 || !found!.WorkTypeIsDisabled(DefDatabase<WorkTypeDef>.GetNamed(row.WorkTypeDef))), "a requested work type is disabled for the pawn")
-                    .Require(() => manual.GetValueOrDefault() || intent.Work.All(row => row.Priority == 0 || row.Priority == 3), "manual priorities are off, so only 0 or 3 can be set")
+                    .Require(() => intent.Work.All(row => DefDatabase<WorkTypeDef>.GetNamedSilentFail((row.WorkTypeDef ?? "")) != null), "a requested work type is not defined")
+                    .Require(() => intent.Work.All(row => row.Priority.GetValueOrDefault() == 0 || !found!.WorkTypeIsDisabled(DefDatabase<WorkTypeDef>.GetNamed((row.WorkTypeDef ?? "")))), "a requested work type is disabled for the pawn")
+                    .Require(() => manual.GetValueOrDefault() || intent.Work.All(row => row.Priority.GetValueOrDefault() == 0 || row.Priority.GetValueOrDefault() == 3), "manual priorities are off, so only 0 or 3 can be set")
                     .Require(() => AreaResolves(intent, found!, out _), "the requested allowed area is missing or unreachable")
                     .Require(() => intent.Schedule == null || intent.Schedule.AssignmentDefs.All(name => DefDatabase<TimeAssignmentDef>.GetNamedSilentFail(name) != null), "a requested timetable assignment is not defined")
                     .Require(() => intent.Schedule == null || found!.timetable?.times != null && found.timetable.times.Count == NativeWorkSettings.ScheduleHours, "the pawn has no 24-hour timetable");
@@ -121,16 +121,16 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => Resolve(action.WorkSettings, context, out _, out _);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => Resolve(action.Intent?.WorkSettings, context, out _, out _);
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
-            var intent = action.WorkSettings;
+            var intent = action.Intent?.WorkSettings;
             var failure = Resolve(intent, context, out var pawn, out var holds);
-            if (failure != null) throw new InvalidOperationException("Work settings prerequisites changed before apply: " + failure.Detail);
+            if (failure != null || intent is null) throw new InvalidOperationException("Work settings prerequisites changed before apply: " + (failure?.Detail ?? ""));
             if (!holds)
             {
-                foreach (var row in intent.Work) pawn.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed(row.WorkTypeDef), row.Priority);
+                foreach (var row in intent.Work) pawn.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed(row.WorkTypeDef ?? ""), row.Priority.GetValueOrDefault());
                 if (intent.AllowedArea != null)
                 {
                     if (!AreaResolves(intent, pawn, out var area)) throw new InvalidOperationException("Requested allowed area is no longer resolvable.");
@@ -141,18 +141,17 @@ namespace HomeBridge.BridgeTools
                         pawn.timetable.SetAssignment(hour, DefDatabase<TimeAssignmentDef>.GetNamed(intent.Schedule.AssignmentDefs[hour]));
                 if (!Holds(pawn, intent)) throw new InvalidOperationException("Native work settings did not take effect.");
             }
-            return new Receipts.EffectEvidence { Settings = Evidence(intent) };
+            return new Receipts.EffectEvidence { Effect = Evidence(intent) };
         }
 
         private static Receipts.SettingsEffect Evidence(Operations.WorkSettingsIntent intent)
         {
-            var effect = new Receipts.SettingsEffect { Snapshot = new Receipts.SnapshotEvidence { EntityId = intent.PawnId } };
-            void Add(Receipts.SettingsField field) => effect.Fields.Add(new Receipts.FieldResult { Field = field, Outcome = Receipts.FieldOutcome.Applied });
-            foreach (var row in intent.Work) effect.Fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.Work,
-                WorkTypeDef = row.WorkTypeDef, Outcome = Receipts.FieldOutcome.Applied });
-            if (intent.AllowedArea != null) Add(Receipts.SettingsField.AllowedArea);
-            if (intent.Schedule != null) Add(Receipts.SettingsField.Schedule);
-            return effect;
+            var fields = new System.Collections.Generic.List<Receipts.FieldResult>();
+            foreach (var row in intent.Work) fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.Work,
+                Entry = new Receipts.FieldResultEntry.WorkTypeDefCase(row.WorkTypeDef ?? ""), Outcome = Receipts.FieldOutcome.Applied });
+            if (intent.AllowedArea != null) fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.AllowedArea, Outcome = Receipts.FieldOutcome.Applied });
+            if (intent.Schedule != null) fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.Schedule, Outcome = Receipts.FieldOutcome.Applied });
+            return new Receipts.SettingsEffect { Snapshot = new Receipts.SnapshotEvidence { EntityId = intent.PawnId }, Fields = [.. fields] };
         }
     }
 }

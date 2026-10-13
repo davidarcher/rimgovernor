@@ -10,7 +10,7 @@ dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-proto
 where `<args...>` is the private Bridge DLL, Runtime directory, SDK directory,
 licensed game managed directory and Harmony directory, in that order.
 
-The suite loads the actual generated DTOs, adapter, SDK binder and SDK response
+The suite loads the actual Contracts wire records, adapter, SDK binder and SDK response
 normalizer. It checks required scope, exact bounded filters, unsupported detail,
 finite fractions, explicit false facts, unavailable snapshot/network distinctions,
 and whole-reply size refusal. No game objects are fabricated or gameplay claimed.

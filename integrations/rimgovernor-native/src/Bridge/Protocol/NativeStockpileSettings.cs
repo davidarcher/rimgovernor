@@ -5,9 +5,9 @@ using System.IO;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
-using Operations = RimGovernor.Protocol.Operations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -54,27 +54,27 @@ namespace HomeBridge.BridgeTools
         internal static bool Valid(Operations.StockpileSettings? settings)
         {
             if (settings == null) return false;
-            if (settings.HasPriority && settings.Priority == Operations.StoragePriority.Unspecified) return false;
-            if (settings.HasPreset && PresetName(settings.Preset) == null) return false;
+            if (settings.Priority is not null && settings.Priority.GetValueOrDefault() == Operations.StoragePriority.Unspecified) return false;
+            if (settings.Preset is not null && PresetName(settings.Preset.GetValueOrDefault()) == null) return false;
             var filter = settings.Filter;
-            if (filter == null) return settings.HasPriority || settings.HasPreset;
+            if (filter == null) return settings.Priority is not null || settings.Preset is not null;
             var selectors = filter.Allow.Concat(filter.Disallow).Concat(filter.Replace?.Selectors ?? Enumerable.Empty<Operations.FilterSelector>()).ToList();
             if (selectors.Any(s => !ValidSelector(s))) return false;
-            if (filter.HasHitPointsMin != filter.HasHitPointsMax || filter.HasQualityMin != filter.HasQualityMax) return false;
-            if (filter.HasHitPointsMin && (double.IsNaN(filter.HitPointsMin) || double.IsNaN(filter.HitPointsMax)
-                || filter.HitPointsMin < 0 || filter.HitPointsMax > 1 || filter.HitPointsMin > filter.HitPointsMax)) return false;
-            if (filter.HasQualityMin && (ParseQuality(filter.QualityMin) == null || ParseQuality(filter.QualityMax) == null
-                || ParseQuality(filter.QualityMin)!.Value > ParseQuality(filter.QualityMax)!.Value)) return false;
+            if ((filter.HitPointsMin is not null) != (filter.HitPointsMax is not null) || (filter.QualityMin is not null) != (filter.QualityMax is not null)) return false;
+            if (filter.HitPointsMin is not null && (double.IsNaN(filter.HitPointsMin.GetValueOrDefault()) || double.IsNaN(filter.HitPointsMax.GetValueOrDefault())
+                || filter.HitPointsMin.GetValueOrDefault() < 0 || filter.HitPointsMax.GetValueOrDefault() > 1 || filter.HitPointsMin.GetValueOrDefault() > filter.HitPointsMax.GetValueOrDefault())) return false;
+            if (filter.QualityMin is not null && (ParseQuality((filter.QualityMin ?? "")) == null || ParseQuality((filter.QualityMax ?? "")) == null
+                || ParseQuality((filter.QualityMin ?? ""))!.Value > ParseQuality((filter.QualityMax ?? ""))!.Value)) return false;
             return true;
         }
 
         private static bool ValidSelector(Operations.FilterSelector selector)
         {
-            switch (selector.DefinitionCase)
+            switch (selector.Definition)
             {
-                case Operations.FilterSelector.DefinitionOneofCase.ThingDef: return ProtoBoundary.IsIdentifier(selector.ThingDef);
-                case Operations.FilterSelector.DefinitionOneofCase.CategoryDef: return ProtoBoundary.IsIdentifier(selector.CategoryDef);
-                case Operations.FilterSelector.DefinitionOneofCase.SpecialFilterDef: return ProtoBoundary.IsIdentifier(selector.SpecialFilterDef);
+                case Operations.FilterSelectorDefinition.ThingDefCase: return ProtoBoundary.IsIdentifier(selector.Definition?.ThingDef);
+                case Operations.FilterSelectorDefinition.CategoryDefCase: return ProtoBoundary.IsIdentifier(selector.Definition?.CategoryDef);
+                case Operations.FilterSelectorDefinition.SpecialFilterDefCase: return ProtoBoundary.IsIdentifier(selector.Definition?.SpecialFilterDef);
                 default: return false;
             }
         }
@@ -88,16 +88,16 @@ namespace HomeBridge.BridgeTools
         /// <summary>Resolves every selector exactly by defName. Special filters
         /// must be configurable ones (the storage tab's own checkboxes); a
         /// ThingDef must be storable in the given universe.</summary>
-        internal static Resolved? Resolve(Operations.StockpileSettings settings, List<ThingDef> universe)
+        internal static Resolved? Resolve(Operations.StockpileSettings? settings, List<ThingDef> universe)
         {
-            if (!Valid(settings)) return null;
+            if (settings is null || !Valid(settings)) return null;
             var result = new Resolved();
-            if (settings.HasPriority)
+            if (settings.Priority is not null)
             {
-                result.Priority = NativeZoneCreation.ToNativePriority(settings.Priority);
+                result.Priority = NativeZoneCreation.ToNativePriority(settings.Priority.GetValueOrDefault());
                 if (!result.Priority.HasValue) return null;
             }
-            if (settings.HasPreset) result.Preset = PresetName(settings.Preset);
+            if (settings.Preset is not null) result.Preset = PresetName(settings.Preset.GetValueOrDefault());
             var filter = settings.Filter;
             if (filter == null) return result;
             var storable = new HashSet<ThingDef>(universe);
@@ -107,8 +107,8 @@ namespace HomeBridge.BridgeTools
                 if (!ResolveAll(filter.Replace.Selectors, storable, result.Replace)) return null;
             }
             if (!ResolveAll(filter.Allow, storable, result.Allow) || !ResolveAll(filter.Disallow, storable, result.Disallow)) return null;
-            if (filter.HasHitPointsMin) result.HitPoints = new FloatRange((float)filter.HitPointsMin, (float)filter.HitPointsMax);
-            if (filter.HasQualityMin) result.Quality = new QualityRange(ParseQuality(filter.QualityMin)!.Value, ParseQuality(filter.QualityMax)!.Value);
+            if (filter.HitPointsMin is not null) result.HitPoints = new FloatRange((float)filter.HitPointsMin.GetValueOrDefault(), (float)filter.HitPointsMax.GetValueOrDefault());
+            if (filter.QualityMin is not null) result.Quality = new QualityRange(ParseQuality((filter.QualityMin ?? ""))!.Value, ParseQuality((filter.QualityMax ?? ""))!.Value);
             return result;
         }
 
@@ -116,18 +116,18 @@ namespace HomeBridge.BridgeTools
         {
             foreach (var selector in selectors)
             {
-                switch (selector.DefinitionCase)
+                switch (selector.Definition)
                 {
-                    case Operations.FilterSelector.DefinitionOneofCase.ThingDef:
-                        var def = DefDatabase<ThingDef>.GetNamedSilentFail(selector.ThingDef);
+                    case Operations.FilterSelectorDefinition.ThingDefCase:
+                        var def = DefDatabase<ThingDef>.GetNamedSilentFail(selector.Definition?.ThingDef);
                         if (def == null || !storable.Contains(def)) return false;
                         into.Defs.Add(def); break;
-                    case Operations.FilterSelector.DefinitionOneofCase.CategoryDef:
-                        var category = DefDatabase<ThingCategoryDef>.GetNamedSilentFail(selector.CategoryDef);
+                    case Operations.FilterSelectorDefinition.CategoryDefCase:
+                        var category = DefDatabase<ThingCategoryDef>.GetNamedSilentFail(selector.Definition?.CategoryDef);
                         if (category == null) return false;
                         into.Categories.Add(category); break;
-                    case Operations.FilterSelector.DefinitionOneofCase.SpecialFilterDef:
-                        var special = DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail(selector.SpecialFilterDef);
+                    case Operations.FilterSelectorDefinition.SpecialFilterDefCase:
+                        var special = DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail(selector.Definition?.SpecialFilterDef);
                         if (special == null || !special.configurable) return false;
                         into.Specials.Add(special); break;
                     default: return false;
@@ -201,13 +201,13 @@ namespace HomeBridge.BridgeTools
                 HitPointsMin = filter.AllowedHitPointsPercents.min, HitPointsMax = filter.AllowedHitPointsPercents.max,
                 QualityMin = filter.AllowedQualityLevels.min.ToString(), QualityMax = filter.AllowedQualityLevels.max.ToString() };
             var allowed = StockpileFilter.AllowedSet(filter).Select(d => d.defName).OrderBy(n => n, StringComparer.Ordinal).ToList();
-            row.AllowedDefNames.AddRange(allowed);
+            row = row with { AllowedDefNames = [.. row.AllowedDefNames, .. allowed] };
             foreach (var special in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.Where(d => d.configurable).OrderBy(d => d.defName, StringComparer.Ordinal))
-                row.SpecialRules.Add(new Obs.FilterSpecialRule { DefName = special.defName, Allowed = filter.Allows(special) });
+                row = row with { SpecialRules = [.. row.SpecialRules, new Obs.FilterSpecialRule { DefName = special.defName, Allowed = filter.Allows(special) }] };
             var fresh = DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail("AllowFresh");
             var rotten = DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail("AllowRotten");
-            if (fresh != null) row.AllowFresh = filter.Allows(fresh);
-            if (rotten != null) row.AllowRotten = filter.Allows(rotten);
+            if (fresh != null) row = row with { AllowFresh = filter.Allows(fresh) };
+            if (rotten != null) row = row with { AllowRotten = filter.Allows(rotten) };
             return row;
         }
     }

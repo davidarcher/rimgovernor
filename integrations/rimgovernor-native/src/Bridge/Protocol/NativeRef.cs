@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
+using Common = RimGovernor.Contracts.Wire.Common;
 
 namespace HomeBridge.BridgeTools
 {

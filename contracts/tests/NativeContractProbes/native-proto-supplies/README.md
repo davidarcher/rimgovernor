@@ -9,7 +9,7 @@ Harmony directory:
 dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-proto-supplies <args...>
 ```
 
-The suite loads the actual adapter, official DTOs and SDK binder/normalizer. It
+The suite loads the actual adapter, the Contracts wire records and SDK binder/normalizer. It
 checks filters, defaults, ownership rules, 64-bit quantities, known-zero versus
 unknown held facts and reply bounds. It does not fabricate game objects or
 establish gameplay outcomes.

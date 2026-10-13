@@ -5,12 +5,11 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -31,13 +30,13 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadPopulation(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a PopulationRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_population", request!, Obs.PopulationRequest.Parser, out var parsed, out var failure)
-                || !ValidatePopulation(parsed, out failure)) return ProtoBoundary.Encode(new Obs.PopulationReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Obs.PopulationRequest>(ctx, "rimgovernor/observations_read_population", request!, out var parsed, out var failure)
+                || !ValidatePopulation(parsed, out failure)) return ProtoBoundary.Encode(new Obs.PopulationReply { Outcome = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.PopulationReply { Failure = failure });
-                try { return ProtoBoundary.Encode(new Obs.PopulationReply { Observed = Population(map, parsed, context) }); }
-                catch (Exception error) { ModLog.Error("observe", "Population read failed: " + error); return ProtoBoundary.Encode(new Obs.PopulationReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Native population facts could not be read completely: " + error.GetType().Name + ": " + error.Message)) }); }
+                    return ProtoBoundary.Encode(new Obs.PopulationReply { Outcome = failure });
+                try { return ProtoBoundary.Encode(new Obs.PopulationReply { Outcome = Population(map, parsed, context) }); }
+                catch (Exception error) { ModLog.Error("observe", "Population read failed: " + error); return ProtoBoundary.Encode(new Obs.PopulationReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Native population facts could not be read completely: " + error.GetType().Name + ": " + error.Message)) }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -58,29 +57,29 @@ namespace HomeBridge.BridgeTools
                 var person = new Obs.PopulationPerson { Pawn = NativePawnObservationTools.Ref(p), Admitted = p.IsFreeColonist && p.Faction == player, Guest = p.HostFaction == player };
                 if (p.guest != null)
                 {
-                    person.Recruitable = p.guest.Recruitable;
-                    person.Resistance = Number(p.guest.Resistance);
+                    person = person with { Recruitable = p.guest.Recruitable };
+                    person = person with { Resistance = Number(p.guest.Resistance) };
                     var interaction = p.guest.ExclusiveInteractionMode?.defName;
-                    if (interaction != null) person.Interaction = NativePawnObservationTools.Id(interaction);
+                    if (interaction != null) person = person with { Interaction = NativePawnObservationTools.Id(interaction) };
                     // Time held so far (the TimeAsPrisoner record, in ticks): the
                     // routine release path's "held N days with resistance
                     // unbroken" clock. Only a current prisoner carries it.
-                    if (p.IsPrisoner && p.records != null) person.PrisonerTicks = (long)p.records.GetValue(RecordDefOf.TimeAsPrisoner);
-                    if (ModsConfig.IdeologyActive && p.IsPrisoner) person.Will = Number(p.guest.will);
+                    if (p.IsPrisoner && p.records != null) person = person with { PrisonerTicks = (long)p.records.GetValue(RecordDefOf.TimeAsPrisoner) };
+                    if (ModsConfig.IdeologyActive && p.IsPrisoner) person = person with { Will = Number(p.guest.will) };
                 }
-                if (p.Ideo != null) person.IdeoId = NativePawnObservationTools.Id(p.Ideo.GetUniqueLoadID());
+                if (p.Ideo != null) person = person with { IdeoId = NativePawnObservationTools.Id(p.Ideo.GetUniqueLoadID()) };
                 // Prospect facts: MaintainPopulation weighs a prisoner's
                 // skills, traits, age and health against the free colonists';
                 // a hostile's skills rank it as a lance target.
-                if (p.IsPrisonerOfColony || person.Admitted || p.HostileTo(player))
+                if (p.IsPrisonerOfColony || person.Admitted.GetValueOrDefault() || p.HostileTo(player))
                 {
-                    person.WildMan = p.IsWildMan();
-                    person.Biography = NativePawnDetails.Biography(p);
-                    if (p.health?.summaryHealth != null) person.HealthSummary = Number(p.health.summaryHealth.SummaryHealthPercent);
+                    person = person with { WildMan = p.IsWildMan() };
+                    person = person with { Biography = NativePawnDetails.Biography(p) };
+                    if (p.health?.summaryHealth != null) person = person with { HealthSummary = Number(p.health.summaryHealth.SummaryHealthPercent) };
                     // After combat: a luciferium addict is stripped and
                     // finished, not captured; every raider is stripped first.
-                    person.LuciferiumAddicted = CombatMirror.HasHediff(p, "LuciferiumAddiction");
-                    person.WearingApparel = p.apparel?.WornApparel.Count > 0;
+                    person = person with { LuciferiumAddicted = CombatMirror.HasHediff(p, "LuciferiumAddiction") };
+                    person = person with { WearingApparel = p.apparel?.WornApparel.Count > 0 };
                 }
                 // Organ harvest facts: a colony prisoner's surgery
                 // facts through the care read's own producer, its home faction
@@ -89,63 +88,63 @@ namespace HomeBridge.BridgeTools
                 // Medical care cap inputs: colony prisoners and hosted guests.
                 if (p.IsPrisonerOfColony || (p.HostFaction == player && !p.IsPrisoner && !p.IsSlave))
                 {
-                    if (p.playerSettings != null) person.MedicalCare = NativeEnums.Care(p.playerSettings.medCare);
-                    person.Conditions = NativePawnDetails.Conditions(p);
+                    if (p.playerSettings != null) person = person with { MedicalCare = NativeEnums.Care(p.playerSettings.medCare) };
+                    person = person with { Conditions = NativePawnDetails.Conditions(p) };
                 }
                 if (p.IsPrisonerOfColony)
                 {
                     var health = new Obs.PawnHealth();
                     var bills = p.BillStack?.Bills;
-                    if (bills == null) health.Issues.Add(NativePawnObservationTools.Issue("surgery_bills", Common.UnavailableReason.NativeComponentMissing, "No bill stack."));
+                    if (bills == null) health = health with { Issues = [.. health.Issues, NativePawnObservationTools.Issue("surgery_bills", Common.UnavailableReason.NativeComponentMissing, "No bill stack.")] };
                     else foreach (var bill in bills.OfType<Bill_Medical>())
                     {
                         var b = new Obs.SurgeryBill { Id = NativePawnObservationTools.Id(bill.GetUniqueLoadID()), Recipe = NativePawnObservationTools.Id(bill.recipe.defName), Suspended = bill.suspended };
-                        if (bill.Part != null) b.PartIndex = p.RaceProps.body.AllParts.IndexOf(bill.Part);
-                        health.SurgeryBills.Add(b);
+                        if (bill.Part != null) b = b with { PartIndex = p.RaceProps.body.AllParts.IndexOf(bill.Part) };
+                        health = health with { SurgeryBills = [.. health.SurgeryBills, b] };
                     }
-                    NativePawnDetails.Surgery(p, health);
-                    person.Surgery = health;
-                    if (p.playerSettings != null) person.MedicalCare = NativeEnums.Care(p.playerSettings.medCare);
+                    health = NativePawnDetails.Surgery(p, health);
+                    person = person with { Surgery = health };
+                    if (p.playerSettings != null) person = person with { MedicalCare = NativeEnums.Care(p.playerSettings.medCare) };
                     // Peg-leg control: an addiction a prisoner cannot feed.
-                    person.Withdrawal = p.health?.hediffSet?.hediffs?.Any(h => h is Hediff_Addiction) == true;
-                    person.PolicyInputs = NativePolicyFacts.Inputs(p);
+                    person = person with { Withdrawal = p.health?.hediffSet?.hediffs?.Any(h => h is Hediff_Addiction) == true };
+                    person = person with { PolicyInputs = NativePolicyFacts.Inputs(p) };
                     var home = p.Faction == null ? null : p.HomeFaction;
-                    person.HarvestGoodwillChange = 0;
+                    person = person with { HarvestGoodwillChange = 0 };
                     if (home != null && !home.IsPlayer)
                     {
-                        person.Faction = NativeRef.Of(NativePawnObservationTools.Id(home.GetUniqueLoadID()));
+                        person = person with { Faction = NativeRef.Of(NativePawnObservationTools.Id(home.GetUniqueLoadID())) };
                         if (player.CanChangeGoodwillFor(home, -70))
-                            person.HarvestGoodwillChange = Math.Max(player.CalculateAdjustedGoodwillChange(home, -70), -100 - player.GoodwillWith(home));
+                            person = person with { HarvestGoodwillChange = Math.Max(player.CalculateAdjustedGoodwillChange(home, -70), -100 - player.GoodwillWith(home)) };
                     }
                 }
-                if (p.ownership?.OwnedBed is Building_Bed bed && bed.Spawned) person.OwnedBed = NativeBuildingObservationTools.Ref(bed);
-                if (p.needs?.food != null) person.NutritionPerDay = Number(GameTime.PerDay(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true)));
-                person.WillJoinIfRescued = p.mindState.WillJoinColonyIfRescued;
+                if (p.ownership?.OwnedBed is Building_Bed bed && bed.Spawned) person = person with { OwnedBed = NativeBuildingObservationTools.Ref(bed) };
+                if (p.needs?.food != null) person = person with { NutritionPerDay = Number(GameTime.PerDay(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true))) };
+                person = person with { WillJoinIfRescued = p.mindState.WillJoinColonyIfRescued };
                 // The prisoner custody and interaction settings token
                 // (NativePrisonerInteractionOperations.Settings).
-                person.PawnSnapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = person.Pawn.Id, Token = NativePrisonerInteractionOperations.Settings(p) };
-                snapshot.Persons.Add(person);
+                person = person with { PawnSnapshot = new Obs.SnapshotRef { Context = context, EntityId = person.Pawn.Id, Token = NativePrisonerInteractionOperations.Settings(p) } };
+                snapshot = snapshot with { Persons = [.. snapshot.Persons, person] };
             }
             // Owned-pawn names: the census the unique-name planner reads.
             foreach (var owned in NativePawnSettings.OwnedNamedPawns())
-                snapshot.OwnedNames.Add(new Obs.OwnedName { PawnId = NativePawnObservationTools.Id(owned.GetUniqueLoadID()), ShortName = NativePawnObservationTools.Text(owned.Name.ToStringShort), ThingId = owned.thingIDNumber });
-            snapshot.IdeologyActive = ModsConfig.IdeologyActive;
+                snapshot = snapshot with { OwnedNames = [.. snapshot.OwnedNames, new Obs.OwnedName { PawnId = NativePawnObservationTools.Id(owned.GetUniqueLoadID()), ShortName = NativePawnObservationTools.Text(owned.Name.ToStringShort), ThingId = owned.thingIDNumber }] };
+            snapshot = snapshot with { IdeologyActive = ModsConfig.IdeologyActive };
             if (ModsConfig.IdeologyActive)
             {
-                snapshot.ClassicIdeoMode = Find.IdeoManager.classicMode;
+                snapshot = snapshot with { ClassicIdeoMode = Find.IdeoManager.classicMode };
                 var ideo = player.ideos?.PrimaryIdeo;
                 if (ideo != null)
                 {
-                    snapshot.ColonyIdeoId = NativePawnObservationTools.Id(ideo.GetUniqueLoadID());
+                    snapshot = snapshot with { ColonyIdeoId = NativePawnObservationTools.Id(ideo.GetUniqueLoadID()) };
                 }
             }
             // Storyteller population outlook.
             var intent = StorytellerUtilityPopulation.PopulationIntent;
             var difficulty = Find.Storyteller.difficulty;
-            snapshot.PopulationIntent = Number(intent);
-            snapshot.AdjustedPopulation = Number(StorytellerUtilityPopulation.AdjustedPopulation);
-            snapshot.DeathOnDownedChance = Number(DeathOnDownedChance(intent, difficulty.unwaveringPrisoners, difficulty.enemyDeathOnDownedChanceFactor));
-            snapshot.UnrecruitableChance = Number(UnrecruitableChance(intent));
+            snapshot = snapshot with { PopulationIntent = Number(intent) };
+            snapshot = snapshot with { AdjustedPopulation = Number(StorytellerUtilityPopulation.AdjustedPopulation) };
+            snapshot = snapshot with { DeathOnDownedChance = Number(DeathOnDownedChance(intent, difficulty.unwaveringPrisoners, difficulty.enemyDeathOnDownedChanceFactor)) };
+            snapshot = snapshot with { UnrecruitableChance = Number(UnrecruitableChance(intent)) };
             return snapshot;
         }
 

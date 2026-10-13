@@ -1,5 +1,5 @@
 using System.Threading.Channels;
-using Obs = RimGovernor.Protocol.Observations;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.NativeFacade;
 

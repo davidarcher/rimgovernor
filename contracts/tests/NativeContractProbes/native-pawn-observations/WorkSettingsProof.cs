@@ -10,8 +10,8 @@ internal static class WorkSettingsProof
         const BindingFlags flags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
         var type = bridge.GetType("HomeBridge.BridgeTools.NativeWorkSettings", true)!;
         Func<string,string,object> parse = (name,json) => {
-            var parser = bridge.GetType("RimGovernor.Protocol." + name,true)!.GetProperty("Parser")!.GetValue(null)!;
-            return parser.GetType().GetMethod("ParseJson")!.Invoke(parser,new object[]{json})!;
+            var wireType = typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType("RimGovernor.Contracts.Wire." + name,true)!;
+            return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize",new[]{typeof(string)})!.MakeGenericMethod(wireType).Invoke(null,new object[]{json})!;
         };
         Func<string,bool> valid = json => (bool)type.GetMethod("Valid",flags)!.Invoke(null,new[]{parse("Operations.PatchPawn",json)})!;
         const string pawn = "\"pawn\":{\"entityId\":\"Pawn1\",\"expectedSnapshotToken\":\"token\"}";

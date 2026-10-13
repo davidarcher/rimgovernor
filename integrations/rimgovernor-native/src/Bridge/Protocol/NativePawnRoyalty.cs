@@ -8,8 +8,8 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -23,14 +23,15 @@ namespace HomeBridge.BridgeTools
         // caster's psyfocus and neural heat (combat casts hold on them).
         // Absent without Royalty or a royalty tracker; a failed read leaves the
         // block absent next to a ReadIssue named "royalty".
-        internal static void Apply(Pawn pawn, Obs.PawnState row)
+        internal static Obs.PawnState Apply(Pawn pawn, Obs.PawnState row)
         {
-            if (!ModsConfig.RoyaltyActive || !pawn.IsFreeColonist || pawn.royalty == null) return;
-            try { row.Royalty = Pawn(pawn); }
+            if (!ModsConfig.RoyaltyActive || !pawn.IsFreeColonist || pawn.royalty == null) return row;
+            try { row = row with { Royalty = Pawn(pawn) }; }
             catch (Exception ex)
             {
-                row.Issues.Add(new Obs.ReadIssue { Field = "royalty", Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic(ex.Message) } });
+                row = row with { Issues = [.. row.Issues, new Obs.ReadIssue { Field = "royalty", Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic(ex.Message) } }] };
             }
+            return row;
         }
 
         private static Obs.PawnRoyalty Pawn(Pawn pawn)
@@ -45,9 +46,9 @@ namespace HomeBridge.BridgeTools
             {
                 var holding = new Obs.PawnRoyalHolding { FactionDef = faction.def.defName, Favor = royalty.GetFavor(faction), PermitPoints = royalty.GetPermitPoints(faction) };
                 var title = royalty.GetCurrentTitle(faction);
-                if (title != null) holding.Title = title.defName;
-                holding.Permits.AddRange(royalty.AllFactionPermits.Where(p => p.Faction == faction && p.Permit != null)
-                    .Select(p => p.Permit.defName).OrderBy(n => n, StringComparer.Ordinal));
+                if (title != null) holding = holding with { Title = title.defName };
+                holding = holding with { Permits = [.. holding.Permits, .. royalty.AllFactionPermits.Where(p => p.Faction == faction && p.Permit != null)
+                    .Select(p => p.Permit.defName).OrderBy(n => n, StringComparer.Ordinal)] };
                 // The native cooldown of each held permit: FactionPermit.LastUsedTick
                 // (-1 until first used) and the ticks left of the permit's cooldown.
                 var now = Find.TickManager.TicksGame;
@@ -55,21 +56,21 @@ namespace HomeBridge.BridgeTools
                     .OrderBy(p => p.Permit.defName, StringComparer.Ordinal))
                 {
                     var cooldown = new Obs.PermitCooldown { Permit = held.Permit.defName, CooldownRemainingTicks = held.OnCooldown ? Math.Max(0, held.LastUsedTick + held.Permit.CooldownTicks - now) : 0 };
-                    if (held.LastUsedTick >= 0) cooldown.LastUsedTick = held.LastUsedTick;
-                    holding.PermitCooldowns.Add(cooldown);
+                    if (held.LastUsedTick >= 0) cooldown = cooldown with { LastUsedTick = held.LastUsedTick };
+                    holding = holding with { PermitCooldowns = [.. holding.PermitCooldowns, cooldown] };
                 }
-                row.Holdings.Add(holding);
+                row = row with { Holdings = [.. row.Holdings, holding] };
             }
             if (pawn.abilities != null)
                 foreach (var ability in pawn.abilities.abilities.Where(a => a.def != null && a.def.IsPsycast && ProtoBoundary.IsIdentifier(a.def.defName))
                     .OrderBy(a => a.def.level).ThenBy(a => a.def.defName, StringComparer.Ordinal))
-                    row.Psycasts.Add(Psycast(ability.def, ability.CooldownTicksRemaining));
+                    row = row with { Psycasts = [.. row.Psycasts, Psycast(ability.def, ability.CooldownTicksRemaining)] };
             var tracker = pawn.psychicEntropy;
             if (tracker != null && tracker.Psylink != null)
             {
-                if (tracker.NeedsPsyfocus) row.Psyfocus = tracker.CurrentPsyfocus;
-                row.Entropy = tracker.EntropyValue;
-                row.EntropyMax = tracker.MaxEntropy;
+                if (tracker.NeedsPsyfocus) row = row with { Psyfocus = tracker.CurrentPsyfocus };
+                row = row with { Entropy = tracker.EntropyValue };
+                row = row with { EntropyMax = tracker.MaxEntropy };
             }
             return row;
         }

@@ -5,12 +5,11 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -30,11 +29,11 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Read(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON AncientShrinesRequest string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.AncientShrinesRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.AncientShrinesReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Obs.AncientShrinesRequest>(ctx, ToolName, request, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.AncientShrinesReply { Outcome = new Obs.AncientShrinesReplyOutcome.FailureCase(failure) });
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                    return ProtoBoundary.Encode(new Obs.AncientShrinesReply { Failure = error });
+                    return ProtoBoundary.Encode(new Obs.AncientShrinesReply { Outcome = error });
                 try {
                     var player = Faction.OfPlayerSilentFail;
                     if (player == null || map.areaManager?.Home == null || map.listerThings == null || map.roofGrid == null || map.fogGrid == null)
@@ -65,12 +64,12 @@ namespace HomeBridge.BridgeTools
                         };
                         foreach (var casket in caskets) {
                             if (casket.Position.Fogged(map)) continue;
-                            row.Caskets.Add(new Obs.ShrineCasket {
+                            row = row with { Caskets = [.. row.Caskets, new Obs.ShrineCasket {
                                 EntityId = Id(casket.GetUniqueLoadID()), Cell = Cell(casket.Position.x, casket.Position.z),
                                 HitPoints = (uint)Math.Max(0, casket.HitPoints),
                                 HasContents = casket.HasAnyContents, PlayerClaimed = casket.Faction == player,
                                 InteractionCell = Cell(casket.InteractionCell.x, casket.InteractionCell.z)
-                            });
+                            }] };
                         }
                         if (!fogged) {
                             var things = rooms.Count > 0 ? rooms.SelectMany(r => r.ContainedAndAdjacentThings) : rect.Cells.Where(c => c.InBounds(map)).SelectMany(c => c.GetThingList(map));
@@ -79,12 +78,12 @@ namespace HomeBridge.BridgeTools
                                 if (!seen.Add(thing.thingIDNumber)) continue;
                                 var guard = Guard(thing, player);
                                 if (guard == null) continue;
-                                row.Guards.Add(guard);
+                                row = row with { Guards = [.. row.Guards, guard] };
                             }
                             foreach (var thing in things) {
                                 var occupant = Occupant(thing, player);
-                                if (occupant == null || row.Occupants.Any(o => o.EntityId == occupant.EntityId)) continue;
-                                row.Occupants.Add(occupant);
+                                if (occupant == null || row.Occupants.Any(o => (o.EntityId ?? "") == (occupant.EntityId ?? ""))) continue;
+                                row = row with { Occupants = [.. row.Occupants, occupant] };
                             }
                         }
                         foreach (var room in rooms.OrderBy(r => r.ID)) {
@@ -92,7 +91,7 @@ namespace HomeBridge.BridgeTools
                             foreach (var cell in room.BorderCellsCardinal.Distinct().OrderBy(c => c.x).ThenBy(c => c.z)) {
                                 if (!cell.InBounds(map) || cell.Fogged(map) || inside.Contains(cell)) continue;
                                 if (!(cell.GetEdifice(map) is Building wall) || wall.Faction == player || wall.def != ThingDefOf.Wall && !(wall is Building_Door) || !wall.DeconstructibleBy(player)) continue;
-                                if (row.BreachWalls.Any(w => w.EntityId == wall.GetUniqueLoadID())) continue;
+                                if (row.BreachWalls.Any(w => (w.EntityId ?? "") == wall.GetUniqueLoadID())) continue;
                                 if (NativeShrineBreachSafety.RoofBlocker(wall) != null) continue;
                                 IntVec3? outside = null;
                                 foreach (var offset in GenAdj.CardinalDirections) {
@@ -100,13 +99,13 @@ namespace HomeBridge.BridgeTools
                                     if (near.InBounds(map) && !inside.Contains(near) && near.Walkable(map) && !near.Fogged(map)) { outside = near; break; }
                                 }
                                 if (outside == null) continue;
-                                row.BreachWalls.Add(new Obs.ShrineBreachWall { EntityId = Id(wall.GetUniqueLoadID()), DefName = Id(wall.def.defName), Cell = Cell(cell.x, cell.z), Outside = Cell(outside.Value.x, outside.Value.z) });
+                                row = row with { BreachWalls = [.. row.BreachWalls, new Obs.ShrineBreachWall { EntityId = Id(wall.GetUniqueLoadID()), DefName = Id(wall.def.defName), Cell = Cell(cell.x, cell.z), Outside = Cell(outside.Value.x, outside.Value.z) }] };
                             }
                         }
-                        snapshot.Shrines.Add(row);
+                        snapshot = snapshot with { Shrines = [.. snapshot.Shrines, row] };
                     }
                     var count = (ulong)snapshot.Shrines.Count;
-                    var reply = new Obs.AncientShrinesReply { Observed = snapshot };
+                    var reply = new Obs.AncientShrinesReply { Outcome = snapshot };
                     return ProtoBoundary.Encode(reply);
                 }
                 catch (Exception) { return Missing(Common.UnavailableReason.ReadFailed, "Shrine facts could not be read completely."); }
@@ -155,6 +154,6 @@ namespace HomeBridge.BridgeTools
 
         private static Common.Cell Cell(int x, int z) => new Common.Cell { X = x, Z = z };
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
-        private static object Missing(Common.UnavailableReason reason, string detail) => ProtoBoundary.Encode(new Obs.AncientShrinesReply { Unavailable = new Common.Unavailable { Reason = reason, Detail = detail } });
+        private static object Missing(Common.UnavailableReason reason, string detail) => ProtoBoundary.Encode(new Obs.AncientShrinesReply { Outcome = new Common.Unavailable { Reason = reason, Detail = detail } });
     }
 }

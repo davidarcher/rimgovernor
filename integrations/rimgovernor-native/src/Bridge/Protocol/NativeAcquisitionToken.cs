@@ -3,7 +3,7 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
-using Common = RimGovernor.Protocol.Common;
+using Common = RimGovernor.Contracts.Wire.Common;
 
 namespace HomeBridge.BridgeTools
 {
@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
             using (var bytes = new MemoryStream())
             {
                 using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
-                { writer.Write(identity.ColonyId); writer.Write(identity.LoadToken); writer.Write(identity.MapId); writer.Write(id); writer.Write(resource); writer.Write(x); writer.Write(z); writer.Write(growth); writer.Write(yield); writer.Write(designated); }
+                { writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId.GetValueOrDefault()); writer.Write(id); writer.Write(resource); writer.Write(x); writer.Write(z); writer.Write(growth); writer.Write(yield); writer.Write(designated); }
                 using (var hash = SHA256.Create()) return "plant-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
             }
         }

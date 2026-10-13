@@ -6,9 +6,9 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -54,11 +54,11 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(Operations.RitualIntent? command, out Pawn? pawn, out Target? target)
         {
             pawn = null; target = null;
-            if (command == null || !command.HasPawnId || !ProtoBoundary.IsIdentifier(command.PawnId) || !command.HasRitual || !command.HasVerb)
+            if (command == null || command.PawnId is null || !ProtoBoundary.IsIdentifier(command.PawnId) || command.Ritual is null || command.Verb is null)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A ritual command requires a pawn, a ritual and a verb.");
-            if (command.Ritual != Bestowing)
+            if ((command.Ritual ?? "") != Bestowing)
                 return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Unsupported ritual.");
-            if (command.Verb != Start)
+            if ((command.Verb ?? "") != Start)
                 return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Unsupported ritual verb.");
             pawn = PawnsFinder.AllMaps_FreeColonists.ById(command.PawnId);
             if (pawn == null || pawn.royalty == null)
@@ -79,17 +79,17 @@ namespace HomeBridge.BridgeTools
 
         private static Receipts.EffectEvidence Evidence(Operations.RitualIntent command, Target target) => new Receipts.EffectEvidence
         {
-            Ritual = new Receipts.RitualEffect { PawnId = command.PawnId, Ritual = command.Ritual, Verb = command.Verb, Started = target.Job.ceremonyStarted || !(target.Lord.CurLordToil is LordToil_BestowingCeremony_Wait) }
+            Effect = new Receipts.RitualEffect { PawnId = command.PawnId, Ritual = command.Ritual, Verb = command.Verb, Started = target.Job.ceremonyStarted || !(target.Lord.CurLordToil is LordToil_BestowingCeremony_Wait) }
         };
 
         internal static Common.Failure? Validate(Operations.RitualIntent command) =>
-            command.HasVerb && command.Verb == NativeRitualBegin.Begin ? NativeRitualBegin.Validate(command) : Resolve(command, out _, out _);
+            command.Verb is not null && (command.Verb ?? "") == NativeRitualBegin.Begin ? NativeRitualBegin.Validate(command) : Resolve(command, out _, out _);
 
         internal static Receipts.EffectEvidence Apply(Operations.RitualIntent command)
         {
-            if (command.HasVerb && command.Verb == NativeRitualBegin.Begin) return NativeRitualBegin.Apply(command);
+            if (command.Verb is not null && (command.Verb ?? "") == NativeRitualBegin.Begin) return NativeRitualBegin.Apply(command);
             var failure = Resolve(command, out _, out var target);
-            if (failure != null || target == null) throw new InvalidOperationException("Ritual start prerequisites changed before apply: " + failure?.Detail);
+            if (failure != null || target == null) throw new InvalidOperationException("Ritual start prerequisites changed before apply: " + (failure?.Detail ?? ""));
             if (target.Started || target.Command == null) return Evidence(command, target);
             // The gizmo's action is the toil's StartRitual (private); it takes
             // the participating colonists, none chosen here.
@@ -97,7 +97,7 @@ namespace HomeBridge.BridgeTools
             if (action == null) throw new InvalidOperationException("The ceremony command carries no action.");
             action(new List<Pawn>());
             var evidence = Evidence(command, target);
-            if (!evidence.Ritual.Started) throw new InvalidOperationException("Native ritual start readback did not apply.");
+            if (evidence.Effect?.Ritual?.Started != true) throw new InvalidOperationException("Native ritual start readback did not apply.");
             return evidence;
         }
     }
@@ -136,20 +136,20 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(Operations.RitualIntent command, out Plan? plan)
         {
             plan = null;
-            if (!command.HasPawnId || !ProtoBoundary.IsIdentifier(command.PawnId) || !command.HasRitual || !ProtoBoundary.IsIdentifier(command.Ritual) || command.Spot == null || !command.Spot.HasX || !command.Spot.HasZ)
+            if (command.PawnId is null || !ProtoBoundary.IsIdentifier(command.PawnId) || command.Ritual is null || !ProtoBoundary.IsIdentifier(command.Ritual) || command.Spot == null || command.Spot.X is null || command.Spot.Z is null)
                 return Invalid("A ritual begin requires an organizer, a ritual precept and a spot.");
             var organizer = PawnsFinder.AllMaps_FreeColonists.ById(command.PawnId);
             if (organizer == null) return Missing("Exact colonist organizer is unavailable.");
             var ideo = Faction.OfPlayerSilentFail?.ideos?.PrimaryIdeo;
             if (ideo == null) return Missing("The player faction has no ideoligion.");
-            var ritual = ideo.PreceptsListForReading.OfType<Precept_Ritual>().FirstOrDefault(p => p.GetUniqueLoadID() == command.Ritual);
+            var ritual = ideo.PreceptsListForReading.OfType<Precept_Ritual>().FirstOrDefault(p => p.GetUniqueLoadID() == (command.Ritual ?? ""));
             if (ritual == null) return Missing("The ideoligion holds no ritual precept with that id.");
             var found = new Plan { Organizer = organizer, Ritual = ritual, Running = Running(ritual) };
             plan = found;
             if (found.Running) return null;
             var map = organizer.MapHeld;
             if (!organizer.Spawned || map == null) return Invalid("The organizer is not on a map.");
-            var cell = new IntVec3(command.Spot.X, 0, command.Spot.Z);
+            var cell = new IntVec3(command.Spot.X.GetValueOrDefault(), 0, command.Spot.Z.GetValueOrDefault());
             if (!cell.InBounds(map)) return Invalid("The spot is outside the organizer's map.");
 
             // The target the precept's own gizmo is offered at: a thing on the
@@ -185,14 +185,14 @@ namespace HomeBridge.BridgeTools
             assignments.Setup(offeredAssignments.AllCandidatePawns, offeredAssignments.NonAssignablePawns, offeredAssignments.ForcedRolesForReading, offeredAssignments.ExtraRequiredPawnsForReading, organizer);
             foreach (var slot in command.Roles)
             {
-                if (slot == null || !slot.HasSlot) return Invalid("A role assignment requires a slot.");
-                var role = assignments.GetRole(slot.Slot);
-                if (role == null) return Missing("The ritual has no role slot " + slot.Slot + ".");
+                if (slot == null || slot.Slot is null) return Invalid("A role assignment requires a slot.");
+                var role = assignments.GetRole((slot.Slot ?? ""));
+                if (role == null) return Missing("The ritual has no role slot " + (slot.Slot ?? "") + ".");
                 foreach (var id in slot.PawnIds)
                 {
                     var pawn = assignments.AllCandidatePawns.ById(id);
                     if (pawn == null) return Missing("Pawn " + id + " is not a candidate for this ritual.");
-                    if (assignments.ForcedRole(pawn)?.id == slot.Slot) continue;
+                    if (assignments.ForcedRole(pawn)?.id == (slot.Slot ?? "")) continue;
                     var why = assignments.PawnNotAssignableReason(pawn, role);
                     if (!string.IsNullOrEmpty(why)) return Invalid(why);
                     if (!assignments.TryAssign(pawn, role, out var reason, PsychicRitualRoleDef.Context.Runtime, null))
@@ -216,7 +216,7 @@ namespace HomeBridge.BridgeTools
 
         private static Receipts.EffectEvidence Evidence(Operations.RitualIntent command, Plan plan) => new Receipts.EffectEvidence
         {
-            Ritual = new Receipts.RitualEffect { PawnId = command.PawnId, Ritual = command.Ritual, Verb = command.Verb, Started = Running(plan.Ritual) }
+            Effect = new Receipts.RitualEffect { PawnId = command.PawnId, Ritual = command.Ritual, Verb = command.Verb, Started = Running(plan.Ritual) }
         };
 
         internal static Common.Failure? Validate(Operations.RitualIntent command) => Resolve(command, out _);
@@ -224,20 +224,20 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.RitualIntent command)
         {
             var failure = Resolve(command, out var plan);
-            if (failure != null || plan == null) throw new InvalidOperationException("Ritual begin prerequisites changed before apply: " + failure?.Detail);
+            if (failure != null || plan == null) throw new InvalidOperationException("Ritual begin prerequisites changed before apply: " + (failure?.Detail ?? ""));
             if (plan.Running) return Evidence(command, plan);
             var action = Traverse.Create(plan.Dialog).Field("action").GetValue<Dialog_BeginRitual.ActionCallback>();
             if (action == null || plan.Assignments == null) throw new InvalidOperationException("The begin dialog carries no confirm action.");
             if (!action(plan.Assignments)) throw new InvalidOperationException("The game declined to begin the ritual.");
             var evidence = Evidence(command, plan);
-            if (!evidence.Ritual.Started) throw new InvalidOperationException("Native ritual begin readback did not apply.");
+            if (evidence.Effect?.Ritual?.Started != true) throw new InvalidOperationException("Native ritual begin readback did not apply.");
             return evidence;
         }
     }
 
     internal sealed class RitualActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeRitual.Validate(action.Ritual);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeRitual.Apply(action.Ritual);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeRitual.Validate(action.Intent?.Ritual ?? throw new InvalidOperationException("Action carries no ritual intent."));
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeRitual.Apply(action.Intent?.Ritual ?? throw new InvalidOperationException("Action carries no ritual intent."));
     }
 }

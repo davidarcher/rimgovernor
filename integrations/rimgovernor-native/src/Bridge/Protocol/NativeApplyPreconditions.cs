@@ -1,6 +1,6 @@
 #nullable enable
 using System;
-using Common = RimGovernor.Protocol.Common;
+using Common = RimGovernor.Contracts.Wire.Common;
 
 namespace HomeBridge.BridgeTools
 {

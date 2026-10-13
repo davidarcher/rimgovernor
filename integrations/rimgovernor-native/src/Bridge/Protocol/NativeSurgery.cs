@@ -3,9 +3,9 @@ using System;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -24,10 +24,10 @@ namespace HomeBridge.BridgeTools
             out Pawn? pawn, out RecipeDef? recipe, out BodyPartRecord? part, out Pawn? surgeon)
         {
             pawn = null; recipe = null; part = null; surgeon = null;
-            if (intent == null || intent.HasBenchId || intent.Settings != null || intent.ReplaceOwnedBill != null
+            if (intent == null || intent.BenchId is not null || intent.Settings != null || intent.ReplaceOwnedBill != null
                 || !ProtoBoundary.IsIdentifier(intent.Patient?.Id) || !ProtoBoundary.IsIdentifier(intent.RecipeDef)
                 || (intent.Surgeon != null && !ProtoBoundary.IsIdentifier(intent.Surgeon.Id))
-                || (intent.HasPartIndex && intent.PartIndex < 0))
+                || (intent.PartIndex is not null && intent.PartIndex.GetValueOrDefault() < 0))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Surgery requires an exact patient, an exact recipe and a whole-body or exact part index.");
             var map = ProtoBoundary.LoadedMap(context);
             pawn = map.mapPawns.AllPawnsSpawned.ById(intent.Patient.Id);
@@ -36,18 +36,18 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living humanlike colony patient is not spawned on this map.");
             if (intent.Surgeon != null)
             {
-                var id = intent.Surgeon.Id;
+                var id = (intent.Surgeon.Id ?? "");
                 surgeon = map.mapPawns.FreeColonistsSpawned.ById(id);
                 if (surgeon == null || surgeon == pawn || surgeon.WorkTypeIsDisabled(WorkTypeDefOf.Doctor))
                     return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Surgeon " + id + " is not a spawned free colonist who can doctor.");
             }
-            recipe = pawn.def.AllRecipes?.FirstOrDefault(r => r.defName == intent.RecipeDef);
-            if (recipe == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Recipe " + intent.RecipeDef + " is not offered for this patient.");
+            recipe = pawn.def.AllRecipes?.FirstOrDefault(r => r.defName == (intent.RecipeDef ?? ""));
+            if (recipe == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Recipe " + (intent.RecipeDef ?? "") + " is not offered for this patient.");
             var parts = pawn.RaceProps.body.AllParts;
-            if (intent.HasPartIndex)
+            if (intent.PartIndex is not null)
             {
-                if (intent.PartIndex >= parts.Count) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Body part index is out of range.");
-                part = parts[intent.PartIndex];
+                if (intent.PartIndex.GetValueOrDefault() >= parts.Count) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Body part index is out of range.");
+                part = parts[intent.PartIndex.GetValueOrDefault()];
             }
             if (recipe.targetsBodyPart != (part != null))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, recipe.targetsBodyPart ? "Recipe needs a body part." : "Recipe is whole-body; no part index.");
@@ -59,7 +59,7 @@ namespace HomeBridge.BridgeTools
             if (Queued(pawn, recipe, part) != null) return null;
             if (Stands(pawn, recipe, part))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Recipe " + recipe.defName + " already stands on this part.");
-            if (!intent.AcknowledgeViolation && recipe.Worker.IsViolationOnPawn(pawn, part, Faction.OfPlayer))
+            if (!intent.AcknowledgeViolation.GetValueOrDefault() && recipe.Worker.IsViolationOnPawn(pawn, part, Faction.OfPlayer))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Recipe is a violation on this patient; acknowledge_violation is required.");
             return null;
         }
@@ -89,8 +89,8 @@ namespace HomeBridge.BridgeTools
                 PawnId = pawn!.GetUniqueLoadID(), RecipeDef = recipe!.defName, Bill = NativeRef.Of(bill.GetUniqueLoadID()),
                 State = Receipts.SurgeryState.Queued,
             };
-            if (part != null) effect.PartIndex = intent.PartIndex;
-            return new Receipts.EffectEvidence { SurgeryBill = effect };
+            if (part != null) effect = effect with { PartIndex = intent.PartIndex };
+            return new Receipts.EffectEvidence { Effect = effect };
         }
     }
 }

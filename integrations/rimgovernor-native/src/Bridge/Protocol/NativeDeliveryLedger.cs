@@ -8,8 +8,8 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -47,10 +47,10 @@ namespace HomeBridge.BridgeTools
                 var state = States.GetOrCreateValue(Current.Game);
                 var facts = new Obs.DeliveryLedgerFacts { Epoch = state.Epoch };
                 foreach (var row in state.Rows.OrderBy(r => r.Key.Kind).ThenBy(r => r.Key.Source, StringComparer.Ordinal).ThenBy(r => r.Key.Def, StringComparer.Ordinal))
-                    facts.Rows.Add(Row(row.Value, row.Key.Kind, row.Key.Source, row.Key.Def));
-                facts.Kills.Add(state.Kills);
-                facts.Butchers.Add(state.Butchers);
-                return new Obs.DeliveryLedgerSection { Observed = facts };
+                    facts = facts with { Rows = [.. facts.Rows, Row(row.Value, row.Key.Kind, row.Key.Source, row.Key.Def)] };
+                facts = facts with { Kills = [.. state.Kills] };
+                facts = facts with { Butchers = [.. state.Butchers] };
+                return new Obs.DeliveryLedgerSection { Outcome = facts };
             }
             catch (Exception error)
             {
@@ -60,12 +60,12 @@ namespace HomeBridge.BridgeTools
         }
 
         private static Obs.DeliveryLedgerSection Unavailable(string detail) =>
-            new Obs.DeliveryLedgerSection { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = detail } };
+            new Obs.DeliveryLedgerSection { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = detail } };
 
         private static Obs.DeliveryRow Row(Counter c, Obs.DeliverySourceKind? kind, string source, string def)
         {
             var row = new Obs.DeliveryRow { SourceId = source, DefName = def, Units = c.Units, Nutrition = c.Nutrition, LastTick = c.LastTick };
-            if (kind != null) row.SourceKind = kind.Value;
+            if (kind != null) row = row with { SourceKind = kind.Value };
             return row;
         }
 
@@ -195,7 +195,7 @@ namespace HomeBridge.BridgeTools
             if (corpseId == null || Current.Game == null) yield break;
             var record = new Obs.ButcherRecord { CorpseId = corpseId, Recipe = __0.defName, MeatUnits = meat, MeatNutrition = nutrition,
                 LeatherUnits = leather, Tick = Find.TickManager.TicksGame };
-            if (meatDef != null) record.MeatDef = meatDef.defName;
+            if (meatDef != null) record = record with { MeatDef = meatDef.defName };
             var state = States.GetOrCreateValue(Current.Game);
             state.Butchers.Add(record);
         }

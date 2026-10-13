@@ -4,8 +4,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Common = RimGovernor.Protocol.Common;
-using Clock = RimGovernor.Protocol.Clock;
+using RimGovernor.Brain.Domain;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Clock = RimGovernor.Contracts.Wire.Clock;
 
 namespace HomeBridge.BridgeTools
 {
@@ -34,31 +35,31 @@ namespace HomeBridge.BridgeTools
         internal static Clock.Alert Alert(Dictionary<string, object?> row)
         {
             var result = new Clock.Alert { Key = Id(String(row, "alertKey")), Label = String(row, "label") };
-            object? priority; if (row.TryGetValue("priority", out priority) && priority != null) result.Priority = Text((string)priority);
+            object? priority; if (row.TryGetValue("priority", out priority) && priority != null) result = result with { Priority = Text((string)priority) };
             return result;
         }
         private static Clock.Letter Letter(Dictionary<string, object?> row)
         {
             var result = new Clock.Letter { Id = Id(String(row, "id")), Label = String(row, "label") };
-            object? value; if (row.TryGetValue("letterDef", out value) && value != null) result.DefName = Id((string)value);
-            if (row.TryGetValue("negative", out value) && value != null) result.Negative = (bool)value;
+            object? value; if (row.TryGetValue("letterDef", out value) && value != null) result = result with { DefName = Id((string)value) };
+            if (row.TryGetValue("negative", out value) && value != null) result = result with { Negative = (bool)value };
             return result;
         }
         private static Clock.TransientMessage Message(Dictionary<string, object?> row)
         {
             var result = new Clock.TransientMessage { Id = Id(String(row, "id")), Text = String(row, "text"), StartingTick = Number(row, "startingTick") };
-            object? value; if (row.TryGetValue("messageType", out value) && value != null) result.TypeDef = Id((string)value);
-            if (row.TryGetValue("negative", out value) && value != null) result.Negative = (bool)value;
+            object? value; if (row.TryGetValue("messageType", out value) && value != null) result = result with { TypeDef = Id((string)value) };
+            if (row.TryGetValue("negative", out value) && value != null) result = result with { Negative = (bool)value };
             return result;
         }
         private static Clock.PawnEvent Pawn(Dictionary<string, object?> row, Func<int, string> resolve, bool compact = false)
         {
             var result = new Clock.PawnEvent { PawnId = Id(resolve(checked((int)Number(row, compact ? "thingId" : "pawnId")))), Name = String(row, compact ? "name" : "pawnName") };
             object? position;
-            if (compact && row.ContainsKey("x")) result.Position = new Common.Cell { X = checked((int)Number(row, "x")), Z = checked((int)Number(row, "z")) };
+            if (compact && row.ContainsKey("x")) result = result with { Position = new Common.Cell { X = checked((int)Number(row, "x")), Z = checked((int)Number(row, "z")) } };
             else if (row.TryGetValue("position", out position))
-            { var cell = (Dictionary<string, object?>)(position ?? throw new InvalidOperationException("Missing clock evidence position")); result.Position = new Common.Cell { X = checked((int)Number(cell, "x")), Z = checked((int)Number(cell, "z")) }; }
-            object? reason; if (row.TryGetValue("reason", out reason) && reason != null) result.Reason = Text((string)reason);
+            { var cell = (Dictionary<string, object?>)(position ?? throw new InvalidOperationException("Missing clock evidence position")); result = result with { Position = new Common.Cell { X = checked((int)Number(cell, "x")), Z = checked((int)Number(cell, "z")) } }; }
+            object? reason; if (row.TryGetValue("reason", out reason) && reason != null) result = result with { Reason = Text((string)reason) };
             return result;
         }
         private static Clock.Health Health(Dictionary<string, object?> row, string suffix) => new Clock.Health
@@ -68,7 +69,7 @@ namespace HomeBridge.BridgeTools
             var result = new Clock.Injury { Pawn = Pawn(row, resolve), Before = Health(row, "Before"), After = Health(row, "After"),
                 Suppression = Clock.InjurySuppression.None, CooldownRemainingMs = checked((uint)Math.Max(0, Number(row, "cooldownRemainingMs"))), NewWound = Bool(row, "newWound") };
             object? value; if (row.TryGetValue("suppressedBy", out value) && value != null)
-                result.Suppression = (string)value == "acknowledged" ? Clock.InjurySuppression.Acknowledged : (string)value == "cooldown" ? Clock.InjurySuppression.Cooldown : throw new InvalidOperationException("Unknown injury suppression");
+                result = result with { Suppression = (string)value == "acknowledged" ? Clock.InjurySuppression.Acknowledged : (string)value == "cooldown" ? Clock.InjurySuppression.Cooldown : throw new InvalidOperationException("Unknown injury suppression") };
             return result;
         }
         internal static Clock.StopReason StopReason(string? kind)
@@ -101,86 +102,98 @@ namespace HomeBridge.BridgeTools
                 default: throw new InvalidOperationException("Unknown native clock stop kind: " + kind);
             }
         }
-        internal static Clock.Event Event(string kind, string? detail, Dictionary<string, object?>? payload, Common.ObservationContext context,
+        internal static Clock.ClockEvent Event(string kind, string? detail, Dictionary<string, object?>? payload, Common.ObservationContext context,
             Clock.EpochOwner? owner, long cursor, long observedAt, Clock.Epoch? started, Func<int, string> resolvePawn)
         {
             Dictionary<string, object?> P() => payload ?? throw new InvalidOperationException("Missing clock evidence for " + kind);
-            var result = new Clock.Event { Cursor = cursor, Context = context.Clone(), ObservedAtUnixMs = observedAt, Detail = Text(detail) };
+            var result = new Clock.ClockEvent { Cursor = cursor, Context = context, ObservedAtUnixMs = observedAt, Detail = Text(detail) };
             // Only an authority change observed outside an epoch has no owner.
-            if (owner != null) result.Owner = owner.Clone();
+            if (owner != null) result = result with { Owner = owner };
             else if (kind != "authority_changed" && kind != "rule_fired" && kind != "rule_lease_expired") throw new InvalidOperationException("Clock event " + kind + " requires an epoch owner");
             switch (kind)
             {
                 case "authority_changed":
-                    result.AuthorityChanged = new Clock.AuthorityChanged { Generation = checked((ulong)Number(P(), "generation")), Active = Bool(P(), "active") };
+                {
+                    var changed = new Clock.AuthorityChanged { Generation = checked((ulong)Number(P(), "generation")), Active = Bool(P(), "active") };
                     object? previous, reason;
-                    if (P().TryGetValue("previousGeneration", out previous) && previous != null) result.AuthorityChanged.PreviousGeneration = checked((ulong)Convert.ToInt64(previous));
-                    if (P().TryGetValue("reason", out reason) && reason != null) result.AuthorityChanged.Reason = Text((string)reason);
+                    if (P().TryGetValue("previousGeneration", out previous) && previous != null) changed = changed with { PreviousGeneration = checked((ulong)Convert.ToInt64(previous)) };
+                    if (P().TryGetValue("reason", out reason) && reason != null) changed = changed with { Reason = Text((string)reason) };
+                    result = result with { Event = changed };
                     break;
+                }
                 case "rule_fired":
-                    result.RuleFired = new Clock.RuleFired { RuleId = Id(String(P(), "ruleId")), Job = Id(String(P(), "job")), Radius = checked((uint)Number(P(), "radius")),
-                        ActorId = Id(String(P(), "actorId")), TargetId = Id(String(P(), "targetId")), Tick = Number(P(), "tick") };
+                    result = result with { Event = new Clock.RuleFired { RuleId = Id(String(P(), "ruleId")), Job = Id(String(P(), "job")), Radius = checked((uint)Number(P(), "radius")),
+                        ActorId = Id(String(P(), "actorId")), TargetId = Id(String(P(), "targetId")), Tick = Number(P(), "tick") } };
                     break;
                 case "rule_lease_expired":
-                    result.RuleLeaseExpired = new Clock.RuleLeaseExpired { ExpiresAtTick = Number(P(), "expiresAtTick"), Deactivated = checked((uint)Number(P(), "deactivated")) };
+                    result = result with { Event = new Clock.RuleLeaseExpired { ExpiresAtTick = Number(P(), "expiresAtTick"), Deactivated = checked((uint)Number(P(), "deactivated")) } };
                     break;
                 case "observation_invalidated":
-                    result.ObservationInvalidated = new Clock.ObservationInvalidated { Reason = Text(String(P(), "reason")) };
-                    result.ObservationInvalidated.Families.Add(FamilyNames(P()));
+                {
+                    var invalidated = new Clock.ObservationInvalidated { Reason = Text(String(P(), "reason")), Families = EquatableArray.From(FamilyNames(P())) };
                     // Narrowing: the changed rows' ids and the one rectangle
                     // the change touched; a probe that cannot attribute a change
                     // sends the families alone.
                     object? ids, cells;
                     if (P().TryGetValue("entityIds", out ids) && ids != null)
-                        result.ObservationInvalidated.EntityIds.Add(((IEnumerable)ids).Cast<object?>().Select(id => Id(id as string ?? throw new InvalidOperationException("Entity id is not a string"))).Distinct().ToList());
+                        invalidated = invalidated with { EntityIds = EquatableArray.From(((IEnumerable)ids).Cast<object?>().Select(id => Id(id as string ?? throw new InvalidOperationException("Entity id is not a string"))).Distinct().ToList()) };
                     if (P().TryGetValue("cells", out cells) && cells != null)
                     {
                         var rect = (Dictionary<string, object?>)cells;
-                        result.ObservationInvalidated.Cells = new Clock.Rectangle {
+                        invalidated = invalidated with { Cells = new Clock.Rectangle {
                             Minimum = new Common.Cell { X = checked((int)Number(rect, "minX")), Z = checked((int)Number(rect, "minZ")) },
-                            Maximum = new Common.Cell { X = checked((int)Number(rect, "maxX")), Z = checked((int)Number(rect, "maxZ")) } };
+                            Maximum = new Common.Cell { X = checked((int)Number(rect, "maxX")), Z = checked((int)Number(rect, "maxZ")) } } };
                     }
+                    result = result with { Event = invalidated };
                     break;
-                case "started": result.Started = new Clock.EpochStarted { Epoch = (started ?? throw new ArgumentNullException(nameof(started))).Clone() }; break;
+                }
+                case "started": result = result with { Event = new Clock.EpochStarted { Epoch = (started ?? throw new ArgumentNullException(nameof(started))) } }; break;
                 case "speed_changed": case "regulated":
-                    result.SpeedChanged = new Clock.SpeedChanged { Speed = ParseSpeed(String(P(), "speed")) };
-                    if (P().ContainsKey("maxTicksPerSecond")) result.SpeedChanged.MaxTicksPerSecond = checked((uint)Number(P(), "maxTicksPerSecond"));
-                    if (P().ContainsKey("regulatedTicksPerSecond")) result.SpeedChanged.RegulatedTicksPerSecond = checked((uint)Number(P(), "regulatedTicksPerSecond"));
-                    if (P().ContainsKey("blindTicks")) result.SpeedChanged.BlindTicks = checked((long)Number(P(), "blindTicks"));
+                {
+                    var speed = new Clock.SpeedChanged { Speed = ParseSpeed(String(P(), "speed")) };
+                    if (P().ContainsKey("maxTicksPerSecond")) speed = speed with { MaxTicksPerSecond = checked((uint)Number(P(), "maxTicksPerSecond")) };
+                    if (P().ContainsKey("regulatedTicksPerSecond")) speed = speed with { RegulatedTicksPerSecond = checked((uint)Number(P(), "regulatedTicksPerSecond")) };
+                    if (P().ContainsKey("blindTicks")) speed = speed with { BlindTicks = checked((long)Number(P(), "blindTicks")) };
+                    result = result with { Event = speed };
                     break;
-                case "notification_new": result.Notification = P().ContainsKey("label") ? new Clock.Notification { Letter = Letter(P()) } : new Clock.Notification { Message = Message(P()) }; break;
-                case "alert_new": result.Alert = Alert(P()); break;
-                case "injury_observed": result.InjuryObserved = Injury(P(), resolvePawn); break;
+                }
+                case "notification_new":
+                    result = result with { Event = P().ContainsKey("label")
+                        ? new Clock.Notification { Source = new Clock.NotificationSource.LetterCase(Letter(P())) }
+                        : new Clock.Notification { Source = new Clock.NotificationSource.MessageCase(Message(P())) } };
+                    break;
+                case "alert_new": result = result with { Event = Alert(P()) }; break;
+                case "injury_observed": result = result with { Event = Injury(P(), resolvePawn) }; break;
                 case "hostiles_cleared":
-                    result.HostilesCleared = new Clock.HostilesCleared { ConsciousHostilesBefore = checked((int)Number(P(), "consciousHostilesBefore")), AcrossEpochRestart = Bool(P(), "acrossRestart") };
-                    result.HostilesCleared.DownedHostiles.Add(Rows(P(), "downedHostiles").Select(row => Pawn(row, resolvePawn, true)));
-                    result.HostilesCleared.DraftedColonists.Add(Rows(P(), "draftedColonists").Select(row => Pawn(row, resolvePawn, true))); break;
+                    result = result with { Event = new Clock.HostilesCleared { ConsciousHostilesBefore = checked((int)Number(P(), "consciousHostilesBefore")), AcrossEpochRestart = Bool(P(), "acrossRestart"),
+                        DownedHostiles = EquatableArray.From(Rows(P(), "downedHostiles").Select(row => Pawn(row, resolvePawn, true)).ToList()),
+                        DraftedColonists = EquatableArray.From(Rows(P(), "draftedColonists").Select(row => Pawn(row, resolvePawn, true)).ToList()) } };
+                    break;
                 case "long_event": case "transient_force_pause":
-                    result.ForcePauseWaiting = new Clock.ForcePauseWaiting { Pause = new Clock.PauseEvidence { LongEventPending = Bool(P(), "longEvent"), RequestedSpeed = ParseSpeed(String(P(), "requestedSpeed")) }, WaitedMs = 0, GraceMs = checked((uint)Number(P(), "graceMs")) }; break;
-                case "force_pause_cleared": result.ForcePauseCleared = new Clock.ForcePauseCleared { WaitedMs = checked((ulong)Number(P(), "waitedMs")), ForcePauseKind = NativeEnums.ForcePause(String(P(), "forcePauseKind")), SpeedRestored = Bool(P(), "speedRestored") }; break;
-                case "pause_failed": result.PauseFailed = new Clock.PauseFailed { Pending = new Clock.StopEvent { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native pause did not take; epoch remains armed." } } }; break;
+                    result = result with { Event = new Clock.ForcePauseWaiting { Pause = new Clock.PauseEvidence { LongEventPending = Bool(P(), "longEvent"), RequestedSpeed = ParseSpeed(String(P(), "requestedSpeed")) }, WaitedMs = 0, GraceMs = checked((uint)Number(P(), "graceMs")) } }; break;
+                case "force_pause_cleared": result = result with { Event = new Clock.ForcePauseCleared { WaitedMs = checked((ulong)Number(P(), "waitedMs")), ForcePauseKind = NativeEnums.ForcePause(String(P(), "forcePauseKind")), SpeedRestored = Bool(P(), "speedRestored") } }; break;
+                case "pause_failed": result = result with { Event = new Clock.PauseFailed { Pending = new Clock.StopEvent { Evidence = new Clock.StopEventEvidence.UnavailableCase(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native pause did not take; epoch remains armed." }) } } }; break;
                 default:
                     var stop = new Clock.StopEvent { Reason = StopReason(kind) };
                     if (kind == "notification_batch")
-                    {
-                        stop.Notifications = new Clock.NotificationBatch();
-                        stop.Notifications.Letters.Add(Rows(P(), "letters").Select(Letter)); stop.Notifications.Messages.Add(Rows(P(), "messages").Select(Message));
-                    }
+                        stop = stop with { Evidence = new Clock.StopEventEvidence.NotificationsCase(new Clock.NotificationBatch {
+                            Letters = EquatableArray.From(Rows(P(), "letters").Select(Letter).ToList()), Messages = EquatableArray.From(Rows(P(), "messages").Select(Message).ToList()) }) };
                     else if (kind == "combat_event")
                     {
-                        stop.Combat = new Clock.CombatEventStop { Event = (Clock.CombatEvent)checked((int)Number(P(), "combatEvent")), Reason = Text(String(P(), "reason")) };
-                        object? thing; if (P().TryGetValue("thingId", out thing) && thing != null) stop.Combat.ThingId = Id((string)thing);
+                        var combat = new Clock.CombatEventStop { Event = (Clock.CombatEvent)checked((int)Number(P(), "combatEvent")), Reason = Text(String(P(), "reason")) };
+                        object? thing; if (P().TryGetValue("thingId", out thing) && thing != null) combat = combat with { ThingId = Id((string)thing) };
+                        stop = stop with { Evidence = new Clock.StopEventEvidence.CombatCase(combat) };
                     }
-                    else if (kind == "colonist_injury") stop.Injury = Injury(P(), resolvePawn);
-                    else if (kind == "colonist_health") stop.Health = new Clock.HealthThreshold { Pawn = Pawn(P(), resolvePawn), HealthAtStart = Real(P(), "healthAtStart"), HealthNow = Real(P(), "healthNow"), MinHealthFraction = Real(P(), "minHealthFraction"), HealthDropFraction = Real(P(), "healthDropFraction") };
-                    else if (payload != null && payload.ContainsKey("pawnId")) stop.Pawn = Pawn(P(), resolvePawn);
-                    else stop.Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved, Detail = "Stop reason and diagnostic were observed; additional structured evidence was not captured." };
+                    else if (kind == "colonist_injury") stop = stop with { Evidence = new Clock.StopEventEvidence.InjuryCase(Injury(P(), resolvePawn)) };
+                    else if (kind == "colonist_health") stop = stop with { Evidence = new Clock.StopEventEvidence.HealthCase(new Clock.HealthThreshold { Pawn = Pawn(P(), resolvePawn), HealthAtStart = Real(P(), "healthAtStart"), HealthNow = Real(P(), "healthNow"), MinHealthFraction = Real(P(), "minHealthFraction"), HealthDropFraction = Real(P(), "healthDropFraction") }) };
+                    else if (payload != null && payload.ContainsKey("pawnId")) stop = stop with { Evidence = new Clock.StopEventEvidence.PawnCase(Pawn(P(), resolvePawn)) };
+                    else stop = stop with { Evidence = new Clock.StopEventEvidence.UnavailableCase(new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved, Detail = "Stop reason and diagnostic were observed; additional structured evidence was not captured." }) };
                     // Latency split: the tick the stop was raised at and,
                     // where the hazard carries one, the tick it arose.
                     object? detected, occurrence;
-                    if (payload != null && payload.TryGetValue("detectedTick", out detected) && detected != null) stop.DetectedTick = Convert.ToInt64(detected);
-                    if (payload != null && payload.TryGetValue("occurrenceTick", out occurrence) && occurrence != null) stop.OccurrenceTick = Convert.ToInt64(occurrence);
-                    result.Stopped = stop; break;
+                    if (payload != null && payload.TryGetValue("detectedTick", out detected) && detected != null) stop = stop with { DetectedTick = Convert.ToInt64(detected) };
+                    if (payload != null && payload.TryGetValue("occurrenceTick", out occurrence) && occurrence != null) stop = stop with { OccurrenceTick = Convert.ToInt64(occurrence) };
+                    result = result with { Event = stop }; break;
             }
             return result;
         }

@@ -1,6 +1,6 @@
 using System;
 using HomeBridge.BridgeTools;
-using Operations = RimGovernor.Protocol.Operations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 internal static class NativeProductionBillSettingsProbe
 {
@@ -21,70 +21,67 @@ internal static class NativeProductionBillSettingsProbe
             Settings = new Operations.BillSettings {
                 RepeatMode = Operations.RepeatMode.Target, TargetCount = 1, UnpauseThreshold = 1,
                 PauseWhenSatisfied = true, Suspended = false, IngredientSearchRadius = 40,
-                Store = new Operations.BillStore { Mode = Operations.StoreMode.DropOnFloor }
+                Store = DropOnFloor()
             }
         };
         Check(NativeProductionBillSettings.Valid(bill), "recipe defaults rejected");
         // A finite batch (gear, sculpture) repeats a count, with no target.
-        var batch = bill.Clone();
-        batch.Settings = new Operations.BillSettings { RepeatMode = Operations.RepeatMode.Count, RepeatCount = 2,
+        var batch = bill with { Settings = new Operations.BillSettings { RepeatMode = Operations.RepeatMode.Count, RepeatCount = 2,
             Suspended = false, IngredientSearchRadius = 40,
-            Store = new Operations.BillStore { Mode = Operations.StoreMode.DropOnFloor } };
+            Store = DropOnFloor() } };
         Check(NativeProductionBillSettings.Valid(batch), "finite batch rejected");
-        batch.Settings.TargetCount = 2;
+        batch = Settings(batch, s => s with { TargetCount = 2 });
         Check(!NativeProductionBillSettings.Valid(batch), "finite batch with a target accepted");
-        batch.Settings.ClearTargetCount();
+        batch = Settings(batch, s => s with { TargetCount = null });
         // A batch may pin one artist.
-        batch.Settings.Worker = new Operations.Assignment { EntityId = "Pawn_Artist" };
+        batch = Settings(batch, s => s with { Worker = Worker("Pawn_Artist") });
         Check(NativeProductionBillSettings.Valid(batch), "pinned finite batch rejected");
-        batch.Settings.Worker.EntityId = "";
+        batch = Settings(batch, s => s with { Worker = Worker("") });
         Check(!NativeProductionBillSettings.Valid(batch), "finite batch with an empty worker accepted");
-        batch.Settings.Worker = null;
-        var filter = new Operations.FilterPatch { Replace = new Operations.SelectorList() };
-        filter.Replace.Selectors.Add(new Operations.FilterSelector { ThingDef = "Leather_Plain" });
-        bill.Settings.Ingredients = filter;
+        batch = Settings(batch, s => s with { Worker = null });
+        var filter = new Operations.FilterPatch { Replace = new Operations.SelectorList { Selectors = [ThingDef("Leather_Plain")] } };
+        bill = Settings(bill, s => s with { Ingredients = filter });
         Check(NativeProductionBillSettings.Valid(bill), "exact leather filter rejected");
-        foreach (var change in new Action<Operations.FilterPatch>[] {
-            f => f.Replace = null,
-            f => f.Replace.Selectors.Clear(),
-            f => f.Replace.Selectors.Add(new Operations.FilterSelector { ThingDef = "Leather_Plain" }),
-            f => f.Replace.Selectors[0] = new Operations.FilterSelector { CategoryDef = "Leathers" },
-            f => f.Allow.Add(new Operations.FilterSelector { ThingDef = "Cloth" }),
-            f => f.Disallow.Add(new Operations.FilterSelector { ThingDef = "Cloth" }),
-            f => f.HitPointsMin = 0,
-            f => f.Replace.Selectors[0] = new Operations.FilterSelector { ThingDef = "" }
+        foreach (var change in new Func<Operations.FilterPatch, Operations.FilterPatch>[] {
+            f => f with { Replace = null },
+            f => f with { Replace = f.Replace with { Selectors = [] } },
+            f => f with { Replace = f.Replace with { Selectors = [.. f.Replace.Selectors, ThingDef("Leather_Plain")] } },
+            f => f with { Replace = f.Replace with { Selectors = [new Operations.FilterSelector { Definition = new Operations.FilterSelectorDefinition.CategoryDefCase("Leathers") }] } },
+            f => f with { Allow = [.. f.Allow, ThingDef("Cloth")] },
+            f => f with { Disallow = [.. f.Disallow, ThingDef("Cloth")] },
+            f => f with { HitPointsMin = 0 },
+            f => f with { Replace = f.Replace with { Selectors = [ThingDef("")] } }
         }) {
-            var invalid = bill.Clone();
-            change(invalid.Settings.Ingredients);
+            var invalid = Settings(bill, s => s with { Ingredients = change(s.Ingredients) });
             Check(!NativeProductionBillSettings.Valid(invalid), "unsupported filter accepted: " + invalid.Settings.Ingredients);
         }
-        var butcher = bill.Clone();
-        butcher.RecipeDef = "ButcherCorpseFlesh";
-        butcher.Settings = new Operations.BillSettings { RepeatMode = Operations.RepeatMode.Forever,
+        var butcher = bill with { RecipeDef = "ButcherCorpseFlesh" };
+        butcher = butcher with { Settings = new Operations.BillSettings { RepeatMode = Operations.RepeatMode.Forever,
             Suspended = false, IngredientSearchRadius = 40,
-            Store = new Operations.BillStore { Mode = Operations.StoreMode.DropOnFloor } };
+            Store = DropOnFloor() } };
         Check(!NativeProductionBillSettings.Valid(butcher), "butcher bill without a corpse class accepted");
-        butcher.Settings.CorpseClass = RimGovernor.Protocol.Common.CorpseClass.Animal;
+        butcher = Settings(butcher, s => s with { CorpseClass = RimGovernor.Contracts.Wire.Common.CorpseClass.Animal });
         Check(NativeProductionBillSettings.Valid(butcher), "animal butcher bill rejected" );
-        butcher.ReplaceOwnedBill = new RimGovernor.Protocol.Common.Ref { Id = "foreign-bill" };
+        butcher = butcher with { ReplaceOwnedBill = new RimGovernor.Contracts.Wire.Common.Ref { Id = "foreign-bill" } };
         Check(NativeProductionBillSettings.Valid(butcher), "butcher takeover rejected" );
-        var classedMeal = bill.Clone();
-        classedMeal.Settings.CorpseClass = RimGovernor.Protocol.Common.CorpseClass.Animal;
+        var classedMeal = Settings(bill, s => s with { CorpseClass = RimGovernor.Contracts.Wire.Common.CorpseClass.Animal });
         Check(!NativeProductionBillSettings.Valid(classedMeal), "corpse class accepted outside corpse recipes");
-        Check(!NativeProductionBillSettings.Valid(new Operations.ProductionBillIntent(butcher) { Settings = new Operations.BillSettings(butcher.Settings) { Worker = new Operations.Assignment { EntityId = "Pawn_Cook" } } }), "pinned animal butcher accepted");
-        butcher.Settings.CorpseClass = RimGovernor.Protocol.Common.CorpseClass.Stranger;
-        butcher.Settings.Worker = new Operations.Assignment { EntityId = "Pawn_Cook" };
+        Check(!NativeProductionBillSettings.Valid(Settings(butcher, s => s with { Worker = Worker("Pawn_Cook") })), "pinned animal butcher accepted");
+        butcher = Settings(butcher, s => s with { CorpseClass = RimGovernor.Contracts.Wire.Common.CorpseClass.Stranger, Worker = Worker("Pawn_Cook") });
         Check(NativeProductionBillSettings.Valid(butcher), "pinned human butcher rejected");
-        var invalidWorker = butcher.Clone();
-        invalidWorker.Settings.Worker.EntityId = "";
+        var invalidWorker = Settings(butcher, s => s with { Worker = Worker("") });
         Check(!NativeProductionBillSettings.Valid(invalidWorker), "empty worker accepted");
-        invalidWorker = bill.Clone();
-        invalidWorker.Settings.Worker = butcher.Settings.Worker.Clone();
+        invalidWorker = Settings(bill, s => s with { Worker = butcher.Settings.Worker });
         Check(!NativeProductionBillSettings.Valid(invalidWorker), "worker accepted outside human butchery");
-        butcher.Settings.Ingredients = filter;
+        butcher = Settings(butcher, s => s with { Ingredients = filter });
         Check(!NativeProductionBillSettings.Valid(butcher), "butcher ingredient override accepted");
         Console.WriteLine("Native production bill settings checks passed.");
     }
+    // Records are immutable: each change builds a modified copy.
+    private static Operations.ProductionBillIntent Settings(Operations.ProductionBillIntent bill, Func<Operations.BillSettings, Operations.BillSettings> change) => bill with { Settings = change(bill.Settings) };
+    private static Operations.BillStore DropOnFloor() => new Operations.BillStore { Destination = new Operations.BillStoreDestination.ModeCase(Operations.StoreMode.DropOnFloor) };
+    private static Operations.Assignment Worker(string entityId) => new Operations.Assignment { Value = new Operations.AssignmentValue.EntityIdCase(entityId) };
+    private static Operations.FilterSelector ThingDef(string def) => new Operations.FilterSelector { Definition = new Operations.FilterSelectorDefinition.ThingDefCase(def) };
     private static void Check(bool condition, string message)
     {
         if (!condition) throw new InvalidOperationException(message);

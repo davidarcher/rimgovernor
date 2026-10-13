@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
 using UnityEngine;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Presentation = RimGovernor.Protocol.Presentation;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Presentation = RimGovernor.Contracts.Wire.Presentation;
 
 namespace HomeBridge.BridgeTools
 {
@@ -29,8 +29,8 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Draw(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON OverlayRequest string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Presentation.OverlayRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Presentation.OverlayReply { Failure = failure });
+            if (!ProtoBoundary.TryParse(ctx, ToolName, request, out Presentation.OverlayRequest? parsed, out var failure))
+                return ProtoBoundary.Encode(new Presentation.OverlayReply { Outcome = new Presentation.OverlayReplyOutcome.FailureCase(failure) });
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => Apply(parsed), cancellationToken).ConfigureAwait(false);
         }
 
@@ -38,14 +38,14 @@ namespace HomeBridge.BridgeTools
         internal static Presentation.OverlayReply Apply(Presentation.OverlayRequest request)
         {
             if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out var context, out var invalid))
-                return new Presentation.OverlayReply { Failure = invalid };
-            var id = request.HasLayerId ? request.LayerId : "";
+                return new Presentation.OverlayReply { Outcome = invalid };
+            var id = request.LayerId is not null ? (request.LayerId ?? "") : "";
             if (id.Length == 0 || id.Length > MaxLayerId || id.Any(ch => ch < 0x21 || ch > 0x7e))
                 return Invalid($"layer_id must be 1-{MaxLayerId} printable ASCII characters.");
             var overlay = map.GetComponent<GovernorOverlay>();
             if (overlay == null)
-                return new Presentation.OverlayReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Map has no overlay component.") };
-            if (!request.Enabled)
+                return new Presentation.OverlayReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Map has no overlay component.") };
+            if (!request.Enabled.GetValueOrDefault())
             {
                 overlay.Remove(id);
                 return Applied(context, 0, overlay);
@@ -64,25 +64,25 @@ namespace HomeBridge.BridgeTools
                 if (c == null) return Invalid("Overlay shape needs a color.");
                 var group = new OverlayGroup
                 {
-                    Color = new Color(c.R, c.G, c.B, c.HasA ? c.A : 1f),
+                    Color = new Color(c.R.GetValueOrDefault(), c.G.GetValueOrDefault(), c.B.GetValueOrDefault(), c.A is not null ? c.A.GetValueOrDefault() : 1f),
                     Outline = shape.Style == Presentation.OverlayStyle.Outline,
                 };
                 var rects = new List<CellRect>();
                 foreach (var r in shape.Rects)
                 {
-                    if (r.MaxX < r.MinX || r.MaxZ < r.MinZ) return Invalid("Inverted overlay rectangle.");
-                    rects.Add(CellRect.FromLimits(r.MinX, r.MinZ, r.MaxX, r.MaxZ));
+                    if (r.MaxX.GetValueOrDefault() < r.MinX.GetValueOrDefault() || r.MaxZ.GetValueOrDefault() < r.MinZ.GetValueOrDefault()) return Invalid("Inverted overlay rectangle.");
+                    rects.Add(CellRect.FromLimits(r.MinX.GetValueOrDefault(), r.MinZ.GetValueOrDefault(), r.MaxX.GetValueOrDefault(), r.MaxZ.GetValueOrDefault()));
                 }
                 foreach (var run in shape.Runs)
                 {
-                    if (run.Length <= 0) return Invalid("Overlay run needs a positive length.");
-                    rects.Add(new CellRect(run.X, run.Z, run.Length, 1));
+                    if (run.Length.GetValueOrDefault() <= 0) return Invalid("Overlay run needs a positive length.");
+                    rects.Add(new CellRect(run.X.GetValueOrDefault(), run.Z.GetValueOrDefault(), run.Length.GetValueOrDefault(), 1));
                 }
                 foreach (var line in shape.Lines)
                 {
                     if (line.From == null || line.To == null) return Invalid("Overlay line needs both ends.");
                     if (--lineBudget < 0) return Invalid($"More than {MaxLines} overlay lines.");
-                    group.Lines.Add((new Vector2(line.From.X + 0.5f, line.From.Z + 0.5f), new Vector2(line.To.X + 0.5f, line.To.Z + 0.5f), line.Arrow));
+                    group.Lines.Add((new Vector2(line.From.X.GetValueOrDefault() + 0.5f, line.From.Z.GetValueOrDefault() + 0.5f), new Vector2(line.To.X.GetValueOrDefault() + 0.5f, line.To.Z.GetValueOrDefault() + 0.5f), line.Arrow.GetValueOrDefault()));
                 }
                 foreach (var rect in rects)
                 {
@@ -102,18 +102,18 @@ namespace HomeBridge.BridgeTools
             var labels = new List<(string, IntVec3)>();
             foreach (var label in request.Labels)
             {
-                if (!label.HasText || label.Cell == null) continue;
-                var cell = new IntVec3(label.Cell.X, 0, label.Cell.Z);
-                if (cell.InBounds(map)) labels.Add((label.Text, cell));
+                if (label.Text is null || label.Cell == null) continue;
+                var cell = new IntVec3(label.Cell.X.GetValueOrDefault(), 0, label.Cell.Z.GetValueOrDefault());
+                if (cell.InBounds(map)) labels.Add(((label.Text ?? ""), cell));
             }
             overlay.Replace(id, groups, labels);
             return Applied(context, (uint)covered.Count, overlay);
         }
 
         private static Presentation.OverlayReply Applied(Common.ObservationContext context, uint cells, GovernorOverlay overlay) =>
-            new Presentation.OverlayReply { Applied = new Presentation.OverlayApplied { Context = context, Cells = cells, Layers = (uint)overlay.Count } };
+            new Presentation.OverlayReply { Outcome = new Presentation.OverlayApplied { Context = context, Cells = cells, Layers = (uint)overlay.Count } };
 
         private static Presentation.OverlayReply Invalid(string detail) =>
-            new Presentation.OverlayReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, detail) };
+            new Presentation.OverlayReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, detail) };
     }
 }

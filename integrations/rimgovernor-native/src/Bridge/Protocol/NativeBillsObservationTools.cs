@@ -5,12 +5,11 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -30,17 +29,17 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadBills(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON BillsRequest string in raw transport value.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, BillsToolName, request, Obs.BillsRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.BillsReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Obs.BillsRequest>(ctx, BillsToolName, request, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.BillsReply { Outcome = failure });
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadBills(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.BillsReply HandleReadBills(Obs.BillsRequest parsed)
         {
-            if (!Validate(parsed, out var invalidRequest)) return new Obs.BillsReply { Failure = invalidRequest };
+            if (!Validate(parsed, out var invalidRequest)) return new Obs.BillsReply { Outcome = invalidRequest };
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                return new Obs.BillsReply { Failure = error };
+                return new Obs.BillsReply { Outcome = error };
             return Read(map, parsed, context);
         }
 
@@ -51,14 +50,14 @@ namespace HomeBridge.BridgeTools
             try
             {
                 if (Faction.OfPlayerSilentFail == null || map.listerThings == null)
-                    return new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction or map things are unavailable.") };
-                var benches = Benches(map, parsed.AllFactions);
-                if (parsed.HasBenchId) benches = benches.Where(b => RefIndex.Is(b, parsed.BenchId)).ToList();
+                    return new Obs.BillsReply { Outcome = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction or map things are unavailable.") };
+                var benches = Benches(map, parsed.AllFactions.GetValueOrDefault());
+                if (parsed.BenchId is not null) benches = benches.Where(b => RefIndex.Is(b, parsed.BenchId)).ToList();
                 var snapshot = new Obs.BillsSnapshot { Context = context };
-                foreach (var bench in benches) snapshot.Benches.Add(Stack(bench, map, context));
-                return new Obs.BillsReply { Observed = snapshot };
+                foreach (var bench in benches) snapshot = snapshot with { Benches = [.. snapshot.Benches, Stack(bench, map, context)] };
+                return new Obs.BillsReply { Outcome = snapshot };
             }
-            catch (Exception e) { return new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, Failed("Bench or bill facts", e)) }; }
+            catch (Exception e) { return new Obs.BillsReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, Failed("Bench or bill facts", e)) }; }
         }
 
         [Tool(RecipesToolName, Title = "Read typed bench recipes", Description = "The recipes of one bench (bench_id) with whether each is available now and on that bench, and the bench's definition. What a recipe makes, costs and needs is its RecipeDef row in the definition catalog.")]
@@ -66,43 +65,43 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadRecipes(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON RecipesRequest string in raw transport value.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, RecipesToolName, request, Obs.RecipesRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.RecipesReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Obs.RecipesRequest>(ctx, RecipesToolName, request, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.RecipesReply { Outcome = failure });
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadRecipes(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.RecipesReply HandleReadRecipes(Obs.RecipesRequest parsed)
         {
-            if (!Validate(parsed, out var invalidRequest)) return new Obs.RecipesReply { Failure = invalidRequest };
+            if (!Validate(parsed, out var invalidRequest)) return new Obs.RecipesReply { Outcome = invalidRequest };
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                return new Obs.RecipesReply { Failure = error };
+                return new Obs.RecipesReply { Outcome = error };
             try
             {
                 if (Faction.OfPlayerSilentFail == null || map.listerThings == null)
-                    return new Obs.RecipesReply { Unavailable = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction or map things are unavailable.") };
+                    return new Obs.RecipesReply { Outcome = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction or map things are unavailable.") };
                 var bench = Benches(map, true).ById(parsed.BenchId);
                 if (bench == null)
-                    return new Obs.RecipesReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned bench with that id is on the current map.") };
+                    return new Obs.RecipesReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned bench with that id is on the current map.") };
                 var recipes = (bench.def.AllRecipes ?? new List<RecipeDef>()).Where(r => r != null).OrderBy(r => r.defName, StringComparer.Ordinal).ToList();
                 var snapshot = new Obs.RecipesSnapshot { Context = context, Snapshot = NativeProductionBills.Snapshot(bench, (IBillGiver)bench, context), BenchDef = Id(bench.def.defName) };
-                foreach (var recipe in recipes) snapshot.Recipes.Add(Recipe(bench, recipe));
-                return new Obs.RecipesReply { Observed = snapshot };
+                foreach (var recipe in recipes) snapshot = snapshot with { Recipes = [.. snapshot.Recipes, Recipe(bench, recipe)] };
+                return new Obs.RecipesReply { Outcome = snapshot };
             }
-            catch (Exception e) { return new Obs.RecipesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, Failed("Bench recipe facts", e)) }; }
+            catch (Exception e) { return new Obs.RecipesReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, Failed("Bench recipe facts", e)) }; }
         }
 
         internal static bool Validate(Obs.BillsRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, and optional bench id are required.");
-            if (request?.Scope?.ExpectedIdentity == null || request.HasBenchId && !ProtoBoundary.IsIdentifier(request.BenchId)) return false;
+            if (request?.Scope?.ExpectedIdentity == null || request.BenchId is not null && !ProtoBoundary.IsIdentifier(request.BenchId)) return false;
             return true;
         }
 
         internal static bool Validate(Obs.RecipesRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity and a bench id identifier are required.");
-            return request?.Scope?.ExpectedIdentity != null && request.HasBenchId && ProtoBoundary.IsIdentifier(request.BenchId);
+            return request?.Scope?.ExpectedIdentity != null && request.BenchId is not null && ProtoBoundary.IsIdentifier(request.BenchId);
         }
 
         private static List<Thing> Benches(Map map, bool allFactions)
@@ -114,22 +113,24 @@ namespace HomeBridge.BridgeTools
                 .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
         }
 
-        private static Obs.BillStack Stack(Thing bench, Map map, Common.ObservationContext context)
+        private static Obs.BillStackRow Stack(Thing bench, Map map, Common.ObservationContext context)
         {
             var giver = (IBillGiver)bench;
             var stack = giver.BillStack ?? throw new InvalidOperationException("Bench bill stack unavailable.");
-            var row = new Obs.BillStack { Snapshot = NativeProductionBills.Snapshot(bench, giver, context), Bench = NativeBuildingObservationTools.Ref(bench),
-                Usable = NativeProductionBills.Usable(bench), Capacity = BillStack.MaxCount};
-            if (!row.Usable) row.UnusableReason = bench.Faction != Faction.OfPlayer ? Obs.BenchUnusableReason.NotPlayerOwned
+            var usable = NativeProductionBills.Usable(bench);
+            var row = new Obs.BillStackRow { Snapshot = NativeProductionBills.Snapshot(bench, giver, context), Bench = NativeBuildingObservationTools.Ref(bench),
+                Usable = usable, Capacity = BillStack.MaxCount};
+            if (!usable) row = row with { UnusableReason = bench.Faction != Faction.OfPlayer ? Obs.BenchUnusableReason.NotPlayerOwned
                 : bench.IsForbidden(Faction.OfPlayer) ? Obs.BenchUnusableReason.Forbidden : bench.IsBurning() ? Obs.BenchUnusableReason.Burning
-                : !giver.CurrentlyUsableForBills() ? Obs.BenchUnusableReason.NotUsableForBills : Obs.BenchUnusableReason.Other;
+                : !giver.CurrentlyUsableForBills() ? Obs.BenchUnusableReason.NotUsableForBills : Obs.BenchUnusableReason.Other };
             // RecipeDef defaults workTableSpeedStat to this stat, so it is the
             // speed the game applies to a recipe that names none; the stat
             // parts (outdoors, temperature, ...) are included by GetStatValue.
             var workSpeed = bench.GetStatValue(StatDefOf.WorkTableWorkSpeedFactor);
-            if (!float.IsNaN(workSpeed) && !float.IsInfinity(workSpeed) && workSpeed >= 0f) row.WorkSpeed = workSpeed;
-            for (var index = 0; index < stack.Count; index++) row.Bills.Add(NativeProductionBills.BillRow(stack.Bills[index], index));
-            return row;
+            if (!float.IsNaN(workSpeed) && !float.IsInfinity(workSpeed) && workSpeed >= 0f) row = row with { WorkSpeed = workSpeed };
+            var bills = new List<Obs.BillState>();
+            for (var index = 0; index < stack.Count; index++) bills.Add(NativeProductionBills.BillRow(stack.Bills[index], index));
+            return row with { Bills = [.. bills] };
         }
 
         // Only what a frame alone knows: whether the game offers the recipe now

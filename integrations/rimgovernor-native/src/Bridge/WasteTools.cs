@@ -9,8 +9,8 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -94,13 +94,13 @@ namespace HomeBridge.BridgeTools
                 var protection = Protection(thing);
                 var row = new Obs.WasteItem { Thing = NativeRef.Thing(thing), Count = thing.stackCount, Eligible = protection == null && kind != null,
                     State = protection == null && Stored(thing) ? Obs.WasteLocation.Relocated : Obs.WasteLocation.Exposed };
-                if (kind != null) row.Kind = NativeEnums.Waste(kind);
-                if (protection != null) row.ProtectedReason = protection;
+                if (kind != null) row = row with { Kind = NativeEnums.Waste(kind) };
+                if (protection != null) row = row with { ProtectedReason = protection };
                 var rot = thing.TryGetComp<CompRottable>();
-                if (rot != null) row.RotStage = NativeEnums.Rot(rot.Stage);
+                if (rot != null) row = row with { RotStage = NativeEnums.Rot(rot.Stage) };
                 var of = CorpseOf(thing);
-                if (of != null) row.CorpseClass = of.Value;
-                if ((thing as Corpse)?.everBuriedInSarcophagus == true) row.EverBuriedInSarcophagus = true;
+                if (of != null) row = row with { CorpseClass = of.Value };
+                if ((thing as Corpse)?.everBuriedInSarcophagus == true) row = row with { EverBuriedInSarcophagus = true };
                 items.Add(row);
             }
             foreach (var grave in map.listerThings.AllThings.OfType<Building_Grave>().Where(g => !g.Position.Fogged(map)))
@@ -109,13 +109,13 @@ namespace HomeBridge.BridgeTools
                     var row = new Obs.WasteItem { Thing = NativeRef.Thing(body), Count = 1, Kind = Obs.WasteKind.Corpse, ProtectedReason = "grave",
                         Eligible = false, State = Obs.WasteLocation.Buried, Grave = NativeRef.Of(Id(grave)) };
                     var of = CorpseOf(body);
-                    if (of != null) row.CorpseClass = of.Value;
-                    if (body.everBuriedInSarcophagus) row.EverBuriedInSarcophagus = true;
+                    if (of != null) row = row with { CorpseClass = of.Value };
+                    if (body.everBuriedInSarcophagus) row = row with { EverBuriedInSarcophagus = true };
                     items.Add(row);
                 }
-            var snapshot = new Obs.WasteSnapshot { Context = context.Clone()};
-            snapshot.Items.AddRange(items);
-            return new Obs.WasteReply { Observed = snapshot };
+            var snapshot = new Obs.WasteSnapshot { Context = context};
+            snapshot = snapshot with { Items = [.. snapshot.Items, .. items] };
+            return new Obs.WasteReply { Outcome = snapshot };
         }
     }
 }

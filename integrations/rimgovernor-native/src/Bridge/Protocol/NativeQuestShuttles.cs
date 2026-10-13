@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Obs = RimGovernor.Protocol.Observations;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -22,27 +22,28 @@ namespace HomeBridge.BridgeTools
                     AllRequiredLoaded = shuttle.AllRequiredThingsLoaded,
                     ManualLaunchAvailable = shuttle.CanLaunch.Accepted && shuttle.AllRequiredThingsLoaded && gizmos.OfType<Command_Action>().Any(g => !g.Disabled && g.defaultLabel == "CommandSendShuttle".Translate().ToString()),
                     RequiredColonistCount = shuttle.requiredColonistCount };
-                row.PawnIds.Add(shuttle.RequiredPawns.Select(p => p.GetUniqueLoadID()));
-                row.LoadedPawnIds.Add(shuttle.Transporter.innerContainer.OfType<Pawn>().Select(p => p.GetUniqueLoadID()));
+                row = row with { PawnIds = [.. row.PawnIds, .. shuttle.RequiredPawns.Select(p => p.GetUniqueLoadID())] };
+                row = row with { LoadedPawnIds = [.. row.LoadedPawnIds, .. shuttle.Transporter.innerContainer.OfType<Pawn>().Select(p => p.GetUniqueLoadID())] };
                 if (shuttle.Transporter.leftToLoad != null)
-                    row.PendingPawnIds.Add(shuttle.Transporter.leftToLoad.Where(t => t.CountToTransfer > 0)
-                        .SelectMany(t => t.things).OfType<Pawn>().Select(p => p.GetUniqueLoadID()).Distinct());
+                    row = row with { PendingPawnIds = [.. row.PendingPawnIds, .. shuttle.Transporter.leftToLoad.Where(t => t.CountToTransfer > 0)
+                        .SelectMany(t => t.things).OfType<Pawn>().Select(p => p.GetUniqueLoadID()).Distinct()] };
                 rows.Add(row);
             }
             return rows;
         }
 
-        internal static void LodgerMood(Quest quest, Obs.QuestObjective row, IEnumerable<Pawn> pawns)
+        internal static Obs.QuestObjective LodgerMood(Quest quest, Obs.QuestObjective row, IEnumerable<Pawn> pawns)
         {
             var guests = pawns.ToArray();
             var thresholds = quest.PartsListForReading.OfType<QuestPart_MoodBelow>().Where(p => p.pawns.Any(guests.Contains)).ToArray();
-            if (thresholds.Length > 0) row.MinimumMood = thresholds.Max(p => p.threshold);
+            if (thresholds.Length > 0) row = row with { MinimumMood = thresholds.Max(p => p.threshold) };
             foreach (var pawn in guests)
             {
                 var state = new Obs.QuestLodgerMood { PawnId = pawn.GetUniqueLoadID() };
-                if (pawn.Spawned && !pawn.Dead && pawn.needs?.mood != null) state.Mood = pawn.needs.mood.CurLevel;
-                row.LodgerMoods.Add(state);
+                if (pawn.Spawned && !pawn.Dead && pawn.needs?.mood != null) state = state with { Mood = pawn.needs.mood.CurLevel };
+                row = row with { LodgerMoods = [.. row.LodgerMoods, state] };
             }
+            return row;
         }
     }
 }

@@ -5,13 +5,12 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
-using Placement = RimGovernor.Protocol.Placement;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
+using Placement = RimGovernor.Contracts.Wire.Placement;
 
 namespace HomeBridge.BridgeTools
 {
@@ -24,17 +23,17 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ListBuildings(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ListBuildingsRequest string in raw transport value.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ListBuildingsRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Obs.ListBuildingsRequest>(ctx, ToolName, request, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Outcome = new Obs.ListBuildingsReplyOutcome.FailureCase(failure) });
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleListBuildings(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.ListBuildingsReply HandleListBuildings(Obs.ListBuildingsRequest parsed)
         {
-            if (!Validate(parsed, out var invalidRequest)) return new Obs.ListBuildingsReply { Failure = invalidRequest };
+            if (!Validate(parsed, out var invalidRequest)) return new Obs.ListBuildingsReply { Outcome = invalidRequest };
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                return new Obs.ListBuildingsReply { Failure = error };
+                return new Obs.ListBuildingsReply { Outcome = error };
             return Read(map, parsed, context);
         }
 
@@ -44,16 +43,16 @@ namespace HomeBridge.BridgeTools
         {
             try
             {
-                if ((!parsed.HasPlayerOnly || parsed.PlayerOnly) && Faction.OfPlayerSilentFail == null)
-                    return new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction unavailable.") };
-                var source = Source(map, parsed.HasCategory && parsed.Category == "all");
+                if ((parsed.PlayerOnly is null || parsed.PlayerOnly.GetValueOrDefault()) && Faction.OfPlayerSilentFail == null)
+                    return new Obs.ListBuildingsReply { Outcome = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction unavailable.") };
+                var source = Source(map, parsed.Category is not null && (parsed.Category ?? "") == "all");
                 var matched = source.Where(t => Matches(t, parsed)).OrderBy(t => t.thingIDNumber).ToList();
                 var snapshot = new Obs.BuildingsSnapshot { Context = context };
-                snapshot.Completeness = Complete(matched.Count, source.Count - matched.Count);
-                foreach (var thing in matched) snapshot.Buildings.Add(Row(thing, context));
-                return new Obs.ListBuildingsReply { Observed = snapshot };
+                snapshot = snapshot with { Completeness = Complete(matched.Count, source.Count - matched.Count) };
+                foreach (var thing in matched) snapshot = snapshot with { Buildings = [.. snapshot.Buildings, Row(thing, context)] };
+                return new Obs.ListBuildingsReply { Outcome = snapshot };
             }
-            catch (Exception) { return new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Building facts could not be read completely.") }; }
+            catch (Exception) { return new Obs.ListBuildingsReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Building facts could not be read completely.") }; }
         }
 
         // Row is one listed building as the read emits it: the projection
@@ -61,12 +60,12 @@ namespace HomeBridge.BridgeTools
         private static Obs.BuildingState Row(Thing thing, Common.ObservationContext context)
         {
             var row = Project(thing);
-            row.Snapshot = row.Construction != null
-                ? NativeObservationSnapshot.Snapshot("building", context, row.Building.Id, w => {
-                    w.Write((int)row.Status); w.Write(row.HitPoints); w.Write(row.Burning);
-                    w.Write(row.Construction.PercentComplete); w.Write(row.Construction.ResourcesComplete);
+            row = row with { Snapshot = row.Construction != null
+                ? NativeObservationSnapshot.Snapshot("building", context, (row.Building?.Id ?? ""), w => {
+                    w.Write((int)row.Status.GetValueOrDefault()); w.Write(row.HitPoints.GetValueOrDefault()); w.Write(row.Burning.GetValueOrDefault());
+                    w.Write(row.Construction.PercentComplete.GetValueOrDefault()); w.Write(row.Construction.ResourcesComplete.GetValueOrDefault());
                 })
-                : Token(thing, context);
+                : Token(thing, context) };
             // Only the implemented BuildingPatchIntent arms carry a
             // settings row with their own dedicated CAS snapshot:
             // target_temperature_c (NativeBuildingTemperature), a
@@ -77,18 +76,18 @@ namespace HomeBridge.BridgeTools
             // A player storage building (shelf) reports its storage token
             // (NativeStockpilePatch, a zone intent settings patch on a building) first.
             var tempControl = thing.TryGetComp<CompTempControl>();
-            var forbidden = row.Settings.Forbidden;
+            var forbidden = row.Settings?.Forbidden.GetValueOrDefault() ?? false;
             if (NativeStockpilePatch.StorageEligible(thing))
-                row.Settings = NativeStockpilePatch.Settings((Building_Storage)thing, context);
+                row = row with { Settings = NativeStockpilePatch.Settings((Building_Storage)thing, context) };
             else if (tempControl != null)
-                row.Settings = new Obs.BuildingSettings { Snapshot = NativeBuildingTemperature.Snapshot(thing, context), TargetTemperatureC = tempControl.targetTemperature };
+                row = row with { Settings = new Obs.BuildingSettings { Snapshot = NativeBuildingTemperature.Snapshot(thing, context), TargetTemperatureC = tempControl.targetTemperature } };
             else if (NativeBedUse.Eligible(thing))
-                row.Settings = NativeBedUse.Settings((Building_Bed)thing, context);
+                row = row with { Settings = NativeBedUse.Settings((Building_Bed)thing, context) };
             else if (NativeGrowerCrop.Eligible(thing))
-                row.Settings = NativeGrowerCrop.Settings((Building_PlantGrower)thing, context);
+                row = row with { Settings = NativeGrowerCrop.Settings((Building_PlantGrower)thing, context) };
             else if (NativeClaimBuilding.Eligible(thing))
-                row.Settings = NativeClaimBuilding.Settings((Building)thing, context);
-            row.Settings.Forbidden = forbidden;
+                row = row with { Settings = NativeClaimBuilding.Settings((Building)thing, context) };
+            row = row with { Settings = (row.Settings ?? new Obs.BuildingSettings()) with { Forbidden = forbidden } };
             return row;
         }
 
@@ -99,9 +98,9 @@ namespace HomeBridge.BridgeTools
             if (!Identifiers(request.Ids) || !Identifiers(request.DefNames) || request.Statuses.Count > 5
                 || request.Statuses.Distinct(StringComparer.Ordinal).Count() != request.Statuses.Count
                 || request.Statuses.Any(s => s != "all" && s != "built" && s != "blueprint" && s != "frame" && s != "pending")) return false;
-            if (request.HasCategory && request.Category != "all" && request.Category != "artificial") return false;
-            if (request.HasDamagedBelowFraction && (!Finite(request.DamagedBelowFraction) || request.DamagedBelowFraction < 0 || request.DamagedBelowFraction > 1)) return false;
-            if (request.Inspect || request.BillIngredients)
+            if (request.Category is not null && (request.Category ?? "") != "all" && (request.Category ?? "") != "artificial") return false;
+            if (request.DamagedBelowFraction is not null && (!Finite(request.DamagedBelowFraction.GetValueOrDefault()) || request.DamagedBelowFraction.GetValueOrDefault() < 0 || request.DamagedBelowFraction.GetValueOrDefault() > 1)) return false;
+            if (request.Inspect.GetValueOrDefault() || request.BillIngredients.GetValueOrDefault())
             {
                 failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Inspect strings and bill ingredient detail are not supported by this read adapter.");
                 return false;
@@ -125,7 +124,7 @@ namespace HomeBridge.BridgeTools
 
         private static bool Matches(Thing thing, Obs.ListBuildingsRequest request)
         {
-            if ((!request.HasPlayerOnly || request.PlayerOnly) && thing.Faction != Faction.OfPlayerSilentFail) return false;
+            if ((request.PlayerOnly is null || request.PlayerOnly.GetValueOrDefault()) && thing.Faction != Faction.OfPlayerSilentFail) return false;
             if (request.Ids.Count != 0 && !request.Ids.Contains(Id(thing.GetUniqueLoadID()))) return false;
             var built = thing is Blueprint_Install install ? InstallTarget(install).def : thing.def.entityDefToBuild;
             if (request.DefNames.Count != 0 && !request.DefNames.Contains(thing.def.defName)
@@ -133,8 +132,8 @@ namespace HomeBridge.BridgeTools
             var state = Status(thing);
             if (request.Statuses.Count != 0 && !request.Statuses.Contains("all") && !request.Statuses.Contains(StatusFilter(state))
                 && !(state != Obs.BuildingStatus.Built && request.Statuses.Contains("pending"))) return false;
-            if (request.HasDamagedBelowFraction && (!thing.def.useHitPoints || thing.MaxHitPoints <= 0
-                || (double)thing.HitPoints / thing.MaxHitPoints >= request.DamagedBelowFraction)) return false;
+            if (request.DamagedBelowFraction is not null && (!thing.def.useHitPoints || thing.MaxHitPoints <= 0
+                || (double)thing.HitPoints / thing.MaxHitPoints >= request.DamagedBelowFraction.GetValueOrDefault())) return false;
             return true;
         }
 
@@ -161,40 +160,40 @@ namespace HomeBridge.BridgeTools
             var row = new Obs.BuildingState { Building = Head(thing), Status = Status(thing), Rotation = Rotation(thing.Rotation),
                 Burning = thing.IsBurning() };
             var stuff = pending && thing is IConstructible constructible ? constructible.EntityToBuildStuff() : thing.Stuff;
-            if (stuff != null) row.Stuff = Id(stuff.defName);
-            else row.Issues.Add(Issue("stuff", Common.UnavailableReason.NotApplicable, "No material definition applies."));
-            if (thing.Faction != null) row.Faction = NativeRef.Of(Id(thing.Faction.GetUniqueLoadID()));
-            else row.Issues.Add(Issue("faction", Common.UnavailableReason.NotApplicable, "Unowned native thing."));
+            if (stuff != null) row = row with { Stuff = Id(stuff.defName) };
+            else row = row with { Issues = [.. row.Issues, Issue("stuff", Common.UnavailableReason.NotApplicable, "No material definition applies.")] };
+            if (thing.Faction != null) row = row with { Faction = NativeRef.Of(Id(thing.Faction.GetUniqueLoadID())) };
+            else row = row with { Issues = [.. row.Issues, Issue("faction", Common.UnavailableReason.NotApplicable, "Unowned native thing.")] };
             var rectangle = thing.OccupiedRect();
             foreach (var cell in rectangle.Cells)
                 if (!cell.InBounds(thing.Map)) throw new InvalidOperationException("Building geometry is outside its map.");
-            row.Occupied = new Obs.Rectangle { Minimum = Cell(new IntVec3(rectangle.minX, 0, rectangle.minZ)), Maximum = Cell(new IntVec3(rectangle.maxX, 0, rectangle.maxZ)) };
+            row = row with { Occupied = new Obs.Rectangle { Minimum = Cell(new IntVec3(rectangle.minX, 0, rectangle.minZ)), Maximum = Cell(new IntVec3(rectangle.maxX, 0, rectangle.maxZ)) } };
             if (thing.def.useHitPoints)
             {
                 if (thing.HitPoints < 0 || thing.MaxHitPoints <= 0) throw new InvalidOperationException("Invalid native hit points.");
-                row.HitPoints = thing.HitPoints; row.MaxHitPoints = thing.MaxHitPoints;
+                row = row with { HitPoints = thing.HitPoints }; row = row with { MaxHitPoints = thing.MaxHitPoints };
             }
-            else row.Issues.Add(Issue("hit_points", Common.UnavailableReason.NotApplicable, "This definition has no hit points."));
+            else row = row with { Issues = [.. row.Issues, Issue("hit_points", Common.UnavailableReason.NotApplicable, "This definition has no hit points.")] };
             if (pending)
             {
                 var buildDef = thing is Blueprint_Install installation ? InstallTarget(installation).def
                     : thing.def.entityDefToBuild ?? throw new InvalidOperationException("Construction definition missing.");
-                if (thing is Blueprint_Install) row.InstallOfDefName = Id(buildDef.defName);
-                else row.BuildDefName = Id(buildDef.defName);
-                row.Construction = Construction(thing, buildDef, stuff);
-                ConstructionSkillGuard.Read(thing, row.Construction);
+                if (thing is Blueprint_Install) row = row with { InstallOfDefName = Id(buildDef.defName) };
+                else row = row with { BuildDefName = Id(buildDef.defName) };
+                row = row with { Construction = Construction(thing, buildDef, stuff) };
+                row = row with { Construction = ConstructionSkillGuard.Read(thing, row.Construction ?? new Obs.ConstructionState()) };
             }
-            else row.Issues.Add(Issue("construction", Common.UnavailableReason.NotApplicable, "Completed building is not a construction site."));
+            else row = row with { Issues = [.. row.Issues, Issue("construction", Common.UnavailableReason.NotApplicable, "Completed building is not a construction site.")] };
             // Every row carries its service state and forbidden flag; the
             // list read adds the patchable kinds' settings with their own
             // CAS snapshots (Row).
-            row.Service = Service(thing);
-            row.Settings = new Obs.BuildingSettings { Forbidden = Faction.OfPlayerSilentFail != null && thing.IsForbidden(Faction.OfPlayerSilentFail) };
+            row = row with { Service = Service(thing) };
+            row = row with { Settings = new Obs.BuildingSettings { Forbidden = Faction.OfPlayerSilentFail != null && thing.IsForbidden(Faction.OfPlayerSilentFail) } };
             foreach (var field in new[] { "thermal_sides", "bills" })
-                row.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Typed fact or exact CAS snapshot producer is not implemented."));
-            row.Issues.Add(Issue("inspect_text", Common.UnavailableReason.NotRequested, "Inspect strings are not requested."));
-            row.Odyssey = NativeOdysseyFacts.Building(thing);
-            row.Anomaly = NativeAnomalyFacts.Building(thing);
+                row = row with { Issues = [.. row.Issues, Issue(field, Common.UnavailableReason.Unsupported, "Typed fact or exact CAS snapshot producer is not implemented.")] };
+            row = row with { Issues = [.. row.Issues, Issue("inspect_text", Common.UnavailableReason.NotRequested, "Inspect strings are not requested.")] };
+            row = row with { Odyssey = NativeOdysseyFacts.Building(thing) };
+            row = row with { Anomaly = NativeAnomalyFacts.Building(thing) };
             return row;
         }
 
@@ -209,15 +208,15 @@ namespace HomeBridge.BridgeTools
             var power = thing.TryGetComp<CompPowerTrader>();
             var battery = thing.TryGetComp<CompPowerBattery>();
             var net = power?.PowerNet ?? battery?.PowerNet;
-            if (power != null) { service.Connected = net != null; service.PowerOn = power.PowerOn; service.PowerOutputW = Finite(power.PowerOutput) ? power.PowerOutput : throw new InvalidOperationException("Invalid power output."); }
-            else if (battery != null) { service.Connected = net != null; service.PowerOn = net != null; service.PowerOutputW = 0; }
-            if (net != null) service.PowerNetId = NetId(net);
+            if (power != null) { service = service with { Connected = net != null }; service = service with { PowerOn = power.PowerOn }; service = service with { PowerOutputW = Finite(power.PowerOutput) ? power.PowerOutput : throw new InvalidOperationException("Invalid power output.") }; }
+            else if (battery != null) { service = service with { Connected = net != null }; service = service with { PowerOn = net != null }; service = service with { PowerOutputW = 0 }; }
+            if (net != null) service = service with { PowerNetId = NetId(net) };
             var fuel = thing.TryGetComp<CompRefuelable>();
             if (fuel != null)
             {
-                service.Fuel = Nonnegative(fuel.Fuel); service.TargetFuel = Nonnegative(fuel.TargetFuelLevel); service.OutOfFuel = !fuel.HasFuel;
+                service = service with { Fuel = Nonnegative(fuel.Fuel) }; service = service with { TargetFuel = Nonnegative(fuel.TargetFuelLevel) }; service = service with { OutOfFuel = !fuel.HasFuel };
             }
-            else service.Issues.Add(Issue("fuel", Common.UnavailableReason.NotApplicable, "Building has no refuelable component."));
+            else service = service with { Issues = [.. service.Issues, Issue("fuel", Common.UnavailableReason.NotApplicable, "Building has no refuelable component.")] };
             return service;
         }
 
@@ -231,20 +230,20 @@ namespace HomeBridge.BridgeTools
             {
                 // TotalMaterialCost on installation blueprints logs an error and
                 // pauses the simulation. Native installation consumes no material.
-                row.ResourcesComplete = true;
-                row.Issues.Add(Issue("work", Common.UnavailableReason.Unsupported, "Installation work is not projected by this adapter."));
-                row.Issues.Add(Issue("completable_ever", Common.UnavailableReason.Unsupported, "Completion eligibility is not evaluated."));
+                row = row with { ResourcesComplete = true };
+                row = row with { Issues = [.. row.Issues, Issue("work", Common.UnavailableReason.Unsupported, "Installation work is not projected by this adapter.")] };
+                row = row with { Issues = [.. row.Issues, Issue("completable_ever", Common.UnavailableReason.Unsupported, "Completion eligibility is not evaluated.")] };
                 return row;
             }
             if (!(thing is IConstructible construction)) throw new InvalidOperationException("Constructible unavailable.");
             if (thing is Frame frame)
             {
-                row.WorkLeft = Nonnegative(frame.WorkLeft);
-                row.PercentComplete = Fraction(frame.PercentComplete);
+                row = row with { WorkLeft = Nonnegative(frame.WorkLeft) };
+                row = row with { PercentComplete = Fraction(frame.PercentComplete) };
             }
             else
             {
-                row.WorkLeft = Nonnegative(definition.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff)); row.PercentComplete = 0;
+                row = row with { WorkLeft = Nonnegative(definition.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff)) }; row = row with { PercentComplete = 0 };
             }
             var costs = construction.TotalMaterialCost() ?? throw new InvalidOperationException("Cost list unavailable.");
             var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -257,11 +256,11 @@ namespace HomeBridge.BridgeTools
                 var have = thing is Frame nativeFrame
                     ? nativeFrame.resourceContainer.TotalStackCountOfDef(cost.thingDef) : cost.count - needed;
                 if (needed < 0 || have < 0) throw new InvalidOperationException("Invalid native construction quantities.");
-                row.Resources.Add(new Obs.MaterialDeficit { DefName = name, Need = cost.count, Have = have, StillNeeded = needed });
+                row = row with { Resources = [.. row.Resources, new Obs.MaterialDeficit { DefName = name, Need = cost.count, Have = have, StillNeeded = needed }] };
                 complete &= needed == 0;
             }
-            row.ResourcesComplete = complete;
-            row.Issues.Add(Issue("completable_ever", Common.UnavailableReason.Unsupported, "Completion eligibility is not evaluated."));
+            row = row with { ResourcesComplete = complete };
+            row = row with { Issues = [.. row.Issues, Issue("completable_ever", Common.UnavailableReason.Unsupported, "Completion eligibility is not evaluated.")] };
             return row;
         }
 

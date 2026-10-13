@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -53,8 +53,8 @@ namespace HomeBridge.BridgeTools
             var seen = new HashSet<IntVec3>();
             foreach (var c in rows)
             {
-                if (c == null || !c.HasX || !c.HasZ) return "Area plant cut cell requires x and z.";
-                var cell = new IntVec3(c.X, 0, c.Z);
+                if (c == null || c.X is null || c.Z is null) return "Area plant cut cell requires x and z.";
+                var cell = new IntVec3(c.X.GetValueOrDefault(), 0, c.Z.GetValueOrDefault());
                 if (!cell.InBounds(map)) return $"Cell {cell} is out of bounds.";
                 if (!seen.Add(cell)) return $"Cell {cell} is repeated.";
                 cells.Add(cell);
@@ -75,19 +75,19 @@ namespace HomeBridge.BridgeTools
             var map = ProtoBoundary.ResolveMap(context) ?? throw new InvalidOperationException("Area plant cut prerequisites changed before apply: current map required.");
             var refusal = Refusal(intent.Cells, map, out var cells);
             if (refusal != null) throw new InvalidOperationException("Area plant cut prerequisites changed before apply: " + refusal);
-            var effect = new Receipts.AreaPlantCutEffect { Cut = 0, Chopped = 0, Adopted = 0 };
+            int cut = 0, chopped = 0, adopted = 0;
             foreach (var cell in cells)
                 foreach (var plant in Plants(map, cell).ToList())
                 {
-                    if (Designated(plant)) { effect.Adopted++; continue; }
+                    if (Designated(plant)) { adopted++; continue; }
                     var designator = DesignatorFor(plant);
                     if (!designator.CanDesignateThing(plant).Accepted) continue;
                     var chop = ChopWood(plant);
                     designator.DesignateThing(plant);
                     if (!Designated(plant)) throw new InvalidOperationException($"Native plant cut designation was not observed at {cell}.");
-                    if (chop) effect.Chopped++; else effect.Cut++;
+                    if (chop) chopped++; else cut++;
                 }
-            return new Receipts.EffectEvidence { AreaPlantCut = effect };
+            return new Receipts.EffectEvidence { Effect = new Receipts.AreaPlantCutEffect { Cut = cut, Chopped = chopped, Adopted = adopted } };
         }
 
 
@@ -95,7 +95,7 @@ namespace HomeBridge.BridgeTools
 
     internal sealed class AreaPlantCutActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeAreaPlantCut.Validate(action.AreaPlantCut, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeAreaPlantCut.Apply(action.AreaPlantCut, context);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeAreaPlantCut.Validate(action.Intent?.AreaPlantCut, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeAreaPlantCut.Apply(action.Intent?.AreaPlantCut ?? throw new InvalidOperationException("Action carries no area-plant-cut intent."), context);
     }
 }

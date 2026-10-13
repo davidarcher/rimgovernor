@@ -6,8 +6,8 @@ using System.Reflection;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -39,53 +39,53 @@ namespace HomeBridge.BridgeTools
                     {
                         // The game's computed MeatAmount of this animal, sent only when the
                         // colony eats the meat; Go derives nutrition, feed and reproduction.
-                        slaughter.MeatAmount = Finite(animal.GetStatValue(StatDefOf.MeatAmount));
+                        slaughter = slaughter with { MeatAmount = Finite(animal.GetStatValue(StatDefOf.MeatAmount)) };
                     }
-                    result.Slaughter.Add(slaughter);
-                    if (comps.Count == 0) result.Gatherable.Add(new Obs.GatherableAnimal { PawnId = animal.GetUniqueLoadID(), Race = animal.def.defName, HandlerReachable = reachable, Active = false });
+                    result = result with { Slaughter = [.. result.Slaughter, slaughter] };
+                    if (comps.Count == 0) result = result with { Gatherable = [.. result.Gatherable, new Obs.GatherableAnimal { PawnId = animal.GetUniqueLoadID(), Race = animal.def.defName, HandlerReachable = reachable, Active = false }] };
                     foreach (var comp in comps)
                     {
                         var row = new Obs.GatherableAnimal { PawnId = animal.GetUniqueLoadID(), Race = animal.def.defName, HandlerReachable = reachable, Fullness = Finite(comp.Fullness) };
-                        if (Resource?.GetValue(comp) is ThingDef resource) row.Resource = resource.defName;
-                        if (!(comp is CompMilkable)) row.Active = false;
+                        if (Resource?.GetValue(comp) is ThingDef resource) row = row with { Resource = resource.defName };
+                        if (!(comp is CompMilkable)) row = row with { Active = false };
                         if (comp is CompMilkable milk && GatherActive?.GetValue(comp) is bool active)
                         {
-                            row.Active = active && humanFood(milk.Props.milkDef);
+                            row = row with { Active = active && humanFood(milk.Props.milkDef) };
                             var speed = PawnUtility.BodyResourceGrowthSpeed(animal);
                             if (milk.Props.milkIntervalDays > 0 && speed > 0)
                             {
                                 var days = milk.Props.milkIntervalDays / (double)speed;
-                                row.NutritionPerDay = row.Active ? Finite(milk.Props.milkAmount * milk.Props.milkDef.GetStatValueAbstract(StatDefOf.Nutrition) / days) : 0;
+                                row = row with { NutritionPerDay = row.Active.GetValueOrDefault() ? Finite(milk.Props.milkAmount * milk.Props.milkDef.GetStatValueAbstract(StatDefOf.Nutrition) / days) : 0 };
                                 // JobDriver_Milk.WorkTotal, in native work units. Travel is not included.
-                                row.WorkPerDay = row.Active ? 400 / days : 0;
-                                row.LeadDays = Finite((1 - comp.Fullness) * days);
+                                row = row with { WorkPerDay = row.Active.GetValueOrDefault() ? 400 / days : 0 };
+                                row = row with { LeadDays = Finite((1 - comp.Fullness) * days) };
                             }
                         }
-                        result.Gatherable.Add(row);
+                        result = result with { Gatherable = [.. result.Gatherable, row] };
                     }
                     var egg = animal.GetComp<CompEggLayer>();
                     var eggRow = new Obs.EggLayerAnimal { PawnId = animal.GetUniqueLoadID(), Race = animal.def.defName };
-                    if (egg == null) eggRow.Active = false;
+                    if (egg == null) eggRow = eggRow with { Active = false };
                     if (egg != null)
                     {
-                        eggRow.CanLayNow = egg.CanLayNow;
-                        if (EggProgress?.GetValue(egg) is float progress) eggRow.Progress = Finite(progress);
+                        eggRow = eggRow with { CanLayNow = egg.CanLayNow };
+                        if (EggProgress?.GetValue(egg) is float progress) eggRow = eggRow with { Progress = Finite(progress) };
                         // The next egg is the fertilized def exactly when NextEggType picks it.
-                        if (EggFertilization?.GetValue(egg) is int fertilization) eggRow.Fertilized = fertilization > 0;
+                        if (EggFertilization?.GetValue(egg) is int fertilization) eggRow = eggRow with { Fertilized = fertilization > 0 };
                         if (EggActive?.GetValue(egg) is bool active && EggStopped?.GetValue(egg) is bool stopped)
                         {
                             var resource = egg.NextEggType();
-                            eggRow.Active = active && !stopped && resource != null && humanFood(resource);
+                            eggRow = eggRow with { Active = active && !stopped && resource != null && humanFood(resource) };
                             var speed = PawnUtility.BodyResourceGrowthSpeed(animal);
                             if (egg.Props.eggLayIntervalDays > 0 && speed > 0 && resource != null)
                             {
                                 var days = egg.Props.eggLayIntervalDays / (double)speed;
-                                eggRow.NutritionPerDay = eggRow.Active ? Finite((egg.Props.eggCountRange.min + egg.Props.eggCountRange.max) * 0.5 * resource.GetStatValueAbstract(StatDefOf.Nutrition) / days) : 0;
-                                if (eggRow.HasProgress) eggRow.LeadDays = Finite((1 - eggRow.Progress) * days);
+                                eggRow = eggRow with { NutritionPerDay = eggRow.Active.GetValueOrDefault() ? Finite((egg.Props.eggCountRange.min + egg.Props.eggCountRange.max) * 0.5 * resource.GetStatValueAbstract(StatDefOf.Nutrition) / days) : 0 };
+                                if (eggRow.Progress is not null) eggRow = eggRow with { LeadDays = Finite((1 - eggRow.Progress.GetValueOrDefault()) * days) };
                             }
                         }
                     }
-                    result.EggLayer.Add(eggRow);
+                    result = result with { EggLayer = [.. result.EggLayer, eggRow] };
                 }
                 foreach (var pen in pens.OrderBy(p => p.parent.thingIDNumber))
                 {
@@ -93,8 +93,8 @@ namespace HomeBridge.BridgeTools
                     var food = new PenFoodCalculator();
                     food.ResetAndProcessPen(pen);
                     var pasture = Enumerable.Range(0, 4).Min(q => food.nutritionPerDayPerQuadrum.ForQuadrum((Quadrum)q));
-                    result.Grazing.Add(new Obs.PenGrazing { PenId = pen.parent.GetUniqueLoadID(), DemandPerDay = Finite(food.SumNutritionConsumptionPerDay),
-                        PasturePerDay = Finite(pasture), StoredNutrition = Finite(food.sumStockpiledNutritionAvailableNow) });
+                    result = result with { Grazing = [.. result.Grazing, new Obs.PenGrazing { PenId = pen.parent.GetUniqueLoadID(), DemandPerDay = Finite(food.SumNutritionConsumptionPerDay),
+                        PasturePerDay = Finite(pasture), StoredNutrition = Finite(food.sumStockpiledNutritionAvailableNow) }] };
                 }
                 // The pasture a cell of each terrain grows in the worst quadrum: the
                 // per-cell term PenFoodCalculator sums over a pen, so Go can size a
@@ -104,13 +104,13 @@ namespace HomeBridge.BridgeTools
                 foreach (var terrain in DefDatabase<TerrainDef>.AllDefsListForReading.Where(t => t.fertility > 0f).OrderBy(t => t.defName, StringComparer.Ordinal))
                 {
                     var perQuadrum = terrainPasture.CalculateAverageNutritionPerDay(terrain);
-                    result.PastureTerrain.Add(new Obs.PastureTerrain { TerrainDef = terrain.defName,
-                        WorstQuadrumPerDay = Finite(Enumerable.Range(0, 4).Min(q => perQuadrum.ForQuadrum((Quadrum)q))) });
+                    result = result with { PastureTerrain = [.. result.PastureTerrain, new Obs.PastureTerrain { TerrainDef = terrain.defName,
+                        WorstQuadrumPerDay = Finite(Enumerable.Range(0, 4).Min(q => perQuadrum.ForQuadrum((Quadrum)q))) }] };
                 }
                 foreach (var dispenser in map.listerThings.AllThings.OfType<Building_NutrientPasteDispenser>().Where(b => b.Spawned && b.Faction == Faction.OfPlayerSilentFail).OrderBy(b => b.thingIDNumber))
                 {
                     var row = new Obs.PasteDispenser { BuildingId = dispenser.GetUniqueLoadID() };
-                    if (dispenser.powerComp != null) row.Powered = dispenser.powerComp.PowerOn;
+                    if (dispenser.powerComp != null) row = row with { Powered = dispenser.powerComp.PowerOn };
                     // Same eligible feed stacks as HasEnoughFeedstockInHoppers,
                     // summed without its early exit after one meal's nutrition.
                     double nutrition = 0;
@@ -121,18 +121,18 @@ namespace HomeBridge.BridgeTools
                         var food = things.LastOrDefault(t => Building_NutrientPasteDispenser.IsAcceptableFeedstock(t.def));
                         if (food != null) nutrition += food.stackCount * food.GetStatValue(StatDefOf.Nutrition);
                     }
-                    row.HopperNutrition = Finite(nutrition);
+                    row = row with { HopperNutrition = Finite(nutrition) };
                     var room = dispenser.InteractionCell.GetRoom(map);
-                    if (room != null) row.AdjacentRoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                    result.PasteDispenser.Add(row);
+                    if (room != null) row = row with { AdjacentRoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture) };
+                    result = result with { PasteDispenser = [.. result.PasteDispenser, row] };
                 }
-                result.PollutedCells = (uint)map.AllCells.Count(c => map.pollutionGrid.IsPolluted(c));
+                result = result with { PollutedCells = (uint)map.AllCells.Count(c => map.pollutionGrid.IsPolluted(c)) };
                 var twelfths = GenTemperature.TwelfthsInAverageTemperatureRange(map.Tile, Plant.DefaultMinOptimalGrowthTemperature, Plant.DefaultMaxOptimalGrowthTemperature);
                 foreach (var plant in map.Biome.AllWildPlants.Where(d => d.plant?.harvestedThingDef != null && humanFood(d.plant.harvestedThingDef)).OrderBy(d => d.defName, StringComparer.Ordinal))
                 {
                     var row = new Obs.ForagePlant { DefName = plant.defName, GrowingNow = PlantUtility.GrowthSeasonNow(map, plant) };
-                    row.GrowingTwelfths.AddRange(twelfths.Select(t => (int)t));
-                    result.Forage.Add(row);
+                    row = row with { GrowingTwelfths = [.. row.GrowingTwelfths, .. twelfths.Select(t => (int)t)] };
+                    result = result with { Forage = [.. result.Forage, row] };
                 }
                 if (ModsConfig.OdysseyActive)
                 {
@@ -140,18 +140,18 @@ namespace HomeBridge.BridgeTools
                     var research = ResearchProjectDefOf.Fishing;
                     if (research != null)
                     {
-                        water.FishingResearched = research.IsFinished;
-                        water.ResearchBaseCost = Finite(research.baseCost);
-                        water.ResearchProgress = Finite(Find.ResearchManager.GetProgress(research));
-                        water.ResearchCostFactor = Finite(research.CostFactor(Faction.OfPlayer.def.techLevel));
-                        water.ResearcherSpeeds.AddRange(workers.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Research)).Select(p => Finite(p.GetStatValue(StatDefOf.ResearchSpeed))));
-                        water.ResearchPointsPerWorkTick = Finite(ResearchManager.ResearchPointsPerWorkTick);
-                        water.ResearchDifficultySpeedFactor = Finite(Find.Storyteller.difficulty.researchSpeedFactor);
+                        water = water with { FishingResearched = research.IsFinished };
+                        water = water with { ResearchBaseCost = Finite(research.baseCost) };
+                        water = water with { ResearchProgress = Finite(Find.ResearchManager.GetProgress(research)) };
+                        water = water with { ResearchCostFactor = Finite(research.CostFactor(Faction.OfPlayer.def.techLevel)) };
+                        water = water with { ResearcherSpeeds = [.. water.ResearcherSpeeds, .. workers.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Research)).Select(p => Finite(p.GetStatValue(StatDefOf.ResearchSpeed)))] };
+                        water = water with { ResearchPointsPerWorkTick = Finite(ResearchManager.ResearchPointsPerWorkTick) };
+                        water = water with { ResearchDifficultySpeedFactor = Finite(Find.Storyteller.difficulty.researchSpeedFactor) };
                     }
                     var fishers = workers.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Fishing) && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)).ToList();
-                    water.BaseFishingDurationTicks = Finite(FishingUtility.BaseFishingDurationTicks);
+                    water = water with { BaseFishingDurationTicks = Finite(FishingUtility.BaseFishingDurationTicks) };
                     foreach (var p in fishers)
-                        water.Fishers.Add(new Obs.FisherFacts { FishingYield = Finite(p.GetStatValue(StatDefOf.FishingYield)), FishingSpeed = Finite(p.GetStatValue(StatDefOf.FishingSpeed)) });
+                        water = water with { Fishers = [.. water.Fishers, new Obs.FisherFacts { FishingYield = Finite(p.GetStatValue(StatDefOf.FishingYield)), FishingSpeed = Finite(p.GetStatValue(StatDefOf.FishingSpeed)) }] };
                     foreach (var body in map.waterBodyTracker.Bodies.Where(b => b.HasFish).OrderBy(b => b.rootCell.x).ThenBy(b => b.rootCell.z))
                     {
                         var cells = body.cells.Where(c => !c.Fogged(map) && c.GetTerrain(map).passability != Traversability.Impassable).ToList();
@@ -163,29 +163,29 @@ namespace HomeBridge.BridgeTools
                             Reachable = fishers.Any(p => cells.Any(c => !c.IsForbidden(p) && p.CanReach(c, PathEndMode.Touch, Danger.None))),
                             YieldCurveValue = Finite(FishingUtility.PopulationToFishYieldCurve.Evaluate(body.Population)) };
                         foreach (var z in zones)
-                            row.Zones.Add(new Obs.FishingZoneFacts { Allowed = z.Allowed, DoForever = z.repeatMode == FishRepeatMode.DoForever, TargetPopulationPct = Finite(z.targetPopulationPct), HasFishableCells = z.HasAnyFishableCells });
+                            row = row with { Zones = [.. row.Zones, new Obs.FishingZoneFacts { Allowed = z.Allowed, DoForever = z.repeatMode == FishRepeatMode.DoForever, TargetPopulationPct = Finite(z.targetPopulationPct), HasFishableCells = z.HasAnyFishableCells }] };
                         var fish = body.CommonFishIncludingExtras.Concat(body.UncommonFish).Distinct().ToList();
-                        if (fish.Count > 0 && fish.All(humanFood)) row.NutritionPerFish = Finite(fish.Min(d => d.GetStatValueAbstract(StatDefOf.Nutrition)));
-                        row.NearestDistanceSquared = cells.Min(c => c.DistanceToSquared(center));
+                        if (fish.Count > 0 && fish.All(humanFood)) row = row with { NutritionPerFish = Finite(fish.Min(d => d.GetStatValueAbstract(StatDefOf.Nutrition))) };
+                        row = row with { NearestDistanceSquared = cells.Min(c => c.DistanceToSquared(center)) };
                         if (fishers.Count > 0)
                         {
-                            row.FishPerBatch = Math.Max(1, Math.Round(FishingUtility.PopulationToFishYieldCurve.Evaluate(body.Population) * fishers.Min(p => p.GetStatValue(StatDefOf.FishingYield))));
+                            row = row with { FishPerBatch = Math.Max(1, Math.Round(FishingUtility.PopulationToFishYieldCurve.Evaluate(body.Population) * fishers.Min(p => p.GetStatValue(StatDefOf.FishingYield)))) };
                             var speed = fishers.Min(p => p.GetStatValue(StatDefOf.FishingSpeed));
-                            if (speed > 0) row.WorkTicksPerBatch = Finite(FishingUtility.BaseFishingDurationTicks / speed);
+                            if (speed > 0) row = row with { WorkTicksPerBatch = Finite(FishingUtility.BaseFishingDurationTicks / speed) };
                         }
                         // Vanilla's fishing-zone cell rule; policy chooses the footprint.
                         foreach (var c in cells.Where(c => NativeZoneCreation.FishableCell(c, map, body)).OrderBy(c => c.x).ThenBy(c => c.z))
-                            row.Cells.Add(new Obs.FishableCell { Cell = new Common.Cell { X = c.x, Z = c.z }, DistanceSquared = c.DistanceToSquared(center),
-                                Reachable = fishers.Any(p => !c.IsForbidden(p) && p.CanReach(c, PathEndMode.Touch, Danger.None)) });
-                        water.Regions.Add(row);
+                            row = row with { Cells = [.. row.Cells, new Obs.FishableCell { Cell = new Common.Cell { X = c.x, Z = c.z }, DistanceSquared = c.DistanceToSquared(center),
+                                Reachable = fishers.Any(p => !c.IsForbidden(p) && p.CanReach(c, PathEndMode.Touch, Danger.None)) }] };
+                        water = water with { Regions = [.. water.Regions, row] };
                     }
-                    result.FishableWater = water;
+                    result = result with { FishableWater = water };
                 }
-                return new Obs.FoodChannelsSection { Observed = result };
+                return new Obs.FoodChannelsSection { Outcome = result };
             }
             catch (Exception)
             {
-                return new Obs.FoodChannelsSection { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                return new Obs.FoodChannelsSection { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
                     Detail = "Food source census unavailable." } };
             }
         }

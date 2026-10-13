@@ -5,9 +5,9 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -44,7 +44,7 @@ namespace HomeBridge.BridgeTools
         // (NativeDropOperations): the job whose driver is JobDriver_DropEquipment.
         internal const string DropWeapon = "DropWeapon";
 
-        private static string? Id(Common.Ref? r) => r != null && r.HasId && ProtoBoundary.IsIdentifier(r.Id) ? r.Id : null;
+        private static string? Id(Common.Ref? r) => r != null && r.Id is not null && ProtoBoundary.IsIdentifier(r.Id) ? (r.Id ?? "") : null;
 
         // The intent's shape, before any live check: which arm applies it.
         internal enum Arm { Invalid, Order, Need, Use, Prioritized }
@@ -56,34 +56,34 @@ namespace HomeBridge.BridgeTools
             if (intent == null || pawn == null) { refusal = "Give job requires a pawn."; return Arm.Invalid; }
             var targets = intent.Targets.Select(Id).ToList();
             // UseItem alone may target its own user: [item, pawn] is the self-use of a usable item.
-            var selfOk = intent.Job == UseItem;
+            var selfOk = (intent.Job ?? "") == UseItem;
             if (targets.Any(t => t == null || t == pawn && !selfOk)) { refusal = "Give job targets must be exact and distinct from the pawn."; return Arm.Invalid; }
             var options = intent.Options;
-            if (options != null && options.HasRelieveNeed)
+            if (options != null && options.RelieveNeed is not null)
             {
-                if (intent.HasJob || targets.Count > 0 || options.Prioritized || options.RelieveNeed == Operations.Need.Unspecified)
+                if (intent.Job is not null || targets.Count > 0 || options.Prioritized.GetValueOrDefault() || options.RelieveNeed.GetValueOrDefault() == Operations.Need.Unspecified)
                 { refusal = "Need relief names a need and no job or targets: the need giver picks them."; return Arm.Invalid; }
                 return Arm.Need;
             }
-            if (!intent.HasJob || !ProtoBoundary.IsIdentifier(intent.Job)) { refusal = "Give job requires a JobDef name."; return Arm.Invalid; }
-            if (intent.Job == UseItem)
+            if (intent.Job is null || !ProtoBoundary.IsIdentifier(intent.Job)) { refusal = "Give job requires a JobDef name."; return Arm.Invalid; }
+            if ((intent.Job ?? "") == UseItem)
             {
                 if (targets.Count != 2 || targets[0] == targets[1] || targets[0] == pawn) { refusal = "UseItem requires targets [item, target pawn]."; return Arm.Invalid; }
                 return Arm.Use;
             }
-            if (Kinds.TryGetValue(intent.Job, out var kind))
+            if (Kinds.TryGetValue((intent.Job ?? ""), out var kind))
             {
                 var arrest = kind == JobOrderKind.Arrest;
-                if (targets.Count != (arrest ? 2 : 1)) { refusal = arrest ? "Arrest requires targets [target, prisoner bed]." : intent.Job + " requires one target."; return Arm.Invalid; }
+                if (targets.Count != (arrest ? 2 : 1)) { refusal = arrest ? "Arrest requires targets [target, prisoner bed]." : (intent.Job ?? "") + " requires one target."; return Arm.Invalid; }
                 order = new JobOrder { Kind = kind, PawnId = pawn, TargetId = targets[0]!, BedId = arrest ? targets[1] : null };
                 return Arm.Order;
             }
-            if (options != null && options.Prioritized)
+            if (options != null && options.Prioritized.GetValueOrDefault())
             {
                 if (targets.Count != 1) { refusal = "A prioritized job requires one target."; return Arm.Invalid; }
                 return Arm.Prioritized;
             }
-            refusal = "Job " + intent.Job + " is not a GiveJobIntent job without prioritized.";
+            refusal = "Job " + (intent.Job ?? "") + " is not a GiveJobIntent job without prioritized.";
             return Arm.Invalid;
         }
 
@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
             pawn = null; snapshot = null;
             if (!NativePawnControlState.IsReady) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             var map = ProtoBoundary.LoadedMap(context);
-            var identity = new NativeControlIdentity(Current.Game, map, context.Identity.ColonyId, context.Identity.LoadToken);
+            var identity = new NativeControlIdentity(Current.Game, map, (context.Identity?.ColonyId ?? ""), (context.Identity?.LoadToken ?? ""));
             pawn = map.mapPawns.AllPawnsSpawned.ById(intent.PawnId);
             if (pawn == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact pawn is not spawned on this map.");
             var control = NativePawnControlState.Observe(identity, pawn, out snapshot);
@@ -103,10 +103,10 @@ namespace HomeBridge.BridgeTools
 
         internal static Receipts.EffectEvidence Evidence(Pawn pawn, Thing target, Job job, bool issued) => new Receipts.EffectEvidence
         {
-            Job = new Receipts.JobEffect
+            Effect = new Receipts.JobEffect
             {
                 PawnId = pawn.GetUniqueLoadID(), JobId = job.loadID, JobDef = job.def?.defName ?? "",
-                TargetA = new Receipts.JobTarget { ThingId = target.GetUniqueLoadID() },
+                TargetA = new Receipts.JobTarget { Target = new Receipts.JobTargetTarget.ThingIdCase(target.GetUniqueLoadID()) },
                 CanTry = true, Issued = issued, Verified = true, Drafted = pawn.Drafted,
             }
         };
@@ -169,14 +169,14 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(Operations.GiveJobIntent intent, Common.ObservationContext context, out Pawn? pawn, out Thing? target, out JobDef? def, out bool running)
         {
             pawn = null; target = null; running = false;
-            def = DefDatabase<JobDef>.GetNamedSilentFail(intent.Job);
-            if (def == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Job " + intent.Job + " is not a JobDef.");
+            def = DefDatabase<JobDef>.GetNamedSilentFail((intent.Job ?? ""));
+            if (def == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Job " + (intent.Job ?? "") + " is not a JobDef.");
             var map = ProtoBoundary.LoadedMap(context);
-            pawn = map.mapPawns.FreeColonistsSpawned.ById(intent.Pawn.Id);
+            pawn = map.mapPawns.FreeColonistsSpawned.ById(intent.Pawn?.Id ?? "");
             if (pawn == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact colonist is not spawned on this map.");
             if (pawn.Dead || pawn.Downed || pawn.Drafted || pawn.InMentalState || !pawn.IsColonistPlayerControlled)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Colonist is unavailable, drafted or in a mental state.");
-            target = RefIndex.Thing(map, intent.Targets[0].Id);
+            target = RefIndex.Thing(map, intent.Targets[0].Id ?? "");
             if (target == null || !target.Spawned) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact target is not spawned on this map.");
             var job = pawn.CurJob;
             running = job != null && job.def == def && job.targetA.Thing == target;
@@ -229,26 +229,26 @@ namespace HomeBridge.BridgeTools
     {
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
         {
-            var intent = action.GiveJob;
+            var intent = action.Intent?.GiveJob;
             switch (NativeGiveJob.Classify(intent, out var order, out var refusal))
             {
                 case NativeGiveJob.Arm.Order: return NativeGiveJob.ValidateOrder(order!, context);
-                case NativeGiveJob.Arm.Need: return NativeMoodReliefOperations.Validate(intent.Pawn.Id, intent.Options.RelieveNeed, context);
-                case NativeGiveJob.Arm.Use: return NativeUseItemOperations.Validate(intent.Pawn.Id, intent.Targets[0].Id, intent.Targets[1].Id, context);
-                case NativeGiveJob.Arm.Prioritized: return NativePrioritizedJob.Validate(intent, context);
+                case NativeGiveJob.Arm.Need: return NativeMoodReliefOperations.Validate(intent!.Pawn!.Id ?? "", intent.Options!.RelieveNeed.GetValueOrDefault(), context);
+                case NativeGiveJob.Arm.Use: return NativeUseItemOperations.Validate(intent!.Pawn!.Id ?? "", intent.Targets[0].Id ?? "", intent.Targets[1].Id ?? "", context);
+                case NativeGiveJob.Arm.Prioritized: return NativePrioritizedJob.Validate(intent!, context);
                 default: return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, refusal ?? "Invalid give job intent.");
             }
         }
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
-            var intent = action.GiveJob;
+            var intent = action.Intent?.GiveJob;
             switch (NativeGiveJob.Classify(intent, out var order, out var refusal))
             {
                 case NativeGiveJob.Arm.Order: return NativeGiveJob.ApplyOrder(order!, context);
-                case NativeGiveJob.Arm.Need: return NativeMoodReliefOperations.Apply(intent.Pawn.Id, intent.Options.RelieveNeed, context);
-                case NativeGiveJob.Arm.Use: return NativeUseItemOperations.Apply(intent.Pawn.Id, intent.Targets[0].Id, intent.Targets[1].Id, context);
-                case NativeGiveJob.Arm.Prioritized: return NativePrioritizedJob.Apply(intent, context);
+                case NativeGiveJob.Arm.Need: return NativeMoodReliefOperations.Apply(intent!.Pawn!.Id ?? "", intent.Options!.RelieveNeed.GetValueOrDefault(), context);
+                case NativeGiveJob.Arm.Use: return NativeUseItemOperations.Apply(intent!.Pawn!.Id ?? "", intent.Targets[0].Id ?? "", intent.Targets[1].Id ?? "", context);
+                case NativeGiveJob.Arm.Prioritized: return NativePrioritizedJob.Apply(intent!, context);
                 default: throw new InvalidOperationException(refusal ?? "Invalid give job intent.");
             }
         }

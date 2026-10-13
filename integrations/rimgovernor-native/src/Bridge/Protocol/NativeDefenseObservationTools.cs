@@ -5,13 +5,12 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -29,18 +28,18 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadDefenseSite(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a DefenseSiteRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_defense_site", request!, Obs.DefenseSiteRequest.Parser, out var parsed, out var failure)
-                || !ValidateSite(parsed, out failure)) return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Obs.DefenseSiteRequest>(ctx, "rimgovernor/observations_read_defense_site", request!, out var parsed, out var failure)
+                || !ValidateSite(parsed, out failure)) return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Outcome = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Failure = failure });
+                    return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Outcome = failure });
                 try {
                     var cells = Region(parsed.Region, map);
                     if (cells == null) return ProtoBoundary.Encode(new Obs.DefenseSiteReply {
-                        Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region is outside the current map.") });
-                    return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Observed = Site(map, parsed.Region, cells, context) });
+                        Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region is outside the current map.") });
+                    return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Outcome = Site(map, parsed.Region ?? new Obs.Rectangle(), cells, context) });
                 }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native defense site facts could not be read completely.") }); }
+                catch (Exception) { return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native defense site facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -50,18 +49,18 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadLinesOfFire(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a LinesOfFireRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_lines_of_fire", request!, Obs.LinesOfFireRequest.Parser, out var parsed, out var failure)
-                || !ValidateLines(parsed, out failure)) return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Obs.LinesOfFireRequest>(ctx, "rimgovernor/observations_read_lines_of_fire", request!, out var parsed, out var failure)
+                || !ValidateLines(parsed, out failure)) return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Outcome = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Failure = failure });
+                    return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Outcome = failure });
                 try {
                     var firing = parsed.FiringCells.Select(Native).ToList(); var approach = parsed.ApproachCells.Select(Native).ToList();
                     if (firing.Concat(approach).Any(c => !c.InBounds(map))) return ProtoBoundary.Encode(new Obs.LinesOfFireReply {
-                        Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cell is outside the current map.") });
-                    return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Observed = Lines(map, firing, approach, context, parsed.HasBudgetMs ? parsed.BudgetMs : (uint?)null) });
+                        Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cell is outside the current map.") });
+                    return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Outcome = Lines(map, firing, approach, context, parsed.BudgetMs) });
                 }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native lines of fire could not be read completely.") }); }
+                catch (Exception) { return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native lines of fire could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -83,19 +82,19 @@ namespace HomeBridge.BridgeTools
             if (list.Count < 1 ||list.Any(c => !HasCell(c))) return false;
             return list.Select(Native).Distinct().Count() == list.Count;
         }
-        private static bool HasCell(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ;
-        private static IntVec3 Native(Common.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
+        private static bool HasCell(Common.Cell? cell) => cell != null && cell.X is not null && cell.Z is not null;
+        private static IntVec3 Native(Common.Cell cell) => new IntVec3(cell.X.GetValueOrDefault(), 0, cell.Z.GetValueOrDefault());
         // Region is null when the rectangle leaves the live map, checked on its
         // corners before any cell is listed; a null map checks shape only.
         internal static List<IntVec3>? Region(Obs.Rectangle? region, Map? map)
         {
             var min = region?.Minimum; var max = region?.Maximum;
-            if (!HasCell(min) || !HasCell(max) || max!.X < min!.X || max.Z < min.Z) throw new ArgumentException("Invalid rectangle.");
+            if (!HasCell(min) || !HasCell(max) || max!.X.GetValueOrDefault() < min!.X.GetValueOrDefault() || max.Z.GetValueOrDefault() < min.Z.GetValueOrDefault()) throw new ArgumentException("Invalid rectangle.");
             if (map == null) return new List<IntVec3>();
-            if (!new IntVec3(min.X, 0, min.Z).InBounds(map) || !new IntVec3(max.X, 0, max.Z).InBounds(map)) return null;
-            var width = (long)max.X - min.X + 1; var height = (long)max.Z - min.Z + 1;
+            if (!new IntVec3(min.X.GetValueOrDefault(), 0, min.Z.GetValueOrDefault()).InBounds(map) || !new IntVec3(max.X.GetValueOrDefault(), 0, max.Z.GetValueOrDefault()).InBounds(map)) return null;
+            var width = (long)max.X.GetValueOrDefault() - min.X.GetValueOrDefault() + 1; var height = (long)max.Z.GetValueOrDefault() - min.Z.GetValueOrDefault() + 1;
             var result = new List<IntVec3>((int)(width * height));
-            for (long z = min.Z; z <= max.Z; z++) for (long x = min.X; x <= max.X; x++) result.Add(new IntVec3((int)x, 0, (int)z));
+            for (long z = min.Z.GetValueOrDefault(); z <= max.Z.GetValueOrDefault(); z++) for (long x = min.X.GetValueOrDefault(); x <= max.X.GetValueOrDefault(); x++) result.Add(new IntVec3((int)x, 0, (int)z));
             return result;
         }
 
@@ -106,31 +105,31 @@ namespace HomeBridge.BridgeTools
             // as obstacles they must bash; reachability without opening doors is
             // the conservative "can arrive here from the edge" fact.
             var raider = TraverseParms.For(TraverseMode.NoPassClosedDoors, Danger.Deadly);
-            var snapshot = new Obs.DefenseSiteSnapshot { Context = context, Region = region.Clone(),
+            var snapshot = new Obs.DefenseSiteSnapshot { Context = context, Region = region,
                 MapSize = new Obs.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) } };
             foreach (var cell in cells) {
                 var row = new Obs.DefenseCell { Cell = new Common.Cell { X = cell.x, Z = cell.z }, Fogged = cell.Fogged(map) };
-                if (row.Fogged) { row.Issues.Add(Issue("terrain", Common.UnavailableReason.NotApplicable, "Fogged cell geometry is unknown.")); snapshot.Cells.Add(row); continue; }
-                row.Terrain = Identifier(cell.GetTerrain(map)?.defName);
-                row.FoundationRemovalDesignated = map.designationManager.DesignationAt(cell, DesignationDefOf.RemoveFoundation) != null;
-                row.Walkable = cell.Walkable(map); row.Passable = !cell.Impassable(map);
-                row.Roofed = cell.Roofed(map);
+                if (row.Fogged.GetValueOrDefault()) { row = row with { Issues = [.. row.Issues, Issue("terrain", Common.UnavailableReason.NotApplicable, "Fogged cell geometry is unknown.")] }; snapshot = snapshot with { Cells = [.. snapshot.Cells, row] }; continue; }
+                row = row with { Terrain = Identifier(cell.GetTerrain(map)?.defName) };
+                row = row with { FoundationRemovalDesignated = map.designationManager.DesignationAt(cell, DesignationDefOf.RemoveFoundation) != null };
+                row = row with { Walkable = cell.Walkable(map) }; row = row with { Passable = !cell.Impassable(map) };
+                row = row with { Roofed = cell.Roofed(map) };
                 var edifice = cell.GetEdifice(map);
                 var cover = cell.GetCover(map);
-                row.CoverFill = Finite(cover?.def.fillPercent ?? edifice?.def.fillPercent ?? 0);
+                row = row with { CoverFill = Finite(cover?.def.fillPercent ?? edifice?.def.fillPercent ?? 0) };
                 var giver = cover ?? (edifice != null && edifice.def.fillPercent > 0 ? edifice : null);
                 if (giver != null && NativeClearCover.KindOf(giver) != Obs.CoverKind.Unspecified) {
-                    row.CoverThingId = giver.GetUniqueLoadID(); row.CoverDefName = Identifier(giver.def.defName);
-                    row.CoverKind = NativeClearCover.KindOf(giver); row.CoverDesignated = NativeClearCover.Designated(giver);
+                    row = row with { CoverThingId = giver.GetUniqueLoadID() }; row = row with { CoverDefName = Identifier(giver.def.defName) };
+                    row = row with { CoverKind = NativeClearCover.KindOf(giver) }; row = row with { CoverDesignated = NativeClearCover.Designated(giver) };
                 }
                 if (edifice != null) {
-                    row.EdificeDefName = Identifier(edifice.def.defName); if (edifice.Stuff != null) row.EdificeStuffDefName = Identifier(edifice.Stuff.defName);
-                    row.PlayerOwned = edifice.Faction == player;
-                    row.NaturalRock = edifice.def.building?.isNaturalRock == true || edifice.def.mineable;
-                    row.Door = edifice is Building_Door;
-                } else { row.PlayerOwned = false; row.NaturalRock = false; row.Door = false; }
-                row.EdgeReachable = row.Passable && map.reachability.CanReachMapEdge(cell, raider);
-                snapshot.Cells.Add(row);
+                    row = row with { EdificeDefName = Identifier(edifice.def.defName) }; if (edifice.Stuff != null) row = row with { EdificeStuffDefName = Identifier(edifice.Stuff.defName) };
+                    row = row with { PlayerOwned = edifice.Faction == player };
+                    row = row with { NaturalRock = edifice.def.building?.isNaturalRock == true || edifice.def.mineable };
+                    row = row with { Door = edifice is Building_Door };
+                } else { row = row with { PlayerOwned = false }; row = row with { NaturalRock = false }; row = row with { Door = false }; }
+                row = row with { EdgeReachable = row.Passable.GetValueOrDefault() && map.reachability.CanReachMapEdge(cell, raider) };
+                snapshot = snapshot with { Cells = [.. snapshot.Cells, row] };
             }
             return snapshot;
         }
@@ -143,7 +142,7 @@ namespace HomeBridge.BridgeTools
             foreach (var track in raids.Tracks.Values.OrderBy(t => t.SpawnTick).ThenBy(t => t.LordId)) {
                 var row = new Obs.RaidTrack { LordId = "lord-" + track.LordId.ToString(System.Globalization.CultureInfo.InvariantCulture), FactionDef = Identifier(track.FactionDef),
                     SpawnTick = track.SpawnTick, Spawn = new Common.Cell { X = track.Spawn.x, Z = track.Spawn.z }, Ground = track.Ground, LastTick = track.LastTick };
-                foreach (var c in track.Trail) row.Trail.Add(new Common.Cell { X = c.x, Z = c.z });
+                foreach (var c in track.Trail) row = row with { Trail = [.. row.Trail, new Common.Cell { X = c.x, Z = c.z }] };
                 yield return row;
             }
         }
@@ -156,14 +155,14 @@ namespace HomeBridge.BridgeTools
             foreach (var from in firing) foreach (var to in approach) {
                 // About 3 us a pair; the budget is checked per pair, so the snapshot holds a
                 // firing-major prefix of the product and says so.
-                if (System.Diagnostics.Stopwatch.GetTimestamp() - began >= budgetTicks) { snapshot.Skipped = true; return snapshot; }
+                if (System.Diagnostics.Stopwatch.GetTimestamp() - began >= budgetTicks) { snapshot = snapshot with { Skipped = true }; return snapshot; }
                 var row = new Obs.LineOfFire { From = new Common.Cell { X = from.x, Z = from.z }, To = new Common.Cell { X = to.x, Z = to.z },
                     Distance = Finite((from - to).LengthHorizontal) };
-                if (from.Fogged(map) || to.Fogged(map)) { row.Issues.Add(Issue("line_of_sight", Common.UnavailableReason.NotApplicable, "Fogged endpoint geometry is unknown.")); snapshot.Lines.Add(row); continue; }
-                row.LineOfSight = GenSight.LineOfSight(from, to, map, true);
-                row.TargetCover = Finite(CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(to), from, map));
-                row.ShooterCover = Finite(CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(from), to, map));
-                snapshot.Lines.Add(row);
+                if (from.Fogged(map) || to.Fogged(map)) { row = row with { Issues = [.. row.Issues, Issue("line_of_sight", Common.UnavailableReason.NotApplicable, "Fogged endpoint geometry is unknown.")] }; snapshot = snapshot with { Lines = [.. snapshot.Lines, row] }; continue; }
+                row = row with { LineOfSight = GenSight.LineOfSight(from, to, map, true) };
+                row = row with { TargetCover = Finite(CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(to), from, map)) };
+                row = row with { ShooterCover = Finite(CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(from), to, map)) };
+                snapshot = snapshot with { Lines = [.. snapshot.Lines, row] };
             }
             return snapshot;
         }

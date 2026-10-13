@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 using HarmonyLib;
 using RimGovernor.Host.Sdk;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Lifecycle = RimGovernor.Protocol.Lifecycle;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace HomeBridge.BridgeTools
 {
@@ -60,8 +60,8 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Load(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official lifecycle LoadRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, LoadToolName, request, Lifecycle.LoadRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.LoadReply { Failure = failure });
+            if (!ProtoBoundary.TryParse(ctx, LoadToolName, request, out Lifecycle.LoadRequest? parsed, out var failure))
+                return ProtoBoundary.Encode(new Lifecycle.LoadReply { Outcome = new Lifecycle.LoadReplyOutcome.FailureCase(failure) });
 
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => StartLoad(parsed), cancellationToken).ConfigureAwait(false);
         }
@@ -72,8 +72,8 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadLoad(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official lifecycle RequestStatus ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ReadLoadToolName, request, Lifecycle.RequestStatus.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.LoadReply { Failure = failure });
+            if (!ProtoBoundary.TryParse(ctx, ReadLoadToolName, request, out Lifecycle.RequestStatus? parsed, out var failure))
+                return ProtoBoundary.Encode(new Lifecycle.LoadReply { Outcome = new Lifecycle.LoadReplyOutcome.FailureCase(failure) });
 
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => PollLoad(parsed), cancellationToken).ConfigureAwait(false);
         }
@@ -81,9 +81,9 @@ namespace HomeBridge.BridgeTools
         // Call only on the game thread.
         internal static Lifecycle.LoadReply StartLoad(Lifecycle.LoadRequest request)
         {
-            if (request == null || !request.HasRequestId || !ProtoBoundary.IsIdentifier(request.RequestId)
-                || !request.HasSaveName || !ProtoBoundary.IsIdentifier(request.SaveName))
-                return new Lifecycle.LoadReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
+            if (request == null || request.RequestId is null || !ProtoBoundary.IsIdentifier(request.RequestId)
+                || request.SaveName is null || !ProtoBoundary.IsIdentifier(request.SaveName))
+                return new Lifecycle.LoadReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
                     "Load requires a request id and save name.") };
 
             var expectedPlayer = request.ExpectedPlayer;
@@ -99,8 +99,8 @@ namespace HomeBridge.BridgeTools
                 {
                     if (expectedPlayer == null || expectedPlayer.Identity == null
                         || !expectedPlayer.Identity.Equals(current.Identity)
-                        || !expectedPlayer.HasPlayerDirection || expectedPlayer.PlayerDirection == 0)
-                        return new Lifecycle.LoadReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
+                        || expectedPlayer.PlayerDirection is null || expectedPlayer.PlayerDirection.GetValueOrDefault() == 0)
+                        return new Lifecycle.LoadReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
                             "Replacing a live map requires a matching expected player identity and direction.") };
                     expectedColonyIdentity = current.Identity;
                 }
@@ -118,7 +118,7 @@ namespace HomeBridge.BridgeTools
                     // throws "Nested FloodFill calls are not allowed" when a
                     // second load pass overlaps the first, and the engine can
                     // wedge hard enough to sever the GABP connection).
-                    if (activeRequestId == request.RequestId)
+                    if (activeRequestId == (request.RequestId ?? ""))
                         return PendingReply(previous, mapReady: false, visualReady: false);
 
                     // A different request arrived while the actual engine load
@@ -128,33 +128,33 @@ namespace HomeBridge.BridgeTools
                     // call. The previous entry is left in flight, not
                     // superseded, since it has not actually failed or finished.
                     if (LongEventHandler.AnyEventNowOrWaiting)
-                        return new Lifecycle.LoadReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable,
+                        return new Lifecycle.LoadReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.Unavailable,
                             "A native load (" + previous.RequestId + ") is already in progress.") };
 
                     // The prior load's LongEventHandler work has finished (or
                     // never started) but its entry was never marked completed --
                     // safe to supersede and proceed.
-                    previous.Reply = new Lifecycle.LoadReply { Superseded = new Lifecycle.LoadSuperseded
+                    previous.Reply = new Lifecycle.LoadReply { Outcome = new Lifecycle.LoadSuperseded
                     {
                         RequestId = previous.RequestId,
-                        Detail = "A newer rimgovernor/lifecycle_load request (" + request.RequestId + ") started before this one completed."
+                        Detail = "A newer rimgovernor/lifecycle_load request (" + (request.RequestId ?? "") + ") started before this one completed."
                     } };
                 }
             }
 
             try
             {
-                GameDataSaveLoader.LoadGame(request.SaveName);
+                GameDataSaveLoader.LoadGame((request.SaveName ?? ""));
             }
             catch (Exception error)
             {
-                return new Lifecycle.LoadReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure,
+                return new Lifecycle.LoadReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.NativeFailure,
                     "Native load failed to start: " + error.GetType().Name) };
             }
 
-            var entry = new Entry(request.RequestId, request.SaveName, expectedColonyIdentity, DateTime.UtcNow,
-                request.HasTimeoutMs ? (uint?)request.TimeoutMs : null,
-                request.HasReadiness && request.Readiness == Lifecycle.Readiness.Visual ? Lifecycle.Readiness.Visual : Lifecycle.Readiness.Map);
+            var entry = new Entry((request.RequestId ?? ""), (request.SaveName ?? ""), expectedColonyIdentity, DateTime.UtcNow,
+                request.TimeoutMs is not null ? (uint?)request.TimeoutMs.GetValueOrDefault() : null,
+                request.Readiness is not null && request.Readiness.GetValueOrDefault() == Lifecycle.Readiness.Visual ? Lifecycle.Readiness.Visual : Lifecycle.Readiness.Map);
             lock (Lock)
             {
                 Entries[entry.RequestId] = entry;
@@ -167,15 +167,15 @@ namespace HomeBridge.BridgeTools
         // Call only on the game thread.
         internal static Lifecycle.LoadReply PollLoad(Lifecycle.RequestStatus status)
         {
-            if (status == null || !status.HasRequestId || !ProtoBoundary.IsIdentifier(status.RequestId))
-                return new Lifecycle.LoadReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
+            if (status == null || status.RequestId is null || !ProtoBoundary.IsIdentifier(status.RequestId))
+                return new Lifecycle.LoadReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
                     "ReadLoad requires a request id.") };
 
             Entry? entry;
             lock (Lock)
             {
-                if (!Entries.TryGetValue(status.RequestId, out entry))
-                    return new Lifecycle.LoadReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NotFound,
+                if (!Entries.TryGetValue((status.RequestId ?? ""), out entry))
+                    return new Lifecycle.LoadReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.NotFound,
                         "Unknown or expired load request id.") };
                 if (entry.Reply is { } outcome)
                     return outcome;
@@ -190,8 +190,8 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var context, out var unavailable))
             {
                 if (entry.TimeoutMs.HasValue && DateTime.UtcNow - entry.StartedUtc > TimeSpan.FromMilliseconds(entry.TimeoutMs.Value))
-                    return CompleteWith(entry, new Lifecycle.LoadReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure,
-                        "Native load did not reach a ready map within the requested timeout: " + unavailable.Detail) });
+                    return CompleteWith(entry, new Lifecycle.LoadReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.NativeFailure,
+                        "Native load did not reach a ready map within the requested timeout: " + (unavailable.Detail ?? "")) });
                 return PendingReply(entry, mapReady: false, visualReady: false);
             }
 
@@ -199,8 +199,8 @@ namespace HomeBridge.BridgeTools
             // the colony id is expected to persist when reloading the same
             // colony's save. A different colony id means this observed load is
             // not the one this request believed it started.
-            if (entry.ExpectedColonyIdentity != null && entry.ExpectedColonyIdentity.ColonyId != context.Identity.ColonyId)
-                return CompleteWith(entry, new Lifecycle.LoadReply { Superseded = new Lifecycle.LoadSuperseded
+            if (entry.ExpectedColonyIdentity != null && (entry.ExpectedColonyIdentity.ColonyId ?? "") != (context.Identity?.ColonyId ?? ""))
+                return CompleteWith(entry, new Lifecycle.LoadReply { Outcome = new Lifecycle.LoadSuperseded
                 {
                     RequestId = entry.RequestId, ObservedContext = context,
                     Detail = "Observed colony after load does not match the identity this request expected."
@@ -216,14 +216,14 @@ namespace HomeBridge.BridgeTools
             if (entry.RequestedReadiness == Lifecycle.Readiness.Visual && !visualReady)
             {
                 if (entry.TimeoutMs.HasValue && DateTime.UtcNow - entry.StartedUtc > TimeSpan.FromMilliseconds(entry.TimeoutMs.Value))
-                    return CompleteWith(entry, new Lifecycle.LoadReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure,
+                    return CompleteWith(entry, new Lifecycle.LoadReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.NativeFailure,
                         "Native load reached MAP readiness but not VISUAL readiness within the requested timeout.") });
                 return PendingReply(entry, mapReady: true, visualReady: false);
             }
 
             bool paused = Find.TickManager != null && Find.TickManager.Paused;
             var readiness = entry.RequestedReadiness == Lifecycle.Readiness.Visual ? Lifecycle.Readiness.Visual : Lifecycle.Readiness.Map;
-            return CompleteWith(entry, new Lifecycle.LoadReply { Completed = new Lifecycle.LoadCompleted
+            return CompleteWith(entry, new Lifecycle.LoadReply { Outcome = new Lifecycle.LoadCompleted
             {
                 RequestId = entry.RequestId, SaveName = entry.SaveName,
                 Loaded = new Lifecycle.LoadedIdentity { Context = context, Paused = paused },
@@ -232,7 +232,7 @@ namespace HomeBridge.BridgeTools
         }
 
         private static Lifecycle.LoadReply PendingReply(Entry entry, bool mapReady, bool visualReady) =>
-            new Lifecycle.LoadReply { Pending = new Lifecycle.LoadPending
+            new Lifecycle.LoadReply { Outcome = new Lifecycle.LoadPending
             {
                 RequestId = entry.RequestId, SaveName = entry.SaveName,
                 ProcessConnected = true, MapReady = mapReady, VisualReady = visualReady,

@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Defs = RimGovernor.Protocol.Defs;
-using Obs = RimGovernor.Protocol.Observations;
+using RimGovernor.Brain.Domain;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -28,44 +28,42 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadDefinitionCatalog(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw DefinitionCatalogRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request!, Obs.DefinitionCatalogRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Obs.DefinitionCatalogRequest>(ctx, ToolName, request!, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Outcome = new Obs.DefinitionCatalogReplyOutcome.FailureCase(failure) });
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadDefinitionCatalog(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.DefinitionCatalogReply HandleReadDefinitionCatalog(Obs.DefinitionCatalogRequest parsed)
         {
-            if (!parsed.Creation && parsed.Scope?.ExpectedIdentity == null)
-                return new Obs.DefinitionCatalogReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity required.") };
-            if (parsed.Creation)
+            if (!parsed.Creation.GetValueOrDefault() && parsed.Scope?.ExpectedIdentity == null)
+                return new Obs.DefinitionCatalogReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity required.") };
+            if (parsed.Creation.GetValueOrDefault())
             {
                 if (parsed.Scope != null || Current.ProgramState != ProgramState.Entry || Current.Game != null || LongEventHandler.AnyEventNowOrWaiting)
-                    return new Obs.DefinitionCatalogReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Creation catalog requires a fresh main menu and no map scope.") };
+                    return new Obs.DefinitionCatalogReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Creation catalog requires a fresh main menu and no map scope.") };
                 try
                 {
-                    var mirror = new DefMirrorFill();
-                    var creation = new Obs.CreationDefinitionCatalog { Defs = DefSets(mirror) };
-                    foreach (var chain in mirror.ClassChains()) { var row = new Obs.ClassChain { Name = chain.Key }; row.Bases.AddRange(chain.Value); creation.ClassChains.Add(row); }
-                    creation.GameConstants = mirror.BuildStatics<Defs.GameConstants>();
-                    return new Obs.DefinitionCatalogReply { Creation = creation };
+                    // TODO(#3100): defs (the def sets and game constants are no longer carried).
+                    var creation = new Obs.CreationDefinitionCatalog { ClassChains = DefMirrorFill.ClassChains(DefClasses()) };
+                    return new Obs.DefinitionCatalogReply { Outcome = creation };
                 }
                 catch (Exception ex)
                 {
                     ObservationWork.Failed("definitionCatalog", ex);
-                    return new Obs.DefinitionCatalogReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic("Creation defs could not be read completely: " + ex.GetType().Name + ": " + ex.Message) } };
+                    return new Obs.DefinitionCatalogReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic("Creation defs could not be read completely: " + ex.GetType().Name + ": " + ex.Message) } };
                 }
             }
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope!.ExpectedIdentity, out _, out var context, out var error))
-                return new Obs.DefinitionCatalogReply { Failure = error };
+                return new Obs.DefinitionCatalogReply { Outcome = error };
             var player = Faction.OfPlayerSilentFail;
             if (player?.def == null)
-                return new Obs.DefinitionCatalogReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NativeComponentMissing, Detail = "Player faction is unavailable." } };
-            try { return new Obs.DefinitionCatalogReply { Observed = Read(context, parsed.HeldFingerprint) }; }
+                return new Obs.DefinitionCatalogReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.NativeComponentMissing, Detail = "Player faction is unavailable." } };
+            try { return new Obs.DefinitionCatalogReply { Outcome = Read(context, (parsed.HeldFingerprint ?? "")) }; }
             catch (Exception ex)
             {
                 ObservationWork.Failed("definitionCatalog", ex);
-                return new Obs.DefinitionCatalogReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic("The definition catalog could not be read completely: " + ex.GetType().Name + ": " + ex.Message) } };
+                return new Obs.DefinitionCatalogReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic("The definition catalog could not be read completely: " + ex.GetType().Name + ": " + ex.Message) } };
             }
         }
 
@@ -75,65 +73,29 @@ namespace HomeBridge.BridgeTools
             var catalog = new Obs.DefinitionCatalog { Context = context, Fingerprint = fingerprint, StatEnv = StatEnv() };
             // The caller holds this static part: only what changes per load is sent.
             if (heldFingerprint == fingerprint) return catalog;
-            // Every def with all its fields, by protobuf reflection over the
-            // generated messages. An unmapped field throws and fails the read.
-            var mirror = new DefMirrorFill();
-            foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "ThingDef"), StringComparer.Ordinal))
-                catalog.ThingDefs.Add(mirror.Build<Defs.ThingDef>(def));
-            foreach (var def in DefDatabase<TerrainDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "TerrainDef"), StringComparer.Ordinal))
-                catalog.TerrainDefs.Add(mirror.Build<Defs.TerrainDef>(def));
-            catalog.Defs = DefSets(mirror);
-            // After every def is filled: the base chains of the classes the fill touched.
-            foreach (var chain in mirror.ClassChains())
-            {
-                var row = new Obs.ClassChain { Name = chain.Key };
-                row.Bases.AddRange(chain.Value);
-                catalog.ClassChains.Add(row);
-            }
-            catalog.GameConstants = mirror.BuildStatics<Defs.GameConstants>();
-            catalog.Derived = Derived();
+            // TODO(#3100): defs (the ThingDef/TerrainDef rows, def sets and game constants are no longer carried).
+            // The base chains of the def classes the game has.
+            catalog = catalog with { ClassChains = DefMirrorFill.ClassChains(DefClasses()) };
+            catalog = catalog with { Derived = Derived() };
+            var facts = new List<Obs.ThingDefFacts>();
             foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.race != null).OrderBy(d => Named(d.defName, "ThingDef"), StringComparer.Ordinal))
-                catalog.ThingFacts.Add(NativeFoodPolicy.Facts(def));
-            catalog.Biotech = NativeBiotechFacts.Catalog();
+                facts.Add(NativeFoodPolicy.Facts(def));
+            catalog = catalog with { ThingFacts = EquatableArray.From(facts), Biotech = NativeBiotechFacts.Catalog() };
             return catalog;
         }
 
-        // Every def of each class DefSets mirrors, by exact class and in
-        // defName order. A concrete def class the mirror has no field for (a mod's)
-        // fails the read naming it.
-        private static Defs.DefSets DefSets(DefMirrorFill mirror)
+        // Every concrete def class the game has: the ones with a database and the exact
+        // classes of the defs in them (a class below another concrete def class has no
+        // database of its own; its defs sit in the root class's database).
+        private static IEnumerable<Type> DefClasses()
         {
-            var types = GenDefDatabase.AllDefTypesWithDatabases().Where(t => !t.IsAbstract).ToDictionary(t => t.FullName ?? t.Name, StringComparer.Ordinal);
-            // A def class below another concrete def class has no database of
-            // its own (AllDefTypesWithDatabases): its defs sit in the root
-            // class's database, so every database is read once and the defs are
-            // grouped by their exact class.
-            var byClass = new Dictionary<Type, List<Def>>();
-            foreach (var root in types.Values)
-                foreach (var def in GenDefDatabase.GetAllDefsInDatabaseForDef(root))
-                {
-                    if (!byClass.TryGetValue(def.GetType(), out var group)) byClass[def.GetType()] = group = new List<Def>();
-                    group.Add(def);
-                }
-            var mirrored = new HashSet<Type> { typeof(ThingDef), typeof(TerrainDef) };
-            var sets = new Defs.DefSets();
-            foreach (var field in Defs.DefSets.Descriptor.Fields.InFieldNumberOrder())
+            var classes = new HashSet<Type> { typeof(ThingDef), typeof(TerrainDef) };
+            foreach (var root in GenDefDatabase.AllDefTypesWithDatabases().Where(t => !t.IsAbstract))
             {
-                var clr = mirror.ClrName(field.MessageType) ?? throw new InvalidOperationException($"DefSets.{field.Name} has no clr_type option.");
-                // A class the game does not have at all is a stale mapping and
-                // fails the read; a def class of an expansion that is not loaded
-                // has no defs: its set is empty.
-                var type = GenTypes.GetTypeInAnyAssembly(clr);
-                if (type == null || !typeof(Def).IsAssignableFrom(type)) throw new InvalidOperationException($"DefSets.{field.Name}: the game has no def class {clr}.");
-                mirrored.Add(type);
-                if (!byClass.TryGetValue(type, out var defs)) continue;
-                var list = (IList)field.Accessor.GetValue(sets);
-                foreach (var def in defs.OrderBy(d => Named(d.defName, type.Name), StringComparer.Ordinal))
-                    list.Add(mirror.Build(field.MessageType, def));
+                classes.Add(root);
+                foreach (var def in GenDefDatabase.GetAllDefsInDatabaseForDef(root)) classes.Add(def.GetType());
             }
-            var missing = types.Values.Concat(byClass.Keys).Distinct().Where(t => !mirrored.Contains(t)).Select(t => t.FullName).OrderBy(n => n, StringComparer.Ordinal).ToList();
-            if (missing.Count > 0) throw new InvalidOperationException("Def classes the mirror has no field for: " + string.Join(", ", missing));
-            return sets;
+            return classes;
         }
 
         // The game state Go's stat evaluator reads that the def rows do not hold
@@ -141,22 +103,27 @@ namespace HomeBridge.BridgeTools
         // stat factors and the storyteller difficulty's yield factors and bool settings.
         private static Obs.StatEnv StatEnv()
         {
-            var env = new Obs.StatEnv();
-            foreach (var mod in ModsConfig.ActiveModsInLoadOrder)
-                env.ActiveMods.Add(mod.PackageId.ToLowerInvariant());
-            env.ClassicMode = Find.IdeoManager?.classicMode ?? false;
+            var mods = ModsConfig.ActiveModsInLoadOrder.Select(mod => mod.PackageId.ToLowerInvariant()).ToList();
+            var classic = Find.IdeoManager?.classicMode ?? false;
             var scenario = Find.Scenario ?? throw new InvalidOperationException("Find.Scenario is unavailable.");
+            var factors = new List<Obs.StatFactor>();
             foreach (var stat in DefDatabase<StatDef>.AllDefsListForReading.OrderBy(s => Named(s.defName, "StatDef"), StringComparer.Ordinal))
             {
                 var factor = scenario.GetStatFactor(stat);
-                if (factor != 1f) env.ScenarioFactors.Add(new Obs.StatFactor { Stat = stat.defName, Factor = factor });
+                if (factor != 1f) factors.Add(new Obs.StatFactor { Stat = stat.defName, Factor = factor });
             }
             var difficulty = Find.Storyteller?.difficulty ?? throw new InvalidOperationException("Find.Storyteller.difficulty is unavailable.");
-            env.ButcherYieldFactor = difficulty.butcherYieldFactor;
-            env.FishingYieldFactor = difficulty.fishingYieldFactor;
-            foreach (var field in typeof(Difficulty).GetFields(BindingFlags.Instance | BindingFlags.Public).Where(f => f.FieldType == typeof(bool)).OrderBy(f => f.Name, StringComparer.Ordinal))
-                env.DifficultyFlags.Add(new Obs.DifficultyFlag { Name = field.Name, Value = (bool)field.GetValue(difficulty)! });
-            return env;
+            var flags = typeof(Difficulty).GetFields(BindingFlags.Instance | BindingFlags.Public).Where(f => f.FieldType == typeof(bool)).OrderBy(f => f.Name, StringComparer.Ordinal)
+                .Select(field => new Obs.DifficultyFlag { Name = field.Name, Value = (bool)field.GetValue(difficulty)! }).ToList();
+            return new Obs.StatEnv
+            {
+                ActiveMods = EquatableArray.From(mods),
+                ClassicMode = classic,
+                ScenarioFactors = EquatableArray.From(factors),
+                ButcherYieldFactor = difficulty.butcherYieldFactor,
+                FishingYieldFactor = difficulty.fishingYieldFactor,
+                DifficultyFlags = EquatableArray.From(flags),
+            };
         }
 
         // A def whose defName is not a protocol identifier cannot be a catalog key:

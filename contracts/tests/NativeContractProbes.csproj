@@ -8,6 +8,7 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <NativeSourceRoot Condition="'$(NativeSourceRoot)' == ''">$(MSBuildThisFileDirectory)../../integrations/rimgovernor-native/src</NativeSourceRoot>
+    <BrainBinDir Condition="'$(BrainBinDir)' == ''">$(MSBuildThisFileDirectory)../../brain/src/RimGovernor.Brain.Contracts/bin/Release</BrainBinDir>
     <HostSourceRoot Condition="'$(HostSourceRoot)' == ''">$(MSBuildThisFileDirectory)../../integrations/rimgovernor-host/src</HostSourceRoot>
   </PropertyGroup>
   <!-- Windows infers RuntimeIdentifier win7-x86 for a net472 Exe; pin it on every OS so the
@@ -25,7 +26,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Google.Protobuf" Version="3.31.1" />
+    <!-- The wire records (#3100) come from the built brain assemblies: a ProjectReference would restore them into this
+         build's BaseIntermediateOutputPath and overwrite its project.assets.json. The Taskfile builds them first. -->
+    <Reference Include="RimGovernor.Brain.Contracts"><HintPath>$(BrainBinDir)/RimGovernor.Brain.Contracts.dll</HintPath></Reference>
+    <Reference Include="RimGovernor.Brain.Domain"><HintPath>$(BrainBinDir)/RimGovernor.Brain.Domain.dll</HintPath></Reference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 
@@ -62,6 +66,7 @@
   <!-- ==== Shared fakes (Category 1/4: in-process, no real Assembly-CSharp.dll) ==== -->
   <ItemGroup>
     <Compile Include="NativeContractProbes/Shared/FakeVerseStub.cs" />
+    <Compile Include="NativeContractProbes/Shared/WireProbeAccessors.cs" />
   </ItemGroup>
   <!-- Fake HarmonyLib surface (NativeClockRuntime.cs and the authority probes bind to it). This
        project never references a real 0Harmony.dll: passing -p:HarmonyAssembly changes nothing here
@@ -70,11 +75,6 @@
     <Compile Include="NativeContractProbes/Shared/FakeHarmonyStub.cs" />
     <Compile Include="NativeContractProbes/Shared/FakeAuthorityHooksStub.cs" />
     <Compile Include="NativeContractProbes/native-authority-control/Program.cs" />
-  </ItemGroup>
-
-  <!-- Generated protocol classes: pure C#, no Verse/Unity dependency, needed by nearly every probe. -->
-  <ItemGroup>
-    <Compile Include="../generated/protobuf/csharp/*.cs" />
   </ItemGroup>
 
   <!-- ==== Production sources (always buildable, no external inputs required) ==== -->

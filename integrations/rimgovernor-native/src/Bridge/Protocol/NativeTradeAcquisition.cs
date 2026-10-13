@@ -7,8 +7,8 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -53,7 +53,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.TradeAcquisition Read(Map map, Common.ObservationContext context)
         {
             var now = Find.TickManager.TicksGame;
-            var result = new Obs.TradeAcquisition { Context = context.Clone(), OrbitalAvailable = ModsConfig.OdysseyActive };
+            var result = new Obs.TradeAcquisition { Context = context, OrbitalAvailable = ModsConfig.OdysseyActive };
             foreach (QueuedIncident queued in Find.Storyteller.incidentQueue)
             {
                 var incident = queued.FiringIncident;
@@ -61,14 +61,14 @@ namespace HomeBridge.BridgeTools
                 var kind = incident.def == IncidentDefOf.TraderCaravanArrival ? Common.TradeRequestKind.Caravan :
                     incident.def == IncidentDefOf.OrbitalTraderArrival ? Common.TradeRequestKind.Orbital : Common.TradeRequestKind.Unspecified;
                 if (kind == Common.TradeRequestKind.Unspecified) continue;
-                result.Arrivals.Add(new Obs.TradeRequestArrival { FactionId = incident.parms.faction.GetUniqueLoadID(), Kind = kind,
-                    TraderKind = incident.parms.traderKind.defName, ArrivalTick = queued.FireTick, RetryTicks = queued.RetryDurationTicks, TriedToFire = queued.TriedToFire });
+                result = result with { Arrivals = [.. result.Arrivals, new Obs.TradeRequestArrival { FactionId = incident.parms.faction.GetUniqueLoadID(), Kind = kind,
+                    TraderKind = incident.parms.traderKind.defName, ArrivalTick = queued.FireTick, RetryTicks = queued.RetryDurationTicks, TriedToFire = queued.TriedToFire }] };
             }
             foreach (var pawn in map.mapPawns.FreeColonistsSpawned)
             {
                 foreach (var job in pawn.jobs.jobQueue.Select(q => q.job).Concat(new[] { pawn.CurJob })) {
                     if (job?.def != JobDefOf.UseCommsConsole || !(job.commTarget is Faction faction) || !(job.targetA.Thing is Building_CommsConsole console)) continue;
-                    result.CommsWork.Add(new Obs.TradeCommsWork { NegotiatorId = pawn.GetUniqueLoadID(), ConsoleId = console.GetUniqueLoadID(), FactionId = faction.GetUniqueLoadID(), JobId = job.loadID });
+                    result = result with { CommsWork = [.. result.CommsWork, new Obs.TradeCommsWork { NegotiatorId = pawn.GetUniqueLoadID(), ConsoleId = console.GetUniqueLoadID(), FactionId = faction.GetUniqueLoadID(), JobId = job.loadID }] };
                 }
             }
             var consoles = map.listerBuildings.allBuildingsColonist.OfType<Building_CommsConsole>()
@@ -78,17 +78,17 @@ namespace HomeBridge.BridgeTools
             foreach (var console in consoles)
             {
                 var row = new Obs.TradeConsole { Id = console.GetUniqueLoadID() };
-                row.NegotiatorIds.Add(eligible.Where(p => ConsoleNegotiator(console, p)).Select(p => p.GetUniqueLoadID()));
-                result.Consoles.Add(row);
+                row = row with { NegotiatorIds = [.. row.NegotiatorIds, .. eligible.Where(p => ConsoleNegotiator(console, p)).Select(p => p.GetUniqueLoadID())] };
+                result = result with { Consoles = [.. result.Consoles, row] };
             }
             foreach (var ship in map.passingShipManager.passingShips.OrderBy(s => s.GetUniqueLoadID()))
             {
                 var trader = ship as TradeShip;
                 var row = new Obs.PassingTradeShip { Id = ship.GetUniqueLoadID(), Trader = trader != null,
                     DepartureTick = (long)now + ship.ticksUntilDeparture };
-                if (trader != null) { row.TraderKind = trader.TraderKind.defName; row.CanTrade = trader.CanTradeNow; }
-                if (ship.Faction != null) row.FactionId = ship.Faction.GetUniqueLoadID();
-                result.PassingShips.Add(row);
+                if (trader != null) { row = row with { TraderKind = trader.TraderKind.defName }; row = row with { CanTrade = trader.CanTradeNow }; }
+                if (ship.Faction != null) row = row with { FactionId = ship.Faction.GetUniqueLoadID() };
+                result = result with { PassingShips = [.. result.PassingShips, row] };
             }
             foreach (var faction in Find.FactionManager.AllFactionsVisible.Where(f => !f.IsPlayer && !f.temporary)
                 .OrderBy(f => f.GetUniqueLoadID()))
@@ -107,17 +107,17 @@ namespace HomeBridge.BridgeTools
                             RelationAfterPayment = RelationAfterPayment(faction, delta), LastRequestTick = last,
                             CooldownRemainingTicks = Math.Max(0L, (long)last + TraderRequest.CooldownTicks(orbital) - now),
                             ArrivalMinTicks = TraderRequest.ArrivalMinTicks(orbital), ArrivalMaxTicks = TraderRequest.ArrivalMaxTicks(orbital) };
-                        row.NegotiatorIds.Add(eligible.Where(p => kind.TitleRequiredToTrade == null ||
+                        row = row with { NegotiatorIds = [.. row.NegotiatorIds, .. eligible.Where(p => kind.TitleRequiredToTrade == null ||
                             p.royalty != null && p.GetCurrentTitleSeniorityIn(faction) >= kind.TitleRequiredToTrade.seniority)
-                            .Select(p => p.GetUniqueLoadID()));
-                        row.Reason = faction.PlayerRelationKind != FactionRelationKind.Ally ? "not_ally" :
-                            row.RelationAfterPayment != "Ally" ? "alliance_cost" :
-                            row.CooldownRemainingTicks > 0 ? "cooldown" :
+                            .Select(p => p.GetUniqueLoadID())] };
+                        row = row with { Reason = faction.PlayerRelationKind != FactionRelationKind.Ally ? "not_ally" :
+                            (row.RelationAfterPayment ?? "") != "Ally" ? "alliance_cost" :
+                            row.CooldownRemainingTicks.GetValueOrDefault() > 0 ? "cooldown" :
                             orbital && result.PassingShips.Count != 0 ? "passing_ships" :
                             !orbital && !faction.def.allowedArrivalTemperatureRange.ExpandedBy(-4f).Includes(map.mapTemperature.SeasonalTemp) ? "temperature" :
-                            consoles.Count == 0 ? "console_unavailable" : row.NegotiatorIds.Count == 0 ? "negotiator_unavailable" : "ready";
-                        row.Eligible = row.Reason == "ready";
-                        result.Requests.Add(row);
+                            consoles.Count == 0 ? "console_unavailable" : row.NegotiatorIds.Count == 0 ? "negotiator_unavailable" : "ready" };
+                        row = row with { Eligible = (row.Reason ?? "") == "ready" };
+                        result = result with { Requests = [.. result.Requests, row] };
                     }
                 }
             }
@@ -130,7 +130,7 @@ namespace HomeBridge.BridgeTools
         private static Obs.TradeAcquisition Read(Map map, Common.ObservationContext context, Obs.TradeAcquisitionRequest request)
         {
             var row = NativeTradeAcquisition.Read(map, context);
-            if (request.Pack != null) row.Pack = NativeCaravanOperations.Preview(request.Pack, context);
+            if (request.Pack != null) row = row with { Pack = NativeCaravanOperations.Preview(request.Pack, context) };
             return row;
         }
         [Tool(NativeTradeAcquisition.ToolName, Title = "Read controllable trade prerequisites",
@@ -139,15 +139,15 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadTradeAcquisition(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a TradeAcquisitionRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, NativeTradeAcquisition.ToolName, request!, Obs.TradeAcquisitionRequest.Parser, out var parsed, out var failure)
+            if (!ProtoBoundary.TryParse<Obs.TradeAcquisitionRequest>(ctx, NativeTradeAcquisition.ToolName, request!, out var parsed, out var failure)
                 || parsed.Scope?.ExpectedIdentity == null)
-                return ProtoBoundary.Encode(new Obs.TradeAcquisitionReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") });
+                return ProtoBoundary.Encode(new Obs.TradeAcquisitionReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") });
             return await ProtoBoundary.OnMainThread(ctx, () =>
             {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.TradeAcquisitionReply { Failure = failure });
-                try { return ProtoBoundary.Encode(new Obs.TradeAcquisitionReply { Observed = Read(map, context, parsed) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.TradeAcquisitionReply { Unavailable = new Common.Unavailable
+                    return ProtoBoundary.Encode(new Obs.TradeAcquisitionReply { Outcome = failure });
+                try { return ProtoBoundary.Encode(new Obs.TradeAcquisitionReply { Outcome = Read(map, context, parsed) }); }
+                catch (Exception) { return ProtoBoundary.Encode(new Obs.TradeAcquisitionReply { Outcome = new Common.Unavailable
                     { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native trade prerequisites could not be read completely." } }); }
             }, cancellationToken).ConfigureAwait(false);
         }

@@ -6,13 +6,12 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -25,12 +24,12 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadColonyFacts(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw ColonyFactsRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request!, Obs.ColonyFactsRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Obs.ColonyFactsRequest>(ctx, ToolName, request!, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Outcome = new Obs.ColonyFactsReplyOutcome.FailureCase(failure) });
             // Read on the game thread; delta and format on an
             // encoder worker, since the delta digests the whole reply.
             var lease = await ReplyEncoder.Reserve(cancellationToken).ConfigureAwait(false);
-            if (lease == null) return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted,
+            if (lease == null) return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted,
                 "Colony facts reply encoders stayed saturated for " + ReplyEncoder.ReserveTimeoutMs + " ms; nothing was read.") });
             try
             {
@@ -44,16 +43,16 @@ namespace HomeBridge.BridgeTools
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.ColonyFactsReply HandleReadColonyFacts(Obs.ColonyFactsRequest parsed)
         {
-            if (!Validate(parsed, out var invalidRequest)) return new Obs.ColonyFactsReply { Failure = invalidRequest };
+            if (!Validate(parsed, out var invalidRequest)) return new Obs.ColonyFactsReply { Outcome = invalidRequest };
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var invalid))
-                return new Obs.ColonyFactsReply { Failure = invalid };
-            try { return new Obs.ColonyFactsReply { Observed = Read(map, parsed, context) }; }
-            catch (Exception error) { ModLog.Error("observe", "Colony facts read failed: " + error); return new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Native colony facts could not be read completely: " + error.GetType().Name + ": " + error.Message)) }; }
+                return new Obs.ColonyFactsReply { Outcome = invalid };
+            try { return new Obs.ColonyFactsReply { Outcome = Read(map, parsed, context) }; }
+            catch (Exception error) { ModLog.Error("observe", "Colony facts read failed: " + error); return new Obs.ColonyFactsReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Native colony facts could not be read completely: " + error.GetType().Name + ": " + error.Message)) }; }
         }
 
         private static Dictionary<string, object?> EncodeFacts(Obs.ColonyFactsReply reply, Obs.ColonyFactsRequest parsed)
         {
-            if (reply.Observed == null) return ProtoBoundary.Encode(reply);
+            if (reply.Outcome?.Observed == null) return ProtoBoundary.Encode(reply);
             return ProtoBoundary.Encode(reply, compact: true);
         }
 
@@ -124,72 +123,72 @@ namespace HomeBridge.BridgeTools
                 FermentingBarrels = (uint)things.OfType<Building_FermentingBarrel>().Count(b => b.Faction == player && !b.IsForbidden(player) && reachable(b)),
                 BedCapacity = checked((uint)beds.Sum(b => b.SleepingSlotsCount)), IndoorSleepingCapacity = checked((uint)indoorBeds.Sum(b => b.SleepingSlotsCount)),
                 FoodNutrition = Finite(nutrition), NutritionPerDay = Finite(demand), OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp) };
-            result.FoodSupply = new Obs.FoodSupplySection { Observed = Food(FoodSupplyFacts.Read(people,
-                    things.Where(FoodSupplyFacts.SharedFood).ToList())) };
+            result = result with { FoodSupply = new Obs.FoodSupplySection { Outcome = Food(FoodSupplyFacts.Read(people,
+                    things.Where(FoodSupplyFacts.SharedFood).ToList())) } };
             Span("cf.foodSupply");
-            result.Forecast = new Obs.ForecastSection { Observed = Forecast(ForecastFacts.Read(map, people, things)) };
+            result = result with { Forecast = new Obs.ForecastSection { Outcome = Forecast(ForecastFacts.Read(map, people, things)) } };
             Span("cf.forecast");
-            result.Upkeep = ReadComfort(map, things, routePathBudgetMs);
+            result = result with { Upkeep = ReadComfort(map, things, routePathBudgetMs) };
             Span("cf.upkeep");
-            result.Threat = ReadThreat(map, people.Count);
-            result.Development = new Obs.DevelopmentSection { Observed = ReadPower(map) };
+            result = result with { Threat = ReadThreat(map, people.Count) };
+            result = result with { Development = new Obs.DevelopmentSection { Outcome = ReadPower(map) } };
             Span("cf.power");
-            result.FoodChannels = NativeFoodChannels.Read(map, center, workers, humanFood);
-            result.DeliveryLedger = NativeDeliveryLedger.Read();
+            result = result with { FoodChannels = NativeFoodChannels.Read(map, center, workers, humanFood) };
+            result = result with { DeliveryLedger = NativeDeliveryLedger.Read() };
             Span("cf.foodChannels");
-            result.DeepResources = NativeDeepResources.Read(map);
-            result.Policies = NativePolicyFacts.Read(map);
-            result.Biotech = NativeBiotechColony.Read(map);
-            result.Royalty = NativeRoyaltyColony.Read(map);
-            result.Odyssey = NativeOdysseyColony.Read(map);
-            result.Anomaly = NativeAnomalyColony.Read(map);
-            result.TileMutators.Add(NativeOdysseyFacts.MapMutators(map));
+            result = result with { DeepResources = NativeDeepResources.Read(map) };
+            result = result with { Policies = NativePolicyFacts.Read(map) };
+            result = result with { Biotech = NativeBiotechColony.Read(map) };
+            result = result with { Royalty = NativeRoyaltyColony.Read(map) };
+            result = result with { Odyssey = NativeOdysseyColony.Read(map) };
+            result = result with { Anomaly = NativeAnomalyColony.Read(map) };
+            result = result with { TileMutators = [.. result.TileMutators, .. NativeOdysseyFacts.MapMutators(map)] };
             Span("cf.deep");
-            if (demand > 0) result.FoodRunwayDays = Finite(nutrition / demand);
-            else result.Issues.Add(Issue("food_runway_days", Common.UnavailableReason.NotApplicable, "No observed nutrition demand."));
-            if (temperatures.Count > 0) { result.SleepingTemperatureMinC = temperatures.Min(); result.SleepingTemperatureMaxC = temperatures.Max(); }
+            if (demand > 0) result = result with { FoodRunwayDays = Finite(nutrition / demand) };
+            else result = result with { Issues = [.. result.Issues, Issue("food_runway_days", Common.UnavailableReason.NotApplicable, "No observed nutrition demand.")] };
+            if (temperatures.Count > 0) { result = result with { SleepingTemperatureMinC = temperatures.Min() }; result = result with { SleepingTemperatureMaxC = temperatures.Max() }; }
             else {
-                result.Issues.Add(Issue("sleeping_temperature_min_c", Common.UnavailableReason.NotApplicable, "No eligible indoor sleeping place."));
-                result.Issues.Add(Issue("sleeping_temperature_max_c", Common.UnavailableReason.NotApplicable, "No eligible indoor sleeping place."));
+                result = result with { Issues = [.. result.Issues, Issue("sleeping_temperature_min_c", Common.UnavailableReason.NotApplicable, "No eligible indoor sleeping place.")] };
+                result = result with { Issues = [.. result.Issues, Issue("sleeping_temperature_max_c", Common.UnavailableReason.NotApplicable, "No eligible indoor sleeping place.")] };
             }
-            foreach (var group in stock) result.Resources.Add(new Obs.Quantity { DefName = group.Key.defName, Units = group.Sum(t => (long)t.stackCount) });
+            foreach (var group in stock) result = result with { Resources = [.. result.Resources, new Obs.Quantity { DefName = group.Key.defName, Units = group.Sum(t => (long)t.stackCount) }] };
             Span("cf.resources");
-            result.EventLoot = EventLootFacts.Read(map, things, reachable);
+            result = result with { EventLoot = EventLootFacts.Read(map, things, reachable) };
             Span("cf.eventLoot");
-            ReadProduction(result, map, people, things, reachable, humanFood);
+            result = ReadProduction(result, map, people, things, reachable, humanFood);
             Span("cf.production");
             var joiners = NativeJoinerLetters.Snapshot();
-            result.JoinerLetters.AddRange(joiners);
+            result = result with { JoinerLetters = [.. result.JoinerLetters, .. joiners] };
             var dialog = ChoiceDialogTools.Pending();
-            if (dialog != null) result.Dialog = ChoiceDialogTools.Snapshot(dialog);
+            if (dialog != null) result = result with { Dialog = ChoiceDialogTools.Snapshot(dialog) };
             var conditions = new List<GameCondition>();
             map.gameConditionManager.GetAllGameConditionsAffectingMap(map, conditions);
-            foreach (var condition in conditions) result.Environment.Add(EnvironmentCondition(condition));
+            foreach (var condition in conditions) result = result with { Environment = [.. result.Environment, EnvironmentCondition(condition)] };
             Span("cf.dialogs");
-            result.Recovery = NativeRecoveryFacts.Read(map, context);
+            result = result with { Recovery = NativeRecoveryFacts.Read(map, context) };
             Span("cf.recovery");
-            result.Waste = HomeWasteTools.Project(map, context);
+            result = result with { Waste = HomeWasteTools.Project(map, context) };
             Span("cf.waste");
             foreach (var field in new[] { "food_corpses" })
-                result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected."));
+                result = result with { Issues = [.. result.Issues, Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected.")] };
             try {
                 var (season, dayOfYear) = GrowingCalendar.Calendar(map);
-                result.FoodClimate = new Obs.FoodClimate { GrowingDaysRemaining = GrowingCalendar.GrowingDaysRemaining(map),
+                result = result with { FoodClimate = new Obs.FoodClimate { GrowingDaysRemaining = GrowingCalendar.GrowingDaysRemaining(map),
                 GrowingDaysUntil = GrowingCalendar.GrowingDaysUntil(map), NonGrowingDays = GrowingCalendar.NonGrowingDays(map), Season = season, DayOfYear = dayOfYear,
                 SowingNow = !OutdoorsPermanentlyDark(map) && DefDatabase<ThingDef>.AllDefsListForReading.Any(d => d.plant != null && d.plant.Sowable && d.plant.harvestedThingDef?.IsNutritionGivingIngestible == true
                     && (d.plant.sowResearchPrerequisites == null || d.plant.sowResearchPrerequisites.All(r => r.IsFinished)) && PlantUtility.GrowthSeasonNow(map, d)),
-                GrowingDays = GenTemperature.TwelfthsInAverageTemperatureRange(map.Tile,Plant.DefaultMinOptimalGrowthTemperature,Plant.DefaultMaxOptimalGrowthTemperature).Count * GenDate.DaysPerTwelfth }; }
-            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); result.Issues.Add(Issue("food_climate", Common.UnavailableReason.ReadFailed, "Seasonal crop budget unavailable.")); }
+                GrowingDays = GenTemperature.TwelfthsInAverageTemperatureRange(map.Tile,Plant.DefaultMinOptimalGrowthTemperature,Plant.DefaultMaxOptimalGrowthTemperature).Count * GenDate.DaysPerTwelfth } }; }
+            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); result = result with { Issues = [.. result.Issues, Issue("food_climate", Common.UnavailableReason.ReadFailed, "Seasonal crop budget unavailable.")] }; }
             Span("cf.climate");
-            try { NativePlantAcquisition.Read(result, map, center, humanFood, request); }
+            try { result = NativePlantAcquisition.Read(result, map, center, humanFood, request); }
             catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error);
-                result.Acquisition.Clear(); result.ClearPendingFoodNutrition(); result.ClearPendingWoodUnits(); result.ClearPendingHunts();
+                result = result with { Acquisition = [], PendingFoodNutrition = null, PendingWoodUnits = null, PendingHunts = null };
                 foreach (var field in new[] { "acquisition", "pending_food_nutrition", "pending_wood_units", "pending_hunts" })
-                    result.Issues.Add(Issue(field, Common.UnavailableReason.ReadFailed, "Complete safe acquisition facts are unavailable."));
+                    result = result with { Issues = [.. result.Issues, Issue(field, Common.UnavailableReason.ReadFailed, "Complete safe acquisition facts are unavailable.")] };
             }
             Span("cf.acquisition");
-            result.Planning = request.Planning ? new Obs.PlanningSection { Observed = Planning(map, center, request, context) }
-                : new Obs.PlanningSection { Unavailable = Unavailable(Common.UnavailableReason.NotRequested, "Planning was not requested.") };
+            result = result with { Planning = request.Planning.GetValueOrDefault() ? new Obs.PlanningSection { Outcome = Planning(map, center, request, context) }
+                : new Obs.PlanningSection { Outcome = Unavailable(Common.UnavailableReason.NotRequested, "Planning was not requested.") } };
             Span("cf.planning");
             return result;
         }
@@ -218,7 +217,7 @@ namespace HomeBridge.BridgeTools
         {
             var row = new Obs.EnvironmentCondition { Id = condition.uniqueID.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 DefName = condition.def.defName, Permanent = condition.Permanent };
-            if (!condition.Permanent) row.TicksLeft = Math.Max(0, condition.TicksLeft);
+            if (!condition.Permanent) row = row with { TicksLeft = Math.Max(0, condition.TicksLeft) };
             return row;
         }
 
@@ -240,23 +239,23 @@ namespace HomeBridge.BridgeTools
                     DifficultyThreatScale = Finite(Find.Storyteller.difficulty.threatScale),
                     ColonistCount = checked((uint)colonists),
                 };
-                facts.Raids.AddRange(NativeDefenseObservationTools.RaidTracks(map));
-                return new Obs.ThreatSection { Observed = facts };
+                facts = facts with { Raids = [.. facts.Raids, .. NativeDefenseObservationTools.RaidTracks(map)] };
+                return new Obs.ThreatSection { Outcome = facts };
             }
-            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); return new Obs.ThreatSection { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Colony wealth and raid points could not be read.") }; }
+            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); return new Obs.ThreatSection { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Colony wealth and raid points could not be read.") }; }
         }
 
         private static Obs.UpkeepSection ReadComfort(Map map, List<Thing> things, uint? routePathBudgetMs)
         {
             var result = new Obs.UpkeepFacts { };
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
-            try { result.Comfort = new Obs.ComfortSection { Observed = ComfortFacts.ReadProtocol(map) }; }
-            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); result.Comfort = new Obs.ComfortSection { Unavailable = Unsupported("Complete comfort facts are unavailable.") }; }
+            try { result = result with { Comfort = new Obs.ComfortSection { Outcome = ComfortFacts.ReadProtocol(map) } }; }
+            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); result = result with { Comfort = new Obs.ComfortSection { Outcome = Unsupported("Complete comfort facts are unavailable.") } }; }
             ObservationWork.Detail("cf.upkeep.comfort", System.Diagnostics.Stopwatch.GetTimestamp() - began);
-            NativeUpkeepFacts.Populate(map, things, result, routePathBudgetMs);
+            result = NativeUpkeepFacts.Populate(map, things, result, routePathBudgetMs);
             foreach (var field in new[] { "construction", "storage_cells", "storage_capacity", "protected_cells", "hauling", "wall_removal" })
-                result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Upkeep section is not yet projected."));
-            return new Obs.UpkeepSection { Observed = result };
+                result = result with { Issues = [.. result.Issues, Issue(field, Common.UnavailableReason.Unsupported, "Upkeep section is not yet projected.")] };
+            return new Obs.UpkeepSection { Outcome = result };
         }
 
         private static Obs.DevelopmentFacts ReadPower(Map map)
@@ -280,24 +279,24 @@ namespace HomeBridge.BridgeTools
                 .Where(l => l.Label.ToString() == shortLabel && l.lookTargets != null
                     && l.lookTargets.targets.Any(t => t.Map == map))
                 .Select(l => l.arrivalTick).ToList();
-            if (incidents.Count > 0) result.ShortCircuitTick = incidents.Max();
+            if (incidents.Count > 0) result = result with { ShortCircuitTick = incidents.Max() };
             foreach (var power in traders) {
                 var building = (Building)power.parent;
                 var row = new Obs.DevelopmentPower { Building = NativeBuildingObservationTools.Ref(building),
                     Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)) };
                 // A turret's observed damage per second.
-                var dps = NativeDefenseStats.TurretDps(building); if (dps.HasValue) row.TurretDps = Finite(dps.Value);
-                result.Power.Add(row);
+                var dps = NativeDefenseStats.TurretDps(building); if (dps.HasValue) row = row with { TurretDps = Finite(dps.Value) };
+                result = result with { Power = [.. result.Power, row] };
             }
             foreach (var battery in batteries) {
                 var building = (Building)battery.parent;
-                result.Power.Add(new Obs.DevelopmentPower { Building = NativeBuildingObservationTools.Ref(building), Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)),
-                    StoredWattDays = Finite(battery.StoredEnergy) });
+                result = result with { Power = [.. result.Power, new Obs.DevelopmentPower { Building = NativeBuildingObservationTools.Ref(building), Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)),
+                    StoredWattDays = Finite(battery.StoredEnergy) }] };
             }
             foreach (var net in nets) {
                 var generation = net.powerComps.Where(p => p.PowerOn && p.PowerOutput > 0).Sum(p => (double)p.PowerOutput);
                 var consumption = net.powerComps.Where(p => p.PowerOn && p.PowerOutput < 0).Sum(p => (double)-p.PowerOutput);
-                result.Networks.Add(new Obs.PowerNetwork { Id = NetId(net),
+                result = result with { Networks = [.. result.Networks, new Obs.PowerNetwork { Id = NetId(net),
                     Producers = (uint)net.powerComps.Count(p => p.Props.PowerConsumption < 0),
                     Consumers = (uint)net.powerComps.Count(p => p.Props.PowerConsumption > 0),
                     Batteries = (uint)net.batteryComps.Count, Transmitters = (uint)net.transmitters.Count, Connectors = (uint)net.connectors.Count,
@@ -306,7 +305,7 @@ namespace HomeBridge.BridgeTools
                     CapacityWattDays = Finite(net.batteryComps.Sum(b => (double)b.Props.storedEnergyMax)),
                     HasSource = net.powerComps.Any(p => p.Props.PowerConsumption < 0),
                     HasActiveSource = net.powerComps.Any(p => p.PowerOn && p.PowerOutput > 0),
-                    });
+                    }] };
             }
             foreach (var geyser in geysers) {
                 // A geyser is free for a geothermal generator only while no
@@ -314,66 +313,66 @@ namespace HomeBridge.BridgeTools
                 var cells = geyser.OccupiedRect().Cells.ToList();
                 var occupied = geyser.harvester != null || cells.Any(c => c.GetThingList(map).Any(t => t != geyser && (t.def.category == ThingCategory.Building || t.def.IsBlueprint || t.def.IsFrame)));
                 var row = new Obs.SteamGeyser { Geyser = NativeRef.Thing(geyser), Occupied = occupied };
-                foreach (var cell in cells) row.Cells.Add(Cell(cell));
-                result.Geysers.Add(row);
+                foreach (var cell in cells) row = row with { Cells = [.. row.Cells, Cell(cell)] };
+                result = result with { Geysers = [.. result.Geysers, row] };
             }
             return result;
         }
 
         private static string NetId(PowerNet net) => NativeBuildingObservationTools.NetId(net);
 
-        private static void ReadProduction(Obs.ColonyFactsSnapshot result, Map map, List<Pawn> people,
+        private static Obs.ColonyFactsSnapshot ReadProduction(Obs.ColonyFactsSnapshot result, Map map, List<Pawn> people,
             List<Thing> things, Func<Thing, bool> reachable, Func<ThingDef, bool> humanFood)
         {
             var benches = things.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayer && reachable(b)
                 && b.def.AllRecipes.Any(r => r.products.Any(p => humanFood(p.thingDef)))).OrderBy(b => b.thingIDNumber).ToList();
             var haulers = NativeResourceSourcesTool.Haulers(map);
             foreach (var bench in benches) {
-                var row = new Obs.CookingFacts { Bench = NativeBuildingObservationTools.Ref(bench), BenchSnapshot = NativeProductionBills.Snapshot(bench,bench,result.Context),
+                var row = new Obs.CookingFacts { Bench = NativeBuildingObservationTools.Ref(bench), BenchSnapshot = NativeProductionBills.Snapshot(bench,bench,result.Context ?? new Common.ObservationContext()),
                     Usable = !bench.IsBurning() && (bench.TryGetComp<CompPowerTrader>() == null || bench.TryGetComp<CompPowerTrader>().PowerOn)
                         && (bench.TryGetComp<CompRefuelable>() == null || bench.TryGetComp<CompRefuelable>().HasFuel) };
                 var recipes = bench.def.AllRecipes.Where(r => r.products.Any(p => humanFood(p.thingDef))).OrderBy(r => r.defName).ToList();
                 foreach (var recipe in recipes) {
-                    row.Recipes.Add(NativeProductionBills.RecipeRow(bench,recipe));
+                    row = row with { Recipes = [.. row.Recipes, NativeProductionBills.RecipeRow(bench,recipe)] };
                     var production = new Obs.FoodProduction { Recipe = recipe.defName, Available = NativeProductionBills.Recipe(bench,recipe) };
                     foreach(var product in recipe.products){
                         var food=new Obs.FoodProduct{DefName=product.thingDef.defName,Count=product.count,Edible=humanFood(product.thingDef),NutritionDemandPerDay=result.NutritionPerDay};
-                        food.Storable=NativeResourceSourcesTool.Capacity(map,product.thingDef,haulers,out var stored)+stored;
-                        production.Products.Add(food);
+                        food = food with { Storable = NativeResourceSourcesTool.Capacity(map,product.thingDef,haulers,out var stored)+stored };
+                        production = production with { Products = [.. production.Products, food] };
                     }
-                    row.Production.Add(production);
+                    row = row with { Production = [.. row.Production, production] };
                 }
-                for(var index=0;index<bench.BillStack.Count;index++)row.Bills.Add(NativeProductionBills.BillRow(bench.BillStack.Bills[index],index));
+                for(var index=0;index<bench.BillStack.Count;index++)row = row with { Bills = [.. row.Bills, NativeProductionBills.BillRow(bench.BillStack.Bills[index],index)] };
                 var cookingRoom = bench.GetRoom();
-                if (cookingRoom != null) row.Room = NativeRef.Room(cookingRoom);
-                if (NativeAutoRefuel.Comp(bench) is CompRefuelable refuel) row.AutoRefuel = refuel.allowAutoRefuel;
-                result.Cooking.Add(row);
+                if (cookingRoom != null) row = row with { Room = NativeRef.Room(cookingRoom) };
+                if (NativeAutoRefuel.Comp(bench) is CompRefuelable refuel) row = row with { AutoRefuel = refuel.allowAutoRefuel };
+                result = result with { Cooking = [.. result.Cooking, row] };
             }
             foreach(var bench in things.Where(t=>t.Faction==Faction.OfPlayer&&t is IBillGiver&&reachable(t)&&t.def.AllRecipes.Any(NativeRecipeRoles.ButcherFlesh)).OrderBy(t=>t.thingIDNumber)){
                 var giver=(IBillGiver)bench;
-                var row=new Obs.ButcheringFacts{Bench=NativeBuildingObservationTools.Ref(bench),BenchSnapshot=NativeProductionBills.Snapshot(bench,giver,result.Context),Usable=NativeProductionBills.Usable(bench)};
-                HumanFoodFacts.Fill(row,bench);
-                foreach(var recipe in bench.def.AllRecipes.Where(NativeRecipeRoles.ButcherFlesh))row.Recipes.Add(NativeProductionBills.RecipeRow(bench,recipe));
-                for(var index=0;index<giver.BillStack.Count;index++)row.Bills.Add(NativeProductionBills.BillRow(giver.BillStack.Bills[index],index));
+                var row=new Obs.ButcheringFacts{Bench=NativeBuildingObservationTools.Ref(bench),BenchSnapshot=NativeProductionBills.Snapshot(bench,giver,result.Context ?? new Common.ObservationContext()),Usable=NativeProductionBills.Usable(bench)};
+                row = HumanFoodFacts.Fill(row,bench);
+                foreach(var recipe in bench.def.AllRecipes.Where(NativeRecipeRoles.ButcherFlesh))row = row with { Recipes = [.. row.Recipes, NativeProductionBills.RecipeRow(bench,recipe)] };
+                for(var index=0;index<giver.BillStack.Count;index++)row = row with { Bills = [.. row.Bills, NativeProductionBills.BillRow(giver.BillStack.Bills[index],index)] };
                 var butcherRoom = bench.GetRoom();
-                if (butcherRoom != null) row.Room = NativeRef.Room(butcherRoom);
-                result.Butchering.Add(row);
+                if (butcherRoom != null) row = row with { Room = NativeRef.Room(butcherRoom) };
+                result = result with { Butchering = [.. result.Butchering, row] };
             }
-
+            return result;
         }
 
         private static Obs.PlanningFacts Planning(Map map, IntVec3 center, Obs.ColonyFactsRequest request, Common.ObservationContext context)
         {
             var result = new Obs.PlanningFacts { };
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
-            try { result.Gear = NativeGearFacts.Read(map, context); }
-            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); result.Issues.Add(Issue("gear", Common.UnavailableReason.ReadFailed, "Complete native loadout upkeep is unavailable.")); }
+            try { result = result with { Gear = NativeGearFacts.Read(map, context) }; }
+            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); result = result with { Issues = [.. result.Issues, Issue("gear", Common.UnavailableReason.ReadFailed, "Complete native loadout upkeep is unavailable.")] }; }
             ObservationWork.Detail("cf.gear", System.Diagnostics.Stopwatch.GetTimestamp() - began);
             began = System.Diagnostics.Stopwatch.GetTimestamp();
-            result.Crops.Add(Crops(map));
+            result = result with { Crops = [.. result.Crops, .. Crops(map)] };
             ObservationWork.Detail("cf.crops", System.Diagnostics.Stopwatch.GetTimestamp() - began);
-            try { result.Environment = Environment(map); }
-            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); result.Issues.Add(Issue("environment", Common.UnavailableReason.ReadFailed, "Controlled-environment growing facts are unavailable.")); }
+            try { result = result with { Environment = Environment(map) }; }
+            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); result = result with { Issues = [.. result.Issues, Issue("environment", Common.UnavailableReason.ReadFailed, "Controlled-environment growing facts are unavailable.")] }; }
             return result;
         }
 
@@ -399,14 +398,14 @@ namespace HomeBridge.BridgeTools
                 var product = def.plant.harvestedThingDef;
                 if (product == null || !NativeFoodPolicy.IsFood(product)) continue;
                 var row = new Obs.EdibleCrop { DefName = def.defName };
-                row.DietAllowed = !product.IsFungus || !ModsConfig.IdeologyActive || !people.Any(p =>
+                row = row with { DietAllowed = !product.IsFungus || !ModsConfig.IdeologyActive || !people.Any(p =>
                     p.Ideo != null && p.Ideo.PreceptsListForReading.Any(precept => precept.def.comps
                         .OfType<PreceptComp_SelfTookMemoryThought>().Any(comp =>
                             (comp.eventDef == HistoryEventDefOf.AteFungus || comp.eventDef == HistoryEventDefOf.AteFungusAsIngredient)
-                            && comp.thought.stages.Any(stage => stage.baseMoodEffect < 0))));
-                row.NutritionDemandPerDay = Finite(demand + animals.Where(p => p.RaceProps.CanEverEat(product)
+                            && comp.thought.stages.Any(stage => stage.baseMoodEffect < 0)))) };
+                row = row with { NutritionDemandPerDay = Finite(demand + animals.Where(p => p.RaceProps.CanEverEat(product)
                     && p.foodRestriction?.GetCurrentRespectedRestriction(p)?.filter.Allows(product) != false)
-                    .Sum(p => GameTime.PerDay(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true))));
+                    .Sum(p => GameTime.PerDay(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true)))) };
                 result.Add(row);
             }
             return result;
@@ -422,7 +421,7 @@ namespace HomeBridge.BridgeTools
         {
             var result = new Obs.ControlledEnvironment { Daylight = GenCelestial.CurCelestialSunGlow(map) >= 0.3f };
             var weather = map.weatherManager?.curWeather?.defName;
-            if (!string.IsNullOrEmpty(weather)) result.Weather = weather;
+            if (!string.IsNullOrEmpty(weather)) result = result with { Weather = weather };
             string? NetId(CompPowerTrader? power) => power?.PowerNet == null ? null : power.PowerNet.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture);
             var rooms = new Dictionary<int, Room>();
             void Note(Room? room) { if (room != null && !room.PsychologicallyOutdoors && room.ProperRoom) rooms[room.ID] = room; }
@@ -432,22 +431,22 @@ namespace HomeBridge.BridgeTools
                 var room = building.GetRoom();
                 if (IsSunLamp(building)) { var lamp = building;
                     var row = new Obs.GrowLight { Building = NativeBuildingObservationTools.Ref(lamp) };
-                    if (power != null) { row.Powered = power.PowerOn; var id = NetId(power); if (id != null) row.PowerNetId = id; }
-                    else row.Issues.Add(Issue("powered", Common.UnavailableReason.NotApplicable, "Lamp has no power trader."));
+                    if (power != null) { row = row with { Powered = power.PowerOn }; var id = NetId(power); if (id != null) row = row with { PowerNetId = id }; }
+                    else row = row with { Issues = [.. row.Issues, Issue("powered", Common.UnavailableReason.NotApplicable, "Lamp has no power trader.")] };
                     var schedule = lamp.TryGetComp<CompSchedule>();
-                    row.LitNow = (power == null || power.PowerOn) && (schedule == null || schedule.Allowed);
-                    foreach (var c in GenRadial.RadialCellsAround(lamp.Position, lamp.def.specialDisplayRadius, true).Where(c => c.InBounds(map))) row.GrowthCells.Add(Cell(c));
-                    if (room != null) { row.Room = NativeRef.Room(room); Note(room); }
-                    result.Lights.Add(row);
+                    row = row with { LitNow = (power == null || power.PowerOn) && (schedule == null || schedule.Allowed) };
+                    foreach (var c in GenRadial.RadialCellsAround(lamp.Position, lamp.def.specialDisplayRadius, true).Where(c => c.InBounds(map))) row = row with { GrowthCells = [.. row.GrowthCells, Cell(c)] };
+                    if (room != null) { row = row with { Room = NativeRef.Room(room) }; Note(room); }
+                    result = result with { Lights = [.. result.Lights, row] };
                 } else if (building is Building_PlantGrower grower) {
                     var row = new Obs.PlantGrower { Building = NativeBuildingObservationTools.Ref(grower),
                         CanSow = grower.CanAcceptSowNow() };
                     var crop = grower.GetPlantDefToGrow();
-                    if (crop != null) row.CropDefName = crop.defName;
-                    if (power != null) { row.Powered = power.PowerOn; var id = NetId(power); if (id != null) row.PowerNetId = id; }
-                    foreach (var c in ((IPlantToGrowSettable)grower).Cells) row.PlantCells.Add(Cell(c));
-                    if (room != null) { row.Room = NativeRef.Room(room); Note(room); }
-                    result.Growers.Add(row);
+                    if (crop != null) row = row with { CropDefName = crop.defName };
+                    if (power != null) { row = row with { Powered = power.PowerOn }; var id = NetId(power); if (id != null) row = row with { PowerNetId = id }; }
+                    foreach (var c in ((IPlantToGrowSettable)grower).Cells) row = row with { PlantCells = [.. row.PlantCells, Cell(c)] };
+                    if (room != null) { row = row with { Room = NativeRef.Room(room) }; Note(room); }
+                    result = result with { Growers = [.. result.Growers, row] };
                 }
             }
             foreach (var room in map.regionGrid.AllRooms) if (room.Cells.Any(c => !c.Fogged(map))) Note(room);
@@ -456,8 +455,8 @@ namespace HomeBridge.BridgeTools
                     OpenRoofCount = (uint)room.OpenRoofCount, ProperRoom = room.ProperRoom, PsychologicallyOutdoors = room.PsychologicallyOutdoors };
                 uint lit = 0;
                 foreach (var c in room.Cells) if (map.glowGrid.GroundGlowAt(c) >= 0.3f) lit++;
-                row.LitCells = lit;
-                result.Rooms.Add(row);
+                row = row with { LitCells = lit };
+                result = result with { Rooms = [.. result.Rooms, row] };
             }
             var nets = map.powerNetManager?.AllNetsListForReading ?? new List<PowerNet>();
             foreach (var net in nets.OrderBy(n => n.GetHashCode())) {
@@ -475,9 +474,9 @@ namespace HomeBridge.BridgeTools
                 }
                 double capacity = 0;
                 foreach (var battery in net.batteryComps ?? new List<CompPowerBattery>()) if (battery?.Props != null) capacity += Finite(battery.Props.storedEnergyMax);
-                row.GenerationW = generation; row.SolarW = solar; row.WindW = wind; row.ConsumptionW = consumption;
-                row.StoredWattDays = Finite(net.CurrentStoredEnergy()); row.CapacityWattDays = capacity;
-                result.Networks.Add(row);
+                row = row with { GenerationW = generation }; row = row with { SolarW = solar }; row = row with { WindW = wind }; row = row with { ConsumptionW = consumption };
+                row = row with { StoredWattDays = Finite(net.CurrentStoredEnergy()) }; row = row with { CapacityWattDays = capacity };
+                result = result with { Networks = [.. result.Networks, row] };
             }
             return result;
         }
@@ -489,28 +488,28 @@ namespace HomeBridge.BridgeTools
         {
             var result = new Obs.ForecastFacts { CombinedFoodSupply = Food(source.combinedFoodSupply),
                 };
-            result.AnimalIds.Add(source.animalIds);
+            result = result with { AnimalIds = [.. result.AnimalIds, .. source.animalIds] };
             foreach (var crop in source.crops) {
                 var row = new Obs.CropForecast { Zone = NativeRef.Of(crop.id.ToString(System.Globalization.CultureInfo.InvariantCulture)) };
-                if (crop.crop != null) row.Crop = crop.crop;
-                if (crop.sowWork.HasValue) row.SowWork = Finite(crop.sowWork.Value);
-                if (crop.harvestWork.HasValue) row.HarvestWork = Finite(crop.harvestWork.Value);
-                if (crop.maturePlants.HasValue) row.MaturePlants = checked((uint)crop.maturePlants.Value);
-                if (crop.stalledPlants.HasValue) row.StalledPlants = checked((uint)crop.stalledPlants.Value);
-                if (crop.standingYield.HasValue) row.StandingYield = Finite(crop.standingYield.Value);
-                if (crop.product != null) row.Product = crop.product;
-                result.Crops.Add(row);
+                if (crop.crop != null) row = row with { Crop = crop.crop };
+                if (crop.sowWork.HasValue) row = row with { SowWork = Finite(crop.sowWork.Value) };
+                if (crop.harvestWork.HasValue) row = row with { HarvestWork = Finite(crop.harvestWork.Value) };
+                if (crop.maturePlants.HasValue) row = row with { MaturePlants = checked((uint)crop.maturePlants.Value) };
+                if (crop.stalledPlants.HasValue) row = row with { StalledPlants = checked((uint)crop.stalledPlants.Value) };
+                if (crop.standingYield.HasValue) row = row with { StandingYield = Finite(crop.standingYield.Value) };
+                if (crop.product != null) row = row with { Product = crop.product };
+                result = result with { Crops = [.. result.Crops, row] };
             }
             foreach (var patient in source.patients) {
                 var row = new Obs.PatientForecast { PawnId = patient.id };
-                if (patient.bleedRatePerDay.HasValue) row.BleedRatePerDay = Finite(patient.bleedRatePerDay.Value);
-                if (patient.hoursUntilDeathFromBloodLoss.HasValue) row.HoursUntilDeathFromBloodLoss = Finite(patient.hoursUntilDeathFromBloodLoss.Value);
-                if (patient.mood.HasValue) row.Mood = Finite(patient.mood.Value);
-                if (patient.moodTarget.HasValue) row.MoodTarget = Finite(patient.moodTarget.Value);
-                if (patient.minorBreakThreshold.HasValue) row.MinorBreakThreshold = Finite(patient.minorBreakThreshold.Value);
-                if (patient.majorBreakThreshold.HasValue) row.MajorBreakThreshold = Finite(patient.majorBreakThreshold.Value);
-                if (patient.extremeBreakThreshold.HasValue) row.ExtremeBreakThreshold = Finite(patient.extremeBreakThreshold.Value);
-                result.Patients.Add(row);
+                if (patient.bleedRatePerDay.HasValue) row = row with { BleedRatePerDay = Finite(patient.bleedRatePerDay.Value) };
+                if (patient.hoursUntilDeathFromBloodLoss.HasValue) row = row with { HoursUntilDeathFromBloodLoss = Finite(patient.hoursUntilDeathFromBloodLoss.Value) };
+                if (patient.mood.HasValue) row = row with { Mood = Finite(patient.mood.Value) };
+                if (patient.moodTarget.HasValue) row = row with { MoodTarget = Finite(patient.moodTarget.Value) };
+                if (patient.minorBreakThreshold.HasValue) row = row with { MinorBreakThreshold = Finite(patient.minorBreakThreshold.Value) };
+                if (patient.majorBreakThreshold.HasValue) row = row with { MajorBreakThreshold = Finite(patient.majorBreakThreshold.Value) };
+                if (patient.extremeBreakThreshold.HasValue) row = row with { ExtremeBreakThreshold = Finite(patient.extremeBreakThreshold.Value) };
+                result = result with { Patients = [.. result.Patients, row] };
             }
             return result;
         }
@@ -518,21 +517,22 @@ namespace HomeBridge.BridgeTools
         {
             var result = new Obs.FoodSupplyFacts { };
             if (source.larder != null) {
-                result.Larder = new Obs.FoodLarderFacts { RawMeatNutrition = Finite(source.larder.RawMeatNutrition), CookDemandNutrition = Finite(source.larder.CookDemandNutrition) };
+                var corpses = new List<Obs.CorpseHandling>();
                 foreach (var corpse in source.larder.Corpses) {
                     var row = new Obs.CorpseHandling { StockId = corpse.ID, Cell = Cell(corpse.Cell), FrozenDestination = corpse.FrozenDestination, InStorage = corpse.InStorage };
-                    if (corpse.Hauler != null) row.HaulerId = corpse.Hauler;
-                    result.Larder.Corpses.Add(row);
+                    if (corpse.Hauler != null) row = row with { HaulerId = corpse.Hauler };
+                    corpses.Add(row);
                 }
+                result = result with { Larder = new Obs.FoodLarderFacts { RawMeatNutrition = Finite(source.larder.RawMeatNutrition), CookDemandNutrition = Finite(source.larder.CookDemandNutrition), Corpses = [.. corpses] } };
             }
             foreach (var consumer in source.consumers)
-                result.Consumers.Add(new Obs.FoodConsumer { PawnId = consumer.id, NutritionPerDay = Finite(consumer.nutritionPerDay), HumanMeatAcceptable = consumer.humanMeatAcceptable });
+                result = result with { Consumers = [.. result.Consumers, new Obs.FoodConsumer { PawnId = consumer.id, NutritionPerDay = Finite(consumer.nutritionPerDay), HumanMeatAcceptable = consumer.humanMeatAcceptable }] };
             foreach (var stock in source.stocks) {
                 // The stock's thing is a things table row.
                 var row = new Obs.FoodStock { Item = NativeRef.Thing(stock.thing!), Nutrition = Finite(stock.nutrition) };
-                row.Eaters.Add(NativeRef.All(stock.eaters!));
-                if (stock.holder != null) row.Holder = NativeRef.Of(stock.holder);
-                result.Stocks.Add(row);
+                row = row with { Eaters = [.. row.Eaters, .. NativeRef.All(stock.eaters!)] };
+                if (stock.holder != null) row = row with { Holder = NativeRef.Of(stock.holder) };
+                result = result with { Stocks = [.. result.Stocks, row] };
             }
             return result;
         }

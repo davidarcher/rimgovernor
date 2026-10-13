@@ -76,8 +76,8 @@
       "rimgovernor.brain.nativefacade": {
         "type": "Project",
         "dependencies": {
-          "RimGovernor.Brain.Domain": "[1.0.0, )",
-          "RimGovernor.Brain.Wire": "[1.0.0, )"
+          "RimGovernor.Brain.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )"
         }
       },
       "rimgovernor.brain.observation": {
@@ -147,18 +147,6 @@
       },
       "rimgovernor.brain.telemetry": {
         "type": "Project"
-      },
-      "rimgovernor.brain.wire": {
-        "type": "Project",
-        "dependencies": {
-          "Google.Protobuf": "[3.31.1, )"
-        }
-      },
-      "Google.Protobuf": {
-        "type": "CentralTransitive",
-        "requested": "[3.31.1, )",
-        "resolved": "3.31.1",
-        "contentHash": "gSnJbUmGiOTdWddPhqzrEscHq9Ls6sqRDPB9WptckyjTUyx70JOOAaDLkFff8gManZNN3hllQ4aQInnQyq/Z/A=="
       },
       "Microsoft.Data.Sqlite.Core": {
         "type": "CentralTransitive",

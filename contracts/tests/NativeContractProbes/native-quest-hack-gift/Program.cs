@@ -12,8 +12,8 @@ internal static class NativeQuestHackGiftProbe
     private static void Check(bool result, string why) { if (!result) throw new Exception(why); checks++; }
     private static object Wire(string name, string json)
     {
-        var parser = bridge.GetType("RimGovernor.Protocol.Operations." + name, true)!.GetProperty("Parser")!.GetValue(null)!;
-        return parser.GetType().GetMethod("ParseJson")!.Invoke(parser, new object[] { json })!;
+        var type = typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType("RimGovernor.Contracts.Wire.Operations." + name, true)!;
+        return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize", new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
     }
     internal static int Invoke(string[] args)
     {
@@ -34,7 +34,7 @@ internal static class NativeQuestHackGiftProbe
         var dispatch = bridge.GetType("HomeBridge.BridgeTools.NativeActionDispatch", true)!;
         dispatch.GetMethod("AssertComplete", Flags)!.Invoke(null, null);
         var handlers = (System.Collections.IDictionary)dispatch.GetField("Handlers", Flags)!.GetValue(null)!;
-        foreach (var arm in new[] { "HackDesignation", "GiveItem" }) Check(handlers.Keys.Cast<object>().Any(k => k.ToString() == arm), "native handler registered");
+        foreach (var arm in new[] { "HackDesignation", "GiveItem" }) Check(handlers.Keys.Cast<object>().Any(k => ((Type)k).Name == arm + "Case"), "native handler registered");
         Console.WriteLine($"native-quest-hack-gift: {checks} checks passed; actual pawn work requires native cases.");
         return 0;
     }

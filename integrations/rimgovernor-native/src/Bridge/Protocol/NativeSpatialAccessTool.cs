@@ -5,13 +5,12 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -32,29 +31,29 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadSpatialAccess(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a SpatialAccessRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_spatial_access", request!, Obs.SpatialAccessRequest.Parser, out var parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Failure = failure });
+            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_spatial_access", request!, out Obs.SpatialAccessRequest? parsed, out var failure)
+                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Outcome = new Obs.SpatialAccessReplyOutcome.FailureCase(failure) });
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Failure = failure });
+                    return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Outcome = new Obs.SpatialAccessReplyOutcome.FailureCase(failure) });
                 if ((long)map.Size.x * map.Size.z > MaximumMapCells)
-                    return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Map exceeds the bounded spatial audit size.") });
+                    return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Outcome = Unavailable(Common.UnavailableReason.LimitExceeded, "Map exceeds the bounded spatial audit size.") });
                 try {
                     var blocked = new HashSet<IntVec3>(parsed.BlockedCells.Select(Native));
                     var targets = parsed.TargetCells.Select(Native).ToList();
                     if (blocked.Concat(targets).Any(c => !c.InBounds(map))) return ProtoBoundary.Encode(new Obs.SpatialAccessReply {
-                        Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cell is outside the current map.") });
-                    return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Observed = Audit(map, blocked, targets, parsed.PawnIds.ToList(), context, parsed.HasBudgetMs ? parsed.BudgetMs : (uint?)null) });
+                        Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cell is outside the current map.") });
+                    return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Outcome = Audit(map, blocked, targets, parsed.PawnIds.ToList(), context, parsed.BudgetMs) });
                 }
-                catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native spatial access could not be read completely.") }); }
+                catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Outcome = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }
+                catch (Exception) { return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native spatial access could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 
         internal static bool Validate(Obs.SpatialAccessRequest request, out Common.Failure failure)
         {
             failure = null!;
-            if (request.BlockedCells.Concat(request.TargetCells).Any(c => c == null || !c.HasX || !c.HasZ || c.X < 0 || c.Z < 0))
+            if (request.BlockedCells.Concat(request.TargetCells).Any(c => c == null || c.X is null || c.Z is null || c.X.GetValueOrDefault() < 0 || c.Z.GetValueOrDefault() < 0))
                 failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Every cell needs nonnegative x and z.");
             else if (request.BlockedCells.Select(Native).Distinct().Count() != request.BlockedCells.Count || request.TargetCells.Select(Native).Distinct().Count() != request.TargetCells.Count)
                 failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Duplicate cells.");
@@ -98,7 +97,7 @@ namespace HomeBridge.BridgeTools
                 // it is reported skipped, not audited and not assumed to keep access.
                 if (System.Diagnostics.Stopwatch.GetTimestamp() - began >= budgetTicks)
                 {
-                    result.Pawns.Add(new Obs.PawnAccess { Pawn = NativeRef.Thing(pawn), Position = Cell(pawn.Position), Skipped = true });
+                    result = result with { Pawns = [.. result.Pawns, new Obs.PawnAccess { Pawn = NativeRef.Thing(pawn), Position = Cell(pawn.Position), Skipped = true }] };
                     continue;
                 }
                 var area = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
@@ -130,20 +129,20 @@ namespace HomeBridge.BridgeTools
                     Pawn = NativeRef.Thing(pawn), Position = Cell(pawn.Position),
                     CurrentCells = (uint)before.Count, ProjectedCells = (uint)after.Count, LosesAccess = losesAccess, EgressSteps = (uint)egressSteps,
                 };
-                if (origin.IsValid) row.ProjectedOrigin = Cell(origin);
+                if (origin.IsValid) row = row with { ProjectedOrigin = Cell(origin) };
                 foreach (var c in targets)
                 {
                     var projected = after.Contains(c);
                     var target = new Obs.AccessTarget { Cell = Cell(c), NativeReachable = pawn.CanReach(c, PathEndMode.OnCell, Danger.None), ProjectedReachable = projected };
-                    if (projected) target.ProjectedSteps = (uint)(distances[c] + egressSteps);
-                    row.Targets.Add(target);
+                    if (projected) target = target with { ProjectedSteps = (uint)(distances[c] + egressSteps) };
+                    row = row with { Targets = [.. row.Targets, target] };
                 }
-                result.Pawns.Add(row);
+                result = result with { Pawns = [.. result.Pawns, row] };
             }
             return result;
         }
 
-        private static IntVec3 Native(Common.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
+        private static IntVec3 Native(Common.Cell cell) => new IntVec3(cell.X.GetValueOrDefault(), 0, cell.Z.GetValueOrDefault());
         private static Common.Cell Cell(IntVec3 cell) => new Common.Cell { X = cell.x, Z = cell.z };
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) { } }

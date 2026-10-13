@@ -3,11 +3,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using Google.Protobuf;
 using RimWorld;
 using Verse;
-using Mirror = RimGovernor.Protocol.Mirror;
-using Obs = RimGovernor.Protocol.Observations;
+using RimGovernor.Brain.Domain;
+using Mirror = RimGovernor.Contracts.Wire.Mirror;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -39,27 +39,27 @@ namespace HomeBridge.BridgeTools
             Room = 12, Terrain = 13, InHome = 14,
             BaseTerrain = 15, SnowDepth = 16, TopLayerRemovable = 17, FoundationRemoval = 18;
 
-        private static readonly (string Name, Kind Kind, Action<Mirror.CellGrid, Mirror.FieldArray> Set)[] Fields =
+        private static readonly (string Name, Kind Kind, Func<Mirror.CellGrid, Mirror.FieldArray, Mirror.CellGrid> Set)[] Fields =
         {
-            ("cell", Kind.Code, (g, a) => g.Cell = a),
-            ("walkable", Kind.Code, (g, a) => g.Walkable = a),
-            ("zone", Kind.Code, (g, a) => g.Zone = a),
-            ("roofed", Kind.Code, (g, a) => g.Roofed = a),
-            ("indoors", Kind.Code, (g, a) => g.Indoors = a),
-            ("storage_empty", Kind.Code, (g, a) => g.StorageEmpty = a),
-            ("doorway", Kind.Code, (g, a) => g.Doorway = a),
-            ("fertility", Kind.Number, (g, a) => g.Fertility = a),
-            ("polluted", Kind.Code, (g, a) => g.Polluted = a),
-            ("glow", Kind.Number, (g, a) => g.Glow = a),
-            ("roof", Kind.Index, (g, a) => g.Roof = a),
-            ("zone_id", Kind.Index, (g, a) => g.ZoneId = a),
-            ("room", Kind.Index, (g, a) => g.Room = a),
-            ("terrain", Kind.Index, (g, a) => g.Terrain = a),
-            ("in_home", Kind.Code, (g, a) => g.InHome = a),
-            ("base_terrain", Kind.Index, (g, a) => g.BaseTerrain = a),
-            ("snow_depth", Kind.Number, (g, a) => g.SnowDepth = a),
-            ("top_layer_removable", Kind.Code, (g, a) => g.TopLayerRemovable = a),
-            ("foundation_removal", Kind.Code, (g, a) => g.FoundationRemoval = a),
+            ("cell", Kind.Code, (g, a) => g with { Cell = a }),
+            ("walkable", Kind.Code, (g, a) => g with { Walkable = a }),
+            ("zone", Kind.Code, (g, a) => g with { Zone = a }),
+            ("roofed", Kind.Code, (g, a) => g with { Roofed = a }),
+            ("indoors", Kind.Code, (g, a) => g with { Indoors = a }),
+            ("storage_empty", Kind.Code, (g, a) => g with { StorageEmpty = a }),
+            ("doorway", Kind.Code, (g, a) => g with { Doorway = a }),
+            ("fertility", Kind.Number, (g, a) => g with { Fertility = a }),
+            ("polluted", Kind.Code, (g, a) => g with { Polluted = a }),
+            ("glow", Kind.Number, (g, a) => g with { Glow = a }),
+            ("roof", Kind.Index, (g, a) => g with { Roof = a }),
+            ("zone_id", Kind.Index, (g, a) => g with { ZoneId = a }),
+            ("room", Kind.Index, (g, a) => g with { Room = a }),
+            ("terrain", Kind.Index, (g, a) => g with { Terrain = a }),
+            ("in_home", Kind.Code, (g, a) => g with { InHome = a }),
+            ("base_terrain", Kind.Index, (g, a) => g with { BaseTerrain = a }),
+            ("snow_depth", Kind.Number, (g, a) => g with { SnowDepth = a }),
+            ("top_layer_removable", Kind.Code, (g, a) => g with { TopLayerRemovable = a }),
+            ("foundation_removal", Kind.Code, (g, a) => g with { FoundationRemoval = a }),
         };
 
         internal static string FieldName(int field) => Fields[field].Name;
@@ -212,7 +212,7 @@ namespace HomeBridge.BridgeTools
                     storageEmpty = false;
                     if (!doorway && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass)) doorway = true;
                 }
-                else if (t is Plant || t is Building || t.def.category == ThingCategory.Item) storageEmpty = false;
+                else if (t is Plant || t is Verse.Building || t.def.category == ThingCategory.Item) storageEmpty = false;
             }
         }
 
@@ -224,9 +224,9 @@ namespace HomeBridge.BridgeTools
         /// On the encoder worker: adds read to frame as a keyframe or a
         /// delta against the held keyframe. A null read (the capture failed)
         /// adds nothing and makes the next grid a keyframe.
-        internal static void Attach(Obs.BundleSnapshot frame, GridRead? read, bool streamKeyframe)
+        internal static Obs.BundleSnapshot Attach(Obs.BundleSnapshot frame, GridRead? read, bool streamKeyframe)
         {
-            if (read == null) { keyframe = null; return; }
+            if (read == null) { keyframe = null; return frame; }
             var now = Stopwatch.GetTimestamp();
             var held = keyframe;
             Mirror.CellGrid? grid = null;
@@ -240,21 +240,17 @@ namespace HomeBridge.BridgeTools
                 keyframeSeq++;
                 keyframeAt = now;
             }
-            frame.Grid = grid;
-            frame.KeyframeSeq = keyframeSeq;
-            frame.SkyGlow = read.SkyGlow;
+            return frame with { Grid = grid, KeyframeSeq = keyframeSeq, SkyGlow = read.SkyGlow };
         }
 
         private static ulong wholeSeq;
 
         /// On the encoder worker: adds read to frame as a keyframe for the in-process subscriber, leaving the
         /// ring's held keyframe alone. A null read adds nothing.
-        internal static void AttachWhole(Obs.BundleSnapshot frame, GridRead? read)
+        internal static Obs.BundleSnapshot AttachWhole(Obs.BundleSnapshot frame, GridRead? read)
         {
-            if (read == null) return;
-            frame.Grid = Encode(read, null)!;
-            frame.KeyframeSeq = ++wholeSeq;
-            frame.SkyGlow = read.SkyGlow;
+            if (read == null) return frame;
+            return frame with { Grid = Encode(read, null)!, KeyframeSeq = ++wholeSeq, SkyGlow = read.SkyGlow };
         }
 
         /// read as a CellGrid: every array over the sentinel array when
@@ -264,12 +260,13 @@ namespace HomeBridge.BridgeTools
         {
             var n = read.Count;
             var grid = new Mirror.CellGrid { Rect = new Mirror.CellRect { X = read.X, Z = read.Z, Width = read.Width, Height = read.Height } };
+            var strings = new List<string>();
             var table = new Dictionary<string, uint>(StringComparer.Ordinal);
             var carried = 0;
             var changed = new List<int>();
             uint Put(string s)
             {
-                if (!table.TryGetValue(s, out var k)) { grid.Strings.Add(s); k = (uint)grid.Strings.Count; table[s] = k; }
+                if (!table.TryGetValue(s, out var k)) { strings.Add(s); k = (uint)strings.Count; table[s] = k; }
                 return k;
             }
             for (int i = 0; i < Fields.Length; i++)
@@ -281,7 +278,7 @@ namespace HomeBridge.BridgeTools
                     if (basis != null ? !column.Same(basis, j) : !column.IsSentinel(j)) changed.Add(j);
                 if (basis != null && changed.Count == 0) continue;
                 carried++;
-                Fields[i].Set(grid, EncodeArray(Fields[i].Kind, column, changed, n, grid, table));
+                grid = Fields[i].Set(grid, EncodeArray(Fields[i].Kind, column, changed, n, strings, table));
             }
             // The things: the cells whose list differs from the keyframe's
             // (a keyframe lists every cell with any), each list replaced whole.
@@ -291,26 +288,36 @@ namespace HomeBridge.BridgeTools
             if (against == null || changed.Count > 0)
             {
                 carried++;
-                var list = new Mirror.ThingList();
                 uint offset = 0;
-                list.Offsets.Add(0);
+                var cells = new List<uint>();
+                var offsets = new List<uint> { 0 };
+                var things = new List<Mirror.Thing>();
                 foreach (var j in changed)
                 {
-                    list.Cells.Add((uint)j);
-                    foreach (var thing in read.Things[j] ?? Array.Empty<ThingRec>()) { list.Things.Add(thing.Wire(Put)); offset++; }
-                    list.Offsets.Add(offset);
+                    cells.Add((uint)j);
+                    foreach (var thing in read.Things[j] ?? Array.Empty<ThingRec>()) { things.Add(thing.Wire(Put)); offset++; }
+                    offsets.Add(offset);
                 }
-                grid.Things = list;
+                grid = grid with { Things = new Mirror.ThingList { Cells = EquatableArray.From(cells), Offsets = EquatableArray.From(offsets), Things = EquatableArray.From(things) } };
             }
-            return against != null && carried == Fields.Length + 1 ? null : grid;
+            if (against != null && carried == Fields.Length + 1) return null;
+            return grid with { Strings = EquatableArray.From(strings) };
+        }
+
+        // The varint size the dense/sparse choice weighs: the cost model of the encoding.
+        private static int VarintSize(uint value)
+        {
+            var size = 1;
+            while (value >= 0x80) { value >>= 7; size++; }
+            return size;
         }
 
         // One array, dense or sparse over changed, whichever encodes
         // smaller; a string's table index is assigned only for the form sent.
-        private static Mirror.FieldArray EncodeArray(Kind kind, Column column, List<int> changed, int n, Mirror.CellGrid grid, Dictionary<string, uint> table)
+        private static Mirror.FieldArray EncodeArray(Kind kind, Column column, List<int> changed, int n, List<string> strings, Dictionary<string, uint> table)
         {
             long sparseBytes = 0, denseBytes;
-            foreach (var j in changed) sparseBytes += CodedOutputStream.ComputeUInt32Size((uint)j);
+            foreach (var j in changed) sparseBytes += VarintSize((uint)j);
             switch (kind)
             {
                 case Kind.Code:
@@ -320,7 +327,7 @@ namespace HomeBridge.BridgeTools
                 default:
                 {
                     // Sizes of each form's indexes as if it alone extended the table.
-                    var next = (uint)grid.Strings.Count;
+                    var next = (uint)strings.Count;
                     var seen = new Dictionary<string, uint>(StringComparer.Ordinal);
                     uint Index(string? s)
                     {
@@ -329,48 +336,46 @@ namespace HomeBridge.BridgeTools
                         seen[s] = k = ++next;
                         return k;
                     }
-                    foreach (var j in changed) sparseBytes += CodedOutputStream.ComputeUInt32Size(Index(column.Strings![j]));
-                    seen.Clear(); next = (uint)grid.Strings.Count;
+                    foreach (var j in changed) sparseBytes += VarintSize(Index(column.Strings![j]));
+                    seen.Clear(); next = (uint)strings.Count;
                     denseBytes = 0;
-                    for (int j = 0; j < n; j++) denseBytes += CodedOutputStream.ComputeUInt32Size(Index(column.Strings![j]));
+                    for (int j = 0; j < n; j++) denseBytes += VarintSize(Index(column.Strings![j]));
                     break;
                 }
             }
             uint Put(string? s)
             {
                 if (s == null) return 0;
-                if (!table.TryGetValue(s, out var k)) { grid.Strings.Add(s); k = (uint)grid.Strings.Count; table[s] = k; }
+                if (!table.TryGetValue(s, out var k)) { strings.Add(s); k = (uint)strings.Count; table[s] = k; }
                 return k;
             }
             if (sparseBytes < denseBytes)
             {
-                var sparse = new Mirror.SparseArray();
+                var index = new List<uint>(changed.Count);
+                var code = new List<uint>();
+                var number = new List<double>();
                 foreach (var j in changed)
                 {
-                    sparse.Index.Add((uint)j);
+                    index.Add((uint)j);
                     switch (kind)
                     {
-                        case Kind.Code: sparse.Code.Add(column.Codes![j]); break;
-                        case Kind.Number: sparse.Number.Add(column.Numbers![j]); break;
-                        default: sparse.Code.Add(Put(column.Strings![j])); break;
+                        case Kind.Code: code.Add(column.Codes![j]); break;
+                        case Kind.Number: number.Add(column.Numbers![j]); break;
+                        default: code.Add(Put(column.Strings![j])); break;
                     }
                 }
-                return new Mirror.FieldArray { Sparse = sparse };
+                return new Mirror.FieldArray { Form = new Mirror.SparseArray { Index = EquatableArray.From(index), Code = EquatableArray.From(code), Number = EquatableArray.From(number) } };
             }
             switch (kind)
             {
-                case Kind.Code: return new Mirror.FieldArray { Codes = ByteString.CopyFrom(column.Codes) };
+                case Kind.Code: return new Mirror.FieldArray { Form = new Mirror.FieldArrayForm.CodesCase((byte[])column.Codes!.Clone()) };
                 case Kind.Number:
-                {
-                    var numbers = new Mirror.PackedDouble();
-                    numbers.Values.AddRange(column.Numbers!);
-                    return new Mirror.FieldArray { Numbers = numbers };
-                }
+                    return new Mirror.FieldArray { Form = new Mirror.PackedDouble { Values = EquatableArray.From(column.Numbers!) } };
                 default:
                 {
-                    var indexes = new Mirror.PackedUint32();
-                    for (int j = 0; j < n; j++) indexes.Values.Add(Put(column.Strings![j]));
-                    return new Mirror.FieldArray { Indexes = indexes };
+                    var indexes = new uint[n];
+                    for (int j = 0; j < n; j++) indexes[j] = Put(column.Strings![j]);
+                    return new Mirror.FieldArray { Form = new Mirror.PackedUint32 { Values = EquatableArray.From(indexes) } };
                 }
             }
         }

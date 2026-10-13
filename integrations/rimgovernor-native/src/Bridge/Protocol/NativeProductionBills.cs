@@ -5,14 +5,13 @@ using System.Text;
 using System.Linq;
 using System.Collections.Generic;
 using System.Security.Cryptography;
-using Google.Protobuf;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common=RimGovernor.Protocol.Common;
-using Obs=RimGovernor.Protocol.Observations;
-using Operations=RimGovernor.Protocol.Operations;
-using Receipts=RimGovernor.Protocol.Receipts;
+using Common=RimGovernor.Contracts.Wire.Common;
+using Obs=RimGovernor.Contracts.Wire.Observations;
+using Operations=RimGovernor.Contracts.Wire.Operations;
+using Receipts=RimGovernor.Contracts.Wire.Receipts;
 namespace HomeBridge.BridgeTools {
  internal static class NativeProductionBills {
   internal static string Hash(Action<BinaryWriter> write){using(var bytes=new MemoryStream()){using(var writer=new BinaryWriter(bytes,Encoding.UTF8,true))write(writer);using(var hash=SHA256.Create())return "bill-"+BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-","").ToLowerInvariant();}}
@@ -31,7 +30,7 @@ namespace HomeBridge.BridgeTools {
    w.Write("ingredients.hp.min",filter.AllowedHitPointsPercents.min);w.Write("ingredients.hp.max",filter.AllowedHitPointsPercents.max);w.Write("ingredients.quality.min",(int)filter.AllowedQualityLevels.min);w.Write("ingredients.quality.max",(int)filter.AllowedQualityLevels.max);w.Write("ingredients.mentalBreak.min",filter.AllowedMentalBreakChance.min);w.Write("ingredients.mentalBreak.max",filter.AllowedMentalBreakChance.max);
    w.Group("ingredients.special",g=>{foreach(var f in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.OrderBy(d=>d.defName,StringComparer.Ordinal)){g.Write(f.defName);g.Write(filter.Allows(f));}});
   });
-  internal static Obs.SnapshotRef Snapshot(Thing bench,IBillGiver giver,Common.ObservationContext context)=>new Obs.SnapshotRef{Context=context.Clone(),EntityId=bench.GetUniqueLoadID(),Token=Hash(w=>{w.Write(context.Identity.ColonyId);w.Write(context.Identity.LoadToken);w.Write(context.Identity.MapId);w.Write(bench.GetUniqueLoadID());w.Write(giver.BillStack.Count);if(giver.BillStack.Count>BillStack.MaxCount)throw new InvalidOperationException("Bill stack bound");foreach(var b in giver.BillStack.Bills){w.Write(Configuration(b));w.Write(b is Bill_Production p&&p.paused);}})};
+  internal static Obs.SnapshotRef Snapshot(Thing bench,IBillGiver giver,Common.ObservationContext context)=>new Obs.SnapshotRef{Context=context,EntityId=bench.GetUniqueLoadID(),Token=Hash(w=>{w.Write((context.Identity?.ColonyId ?? ""));w.Write((context.Identity?.LoadToken ?? ""));w.Write(context.Identity?.MapId.GetValueOrDefault() ?? 0);w.Write(bench.GetUniqueLoadID());w.Write(giver.BillStack.Count);if(giver.BillStack.Count>BillStack.MaxCount)throw new InvalidOperationException("Bill stack bound");foreach(var b in giver.BillStack.Bills){w.Write(Configuration(b));w.Write(b is Bill_Production p&&p.paused);}})};
   internal static bool Usable(Thing bench)=>bench.Spawned&&ProtoBoundary.IsLoaded(bench.Map)&&bench.Faction==Faction.OfPlayer&&!bench.IsForbidden(Faction.OfPlayer)&&!bench.Position.Fogged(bench.Map)&&!bench.IsBurning()&&bench is IBillGiver g&&g.CurrentlyUsableForBills();
   // Players can queue work on an empty fueled bench; haulers refuel it once a bill waits.
   // CurrentlyUsableForBills rejects an unfueled bench, so admission relaxes only that condition.
@@ -68,29 +67,28 @@ namespace HomeBridge.BridgeTools {
   internal static bool Product(ThingDef d)=>d!=null&&(d.category==ThingCategory.Item&&!d.IsCorpse||d.category==ThingCategory.Building&&d.Minifiable&&d.HasComp(typeof(CompArt)));
   internal static Obs.BillState BillRow(Bill bill,int index){
    var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Recipe=new Obs.DefinitionRef{DefName=bill.recipe.defName},Suspended=bill.suspended,ManagedUnchanged=NativeProductionTracking.ManagedUnchanged(bill)};
-   row.Worker=NativeRef.Of(bill.PawnRestriction);
+   row = row with { Worker = NativeRef.Of(bill.PawnRestriction) };
    // Census defaults stay detached from native bill ids.
    var fresh=Detached(bill.recipe);
    if(bill is Bill_Production && bill.billStack?.billGiver is Thing bench){
     var defaults=new Operations.BillSettings();
-    if(NativeRecipeRoles.Corpse(bill.recipe)){defaults.CorpseClass=CorpseClass(bill);}
+    if(NativeRecipeRoles.Corpse(bill.recipe)){defaults = defaults with { CorpseClass = CorpseClass(bill) };}
     ConfigureIngredients(fresh,bill.recipe,defaults,bench.Map);
-    row.DefaultIngredients=FilterConfiguration(bill.ingredientFilter)==FilterConfiguration(fresh.ingredientFilter);
-    row.UnrestrictedWorker=bill.allowedSkillRange==fresh.allowedSkillRange && bill.SlavesOnly==fresh.SlavesOnly && bill.MechsOnly==fresh.MechsOnly && bill.NonMechsOnly==fresh.NonMechsOnly;
+    row = row with { DefaultIngredients = FilterConfiguration(bill.ingredientFilter)==FilterConfiguration(fresh.ingredientFilter) };
+    row = row with { UnrestrictedWorker = bill.allowedSkillRange==fresh.allowedSkillRange && bill.SlavesOnly==fresh.SlavesOnly && bill.MechsOnly==fresh.MechsOnly && bill.NonMechsOnly==fresh.NonMechsOnly };
    }
    if(NativeRecipeRoles.ButcherFlesh(bill.recipe)){
-    row.IngredientFilter=new Obs.StockpileFilter();
-    row.IngredientFilter.AllowedDefNames.Add(bill.ingredientFilter.AllowedThingDefs.Where(d=>d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true).Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal));
+    row = row with { IngredientFilter = new Obs.StockpileFilter { AllowedDefNames = [.. bill.ingredientFilter.AllowedThingDefs.Where(d=>d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true).Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal)] } };
    }
-   else {row.IngredientFilter=new Obs.StockpileFilter();row.IngredientFilter.AllowedDefNames.Add(bill.ingredientFilter.AllowedThingDefs.Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal));}
-   Reservations(bill,row);
-   if(bill is Bill_Production p){row.RepeatMode=NativeEnums.Repeat(p.repeatMode);row.RepeatCount=p.repeatCount;row.TargetCount=p.targetCount;row.UnpauseBelow=p.unpauseWhenYouHave;row.PauseWhenSatisfied=p.pauseWhenSatisfied;row.Paused=p.paused;row.Finished=BillCommon.IsFinished(p);}
+   else {row = row with { IngredientFilter = new Obs.StockpileFilter { AllowedDefNames = [.. bill.ingredientFilter.AllowedThingDefs.Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal)] } };}
+   row=Reservations(bill,row);
+   if(bill is Bill_Production p){row = row with { RepeatMode = NativeEnums.Repeat(p.repeatMode) };row = row with { RepeatCount = p.repeatCount };row = row with { TargetCount = p.targetCount };row = row with { UnpauseBelow = p.unpauseWhenYouHave };row = row with { PauseWhenSatisfied = p.pauseWhenSatisfied };row = row with { Paused = p.paused };row = row with { Finished = BillCommon.IsFinished(p) };}
    return row;
   }
   // Each spawned pawn whose current job works this bill: the spawned things
   // it has queued (targetQueueB/countQueue) or placed.
-  private static void Reservations(Bill bill,Obs.BillState row){
-   if(!(bill.billStack?.billGiver is Thing bench)||!bench.Spawned)return;
+  private static Obs.BillState Reservations(Bill bill,Obs.BillState row){
+   if(!(bill.billStack?.billGiver is Thing bench)||!bench.Spawned)return row;
    foreach(var pawn in bench.Map.mapPawns.AllPawnsSpawned){
     var job=pawn.CurJob;
     if(job?.bill!=bill)continue;
@@ -101,24 +99,25 @@ namespace HomeBridge.BridgeTools {
     if(job.placedThings!=null)foreach(var placed in job.placedThings)Add(placed.thing,placed.Count);
     if(items.Count==0)continue;
     var reservation=new Obs.IngredientReservation{PawnId=pawn.GetUniqueLoadID()};
-    foreach(var item in items.OrderBy(i=>i.Key,StringComparer.Ordinal))reservation.Items.Add(new Obs.Quantity{DefName=item.Key,Units=item.Value});
-    row.Reservations.Add(reservation);
+    foreach(var item in items.OrderBy(i=>i.Key,StringComparer.Ordinal))reservation = reservation with { Items = [.. reservation.Items, new Obs.Quantity{DefName=item.Key,Units=item.Value}] };
+    row = row with { Reservations = [.. row.Reservations, reservation] };
    }
+   return row;
   }
   internal static Obs.RecipeState RecipeRow(Thing bench,RecipeDef recipe){var row=new Obs.RecipeState{Recipe=new Obs.DefinitionRef{DefName=recipe.defName},AvailableNow=recipe.AvailableNow,AvailableOnBench=recipe.AvailableOnNow(bench)};return row;}
   internal static void ConfigureIngredients(Bill_Production bill,RecipeDef recipe,Operations.BillSettings s,Map map){
      if(s.Ingredients!=null){
       bill.ingredientFilter.SetDisallowAll();
-      foreach(var selector in s.Ingredients.Replace.Selectors)bill.ingredientFilter.SetAllow(DefDatabase<ThingDef>.GetNamed(selector.ThingDef),true);
+      foreach(var selector in s.Ingredients.Replace?.Selectors ?? default)bill.ingredientFilter.SetAllow(DefDatabase<ThingDef>.GetNamed(selector.Definition?.ThingDef),true);
      }
-     if(NativeRecipeRoles.Corpse(recipe))ConfigureCorpses(bill,recipe,s.CorpseClass);
+     if(NativeRecipeRoles.Corpse(recipe))ConfigureCorpses(bill,recipe,s.CorpseClass.GetValueOrDefault());
      else{
       // Shared colonist cooking never creates human-meat meals. Dedicated
       // destination bills must supply their own explicit routing contract.
       bool trade=s.Ingredients!=null&&recipe!.products.All(p=>p.thingDef==ThingDefOf.MealSurvivalPack);
       bool eligible=s.Ingredients!=null&&map.mapPawns.FreeColonistsSpawned.All(HumanFoodFacts.AcceptsMeat);
       bool feed=recipe!.products.All(p=>p.thingDef.ingestible!=null && (p.thingDef.ingestible.foodType&FoodTypeFlags.Kibble)!=0);
-      foreach(var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(HumanFoodFacts.IsHumanMeat))bill.ingredientFilter.SetAllow(def,(feed || (trade || eligible) && s.Ingredients!.Replace.Selectors.Any(x=>x.ThingDef==def.defName)) && recipe.ingredients.Any(i=>i.filter.Allows(def)));
+      foreach(var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(HumanFoodFacts.IsHumanMeat))bill.ingredientFilter.SetAllow(def,(feed || (trade || eligible) && (s.Ingredients!.Replace?.Selectors ?? default).Any(x=>x.Definition?.ThingDef==def.defName)) && recipe.ingredients.Any(i=>i.filter.Allows(def)));
      }
   }
   internal static bool Valid(Operations.ProductionBillIntent? intent)=>NativeProductionBillSettings.Valid(intent);
@@ -137,13 +136,13 @@ namespace HomeBridge.BridgeTools {
   internal static Bill? Standing(IBillGiver giver,Bill? except,Operations.ProductionBillIntent intent,string expectedFilter)=>giver.BillStack.Bills.FirstOrDefault(b=>b!=except && Matches(b,intent,expectedFilter));
   // A finished "do X times" bill is spent, not standing: the next batch is a new bill.
   internal static bool Matches(Bill b,Operations.ProductionBillIntent intent,string expectedFilter){
-   if(!(b is Bill_Production p)||p.recipe.defName!=intent.RecipeDef||BillCommon.IsFinished(p))return false;
-   var s=intent.Settings;
-   if((b is SocialBeerBill)!=s.BeerReserve)return false;
-   if((p.PawnRestriction?.GetUniqueLoadID()??"")!=(s.Worker?.EntityId??""))return false;
-   if(s.RepeatMode==Operations.RepeatMode.Forever){if(p.repeatMode!=BillRepeatModeDefOf.Forever)return false;}
-   else if(s.RepeatMode==Operations.RepeatMode.Count){if(p.repeatMode!=BillRepeatModeDefOf.RepeatCount||p.repeatCount!=s.RepeatCount)return false;}
-   else if(p.repeatMode!=BillRepeatModeDefOf.TargetCount||p.targetCount!=s.TargetCount||p.unpauseWhenYouHave!=s.UnpauseThreshold||!p.pauseWhenSatisfied)return false;
+   if(!(b is Bill_Production p)||p.recipe.defName!=(intent.RecipeDef ?? "")||BillCommon.IsFinished(p))return false;
+   var s=intent.Settings ?? new Operations.BillSettings();
+   if((b is SocialBeerBill)!=s.BeerReserve.GetValueOrDefault())return false;
+   if((p.PawnRestriction?.GetUniqueLoadID()??"")!=(s.Worker?.Value?.EntityId??""))return false;
+   if(s.RepeatMode.GetValueOrDefault()==Operations.RepeatMode.Forever){if(p.repeatMode!=BillRepeatModeDefOf.Forever)return false;}
+   else if(s.RepeatMode.GetValueOrDefault()==Operations.RepeatMode.Count){if(p.repeatMode!=BillRepeatModeDefOf.RepeatCount||p.repeatCount!=s.RepeatCount.GetValueOrDefault())return false;}
+   else if(p.repeatMode!=BillRepeatModeDefOf.TargetCount||p.targetCount!=s.TargetCount.GetValueOrDefault()||p.unpauseWhenYouHave!=s.UnpauseThreshold.GetValueOrDefault()||!p.pauseWhenSatisfied)return false;
    return FilterConfiguration(p.ingredientFilter)==expectedFilter;
   }
   internal static bool Skilled(Pawn p,Thing bench,RecipeDef recipe,WorkTypeDef work)=>p.workSettings.GetPriority(work)>0&&!p.WorkTypeIsDisabled(work)&&!bench.IsForbidden(p)&&p.Position.DistanceTo(bench.Position)<=40&&p.CanReach(bench,PathEndMode.InteractionCell,Danger.None)&&(recipe.skillRequirements==null||recipe.skillRequirements.All(s=>p.skills?.GetSkill(s.skill)!=null&&!p.skills.GetSkill(s.skill).TotallyDisabled&&p.skills.GetSkill(s.skill).Level>=s.minLevel));
@@ -167,71 +166,71 @@ namespace HomeBridge.BridgeTools {
   private static Common.Failure? Resolve(Operations.ProductionBillIntent? intent,Common.ObservationContext context,out Target target){
    target=new Target();
    if(!NativeProductionBills.Valid(intent))return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Production bill requires an exact bench, recipe and supported bill settings.");
-   var map=ProtoBoundary.LoadedMap(context);var t=target;
-   var bench=map.listerThings.AllThings.FirstOrDefault(x=>x.GetUniqueLoadID()==intent!.BenchId);var giver=bench as IBillGiver;
-   var replaced=intent!.ReplaceOwnedBill!=null&&bench!=null?NativeProductionTracking.ReplaceableBill(intent.ReplaceOwnedBill.Id,bench,intent.RecipeDef):null;
-   var recipe=DefDatabase<RecipeDef>.GetNamedSilentFail(intent.RecipeDef);
+   var map=ProtoBoundary.LoadedMap(context);var t=target;var settings=intent!.Settings ?? new Operations.BillSettings();
+   var bench=map.listerThings.AllThings.FirstOrDefault(x=>x.GetUniqueLoadID()==(intent!.BenchId ?? ""));var giver=bench as IBillGiver;
+   var replaced=intent!.ReplaceOwnedBill!=null&&bench!=null?NativeProductionTracking.ReplaceableBill((intent.ReplaceOwnedBill.Id ?? ""),bench,(intent.RecipeDef ?? "")):null;
+   var recipe=DefDatabase<RecipeDef>.GetNamedSilentFail((intent.RecipeDef ?? ""));
    Bill? twin=null;
    if(giver!=null&&recipe!=null&&NativeProductionBills.Recipe(bench!,recipe)){
-    string? expected=null;try{expected=NativeProductionBills.ExpectedFilter(recipe,intent.Settings,map);}catch(Exception){}
+    string? expected=null;try{expected=NativeProductionBills.ExpectedFilter(recipe,settings,map);}catch(Exception){}
     if(expected!=null)twin=NativeProductionBills.Standing(giver,replaced,intent,expected);
    }
    if(twin!=null&&replaced==null){t.Bench=bench!;t.Giver=giver!;t.Standing=twin;return null;}
    var work=bench!=null&&recipe!=null?NativeBillsObservationTools.WorkType(bench.def,recipe):null;
    var colonists=map.mapPawns.FreeColonistsSpawned.Where(p=>!p.Dead&&!p.Downed&&!p.Drafted&&!p.InMentalState&&p.workSettings?.Initialized==true).ToList();
-   if(intent.Settings.Worker!=null)colonists=colonists.Where(p=>p.GetUniqueLoadID()==intent.Settings.Worker.EntityId&&(!NativeRecipeRoles.ButcherFlesh(NativeRecipeRoles.Named(intent.RecipeDef))||HumanFoodFacts.AcceptsButchery(p))).ToList();
+   if(settings.Worker!=null)colonists=colonists.Where(p=>p.GetUniqueLoadID()==settings.Worker.Value?.EntityId&&(!NativeRecipeRoles.ButcherFlesh(NativeRecipeRoles.Named((intent.RecipeDef ?? "")))||HumanFoodFacts.AcceptsButchery(p))).ToList();
    var rules=new ApplyPreconditions(Kind)
-    .Present(()=>bench!=null&&giver!=null,"bench "+intent.BenchId+" is not a loaded bill giver")
+    .Present(()=>bench!=null&&giver!=null,"bench "+(intent.BenchId ?? "")+" is not a loaded bill giver")
     .Require(()=>NativeProductionTracking.Ready,"production tracking is unavailable")
     .Require(()=>NativeProductionBills.UsableForNewBill(bench!),"bench is not usable for bills")
     .Require(()=>intent.ReplaceOwnedBill==null||replaced!=null,"replacement must be the same recipe on this bench or an ordinary meal tier on this map")
     .Require(()=>giver!.BillStack.Count<BillStack.MaxCount||replaced?.billStack==giver.BillStack,"bench_bill_slots_full: the bench already carries "+BillStack.MaxCount+" bills")
-    .Require(()=>twin==null,"bench already carries an identical "+intent.RecipeDef+" bill")
-    .Require(()=>recipe!=null&&NativeProductionBills.Recipe(bench!,recipe),"recipe "+intent.RecipeDef+" is not available on the bench")
-    .Require(()=>!intent.Settings.BeerReserve||recipe!.products.Count==1&&recipe.products[0].thingDef==ThingDefOf.Wort,"Beer reserve requires a wort recipe")
-    .Require(()=>NativeProductionBills.CorpseRecipe(intent.RecipeDef)||recipe!.WorkerCounter.GetType()==typeof(RecipeWorkerCounter)&&recipe.specialProducts==null&&recipe.products.Count==1,"recipe "+intent.RecipeDef+" is not ordinary single-product work")
-    .Require(()=>replaced==null||replaced.recipe.defName==intent.RecipeDef||NativeProductionTracking.OrdinaryMeal(recipe!),"replacement requires an ordinary meal recipe")
-    .Require(()=>Funded(intent,recipe!),"ingredient filter does not fund the recipe's ingredient slots")
-    .Require(()=>work!=null,"recipe "+intent.RecipeDef+" has no work type on "+bench?.def.defName);
+    .Require(()=>twin==null,"bench already carries an identical "+(intent.RecipeDef ?? "")+" bill")
+    .Require(()=>recipe!=null&&NativeProductionBills.Recipe(bench!,recipe),"recipe "+(intent.RecipeDef ?? "")+" is not available on the bench")
+    .Require(()=>!settings.BeerReserve.GetValueOrDefault()||recipe!.products.Count==1&&recipe.products[0].thingDef==ThingDefOf.Wort,"Beer reserve requires a wort recipe")
+    .Require(()=>NativeProductionBills.CorpseRecipe((intent.RecipeDef ?? ""))||recipe!.WorkerCounter.GetType()==typeof(RecipeWorkerCounter)&&recipe.specialProducts==null&&recipe.products.Count==1,"recipe "+(intent.RecipeDef ?? "")+" is not ordinary single-product work")
+    .Require(()=>replaced==null||replaced.recipe.defName==(intent.RecipeDef ?? "")||NativeProductionTracking.OrdinaryMeal(recipe!),"replacement requires an ordinary meal recipe")
+    .Require(()=>Funded(settings,recipe!),"ingredient filter does not fund the recipe's ingredient slots")
+    .Require(()=>work!=null,"recipe "+(intent.RecipeDef ?? "")+" has no work type on "+bench?.def.defName);
    if(rules.Holds)rules.Require(()=>colonists.Any(p=>NativeProductionBills.Skilled(p,bench!,recipe!,work!)),NativeProductionBills.NoWorker(map,bench!,recipe!,work!,colonists));
    if(!rules.Holds)return rules.Failure();
    t.Bench=bench!;t.Giver=giver!;t.Recipe=recipe!;t.Replaced=replaced;
    return null;
   }
-  private static bool Funded(Operations.ProductionBillIntent intent,RecipeDef recipe){
-   if(intent.Settings.Ingredients==null)return true;
-   var definitions=intent.Settings.Ingredients.Replace.Selectors.Select(s=>DefDatabase<ThingDef>.GetNamedSilentFail(s.ThingDef)).ToArray();
+  private static bool Funded(Operations.BillSettings settings,RecipeDef recipe){
+   if(settings.Ingredients==null)return true;
+   var definitions=(settings.Ingredients.Replace?.Selectors ?? default).Select(s=>DefDatabase<ThingDef>.GetNamedSilentFail(s.Definition?.ThingDef)).ToArray();
    return !definitions.Any(d=>d==null||recipe.fixedIngredientFilter!=null&&!recipe.fixedIngredientFilter.Allows(d)||!recipe.ingredients.Any(i=>i.filter.Allows(d)))&&recipe.ingredients.All(i=>definitions.Any(d=>i.filter.Allows(d)));
   }
   public Common.Failure? Validate(Operations.Action action,Common.ObservationContext context){
-   if(action.ProductionBill?.Patient!=null)return NativeSurgery.Validate(action.ProductionBill,context);
-   if(NativeMechBills.Handles(action.ProductionBill))return NativeMechBills.Validate(action.ProductionBill!,context);
-   var failure=Resolve(action.ProductionBill,context,out _);
+   if(action.Intent?.ProductionBill?.Patient!=null)return NativeSurgery.Validate(action.Intent?.ProductionBill,context);
+   if(NativeMechBills.Handles(action.Intent?.ProductionBill))return NativeMechBills.Validate(action.Intent?.ProductionBill!,context);
+   var failure=Resolve(action.Intent?.ProductionBill,context,out _);
    return failure;
   }
   public Receipts.EffectEvidence Apply(Operations.Action action,Common.ObservationContext context){
-   var intent=action.ProductionBill;
+   var intent=action.Intent?.ProductionBill ?? throw new InvalidOperationException("Production bill intent is missing");
    if(intent.Patient!=null)return NativeSurgery.Apply(intent,context);
    if(NativeMechBills.Handles(intent))return NativeMechBills.Apply(intent,context);
    var failure=Resolve(intent,context,out var t);
-   if(failure!=null)throw new InvalidOperationException("Production bill prerequisites changed before apply: "+failure.Detail);
+   if(failure!=null)throw new InvalidOperationException("Production bill prerequisites changed before apply: "+(failure.Detail ?? ""));
    var standing=t.Standing;
    if(standing==null){
-    var s=intent.Settings;
-    var bill=s.BeerReserve?new SocialBeerBill(t.Recipe):t.Recipe.MakeNewBill(null) as Bill_Production;if(bill==null)throw new InvalidOperationException("Recipe is not ordinary production");
+    var s=intent.Settings ?? new Operations.BillSettings();
+    var bill=s.BeerReserve.GetValueOrDefault()?new SocialBeerBill(t.Recipe):t.Recipe.MakeNewBill(null) as Bill_Production;if(bill==null)throw new InvalidOperationException("Recipe is not ordinary production");
     if(s.RepeatMode==Operations.RepeatMode.Forever)bill.repeatMode=BillRepeatModeDefOf.Forever;
-    else if(s.RepeatMode==Operations.RepeatMode.Count){bill.repeatMode=BillRepeatModeDefOf.RepeatCount;bill.repeatCount=s.RepeatCount;}
-    else{bill.repeatMode=BillRepeatModeDefOf.TargetCount;bill.targetCount=s.TargetCount;bill.unpauseWhenYouHave=s.UnpauseThreshold;bill.pauseWhenSatisfied=true;}
+    else if(s.RepeatMode==Operations.RepeatMode.Count){bill.repeatMode=BillRepeatModeDefOf.RepeatCount;bill.repeatCount=s.RepeatCount.GetValueOrDefault();}
+    else{bill.repeatMode=BillRepeatModeDefOf.TargetCount;bill.targetCount=s.TargetCount.GetValueOrDefault();bill.unpauseWhenYouHave=s.UnpauseThreshold.GetValueOrDefault();bill.pauseWhenSatisfied=true;}
     bill.suspended=false;bill.ingredientSearchRadius=40;bill.SetStoreMode(BillStoreModeDefOf.DropOnFloor,null);
     NativeProductionBills.ConfigureIngredients(bill,t.Recipe,s,t.Bench.Map);
-    if(s.Worker!=null)bill.SetPawnRestriction(t.Bench.Map.mapPawns.FreeColonistsSpawned.Single(p=>p.GetUniqueLoadID()==s.Worker.EntityId));
+    if(s.Worker!=null)bill.SetPawnRestriction(t.Bench.Map.mapPawns.FreeColonistsSpawned.Single(p=>p.GetUniqueLoadID()==s.Worker.Value?.EntityId));
     var record=new NativeProductionRecord(t.Giver,bill);
     if(!NativeProductionTracking.Track(record))throw new InvalidOperationException("Production tracking unavailable");
     if(t.Replaced!=null){NativeProductionTracking.Retire(t.Replaced);t.Replaced.billStack.Delete(t.Replaced);}
     t.Giver.BillStack.AddBill(bill);record.Capture();
     standing=bill;
    }
-   return new Receipts.EffectEvidence{Bill=new Receipts.BillEffect{Stack=new Receipts.SnapshotEvidence{EntityId=t.Bench.GetUniqueLoadID()},Bill=NativeRef.Of(standing.GetUniqueLoadID()),RecipeDef=standing.recipe.defName}};
+   return new Receipts.EffectEvidence{Effect=new Receipts.BillEffect{Stack=new Receipts.SnapshotEvidence{EntityId=t.Bench.GetUniqueLoadID()},Bill=NativeRef.Of(standing.GetUniqueLoadID()),RecipeDef=standing.recipe.defName}};
   }
  }
  // Actions/Apply remove_production_bill: delete one bill from a player bench.
@@ -244,21 +243,21 @@ namespace HomeBridge.BridgeTools {
   private sealed class Target {internal Thing Bench=null!;internal Bill Bill=null!;}
   private static Common.Failure? Resolve(Operations.RemoveProductionBillIntent? intent,Common.ObservationContext context,out Target target){
    target=new Target();
-   if(intent==null||!intent.HasBenchId||!ProtoBoundary.IsIdentifier(intent.BenchId)||intent.Bill==null||!ProtoBoundary.IsIdentifier(intent.Bill.Id))return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Remove production bill requires an exact bench and bill.");
+   if(intent==null||intent.BenchId is null||!ProtoBoundary.IsIdentifier(intent.BenchId)||intent.Bill==null||!ProtoBoundary.IsIdentifier(intent.Bill.Id))return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Remove production bill requires an exact bench and bill.");
    var map=ProtoBoundary.LoadedMap(context);var t=target;
-   var bench=map.listerThings.AllThings.FirstOrDefault(x=>x.GetUniqueLoadID()==intent.BenchId);var giver=bench as IBillGiver;
-   var bill=giver?.BillStack.Bills.FirstOrDefault(b=>b.GetUniqueLoadID()==intent.Bill.Id);
+   var bench=map.listerThings.AllThings.FirstOrDefault(x=>x.GetUniqueLoadID()==(intent.BenchId ?? ""));var giver=bench as IBillGiver;
+   var bill=giver?.BillStack.Bills.FirstOrDefault(b=>b.GetUniqueLoadID()==(intent.Bill.Id ?? ""));
    var rules=new ApplyPreconditions(Kind)
-    .Present(()=>bench!=null&&giver!=null,"bench "+intent.BenchId+" is not a loaded bill giver")
-    .Present(()=>bill!=null,"bill "+intent.Bill.Id+" is not on bench "+intent.BenchId)
-    .Require(()=>bill is Bill_Production,"bill "+intent.Bill.Id+" is not an ordinary production bill");
+    .Present(()=>bench!=null&&giver!=null,"bench "+(intent.BenchId ?? "")+" is not a loaded bill giver")
+    .Present(()=>bill!=null,"bill "+(intent.Bill.Id ?? "")+" is not on bench "+(intent.BenchId ?? ""))
+    .Require(()=>bill is Bill_Production,"bill "+(intent.Bill.Id ?? "")+" is not an ordinary production bill");
    if(!rules.Holds)return rules.Failure();
    t.Bench=bench!;t.Bill=bill!;
    return null;
   }
-  public Common.Failure? Validate(Operations.Action action,Common.ObservationContext context)=>Resolve(action.RemoveProductionBill,context,out _);
+  public Common.Failure? Validate(Operations.Action action,Common.ObservationContext context)=>Resolve(action.Intent?.RemoveProductionBill,context,out _);
   public Receipts.EffectEvidence Apply(Operations.Action action,Common.ObservationContext context){
-   var intent=action.RemoveProductionBill;
+   var intent=action.Intent?.RemoveProductionBill ?? throw new InvalidOperationException("Remove production bill intent is missing");
    var failure=Resolve(intent,context,out var t);
    if(failure!=null)throw new ApplyRefusedException(failure);
    var id=t.Bill.GetUniqueLoadID();var recipe=t.Bill.recipe.defName;
@@ -267,7 +266,7 @@ namespace HomeBridge.BridgeTools {
    // orphan to be cancelled (a recipe change): Cancel returns the ingredient share.
    if(intent.CancelUnfinished&&t.Bill is Bill_ProductionWithUft uft&&uft.BoundUft!=null&&!uft.BoundUft.Destroyed)uft.BoundUft.Destroy(DestroyMode.Cancel);
    NativeProductionTracking.Retire(t.Bill);t.Bill.billStack.Delete(t.Bill);
-   return new Receipts.EffectEvidence{Bill=new Receipts.BillEffect{Stack=new Receipts.SnapshotEvidence{EntityId=t.Bench.GetUniqueLoadID()},Bill=NativeRef.Of(id),RecipeDef=recipe}};
+   return new Receipts.EffectEvidence{Effect=new Receipts.BillEffect{Stack=new Receipts.SnapshotEvidence{EntityId=t.Bench.GetUniqueLoadID()},Bill=NativeRef.Of(id),RecipeDef=recipe}};
   }
  }
 }

@@ -4,8 +4,8 @@ using System.Linq;
 using System.Collections.Generic;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -20,16 +20,16 @@ namespace HomeBridge.BridgeTools
                 var result = new Obs.RecoverySnapshot { Context = context };
                 // Each building's hit points, fuel and breakdown state is its
                 // row in the bundle's building table.
-                foreach (var building in buildings) result.Buildings.Add(NativeBuildingObservationTools.Ref(building));
+                foreach (var building in buildings) result = result with { Buildings = [.. result.Buildings, NativeBuildingObservationTools.Ref(building)] };
                 foreach (var pawn in pawns) {
                     var row = new Obs.RecoveryRestriction { Pawn = NativePawnObservationTools.Ref(pawn) };
                     var area = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
-                    if (area != null) row.AreaId = area.GetUniqueLoadID();
-                    result.Restrictions.Add(row);
+                    if (area != null) row = row with { AreaId = area.GetUniqueLoadID() };
+                    result = result with { Restrictions = [.. result.Restrictions, row] };
                 }
-                return new Obs.RecoveryReply { Observed = result };
+                return new Obs.RecoveryReply { Outcome = result };
             } catch (Exception) {
-                return new Obs.RecoveryReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                return new Obs.RecoveryReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
                     Detail = "Complete bounded recovery census is unavailable." } };
             }
         }

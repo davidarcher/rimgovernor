@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Obs = RimGovernor.Protocol.Observations;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -24,15 +24,15 @@ namespace HomeBridge.BridgeTools
                         && pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation),
                     CanFight = !pawn.Dead && !pawn.Downed && !pawn.InMentalState && !pawn.WorkTagIsDisabled(WorkTags.Violent),
                     CarryCapacity = MassUtility.Capacity(pawn), CarriedMass = MassUtility.GearAndInventoryMass(pawn) };
-                row.FactionLeader = pawn == Faction.OfPlayer.leader;
+                row = row with { FactionLeader = pawn == Faction.OfPlayer.leader };
                 if (!StatDefOf.NegotiationAbility.Worker.IsDisabledFor(pawn))
                 {
-                    row.NegotiationAbility = pawn.GetStatValue(StatDefOf.NegotiationAbility);
-                    if (pawn.skills != null) row.SocialLevel = pawn.skills.GetSkill(SkillDefOf.Social).Level;
+                    row = row with { NegotiationAbility = pawn.GetStatValue(StatDefOf.NegotiationAbility) };
+                    if (pawn.skills != null) row = row with { SocialLevel = pawn.skills.GetSkill(SkillDefOf.Social).Level };
                 }
                 foreach (var stat in stats)
-                    row.Rates.Add(new Obs.QuestWorkRate { Stat = stat.defName,
-                        Rate = stat.Worker.IsDisabledFor(pawn) ? 0 : pawn.GetStatValue(stat) });
+                    row = row with { Rates = [.. row.Rates, new Obs.QuestWorkRate { Stat = stat.defName,
+                        Rate = stat.Worker.IsDisabledFor(pawn) ? 0 : pawn.GetStatValue(stat) }] };
                 yield return row;
             }
         }

@@ -20,8 +20,8 @@ internal static class NativeGiveJobProbe
 
     private static object Wire(string name, string json)
     {
-        var parser = bridge.GetType("RimGovernor.Protocol." + name, true)!.GetProperty("Parser")!.GetValue(null)!;
-        return parser.GetType().GetMethod("ParseJson")!.Invoke(parser, new object[] { json })!;
+        var type = typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType("RimGovernor.Contracts.Wire." + name, true)!;
+        return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize", new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
     }
 
     private static object? Get(object obj, string name) => obj.GetType().GetProperty(name, Flags)!.GetValue(obj);
@@ -35,15 +35,16 @@ internal static class NativeGiveJobProbe
         };
         bridge = Assembly.LoadFrom(Path.GetFullPath(args[0]));
 
-        var action = Wire("Operations.Action", "{\"key\":\"k\",\"giveJob\":{\"pawn\":{\"id\":\"Human1\"},\"job\":\"UseItem\",\"targets\":[{\"id\":\"Apparel_PsychicShockLance7\"},{\"id\":\"Human2\"}]}}");
-        Check(Get(action, "IntentCase")!.ToString() == "GiveJob", "give_job arm parses");
-        var intent = Get(action, "GiveJob")!;
+        var action = Wire("Operations.Action", "{\"key\":\"k\",\"intent\":{\"type\":\"giveJob\",\"value\":{\"pawn\":{\"id\":\"Human1\"},\"job\":\"UseItem\",\"targets\":[{\"id\":\"Apparel_PsychicShockLance7\"},{\"id\":\"Human2\"}]}}}");
+        var intent = Get(Get(action, "Intent")!, "GiveJob")!;
+        Check(Get(action, "Intent")!.GetType().Name == "GiveJobCase", "give_job arm parses");
+
         Check((string)Get(Get(intent, "Pawn")!, "Id")! == "Human1" && (string)Get(intent, "Job")! == "UseItem", "give_job fields round trip");
 
         var dispatch = bridge.GetType("HomeBridge.BridgeTools.NativeActionDispatch", true)!;
         dispatch.GetMethod("AssertComplete", Flags)!.Invoke(null, null);
         var handlers = (System.Collections.IDictionary)dispatch.GetField("Handlers", Flags)!.GetValue(null)!;
-        Check(handlers.Keys.Cast<object>().Any(k => k.ToString() == "GiveJob"), "Actions/Apply has a GiveJob handler");
+        Check(handlers.Keys.Cast<object>().Any(k => ((Type)k).Name == "GiveJobCase"), "Actions/Apply has a GiveJob handler");
 
         var giveJob = bridge.GetType("HomeBridge.BridgeTools.NativeGiveJob", true)!;
         var classify = giveJob.GetMethod("Classify", Flags)!;
@@ -57,7 +58,7 @@ internal static class NativeGiveJobProbe
 
         var handler = Activator.CreateInstance(bridge.GetType("HomeBridge.BridgeTools.GiveJobActionHandler", true)!, true)!;
         var validate = handler.GetType().GetMethod("Validate", Flags)!;
-        var context = Wire("Common.ObservationContext", "{\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0},\"tick\":\"10\",\"nativeGeneration\":\"1\"}");
+        var context = Wire("Common.ObservationContext", "{\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0},\"tick\":10,\"nativeGeneration\":1}");
         foreach (var json in new[] {
             "{}",
             "{\"job\":\"Repair\",\"targets\":[{\"id\":\"t\"}]}",
@@ -72,7 +73,7 @@ internal static class NativeGiveJobProbe
             "{\"pawn\":{\"id\":\"p\"},\"job\":\"Ingest\",\"options\":{\"relieveNeed\":\"NEED_FOOD\"}}",
         })
         {
-            var failure = validate.Invoke(handler, new[] { Wire("Operations.Action", "{\"key\":\"k\",\"giveJob\":" + json + "}"), context });
+            var failure = validate.Invoke(handler, new[] { Wire("Operations.Action", "{\"key\":\"k\",\"intent\":{\"type\":\"giveJob\",\"value\":" + json + "}}"), context });
             Check(failure != null && Get(failure, "Code")!.ToString() == "InvalidRequest", "malformed give_job refused: " + json);
         }
         Console.WriteLine($"native-give-job: {checks} checks passed");

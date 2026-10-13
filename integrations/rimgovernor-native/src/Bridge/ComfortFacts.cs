@@ -5,7 +5,7 @@ using System.Text;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Obs = RimGovernor.Protocol.Observations;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 using static HomeBridge.BridgeTools.NativePawnObservationTools;
 
 namespace HomeBridge.BridgeTools
@@ -35,11 +35,11 @@ namespace HomeBridge.BridgeTools
             var v = ReadProtocol(map);
             return new {
                 people = v.People.ToList(),
-                surfaces = v.Surfaces.Select(s => new { id = s.Id, roomId = s.Room?.Id,
-                    adjacent = s.Adjacent.Select(c => new { x = c.X, z = c.Z }).ToList() }).ToList(),
-                dining = v.Dining.Select(f => new { id = f.Id, roomId = f.Room?.Id,
+                surfaces = v.Surfaces.Select(s => new { id = (s.Id ?? ""), roomId = (s.Room?.Id ?? ""),
+                    adjacent = s.Adjacent.Select(c => new { x = c.X.GetValueOrDefault(), z = c.Z.GetValueOrDefault() }).ToList() }).ToList(),
+                dining = v.Dining.Select(f => new { id = (f.Id ?? ""), roomId = (f.Room?.Id ?? ""),
                     accessibleTo = f.AccessibleTo.ToList(), users = f.Users.ToList() }).ToList(),
-                recreation = v.Recreation.Select(f => new { id = f.Id, kind = f.Kind, roomId = f.Room?.Id,
+                recreation = v.Recreation.Select(f => new { id = (f.Id ?? ""), kind = (f.Kind ?? ""), roomId = (f.Room?.Id ?? ""),
                     accessibleTo = f.AccessibleTo.ToList(), users = f.Users.ToList() }).ToList()
             };
         }
@@ -68,38 +68,38 @@ namespace HomeBridge.BridgeTools
                 && (b.TryGetComp<CompPowerTrader>() == null || b.TryGetComp<CompPowerTrader>().PowerOn)).ToList();
             var surfaces = buildings.Where(b => b.def.surfaceType == SurfaceType.Eat && Indoors(b)).ToList();
             var result = new Obs.ComfortFacts { };
-            result.People.Add(people.Select(p => Id(p.GetUniqueLoadID())));
+            result = result with { People = [.. result.People, .. people.Select(p => Id(p.GetUniqueLoadID()))] };
             foreach (var b in surfaces) {
                 var adjacent = b.OccupiedRect().SelectMany(c => GenAdj.CardinalDirections.Select(d => c+d)).Distinct()
                     .Where(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null)
                     .OrderBy(c => c.z).ThenBy(c => c.x).ToList();
                 var row = new Obs.ComfortSurface { Id = Id(b.GetUniqueLoadID()) };
-                if (HostRoom(b) is string surfaceRoom) row.Room = NativeRef.Of(surfaceRoom);
-                row.Adjacent.Add(adjacent.Select(Cell)); result.Surfaces.Add(row);
+                if (HostRoom(b) is string surfaceRoom) row = row with { Room = NativeRef.Of(surfaceRoom) };
+                row = row with { Adjacent = [.. row.Adjacent, .. adjacent.Select(Cell)] }; result = result with { Surfaces = [.. result.Surfaces, row] };
             }
             foreach (var b in seats) {
                 var row = new Obs.ComfortFacility { Id = Id(b.GetUniqueLoadID()) };
-                if (HostRoom(b) is string seatRoom) row.Room = NativeRef.Of(seatRoom);
-                row.AccessibleTo.Add(NativeRef.All(people.Where(p => Safe(p, b)).Select(p => Id(p.GetUniqueLoadID()))));
-                row.Users.Add(NativeRef.All(people.Where(p => p.CurJob?.def == JobDefOf.Ingest && b.OccupiedRect().Contains(p.Position))
-                    .Select(p => Id(p.GetUniqueLoadID()))));
-                result.Dining.Add(row);
+                if (HostRoom(b) is string seatRoom) row = row with { Room = NativeRef.Of(seatRoom) };
+                row = row with { AccessibleTo = [.. row.AccessibleTo, .. NativeRef.All(people.Where(p => Safe(p, b)).Select(p => Id(p.GetUniqueLoadID())))] };
+                row = row with { Users = [.. row.Users, .. NativeRef.All(people.Where(p => p.CurJob?.def == JobDefOf.Ingest && b.OccupiedRect().Contains(p.Position))
+                    .Select(p => Id(p.GetUniqueLoadID())))] };
+                result = result with { Dining = [.. result.Dining, row] };
             }
             foreach (var b in play) {
                 var watchCells = UsesWatchCells(b.def)
                     ? WatchBuildingUtility.CalculateWatchCells(b.def, b.Position, b.Rotation, map).ToList() : null;
                 var row = new Obs.ComfortFacility { Id = Id(b.GetUniqueLoadID()), Kind = Id(b.def.building.joyKind.defName) };
-                if (HostRoom(b) is string playRoom) row.Room = NativeRef.Of(playRoom);
-                row.AccessibleTo.Add(NativeRef.All(people.Where(p => !b.IsForbidden(p) && b.IsSociallyProper(p)
+                if (HostRoom(b) is string playRoom) row = row with { Room = NativeRef.Of(playRoom) };
+                row = row with { AccessibleTo = [.. row.AccessibleTo, .. NativeRef.All(people.Where(p => !b.IsForbidden(p) && b.IsSociallyProper(p)
                     && p.CanReach(b, PathEndMode.Touch, Danger.None)
                     && (watchCells == null || watchCells.Any(c => WatchCellAccessible(p, c)))
                     && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null || p.playerSettings.AreaRestrictionInPawnCurrentMap[b.Position]))
-                    .Select(p => Id(p.GetUniqueLoadID()))));
-                row.Users.Add(NativeRef.All(people.Where(p => p.CurJob?.def.joyKind != null && p.CurJob.targetA.Thing == b)
-                    .Select(p => Id(p.GetUniqueLoadID()))));
-                result.Recreation.Add(row);
+                    .Select(p => Id(p.GetUniqueLoadID())))] };
+                row = row with { Users = [.. row.Users, .. NativeRef.All(people.Where(p => p.CurJob?.def.joyKind != null && p.CurJob.targetA.Thing == b)
+                    .Select(p => Id(p.GetUniqueLoadID())))] };
+                result = result with { Recreation = [.. result.Recreation, row] };
             }
-            result.Joy = ReadJoy(people, play);
+            result = result with { Joy = ReadJoy(people, play) };
             return result;
         }
 
@@ -111,16 +111,16 @@ namespace HomeBridge.BridgeTools
                 .OrderBy(k => k.defName, StringComparer.Ordinal).ToList();
             var pawns = people.Where(p => p.needs?.joy != null).ToList();
             var result = new Obs.RecreationCensus();
-            result.Kinds.Add(kinds.Select(k => Id(k.defName)));
+            result = result with { Kinds = [.. result.Kinds, .. kinds.Select(k => Id(k.defName))] };
             foreach (var p in pawns) {
                 var row = new Obs.JoyTolerance { Pawn = Id(p.GetUniqueLoadID()) };
                 foreach (var k in kinds) {
                     var value = p.needs.joy.tolerances[k];
                     if (float.IsNaN(value) || float.IsInfinity(value) || value < 0 || value > 1) return null;
-                    row.Tolerance.Add(value);
-                    row.Bored.Add(p.needs.joy.tolerances.BoredOf(k));
+                    row = row with { Tolerance = [.. row.Tolerance, value] };
+                    row = row with { Bored = [.. row.Bored, p.needs.joy.tolerances.BoredOf(k)] };
                 }
-                result.Pawns.Add(row);
+                result = result with { Pawns = [.. result.Pawns, row] };
             }
             return result;
         }

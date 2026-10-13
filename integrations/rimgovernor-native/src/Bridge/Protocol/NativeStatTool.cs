@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -24,26 +24,26 @@ namespace HomeBridge.BridgeTools
         public async Task<object> EvaluateStat(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be an EvaluateStatRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request!, Obs.EvaluateStatRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.EvaluateStatReply { Failure = failure });
-            if (parsed.Scope?.ExpectedIdentity == null || string.IsNullOrEmpty(parsed.Stat) || parsed.Subject == null || parsed.Subject.SubjectCase == Obs.StatSubject.SubjectOneofCase.None)
-                return ProtoBoundary.Encode(new Obs.EvaluateStatReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, stat and subject are required.") });
+            if (!ProtoBoundary.TryParse(ctx, ToolName, request!, out Obs.EvaluateStatRequest? parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.EvaluateStatReply { Outcome = new Obs.EvaluateStatReplyOutcome.FailureCase(failure) });
+            if (parsed.Scope?.ExpectedIdentity == null || string.IsNullOrEmpty(parsed.Stat) || parsed.Subject?.Subject == null)
+                return ProtoBoundary.Encode(new Obs.EvaluateStatReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, stat and subject are required.") });
             return await ProtoBoundary.OnMainThread(ctx, () =>
             {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.EvaluateStatReply { Failure = failure });
+                    return ProtoBoundary.Encode(new Obs.EvaluateStatReply { Outcome = new Obs.EvaluateStatReplyOutcome.FailureCase(failure) });
                 try { return ProtoBoundary.Encode(Evaluate(map, context, parsed)); }
                 catch (Exception ex)
                 {
                     ObservationWork.Failed("evaluateStat", ex);
-                    return ProtoBoundary.Encode(new Obs.EvaluateStatReply { Unavailable = new Common.Unavailable
+                    return ProtoBoundary.Encode(new Obs.EvaluateStatReply { Outcome = new Common.Unavailable
                         { Reason = Common.UnavailableReason.ReadFailed, Detail = $"Stat {parsed.Stat} could not be evaluated: {ex.Message}" } });
                 }
             }, cancellationToken).ConfigureAwait(false);
         }
 
         private static Obs.EvaluateStatReply Refuse(Common.FailureCode code, string detail) =>
-            new Obs.EvaluateStatReply { Failure = ProtoBoundary.Fail(code, detail) };
+            new Obs.EvaluateStatReply { Outcome = ProtoBoundary.Fail(code, detail) };
 
         private static Obs.EvaluateStatReply Evaluate(Map map, Common.ObservationContext context, Obs.EvaluateStatRequest request)
         {
@@ -51,50 +51,49 @@ namespace HomeBridge.BridgeTools
             if (stat == null) return Refuse(Common.FailureCode.NotFound, $"Unknown stat {request.Stat}.");
             StatRequest req;
             float? exact = null;
-            var subject = request.Subject;
-            switch (subject.SubjectCase)
+            var subject = request.Subject?.Subject;
+            switch (subject)
             {
-                case Obs.StatSubject.SubjectOneofCase.Definition:
+                case Obs.StatSubjectSubject.DefinitionCase { Value: var row }:
                 {
-                    var row = subject.Definition;
                     BuildableDef? def = (BuildableDef?)DefDatabase<ThingDef>.GetNamedSilentFail(row.DefName) ?? DefDatabase<TerrainDef>.GetNamedSilentFail(row.DefName);
                     if (def == null) return Refuse(Common.FailureCode.NotFound, $"Unknown definition {row.DefName}.");
                     ThingDef? stuff = null;
-                    if (row.HasStuff)
+                    if (row.Stuff is not null)
                     {
-                        stuff = DefDatabase<ThingDef>.GetNamedSilentFail(row.Stuff);
+                        stuff = DefDatabase<ThingDef>.GetNamedSilentFail(row.Stuff ?? "");
                         if (stuff == null) return Refuse(Common.FailureCode.NotFound, $"Unknown stuff {row.Stuff}.");
                     }
-                    if (row.HasQuality && (row.Quality < 0 || row.Quality > (int)QualityCategory.Legendary))
+                    if (row.Quality is { } rawQuality && (rawQuality < 0 || rawQuality > (int)QualityCategory.Legendary))
                         return Refuse(Common.FailureCode.InvalidRequest, $"Quality {row.Quality} is not a quality category.");
-                    var quality = row.HasQuality ? (QualityCategory)row.Quality : QualityCategory.Normal;
+                    var quality = row.Quality is { } chosenQuality ? (QualityCategory)chosenQuality : QualityCategory.Normal;
                     req = StatRequest.For(def, stuff, quality);
                     // The definition catalog's stat table value, exactly.
-                    if (!row.HasQuality) exact = def.GetStatValueAbstract(stat, stuff);
+                    if (row.Quality is null) exact = def.GetStatValueAbstract(stat, stuff);
                     break;
                 }
-                case Obs.StatSubject.SubjectOneofCase.ThingId:
+                case Obs.StatSubjectSubject.ThingIdCase { Value: var thingId }:
                 {
-                    var thing = map.listerThings.AllThings.ById(subject.ThingId);
-                    if (thing == null) return Refuse(Common.FailureCode.NotFound, $"Unknown thing {subject.ThingId}.");
+                    var thing = map.listerThings.AllThings.ById(thingId);
+                    if (thing == null) return Refuse(Common.FailureCode.NotFound, $"Unknown thing {thingId}.");
                     req = StatRequest.For(thing);
                     break;
                 }
                 default:
                 {
-                    var pawn = Find.Maps.SelectMany(m => m.mapPawns.AllPawns).ById(subject.PawnId);
-                    if (pawn == null) return Refuse(Common.FailureCode.NotFound, $"Unknown pawn {subject.PawnId}.");
+                    var pawn = Find.Maps.SelectMany(m => m.mapPawns.AllPawns).ById(subject is Obs.StatSubjectSubject.PawnIdCase { Value: var pawnId } ? pawnId : null);
+                    if (pawn == null) return Refuse(Common.FailureCode.NotFound, $"Unknown pawn {(subject as Obs.StatSubjectSubject.PawnIdCase)?.Value}.");
                     req = StatRequest.For(pawn);
                     break;
                 }
             }
             var value = exact ?? stat.Worker.GetValue(req);
             if (float.IsNaN(value) || float.IsInfinity(value))
-                return new Obs.EvaluateStatReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = $"Stat {stat.defName} is {value}." } };
+                return new Obs.EvaluateStatReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = $"Stat {stat.defName} is {value}." } };
             var observed = new Obs.StatEvaluation { Context = context, Stat = stat.defName, Value = value, Shown = stat.Worker.ShouldShowFor(req) };
             var text = stat.Worker.GetExplanationUnfinalized(req, stat.toStringNumberSense) ?? "";
-            observed.ExplanationLines.AddRange(text.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(l => l.TrimEnd('\r')));
-            return new Obs.EvaluateStatReply { Observed = observed };
+            observed = observed with { ExplanationLines = [.. observed.ExplanationLines, .. text.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(l => l.TrimEnd('\r'))] };
+            return new Obs.EvaluateStatReply { Outcome = observed };
         }
     }
 }

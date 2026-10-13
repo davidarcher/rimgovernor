@@ -7,9 +7,9 @@ using System.Runtime.CompilerServices;
 using HarmonyLib;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Placement = RimGovernor.Protocol.Placement;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Placement = RimGovernor.Contracts.Wire.Placement;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -36,20 +36,21 @@ namespace HomeBridge.BridgeTools
         {
             plan = null; preview = null;
             var validation = new Placement.PlacementRequest { Identity = context.Identity };
-            if (candidate != null) validation.Placements.Add(candidate);
+            if (candidate != null) validation = validation with { Placements = [.. validation.Placements, candidate] };
             if (!PlacementProtocol.Validate(validation, out failure)) return false;
             if (candidate == null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Construction requires one placement candidate."); return false; }
-            var query = new PlacementQuery(candidate.DefName, candidate.X, candidate.Z,
-                PlacementProtocol.RotationName(candidate.Rotation), candidate.HasStuff ? candidate.Stuff : null);
+            var query = new PlacementQuery((candidate.DefName ?? ""), candidate.X.GetValueOrDefault(), candidate.Z.GetValueOrDefault(),
+                PlacementProtocol.RotationName(candidate.Rotation.GetValueOrDefault()), candidate.Stuff is not null ? (candidate.Stuff ?? "") : null);
             var result = PlacementProtocol.Map(PlacementPreviewOperation.Evaluate(map, query), context);
-            if (result.Failure != null) { failure = result.Failure; return false; }
-            preview = result.Evaluated;
-            if (candidate.Rotation == Placement.Rotation.All)
+            if (result.Outcome?.Failure is { } placementFailure) { failure = placementFailure; return false; }
+            preview = result.Outcome?.Evaluated;
+            if (preview is null) { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Placement preview unavailable."); return false; }
+            if (candidate.Rotation.GetValueOrDefault() == Placement.Rotation.All)
             {
                 failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Construction requires one cardinal rotation.");
                 return false;
             }
-            if (!PlacementPreviewOperation.TryResolveBuildable(candidate.DefName, out var definition, out _) || definition == null)
+            if (!PlacementPreviewOperation.TryResolveBuildable((candidate.DefName ?? ""), out var definition, out _) || definition == null)
             {
                 failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "This construction adapter requires a ThingDef building or a TerrainDef floor.");
                 return false;
@@ -59,10 +60,10 @@ namespace HomeBridge.BridgeTools
                 failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "This construction adapter lays floors through an ordinary blueprint and frame only.");
                 return false;
             }
-            if (!preview.CanPlace)
+            if (!preview.CanPlace.GetValueOrDefault())
             {
                 failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
-                    PlacementPreviewOperation.Diagnostic(preview.Rotations[0].Reason));
+                    PlacementPreviewOperation.Diagnostic((preview.Rotations[0].Reason ?? "")));
                 return false;
             }
             var player = Faction.OfPlayerSilentFail;
@@ -71,16 +72,16 @@ namespace HomeBridge.BridgeTools
                 failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "No player faction is available.");
                 return false;
             }
-            var stuff = preview.MadeFromStuff ? (candidate.Stuff.Length == 0 ? GenStuff.DefaultStuffFor(definition)
-                : PlacementPreviewOperation.ResolveThingDef(candidate.Stuff)) : null;
-            plan = new NativeConstructionPlan(map, definition, stuff, new IntVec3(candidate.X, 0, candidate.Z),
-                new Rot4((int)candidate.Rotation - 1), player);
+            var stuff = preview.MadeFromStuff.GetValueOrDefault() ? ((candidate.Stuff ?? "").Length == 0 ? GenStuff.DefaultStuffFor(definition)
+                : PlacementPreviewOperation.ResolveThingDef((candidate.Stuff ?? ""))) : null;
+            plan = new NativeConstructionPlan(map, definition, stuff, new IntVec3(candidate.X.GetValueOrDefault(), 0, candidate.Z.GetValueOrDefault()),
+                new Rot4((int)candidate.Rotation.GetValueOrDefault() - 1), player);
             failure = null;
             return true;
         }
 
         // Call inside the admitted native authority scope. Every mutation uses ordinary architect behavior.
-        internal Thing Place(Receipts.ConstructionEffect observed, bool replaceWall = false)
+        internal Thing Place(ref Receipts.ConstructionEffect observed, bool replaceWall = false)
         {
             // A wall replacement keeps the built wall standing: vanilla wipes it in the
             // same call that turns the blueprint into a Frame, so the cell is never open.
@@ -92,7 +93,7 @@ namespace HomeBridge.BridgeTools
                     || !blueprint.replaceTags.Intersect(frame.def.replaceTags).Any()) continue;
                 var id = frame.GetUniqueLoadID();
                 frame.Destroy(DestroyMode.Cancel);
-                if (frame.Destroyed) observed.CancelledFrameIds.Add(id);
+                if (frame.Destroyed) observed = observed with { CancelledFrameIds = [.. observed.CancelledFrameIds, id] };
             }
             if (!Instant)
             {
@@ -102,7 +103,7 @@ namespace HomeBridge.BridgeTools
                 var ids = wiped.Select(thing => thing.GetUniqueLoadID()).ToArray();
                 GenSpawn.WipeExistingThings(Cell, Rotation, blueprint, Map, DestroyMode.Deconstruct);
                 for (var index = 0; index < wiped.Length; index++)
-                    if (wiped[index].Destroyed) observed.WipedThingIds.Add(ids[index]);
+                    if (wiped[index].Destroyed) observed = observed with { WipedThingIds = [.. observed.WipedThingIds, ids[index]] };
             }
             if (!Instant) return GenConstruct.PlaceBlueprintForBuild(Definition, Cell, Map, Rotation, Player, Stuff);
             var building = ThingMaker.MakeThing((ThingDef)Definition, Stuff);

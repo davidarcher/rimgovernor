@@ -21,8 +21,8 @@ internal static class NativeRemoveProductionBillProbe
 
     private static object Wire(string name, string json)
     {
-        var parser = bridge.GetType("RimGovernor.Protocol." + name, true)!.GetProperty("Parser")!.GetValue(null)!;
-        return parser.GetType().GetMethod("ParseJson")!.Invoke(parser, new object[] { json })!;
+        var type = typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType("RimGovernor.Contracts.Wire." + name, true)!;
+        return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize", new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
     }
 
     private static object? Get(object obj, string name) => obj.GetType().GetProperty(name, Flags)!.GetValue(obj);
@@ -36,23 +36,23 @@ internal static class NativeRemoveProductionBillProbe
         };
         bridge = Assembly.LoadFrom(Path.GetFullPath(args[0]));
 
-        var action = Wire("Operations.Action", "{\"key\":\"k\",\"removeProductionBill\":{\"benchId\":\"Bench_1\",\"bill\":{\"id\":\"Bill_Production_77\"}}}");
-        Check(Get(action, "IntentCase")!.ToString() == "RemoveProductionBill", "remove_production_bill arm parses");
-        var intent = Get(action, "RemoveProductionBill")!;
+        var action = Wire("Operations.Action", "{\"key\":\"k\",\"intent\":{\"type\":\"removeProductionBill\",\"value\":{\"benchId\":\"Bench_1\",\"bill\":{\"id\":\"Bill_Production_77\"}}}}");
+        Check(Get(action, "Intent")!.GetType().Name == "RemoveProductionBillCase", "remove_production_bill arm parses");
+        var intent = Get(Get(action, "Intent")!, "RemoveProductionBill")!;
         Check((string)Get(intent, "BenchId")! == "Bench_1" && (string)Get(Get(intent, "Bill")!, "Id")! == "Bill_Production_77", "remove_production_bill fields round trip");
 
         Check(!(bool)Get(intent, "CancelUnfinished")!, "cancel_unfinished defaults to keeping the unfinished item");
-        var cancel = Get(Wire("Operations.Action", "{\"key\":\"k\",\"removeProductionBill\":{\"benchId\":\"Bench_1\",\"bill\":{\"id\":\"Bill_Production_77\"},\"cancelUnfinished\":true}}"), "RemoveProductionBill")!;
+        var cancel = Get(Get(Wire("Operations.Action", "{\"key\":\"k\",\"intent\":{\"type\":\"removeProductionBill\",\"value\":{\"benchId\":\"Bench_1\",\"bill\":{\"id\":\"Bill_Production_77\"},\"cancelUnfinished\":true}}}"), "Intent")!, "RemoveProductionBill")!;
         Check((bool)Get(cancel, "CancelUnfinished")!, "cancel_unfinished round trips");
 
         var dispatch = bridge.GetType("HomeBridge.BridgeTools.NativeActionDispatch", true)!;
         dispatch.GetMethod("AssertComplete", Flags)!.Invoke(null, null);
         var handlers = (System.Collections.IDictionary)dispatch.GetField("Handlers", Flags)!.GetValue(null)!;
-        Check(handlers.Keys.Cast<object>().Any(k => k.ToString() == "RemoveProductionBill"), "Actions/Apply has a RemoveProductionBill handler");
+        Check(handlers.Keys.Cast<object>().Any(k => ((Type)k).Name == "RemoveProductionBillCase"), "Actions/Apply has a RemoveProductionBill handler");
 
         var handler = Activator.CreateInstance(bridge.GetType("HomeBridge.BridgeTools.RemoveProductionBillActionHandler", true)!, true)!;
         var validate = handler.GetType().GetMethod("Validate", Flags)!;
-        var context = Wire("Common.ObservationContext", "{\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0},\"tick\":\"10\",\"nativeGeneration\":\"1\"}");
+        var context = Wire("Common.ObservationContext", "{\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0},\"tick\":10,\"nativeGeneration\":1}");
         foreach (var json in new[] {
             "{}",
             "{\"bill\":{\"id\":\"Bill_Production_77\"}}",
@@ -62,7 +62,7 @@ internal static class NativeRemoveProductionBillProbe
             "{\"benchId\":\"Bench_1\",\"bill\":{\"id\":\" \"}}",
         })
         {
-            var failure = validate.Invoke(handler, new[] { Wire("Operations.Action", "{\"key\":\"k\",\"removeProductionBill\":" + json + "}"), context });
+            var failure = validate.Invoke(handler, new[] { Wire("Operations.Action", "{\"key\":\"k\",\"intent\":{\"type\":\"removeProductionBill\",\"value\":" + json + "}}"), context });
             Check(failure != null && Get(failure, "Code")!.ToString() == "InvalidRequest", "malformed remove_production_bill refused: " + json);
         }
         Console.WriteLine($"native-remove-production-bill: {checks} checks passed");

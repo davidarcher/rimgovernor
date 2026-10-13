@@ -1,7 +1,7 @@
 #nullable enable
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
         // Id is the referenced zone (or storage building) id, null when the
         // intent names none.
         internal static string? Id(Operations.ZoneIntent? intent) =>
-            intent?.Zone != null && intent.Zone.HasId && ProtoBoundary.IsIdentifier(intent.Zone.Id) ? intent.Zone.Id : null;
+            intent?.Zone != null && intent.Zone.Id is not null && ProtoBoundary.IsIdentifier(intent.Zone.Id) ? (intent.Zone.Id ?? "") : null;
 
         internal static bool Adding(Operations.ZoneIntent intent) => intent.AddCells != null;
 
@@ -22,8 +22,8 @@ namespace HomeBridge.BridgeTools
 
         // DeleteOnly is a delete naming its zone and nothing else.
         internal static bool DeleteOnly(Operations.ZoneIntent? intent) =>
-            Id(intent) != null && intent!.Delete && !intent.HasKind && !intent.HasLabel && intent.AddCells == null && intent.RemoveCells == null
-            && intent.Stockpile == null && intent.Growing == null && intent.Fishing == null && !intent.RequireCoveredEmpty;
+            Id(intent) != null && intent!.Delete.GetValueOrDefault() && intent.Kind is null && intent.Label is null && intent.AddCells == null && intent.RemoveCells == null
+            && intent.Stockpile == null && intent.Growing == null && intent.Fishing == null && !intent.RequireCoveredEmpty.GetValueOrDefault();
     }
 
     internal sealed class ZoneActionHandler : IActionHandler
@@ -37,14 +37,14 @@ namespace HomeBridge.BridgeTools
         private static IActionHandler Shape(Operations.ZoneIntent? intent)
         {
             if (intent == null) return Creation;
-            if (intent.HasDelete) return Deletion;
-            if (intent.HasKind) return intent.Kind == Operations.ZoneType.Stockpile ? StockpilePlacement : Creation;
+            if (intent.Delete is not null) return Deletion;
+            if (intent.Kind is not null) return intent.Kind.GetValueOrDefault() == Operations.ZoneType.Stockpile ? StockpilePlacement : Creation;
             if (intent.AddCells != null || intent.RemoveCells != null) return CellEdit;
             return Settings;
         }
 
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => Shape(action.Zone).Validate(action, context);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => Shape(action.Intent?.Zone).Validate(action, context);
 
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => Shape(action.Zone).Apply(action, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => Shape(action.Intent?.Zone).Apply(action, context);
     }
 }

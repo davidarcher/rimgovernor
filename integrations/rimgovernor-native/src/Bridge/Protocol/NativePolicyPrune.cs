@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -57,11 +57,11 @@ namespace HomeBridge.BridgeTools
 
         internal static Common.Failure? Validate(Operations.PolicyPruneIntent? intent, Common.ObservationContext context)
         {
-            if (intent == null || !intent.HasDatabase || intent.Database == Operations.PolicyDatabase.Unspecified)
+            if (intent == null || intent.Database is null || intent.Database.GetValueOrDefault() == Operations.PolicyDatabase.Unspecified)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Policy prune requires a database.");
             if (intent.DeleteIds.Count == 0 || intent.DeleteIds.Any(id => !ProtoBoundary.IsIdentifier(id)) || intent.DeleteIds.Distinct().Count() != intent.DeleteIds.Count)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Policy prune requires distinct policy ids.");
-            if (intent.Database == Operations.PolicyDatabase.AllowedArea) ProtoBoundary.LoadedMap(context);
+            if (intent.Database.GetValueOrDefault() == Operations.PolicyDatabase.AllowedArea) ProtoBoundary.LoadedMap(context);
             return null;
         }
 
@@ -75,9 +75,9 @@ namespace HomeBridge.BridgeTools
             if (failure != null) throw new ApplyRefusedException(failure);
             var effect = new Receipts.PolicyPruneEffect();
             var reassigned = new SortedSet<string>(StringComparer.Ordinal);
-            if (intent.Database == Operations.PolicyDatabase.AllowedArea)
+            if (intent.Database.GetValueOrDefault() == Operations.PolicyDatabase.AllowedArea)
             {
-                effect.Database = "allowed_area";
+                effect = effect with { Database = "allowed_area" };
                 var map = ProtoBoundary.LoadedMap(context);
                 foreach (var id in intent.DeleteIds)
                 {
@@ -89,13 +89,13 @@ namespace HomeBridge.BridgeTools
                         reassigned.Add(pawn.GetUniqueLoadID());
                     }
                     area.Delete();
-                    effect.DeletedIds.Add(id);
+                    effect = effect with { DeletedIds = [.. effect.DeletedIds, id] };
                 }
             }
             else
             {
-                var db = For(intent.Database)!;
-                effect.Database = db.Name;
+                var db = For(intent.Database.GetValueOrDefault())!;
+                effect = effect with { Database = db.Name };
                 foreach (var id in intent.DeleteIds)
                 {
                     var policy = db.All().ById(id);
@@ -115,17 +115,17 @@ namespace HomeBridge.BridgeTools
                     var report = db.Delete(policy);
                     if (!report.Accepted)
                         throw new ApplyRefusedException(Common.FailureCode.NativeFailure, "Policy " + id + " could not be deleted: " + (report.Reason ?? "refused") + ".");
-                    effect.DeletedIds.Add(id);
+                    effect = effect with { DeletedIds = [.. effect.DeletedIds, id] };
                 }
             }
-            effect.ReassignedPawnIds.Add(reassigned);
-            return new Receipts.EffectEvidence { PolicyPrune = effect };
+            effect = effect with { ReassignedPawnIds = [.. effect.ReassignedPawnIds, .. reassigned] };
+            return new Receipts.EffectEvidence { Effect = effect };
         }
     }
 
     internal sealed class PolicyPruneActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativePolicyPrune.Validate(action.PolicyPrune, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativePolicyPrune.Apply(action.PolicyPrune, context);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativePolicyPrune.Validate(action.Intent?.PolicyPrune ?? new Operations.PolicyPruneIntent(), context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativePolicyPrune.Apply(action.Intent?.PolicyPrune ?? new Operations.PolicyPruneIntent(), context);
     }
 }

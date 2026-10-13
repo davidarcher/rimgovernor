@@ -6,10 +6,10 @@ using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -32,13 +32,13 @@ namespace HomeBridge.BridgeTools
 
         internal static bool PlayerOwned(Building building) => building.Faction != null && building.Faction == Faction.OfPlayerSilentFail;
 
-        internal static string Token(Common.Identity identity, Building building)
+        internal static string Token(Common.Identity? identity, Building building)
         {
             using (var bytes = new MemoryStream())
             {
                 using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
                 {
-                    writer.Write(identity.ColonyId); writer.Write(identity.LoadToken); writer.Write(identity.MapId);
+                    writer.Write((identity?.ColonyId ?? "")); writer.Write((identity?.LoadToken ?? "")); writer.Write(identity?.MapId.GetValueOrDefault() ?? 0);
                     writer.Write(building.GetUniqueLoadID()); writer.Write(building.Faction?.GetUniqueLoadID() ?? string.Empty);
                     writer.Write(building is Building_Casket casket && casket.HasAnyContents);
                 }
@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.SnapshotRef? Snapshot(Thing thing, Common.ObservationContext context)
         {
             if (!Eligible(thing)) return null;
-            return new Obs.SnapshotRef { Context = context.Clone(), EntityId = thing.GetUniqueLoadID(),
+            return new Obs.SnapshotRef { Context = context, EntityId = thing.GetUniqueLoadID(),
                 Token = Token(context.Identity, (Building)thing) };
         }
 
@@ -74,9 +74,9 @@ namespace HomeBridge.BridgeTools
         }
 
         private static Receipts.EffectEvidence Evidence(string id, string after) =>
-            new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+            new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = id, AfterToken = after },
-                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.Claim, Outcome = Receipts.FieldOutcome.Applied } } } };
+                Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.Claim, Outcome = Receipts.FieldOutcome.Applied }] } };
 
         internal static Common.Failure? Validate(Operations.BuildingPatchIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _);
 
@@ -86,7 +86,7 @@ namespace HomeBridge.BridgeTools
             if (failure != null) throw new InvalidOperationException(failure.Detail);
             if (!PlayerOwned(building!)) building!.SetFaction(Faction.OfPlayer);
             if (!PlayerOwned(building!)) throw new InvalidOperationException("Native claim requires readback.");
-            return Evidence(building!.GetUniqueLoadID(), Snapshot(building, context)!.Token);
+            return Evidence(building!.GetUniqueLoadID(), (Snapshot(building, context)!.Token ?? ""));
         }
     }
 }

@@ -2,9 +2,9 @@
 using System;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -23,9 +23,9 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(Operations.ResearchIntent? intent, out ResearchProjectDef project)
         {
             project = null!;
-            if (intent == null || !intent.HasProjectDef || !ProtoBoundary.IsIdentifier(intent.ProjectDef))
+            if (intent == null || intent.ProjectDef is null || !ProtoBoundary.IsIdentifier(intent.ProjectDef))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Research selection requires a project.");
-            var def = DefDatabase<ResearchProjectDef>.GetNamedSilentFail(intent.ProjectDef);
+            var def = DefDatabase<ResearchProjectDef>.GetNamedSilentFail((intent.ProjectDef ?? ""));
             if (def == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Unknown research project.");
             project = def;
             if (def.knowledgeCategory != null && !ModsConfig.AnomalyActive) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Anomaly knowledge projects need the Anomaly expansion.");
@@ -35,20 +35,20 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => Resolve(action.Research, out _);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => Resolve(action.Intent?.Research, out _);
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
-            var failure = Resolve(action.Research, out var def);
-            if (failure != null) throw new InvalidOperationException("Research prerequisites changed before apply: " + failure.Detail);
+            var failure = Resolve(action.Intent?.Research, out var def);
+            if (failure != null) throw new InvalidOperationException("Research prerequisites changed before apply: " + (failure.Detail ?? ""));
             var manager = Find.ResearchManager;
             var previous = Current(def)?.defName ?? "";
             if (previous != def.defName) manager.SetCurrentProject(def);
             var current = Current(def)?.defName ?? "";
             if (current != def.defName) throw new InvalidOperationException("Research selection did not verify after SetCurrentProject.");
             var effect = new Receipts.ResearchEffect { CurrentProjectDef = current };
-            if (previous.Length != 0) effect.PreviousProjectDef = previous;
-            return new Receipts.EffectEvidence { Research = effect };
+            if (previous.Length != 0) effect = effect with { PreviousProjectDef = previous };
+            return new Receipts.EffectEvidence { Effect = effect };
         }
     }
 }

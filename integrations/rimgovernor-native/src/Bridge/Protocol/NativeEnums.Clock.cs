@@ -1,5 +1,5 @@
 #nullable enable
-using Clock = RimGovernor.Protocol.Clock;
+using Clock = RimGovernor.Contracts.Wire.Clock;
 
 namespace HomeBridge.BridgeTools
 {

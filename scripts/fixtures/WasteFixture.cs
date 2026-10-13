@@ -441,23 +441,23 @@ namespace HomeBridge.BridgeTools
             {
                 if (!ProtoBoundary.TryReadContext(map, out var context, out var unavailable))
                     throw new System.InvalidOperationException(unavailable.Detail);
-                RimGovernor.Protocol.Observations.ColonyFactsSnapshot Capture(bool optimized)
+                RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot Capture(bool optimized)
                 {
                     var previous = NativeUpkeepFacts.SharedPass;
                     NativeUpkeepFacts.SharedPass = optimized;
                     try
                     {
-                        var request = new RimGovernor.Protocol.Observations.ColonyFactsRequest {
-                            Scope = new RimGovernor.Protocol.Observations.ReadScope { ExpectedIdentity = context.Identity.Clone() }, Planning = true };
+                        var request = new RimGovernor.Contracts.Wire.Observations.ColonyFactsRequest {
+                            Scope = new RimGovernor.Contracts.Wire.Observations.ReadScope { ExpectedIdentity = context.Identity }, Planning = true };
                         return NativeColonyObservationTools.Read(map, request, context);
                     }
                     finally { NativeUpkeepFacts.SharedPass = previous; }
                 }
                 var off = Capture(false);
                 var on = Capture(true);
-                var offBytes = Google.Protobuf.MessageExtensions.ToByteArray(off);
-                var onBytes = Google.Protobuf.MessageExtensions.ToByteArray(on);
-                var upkeep = on.Upkeep?.Observed;
+                var offBytes = RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(off);
+                var onBytes = RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(on);
+                var upkeep = on.Upkeep?.Outcome?.Observed;
                 // ResourceSources: each resource's reply with the
                 // cheap census and support shortcut off and on. Plant yields
                 // round at random per read, so non-mine yields are blanked.
@@ -468,11 +468,13 @@ namespace HomeBridge.BridgeTools
                     try
                     {
                         var began = System.Diagnostics.Stopwatch.GetTimestamp();
-                        var reply = NativeResourceSourcesTool.Read(map, new RimGovernor.Protocol.Observations.ResourceSourcesRequest { Resource = resource }, context);
+                        var reply = NativeResourceSourcesTool.Read(map, new RimGovernor.Contracts.Wire.Observations.ResourceSourcesRequest { Resource = resource }, context);
                         ms += (System.Diagnostics.Stopwatch.GetTimestamp() - began) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
-                        foreach (var row in reply.Observed?.Sources ?? new Google.Protobuf.Collections.RepeatedField<RimGovernor.Protocol.Observations.ResourceSource>())
-                            if (DefDatabase<ThingDef>.GetNamedSilentFail(row.DefName)?.mineable != true) row.Yield = 0;
-                        return Google.Protobuf.MessageExtensions.ToByteArray(reply);
+                        var observed = reply.Outcome?.Observed;
+                        if (observed != null)
+                            reply = reply with { Outcome = observed with { Sources = [.. observed.Sources.Select(row =>
+                                DefDatabase<ThingDef>.GetNamedSilentFail(row.DefName)?.mineable != true ? row with { Yield = 0 } : row)] } };
+                        return RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(reply);
                     }
                     finally { NativeResourceSourcesTool.Cheap = true; ExcavationSafety.Shortcut = true; }
                 }
@@ -482,13 +484,13 @@ namespace HomeBridge.BridgeTools
                         var a = Sources(resource, false, ref offMs);
                         var b = Sources(resource, true, ref onMs);
                         if (!a.SequenceEqual(b)) resourcesEqual = false;
-                        if (i == 0) resourceRows += RimGovernor.Protocol.Observations.ResourceSourcesReply.Parser.ParseFrom(b).Observed?.Sources.Count ?? 0;
+                        if (i == 0) resourceRows += RimGovernor.Contracts.Wire.WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ResourceSourcesReply>(b).Outcome?.Observed?.Sources.Count ?? 0;
                     }
                 return (object)new { equal = offBytes.SequenceEqual(onBytes) && resourcesEqual, resourcesEqual, resourceRows,
                     resourcesOffMs = System.Math.Round(offMs, 1), resourcesOnMs = System.Math.Round(onMs, 1), offBytes = offBytes.Length, onBytes = onBytes.Length,
                     upkeepItems = upkeep?.Items.Count ?? 0, upkeepStructures = upkeep?.Structures.Count ?? 0,
                     upkeepFilth = upkeep?.Filth.Count ?? 0, upkeepBeds = upkeep?.Beds.Count ?? 0,
-                    wasteRows = on.Waste?.Observed?.Items.Count ?? 0 };
+                    wasteRows = on.Waste?.Outcome?.Observed?.Items.Count ?? 0 };
             }
         }
 
@@ -516,12 +518,12 @@ namespace HomeBridge.BridgeTools
                     {
                         var began = System.Diagnostics.Stopwatch.GetTimestamp();
                         var hop = ObservationWork.BeginCapture();
-                        RimGovernor.Protocol.Observations.BundleSnapshot frame;
+                        RimGovernor.Contracts.Wire.Observations.BundleSnapshot frame;
                         try { frame = SnapshotFrames.Capture(map, shape); }
                         finally { ObservationWork.End(); }
                         var elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - began;
                         if (frame == null) throw new System.InvalidOperationException("SnapshotFrames.Capture read no context.");
-                        if (i == 0) bytes = frame.CalculateSize();
+                        if (i == 0) bytes = RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(frame).Length;
                         captures.Add(new { totalMs = Ms(elapsed), sections = hop.Sections.Select(s =>
                             (object)new { name = s.Name, ms = Ms(s.Ticks), rows = s.Rows, detail = s.Detail }).ToList() });
                     }
@@ -544,8 +546,8 @@ namespace HomeBridge.BridgeTools
                 var steps = new System.Collections.Generic.List<object>();
                 bool Same(string step)
                 {
-                    var cached = Google.Protobuf.MessageExtensions.ToByteArray(CellGridEncoder.Encode(CellGridEncoder.Read(map), null)!);
-                    var fresh = Google.Protobuf.MessageExtensions.ToByteArray(CellGridEncoder.Encode(CellGridEncoder.ReadUncached(map), null)!);
+                    var cached = RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(CellGridEncoder.Encode(CellGridEncoder.Read(map), null)!);
+                    var fresh = RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(CellGridEncoder.Encode(CellGridEncoder.ReadUncached(map), null)!);
                     var equal = cached.SequenceEqual(fresh);
                     steps.Add(new { step, equal, cachedBytes = cached.Length, freshBytes = fresh.Length });
                     return equal;
@@ -608,7 +610,7 @@ namespace HomeBridge.BridgeTools
                 byte[] Read(bool off)
                 {
                     CensusMemo.Off = off;
-                    try { return Google.Protobuf.MessageExtensions.ToByteArray(NativeGearFacts.Read(map, context)); }
+                    try { return RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(NativeGearFacts.Read(map, context)); }
                     finally { CensusMemo.Off = false; }
                 }
                 var on = Read(false);

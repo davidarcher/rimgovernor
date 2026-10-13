@@ -9,7 +9,7 @@ Harmony directory:
 dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-proto-rooms <args...>
 ```
 
-It loads the actual adapter, official messages and SDK binder.
+It loads the actual adapter, the Contracts wire records and SDK binder.
 
 ListRooms defaults exclude psychologically outdoor rooms and doorways, matching
 the existing room census. IDs identify the current room graph within the returned

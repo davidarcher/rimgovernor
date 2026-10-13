@@ -5,8 +5,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 using static HomeBridge.BridgeTools.NativePawnObservationTools;
 
 namespace HomeBridge.BridgeTools
@@ -54,10 +54,18 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static void Populate(Map map, List<Thing> things, Obs.UpkeepFacts result, uint? routePathBudgetMs = null)
+        internal static Obs.UpkeepFacts Populate(Map map, List<Thing> things, Obs.UpkeepFacts result, uint? routePathBudgetMs = null)
         {
             var sets = ThingSets.Of(map, things);
-            Read("items", result, () => {
+            // The sections below rebind the captured `result` (records are immutable).
+            void Read(string field, Action read)
+            {
+                var began = System.Diagnostics.Stopwatch.GetTimestamp();
+                try { read(); }
+                catch (Exception) { result = result with { Issues = [.. result.Issues, Issue(field, Common.UnavailableReason.ReadFailed, "Complete native upkeep section is unavailable.")] }; }
+                ObservationWork.Detail("cf.upkeep." + field, System.Diagnostics.Stopwatch.GetTimestamp() - began);
+            }
+            Read("items", () => {
                 // Every real map carries hundreds of natural chunk and slag
                 // stacks that no upkeep concern may ever target, and a whole-map
                 // census exceeded the bound on every real map. Items count
@@ -86,12 +94,12 @@ namespace HomeBridge.BridgeTools
                         Item = NativeRef.Thing(t), Count = t.stackCount, Roofed = t.Position.Roofed(map), InStorage = t.IsInValidStorage(),
                         Forbidden = t.IsForbidden(Faction.OfPlayerSilentFail)
                     };
-                    if (rot != null && rot.Active) value.RotTicks = Math.Max(0, rot.TicksUntilRotAtCurrentTemp);
+                    if (rot != null && rot.Active) value = value with { RotTicks = Math.Max(0, rot.TicksUntilRotAtCurrentTemp) };
                     return value;
                 }).ToList();
-                result.Items.AddRange(values);
+                result = result with { Items = [.. result.Items, .. values] };
             });
-            Read("structures", result, () => {
+            Read("structures", () => {
                 // Non-damageable markers (including sleeping spots) have a
                 // native -1 sentinel and cannot be repair targets.
                 var rows = sets.PlayerBuildings.Where(b => b.def.useHitPoints).OrderBy(b => b.thingIDNumber).ToList();
@@ -99,14 +107,14 @@ namespace HomeBridge.BridgeTools
                     Building = NativeBuildingObservationTools.Ref(b),
                     Home = b.OccupiedRect().All(c => map.areaManager.Home[c])
                 }).ToList();
-                result.Structures.AddRange(values);
+                result = result with { Structures = [.. result.Structures, .. values] };
             });
-            Read("fires", result, () => {
+            Read("fires", () => {
                 var rows = sets.Fires.OrderBy(f => f.thingIDNumber).ToList();
                 var values = rows.Select(f => new Obs.FireState { Fire = NativeRef.Thing(f), Home = map.areaManager.Home[f.Position], Size = Number(f.fireSize) }).ToList();
-                result.Fires.AddRange(values);
+                result = result with { Fires = [.. result.Fires, .. values] };
             });
-            Read("filth", result, () => {
+            Read("filth", () => {
                 // Home-area filth only: a map carries hundreds of natural
                 // dirt and rubble rows outside it that no clean order may
                 // ever target (upkeep orders require the home area), and a
@@ -115,27 +123,27 @@ namespace HomeBridge.BridgeTools
                 var values = rows.Select(f => {
                     var value = new Obs.FilthState { Filth = NativeRef.Thing(f), Home = map.areaManager.Home[f.Position], Thickness = checked((uint)f.thickness) };
                     var room = f.GetRoom();
-                    if (room?.Role != null) value.RoomRole = Id(room.Role.defName);
+                    if (room?.Role != null) value = value with { RoomRole = Id(room.Role.defName) };
                     // The same room identity the typed room census reports, so
                     // the controller can pair filth with a measured room
                     // cleanliness instead of a role name alone.
-                    if (room != null) value.Room = NativeRef.Room(room);
+                    if (room != null) value = value with { Room = NativeRef.Room(room) };
                     return value;
                 }).ToList();
-                result.Filth.AddRange(values);
+                result = result with { Filth = [.. result.Filth, .. values] };
             });
             // Home-area auto-expand, a save-level setting.
-            Read("auto_home_area", result, () => { if (Find.PlaySettings != null) result.AutoHomeArea = Find.PlaySettings.autoHomeArea; });
+            Read("auto_home_area", () => { if (Find.PlaySettings != null) result = result with { AutoHomeArea = Find.PlaySettings.autoHomeArea }; });
             // Current home cells: the planner diffs its target against them.
-            Read("home_cells", result, () => result.HomeCells.AddRange(map.areaManager.Home.ActiveCells.Select(Cell)));
-            Read("home_coverage", result, () => {
+            Read("home_cells", () => { result = result with { HomeCells = [.. result.HomeCells, .. map.areaManager.Home.ActiveCells.Select(Cell)] }; });
+            Read("home_coverage", () => {
                 var state = HomeCoverage.State(map);
                 var targets = HomeCoverage.Targets(map).OrderBy(id => id, StringComparer.Ordinal).ToList();
                 var facts = new Obs.HomeCoverageFacts { Revision = state.Revision };
                 foreach (var target in targets) {
                     var full = HomeCoverage.FullScope(map, target);
                     if (full == null) {
-                        facts.Targets.Add(new Obs.HomeCoverageTarget { Id = Id(target), Blocker = "Bounded visible native facility geometry unavailable" });
+                        facts = facts with { Targets = [.. facts.Targets, new Obs.HomeCoverageTarget { Id = Id(target), Blocker = "Bounded visible native facility geometry unavailable" }] };
                         continue;
                     }
                     var cells = HomeCoverageGeometry.Batch(full, c => map.areaManager.Home[c]).OrderBy(c => c.x).ThenBy(c => c.z).ToList();
@@ -143,26 +151,29 @@ namespace HomeBridge.BridgeTools
                     // Retained wire field: autonomous Home has no exclusions.
                     var row = new Obs.HomeCoverageTarget { Id = Id(target), ShapeToken = HomeCoverage.Shape(target, cells),
                         MissingCells = checked((uint)missing.Count), ExcludedCells = 0 };
-                    row.Cells.AddRange(cells.Select(Cell));
-                    row.ExtentGeometry = new Obs.HomeExtentGeometry();
+                    row = row with { Cells = [.. row.Cells, .. cells.Select(Cell)] };
+                    var corridor = new List<Common.Cell>();
+                    var enclosedInterior = new List<Common.Cell>();
+                    var zone = new List<Common.Cell>();
                     var building = map.listerBuildings.allBuildingsColonist.ById(target);
                     if (building != null) {
                         var footprint = new HashSet<IntVec3>(building.OccupiedRect());
                         foreach (var cell in full.Where(c => !footprint.Contains(c))) {
                             // Internal doors are the observed connections between enclosed rooms.
-                            if (cell.GetEdifice(map) is Building_Door) row.ExtentGeometry.Corridor.Add(Cell(cell));
-                            else row.ExtentGeometry.EnclosedInterior.Add(Cell(cell));
+                            if (cell.GetEdifice(map) is Building_Door) corridor.Add(Cell(cell));
+                            else enclosedInterior.Add(Cell(cell));
                         }
                     } else {
                         // A stockpile's whole footprint, unbatched: colony extent
                         // takes every census stockpile.
-                        row.ExtentGeometry.Zone.AddRange(full.OrderBy(c => c.x).ThenBy(c => c.z).Select(Cell));
+                        zone.AddRange(full.OrderBy(c => c.x).ThenBy(c => c.z).Select(Cell));
                     }
-                    facts.Targets.Add(row);
+                    row = row with { ExtentGeometry = new Obs.HomeExtentGeometry { Corridor = [.. corridor], EnclosedInterior = [.. enclosedInterior], Zone = [.. zone] } };
+                    facts = facts with { Targets = [.. facts.Targets, row] };
                 }
-                result.HomeCoverage = new Obs.HomeCoverageSection { Observed = facts };
+                result = result with { HomeCoverage = new Obs.HomeCoverageSection { Outcome = facts } };
             });
-            Read("lighting", result, () => {
+            Read("lighting", () => {
                 // Work cells are the interaction cells of colonist benches (work
                 // tables and research benches): the cell a pawn stands on while
                 // working, which is what RimWorld's darkness penalties measure.
@@ -177,26 +188,26 @@ namespace HomeBridge.BridgeTools
                     var room = cell.GetRoom(map);
                     if (room != null)
                     {
-                        row.Room = NativeRef.Room(room);
+                        row = row with { Room = NativeRef.Room(room) };
                         // The plants a proper room grows, standing or set in its
                         // growing zones: Go reads which die to light (cave
                         // fungus) off their def rows.
                         if (room.ProperRoom)
-                            row.PlantDefs.AddRange(room.Cells.SelectMany(c => new[] { c.GetPlant(map)?.def, (c.GetZone(map) as Zone_Growing)?.GetPlantDefToGrow() })
-                                .Where(d => d?.plant != null).Select(d => d!.defName).Distinct().OrderBy(n => n, StringComparer.Ordinal));
+                            row = row with { PlantDefs = [.. row.PlantDefs, .. room.Cells.SelectMany(c => new[] { c.GetPlant(map)?.def, (c.GetZone(map) as Zone_Growing)?.GetPlantDefToGrow() })
+                                .Where(d => d?.plant != null).Select(d => d!.defName).Distinct().OrderBy(n => n, StringComparer.Ordinal)] };
                     }
-                    facts.WorkCells.Add(row);
+                    facts = facts with { WorkCells = [.. facts.WorkCells, row] };
                 }
                 foreach (var b in lamps) {
                     var glower = b.TryGetComp<CompGlower>();
                     var row = new Obs.LampState { Building = NativeBuildingObservationTools.Ref(b), Lit = glower.Glows };
                     var room = b.Position.GetRoom(map);
-                    if (room != null) row.Room = NativeRef.Room(room);
-                    facts.Lamps.Add(row);
+                    if (room != null) row = row with { Room = NativeRef.Room(room) };
+                    facts = facts with { Lamps = [.. facts.Lamps, row] };
                 }
-                result.Lighting = new Obs.LightingSection { Observed = facts };
+                result = result with { Lighting = new Obs.LightingSection { Outcome = facts } };
             });
-            Read("flooring", result, () => {
+            Read("flooring", () => {
                 // Every proper indoor room the colony lives in (any cell in
                 // the home area, not psychologically outdoors) with the
                 // terrain under each cell; the catalog's terrain rows carry the
@@ -208,19 +219,19 @@ namespace HomeBridge.BridgeTools
                 var facts = new Obs.FlooringFacts();
                 foreach (var r in rooms) {
                     var row = new Obs.FloorRoom { Room = NativeRef.Room(r) };
-                    if (r.Role != null) row.Role = Id(r.Role.defName);
+                    if (r.Role != null) row = row with { Role = Id(r.Role.defName) };
                     foreach (var c in r.Cells.OrderBy(c => c.z).ThenBy(c => c.x)) {
                         var terrain = c.GetTerrain(map);
                         var cell = new Obs.FloorCell { Cell = Cell(c), Terrain = Id(terrain.defName) };
                         var pending = c.GetThingList(map).FirstOrDefault(t => (t is Blueprint || t is Frame) && t.def.entityDefToBuild is TerrainDef);
-                        if (pending != null) cell.Pending = Id(pending.def.entityDefToBuild.defName);
-                        row.Cells.Add(cell);
+                        if (pending != null) cell = cell with { Pending = Id(pending.def.entityDefToBuild.defName) };
+                        row = row with { Cells = [.. row.Cells, cell] };
                     }
-                    facts.Rooms.Add(row);
+                    facts = facts with { Rooms = [.. facts.Rooms, row] };
                 }
-                result.Flooring = new Obs.FlooringSection { Observed = facts };
+                result = result with { Flooring = new Obs.FlooringSection { Outcome = facts } };
             });
-            Read("routes", result, () => {
+            Read("routes", () => {
                 // Every facility a colonist must reach, with each mobile
                 // colonist's native reachability from where they stand and
                 // the cost of the path the game itself would walk (every
@@ -243,7 +254,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var b in sets.PlayerBuildings.OfType<Building_Turret>().OrderBy(b => b.thingIDNumber))
                     facilities.Add((b, Obs.RouteFacilityKind.Defense, b.Position));
                 var facts = new Obs.RoutesFacts();
-                facts.PawnIds.AddRange(people.Select(p => Id(p.GetUniqueLoadID())));
+                facts = facts with { PawnIds = [.. facts.PawnIds, .. people.Select(p => Id(p.GetUniqueLoadID()))] };
                 var measured = 0; long pathTicks = 0, reachTicks = 0;
                 var skipped = 0;
                 var pathBudgetTicks = routePathBudgetMs.HasValue ? routePathBudgetMs.Value * System.Diagnostics.Stopwatch.Frequency / 1000 : long.MaxValue;
@@ -251,7 +262,7 @@ namespace HomeBridge.BridgeTools
                 {
                     var row = new Obs.RouteFacility { Facility = reference, Kind = kind, Cell = Cell(cell) };
                     var room = cell.GetRoom(map);
-                    if (room != null && room.ProperRoom && !room.PsychologicallyOutdoors) row.Room = NativeRef.Room(room);
+                    if (room != null && room.ProperRoom && !room.PsychologicallyOutdoors) row = row with { Room = NativeRef.Room(room) };
                     // A door frame is walkable before the door stands, so a
                     // measured path may cross an ordered door; those cells are
                     // reported as pending breaches of a reachable facility so
@@ -265,13 +276,13 @@ namespace HomeBridge.BridgeTools
                         var rf0 = System.Diagnostics.Stopwatch.GetTimestamp();
                         var travel = new Obs.RouteTravel { PawnId = Id(p.GetUniqueLoadID()), Reachable = reaches(p) };
                         reachTicks += System.Diagnostics.Stopwatch.GetTimestamp() - rf0;
-                        if (travel.Reachable)
+                        if (travel.Reachable.GetValueOrDefault())
                         {
                             anyReach = true;
                             if (pathTicks >= pathBudgetTicks)
                             {
                                 skipped++;
-                                travel.PathSkipped = true;
+                                travel = travel with { PathSkipped = true };
                             }
                             else
                             {
@@ -281,7 +292,7 @@ namespace HomeBridge.BridgeTools
                                 {
                                     if (path.Found)
                                     {
-                                        travel.PathCost = checked((int)Math.Min(path.TotalCost, int.MaxValue)); travel.PathCells = path.NodesLeftCount;
+                                        travel = travel with { PathCost = checked((int)Math.Min(path.TotalCost, int.MaxValue)) }; travel = travel with { PathCells = path.NodesLeftCount };
                                         foreach (var node in path.NodesReversed)
                                         {
                                             var door = PendingDoor(node);
@@ -292,12 +303,12 @@ namespace HomeBridge.BridgeTools
                                 pathTicks += System.Diagnostics.Stopwatch.GetTimestamp() - pf0;
                             }
                         }
-                        row.Travel.Add(travel);
+                        row = row with { Travel = [.. row.Travel, travel] };
                     }
                     if (anyReach)
                     {
                         foreach (var (bc, door) in crossed.Values)
-                            row.Breaches.Add(new Obs.RouteBreach { Cell = Cell(bc), Edifice = Id(door.def.defName), Pending = Id(door.def.entityDefToBuild.defName), Distance = 0 });
+                            row = row with { Breaches = [.. row.Breaches, new Obs.RouteBreach { Cell = Cell(bc), Edifice = Id(door.def.defName), Pending = Id(door.def.entityDefToBuild.defName), Distance = 0 }] };
                     }
                     else if (people.Count > 0 && room != null && room.ProperRoom && !room.TouchesMapEdge)
                     {
@@ -330,8 +341,8 @@ namespace HomeBridge.BridgeTools
                         foreach (var (bc, edifice, pending, distance) in breaches.OrderBy(b => b.distance).ThenBy(b => b.cell.z).ThenBy(b => b.cell.x))
                         {
                             var breach = new Obs.RouteBreach { Cell = Cell(bc), Edifice = Id(edifice), Distance = distance };
-                            if (pending != null) breach.Pending = Id(pending);
-                            row.Breaches.Add(breach);
+                            if (pending != null) breach = breach with { Pending = Id(pending) };
+                            row = row with { Breaches = [.. row.Breaches, breach] };
                         }
                     }
                     return row;
@@ -339,7 +350,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var (thing, kind, cell) in facilities)
                 {
                     var mode = thing.def.hasInteractionCell ? PathEndMode.InteractionCell : PathEndMode.Touch;
-                    facts.Facilities.Add(Facility(NativeBuildingObservationTools.Ref(thing), kind, cell, p => !thing.IsForbidden(p) && p.CanReach(thing, mode, Danger.Some), p => thing, mode));
+                    facts = facts with { Facilities = [.. facts.Facilities, Facility(NativeBuildingObservationTools.Ref(thing), kind, cell, p => !thing.IsForbidden(p) && p.CanReach(thing, mode, Danger.Some), p => thing, mode)] };
                 }
                 var stockpiles = map.zoneManager.AllZones.OfType<Zone_Stockpile>().OrderBy(z => z.ID).ToList();
                 foreach (var zone in stockpiles)
@@ -347,30 +358,30 @@ namespace HomeBridge.BridgeTools
                     var cell = zone.Cells.OrderBy(c => c.z).ThenBy(c => c.x).FirstOrDefault(c => c.Standable(map));
                     if (cell == default) continue;
                     var reference = new Common.Ref { Id = Id("zone-" + zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture)) };
-                    facts.Facilities.Add(Facility(reference, Obs.RouteFacilityKind.Stockpile, cell, p => p.CanReach(cell, PathEndMode.OnCell, Danger.Some), p => cell, PathEndMode.OnCell));
+                    facts = facts with { Facilities = [.. facts.Facilities, Facility(reference, Obs.RouteFacilityKind.Stockpile, cell, p => p.CanReach(cell, PathEndMode.OnCell, Danger.Some), p => cell, PathEndMode.OnCell)] };
                 }
                 var traffic = map.GetComponent<TrafficState>();
                 if (traffic != null)
                 {
                     // Every nonzero cell of each layer, busiest first;
                     // traffic_samples is the colonist layer's decayed total.
-                    facts.TrafficSamples = traffic.Counts.Total(TrafficCounts.Colonist);
-                    if (traffic.SinceTick >= 0) facts.TrafficSinceTick = traffic.SinceTick;
+                    facts = facts with { TrafficSamples = traffic.Counts.Total(TrafficCounts.Colonist) };
+                    if (traffic.SinceTick >= 0) facts = facts with { TrafficSinceTick = traffic.SinceTick };
                     for (int layer = 0; layer < TrafficCounts.Layers; layer++)
                         foreach (var index in traffic.Counts.Nonzero(layer))
                         {
                             var at = map.cellIndices.IndexToCell(index);
                             var cell = new Obs.TrafficCell { Cell = Cell(at), Samples = traffic.Counts[layer, index], Terrain = Id(at.GetTerrain(map).defName), Home = map.areaManager.Home[at], Layer = (Obs.TrafficLayer)(layer + 1) };
                             var pending = at.GetThingList(map).FirstOrDefault(t => (t is Blueprint || t is Frame) && t.def.entityDefToBuild is TerrainDef);
-                            if (pending != null) cell.Pending = Id(pending.def.entityDefToBuild.defName);
-                            facts.Traffic.Add(cell);
+                            if (pending != null) cell = cell with { Pending = Id(pending.def.entityDefToBuild.defName) };
+                            facts = facts with { Traffic = [.. facts.Traffic, cell] };
                         }
                 }
                 ObservationWork.Detail("cf.upkeep.routes.path", pathTicks, measured + skipped);
                 ObservationWork.Detail("cf.upkeep.routes.reach", reachTicks);
-                result.Routes = new Obs.RoutesSection { Observed = facts };
+                result = result with { Routes = new Obs.RoutesSection { Outcome = facts } };
             });
-            Read("people", result, () => {
+            Read("people", () => {
                 var people = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
                 Obs.UpkeepPerson Person(Pawn p) => new Obs.UpkeepPerson {
                     Pawn = NativePawnObservationTools.Ref(p), OwnedBed = NativeRef.Of(p.ownership?.OwnedBed),
@@ -378,19 +389,19 @@ namespace HomeBridge.BridgeTools
                     ComfortableMaxC = Number(p.GetStatValue(StatDefOf.ComfyTemperatureMax)), TemperatureC = Number(p.AmbientTemperature)
                 };
                 var values = people.Select(Person).ToList();
-                for (var i = 0; i < people.Count; i++) SleepingRelations(people[i], values[i]);
-                result.People.AddRange(values);
+                for (var i = 0; i < people.Count; i++) values[i] = SleepingRelations(people[i], values[i]);
+                result = result with { People = [.. result.People, .. values] };
                 // Slaves of the colony: MaintainHousing gives each a
                 // bed set for slaves.
-                result.Slaves.AddRange(map.mapPawns.AllPawnsSpawned.Where(p => p.IsSlaveOfColony && !p.Dead).OrderBy(p => p.thingIDNumber).Select(Person));
+                result = result with { Slaves = [.. result.Slaves, .. map.mapPawns.AllPawnsSpawned.Where(p => p.IsSlaveOfColony && !p.Dead).OrderBy(p => p.thingIDNumber).Select(Person)] };
                 // Hosted guests: housed to their title like a colonist;
                 // a visiting envoy is not hosted and stays out.
                 var guests = map.mapPawns.AllPawnsSpawned.Where(HostedGuest).OrderBy(p => p.thingIDNumber).ToList();
                 var guestRows = guests.Select(Person).ToList();
-                for (var i = 0; i < guests.Count; i++) SleepingRelations(guests[i], guestRows[i]);
-                result.Guests.AddRange(guestRows);
+                for (var i = 0; i < guests.Count; i++) guestRows[i] = SleepingRelations(guests[i], guestRows[i]);
+                result = result with { Guests = [.. result.Guests, .. guestRows] };
             });
-            Read("beds", result, () => {
+            Read("beds", () => {
                 var beds = sets.PlayerBuildings.OfType<Building_Bed>().OrderBy(b => b.thingIDNumber).ToList();
                 var people = map.mapPawns.AllPawnsSpawned.Where(p => (p.IsFreeColonist || p.IsSlaveOfColony || HostedGuest(p)) && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
                 var values = beds.Select(b => {
@@ -398,17 +409,17 @@ namespace HomeBridge.BridgeTools
                         Medical = b.Medical, Prisoners = b.ForPrisoners, ForSlaves = b.ForSlaves, Roofed = b.OccupiedRect().All(c => c.Roofed(map)),
                         TemperatureC = Number(b.AmbientTemperature) };
                     var room = b.GetRoom();
-                    if (room != null) row.Room = NativeRef.Room(room);
-                    if (b.TryGetQuality(out var quality)) row.Quality = quality.ToString(); if (b.Stuff != null) row.Stuff = b.Stuff.defName;
+                    if (room != null) row = row with { Room = NativeRef.Room(room) };
+                    if (b.TryGetQuality(out var quality)) row = row with { Quality = quality.ToString() }; if (b.Stuff != null) row = row with { Stuff = b.Stuff.defName };
                     var owners = b.OwnersForReading.Select(p => Id(p.GetUniqueLoadID())).OrderBy(id => id, StringComparer.Ordinal).ToList();
-                    row.Owners.AddRange(NativeRef.All(owners));
-                    row.Users.AddRange(NativeRef.All(people.Where(p => p.CurrentBed() == b).Select(p => Id(p.GetUniqueLoadID()))));
-                    row.AccessibleTo.AddRange(NativeRef.All(people.Where(p => !b.IsForbidden(p) && p.CanReach(b, PathEndMode.OnCell, Danger.None)).Select(p => Id(p.GetUniqueLoadID()))));
+                    row = row with { Owners = [.. row.Owners, .. NativeRef.All(owners)] };
+                    row = row with { Users = [.. row.Users, .. NativeRef.All(people.Where(p => p.CurrentBed() == b).Select(p => Id(p.GetUniqueLoadID())))] };
+                    row = row with { AccessibleTo = [.. row.AccessibleTo, .. NativeRef.All(people.Where(p => !b.IsForbidden(p) && p.CanReach(b, PathEndMode.OnCell, Danger.None)).Select(p => Id(p.GetUniqueLoadID())))] };
                     return row;
                 }).ToList();
-                result.Beds.AddRange(values);
+                result = result with { Beds = [.. result.Beds, .. values] };
             });
-            Read("animals", result, () => {
+            Read("animals", () => {
                 var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
                     && p.Faction == Faction.OfPlayerSilentFail).OrderBy(p => p.thingIDNumber).ToList();
                 var values = animals.Select(p => {
@@ -420,20 +431,21 @@ namespace HomeBridge.BridgeTools
                         Pawn = NativePawnObservationTools.Ref(p),
                         RequiresPen = requiresPen
                     };
-                    if (suitable != null) value.SuitablePen = NativeRef.Of(Id(suitable.parent.GetUniqueLoadID()));
+                    if (suitable != null) value = value with { SuitablePen = NativeRef.Of(Id(suitable.parent.GetUniqueLoadID())) };
                     return value;
                 }).ToList();
-                result.Animals.AddRange(values);
+                result = result with { Animals = [.. result.Animals, .. values] };
             });
             // The factionless animals a MaintainHerd tame write can target:
             // native tame eligibility only, no feed or pen facts. Every
             // spawned wild animal is listed: the census has no row bound.
-            Read("wild_animals", result, () => {
+            Read("wild_animals", () => {
                 var wild = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal && p.Faction == null)
                     .OrderBy(p => p.thingIDNumber).ToList();
-                result.WildAnimals.AddRange(wild.Select(p => new Obs.AnimalFeed {
-                    Pawn = NativePawnObservationTools.Ref(p), RequiresPen = false }));
+                result = result with { WildAnimals = [.. result.WildAnimals, .. wild.Select(p => new Obs.AnimalFeed {
+                    Pawn = NativePawnObservationTools.Ref(p), RequiresPen = false })] };
             });
+            return result;
         }
 
         // SleepingRelations fills a colonist's partners (lover, spouse and
@@ -445,31 +457,24 @@ namespace HomeBridge.BridgeTools
         internal static bool HostedGuest(Pawn p) => p.Spawned && !p.Dead && p.RaceProps.Humanlike && !p.IsPrisoner
             && p.HostFaction == Faction.OfPlayerSilentFail && p.guest?.GuestStatus == GuestStatus.Guest;
 
-        private static void SleepingRelations(Pawn p, Obs.UpkeepPerson row)
+        private static Obs.UpkeepPerson SleepingRelations(Pawn p, Obs.UpkeepPerson row)
         {
             var partners = (p.relations?.DirectRelations ?? new List<DirectPawnRelation>())
                 .Where(r => LovePartnerRelationUtility.IsLovePartnerRelation(r.def)
                     && r.otherPawn != null && !r.otherPawn.Dead && r.otherPawn.Spawned && r.otherPawn.Map == p.Map)
                 .Select(r => r.otherPawn).Distinct().OrderBy(o => o.thingIDNumber).ToList();
-            row.Partners.AddRange(NativeRef.All(partners.Select(o => Id(o.GetUniqueLoadID()))));
-            row.BedSharingAllowed = partners.Count == 0 ? IdeoUtility.DoerWillingToDo(HistoryEventDefOf.SharedBed, p) : partners.All(o => BedUtility.WillingToShareBed(p, o));
-            if (!ModsConfig.RoyaltyActive) return;
+            row = row with { Partners = [.. row.Partners, .. NativeRef.All(partners.Select(o => Id(o.GetUniqueLoadID())))] };
+            row = row with { BedSharingAllowed = partners.Count == 0 ? IdeoUtility.DoerWillingToDo(HistoryEventDefOf.SharedBed, p) : partners.All(o => BedUtility.WillingToShareBed(p, o)) };
+            if (!ModsConfig.RoyaltyActive) return row;
             var title = p.royalty?.MostSeniorTitle?.def;
-            if (title == null) return;
+            if (title == null) return row;
             // The title's requirements are its RoyalTitleDef row; what the
             // pawn waives is its own state: the Ascetic trait drops them all and
             // an ideoligion precept can disable one.
-            row.RoyalTitle = Id(title.defName);
-            row.Ascetic = p.story?.traits?.HasTrait(TraitDefOf.Ascetic) == true;
-            if (p.Ideo != null) row.Precepts.AddRange(p.Ideo.PreceptsListForReading.Select(x => Id(x.def.defName)).Distinct().OrderBy(d => d, StringComparer.Ordinal));
-        }
-
-        private static void Read(string field, Obs.UpkeepFacts result, Action read)
-        {
-            var began = System.Diagnostics.Stopwatch.GetTimestamp();
-            try { read(); }
-            catch (Exception) { result.Issues.Add(Issue(field, Common.UnavailableReason.ReadFailed, "Complete native upkeep section is unavailable.")); }
-            ObservationWork.Detail("cf.upkeep." + field, System.Diagnostics.Stopwatch.GetTimestamp() - began);
+            row = row with { RoyalTitle = Id(title.defName) };
+            row = row with { Ascetic = p.story?.traits?.HasTrait(TraitDefOf.Ascetic) == true };
+            if (p.Ideo != null) row = row with { Precepts = [.. row.Precepts, .. p.Ideo.PreceptsListForReading.Select(x => Id(x.def.defName)).Distinct().OrderBy(d => d, StringComparer.Ordinal)] };
+            return row;
         }
     }
 }

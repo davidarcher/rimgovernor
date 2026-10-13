@@ -9,8 +9,8 @@ dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-movem
 
 where `<args...>` is the private compiled bridge DLL followed by dependency
 directories (game managed assemblies, RimGovernor.Host SDK, Harmony, and private
-runtime if separate). The tests load actual compiled adapters and generated
-Protobuf types.
+runtime if separate). The tests load actual compiled adapters and the
+`RimGovernor.Brain.Contracts` wire records.
 
 Checks cover the drafted, eligible pawn check (`Owns`; drafts are plan-owned). Run the draft operations, pawn control state, authority hooks and
 operation envelope neighbors (now other probe names within the same

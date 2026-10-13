@@ -6,10 +6,10 @@ using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -28,13 +28,14 @@ namespace HomeBridge.BridgeTools
             && PlantUtility.CanSowOnGrower(plant, grower)
             && (plant.plant.sowResearchPrerequisites == null || plant.plant.sowResearchPrerequisites.All(r => r.IsFinished));
 
-        internal static string Token(Common.Identity identity, Building_PlantGrower grower)
+        internal static string Token(Common.Identity? identity, Building_PlantGrower grower)
         {
+            identity ??= new Common.Identity();
             using (var bytes = new MemoryStream())
             {
                 using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
                 {
-                    writer.Write(identity.ColonyId); writer.Write(identity.LoadToken); writer.Write(identity.MapId);
+                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId.GetValueOrDefault());
                     writer.Write(grower.GetUniqueLoadID()); writer.Write(grower.GetPlantDefToGrow()?.defName ?? string.Empty);
                 }
                 using (var hash = SHA256.Create())
@@ -45,7 +46,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.SnapshotRef? Snapshot(Thing thing, Common.ObservationContext context)
         {
             if (!Eligible(thing)) return null;
-            return new Obs.SnapshotRef { Context = context.Clone(), EntityId = thing.GetUniqueLoadID(),
+            return new Obs.SnapshotRef { Context = context, EntityId = thing.GetUniqueLoadID(),
                 Token = Token(context.Identity, (Building_PlantGrower)thing) };
         }
 
@@ -55,26 +56,26 @@ namespace HomeBridge.BridgeTools
         {
             var settings = new Obs.BuildingSettings { Snapshot = Snapshot(grower, context) };
             var crop = grower.GetPlantDefToGrow();
-            if (crop != null) settings.CropDefName = crop.defName;
+            if (crop != null) settings = settings with { CropDefName = crop.defName };
             return settings;
         }
 
         private static Common.Failure? Resolve(Operations.BuildingPatchIntent intent, Common.ObservationContext context, out Building_PlantGrower? grower, out ThingDef? plant)
         {
             grower = null; plant = null;
-            if (!ProtoBoundary.IsIdentifier(intent.ThingId) || string.IsNullOrEmpty(intent.PlantDef)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A grower patch requires an exact grower and a plant definition.");
+            if (!ProtoBoundary.IsIdentifier(intent.ThingId) || string.IsNullOrEmpty(intent.Change?.PlantDef)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A grower patch requires an exact grower and a plant definition.");
             var thing = RefIndex.Thing(ProtoBoundary.LoadedMap(context), intent.ThingId);
             if (thing == null || !Eligible(thing)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact plant grower is unavailable.");
             grower = (Building_PlantGrower)thing;
-            plant = DefDatabase<ThingDef>.GetNamedSilentFail(intent.PlantDef);
+            plant = DefDatabase<ThingDef>.GetNamedSilentFail(intent.Change?.PlantDef);
             if (!Sowable(plant, grower)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Plant definition cannot be sown on this grower: it must be sowable, carry the grower's sow tag and have its sow research finished.");
             return null;
         }
 
         private static Receipts.EffectEvidence Evidence(string id, string after) =>
-            new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+            new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = id, AfterToken = after },
-                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.GrowerCrop, Outcome = Receipts.FieldOutcome.Applied } } } };
+                Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.GrowerCrop, Outcome = Receipts.FieldOutcome.Applied }] } };
 
         internal static Common.Failure? Validate(Operations.BuildingPatchIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
 
@@ -83,8 +84,8 @@ namespace HomeBridge.BridgeTools
             var failure = Resolve(intent, context, out var grower, out var plant);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
             grower!.SetPlantDefToGrow(plant!);
-            if (grower.GetPlantDefToGrow()?.defName != intent.PlantDef) throw new InvalidOperationException("Native grower crop requires readback.");
-            return Evidence(grower.GetUniqueLoadID(), Snapshot(grower, context)!.Token);
+            if (grower.GetPlantDefToGrow()?.defName != intent.Change?.PlantDef) throw new InvalidOperationException("Native grower crop requires readback.");
+            return Evidence(grower.GetUniqueLoadID(), (Snapshot(grower, context)!.Token ?? ""));
         }
     }
 }

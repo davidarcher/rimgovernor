@@ -4,7 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Mirror = RimGovernor.Protocol.Mirror;
+using RimGovernor.Brain.Domain;
+using Mirror = RimGovernor.Contracts.Wire.Mirror;
 
 namespace HomeBridge.BridgeTools
 {
@@ -60,15 +61,14 @@ namespace HomeBridge.BridgeTools
             var t = new Mirror.Thing { Def = put(Def), Category = Category, Faction = Faction, Flags = Flags, Id = Id, Count = Count };
             switch (Category)
             {
-                case Mirror.ThingCategory.Plant: t.Plant = new Mirror.PlantState { Growth = Growth, Blighted = Blighted }; break;
-                case Mirror.ThingCategory.Corpse: t.Corpse = new Mirror.CorpseState { Class = Class, Rot = Rot }; break;
-                case Mirror.ThingCategory.Filth: t.Filth = new Mirror.FilthState { Thickness = Thickness }; break;
-                case Mirror.ThingCategory.Item: t.Item = new Mirror.ItemState { Deterioration = Deterioration }; break;
+                case Mirror.ThingCategory.Plant: t = t with { State = new Mirror.ThingState.PlantCase(new Mirror.PlantState { Growth = Growth, Blighted = Blighted }) }; break;
+                case Mirror.ThingCategory.Corpse: t = t with { State = new Mirror.ThingState.CorpseCase(new Mirror.CorpseState { Class = Class, Rot = Rot }) }; break;
+                case Mirror.ThingCategory.Filth: t = t with { State = new Mirror.ThingState.FilthCase(new Mirror.FilthState { Thickness = Thickness }) }; break;
+                case Mirror.ThingCategory.Item: t = t with { State = new Mirror.ThingState.ItemCase(new Mirror.ItemState { Deterioration = Deterioration }) }; break;
                 case Mirror.ThingCategory.Building:
                     var b = new Mirror.BuildingState { HitPoints = HitPoints, Burning = Burning, Reserved = Reserved };
-                    foreach (var need in Needed) b.Needed.Add(new Mirror.MaterialNeed { Def = put(need.Def), Count = need.Count });
-                    foreach (var held in Casket) b.Casket.Add(put(held));
-                    t.Building = b;
+                    b = b with { Needed = EquatableArray.From(Needed.Select(need => new Mirror.MaterialNeed { Def = put(need.Def), Count = need.Count })), Casket = EquatableArray.From(Casket.Select(held => put(held))) };
+                    t = t with { State = new Mirror.ThingState.BuildingCase(b) };
                     break;
             }
             return t;
@@ -140,7 +140,7 @@ namespace HomeBridge.BridgeTools
             var constructible = thing is Blueprint || thing is Frame;
             // A blueprint or frame is listed as what it builds.
             rec.Def = Identifier(constructible && def.entityDefToBuild != null ? def.entityDefToBuild.defName : def.defName);
-            var building = thing as Building;
+            var building = thing as Verse.Building;
             var flags = 0u;
             if (map.edificeGrid[cell] == thing) flags |= 1;                      // EDIFICE
             if (thing is Blueprint) flags |= 2;                                  // BLUEPRINT

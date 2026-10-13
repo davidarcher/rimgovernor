@@ -4,8 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Lifecycle = RimGovernor.Protocol.Lifecycle;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace HomeBridge.BridgeTools
 {
@@ -17,9 +17,9 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Read(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official lifecycle GovernorStateRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/lifecycle_read_governor_state", request,
-                Lifecycle.GovernorStateRequest.Parser, out _, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.GovernorStateReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Lifecycle.GovernorStateRequest>(ctx, "rimgovernor/lifecycle_read_governor_state", request,
+                out _, out var failure))
+                return ProtoBoundary.Encode(new Lifecycle.GovernorStateReply { Outcome = new Lifecycle.GovernorStateReplyOutcome.FailureCase(failure) });
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleRead(), cancellationToken).ConfigureAwait(false);
         }
 
@@ -32,9 +32,9 @@ namespace HomeBridge.BridgeTools
         public async Task<object> PutBatch(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official lifecycle PutGovernorStateBatchRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/lifecycle_put_governor_state_batch", request,
-                Lifecycle.PutGovernorStateBatchRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.GovernorStateReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Lifecycle.PutGovernorStateBatchRequest>(ctx, "rimgovernor/lifecycle_put_governor_state_batch", request,
+                out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Lifecycle.GovernorStateReply { Outcome = new Lifecycle.GovernorStateReplyOutcome.FailureCase(failure) });
             var reply = TryPut(parsed, out var set);
             if (reply != null) return ProtoBoundary.Encode(reply);
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => PutOnGameThread(set), cancellationToken).ConfigureAwait(false);
@@ -49,7 +49,7 @@ namespace HomeBridge.BridgeTools
             foreach (var pair in request.Blobs)
             {
                 if (string.IsNullOrEmpty(pair.Key) || !Ascii(pair.Key) || !Ascii(pair.Value))
-                    return new Lifecycle.GovernorStateReply { Failure = new Common.Failure {
+                    return new Lifecycle.GovernorStateReply { Outcome = new Common.Failure {
                         Code = Common.FailureCode.InvalidRequest, Detail = "key must be non-empty ASCII and blob ASCII" } };
                 if (pair.Value.Length > 0) set[pair.Key] = pair.Value;
             }
@@ -72,10 +72,10 @@ namespace HomeBridge.BridgeTools
             return Staged();
         }
 
-        private static Lifecycle.GovernorStateReply Staged() => new Lifecycle.GovernorStateReply { Loaded = new Lifecycle.GovernorStateBlobs() };
+        private static Lifecycle.GovernorStateReply Staged() => new Lifecycle.GovernorStateReply { Outcome = new Lifecycle.GovernorStateBlobs() };
 
         private static Lifecycle.GovernorStateReply NotLoaded() =>
-            new Lifecycle.GovernorStateReply { Unavailable = new Common.Unavailable {
+            new Lifecycle.GovernorStateReply { Outcome = new Common.Unavailable {
                 Reason = Common.UnavailableReason.NotLoaded, Detail = "No game is loaded." } };
 
         private static bool Ascii(string value) => value.All(c => c < 128);
@@ -83,11 +83,10 @@ namespace HomeBridge.BridgeTools
         private static Lifecycle.GovernorStateReply Reply()
         {
             if (Current.Game == null)
-                return new Lifecycle.GovernorStateReply { Unavailable = new Common.Unavailable {
+                return new Lifecycle.GovernorStateReply { Outcome = new Common.Unavailable {
                     Reason = Common.UnavailableReason.NotLoaded, Detail = "No game is loaded." } };
-            var loaded = new Lifecycle.GovernorStateBlobs();
-            loaded.Blobs.Add(GovernorState.For(Current.Game).Blobs);
-            return new Lifecycle.GovernorStateReply { Loaded = loaded };
+            var loaded = new Lifecycle.GovernorStateBlobs { Blobs = new System.Collections.Generic.Dictionary<string, string>(GovernorState.For(Current.Game).Blobs) };
+            return new Lifecycle.GovernorStateReply { Outcome = loaded };
         }
     }
 }

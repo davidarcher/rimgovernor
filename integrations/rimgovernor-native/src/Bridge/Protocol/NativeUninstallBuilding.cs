@@ -3,10 +3,10 @@ using System;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Placement = RimGovernor.Protocol.Placement;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Placement = RimGovernor.Contracts.Wire.Placement;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
             building = null;
             if (!ProtoBoundary.IsIdentifier(intent.ThingId)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Uninstall requires an exact building.");
             var map = ProtoBoundary.LoadedMap(context);
-            var found = NativeMoveBuilding.Find(map, intent.ThingId);
+            var found = NativeMoveBuilding.Find(map, (intent.ThingId ?? ""));
             var rules = new ApplyPreconditions(Kind)
                 .Present(() => found != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact building is not installed on this map")
                 .Require(() => found!.Faction == Faction.OfPlayer, "the building is not the player's")
@@ -49,7 +49,7 @@ namespace HomeBridge.BridgeTools
             if (designations.DesignationOn(building, DesignationDefOf.Uninstall) == null)
                 designations.AddDesignation(new Designation(building, DesignationDefOf.Uninstall));
             if (designations.DesignationOn(building, DesignationDefOf.Uninstall) == null) throw new InvalidOperationException("Native uninstall designation was not observed.");
-            return new Receipts.EffectEvidence { Installation = new Receipts.InstallationEffect {
+            return new Receipts.EffectEvidence { Effect = new Receipts.InstallationEffect {
                 InnerThingId = building.GetUniqueLoadID(), DefName = building.def.defName, Stuff = building.Stuff?.defName ?? "",
                 Cell = new Common.Cell { X = building.Position.x, Z = building.Position.z },
                 Rotation = (Placement.Rotation)(building.Rotation.AsInt + 1), Stage = Receipts.InstallationStage.UninstallQueued } };

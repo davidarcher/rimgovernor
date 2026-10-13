@@ -4,9 +4,9 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -15,18 +15,18 @@ namespace HomeBridge.BridgeTools
         internal static bool LaunchConditionsSatisfied(bool nativeCanLaunch, bool allLoaded, bool blockedWeather, bool blockedCondition)
             => nativeCanLaunch && allLoaded && !blockedWeather && !blockedCondition;
         internal static bool ValidShape(Operations.QuestShuttleIntent? command) => command != null
-            && command.HasQuestId && ProtoBoundary.IsIdentifier(command.QuestId)
-            && (command.LoadingCase != Operations.QuestShuttleIntent.LoadingOneofCase.None || command.Launch)
-            && (command.LoadingCase != Operations.QuestShuttleIntent.LoadingOneofCase.ExplicitPawns
-                || command.ExplicitPawns.PawnIds.Count > 0 && command.ExplicitPawns.PawnIds.Count <= 256
-                && command.ExplicitPawns.PawnIds.All(ProtoBoundary.IsIdentifier)
-                && command.ExplicitPawns.PawnIds.Distinct().Count() == command.ExplicitPawns.PawnIds.Count);
+            && command.QuestId is not null && ProtoBoundary.IsIdentifier(command.QuestId)
+            && (command.Loading is not null || command.Launch.GetValueOrDefault())
+            && (command.Loading is not Operations.QuestShuttleIntentLoading.ExplicitPawnsCase
+                || command.Loading.ExplicitPawns is { PawnIds: var ids } && ids.Count > 0 && ids.Count <= 256
+                && ids.All(ProtoBoundary.IsIdentifier)
+                && ids.Distinct().Count() == ids.Count);
 
-        private static Common.Failure? Resolve(Operations.QuestShuttleIntent command, Common.ObservationContext context,
+        private static Common.Failure? Resolve(Operations.QuestShuttleIntent? command, Common.ObservationContext context,
             out CompShuttle? shuttle, out Pawn[] pawns, out Command_Toggle? autoload, out Command_Action? send)
         {
             shuttle = null; pawns = Array.Empty<Pawn>(); autoload = null; send = null;
-            if (!ValidShape(command)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A quest shuttle requires an exact quest and loading mode or launch.");
+            if (!ValidShape(command) || command == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A quest shuttle requires an exact quest and loading mode or launch.");
             var quest = global::Verse.Find.QuestManager.QuestsListForReading.ById(command.QuestId);
             if (quest == null || quest.State != QuestState.Ongoing)
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The quest is not ongoing.");
@@ -38,15 +38,15 @@ namespace HomeBridge.BridgeTools
             shuttle = matches[0]!;
             if (!shuttle.ShowLoadingGizmos || shuttle.IsPlayerShuttle || shuttle.permitShuttle)
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "This shuttle does not offer quest loading.");
-            if (command.LoadingCase == Operations.QuestShuttleIntent.LoadingOneofCase.Autoload)
+            if (command.Loading is Operations.QuestShuttleIntentLoading.AutoloadCase)
             {
                 autoload = shuttle.CompGetGizmosExtra().OfType<Command_Toggle>().SingleOrDefault(g => g.defaultLabel == "CommandAutoloadTransporters".Translate().ToString());
                 if (autoload == null || autoload.Disabled) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Vanilla does not offer autoload for this shuttle.");
             }
-            if (command.LoadingCase == Operations.QuestShuttleIntent.LoadingOneofCase.ExplicitPawns)
+            if (command.Loading is Operations.QuestShuttleIntentLoading.ExplicitPawnsCase)
             {
                 var selected = new System.Collections.Generic.List<Pawn>();
-                foreach (var id in command.ExplicitPawns.PawnIds)
+                foreach (var id in command.Loading?.ExplicitPawns?.PawnIds ?? default)
                 {
                     if (shuttle.Transporter.innerContainer.OfType<Pawn>().Any(p => p.GetUniqueLoadID() == id)) continue;
                     var pawn = map.mapPawns.AllPawnsSpawned.ById(id);
@@ -57,7 +57,7 @@ namespace HomeBridge.BridgeTools
                 }
                 pawns = selected.ToArray();
             }
-            if (command.Launch)
+            if (command.Launch.GetValueOrDefault())
             {
                 if (!LaunchConditionsSatisfied(shuttle.CanLaunch.Accepted, shuttle.AllRequiredThingsLoaded,
                     map.weatherManager.CurWeatherPerceived.preventsShuttleLaunch,
@@ -70,14 +70,14 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static Common.Failure? Validate(Operations.QuestShuttleIntent command, Common.ObservationContext context)
+        internal static Common.Failure? Validate(Operations.QuestShuttleIntent? command, Common.ObservationContext context)
             => Resolve(command, context, out _, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.QuestShuttleIntent command, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(Operations.QuestShuttleIntent? command, Common.ObservationContext context)
         {
             var failure = Resolve(command, context, out var shuttle, out var pawns, out var autoload, out var send);
-            if (failure != null || shuttle == null) throw new InvalidOperationException("Quest shuttle prerequisites changed: " + failure?.Detail);
-            if (autoload != null && shuttle.Autoload != command.Autoload) autoload.toggleAction();
+            if (failure != null || shuttle == null || command == null) throw new InvalidOperationException("Quest shuttle prerequisites changed: " + (failure?.Detail ?? ""));
+            if (autoload != null && shuttle.Autoload != command.Loading?.Autoload) autoload.toggleAction();
             if (pawns.Length > 0)
             {
                 if (!shuttle.Transporter.LoadingInProgressOrReadyToLaunch) TransporterUtility.InitiateLoading(Gen.YieldSingle(shuttle.Transporter));
@@ -86,14 +86,14 @@ namespace HomeBridge.BridgeTools
             send?.action();
             var effect = new Receipts.QuestShuttleEffect { QuestId = command.QuestId, ShuttleId = shuttle.parent.GetUniqueLoadID(),
                 Autoload = shuttle.Autoload, Loading = shuttle.Transporter.LoadingInProgressOrReadyToLaunch, LaunchRequested = send != null };
-            if (command.ExplicitPawns != null) effect.PawnIds.Add(command.ExplicitPawns.PawnIds);
-            return new Receipts.EffectEvidence { QuestShuttle = effect };
+            if (command.Loading?.ExplicitPawns is { } explicitPawns) effect = effect with { PawnIds = [.. effect.PawnIds, .. explicitPawns.PawnIds] };
+            return new Receipts.EffectEvidence { Effect = effect };
         }
     }
 
     internal sealed class QuestShuttleActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeQuestShuttleOperations.Validate(action.QuestShuttle, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeQuestShuttleOperations.Apply(action.QuestShuttle, context);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeQuestShuttleOperations.Validate(action.Intent?.QuestShuttle, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeQuestShuttleOperations.Apply(action.Intent?.QuestShuttle, context);
     }
 }

@@ -7,9 +7,9 @@ using System.Text;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
-using Operations = RimGovernor.Protocol.Operations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -20,12 +20,12 @@ namespace HomeBridge.BridgeTools
             using (var bytes = new MemoryStream())
             {
                 using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
-                { writer.Write(identity.ColonyId); writer.Write(identity.LoadToken); writer.Write(identity.MapId); writer.Write(id); writer.Write(resource); writer.Write(x); writer.Write(z); writer.Write(hitPoints); writer.Write(yield); writer.Write(designated); }
+                { writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId.GetValueOrDefault()); writer.Write(id); writer.Write(resource); writer.Write(x); writer.Write(z); writer.Write(hitPoints); writer.Write(yield); writer.Write(designated); }
                 using (var hash = SHA256.Create()) return "mine-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
             }
         }
         internal static Obs.SnapshotRef Snapshot(Mineable rock, Common.ObservationContext context) => new Obs.SnapshotRef {
-            Context = context.Clone(), EntityId = rock.GetUniqueLoadID(), Token = Token(context.Identity, rock.GetUniqueLoadID(),
+            Context = context, EntityId = rock.GetUniqueLoadID(), Token = Token(context.Identity ?? throw new InvalidOperationException("Observation context has no identity."), rock.GetUniqueLoadID(),
                 rock.def.building.mineableThing.defName, rock.Position.x, rock.Position.z, rock.HitPoints, rock.def.building.mineableYield, ResourceAcquisitionTools.Designated(rock)) };
         internal const string Kind = "Mine";
         // Miner is the colonist rule ResourceAcquisitionTools.Eligible
@@ -47,7 +47,7 @@ namespace HomeBridge.BridgeTools
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")
                 .Present(() => found != null && found.Spawned, "the exact rock is no longer spawned on this map")
-                .Require(() => found!.Position.x == command.Cell.X && found.Position.z == command.Cell.Z, "the rock is not at the expected cell")
+                .Require(() => found!.Position.x == command.Cell.X.GetValueOrDefault() && found.Position.z == command.Cell.Z.GetValueOrDefault(), "the rock is not at the expected cell")
                 .Require(() => found!.def.building.mineableThing?.defName == command.ResourceDefName, "the rock no longer yields the expected resource")
                 .Require(() => !found!.Position.Fogged(map), "the rock's cell is fogged")
                 .Require(() => !found!.IsForbidden(Faction.OfPlayer), "the rock is forbidden")

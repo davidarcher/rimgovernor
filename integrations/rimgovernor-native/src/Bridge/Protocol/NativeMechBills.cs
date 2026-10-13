@@ -3,9 +3,9 @@ using System;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -32,20 +32,20 @@ namespace HomeBridge.BridgeTools
         private static bool IsMech(RecipeDef recipe) => !recipe.mechResurrection && recipe.ProducedThingDef?.race?.IsMechanoid == true;
 
         internal static bool Handles(Operations.ProductionBillIntent? intent) =>
-            intent != null && intent.HasRecipeDef && DefDatabase<RecipeDef>.GetNamedSilentFail(intent.RecipeDef) is RecipeDef recipe && IsMech(recipe);
+            intent != null && intent.RecipeDef is not null && DefDatabase<RecipeDef>.GetNamedSilentFail((intent.RecipeDef ?? "")) is RecipeDef recipe && IsMech(recipe);
 
         private static Common.Failure? Resolve(Operations.ProductionBillIntent intent, Common.ObservationContext context, out Building_MechGestator? bench, out RecipeDef? recipe, out Pawn? overseer)
         {
             bench = null; recipe = null; overseer = null;
             var s = intent.Settings;
-            if (!NativeProductionBills.Valid(intent) || s.RepeatMode != Operations.RepeatMode.Count || s.RepeatCount != 1 || s.Worker != null || s.Ingredients != null || intent.ReplaceOwnedBill != null)
+            if (s is null || !NativeProductionBills.Valid(intent) || s.RepeatMode.GetValueOrDefault() != Operations.RepeatMode.Count || s.RepeatCount.GetValueOrDefault() != 1 || s.Worker != null || s.Ingredients != null || intent.ReplaceOwnedBill != null)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Mech bill requires an exact gestator, a mech recipe and a single-count bill without worker, ingredients or replacement.");
             var map = ProtoBoundary.LoadedMap(context);
-            var gestator = map.listerThings.AllThings.FirstOrDefault(x => x.GetUniqueLoadID() == intent.BenchId) as Building_MechGestator;
-            var made = DefDatabase<RecipeDef>.GetNamedSilentFail(intent.RecipeDef);
-            if (gestator == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Gestator " + intent.BenchId + " is not a loaded mech gestator.");
+            var gestator = map.listerThings.AllThings.FirstOrDefault(x => x.GetUniqueLoadID() == (intent.BenchId ?? "")) as Building_MechGestator;
+            var made = DefDatabase<RecipeDef>.GetNamedSilentFail((intent.RecipeDef ?? ""));
+            if (gestator == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Gestator " + (intent.BenchId ?? "") + " is not a loaded mech gestator.");
             bench = gestator; recipe = made;
-            if (made == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Recipe " + intent.RecipeDef + " does not exist.");
+            if (made == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Recipe " + (intent.RecipeDef ?? "") + " does not exist.");
             // A standing bill of the recipe applies again.
             if (gestator.BillStack.Bills.OfType<Bill_Mech>().Any(b => b.recipe == made && !BillCommon.IsFinished(b))) return null;
             var work = NativeBillsObservationTools.WorkType(gestator.def, made);
@@ -54,15 +54,15 @@ namespace HomeBridge.BridgeTools
             var rules = new ApplyPreconditions(ProductionBillActionHandler.Kind)
                 .Require(() => NativeProductionBills.UsableForNewBill(gestator), "gestator is not usable for bills")
                 .Require(() => gestator.BillStack.Count < BillStack.MaxCount, "bill stack is full")
-                .Require(() => gestator.def.AllRecipes.Contains(made) && made.AvailableNow && made.AvailableOnNow(gestator), "recipe " + intent.RecipeDef + " is not available on the gestator")
-                .Require(() => work != null, "recipe " + intent.RecipeDef + " has no work type on " + gestator.def.defName)
+                .Require(() => gestator.def.AllRecipes.Contains(made) && made.AvailableNow && made.AvailableOnNow(gestator), "recipe " + (intent.RecipeDef ?? "") + " is not available on the gestator")
+                .Require(() => work != null, "recipe " + (intent.RecipeDef ?? "") + " has no work type on " + gestator.def.defName)
                 .Require(() => !float.IsNaN(cost) && !float.IsInfinity(cost), "mech race has no bandwidth cost");
             if (rules.Holds)
             {
                 var found = colonists.FirstOrDefault(p => MechanitorUtility.IsMechanitor(p) && p.mechanitor != null && NativeProductionBills.Skilled(p, gestator, made, work!)
                     && p.mechanitor.TotalBandwidth - p.mechanitor.UsedBandwidth - p.mechanitor.UsedBandwidthFromGestation >= cost);
                 overseer = found;
-                rules.Require(() => found != null, "no free colonist mechanitor with the bandwidth (" + cost + ") and the work for " + intent.RecipeDef);
+                rules.Require(() => found != null, "no free colonist mechanitor with the bandwidth (" + cost + ") and the work for " + (intent.RecipeDef ?? ""));
             }
             return rules.Holds ? null : rules.Failure();
         }
@@ -87,7 +87,7 @@ namespace HomeBridge.BridgeTools
                 gestator.BillStack.AddBill(bill);
                 standing = bill;
             }
-            return new Receipts.EffectEvidence { Bill = new Receipts.BillEffect { Stack = new Receipts.SnapshotEvidence { EntityId = gestator.GetUniqueLoadID() }, Bill = NativeRef.Of(standing.GetUniqueLoadID()), RecipeDef = standing.recipe.defName } };
+            return new Receipts.EffectEvidence { Effect = new Receipts.BillEffect { Stack = new Receipts.SnapshotEvidence { EntityId = gestator.GetUniqueLoadID() }, Bill = NativeRef.Of(standing.GetUniqueLoadID()), RecipeDef = standing.recipe.defName } };
         }
     }
 }

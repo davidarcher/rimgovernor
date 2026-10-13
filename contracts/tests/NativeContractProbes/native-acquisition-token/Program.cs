@@ -1,6 +1,6 @@
 using System;
 using HomeBridge.BridgeTools;
-using Common = RimGovernor.Protocol.Common;
+using Common = RimGovernor.Contracts.Wire.Common;
 
 // A plant's acquisition token covers only what eligibility reads:
 // resource, cell, harvestability and designation. Growth is not an input,

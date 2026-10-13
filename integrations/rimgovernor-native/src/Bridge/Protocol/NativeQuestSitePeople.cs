@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Obs = RimGovernor.Protocol.Observations;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
                 .Where(p => p != null && !p.Destroyed && !p.Dead).Distinct().OrderBy(p => p.GetUniqueLoadID()).ToArray();
             if (pawns.Length == 0) yield break;
             var row = new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.RescuePawns, Active = quest.State == QuestState.Ongoing };
-            row.PawnIds.Add(pawns.Select(p => p.GetUniqueLoadID()));
+            row = row with { PawnIds = [.. row.PawnIds, .. pawns.Select(p => p.GetUniqueLoadID())] };
             yield return row;
         }
     }

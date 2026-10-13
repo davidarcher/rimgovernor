@@ -5,9 +5,9 @@ using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -63,12 +63,12 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(Operations.PrisonerInteractionIntent? intent, Common.ObservationContext context, out Pawn pawn, out PrisonerInteractionModeDef def)
         {
             pawn = null!; def = null!;
-            if (intent == null || !intent.HasPawnId || !ProtoBoundary.IsIdentifier(intent.PawnId) || !intent.HasInteraction)
+            if (intent == null || intent.PawnId is null || !ProtoBoundary.IsIdentifier(intent.PawnId) || intent.Interaction is null)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Prisoner interaction requires a pawn and an interaction.");
             var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.PawnId);
             if (found == null || found.Destroyed || found.Dead || !found.IsPrisonerOfColony || found.guest == null)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact eligible current-map colony prisoner is unavailable.");
-            var name = DefName(intent.Interaction);
+            var name = DefName(intent.Interaction.GetValueOrDefault());
             var mode = name == null ? null : DefDatabase<PrisonerInteractionModeDef>.GetNamedSilentFail(name);
             if (mode == null || !Supported(found, mode))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Unsupported or ineligible native prisoner interaction.");
@@ -76,12 +76,12 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => Resolve(action.Prisoner, context, out _, out _);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => Resolve(action.Intent?.Prisoner, context, out _, out _);
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
-            var failure = Resolve(action.Prisoner, context, out var pawn, out var def);
-            if (failure != null) throw new InvalidOperationException("Prisoner interaction prerequisites changed before apply: " + failure.Detail);
+            var failure = Resolve(action.Intent?.Prisoner, context, out var pawn, out var def);
+            if (failure != null) throw new InvalidOperationException("Prisoner interaction prerequisites changed before apply: " + (failure.Detail ?? ""));
             var before = NativePrisonerInteractionOperations.Settings(pawn);
             if (pawn.guest!.ExclusiveInteractionMode != def)
             {
@@ -90,7 +90,7 @@ namespace HomeBridge.BridgeTools
                 pawn.guest.SetExclusiveInteraction(def);
             }
             if (pawn.guest.ExclusiveInteractionMode != def) throw new InvalidOperationException("Native prisoner interaction readback did not apply.");
-            return new Receipts.EffectEvidence { Prisoner = new Receipts.PrisonerEffect {
+            return new Receipts.EffectEvidence { Effect = new Receipts.PrisonerEffect {
                 Pawn = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID(), BeforeToken = before, AfterToken = NativePrisonerInteractionOperations.Settings(pawn) },
                 InteractionDef = def.defName, Outcome = "held" } };
         }

@@ -6,12 +6,11 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -23,17 +22,17 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ListRooms(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ListRoomsRequest string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ListRoomsRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.ListRoomsReply { Failure = failure });
+            if (!ProtoBoundary.TryParse(ctx, ToolName, request, out Obs.ListRoomsRequest? parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.ListRoomsReply { Outcome = new Obs.ListRoomsReplyOutcome.FailureCase(failure) });
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleListRooms(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.ListRoomsReply HandleListRooms(Obs.ListRoomsRequest parsed)
         {
-            if (!Validate(parsed, out var invalidRequest)) return new Obs.ListRoomsReply { Failure = invalidRequest };
+            if (!Validate(parsed, out var invalidRequest)) return new Obs.ListRoomsReply { Outcome = invalidRequest };
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                return new Obs.ListRoomsReply { Failure = error };
+                return new Obs.ListRoomsReply { Outcome = error };
             return Read(map, parsed, context);
         }
         // On the main thread: the room census for a validated request.
@@ -42,9 +41,9 @@ namespace HomeBridge.BridgeTools
             try
             {
                 if (parsed.Region != null && (!NativeCell(parsed.Region.Minimum).InBounds(map) || !NativeCell(parsed.Region.Maximum).InBounds(map)))
-                    return new Obs.ListRoomsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Room filter rectangle must be within the current map.") };
+                    return new Obs.ListRoomsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Room filter rectangle must be within the current map.") };
                 if (map.regionGrid?.AllRooms == null || map.regionAndRoomUpdater == null || map.zoneManager == null || map.mapPawns == null)
-                    return new Obs.ListRoomsReply { Unavailable = Missing(Common.UnavailableReason.NativeComponentMissing, "Room, zone or pawn census is unavailable.") };
+                    return new Obs.ListRoomsReply { Outcome = Missing(Common.UnavailableReason.NativeComponentMissing, "Room, zone or pawn census is unavailable.") };
                 // AllRooms is the raw cache; resolve pending region changes
                 // before taking a complete physical-room census.
                 map.regionAndRoomUpdater.TryRebuildDirtyRegionsAndRooms();
@@ -77,12 +76,12 @@ namespace HomeBridge.BridgeTools
                     }
                     if (cells.Count == 0 || cells.Count != room.CellCount || cells.Distinct().Count() != cells.Count) throw new InvalidOperationException("Incomplete room footprint.");
                     if (parsed.Region != null && !cells.Any(c => Inside(parsed.Region, c))) { filtered++; continue; }
-                    snapshot.Rooms.Add(Project(room, map, cells, pawnRooms.TryGetValue(room, out var members) ? members : new List<Pawn>(), parsed, context));
+                    snapshot = snapshot with { Rooms = [.. snapshot.Rooms, Project(room, map, cells, pawnRooms.TryGetValue(room, out var members) ? members : new List<Pawn>(), parsed, context)] };
                 }
-                snapshot.Completeness = Complete(snapshot.Rooms.Count, filtered);
-                return new Obs.ListRoomsReply { Observed = snapshot };
+                snapshot = snapshot with { Completeness = Complete(snapshot.Rooms.Count, filtered) };
+                return new Obs.ListRoomsReply { Outcome = snapshot };
             }
-            catch (Exception readError) { return new Obs.ListRoomsReply { Unavailable = Missing(Common.UnavailableReason.ReadFailed,
+            catch (Exception readError) { return new Obs.ListRoomsReply { Outcome = Missing(Common.UnavailableReason.ReadFailed,
                 PlacementPreviewOperation.Diagnostic("Room census, geometry or contents could not be read completely: " + readError)) }; }
         }
         internal static bool Validate(Obs.ListRoomsRequest request, out Common.Failure failure)
@@ -90,11 +89,11 @@ namespace HomeBridge.BridgeTools
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity, unique room IDs, valid rectangle required.");
             return request?.Scope?.ExpectedIdentity != null && request.RoomIds.Count <= 256
                 && request.RoomIds.All(ProtoBoundary.IsIdentifier) && request.RoomIds.Distinct(StringComparer.Ordinal).Count() == request.RoomIds.Count
-                && (request.Region == null || CellPresent(request.Region.Minimum) && CellPresent(request.Region.Maximum)
-                    && request.Region.Minimum.X <= request.Region.Maximum.X && request.Region.Minimum.Z <= request.Region.Maximum.Z);
+                && (request.Region == null || request.Region.Minimum is { } lo && request.Region.Maximum is { } hi && CellPresent(lo) && CellPresent(hi)
+                    && lo.X.GetValueOrDefault() <= hi.X.GetValueOrDefault() && lo.Z.GetValueOrDefault() <= hi.Z.GetValueOrDefault());
         }
         internal static bool Selected(Obs.ListRoomsRequest request, string id, bool psychologicallyOutdoors, bool doorway)
-            => (request.IncludeOutdoors || !psychologicallyOutdoors && !doorway) && (request.RoomIds.Count == 0 || request.RoomIds.Contains(id));
+            => (request.IncludeOutdoors.GetValueOrDefault() || !psychologicallyOutdoors && !doorway) && (request.RoomIds.Count == 0 || request.RoomIds.Contains(id));
         internal static bool HasPhysicalRegions(Room room)
         {
             if (!room.Dereferenced) return true;
@@ -103,7 +102,7 @@ namespace HomeBridge.BridgeTools
             if (room.CellCount != 0 || room.Cells.Any()) throw new InvalidOperationException("Regionless room has physical cells.");
             return false;
         }
-        internal static bool Inside(Obs.Rectangle rectangle, IntVec3 cell) => cell.x >= rectangle.Minimum.X && cell.x <= rectangle.Maximum.X && cell.z >= rectangle.Minimum.Z && cell.z <= rectangle.Maximum.Z;
+        internal static bool Inside(Obs.Rectangle rectangle, IntVec3 cell) => cell.x >= (rectangle.Minimum?.X).GetValueOrDefault() && cell.x <= (rectangle.Maximum?.X).GetValueOrDefault() && cell.z >= (rectangle.Minimum?.Z).GetValueOrDefault() && cell.z <= (rectangle.Maximum?.Z).GetValueOrDefault();
 
         private static Obs.RoomState Project(Room room, Map map, List<IntVec3> cells, List<Pawn> pawns, Obs.ListRoomsRequest request, Common.ObservationContext context)
         {
@@ -116,64 +115,64 @@ namespace HomeBridge.BridgeTools
                 TouchesMapEdge = room.TouchesMapEdge, Fogged = room.Fogged, CellCount = (uint)cells.Count };
             var roof = room.OpenRoofCount;
             if (roof < 0 || roof > cells.Count) throw new InvalidOperationException("Invalid room open roof count.");
-            row.OpenRoofCount = (uint)roof;
-            row.Burning = things.Any(t => t is Fire);
-            row.TemperatureControl = things.Any(t => t is Building_TempControl || t.TryGetComp<CompHeatPusher>() != null);
-            row.PerishableContents = things.Any(t => room.ContainsCell(t.Position) && t.TryGetComp<CompRottable>() != null);
-            try { row.TemperatureC = Finite(room.Temperature); }
-            catch (Exception) { row.Issues.Add(Issue("temperature_c", Common.UnavailableReason.ReadFailed, "Native room temperature unavailable.")); }
+            row = row with { OpenRoofCount = (uint)roof };
+            row = row with { Burning = things.Any(t => t is Fire) };
+            row = row with { TemperatureControl = things.Any(t => t is Building_TempControl || t.TryGetComp<CompHeatPusher>() != null) };
+            row = row with { PerishableContents = things.Any(t => room.ContainsCell(t.Position) && t.TryGetComp<CompRottable>() != null) };
+            try { row = row with { TemperatureC = Finite(room.Temperature) }; }
+            catch (Exception) { row = row with { Issues = [.. row.Issues, Issue("temperature_c", Common.UnavailableReason.ReadFailed, "Native room temperature unavailable.")] }; }
             try
             {
                 var role = room.Role;
                 if (role == null) throw new InvalidOperationException();
-                row.Role = Name(role.defName);
+                row = row with { Role = Name(role.defName) };
                 var label = room.GetRoomRoleLabel();
-                if (label != null) row.Label = PlacementPreviewOperation.Diagnostic(label);
+                if (label != null) row = row with { Label = PlacementPreviewOperation.Diagnostic(label) };
             }
-            catch (Exception) { row.Issues.Add(Issue("role/label", Common.UnavailableReason.ReadFailed, "Native room role or label unavailable.")); }
-            row.Extents = new Obs.Rectangle { Minimum = Cell(new IntVec3(cells.Min(c => c.x), 0, cells.Min(c => c.z))), Maximum = Cell(new IntVec3(cells.Max(c => c.x), 0, cells.Max(c => c.z))) };
-            row.Center = Cell(Center(cells));
+            catch (Exception) { row = row with { Issues = [.. row.Issues, Issue("role/label", Common.UnavailableReason.ReadFailed, "Native room role or label unavailable.")] }; }
+            row = row with { Extents = new Obs.Rectangle { Minimum = Cell(new IntVec3(cells.Min(c => c.x), 0, cells.Min(c => c.z))), Maximum = Cell(new IntVec3(cells.Max(c => c.x), 0, cells.Max(c => c.z))) } };
+            row = row with { Center = Cell(Center(cells)) };
             var held = cells.Where(c => !c.Fogged(map)).ToList();
-            if (held.Count > 0) row.GridRoom = held.Min(c => c.z * map.Size.x + c.x).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            if (held.Count > 0) row = row with { GridRoom = held.Min(c => c.z * map.Size.x + c.x).ToString(System.Globalization.CultureInfo.InvariantCulture) };
             var stockpiles = new List<Zone_Stockpile>();
             foreach (var cell in cells) if (map.zoneManager.ZoneAt(cell) is Zone_Stockpile stockpile && !stockpiles.Contains(stockpile)) stockpiles.Add(stockpile);
-            row.StockpileZones.Add(NativeRef.All(stockpiles.Select(z => Name(z.GetUniqueLoadID())).OrderBy(v => v, StringComparer.Ordinal)));
+            row = row with { StockpileZones = [.. row.StockpileZones, .. NativeRef.All(stockpiles.Select(z => Name(z.GetUniqueLoadID())).OrderBy(v => v, StringComparer.Ordinal))] };
             foreach (var stockpile in stockpiles.OrderBy(z => z.GetUniqueLoadID(), StringComparer.Ordinal))
             {
                 var stockpileContents = stockpile.slotGroup?.HeldThings?.ToList() ?? new List<Thing>();
                 var membership = new Obs.StockpileMembership { Zone = NativeRef.Of(Name(stockpile.GetUniqueLoadID())) };
                 var grouped = stockpileContents.GroupBy(t => Name(t.def.defName)).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
-                foreach (var group in grouped) membership.Contents.Add(new Obs.ResourceStock { Definition = new Obs.DefinitionRef { DefName = group.Key }, Units = group.Sum(t => (long)t.stackCount) });
-                row.StockpileMemberships.Add(membership);
+                foreach (var group in grouped) membership = membership with { Contents = [.. membership.Contents, new Obs.ResourceStock { Definition = new Obs.DefinitionRef { DefName = group.Key }, Units = group.Sum(t => (long)t.stackCount) }] };
+                row = row with { StockpileMemberships = [.. row.StockpileMemberships, membership] };
             }
-            foreach (var pawn in pawns.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) row.Pawns.Add(NativeRef.Thing(pawn));
-            var buildings = things.OfType<Building>().Where(t => request.IncludeBoundary || room.ContainsCell(t.Position)).ToList();
+            foreach (var pawn in pawns.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) row = row with { Pawns = [.. row.Pawns, NativeRef.Thing(pawn)] };
+            var buildings = things.OfType<Building>().Where(t => request.IncludeBoundary.GetValueOrDefault() || room.ContainsCell(t.Position)).ToList();
             var beds = buildings.OfType<Building_Bed>().ToList();
             var colonists = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
             foreach (var bed in beds)
             {
-                row.Beds.Add(NativeBuildingObservationTools.Ref(bed));
+                row = row with { Beds = [.. row.Beds, NativeBuildingObservationTools.Ref(bed)] };
                 var membership = new Obs.RoomBedMembership { Building = NativeBuildingObservationTools.Ref(bed) };
                 var owners = bed.OwnersForReading.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
-                membership.Owners.Add(owners.Select(NativeRef.Thing));
-                membership.Users.Add(colonists.Where(p => p.CurrentBed() == bed).Select(NativeRef.Thing));
-                membership.AccessibleTo.Add(colonists.Where(p => !bed.IsForbidden(p) && p.CanReach(bed, Verse.AI.PathEndMode.OnCell, Danger.None)).Select(NativeRef.Thing));
-                row.BedMemberships.Add(membership);
+                membership = membership with { Owners = [.. membership.Owners, .. owners.Select(NativeRef.Thing)] };
+                membership = membership with { Users = [.. membership.Users, .. colonists.Where(p => p.CurrentBed() == bed).Select(NativeRef.Thing)] };
+                membership = membership with { AccessibleTo = [.. membership.AccessibleTo, .. colonists.Where(p => !bed.IsForbidden(p) && p.CanReach(bed, Verse.AI.PathEndMode.OnCell, Danger.None)).Select(NativeRef.Thing)] };
+                row = row with { BedMemberships = [.. row.BedMemberships, membership] };
             }
             var contents = buildings.GroupBy(t => Name(t.def.defName)).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
-            foreach (var group in contents) row.Contents.Add(new Obs.Quantity { DefName = group.Key, Units = group.LongCount() });
+            foreach (var group in contents) row = row with { Contents = [.. row.Contents, new Obs.Quantity { DefName = group.Key, Units = group.LongCount() }] };
             foreach (var definition in new[] { RoomStatDefOf.Cleanliness, RoomStatDefOf.Wealth, RoomStatDefOf.Space, RoomStatDefOf.Beauty, RoomStatDefOf.Impressiveness })
             {
-                if (definition == null) { row.Issues.Add(Issue("stats", Common.UnavailableReason.NativeComponentMissing, "A standard native room stat definition is unavailable.")); continue; }
+                if (definition == null) { row = row with { Issues = [.. row.Issues, Issue("stats", Common.UnavailableReason.NativeComponentMissing, "A standard native room stat definition is unavailable.")] }; continue; }
                 var stat = new Obs.RoomStat { DefName = Name(definition.defName) };
                 try
                 {
-                    var value = room.GetStat(definition); stat.Value = Finite(value);
+                    var value = room.GetStat(definition); stat = stat with { Value = Finite(value) };
                     var display = definition.ScoreToString(value);
-                    if (display != null) stat.Display = PlacementPreviewOperation.Diagnostic(display);
+                    if (display != null) stat = stat with { Display = PlacementPreviewOperation.Diagnostic(display) };
                 }
-                catch (Exception) { stat.ClearValue(); stat.ClearDisplay(); stat.Unavailable = Missing(Common.UnavailableReason.ReadFailed, "Native room stat unavailable."); }
-                row.Stats.Add(stat);
+                catch (Exception) { stat = stat with { Value = null, Display = null, Unavailable = Missing(Common.UnavailableReason.ReadFailed, "Native room stat unavailable.") }; }
+                row = row with { Stats = [.. row.Stats, stat] };
             }
             // Doors in the boundary: the door cell, the cell across it
             // from this room, and whether that far side is outdoors. A far side
@@ -190,19 +189,19 @@ namespace HomeBridge.BridgeTools
                         Open = door.Open, HoldOpen = door.HoldOpen, BlockedOpen = door.BlockedOpenMomentary,
                         Forbidden = door.IsForbidden(Faction.OfPlayerSilentFail) };
                     var far = outside.InBounds(map) ? outside.GetRoom(map) : null;
-                    if (far != null && far != room) entry.Outdoors = far.PsychologicallyOutdoors;
-                    row.Doors.Add(entry);
+                    if (far != null && far != room) entry = entry with { Outdoors = far.PsychologicallyOutdoors };
+                    row = row with { Doors = [.. row.Doors, entry] };
                     break;
                 }
             }
-            row.Snapshot = NativeObservationSnapshot.Snapshot("room", context, row.Id, w => {
-                w.Write(row.CellCount); w.Write(row.OpenRoofCount); w.Write(row.Role??""); w.Write(row.Fogged);
-                w.Write(row.Burning); w.Write(row.TemperatureControl); w.Write(row.PerishableContents);
-                foreach (var door in row.Doors) { w.Write(door.Cell.X); w.Write(door.Cell.Z); w.Write(door.Outside.X); w.Write(door.Outside.Z); w.Write(door.HasOutdoors ? (door.Outdoors ? 2 : 1) : 0); w.Write(door.Id); w.Write(door.PlayerOwned); w.Write(door.Open); w.Write(door.HoldOpen); w.Write(door.BlockedOpen); w.Write(door.Forbidden); }
-                foreach (var quantity in row.Contents) { w.Write(quantity.DefName); w.Write(quantity.Units); }
-                foreach (var membership in row.BedMemberships) { w.Write(membership.Building.Id); w.Write(membership.Owners.Count); w.Write(membership.Users.Count); }
-                foreach (var membership in row.StockpileMemberships) { w.Write(membership.Zone?.Id??""); foreach (var stock in membership.Contents) { w.Write(stock.Definition.DefName); w.Write(stock.Units); } }
-            });
+            row = row with { Snapshot = NativeObservationSnapshot.Snapshot("room", context, (row.Id ?? ""), w => {
+                w.Write(row.CellCount.GetValueOrDefault()); w.Write(row.OpenRoofCount.GetValueOrDefault()); w.Write(row.Role??""); w.Write(row.Fogged.GetValueOrDefault());
+                w.Write(row.Burning.GetValueOrDefault()); w.Write(row.TemperatureControl.GetValueOrDefault()); w.Write(row.PerishableContents.GetValueOrDefault());
+                foreach (var door in row.Doors) { w.Write((door.Cell?.X).GetValueOrDefault()); w.Write((door.Cell?.Z).GetValueOrDefault()); w.Write((door.Outside?.X).GetValueOrDefault()); w.Write((door.Outside?.Z).GetValueOrDefault()); w.Write(door.Outdoors is not null ? (door.Outdoors.GetValueOrDefault() ? 2 : 1) : 0); w.Write((door.Id ?? "")); w.Write(door.PlayerOwned.GetValueOrDefault()); w.Write(door.Open.GetValueOrDefault()); w.Write(door.HoldOpen.GetValueOrDefault()); w.Write(door.BlockedOpen.GetValueOrDefault()); w.Write(door.Forbidden.GetValueOrDefault()); }
+                foreach (var quantity in row.Contents) { w.Write((quantity.DefName ?? "")); w.Write(quantity.Units.GetValueOrDefault()); }
+                foreach (var membership in row.BedMemberships) { w.Write((membership.Building?.Id ?? "")); w.Write(membership.Owners.Count); w.Write(membership.Users.Count); }
+                foreach (var membership in row.StockpileMemberships) { w.Write(membership.Zone?.Id??""); foreach (var stock in membership.Contents) { w.Write((stock.Definition?.DefName ?? "")); w.Write(stock.Units.GetValueOrDefault()); } }
+            }) };
             return row;
         }
         internal static IntVec3 Center(IReadOnlyList<IntVec3> cells)
@@ -213,8 +212,8 @@ namespace HomeBridge.BridgeTools
             return cells.OrderBy(c => ((long)c.x - x) * ((long)c.x - x) + ((long)c.z - z) * ((long)c.z - z)).ThenBy(c => c.z).ThenBy(c => c.x).First();
         }
         internal static double Finite(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native room fact.") : value;
-        private static bool CellPresent(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ && cell.X >= 0 && cell.Z >= 0;
-        private static IntVec3 NativeCell(Common.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
+        private static bool CellPresent(Common.Cell? cell) => cell != null && cell.X is not null && cell.Z is not null && cell.X.GetValueOrDefault() >= 0 && cell.Z.GetValueOrDefault() >= 0;
+        private static IntVec3 NativeCell(Common.Cell? cell) => new IntVec3((cell?.X).GetValueOrDefault(), 0, (cell?.Z).GetValueOrDefault());
         private static Common.Cell Cell(IntVec3 cell) => new Common.Cell { X = cell.x, Z = cell.z };
         private static Obs.EntityRef Entity(Thing thing) => new Obs.EntityRef { Id = Name(thing.GetUniqueLoadID()), DefName = Name(thing.def.defName), MapId = thing.Map.uniqueID, Position = Cell(thing.Position) };
         private static string Id(int id) => id >= 0 ? id.ToString(CultureInfo.InvariantCulture) : throw new InvalidOperationException("Invalid room ID.");

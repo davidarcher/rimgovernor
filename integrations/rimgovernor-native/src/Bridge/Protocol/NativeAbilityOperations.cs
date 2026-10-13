@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -27,10 +27,10 @@ namespace HomeBridge.BridgeTools
     internal static class NativeAbilityOperations
     {
         // One source per AbilityIntent.source arm, each with its own guards.
-        private static readonly Dictionary<Operations.AbilityIntent.SourceOneofCase, IAbilitySource> Sources = new Dictionary<Operations.AbilityIntent.SourceOneofCase, IAbilitySource>
+        private static readonly Dictionary<Type, IAbilitySource> Sources = new Dictionary<Type, IAbilitySource>
         {
-            [Operations.AbilityIntent.SourceOneofCase.Permit] = new PermitAbilitySource(),
-            [Operations.AbilityIntent.SourceOneofCase.Psycast] = new PsycastAbilitySource(),
+            [typeof(Operations.AbilityIntentSource.PermitCase)] = new PermitAbilitySource(),
+            [typeof(Operations.AbilityIntentSource.PsycastCase)] = new PsycastAbilitySource(),
         };
 
         internal static Common.Failure Refuse(Common.FailureCode code, string guard, string detail) => ProtoBoundary.Fail(code, "Ability guard " + guard + ": " + detail);
@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Caller(Operations.AbilityIntent intent, out Pawn? pawn)
         {
             pawn = null;
-            if (!intent.HasPawnId || !ProtoBoundary.IsIdentifier(intent.PawnId))
+            if (intent.PawnId is null || !ProtoBoundary.IsIdentifier(intent.PawnId))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An ability use requires a pawn id.");
             var found = global::Verse.Find.Maps.SelectMany(m => m.mapPawns.AllPawns).ById(intent.PawnId);
             if (found == null || !found.Spawned)
@@ -57,9 +57,9 @@ namespace HomeBridge.BridgeTools
             use = null;
             if (intent == null)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An ability use is required.");
-            if (!Sources.TryGetValue(intent.SourceCase, out var source))
+            if (intent.Source is null || !Sources.TryGetValue(intent.Source.GetType(), out var source))
                 return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "This ability source is not supported.");
-            if (intent.TargetCase == Operations.AbilityIntent.TargetOneofCase.None)
+            if (intent.Target is null)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An ability use requires a target arm (none, cell, pawn or thing).");
             var failure = Caller(intent, out var pawn);
             if (failure != null || pawn == null) return failure;
@@ -127,9 +127,9 @@ namespace HomeBridge.BridgeTools
             } },
             new Guard { Name = "target", Check = call =>
             {
-                if (call.Intent.TargetCase != Operations.AbilityIntent.TargetOneofCase.Cell || call.Intent.Cell == null || !call.Intent.Cell.HasX || !call.Intent.Cell.HasZ)
+                if (call.Intent.Target is not Operations.AbilityIntentTarget.CellCase { Value: { X: { } cellX, Z: { } cellZ } })
                     return NativeAbilityOperations.Refuse(Common.FailureCode.InvalidRequest, "target", "This permit needs a target cell.");
-                var cell = new IntVec3(call.Intent.Cell.X, 0, call.Intent.Cell.Z);
+                var cell = new IntVec3(cellX, 0, cellZ);
                 if (!cell.InBounds(call.Map))
                     return NativeAbilityOperations.Refuse(Common.FailureCode.InvalidRequest, "target", "The target cell is outside the map.");
                 if (cell.Fogged(call.Map))
@@ -145,10 +145,10 @@ namespace HomeBridge.BridgeTools
         public Common.Failure? Check(Pawn pawn, Operations.AbilityIntent intent, out Func<Receipts.EffectEvidence>? use)
         {
             use = null;
-            var source = intent.Permit;
-            if (source == null || !source.HasFactionDef || !source.HasPermit || !ProtoBoundary.IsIdentifier(source.FactionDef) || !ProtoBoundary.IsIdentifier(source.Permit))
+            var source = intent.Source?.Permit;
+            if (source == null || source.FactionDef is not { } factionDefName || source.Permit is not { } permitName || !ProtoBoundary.IsIdentifier(factionDefName) || !ProtoBoundary.IsIdentifier(permitName))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A permit ability requires a faction def and a permit def.");
-            var def = DefDatabase<RoyalTitlePermitDef>.GetNamedSilentFail(source.Permit);
+            var def = DefDatabase<RoyalTitlePermitDef>.GetNamedSilentFail(permitName);
             if (def == null)
                 return NativeAbilityOperations.Refuse(Common.FailureCode.NotFound, "permit", "The permit is not defined.");
             if (def.royalAid == null)
@@ -157,7 +157,7 @@ namespace HomeBridge.BridgeTools
                 return NativeAbilityOperations.Refuse(Common.FailureCode.Unsupported, "permit", "Only targeted permit workers are supported.");
             if (pawn.royalty == null)
                 return NativeAbilityOperations.Refuse(Common.FailureCode.InvalidRequest, "held", "The pawn holds no royal permit.");
-            var held = pawn.royalty.AllFactionPermits.FirstOrDefault(p => p.Permit == def && p.Faction?.def?.defName == source.FactionDef);
+            var held = pawn.royalty.AllFactionPermits.FirstOrDefault(p => p.Permit == def && p.Faction?.def?.defName == factionDefName);
             if (held == null)
                 return NativeAbilityOperations.Refuse(Common.FailureCode.InvalidRequest, "held", "The pawn does not hold this permit for the faction.");
             var call = new Call { Pawn = pawn, Map = pawn.Map, Def = def, Held = held, Faction = held.Faction, Worker = worker, Intent = intent };
@@ -198,10 +198,10 @@ namespace HomeBridge.BridgeTools
                 throw new InvalidOperationException("Permit call readback did not start the cooldown and spend the favor.");
             return new Receipts.EffectEvidence
             {
-                Ability = new Receipts.AbilityEffect
+                Effect = new Receipts.AbilityEffect
                 {
                     PawnId = call.Pawn.GetUniqueLoadID(),
-                    Permit = new Receipts.PermitUseEffect
+                    Outcome = new Receipts.PermitUseEffect
                     {
                         FactionDef = call.Faction.def.defName, Permit = call.Def.defName, CooldownStartedTick = call.Held.LastUsedTick,
                         FavorBefore = favorBefore, FavorAfter = favorAfter,
@@ -288,19 +288,19 @@ namespace HomeBridge.BridgeTools
             if (c.Ability.def.targetWorldCell || c.Ability.EffectComps.Any(e => e is CompAbilityEffect_WithDest))
                 return Refuse("target", "A psycast with a destination or a world target is not supported.", Common.FailureCode.Unsupported);
             var map = c.Pawn.Map;
-            switch (c.Intent.TargetCase)
+            switch (c.Intent.Target)
             {
-                case Operations.AbilityIntent.TargetOneofCase.NoTarget:
+                case Operations.AbilityIntentTarget.NoTargetCase:
                     if (!SelfOnly(t) && c.Ability.def.targetRequired)
                         return Refuse("target", "This psycast needs a target (pawn, thing or cell).");
                     c.Target = new LocalTargetInfo(c.Pawn);
                     c.SelfTarget = true;
                     break;
-                case Operations.AbilityIntent.TargetOneofCase.Pawn:
+                case Operations.AbilityIntentTarget.PawnCase:
                 {
-                    if (!ProtoBoundary.IsIdentifier(c.Intent.Pawn))
+                    if (!ProtoBoundary.IsIdentifier(c.Intent.Target?.Pawn))
                         return Refuse("target", "The target pawn id is invalid.");
-                    var pawn = map.mapPawns.AllPawnsSpawned.ById(c.Intent.Pawn);
+                    var pawn = map.mapPawns.AllPawnsSpawned.ById(c.Intent.Target?.Pawn);
                     if (pawn == null)
                         return Refuse("target", "The target pawn is not spawned on the caster's map.", Common.FailureCode.NotFound);
                     if (!t.canTargetPawns && !(t.canTargetSelf && pawn == c.Pawn))
@@ -309,11 +309,11 @@ namespace HomeBridge.BridgeTools
                     c.SelfTarget = pawn == c.Pawn;
                     break;
                 }
-                case Operations.AbilityIntent.TargetOneofCase.Thing:
+                case Operations.AbilityIntentTarget.ThingCase:
                 {
-                    if (!ProtoBoundary.IsIdentifier(c.Intent.Thing))
+                    if (!ProtoBoundary.IsIdentifier(c.Intent.Target?.Thing))
                         return Refuse("target", "The target thing id is invalid.");
-                    var thing = map.listerThings.AllThings.ById(c.Intent.Thing);
+                    var thing = map.listerThings.AllThings.ById(c.Intent.Target?.Thing);
                     if (thing == null || !thing.Spawned)
                         return Refuse("target", "The target thing is not spawned on the caster's map.", Common.FailureCode.NotFound);
                     if (thing is Pawn || !t.canTargetBuildings && !t.canTargetItems)
@@ -321,13 +321,13 @@ namespace HomeBridge.BridgeTools
                     c.Target = new LocalTargetInfo(thing);
                     break;
                 }
-                case Operations.AbilityIntent.TargetOneofCase.Cell:
+                case Operations.AbilityIntentTarget.CellCase:
                 {
-                    if (c.Intent.Cell == null || !c.Intent.Cell.HasX || !c.Intent.Cell.HasZ)
+                    if (c.Intent.Target is not Operations.AbilityIntentTarget.CellCase { Value: { X: { } cellX, Z: { } cellZ } })
                         return Refuse("target", "The target cell is incomplete.");
                     if (!t.canTargetLocations)
                         return Refuse("target", "This psycast does not take a cell target.");
-                    var cell = new IntVec3(c.Intent.Cell.X, 0, c.Intent.Cell.Z);
+                    var cell = new IntVec3(cellX, 0, cellZ);
                     if (!cell.InBounds(map))
                         return Refuse("target", "The target cell is outside the map.");
                     if (cell.Fogged(map))
@@ -345,10 +345,10 @@ namespace HomeBridge.BridgeTools
         public Common.Failure? Check(Pawn pawn, Operations.AbilityIntent intent, out Func<Receipts.EffectEvidence>? use)
         {
             use = null;
-            var source = intent.Psycast;
-            if (source == null || !source.HasAbility || !ProtoBoundary.IsIdentifier(source.Ability))
+            var source = intent.Source?.Psycast;
+            if (source == null || source.Ability is not { } abilityName || !ProtoBoundary.IsIdentifier(abilityName))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A psycast ability requires an ability def.");
-            var def = DefDatabase<AbilityDef>.GetNamedSilentFail(source.Ability);
+            var def = DefDatabase<AbilityDef>.GetNamedSilentFail(abilityName);
             if (def == null || !def.IsPsycast)
                 return Refuse("ability", "The ability is not a defined psycast.", Common.FailureCode.NotFound);
             var ability = pawn.abilities?.GetAbility(def, false);
@@ -373,10 +373,10 @@ namespace HomeBridge.BridgeTools
                 throw new InvalidOperationException("Psycast order readback found no cast job on the pawn.");
             return new Receipts.EffectEvidence
             {
-                Ability = new Receipts.AbilityEffect
+                Effect = new Receipts.AbilityEffect
                 {
                     PawnId = cast.Pawn.GetUniqueLoadID(),
-                    Psycast = new Receipts.PsycastUseEffect { Ability = cast.Ability.def.defName, JobDef = job.def.defName },
+                    Outcome = new Receipts.PsycastUseEffect { Ability = cast.Ability.def.defName, JobDef = job.def.defName },
                 },
             };
         }
@@ -384,7 +384,7 @@ namespace HomeBridge.BridgeTools
 
     internal sealed class AbilityActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeAbilityOperations.Validate(action.Ability);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeAbilityOperations.Apply(action.Ability);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeAbilityOperations.Validate(action.Intent?.Ability);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeAbilityOperations.Apply(action.Intent?.Ability);
     }
 }

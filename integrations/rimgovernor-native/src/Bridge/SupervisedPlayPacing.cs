@@ -80,18 +80,18 @@ namespace HomeBridge.BridgeTools
         }
 
         // What bounds the epoch's rate, most binding first.
-        private static RimGovernor.Protocol.Clock.PacingReason PacingReasonOf(State s)
+        private static RimGovernor.Contracts.Wire.Clock.PacingReason PacingReasonOf(State s)
         {
             var unclamped = UnclampedTicksPerSecond(s);
             if (s.RegulatedTicksPerSecond > 0 && s.RegulatedTicksPerSecond < unclamped
                 && (s.MaxTicksPerSecond == 0 || s.RegulatedTicksPerSecond <= s.MaxTicksPerSecond))
-                return RimGovernor.Protocol.Clock.PacingReason.Regulated;
+                return RimGovernor.Contracts.Wire.Clock.PacingReason.Regulated;
             if (s.MaxTicksPerSecond > 0 && s.MaxTicksPerSecond < unclamped)
-                return RimGovernor.Protocol.Clock.PacingReason.Ceiling;
-            if (!s.PlayerPaced || s.RequestedSpeed != TimeSpeed.Ultrafast) return RimGovernor.Protocol.Clock.PacingReason.Fixed;
+                return RimGovernor.Contracts.Wire.Clock.PacingReason.Ceiling;
+            if (!s.PlayerPaced || s.RequestedSpeed != TimeSpeed.Ultrafast) return RimGovernor.Contracts.Wire.Clock.PacingReason.Fixed;
             return s.Paced < PacedCeilingMultiplier
-                ? RimGovernor.Protocol.Clock.PacingReason.FrameBudget
-                : RimGovernor.Protocol.Clock.PacingReason.Accelerated;
+                ? RimGovernor.Contracts.Wire.Clock.PacingReason.FrameBudget
+                : RimGovernor.Contracts.Wire.Clock.PacingReason.Accelerated;
         }
 
         private static int UnclampedTicksPerSecond(State s)
@@ -164,10 +164,11 @@ namespace HomeBridge.BridgeTools
             if (frameMs > _maxPacedFrameMs) _maxPacedFrameMs = frameMs;
         }
         // Caller holds Gate.
-        private static void ReportFrames(RimGovernor.Protocol.Clock.Status status)
+        internal static RimGovernor.Contracts.Wire.Clock.Status ReportFrames(RimGovernor.Contracts.Wire.Clock.Status status)
         {
             FramesFor(Current.Game);
-            status.PacedFrames = _pacedFrames; status.PacedFramesOverBudget = _pacedFramesOverBudget; status.MaxPacedFrameMs = _maxPacedFrameMs;
+            status = status with { PacedFrames = _pacedFrames }; status = status with { PacedFramesOverBudget = _pacedFramesOverBudget }; status = status with { MaxPacedFrameMs = _maxPacedFrameMs };
+            return status;
         }
     }
 }

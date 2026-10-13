@@ -6,8 +6,8 @@ using RimWorld;
 using Unity.Collections;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -28,14 +28,14 @@ namespace HomeBridge.BridgeTools
                     Forbidden = t.IsForbidden(Faction.OfPlayer), Count = t.stackCount
                 };
                 var safe = safety.Safe(t);
-                if (safe.HasValue) row.SafeToHaul = safe.Value;
-                if (safe == true && safety.PathLength >= 0) row.PathLength = safety.PathLength;
+                if (safe.HasValue) row = row with { SafeToHaul = safe.Value };
+                if (safe == true && safety.PathLength >= 0) row = row with { PathLength = safety.PathLength };
                 if (!headroom.TryGetValue(t.def, out var units)) headroom[t.def] = units = StorageHeadroom(map, t);
-                row.StorageHeadroom = units;
-                census.Items.Add(row);
+                row = row with { StorageHeadroom = units };
+                census = census with { Items = [.. census.Items, row] };
             }
             safety.Dispose();
-            return new Obs.LootSection { Observed = census };
+            return new Obs.LootSection { Outcome = census };
         }
 
         // Free item units the player's storage accepting this def can still take:

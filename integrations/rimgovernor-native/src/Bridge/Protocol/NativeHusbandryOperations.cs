@@ -6,9 +6,9 @@ using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -77,40 +77,42 @@ namespace HomeBridge.BridgeTools
         // danger, and whether the player's primary ideo venerates the race.
         // What precepts make of slaughter and eating comes from the catalog's
         // precept effects (policy.ActionStance), not from here.
-        internal static void HerdFacts(Pawn animal, RimGovernor.Protocol.Observations.AnimalState state)
+        internal static RimGovernor.Contracts.Wire.Observations.AnimalState HerdFacts(Pawn animal, RimGovernor.Contracts.Wire.Observations.AnimalState state)
         {
-            state.AgeYears = animal.ageTracker.AgeBiologicalYearsFloat;
-            state.Adult = animal.ageTracker.Adult;
-            state.Gender = animal.gender.ToString();
+            state = state with { AgeYears = animal.ageTracker.AgeBiologicalYearsFloat };
+            state = state with { Adult = animal.ageTracker.Adult };
+            state = state with { Gender = animal.gender.ToString() };
             // The next life stage: its index and the ticks until
             // Pawn_AgeTracker reaches the next stage's minAge, absent in the last.
             var tracker = animal.ageTracker;
-            state.LifeStageIndex = tracker.CurLifeStageIndex;
+            state = state with { LifeStageIndex = tracker.CurLifeStageIndex };
             var stages = animal.RaceProps.lifeStageAges;
             if (stages != null && tracker.CurLifeStageIndex + 1 < stages.Count && tracker.BiologicalTicksPerTick > 0f)
-                state.TicksToNextLifeStage = Math.Max(0L, (long)Math.Ceiling((stages[tracker.CurLifeStageIndex + 1].minAge * 3600000.0 - tracker.AgeBiologicalTicks) / tracker.BiologicalTicksPerTick));
-            if (animal.Faction != Faction.OfPlayer) return;
-            state.Sick = animal.health.hediffSet.AnyHediffMakesSickThought;
-            state.Sterilized = Sterilized(animal);
-            state.SterilizeQueued = SterilizeBill(animal) != null;
+                state = state with { TicksToNextLifeStage = Math.Max(0L, (long)Math.Ceiling((stages[tracker.CurLifeStageIndex + 1].minAge * 3600000.0 - tracker.AgeBiologicalTicks) / tracker.BiologicalTicksPerTick)) };
+            if (animal.Faction != Faction.OfPlayer) return state;
+            state = state with { Sick = animal.health.hediffSet.AnyHediffMakesSickThought };
+            state = state with { Sterilized = Sterilized(animal) };
+            state = state with { SterilizeQueued = SterilizeBill(animal) != null };
             var ideo = ModsConfig.IdeologyActive ? Faction.OfPlayer.ideos?.PrimaryIdeo : null;
-            state.Venerated = ideo != null && ideo.IsVeneratedAnimal(animal);
+            state = state with { Venerated = ideo != null && ideo.IsVeneratedAnimal(animal) };
+            return state;
         }
 
         // Raw slaughter facts; policy decides which animals are protected.
-        internal static void SlaughterFacts(Pawn animal, RimGovernor.Protocol.Observations.AnimalState state)
+        internal static RimGovernor.Contracts.Wire.Observations.AnimalState SlaughterFacts(Pawn animal, RimGovernor.Contracts.Wire.Observations.AnimalState state)
         {
-            state.Downed = animal.Downed;
-            state.InMentalState = animal.InMentalState;
+            state = state with { Downed = animal.Downed };
+            state = state with { InMentalState = animal.InMentalState };
             var pregnancy = animal.health.hediffSet.hediffs.OfType<Hediff_Pregnant>().FirstOrDefault();
-            state.Pregnant = pregnancy != null;
+            state = state with { Pregnant = pregnancy != null };
             // Hediff_Pregnant.Tick's own progress rate: BodyResourceGrowthSpeed over
             // gestationPeriodDays * 60000 per tick.
             var speed = PawnUtility.BodyResourceGrowthSpeed(animal);
             if (pregnancy != null && speed > 0f)
-                state.TicksToBirth = Math.Max(0L, (long)Math.Ceiling((1.0 - pregnancy.GestationProgress) * animal.RaceProps.gestationPeriodDays * 60000.0 / speed));
-            state.ColonistBonded = TrainableUtility.GetAllColonistBondsFor(animal).Any();
-            state.SlaughterDesignatable = new Designator_Slaughter().CanDesignateThing(animal).Accepted;
+                state = state with { TicksToBirth = Math.Max(0L, (long)Math.Ceiling((1.0 - pregnancy.GestationProgress) * animal.RaceProps.gestationPeriodDays * 60000.0 / speed)) };
+            state = state with { ColonistBonded = TrainableUtility.GetAllColonistBondsFor(animal).Any() };
+            state = state with { SlaughterDesignatable = new Designator_Slaughter().CanDesignateThing(animal).Accepted };
+            return state;
         }
 
         // The release designator's own acceptance and nothing more; which
@@ -152,14 +154,14 @@ namespace HomeBridge.BridgeTools
 
         private static bool Valid(Operations.HusbandryIntent? intent)
         {
-            if (intent == null || !intent.HasAnimalId || !ProtoBoundary.IsIdentifier(intent.AnimalId) || !intent.HasOrder) return false;
-            switch (intent.Order)
+            if (intent == null || intent.AnimalId is null || !ProtoBoundary.IsIdentifier(intent.AnimalId) || intent.Order is null) return false;
+            switch (intent.Order.GetValueOrDefault())
             {
-                case Operations.HusbandryOrder.Train: return intent.HasTrainableDef && ProtoBoundary.IsIdentifier(intent.TrainableDef);
+                case Operations.HusbandryOrder.Train: return intent.TrainableDef is not null && ProtoBoundary.IsIdentifier(intent.TrainableDef);
                 case Operations.HusbandryOrder.AllowedArea:
-                case Operations.HusbandryOrder.Master: return !intent.HasTargetId || ProtoBoundary.IsIdentifier(intent.TargetId);
+                case Operations.HusbandryOrder.Master: return intent.TargetId is null || ProtoBoundary.IsIdentifier(intent.TargetId);
                 case Operations.HusbandryOrder.FollowDrafted:
-                case Operations.HusbandryOrder.FollowFieldwork: return intent.HasFollow;
+                case Operations.HusbandryOrder.FollowFieldwork: return intent.Follow is not null;
                 case Operations.HusbandryOrder.Slaughter:
                 case Operations.HusbandryOrder.Tame:
                 case Operations.HusbandryOrder.Release:
@@ -189,9 +191,9 @@ namespace HomeBridge.BridgeTools
             if (!Valid(intent)) return target;
             target.Animal = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent!.AnimalId);
             if (!NativeHusbandryOperations.Observable(target.Animal)) { target.Animal = null; return target; }
-            if (intent!.Order == Operations.HusbandryOrder.Train) target.Trainable = DefDatabase<TrainableDef>.GetNamedSilentFail(intent.TrainableDef);
-            if (intent.Order == Operations.HusbandryOrder.AllowedArea && intent.HasTargetId) target.Area = NativeHusbandryOperations.ResolveArea(target.Animal!, intent.TargetId);
-            if (intent.Order == Operations.HusbandryOrder.Master && intent.HasTargetId) target.Master = NativeHusbandryOperations.ResolveMaster(target.Animal!, intent.TargetId);
+            if (intent!.Order.GetValueOrDefault() == Operations.HusbandryOrder.Train) target.Trainable = DefDatabase<TrainableDef>.GetNamedSilentFail((intent.TrainableDef ?? ""));
+            if (intent.Order.GetValueOrDefault() == Operations.HusbandryOrder.AllowedArea && intent.TargetId is not null) target.Area = NativeHusbandryOperations.ResolveArea(target.Animal!, (intent.TargetId ?? ""));
+            if (intent.Order.GetValueOrDefault() == Operations.HusbandryOrder.Master && intent.TargetId is not null) target.Master = NativeHusbandryOperations.ResolveMaster(target.Animal!, (intent.TargetId ?? ""));
             return target;
         }
 
@@ -201,7 +203,7 @@ namespace HomeBridge.BridgeTools
         private static bool Holds(Operations.HusbandryIntent intent, Target target)
         {
             var animal = target.Animal!;
-            switch (intent.Order)
+            switch (intent.Order.GetValueOrDefault())
             {
                 case Operations.HusbandryOrder.Train: return target.Trainable != null && animal.training != null && animal.training.GetWanted(target.Trainable);
                 case Operations.HusbandryOrder.Tame: return animal.Faction == Faction.OfPlayer || NativeHusbandryOperations.Designated(animal, DesignationDefOf.Tame);
@@ -209,19 +211,19 @@ namespace HomeBridge.BridgeTools
                 case Operations.HusbandryOrder.Sterilize: return animal.Faction == Faction.OfPlayer
                     && (NativeHusbandryOperations.Sterilized(animal) || NativeHusbandryOperations.SterilizeBill(animal) != null);
                 case Operations.HusbandryOrder.Slaughter:
-                case Operations.HusbandryOrder.Release: return animal.Faction == Faction.OfPlayer && NativeHusbandryOperations.Designated(animal, DesignationFor(intent.Order)!);
+                case Operations.HusbandryOrder.Release: return animal.Faction == Faction.OfPlayer && NativeHusbandryOperations.Designated(animal, DesignationFor(intent.Order.GetValueOrDefault())!);
                 case Operations.HusbandryOrder.CancelSlaughter:
-                case Operations.HusbandryOrder.CancelRelease: return animal.Faction == Faction.OfPlayer && !NativeHusbandryOperations.Designated(animal, DesignationFor(intent.Order)!);
+                case Operations.HusbandryOrder.CancelRelease: return animal.Faction == Faction.OfPlayer && !NativeHusbandryOperations.Designated(animal, DesignationFor(intent.Order.GetValueOrDefault())!);
                 case Operations.HusbandryOrder.AllowedArea:
-                    return animal.Faction == Faction.OfPlayer && (intent.HasTargetId
+                    return animal.Faction == Faction.OfPlayer && (intent.TargetId is not null
                         ? target.Area != null && NativeHusbandryOperations.AreaId(animal) == target.Area.GetUniqueLoadID()
                         : NativeHusbandryOperations.AreaId(animal) == "");
                 case Operations.HusbandryOrder.Master:
-                    return animal.Faction == Faction.OfPlayer && (intent.HasTargetId
+                    return animal.Faction == Faction.OfPlayer && (intent.TargetId is not null
                         ? target.Master != null && NativeHusbandryOperations.MasterId(animal) == target.Master.GetUniqueLoadID()
                         : NativeHusbandryOperations.MasterId(animal) == "");
-                case Operations.HusbandryOrder.FollowDrafted: return animal.Faction == Faction.OfPlayer && animal.playerSettings != null && animal.playerSettings.followDrafted == intent.Follow;
-                case Operations.HusbandryOrder.FollowFieldwork: return animal.Faction == Faction.OfPlayer && animal.playerSettings != null && animal.playerSettings.followFieldwork == intent.Follow;
+                case Operations.HusbandryOrder.FollowDrafted: return animal.Faction == Faction.OfPlayer && animal.playerSettings != null && animal.playerSettings.followDrafted == intent.Follow.GetValueOrDefault();
+                case Operations.HusbandryOrder.FollowFieldwork: return animal.Faction == Faction.OfPlayer && animal.playerSettings != null && animal.playerSettings.followFieldwork == intent.Follow.GetValueOrDefault();
                 default: return false;
             }
         }
@@ -236,12 +238,12 @@ namespace HomeBridge.BridgeTools
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => Valid(intent), "order requires an animal and the order's argument")
                 .Present(() => target.Animal != null && (tame ? animal.Faction == null : animal.Faction == Faction.OfPlayer),
-                    "animal " + intent?.AnimalId + " is not " + (tame ? "a wild" : "a player") + " animal on the map");
+                    "animal " + (intent?.AnimalId ?? "") + " is not " + (tame ? "a wild" : "a player") + " animal on the map");
             switch (order)
             {
                 case Operations.HusbandryOrder.Train:
                     rules.Require(() => target.Trainable != null && animal.training != null && animal.training.CanAssignToTrain(target.Trainable).Accepted,
-                            "animal cannot train " + intent!.TrainableDef)
+                            "animal cannot train " + (intent!.TrainableDef ?? ""))
                         .Require(() => !NativeHusbandryOperations.Designated(animal, DesignationDefOf.Slaughter) && !NativeHusbandryOperations.Designated(animal, DesignationDefOf.ReleaseAnimalToWild),
                             "animal is designated for removal");
                     break;
@@ -262,12 +264,12 @@ namespace HomeBridge.BridgeTools
                     break;
                 case Operations.HusbandryOrder.AllowedArea:
                     rules.Require(() => NativeHusbandryOperations.SupportsAllowedAreas(animal), "animal cannot carry an allowed area")
-                        .Present(() => !intent!.HasTargetId || target.Area != null, "allowed area " + intent!.TargetId + " is not on the animal's map")
+                        .Present(() => intent!.TargetId is null || target.Area != null, "allowed area " + (intent!.TargetId ?? "") + " is not on the animal's map")
                         .Require(() => NativeWorkSettings.AreaReachable(animal, target.Area), "allowed area must be native-reachable");
                     break;
                 case Operations.HusbandryOrder.Master:
                     rules.Require(() => NativeHusbandryOperations.Obedient(animal), "a master requires learned Obedience")
-                        .Present(() => !intent!.HasTargetId || target.Master != null, "master " + intent!.TargetId + " is not a spawned free colonist on the animal's map");
+                        .Present(() => intent!.TargetId is null || target.Master != null, "master " + (intent!.TargetId ?? "") + " is not a spawned free colonist on the animal's map");
                     break;
                 case Operations.HusbandryOrder.FollowDrafted:
                 case Operations.HusbandryOrder.FollowFieldwork:
@@ -279,15 +281,15 @@ namespace HomeBridge.BridgeTools
 
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
         {
-            var target = Resolve(action.Husbandry, context);
-            if (Standing(action.Husbandry, target)) return null;
-            var rules = Rules(action.Husbandry, target);
+            var target = Resolve(action.Intent?.Husbandry, context);
+            if (Standing(action.Intent?.Husbandry, target)) return null;
+            var rules = Rules(action.Intent?.Husbandry, target);
             return rules.Holds ? null : rules.Failure();
         }
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
-            var intent = action.Husbandry;
+            var intent = action.Intent?.Husbandry ?? new Operations.HusbandryIntent();
             var target = Resolve(intent, context);
             if (!Standing(intent, target))
             {
@@ -298,15 +300,15 @@ namespace HomeBridge.BridgeTools
             var before = NativeHusbandryOperations.Settings(animal);
             if (!Holds(intent, target))
             {
-                var designation = DesignationFor(intent.Order);
-                switch (intent.Order)
+                var designation = DesignationFor(intent.Order.GetValueOrDefault());
+                switch (intent.Order.GetValueOrDefault())
                 {
                     case Operations.HusbandryOrder.Train: animal.training!.SetWantedRecursive(target.Trainable, true); break;
                     case Operations.HusbandryOrder.Sterilize: HealthCardUtility.CreateSurgeryBill(animal, NativeHusbandryOperations.SterilizeRecipe(animal)!, null); break;
                     case Operations.HusbandryOrder.AllowedArea: animal.playerSettings!.AreaRestrictionInPawnCurrentMap = target.Area; break;
                     case Operations.HusbandryOrder.Master: animal.playerSettings!.Master = target.Master; break;
-                    case Operations.HusbandryOrder.FollowDrafted: animal.playerSettings!.followDrafted = intent.Follow; break;
-                    case Operations.HusbandryOrder.FollowFieldwork: animal.playerSettings!.followFieldwork = intent.Follow; break;
+                    case Operations.HusbandryOrder.FollowDrafted: animal.playerSettings!.followDrafted = intent.Follow.GetValueOrDefault(); break;
+                    case Operations.HusbandryOrder.FollowFieldwork: animal.playerSettings!.followFieldwork = intent.Follow.GetValueOrDefault(); break;
                     case Operations.HusbandryOrder.CancelSlaughter:
                     case Operations.HusbandryOrder.CancelRelease:
                         animal.Map.designationManager.RemoveDesignation(animal.Map.designationManager.DesignationOn(animal, designation));
@@ -321,22 +323,22 @@ namespace HomeBridge.BridgeTools
                 EntityId = animal.GetUniqueLoadID(), BeforeToken = before, AfterToken = NativeHusbandryOperations.Settings(animal) } };
             switch (intent.Order)
             {
-                case Operations.HusbandryOrder.Train: effect.TrainableDef = intent.TrainableDef; effect.Wanted = animal.training!.GetWanted(target.Trainable); break;
+                case Operations.HusbandryOrder.Train: effect = effect with { TrainableDef = intent.TrainableDef }; effect = effect with { Wanted = animal.training!.GetWanted(target.Trainable) }; break;
                 case Operations.HusbandryOrder.Slaughter:
-                case Operations.HusbandryOrder.CancelSlaughter: effect.SlaughterDesignated = NativeHusbandryOperations.Designated(animal, DesignationDefOf.Slaughter); break;
-                case Operations.HusbandryOrder.Tame: effect.TameDesignated = NativeHusbandryOperations.Designated(animal, DesignationDefOf.Tame); break;
+                case Operations.HusbandryOrder.CancelSlaughter: effect = effect with { SlaughterDesignated = NativeHusbandryOperations.Designated(animal, DesignationDefOf.Slaughter) }; break;
+                case Operations.HusbandryOrder.Tame: effect = effect with { TameDesignated = NativeHusbandryOperations.Designated(animal, DesignationDefOf.Tame) }; break;
                 case Operations.HusbandryOrder.Sterilize:
-                    effect.Sterilized = NativeHusbandryOperations.Sterilized(animal);
-                    effect.SterilizeQueued = NativeHusbandryOperations.SterilizeBill(animal) != null;
+                    effect = effect with { Sterilized = NativeHusbandryOperations.Sterilized(animal) };
+                    effect = effect with { SterilizeQueued = NativeHusbandryOperations.SterilizeBill(animal) != null };
                     break;
                 case Operations.HusbandryOrder.Release:
-                case Operations.HusbandryOrder.CancelRelease: effect.ReleaseDesignated = NativeHusbandryOperations.Designated(animal, DesignationDefOf.ReleaseAnimalToWild); break;
-                case Operations.HusbandryOrder.AllowedArea: effect.AllowedAreaId = NativeHusbandryOperations.AreaId(animal); break;
-                case Operations.HusbandryOrder.Master: effect.MasterId = NativeHusbandryOperations.MasterId(animal); break;
-                case Operations.HusbandryOrder.FollowDrafted: effect.FollowDrafted = animal.playerSettings!.followDrafted; break;
-                case Operations.HusbandryOrder.FollowFieldwork: effect.FollowFieldwork = animal.playerSettings!.followFieldwork; break;
+                case Operations.HusbandryOrder.CancelRelease: effect = effect with { ReleaseDesignated = NativeHusbandryOperations.Designated(animal, DesignationDefOf.ReleaseAnimalToWild) }; break;
+                case Operations.HusbandryOrder.AllowedArea: effect = effect with { AllowedAreaId = NativeHusbandryOperations.AreaId(animal) }; break;
+                case Operations.HusbandryOrder.Master: effect = effect with { MasterId = NativeHusbandryOperations.MasterId(animal) }; break;
+                case Operations.HusbandryOrder.FollowDrafted: effect = effect with { FollowDrafted = animal.playerSettings!.followDrafted }; break;
+                case Operations.HusbandryOrder.FollowFieldwork: effect = effect with { FollowFieldwork = animal.playerSettings!.followFieldwork }; break;
             }
-            return new Receipts.EffectEvidence { Animal = effect };
+            return new Receipts.EffectEvidence { Effect = effect };
         }
     }
 }

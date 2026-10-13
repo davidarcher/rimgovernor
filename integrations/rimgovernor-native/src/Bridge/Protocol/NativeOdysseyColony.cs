@@ -4,8 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -25,15 +25,15 @@ namespace HomeBridge.BridgeTools
             if (!ModsConfig.OdysseyActive) return null;
             try {
                 var facts = new Obs.OdysseyColonyFacts();
-                foreach (var condition in map.gameConditionManager.ActiveConditions.OrderBy(c => c.uniqueID)) facts.Conditions.Add(Condition(condition));
-                facts.HazardTerrain.Add(HazardTerrain(map));
+                foreach (var condition in map.gameConditionManager.ActiveConditions.OrderBy(c => c.uniqueID)) facts = facts with { Conditions = [.. facts.Conditions, Condition(condition)] };
+                facts = facts with { HazardTerrain = [.. facts.HazardTerrain, .. HazardTerrain(map)] };
                 foreach (var thing in map.listerThings.AllThings.OfType<LavaEmergence>().OrderBy(t => t.thingIDNumber))
-                    facts.LavaEmergences.Add(new Obs.LavaEmergenceState { ThingId = Id(thing.GetUniqueLoadID()), Position = Cell(thing.Position) });
+                    facts = facts with { LavaEmergences = [.. facts.LavaEmergences, new Obs.LavaEmergenceState { ThingId = Id(thing.GetUniqueLoadID()), Position = Cell(thing.Position) }] };
                 foreach (var hatch in map.listerThings.AllThings.OfType<AncientHatch>().Where(h => h.PocketMapExists).OrderBy(t => t.thingIDNumber))
-                    facts.Sites.Add(Site(hatch));
-                return new Obs.OdysseySection { Observed = facts };
+                    facts = facts with { Sites = [.. facts.Sites, Site(hatch)] };
+                return new Obs.OdysseySection { Outcome = facts };
             } catch (Exception ex) {
-                return new Obs.OdysseySection { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic(ex.Message) } };
+                return new Obs.OdysseySection { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic(ex.Message) } };
             }
         }
 
@@ -41,8 +41,8 @@ namespace HomeBridge.BridgeTools
         {
             var row = new Obs.ActiveCondition { ConditionId = Id("GameCondition_" + c.uniqueID), DefName = Id(c.def.defName), ConditionClass = Id(c.GetType().FullName),
                 TicksPassed = c.TicksPassed, Permanent = c.Permanent };
-            if (!c.Permanent) row.TicksLeft = c.TicksLeft;
-            if (c.conditionCauser != null) row.CauserId = Id(c.conditionCauser.GetUniqueLoadID());
+            if (!c.Permanent) row = row with { TicksLeft = c.TicksLeft };
+            if (c.conditionCauser != null) row = row with { CauserId = Id(c.conditionCauser.GetUniqueLoadID()) };
             return row;
         }
 
@@ -63,8 +63,8 @@ namespace HomeBridge.BridgeTools
             foreach (var pair in counts.Where(p => ProtoBoundary.IsIdentifier(p.Key.defName)).OrderBy(p => p.Key.defName, StringComparer.Ordinal)) {
                 var t = pair.Key;
                 var row = new Obs.HazardTerrain { DefName = t.defName, Cells = pair.Value, Dangerous = t.dangerous, BurnDamage = t.burnDamage };
-                if (Finite(t.heatPerTick)) row.HeatPerTick = t.heatPerTick;
-                if (Finite(t.toxicBuildupFactor)) row.ToxicBuildupFactor = t.toxicBuildupFactor;
+                if (Finite(t.heatPerTick)) row = row with { HeatPerTick = t.heatPerTick };
+                if (Finite(t.toxicBuildupFactor)) row = row with { ToxicBuildupFactor = t.toxicBuildupFactor };
                 yield return row;
             }
         }
@@ -74,14 +74,14 @@ namespace HomeBridge.BridgeTools
             var pocket = hatch.PocketMap;
             var row = new Obs.UndergroundSite { HatchId = Id(hatch.GetUniqueLoadID()), PocketMapId = pocket.uniqueID, StockpileType = Id(hatch.stockpileType.ToString()),
                 ColonistsPresent = (uint)pocket.mapPawns.FreeColonistsSpawnedCount };
-            if (Id(hatch.layout?.defName) is string layout) row.Layout = layout;
+            if (Id(hatch.layout?.defName) is string layout) row = row with { Layout = layout };
             foreach (var thing in pocket.listerThings.AllThings.Where(t => t.TryGetComp<CompHackable>() != null).OrderBy(t => t.thingIDNumber)) {
                 var hack = thing.TryGetComp<CompHackable>();
                 var state = new Obs.UndergroundHackable { ThingId = Id(thing.GetUniqueLoadID()), DefName = Id(thing.def.defName), Position = Cell(thing.Position),
                     Hacked = hack.IsHacked, LockedOut = hack.LockedOut, Autohack = hack.Autohack };
-                if (Finite(hack.ProgressPercent)) state.ProgressPercent = hack.ProgressPercent;
-                if (Finite(hack.defence)) state.Defence = hack.defence;
-                row.Hackables.Add(state);
+                if (Finite(hack.ProgressPercent)) state = state with { ProgressPercent = hack.ProgressPercent };
+                if (Finite(hack.defence)) state = state with { Defence = hack.defence };
+                row = row with { Hackables = [.. row.Hackables, state] };
             }
             return row;
         }

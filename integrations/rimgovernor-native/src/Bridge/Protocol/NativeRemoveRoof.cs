@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using HarmonyLib;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -42,8 +42,8 @@ namespace HomeBridge.BridgeTools
             var seen = new HashSet<IntVec3>();
             foreach (var c in intent.Cells)
             {
-                if (c == null || !c.HasX || !c.HasZ) return "Remove roof cell requires x and z.";
-                var cell = new IntVec3(c.X, 0, c.Z);
+                if (c == null || c.X is null || c.Z is null) return "Remove roof cell requires x and z.";
+                var cell = new IntVec3(c.X.GetValueOrDefault(), 0, c.Z.GetValueOrDefault());
                 if (!cell.InBounds(map)) return $"Cell {cell} is out of bounds.";
                 if (cell.Fogged(map)) return $"Cell {cell} is fogged.";
                 if (!seen.Add(cell)) return $"Cell {cell} is repeated.";
@@ -60,18 +60,18 @@ namespace HomeBridge.BridgeTools
             return refusal == null ? null : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, refusal);
         }
 
-        internal static Receipts.EffectEvidence Apply(Operations.RemoveRoofIntent intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(Operations.RemoveRoofIntent? intent, Common.ObservationContext context)
         {
             Install();
             var refusal = Refusal(intent, context, out var map, out var cells);
             if (refusal != null) throw new InvalidOperationException("Remove roof prerequisites changed before apply: " + refusal);
-            var effect = new Receipts.RemoveRoofEffect { Designated = 0, Adopted = 0, Unroofed = 0 };
+            int designatedCount = 0, adoptedCount = 0, unroofedCount = 0;
             var noRoof = map!.areaManager.NoRoof;
             var designator = new Designator_AreaNoRoof();
             foreach (var cell in cells)
             {
                 var unroofed = map.roofGrid.RoofAt(cell) == null;
-                if (noRoof[cell]) { if (unroofed) effect.Unroofed++; else effect.Adopted++; continue; }
+                if (noRoof[cell]) { if (unroofed) unroofedCount++; else adoptedCount++; continue; }
                 // An unroofed cell joins the NoRoof area too: left out, it
                 // stays in the BuildRoof area auto-roof gave it (a room's
                 // walls) and pawns roof it after the intent applied.
@@ -79,15 +79,15 @@ namespace HomeBridge.BridgeTools
                 if (!accepted.Accepted) throw new InvalidOperationException($"Native remove-roof (NoRoof area) is not accepted at {cell}: {accepted.Reason}");
                 designator.DesignateSingleCell(cell);
                 if (!noRoof[cell]) throw new InvalidOperationException($"NoRoof area was not observed at {cell}.");
-                if (unroofed) effect.Unroofed++; else effect.Designated++;
+                if (unroofed) unroofedCount++; else designatedCount++;
             }
-            return new Receipts.EffectEvidence { RemoveRoof = effect };
+            return new Receipts.EffectEvidence { Effect = new Receipts.RemoveRoofEffect { Designated = designatedCount, Adopted = adoptedCount, Unroofed = unroofedCount } };
         }
     }
 
     internal sealed class RemoveRoofActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeRemoveRoof.Validate(action.RemoveRoof, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeRemoveRoof.Apply(action.RemoveRoof, context);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeRemoveRoof.Validate(action.Intent?.RemoveRoof, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeRemoveRoof.Apply(action.Intent?.RemoveRoof, context);
     }
 }

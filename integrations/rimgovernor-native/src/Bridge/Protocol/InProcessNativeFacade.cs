@@ -4,16 +4,15 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using RimGovernor.Brain.NativeFacade;
-using Authority = RimGovernor.Protocol.Authority;
-using Clock = RimGovernor.Protocol.Clock;
-using Lifecycle = RimGovernor.Protocol.Lifecycle;
-using Obs = RimGovernor.Protocol.Observations;
-using Operations = RimGovernor.Protocol.Operations;
-using Placement = RimGovernor.Protocol.Placement;
-using Presentation = RimGovernor.Protocol.Presentation;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Authority = RimGovernor.Contracts.Wire.Authority;
+using Clock = RimGovernor.Contracts.Wire.Clock;
+using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
+using Obs = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Placement = RimGovernor.Contracts.Wire.Placement;
+using Presentation = RimGovernor.Contracts.Wire.Presentation;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -38,13 +37,13 @@ namespace HomeBridge.BridgeTools
         public ChannelReader<NativeFrame> Frames => SnapshotStream.Handoff.Reader;
 
         // A hop for a read (observation class) or a write (control class, which runs ahead of queued reads).
-        private static Task<T> Read<T>(string operation, IMessage request, Func<T> core, CancellationToken cancellationToken) where T : class
+        private static Task<T> Read<T>(string operation, object request, Func<T> core, CancellationToken cancellationToken) where T : class
         {
             ArgumentNullException.ThrowIfNull(request);
             return ProtoBoundary.OnGameThread("facade/" + operation, core, cancellationToken, Observation);
         }
 
-        private static Task<T> Write<T>(string operation, IMessage request, Func<T> core, CancellationToken cancellationToken) where T : class
+        private static Task<T> Write<T>(string operation, object request, Func<T> core, CancellationToken cancellationToken) where T : class
         {
             ArgumentNullException.ThrowIfNull(request);
             return ProtoBoundary.OnGameThread("facade/" + operation, core, cancellationToken, Control);
@@ -195,7 +194,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (!ProtoBoundary.IsIdentifier(resource))
                 {
-                    return Task.FromResult(new Obs.SnapshotStreamReply { Failure = ProtoBoundary.Fail(RimGovernor.Protocol.Common.FailureCode.InvalidRequest, "Resource sources must be identifiers.") });
+                    return Task.FromResult(new Obs.SnapshotStreamReply { Outcome = ProtoBoundary.Fail(RimGovernor.Contracts.Wire.Common.FailureCode.InvalidRequest, "Resource sources must be identifiers.") });
                 }
             }
             return Read("observations_open_snapshot_stream", request, () => SnapshotStream.OpenInProcess(request), cancellationToken);
@@ -205,7 +204,7 @@ namespace HomeBridge.BridgeTools
         {
             ArgumentNullException.ThrowIfNull(request);
             cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(new Obs.FlushSnapshotReply { Flushed = SnapshotStream.Flush() });
+            return Task.FromResult(new Obs.FlushSnapshotReply { Outcome = new Obs.FlushSnapshotReplyOutcome.FlushedCase(SnapshotStream.Flush()) });
         }
     }
 

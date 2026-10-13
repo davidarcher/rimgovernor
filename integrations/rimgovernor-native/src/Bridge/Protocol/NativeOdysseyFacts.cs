@@ -5,8 +5,8 @@ using System.Linq;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -40,27 +40,27 @@ namespace HomeBridge.BridgeTools
                 if (thing.TryGetComp<CompHackable>() is CompHackable hack)
                 {
                     var state = new Obs.HackableState { Hacked = hack.IsHacked, LockedOut = hack.LockedOut, Autohack = hack.Autohack };
-                    if (Finite(hack.ProgressPercent)) state.ProgressPercent = hack.ProgressPercent;
-                    if (Finite(hack.defence)) state.Defence = hack.defence;
-                    row.Hackable = state;
+                    if (Finite(hack.ProgressPercent)) state = state with { ProgressPercent = hack.ProgressPercent };
+                    if (Finite(hack.defence)) state = state with { Defence = hack.defence };
+                    row = row with { Hackable = state };
                 }
             }
-            catch (Exception ex) { row.Issues.Add(Failed("hackable", ex)); }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("hackable", ex)] }; }
             try
             {
                 if (thing is MapPortal portal)
                 {
                     var state = new Obs.PortalState { PocketMapExists = portal.PocketMapExists };
-                    if (portal.PocketMapExists) state.PocketMapId = portal.PocketMap.uniqueID;
+                    if (portal.PocketMapExists) state = state with { PocketMapId = portal.PocketMap.uniqueID };
                     if (portal is AncientHatch hatch)
                     {
-                        if (Id(hatch.stockpileType.ToString()) is string type) state.StockpileType = type;
-                        if (Id(hatch.layout?.defName) is string layout) state.Layout = layout;
+                        if (Id(hatch.stockpileType.ToString()) is string type) state = state with { StockpileType = type };
+                        if (Id(hatch.layout?.defName) is string layout) state = state with { Layout = layout };
                     }
-                    row.Portal = state;
+                    row = row with { Portal = state };
                 }
             }
-            catch (Exception ex) { row.Issues.Add(Failed("portal", ex)); }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("portal", ex)] }; }
             return row.Hackable == null && row.Portal == null && row.Issues.Count == 0 ? null : row;
         }
     }

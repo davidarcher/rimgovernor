@@ -4,9 +4,9 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using Verse.AI.Group;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -14,22 +14,22 @@ namespace HomeBridge.BridgeTools
     internal static class NativeGiveItemOperations
     {
         internal static bool ValidShape(Operations.GiveItemIntent? c) => c != null && c.Hauler != null && c.Recipient != null
-            && c.HasDefinition && c.HasExpectedRemaining && c.ExpectedRemaining > 0 && c.ExpectedRemaining <= int.MaxValue
+            && c.Definition is not null && c.ExpectedRemaining is not null && c.ExpectedRemaining.GetValueOrDefault() > 0 && c.ExpectedRemaining.GetValueOrDefault() <= int.MaxValue
             && ProtoBoundary.IsIdentifier(c.Hauler.Id) && ProtoBoundary.IsIdentifier(c.Recipient.Id)
-            && c.Hauler.Id != c.Recipient.Id && ProtoBoundary.IsIdentifier(c.Definition);
-        internal static Common.Failure? Validate(Operations.GiveItemIntent c, Common.ObservationContext context) => !ValidShape(c)
+            && (c.Hauler.Id ?? "") != (c.Recipient.Id ?? "") && ProtoBoundary.IsIdentifier(c.Definition);
+        internal static Common.Failure? Validate(Operations.GiveItemIntent? c, Common.ObservationContext context) => c is not { Hauler: { } hauler, Recipient: { } recipient } || !ValidShape(c)
             ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An exact whole item request is required.")
-            : Validate(c.Hauler.Id, c.Recipient.Id, c.Definition, (int)c.ExpectedRemaining, context);
-        internal static Receipts.EffectEvidence Apply(Operations.GiveItemIntent c, Common.ObservationContext context)
+            : Validate((hauler.Id ?? ""), (recipient.Id ?? ""), (c.Definition ?? ""), (int)c.ExpectedRemaining.GetValueOrDefault(), context);
+        internal static Receipts.EffectEvidence Apply(Operations.GiveItemIntent? c, Common.ObservationContext context)
         {
             var failure = Validate(c, context);
             if (failure != null) throw new ApplyRefusedException(failure);
-            return Apply(c.Hauler.Id, c.Recipient.Id, c.Definition, (int)c.ExpectedRemaining, context);
+            return Apply((c!.Hauler!.Id ?? ""), (c.Recipient!.Id ?? ""), (c.Definition ?? ""), (int)c.ExpectedRemaining.GetValueOrDefault(), context);
         }
         private static Receipts.EffectEvidence Evidence(Pawn hauler, Pawn recipient, Thing source, Job job, int remaining, bool issued)
-            => new Receipts.EffectEvidence { GiveItem = new Receipts.GiveItemEffect {
+            => new Receipts.EffectEvidence { Effect = new Receipts.GiveItemEffect {
                 HaulerId = hauler.GetUniqueLoadID(), RecipientId = recipient.GetUniqueLoadID(), Definition = source.def.defName,
-                ExpectedRemaining = remaining, SourceItemId = source.GetUniqueLoadID(), Job = NativeGiveJob.Evidence(hauler, source, job, issued).Job } };
+                ExpectedRemaining = remaining, SourceItemId = source.GetUniqueLoadID(), Job = NativeGiveJob.Evidence(hauler, source, job, issued).Effect?.Job } };
         private static Common.Failure? Resolve(string haulerId, string recipientId, string defName, int expectedRemaining, Common.ObservationContext context, out Pawn? hauler, out Pawn? recipient, out Thing? source, out Lord? lord, out bool running)
         {
             hauler = null; recipient = null; source = null; lord = null; running = false;
@@ -76,7 +76,7 @@ namespace HomeBridge.BridgeTools
     }
     internal sealed class GiveItemActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeGiveItemOperations.Validate(action.GiveItem, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeGiveItemOperations.Apply(action.GiveItem, context);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeGiveItemOperations.Validate(action.Intent?.GiveItem, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeGiveItemOperations.Apply(action.Intent?.GiveItem, context);
     }
 }

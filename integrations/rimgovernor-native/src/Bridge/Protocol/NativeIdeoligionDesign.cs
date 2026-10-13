@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
+using Common = RimGovernor.Contracts.Wire.Common;
 
 namespace HomeBridge.BridgeTools
 {
@@ -15,9 +15,9 @@ namespace HomeBridge.BridgeTools
         {
             candidate = null;
             Common.Failure Invalid(string reason) => ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, reason);
-            if (!ModsConfig.IdeologyActive || source == null || design == null || !design.HasFluid)
+            if (!ModsConfig.IdeologyActive || source == null || design == null || design.Fluid is null)
                 return Invalid("Ideoligion design requires Ideology and an explicit mode.");
-            if (reform && (!source.Fluid || source.development == null || !source.development.CanReformNow || !design.Fluid))
+            if (reform && (!source.Fluid || source.development == null || !source.development.CanReformNow || !design.Fluid.GetValueOrDefault()))
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The ideoligion cannot reform now.");
             var memes = new List<MemeDef>();
             foreach (var name in design.Memes)
@@ -25,14 +25,14 @@ namespace HomeBridge.BridgeTools
                 var meme = DefDatabase<MemeDef>.GetNamedSilentFail(name);
                 if (meme == null || memes.Contains(meme) || meme.hiddenInChooseMemes || !IdeoUtility.IsMemeAllowedFor(meme, Faction.OfPlayer.def))
                     return Invalid("Unknown, duplicate or unavailable meme.");
-                if (!reform && design.Fluid && !IdeoUtility.IsMemeAllowedForInitialFluidIdeo(meme))
+                if (!reform && design.Fluid.GetValueOrDefault() && !IdeoUtility.IsMemeAllowedForInitialFluidIdeo(meme))
                     return Invalid("Meme unavailable for an initial fluid ideoligion.");
                 if (memes.Any(m => m.exclusionTags.Intersect(meme.exclusionTags).Any()))
                     return Invalid("Incompatible memes.");
                 memes.Add(meme);
             }
             int normal = memes.Count(m => m.category == MemeCategory.Normal);
-            var range = !reform && design.Fluid ? IdeoFoundation.MemeCountRangeFluidAbsolute : IdeoFoundation.MemeCountRangeAbsolute;
+            var range = !reform && design.Fluid.GetValueOrDefault() ? IdeoFoundation.MemeCountRangeFluidAbsolute : IdeoFoundation.MemeCountRangeAbsolute;
             if (memes.Count(m => m.category == MemeCategory.Structure) != 1 || normal < range.min || normal > range.max)
                 return Invalid("Invalid structure or normal meme count.");
             if (Faction.OfPlayer.def.requiredMemes?.Any(m => !memes.Contains(m)) == true)
@@ -60,13 +60,13 @@ namespace HomeBridge.BridgeTools
             }
             var copy = IdeoGenerator.MakeIdeo(source.foundation.def);
             source.CopyTo(copy);
-            copy.Fluid = design.Fluid;
+            copy.Fluid = design.Fluid.GetValueOrDefault();
             var previous = copy.memes.ToList();
             copy.memes.Clear(); copy.memes.AddRange(memes); copy.SortMemesInDisplayOrder();
             if (reform)
                 copy.foundation.EnsurePreceptsCompatibleWithMemes(previous, memes, new IdeoGenerationParms(Faction.OfPlayer.def));
             else
-                copy.foundation.RandomizePrecepts(true, new IdeoGenerationParms(Faction.OfPlayer.def, forNewFluidIdeo: design.Fluid, fixedIdeo: !design.Fluid));
+                copy.foundation.RandomizePrecepts(true, new IdeoGenerationParms(Faction.OfPlayer.def, forNewFluidIdeo: design.Fluid.GetValueOrDefault(), fixedIdeo: !design.Fluid.GetValueOrDefault()));
             foreach (var precept in copy.PreceptsListForReading.Where(p => p.def.preceptClass == typeof(Precept)).ToList())
                 copy.RemovePrecept(precept, replacing: true);
             foreach (var def in selections.OrderBy(d => d.defName, StringComparer.Ordinal))

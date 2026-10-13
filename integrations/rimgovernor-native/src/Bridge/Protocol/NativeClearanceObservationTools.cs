@@ -5,13 +5,12 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -23,11 +22,11 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Read(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ClearanceTargetsRequest string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ClearanceTargetsRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.ClearanceTargetsReply { Failure = failure });
+            if (!ProtoBoundary.TryParse(ctx, ToolName, request, out Obs.ClearanceTargetsRequest? parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.ClearanceTargetsReply { Outcome = new Obs.ClearanceTargetsReplyOutcome.FailureCase(failure) });
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                    return ProtoBoundary.Encode(new Obs.ClearanceTargetsReply { Failure = error });
+                    return ProtoBoundary.Encode(new Obs.ClearanceTargetsReply { Outcome = error });
                 try {
                     var player = Faction.OfPlayerSilentFail;
                     if (player == null || map.areaManager?.Home == null || map.listerThings == null || map.designationManager == null || map.roofGrid == null || map.roofCollapseBuffer == null)
@@ -66,14 +65,14 @@ namespace HomeBridge.BridgeTools
                     ObservationWork.Captured("clearanceScan", Now() - began, buildings.Count + chunks.Count);
                     began = Now();
                     var snapshot = new Obs.ClearanceTargetsSnapshot { Context = context };
-                    snapshot.Floors.AddRange(floors);
+                    snapshot = snapshot with { Floors = [.. snapshot.Floors, .. floors] };
                     var salvage = parsed.IncludeSalvage ? SalvageRead.Begin(map, parsed) : null;
                     foreach (var chunk in chunks.Values.OrderBy(t => t.thingIDNumber)) {
                         if (!chunk.Position.InBounds(map) || chunk.Position.Fogged(map)) continue;
                         var forbidden = chunk.IsForbidden(player);
                         var stored = chunk.IsInValidStorage();
                         var destination = !stored && StoreUtility.TryFindBestBetterStoreCellFor(chunk, null, map, StoreUtility.CurrentStoragePriorityOf(chunk), player, out _, false);
-                        snapshot.Chunks.Add(new Obs.ClearanceChunk { EntityId = Id(chunk.GetUniqueLoadID()), DefName = Id(chunk.def.defName), Cell = Cell(chunk.Position.x, chunk.Position.z), Forbidden = forbidden, Stored = stored, Destination = destination });
+                        snapshot = snapshot with { Chunks = [.. snapshot.Chunks, new Obs.ClearanceChunk { EntityId = Id(chunk.GetUniqueLoadID()), DefName = Id(chunk.def.defName), Cell = Cell(chunk.Position.x, chunk.Position.z), Forbidden = forbidden, Stored = stored, Destination = destination }] };
                     }
                     ObservationWork.Captured("clearanceChunks", Now() - began, snapshot.Chunks.Count, chunks.Count);
                     long dangerTicks = 0, roofTicks = 0, salvageTicks = 0, salvageRows = 0;
@@ -94,22 +93,22 @@ namespace HomeBridge.BridgeTools
                             Designated = designated
                         };
                         var phase = Now();
-                        row.AncientDanger = AncientDanger(map, building, player, triggers);
+                        row = row with { AncientDanger = AncientDanger(map, building, player, triggers) };
                         dangerTicks += Now() - phase;
-                        if (building.Faction == player) row.EnclosesRoom = EnclosesRoom(map, building);
+                        if (building.Faction == player) row = row with { EnclosesRoom = EnclosesRoom(map, building) };
                         phase = Now();
                         var blocker = RoofSupportSafety.Blocker(building, out _);
                         roofTicks += Now() - phase;
-                        if (blocker != null) row.RoofBlocker = blocker;
+                        if (blocker != null) row = row with { RoofBlocker = blocker };
                         if (salvage != null) {
                             phase = Now();
                             var evidence = salvage.Evidence(building);
-                            if (evidence != null) row.Salvage = evidence;
-                            else row.SalvageSkipped = true;
+                            if (evidence != null) row = row with { Salvage = evidence };
+                            else row = row with { SalvageSkipped = true };
                             salvageTicks += Now() - phase;
                             salvageRows++;
                         }
-                        snapshot.Targets.Add(row);
+                        snapshot = snapshot with { Targets = [.. snapshot.Targets, row] };
                     }
                     salvage?.End();
                     // per-phase main-thread cost of the target rows; the
@@ -121,7 +120,7 @@ namespace HomeBridge.BridgeTools
                     ObservationWork.Captured("clearanceSalvage", salvageTicks, salvageRows);
                     ObservationWork.Captured("clearanceTargetRows", targetTicks - dangerTicks - roofTicks - salvageTicks, snapshot.Targets.Count, buildings.Count);
                     var count = (ulong)snapshot.Targets.Count;
-                    var reply = new Obs.ClearanceTargetsReply { Observed = snapshot };
+                    var reply = new Obs.ClearanceTargetsReply { Outcome = snapshot };
                     return ProtoBoundary.Encode(reply);
                 }
                 catch (Exception) { return Missing(Common.UnavailableReason.ReadFailed, "Clearance facts could not be read completely."); }
@@ -150,9 +149,9 @@ namespace HomeBridge.BridgeTools
                 if (headroom > 0) {
                     var route = safety.SalvageReturn(building, item);
                     if (route == null) headroom = 0;
-                    else result.Safe = result.Safe && route.Value;
+                    else result = result with { Safe = result.Safe && route.Value };
                 }
-                result.Yields.Add(new Obs.SalvageYield { DefName = cost.thingDef.defName, Count = count, UnitValue = item.MarketValue, StorageHeadroom = headroom });
+                result = result with { Yields = [.. result.Yields, new Obs.SalvageYield { DefName = cost.thingDef.defName, Count = count, UnitValue = item.MarketValue, StorageHeadroom = headroom }] };
             }
             return result;
         }
@@ -228,9 +227,7 @@ namespace HomeBridge.BridgeTools
         // A copy of the cached evidence stamped with its age at this read.
         private static Obs.SalvageEvidence Served(SalvageEntry e)
         {
-            var copy = e.Evidence.Clone();
-            copy.AgeTicks = Math.Max(0, Find.TickManager.TicksGame - e.Computed);
-            return copy;
+            return e.Evidence with { AgeTicks = Math.Max(0, Find.TickManager.TicksGame - e.Computed) };
         }
 
         private static bool Aged(SalvageEntry e)
@@ -305,7 +302,7 @@ namespace HomeBridge.BridgeTools
                 var evidence = Store(map, b, LocalSignature(b));
                 inlineTicks += Now() - began;
                 inline++;
-                return evidence.Clone();
+                return evidence;
             }
 
             // End evicts buildings that left the census (removed,
@@ -358,7 +355,7 @@ namespace HomeBridge.BridgeTools
             var cells = new HashSet<IntVec3>();
             foreach (var r in rects) {
                 if (r?.Minimum == null || r.Maximum == null) throw new InvalidOperationException("Planned ground rectangle incomplete.");
-                var rect = CellRect.FromLimits(r.Minimum.X, r.Minimum.Z, r.Maximum.X, r.Maximum.Z).ClipInsideMap(map);
+                var rect = CellRect.FromLimits(r.Minimum.X.GetValueOrDefault(), r.Minimum.Z.GetValueOrDefault(), r.Maximum.X.GetValueOrDefault(), r.Maximum.Z.GetValueOrDefault()).ClipInsideMap(map);
                 foreach (var c in rect) cells.Add(c);
             }
             return cells.OrderBy(c => c.z).ThenBy(c => c.x).ToList();
@@ -423,6 +420,6 @@ namespace HomeBridge.BridgeTools
         private static long Now() => System.Diagnostics.Stopwatch.GetTimestamp();
         private static Common.Cell Cell(int x, int z) => new Common.Cell { X = x, Z = z };
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
-        private static object Missing(Common.UnavailableReason reason, string detail) => ProtoBoundary.Encode(new Obs.ClearanceTargetsReply { Unavailable = new Common.Unavailable { Reason = reason, Detail = detail } });
+        private static object Missing(Common.UnavailableReason reason, string detail) => ProtoBoundary.Encode(new Obs.ClearanceTargetsReply { Outcome = new Common.Unavailable { Reason = reason, Detail = detail } });
     }
 }

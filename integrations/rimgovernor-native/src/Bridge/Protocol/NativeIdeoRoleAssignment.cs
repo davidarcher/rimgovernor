@@ -3,9 +3,9 @@ using System;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -37,7 +37,7 @@ namespace HomeBridge.BridgeTools
             if (role.IsAssigned(found)) { pawn = found; return null; }
             previous = role.ideo.GetRole(found);
             var held = previous?.GetUniqueLoadID() ?? "";
-            var expected = intent.ExpectedPrevious.ValueCase == Operations.Assignment.ValueOneofCase.EntityId ? intent.ExpectedPrevious.EntityId : "";
+            var expected = intent.ExpectedPrevious?.Value?.EntityId ?? "";
             if (held != expected) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Previous assignment changed; observe before recovery.");
             if (!role.Active) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Role unavailable: not active.");
             if (found.Ideo != role.ideo) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Role unavailable: the pawn does not hold the ideoligion.");
@@ -53,7 +53,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.AssignIntent intent, Common.ObservationContext context, Precept_Role role)
         {
             var failure = Resolve(intent, context, role, out var pawn, out var previous);
-            if (failure != null) throw new InvalidOperationException("Assignment prerequisites changed before apply: " + failure.Detail);
+            if (failure != null) throw new InvalidOperationException("Assignment prerequisites changed before apply: " + (failure.Detail ?? ""));
             if (!role.IsAssigned(pawn))
             {
                 previous?.Unassign(pawn, true);
@@ -61,8 +61,8 @@ namespace HomeBridge.BridgeTools
             }
             if (!role.IsAssigned(pawn)) throw new InvalidOperationException("Native role assignment did not take effect.");
             var effect = new Receipts.AssignEffect { PawnId = pawn.GetUniqueLoadID(), ThingId = role.GetUniqueLoadID(), Assigned = true };
-            if (intent.ExpectedPrevious.ValueCase == Operations.Assignment.ValueOneofCase.EntityId) effect.PreviousThingId = intent.ExpectedPrevious.EntityId;
-            return new Receipts.EffectEvidence { Assign = effect };
+            if (intent.ExpectedPrevious?.Value is Operations.AssignmentValue.EntityIdCase { Value: var previousThingId }) effect = effect with { PreviousThingId = previousThingId };
+            return new Receipts.EffectEvidence { Effect = effect };
         }
     }
 }

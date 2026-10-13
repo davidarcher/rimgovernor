@@ -9,7 +9,7 @@ Harmony directory:
 dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-proto-research <args...>
 ```
 
-Tests load the actual adapter, official messages and SDK argument binder.
+Tests load the actual adapter, the Contracts wire records and SDK argument binder.
 They verify bounded requests, dictionary-only progress reads, native completion
 math, optional zero/false fields and reply limits. They do not prove gameplay.
 

@@ -7,7 +7,7 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Operations = RimGovernor.Protocol.Operations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace HomeBridge.BridgeTools
 {

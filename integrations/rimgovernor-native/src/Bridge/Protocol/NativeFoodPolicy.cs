@@ -4,10 +4,10 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -52,28 +52,29 @@ namespace HomeBridge.BridgeTools
             var policy = pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn);
             if (policy == null || pawn.needs?.food == null || pawn.DevelopmentalStage.Baby()) return null;
             var row = new Obs.FoodRestriction { PolicyId = policy.GetUniqueLoadID() };
-            row.AllowedDefs.Add(policy.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal));
+            row = row with { AllowedDefs = [.. row.AllowedDefs, .. policy.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal)] };
             return row;
         }
 
         internal static Common.Failure? Validate(Operations.FoodPolicyIntent? intent, Common.ObservationContext context)
         {
-            if (intent == null || !intent.HasName || !ProtoBoundary.IsIdentifier(intent.Name) || intent.Name.Length > 80
+            if (intent == null || intent.Name is null || !ProtoBoundary.IsIdentifier(intent.Name) || (intent.Name ?? "").Length > 80
                 || intent.AllowedDefs.Distinct().Count() != intent.AllowedDefs.Count
                 || intent.AllowedDefs.Any(d => DefDatabase<ThingDef>.GetNamedSilentFail(d) is not ThingDef def || !IsFood(def)))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A food policy needs a name and distinct food definitions.");
-            if (Current.Game.foodRestrictionDatabase.AllFoodRestrictions.Count(p => p.label == intent.Name) > 1)
+            if (Current.Game.foodRestrictionDatabase.AllFoodRestrictions.Count(p => p.label == (intent.Name ?? "")) > 1)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "More than one food policy has this name.");
             return null;
         }
 
-        internal static Receipts.EffectEvidence Apply(Operations.FoodPolicyIntent intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(Operations.FoodPolicyIntent? intent, Common.ObservationContext context)
         {
             var failure = Validate(intent, context);
             if (failure != null) throw new ApplyRefusedException(failure);
             var db = Current.Game.foodRestrictionDatabase;
+            if (intent == null) throw new InvalidOperationException("Food policy intent missing.");
             var want = intent.AllowedDefs.OrderBy(d => d, StringComparer.Ordinal).ToList();
-            var policy = db.AllFoodRestrictions.FirstOrDefault(p => p.label == intent.Name);
+            var policy = db.AllFoodRestrictions.FirstOrDefault(p => p.label == (intent.Name ?? ""));
             var outcome = Receipts.FieldOutcome.Unchanged;
             if (policy == null || !Allowed(policy).SequenceEqual(want))
             {
@@ -87,15 +88,15 @@ namespace HomeBridge.BridgeTools
                 policy.filter.SetAllow(corpse, false);
                 outcome = Receipts.FieldOutcome.Applied;
             }
-            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+            return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = policy.GetUniqueLoadID() },
-                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.FoodRestriction, Outcome = outcome } } } };
+                Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.FoodRestriction, Outcome = outcome }] } };
         }
     }
 
     internal sealed class FoodPolicyActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeFoodPolicy.Validate(action.FoodPolicy, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeFoodPolicy.Apply(action.FoodPolicy, context);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeFoodPolicy.Validate(action.Intent?.FoodPolicy, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeFoodPolicy.Apply(action.Intent?.FoodPolicy, context);
     }
 }

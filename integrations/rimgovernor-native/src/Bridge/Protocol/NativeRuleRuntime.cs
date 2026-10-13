@@ -7,8 +7,8 @@ using HarmonyLib;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -53,7 +53,7 @@ namespace HomeBridge.BridgeTools
             var state = States.GetOrCreateValue(Current.Game);
             state.Pending.Clear();
             var attached = state.Book.Attach(rules, expiresAt);
-            attached.Context = context.Clone();
+            attached = attached with { Context = context };
             return attached;
         }
 
@@ -66,8 +66,8 @@ namespace HomeBridge.BridgeTools
 
         internal static Operations.RulesStatus Status(Common.ObservationContext context, Game game)
         {
-            var status = States.TryGetValue(game, out var state) ? state.Book.Status(context.Tick) : new Operations.RulesStatus();
-            status.Context = context.Clone();
+            var status = States.TryGetValue(game, out var state) ? state.Book.Status(context.Tick.GetValueOrDefault()) : new Operations.RulesStatus();
+            status = status with { Context = context };
             return status;
         }
 
@@ -114,8 +114,8 @@ namespace HomeBridge.BridgeTools
             foreach (var entry in state.Book.Active.ToList())
             {
                 if (!ActorQualifies(entry.Rule, actor)) continue;
-                var def = DefDatabase<JobDef>.GetNamedSilentFail(entry.Rule.Job);
-                var target = def == null ? null : Nearest(actor, def, entry.Rule.Radius, entry.Rule.PredatorMarginCells, kill.Prey);
+                var def = DefDatabase<JobDef>.GetNamedSilentFail((entry.Rule.Job ?? ""));
+                var target = def == null ? null : Nearest(actor, def, entry.Rule.Radius.GetValueOrDefault(), entry.Rule.PredatorMarginCells.GetValueOrDefault(), kill.Prey);
                 if (target == null) continue;
                 Fire(authority, state, entry, actor, target, def!, now);
                 return;
@@ -152,17 +152,17 @@ namespace HomeBridge.BridgeTools
             var targetId = target.GetUniqueLoadID();
             var rule = entry.Rule;
             // Journal first: the write happens only once its firing is on the ring.
-            if (!Supervisor.PublishRuleEvent("rule_fired", "Rule " + rule.Id + ": " + rule.Job + " " + target.LabelShortCap,
-                new Dictionary<string, object?> { { "ruleId", rule.Id }, { "job", rule.Job }, { "radius", (long)rule.Radius },
+            if (!Supervisor.PublishRuleEvent("rule_fired", "Rule " + (rule.Id ?? "") + ": " + (rule.Job ?? "") + " " + target.LabelShortCap,
+                new Dictionary<string, object?> { { "ruleId", (rule.Id ?? "") }, { "job", (rule.Job ?? "") }, { "radius", (long)rule.Radius.GetValueOrDefault() },
                     { "actorId", actorId }, { "targetId", targetId }, { "tick", (long)now } })) return;
             state.Book.NoteFired(entry, actorId, targetId, now);
             try
             {
                 using (authority.Owned())
-                using (OperationIntent.Scope("Rule " + rule.Id + ": " + rule.Job + " next prey"))
-                    if (NativePrioritizedJob.TryTake(actor, target, def, out var reason) == null) ModLog.Warn("rules", "Rule " + rule.Id + " did not take its job: " + reason);
+                using (OperationIntent.Scope("Rule " + (rule.Id ?? "") + ": " + (rule.Job ?? "") + " next prey"))
+                    if (NativePrioritizedJob.TryTake(actor, target, def, out var reason) == null) ModLog.Warn("rules", "Rule " + (rule.Id ?? "") + " did not take its job: " + reason);
             }
-            catch (Exception error) { ModLog.Error("rules", "Rule " + rule.Id + " write failed: " + error); }
+            catch (Exception error) { ModLog.Error("rules", "Rule " + (rule.Id ?? "") + " write failed: " + error); }
         }
     }
 }

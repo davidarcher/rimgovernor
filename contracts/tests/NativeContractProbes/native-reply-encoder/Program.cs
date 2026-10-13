@@ -4,10 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using HomeBridge.BridgeTools;
 using RimGovernor.Host.Sdk;
-using Common = RimGovernor.Protocol.Common;
+using Common = RimGovernor.Contracts.Wire.Common;
 
 // The detached reply boundary: ProtoBoundary.CaptureOnMainThread reads
 // on the game thread, EncodeDetached formats on a ReplyEncoder worker, and
@@ -120,7 +119,7 @@ internal static class NativeReplyEncoderProbe
 
         As(MainThreadAdmission.Observation);
         var captureThread = -1;
-        var capture = ProtoBoundary.CaptureOnMainThread(ctx, () => { captureThread = Thread.CurrentThread.ManagedThreadId; return source.Clone(); }, CancellationToken.None);
+        var capture = ProtoBoundary.CaptureOnMainThread(ctx, () => { captureThread = Thread.CurrentThread.ManagedThreadId; return source; }, CancellationToken.None);
         Check(game.Pump() == 1, "the capture is one game-thread hop");
         var captured = Settle(capture, "capture");
         Check(captureThread == gameThread && captured.Hop.GameThread == gameThread, "capture ran on the game thread");
@@ -146,12 +145,12 @@ internal static class NativeReplyEncoderProbe
             Check(((string)renew["payload"]).Contains("renew"), "the control hop answered");
             Check(!encode.IsCompleted, "the encode is still held after the control hop");
 
-            source.Detail = "mutated after capture";
+            source = source with { Detail = "mutated after capture" }; // records are immutable: the captured value cannot change under the encoder
             release.Set();
             var envelope = (Dictionary<string, object>)Settle(encode, "encode");
             var payload = (string)envelope["payload"];
-            Check(payload.Contains("captured é") && !payload.Contains("mutated"), "the in-flight reply is the captured copy");
-            Check(Failure(payload).Detail == "captured é", "the payload is official ProtoJSON of the capture");
+            Check(!payload.Contains("mutated"), "the in-flight reply is the captured copy"); // wire JSON escapes non-ASCII, so the text itself is compared after decoding below
+            Check(Failure(payload).Detail == "captured é", "the payload is official wire JSON of the capture");
             var observation = Observation(envelope);
             Check((int)observation["formatPasses"] == 0, "no formatting on the game thread");
             var encodeBlock = (Dictionary<string, object>)observation["encode"];
@@ -164,7 +163,7 @@ internal static class NativeReplyEncoderProbe
         SlotsReturn("held encode");
     }
 
-    private static Common.Failure Failure(string payload) => Common.Failure.Parser.ParseJson(payload);
+    private static Common.Failure Failure(string payload) => RimGovernor.Contracts.Wire.WireJson.Deserialize<Common.Failure>(payload);
 
     private static void SaturationRefusesBoundedly()
     {

@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -27,11 +27,11 @@ namespace HomeBridge.BridgeTools
 
         private static bool Valid(Operations.ZoneIntent? intent)
         {
-            if (NativeZoneIntent.Id(intent) == null || intent!.HasKind || (intent.AddCells == null) == (intent.RemoveCells == null)) return false;
-            var cells = NativeZoneIntent.EditCells(intent)?.ExplicitCells?.Cells;
-            if (cells == null || cells.Count == 0) return false;
-            if (!cells.All(c => c.HasX && c.HasZ && c.X >= 0 && c.Z >= 0)) return false;
-            return cells.Select(c => Tuple.Create(c.X, c.Z)).Distinct().Count() == cells.Count;
+            if (NativeZoneIntent.Id(intent) == null || intent!.Kind is not null || (intent.AddCells == null) == (intent.RemoveCells == null)) return false;
+            var cells = NativeZoneIntent.EditCells(intent)?.Selection?.ExplicitCells?.Cells;
+            if (cells is not { } list || list.Count == 0) return false;
+            if (!list.All(c => c.X is >= 0 && c.Z is >= 0)) return false;
+            return list.Select(c => Tuple.Create(c.X, c.Z)).Distinct().Count() == list.Count;
         }
 
         private static bool IsFreeGround(IntVec3 c, Map map)
@@ -48,10 +48,10 @@ namespace HomeBridge.BridgeTools
         }
 
         private static Zone? Resolve(Operations.ZoneIntent? intent, Map map) =>
-            Valid(intent) ? RefIndex.Zone(map, intent!.Zone.Id) is Zone z && z.Cells.Count > 0 ? z : null : null;
+            Valid(intent) ? RefIndex.Zone(map, (intent!.Zone?.Id ?? "")) is Zone z && z.Cells.Count > 0 ? z : null : null;
 
         private static IntVec3[] Requested(Operations.ZoneIntent intent) =>
-            NativeZoneIntent.EditCells(intent)!.ExplicitCells.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
+            NativeZoneIntent.EditCells(intent)?.Selection?.ExplicitCells?.Cells.Select(c => new IntVec3(c.X.GetValueOrDefault(), 0, c.Z.GetValueOrDefault())).ToArray() ?? Array.Empty<IntVec3>();
 
         private static bool Standing(Operations.ZoneIntent? intent, Zone? zone) =>
             zone != null && (NativeZoneIntent.Adding(intent!) ? Requested(intent!).All(zone.Cells.Contains) : !Requested(intent!).Any(zone.Cells.Contains));
@@ -93,15 +93,15 @@ namespace HomeBridge.BridgeTools
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
         {
             var map = ProtoBoundary.LoadedMap(context);
-            var zone = Resolve(action.Zone, map);
-            if (Standing(action.Zone, zone)) return null;
-            var rules = Rules(action.Zone, zone, map);
+            var zone = Resolve(action.Intent?.Zone, map);
+            if (Standing(action.Intent?.Zone, zone)) return null;
+            var rules = Rules(action.Intent?.Zone, zone, map);
             return rules.Holds ? null : rules.Failure();
         }
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
-            var intent = action.Zone;
+            var intent = action.Intent?.Zone ?? new Operations.ZoneIntent();
             var map = ProtoBoundary.LoadedMap(context);
             var zone = Resolve(intent, map);
             if (!Standing(intent, zone))
@@ -116,7 +116,7 @@ namespace HomeBridge.BridgeTools
                 // Removing a zone's last cell deregisters it (Zone.RemoveCell).
                 if (map.zoneManager.AllZones.Contains(zone!) && !Standing(intent, zone)) throw new InvalidOperationException("Native zone cell readback did not apply.");
             }
-            return NativeZoneCreation.Evidence(intent.Zone.Id, zone, map);
+            return NativeZoneCreation.Evidence(intent.Zone?.Id ?? "", zone, map);
         }
     }
 }

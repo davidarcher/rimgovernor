@@ -4,8 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Authority = RimGovernor.Protocol.Authority;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Authority = RimGovernor.Contracts.Wire.Authority;
 
 namespace HomeBridge.BridgeTools
 {
@@ -18,9 +18,9 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadStatus(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON StatusRequest with exact colony/load/map identity.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Authority.StatusRequest.Parser,
+            if (!ProtoBoundary.TryParse<Authority.StatusRequest>(ctx, ToolName, request,
                 out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Authority.StatusReply { Failure = failure });
+                return ProtoBoundary.Encode(new Authority.StatusReply { Outcome = new Authority.StatusReplyOutcome.FailureCase(failure) });
 
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadStatus(parsed), cancellationToken);
         }
@@ -33,50 +33,50 @@ namespace HomeBridge.BridgeTools
             // and is how a controller sees REVOCATION_REASON_SHUTDOWN.
             if (Current.Game == null && ProtoBoundary.Complete(parsed.Identity)
                 && NativeControlAuthority.LastShutdown is NativeControlShutdown shutdown
-                && shutdown.Matches(parsed.Identity.ColonyId, parsed.Identity.LoadToken, parsed.Identity.MapId))
-                return new Authority.StatusReply { Status = ProjectShutdown(shutdown, parsed.Identity) };
+                && shutdown.Matches((parsed.Identity.ColonyId ?? ""), (parsed.Identity.LoadToken ?? ""), parsed.Identity.MapId.GetValueOrDefault()))
+                return new Authority.StatusReply { Outcome = ProjectShutdown(shutdown, parsed.Identity) };
             if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
-                return new Authority.StatusReply { Failure = invalid };
+                return new Authority.StatusReply { Outcome = invalid };
             var game = Current.Game;
             if (game == null)
-                return new Authority.StatusReply { Failure = new Common.Failure
+                return new Authority.StatusReply { Outcome = new Common.Failure
                 {
                     Code = Common.FailureCode.Unavailable, Detail = "No game is loaded."
                 } };
             if (!NativeControlAuthority.TryGetForGame(game, out var state) || state == null)
-                return new Authority.StatusReply { Status = new Authority.Status
+                return new Authority.StatusReply { Outcome = new Authority.Status
                 {
                     Context = context,
-                    Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved,
+                    State = new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved,
                         Detail = "Native control hooks and trusted admission have not been initialized." }
                 } };
             var snapshot = state.Status();
-            return new Authority.StatusReply { Status = Project(snapshot, context) };
+            return new Authority.StatusReply { Outcome = Project(snapshot, context) };
         }
 
         // This projection does not initialize hooks or grant authority.
         internal static Authority.Status Project(NativeControlSnapshot snapshot, Common.ObservationContext context)
         {
-            var status = new Authority.Status { Context = context.Clone() };
-            status.Context.NativeGeneration = snapshot.Generation;
+            var status = new Authority.Status { Context = context };
+            status = status with { Context = context with { NativeGeneration = snapshot.Generation } };
             if (!snapshot.Available)
             {
-                status.Unavailable = Unavailable(snapshot);
+                status = status with { State = new Authority.StatusState.UnavailableCase(Unavailable(snapshot)) };
                 return status;
             }
             if (snapshot.Active)
             {
-                status.Active = new Authority.ActiveAuthority { Mode = Authority.Mode.Auto };
+                status = status with { State = new Authority.StatusState.ActiveCase(new Authority.ActiveAuthority { Mode = Authority.Mode.Auto }) };
                 return status;
             }
             if (TryReason(snapshot.Reason, out var reason))
-                status.Inactive = new Authority.InactiveAuthority { Reason = reason };
+                status = status with { State = new Authority.StatusState.InactiveCase(new Authority.InactiveAuthority { Reason = reason }) };
             else
-                status.Unavailable = new Common.Unavailable
+                status = status with { State = new Authority.StatusState.UnavailableCase(new Common.Unavailable
                 {
                     Reason = Common.UnavailableReason.ReadFailed,
                     Detail = "Native authority status could not be represented."
-                };
+                }) };
             return status;
         }
 
@@ -86,16 +86,16 @@ namespace HomeBridge.BridgeTools
         {
             var status = new Authority.Status { Context = new Common.ObservationContext
             {
-                Identity = identity.Clone(), Tick = shutdown.Tick, NativeGeneration = shutdown.Generation,
+                Identity = identity, Tick = shutdown.Tick, NativeGeneration = shutdown.Generation,
             } };
             if (TryReason(shutdown.Reason, out var reason))
-                status.Inactive = new Authority.InactiveAuthority { Reason = reason };
+                status = status with { State = new Authority.StatusState.InactiveCase(new Authority.InactiveAuthority { Reason = reason }) };
             else
-                status.Unavailable = new Common.Unavailable
+                status = status with { State = new Authority.StatusState.UnavailableCase(new Common.Unavailable
                 {
                     Reason = Common.UnavailableReason.ReadFailed,
                     Detail = "Native authority status could not be represented."
-                };
+                }) };
             return status;
         }
 

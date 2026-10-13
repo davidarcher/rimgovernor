@@ -1,12 +1,12 @@
 #nullable enable
 using System;
-using System.Collections;
+using System.Buffers;
+using System.Text.Json;
+using RimGovernor.Brain.Domain;
+using RimGovernor.Contracts.Wire;
 using System.Collections.Generic;
 using System.Linq;
-using Google.Protobuf;
-using Google.Protobuf.Reflection;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -34,19 +34,27 @@ namespace HomeBridge.BridgeTools
 
         private static readonly Dictionary<string, Held> held = new Dictionary<string, Held>(StringComparer.Ordinal);
 
-        internal static void Elide(Obs.BundleSnapshot frame, bool keyframe)
+        internal static Obs.BundleSnapshot Elide(Obs.BundleSnapshot frame, bool keyframe)
         {
             var tick = frame.Context?.Tick ?? 0;
-            frame.Emergency = Section(frame, "emergency", frame.Emergency, keyframe, tick);
-            frame.ColonyFacts = Section(frame, "colony_facts", frame.ColonyFacts, keyframe, tick);
-            frame.Population = Section(frame, "population", frame.Population, keyframe, tick);
-            frame.Research = Section(frame, "research", frame.Research, keyframe, tick);
-            frame.Traders = Section(frame, "traders", frame.Traders, keyframe, tick);
-            frame.WorldProgression = Section(frame, "world_progression", frame.WorldProgression, keyframe, tick);
-            frame.Ideology = Section(frame, "ideology", frame.Ideology, keyframe, tick);
-            frame.Pawns = Keyed(frame, "pawns", frame.Pawns, t => t.Pawns, r => r.Pawn?.Id, t => t.Removed, keyframe, tick);
-            frame.Buildings = Keyed(frame, "buildings", frame.Buildings, t => t.Buildings, r => r.Building?.Id, t => t.Removed, keyframe, tick);
-            frame.Things = Keyed(frame, "things", frame.Things, t => t.Things, r => r.Thing_?.Id, t => t.Removed, keyframe, tick);
+            var marks = new List<Obs.SectionWatermark>();
+            frame = frame with
+            {
+                Emergency = Section("emergency", frame.Emergency, keyframe, tick, marks),
+                ColonyFacts = Section("colony_facts", frame.ColonyFacts, keyframe, tick, marks),
+                Population = Section("population", frame.Population, keyframe, tick, marks),
+                Research = Section("research", frame.Research, keyframe, tick, marks),
+                Traders = Section("traders", frame.Traders, keyframe, tick, marks),
+                WorldProgression = Section("world_progression", frame.WorldProgression, keyframe, tick, marks),
+                Ideology = Section("ideology", frame.Ideology, keyframe, tick, marks),
+                Pawns = Keyed("pawns", frame.Pawns, t => t.Pawns, r => r.Pawn?.Id, t => t with { Pawns = default, Removed = default },
+                    (t, kept, gone) => t with { Pawns = EquatableArray.From(kept), Removed = EquatableArray.From(gone) }, keyframe, tick, marks),
+                Buildings = Keyed("buildings", frame.Buildings, t => t.Buildings, r => r.Building?.Id, t => t with { Buildings = default, Removed = default },
+                    (t, kept, gone) => t with { Buildings = EquatableArray.From(kept), Removed = EquatableArray.From(gone) }, keyframe, tick, marks),
+                Things = Keyed("things", frame.Things, t => t.Things, r => r.Entity?.Id, t => t with { Things = default, Removed = default },
+                    (t, kept, gone) => t with { Things = EquatableArray.From(kept), Removed = EquatableArray.From(gone) }, keyframe, tick, marks),
+            };
+            return frame with { Watermarks = [.. frame.Watermarks, .. marks] };
         }
 
         // Per-row state of a keyed table: the row hashes, the hash of
@@ -66,9 +74,9 @@ namespace HomeBridge.BridgeTools
         /// rows whose hash changed and the ids that left, against the table
         /// published at the watermark's base_seq. Every other field of the
         /// section rides each delta.
-        private static T? Keyed<T, R>(Obs.BundleSnapshot frame, string name, T? section, Func<T, Google.Protobuf.Collections.RepeatedField<R>> rows,
-            Func<R, string?> id, Func<T, Google.Protobuf.Collections.RepeatedField<string>> removed, bool keyframe, long tick)
-            where T : class, IMessage<T> where R : class, IMessage<R>
+        private static T? Keyed<T, R>(string name, T? section, Func<T, IReadOnlyList<R>> rows, Func<R, string?> id, Func<T, T> shellOf,
+            Func<T, IReadOnlyList<R>, IReadOnlyList<string>, T> delta, bool keyframe, long tick, List<Obs.SectionWatermark> marks)
+            where T : class where R : class
         {
             if (!held.TryGetValue(name, out var h)) held[name] = h = new Held();
             if (!tables.TryGetValue(name, out var table)) tables[name] = table = new Table();
@@ -90,10 +98,7 @@ namespace HomeBridge.BridgeTools
                 byId.Add(new KeyValuePair<string, R>(key!, row));
             }
             var step = table.Diff.Step(byId);
-            var shellCopy = section.Clone();
-            rows(shellCopy).Clear();
-            removed(shellCopy).Clear();
-            var shell = RowDiff.Hash(shellCopy);
+            var shell = RowDiff.Hash(shellOf(section));
             var changed = step.Any || shell != table.Shell || h.Seq == 0 || h.Bytes == null;
             table.Shell = shell;
             var baseSeq = h.Seq;
@@ -105,22 +110,21 @@ namespace HomeBridge.BridgeTools
             }
             var whole = keyframe || table.NeedFull || !keyed;
             var watermark = new Obs.SectionWatermark { Section = name, Seq = h.Seq, CapturedTick = h.Tick };
-            frame.Watermarks.Add(watermark);
-            if (!changed && !keyframe) return null;
+            if (!changed && !keyframe) { marks.Add(watermark); return null; }
             if (changed && !whole)
             {
-                list.Clear();
+                var kept = new List<R>();
                 foreach (var row in byId)
-                    if (step.Changed.Contains(row.Key)) list.Add(row.Value);
-                removed(section).AddRange(step.Removed);
-                watermark.Delta = true;
-                watermark.BaseSeq = baseSeq;
+                    if (step.Changed.Contains(row.Key)) kept.Add(row.Value);
+                section = delta(section, kept, step.Removed);
+                watermark = watermark with { Delta = true, BaseSeq = baseSeq };
             }
+            marks.Add(watermark);
             if (whole && changed) table.NeedFull = !keyed;
             return section;
         }
 
-        private static T? Section<T>(Obs.BundleSnapshot frame, string name, T? section, bool keyframe, long tick) where T : class, IMessage<T>
+        private static T? Section<T>(string name, T? section, bool keyframe, long tick, List<Obs.SectionWatermark> marks) where T : class
         {
             if (!held.TryGetValue(name, out var h)) held[name] = h = new Held();
             if (section == null)
@@ -136,38 +140,46 @@ namespace HomeBridge.BridgeTools
                 h.Seq++;
                 h.Tick = tick;
             }
-            frame.Watermarks.Add(new Obs.SectionWatermark { Section = name, Seq = h.Seq, CapturedTick = h.Tick });
+            marks.Add(new Obs.SectionWatermark { Section = name, Seq = h.Seq, CapturedTick = h.Tick });
             return unchanged && !keyframe ? null : section;
         }
 
-        // The section's bytes with every nested context tick cleared: a
+        // The section's JSON bytes with every nested context tick cleared: a
         // section whose content holds still encodes the same at every tick.
-        internal static byte[] Normalized<T>(T section) where T : class, IMessage<T>
+        // An ObservationContext is the one wire object that holds both an
+        // identity and a tick.
+        internal static byte[] Normalized<T>(T section) where T : class
         {
-            var copy = section.Clone();
-            ClearTicks(copy);
-            return copy.ToByteArray();
+            var bytes = WireJson.SerializeToUtf8Bytes(section);
+            using var document = JsonDocument.Parse(bytes);
+            var output = new ArrayBufferWriter<byte>(bytes.Length);
+            using (var writer = new Utf8JsonWriter(output)) WriteWithoutContextTicks(document.RootElement, writer);
+            return output.WrittenSpan.ToArray();
         }
 
-        private static void ClearTicks(IMessage message)
+        private static void WriteWithoutContextTicks(JsonElement element, Utf8JsonWriter writer)
         {
-            if (message is Common.ObservationContext context) { context.ClearTick(); return; }
-            foreach (var field in message.Descriptor.Fields.InFieldNumberOrder())
+            switch (element.ValueKind)
             {
-                if (field.FieldType != FieldType.Message && field.FieldType != FieldType.Group) continue;
-                var value = field.Accessor.GetValue(message);
-                if (value == null) continue;
-                if (field.IsMap)
-                {
-                    foreach (DictionaryEntry entry in (IDictionary)value)
-                        if (entry.Value is IMessage nested) ClearTicks(nested);
-                }
-                else if (field.IsRepeated)
-                {
-                    foreach (var item in (IList)value)
-                        if (item is IMessage nested) ClearTicks(nested);
-                }
-                else if (value is IMessage nested) ClearTicks(nested);
+                case JsonValueKind.Object:
+                    var context = element.TryGetProperty("identity", out _) && element.TryGetProperty("tick", out _);
+                    writer.WriteStartObject();
+                    foreach (var property in element.EnumerateObject())
+                    {
+                        if (context && property.NameEquals("tick")) continue;
+                        writer.WritePropertyName(property.Name);
+                        WriteWithoutContextTicks(property.Value, writer);
+                    }
+                    writer.WriteEndObject();
+                    break;
+                case JsonValueKind.Array:
+                    writer.WriteStartArray();
+                    foreach (var item in element.EnumerateArray()) WriteWithoutContextTicks(item, writer);
+                    writer.WriteEndArray();
+                    break;
+                default:
+                    element.WriteTo(writer);
+                    break;
             }
         }
     }

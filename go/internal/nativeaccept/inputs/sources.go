@@ -68,7 +68,7 @@ var nativeSourceInputs = []nativeSourceInput{
 	{repo: "brain/Directory.Build.props", copy: "brain/Directory.Build.props"},
 	{repo: "brain/Directory.Packages.props", copy: "brain/Directory.Packages.props"},
 	{repo: "brain/src/RimGovernor.Brain.Domain", copy: "brain/src/RimGovernor.Brain.Domain", keep: notBuildOutput},
-	{repo: "brain/src/RimGovernor.Brain.Wire", copy: "brain/src/RimGovernor.Brain.Wire", keep: notBuildOutput},
+	{repo: "brain/src/RimGovernor.Brain.Contracts", copy: "brain/src/RimGovernor.Brain.Contracts", keep: notBuildOutput},
 	{repo: "brain/src/RimGovernor.Brain.NativeFacade", copy: "brain/src/RimGovernor.Brain.NativeFacade", keep: notBuildOutput},
 	{repo: "brain/src/RimGovernor.Brain.HttpChannel", copy: "brain/src/RimGovernor.Brain.HttpChannel", keep: notBuildOutput},
 	{repo: "brain/src/RimGovernor.Brain.Telemetry", copy: "brain/src/RimGovernor.Brain.Telemetry", keep: notBuildOutput},

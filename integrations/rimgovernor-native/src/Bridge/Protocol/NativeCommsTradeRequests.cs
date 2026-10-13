@@ -6,9 +6,9 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -37,19 +37,19 @@ namespace HomeBridge.BridgeTools
             bool arriving, out Map? map, out Pawn? pawn, out Faction? faction, out Building_CommsConsole? console, out string reason)
         {
             map = ProtoBoundary.ResolveMap(identity); pawn = null; faction = null; console = null; reason = "invalid_request";
-            if (map == null || !intent.HasExpectedLastRequestTick || !ProtoBoundary.IsIdentifier(intent.FactionId)
+            if (map == null || intent.ExpectedLastRequestTick is null || !ProtoBoundary.IsIdentifier(intent.FactionId)
                 || !ProtoBoundary.IsIdentifier(intent.TraderKind) || !ProtoBoundary.IsIdentifier(intent.ConsoleId)
                 || !ProtoBoundary.IsIdentifier(intent.NegotiatorId)
                 || (intent.Kind != Common.TradeRequestKind.Caravan && intent.Kind != Common.TradeRequestKind.Orbital)) return false;
-            faction = Find.FactionManager.AllFactionsVisible.FirstOrDefault(f => f.GetUniqueLoadID() == intent.FactionId && !f.IsPlayer && !f.temporary && !f.defeated);
-            console = map.listerBuildings.allBuildingsColonist.OfType<Building_CommsConsole>().FirstOrDefault(c => c.GetUniqueLoadID() == intent.ConsoleId);
-            pawn = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == intent.NegotiatorId);
+            faction = Find.FactionManager.AllFactionsVisible.FirstOrDefault(f => f.GetUniqueLoadID() == (intent.FactionId ?? "") && !f.IsPlayer && !f.temporary && !f.defeated);
+            console = map.listerBuildings.allBuildingsColonist.OfType<Building_CommsConsole>().FirstOrDefault(c => c.GetUniqueLoadID() == (intent.ConsoleId ?? ""));
+            pawn = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == (intent.NegotiatorId ?? ""));
             if (faction == null || console == null || pawn == null) { reason = "target_missing"; return false; }
             var orbital = intent.Kind == Common.TradeRequestKind.Orbital;
             var kinds = orbital ? faction.def.orbitalTraderKinds : faction.def.caravanTraderKinds;
-            var kind = kinds.FirstOrDefault(k => k.defName == intent.TraderKind && k.requestable);
+            var kind = kinds.FirstOrDefault(k => k.defName == (intent.TraderKind ?? "") && k.requestable);
             var last = orbital ? faction.lastOrbitalTraderRequestTick : faction.lastTraderRequestTick;
-            reason = last != intent.ExpectedLastRequestTick ? "request_tick_changed" :
+            reason = last != intent.ExpectedLastRequestTick.GetValueOrDefault() ? "request_tick_changed" :
                 faction.PlayerRelationKind != FactionRelationKind.Ally ? "not_ally" :
                 NativeTradeAcquisition.RelationAfterPayment(faction, Faction.OfPlayer.CalculateAdjustedGoodwillChange(faction, NativeTradeAcquisition.TraderRequest.GoodwillDelta(orbital))) != "Ally" ? "alliance_cost" :
                 (long)last + NativeTradeAcquisition.TraderRequest.CooldownTicks(orbital) > Find.TickManager.TicksGame ? "cooldown" :
@@ -65,8 +65,9 @@ namespace HomeBridge.BridgeTools
 
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
         {
-            Contacts.RemoveAll(c => !c.Live() || c.Identity.LoadToken != context.Identity.LoadToken || c.Identity.ColonyId != context.Identity.ColonyId);
-            var intent = action.CommsTradeRequest;
+            Contacts.RemoveAll(c => !c.Live() || (c.Identity.LoadToken ?? "") != (context.Identity?.LoadToken ?? "") || (c.Identity.ColonyId ?? "") != (context.Identity?.ColonyId ?? ""));
+            var intent = action.Intent?.CommsTradeRequest;
+            if (intent is null || context.Identity is null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "comms_intent_missing");
             if (!Resolve(intent, context.Identity, false, out _, out var pawn, out _, out _, out var reason))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, reason);
             if (Contacts.Any(c => c.Pawn == pawn || c.Console.GetUniqueLoadID() == intent.ConsoleId)
@@ -94,7 +95,7 @@ namespace HomeBridge.BridgeTools
                 !Resolve(contact.Intent, contact.Identity, true, out var map, out _, out var faction, out _, out _)) return false;
             var orbital = contact.Intent.Kind == Common.TradeRequestKind.Orbital;
             var kinds = (orbital ? faction!.def.orbitalTraderKinds : faction!.def.caravanTraderKinds).Where(k => k.requestable).ToList();
-            var index = kinds.FindIndex(k => k.defName == contact.Intent.TraderKind);
+            var index = kinds.FindIndex(k => k.defName == (contact.Intent.TraderKind ?? ""));
             var factory = AccessTools.Method(typeof(FactionDialogMaker), orbital ? "RequestOrbitalTraderOption" : "RequestTraderOption");
             var option = factory?.Invoke(null, new object[] { map!, faction, negotiator }) as DiaOption;
             if (option == null || option.disabled || option.link == null || index < 0 || index >= option.link.options.Count) return false;
@@ -105,16 +106,17 @@ namespace HomeBridge.BridgeTools
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
-            if (!Resolve(action.CommsTradeRequest, context.Identity, false, out _, out var pawn, out var faction, out var console, out var reason))
+            var intent = action.Intent?.CommsTradeRequest;
+            if (intent is null || context.Identity is null) throw new InvalidOperationException("comms_intent_missing");
+            if (!Resolve(intent, context.Identity, false, out _, out var pawn, out var faction, out var console, out var reason))
                 throw new InvalidOperationException(reason);
-            var intent = action.CommsTradeRequest;
             var job = JobMaker.MakeJob(JobDefOf.UseCommsConsole, console);
             job.commTarget = faction;
-            var contact = new Contact { Intent = intent.Clone(), Identity = context.Identity.Clone(), Pawn = pawn!, Faction = faction!, Console = console!, Job = job, JobId = job.loadID };
+            var contact = new Contact { Intent = intent, Identity = context.Identity, Pawn = pawn!, Faction = faction!, Console = console!, Job = job, JobId = job.loadID };
             Contacts.Add(contact);
             if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc)) { Contacts.Remove(contact); throw new InvalidOperationException("comms_job_refused"); }
             var last = intent.Kind == Common.TradeRequestKind.Orbital ? faction!.lastOrbitalTraderRequestTick : faction!.lastTraderRequestTick;
-            return new Receipts.EffectEvidence { CommsTradeRequest = new Receipts.CommsTradeRequestEffect {
+            return new Receipts.EffectEvidence { Effect = new Receipts.CommsTradeRequestEffect {
                 FactionId = intent.FactionId, Kind = intent.Kind, TraderKind = intent.TraderKind, NegotiatorId = intent.NegotiatorId,
                 WorkQueued = true, BeforeRequestTick = last, AfterRequestTick = last, BeforeGoodwill = faction.PlayerGoodwill, AfterGoodwill = faction.PlayerGoodwill } };
         }

@@ -6,13 +6,12 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -32,11 +31,11 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ListResourceSources(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ResourceSourcesRequest string in raw transport value.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request!, Obs.ResourceSourcesRequest.Parser, out var parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ResourceSourcesReply { Failure = failure });
+            if (!ProtoBoundary.TryParse(ctx, ToolName, request!, out Obs.ResourceSourcesRequest? parsed, out var failure)
+                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ResourceSourcesReply { Outcome = new Obs.ResourceSourcesReplyOutcome.FailureCase(failure) });
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                    return ProtoBoundary.Encode(new Obs.ResourceSourcesReply { Failure = error });
+                    return ProtoBoundary.Encode(new Obs.ResourceSourcesReply { Outcome = error });
                 return ProtoBoundary.Encode(Read(map, parsed, context));
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -55,9 +54,9 @@ namespace HomeBridge.BridgeTools
             var cheap = Cheap;
             try
             {
-                var definition = DefDatabase<ThingDef>.GetNamedSilentFail(parsed.Resource);
+                var definition = DefDatabase<ThingDef>.GetNamedSilentFail((parsed.Resource ?? ""));
                 if (definition == null)
-                    return new Obs.ResourceSourcesReply { Unavailable = Unavailable(Common.UnavailableReason.NotApplicable, "Unknown resource definition.") };
+                    return new Obs.ResourceSourcesReply { Outcome = Unavailable(Common.UnavailableReason.NotApplicable, "Unknown resource definition.") };
                 // Only a plant or rock def can yield the resource, so the
                 // census reads those defs' lister lists rather than every
                 // thing on the map; Product still decides per thing. The
@@ -67,11 +66,11 @@ namespace HomeBridge.BridgeTools
                 {
                     deposits = new List<Thing>();
                     foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading)
-                        if (def.plant?.harvestedThingDef?.defName == parsed.Resource || def.building?.mineableThing?.defName == parsed.Resource)
+                        if (def.plant?.harvestedThingDef?.defName == (parsed.Resource ?? "") || def.building?.mineableThing?.defName == (parsed.Resource ?? ""))
                             foreach (var t in map.listerThings.ThingsOfDef(def))
-                                if (ResourceAcquisitionTools.Product(t)?.defName == parsed.Resource) deposits.Add(t);
+                                if (ResourceAcquisitionTools.Product(t)?.defName == (parsed.Resource ?? "")) deposits.Add(t);
                 }
-                else deposits = map.listerThings.AllThings.Where(t => ResourceAcquisitionTools.Product(t)?.defName == parsed.Resource).ToList();
+                else deposits = map.listerThings.AllThings.Where(t => ResourceAcquisitionTools.Product(t)?.defName == (parsed.Resource ?? "")).ToList();
                 var eligible = deposits.Where(t => ResourceAcquisitionTools.Eligible(t, map)).ToList();
                 var admitted = new HashSet<Thing>(eligible);
                 // Buried ore: a supported deposit no colonist can reach,
@@ -87,17 +86,17 @@ namespace HomeBridge.BridgeTools
                     Storage = Storage(map, definition),
                     Completeness = new Obs.Completeness { Filtered = (ulong)(deposits.Count - eligible.Count) } };
                 var reserved = cheap ? new HashSet<Thing>(map.reservationManager.AllReservedThings()) : null;
-                foreach (var thing in ordered) snapshot.Sources.Add(Project(thing, map, distances[thing], context, buried.Contains(thing), reserved));
-                return new Obs.ResourceSourcesReply { Observed = snapshot };
+                foreach (var thing in ordered) snapshot = snapshot with { Sources = [.. snapshot.Sources, Project(thing, map, distances[thing], context, buried.Contains(thing), reserved)] };
+                return new Obs.ResourceSourcesReply { Outcome = snapshot };
             }
-            catch (Exception) { return new Obs.ResourceSourcesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Resource sources could not be read completely.") }; }
+            catch (Exception) { return new Obs.ResourceSourcesReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Resource sources could not be read completely.") }; }
         }
 
         internal static bool Validate(Obs.ResourceSourcesRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity scope and an exact resource definition are required.");
             if (request == null || request.Scope?.ExpectedIdentity == null) return false;
-            if (!request.HasResource || !ProtoBoundary.IsIdentifier(request.Resource)) return false;
+            if (request.Resource is null || !ProtoBoundary.IsIdentifier(request.Resource)) return false;
             return true;
         }
 
@@ -124,8 +123,8 @@ namespace HomeBridge.BridgeTools
                     && Protected(c) && !CellRect.CenteredOn(c, margin).Any(q => q.InBounds(map) && q.GetEdifice(map) is Mineable)
                     && Accessible(c)).ToList();
             var result = new Obs.StorageCapacity { Resource = def.defName, Capacity = capacity, Stored = stored };
-            result.Haulers.AddRange(NativeRef.All(haulers));
-            result.Candidates.AddRange(candidates.Select(c => new Common.Cell { X = c.x, Z = c.z }));
+            result = result with { Haulers = [.. result.Haulers, .. NativeRef.All(haulers)] };
+            result = result with { Candidates = [.. result.Candidates, .. candidates.Select(c => new Common.Cell { X = c.x, Z = c.z })] };
             return result;
         }
 
@@ -175,12 +174,12 @@ namespace HomeBridge.BridgeTools
             // Only mine sources carry a snapshot token (the routine reads it as
             // the source row's identity); harvest/hunt sources come from the
             // AcquisitionFacts census, which carries its own.
-            if (thing is Mineable rock) { row.SourceSnapshot = NativeMineAcquisition.Snapshot(rock, context); row.Cell = new RimGovernor.Protocol.Common.Cell { X = rock.Position.x, Z = rock.Position.z }; }
+            if (thing is Mineable rock) { row = row with { SourceSnapshot = NativeMineAcquisition.Snapshot(rock, context) }; row = row with { Cell = new RimGovernor.Contracts.Wire.Common.Cell { X = rock.Position.x, Z = rock.Position.z } }; }
             if (mineable)
             {
-                row.Taken = ResourceAcquisitionTools.Taken(thing, reserved);
-                var tick = ResourceAcquisitionTools.DesignatedTick(thing, row.Designated);
-                if (tick.HasValue) row.DesignatedTick = tick.Value;
+                row = row with { Taken = ResourceAcquisitionTools.Taken(thing, reserved) };
+                var tick = ResourceAcquisitionTools.DesignatedTick(thing, row.Designated.GetValueOrDefault());
+                if (tick.HasValue) row = row with { DesignatedTick = tick.Value };
             }
             return row;
         }

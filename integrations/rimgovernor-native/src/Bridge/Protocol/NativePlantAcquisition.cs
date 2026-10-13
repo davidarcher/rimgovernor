@@ -7,11 +7,11 @@ using System.Text;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Authority = RimGovernor.Protocol.Authority;
-using Obs = RimGovernor.Protocol.Observations;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Authority = RimGovernor.Contracts.Wire.Authority;
+using Obs = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -22,9 +22,9 @@ namespace HomeBridge.BridgeTools
         // Cutter has no distance reach: the measured cost (#2567) is the
         // all-plants eligibility scan, which the reach never bounded.
         internal static Obs.SnapshotRef Snapshot(Plant plant, Common.ObservationContext context) => new Obs.SnapshotRef {
-            Context = context.Clone(), EntityId = plant.GetUniqueLoadID(), Token = NativeAcquisitionToken.Plant(context.Identity, plant.GetUniqueLoadID(),
+            Context = context, EntityId = plant.GetUniqueLoadID(), Token = NativeAcquisitionToken.Plant(context.Identity ?? new Common.Identity(), plant.GetUniqueLoadID(),
                 plant.def.plant.harvestedThingDef.defName, plant.Position.x, plant.Position.z, plant.HarvestableNow, ResourceAcquisitionTools.Designated(plant)) };
-        internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, Func<ThingDef, bool> humanFood, Obs.ColonyFactsRequest request)
+        internal static Obs.ColonyFactsSnapshot Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, Func<ThingDef, bool> humanFood, Obs.ColonyFactsRequest request)
         {
             var plants = map.listerThings.AllThings.OfType<Plant>().Where(p => p.def.plant.harvestedThingDef != null).ToArray();
             // The candidate pool is every eligible plant on the map; pending yield below covers all designations.
@@ -40,18 +40,19 @@ namespace HomeBridge.BridgeTools
                 var food = humanFood(resource);
                 var designated = ResourceAcquisitionTools.Designated(plant);
                 var row = new Obs.AcquisitionFacts {
-                    Source = NativeRef.Thing(plant), SourceSnapshot = Snapshot(plant, result.Context),
+                    Source = NativeRef.Thing(plant), SourceSnapshot = Snapshot(plant, result.Context ?? new Common.ObservationContext()),
                     Resource = resource.defName, Food = food, Yield = yield,
                     Growth = plant.Growth, Plantation = ResourceAcquisitionTools.Plantation(plant),
                     Designated = designated, Hunt = false, Taken = ResourceAcquisitionTools.Taken(plant) };
                 var tick = ResourceAcquisitionTools.DesignatedTick(plant, designated);
-                if (tick.HasValue) row.DesignatedTick = tick.Value;
-                result.Acquisition.Add(row);
+                if (tick.HasValue) row = row with { DesignatedTick = tick.Value };
+                result = result with { Acquisition = [.. result.Acquisition, row] };
             }
             var pending = plants.Where(ResourceAcquisitionTools.Designated).ToArray();
-            result.PendingFoodNutrition = pending.Where(p => humanFood(p.def.plant.harvestedThingDef)).Sum(p => (double)p.YieldNow() * p.def.plant.harvestedThingDef.GetStatValueAbstract(StatDefOf.Nutrition));
-            NativeHuntAcquisition.Read(result, map, center, request);
-            result.PendingWoodUnits = pending.Where(p => p.def.plant.harvestedThingDef == ThingDefOf.WoodLog).Sum(p => (double)p.YieldNow());
+            result = result with { PendingFoodNutrition = pending.Where(p => humanFood(p.def.plant.harvestedThingDef)).Sum(p => (double)p.YieldNow() * p.def.plant.harvestedThingDef.GetStatValueAbstract(StatDefOf.Nutrition)) };
+            result = NativeHuntAcquisition.Read(result, map, center, request);
+            result = result with { PendingWoodUnits = pending.Where(p => p.def.plant.harvestedThingDef == ThingDefOf.WoodLog).Sum(p => (double)p.YieldNow()) };
+            return result;
         }
         internal const string Kind = "Plant acquisition";
         // Cutter is the colonist rule shared by the census (Eligible) and the
@@ -73,7 +74,7 @@ namespace HomeBridge.BridgeTools
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")
                 .Present(() => found != null && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact plant is no longer spawned on this map")
-                .Require(() => found!.Position.x == command.Cell.X && found.Position.z == command.Cell.Z, "the plant is not at the expected cell")
+                .Require(() => found!.Position.x == command.Cell.X.GetValueOrDefault() && found.Position.z == command.Cell.Z.GetValueOrDefault(), "the plant is not at the expected cell")
                 .Require(() => found!.def.plant.harvestedThingDef?.defName == command.ResourceDefName, "the plant no longer yields the expected resource")
                 .Require(() => !found!.Position.Fogged(map), "the plant's cell is fogged")
                 .Require(() => !found!.IsForbidden(Faction.OfPlayer), "the plant is forbidden")
@@ -110,10 +111,10 @@ namespace HomeBridge.BridgeTools
         private const string Kind = "Acquire";
 
         private static AcquireRequest? Request(Operations.DesignateIntent intent) =>
-            intent.Target != null && ProtoBoundary.IsIdentifier(intent.Target.Id) && intent.HasExpectedDef && ProtoBoundary.IsIdentifier(intent.ExpectedDef)
-            && intent.Cell != null && intent.Cell.HasX && intent.Cell.HasZ && intent.Cell.X >= 0 && intent.Cell.Z >= 0
-            && !intent.HasThingId && !intent.ReplaceWithWall
-                ? new AcquireRequest { SourceId = intent.Target.Id, ResourceDefName = intent.ExpectedDef, Cell = intent.Cell, Withdraw = intent.Withdraw } : null;
+            intent.Target != null && ProtoBoundary.IsIdentifier(intent.Target.Id) && intent.ExpectedDef is not null && ProtoBoundary.IsIdentifier(intent.ExpectedDef)
+            && intent.Cell != null && intent.Cell.X is not null && intent.Cell.Z is not null && intent.Cell.X.GetValueOrDefault() >= 0 && intent.Cell.Z.GetValueOrDefault() >= 0
+            && intent.ThingId is null && !intent.ReplaceWithWall.GetValueOrDefault()
+                ? new AcquireRequest { SourceId = intent.Target.Id, ResourceDefName = intent.ExpectedDef, Cell = intent.Cell, Withdraw = intent.Withdraw.GetValueOrDefault() } : null;
 
         // The designation a source takes: hunt an animal, mine a rock,
         // harvest (or chop) a plant.
@@ -135,7 +136,7 @@ namespace HomeBridge.BridgeTools
             if (intent == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The acquisition guard requires an exact target, its resource as expected_def and a cell.");
             var map = ProtoBoundary.LoadedMap(context);
             source = Source(map, intent.SourceId);
-            if (source != null && DesignationOf(source) != designate.Designation)
+            if (source != null && DesignationOf(source) != designate.Designation.GetValueOrDefault())
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The source takes the " + DesignationOf(source) + " designation.");
             if (intent.Withdraw || source != null && source.Spawned && Designated(source)) return null;
             Common.Failure failure;
@@ -171,8 +172,8 @@ namespace HomeBridge.BridgeTools
                 else ResourceAcquisitionTools.DesignatorFor(source!).DesignateThing(source);
                 if (!Designated(source!)) throw new InvalidOperationException("Native acquisition designation was not observed.");
             }
-            return new Receipts.EffectEvidence { Acquisition = new Receipts.AcquisitionEffect { SourceId = intent.SourceId, ResourceDef = intent.ResourceDefName,
-                Cell = intent.Cell.Clone(), Designated = live && Designated(source!) } };
+            return new Receipts.EffectEvidence { Effect = new Receipts.AcquisitionEffect { SourceId = intent.SourceId, ResourceDef = intent.ResourceDefName,
+                Cell = intent.Cell, Designated = live && Designated(source!) } };
         }
     }
 }

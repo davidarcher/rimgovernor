@@ -6,8 +6,8 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -30,11 +30,11 @@ namespace HomeBridge.BridgeTools
             if (!ModsConfig.AnomalyActive || (thing as ThingWithComps)?.GetComp<CompStudiable>() is not CompStudiable study) return null;
             var state = new Obs.StudyState { StudyEnabled = study.studyEnabled, Completed = study.Completed, StudyInteractions = study.studyInteractions,
                 EverStudiable = study.EverStudiable(), CurrentlyStudiable = study.CurrentlyStudiable() };
-            if (Finite(study.ProgressPercent)) state.ProgressPercent = study.ProgressPercent;
-            if (Finite(study.studyPoints)) state.StudyPoints = study.studyPoints;
-            if (Finite(study.anomalyKnowledgeGained)) state.AnomalyKnowledgeGained = study.anomalyKnowledgeGained;
-            if (Id(study.KnowledgeCategory?.defName) is string category) state.KnowledgeCategory = category;
-            if (Finite(study.AnomalyKnowledge)) state.AnomalyKnowledge = study.AnomalyKnowledge;
+            if (Finite(study.ProgressPercent)) state = state with { ProgressPercent = study.ProgressPercent };
+            if (Finite(study.studyPoints)) state = state with { StudyPoints = study.studyPoints };
+            if (Finite(study.anomalyKnowledgeGained)) state = state with { AnomalyKnowledgeGained = study.anomalyKnowledgeGained };
+            if (Id(study.KnowledgeCategory?.defName) is string category) state = state with { KnowledgeCategory = category };
+            if (Finite(study.AnomalyKnowledge)) state = state with { AnomalyKnowledge = study.AnomalyKnowledge };
             return state;
         }
 
@@ -52,29 +52,29 @@ namespace HomeBridge.BridgeTools
                 var mutant = pawn.IsMutant;
                 var shambler = pawn.IsShambler;
                 var minimum = entity ? pawn.GetStatValue(StatDefOf.MinimumContainmentStrength) : float.NaN;
-                row.Entity = entity;
-                row.Mutant = mutant;
-                row.Shambler = shambler;
-                if (entity && Finite(minimum)) row.MinContainmentStrength = minimum;
+                row = row with { Entity = entity };
+                row = row with { Mutant = mutant };
+                row = row with { Shambler = shambler };
+                if (entity && Finite(minimum)) row = row with { MinContainmentStrength = minimum };
             }
-            catch (Exception ex) { row.Issues.Add(Failed("entity", ex)); }
-            try { row.HiddenFromPlayer = InvisibilityUtility.IsHiddenFromPlayer(pawn); }
-            catch (Exception ex) { row.Issues.Add(Failed("hidden_from_player", ex)); }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("entity", ex)] }; }
+            try { row = row with { HiddenFromPlayer = InvisibilityUtility.IsHiddenFromPlayer(pawn) }; }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("hidden_from_player", ex)] }; }
             // The invoker is the pawn whose role in its lord's psychic ritual
             // is the ritual def's invoker role.
             try
             {
-                row.PsychicRitualInvoker = pawn.GetLord()?.LordJob is LordJob_PsychicRitual ritual
+                row = row with { PsychicRitualInvoker = pawn.GetLord()?.LordJob is LordJob_PsychicRitual ritual
                     && ritual.def is PsychicRitualDef_InvocationCircle circle
-                    && ritual.assignments.RoleForPawn(pawn, true) == circle.InvokerRole;
+                    && ritual.assignments.RoleForPawn(pawn, true) == circle.InvokerRole };
             }
-            catch (Exception ex) { row.Issues.Add(Failed("psychic_ritual_invoker", ex)); }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("psychic_ritual_invoker", ex)] }; }
             try
             {
-                row.MeleeOnly = pawn.CurrentEffectiveVerb is Verb verb && verb.IsMeleeAttack
-                    && !(pawn.abilities?.AllAbilitiesForReading.Any(a => a.def.ai_IsOffensive) ?? false);
+                row = row with { MeleeOnly = pawn.CurrentEffectiveVerb is Verb verb && verb.IsMeleeAttack
+                    && !(pawn.abilities?.AllAbilitiesForReading.Any(a => a.def.ai_IsOffensive) ?? false) };
             }
-            catch (Exception ex) { row.Issues.Add(Failed("melee_only", ex)); }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("melee_only", ex)] }; }
             try
             {
                 if (pawn.GetComp<CompHoldingPlatformTarget>() is CompHoldingPlatformTarget target)
@@ -84,19 +84,19 @@ namespace HomeBridge.BridgeTools
                         NeedsTend = pawn.health.HasHediffsNeedingTend(false), Bleeding = Finite(pawn.health.hediffSet.BleedRateTotal) && pawn.health.hediffSet.BleedRateTotal > 0 };
                     if (target.HeldPlatform is Building_HoldingPlatform platform)
                     {
-                        held.Platform = NativeRef.Thing(platform);
-                        held.HarvesterAttached = platform.HasAttachedBioferriteHarvester;
+                        held = held with { Platform = NativeRef.Thing(platform) };
+                        held = held with { HarvesterAttached = platform.HasAttachedBioferriteHarvester };
                     }
                     var perDay = CompProducesBioferrite.BioferritePerDay(pawn);
-                    if (Finite(perDay)) held.BioferritePerDay = perDay;
-                    row.Held = held;
+                    if (Finite(perDay)) held = held with { BioferritePerDay = perDay };
+                    row = row with { Held = held };
                 }
             }
-            catch (Exception ex) { row.Issues.Add(Failed("held", ex)); }
-            try { row.Study = Study(pawn); }
-            catch (Exception ex) { row.Issues.Add(Failed("study", ex)); }
-            try { row.Creepjoiner = CreepJoiner(pawn); }
-            catch (Exception ex) { row.Issues.Add(Failed("creepjoiner", ex)); }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("held", ex)] }; }
+            try { row = row with { Study = Study(pawn) }; }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("study", ex)] }; }
+            try { row = row with { Creepjoiner = CreepJoiner(pawn) }; }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("creepjoiner", ex)] }; }
             return row;
         }
 
@@ -115,8 +115,8 @@ namespace HomeBridge.BridgeTools
         {
             if (pawn.creepjoiner is not Pawn_CreepJoinerTracker tracker) return null;
             var state = new Obs.CreepJoinerState { DownsideTriggered = CreepJoinerFields.DownsideTriggered(tracker) };
-            if (Id(tracker.form?.defName) is string form) state.Form = form;
-            if (Id(tracker.benefit?.defName) is string benefit) state.Benefit = benefit;
+            if (Id(tracker.form?.defName) is string form) state = state with { Form = form };
+            if (Id(tracker.benefit?.defName) is string benefit) state = state with { Benefit = benefit };
             return state;
         }
 
@@ -146,16 +146,16 @@ namespace HomeBridge.BridgeTools
                 {
                     var state = new Obs.EntityHolderState { Available = holder.Available };
                     var strength = holder.ContainmentStrength;
-                    if (Finite(strength)) state.ContainmentStrength = strength;
-                    if (holder.HeldPawn is Pawn held) state.HeldPawn = NativeRef.Thing(held);
-                    row.Holder = state;
-                    try { state.Doors.Add(Doors(thing)); }
-                    catch (Exception ex) { state.Doors.Clear(); row.Issues.Add(Failed("doors", ex)); }
+                    if (Finite(strength)) state = state with { ContainmentStrength = strength };
+                    if (holder.HeldPawn is Pawn held) state = state with { HeldPawn = NativeRef.Thing(held) };
+                    row = row with { Holder = state };
+                    try { state = state with { Doors = [.. Doors(thing)] }; row = row with { Holder = state }; }
+                    catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("doors", ex)] }; }
                 }
             }
-            catch (Exception ex) { row.Issues.Add(Failed("holder", ex)); }
-            try { row.Study = Study(thing); }
-            catch (Exception ex) { row.Issues.Add(Failed("study", ex)); }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("holder", ex)] }; }
+            try { row = row with { Study = Study(thing) }; }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("study", ex)] }; }
             return row.Holder == null && row.Study == null && row.Issues.Count == 0 ? null : row;
         }
     }

@@ -3,8 +3,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -19,15 +19,15 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadConsumption(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ConsumptionRequest string in raw transport value.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ConsumptionRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.ConsumptionReply { Failure = failure });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => Read(parsed.HasSinceHour ? parsed.SinceHour : -1), cancellationToken).ConfigureAwait(false);
+            if (!ProtoBoundary.TryParse(ctx, ToolName, request, out Obs.ConsumptionRequest? parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.ConsumptionReply { Outcome = new Obs.ConsumptionReplyOutcome.FailureCase(failure) });
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => Read(parsed.SinceHour ?? -1), cancellationToken).ConfigureAwait(false);
         }
 
         internal static Obs.ConsumptionReply Read(int sinceHour)
         {
             if (Current.Game == null || Find.TickManager == null)
-                return new Obs.ConsumptionReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "No game is loaded." } };
+                return new Obs.ConsumptionReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "No game is loaded." } };
             var state = ConsumptionState.For(Current.Game);
             var current = ConsumptionState.HourOf(Find.TickManager.TicksGame);
             var hours = state.After(sinceHour, current, out var first);
@@ -36,10 +36,10 @@ namespace HomeBridge.BridgeTools
             {
                 var entry = new Obs.ConsumptionHour { Hour = hour.Index };
                 foreach (var pair in hour.Rows)
-                    entry.Rows.Add(new Obs.ConsumptionRow { Definition = pair.Key.Def, Reason = ConsumptionState.Names[pair.Key.Reason], Count = pair.Value });
-                snapshot.Hours.Add(entry);
+                    entry = entry with { Rows = [.. entry.Rows, new Obs.ConsumptionRow { Definition = pair.Key.Def, Reason = ConsumptionState.Names[pair.Key.Reason], Count = pair.Value }] };
+                snapshot = snapshot with { Hours = [.. snapshot.Hours, entry] };
             }
-            return new Obs.ConsumptionReply { Observed = snapshot };
+            return new Obs.ConsumptionReply { Outcome = snapshot };
         }
     }
 }

@@ -14,8 +14,8 @@ tasks:
   build:
     desc: NativeContractProbes (ungated set) with warnings as errors and a locked restore
     cmds:
-      # Defs.cs is gitignored; observations and the probes depend on it.
-      - 'go -C {{.REPO}}/go run ./internal/protobufgen/cmd/generatecsharp'
+      # The wire records the probes compile against (#3100); the csproj references the built assemblies.
+      - dotnet build {{.REPO}}/brain/src/RimGovernor.Brain.Contracts/RimGovernor.Brain.Contracts.csproj -c Release -v minimal -nologo -p:RestoreLockedMode=true
       - dotnet build NativeContractProbes.csproj -c Release -v minimal -nologo -p:RestoreLockedMode=true "-p:OutputPath={{.EVIDENCE}}/bin/" "-p:BaseIntermediateOutputPath={{.EVIDENCE}}/obj/"
       # NativeConstructionHookSet needs real Harmony; skipped when it is not installed.
       - |

@@ -5,9 +5,9 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -95,55 +95,55 @@ namespace HomeBridge.BridgeTools
 
         private static ThingDef? WallStuff(Thing target) => target is Building && target.def.IsDoor && target.Faction == Faction.OfPlayer && target.def.size == IntVec2.One
             && target.Stuff != null && GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Contains(target.Stuff) ? target.Stuff : null;
-        private static bool ValidCell(Common.Cell? c) => c != null && c.HasX && c.HasZ && c.X >= 0 && c.Z >= 0;
+        private static bool ValidCell(Common.Cell? c) => c != null && c.X is not null && c.Z is not null && c.X.GetValueOrDefault() >= 0 && c.Z.GetValueOrDefault() >= 0;
 
         // Resolve is the apply-time precondition list; null admits.
         private static string? Resolve(Operations.DesignateIntent intent, Common.ObservationContext context, out Plan plan, out Common.FailureCode code)
         {
             plan = new Plan(); code = Common.FailureCode.InvalidRequest;
-            var def = intent.HasDesignation ? DefOf(intent.Designation) : null;
+            var def = intent.Designation is not null ? DefOf(intent.Designation.GetValueOrDefault()) : null;
             if (def == null) return "the designation must be one of Deconstruct, Mine, CutPlant, Haul or RemoveFoundation";
-            plan.Designation = intent.Designation; plan.Def = def;
+            plan.Designation = intent.Designation.GetValueOrDefault(); plan.Def = def;
             plan.Map = ProtoBoundary.LoadedMap(context);
             var map = plan.Map;
             // Guard: the one the designation needs, and only that one.
-            plan.Guard = GuardFor(intent.Designation);
-            var named = intent.HasGuard ? NativeDesignationGuards.Name(intent.Guard) : null;
+            plan.Guard = GuardFor(intent.Designation.GetValueOrDefault());
+            var named = intent.Guard is not null ? NativeDesignationGuards.Name(intent.Guard.GetValueOrDefault()) : null;
             // A HAUL takes no guard, or the wastepack guard.
-            if (intent.Designation == Operations.ThingDesignation.Haul && named == GuardNames.Wastepack) plan.Guard = named;
+            if (intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Haul && named == GuardNames.Wastepack) plan.Guard = named;
             if (named != plan.Guard) return plan.Guard == null ? "this designation takes no guard" : "this designation requires the " + plan.Guard + " guard";
             if (intent.Cell != null && !ValidCell(intent.Cell)) return "the cell is invalid";
             if (intent.Target != null)
             {
-                if (!intent.Target.HasId || !ProtoBoundary.IsIdentifier(intent.Target.Id)) return "the target reference is invalid";
+                if (intent.Target.Id is null || !ProtoBoundary.IsIdentifier(intent.Target.Id)) return "the target reference is invalid";
                 var found = RefIndex.Thing(map, intent.Target.Id);
                 if (found == null || found.Destroyed || !found.Spawned) { code = Common.FailureCode.NotFound; return "the exact target is no longer spawned on this map"; }
-                if (intent.Cell != null && (found.Position.x != intent.Cell.X || found.Position.z != intent.Cell.Z)) return "the target is not at the expected cell";
+                if (intent.Cell != null && (found.Position.x != intent.Cell.X.GetValueOrDefault() || found.Position.z != intent.Cell.Z.GetValueOrDefault())) return "the target is not at the expected cell";
                 if (found.Position.Fogged(map)) return "the target's cell is fogged";
                 plan.Target = found; plan.Cell = found.Position;
-                if (intent.Designation == Operations.ThingDesignation.Mine && !(found is Mineable)) return "Mine targets rock";
-                if (intent.Designation == Operations.ThingDesignation.RemoveFoundation) return "RemoveFoundation names a cell, not a thing";
+                if (intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Mine && !(found is Mineable)) return "Mine targets rock";
+                if (intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.RemoveFoundation) return "RemoveFoundation names a cell, not a thing";
                 plan.ExpectedDef = found.def.defName;
-                if (intent.HasExpectedDef && intent.ExpectedDef != plan.ExpectedDef) return "the target is not the expected definition";
+                if (intent.ExpectedDef is not null && (intent.ExpectedDef ?? "") != plan.ExpectedDef) return "the target is not the expected definition";
             }
             else
             {
-                if (intent.Designation != Operations.ThingDesignation.Mine && intent.Designation != Operations.ThingDesignation.RemoveFoundation) return "this designation requires a target";
-                if (!intent.HasExpectedDef || !ProtoBoundary.IsIdentifier(intent.ExpectedDef)) return "a cell designation requires the expected definition";
-                plan.Cell = new IntVec3(intent.Cell!.X, 0, intent.Cell.Z); plan.ExpectedDef = intent.ExpectedDef;
+                if (intent.Designation.GetValueOrDefault() != Operations.ThingDesignation.Mine && intent.Designation.GetValueOrDefault() != Operations.ThingDesignation.RemoveFoundation) return "this designation requires a target";
+                if (intent.ExpectedDef is null || !ProtoBoundary.IsIdentifier(intent.ExpectedDef)) return "a cell designation requires the expected definition";
+                plan.Cell = new IntVec3(intent.Cell!.X.GetValueOrDefault(), 0, intent.Cell.Z.GetValueOrDefault()); plan.ExpectedDef = intent.ExpectedDef;
                 if (!plan.Cell.InBounds(map)) return "the cell is off the map";
-                if (intent.Designation == Operations.ThingDesignation.Mine)
+                if (intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Mine)
                 {
                     var rock = ExcavationTools.RockAt(plan.Cell, map);
                     if (rock == null && plan.Cell.Walkable(map)) { plan.Cleared = true; return null; }
-                    if (rock == null || rock.def.defName != intent.ExpectedDef) return "the expected rock is not at the cell";
+                    if (rock == null || rock.def.defName != (intent.ExpectedDef ?? "")) return "the expected rock is not at the cell";
                     plan.Target = rock;
                 }
-                else if (map.terrainGrid.FoundationAt(plan.Cell)?.defName != intent.ExpectedDef) { plan.Cleared = true; return null; }
+                else if (map.terrainGrid.FoundationAt(plan.Cell)?.defName != (intent.ExpectedDef ?? "")) { plan.Cleared = true; return null; }
             }
-            if (intent.ReplaceWithWall)
+            if (intent.ReplaceWithWall.GetValueOrDefault())
             {
-                if (intent.Designation != Operations.ThingDesignation.Deconstruct) return "only Deconstruct swaps a door for a wall";
+                if (intent.Designation.GetValueOrDefault() != Operations.ThingDesignation.Deconstruct) return "only Deconstruct swaps a door for a wall";
                 plan.WallStuff = WallStuff(plan.Target!);
                 if (plan.WallStuff == null) return "only a 1x1 player door of a wall stuff swaps for a wall";
             }
@@ -162,17 +162,17 @@ namespace HomeBridge.BridgeTools
             return DesignatorRefusal(plan);
         }
 
-        private static bool WallUpgrade(Operations.DesignateIntent intent) => intent.HasGuard && intent.Guard == Operations.DesignationGuard.WallUpgrade;
+        private static bool WallUpgrade(Operations.DesignateIntent intent) => intent.Guard is not null && intent.Guard.GetValueOrDefault() == Operations.DesignationGuard.WallUpgrade;
         // The acquisition designations: HUNT, HARVEST_PLANT or MINE of
         // a census source, and their withdraw.
-        private static bool Acquisition(Operations.DesignateIntent intent) => intent.HasGuard && intent.Guard == Operations.DesignationGuard.Acquisition;
+        private static bool Acquisition(Operations.DesignateIntent intent) => intent.Guard is not null && intent.Guard.GetValueOrDefault() == Operations.DesignationGuard.Acquisition;
         private static string? AcquisitionPairing(Operations.DesignateIntent intent) =>
-            intent.Designation == Operations.ThingDesignation.Hunt || intent.Designation == Operations.ThingDesignation.HarvestPlant || intent.Designation == Operations.ThingDesignation.Mine
+            intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Hunt || intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.HarvestPlant || intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Mine
                 ? null : "the acquisition guard holds HUNT, HARVEST_PLANT or MINE";
         private static Common.Failure? Pairing(Operations.DesignateIntent intent)
         {
             string? refusal = null;
-            if (intent.Withdraw && !Acquisition(intent)) refusal = "only the acquisition guard withdraws";
+            if (intent.Withdraw.GetValueOrDefault() && !Acquisition(intent)) refusal = "only the acquisition guard withdraws";
             else if (Acquisition(intent)) refusal = AcquisitionPairing(intent);
             return refusal == null ? null : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, ApplyPreconditions.Detail(Kind, refusal));
         }
@@ -244,7 +244,7 @@ namespace HomeBridge.BridgeTools
             {
                 var now = ExcavationTools.RockAt(p.Cell, p.Map);
                 var designated = now != null && ExcavationTools.Designated(p.Cell, p.Map);
-                return new Receipts.EffectEvidence { Excavation = new Receipts.ExcavationEffect { Cell = cell, MineableDefName = p.ExpectedDef,
+                return new Receipts.EffectEvidence { Effect = new Receipts.ExcavationEffect { Cell = cell, MineableDefName = p.ExpectedDef,
                     AdoptedExistingDesignation = adopted, Cleared = now == null, Designated = designated, Cancelled = now != null && !designated } };
             }
             if (p.Designation == Operations.ThingDesignation.Deconstruct)
@@ -253,11 +253,11 @@ namespace HomeBridge.BridgeTools
                 var effect = new Receipts.DeconstructEffect { TargetId = target.GetUniqueLoadID(), DesignationId = record?.Id ?? "",
                     DemolitionObserved = record != null && record.Finished >= 0,
                     WaitingForRoof = record != null && record.Finished < 0 && NativeDesignationGuards.RoofWait(target) != null };
-                if (record?.ReplacementId != null) effect.ReplacementId = record.ReplacementId;
-                return new Receipts.EffectEvidence { Deconstruct = effect };
+                if (record?.ReplacementId != null) effect = effect with { ReplacementId = record.ReplacementId };
+                return new Receipts.EffectEvidence { Effect = effect };
             }
             var id = p.Target?.GetUniqueLoadID() ?? "foundation-" + p.Cell.x + "-" + p.Cell.z;
-            return new Receipts.EffectEvidence { Designation = new Receipts.DesignationEffect { ThingId = id, DesignationDef = p.Def.defName,
+            return new Receipts.EffectEvidence { Effect = new Receipts.DesignationEffect { ThingId = id, DesignationDef = p.Def.defName,
                 Present = p.Cleared || Standing(p), ResourceDef = p.ExpectedDef, Cell = cell } };
         }
 

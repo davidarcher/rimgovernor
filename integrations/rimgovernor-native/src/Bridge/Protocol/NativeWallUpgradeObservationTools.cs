@@ -5,12 +5,11 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -42,22 +41,22 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ListSites(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON WallUpgradeSitesRequest string in raw transport value.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.WallUpgradeSitesRequest.Parser, out var parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Failure = failure });
+            if (!ProtoBoundary.TryParse(ctx, ToolName, request, out Obs.WallUpgradeSitesRequest? parsed, out var failure)
+                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Outcome = new Obs.WallUpgradeSitesReplyOutcome.FailureCase(failure) });
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                    return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Failure = error });
+                    return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Outcome = error });
                 try
                 {
                     if (Faction.OfPlayerSilentFail == null || map.listerBuildings == null || map.roofGrid == null || map.zoneManager == null)
-                        return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Unavailable = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction or map structure trackers are unavailable.") });
+                        return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Outcome = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction or map structure trackers are unavailable.") });
                     var walls = map.listerBuildings.allBuildingsColonist.Where(b => b.def == ThingDefOf.Wall && b.Spawned).ToList();
                     var rows = new List<Obs.WallUpgradeSite>();
-                    if (parsed.HasTargetId)
+                    if (parsed.TargetId is not null)
                     {
                         var wall = walls.ById(parsed.TargetId);
                         if (wall == null)
-                            return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned colonist wall with that id is on the current map.") });
+                            return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned colonist wall with that id is on the current map.") });
                         foreach (var normal in WallUpgradeSafety.Directions)
                             if (Replacement(map, wall, normal, context) is Obs.WallUpgradeSite row) rows.Add(row);
                     }
@@ -68,10 +67,10 @@ namespace HomeBridge.BridgeTools
                                 if (Cleanup(map, wall, normal, context) is Obs.WallUpgradeSite row) rows.Add(row);
                     }
                     var snapshot = new Obs.WallUpgradeSnapshot { Context = context};
-                    snapshot.Sites.AddRange(rows);
-                    return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Observed = snapshot });
+                    snapshot = snapshot with { Sites = [.. snapshot.Sites, .. rows] };
+                    return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Outcome = snapshot });
                 }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Wall, room or roof facts could not be read completely.") }); }
+                catch (Exception) { return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Wall, room or roof facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -79,7 +78,7 @@ namespace HomeBridge.BridgeTools
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, optional target id are required.");
             return request?.Scope?.ExpectedIdentity != null
-                && (!request.HasTargetId || ProtoBoundary.IsIdentifier(request.TargetId));
+                && (request.TargetId is null || ProtoBoundary.IsIdentifier(request.TargetId));
         }
 
         internal static bool Interior(Map map, IntVec3 inside)
@@ -126,7 +125,7 @@ namespace HomeBridge.BridgeTools
             // committed to it.
             else blocker = RoofSupportSafety.Blocker(wall, backups == null ? cells : null, out _);
             var row = Site(map, wall, wall, normal, cells, context, backups);
-            if (blocker != null) row.Blocker = blocker;
+            if (blocker != null) row = row with { Blocker = blocker };
             return row;
         }
 
@@ -151,9 +150,9 @@ namespace HomeBridge.BridgeTools
             var backups = cells.Select(c => ColonistWall(map, c)).Where(b => b != null && WallUpgradeSafety.Stone(b) && b.Stuff == permanent.Stuff).Select(b => b!).ToList();
             if (backups.Count == 0) return null;
             var row = Site(map, backups[0], permanent, normal, cells, context, backups);
-            row.Replacement = NativeBuildingObservationTools.Ref(permanent);
+            row = row with { Replacement = NativeBuildingObservationTools.Ref(permanent) };
             var blocker = RoofSupportSafety.Blocker(backups[0], out _);
-            if (blocker != null) row.Blocker = blocker;
+            if (blocker != null) row = row with { Blocker = blocker };
             return row;
         }
 
@@ -163,20 +162,20 @@ namespace HomeBridge.BridgeTools
                 Original = NativeBuildingObservationTools.Ref(original),
                 LeftSupport = NativeBuildingObservationTools.Ref(ColonistWall(map, WallUpgradeSafety.LeftCell(original.Position, normal))!),
                 RightSupport = NativeBuildingObservationTools.Ref(ColonistWall(map, WallUpgradeSafety.RightCell(original.Position, normal))!) };
-            row.Target = NativeBuildingObservationTools.Ref(target);
-            row.TargetSnapshot = NativeBuildingObservationTools.Token(target, context);
-            foreach (var cell in cells) row.BackupCells.Add(new Common.Cell { X = cell.x, Z = cell.z });
-            foreach (var backup in backups ?? new List<Building>()) row.CompletedBackups.Add(NativeBuildingObservationTools.Ref(backup));
+            row = row with { Target = NativeBuildingObservationTools.Ref(target) };
+            row = row with { TargetSnapshot = NativeBuildingObservationTools.Token(target, context) };
+            foreach (var cell in cells) row = row with { BackupCells = [.. row.BackupCells, new Common.Cell { X = cell.x, Z = cell.z }] };
+            foreach (var backup in backups ?? new List<Building>()) row = row with { CompletedBackups = [.. row.CompletedBackups, NativeBuildingObservationTools.Ref(backup)] };
             var designation = map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct);
             var pending = WallUpgradeSafety.Pending(target);
-            row.Designated = designation != null;
-            if (pending != null) row.RemovalId = pending.Id;
-            row.Snapshot = NativeObservationSnapshot.Snapshot("wall-site", context, target.GetUniqueLoadID(), w => {
+            row = row with { Designated = designation != null };
+            if (pending != null) row = row with { RemovalId = pending.Id };
+            row = row with { Snapshot = NativeObservationSnapshot.Snapshot("wall-site", context, target.GetUniqueLoadID(), w => {
                 w.Write(original.GetUniqueLoadID()); w.Write(normal.x); w.Write(normal.z); w.Write(target.HitPoints);
-                w.Write(row.Designated); w.Write(row.RemovalId ?? "");
-                w.Write(row.LeftSupport.Id); w.Write(row.RightSupport.Id);
-                foreach (var backup in row.CompletedBackups) w.Write(backup.Id);
-            });
+                w.Write(row.Designated.GetValueOrDefault()); w.Write(row.RemovalId ?? "");
+                w.Write((row.LeftSupport.Id ?? "")); w.Write((row.RightSupport.Id ?? ""));
+                foreach (var backup in row.CompletedBackups) w.Write((backup.Id ?? ""));
+            }) };
             return row;
         }
 

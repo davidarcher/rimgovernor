@@ -5,8 +5,8 @@ using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
 using UnityEngine;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Presentation = RimGovernor.Protocol.Presentation;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Presentation = RimGovernor.Contracts.Wire.Presentation;
 
 namespace HomeBridge.BridgeTools
 {
@@ -19,12 +19,12 @@ namespace HomeBridge.BridgeTools
         public async Task<object> RenderState(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ReadRequest string in raw transport value.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_render_state", request, Presentation.ReadRequest.Parser, out var parsed, out var failure)
-                || !NativePresentationReadTools.ValidateRead(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.RenderReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Presentation.ReadRequest>(ctx, "rimgovernor/presentation_render_state", request, out var parsed, out var failure)
+                || !NativePresentationReadTools.ValidateRead(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.RenderReply { Outcome = new Presentation.RenderReplyOutcome.FailureCase(failure) });
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateViewedIdentity(parsed.Identity, out var context, out var error))
-                    return ProtoBoundary.Encode(new Presentation.RenderReply { Failure = error });
-                return ProtoBoundary.Encode(new Presentation.RenderReply { Status = Status(context, RenderDemandDriver.Peek()) });
+                    return ProtoBoundary.Encode(new Presentation.RenderReply { Outcome = error });
+                return ProtoBoundary.Encode(new Presentation.RenderReply { Outcome = Status(context, RenderDemandDriver.Peek()) });
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -33,13 +33,13 @@ namespace HomeBridge.BridgeTools
         public async Task<object> DemandRendering(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON RenderDemand string in raw transport value.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_render_demand", request, Presentation.RenderDemand.Parser, out var parsed, out var failure)
-                || !ValidateDemand(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.RenderReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Presentation.RenderDemand>(ctx, "rimgovernor/presentation_render_demand", request, out var parsed, out var failure)
+                || !ValidateDemand(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.RenderReply { Outcome = new Presentation.RenderReplyOutcome.FailureCase(failure) });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateViewedIdentity(parsed.Viewer.Identity, out var context, out var error))
-                    return ProtoBoundary.Encode(new Presentation.RenderReply { Failure = error });
-                var status = RenderDemandDriver.Lease((int)parsed.LeaseSeconds);
-                return ProtoBoundary.Encode(new Presentation.RenderReply { Status = Status(context, status) });
+                if (!ProtoBoundary.ValidateViewedIdentity(parsed?.Viewer?.Identity, out var context, out var error))
+                    return ProtoBoundary.Encode(new Presentation.RenderReply { Outcome = error });
+                var status = RenderDemandDriver.Lease((int)(parsed?.LeaseSeconds).GetValueOrDefault());
+                return ProtoBoundary.Encode(new Presentation.RenderReply { Outcome = Status(context, status) });
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -48,14 +48,14 @@ namespace HomeBridge.BridgeTools
             var result = new Presentation.RenderStatus { Context = context, Supported = status.Supported };
             if (!status.Supported)
             {
-                result.Suspended = true;
-                result.Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.Unsupported,
-                    Detail = string.IsNullOrEmpty(status.UnavailableDetail) ? "Native rendering is unsupported." : status.UnavailableDetail };
+                result = result with { Suspended = true };
+                result = result with { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.Unsupported,
+                    Detail = string.IsNullOrEmpty(status.UnavailableDetail) ? "Native rendering is unsupported." : status.UnavailableDetail } };
                 return result;
             }
-            result.Suspended = status.Suspended;
-            result.WindowVisible = status.WindowVisible;
-            result.RemainingLeaseMs = (uint)Math.Max(0, Mathf.RoundToInt(status.RemainingSeconds * 1000f));
+            result = result with { Suspended = status.Suspended };
+            result = result with { WindowVisible = status.WindowVisible };
+            result = result with { RemainingLeaseMs = (uint)Math.Max(0, Mathf.RoundToInt(status.RemainingSeconds * 1000f)) };
             return result;
         }
 
@@ -63,8 +63,8 @@ namespace HomeBridge.BridgeTools
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Exact viewer identity and a lease of 0-30 seconds are required.");
             if (request?.Viewer?.Identity == null) return false;
-            if (request.LeaseSeconds > 30) return false;
-            if (request.Viewer.HasViewerId && !ProtoBoundary.IsIdentifier(request.Viewer.ViewerId)) return false;
+            if (request.LeaseSeconds.GetValueOrDefault() > 30) return false;
+            if (request.Viewer.ViewerId is not null && !ProtoBoundary.IsIdentifier(request.Viewer.ViewerId)) return false;
             return true;
         }
     }

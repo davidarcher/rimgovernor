@@ -3,7 +3,6 @@ using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Brain.Store;
-using Proto = RimGovernor.Protocol;
 
 namespace RimGovernor.Brain.Host;
 
@@ -33,14 +32,14 @@ internal static class FacadeReplies
 /// </summary>
 internal sealed class FacadeAuthority(INativeFacade facade) : INativeAuthority
 {
-    public async Task<PbAuthority.StatusReply> ReadAuthorityAsync(PbCommon.Identity identity, CancellationToken ct) =>
-        ProtoRecordBridge.ToRecord<PbAuthority.StatusReply>(await facade.ReadAuthorityStatusAsync(ProtoRecordBridge.ToProto<Proto.Authority.StatusRequest>(new PbAuthority.StatusRequest { Identity = identity }), ct).ConfigureAwait(false));
+    public Task<PbAuthority.StatusReply> ReadAuthorityAsync(PbCommon.Identity identity, CancellationToken ct) =>
+        facade.ReadAuthorityStatusAsync(new PbAuthority.StatusRequest { Identity = identity }, ct);
 
-    public async Task<PbAuthority.ControlReply> SetModeAsync(PbAuthority.SetMode request, CancellationToken ct) =>
-        ProtoRecordBridge.ToRecord<PbAuthority.ControlReply>(await facade.ControlAuthorityAsync(ProtoRecordBridge.ToProto<Proto.Authority.ControlRequest>(new PbAuthority.ControlRequest { Operation = request }), ct).ConfigureAwait(false));
+    public Task<PbAuthority.ControlReply> SetModeAsync(PbAuthority.SetMode request, CancellationToken ct) =>
+        facade.ControlAuthorityAsync(new PbAuthority.ControlRequest { Operation = request }, ct);
 
-    public async Task<PbAuthority.ControlReply> RevokeAsync(PbAuthority.Revoke request, CancellationToken ct) =>
-        ProtoRecordBridge.ToRecord<PbAuthority.ControlReply>(await facade.ControlAuthorityAsync(ProtoRecordBridge.ToProto<Proto.Authority.ControlRequest>(new PbAuthority.ControlRequest { Operation = request }), ct).ConfigureAwait(false));
+    public Task<PbAuthority.ControlReply> RevokeAsync(PbAuthority.Revoke request, CancellationToken ct) =>
+        facade.ControlAuthorityAsync(new PbAuthority.ControlRequest { Operation = request }, ct);
 }
 
 /// <summary>
@@ -52,7 +51,7 @@ internal sealed class FacadeWorldSource(INativeFacade facade) : IWorldSource
     /// <summary>The observation context of the loaded game: its identity, tick and native generation.</summary>
     public async Task<PbCommon.ObservationContext> ReadContextAsync(CancellationToken ct)
     {
-        var reply = ProtoRecordBridge.ToRecord<PbLifecycle.TickReply>(await facade.ReadTickAsync(new Proto.Lifecycle.TickRequest(), ct).ConfigureAwait(false));
+        var reply = await facade.ReadTickAsync(new PbLifecycle.TickRequest(), ct).ConfigureAwait(false);
         switch (reply.Outcome)
         {
             case PbLifecycle.TickReplyOutcome.LoadedCase loaded:
@@ -87,7 +86,7 @@ internal sealed class FacadeGovernorState(INativeFacade facade)
 {
     public async Task<IReadOnlyDictionary<string, string>> ReadAsync(CancellationToken ct)
     {
-        var reply = ProtoRecordBridge.ToRecord<PbLifecycle.GovernorStateReply>(await facade.ReadGovernorStateAsync(new Proto.Lifecycle.GovernorStateRequest(), ct).ConfigureAwait(false));
+        var reply = await facade.ReadGovernorStateAsync(new PbLifecycle.GovernorStateRequest(), ct).ConfigureAwait(false);
         return reply.Outcome switch
         {
             PbLifecycle.GovernorStateReplyOutcome.LoadedCase loaded => new Dictionary<string, string>(loaded.Value.Blobs, StringComparer.Ordinal),
@@ -100,7 +99,7 @@ internal sealed class FacadeGovernorState(INativeFacade facade)
     public async Task PutAsync(IReadOnlyDictionary<string, string> blobs, CancellationToken ct)
     {
         var request = new PbLifecycle.PutGovernorStateBatchRequest { Blobs = new Dictionary<string, string>(blobs, StringComparer.Ordinal) };
-        var reply = ProtoRecordBridge.ToRecord<PbLifecycle.GovernorStateReply>(await facade.PutGovernorStateBatchAsync(ProtoRecordBridge.ToProto<Proto.Lifecycle.PutGovernorStateBatchRequest>(request), ct).ConfigureAwait(false));
+        var reply = await facade.PutGovernorStateBatchAsync(request, ct).ConfigureAwait(false);
         switch (reply.Outcome)
         {
             case PbLifecycle.GovernorStateReplyOutcome.LoadedCase:

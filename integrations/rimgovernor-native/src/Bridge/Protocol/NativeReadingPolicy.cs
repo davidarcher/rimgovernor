@@ -4,10 +4,10 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -25,11 +25,11 @@ namespace HomeBridge.BridgeTools
 
         internal static Common.Failure? Validate(Operations.ReadingPolicyIntent? intent, Common.ObservationContext context)
         {
-            if (intent == null || !intent.HasName || !ProtoBoundary.IsIdentifier(intent.Name) || intent.Name.Length > 80
+            if (intent == null || intent.Name is null || !ProtoBoundary.IsIdentifier(intent.Name) || (intent.Name ?? "").Length > 80
                 || intent.AllowedDefs.Distinct().Count() != intent.AllowedDefs.Count
                 || intent.AllowedDefs.Any(d => DefDatabase<ThingDef>.GetNamedSilentFail(d) is not ThingDef def || !IsBook(def)))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A reading policy needs a name and distinct book definitions.");
-            if (Current.Game.readingPolicyDatabase.AllReadingPolicies.Count(p => p.label == intent.Name) > 1)
+            if (Current.Game.readingPolicyDatabase.AllReadingPolicies.Count(p => p.label == (intent.Name ?? "")) > 1)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "More than one reading policy has this name.");
             return null;
         }
@@ -40,7 +40,7 @@ namespace HomeBridge.BridgeTools
             if (failure != null) throw new ApplyRefusedException(failure);
             var db = Current.Game.readingPolicyDatabase;
             var want = intent.AllowedDefs.OrderBy(d => d, StringComparer.Ordinal).ToList();
-            var policy = db.AllReadingPolicies.FirstOrDefault(p => p.label == intent.Name);
+            var policy = db.AllReadingPolicies.FirstOrDefault(p => p.label == (intent.Name ?? ""));
             var outcome = Receipts.FieldOutcome.Unchanged;
             if (policy == null || !Allowed(policy).SequenceEqual(want))
             {
@@ -51,15 +51,15 @@ namespace HomeBridge.BridgeTools
                 if (!Allowed(policy).SequenceEqual(want)) throw new InvalidOperationException("Native reading policy requires readback.");
                 outcome = Receipts.FieldOutcome.Applied;
             }
-            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+            return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = policy.GetUniqueLoadID() },
-                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.ReadingPolicy, Outcome = outcome } } } };
+                Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.ReadingPolicy, Outcome = outcome }] } };
         }
     }
 
     internal sealed class ReadingPolicyActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeReadingPolicy.Validate(action.ReadingPolicy, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeReadingPolicy.Apply(action.ReadingPolicy, context);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeReadingPolicy.Validate(action.Intent?.ReadingPolicy ?? new Operations.ReadingPolicyIntent(), context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeReadingPolicy.Apply(action.Intent?.ReadingPolicy ?? new Operations.ReadingPolicyIntent(), context);
     }
 }

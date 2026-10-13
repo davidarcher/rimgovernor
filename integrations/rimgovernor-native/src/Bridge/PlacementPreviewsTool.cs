@@ -2,7 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
-using RimGovernor.Protocol.Placement;
+using RimGovernor.Contracts.Wire.Placement;
 using Verse;
 
 namespace HomeBridge.BridgeTools
@@ -16,8 +16,8 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Preview(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw transport value; must be a ProtoJSON PlacementRequest string with exact identity and 1..64 placements.", Required = true)] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request!, PlacementRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new PlacementReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<PlacementRequest>(ctx, ToolName, request!, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new PlacementReply { Outcome = failure });
 
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandlePreview(parsed, cancellationToken), cancellationToken).ConfigureAwait(false);
         }
@@ -26,20 +26,20 @@ namespace HomeBridge.BridgeTools
         internal static PlacementReply HandlePreview(PlacementRequest parsed, CancellationToken cancellationToken)
         {
             if (!PlacementProtocol.Validate(parsed, out var invalidRequest))
-                return new PlacementReply { Failure = invalidRequest };
+                return new PlacementReply { Outcome = invalidRequest };
             var map = Find.CurrentMap;
             if (!ProtoBoundary.ValidateIdentity(parsed.Identity, map, out var context, out var identityFailure))
-                return new PlacementReply { Failure = identityFailure };
+                return new PlacementReply { Outcome = identityFailure };
             var batch = new PlacementBatch { Context = context };
             foreach (var candidate in parsed.Placements)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var query = new PlacementQuery(candidate.DefName, candidate.X, candidate.Z,
-                    PlacementProtocol.RotationName(candidate.Rotation), candidate.HasStuff ? candidate.Stuff : null,
-                    candidate.HasIgnoreNaturalRock && candidate.IgnoreNaturalRock);
-                batch.Results.Add(PlacementProtocol.Map(PlacementPreviewOperation.Evaluate(map, query), context));
+                var query = new PlacementQuery((candidate.DefName ?? ""), candidate.X.GetValueOrDefault(), candidate.Z.GetValueOrDefault(),
+                    PlacementProtocol.RotationName(candidate.Rotation.GetValueOrDefault()), candidate.Stuff is not null ? (candidate.Stuff ?? "") : null,
+                    candidate.IgnoreNaturalRock is not null && candidate.IgnoreNaturalRock.GetValueOrDefault());
+                batch = batch with { Results = [.. batch.Results, PlacementProtocol.Map(PlacementPreviewOperation.Evaluate(map, query), context)] };
             }
-            return new PlacementReply { Batch = batch };
+            return new PlacementReply { Outcome = batch };
         }
     }
 }

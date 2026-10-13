@@ -5,9 +5,9 @@ using System.Collections.Generic;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
-using Operations = RimGovernor.Protocol.Operations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -57,15 +57,15 @@ namespace HomeBridge.BridgeTools
             // A hunt follows its animal: the token binds the animal,
             // its corpse and its designation, not the cell or health the
             // census read, which move every tick under a running clock.
-            Context = context.Clone(), EntityId = prey.GetUniqueLoadID(), Token = NativeAcquisitionToken.Token(context.Identity,
+            Context = context, EntityId = prey.GetUniqueLoadID(), Token = NativeAcquisitionToken.Token(context.Identity ?? new Common.Identity(),
                 prey.GetUniqueLoadID(), prey.RaceProps.corpseDef.defName, 0, 0, 0, 1, Designated(prey)) };
         // A hunt row is a wild animal that bears a corpse and is a food source or a pest, whatever
         // policy then decides (policy.HuntGate): native states facts and keeps only physical validity.
         private static bool Candidate(Pawn prey) => prey.Spawned && !prey.Dead && prey.Faction == null && prey.RaceProps.Animal
             && prey.RaceProps.corpseDef != null && (PestRace(prey.RaceProps) || prey.RaceProps.meatDef?.IsNutritionGivingIngestible == true);
-        internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, Obs.ColonyFactsRequest request)
+        internal static Obs.ColonyFactsSnapshot Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, Obs.ColonyFactsRequest request)
         {
-            result.PendingHunts = (uint)Pending(map);
+            result = result with { PendingHunts = (uint)Pending(map) };
             // Wild animals by distance from the colony anchor, food prey then every pest: a pest row is
             // a hunt of one unit of nothing edible (food false, no nutrition), so the food and wood
             // selections pass it over and only the pest concern takes it. Go orders its own selection.
@@ -75,26 +75,27 @@ namespace HomeBridge.BridgeTools
                 .ToList();
             // herd_size counts same-race animals within the request's herd_radius; without a radius it is
             // left unset (unknown), never 0.
-            var herdSquared = request.HasHerdRadius ? (long)request.HerdRadius * request.HerdRadius : -1;
+            var herdSquared = request.HerdRadius is not null ? (long)request.HerdRadius.GetValueOrDefault() * request.HerdRadius.GetValueOrDefault() : -1;
             foreach (var animal in prey)
             {
                 var designated = Designated(animal);
                 var row = new Obs.AcquisitionFacts {
-                Source = NativeRef.Thing(animal), SourceSnapshot = Snapshot(animal, result.Context),
+                Source = NativeRef.Thing(animal), SourceSnapshot = Snapshot(animal, result.Context ?? new Common.ObservationContext()),
                 Resource = animal.RaceProps.corpseDef.defName, Hunt = true,
                 Yield = 1, MeatAmount = MeatAmount(animal), Designated = designated,
                 Downed = animal.Downed, Sleeping = !animal.Awake(),
                 Taken = ResourceAcquisitionTools.Taken(animal),
                 Fogged = animal.Position.Fogged(map), InMentalState = animal.InMentalState };
                 if (herdSquared >= 0)
-                    row.HerdSize = (uint)map.mapPawns.AllPawnsSpawned.Count(p => !p.Dead && p.def == animal.def && p.Position.DistanceToSquared(animal.Position) <= herdSquared);
+                    row = row with { HerdSize = (uint)map.mapPawns.AllPawnsSpawned.Count(p => !p.Dead && p.def == animal.def && p.Position.DistanceToSquared(animal.Position) <= herdSquared) };
                 var tick = ResourceAcquisitionTools.DesignatedTick(animal, designated);
-                if (tick.HasValue) row.DesignatedTick = tick.Value;
-                result.Acquisition.Add(row);
+                if (tick.HasValue) row = row with { DesignatedTick = tick.Value };
+                result = result with { Acquisition = [.. result.Acquisition, row] };
             }
-            result.HuntCensus = Census(map, prey, request.HasHuntRouteBudgetMs ? request.HuntRouteBudgetMs : (uint?)null,
-                request.HasHuntPredatorMarginCells ? request.HuntPredatorMarginCells : (float?)null);
-            result.PendingFoodNutrition += map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition);
+            result = result with { HuntCensus = Census(map, prey, request.HuntRouteBudgetMs is not null ? request.HuntRouteBudgetMs.GetValueOrDefault() : (uint?)null,
+                request.HuntPredatorMarginCells is not null ? request.HuntPredatorMarginCells.GetValueOrDefault() : (float?)null) };
+            result = result with { PendingFoodNutrition = (result.PendingFoodNutrition ?? 0d) + map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition) };
+            return result;
         }
         // Raw facts per free colonist and per butcher bench. Route evidence is skipped for a colonist
         // who is downed, in a mental state or has Hunting off: policy refuses each of those before it
@@ -114,11 +115,11 @@ namespace HomeBridge.BridgeTools
                 {
                     var facts = new Obs.HuntButcherBill { Suspended = bill.suspended, Paused = bill.paused, RepeatMode = NativeEnums.Repeat(bill.repeatMode),
                         RepeatCount = bill.repeatCount, TargetCount = bill.targetCount };
-                    if (bill.repeatMode == BillRepeatModeDefOf.TargetCount && BillCommon.ProductCount(bill) is int count) facts.ProductCount = count;
-                    facts.AllowedCorpses.Add(corpses.Where(bill.ingredientFilter.Allows).Select(d => d.defName).OrderBy(n => n, StringComparer.Ordinal));
-                    row.Bills.Add(facts);
+                    if (bill.repeatMode == BillRepeatModeDefOf.TargetCount && BillCommon.ProductCount(bill) is int count) facts = facts with { ProductCount = count };
+                    facts = facts with { AllowedCorpses = [.. facts.AllowedCorpses, .. corpses.Where(bill.ingredientFilter.Allows).Select(d => d.defName).OrderBy(n => n, StringComparer.Ordinal)] };
+                    row = row with { Bills = [.. row.Bills, facts] };
                 }
-                census.Benches.Add(row);
+                census = census with { Benches = [.. census.Benches, row] };
             }
             var cooking = DefDatabase<WorkTypeDef>.GetNamedSilentFail("Cooking");
             foreach (var pawn in map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber))
@@ -130,31 +131,36 @@ namespace HomeBridge.BridgeTools
                     HuntingDisabled = pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hunting),
                     CookingActive = cooking != null && settings?.WorkIsActive(cooking) == true,
                     HasHuntingWeapon = WorkGiver_HunterHunt.HasHuntingWeapon(pawn), RangedBlockingShield = WorkGiver_HunterHunt.HasShieldAndRangedWeapon(pawn) };
-                if (pawn.equipment?.Primary != null) hunter.WeaponDef = pawn.equipment.Primary.def.defName;
-                if (hunter.CookingActive && !pawn.Downed && !pawn.InMentalState)
-                    foreach (var bench in benches.Where(b => pawn.CanReach(b, PathEndMode.InteractionCell, Danger.None))) hunter.ReachableBenches.Add(bench.GetUniqueLoadID());
-                if (hunter.HuntingActive && !pawn.Downed && !pawn.InMentalState)
+                if (pawn.equipment?.Primary != null) hunter = hunter with { WeaponDef = pawn.equipment.Primary.def.defName };
+                if (hunter.CookingActive.GetValueOrDefault() && !pawn.Downed && !pawn.InMentalState)
+                    foreach (var bench in benches.Where(b => pawn.CanReach(b, PathEndMode.InteractionCell, Danger.None))) hunter = hunter with { ReachableBenches = [.. hunter.ReachableBenches, bench.GetUniqueLoadID()] };
+                if (hunter.HuntingActive.GetValueOrDefault() && !pawn.Downed && !pawn.InMentalState)
                     foreach (var animal in prey.Where(a => !a.Position.Fogged(map)))
                         pairs.Add((pawn, hunter, animal));
-                census.Hunters.Add(hunter);
+                census = census with { Hunters = [.. census.Hunters, hunter] };
             }
             // Every eligible pair gets a verdict, pests first then nearest first, until Go's budget runs
             // out; the rest are marked skipped (never silently absent).
             var budgetTicks = routeBudgetMs.HasValue ? routeBudgetMs.Value * System.Diagnostics.Stopwatch.Frequency / 1000 : long.MaxValue;
             long spent = 0;
+            var routesByHunter = new Dictionary<string, List<Obs.HuntRoute>>();
             foreach (var (pawn, hunter, animal) in pairs.OrderBy(p => PestRace(p.animal.RaceProps) ? 0 : 1).ThenBy(p => p.pawn.Position.DistanceToSquared(p.animal.Position)))
             {
                 var route = new Obs.HuntRoute { PreyId = animal.GetUniqueLoadID() };
                 // No margin from Go is an unevaluated pair, never a guessed margin.
-                if (spent >= budgetTicks || !predatorMarginCells.HasValue) route.Skipped = true;
+                if (spent >= budgetTicks || !predatorMarginCells.HasValue) route = route with { Skipped = true };
                 else
                 {
                     var began = System.Diagnostics.Stopwatch.GetTimestamp();
-                    route.Safe = HuntingSafety.RouteSafe(pawn, animal, predatorMarginCells.Value);
+                    route = route with { Safe = HuntingSafety.RouteSafe(pawn, animal, predatorMarginCells.Value) };
                     spent += System.Diagnostics.Stopwatch.GetTimestamp() - began;
                 }
-                hunter.Routes.Add(route);
+                var hunterId = hunter.PawnId ?? "";
+                if (!routesByHunter.TryGetValue(hunterId, out var hunterRoutes)) routesByHunter[hunterId] = hunterRoutes = new List<Obs.HuntRoute>();
+                hunterRoutes.Add(route);
             }
+            if (routesByHunter.Count > 0)
+                census = census with { Hunters = [.. census.Hunters.Select(h => routesByHunter.TryGetValue(h.PawnId ?? "", out var routes) ? h with { Routes = [.. h.Routes, .. routes] } : h)] };
             ObservationWork.Detail("cf.hunt.route", spent, pairs.Count);
             return census;
         }

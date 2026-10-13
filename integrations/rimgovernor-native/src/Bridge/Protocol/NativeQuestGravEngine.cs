@@ -4,8 +4,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -25,11 +25,11 @@ namespace HomeBridge.BridgeTools
                 Inspected = Find.ResearchManager.gravEngineInspected };
             if (engine.Spawned)
             {
-                row.MapId = engine.Map.uniqueID;
-                row.Cell = new Common.Cell { X = engine.Position.x, Z = engine.Position.z };
+                row = row with { MapId = engine.Map.uniqueID };
+                row = row with { Cell = new Common.Cell { X = engine.Position.x, Z = engine.Position.z } };
                 var pawns = engine.Map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState).ToArray();
-                row.EligiblePawnIds.Add(pawns.Where(p => p.CanReserveAndReach(engine, PathEndMode.Touch, Danger.None)).Select(p => p.GetUniqueLoadID()));
-                row.InspectingPawnIds.Add(pawns.Where(p => p.CurJob?.def == JobDefOf.InspectGravEngine && p.CurJob.targetA.Thing == engine).Select(p => p.GetUniqueLoadID()));
+                row = row with { EligiblePawnIds = [.. row.EligiblePawnIds, .. pawns.Where(p => p.CanReserveAndReach(engine, PathEndMode.Touch, Danger.None)).Select(p => p.GetUniqueLoadID())] };
+                row = row with { InspectingPawnIds = [.. row.InspectingPawnIds, .. pawns.Where(p => p.CurJob?.def == JobDefOf.InspectGravEngine && p.CurJob.targetA.Thing == engine).Select(p => p.GetUniqueLoadID())] };
             }
             yield return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.InspectGravEngine, GravEngine = row };
         }

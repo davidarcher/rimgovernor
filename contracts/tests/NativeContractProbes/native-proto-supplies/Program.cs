@@ -19,8 +19,12 @@ internal static class NativeProtoSuppliesProbe
     private static void Check(bool value, string label) { if (!value) throw new Exception(label); checks++; }
     private static object Wire(string name, string json)
     {
-        var parser = bridge.GetType("RimGovernor.Protocol.Observations." + name, true)!.GetProperty("Parser")!.GetValue(null)!;
-        return parser.GetType().GetMethod("ParseJson")!.Invoke(parser, new object[] { json })!;
+        return WireOf("RimGovernor.Contracts.Wire.Observations." + name, json);
+    }
+    private static object WireOf(string fullName, string json)
+    {
+        var type = typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType(fullName, true)!;
+        return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize", new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
     }
     private static object Get(object value, string property) => value.GetType().GetProperty(property)!.GetValue(value)!;
     private static bool Valid(string json) => (bool)tools.GetMethod("Validate", Flags)!.Invoke(null,
@@ -48,10 +52,7 @@ internal static class NativeProtoSuppliesProbe
         tools = bridge.GetType("HomeBridge.BridgeTools.NativeSuppliesObservationTools", true)!;
         game = AppDomain.CurrentDomain.GetAssemblies().Single(a => a.GetName().Name == "Assembly-CSharp");
         var allow = bridge.GetType("HomeBridge.BridgeTools.NativeSupplyAllow", true)!;
-        Func<string, string, object> parse = (type, json) => {
-            var parser = bridge.GetType("RimGovernor.Protocol." + type, true)!.GetProperty("Parser")!.GetValue(null)!;
-            return parser.GetType().GetMethod("ParseJson")!.Invoke(parser, new object[] { json })!;
-        };
+        Func<string, string, object> parse = (type, json) => WireOf("RimGovernor.Contracts.Wire." + type, json);
         var identity = parse("Common.Identity", "{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}");
         object[] tokenInputs = { identity, "Thing_Supply1", "Meal", 1, 2, 10, true, "" };
         Func<object[], string> token = values => (string)allow.GetMethod("Token", Flags)!.Invoke(null, values)!;
@@ -104,16 +105,16 @@ internal static class NativeProtoSuppliesProbe
                 new Dictionary<string, object?> { ["request"] = value }, null, CancellationToken.None })!;
             Check(ReferenceEquals(bound[2], value), "Real SDK preserves raw request");
         }
-        var reply = Wire("ListSuppliesReply", "{\"observed\":{\"stocks\":[{\"definition\":{\"defName\":\"Modded_Resourceα\"},\"units\":\"2147483648\",\"ours\":\"0\",\"issues\":[{\"field\":\"carried\",\"unavailable\":{\"reason\":\"UNAVAILABLE_REASON_NOT_REQUESTED\"}}]}]}}");
-        var envelope = tools.Assembly.GetType("HomeBridge.BridgeTools.ProtoBoundary", true)!.GetMethod("Encode", Flags)!.Invoke(null, new object[] { reply, false })!;
+        var reply = Wire("ListSuppliesReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"stocks\":[{\"definition\":{\"defName\":\"Modded_Resourceα\"},\"units\":2147483648,\"ours\":0,\"issues\":[{\"field\":\"carried\",\"unavailable\":{\"reason\":\"UNAVAILABLE_REASON_NOT_REQUESTED\"}}]}]}}}");
+        var envelope = tools.Assembly.GetType("HomeBridge.BridgeTools.ProtoBoundary", true)!.GetMethod("Encode", Flags)!.MakeGenericMethod(reply.GetType()).Invoke(null, new object[] { reply, false })!;
         var normalize = server.GetType("RimGovernor.Host.LegacyToolExecution", true)!.GetMethod("ToDictionary", Flags)!;
         var normalized = (IDictionary)normalize.Invoke(null, new[] { envelope })!;
         Check(normalized.Count == 1 && normalized["payload"] is string, "SDK preserves ProtoJSON string");
-        var snapshot = Get(Wire("ListSuppliesReply", (string)normalized["payload"]!), "Observed");
+        var snapshot = Get(Get(Wire("ListSuppliesReply", (string)normalized["payload"]!), "Outcome"), "Observed");
         var row = ((IList)Get(snapshot, "Stocks"))[0]!;
         Check((long)Get(row, "Units") == 2147483648L, "64-bit quantities roundtrip");
-        Check((bool)Get(row, "HasOurs") && (long)Get(row, "Ours") == 0, "Known zero usable stock retained");
-        Check(!(bool)Get(row, "HasCarried") && !(bool)Get(row, "HasInContainer"), "Unrequested held stock remains unknown");
+        Check(Get(row, "Ours") is long oursUnits && oursUnits == 0, "Known zero usable stock retained");
+        Check(Get(row, "Carried") == null && Get(row, "InContainer") == null, "Unrequested held stock remains unknown");
 
         // ==================== N01.03: Project()-level fixtures ====================
         // Real Census.Add()/Walk() traversal depends on Verse.FogGrid's NativeBitArray field,

@@ -3,9 +3,9 @@ using System;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
 
         private static Zone? Resolve(Operations.ZoneIntent? intent, Map map) =>
             NativeZoneIntent.Id(intent) != null
-                ? RefIndex.Zone(map, intent!.Zone.Id) is Zone z && z.Cells.Count > 0 ? z : null : null;
+                ? RefIndex.Zone(map, intent!.Zone?.Id ?? "") is Zone z && z.Cells.Count > 0 ? z : null : null;
 
         private static ApplyPreconditions Rules(Operations.ZoneIntent? intent, Zone? zone, Map map)
         {
@@ -35,19 +35,19 @@ namespace HomeBridge.BridgeTools
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
         {
             var map = ProtoBoundary.LoadedMap(context);
-            var rules = Rules(action.Zone, Resolve(action.Zone, map), map);
+            var rules = Rules(action.Intent?.Zone, Resolve(action.Intent?.Zone, map), map);
             return rules.Holds ? null : rules.Failure();
         }
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
             var map = ProtoBoundary.LoadedMap(context);
-            var zone = Resolve(action.Zone, map);
-            var rules = Rules(action.Zone, zone, map);
+            var zone = Resolve(action.Intent?.Zone, map);
+            var rules = Rules(action.Intent?.Zone, zone, map);
             if (!rules.Holds) throw new InvalidOperationException("Zone deletion prerequisites changed before apply: " + rules.Reason);
             zone?.Delete(false);
-            if (Resolve(action.Zone, map) != null) throw new InvalidOperationException("Native zone deletion readback did not apply.");
-            return NativeZoneCreation.Evidence(NativeZoneIntent.Id(action.Zone)!, null, map);
+            if (Resolve(action.Intent?.Zone, map) != null) throw new InvalidOperationException("Native zone deletion readback did not apply.");
+            return NativeZoneCreation.Evidence(NativeZoneIntent.Id(action.Intent?.Zone)!, null, map);
         }
     }
 }

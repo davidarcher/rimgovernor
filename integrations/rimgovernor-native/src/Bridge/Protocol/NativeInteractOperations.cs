@@ -4,8 +4,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -35,7 +35,7 @@ namespace HomeBridge.BridgeTools
             var map2 = target.Map;
             pawn = map2.mapPawns.AllPawnsSpawned.ById(intent.PawnId);
             if (pawn == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact pawn is not spawned on the target's map.");
-            var identity = new NativeControlIdentity(Current.Game, map2, context.Identity.ColonyId, context.Identity.LoadToken);
+            var identity = new NativeControlIdentity(Current.Game, map2, (context.Identity?.ColonyId ?? ""), (context.Identity?.LoadToken ?? ""));
             var control = NativePawnControlState.Observe(identity, pawn, out var snapshot);
             if (control != NativePawnControlResult.Ready || snapshot == null) return NativeDraftProtocol.Failure(control, context);
             if (!snapshot.Eligible || snapshot.Drafted && comp is not CompVoidNode)

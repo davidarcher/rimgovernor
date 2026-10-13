@@ -3,9 +3,9 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -35,12 +35,12 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(Operations.HaulIntent? intent, Common.ObservationContext context, out Pawn? pawn, out Thing? thing)
         {
             pawn = null; thing = null;
-            if (intent == null || !ProtoBoundary.IsIdentifier(intent.PawnId) || !ProtoBoundary.IsIdentifier(intent.ThingId) || intent.PawnId == intent.ThingId)
+            if (intent == null || !ProtoBoundary.IsIdentifier(intent.PawnId) || !ProtoBoundary.IsIdentifier(intent.ThingId) || (intent.PawnId ?? "") == (intent.ThingId ?? ""))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Haul requires an exact pawn id and item id.");
             if (!NativePawnControlState.IsReady)
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             var map = ProtoBoundary.LoadedMap(context);
-            var identity = new NativeControlIdentity(Current.Game, map, context.Identity.ColonyId, context.Identity.LoadToken);
+            var identity = new NativeControlIdentity(Current.Game, map, (context.Identity?.ColonyId ?? ""), (context.Identity?.LoadToken ?? ""));
             var foundPawn = map.mapPawns.AllPawnsSpawned.ById(intent.PawnId);
             if (foundPawn == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, ApplyPreconditions.Detail(Kind, "the exact pawn is not spawned on this map"));
             var control = NativePawnControlState.Observe(identity, foundPawn, out var observed);
@@ -71,10 +71,10 @@ namespace HomeBridge.BridgeTools
 
         private static Receipts.EffectEvidence Evidence(Pawn pawn, Thing thing, Job? job, bool issued, bool canTry) => new Receipts.EffectEvidence
         {
-            Job = new Receipts.JobEffect
+            Effect = new Receipts.JobEffect
             {
                 PawnId = pawn.GetUniqueLoadID(), JobId = job?.loadID ?? -1, JobDef = job?.def?.defName ?? "HaulToCell",
-                TargetA = new Receipts.JobTarget { ThingId = thing.GetUniqueLoadID() },
+                TargetA = new Receipts.JobTarget { Target = new Receipts.JobTargetTarget.ThingIdCase(thing.GetUniqueLoadID()) },
                 CanTry = canTry, Issued = issued, Verified = job != null, Drafted = false,
             }
         };
@@ -96,7 +96,7 @@ namespace HomeBridge.BridgeTools
 
     internal sealed class HaulActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeHaulOperations.Validate(action.Haul, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeHaulOperations.Apply(action.Haul, context);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeHaulOperations.Validate(action.Intent?.Haul, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeHaulOperations.Apply(action.Intent?.Haul, context);
     }
 }

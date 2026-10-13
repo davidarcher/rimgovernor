@@ -1,13 +1,13 @@
 using System.Threading.Channels;
 using RimGovernor.Brain.Domain;
-using Authority = RimGovernor.Protocol.Authority;
-using Clock = RimGovernor.Protocol.Clock;
-using Lifecycle = RimGovernor.Protocol.Lifecycle;
-using Obs = RimGovernor.Protocol.Observations;
-using Operations = RimGovernor.Protocol.Operations;
-using Placement = RimGovernor.Protocol.Placement;
-using Presentation = RimGovernor.Protocol.Presentation;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Authority = RimGovernor.Contracts.Wire.Authority;
+using Clock = RimGovernor.Contracts.Wire.Clock;
+using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
+using Obs = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Placement = RimGovernor.Contracts.Wire.Placement;
+using Presentation = RimGovernor.Contracts.Wire.Presentation;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.NativeFacade;
 

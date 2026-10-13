@@ -1,14 +1,13 @@
-#nullable enable
+#nullable disable
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using HomeBridge.BridgeTools;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Wire = RimGovernor.Protocol.Authority;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Wire = RimGovernor.Contracts.Wire.Authority;
 
 // Drives the production authority_control adapter end to end (parser, identity,
 // hook initialization, state). Control is SetMode(Auto|Manual) or Revoke under
@@ -38,28 +37,35 @@ internal static class NativeAuthorityControlProbe
         var envelope = (Dictionary<string, object>)value;
         // payload plus, from a main-thread hop, the companion's timing split; nothing else.
         Check(envelope["payload"] is string && envelope.Count == (envelope.ContainsKey(ProtoBoundary.TimingField) ? 2 : 1), "payload envelope");
-        var reply = Wire.ControlReply.Parser.ParseJson((string)envelope["payload"]);
-        Check(reply.Equals(Wire.ControlReply.Parser.ParseFrom(reply.ToByteArray())), "binary preserves reply");
+        var reply = RimGovernor.Contracts.Wire.WireJson.Deserialize<Wire.ControlReply>((string)envelope["payload"]);
+        Check(reply.Equals(RimGovernor.Contracts.Wire.WireJson.Deserialize<Wire.ControlReply>(RimGovernor.Contracts.Wire.WireJson.Serialize(reply))), "JSON preserves reply");
         return reply;
     }
-    private static Wire.ControlReply Call(Wire.ControlRequest request)
+    private static Wire.ControlReply Call(Wire.ControlRequest request) => CallJson(RimGovernor.Contracts.Wire.WireJson.Serialize(request));
+    // A wire enum value outside the schema cannot be held by a record (the encoder refuses it), so it is sent as raw JSON text.
+    private static string UndefinedEnum(Wire.ControlRequest request, string member) =>
+        System.Text.RegularExpressions.Regex.Replace(RimGovernor.Contracts.Wire.WireJson.Serialize(request), "\"" + member + "\":\"[^\"]*\"", "\"" + member + "\":\"UNDEFINED_999\"");
+    private static Wire.ControlReply CallJson(string json, int dispatches = 1)
     {
-        var json = JsonFormatter.Default.Format(request);
         var ctx = new Context(); ctx.Arguments!["request"] = json;
         var reply = Decode(new NativeAuthorityControlTools().Control(ctx, CancellationToken.None, json).GetAwaiter().GetResult());
-        Check(ctx.Invocations == 1, "valid JSON must dispatch once");
+        Check(ctx.Invocations == dispatches, dispatches == 1 ? "valid JSON must dispatch once" : "undefined enum value must be refused before dispatch");
         return reply;
     }
-    private static Wire.ControlRequest SetMode(Wire.Mode mode, ulong? generation = null) => new() { SetMode = new Wire.SetMode
+    private static Wire.ControlRequest SetMode(Wire.Mode mode, ulong? generation = null) => new() { Operation = new Wire.SetMode
     {
-        Identity = Identity.Clone(), ExpectedGeneration = generation ?? state.Status().Generation, Mode = mode
+        Identity = Identity, ExpectedGeneration = generation ?? state.Status().Generation, Mode = mode
     } };
-    private static Wire.ControlRequest Revoke(Wire.RevocationReason reason, ulong? generation = null) => new() { Revoke = new Wire.Revoke
+    private static Wire.ControlRequest Revoke(Wire.RevocationReason reason, ulong? generation = null) => new() { Operation = new Wire.Revoke
     {
-        Identity = Identity.Clone(), ExpectedGeneration = generation ?? state.Status().Generation, Reason = reason
+        Identity = Identity, ExpectedGeneration = generation ?? state.Status().Generation, Reason = reason
     } };
+    // Requests are immutable records: a change builds a modified copy of the operation.
+    private static Wire.ControlRequest WithSetMode(Wire.ControlRequest request, Func<Wire.SetMode, Wire.SetMode> change) => new() { Operation = change(request.SetMode) };
+    private static Wire.ControlRequest WithRevoke(Wire.ControlRequest request, Func<Wire.Revoke, Wire.Revoke> change) => new() { Operation = change(request.Revoke) };
+    private static Wire.ControlRequest WithFocus(Wire.ControlRequest request, Func<Wire.FocusMap, Wire.FocusMap> change) => new() { Operation = change(request.FocusMap) };
     private static void Failure(Wire.ControlReply reply, Common.FailureCode code)
-    { Check(reply.OutcomeCase == Wire.ControlReply.OutcomeOneofCase.Failure && reply.Failure.Code == code, "expected " + code + ": " + reply); }
+    { Check(reply.Failure != null && reply.Failure.Code == code, "expected " + code + ": " + reply); }
     private static void Reset()
     {
         Current.Game = new Game(); Find.CurrentMap = new Map { uniqueID = 0 }; Find.TickManager = new TickManager();
@@ -91,15 +97,17 @@ internal static class NativeAuthorityControlProbe
     private static void InvalidFields()
     {
         Reset(); var generation = state.Status().Generation;
-        foreach (Action<Wire.SetMode> mutate in new Action<Wire.SetMode>[] {
-            s => s.ClearExpectedGeneration(), s => s.ExpectedGeneration = 0,
-            s => s.ClearMode(), s => s.Mode = Wire.Mode.Unspecified, s => s.Mode = (Wire.Mode)999,
-            s => s.Identity = null, s => s.Identity.ClearMapId() })
+        foreach (Func<Wire.SetMode, Wire.SetMode> mutate in new Func<Wire.SetMode, Wire.SetMode>[] {
+            s => s with { ExpectedGeneration = null }, s => s with { ExpectedGeneration = 0 },
+            s => s with { Mode = null }, s => s with { Mode = Wire.Mode.Unspecified },
+            s => s with { Identity = null }, s => s with { Identity = s.Identity with { MapId = null } } })
         {
-            var request = SetMode(Wire.Mode.Auto); mutate(request.SetMode); Failure(Call(request), Common.FailureCode.InvalidRequest);
+            var request = WithSetMode(SetMode(Wire.Mode.Auto), mutate); Failure(Call(request), Common.FailureCode.InvalidRequest);
             Check(state.Status().Generation == generation && !state.Status().Active, "invalid set_mode mutated state");
         }
-        var stale = SetMode(Wire.Mode.Auto); stale.SetMode.Identity.LoadToken = "old";
+        Failure(CallJson(UndefinedEnum(SetMode(Wire.Mode.Auto), "mode"), 0), Common.FailureCode.InvalidRequest);
+        Check(state.Status().Generation == generation && !state.Status().Active, "undefined set_mode mode mutated state");
+        var stale = WithSetMode(SetMode(Wire.Mode.Auto), s => s with { Identity = s.Identity with { LoadToken = "old" } });
         Failure(Call(stale), Common.FailureCode.StaleIdentity);
         Failure(Call(SetMode(Wire.Mode.Auto, generation + 1)), Common.FailureCode.StaleGeneration);
         Check(state.Status().Generation == generation && !state.Status().Active, "refused set_mode mutated state");
@@ -109,11 +117,10 @@ internal static class NativeAuthorityControlProbe
         Current.Game = new Game(); Find.CurrentMap = new Map(); Find.TickManager = new TickManager();
         NativeAuthorityHooks.Ready = true;
         var initializations = NativeAuthorityHooks.Initializations;
-        var request = SetMode(Wire.Mode.Auto, 1);
-        request.SetMode.Identity.LoadToken = "stale";
+        var request = WithSetMode(SetMode(Wire.Mode.Auto, 1), s => s with { Identity = s.Identity with { LoadToken = "stale" } });
         Failure(Call(request), Common.FailureCode.StaleIdentity);
         Check(NativeAuthorityHooks.Initializations == initializations && !NativeControlAuthority.TryGetForGame(Current.Game, out _), "stale set_mode initialized hooks");
-        request.SetMode.Identity = Identity.Clone();
+        request = SetMode(Wire.Mode.Auto, 1);
         // Manual before any Auto must not initialize hooks or allocate state: it has nothing to revoke.
         Failure(Call(SetMode(Wire.Mode.Manual, 1)), Common.FailureCode.Unavailable);
         Failure(Call(Revoke(Wire.RevocationReason.Manual, 1)), Common.FailureCode.Unavailable);
@@ -130,7 +137,7 @@ internal static class NativeAuthorityControlProbe
         Reset(); var before = state.Status().Generation; var granted = Call(SetMode(Wire.Mode.Auto));
         Check(granted.Granted != null && granted.Granted.Context.NativeGeneration == before + 1, "Auto exact increment");
         var grant = granted.Granted!;
-        Check(grant.Authority.HasMode && grant.Authority.Mode == Wire.Mode.Auto, "grant reports Auto mode");
+        Check(grant.Authority.Mode == Wire.Mode.Auto, "grant reports Auto mode");
         Check(state.Status().Active && state.Status().Generation == before + 1, "grant did not activate state");
         // Repeating Auto is not a conflict: the single bot re-advances its own generation.
         var again = Call(SetMode(Wire.Mode.Auto));
@@ -157,12 +164,13 @@ internal static class NativeAuthorityControlProbe
         // Wire reasons the host may not assert itself: player detection, identity, hooks, exhaustion, terminal unavailability.
         foreach (var reason in new[] { Wire.RevocationReason.Unspecified, Wire.RevocationReason.None, Wire.RevocationReason.PlayerControl,
             Wire.RevocationReason.ExternalOrder, Wire.RevocationReason.IdentityChanged, Wire.RevocationReason.HooksUnavailable,
-            Wire.RevocationReason.GenerationExhausted, Wire.RevocationReason.Unavailable, (Wire.RevocationReason)999 })
+            Wire.RevocationReason.GenerationExhausted, Wire.RevocationReason.Unavailable })
             Failure(Call(Revoke(reason)), Common.FailureCode.InvalidRequest);
-        foreach (Action<Wire.Revoke> mutate in new Action<Wire.Revoke>[] {
-            r => r.ClearExpectedGeneration(), r => r.ExpectedGeneration = 0, r => r.ClearReason(), r => r.Identity = null })
+        Failure(CallJson(UndefinedEnum(Revoke(Wire.RevocationReason.Manual), "reason"), 0), Common.FailureCode.InvalidRequest);
+        foreach (Func<Wire.Revoke, Wire.Revoke> mutate in new Func<Wire.Revoke, Wire.Revoke>[] {
+            r => r with { ExpectedGeneration = null }, r => r with { ExpectedGeneration = 0 }, r => r with { Reason = null }, r => r with { Identity = null } })
         {
-            var invalid = Revoke(Wire.RevocationReason.Manual); mutate(invalid.Revoke);
+            var invalid = WithRevoke(Revoke(Wire.RevocationReason.Manual), mutate);
             Failure(Call(invalid), Common.FailureCode.InvalidRequest);
         }
         Failure(Call(Revoke(Wire.RevocationReason.Manual, state.Status().Generation + 1)), Common.FailureCode.StaleGeneration);
@@ -194,19 +202,19 @@ internal static class NativeAuthorityControlProbe
         {
             var generation = state.Status().Generation;
             var keyframes = SnapshotStream.KeyframeRequests;
-            var target = Identity.Clone(); target.MapId = 77;
-            Wire.ControlRequest Request() => new() { FocusMap = new Wire.FocusMap
-            { Identity = Identity.Clone(), Target = target.Clone(), ExpectedGeneration = generation } };
+            var target = Identity with { MapId = 77 };
+            Wire.ControlRequest Request() => new() { Operation = new Wire.FocusMap
+            { Identity = Identity, Target = target, ExpectedGeneration = generation } };
             foreach (var field in new[] { "source", "generation", "unloaded", "targetLoad" })
             {
-                var request = Request();
-                switch (field)
+                var request = field switch
                 {
-                    case "source": request.FocusMap.Identity.MapId = 77; break;
-                    case "generation": request.FocusMap.ExpectedGeneration++; break;
-                    case "unloaded": request.FocusMap.Target.MapId = 99; break;
-                    case "targetLoad": request.FocusMap.Target.LoadToken = "other"; break;
-                }
+                    "source" => WithFocus(Request(), f => f with { Identity = f.Identity with { MapId = 77 } }),
+                    "generation" => WithFocus(Request(), f => f with { ExpectedGeneration = f.ExpectedGeneration + 1 }),
+                    "unloaded" => WithFocus(Request(), f => f with { Target = f.Target with { MapId = 99 } }),
+                    "targetLoad" => WithFocus(Request(), f => f with { Target = f.Target with { LoadToken = "other" } }),
+                    _ => Request()
+                };
                 Failure(Call(request), field == "generation" ? Common.FailureCode.StaleGeneration
                     : field == "targetLoad" ? Common.FailureCode.InvalidRequest : Common.FailureCode.StaleIdentity);
                 Check(ReferenceEquals(Find.CurrentMap, source) && state.Status().Generation == generation
@@ -222,8 +230,7 @@ internal static class NativeAuthorityControlProbe
             Check(SnapshotStream.KeyframeRequests == keyframes + 1, "focus did not request one keyframe");
             Check(!state.Status().Active && state.Status().Reason == NativeControlRevocationReason.IdentityChanged,
                 "focus granted authority");
-            var inactive = Request(); inactive.FocusMap.Identity = target.Clone();
-            inactive.FocusMap.Target = Identity.Clone(); inactive.FocusMap.ExpectedGeneration = state.Status().Generation;
+            var inactive = WithFocus(Request(), f => f with { Identity = target, Target = Identity, ExpectedGeneration = state.Status().Generation });
             Failure(Call(inactive), Common.FailureCode.AuthorityRequired);
             Check(ReferenceEquals(Find.CurrentMap, destination) && SnapshotStream.KeyframeRequests == keyframes + 1,
                 "inactive focus changed view");

@@ -6,10 +6,10 @@ using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -26,15 +26,15 @@ namespace HomeBridge.BridgeTools
         // Prisoners reports a for_prisoners write: only true, and
         // through ForOwnerType, never ForPrisoners, whose false arm is a
         // Log.Error (see BuildingConfigTool.cs). It drops every owner.
-        internal static bool Prisoners(Operations.BuildingPatchIntent intent) => intent.ChangeCase == Operations.BuildingPatchIntent.ChangeOneofCase.ForPrisoners;
+        internal static bool Prisoners(Operations.BuildingPatchIntent intent) => intent.Change is Operations.BuildingPatchIntentChange.ForPrisonersCase;
 
         // Slaves reports a for_slaves write: ForOwnerType = Slave,
         // which the game's setter accepts only under Ideology. It drops
         // every owner.
-        internal static bool Slaves(Operations.BuildingPatchIntent intent) => intent.ChangeCase == Operations.BuildingPatchIntent.ChangeOneofCase.ForSlaves;
+        internal static bool Slaves(Operations.BuildingPatchIntent intent) => intent.Change is Operations.BuildingPatchIntentChange.ForSlavesCase;
 
         private static bool Matches(Building_Bed bed, Operations.BuildingPatchIntent intent) =>
-            Prisoners(intent) ? bed.ForPrisoners : Slaves(intent) ? bed.ForSlaves : bed.Medical == intent.Medical;
+            Prisoners(intent) ? bed.ForPrisoners : Slaves(intent) ? bed.ForSlaves : bed.Medical == intent.Change?.Medical;
 
         internal static bool Eligible(Thing thing) => thing is Building_Bed bed && !bed.Destroyed && bed.Spawned
             && ProtoBoundary.IsLoaded(bed.Map) && bed.def?.building != null;
@@ -45,7 +45,7 @@ namespace HomeBridge.BridgeTools
             {
                 using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
                 {
-                    writer.Write(identity.ColonyId); writer.Write(identity.LoadToken); writer.Write(identity.MapId);
+                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId.GetValueOrDefault());
                     writer.Write(bed.GetUniqueLoadID()); writer.Write(bed.Medical); writer.Write(bed.ForPrisoners); writer.Write(bed.ForSlaves);
                     foreach (var owner in bed.OwnersForReading.Select(p => p.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal))
                         writer.Write(owner);
@@ -58,8 +58,8 @@ namespace HomeBridge.BridgeTools
         internal static Obs.SnapshotRef? Snapshot(Thing thing, Common.ObservationContext context)
         {
             if (!Eligible(thing)) return null;
-            return new Obs.SnapshotRef { Context = context.Clone(), EntityId = thing.GetUniqueLoadID(),
-                Token = Token(context.Identity, (Building_Bed)thing) };
+            return new Obs.SnapshotRef { Context = context, EntityId = thing.GetUniqueLoadID(),
+                Token = Token(context.Identity!, (Building_Bed)thing) };
         }
 
         // Settings carries the bed's writable medical state beside its CAS
@@ -68,7 +68,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.BuildingSettings Settings(Building_Bed bed, Common.ObservationContext context)
         {
             var settings = new Obs.BuildingSettings { Snapshot = Snapshot(bed, context), Medical = bed.Medical, ForPrisoners = bed.ForPrisoners };
-            foreach (var owner in bed.OwnersForReading) settings.AssignedPawns.Add(NativeRef.Of(owner)!);
+            foreach (var owner in bed.OwnersForReading) settings = settings with { AssignedPawns = [.. settings.AssignedPawns, NativeRef.Of(owner)!] };
             return settings;
         }
 
@@ -85,16 +85,16 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bed cannot hold a prisoner: a crib, or its room cannot be a prison cell.");
             if (Slaves(intent) && (!ModsConfig.IdeologyActive || bed.ForHumanBabies || bed.Medical))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bed cannot be for slaves: Ideology inactive, a crib, or a medical bed.");
-            if (!Prisoners(intent) && !Slaves(intent) && intent.Medical && !bed.def.building.bed_canBeMedical)
+            if (!Prisoners(intent) && !Slaves(intent) && intent.Change?.Medical == true && !bed.def.building.bed_canBeMedical)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bed definition cannot be medical; the game's setter would ignore the write.");
             return null;
         }
 
         private static Receipts.EffectEvidence Evidence(Operations.BuildingPatchIntent intent, string after) =>
-            new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+            new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = intent.ThingId, AfterToken = after },
-                Fields = { new Receipts.FieldResult { Field = Prisoners(intent) ? Receipts.SettingsField.PrisonerBed : Slaves(intent) ? Receipts.SettingsField.SlaveBed : Receipts.SettingsField.MedicalBed,
-                    Outcome = Receipts.FieldOutcome.Applied } } } };
+                Fields = [new Receipts.FieldResult { Field = Prisoners(intent) ? Receipts.SettingsField.PrisonerBed : Slaves(intent) ? Receipts.SettingsField.SlaveBed : Receipts.SettingsField.MedicalBed,
+                    Outcome = Receipts.FieldOutcome.Applied }] } };
 
         internal static Common.Failure? Validate(Operations.BuildingPatchIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _);
 
@@ -104,9 +104,9 @@ namespace HomeBridge.BridgeTools
             if (failure != null) throw new InvalidOperationException(failure.Detail);
             if (Prisoners(intent)) { if (!bed!.ForPrisoners) bed.ForOwnerType = BedOwnerType.Prisoner; }
             else if (Slaves(intent)) { if (!bed!.ForSlaves) bed.ForOwnerType = BedOwnerType.Slave; }
-            else bed!.Medical = intent.Medical;
+            else bed!.Medical = intent.Change?.Medical ?? false;
             if (!Matches(bed, intent)) throw new InvalidOperationException("Native bed use requires readback.");
-            return Evidence(intent, Snapshot(bed, context)!.Token);
+            return Evidence(intent, (Snapshot(bed, context)!.Token ?? ""));
         }
     }
 }

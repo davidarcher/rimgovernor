@@ -10,10 +10,10 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using Verse.AI.Group;
-using Clock = RimGovernor.Protocol.Clock;
-using Common = RimGovernor.Protocol.Common;
-using Mirror = RimGovernor.Protocol.Mirror;
-using Observations = RimGovernor.Protocol.Observations;
+using Clock = RimGovernor.Contracts.Wire.Clock;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Mirror = RimGovernor.Contracts.Wire.Mirror;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -159,8 +159,9 @@ namespace HomeBridge.BridgeTools
                 Record(Mirror.CombatLogKind.HostileArrived, Clock.CombatEvent.Unspecified, pawns[0], null, __instance.def?.defName ?? __instance.GetType().Name,
                     pawns.Count + " pawns in pods", cells.Count > 0 ? cells[0] : (IntVec3?)null, "pods", row =>
                     {
-                        row.OpenTick = open;
-                        row.LandingCells.AddRange(cells.Select(c => new Common.Cell { X = c.x, Z = c.z }));
+                        row = row with { OpenTick = open };
+                        row = row with { LandingCells = [.. row.LandingCells, .. cells.Select(c => new Common.Cell { X = c.x, Z = c.z })] };
+                        return row;
                     });
             }
             catch { } // Harmony hook inside vanilla code, outside any tool call: a throw would reach the game (not probed in #1887)
@@ -168,7 +169,7 @@ namespace HomeBridge.BridgeTools
 
         /// Record appends an event row on thing's map while combat is active,
         /// stamping the pawns among thing and other with its mark.
-        internal static void Record(Mirror.CombatLogKind kind, Clock.CombatEvent stop, Thing? thing, Thing? other, string? defName, string? detail, IntVec3? cell = null, string? strategy = null, Action<Mirror.CombatEventRow>? fill = null)
+        internal static void Record(Mirror.CombatLogKind kind, Clock.CombatEvent stop, Thing? thing, Thing? other, string? defName, string? detail, IntVec3? cell = null, string? strategy = null, Func<Mirror.CombatEventRow, Mirror.CombatEventRow>? fill = null)
         {
             if (!Active) return;
             try
@@ -177,15 +178,15 @@ namespace HomeBridge.BridgeTools
                 if (map == null) return;
                 var mark = Next();
                 var row = new Mirror.CombatEventRow { At = new Mirror.Watermark { Tick = mark.Tick, Seq = mark.Seq }, Kind = kind };
-                if (stop != Clock.CombatEvent.Unspecified) row.Stop = stop;
-                if (thing != null) row.ThingId = LoadId(thing);
-                if (other != null) row.TargetId = LoadId(other);
-                if (!string.IsNullOrEmpty(defName)) row.DefName = defName;
-                if (!string.IsNullOrEmpty(detail)) row.Detail = detail!.Length > MaxDetailChars ? detail.Substring(0, MaxDetailChars - TruncatedMarker.Length) + TruncatedMarker : detail;
-                if (!string.IsNullOrEmpty(strategy)) row.RaidStrategy = strategy;
-                fill?.Invoke(row);
+                if (stop != Clock.CombatEvent.Unspecified) row = row with { Stop = stop };
+                if (thing != null) row = row with { ThingId = LoadId(thing) };
+                if (other != null) row = row with { TargetId = LoadId(other) };
+                if (!string.IsNullOrEmpty(defName)) row = row with { DefName = defName };
+                if (!string.IsNullOrEmpty(detail)) row = row with { Detail = detail!.Length > MaxDetailChars ? detail.Substring(0, MaxDetailChars - TruncatedMarker.Length) + TruncatedMarker : detail };
+                if (!string.IsNullOrEmpty(strategy)) row = row with { RaidStrategy = strategy };
+                if (fill != null) row = fill(row);
                 var at = cell ?? thing?.PositionHeld ?? other?.PositionHeld;
-                if (at.HasValue && at.Value.IsValid) row.Cell = new Common.Cell { X = at.Value.x, Z = at.Value.z };
+                if (at.HasValue && at.Value.IsValid) row = row with { Cell = new Common.Cell { X = at.Value.x, Z = at.Value.z } };
                 Ring.Add(new Entry { Mark = mark, Game = Verse.Current.Game, MapId = map.uniqueID, Row = row });
                 if (Ring.Count > RingSize) Ring.RemoveAt(0);
                 Stamp(thing, mark, kind == Mirror.CombatLogKind.Downed || kind == Mirror.CombatLogKind.Killed ? 2 : stop != Clock.CombatEvent.Unspecified ? 1 : 0);
@@ -201,7 +202,7 @@ namespace HomeBridge.BridgeTools
         /// map, oldest first. A pawn row's changed mark is the event that
         /// last concerned it (a downing outranks the damage around it), else
         /// the capture that first saw its current row.
-        internal static void Capture(Map map, Observations.BundleSnapshot frame)
+        internal static Observations.BundleSnapshot Capture(Map map, Observations.BundleSnapshot frame)
         {
             // A load or lab restart sets the game's tick back: events stamped
             // past it belong to the earlier timeline.
@@ -228,31 +229,32 @@ namespace HomeBridge.BridgeTools
                 if (raiders.Any(c => c.InHorDistOf(w.Position, WildRange))) pawns.Add((w, Mirror.CombatSide.WildAnimal));
             // Raiders still in their drop pods are not spawned: a pods
             // arrival keeps combat active until its open tick.
-            _active = hostile || Ring.Any(e => e.MapId == map.uniqueID && e.Row.OpenTick > now);
+            _active = hostile || Ring.Any(e => e.MapId == map.uniqueID && e.Row.OpenTick.GetValueOrDefault() > now);
             _dirty = false;
             if (!Active)
             {
                 Stamped.Clear();
                 Compared.Reset();
                 ChangedAt.Clear();
-                return;
+                return frame;
             }
             Mark? capture = null;
             var rows = pawns.Select(e => (e.pawn, row: Project(e.pawn, e.side))).ToList();
-            var step = Compared.Step(rows.Select(e => new KeyValuePair<string, Mirror.CombatPawn>(e.row.Id, e.row)));
-            foreach (var (pawn, row) in rows)
+            var step = Compared.Step(rows.Select(e => new KeyValuePair<string, Mirror.CombatPawn>((e.row.Id ?? ""), e.row)));
+            foreach (var (pawn, projected) in rows)
             {
                 Mark changed;
                 if (Stamped.TryGetValue(pawn.thingIDNumber, out var stamp)) changed = stamp.Mark;
-                else if (!step.Changed.Contains(row.Id) && ChangedAt.TryGetValue(row.Id, out var held)) changed = held;
+                else if (!step.Changed.Contains((projected.Id ?? "")) && ChangedAt.TryGetValue((projected.Id ?? ""), out var held)) changed = held;
                 else changed = capture ??= Next();
-                ChangedAt[row.Id] = changed;
-                row.Changed = changed.Wire();
-                frame.CombatPawns.Add(row);
+                ChangedAt[(projected.Id ?? "")] = changed;
+                var row = projected with { Changed = changed.Wire() };
+                frame = frame with { CombatPawns = [.. frame.CombatPawns, row] };
             }
             foreach (var id in step.Removed) ChangedAt.Remove(id);
             Stamped.Clear();
-            frame.CombatEvents.AddRange(Ring.Where(e => e.MapId == map.uniqueID).Select(e => e.Row.Clone()));
+            frame = frame with { CombatEvents = [.. frame.CombatEvents, .. Ring.Where(e => e.MapId == map.uniqueID).Select(e => e.Row)] };
+            return frame;
         }
 
         private const float WildRange = 15f;
@@ -269,53 +271,53 @@ namespace HomeBridge.BridgeTools
         internal static Mirror.CombatPawn Project(Pawn pawn, Mirror.CombatSide side)
         {
             var row = new Mirror.CombatPawn { Id = LoadId(pawn), Side = side, Cell = new Common.Cell { X = pawn.Position.x, Z = pawn.Position.z }, Downed = pawn.Downed, Dead = pawn.Dead };
-            try { if (pawn.Faction != null) row.Faction = NativeRef.Of(pawn.Faction); } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
-            try { var lord = pawn.GetLord(); if (lord != null) row.LordId = lord.GetUniqueLoadID(); } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
-            if (pawn.MentalStateDef != null) row.MentalState = pawn.MentalStateDef.defName;
+            try { if (pawn.Faction != null) row = row with { Faction = NativeRef.Of(pawn.Faction) }; } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
+            try { var lord = pawn.GetLord(); if (lord != null) row = row with { LordId = lord.GetUniqueLoadID() }; } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
+            if (pawn.MentalStateDef != null) row = row with { MentalState = pawn.MentalStateDef.defName };
             if (pawn.drafter != null)
             {
-                row.Drafted = pawn.drafter.Drafted;
-                if (pawn.drafter.Drafted) row.FireMode = pawn.drafter.FireAtWill ? RimGovernor.Protocol.Operations.CombatFireMode.AtWill : RimGovernor.Protocol.Operations.CombatFireMode.Hold;
+                row = row with { Drafted = pawn.drafter.Drafted };
+                if (pawn.drafter.Drafted) row = row with { FireMode = pawn.drafter.FireAtWill ? RimGovernor.Contracts.Wire.Operations.CombatFireMode.AtWill : RimGovernor.Contracts.Wire.Operations.CombatFireMode.Hold };
             }
             var job = pawn.CurJob;
             if (job != null)
             {
-                row.Job = job.def.defName;
+                row = row with { Job = job.def.defName };
                 var target = job.targetA.Thing;
                 if (target != null)
                 {
-                    row.TargetId = LoadId(target);
+                    row = row with { TargetId = LoadId(target) };
                     // A frame builds its entity def.
                     var built = target is Frame frame ? frame.def.entityDefToBuild as ThingDef : target.def;
-                    if (built?.building?.IsMortar == true) row.TargetMortar = true;
+                    if (built?.building?.IsMortar == true) row = row with { TargetMortar = true };
                 }
             }
             var stance = pawn.stances?.curStance;
-            if (stance is Stance_Warmup warmup) { row.Stance = Mirror.CombatStance.Warmup; row.StanceTicksLeft = warmup.ticksLeft; }
-            else if (stance is Stance_Cooldown cooldown) { row.Stance = Mirror.CombatStance.Cooldown; row.StanceTicksLeft = cooldown.ticksLeft; }
-            else if (job != null && job.def == JobDefOf.AttackMelee) row.Stance = Mirror.CombatStance.Melee;
-            else if (pawn.pather != null && pawn.pather.Moving) row.Stance = Mirror.CombatStance.Moving;
-            else row.Stance = Mirror.CombatStance.Idle;
+            if (stance is Stance_Warmup warmup) { row = row with { Stance = Mirror.CombatStance.Warmup }; row = row with { StanceTicksLeft = warmup.ticksLeft }; }
+            else if (stance is Stance_Cooldown cooldown) { row = row with { Stance = Mirror.CombatStance.Cooldown }; row = row with { StanceTicksLeft = cooldown.ticksLeft }; }
+            else if (job != null && job.def == JobDefOf.AttackMelee) row = row with { Stance = Mirror.CombatStance.Melee };
+            else if (pawn.pather != null && pawn.pather.Moving) row = row with { Stance = Mirror.CombatStance.Moving };
+            else row = row with { Stance = Mirror.CombatStance.Idle };
             try
             {
-                row.Health = Step(pawn.health.summaryHealth.SummaryHealthPercent, 0.01);
-                row.BleedRate = Step(pawn.health.hediffSet.BleedRateTotal, 0.05);
-                row.Pain = Step(pawn.health.hediffSet.PainTotal, 0.05);
-                row.MoveSpeed = Step(pawn.GetStatValue(StatDefOf.MoveSpeed), 0.1);
-                row.MeleePower = Step(pawn.GetStatValue(StatDefOf.MeleeDPS), 0.1);
+                row = row with { Health = Step(pawn.health.summaryHealth.SummaryHealthPercent, 0.01) };
+                row = row with { BleedRate = Step(pawn.health.hediffSet.BleedRateTotal, 0.05) };
+                row = row with { Pain = Step(pawn.health.hediffSet.PainTotal, 0.05) };
+                row = row with { MoveSpeed = Step(pawn.GetStatValue(StatDefOf.MoveSpeed), 0.1) };
+                row = row with { MeleePower = Step(pawn.GetStatValue(StatDefOf.MeleeDPS), 0.1) };
             }
             catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
             // Enemy drugs.
-            row.GoJuiceHigh = HasHediff(pawn, "GoJuiceHigh");
-            row.LuciferiumAddicted = HasHediff(pawn, "LuciferiumAddiction");
+            row = row with { GoJuiceHigh = HasHediff(pawn, "GoJuiceHigh") };
+            row = row with { LuciferiumAddicted = HasHediff(pawn, "LuciferiumAddiction") };
             if (side == Mirror.CombatSide.Colonist)
             {
                 var drugs = new Mirror.CarriedDrugs();
                 if (pawn.inventory != null)
-                    drugs.Defs.Add(pawn.inventory.innerContainer
+                    drugs = drugs with { Defs = [.. drugs.Defs, .. pawn.inventory.innerContainer
                         .Where(t => t.stackCount > 0 && t.def.GetCompProperties<CompProperties_Drug>() != null)
-                        .Select(t => t.def.defName).Distinct().OrderBy(name => name, StringComparer.Ordinal));
-                row.CarriedDrugs = drugs;
+                        .Select(t => t.def.defName).Distinct().OrderBy(name => name, StringComparer.Ordinal)] };
+                row = row with { CarriedDrugs = drugs };
             }
             var shield = pawn.apparel?.WornApparel.Select(a => a.GetComp<CompShield>()).FirstOrDefault(c => c != null);
             if (shield != null)
@@ -323,26 +325,26 @@ namespace HomeBridge.BridgeTools
                 try
                 {
                     var max = shield.parent.GetStatValue(StatDefOf.EnergyShieldEnergyMax);
-                    row.ShieldEnergy = max > 0 ? Step(Math.Max(0, Math.Min(1, shield.Energy / max)), 0.05) : 0;
-                    row.ShieldBroken = shield.ShieldState == ShieldState.Resetting;
+                    row = row with { ShieldEnergy = max > 0 ? Step(Math.Max(0, Math.Min(1, shield.Energy / max)), 0.05) : 0 };
+                    row = row with { ShieldBroken = shield.ShieldState == ShieldState.Resetting };
                 }
                 catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
             }
             if (side == Mirror.CombatSide.Colonist)
             {
-                try { row.Armor = Step(NativeGearFacts.PawnArmor(pawn), 0.05); }
+                try { row = row with { Armor = Step(NativeGearFacts.PawnArmor(pawn), 0.05) }; }
                 catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
             }
-            try { var stun = pawn.stances?.stunner; if (stun != null && stun.Stunned) row.StunTicksLeft = (stun.StunTicksLeft + 29) / 30 * 30; } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
-            row.ShieldBelt = shield != null;
-            try { var medicine = pawn.skills?.GetSkill(SkillDefOf.Medicine); if (medicine != null) row.MedicalSkill = medicine.Level; } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
+            try { var stun = pawn.stances?.stunner; if (stun != null && stun.Stunned) row = row with { StunTicksLeft = (stun.StunTicksLeft + 29) / 30 * 30 }; } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
+            row = row with { ShieldBelt = shield != null };
+            try { var medicine = pawn.skills?.GetSkill(SkillDefOf.Medicine); if (medicine != null) row = row with { MedicalSkill = medicine.Level }; } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
             var weapon = pawn.equipment?.Primary;
             var verb = pawn.equipment?.PrimaryEq?.PrimaryVerb;
             if (weapon != null && verb != null)
             {
-                row.Weapon = weapon.def.defName;
-                row.WeaponWarmupTicks = verb.verbProps.warmupTime.SecondsToTicks();
-                try { row.WeaponCooldownTicks = weapon.GetStatValue(verb.IsMeleeAttack ? StatDefOf.MeleeWeapon_CooldownMultiplier : StatDefOf.RangedWeapon_Cooldown).SecondsToTicks(); }
+                row = row with { Weapon = weapon.def.defName };
+                row = row with { WeaponWarmupTicks = verb.verbProps.warmupTime.SecondsToTicks() };
+                try { row = row with { WeaponCooldownTicks = weapon.GetStatValue(verb.IsMeleeAttack ? StatDefOf.MeleeWeapon_CooldownMultiplier : StatDefOf.RangedWeapon_Cooldown).SecondsToTicks() }; }
                 catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
             }
             return row;

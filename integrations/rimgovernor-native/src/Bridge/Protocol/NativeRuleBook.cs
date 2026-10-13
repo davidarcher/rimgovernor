@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Operations = RimGovernor.Protocol.Operations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -32,15 +32,15 @@ namespace HomeBridge.BridgeTools
         // The one reason v1 refuses the rule, or Unspecified when it is accepted.
         internal static Operations.RuleRefusalReason Validate(Operations.Rule? rule)
         {
-            if (rule == null || !rule.HasId || !ProtoBoundary.IsIdentifier(rule.Id)) return Operations.RuleRefusalReason.InvalidId;
-            if (!rule.HasTrigger || rule.Trigger != Operations.RuleTrigger.PreyKilled) return Operations.RuleRefusalReason.UnsupportedTrigger;
+            if (rule == null || rule.Id is null || !ProtoBoundary.IsIdentifier(rule.Id)) return Operations.RuleRefusalReason.InvalidId;
+            if (rule.Trigger is null || rule.Trigger.GetValueOrDefault() != Operations.RuleTrigger.PreyKilled) return Operations.RuleRefusalReason.UnsupportedTrigger;
             if (rule.Predicates.Any(p => p != Operations.RulePredicate.ActorUndrafted && p != Operations.RulePredicate.ActorHuntingWorkActive
                 && p != Operations.RulePredicate.TargetAvailable) || rule.Predicates.Distinct().Count() != rule.Predicates.Count)
                 return Operations.RuleRefusalReason.UnsupportedPredicate;
-            if (!rule.HasAction || rule.Action != Operations.RuleAction.GiveJob) return Operations.RuleRefusalReason.UnsupportedAction;
-            if (!rule.HasJob || rule.Job != HuntJob) return Operations.RuleRefusalReason.UnsupportedJob;
-            if (!rule.HasTarget || rule.Target != Operations.RuleTargetSelector.NearestDesignatedPrey) return Operations.RuleRefusalReason.UnsupportedTarget;
-            if (!rule.HasPredatorMarginCells || float.IsNaN(rule.PredatorMarginCells) || float.IsInfinity(rule.PredatorMarginCells) || rule.PredatorMarginCells <= 0)
+            if (rule.Action is null || rule.Action.GetValueOrDefault() != Operations.RuleAction.GiveJob) return Operations.RuleRefusalReason.UnsupportedAction;
+            if (rule.Job is null || (rule.Job ?? "") != HuntJob) return Operations.RuleRefusalReason.UnsupportedJob;
+            if (rule.Target is null || rule.Target.GetValueOrDefault() != Operations.RuleTargetSelector.NearestDesignatedPrey) return Operations.RuleRefusalReason.UnsupportedTarget;
+            if (rule.PredatorMarginCells is null || float.IsNaN(rule.PredatorMarginCells.GetValueOrDefault()) || float.IsInfinity(rule.PredatorMarginCells.GetValueOrDefault()) || rule.PredatorMarginCells.GetValueOrDefault() <= 0)
                 return Operations.RuleRefusalReason.InvalidPredatorMargin;
             return Operations.RuleRefusalReason.Unspecified;
         }
@@ -55,16 +55,16 @@ namespace HomeBridge.BridgeTools
             foreach (var rule in rules)
             {
                 var reason = Validate(rule);
-                if (reason == Operations.RuleRefusalReason.Unspecified && !seen.Add(rule.Id)) reason = Operations.RuleRefusalReason.DuplicateId;
+                if (reason == Operations.RuleRefusalReason.Unspecified && !seen.Add((rule.Id ?? ""))) reason = Operations.RuleRefusalReason.DuplicateId;
                 if (reason != Operations.RuleRefusalReason.Unspecified)
                 {
                     var refusal = new Operations.RuleRefusal { Reason = reason };
-                    if (rule != null && rule.HasId) refusal.RuleId = rule.Id;
-                    result.Refused.Add(refusal);
+                    if (rule != null && rule.Id is not null) refusal = refusal with { RuleId = rule.Id };
+                    result = result with { Refused = [.. result.Refused, refusal] };
                     continue;
                 }
-                accepted.Add(new Entry { Rule = rule.Clone() });
-                result.AcceptedIds.Add(rule.Id);
+                accepted.Add(new Entry { Rule = rule });
+                result = result with { AcceptedIds = [.. result.AcceptedIds, (rule.Id ?? "")] };
             }
             active.Clear();
             active.AddRange(accepted);
@@ -108,13 +108,13 @@ namespace HomeBridge.BridgeTools
             foreach (var entry in active)
             {
                 var row = new Operations.RuleStatus { RuleId = entry.Rule.Id, FiringCount = entry.Fired };
-                if (entry.Fired > 0) { row.LastFiredTick = entry.LastTick; row.LastActorId = entry.LastActor; row.LastTargetId = entry.LastTarget; }
-                status.Rules.Add(row);
+                if (entry.Fired > 0) { row = row with { LastFiredTick = entry.LastTick }; row = row with { LastActorId = entry.LastActor }; row = row with { LastTargetId = entry.LastTarget }; }
+                status = status with { Rules = [.. status.Rules, row] };
             }
             if (active.Count > 0 || leaseExpired)
             {
-                status.ExpiresAtTick = expiresAtTick;
-                status.LeaseRemainingTicks = active.Count == 0 ? 0 : Math.Max(0, expiresAtTick - now);
+                status = status with { ExpiresAtTick = expiresAtTick };
+                status = status with { LeaseRemainingTicks = active.Count == 0 ? 0 : Math.Max(0, expiresAtTick - now) };
             }
             return status;
         }

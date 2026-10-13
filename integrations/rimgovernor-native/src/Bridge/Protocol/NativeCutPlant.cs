@@ -4,9 +4,9 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -30,7 +30,7 @@ namespace HomeBridge.BridgeTools
         {
             Plant? found = null;
             var rules = new ApplyPreconditions(Kind)
-                .Require(() => intent.HasThingId && ProtoBoundary.IsIdentifier(intent.ThingId), "CutPlant requires an exact plant")
+                .Require(() => intent.ThingId is not null && ProtoBoundary.IsIdentifier(intent.ThingId), "CutPlant requires an exact plant")
                 .Present(() => (found = RefIndex.Thing<Plant>(map, intent.ThingId)) != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact plant is no longer spawned on this map")
                 .Require(() => Designated(found!) || new Designator_PlantsCut().CanDesignateThing(found!).Accepted, "the native cut designator refuses the plant");
             plant = found;
@@ -49,7 +49,7 @@ namespace HomeBridge.BridgeTools
             if (!rules.Holds) throw new InvalidOperationException("Cut plant prerequisites changed before apply: " + rules.Reason);
             if (!Designated(plant!)) new Designator_PlantsCut().DesignateThing(plant);
             if (!Designated(plant!)) throw new InvalidOperationException("Native CutPlant designation was not observed.");
-            return new Receipts.EffectEvidence { Designation = new Receipts.DesignationEffect { ThingId = plant!.GetUniqueLoadID(), DesignationDef = DesignationDef,
+            return new Receipts.EffectEvidence { Effect = new Receipts.DesignationEffect { ThingId = plant!.GetUniqueLoadID(), DesignationDef = DesignationDef,
                 Present = true, ResourceDef = plant.def.defName, Cell = new Common.Cell { X = plant.Position.x, Z = plant.Position.z } } };
         }
     }
@@ -60,17 +60,19 @@ namespace HomeBridge.BridgeTools
     {
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
         {
-            var intent = action.Designate;
+            var intent = action.Intent?.Designate;
             if (NativeDesignate.Generic(intent)) return NativeDesignate.Validate(intent!, context);
-            if (intent != null && intent.HasDesignation && intent.Designation == Operations.ThingDesignation.CutPlant) return NativeCutPlant.Validate(intent, context);
-            if (intent != null && intent.HasDesignation && intent.Designation == Operations.ThingDesignation.Strip) return NativeStrip.Validate(intent, context);
+            if (intent != null && intent.Designation == Operations.ThingDesignation.CutPlant) return NativeCutPlant.Validate(intent, context);
+            if (intent != null && intent.Designation == Operations.ThingDesignation.Strip) return NativeStrip.Validate(intent, context);
             if (NativeSupplyAllow.Wants(intent)) return NativeSupplyAllow.Validate(intent!, context);
             return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Designate supports only CutPlant, Strip, Allow and Forbid.");
         }
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) =>
-            NativeDesignate.Generic(action.Designate) ? NativeDesignate.Apply(action.Designate, context)
-            : action.Designate.Designation == Operations.ThingDesignation.CutPlant ? NativeCutPlant.Apply(action.Designate, context)
-            : action.Designate.Designation == Operations.ThingDesignation.Strip ? NativeStrip.Apply(action.Designate, context)
-            : NativeSupplyAllow.Apply(action.Designate, context);
-    }
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
+        {
+            var intent = action.Intent?.Designate ?? throw new InvalidOperationException("Designate intent is missing");
+            return NativeDesignate.Generic(intent) ? NativeDesignate.Apply(intent, context)
+                : intent.Designation == Operations.ThingDesignation.CutPlant ? NativeCutPlant.Apply(intent, context)
+                : intent.Designation == Operations.ThingDesignation.Strip ? NativeStrip.Apply(intent, context)
+                : NativeSupplyAllow.Apply(intent, context);
+        }    }
 }

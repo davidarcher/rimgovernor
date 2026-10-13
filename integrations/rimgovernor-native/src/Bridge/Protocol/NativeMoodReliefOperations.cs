@@ -4,9 +4,9 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -46,10 +46,10 @@ namespace HomeBridge.BridgeTools
 
         private static Receipts.EffectEvidence Evidence(Pawn pawn, Job job, bool issued) => new Receipts.EffectEvidence
         {
-            Job = new Receipts.JobEffect
+            Effect = new Receipts.JobEffect
             {
                 PawnId = pawn.GetUniqueLoadID(), JobId = job.loadID, JobDef = job.def?.defName ?? "",
-                TargetA = new Receipts.JobTarget { ThingId = pawn.GetUniqueLoadID() },
+                TargetA = new Receipts.JobTarget { Target = new Receipts.JobTargetTarget.ThingIdCase(pawn.GetUniqueLoadID()) },
                 CanTry = true, Issued = issued, Verified = true, Drafted = false,
             }
         };

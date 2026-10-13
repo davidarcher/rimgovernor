@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -56,11 +56,12 @@ namespace HomeBridge.BridgeTools
             grid = null;
             if (!ProtoBoundary.TryReadContext(map, out var context, out _)) return null;
             var observed = new Obs.BundleSnapshot { Context = context, Paused = Find.TickManager.Paused };
-            var read = false;
-            var referenced = NativeRef.Collect(() => read = ReadSections(map, request, context, observed));
-            if (!read) return null;
+            Obs.BundleSnapshot? sections = null;
+            var referenced = NativeRef.Collect(() => sections = ReadSections(map, request, context, observed));
+            if (sections == null) return null;
+            observed = sections;
             var thingsBegan = Now();
-            try { observed.Things = NativeObservationTools.Things(referenced, context); } catch (System.Exception ex) { ObservationWork.Failed("things", ex); }
+            try { observed = observed with { Things = NativeObservationTools.Things(referenced, context) }; } catch (System.Exception ex) { ObservationWork.Failed("things", ex); }
             ObservationWork.Captured("things", Now() - thingsBegan, observed.Things != null ? observed.Things.Things.Count : 0);
             var gridBegan = Now();
             try { grid = CellGridEncoder.Read(map); } catch (System.Exception ex) { ObservationWork.Failed("grid", ex); }
@@ -71,26 +72,26 @@ namespace HomeBridge.BridgeTools
         // On the main thread: every section of the frame but its things
         // table and grid, false when the status census fails. The things
         // the sections reference become the things table.
-        private static bool ReadSections(Map map, Obs.SnapshotStreamRequest request, Common.ObservationContext context, Obs.BundleSnapshot observed)
+        private static Obs.BundleSnapshot? ReadSections(Map map, Obs.SnapshotStreamRequest request, Common.ObservationContext context, Obs.BundleSnapshot observed)
         {
-            var status = new Obs.StatusRequest { Scope = new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() },
+            var status = new Obs.StatusRequest { Scope = new Obs.ReadScope { ExpectedIdentity = context.Identity },
                 Colonists = true, Threats = true };
             var statusBegan = Now();
             var statusRead = NativeObservationTools.TryStatus(map, status, context, out var emergency, out _);
             ObservationWork.Captured("emergency", Now() - statusBegan, 0);
-            if (!statusRead) return false;
-            observed.Emergency = emergency;
-            ReadFamilies(map, context, observed, request);
-            ReadStepFamilies(map, context, observed);
-            ReadSubscribed(map, request, context, observed);
+            if (!statusRead) return null;
+            observed = observed with { Emergency = emergency };
+            ReadFamilies(map, context, ref observed, request);
+            ReadStepFamilies(map, context, ref observed);
+            ReadSubscribed(map, request, context, ref observed);
             var combatBegan = Now();
             Supervisor.EnsureHazardHooks(); Supervisor.EnsureCombatHooks();
-            CombatMirror.Capture(map, observed);
+            observed = CombatMirror.Capture(map, observed);
             ObservationWork.Captured("combat", Now() - combatBegan, observed.CombatPawns.Count + observed.CombatEvents.Count);
             var inputsBegan = Now();
-            CombatInputs(map, context, observed, request);
+            CombatInputs(map, context, ref observed, request);
             ObservationWork.Captured("combatInputs", Now() - inputsBegan, observed.CombatDoors.Count + observed.CombatMortars.Count);
-            return true;
+            return observed;
         }
 
         // The census pawns the pawn table carries combat detail for:
@@ -102,10 +103,10 @@ namespace HomeBridge.BridgeTools
             var threats = census?.Threats;
             if (threats == null) return ids;
             foreach (var threat in threats.Pawns.Where(Engaged))
-                if (threat?.Pawn?.Id != null) ids.Add(threat.Pawn.Id);
+                if (threat?.Pawn?.Id != null) ids.Add((threat.Pawn.Id ?? ""));
             return ids;
         }
-        private static bool Engaged(Obs.ThreatPawn row) => row.HasMentalState || row.FactionHostile || row.PrisonBreak || row.PredatorHunt;
+        private static bool Engaged(Obs.ThreatPawn row) => row.MentalState is not null || row.FactionHostile.GetValueOrDefault() || row.PrisonBreak.GetValueOrDefault() || row.PredatorHunt.GetValueOrDefault();
 
         // On the main thread. The defense planner's other combat inputs
         //, the pawn detail being the pawn table's: the hive
@@ -113,7 +114,7 @@ namespace HomeBridge.BridgeTools
         // ranged colonists to hostile buildings, while the census lists a
         // threat or a colonist in a mental state. Each is omitted when it
         // fails to read.
-        private static void CombatInputs(Map map, Common.ObservationContext context, Obs.BundleSnapshot observed, Obs.SnapshotStreamRequest request)
+        private static void CombatInputs(Map map, Common.ObservationContext context, ref Obs.BundleSnapshot observed, Obs.SnapshotStreamRequest request)
         {
             var census = observed.Emergency;
             var threats = census?.Threats;
@@ -122,56 +123,59 @@ namespace HomeBridge.BridgeTools
             var colonistIds = new HashSet<string>(census.Colonists.Select(p => p.Id ?? ""), System.StringComparer.Ordinal);
             var colonists = table.Pawns.Where(p => colonistIds.Contains(p.Pawn?.Id ?? "")).ToList();
             if (!threats.Pawns.Any(Engaged) && threats.HostileBuildings.Count == 0
-                && !colonists.Any(p => p.HasMentalState)) return;
+                && !colonists.Any(p => p.MentalState is not null)) return;
             // The hottest live hive's temperature, for the heat-stroke hold.
             foreach (var hive in map.listerThings.ThingsOfDef(RimWorld.ThingDefOf.Hive))
             {
                 if (!hive.Spawned || hive.Destroyed) continue;
                 var t = hive.Position.GetTemperature(map);
-                if (!observed.HasCombatHiveTemperatureC || t > observed.CombatHiveTemperatureC) observed.CombatHiveTemperatureC = t;
+                if (observed.CombatHiveTemperatureC is null || t > observed.CombatHiveTemperatureC.GetValueOrDefault()) observed = observed with { CombatHiveTemperatureC = t };
             }
             // The damaged player doors, for a fight's door repair.
             foreach (var door in map.listerBuildings.AllBuildingsColonistOfClass<RimWorld.Building_Door>())
             {
                 if (!door.Spawned || !door.def.useHitPoints || door.HitPoints >= door.MaxHitPoints) continue;
-                observed.CombatDoors.Add(new RimGovernor.Protocol.Mirror.CombatDoorRow { Id = door.GetUniqueLoadID(),
-                    Cell = new Common.Cell { X = door.Position.x, Z = door.Position.z }, HitPoints = door.HitPoints, MaxHitPoints = door.MaxHitPoints });
+                observed = observed with { CombatDoors = [.. observed.CombatDoors, new RimGovernor.Contracts.Wire.Mirror.CombatDoorRow { Id = door.GetUniqueLoadID(),
+                    Cell = new Common.Cell { X = door.Position.x, Z = door.Position.z }, HitPoints = door.HitPoints, MaxHitPoints = door.MaxHitPoints }] };
             }
             // The unroofed player mortars, for counter-battery.
             foreach (var mortar in map.listerBuildings.AllBuildingsColonistOfClass<RimWorld.Building_TurretGun>())
             {
                 if (!mortar.Spawned || mortar.def.building?.IsMortar != true || mortar.AttackVerb == null || map.roofGrid.Roofed(mortar.Position)) continue;
-                observed.CombatMortars.Add(new RimGovernor.Protocol.Mirror.CombatMortarRow { Id = mortar.GetUniqueLoadID(),
-                    Cell = new Common.Cell { X = mortar.Position.x, Z = mortar.Position.z },
-                    MinRange = mortar.AttackVerb.verbProps.minRange, MaxRange = mortar.AttackVerb.verbProps.range });
                 // The loaded shell, for the shell the fight asks for.
                 var loaded = mortar.gun?.TryGetComp<RimWorld.CompChangeableProjectile>()?.LoadedShell;
-                if (loaded != null) observed.CombatMortars[observed.CombatMortars.Count - 1].LoadedShell = loaded.defName;
+                observed = observed with { CombatMortars = [.. observed.CombatMortars, new RimGovernor.Contracts.Wire.Mirror.CombatMortarRow { Id = mortar.GetUniqueLoadID(),
+                    Cell = new Common.Cell { X = mortar.Position.x, Z = mortar.Position.z },
+                    MinRange = mortar.AttackVerb.verbProps.minRange, MaxRange = mortar.AttackVerb.verbProps.range,
+                    LoadedShell = loaded?.defName }] };
             }
             var firing = new List<IntVec3>();
             foreach (var row in colonists)
             {
-                if (row.Pawn?.Position == null || row.Equipment == null || !row.Equipment.HasPrimaryId) continue;
+                if (row.Pawn is not { Position: { } position } pawnRef || row.Equipment is not { PrimaryId: { } primaryId }) continue;
                 // The shooter's primary weapon is the live one: the wire rows no
                 // longer carry its class or range, the catalog does.
-                var shooter = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == row.Pawn.Id);
+                var shooter = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == (pawnRef.Id ?? ""));
                 var weapon = shooter?.equipment?.Primary;
-                if (weapon == null || weapon.GetUniqueLoadID() != row.Equipment.PrimaryId || !weapon.def.IsRangedWeapon) continue;
+                if (weapon == null || weapon.GetUniqueLoadID() != primaryId || !weapon.def.IsRangedWeapon) continue;
                 var gun = weapon.def.Verbs?.FirstOrDefault(v => !v.IsMeleeAttack && v.range > 0);
                 if (gun == null || float.IsNaN(gun.range) || float.IsInfinity(gun.range)) continue;
-                var cell = new IntVec3(row.Pawn.Position.X, 0, row.Pawn.Position.Z);
+                var cell = new IntVec3(position.X.GetValueOrDefault(), 0, position.Z.GetValueOrDefault());
                 if (!firing.Contains(cell)) firing.Add(cell);
             }
             var approach = new List<IntVec3>();
             foreach (var building in threats.HostileBuildings)
-                for (var z = building.Occupied.Minimum.Z; z <= building.Occupied.Maximum.Z; z++)
-                    for (var x = building.Occupied.Minimum.X; x <= building.Occupied.Maximum.X; x++)
+            {
+                if (building.Occupied?.Minimum is not { } lo || building.Occupied.Maximum is not { } hi) continue;
+                for (var z = lo.Z.GetValueOrDefault(); z <= hi.Z.GetValueOrDefault(); z++)
+                    for (var x = lo.X.GetValueOrDefault(); x <= hi.X.GetValueOrDefault(); x++)
                     {
                         var cell = new IntVec3(x, 0, z);
                         if (!approach.Contains(cell)) approach.Add(cell);
                     }
+            }
             if (firing.Count == 0 || approach.Count == 0 || firing.Concat(approach).Any(c => !c.InBounds(map))) return;
-            try { observed.CombatLinesOfFire = NativeDefenseObservationTools.Lines(map, firing, approach, context, request.HasLinesOfFireBudgetMs ? request.LinesOfFireBudgetMs : (uint?)null); }
+            try { observed = observed with { CombatLinesOfFire = NativeDefenseObservationTools.Lines(map, firing, approach, context, request.LinesOfFireBudgetMs is not null ? request.LinesOfFireBudgetMs.GetValueOrDefault() : (uint?)null) }; }
             catch (System.Exception ex) { ObservationWork.Failed("combatLinesOfFire", ex); }
         }
 
@@ -180,36 +184,37 @@ namespace HomeBridge.BridgeTools
         private static Obs.ColonyFactsRequest ColonyRequest(Obs.ReadScope scope, Obs.SnapshotStreamRequest request)
         {
             var colony = new Obs.ColonyFactsRequest { Scope = scope, Planning = true };
-            if (request.HasHerdRadius) colony.HerdRadius = request.HerdRadius;
-            if (request.HasHuntRouteBudgetMs) colony.HuntRouteBudgetMs = request.HuntRouteBudgetMs;
-            if (request.HasHuntPredatorMarginCells) colony.HuntPredatorMarginCells = request.HuntPredatorMarginCells;
+            if (request.HerdRadius is not null) colony = colony with { HerdRadius = request.HerdRadius };
+            if (request.HuntRouteBudgetMs is not null) colony = colony with { HuntRouteBudgetMs = request.HuntRouteBudgetMs };
+            if (request.HuntPredatorMarginCells is not null) colony = colony with { HuntPredatorMarginCells = request.HuntPredatorMarginCells };
             return colony;
         }
 
         // On the main thread. Adds the census families to observed, each
         // keyed as its dedicated read. A section that throws fails the frame
         // (SnapshotSectionException); none is omitted.
-        private static void ReadFamilies(Map map, Common.ObservationContext context, Obs.BundleSnapshot observed, Obs.SnapshotStreamRequest request)
+        private static void ReadFamilies(Map map, Common.ObservationContext context, ref Obs.BundleSnapshot observed, Obs.SnapshotStreamRequest request)
         {
-            Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() };
+            Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity };
             {
                 var began = Now();
-                observed.ColonyFacts = SnapshotSectionException.Read("colonyFacts", () => NativeColonyObservationTools.Read(map, ColonyRequest(Scope(), request), context, request.HasRoutePathBudgetMs ? request.RoutePathBudgetMs : (uint?)null));
-                ObservationWork.Captured("colonyFacts", Now() - began, observed.ColonyFacts.Resources.Count);
+                observed = observed with { ColonyFacts = SnapshotSectionException.Read("colonyFacts", () => NativeColonyObservationTools.Read(map, ColonyRequest(Scope(), request), context, request.RoutePathBudgetMs is not null ? request.RoutePathBudgetMs.GetValueOrDefault() : (uint?)null)) };
+                ObservationWork.Captured("colonyFacts", Now() - began, observed.ColonyFacts?.Resources.Count ?? 0);
             }
             {
                 var began = Now();
-                observed.Population = SnapshotSectionException.Read("population", () => NativePopulationObservation.Population(map, new Obs.PopulationRequest { Scope = Scope() }, context));
-                ObservationWork.Captured("population", Now() - began, observed.Population.Persons.Count);
+                observed = observed with { Population = SnapshotSectionException.Read("population", () => NativePopulationObservation.Population(map, new Obs.PopulationRequest { Scope = Scope() }, context)) };
+                ObservationWork.Captured("population", Now() - began, observed.Population?.Persons.Count ?? 0);
             }
             {
                 var began = Now();
-                observed.Research = SnapshotSectionException.Read("research", () => NativeResearchObservationTools.Section(map, new Obs.ResearchRequest { Scope = Scope(), ProgressOnly = true }, context));
-                ObservationWork.Captured("research", Now() - began, observed.Research.Projects.Count);
+                observed = observed with { Research = SnapshotSectionException.Read("research", () => NativeResearchObservationTools.Section(map, new Obs.ResearchRequest { Scope = Scope(), ProgressOnly = true }, context)) };
+                ObservationWork.Captured("research", Now() - began, observed.Research?.Projects.Count ?? 0);
             }
             {
                 var began = Now();
-                observed.Pawns = SnapshotSectionException.Read("pawns", () => NativePawnObservationTools.Table(map, context, CombatSet(observed.Emergency)));
+                var combatSet = CombatSet(observed.Emergency);
+                observed = observed with { Pawns = SnapshotSectionException.Read("pawns", () => NativePawnObservationTools.Table(map, context, combatSet)) };
                 ObservationWork.Captured("pawns", Now() - began, observed.Pawns != null ? observed.Pawns.Pawns.Count : 0);
             }
         }
@@ -217,64 +222,64 @@ namespace HomeBridge.BridgeTools
         // On the main thread. Adds the step families, each the exact
         // read its dedicated tool answers for the request shape the
         // controller issues, omitting any that fails or is not observed.
-        private static void ReadStepFamilies(Map map, Common.ObservationContext context, Obs.BundleSnapshot observed)
+        private static void ReadStepFamilies(Map map, Common.ObservationContext context, ref Obs.BundleSnapshot observed)
         {
-            Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() };
+            Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity };
             {
                 var began = Now();
-                var buildings = NativeBuildingObservationTools.Read(map, new Obs.ListBuildingsRequest { Scope = Scope(), PlayerOnly = true, Category = "artificial" }, context).Observed;
+                var buildings = NativeBuildingObservationTools.Read(map, new Obs.ListBuildingsRequest { Scope = Scope(), PlayerOnly = true, Category = "artificial" }, context).Outcome?.Observed;
                 ObservationWork.Captured("buildings", Now() - began, buildings != null ? buildings.Buildings.Count : 0);
-                if (buildings != null) { observed.Buildings = buildings; }
+                if (buildings != null) { observed = observed with { Buildings = buildings }; }
             }
             {
                 var began = Now();
-                var bills = NativeBillsObservationTools.Read(map, new Obs.BillsRequest { Scope = Scope() }, context).Observed;
+                var bills = NativeBillsObservationTools.Read(map, new Obs.BillsRequest { Scope = Scope() }, context).Outcome?.Observed;
                 ObservationWork.Captured("bills", Now() - began, bills != null ? bills.Benches.Count : 0);
-                if (bills != null) { observed.Bills = bills; }
+                if (bills != null) { observed = observed with { Bills = bills }; }
             }
             {
                 var began = Now();
-                var zones = NativeZoneObservationTools.Read(map, new Obs.ListZonesRequest { Scope = Scope() }, context).Observed;
+                var zones = NativeZoneObservationTools.Read(map, new Obs.ListZonesRequest { Scope = Scope() }, context).Outcome?.Observed;
                 ObservationWork.Captured("zones", Now() - began, zones != null ? zones.Zones.Count : 0);
-                if (zones != null) { observed.Zones = zones; }
+                if (zones != null) { observed = observed with { Zones = zones }; }
             }
             {
                 var began = Now();
-                try { observed.Traders = NativeTradeObservation.Traders(map, context); } catch (System.Exception ex) { ObservationWork.Failed("traders", ex); }
+                try { observed = observed with { Traders = NativeTradeObservation.Traders(map, context) }; } catch (System.Exception ex) { ObservationWork.Failed("traders", ex); }
                 ObservationWork.Captured("traders", Now() - began, observed.Traders != null ? observed.Traders.Traders.Count : 0);
             }
             {
                 var began = Now();
-                try { observed.WorldProgression = NativeWorldProgressionObservation.Build(context, false); } catch (System.Exception ex) { ObservationWork.Failed("worldProgression", ex); }
+                try { observed = observed with { WorldProgression = NativeWorldProgressionObservation.Build(context, false) }; } catch (System.Exception ex) { ObservationWork.Failed("worldProgression", ex); }
                 ObservationWork.Captured("worldProgression", Now() - began);
             }
             {
                 var began = Now();
-                observed.IdeologyActive = ModsConfig.IdeologyActive;
-                try { observed.Ideology = NativeIdeologyObservation.Build(context); } catch (System.Exception ex) { ObservationWork.Failed("ideology", ex); }
+                observed = observed with { IdeologyActive = ModsConfig.IdeologyActive };
+                try { observed = observed with { Ideology = NativeIdeologyObservation.Build(context) }; } catch (System.Exception ex) { ObservationWork.Failed("ideology", ex); }
                 ObservationWork.Captured("ideology", Now() - began, observed.Ideology != null ? observed.Ideology.Precepts.Count : 0);
             }
             {
                 var rooms = new Obs.ListRoomsRequest { Scope = Scope(), IncludeOutdoors = false, IncludeBoundary = false };
                 var began = Now();
-                var census = NativeRoomObservationTools.Read(map, rooms, context).Observed;
+                var census = NativeRoomObservationTools.Read(map, rooms, context).Outcome?.Observed;
                 ObservationWork.Captured("rooms", Now() - began, census != null ? census.Rooms.Count : 0);
-                if (census != null) { observed.Rooms = census; }
+                if (census != null) { observed = observed with { Rooms = census }; }
             }
         }
 
         // On the main thread. Adds the subscription's parameterized
         // families: each named resource's sources.
-        private static void ReadSubscribed(Map map, Obs.SnapshotStreamRequest request, Common.ObservationContext context, Obs.BundleSnapshot observed)
+        private static void ReadSubscribed(Map map, Obs.SnapshotStreamRequest request, Common.ObservationContext context, ref Obs.BundleSnapshot observed)
         {
-            Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() };
+            Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity };
             foreach (var resource in request.ResourceSources)
             {
                 if (!ProtoBoundary.IsIdentifier(resource)) continue;
                 var began = Now();
-                var sources = NativeResourceSourcesTool.Read(map, new Obs.ResourceSourcesRequest { Scope = Scope(), Resource = resource }, context).Observed;
+                var sources = NativeResourceSourcesTool.Read(map, new Obs.ResourceSourcesRequest { Scope = Scope(), Resource = resource }, context).Outcome?.Observed;
                 ObservationWork.Captured("resourceSources", Now() - began, sources != null ? sources.Sources.Count : 0);
-                if (sources != null) { observed.ResourceSources.Add(sources); }
+                if (sources != null) { observed = observed with { ResourceSources = [.. observed.ResourceSources, sources] }; }
             }
         }
     }

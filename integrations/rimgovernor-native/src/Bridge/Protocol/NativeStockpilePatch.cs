@@ -3,10 +3,10 @@ using System;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -63,13 +63,13 @@ namespace HomeBridge.BridgeTools
         }
 
         private static bool Valid(Operations.ZoneIntent? intent) =>
-            NativeZoneIntent.Id(intent) != null && !intent!.HasKind && intent.AddCells == null && intent.RemoveCells == null && !intent.Delete && intent.Growing == null && intent.Fishing == null && !intent.HasLabel && NativeStockpileSettings.Valid(intent.Stockpile);
+            NativeZoneIntent.Id(intent) != null && intent!.Kind is null && intent.AddCells == null && intent.RemoveCells == null && !intent.Delete.GetValueOrDefault() && intent.Growing == null && intent.Fishing == null && intent.Label is null && NativeStockpileSettings.Valid(intent.Stockpile);
 
         private static Target Resolve(Operations.ZoneIntent? intent, Map map)
         {
             var target = new Target();
             if (!Valid(intent)) return target;
-            target.Parent = NativeStockpilePatch.Resolve(map, intent!.Zone.Id);
+            target.Parent = NativeStockpilePatch.Resolve(map, (intent!.Zone?.Id ?? ""));
             if (target.Parent?.GetStoreSettings()?.filter != null)
                 target.Body = NativeStockpileSettings.Resolve(intent.Stockpile, StockpileFilter.StorableDefs(target.Parent));
             return target;
@@ -87,19 +87,19 @@ namespace HomeBridge.BridgeTools
 
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
         {
-            var target = Resolve(action.Zone, ProtoBoundary.LoadedMap(context));
+            var target = Resolve(action.Intent?.Zone, ProtoBoundary.LoadedMap(context));
             if (Standing(target)) return null;
-            var rules = Rules(action.Zone, target);
+            var rules = Rules(action.Intent?.Zone, target);
             return rules.Holds ? null : rules.Failure();
         }
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
             var map = ProtoBoundary.LoadedMap(context);
-            var target = Resolve(action.Zone, map);
+            var target = Resolve(action.Intent?.Zone, map);
             if (!Standing(target))
             {
-                var rules = Rules(action.Zone, target);
+                var rules = Rules(action.Intent?.Zone, target);
                 if (!rules.Holds) throw new InvalidOperationException("Stockpile patch prerequisites changed before apply: " + rules.Reason);
                 var settings = target.Parent!.GetStoreSettings();
                 if (target.Body!.Priority.HasValue) settings.Priority = target.Body.Priority.Value;
@@ -107,9 +107,9 @@ namespace HomeBridge.BridgeTools
                 if (!Standing(target)) throw new InvalidOperationException("Native stockpile settings readback did not apply.");
             }
             if (target.Parent is Building_Storage storage)
-                return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect { Snapshot = new Receipts.SnapshotEvidence {
+                return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect { Snapshot = new Receipts.SnapshotEvidence {
                     EntityId = storage.GetUniqueLoadID(), AfterToken = NativeStockpilePatch.StorageToken(storage, context).Token } } };
-            return NativeZoneCreation.Evidence(action.Zone.Zone.Id, target.Parent as Zone, map);
+            return NativeZoneCreation.Evidence(action.Intent?.Zone?.Zone?.Id ?? "", target.Parent as Zone, map);
         }
     }
 }

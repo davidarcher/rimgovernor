@@ -7,8 +7,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Lifecycle = RimGovernor.Protocol.Lifecycle;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace HomeBridge.BridgeTools
 {
@@ -46,8 +46,8 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Save(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official lifecycle SaveRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Lifecycle.SaveRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.SaveReply { Failure = failure });
+            if (!ProtoBoundary.TryParse(ctx, ToolName, request, out Lifecycle.SaveRequest? parsed, out var failure))
+                return ProtoBoundary.Encode(new Lifecycle.SaveReply { Outcome = new Lifecycle.SaveReplyOutcome.FailureCase(failure) });
 
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => Apply(parsed), cancellationToken).ConfigureAwait(false);
         }
@@ -58,8 +58,8 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadSave(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official lifecycle RequestStatus ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ReadToolName, request, Lifecycle.RequestStatus.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.SaveReply { Failure = failure });
+            if (!ProtoBoundary.TryParse(ctx, ReadToolName, request, out Lifecycle.RequestStatus? parsed, out var failure))
+                return ProtoBoundary.Encode(new Lifecycle.SaveReply { Outcome = new Lifecycle.SaveReplyOutcome.FailureCase(failure) });
 
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => PollSave(parsed), cancellationToken).ConfigureAwait(false);
         }
@@ -68,57 +68,57 @@ namespace HomeBridge.BridgeTools
         internal static Lifecycle.SaveReply Apply(Lifecycle.SaveRequest request)
         {
             var player = request.Player;
-            if (player == null || !ValidIdentity(player.Identity) || !player.HasPlayerDirection || player.PlayerDirection == 0
-                || !player.HasRequestId || !ProtoBoundary.IsIdentifier(player.RequestId)
-                || !request.HasSaveName || !ProtoBoundary.IsIdentifier(request.SaveName))
-                return new Lifecycle.SaveReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
+            if (player == null || !ValidIdentity(player.Identity) || player.PlayerDirection is null || player.PlayerDirection.GetValueOrDefault() == 0
+                || player.RequestId is null || !ProtoBoundary.IsIdentifier(player.RequestId)
+                || request.SaveName is null || !ProtoBoundary.IsIdentifier(request.SaveName))
+                return new Lifecycle.SaveReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
                     "Save requires a complete player identity, direction, request id and save name.") };
 
             if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var context, out var unavailable))
-                return new Lifecycle.SaveReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, unavailable.Detail) };
+                return new Lifecycle.SaveReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.Unavailable, (unavailable.Detail ?? "")) };
 
             // A mismatch here is a race with the caller's own expectation, not a
             // malformed request: report it as uncertain and never save.
-            if (!player.Identity.Equals(context.Identity) || (request.HasExpectedTick && request.ExpectedTick != context.Tick))
-                return Record(player.RequestId, new Lifecycle.SaveReply { Uncertain = new Lifecycle.SaveUncertain
+            if (!player.Identity.Equals(context.Identity) || (request.ExpectedTick is not null && request.ExpectedTick.GetValueOrDefault() != context.Tick.GetValueOrDefault()))
+                return Record((player.RequestId ?? ""), new Lifecycle.SaveReply { Outcome = new Lifecycle.SaveUncertain
                 {
                     RequestId = player.RequestId, SaveName = request.SaveName, ObservedContext = context,
                     Detail = "Colony, load, map or tick changed before save."
                 } });
 
             if (Find.TickManager == null || !Find.TickManager.Paused)
-                return new Lifecycle.SaveReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
+                return new Lifecycle.SaveReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
                     "Native must already be paused before a trusted save.") };
 
             try
             {
-                WriteSave(request.SaveName);
+                WriteSave((request.SaveName ?? ""));
             }
             catch (Exception error)
             {
-                ModLog.Warn("lifecycle", "native save " + request.SaveName + " failed: " + error);
-                return new Lifecycle.SaveReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure,
+                ModLog.Warn("lifecycle", "native save " + (request.SaveName ?? "") + " failed: " + error);
+                return new Lifecycle.SaveReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.NativeFailure,
                     "Native save failed: " + error.GetType().Name) };
             }
 
             if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var after, out var afterUnavailable))
-                return Record(player.RequestId, new Lifecycle.SaveReply { Uncertain = new Lifecycle.SaveUncertain
+                return Record((player.RequestId ?? ""), new Lifecycle.SaveReply { Outcome = new Lifecycle.SaveUncertain
                 {
-                    RequestId = player.RequestId, SaveName = request.SaveName,
-                    Detail = "Colony state could not be re-observed after save: " + afterUnavailable.Detail
+                    RequestId = player.RequestId, SaveName = (request.SaveName ?? ""),
+                    Detail = "Colony state could not be re-observed after save: " + (afterUnavailable.Detail ?? "")
                 } });
 
             bool pausedAfter = Find.TickManager != null && Find.TickManager.Paused;
-            if (!after.Identity.Equals(context.Identity) || after.Tick != context.Tick || !pausedAfter)
-                return Record(player.RequestId, new Lifecycle.SaveReply { Uncertain = new Lifecycle.SaveUncertain
+            if (!object.Equals(after.Identity, context.Identity) || after.Tick.GetValueOrDefault() != context.Tick.GetValueOrDefault() || !pausedAfter)
+                return Record((player.RequestId ?? ""), new Lifecycle.SaveReply { Outcome = new Lifecycle.SaveUncertain
                 {
-                    RequestId = player.RequestId, SaveName = request.SaveName, ObservedContext = after,
+                    RequestId = player.RequestId, SaveName = (request.SaveName ?? ""), ObservedContext = after,
                     Detail = "Colony, load, map, tick or pause changed during save."
                 } });
 
-            return Record(player.RequestId, new Lifecycle.SaveReply { Completed = new Lifecycle.SaveCompleted
+            return Record((player.RequestId ?? ""), new Lifecycle.SaveReply { Outcome = new Lifecycle.SaveCompleted
             {
-                RequestId = player.RequestId, SaveName = request.SaveName, Context = after,
+                RequestId = player.RequestId, SaveName = (request.SaveName ?? ""), Context = after,
                 Paused = pausedAfter, PlayerDirection = player.PlayerDirection
             } });
         }
@@ -145,16 +145,16 @@ namespace HomeBridge.BridgeTools
         // Call only on the game thread.
         internal static Lifecycle.SaveReply PollSave(Lifecycle.RequestStatus status)
         {
-            if (status == null || !status.HasRequestId || !ProtoBoundary.IsIdentifier(status.RequestId))
-                return new Lifecycle.SaveReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
+            if (status == null || status.RequestId is null || !ProtoBoundary.IsIdentifier(status.RequestId))
+                return new Lifecycle.SaveReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
                     "ReadSave requires a request id.") };
 
             lock (Lock)
             {
-                if (Entries.TryGetValue(status.RequestId, out var entry))
+                if (Entries.TryGetValue((status.RequestId ?? ""), out var entry))
                     return entry.Reply;
             }
-            return new Lifecycle.SaveReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NotFound,
+            return new Lifecycle.SaveReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.NotFound,
                 "Unknown or expired save request id.") };
         }
 
@@ -186,7 +186,7 @@ namespace HomeBridge.BridgeTools
         }
 
         private static bool ValidIdentity([NotNullWhen(true)] Common.Identity? identity) =>
-            identity != null && identity.HasColonyId && identity.HasLoadToken && identity.HasMapId
-            && ProtoBoundary.IsIdentifier(identity.ColonyId) && ProtoBoundary.IsIdentifier(identity.LoadToken) && identity.MapId >= 0;
+            identity != null && identity.ColonyId is not null && identity.LoadToken is not null && identity.MapId is not null
+            && ProtoBoundary.IsIdentifier(identity.ColonyId) && ProtoBoundary.IsIdentifier(identity.LoadToken) && identity.MapId.GetValueOrDefault() >= 0;
     }
 }

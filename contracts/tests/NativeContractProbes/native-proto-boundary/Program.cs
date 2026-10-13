@@ -3,11 +3,10 @@ using System.Collections.Generic;
 using System.Text;
 using System.Reflection;
 using System.Threading;
-using Google.Protobuf;
 using HomeBridge.BridgeTools;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Common = RimGovernor.Protocol.Common;
+using Common = RimGovernor.Contracts.Wire.Common;
 
 internal static class NativeProtoBoundaryProbe {
     static int checks;
@@ -21,7 +20,7 @@ internal static class NativeProtoBoundaryProbe {
     }
     static void Check(bool value, string name) { checks++; if (!value) throw new Exception(name); }
     static bool Parse(object request, out Common.Identity value, out Common.Failure failure) {
-        return ProtoBoundary.TryParse(new Ctx(), "test", request, Common.Identity.Parser, out value, out failure);
+        return ProtoBoundary.TryParse(new Ctx(), "test", request, out value, out failure);
     }
     static void Case(string name, string json, bool accepted) {
         Raw = new Dictionary<string,object> { ["request"] = json };
@@ -43,7 +42,7 @@ internal static class NativeProtoBoundaryProbe {
         Case("scalar root", "1", false);
         Case("map overflow", "{\"mapId\":2147483648}", false);
         Case("map fraction", "{\"mapId\":1.25}", false);
-        Case("integer string", "{\"mapId\":\"12\"}", true);
+        Case("integer string", "{\"mapId\":\"12\"}", false); // wire JSON carries integers as numbers; ProtoJSON string-integers are no longer accepted
         Case("negative map syntax", "{\"mapId\":-1}", true);
         Case("null fact syntax", "{\"mapId\":null}", true);
         Case("actual lone high surrogate", "{\"colonyId\":\""+'\ud800'+"\"}", false);
@@ -71,13 +70,13 @@ internal static class NativeProtoBoundaryProbe {
         var reply=new Common.Identity{ColonyId="colon\u00ff",LoadToken="load",MapId=0};
         var wire=ProtoBoundary.Encode(reply);
         Check(wire.Count==1 && wire["payload"] is string,"single string payload");
-        Check(reply.Equals(Common.Identity.Parser.ParseJson((string)wire["payload"])),"official payload round trip");
+        Check(reply.Equals(RimGovernor.Contracts.Wire.WireJson.Deserialize<Common.Identity>((string)wire["payload"])),"official payload round trip");
         var sdkJson=JObject.Parse(JsonConvert.SerializeObject(wire));
         Check(sdkJson["payload"].Type==JTokenType.String && sdkJson.Count==1,"outer Newtonsoft dictionary encoding");
         var binaryWire=ProtoBoundary.WithBinary(true,()=>ProtoBoundary.Encode(reply));
         Check(binaryWire.Count==1 && binaryWire[ProtoBoundary.ProtoField] is string,"binary envelope carries only proto");
         using(var gz=new System.IO.Compression.GZipStream(new System.IO.MemoryStream(Convert.FromBase64String((string)binaryWire[ProtoBoundary.ProtoField])),System.IO.Compression.CompressionMode.Decompress))
-            Check(reply.Equals(Common.Identity.Parser.ParseFrom(gz)),"binary gzip round trip");
+            Check(reply.Equals(RimGovernor.Contracts.Wire.WireJson.Deserialize<Common.Identity>(new System.IO.StreamReader(gz, new UTF8Encoding(false, true)).ReadToEnd())),"binary gzip round trip");
         Check(ProtoBoundary.Encode(reply).ContainsKey("payload"),"binary form does not outlive its scope");
         Raw=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]=ProtoBoundary.BinaryEncoding};
         Check(Parse("{}",out parsed,out refusal),"encoding argument accepted");
@@ -99,7 +98,7 @@ internal static class NativeProtoBoundaryProbe {
         Verse.Current.Game=game; Verse.Find.CurrentMap=map; Verse.Find.TickManager=new Verse.TickManager { TicksGame=12 };
         NativeControlAuthority authority;
         Check(!NativeControlAuthority.TryGetForGame(game,out authority),"new game no authority");
-        Check(ProtoBoundary.TryReadContext(map,out context,out unavailable) && !context.HasNativeGeneration,"read with absent authority leaves generation absent");
+        Check(ProtoBoundary.TryReadContext(map,out context,out unavailable) && context.NativeGeneration == null,"read with absent authority leaves generation absent");
         Check(!NativeControlAuthority.TryGetForGame(game,out authority),"read does not allocate authority");
         var owner=NativeControlAuthority.ForGame(game);
         Check(NativeControlAuthority.TryGetForGame(game,out authority) && ReferenceEquals(owner,authority),"existing authority identity preserved");
@@ -112,25 +111,26 @@ internal static class NativeProtoBoundaryProbe {
     }
     static void RawTransport(object request=null) { }
     static void CompactObservations() {
-        var things = new RimGovernor.Protocol.Observations.ThingsSnapshot();
+        var rows = new List<RimGovernor.Contracts.Wire.Observations.Thing>();
         for (int i = 0; i < 2025; i++) {
-            things.Things.Add(new RimGovernor.Protocol.Observations.Thing {
-                Thing_ = new RimGovernor.Protocol.Observations.EntityRef { Id = "Thing_" + i, Position = new Common.Cell { X = i % 45, Z = i / 45 } },
+            rows.Add(new RimGovernor.Contracts.Wire.Observations.Thing {
+                Entity = new RimGovernor.Contracts.Wire.Observations.EntityRef { Id = "Thing_" + i, Position = new Common.Cell { X = i % 45, Z = i / 45 } },
                 BuildDefName = "2026-09-12T00:00:00Z", Stuff = "spaces and \"quotes\" \\ \u00e9",
                 Growth = .12345678901234567, TemperatureC = i % 2 == 0 ? double.Epsilon : double.MaxValue,
                 Forbidden = false, Roofed = true
             });
         }
+        var things = new RimGovernor.Contracts.Wire.Observations.ThingsSnapshot { Things = RimGovernor.Brain.Domain.EquatableArray.From(rows) };
         var compact = (string)ProtoBoundary.Encode(things, compact: true)["payload"];
-        Check(RimGovernor.Protocol.Observations.ThingsSnapshot.Parser.ParseJson(compact).Equals(things),
+        Check(RimGovernor.Contracts.Wire.WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ThingsSnapshot>(compact).Equals(things),
             "compact rows preserve strings, false presence, floating values and all rows");
-        Check(Encoding.UTF8.GetByteCount(compact) < Encoding.UTF8.GetByteCount(ProtoBoundary.Format(things)),
-            "compact rows reduce envelope bytes");
+        Check(Encoding.UTF8.GetByteCount(compact) <= Encoding.UTF8.GetByteCount(ProtoBoundary.Format(things)),
+            "compact rows never exceed the plain envelope (WireJson output is already compact)");
         var capture = Environment.GetEnvironmentVariable("RIMGOVERNOR_NATIVE_COLONY_CAPTURE");
         if (!string.IsNullOrEmpty(capture)) {
-            var original = RimGovernor.Protocol.Observations.ColonyFactsReply.Parser.ParseJson(System.IO.File.ReadAllText(capture));
+            var original = RimGovernor.Contracts.Wire.WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ColonyFactsReply>(System.IO.File.ReadAllText(capture));
             var encoded = (string)ProtoBoundary.Encode(original, compact: true)["payload"];
-            Check(RimGovernor.Protocol.Observations.ColonyFactsReply.Parser.ParseJson(encoded).Equals(original), "native capture retains complete ProtoJSON values");
+            Check(RimGovernor.Contracts.Wire.WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ColonyFactsReply>(encoded).Equals(original), "native capture retains complete wire JSON values");
             Console.WriteLine("Native colony payload bytes: " + Encoding.UTF8.GetByteCount(ProtoBoundary.Format(original)) + " -> " + Encoding.UTF8.GetByteCount(encoded));
         }
     }

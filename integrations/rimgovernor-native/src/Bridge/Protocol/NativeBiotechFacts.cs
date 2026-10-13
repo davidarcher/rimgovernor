@@ -4,8 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -35,11 +35,11 @@ namespace HomeBridge.BridgeTools
             var row = new Obs.GeneTuningFacts { BiostatMin = GeneTuning.BiostatRange.min, BiostatMax = GeneTuning.BiostatRange.max,
                 BaseMaxComplexity = GeneTuning.BaseMaxComplexity };
             foreach (var p in GeneTuning.ComplexityToCreationHoursCurve.Points)
-                if (Finite(p.x) && Finite(p.y)) row.CreationHoursCurve.Add(new Obs.CurvePointRow { X = p.x, Y = p.y });
+                if (Finite(p.x) && Finite(p.y)) row = row with { CreationHoursCurve = [.. row.CreationHoursCurve, new Obs.CurvePointRow { X = p.x, Y = p.y }] };
             var regrow = GeneTuning.GeneExtractorRegrowingDurationDaysRange;
-            if (Finite(regrow.min) && Finite(regrow.max)) { row.RegrowDaysMin = regrow.min; row.RegrowDaysMax = regrow.max; }
-            if (ExtractorConstant("TicksToExtract") is int extract) row.ExtractTicks = extract;
-            if (ExtractorConstant("NoPowerEjectCumulativeTicks") is int eject) row.NoPowerEjectTicks = eject;
+            if (Finite(regrow.min) && Finite(regrow.max)) { row = row with { RegrowDaysMin = regrow.min }; row = row with { RegrowDaysMax = regrow.max }; }
+            if (ExtractorConstant("TicksToExtract") is int extract) row = row with { ExtractTicks = extract };
+            if (ExtractorConstant("NoPowerEjectCumulativeTicks") is int eject) row = row with { NoPowerEjectTicks = eject };
             return row;
         }
 
@@ -62,20 +62,20 @@ namespace HomeBridge.BridgeTools
         {
             if (!ModsConfig.BiotechActive) return null;
             var row = new Obs.PawnBiotech();
-            try { if (Id(pawn.ageTracker?.CurLifeStage?.defName) is string stage) row.LifeStage = stage; }
-            catch (Exception ex) { row.Issues.Add(Failed("life_stage", ex)); }
-            try { row.DevelopmentalStage = pawn.DevelopmentalStage.ToString(); }
-            catch (Exception ex) { row.Issues.Add(Failed("developmental_stage", ex)); }
+            try { if (Id(pawn.ageTracker?.CurLifeStage?.defName) is string stage) row = row with { LifeStage = stage }; }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("life_stage", ex)] }; }
+            try { row = row with { DevelopmentalStage = pawn.DevelopmentalStage.ToString() }; }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("developmental_stage", ex)] }; }
             try
             {
                 if (pawn.needs?.learning is Need_Learning learning)
                 {
                     var level = learning.CurLevelPercentage;
                     var category = learning.CurCategory.ToString();
-                    if (Finite(level)) { row.Learning = level; row.LearningCategory = category; }
+                    if (Finite(level)) { row = row with { Learning = level }; row = row with { LearningCategory = category }; }
                 }
             }
-            catch (Exception ex) { row.Issues.Add(Failed("learning", ex)); }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("learning", ex)] }; }
             try
             {
                 if (pawn.genes is Pawn_GeneTracker genes)
@@ -87,34 +87,34 @@ namespace HomeBridge.BridgeTools
                     var xenotype = Id(genes.Xenotype?.defName);
                     var label = PlacementPreviewOperation.Diagnostic(genes.XenotypeLabel ?? "");
                     var hybrid = genes.hybrid;
-                    row.Genes.Add(list);
-                    if (xenotype != null) row.Xenotype = xenotype;
-                    row.XenotypeName = label;
-                    row.Hybrid = hybrid;
+                    row = row with { Genes = [.. list] };
+                    if (xenotype != null) row = row with { Xenotype = xenotype };
+                    row = row with { XenotypeName = label };
+                    row = row with { Hybrid = hybrid };
                 }
             }
-            catch (Exception ex) { row.Issues.Add(Failed("genes", ex)); }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("genes", ex)] }; }
             try
             {
                 if (pawn.mechanitor is Pawn_MechanitorTracker tracker)
                 {
                     var mechanitor = new Obs.PawnMechanitor { UsedBandwidth = tracker.UsedBandwidth, TotalBandwidth = tracker.TotalBandwidth,
                         UsedBandwidthFromGestation = tracker.UsedBandwidthFromGestation, ControlGroups = tracker.controlGroups.Count };
-                    foreach (var mech in tracker.ControlledPawns.OrderBy(m => m.thingIDNumber)) mechanitor.ControlledMechs.Add(NativeRef.Thing(mech));
-                    row.Mechanitor = mechanitor;
+                    foreach (var mech in tracker.ControlledPawns.OrderBy(m => m.thingIDNumber)) mechanitor = mechanitor with { ControlledMechs = [.. mechanitor.ControlledMechs, NativeRef.Thing(mech)] };
+                    row = row with { Mechanitor = mechanitor };
                 }
             }
-            catch (Exception ex) { row.Issues.Add(Failed("mechanitor", ex)); }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("mechanitor", ex)] }; }
             try
             {
                 if (pawn.RaceProps.IsMechanoid && MechanitorUtility.EverControllable(pawn))
                 {
                     var mech = new Obs.PawnMech();
-                    if (MechanitorUtility.GetOverseer(pawn) is Pawn overseer) mech.Overseer = NativeRef.Thing(overseer);
-                    if (Id(MechanitorUtility.GetMechWorkMode(pawn)?.defName) is string mode) mech.WorkMode = mode;
-                    if (MechanitorUtility.GetMechControlGroup(pawn) is MechanitorControlGroup group) mech.ControlGroup = group.Index;
-                    if (pawn.needs?.TryGetNeed<Need_MechEnergy>() is Need_MechEnergy energy && Finite(energy.CurLevelPercentage)) mech.Energy = energy.CurLevelPercentage;
-                    row.Mech = mech;
+                    if (MechanitorUtility.GetOverseer(pawn) is Pawn overseer) mech = mech with { Overseer = NativeRef.Thing(overseer) };
+                    if (Id(MechanitorUtility.GetMechWorkMode(pawn)?.defName) is string mode) mech = mech with { WorkMode = mode };
+                    if (MechanitorUtility.GetMechControlGroup(pawn) is MechanitorControlGroup group) mech = mech with { ControlGroup = group.Index };
+                    if (pawn.needs?.TryGetNeed<Need_MechEnergy>() is Need_MechEnergy energy && Finite(energy.CurLevelPercentage)) mech = mech with { Energy = energy.CurLevelPercentage };
+                    row = row with { Mech = mech };
                     // The group's own recharge band; a game without the field fails
                     // this read loudly instead of inventing a threshold.
                     try
@@ -124,13 +124,13 @@ namespace HomeBridge.BridgeTools
                             var thresholds = BridgeCommon.PrivateInstanceField(typeof(MechanitorControlGroup), "mechRechargeThresholds")
                                 ?? throw new InvalidOperationException("MechanitorControlGroup.mechRechargeThresholds not found");
                             var band = (FloatRange)thresholds.GetValue(thresholdGroup)!;
-                            if (Finite(band.min) && Finite(band.max)) { mech.RechargeBelow = band.min; mech.RechargeAbove = band.max; }
+                            if (Finite(band.min) && Finite(band.max)) { mech = mech with { RechargeBelow = band.min }; mech = mech with { RechargeAbove = band.max }; }
                         }
                     }
-                    catch (Exception ex) { row.Issues.Add(Failed("mech_thresholds", ex)); }
+                    catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("mech_thresholds", ex)] }; }
                 }
             }
-            catch (Exception ex) { row.Issues.Add(Failed("mech", ex)); }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("mech", ex)] }; }
             try
             {
                 if (pawn.genes?.GetFirstGeneOfType<Gene_Deathrest>() is Gene_Deathrest gene)
@@ -138,27 +138,27 @@ namespace HomeBridge.BridgeTools
                     var deathrest = new Obs.PawnDeathrest { Capacity = gene.DeathrestCapacity, BoundBuildings = gene.BoundBuildings.Count, AutoWake = gene.autoWake };
                     if (gene.DeathrestNeed is Need_Deathrest need)
                     {
-                        deathrest.Deathresting = need.Deathresting;
-                        if (Finite(need.CurLevelPercentage)) deathrest.Level = need.CurLevelPercentage;
-                        deathrest.LastDeathrestTick = need.lastDeathrestTick;
+                        deathrest = deathrest with { Deathresting = need.Deathresting };
+                        if (Finite(need.CurLevelPercentage)) deathrest = deathrest with { Level = need.CurLevelPercentage };
+                        deathrest = deathrest with { LastDeathrestTick = need.lastDeathrestTick };
                     }
-                    if (Finite(gene.DeathrestPercent)) deathrest.DeathrestPercent = gene.DeathrestPercent;
-                    row.Deathrest = deathrest;
+                    if (Finite(gene.DeathrestPercent)) deathrest = deathrest with { DeathrestPercent = gene.DeathrestPercent };
+                    row = row with { Deathrest = deathrest };
                 }
             }
-            catch (Exception ex) { row.Issues.Add(Failed("deathrest", ex)); }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("deathrest", ex)] }; }
             try
             {
                 var regrow = TicksLeft(pawn, HediffDefOf.XenogermReplicating);
                 var coma = TicksLeft(pawn, HediffDefOf.XenogerminationComa);
                 var inExtractor = pawn.ParentHolder is Building_GeneExtractor;
-                row.XenogermRegrowTicksLeft = regrow;
-                row.XenogermComaTicksLeft = coma;
-                row.InExtractor = inExtractor;
+                row = row with { XenogermRegrowTicksLeft = regrow };
+                row = row with { XenogermComaTicksLeft = coma };
+                row = row with { InExtractor = inExtractor };
             }
-            catch (Exception ex) { row.Issues.Add(Failed("gene_lifecycle", ex)); }
-            try { Extractable(pawn, row); }
-            catch (Exception ex) { row.ClearExtractable(); row.ClearExtractableReason(); row.Issues.Add(Failed("extractable", ex)); }
+            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("gene_lifecycle", ex)] }; }
+            try { row = Extractable(pawn, row); }
+            catch (Exception ex) { row = row with { Extractable = null, ExtractableReason = null, Issues = [.. row.Issues, Failed("extractable", ex)] }; }
             return row;
         }
 
@@ -176,20 +176,21 @@ namespace HomeBridge.BridgeTools
         // any owned extractor of the pawn's map accepts, else the first refusal
         // text. Absent for an unspawned or non-humanlike pawn or a map with no
         // extractor.
-        private static void Extractable(Pawn pawn, Obs.PawnBiotech row)
+        private static Obs.PawnBiotech Extractable(Pawn pawn, Obs.PawnBiotech row)
         {
-            if (!pawn.Spawned || pawn.Map == null || !pawn.RaceProps.Humanlike || pawn.genes == null) return;
+            if (!pawn.Spawned || pawn.Map == null || !pawn.RaceProps.Humanlike || pawn.genes == null) return row;
             var extractors = pawn.Map.listerBuildings.AllBuildingsColonistOfClass<Building_GeneExtractor>().OrderBy(e => e.thingIDNumber).ToList();
-            if (extractors.Count == 0) return;
+            if (extractors.Count == 0) return row;
             string? reason = null;
             foreach (var extractor in extractors)
             {
                 var verdict = extractor.CanAcceptPawn(pawn);
-                if (verdict.Accepted) { row.Extractable = true; return; }
+                if (verdict.Accepted) return row with { Extractable = true };
                 if (reason == null && !string.IsNullOrEmpty(verdict.Reason)) reason = verdict.Reason;
             }
-            row.Extractable = false;
-            if (reason != null) row.ExtractableReason = PlacementPreviewOperation.Diagnostic(reason);
+            row = row with { Extractable = false };
+            if (reason != null) row = row with { ExtractableReason = PlacementPreviewOperation.Diagnostic(reason) };
+            return row;
         }
     }
 }

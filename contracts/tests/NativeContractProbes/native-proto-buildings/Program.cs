@@ -16,8 +16,8 @@ internal static class NativeProtoBuildingsProbe
     private static void Check(bool value, string label) { if (!value) throw new Exception(label); checks++; }
     private static object Wire(string name, string json)
     {
-        var parser = bridge.GetType("RimGovernor.Protocol.Observations." + name, true)!.GetProperty("Parser")!.GetValue(null)!;
-        return parser.GetType().GetMethod("ParseJson")!.Invoke(parser, new object[] { json })!;
+        var type = typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType("RimGovernor.Contracts.Wire.Observations." + name, true)!;
+        return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize", new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
     }
     private static object Get(object value, string property) => value.GetType().GetProperty(property)!.GetValue(value)!;
     private static bool Valid(string json) => (bool)tools.GetMethod("Validate", Flags)!.Invoke(null,
@@ -59,14 +59,14 @@ internal static class NativeProtoBuildingsProbe
                 new Dictionary<string, object?> { ["request"] = value }, null, CancellationToken.None })!;
             Check(ReferenceEquals(bound[2], value), "Real SDK preserves raw request");
         }
-        var reply = Wire("ListBuildingsReply", "{\"observed\":{\"buildings\":[{\"building\":{\"id\":\"Wall17\"},\"burning\":false,\"usesHitPoints\":true,\"construction\":{\"resourcesComplete\":false}}],\"completeness\":{}}}");
-        var envelope = tools.Assembly.GetType("HomeBridge.BridgeTools.ProtoBoundary", true)!.GetMethod("Encode", Flags)!.Invoke(null, new object[] { reply, false })!;
+        var reply = Wire("ListBuildingsReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"buildings\":[{\"building\":{\"id\":\"Wall17\"},\"burning\":false,\"usesHitPoints\":true,\"construction\":{\"resourcesComplete\":false}}],\"completeness\":{}}}}");
+        var envelope = tools.Assembly.GetType("HomeBridge.BridgeTools.ProtoBoundary", true)!.GetMethod("Encode", Flags)!.MakeGenericMethod(reply.GetType()).Invoke(null, new object[] { reply, false })!;
         var normalize = server.GetType("RimGovernor.Host.LegacyToolExecution", true)!.GetMethod("ToDictionary", Flags)!;
         var normalized = (IDictionary)normalize.Invoke(null, new[] { envelope })!;
         Check(normalized.Count == 1 && normalized["payload"] is string, "SDK retains sole ProtoJSON payload");
-        var snapshot = Get(Wire("ListBuildingsReply", (string)normalized["payload"]!), "Observed");
+        var snapshot = Get(Get(Wire("ListBuildingsReply", (string)normalized["payload"]!), "Outcome"), "Observed");
         var row = ((IList)Get(snapshot, "Buildings"))[0]!;
-        Check((bool)Get(row, "HasBurning") && !(bool)Get(row, "Burning"), "Known false burning retained");
+        Check(Get(row, "Burning") is false, "Known false burning retained");
         Check(Get(Get(row, "Building"), "Snapshot") == null, "No fabricated CAS snapshot");
         Console.WriteLine(checks + " compiled building boundary assertions passed; no gameplay assertions.");
         return 0;

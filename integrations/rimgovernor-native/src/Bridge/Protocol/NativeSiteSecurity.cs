@@ -5,7 +5,7 @@ using RimWorld;
 using RimWorld.Planet;
 using RimWorld.QuestGen;
 using Verse;
-using Obs = RimGovernor.Protocol.Observations;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -56,7 +56,7 @@ namespace HomeBridge.BridgeTools
         {
             var row = new Obs.QuestSiteSecurity { Known = false };
             var visible = site.sitePartsKnown && site.parts.All(p => !p.hidden);
-            if (visible) row.InitialPoints = site.ActualThreatPoints;
+            if (visible) row = row with { InitialPoints = site.ActualThreatPoints };
             // Random complex threats are not resolved until map generation.
             // Other unrecognised parts remain unknown rather than zero risk.
             var closed = visible && site.parts.All(ClosedPart);
@@ -66,50 +66,50 @@ namespace HomeBridge.BridgeTools
                 double initial = site.parts.Where(ClosedPart).Sum(InitialBudget);
                 var complete = true;
                 foreach (var part in complexes) { var bound = NativeComplexSecurity.Bound(part); if (!bound.HasValue) { complete = false; break; } initial += bound.Value; }
-                if (complete) { closed = true; row.InitialPoints = initial; }
+                if (complete) { closed = true; row = row with { InitialPoints = initial }; }
             }
             if (site.HasMap)
             {
                 var map = site.Map;
-                row.ActiveThreat = GenHostility.AnyHostileActiveThreatToPlayer(map, countDormantPawnsAsHostile: false, canBeFogged: true);
-                row.DormantThreat = map.listerThings.AllThings.Any(t => t.HostileTo(Faction.OfPlayer) && t.TryGetComp<CompCanBeDormant>()?.Awake == false);
-                row.TrapCount = map.listerThings.AllThings.OfType<Building_Trap>().Count(t => t.Faction != Faction.OfPlayer);
-                row.Known = closed;
+                row = row with { ActiveThreat = GenHostility.AnyHostileActiveThreatToPlayer(map, countDormantPawnsAsHostile: false, canBeFogged: true) };
+                row = row with { DormantThreat = map.listerThings.AllThings.Any(t => t.HostileTo(Faction.OfPlayer) && t.TryGetComp<CompCanBeDormant>()?.Awake == false) };
+                row = row with { TrapCount = map.listerThings.AllThings.OfType<Building_Trap>().Count(t => t.Faction != Faction.OfPlayer) };
+                row = row with { Known = closed };
                 if (visible && site.parts.All(p => ClosedPart(p) || LoadedGroundPart(p)))
                 {
-                    row.Known = !map.listerThings.AllThings.OfType<Building_Turret>().Any(t => t.HostileTo(Faction.OfPlayer));
+                    row = row with { Known = !map.listerThings.AllThings.OfType<Building_Turret>().Any(t => t.HostileTo(Faction.OfPlayer)) };
                     // Generated layouts have resolved their actual pawn
                     // identities. Turrets retain unknown until their native
                     // weapon strength is part of this envelope.
-                    row.InitialPoints = System.Math.Max(row.HasInitialPoints ? row.InitialPoints : 0,
-                        map.mapPawns.AllPawnsSpawned.Where(p => p.HostileTo(Faction.OfPlayer) && !p.Dead).Sum(p => p.kindDef.combatPower));
+                    row = row with { InitialPoints = System.Math.Max(row.InitialPoints is not null ? row.InitialPoints.GetValueOrDefault() : 0,
+                        map.mapPawns.AllPawnsSpawned.Where(p => p.HostileTo(Faction.OfPlayer) && !p.Dead).Sum(p => p.kindDef.combatPower)) };
                 }
-                if (NativeComplexSecurity.Latent(map, out var latent, out var explosives)) { row.PendingRaidPoints = latent; row.TrapCount += explosives; }
-                else row.Known = false;
+                if (NativeComplexSecurity.Latent(map, out var latent, out var explosives)) { row = row with { PendingRaidPoints = latent, TrapCount = (row.TrapCount ?? 0) + explosives }; }
+                else row = row with { Known = false };
             }
-            else row.Known = closed;
+            else row = row with { Known = closed };
             var timed = site.GetComponent<TimedDetectionRaids>();
             if (timed != null)
             {
-                row.DetectionActive = timed.DetectionCountdownStarted;
-                row.RaidsSent = timed.RaidsSentCount;
-                if (timed.DetectionCountdownStarted) row.DetectionTicksLeft = System.Math.Max(0, timed.TicksLeftToSendRaids);
-                if (site.HasMap) row.PendingRaidPoints = (row.HasPendingRaidPoints ? row.PendingRaidPoints : 0) + StorytellerUtility.DefaultThreatPointsNow(site.Map) * TimedDetectionRaids.RaidThreatPointsMultiplier;
-                else row.Known = false;
+                row = row with { DetectionActive = timed.DetectionCountdownStarted };
+                row = row with { RaidsSent = timed.RaidsSentCount };
+                if (timed.DetectionCountdownStarted) row = row with { DetectionTicksLeft = System.Math.Max(0, timed.TicksLeftToSendRaids) };
+                if (site.HasMap) row = row with { PendingRaidPoints = (row.PendingRaidPoints is not null ? row.PendingRaidPoints.GetValueOrDefault() : 0) + StorytellerUtility.DefaultThreatPointsNow(site.Map) * TimedDetectionRaids.RaidThreatPointsMultiplier };
+                else row = row with { Known = false };
             }
-            else row.DetectionActive = false;
+            else row = row with { DetectionActive = false };
             var linked = quests.Where(q => q.QuestLookTargets.Any(t => t.HasWorldObject && t.WorldObject == site)).ToArray();
-            double pending = row.HasPendingRaidPoints ? row.PendingRaidPoints : 0;
+            double pending = row.PendingRaidPoints is not null ? row.PendingRaidPoints.GetValueOrDefault() : 0;
             foreach (var quest in linked)
             {
                 var points = NativeQuestThreats.Read(quest);
                 if (points.HasValue) pending += points.Value;
-                else if (quest.PartsListForReading.OfType<QuestPart_Incident>().Any(p => p.incident?.category == IncidentCategoryDefOf.ThreatBig || p.incident?.category == IncidentCategoryDefOf.ThreatSmall)) row.Known = false;
+                else if (quest.PartsListForReading.OfType<QuestPart_Incident>().Any(p => p.incident?.category == IncidentCategoryDefOf.ThreatBig || p.incident?.category == IncidentCategoryDefOf.ThreatSmall)) row = row with { Known = false };
                 foreach (var part in quest.PartsListForReading)
                 {
                     if (part is QuestPart_RandomRaid raid && raid.mapParent == site && (raid.faction == null || raid.faction.HostileTo(Faction.OfPlayer)))
                     {
-                        if (raid.useCurrentThreatPoints && !site.HasMap) { row.Known = false; continue; }
+                        if (raid.useCurrentThreatPoints && !site.HasMap) { row = row with { Known = false }; continue; }
                         var budget = raid.useCurrentThreatPoints ? StorytellerUtility.DefaultThreatPointsNow(site.Map) * raid.currentThreatPointsFactor : raid.pointsRange.max;
                         if (raid.faction != null) budget = System.Math.Max(budget, raid.faction.def.MinPointsToGeneratePawnGroup(PawnGroupKindDefOf.Combat));
                         pending += budget;
@@ -117,7 +117,7 @@ namespace HomeBridge.BridgeTools
                     if (part is QuestPart_SleepingMechs sleeping && sleeping.mapParent == site) pending += SleepingMechCurve.Evaluate(sleeping.points);
                 }
             }
-            row.PendingRaidPoints = pending;
+            row = row with { PendingRaidPoints = pending };
             return row;
         }
     }

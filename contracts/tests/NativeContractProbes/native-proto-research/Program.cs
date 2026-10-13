@@ -17,8 +17,8 @@ internal static class NativeProtoResearchProbe
     private static void Check(bool value, string label) { if (!value) throw new Exception(label); checks++; }
     private static object Wire(string name, string json)
     {
-        var parser = bridge.GetType("RimGovernor.Protocol.Observations." + name, true)!.GetProperty("Parser")!.GetValue(null)!;
-        return parser.GetType().GetMethod("ParseJson")!.Invoke(parser, new object[] { json })!;
+        var type = typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType("RimGovernor.Contracts.Wire.Observations." + name, true)!;
+        return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize", new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
     }
     private static object Get(object value, string name) => value.GetType().GetProperty(name)!.GetValue(value)!;
     private static object Call(string name, params object?[] args) => tools.GetMethod(name, Flags)!.Invoke(null, args)!;
@@ -50,7 +50,7 @@ internal static class NativeProtoResearchProbe
         foreach (var bad in new[] { "{}", request("\"page\":{\"limit\":0}"), request("\"page\":{\"limit\":257}"),
             request("\"page\":{\"cursor\":\"" + new string('x', 4097) + "\"}"), request("\"nameContains\":\"bad\\u0000id\""), request("\"nameContains\":\"" + new string('α', 129) + "\"") })
             Check(!Valid(bad), "Invalid bounded research request refused");
-        Refused(() => Wire("ResearchRequest", "{\"set\":\"Electricity\"}"), "Unknown mutation argument rejected by official parser");
+        Refused(() => Wire("ResearchRequest", "{\"set\":\"Electricity\"}"), "Unknown mutation argument rejected by wire decoder");
         Refused(() => Wire("ResearchRequest", "{\"includeLocked\":\"false\"}"), "Nonboolean flag rejected");
 
         var native = Assembly.Load("Assembly-CSharp");
@@ -58,9 +58,9 @@ internal static class NativeProtoResearchProbe
         var def = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(defType);
         defType.GetField("defName")!.SetValue(def, "Modded_Research");
         var unnamed = Call("Definition", def);
-        Check(!(bool)Get(unnamed, "HasLabel") && (string)Get(unnamed, "DefName") == "Modded_Research", "Missing native label stays absent");
+        Check(Get(unnamed, "Label") == null && (string)Get(unnamed, "DefName") == "Modded_Research", "Missing native label stays absent");
         defType.GetField("label")!.SetValue(def, "");
-        Check((bool)Get(Call("Definition", def), "HasLabel"), "Explicit native empty label stays present");
+        Check(Get(Call("Definition", def), "Label") != null, "Explicit native empty label stays present");
         var dictionaryType = typeof(Dictionary<,>).MakeGenericType(defType, typeof(float));
         var progress = (IDictionary)Activator.CreateInstance(dictionaryType)!;
         var knowledge = (IDictionary)Activator.CreateInstance(dictionaryType)!;
@@ -91,14 +91,14 @@ internal static class NativeProtoResearchProbe
                 new Dictionary<string, object?> { ["request"] = value }, null, CancellationToken.None })!;
             Check(ReferenceEquals(bound[2], value), "SDK preserves raw request for strict boundary");
         }
-        var envelope = (IDictionary)Call("Encode", Wire("ResearchReply", "{\"observed\":{\"projects\":[{\"progress\":0,\"finished\":false,\"canStart\":false}],\"slots\":[{}]}}"));
-        var observed = Get(Wire("ResearchReply", (string)envelope["payload"]!), "Observed");
+        var envelope = (IDictionary)Call("Encode", Wire("ResearchReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"projects\":[{\"progress\":0,\"finished\":false,\"canStart\":false}],\"slots\":[{}]}}}"));
+        var observed = Get(Get(Wire("ResearchReply", (string)envelope["payload"]!), "Outcome"), "Observed");
         var row = ((IList)Get(observed, "Projects"))[0]!;
-        Check((bool)Get(row, "HasProgress") && (double)Get(row, "Progress") == 0, "Known zero progress retained");
-        Check((bool)Get(row, "HasCanStart") && !(bool)Get(row, "CanStart"), "Known false eligibility retained");
+        Check(Get(row, "Progress") is double progressValue && progressValue == 0, "Known zero progress retained");
+        Check(Get(row, "CanStart") is false, "Known false eligibility retained");
         Check(Get(observed, "Snapshot") == null, "No fabricated CAS token");
-        var oversized = (IDictionary)Call("Encode", Wire("ResearchReply", "{\"unavailable\":{\"detail\":\"" + new string('x', 1024 * 1024) + "\"}}"));
-        Check(Get(Wire("ResearchReply", (string)oversized["payload"]!), "Unavailable") != null, "Oversized reply refuses instead of truncating facts");
+        var oversized = (IDictionary)Call("Encode", Wire("ResearchReply", "{\"outcome\":{\"type\":\"unavailable\",\"value\":{\"detail\":\"" + new string('x', 1024 * 1024) + "\"}}}"));
+        Check(Get(Get(Wire("ResearchReply", (string)oversized["payload"]!), "Outcome"), "Unavailable") != null, "Oversized reply refuses instead of truncating facts");
 
         // N01.03: Capability() (bench/facility/researcher projection) and Read()'s Anomaly
         // path (ModsConfig.AnomalyActive, KnowledgeCategoryProject, EntityCodex.Hidden) cannot
@@ -130,14 +130,8 @@ internal static class NativeProtoResearchProbe
         // Substitute coverage below exercises this session's actual new surface -- Token's exact
         // field selection and QuerySeed's exact field selection -- which are pure managed code
         // reachable from this harness.
-        var identityType = bridge.GetType("RimGovernor.Protocol.Common.Identity", true)!;
-        var identity = Activator.CreateInstance(identityType)!;
-        identityType.GetProperty("ColonyId")!.SetValue(identity, "colony");
-        identityType.GetProperty("LoadToken")!.SetValue(identity, "load");
-        identityType.GetProperty("MapId")!.SetValue(identity, 0);
-        var contextType = bridge.GetType("RimGovernor.Protocol.Common.ObservationContext", true)!;
-        var context = Activator.CreateInstance(contextType)!;
-        contextType.GetProperty("Identity")!.SetValue(context, identity);
+        var context = new RimGovernor.Contracts.Wire.Common.ObservationContext {
+            Identity = new RimGovernor.Contracts.Wire.Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 } };
         object Snapshot(string json) => Wire("ResearchSnapshot", json);
         string TokenOf(object snapshot) => (string)Get(Call("Token", context, snapshot), "Token");
         const string baseline = "{\"anomalyActive\":false,\"playerTechLevel\":\"Neolithic\"," +
@@ -157,13 +151,14 @@ internal static class NativeProtoResearchProbe
             "Project finished change invalidates research CAS token");
         Check(baselineToken != TokenOf(Snapshot(baseline.Replace("\"current\":true", "\"current\":false"))),
             "Project current-selection change invalidates research CAS token");
-        var withCompleteness = baseline.TrimEnd('}') + ",\"completeness\":{\"filtered\":\"9\"}}";
+        var withCompleteness = baseline.TrimEnd('}') + ",\"completeness\":{\"filtered\":9}}";
         Check(baselineToken == TokenOf(Snapshot(withCompleteness)), "Token is scoped to documented fields only, not the whole reply");
         var tokenRef = Call("Token", context, Snapshot(baseline));
         Check((string)Get(tokenRef, "EntityId") == "research-manager", "Research CAS token is scoped to the research manager entity");
         var returnedContext = Get(tokenRef, "Context");
-        Check(!ReferenceEquals(returnedContext, context) && (string)Get(Get(returnedContext, "Identity"), "ColonyId") == "colony",
-            "Research CAS token clones the caller's context rather than aliasing it");
+        // The context record is immutable, so the token may share it safely; what matters is that it carries the caller's identity.
+        Check((string)Get(Get(returnedContext, "Identity"), "ColonyId") == "colony",
+            "Research CAS token carries the caller's context identity");
         Func<string, object> seedRequest = fields => Wire("ResearchRequest", request(fields));
         var defaultSeed = Call("QuerySeed", seedRequest(""));
         Check(defaultSeed.Equals(Call("QuerySeed", seedRequest(""))), "Identical research query produces identical paging seed");

@@ -16,7 +16,7 @@ directory and the directory containing
 `RimGovernor.Runtime.dll` (`Mods/RimGovernor/Assemblies`). The bridge is under
 `Mods/RimGovernor/BridgeTools/RimGovernor`.
 
-The executable loads the actual generated wire types and SDK binder. It checks
+The executable loads the actual Contracts wire records and SDK binder. It checks
 presence-sensitive intersecting filters, exact IDs, distance boundaries, query and
 reply limits, detail defaults and opt-outs, missing tracker facts, and refusing
 work-priority initialization. Work snapshots bind pawn, priority mode, work rows,

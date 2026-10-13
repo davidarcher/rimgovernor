@@ -3,9 +3,9 @@ using System;
 using System.Collections.Generic;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -26,8 +26,8 @@ namespace HomeBridge.BridgeTools
             var seen = new HashSet<IntVec3>();
             foreach (var c in intent.Cells)
             {
-                if (c == null || !c.HasX || !c.HasZ) return "Build roof cell requires x and z.";
-                var cell = new IntVec3(c.X, 0, c.Z);
+                if (c == null || c.X is null || c.Z is null) return "Build roof cell requires x and z.";
+                var cell = new IntVec3(c.X.GetValueOrDefault(), 0, c.Z.GetValueOrDefault());
                 if (!cell.InBounds(map)) return $"Cell {cell} is out of bounds.";
                 if (cell.Fogged(map)) return $"Cell {cell} is fogged.";
                 if (!seen.Add(cell)) return $"Cell {cell} is repeated.";
@@ -44,30 +44,30 @@ namespace HomeBridge.BridgeTools
             return refusal == null ? null : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, refusal);
         }
 
-        internal static Receipts.EffectEvidence Apply(Operations.BuildRoofIntent intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(Operations.BuildRoofIntent? intent, Common.ObservationContext context)
         {
             var refusal = Refusal(intent, context, out var map, out var cells);
             if (refusal != null) throw new InvalidOperationException("Build roof prerequisites changed before apply: " + refusal);
-            var effect = new Receipts.BuildRoofEffect { Designated = 0, Adopted = 0, Roofed = 0 };
+            int designatedCount = 0, adoptedCount = 0, roofedCount = 0;
             var buildRoof = map!.areaManager.BuildRoof;
             var designator = new Designator_AreaBuildRoof();
             foreach (var cell in cells)
             {
                 var roofed = map.roofGrid.RoofAt(cell) != null;
-                if (buildRoof[cell]) { if (roofed) effect.Roofed++; else effect.Adopted++; continue; }
+                if (buildRoof[cell]) { if (roofed) roofedCount++; else adoptedCount++; continue; }
                 var accepted = designator.CanDesignateCell(cell);
                 if (!accepted.Accepted) throw new InvalidOperationException($"Native build-roof (BuildRoof area) is not accepted at {cell}: {accepted.Reason}");
                 designator.DesignateSingleCell(cell);
                 if (!buildRoof[cell]) throw new InvalidOperationException($"BuildRoof area was not observed at {cell}.");
-                if (roofed) effect.Roofed++; else effect.Designated++;
+                if (roofed) roofedCount++; else designatedCount++;
             }
-            return new Receipts.EffectEvidence { BuildRoof = effect };
+            return new Receipts.EffectEvidence { Effect = new Receipts.BuildRoofEffect { Designated = designatedCount, Adopted = adoptedCount, Roofed = roofedCount } };
         }
     }
 
     internal sealed class BuildRoofActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeBuildRoof.Validate(action.BuildRoof, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeBuildRoof.Apply(action.BuildRoof, context);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeBuildRoof.Validate(action.Intent?.BuildRoof, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeBuildRoof.Apply(action.Intent?.BuildRoof, context);
     }
 }

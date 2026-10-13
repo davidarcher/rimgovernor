@@ -2,9 +2,9 @@
 using System;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -15,7 +15,7 @@ namespace HomeBridge.BridgeTools
     internal static class NativeAutoHomeArea
     {
         internal static Common.Failure? Validate(Operations.AutoHomeAreaIntent? intent) =>
-            intent == null || !intent.HasEnabled
+            intent == null || intent.Enabled is null
                 ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Auto home area requires an explicit enabled value.")
                 : Find.PlaySettings == null ? ProtoBoundary.Fail(Common.FailureCode.NotFound, "Play settings are unavailable.") : null;
 
@@ -24,18 +24,18 @@ namespace HomeBridge.BridgeTools
             var failure = Validate(intent);
             if (failure != null) throw new ApplyRefusedException(failure);
             var settings = Find.PlaySettings;
-            var changed = settings.autoHomeArea != intent.Enabled;
-            settings.autoHomeArea = intent.Enabled;
-            if (settings.autoHomeArea != intent.Enabled) throw new InvalidOperationException("Native auto home area requires readback.");
-            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
-                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.AutoHomeArea,
-                    Outcome = changed ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Unchanged } } } };
+            var changed = settings.autoHomeArea != intent.Enabled.GetValueOrDefault();
+            settings.autoHomeArea = intent.Enabled.GetValueOrDefault();
+            if (settings.autoHomeArea != intent.Enabled.GetValueOrDefault()) throw new InvalidOperationException("Native auto home area requires readback.");
+            return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
+                Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.AutoHomeArea,
+                    Outcome = changed ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Unchanged }] } };
         }
     }
 
     internal sealed class AutoHomeAreaActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeAutoHomeArea.Validate(action.AutoHomeArea);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeAutoHomeArea.Apply(action.AutoHomeArea);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeAutoHomeArea.Validate(action.Intent?.AutoHomeArea ?? new Operations.AutoHomeAreaIntent());
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeAutoHomeArea.Apply(action.Intent?.AutoHomeArea ?? new Operations.AutoHomeAreaIntent());
     }
 }

@@ -89,13 +89,13 @@ namespace HomeBridge.BridgeTools
     internal static class SnapshotStream
     {
         internal static int KeyframeRequests;
-        internal static RimGovernor.Protocol.Observations.SnapshotStreamReply Open(
-            RimGovernor.Protocol.Observations.SnapshotStreamRequest request)
+        internal static RimGovernor.Contracts.Wire.Observations.SnapshotStreamReply Open(
+            RimGovernor.Contracts.Wire.Observations.SnapshotStreamRequest request)
         {
-            if (request.Keyframe) KeyframeRequests++;
-            return new RimGovernor.Protocol.Observations.SnapshotStreamReply
+            if (request.Keyframe == true) KeyframeRequests++;
+            return new RimGovernor.Contracts.Wire.Observations.SnapshotStreamReply
             {
-                Opened = new RimGovernor.Protocol.Observations.SnapshotStreamOpened()
+                Outcome = new RimGovernor.Contracts.Wire.Observations.SnapshotStreamOpened()
             };
         }
     }
@@ -122,28 +122,28 @@ namespace HomeBridge.BridgeTools
     // pending, completed or unknown without a live map.
     internal sealed class NativeConstructionRecord
     {
-        internal RimGovernor.Protocol.Receipts.Progress Next = new RimGovernor.Protocol.Receipts.Progress
-        { Pending = new RimGovernor.Protocol.Receipts.PendingEffect { Evidence = new RimGovernor.Protocol.Receipts.EffectEvidence
-            { Construction = new RimGovernor.Protocol.Receipts.ConstructionEffect { DefName = "Wall", Stage = RimGovernor.Protocol.Receipts.ConstructionStage.Blueprint, Present = true, Started = true } } } };
-        internal RimGovernor.Protocol.Receipts.Progress Observe(RimGovernor.Protocol.Common.AttemptKey attempt, RimGovernor.Protocol.Common.ObservationContext context)
-        { var progress = Next.Clone(); progress.Attempt = attempt.Clone(); progress.Context = context.Clone(); return progress; }
+        internal RimGovernor.Contracts.Wire.Receipts.Progress Next = new RimGovernor.Contracts.Wire.Receipts.Progress
+        { Effect = new RimGovernor.Contracts.Wire.Receipts.PendingEffect { Evidence = new RimGovernor.Contracts.Wire.Receipts.EffectEvidence
+            { Effect = new RimGovernor.Contracts.Wire.Receipts.ConstructionEffect { DefName = "Wall", Stage = RimGovernor.Contracts.Wire.Receipts.ConstructionStage.Blueprint, Present = true, Started = true } } } };
+        internal RimGovernor.Contracts.Wire.Receipts.Progress Observe(RimGovernor.Contracts.Wire.Common.AttemptKey attempt, RimGovernor.Contracts.Wire.Common.ObservationContext context)
+        => Next with { Attempt = attempt, Context = context };
     }
     // Haul double with the same Observe shape; the clock watch resolves a
     // watched key against both record tables and the probe only ever
     // arms construction keys, so no haul is ever recorded here.
     internal sealed class NativeHaulRecord
     {
-        internal RimGovernor.Protocol.Receipts.Progress Observe(RimGovernor.Protocol.Common.AttemptKey attempt, RimGovernor.Protocol.Common.ObservationContext context)
+        internal RimGovernor.Contracts.Wire.Receipts.Progress Observe(RimGovernor.Contracts.Wire.Common.AttemptKey attempt, RimGovernor.Contracts.Wire.Common.ObservationContext context)
             => throw new InvalidOperationException("The clock probe records no haul operations.");
     }
     internal sealed class NativeOperationState
     {
         internal NativeAttemptLedger Ledger;
-        internal readonly Dictionary<RimGovernor.Protocol.Common.AttemptKey, NativeConstructionRecord> Construction = new Dictionary<RimGovernor.Protocol.Common.AttemptKey, NativeConstructionRecord>();
-        internal readonly Dictionary<RimGovernor.Protocol.Common.AttemptKey, NativeHaulRecord> Hauls = new Dictionary<RimGovernor.Protocol.Common.AttemptKey, NativeHaulRecord>();
+        internal readonly Dictionary<RimGovernor.Contracts.Wire.Common.AttemptKey, NativeConstructionRecord> Construction = new Dictionary<RimGovernor.Contracts.Wire.Common.AttemptKey, NativeConstructionRecord>();
+        internal readonly Dictionary<RimGovernor.Contracts.Wire.Common.AttemptKey, NativeHaulRecord> Hauls = new Dictionary<RimGovernor.Contracts.Wire.Common.AttemptKey, NativeHaulRecord>();
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Verse.Game, NativeOperationState> States = new System.Runtime.CompilerServices.ConditionalWeakTable<Verse.Game, NativeOperationState>();
-        internal static NativeOperationState ForAdmission(RimGovernor.Protocol.Common.Identity identity) => States.GetValue(Verse.Current.Game, _ => new NativeOperationState { Ledger = new NativeAttemptLedger(identity) });
-        internal static bool TryGet(RimGovernor.Protocol.Common.Identity identity, out NativeOperationState state) => States.TryGetValue(Verse.Current.Game, out state);
+        internal static NativeOperationState ForAdmission(RimGovernor.Contracts.Wire.Common.Identity identity) => States.GetValue(Verse.Current.Game, _ => new NativeOperationState { Ledger = new NativeAttemptLedger(identity) });
+        internal static bool TryGet(RimGovernor.Contracts.Wire.Common.Identity identity, out NativeOperationState state) => States.TryGetValue(Verse.Current.Game, out state);
     }
 
     // native-clock's fixture-only supervisor double: completes the partial class whose typed-epoch
@@ -237,9 +237,9 @@ namespace HomeBridge.BridgeTools
         // reports a pacing epoch at Ultrafast's own rate with no frames.
         internal const int DefaultFrameBudgetMs = 30;
         private static double EffectiveTicksPerSecond() => 0;
-        private static void ReportFrames(RimGovernor.Protocol.Clock.Status status) { }
+        private static RimGovernor.Contracts.Wire.Clock.Status ReportFrames(RimGovernor.Contracts.Wire.Clock.Status status) => status;
         private static int PacedTicksPerSecond(State s) => 900;
-        private static RimGovernor.Protocol.Clock.PacingReason PacingReasonOf(State s) => RimGovernor.Protocol.Clock.PacingReason.Accelerated;
+        private static RimGovernor.Contracts.Wire.Clock.PacingReason PacingReasonOf(State s) => RimGovernor.Contracts.Wire.Clock.PacingReason.Accelerated;
         private static void AcknowledgeRows(State s, long afterCursor) { }
         internal static void FixtureReset()
         { _state = null; Journal = null; _epoch = _cursor = 0; RefusePause = false; InitialStop = null; _patchError = null; HarmonyLib.Harmony.Installed = false; }

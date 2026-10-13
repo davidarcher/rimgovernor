@@ -3,9 +3,9 @@ using System;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
         {
             Thing? found = null;
             var rules = new ApplyPreconditions(Kind)
-                .Require(() => intent.HasThingId && ProtoBoundary.IsIdentifier(intent.ThingId), "Strip requires an exact pawn or corpse")
+                .Require(() => intent.ThingId is not null && ProtoBoundary.IsIdentifier(intent.ThingId), "Strip requires an exact pawn or corpse")
                 .Present(() => (found = RefIndex.Thing(map, intent.ThingId) is Thing t && (t is Pawn || t is Corpse) ? t : null) != null
                     && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact pawn or corpse is not spawned on this map")
                 .Require(() => !Designated(found!), "the target is already designated for stripping")
@@ -49,7 +49,7 @@ namespace HomeBridge.BridgeTools
             if (!rules.Holds) throw new InvalidOperationException("Strip prerequisites changed before apply: " + rules.Reason);
             new Designator_Strip().DesignateThing(target!);
             if (!Designated(target!)) throw new InvalidOperationException("Native Strip designation was not observed.");
-            return new Receipts.EffectEvidence { Designation = new Receipts.DesignationEffect { ThingId = target!.GetUniqueLoadID(), DesignationDef = DesignationDef,
+            return new Receipts.EffectEvidence { Effect = new Receipts.DesignationEffect { ThingId = target!.GetUniqueLoadID(), DesignationDef = DesignationDef,
                 Present = true, ResourceDef = target.def.defName, Cell = new Common.Cell { X = target.Position.x, Z = target.Position.z } } };
         }
     }

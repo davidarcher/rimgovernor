@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using RimGovernor.Brain.NativeFacade;
-using Proto = RimGovernor.Protocol;
 
 namespace RimGovernor.Brain.Host;
 
@@ -57,7 +56,7 @@ internal sealed class SaveSignalLoop(INativeFacade facade, StateFlusher flusher,
 
     private async Task<string?> WaitAsync(CancellationToken ct)
     {
-        var reply = ProtoRecordBridge.ToRecord<PbLifecycle.WaitSaveSignalReply>(await facade.WaitSaveSignalAsync(new Proto.Lifecycle.WaitSaveSignalRequest(), ct).ConfigureAwait(false));
+        var reply = await facade.WaitSaveSignalAsync(new PbLifecycle.WaitSaveSignalRequest(), ct).ConfigureAwait(false);
         return reply.Outcome switch
         {
             PbLifecycle.WaitSaveSignalReplyOutcome.SignalCase signal => signal.Value.Token ?? string.Empty,
@@ -90,7 +89,7 @@ internal sealed class SaveSignalLoop(INativeFacade facade, StateFlusher flusher,
         {
             try
             {
-                var reply = ProtoRecordBridge.ToRecord<PbLifecycle.FlushDoneReply>(await facade.FlushDoneAsync(ProtoRecordBridge.ToProto<Proto.Lifecycle.FlushDoneRequest>(new PbLifecycle.FlushDoneRequest { Token = token }), ack.Token).ConfigureAwait(false));
+                var reply = await facade.FlushDoneAsync(new PbLifecycle.FlushDoneRequest { Token = token }, ack.Token).ConfigureAwait(false);
                 if (reply.Outcome is PbLifecycle.FlushDoneReplyOutcome.FailureCase failure)
                 {
                     ackError = FacadeReplies.Refused("FlushDone", failure.Value).Message;

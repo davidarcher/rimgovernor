@@ -5,9 +5,9 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -37,9 +37,9 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(Operations.GatheringIntent? command, out Plan? plan)
         {
             plan = null;
-            if (command == null || !command.HasGatheringDef || !ProtoBoundary.IsIdentifier(command.GatheringDef) || command.Organizer == null || !ProtoBoundary.IsIdentifier(command.Organizer.Id))
+            if (command == null || command.GatheringDef is null || !ProtoBoundary.IsIdentifier(command.GatheringDef) || command.Organizer == null || !ProtoBoundary.IsIdentifier(command.Organizer.Id))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A gathering command requires a gathering def and an organizer.");
-            var def = DefDatabase<GatheringDef>.GetNamedSilentFail(command.GatheringDef);
+            var def = DefDatabase<GatheringDef>.GetNamedSilentFail((command.GatheringDef ?? ""));
             if (def == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Unknown gathering def.");
             var organizer = PawnsFinder.AllMaps_FreeColonists.ById(command.Organizer.Id);
             if (organizer == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact colonist organizer is unavailable.");
@@ -63,7 +63,7 @@ namespace HomeBridge.BridgeTools
             if (job == null) throw new InvalidOperationException("Native gathering start readback did not apply.");
             return new Receipts.EffectEvidence
             {
-                Gathering = new Receipts.GatheringEffect
+                Effect = new Receipts.GatheringEffect
                 {
                     GatheringDef = command.GatheringDef,
                     OrganizerId = (job.Organizer ?? plan.Organizer).GetUniqueLoadID(),
@@ -77,7 +77,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.GatheringIntent command)
         {
             var failure = Resolve(command, out var plan);
-            if (failure != null || plan == null) throw new InvalidOperationException("Gathering start prerequisites changed before apply: " + failure?.Detail);
+            if (failure != null || plan == null) throw new InvalidOperationException("Gathering start prerequisites changed before apply: " + (failure?.Detail ?? ""));
             if (plan.Running != null) return Evidence(command, plan);
             if (!plan.Def.Worker.TryExecute(plan.Organizer.MapHeld, plan.Organizer))
                 throw new InvalidOperationException("The game declined to start the gathering.");
@@ -87,7 +87,7 @@ namespace HomeBridge.BridgeTools
 
     internal sealed class GatheringActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeGathering.Validate(action.Gathering);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeGathering.Apply(action.Gathering);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeGathering.Validate(action.Intent?.Gathering ?? new Operations.GatheringIntent());
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeGathering.Apply(action.Intent?.Gathering ?? new Operations.GatheringIntent());
     }
 }

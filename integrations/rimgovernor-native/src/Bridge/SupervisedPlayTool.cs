@@ -869,7 +869,7 @@ namespace HomeBridge.BridgeTools
             foreach (var identity in s.MedicalRest.ToList())
             {
                 var patient = colonists.FirstOrDefault(p => p.thingIDNumber == identity);
-                if (patient != null && MedicalRestSafety.Eligible(patient, s.Policy!.SeriousSummaryHealthFloor)) continue;
+                if (patient != null && MedicalRestSafety.Eligible(patient, s.Policy!.SeriousSummaryHealthFloor.GetValueOrDefault())) continue;
                 s.MedicalRest.Remove(identity);
                 InvalidateMedicalFacts(s, identity, "resting patient " + identity + " requires a fresh medical review", true);
             }
@@ -892,7 +892,7 @@ namespace HomeBridge.BridgeTools
                     && (GameWatchReads.SafeDowned(p) || GameWatchReads.SafeDead(p))
                     && !s.IgnoredDowned.Contains(p.thingIDNumber)
                     && !SafeSurgicalRecovery(s, p)
-                    && !(s.MedicalRest.Contains(p.thingIDNumber) && MedicalRestSafety.Eligible(p, s.Policy!.SeriousSummaryHealthFloor)))
+                    && !(s.MedicalRest.Contains(p.thingIDNumber) && MedicalRestSafety.Eligible(p, s.Policy!.SeriousSummaryHealthFloor.GetValueOrDefault())))
                     return PawnHit("colonist_downed", p, GameWatchReads.SafeDead(p) ? "dead" : "downed", DownedTick(p));
                 if (ThreateningPredatorHunt(p)
                     && !s.IgnoredHostiles.Contains(p.thingIDNumber)
@@ -909,7 +909,7 @@ namespace HomeBridge.BridgeTools
                         // speed and the hunter shot anyway. The vanished
                         // designation settles the controller's hunt action
                         // and the invalidated colony facts replan at once.
-                        if (prey != null && !prey.Dead && !HuntingSafety.RouteSafe(p, prey, s.Policy!.PredatorMarginCells)
+                        if (prey != null && !prey.Dead && !HuntingSafety.RouteSafe(p, prey, s.Policy!.PredatorMarginCells.GetValueOrDefault())
                             && HuntingSafety.Withdraw(p, prey))
                             Add("observation_invalidated", "Observed facts changed: unsafe hunt of "
                                 + GameWatchReads.SafeName(prey) + " withdrawn.", s,
@@ -937,7 +937,7 @@ namespace HomeBridge.BridgeTools
                     // instead: a colonist_health stop there is a hold that
                     // revokes authority mid-fight, the 2-3 s stop latency
                     // of #890.
-                    var fightOwned = s.Mode == "combat" && CombatArmed(RimGovernor.Protocol.Clock.CombatEvent.SeriousInjury);
+                    var fightOwned = s.Mode == "combat" && CombatArmed(RimGovernor.Contracts.Wire.Clock.CombatEvent.SeriousInjury);
                     if (before != null
                         && s.Mode == "combat"
                         && !fightOwned
@@ -998,7 +998,7 @@ namespace HomeBridge.BridgeTools
                         // what every stop bought anyway at the price of a
                         // stop-to-readmit pause. A combat threshold crossing
                         // still stops.
-                        var severityFloorTicks = (int)s.Policy!.InjurySeverityFloorTicks;
+                        var severityFloorTicks = (int)s.Policy!.InjurySeverityFloorTicks.GetValueOrDefault();
                         var severe = InjurySeverityFloorReached(after.BleedOutTicks, after.LifeThreatening, severityFloorTicks);
                         payload["bleedOutTicks"] = after.BleedOutTicks == int.MaxValue ? null : (object)after.BleedOutTicks;
                         payload["lifeThreatening"] = after.LifeThreatening;
@@ -1474,7 +1474,7 @@ namespace HomeBridge.BridgeTools
         {
             public TypedEpoch? Typed;
             /// The Go-authored policy this epoch runs under; every hazard threshold reads from it.
-            public RimGovernor.Protocol.Clock.WatchPolicy? Policy => Typed?.Policy;
+            public RimGovernor.Contracts.Wire.Clock.WatchPolicy? Policy => Typed?.Policy;
             public State(object session, Map map) { Session = session; Map = map; }
             public bool Active; public long Epoch; public string? Owner; public readonly object Session; public readonly Map Map; public TimeSpeed RequestedSpeed;
             public string? Mode; public float HostileWithin; public float HealthDropFraction; public float MinHealthFraction;

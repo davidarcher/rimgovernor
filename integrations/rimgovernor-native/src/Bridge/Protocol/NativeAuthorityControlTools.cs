@@ -3,8 +3,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Authority = RimGovernor.Protocol.Authority;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Authority = RimGovernor.Contracts.Wire.Authority;
 
 namespace HomeBridge.BridgeTools
 {
@@ -19,100 +19,100 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Control(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ControlRequest. Never exposed to model dispatch.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Authority.ControlRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Authority.ControlReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Authority.ControlRequest>(ctx, ToolName, request, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Authority.ControlReply { Outcome = new Authority.ControlReplyOutcome.FailureCase(failure) });
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => Apply(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         internal static Authority.ControlReply Apply(Authority.ControlRequest request)
         {
-            if (request.OperationCase == Authority.ControlRequest.OperationOneofCase.FocusMap)
-                return Focus(request.FocusMap);
-            Common.Identity identity;
-            switch (request.OperationCase)
+            if (request.Operation is Authority.ControlRequestOperation.FocusMapCase { Value: var focus })
+                return Focus(focus);
+            Common.Identity? identity;
+            Authority.SetMode? setMode = null;
+            Authority.Revoke? revoke = null;
+            switch (request.Operation)
             {
-                case Authority.ControlRequest.OperationOneofCase.SetMode:
-                    var setMode = request.SetMode;
-                    if (!setMode.HasExpectedGeneration || setMode.ExpectedGeneration == 0 || !setMode.HasMode
-                        || (setMode.Mode != Authority.Mode.Auto && setMode.Mode != Authority.Mode.Manual)) return Invalid();
-                    identity = setMode.Identity;
+                case Authority.ControlRequestOperation.SetModeCase { Value: var sm }:
+                    setMode = sm;
+                    if (sm.ExpectedGeneration is null || sm.ExpectedGeneration == 0 || sm.Mode is null
+                        || (sm.Mode != Authority.Mode.Auto && sm.Mode != Authority.Mode.Manual)) return Invalid();
+                    identity = sm.Identity;
                     break;
-                case Authority.ControlRequest.OperationOneofCase.Revoke:
-                    var revoke = request.Revoke;
-                    if (!revoke.HasExpectedGeneration || revoke.ExpectedGeneration == 0 || !revoke.HasReason
-                        || !ExternalReason(revoke.Reason, out _)) return Invalid();
-                    identity = revoke.Identity;
+                case Authority.ControlRequestOperation.RevokeCase { Value: var rv }:
+                    revoke = rv;
+                    if (rv.ExpectedGeneration is null || rv.ExpectedGeneration == 0 || rv.Reason is null
+                        || !ExternalReason(rv.Reason.GetValueOrDefault(), out _)) return Invalid();
+                    identity = rv.Identity;
                     break;
                 default: return Invalid();
             }
+            if (identity is null) return Invalid();
             if (!ProtoBoundary.ValidateIdentity(identity, out var context, out var failure))
-                return new Authority.ControlReply { Failure = failure };
-            bool settingAuto = request.OperationCase == Authority.ControlRequest.OperationOneofCase.SetMode
-                && request.SetMode.Mode == Authority.Mode.Auto;
+                return new Authority.ControlReply { Outcome = failure };
+            bool settingAuto = setMode is not null && setMode.Mode == Authority.Mode.Auto;
             if (settingAuto)
                 NativeAuthorityHooks.InitializeForCurrentGame();
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out var state) || state == null)
-                return new Authority.ControlReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable,
+                return new Authority.ControlReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.Unavailable,
                     "Native authority hooks are not initialized.") };
             NativeControlResult result;
-            switch (request.OperationCase)
+            if (setMode is not null)
             {
-                case Authority.ControlRequest.OperationOneofCase.SetMode:
-                    var mode = request.SetMode.Mode == Authority.Mode.Auto ? NativeControlMode.Auto : NativeControlMode.Manual;
-                    result = state.SetMode(request.SetMode.ExpectedGeneration, mode);
-                    break;
-                default:
-                    NativeControlRevocationReason reason;
-                    ExternalReason(request.Revoke.Reason, out reason);
-                    result = state.Revoke(request.Revoke.ExpectedGeneration, reason);
-                    break;
+                var mode = setMode.Mode == Authority.Mode.Auto ? NativeControlMode.Auto : NativeControlMode.Manual;
+                result = state.SetMode(setMode.ExpectedGeneration.GetValueOrDefault(), mode);
             }
-            context.NativeGeneration = result.Snapshot.Generation;
+            else
+            {
+                NativeControlRevocationReason reason;
+                ExternalReason(revoke!.Reason.GetValueOrDefault(), out reason);
+                result = state.Revoke(revoke.ExpectedGeneration.GetValueOrDefault(), reason);
+            }            context = context with { NativeGeneration = result.Snapshot.Generation };
             if (!result.Success)
-                return new Authority.ControlReply { Failure = Refusal(result.Error, context) };
-            if (request.OperationCase == Authority.ControlRequest.OperationOneofCase.Revoke)
-                return new Authority.ControlReply { Revoked = new Authority.Revoked
+                return new Authority.ControlReply { Outcome = Refusal(result.Error, context) };
+            if (revoke is not null)
+                return new Authority.ControlReply { Outcome = new Authority.Revoked
                 {
                     Context = context,
-                    Authority = new Authority.InactiveAuthority { Reason = request.Revoke.Reason }
+                    Authority = new Authority.InactiveAuthority { Reason = revoke!.Reason }
                 } };
             if (!settingAuto)
             {
                 var projectedInactive = NativeAuthorityTools.Project(result.Snapshot, context);
-                return new Authority.ControlReply { Revoked = new Authority.Revoked
+                return new Authority.ControlReply { Outcome = new Authority.Revoked
                 {
                     Context = context,
-                    Authority = projectedInactive.Inactive ?? new Authority.InactiveAuthority { Reason = Authority.RevocationReason.Manual }
+                    Authority = projectedInactive.State?.Inactive ?? new Authority.InactiveAuthority { Reason = Authority.RevocationReason.Manual }
                 } };
             }
             if (result.Snapshot.Active) NativeAuthorityHooks.EnsureManualPriorities(Current.Game);
             var projected = NativeAuthorityTools.Project(result.Snapshot, context);
-            return new Authority.ControlReply { Granted = new Authority.Granted
+            return new Authority.ControlReply { Outcome = new Authority.Granted
             {
-                Context = context, Authority = projected.Active
+                Context = context, Authority = projected.State?.Active
             } };
         }
 
         private static Authority.ControlReply Focus(Authority.FocusMap request)
         {
-            if (!request.HasExpectedGeneration || request.ExpectedGeneration == 0 || request.Target == null
-                || request.Identity == null || request.Target.ColonyId != request.Identity.ColonyId
-                || request.Target.LoadToken != request.Identity.LoadToken) return Invalid();
+            if (request.ExpectedGeneration is null || request.ExpectedGeneration.GetValueOrDefault() == 0 || request.Target == null
+                || request.Identity == null || (request.Target.ColonyId ?? "") != (request.Identity.ColonyId ?? "")
+                || (request.Target.LoadToken ?? "") != (request.Identity.LoadToken ?? "")) return Invalid();
             if (!ProtoBoundary.ValidateViewedIdentity(request.Identity, out var before, out var failure))
-                return new Authority.ControlReply { Failure = failure };
+                return new Authority.ControlReply { Outcome = failure };
             if (!ProtoBoundary.ValidateIdentity(request.Target, out var map, out var context, out failure))
-                return new Authority.ControlReply { Failure = failure };
+                return new Authority.ControlReply { Outcome = failure };
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out var state) || state == null)
-                return new Authority.ControlReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native authority unavailable.") };
+                return new Authority.ControlReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native authority unavailable.") };
             var snapshot = state.Status();
-            if (snapshot.Generation != request.ExpectedGeneration)
-                return new Authority.ControlReply { Failure = Refusal(NativeControlError.StaleGeneration, before) };
+            if (snapshot.Generation != request.ExpectedGeneration.GetValueOrDefault())
+                return new Authority.ControlReply { Outcome = Refusal(NativeControlError.StaleGeneration, before) };
             if (!snapshot.Active)
-                return new Authority.ControlReply { Failure = Refusal(NativeControlError.AuthorityRequired, before) };
+                return new Authority.ControlReply { Outcome = Refusal(NativeControlError.AuthorityRequired, before) };
             Current.Game.CurrentMap = map;
-            context.NativeGeneration = state.Status().Generation;
-            SnapshotStream.Open(new RimGovernor.Protocol.Observations.SnapshotStreamRequest { Keyframe = true });
-            return new Authority.ControlReply { FocusedMap = new Authority.FocusedMap { Context = context } };
+            context = context with { NativeGeneration = state.Status().Generation };
+            SnapshotStream.Open(new RimGovernor.Contracts.Wire.Observations.SnapshotStreamRequest { Keyframe = true });
+            return new Authority.ControlReply { Outcome = new Authority.FocusedMap { Context = context } };
         }
 
         internal static Common.Failure Refusal(NativeControlError error, Common.ObservationContext context)
@@ -131,7 +131,7 @@ namespace HomeBridge.BridgeTools
 
         private static Authority.ControlReply Invalid() => new Authority.ControlReply
         {
-            Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Control requires a complete supported operation with valid identity, generation and mode/reason.")
+            Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Control requires a complete supported operation with valid identity, generation and mode/reason.")
         };
 
         private static bool ExternalReason(Authority.RevocationReason value, out NativeControlRevocationReason reason)

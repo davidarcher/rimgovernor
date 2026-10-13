@@ -4,9 +4,10 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
+using PS = RimGovernor.Contracts.Wire.Operations.PawnSettingsIntentSetting;
 
 namespace HomeBridge.BridgeTools
 {
@@ -61,18 +62,17 @@ namespace HomeBridge.BridgeTools
             pawn = null; mode = HostilityResponseMode.Attack; care = MedicalCareCategory.NoCare;
             if (intent == null || !ProtoBoundary.IsIdentifier(intent.PawnId))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require an exact pawn.");
-            var kind = intent.SettingCase;
-            var id = intent.PawnId;
-            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.Nickname)
+            var id = (intent.PawnId ?? "");
+            if (intent.Setting is PS.NicknameCase)
             {
-                if (string.IsNullOrWhiteSpace(intent.Nickname))
+                if (string.IsNullOrWhiteSpace(intent.Setting?.Nickname))
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Nickname names the short name the pawn must leave.");
                 pawn = OwnedNamedPawns().ById(id);
                 return pawn == null ? ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living named pawn the colony owns is not found.") : null;
             }
-            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.MedicalCare)
+            if (intent.Setting is PS.MedicalCareCase)
             {
-                var tier = Care(intent.MedicalCare);
+                var tier = intent.Setting?.MedicalCare is { } careWire ? Care(careWire) : null;
                 if (tier == null)
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Medical care must be one of the five MedicalCareCategory tiers.");
                 care = tier.Value;
@@ -81,34 +81,34 @@ namespace HomeBridge.BridgeTools
                 return pawn == null || pawn.Dead || pawn.playerSettings == null || player == null || pawn.Faction != player && pawn.HostFaction != player
                     ? ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living pawn of the colony with medical care settings is not spawned on this map.") : null;
             }
-            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.MedicineCarry)
+            if (intent.Setting is PS.MedicineCarryCase)
                 return ResolveCarry(intent, context, out pawn, out _);
-            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.ReadingPolicy)
+            if (intent.Setting is PS.ReadingPolicyCase)
                 return ResolveReading(intent, context, out pawn, out _);
-            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.DrugPolicy)
+            if (intent.Setting is PS.DrugPolicyCase)
                 return ResolveDrug(intent, context, out pawn, out _);
-            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.FoodPolicy)
+            if (intent.Setting is PS.FoodPolicyCase)
                 return ResolveFood(intent, context, out pawn, out _);
-            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.MechWorkMode || kind == Operations.PawnSettingsIntent.SettingOneofCase.MechControlGroup)
+            if (intent.Setting is PS.MechWorkModeCase || intent.Setting is PS.MechControlGroupCase)
                 return ResolveMech(intent, context, out pawn, out _, out _, out _);
-            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.ChoosePermit)
+            if (intent.Setting is PS.ChoosePermitCase)
                 return ResolvePermit(intent, out pawn, out _, out _);
-            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.ExtractBioferrite)
+            if (intent.Setting is PS.ExtractBioferriteCase)
                 return ResolveExtractBioferrite(intent, context, out pawn, out _);
-            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.EatTrigger)
+            if (intent.Setting is PS.EatTriggerCase)
                 return ResolveEatTrigger(intent, context, out pawn);
-            if (kind != Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse && kind != Operations.PawnSettingsIntent.SettingOneofCase.SelfTend)
+            if (intent.Setting is not PS.HostilityResponseCase && intent.Setting is not PS.SelfTendCase)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require exactly one setting.");
-            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse)
+            if (intent.Setting is PS.HostilityResponseCase)
             {
-                if (NativeEnums.Hostility(intent.HostilityResponse) is not HostilityResponseMode parsed)
+                if (intent.Setting?.HostilityResponse is not { } hostilityWire || NativeEnums.Hostility(hostilityWire) is not HostilityResponseMode parsed)
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hostility response must be Ignore, Attack or Flee.");
                 mode = parsed;
             }
             pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(id);
             if (pawn == null || pawn.Dead || pawn.playerSettings == null)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living colony pawn with player settings is not spawned on this map.");
-            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.SelfTend)
+            if (intent.Setting is PS.SelfTendCase)
                 return pawn.WorkTypeIsDisabled(WorkTypeDefOf.Doctor)
                     ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A pawn that cannot doctor has no self-tend setting.") : null;
             if (!pawn.playerSettings.UsesConfigurableHostilityResponse)
@@ -120,41 +120,42 @@ namespace HomeBridge.BridgeTools
 
         internal static Common.Failure? Validate(Operations.PawnSettingsIntent? intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.PawnSettingsIntent intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(Operations.PawnSettingsIntent? intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var mode, out var care);
             if (failure != null) throw new ApplyRefusedException(failure);
+            if (intent is null) throw new InvalidOperationException("Pawn settings require an intent.");
             Receipts.FieldResult field;
-            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.Nickname) {
-                field = new Receipts.FieldResult { Field = Receipts.SettingsField.Nickname, Outcome = Rename(pawn!, intent.Nickname) };
-                return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+            if (intent.Setting is PS.NicknameCase) {
+                field = new Receipts.FieldResult { Field = Receipts.SettingsField.Nickname, Outcome = Rename(pawn!, intent.Setting?.Nickname ?? "") };
+                return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                     Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn!.GetUniqueLoadID() },
-                    Fields = { field } } };
+                    Fields = [field] } };
             }
-            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MedicineCarry)
+            if (intent.Setting is PS.MedicineCarryCase)
                 return ApplyCarry(intent, context);
-            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.ReadingPolicy)
+            if (intent.Setting is PS.ReadingPolicyCase)
                 return ApplyReading(intent, context);
-            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.DrugPolicy)
+            if (intent.Setting is PS.DrugPolicyCase)
                 return ApplyDrug(intent, context);
-            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.FoodPolicy)
+            if (intent.Setting is PS.FoodPolicyCase)
                 return ApplyFood(intent, context);
-            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MechWorkMode || intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MechControlGroup)
+            if (intent.Setting is PS.MechWorkModeCase || intent.Setting is PS.MechControlGroupCase)
                 return ApplyMech(intent, context);
-            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.ChoosePermit)
+            if (intent.Setting is PS.ChoosePermitCase)
                 return ApplyPermit(intent);
-            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.ExtractBioferrite)
+            if (intent.Setting is PS.ExtractBioferriteCase)
                 return ApplyExtractBioferrite(intent, context);
-            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.EatTrigger)
+            if (intent.Setting is PS.EatTriggerCase)
                 return ApplyEatTrigger(intent, context);
             var settings = pawn!.playerSettings;
-            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MedicalCare) {
+            if (intent.Setting is PS.MedicalCareCase) {
                 var outcome = settings.medCare == care ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied;
                 settings.medCare = care;
                 if (settings.medCare != care) throw new InvalidOperationException("Native medical care requires readback.");
                 field = new Receipts.FieldResult { Field = Receipts.SettingsField.MedicalCare, Outcome = outcome };
-            } else if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.SelfTend) {
-                var want = intent.SelfTend;
+            } else if (intent.Setting is PS.SelfTendCase) {
+                var want = intent.Setting?.SelfTend ?? false;
                 var outcome = settings.selfTend == want ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied;
                 settings.selfTend = want;
                 if (settings.selfTend != want) throw new InvalidOperationException("Native self-tend requires readback.");
@@ -165,9 +166,9 @@ namespace HomeBridge.BridgeTools
                 if (settings.hostilityResponse != mode) throw new InvalidOperationException("Native hostility response requires readback.");
                 field = new Receipts.FieldResult { Field = Receipts.SettingsField.Hostility, Outcome = outcome };
             }
-            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+            return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
-                Fields = { field } } };
+                Fields = [field] } };
         }
 
         // medicine_carry: the colonist's Medicine inventory-stock
@@ -177,16 +178,16 @@ namespace HomeBridge.BridgeTools
         {
             pawn = null; medicine = null;
             var group = InventoryStockGroupDefOf.Medicine;
-            if (intent.MedicineCarry < group.min || intent.MedicineCarry > group.max)
+            if ((intent.Setting?.MedicineCarry ?? 0) < group.min || (intent.Setting?.MedicineCarry ?? 0) > group.max)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, $"Medicine carry must be {group.min}-{group.max}.");
-            var id = intent.PawnId;
+            var id = (intent.PawnId ?? "");
             pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(id);
             if (pawn == null || pawn.Dead || pawn.playerSettings == null || pawn.inventoryStock == null || !pawn.IsColonist)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living colonist with an inventory stock is not spawned on this map.");
             var care = pawn.playerSettings.medCare;
             medicine = group.thingDefs.Where(d => care.AllowsMedicine(d))
                 .OrderByDescending(d => d.GetStatValueAbstract(StatDefOf.MedicalPotency)).FirstOrDefault();
-            return medicine == null && intent.MedicineCarry > 0
+            return medicine == null && (intent.Setting?.MedicineCarry ?? 0) > 0
                 ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The pawn's medical care allows no medicine to carry.") : null;
         }
 
@@ -196,15 +197,15 @@ namespace HomeBridge.BridgeTools
             if (failure != null) throw new ApplyRefusedException(failure);
             var stock = pawn!.inventoryStock;
             var group = InventoryStockGroupDefOf.Medicine;
-            var unchanged = stock.GetDesiredCountForGroup(group) == intent.MedicineCarry
+            var unchanged = stock.GetDesiredCountForGroup(group) == (intent.Setting?.MedicineCarry ?? 0)
                 && (medicine == null || stock.GetDesiredThingForGroup(group) == medicine);
             if (medicine != null) stock.SetThingForGroup(group, medicine);
-            stock.SetCountForGroup(group, intent.MedicineCarry);
-            if (stock.GetDesiredCountForGroup(group) != intent.MedicineCarry) throw new InvalidOperationException("Native medicine carry requires readback.");
-            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+            stock.SetCountForGroup(group, (intent.Setting?.MedicineCarry ?? 0));
+            if (stock.GetDesiredCountForGroup(group) != (intent.Setting?.MedicineCarry ?? 0)) throw new InvalidOperationException("Native medicine carry requires readback.");
+            return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
-                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.MedicineCarry,
-                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
+                Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.MedicineCarry,
+                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied }] } };
         }
 
         // reading_policy: the one ReadingPolicy labelled with the
@@ -212,14 +213,14 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? ResolveReading(Operations.PawnSettingsIntent intent, Common.ObservationContext context, out Pawn? pawn, out ReadingPolicy? policy)
         {
             pawn = null; policy = null;
-            var name = intent.ReadingPolicy;
+            var name = intent.Setting?.ReadingPolicy;
             if (!ProtoBoundary.IsIdentifier(name))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Reading policy names the policy label.");
             var matches = Current.Game.readingPolicyDatabase.AllReadingPolicies.Where(p => p.label == name).ToList();
             if (matches.Count != 1)
                 return ProtoBoundary.Fail(matches.Count == 0 ? Common.FailureCode.NotFound : Common.FailureCode.InvalidRequest, "Exactly one reading policy must carry this label.");
             policy = matches[0];
-            var id = intent.PawnId;
+            var id = (intent.PawnId ?? "");
             var player = Faction.OfPlayerSilentFail;
             pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == id);
             return pawn == null || pawn.Dead || pawn.reading == null || player == null || pawn.Faction != player && pawn.HostFaction != player
@@ -233,10 +234,10 @@ namespace HomeBridge.BridgeTools
             var unchanged = pawn!.reading.CurrentPolicy == policy;
             pawn.reading.CurrentPolicy = policy;
             if (pawn.reading.CurrentPolicy != policy) throw new InvalidOperationException("Native reading policy requires readback.");
-            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+            return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
-                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.ReadingPolicy,
-                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
+                Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.ReadingPolicy,
+                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied }] } };
         }
 
         // drug_policy: the one DrugPolicy labelled with the intent's
@@ -244,14 +245,14 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? ResolveDrug(Operations.PawnSettingsIntent intent, Common.ObservationContext context, out Pawn? pawn, out DrugPolicy? policy)
         {
             pawn = null; policy = null;
-            var name = intent.DrugPolicy;
+            var name = intent.Setting?.DrugPolicy;
             if (!ProtoBoundary.IsIdentifier(name))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Drug policy names the policy label.");
             var matches = Current.Game.drugPolicyDatabase.AllPolicies.Where(p => p.label == name).ToList();
             if (matches.Count != 1)
                 return ProtoBoundary.Fail(matches.Count == 0 ? Common.FailureCode.NotFound : Common.FailureCode.InvalidRequest, "Exactly one drug policy must carry this label.");
             policy = matches[0];
-            var id = intent.PawnId;
+            var id = (intent.PawnId ?? "");
             var player = Faction.OfPlayerSilentFail;
             pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == id);
             return pawn == null || pawn.Dead || pawn.drugs == null || player == null || pawn.Faction != player && pawn.HostFaction != player
@@ -265,10 +266,10 @@ namespace HomeBridge.BridgeTools
             var unchanged = pawn!.drugs.CurrentPolicy == policy;
             pawn.drugs.CurrentPolicy = policy;
             if (pawn.drugs.CurrentPolicy != policy) throw new InvalidOperationException("Native drug policy requires readback.");
-            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+            return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
-                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.DrugPolicy,
-                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
+                Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.DrugPolicy,
+                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied }] } };
         }
 
         // food_policy: the one FoodPolicy labelled with the intent's
@@ -276,14 +277,14 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? ResolveFood(Operations.PawnSettingsIntent intent, Common.ObservationContext context, out Pawn? pawn, out FoodPolicy? policy)
         {
             pawn = null; policy = null;
-            var name = intent.FoodPolicy;
+            var name = intent.Setting?.FoodPolicy;
             if (!ProtoBoundary.IsIdentifier(name))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Food policy names the policy label.");
             var matches = Current.Game.foodRestrictionDatabase.AllFoodRestrictions.Where(p => p.label == name).ToList();
             if (matches.Count != 1)
                 return ProtoBoundary.Fail(matches.Count == 0 ? Common.FailureCode.NotFound : Common.FailureCode.InvalidRequest, "Exactly one food policy must carry this label.");
             policy = matches[0];
-            var id = intent.PawnId;
+            var id = (intent.PawnId ?? "");
             var player = Faction.OfPlayerSilentFail;
             pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == id);
             return pawn == null || pawn.Dead || pawn.foodRestriction == null || player == null || pawn.Faction != player && pawn.HostFaction != player
@@ -297,10 +298,10 @@ namespace HomeBridge.BridgeTools
             var unchanged = pawn!.foodRestriction.CurrentFoodPolicy == policy;
             pawn.foodRestriction.CurrentFoodPolicy = policy;
             if (pawn.foodRestriction.CurrentFoodPolicy != policy) throw new InvalidOperationException("Native food policy requires readback.");
-            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+            return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
-                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.FoodRestriction,
-                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
+                Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.FoodRestriction,
+                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied }] } };
         }
 
         // mech_work_mode and mech_control_group: a controllable
@@ -313,16 +314,16 @@ namespace HomeBridge.BridgeTools
             pawn = null; tracker = null; mode = null; group = null;
             if (!ModsConfig.BiotechActive)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Mech settings need the Biotech DLC.");
-            var wantMode = intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MechWorkMode;
+            var wantMode = intent.Setting is PS.MechWorkModeCase;
             if (wantMode)
             {
-                if (!ProtoBoundary.IsIdentifier(intent.MechWorkMode))
+                if (!ProtoBoundary.IsIdentifier(intent.Setting?.MechWorkMode))
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Mech work mode names a MechWorkModeDef.");
-                mode = DefDatabase<MechWorkModeDef>.GetNamedSilentFail(intent.MechWorkMode);
+                mode = DefDatabase<MechWorkModeDef>.GetNamedSilentFail(intent.Setting?.MechWorkMode);
                 if (mode == null)
                     return ProtoBoundary.Fail(Common.FailureCode.NotFound, "No MechWorkModeDef carries this name.");
             }
-            var id = intent.PawnId;
+            var id = (intent.PawnId ?? "");
             var player = Faction.OfPlayerSilentFail;
             pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(id);
             if (pawn == null || pawn.Dead)
@@ -336,7 +337,7 @@ namespace HomeBridge.BridgeTools
             group = tracker.GetControlGroup(pawn);
             if (!wantMode)
             {
-                var index = intent.MechControlGroup;
+                var index = intent.Setting?.MechControlGroup ?? 0;
                 if (index < 0 || index >= tracker.controlGroups.Count)
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, $"The overseer has control groups 0-{tracker.controlGroups.Count - 1}.");
                 group = tracker.controlGroups[index];
@@ -370,10 +371,10 @@ namespace HomeBridge.BridgeTools
                 if (tracker.GetControlGroup(pawn!) != group) throw new InvalidOperationException("Native mech control group requires readback.");
                 field = Receipts.SettingsField.MechControlGroup;
             }
-            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+            return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn!.GetUniqueLoadID() },
-                Fields = { new Receipts.FieldResult { Field = field,
-                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
+                Fields = [new Receipts.FieldResult { Field = field,
+                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied }] } };
         }
 
         // choose_permit: a free colonist on any map takes one permit of
@@ -384,16 +385,17 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? ResolvePermit(Operations.PawnSettingsIntent intent, out Pawn? pawn, out Faction? faction, out RoyalTitlePermitDef? permit)
         {
             pawn = null; faction = null; permit = null;
-            var choice = intent.ChoosePermit;
-            if (choice == null || !choice.HasFactionDef || !ProtoBoundary.IsIdentifier(choice.FactionDef) || !choice.HasPermit || !ProtoBoundary.IsIdentifier(choice.Permit))
+            var choice = intent.Setting?.ChoosePermit;
+            if (choice == null || choice.FactionDef is null || !ProtoBoundary.IsIdentifier(choice.FactionDef) || choice.Permit is null || !ProtoBoundary.IsIdentifier(choice.Permit))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Choosing a permit requires a faction def and a permit def.");
+            var factionDefName = choice.FactionDef ?? "";
             pawn = PawnsFinder.AllMaps_FreeColonists.ById(intent.PawnId);
             if (pawn == null || pawn.royalty == null)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact colonist with royalty is unavailable.");
-            faction = Verse.Find.FactionManager.AllFactionsListForReading.FirstOrDefault(f => f?.def != null && f.def.defName == choice.FactionDef);
+            faction = Verse.Find.FactionManager.AllFactionsListForReading.FirstOrDefault(f => f?.def != null && f.def.defName == factionDefName);
             if (faction == null)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Faction is unavailable.");
-            permit = DefDatabase<RoyalTitlePermitDef>.GetNamedSilentFail(choice.Permit);
+            permit = DefDatabase<RoyalTitlePermitDef>.GetNamedSilentFail(choice.Permit ?? "");
             if (permit == null)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Permit def is unavailable.");
             var royalty = pawn.royalty;
@@ -423,10 +425,10 @@ namespace HomeBridge.BridgeTools
             if (!royalty.HasPermit(permit!, faction!)) throw new InvalidOperationException("Native permit requires readback.");
             if (!unchanged && royalty.GetPermitPoints(faction!) != before - permit!.permitPointCost)
                 throw new InvalidOperationException("Native permit points did not drop by the permit's cost.");
-            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+            return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
-                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.Permit,
-                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
+                Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.Permit,
+                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied }] } };
         }
 
         // extract_bioferrite: the entity a holding platform of the
@@ -449,7 +451,7 @@ namespace HomeBridge.BridgeTools
             target = pawn?.GetComp<CompHoldingPlatformTarget>();
             if (pawn == null || pawn.Dead || target == null)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "No entity held on a holding platform of this map carries this id.");
-            if (!intent.ExtractBioferrite) return null;
+            if (intent.Setting?.ExtractBioferrite != true) return null;
             if (!ResearchProjectDefOf.BioferriteExtraction.IsFinished)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "BioferriteExtraction is not researched.");
             if (target.HeldPlatform?.HasAttachedBioferriteHarvester == true)
@@ -461,14 +463,14 @@ namespace HomeBridge.BridgeTools
         {
             var failure = ResolveExtractBioferrite(intent, context, out var pawn, out var target);
             if (failure != null) throw new ApplyRefusedException(failure);
-            var want = intent.ExtractBioferrite;
+            var want = intent.Setting?.ExtractBioferrite ?? false;
             var unchanged = target!.extractBioferrite == want;
             target.extractBioferrite = want;
             if (target.extractBioferrite != want) throw new InvalidOperationException("Native extract bioferrite requires readback.");
-            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+            return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn!.GetUniqueLoadID() },
-                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.ExtractBioferrite,
-                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
+                Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.ExtractBioferrite,
+                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied }] } };
         }
 
         // eat_trigger: the food level (0 to 1) under which a humanlike pawn of
@@ -478,7 +480,7 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? ResolveEatTrigger(Operations.PawnSettingsIntent intent, Common.ObservationContext context, out Pawn? pawn)
         {
             pawn = null;
-            if (float.IsNaN(intent.EatTrigger) || intent.EatTrigger < 0f || intent.EatTrigger > 1f)
+            if (float.IsNaN(intent.Setting?.EatTrigger ?? 0f) || (intent.Setting?.EatTrigger ?? 0f) < 0f || (intent.Setting?.EatTrigger ?? 0f) > 1f)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Eat trigger must be a food level from 0 to 1.");
             pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.PawnId);
             var player = Faction.OfPlayerSilentFail;
@@ -490,13 +492,14 @@ namespace HomeBridge.BridgeTools
         {
             var failure = ResolveEatTrigger(intent, context, out var pawn);
             if (failure != null) throw new ApplyRefusedException(failure);
-            var changed = EatTriggerGuard.Set(pawn!, intent.EatTrigger);
-            var want = intent.EatTrigger >= EatTriggerGuard.Vanilla ? EatTriggerGuard.Vanilla : intent.EatTrigger;
+            var changed = EatTriggerGuard.Set(pawn!, intent.Setting?.EatTrigger ?? 0f);
+            var trigger = intent.Setting?.EatTrigger ?? 0f;
+            var want = trigger >= EatTriggerGuard.Vanilla ? EatTriggerGuard.Vanilla : trigger;
             if (EatTriggerGuard.Effective(pawn!) != want) throw new InvalidOperationException("Native eat trigger requires readback.");
-            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+            return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn!.GetUniqueLoadID() },
-                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.EatTrigger,
-                    Outcome = changed ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Unchanged } } } };
+                Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.EatTrigger,
+                    Outcome = changed ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Unchanged }] } };
         }
 
         // Rename draws from the pawn's own name bank until a short name no
@@ -520,7 +523,7 @@ namespace HomeBridge.BridgeTools
 
     internal sealed class PawnSettingsActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativePawnSettings.Validate(action.PawnSettings, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativePawnSettings.Apply(action.PawnSettings, context);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativePawnSettings.Validate(action.Intent?.PawnSettings, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativePawnSettings.Apply(action.Intent?.PawnSettings, context);
     }
 }

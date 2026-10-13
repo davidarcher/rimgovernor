@@ -4,8 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 using static HomeBridge.BridgeTools.NativePawnObservationTools;
 
 namespace HomeBridge.BridgeTools
@@ -30,31 +30,31 @@ namespace HomeBridge.BridgeTools
             if (ideo == null) return null;
             var row = new Obs.IdeologySnapshot { Context = context, IdeoId = Id(ideo.GetUniqueLoadID()), ObligationsActive = ideo.ObligationsActive,
                 Believers = ideo.ColonistBelieverCountCached, MinBelieversForObligations = Ideo.MinBelieversToEnableObligations };
-            row.Memes.Add(Sorted(Names(ideo.memes)));
-            row.Fluid = ideo.Fluid;
+            row = row with { Memes = [.. Sorted(Names(ideo.memes))] };
+            row = row with { Fluid = ideo.Fluid };
             if (ideo.Fluid && ideo.development == null) return null;
-            row.CanReform = ideo.Fluid && ideo.development!.CanReformNow;
-            row.DevelopmentPoints = ideo.Fluid ? ideo.development!.Points : 0;
-            row.ReformCount = ideo.Fluid ? ideo.development!.reformCount : 0;
-            row.NextReformPoints = ideo.Fluid ? ideo.development!.NextReformationDevelopmentPoints : 0;
+            row = row with { CanReform = ideo.Fluid && ideo.development!.CanReformNow };
+            row = row with { DevelopmentPoints = ideo.Fluid ? ideo.development!.Points : 0 };
+            row = row with { ReformCount = ideo.Fluid ? ideo.development!.reformCount : 0 };
+            row = row with { NextReformPoints = ideo.Fluid ? ideo.development!.NextReformationDevelopmentPoints : 0 };
             foreach (var precept in ideo.PreceptsListForReading.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) {
                 var id = Id(precept.GetUniqueLoadID());
                 var def = Id(precept.def.defName);
                 switch (precept) {
                     case Precept_Role role:
                         var held = new Obs.IdeoRole { Id = id, DefName = def, Active = role.Active };
-                        held.Pawns.Add(role.ChosenPawns().OrderBy(p => p.thingIDNumber).Select(Ref));
-                        row.Roles.Add(held);
+                        held = held with { Pawns = [.. role.ChosenPawns().OrderBy(p => p.thingIDNumber).Select(Ref)] };
+                        row = row with { Roles = [.. row.Roles, held] };
                         break;
                     case Precept_Ritual ritual:
-                        row.Rituals.Add(new Obs.IdeoRitual { Id = id, DefName = def, Pattern = ritual.sourcePattern == null ? null : Id(ritual.sourcePattern.defName),
-                            LastFinishedTick = ritual.lastFinishedTick, ActiveObligations = ritual.activeObligations?.Count ?? 0, RepeatPenaltyActive = ritual.RepeatPenaltyActive, Running = NativeRitualBegin.Running(ritual) });
+                        row = row with { Rituals = [.. row.Rituals, new Obs.IdeoRitual { Id = id, DefName = def, Pattern = ritual.sourcePattern == null ? null : Id(ritual.sourcePattern.defName),
+                            LastFinishedTick = ritual.lastFinishedTick, ActiveObligations = ritual.activeObligations?.Count ?? 0, RepeatPenaltyActive = ritual.RepeatPenaltyActive, Running = NativeRitualBegin.Running(ritual) }] };
                         break;
                     case Precept_Building building:
-                        row.Buildings.Add(new Obs.IdeoBuilding { Id = id, DefName = def, Building = building.ThingDef == null ? null : Id(building.ThingDef.defName) });
+                        row = row with { Buildings = [.. row.Buildings, new Obs.IdeoBuilding { Id = id, DefName = def, Building = building.ThingDef == null ? null : Id(building.ThingDef.defName) }] };
                         break;
                     default:
-                        row.Precepts.Add(new Obs.IdeoPrecept { Id = id, DefName = def });
+                        row = row with { Precepts = [.. row.Precepts, new Obs.IdeoPrecept { Id = id, DefName = def }] };
                         break;
                 }
             }

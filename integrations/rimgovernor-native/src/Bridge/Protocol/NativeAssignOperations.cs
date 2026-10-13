@@ -4,9 +4,9 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Protocol.Common;
-using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -54,11 +54,11 @@ namespace HomeBridge.BridgeTools
         }
 
         private static bool Valid(Operations.AssignIntent? intent) => intent != null
-            && intent.HasPawnId && ProtoBoundary.IsIdentifier(intent.PawnId) && intent.HasThingId && ProtoBoundary.IsIdentifier(intent.ThingId)
-            && intent.PawnId != intent.ThingId && intent.ExpectedPrevious != null
-            && intent.ExpectedPrevious.ValueCase != Operations.Assignment.ValueOneofCase.None
-            && (intent.ExpectedPrevious.ValueCase != Operations.Assignment.ValueOneofCase.EntityId
-                || (ProtoBoundary.IsIdentifier(intent.ExpectedPrevious.EntityId) && intent.ExpectedPrevious.EntityId != intent.ThingId));
+            && intent.PawnId is not null && ProtoBoundary.IsIdentifier(intent.PawnId) && intent.ThingId is not null && ProtoBoundary.IsIdentifier(intent.ThingId)
+            && (intent.PawnId ?? "") != (intent.ThingId ?? "") && intent.ExpectedPrevious != null
+            && intent.ExpectedPrevious.Value is not null
+            && (intent.ExpectedPrevious.Value is not Operations.AssignmentValue.EntityIdCase
+                || (ProtoBoundary.IsIdentifier(intent.ExpectedPrevious.Value.EntityId) && intent.ExpectedPrevious.Value.EntityId != (intent.ThingId ?? "")));
 
         // Resolve returns null with assignable null when the pawn already
         // owns the thing: the intent holds and applies again.
@@ -87,7 +87,7 @@ namespace HomeBridge.BridgeTools
             if (comp == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Thing is not assignable to a pawn.");
             if (!TryPrevious(target, found, out var previousID))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Assignment of this kind of thing is not supported.");
-            var expectPrevious = intent.ExpectedPrevious.ValueCase == Operations.Assignment.ValueOneofCase.EntityId ? intent.ExpectedPrevious.EntityId : "";
+            var expectPrevious = intent.ExpectedPrevious?.Value is Operations.AssignmentValue.EntityIdCase { Value: var expectedId } ? expectedId : "";
             if (previousID != expectPrevious)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Previous assignment changed; observe before recovery.");
             var refusal = target is Building_Bed bed ? BedRefusal(bed) : ThingRefusal(target, comp, found);
@@ -99,26 +99,26 @@ namespace HomeBridge.BridgeTools
         }
 
         // The ideology role the intent targets, when its thing id names one.
-        private static Precept_Role? RoleTarget(Operations.AssignIntent? intent) => Valid(intent) ? IdeoRoleAssignment.Find(intent!.ThingId) : null;
+        private static Precept_Role? RoleTarget(Operations.AssignIntent? intent) => Valid(intent) ? IdeoRoleAssignment.Find((intent!.ThingId ?? "")) : null;
 
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) =>
-            RoleTarget(action.Assign) is Precept_Role role ? IdeoRoleAssignment.Validate(action.Assign, context, role) : Resolve(action.Assign, context, out _, out _, out _);
+            RoleTarget(action.Intent?.Assign) is Precept_Role role ? IdeoRoleAssignment.Validate(action.Intent?.Assign ?? new Operations.AssignIntent(), context, role) : Resolve(action.Intent?.Assign, context, out _, out _, out _);
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
-            var intent = action.Assign;
+            var intent = action.Intent?.Assign ?? new Operations.AssignIntent();
             if (RoleTarget(intent) is Precept_Role role) return IdeoRoleAssignment.Apply(intent, context, role);
             var failure = Resolve(intent, context, out var pawn, out var thing, out var assignable);
-            if (failure != null) throw new InvalidOperationException("Assignment prerequisites changed before apply: " + failure.Detail);
-            if (assignable != null && thing is Building_Bed bed && intent.HasSwap && intent.Swap)
+            if (failure != null) throw new InvalidOperationException("Assignment prerequisites changed before apply: " + (failure.Detail ?? ""));
+            if (assignable != null && thing is Building_Bed bed && intent.Swap.GetValueOrDefault())
                 foreach (var owner in bed.OwnersForReading.ToList()) owner.ownership?.UnclaimBed();
             assignable?.TryAssignPawn(pawn);
             var comp = thing.GetComp<CompAssignableToPawn>();
             if (comp == null || !comp.AssignedPawnsForReading.Contains(pawn)) throw new InvalidOperationException("Native assignment did not take effect.");
             var effect = new Receipts.AssignEffect { PawnId = pawn.GetUniqueLoadID(), ThingId = thing.GetUniqueLoadID(), Assigned = true };
-            if (thing is Building_Bed assigned) effect.Sleeping = pawn.CurrentBed() == assigned;
-            if (intent.ExpectedPrevious.ValueCase == Operations.Assignment.ValueOneofCase.EntityId) effect.PreviousThingId = intent.ExpectedPrevious.EntityId;
-            return new Receipts.EffectEvidence { Assign = effect };
+            if (thing is Building_Bed assigned) effect = effect with { Sleeping = pawn.CurrentBed() == assigned };
+            if (intent.ExpectedPrevious?.Value is Operations.AssignmentValue.EntityIdCase { Value: var previousId }) effect = effect with { PreviousThingId = previousId };
+            return new Receipts.EffectEvidence { Effect = effect };
         }
     }
 }

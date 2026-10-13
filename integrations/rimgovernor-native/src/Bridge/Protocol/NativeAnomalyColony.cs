@@ -4,8 +4,8 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -28,26 +28,26 @@ namespace HomeBridge.BridgeTools
                 foreach (var category in DefDatabase<KnowledgeCategoryDef>.AllDefsListForReading.Where(d => Id(d.defName) != null).OrderBy(d => d.defName, StringComparer.Ordinal)) {
                     var row = new Obs.KnowledgeProgress { Category = category.defName, ProjectsAvailable = research.AnyProjectsAvailableWithKnowledgeCategory(category) };
                     if (research.GetProject(category) is ResearchProjectDef project) {
-                        row.CurrentProject = Id(project.defName);
+                        row = row with { CurrentProject = Id(project.defName) };
                         var knowledge = research.GetKnowledge(project);
-                        if (Finite(knowledge)) row.Knowledge = knowledge;
+                        if (Finite(knowledge)) row = row with { Knowledge = knowledge };
                     }
-                    facts.Knowledge.Add(row);
+                    facts = facts with { Knowledge = [.. facts.Knowledge, row] };
                 }
                 var codex = Find.EntityCodex;
                 foreach (var category in DefDatabase<EntityCategoryDef>.AllDefsListForReading.Where(d => Id(d.defName) != null).OrderBy(d => d.defName, StringComparer.Ordinal))
-                    facts.Codex.Add(new Obs.CodexProgress { Category = category.defName, Entries = (uint)EntityCodex.EntryCountInCategory(category), Discovered = (uint)codex.DiscoveredCount(category) });
+                    facts = facts with { Codex = [.. facts.Codex, new Obs.CodexProgress { Category = category.defName, Entries = (uint)EntityCodex.EntryCountInCategory(category), Discovered = (uint)codex.DiscoveredCount(category) }] };
                 foreach (var entry in DefDatabase<EntityCodexEntryDef>.AllDefsListForReading.Where(d => Id(d.defName) != null && codex.Discovered(d)).OrderBy(d => d.defName, StringComparer.Ordinal))
-                    facts.DiscoveredEntries.Add(entry.defName);
+                    facts = facts with { DiscoveredEntries = [.. facts.DiscoveredEntries, entry.defName] };
                 foreach (var building in map.listerBuildings.allBuildingsColonist.OrderBy(b => b.thingIDNumber))
                     if (building.GetComp<CompEntityHolder>()?.HeldPawn is Pawn held)
-                        facts.HeldEntities.Add(new Obs.HeldEntity { PawnId = Id(held.GetUniqueLoadID()), PlatformId = Id(building.GetUniqueLoadID()) });
-                facts.HoldingPlatformAvailable = StudyUtility.HoldingPlatformAvailableOnCurrentMap();
-                facts.Incidents = Incidents(Find.Anomaly);
-                facts.Monolith = Monolith(Find.Anomaly);
-                return new Obs.AnomalySection { Observed = facts };
+                        facts = facts with { HeldEntities = [.. facts.HeldEntities, new Obs.HeldEntity { PawnId = Id(held.GetUniqueLoadID()), PlatformId = Id(building.GetUniqueLoadID()) }] };
+                facts = facts with { HoldingPlatformAvailable = StudyUtility.HoldingPlatformAvailableOnCurrentMap() };
+                facts = facts with { Incidents = Incidents(Find.Anomaly) };
+                facts = facts with { Monolith = Monolith(Find.Anomaly) };
+                return new Obs.AnomalySection { Outcome = facts };
             } catch (Exception ex) {
-                return new Obs.AnomalySection { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic(ex.Message) } };
+                return new Obs.AnomalySection { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic(ex.Message) } };
             }
         }
 
@@ -60,31 +60,31 @@ namespace HomeBridge.BridgeTools
         {
             if (!anomaly.MonolithSpawned || anomaly.monolith is not Building_VoidMonolith monolith || monolith.Map is not Map map) return null;
             var row = new Obs.MonolithState { CanActivate = monolith.CanActivate(out _, out _) };
-            if (Id(monolith.GetUniqueLoadID()) is string monolithId) row.MonolithId = monolithId;
+            if (Id(monolith.GetUniqueLoadID()) is string monolithId) row = row with { MonolithId = monolithId };
             if (anomaly.NextLevelDef is MonolithLevelDef next) {
-                if (Id(next.defName) is string name) row.NextLevelDef = name;
+                if (Id(next.defName) is string name) row = row with { NextLevelDef = name };
                 if (next.entityCatagoryCompletionRequired is EntityCategoryDef category && Id(category.defName) is string categoryName) {
-                    row.NextLevelCodexCategory = categoryName;
-                    row.NextLevelCodexRequired = (uint)Math.Max(0, next.entityCountCompletionRequired);
-                    row.CodexShortfall = (uint)Math.Max(0, next.entityCountCompletionRequired - Find.EntityCodex.DiscoveredCount(category));
+                    row = row with { NextLevelCodexCategory = categoryName };
+                    row = row with { NextLevelCodexRequired = (uint)Math.Max(0, next.entityCountCompletionRequired) };
+                    row = row with { CodexShortfall = (uint)Math.Max(0, next.entityCountCompletionRequired - Find.EntityCodex.DiscoveredCount(category)) };
                 }
                 if (next.unreachableDuringConditions != null)
                     foreach (var condition in map.GameConditionManager.ActiveConditions.Select(c => c.def).Distinct().Where(next.unreachableDuringConditions.Contains).OrderBy(d => d.defName, StringComparer.Ordinal))
-                        if (Id(condition.defName) is string conditionName) row.BlockingConditions.Add(conditionName);
+                        if (Id(condition.defName) is string conditionName) row = row with { BlockingConditions = [.. row.BlockingConditions, conditionName] };
             }
-            row.GleamingInteractionAvailable = monolith.GetComp<CompGleamingMonolith>()?.CanInteract().Accepted ?? false;
+            row = row with { GleamingInteractionAvailable = monolith.GetComp<CompGleamingMonolith>()?.CanInteract().Accepted ?? false };
             var structures = map.listerThings.ThingsOfDef(ThingDefOf.VoidStructure);
-            row.VoidStructures = (uint)structures.Count;
-            row.VoidStructuresActivated = (uint)structures.Count(t => t.TryGetComp<CompVoidStructure>()?.Active ?? false);
+            row = row with { VoidStructures = (uint)structures.Count };
+            row = row with { VoidStructuresActivated = (uint)structures.Count(t => t.TryGetComp<CompVoidStructure>()?.Active ?? false) };
             foreach (var structure in structures.OrderBy(t => t.thingIDNumber))
-                if (structure.TryGetComp<CompVoidStructure>()?.CanInteract().Accepted == true && Id(structure.GetUniqueLoadID()) is string structureId) row.PendingVoidStructureIds.Add(structureId);
+                if (structure.TryGetComp<CompVoidStructure>()?.CanInteract().Accepted == true && Id(structure.GetUniqueLoadID()) is string structureId) row = row with { PendingVoidStructureIds = [.. row.PendingVoidStructureIds, structureId] };
             // The node stands on the pocket map the Gleaming monolith skips a pawn into, so every loaded map is searched.
             var node = Find.Maps.SelectMany(m => m.listerThings.ThingsOfDef(ThingDefOf.VoidNode)).OrderBy(t => t.thingIDNumber).FirstOrDefault();
-            row.VoidNodeExists = node != null;
+            row = row with { VoidNodeExists = node != null };
             if (node?.TryGetComp<CompVoidNode>() is CompVoidNode nodeComp && node.Map is Map nodeMap && nodeComp.CanInteract().Accepted && Id(node.GetUniqueLoadID()) is string nodeId) {
-                row.VoidNodeId = nodeId;
+                row = row with { VoidNodeId = nodeId };
                 foreach (var pawn in nodeMap.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber))
-                    if (nodeComp.CanInteract(pawn).Accepted && Id(pawn.GetUniqueLoadID()) is string pawnId) row.VoidNodePawnIds.Add(pawnId);
+                    if (nodeComp.CanInteract(pawn).Accepted && Id(pawn.GetUniqueLoadID()) is string pawnId) row = row with { VoidNodePawnIds = [.. row.VoidNodePawnIds, pawnId] };
             }
             var quest = Find.QuestManager.questsInDisplayOrder.FirstOrDefault(q => !q.Historical && q.root == QuestScriptDefOf.EndGame_VoidAwakening);
             if (quest != null) {
@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var tag in structures.Where(t => t.questTags != null).SelectMany(t => t.questTags))
                     if (tag.StartsWith(prefix, StringComparison.Ordinal) && Regex.Match(tag, @"\.stageStructure\.(\d+)") is { Success: true } m && int.TryParse(m.Groups[1].Value, out var index))
                         stage = Math.Max(stage, index + 1);
-                row.VoidAwakeningStage = stage;
+                row = row with { VoidAwakeningStage = stage };
             }
             return row;
         }
@@ -104,8 +104,8 @@ namespace HomeBridge.BridgeTools
                 QuestlineEnded = anomaly.QuestlineEnded, TicksSinceLevelChange = anomaly.TicksSinceLastLevelChange, AmbientHorrorMode = anomaly.AmbientHorrorMode,
                 AnomalyStudyEnabled = anomaly.AnomalyStudyEnabled, VoidAwakeningActive = anomaly.VoidAwakeningActive(), AwokenCorpseActive = anomaly.HasActiveAwokenCorpse(),
                 MetalhorrorImplantPossible = anomaly.CanNewMetalhorrorBiosignatureImplantOccur };
-            if (Id(anomaly.LevelDef?.defName) is string level) row.LevelDef = level;
-            if (Finite(anomaly.AnomalyThreatFractionNow)) row.AnomalyThreatFractionNow = anomaly.AnomalyThreatFractionNow;
+            if (Id(anomaly.LevelDef?.defName) is string level) row = row with { LevelDef = level };
+            if (Finite(anomaly.AnomalyThreatFractionNow)) row = row with { AnomalyThreatFractionNow = anomaly.AnomalyThreatFractionNow };
             return row;
         }
     }

@@ -8,8 +8,8 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Lifecycle = RimGovernor.Protocol.Lifecycle;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace HomeBridge.BridgeTools
 {
@@ -83,8 +83,8 @@ namespace HomeBridge.BridgeTools
         public async Task<object> NewColony(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official lifecycle NewColonyRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, NewColonyToolName, request, Lifecycle.NewColonyRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.NewColonyReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Lifecycle.NewColonyRequest>(ctx, NewColonyToolName, request, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Lifecycle.NewColonyReply { Outcome = failure });
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => StartNewColony(parsed), cancellationToken).ConfigureAwait(false);
         }
 
@@ -94,18 +94,18 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadNewColony(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official lifecycle RequestStatus ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ReadNewColonyToolName, request, Lifecycle.RequestStatus.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.NewColonyReply { Failure = failure });
+            if (!ProtoBoundary.TryParse<Lifecycle.RequestStatus>(ctx, ReadNewColonyToolName, request, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Lifecycle.NewColonyReply { Outcome = failure });
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => PollNewColony(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         private static Lifecycle.NewColonyReply Fail(Common.FailureCode code, string detail) =>
-            new Lifecycle.NewColonyReply { Failure = ProtoBoundary.Fail(code, detail) };
+            new Lifecycle.NewColonyReply { Outcome = ProtoBoundary.Fail(code, detail) };
 
         // Call only on the game thread.
         internal static Lifecycle.NewColonyReply StartNewColony(Lifecycle.NewColonyRequest request)
         {
-            if (request == null || !request.HasRequestId || !ProtoBoundary.IsIdentifier(request.RequestId) || request.Spec == null)
+            if (request == null || request.RequestId is null || !ProtoBoundary.IsIdentifier(request.RequestId) || request.Spec == null)
                 return Fail(Common.FailureCode.InvalidRequest, "New colony requires a request id and a spec.");
 
             lock (Lock)
@@ -114,7 +114,7 @@ namespace HomeBridge.BridgeTools
                 if (activeRequestId != null && Entries.TryGetValue(activeRequestId, out var previous) && previous.Reply == null)
                 {
                     // A retry of the request already running answers its status.
-                    if (activeRequestId == request.RequestId) return PendingReply(previous);
+                    if (activeRequestId == (request.RequestId ?? "")) return PendingReply(previous);
                     return Fail(Common.FailureCode.Unavailable, "A new colony (" + previous.RequestId + ") is already being generated.");
                 }
             }
@@ -126,14 +126,14 @@ namespace HomeBridge.BridgeTools
                 return Fail(Common.FailureCode.Unavailable, "The game is busy with another long event.");
 
             ResolvedSpec resolved;
-            if (request.Spec.GovernorIdeoligion)
+            if (request.Spec.GovernorIdeoligion.GetValueOrDefault())
                 return Fail(Common.FailureCode.InvalidRequest, "Governor selection must be resolved by Go before native creation.");
             try { resolved = Resolve(request.Spec); }
             catch (Refusal refusal) { return Fail(refusal.Code, refusal.Message); }
 
-            var seed = request.Spec.Seed.Trim();
+            var seed = (request.Spec.Seed ?? "").Trim();
             if (seed.Length == 0) seed = GenText.RandomSeedString(); // Defensive: Go requires a non-empty seed.
-            var entry = new Entry(request.RequestId, request.Spec, seed, request.HasTimeoutMs ? (uint?)request.TimeoutMs : null, resolved);
+            var entry = new Entry((request.RequestId ?? ""), request.Spec, seed, request.TimeoutMs is not null ? (uint?)request.TimeoutMs.GetValueOrDefault() : null, resolved);
             lock (Lock)
             {
                 Entries[entry.RequestId] = entry;
@@ -175,28 +175,28 @@ namespace HomeBridge.BridgeTools
         private static ResolvedSpec Resolve(Lifecycle.NewColonySpec spec)
         {
             var resolved = new ResolvedSpec();
-            if (!spec.HasColonistCount || spec.ColonistCount < 1 || spec.ColonistCount > 10)
+            if (spec.ColonistCount is null || spec.ColonistCount.GetValueOrDefault() < 1 || spec.ColonistCount.GetValueOrDefault() > 10)
                 throw new Refusal(Common.FailureCode.InvalidRequest, "colonist_count must be within 1..10.");
-            if (!spec.HasMapSize || spec.MapSize < 100 || spec.MapSize > 400)
+            if (spec.MapSize is null || spec.MapSize.GetValueOrDefault() < 100 || spec.MapSize.GetValueOrDefault() > 400)
                 throw new Refusal(Common.FailureCode.InvalidRequest, "map_size must be within 100..400.");
-            if (!spec.HasPlanetCoverage || float.IsNaN(spec.PlanetCoverage) || spec.PlanetCoverage < 0.05f || spec.PlanetCoverage > 1f)
+            if (spec.PlanetCoverage is null || float.IsNaN(spec.PlanetCoverage.GetValueOrDefault()) || spec.PlanetCoverage.GetValueOrDefault() < 0.05f || spec.PlanetCoverage.GetValueOrDefault() > 1f)
                 throw new Refusal(Common.FailureCode.InvalidRequest, "planet_coverage must be within 0.05..1.");
-            resolved.Scenario = Named(DefDatabase<ScenarioDef>.AllDefsListForReading, spec.Scenario, "scenario");
-            resolved.Difficulty = Named(DefDatabase<DifficultyDef>.AllDefsListForReading, spec.Difficulty, "difficulty");
-            resolved.Storyteller = Named(DefDatabase<StorytellerDef>.AllDefsListForReading, spec.Storyteller, "storyteller");
+            resolved.Scenario = Named(DefDatabase<ScenarioDef>.AllDefsListForReading, (spec.Scenario ?? ""), "scenario");
+            resolved.Difficulty = Named(DefDatabase<DifficultyDef>.AllDefsListForReading, (spec.Difficulty ?? ""), "difficulty");
+            resolved.Storyteller = Named(DefDatabase<StorytellerDef>.AllDefsListForReading, (spec.Storyteller ?? ""), "storyteller");
             if (resolved.Scenario.scenario.AllParts.OfType<ScenPart_ConfigPage_ConfigureStartingPawns>().SingleOrDefault() == null)
-                throw new Refusal(Common.FailureCode.InvalidRequest, "Scenario " + spec.Scenario + " has no editable starting-pawn count.");
+                throw new Refusal(Common.FailureCode.InvalidRequest, "Scenario " + (spec.Scenario ?? "") + " has no editable starting-pawn count.");
             try { resolved.Parts = NativeNewColonyScenarioParts.Build(spec, resolved.Scenario.scenario); }
             catch (NativeNewColonyScenarioParts.PartRefusal refusal) { throw new Refusal(Common.FailureCode.InvalidRequest, refusal.Message); }
             var settleable = DefDatabase<BiomeDef>.AllDefsListForReading.Where(b => b.canBuildBase).ToList();
             foreach (var name in spec.Biomes)
                 resolved.Biomes.Add(Named(settleable, name, "biome"));
-            var temperatureName = spec.HasWorldTemperature ? spec.WorldTemperature : nameof(OverallTemperature.Normal);
+            var temperatureName = spec.WorldTemperature is not null ? (spec.WorldTemperature ?? "") : nameof(OverallTemperature.Normal);
             if (!Enum.TryParse(temperatureName, out OverallTemperature temperature) || !Enum.IsDefined(typeof(OverallTemperature), temperature))
                 throw new Refusal(Common.FailureCode.InvalidRequest, "Unknown world_temperature " + temperatureName + ".");
             resolved.WorldTemperature = temperature;
-            if (spec.HasMinTemperature) resolved.MinTemperature = spec.MinTemperature;
-            if (spec.HasMaxTemperature) resolved.MaxTemperature = spec.MaxTemperature;
+            if (spec.MinTemperature is not null) resolved.MinTemperature = spec.MinTemperature;
+            if (spec.MaxTemperature is not null) resolved.MaxTemperature = spec.MaxTemperature;
             if (resolved.MinTemperature > resolved.MaxTemperature)
                 throw new Refusal(Common.FailureCode.InvalidRequest, "min_temperature exceeds max_temperature.");
             return resolved;
@@ -232,14 +232,14 @@ namespace HomeBridge.BridgeTools
                 var scenario = resolved.Scenario.scenario.CopyForEditing();
                 NativeNewColonyScenarioParts.Apply(scenario, resolved.Parts);
                 var part = scenario.AllParts.OfType<ScenPart_ConfigPage_ConfigureStartingPawns>().Single();
-                part.pawnCount = (int)spec.ColonistCount;
-                part.pawnChoiceCount = Math.Max((int)spec.ColonistCount, part.pawnChoiceCount);
+                part.pawnCount = (int)spec.ColonistCount.GetValueOrDefault();
+                part.pawnChoiceCount = Math.Max((int)spec.ColonistCount.GetValueOrDefault(), part.pawnChoiceCount);
                 Current.Game.Scenario = scenario;
                 Find.Scenario.PreConfigure();
                 Current.Game.storyteller = new Storyteller(resolved.Storyteller, resolved.Difficulty);
             }
             finally { Rand.PopState(); }
-            Current.Game.World = WorldGenerator.GenerateWorld(spec.PlanetCoverage, entry.Seed,
+            Current.Game.World = WorldGenerator.GenerateWorld(spec.PlanetCoverage.GetValueOrDefault(), entry.Seed,
                 OverallRainfall.Normal, resolved.WorldTemperature, OverallPopulation.Normal, LandmarkDensity.Normal);
         }
 
@@ -250,7 +250,7 @@ namespace HomeBridge.BridgeTools
             Rand.PushState(GenText.StableStringHash(entry.Seed));
             try
             {
-                var constrained = resolved.Biomes.Count > 0 || spec.FlatTile || resolved.MinTemperature.HasValue || resolved.MaxTemperature.HasValue;
+                var constrained = resolved.Biomes.Count > 0 || spec.FlatTile.GetValueOrDefault() || resolved.MinTemperature.HasValue || resolved.MaxTemperature.HasValue;
                 if (!constrained)
                     Find.GameInitData.ChooseRandomStartingTile();
                 else
@@ -273,7 +273,7 @@ namespace HomeBridge.BridgeTools
                             throw new Refusal(Common.FailureCode.InvalidRequest, "No valid settlement tile in any requested biome ("
                                 + string.Join(", ", resolved.Biomes.Select(b => b.defName)) + ") meets " + bandText + " on this planet.");
                     }
-                    if (spec.FlatTile)
+                    if (spec.FlatTile.GetValueOrDefault())
                     {
                         // Flat, river-free, road-free, mutator-free where the planet offers one;
                         // otherwise drop the mutator requirement, then the river and road one.
@@ -287,7 +287,7 @@ namespace HomeBridge.BridgeTools
                     }
                     Find.GameInitData.startingTile = chosen.RandomElement().tile;
                 }
-                Find.GameInitData.mapSize = (int)spec.MapSize;
+                Find.GameInitData.mapSize = (int)spec.MapSize.GetValueOrDefault();
             }
             finally { Rand.PopState(); }
         }
@@ -364,12 +364,12 @@ namespace HomeBridge.BridgeTools
         // Call only on the game thread.
         internal static Lifecycle.NewColonyReply PollNewColony(Lifecycle.RequestStatus status)
         {
-            if (status == null || !status.HasRequestId || !ProtoBoundary.IsIdentifier(status.RequestId))
+            if (status == null || status.RequestId is null || !ProtoBoundary.IsIdentifier(status.RequestId))
                 return Fail(Common.FailureCode.InvalidRequest, "ReadNewColony requires a request id.");
             Entry? entry;
             lock (Lock)
             {
-                if (!Entries.TryGetValue(status.RequestId, out entry))
+                if (!Entries.TryGetValue((status.RequestId ?? ""), out entry))
                     return Fail(Common.FailureCode.NotFound, "Unknown or expired new colony request id.");
                 if (entry.Reply != null) return entry.Reply;
             }
@@ -442,22 +442,22 @@ namespace HomeBridge.BridgeTools
                 else if (DateTime.UtcNow - entry.LiveUtc < NamingDialogGrace)
                     return null;
                 entry.Phase = Lifecycle.NewColonyPhase.Saving;
-                entry.Detail = "Saving " + entry.Spec.SaveName;
+                entry.Detail = "Saving " + (entry.Spec.SaveName ?? "");
                 return null;
             }
             // Saving: same native save path as lifecycle_save.
-            var length = ProtoLifecycleSaveTools.WriteSave(entry.Spec.SaveName);
+            var length = ProtoLifecycleSaveTools.WriteSave((entry.Spec.SaveName ?? ""));
             if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var context, out var unavailable))
-                return Complete(entry, Fail(Common.FailureCode.NativeFailure, "Colony state could not be re-observed after the save: " + unavailable.Detail));
-            return Complete(entry, new Lifecycle.NewColonyReply { Completed = new Lifecycle.NewColonyCompleted
+                return Complete(entry, Fail(Common.FailureCode.NativeFailure, "Colony state could not be re-observed after the save: " + (unavailable.Detail ?? "")));
+            return Complete(entry, new Lifecycle.NewColonyReply { Outcome = new Lifecycle.NewColonyCompleted
             {
-                RequestId = entry.RequestId, SaveName = entry.Spec.SaveName, Context = context,
+                RequestId = entry.RequestId, SaveName = (entry.Spec.SaveName ?? ""), Context = context,
                 Paused = Find.TickManager.Paused, ByteLength = (ulong)length, Seed = entry.Seed,
             } });
         }
 
         private static Lifecycle.NewColonyReply PendingReply(Entry entry) =>
-            new Lifecycle.NewColonyReply { Pending = new Lifecycle.NewColonyPending
+            new Lifecycle.NewColonyReply { Outcome = new Lifecycle.NewColonyPending
             {
                 RequestId = entry.RequestId, Phase = entry.Phase, Detail = entry.Detail,
                 ElapsedMs = (ulong)Math.Max(0, (DateTime.UtcNow - entry.StartedUtc).TotalMilliseconds),

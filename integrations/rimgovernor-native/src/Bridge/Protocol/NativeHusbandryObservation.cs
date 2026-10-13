@@ -4,12 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Protocol.Common;
-using Obs = RimGovernor.Protocol.Observations;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -28,13 +27,13 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadHusbandry(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a HusbandryRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_husbandry", request!, Obs.HusbandryRequest.Parser, out var parsed, out var failure)
-                || !ValidateHusbandry(parsed, out failure)) return ProtoBoundary.Encode(new Obs.HusbandryReply { Failure = failure });
+            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_husbandry", request!, out Obs.HusbandryRequest? parsed, out var failure)
+                || !ValidateHusbandry(parsed, out failure)) return ProtoBoundary.Encode(new Obs.HusbandryReply { Outcome = new Obs.HusbandryReplyOutcome.FailureCase(failure) });
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.HusbandryReply { Failure = failure });
-                try { return ProtoBoundary.Encode(new Obs.HusbandryReply { Observed = Husbandry(map, parsed, context) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.HusbandryReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native husbandry facts could not be read completely.") }); }
+                    return ProtoBoundary.Encode(new Obs.HusbandryReply { Outcome = new Obs.HusbandryReplyOutcome.FailureCase(failure) });
+                try { return ProtoBoundary.Encode(new Obs.HusbandryReply { Outcome = Husbandry(map, parsed, context) }); }
+                catch (Exception) { return ProtoBoundary.Encode(new Obs.HusbandryReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native husbandry facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -51,13 +50,13 @@ namespace HomeBridge.BridgeTools
             // include_wild adds the factionless animals a tame order can
             // target, so a tame target reads through the
             // same read the player herd uses.
-            if (request.IncludeWild)
+            if (request.IncludeWild.GetValueOrDefault())
                 animals.AddRange(map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Animal && p.Faction == null && !p.Dead).OrderBy(p => p.thingIDNumber));
             var snapshot = new Obs.HusbandrySnapshot { Context = context };
             foreach (var a in animals)
             {
                 var row = new Obs.HusbandryAnimal { Pawn = NativePawnObservationTools.Ref(a), Animal = AnimalRow(a) };
-                snapshot.Animals.Add(row);
+                snapshot = snapshot with { Animals = [.. snapshot.Animals, row] };
             }
             return snapshot;
         }
@@ -73,37 +72,37 @@ namespace HomeBridge.BridgeTools
                 {
                     var report = animal.training.CanAssignToTrain(def, out var visible);
                     var entry = new Obs.TrainingEntry { DefName = def.defName, Learned = animal.training.HasLearned(def), Wanted = animal.training.GetWanted(def), Available = report.Accepted && visible };
-                    row.Training.Add(entry);
+                    row = row with { Training = [.. row.Training, entry] };
                 }
             }
             if (animal.MapHeld?.designationManager != null)
             {
                 var designations = animal.MapHeld.designationManager.AllDesignationsOn(animal);
-                row.Slaughter = designations.Any(d => d.def == DesignationDefOf.Slaughter);
-                row.Release = designations.Any(d => d.def == DesignationDefOf.ReleaseAnimalToWild);
-                row.Tame = designations.Any(d => d.def == DesignationDefOf.Tame);
+                row = row with { Slaughter = designations.Any(d => d.def == DesignationDefOf.Slaughter) };
+                row = row with { Release = designations.Any(d => d.def == DesignationDefOf.ReleaseAnimalToWild) };
+                row = row with { Tame = designations.Any(d => d.def == DesignationDefOf.Tame) };
             }
-            if (NativeHusbandryOperations.Eligible(animal)) NativeHusbandryOperations.SlaughterFacts(animal, row);
-            row.SafeToRelease = NativeHusbandryOperations.Eligible(animal) && NativeHusbandryOperations.SafeToRelease(animal);
-            row.Tameable = NativeHusbandryOperations.Tameable(animal);
+            if (NativeHusbandryOperations.Eligible(animal)) row = NativeHusbandryOperations.SlaughterFacts(animal, row);
+            row = row with { SafeToRelease = NativeHusbandryOperations.Eligible(animal) && NativeHusbandryOperations.SafeToRelease(animal) };
+            row = row with { Tameable = NativeHusbandryOperations.Tameable(animal) };
             if (animal.Faction == Faction.OfPlayer)
             {
-                row.Sterilized = NativeHusbandryOperations.Sterilized(animal);
-                row.SterilizeQueued = NativeHusbandryOperations.SterilizeBill(animal) != null;
+                row = row with { Sterilized = NativeHusbandryOperations.Sterilized(animal) };
+                row = row with { SterilizeQueued = NativeHusbandryOperations.SterilizeBill(animal) != null };
             }
             if (NativeHusbandryOperations.Eligible(animal))
             {
-                row.AllowedAreaId = NativeHusbandryOperations.AreaId(animal);
-                row.MasterId = NativeHusbandryOperations.MasterId(animal);
-                row.FollowDrafted = animal.playerSettings?.followDrafted ?? false;
-                row.FollowFieldwork = animal.playerSettings?.followFieldwork ?? false;
-                row.Obedient = NativeHusbandryOperations.Obedient(animal);
-                row.SupportsAllowedAreas = NativeHusbandryOperations.SupportsAllowedAreas(animal);
+                row = row with { AllowedAreaId = NativeHusbandryOperations.AreaId(animal) };
+                row = row with { MasterId = NativeHusbandryOperations.MasterId(animal) };
+                row = row with { FollowDrafted = animal.playerSettings?.followDrafted ?? false };
+                row = row with { FollowFieldwork = animal.playerSettings?.followFieldwork ?? false };
+                row = row with { Obedient = NativeHusbandryOperations.Obedient(animal) };
+                row = row with { SupportsAllowedAreas = NativeHusbandryOperations.SupportsAllowedAreas(animal) };
             }
             var pregnancy = animal.health?.hediffSet?.hediffs.OfType<Hediff_Pregnant>().FirstOrDefault();
-            if (pregnancy != null) { row.Pregnant = true; row.Gestation = Number(pregnancy.Severity); }
-            var milk = animal.GetComp<CompMilkable>(); if (milk != null) row.MilkFullness = Number(milk.Fullness);
-            var wool = animal.GetComp<CompShearable>(); if (wool != null) row.WoolFullness = Number(wool.Fullness);
+            if (pregnancy != null) { row = row with { Pregnant = true }; row = row with { Gestation = Number(pregnancy.Severity) }; }
+            var milk = animal.GetComp<CompMilkable>(); if (milk != null) row = row with { MilkFullness = Number(milk.Fullness) };
+            var wool = animal.GetComp<CompShearable>(); if (wool != null) row = row with { WoolFullness = Number(wool.Fullness) };
             return row;
         }
 

@@ -5,7 +5,7 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Obs = RimGovernor.Protocol.Observations;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -60,17 +60,18 @@ namespace HomeBridge.BridgeTools
         }
         private static bool Capable(Pawn p, int minimum) => Capability(p) == true && p.skills?.GetSkill(SkillDefOf.Construction) is SkillRecord skill
             && !skill.TotallyDisabled && skill.Level >= minimum;
-        internal static void Read(Thing t, Obs.ConstructionState row)
+        internal static Obs.ConstructionState Read(Thing t, Obs.ConstructionState row)
         {
-            row.QualitySensitive = Quality(t);
-            if (t.def.entityDefToBuild == null) return;
-            row.NativeFinishingSkill = t.def.entityDefToBuild.constructionSkillPrerequisite;
+            row = row with { QualitySensitive = Quality(t) };
+            if (t.def.entityDefToBuild == null) return row;
+            row = row with { NativeFinishingSkill = t.def.entityDefToBuild.constructionSkillPrerequisite };
             var setting = Setting(t);
-            if (setting != null && setting.Tier != ConstructionSkillSetting.None) row.Tier = setting.Tier;
-            if (setting == null || setting.Minimum == ConstructionSkillSetting.None) { if (row.QualitySensitive) row.FinishingBlocker = "minimum_not_set"; return; }
-            row.MinimumFinishingSkill = setting.Minimum;
-            row.EligibleFinishers = t.Map.mapPawns.FreeColonistsSpawned.Count(p => Capable(p, Math.Max(setting.Minimum, t.def.entityDefToBuild.constructionSkillPrerequisite)));
-            if (row.EligibleFinishers == 0) row.FinishingBlocker = "no_qualified_builder";
+            if (setting != null && setting.Tier != ConstructionSkillSetting.None) row = row with { Tier = setting.Tier };
+            if (setting == null || setting.Minimum == ConstructionSkillSetting.None) { if (row.QualitySensitive.GetValueOrDefault()) row = row with { FinishingBlocker = "minimum_not_set" }; return row; }
+            row = row with { MinimumFinishingSkill = setting.Minimum };
+            row = row with { EligibleFinishers = t.Map.mapPawns.FreeColonistsSpawned.Count(p => Capable(p, Math.Max(setting.Minimum, t.def.entityDefToBuild.constructionSkillPrerequisite))) };
+            if (row.EligibleFinishers.GetValueOrDefault() == 0) row = row with { FinishingBlocker = "no_qualified_builder" };
+            return row;
         }
         internal static void Install()
         {

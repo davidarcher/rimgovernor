@@ -5,7 +5,7 @@ using RimWorld;
 using RimWorld.Planet;
 using RimWorld.QuestGen;
 using Verse;
-using Obs = RimGovernor.Protocol.Observations;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -26,9 +26,9 @@ namespace HomeBridge.BridgeTools
                 if (site == null) continue;
                 var state = new Obs.QuestSurveyScanner { SiteId = site.GetUniqueLoadID(), DurationTicks = Duration(alert) };
                 var scanner = Scanner(alert);
-                if (scanner != null) { state.ScannerId = scanner.GetUniqueLoadID(); state.Alive = !scanner.Destroyed; }
-                state.Complete = alert.State == QuestPartState.Disabled && scanner?.Spawned == true && state.HasAlive && state.Alive && End(alert) > 0 && GenTicks.TicksGame >= End(alert);
-                if (alert.State == QuestPartState.Enabled) { state.EndTick = End(alert); if (Raid(alert) > 0) state.RaidTick = Raid(alert); }
+                if (scanner != null) { state = state with { ScannerId = scanner.GetUniqueLoadID() }; state = state with { Alive = !scanner.Destroyed }; }
+                state = state with { Complete = alert.State == QuestPartState.Disabled && scanner?.Spawned == true && state.Alive is not null && state.Alive.GetValueOrDefault() && End(alert) > 0 && GenTicks.TicksGame >= End(alert) };
+                if (alert.State == QuestPartState.Enabled) { state = state with { EndTick = End(alert) }; if (Raid(alert) > 0) state = state with { RaidTick = Raid(alert) }; }
                 yield return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.HoldSurveyScanner, Active = alert.State != QuestPartState.Disabled, DurationTicks = Duration(alert), SurveyScanner = state };
             }
         }
