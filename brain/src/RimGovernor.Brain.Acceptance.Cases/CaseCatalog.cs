@@ -24,6 +24,7 @@ public static class CaseCatalog
         CustodyCases.Register(registry);
         DraftCases.Register(registry);
         FarmCases.Register(registry);
+        FoodCases.Register(registry);
         HusbandryCases.Register(registry);
         LabCases.Register(registry);
         LetterCases.Register(registry);
