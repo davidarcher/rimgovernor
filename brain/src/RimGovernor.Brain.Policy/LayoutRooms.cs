@@ -200,7 +200,7 @@ public static partial class PolicyFunctions
     /// is known and none owes the room; the ideoligion is known and requires no building; the containment demand is
     /// known to be zero entities. needs are the rooms still owed.
     /// </summary>
-    public static List<PlannedRole> EndedRoomRoles(Fact<IReadOnlyList<WorkPawn>> pawns, Fact<Ideoligion> ideology, ContainmentPlanning containment, IsolationPlanning isolation, IReadOnlyList<ChildRoomNeed> needs)
+    public static List<PlannedRole> EndedRoomRoles(Fact<EquatableArray<WorkPawn>> pawns, Fact<Ideoligion> ideology, ContainmentPlanning containment, IsolationPlanning isolation, IReadOnlyList<ChildRoomNeed> needs)
     {
         var owed = needs.Select(n => n.Module).ToHashSet();
         var ended = new List<PlannedRole>();
@@ -215,7 +215,7 @@ public static partial class PolicyFunctions
             }
         }
         var listKnown = pawns.TryGetValue(out var list);
-        list ??= [];
+
         var stages = listKnown;
         var deathrests = listKnown;
         foreach (var p in list)

@@ -32,7 +32,7 @@ public sealed class HuntAdmission
         for (var i = 0; i < @out.Count; i++)
         {
             var c = @out[i];
-            if (c.Kind != CandidateKind.Hunt || c.Mode() != PolicyFunctions.HuntFormation)
+            if (c.Kind != CandidateKind.Hunt || c.Mode() != HuntMode.Formation)
             {
                 continue;
             }

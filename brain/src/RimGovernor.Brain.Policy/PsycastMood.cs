@@ -41,7 +41,7 @@ public static partial class PolicyFunctions
     /// cooldown are not read: native refuses a cast that would overflow either, and the bounded attempts count
     /// that refusal.
     /// </summary>
-    public static PsycastCall? SelectMoodCast(PawnId target, Fact<RoyaltyFacts> royalty, Fact<IReadOnlyList<WorkPawn>> pawns, MoodCastExhausted? exhausted)
+    public static PsycastCall? SelectMoodCast(PawnId target, Fact<RoyaltyFacts> royalty, Fact<EquatableArray<WorkPawn>> pawns, MoodCastExhausted? exhausted)
     {
         var rk = royalty.TryGetValue(out var facts);
         var pk = pawns.TryGetValue(out var rows);

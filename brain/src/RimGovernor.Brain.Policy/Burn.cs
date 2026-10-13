@@ -63,7 +63,7 @@ public sealed record BurnRequest
     }
 
     /// <summary>The lowest-ID loose molotov the burner may carry.</summary>
-    internal EquipCandidateWeapon? MolotovFor(PawnId burner)
+    internal EquipCandidateWeapon? MolotovFor(Domain.PawnId burner)
     {
         EquipCandidateWeapon? best = null;
         foreach (var w in Molotovs.Items)
@@ -89,7 +89,7 @@ public sealed record BurnRequest
 /// </summary>
 public sealed record BurnOrder
 {
-    public PawnId Burner { get; init; }
+    public Domain.PawnId Burner { get; init; }
 
     public EquipCandidateWeapon? Molotov { get; init; }
 
@@ -181,13 +181,13 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>A colonist other than the burner who would fight a fire.</summary>
-    private static bool Standby(IEnumerable<BurnCandidate> pawns, PawnId burner) =>
+    private static bool Standby(IEnumerable<BurnCandidate> pawns, Domain.PawnId burner) =>
         pawns.Any(p => p.Arm.Pawn != burner && FireSafetyEligible(p.Fire));
 
     /// <summary>The ash lying in the interior, by ID: the cleanup a burn leaves.</summary>
     public static List<UpkeepFilth> IncineratorAsh(IEnumerable<UpkeepFilth> filth, Rectangle interior)
     {
         var room = new BurnRequest { Interior = interior };
-        return [.. filth.Where(f => f.Definition == AshDef && room.Inside(f.Cell)).OrderBy(f => f.ID, StringComparer.Ordinal)];
+        return [.. filth.Where(f => f.Definition == AshDef && room.Inside(f.Cell)).OrderBy(f => f.Id, StringComparer.Ordinal)];
     }
 }

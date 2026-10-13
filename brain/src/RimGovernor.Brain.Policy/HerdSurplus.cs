@@ -119,7 +119,7 @@ public static partial class PolicyFunctions
     internal static bool HerdDangerous(UpkeepAnimal a) => a.Herd.Predator || a.Herd.ManhunterOnTameFail.ValueOrDefault >= HerdTameDanger;
 
     /// <summary>Pasture supply over pen demand; not ok when any pen fact is unknown, or no pen has demand.</summary>
-    internal static (double Ratio, bool Ok) HerdPastureRatio(Fact<IReadOnlyList<PenGrazing>> pens)
+    internal static (double Ratio, bool Ok) HerdPastureRatio(Fact<EquatableArray<PenGrazing>> pens)
     {
         if (!pens.TryGetValue(out var rows))
         {
@@ -296,7 +296,7 @@ public static partial class PolicyFunctions
             var ranked = raceRows
                 .OrderBy(r => HerdTier(r.Animal))
                 .ThenByDescending(r => HerdFeedPerMeat(r.Animal))
-                .ThenBy(r => r.Animal.ID)
+                .ThenBy(r => r.Animal.Id)
                 .ToList();
             // Excess males jump ahead of every tier but old/sick, in the order already ranked.
             var excess = new HashSet<PawnId>();
@@ -305,7 +305,7 @@ public static partial class PolicyFunctions
                 var a = r.Animal;
                 if (a.Gender == "Male" && HerdTier(a) != 0 && excess.Count < excessMales)
                 {
-                    excess.Add(a.ID);
+                    excess.Add(a.Id);
                 }
             }
             int Rank(UpkeepAnimal a)
@@ -315,7 +315,7 @@ public static partial class PolicyFunctions
                 {
                     return 0;
                 }
-                return excess.Contains(a.ID) ? 1 : t;
+                return excess.Contains(a.Id) ? 1 : t;
             }
             ranked = ranked.OrderBy(r => Rank(r.Animal)).ToList();
             foreach (var r in ranked)
@@ -345,7 +345,7 @@ public static partial class PolicyFunctions
                 surplus--;
             }
         }
-        return (@out.OrderBy(r => r.Animal.ID).ToList(), false);
+        return (@out.OrderBy(r => r.Animal.Id).ToList(), false);
     }
 
     /// <summary>Keeps max(floor, breeding pair) of every observed race, none of a retired one: food slaughter never cuts below either.</summary>

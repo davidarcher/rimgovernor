@@ -8,7 +8,7 @@ public sealed record BreakResponder
 
     public Fact<Cell> Cell { get; init; }
 
-    public PawnId ID => SquadDefenderFacts.ID;
+    public PawnId ID => SquadDefenderFacts.Id;
 }
 
 public static partial class PolicyFunctions
@@ -25,7 +25,7 @@ public static partial class PolicyFunctions
         var known = p.MentalState.TryGetValue(out var state);
         var dk = p.Dead.TryGetValue(out var dead);
         var wk = p.Downed.TryGetValue(out var down);
-        return known && state.IsAggro && state.DefName != "SocialFighting" && dk && wk && !dead && !down;
+        return known && state!.IsAggro && state.DefName != "SocialFighting" && dk && wk && !dead && !down;
     }
 
     /// <summary>
@@ -47,7 +47,7 @@ public static partial class PolicyFunctions
             var mk = f.MeleeEquipped.TryGetValue(out var melee);
             var ak = f.Armed.TryGetValue(out var armed);
             var ck = c.Cell.IsKnown;
-            if (c.ID != new PawnId(target.ID) && SquadDefenderEligible(f) && mk && melee && rk && !ranged && ak && armed && ck)
+            if (c.ID != target.Id && SquadDefenderEligible(f) && mk && melee && rk && !ranged && ak && armed && ck)
             {
                 pool.Add(c);
             }

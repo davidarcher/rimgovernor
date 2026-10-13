@@ -56,7 +56,7 @@ public static partial class PolicyFunctions
                 used.Add(c);
             }
         }
-        var (wi, _) = PlanInterior(plan, PocketReach);
+        var wi = PlanInterior(plan, PocketReach) ?? new WallInterior();
         var near = wi.Near(PocketReach);
         var open = new HashSet<Cell>();
         foreach (var c in s.Cells)
@@ -102,7 +102,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var live = sites.Count(x => x.Kind == NodeKind.PocketWall && !x.Retired);
+            var live = (plan with { Sites = sites }).LiveSites(NodeKind.PocketWall).Count;
             var id = string.Create(CultureInfo.InvariantCulture, $"{Wire.Name(NodeKind.PocketWall)}-{live:D2}");
             sites.Add(NewSite(id, NodeKind.PocketWall, RegionOfRuns(CellRuns(patch)), ReasonPocketBesideBase));
         }

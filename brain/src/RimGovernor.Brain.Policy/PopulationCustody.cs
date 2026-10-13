@@ -133,7 +133,7 @@ public static partial class PolicyFunctions
     /// same lenient style SelectRescue's eligibility checks use, since the candidate pool here is the whole
     /// map population rather than a small trusted list.
     /// </summary>
-    public static Fact<bool> CustodyDeficit(Fact<IReadOnlyList<CustodyFacts>> rows)
+    public static Fact<bool> CustodyDeficit(Fact<EquatableArray<CustodyFacts>> rows)
     {
         if (!rows.TryGetValue(out var all))
         {
@@ -148,7 +148,7 @@ public static partial class PolicyFunctions
     /// SelectPrisonerInteractionMethod's determinism. Rescues are never demoted, and an unrecruitable raider
     /// is still captured once nothing outranks it.
     /// </summary>
-    public static CustodyChoice SelectCustodyMethod(Fact<IReadOnlyList<CustodyFacts>> rows)
+    public static CustodyChoice SelectCustodyMethod(Fact<EquatableArray<CustodyFacts>> rows)
     {
         if (!rows.TryGetValue(out var all))
         {

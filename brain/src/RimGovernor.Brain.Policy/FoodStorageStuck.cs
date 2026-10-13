@@ -33,10 +33,10 @@ public static partial class PolicyFunctions
     /// A known forbidden stack wins; otherwise a known empty hauler roster; anything else is
     /// <see cref="FoodStuckReason.Unestablished"/>.
     /// </summary>
-    public static FoodStuckReason FoodStorageStuckReason(FoodStorageObservation observed, FoodStoragePolicy p, Fact<IReadOnlyList<PawnId>> haulers)
+    public static FoodStuckReason FoodStorageStuckReason(FoodStorageObservation observed, FoodStoragePolicy p, Fact<EquatableArray<PawnId>> haulers)
     {
         _ = observed.Stocks.TryGetValue(out var stocks);
-        foreach (var entry in stocks ?? [])
+        foreach (var entry in stocks)
         {
             if (!FoodStorageUnstored(entry, observed.ChilledMaxC, p))
             {

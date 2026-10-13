@@ -11,7 +11,7 @@ public sealed record UpkeepAnimal
 
     public Fact<string> AllowedArea { get; init; }
 
-    public PawnId ID { get; init; }
+    public PawnId Id { get; init; }
 
     public Resource Definition { get; init; }
 
@@ -389,7 +389,7 @@ public static partial class PolicyFunctions
         var containmentKnown = true;
         foreach (var animal in animals)
         {
-            DomainException.Require(FoodId(animal.ID.Value) && seen.Add(animal.ID) && ValidResource(animal.Definition), Invalid);
+            DomainException.Require(FoodId(animal.Id.Value) && seen.Add(animal.Id) && ValidResource(animal.Definition), Invalid);
             var pk = animal.RequiresPen.TryGetValue(out var pen);
             var ck = animal.Contained.TryGetValue(out var contained);
             var rk = animal.Release.TryGetValue(out var release);
@@ -400,7 +400,7 @@ public static partial class PolicyFunctions
             }
             else if (pen && !contained && !release && !slaughter)
             {
-                containment.Add(animal.ID);
+                containment.Add(animal.Id);
             }
         }
 
@@ -430,7 +430,7 @@ public static partial class PolicyFunctions
         var allSuitable = true;
         foreach (var a in animals)
         {
-            DomainException.Require(FoodId(a.ID.Value) && seen.Add(a.ID), "invalid animal containment census");
+            DomainException.Require(FoodId(a.Id.Value) && seen.Add(a.Id), "invalid animal containment census");
             DomainException.Require(a.RequiresPen.TryGetValue(out var pen), "animal pen requirement unknown");
             if (!pen)
             {
@@ -453,8 +453,8 @@ public static partial class PolicyFunctions
             }
         }
 
-        rows.Sort((x, y) => x.ID.CompareTo(y.ID));
-        var ids = EquatableArray.From(rows.Select(a => a.ID));
+        rows.Sort((x, y) => x.Id.CompareTo(y.Id));
+        var ids = EquatableArray.From(rows.Select(a => a.Id));
         if (rows.Count == 0)
         {
             return new AnimalContainmentMethod { Reason = AnimalContainmentReason.NoDeficit };

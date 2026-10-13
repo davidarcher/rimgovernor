@@ -81,7 +81,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static bool StealthJob(Fact<PawnJob> job, IReadOnlyList<EmergencyThreat> threats)
     {
-        if (!job.TryGetValue(out var j) || string.IsNullOrEmpty(j.Def) || string.IsNullOrEmpty(j.Work))
+        if (!job.TryGetValue(out var j) || string.IsNullOrEmpty(j.Def) || j.Work == WorkType.None)
         {
             return false;
         }
@@ -181,7 +181,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The review's HostilityOwed fact: a change is owed. Unknown pawns owe nothing.</summary>
-    public static Fact<bool> HostilityOwed(Fact<IReadOnlyList<HostilityPawn>> pawns, IReadOnlyList<EmergencyThreat> threats)
+    public static Fact<bool> HostilityOwed(Fact<EquatableArray<HostilityPawn>> pawns, IReadOnlyList<EmergencyThreat> threats)
     {
         if (!pawns.TryGetValue(out var rows))
         {

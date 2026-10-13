@@ -34,8 +34,8 @@ public static partial class PolicyFunctions
         {
             t.LordJobClass.TryGetValue(out var job);
             t.LordToilClass.TryGetValue(out var toil);
-            var id = new PawnId(t.Id);
-            if (job != SiegeLordJob || Positive(t.Dead) || Positive(t.Downed) || down.GetValueOrDefault(id))
+            var id = t.Id;
+            if (job != SiegeLordJob || Positive(t.Dead) || Positive(t.Downed) || down.Contains(id))
             {
                 continue;
             }
@@ -121,7 +121,7 @@ public static partial class PolicyFunctions
                 break;
             }
         }
-        IReadOnlyList<Cell> firing = [];
+        EquatableArray<Cell> firing = [];
         if (view.Layout.TryGetValue(out var layout))
         {
             firing = layout.Firing;

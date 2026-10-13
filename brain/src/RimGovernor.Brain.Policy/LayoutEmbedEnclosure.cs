@@ -285,7 +285,7 @@ internal sealed partial class Embedder
     /// <summary>The EnclosureSet of group i against the other blocks.</summary>
     public EnclosureSet EnclosureRects(int i, IReadOnlyList<Rectangle> blocks)
     {
-        const int yard = 1 + PolicyConstants.PerimeterGap; // the wall cells and the killbox yard
+        const int yard = 1 + PolicyFunctions.PerimeterGap; // the wall cells and the killbox yard
         var inRects = new List<Rectangle>();
         var grown = new List<Rectangle>();
         var walls = new List<Rectangle>();
@@ -297,7 +297,7 @@ internal sealed partial class Embedder
                 continue;
             }
             inRects.Add(PolicyFunctions.Pad(b, yard));
-            grown.Add(PolicyFunctions.Pad(b, yard + PolicyConstants.PerimeterThick));
+            grown.Add(PolicyFunctions.Pad(b, yard + PolicyFunctions.PerimeterThick));
             walls.Add(PolicyFunctions.Pad(b, 1));
         }
         return new EnclosureSet(new XRects(inRects), new XRects(grown), new XRects(walls));
@@ -306,7 +306,7 @@ internal sealed partial class Embedder
     /// <summary>The Wall and Footprint cost of a group at r given the EnclosureSet of the other blocks.</summary>
     public double EnclosureCost(Rectangle r, EnclosureSet s)
     {
-        const int yard = 1 + PolicyConstants.PerimeterGap; // the wall cells and the killbox yard
+        const int yard = 1 + PolicyFunctions.PerimeterGap; // the wall cells and the killbox yard
         var onMap = new Rectangle(0, 0, Base.W, Base.H);
         s.Calls++;
         if (s.Grids is null && s.Calls >= Math.Max(PolicyConstants.CoverGridMinCalls, onMap.Width * onMap.Height / PolicyConstants.CoverGridCellsPerCall))
@@ -315,11 +315,11 @@ internal sealed partial class Embedder
         }
         if (s.Grids is { } g)
         {
-            var gridWall = g[0].Uncovered(PolicyFunctions.ClipRect(PolicyFunctions.Pad(r, yard + PolicyConstants.PerimeterThick), onMap), Walkable) -
+            var gridWall = g[0].Uncovered(PolicyFunctions.ClipRect(PolicyFunctions.Pad(r, yard + PolicyFunctions.PerimeterThick), onMap), Walkable) -
                 g[1].Uncovered(PolicyFunctions.ClipRect(PolicyFunctions.Pad(r, yard), onMap), Walkable);
             return (PlanWeights.Wall * gridWall) + (PlanWeights.Footprint * g[2].Uncovered(PolicyFunctions.Pad(r, 1), null));
         }
-        var wall = s.Scratch.Uncovered(PolicyFunctions.ClipRect(PolicyFunctions.Pad(r, yard + PolicyConstants.PerimeterThick), onMap), s.Grown, Walkable) -
+        var wall = s.Scratch.Uncovered(PolicyFunctions.ClipRect(PolicyFunctions.Pad(r, yard + PolicyFunctions.PerimeterThick), onMap), s.Grown, Walkable) -
             s.Scratch.Uncovered(PolicyFunctions.ClipRect(PolicyFunctions.Pad(r, yard), onMap), s.In, Walkable);
         return (PlanWeights.Wall * wall) + (PlanWeights.Footprint * s.Scratch.Uncovered(PolicyFunctions.Pad(r, 1), s.Walls, null));
     }

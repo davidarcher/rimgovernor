@@ -82,7 +82,7 @@ public static partial class PolicyFunctions
     /// power consumer (PowerCoverage, connectLiveBeforeUpgrade), so wiring it is the power goal's and a second
     /// charger would stand unpowered too. Gestation waits on MechChargerReady meanwhile.
     /// </summary>
-    public static bool MechChargerOwed(int mechanitors, Fact<IReadOnlyList<MechCharger>> chargers)
+    public static bool MechChargerOwed(int mechanitors, Fact<EquatableArray<MechCharger>> chargers)
     {
         if (!chargers.TryGetValue(out var rows) || mechanitors == 0)
         {

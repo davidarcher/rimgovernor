@@ -139,9 +139,9 @@ public static partial class PolicyFunctions
         }
 
         var targets = new Dictionary<string, HomeCoverageTarget>(StringComparer.Ordinal);
-        foreach (var target in home.Targets.Items)
+        foreach (var target in home.Targets)
         {
-            if (!FoodId(target.ID) || !targets.TryAdd(target.ID, target))
+            if (!FoodId(target.Id) || !targets.TryAdd(target.Id, target))
             {
                 throw Invalid();
             }
@@ -190,7 +190,7 @@ public static partial class PolicyFunctions
             var groups = new (ExtentOrigin Origin, IReadOnlyList<Cell> Cells)[]
             {
                 (ExtentOrigin.Facility, b.Cells.Items),
-                (ExtentOrigin.EnclosedInterior, geometry.EnclosedInterior.Items),
+                (ExtentOrigin.EnclosedInterior, geometry!.EnclosedInterior.Items),
                 (ExtentOrigin.Corridor, geometry.Corridor.Items),
             };
             foreach (var group in groups)
@@ -236,9 +236,9 @@ public static partial class PolicyFunctions
         // Every census stockpile is territory at its whole current footprint, whoever zoned it. A target that
         // is not a building and carries no zone geometry (blocked, legacy or batched) adds nothing.
         var facility = new HashSet<string>(buildings.Items.Select(b => b.Identity.Current), StringComparer.Ordinal);
-        foreach (var target in home.Targets.Items)
+        foreach (var target in home.Targets)
         {
-            if (facility.Contains(target.ID) || !target.ExtentGeometry.TryGetValue(out var geometry) || target.Blocker.Length != 0)
+            if (facility.Contains(target.Id) || !target.ExtentGeometry.TryGetValue(out var geometry) || target.Blocker.Length != 0)
             {
                 continue;
             }
@@ -246,7 +246,7 @@ public static partial class PolicyFunctions
             var seen = new HashSet<Cell>();
             foreach (var c in geometry.Zone.Items)
             {
-                if (seen.Contains(c) || !Add(c, new ExtentProvenance { Origin = ExtentOrigin.Facility, Facility = target.ID }))
+                if (seen.Contains(c) || !Add(c, new ExtentProvenance { Origin = ExtentOrigin.Facility, Facility = target.Id }))
                 {
                     throw Invalid();
                 }

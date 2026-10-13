@@ -301,9 +301,9 @@ public static partial class PolicyFunctions
         var cells = new List<Cell>();
         foreach (var t in view.Positional.Items)
         {
-            if (t.Position.TryGetValue(out var c) && melee.Contains(ThreatPawn(t)) && !down.Contains(ThreatPawn(t)))
+            if (t.Position.TryGetValue(out var c) && melee.Contains(t.Id) && !down.Contains(t.Id))
             {
-                ids.Add(ThreatPawn(t));
+                ids.Add(t.Id);
                 cells.Add(c);
             }
         }
@@ -331,7 +331,7 @@ public static partial class PolicyFunctions
         var ours = new List<Cell>();
         foreach (var t in view.Positional.Items)
         {
-            if (humanlike.Contains(ThreatPawn(t)) && !down.Contains(ThreatPawn(t)) && t.Position.TryGetValue(out var c))
+            if (humanlike.Contains(t.Id) && !down.Contains(t.Id) && t.Position.TryGetValue(out var c))
             {
                 raiders.Add(c);
             }

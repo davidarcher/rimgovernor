@@ -7,13 +7,13 @@ public static partial class PolicyFunctions
     /// controller-history dependency, so Manual edits and save/load use the same rule. Existing valid removals
     /// consume the budget before new work.
     /// </summary>
-    public static HusbandryChoice ReconcileHerdRemoval(Fact<IReadOnlyList<UpkeepAnimal>> animals, HerdPolicy herd, Fact<FoodPlan> food)
+    public static HusbandryChoice ReconcileHerdRemoval(Fact<EquatableArray<UpkeepAnimal>> animals, HerdPolicy herd, Fact<FoodPlan> food)
     {
         if (!animals.TryGetValue(out var unsorted))
         {
             return new HusbandryChoice { Reason = HusbandryPlanReason.Unknown };
         }
-        var rows = unsorted.OrderBy(a => a.ID).ToList();
+        var rows = unsorted.OrderBy(a => a.Id).ToList();
         var counts = new Dictionary<Resource, long>();
         var sexes = new Dictionary<Resource, long>();
         foreach (var a in rows)
@@ -37,9 +37,9 @@ public static partial class PolicyFunctions
             {
                 foreach (var a in rows)
                 {
-                    if (e.Channel.ID == "slaughter:" + a.ID.Value)
+                    if (e.Channel.Id == "slaughter:" + a.Id.Value)
                     {
-                        foodWanted.Add(a.ID);
+                        foodWanted.Add(a.Id);
                     }
                 }
             }
@@ -71,7 +71,7 @@ public static partial class PolicyFunctions
             var room = counts.GetValueOrDefault(a.Definition) > floor && !pair;
             var surplus = capped && counts.GetValueOrDefault(a.Definition) > Math.Max(floor, ceiling);
             var keepRelease = release && !slaughter && surplus && !pair;
-            var keepSlaughter = slaughter && !release && room && (surplus || foodWanted.Contains(a.ID));
+            var keepSlaughter = slaughter && !release && room && (surplus || foodWanted.Contains(a.Id));
             // An unknown cap (wealth unread) cannot revoke a surplus removal.
             if (!capped && room && !keepSlaughter)
             {
@@ -85,7 +85,7 @@ public static partial class PolicyFunctions
             }
             if (release && !keepRelease)
             {
-                return new HusbandryChoice { Animal = a.ID, Method = HusbandryMethod.CancelRelease };
+                return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.CancelRelease };
             }
             if (slaughter && !keepSlaughter)
             {
@@ -96,7 +96,7 @@ public static partial class PolicyFunctions
                 }
                 else
                 {
-                    return new HusbandryChoice { Animal = a.ID, Method = HusbandryMethod.CancelSlaughter };
+                    return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.CancelSlaughter };
                 }
             }
             counts[a.Definition]--;

@@ -141,7 +141,7 @@ public static partial class PolicyFunctions
         {
             foreach (var site in observed.Sites)
             {
-                var name = site.Building.Definition;
+                var name = site.Building!.Definition;
                 var q = HelpQuality.Unprotected;
                 var sensitiveKnown = site.QualitySensitive.TryGetValue(out var sensitive);
                 var set = site.MinimumFinishingSkill.IsKnown;

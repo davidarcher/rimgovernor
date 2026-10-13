@@ -103,14 +103,14 @@ public static partial class PolicyFunctions
             reserved.AddRange(RectCells(p.Rect));
             reserved.AddRange(p.Reserves());
         }
-        return (new RegionPlacement { Region = room.Floor(), Doors = room.Doors, Reserved = reserved, Wants = wants }, true);
+        return (new RegionPlacement { Region = room.Floor(), Doors = EquatableArray.From(room.Doors), Reserved = EquatableArray.From(reserved), Wants = EquatableArray.From(wants) }, true);
     }
 
     /// <summary>
     /// The wants less what stands: a built piece takes one piece of the first want of its definition that still
     /// has one, and the names of the pieces it took go with it.
     /// </summary>
-    private static IReadOnlyList<RegionWant> Unbuilt(IReadOnlyList<RegionWant> wants, IReadOnlyList<InteriorPiece> built)
+    private static List<RegionWant> Unbuilt(IReadOnlyList<RegionWant> wants, IReadOnlyList<InteriorPiece> built)
     {
         var taken = new Dictionary<string, int>();
         foreach (var p in built)

@@ -27,7 +27,7 @@ internal sealed class FoodOwner : IStoreOwner
         }
         if (v.Meals is not null)
         {
-            output.Add(v.TableStore(v.Meals));
+            output.Add(StoreView.TableStore(v.Meals));
         }
         if (v.Layout is not null)
         {
@@ -69,7 +69,7 @@ public sealed partial record StoreView
     /// The one cell of the cooked meal by the dining table, off the chairs. It is the one store sited from a
     /// built fact (the table); its role is exact so retiring it never touches the closet or the freezer shelf.
     /// </summary>
-    internal Store TableStore(MealStore meals) =>
+    internal static Store TableStore(MealStore meals) =>
         new()
         {
             Retired = meals.Retired,
@@ -149,10 +149,10 @@ public sealed partial record StoreView
         var freezer = found!;
         var bounds = freezer.Region.Bounds();
         var anchor = freezer.Door;
-        var (link, linked) = Layout!.LinkInto(freezer, PlannedRole.Dining);
-        if (linked)
+        var link = Layout!.LinkInto(freezer, PlannedRole.Dining);
+        if (link is { } linked)
         {
-            anchor = link;
+            anchor = linked;
         }
         var output = new List<Store>();
         (string Prefix, StockpileFilter Filter)[] shelves =

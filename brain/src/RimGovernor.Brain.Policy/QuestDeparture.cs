@@ -355,7 +355,7 @@ public static partial class PolicyFunctions
             {
                 return result with { Reason = reason };
             }
-            var explicitCrew = new QuestShuttle(offer.Quest, ShuttleLoading.ExplicitPawns, false, squad, false);
+            var explicitCrew = new QuestShuttle(offer.Quest, ShuttleLoading.ExplicitPawns, false, squad.Select(p => (Domain.PawnId)p), false);
             return result with { Shuttle = explicitCrew, Waiting = false };
         }
         return new QuestDepartureWork();

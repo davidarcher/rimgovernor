@@ -18,8 +18,8 @@ public sealed record PieceShapes
     public RoomFurniture Furniture { get; init; } = new();
 
     /// <summary>A definition's shape; Ok is false when the catalog has no buildable row for it.</summary>
-    public (InteriorPieceDef? Shape, bool Ok) Get(string def) =>
-        Defs.TryGetValue(def, out var shape) ? (shape, true) : (null, false);
+    public (InteriorPieceDef Shape, bool Ok) Get(string def) =>
+        Defs.TryGetValue(def, out var shape) ? (shape, true) : (new InteriorPieceDef(), false);
 
     /// <summary>
     /// The shape of a building standing in a room: a definition no buildable row holds (a ruin, a natural

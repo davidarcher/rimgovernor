@@ -143,7 +143,7 @@ public static partial class PolicyFunctions
         p.Operations.TryGetValue(out var ops);
         foreach (var queued in p.QueuedRecipes)
         {
-            foreach (var op in ops ?? [])
+            foreach (var op in ops)
             {
                 op.Recipe.TryGetValue(out var recipe);
                 if (recipe == queued && op.Kind == SurgeryKind.Harvest)
@@ -241,7 +241,7 @@ public static partial class PolicyFunctions
                 continue;
             }
             var (want, capOk) = Capped(baseCare, true, a.Conditions, a.LifeThreatening);
-            Add(a.ID, a.Care, want, capOk);
+            Add(a.Id, a.Care, want, capOk);
         }
         return output;
     }

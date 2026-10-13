@@ -85,7 +85,7 @@ public static partial class PolicyFunctions
         var standing = 0;
         foreach (var b in built)
         {
-            if (b.Building.Definition != GraveDefinition)
+            if (b.Building!.Definition != GraveDefinition)
             {
                 continue;
             }

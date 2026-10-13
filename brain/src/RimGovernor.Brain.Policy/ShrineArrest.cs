@@ -65,9 +65,9 @@ public static partial class PolicyFunctions
         RimGovernor.Brain.Domain.PawnId pawn = default;
         foreach (var candidate in squad)
         {
-            if (ShrineDefenderEligible(candidate) && (pawn.IsEmpty || candidate.Id < pawn))
+            if (ShrineDefenderEligible(candidate) && (pawn.IsEmpty || candidate.Id.CompareTo((PawnId)pawn) < 0))
             {
-                pawn = candidate.Id;
+                pawn = (Domain.PawnId)candidate.Id;
             }
         }
         return pawn;

@@ -370,15 +370,15 @@ public static partial class PolicyFunctions
     {
         var slots = ScheduleTemplate(new TraitEffects());
         var wake = 0;
-        for (var h = 0; h < slots.Count; h++)
+        for (var h = 0; h < slots.Length; h++)
         {
-            if (slots[(h + 23) % 24] == ScheduleSlot.Sleep && slots[h] != ScheduleSlot.Sleep)
+            if (slots[(h + 23) % 24] == PolicyConstants.ScheduleSleep && slots[h] != PolicyConstants.ScheduleSleep)
             {
                 wake = h;
                 break;
             }
         }
-        var free = slots.Count(s => s == ScheduleSlot.Anything);
+        var free = slots.Count(s => s == PolicyConstants.ScheduleAnything);
         var asked = 0.0;
         foreach (var s in spots)
         {
@@ -395,10 +395,10 @@ public static partial class PolicyFunctions
         {
             switch (slots[(wake + i) % 24])
             {
-                case ScheduleSlot.Sleep:
+                case PolicyConstants.ScheduleSleep:
                     output.Add(new EnvSegment(1, sleepTarget, true));
                     break;
-                case ScheduleSlot.Anything:
+                case PolicyConstants.ScheduleAnything:
                     var room = 1.0;
                     for (var j = 0; j < queue.Length; j++)
                     {

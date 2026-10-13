@@ -268,5 +268,5 @@ public static partial class PolicyFunctions
         return false;
     }
 
-    private static bool FinitePositive(double v) => v > 0 && !double.IsNaN(v) && !double.IsInfinity(v);
+    internal static bool FinitePositive(double v) => v > 0 && !double.IsNaN(v) && !double.IsInfinity(v);
 }

@@ -77,6 +77,13 @@ public sealed record TradeNeed
     /// <summary>The count of surplus prisoners (SurplusPrisoners) while a tribute collector is present: sold for royal favor.</summary>
     public long FavorPrisoners { get; init; }
 
+    /// <summary>Go <c>retain</c>: a copy that keeps <paramref name="count"/> of the resource after its sale.</summary>
+    internal TradeNeed Retain(Resource resource, long count)
+    {
+        var retained = new Dictionary<Resource, long>(Retained) { [resource] = count };
+        return this with { Retained = retained };
+    }
+
     public bool Any() =>
         FavorGold > 0
         || FavorPrisoners > 0
@@ -118,8 +125,8 @@ public static partial class PolicyFunctions
     /// outstanding construction deficits when the caller has read them (empty otherwise); stock targets, which
     /// carry the derived resource needs, apply separately.
     /// </summary>
-    public static IReadOnlyDictionary<string, long> RoundsTradeFloors(RoundsPolicy p, IReadOnlyDictionary<string, long> construction) =>
-        EconomicReserves(new TradeEconomicPolicy(default, 0), new TradeReserveFacts { Construction = construction }).Floors;
+    public static IReadOnlyDictionary<string, long> RoundsTradeFloors(RoundsPolicy p, IReadOnlyDictionary<string, long>? construction) =>
+        EconomicReserves(new TradeEconomicPolicy(default, 0), new TradeReserveFacts { Construction = construction ?? new Dictionary<string, long>() }).Floors;
 
     /// <summary>
     /// The stock the colony keeps of each resource before a sale: the runway's protected line (reserve plus the
@@ -222,7 +229,7 @@ public static partial class PolicyFunctions
     public static Fact<TradeNeed> ReviewTradeNeed(
         ItemFacts items,
         MedicalReserveReview medicine,
-        Fact<IReadOnlyList<Amount>> resources,
+        Fact<EquatableArray<Amount>> resources,
         IReadOnlyDictionary<Resource, long> targets,
         IReadOnlyDictionary<string, long> floors,
         Fact<WealthFacts> wealth,
@@ -292,7 +299,7 @@ public static partial class PolicyFunctions
     /// list) also reads as recovered: there is no caravan the planner could open with, so the goal stays off
     /// rather than standing unknown forever.
     /// </summary>
-    public static Fact<bool> TradeRecovered(Fact<IReadOnlyList<TraderFacts>> traders, Fact<TradeNeed> need)
+    public static Fact<bool> TradeRecovered(Fact<EquatableArray<TraderFacts>> traders, Fact<TradeNeed> need)
     {
         if (!traders.TryGetValue(out var rows))
         {

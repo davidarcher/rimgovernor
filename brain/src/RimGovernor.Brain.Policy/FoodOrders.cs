@@ -38,7 +38,7 @@ public sealed record FoodOrderRequest
 {
     public BillPurpose Purpose { get; init; }
 
-    public Fact<IReadOnlyList<ProductionBench>> Benches { get; init; }
+    public Fact<EquatableArray<ProductionBench>> Benches { get; init; }
 
     public RoundsFacts Facts { get; init; } = new();
 
@@ -98,7 +98,7 @@ public static partial class PolicyFunctions
         }
         foreach (var entry in plan.Portfolio)
         {
-            if (entry.Channel.Kind == kind && entry.Channel.ID == id)
+            if (entry.Channel.Kind == kind && entry.Channel.Id == id)
             {
                 return entry.Decision is FoodPlanDecision.Open or FoodPlanDecision.Hold;
             }
@@ -107,13 +107,13 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Copies the census with every bench's bills dropped: the selections then ignore what already stands, which the ledger reconciles.</summary>
-    private static Fact<IReadOnlyList<ProductionBench>> WithoutBills(Fact<IReadOnlyList<ProductionBench>> benches)
+    private static Fact<EquatableArray<ProductionBench>> WithoutBills(Fact<EquatableArray<ProductionBench>> benches)
     {
         if (!benches.TryGetValue(out var rows))
         {
             return benches;
         }
-        return Known<IReadOnlyList<ProductionBench>>([.. rows.Select(b => b with { Bills = [] })]);
+        return Known<EquatableArray<ProductionBench>>([.. rows.Select(b => b with { Bills = [] })]);
     }
 
     /// <summary>
@@ -129,7 +129,7 @@ public static partial class PolicyFunctions
         FoodOrder Gap(FoodOrderGap g, string subject) => new() { Gap = g, Subject = subject, ReserveRunning = reserveRunning };
         switch (r.Purpose)
         {
-            case BillPurpose.CookFood:
+            case var purpose when purpose == PolicyConstants.CookFood:
             {
                 if (!FoodPlanSupport(f.FoodPlan, CandidateKind.Cook, "cooking-capacity"))
                 {
@@ -138,16 +138,16 @@ public static partial class PolicyFunctions
                 var context = new ProductionBillContext { Meals = r.Meals };
                 if (r.Supply.TryGetValue(out var supply) && r.Humans.TryGetValue(out var humans))
                 {
-                    context = context with { Ingredients = HumanCookingIngredients(supply, humans.Consumers, f.FoodPlan, HumanMeatMeals) };
+                    context = context with { Ingredients = HumanCookingIngredients(supply, humans.Consumers, f.FoodPlan, HumanMeatRoute.Meals) };
                 }
-                var (selected, known) = SelectProductionBill(BillPurpose.CookFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays, context);
+                var (selected, known) = SelectProductionBill(PolicyConstants.CookFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays, context);
                 if (known)
                 {
                     selections.Add(selected);
                 }
                 break;
             }
-            case BillPurpose.PreserveFood:
+            case var purpose when purpose == PolicyConstants.PreserveFood:
             {
                 if (!FoodPlanSupport(f.FoodPlan, CandidateKind.Reserve, "stock-protection"))
                 {
@@ -158,7 +158,7 @@ public static partial class PolicyFunctions
                     return Gap(FoodOrderGap.Field, "food_reserve");
                 }
                 reserveRunning = ReserveBillRunning(r.Benches, reserve);
-                var (selected, known) = SelectProductionBill(BillPurpose.PreserveFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays, new ProductionBillContext { Reserve = reserve });
+                var (selected, known) = SelectProductionBill(PolicyConstants.PreserveFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays, new ProductionBillContext { Reserve = reserve });
                 if (known)
                 {
                     selections.Add(selected);
@@ -173,7 +173,7 @@ public static partial class PolicyFunctions
                 }
                 break;
             }
-            case BillPurpose.ButcherFood:
+            case var purpose when purpose == PolicyConstants.ButcherFood:
             {
                 // Owed on the food runway alone: native offers no hunt row until a usable bench carries this bill.
                 var dk = f.FoodDays.TryGetValue(out var days);
@@ -181,7 +181,7 @@ public static partial class PolicyFunctions
                 {
                     return dk ? Gap(FoodOrderGap.NoDeficit, "") : Gap(FoodOrderGap.Field, "food_days");
                 }
-                var (selected, known) = SelectProductionBill(BillPurpose.ButcherFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays);
+                var (selected, known) = SelectProductionBill(PolicyConstants.ButcherFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays);
                 if (known)
                 {
                     selections.Add(selected);
@@ -197,7 +197,7 @@ public static partial class PolicyFunctions
                 }
                 break;
             }
-            case BillPurpose.CookAheadFood:
+            case var purpose when purpose == PolicyConstants.CookAheadFood:
             {
                 // Only under a solar flare with a known remaining duration: the coolers are dark for the outage,
                 // so the warm at-risk stock is cooked instead.
@@ -205,7 +205,7 @@ public static partial class PolicyFunctions
                 {
                     return Gap(FoodOrderGap.NoDeficit, "");
                 }
-                var (selected, known) = SelectProductionBill(BillPurpose.CookAheadFood, census, f.Colonists, f.FoodDays, r.Warm, r.TargetDays);
+                var (selected, known) = SelectProductionBill(PolicyConstants.CookAheadFood, census, f.Colonists, f.FoodDays, r.Warm, r.TargetDays);
                 if (known)
                 {
                     selections.Add(selected);
@@ -243,9 +243,9 @@ public static partial class PolicyFunctions
         }
         _ = r.Benches.TryGetValue(out var census);
         var kinds = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var b in census ?? [])
+        foreach (var b in census)
         {
-            kinds[b.ID] = b.Definition;
+            kinds[b.Id] = b.Definition;
         }
         var orders = new List<OrderSpec>();
         foreach (var selected in order.Selections)
@@ -261,7 +261,7 @@ public static partial class PolicyFunctions
             }
             orders.Add(spec);
         }
-        if (orders.Count > 0 || r.Purpose == BillPurpose.CookAheadFood)
+        if (orders.Count > 0 || r.Purpose == PolicyConstants.CookAheadFood)
         {
             return new Declared { Orders = orders };
         }
@@ -271,13 +271,10 @@ public static partial class PolicyFunctions
 
     /// <summary>Whether a bill belongs to a purpose's family.</summary>
     private static Func<GearBill, bool> FoodFamily(BillPurpose purpose) =>
-        purpose switch
-        {
-            BillPurpose.CookFood => b => b.Role == RecipeRole.OrdinaryMeal,
-            BillPurpose.ButcherFood => b => b.Role == RecipeRole.ButcherFlesh,
-            BillPurpose.PreserveFood => b => b.Products.Any(ReserveFoodDefinition),
-            _ => _ => false,
-        };
+        purpose == PolicyConstants.CookFood ? (b => b.Role == RecipeRole.OrdinaryMeal)
+        : purpose == PolicyConstants.ButcherFood ? (b => b.Role == RecipeRole.ButcherFlesh)
+        : purpose == PolicyConstants.PreserveFood ? (b => b.Products.Any(ReserveFoodDefinition))
+        : (_ => false);
 
     /// <summary>The specs of the unspent production bills of a family, as they stand; known is false while one's readback is unread.</summary>
     private static (List<OrderSpec> Orders, bool Known) StandingOrders(IReadOnlyList<GearBench> benches, Func<GearBill, bool> family)
@@ -337,10 +334,10 @@ public static partial class PolicyFunctions
                 {
                     continue;
                 }
-                if (best is null || spec.Target < best.Target || (spec.Target == best.Target && string.CompareOrdinal(bill.ID, bestId) < 0))
+                if (best is null || spec.Target < best.Target || (spec.Target == best.Target && string.CompareOrdinal(bill.Id, bestId) < 0))
                 {
                     best = spec;
-                    bestId = bill.ID;
+                    bestId = bill.Id;
                 }
             }
         }
@@ -357,13 +354,13 @@ public static partial class PolicyFunctions
     /// </summary>
     public static (OrderSpec Spec, MedicineMethodKind Kind, bool Ok) FoodStorageMealOrder(FoodStorageMethod choice, IReadOnlyList<GearBench> benches)
     {
-        var bare = benches.Select(b => b with { Bills = Known<IReadOnlyList<GearBill>>([]) }).ToList();
+        var bare = benches.Select(b => b with { Bills = Known<EquatableArray<GearBill>>([]) }).ToList();
         var picked = SelectMedicineMethod(
             new MedicinePlanningRequest
             {
                 Review = new MedicalReserveReview { Active = true, Target = Known(choice.Target) },
                 Resource = choice.Resource,
-                Benches = Known<IReadOnlyList<GearBench>>(bare),
+                Benches = Known(EquatableArray.From(bare)),
             }
         );
         if (picked.Kind != MedicineMethodKind.Produce)
@@ -373,7 +370,7 @@ public static partial class PolicyFunctions
         var def = "";
         foreach (var b in benches)
         {
-            if (b.ID == picked.Bench)
+            if (b.Id == picked.Bench)
             {
                 def = b.Def;
             }

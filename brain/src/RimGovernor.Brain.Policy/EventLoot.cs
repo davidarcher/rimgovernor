@@ -85,7 +85,7 @@ public static partial class PolicyFunctions
     /// Go <c>ReviewEventLoot</c>. Throws <see cref="DomainException"/> where Go returned an error (the caller
     /// keeps <paramref name="previous"/>).
     /// </summary>
-    public static (EventLootHistory History, Fact<bool> Any) ReviewEventLoot(Fact<IReadOnlyList<LootItem>> observed, EventLootHistory previous)
+    public static (EventLootHistory History, Fact<bool> Any) ReviewEventLoot(Fact<EquatableArray<LootItem>> observed, EventLootHistory previous)
     {
         previous.Validate();
         if (!observed.TryGetValue(out var rows))

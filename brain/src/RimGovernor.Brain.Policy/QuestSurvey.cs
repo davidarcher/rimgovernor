@@ -121,7 +121,7 @@ public static partial class PolicyFunctions
             return food;
         }
         var crew = primary.Crew;
-        var consumers = supply.Consumers.Where(row => !crew.Contains(row.Id)).ToList();
+        var consumers = supply.Consumers.Where(row => !crew.Items.Contains((Domain.PawnId)row.Id)).ToList();
         var stocks = supply.Stocks.ToList();
         var packed = new Dictionary<string, long>(StringComparer.Ordinal);
         foreach (var item in primary.Cargo)
@@ -130,7 +130,7 @@ public static partial class PolicyFunctions
         }
         for (var i = 0; i < stocks.Count; i++)
         {
-            var row = stocks[i] with { Eaters = stocks[i].Eaters.Where(id => !crew.Contains(id)).ToList() };
+            var row = stocks[i] with { Eaters = stocks[i].Eaters.Where(id => !crew.Items.Contains((Domain.PawnId)id)).ToList() };
             stocks[i] = row;
             var remaining = packed.GetValueOrDefault(row.DefName.Value);
             if (remaining == 0)
@@ -158,7 +158,7 @@ public static partial class PolicyFunctions
     /// Accounts for the proposed primary crew in the same home staffing facts used by ordinary departure,
     /// without persisting a reservation.
     /// </summary>
-    private static bool SurveyReliefFacts(RoundsFacts f, IReadOnlyList<PawnId> crew, out RoundsFacts reserve)
+    private static bool SurveyReliefFacts(RoundsFacts f, EquatableArray<Domain.PawnId> crew, out RoundsFacts reserve)
     {
         reserve = f;
         var hk = f.QuestColonistsAtHome.TryGetValue(out var home);
@@ -177,7 +177,7 @@ public static partial class PolicyFunctions
             var found = false;
             foreach (var row in rows!)
             {
-                if (row.Id == id)
+                if (row.Id == (PawnId)id)
                 {
                     if (!row.DefensePoints.TryGetValue(out var strength))
                     {
@@ -193,7 +193,7 @@ public static partial class PolicyFunctions
             }
             foreach (var row in work!)
             {
-                if (row.Pawn != id)
+                if (row.Pawn != (PawnId)id)
                 {
                     continue;
                 }
@@ -217,8 +217,8 @@ public static partial class PolicyFunctions
             QuestColonistsAtHome = Known(home - crew.Count),
             DefenseCapacity = Known(capacity),
             WorkRoster = Known(EquatableArray.From(coverage)),
-            QuestSparePawns = Known(EquatableArray.From(spare!.Where(id => !crew.Contains(id)))),
-            QuestDeparturePawns = Known(EquatableArray.From(rows!.Where(row => !crew.Contains(row.Id)))),
+            QuestSparePawns = Known(EquatableArray.From(spare!.Where(id => !crew.Items.Contains((Domain.PawnId)id)))),
+            QuestDeparturePawns = Known(EquatableArray.From(rows!.Where(row => !crew.Items.Contains((Domain.PawnId)row.Id)))),
         };
         return true;
     }

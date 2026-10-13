@@ -277,7 +277,7 @@ public static partial class PolicyFunctions
         var matched = new bool[input.Furniture.Count];
         var removals = new List<ReconcileItem>();
         var covered = new HashSet<Cell>();
-        var rows = input.Rows.OrderBy(row => row.EntityID, StringComparer.Ordinal).ToList();
+        var rows = input.Rows.OrderBy(row => row.EntityId, StringComparer.Ordinal).ToList();
         var removedRows = new List<ClearanceTarget>();
         var ground = r.GroundRegion();
         var innerWalls = new List<ClearanceTarget>();

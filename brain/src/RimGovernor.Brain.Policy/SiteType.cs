@@ -83,7 +83,7 @@ public sealed record SiteTypeRequest
     public SiteTypeWeights Weights { get; init; }
 
     /// <summary>Items price the cost lists (market values).</summary>
-    public ItemFacts Items { get; init; }
+    public ItemFacts Items { get; init; } = new();
 
     /// <summary>The accessible colony stock a soil-free hydroponics unit must be able to pay for; unknown leaves the check to admission.</summary>
     public Fact<IReadOnlyDictionary<Resource, long>> Stock { get; init; }
@@ -261,7 +261,7 @@ public static partial class PolicyFunctions
     {
         if (r.Paste is not null)
         {
-            return PlanPasteSite(r);
+            return PlanPasteSite(r) is { } pasted ? (pasted, true) : (new SiteTypePlan(), false);
         }
         var w = r.Weights;
         if (w == default)
@@ -411,7 +411,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static (PowerHeadroom Network, double Room, bool Fits) SitePower(ControlledEnvironment env, double drawW, bool night)
     {
-        PowerHeadroom best = default;
+        var best = new PowerHeadroom();
         var bestRoom = 0.0;
         var found = false;
         foreach (var n in env.Networks)
@@ -498,9 +498,10 @@ public static partial class PolicyFunctions
             var total = draw * coldRooms;
             if (network != "")
             {
-                var (n, nok) = env.Network(network);
-                var rk = n.CalmNightHeadroomW().TryGetValue(out var room);
-                if (!nok || !Positive(n.ActiveSource) || !rk || room < total)
+                var n = env.Network(network);
+                var room = 0.0;
+                var rk = n is not null && n.CalmNightHeadroomW().TryGetValue(out room);
+                if (n is null || !Positive(n.ActiveSource) || !rk || room < total)
                 {
                     reason = "no night power headroom for heating";
                     return false;
@@ -678,7 +679,7 @@ public static partial class PolicyFunctions
     /// </summary>
     private static SiteTypeCandidate SiteHydroponics(
         SiteTypeRequest r, SiteTypeWeights w, ControlledEnvironment env, ViableCrop v, SiteTypeCandidate c,
-        IReadOnlyDictionary<Cell, string> lit, double unit)
+        Dictionary<Cell, string> lit, double unit)
     {
         var bk = r.Basin.TryGetValue(out var basin);
         var dk = basin.PowerW.TryGetValue(out var draw);

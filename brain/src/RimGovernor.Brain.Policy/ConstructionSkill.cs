@@ -31,7 +31,7 @@ public static partial class PolicyFunctions
                 return [];
             }
             var profile = BuildProfile(pawn);
-            if (profile.Forbidden(WorkType.Construction) || profile.Incapable.Contains(WorkType.Construction))
+            if (profile.Forbidden(WorkType.Construction) || profile.Incapable.GetValueOrDefault(WorkType.Construction))
             {
                 continue;
             }

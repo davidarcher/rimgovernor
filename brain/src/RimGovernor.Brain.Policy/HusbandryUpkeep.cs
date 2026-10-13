@@ -76,7 +76,7 @@ public static partial class PolicyFunctions
 {
     /// <summary>The role of a race, or the zero role when the plan has none.</summary>
     internal static HerdRole HerdRoleOrZero(HerdPolicy herd, Resource race) =>
-        herd.Roles.TryGetValue(race, out var role) ? role : new HerdRole(race, default, false, false, false, false, false, false);
+        herd.Roles.TryGetValue(race, out var role) ? role : new HerdRole { Race = race };
 
     /// <summary>
     /// The trainables a race's job wants, in order. A hauler learns Obedience then Haul, a war animal
@@ -128,7 +128,7 @@ public static partial class PolicyFunctions
     /// release/slaughter/training facts are incomplete, leaves the whole need unknown rather than
     /// silently treating it as recovered.
     /// </summary>
-    public static Fact<bool> AnimalHerdDeficit(Fact<IReadOnlyList<UpkeepAnimal>> animals, Fact<IReadOnlyList<UpkeepAnimal>> wild, Fact<bool> feedShort, HerdPolicy herd)
+    public static Fact<bool> AnimalHerdDeficit(Fact<EquatableArray<UpkeepAnimal>> animals, Fact<EquatableArray<UpkeepAnimal>> wild, Fact<bool> feedShort, HerdPolicy herd)
     {
         if (!animals.TryGetValue(out var rows))
         {
@@ -362,7 +362,7 @@ public static partial class PolicyFunctions
         {
             return Unknown<bool>();
         }
-        return Known(p.Short());
+        return Known(p.IsShort());
     }
 
     /// <summary>
@@ -376,7 +376,7 @@ public static partial class PolicyFunctions
     /// -- and only after that to the lowest-Id surplus candidate for the operator's chosen removal method
     /// -- so an operator who opts into tame or removal never loses the pre-existing training behavior.
     /// </summary>
-    public static HusbandryChoice SelectHusbandryMethod(Fact<IReadOnlyList<UpkeepAnimal>> animals, Fact<IReadOnlyList<UpkeepAnimal>> wild, Fact<bool> feedShort, HerdPolicy herd, Fact<IReadOnlyList<PawnProfile>> handlers)
+    public static HusbandryChoice SelectHusbandryMethod(Fact<EquatableArray<UpkeepAnimal>> animals, Fact<EquatableArray<UpkeepAnimal>> wild, Fact<bool> feedShort, HerdPolicy herd, Fact<EquatableArray<PawnProfile>> handlers)
     {
         var unknownChoice = new HusbandryChoice { Reason = HusbandryPlanReason.Unknown };
         if (!animals.TryGetValue(out var rows))
@@ -432,7 +432,7 @@ public static partial class PolicyFunctions
                 foreach (var a in candidates)
                 {
                     var minimum = a.MinimumHandlingSkill.ValueOrDefault;
-                    var (_, ok) = TamerFor(profiles, minimum);
+                    var ok = TamerFor(profiles, minimum) is not null;
                     if (!short_ && ok)
                     {
                         return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.Tame };
@@ -456,7 +456,7 @@ public static partial class PolicyFunctions
     /// Requested training or a standing animal designation. Ordinary native handlers need game time, not
     /// another write or a forced job.
     /// </summary>
-    public static bool HerdWorkPending(Fact<IReadOnlyList<UpkeepAnimal>> animals, Fact<IReadOnlyList<UpkeepAnimal>> wild, HerdPolicy herd)
+    public static bool HerdWorkPending(Fact<EquatableArray<UpkeepAnimal>> animals, Fact<EquatableArray<UpkeepAnimal>> wild, HerdPolicy herd)
     {
         if (wild.TryGetValue(out var wildRows))
         {

@@ -94,13 +94,17 @@ public readonly record struct BlockedReason(string Value)
 
     public bool IsEmpty => Text.Length == 0;
 
-    public static BlockedReason FromCause(Cause cause) => new(Wire.Name(cause));
+    public static BlockedReason FromCause(Cause cause) => new(cause.Value);
 
     /// <summary>Blocks on another goal that must be served first.</summary>
     public static BlockedReason OnPrerequisite(ConcernId goal) => new(PrerequisitePrefix + goal.Value);
 
     /// <summary>The Cause this reason spells, when it spells one.</summary>
-    public bool TryGetCause(out Cause cause) => Wire.TryParse(Text, out cause);
+    public bool TryGetCause(out Cause cause)
+    {
+        cause = new Cause(Text);
+        return cause.IsValid();
+    }
 
     /// <summary>Reports a planner wait.</summary>
     public bool Waiting() => TryGetCause(out var cause) && cause.Waiting();

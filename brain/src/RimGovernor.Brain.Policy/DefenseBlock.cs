@@ -51,7 +51,7 @@ public sealed record ClearRow
 /// </summary>
 public sealed record BlockPricing
 {
-    public WorkPrice Work { get; init; } = new();
+    public WorkPrice Work { get; init; }
 
     public double TicksPerWorkDay { get; init; }
 
@@ -326,7 +326,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static BlockPricing NewBlockPricing(StationFacts f, IReadOnlyDictionary<string, EquatableArray<Amount>> unitCosts, IReadOnlyDictionary<string, ClearRow> rows)
     {
-        f.Items.TryMarketValue(SiteSteelUnit, out var steel);
+        var steel = f.Items.Market.GetValueOrDefault(SiteSteelUnit); // Go drops the missing-value error: an unpriced steel stays 0
         var p = new BlockPricing { Work = StationWorkPrice(f), SteelValue = steel, Market = f.Items.Market, UnitCosts = unitCosts, Rows = rows };
         if (f.WorkPawns.TryGetValue(out var pawns) && ColonistWorkTicksPerDay(pawns).TryGetValue(out var ticks))
         {

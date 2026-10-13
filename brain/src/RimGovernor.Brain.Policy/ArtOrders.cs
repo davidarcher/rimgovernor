@@ -76,7 +76,7 @@ public static partial class PolicyFunctions
                 new OrderSpec
                 {
                     Recipe = s.Recipe,
-                    Ingredients = s.Ingredients,
+                    Ingredients = EquatableArray.From(s.Ingredients),
                     Worker = s.Worker,
                     Mode = s.Mode,
                     Target = s.Target,
@@ -100,10 +100,10 @@ public static partial class PolicyFunctions
         foreach (var b in benches)
         {
             b.Bills.TryGetValue(out var bills);
-            foreach (var bill in bills)
+            foreach (var bill in bills!)
             {
                 var wk = bill.Worker.TryGetValue(out var worker);
-                if (bill.Role != RecipeRole.Sculpture || !wk || !current.Contains(worker))
+                if (bill.Role != RecipeRole.Sculpture || !wk || !current.Contains(worker!))
                 {
                     continue;
                 }
@@ -144,7 +144,7 @@ public static partial class PolicyFunctions
             }
 
             var rows = new List<ProductionRecipe>();
-            foreach (var recipe in recipes)
+            foreach (var recipe in recipes!)
             {
                 if (recipe.Role != RecipeRole.Sculpture)
                 {
@@ -167,9 +167,9 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            var existing = bills.Select(bill => new ExistingProductionBill
+            var existing = bills!.Select(bill => new ExistingProductionBill
             {
-                ID = bill.ID,
+                Id = bill.Id,
                 Recipe = bill.Recipe,
                 Role = bill.Role,
                 Worker = bill.Worker,
@@ -178,8 +178,8 @@ public static partial class PolicyFunctions
             output.Add(
                 new ProductionBench
                 {
-                    ID = read.ID,
-                    Token = Known(read.ID),
+                    Id = read.Id,
+                    Token = Known(read.Id),
                     Usable = Known(true),
                     Recipes = EquatableArray.From(rows),
                     Bills = EquatableArray.From(existing),
@@ -199,7 +199,7 @@ public static partial class PolicyFunctions
         foreach (var b in benches)
         {
             b.Bills.TryGetValue(out var bills);
-            foreach (var bill in bills)
+            foreach (var bill in bills!)
             {
                 if (bill.Active.TryGetValue(out var active) && active && bill.Role == RecipeRole.Sculpture)
                 {

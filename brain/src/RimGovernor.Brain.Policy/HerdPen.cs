@@ -140,7 +140,7 @@ public sealed partial record LayoutPlan
     /// </summary>
     public IReadOnlyList<Cell> FlapCells(PlannedRoom r) => RingCells(r, Flaps());
 
-    private static IReadOnlyList<Cell> RingCells(PlannedRoom r, IReadOnlyList<Cell> cells)
+    private static List<Cell> RingCells(PlannedRoom r, IReadOnlyList<Cell> cells)
     {
         if (r.Outdoor)
         {
@@ -242,7 +242,7 @@ public static partial class PolicyFunctions
     {
         foreach (var b in built)
         {
-            if (b.Building.Definition() == PenMarkerDefinition && b.Cells.Count > 0 && room.Region.Contains(b.Cells[0]))
+            if (b.Building!.Definition == PenMarkerDefinition && b.Cells.Count > 0 && room.Region.Contains(b.Cells[0]))
             {
                 return true;
             }
@@ -280,7 +280,7 @@ public static partial class PolicyFunctions
     {
         foreach (var b in built)
         {
-            if (b.Building.Definition() == PenMarkerDefinition && b.Cells.Count > 0 && room.Region.Contains(b.Cells[0]))
+            if (b.Building!.Definition == PenMarkerDefinition && b.Cells.Count > 0 && room.Region.Contains(b.Cells[0]))
             {
                 var r = CellsRectangle(b.Cells);
                 return (

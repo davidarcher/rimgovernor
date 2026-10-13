@@ -28,7 +28,7 @@ public sealed record DefenseTurretRequest
     public int Max { get; init; }
 
     /// <summary>The definition's North footprint; zero is 1x1.</summary>
-    public Bounds Size { get; init; } = new();
+    public Bounds Size { get; init; }
 }
 
 /// <summary>
@@ -545,7 +545,7 @@ internal sealed partial class DefenseSite
     /// The shortest conduit run that brings a transmitter within native connector reach of the turret,
     /// cardinally chained to an existing transmitter; empty when one is already in reach; null when no run exists.
     /// </summary>
-    internal List<Cell>? ConduitChain(Cell turret, HashSet<Cell> transmitters, HashSet<Cell> allowed)
+    internal static List<Cell>? ConduitChain(Cell turret, HashSet<Cell> transmitters, HashSet<Cell> allowed)
     {
         foreach (var c in transmitters)
         {

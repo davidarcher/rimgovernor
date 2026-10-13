@@ -44,7 +44,7 @@ public sealed record FoodStorageStock(FoodStock Stock)
 /// </summary>
 public sealed record FoodStorageObservation
 {
-    public Fact<IReadOnlyList<FoodStorageStock>> Stocks { get; init; }
+    public Fact<EquatableArray<FoodStorageStock>> Stocks { get; init; }
 
     public Fact<FoodLarder> Larder { get; init; }
 
@@ -185,7 +185,7 @@ public sealed record FoodStoragePlanningRequest
 {
     public FoodStorageReview Review { get; init; } = new();
 
-    public Fact<IReadOnlyList<FoodStorageSite>> Sites { get; init; }
+    public Fact<EquatableArray<FoodStorageSite>> Sites { get; init; }
 
     public Resource Resource { get; init; }
 
@@ -198,7 +198,7 @@ public static partial class PolicyFunctions
     public static FoodStorageObservation FoodStorageStocks(FoodSupply supply, double chilledMaxC) =>
         new()
         {
-            Stocks = Known<IReadOnlyList<FoodStorageStock>>([.. supply.Stocks.Concat(supply.Barred).Select(stock => new FoodStorageStock(stock))]),
+            Stocks = Known<EquatableArray<FoodStorageStock>>([.. supply.Stocks.Concat(supply.Barred).Select(stock => new FoodStorageStock(stock))]),
             Larder = supply.Larder,
             ChilledMaxC = chilledMaxC,
         };

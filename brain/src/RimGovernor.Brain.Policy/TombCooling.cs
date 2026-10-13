@@ -15,18 +15,18 @@ public static partial class PolicyFunctions
     /// Lists the native room IDs of the standing planned tombs, morgues and meal closets that measure warmer than
     /// TombMaxC, sorted. Known empty while coolers are unavailable; unknown while a fact it reads is.
     /// </summary>
-    public static Fact<IReadOnlyList<string>> WarmCoolingRooms(Fact<bool> coolers, Fact<LayoutPlan> plan, Fact<RoomObservation> rooms)
+    public static Fact<EquatableArray<string>> WarmCoolingRooms(Fact<bool> coolers, Fact<LayoutPlan> plan, Fact<RoomObservation> rooms)
     {
         var ak = coolers.TryGetValue(out var available);
         if (ak && !available)
         {
-            return Known<IReadOnlyList<string>>([]);
+            return Known<EquatableArray<string>>([]);
         }
         var pk = plan.TryGetValue(out var p);
         var rk = rooms.TryGetValue(out var r);
         if (!ak || !pk || !rk)
         {
-            return Unknown<IReadOnlyList<string>>();
+            return Unknown<EquatableArray<string>>();
         }
         var output = new List<string>();
         foreach (var planned in p!.Rooms)
@@ -41,9 +41,9 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            if (!room.Temperature.TryGetValue(out var t))
+            if (!room!.Temperature.TryGetValue(out var t))
             {
-                return Unknown<IReadOnlyList<string>>();
+                return Unknown<EquatableArray<string>>();
             }
             if (t > TombMaxC)
             {
@@ -51,11 +51,11 @@ public static partial class PolicyFunctions
             }
         }
         output.Sort(StringComparer.Ordinal);
-        return Known<IReadOnlyList<string>>(output);
+        return Known(EquatableArray.From(output));
     }
 
     /// <summary>Adds the warm cooling rooms to the review's rooms: any warm one makes it active. Unknown rooms leave the review as it is.</summary>
-    public static RefrigerationReview WithWarmRooms(this RefrigerationReview r, Fact<IReadOnlyList<string>> warm)
+    public static RefrigerationReview WithWarmRooms(this RefrigerationReview r, Fact<EquatableArray<string>> warm)
     {
         if (!warm.TryGetValue(out var ids) || ids.Count == 0)
         {

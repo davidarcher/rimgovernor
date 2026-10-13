@@ -133,19 +133,19 @@ public static partial class PolicyFunctions
                 new ChildFurniture { Defs = EquatableArray.From([ContainmentLampDefinition]), Count = 1, Optional = true },
             ]),
         };
-        if (!need.TryResolve(furniture, out _))
+        if (need.Resolve(furniture) is null)
         {
             return Refuse("the holding platform " + defs.Holder + " is not buildable yet or its size is unknown");
         }
         // The floor term counts the containment floor when the stock pays for every tile of the smallest room
         // that holds the cell; WantedFloors lays it under the same test.
         var floored = false;
-        if (need.TryShape(furniture, out var shape))
+        if (need.Shape(furniture) is { } shape)
         {
             var sizes = ChildRoomSizes(shape);
             if (sizes.Count > 0)
             {
-                floored = ContainmentFloorLaid(defs.Floor, floors, (int)(sizes[0][0] * sizes[0][1]));
+                floored = ContainmentFloorLaid(defs.Floor, floors, sizes[0].W * sizes[0].D);
             }
         }
         if (floors.Layout.TryGetValue(out var plan) && plan is not null)

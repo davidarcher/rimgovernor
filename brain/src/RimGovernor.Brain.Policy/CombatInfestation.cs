@@ -15,7 +15,7 @@ public static partial class PolicyFunctions
     /// <summary>Reports a fight with a live hive, or with at least one live hostile pawn and every live hostile pawn an insect.</summary>
     public static bool Infestation(CombatView view)
     {
-        if (view.Structures.Items.Any(s => s.Hive()))
+        if (view.Structures.Items.Any(s => s.Hive))
         {
             return true;
         }
@@ -64,7 +64,7 @@ public static partial class PolicyFunctions
         }
         else
         {
-            var hive = view.Structures.Items.FirstOrDefault(s => s.Hive());
+            var hive = view.Structures.Items.FirstOrDefault(s => s.Hive);
             if (hive is not null)
             {
                 top = hive.Id;
@@ -131,7 +131,7 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            if (carrier.WeaponFacts.Blast <= 0 || carrier.WeaponFacts.Emp)
+            if (carrier.WeaponFacts.Blast <= 0 || carrier.WeaponFacts.EMP)
             {
                 continue;
             }
@@ -151,7 +151,7 @@ public static partial class PolicyFunctions
             foreach (var s in view.Structures.Items)
             {
                 var c = s.Cell;
-                if (!s.Hive() || Dist(from, c) > reach || NearColonist(c, colonists))
+                if (!s.Hive || Dist(from, c) > reach || NearColonist(c, colonists))
                 {
                     continue;
                 }
@@ -207,9 +207,9 @@ public static partial class PolicyFunctions
     /// insect, while the formation's brawlers melee-block. Later stops keep the latch although the driller's
     /// job has changed.
     /// </summary>
-    private static void DrillEvacuate(CombatView view, CombatMemory m, ISet<PawnId> orderable)
+    private static void DrillEvacuate(CombatView view, CombatMemory m, HashSet<PawnId> orderable)
     {
-        if (m.Tactic != CombatTactic.Infestation || view.Structures.Items.Any(s => s.Hive()))
+        if (m.Tactic != CombatTactic.Infestation || view.Structures.Items.Any(s => s.Hive))
         {
             m.Driller = default;
             return;

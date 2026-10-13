@@ -47,7 +47,7 @@ public sealed record RoomUpgrade
 public sealed partial record RoomFurniture
 {
     /// <summary>The definitions the closer's slots place in a bedroom: end table, dresser and the standing lamp (a suite's furnishing by them).</summary>
-    public IReadOnlyList<string> BedroomUpgradePieces() => [EndTable.Def, Dresser.Def, PolicyFunctions.StandingLampDef];
+    public IReadOnlyList<string> BedroomUpgradePieces() => [EndTable.Def, Dresser.Def, PolicyConstants.StandingLampDef];
 }
 
 public static partial class PolicyFunctions

@@ -122,7 +122,7 @@ public static partial class PolicyFunctions
         var output = new List<PerimeterSection>();
         foreach (var site in sites)
         {
-            var chain = new DefenseSite(new DefenseRequest()).ConduitChain(site, carry, allowed);
+            var chain = DefenseSite.ConduitChain(site, carry, allowed);
             if (chain is null)
             {
                 continue;

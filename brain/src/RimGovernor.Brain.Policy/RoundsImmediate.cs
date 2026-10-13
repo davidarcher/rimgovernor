@@ -74,7 +74,7 @@ public static partial class PolicyFunctions
             R = new RoundsFindings { Latches = latches, Disaster = f.Disaster },
             Upkeep = new UpkeepReview { Needs = [fire] },
         };
-        foreach (var d in Inspections)
+        foreach (var d in InspectionRegistry.Inspections)
         {
             if (!ImmediateConcern(d.Concern))
             {
@@ -99,8 +99,7 @@ public static partial class PolicyFunctions
             {
                 d.Inspect(c);
             }
-            var (noOpRecord, noOp) = NoOpOf(d.Concern, c.R.Concerns.Skip(goals).ToList(), c.R.Assessments.Skip(assessments).ToList());
-            if (noOp)
+            if (NoOpOf(d.Concern, c.R.Concerns.Skip(goals).ToList(), c.R.Assessments.Skip(assessments).ToList()) is { } noOpRecord)
             {
                 c.R.NoOps.Add(noOpRecord);
             }

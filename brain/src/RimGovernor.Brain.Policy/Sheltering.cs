@@ -91,7 +91,7 @@ public static partial class PolicyFunctions
         var set = new HashSet<Cell>();
         foreach (var t in threats)
         {
-            if ((t.Kind != ThreatKind.Hostile && t.Kind != ThreatKind.HuntingPredator && t.Kind != ThreatKind.HostileBuilding) || t.Undiscovered())
+            if ((t.Kind != ThreatKind.Hostile && t.Kind != ThreatKind.HuntingPredator && t.Kind != ThreatKind.HostileBuilding) || t.Undiscovered)
             {
                 continue;
             }
@@ -104,7 +104,7 @@ public static partial class PolicyFunctions
                 continue;
             }
             IReadOnlyList<Cell> cells = t.Cells;
-            if (t.Position.TryGetValue(out var at) && !t.Building())
+            if (t.Position.TryGetValue(out var at) && !t.Building)
             {
                 cells = [at];
             }
@@ -285,7 +285,7 @@ public static partial class PolicyFunctions
                 }
                 // A threat shelters only pawns known outside the draft set.
                 var shelter = trigger != ShelterTrigger.None && (trigger != ShelterTrigger.Threat || (combatants is not null && !combatants.Contains(worker.Pawn)));
-                foreach (var restriction in safety.Restrictions)
+                foreach (var restriction in safety!.Restrictions)
                 {
                     if (restriction.Pawn == worker.Pawn)
                     {
@@ -343,7 +343,7 @@ public static partial class PolicyFunctions
                 continue;
             }
             var inside = false;
-            foreach (var restriction in safety.Restrictions)
+            foreach (var restriction in safety!.Restrictions)
             {
                 if (restriction.Pawn == worker.Pawn)
                 {

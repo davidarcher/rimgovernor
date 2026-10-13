@@ -16,6 +16,9 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>What a node's stations are for.</summary>
 public enum StationPurpose
 {
+    [WireName("")]
+    None,
+
     [WireName("sleep")]
     Sleep,
 

@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 public sealed record HumanButcherCandidate
 {
     public PawnId ID { get; init; }
-    public Fact<IReadOnlyList<PawnTrait>> Traits { get; init; }
+    public Fact<EquatableArray<PawnTrait>> Traits { get; init; }
 
     /// <summary>The pawn's own ideoligion and precept defNames from its row; unknown when the row carries no policy inputs.</summary>
     public Fact<HeldPrecepts> Held { get; init; }
@@ -123,7 +123,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Native candidates already establish disposition, assignment and reachability; execution rechecks them before the write. Never substitute another worker.</summary>
-    public static (BillSelection Selection, bool Ok) SelectHumanButcher(Fact<IReadOnlyList<ProductionBench>> benches, IdeologyRead ideology)
+    public static (BillSelection Selection, bool Ok) SelectHumanButcher(Fact<EquatableArray<ProductionBench>> benches, IdeologyRead ideology)
     {
         if (!benches.TryGetValue(out var rows))
         {
@@ -136,7 +136,7 @@ public static partial class PolicyFunctions
             var uk = b.Usable.TryGetValue(out var usable);
             var nk = b.HumanCorpseNutrition.TryGetValue(out var nutrition);
             var tk = b.Token.TryGetValue(out var token);
-            if (!b.Butcher || !uk || !usable || !nk || !FoodNumber(nutrition) || nutrition <= 0 || !tk || !FoodId(token!) || !FoodId(b.ID) || b.Bills.Count >= 15)
+            if (!b.Butcher || !uk || !usable || !nk || !FoodNumber(nutrition) || nutrition <= 0 || !tk || !FoodId(token!) || !FoodId(b.Id) || b.Bills.Count >= 15)
             {
                 continue;
             }
@@ -144,7 +144,7 @@ public static partial class PolicyFunctions
             foreach (var bill in b.Bills)
             {
                 exists = exists || (bill.Role == RecipeRole.ButcherFlesh && bill.Humanlike);
-                animalBill[b.ID] = animalBill.GetValueOrDefault(b.ID) || (bill.Role == RecipeRole.ButcherFlesh && !bill.Humanlike);
+                animalBill[b.Id] = animalBill.GetValueOrDefault(b.Id) || (bill.Role == RecipeRole.ButcherFlesh && !bill.Humanlike);
             }
             var butcher = "";
             foreach (var recipe in b.Recipes)
@@ -164,7 +164,7 @@ public static partial class PolicyFunctions
                 choices.Add(
                     new BillSelection
                     {
-                        Bench = b.ID,
+                        Bench = b.Id,
                         Recipe = butcher,
                         Token = token!,
                         Mode = BillMode.HumanButcherForever,
@@ -189,7 +189,7 @@ public static partial class PolicyFunctions
     /// Whether the precept rule forbids the worker to butcher a human, or cannot say (unread ideoligion, Ideology
     /// installed). Traits cancel an unwilling effect; unknown traits cancel none.
     /// </summary>
-    private static bool ButcherHeld(IdeologyRead ideology, Fact<IReadOnlyList<PawnTrait>> traits)
+    private static bool ButcherHeld(IdeologyRead ideology, Fact<EquatableArray<PawnTrait>> traits)
     {
         var names = new List<string>();
         if (traits.TryGetValue(out var rows))
@@ -205,7 +205,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Separates the worker's disposition from the colony's response. Other pawns may still receive native butchery memories.</summary>
-    public static bool HumanButcherEligible(Fact<IReadOnlyList<PawnTrait>> traits, Fact<bool> preceptAcceptable, Fact<bool> canWork)
+    public static bool HumanButcherEligible(Fact<EquatableArray<PawnTrait>> traits, Fact<bool> preceptAcceptable, Fact<bool> canWork)
     {
         if (!canWork.TryGetValue(out var works) || !works)
         {
@@ -241,7 +241,7 @@ public static partial class PolicyFunctions
     /// available, a worker who qualifies (QualifyingHumanButcher); the morgue holds the corpse. It ignores whether
     /// the human bill stands.
     /// </summary>
-    public static bool HumanButcheryOpen(Fact<IReadOnlyList<ProductionBench>> benches, IdeologyRead ideology)
+    public static bool HumanButcheryOpen(Fact<EquatableArray<ProductionBench>> benches, IdeologyRead ideology)
     {
         if (!benches.TryGetValue(out var rows))
         {

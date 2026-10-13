@@ -93,9 +93,9 @@ public sealed class BurialOwner : IStoreOwner
 {
     public Department Department => Policy.Department.People;
 
-    public IReadOnlyList<Store> Stores(StoreView v)
+    public IReadOnlyList<Store> Stores(StoreView view)
     {
-        if (v.Layout is null)
+        if (view.Layout is null)
         {
             return [];
         }
@@ -109,14 +109,14 @@ public sealed class BurialOwner : IStoreOwner
         foreach (var s in roles)
         {
             // The first planned room of the role holds the store.
-            foreach (var room in v.Layout.RoomsOf(s.Role))
+            foreach (var room in view.Layout.RoomsOf(s.Role))
             {
                 var bounds = room.Region.Bounds();
                 var key = $"{bounds.X}_{bounds.Z}";
                 output.Add(
                     new Store
                     {
-                        StoreSite = new StoreSite
+                        Site = new StoreSite
                         {
                             Role = s.Prefix + key,
                             Interior = bounds,
@@ -133,14 +133,14 @@ public sealed class BurialOwner : IStoreOwner
         return output;
     }
 
-    public RoomDemand RoomDemand(StoreView v)
+    public RoomDemand RoomDemand(StoreView view)
     {
-        if (v.Layout is null || v.Burial is null)
+        if (view.Layout is null || view.Burial is null)
         {
             return new RoomDemand();
         }
 
-        var b = v.Burial;
-        return new RoomDemand { Graveyards = PolicyFunctions.GraveyardsWanted(v.Layout, b.Waste.Items, b.Built.Items, b.Shapes, b.Sarcophagus) };
+        var b = view.Burial;
+        return new RoomDemand { Graveyards = PolicyFunctions.GraveyardsWanted(view.Layout, b.Waste.Items, b.Built.Items, b.Shapes, b.Sarcophagus) };
     }
 }

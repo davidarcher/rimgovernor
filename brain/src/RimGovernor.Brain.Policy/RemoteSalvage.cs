@@ -29,7 +29,7 @@ public static partial class PolicyFunctions
         {
             return (c, c.Yields.Count > 0);
         }
-        var yields = new List<SupplyYield>();
+        var yields = new List<CandidateYield>();
         foreach (var y in e.Candidate.Yields)
         {
             if (y.StockCap.TryGetValue(out var n) && n > 0 && resources.Contains(y.Good.Def))

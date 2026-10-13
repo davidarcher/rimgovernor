@@ -65,7 +65,7 @@ public static partial class PolicyFunctions
                 output = output.Unread(Cause.UnreadBills);
                 continue;
             }
-            if (active || (!f.Reserve && stock.GetValueOrDefault(f.Resource) >= f.Target))
+            if (active || (!f.Reserve && stock!.GetValueOrDefault(f.Resource) >= f.Target))
             {
                 orders.AddRange(standing);
                 continue;
@@ -107,7 +107,9 @@ public static partial class PolicyFunctions
                     break;
             }
         }
-        return output with { Orders = EquatableArray.From(orders) };
+        output.Orders.Clear();
+        output.Orders.AddRange(orders);
+        return output;
     }
 
     /// <summary>
@@ -126,7 +128,7 @@ public static partial class PolicyFunctions
             }
             foreach (var bill in bills)
             {
-                if (bill.Spent || bill.Kind != LedgerKind.Production || !ContainsResource(bill.Products, resource))
+                if (bill.Spent || bill.Kind != LedgerBillKind.Production || !ContainsResource(bill.Products, resource))
                 {
                     continue;
                 }
@@ -137,7 +139,7 @@ public static partial class PolicyFunctions
                     return ([], false, true);
                 }
                 active = active || on;
-                specs.Add(spec);
+                specs.Add(spec!);
             }
         }
         return (specs, active, false);

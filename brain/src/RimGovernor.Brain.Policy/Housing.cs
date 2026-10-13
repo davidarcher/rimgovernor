@@ -11,6 +11,36 @@ public readonly record struct Phase(string Value)
 
     public bool IsEmpty => Value.Length == 0;
 
+    /// <summary>The empty phase: no step owed.</summary>
+    public static Phase None => default;
+
+    /// <summary>The foothold gates (a sleeping place and an indoor place for everyone) are not both met.</summary>
+    public static Phase HousingShelter => new("shelter");
+
+    /// <summary>ReviewSleeping has a colonist without a suitable owned bed, an unused one or a bedroom step due.</summary>
+    public static Phase HousingSleeping => new("sleeping");
+
+    /// <summary>Indoor capacity keeps no spare place beyond the population. Raised from StageReserves.</summary>
+    public static Phase HousingExpansion => new("expansion");
+
+    /// <summary>
+    /// EnsureComfort's basic step: the basic facilities (a reachable table, seat and recreation source, foothold
+    /// priority) before the ranked project. Each phase has its own planner.
+    /// </summary>
+    public static Phase ComfortBasic => new("basic");
+
+    /// <summary>EnsureComfort's ranked step: hosting rooms and proof of use, from StageDevelopment.</summary>
+    public static Phase ComfortRanked => new("ranked");
+
+    /// <summary>The PartySpot step, owed once neither facility phase is: the ranked planner serves it (RoundsFacts.PartySpotOwed).</summary>
+    public static Phase ComfortSpot => new("spot");
+
+    /// <summary>MaintainMedicalReserves' step: care for the sick (rest and a hospital bed) before the medicine stock.</summary>
+    public static Phase MedicalCare => new("care");
+
+    /// <summary>MaintainMedicalReserves' stock step.</summary>
+    public static Phase MedicalReserves => new("reserves");
+
     public bool Equals(Phase other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
 
     public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(Value);
@@ -50,14 +80,6 @@ public static class RoundsLatchesPhaseExtensions
 
 public static partial class PolicyFunctions
 {
-    /// <summary>The foothold gates (a sleeping place and an indoor place for everyone) are not both met.</summary>
-    public static Phase HousingShelter => new("shelter");
-
-    /// <summary>ReviewSleeping has a colonist without a suitable owned bed, an unused one or a bedroom step due.</summary>
-    public static Phase HousingSleeping => new("sleeping");
-
-    /// <summary>Indoor capacity keeps no spare place beyond the population. Raised from StageReserves.</summary>
-    public static Phase HousingExpansion => new("expansion");
 
     /// <summary>
     /// MaintainHousing, the one housing goal: the starter shelter at foothold priority first, then sleeping
@@ -69,7 +91,7 @@ public static partial class PolicyFunctions
     {
         var shelter = AllFacts(FootholdShelter(f), FootholdSleeping(f));
         // The upkeep census counts any issued housing plan; only one the sleeping phase issued holds that phase open.
-        var issued = f.UpkeepIssued.GetValueOrDefault(MaintainHousing) && previous.Housing == HousingSleeping;
+        var issued = f.IsIssued(MaintainHousing) && previous.Housing == Phase.HousingSleeping;
         var sleeping = f.SleepingRecovered;
         if (issued)
         {
@@ -86,7 +108,7 @@ public static partial class PolicyFunctions
         {
             expansion = Measured(f.IndoorCapacity, capacity => capacity >= n + HousingSparePlaces);
         }
-        var staged = p.ColonyStage >= StageReserves;
+        var staged = p.ColonyStage >= ColonyStage.Reserves;
         var recovered = AllFacts(shelter, sleeping);
         if (staged)
         {
@@ -96,7 +118,7 @@ public static partial class PolicyFunctions
         {
             return new HousingReview
             {
-                Phase = HousingShelter,
+                Phase = Phase.HousingShelter,
                 Priority = 2,
                 Deficit = Unknown<double>(),
                 Recovered = shelter,
@@ -110,7 +132,7 @@ public static partial class PolicyFunctions
         {
             return new HousingReview
             {
-                Phase = HousingExpansion,
+                Phase = Phase.HousingExpansion,
                 Priority = 4,
                 Deficit = RoundsDeficit(MaintainHousing, f, p),
                 Recovered = expansion,
@@ -133,7 +155,7 @@ public static partial class PolicyFunctions
         }
         return new HousingReview
         {
-            Phase = HousingSleeping,
+            Phase = Phase.HousingSleeping,
             Priority = priority,
             Deficit = deficit,
             Recovered = sleeping,

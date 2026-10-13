@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record AcquisitionSource
 {
-    public string ID { get; init; } = "";
+    public string Id { get; init; } = "";
 
     public string Resource { get; init; } = "";
 
@@ -162,10 +162,10 @@ public static partial class PolicyFunctions
                     || row.HerdSize < 0
                     || row.HerdSize > 65536
                     || !FoodNumber(row.WeaponRange)
-                    || !FoodId(row.ID)
+                    || !FoodId(row.Id)
                     || !FoodId(row.Resource)
                     || !FoodId(row.Token)
-                    || seen.Contains(row.ID)
+                    || seen.Contains(row.Id)
                     || row.Cell.X < 0
                     || row.Cell.Z < 0
                     || !FoodNumber(row.Yield)
@@ -176,7 +176,7 @@ public static partial class PolicyFunctions
                 ),
                 "invalid acquisition source"
             );
-            seen.Add(row.ID);
+            seen.Add(row.Id);
         }
 
         var rows = PolicySort.ByLess(
@@ -218,7 +218,7 @@ public static partial class PolicyFunctions
                 break;
             }
 
-            if (row.Designated || (held.TryGetValue(row.ID, out var isHeld) && isHeld))
+            if (row.Designated || (held.TryGetValue(row.Id, out var isHeld) && isHeld))
             {
                 continue;
             }

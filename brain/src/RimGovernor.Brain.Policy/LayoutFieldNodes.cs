@@ -89,7 +89,7 @@ internal sealed partial class GraphBuilder
                 Harvests = harvests,
                 Area = cells,
                 Mask = ZoneKind.Field,
-                FertilityMin = Math.Max(fertility, PolicyConstants.ZoneFieldFertility),
+                FertilityMin = Math.Max(fertility, PolicyFunctions.ZoneFieldFertility),
                 Reason = PolicyConstants.ReasonFieldDemand,
             };
             output.Add(node);

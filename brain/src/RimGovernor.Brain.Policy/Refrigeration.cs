@@ -186,7 +186,7 @@ public static partial class PolicyFunctions
         // Food a pawn holds (carried or in inventory) has no storage cell to cool: it is not at risk here, and
         // its unknown roof/room facts must not blank the review while a cook or hauler walks a stack across
         // the map.
-        if (s.Stock.Holder.TryGetValue(out var holder) && holder != "")
+        if (s.Stock.Holder.TryGetValue(out var holder) && !holder.IsEmpty)
         {
             return (false, true);
         }
@@ -214,7 +214,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static RefrigerationReview ReviewRefrigeration(FoodStorageObservation fact, bool active, FoodStoragePolicy p)
     {
-        if (!p.Valid())
+        if (!p.Valid)
         {
             throw new DomainException("invalid refrigeration policy");
         }

@@ -127,7 +127,7 @@ public sealed record Calibration
     public bool Closed { get; init; }
 
     /// <summary>Its stock gain was under ShortfallFraction of the prediction.</summary>
-    public bool Short { get; init; }
+    public bool IsShort { get; init; }
 
     /// <summary>One more bench should carry the order. Otherwise a Short window has Reason.</summary>
     public bool Widen { get; init; }
@@ -154,7 +154,7 @@ public static partial class PolicyFunctions
 
     /// <summary>The usable benches of the order's kind that offer its recipe, ordered by id.</summary>
     public static IReadOnlyList<GearBench> EligibleBenches(OrderSpec order, IReadOnlyList<GearBench> benches) =>
-        [.. benches.Where(b => b.Def == order.BenchKind && BenchOffers(b, order.Recipe)).OrderBy(b => b.ID, StringComparer.Ordinal)];
+        [.. benches.Where(b => b.Def == order.BenchKind && BenchOffers(b, order.Recipe)).OrderBy(b => b.Id, StringComparer.Ordinal)];
 
     /// <summary>
     /// Sizes one order. Orders the model cannot size (not a stock target, stock, workers or recipe work unknown) want
@@ -175,7 +175,7 @@ public static partial class PolicyFunctions
         }
         d = d with { Demand = DemandRate(Known((double)((long)order.Target - have.GetValueOrDefault(order.Product))), order.Class) };
         RecipeOf(eligible[0], order.Recipe).RequiredWork.TryGetValue(out var required);
-        var workers = DispatchWorkers(pawns, required ?? []);
+        var workers = DispatchWorkers(pawns, required);
         d = d with { Capacity = MeanCapacity(order, eligible, AverageWorker(workers)) };
         d = d with { Wanted = BenchesWanted(d.Demand, d.Capacity) };
         if (!d.Wanted.TryGetValue(out var n))
@@ -370,7 +370,7 @@ public static partial class PolicyFunctions
         var gain = (double)(stock - w.StartStock);
         if (!w.Met && expected > 0 && gain < ShortfallFraction * expected)
         {
-            cal = cal with { Short = true, ShortPerDay = (expected - gain) / days };
+            cal = cal with { IsShort = true, ShortPerDay = (expected - gain) / days };
             var ingredientsKnown = o.Ingredients.TryGetValue(out var ingredients);
             if (ingredientsKnown && !ingredients)
             {
@@ -428,7 +428,7 @@ public static partial class PolicyFunctions
         var byKind = new Dictionary<string, (double Sum, double Top, UnmetReason Reason)>();
         foreach (var u in items)
         {
-            var a = byKind.TryGetValue(u.BenchKind, out var held) ? held : (0.0, -1.0, UnmetReason.None);
+            (double Sum, double Top, UnmetReason Reason) a = byKind.TryGetValue(u.BenchKind, out var held) ? held : (0.0, -1.0, UnmetReason.None);
             a.Sum += u.ShortPerDay;
             if (u.ShortPerDay > a.Top || (u.ShortPerDay == a.Top && string.CompareOrdinal(Wire.Name(u.Reason), Wire.Name(a.Reason)) < 0))
             {

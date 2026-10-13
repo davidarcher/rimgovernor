@@ -108,7 +108,7 @@ public static partial class PolicyFunctions
         PrisonerPolicy p,
         IReadOnlyList<SurgeryWant> wants,
         RecipeFacts facts,
-        IReadOnlySet<PawnId>? inFlight)
+        IReadOnlyDictionary<PawnId, bool>? inFlight)
     {
         if (!prisoners.TryGetValue(out var rows) || !colony.TryGetValue(out var c) || SurgeryInFlight(rows, inFlight))
         {
@@ -180,13 +180,13 @@ public static partial class PolicyFunctions
         row.Withdrawal.TryGetValue(out var withdrawal);
         var controlled = !planned && (trainable || withdrawal);
         var goodwillCost = SilverPerGoodwillPoint * Math.Max(0, -goodwill);
-        var legsMissing = CountMissing(missing, "Leg");
+        var legsMissing = CountMissing(missing!, "Leg");
 
         var removals = new List<SurgeryOperation>();
         var installs = new List<SurgeryOperation>();
         var cuts = new List<SurgeryOperation>();
         var pegLegs = 0;
-        foreach (var op in ops)
+        foreach (var op in ops!)
         {
             op.PartDefName.TryGetValue(out var body);
             op.Recipe.TryGetValue(out var recipe);
@@ -223,14 +223,14 @@ public static partial class PolicyFunctions
             var surgeon = kind == PegCycleStep.Training ? TrainingSurgeon(op, c) : default;
             output.Add(new OrganHarvest
             {
-                Prisoner = row.Pawn,
+                Prisoner = (Domain.PawnId)row.Pawn,
                 Recipe = recipe ?? "",
                 Part = part,
                 Gain = gain,
                 Cost = cost,
-                Violation = violation ?? "",
+                Violation = violation,
                 Step = kind,
-                Surgeon = surgeon,
+                Surgeon = (Domain.PawnId)surgeon,
             });
         }
 
@@ -315,14 +315,14 @@ public static partial class PolicyFunctions
             foreach (var op in cuts)
             {
                 op.PartDefName.TryGetValue(out var body);
-                var harvest = HarvestCost(c, goodwill, false);
-                if (harvest is not { } h || cycles <= 0)
+                var (harvestCost, harvestOk) = HarvestCost(c, goodwill, false);
+                if (!harvestOk || cycles <= 0)
                 {
                     continue;
                 }
                 var install = facts.MaterialInstallFor(body ?? "") ?? new MaterialInstall();
                 var (gain, cost) = CycleCost(install.Work, MedicineUnit(op, false));
-                cost += (h + MedicineUnit(op, false) + LaborCost(WoodRemovalWork)) / cycles;
+                cost += (harvestCost + MedicineUnit(op, false) + LaborCost(WoodRemovalWork)) / cycles;
                 if (gain > cost)
                 {
                     Step(PegCycleStep.Training, op, gain, cost);
@@ -341,15 +341,19 @@ public static partial class PolicyFunctions
     {
         PawnId pick = default;
         var pickLevel = DoctorTrainingFloor;
-        foreach (var (doctor, chance) in op.DoctorChances)
+        if (op.DoctorChances is not { } chances)
         {
-            if (!c.Medicine.TryGetValue(doctor, out var level) || level >= DoctorTrainingFloor || !double.IsFinite(chance) || 1 - chance > RestoreFailureCap + 1e-9)
+            return pick;
+        }
+        foreach (var (doctor, chance) in chances)
+        {
+            if (!c.Medicine.TryGetValue((PawnId)doctor, out var level) || level >= DoctorTrainingFloor || !double.IsFinite(chance) || 1 - chance > RestoreFailureCap + 1e-9)
             {
                 continue;
             }
-            if (level < pickLevel || (level == pickLevel && doctor.CompareTo(pick) < 0))
+            if (level < pickLevel || (level == pickLevel && doctor.CompareTo((Domain.PawnId)pick) < 0))
             {
-                pick = doctor;
+                pick = (PawnId)doctor;
                 pickLevel = level;
             }
         }

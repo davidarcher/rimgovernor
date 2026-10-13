@@ -16,7 +16,7 @@ public sealed record DecreeRecipe
 
     public Fact<bool> Available { get; init; }
 
-    public Fact<IReadOnlyList<IReadOnlyList<Amount>>> Ingredients { get; init; }
+    public Fact<EquatableArray<EquatableArray<Amount>>> Ingredients { get; init; }
 
     /// <summary>The recipe alternatives that determine its output's stuff.</summary>
     public IReadOnlyDictionary<Resource, bool> Stuff { get; init; } = new Dictionary<Resource, bool>();
@@ -267,7 +267,7 @@ public static partial class PolicyFunctions
         {
             return ([], "species_absent");
         }
-        return (prey.OrderBy(p => p.ID, StringComparer.Ordinal).Take((int)(remaining - pending)).ToList(), "");
+        return (prey.OrderBy(p => p.Id, StringComparer.Ordinal).Take((int)(remaining - pending)).ToList(), "");
     }
 
     /// <summary>

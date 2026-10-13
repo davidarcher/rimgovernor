@@ -177,7 +177,7 @@ public static partial class PolicyFunctions
                         }
                         foreach (var holder in role.Pawns)
                         {
-                            var pawn = new PawnId(holder);
+                            var pawn = holder;
                             if (fill.Count < slot.MaxCount && !taken.Contains(pawn) && !used.Contains(pawn) && pool.Any(b => b.Id == pawn))
                             {
                                 fill.Add(pawn);

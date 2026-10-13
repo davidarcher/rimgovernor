@@ -168,9 +168,9 @@ public static partial class PolicyFunctions
         var lockers = new Dictionary<string, DomainPawnId>(StringComparer.Ordinal);
         for (var i = 0; i < sorted.Count; i++)
         {
-            lockers[sorted[i].EntityId] = pool[i].Id;
+            lockers[sorted[i].EntityId] = (Domain.PawnId)pool[i].Id;
         }
-        return new ShrineLock { Lockers = lockers, Opener = pool[0].Id, Casket = sorted[0].EntityId };
+        return new ShrineLock { Lockers = lockers, Opener = (Domain.PawnId)pool[0].Id, Casket = sorted[0].EntityId };
     }
 
     // Opening readiness holds: each names the first unmet condition of ShrineOpenReadiness; the caskets stay
@@ -204,7 +204,7 @@ public static partial class PolicyFunctions
         var backup = false;
         foreach (var d in r.Squad)
         {
-            if (lockers.Contains(d.Id))
+            if (lockers.Contains((Domain.PawnId)d.Id))
             {
                 if (!d.HealthFraction.TryGetValue(out var health) || health < ShrineLockHealthMinimum)
                 {

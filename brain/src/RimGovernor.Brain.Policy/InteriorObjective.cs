@@ -111,9 +111,9 @@ public sealed record GraphFlows(StationGraph Graph, StationPurpose Sleep, RoomFu
             {
                 continue;
             }
-            var a = Slots(na);
-            var b = Slots(nb);
-            var info = na.Purpose.Sleeps() || nb.Purpose.Sleeps();
+            var a = Slots(na!);
+            var b = Slots(nb!);
+            var info = na!.Purpose.Sleeps() || nb!.Purpose.Sleeps();
             if (a.Count > 0 && b.Count > 0)
             {
                 var w = e.Weight / (a.Count * b.Count);
@@ -518,7 +518,7 @@ public static partial class PolicyFunctions
         Func<InteriorPiece, bool> Family(RoomRole role) => p =>
         {
             var (d, ok) = shapes.Get(p.Def);
-            return ok && d.Family == role;
+            return ok && d!.Family == role;
         };
         bool Bed(InteriorPiece p) => f.IsBed(p.Def);
         return

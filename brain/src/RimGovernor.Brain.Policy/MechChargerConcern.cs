@@ -25,7 +25,7 @@ public static partial class PolicyFunctions
     public static readonly ConcernId EnsureMechCharger = new("EnsureMechCharger");
 
     /// <summary>RoundsFacts.MechChargerOwed's value: whether the colony owes one more charger, unknown while the mechs or the charger list are unread.</summary>
-    public static Fact<bool> MechChargerNeed(Fact<MechFleet> fleet, Fact<IReadOnlyList<MechCharger>> chargers)
+    public static Fact<bool> MechChargerNeed(Fact<MechFleet> fleet, Fact<EquatableArray<MechCharger>> chargers)
     {
         var fleetKnown = fleet.TryGetValue(out var f);
         if (!chargers.IsKnown || !fleetKnown)

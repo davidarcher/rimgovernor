@@ -20,7 +20,7 @@ internal sealed class MilitaryOwner : IStoreOwner, IRoomsAsker, IStoreErrorSourc
     public IReadOnlyList<Store> Stores(StoreView view) => GearStores(view).Stores;
 
     /// <summary>The rooms the department asks layout for even before any store stands: its reading owns the gear RoomDemand.</summary>
-    public IReadOnlyList<PlannedRole> RoomsAsked() => PolicyFunctions.GearRooms;
+    public IReadOnlyList<PlannedRole> RoomsAsked() => PolicyConstants.GearRooms;
 
     /// <summary>Names a standing armory no store can be sited in (ArmoryNearPrisonException).</summary>
     public Exception? StoreErr(StoreView view) => GearStores(view).Err;

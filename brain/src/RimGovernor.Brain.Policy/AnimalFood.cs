@@ -211,7 +211,7 @@ public static partial class PolicyFunctions
             var a = original;
             if (a.Slaughter.TryGetValue(out var slaughter) && slaughter)
             {
-                pending.Add(a.ID);
+                pending.Add(a.Id);
                 a = a with { Slaughter = Known(false), SlaughterFacts = a.SlaughterFacts with { Designatable = Known(true) } };
             }
 
@@ -228,7 +228,7 @@ public static partial class PolicyFunctions
         var safe = new Dictionary<PawnId, bool>();
         foreach (var r in candidates)
         {
-            safe[r.Animal.ID] = r.Method == HusbandryMethod.Slaughter && !r.Animal.Herd.FoodBarredOrUnknown();
+            safe[r.Animal.Id] = r.Method == HusbandryMethod.Slaughter && !r.Animal.Herd.FoodBarredOrUnknown();
         }
 
         var counts = new Dictionary<Resource, long>();
@@ -243,14 +243,14 @@ public static partial class PolicyFunctions
         foreach (var a in observed)
         {
             if (
-                pending.Contains(a.ID)
+                pending.Contains(a.Id)
                 && a.Release.TryGetValue(out var release)
                 && !release
                 && counts.GetValueOrDefault(a.Definition) > floors.GetValueOrDefault(a.Definition)
                 && !a.Herd.FoodBarredOrUnknown()
             )
             {
-                safe[a.ID] = true;
+                safe[a.Id] = true;
             }
         }
 
@@ -326,31 +326,31 @@ public static partial class PolicyFunctions
         var rk = animals.TryGetValue(out var rows);
         if (!pk || !rk)
         {
-            return new HusbandryChoice { Reason = HusbandryReason.Unknown };
+            return new HusbandryChoice { Reason = HusbandryPlanReason.Unknown };
         }
 
         var (safe, unknown) = HerdSurplusCandidates(rows, HerdFoodLimits(rows, herd), herd.FeedShort, herd);
         if (unknown)
         {
-            return new HusbandryChoice { Reason = HusbandryReason.Unknown };
+            return new HusbandryChoice { Reason = HusbandryPlanReason.Unknown };
         }
 
-        foreach (var e in p.Portfolio)
+        foreach (var e in p!.Portfolio)
         {
-            if (e.Channel.Kind != CandidateKind.Slaughter || e.Decision != FoodPlanDecision.Open || !e.Channel.ID.StartsWith("slaughter:", StringComparison.Ordinal))
+            if (e.Channel.Kind != CandidateKind.Slaughter || e.Decision != FoodPlanDecision.Open || !e.Channel.Id.StartsWith("slaughter:", StringComparison.Ordinal))
             {
                 continue;
             }
 
             foreach (var r in safe)
             {
-                if (r.Method == HusbandryMethod.Slaughter && e.Channel.ID == "slaughter:" + r.Animal.ID)
+                if (r.Method == HusbandryMethod.Slaughter && e.Channel.Id == "slaughter:" + r.Animal.Id)
                 {
-                    return new HusbandryChoice { Animal = r.Animal.ID, Method = HusbandryMethod.Slaughter };
+                    return new HusbandryChoice { Animal = r.Animal.Id, Method = HusbandryMethod.Slaughter };
                 }
             }
         }
 
-        return new HusbandryChoice { Reason = HusbandryReason.NoDeficit };
+        return new HusbandryChoice { Reason = HusbandryPlanReason.NoDeficit };
     }
 }

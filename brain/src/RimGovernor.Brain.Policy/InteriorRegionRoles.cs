@@ -50,8 +50,8 @@ public static partial class PolicyFunctions
         }
         var benches = ShapeWant("benches", bench, n, 1, Numbered("bench", 0)) with { AgainstWall = true };
         List<RegionWant> wants = [benches, .. room.WorkChair(benches, bench)];
-        wants.Add(ShapeWant("cabinets", cabinet, n - 1, 0, Numbered("cabinet", 0)));
-        wants.Add(ShapeWant("shelves", shelf, n, 0, Numbered("shelf", 0)));
+        wants.Add(ShapeWant("cabinets", cabinet!, n - 1, 0, Numbered("cabinet", 0)));
+        wants.Add(ShapeWant("shelves", shelf!, n, 0, Numbered("shelf", 0)));
         return (wants, true);
     }
 
@@ -63,7 +63,7 @@ public static partial class PolicyFunctions
     internal static IReadOnlyList<RegionWant> WorkChair(this InteriorRoom r, RegionWant benches, InteriorPieceDef bench)
     {
         var (chair, ok) = r.Shapes.Get(r.WorkChairs.GetValueOrDefault(bench.Def) ?? string.Empty);
-        if (!ok || bench.Interaction is null || chair.Size != new Cell(1, 1))
+        if (!ok || bench.Interaction is null || chair!.Size != new Cell(1, 1))
         {
             return NoWants;
         }
@@ -87,7 +87,7 @@ public static partial class PolicyFunctions
         var (analyzer, aok) = room.Shapes.Get(room.Shapes.Furniture.Analyzer.Def);
         if (aok)
         {
-            wants.Add(ShapeWant("analyzer", analyzer, 1, 0, _ => LabAnalyzerSlot));
+            wants.Add(ShapeWant("analyzer", analyzer!, 1, 0, _ => LabAnalyzerSlot));
         }
         return (wants, true);
     }
@@ -149,14 +149,14 @@ public static partial class PolicyFunctions
     internal static (IReadOnlyList<RegionWant> Wants, bool Ok) TombWants(InteriorRoom room, InteriorPieceDef _, RegionFrame f)
     {
         var (sarcophagus, ok) = room.Shapes.Get(room.Shapes.Furniture.Sarcophagus);
-        return ok ? AisleWants("sarcophagi", "sarcophagus", sarcophagus, f) : (NoWants, false);
+        return ok ? AisleWants("sarcophagi", "sarcophagus", sarcophagus!, f) : (NoWants, false);
     }
 
     /// <summary>Prisoner beds along both sides of the aisle.</summary>
     internal static (IReadOnlyList<RegionWant> Wants, bool Ok) JailWants(InteriorRoom room, InteriorPieceDef _, RegionFrame f)
     {
         var (bed, ok) = room.Shapes.Get(room.Shapes.Furniture.PrimaryBed());
-        return ok ? AisleWants("beds", "bed", bed, f) : (NoWants, false);
+        return ok ? AisleWants("beds", "bed", bed!, f) : (NoWants, false);
     }
 
     /// <summary>
@@ -167,11 +167,11 @@ public static partial class PolicyFunctions
     {
         var (bed, bok) = room.Shapes.Get(room.Shapes.Furniture.PrimaryBed());
         var (monitor, mok) = room.Shapes.Get(room.Shapes.Furniture.Monitor.Def);
-        if (!bok || !mok || f.Depth < bed.Size.Z + 1)
+        if (!bok || !mok || f.Depth < bed!.Size.Z + 1)
         {
             return (NoWants, false);
         }
-        var pairs = RowCapacity(f.Width, (2 * bed.Size.X) + monitor.Size.X, 1);
+        var pairs = RowCapacity(f.Width, (2 * bed.Size.X) + monitor!.Size.X, 1);
         if (pairs < 1)
         {
             return (NoWants, false);
@@ -218,9 +218,9 @@ public static partial class PolicyFunctions
         var output = new List<RegionWant>();
         foreach (var (slot, d) in new[] { ("end_table", table), ("dresser", dresser), ("lamp", lamp) })
         {
-            if (skip is null || !skip(slot, d))
+            if (skip is null || !skip(slot, d!))
             {
-                output.Add(NamedPiece(slot, d, 0));
+                output.Add(NamedPiece(slot, d!, 0));
             }
         }
         return (output, true);
@@ -315,7 +315,7 @@ public static partial class PolicyFunctions
         void Single(string slot, string def, int count, Func<int, string> name)
         {
             var (shape, ok) = room.Shapes.Get(def);
-            if (ok && shape.Size == new Cell(1, 1) && count > 0)
+            if (ok && shape!.Size == new Cell(1, 1) && count > 0)
             {
                 wants.Add(ShapeWant(slot, shape, count, 0, name));
             }
@@ -380,7 +380,7 @@ public static partial class PolicyFunctions
         // find none after them.
         var wants = new List<RegionWant>();
         var (heater, ok) = room.Shapes.Get(room.Shapes.Furniture.Heater);
-        if (ok && heater.Size == new Cell(1, 1))
+        if (ok && heater!.Size == new Cell(1, 1))
         {
             wants.Add(NamedPiece(HerdHeaterSlot, heater, 0));
         }
@@ -445,7 +445,7 @@ public static partial class PolicyFunctions
         var (lamp, ok) = room.Shapes.Get(InteriorDefs().LampDef);
         if (ok)
         {
-            wants.Add(NamedPiece("lamp", lamp, 0));
+            wants.Add(NamedPiece("lamp", lamp!, 0));
         }
         return (wants, true);
     };

@@ -113,7 +113,7 @@ public static partial class PolicyFunctions
         var n = 0;
         foreach (var p in pawns)
         {
-            if (!(p.Armed.TryGetValue(out var armed) && armed) && !assigned.Contains(p.Pawn) && EquipAvailable(p))
+            if (!(p.Armed.TryGetValue(out var armed) && armed) && !assigned.Contains((PawnId)p.Pawn) && EquipAvailable(p))
             {
                 n++;
             }
@@ -169,7 +169,7 @@ public static partial class PolicyFunctions
                 {
                     continue;
                 }
-                pairs.Add((new EquipAssignment(p.Pawn, w, score), DistanceSquared(p.Position, w.Cell)));
+                pairs.Add((new EquipAssignment((PawnId)p.Pawn, w, score), DistanceSquared(p.Position, w.Cell)));
             }
         }
         pairs.Sort((a, b) =>

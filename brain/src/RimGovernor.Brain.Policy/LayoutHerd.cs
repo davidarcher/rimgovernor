@@ -50,13 +50,13 @@ public static partial class PolicyFunctions
 
     /// <summary>The herds' units, one per herd race in name order: each gets a barn of its own, sized from its ceiling.</summary>
     public static IReadOnlyList<HerdCeiling> HerdUnits(this HerdPlan p) =>
-        p.Herds.Order(StringComparer.Ordinal).Select(race => new HerdCeiling(race, (int)p.Policy.PopulationMax.GetValueOrDefault(race))).ToList();
+        p.Herds.OrderBy(r => r.Value, StringComparer.Ordinal).Select(race => new HerdCeiling(race.Value, (int)p.Policy.PopulationMax.GetValueOrDefault(race))).ToList();
 
     /// <summary>The plan's races with a ceiling above zero, in name order: the herd by race the station graph's pen nodes are sized from (#2996).</summary>
     public static IReadOnlyList<StationHerd> StationHerds(this HerdPlan p)
     {
         var output = new List<StationHerd>();
-        foreach (var race in p.Policy.PopulationMax.Keys.Order(StringComparer.Ordinal))
+        foreach (var race in p.Policy.PopulationMax.Keys.OrderBy(r => r.Value, StringComparer.Ordinal))
         {
             var n = p.Policy.PopulationMax[race];
             if (n > 0)
@@ -205,11 +205,11 @@ public static partial class PolicyFunctions
         }
         if (!ok)
         {
-            (site, ok) = u.Site(w, h, cx, cz);
+            (site, ok) = u.Site(w, h, cx, cz) is { } found ? (found, true) : (default, false);
         }
         if (ok)
         {
-            u.Reserve(ref plan, new LayoutReservation { Kind = ReservationKind.Barn, Area = RectRegion(site), Herd = herd });
+            plan = u.Reserve(plan, new LayoutReservation { Kind = ReservationKind.Barn, Area = RectRegion(site), Herd = herd });
         }
     }
 

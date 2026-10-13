@@ -1,7 +1,13 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>A race the herd plan lacks and the sexes it wants: a target with no animals wants either, a founder its missing sex. (Go <c>HerdWant</c>.)</summary>
-public sealed record HerdWant(Resource Race, bool Male, bool Female);
+public sealed record HerdWant(Resource Race, bool Male, bool Female)
+{
+    /// <summary>The zero value Go's struct literal starts from.</summary>
+    public HerdWant() : this(default, false, false)
+    {
+    }
+}
 
 public static partial class PolicyFunctions
 {
@@ -41,7 +47,7 @@ public static partial class PolicyFunctions
         foreach (var row in rows)
         {
             var race = new Resource(row.DefName);
-            var (_, ok) = races.Race(race);
+            var ok = races.Race(race, out _);
             if (ok && row.PawnKnown && row.Pawn && row.TraderCount >= 1 && !@out.Contains(race))
             {
                 @out.Add(race);

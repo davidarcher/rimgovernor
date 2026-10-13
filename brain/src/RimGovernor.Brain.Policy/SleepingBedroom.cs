@@ -61,7 +61,7 @@ public static partial class PolicyFunctions
             var (room, ok) = CensusRoomIn(r, rooms);
             if (ok)
             {
-                foreach (var b in room.Beds)
+                foreach (var b in room!.Beds)
                 {
                     shell.Add(b);
                 }
@@ -173,7 +173,7 @@ public static partial class PolicyFunctions
         // Once the standard rooms have nothing to do, a qualifying pawn is walked into a suite.
         BedroomStep SuiteStep()
         {
-            var step = NextSuiteStep(plan, rooms, sleeping, SuiteClaims(plan, rooms, sleeping, targets, traits, pressure, gate));
+            var step = NextSuiteStep(plan, rooms, sleeping, SuiteClaims(plan, rooms, sleeping, targets!, traits!, pressure!, gate));
             return step with { Unhoused = unhoused.Count };
         }
         if (unhoused.Count == 0)
@@ -192,7 +192,7 @@ public static partial class PolicyFunctions
             var (room, ok) = CensusRoomIn(r, rooms);
             if (ok)
             {
-                foreach (var b in room.Beds)
+                foreach (var b in room!.Beds)
                 {
                     suiteBed.Add(b);
                 }
@@ -236,7 +236,7 @@ public static partial class PolicyFunctions
                 owed.Add(r);
                 continue;
             }
-            if (room.Beds.Count == 0)
+            if (room!.Beds.Count == 0)
             {
                 owed.Add(r);
             }
@@ -261,7 +261,7 @@ public static partial class PolicyFunctions
         {
             return null;
         }
-        var interior = room0 with { Role = RoomRole.Bedroom };
+        var interior = room0! with { Role = RoomRole.Bedroom };
         var (piece, pk) = interior.Piece(bed);
         if (!pk)
         {

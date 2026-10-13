@@ -28,7 +28,7 @@ public sealed record MealTierRequest
     public Fact<double> RawRunwayDays { get; init; }
     public double MinDays { get; init; }
     public double TargetDays { get; init; }
-    public Fact<IReadOnlyList<MealCook>> Cooks { get; init; }
+    public Fact<EquatableArray<MealCook>> Cooks { get; init; }
     public Fact<bool> CookLaborConstrained { get; init; }
     public Fact<bool> HighExpectations { get; init; }
     public MealTier Previous { get; init; }
@@ -87,7 +87,7 @@ public static partial class PolicyFunctions
     /// tier until runway drops below target. Lavish additionally requires observed expectations pressure and strict
     /// surplus. Losing a cook or an ingredient source overrides the runway latch.
     /// </summary>
-    public static MealTierReview ReviewMealTier(MealTierRequest r, Fact<IReadOnlyList<ProductionBench>> benches)
+    public static MealTierReview ReviewMealTier(MealTierRequest r, Fact<EquatableArray<ProductionBench>> benches)
     {
         var pk = r.Plan.TryGetValue(out var plan);
         var dk = r.RawRunwayDays.TryGetValue(out var days);
@@ -101,7 +101,7 @@ public static partial class PolicyFunctions
             throw new MealTierFactsException();
         }
         var ck = r.Cooks.TryGetValue(out var cooks);
-        cooks ??= [];
+
         var skill = -1;
         var seen = new HashSet<PawnId>();
         foreach (var cook in cooks)
@@ -241,8 +241,8 @@ public static partial class PolicyFunctions
         foreach (var e in p.Portfolio)
         {
             var c = e.Channel;
-            var key = Wire.Name(c.Kind) + "/" + c.ID;
-            if (!ValidFoodChannelKind(c.Kind) || !FoodId(c.ID) || seen.Contains(key) || !FoodNumber(e.DeliveredPerDay) || (e.Decision != FoodPlanDecision.Open && e.Decision != FoodPlanDecision.Hold && e.Decision != FoodPlanDecision.Close))
+            var key = Wire.Name(c.Kind) + "/" + c.Id;
+            if (!ValidFoodChannelKind(c.Kind) || !FoodId(c.Id) || seen.Contains(key) || !FoodNumber(e.DeliveredPerDay) || (e.Decision != FoodPlanDecision.Open && e.Decision != FoodPlanDecision.Hold && e.Decision != FoodPlanDecision.Close))
             {
                 return (null, false, false);
             }
@@ -305,7 +305,7 @@ public static partial class PolicyFunctions
         return (choice with { Mood = mood, NutrientEfficiency = efficiency, WorkPerNutrition = work }, tier, true);
     }
 
-    private static bool MealSlotsSupported(IReadOnlyList<FoodIngredientSlot> slots, HashSet<FoodIngredientClass> sources)
+    internal static bool MealSlotsSupported(IReadOnlyList<FoodIngredientSlot> slots, HashSet<FoodIngredientClass> sources)
     {
         if (slots.Count == 0)
         {
@@ -382,7 +382,7 @@ public static partial class PolicyFunctions
     }
 
     private static (BillSelection Selection, bool Ok) SelectMealBill(
-        Fact<IReadOnlyList<ProductionBench>> benches,
+        Fact<EquatableArray<ProductionBench>> benches,
         Fact<long> colonists,
         MealTierRequest request,
         IReadOnlyList<string> ingredients
@@ -402,7 +402,7 @@ public static partial class PolicyFunctions
             return (new BillSelection(), false);
         }
         benches.TryGetValue(out var rows);
-        rows ??= [];
+
         var byBench = new Dictionary<string, ProductionBench>(StringComparer.Ordinal);
         var recipes = new Dictionary<(string Bench, string Recipe), ProductionRecipe>();
         var existing = new HashSet<(string Bench, string Recipe)>();
@@ -435,7 +435,7 @@ public static partial class PolicyFunctions
         {
             var bench = byBench.GetValueOrDefault(choice.Bench) ?? new ProductionBench();
             bench = bench with { Recipes = [recipes.GetValueOrDefault((choice.Bench, choice.Recipe)) ?? new ProductionRecipe()] };
-            var (selected, ok) = SelectProductionBill(CookFood, Known<IReadOnlyList<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
+            var (selected, ok) = SelectProductionBill(CookFood, Known<EquatableArray<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
             if (ok && selected.Replace != "")
             {
                 return (selected, true);
@@ -456,7 +456,7 @@ public static partial class PolicyFunctions
         {
             var bench = byBench.GetValueOrDefault(choice.Bench) ?? new ProductionBench();
             bench = bench with { Recipes = [recipes.GetValueOrDefault((choice.Bench, choice.Recipe)) ?? new ProductionRecipe()] };
-            var (selected, ok) = SelectProductionBill(CookFood, Known<IReadOnlyList<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
+            var (selected, ok) = SelectProductionBill(CookFood, Known<EquatableArray<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
             if (!ok)
             {
                 if (existing.Contains((choice.Bench, choice.Recipe)))

@@ -101,7 +101,7 @@ public static partial class PolicyFunctions
     public static InteriorSearchResult SearchInterior(RegionPlacement req, InteriorSearch s)
     {
         var (floor, seats) = SplitSeats(req.Wants);
-        req = req with { Wants = floor };
+        req = req with { Wants = [.. floor] };
         var pinned = new List<InteriorPiece>(s.Pinned);
         var movable = new List<InteriorPiece>();
         foreach (var b in s.Built)
@@ -121,7 +121,7 @@ public static partial class PolicyFunctions
             reserved.AddRange(RectCells(p.Rect));
             reserved.AddRange(p.Reserves());
         }
-        var greedy = req with { Search = null, Reserved = reserved };
+        var greedy = req with { Search = null, Reserved = EquatableArray.From(reserved) };
         var placed = PlaceInRegion(greedy);
         IReadOnlyList<InteriorPiece> pieces = [.. pinned, .. movable, .. placed];
         var required = new Dictionary<string, int>();
@@ -149,7 +149,7 @@ public static partial class PolicyFunctions
         var seedScore = cur;
         var free = pinned.Count;
         var moves = new List<SearchMove>();
-        InteriorSearchResult Seated(InteriorSearchResult res) => res with { Pieces = SeatAll(req.Region, res.Pieces, seats) };
+        InteriorSearchResult Seated(InteriorSearchResult res) => res with { Pieces = [.. SeatAll(req.Region, [.. res.Pieces], seats)] };
         if (req.Doors.Count == 0 || pieces.Count == free)
         {
             return Seated(new InteriorSearchResult { Pieces = pieces, Seed = cur, Score = cur, Fixed = free });
@@ -161,7 +161,7 @@ public static partial class PolicyFunctions
         }
         var cells = req.Region.Cells();
         var bounds = req.Region.Bounds();
-        var rng = new SearchRand(s.Seed);
+        var rng = SearchRand.FromState(s.Seed);
         for (var n = 0; n < iters; n++)
         {
             var (cand, kind, at, ok) = PerturbPieces(pieces, free, cells, bounds, rng);

@@ -223,7 +223,7 @@ public static partial class PolicyFunctions
         };
         foreach (var def in defs)
         {
-            yields.Add(new CandidateYield(new ResourceKey(def, default), Known(products[def] / FoodHuntCycleDays), default, 0, default));
+            yields.Add(new CandidateYield { Good = new ResourceKey { Def = def }, PerDay = Known(products[def] / FoodHuntCycleDays) });
         }
         var terms = new List<CandidateTerm>
         {
@@ -252,11 +252,11 @@ public static partial class PolicyFunctions
             LeadDays = Known(0.0),
             Source = HuntSource,
             State = FoodState(Known(false), Known(designated)),
-            Prey = preyIds,
-            Yields = yields,
+            Prey = EquatableArray.From(preyIds),
+            Yields = [.. yields],
             LaborPerDay = laborPerDay,
             Risk = [new CandidateRisk(CandidateRiskKind.Revenge, Math.Min(1, exposure))],
-            Terms = terms,
+            Terms = [.. terms],
         };
     }
 

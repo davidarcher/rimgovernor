@@ -479,7 +479,7 @@ public static partial class PolicyFunctions
                     p.Blocked == BlockedReason.NoWorker
                     || p.Blocked == BlockedReason.NativeIneligible
                     || p.Blocked == BlockedReason.Cooldown
-                    || p.Blocked.Prerequisite().Length != 0
+                    || !p.Blocked.Prerequisite().IsEmpty
                 )
                 {
                     return (goal, p.Blocked);
@@ -529,7 +529,7 @@ public static partial class PolicyFunctions
             return Unknown<bool>();
         }
 
-        return Known(census.Buildings.Items.Any(row => row.Building.Definition.Contains("ResearchBench", StringComparison.Ordinal)));
+        return Known(census.Buildings.Items.Any(row => row.Building!.Definition.Contains("ResearchBench", StringComparison.Ordinal)));
     }
 
     /// <summary>

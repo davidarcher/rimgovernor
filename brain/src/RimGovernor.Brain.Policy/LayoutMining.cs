@@ -70,19 +70,19 @@ public static partial class PolicyFunctions
         {
             Add(c);
         }
-        var cooler = p.CoolerExhaust(room);
-        if (cooler.Ok)
+        var coolerFound = p.CoolerExhaust(room);
+        if (coolerFound is { } cooler)
         {
             Add(cooler.Site.Cell);
-            foreach (var c in RectangleCells(cooler.Area))
+            foreach (var c in RectangleCells(cooler.Exhaust))
             {
                 Add(c);
             }
         }
-        RoomShell? shell;
+        RoomFootprint? shell;
         try
         {
-            shell = room.Footprint().ToShell();
+            shell = room.Footprint();
         }
         catch (DomainException)
         {
@@ -90,7 +90,7 @@ public static partial class PolicyFunctions
         }
         if (shell is not null)
         {
-            var from = shell.Threshold();
+            var from = shell.Threshold;
             // A room entered through a neighbour's wall (the butchery behind the freezer) is reached only by
             // walking that neighbour: its interior, door and the corridor from its own threshold are mined too,
             // or the miners have no way in to the link.
@@ -104,7 +104,7 @@ public static partial class PolicyFunctions
                 Add(through.Door);
                 try
                 {
-                    from = through.Footprint().ToShell().Threshold();
+                    from = through.Footprint().Threshold;
                 }
                 catch (DomainException)
                 {
@@ -112,9 +112,9 @@ public static partial class PolicyFunctions
                 }
             }
             Add(from);
-            foreach (var d in shell.ExtraDoors())
+            foreach (var d in shell.ExtraDoors)
             {
-                Add(d.Threshold());
+                Add(d.Threshold);
             }
         }
         return RockStep(planned, cells);
@@ -143,13 +143,13 @@ public static partial class PolicyFunctions
     /// </summary>
     public static (RockStepResult Result, bool Ok) ExhaustRock(this LayoutPlan p, PlannedRoom room, IReadOnlyList<SiteCell> cells)
     {
-        var cooler = p.CoolerExhaust(room);
-        if (!cooler.Ok)
+        var coolerFound = p.CoolerExhaust(room);
+        if (coolerFound is not { } cooler)
         {
             return (default!, false);
         }
         var planned = new List<RoleCell> { new() { Cell = cooler.Site.Cell, Role = RockRole.NeedsFloor } };
-        foreach (var c in RectangleCells(cooler.Area))
+        foreach (var c in RectangleCells(cooler.Exhaust))
         {
             planned.Add(new RoleCell { Cell = c, Role = RockRole.NeedsFloor });
         }

@@ -89,7 +89,8 @@ public static partial class PolicyFunctions
                     continue;
                 }
 
-                if (RungRequirement(rung) is { } need)
+                var (need, needOk) = RungRequirement(rung);
+                if (needOk)
                 {
                     return need with { Holder = c.Pawn, Titled = HoldsTitle(f, c.Pawn) };
                 }

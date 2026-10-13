@@ -213,7 +213,7 @@ public sealed class PlacementSearch
         var result = selected with { Footprint = Known(EquatableArray.From(footprint!)) };
         if (result.Costs.TryGetValue(out var costs))
         {
-            result = result with { Costs = Known<IReadOnlyList<Amount>>([.. costs]) };
+            result = result with { Costs = Known<EquatableArray<Amount>>([.. costs]) };
         }
         return (result, chosen!);
     }

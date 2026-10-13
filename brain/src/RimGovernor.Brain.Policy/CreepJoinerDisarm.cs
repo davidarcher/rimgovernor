@@ -64,7 +64,7 @@ public sealed record CreepJoinerDisarm
     {
         var orders = new List<DisarmOrder>();
         var waiting = new List<string>();
-        foreach (var p in prisoners.OrderBy(x => x.Pawn, StringComparer.Ordinal))
+        foreach (var p in prisoners.OrderBy(x => x.Pawn))
         {
             if (!p.CreepJoiner.TryGetValue(out var joiner))
             {
@@ -116,14 +116,14 @@ public sealed record CreepJoinerDisarm
         }
         var installs = new List<DisarmOrder>();
         var why = "";
-        var pawn = new PawnId(p.Pawn);
+        var pawn = p.Pawn;
         foreach (var site in sites)
         {
-            if (PolicyFunctions.SiteGone(site, missing))
+            if (PolicyFunctions.SiteGone(site, missing!))
             {
                 continue;
             }
-            if (PolicyFunctions.RemovalOn(site, ops) is { } op)
+            if (PolicyFunctions.RemovalOn(site, ops!) is { } op)
             {
                 op.Recipe.TryGetValue(out var recipe);
                 var reason = PolicyFunctions.SurgeryBlocked(op);
@@ -134,7 +134,7 @@ public sealed record CreepJoinerDisarm
                 }
                 return (new DisarmOrder(pawn, recipe ?? "", site.Index, Remove: true), "");
             }
-            var (install, installWhy) = CheapestInstall(pawn, site, ops);
+            var (install, installWhy) = CheapestInstall(pawn, site, ops!);
             if (installWhy.Length != 0)
             {
                 why = installWhy;

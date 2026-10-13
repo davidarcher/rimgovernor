@@ -149,7 +149,7 @@ public static partial class PolicyFunctions
                 terms.Add(new CandidateTerm("fish_draw_per_day", draw));
                 terms.Add(new CandidateTerm("fish_per_batch", batch));
             }
-            channels.Add(channel with { Terms = terms, State = FoodState(open, designated) });
+            channels.Add(channel with { Terms = [.. terms], State = FoodState(open, designated) });
         }
         return channels;
     }

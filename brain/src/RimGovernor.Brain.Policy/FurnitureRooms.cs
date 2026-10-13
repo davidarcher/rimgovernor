@@ -34,7 +34,7 @@ public sealed record FurnitureRoom
         {
             var b = new InteriorPiece { Slot = p.Thing, Def = p.Def, Size = p.Size, Rot = p.Rot, Rect = p.Rect };
             var (shape, ok) = Room.Shapes.Get(p.Def);
-            if (ok && shape.Interaction is { } interaction)
+            if (ok && shape!.Interaction is { } interaction)
             {
                 b = b with { InteractionOffset = interaction };
             }
@@ -77,7 +77,7 @@ public static partial class PolicyFunctions
             var pieces = new List<FurniturePiece>();
             foreach (var b in census.Buildings)
             {
-                if (b.ID.Length == 0 || b.Cells.Count == 0)
+                if (b.Id.Length == 0 || b.Cells.Count == 0)
                 {
                     continue;
                 }
@@ -86,9 +86,9 @@ public static partial class PolicyFunctions
                 {
                     continue;
                 }
-                var rot = b.Building.Rotation();
+                var rot = b.Building!.Rotation;
                 var size = rot is Rotation.East or Rotation.West ? new Cell(rect.Height, rect.Width) : new Cell(rect.Width, rect.Height);
-                pieces.Add(new FurniturePiece { Thing = b.ID, Def = b.Building.Definition(), Size = size, Rot = rot, Rect = rect });
+                pieces.Add(new FurniturePiece { Thing = b.Id, Def = b.Building.Definition, Size = size, Rot = rot, Rect = rect });
             }
             pieces = [.. pieces.OrderBy(p => p.Thing, StringComparer.Ordinal)];
             // The plan takes the room's standing definitions, so a bedroom is planned around the bed it has (a DoubleBed stays on plan).

@@ -275,7 +275,8 @@ public static partial class PolicyFunctions
         var recreation = Facility(RoomRole.RecRoom);
         bool Hosted(FacilityRequirement f, string roomId)
         {
-            if (roomId.Length == 0 || !rooms.TryGetRoom(roomId, out var room))
+            var (room, roomFound) = rooms.Room(roomId);
+            if (roomId.Length == 0 || !roomFound)
             {
                 return false;
             }

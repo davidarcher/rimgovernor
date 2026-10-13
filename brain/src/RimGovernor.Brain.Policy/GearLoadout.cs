@@ -166,7 +166,7 @@ public sealed record GearLoadoutInput
     /// The colonist's personal wealth share: an upgrade gap whose market-value delta it does not cover is dropped
     /// from the plan. The zero value is ungated; necessities are never charged.
     /// </summary>
-    public PersonalShare Share { get; init; }
+    public PersonalShare Share { get; init; } = new();
 
     public double Ambient { get; init; }
     public double ComfortableMin { get; init; }
@@ -292,9 +292,9 @@ public static partial class PolicyFunctions
             return GearRole.Prisoner;
         }
         var incapableOfViolence = p.IncapableOfViolence;
-        foreach (var w in p.Work.Incapable.ValueOrDefault ?? [])
+        foreach (var w in p.Work.Incapable.ValueOrDefault)
         {
-            if (w == "Violent")
+            if (w == WorkType.Violent)
             {
                 incapableOfViolence = true;
             }
@@ -325,7 +325,7 @@ public static partial class PolicyFunctions
         var best = 5;
         var counts = new Dictionary<GearRole, int>();
         var skill = new Dictionary<GearRole, int>();
-        foreach (var w in p.Work.Work.ValueOrDefault ?? [])
+        foreach (var w in p.Work.Work.ValueOrDefault)
         {
             if (w.Disabled || w.Priority <= 0 || w.Priority > DomainConstants.MaxPriority)
             {
@@ -368,7 +368,7 @@ public static partial class PolicyFunctions
             _ => GearRole.Worker,
         };
 
-    private static int GearPassionRank(string? passion) =>
+    internal static int GearPassionRank(string? passion) =>
         passion switch
         {
             "Minor" => 1,
@@ -410,7 +410,7 @@ public static partial class PolicyFunctions
 
     private static bool GearMelee(GearLoadoutInput p)
     {
-        foreach (var t in p.Role.Work.Traits.ValueOrDefault ?? [])
+        foreach (var t in p.Role.Work.Traits.ValueOrDefault)
         {
             if (t.Effects.MeleeOnly)
             {
@@ -419,7 +419,7 @@ public static partial class PolicyFunctions
         }
         int melee = 0,
             shooting = 0;
-        foreach (var s in p.Role.Work.Skills.ValueOrDefault ?? [])
+        foreach (var s in p.Role.Work.Skills.ValueOrDefault)
         {
             if (!s.Disabled)
             {
@@ -449,7 +449,7 @@ public static partial class PolicyFunctions
     {
         var best = 5;
         var medic = false;
-        foreach (var w in p.Role.Work.Work.ValueOrDefault ?? [])
+        foreach (var w in p.Role.Work.Work.ValueOrDefault)
         {
             if (w.Disabled || w.Priority <= 0 || w.Priority > DomainConstants.MaxPriority)
             {
@@ -749,7 +749,7 @@ public static partial class PolicyFunctions
     public static GearLoadout PlanGearLoadout(GearLoadoutInput p)
     {
         p.Validate();
-        foreach (var t in p.Role.Work.Traits.ValueOrDefault ?? [])
+        foreach (var t in p.Role.Work.Traits.ValueOrDefault)
         {
             p = p with { Nudist = p.Nudist || t.Effects.Nudist, TaintFree = p.TaintFree || t.Effects.TaintFree };
         }
@@ -997,13 +997,13 @@ public static partial class PolicyFunctions
                     p with
                     {
                         Deficit = Known(false),
-                        Candidates = Known<IReadOnlyList<GearCandidate>>([]),
-                        Replacements = Known<IReadOnlyList<GearReplacement>>([]),
+                        Candidates = Known<EquatableArray<GearCandidate>>([]),
+                        Replacements = Known<EquatableArray<GearReplacement>>([]),
                     }
                 );
                 continue;
             }
-            var native = p.Candidates.ValueOrDefault ?? [];
+            var native = p.Candidates.ValueOrDefault;
             var candidates = new List<GearCandidate>();
             var needs = new List<GearReplacement>();
             var deficit = false;
@@ -1031,8 +1031,8 @@ public static partial class PolicyFunctions
                 p with
                 {
                     Deficit = Known(deficit),
-                    Candidates = Known<IReadOnlyList<GearCandidate>>(candidates),
-                    Replacements = Known<IReadOnlyList<GearReplacement>>(needs),
+                    Candidates = Known(EquatableArray.From(candidates)),
+                    Replacements = Known(EquatableArray.From(needs)),
                 }
             );
         }
@@ -1062,7 +1062,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Allocates physical supplies once in stable pawn order. Bill options remain reusable; their resulting quantities are aggregated separately.</summary>
-    public static (IReadOnlyList<GearLoadout> Loadouts, Fact<IReadOnlyList<GearDemand>> Demand) PlanColonyGear(IReadOnlyList<GearPawn> pawns)
+    public static (IReadOnlyList<GearLoadout> Loadouts, Fact<EquatableArray<GearDemand>> Demand) PlanColonyGear(IReadOnlyList<GearPawn> pawns)
     {
         var seen = new HashSet<PawnId>();
         foreach (var p in pawns)
@@ -1098,6 +1098,6 @@ public static partial class PolicyFunctions
                 }
             }
         }
-        return (@out, Known<IReadOnlyList<GearDemand>>(GearProductionDemand(@out)));
+        return (@out, Known(EquatableArray.From(GearProductionDemand(@out))));
     }
 }

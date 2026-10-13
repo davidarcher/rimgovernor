@@ -81,7 +81,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static List<CombatRole> TankRoles(CombatView view, IReadOnlyList<SquadDefenderFacts> tanks, IReadOnlyList<DefensivePosition> gunners, Rotation toward, GeometryReply geometry, IReadOnlyList<Cell> taken)
     {
-        var (v, ok) = TowardVector(toward);
+        var ok = TowardVector(toward, out var v);
         if (!ok || !TankThreat(view))
         {
             return [];

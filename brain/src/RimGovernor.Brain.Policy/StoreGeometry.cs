@@ -34,8 +34,8 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var (c, ok) = layout.LinkInto(r, PlannedRole.Freezer);
-            if (ok)
+            var linkCell = layout.LinkInto(r, PlannedRole.Freezer);
+            if (linkCell is { } c)
             {
                 return (c, true);
             }

@@ -34,7 +34,7 @@ public static partial class PolicyFunctions
 
         if (formed)
         {
-            m.PotshotDoor = PotshotDoor(view, m.Roles, m.EffectiveTuning().DoorGunners);
+            m.PotshotDoor = PotshotDoor(view, [.. m.Roles], m.EffectiveTuning().DoorGunners);
         }
 
         var door = m.PotshotDoor;

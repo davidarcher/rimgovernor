@@ -80,7 +80,7 @@ public sealed record RetiredGround
 /// </summary>
 public sealed record GroundStep
 {
-    public Region Ground { get; init; }
+    public Region Ground { get; init; } = new();
 
     public GroundPhase Phase { get; init; }
 
@@ -103,13 +103,13 @@ public static partial class PolicyFunctions
         foreach (var r in plan.GroundRooms(ground))
         {
             output.Add(RectRegion(RoomGround(r.Region.Bounds())));
-            foreach (var c in plan.ChildrenOf(r.ID))
+            foreach (var c in plan.ChildrenOf(r.Id))
             {
                 output.Add(RectRegion(c.AttachedGround()));
             }
         }
 
-        output.AddRange(plan.RetiredGround.Items);
+        output.AddRange(plan.RetiredGround);
         return output;
     }
 
@@ -146,7 +146,7 @@ public static partial class PolicyFunctions
             kept.Add(r.WallRing());
         }
 
-        return new RetiredGround { Ground = plan.RetiredGround, Kept = EquatableArray.From(kept) };
+        return new RetiredGround { Ground = EquatableArray.From(plan.RetiredGround), Kept = EquatableArray.From(kept) };
     }
 
     /// <summary>
@@ -161,7 +161,7 @@ public static partial class PolicyFunctions
 
     /// <summary>The plan less the entries of <paramref name="done"/>.</summary>
     public static LayoutPlan WithoutRetiredGround(this LayoutPlan p, IReadOnlyCollection<Region> done) =>
-        p with { RetiredGround = EquatableArray.From(p.RetiredGround.Items.Where(g => !done.Any(g.Equal))) };
+        p with { RetiredGround = EquatableArray.From(p.RetiredGround.Where(g => !done.Any(g.Equal))) };
 
     /// <summary>A building or floor left on retired ground <paramref name="g"/>.</summary>
     private static bool RetiredWork(IReadOnlyList<ClearanceTarget> rows, IReadOnlyList<ClearanceFloor> floors, Region g, RetiredGround rg)
@@ -211,7 +211,7 @@ public static partial class PolicyFunctions
         RetiredGround rg
     )
     {
-        var ordered = rows.OrderBy(r => r.EntityID, StringComparer.Ordinal).ToList();
+        var ordered = rows.OrderBy(r => r.EntityId, StringComparer.Ordinal).ToList();
         var cells = floors.OrderBy(f => f.Cell.Z).ThenBy(f => f.Cell.X).ToList();
         var claimed = new HashSet<string>(StringComparer.Ordinal);
         var claimedFloor = new HashSet<Cell>();
@@ -222,12 +222,12 @@ public static partial class PolicyFunctions
             var walls = new List<ClearanceTarget>();
             foreach (var row in ordered)
             {
-                if (claimed.Contains(row.EntityID) || !GroundTarget(row, g, rg))
+                if (claimed.Contains(row.EntityId) || !GroundTarget(row, g, rg))
                 {
                     continue;
                 }
 
-                claimed.Add(row.EntityID);
+                claimed.Add(row.EntityId);
                 if (row.EnclosesRoom)
                 {
                     walls.Add(row);
@@ -304,7 +304,7 @@ public static partial class PolicyFunctions
         {
             if (ground.Items.Any(g => GroundTarget(row, g, rg)))
             {
-                output.Add(row.EntityID);
+                output.Add(row.EntityId);
             }
         }
 
@@ -376,7 +376,7 @@ public static partial class PolicyFunctions
     }
 
     private static (bool Within, bool Bounded, bool Skip) RoomWithinBounded(
-        ObservedRoom room,
+        Room room,
         IReadOnlyList<ClearanceTarget> walls,
         IReadOnlyList<Region> ground
     )

@@ -39,8 +39,8 @@ public static partial class PolicyFunctions
     /// </summary>
     public static Fact<TradeNeed> FavorGoldNeed(
         Fact<TradeNeed> need,
-        Fact<IReadOnlyList<TraderFacts>> traders,
-        Fact<IReadOnlyList<Amount>> resources,
+        Fact<EquatableArray<TraderFacts>> traders,
+        Fact<EquatableArray<Amount>> resources,
         IReadOnlyDictionary<Resource, long> targets,
         IReadOnlyDictionary<string, long> floors,
         Fact<IReadOnlyDictionary<Resource, long>> retained
@@ -103,11 +103,11 @@ public static partial class PolicyFunctions
         }
         var stock = new Dictionary<Resource, long>();
         f.Resources.TryGetValue(out var resources);
-        foreach (var row in resources ?? [])
+        foreach (var row in resources)
         {
             stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }
-        var wants = SelectSurgery(f.MedicalPawns, null, f.SurgeryContext()).Wants;
+        var wants = SelectSurgery(f.MedicalPawns, null, f.SurgeryContextOf()).Wants;
         var needs = OrganNeeds(f.MedicalPawns, wants, silverShort, stock, f.Recipes);
         var parts = PartRecoveryNeeds(f.MedicalPawns, wants, f.Recipes);
         var output = new HashSet<PawnId>();
@@ -117,7 +117,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            Fact<IReadOnlyList<PrisonerFacts>> one = Known<IReadOnlyList<PrisonerFacts>>([row]);
+            Fact<EquatableArray<PrisonerFacts>> one = Known<EquatableArray<PrisonerFacts>>([row]);
             var col = Known(colony!);
             var harvest = SelectOrganHarvest(one, col, needs, null) is not null;
             var recovery = SelectPartRecovery(one, col, parts, null, f.Recipes) is not null;
@@ -145,7 +145,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Adds the prisoner-sale reason to the need: a tribute collector is present or arriving and some prisoner is surplus.</summary>
-    public static Fact<TradeNeed> FavorPrisonerNeed(Fact<TradeNeed> need, Fact<IReadOnlyList<TraderFacts>> traders, IReadOnlySet<PawnId> surplus)
+    public static Fact<TradeNeed> FavorPrisonerNeed(Fact<TradeNeed> need, Fact<EquatableArray<TraderFacts>> traders, IReadOnlySet<PawnId> surplus)
     {
         var nk = need.TryGetValue(out var n);
         var tk = traders.TryGetValue(out var rows);

@@ -18,7 +18,7 @@ public static partial class PolicyFunctions
         var threats = new List<Cell>();
         foreach (var t in facts.Threats)
         {
-            if (t.Building() || !ThreatHolds(t))
+            if (t.Building || !t.Holds())
             {
                 continue;
             }

@@ -41,7 +41,7 @@ public static partial class PolicyFunctions
                 continue;
             }
             var active = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var bill in bills)
+            foreach (var bill in bills!)
             {
                 if (bill.Active.TryGetValue(out var on) && on)
                 {
@@ -51,7 +51,7 @@ public static partial class PolicyFunctions
             var seen = new HashSet<string>(StringComparer.Ordinal);
             var known = true;
             var inputs = new List<string>();
-            foreach (var recipe in recipes)
+            foreach (var recipe in recipes!)
             {
                 if (!active.Contains(recipe.Definition))
                 {

@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace RimGovernor.Brain.Policy;
 
 // Go: combat_fallback.go
@@ -128,7 +130,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Drops the queued doors no longer damaged and gives each one still damaged to the nearest role with a known cell and no repair yet.</summary>
-    private static void QueueRepairs(CombatView view, CombatMemory m, IReadOnlyDictionary<PawnId, Cell> at)
+    private static void QueueRepairs(CombatView view, CombatMemory m, Dictionary<PawnId, Cell> at)
     {
         m.Repairs.RemoveAll(d => !view.DamagedDoors.Items.Contains(d));
         foreach (var r in m.Roles)
@@ -245,9 +247,8 @@ public static partial class PolicyFunctions
 
         foreach (var c in layout.Retreat.Items)
         {
-            if (!taken.Contains(c))
+            if (taken.Add(c))
             {
-                taken.Add(c);
                 return c;
             }
         }
@@ -259,6 +260,6 @@ public static partial class PolicyFunctions
     private static bool FellBack(CombatMemory m) => m.Roles.Count > 0 && m.Roles.All(r => r.Retreat);
 
     /// <summary>The line a hold's compromise is judged against: the inner line once the whole formation fell back to it, else the firing line.</summary>
-    private static IReadOnlyList<Cell> HoldLine(CombatLayout layout, CombatMemory m) =>
+    private static ImmutableArray<Cell> HoldLine(CombatLayout layout, CombatMemory m) =>
         FellBack(m) && layout.Retreat.Count > 0 ? layout.Retreat.Items : layout.Firing.Items;
 }

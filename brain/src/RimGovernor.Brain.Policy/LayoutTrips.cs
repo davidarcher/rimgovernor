@@ -200,6 +200,11 @@ public sealed class SearchRand
 
     public SearchRand(Cell seed) => state = (((ulong)(uint)seed.X << 32) | (ulong)(uint)seed.Z) ^ 0x9e3779b97f4a7c15UL;
 
+    private SearchRand(ulong raw) => state = raw;
+
+    /// <summary>A stream whose state starts at raw, as Go searchRand(uint64) does for the interior search.</summary>
+    public static SearchRand FromState(ulong raw) => new(raw);
+
     /// <summary>The stream's current state: the siting seed a search derives its own from before any draw.</summary>
     public ulong State => state;
 

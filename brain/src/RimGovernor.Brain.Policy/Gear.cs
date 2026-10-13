@@ -61,14 +61,14 @@ public sealed record GearPawn
     /// <summary>Deficit and Replacements are projected from the loadout model's gaps (ModeledGearObservation); a census decoder never sets them.</summary>
     public Fact<bool> Deficit { get; init; }
 
-    public Fact<IReadOnlyList<GearCandidate>> Candidates { get; init; }
-    public Fact<IReadOnlyList<GearReplacement>> Replacements { get; init; }
-    public Fact<IReadOnlyList<GearApparel>> Apparel { get; init; }
+    public Fact<EquatableArray<GearCandidate>> Candidates { get; init; }
+    public Fact<EquatableArray<GearReplacement>> Replacements { get; init; }
+    public Fact<EquatableArray<GearApparel>> Apparel { get; init; }
 
     /// <summary>Reports a pawn wearing any garment at or under the threshold.</summary>
     internal bool Tattered()
     {
-        foreach (var a in Apparel.ValueOrDefault ?? [])
+        foreach (var a in Apparel.ValueOrDefault)
         {
             if (a.Condition <= PolicyFunctions.GearTatteredCondition)
             {
@@ -81,7 +81,7 @@ public sealed record GearPawn
     /// <summary>Reports a pawn with a core body-part group no garment covers.</summary>
     internal bool Uncovered()
     {
-        var apparel = Apparel.ValueOrDefault ?? [];
+        var apparel = Apparel.ValueOrDefault;
         foreach (var group in PolicyFunctions.GearCoreGroups)
         {
             var covered = apparel.Any(a => a.Groups.Contains(group));
@@ -97,20 +97,20 @@ public sealed record GearPawn
 public sealed record GearObservation
 {
     public IReadOnlyList<GearPawn> Pawns { get; init; } = [];
-    public Fact<IReadOnlyList<GearStock>> Stored { get; init; }
+    public Fact<EquatableArray<GearStock>> Stored { get; init; }
 
     /// <summary>Every outfit policy's load id; one no pawn keeps (OutfitKeep) is owed a prune.</summary>
-    public Fact<IReadOnlyList<string>> Outfits { get; init; }
+    public Fact<EquatableArray<string>> Outfits { get; init; }
 
     /// <summary>The outfits owed a prune: none until every pawn is on its own outfit (OutfitKeep).</summary>
     public IReadOnlyList<string> OutfitsToPrune()
     {
-        var (keep, settled) = PolicyFunctions.OutfitKeep(Pawns);
+        var settled = PolicyFunctions.OutfitKeep(Pawns, out var keep);
         if (!settled || !Outfits.TryGetValue(out var all))
         {
             return [];
         }
-        return all.Where(id => !keep.Contains(id)).ToList();
+        return all.Where(id => !keep.ContainsKey(id)).ToList();
     }
 
     /// <summary>Throws <see cref="DomainException"/> where Go returned an error.</summary>
@@ -189,7 +189,7 @@ public sealed record GearObservation
 public sealed record GearReview
 {
     public IReadOnlyList<GearLoadout> Loadouts { get; init; } = [];
-    public Fact<IReadOnlyList<GearDemand>> Demand { get; init; }
+    public Fact<EquatableArray<GearDemand>> Demand { get; init; }
     public Fact<bool> Recovered { get; init; }
     public Fact<double> Deficit { get; init; }
     public Fact<double> WornOut { get; init; }
@@ -237,7 +237,7 @@ public sealed record GearMethod
 
 public sealed record GearBill
 {
-    public string ID { get; init; } = "";
+    public string Id { get; init; } = "";
     public string Recipe { get; init; } = "";
 
     /// <summary>The recipe's role by its catalog row.</summary>
@@ -270,8 +270,8 @@ public sealed record GearRecipe
     public EquatableArray<Resource> Products { get; init; }
     public Fact<bool> Available { get; init; }
     public Fact<bool> AvailableOn { get; init; }
-    public Fact<IReadOnlyList<IReadOnlyList<Amount>>> Ingredients { get; init; }
-    public Fact<IReadOnlyList<WorkRequirement>> RequiredWork { get; init; }
+    public Fact<EquatableArray<EquatableArray<Amount>>> Ingredients { get; init; }
+    public Fact<EquatableArray<WorkRequirement>> RequiredWork { get; init; }
 
     /// <summary>The work one unit takes (the catalog's RecipeWorkAmount); RequiredWork is the skill gate, not this.</summary>
     public Fact<double> WorkAmount { get; init; }
@@ -288,7 +288,7 @@ public sealed record GearRecipe
 
 public sealed record GearBench
 {
-    public string ID { get; init; } = "";
+    public string Id { get; init; } = "";
 
     /// <summary>The workbench definition, empty when unread.</summary>
     public string Def { get; init; } = "";
@@ -299,8 +299,8 @@ public sealed record GearBench
     /// <summary>The bench's WorkTableWorkSpeedFactor now; unknown when native sent none.</summary>
     public Fact<double> WorkSpeed { get; init; }
 
-    public Fact<IReadOnlyList<GearBill>> Bills { get; init; }
-    public Fact<IReadOnlyList<GearRecipe>> Recipes { get; init; }
+    public Fact<EquatableArray<GearBill>> Bills { get; init; }
+    public Fact<EquatableArray<GearRecipe>> Recipes { get; init; }
 }
 
 /// <summary>
@@ -314,8 +314,8 @@ public sealed record RecipeHost
     public EquatableArray<Resource> Products { get; init; }
     public bool Available { get; init; }
     public EquatableArray<string> Benches { get; init; }
-    public Fact<IReadOnlyList<IReadOnlyList<Amount>>> Ingredients { get; init; }
-    public Fact<IReadOnlyList<WorkRequirement>> RequiredWork { get; init; }
+    public Fact<EquatableArray<EquatableArray<Amount>>> Ingredients { get; init; }
+    public Fact<EquatableArray<WorkRequirement>> RequiredWork { get; init; }
 
     /// <summary>The ResearchProjectDefs the recipe itself requires (sorted); empty when only its bench gates it.</summary>
     public EquatableArray<string> Research { get; init; }
@@ -325,7 +325,7 @@ public sealed record GearPlanningRequest
 {
     public Fact<GearObservation> Observation { get; init; }
     public IReadOnlyList<MethodId> Seen { get; init; } = [];
-    public Fact<IReadOnlyList<GearBench>> Benches { get; init; }
+    public Fact<EquatableArray<GearBench>> Benches { get; init; }
 
     /// <summary>Each stuff's catalog categories (ItemFacts): the stuffs a bill's filter admits beside the loadout's own (GearFilter).</summary>
     public IReadOnlyDictionary<Resource, IReadOnlyList<string>> StuffCategories { get; init; } = new Dictionary<Resource, IReadOnlyList<string>>();
@@ -377,7 +377,7 @@ public static partial class PolicyFunctions
                     deficit = deficit || gap.Gain > GearGapThreshold(l.Role);
                 }
             }
-            var (_, policyNeeded) = DesiredApparelPolicy(p);
+            var policyNeeded = DesiredApparelPolicy(p, out _);
             if (deficit || policyNeeded)
             {
                 missing++;
@@ -439,7 +439,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            foreach (var n in p.Replacements.ValueOrDefault ?? [])
+            foreach (var n in p.Replacements.ValueOrDefault)
             {
                 if (seen.Add(n.Definition))
                 {
@@ -538,7 +538,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            foreach (var c in p.Candidates.ValueOrDefault ?? [])
+            foreach (var c in p.Candidates.ValueOrDefault)
             {
                 choices.Add((p, c));
             }
@@ -593,14 +593,14 @@ public static partial class PolicyFunctions
             return ([], [], false);
         }
         ValidateGearProduction(all);
-        var benches = all.OrderBy(b => b.ID, StringComparer.Ordinal).ToList();
+        var benches = all.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
         var demand = new Dictionary<GearStockKey, int>();
         foreach (var n in needs)
         {
             var key = new GearStockKey(n.Need.Definition, n.Need.Stuff);
             demand[key] = demand.GetValueOrDefault(key) + 1;
         }
-        var stored = UnassignedGearStock(v.Stored.ValueOrDefault ?? [], review.Loadouts);
+        var stored = UnassignedGearStock(v.Stored.ValueOrDefault, review.Loadouts);
         foreach (var row in stored)
         {
             if (row.HPBand >= 5 && row.Quality >= 2)
@@ -680,7 +680,7 @@ public static partial class PolicyFunctions
                         {
                             Kind = GearMethodKind.Produce,
                             Count = count,
-                            Bench = b.ID,
+                            Bench = b.Id,
                             Recipe = recipe.Definition,
                             Filter = EquatableArray.From(filter),
                         },
@@ -709,9 +709,9 @@ public static partial class PolicyFunctions
         }
         foreach (var b in benches)
         {
-            DomainException.Require(FoodId(b.ID) && ids.Add(b.ID), "invalid gear bench");
-            var bills = b.Bills.ValueOrDefault ?? [];
-            var recipes = b.Recipes.ValueOrDefault ?? [];
+            DomainException.Require(FoodId(b.Id) && ids.Add(b.Id), "invalid gear bench");
+            var bills = b.Bills.ValueOrDefault;
+            var recipes = b.Recipes.ValueOrDefault;
             foreach (var bill in bills)
             {
                 DomainException.Require(Products(bill.Products), "invalid bill products");
@@ -724,7 +724,7 @@ public static partial class PolicyFunctions
                 {
                     AssignWork([], work);
                 }
-                foreach (var slot in recipe.Ingredients.ValueOrDefault ?? [])
+                foreach (var slot in recipe.Ingredients.ValueOrDefault)
                 {
                     DomainException.Require(slot.Count != 0, "invalid ingredient alternatives");
                     var resources = new HashSet<Resource>();
@@ -741,7 +741,9 @@ public static partial class PolicyFunctions
     /// The stuffs a bill never draws on unless the loadout names them: the currency and the favor-sale gold. A
     /// judgment table (DefTables): no row marks a stuff as currency or as the favor trade's.
     /// </summary>
-    private static bool GearValuable(Resource r) => r == new Resource("Silver") || r == FavorSaleResource;
+    internal static IReadOnlyList<Resource> GearValuableDefs => [new Resource("Silver"), FavorSaleResource];
+
+    private static bool GearValuable(Resource r) => GearValuableDefs.Contains(r);
 
     /// <summary>
     /// The ingredient filter of a bill placed with nothing in stock. A slot holding the loadout's stuff admits it
@@ -751,7 +753,7 @@ public static partial class PolicyFunctions
     /// another slot's member stand in for a stuff-bearing slot.
     /// </summary>
     internal static IReadOnlyList<Resource>? GearFilter(
-        IReadOnlyList<IReadOnlyList<Amount>> slots,
+        EquatableArray<EquatableArray<Amount>> slots,
         Resource stuff,
         IReadOnlyDictionary<Resource, IReadOnlyList<string>> categories
     )

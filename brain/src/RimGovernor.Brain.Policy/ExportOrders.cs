@@ -5,7 +5,7 @@ public sealed record ExportRequest
 {
     public IReadOnlyList<GearBench> Benches { get; init; } = [];
 
-    public Fact<IReadOnlyList<PawnProfile>> Profiles { get; init; }
+    public Fact<EquatableArray<PawnProfile>> Profiles { get; init; }
 
     public ItemFacts Items { get; init; } = new();
 
@@ -217,7 +217,7 @@ internal sealed record ExportRecipe(
     GearBench Bench,
     GearRecipe Recipe,
     Resource Product,
-    IReadOnlyList<IReadOnlyList<Amount>> Slots,
+    EquatableArray<EquatableArray<Amount>> Slots,
     double Work,
     IReadOnlyList<WorkRequirement> Required,
     bool Quality,
@@ -291,7 +291,7 @@ public static partial class PolicyFunctions
     {
         var c = ExportQualityCentre(skill);
         var lo = (int)Math.Floor(c);
-        var hi = Math.Min(lo + 1, MarketQualityFactor.Count - 1);
+        var hi = Math.Min(lo + 1, MarketQualityFactor.Length - 1);
         var frac = c - lo;
         return (MarketQualityFactor[lo] * (1 - frac)) + (MarketQualityFactor[hi] * frac);
     }
@@ -331,7 +331,7 @@ public static partial class PolicyFunctions
     public static Fact<TradeNeed> ExportSaleSurplus(
         ItemFacts items,
         Fact<TradeNeed> need,
-        Fact<IReadOnlyList<Amount>> resources,
+        Fact<EquatableArray<Amount>> resources,
         Fact<long> colonists,
         IReadOnlyList<Resource> products
     )
@@ -392,7 +392,7 @@ public static partial class PolicyFunctions
             }
             foreach (var recipe in recipes!)
             {
-                if (recipe.Kind != LedgerKind.Production || recipe.Products.Count != 1 || !ExportProduct(r, recipe.Products[0]))
+                if (recipe.Kind != LedgerBillKind.Production || recipe.Products.Count != 1 || !ExportProduct(r, recipe.Products[0]))
                 {
                     continue;
                 }
@@ -436,12 +436,12 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The ingredient units of one piece under a filter: per slot the cheapest member the filter admits (the loadout stuff first).</summary>
-    private static List<Amount>? ExportPicks(IReadOnlyList<IReadOnlyList<Amount>> slots, IReadOnlyList<Resource> filter, Resource stuff)
+    private static List<Amount>? ExportPicks(EquatableArray<EquatableArray<Amount>> slots, IReadOnlyList<Resource> filter, Resource stuff)
     {
         var picks = new List<Amount>();
         foreach (var slot in slots)
         {
-            Amount best = default;
+            var best = new Amount(default, 0);
             foreach (var a in slot)
             {
                 if (!filter.Contains(a.Resource) || a.Count <= 0)
@@ -673,7 +673,7 @@ public static partial class PolicyFunctions
         foreach (var b in benches)
         {
             _ = b.Bills.TryGetValue(out var list);
-            foreach (var bill in list ?? [])
+            foreach (var bill in list)
             {
                 if (bill.Spent || bill.Products.Count != 1 || !products.Contains(bill.Products[0]))
                 {
@@ -890,7 +890,7 @@ public static partial class PolicyFunctions
                 new OrderSpec
                 {
                     Recipe = c.Recipe,
-                    Ingredients = c.Filter,
+                    Ingredients = EquatableArray.From(c.Filter),
                     Worker = c.Worker.Value,
                     Mode = BillMode.GearBatch,
                     Target = (int)granted,
@@ -942,7 +942,7 @@ public static partial class PolicyFunctions
             foreach (var v in ExportVariants(r.Items, e))
             {
                 var best = new ExportCandidate();
-                foreach (var w in ExportWorkers(profiles ?? [], e.Required))
+                foreach (var w in ExportWorkers(profiles, e.Required))
                 {
                     var c = ExportScore(r, e, v, w.Skill);
                     if (c is not null && c.Score > best.Score)

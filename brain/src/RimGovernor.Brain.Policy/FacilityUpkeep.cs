@@ -25,7 +25,7 @@ public sealed record HomeCoverageObservation
     public IReadOnlyList<HomeCoverageTarget> Targets { get; init; } = [];
 
     /// <summary>Every current home-area cell.</summary>
-    public Fact<IReadOnlyList<Cell>> Home { get; init; }
+    public Fact<EquatableArray<Cell>> Home { get; init; }
 
     /// <summary>The game's auto-expand setting.</summary>
     public Fact<bool> AutoHome { get; init; }
@@ -71,9 +71,9 @@ public static partial class PolicyFunctions
     /// governor owns them whoever built them) still missing Home, at its current geometry. Throws
     /// <see cref="DomainException"/> where Go returned an error.
     /// </summary>
-    public static Fact<IReadOnlyList<HomeCoverageTarget>> ReviewHomeCoverage(Fact<HomeCoverageObservation> observed)
+    public static Fact<EquatableArray<HomeCoverageTarget>> ReviewHomeCoverage(Fact<HomeCoverageObservation> observed)
     {
-        var unknown = Unknown<IReadOnlyList<HomeCoverageTarget>>();
+        var unknown = Unknown<EquatableArray<HomeCoverageTarget>>();
         if (!observed.TryGetValue(out var census))
         {
             return unknown;
@@ -100,13 +100,13 @@ public static partial class PolicyFunctions
                 result.Add(row with { Cells = [.. row.Cells] });
             }
         }
-        return Known<IReadOnlyList<HomeCoverageTarget>>([.. result.OrderBy(t => t.Id, StringComparer.Ordinal)]);
+        return Known<EquatableArray<HomeCoverageTarget>>([.. result.OrderBy(t => t.Id, StringComparer.Ordinal)]);
     }
 
     /// <summary>Go <c>ReviewStoneShell</c>. Throws <see cref="DomainException"/> where Go returned an error.</summary>
-    public static Fact<IReadOnlyList<string>> ReviewStoneShell(Fact<IReadOnlyList<ConstructionClaim>> owned, Fact<IReadOnlyList<StoneStructure>> structures)
+    public static Fact<EquatableArray<string>> ReviewStoneShell(Fact<EquatableArray<ConstructionClaim>> owned, Fact<EquatableArray<StoneStructure>> structures)
     {
-        var unknown = Unknown<IReadOnlyList<string>>();
+        var unknown = Unknown<EquatableArray<string>>();
         if (!owned.TryGetValue(out var buildings))
         {
             return unknown;
@@ -114,14 +114,14 @@ public static partial class PolicyFunctions
         var walls = new HashSet<string>(StringComparer.Ordinal);
         foreach (var b in buildings)
         {
-            if (b.Building.Definition == "Wall")
+            if (b.Building!.Definition == "Wall")
             {
                 DomainException.Require(FoodId(b.Identity.Current) && walls.Add(b.Identity.Current), "invalid owned wall");
             }
         }
         if (walls.Count == 0)
         {
-            return Known<IReadOnlyList<string>>([]);
+            return Known<EquatableArray<string>>([]);
         }
         if (!structures.TryGetValue(out var rows))
         {
@@ -153,6 +153,6 @@ public static partial class PolicyFunctions
             return unknown;
         }
         result.Sort(StringComparer.Ordinal);
-        return Known<IReadOnlyList<string>>(result);
+        return Known(EquatableArray.From(result));
     }
 }

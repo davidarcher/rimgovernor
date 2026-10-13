@@ -19,11 +19,11 @@ public static partial class PolicyFunctions
         var doorsKnown = view.DoorStates.TryGetValue(out var doors);
         foreach (var order in batch.Orders.Items)
         {
-            var present = pawns.TryGetValue(order.Pawn, out var p);
+            var present = pawns.TryGetValue((PawnId)order.Pawn, out var p);
             switch (order.Kind)
             {
                 case "draft":
-                    if (!view.Orderable.Items.Contains(order.Pawn))
+                    if (!view.Orderable.Items.Contains((PawnId)order.Pawn))
                     {
                         return false;
                     }

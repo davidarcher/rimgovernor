@@ -43,6 +43,20 @@ public sealed record DiningFurniture
     /// <summary>The table, the chair and the foothold, in that order.</summary>
     public IReadOnlyList<string> Definitions() => [Table.Def, Chair.Def, Pin.Def];
 
+    /// <summary>Reports whether Validate passes (Go: Validate() == nil).</summary>
+    internal bool IsValid()
+    {
+        try
+        {
+            Validate();
+            return true;
+        }
+        catch (DomainException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>Checks the shapes the dining template lays out: a one-cell chair and pin, a table one cell wide and two deep, and a lane that holds the pin.</summary>
     public void Validate()
     {

@@ -62,7 +62,7 @@ public static partial class PolicyFunctions
             output.Add(
                 SourceCandidate(
                     CandidateKind.Mining,
-                    s.ThingID,
+                    s.ThingId,
                     CatalogLabor(CandidateKind.Mining, s.Yield),
                     Known(s.Distance),
                     true,
@@ -187,7 +187,7 @@ public static partial class PolicyFunctions
             output.Add(
                 SourceCandidate(
                     kind,
-                    s.ID,
+                    s.Id,
                     Known(labor * (1 + (2 * risk))),
                     Known(Math.Sqrt(Math.Pow(s.Cell.X - home.X, 2) + Math.Pow(s.Cell.Z - home.Z, 2))),
                     true,

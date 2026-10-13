@@ -60,7 +60,7 @@ public static partial class PolicyFunctions
 
     private static bool MealStockAvailable(SupplyCandidate c)
     {
-        if (c.ID != "stored-ingredients")
+        if (c.Id != "stored-ingredients")
         {
             return false;
         }

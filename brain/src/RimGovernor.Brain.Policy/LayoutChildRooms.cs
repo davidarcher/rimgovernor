@@ -25,10 +25,10 @@ public static partial class PolicyFunctions
         var output = new List<ChildRoomShape>();
         foreach (var n in needs)
         {
-            var (s, ok) = n.Shape(defs);
-            if (ok)
+            var s = n.Shape(defs);
+            if (s is not null)
             {
-                output.Add(s!);
+                output.Add(s);
             }
         }
         return output;
@@ -153,17 +153,19 @@ public static partial class PolicyFunctions
     private static int ChildRowDemand(ChildRoomShape s) => s.Pieces.Sum(p => p.Size.X * p.Count);
 
     /// <summary>The plan's first room of the shape's role that holds it.</summary>
-    public static (PlannedRoom? Room, bool Ok) ChildRoomFor(this LayoutPlan p, ChildRoomShape s)
+    public static bool ChildRoomFor(this LayoutPlan p, ChildRoomShape s, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out PlannedRoom? room)
     {
         foreach (var r in p.Rooms)
         {
             var (w, d) = FrameDims(r);
             if (r.Role == s.Module && s.Holds(w, d))
             {
-                return (r, true);
+                room = r;
+                return true;
             }
         }
-        return (null, false);
+        room = null;
+        return false;
     }
 
     /// <summary>

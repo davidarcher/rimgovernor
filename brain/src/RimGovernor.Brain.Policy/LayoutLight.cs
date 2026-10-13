@@ -112,8 +112,13 @@ public readonly record struct LightPrice(double WorkDayW, double LampW, double C
     internal double CheapestLampW() => WallLampW > 0 ? Math.Min(LampW, WallLampW) : LampW;
 
     /// <summary>The standing lamps that could stand on spots.</summary>
-    internal List<LampCand> StandingCands(IReadOnlyList<Cell> spots) =>
-        spots.Select(s => new LampCand(new PlannedLamp { Def = PolicyConstants.LightJudgment.LampDef, Cell = s }, LampW, LampReach)).ToList();
+    internal List<LampCand> StandingCands(IReadOnlyList<Cell> spots)
+    {
+        // Locals, because a lambda inside a struct cannot read the struct's members.
+        var lampW = LampW;
+        var lampReach = LampReach;
+        return spots.Select(s => new LampCand(new PlannedLamp { Def = PolicyConstants.LightJudgment.LampDef, Cell = s }, lampW, lampReach)).ToList();
+    }
 
     /// <summary>
     /// The lamps a room's floor offers: a standing lamp on each cell no piece or worker holds, and a wall lamp
@@ -197,7 +202,7 @@ public static partial class PolicyFunctions
         }
         var t = PolicyConstants.LightJudgment;
         // The channel survives int(brightness*falloff), and ground glow must pass LitGlow strictly.
-        var need = (Math.Floor(DefaultLightingPolicy().LitGlow / t.GroundScale * 255) + 1) / brightness;
+        var need = (Math.Floor(LightingPolicy.Default().LitGlow / t.GroundScale * 255) + 1) / brightness;
         double Falloff(double x) => ((1 - t.FalloffBlend) * (1 - (x / radius))) + (t.FalloffBlend / (x * x));
         if (Falloff(1) < need)
         {
@@ -229,7 +234,7 @@ public static partial class PolicyFunctions
     /// <summary>The speed factor of a pawn on ground of the given glow (StatPart_Glow): linear from DarkSpeed at 0 to 1 at LitGlow.</summary>
     public static double LightSpeed(double glow)
     {
-        var lit = DefaultLightingPolicy().LitGlow;
+        var lit = LightingPolicy.Default().LitGlow;
         var g = Math.Min(Math.Max(glow, 0), lit) / lit;
         var dark = PolicyConstants.LightJudgment.DarkSpeed;
         return dark + ((1 - dark) * g);
@@ -490,7 +495,7 @@ public static partial class PolicyFunctions
             var g = t.In.Groups[t.Rooms[i].Group];
             if (!LightRoofed(room))
             {
-                t.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsSky, TileVerdict.Place, 0, 0);
+                t.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsSky, PolicyFunctions.TilePlace, 0, 0);
                 continue;
             }
             var work = new HashSet<Cell>();
@@ -520,7 +525,7 @@ public static partial class PolicyFunctions
             {
                 if (work.Count > 0)
                 {
-                    t.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsUnpriced, TileVerdict.Unsatisfied, 0, 0);
+                    t.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsUnpriced, PolicyFunctions.TileUnsatisfied, 0, 0);
                 }
                 continue;
             }
@@ -548,22 +553,21 @@ public static partial class PolicyFunctions
             {
                 if (total > 0)
                 {
-                    t.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsNotPaid, TileVerdict.Unsatisfied, total, t.In.Light.CheapestLampW());
+                    t.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsNotPaid, PolicyFunctions.TileUnsatisfied, total, t.In.Light.CheapestLampW());
                 }
                 continue;
             }
-            t.Out.Lamps ??= [];
             if (!t.Out.Lamps.TryGetValue(room.Id, out var list))
             {
                 list = [];
                 t.Out.Lamps[room.Id] = list;
             }
             list.AddRange(lamps.Select(l => l.Lamp));
-            t.NoteLamps(g.Id, PolicyConstants.ReasonTileLamps, TileVerdict.Place, left, LampsW(lamps));
+            t.NoteLamps(g.Id, PolicyConstants.ReasonTileLamps, PolicyFunctions.TilePlace, left, LampsW(lamps));
         }
     }
 
-    internal static void NoteLamps(this Tiler t, int group, string reason, TileVerdict verdict, double darkW, double lampW) =>
+    internal static void NoteLamps(this Tiler t, int group, string reason, string verdict, double darkW, double lampW) =>
         t.Out.Decisions.Add(new TileDecision { Group = group, Other = -1, Verdict = verdict, Reason = reason, DarkW = darkW, LampW = lampW });
 
     /// <summary>

@@ -52,14 +52,14 @@ public static partial class PolicyFunctions
             return Abstaining(cause);
         }
         r.Benches.TryGetValue(out var benches);
-        benches ??= [];
+
         var @out = new Declared();
         void Collect(IReadOnlyList<OrderSpec> orders, Cause? unreadCause)
         {
-            @out = @out.WithOrders(orders);
+            @out.Orders.AddRange(orders);
             if (unreadCause is { } c)
             {
-                @out = @out.WithUnread(c);
+                @out.Unread(c);
             }
         }
         var needs = new List<GearNeed>();
@@ -76,7 +76,7 @@ public static partial class PolicyFunctions
         // Armor and shells follow the tier; weapons stand without it.
         if (tier == ArmoryTier.Unknown)
         {
-            return @out.WithUnread(Cause.UnreadArmoryTier);
+            return @out.Unread(Cause.UnreadArmoryTier);
         }
         var armor = new Dictionary<Resource, int>();
         foreach (var p in v!.Pawns)
@@ -167,7 +167,7 @@ public static partial class PolicyFunctions
         foreach (var p in v.Pawns)
         {
             p.Candidates.TryGetValue(out var candidates);
-            pending = pending || (candidates?.Count ?? 0) > 0;
+            pending = pending || candidates.Count > 0;
         }
         var done = new HashSet<GearStockKey>();
         foreach (var n in needs)
@@ -221,7 +221,7 @@ public static partial class PolicyFunctions
     {
         foreach (var b in benches)
         {
-            if (b.ID == id)
+            if (b.Id == id)
             {
                 return b.Def;
             }
@@ -238,12 +238,12 @@ public static partial class PolicyFunctions
     {
         var orders = new List<OrderSpec>();
         Cause? unknown = null;
-        var sorted = benches.OrderBy(b => b.ID, StringComparer.Ordinal).ToList();
+        var sorted = benches.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
         var standing = new Dictionary<Resource, GearBill>();
         foreach (var b in sorted)
         {
             b.Bills.TryGetValue(out var bills);
-            foreach (var bill in bills ?? [])
+            foreach (var bill in bills)
             {
                 if (bill.Spent)
                 {

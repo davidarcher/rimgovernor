@@ -143,7 +143,7 @@ public static partial class PolicyFunctions
                         }
                         try
                         {
-                            return result with { Kind = "help", Help = new RecoveryService(actor, id.ToString(), DomainRecoveryMethod.OfferHelp) };
+                            return result with { Kind = "help", Help = new RecoveryService((Domain.PawnId)actor, id.ToString(), DomainRecoveryMethod.OfferHelp) };
                         }
                         catch (DomainException)
                         {
@@ -167,7 +167,7 @@ public static partial class PolicyFunctions
                     {
                         try
                         {
-                            return result with { Kind = "recruit", Recruit = new PrisonerInteraction(id, PrisonerInteractionMode.Recruit) };
+                            return result with { Kind = "recruit", Recruit = new PrisonerInteraction((Domain.PawnId)id, PrisonerInteractionMode.Recruit) };
                         }
                         catch (DomainException)
                         {

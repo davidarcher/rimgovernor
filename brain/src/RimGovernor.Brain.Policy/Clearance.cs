@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record ClearanceTarget
 {
-    public string EntityID { get; init; } = "";
+    public string EntityId { get; init; } = "";
 
     public string DefName { get; init; } = "";
 
@@ -64,7 +64,7 @@ public sealed record ClearanceTarget
 /// </summary>
 public sealed record ClearanceChunk
 {
-    public string EntityID { get; init; } = "";
+    public string EntityId { get; init; } = "";
 
     public string DefName { get; init; } = "";
 
@@ -143,5 +143,5 @@ public static partial class PolicyFunctions
 
     /// <summary>The chunks no stockpile will take, stable by identity.</summary>
     public static List<ClearanceChunk> PendingChunks(IEnumerable<ClearanceChunk> rows) =>
-        [.. rows.Where(row => ChunkHoldReason(row).Length == 0).OrderBy(r => r.EntityID, StringComparer.Ordinal)];
+        [.. rows.Where(row => ChunkHoldReason(row).Length == 0).OrderBy(r => r.EntityId, StringComparer.Ordinal)];
 }

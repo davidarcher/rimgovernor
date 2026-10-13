@@ -46,6 +46,13 @@ public sealed record StationCatalog
         return false;
     }
 
+    /// <summary>Go <c>Station(def)</c>: the station for a definition and whether the catalog has it.</summary>
+    public (Station Station, bool Ok) Station(string def)
+    {
+        var ok = TryGetStation(def, out var station);
+        return (station, ok);
+    }
+
     /// <summary>Lists the station definitions, sorted.</summary>
     public List<string> Defs() => [.. Stations.Keys.Order(StringComparer.Ordinal)];
 
@@ -59,7 +66,7 @@ public sealed record StationCatalog
     /// </summary>
     public List<string> Hosting(Capability capability)
     {
-        if (!PolicyFunctions.CapabilityHomes.TryGetValue(capability, out var home))
+        if (!PolicyConstants.CapabilityHomes.TryGetValue(capability, out var home))
         {
             return [];
         }

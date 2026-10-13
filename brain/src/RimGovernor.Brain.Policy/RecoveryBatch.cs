@@ -89,7 +89,7 @@ public static partial class PolicyFunctions
         var byId = new Dictionary<string, ClearanceTarget>(StringComparer.Ordinal);
         foreach (var r in rows)
         {
-            byId[r.EntityID] = r;
+            byId[r.EntityId] = r;
         }
         var output = new List<RecoveryBatchTarget>();
         foreach (var e in q.Entries)

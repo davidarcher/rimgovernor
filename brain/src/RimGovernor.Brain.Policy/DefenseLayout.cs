@@ -76,9 +76,9 @@ public sealed record DefenseDefinitions
 
 public sealed record DefenseRequest
 {
-    public Bounds Bounds { get; init; } = new();
+    public Bounds Bounds { get; init; }
 
-    public Rectangle Region { get; init; } = new();
+    public Rectangle Region { get; init; }
 
     /// <summary>The colony cell the approach path leads to.</summary>
     public Cell Home { get; init; }

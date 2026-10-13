@@ -41,7 +41,7 @@ public static partial class PolicyFunctions
         var lastHold = new Dictionary<PawnId, bool>();
         foreach (var o in next.Issued)
         {
-            lastHold[o.Order.Pawn] = o.Order.Kind == CombatOrderKind.FireMode && o.Order.FireMode == HoldFire;
+            lastHold[o.CombatOrder.Pawn] = o.CombatOrder.Kind == CombatOrderKind.FireMode && o.CombatOrder.FireMode == HoldFire;
         }
         var orders = new List<CombatOrder>();
         for (var i = 0; i < roles.Count; i++)

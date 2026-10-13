@@ -35,11 +35,11 @@ public static partial class PolicyFunctions
     /// temperature at or past the extreme bounds. Unknown while either read is missing, so a map without the
     /// reads is never held for it.
     /// </summary>
-    public static Fact<IReadOnlyList<OutdoorHazard>> OutdoorHazardsOf(RoundsFacts f)
+    public static Fact<EquatableArray<OutdoorHazard>> OutdoorHazardsOf(RoundsFacts f)
     {
         if (!f.DisasterConditions.TryGetValue(out var conditions) || !f.OutdoorTemperature.TryGetValue(out var temp))
         {
-            return Unknown<IReadOnlyList<OutdoorHazard>>();
+            return Unknown<EquatableArray<OutdoorHazard>>();
         }
         var result = new List<OutdoorHazard>();
         if (conditions.Any(c => c.Definition == ConditionToxicFallout))
@@ -54,18 +54,18 @@ public static partial class PolicyFunctions
         {
             result.Add(new OutdoorHazard(HazardKind.ExtremeHeat));
         }
-        return Known<IReadOnlyList<OutdoorHazard>>(result);
+        return Known(EquatableArray.From(result));
     }
 
     /// <summary>Reports whether outdoor work is held: any known active hazard, including a kind this build does not recognise. Unknown never holds.</summary>
-    public static bool OutdoorHazardHeld(Fact<IReadOnlyList<OutdoorHazard>> h) =>
+    public static bool OutdoorHazardHeld(Fact<EquatableArray<OutdoorHazard>> h) =>
         h.TryGetValue(out var hazards) && hazards.Count > 0;
 
     /// <summary>
     /// OutdoorHazardHeld with an open dash window: the window lifts extreme cold only; heat, fallout and any
     /// unrecognised kind still hold.
     /// </summary>
-    public static bool OutdoorHazardHeldDash(Fact<IReadOnlyList<OutdoorHazard>> h, bool dashOpen)
+    public static bool OutdoorHazardHeldDash(Fact<EquatableArray<OutdoorHazard>> h, bool dashOpen)
     {
         if (!h.TryGetValue(out var hazards))
         {

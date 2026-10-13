@@ -352,7 +352,7 @@ public static partial class PolicyFunctions
     {
         if (req.Search is { } search)
         {
-            return SearchInterior(req, search).Stood();
+            return [.. SearchInterior(req, search).Stood()];
         }
         var (floor, seats) = SplitSeats(req.Wants);
         req = req with { Wants = EquatableArray.From(floor) };

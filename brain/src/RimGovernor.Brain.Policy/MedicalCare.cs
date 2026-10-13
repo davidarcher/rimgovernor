@@ -18,9 +18,9 @@ public sealed record CarePawn
     public Fact<bool> BadConditions { get; init; }
 
     /// <summary>Surgery facts ride on the same health read. Native computes every value through vanilla; nothing here is recomputed.</summary>
-    public Fact<IReadOnlyList<MissingPart>> MissingParts { get; init; }
+    public Fact<EquatableArray<MissingPart>> MissingParts { get; init; }
 
-    public Fact<IReadOnlyList<SurgeryOperation>> Operations { get; init; }
+    public Fact<EquatableArray<SurgeryOperation>> Operations { get; init; }
 
     /// <summary>The medical bills queued on the patient: the surgery planner's in-flight evidence.</summary>
     public Fact<int> QueuedSurgeries { get; init; }
@@ -32,7 +32,7 @@ public sealed record CarePawn
     public IReadOnlyList<Resource> QueuedItems { get; init; } = [];
 
     /// <summary>The added parts the pawn carries; unknown when the native read failed.</summary>
-    public Fact<IReadOnlyList<InstalledPart>> InstalledParts { get; init; }
+    public Fact<EquatableArray<InstalledPart>> InstalledParts { get; init; }
 }
 
 /// <summary>A missing or destroyed body part at its common missing ancestor; its descendants are implied.</summary>
@@ -170,10 +170,6 @@ public sealed record InstalledPart
 
 public static partial class PolicyFunctions
 {
-    /// <summary>MaintainMedicalReserves' Phase: care for the sick (rest and a hospital bed) before the medicine stock.</summary>
-    public static readonly Phase MedicalCarePhase = new("care");
-
-    public static readonly Phase MedicalReservesPhase = new("reserves");
 
     public static MedicalCareHistory ReviewMedicalCare(Fact<EquatableArray<CarePawn>> observed, MedicalCareHistory previous)
     {

@@ -28,7 +28,7 @@ public static partial class PolicyFunctions
                     continue;
                 }
                 var stateKnown = e.Channel.State.TryGetValue(out var state);
-                var committed = e.Selected() || (stateKnown && state != CandidateState.Closed);
+                var committed = e.Selected || (stateKnown && state != CandidateState.Closed);
                 if (!committed)
                 {
                     if (!stateKnown)

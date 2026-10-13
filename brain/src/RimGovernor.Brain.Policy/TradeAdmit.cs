@@ -35,7 +35,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static AdmissionDecision EvaluateTrade(TradeRequest r)
     {
-        AdmissionDecision Refuse(Reason reason) => new() { Refused = EquatableArray.From([new Refusal(r.Action.Id, reason)]) };
+        AdmissionDecision Refuse(Reason reason) => new() { Refused = EquatableArray.From([new Refusal(r.Action.Id, reason, default)]) };
 
         var trade = r.Action.Trade;
         var canonical = false;

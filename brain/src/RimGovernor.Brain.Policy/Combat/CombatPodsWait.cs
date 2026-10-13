@@ -38,7 +38,7 @@ public static partial class PolicyFunctions
         }
         foreach (var t in view.Positional)
         {
-            if (!Positive(t.Dead) && !Positive(t.Downed) && !down.Contains(new PawnId(t.Id)))
+            if (!Positive(t.Dead) && !Positive(t.Downed) && !down.Contains(t.Id))
             {
                 theirs++;
             }

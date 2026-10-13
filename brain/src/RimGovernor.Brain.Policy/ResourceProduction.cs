@@ -556,7 +556,7 @@ public static partial class PolicyFunctions
                 // Reuse the native replacement operation for an inactive matching bill; adding beside it is
                 // refused by the native duplicate guard.
                 var replace = "";
-                foreach (var bill in b.Bills.ValueOrDefault)
+                foreach (var bill in b.Bills.Value)
                 {
                     if (bill.Recipe != recipe.Definition)
                     {

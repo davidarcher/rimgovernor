@@ -54,7 +54,7 @@ public static partial class PolicyFunctions
         long bestD = -1;
         foreach (var t in view.Positional.Items)
         {
-            var id = new PawnId(t.Id);
+            var id = t.Id;
             if (!t.Position.TryGetValue(out var c) || Positive(t.Dead) || Positive(t.Downed) || down.Contains(id))
             {
                 continue;

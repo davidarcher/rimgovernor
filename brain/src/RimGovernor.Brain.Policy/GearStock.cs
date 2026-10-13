@@ -51,13 +51,13 @@ public static partial class PolicyFunctions
         return @out;
     }
 
-    internal static IReadOnlyList<IReadOnlyList<Amount>> GearBatchIngredients(IReadOnlyList<IReadOnlyList<Amount>> slots, int count)
+    internal static EquatableArray<EquatableArray<Amount>> GearBatchIngredients(EquatableArray<EquatableArray<Amount>> slots, int count)
     {
-        var @out = new List<IReadOnlyList<Amount>>(slots.Count);
+        var @out = new List<EquatableArray<Amount>>(slots.Count);
         foreach (var slot in slots)
         {
-            @out.Add(slot.Select(a => new Amount(a.Resource, a.Count * count)).ToList());
+            @out.Add(EquatableArray.From(slot.Select(a => new Amount(a.Resource, a.Count * count))));
         }
-        return @out;
+        return EquatableArray.From(@out);
     }
 }

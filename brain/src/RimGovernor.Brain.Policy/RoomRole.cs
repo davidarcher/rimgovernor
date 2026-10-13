@@ -171,7 +171,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Whether a piece earns a contribution: the definition alone for Always and Bindable (a trait of the def), else the piece's instance state.</summary>
-    internal static bool Contributes(RoleContribution c, RoomPiece p) =>
+    internal static bool Contributes(RoleScore c, RoomPiece p) =>
         c.When is RoleCondition.Always or RoleCondition.Bindable || p.State == c.When;
 
     /// <summary>A humanlike bed as the bed role workers see it.</summary>
@@ -439,7 +439,7 @@ public static partial class PolicyFunctions
             var station = catalog.Stations.TryGetValue(p.Def, out var st) ? st : new Station();
             foreach (var n in station.Needs)
             {
-                if (n.Kind == NeedKind.Role && n.Role != pred.Role)
+                if (n.Kind == EnvNeedKind.Role && n.Role != pred.Role)
                 {
                     output.Add(new LostEffect { Effect = RoleEffect.BenchSpeed, Role = n.Role, Def = p.Def, Factor = n.Factor });
                 }

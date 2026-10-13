@@ -78,7 +78,7 @@ public static partial class PolicyFunctions
         bool any;
         try
         {
-            (price, any) = n.PurchasePrice(items);
+            (price, any) = n!.PurchasePrice(items);
         }
         catch (DomainException)
         {

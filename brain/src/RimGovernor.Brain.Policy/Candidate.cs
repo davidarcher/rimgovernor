@@ -91,7 +91,7 @@ public sealed record SupplyCandidate
 {
     public CandidateKind Kind { get; init; }
 
-    public string ID { get; init; } = "";
+    public string Id { get; init; } = "";
 
     public Fact<CandidateState> State { get; init; }
 
@@ -171,7 +171,7 @@ public sealed record SupplyCandidate
     {
         if (Yields.Count > 1 && Yields[0].Good == NutritionKey)
         {
-            return Yields.Items.AsMemory(1).ToArray();
+            return Yields.Skip(1).ToArray();
         }
 
         return [];
@@ -191,7 +191,7 @@ public static partial class PolicyFunctions
         new()
         {
             Kind = kind,
-            ID = id,
+            Id = id,
             Yields = EquatableArray.From([new CandidateYield { Good = NutritionKey, PerDay = perDay, StockCap = Unknown<long>() }]),
         };
 
@@ -244,7 +244,7 @@ public static partial class PolicyFunctions
         new()
         {
             Kind = kind,
-            ID = id,
+            Id = id,
             State = Known(CandidateState.Closed),
             Yields = EquatableArray.From(yields),
             LeadDays = Known(0.0),

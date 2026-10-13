@@ -15,7 +15,7 @@ public static partial class PolicyFunctions
     /// every other pawn's live bill-job ingredients (worker's own job excluded; the empty id excludes none). An
     /// unknown census contributes nothing.
     /// </summary>
-    public static List<Amount> MaterialHolds(Fact<IReadOnlyDictionary<Resource, long>> deficit, Fact<IReadOnlyList<IngredientReservation>> reservations, PawnId worker)
+    public static List<Amount> MaterialHolds(Fact<IReadOnlyDictionary<Resource, long>> deficit, Fact<EquatableArray<IngredientReservation>> reservations, PawnId worker)
     {
         var total = new Dictionary<Resource, long>();
         if (deficit.TryGetValue(out var deficitRows))
@@ -47,9 +47,9 @@ public static partial class PolicyFunctions
     /// absent from the census goes negative: it is owed more than exists. Unknown while the stock census is.
     /// </summary>
     public static Fact<IReadOnlyDictionary<Resource, long>> MaterialBudget(
-        Fact<IReadOnlyList<Amount>> stock,
+        Fact<EquatableArray<Amount>> stock,
         Fact<IReadOnlyDictionary<Resource, long>> deficit,
-        Fact<IReadOnlyList<IngredientReservation>> reservations,
+        Fact<EquatableArray<IngredientReservation>> reservations,
         PawnId worker
     )
     {

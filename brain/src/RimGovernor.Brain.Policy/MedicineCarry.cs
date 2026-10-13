@@ -127,7 +127,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The review's MedicineCarryOwed fact.</summary>
-    public static Fact<bool> MedicineCarryOwed(Fact<IReadOnlyList<WorkPawn>> pawns, MedicalReserveReview reserve)
+    public static Fact<bool> MedicineCarryOwed(Fact<EquatableArray<WorkPawn>> pawns, MedicalReserveReview reserve)
     {
         if (!pawns.TryGetValue(out var rows))
         {
@@ -161,7 +161,7 @@ public static partial class PolicyFunctions
         w.Work.TryGetValue(out var work);
         var doctor = false;
         var hunter = false;
-        foreach (var x in work ?? [])
+        foreach (var x in work)
         {
             if (x.Disabled || x.Priority <= 0)
             {

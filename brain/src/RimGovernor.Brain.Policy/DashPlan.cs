@@ -254,7 +254,7 @@ public static partial class PolicyFunctions
         {
             return Unknown<DashWindow>();
         }
-        if (hostiles > 0 || hazards.Count != 1 || hazards[0].Kind != HazardKind.ExtremeCold)
+        if (hostiles > 0 || hazards!.Count != 1 || hazards[0].Kind != HazardKind.ExtremeCold)
         {
             return Known(new DashWindow());
         }

@@ -12,7 +12,7 @@ public sealed record RoofDecision
 /// <summary>What the roofed set reads beside the plan. Curve is the seasonal outdoor temperature curve (twelve means, C); Cold and Hot are the survey's latches. RoofDistance is the game's roof support distance; zero is unknown.</summary>
 public sealed record RoofInput
 {
-    public Fact<IReadOnlyList<double>> Curve { get; init; }
+    public Fact<EquatableArray<double>> Curve { get; init; }
     public bool Cold { get; init; }
     public bool Hot { get; init; }
     public double RoofDistance { get; init; }

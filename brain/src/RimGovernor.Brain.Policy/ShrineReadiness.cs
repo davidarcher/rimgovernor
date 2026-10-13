@@ -126,11 +126,11 @@ public static partial class PolicyFunctions
             if (ShrineRanged(d))
             {
                 ranged++;
-                shooters.Add(d.Id);
+                shooters.Add((Domain.PawnId)d.Id);
             }
             else
             {
-                others.Add(d.Id);
+                others.Add((Domain.PawnId)d.Id);
             }
         }
         shooters.Sort();

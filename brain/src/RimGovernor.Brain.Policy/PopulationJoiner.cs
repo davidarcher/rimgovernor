@@ -178,7 +178,7 @@ public sealed record JoinerChoice
 /// </summary>
 public sealed record JoinerCapacityFacts
 {
-    public Fact<IReadOnlyList<CustodyFacts>> Custody { get; init; }
+    public Fact<EquatableArray<CustodyFacts>> Custody { get; init; }
 
     public Fact<SleepingObservation> Sleeping { get; init; }
 
@@ -246,7 +246,7 @@ public static partial class PolicyFunctions
     /// of the player faction too). A row missing any of those facts leaves the count unknown, since an
     /// undercount would admit a joiner past the population target.
     /// </summary>
-    internal static Fact<long> HostedPopulation(Fact<IReadOnlyList<CustodyFacts>> custody)
+    internal static Fact<long> HostedPopulation(Fact<EquatableArray<CustodyFacts>> custody)
     {
         if (!custody.TryGetValue(out var rows))
         {
@@ -312,7 +312,7 @@ public static partial class PolicyFunctions
     /// the colony cannot host is not a deficit: it is left to expire. An unknown census leaves the need
     /// unknown rather than silently settled, the same rule PrisonerRecruitDeficit uses.
     /// </summary>
-    public static Fact<bool> JoinerDeficit(Fact<IReadOnlyList<JoinerOffer>> offers, Fact<bool> capacity, RoundsFacts facts)
+    public static Fact<bool> JoinerDeficit(Fact<EquatableArray<JoinerOffer>> offers, Fact<bool> capacity, RoundsFacts facts)
     {
         if (!offers.TryGetValue(out var rows))
         {
@@ -338,7 +338,7 @@ public static partial class PolicyFunctions
     /// Picks the lowest-ID answerable joiner offer to accept next, mirroring SelectPrisonerInteractionMethod's
     /// determinism, once the colony's capacity for one more colonist is known.
     /// </summary>
-    public static JoinerChoice SelectJoinerMethod(Fact<IReadOnlyList<JoinerOffer>> offers, Fact<bool> capacity, RoundsFacts facts)
+    public static JoinerChoice SelectJoinerMethod(Fact<EquatableArray<JoinerOffer>> offers, Fact<bool> capacity, RoundsFacts facts)
     {
         if (!offers.TryGetValue(out var rows))
         {
@@ -378,7 +378,7 @@ public static partial class PolicyFunctions
     internal static bool ClaimAnswerable(JoinerOffer offer, IReadOnlyList<QuestId> claims) =>
         claims.Contains(offer.Quest) && offer.State == "NotYetAccepted" && offer.CanAccept && !offer.RequiresAccepter;
 
-    public static (JoinerLetterOffer Offer, bool Ok) SelectJoinerLetter(Fact<IReadOnlyList<JoinerLetterOffer>> offers, Fact<bool> capacity)
+    public static (JoinerLetterOffer Offer, bool Ok) SelectJoinerLetter(Fact<EquatableArray<JoinerLetterOffer>> offers, Fact<bool> capacity)
     {
         var known = offers.TryGetValue(out var rows);
         var capacityKnown = capacity.TryGetValue(out var room);
@@ -398,7 +398,7 @@ public static partial class PolicyFunctions
         return (chosen, found);
     }
 
-    public static Fact<bool> JoinerLetterDeficit(Fact<IReadOnlyList<JoinerLetterOffer>> offers, Fact<bool> capacity)
+    public static Fact<bool> JoinerLetterDeficit(Fact<EquatableArray<JoinerLetterOffer>> offers, Fact<bool> capacity)
     {
         if (!offers.TryGetValue(out var rows))
         {

@@ -16,7 +16,7 @@ public static partial class PolicyFunctions
     /// Counts the pests in the wild-animal census (every living factionless animal on the map, so a pest
     /// anywhere counts, not only one near the colony). Unknown while the census is unknown.
     /// </summary>
-    public static Fact<int> PestCensus(Fact<IReadOnlyList<UpkeepAnimal>> wild)
+    public static Fact<int> PestCensus(Fact<EquatableArray<UpkeepAnimal>> wild)
     {
         if (!wild.TryGetValue(out var rows))
         {
@@ -32,7 +32,7 @@ public static partial class PolicyFunctions
     /// pest census is unavailable.
     /// </summary>
     public static IReadOnlyList<AcquisitionSource> SelectPestAcquisition(
-        Fact<IReadOnlyList<AcquisitionSource>> sources,
+        Fact<EquatableArray<AcquisitionSource>> sources,
         Fact<int> pests,
         IReadOnlyDictionary<string, bool>? held,
         Fact<int> huntSlots)

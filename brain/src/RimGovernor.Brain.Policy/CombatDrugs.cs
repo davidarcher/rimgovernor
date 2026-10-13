@@ -18,7 +18,7 @@ public static partial class PolicyFunctions
     /// counts only with a known eligible armed defender: with none the comparison measures missing facts, not
     /// the fight.
     /// </summary>
-    private static bool WorthDosing(CombatView view, IReadOnlyDictionary<PawnId, CombatPawnState> state)
+    private static bool WorthDosing(CombatView view, Dictionary<PawnId, CombatPawnState> state)
     {
         var known = view.Defenders.Items.Any(d => SquadDefenderEligible(d) && Positive(d.Armed));
         if (known && Outmatched(view))
@@ -53,8 +53,8 @@ public static partial class PolicyFunctions
         CombatView view,
         CombatMemory m,
         IReadOnlyList<CombatOrder> orders,
-        ISet<PawnId> orderable,
-        IReadOnlyDictionary<PawnId, CombatPawnState> state
+        HashSet<PawnId> orderable,
+        Dictionary<PawnId, CombatPawnState> state
     )
     {
         var doses = new List<CombatOrder>();

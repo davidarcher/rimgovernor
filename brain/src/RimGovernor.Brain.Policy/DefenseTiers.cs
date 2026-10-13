@@ -171,7 +171,7 @@ public static partial class PolicyFunctions
         catch (Exception e) when (e is DefenseException or DomainException)
         {
             layout = new DefenseLayout { Toward = kb.Toward, Width = kb.Width, Entry = kb.Entry };
-            decisions.Add(new SiteDecision { Node = id, Verdict = EmbedVerdict.Unplaceable, Reason = ReasonTierLayoutFailed });
+            decisions.Add(new SiteDecision { Node = id, Verdict = PolicyConstants.EmbedUnplaceable, Reason = ReasonTierLayoutFailed });
             refusal = e.Message;
             refused = true;
         }
@@ -215,11 +215,11 @@ public static partial class PolicyFunctions
         foreach (var n in nodes)
         {
             var reason = n.Tier?.Pinned == true ? ReasonTierPinned : ReasonTierSited;
-            decisions.Add(new SiteDecision { Node = n.Node, Verdict = EmbedVerdict.Place, Reason = reason });
+            decisions.Add(new SiteDecision { Node = n.Node, Verdict = PolicyConstants.EmbedPlace, Reason = reason });
         }
         foreach (var name in displaced)
         {
-            decisions.Add(new SiteDecision { Node = id + "-" + name.Value, Verdict = EmbedVerdict.Place, Reason = ReasonTierDisplaced });
+            decisions.Add(new SiteDecision { Node = id + "-" + name.Value, Verdict = PolicyConstants.EmbedPlace, Reason = ReasonTierDisplaced });
         }
         return new DefenseTiers
         {
@@ -357,13 +357,13 @@ public static partial class PolicyFunctions
                 Pinned = pinned.ContainsKey(tier.Name),
                 Places = EquatableArray.From(places.Select(b => new TierPlacement(b.Definition, b.Cell, b.Rotation, b.Stuff))),
             };
-            var site = NewSite($"{under}-{kind.Value}", kind, RegionOf(cells), "");
+            var site = NewSite($"{under}-{Wire.Name(kind)}", kind, RegionOf(cells), "");
             output.Add(site with { Tier = facts });
         }
 
         static List<Cell> CellsOf(IEnumerable<Building> bs) => bs.Select(b => b.Cell).ToList();
 
-        static (List<Building> Match, List<Building> Rest) Split(IEnumerable<Building> bs, string definition)
+        static (List<Building> Match, List<Building> Remainder) Split(IEnumerable<Building> bs, string definition)
         {
             var match = new List<Building>();
             var rest = new List<Building>();

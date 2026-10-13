@@ -37,19 +37,19 @@ public enum HerdJob
 /// </summary>
 public sealed record HerdPlanInput
 {
-    public Fact<IReadOnlyList<UpkeepAnimal>> Animals { get; init; }
-    public Fact<IReadOnlyList<UpkeepAnimal>> Wild { get; init; }
+    public Fact<EquatableArray<UpkeepAnimal>> Animals { get; init; }
+    public Fact<EquatableArray<UpkeepAnimal>> Wild { get; init; }
     public required AnimalRaceCatalog Races { get; init; }
     public Fact<double> Budget { get; init; }
     public Fact<WealthFacts> Wealth { get; init; }
-    public Fact<IReadOnlyList<PenGrazing>> Pens { get; init; }
+    public Fact<EquatableArray<PenGrazing>> Pens { get; init; }
     public Fact<FoodPlan> Food { get; init; }
 
     /// <summary>Races a trader offers or a quest rewards now; they count as obtainable (the buying and reward hooks).</summary>
     public IReadOnlyList<Resource> Offers { get; init; } = [];
 
     /// <summary>The colony's pawn profiles; an unread roster plans no leveling.</summary>
-    public Fact<IReadOnlyList<PawnProfile>> Handlers { get; init; }
+    public Fact<EquatableArray<PawnProfile>> Handlers { get; init; }
 }
 
 /// <summary>
@@ -395,7 +395,7 @@ public static partial class PolicyFunctions
                 s = new HerdRaceStats();
                 stats[a.Definition] = s;
                 order.Add(a.Definition);
-                var (race, _) = input.Races.Race(a.Definition);
+                _ = input.Races.Race(a.Definition, out var race);
                 s.Race = race;
             }
             s.N++;
@@ -465,7 +465,7 @@ public static partial class PolicyFunctions
             preferred.Add(jp.Target);
             HerdKeep(keeps, jp.Target, job);
             var target = stats.GetValueOrDefault(jp.Target) ?? new HerdRaceStats();
-            var (targetRace, _) = input.Races.Race(jp.Target);
+            _ = input.Races.Race(jp.Target, out var targetRace);
             var (perTarget, _, _) = HerdPerAdult(job, targetRace);
             var demand = target.Capacity.GetValueOrDefault(job);
             var others = 0.0;
@@ -653,13 +653,13 @@ public static partial class PolicyFunctions
         var gap = false;
         foreach (var (def, heads) in targets)
         {
-            var (race, _) = input.Races.Race(def);
+            _ = input.Races.Race(def, out var race);
             var known = race.MinimumHandlingSkill.TryGetValue(out var minimum);
             if (!known || (stats.TryGetValue(def, out var owned) && owned.N >= heads))
             {
                 continue;
             }
-            var (_, handled) = TamerFor(profiles, minimum);
+            var handled = TamerFor(profiles, minimum) is not null;
             if (!handled)
             {
                 gap = true;
@@ -673,15 +673,15 @@ public static partial class PolicyFunctions
         var best = none;
         var bestSkill = 0;
         var bestWild = 0.0;
-        foreach (var a in wild ?? [])
+        foreach (var a in wild)
         {
             if (!a.Tameable.TryGetValue(out var tameable) || !tameable || HerdDangerous(a))
             {
                 continue;
             }
-            var (race, _) = input.Races.Race(a.Definition);
+            _ = input.Races.Race(a.Definition, out var race);
             var known = race.MinimumHandlingSkill.TryGetValue(out var minimum);
-            var (_, handled) = TamerFor(profiles, minimum);
+            var handled = TamerFor(profiles, minimum) is not null;
             if (!known || !handled)
             {
                 continue;
@@ -751,7 +751,7 @@ public static partial class PolicyFunctions
             @out.Add(def);
         }
         input.Wild.TryGetValue(out var wild);
-        foreach (var a in wild ?? [])
+        foreach (var a in wild)
         {
             if (a.Tameable.TryGetValue(out var tameable) && tameable && !HerdDangerous(a))
             {
@@ -784,9 +784,9 @@ public static partial class PolicyFunctions
         var @out = new HashSet<Resource>();
         foreach (var def in obtainable)
         {
-            var (race, _) = input.Races.Race(def);
+            _ = input.Races.Race(def, out var race);
             var known = race.MinimumHandlingSkill.TryGetValue(out var minimum);
-            var (_, handled) = TamerFor(profiles ?? [], minimum);
+            var handled = TamerFor(profiles, minimum) is not null;
             if (owned.ContainsKey(def) || (known && handled))
             {
                 @out.Add(def);
@@ -796,12 +796,12 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Orders the obtainable races able to hold the job.</summary>
-    private static IReadOnlyList<Resource> HerdRank(HerdJob job, AnimalRaceCatalog catalog, HashSet<Resource> obtainable)
+    private static List<Resource> HerdRank(HerdJob job, AnimalRaceCatalog catalog, HashSet<Resource> obtainable)
     {
         var rows = new List<(Resource Def, double Score, int Skill)>();
         foreach (var def in obtainable)
         {
-            var (race, ok) = catalog.Race(def);
+            var ok = catalog.Race(def, out var race);
             if (!ok)
             {
                 continue;

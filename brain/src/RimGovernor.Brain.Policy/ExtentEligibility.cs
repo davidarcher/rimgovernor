@@ -9,7 +9,7 @@ public sealed record ExtentEligibilityRequest
 {
     public Fact<ColonyExtent> Extent { get; init; }
 
-    public Fact<IReadOnlyList<string>> Facilities { get; init; }
+    public Fact<EquatableArray<string>> Facilities { get; init; }
 
     public Fact<bool> Threat { get; init; }
 
@@ -66,7 +66,7 @@ public static partial class PolicyFunctions
         }
         var reason = e.Regions.Count == 0 ? "extent_empty" : "";
         var fk = r.Facilities.TryGetValue(out var facilities);
-        var active = new HashSet<string>(facilities ?? [], StringComparer.Ordinal);
+        var active = new HashSet<string>(facilities, StringComparer.Ordinal);
         var rows = new List<ExtentRegionEligibility>();
         for (var i = 0; i < e.Regions.Count; i++)
         {

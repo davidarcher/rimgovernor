@@ -61,7 +61,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            if (CaravanDeparture.TryCreate(trip.PawnIds, [], route.Tile, out var departure))
+            if (CaravanDeparture.TryCreate(trip.PawnIds.Select(p => (Domain.PawnId)p), [], route.Tile, out var departure))
             {
                 return departure;
             }
@@ -158,7 +158,7 @@ public static partial class PolicyFunctions
         {
             return Fail(reason);
         }
-        if (!CaravanDeparture.TryCreate(extraction.Crew, cargo, route.Tile, out var departure))
+        if (!CaravanDeparture.TryCreate(extraction.Crew.Select(p => (Domain.PawnId)p), cargo, route.Tile, out var departure))
         {
             return Fail("cargo_invalid");
         }

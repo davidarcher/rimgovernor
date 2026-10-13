@@ -49,7 +49,7 @@ public sealed record AnimalAcquisition
     /// Prices one animal of race and gender, ageTicks old: the milk and eggs it gives net of feed, else its
     /// meat. Not ok when any fact it needs is unread.
     /// </summary>
-    internal bool Yield(AnimalRace race, string gender, double ageTicks, out AcquiredYield result)
+    internal static bool Yield(AnimalRace race, string gender, double ageTicks, out AcquiredYield result)
     {
         result = default;
         if (!race.AdultFeedPerDay.TryGetValue(out var feed) || !FoodNumber(feed))
@@ -180,7 +180,7 @@ public static partial class PolicyFunctions
             (a, b) =>
             {
                 double va = AcquisitionValue(a), vb = AcquisitionValue(b);
-                return va != vb ? va > vb : string.CompareOrdinal(a.ID, b.ID) < 0;
+                return va != vb ? va > vb : string.CompareOrdinal(a.Id, b.Id) < 0;
             }
         );
         var output = new List<SupplyCandidate>();
@@ -252,12 +252,12 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            if (!TamerFor(profiles, minimum, out _))
+            if (TamerFor(profiles, minimum) is null)
             {
                 continue;
             }
 
-            if (!input.Yield(race, a.Gender, years * GameTime.DaysPerYear * GameTime.TicksPerDay, out var y))
+            if (!AnimalAcquisition.Yield(race, a.Gender, years * GameTime.DaysPerYear * GameTime.TicksPerDay, out var y))
             {
                 continue;
             }
@@ -266,7 +266,7 @@ public static partial class PolicyFunctions
             race.ManhunterOnTameFail.TryGetValue(out var manhunter);
             var c = y.Channel(
                 CandidateKind.Tame,
-                "tame:" + a.ID,
+                "tame:" + a.Id,
                 attempts * ((AnimalInteractionTalks * (double)talk) + ((double)feeds * feedTicks)),
                 [new CandidateTerm("expected_attempts", attempts), new CandidateTerm("talk_toils_per_attempt", AnimalInteractionTalks)]
             );
@@ -312,7 +312,7 @@ public static partial class PolicyFunctions
                     continue;
                 }
 
-                if (!input.Yield(race, row.Gender, double.PositiveInfinity, out var y))
+                if (!AnimalAcquisition.Yield(race, row.Gender, double.PositiveInfinity, out var y))
                 {
                     continue;
                 }
@@ -347,15 +347,15 @@ public static partial class PolicyFunctions
         var hk = handlers.TryGetValue(out var profiles);
         if (!pk || !rk || !fk || !hk)
         {
-            return new HusbandryChoice { Reason = HusbandryReason.Unknown };
+            return new HusbandryChoice { Reason = HusbandryPlanReason.Unknown };
         }
 
         if (short_)
         {
-            return new HusbandryChoice { Reason = HusbandryReason.NoDeficit };
+            return new HusbandryChoice { Reason = HusbandryPlanReason.NoDeficit };
         }
 
-        foreach (var e in p.Portfolio)
+        foreach (var e in p!.Portfolio)
         {
             if (e.Channel.Kind != CandidateKind.Tame || e.Decision != FoodPlanDecision.Open)
             {
@@ -365,17 +365,17 @@ public static partial class PolicyFunctions
             foreach (var a in rows)
             {
                 a.MinimumHandlingSkill.TryGetValue(out var minimum);
-                if (TamerFor(profiles, minimum, out _) && e.Channel.ID == "tame:" + a.ID)
+                if (TamerFor(profiles, minimum) is not null && e.Channel.Id == "tame:" + a.Id)
                 {
                     if (a.Tame.TryGetValue(out var designated) && !designated)
                     {
-                        return new HusbandryChoice { Animal = a.ID, Method = HusbandryMethod.Tame };
+                        return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.Tame };
                     }
                 }
             }
         }
 
-        return new HusbandryChoice { Reason = HusbandryReason.NoDeficit };
+        return new HusbandryChoice { Reason = HusbandryPlanReason.NoDeficit };
     }
 
     /// <summary>The animals the plan opened to buy from trader, as the wants SelectAnimalPurchase fills.</summary>
@@ -390,8 +390,8 @@ public static partial class PolicyFunctions
         foreach (var e in p.Portfolio)
         {
             var prefix = trader + "/";
-            var ok = e.Channel.ID.StartsWith(prefix, StringComparison.Ordinal);
-            var rest = ok ? e.Channel.ID[prefix.Length..] : e.Channel.ID;
+            var ok = e.Channel.Id.StartsWith(prefix, StringComparison.Ordinal);
+            var rest = ok ? e.Channel.Id[prefix.Length..] : e.Channel.Id;
             var slash = rest.IndexOf('/', StringComparison.Ordinal);
             var split = slash >= 0;
             var race = split ? rest[..slash] : rest;

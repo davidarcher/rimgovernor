@@ -55,7 +55,7 @@ public sealed class DispatchMemory
                 Widen[k] = Widen.GetValueOrDefault(k) + 1;
                 Shortfalls.Remove(k);
             }
-            else if (cal.Closed && cal.Short)
+            else if (cal.Closed && cal.IsShort)
             {
                 Shortfalls[k] = new UnmetThroughput { BenchKind = order.BenchKind, ShortPerDay = cal.ShortPerDay, Reason = cal.Reason };
             }
@@ -138,7 +138,7 @@ public static partial class PolicyFunctions
             {
                 if (bill.Spec.TryGetValue(out var spec) && !bill.Spent && spec.Key() == key)
                 {
-                    carrying.Add(b.ID);
+                    carrying.Add(b.Id);
                     if (!bill.Active.TryGetValue(out var active) || !active)
                     {
                         o = o with { Active = false };

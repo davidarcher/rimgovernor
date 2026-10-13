@@ -34,7 +34,7 @@ public static partial class PolicyFunctions
 {
     /// <summary>Tags id with its colony area; an unknown id is Department.Unknown.</summary>
     public static Department DepartmentOf(ConcernId id) =>
-        InspectionIndex.TryGetValue(id, out var entry) ? entry.Department : Department.Unknown;
+        InspectionRegistry.Index.TryGetValue(id, out var entry) ? entry.Department : Department.Unknown;
 
     /// <summary>
     /// The number of stockpile-zone creations one method of each Standard Concern that owns stores may carry.

@@ -51,7 +51,7 @@ public static partial class PolicyFunctions
         {
             pawns.Add(new PeaceTalksPawn { Id = row.Id, Social = row.SocialLevel, Leader = row.FactionLeader });
         }
-        var (diplomat, reason) = PeaceTalksNegotiator(offer, f, Known<IReadOnlyList<PeaceTalksPawn>>(pawns), risk.IdeologyActive);
+        var (diplomat, reason) = PeaceTalksNegotiator(offer, f, Known(EquatableArray.From(pawns)), risk.IdeologyActive);
         if (!reason.IsNone)
         {
             return Fail(reason);
@@ -79,7 +79,7 @@ public static partial class PolicyFunctions
     /// eligible; otherwise Social ranks candidates. Vanilla still chooses its diplomat by NegotiationAbility
     /// when the caravan arrives.
     /// </summary>
-    public static (PawnId Pawn, QuestSkipReason Reason) PeaceTalksNegotiator(JoinerOffer offer, RoundsFacts f, Fact<IReadOnlyList<PeaceTalksPawn>> pawns, Fact<bool> ideology)
+    public static (PawnId Pawn, QuestSkipReason Reason) PeaceTalksNegotiator(JoinerOffer offer, RoundsFacts f, Fact<EquatableArray<PeaceTalksPawn>> pawns, Fact<bool> ideology)
     {
         var known = pawns.TryGetValue(out var all);
         var ik = ideology.TryGetValue(out var ideo);

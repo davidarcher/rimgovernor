@@ -88,7 +88,7 @@ public static class SiteCellExtensions
 
 public static partial class PolicyFunctions
 {
-    internal static IReadOnlyList<Cell> SortedCells(IReadOnlyCollection<Cell> set)
+    internal static List<Cell> SortedCells(IReadOnlyCollection<Cell> set)
     {
         var result = set.ToList();
         result.Sort(LessComparer<Cell>(CellLess));

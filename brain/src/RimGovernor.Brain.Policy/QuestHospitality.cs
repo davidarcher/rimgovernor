@@ -115,7 +115,7 @@ public static partial class PolicyFunctions
                         {
                             previous = PreviousAssignment.KnownPrevious(target.PreviousBed);
                         }
-                        return work with { Assign = new Assign(target.Pawn, target.Available[0], previous) };
+                        return work with { Assign = new Assign((Domain.PawnId)target.Pawn, target.Available[0], previous) };
                     }
                 }
             }

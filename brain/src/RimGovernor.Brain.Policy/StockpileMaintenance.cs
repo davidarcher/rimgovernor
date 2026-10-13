@@ -102,7 +102,7 @@ public sealed record StockpileRequest
 
     public IReadOnlyList<SiteCell> Cells { get; init; } = [];
 
-    public Bounds Bounds { get; init; } = new();
+    public Bounds Bounds { get; init; }
 
     public IReadOnlyList<Cell> Protected { get; init; } = [];
 

@@ -75,7 +75,7 @@ public static partial class PolicyFunctions
             }
             try
             {
-                output.Add(PawnSettings.NewEatTriggerSetting(p.Id, want));
+                output.Add(PawnSettings.NewEatTriggerSetting((Domain.PawnId)p.Id, want));
             }
             catch (DomainException)
             {

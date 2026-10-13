@@ -179,7 +179,7 @@ public static partial class PolicyFunctions
     /// by ID, fill the places hour by hour back from sleep (wrapping past MaxJoyOffset). Unknown counts, no
     /// places at all, or enough places: no stagger.
     /// </summary>
-    private static IReadOnlyDictionary<PawnId, int> JoyOffsets(List<PawnId> ids, Fact<ComfortObservation> comfort)
+    private static Dictionary<PawnId, int> JoyOffsets(List<PawnId> ids, Fact<ComfortObservation> comfort)
     {
         var known = comfort.TryGetValue(out var v);
         var places = v?.Recreation.Count ?? 0;

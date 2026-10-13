@@ -23,7 +23,7 @@ public sealed record ClothingDemandInput
 {
     public EquatableArray<ClothingGarment> Garments { get; init; }
 
-    public IReadOnlyDictionary<Resource, EquatableArray<string>> Categories { get; init; } = new Dictionary<Resource, EquatableArray<string>>();
+    public IReadOnlyDictionary<Resource, IReadOnlyList<string>> Categories { get; init; } = new Dictionary<Resource, IReadOnlyList<string>>();
 
     public Fact<GearObservation> Gear { get; init; }
 
@@ -155,7 +155,7 @@ public static partial class PolicyFunctions
         var spare = new Dictionary<Resource, int>();
         if (gear.Stored.TryGetValue(out var stored))
         {
-            foreach (var s in stored.Items)
+            foreach (var s in stored)
             {
                 if (s.Serviceable())
                 {
@@ -164,7 +164,7 @@ public static partial class PolicyFunctions
             }
         }
 
-        foreach (var pawn in gear.Pawns.Items)
+        foreach (var pawn in gear.Pawns)
         {
             if (!pawn.LoadoutModel.TryGetValue(out var model))
             {
@@ -190,7 +190,8 @@ public static partial class PolicyFunctions
                     continue;
                 }
 
-                if (!GearFilter(g.Slots, worn.Stuff, input.Categories, out var filter))
+                var filter = GearFilter(g.Slots, worn.Stuff, input.Categories);
+                if (filter is null)
                 {
                     continue;
                 }
@@ -238,14 +239,14 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Two stuffs that are the same or share a catalog category.</summary>
-    private static bool SharesCategory(IReadOnlyDictionary<Resource, EquatableArray<string>> categories, Resource a, Resource b)
+    private static bool SharesCategory(IReadOnlyDictionary<Resource, IReadOnlyList<string>> categories, Resource a, Resource b)
     {
         if (a == b)
         {
             return true;
         }
 
-        return categories.TryGetValue(a, out var ca) && categories.TryGetValue(b, out var cb) && ca.Items.Any(c => cb.Items.Contains(c));
+        return categories.TryGetValue(a, out var ca) && categories.TryGetValue(b, out var cb) && ca.Any(c => cb.Contains(c));
     }
 
     /// <summary>
@@ -298,7 +299,7 @@ public static partial class PolicyFunctions
         return new SupplyCandidate
         {
             Kind = CandidateKind.Harvest,
-            ID = id,
+            Id = id,
             State = Known(CandidateState.Closed),
             Yields = EquatableArray.From(
                 [

@@ -65,7 +65,7 @@ public static partial class PolicyFunctions
                 {
                     return result with { Reason = "inspector_unavailable" };
                 }
-                var service = new RecoveryService(engine.EligiblePawns.Min(), engine.Id, DomainRecoveryMethod.InspectGravEngine);
+                var service = new RecoveryService((Domain.PawnId)engine.EligiblePawns.Min(), engine.Id, DomainRecoveryMethod.InspectGravEngine);
                 return result with { Service = service, Waiting = false };
             }
         }

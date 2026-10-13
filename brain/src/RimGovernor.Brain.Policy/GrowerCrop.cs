@@ -49,7 +49,7 @@ public static partial class PolicyFunctions
             var tk = g.SowTag.TryGetValue(out var tag);
             var ck = g.Crop.TryGetValue(out var current);
             var fk = g.Fertility.TryGetValue(out var fertility);
-            if (!Positive(g.CanSow) || !tk || tag!.Length == 0 || !ck || !fk || !FieldPositive(fertility) || g.ID.Length == 0)
+            if (!Positive(g.CanSow) || !tk || tag!.Length == 0 || !ck || !fk || !FieldPositive(fertility) || g.Id.Length == 0)
             {
                 continue;
             }
@@ -58,7 +58,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            @out.Add(new GrowerCropChoice { Grower = g.ID, Current = current!, Crop = ranking[0].Crop, Reason = ranking[0].Reason, Ranking = ranking });
+            @out.Add(new GrowerCropChoice { Grower = g.Id, Current = current!, Crop = ranking[0].Crop, Reason = ranking[0].Reason, Ranking = ranking });
         }
         return [.. @out.OrderBy(c => c.Grower, StringComparer.Ordinal)];
     }
@@ -88,7 +88,7 @@ public static partial class PolicyFunctions
             {
                 c = c with { Reason = "not an available edible crop" };
             }
-            else if (!ContainsString(tags!, tag))
+            else if (!tags!.Contains(tag))
             {
                 c = c with { Reason = "crop cannot be sown on this grower" };
             }

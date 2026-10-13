@@ -47,7 +47,7 @@ public static partial class PolicyFunctions
     /// The hold's gunners the detachment takes: the last flank-size ranged line roles in pawn order, or none
     /// when the hold is under the flank minimum or would keep fewer than flank-size on the line.
     /// </summary>
-    private static List<PawnId> FlankGunners(IReadOnlyList<CombatRole> roles, CombatTuning t)
+    private static List<PawnId> FlankGunners(EquatableArray<CombatRole> roles, CombatTuning t)
     {
         if (roles.Count < t.FlankMinDefenders)
         {
@@ -80,7 +80,7 @@ public static partial class PolicyFunctions
         }
 
         var ok = layout.Choke.TryGetValue(out var choke);
-        var (v, vok) = TowardVector(layout.Toward);
+        var vok = TowardVector(layout.Toward, out var v);
         if (!ok || !vok)
         {
             return null;
@@ -206,7 +206,7 @@ public static partial class PolicyFunctions
         view.Layout.TryGetValue(out var layout);
         layout ??= new CombatLayout();
         layout.Choke.TryGetValue(out var choke);
-        var (v, _) = TowardVector(layout.Toward);
+        _ = TowardVector(layout.Toward, out var v);
         int Project(Cell c) => ((c.X - choke.X) * v.X) + ((c.Z - choke.Z) * v.Z);
         var deepest = Project(f.Cells[0]);
         foreach (var c in f.Cells.Skip(1))
@@ -240,7 +240,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>A hold-fire order for each waiting flanker not held yet.</summary>
-    private static List<CombatOrder> FlankHoldFire(CombatView view, ISet<PawnId> orderable, CombatMemory m)
+    private static List<CombatOrder> FlankHoldFire(CombatView view, HashSet<PawnId> orderable, CombatMemory m)
     {
         var output = new List<CombatOrder>();
         var f = m.Flank;

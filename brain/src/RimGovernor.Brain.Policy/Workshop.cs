@@ -45,7 +45,7 @@ public sealed record WorkshopRequest
 {
     public Resource Resource { get; init; }
 
-    public Fact<IReadOnlyList<GearBench>> Benches { get; init; }
+    public Fact<EquatableArray<GearBench>> Benches { get; init; }
 
     public IReadOnlyList<RecipeHost> Hosts { get; init; } = [];
 
@@ -159,7 +159,7 @@ public static partial class PolicyFunctions
     /// <summary>Lists every bench definition hosting any recipe for the resource, research-gated ones included, so the census can report which projects each is waiting on.</summary>
     public static IReadOnlyList<string> WorkshopResearchCandidates(Resource resource, IReadOnlyList<RecipeHost> hosts) => WorkshopCandidates(resource, hosts, true);
 
-    private static IReadOnlyList<string> WorkshopCandidates(Resource resource, IReadOnlyList<RecipeHost> hosts, bool gated)
+    private static List<string> WorkshopCandidates(Resource resource, IReadOnlyList<RecipeHost> hosts, bool gated)
     {
         var seen = new HashSet<string>();
         var output = new List<string>();

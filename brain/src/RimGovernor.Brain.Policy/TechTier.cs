@@ -18,7 +18,7 @@ public enum TechTier
 public static partial class PolicyFunctions
 {
     /// <summary>Orders the native TechLevel names a faction def carries; Undefined and anything unrecognised rank unknown.</summary>
-    private static readonly IReadOnlyDictionary<string, int> TechLevelRank = new Dictionary<string, int>(StringComparer.Ordinal)
+    private static readonly Dictionary<string, int> TechLevelRank = new Dictionary<string, int>(StringComparer.Ordinal)
     {
         ["Animal"] = 1,
         ["Neolithic"] = 2,
@@ -45,17 +45,17 @@ public static partial class PolicyFunctions
     /// Unknown research or an unknown faction level is an unknown fact; the tier never advances on unknown
     /// inputs, and consumers treat unknown as Camp.
     /// </summary>
-    public static Fact<TechTier> SelectTechTier(Fact<IReadOnlyList<ResearchProjectId>> finished, Fact<string> factionLevel) =>
+    public static Fact<TechTier> SelectTechTier(Fact<EquatableArray<ResearchProjectId>> finished, Fact<string> factionLevel) =>
         TechTierOf(finished, factionLevel).Tier;
 
     /// <summary>
     /// Names the condition that satisfied the selected tier (a research project, or "faction &lt;level&gt;" for
     /// a floor); empty for Camp or an unknown tier.
     /// </summary>
-    public static string TechTierEvidence(Fact<IReadOnlyList<ResearchProjectId>> finished, Fact<string> factionLevel) =>
+    public static string TechTierEvidence(Fact<EquatableArray<ResearchProjectId>> finished, Fact<string> factionLevel) =>
         TechTierOf(finished, factionLevel).Evidence;
 
-    private static (Fact<TechTier> Tier, string Evidence) TechTierOf(Fact<IReadOnlyList<ResearchProjectId>> finished, Fact<string> factionLevel)
+    private static (Fact<TechTier> Tier, string Evidence) TechTierOf(Fact<EquatableArray<ResearchProjectId>> finished, Fact<string> factionLevel)
     {
         var known = finished.TryGetValue(out var projects);
         var levelKnown = factionLevel.TryGetValue(out var level);

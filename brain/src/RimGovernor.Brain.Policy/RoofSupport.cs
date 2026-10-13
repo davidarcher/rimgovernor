@@ -23,7 +23,7 @@ public sealed record RoofSupportGrid
 {
     public required Func<Cell, SiteCell?> Cell { get; init; }
 
-    public Rectangle Bounds { get; init; } = new();
+    public Rectangle Bounds { get; init; }
 
     public double Radius { get; init; }
 
@@ -76,8 +76,7 @@ public sealed record RoofSupportGrid
         {
             return false;
         }
-        var (t, ok) = row.Edifice();
-        return ok && t.Has(ThingFlags.HoldsRoof);
+        return row.EdificeOf() is { } t && t.Has(ThingMarks.HoldsRoof);
     }
 
     internal bool Within(Cell a, Cell b)
@@ -142,7 +141,7 @@ public sealed record RoofSupportGrid
             {
                 if (t.Id == b.Id && t.Category == ThingCategory.Building)
                 {
-                    holder = t.Has(ThingFlags.HoldsRoof);
+                    holder = t.Has(ThingMarks.HoldsRoof);
                 }
             }
             if (!holder)

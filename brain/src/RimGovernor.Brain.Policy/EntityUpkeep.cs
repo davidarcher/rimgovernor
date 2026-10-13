@@ -42,7 +42,7 @@ public static partial class PolicyFunctions
         var seen = new HashSet<Cell>();
         foreach (var h in holders)
         {
-            if (h.HeldPawn.IsEmpty)
+            if (h.HeldPawn.Length == 0)
             {
                 continue;
             }

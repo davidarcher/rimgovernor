@@ -288,7 +288,7 @@ public static partial class PolicyFunctions
         var inside = new HashSet<Cell>(RectCells(room.Region.Bounds()));
         foreach (var b in built)
         {
-            if (!need.Forbids(b.Building!.Definition()))
+            if (!need.Forbids(b.Building!.Definition))
             {
                 continue;
             }
@@ -367,7 +367,7 @@ public static partial class PolicyFunctions
             }
             foreach (var thing in need.Things)
             {
-                if (b.Building!.Definition() == thing)
+                if (b.Building!.Definition == thing)
                 {
                     return (b, true);
                 }
@@ -525,7 +525,7 @@ public static partial class PolicyFunctions
             var r = CellsRectangle(b.Cells);
             return new WantedPiece
             {
-                DefName = b.Building!.Definition(),
+                DefName = b.Building!.Definition,
                 Minimum = new Cell(r.X, r.Z),
                 Maximum = new Cell(r.X + r.Width - 1, r.Z + r.Height - 1),
             };
@@ -557,7 +557,7 @@ public static partial class PolicyFunctions
             var count = 0;
             foreach (var b in built)
             {
-                if (count < w.Count && b.Cells.Count > 0 && RectInside(room.Region.Bounds(), CellsRectangle(b.Cells)) && w.Things.Contains(b.Building!.Definition()))
+                if (count < w.Count && b.Cells.Count > 0 && RectInside(room.Region.Bounds(), CellsRectangle(b.Cells)) && w.Things.Contains(b.Building!.Definition))
                 {
                     template.Add(StandingPiece(b));
                     count++;
@@ -589,7 +589,7 @@ public static partial class PolicyFunctions
         var n = 0;
         foreach (var b in built)
         {
-            if (b.Cells.Count > 0 && RectInside(r.Region.Bounds(), CellsRectangle(b.Cells)) && things.Contains(b.Building!.Definition()))
+            if (b.Cells.Count > 0 && RectInside(r.Region.Bounds(), CellsRectangle(b.Cells)) && things.Contains(b.Building!.Definition))
             {
                 n++;
             }
@@ -618,7 +618,7 @@ public static partial class PolicyFunctions
         }
         return new Dictionary<string, RoomTarget>
         {
-            [standing.Id] = new RoomTarget { Room = standing.Id, Min = need.MinImpressiveness, Reasons = ["title"] },
+            [standing!.Id] = new RoomTarget { Room = standing.Id, Min = need.MinImpressiveness, Reasons = ["title"] },
         };
     }
 

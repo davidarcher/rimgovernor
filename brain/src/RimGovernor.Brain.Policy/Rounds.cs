@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 public sealed record RoundsPolicy
 {
-    public MedicalReservePolicy MedicalReserve { get; init; } = new();
+    public MedicalReservePolicy MedicalReserve { get; init; } = MedicalReservePolicy.Default();
 
     public FoodStoragePolicy FoodStorage { get; init; } = new();
 
@@ -109,7 +109,7 @@ public sealed record RoundsPolicy
         {
             throw new DomainException("invalid medicine reserve thresholds");
         }
-        if (!FoodStorage.Valid())
+        if (!FoodStorage.Valid)
         {
             throw new DomainException("invalid food storage thresholds");
         }
@@ -347,7 +347,7 @@ public sealed record RoundsFacts
     public EquatableArray<Resource> ExportProducts { get; init; }
 
     /// <summary>The part items a usable gear bench has a researched recipe for, read only while a medical pawn wants a part; the caravan assessment counts only parts no bench can make.</summary>
-    public IReadOnlyDictionary<Resource, bool>? FabricableParts { get; init; }
+    public IReadOnlySet<Resource>? FabricableParts { get; init; }
 
     public AnimalUpkeepObservation AnimalUpkeep { get; init; } = new();
 
@@ -821,9 +821,9 @@ public static partial class PolicyFunctions
     /// <summary>Supplies the routine inspection targets and budgets. Individual planners bound their orders; vanilla priorities schedule pawn work.</summary>
     public static RoundsPolicy DefaultRoundsPolicy() => new()
     {
-        MedicalReserve = DefaultMedicalReservePolicy(),
+        MedicalReserve = MedicalReservePolicy.Default(),
         FoodStorage = DefaultFoodStoragePolicy(),
-        Lighting = DefaultLightingPolicy(),
+        Lighting = LightingPolicy.Default(),
         Flooring = DefaultFlooringPolicy(),
         Routes = DefaultRoutesPolicy(),
         FoodMinDays = 3,
@@ -1086,8 +1086,8 @@ public static partial class PolicyFunctions
             MedicalReserve = c.Medicine.Active,
             FoodStorage = c.FoodStorage.Active,
             Refrigeration = c.Refrigeration.Active,
-            Lighting = c.Lighting.Dark,
-            Flooring = c.Flooring.Latched,
+            Lighting = EquatableArray.From(c.Lighting.Dark),
+            Flooring = EquatableArray.From(c.Flooring.Latched),
             Routes = c.Routes.Latched,
             Upkeep = c.Upkeep.History,
             Dash = DashLatch(f.Dash),
@@ -1101,12 +1101,11 @@ public static partial class PolicyFunctions
         c.R = new RoundsFindings { Latches = c.L with { } };
         c.Demand = ResourceDemandOf(f, p, c.L);
         c.R.ResourceDemand = c.Demand;
-        foreach (var d in Inspections)
+        foreach (var d in InspectionRegistry.Inspections)
         {
             int goals = c.R.Concerns.Count, assessments = c.R.Assessments.Count;
             d.Inspect(c);
-            var (n, noOp) = NoOpOf(d.Concern, c.R.Concerns.Skip(goals).ToList(), c.R.Assessments.Skip(assessments).ToList());
-            if (noOp)
+            if (NoOpOf(d.Concern, c.R.Concerns.Skip(goals).ToList(), c.R.Assessments.Skip(assessments).ToList()) is { } n)
             {
                 c.R.NoOps.Add(n);
             }
@@ -1292,4 +1291,10 @@ public sealed record ButcherBench
     public string Definition { get; init; } = "";
 
     public Fact<string> Room { get; init; }
+}
+
+public static partial class PolicyConstants
+{
+    /// <summary>The crafting spot def, as the constants class names it for the building runtime (the value lives with the rounds that stand it).</summary>
+    public const string CraftingSpotDefinition = PolicyFunctions.CraftingSpotDefinition;
 }

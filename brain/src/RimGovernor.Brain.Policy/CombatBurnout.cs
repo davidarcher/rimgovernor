@@ -427,7 +427,7 @@ public static partial class PolicyFunctions
     /// </summary>
     private static void BurnOut(CombatView view, CombatMemory m)
     {
-        var hiveIndex = view.Structures.Items.ToList().FindIndex(s => s.Hive());
+        var hiveIndex = view.Structures.Items.ToList().FindIndex(s => s.Hive);
         if (m.Tactic != CombatTactic.Infestation || hiveIndex < 0)
         {
             return;

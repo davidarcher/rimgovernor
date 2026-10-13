@@ -29,8 +29,8 @@ public static partial class PolicyFunctions
         {
             Region = RectRegion(new Rectangle(bounds.Z, bounds.X, bounds.Height, bounds.Width)),
             Door = TransposeCell(r.Door),
-            DoorRot = TransposeRot(r.DoorRot),
-            Facing = TransposeRot(r.Facing),
+            DoorRot = r.DoorRot is { } dr ? TransposeRot(dr) : null,
+            Facing = r.Facing is { } fc ? TransposeRot(fc) : null,
         };
     }
 

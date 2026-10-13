@@ -45,7 +45,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The review's NamesOwed fact: a rename is owed. An unknown census owes nothing.</summary>
-    public static Fact<bool> NamesOwed(Fact<IReadOnlyList<OwnedName>> names)
+    public static Fact<bool> NamesOwed(Fact<EquatableArray<OwnedName>> names)
     {
         if (!names.TryGetValue(out var rows))
         {

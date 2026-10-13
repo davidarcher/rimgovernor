@@ -86,7 +86,7 @@ public static partial class PolicyFunctions
             },
         };
         var advice = TileStations(f);
-        var plan = advice.Tiled.Plan;
+        var plan = advice.Tiled!.Plan;
         if (plan.Rooms.Count == 0)
         {
             return (Unknown<LayoutPlan>(), advice);
@@ -147,7 +147,7 @@ public static partial class PolicyFunctions
         f = f with { Plan = prev, Pinned = TilePinned(prev, growth) };
         f = ReplanTileFacts(f, s, geysers);
         var advice = TileStations(f);
-        var plan = advice.Tiled.Plan;
+        var plan = advice.Tiled!.Plan;
         if (plan.Rooms.Count == 0)
         {
             throw new ReplanEmptyException();
@@ -158,11 +158,11 @@ public static partial class PolicyFunctions
         plan = KeepHeld(prev, plan, growth);
         var (conduits, joined) = RejoinHeld(prev, tiled, plan, s);
         plan = plan with { Conduits = EquatableArray.From(conduits) };
-        advice.Tiled.ConduitDecisions = [.. advice.Tiled.ConduitDecisions, .. joined];
-        plan = plan with { RetiredGround = RetiredGround(prev, plan, f.Built) };
+        advice.Tiled!.ConduitDecisions.AddRange(joined);
+        plan = plan with { RetiredGround = RetiredGround(prev, plan, f!.Built!) };
         plan = plan with { Reservations = [.. plan.Reservations, .. CarriedSites(prev, plan)] };
         plan = PlanHerdSites(plan, animals, growth.HerdUnits);
-        plan = PlanPenSites(plan, growth.Grazing, growth.Pens);
+        plan = PlanPenSites(plan, growth!.Grazing!, growth.Pens);
         plan = PlanYardSites(plan, YardRoomsWanted(growth.Demand));
         return (LayPerimeter(prev, plan, s, growth.Perimeter).WithRoomIDs(), advice);
     }
@@ -330,7 +330,7 @@ public static partial class PolicyFunctions
         {
             var traffic = CheckRoutes(p);
             var busiest = 0;
-            foreach (var n in traffic.Values)
+            foreach (var n in traffic.Traffic.Values)
             {
                 busiest = Math.Max(busiest, n);
             }
@@ -411,7 +411,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Drops cells from the core candidates.</summary>
-    private static IReadOnlyList<LayoutZone> CoreWithout(IReadOnlyList<LayoutZone> zones, IReadOnlySet<Cell> cells)
+    private static IReadOnlyList<LayoutZone> CoreWithout(IReadOnlyList<LayoutZone> zones, HashSet<Cell> cells)
     {
         if (cells.Count == 0)
         {

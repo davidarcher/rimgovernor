@@ -20,7 +20,7 @@ public sealed record FieldCrop
 public static partial class PolicyFunctions
 {
     /// <summary>Go <c>FieldCoverage</c>.</summary>
-    public static Fact<double> FieldCoverage(Fact<long> colonists, Fact<IReadOnlyList<FieldCrop>> crops, double reserveDays)
+    public static Fact<double> FieldCoverage(Fact<long> colonists, Fact<EquatableArray<FieldCrop>> crops, double reserveDays)
     {
         if (!crops.TryGetValue(out var rows) || !FieldPositive(reserveDays))
         {

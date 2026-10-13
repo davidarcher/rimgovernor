@@ -14,11 +14,12 @@ public enum RockRole
 }
 
 /// <summary>One cell of a planned structure with its role.</summary>
-public sealed record RoleCell
+public sealed record RoleCell(Cell Cell, RockRole Role)
 {
-    public Cell Cell { get; init; }
-
-    public RockRole Role { get; init; }
+    public RoleCell()
+        : this(default, default)
+    {
+    }
 }
 
 /// <summary>The shared admission rock step's answer for one plan.</summary>

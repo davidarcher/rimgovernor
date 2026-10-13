@@ -118,7 +118,7 @@ public enum LedgerBillKind
 public sealed record ActualBill
 {
     /// <summary>The native bill identity and the key of the orphan counter.</summary>
-    public string ID { get; init; } = "";
+    public string Id { get; init; } = "";
 
     public string Bench { get; init; } = "";
 
@@ -139,7 +139,7 @@ public sealed record LedgerPlan
 
     public IReadOnlyList<ActualBill> Keep { get; init; } = [];
 
-    /// <summary>The next Round's counter state, keyed by ActualBill.ID; callers keep it in memory.</summary>
+    /// <summary>The next Round's counter state, keyed by ActualBill.Id; callers keep it in memory.</summary>
     public IReadOnlyDictionary<string, int> Orphans { get; init; } = new Dictionary<string, int>();
 
     /// <summary>The bills that stand for a wanted order (a split of Keep for the reader).</summary>
@@ -282,20 +282,20 @@ public static partial class PolicyFunctions
             {
                 keep.Add(b);
                 held.Add(b);
-                if (orphans.TryGetValue(b.ID, out var n))
+                if (orphans.TryGetValue(b.Id, out var n))
                 {
-                    nextOrphans[b.ID] = n;
+                    nextOrphans[b.Id] = n;
                 }
             }
             else
             {
-                var n = orphans.GetValueOrDefault(b.ID) + 1;
+                var n = orphans.GetValueOrDefault(b.Id) + 1;
                 if (n >= OrphanGraceRounds)
                 {
                     remove.Add(b);
                     continue;
                 }
-                nextOrphans[b.ID] = n;
+                nextOrphans[b.Id] = n;
                 keep.Add(b);
                 held.Add(b);
             }
@@ -345,11 +345,11 @@ public static partial class PolicyFunctions
             }
             foreach (var bill in bills)
             {
-                if (!bill.Spec.TryGetValue(out var spec) || bill.ID.Length == 0)
+                if (!bill.Spec.TryGetValue(out var spec) || bill.Id.Length == 0)
                 {
                     return ([], false);
                 }
-                output.Add(new ActualBill { ID = bill.ID, Bench = bench.ID, Kind = bill.Kind, Spec = spec, Spent = bill.Spent });
+                output.Add(new ActualBill { Id = bill.Id, Bench = bench.Id, Kind = bill.Kind, Spec = spec, Spent = bill.Spent });
             }
         }
         return (output, true);
@@ -373,25 +373,25 @@ public static partial class PolicyFunctions
         {
             if (b.Bills.TryGetValue(out var bills))
             {
-                load[b.ID] = bills.Count;
+                load[b.Id] = bills.Count;
                 foreach (var bill in bills)
                 {
                     if (bill.Spec.TryGetValue(out var spec) && !bill.Spent)
                     {
-                        carries.Add((b.ID, spec.Key()));
+                        carries.Add((b.Id, spec.Key()));
                     }
                 }
             }
             else
             {
-                load[b.ID] = 0;
+                load[b.Id] = 0;
             }
             if (b.WorkSpeed.TryGetValue(out var s))
             {
-                speed[b.ID] = s;
+                speed[b.Id] = s;
             }
         }
-        var sorted = benches.OrderBy(b => b.ID, StringComparer.Ordinal).ToList();
+        var sorted = benches.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
 
         // A plan carries one bill per bench and claim recipe (the store's rule), so a second order of the same recipe
         // takes another bench or waits a Round.
@@ -412,13 +412,13 @@ public static partial class PolicyFunctions
             }
             foreach (var b in sorted)
             {
-                if (b.Def != order.BenchKind || load.GetValueOrDefault(b.ID) >= LedgerBenchSlots || taken.Contains((b.ID, claim)) || carries.Contains((b.ID, order.Key())) || !BenchOffers(b, order.Recipe))
+                if (b.Def != order.BenchKind || load.GetValueOrDefault(b.Id) >= LedgerBenchSlots || taken.Contains((b.Id, claim)) || carries.Contains((b.Id, order.Key())) || !BenchOffers(b, order.Recipe))
                 {
                     continue;
                 }
-                if (best is null || FasterBench(speed, load, b.ID, best))
+                if (best is null || FasterBench(speed, load, b.Id, best))
                 {
-                    best = b.ID;
+                    best = b.Id;
                 }
             }
             if (best is null)

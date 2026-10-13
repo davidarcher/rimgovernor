@@ -97,7 +97,7 @@ internal sealed record BuildGround
             {
                 soil[c.Cell] = SoilCostRich;
             }
-            else if (c.Fertility >= ZoneFieldFertility)
+            else if (c.Fertility >= PolicyFunctions.ZoneFieldFertility)
             {
                 soil[c.Cell] = SoilCostNormal;
             }

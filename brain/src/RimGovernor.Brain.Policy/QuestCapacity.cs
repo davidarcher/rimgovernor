@@ -166,7 +166,7 @@ public static partial class PolicyFunctions
                     return result with { Reason = "hauler_unavailable" };
                 }
                 var actor = request.EligiblePawnIds.Min();
-                var intent = new GiveItem(actor, request.Recipient, request.Def, remaining);
+                var intent = new GiveItem((Domain.PawnId)actor, (Domain.PawnId)request.Recipient, request.Def, remaining);
                 return result with { Gift = intent, Waiting = false };
             }
             if (!seen)
@@ -182,12 +182,12 @@ public static partial class PolicyFunctions
     /// Uses the roster's intended assignments, including changes that have not been applied yet. Sole primary
     /// owners of essential work stay home.
     /// </summary>
-    public static Fact<IReadOnlyList<PawnId>> QuestSpareColonists<TWorkers, TMood>(Fact<TWorkers> workers, Fact<TMood> mood, WorkDecision roster)
+    public static Fact<EquatableArray<PawnId>> QuestSpareColonists<TWorkers, TMood>(Fact<TWorkers> workers, Fact<TMood> mood, WorkDecision roster)
         where TWorkers : IReadOnlyList<WorkPawn>
         where TMood : IReadOnlyList<MoodPawn>
     {
         var (spare, _, known) = QuestRosterSplit(workers, mood, roster);
-        return known ? Known<IReadOnlyList<PawnId>>(spare) : Unknown<IReadOnlyList<PawnId>>();
+        return known ? Known(EquatableArray.From(spare)) : Unknown<EquatableArray<PawnId>>();
     }
 
     /// <summary>

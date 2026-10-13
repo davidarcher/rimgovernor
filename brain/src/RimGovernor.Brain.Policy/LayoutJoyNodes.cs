@@ -151,8 +151,8 @@ public static partial class PolicyFunctions
     internal static double AwakeShare()
     {
         var slots = ScheduleTemplate(new TraitEffects());
-        var awake = slots.Count(s => s != ScheduleSlot.Sleep);
-        return (double)awake / slots.Count;
+        var awake = slots.Count(s => s != PolicyConstants.ScheduleSleep);
+        return (double)awake / slots.Length;
     }
 }
 

@@ -22,7 +22,7 @@ public enum ThingFaction : byte
 
 /// <summary>A Thing's predicate bitset.</summary>
 [Flags]
-public enum ThingFlags : uint
+public enum ThingMarks : uint
 {
     None = 0,
     Edifice = 1 << 0,
@@ -96,7 +96,7 @@ public sealed record Thing
 
     public ThingFaction Faction { get; init; }
 
-    public ThingFlags Flags { get; init; }
+    public ThingMarks Flags { get; init; }
 
     public ulong Id { get; init; }
 
@@ -120,18 +120,18 @@ public sealed record Thing
     public string LoadId() => "Thing_" + Def + Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>Reports whether every flag in f is set.</summary>
-    public bool Has(ThingFlags f) => (Flags & f) == f;
+    public bool Has(ThingMarks f) => (Flags & f) == f;
 }
 
 public static partial class PolicyFunctions
 {
-    private const ThingFlags OccupyingFlags = ThingFlags.Edifice | ThingFlags.Blueprint | ThingFlags.Frame;
+    private const ThingMarks OccupyingFlags = ThingMarks.Edifice | ThingMarks.Blueprint | ThingMarks.Frame;
 
-    private static Thing? EdificeOf(this SiteCell c)
+    internal static Thing? EdificeOf(this SiteCell c)
     {
         foreach (var t in c.Things)
         {
-            if (t.Has(ThingFlags.Edifice))
+            if (t.Has(ThingMarks.Edifice))
             {
                 return t;
             }
@@ -153,7 +153,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Reports the cell's edifice is natural rock: a planned ring on it keeps it as wall; inside the room plan dig mines it.</summary>
-    public static bool NaturalRock(this SiteCell c) => c.EdificeOf() is { } t && t.Has(ThingFlags.NaturalRock);
+    public static bool NaturalRock(this SiteCell c) => c.EdificeOf() is { } t && t.Has(ThingMarks.NaturalRock);
 
     /// <summary>The cell with its occupying things (edifice, blueprints, frames) removed, for offering ground as unoccupied whatever the census says of it.</summary>
     public static SiteCell Cleared(this SiteCell c) =>
@@ -165,11 +165,11 @@ public static partial class PolicyFunctions
 
     /// <summary>Reports an unowned edifice the player may deconstruct, outside any ancient danger.</summary>
     public static bool Ruin(this SiteCell c) =>
-        c.EdificeOf() is { } t && t.Faction != ThingFaction.Player && t.Has(ThingFlags.Deconstructible) && !t.Has(ThingFlags.AncientDanger);
+        c.EdificeOf() is { } t && t.Faction != ThingFaction.Player && t.Has(ThingMarks.Deconstructible) && !t.Has(ThingMarks.AncientDanger);
 
     /// <summary>Names the definition of a ruin the player may claim, empty for none: a ring of that wall kind claims it and keeps it as wall instead of clearing it.</summary>
     public static string ClaimableRuin(this SiteCell c) =>
-        c.EdificeOf() is { } t && c.Ruin() && t.Has(ThingFlags.Claimable) ? t.Def : "";
+        c.EdificeOf() is { } t && c.Ruin() && t.Has(ThingMarks.Claimable) ? t.Def : "";
 
     /// <summary>
     /// The hold on the unowned building covering the cell that a claim honours, empty for none:
@@ -182,11 +182,11 @@ public static partial class PolicyFunctions
         foreach (var t in c.Things)
         {
             if (t.Category != ThingCategory.Building || t.Faction == ThingFaction.Player || t.Building is null
-                || t.Has(ThingFlags.Blueprint) || t.Has(ThingFlags.Frame))
+                || t.Has(ThingMarks.Blueprint) || t.Has(ThingMarks.Frame))
             {
                 continue;
             }
-            if (t.Has(ThingFlags.AncientDanger))
+            if (t.Has(ThingMarks.AncientDanger))
             {
                 return "ancient_danger";
             }

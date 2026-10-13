@@ -24,7 +24,7 @@ public static partial class PolicyFunctions
         var humanlike = new Dictionary<PawnId, bool>();
         foreach (var t in view.Threats)
         {
-            humanlike[new PawnId(t.Id)] = Positive(t.Humanlike);
+            humanlike[t.Id] = Positive(t.Humanlike);
         }
         var diggers = new List<CombatPawnState>();
         foreach (var h in LiveSappers(view))

@@ -183,7 +183,13 @@ public enum EmergencyReason
 
 public readonly record struct EmergencyHold(EmergencyReason Reason, PawnId Pawn);
 
-public sealed record EmergencyDecision(bool Clear, IReadOnlyList<EmergencyHold> Holds);
+public sealed record EmergencyDecision(bool Clear, IReadOnlyList<EmergencyHold> Holds)
+{
+    /// <summary>The zero value Go's struct literal starts from.</summary>
+    public EmergencyDecision() : this(false, [])
+    {
+    }
+}
 
 /// <summary>Go <c>EmergencySnapshot</c>: owns its inputs and carries no mutation or authority API.</summary>
 public sealed record EmergencySnapshot

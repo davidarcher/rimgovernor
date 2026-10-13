@@ -9,9 +9,9 @@ public static partial class PolicyFunctions
     /// Claims, Home and GrowingZones; field siting protects these cells so new fields never take the ring.
     /// Throws where Go returned an error.
     /// </summary>
-    public static Fact<IReadOnlyList<Cell>> FirebreakRing(FirebreakRequest r)
+    public static Fact<EquatableArray<Cell>> FirebreakRing(FirebreakRequest r)
     {
-        var unknown = Unknown<IReadOnlyList<Cell>>();
+        var unknown = Unknown<EquatableArray<Cell>>();
         var bk = r.Bounds.TryGetValue(out var bounds);
         var zk = r.GrowingZones.TryGetValue(out var zones);
         if (!bk || !zk)
@@ -45,6 +45,6 @@ public static partial class PolicyFunctions
         }
         var cells = band.ToList();
         cells.Sort((a, b) => ExtentCellLess(a, b) ? -1 : ExtentCellLess(b, a) ? 1 : 0);
-        return Known<IReadOnlyList<Cell>>(cells);
+        return Known(EquatableArray.From(cells));
     }
 }

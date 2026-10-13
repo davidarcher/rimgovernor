@@ -31,7 +31,7 @@ public sealed record StationFacts
     public Fact<long> Colonists { get; init; }
 
     /// <summary>Patients and Surgical size the hospital ward as SelectHospitalBed does.</summary>
-    public Fact<IReadOnlyList<CarePawn>> Patients { get; init; }
+    public Fact<EquatableArray<CarePawn>> Patients { get; init; }
 
     public IReadOnlyList<PawnId> Surgical { get; init; } = [];
 
@@ -48,13 +48,13 @@ public sealed record StationFacts
     public Fact<PastureTable> Pasture { get; init; }
 
     /// <summary>Says who is a baby.</summary>
-    public Fact<IReadOnlyList<WorkPawn>> WorkPawns { get; init; }
+    public Fact<EquatableArray<WorkPawn>> WorkPawns { get; init; }
 
     /// <summary>The colonists' food census; its consumers' rates sum to the nutrition a day.</summary>
     public Fact<FoodSupply> Food { get; init; }
 
     /// <summary>The work ledger's wanted orders.</summary>
-    public Fact<IReadOnlyList<OrderSpec>> Orders { get; init; }
+    public Fact<EquatableArray<OrderSpec>> Orders { get; init; }
 
     /// <summary>The resource demand's stock levels (DerivedDemand.Needs).</summary>
     public Fact<IReadOnlyDictionary<Resource, long>> Stock { get; init; }
@@ -75,7 +75,7 @@ public sealed record StationFacts
     public MapSurvey Survey { get; init; } = default!;
 
     /// <summary>The seasonal outdoor temperature curve (twelve means, C); the climate advice needs it and the catalog's full-rot temperature and is left off while either is unknown.</summary>
-    public Fact<IReadOnlyList<double>> OutdoorCurve { get; init; }
+    public Fact<EquatableArray<double>> OutdoorCurve { get; init; }
 
     public double FullRotRateC { get; init; }
 

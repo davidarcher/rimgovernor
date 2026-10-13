@@ -17,7 +17,7 @@ public sealed record MedicineStackRow
 public sealed record MedicalReserveObservation
 {
     public Fact<long> Colonists { get; init; }
-    public Fact<IReadOnlyList<MedicineStackRow>> Items { get; init; }
+    public Fact<EquatableArray<MedicineStackRow>> Items { get; init; }
 
     /// <summary>The complete usable native stock census, excluding inaccessible and forbidden stock. It is capped again against the actual medicine stacks.</summary>
     public Fact<EquatableArray<Amount>> Resources { get; init; }
@@ -77,7 +77,7 @@ public sealed record MedicinePlanningRequest
     public MedicalReserveReview Review { get; init; } = new();
     public Resource Resource { get; init; }
     public IReadOnlyList<MethodId> Seen { get; init; } = [];
-    public Fact<IReadOnlyList<GearBench>> Benches { get; init; }
+    public Fact<EquatableArray<GearBench>> Benches { get; init; }
 }
 
 /// <summary>Ports <c>medical_reserve.go</c>.</summary>
@@ -218,7 +218,7 @@ public static partial class PolicyFunctions
             return new MedicineMethod { Kind = MedicineMethodKind.Unknown };
         }
         ValidateGearProduction(benchRows);
-        var benches = benchRows.OrderBy(b => b.ID, StringComparer.Ordinal).ToList();
+        var benches = benchRows.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
         foreach (var b in benches)
         {
             if (!b.Bills.TryGetValue(out var bills))
@@ -267,7 +267,7 @@ public static partial class PolicyFunctions
                 {
                     return new MedicineMethod { Kind = MedicineMethodKind.Unknown };
                 }
-                var id = MedicineMethodId(r.Resource, b.ID, recipe.Definition);
+                var id = MedicineMethodId(r.Resource, b.Id, recipe.Definition);
                 if (seen.Contains(id))
                 {
                     return new MedicineMethod { Kind = MedicineMethodKind.Wait, Id = id };
@@ -276,7 +276,7 @@ public static partial class PolicyFunctions
                 {
                     Kind = MedicineMethodKind.Produce,
                     Id = id,
-                    Bench = b.ID,
+                    Bench = b.Id,
                     Recipe = recipe.Definition,
                     Resource = r.Resource,
                     Target = target,

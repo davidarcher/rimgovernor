@@ -337,7 +337,7 @@ public static partial class PolicyFunctions
     internal static FieldCandidate FieldCandidateFor(FieldRequest r, ViableCrop v, bool urgent)
     {
         var site = r.Site;
-        var sites = SitePick(site, v, s => SiteKnownFalse(s.Roofed) && (site.Fields is null || site.Fields.GetValueOrDefault(s.Cell)), null, false);
+        var sites = SitePick(site, v, s => SiteKnownFalse(s.Roofed) && (site.Fields is null || site.Fields.Contains(s.Cell)), null, false);
         var c = new FieldCandidate { Crop = v.Crop, Needed = v.Needed, Sites = sites, Urgent = urgent, Price = v.Price };
         if (sites.Cells == 0)
         {
@@ -406,13 +406,13 @@ public static partial class PolicyFunctions
         return string.CompareOrdinal(a.Crop.Name, b.Crop.Name) < 0;
     }
 
-    internal static (double Soil, bool Ok) FreeCropSoil(SiteCell cell, double minimum, IReadOnlySet<Cell> blocked)
+    internal static (double Soil, bool Ok) FreeCropSoil(SiteCell cell, double minimum, IReadOnlySet<Cell>? blocked)
     {
         var wk = cell.Walkable.TryGetValue(out var walk);
         var zk = cell.Zone.TryGetValue(out var zone);
         var rk = cell.Roofed.TryGetValue(out var roof);
         var fk = cell.Fertility.TryGetValue(out var soil);
-        return (soil, !blocked.Contains(cell.Cell) && wk && walk && !cell.Occupied() && zk && !zone && rk && !roof && fk && FoodNumber(soil) && soil >= minimum);
+        return (soil, (blocked is null || !blocked.Contains(cell.Cell)) && wk && walk && !cell.Occupied() && zk && !zone && rk && !roof && fk && FoodNumber(soil) && soil >= minimum);
     }
 
     /// <summary>

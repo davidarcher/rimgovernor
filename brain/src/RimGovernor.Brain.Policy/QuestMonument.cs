@@ -120,7 +120,7 @@ public static partial class PolicyFunctions
                     var hauler = resource.Haulers.Min();
                     try
                     {
-                        return step with { Kind = "haul", Haul = new Haul(hauler, resource.Id, resource.Def, resource.Cell) };
+                        return step with { Kind = "haul", Haul = new Haul((Domain.PawnId)hauler, resource.Id, resource.Def, resource.Cell) };
                     }
                     catch (DomainException)
                     {

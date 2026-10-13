@@ -89,7 +89,7 @@ public sealed record ItemFacts
     /// The stone block def a stone build uses: the one stock holds most of, ties by name (so the first by name
     /// when stock holds none). A catalog with no stone block def throws.
     /// </summary>
-    public Resource StoneBlock(IReadOnlyDictionary<Resource, long> stock)
+    public Resource StoneBlock(IReadOnlyDictionary<Resource, long>? stock)
     {
         Resource best = default;
         var found = false;
@@ -99,8 +99,8 @@ public sealed record ItemFacts
             {
                 continue;
             }
-            var have = stock.GetValueOrDefault(def);
-            var top = stock.GetValueOrDefault(best);
+            var have = stock?.GetValueOrDefault(def) ?? 0;
+            var top = stock?.GetValueOrDefault(best) ?? 0;
             if (!found || have > top || (have == top && string.CompareOrdinal(def.Value, best.Value) < 0))
             {
                 best = def;
@@ -116,6 +116,21 @@ public sealed record ItemFacts
     {
         DomainException.Require(Market.TryGetValue(def, out var v), $"the catalog has no market value for {def.Value}");
         return v;
+    }
+
+    /// <summary>The market value of def, false when the catalog has none (Go: the error return).</summary>
+    public bool TryMarketValue(Resource def, out double value) => Market.TryGetValue(def, out value);
+
+    /// <summary>The stuff score, false when the catalog has no such stuff or no market value for it (Go: the error return).</summary>
+    public bool TryStuffScore(Resource stuff, out double score)
+    {
+        if (StuffBeauty.TryGetValue(stuff, out var beauty) && Market.TryGetValue(stuff, out var value))
+        {
+            score = beauty * value;
+            return true;
+        }
+        score = 0;
+        return false;
     }
 
     /// <summary>Ranks a stuff by beauty factor times market value: the better the stuff for a room's beauty and wealth, the higher.</summary>
@@ -203,7 +218,13 @@ public static partial class PolicyConstants
 }
 
 /// <summary>One art recipe: the building it makes, the building's footprint, the stuff it takes and its work (the recipe's workAmount, else the product's WorkToMake).</summary>
-public sealed record Sculpture(string Recipe, string Def, Cell Size, long Cost, double Work);
+public sealed record Sculpture(string Recipe, string Def, Cell Size, long Cost, double Work)
+{
+    /// <summary>The zero value Go's struct literal starts from.</summary>
+    public Sculpture() : this("", "", default, 0, 0)
+    {
+    }
+}
 
 /// <summary>One drug def: the chemical it builds addiction to, whether the game files it as a social drug (IngestibleProperties.drugCategory) and whether it enhances combat (CompProperties_Drug.isCombatEnhancingDrug).</summary>
 public sealed record Drug(Resource Def, string Chemical, bool Social = false, bool Combat = false);

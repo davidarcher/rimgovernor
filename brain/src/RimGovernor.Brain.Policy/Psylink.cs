@@ -40,18 +40,18 @@ public static partial class PolicyFunctions
     /// without the royalty read or the pawn rows, and none when the game has no psylink neuroformer def.
     /// Sorted by id.
     /// </summary>
-    public static Fact<IReadOnlyList<PawnId>> PsylinkCandidates(Fact<RoyaltyFacts> royalty, Fact<IReadOnlyList<WorkPawn>> pawns)
+    public static Fact<EquatableArray<PawnId>> PsylinkCandidates(Fact<RoyaltyFacts> royalty, Fact<EquatableArray<WorkPawn>> pawns)
     {
         var rk = royalty.TryGetValue(out var facts);
         var pk = pawns.TryGetValue(out var rows);
         if (!rk || !pk)
         {
-            return Unknown<IReadOnlyList<PawnId>>();
+            return Unknown<EquatableArray<PawnId>>();
         }
         var output = new List<PawnId>();
         if (!facts!.Neuroformers.ContainsKey(PolicyConstants.PsylinkNeuroformer))
         {
-            return Known<IReadOnlyList<PawnId>>(output);
+            return Known(EquatableArray.From(output));
         }
         foreach (var pawn in rows!)
         {
@@ -64,7 +64,7 @@ public static partial class PolicyFunctions
             }
         }
         output.Sort();
-        return Known<IReadOnlyList<PawnId>>(output);
+        return Known(EquatableArray.From(output));
     }
 
     /// <summary>
@@ -75,18 +75,18 @@ public static partial class PolicyFunctions
     /// pawn rows, and none when the game has no psylink neuroformer def. Sorted by id. These colonists never
     /// raise NeuroformerNeeds: only existing stock serves them.
     /// </summary>
-    public static Fact<IReadOnlyList<PawnId>> PsylinkLevelUps(Fact<RoyaltyFacts> royalty, Fact<IReadOnlyList<WorkPawn>> pawns)
+    public static Fact<EquatableArray<PawnId>> PsylinkLevelUps(Fact<RoyaltyFacts> royalty, Fact<EquatableArray<WorkPawn>> pawns)
     {
         var rk = royalty.TryGetValue(out var facts);
         var pk = pawns.TryGetValue(out var rows);
         if (!rk || !pk)
         {
-            return Unknown<IReadOnlyList<PawnId>>();
+            return Unknown<EquatableArray<PawnId>>();
         }
         var output = new List<PawnId>();
         if (!facts!.Neuroformers.ContainsKey(PolicyConstants.PsylinkNeuroformer))
         {
-            return Known<IReadOnlyList<PawnId>>(output);
+            return Known(EquatableArray.From(output));
         }
         foreach (var pawn in rows!)
         {
@@ -99,7 +99,7 @@ public static partial class PolicyFunctions
             }
         }
         output.Sort();
-        return Known<IReadOnlyList<PawnId>>(output);
+        return Known(EquatableArray.From(output));
     }
 
     /// <summary>Reports whether the colonist holds a royal title with any faction.</summary>
@@ -112,7 +112,7 @@ public static partial class PolicyFunctions
     /// nothing: the colony never buys against an unread census. candidates are the first-psylink colonists
     /// only, never PsylinkLevelUps.
     /// </summary>
-    public static IReadOnlyDictionary<Resource, long> NeuroformerNeeds(IReadOnlyDictionary<Resource, long> needs, Fact<RoyaltyFacts> royalty, Fact<IReadOnlyList<PawnId>> candidates)
+    public static IReadOnlyDictionary<Resource, long> NeuroformerNeeds(IReadOnlyDictionary<Resource, long> needs, Fact<RoyaltyFacts> royalty, Fact<EquatableArray<PawnId>> candidates)
     {
         var rk = royalty.TryGetValue(out var facts);
         var ck = candidates.TryGetValue(out var who);
@@ -164,7 +164,7 @@ public static partial class PolicyFunctions
     /// item both exist. Unknown while the candidates or level-ups are unknown or a colonist waits on an unread
     /// item list; known false with no one waiting.
     /// </summary>
-    public static Fact<bool> PsylinkOwed(Fact<IReadOnlyList<PawnId>> candidates, Fact<IReadOnlyList<PawnId>> levelUps, Fact<IReadOnlyList<string>> items)
+    public static Fact<bool> PsylinkOwed(Fact<EquatableArray<PawnId>> candidates, Fact<EquatableArray<PawnId>> levelUps, Fact<EquatableArray<string>> items)
     {
         var ck = candidates.TryGetValue(out var first);
         var uk = levelUps.TryGetValue(out var up);

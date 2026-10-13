@@ -21,7 +21,7 @@ public sealed record FoodReserveReview
     public bool Emergency { get; init; }
 
     /// <summary>The runway without reserve food is under the seasonal minimum, so the reserve is food to eat, not insurance to keep.</summary>
-    public bool Short { get; init; }
+    public bool IsShort { get; init; }
 }
 
 /// <summary>
@@ -70,7 +70,7 @@ public static partial class PolicyFunctions
     /// stock. The caller supplies the selected home census. Throws <see cref="FoodFactsException"/> where Go
     /// returned ErrFoodFacts.
     /// </summary>
-    public static FoodReserveReview ReviewFoodReserve(FoodSupply supply, IReadOnlyList<PawnId>? selected, double reserveDays, double minimumDays, Fact<IReadOnlyList<double>> deliveryDays)
+    public static FoodReserveReview ReviewFoodReserve(FoodSupply supply, IReadOnlyList<PawnId>? selected, double reserveDays, double minimumDays, Fact<EquatableArray<double>> deliveryDays)
     {
         // Evaluate the runway without prospective reserve food too. Otherwise releasing the last reserve would
         // immediately make it eligible to hold again, alternating forbid writes while the colony is still short.
@@ -100,7 +100,7 @@ public static partial class PolicyFunctions
         var known = forecast.RunwayDays.TryGetValue(out var days);
         var complete = deliveryDays.TryGetValue(out var deliveries);
         var arriving = false;
-        foreach (var lead in deliveries ?? [])
+        foreach (var lead in deliveries)
         {
             if (!FoodNumber(lead))
             {
@@ -182,12 +182,12 @@ public static partial class PolicyFunctions
             Hold = hold,
             Release = release,
             Emergency = emergency,
-            Short = isShort,
+            IsShort = isShort,
         };
     }
 
     /// <summary>Go <c>ReserveBillRunning</c>: reports an active bill for a reserve product while the reserve is short: the product it makes needs game time, not another method.</summary>
-    public static bool ReserveBillRunning(Fact<IReadOnlyList<ProductionBench>> benches, FoodReserveReview reserve)
+    public static bool ReserveBillRunning(Fact<EquatableArray<ProductionBench>> benches, FoodReserveReview reserve)
     {
         if (!benches.TryGetValue(out var rows) || reserve.Emergency || !FieldPositive(reserve.DeficitNutrition))
         {
@@ -221,9 +221,9 @@ public static partial class PolicyFunctions
     /// bill is selected while the runway is short (the food is to be eaten, not cooked ahead). Matching bills are
     /// corrected under Auto; unrelated recipes are retained.
     /// </summary>
-    public static (BillSelection Selection, bool Ok) SelectReserveBill(Fact<IReadOnlyList<ProductionBench>> benches, FoodReserveReview reserve)
+    public static (BillSelection Selection, bool Ok) SelectReserveBill(Fact<EquatableArray<ProductionBench>> benches, FoodReserveReview reserve)
     {
-        if (!benches.TryGetValue(out var rows) || reserve.Emergency || reserve.Short || !FieldPositive(reserve.DeficitNutrition) || !FieldPositive(reserve.TargetNutrition))
+        if (!benches.TryGetValue(out var rows) || reserve.Emergency || reserve.IsShort || !FieldPositive(reserve.DeficitNutrition) || !FieldPositive(reserve.TargetNutrition))
         {
             return (new BillSelection(), false);
         }
@@ -264,7 +264,7 @@ public static partial class PolicyFunctions
         {
             var uk = bench.Usable.TryGetValue(out var usable);
             var tk = bench.Token.TryGetValue(out var token);
-            if (!uk || !usable || !tk || !FoodId(token!) || !FoodId(bench.ID) || bench.Butcher || bench.Bills.Count > 15)
+            if (!uk || !usable || !tk || !FoodId(token!) || !FoodId(bench.Id) || bench.Butcher || bench.Bills.Count > 15)
             {
                 continue;
             }
@@ -293,7 +293,7 @@ public static partial class PolicyFunctions
                 {
                     continue;
                 }
-                var selected = new BillSelection { Bench = bench.ID, Recipe = recipe.Name, Token = token!, Mode = BillMode.FoodTarget, Target = (int)target };
+                var selected = new BillSelection { Bench = bench.Id, Recipe = recipe.Name, Token = token!, Mode = BillMode.FoodTarget, Target = (int)target };
                 var exists = false;
                 var siblingBill = false;
                 foreach (var other in rows)
@@ -309,9 +309,9 @@ public static partial class PolicyFunctions
                             continue;
                         }
                         exists = true;
-                        if (other.ID == bench.ID && !BillAdequate(bill, selected) && FoodId(bill.ID) && (selected.Replace.Length == 0 || string.CompareOrdinal(bill.ID, selected.Replace) < 0))
+                        if (other.Id == bench.Id && !BillAdequate(bill, selected) && FoodId(bill.Id) && (selected.Replace.Length == 0 || string.CompareOrdinal(bill.Id, selected.Replace) < 0))
                         {
-                            selected = selected with { Replace = bill.ID };
+                            selected = selected with { Replace = bill.Id };
                         }
                     }
                 }

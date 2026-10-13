@@ -63,7 +63,7 @@ public sealed record TitleClaimFacts
 public static partial class PolicyFunctions
 {
     /// <summary>The rung a holding would claim next: the first rung above the held title (the first rung for none), false at the top of the ladder.</summary>
-    private static (RoyalRung Rung, bool Ok) NextClaim(IReadOnlyList<RoyalRung> ladder, string held)
+    private static (RoyalRung Rung, bool Ok) NextClaim(EquatableArray<RoyalRung> ladder, string held)
     {
         var next = 0;
         if (held.Length != 0)
@@ -173,7 +173,7 @@ public static partial class PolicyFunctions
         {
             return Known(true);
         }
-        if (!f.Impressiveness.TryGetValue(standing.Id, out var have))
+        if (!f.Impressiveness.TryGetValue(standing!.Id, out var have))
         {
             return Unknown<bool>();
         }

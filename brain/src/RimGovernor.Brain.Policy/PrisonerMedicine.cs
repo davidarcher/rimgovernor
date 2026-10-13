@@ -30,7 +30,7 @@ public static partial class PolicyFunctions
     /// is chosen or the choice is not blocked by care.
     /// </summary>
     public static OrganHarvest? CareLimitedHarvest(
-        Fact<IReadOnlyList<PrisonerFacts>> prisoners,
+        Fact<EquatableArray<PrisonerFacts>> prisoners,
         Fact<PrisonerColony> colony,
         IReadOnlyList<OrganNeed> needs,
         IReadOnlyList<OrganNeed> parts,
@@ -62,15 +62,15 @@ public static partial class PolicyFunctions
                     limited.Add(new CareOp(row.Pawn, recipe ?? "", part));
                 }
             }
-            relaxed.Add(row with { Operations = Known<IReadOnlyList<SurgeryOperation>>(copied) });
+            relaxed.Add(row with { Operations = Known(EquatableArray.From(copied)) });
         }
         if (limited.Count == 0)
         {
             return null;
         }
-        var relaxedFacts = Known<IReadOnlyList<PrisonerFacts>>(relaxed);
+        var relaxedFacts = Known(EquatableArray.From(relaxed));
         var h = SelectOrganHarvest(relaxedFacts, colony, needs, inFlight) ?? SelectPartRecovery(relaxedFacts, colony, parts, inFlight, facts);
-        return h is not null && limited.Contains(new CareOp(h.Prisoner, h.Recipe, h.Part)) ? h : null;
+        return h is not null && limited.Contains(new CareOp((PawnId)h.Prisoner, h.Recipe, h.Part)) ? h : null;
     }
 
     /// <summary>
@@ -87,7 +87,7 @@ public static partial class PolicyFunctions
                 stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
             }
         }
-        var sale = OrganNeeds(Unknown<IReadOnlyList<CarePawn>>(), [], Positive(silverShort), stock, f.Recipes);
+        var sale = OrganNeeds(Unknown<EquatableArray<CarePawn>>(), [], Positive(silverShort), stock, f.Recipes);
         if (CareLimitedHarvest(f.Prisoners, f.PrisonerColony, sale, [], null, f.Recipes) is null)
         {
             return needs;

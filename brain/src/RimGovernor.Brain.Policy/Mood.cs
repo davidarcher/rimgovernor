@@ -27,7 +27,7 @@ public sealed record MoodPawn
     public Fact<bool> PlayerForced { get; init; }
 
     /// <summary>The pawn's observed thought rows, negative and positive, most negative first; unknown when the native social block was unreadable. Consumers must be sign-aware.</summary>
-    public Fact<IReadOnlyList<MoodThought>> Thoughts { get; init; }
+    public Fact<EquatableArray<MoodThought>> Thoughts { get; init; }
 
     public void Validate()
     {
@@ -128,7 +128,7 @@ public sealed record MoodHistory
                     throw new DomainException("invalid mood unowned thought");
                 }
             }
-            PolicyFunctions.ValidateMoodThoughts(Known(s.Unowned));
+            PolicyFunctions.ValidateMoodThoughts(Known(EquatableArray.From(s.Unowned)));
             if (s.Provision.Count > 0 && s.Unowned.Count > 0)
             {
                 throw new DomainException("mood state both provisioned and unowned");
@@ -223,7 +223,7 @@ public static partial class PolicyFunctions
     private const double PsychicDroneEntryMargin = .15;
 
     /// <summary>The entry margin a pawn under a psychic drone gets: relief starts while the drone's offset would still leave the pawn above the minor-break threshold. Zero without the thought.</summary>
-    private static double PsychicDroneMargin(Fact<IReadOnlyList<MoodThought>> thoughts)
+    private static double PsychicDroneMargin(Fact<EquatableArray<MoodThought>> thoughts)
     {
         if (!thoughts.TryGetValue(out var rows))
         {
@@ -249,7 +249,7 @@ public static partial class PolicyFunctions
     /// Ports native-threshold and need hysteresis. Thought pressure is a present observation, never a prediction of
     /// a break or future mood benefit; a psychic drone thought widens the entry margin for its bearer alone.
     /// </summary>
-    public static MoodHistory ReviewMood(Fact<IReadOnlyList<MoodPawn>> observed, MoodHistory previous)
+    public static MoodHistory ReviewMood(Fact<EquatableArray<MoodPawn>> observed, MoodHistory previous)
     {
         previous.Validate();
         var old = new Dictionary<PawnId, MoodState>();

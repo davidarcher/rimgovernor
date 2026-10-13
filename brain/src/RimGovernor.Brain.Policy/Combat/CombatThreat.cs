@@ -157,7 +157,7 @@ public static partial class PolicyFunctions
         var tier = new Dictionary<PawnId, int>(view.Threats.Count);
         foreach (var t in view.Threats)
         {
-            var id = new PawnId(t.Id);
+            var id = t.Id;
             var s = state.TryGetValue(id, out var index) ? view.Pawns[index] : new CombatPawnState { Id = id };
             if (t.Building || Positive(t.Dead) || Positive(t.Downed) || s.Dead || s.Downed || HiddenFromPlayer(t))
             {
@@ -194,7 +194,7 @@ public static partial class PolicyFunctions
     {
         // An exploder near our pawns is never shot.
         var near = NearExploders(view);
-        var ranked = RankThreats(view).Where(h => !near.GetValueOrDefault(h.Id)).ToList();
+        var ranked = RankThreats(view).Where(h => !near.Contains(h.Id)).ToList();
         var live = new Dictionary<PawnId, CombatPawnState>();
         foreach (var h in ranked)
         {
@@ -227,7 +227,7 @@ public static partial class PolicyFunctions
                 from = Known(roleCell);
             }
             // A hostile locked with our blocker is passed over while another is in range.
-            Func<CombatPawnState, bool> pick = h => InRange(from, s.WeaponRange, h) && !locked.GetValueOrDefault(h.Id);
+            Func<CombatPawnState, bool> pick = h => InRange(from, s.WeaponRange, h) && !locked.Contains(h.Id);
             if (!ranked.Any(pick))
             {
                 pick = h => InRange(from, s.WeaponRange, h);
@@ -242,7 +242,7 @@ public static partial class PolicyFunctions
             {
                 r = r with { Target = ranked[j].Id };
             }
-            if (near.GetValueOrDefault(r.Target))
+            if (near.Contains(r.Target))
             {
                 r = r with { Target = default };
             }

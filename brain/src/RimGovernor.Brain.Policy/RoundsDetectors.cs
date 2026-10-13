@@ -106,7 +106,7 @@ public static partial class PolicyFunctions
         var a = c.Assess(ActiveCombat, 0, CombatCleared(f));
         if (Positive(Measured(f.Hostiles, n => n == 0)))
         {
-            a.Hunt = HuntRequest(f.FoodPlan);
+            a.Hunt = EquatableArray.From(HuntRequest(f.FoodPlan));
         }
     }
 
@@ -454,7 +454,7 @@ public static partial class PolicyFunctions
                             f.Colonists,
                             f.Recipes),
                         f.MedicalPawns),
-                    SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContext(), SurgeryParts(SelectSurgery(f.MedicalPawns, null, new SurgeryContext()).Wants), f.FabricableParts)),
+                    SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContextOf(), SurgeryParts(SelectSurgery(f.MedicalPawns, null, new SurgeryContext()).Wants), f.FabricableParts ?? new HashSet<Resource>())),
                 f.WealthBudget(),
                 f.SaleArt),
             f.SaleAnimals(),
@@ -631,7 +631,7 @@ public static partial class PolicyFunctions
         var f = c.F;
         var p = c.P;
         // An actionable elective upgrade keeps it open too.
-        var recovered = AllFacts(SurgeryRecovered(f.MedicalPawns), Measured(ElectiveSurgeryOwed(f.MedicalPawns, f.SurgeryContext(), f.FabricableParts), owed => !owed));
+        var recovered = AllFacts(SurgeryRecovered(f.MedicalPawns), Measured(ElectiveSurgeryOwed(f.MedicalPawns, f.SurgeryContextOf(), f.FabricableParts), owed => !owed));
         // A sale organ harvest holds it open while the silver runway is short and a prisoner's organ clears
         // its cost; a prisoner's recoverable artificial part too, and a peg-leg step: doctor training below
         // the Medicine floor, prisoner control or a reinstall before release. A prisoner whose care allows
@@ -650,7 +650,7 @@ public static partial class PolicyFunctions
     /// <summary>Owed while babies have no breastfeeder and too little baby-edible food; unknown raises nothing.</summary>
     internal static void InspectBabyFeeding(RoundsRun c)
     {
-        var recovered = Measured(c.F.BabyFeeding, b => !b.Short);
+        var recovered = Measured(c.F.BabyFeeding, b => !b.IsShort);
         c.Assess(MaintainBabyFeeding, BabyFeedingPriority, recovered);
         if (recovered.TryGetValue(out var v) && !v)
         {
@@ -673,7 +673,7 @@ public static partial class PolicyFunctions
         var active = c.FoodStorage.Active || f.IsIssued(MaintainFoodStorage) || reserveAccess || reserveRefill;
         var recovered = Unknown<bool>();
         var priority = FoodStorageUpkeepPriority;
-        var (larder, _) = SelectCorpseLarder(f.FoodStorageUpkeep);
+        var larder = SelectCorpseLarder(f.FoodStorageUpkeep);
         // The stockpile, releasing cooking inputs and preserving fresh corpses must not wait behind
         // development projects, just as refrigeration must not.
         if (larder.Kind != "" || reserveAccess || stockpileOwed)
@@ -902,7 +902,7 @@ public static partial class PolicyFunctions
     internal static void InspectPermits(RoundsRun c)
     {
         c.Assess(MaintainPermits, 3, PermitsSpent(c.F.Royalty));
-        var (_, owed) = NextPermitOf(c.F.Royalty);
+        var owed = NextPermitOf(c.F.Royalty) is not null;
         if (owed)
         {
             c.Raise(MaintainPermits, 3).Deficit = Known(1.0);
@@ -967,9 +967,9 @@ public static partial class PolicyFunctions
         var joinerDeficitKnown = JoinerDeficit(f.QuestOffers, JoinerCapacity(f.JoinerCapacity()), f).TryGetValue(out var joinerDeficit);
         var questKnown = QuestDeficit(f).TryGetValue(out var questDeficit);
         var letterKnown = JoinerLetterDeficit(f.JoinerLetters, JoinerCapacity(f.JoinerCapacity())).TryGetValue(out var letterDeficit);
-        var (_, ceremonyStarts) = CeremonyStartOf(f.Royalty);
-        if (ShrineArrestTarget(f) != "" || LanceTarget(f) != "" || EntityCaptureOwed(f.Containment) || EntityDoorOwed(f.Containment) || EntityTendOwed(f.Containment)
-            || EntityBioferriteOwed(f.Containment, f.Research) || MonolithAdvanceOwed(f, p.ColonyStage) || (prisonerDeficitKnown && prisonerDeficit)
+        var ceremonyStarts = CeremonyStartOf(f.Royalty) is not null;
+        if (!ShrineArrestTarget(f).IsEmpty || LanceTarget(f) is not null || EntityCaptureOwed(f.Containment) || EntityDoorOwed(f.Containment) || EntityTendOwed(f.Containment)
+            || EntityBioferriteOwed(f.Containment, f.Research) || MonolithAdvanceOwedNow(f, p.ColonyStage) || (prisonerDeficitKnown && prisonerDeficit)
             || (custodyDeficitKnown && custodyDeficit) || (joinerDeficitKnown && joinerDeficit) || (questKnown && questDeficit) || (letterKnown && letterDeficit)
             || ceremonyStarts || DecreeDeficit(f) || MonumentDeficit(f) || DepartureDeficit(f) || RefugeeDeficit(f) || GravInspectionDeficit(f))
         {
@@ -1097,10 +1097,10 @@ public static partial class PolicyFunctions
         {
             recovered = Known(!review.Active);
         }
-        c.Assess(MaintainStockpiles, StockpilePriority, recovered);
+        c.Assess(MaintainStockpiles, StockpilePriorityRank, recovered);
         if (!Positive(recovered))
         {
-            c.Raise(MaintainStockpiles, StockpilePriority);
+            c.Raise(MaintainStockpiles, StockpilePriorityRank);
         }
     }
 
@@ -1113,7 +1113,7 @@ public static partial class PolicyFunctions
         c.F.Mood.Validate();
         foreach (var state in c.F.Mood.States)
         {
-            c.R.Assessments.Add(new RoundsAssessment { Id = EnsureMood, Subject = new PawnId(state.Pawn.Id), Priority = state.Priority(), Finding = state.Need(), MethodUnavailable = true });
+            c.R.Assessments.Add(new RoundsAssessment { Id = EnsureMood, Subject = state.Pawn.Id, Priority = state.Priority(), Finding = state.Need(), MethodUnavailable = true });
         }
     }
 

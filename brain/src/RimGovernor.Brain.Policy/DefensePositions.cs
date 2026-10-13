@@ -194,7 +194,7 @@ public static partial class PolicyFunctions
         return Project(cell) >= cover;
     }
 
-    private static bool TowardVector(Rotation r, out Cell v)
+    internal static bool TowardVector(Rotation r, out Cell v)
     {
         switch (r)
         {

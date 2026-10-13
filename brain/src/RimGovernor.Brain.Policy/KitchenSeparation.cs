@@ -60,18 +60,18 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Lists rooms where cooking and butchery share a room, with their cells so placement can keep new facilities out. Unknown when the room census is unknown.</summary>
-    public static Fact<IReadOnlyList<SeparationRoom>> KitchenSeparation(Fact<RoomObservation> rooms)
+    public static Fact<EquatableArray<SeparationRoom>> KitchenSeparation(Fact<RoomObservation> rooms)
     {
         if (!rooms.TryGetValue(out var census))
         {
-            return Unknown<IReadOnlyList<SeparationRoom>>();
+            return Unknown<EquatableArray<SeparationRoom>>();
         }
         var result = census.Rooms
             .Where(room => RoomHolds(room, CookingDefinitions) && RoomHolds(room, ButcherDefinitions))
             .Select(room => new SeparationRoom(room.Id, new EquatableArray<Cell>([.. room.Cells])))
             .OrderBy(r => r.Id, StringComparer.Ordinal)
             .ToList();
-        return Known<IReadOnlyList<SeparationRoom>>(result);
+        return Known(EquatableArray.From(result));
     }
 
     /// <summary>

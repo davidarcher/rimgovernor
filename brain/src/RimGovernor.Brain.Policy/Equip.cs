@@ -108,7 +108,7 @@ public static partial class PolicyFunctions
         {
             return null;
         }
-        return (pairs[0].Pawn, pairs[0].Weapon);
+        return ((Domain.PawnId)pairs[0].Pawn, pairs[0].Weapon);
     }
 
     internal static long DistanceSquared(Cell a, Cell b)

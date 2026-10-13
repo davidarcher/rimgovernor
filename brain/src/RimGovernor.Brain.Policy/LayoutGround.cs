@@ -37,10 +37,10 @@ public static partial class PolicyFunctions
         var g = new GroundCensus();
         foreach (var b in buildings)
         {
-            var def = b.Building.Definition;
+            var def = b.Building!.Definition;
             foreach (var c in b.Cells)
             {
-                if (def == ClimateTable().VentDef)
+                if (def == ClimateDefs().VentDef)
                 {
                     g.Vents.Add(c);
                     g.Walls.Add(c);
@@ -225,7 +225,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The room's shell: its region walled round, the door where the plan put it. Any region the footprint rules accept (4-connected, at most 3844 cells, a ring of at most 255) shells, rectangular or not.</summary>
-    public static RoomFootprint Footprint(this PlannedRoom r) => new(r.Region.Cells(), r.Door, r.DoorRot);
+    public static RoomFootprint Footprint(this PlannedRoom r) => new(r.Region.Cells(), r.Door, r.DoorRot ?? default);
 
     /// <summary>
     /// The cells of r's ring that take a door rather than a wall: its own doors, its Link, and any other room's

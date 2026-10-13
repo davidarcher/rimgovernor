@@ -31,16 +31,17 @@ public static partial class PolicyFunctions
         }
 
         gear.TryGetValue(out var v);
-        foreach (var p in ModeledGearObservation(v, review.Loadouts).Pawns)
+        foreach (var p in ModeledGearObservation(v!, review.Loadouts).Pawns)
         {
             if (!p.Replacements.TryGetValue(out var needs))
             {
                 return (null, false);
             }
 
-            foreach (var n in needs.Items)
+            foreach (var n in needs)
             {
-                if (ArmoryArmorRungs(n.Definition, ArmoryTier.Fabrication, out var rungs))
+                var (rungs, rungsOk) = ArmoryArmorRungs(n.Definition, ArmoryTier.Fabrication);
+                if (rungsOk)
                 {
                     foreach (var rung in rungs)
                     {
@@ -63,7 +64,7 @@ public static partial class PolicyFunctions
         var wanted = new HashSet<Resource>();
         foreach (var part in parts)
         {
-            foreach (var item in part.Items.Items)
+            foreach (var item in part.Items)
             {
                 wanted.Add(item);
             }

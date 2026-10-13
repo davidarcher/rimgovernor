@@ -25,7 +25,7 @@ public static partial class PolicyFunctions
     /// removal, sale and slaughter). A race is barred when any action it raises is not allowed or approved:
     /// penalised, forbidden or unknown.
     /// </summary>
-    public static Fact<IReadOnlyList<UpkeepAnimal>> ApplyHerdPrecepts(Fact<IReadOnlyList<UpkeepAnimal>> animals, Fact<Ideoligion> ideology, bool ideologyActive)
+    public static Fact<EquatableArray<UpkeepAnimal>> ApplyHerdPrecepts(Fact<EquatableArray<UpkeepAnimal>> animals, Fact<Ideoligion> ideology, bool ideologyActive)
     {
         if (!animals.TryGetValue(out var rows))
         {
@@ -50,7 +50,7 @@ public static partial class PolicyFunctions
                 }
             );
         }
-        return Known<IReadOnlyList<UpkeepAnimal>>(@out);
+        return Known(EquatableArray.From(@out));
     }
 
     /// <summary>Whether the colony's precepts bar the action: base for any animal, plus venerated for a venerated race. Unknown when the ideoligion or the veneration is unread.</summary>

@@ -120,9 +120,9 @@ internal sealed class ConduitNet(HashSet<Cell> allowed, IReadOnlyDictionary<Cond
             var path = PolicyFunctions.RouteCells(n.Cells, Net, _allowed);
             if (path.Count == 0)
             {
-                return (null, new ConduitDecision(n.Ref, default, PolicyConstants.TileUnsatisfied, PolicyConstants.ReasonConduitBlocked), false);
+                return (null, new ConduitDecision(n.Ref, default, PolicyFunctions.TileUnsatisfied, PolicyConstants.ReasonConduitBlocked), false);
             }
-            path = [.. path.Reverse()]; // from the node to the net
+            path = [.. Enumerable.Reverse(path)]; // from the node to the net
             link = new ConduitLink(default, default, EquatableArray.From(path));
             reason = PolicyConstants.ReasonConduitRouted;
         }
@@ -135,7 +135,7 @@ internal sealed class ConduitNet(HashSet<Cell> allowed, IReadOnlyDictionary<Cond
             }
         }
         Stand(n);
-        return (link, new ConduitDecision(n.Ref, link.To, PolicyConstants.TilePlace, reason), true);
+        return (link, new ConduitDecision(n.Ref, link.To, PolicyFunctions.TilePlace, reason), true);
     }
 }
 
@@ -391,6 +391,7 @@ public static partial class PolicyFunctions
         }
         var (links, decisions) = RouteConduits(t.Out.Plan, consumers, t.In.Survey, t.In.Conduits);
         t.Out.Plan = t.Out.Plan with { Conduits = EquatableArray.From(links) };
-        t.Out.ConduitDecisions = decisions;
+        t.Out.ConduitDecisions.Clear();
+        t.Out.ConduitDecisions.AddRange(decisions);
     }
 }

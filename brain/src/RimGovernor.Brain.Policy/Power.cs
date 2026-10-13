@@ -104,7 +104,7 @@ public static partial class PolicyFunctions
     /// Evaluates each consumer's own network. Spare generation on a different network cannot cover it;
     /// disconnected or unpowered consumers fail. Any result left Unknown could not be decided.
     /// </summary>
-    public static (Fact<bool> Required, Fact<double> Headroom, Fact<bool> Disabled) PowerCoverage(Fact<IReadOnlyList<PowerBuilding>> rows)
+    public static (Fact<bool> Required, Fact<double> Headroom, Fact<bool> Disabled) PowerCoverage(Fact<EquatableArray<PowerBuilding>> rows)
     {
         Fact<bool> required = default;
         Fact<double> headroom = default;

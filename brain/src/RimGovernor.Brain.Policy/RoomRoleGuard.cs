@@ -56,7 +56,7 @@ public static partial class PolicyFunctions
                 throw new DomainException($"contents name room {c.Room}, which the plan does not hold");
             }
             var (census, standing) = CensusRoomIn(planned[idx], rooms);
-            if (!standing || !census.Role.TryGetValue(out var native))
+            if (!standing || !census!.Role.TryGetValue(out var native))
             {
                 continue;
             }
@@ -67,7 +67,7 @@ public static partial class PolicyFunctions
             }
             catch (DomainException e)
             {
-                throw new DomainException($"room {c.Room}: {e.Message}", e);
+                throw new DomainException($"room {c.Room}: {e.Message}");
             }
             if (pred.Role != native)
             {

@@ -61,11 +61,11 @@ public static partial class PolicyFunctions
     /// reaches here. At most one pawn is chosen per role and per call, so a role with several places fills
     /// over successive calls as the section shows each holder. Sorted by role id.
     /// </summary>
-    public static Fact<IReadOnlyList<RoleAssignment>> RoleAssignments(Fact<Ideoligion> ideology, Fact<IReadOnlyList<WorkPawn>> pawns)
+    public static Fact<EquatableArray<RoleAssignment>> RoleAssignments(Fact<Ideoligion> ideology, Fact<EquatableArray<WorkPawn>> pawns)
     {
         if (!ideology.TryGetValue(out var ideo) || !pawns.TryGetValue(out var rows))
         {
-            return Unknown<IReadOnlyList<RoleAssignment>>();
+            return Unknown<EquatableArray<RoleAssignment>>();
         }
         var pool = new List<(PawnId Id, IReadOnlyList<WorkSkill> Skills, double Certainty)>();
         foreach (var row in rows)
@@ -115,14 +115,14 @@ public static partial class PolicyFunctions
                 output.Add(new RoleAssignment(best.Id, role.Id, role.Def));
             }
         }
-        return Known<IReadOnlyList<RoleAssignment>>(output);
+        return Known(EquatableArray.From(output));
     }
 
     /// <summary>
     /// Measures MaintainIdeoRoles: known false when no role has a fitting believer waiting, unknown while
     /// the ideoligion or pawns are.
     /// </summary>
-    public static Fact<bool> RolesOwed(Fact<Ideoligion> ideology, Fact<IReadOnlyList<WorkPawn>> pawns)
+    public static Fact<bool> RolesOwed(Fact<Ideoligion> ideology, Fact<EquatableArray<WorkPawn>> pawns)
     {
         if (!RoleAssignments(ideology, pawns).TryGetValue(out var owed))
         {

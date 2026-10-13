@@ -41,7 +41,7 @@ public static partial class PolicyFunctions
         return SortProvision(result);
     }
 
-    internal static void ValidateMoodThoughts(Fact<IReadOnlyList<MoodThought>> f)
+    internal static void ValidateMoodThoughts(Fact<EquatableArray<MoodThought>> f)
     {
         if (!f.TryGetValue(out var rows))
         {
@@ -84,7 +84,7 @@ public static partial class PolicyFunctions
     /// The result is empty unless those thoughts dominate: they carry at least half of the pawn's total
     /// negative thought offset. Unknown thoughts provision nothing.
     /// </summary>
-    internal static IReadOnlyList<MoodProvision> MoodProvisioning(Fact<IReadOnlyList<MoodThought>> f)
+    internal static IReadOnlyList<MoodProvision> MoodProvisioning(Fact<EquatableArray<MoodThought>> f)
     {
         if (!f.TryGetValue(out var rows))
         {

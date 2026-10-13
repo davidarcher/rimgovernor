@@ -138,7 +138,7 @@ public static partial class PolicyFunctions
                 }
                 if (own.Count == 0 || inputs.ReadingPolicy != own[0].Id)
                 {
-                    assign = PawnSettings.NewReadingPolicySetting(pawn.Id, name);
+                    assign = PawnSettings.NewReadingPolicySetting((Domain.PawnId)pawn.Id, name);
                 }
             }
             catch (DomainException)

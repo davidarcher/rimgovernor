@@ -108,15 +108,15 @@ public sealed record FuelConsumer
 /// <summary>What the fuel runway is computed from. (Go <c>FuelInputs</c>.)</summary>
 public sealed record FuelInputs
 {
-    public Fact<IReadOnlyList<FuelConsumer>> Consumers { get; init; }
+    public Fact<EquatableArray<FuelConsumer>> Consumers { get; init; }
 
-    public StockReader Stock { get; init; } = new();
+    public StockReader Stock { get; init; }
 }
 
 /// <summary>
 /// One fuel item's runway. Burn is the fuel units a day the continuous consumers burn, Need the items to hold
 /// ahead of them (the horizon's burn less what their tanks hold, plus the refill of the barrels already empty)
-/// and Short the items missing from stock. (Go <c>FuelResourceRunway</c>.)
+/// and MissingItems the items missing from stock. (Go <c>FuelResourceRunway</c>.)
 /// </summary>
 public sealed record FuelResourceRunway
 {
@@ -128,7 +128,7 @@ public sealed record FuelResourceRunway
 
     public long Stock { get; init; }
 
-    public long Short { get; init; }
+    public long MissingItems { get; init; }
 
     public double ShortfallDays { get; init; }
 }
@@ -265,7 +265,7 @@ public static partial class PolicyFunctions
                 {
                     days = Math.Min(ProjectionHorizonDays, shortItems * units[item] / a.Burn);
                 }
-                row = row with { Short = shortItems, ShortfallDays = days };
+                row = row with { MissingItems = shortItems, ShortfallDays = days };
                 needs[item] = row.Need;
             }
             shortfallDays = Math.Max(shortfallDays, row.ShortfallDays);

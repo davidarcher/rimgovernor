@@ -20,14 +20,14 @@ public static partial class PolicyFunctions
     /// item a live hostile can see. Forbidding an unsafe stack and allowed stacks are untouched. The returned rows
     /// are the census the safety review acts on.
     /// </summary>
-    public static (Fact<IReadOnlyList<LootItem>> Rows, IReadOnlyList<LootHold> Holds) FilterLootRelease(Fact<IReadOnlyList<LootItem>> observed, Fact<IReadOnlyList<Cell>> seeds)
+    public static (Fact<EquatableArray<LootItem>> Rows, IReadOnlyList<LootHold> Holds) FilterLootRelease(Fact<EquatableArray<LootItem>> observed, Fact<EquatableArray<Cell>> seeds)
     {
         if (!observed.TryGetValue(out var rows))
         {
             return (observed, []);
         }
         seeds.TryGetValue(out var danger);
-        danger ??= [];
+
         var kept = new List<LootItem>();
         var holds = new List<LootHold>();
         foreach (var row in rows)
@@ -53,6 +53,6 @@ public static partial class PolicyFunctions
             }
             holds.Add(new LootHold { Thing = row.Supply.Thing, Definition = row.Supply.Definition, Cell = row.Supply.Cell, Reason = reason });
         }
-        return (Known<IReadOnlyList<LootItem>>(kept), [.. holds.OrderBy(h => h.Thing)]);
+        return (Known(EquatableArray.From(kept)), [.. holds.OrderBy(h => h.Thing)]);
     }
 }

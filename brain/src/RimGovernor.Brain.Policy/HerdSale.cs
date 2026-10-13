@@ -17,7 +17,7 @@ public static partial class PolicyFunctions
     /// any unknown designation, bond or master sells nothing. Animals already designated for slaughter or release
     /// are not listed: the cull owns them. The result is empty when nothing is sold.
     /// </summary>
-    public static IReadOnlySet<PawnId> HerdSaleAnimals(Fact<IReadOnlyList<UpkeepAnimal>> animals, HerdPolicy herd)
+    public static IReadOnlySet<PawnId> HerdSaleAnimals(Fact<EquatableArray<UpkeepAnimal>> animals, HerdPolicy herd)
     {
         var @out = new HashSet<PawnId>();
         if (!animals.TryGetValue(out var rows))
@@ -33,11 +33,11 @@ public static partial class PolicyFunctions
         {
             var a = r.Animal;
             var mk = a.Master.TryGetValue(out var master);
-            if (!a.Bonded.TryGetValue(out var bonded) || bonded || !mk || (!master.IsEmpty && !herd.Retired.GetValueOrDefault(a.Definition)))
+            if (!a.Bonded.TryGetValue(out var bonded) || bonded || !mk || (!string.IsNullOrEmpty(master) && !herd.Retired.GetValueOrDefault(a.Definition)))
             {
                 continue;
             }
-            @out.Add(a.ID);
+            @out.Add(a.Id);
         }
         return @out;
     }

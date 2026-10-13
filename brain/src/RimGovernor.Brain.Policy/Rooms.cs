@@ -300,7 +300,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static List<FacilityRequirement> FacilityCatalog()
     {
-        RoomRole[] Hosts(params RoomRole[] first) => [.. first, RoomRole.Room];
+        EquatableArray<RoomRole> Hosts(params RoomRole[] first) => [.. first, RoomRole.Room];
 
         return
         [

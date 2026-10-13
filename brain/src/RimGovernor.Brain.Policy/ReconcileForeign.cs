@@ -79,17 +79,17 @@ public static partial class PolicyFunctions
                 }
                 output.Add(new ClearanceTarget
                 {
-                    EntityID = t.LoadId(),
+                    EntityId = t.LoadId(),
                     DefName = t.Def,
                     Minimum = sc.Cell,
                     Maximum = sc.Cell,
                     Class = "foreign",
                     InHome = true,
-                    Designated = t.Has(ThingFlags.Designated),
+                    Designated = t.Has(ThingMarks.Designated),
                 });
             }
         }
-        return output.OrderBy(t => t.Minimum.Z).ThenBy(t => t.Minimum.X).ThenBy(t => t.EntityID, StringComparer.Ordinal).ToList();
+        return output.OrderBy(t => t.Minimum.Z).ThenBy(t => t.Minimum.X).ThenBy(t => t.EntityId, StringComparer.Ordinal).ToList();
     }
 
     private static ForeignWork ForeignThings(ReconcileInput input, Region ring, string wallDef, HashSet<Cell> doorWanted)
@@ -127,17 +127,17 @@ public static partial class PolicyFunctions
                 Foreign = true,
                 Target = new ClearanceTarget
                 {
-                    EntityID = t.LoadId(),
+                    EntityId = t.LoadId(),
                     DefName = t.Def,
                     Minimum = c,
                     Maximum = c,
                     Class = "foreign",
-                    Deconstructible = t.Has(ThingFlags.Deconstructible),
+                    Deconstructible = t.Has(ThingMarks.Deconstructible),
                     Count = t.Count,
                     InHome = true,
-                    Designated = t.Has(ThingFlags.Designated),
+                    Designated = t.Has(ThingMarks.Designated),
                     Packable = packable,
-                    AncientDanger = t.Has(ThingFlags.AncientDanger),
+                    AncientDanger = t.Has(ThingMarks.AncientDanger),
                 },
             };
             index[key] = item;
@@ -162,7 +162,7 @@ public static partial class PolicyFunctions
             {
                 if (t.Category == ThingCategory.Plant)
                 {
-                    if (t.Has(ThingFlags.Impassable))
+                    if (t.Has(ThingMarks.Impassable))
                     {
                         Place(OpKind.Cut, t, c, false);
                     }
@@ -176,20 +176,20 @@ public static partial class PolicyFunctions
                         // native preview stays the legality authority.
                         continue;
                     }
-                    if (t.Has(ThingFlags.Haulable) && !t.Has(ThingFlags.Forbidden))
+                    if (t.Has(ThingMarks.Haulable) && !t.Has(ThingMarks.Forbidden))
                     {
                         Place(OpKind.HaulOut, t, c, false);
                     }
-                    else if (t.Has(ThingFlags.Haulable) && doorWanted.Contains(c))
+                    else if (t.Has(ThingMarks.Haulable) && doorWanted.Contains(c))
                     {
                         // Nothing hauls a forbidden stack: it is named, not blocking, so the door goes on to
                         // its placement and the wait shows what sits on it.
                         w.Holds.Add(new ReconcileHold { Cell = c, Def = t.Def, Reason = "forbidden_item" });
                     }
                 }
-                else if (t.Category == ThingCategory.Building && t.Faction != ThingFaction.Player && !t.Has(ThingFlags.Blueprint) && !t.Has(ThingFlags.Frame))
+                else if (t.Category == ThingCategory.Building && t.Faction != ThingFaction.Player && !t.Has(ThingMarks.Blueprint) && !t.Has(ThingMarks.Frame))
                 {
-                    if (t.Has(ThingFlags.AncientDanger))
+                    if (t.Has(ThingMarks.AncientDanger))
                     {
                         Hold(t, c, "ancient_danger");
                     }
@@ -197,7 +197,7 @@ public static partial class PolicyFunctions
                     {
                         Hold(t, c, "casket");
                     }
-                    else if (claimCell && t.Has(ThingFlags.Edifice))
+                    else if (claimCell && t.Has(ThingMarks.Edifice))
                     {
                         // A claimed ruin stands as wall: nothing to raise or clear.
                         var was = w.Blocked.Contains(c);
@@ -208,15 +208,15 @@ public static partial class PolicyFunctions
                             w.Blocked.Remove(c);
                         }
                     }
-                    else if (t.Has(ThingFlags.Minifiable))
+                    else if (t.Has(ThingMarks.Minifiable))
                     {
                         Place(OpKind.Pack, t, c, true);
                     }
-                    else if (t.Has(ThingFlags.Deconstructible))
+                    else if (t.Has(ThingMarks.Deconstructible))
                     {
                         Place(OpKind.FurnitureOut, t, c, false);
                     }
-                    else if (t.Has(ThingFlags.Edifice))
+                    else if (t.Has(ThingMarks.Edifice))
                     {
                         // Natural rock or a mineable: the dig path's.
                     }
@@ -227,7 +227,7 @@ public static partial class PolicyFunctions
                 }
             }
         }
-        var sorted = w.Items.OrderBy(i => i.Target.Minimum.Z).ThenBy(i => i.Target.Minimum.X).ThenBy(i => i.Target.EntityID, StringComparer.Ordinal).ToList();
+        var sorted = w.Items.OrderBy(i => i.Target.Minimum.Z).ThenBy(i => i.Target.Minimum.X).ThenBy(i => i.Target.EntityId, StringComparer.Ordinal).ToList();
         w.Items.Clear();
         w.Items.AddRange(sorted);
         return w;

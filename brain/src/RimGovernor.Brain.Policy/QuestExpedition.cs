@@ -414,7 +414,7 @@ public static partial class PolicyFunctions
         {
             return Fail(foodReason);
         }
-        if (!CaravanDeparture.TryCreate(crew, cargo, site.Tile, out var departure))
+        if (!CaravanDeparture.TryCreate(crew.Select(p => (Domain.PawnId)p), cargo, site.Tile, out var departure))
         {
             return Fail("cargo_invalid");
         }

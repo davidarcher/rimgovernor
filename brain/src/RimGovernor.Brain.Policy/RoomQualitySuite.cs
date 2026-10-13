@@ -62,7 +62,7 @@ public static partial class PolicyFunctions
             var (room, ok) = CensusRoomIn(r, rooms);
             if (ok)
             {
-                output[room.Id] = r;
+                output[room!.Id] = r;
             }
         }
         return output;
@@ -200,7 +200,7 @@ public static partial class PolicyFunctions
             var taken = false;
             if (ok)
             {
-                foreach (var b in room.Beds)
+                foreach (var b in room!.Beds)
                 {
                     taken = taken || owned.Contains(b);
                 }
@@ -271,7 +271,7 @@ public static partial class PolicyFunctions
             }
             var w = new SuiteWish { Kept = r.Region.Area() };
             var (room, ok) = CensusRoomIn(r, rooms);
-            if (ok && owned.Contains(room.Id))
+            if (ok && owned.Contains(room!.Id))
             {
                 w = w with { Target = targets.TryGetValue(room.Id, out var t) ? t.Min : 0 };
             }
@@ -308,7 +308,7 @@ public static partial class PolicyFunctions
             var r = vacant[i];
             // Census: the room's beds decide the next bedroom step.
             var (room, ok) = CensusRoomIn(r, rooms);
-            if (!ok || room.Beds.Count == 0)
+            if (!ok || room!.Beds.Count == 0)
             {
                 return new BedroomStep { Kind = BedroomStepKind.Reconcile, Room = r };
             }

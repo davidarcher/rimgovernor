@@ -66,13 +66,13 @@ public static partial class PolicyFunctions
             {
                 if (a.Gender == "Male" && males > HerdPairMales && (role.Superseded || excessMales > 0))
                 {
-                    wanted.Add(a.ID);
+                    wanted.Add(a.Id);
                     males--;
                     excessMales--;
                 }
                 else if (a.Gender == "Female" && females > HerdPairFemales && role.Superseded)
                 {
-                    wanted.Add(a.ID);
+                    wanted.Add(a.Id);
                     females--;
                 }
             }
@@ -88,7 +88,7 @@ public static partial class PolicyFunctions
     /// the area that is no longer wanted and has no bill is let out. An unready or unknown ward room chooses
     /// nothing.
     /// </summary>
-    public static HusbandryChoice SterilizeChoice(Fact<IReadOnlyList<UpkeepAnimal>> animals, HerdPolicy herd, AnimalWard ward)
+    public static HusbandryChoice SterilizeChoice(Fact<EquatableArray<UpkeepAnimal>> animals, HerdPolicy herd, AnimalWard ward)
     {
         var none = new HusbandryChoice { Reason = HusbandryPlanReason.NoDeficit };
         var known = animals.TryGetValue(out var unsorted);
@@ -98,7 +98,7 @@ public static partial class PolicyFunctions
         {
             return none;
         }
-        var rows = unsorted!.OrderBy(a => a.ID).ToList();
+        var rows = unsorted!.OrderBy(a => a.Id).ToList();
         var wanted = SterilizeWanted(rows, herd);
         foreach (var a in rows)
         {
@@ -112,17 +112,17 @@ public static partial class PolicyFunctions
             {
                 return none;
             }
-            if (sterilized || !wanted.Contains(a.ID))
+            if (sterilized || !wanted.Contains(a.Id))
             {
-                return new HusbandryChoice { Animal = a.ID, Method = HusbandryMethod.AllowedArea };
+                return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.AllowedArea };
             }
-            return new HusbandryChoice { Animal = a.ID, Method = HusbandryMethod.Sterilize };
+            return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.Sterilize };
         }
         foreach (var a in rows)
         {
-            if (wanted.Contains(a.ID) && a.SupportsAreas.TryGetValue(out var supports) && supports)
+            if (wanted.Contains(a.Id) && a.SupportsAreas.TryGetValue(out var supports) && supports)
             {
-                return new HusbandryChoice { Animal = a.ID, Method = HusbandryMethod.AllowedArea, Argument = area };
+                return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.AllowedArea, Argument = area };
             }
         }
         return none;

@@ -6,7 +6,7 @@ public sealed record GatheringInput
     public Fact<MoodLedger> Ledger { get; init; }
 
     /// <summary>The mood census: the guests' state and the AttendedParty memory.</summary>
-    public Fact<IReadOnlyList<MoodPawn>> Pawns { get; init; }
+    public Fact<EquatableArray<MoodPawn>> Pawns { get; init; }
 
     /// <summary>The AttendedParty mood effect from the catalog.</summary>
     public Fact<double> Benefit { get; init; }
@@ -131,7 +131,7 @@ public static partial class PolicyFunctions
         return rows.Any(t => t.Def == PartyThought && t.Offset > 0);
     }
 
-    private static bool HasPartySpot(CurrentConstruction c) => c.Buildings.Any(b => b.Building.Definition() == PartySpotDefinition && b.Cells.Count > 0);
+    private static bool HasPartySpot(CurrentConstruction c) => c.Buildings.Any(b => b.Building!.Definition == PartySpotDefinition && b.Cells.Count > 0);
 
     /// <summary>Whether at least GatheringGuestShare of the ledger's colonists lose at least the party's own mood effect. A pawn whose thoughts were unreadable is not counted as under pressure.</summary>
     private static bool GatheringPressure(MoodLedger l, double benefit)
@@ -191,8 +191,8 @@ public static partial class PolicyFunctions
         {
             return (default, false);
         }
-        var best = able.OrderByDescending(p => p.Mood.ValueOrDefault).ThenBy(p => p.ID).First();
-        return (best.ID, true);
+        var best = able.OrderByDescending(p => p.Mood.ValueOrDefault).ThenBy(p => p.Id).First();
+        return (best.Id, true);
     }
 
     /// <summary>

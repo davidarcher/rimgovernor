@@ -32,7 +32,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            if (!d.MeleePower.TryGetValue(out var melee) || !d.RangedDps.TryGetValue(out var ranged))
+            if (!d.MeleePower.TryGetValue(out var melee) || !d.RangedDPS.TryGetValue(out var ranged))
             {
                 return Unknown<double>();
             }

@@ -198,7 +198,7 @@ public static partial class PolicyFunctions
 
         foreach (var pair in AssignEquip(pawns, weapons))
         {
-            assigned.Add(pair.Pawn);
+            assigned.Add((Domain.PawnId)pair.Pawn);
             var def = new Resource(pair.Weapon.Definition);
             spare[def] = spare.GetValueOrDefault(def) - 1;
         }

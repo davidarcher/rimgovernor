@@ -51,14 +51,14 @@ public static partial class PolicyFunctions
     /// </summary>
     private static Cell? GrenadeAim(CombatView view, CombatMemory m, CombatPawnState carrier, IReadOnlyList<CombatPawnState> hostiles, IReadOnlyList<Cell> colonists)
     {
-        if (!carrier.WeaponFacts.Emp || !hostiles.Any(IsMech))
+        if (!carrier.WeaponFacts.EMP || !hostiles.Any(IsMech))
         {
             return GrenadeTarget(carrier, hostiles, colonists);
         }
 
         var ok = view.Layout.TryGetValue(out var layout);
         Cell choke = default;
-        var cok = ok && layout.Choke.TryGetValue(out choke);
+        var cok = ok && layout!.Choke.TryGetValue(out choke);
         var fok = carrier.Cell.TryGetValue(out var from);
         var blast = carrier.WeaponFacts.Blast;
         if (!ok || !cok || !fok || blast <= 0)

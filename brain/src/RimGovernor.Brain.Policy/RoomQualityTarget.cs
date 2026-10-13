@@ -25,7 +25,7 @@ public sealed record ImpressivenessLevels
     /// </summary>
     public int Stage(double score)
     {
-        IReadOnlyList<double> stages = Stages;
+        var stages = Stages;
         if (stages.Count == 0)
         {
             stages = [0, Dull, Mediocre, Decent, SlightlyImpressive];
@@ -111,7 +111,7 @@ public static partial class PolicyFunctions
             var t = new RoomTarget { Room = room.Id, Min = floor };
             if (floor > 0)
             {
-                t = t with { Reasons = EquatableArray.From(new[] { "common" }) };
+                t = t with { Reasons = ["common"] };
             }
             targets[room.Id] = t;
         }

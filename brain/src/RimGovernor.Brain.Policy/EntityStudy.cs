@@ -7,20 +7,14 @@ namespace RimGovernor.Brain.Policy;
 public static partial class PolicyFunctions
 {
     /// <summary>
-    /// Go <c>WorkDarkStudy</c>: the Anomaly WorkTypeDef the study work giver issues its jobs through (workType
-    /// DarkStudy, relevant skill Intellectual, from the work type row native reports).
-    /// </summary>
-    public static readonly WorkType WorkDarkStudy = new("DarkStudy");
-
-    /// <summary>
     /// Go <c>StudyWork</c>: the DarkStudy requirement the held entities owe the work planner: one owner while
     /// any held entity is currently studiable, none otherwise. A held entity whose held or currently-studiable
     /// fact is unread makes the whole answer unknown, so the planner waits instead of guessing; Reason says
     /// which entity and fact. Without Anomaly (entities unknown) no entity is held and nothing is owed.
     /// </summary>
-    public static (Fact<IReadOnlyList<WorkRequirement>> Requirements, string Reason) StudyWork(ContainmentPlanning p)
+    public static (Fact<EquatableArray<WorkRequirement>> Requirements, string Reason) StudyWork(ContainmentPlanning p)
     {
-        var none = Known<IReadOnlyList<WorkRequirement>>([]);
+        var none = Known<EquatableArray<WorkRequirement>>([]);
         if (!p.Entities.TryGetValue(out var entities))
         {
             return (none, "");
@@ -34,7 +28,7 @@ public static partial class PolicyFunctions
             }
             if (!e.Held.TryGetValue(out var held))
             {
-                return (Unknown<IReadOnlyList<WorkRequirement>>(), $"whether a platform holds entity {e.Pawn} is unread");
+                return (Unknown<EquatableArray<WorkRequirement>>(), $"whether a platform holds entity {e.Pawn} is unread");
             }
             if (!held)
             {
@@ -42,7 +36,7 @@ public static partial class PolicyFunctions
             }
             if (!e.CurrentlyStudiable.TryGetValue(out var studiable))
             {
-                return (Unknown<IReadOnlyList<WorkRequirement>>(), $"whether held entity {e.Pawn} is currently studiable is unread");
+                return (Unknown<EquatableArray<WorkRequirement>>(), $"whether held entity {e.Pawn} is currently studiable is unread");
             }
             owed = owed || studiable;
         }
@@ -50,6 +44,6 @@ public static partial class PolicyFunctions
         {
             return (none, "");
         }
-        return (Known<IReadOnlyList<WorkRequirement>>([new WorkRequirement { Work = WorkDarkStudy }]), "");
+        return (Known<EquatableArray<WorkRequirement>>([new WorkRequirement { Work = WorkType.DarkStudy }]), "");
     }
 }

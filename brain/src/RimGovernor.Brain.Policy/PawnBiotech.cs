@@ -22,7 +22,7 @@ public sealed record PawnBiotech
     public Fact<string> LearningCategory { get; init; }
 
     /// <summary>Every gene, endogene and xenogene.</summary>
-    public Fact<IReadOnlyList<PawnGene>> Genes { get; init; }
+    public Fact<EquatableArray<PawnGene>> Genes { get; init; }
 
     /// <summary>The XenotypeDef name, known "" for a custom or no xenotype.</summary>
     public Fact<string> Xenotype { get; init; }

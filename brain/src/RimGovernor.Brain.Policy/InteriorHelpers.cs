@@ -8,6 +8,19 @@ public static partial class PolicyConstants
 
 public static partial class PolicyFunctions
 {
+    /// <summary>Reports whether id is among ids (Go <c>containsPawn</c>).</summary>
+    internal static bool ContainsPawn(EquatableArray<PawnId> ids, PawnId id)
+    {
+        foreach (var p in ids)
+        {
+            if (p == id)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// <summary>How many spans with the given gap fit along a length.</summary>
     public static int RowCapacity(int length, int span, int gap)
     {

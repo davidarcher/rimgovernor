@@ -29,7 +29,13 @@ public readonly partial record struct Resource(string Value) : IComparable<Resou
     public static bool operator >=(Resource left, Resource right) => left.CompareTo(right) >= 0;
 }
 
-public sealed record Amount(Resource Resource, long Count);
+public sealed record Amount(Resource Resource, long Count)
+{
+    /// <summary>The zero value Go's struct literal starts from.</summary>
+    public Amount() : this(default, 0)
+    {
+    }
+}
 
 public sealed record Stock(Resource Resource, Fact<long> Available);
 
@@ -192,7 +198,13 @@ public readonly partial record struct Reason(string Value)
     public static readonly Reason InvalidHeld = new("held_reservation_unverifiable");
 }
 
-public sealed record Refusal(ActionId Action, Reason Reason, Resource Resource);
+public sealed record Refusal(ActionId Action, Reason Reason, Resource Resource)
+{
+    /// <summary>The zero value Go's struct literal starts from.</summary>
+    public Refusal() : this(default, default, default)
+    {
+    }
+}
 
 public sealed record Decision
 {

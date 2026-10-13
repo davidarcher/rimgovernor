@@ -11,7 +11,7 @@ public static partial class PolicyFunctions
     /// <summary>Go <c>CompanionMaster</c>: the colonist who masters a bonded animal: the first of its bond partners by id among people. False for an unbonded animal.</summary>
     public static (PawnId Master, bool Ok) CompanionMaster(UpkeepAnimal a, IReadOnlyList<SleepingPerson> people)
     {
-        var onRoster = new HashSet<PawnId>(people.Select(p => p.ID));
+        var onRoster = new HashSet<PawnId>(people.Select(p => p.Id));
         PawnId first = default;
         foreach (var id in a.BondedPawns)
         {

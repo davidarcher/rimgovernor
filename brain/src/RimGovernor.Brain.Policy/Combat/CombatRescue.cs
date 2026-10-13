@@ -115,7 +115,7 @@ public static partial class PolicyFunctions
                 // The stop's one geometry read went to Formation.
                 return (m, [], null);
             }
-            return (m, [], new GeometryRequest { Propose = FormationRole.RescuePath, Pawn = rescuer, To = to, Hostiles = EquatableArray.From(hostiles) });
+            return (m, [], new GeometryRequest { Propose = FormationRole.RescuePath, Pawn = rescuer, To = to, Hostiles = [.. hostiles] });
         }
         var route = geometry.Route;
         if (route.Count == 0 || !Adjacent(route[^1].Cell, to))

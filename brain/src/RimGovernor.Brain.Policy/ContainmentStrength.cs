@@ -127,16 +127,16 @@ public sealed record ContainmentRoom
 public static partial class PolicyFunctions
 {
     /// <summary>Scales the room's mean ground glow.</summary>
-    private const double ContainmentLightingFactor = 10.0;
+    internal const double ContainmentLightingFactor = 10.0;
 
     /// <summary>Divides the doors' mean hit points.</summary>
-    private const double ContainmentDoorHPDivisor = 5.0;
+    internal const double ContainmentDoorHPDivisor = 5.0;
 
     /// <summary>Multiplies the lighting, wall, door and floor terms once per other holder in or beside the room.</summary>
-    private const double ContainmentOtherHolderFactor = 0.9;
+    internal const double ContainmentOtherHolderFactor = 0.9;
 
     /// <summary>The roof term of an indoor room with any open roof cell; a fully roofed room has a zero roof term.</summary>
-    private const double ContainmentOpenRoofPenalty = -30.0;
+    internal const double ContainmentOpenRoofPenalty = -30.0;
 
     /// <summary>
     /// The worker's SimpleCurve from the mean hit points of the room's wall edifices to the wall term:
@@ -144,7 +144,7 @@ public static partial class PolicyFunctions
     /// </summary>
     private static readonly double[][] ContainmentWallCurve = [[0, 0], [1000, 100], [10000, 150]];
 
-    private static double ContainmentWallTerm(double hitPoints)
+    internal static double ContainmentWallTerm(double hitPoints)
     {
         var c = ContainmentWallCurve;
         if (hitPoints <= c[0][0])

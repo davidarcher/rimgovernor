@@ -72,7 +72,7 @@ public static partial class PolicyFunctions
         DefTable.Of("threatKinds", "Verse.PawnKindDef", SortedKeys(ThreatKinds)),
         DefTable.Of("threatWeapons", "Verse.ThingDef", SortedKeys(ThreatWeapons)),
         DefTable.Of("ArmorResearchRungs", "Verse.ResearchProjectDef", ArmorResearchRungs),
-        DefTable.Of("gearValuables", "Verse.ThingDef", ResourceKeys(GearValuables)),
+        DefTable.Of("gearValuables", "Verse.ThingDef", ResourceKeys(GearValuableDefs)),
         DefTable.Of("traitStatWeights", "RimWorld.StatDef", SortedKeys(TraitStatWeights)),
         DefTable.Of("sociableTraits", "RimWorld.TraitDef", SortedKeys(SociableTraits)),
         DefTable.Of("traitThoughts", "RimWorld.ThoughtDef", TraitThoughts),
@@ -84,28 +84,28 @@ public static partial class PolicyFunctions
         DefTable.Of("NonFleshMeatDefs", "Verse.ThingDef", NonFleshMeatDefs),
         DefTable.Of("MortarProbeShells", "Verse.ThingDef", MortarProbeShells),
         DefTable.Of("QuestGiftDefs", "Verse.ThingDef", QuestGiftDefs),
-        DefTable.Of("roomSizeTable", "Verse.ThingDef", RoomSizeTable.Holds),
+        DefTable.Of("roomSizeTable", "Verse.ThingDef", RoomSizes.Holds),
         DefTable.Of("ShelterHeatDef", "Verse.ThingDef", [ShelterHeatDef]),
         DefTable.Of("ShelterCoolDef", "Verse.ThingDef", [ShelterCoolDef]),
         DefTable.Of("WoodLatchDefs", "Verse.ThingDef", WoodLatchDefs),
         DefTable.Of("ScenarioThingChoices", "Verse.ThingDef", ScenarioThingChoices),
         DefTable.Of("RhadamantThings", "Verse.ThingDef", RhadamantThingDefs()),
-        DefTable.Of("climateTable", "Verse.ThingDef", [ClimateTable.VentDef, ClimateTable.DoorDef, ClimateTable.WallDef, ClimateTable.RaceDef]),
-        DefTable.Of("climateStats", "RimWorld.StatDef", [ClimateTable.ComfyMinStat, ClimateTable.ComfyMaxStat]),
+        DefTable.Of("climateTable", "Verse.ThingDef", [ClimateDefs().VentDef, ClimateDefs().DoorDef, ClimateDefs().WallDef, ClimateDefs().RaceDef]),
+        DefTable.Of("climateStats", "RimWorld.StatDef", [ClimateDefs().ComfyMinStat, ClimateDefs().ComfyMaxStat]),
         // lightTable: DarkSpeed (0.8) is StatPart_Glow's factor on WorkSpeedGlobal and MoveSpeed at glow 0, a
         // curve in the def that the bridge does not read; the standing and wall lamps are the buildings the
         // plan places (their reach is solved from each def's glow radius and colour; GroundScale,
         // FalloffBlend and DiagonalCost are the game's glow grid constants, read with ilspycmd). The research
         // behind the lamp pricing (every effect of darkness, which are priced and which deferred) is the
         // first comment of issue #2945.
-        DefTable.Of("lightTable", "Verse.ThingDef", [LightTable.LampDef, LightTable.WallLampDef]),
+        DefTable.Of("lightTable", "Verse.ThingDef", [LightJudgment.LampDef, LightJudgment.WallLampDef]),
         // moodGame (#2954): the stat the break thresholds scale, the thoughts the planner prices, and the
         // breaks the game gives no duration for or gives as a hediff; the numbers beside them are
         // MentalBreaker's literals.
-        DefTable.Of("moodGame", "RimWorld.StatDef", [MoodGame.ThresholdStat]),
+        DefTable.Of("moodGame", "RimWorld.StatDef", [MoodGame().ThresholdStat]),
         DefTable.Of("moodThoughts", "RimWorld.ThoughtDef", MoodThoughtDefs()),
-        DefTable.Of("moodUnpricedBreaks", "Verse.MentalBreakDef", MoodGame.Unpriced),
-        DefTable.Of("moodHediffBreaks", "Verse.MentalBreakDef", SortedKeys(MoodGame.HediffBreaks)),
+        DefTable.Of("moodUnpricedBreaks", "Verse.MentalBreakDef", MoodGame().Unpriced),
+        DefTable.Of("moodHediffBreaks", "Verse.MentalBreakDef", SortedKeys(MoodGame().HediffBreaks)),
         DefTable.Of("moodBreakHediffs", "Verse.HediffDef", MoodBreakHediffs()),
         // seekerGame (#2975): the comfort and beauty needs and the thoughts their levels read through. The
         // category thresholds, the 150-tick need interval and the beauty impact factor are Need_Comfort's,
@@ -113,12 +113,12 @@ public static partial class PolicyFunctions
         // are the NeedDef rows'.
         // foodPoisonGame (#2955): the sickness a poisoned meal gives, the capacity of it that stands for lost
         // work (Consciousness, the judgment) and the job a vomit starts (JobDriver_Vomit: 300 to 900 ticks).
-        DefTable.Of("foodPoisonHediff", "Verse.HediffDef", [FoodPoisonGame.Hediff]),
-        DefTable.Of("foodPoisonCapacity", "Verse.PawnCapacityDef", [FoodPoisonGame.WorkCapacity]),
-        DefTable.Of("foodPoisonVomit", "Verse.JobDef", [FoodPoisonGame.VomitJob]),
+        DefTable.Of("foodPoisonHediff", "Verse.HediffDef", [FoodPoisonGame().Hediff]),
+        DefTable.Of("foodPoisonCapacity", "Verse.PawnCapacityDef", [FoodPoisonGame().WorkCapacity]),
+        DefTable.Of("foodPoisonVomit", "Verse.JobDef", [FoodPoisonGame().VomitJob]),
         // filthGame (#2988): the stat a colonist's cleaning speed is; UnitsPerRun is TryMakeFilth's default
-        // count (ilspycmd), and the unpriced floor and tracked dirt are explained on FilthGame.
-        DefTable.Of("filthGame", "RimWorld.StatDef", [FilthGame.SpeedStat]),
+        // count (ilspycmd), and the unpriced floor and tracked dirt are explained on FilthGameJudgment.
+        DefTable.Of("filthGame", "RimWorld.StatDef", [FilthGameJudgment.SpeedStat]),
         DefTable.Of("seekerNeeds", "RimWorld.NeedDef", SeekerNeedDefs()),
         // fieldCrops (#2961): the crop a field is planned for while none is sown.
         DefTable.Of("fieldCrops", "Verse.ThingDef", FieldCrops),
@@ -127,21 +127,21 @@ public static partial class PolicyFunctions
         // WindTurbineUtility.CalculateWindCells's, read with ilspycmd; keyed by the turbine def so a rename
         // fails the gate. perimeterTable: DetourBudgetTicks is the one judgment of the perimeter cut's
         // sapper-derived thickness (perimeter_cut.go); the wall def is the building the cut is walled with.
-        DefTable.Of("perimeterTable", "Verse.ThingDef", [PerimeterTable.WallDef]),
+        DefTable.Of("perimeterTable", "Verse.ThingDef", [PerimeterDefs().WallDef]),
         DefTable.Of("windPath", "Verse.ThingDef", [WindTurbineDefinition]),
         // interiorTable (#2956): the shelf and lamp the region interior wants beside benches and beds;
-        // KitchenStoves is the judgment explained on InteriorTable.
-        DefTable.Of("interiorTable", "Verse.ThingDef", [InteriorTable.ShelfDef, InteriorTable.LampDef]),
+        // KitchenStoves is the judgment explained on InteriorDefs().
+        DefTable.Of("interiorTable", "Verse.ThingDef", [InteriorDefs().ShelfDef, InteriorDefs().LampDef]),
         // The power site price (#2999) is the market value of a conduit run and a wall cell: the catalog's
         // cost lists, keyed by the defs so a rename fails.
         DefTable.Of("siteConduit", "Verse.ThingDef", [PowerConduitDefinition]),
         // joyGame (#2997): the Joy need and the giver whose class is outdoors; the fall, interval and gain
         // scale are Need_Joy's and JoyUtility's literals (ilspycmd).
-        DefTable.Of("joyGame", "RimWorld.NeedDef", [JoyGame.Need]),
-        DefTable.Of("joyOutdoorGivers", "RimWorld.JoyGiverDef", JoyGame.OutdoorGivers),
+        DefTable.Of("joyGame", "RimWorld.NeedDef", [JoyGame().Need]),
+        DefTable.Of("joyOutdoorGivers", "RimWorld.JoyGiverDef", JoyGame().OutdoorGivers),
         // haulGame (#2998): the stats the mining and chopping work and yield are scaled by; the pick interval
         // and hit are JobDriver_Mine's literals (ilspycmd) and MinerOwners the judgment explained on HaulTable.
-        DefTable.Of("haulGame", "RimWorld.StatDef", [HaulGame.MiningSpeed, HaulGame.MiningYield, HaulGame.PlantWorkSpeed, HaulGame.PlantHarvestYield]),
+        DefTable.Of("haulGame", "RimWorld.StatDef", [HaulGame().MiningSpeed, HaulGame().MiningYield, HaulGame().PlantWorkSpeed, HaulGame().PlantHarvestYield]),
     ];
 
     internal static List<string> ResourceKeys(IEnumerable<Resource> set) =>

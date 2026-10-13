@@ -144,7 +144,7 @@ public static partial class PolicyFunctions
     public const double ElectiveShareSlack = 0.1;
 
     /// <summary>No living colonist has an operation the planner serves. A queued bill does not settle it; the health change does.</summary>
-    public static Fact<bool> SurgeryRecovered(Fact<IReadOnlyList<CarePawn>> pawns)
+    public static Fact<bool> SurgeryRecovered(Fact<EquatableArray<CarePawn>> pawns)
     {
         if (!pawns.TryGetValue(out var rows))
         {
@@ -282,7 +282,7 @@ public static partial class PolicyFunctions
     /// A chosen elective whose part is missing (ChosenElective) also holds it open while a usable bench can
     /// fabricate the part: the part bill is the work. fabricable is FabricableParts; null fabricates nothing.
     /// </summary>
-    public static Fact<bool> ElectiveSurgeryOwed(Fact<IReadOnlyList<CarePawn>> pawns, SurgeryContext ctx, IReadOnlySet<Resource>? fabricable)
+    public static Fact<bool> ElectiveSurgeryOwed(Fact<EquatableArray<CarePawn>> pawns, SurgeryContext ctx, IReadOnlySet<Resource>? fabricable)
     {
         if (!pawns.TryGetValue(out var rows))
         {
@@ -309,7 +309,7 @@ public static partial class PolicyFunctions
                 continue;
             }
             pawn.Operations.TryGetValue(out var ops);
-            foreach (var op in ops ?? [])
+            foreach (var op in ops)
             {
                 if (ElectiveUpgrade(op)
                     && op.IngredientsOnMap.TryGetValue(out var stocked)
@@ -345,12 +345,12 @@ public static partial class PolicyFunctions
     /// Whether a living colonist or prisoner has a queued medical bill. A native doctor job carries the bill, so
     /// it is clock work until the operation completes or the bill ends; an unknown count is not work.
     /// </summary>
-    public static bool SurgeryBillsQueued(Fact<IReadOnlyList<CarePawn>> pawns, Fact<IReadOnlyList<PrisonerFacts>> prisoners)
+    public static bool SurgeryBillsQueued(Fact<EquatableArray<CarePawn>> pawns, Fact<EquatableArray<PrisonerFacts>> prisoners)
     {
         static bool Queued(Fact<bool> dead, Fact<int> count) =>
             dead.TryGetValue(out var d) && !d && count.TryGetValue(out var n) && n > 0;
         pawns.TryGetValue(out var rows);
-        foreach (var pawn in rows ?? [])
+        foreach (var pawn in rows)
         {
             if (Queued(pawn.Dead, pawn.QueuedSurgeries))
             {
@@ -358,7 +358,7 @@ public static partial class PolicyFunctions
             }
         }
         prisoners.TryGetValue(out var held);
-        foreach (var row in held ?? [])
+        foreach (var row in held)
         {
             if (Queued(row.Dead, row.QueuedSurgeries))
             {
@@ -376,12 +376,12 @@ public static partial class PolicyFunctions
     /// part fits the colonist's remaining share (ctx.Elective) compete with their gain over the natural part, one
     /// elective per review colony-wide. Served operations never pass the share gate.
     /// </summary>
-    public static SurgerySelection SelectSurgery(Fact<IReadOnlyList<CarePawn>> pawns, IReadOnlySet<PawnId>? inFlight, SurgeryContext ctx)
+    public static SurgerySelection SelectSurgery(Fact<EquatableArray<CarePawn>> pawns, IReadOnlySet<PawnId>? inFlight, SurgeryContext ctx)
     {
         var wants = new List<SurgeryWant>();
         var queue = new List<SurgeryChoice>();
         pawns.TryGetValue(out var rowList);
-        var rows = rowList ?? [];
+        var rows = rowList;
         var electives = ElectivesAllowed(rows, ctx.HospitalBed);
         var profiles = new Dictionary<PawnId, PawnProfile>();
         foreach (var p in ctx.Profiles)
@@ -408,7 +408,7 @@ public static partial class PolicyFunctions
             var weights = new Dictionary<int, double>();
             var elective = new Dictionary<int, bool>();
             var order = new List<int>();
-            foreach (var op in ops ?? [])
+            foreach (var op in ops)
             {
                 var pk = op.PartIndex.TryGetValue(out var part);
                 if (!pk)
@@ -574,7 +574,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The living colonists whose served operation waits only on a better bed or room: the hospital planner's surgical demand, which needs a Bed, not a sleeping spot.</summary>
-    public static IReadOnlyList<PawnId> SurgeryBedShortPatients(Fact<IReadOnlyList<CarePawn>> pawns)
+    public static IReadOnlyList<PawnId> SurgeryBedShortPatients(Fact<EquatableArray<CarePawn>> pawns)
     {
         var ids = new List<PawnId>();
         var seen = new HashSet<PawnId>();

@@ -278,6 +278,9 @@ public enum FormationRole
     AdjacentToChoke,
 
     FiringCells,
+
+    [WireName("rescue_path")]
+    RescuePath,
 }
 
 /// <summary>
@@ -880,7 +883,7 @@ public sealed partial record CombatMemory
 public static partial class PolicyFunctions
 {
     /// <summary>Go's <c>domain.PawnID(t.ID)</c>: the threat row's wire id as a pawn id.</summary>
-    internal static PawnId ThreatPawn(SquadThreatFacts t) => new(t.Id);
+    internal static PawnId ThreatPawn(SquadThreatFacts t) => t.Id;
 
     /// <summary>
     /// The fight's per-stop decision: the live combat view at a stop, at most one geometry answer, the stop
@@ -930,7 +933,8 @@ public static partial class PolicyFunctions
         }
 
         {
-            var (exitOrders, exiting) = SiteExitTurn(view, stop, next, state, orderable);
+            var (exitMemory, exitOrders, exiting) = SiteExitTurn(view, stop, next, state, orderable);
+            next = exitMemory;
             if (exiting)
             {
                 return (exitOrders, null, next);
@@ -938,7 +942,8 @@ public static partial class PolicyFunctions
         }
 
         {
-            var (breakOrders, ok) = PrisonBreakTurn(view, next, state, orderable);
+            var (breakMemory, breakOrders, ok) = PrisonBreakTurn(view, next, state, orderable);
+            next = breakMemory;
             if (ok)
             {
                 // A prison break picks its own tactic and answers every stop itself: no geometry, no raid reactions.
@@ -1132,7 +1137,7 @@ public static partial class PolicyFunctions
             next.Roles = EquatableArray.From(FocusFire(view, next.Roles, memory.Roles));
         }
 
-        next.Roles = EquatableArray.From(DropMissingTargets(view, next.Roles));
+        next.Roles = EquatableArray.From(DropMissingTargets(view, [.. next.Roles]));
         FromRange(view, next);
         ShipPartHitAndRun(view, next);
         TribalStandoff(view, next);
@@ -1148,7 +1153,8 @@ public static partial class PolicyFunctions
         MeleeDoorTurn(view, next);
         Shelter(view, next);
         Scatter(view, next);
-        var stood = CounterBattery(view, memory.Roles, next);
+        var (counterMemory, stood) = CounterBattery(view, memory.Roles, next);
+        next = counterMemory;
         RocketClumps(view, next);
         Flank(view, next);
         GroupSquads(view, next);
@@ -1162,7 +1168,8 @@ public static partial class PolicyFunctions
 
         // Contained raiders who will not bleed down are finished in melee.
         FinishContained(view, next);
-        var (rescue, rescueAsk) = RescueStep(view, geometry, stop, next, orderable, state);
+        var (rescueMemory, rescue, rescueAsk) = RescueStep(view, geometry, stop, next, orderable, state);
+        next = rescueMemory;
         if (rescueAsk is not null)
         {
             return ([], rescueAsk, memory);
@@ -1280,7 +1287,9 @@ public static partial class PolicyFunctions
         orders.AddRange(DoseOrders(view, next, orders, orderable, state));
 
         // An outmatched fight calls its held permits; a call names no drafted pawn and leaves its holder's other orders alone.
-        orders.AddRange(PermitCalls(view, next));
+        var (permitMemory, permitCalls) = PermitCalls(view, next);
+        next = permitMemory;
+        orders.AddRange(permitCalls);
 
         // A psycaster casts its ready combat psycast, one per caster.
         orders.AddRange(CastCalls(view, next));
@@ -1503,7 +1512,7 @@ public static partial class PolicyFunctions
         }
 
         var belted = view.Pawns.Items.Any(p => p.Shield.IsKnown);
-        var (v, vok) = TowardVector(layout.Toward);
+        var vok = TowardVector(layout.Toward, out var v);
         if (vok)
         {
             foreach (var f in layout.Firing.Items)
@@ -1578,8 +1587,8 @@ public static partial class PolicyFunctions
             cells.RemoveAll(c => unreachable.Contains(c));
             cells = SpaceCells(cells, FiringGap(view));
             var (defenders, tanks) = SplitTanks(view);
-            List<DefensivePosition> positions;
-            (positions, refusal) = ExplainDefensivePositions(cells, layout.Toward, InsideRooms(view), ChokeHeld(view, layout), MarkMechs(view), defenders);
+            IReadOnlyList<DefensivePosition> positions;
+            (positions, refusal) = ExplainDefensivePositionsIn(cells, layout.Toward, InsideRooms(view), ChokeHeld(view, layout), MarkMechs(view), defenders);
             if (refusal.Length == 0)
             {
                 var roles = new List<CombatRole>(positions.Count);
@@ -1623,7 +1632,7 @@ public static partial class PolicyFunctions
             squadRoles.Add(new CombatRole { Pawn = a.Defender, Target = a.Target, Ranged = a.Mode == SquadMode.Ranged });
         }
 
-        squadRoles = HoldBrawlerBesideGunners(view, squadRoles);
+        squadRoles = [.. HoldBrawlerBesideGunners(view, squadRoles)];
         return (CombatTactic.Squad, SortRoles(squadRoles), refusal);
     }
 
@@ -1635,11 +1644,12 @@ public static partial class PolicyFunctions
             var (tribal, ok) = SelectTribalRaiderDefense(view.Threats.Items[0], view.Defenders.Items);
             if (ok)
             {
-                return (tribal, true);
+                return (tribal.ToList(), true);
             }
         }
 
-        return SelectSquadDefense(MarkSquadMechs(view), view.Defenders.Items);
+        var (squad, squadOk) = SelectSquadDefense(MarkSquadMechs(view), view.Defenders.Items);
+        return ([.. squad], squadOk);
     }
 
     private static List<CombatRole> SortRoles(List<CombatRole> roles)

@@ -72,25 +72,13 @@ public sealed record BasicComfortReview
 public static partial class PolicyFunctions
 {
     /// <summary>
-    /// EnsureComfort's Phase is the step a review leaves owed: the basic facilities (a reachable table, seat
-    /// and recreation source, foothold priority) before the ranked project (hosting rooms and proof of use,
-    /// from StageDevelopment). Each phase has its own planner.
-    /// </summary>
-    public static readonly Phase ComfortBasic = new("basic");
-
-    public static readonly Phase ComfortRanked = new("ranked");
-
-    /// <summary>The PartySpot step, owed once neither facility phase is: the ranked planner serves it (RoundsFacts.PartySpotOwed).</summary>
-    public static readonly Phase ComfortSpot = new("spot");
-
-    /// <summary>
     /// Measures the unfiltered comfort census (every indoor seat and every recreation source, whatever room
     /// hosts it). Capacity alone counts: a facility everyone can reach is provided whether or not anyone has
     /// been observed using it yet.
     /// </summary>
     public static BasicComfortReview ReviewBasicComfort(Fact<ComfortObservation> observed)
     {
-        var full = ReviewComfort(observed, new ComfortHistory(), 0);
+        var full = ReviewComfort(observed, new ComfortHistory(), new Tick(0));
         static ComfortNeed Provided(ComfortNeed need) => need == ComfortNeed.UseNeeded ? ComfortNeed.Recovered : need;
 
         var r = new BasicComfortReview
@@ -133,6 +121,6 @@ public static partial class PolicyFunctions
             return v.Recreation.Count > 0 ? ComfortMethod.AccessBlocked : v.FootholdMethod();
         }
 
-        return ComfortMethod.None;
+        return ComfortMethod.NoMethod;
     }
 }

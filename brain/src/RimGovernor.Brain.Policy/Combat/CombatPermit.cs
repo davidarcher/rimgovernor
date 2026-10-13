@@ -19,7 +19,7 @@ public static partial class PolicyFunctions
         {
             return PermitFightKind.StrikeCall;
         }
-        if (PermitCategory(new RoyalPermit { Name = name }) == PermitCategoryKind.Aid && !name.Contains("Laborer", StringComparison.Ordinal))
+        if (PermitCategoryOf(new RoyalPermit { Name = name }) == PermitCategory.Aid && !name.Contains("Laborer", StringComparison.Ordinal))
         {
             return PermitFightKind.AidCall;
         }
@@ -65,8 +65,8 @@ public static partial class PolicyFunctions
         var permitted = m.Permitted.ToList();
         foreach (var holder in SortedHolders(royalty.Holders))
         {
-            var pawn = new PawnId(holder);
-            if (down.GetValueOrDefault(pawn) || !view.Defenders.Any(d => d.Id == pawn))
+            var pawn = holder;
+            if (down.Contains(pawn) || !view.Defenders.Any(d => d.Id == pawn))
             {
                 continue;
             }

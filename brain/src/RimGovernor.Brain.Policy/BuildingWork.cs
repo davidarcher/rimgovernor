@@ -9,7 +9,7 @@ public static partial class PolicyFunctions
         p.Action.Kind == ActionKind.Building
         && p.Action.ConstructionTarget.Length == 0
         && p.View.Stage == Stage.Completed
-        && BuildingWorkOpen(p, census) == BuildingWork.Open;
+        && BuildingWorkOpen(p, census) == BuildingWork.BuildingOpen;
 
     /// <summary>StandardWorkOpen plus applied buildings still under construction.</summary>
     public static bool PlanWorkOpen(IReadOnlyList<Progress> progress, Fact<CurrentConstruction> census)
@@ -38,7 +38,7 @@ public static partial class PolicyFunctions
                 return false;
             }
 
-            if (p.Action.Kind == ActionKind.Building && BuildingWorkOpen(p, census) != BuildingWork.Done)
+            if (p.Action.Kind == ActionKind.Building && BuildingWorkOpen(p, census) != BuildingWork.BuildingDone)
             {
                 return false;
             }
@@ -51,6 +51,6 @@ public static partial class PolicyFunctions
     private static BuildingWork BuildingWorkOpen(Progress p, Fact<CurrentConstruction> census)
     {
         var building = p.Action.Building;
-        return WorkOpen(building, census);
+        return WorkOpen(building!, census);
     }
 }

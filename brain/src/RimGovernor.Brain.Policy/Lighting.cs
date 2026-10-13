@@ -139,7 +139,7 @@ public sealed record LightingReview
     public IReadOnlyList<int> Planned { get; init; } = [];
 
     /// <summary>Folds the plan's lighting deficit into the review: a listed room keeps the project open beside the dark benches. An unknown fact adds none.</summary>
-    public LightingReview WithPlanned(Fact<IReadOnlyList<int>> rooms)
+    public LightingReview WithPlanned(Fact<EquatableArray<int>> rooms)
     {
         if (rooms.TryGetValue(out var ids))
         {
@@ -546,16 +546,16 @@ public static partial class PolicyFunctions
     /// no active source lists nothing (the lamps are electric); an unknown plan, room census, lamp census or source
     /// is unknown.
     /// </summary>
-    public static Fact<IReadOnlyList<int>> PlanLitRooms(Fact<LayoutPlan> plan, Fact<RoomObservation> rooms, Fact<LightingObservation> lamps, Fact<bool> powered)
+    public static Fact<EquatableArray<int>> PlanLitRooms(Fact<LayoutPlan> plan, Fact<RoomObservation> rooms, Fact<LightingObservation> lamps, Fact<bool> powered)
     {
         if (!plan.TryGetValue(out var p) || !rooms.TryGetValue(out var r) || !lamps.TryGetValue(out var l) || !powered.TryGetValue(out var source))
         {
-            return Unknown<IReadOnlyList<int>>();
+            return Unknown<EquatableArray<int>>();
         }
         var found = new List<int>();
         if (!source)
         {
-            return Known<IReadOnlyList<int>>(found);
+            return Known(EquatableArray.From(found));
         }
         foreach (var room in p.Rooms)
         {
@@ -570,7 +570,7 @@ public static partial class PolicyFunctions
                 found.Add(room.Id);
             }
         }
-        return Known<IReadOnlyList<int>>(found);
+        return Known(EquatableArray.From(found));
     }
 
     internal static int Abs32(int v) => v < 0 ? -v : v;

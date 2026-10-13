@@ -157,11 +157,11 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            if (seen.Contains(source.ThingID) || source.Yield < 0 || source.Yield > long.MaxValue - total)
+            if (seen.Contains(source.ThingId) || source.Yield < 0 || source.Yield > long.MaxValue - total)
             {
                 return Unknown<long>();
             }
-            seen.Add(source.ThingID);
+            seen.Add(source.ThingId);
             total += source.Yield;
         }
         return Known(total);

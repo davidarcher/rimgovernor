@@ -191,9 +191,10 @@ public static partial class PolicyFunctions
 
                         break;
                     case PsycastTarget.Cell:
-                        if (StrikeCell(view) is { } strike && Dist(at, strike) <= CastReach)
+                        var (strikeAt, strikeFound) = StrikeCell(view);
+                        if (strikeFound && Dist(at, strikeAt) <= CastReach)
                         {
-                            return (order with { Cell = strike }, true);
+                            return (order with { Cell = strikeAt }, true);
                         }
 
                         break;

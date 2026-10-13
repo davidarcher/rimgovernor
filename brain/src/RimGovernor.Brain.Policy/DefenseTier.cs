@@ -45,11 +45,11 @@ public static partial class PolicyFunctions
             wanted.Add((b.Definition, b.Cell));
         }
         return sites
-            .Where(s => !s.Id.IsEmpty
+            .Where(s => s.Id.Length != 0
                 && s.Tier.TryGetValue(out var tier)
                 && tier != ConstructionTier.Survive
-                && wanted.Contains((s.Building.Definition, s.Building.Cell)))
-            .OrderBy(s => s.Id.Value, StringComparer.Ordinal)
+                && wanted.Contains((s.Building!.Definition, s.Building.Cell)))
+            .OrderBy(s => s.Id, StringComparer.Ordinal)
             .ToList();
     }
 }

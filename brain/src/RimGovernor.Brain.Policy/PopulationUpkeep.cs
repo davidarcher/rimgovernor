@@ -159,9 +159,9 @@ public sealed partial record PrisonerFacts
     // Organ harvest facts: the prisoner's operations and queued medical bills, its home faction's id (empty
     // for none) and the goodwill change vanilla's harvest violation would make with it (<= 0). MissingParts:
     // the prisoner's missing parts; removal must retain one leg.
-    public Fact<IReadOnlyList<MissingPart>> MissingParts { get; init; }
+    public Fact<EquatableArray<MissingPart>> MissingParts { get; init; }
 
-    public Fact<IReadOnlyList<SurgeryOperation>> Operations { get; init; }
+    public Fact<EquatableArray<SurgeryOperation>> Operations { get; init; }
 
     public Fact<int> QueuedSurgeries { get; init; }
 
@@ -176,7 +176,7 @@ public sealed partial record PrisonerFacts
     public Fact<bool> Withdrawal { get; init; }
 
     // Care cap inputs: conditions and life threat, the queued bills' recipes and an Execution interaction.
-    public Fact<IReadOnlyList<CareCondition>> Conditions { get; init; }
+    public Fact<EquatableArray<CareCondition>> Conditions { get; init; }
 
     public Fact<bool> LifeThreatening { get; init; }
 
@@ -419,7 +419,7 @@ public static partial class PolicyFunctions
     /// any prisoner whose facts are incomplete for the decision, leaves the whole need unknown rather than
     /// silently treating it as recovered. The colony facts matter only once a prisoner is held.
     /// </summary>
-    public static Fact<bool> PrisonerRecruitDeficit(Fact<IReadOnlyList<PrisonerFacts>> prisoners, Fact<PrisonerColony> colony, Fact<double> food, PrisonerPolicy p)
+    public static Fact<bool> PrisonerRecruitDeficit(Fact<EquatableArray<PrisonerFacts>> prisoners, Fact<PrisonerColony> colony, Fact<double> food, PrisonerPolicy p)
     {
         if (!prisoners.TryGetValue(out var rows))
         {
@@ -453,7 +453,7 @@ public static partial class PolicyFunctions
     /// Picks the lowest-pawn-ID living prisoner still needing a write, and the write it needs, to dispatch
     /// next. A row whose facts are incomplete is skipped rather than blocking the rest.
     /// </summary>
-    public static PrisonerChoice SelectPrisonerInteractionMethod(Fact<IReadOnlyList<PrisonerFacts>> prisoners, Fact<PrisonerColony> colony, Fact<double> food, PrisonerPolicy p)
+    public static PrisonerChoice SelectPrisonerInteractionMethod(Fact<EquatableArray<PrisonerFacts>> prisoners, Fact<PrisonerColony> colony, Fact<double> food, PrisonerPolicy p)
     {
         var known = prisoners.TryGetValue(out var rows);
         var ck = colony.TryGetValue(out var c);

@@ -98,7 +98,13 @@ public sealed record UpkeepHistory
     public bool Repairs { get; init; }
 }
 
-public sealed record UpkeepNeed(ConcernId Concern, int Priority, bool Active, Fact<EquatableArray<string>> Targets, Fact<double> Metric, bool Unsafe);
+public sealed record UpkeepNeed(ConcernId Concern, int Priority, bool Active, Fact<EquatableArray<string>> Targets, Fact<double> Metric, bool Unsafe)
+{
+    /// <summary>The zero value Go's struct literal starts from.</summary>
+    public UpkeepNeed() : this(default, 0, false, default, default, false)
+    {
+    }
+}
 
 public sealed record UpkeepReview
 {
@@ -117,7 +123,7 @@ public static partial class PolicyFunctions
     /// Ports the direct native upkeep contracts. Issued work is supplied by the shared journal, never inferred from a
     /// receipt or target loss. Throws on an invalid row.
     /// </summary>
-    public static UpkeepReview ReviewUpkeep(UpkeepObservation v, UpkeepHistory previous, IReadOnlySet<ConcernId> issued)
+    public static UpkeepReview ReviewUpkeep(UpkeepObservation v, UpkeepHistory previous, IReadOnlyDictionary<ConcernId, bool>? issued)
     {
         var needs = new List<UpkeepNeed>();
         var history = new UpkeepHistory();
@@ -127,7 +133,7 @@ public static partial class PolicyFunctions
             {
                 active = rows.Count > 0;
             }
-            active = active || issued.Contains(goal);
+            active = active || (issued?.GetValueOrDefault(goal) ?? false);
             if (!targets.IsKnown && !active)
             {
                 priority = 4;
@@ -146,7 +152,7 @@ public static partial class PolicyFunctions
         }
         UpkeepReview Result() => new() { History = history, Needs = needs };
 
-        var fire = ReviewFireSafety(v.Fires, previous.Fire, issued.Contains(MaintainFireSafety));
+        var fire = ReviewFireSafety(v.Fires, previous.Fire, (issued?.GetValueOrDefault(MaintainFireSafety) ?? false));
         history = history with { Fire = fire.Active };
         needs.Add(fire);
         var targets = Unknown<EquatableArray<string>>();

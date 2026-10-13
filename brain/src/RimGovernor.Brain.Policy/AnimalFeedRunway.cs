@@ -27,16 +27,16 @@ public sealed record AnimalFeedInputs
     /// <summary>The pens' worst-season pasture rates (PenGrazing).</summary>
     public Fact<EquatableArray<PenGrazing>> Pens { get; init; }
 
-    public required AnimalRaceCatalog Races { get; init; }
+    public AnimalRaceCatalog Races { get; init; } = new();
 
-    public required StockReader Stock { get; init; }
+    public StockReader Stock { get; init; }
 }
 
 /// <summary>
 /// One race group's runway. NutritionPerDay is the group's consumption, PasturePerDay the share of the pens'
 /// pasture it is credited (in proportion to its consumption), StockNutrition the unheld edible stock all its
 /// animals can eat. Feed is the item demanded when the group is short ("" when it is not, or no item feeds the
-/// race), Need the level of it to hold and Short the items missing from the stock of it.
+/// race), Need the level of it to hold and MissingItems the items missing from the stock of it.
 /// </summary>
 public sealed record AnimalFeedGroupRunway
 {
@@ -59,7 +59,7 @@ public sealed record AnimalFeedGroupRunway
 
     public long Need { get; init; }
 
-    public long Short { get; init; }
+    public long MissingItems { get; init; }
 }
 
 /// <summary>A change of a group's consumption: from Tick (game ticks from now) the group eats Delta more nutrition per day.</summary>
@@ -75,7 +75,7 @@ public sealed record AnimalFeedProjection
     public EquatableArray<Resource> Gaps { get; init; }
 
     /// <summary>A group the stock and pasture do not carry over the horizon.</summary>
-    public bool Short() => ShortfallDays > 0;
+    public bool IsShort() => ShortfallDays > 0;
 }
 
 /// <summary>The review's animal feed runway: Needs the stock levels MaintainResource must reach, the projection beside them.</summary>
@@ -283,10 +283,10 @@ public static partial class PolicyFunctions
 
             s.Count.TryGetValue(out var count);
             s.Nutrition.TryGetValue(out var nutrition);
-            if (!found || s.DefName < item || (s.DefName == item && string.CompareOrdinal(s.ID, bestId) < 0))
+            if (!found || s.DefName < item || (s.DefName == item && string.CompareOrdinal(s.Id, bestId) < 0))
             {
                 item = s.DefName;
-                bestId = s.ID;
+                bestId = s.Id;
                 perItem = nutrition / count;
                 found = true;
             }
@@ -353,10 +353,10 @@ public static partial class PolicyFunctions
 
         if (!input.Forecast.TryGetValue(out var forecast))
         {
-            var ids = eligible.Select(a => a.ID).ToList();
+            var ids = eligible.Select(a => a.Id).ToList();
             try
             {
-                forecast = ForecastFood(supply, ids);
+                forecast = ForecastFood(supply!, ids);
             }
             catch (DomainException)
             {
@@ -367,7 +367,7 @@ public static partial class PolicyFunctions
         var perDay = new Dictionary<PawnId, double>();
         foreach (var row in forecast.Consumers)
         {
-            perDay[row.ID] = row.NutritionPerDay;
+            perDay[row.Id] = row.NutritionPerDay;
         }
 
         var pasture = 0.0;
@@ -387,7 +387,7 @@ public static partial class PolicyFunctions
         var total = 0.0;
         foreach (var a in eligible)
         {
-            if (!perDay.TryGetValue(a.ID, out var need) || !FoodNumber(need))
+            if (!perDay.TryGetValue(a.Id, out var need) || !FoodNumber(need))
             {
                 return UnknownFeedRunway();
             }
@@ -403,7 +403,7 @@ public static partial class PolicyFunctions
                 return UnknownFeedRunway();
             }
 
-            g.Animals.Add(a.ID);
+            g.Animals.Add(a.Id);
             g.Steps.AddRange(steps);
             g.NutritionPerDay += need;
             total += need;
@@ -416,7 +416,7 @@ public static partial class PolicyFunctions
         foreach (var g in byRace.Values)
         {
             g.Animals.Sort();
-            foreach (var stock in supply.Stocks)
+            foreach (var stock in supply!.Stocks)
             {
                 if (GroupEats(stock, g.Animals))
                 {
@@ -457,8 +457,8 @@ public static partial class PolicyFunctions
                     }
 
                     g.Feed = item;
-                    g.Short = (long)Math.Ceiling(missing / perItem);
-                    g.Need = have + g.Short;
+                    g.MissingItems = (long)Math.Ceiling(missing / perItem);
+                    g.Need = have + g.MissingItems;
                     needs[item] = Math.Max(needs.GetValueOrDefault(item), g.Need);
                 }
             }
@@ -487,7 +487,7 @@ public static partial class PolicyFunctions
     internal static bool GroupEats(FoodStock s, IReadOnlyList<PawnId> animals)
     {
         var hk = s.Holder.TryGetValue(out var holder);
-        if (!hk || holder.Length != 0 || s.DefName.IsEmpty || !ValidResource(s.DefName))
+        if (!hk || !holder.IsEmpty || s.DefName.IsEmpty || !ValidResource(s.DefName))
         {
             return false;
         }
@@ -531,7 +531,7 @@ public static partial class PolicyFunctions
 
         public long Need { get; set; }
 
-        public long Short { get; set; }
+        public long MissingItems { get; set; }
 
         public AnimalFeedGroupRunway Build() =>
             new()
@@ -545,7 +545,7 @@ public static partial class PolicyFunctions
                 ShortfallDays = ShortfallDays,
                 Feed = Feed,
                 Need = Need,
-                Short = Short,
+                MissingItems = MissingItems,
             };
     }
 }

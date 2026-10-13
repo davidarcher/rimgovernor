@@ -8,7 +8,7 @@ public sealed record ForwardObserved
 {
     public IReadOnlyList<PowerNetworkFact> Power { get; init; } = [];
 
-    public Fact<IReadOnlyList<DefenseTurretFacts>> Turrets { get; init; }
+    public Fact<EquatableArray<DefenseTurretFacts>> Turrets { get; init; }
 }
 
 public static partial class PolicyFunctions
@@ -25,7 +25,7 @@ public static partial class PolicyFunctions
             Policy = p,
             Construction = new ConstructionInputs { Deficit = f.ConstructionDeficit, Admitted = f.Admitted, Stock = f.Resources, Items = f.Items },
             Fuel = new FuelInputs { Consumers = f.Fuel, Stock = new StockReader { Resources = f.Resources, Wood = f.Wood } },
-            AnimalFeed = f.AnimalFeedInputs(),
+            AnimalFeed = AnimalFeedRunwayExtensions.AnimalFeedInputsOf(f),
             Runways = f.ResourceRunways,
             Items = f.Items,
         };

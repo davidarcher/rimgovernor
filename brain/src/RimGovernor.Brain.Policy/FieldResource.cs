@@ -70,7 +70,7 @@ public static partial class PolicyFunctions
             }
             viables.Add(v);
         }
-        plan = plan with { Candidates = candidates };
+        plan = plan with { Candidates = [.. candidates] };
         if (viables.Count == 0)
         {
             return null;
@@ -80,7 +80,8 @@ public static partial class PolicyFunctions
         {
             candidates.Add(FieldCandidateFor(req, v, false));
         }
-        return RankField(plan with { Candidates = candidates }, false);
+        var (ranked, ok) = RankField(plan with { Candidates = [.. candidates] }, false);
+        return ok ? ranked : null;
     }
 
     /// <summary>

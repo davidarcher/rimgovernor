@@ -28,7 +28,7 @@ public static partial class PolicyConstants
 /// </summary>
 public sealed record IsolationPlanning
 {
-    public Fact<IReadOnlyList<PawnId>> Pawns { get; init; }
+    public Fact<EquatableArray<PawnId>> Pawns { get; init; }
 
     public IReadOnlyList<string> Beds { get; init; } = [];
 }
@@ -50,9 +50,9 @@ public static partial class PolicyFunctions
         {
             Role = RoomRole.IsolationRoom,
             Module = PlannedRole.IsolationRoom,
-            Furniture = [new ChildFurniture(p.Beds, 1)],
+            Furniture = [new ChildFurniture { Defs = EquatableArray.From(p.Beds), Count = 1 }],
         };
-        var (_, ok) = need.Resolve(furniture);
+        var ok = need.Resolve(furniture) is not null;
         return ok ? (need, true) : (default!, false);
     }
 
@@ -62,20 +62,20 @@ public static partial class PolicyFunctions
     /// </summary>
     public static bool IsolationRoomStanding(LayoutPlan plan, GroundCensus ground, IReadOnlyList<CurrentBuilding> built, ChildRoomNeed need, IReadOnlyList<FurnitureDefinition> defs)
     {
-        var (shape, ok) = need.Shape(defs);
-        if (!ok)
+        var shape = need.Shape(defs);
+        if (shape is null)
         {
             return false;
         }
-        var (room, rok) = plan.ChildRoomFor(shape);
-        if (!rok || !plan.GroundMatches(room, ground))
+        var rok = plan.ChildRoomFor(shape, out var room);
+        if (!rok || !plan.GroundMatches(room!, ground))
         {
             return false;
         }
-        var (pieces, _) = need.Resolve(defs);
+        var pieces = need.Resolve(defs) ?? [];
         foreach (var p in pieces)
         {
-            if (StandingChildPieces(room, p.Defs, built) < p.Count)
+            if (StandingChildPieces(room!, p.Defs, built) < p.Count)
             {
                 return false;
             }

@@ -140,7 +140,7 @@ public static partial class PolicyFunctions
     {
         foreach (var p in ranked)
         {
-            var (size, ok) = items.SculptureSize(p.Def);
+            var ok = items.SculptureSize(p.Def, out var size);
             if (!ok || (taken is not null && taken.Contains(p.Id)))
             {
                 continue;

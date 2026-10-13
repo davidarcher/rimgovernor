@@ -9,7 +9,7 @@ public static partial class PolicyFunctions
     /// Names the stand-ins the layout plan does not hold: the butcher spot and the crafting spot are placed by a
     /// search near the core, not planned ahead, so they are drawn from what stands or is blueprinted.
     /// </summary>
-    private static readonly Dictionary<string, OverlayStyle> SpotLabels = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, OverlayStyleOf> SpotLabels = new(StringComparer.Ordinal)
     {
         ["ButcherSpot"] = new(PlanBrown, "butcher spot"),
         ["CraftingSpot"] = new(PlanTan, "crafting spot"),
@@ -24,7 +24,7 @@ public static partial class PolicyFunctions
         var layers = new List<OverlayLayer>();
         var labels = new List<OverlayLabel>();
 
-        void Draw(OverlayStyle style, string text, IReadOnlyList<Cell> cells)
+        void Draw(OverlayStyleOf style, string text, IReadOnlyList<Cell> cells)
         {
             if (cells.Count == 0)
             {
@@ -36,16 +36,16 @@ public static partial class PolicyFunctions
                 return;
             }
             var runs = CellRuns(kept);
-            layers.Add(new OverlayLayer { Color = style.Hue.Fill(), Style = OverlayFill, Label = text, Runs = runs });
-            layers.Add(new OverlayLayer { Color = style.Hue.Outline(), Style = OverlayOutline, Label = text, Runs = runs });
+            layers.Add(new OverlayLayer { Color = style.Hue.Fill(), Style = OverlayStyle.Fill, Label = text, Runs = runs });
+            layers.Add(new OverlayLayer { Color = style.Hue.Outline(), Style = OverlayStyle.Outline, Label = text, Runs = runs });
             labels.Add(new OverlayLabel { Text = text, Cell = kept[0] });
         }
 
         foreach (var b in construction.Buildings)
         {
-            if (SpotLabels.TryGetValue(b.Building.Definition, out var style))
+            if (SpotLabels.TryGetValue(b.Building!.Definition, out var style))
             {
-                IReadOnlyList<Cell> cells = b.Cells;
+                var cells = b.Cells;
                 if (cells.Count == 0)
                 {
                     cells = [b.Building.Cell];
@@ -55,7 +55,7 @@ public static partial class PolicyFunctions
         }
         foreach (var s in construction.Sites)
         {
-            if (SpotLabels.TryGetValue(s.Building.Definition, out var style))
+            if (SpotLabels.TryGetValue(s.Building!.Definition, out var style))
             {
                 Draw(style, style.Label + " (planned)", [s.Building.Cell]);
             }

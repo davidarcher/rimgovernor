@@ -192,7 +192,7 @@ public static partial class PolicyFunctions
         var total = 0.0;
         foreach (var e in p!.Portfolio)
         {
-            if (e.Channel.Kind == CandidateKind.Trade && e.Channel.ID == trader && e.Decision == FoodPlanDecision.Open)
+            if (e.Channel.Kind == CandidateKind.Trade && e.Channel.Id == trader && e.Decision == FoodPlanDecision.Open)
             {
                 e.Channel.Nutrition().StockCap.TryGetValue(out var stock);
                 total += stock;

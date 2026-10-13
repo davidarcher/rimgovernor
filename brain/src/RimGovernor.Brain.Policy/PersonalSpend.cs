@@ -52,7 +52,7 @@ public sealed record PersonalSpendPawn
 
     public bool Free { get; init; }
 
-    public Fact<IReadOnlyList<PersonalItem>> Gear { get; init; }
+    public Fact<EquatableArray<PersonalItem>> Gear { get; init; }
 
     public IReadOnlyList<InstalledPart> Parts { get; init; } = [];
 
@@ -295,7 +295,7 @@ public static partial class PolicyFunctions
             {
                 s.IsUnknown = true;
             }
-            foreach (var it in items ?? [])
+            foreach (var it in items)
             {
                 if (!it.Base.TryGetValue(out var baseValue))
                 {

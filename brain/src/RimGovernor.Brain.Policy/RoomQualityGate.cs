@@ -194,7 +194,7 @@ public static partial class PolicyFunctions
             {
                 // Census: the suite's beds are read off its room.
                 var (room, ok) = CensusRoomIn(vacant[i], rooms);
-                if (ok && room.Beds.Count > 0)
+                if (ok && room!.Beds.Count > 0)
                 {
                     output.Add(c);
                     continue;

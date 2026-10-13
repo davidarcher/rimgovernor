@@ -641,7 +641,7 @@ public static partial class PolicyFunctions
                         Busy = w.Busy,
                         Inactive = w.Inactive,
                         Met = w.Met,
-                        ObservedGain = stockKnown ? stock.GetValueOrDefault(o.Product) - w.StartStock : null,
+                        ObservedGain = stockKnown ? stock!.GetValueOrDefault(o.Product) - w.StartStock : null,
                     },
                 };
             }
@@ -654,7 +654,7 @@ public static partial class PolicyFunctions
         }
         foreach (var b in input.Plan.Held)
         {
-            orphans.Add(BillView(b, abstain ? OrphanHeld : OrphanPending, input.Plan.Orphans.GetValueOrDefault(b.ID)));
+            orphans.Add(BillView(b, abstain ? OrphanHeld : OrphanPending, input.Plan.Orphans.GetValueOrDefault(b.Id)));
         }
         return NewLedgerView(LedgerViewReconciled, input.Tick) with
         {
@@ -681,7 +681,7 @@ public static partial class PolicyFunctions
     private static LedgerBillView BillView(ActualBill b, string state, int rounds) =>
         new()
         {
-            ID = b.ID,
+            ID = b.Id,
             Bench = b.Bench,
             Kind = Wire.Name(b.Kind),
             Recipe = b.Spec.Recipe,

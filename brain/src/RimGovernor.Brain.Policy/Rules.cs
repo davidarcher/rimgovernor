@@ -44,7 +44,7 @@ public static partial class PolicyFunctions
         {
             return (new RuleSet(), false);
         }
-        var (_, found) = HunterFor(profiles);
+        var found = HunterFor(profiles) is not null;
         if (!found)
         {
             return (new RuleSet(), true);

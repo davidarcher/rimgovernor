@@ -87,7 +87,7 @@ public sealed record RecoveryRequest
 
     public Fact<bool> Threat { get; init; }
 
-    public Fact<IReadOnlyList<OutdoorHazard>> Hazard { get; init; }
+    public Fact<EquatableArray<OutdoorHazard>> Hazard { get; init; }
 
     /// <summary>A planned dash window is open, which lifts the extreme cold hold (and only that hazard).</summary>
     public bool DashOpen { get; init; }
@@ -295,7 +295,7 @@ public static partial class PolicyFunctions
         var own = row with { RoofBlocker = "" };
         var t = new RecoveryThing
         {
-            ID = row.EntityID,
+            ID = row.EntityId,
             Def = row.DefName,
             Kind = RemoteWorkKind.Salvage,
             RoomObstruction = roomObstruction,
@@ -308,7 +308,7 @@ public static partial class PolicyFunctions
         {
             t = t with
             {
-                Candidate = SalvagePriced(row.EntityID, row.Salvage).Candidate,
+                Candidate = SalvagePriced(row.EntityId, row.Salvage).Candidate,
                 Evidenced = true,
                 RouteSafe = row.Salvage.Safe,
             };
@@ -349,7 +349,7 @@ public static partial class PolicyFunctions
             {
                 if (row.Minimum.X < g.X + g.Width && row.Maximum.X >= g.X && row.Minimum.Z < g.Z + g.Height && row.Maximum.Z >= g.Z)
                 {
-                    output.Add(row.EntityID);
+                    output.Add(row.EntityId);
                     break;
                 }
             }
@@ -443,7 +443,7 @@ public static partial class PolicyFunctions
         var things = new List<RecoveryThing>();
         foreach (var row in rows)
         {
-            var (t, ok) = RecoveryClearanceThing(row, roomObstructions.Contains(row.EntityID));
+            var (t, ok) = RecoveryClearanceThing(row, roomObstructions.Contains(row.EntityId));
             if (ok)
             {
                 things.Add(t);

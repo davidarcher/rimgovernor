@@ -4,9 +4,9 @@ namespace RimGovernor.Brain.Policy;
 public sealed record MoodLedgerPawn
 {
     public PawnId Id { get; init; }
-    public Fact<IReadOnlyList<MoodThought>> Thoughts { get; init; }
-    public Fact<IReadOnlyList<string>> Traits { get; init; }
-    public Fact<IReadOnlyList<string>> Precepts { get; init; }
+    public Fact<EquatableArray<MoodThought>> Thoughts { get; init; }
+    public Fact<EquatableArray<string>> Traits { get; init; }
+    public Fact<EquatableArray<string>> Precepts { get; init; }
     public Fact<string> Expectation { get; init; }
 }
 
@@ -14,7 +14,7 @@ public sealed record MoodLedgerPawn
 public sealed record MoodPawnLoss
 {
     public PawnId Id { get; init; }
-    public Fact<IReadOnlyList<MoodThought>> Lost { get; init; }
+    public Fact<EquatableArray<MoodThought>> Lost { get; init; }
 }
 
 /// <summary>One thought's colony total: pawns affected x offset.</summary>
@@ -150,7 +150,7 @@ public static partial class PolicyFunctions
             if (!p.Thoughts.TryGetValue(out var rows))
             {
                 unknownPawns++;
-                pawnLosses.Add(new MoodPawnLoss { Id = p.Id, Lost = Unknown<IReadOnlyList<MoodThought>>() });
+                pawnLosses.Add(new MoodPawnLoss { Id = p.Id, Lost = Unknown<EquatableArray<MoodThought>>() });
                 continue;
             }
             var lost = new List<MoodThought>();
@@ -177,7 +177,7 @@ public static partial class PolicyFunctions
                 }
                 sources[t.Def] = s with { Pawns = s.Pawns + 1, Lost = s.Lost + t.Offset, Unverified = s.Unverified + (verified ? 0 : 1) };
             }
-            pawnLosses.Add(new MoodPawnLoss { Id = p.Id, Lost = Known<IReadOnlyList<MoodThought>>(SortThoughts(lost)) });
+            pawnLosses.Add(new MoodPawnLoss { Id = p.Id, Lost = Known(EquatableArray.From(SortThoughts(lost))) });
         }
         var ranked = sources.Values.OrderBy(s => s.Lost).ThenBy(s => s.Def, StringComparer.Ordinal).ToList();
         return new MoodLedger
@@ -193,7 +193,7 @@ public static partial class PolicyFunctions
     private static List<MoodThought> SortThoughts(IEnumerable<MoodThought> rows) => [.. rows.OrderBy(t => t.Offset).ThenBy(t => t.Def, StringComparer.Ordinal)];
 
     /// <summary>The pawn's negative thoughts with no audited owner, most negative first; the ledger's unowned bucket for one pawn.</summary>
-    internal static List<MoodThought> MoodUnowned(Fact<IReadOnlyList<MoodThought>> f)
+    internal static List<MoodThought> MoodUnowned(Fact<EquatableArray<MoodThought>> f)
     {
         if (!f.TryGetValue(out var rows))
         {

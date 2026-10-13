@@ -341,7 +341,7 @@ public static partial class PolicyFunctions
         var hostile = new Dictionary<PawnId, bool>();
         foreach (var t in view.Threats)
         {
-            hostile[new PawnId(t.Id)] = !t.Building && !Positive(t.Dead) && !Positive(t.Downed);
+            hostile[t.Id] = !t.Building && !Positive(t.Dead) && !Positive(t.Downed);
         }
         var ours = ColonistCells(view);
         var result = new List<Cell>();

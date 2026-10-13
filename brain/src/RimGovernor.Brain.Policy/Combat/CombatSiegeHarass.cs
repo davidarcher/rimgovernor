@@ -141,7 +141,7 @@ public static partial class PolicyFunctions
         var parts = new List<CombatPawnState>();
         foreach (var s in view.Structures)
         {
-            if (ShipPart(s.Def))
+            if (EmergencyThreat.ShipPart(s.Def))
             {
                 parts.Add(new CombatPawnState { Id = s.Id, Cell = Known(s.Cell) });
             }

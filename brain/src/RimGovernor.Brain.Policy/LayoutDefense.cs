@@ -173,7 +173,7 @@ public static partial class PolicyFunctions
         var (ring, ringFound) = plan.Ring();
         if (ringFound)
         {
-            k = k with { Walled = ring!.Footprint.Cells() };
+            k = k with { Walled = EquatableArray.From(ring!.Footprint.Cells()) };
         }
         if (killbox.Width == 0)
         {
@@ -437,28 +437,28 @@ public static partial class PolicyFunctions
         {
             return [];
         }
-        var (wi, _) = PlanInterior(plan, 0);
-        var allowed = new Dictionary<Cell, bool>();
+        var wi = PlanInterior(plan, 0) ?? new WallInterior();
+        var allowed = new HashSet<Cell>();
         var carry = new HashSet<Cell>();
         foreach (var c in wi.Cells())
         {
-            allowed[c] = !Contains(killbox, c);
+            if (!Contains(killbox, c)) { allowed.Add(c); }
         }
         foreach (var c in sites)
         {
-            allowed[c] = false;
+            allowed.Remove(c);
         }
         foreach (var c in transmitters)
         {
-            allowed[c] = true;
+            allowed.Add(c);
             carry.Add(c);
         }
         var output = new List<PerimeterSection>();
         for (var i = 0; i < sites.Count; i++)
         {
             var site = sites[i];
-            var (chain, ok) = new DefenseSite().ConduitChain(site, carry, allowed);
-            if (!ok)
+            var chain = DefenseSite.ConduitChain(site, carry, allowed);
+            if (chain is null)
             {
                 continue;
             }

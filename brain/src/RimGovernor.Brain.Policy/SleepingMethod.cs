@@ -90,7 +90,7 @@ public static partial class PolicyFunctions
     public const string SleepingSpotDefinition = "SleepingSpot";
 
     /// <summary>The definitions staged only with their stuff on hand.</summary>
-    private static readonly HashSet<string> SleepingBedrolls = new(StringComparer.Ordinal) { SleepingBedrollDefinition, SleepingCoupleBedrollDefinition };
+    internal static readonly HashSet<string> SleepingBedrolls = new(StringComparer.Ordinal) { SleepingBedrollDefinition, SleepingCoupleBedrollDefinition };
 
     /// <summary>
     /// The best buildable rung of the ladder: the first available definition, a bedroll only when Stocked

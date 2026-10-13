@@ -17,7 +17,7 @@ public sealed record TradeFoodContext
 
     public double TargetDays { get; init; }
 
-    public Fact<IReadOnlyList<FoodIngredientSlot>> DesiredIngredients { get; init; }
+    public Fact<EquatableArray<FoodIngredientSlot>> DesiredIngredients { get; init; }
 
     public double IngredientNutrition { get; init; }
 }
@@ -82,11 +82,11 @@ public static partial class PolicyFunctions
     /// Reads the active fine/lavish recipe's native slots. Observed bills express the intended tier even when a
     /// protein shortage makes that recipe temporarily unavailable; trade does not promote the meal tier.
     /// </summary>
-    public static Fact<IReadOnlyList<FoodIngredientSlot>> TradeMealIngredients(Fact<IReadOnlyList<ProductionBench>> benches)
+    public static Fact<EquatableArray<FoodIngredientSlot>> TradeMealIngredients(Fact<EquatableArray<ProductionBench>> benches)
     {
         if (!benches.TryGetValue(out var rows))
         {
-            return Unknown<IReadOnlyList<FoodIngredientSlot>>();
+            return Unknown<EquatableArray<FoodIngredientSlot>>();
         }
         IReadOnlyList<FoodIngredientSlot> chosen = [];
         var best = 0.0;
@@ -121,7 +121,7 @@ public static partial class PolicyFunctions
                 }
             }
         }
-        return Known(chosen);
+        return Known(EquatableArray.From(chosen));
     }
 
     /// <summary>

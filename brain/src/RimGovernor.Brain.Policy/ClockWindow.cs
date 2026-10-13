@@ -66,17 +66,17 @@ public static partial class PolicyFunctions
         var combat = false;
         var buildings = HostileBuildingIDs(f.Emergency);
         var emergency = EvaluateEmergency(f.Emergency, f.Current, f.Tick);
-        foreach (var h in emergency.Holds.Items)
+        foreach (var h in emergency.Holds)
         {
             switch (h.Reason)
             {
-                case EmergencyHoldReason.StaleFacts:
+                case EmergencyReason.StaleFacts:
                     Hold(ClockWindowReason.Stale);
                     break;
-                case EmergencyHoldReason.UnknownFacts:
+                case EmergencyReason.UnknownFacts:
                     Hold(ClockWindowReason.Unknown);
                     break;
-                case EmergencyHoldReason.UnsafeThreat:
+                case EmergencyReason.UnsafeThreat:
                     // An admitted combat plan needs ticks for defenders to fight; the native watcher only lets
                     // them pass with every live hostile acknowledged. Without a plan a raid must not
                     // auto-advance.
@@ -114,7 +114,7 @@ public static partial class PolicyFunctions
                     }
 
                     break;
-                case EmergencyHoldReason.CriticalMedical:
+                case EmergencyReason.CriticalMedical:
                     // Must NOT refuse the window here: RoundsTendPlanner dispatches the tend order regardless
                     // of window admission, but the native side can only carry it out -- and NeedsTend can only
                     // clear -- while ticks are actually passing. Refusing to admit a window while NeedsTend is
@@ -128,7 +128,7 @@ public static partial class PolicyFunctions
             }
         }
 
-        if (f.Emergency.PodsPending())
+        if (f.Emergency.PodsPending)
         {
             // A drop-pod raid on its way down: with the fight's plan the window is a combat one with nothing
             // to acknowledge until the pods open (the watcher stops on the raiders then); without it the raid
@@ -252,11 +252,11 @@ public static partial class PolicyFunctions
     private static HashSet<PawnId> HostileBuildingIDs(EmergencySnapshot snapshot)
     {
         var output = new HashSet<PawnId>();
-        foreach (var t in snapshot.Facts.Threats.Items)
+        foreach (var t in snapshot.Facts.Threats)
         {
-            if (t.Building())
+            if (t.Building)
             {
-                output.Add(t.ID);
+                output.Add(t.Id);
             }
         }
 
@@ -271,13 +271,13 @@ public static partial class PolicyFunctions
     private static List<PawnId> KnownDownedColonists(EmergencySnapshot snapshot)
     {
         var downed = new List<PawnId>();
-        foreach (var pawn in snapshot.Facts.Colonists.Items)
+        foreach (var pawn in snapshot.Facts.Colonists)
         {
             var deadKnown = pawn.Dead.TryGetValue(out var dead);
             var downKnown = pawn.Downed.TryGetValue(out var down);
             if (deadKnown && !dead && downKnown && down)
             {
-                downed.Add(pawn.ID);
+                downed.Add(pawn.Id);
             }
         }
 

@@ -331,7 +331,7 @@ public sealed record FloorDefinition
 
     public Fact<int> PathCost { get; init; }
 
-    public Fact<IReadOnlyList<Amount>> Costs { get; init; }
+    public Fact<EquatableArray<Amount>> Costs { get; init; }
 
     /// <summary>The native WorkToBuild stat in work ticks.</summary>
     public Fact<double> WorkToBuild { get; init; }
@@ -439,7 +439,7 @@ public static partial class PolicyFunctions
     /// the room census does not list the room. Inherently dirty rooms and every role outside the two tiers have
     /// no requirement.
     /// </summary>
-    private static FloorTier? FloorTierOf(FloorRoom room, IReadOnlyDictionary<string, Room> census)
+    private static FloorTier? FloorTierOf(FloorRoom room, Dictionary<string, Room> census)
     {
         if (room.RequiredTags.Count > 0)
         {
@@ -578,7 +578,7 @@ public static partial class PolicyFunctions
         var work = d.WorkToBuild.ValueOrDefault;
         _ = d.Costs.TryGetValue(out var costs);
         double units = 0;
-        foreach (var a in costs ?? [])
+        foreach (var a in costs)
         {
             units += a.Count;
         }

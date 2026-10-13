@@ -79,7 +79,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static (Fact<long> Patients, Fact<long> Urgent) AmputationNeeds(
         EmergencySnapshot snapshot,
-        Fact<IReadOnlyList<CarePawn>> medical,
+        Fact<EquatableArray<CarePawn>> medical,
         Fact<long> patients,
         Fact<long> urgent
     )

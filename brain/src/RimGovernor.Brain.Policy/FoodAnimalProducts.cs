@@ -30,11 +30,11 @@ public static partial class PolicyFunctions
     /// Go <c>WithFeed</c>: sets each row's FeedPerDay from the upkeep census; an animal the census does not
     /// list, or one with an unread feed rate, stays unknown.
     /// </summary>
-    public static IReadOnlyList<AnimalProduct> WithFeed(IReadOnlyList<AnimalProduct> rows, Fact<IReadOnlyList<UpkeepAnimal>> animals)
+    public static IReadOnlyList<AnimalProduct> WithFeed(IReadOnlyList<AnimalProduct> rows, Fact<EquatableArray<UpkeepAnimal>> animals)
     {
         _ = animals.TryGetValue(out var census);
         var feed = new Dictionary<string, Fact<double>>(StringComparer.Ordinal);
-        foreach (var a in census ?? [])
+        foreach (var a in census)
         {
             feed[a.Id.Value] = a.Herd.FeedPerDay;
         }
@@ -142,7 +142,7 @@ public static partial class PolicyFunctions
         }
         foreach (var e in plan.Portfolio)
         {
-            if (e.Channel.Kind != CandidateKind.AnimalProduct || e.Decision == FoodPlanDecision.Close || !e.Selected())
+            if (e.Channel.Kind != CandidateKind.AnimalProduct || e.Decision == FoodPlanDecision.Close || !e.Selected)
             {
                 continue;
             }

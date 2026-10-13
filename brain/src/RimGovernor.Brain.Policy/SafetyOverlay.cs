@@ -33,14 +33,14 @@ public static partial class PolicyFunctions
         var raid = false;
         foreach (var t in threats)
         {
-            if (!ThreatHolds(t))
+            if (!t.Holds())
             {
                 continue;
             }
             var name = ThreatCause(t);
             raid = raid || name == "raid";
             IReadOnlyList<Cell> cells = t.Cells;
-            if (t.Position.TryGetValue(out var pos) && !t.Building())
+            if (t.Position.TryGetValue(out var pos) && !t.Building)
             {
                 cells = [pos];
             }
@@ -83,8 +83,8 @@ public static partial class PolicyFunctions
             var band = EdgeBand(bounds, RaidEdgeCells);
             if (band.Count > 0)
             {
-                layers.Add(new OverlayLayer { Color = DangerHue.Fill(), Style = OverlayStyle.Fill, Label = "raid edge", Rects = EquatableArray.From(band) });
-                layers.Add(new OverlayLayer { Color = DangerHue.Outline(), Style = OverlayStyle.Outline, Label = "raid edge", Rects = EquatableArray.From(band) });
+                layers.Add(new OverlayLayer { Color = DangerHue.Fill(), Style = OverlayStyle.Fill, Label = "raid edge", Rects = [.. band] });
+                layers.Add(new OverlayLayer { Color = DangerHue.Outline(), Style = OverlayStyle.Outline, Label = "raid edge", Rects = [.. band] });
                 labels.Add(new OverlayLabel { Text = "raid edge", Cell = new Cell(bounds.Width / 2, RaidEdgeCells / 2) });
             }
         }
@@ -107,7 +107,7 @@ public static partial class PolicyFunctions
             layers.Add(new OverlayLayer { Color = VetoHue.Outline(), Style = OverlayStyle.Outline, Label = "unsafe route", Runs = CellRuns(SetCells(vetoed)) });
             labels.AddRange(AreaLabels(vetoed, vetoSeeds, vetoCause));
         }
-        return new LayoutOverlay { Layers = EquatableArray.From(layers), Labels = EquatableArray.From(labels) };
+        return new LayoutOverlay { Layers = layers, Labels = labels };
     }
 
     /// <summary>Names a holding threat for its area's label.</summary>

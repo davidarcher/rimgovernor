@@ -30,7 +30,7 @@ public sealed record MealStore
 /// </summary>
 public sealed partial record StoreView
 {
-    public Bounds Bounds { get; init; } = new();
+    public Bounds Bounds { get; init; }
 
     public IReadOnlyList<SiteCell> Cells { get; init; } = [];
 

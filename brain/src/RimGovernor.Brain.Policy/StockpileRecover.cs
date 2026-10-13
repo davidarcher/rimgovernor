@@ -17,7 +17,7 @@ public static partial class PolicyFunctions
     {
         foreach (var t in c.Things)
         {
-            if ((t.Flags & (FlagEdifice | FlagBlueprint | FlagFrame)) != 0 && t.Def != ShelfDefinition)
+            if ((t.Flags & (ThingMarks.Edifice | ThingMarks.Blueprint | ThingMarks.Frame)) != 0 && t.Def != ShelfDefinition)
             {
                 return true;
             }

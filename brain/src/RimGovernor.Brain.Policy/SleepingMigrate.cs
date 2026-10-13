@@ -46,7 +46,7 @@ public static partial class PolicyFunctions
             var (room, ok) = CensusRoomIn(r, rooms);
             if (ok)
             {
-                foreach (var b in room.Beds)
+                foreach (var b in room!.Beds)
                 {
                     output[b] = r.Role;
                 }
@@ -88,7 +88,7 @@ public static partial class PolicyFunctions
                 var (room, ok) = CensusRoomIn(r, census!);
                 if (ok)
                 {
-                    foreach (var b in room.Beds)
+                    foreach (var b in room!.Beds)
                     {
                         slept = slept || owned.Contains(b);
                     }
@@ -165,7 +165,7 @@ public static partial class PolicyFunctions
                 Append(unbuilt, r.Role, r);
                 continue;
             }
-            if (room.Beds.Count == 0)
+            if (room!.Beds.Count == 0)
             {
                 Append(empty, r.Role, r);
             }

@@ -31,7 +31,7 @@ public static partial class PolicyFunctions
     public static ZoneKind ZoneCore => ZoneKind.Core;
 
     /// <summary>The least fertility a field cell needs (plain soil).</summary>
-    private const double ZoneFieldFertility = 1.0;
+    internal const double ZoneFieldFertility = 1.0;
 
     /// <summary>The fewest cells a fertile patch needs to be a field; smaller patches are pasture.</summary>
     private const int ZoneFieldMin = 16;

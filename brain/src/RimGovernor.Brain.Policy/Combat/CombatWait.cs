@@ -57,7 +57,7 @@ public static partial class PolicyFunctions
         var down = DownPawns(view);
         foreach (var t in view.Threats)
         {
-            if (t.Building || Positive(t.Dead) || Positive(t.Downed) || down.GetValueOrDefault(new PawnId(t.Id)))
+            if (t.Building || Positive(t.Dead) || Positive(t.Downed) || down.Contains(t.Id))
             {
                 continue;
             }
@@ -93,7 +93,7 @@ public static partial class PolicyFunctions
         var n = 0;
         foreach (var t in view.Threats)
         {
-            if (t.Building || Positive(t.Dead) || Positive(t.Downed) || down.GetValueOrDefault(new PawnId(t.Id)))
+            if (t.Building || Positive(t.Dead) || Positive(t.Downed) || down.Contains(t.Id))
             {
                 continue;
             }

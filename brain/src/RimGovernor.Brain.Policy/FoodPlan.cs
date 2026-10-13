@@ -23,7 +23,7 @@ public sealed record FoodPlanRequest
     /// </summary>
     public double EmergencyDays { get; init; }
 
-    public Fact<IReadOnlyList<SupplyCandidate>> Channels { get; init; }
+    public Fact<EquatableArray<SupplyCandidate>> Channels { get; init; }
 
     public Fact<double> Labor { get; init; }
 }
@@ -82,7 +82,7 @@ public sealed record FoodPlan
         {
             foreach (var e in rows)
             {
-                b.Append(CultureInfo.InvariantCulture, $"\n {Wire.Name(e.Channel.Kind)}/{e.Channel.ID} {Wire.Name(e.Decision)}: {e.Reason} delivered={F4(e.DeliveredPerDay)}");
+                b.Append(CultureInfo.InvariantCulture, $"\n {Wire.Name(e.Channel.Kind)}/{e.Channel.Id} {Wire.Name(e.Decision)}: {e.Reason} delivered={F4(e.DeliveredPerDay)}");
                 foreach (var t in e.Terms)
                 {
                     b.Append(CultureInfo.InvariantCulture, $" {t.Name}={F4(t.Value)}");
@@ -117,7 +117,7 @@ public sealed record FoodField
 /// <summary>The cooking a harvest can use: the benches and the number of cooks who can work them. Unknown benches or cooks leave a crop raw. (Go <c>CropKitchen</c>.)</summary>
 public sealed record CropKitchen
 {
-    public Fact<IReadOnlyList<ProductionBench>> Benches { get; init; }
+    public Fact<EquatableArray<ProductionBench>> Benches { get; init; }
 
     public Fact<double> Cooks { get; init; }
 
@@ -220,7 +220,7 @@ public static partial class PolicyFunctions
                 TargetDays = r.TargetDays,
                 EmergencyDays = r.EmergencyDays,
             });
-            var req = new SupplyPlanRequest { Demands = Known<IReadOnlyList<SupplyDemand>>([demand]), Labor = r.Labor, Candidates = Unknown<IReadOnlyList<SupplyCandidate>>() };
+            var req = new SupplyPlanRequest { Demands = Known<EquatableArray<SupplyDemand>>([demand]), Labor = r.Labor, Candidates = Unknown<EquatableArray<SupplyCandidate>>() };
             if (r.Channels.TryGetValue(out var rows))
             {
                 foreach (var c in rows)
@@ -271,7 +271,7 @@ public static partial class PolicyFunctions
             Forecast = r.Demand,
             GapPerDay = plan.Gap(NutritionKey),
             DeliveredPerDay = plan.Delivered(NutritionKey),
-            HorizonDays = demand.Window(),
+            HorizonDays = demand.Window,
             DemandPerDay = demandPerDay,
             Portfolio = View(plan.Portfolio),
             Unknown = View(plan.Unknown),
@@ -311,7 +311,7 @@ public static partial class PolicyFunctions
         {
             if (s.Food && !s.Tree && !s.Hunt)
             {
-                var c = FoodCandidate(CandidateKind.Forage, s.ID, Known(s.NutritionYield / FoodForageCycleDays)) with
+                var c = FoodCandidate(CandidateKind.Forage, s.Id, Known(s.NutritionYield / FoodForageCycleDays)) with
                 {
                     LaborPerDay = Known(FoodForageWorkTicks / FoodForageCycleDays),
                     LeadDays = Known(0.0),
@@ -353,7 +353,7 @@ public static partial class PolicyFunctions
             }
             var c = PriceCrop(f.Plan.Crop, f.Plan.Sites.Cells, f.WorkPerDay, cooking);
             var lead = WithCropPause(f.RemainingGrowDays, season.Conditions);
-            c = c with { ID = f.Id, LeadDays = lead, Source = "crop:" + f.Id };
+            c = c with { Id = f.Id, LeadDays = lead, Source = "crop:" + f.Id };
             c = c with { Risk = EquatableArray.From(CropRisks(season, lead, f.Exposure)), State = FoodState(Known(false), Known(true)) };
             @out.Add(c);
         }
@@ -471,7 +471,7 @@ public static partial class PolicyFunctions
             var open = Known((long)v.Needed);
             c = c with
             {
-                ID = NewFieldPrefix + v.Crop.Name,
+                Id = NewFieldPrefix + v.Crop.Name,
                 LeadDays = lead,
                 Risk = EquatableArray.From(CropRisks(new CropSeason { Calendar = r.Calendar, Conditions = r.Conditions }, lead, new FieldExposure { ZoneCells = open, UnroofedCells = open })),
                 UpfrontCost = c.UpfrontCost with { LaborTicks = Known(v.Needed * FieldSowTicksPerCell) },

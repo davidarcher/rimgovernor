@@ -20,6 +20,20 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
 
     public override string ToString() => Value;
 
+    public static bool operator <(Cause left, Cause right) => left.CompareTo(right) < 0;
+
+    public static bool operator <=(Cause left, Cause right) => left.CompareTo(right) <= 0;
+
+    public static bool operator >(Cause left, Cause right) => left.CompareTo(right) > 0;
+
+    public static bool operator >=(Cause left, Cause right) => left.CompareTo(right) >= 0;
+
+    /// <summary>The zero Cause: no cause recorded (Go's empty string).</summary>
+    public static readonly Cause None = new("");
+
+    /// <summary>Reports whether this is a Cause in the closed set.</summary>
+    public bool IsValid() => All.Contains(this);
+
     // Refusal kinds and the fixed blocked reasons.
     public static readonly Cause CollapsePending = new("collapse_pending");
     public static readonly Cause NoWorker = new("no_worker");

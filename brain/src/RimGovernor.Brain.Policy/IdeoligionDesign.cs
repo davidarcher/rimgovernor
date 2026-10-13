@@ -95,7 +95,7 @@ public sealed record DesignNeeds
 {
     public IReadOnlyList<string> WorkTypes { get; init; } = [];
 
-    public Fact<IReadOnlyList<MoodThought>> Thoughts { get; init; }
+    public Fact<EquatableArray<MoodThought>> Thoughts { get; init; }
 
     public int Believers { get; init; }
 }
@@ -141,7 +141,7 @@ public static partial class PolicyFunctions
     internal static void InspectIdeoligion(RoundsRun c) => c.Owed(ImproveIdeoligion, 3, c.F.ReformOwed);
 
     /// <summary>Assigned work and mood with complete believer coverage.</summary>
-    public static Fact<DesignNeeds> IdeoligionNeeds(IdeoligionFacts ideo, Fact<IReadOnlyList<WorkPawn>> workers, Fact<IReadOnlyList<MoodPawn>> moods)
+    public static Fact<DesignNeeds> IdeoligionNeeds(IdeoligionFacts ideo, Fact<EquatableArray<WorkPawn>> workers, Fact<EquatableArray<MoodPawn>> moods)
     {
         if (!workers.TryGetValue(out var rows) || ideo.Believers <= 0)
         {
@@ -149,7 +149,7 @@ public static partial class PolicyFunctions
         }
         var workTypes = new List<string>();
         var moodKnown = moods.TryGetValue(out var moodRows);
-        moodRows ??= [];
+
         var thoughts = new List<MoodThought>();
         var believers = 0;
         foreach (var pawn in rows)
@@ -196,7 +196,7 @@ public static partial class PolicyFunctions
         return Known(new DesignNeeds
         {
             WorkTypes = workTypes,
-            Thoughts = moodKnown ? Known<IReadOnlyList<MoodThought>>(thoughts) : default,
+            Thoughts = moodKnown ? Known(EquatableArray.From(thoughts)) : default,
             Believers = ideo.Believers,
         });
     }
@@ -530,7 +530,7 @@ public static partial class PolicyFunctions
                 var workImproves = DesignOverlap(oldPrecept.WorkTypes, needs.WorkTypes) && !DesignOverlap(p.WorkTypes, needs.WorkTypes);
                 double penalty = 0, benefit = 0;
                 var thoughtsKnown = needs.Thoughts.TryGetValue(out var thoughts);
-                foreach (var thought in thoughts ?? [])
+                foreach (var thought in thoughts)
                 {
                     if (oldPrecept.Thoughts.Contains(thought.Def) && !p.Thoughts.Contains(thought.Def))
                     {

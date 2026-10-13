@@ -335,11 +335,11 @@ public static partial class PolicyFunctions
             _ = pawn.PolicyInputs.TryGetValue(out var inputs);
             if (inputs?.GuestStatus is "Slave" or "Prisoner")
             {
-                rows.Add((pawn.ID, CaptiveFoods(diet, foods)));
+                rows.Add((pawn.Id, CaptiveFoods(diet, foods)));
             }
             else
             {
-                rows.Add((pawn.ID, DietFoods(diet with { Reserve = reserveFood }, foods)));
+                rows.Add((pawn.Id, DietFoods(diet with { Reserve = reserveFood }, foods)));
             }
         }
         foreach (var e in eaters)

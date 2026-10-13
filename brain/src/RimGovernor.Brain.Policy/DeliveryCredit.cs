@@ -101,6 +101,9 @@ public sealed class DeliveryCredit
     private Dictionary<string, CreditResult> results = new(StringComparer.Ordinal);
     private List<CreditChange> changes = [];
 
+    /// <summary>The most rot ticks seen per unbutchered hunt corpse (HuntDelivered).</summary>
+    internal Dictionary<string, long> RotPeak { get; set; } = new(StringComparer.Ordinal);
+
     private static double CreditWindowDays(CreditChannel c) => Math.Max(LedgerWindowDays, c.CycleDays + LedgerReplantDays);
 
     /// <summary>

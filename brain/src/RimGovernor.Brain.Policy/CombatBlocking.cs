@@ -56,7 +56,7 @@ public static partial class PolicyFunctions
         }
 
         var ok = layout.Choke.TryGetValue(out var choke);
-        var (v, vok) = TowardVector(layout.Toward);
+        var vok = TowardVector(layout.Toward, out var v);
         var (rest, _) = SplitTanks(view);
 
         // A manhunter pack with an exploder is never melee-blocked.
@@ -93,7 +93,7 @@ public static partial class PolicyFunctions
     private static Func<Cell, bool>? ChokeHeld(CombatView view, CombatLayout layout)
     {
         var ok = layout.Choke.TryGetValue(out var choke);
-        var (v, vok) = TowardVector(layout.Toward);
+        var vok = TowardVector(layout.Toward, out var v);
         if (!ok || !vok)
         {
             return null;
@@ -183,7 +183,7 @@ public static partial class PolicyFunctions
     )
     {
         var pool = Rotated(Brawlers(defenders), relieved);
-        var proposals = geometry.Proposals.Items;
+        var proposals = geometry.Proposals;
         var n = 0;
         if (blocking)
         {

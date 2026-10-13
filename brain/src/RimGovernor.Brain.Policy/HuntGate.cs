@@ -210,7 +210,7 @@ public sealed record HuntCensus
     }
 
     /// <summary>Why a colonist cannot hunt the prey, empty when they can; order is the gate's: downed, mental state, Hunting off, weapon (a shield blocks a ranged one), reach, route.</summary>
-    private string HunterReason(HuntHunter h, HuntPrey prey)
+    private static string HunterReason(HuntHunter h, HuntPrey prey)
     {
         var meleeable = prey.Source.MeleeOnly;
         var shooter = h.Weapon is not null && h.Weapon.Hunts();
@@ -241,15 +241,15 @@ public sealed record HuntCensus
         {
             return PolicyFunctions.HuntHunterTooFar;
         }
-        if (h.RouteSafePrey.Contains(prey.Source.ID))
+        if (h.RouteSafePrey.Contains(prey.Source.Id))
         {
             return "";
         }
-        if (h.RouteUnsafePrey.Contains(prey.Source.ID))
+        if (h.RouteUnsafePrey.Contains(prey.Source.Id))
         {
             return PolicyFunctions.HuntHunterNoRoute;
         }
-        if (h.RouteSkippedPrey.Contains(prey.Source.ID))
+        if (h.RouteSkippedPrey.Contains(prey.Source.Id))
         {
             return PolicyFunctions.HuntHunterRouteSkipped;
         }
@@ -264,7 +264,7 @@ public sealed record HuntCensus
     public HuntVerdict Gate(HuntPrey prey)
     {
         HuntVerdict Hold(string reason, IReadOnlyList<string>? detail = null) =>
-            new() { Hold = new HuntHold { ID = prey.Source.ID, Reason = reason, Detail = detail ?? [] } };
+            new() { Hold = new HuntHold { ID = prey.Source.Id, Reason = reason, Detail = detail ?? [] } };
         if (prey.Fogged)
         {
             return Hold(PolicyFunctions.HuntHoldFogged);

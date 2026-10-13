@@ -101,7 +101,7 @@ public static partial class PolicyFunctions
     /// The live KnowBuriedInSarcophagus stacks across the colonists: the most any colonist carries, read from the
     /// summed memory offset. Unknown while any colonist's thoughts, or the census, are unread.
     /// </summary>
-    public static (int Live, bool Ok) KnowBuriedStacks(Fact<IReadOnlyList<MoodPawn>> pawns)
+    public static (int Live, bool Ok) KnowBuriedStacks(Fact<EquatableArray<MoodPawn>> pawns)
     {
         if (!pawns.TryGetValue(out var rows))
         {
@@ -176,7 +176,7 @@ public static partial class PolicyFunctions
         var output = new List<CurrentBuilding>();
         foreach (var b in built)
         {
-            if (b.Building!.Definition() != sarcophagus || !holds.GetValueOrDefault(b.Id) || b.Cells.Count == 0)
+            if (b.Building!.Definition != sarcophagus || !holds.GetValueOrDefault(b.Id) || b.Cells.Count == 0)
             {
                 continue;
             }
@@ -226,7 +226,7 @@ public static partial class PolicyFunctions
         var taken = new HashSet<Cell>();
         foreach (var b in built)
         {
-            var def = b.Building!.Definition();
+            var def = b.Building!.Definition;
             if (def != sarcophagus && def != GraveDefinition)
             {
                 continue;
@@ -350,7 +350,7 @@ public static partial class PolicyFunctions
         Fact<bool> available,
         Fact<LayoutPlan> plan,
         Fact<RoomObservation> rooms,
-        Fact<IReadOnlyList<WasteItem>> waste,
+        Fact<EquatableArray<WasteItem>> waste,
         Fact<CurrentConstruction> built,
         StrangerTomb strangers
     )

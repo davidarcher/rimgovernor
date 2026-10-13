@@ -20,7 +20,7 @@ public static partial class PolicyFunctions
         var down = DownPawns(view);
         foreach (var t in view.Positional)
         {
-            if (t.Position.TryGetValue(out var c) && !Positive(t.Dead) && !Positive(t.Downed) && !down.GetValueOrDefault(new PawnId(t.Id)))
+            if (t.Position.TryGetValue(out var c) && !Positive(t.Dead) && !Positive(t.Downed) && !down.Contains(t.Id))
             {
                 hostiles.Add(c);
             }
@@ -129,7 +129,7 @@ public static partial class PolicyFunctions
                     var reach = 1.5;
                     foreach (var state in view.Pawns)
                     {
-                        if (state.Id == new PawnId(hostile.Id) && state.WeaponRange > reach)
+                        if (state.Id == hostile.Id && state.WeaponRange > reach)
                         {
                             reach = state.WeaponRange;
                         }

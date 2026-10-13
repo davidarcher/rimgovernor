@@ -83,7 +83,13 @@ public sealed record OrganHarvest(
     double Cost,
     bool Violation,
     PegCycleStep Step,
-    Domain.PawnId Surgeon);
+    Domain.PawnId Surgeon)
+{
+    /// <summary>The zero value Go's struct literal starts from.</summary>
+    public OrganHarvest() : this(default, "", 0, "", default, 0, 0, false, default, default)
+    {
+    }
+}
 
 public static partial class PolicyFunctions
 {
@@ -134,7 +140,7 @@ public static partial class PolicyFunctions
     /// of which is stocked.
     /// </summary>
     public static IReadOnlyList<OrganNeed> OrganNeeds(
-        Fact<IReadOnlyList<CarePawn>> pawns,
+        Fact<EquatableArray<CarePawn>> pawns,
         IReadOnlyList<SurgeryWant> wants,
         bool silverShort,
         IReadOnlyDictionary<Resource, long> stock,
@@ -142,7 +148,7 @@ public static partial class PolicyFunctions
     {
         pawns.TryGetValue(out var rows);
         var byId = new Dictionary<PawnId, CarePawn>();
-        foreach (var row in rows ?? [])
+        foreach (var row in rows)
         {
             byId[row.Id] = row;
         }
@@ -155,7 +161,7 @@ public static partial class PolicyFunctions
             }
             pawn.Operations.TryGetValue(out var ops);
             var best = new OrganNeed("", default, 0);
-            foreach (var op in ops ?? [])
+            foreach (var op in ops)
             {
                 var pk = op.PartIndex.TryGetValue(out var part);
                 op.PartDefName.TryGetValue(out var organ);
@@ -198,7 +204,7 @@ public static partial class PolicyFunctions
     /// harvest whose cost reaches its gain, or whose precept refuses, is never chosen. Unknown facts refuse.
     /// </summary>
     public static OrganHarvest? SelectOrganHarvest(
-        Fact<IReadOnlyList<PrisonerFacts>> prisoners,
+        Fact<EquatableArray<PrisonerFacts>> prisoners,
         Fact<PrisonerColony> colony,
         IReadOnlyList<OrganNeed> needs,
         IReadOnlyDictionary<PawnId, bool>? inFlight)
@@ -254,7 +260,7 @@ public static partial class PolicyFunctions
                         gain = value;
                     }
                     var (cost, ok) = HarvestCost(c, goodwill, need.For.Value.Length == 0);
-                    var h = new OrganHarvest(row.Pawn, recipe ?? "", part, organ, need.For, gain, cost, true, default, default);
+                    var h = new OrganHarvest((Domain.PawnId)row.Pawn, recipe ?? "", part, organ, need.For, gain, cost, true, default, default);
                     if (ok && gain > cost && (best is null || BetterHarvest(h, best)))
                     {
                         best = h;
@@ -337,7 +343,7 @@ public static partial class PolicyFunctions
                 stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
             }
         }
-        return SelectOrganHarvest(f.Prisoners, f.PrisonerColony, OrganNeeds(Unknown<IReadOnlyList<CarePawn>>(), [], true, stock, f.Recipes), null) is not null;
+        return SelectOrganHarvest(f.Prisoners, f.PrisonerColony, OrganNeeds(Unknown<EquatableArray<CarePawn>>(), [], true, stock, f.Recipes), null) is not null;
     }
 
     /// <summary>
@@ -347,7 +353,7 @@ public static partial class PolicyFunctions
     public static Fact<TradeNeed> OrganSaleSurplus(
         ItemFacts items,
         Fact<TradeNeed> need,
-        Fact<IReadOnlyList<Amount>> resources,
+        Fact<EquatableArray<Amount>> resources,
         Fact<long> colonists,
         RecipeFacts facts)
     {
@@ -385,11 +391,11 @@ public static partial class PolicyFunctions
     // time rule; SelectOrganHarvest's harvest goes first.
 
     /// <summary>Lists the colonists' part-short wants an added part could serve: one need per install option, Organ the part item.</summary>
-    public static IReadOnlyList<OrganNeed> PartRecoveryNeeds(Fact<IReadOnlyList<CarePawn>> pawns, IReadOnlyList<SurgeryWant> wants, RecipeFacts facts)
+    public static IReadOnlyList<OrganNeed> PartRecoveryNeeds(Fact<EquatableArray<CarePawn>> pawns, IReadOnlyList<SurgeryWant> wants, RecipeFacts facts)
     {
         pawns.TryGetValue(out var rows);
         var byId = new Dictionary<PawnId, CarePawn>();
-        foreach (var row in rows ?? [])
+        foreach (var row in rows)
         {
             byId[row.Id] = row;
         }
@@ -401,7 +407,7 @@ public static partial class PolicyFunctions
                 continue;
             }
             pawn.Operations.TryGetValue(out var ops);
-            foreach (var op in ops ?? [])
+            foreach (var op in ops)
             {
                 var pk = op.PartIndex.TryGetValue(out var part);
                 var item = op.Item;
@@ -426,7 +432,7 @@ public static partial class PolicyFunctions
     /// (lethal included).
     /// </summary>
     public static OrganHarvest? SelectPartRecovery(
-        Fact<IReadOnlyList<PrisonerFacts>> prisoners,
+        Fact<EquatableArray<PrisonerFacts>> prisoners,
         Fact<PrisonerColony> colony,
         IReadOnlyList<OrganNeed> needs,
         IReadOnlyDictionary<PawnId, bool>? inFlight,
@@ -476,7 +482,7 @@ public static partial class PolicyFunctions
                 op.Recipe.TryGetValue(out var recipe);
                 op.PartIndex.TryGetValue(out var part);
                 op.Violation.TryGetValue(out var violation);
-                var h = new OrganHarvest(row.Pawn, recipe ?? "", part, item!, default, value, cost, violation, default, default);
+                var h = new OrganHarvest((Domain.PawnId)row.Pawn, recipe ?? "", part, item!, default, value, cost, violation, default, default);
                 foreach (var need in needs)
                 {
                     if (need.Organ == item && need.For.Value.Length != 0 && (h.For.Value.Length == 0 || need.Gain > h.Gain))
@@ -534,7 +540,7 @@ public static partial class PolicyFunctions
     /// queue and each bill already queued holds back its best recipe item still in the surplus, so a
     /// harvested organ or recovered part is not sold before its install is queued.
     /// </summary>
-    public static Fact<TradeNeed> ReserveSurgeryStock(Fact<TradeNeed> need, Fact<IReadOnlyList<CarePawn>> pawns)
+    public static Fact<TradeNeed> ReserveSurgeryStock(Fact<TradeNeed> need, Fact<EquatableArray<CarePawn>> pawns)
     {
         if (!need.TryGetValue(out var n) || n.Surplus.Count == 0)
         {

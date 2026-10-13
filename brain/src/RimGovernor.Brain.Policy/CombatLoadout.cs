@@ -48,7 +48,7 @@ public sealed record LoadoutDefender
     /// <summary>The primary's def rows.</summary>
     public WeaponDef PrimaryFacts { get; init; } = new();
 
-    public PawnId Pawn => Candidate.Pawn;
+    public PawnId Pawn => (PawnId)Candidate.Pawn;
 }
 
 /// <summary>One stocked, unworn shield belt.</summary>
@@ -135,7 +135,7 @@ public static partial class PolicyFunctions
             for (var i = 0; i < weapons.Count; i++)
             {
                 var w = weapons[i];
-                if (used.Contains(w.Thing) || !fits(w) || (ScoreWeapon(LoadoutPawn(d), w) <= 0 && !w.Facts.Emp))
+                if (used.Contains(w.Thing) || !fits(w) || (ScoreWeapon(LoadoutPawn(d), w) <= 0 && !w.Facts.EMP))
                 {
                     continue;
                 }
@@ -154,7 +154,7 @@ public static partial class PolicyFunctions
             }
         }
 
-        bool ByDps(EquipCandidateWeapon a, EquipCandidateWeapon b) => a.Facts.Dps > b.Facts.Dps;
+        bool ByDps(EquipCandidateWeapon a, EquipCandidateWeapon b) => a.Facts.DPS > b.Facts.DPS;
 
         switch (threat)
         {
@@ -171,7 +171,7 @@ public static partial class PolicyFunctions
                     Func<EquipCandidateWeapon, bool> fits;
                     if (threat == LoadoutThreat.Pods)
                     {
-                        fits = w => w.Class == WeaponClass.Ranged && !w.Facts.ForcedMiss && w.Facts.Range <= LoadoutPodsRange && w.Facts.Dps > current.Dps;
+                        fits = w => w.Class == WeaponClass.Ranged && !w.Facts.ForcedMiss && w.Facts.Range <= LoadoutPodsRange && w.Facts.DPS > current.DPS;
                     }
                     else
                     {
@@ -191,7 +191,7 @@ public static partial class PolicyFunctions
                 var carried = new HashSet<string>();
                 foreach (var d in defenders)
                 {
-                    if (d.PrimaryFacts.Emp)
+                    if (d.PrimaryFacts.EMP)
                     {
                         carried.Add(d.Squad);
                     }
@@ -216,7 +216,7 @@ public static partial class PolicyFunctions
                 foreach (var s in squads)
                 {
                     // The grenade first (EMP is thrown as the carrier's equipped primary): the shorter-ranged EMP weapon is the grenade.
-                    Take(carrier[s], w => w.Facts.Emp, (a, b) => a.Facts.Range < b.Facts.Range);
+                    Take(carrier[s], w => w.Facts.EMP, (a, b) => a.Facts.Range < b.Facts.Range);
                 }
 
                 break;

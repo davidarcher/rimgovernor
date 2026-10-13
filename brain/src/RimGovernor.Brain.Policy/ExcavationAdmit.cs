@@ -59,33 +59,33 @@ public static partial class PolicyFunctions
         // A DomainAction is canonical by construction, so Go's re-canonicalisation check reduces to the kind test.
         if (excavation is null)
         {
-            return Refuse(NotReady);
+            return Refuse(Reason.NotReady);
         }
         var v = r.Progress.View;
         var f = r.Facts;
         if (!r.Current.IsValid || r.Current.Native.Value == 0 || !f.Snapshot.Matches(r.Current))
         {
-            return Refuse(StaleFacts);
+            return Refuse(Reason.StaleFacts);
         }
         if (r.Progress.Action != r.Action || v.Plan != r.Current.Plan || v.Revision != r.Current.Revision || v.Unresolved || (v.Stage != Stage.Pending && v.Stage != Stage.Prepared))
         {
-            return Refuse(NotReady);
+            return Refuse(Reason.NotReady);
         }
         if (f.ObservationTick < v.Tick
             || (v.Stage == Stage.Prepared && !v.Snapshot.SameWorld(r.Current))
             || (v.Attempt.Value > 0 && (v.Snapshot.Colony != r.Current.Colony || v.Snapshot.Map != r.Current.Map || v.Snapshot.Load != r.Current.Load)))
         {
-            return Refuse(StaleFacts);
+            return Refuse(Reason.StaleFacts);
         }
         if (!f.Fogged.TryGetValue(out var fogged) || fogged)
         {
-            return Refuse(UnknownFacts);
+            return Refuse(Reason.UnknownFacts);
         }
         var known = f.Definition.TryGetValue(out var definition);
         var eligibleKnown = f.Eligible.TryGetValue(out var eligible);
         if (!known || !eligibleKnown)
         {
-            return Refuse(UnknownFacts);
+            return Refuse(Reason.UnknownFacts);
         }
         // A cell the pawns already cleared (a designation the controller no longer tracks, finished between
         // planning and dispatch) is adopted as done: dispatch records the cleared evidence instead of designating.
@@ -104,17 +104,17 @@ public static partial class PolicyFunctions
             case ExcavationSupport.Unsupported:
                 return Refuse(ExcavationUnsupported);
             default:
-                return Refuse(UnknownFacts);
+                return Refuse(Reason.UnknownFacts);
         }
         var accessKnown = f.AccessReachable.TryGetValue(out var access);
         var workerKnown = f.WorkerAvailable.TryGetValue(out var worker);
         if (!accessKnown || !workerKnown)
         {
-            return Refuse(UnknownFacts);
+            return Refuse(Reason.UnknownFacts);
         }
         if (!access || !worker)
         {
-            return Refuse(NotReady);
+            return Refuse(Reason.NotReady);
         }
         return new AdmissionDecision { Admitted = true };
     }

@@ -24,19 +24,24 @@ public sealed record ArtDemand
     public ItemFacts Items { get; init; } = new();
 
     /// <summary>The best stocked stuff (beauty factor times market value, as beds choose) with enough for one sculpture of size, false when none.</summary>
-    internal bool Stuff(Sculpture size, out Resource stuff) =>
-        new BedMaterials
+    internal bool Stuff(Sculpture size, out Resource stuff)
+    {
+        var materials = new BedMaterials
         {
             Stock = Stock,
             Cost = new Dictionary<Resource, long> { [new Resource(size.Def)] = size.Cost },
             Items = Items,
-        }.BestStuff(new Resource(size.Def), 0, true, out stuff);
+        };
+        var (best, ok) = materials.BestStuff(new Resource(size.Def), 0, true);
+        stuff = best;
+        return ok;
+    }
 }
 
 /// <summary>When an art bill may choose the sculpture of a rank.</summary>
 internal readonly record struct SculptureRankGate(double MinGap, int MinSkill);
 
-internal sealed record SculptureRoom(string ID, FurnitureRoom Room, double Gap);
+internal sealed record SculptureRoom(string Id, FurnitureRoom Room, double Gap);
 
 public static class ArtExtensions
 {
@@ -91,7 +96,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The qualifying artists in ID order.</summary>
-    public static IReadOnlyList<PawnId> Artists(IEnumerable<PawnProfile> profiles) => [.. profiles.Where(Artist).Select(p => p.ID).Order()];
+    public static IReadOnlyList<PawnId> Artists(IEnumerable<PawnProfile> profiles) => [.. profiles.Where(Artist).Select(p => p.Id).Order()];
 
     /// <summary>One pinned sculpture bill for every artist that lacks an active one, in artist order, each through SelectProductionBill.</summary>
     public static IReadOnlyList<BillSelection> SelectArtBills(
@@ -104,18 +109,16 @@ public static partial class PolicyFunctions
         var output = new List<BillSelection>();
         foreach (var artist in artists)
         {
-            if (
-                SelectProductionBill(
-                    ArtBill,
-                    benches,
-                    colonists,
-                    default,
-                    default,
-                    1,
-                    new ProductionBillContext { Artists = EquatableArray.From([artist]), Art = demand },
-                    out var s
-                )
-            )
+            var (s, ok) = SelectProductionBill(
+                ArtBill,
+                benches,
+                colonists,
+                default,
+                default,
+                1,
+                new ProductionBillContext { Artists = EquatableArray.From([artist]), Art = demand }
+            );
+            if (ok)
             {
                 output.Add(s);
             }
@@ -142,7 +145,7 @@ public static partial class PolicyFunctions
 
     /// <summary>The qualifying artists with Inspired_Creativity, in ID order.</summary>
     public static IReadOnlyList<PawnId> InspiredArtists(IEnumerable<PawnProfile> profiles) =>
-        [.. profiles.Where(p => p.Inspiration.TryGetValue(out var inspiration) && inspiration == InspiredCreativity && Artist(p)).Select(p => p.ID).Order()];
+        [.. profiles.Where(p => p.Inspiration.TryGetValue(out var inspiration) && inspiration == InspiredCreativity && Artist(p)).Select(p => p.Id).Order()];
 
     /// <summary>
     /// One large sculpture bill pinned to every inspired artist lacking an active one. The caller orders these
@@ -262,7 +265,7 @@ public static partial class PolicyFunctions
 
             var uk = bench.Usable.TryGetValue(out var usable);
             var tk = bench.Token.TryGetValue(out var token);
-            if (!uk || !usable || !tk || !FoodId(token) || bench.Bills.Count >= 15)
+            if (!uk || !usable || !tk || !FoodId(token!) || bench.Bills.Count >= 15)
             {
                 continue;
             }
@@ -280,9 +283,9 @@ public static partial class PolicyFunctions
                     list.Add(
                         new BillSelection
                         {
-                            Bench = bench.ID,
+                            Bench = bench.Id,
                             Recipe = recipe.Name,
-                            Token = token,
+                            Token = token!,
                             Mode = BillMode.GearBatch,
                             Target = 1,
                             Worker = artist.Value,
@@ -330,7 +333,7 @@ public static partial class PolicyFunctions
         var skill = new Dictionary<PawnId, int>();
         foreach (var p in profiles)
         {
-            skill[p.ID] = p.Skill(p.WorkSkill[WorkType.Art]).Level;
+            skill[p.Id] = p.Skill(p.WorkSkill[WorkType.Art]).Level;
         }
 
         var d = new ArtDemand
@@ -392,8 +395,8 @@ public static partial class PolicyFunctions
             {
                 if (r.Quality.TryGetValue(out var q))
                 {
-                    var min = targets.TryGetValue(r.ID, out var target) ? target.Min : 0;
-                    gaps[r.ID] = min - q.Impressiveness;
+                    var min = targets.TryGetValue(r.Id, out var target) ? target.Min : 0;
+                    gaps[r.Id] = min - q.Impressiveness;
                 }
             }
         }
@@ -402,7 +405,7 @@ public static partial class PolicyFunctions
         {
             foreach (var room in rooms)
             {
-                if (room.ID != id)
+                if (room.Id != id)
                 {
                     continue;
                 }

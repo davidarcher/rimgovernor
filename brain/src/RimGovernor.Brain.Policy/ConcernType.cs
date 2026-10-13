@@ -21,7 +21,7 @@ public static partial class PolicyFunctions
 {
     /// <summary>Classifies <paramref name="id"/> from the inspection registry; an unknown id is UnknownConcern.</summary>
     public static ConcernType ConcernTypeOf(ConcernId id) =>
-        InspectionIndex.TryGetValue(id, out var entry) ? entry.Type : ConcernType.UnknownConcern;
+        InspectionRegistry.Index.TryGetValue(id, out var entry) ? entry.Type : ConcernType.UnknownConcern;
 
     /// <summary>
     /// Reports whether <paramref name="id"/> is an Incident Concern, whose occurrences are incidents: the

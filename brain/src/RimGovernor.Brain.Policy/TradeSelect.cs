@@ -141,7 +141,13 @@ public sealed record TradeSelectionFacts
 /// One selected row adjustment: the native line id SetTradeLines addresses, the definition it came from, and the
 /// signed count (positive buys, negative sells) the trade line carries as its AbsoluteCount.
 /// </summary>
-public sealed record TradeSelectionLine(string LineID, string DefName, long Count);
+public sealed record TradeSelectionLine(string LineID, string DefName, long Count)
+{
+    /// <summary>The zero value Go's struct literal starts from.</summary>
+    public TradeSelectionLine() : this("", "", 0)
+    {
+    }
+}
 
 /// <summary>
 /// One target's decision row, mirroring Python's evidence dictionaries one for one: either a blocker naming why

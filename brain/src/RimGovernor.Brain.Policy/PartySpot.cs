@@ -19,7 +19,7 @@ public sealed record PartySpotInput
 {
     public Fact<RoomObservation> Rooms { get; init; }
 
-    public Fact<IReadOnlyList<UpkeepRoom>> Qualities { get; init; }
+    public Fact<EquatableArray<UpkeepRoom>> Qualities { get; init; }
 
     public ImpressivenessLevels Levels { get; init; } = new();
 

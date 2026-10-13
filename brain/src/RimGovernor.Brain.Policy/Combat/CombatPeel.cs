@@ -115,7 +115,7 @@ public static partial class PolicyFunctions
         {
             return view.Positional;
         }
-        return view.Positional.Where(t => new PawnId(t.Id) != id).ToList();
+        return view.Positional.Where(t => t.Id != id).ToList();
     }
 
     /// <summary>Reports a hostile known downed or dead.</summary>
@@ -123,7 +123,7 @@ public static partial class PolicyFunctions
     {
         foreach (var t in v.Threats)
         {
-            if (new PawnId(t.Id) == id && (Positive(t.Dead) || Positive(t.Downed)))
+            if (t.Id == id && (Positive(t.Dead) || Positive(t.Downed)))
             {
                 return true;
             }

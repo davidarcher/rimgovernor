@@ -57,7 +57,7 @@ public sealed record MissionPurchaseRequest
 
     public IReadOnlyDictionary<Resource, long> Targets { get; init; } = new Dictionary<Resource, long>();
 
-    public Fact<IReadOnlyList<Amount>> Stock { get; init; }
+    public Fact<EquatableArray<Amount>> Stock { get; init; }
 
     public Fact<FoodPlan> Food { get; init; }
 
@@ -166,7 +166,7 @@ public static partial class PolicyFunctions
         var current = new Dictionary<string, long>(StringComparer.Ordinal);
         var known = request.Stock.TryGetValue(out var stocks);
         var quantities = new List<ResourceQuantity>();
-        foreach (var stock in stocks ?? [])
+        foreach (var stock in stocks)
         {
             quantities.Add(new ResourceQuantity { Key = new ResourceKey { Def = stock.Resource }, Count = stock.Count });
         }
@@ -240,7 +240,7 @@ public static partial class PolicyFunctions
             if (TradeCandidate(new Resource(row.DefName), row.LineID, count, price, out var candidate))
             {
                 candidates.Add(candidate);
-                rows[candidate.ID] = row;
+                rows[candidate.Id] = row;
                 budget -= count * price;
                 headroom -= count * unitMass;
                 wanted[row.DefName] -= count;
@@ -249,8 +249,8 @@ public static partial class PolicyFunctions
         var plan = PlanSupply(
             new SupplyPlanRequest
             {
-                Demands = Known<IReadOnlyList<SupplyDemand>>(demands),
-                Candidates = Known<IReadOnlyList<SupplyCandidate>>(candidates),
+                Demands = Known(EquatableArray.From(demands)),
+                Candidates = Known(EquatableArray.From(candidates)),
                 Labor = Known(m.SilverBudget * TradeLaborPerSilver),
             }
         );
@@ -262,7 +262,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var row = rows[entry.Candidate.ID];
+            var row = rows[entry.Candidate.Id];
             lines.Add(new TradeLine(row.LineID, (int)entry.Wanted));
             goods[row.DefName] = goods.GetValueOrDefault(row.DefName) + (ulong)entry.Wanted;
         }

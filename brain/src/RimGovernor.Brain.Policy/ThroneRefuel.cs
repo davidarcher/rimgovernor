@@ -49,7 +49,7 @@ public static partial class PolicyFunctions
         var best = "";
         foreach (var l in lamps)
         {
-            if (!glow.Contains(l.Definition) || !room.Region.Bounds().Contains(l.Cell) || l.Lit)
+            if (!glow.Contains(l.Definition) || !Contains(room.Region.Bounds(), l.Cell) || l.Lit)
             {
                 continue;
             }
@@ -62,7 +62,7 @@ public static partial class PolicyFunctions
                 best = l.Id;
             }
         }
-        var (pawn, found) = DefenseRearmPawn(workers);
+        var found = DefenseRearmPawn(workers, out var pawn);
         if (best.Length == 0 || !found)
         {
             return new ThroneStep();

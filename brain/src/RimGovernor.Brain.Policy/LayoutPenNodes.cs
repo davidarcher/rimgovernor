@@ -1,7 +1,13 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>One race's herd: the planned animals of the race.</summary>
-public sealed record StationHerd(Resource Race, int Animals);
+public sealed record StationHerd(Resource Race, int Animals)
+{
+    /// <summary>The zero value Go's struct literal starts from.</summary>
+    public StationHerd() : this(default, 0)
+    {
+    }
+}
 
 /// <summary>The pen of one race's herd.</summary>
 public sealed record PenNode

@@ -24,23 +24,23 @@ public sealed class IncinerationOwner : IStoreOwner
     /// taking all storable items but the native not-burnable ones. The incinerator's whole interior is
     /// Preferred, above the dump so waste hauls in from it, taking what the native rule calls burnable.
     /// </summary>
-    public IReadOnlyList<Store> Stores(StoreView v)
+    public IReadOnlyList<Store> Stores(StoreView view)
     {
         var output = new List<Store>();
-        var (dump, ok) = WasteDumpSite(v.Layout);
+        var (dump, ok) = WasteDumpSite(view.Layout);
         if (ok)
         {
-            output.Add(new Store { StoreSite = dump! });
+            output.Add(new Store { Site = dump! });
         }
-        if (v.Incinerator is not null)
+        if (view.Incinerator is not null)
         {
             output.Add(new Store
             {
-                StoreSite = new StoreSite
+                Site = new StoreSite
                 {
                     Role = DomainConstants.IncineratorRole,
-                    Interior = v.Incinerator.Region.Bounds(),
-                    Filter = DomainConstants.IncineratorFilter(),
+                    Interior = view.Incinerator.Region.Bounds(),
+                    Filter = StockpileFilter.IncineratorFilter(),
                     Priority = StockpilePriority.Preferred,
                     Exact = true,
                 },
@@ -49,7 +49,7 @@ public sealed class IncinerationOwner : IStoreOwner
         return output;
     }
 
-    public RoomDemand RoomDemand(StoreView v) => DeclaredDemand(v, Stores(v));
+    public RoomDemand RoomDemand(StoreView view) => DeclaredDemand(view, Stores(view));
 
     /// <summary>
     /// The dump's site: the first planned waste yard's interior less the planned incinerator's outline (its
@@ -77,7 +77,7 @@ public sealed class IncinerationOwner : IStoreOwner
         {
             Role = DomainConstants.DumpRole,
             Interior = yard,
-            Filter = DomainConstants.DumpFilter(),
+            Filter = StockpileFilter.DumpFilter(),
             Priority = StockpilePriority.Low,
             Regions = CellRects(CellSet(cells)),
             Exact = true,

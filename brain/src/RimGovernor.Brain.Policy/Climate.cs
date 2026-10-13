@@ -465,8 +465,8 @@ public static partial class PolicyFunctions
         }
 
         var links = room.Links.Items;
-        var g = new double[links.Count];
-        for (var i = 0; i < links.Count; i++)
+        var g = new double[links.Length];
+        for (var i = 0; i < links.Length; i++)
         {
             g[i] = m.Conductance(links[i], room.Cells, passages);
         }
@@ -478,7 +478,7 @@ public static partial class PolicyFunctions
         {
             steps++;
             double flow = 0, total = 0;
-            for (var i = 0; i < links.Count; i++)
+            for (var i = 0; i < links.Length; i++)
             {
                 var side = links[i].Side.HeldC;
                 if (links[i].Side.Outdoors)
@@ -570,7 +570,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Turns site-type units (a normal-soil cell's harvest per grow day) into sustained watts: Power units are a kilowatt averaged over the day.</summary>
-    private static double UnitsW(SiteTypeWeights w, double units)
+    internal static double UnitsW(SiteTypeWeights w, double units)
     {
         const int wattsPerKilowatt = 1000;
         return units / w.Power * wattsPerKilowatt;
@@ -631,9 +631,10 @@ public static partial class PolicyFunctions
     public static List<HeatSource> GroupHeat(this StationCatalog c, RoomGroup g)
     {
         var output = new List<HeatSource>();
-        foreach (var s in g.Stations.Items)
+        foreach (var s in g.Stations)
         {
-            if (!c.Station(s.Def, out var st) || !st.Heat.Pushes() || s.Count <= 0)
+            var (st, stOk) = c.Station(s.Def);
+            if (!stOk || !st.Heat.Pushes() || s.Count <= 0)
             {
                 continue;
             }
@@ -645,7 +646,11 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The catalog's cooling station that draws the least power per heat moved, null when it has none.</summary>
-    public static string? BestCoolerByPower(this StationCatalog c) => BestCoolerOf(c);
+    public static string? BestCoolerByPower(this StationCatalog c)
+    {
+        var (def, ok) = BestCooler(c);
+        return ok ? def : null;
+    }
 
     /// <summary>
     /// The climate answer beside a cold group's cooling station: null for a group that does not require
@@ -656,7 +661,7 @@ public static partial class PolicyFunctions
     {
         var known = f.OutdoorCurve.TryGetValue(out var curve);
         var m = f.Catalog.Climate;
-        if (!known || f.FullRotRateC <= 0 || !g.Requires.Items.Contains(EnvRequirement.Cold) || !m.Valid())
+        if (!known || f.FullRotRateC <= 0 || !g.Requires.Contains(EnvRequirement.Cold) || !m.Valid())
         {
             return null;
         }
@@ -671,7 +676,7 @@ public static partial class PolicyFunctions
                 m,
                 DefaultSiteTypeWeights(),
                 steel,
-                curve.Items,
+                curve!,
                 new ClimateRoom
                 {
                     Cells = g.Area,

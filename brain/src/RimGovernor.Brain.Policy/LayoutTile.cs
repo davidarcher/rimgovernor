@@ -22,7 +22,7 @@ public sealed record TileInput
     public IReadOnlyList<LayoutZone> Zones { get; init; } = [];
     public IReadOnlyList<LayoutReservation> Reservations { get; init; } = [];
     public MapSurvey Survey { get; init; } = default!;
-    public Fact<IReadOnlyList<double>> OutdoorCurve { get; init; }
+    public Fact<EquatableArray<double>> OutdoorCurve { get; init; }
     public double RoofDistance { get; init; }
     public double FullRotRateC { get; init; }
     public double SteelValue { get; init; }
@@ -82,7 +82,7 @@ public sealed class TileResult
     public IReadOnlyList<RoofDecision> RoofDecisions { get; set; } = [];
 
     /// <summary>The lamp cells of each lit room by room id.</summary>
-    public Dictionary<int, IReadOnlyList<PlannedLamp>> Lamps { get; } = [];
+    public Dictionary<int, List<PlannedLamp>> Lamps { get; } = [];
 
     /// <summary>The groups whose room the placer could not furnish.</summary>
     public List<int> Unfit() => [.. Decisions.Where(d => d.Reason == PolicyFunctions.ReasonTileNoFit).Select(d => d.Group)];
@@ -431,7 +431,7 @@ internal sealed partial class Tiler(TileInput input)
             Out.RoofDecisions = roof.Decisions;
         }
         this.PlaceLamps();
-        Out.Plan = Out.Plan with { Lamps = Out.Lamps.ToDictionary(e => e.Key, e => e.Value) };
+        Out.Plan = Out.Plan with { Lamps = Out.Lamps.ToDictionary(e => e.Key, e => (IReadOnlyList<PlannedLamp>)e.Value) };
         this.RouteTileConduits();
         if (!Out.Plan.Valid())
         {

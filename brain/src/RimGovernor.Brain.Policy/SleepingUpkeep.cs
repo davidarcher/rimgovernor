@@ -154,9 +154,9 @@ public sealed record SleepingReview
     {
         if (!Targets.TryGetValue(out var rows))
         {
-            return PolicyFunctions.Unknown<bool>();
+            return Fact.Unknown<bool>();
         }
-        return PolicyFunctions.Known(rows.Count == 0);
+        return Fact.Known(rows.Count == 0);
     }
 }
 

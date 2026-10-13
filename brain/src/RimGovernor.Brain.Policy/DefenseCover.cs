@@ -26,7 +26,7 @@ public static partial class PolicyFunctions
         {
             return output;
         }
-        var stuffs = items.StuffsFor(DefenseSandbags);
+        var stuffs = items.StuffsFor(new Resource(DefenseSandbags));
         var best = "";
         var most = 0L;
         foreach (var (resource, count) in stock)

@@ -119,7 +119,7 @@ public static partial class PolicyFunctions
     /// exists only while nothing served is wanted. Silver still bounds the purchase through the trade's reserve.
     /// </summary>
     public static IReadOnlyList<SurgeryPart> SurgeryPurchaseParts(
-        Fact<IReadOnlyList<CarePawn>> pawns,
+        Fact<EquatableArray<CarePawn>> pawns,
         SurgeryContext ctx,
         IReadOnlyList<SurgeryPart> served,
         IReadOnlySet<Resource> fabricable
@@ -225,10 +225,10 @@ public static partial class PolicyFunctions
     /// of the chosen part is on the map: SelectSurgery then queues it. The purchase path and ElectiveParts both
     /// read this.
     /// </summary>
-    public static (SurgeryWant Want, bool Ok) ChosenElective(Fact<IReadOnlyList<CarePawn>> pawns, SurgeryContext ctx)
+    public static (SurgeryWant Want, bool Ok) ChosenElective(Fact<EquatableArray<CarePawn>> pawns, SurgeryContext ctx)
     {
         pawns.TryGetValue(out var rowList);
-        var rows = rowList ?? [];
+        var rows = rowList;
         if (!ElectivesAllowed(rows, ctx.HospitalBed))
         {
             return (new SurgeryWant(), false);
@@ -254,7 +254,7 @@ public static partial class PolicyFunctions
             pawn.Operations.TryGetValue(out var ops);
             var parts = new Dictionary<int, List<SurgeryOperation>>();
             var order = new List<int>();
-            foreach (var op in ops ?? [])
+            foreach (var op in ops)
             {
                 var pk = op.PartIndex.TryGetValue(out var part);
                 if (!op.Recipe.IsKnown || !pk || !ElectiveUpgrade(op) || !SurgeryAcceptable(op, ElectiveFailureCap) || !ctx.Elective.Affordable(pawn.Id, op))

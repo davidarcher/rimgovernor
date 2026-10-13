@@ -97,7 +97,7 @@ public static partial class PolicyFunctions
     private static HashSet<PawnId> SparedBleeders(CombatView view)
     {
         var output = new HashSet<PawnId>();
-        if (!view.Population.TryGetValue(out var pop) || pop >= Standard.PopulationTarget)
+        if (!view.Population.TryGetValue(out var pop) || pop >= DomainConstants.PopulationTarget)
         {
             return output;
         }
@@ -135,7 +135,7 @@ public static partial class PolicyFunctions
     /// </summary>
     private static void FinishContained(CombatView view, CombatMemory next)
     {
-        if (!view.Population.TryGetValue(out var pop) || pop >= Standard.PopulationTarget)
+        if (!view.Population.TryGetValue(out var pop) || pop >= DomainConstants.PopulationTarget)
         {
             return;
         }

@@ -231,7 +231,7 @@ public static partial class PolicyFunctions
             return null;
         }
 
-        var (v, vok) = TowardVector(layout!.Toward);
+        var vok = TowardVector(layout!.Toward, out var v);
         if (!vok || layout.Retreat.Count == 0)
         {
             return null;

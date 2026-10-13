@@ -62,9 +62,9 @@ public sealed record NutritionDemandInput
 /// </summary>
 public sealed record SupplyPlanRequest
 {
-    public Fact<IReadOnlyList<SupplyDemand>> Demands { get; init; }
+    public Fact<EquatableArray<SupplyDemand>> Demands { get; init; }
 
-    public Fact<IReadOnlyList<SupplyCandidate>> Candidates { get; init; }
+    public Fact<EquatableArray<SupplyCandidate>> Candidates { get; init; }
 
     public Fact<double> Labor { get; init; }
 
@@ -180,7 +180,7 @@ public sealed class SupplyPlan
         {
             foreach (var e in rows)
             {
-                b.Append(' ').Append(Wire.Name(e.Candidate.Kind)).Append('/').Append(e.Candidate.ID).Append(' ').Append(e.Decision).Append(": ").Append(e.Reason);
+                b.Append(' ').Append(Wire.Name(e.Candidate.Kind)).Append('/').Append(e.Candidate.Id).Append(' ').Append(e.Decision).Append(": ").Append(e.Reason);
                 foreach (var c in e.Credit)
                 {
                     b.Append(" credit[").Append(c.Good.Def.Value).Append("]=").Append(F4(c.Amount));
@@ -379,7 +379,7 @@ public static partial class PolicyFunctions
         {
             return a.Kind < b.Kind ? -1 : 1;
         }
-        return string.CompareOrdinal(a.ID, b.ID);
+        return string.CompareOrdinal(a.Id, b.Id);
     }
 
     private static int AcquisitionKeyCompare(ResourceKey a, ResourceKey b) =>
@@ -565,15 +565,15 @@ public static partial class PolicyFunctions
     private static (SupplyCand Cand, List<string> Missing) NewSupplyCand(SupplyCandidate row, HashSet<(CandidateKind, string)> identities)
     {
         if (!ValidCandidateKind(row.Kind)
-            || !FoodId(row.ID)
-            || identities.Contains((row.Kind, row.ID))
+            || !FoodId(row.Id)
+            || identities.Contains((row.Kind, row.Id))
             || row.Yields.Count == 0
             || !ValidAcquisitionCount(row.UnitsPerTrip)
             || (row.NeedsHaul && row.UnitsPerTrip == 0))
         {
             throw new SupplyPlanFactsException();
         }
-        identities.Add((row.Kind, row.ID));
+        identities.Add((row.Kind, row.Id));
         static (double Value, bool Ok) Num(Fact<double> f, double max)
         {
             var ok = f.TryGetValue(out var v);

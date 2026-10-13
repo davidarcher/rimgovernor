@@ -86,7 +86,7 @@ public sealed record ProductionRecipe
 
     public Fact<double> WorkPerNutrition { get; init; }
 
-    public Fact<IReadOnlyList<FoodIngredientSlot>> IngredientClasses { get; init; }
+    public Fact<EquatableArray<FoodIngredientSlot>> IngredientClasses { get; init; }
 
     public Fact<bool> NeedsPower { get; init; }
 
@@ -107,7 +107,7 @@ public sealed record ExistingProductionBill
 
     public Fact<bool> DefaultIngredients { get; init; }
 
-    public Fact<IReadOnlyList<string>> Ingredients { get; init; }
+    public Fact<EquatableArray<string>> Ingredients { get; init; }
 
     public Fact<bool> UnrestrictedWorker { get; init; }
 
@@ -260,7 +260,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static (BillSelection Selection, bool Ok) SelectProductionBill(
         BillPurpose purpose,
-        Fact<IReadOnlyList<ProductionBench>> benches,
+        Fact<EquatableArray<ProductionBench>> benches,
         Fact<long> colonists,
         Fact<double> runway,
         Fact<double> atRisk,

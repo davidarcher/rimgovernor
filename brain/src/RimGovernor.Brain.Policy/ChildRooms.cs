@@ -205,7 +205,7 @@ public static partial class PolicyFunctions
     internal const int MinNurseryBeds = 2;
 
     /// <summary>Whether the catalog assigns the definition the role.</summary>
-    public static bool HasRole(this FurnitureDefinition d, FurnitureRole role) => d.Roles.Items.Contains(role.Value);
+    public static bool HasRole(this FurnitureDefinition d, FurnitureRole role) => d.Roles.Contains(role.Value);
 
     /// <summary>
     /// The child rooms the pawns owe, in role order: a nursery (beds for every newborn and baby, at least the
@@ -360,7 +360,8 @@ public static partial class PolicyFunctions
             }
 
             var pieces = n.Resolve(defs) ?? [];
-            if (!InteriorRoomFromLayout(room, rooms.Shapes, out var interior))
+            var (interior, interiorOk) = InteriorRoomFromLayout(room, rooms.Shapes);
+            if (!interiorOk || interior is null)
             {
                 continue;
             }
@@ -381,7 +382,7 @@ public static partial class PolicyFunctions
                 var count = 0;
                 foreach (var b in built)
                 {
-                    if (count < p.Count && b.Cells.Count > 0 && RectInside(room.Region.Bounds(), CellsRectangle(b.Cells.Items)) && p.Defs.Contains(b.Building.Definition))
+                    if (count < p.Count && b.Cells.Count > 0 && RectInside(room.Region.Bounds(), CellsRectangle(b.Cells.Items)) && p.Defs.Contains(b.Building!.Definition))
                     {
                         var r = CellsRectangle(b.Cells.Items);
                         template.Add(
@@ -401,12 +402,13 @@ public static partial class PolicyFunctions
                     continue;
                 }
 
-                if (!PlanRoomInterior(interior, p.Piece, out var planned))
+                var (planned, plannedOk) = PlanRoomInterior(interior, p.Piece);
+                if (!plannedOk)
                 {
                     continue;
                 }
 
-                foreach (var slot in planned.Pieces.Items)
+                foreach (var slot in planned.Pieces)
                 {
                     if (count >= p.Count || slot.Def != p.Piece.Def || CellsTaken(slot.Rect, taken))
                     {
@@ -457,7 +459,7 @@ public static partial class PolicyFunctions
         var n = 0;
         foreach (var b in built)
         {
-            if (b.Cells.Count > 0 && RectInside(r.Region.Bounds(), CellsRectangle(b.Cells.Items)) && defs.Contains(b.Building.Definition))
+            if (b.Cells.Count > 0 && RectInside(r.Region.Bounds(), CellsRectangle(b.Cells.Items)) && defs.Contains(b.Building!.Definition))
             {
                 n++;
             }

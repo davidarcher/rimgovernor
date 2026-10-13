@@ -24,7 +24,7 @@ public static partial class PolicyFunctions
         }
 
         var reach = GrenadeReach(carrier);
-        var emp = carrier.WeaponFacts.Emp;
+        var emp = carrier.WeaponFacts.EMP;
         var fire = carrier.WeaponFacts.Incendiary;
         var cells = new List<Cell>();
         var worth = new List<Cell>();

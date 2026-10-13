@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 // baby-edible recipe through the existing production bill write.
 
 /// <summary>
-/// The review of baby food: what the babies' foods hold against what they need. <see cref="Short"/> is the
+/// The review of baby food: what the babies' foods hold against what they need. <see cref="IsShort"/> is the
 /// goal's deficit.
 /// </summary>
 public sealed record BabyFeeding
@@ -26,7 +26,7 @@ public sealed record BabyFeeding
 
     public double TargetNutrition { get; init; }
 
-    public bool Short { get; init; }
+    public bool IsShort { get; init; }
 }
 
 public static partial class PolicyFunctions
@@ -70,7 +70,7 @@ public static partial class PolicyFunctions
         var found = 0;
         foreach (var c in supply.Consumers)
         {
-            if (!isBaby.Contains(c.ID))
+            if (!isBaby.Contains(c.Id))
             {
                 continue;
             }
@@ -88,7 +88,7 @@ public static partial class PolicyFunctions
             var hk = s.Holder.TryGetValue(out var holder);
             var nk = s.Nutrition.TryGetValue(out var amount);
             DomainException.Require(hk && nk && FoodNumber(amount), "food facts unavailable");
-            if (holder.Length != 0 || s.Corpse)
+            if (!holder.IsEmpty || s.Corpse)
             {
                 continue;
             }
@@ -109,7 +109,7 @@ public static partial class PolicyFunctions
         {
             StockNutrition = stockNutrition,
             TargetNutrition = Math.Max(perDay * targetDays, floor),
-            Short = !r.Breastfed && stockNutrition < floor,
+            IsShort = !r.Breastfed && stockNutrition < floor,
         };
     }
 
@@ -118,11 +118,11 @@ public static partial class PolicyFunctions
     /// Native counts the product's stock toward the target, and other baby foods reduce it. None is selected
     /// unless the review is short.
     /// </summary>
-    public static BillSelection? SelectBabyFoodBill(Fact<EquatableArray<ProductionBench>> benches, BabyFeeding review)
+    public static (BillSelection Selection, bool Ok) SelectBabyFoodBill(Fact<EquatableArray<ProductionBench>> benches, BabyFeeding review)
     {
-        if (!benches.TryGetValue(out var rows) || !review.Short || !FieldPositive(review.TargetNutrition))
+        if (!benches.TryGetValue(out var rows) || !review.IsShort || !FieldPositive(review.TargetNutrition))
         {
-            return null;
+            return (new BillSelection(), false);
         }
 
         return SelectTargetBill(

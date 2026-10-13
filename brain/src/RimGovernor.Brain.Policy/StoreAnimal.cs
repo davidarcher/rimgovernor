@@ -95,7 +95,7 @@ public static partial class PolicyFunctions
         var seen = new HashSet<Resource>();
         foreach (var a in animals)
         {
-            var (race, known) = races.Race(a.Definition);
+            var known = races.Race(a.Definition, out var race);
             if (!known)
             {
                 continue;

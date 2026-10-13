@@ -171,8 +171,8 @@ public sealed partial record LayoutPlan
     /// <summary>The point a herd room's door faces: the colony core.</summary>
     private (double X, double Z, bool Ok) HerdTarget()
     {
-        var (c, found) = Core();
-        if (found)
+        var core = Core();
+        if (core is { } c)
         {
             return (c.X, c.Z, true);
         }
@@ -266,7 +266,7 @@ public static partial class PolicyFunctions
         {
             return 0;
         }
-        var (plan, planned) = PlanRoomInterior(inner, def);
+        var (plan, planned) = PlanRoomInterior(inner!, def);
         if (!planned)
         {
             return 0;
@@ -327,7 +327,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var (layout, planned) = PlanRoomInterior(inner, f.Spot);
+            var (layout, planned) = PlanRoomInterior(inner!, f.Spot);
             if (!planned)
             {
                 continue;
@@ -424,13 +424,13 @@ public static partial class PolicyFunctions
         var template = new List<WantedPiece>();
         var absent = false;
         bool Inside(CurrentBuilding b, string name) =>
-            b.Building.Definition() == name && b.Cells.Count > 0 && RectInside(room.Region.Bounds(), CellsRectangle(b.Cells));
+            b.Building!.Definition == name && b.Cells.Count > 0 && RectInside(room.Region.Bounds(), CellsRectangle(b.Cells));
         WantedPiece Standing(CurrentBuilding b)
         {
             var r = CellsRectangle(b.Cells);
             return new WantedPiece
             {
-                DefName = b.Building.Definition(),
+                DefName = b.Building!.Definition,
                 Minimum = new Cell(r.X, r.Z),
                 Maximum = new Cell(r.X + r.Width - 1, r.Z + r.Height - 1),
             };

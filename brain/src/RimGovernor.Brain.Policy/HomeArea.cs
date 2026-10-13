@@ -55,7 +55,7 @@ public static partial class PolicyFunctions
     public static Fact<HomeAreaPlan> PlanHomeArea(
         Fact<Bounds> bounds,
         Fact<CurrentConstruction> construction,
-        Fact<IReadOnlyList<ConstructionClaim>> claims,
+        Fact<EquatableArray<ConstructionClaim>> claims,
         Fact<HomeCoverageObservation> home
     )
     {

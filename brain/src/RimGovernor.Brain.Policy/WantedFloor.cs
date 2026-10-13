@@ -33,7 +33,7 @@ public static partial class PolicyFunctions
             }
             return _ => facts.ContainmentFloor.Def;
         }
-        if (!ok || cells.Count == 0 || !p.Valid())
+        if (!ok || cells.Count == 0 || !p.IsValid)
         {
             return None;
         }
@@ -50,7 +50,9 @@ public static partial class PolicyFunctions
     private static (FloorDeficit Deficit, bool Ok) RoomFloorDeficit(PlannedRoom room, IReadOnlyList<string> tags)
     {
         var role = ModuleRoomRoles[room.Role];
-        var (tier, ok) = RoleFloorTier(role);
+        var roleTier = RoleFloorTier(role);
+        var tier = roleTier ?? default;
+        var ok = roleTier is not null;
         if (tags.Count > 0 && role == RoomRole.ThroneRoom)
         {
             (tier, ok) = (FloorTier.Throne, true);
@@ -83,7 +85,7 @@ public static partial class PolicyFunctions
                 // Only the containment floor stands in for it (replacing a plain floor is what the strength was predicted on).
                 return false;
             }
-            if (!ok || !facts.Definitions.TryGetValue(have, out var def) || !p.Valid())
+            if (!ok || !facts.Definitions.TryGetValue(have, out var def) || !p.IsValid)
             {
                 return true;
             }

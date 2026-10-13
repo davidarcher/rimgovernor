@@ -18,12 +18,12 @@ public static partial class PolicyFunctions
     {
         foreach (var b in benches)
         {
-            if (b.ID == s.Bench && b.Def.Length != 0)
+            if (b.Id == s.Bench && b.Def.Length != 0)
             {
                 return new OrderSpec
                 {
                     Recipe = s.Recipe,
-                    Ingredients = s.Ingredients,
+                    Ingredients = EquatableArray.From(s.Ingredients),
                     Worker = s.Worker,
                     Mode = s.Mode,
                     Target = s.Target,

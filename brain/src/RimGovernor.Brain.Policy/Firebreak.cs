@@ -44,15 +44,15 @@ public sealed record FirebreakRequest
 
     public Fact<CurrentConstruction> Construction { get; init; }
 
-    public Fact<IReadOnlyList<ConstructionClaim>> Claims { get; init; }
+    public Fact<EquatableArray<ConstructionClaim>> Claims { get; init; }
 
     public Fact<HomeCoverageObservation> Home { get; init; }
 
     /// <summary>The cells of every growing zone; they join the footprint so a field is enclosed rather than cut.</summary>
-    public Fact<IReadOnlyList<Cell>> GrowingZones { get; init; }
+    public Fact<EquatableArray<Cell>> GrowingZones { get; init; }
 
     /// <summary>The cells of the accepted layout plan's footprints.</summary>
-    public Fact<IReadOnlyList<Cell>> Planned { get; init; }
+    public Fact<EquatableArray<Cell>> Planned { get; init; }
 
     public IReadOnlyDictionary<Cell, Fact<FirebreakGround>> Ground { get; init; } = new Dictionary<Cell, Fact<FirebreakGround>>();
 

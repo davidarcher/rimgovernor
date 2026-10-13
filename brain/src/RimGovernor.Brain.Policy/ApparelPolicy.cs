@@ -157,7 +157,7 @@ public static partial class PolicyFunctions
         var modelled = p.LoadoutModel.TryGetValue(out var model);
         if (modelled)
         {
-            role = DeriveGearRole(model.Role);
+            role = DeriveGearRole(model!.Role);
         }
 
         if (!RoleApparelPolicy(p.Pawn, role, state, out desired))
@@ -169,7 +169,7 @@ public static partial class PolicyFunctions
         var spec = desired!.Spec;
         if (modelled)
         {
-            spec = spec with { MinQuality = ApparelQualityFloor(model, spec.Definitions) };
+            spec = spec with { MinQuality = ApparelQualityFloor(model!, spec.Definitions) };
             try
             {
                 desired = new Domain.ApparelPolicy(spec);

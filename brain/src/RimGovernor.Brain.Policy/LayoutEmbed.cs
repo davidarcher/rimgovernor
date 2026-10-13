@@ -244,7 +244,7 @@ internal partial class EmbedFixed
         Base = new Prefix(w, h, c => PolicyFunctions.B2i(scorer.G.Core.Contains(c)));
         Soil = new Prefix(w, h, c => -((PlanWeights.Soil * scorer.G.Soil.GetValueOrDefault(c)) + (PlanWeights.Rock * PolicyFunctions.B2i(scorer.G.Rock.Contains(c)))));
         var clear = scorer.EdgeClear();
-        Edge = new Prefix(w, h, c => -PolicyFunctions.EdgeCellCost(scorer.Ground, c, clear));
+        Edge = new Prefix(w, h, c => -PlanScorer.EdgeCellCost(scorer.Ground, c, clear));
         Centre = new Prefix(w, h, c => -scorer.CentreCell(c));
         Rich = new Prefix(w, h, c => PolicyFunctions.B2i(scorer.G.Soil.GetValueOrDefault(c) == PolicyConstants.SoilCostRich));
         Solid = new Prefix(w, h, c => PolicyFunctions.B2i(scorer.G.Rock.Contains(c) || (cells.TryGetValue(c, out var sc) && sc.ThickRoof)));
@@ -378,8 +378,8 @@ internal sealed partial class Embedder : EmbedFixed
         {
             return;
         }
-        var seeds = lg.SiteSeeds(PolicyConstants.SiteSearchTop);
-        _seeds = seeds.Count == 0 ? PolicyFunctions.Stepped(_core, PolicyConstants.SiteSearchTop) : seeds;
+        var seeds = lg.SiteSeeds(PolicyFunctions.SiteSearchTop);
+        _seeds = seeds.Count == 0 ? PolicyFunctions.Stepped(_core, PolicyFunctions.SiteSearchTop) : seeds;
     }
 
     internal IReadOnlyList<RoomGroup> Groups => _groups;
@@ -675,7 +675,7 @@ internal sealed partial class Embedder : EmbedFixed
                 case 0:
                 case 1: // beside a linked block, else any block
                 {
-                    IReadOnlyList<int> anchors = [.. _groups[i].Links.Where(l => blocks[l.To].Width > 0).Select(l => l.To)];
+                    List<int> anchors = [.. _groups[i].Links.Where(l => blocks[l.To].Width > 0).Select(l => l.To)];
                     if (anchors.Count == 0 || rng.Intn(2) == 0)
                     {
                         anchors = placed;
@@ -1074,7 +1074,7 @@ public static partial class PolicyFunctions
         var scorer = new PlanScorer(input.Zones, input.Reservations, input.Survey);
         var fixedPricing = new EmbedFixed(input, scorer);
         EmbedRun? best = null;
-        foreach (var level in ObstacleLevels)
+        foreach (var level in ObstacleLevels.All)
         {
             var run = EmbedLevel(input, depth, scorer, level, fixedPricing);
             // A looser level takes over only by FieldGain: the strictest level keeps the plan unless the

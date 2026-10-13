@@ -57,8 +57,8 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var (template, ok) = BedroomTemplate(planned, room.Room.Shapes, SleepingCoupleBedDefinition);
-            return ok ? (planned, template) : null;
+            var template = BedroomTemplate(planned, room.Room.Shapes, SleepingCoupleBedDefinition);
+            return template is not null ? (planned, template) : null;
         }
         return null;
     }

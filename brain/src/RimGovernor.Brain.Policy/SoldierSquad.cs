@@ -57,7 +57,7 @@ public sealed record SoldierSquad
         }
         foreach (var w in incapable!)
         {
-            if (w == "Violent")
+            if (w == WorkType.Violent)
             {
                 return (0, false, true);
             }

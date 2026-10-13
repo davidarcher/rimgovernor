@@ -29,7 +29,7 @@ public static partial class PolicyFunctions
         int coolers,
         IReadOnlyList<Cell> reserved)
     {
-        Footprint shell;
+        RoomFootprint shell;
         try
         {
             shell = room.Footprint();

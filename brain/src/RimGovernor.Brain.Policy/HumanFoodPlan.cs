@@ -223,7 +223,7 @@ public static partial class PolicyFunctions
         var name = Wire.Name(route);
         foreach (var e in p.Portfolio)
         {
-            if (e.Channel.Kind == CandidateKind.Corpse && e.Channel.ID == "human-butchery" && e.Decision != FoodPlanDecision.Close)
+            if (e.Channel.Kind == CandidateKind.Corpse && e.Channel.Id == "human-butchery" && e.Decision != FoodPlanDecision.Close)
             {
                 foreach (var term in e.Terms)
                 {
@@ -245,7 +245,7 @@ public static partial class PolicyFunctions
         > 0;
 
     /// <summary>Explicit human-meat/vegetable membership isolates trade output from ordinary meal bills. Native admission verifies every slot and protects sale products.</summary>
-    public static (BillSelection Selection, bool Ok) SelectHumanSurvivalBill(Fact<IReadOnlyList<ProductionBench>> benches, FoodSupply supply, Fact<FoodPlan> plan)
+    public static (BillSelection Selection, bool Ok) SelectHumanSurvivalBill(Fact<EquatableArray<ProductionBench>> benches, FoodSupply supply, Fact<FoodPlan> plan)
     {
         var none = (new BillSelection(), false);
         var budget = HumanRouteNutrition(plan, HumanMeatRoute.SurvivalTrade);
@@ -332,7 +332,7 @@ public static partial class PolicyFunctions
                 choices.Add(
                     new BillSelection
                     {
-                        Bench = b.ID,
+                        Bench = b.Id,
                         Recipe = r.Name,
                         Token = token!,
                         Mode = BillMode.FoodTarget,

@@ -9,9 +9,9 @@ public sealed record ForwardInputs
 
     public SleepingRange Sleeping { get; init; } = new();
 
-    public Fact<IReadOnlyList<DisasterCondition>> Conditions { get; init; }
+    public Fact<EquatableArray<DisasterCondition>> Conditions { get; init; }
 
-    public Fact<IReadOnlyList<DefenseTurretFacts>> Turrets { get; init; }
+    public Fact<EquatableArray<DefenseTurretFacts>> Turrets { get; init; }
 
     public RoundsPolicy Policy { get; init; } = new();
 
@@ -162,7 +162,7 @@ public static partial class PolicyFunctions
         {
             return Unknown<TemperatureProjection>();
         }
-        if (!ConditionRemainingTicks(input.Conditions, ConditionKind.ColdSnap, ConditionKind.HeatWave).TryGetValue(out var ticks))
+        if (!ConditionRemainingTicks(input.Conditions, ConditionColdSnap, ConditionHeatWave).TryGetValue(out var ticks))
         {
             return Unknown<TemperatureProjection>();
         }
@@ -170,7 +170,7 @@ public static partial class PolicyFunctions
         return Known(new TemperatureProjection(lo, hi, breach, Math.Min(ProjectionHorizonDays, (double)ticks / GameTime.TicksPerDay)));
     }
 
-    private static Fact<DefenseProjection> ProjectDefense(Fact<IReadOnlyList<DefenseTurretFacts>> turrets)
+    private static Fact<DefenseProjection> ProjectDefense(Fact<EquatableArray<DefenseTurretFacts>> turrets)
     {
         if (!turrets.TryGetValue(out var rows))
         {

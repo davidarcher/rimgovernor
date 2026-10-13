@@ -34,7 +34,7 @@ public enum HospitalMethod
 /// <summary>Asks for a hospital bed; the planner stages RoomFurniture.HospitalBeds in preference order, a sleeping spot (the free bed) last.</summary>
 public sealed record HospitalRequest
 {
-    public Fact<IReadOnlyList<CarePawn>> Patients { get; init; }
+    public Fact<EquatableArray<CarePawn>> Patients { get; init; }
     public Fact<SleepingObservation> Sleeping { get; init; }
     public Fact<RoomObservation> Rooms { get; init; }
     public IReadOnlyList<BenchDefinition> Definitions { get; init; } = [];
@@ -78,7 +78,7 @@ public static partial class PolicyFunctions
     /// condition, e.g. a scar) keeps the deficit and does not size the ward. Not ok when the census or a patient's
     /// rest or death is unknown.
     /// </summary>
-    private static (HashSet<PawnId> Ill, bool Ok) IllPatients(Fact<IReadOnlyList<CarePawn>> patients, IReadOnlyList<PawnId> surgical)
+    private static (HashSet<PawnId> Ill, bool Ok) IllPatients(Fact<EquatableArray<CarePawn>> patients, IReadOnlyList<PawnId> surgical)
     {
         if (!patients.TryGetValue(out var rows))
         {
@@ -103,7 +103,7 @@ public static partial class PolicyFunctions
             }
             if (rest)
             {
-                ill.Add(p.ID);
+                ill.Add(p.Id);
             }
         }
         foreach (var id in surgical)
@@ -163,7 +163,7 @@ public static partial class PolicyFunctions
         var owned = new List<SleepingBed>();
         foreach (var bed in sleeping!.Beds)
         {
-            if (!hosted.Contains(bed.ID) || (surgical && bed.Definition.Value == "SleepingSpot"))
+            if (!hosted.Contains(bed.Id) || (surgical && bed.Definition.Value == "SleepingSpot"))
             {
                 continue;
             }
@@ -213,8 +213,8 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var first = candidates.OrderBy(c => c.ID, StringComparer.Ordinal).First();
-            return choice with { Method = HospitalMethod.Convert, Bed = first.ID };
+            var first = candidates.OrderBy(c => c.Id, StringComparer.Ordinal).First();
+            return choice with { Method = HospitalMethod.Convert, Bed = first.Id };
         }
         var byName = new Dictionary<string, BenchDefinition>(StringComparer.Ordinal);
         foreach (var d in r.Definitions)

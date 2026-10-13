@@ -86,6 +86,10 @@ public enum WorkType
     // The Anomaly study work type (Go entity_study.go WorkDarkStudy).
     [WireName("DarkStudy")]
     DarkStudy,
+
+    // Backstory-incapable "Violent" row (Go gear_loadout.go compares the wire name).
+    [WireName("Violent")]
+    Violent,
 }
 
 public sealed record WorkSkill
@@ -385,7 +389,7 @@ public static partial class PolicyFunctions
 
     // The owner count the colony always wants per work type, before the review's requirements. Core roles that keep
     // a colony alive are always wanted; the rest are wanted when a natural specialist exists.
-    private static int BaselineDemand(WorkType work, int pawns, WorkDemand demand)
+    internal static int BaselineDemand(WorkType work, int pawns, WorkDemand demand)
     {
         switch (work)
         {
@@ -441,7 +445,7 @@ public static partial class PolicyFunctions
         var requirements = new Dictionary<WorkType, WorkRequirement>();
         foreach (var entry in required)
         {
-            if (!ValidResource(Wire.Name(entry.Work)) || (entry.Skill.Length != 0 && !ValidResource(entry.Skill)) || entry.Minimum < 0 || entry.Minimum > 1000)
+            if (!ValidResource(new Resource(Wire.Name(entry.Work))) || (entry.Skill.Length != 0 && !ValidResource(new Resource(entry.Skill))) || entry.Minimum < 0 || entry.Minimum > 1000)
             {
                 throw new DomainException("invalid work requirement");
             }
@@ -455,7 +459,7 @@ public static partial class PolicyFunctions
         var known = true;
         foreach (var pawn in pawns)
         {
-            if (!ValidResource(pawn.Id.Value) || !seen.Add(pawn.Id))
+            if (!ValidResource(new Resource(pawn.Id.Value)) || !seen.Add(pawn.Id))
             {
                 throw new DomainException("invalid work pawn");
             }
@@ -484,7 +488,7 @@ public static partial class PolicyFunctions
             var names = new HashSet<string>();
             foreach (var s in skills)
             {
-                if (!ValidResource(s.Name) || s.Level < 0 || s.Level > 1000)
+                if (!ValidResource(new Resource(s.Name)) || s.Level < 0 || s.Level > 1000)
                 {
                     throw new DomainException("invalid work skill");
                 }
@@ -496,7 +500,7 @@ public static partial class PolicyFunctions
             var w = new WorkWorker(pawn, BuildProfile(pawn));
             foreach (var value in work)
             {
-                if (!ValidResource(Wire.Name(value.Work)) || value.Priority < 0 || value.Priority > 4)
+                if (!ValidResource(new Resource(Wire.Name(value.Work))) || value.Priority < 0 || value.Priority > 4)
                 {
                     throw new DomainException("invalid work priority");
                 }

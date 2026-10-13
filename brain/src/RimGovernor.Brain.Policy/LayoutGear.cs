@@ -32,7 +32,7 @@ public static partial class PolicyFunctions
             var size = RoomSize(role);
             if (wanted[role] || plan.RoomsOf(role).Count > 0)
             {
-                nodes.Add(new RoomNode { Id = Wire.Name(role), Role = role, Area = size.W * size.H, Reason = ReasonGearRoom });
+                nodes.Add(new RoomNode { Id = Wire.Name(role), Role = role, Area = size[0] * size[1], Reason = ReasonGearRoom });
             }
         }
         return nodes;

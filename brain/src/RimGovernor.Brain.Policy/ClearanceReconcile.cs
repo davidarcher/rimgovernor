@@ -131,14 +131,14 @@ public static partial class PolicyFunctions
             var seenRoof = new HashSet<Cell>();
             foreach (var cr in crs)
             {
-                foreach (var op in cr.Rec.Ready.Items)
+                foreach (var op in cr.Rec.Ready)
                 {
                     if (op.Kind != kind)
                     {
                         continue;
                     }
 
-                    foreach (var t in op.Targets.Items)
+                    foreach (var t in op.Targets)
                     {
                         var id = TargetId(t);
                         if (id.Length != 0 && seen.Add(id))
@@ -147,7 +147,7 @@ public static partial class PolicyFunctions
                         }
                     }
 
-                    foreach (var f in op.Floors.Items)
+                    foreach (var f in op.Floors)
                     {
                         if (seen.Add(GroundFloorID(f.Cell)))
                         {
@@ -157,7 +157,7 @@ public static partial class PolicyFunctions
 
                     if (kind == OpKind.RoofOff)
                     {
-                        foreach (var c in op.Cells.Items)
+                        foreach (var c in op.Cells)
                         {
                             if (seenRoof.Add(c))
                             {
@@ -207,14 +207,14 @@ public static partial class PolicyFunctions
         var output = RetiredGroundWork(rows, floors, rg.Ground, rg);
         foreach (var cr in ReconcileGround(plan, g, rows, floors, rooms, wants))
         {
-            foreach (var op in cr.Rec.Owed.Items)
+            foreach (var op in cr.Rec.Owed)
             {
                 if (!_clearKinds.Contains(op.Kind) || op.Kind == OpKind.RoofOff)
                 {
                     continue;
                 }
 
-                foreach (var t in op.Targets.Items)
+                foreach (var t in op.Targets)
                 {
                     var id = TargetId(t);
                     if (id.Length != 0)
@@ -223,7 +223,7 @@ public static partial class PolicyFunctions
                     }
                 }
 
-                foreach (var f in op.Floors.Items)
+                foreach (var f in op.Floors)
                 {
                     output.Add(GroundFloorID(f.Cell));
                 }
@@ -234,5 +234,5 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Names a building target; empty for a ring wall the census does not list, which no action can address.</summary>
-    private static string TargetId(ClearanceTarget t) => t.EntityID;
+    private static string TargetId(ClearanceTarget t) => t.EntityId;
 }

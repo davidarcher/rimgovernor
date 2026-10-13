@@ -17,9 +17,9 @@ public static partial class PolicyConstants
 
 public static partial class PolicyFunctions
 {
-    private readonly record struct RoleCandidate(PawnId Id, double Score);
+    internal readonly record struct RoleCandidate(PawnId Id, double Score);
 
-    private static PawnId? BestRole(List<RoleCandidate> candidates)
+    internal static PawnId? BestRole(List<RoleCandidate> candidates)
     {
         if (candidates.Count == 0)
         {

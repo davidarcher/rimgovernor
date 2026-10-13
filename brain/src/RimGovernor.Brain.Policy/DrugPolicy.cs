@@ -79,7 +79,8 @@ public static partial class PolicyFunctions
         }
         foreach (var c in inputs.DependencyChemicals)
         {
-            if (items.DependencyDrug(c) is { } def)
+            var (def, defOk) = items.DependencyDrug(c);
+            if (defOk)
             {
                 Schedule(def.Value, DependencyDays);
             }
@@ -158,7 +159,7 @@ public static partial class PolicyFunctions
         pawn.Traits.TryGetValue(out var traits);
         pawn.PolicyInputs.TryGetValue(out var inputs);
         var interest = 0;
-        foreach (var t in traits ?? EquatableArray.From(new List<Trait>()))
+        foreach (var t in traits)
         {
             interest += t.Effects.ChemicalInterest;
         }
@@ -373,7 +374,7 @@ public static partial class PolicyFunctions
             {
                 try
                 {
-                    assign = PawnSettings.NewDrugPolicySetting(row.Id, name);
+                    assign = PawnSettings.NewDrugPolicySetting((Domain.PawnId)row.Id, name);
                 }
                 catch (DomainException)
                 {

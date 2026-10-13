@@ -35,12 +35,12 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var inRoom = new HashSet<Cell>(census.Cells);
+            var inRoom = new HashSet<Cell>(census!.Cells);
             var pieces = new List<RoomPiece>();
             var known = true;
             foreach (var b in buildings)
             {
-                var def = b.Building.Definition();
+                var def = b.Building!.Definition;
                 if (!catalog.Stations.TryGetValue(def, out var st) || !b.Cells.Any(c => inRoom.Contains(c)))
                 {
                     continue;

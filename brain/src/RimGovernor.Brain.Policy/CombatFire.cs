@@ -280,7 +280,7 @@ public static partial class PolicyFunctions
     /// cell) instead of being left with no order, which would hand it to the game's own response and send it
     /// at the insects alone while the rest of the line waits.
     /// </summary>
-    private static List<CombatOrder> KeepInFormation(List<CombatOrder> output, IReadOnlyList<CombatRole> roles, int i, Cell from)
+    private static List<CombatOrder> KeepInFormation(List<CombatOrder> output, List<CombatRole> roles, int i, Cell from)
     {
         if (i < 0)
         {
@@ -413,7 +413,7 @@ public static partial class PolicyFunctions
         IReadOnlyList<CombatOrder> inputOrders,
         CombatMemory m,
         bool quiet,
-        ISet<PawnId> suppressNativeFire
+        HashSet<PawnId> suppressNativeFire
     )
     {
         var orders = new List<CombatOrder>(inputOrders);
