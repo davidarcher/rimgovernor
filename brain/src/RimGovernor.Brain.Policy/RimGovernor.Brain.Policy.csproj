@@ -7,4 +7,11 @@
     <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Using Include="RimGovernor.Brain.Domain" />
+    <!-- Go's Known(v) / Unknown[T]() read the same in C#: Known(v), Unknown<T>(). -->
+    <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
+    <!-- Go package-level functions and constants with no owning type live on PolicyFunctions (a part per Go file). -->
+    <Using Include="RimGovernor.Brain.Policy.PolicyFunctions" Static="true" />
+  </ItemGroup>
 </Project>
