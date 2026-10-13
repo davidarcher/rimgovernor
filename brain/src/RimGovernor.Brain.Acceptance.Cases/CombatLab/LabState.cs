@@ -19,6 +19,21 @@ internal sealed class LabState
 
     internal bool PhysicalDoor(int x, int z) => DoorField(x, z, "open");
 
+    /// <summary>Whether the door at the cell reads forbidden (Go <c>doorForbidden</c>).</summary>
+    internal bool DoorForbidden(int x, int z) => DoorField(x, z, "forbidden");
+
+    /// <summary>Every pawn's row keyed by id, for a report.</summary>
+    internal JsonObject PawnsJson()
+    {
+        var output = new JsonObject();
+        foreach (var (id, row) in Pawns.OrderBy(p => p.Key, StringComparer.Ordinal))
+        {
+            output[id] = row.DeepClone();
+        }
+
+        return output;
+    }
+
     internal bool DoorField(int x, int z, string field)
     {
         foreach (var d in Doors)

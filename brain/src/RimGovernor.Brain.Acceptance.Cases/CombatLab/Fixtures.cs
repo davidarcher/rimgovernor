@@ -307,7 +307,7 @@ internal static class CombatFixtures
     ];
 
     private const int MechStunTicks = 600;
-    private const int BreachHalf = 5;
+    internal const int BreachHalf = 5;
     private const int BreachRaid = 15;
     private const int BaseHalf = 9;
     internal const int ChokeHalf = 7;
