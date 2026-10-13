@@ -523,7 +523,7 @@ public static partial class Postmortems
             return $"native_call error {tool}: {Clip(errText)}";
         }
 
-        if (RecordedReply(payload) is not { } reply)
+        if (RecordedReply(tool, payload) is not { } reply)
         {
             return null;
         }
@@ -550,7 +550,7 @@ public static partial class Postmortems
     /// <c>result</c> object itself when it already is the reply. (The Go rows also carried a packed protobuf reply; the
     /// C# rows are plain JSON.)
     /// </summary>
-    private static JsonObject? RecordedReply(IReadOnlyDictionary<string, object?> payload)
+    private static JsonObject? RecordedReply(string tool, IReadOnlyDictionary<string, object?> payload)
     {
         if (payload.GetValueOrDefault("result") is not IReadOnlyDictionary<string, object?> result)
         {
@@ -561,7 +561,8 @@ public static partial class Postmortems
         {
             try
             {
-                return JsonNode.Parse(text) as JsonObject;
+                // The host's reply text decodes through the codec into the flat view the cases read.
+                return WireCodec.TryDecodeReply(tool, text);
             }
             catch (JsonException)
             {

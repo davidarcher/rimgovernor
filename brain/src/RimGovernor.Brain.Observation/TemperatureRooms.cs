@@ -93,5 +93,5 @@ public static partial class ObservationPackage
 
     // The native census names Room.Role by RoomRoleDef defName; a missing role is an unknown fact, never a generic room.
     private static Fact<RoomRole> RoomRoleOf(O.RoomState room) =>
-        room.Role is not null ? Known(WireParse<RoomRole>(room.Role)) : Unknown<RoomRole>();
+        room.Role is not null ? Known(WireParseOpen(room.Role, RoomRole.Unrecognized)) : Unknown<RoomRole>();
 }

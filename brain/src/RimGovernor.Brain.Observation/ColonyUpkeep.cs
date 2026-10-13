@@ -173,7 +173,7 @@ public static partial class ObservationPackage
             var output = new FloorRoom { Id = room.Room?.Id ?? "" };
             if (room.Role is not null)
             {
-                output = output with { Role = Known(WireParse<RoomRole>(room.Role)) };
+                output = output with { Role = Known(WireParseOpen(room.Role, RoomRole.Unrecognized)) };
             }
             var cells = new List<FloorCell>();
             foreach (var cell in room.Cells)

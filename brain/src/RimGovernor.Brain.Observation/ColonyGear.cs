@@ -463,6 +463,10 @@ public static partial class ObservationPackage
         var priorities = new List<WorkPriority>();
         foreach (var w in v.Work)
         {
+            if (WireParseOpen(w.DefName, WorkType.Unrecognized) == WorkType.Unrecognized)
+            {
+                continue;
+            }
             priorities.Add(new WorkPriority { Work = WireParse<WorkType>(w.DefName), Priority = (int)w.Priority.GetValueOrDefault(), Disabled = w.Disabled.GetValueOrDefault() });
         }
         var work = s.Role.Work with { Work = Known(EquatableArray.From(priorities)) };

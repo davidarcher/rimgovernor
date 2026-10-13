@@ -90,6 +90,14 @@ public enum WorkType
     // Backstory-incapable "Violent" row (Go gear_loadout.go compares the wire name).
     [WireName("Violent")]
     Violent,
+
+    // The mod's own work type (Defs/WorkTypeDefs/RimGovernorTraining.xml): range training and sparring.
+    [WireName("RimGovernorTraining")]
+    Training,
+
+    /// <summary>A WorkTypeDef this build does not name (another mod's); the observation reads it as this value instead of failing the pass. It is never written back.</summary>
+    [WireName("Unrecognized")]
+    Unrecognized,
 }
 
 public sealed record WorkSkill

@@ -222,6 +222,11 @@ public static partial class ObservationPackage
                         known = false;
                         break;
                     }
+                    // Another mod's work type has no planner meaning and nothing to write back: it is left out of the rows.
+                    if (WireParseOpen(entry.DefName, WorkType.Unrecognized) == WorkType.Unrecognized)
+                    {
+                        continue;
+                    }
                     work.Add(new WorkPriority { Work = WireParse<WorkType>(entry.DefName), Priority = (int)entry.Priority.GetValueOrDefault(), Disabled = entry.Disabled.GetValueOrDefault() });
                 }
                 if (known)
@@ -240,7 +245,7 @@ public static partial class ObservationPackage
             }
             else if (!HasIssue(j.Issues, "current_job") && j.DefName is not null)
             {
-                w = w with { Job = Known(new PawnJob { Def = (j.DefName ?? ""), Work = WireParse<WorkType>(j.WorkTypeDefName), Target = JobTarget(j.TargetA, j.TargetACell) }) };
+                w = w with { Job = Known(new PawnJob { Def = (j.DefName ?? ""), Work = WireParseOpen(j.WorkTypeDefName, WorkType.Unrecognized), Target = JobTarget(j.TargetA, j.TargetACell) }) };
             }
         }
         if (row.Biography is { } bio)
@@ -277,7 +282,7 @@ public static partial class ObservationPackage
             var incapable = new List<WorkType>();
             foreach (var name in bio.IncapableWorkTypes)
             {
-                incapable.Add(WireParse<WorkType>(name));
+                incapable.Add(WireParseOpen(name, WorkType.Unrecognized));
             }
             w = w with { Incapable = Known(EquatableArray.From(incapable)), Age = Optional(bio.BiologicalAgeYears is not null, bio.BiologicalAgeYears.GetValueOrDefault()) };
         }

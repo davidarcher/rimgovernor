@@ -96,8 +96,29 @@ public static class CompanionFileDiscovery
         }
     }
 
+    // A bundle folder also carries native libraries (e_sqlite3.dll); loading one as a managed assembly only logs a
+    // BadImageFormatException, so a dll with no managed metadata is not a companion candidate.
     private static bool IsNotSdkAssembly(string path)
     {
-        return string.Equals(Path.GetFileName(path), SdkAssemblyFileName, StringComparison.OrdinalIgnoreCase) == false;
+        return string.Equals(Path.GetFileName(path), SdkAssemblyFileName, StringComparison.OrdinalIgnoreCase) == false
+            && IsManagedAssembly(path);
+    }
+
+    private static bool IsManagedAssembly(string path)
+    {
+        try
+        {
+            System.Reflection.AssemblyName.GetAssemblyName(path);
+            return true;
+        }
+        catch (BadImageFormatException)
+        {
+            return false;
+        }
+        catch (Exception)
+        {
+            // Unreadable for another reason: leave it to the loader, which reports the real error.
+            return true;
+        }
     }
 }

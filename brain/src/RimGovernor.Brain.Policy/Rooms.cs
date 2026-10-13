@@ -95,6 +95,10 @@ public enum RoomRole
     /// <summary>A plan role only: RimWorld has no Suite RoomRoleDef, so the native census reports a furnished suite as a Bedroom.</summary>
     [WireName("Suite")]
     Suite,
+
+    /// <summary>A RoomRoleDef this build does not name (another mod's); the observation reads it as this value instead of failing the pass.</summary>
+    [WireName("Unrecognized")]
+    Unrecognized,
 }
 
 /// <summary>

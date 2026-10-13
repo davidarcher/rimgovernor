@@ -708,6 +708,14 @@ public static partial class ObservationPackage
         Wire.TryParse<TEnum>(name ?? "", out var value)
             ? value
             : throw new ObservationContractException($"{typeof(TEnum).Name} {name} is not a defined member");
+
+    /// <summary>
+    /// <see cref="WireParse{TEnum}"/> for an open set (a def another mod adds): a name the enum does not declare reads as
+    /// its <paramref name="unrecognized"/> member rather than failing the whole observation.
+    /// </summary>
+    internal static TEnum WireParseOpen<TEnum>(string? name, TEnum unrecognized)
+        where TEnum : struct, Enum =>
+        Wire.TryParse<TEnum>(name ?? "", out var value) ? value : unrecognized;
 }
 
 /// <summary>Null-tolerant row lookups over the bridge tables, which take a non-null reference.</summary>
