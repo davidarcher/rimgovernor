@@ -9,6 +9,7 @@
     <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- Go's domain.Known / domain.Unknown, and the package-level consts and functions with no owner type. -->

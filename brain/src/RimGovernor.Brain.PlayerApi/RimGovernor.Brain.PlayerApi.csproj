@@ -7,5 +7,17 @@
     <ProjectReference Include="..\RimGovernor.Brain.HttpChannel\RimGovernor.Brain.HttpChannel.csproj" />
     <ProjectReference Include="..\RimGovernor.Brain.Domain\RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="..\RimGovernor.Brain.Store\RimGovernor.Brain.Store.csproj" />
+    <ProjectReference Include="..\RimGovernor.Brain.Policy\RimGovernor.Brain.Policy.csproj" />
+    <ProjectReference Include="..\RimGovernor.Brain.Facts\RimGovernor.Brain.Facts.csproj" />
+    <ProjectReference Include="..\RimGovernor.Brain.Observation\RimGovernor.Brain.Observation.csproj" />
+    <ProjectReference Include="..\RimGovernor.Brain.Bridge.Contracts\RimGovernor.Brain.Bridge.Contracts.csproj" />
+    <ProjectReference Include="..\RimGovernor.Brain.BuildingRuntime\RimGovernor.Brain.BuildingRuntime.csproj" />
+    <ProjectReference Include="..\RimGovernor.Brain.Wire\RimGovernor.Brain.Wire.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The wire messages share names with domain values (Identity, Failure); this project names the domain value and spells the wire message. -->
+    <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
+    <Using Include="RimGovernor.Brain.Observation.Identity" Alias="ObservedIdentity" />
+    <Using Include="RimGovernor.Protocol.Common.Identity" Alias="WireIdentity" />
   </ItemGroup>
 </Project>

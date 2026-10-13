@@ -73,6 +73,9 @@ public static partial class BridgeFunctions
         ValidateIdentity(value.Identity);
     }
 
+    /// <summary>Whether <paramref name="message"/> or any message inside it carries a field its descriptor lacks (Go's <c>len(GetUnknown()) != 0</c> walk).</summary>
+    public static bool HasUnknownFields(IMessage message) => UnknownFields.Present(message);
+
     /// <summary>Go's <c>sameIdentity</c>: the colony, load token and map match; absent fields read as their defaults.</summary>
     internal static bool SameIdentity(Identity? a, Identity? b) =>
         string.Equals(a?.ColonyId ?? "", b?.ColonyId ?? "", StringComparison.Ordinal)

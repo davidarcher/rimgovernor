@@ -32,7 +32,7 @@ listener (`HttpListener`) the mod hosts, with route modules the brain publishes 
 | Project | Ships with the mod | Holds |
 | --- | --- | --- |
 | `RimGovernor.Brain.HttpChannel` | yes, beside the other brain DLLs (with `Brain.Telemetry`) | `HttpChannelServer`, `RequestGuard`, `RouteTable`, `Dispatcher`, `EndpointFile`, `NativeRoutes` and `INativeToolInvoker`. Game-free. |
-| `RimGovernor.Brain.PlayerApi` | no: the brain loads it (#3082) | The provider interfaces (`IPlayerControl`, `IControlReader`, `IClockReview`) and the player routes over them. Depends on Store and Domain. |
+| `RimGovernor.Brain.PlayerApi` | no: the brain loads it (#3082) | The provider interfaces (`IPlayerControl`, `ISnapshotProvider`, `ILifecycleWriter` and the rest, in `PlayerProviders.cs`) and the player, read, presentation and lifecycle routes over them. Depends on HttpChannel, Domain, Store, Policy, Facts, Observation, Bridge.Contracts, BuildingRuntime and Wire. |
 
 The mod side is `HttpChannelHost.cs` in the Bridge: `NativeToolInvoker` reflects the `[Tool]` methods whose only
 argument is `request` and runs them with a context carrying the caller's arguments and the host's game-thread
@@ -40,18 +40,38 @@ access, so GABP and HTTP share one implementation; `HttpChannelBootstrap` (a mod
 when `RIMGOVERNOR_OTLP_DIR` is set (the directory of the OTLP rings; `RIMGOVERNOR_RUN_ID` optionally names the run).
 Unset, nothing listens.
 
-The brain host (#3082) registers PlayerApi's routes with `PlayerRoutes.Register(routes, player, controls, clock)`
-on the shared `RouteTable`, and disposes the result when it reloads. Routes whose provider is null are not
-registered.
+The brain host (#3082) registers PlayerApi's routes on the shared `RouteTable` and disposes the results when it
+reloads. A route family whose provider is null is not registered, so it answers 404:
 
-## Ported and not yet ported
+| Call | Routes | Providers |
+| --- | --- | --- |
+| `PlayerRoutes.Register(routes, player, controls, clock)` | `GET /api/player/session`, `control`, `POST control/resume`, `control/pause`, `GET clock`, `POST clock/acknowledge` | `IPlayerControl`, `IControlReader`, `IClockReview` |
+| `ReadRoutes.Register(routes, snapshots, plans, rounds, colony)` | `GET /api/state`, `/api/plan?id=`, `/api/routines`, `/api/player/colony` | `ISnapshotProvider`, `IPlanReader` (both required), `IRoundsProvider`, `IColonyStatusReader` |
+| `PresentationRoutes.Register(routes, snapshots, reader, media, notifications)` | `GET /api/presentation/camera`, `selection`, `colonists`, `render-state`, `notifications`; `POST render-demand` | `IPresentationReader`, `IPresentationMediaWriter`, `INotificationReader` |
+| `LifecycleRoutes.Register(routes, snapshots, lifecycle)` | `POST` and `GET ?requestId=` on `/api/lifecycle/save`, `load`, `new` | `ILifecycleWriter` |
 
-Ported: the channel, `/api/health`, `/native/<tool>`, and the player `session` (just `mode`), `control`
-(GET, resume, pause) and `clock` (GET, acknowledge) routes, with Go's strict request decoding.
+## Behavior carried over from Go, and where it differs
 
-Not yet ported (still Go-only): `/api/state`, `/api/plan`, `/api/routines`, `/api/player/colony`, the
-presentation and notification reads, and the lifecycle save, load and new-colony routes with their request
-validation. Their provider interfaces (`SnapshotProvider`, `PlanReader`, `RoundsProvider`, `ColonyStatus`,
-`LifecycleWriter`) wait on the red-until-#3111 types they return (`ColonyStatusReport`, `ControlState`, the
-observation identity). `PlayerState` is the small projection of `ControlState` the control route shows; the brain
-host adapts one to the other.
+- Read bodies are the Go DTOs (camelCase, unknown facts null, 64-bit counters as strings). Where Go wrote a null
+  list the C# routes write an empty array. A plan action other than a building or an owned draft is projected
+  without a payload instead of failing the read.
+- A presentation read answers only for a connected, fresh, valid world identity, passes the reply through
+  `ValidateContext`, requires the reply's context to name that identity at or after its tick, re-reads the
+  identity afterwards and refuses a changed world, a reply with unknown fields or a non-finite number, and one
+  over 1 MiB. Any refusal is 503 `unavailable`.
+- `render-demand` and the lifecycle mutations carry no token: Go gated them behind `X-RimGovernor-Player`; the
+  decision of #3083 is the request guard alone.
+- Lifecycle: save needs a fresh identity and manual mode (409 otherwise) and answers 201 with the completed
+  checkpoint; load answers 201 completed, 202 pending, 409 superseded; new colony answers 201 completed, 202
+  pending, 409 superseded or the native refusal as `native_<code>` (400, 404, 409 or 502). The GET recovery reads
+  answer 200 for completed and pending. `ILifecycleWriter` returns the native reply as it is; the retry after a
+  blocking-attention acknowledgement is the writer's, not the route's. Request bodies are `StrictJson`-checked
+  (duplicate keys and nesting beyond 8 are refused, as on the player routes), and field names match exactly,
+  where Go matched them case-insensitively. A new-colony body is decoded into the wire request and validated by
+  `BridgeFunctions.ValidateNewColonyRequest`; `ScenarioParts.ApplyRhadamant` is the port of `RhadamantParts`.
+- `ReadTally` (`Bridge.Contracts`) counts the native reads of one scope in an ambient tally; the clock scheduler
+  opens the scope with `BridgeFunctions.WithReadTally()` and the native call layer calls
+  `BridgeFunctions.CountNativeRead(tool)` (the #3082 host wires that call).
+
+`PlayerState`, `ControllerSnapshot` and `RoundsStatus` are the small projections the routes show; the brain host
+builds them from its own control state.

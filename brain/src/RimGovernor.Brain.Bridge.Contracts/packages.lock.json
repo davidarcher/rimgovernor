@@ -12,6 +12,9 @@
           "RimGovernor.Brain.Wire": "[1.0.0, )"
         }
       },
+      "rimgovernor.brain.telemetry": {
+        "type": "Project"
+      },
       "rimgovernor.brain.wire": {
         "type": "Project",
         "dependencies": {

@@ -629,7 +629,7 @@ public sealed partial class Worker
                 var running = _config.WindowRunning is { } wr && wr();
                 using var dispatch = Tel.StartSpan("buildingruntime", "hands.dispatch",
                     ("rimgovernor.action_kind", Wire.Name(lead.Kind)), ("rimgovernor.actions", group.Count));
-                var tally = new Bridge.ReadTally();
+                var tally = new ReadTally();
                 using var tallyScope = tally.Begin();
                 if (err is not null)
                 {
@@ -879,7 +879,7 @@ public sealed partial class Worker
     /// itself, not a failure, so only another error is WARN. Stale marks a run held on stale facts so a run can
     /// count the holds the read bounds refused.
     /// </summary>
-    internal static void WorkerDispatchRow(Bridge.ReadTally tally, ProgressView before, ProgressView after, ExecutorResult result, bool running, bool stale, Exception? err, bool changed, int repeats)
+    internal static void WorkerDispatchRow(ReadTally tally, ProgressView before, ProgressView after, ExecutorResult result, bool running, bool stale, Exception? err, bool changed, int repeats)
     {
         var refused = WorkerRefusedReasons(result);
         var attrs = new Dictionary<string, object?>
@@ -954,7 +954,7 @@ public sealed partial class Worker
         {
             attrs["dispatch_tick"] = after.Tick.Value;
         }
-        tally.Publish(d);
+        tally.Publish(Tel.Emitter, d);
     }
 
     private static bool WorkerSameReceipt(ProgressView a, ProgressView b)

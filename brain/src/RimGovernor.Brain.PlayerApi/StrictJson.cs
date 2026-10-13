@@ -18,7 +18,10 @@ internal static class StrictJson
 
     private const int MaxDepth = 8;
 
-    internal static Dictionary<string, JsonElement> Object(byte[] body, params string[] keys)
+    internal static Dictionary<string, JsonElement> Object(byte[] body, params string[] keys) => Fields(Parse(body), keys);
+
+    /// <summary>The root value of <paramref name="body"/> under the syntax rules above; the caller checks its shape.</summary>
+    internal static JsonElement Parse(byte[] body)
     {
         if (body.Length > Limit)
         {
@@ -44,7 +47,7 @@ internal static class StrictJson
         {
             CheckUnique(body);
             using var document = JsonDocument.Parse(body, new JsonDocumentOptions { MaxDepth = MaxDepth });
-            return Fields(document.RootElement.Clone(), keys);
+            return document.RootElement.Clone();
         }
         catch (JsonException e)
         {
