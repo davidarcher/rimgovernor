@@ -22,7 +22,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var expected = StepScope(call, _reviewer.Native);
         var claims = p.Journal.ConstructionClaims(call, state.Snapshot, expected.Tick);
         var read = _reviewer.ObserveOwned(call, _reviewer.Native, expected, claims, []);
-        var (site, _) = _native.ReadDefenseSite(BoundaryApi.Identity(state.Snapshot), region, call);
+        var (site, _) = _native.ReadDefenseSite(Boundary.Identity(state.Snapshot), region, call);
         SameTick(site.Context, state, read.Projection.Identity.Tick);
         return (read, DefenseFightCensus(site));
     }

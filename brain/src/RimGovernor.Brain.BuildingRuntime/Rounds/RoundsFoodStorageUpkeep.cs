@@ -2,13 +2,13 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsFoodStorageUpkeepSource
 {
-    (Observations.ColonyFactsReply Reply, BridgeResult Result) ReadColonyFacts(CancellationToken ct, Common.Identity identity, bool full);
+    (O.ColonyFactsReply Reply, BridgeResult Result) ReadColonyFacts(CancellationToken ct, C.Identity identity, bool full);
 
-    (IReadOnlyList<ResourceSourceRow> Rows, ResourceStorage Storage, BridgeResult Result) ReadResourceSources(CancellationToken ct, Common.Identity identity, string definition);
+    (IReadOnlyList<ResourceSource> Rows, ResourceStorage Storage, BridgeResult Result) ReadResourceSources(CancellationToken ct, C.Identity identity, string definition);
 
-    (IReadOnlyList<GearBenchRead> Benches, BridgeResult Result) ReadGearBenches(CancellationToken ct, Common.Identity identity);
+    (IReadOnlyList<GearBenchRead> Benches, BridgeResult Result) ReadGearBenches(CancellationToken ct, C.Identity identity);
 
-    Tables FrameTables(CancellationToken ct, Common.Identity identity);
+    Tables FrameTables(CancellationToken ct, C.Identity identity);
 }
 
 /// <summary>Composes MaintainFoodStorage's rounds step: reserve holds, corpse larders and the meal order that stores food.</summary>
@@ -42,7 +42,7 @@ internal static partial class BuildingRuntimePackage
 
     internal const int FoodStorageSiteLimit = 16;
 
-    internal static FoodStorageObservation FoodStorageObservationFacts(CancellationToken ct, IRoundsFoodStorageUpkeepSource native, Observations.ColonyFactsSnapshot v)
+    internal static FoodStorageObservation FoodStorageObservationFacts(CancellationToken ct, IRoundsFoodStorageUpkeepSource native, O.ColonyFactsSnapshot v)
     {
         var food = v.FoodSupply?.Observed;
         if (food is null)
@@ -146,7 +146,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
             }
         }
 
-        var identity = BoundaryPackage.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var (reply, _) = Reviewer.ColonyFacts(call, Native, identity, false);
         var observed = reply.Observed;
         if (observed is null)
@@ -165,7 +165,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
 
         try
         {
-            BoundaryPackage.Context(observed.Context, state.Snapshot);
+            Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -178,7 +178,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
         }
 
         var facts = FoodStorageObservationFacts(call, Native, observed);
-        var expected = new ObservationIdentity
+        var expected = new Identity
         {
             Colony = state.Snapshot.Colony,
             Load = state.Snapshot.Load,
@@ -238,13 +238,13 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
         return new RoundsFoodStorageUpkeepResult { Verdict = WaitFor(Cause.MethodUsed, "ledger_bill") };
     }
 
-    internal IReadOnlyList<GearBench> GearBenches(CancellationToken ct, Common.Identity identity)
+    internal IReadOnlyList<GearBench> GearBenches(CancellationToken ct, C.Identity identity)
     {
         var (census, _) = Native.ReadGearBenches(ct, identity);
         return census.Select(row => row.Bench).ToList();
     }
 
-    internal FoodStorageMethod StorageChoice(CancellationToken ct, Common.Identity identity, FoodStorageObservation facts, FoodStorageReview review)
+    internal FoodStorageMethod StorageChoice(CancellationToken ct, C.Identity identity, FoodStorageObservation facts, FoodStorageReview review)
     {
         var names = FoodStorageDefNames(facts, Reviewer.Policy.FoodStorage);
         var sites = new List<FoodStorageSite>(names.Count);
@@ -330,7 +330,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
         FoodStorageMethod choice;
         try
         {
-            choice = StorageChoice(ct, BoundaryPackage.Identity(snapshot), f.FoodStorageUpkeep, foodReview);
+            choice = StorageChoice(ct, Boundary.Identity(snapshot), f.FoodStorageUpkeep, foodReview);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

@@ -110,7 +110,7 @@ internal sealed class FirebreakMemory
             var read = Native.ReadDefenseSite(identity, rect, ct);
             try
             {
-                BoundaryApi.Context(read.Context, current);
+                Boundary.Context(read.Context, current);
             }
             catch (ControlException)
             {
@@ -291,7 +291,7 @@ internal sealed class FirebreakMemory
 
     private static string StockpileWorld(GenerationSnapshot current) => BuildingRuntimePackage.StockpileWorld(current);
 
-    private static Func<RoomRole, (FloorChoice Floor, bool Ok)>? FloorStyle(ColonyProjection projection) => BuildingRuntimePackage.FloorStyle(projection);
+    private static Func<RoomRole, (string Floor, bool Ok)>? FloorStyle(ColonyProjection projection) => BuildingRuntimePackage.FloorStyle(projection);
 }
 
 public sealed class RoundsFirebreakResult
@@ -345,7 +345,7 @@ public sealed class RoundsFirebreakPlanner
         foreach (var method in goal.Methods)
         {
             var plan0 = p.Journal.LoadPlan(method.Plan, call);
-            if (StoreApi.PlanOpen(plan0))
+            if (StorePackage.PlanOpen(plan0))
             {
                 return new RoundsFirebreakResult { Verdict = BuildingReasonExistingWork };
             }

@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>Composes RecoverDisasterServices: sheltering changes first, then a repair, breakdown or refuel service.</summary>
-public sealed class RoundsRecoveryPlanner
+public sealed partial class RoundsRecoveryPlanner
 {
     private readonly Rounder reviewer;
 
@@ -17,11 +17,11 @@ public sealed class RoundsRecoveryPlanner
         return new RoundsRecoveryPlanner(reviewer);
     }
 
-    internal static RecoveryServiceMethod? RecoveryServiceMethodOf(RecoveryMethod method) => method switch
+    internal static Domain.RecoveryMethod? RecoveryServiceMethodOf(RecoveryMethod method) => method switch
     {
-        RecoveryMethod.Repair => RecoveryServiceMethod.Repair,
-        RecoveryMethod.Breakdown => RecoveryServiceMethod.Breakdown,
-        RecoveryMethod.Refuel => RecoveryServiceMethod.Refuel,
+        RecoveryMethod.Repair => Domain.RecoveryMethod.Repair,
+        RecoveryMethod.Breakdown => Domain.RecoveryMethod.Breakdown,
+        RecoveryMethod.Refuel => Domain.RecoveryMethod.Refuel,
         _ => null,
     };
 
@@ -183,7 +183,7 @@ public sealed class RoundsRecoveryPlanner
         _ => BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "recovery_service_proposal"),
     };
 
-    internal static Fact<IReadOnlyList<PawnId>> ShelterCombatants(CancellationToken ct, Store journal, StoreWorld world)
+    internal static Fact<IReadOnlyList<PawnId>> ShelterCombatants(CancellationToken ct, StoreJournal journal, StoreWorld world)
     {
         var fights = journal.OpenCombatFights(ct);
         var output = new List<PawnId>();

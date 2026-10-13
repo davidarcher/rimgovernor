@@ -469,7 +469,7 @@ internal static partial class BuildingRuntimePackage
         return required;
     }
 
-    internal static uint PowerOutputAllowance(CancellationToken ct, Store.Store journal, StandardState goal, GenerationSnapshot current, Tick tick)
+    internal static uint PowerOutputAllowance(CancellationToken ct, StoreJournal journal, StandardState goal, GenerationSnapshot current, Tick tick)
     {
         var methods = journal.LoadOwnerMethods(ct, goal);
         uint allowance = 0;

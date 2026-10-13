@@ -4,7 +4,7 @@ public interface IRoundsFireSafetySource : IColonySource
 {
     BridgeEmergencyObservation ReadEmergency(C.Identity identity, CancellationToken ct);
 
-    N.ListPawnsReply ReadTendPawns(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
+    O.ListPawnsReply ReadTendPawns(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
 }
 
 public sealed class RoundsFireSafetyResult
@@ -77,11 +77,11 @@ public sealed class RoundsFireSafetyPlanner
         {
             return new RoundsFireSafetyResult { Verdict = BuildingReasonNoDeficit, Outcome = FireSafetyOutcome.Recovered };
         }
-        var identityRef = BoundaryApi.Identity(state.Snapshot);
+        var identityRef = Boundary.Identity(state.Snapshot);
         var emergency = _native.ReadEmergency(identityRef, call);
         try
         {
-            BoundaryApi.Context(emergency.Context, state.Snapshot);
+            Boundary.Context(emergency.Context, state.Snapshot);
         }
         catch (ControlException)
         {
@@ -104,7 +104,7 @@ public sealed class RoundsFireSafetyPlanner
         var observed = reply.Observed;
         try
         {
-            BoundaryApi.Context(observed.Context, state.Snapshot);
+            Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (ControlException)
         {
@@ -148,35 +148,35 @@ public sealed class RoundsFireSafetyPlanner
 
 internal static partial class BuildingRuntimePackage
 {
-    internal static FireSafetyPawnFacts FireSafetyPawnFactsOf(PawnId pawn, N.PawnState row)
+    internal static FireSafetyPawnFacts FireSafetyPawnFactsOf(PawnId pawn, O.PawnState row)
     {
         var facts = new FireSafetyPawnFacts
         {
             Pawn = pawn,
-            Dead = BoundaryApi.FactBool(row.Dead),
-            Downed = BoundaryApi.FactBool(row.Downed),
-            Drafted = BoundaryApi.FactBool(row.Drafted),
-            MentalState = BoundaryApi.FactPresence(row.MentalState, row.Issues, "mental_state"),
+            Dead = Boundary.FactBool(row.Dead),
+            Downed = Boundary.FactBool(row.Downed),
+            Drafted = Boundary.FactBool(row.Drafted),
+            MentalState = Boundary.FactPresence(row.MentalState, row.Issues, "mental_state"),
         };
-        if (row.Job is not null && !BoundaryApi.IssueField(row.Job.Issues, "player_forced"))
+        if (row.Job is not null && !Boundary.IssueField(row.Job.Issues, "player_forced"))
         {
-            facts.PlayerForced = BoundaryApi.FactBool(row.Job.PlayerForced);
+            facts.PlayerForced = Boundary.FactBool(row.Job.PlayerForced);
         }
         var health = row.Health;
-        if (health is not null && !BoundaryApi.IssueField(health.Issues, "health"))
+        if (health is not null && !Boundary.IssueField(health.Issues, "health"))
         {
-            facts.NeedsTend = BoundaryApi.FactBool(health.NeedsTend);
-            facts.Bleeding = BoundaryApi.FactBool(health.Bleeding);
+            facts.NeedsTend = Boundary.FactBool(health.NeedsTend);
+            facts.Bleeding = Boundary.FactBool(health.Bleeding);
         }
         var settings = row.Settings;
-        if (settings is not null && !BoundaryApi.IssueField(settings.Issues, "work"))
+        if (settings is not null && !Boundary.IssueField(settings.Issues, "work"))
         {
             facts.FirefightingEnabled = WorkTypeEnabled(settings.Work, "Firefighter");
         }
         return facts;
     }
 
-    internal static Fact<bool> WorkTypeEnabled(IEnumerable<N.WorkSetting?> work, string defName)
+    internal static Fact<bool> WorkTypeEnabled(IEnumerable<O.WorkSetting?> work, string defName)
     {
         foreach (var w in work)
         {

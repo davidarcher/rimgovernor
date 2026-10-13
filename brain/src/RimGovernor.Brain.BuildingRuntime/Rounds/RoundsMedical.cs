@@ -5,11 +5,11 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsMedicalSource
 {
-    (Observations.ColonyFactsReply Reply, BridgeResult Result) ReadColonyFacts(CancellationToken ct, Common.Identity identity, bool full);
+    (O.ColonyFactsReply Reply, BridgeResult Result) ReadColonyFacts(CancellationToken ct, C.Identity identity, bool full);
 
-    Tables FrameTables(CancellationToken ct, Common.Identity identity);
+    Tables FrameTables(CancellationToken ct, C.Identity identity);
 
-    (IReadOnlyList<GearBenchRead> Reads, BridgeResult Result) ReadGearBenches(CancellationToken ct, Common.Identity identity);
+    (IReadOnlyList<GearBenchRead> Reads, BridgeResult Result) ReadGearBenches(CancellationToken ct, C.Identity identity);
 }
 
 /// <summary>Composes MaintainMedicalReserves and the critical-medicine amputation method.</summary>
@@ -67,13 +67,13 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         }
 
         var started = reviewer.Clock.Now();
-        var identity = BoundaryPackage.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var (reply, _) = reviewer.ColonyFacts(call, native, identity, false);
         var observed = reply.Observed ?? throw new ControlException("step: observed == nil");
         try
         {
             BridgePackage.ValidateColonyFacts(observed, identity);
-            BoundaryPackage.Context(observed.Context, state.Snapshot);
+            Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -198,7 +198,7 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         return PolicyFunctions.DeclareMedicine(choice, benches);
     }
 
-    private RoundsMedicalResult HarvestMedicine(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, Observations.ColonyFactsSnapshot observed, Tables tables, MedicalReserveReview medicalReview, MedicalReserveObservation facts, Resource medicineResource, HashSet<string> stalledSources, DateTimeOffset started)
+    private RoundsMedicalResult HarvestMedicine(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, O.ColonyFactsSnapshot observed, Tables tables, MedicalReserveReview medicalReview, MedicalReserveObservation facts, Resource medicineResource, HashSet<string> stalledSources, DateTimeOffset started)
     {
         var p = reviewer.Player;
         if (!medicalReview.Replenish.TryGetValue(out var replenish))
@@ -366,7 +366,7 @@ internal static partial class BuildingRuntimePackage
 {
     internal const long AmputationRequeueTicks = GameTime.TicksPerHour;
 
-    internal static bool MedicalIssue(IReadOnlyList<Observations.ReadIssue> issues, string field) => issues.Any(issue => issue.Field == field);
+    internal static bool MedicalIssue(IReadOnlyList<O.ReadIssue> issues, string field) => issues.Any(issue => issue.Field == field);
 
     internal static string UnreadMedicalFact(MedicalReserveObservation facts)
     {

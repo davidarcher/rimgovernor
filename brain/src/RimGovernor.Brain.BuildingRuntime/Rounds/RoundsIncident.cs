@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>The incident bound to a concern kind and the situation it names, or not bound.</summary>
-    internal static (IncidentState State, Situation Need, bool Bound) RoundsIncident(CancellationToken call, Store.Store journal, Rounds review, ConcernId kind)
+    internal static (IncidentState State, Situation Need, bool Bound) RoundsIncident(CancellationToken call, StoreJournal journal, Rounds review, ConcernId kind)
     {
         var (binding, bound) = review.Incident(kind);
         if (!bound)
@@ -15,7 +15,7 @@ internal static partial class BuildingRuntimePackage
         return (state, binding.Situation, true);
     }
 
-    internal static (IncidentState State, bool Deficit) IncidentDeficit(CancellationToken call, Store.Store journal, Rounds review, ConcernId kind)
+    internal static (IncidentState State, bool Deficit) IncidentDeficit(CancellationToken call, StoreJournal journal, Rounds review, ConcernId kind)
     {
         var (state, need, ok) = RoundsIncident(call, journal, review, kind);
         if (!ok || need != Situation.Active || review.VetoIncident(state.Incident).Length != 0)
@@ -26,7 +26,7 @@ internal static partial class BuildingRuntimePackage
         return (state, true);
     }
 
-    internal static bool IncidentOpenWork(CancellationToken call, Store.Store journal, IncidentState state)
+    internal static bool IncidentOpenWork(CancellationToken call, StoreJournal journal, IncidentState state)
     {
         foreach (var method in state.Methods)
         {

@@ -11,17 +11,17 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public interface IRoundsTradeSource
 {
-    (Bridge.ConstructionDeficitRead Read, BridgeResult Result) ReadConstructionDeficits(CancellationToken ct, CommonPb.Identity identity);
+    (ConstructionDeficitRead Read, BridgeResult Result) ReadConstructionDeficits(CancellationToken ct, C.Identity identity);
 
-    (ObservationsPb.ColonyFactsReply Reply, BridgeResult Result) ReadColonyFacts(CancellationToken ct, CommonPb.Identity identity, bool full);
+    (ObservationsPb.ColonyFactsReply Reply, BridgeResult Result) ReadColonyFacts(CancellationToken ct, C.Identity identity, bool full);
 
-    Tables FrameTables(CancellationToken ct, CommonPb.Identity identity);
+    Tables FrameTables(CancellationToken ct, C.Identity identity);
 
-    (TradersRead Read, BridgeResult Result) ListTraders(CancellationToken ct, CommonPb.Identity identity);
+    (TradersRead Read, BridgeResult Result) ListTraders(CancellationToken ct, C.Identity identity);
 
-    (Bridge.TradeSessionRead Read, BridgeResult Result) ReadTradeSession(CancellationToken ct, CommonPb.Identity identity);
+    (TradeSessionRead Read, BridgeResult Result) ReadTradeSession(CancellationToken ct, C.Identity identity);
 
-    (TradeSheetRead Read, BridgeResult Result) ReadTradeSheet(CancellationToken ct, CommonPb.Identity identity);
+    (TradeSheetRead Read, BridgeResult Result) ReadTradeSheet(CancellationToken ct, C.Identity identity);
 }
 
 public sealed class RoundsTradeResult
@@ -179,11 +179,11 @@ public sealed partial class RoundsTradePlanner
             return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
         }
         var started = Reviewer.Clock.Now();
-        var identity = BoundaryApi.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var (census, _) = Native.ListTraders(call, identity);
         try
         {
-            BoundaryApi.Context(census.Context, state.Snapshot);
+            Boundary.Context(census.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -196,7 +196,7 @@ public sealed partial class RoundsTradePlanner
         var (session, _) = Native.ReadTradeSession(call, identity);
         try
         {
-            BoundaryApi.Context(session.Context, state.Snapshot);
+            Boundary.Context(session.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -325,11 +325,11 @@ public sealed partial class RoundsTradePlanner
         {
             return Cancel(call, epoch, state, incident, trader, negotiator, started);
         }
-        var identity = BoundaryApi.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var (sheet, _) = Native.ReadTradeSheet(call, identity);
         try
         {
-            BoundaryApi.Context(sheet.Context, state.Snapshot);
+            Boundary.Context(sheet.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -415,7 +415,7 @@ public sealed partial class RoundsTradePlanner
     /// <summary>Re-measures the need from a fresh colony read and turns it, with the live sheet, into SelectTrade's inputs.</summary>
     private (TradeEconomicPolicy Economic, Pol.TradeSelectionFacts Facts, bool Capacity) Selection(CancellationToken call, ControlState state, Sto.Rounds review, TradeSheetRead sheet, string trader, IReadOnlyList<Pol.TraderFacts> traders)
     {
-        var identity = BoundaryApi.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var (reply, _) = Native.ReadColonyFacts(call, identity, false);
         var observed = reply.Observed;
         if (observed is null)
@@ -425,7 +425,7 @@ public sealed partial class RoundsTradePlanner
         try
         {
             BridgePackage.ValidateColonyFacts(observed, identity);
-            BoundaryApi.Context(observed.Context, state.Snapshot);
+            Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -449,7 +449,7 @@ public sealed partial class RoundsTradePlanner
         var (construction, _) = Native.ReadConstructionDeficits(call, identity);
         try
         {
-            BoundaryApi.Context(construction.Context, state.Snapshot);
+            Boundary.Context(construction.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -575,7 +575,7 @@ public sealed partial class RoundsTradePlanner
         var tradeId = new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-trade"));
         if (kind != TradeOperationKind.TradeOpen)
         {
-            var (session, _) = Native.ReadTradeSession(call, BoundaryApi.Identity(state.Snapshot));
+            var (session, _) = Native.ReadTradeSession(call, Boundary.Identity(state.Snapshot));
             if (session.Trader == trader && session.Target is not null)
             {
                 value = value.WithParticipant(BridgePackage.TradeParticipantOf(session.Target));

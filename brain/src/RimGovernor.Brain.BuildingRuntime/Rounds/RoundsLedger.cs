@@ -14,7 +14,7 @@ internal readonly record struct PurposeReport
 
     public uint WorkTicks { get; init; }
 
-    public Func<CancellationToken, Store.Store, StandardState, bool>? OpenWork { get; init; }
+    public Func<CancellationToken, StoreJournal, StandardState, bool>? OpenWork { get; init; }
 }
 
 internal interface IPurposeReporter : IOrderDeclarer
@@ -167,7 +167,7 @@ public sealed partial class Rounder
         }
     }
 
-    internal Fact<bool> ReviewLedger(CancellationToken call, GenerationSnapshot snapshot, ObservationIdentity expected, ColonyProjection projection)
+    internal Fact<bool> ReviewLedger(CancellationToken call, GenerationSnapshot snapshot, Identity expected, ColonyProjection projection)
     {
         var l = Ledger;
         List<IOrderDeclarer> declarers;
@@ -203,7 +203,7 @@ public sealed partial class Rounder
         IReadOnlyList<BenchRead> reads;
         try
         {
-            (reads, _) = BenchSource(native, expected, false).ReadGearBenches(call, BoundaryPackage.Identity(snapshot));
+            (reads, _) = BenchSource(native, expected, false).ReadGearBenches(call, Boundary.Identity(snapshot));
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

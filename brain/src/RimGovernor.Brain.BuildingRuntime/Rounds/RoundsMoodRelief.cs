@@ -184,7 +184,7 @@ public sealed partial class RoundsMoodReliefPlanner
         _ => (default, false),
     };
 
-    internal static IReadOnlyList<MoodNeed> MoodReliefUsedNeeds(CancellationToken ct, Store.Store journal, IReadOnlyList<IncidentMethod> methods, PawnId pawn, GenerationSnapshot world)
+    internal static IReadOnlyList<MoodNeed> MoodReliefUsedNeeds(CancellationToken ct, StoreJournal journal, IReadOnlyList<IncidentMethod> methods, PawnId pawn, GenerationSnapshot world)
     {
         var used = new List<MoodNeed>();
         foreach (var need in new[] { MoodNeed.Food, MoodNeed.Rest, MoodNeed.Joy })

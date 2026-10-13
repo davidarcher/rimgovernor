@@ -61,7 +61,7 @@ public sealed partial class RoundsBuildingPlanner
         var value = new Deconstruction(id, def, cell);
         var action = DomainAction.NewDeconstructionAction(new ActionId($"{snapshot.Plan}-0"), value);
         var spec = new PlanSpec(snapshot.Plan, new PlanRevision(1), [action]);
-        TelemetryApi.Decide(call, new Decision
+        Tel.Decide(call, new Decision
         {
             Kind = "layout_edit",
             Component = "building",

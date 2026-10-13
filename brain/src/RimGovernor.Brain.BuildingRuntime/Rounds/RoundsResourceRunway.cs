@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IResourceRunwaySource
 {
-    (IReadOnlyList<ResourceSourceRow> Sources, ResourceStorage Storage, BridgeResult Result) ReadResourceSources(CancellationToken ct, Common.Identity identity, string resource);
+    (IReadOnlyList<ResourceSource> Sources, ResourceStorage Storage, BridgeResult Result) ReadResourceSources(CancellationToken ct, C.Identity identity, string resource);
 }
 
 public interface IConsumptionSource
@@ -62,7 +62,7 @@ public sealed partial class Rounder
         {
             try
             {
-                var (rows, _, _) = reader.ReadResourceSources(ct, BoundaryPackage.Identity(snapshot), resource.Value);
+                var (rows, _, _) = reader.ReadResourceSources(ct, Boundary.Identity(snapshot), resource.Value);
                 output[resource] = PolicyFunctions.SurfaceOre(rows);
             }
             catch (Exception e) when (e is not OperationCanceledException)

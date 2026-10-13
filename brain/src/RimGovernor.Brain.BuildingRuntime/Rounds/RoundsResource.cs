@@ -2,13 +2,13 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsResourceSource : IColonySource
 {
-    (IReadOnlyList<GearBenchRead> Benches, BridgeResult Result) ReadGearBenches(CancellationToken ct, Common.Identity identity);
+    (IReadOnlyList<GearBenchRead> Benches, BridgeResult Result) ReadGearBenches(CancellationToken ct, C.Identity identity);
 
-    (IReadOnlyList<Stock> Stock, BridgeResult Result) ReadSupplyStock(CancellationToken ct, Common.Identity identity, IReadOnlyList<string> names);
+    (IReadOnlyList<Stock> Stock, BridgeResult Result) ReadSupplyStock(CancellationToken ct, C.Identity identity, IReadOnlyList<string> names);
 
-    (IReadOnlyList<ResourceSourceRow> Sources, ResourceStorage Storage, BridgeResult Result) ReadResourceSources(CancellationToken ct, Common.Identity identity, string resource);
+    (IReadOnlyList<ResourceSource> Sources, ResourceStorage Storage, BridgeResult Result) ReadResourceSources(CancellationToken ct, C.Identity identity, string resource);
 
-    (Operations.ZonePreviewReply Reply, BridgeResult Result) PreviewZone(CancellationToken ct, Common.Identity identity, ZoneCreate zone);
+    (OP.ZonePreviewReply Reply, BridgeResult Result) PreviewZone(CancellationToken ct, C.Identity identity, ZoneCreate zone);
 }
 
 /// <summary>What the resource planner decided: a plan, a wait, or the sources it settled on.</summary>
@@ -66,7 +66,7 @@ public sealed partial class RoundsResourcePlanner
         return new RoundsResourcePlanner(reviewer, native);
     }
 
-    internal static Fact<IReadOnlyList<Amount>> ResourceStockFacts(Observations.ColonyFactsSnapshot v)
+    internal static Fact<IReadOnlyList<Amount>> ResourceStockFacts(O.ColonyFactsSnapshot v)
     {
         if (BuildingRuntimePackage.MedicalIssue(v.Issues, "resources"))
         {
@@ -148,7 +148,7 @@ public sealed partial class RoundsResourcePlanner
         }
 
         var started = reviewer.Clock.Now();
-        var identity = BoundaryPackage.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var (reply, _) = native.ReadColonyFacts(call, identity, false);
         var observed = reply.Observed ?? throw new ControlException("step: observed == null");
         try
@@ -162,7 +162,7 @@ public sealed partial class RoundsResourcePlanner
 
         try
         {
-            BoundaryPackage.Context(observed.Context, state.Snapshot);
+            Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -230,7 +230,7 @@ public sealed partial class RoundsResourcePlanner
         return chosen;
     }
 
-    internal (ResourceMethod Choice, IReadOnlyList<Stock> Supply) MethodChoice(CancellationToken call, Common.Identity identity, Resource resource, long target)
+    internal (ResourceMethod Choice, IReadOnlyList<Stock> Supply) MethodChoice(CancellationToken call, C.Identity identity, Resource resource, long target)
     {
         var (census, _) = native.ReadGearBenches(call, identity);
         var benches = census.Select(row => row.Bench).ToList();
@@ -246,7 +246,7 @@ public sealed partial class RoundsResourcePlanner
         return (PolicyFunctions.SelectResourceMethod(request), supply);
     }
 
-    internal RoundsResourceResult DispatchResourceConcern(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, Tick reviewTick, Common.Identity identity, Resource resource, long target, Fact<IReadOnlyList<Amount>> stock, DateTimeOffset started)
+    internal RoundsResourceResult DispatchResourceConcern(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, Tick reviewTick, C.Identity identity, Resource resource, long target, Fact<IReadOnlyList<Amount>> stock, DateTimeOffset started)
     {
         if (resource.Value == "Beer")
         {
@@ -271,7 +271,7 @@ public sealed partial class RoundsResourcePlanner
         return result;
     }
 
-    internal RoundsResourceResult DispatchSupplied(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, Tick reviewTick, Common.Identity identity, ResourceSupplyState supply, Resource resource, Fact<IReadOnlyList<Amount>> stock, DateTimeOffset started)
+    internal RoundsResourceResult DispatchSupplied(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, Tick reviewTick, C.Identity identity, ResourceSupplyState supply, Resource resource, Fact<IReadOnlyList<Amount>> stock, DateTimeOffset started)
     {
         if (!supply.Rows.TryGetValue(resource, out var row) || row is null)
         {
@@ -321,7 +321,7 @@ public sealed partial class RoundsResourcePlanner
         return result;
     }
 
-    internal (RoundsResourceResult Result, bool Dispatched) AcquireFromSources(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, Tick reviewTick, Common.Identity identity, Resource resource, long target, Fact<IReadOnlyList<Amount>> stock, DateTimeOffset started, SourceSelection? pre)
+    internal (RoundsResourceResult Result, bool Dispatched) AcquireFromSources(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, Tick reviewTick, C.Identity identity, Resource resource, long target, Fact<IReadOnlyList<Amount>> stock, DateTimeOffset started, SourceSelection? pre)
     {
         if (pre is null)
         {
@@ -367,7 +367,7 @@ public sealed partial class RoundsResourcePlanner
         return (new RoundsResourceResult { Verdict = NoResourceSource(resource), Sources = selected }, false);
     }
 
-    internal (SourceSelection Selection, bool Ok) SourcesForDeficit(CancellationToken ct, Common.Identity identity, Resource resource, long target, Fact<IReadOnlyList<Amount>> stock, RemoteWorkRequest remote)
+    internal (SourceSelection Selection, bool Ok) SourcesForDeficit(CancellationToken ct, C.Identity identity, Resource resource, long target, Fact<IReadOnlyList<Amount>> stock, RemoteWorkRequest remote)
     {
         if (!stock.TryGetValue(out var rows))
         {
@@ -389,7 +389,7 @@ public sealed partial class RoundsResourcePlanner
             return (default, true);
         }
 
-        IReadOnlyList<ResourceSourceRow> sources;
+        IReadOnlyList<ResourceSource> sources;
         ResourceStorage storage;
         try
         {

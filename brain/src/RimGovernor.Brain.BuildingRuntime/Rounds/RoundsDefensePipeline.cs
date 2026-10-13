@@ -70,7 +70,7 @@ internal static partial class BuildingRuntimePackage
         foreach (var method in goal.Methods)
         {
             var plan = plans(method.Plan);
-            if (!StoreApi.PlanOpen(plan))
+            if (!StorePackage.PlanOpen(plan))
             {
                 continue;
             }
@@ -92,9 +92,9 @@ internal static partial class BuildingRuntimePackage
         return (pipe, true);
     }
 
-    internal static void DefenseAction(CancellationToken ct, string component, LogLevel level, string verdict, string reason, string target, IReadOnlyDictionary<string, object?>? attrs)
+    internal static void DefenseAction(CancellationToken ct, string component, TelemetryLevel level, string verdict, string reason, string target, IReadOnlyDictionary<string, object?>? attrs)
     {
-        TelemetryApi.Decide(ct, new Decision { Kind = "defense_action", Component = component, Level = level, Verdict = verdict, Reason = reason, Target = target, Attrs = attrs });
+        Tel.Decide(ct, new Decision { Kind = "defense_action", Component = component, Level = level, Verdict = verdict, Reason = reason, Target = target, Attrs = attrs });
     }
 
     internal static void DefenseTierGated(CancellationToken ct, string tier, string gate)
@@ -108,7 +108,7 @@ internal static partial class BuildingRuntimePackage
 
     internal static void DefenseSnapshotSkip(CancellationToken ct, string component, string target, Exception error)
     {
-        TelemetryApi.Decide(ct, new Decision
+        Tel.Decide(ct, new Decision
         {
             Kind = "snapshot_skip",
             Component = component,

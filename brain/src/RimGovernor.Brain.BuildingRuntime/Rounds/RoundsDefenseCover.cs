@@ -14,14 +14,14 @@ public sealed partial class RoundsDefenseLayoutPlanner
             return (0, Unknown<double>(), false);
         }
         var ids = read.Emergency.Colonists.Select(p => p.Id.Value).ToList();
-        var (reply, _) = _native.ReadCombatPawns(call, BoundaryApi.Identity(state.Snapshot), ids);
+        var (reply, _) = _native.ReadCombatPawns(call, Boundary.Identity(state.Snapshot), ids);
         var observed = reply.Observed;
         if (observed is null || observed.Pawns.Count != ids.Count)
         {
             throw DefenseControlErr(248);
         }
         SameTick(observed.Context, state, read.Projection.Identity.Tick);
-        var arms = ReadArmament(call, _native, BoundaryApi.Identity(state.Snapshot));
+        var arms = ReadArmament(call, _native, Boundary.Identity(state.Snapshot));
         var (defenders, minRange) = DefenderRangeOf(observed.Pawns, arms);
         return (defenders, minRange, defenders > 0);
     }
@@ -31,7 +31,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var p = _reviewer.Player;
         var projection = read.Projection;
         var tick = projection.Identity.Tick;
-        var identity = BoundaryApi.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var (killbox, region, home, ok) = DefenseKillbox(projection);
         if (!ok)
         {

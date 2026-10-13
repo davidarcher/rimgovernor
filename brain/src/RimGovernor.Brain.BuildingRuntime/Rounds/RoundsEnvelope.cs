@@ -49,7 +49,7 @@ public sealed class RoundsEnvelopePlanner
         foreach (var method in goal.Methods)
         {
             var plan = p.Journal.LoadPlan(method.Plan, call);
-            if (StoreApi.PlanOpen(plan))
+            if (StorePackage.PlanOpen(plan))
             {
                 return new RoundsEnvelopeResult { Verdict = BuildingReasonExistingWork };
             }

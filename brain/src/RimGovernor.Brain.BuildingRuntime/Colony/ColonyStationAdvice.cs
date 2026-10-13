@@ -144,7 +144,7 @@ internal static class StationAdviceLog
                 decision.Attrs = new Dictionary<string, object?> { ["fact"] = error.Message };
                 break;
             case not null:
-                decision.Level = LogLevel.Warning;
+                decision.Level = TelemetryLevel.Warn;
                 decision.Verdict = "failed";
                 decision.Reason = "chain_error";
                 decision.Attrs = new Dictionary<string, object?> { ["error"] = error };

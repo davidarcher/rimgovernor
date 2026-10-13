@@ -7,9 +7,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public interface IShrineReadinessNative
 {
-    (ObservationsPb.ListPawnsReply Reply, BridgeResult Result) ReadCombatPawns(CancellationToken ct, CommonPb.Identity identity, IReadOnlyList<string> pawns);
-    (DefenseSite Site, BridgeResult Result) ReadDefenseSite(CancellationToken ct, CommonPb.Identity identity, CellRect region);
-    (Bridge.EmergencyObservation Observed, BridgeResult Result) ReadEmergency(CancellationToken ct, CommonPb.Identity identity);
+    (ObservationsPb.ListPawnsReply Reply, BridgeResult Result) ReadCombatPawns(CancellationToken ct, C.Identity identity, IReadOnlyList<string> pawns);
+    (DefenseSite Site, BridgeResult Result) ReadDefenseSite(CancellationToken ct, C.Identity identity, CellRect region);
+    (EmergencyObservation Observed, BridgeResult Result) ReadEmergency(CancellationToken ct, C.Identity identity);
 }
 
 /// <summary>One shrine's breach judgement with the reading it was made from.</summary>
@@ -60,7 +60,7 @@ internal static partial class BuildingRuntimePackage
     /// colony census's reading; the storyteller is not observed, so the Peaceful softening stays off until it
     /// is. A null colonists list takes the emergency census's colonists.
     /// </summary>
-    internal static List<ShrineReadinessReport> ShrineReadiness(CancellationToken ct, IShrineReadinessNative native, CommonPb.Identity identity, IReadOnlyList<Pol.AncientShrine> shrines, List<string>? colonists, Fact<double> raidPoints, Cell center, Pol.Bounds bounds)
+    internal static List<ShrineReadinessReport> ShrineReadiness(CancellationToken ct, IShrineReadinessNative native, C.Identity identity, IReadOnlyList<Pol.AncientShrine> shrines, List<string>? colonists, Fact<double> raidPoints, Cell center, Pol.Bounds bounds)
     {
         var output = new List<ShrineReadinessReport>(shrines.Count);
         var needsReads = false;
@@ -155,8 +155,8 @@ internal static partial class BuildingRuntimePackage
             }
             return (unknown, shrinePolicy);
         }
-        var reports = ShrineReadiness(ct, reads, BoundaryApi.Identity(snapshot), shrines, null, projection.Threat.RaidPoints, center, projection.Bounds);
-        shrinePolicy = ShrineOpening(ct, reads, BoundaryApi.Identity(snapshot), shrines, projection);
+        var reports = ShrineReadiness(ct, reads, Boundary.Identity(snapshot), shrines, null, projection.Threat.RaidPoints, center, projection.Bounds);
+        shrinePolicy = ShrineOpening(ct, reads, Boundary.Identity(snapshot), shrines, projection);
         var output = new List<Pol.ShrineHold>(reports.Count);
         for (var i = 0; i < reports.Count; i++)
         {
@@ -189,7 +189,7 @@ internal static partial class BuildingRuntimePackage
     /// Reads the combat facts of the named colonists (every colonist of the emergency census when null) as
     /// shrine defenders: the breach squad and the melee lock staff from it.
     /// </summary>
-    internal static List<Pol.ShrineDefenderFacts> ShrineSquad(CancellationToken ct, IShrineReadinessNative native, CommonPb.Identity identity, List<string>? colonists, IReadOnlySet<Pol.PawnId>? needed)
+    internal static List<Pol.ShrineDefenderFacts> ShrineSquad(CancellationToken ct, IShrineReadinessNative native, C.Identity identity, List<string>? colonists, IReadOnlySet<Pol.PawnId>? needed)
     {
         if (colonists is null)
         {
@@ -222,7 +222,7 @@ internal static partial class BuildingRuntimePackage
     /// census and the review's custody, medicine, doctor and raid-point readings. A shrine it judges not ready
     /// keeps its caskets sealed under the hold reason.
     /// </summary>
-    internal static Pol.ShrinePolicy ShrineOpening(CancellationToken ct, IShrineReadinessNative native, CommonPb.Identity identity, IReadOnlyList<Pol.AncientShrine> shrines, Observation.ColonyProjection projection)
+    internal static Pol.ShrinePolicy ShrineOpening(CancellationToken ct, IShrineReadinessNative native, C.Identity identity, IReadOnlyList<Pol.AncientShrine> shrines, Observation.ColonyProjection projection)
     {
         var output = new Pol.ShrinePolicy { Opening = new Dictionary<string, string>(StringComparer.Ordinal) };
         var every = new Pol.ShrinePolicy { Opening = new Dictionary<string, string>(StringComparer.Ordinal) };

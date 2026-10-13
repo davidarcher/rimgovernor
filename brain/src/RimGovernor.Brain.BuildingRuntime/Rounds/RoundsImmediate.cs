@@ -68,7 +68,7 @@ public sealed partial class Rounder
                 d.Attrs["observation_tick"] = result.Review.Tick.Value;
             }
 
-            TelemetryPackage.Decide(ct, d);
+            Tel.Decide(ct, d);
         }
     }
 
@@ -149,7 +149,7 @@ public sealed partial class Rounder
         }
 
         Census.Retain(reading, true, Unknown<IReadOnlyList<ConstructionClaim>>());
-        reading.Sections.File(Store, new FactsScope { Load = expected.Load.Value, Map = expected.Map.Value, Generation = native.Value });
+        reading.Sections.File(Store, new FactScope { Load = expected.Load.Value, Map = expected.Map.Value, Generation = native.Value });
         var result = p.Journal.ReviewRounds(ctx, new RoundsRequest
         {
             Revision = previous.Revision,
@@ -207,7 +207,7 @@ public sealed partial class ClockScheduler
     /// Runs the planner waves: the immediate (protection) planners first when any is due, then the ordinary
     /// ones unless a protection plan is still pending or native has work that needs ticks to advance.
     /// </summary>
-    internal IReadOnlyList<string> RunPlanners(CancellationToken call, CancellationToken epoch, ClockSchedulerResult result, PlannerSelectionResult sel, Clock.Status status)
+    internal IReadOnlyList<string> RunPlanners(CancellationToken call, CancellationToken epoch, ClockSchedulerResult result, PlannerSelectionResult sel, K.Status status)
     {
         if (!ImmediateConfigured())
         {

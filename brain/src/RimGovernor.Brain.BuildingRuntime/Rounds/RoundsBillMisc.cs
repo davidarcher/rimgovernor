@@ -26,7 +26,7 @@ public sealed partial class Rounder
         {
             return [];
         }
-        var catalog = source.DefinitionCatalog(BoundaryApi.Identity(snapshot), ct);
+        var catalog = source.DefinitionCatalog(Boundary.Identity(snapshot), ct);
         foreach (var bill in bills)
         {
             try

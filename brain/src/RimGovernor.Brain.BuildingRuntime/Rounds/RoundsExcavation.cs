@@ -23,7 +23,7 @@ public sealed partial class RoundsBuildingPlanner
 {
     internal const string ExcavationStagePrefix = "excavation-stage-";
     internal const int ExcavationStageLimit = 8;
-    internal const long ExcavationStallTicks = TicksPerHour;
+    internal const long ExcavationStallTicks = GameTime.TicksPerHour;
     internal const int ExcavationCandidates = 4;
 
     internal ExcavationTarget? ExcavationProject(CancellationToken call, StandardState goal)
@@ -36,11 +36,11 @@ public sealed partial class RoundsBuildingPlanner
     internal BridgeExcavationSite ReadExcavationSite(CancellationToken call, GenerationSnapshot snapshot, Tick tick, string purpose, ExcavationTarget target, IReadOnlyList<Cell> cells, Cell access, Action check)
     {
         check();
-        var (site, _) = Excavation!.ReadExcavationSite(BoundaryApi.Identity(snapshot), cells, access, call);
+        var (site, _) = Excavation!.ReadExcavationSite(Boundary.Identity(snapshot), cells, access, call);
         check();
         try
         {
-            var current = BoundaryApi.Context(site.Context, snapshot);
+            var current = Boundary.Context(site.Context, snapshot);
             if (current.Native != snapshot.Native || new Tick(site.Context.Tick) < tick)
             {
                 throw new ControlException("readExcavationSite: err != nil || current.Native != snapshot.Native || domain.Tick(site.Context.GetTick()) < tick");
@@ -299,7 +299,7 @@ internal static partial class BuildingRuntimePackage
                 continue;
             }
             var plan = journal.LoadPlan(method.Plan, ct);
-            if (!StoreApi.PlanOpen(plan))
+            if (!StorePackage.PlanOpen(plan))
             {
                 continue;
             }

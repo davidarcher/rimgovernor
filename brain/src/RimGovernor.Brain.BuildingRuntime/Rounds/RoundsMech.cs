@@ -24,7 +24,7 @@ internal static partial class BuildingRuntimePackage
         return PolicyFunctions.PlanMechControl(MechCatalogOf(read.Frame.Catalog), fleet.Mechanitors, fleet.Mechs, hostile, chargerReady);
     }
 
-    internal static MechGuardPlan CombatMechGuards(Combat combat, IReadOnlyList<string> hostileIds, IReadOnlyDictionary<string, Observations.PawnState> rows)
+    internal static MechGuardPlan CombatMechGuards(Combat combat, IReadOnlyList<string> hostileIds, IReadOnlyDictionary<string, O.PawnState> rows)
     {
         var fleet = ObservationPackage.MechFleet(combat.Detail.Values());
         if (fleet.Mechanitors.Count == 0 || fleet.Mechs.Count == 0)

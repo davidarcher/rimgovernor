@@ -102,7 +102,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             BridgeSpatialAccess access;
             try
             {
-                (access, _) = _native.ReadSpatialAccess(BoundaryApi.Identity(state.Snapshot), blockedCells, targets, null, call);
+                (access, _) = _native.ReadSpatialAccess(Boundary.Identity(state.Snapshot), blockedCells, targets, null, call);
             }
             catch (NativeUnavailableException)
             {
@@ -201,7 +201,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     {
         try
         {
-            var current = BoundaryApi.Context(observed, state.Snapshot);
+            var current = Boundary.Context(observed, state.Snapshot);
             if (current.Native != state.Snapshot.Native || new Tick(observed.Tick) < tick)
             {
                 throw DefenseControlErr(388);

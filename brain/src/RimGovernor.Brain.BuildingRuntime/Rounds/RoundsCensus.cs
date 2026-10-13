@@ -21,7 +21,7 @@ internal sealed class RoundsCensusStore
     internal readonly object Mu = new();
     internal RoundsCensus? Latest;
     internal ulong Generation;
-    internal ObservationIdentity FoodIdentity;
+    internal Identity FoodIdentity;
     internal Fact<FoodPlan> FoodPlanFact;
     internal ulong FoodGeneration;
     internal double FoodMin;
@@ -30,9 +30,9 @@ internal sealed class RoundsCensusStore
     internal ResourceSupply? Supply;
     internal ResourceSupplyKey SupplyKey;
     internal Fact<LayoutPlan> Layout;
-    internal ObservationIdentity LayoutScope;
+    internal Identity LayoutScope;
     internal Fact<RoyaltyFacts> Royalty;
-    internal ObservationIdentity RoyaltyScope;
+    internal Identity RoyaltyScope;
     internal IReadOnlyList<string> Worship = [];
     internal ulong Benches;
     internal IReadOnlyDictionary<string, ulong>? ReadColony;
@@ -53,7 +53,7 @@ internal sealed class RoundsCensusStore
         }
     }
 
-    internal bool BenchTable(FactsStore m, FactsScope scope, ObservationIdentity expected, out FactsTable<string, GearBenchRead> table)
+    internal bool BenchTable(FactStore m, FactScope scope, Identity expected, out Table<string, GearBenchRead> table)
     {
         RoundsCensus? census;
         ulong generation;
@@ -73,7 +73,7 @@ internal sealed class RoundsCensusStore
         return ok && table.Version == version;
     }
 
-    internal void RememberLayout(ObservationIdentity identity, Fact<LayoutPlan> layout)
+    internal void RememberLayout(Identity identity, Fact<LayoutPlan> layout)
     {
         lock (Mu)
         {
@@ -82,7 +82,7 @@ internal sealed class RoundsCensusStore
         }
     }
 
-    internal void RememberRoyalty(ObservationIdentity identity, Fact<RoyaltyFacts> royalty)
+    internal void RememberRoyalty(Identity identity, Fact<RoyaltyFacts> royalty)
     {
         lock (Mu)
         {
@@ -119,9 +119,9 @@ internal sealed class RoundsCensusStore
     internal void ServeLayout(ColonyProjection projection)
     {
         Fact<LayoutPlan> layout;
-        ObservationIdentity scope;
+        Identity scope;
         Fact<RoyaltyFacts> royalty;
-        ObservationIdentity royaltyScope;
+        Identity royaltyScope;
         lock (Mu)
         {
             layout = Layout;
@@ -130,7 +130,7 @@ internal sealed class RoundsCensusStore
             royaltyScope = RoyaltyScope;
         }
         var id = projection.Identity;
-        bool Same(ObservationIdentity s) => s.Colony == id.Colony && s.Map == id.Map && s.Load == id.Load;
+        bool Same(Identity s) => s.Colony == id.Colony && s.Map == id.Map && s.Load == id.Load;
         if (!projection.LayoutPlan.IsKnown && layout.IsKnown && Same(scope))
         {
             projection.LayoutPlan = layout;
@@ -185,7 +185,7 @@ internal sealed class RoundsCensusStore
         }
     }
 
-    internal bool Lookup(object? source, object? reviewerSource, ObservationIdentity expected, bool rooms, Fact<IReadOnlyList<ConstructionClaim>> claims, IReadOnlyList<string>? definitions, out RoundsReading reading)
+    internal bool Lookup(object? source, object? reviewerSource, Identity expected, bool rooms, Fact<IReadOnlyList<ConstructionClaim>> claims, IReadOnlyList<string>? definitions, out RoundsReading reading)
     {
         reading = default!;
         if (!BuildingRuntimePackage.SameNativeSource(source, reviewerSource))
@@ -225,7 +225,7 @@ internal sealed class RoundsCensusStore
         return true;
     }
 
-    private static bool SameObservedIdentity(ObservationIdentity census, ObservationIdentity expected) => BuildingRuntimePackage.SameObservedIdentity(census, expected);
+    private static bool SameObservedIdentity(Identity census, Identity expected) => BuildingRuntimePackage.SameObservedIdentity(census, expected);
 }
 
 /// <summary>The bench census read answered from the fact mirror when it holds the current table, else published fresh.</summary>
@@ -233,11 +233,11 @@ internal sealed class MirroredBenches : IRoundsWorkBenchSource
 {
     private readonly Rounder _reviewer;
     private readonly IRoundsWorkBenchSource _native;
-    private readonly FactsScope _scope;
-    private readonly ObservationIdentity _expected;
+    private readonly FactScope _scope;
+    private readonly Identity _expected;
     private readonly bool _fresh;
 
-    public MirroredBenches(Rounder reviewer, IRoundsWorkBenchSource native, FactsScope scope, ObservationIdentity expected, bool fresh)
+    public MirroredBenches(Rounder reviewer, IRoundsWorkBenchSource native, FactScope scope, Identity expected, bool fresh)
     {
         _reviewer = reviewer;
         _native = native;
@@ -264,13 +264,13 @@ internal sealed class MirroredBenches : IRoundsWorkBenchSource
 
     private static IReadOnlyList<GearBenchRead> BenchRows(IReadOnlyDictionary<string, GearBenchRead> rows) => ClockMirror.BenchRows(rows);
 
-    private static FactsTable<string, GearBenchRead> PublishBenches(CancellationToken ct, FactsStore m, FactsScope scope, IRoundsWorkBenchSource native, C.Identity id, long tick) =>
+    private static Table<string, GearBenchRead> PublishBenches(CancellationToken ct, FactStore m, FactScope scope, IRoundsWorkBenchSource native, C.Identity id, long tick) =>
         ClockMirror.PublishBenches(ct, m, scope, native, id, tick);
 }
 
 internal static partial class BuildingRuntimePackage
 {
-    internal static bool SameObservedIdentity(ObservationIdentity census, ObservationIdentity expected)
+    internal static bool SameObservedIdentity(Identity census, Identity expected)
     {
         var ak = census.NativeGeneration.TryGetValue(out var a);
         var bk = expected.NativeGeneration.TryGetValue(out var b);
@@ -296,7 +296,7 @@ internal static partial class BuildingRuntimePackage
 
 public sealed partial class Rounder
 {
-    internal RoundsReading ObserveOwned(CancellationToken ct, IRoundsSource source, ObservationIdentity expected, Fact<IReadOnlyList<ConstructionClaim>> claims, params string[] definitions)
+    internal RoundsReading ObserveOwned(CancellationToken ct, IRoundsSource source, Identity expected, Fact<IReadOnlyList<ConstructionClaim>> claims, params string[] definitions)
     {
         if (ImmediateReview(ct))
         {
@@ -331,18 +331,18 @@ public sealed partial class Rounder
         return reading;
     }
 
-    internal IRoundsWorkBenchSource? BenchSource(IRoundsWorkBenchSource? native, ObservationIdentity expected, bool fresh)
+    internal IRoundsWorkBenchSource? BenchSource(IRoundsWorkBenchSource? native, Identity expected, bool fresh)
     {
         if (native is null || Store is null)
         {
             return native;
         }
         expected.NativeGeneration.TryGetValue(out var generation);
-        var scope = new FactsScope { Load = expected.Load.Value, Map = (int)expected.Map, Generation = (ulong)generation };
+        var scope = new FactScope { Load = expected.Load.Value, Map = (int)expected.Map, Generation = (ulong)generation };
         return new MirroredBenches(this, native, scope, expected, fresh);
     }
 
-    internal RoundsReading ObserveRooms(CancellationToken ct, IRoundsSource source, ObservationIdentity expected, Fact<IReadOnlyList<ConstructionClaim>> claims, params string[] definitions)
+    internal RoundsReading ObserveRooms(CancellationToken ct, IRoundsSource source, Identity expected, Fact<IReadOnlyList<ConstructionClaim>> claims, params string[] definitions)
     {
         if (ImmediateReview(ct))
         {
@@ -362,7 +362,7 @@ public sealed partial class Rounder
         return reading;
     }
 
-    internal ColonyReading ObserveColony(CancellationToken ct, IColonySource source, ObservationIdentity expected, IReadOnlyList<string>? definitions)
+    internal ColonyReading ObserveColony(CancellationToken ct, IColonySource source, Identity expected, IReadOnlyList<string>? definitions)
     {
         if (ImmediateReview(ct))
         {

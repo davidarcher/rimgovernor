@@ -63,7 +63,7 @@ public sealed class RoundsDialogPlanner
         {
             return new RoundsDialogResult { Verdict = BuildingReasonExistingWork };
         }
-        var identity = BoundaryApi.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var (reply, _) = _reviewer.ColonyFacts(call, _native, identity, false);
         var observed = reply.Observed;
         if (observed is null)
@@ -72,7 +72,7 @@ public sealed class RoundsDialogPlanner
         }
         try
         {
-            BoundaryApi.Context(observed.Context, state.Snapshot);
+            Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (ControlException)
         {
@@ -98,7 +98,7 @@ public sealed class RoundsDialogPlanner
         }
         if (PolicyApi.VoidNodeDisruptAbsent(options))
         {
-            DefenseAction(call, "routine-dialog", LogLevel.Error, "refused", "void_node_disrupt_absent", "void_node", new Dictionary<string, object?> { ["window"] = dialog.WindowId });
+            DefenseAction(call, "routine-dialog", TelemetryLevel.Error, "refused", "void_node_disrupt_absent", "void_node", new Dictionary<string, object?> { ["window"] = dialog.WindowId });
         }
         var (chosen, ok) = PolicyApi.ChooseDialogOption(options, _policy);
         if (!ok)

@@ -13,7 +13,11 @@ internal readonly record struct PlannerStanding(PlannerNote Note, long Since);
 /// <see cref="Held"/> is null when the ticks the previous cause stood are unknown (the game clock went backwards,
 /// as a save load does).
 /// </summary>
-internal sealed record ConcernTransitionEvent(ConcernId Concern, PlannerFiling Filing, bool HadPrevious = false, Cause Previous = Cause.None, long? Held = null);
+internal sealed record ConcernTransitionEvent(ConcernId Concern, PlannerFiling Filing, bool HadPrevious = false, Cause? PreviousCause = null, long? Held = null)
+{
+    /// <summary>The cause the concern held before this change; none when it had no previous standing.</summary>
+    public Cause Previous => PreviousCause ?? Cause.None;
+}
 
 /// <summary>
 /// Remembers the standing note per goal; the idle-stall row lists them as the standing refusals and
@@ -180,7 +184,7 @@ internal static class PlannerReasons
         {
             Kind = "planner_step",
             Component = "clock-scheduler",
-            Level = LogLevel.Warning,
+            Level = TelemetryLevel.Warn,
             Verdict = "failed",
             Reason = "journal_error",
             Target = target,

@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native defense-site read (Go's anonymous interface on the building source).</summary>
 internal interface IDefenseSiteReader
 {
-    (DefenseSite Site, BridgeResult Result) ReadDefenseSite(CancellationToken ct, Common.Identity identity, CellRect region);
+    (DefenseSite Site, BridgeResult Result) ReadDefenseSite(CancellationToken ct, C.Identity identity, CellRect region);
 }
 
 public sealed partial class RoundsBuildingPlanner
@@ -49,10 +49,10 @@ public sealed partial class RoundsBuildingPlanner
 
         var inner = room.Region.Bounds();
         var region = new CellRect(new Cell(inner.X, inner.Z), new Cell(inner.X + inner.Width - 1, inner.Z + inner.Height - 1));
-        var (site, _) = reader.ReadDefenseSite(call, BoundaryPackage.Identity(current), region);
+        var (site, _) = reader.ReadDefenseSite(call, Boundary.Identity(current), region);
         try
         {
-            BoundaryPackage.Context(site.Context, current);
+            Boundary.Context(site.Context, current);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -246,7 +246,7 @@ internal static partial class BuildingRuntimePackage
             return;
         }
 
-        TelemetryPackage.Decide(CancellationToken.None, new Decision
+        Tel.Decide(CancellationToken.None, new Decision
         {
             Kind = "routine_skip",
             Component = "routine-flooring",

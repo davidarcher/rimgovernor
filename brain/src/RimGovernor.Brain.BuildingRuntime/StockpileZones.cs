@@ -11,19 +11,19 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>Refreshes one zone's presence and CAS token for each edit.</summary>
 public interface IRoundsStockpileSource
 {
-    (Bridge.ZoneDeleteTarget Target, BridgeResult Result) ReadZoneDeleteTarget(CancellationToken ct, CommonPb.Identity identity, string zone);
+    (ZoneDeleteTarget Target, BridgeResult Result) ReadZoneDeleteTarget(CancellationToken ct, C.Identity identity, string zone);
 }
 
 /// <summary>Reads a shelf's storage settings CAS token.</summary>
 public interface IShelfTargetSource
 {
-    (Bridge.StorageBuildingTarget Target, BridgeResult Result) ReadStorageBuildingTarget(CancellationToken ct, CommonPb.Identity identity, string building);
+    (StorageBuildingTarget Target, BridgeResult Result) ReadStorageBuildingTarget(CancellationToken ct, C.Identity identity, string building);
 }
 
 /// <summary>Previews a zone creation natively.</summary>
 public interface IZonePreviewSource
 {
-    (OperationsPb.ZonePreviewReply Reply, BridgeResult Result) PreviewZone(CancellationToken ct, CommonPb.Identity identity, ZoneCreate zone);
+    (OperationsPb.ZonePreviewReply Reply, BridgeResult Result) PreviewZone(CancellationToken ct, C.Identity identity, ZoneCreate zone);
 }
 
 /// <summary>Applies zone edits for any owning concern.</summary>
@@ -33,7 +33,7 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
     /// Whether the edit's target (the stockpile zone, or the shelf for a shelf patch) is still there; false when
     /// the source cannot read it.
     /// </summary>
-    public bool EditTargetPresent(CancellationToken ct, CommonPb.Identity identity, Pol.StockpileEdit e)
+    public bool EditTargetPresent(CancellationToken ct, C.Identity identity, Pol.StockpileEdit e)
     {
         if (e.Kind == Pol.StockpileEditKind.ShelfPatch)
         {
@@ -87,22 +87,22 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
             OperationsPb.ZonePreviewReply reply;
             try
             {
-                (reply, _) = preview.PreviewZone(call, BoundaryApi.Identity(snapshot), value);
+                (reply, _) = preview.PreviewZone(call, Boundary.Identity(snapshot), value);
             }
             catch (Bridge.NativeFailure refused)
             {
-                TelemetryPackage.Decide(call, StockpileEditDecision("refused", refused.Value.Code.ToString(), e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = refused.Value.Detail }));
+                Tel.Decide(call, StockpileEditDecision("refused", refused.Value.Code.ToString(), e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = refused.Value.Detail }));
                 continue;
             }
             var v = reply.Evaluated;
             if (v is null || !v.Accepted)
             {
-                TelemetryPackage.Decide(call, StockpileEditDecision("refused", "preview_not_accepted", e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = v?.Reason ?? "" }));
+                Tel.Decide(call, StockpileEditDecision("refused", "preview_not_accepted", e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = v?.Reason ?? "" }));
                 continue;
             }
             try
             {
-                BoundaryApi.Context(v.Context, snapshot);
+                Boundary.Context(v.Context, snapshot);
             }
             catch (Exception err) when (err is not OperationCanceledException)
             {
@@ -146,7 +146,7 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
         }
         foreach (var e in admitted)
         {
-            TelemetryPackage.Decide(call, StockpileEditDecision("admitted", "", e.Role, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["role"] = e.Role, ["cells"] = e.Cells().Count, ["plan"] = id.ToString(), ["detail"] = e.Explanation }));
+            Tel.Decide(call, StockpileEditDecision("admitted", "", e.Role, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["role"] = e.Role, ["cells"] = e.Cells().Count, ["plan"] = id.ToString(), ["detail"] = e.Explanation }));
         }
         return new RoundsStockpileResult { Verdict = BuildingReasonAdmitted, Plan = id, Edits = actions.Count };
     }
@@ -225,7 +225,7 @@ internal static partial class BuildingRuntimePackage
     /// Reports whether one of the owner's methods holds a zone-edit plan still open. A room shell is building
     /// work that takes days; zoning is instant, so only an open zone-edit plan holds the next edits.
     /// </summary>
-    internal static bool OpenEditPlan(CancellationToken ct, Sto.Store journal, Sto.StandardState owner)
+    internal static bool OpenEditPlan(CancellationToken ct, StoreJournal journal, Sto.StandardState owner)
     {
         foreach (var method in owner.Methods)
         {

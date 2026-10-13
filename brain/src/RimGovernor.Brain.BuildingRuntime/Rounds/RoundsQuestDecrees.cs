@@ -33,7 +33,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
                 continue;
             }
 
-            if (objective.Kind == Observations.QuestObjectiveKind.ProduceItem)
+            if (objective.Kind == O.QuestObjectiveKind.ProduceItem)
             {
                 lending = lending || DecreeLending();
                 continue;
@@ -46,7 +46,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
             var reason = "";
             switch (objective.Kind)
             {
-                case Observations.QuestObjectiveKind.HarvestPlant:
+                case O.QuestObjectiveKind.HarvestPlant:
                 {
                     var field = reviewer.NewResourceFieldPlanner(call, state, review, read.Projection.Identity, read.Projection);
                     var (site, sited) = field.SiteOf();
@@ -91,14 +91,14 @@ public sealed partial class RoundsPopulationJoinerPlanner
                         }
 
                         var zone = ZoneCreate.NewZoneCreate(ZoneKind.Growing, objective.Def, cells);
-                        var (reply, zoneWhy) = BuildingRuntimePackage.PreviewZone(call, reviewer.ResourceNative, BoundaryPackage.Identity(snapshot), zone);
+                        var (reply, zoneWhy) = BuildingRuntimePackage.PreviewZone(call, reviewer.ResourceNative, Boundary.Identity(snapshot), zone);
                         if (zoneWhy != "")
                         {
                             reason = "plant_site_refused";
                             break;
                         }
 
-                        BoundaryPackage.Context(reply.Evaluated?.Context, snapshot);
+                        Boundary.Context(reply.Evaluated?.Context, snapshot);
                         var action = DomainAction.NewZoneCreateAction(new ActionId($"{id}-{i}"), zone);
                         actions.Add(action);
                         previews.Add(new Preview
@@ -118,7 +118,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
                     break;
                 }
 
-                case Observations.QuestObjectiveKind.KillAnimals:
+                case O.QuestObjectiveKind.KillAnimals:
                 {
                     var (prey, why) = PolicyFunctions.PlanDecreeHunt(objective, remaining, offer.ViolentQuestsAllowed, read.Projection.Acquisition);
                     reason = why;

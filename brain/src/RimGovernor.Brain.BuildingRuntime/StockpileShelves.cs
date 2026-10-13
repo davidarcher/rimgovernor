@@ -107,7 +107,7 @@ internal static partial class BuildingRuntimePackage
         new(string.Create(CultureInfo.InvariantCulture, $"storage-shelf-{zone}-{index}"));
 
     /// <summary>Reads back the zone's shelf plans in index order: the shelves built or in flight, and the next free index.</summary>
-    internal static (List<Pol.ShelfRecord> Shelves, int Next) ZoneShelves(CancellationToken ct, Sto.Store journal, StandardId goal, string zone, Fact<Pol.CurrentConstruction> census)
+    internal static (List<Pol.ShelfRecord> Shelves, int Next) ZoneShelves(CancellationToken ct, StoreJournal journal, StandardId goal, string zone, Fact<Pol.CurrentConstruction> census)
     {
         var output = new List<Pol.ShelfRecord>();
         for (var index = 0; index < MaxShelvesPerZone; index++)

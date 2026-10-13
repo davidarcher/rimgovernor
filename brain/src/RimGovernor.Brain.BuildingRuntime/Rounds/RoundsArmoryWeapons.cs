@@ -12,7 +12,7 @@ public sealed partial class RoundsArmoryPlanner
         {
             return ([], [], 0);
         }
-        var identity = BoundaryApi.Identity(snapshot);
+        var identity = Boundary.Identity(snapshot);
         var things = FrameThings(_native, identity, ct);
         var reply = source.ReadCombatPawns(identity, ids, ct).Reply;
         var observed = reply.Observed;
@@ -20,7 +20,7 @@ public sealed partial class RoundsArmoryPlanner
         {
             throw new ControlException("weaponDemand: observed == nil");
         }
-        if (!BoundaryApi.TryContext(observed.Context, snapshot) || observed.Context.Tick < minTick)
+        if (!Boundary.TryContext(observed.Context, snapshot) || observed.Context.Tick < minTick)
         {
             throw new ControlException("weaponDemand: err != nil || observed.Context.GetTick() < minTick");
         }
@@ -40,12 +40,12 @@ public sealed partial class RoundsArmoryPlanner
             }
         }
         var bounds = source.ReadMapBounds(identity, default(Cell), ct).Reply;
-        if (!BoundaryApi.TryContext(bounds.Context, snapshot) || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0)
+        if (!Boundary.TryContext(bounds.Context, snapshot) || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0)
         {
             throw new ControlException("weaponDemand: err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0");
         }
         var weapons = source.ReadEquipWeapons(identity, default(Cell), new Cell((int)bounds.Bounds.Width - 1, (int)bounds.Bounds.Height - 1), ct).Reply;
-        if (!BoundaryApi.TryContext(weapons.Context, snapshot))
+        if (!Boundary.TryContext(weapons.Context, snapshot))
         {
             throw new ControlException("weaponDemand: err != nil");
         }

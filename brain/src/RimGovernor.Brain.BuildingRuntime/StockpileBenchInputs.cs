@@ -7,7 +7,7 @@ internal static partial class BuildingRuntimePackage
     /// bench's cell. The kitchen's and butcher's benches (the projection's production benches) are left to the
     /// food stores; with that census or the building census unobserved no bench is planned.
     /// </summary>
-    internal static IReadOnlyList<Pol.BenchInput> BenchInputs(IReadOnlyList<Bridge.GearBenchRead> census, Observation.ColonyProjection projection)
+    internal static IReadOnlyList<Pol.BenchInput> BenchInputs(IReadOnlyList<GearBenchRead> census, Observation.ColonyProjection projection)
     {
         if (!projection.Facts.CurrentConstruction.TryGetValue(out var built) || !built.Colony
             || !projection.ProductionBenches.TryGetValue(out var food))

@@ -92,7 +92,7 @@ public sealed partial class RoundsResourcePlanner
             return null;
         }
         var id = native.Identity(call).Identity;
-        ObservationIdentity expected;
+        Identity expected;
         try
         {
             expected = ObservationApi.DecodeIdentity(id);
@@ -107,10 +107,10 @@ public sealed partial class RoundsResourcePlanner
         }
         var reading = _reviewer.ObserveColony(call, native, expected, ["DeepDrill"]);
         var f = reading.Projection;
-        var research = native.ReadResearch(BoundaryApi.Identity(state.Snapshot), call).Read;
+        var research = native.ReadResearch(Boundary.Identity(state.Snapshot), call).Read;
         try
         {
-            BoundaryApi.Context(research.Context, state.Snapshot);
+            Boundary.Context(research.Context, state.Snapshot);
         }
         catch (ControlException)
         {
@@ -133,10 +133,10 @@ public sealed partial class RoundsResourcePlanner
         {
             return output;
         }
-        var buildings = native.ReadBuildings(BoundaryApi.Identity(state.Snapshot), call).Rows;
+        var buildings = native.ReadBuildings(Boundary.Identity(state.Snapshot), call).Rows;
         try
         {
-            BoundaryApi.Context(buildings.Context, state.Snapshot);
+            Boundary.Context(buildings.Context, state.Snapshot);
         }
         catch (ControlException)
         {

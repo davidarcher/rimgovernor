@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsHospitalSource : IRoundsBuildingSource
 {
-    (BedUseTarget Target, BridgeResult Result) ReadBedUseTarget(CancellationToken ct, Common.Identity identity, string bed);
+    (BedUseTarget Target, BridgeResult Result) ReadBedUseTarget(CancellationToken ct, C.Identity identity, string bed);
 }
 
 /// <summary>Composes MaintainMedicalReserves' building method: a hospital bed built, converted or already standing.</summary>
@@ -170,10 +170,10 @@ public sealed partial class RoundsHospitalPlanner
         {
         }
 
-        var (target, _) = Native.ReadBedUseTarget(call, BoundaryPackage.Identity(state.Snapshot), choice.Bed);
+        var (target, _) = Native.ReadBedUseTarget(call, Boundary.Identity(state.Snapshot), choice.Bed);
         try
         {
-            BoundaryPackage.Context(target.Context, state.Snapshot);
+            Boundary.Context(target.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

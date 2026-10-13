@@ -311,7 +311,7 @@ internal static partial class BuildingRuntimePackage
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            TelemetryPackage.Decide(ct, new Decision
+            Tel.Decide(ct, new Decision
             {
                 Kind = "layout_role_guard",
                 Component = "layout",
@@ -327,7 +327,7 @@ internal static partial class BuildingRuntimePackage
         foreach (var m in mismatches)
         {
             var scores = m.Scores.ToDictionary(kv => kv.Key.Value, kv => kv.Value);
-            TelemetryPackage.Decide(ct, new Decision
+            Tel.Decide(ct, new Decision
             {
                 Kind = "layout_role_guard",
                 Component = "layout",

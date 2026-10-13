@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>The able colonists wearing a lance item, with the item they would use.</summary>
-    internal static IReadOnlyList<LanceUser> LanceUsers(IReadOnlyList<Observations.PawnState> rows, Things things)
+    internal static IReadOnlyList<LanceUser> LanceUsers(IReadOnlyList<O.PawnState> rows, Things things)
     {
         var output = new List<LanceUser>();
         foreach (var row in rows)
@@ -37,11 +37,11 @@ public sealed partial class RoundsPopulationCustodyPlanner
     /// <summary>Uses a lance on the target when a colonist wears one; not handled when no colonist can.</summary>
     internal (RoundsPopulationCustodyResult Result, bool Handled) StepLance(CancellationToken call, CancellationToken epoch, Player p, ControlState state, DateTimeOffset started, StandardState goal, Tick reviewTick, PawnId target, StepArbiter arbiter)
     {
-        var identityCtx = BoundaryPackage.Identity(state.Snapshot);
+        var identityCtx = Boundary.Identity(state.Snapshot);
         var (emergency, _) = native.ReadEmergency(call, identityCtx);
         try
         {
-            BoundaryPackage.Context(emergency.Context, state.Snapshot);
+            Boundary.Context(emergency.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -68,7 +68,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
         var observed = reply.Observed ?? throw new ControlException("stepLance: observed == nil");
         try
         {
-            BoundaryPackage.Context(observed.Context, state.Snapshot);
+            Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

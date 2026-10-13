@@ -85,7 +85,7 @@ internal static partial class BuildingRuntimePackage
     /// work type and skill floor. A bill whose bench or recipe the census no longer describes, or whose work is
     /// unobserved, makes the whole requirement Unknown; the planner then waits rather than assigning against a guess.
     /// </summary>
-    internal static Fact<IReadOnlyList<Pol.WorkRequirement>> RoundsBillWork(IReadOnlyList<RoundsProjectBill> bills, IReadOnlyList<Bridge.GearBenchRead> census)
+    internal static Fact<IReadOnlyList<Pol.WorkRequirement>> RoundsBillWork(IReadOnlyList<RoundsProjectBill> bills, IReadOnlyList<GearBenchRead> census)
     {
         if (bills.Count == 0)
         {
@@ -185,7 +185,7 @@ internal static partial class BuildingRuntimePackage
     /// with unobserved work makes the whole requirement Unknown so the planner waits rather than assigning
     /// against a guess.
     /// </summary>
-    internal static Fact<IReadOnlyList<Pol.WorkRequirement>> RoundsDeficitWork(IReadOnlyDictionary<Pol.Resource, long> targets, IReadOnlyList<Bridge.GearBenchRead> census, Pol.Resource wort)
+    internal static Fact<IReadOnlyList<Pol.WorkRequirement>> RoundsDeficitWork(IReadOnlyDictionary<Pol.Resource, long> targets, IReadOnlyList<GearBenchRead> census, Pol.Resource wort)
     {
         var output = new List<Pol.WorkRequirement>();
         foreach (var row in census)
@@ -271,7 +271,7 @@ internal static partial class BuildingRuntimePackage
         {
             return none;
         }
-        var (census, _) = benches.ReadGearBenches(ct, BoundaryApi.Identity(snapshot));
+        var (census, _) = benches.ReadGearBenches(ct, Boundary.Identity(snapshot));
         if (!RoundsBillWork(bills, census).TryGetValue(out var output))
         {
             return Unknown<IReadOnlyList<Pol.WorkRequirement>>();
@@ -292,7 +292,7 @@ internal static partial class BuildingRuntimePackage
     /// The research the workshop ladder recorded as gating a bench for a still-targeted resource or active
     /// equipment deficit, the derived EnsureResearch target when no operator target is configured.
     /// </summary>
-    internal static IReadOnlyList<string> RoundsResearchNeeds(CancellationToken ct, Sto.Store journal, Pol.RoundsPolicy p, Pol.ItemFacts items, GenerationSnapshot snapshot)
+    internal static IReadOnlyList<string> RoundsResearchNeeds(CancellationToken ct, StoreJournal journal, Pol.RoundsPolicy p, Pol.ItemFacts items, GenerationSnapshot snapshot)
     {
         var (ladder, ok) = journal.LoadProductionLadder(ct, new Sto.World(snapshot.Colony, snapshot.Load, snapshot.Map));
         if (!ok)

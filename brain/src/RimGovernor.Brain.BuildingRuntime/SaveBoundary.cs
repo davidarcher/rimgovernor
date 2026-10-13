@@ -37,7 +37,7 @@ public sealed partial class Control
     /// </summary>
     public CheckpointResult Checkpoint(CancellationToken ct, ILifecycleSaver? save, CheckpointRequest request)
     {
-        if (save is null || !request.Expected.IsValid() || !BoundaryApi.ValidId(request.SaveName))
+        if (save is null || !request.Expected.IsValid() || !Boundary.ValidId(request.SaveName))
         {
             throw new CheckpointException();
         }
@@ -52,7 +52,7 @@ public sealed partial class Control
             current = Snapshot;
             epoch = Epoch;
         }
-        if (!BoundaryApi.World(current, request.Expected))
+        if (!Boundary.World(current, request.Expected))
         {
             throw new CheckpointException();
         }

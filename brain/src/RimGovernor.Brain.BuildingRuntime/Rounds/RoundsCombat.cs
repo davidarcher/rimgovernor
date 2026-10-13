@@ -88,7 +88,7 @@ public sealed partial class RoundsDefensePlanner
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            TelemetryApi.Decide(call, new Decision
+            Tel.Decide(call, new Decision
             {
                 Kind = "admission",
                 Component = "routine-defense",
@@ -613,7 +613,7 @@ internal static partial class BuildingRuntimePackage
                 continue;
             }
             var v = item.Result.Progress.View;
-            TelemetryApi.Decide(ct, new Decision
+            Tel.Decide(ct, new Decision
             {
                 Kind = "dispatch",
                 Component = "routine-defense",

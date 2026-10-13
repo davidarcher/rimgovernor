@@ -68,11 +68,11 @@ public sealed partial class RoundsPopulationCustodyPlanner
         }
 
         var review = p.Journal.LoadRounds(call);
-        var identity = BoundaryPackage.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var (emergency, _) = native.ReadEmergency(call, identity);
         try
         {
-            BoundaryPackage.Context(emergency.Context, state.Snapshot);
+            Boundary.Context(emergency.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -103,7 +103,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
         var observed = reply.Observed ?? throw new ControlException("stepContainment: observed == nil");
         try
         {
-            BoundaryPackage.Context(observed.Context, state.Snapshot);
+            Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

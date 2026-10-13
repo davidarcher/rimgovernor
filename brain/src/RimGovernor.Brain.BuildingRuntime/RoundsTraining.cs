@@ -107,7 +107,7 @@ public sealed class RoundsTrainingPlanner
             // The layout review grows the range and ring from RoomDemand.
             return new RoundsTrainingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "range_room") };
         }
-        var stock = PackedStock.Create(_reviewer.Native, BoundaryApi.Identity(state.Snapshot));
+        var stock = PackedStock.Create(_reviewer.Native, Boundary.Identity(state.Snapshot));
         var verdict = new Verdict();
         foreach (var rr in rooms)
         {

@@ -8,13 +8,13 @@ internal sealed partial class Armament
 {
     internal Bridge.DefinitionCatalog? Catalog { get; init; }
 
-    internal Bridge.Things Things { get; init; } = null!;
+    internal Things Things { get; init; } = null!;
 
     /// <summary>
     /// The newest frame's things table and the load's catalog from native; a source that serves neither (a
     /// test double) leaves every armed pawn's weapon unknown.
     /// </summary>
-    internal static Armament Read(CancellationToken ct, object native, CommonPb.Identity identity) => ReadArmament(ct, native, identity);
+    internal static Armament Read(CancellationToken ct, object native, C.Identity identity) => ReadArmament(ct, native, identity);
 
     /// <summary>
     /// The weapon facts of the equipment's primary (Known false until the equipment and the things table say
@@ -33,7 +33,7 @@ internal sealed partial class Armament
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>The armament Go's readArmament reads: the newest frame's things table and the load's catalog.</summary>
-    internal static Armament ReadArmament(CancellationToken ct, object native, CommonPb.Identity identity) =>
+    internal static Armament ReadArmament(CancellationToken ct, object native, C.Identity identity) =>
         new() { Things = FrameThings(ct, native, identity), Catalog = PawnCatalog(ct, native, identity) };
 
     /// <summary>Requires the pawn's primary equipped weapon to be found. Unarmed is a known false, never unknown.</summary>

@@ -75,7 +75,7 @@ public static class OperationIntent
     /// Operation.intent for a method's writes: the planner's admission reason follows the method, "Food supply:
     /// acquire, food runway 1.5d".
     /// </summary>
-    public static string Of(PlanMethod method)
+    public static string Of(PlanMethodBinding method)
     {
         var why = MethodReason(method.Method);
         var reason = method.Reason.Trim();

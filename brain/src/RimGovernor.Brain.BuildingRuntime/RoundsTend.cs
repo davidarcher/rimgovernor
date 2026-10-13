@@ -2,9 +2,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsTendSource
 {
-    (Bridge.EmergencyObservation Observation, BridgeResult Result) ReadEmergency(CancellationToken ct, CommonPb.Identity identity);
+    (EmergencyObservation Observation, BridgeResult Result) ReadEmergency(CancellationToken ct, C.Identity identity);
 
-    (ObservationsPb.ListPawnsReply Reply, BridgeResult Result) ReadTendPawns(CancellationToken ct, CommonPb.Identity identity, IReadOnlyList<string> ids);
+    (ObservationsPb.ListPawnsReply Reply, BridgeResult Result) ReadTendPawns(CancellationToken ct, C.Identity identity, IReadOnlyList<string> ids);
 }
 
 public sealed class RoundsTendResult
@@ -63,11 +63,11 @@ public sealed class RoundsTendPlanner
             return new RoundsTendResult { Verdict = BuildingReasonExistingWork };
         }
         var started = _reviewer.Clock.Now();
-        var identity = BoundaryApi.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var (emergency, _) = _native.ReadEmergency(call, identity);
         try
         {
-            BoundaryApi.Context(emergency.Context, state.Snapshot);
+            Boundary.Context(emergency.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -90,7 +90,7 @@ public sealed class RoundsTendPlanner
         }
         try
         {
-            BoundaryApi.Context(observed.Context, state.Snapshot);
+            Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

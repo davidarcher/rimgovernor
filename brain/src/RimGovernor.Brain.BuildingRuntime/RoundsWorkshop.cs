@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>Adds the fresh bench and recipe-catalog reads the workshop planner needs on top of the building source.</summary>
 public interface IRoundsWorkshopSource : IRoundsBuildingSource
 {
-    (IReadOnlyList<Bridge.GearBenchRead> Benches, BridgeResult Result) ReadGearBenches(CancellationToken ct, CommonPb.Identity identity);
+    (IReadOnlyList<GearBenchRead> Benches, BridgeResult Result) ReadGearBenches(CancellationToken ct, C.Identity identity);
 }
 
 /// <summary>One product the workshop ladder considers, with the bench kinds that host a recipe for it.</summary>
@@ -100,7 +100,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("prepareWorkshop: !ok");
         }
-        var identity = BoundaryApi.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var (reply, _) = source.ReadColonyFacts(call, identity, Concern == MaintainEquipment);
         var observed = reply.Observed;
         if (observed is null || !BridgePackage.ColonyFactsValid(observed, identity))
@@ -109,7 +109,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         try
         {
-            BoundaryApi.Context(observed.Context, state.Snapshot);
+            Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

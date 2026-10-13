@@ -11,8 +11,8 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public interface IRoundsStoneShellSource
 {
-    (Bridge.WallUpgradeSites Sites, BridgeResult Result) ReadWallUpgradeSites(CancellationToken ct, CommonPb.Identity identity, string wall);
-    (Bridge.BuildingPreview Preview, BridgeResult Result) PreviewBuilding(CancellationToken ct, DomainAction action, GenerationSnapshot snapshot);
+    (WallUpgradeSites Sites, BridgeResult Result) ReadWallUpgradeSites(CancellationToken ct, C.Identity identity, string wall);
+    (BuildingPreview Preview, BridgeResult Result) PreviewBuilding(CancellationToken ct, DomainAction action, GenerationSnapshot snapshot);
 }
 
 public sealed class RoundsStoneShellResult
@@ -163,11 +163,11 @@ public sealed class RoundsStoneShellPlanner
         var none = (new RoundsStoneShellResult(), false);
         var p = _reviewer.Player;
         var projection = read.Projection;
-        var (sites, _) = _native.ReadWallUpgradeSites(call, BoundaryApi.Identity(state.Snapshot), wall);
+        var (sites, _) = _native.ReadWallUpgradeSites(call, Boundary.Identity(state.Snapshot), wall);
         GenerationSnapshot current;
         try
         {
-            current = BoundaryApi.Context(sites.Context, state.Snapshot);
+            current = Boundary.Context(sites.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -186,7 +186,7 @@ public sealed class RoundsStoneShellPlanner
         {
             return none;
         }
-        var catalog = PawnCatalog(call, _native, BoundaryApi.Identity(state.Snapshot));
+        var catalog = PawnCatalog(call, _native, Boundary.Identity(state.Snapshot));
         if (catalog is null)
         {
             throw new ControlException("propose: the source serves no definition catalog");
@@ -329,7 +329,7 @@ public sealed class RoundsStoneShellPlanner
         return (new RoundsStoneShellResult { Verdict = reason, Plan = id }, true);
     }
 
-    private (Bridge.BuildingPreview Preview, bool Ok) PreviewWall(CancellationToken ct, DomainAction action, GenerationSnapshot snapshot, Cell cell)
+    private (BuildingPreview Preview, bool Ok) PreviewWall(CancellationToken ct, DomainAction action, GenerationSnapshot snapshot, Cell cell)
     {
         var (preview, _) = _native.PreviewBuilding(ct, action, snapshot);
         var v = preview.Preview;
@@ -339,13 +339,13 @@ public sealed class RoundsStoneShellPlanner
         var sk = v.SafeToPlace.TryGetValue(out var safe);
         if (!fk || !mk || !lk || !sk)
         {
-            return (new Bridge.BuildingPreview(), false);
+            return (new BuildingPreview(), false);
         }
         // A Wall is a stuffed building: the preview of one that is not made from stuff is a contract
         // mismatch, not a placeable site.
         if (!made || footprint!.Count != 1 || footprint[0] != cell || !legal || !safe)
         {
-            return (new Bridge.BuildingPreview(), false);
+            return (new BuildingPreview(), false);
         }
         return (preview, true);
     }

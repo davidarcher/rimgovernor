@@ -109,7 +109,7 @@ public sealed partial class RoundsTradePlanner
         {
             return;
         }
-        var tables = Native.FrameTables(call, BoundaryApi.Identity(state.Snapshot));
+        var tables = Native.FrameTables(call, Boundary.Identity(state.Snapshot));
         if (tables.Catalog is null)
         {
             throw new ControlException("recordOffers: no definition catalog");

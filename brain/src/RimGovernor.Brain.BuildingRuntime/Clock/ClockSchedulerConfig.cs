@@ -169,5 +169,5 @@ public sealed class ClockSchedulerConfig
     public bool RoundsMethods { get; init; }
 
     /// <summary>Runs after a step reads the world: true when the world was rebuilt since the last, so the next step reviews in full.</summary>
-    public Func<ObservationContext, CancellationToken, Task<bool>>? WorldReady { get; init; }
+    public Func<C.ObservationContext, CancellationToken, Task<bool>>? WorldReady { get; init; }
 }

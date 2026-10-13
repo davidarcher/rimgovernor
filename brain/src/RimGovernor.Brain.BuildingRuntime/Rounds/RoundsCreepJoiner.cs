@@ -130,7 +130,7 @@ public sealed class RoundsCreepJoinerPlanner
         foreach (var method in goal.Methods)
         {
             var plan0 = p.Journal.LoadPlan(method.Plan, call);
-            if (StoreApi.PlanOpen(plan0))
+            if (StorePackage.PlanOpen(plan0))
             {
                 return new RoundsCreepJoinerResult { Verdict = BuildingReasonExistingWork };
             }

@@ -18,7 +18,7 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>The policy view of packed sculpture stock.</summary>
-    internal static List<Pol.PackedSculpture> PackedSculptures(IEnumerable<Bridge.PackedItem> items, Pol.ItemFacts facts)
+    internal static List<Pol.PackedSculpture> PackedSculptures(IEnumerable<PackedItem> items, Pol.ItemFacts facts)
     {
         var output = new List<Pol.PackedSculpture>();
         foreach (var item in items)
@@ -34,7 +34,7 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>SaleSculptures over a routine projection and the packed items read; null when a room input is unknown.</summary>
-    internal static HashSet<string>? SaleSculpturesOf(CancellationToken ct, IPackedSource native, CommonPb.Identity identity, Observation.ColonyProjection facts)
+    internal static HashSet<string>? SaleSculpturesOf(CancellationToken ct, IPackedSource native, C.Identity identity, Observation.ColonyProjection facts)
     {
         var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
         var rk = facts.Rooms.TryGetValue(out var rooms);
@@ -53,7 +53,7 @@ internal static partial class BuildingRuntimePackage
     /// The review's shed_art input: the unreserved packed art count, read only while the wealth headroom is
     /// known and negative (unknown otherwise, so the need adds nothing).
     /// </summary>
-    internal static Fact<long> ReviewSaleArt(CancellationToken ct, object source, CommonPb.Identity identity, Observation.ColonyProjection facts)
+    internal static Fact<long> ReviewSaleArt(CancellationToken ct, object source, C.Identity identity, Observation.ColonyProjection facts)
     {
         var native = source as IPackedSource;
         var hk = facts.Facts.WealthBudget().TryGetValue(out var h);
@@ -100,7 +100,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             return none;
         }
         var packed = PackedSculptures(items, facts.Facts.Items);
-        var inner = new Dictionary<string, Bridge.PackedItem>(StringComparer.Ordinal);
+        var inner = new Dictionary<string, PackedItem>(StringComparer.Ordinal);
         foreach (var item in items)
         {
             inner[item.Id] = item;
@@ -143,7 +143,7 @@ public sealed partial class RoundsTradePlanner
     /// room inputs come from the routine read the install lever uses. Null (no art sale) when the source
     /// cannot read packed items or a room input is unknown.
     /// </summary>
-    internal HashSet<string>? SaleArt(CancellationToken call, CommonPb.Identity identity, GenerationSnapshot snapshot)
+    internal HashSet<string>? SaleArt(CancellationToken call, C.Identity identity, GenerationSnapshot snapshot)
     {
         if (Native is not IPackedSource native)
         {

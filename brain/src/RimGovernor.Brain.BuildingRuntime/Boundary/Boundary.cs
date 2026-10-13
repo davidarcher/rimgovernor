@@ -1,5 +1,5 @@
 using System.Text;
-using ExecutorReceipt = RimGovernor.Brain.Executor.Receipt;
+using Receipt = RimGovernor.Brain.Executor.Receipt;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -46,6 +46,9 @@ public sealed class BuildingBoundary : IBoundary
 
     public string Session => _session;
 
+    /// <summary>The clock the boundary times its inspections with.</summary>
+    public IClock Clock => _clock;
+
     /// <summary>
     /// Anchors an intent to the current world and tick with one map bounds read (at a building's cell, else the
     /// map origin). It previews nothing: native validates the intent when it applies it.
@@ -63,7 +66,7 @@ public sealed class BuildingBoundary : IBoundary
     }
 
     /// <summary>Sends the intents through one Actions/Apply call.</summary>
-    public Task<IReadOnlyList<ExecutorReceipt>> WriteIntentsAsync(IReadOnlyList<Placement> placements, CancellationToken ct) =>
+    public Task<IReadOnlyList<Receipt>> WriteIntentsAsync(IReadOnlyList<Placement> placements, CancellationToken ct) =>
         Boundary.DispatchIntentsAsync(placements, _writer, ct);
 
     public PbCommon.AttemptKey Attempt(Placement p)
@@ -130,9 +133,9 @@ public static class Boundary
     /// thread, so a missing entry proves no effect occurred and permits a fresh Pending attempt. In-flight
     /// entries remain held until their receipts arrive.
     /// </summary>
-    public static Observation Unadmitted(PbReceipts.LookupReply lookup, Placement placement, GenerationSnapshot current)
+    public static Domain.Observation Unadmitted(PbReceipts.LookupReply lookup, Placement placement, GenerationSnapshot current)
     {
-        var output = new Observation(placement.Action.Id, placement.Attempt, current, default, Effect.Unknown);
+        var output = new Domain.Observation(placement.Action.Id, placement.Attempt, current, default, Effect.Unknown);
         switch (lookup.OutcomeCase)
         {
             case PbReceipts.LookupReply.OutcomeOneofCase.InFlight:
@@ -241,7 +244,7 @@ public static class Boundary
     }
 
     /// <summary>Sends one intent-mode action through Actions/Apply: the one-element case of <see cref="DispatchIntentsAsync"/>.</summary>
-    public static async Task<ExecutorReceipt> DispatchIntentAsync(Placement p, IActionsWriter writer, CancellationToken ct) =>
+    public static async Task<Receipt> DispatchIntentAsync(Placement p, IActionsWriter writer, CancellationToken ct) =>
         (await DispatchIntentsAsync([p], writer, ct).ConfigureAwait(false))[0];
 
     /// <summary>
@@ -250,13 +253,13 @@ public static class Boundary
     /// and failed are refused, except an attempt conflict; a batch failure or a lost reply leaves every receipt
     /// unknown, which an idempotent intent may resend.
     /// </summary>
-    public static async Task<IReadOnlyList<ExecutorReceipt>> DispatchIntentsAsync(IReadOnlyList<Placement> placements, IActionsWriter writer, CancellationToken ct)
+    public static async Task<IReadOnlyList<Receipt>> DispatchIntentsAsync(IReadOnlyList<Placement> placements, IActionsWriter writer, CancellationToken ct)
     {
-        var output = new ExecutorReceipt[placements.Count];
+        var output = new Receipt[placements.Count];
         for (var i = 0; i < placements.Count; i++)
         {
             var p = placements[i];
-            output[i] = new ExecutorReceipt { Action = p.Action.Id, Attempt = p.Attempt, Snapshot = p.Snapshot, Kind = Domain.Receipt.Unknown };
+            output[i] = new Receipt { Action = p.Action.Id, Attempt = p.Attempt, Snapshot = p.Snapshot, Kind = Domain.Receipt.Unknown };
         }
         if (placements.Count == 0)
         {

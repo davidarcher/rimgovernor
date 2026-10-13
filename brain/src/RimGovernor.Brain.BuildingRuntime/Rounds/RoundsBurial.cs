@@ -51,7 +51,7 @@ public sealed class RoundsBurialPlanner
         foreach (var method in goal.Methods)
         {
             var plan = p.Journal.LoadPlan(method.Plan, call);
-            if (StoreApi.PlanOpen(plan))
+            if (StorePackage.PlanOpen(plan))
             {
                 return new RoundsBurialResult { Verdict = BuildingReasonExistingWork };
             }
@@ -68,7 +68,7 @@ public sealed class RoundsBurialPlanner
         var reading = _reviewer.ObserveRooms(call, _reviewer.Native, expected, Unknown<IReadOnlyList<ConstructionClaim>>(), BurialDefinitions);
         _reviewer.ReviewStrangers(call, state.Snapshot, reading.Projection);
         var step = TombStep(reading.Projection);
-        var stock = new PackedStock(_reviewer.Native, BoundaryApi.Identity(state.Snapshot));
+        var stock = new PackedStock(_reviewer.Native, Boundary.Identity(state.Snapshot));
         RoundsBuildingResult result;
         if (step.Kind == PolicyApi.TombDispose)
         {

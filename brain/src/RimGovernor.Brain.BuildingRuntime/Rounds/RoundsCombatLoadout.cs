@@ -23,7 +23,7 @@ public sealed partial class RoundsDefensePlanner
         {
             live[p.Id] = p;
         }
-        FrameThings(call, _native, BoundaryApi.Identity(state.Snapshot), out var things);
+        FrameThings(call, _native, Boundary.Identity(state.Snapshot), out var things);
         var defenders = new List<LoadoutDefender>();
         var beltless = false;
         foreach (var pawn in pawns)
@@ -67,7 +67,7 @@ public sealed partial class RoundsDefensePlanner
         {
             return [];
         }
-        var identity = BoundaryApi.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         IReadOnlyList<EquipCandidateWeapon> weapons = [];
         if (_native is ILoadoutWeaponSource source && threat != PolicyApi.LoadoutNone)
         {
@@ -100,7 +100,7 @@ public sealed partial class RoundsDefensePlanner
         var bounds = source.ReadMapBounds(identity, default, call).Bounds;
         try
         {
-            BoundaryApi.Context(bounds.Context, state.Snapshot);
+            Boundary.Context(bounds.Context, state.Snapshot);
         }
         catch (ControlException)
         {
@@ -113,7 +113,7 @@ public sealed partial class RoundsDefensePlanner
         var read = source.ReadEquipWeapons(identity, default, new Cell(bounds.Bounds.Width - 1, bounds.Bounds.Height - 1), call).Read;
         try
         {
-            BoundaryApi.Context(read.Context, state.Snapshot);
+            Boundary.Context(read.Context, state.Snapshot);
         }
         catch (ControlException)
         {
@@ -133,7 +133,7 @@ public sealed partial class RoundsDefensePlanner
         var observed = reply.Observed ?? throw new ControlException("loadoutBelts: observed == nil");
         try
         {
-            BoundaryApi.Context(observed.Context, state.Snapshot);
+            Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (ControlException)
         {

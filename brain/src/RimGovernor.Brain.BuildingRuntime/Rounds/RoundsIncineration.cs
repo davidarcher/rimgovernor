@@ -2,9 +2,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsIncinerationSource : IColonySource
 {
-    (EmergencyObservation Emergency, BridgeResult Result) ReadEmergency(CancellationToken ct, Common.Identity identity);
+    (EmergencyObservation Emergency, BridgeResult Result) ReadEmergency(CancellationToken ct, C.Identity identity);
 
-    (Observations.ListPawnsReply Reply, BridgeResult Result) ReadTendPawns(CancellationToken ct, Common.Identity identity, IReadOnlyList<string> pawns);
+    (O.ListPawnsReply Reply, BridgeResult Result) ReadTendPawns(CancellationToken ct, C.Identity identity, IReadOnlyList<string> pawns);
 }
 
 /// <summary>Composes MaintainIncineration: the fireproof incinerator shell, then the burn and the ash cleanup.</summary>
@@ -45,13 +45,13 @@ internal static partial class BuildingRuntimePackage
     internal static readonly string[] IncinerationDefinitions = ["Wall", "Door"];
 
     /// <summary>The colonists' pawn rows when the emergency read lists them completely; none when the roster is unknown or incomplete.</summary>
-    internal static (IReadOnlyList<Observations.PawnState> Rows, bool Complete) ColonistRows(CancellationToken call, IRoundsIncinerationSource native, ControlState state, Rounds review)
+    internal static (IReadOnlyList<O.PawnState> Rows, bool Complete) ColonistRows(CancellationToken call, IRoundsIncinerationSource native, ControlState state, Rounds review)
     {
-        var identityRef = BoundaryPackage.Identity(state.Snapshot);
+        var identityRef = Boundary.Identity(state.Snapshot);
         var (emergency, _) = native.ReadEmergency(call, identityRef);
         try
         {
-            BoundaryPackage.Context(emergency.Context, state.Snapshot);
+            Boundary.Context(emergency.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -78,7 +78,7 @@ internal static partial class BuildingRuntimePackage
 
         try
         {
-            BoundaryPackage.Context(observed.Context, state.Snapshot);
+            Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

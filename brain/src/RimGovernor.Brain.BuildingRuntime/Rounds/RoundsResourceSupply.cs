@@ -27,7 +27,7 @@ internal sealed class ResourceSupplyRow
 /// <summary>The resource supply plan with its per-resource rows, built once per review and cached.</summary>
 internal sealed class ResourceSupplyState
 {
-    public ResourceSupplyPlan Plan { get; set; }
+    public ResourceSupply Plan { get; set; }
 
     public List<Resource> Order { get; } = [];
 
@@ -215,7 +215,7 @@ public sealed partial class Rounder
         var serves = Demand.Get(state.Snapshot).Serves;
         var output = new ResourceSupplyState();
         var planner = ResourceNative is null ? null : RoundsResourcePlanner.NewRoundsResourcePlanner(this, ResourceNative);
-        var identity = BoundaryPackage.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var undispatched = new HashSet<string>();
         foreach (var method in goal.Methods)
         {

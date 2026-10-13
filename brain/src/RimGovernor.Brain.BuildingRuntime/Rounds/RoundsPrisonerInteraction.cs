@@ -108,7 +108,7 @@ public sealed class RoundsPrisonerInteractionPlanner
         return new RoundsPrisonerInteractionResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
     }
 
-    internal (RoundsPrisonerInteractionResult Result, bool Handled) StageJail(CancellationToken call, CancellationToken epoch, ControlState state, Rounds review, StandardState goal, ObservationIdentity expected)
+    internal (RoundsPrisonerInteractionResult Result, bool Handled) StageJail(CancellationToken call, CancellationToken epoch, ControlState state, Rounds review, StandardState goal, Identity expected)
     {
         if (building is null)
         {
@@ -124,7 +124,7 @@ public sealed class RoundsPrisonerInteractionPlanner
                 return (default, false);
             case JailKind.Reconcile:
             {
-                var stock = BuildingRuntimePackage.NewPackedStock(reviewer.Native, BoundaryPackage.Identity(state.Snapshot));
+                var stock = BuildingRuntimePackage.NewPackedStock(reviewer.Native, Boundary.Identity(state.Snapshot));
                 result = building.ReconcileRoom(call, epoch, state, review, goal, reading, stock, new RoomReconcile { Room = step.Room, Template = step.Template, Name = BuildingRuntimePackage.RoomName("jail", step.Room), Reason = "jail" });
                 break;
             }
@@ -183,10 +183,10 @@ public sealed class RoundsPrisonerInteractionPlanner
         {
         }
 
-        var (target, _) = native.ReadBedUseTarget(call, BoundaryPackage.Identity(state.Snapshot), bed);
+        var (target, _) = native.ReadBedUseTarget(call, Boundary.Identity(state.Snapshot), bed);
         try
         {
-            BoundaryPackage.Context(target.Context, state.Snapshot);
+            Boundary.Context(target.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

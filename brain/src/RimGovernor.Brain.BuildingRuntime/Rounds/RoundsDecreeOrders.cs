@@ -21,7 +21,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
                 {
                     try
                     {
-                        catalog = source.DefinitionCatalog(BoundaryApi.Identity(snapshot), ct);
+                        catalog = source.DefinitionCatalog(Boundary.Identity(snapshot), ct);
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {

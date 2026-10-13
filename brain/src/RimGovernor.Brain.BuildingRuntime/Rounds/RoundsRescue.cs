@@ -2,9 +2,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsRescueSource
 {
-    (EmergencyObservation Emergency, BridgeResult Result) ReadEmergency(CancellationToken ct, Common.Identity identity);
+    (EmergencyObservation Emergency, BridgeResult Result) ReadEmergency(CancellationToken ct, C.Identity identity);
 
-    (Observations.ListPawnsReply Reply, BridgeResult Result) ReadCombatPawns(CancellationToken ct, Common.Identity identity, IReadOnlyList<string> ids);
+    (O.ListPawnsReply Reply, BridgeResult Result) ReadCombatPawns(CancellationToken ct, C.Identity identity, IReadOnlyList<string> ids);
 }
 
 /// <summary>Composes CriticalMedicine's rescue: pairs a downed colonist with a capable rescuer.</summary>
@@ -61,11 +61,11 @@ public sealed class RoundsRescuePlanner
         }
 
         var started = reviewer.Clock.Now();
-        var identity = BoundaryPackage.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var (emergency, _) = native.ReadEmergency(call, identity);
         try
         {
-            BoundaryPackage.Context(emergency.Context, state.Snapshot);
+            Boundary.Context(emergency.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -87,7 +87,7 @@ public sealed class RoundsRescuePlanner
         var observed = reply.Observed ?? throw new ControlException("step: observed == null");
         try
         {
-            BoundaryPackage.Context(observed.Context, state.Snapshot);
+            Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

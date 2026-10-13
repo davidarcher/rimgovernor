@@ -142,7 +142,7 @@ internal static partial class BuildingRuntimePackage
     internal static readonly string[] TemperatureDefinitions = ["Campfire", "PassiveCooler", "Cooler"];
 
     /// <summary>Completed construction lends bounded ordinary refueling and heat-exchange time. Neither the construction receipt nor this allowance establishes safety.</summary>
-    internal static uint TemperatureOutputAllowance(CancellationToken ct, string heater, Sto.Store journal, Sto.StandardState goal, GenerationSnapshot current, Tick tick)
+    internal static uint TemperatureOutputAllowance(CancellationToken ct, string heater, StoreJournal journal, Sto.StandardState goal, GenerationSnapshot current, Tick tick)
     {
         var methods = journal.LoadOwnerMethods(ct, goal);
         uint allowance = 0;

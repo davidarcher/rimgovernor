@@ -586,7 +586,7 @@ internal static partial class BuildingRuntimePackage
 public sealed partial class Rounder
 {
     /// <summary>The owned review reading an acquisition step plans on, its census without the sources a field plan reserves.</summary>
-    internal (ObservationIdentity Expected, ColonyProjection Projection) AcquisitionReading(CancellationToken call, ControlState state, RoundsReview review)
+    internal (Identity Expected, ColonyProjection Projection) AcquisitionReading(CancellationToken call, ControlState state, RoundsReview review)
     {
         var p = Player;
         var plans = p.Journal.LoadPlans(call);

@@ -168,7 +168,7 @@ internal sealed class PlannerWave : IDisposable
         };
         if (err is not null)
         {
-            d.Level = LogLevel.Warning;
+            d.Level = TelemetryLevel.Warn;
             d.Verdict = "failed";
             d.Reason = "error";
             d.Attrs["error"] = err;

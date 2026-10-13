@@ -6,11 +6,11 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal static class ClockEvents
 {
     public static void Event(string component, string kind, string message, params (string Key, object? Value)[] attrs) =>
-        Tel.Event(LogLevel.Information, component, kind, message, attrs);
+        Tel.Event(TelemetryLevel.Info, component, kind, message, attrs);
 
     /// <summary>Logs that the controller dropped its own authority and why, as a WARN authority row.</summary>
     public static void AuthorityLost(string why, params (string Key, object? Value)[] attrs) =>
-        Tel.Event(LogLevel.Warning, "clock-scheduler", "authority", "authority lost: " + why, [("change", "lost"), ("reason", why), .. attrs]);
+        Tel.Event(TelemetryLevel.Warn, "clock-scheduler", "authority", "authority lost: " + why, [("change", "lost"), ("reason", why), .. attrs]);
 }
 
 internal static partial class BuildingRuntimePackage
@@ -204,7 +204,7 @@ public sealed partial class ClockScheduler
     }
 
     /// <summary>The store scope an observation context establishes: the load token, map and native generation.</summary>
-    internal static FactScope FactsScope(PbCommon.ObservationContext context) =>
+    internal static FactScope FactScope(PbCommon.ObservationContext context) =>
         new(context.Identity.LoadToken, context.Identity.MapId, context.NativeGeneration);
 
     /// <summary>The ticks to wait when any isolated planner failure of the step is a native refusal; zero otherwise.</summary>
@@ -289,7 +289,7 @@ public sealed partial class ClockScheduler
                 ReplanAfterFailure();
                 reviews = StepReviews(reason);
             }
-            var scope = FactsScope(loaded.Context);
+            var scope = FactScope(loaded.Context);
             window.Scope = scope;
             var id = loaded.Context.Identity;
             var tick = new Tick((long)loaded.Context.Tick);

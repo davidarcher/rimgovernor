@@ -66,7 +66,7 @@ public sealed class RoundsEquipPlanner
         foreach (var method in goal.Methods)
         {
             var plan0 = p.Journal.LoadPlan(method.Plan, call);
-            if (StoreApi.PlanOpen(plan0))
+            if (StorePackage.PlanOpen(plan0))
             {
                 return new RoundsEquipResult { Verdict = BuildingReasonExistingWork };
             }
@@ -74,11 +74,11 @@ public sealed class RoundsEquipPlanner
         var wavePlans = goal.History.Where(m => m.Episode == goal.Standard.Episode).Select(m => m.Plan).ToList();
         var refusals = RefusalLedger(call, p.Journal, wavePlans, progress => progress.Action.Equip(out var equip) ? "equip-" + equip.Pawn.Value : "");
         var started = _reviewer.Clock.Now();
-        var identity = BoundaryApi.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var (emergency, _) = _native.ReadEmergency(identity, call);
         try
         {
-            BoundaryApi.Context(emergency.Context, state.Snapshot);
+            Boundary.Context(emergency.Context, state.Snapshot);
         }
         catch (ControlException)
         {
@@ -101,7 +101,7 @@ public sealed class RoundsEquipPlanner
         }
         try
         {
-            BoundaryApi.Context(observed.Context, state.Snapshot);
+            Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (ControlException)
         {
@@ -148,7 +148,7 @@ public sealed class RoundsEquipPlanner
         var (bounds, _) = _native.ReadMapBounds(identity, new Cell(0, 0), call);
         try
         {
-            BoundaryApi.Context(bounds.Context, state.Snapshot);
+            Boundary.Context(bounds.Context, state.Snapshot);
         }
         catch (ControlException)
         {
@@ -161,7 +161,7 @@ public sealed class RoundsEquipPlanner
         var (weapons, _) = _native.ReadEquipWeapons(identity, new Cell(0, 0), new Cell(bounds.Bounds.Width - 1, bounds.Bounds.Height - 1), call);
         try
         {
-            BoundaryApi.Context(weapons.Context, state.Snapshot);
+            Boundary.Context(weapons.Context, state.Snapshot);
         }
         catch (ControlException)
         {
@@ -256,10 +256,10 @@ public sealed class RoundsEquipPlanner
         var facts = new EquipCandidatePawn
         {
             Pawn = new PawnId(row.Pawn.Id),
-            Dead = BoundaryApi.FactBool(row.HasDead ? row.Dead : null),
-            Downed = BoundaryApi.FactBool(row.HasDowned ? row.Downed : null),
-            Drafted = BoundaryApi.FactBool(row.HasDrafted ? row.Drafted : null),
-            MentalState = BoundaryApi.FactPresence(row.MentalState, row.Issues, "mental_state"),
+            Dead = Boundary.FactBool(row.HasDead ? row.Dead : null),
+            Downed = Boundary.FactBool(row.HasDowned ? row.Downed : null),
+            Drafted = Boundary.FactBool(row.HasDrafted ? row.Drafted : null),
+            MentalState = Boundary.FactPresence(row.MentalState, row.Issues, "mental_state"),
         };
         var work = ObservationApi.WorkPawnRow(row, catalog, things);
         facts.Profile = PolicyApi.BuildProfile(work);
@@ -273,12 +273,12 @@ public sealed class RoundsEquipPlanner
                 }
             }
         }
-        if (row.HasRaidArmor && !BoundaryApi.IssueField(row.Issues, "raid_armor"))
+        if (row.HasRaidArmor && !Boundary.IssueField(row.Issues, "raid_armor"))
         {
             facts.RaidArmor = Known(row.RaidArmor);
         }
         facts.Position = new Cell(row.Pawn.Position?.X ?? 0, row.Pawn.Position?.Z ?? 0);
-        if (row.Biography is { } biography && !BoundaryApi.IssueField(biography.Issues, "disabled_work_tags"))
+        if (row.Biography is { } biography && !Boundary.IssueField(biography.Issues, "disabled_work_tags"))
         {
             var capable = true;
             foreach (var tag in biography.DisabledWorkTags)
@@ -294,7 +294,7 @@ public sealed class RoundsEquipPlanner
             }
             facts.IncapableOfViolence = Known(!capable);
         }
-        if (row.Equipment is { HasArmed: true } equipment && !BoundaryApi.IssueField(equipment.Issues, "armed"))
+        if (row.Equipment is { HasArmed: true } equipment && !Boundary.IssueField(equipment.Issues, "armed"))
         {
             facts.Armed = Known(equipment.Armed);
         }

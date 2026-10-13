@@ -5,9 +5,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsGearSource
 {
-    (Observations.ColonyFactsReply Reply, BridgeResult Result) ReadColonyFacts(CancellationToken ct, Common.Identity identity, bool full);
+    (O.ColonyFactsReply Reply, BridgeResult Result) ReadColonyFacts(CancellationToken ct, C.Identity identity, bool full);
 
-    (IReadOnlyList<GearBenchRead> Benches, BridgeResult Result) ReadGearBenches(CancellationToken ct, Common.Identity identity);
+    (IReadOnlyList<GearBenchRead> Benches, BridgeResult Result) ReadGearBenches(CancellationToken ct, C.Identity identity);
 }
 
 /// <summary>Composes MaintainEquipment's rounds step: apparel policy, outfit pruning and gear replacement orders.</summary>
@@ -37,20 +37,20 @@ public readonly record struct RoundsGearResult
 
 internal interface IFrameThingsSource
 {
-    Things FrameThings(CancellationToken ct, Common.Identity identity);
+    Things FrameThings(CancellationToken ct, C.Identity identity);
 }
 
 internal static partial class BuildingRuntimePackage
 {
     internal const int MaxGearMethods = 16;
 
-    internal static (GearObservation Observation, bool Known) GearObservationFacts(Observations.ColonyFactsSnapshot observed, Tables tables, GearDefinitions defs)
+    internal static (GearObservation Observation, bool Known) GearObservationFacts(O.ColonyFactsSnapshot observed, Tables tables, GearDefinitions defs)
     {
         var fact = ObservationPackage.GearFacts(observed, tables, defs);
         return (fact.ValueOrDefault!, fact.IsKnown);
     }
 
-    internal static GearDefinitions GearDefinitionsOf(CancellationToken call, object source, Common.Identity identity) => ObservationPackage.ReadGearDefinitions(call, source, identity);
+    internal static GearDefinitions GearDefinitionsOf(CancellationToken call, object source, C.Identity identity) => ObservationPackage.ReadGearDefinitions(call, source, identity);
 
     internal static (string Definition, bool Found) GearCandidateDefinition(GearObservation census, PawnId pawn, string target)
     {
@@ -97,20 +97,17 @@ internal static partial class BuildingRuntimePackage
         return false;
     }
 
-    internal static Things FrameThingsOf(CancellationToken ct, object native, Common.Identity identity) =>
+    internal static Things FrameThingsOf(CancellationToken ct, object native, C.Identity identity) =>
         native is IFrameThingsSource source ? source.FrameThings(ct, identity) : new Things();
 
-    internal static string GearDef(Things things, Reference reference)
-    {
-        var (row, _) = things.Row(reference);
-        return row?.Thing?.DefName ?? "";
-    }
+    internal static string GearDef(Things things, C.Ref reference) =>
+        things.TryRow(reference, out var row) ? row.DefName : "";
 }
 
 public sealed partial class RoundsGearPlanner
 {
     /// <summary>Stamps the creep-joiner downsides on the census when the source can read the combat pawns; otherwise leaves it as read.</summary>
-    internal GearObservation StampCreepjoiners(CancellationToken call, Common.Identity identity, ControlState state, GearObservation census, GearDefinitions defs)
+    internal GearObservation StampCreepjoiners(CancellationToken call, C.Identity identity, ControlState state, GearObservation census, GearDefinitions defs)
     {
         if (Native is not IRoundsEquipSource source)
         {
@@ -127,7 +124,7 @@ public sealed partial class RoundsGearPlanner
 
         try
         {
-            BoundaryPackage.Context(pawns.Context, state.Snapshot);
+            Boundary.Context(pawns.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -223,7 +220,7 @@ public sealed partial class RoundsGearPlanner
         }
 
         var started = Reviewer.Clock.Now();
-        var identity = BoundaryPackage.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var (reply, _) = Reviewer.ColonyFacts(call, Native, identity, true);
         var observed = reply.Observed;
         if (observed is null)
@@ -233,7 +230,7 @@ public sealed partial class RoundsGearPlanner
 
         try
         {
-            BoundaryPackage.Context(observed.Context, state.Snapshot);
+            Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

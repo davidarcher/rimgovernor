@@ -345,7 +345,7 @@ internal static partial class BuildingRuntimePackage
     {
         foreach (var c in changes)
         {
-            TelemetryPackage.Decide(CancellationToken.None, FoodCreditDecision(c));
+            Tel.Decide(CancellationToken.None, FoodCreditDecision(c));
         }
     }
 

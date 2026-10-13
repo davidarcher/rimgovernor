@@ -13,7 +13,7 @@ internal sealed class TradeAcquisitionMemory
 /// <summary>The native read the acquisition options need beyond the definition catalog.</summary>
 public interface ITradeAcquisitionSource : Observation.IDefinitionSource
 {
-    (ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result) ReadTradeAcquisition(CancellationToken ct, CommonPb.Identity identity, OperationsPb.FormCaravanIntent? intent);
+    (ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result) ReadTradeAcquisition(CancellationToken ct, C.Identity identity, OperationsPb.FormCaravanIntent? intent);
 }
 
 public sealed partial class Rounder
@@ -115,7 +115,7 @@ public sealed partial class Rounder
         var unmet = demands.Any(d => d.Gap > 0);
         if (Native is ITradeAcquisitionSource source && unmet)
         {
-            var identity = BoundaryApi.Identity(world);
+            var identity = Boundary.Identity(world);
             ObservationsPb.TradeAcquisition? facts = null;
             try
             {

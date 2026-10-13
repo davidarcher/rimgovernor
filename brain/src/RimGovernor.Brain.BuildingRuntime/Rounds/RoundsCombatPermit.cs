@@ -30,7 +30,7 @@ public sealed partial class RoundsDefensePlanner
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>Splits the permit and psycast calls from the other orders of a combat decision.</summary>
-    internal static (List<CombatOrder> Rest, List<CombatOrder> Calls) SplitPermitCalls(IReadOnlyList<CombatOrder> orders)
+    internal static (List<CombatOrder> Others, List<CombatOrder> Calls) SplitPermitCalls(IReadOnlyList<CombatOrder> orders)
     {
         var rest = new List<CombatOrder>();
         var calls = new List<CombatOrder>();

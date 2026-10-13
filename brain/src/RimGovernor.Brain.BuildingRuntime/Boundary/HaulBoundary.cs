@@ -1,4 +1,4 @@
-using ExecutorReceipt = RimGovernor.Brain.Executor.Receipt;
+using Receipt = RimGovernor.Brain.Executor.Receipt;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -52,5 +52,5 @@ public sealed class HaulBoundary : IHaulBoundary
     }
 
     /// <summary>Sends the intent through Actions/Apply.</summary>
-    public Task<ExecutorReceipt> WriteHaulAsync(Placement p, CancellationToken ct) => Boundary.DispatchIntentAsync(p, _writer, ct);
+    public Task<Receipt> WriteHaulAsync(Placement p, CancellationToken ct) => Boundary.DispatchIntentAsync(p, _writer, ct);
 }

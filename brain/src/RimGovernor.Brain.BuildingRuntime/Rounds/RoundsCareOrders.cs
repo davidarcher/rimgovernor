@@ -4,12 +4,12 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed class RoundsCareBillDeclarer
 {
     private readonly Rounder _reviewer;
-    private readonly IBillPlannerNative _native;
+    private readonly object _native;
     private readonly bool _surgery;
     private readonly bool _baby;
     private readonly bool _mech;
 
-    public RoundsCareBillDeclarer(Rounder reviewer, IBillPlannerNative native, bool surgery, bool baby, bool mech)
+    public RoundsCareBillDeclarer(Rounder reviewer, object native, bool surgery, bool baby, bool mech)
     {
         _reviewer = reviewer;
         _native = native;
@@ -85,7 +85,7 @@ public sealed class RoundsCareBillDeclarer
             MechGestation? gestation;
             try
             {
-                gestation = MechGestation(_native, BoundaryApi.Identity(snapshot), projection, ct);
+                gestation = MechGestation(_native, Boundary.Identity(snapshot), projection, ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

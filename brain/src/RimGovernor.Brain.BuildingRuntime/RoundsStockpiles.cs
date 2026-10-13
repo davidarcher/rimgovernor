@@ -47,7 +47,7 @@ internal sealed class StockpileMemory
 /// <summary>The loose-weapon read the weapons role counts from.</summary>
 public interface IWeaponCensus
 {
-    (Bridge.EquipRead Read, BridgeResult Result) ReadEquipWeapons(CancellationToken ct, CommonPb.Identity identity, Cell from, Cell to);
+    (EquipRead Read, BridgeResult Result) ReadEquipWeapons(CancellationToken ct, C.Identity identity, Cell from, Cell to);
 }
 
 public sealed class RoundsStockpileResult
@@ -164,7 +164,7 @@ public sealed partial class Rounder
         projection.Facts.Stockpiles = Known(review);
         foreach (var e in review.Edits)
         {
-            TelemetryPackage.Decide(ct, StockpileEditDecision("proposed", "", e.Zone, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["detail"] = e.Explanation }));
+            Tel.Decide(ct, StockpileEditDecision("proposed", "", e.Zone, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["detail"] = e.Explanation }));
         }
     }
 
@@ -293,16 +293,16 @@ public sealed partial class Rounder
         {
             return 0;
         }
-        var (read, _) = source.ReadEquipWeapons(ct, BoundaryApi.Identity(snapshot), default, new Cell(bounds.Width - 1, bounds.Height - 1));
+        var (read, _) = source.ReadEquipWeapons(ct, Boundary.Identity(snapshot), default, new Cell(bounds.Width - 1, bounds.Height - 1));
         try
         {
-            BoundaryApi.Context(read.Context, snapshot);
+            Boundary.Context(read.Context, snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             throw new ControlException("looseWeapons: err != nil", e);
         }
-        var catalog = PawnCatalog(ct, Native, BoundaryApi.Identity(snapshot));
+        var catalog = PawnCatalog(ct, Native, Boundary.Identity(snapshot));
         var count = 0;
         foreach (var w in read.Targets)
         {
@@ -320,13 +320,13 @@ public sealed partial class Rounder
     }
 
     /// <summary>The bench census (bills and recipes per bench).</summary>
-    internal IReadOnlyList<Bridge.GearBenchRead> BenchCensus(CancellationToken ct, GenerationSnapshot snapshot, Observation.Identity expected)
+    internal IReadOnlyList<GearBenchRead> BenchCensus(CancellationToken ct, GenerationSnapshot snapshot, Observation.Identity expected)
     {
         if (Native is not IRoundsWorkBenchSource native)
         {
             throw new ControlException("benchCensus: native lacks the bench census");
         }
-        var (rows, _) = BenchSource(native, expected, false).ReadGearBenches(ct, BoundaryApi.Identity(snapshot));
+        var (rows, _) = BenchSource(native, expected, false).ReadGearBenches(ct, Boundary.Identity(snapshot));
         return rows;
     }
 
@@ -413,7 +413,7 @@ public sealed partial class RoundsStockpilePlanner
             return (new RoundsStockpileResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "stockpile_room_built") }, false);
         }
         var result = _building.ReconcileRoom(call, epoch, state, review, goal, new Observation.RoundsReading { ColonyReading = read.ColonyReading }, null, new RoomReconcile { RingOnly = true, Room = room, Name = PlannedRoomMethod(room).Value, Reason = "storage-planner room" });
-        TelemetryPackage.Decide(call, StockpileEditDecision("proposed", result.Verdict.ToString() ?? "", Wire.Name(module), new Dictionary<string, object?> { ["kind"] = "room" }));
+        Tel.Decide(call, StockpileEditDecision("proposed", result.Verdict.ToString() ?? "", Wire.Name(module), new Dictionary<string, object?> { ["kind"] = "room" }));
         return (new RoundsStockpileResult { Verdict = result.Verdict }, result.Verdict == BuildingReasonAdmitted);
     }
 
@@ -519,7 +519,7 @@ public sealed partial class RoundsStockpilePlanner
         catch (Sto.NotFoundException)
         {
         }
-        var identity = BoundaryApi.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var actions = new List<DomainAction>();
         var creates = new List<Pol.StockpileEdit>();
         foreach (var e in proposal.Edits)
@@ -540,7 +540,7 @@ public sealed partial class RoundsStockpilePlanner
             }
             catch (Exception err) when (err is not OperationCanceledException)
             {
-                TelemetryPackage.Decide(call, StockpileEditDecision("refused", "action_invalid", e.Zone, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["error"] = err }));
+                Tel.Decide(call, StockpileEditDecision("refused", "action_invalid", e.Zone, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["error"] = err }));
                 continue;
             }
             actions.Add(action);
@@ -568,7 +568,7 @@ public sealed partial class RoundsStockpilePlanner
             {
                 continue;
             }
-            TelemetryPackage.Decide(call, StockpileEditDecision("admitted", "", e.Zone, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["role"] = e.Role, ["plan"] = id.ToString(), ["detail"] = e.Explanation }));
+            Tel.Decide(call, StockpileEditDecision("admitted", "", e.Zone, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["role"] = e.Role, ["plan"] = id.ToString(), ["detail"] = e.Explanation }));
         }
         return new RoundsStockpileResult { Verdict = BuildingReasonAdmitted, Plan = id, Edits = actions.Count };
     }

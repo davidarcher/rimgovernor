@@ -43,10 +43,10 @@ public sealed partial class Rounder
             return [];
         }
 
-        return source.DefinitionCatalog(call, BoundaryPackage.Identity(snapshot)).SowableCrops();
+        return source.DefinitionCatalog(call, Boundary.Identity(snapshot)).SowableCrops();
     }
 
-    internal ResourceFieldPlanner NewResourceFieldPlanner(CancellationToken call, ControlState state, Rounds review, ObservationIdentity expected, ColonyProjection projection)
+    internal ResourceFieldPlanner NewResourceFieldPlanner(CancellationToken call, ControlState state, Rounds review, Identity expected, ColonyProjection projection)
     {
         var (_, choices) = BuildingRuntimePackage.FieldRequest(projection, 0);
         return new ResourceFieldPlanner(

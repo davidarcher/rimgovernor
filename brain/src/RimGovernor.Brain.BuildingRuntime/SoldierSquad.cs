@@ -6,7 +6,7 @@ internal static partial class BuildingRuntimePackage
     /// Keeps the persistent soldier squad current: sticky members, gaps filled with the best fighters, saved only
     /// on change. Unknown pawn facts keep the stored squad. Returns the squad in force.
     /// </summary>
-    internal static Pol.SoldierSquad ReviewSoldierSquad(CancellationToken ct, Store.Store journal, GenerationSnapshot snapshot, IReadOnlyList<Pol.WorkPawn> pawns)
+    internal static Pol.SoldierSquad ReviewSoldierSquad(CancellationToken ct, StoreJournal journal, GenerationSnapshot snapshot, IReadOnlyList<Pol.WorkPawn> pawns)
     {
         var world = Player.PlayerWorld(snapshot);
         var previous = journal.LoadSoldierSquad(ct, world);

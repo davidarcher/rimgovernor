@@ -129,7 +129,6 @@ internal static partial class BuildingRuntimePackage
 
 public sealed partial class Rounder
 {
-    internal Dictionary<string, RoomStall>? RoomStalls;
 
     /// <summary>
     /// Tracks the room's unfinished sites and reports a stall once they have stood RoomBuildStallTicks, again
@@ -179,11 +178,11 @@ public sealed partial class Rounder
             .Order(StringComparer.Ordinal)
             .Take(8)
             .ToList();
-        TelemetryPackage.Decide(new Decision
+        Tel.Decide(new Decision
         {
             Kind = "build_stalled",
             Component = "building-planner",
-            Level = Telemetry.Level.Warn,
+            Level = TelemetryLevel.Warn,
             Verdict = "waiting",
             Reason = StallReason(reasons, obstructions),
             Target = name,

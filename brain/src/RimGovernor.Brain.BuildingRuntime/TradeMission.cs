@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface ITradeMissionPackSource
 {
-    (ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result) ReadTradeAcquisition(CancellationToken ct, CommonPb.Identity identity, OperationsPb.FormCaravanIntent? intent);
+    (ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result) ReadTradeAcquisition(CancellationToken ct, C.Identity identity, OperationsPb.FormCaravanIntent? intent);
 }
 
 internal static partial class BuildingRuntimePackage
@@ -32,7 +32,7 @@ public static partial class TradeMissions
     /// prepared.
     /// </summary>
     public static (TradeMission Mission, Pol.TradeAcquisitionOption Option) PrepareTradeMission(
-        CancellationToken ct, ITradeMissionPackSource source, GenerationSnapshot world, int homeTile, Bridge.SettlementFact settlement, Pol.RoundsFacts facts, Pol.RoundsPolicy thresholds, long silverBudget, IReadOnlyList<CargoItem> demand, IReadOnlyList<Pol.PawnId>? claimed)
+        CancellationToken ct, ITradeMissionPackSource source, GenerationSnapshot world, int homeTile, SettlementFact settlement, Pol.RoundsFacts facts, Pol.RoundsPolicy thresholds, long silverBudget, IReadOnlyList<CargoItem> demand, IReadOnlyList<Pol.PawnId>? claimed)
     {
         if (!world.IsValid || homeTile < 0 || settlement.Tile == homeTile || settlement.Player || settlement.TraderKind.Length == 0)
         {
@@ -81,7 +81,7 @@ public static partial class TradeMissions
             {
                 pack.Cargo.Add(new OperationsPb.DefCount { DefName = item.Definition, Count = (int)item.Count });
             }
-            var (read, _) = source.ReadTradeAcquisition(ct, BoundaryApi.Identity(world), pack);
+            var (read, _) = source.ReadTradeAcquisition(ct, Boundary.Identity(world), pack);
             return read?.Pack ?? throw new DomainException("pack_unknown");
         }
 

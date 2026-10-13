@@ -28,11 +28,11 @@ public sealed partial class RoundsPopulationJoinerPlanner
             return (default, false);
         }
 
-        var identity = BoundaryPackage.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var (emergency, _) = native.ReadEmergency(call, identity);
         try
         {
-            BoundaryPackage.Context(emergency.Context, state.Snapshot);
+            Boundary.Context(emergency.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -74,7 +74,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
             throw new ControlException("admitRefugeeTend: tend read incomplete");
         }
 
-        BoundaryPackage.Context(observed.Context, state.Snapshot);
+        Boundary.Context(observed.Context, state.Snapshot);
         var doctors = new List<TendDoctorFacts>();
         var patients = new List<TendPatientFacts>();
         foreach (var row in observed.Pawns)

@@ -27,7 +27,7 @@ internal static partial class BuildingRuntimePackage
             .Select(w => new EquipCandidateWeapon { Thing = w.Thing, Definition = w.Definition, Cell = w.Cell, BiocodedTo = w.BiocodedTo, Biocoded = w.Biocoded })
             .ToList();
 
-    internal static CleanCandidateFacts CleanCandidateFactsOf(PawnId pawn, Observations.PawnState row)
+    internal static CleanCandidateFacts CleanCandidateFactsOf(PawnId pawn, O.PawnState row)
     {
         var facts = new CleanCandidateFacts
         {
@@ -55,7 +55,7 @@ internal static partial class BuildingRuntimePackage
         return facts;
     }
 
-    internal static Fact<bool> CleaningWorkEnabled(IReadOnlyList<Observations.WorkSetting> work)
+    internal static Fact<bool> CleaningWorkEnabled(IReadOnlyList<O.WorkSetting> work)
     {
         foreach (var w in work)
         {
@@ -111,7 +111,7 @@ public sealed partial class RoundsIncinerationPlanner
         return BurnRoom(call, epoch, state, goal, arbiter, room, stored, rows);
     }
 
-    internal (RoundsIncinerationResult Result, bool Handled) CleanAsh(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, StepArbiter arbiter, IReadOnlyList<UpkeepFilth> ash, IReadOnlyList<Observations.PawnState> rows)
+    internal (RoundsIncinerationResult Result, bool Handled) CleanAsh(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, StepArbiter arbiter, IReadOnlyList<UpkeepFilth> ash, IReadOnlyList<O.PawnState> rows)
     {
         var pawns = new List<CleanCandidateFacts>();
         foreach (var row in rows)
@@ -148,9 +148,9 @@ public sealed partial class RoundsIncinerationPlanner
         return CommitBurnPlan(call, epoch, state, goal, NextMethodId(prefix, HistoryMethodIds(goal.History, goal.Standard.Episode)), id, [action], []);
     }
 
-    internal (RoundsIncinerationResult Result, bool Handled) BurnRoom(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, StepArbiter arbiter, PlannedRoom room, int stored, IReadOnlyList<Observations.PawnState> rows)
+    internal (RoundsIncinerationResult Result, bool Handled) BurnRoom(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, StepArbiter arbiter, PlannedRoom room, int stored, IReadOnlyList<O.PawnState> rows)
     {
-        var identity = BoundaryPackage.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var things = FrameThingsOf(call, Native, identity);
         var catalog = PawnCatalog(call, Native, identity);
         var candidates = new List<BurnCandidate>();
@@ -172,7 +172,7 @@ public sealed partial class RoundsIncinerationPlanner
             var (bounds, _) = source.ReadMapBounds(call, identity, default);
             try
             {
-                BoundaryPackage.Context(bounds.Context, state.Snapshot);
+                Boundary.Context(bounds.Context, state.Snapshot);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -187,7 +187,7 @@ public sealed partial class RoundsIncinerationPlanner
             var (read, _) = source.ReadEquipWeapons(call, identity, default, new Cell(bounds.Bounds.Width - 1, bounds.Bounds.Height - 1));
             try
             {
-                BoundaryPackage.Context(read.Context, state.Snapshot);
+                Boundary.Context(read.Context, state.Snapshot);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {

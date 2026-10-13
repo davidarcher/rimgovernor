@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The batched preview a native source may offer: one call for every placement of a wave instead of one hop per cell.</summary>
 internal interface IShellBatchPreviewer
 {
-    (IReadOnlyList<Bridge.BuildingPreview> Previews, BridgeResult Result) PreviewBuildings(CancellationToken ct, IReadOnlyList<DomainAction> actions, GenerationSnapshot snapshot);
+    (IReadOnlyList<BuildingPreview> Previews, BridgeResult Result) PreviewBuildings(CancellationToken ct, IReadOnlyList<DomainAction> actions, GenerationSnapshot snapshot);
 }
 
 public sealed partial class RoundsBuildingPlanner
@@ -74,7 +74,7 @@ internal static partial class BuildingRuntimePackage
         {
             var v = p.View;
             var known = v.Effect.TryGetValue(out var effect);
-            if (v.Stage != Stage.Completed || v.Unresolved || !known || effect != Effect.Completed || !BoundaryApi.World(v.Snapshot, current)
+            if (v.Stage != Stage.Completed || v.Unresolved || !known || effect != Effect.Completed || !Boundary.World(v.Snapshot, current)
                 || v.Snapshot.Plan != plan.Spec.Id || v.Snapshot.Revision != plan.Spec.Revision || v.Tick.Value > tick.Value)
             {
                 return 0;

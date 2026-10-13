@@ -55,7 +55,7 @@ public sealed partial class RoundsResourcePlanner
     internal const int TunnelMaxCorridor = 16;
 
     /// <summary>Digs a corridor to ore the surface sources cannot reach; dispatched when an excavation method was driven.</summary>
-    internal (RoundsResourceResult Result, bool Dispatched) TunnelToBuriedOre(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, Tick reviewTick, Common.Identity identity, Resource resource)
+    internal (RoundsResourceResult Result, bool Dispatched) TunnelToBuriedOre(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, Tick reviewTick, C.Identity identity, Resource resource)
     {
         if (native is not IRoundsExcavationSource source)
         {
@@ -66,7 +66,7 @@ public sealed partial class RoundsResourcePlanner
         var dig = new RoundsBuildingPlanner { Reviewer = reviewer, Concern = ConcernId.MaintainResource, Excavation = source };
         var review = p.Journal.LoadRounds(call);
         var (last, _) = native.Identity(call);
-        ObservationIdentity expected;
+        Identity expected;
         try
         {
             expected = ObservationPackage.DecodeIdentity(last);
@@ -117,7 +117,7 @@ public sealed partial class RoundsResourcePlanner
             reviewer.Tunnels.Forget(resource);
         }
 
-        IReadOnlyList<ResourceSourceRow> rows;
+        IReadOnlyList<ResourceSource> rows;
         try
         {
             (rows, _, _) = native.ReadResourceSources(call, identity, resource.Value);

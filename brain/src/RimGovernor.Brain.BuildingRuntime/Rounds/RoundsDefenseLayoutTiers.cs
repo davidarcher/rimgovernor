@@ -70,7 +70,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             journal.SaveDefenseLayout(record, call);
             return;
         }
-        var identity = BoundaryApi.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var (killbox, region, home, ok) = DefenseKillbox(projection);
         if (!ok)
         {
@@ -273,7 +273,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return null;
         }
-        var site = DefenseSite(call, BoundaryApi.Identity(state.Snapshot), projection, DefenseCensusRegion(record, projection.Bounds, baseCell));
+        var site = DefenseSite(call, Boundary.Identity(state.Snapshot), projection, DefenseCensusRegion(record, projection.Bounds, baseCell));
         foreach (var cell in site.Cells)
         {
             census.Fogged[cell.Cell] = cell.Fogged;

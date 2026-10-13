@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native read of the food-reserve supplies (Go's anonymous interface on the planner source).</summary>
 internal interface IFoodReserveSupplyReader
 {
-    (SupplyRead Read, BridgeResult Result) ReadFoodReserveSupplies(CancellationToken ct, Common.Identity identity, bool forbid);
+    (SupplyRead Read, BridgeResult Result) ReadFoodReserveSupplies(CancellationToken ct, C.Identity identity, bool forbid);
 }
 
 public sealed partial class Rounder
@@ -62,7 +62,7 @@ internal static partial class BuildingRuntimePackage
 public sealed partial class RoundsFoodStorageUpkeepPlanner
 {
     /// <summary>Holds or releases the reserved food supplies: one plan of supply-allow actions, at most eight, committed under the reviewed goal.</summary>
-    internal RoundsFoodStorageUpkeepResult AdmitReserve(CancellationToken ct, CancellationToken epoch, StandardState goal, Observations.ColonyFactsSnapshot observed, FoodReserveReview reserve)
+    internal RoundsFoodStorageUpkeepResult AdmitReserve(CancellationToken ct, CancellationToken epoch, StandardState goal, O.ColonyFactsSnapshot observed, FoodReserveReview reserve)
     {
         var p = Reviewer.Player;
         var state = p.Session.State();
@@ -93,10 +93,10 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
                 continue;
             }
 
-            var (read, _) = native.ReadFoodReserveSupplies(ct, BoundaryPackage.Identity(state.Snapshot), forbid);
+            var (read, _) = native.ReadFoodReserveSupplies(ct, Boundary.Identity(state.Snapshot), forbid);
             try
             {
-                BoundaryPackage.Context(read.Context, state.Snapshot);
+                Boundary.Context(read.Context, state.Snapshot);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {

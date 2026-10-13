@@ -1,3 +1,5 @@
+using Receipt = RimGovernor.Brain.Executor.Receipt;
+
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
@@ -7,81 +9,89 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public interface ITradeNative
 {
-    (Bridge.TradeSessionRead Read, BridgeResult Result) ReadTradeSession(CancellationToken ct, CommonPb.Identity identity);
+    (TradeSessionRead Read, BridgeResult Result) ReadTradeSession(CancellationToken ct, C.Identity identity);
 }
 
 public interface ICommsTradeRequestNative
 {
-    (ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result) ReadTradeAcquisition(CancellationToken ct, CommonPb.Identity identity, OperationsPb.FormCaravanIntent? intent);
+    (ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result) ReadTradeAcquisition(CancellationToken ct, C.Identity identity, OperationsPb.FormCaravanIntent? intent);
 
-    (TradersRead Read, BridgeResult Result) ListTraders(CancellationToken ct, CommonPb.Identity identity);
+    (TradersRead Read, BridgeResult Result) ListTraders(CancellationToken ct, C.Identity identity);
 }
 
 public sealed class TradeCapabilities
 {
     public ITradeNative? Native { get; init; }
 
-    public Boundary.IActionsWriter? Writer { get; init; }
+    public IActionsWriter? Writer { get; init; }
 
     public ICommsTradeRequestNative? Requests { get; init; }
 }
 
 /// <summary>
-/// The building boundary extended with the trade inspections and writes. Go embedded the boundary pointer, so
-/// every promoted method is the wrapped <see cref="Place"/>'s; the executor-facing members promoted from it
-/// are awaiting the boundary package port.
+/// The trade inspections and writes of the executor. Go embedded the building boundary pointer and used only its
+/// clock and its intent dispatch, so this takes the clock directly. The natives it reads are the planner's
+/// synchronous census reads, so the inspections complete inline and the tasks they return are already finished.
 /// </summary>
-internal sealed class TradeBoundary(Boundary.Boundary boundary, TradeCapabilities trade) : Executor.ITradeBoundary, Executor.ICommsTradeRequestBoundary
+internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITradeBoundary, ICommsTradeBoundary
 {
-    public Boundary.Boundary Place { get; } = boundary;
+    private IClock Clock { get; } = clock;
 
     private TradeCapabilities Trade { get; } = trade;
+
+    public Task<TradeInspection> InspectTradeAsync(Target target, CancellationToken ct) =>
+        Task.FromResult(InspectTrade(ct, target));
+
+    public Task<Receipt> WriteTradeAsync(Placement placement, CancellationToken ct) =>
+        Boundary.DispatchIntentAsync(placement, Trade.Writer!, ct);
+
+    public Task<CommsTradeInspection> InspectCommsTradeRequestAsync(Target target, CancellationToken ct) =>
+        Task.FromResult(InspectCommsTradeRequest(ct, target));
+
+    public Task<Receipt> WriteCommsTradeRequestAsync(Placement placement, CancellationToken ct) =>
+        Boundary.DispatchIntentAsync(placement, Trade.Writer!, ct);
 
     /// <summary>
     /// Anchors the dispatch to a fresh native read. It does not preview: native judges the intent when it
     /// applies, and a refusal there is the intent's terminal receipt, where a refused preview would only hold it.
     /// </summary>
-    public Executor.TradeInspection InspectTrade(CancellationToken ct, Executor.Target target)
+    public TradeInspection InspectTrade(CancellationToken ct, Target target)
     {
-        var output = new Executor.TradeInspection { StartedAt = Place.Clock.Now() };
+        var output = new TradeInspection { StartedAt = Clock.Now() };
         try
         {
-            Bridge.Intents.IntentAction("inspect", target.Action);
+            BridgeApi.IntentAction("inspect", target.Action);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            throw new Executor.EvidenceException(e);
+            throw new EvidenceException(e);
         }
-        var (session, _) = Trade.Native!.ReadTradeSession(ct, BoundaryApi.Identity(target.Snapshot));
-        var observed = BoundaryApi.Context(session.Context, target.Snapshot);
+        var (session, _) = Trade.Native!.ReadTradeSession(ct, Boundary.Identity(target.Snapshot));
+        var observed = Boundary.Context(session.Context, target.Snapshot);
         output = output with
         {
-            Facts = new Pol.TradeAdmissionFacts { Snapshot = observed, PreviewTick = new Tick(session.Context?.Tick ?? 0) },
-            ObservedAt = Place.Clock.Now(),
+            Facts = new TradeAdmissionFacts { Snapshot = observed, PreviewTick = new Tick(session.Context?.Tick ?? 0) },
+            ObservedAt = Clock.Now(),
         };
         ct.ThrowIfCancellationRequested();
         return output;
     }
 
-    /// <summary>Sends the intent through Actions/Apply.</summary>
-    public Executor.Receipt WriteTrade(CancellationToken ct, Executor.Placement p) =>
-        Place.DispatchIntent(ct, p, Trade.Writer!);
-
-    public Executor.CommsTradeInspection InspectCommsTradeRequest(CancellationToken ct, Executor.Target target)
+    public CommsTradeInspection InspectCommsTradeRequest(CancellationToken ct, Target target)
     {
-        var output = new Executor.CommsTradeInspection { StartedAt = Place.Clock.Now() };
+        var output = new CommsTradeInspection { StartedAt = Clock.Now() };
         if (target.Action.CommsTradeRequest is not { } request)
         {
-            throw new Executor.EvidenceException();
+            throw new EvidenceException();
         }
-        var (facts, _) = Trade.Requests!.ReadTradeAcquisition(ct, BoundaryApi.Identity(target.Snapshot), null);
+        var (facts, _) = Trade.Requests!.ReadTradeAcquisition(ct, Boundary.Identity(target.Snapshot), null);
         if (facts is null || facts.Context is null)
         {
-            throw new Executor.EvidenceException();
+            throw new EvidenceException();
         }
         output = output with
         {
-            Snapshot = BoundaryApi.Context(facts.Context, target.Snapshot),
+            Snapshot = Boundary.Context(facts.Context, target.Snapshot),
             Tick = new Tick(facts.Context.Tick),
         };
         var kind = request.Kind == TradeRequestKind.Orbital ? CommonPb.TradeRequestKind.Orbital : CommonPb.TradeRequestKind.Caravan;
@@ -112,18 +122,18 @@ internal sealed class TradeBoundary(Boundary.Boundary boundary, TradeCapabilitie
                 output = output with { MatchingArrival = true };
             }
         }
-        var (sellers, _) = Trade.Requests.ListTraders(ct, BoundaryApi.Identity(target.Snapshot));
+        var (sellers, _) = Trade.Requests.ListTraders(ct, Boundary.Identity(target.Snapshot));
         try
         {
-            BoundaryApi.Context(sellers.Context, target.Snapshot);
+            Boundary.Context(sellers.Context, target.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            throw new Executor.EvidenceException(e);
+            throw new EvidenceException(e);
         }
         if ((sellers.Context?.Tick ?? 0) < output.Tick.Value)
         {
-            throw new Executor.EvidenceException();
+            throw new EvidenceException();
         }
         output = output with { Tick = new Tick(sellers.Context!.Tick) };
         foreach (var seller in sellers.Traders)
@@ -133,9 +143,6 @@ internal sealed class TradeBoundary(Boundary.Boundary boundary, TradeCapabilitie
                 output = output with { MatchingSeller = true };
             }
         }
-        return output with { ObservedAt = Place.Clock.Now() };
+        return output with { ObservedAt = Clock.Now() };
     }
-
-    public Executor.Receipt WriteCommsTradeRequest(CancellationToken ct, Executor.Placement placement) =>
-        Place.DispatchIntent(ct, placement, Trade.Writer!);
 }

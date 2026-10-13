@@ -59,7 +59,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         // The assignment's observation is taken at the root plan's scope, so only the world (colony, load, map) is compared, not the plan.
         var v = p.View;
         var known = v.Effect.TryGetValue(out var effect);
-        if (v.Stage != Stage.Completed || v.Unresolved || !known || effect != Effect.Completed || !BoundaryApi.World(v.Snapshot, current) || tick.Value < v.Tick.Value || tick.Value - v.Tick.Value >= SleepingObservationBudget)
+        if (v.Stage != Stage.Completed || v.Unresolved || !known || effect != Effect.Completed || !Boundary.World(v.Snapshot, current) || tick.Value < v.Tick.Value || tick.Value - v.Tick.Value >= SleepingObservationBudget)
         {
             return 0;
         }
@@ -132,7 +132,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         var reading = Reviewer.ObserveRooms(call, (Observation.IRoundsSource)Native, expected, Unknown<IReadOnlyList<Pol.ConstructionClaim>>(), [.. definitions]);
         var facts = reading.Projection;
         // One packed read per pass, shared by every owner of stored pieces.
-        var stock = PackedStock.Create(Native, BoundaryApi.Identity(state.Snapshot));
+        var stock = PackedStock.Create(Native, Boundary.Identity(state.Snapshot));
         var request = SleepingRequest(facts, review);
         var choice = SelectSleepingMethod(request);
         // swapping flags a bedroom swap: native evicts the bed's owner.

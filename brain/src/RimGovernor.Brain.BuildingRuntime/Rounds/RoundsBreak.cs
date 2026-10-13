@@ -26,10 +26,10 @@ public sealed partial class RoundsDefensePlanner
                 continue;
             }
             var plan = p.Journal.LoadPlan(method.Plan, call);
-            var combat = _native.ReadCombat(BoundaryApi.Identity(state.Snapshot), call);
+            var combat = _native.ReadCombat(Boundary.Identity(state.Snapshot), call);
             try
             {
-                BoundaryApi.Context(combat.Context, state.Snapshot);
+                Boundary.Context(combat.Context, state.Snapshot);
             }
             catch (ControlException)
             {
@@ -109,8 +109,8 @@ public sealed partial class RoundsDefensePlanner
             var confirmed = results is not null;
             if (results is null)
             {
-                var fresh = _native.ReadCombat(BoundaryApi.Identity(state.Snapshot), call);
-                BoundaryApi.Context(fresh.Context, state.Snapshot);
+                var fresh = _native.ReadCombat(Boundary.Identity(state.Snapshot), call);
+                Boundary.Context(fresh.Context, state.Snapshot);
                 confirmed = true;
                 foreach (var order in orders)
                 {
@@ -220,7 +220,7 @@ public sealed partial class RoundsDefensePlanner
         targets.Sort((a, b) => string.CompareOrdinal(a.Id.Value, b.Id.Value));
         var needed = PlannedDrafts(call, _reviewer.Player.Journal);
         var responders = new List<BreakResponder>();
-        var arms = ReadArmament(call, _native, BoundaryApi.Identity(state.Snapshot));
+        var arms = ReadArmament(call, _native, Boundary.Identity(state.Snapshot));
         foreach (var p0 in f.Colonists)
         {
             var row = rows[p0.Id.Value];

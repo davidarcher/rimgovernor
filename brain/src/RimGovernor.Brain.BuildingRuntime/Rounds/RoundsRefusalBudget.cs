@@ -10,7 +10,7 @@ internal static partial class BuildingRuntimePackage
     internal static IReadOnlyList<PlanId> IncidentPlans(IReadOnlyList<IncidentMethod> methods, string prefix) =>
         methods.Where(m => m.Method.Value.StartsWith(prefix, StringComparison.Ordinal)).Select(m => m.Plan).ToList();
 
-    internal static RefusalBudget RefusalLedger(CancellationToken ct, Store journal, IReadOnlyList<PlanId> plans, Func<Progress, string> subjectOf)
+    internal static RefusalBudget RefusalLedger(CancellationToken ct, StoreJournal journal, IReadOnlyList<PlanId> plans, Func<Progress, string> subjectOf)
     {
         var budget = default(RefusalBudget);
         foreach (var id in plans)
@@ -60,7 +60,7 @@ internal static partial class BuildingRuntimePackage
 
     internal static string ReasonToken(string reason) => string.Join('_', reason.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
-    internal static (Verdict Verdict, bool Admitted) AdmitSubject(CancellationToken ct, Store journal, string subject, IReadOnlyList<PlanId> plans, GenerationSnapshot world)
+    internal static (Verdict Verdict, bool Admitted) AdmitSubject(CancellationToken ct, StoreJournal journal, string subject, IReadOnlyList<PlanId> plans, GenerationSnapshot world)
     {
         subject = subject.EndsWith('-') ? subject[..^1] : subject;
         var budget = RefusalLedger(ct, journal, plans, _ => subject);
@@ -80,7 +80,7 @@ internal static partial class BuildingRuntimePackage
         }
     }
 
-    internal static (MethodId Method, Verdict Verdict, bool Admitted) AdmitStandardMethod(CancellationToken ct, Store journal, StandardState goal, string prefix, GenerationSnapshot world)
+    internal static (MethodId Method, Verdict Verdict, bool Admitted) AdmitStandardMethod(CancellationToken ct, StoreJournal journal, StandardState goal, string prefix, GenerationSnapshot world)
     {
         var (verdict, ok) = AdmitStandardSubject(ct, journal, goal, prefix, world);
         if (!ok)
@@ -91,7 +91,7 @@ internal static partial class BuildingRuntimePackage
         return (NextMethodId(prefix, HistoryMethodIds(goal.History, goal.Standard.Episode)), default, true);
     }
 
-    internal static (Verdict Verdict, bool Admitted) AdmitStandardSubject(CancellationToken ct, Store journal, StandardState goal, string prefix, GenerationSnapshot world) =>
+    internal static (Verdict Verdict, bool Admitted) AdmitStandardSubject(CancellationToken ct, StoreJournal journal, StandardState goal, string prefix, GenerationSnapshot world) =>
         AdmitSubject(ct, journal, prefix, StandardMethodPlans(goal.History, goal.Standard.Episode, prefix), world);
 
     internal static IReadOnlyList<MethodId> HistoryMethodIds(IReadOnlyList<Method> history, ulong episode) =>

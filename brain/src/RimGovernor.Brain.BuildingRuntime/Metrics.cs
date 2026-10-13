@@ -3,18 +3,18 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The closed sets the scheduler, admission and dispatch metrics draw their attribute values from, and the recorders. A value outside a set is reported as "other".</summary>
 internal static class Metrics
 {
-    private static readonly Words StepCauseVocabulary = Tel.Words(
+    private static readonly Vocabulary StepCauseVocabulary = Vocabulary.Words(
         Wire.Name(StepCause.Timer), Wire.Name(StepCause.Wake), Wire.Name(StepCause.Settled), Wire.Name(StepCause.Full), Wire.Name(StepCause.Live));
 
     // Every policy Reason; a test keeps it equal to the constants declared in package policy.
-    private static readonly Words RefusalReasonVocabulary = Tel.Words(
+    private static readonly Vocabulary RefusalReasonVocabulary = Vocabulary.Words(
         Wire.Name(Reason.NotReady), Wire.Name(Reason.AlreadyReserved), Wire.Name(Reason.UnknownFacts), Wire.Name(Reason.StaleFacts),
         Wire.Name(Reason.UnsafePlacement), Wire.Name(Reason.UnsafeThreat), Wire.Name(Reason.CriticalMedical), Wire.Name(Reason.MaterialRequired),
         Wire.Name(Reason.DependencyBlocked), Wire.Name(Reason.GeometryBlocked), Wire.Name(Reason.InvalidHeld),
         "unsafe_route", "roof_support_risk", "missing_storage", "urgent_competing_work");
 
     // The kinds the Worker may dispatch.
-    private static readonly Words ActionKindVocabulary = Tel.Where(kind =>
+    private static readonly Vocabulary ActionKindVocabulary = Vocabulary.Where(kind =>
         Wire.TryParse<ActionKind>(kind, out var parsed) && Rounds.ExecutableKind(parsed));
 
     public static double MillisOf(TimeSpan d) => d.TotalMilliseconds;

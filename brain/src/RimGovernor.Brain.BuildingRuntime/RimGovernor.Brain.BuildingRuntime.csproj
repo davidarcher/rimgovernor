@@ -33,7 +33,6 @@
     <Using Include="RimGovernor.Brain.Bridge.Contracts.Result" Alias="BridgeResult" />
     <Using Include="RimGovernor.Brain.Executor" />
     <Using Include="RimGovernor.Brain.Facts" />
-    <Using Include="RimGovernor.Brain.BuildingRuntime.Boundary" />
     <Using Include="RimGovernor.Protocol" />
     <!-- Go package-level functions with no owning type live on one static partial class per package. -->
     <Using Include="RimGovernor.Brain.BuildingRuntime.BuildingRuntimePackage" Static="true" />
@@ -61,5 +60,37 @@
     <Using Include="RimGovernor.Brain.Domain.ControllerSessionId" Alias="ControllerSessionId" />
     <Using Include="RimGovernor.Brain.Observation.Identity" Alias="Identity" />
     <Using Include="RimGovernor.Brain.Policy.RecoveryMethod" Alias="RecoveryMethod" />
+    <!-- Go's bridge.X where the policy or domain package declares the same name. -->
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.CellRect" Alias="BridgeCellRect" />
+    <Using Include="RimGovernor.Brain.Observation.Combat" Alias="BridgeCombat" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.CombatOrderResult" Alias="BridgeCombatOrderResult" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.DefenseCell" Alias="BridgeDefenseCell" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.DefenseCover" Alias="BridgeDefenseCover" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.DefenseSite" Alias="BridgeDefenseSite" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.EmergencyObservation" Alias="BridgeEmergencyObservation" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.EquipCandidate" Alias="BridgeEquipCandidate" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.EquipRead" Alias="BridgeEquipRead" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.ExcavationSite" Alias="BridgeExcavationSite" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.GrowerCropTarget" Alias="BridgeGrowerCropTarget" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.LinesOfFire" Alias="BridgeLinesOfFire" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.MapBounds" Alias="BridgeMapBounds" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.RoundsFrame" Alias="BridgeRoundsFrame" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.SpatialAccess" Alias="BridgeSpatialAccess" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.Things" Alias="BridgeThings" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.BuildingPreview" Alias="BridgeBuildingPreview" />
+    <!-- Go's facts package types. -->
+    <Using Include="RimGovernor.Brain.Facts.Scope" Alias="FactScope" />
+    <Using Include="RimGovernor.Brain.Facts.Section" Alias="FactSection" />
+    <Using Include="RimGovernor.Brain.Facts.Rect" Alias="FactRect" />
+    <Using Include="RimGovernor.Protocol.Operations" Alias="OP" />
+    <Using Include="RimGovernor.Brain.Store.Store" Alias="StoreJournal" />
+    <Using Include="RimGovernor.Brain.Store.World" Alias="StoreWorld" />
+    <Using Include="RimGovernor.Brain.Store.Rounds" Alias="RoundsReview" />
+    <Using Include="RimGovernor.Brain.Observation.Policies" Alias="ObservationPolicies" />
+    <Using Include="RimGovernor.Brain.Policy.PolicyFunctions" Alias="PolicyApi" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.PlanningWindow" Alias="PlanningWindowRead" />
+    <Using Include="RimGovernor.Brain.Policy.DefenseCell" Alias="DefenseCell" />
+    <!-- Go's package qualifiers for functions with no owning type. -->
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.BridgeFunctions" Alias="BridgeApi" />
   </ItemGroup>
 </Project>

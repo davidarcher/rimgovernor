@@ -79,7 +79,7 @@ public sealed partial class RoundsDefensePlanner
         }
         catch (CombatRestorationPendingException ex)
         {
-            TelemetryApi.Decide(call, new Decision
+            Tel.Decide(call, new Decision
             {
                 Kind = "admission",
                 Component = "routine-defense",
@@ -148,17 +148,17 @@ public sealed partial class RoundsDefensePlanner
             {
                 continue;
             }
-            if (StoreApi.PlanOpen(plan))
+            if (StorePackage.PlanOpen(plan))
             {
                 return new RoundsDefenseResult { Verdict = BuildingReasonExistingWork };
             }
         }
         var started = _reviewer.Clock.Now();
-        var identity = BoundaryApi.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var combat = _native.ReadCombat(identity, call);
         try
         {
-            BoundaryApi.Context(combat.Context, state.Snapshot);
+            Boundary.Context(combat.Context, state.Snapshot);
         }
         catch (ControlException)
         {
@@ -168,7 +168,7 @@ public sealed partial class RoundsDefensePlanner
         {
             throw new ControlException("decide: err != nil || combat.Emergency.Context == nil || combat.Context.GetTick() < int64(review.Tick)");
         }
-        var (inputs, reason) = CombatFrameInputs(combat, StoreApi.HuntPrey(incident.Incident));
+        var (inputs, reason) = CombatFrameInputs(combat, StorePackage.HuntPrey(incident.Incident));
         if (inputs is null || !reason.IsZero)
         {
             return new RoundsDefenseResult { Verdict = reason };
@@ -223,14 +223,14 @@ public sealed partial class RoundsDefensePlanner
         }
         if (ask is not null)
         {
-            recorded.Reply = AnswerGeometry(call, BoundaryApi.Identity(state.Snapshot), ask);
+            recorded.Reply = AnswerGeometry(call, Boundary.Identity(state.Snapshot), ask);
             (orders, _, next) = PolicyApi.DecideCombat(view, recorded.Reply, stop, memory);
         }
         recorded.MemoryOut = next;
         var reconsider = PolicyApi.ShelterReconsider(view, memory);
         if (reconsider != "")
         {
-            TelemetryApi.Decide(call, new Decision
+            Tel.Decide(call, new Decision
             {
                 Kind = "admission",
                 Component = "routine-defense",
@@ -281,7 +281,7 @@ public sealed partial class RoundsDefensePlanner
             if (more is not null && recorded.Ask is null)
             {
                 recorded.Ask = more;
-                recorded.Reply = AnswerGeometry(call, BoundaryApi.Identity(state.Snapshot), more);
+                recorded.Reply = AnswerGeometry(call, Boundary.Identity(state.Snapshot), more);
                 (orders, more, next) = PolicyApi.DecideCombat(view, recorded.Reply, stop, memory);
             }
             if (more is not null)
@@ -331,7 +331,7 @@ public sealed partial class RoundsDefensePlanner
         var orderable = new List<PawnId>();
         foreach (var pawn in fight.Roster)
         {
-            if (rows.TryGetValue(pawn.Value, out var row) && row is not null && BoundaryApi.FactBool(row.HasDrafted ? row.Drafted : null) == Known(true))
+            if (rows.TryGetValue(pawn.Value, out var row) && row is not null && Boundary.FactBool(row.HasDrafted ? row.Drafted : null) == Known(true))
             {
                 orderable.Add(pawn);
             }
@@ -417,7 +417,7 @@ internal static partial class BuildingRuntimePackage
         {
             foreach (var id in huntPrey)
             {
-                if (combat.Detail.TryGetValue(id.Value, out var row) && row is not null && BoundaryApi.FactBool(row.HasDead ? row.Dead : null) != Known(true))
+                if (combat.Detail.TryGetValue(id.Value, out var row) && row is not null && Boundary.FactBool(row.HasDead ? row.Dead : null) != Known(true))
                 {
                     inp.Prey.Add(id.Value);
                 }
@@ -682,22 +682,22 @@ internal static partial class BuildingRuntimePackage
         var facts = new DefensiveThreatFacts
         {
             Id = new PawnId(row.Pawn?.Id ?? ""),
-            Dead = BoundaryApi.FactBool(row.HasDead ? row.Dead : null),
-            Downed = BoundaryApi.FactBool(row.HasDowned ? row.Downed : null),
+            Dead = Boundary.FactBool(row.HasDead ? row.Dead : null),
+            Downed = Boundary.FactBool(row.HasDowned ? row.Downed : null),
         };
         if (row.HasHumanlike)
         {
             facts.Humanlike = Known(row.Humanlike);
         }
-        if (row.HasLordJobClass && !BoundaryApi.IssueField(row.Issues, "lord_job_class"))
+        if (row.HasLordJobClass && !Boundary.IssueField(row.Issues, "lord_job_class"))
         {
             facts.LordJobClass = Known(row.LordJobClass);
         }
-        if (row.HasLordToilClass && !BoundaryApi.IssueField(row.Issues, "lord_toil_class"))
+        if (row.HasLordToilClass && !Boundary.IssueField(row.Issues, "lord_toil_class"))
         {
             facts.LordToilClass = Known(row.LordToilClass);
         }
-        if (row.HasNearestColonistDistance && !BoundaryApi.IssueField(row.Issues, "nearest_colonist_distance"))
+        if (row.HasNearestColonistDistance && !Boundary.IssueField(row.Issues, "nearest_colonist_distance"))
         {
             facts.NearestColonistDistance = Known(row.NearestColonistDistance);
         }

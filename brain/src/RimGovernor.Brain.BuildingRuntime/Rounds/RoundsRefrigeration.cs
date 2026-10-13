@@ -49,7 +49,7 @@ public sealed partial class RoundsBuildingPlanner
         }
     }
 
-    internal static (uint Allowance, bool Exhausted, bool Lent) RefrigerationOutputAllowance(CancellationToken ct, Store journal, StandardState goal, GenerationSnapshot current, Tick tick, Tick since)
+    internal static (uint Allowance, bool Exhausted, bool Lent) RefrigerationOutputAllowance(CancellationToken ct, StoreJournal journal, StandardState goal, GenerationSnapshot current, Tick tick, Tick since)
     {
         var methods = journal.LoadOwnerMethods(ct, goal);
         if (methods.Count == 0)

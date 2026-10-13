@@ -33,10 +33,10 @@ public sealed partial class RoundsDefensePlanner
         {
             return (new RoundsDefenseResult(), false);
         }
-        var combat = _native.ReadCombat(BoundaryApi.Identity(state.Snapshot), call);
+        var combat = _native.ReadCombat(Boundary.Identity(state.Snapshot), call);
         try
         {
-            BoundaryApi.Context(combat.Context, state.Snapshot);
+            Boundary.Context(combat.Context, state.Snapshot);
         }
         catch (ControlException)
         {
@@ -148,7 +148,7 @@ internal static partial class BuildingRuntimePackage
     internal static StripState StripStateOf(CancellationToken call, StoreJournal journal, PlanId id)
     {
         var plan = journal.LoadPlan(id, call);
-        if (StoreApi.PlanOpen(plan))
+        if (StorePackage.PlanOpen(plan))
         {
             return StripState.Open;
         }

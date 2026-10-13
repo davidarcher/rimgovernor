@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsPsylinkSource
 {
-    (IReadOnlyList<string> Items, BridgeResult Result) ReadNeuroformerItems(CancellationToken ct, Common.Identity identity, string neuroformer);
+    (IReadOnlyList<string> Items, BridgeResult Result) ReadNeuroformerItems(CancellationToken ct, C.Identity identity, string neuroformer);
 }
 
 /// <summary>Remembers the last review's psylink candidates so the planner step acts on what the review saw.</summary>
@@ -18,7 +18,7 @@ internal sealed class PsylinkMemory
 
     public PsylinkMemory(IRoundsPsylinkSource native) => this.native = native;
 
-    public (Fact<IReadOnlyList<PawnId>> Candidates, Fact<bool> Owed) Review(CancellationToken ct, Common.Identity identity, GenerationSnapshot current, ColonyProjection projection)
+    public (Fact<IReadOnlyList<PawnId>> Candidates, Fact<bool> Owed) Review(CancellationToken ct, C.Identity identity, GenerationSnapshot current, ColonyProjection projection)
     {
         var candidates = PolicyFunctions.PsylinkCandidates(projection.Royalty, projection.WorkPawns);
         var levelUps = PolicyFunctions.PsylinkLevelUps(projection.Royalty, projection.WorkPawns);

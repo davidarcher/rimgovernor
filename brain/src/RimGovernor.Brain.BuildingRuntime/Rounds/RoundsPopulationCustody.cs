@@ -103,11 +103,11 @@ public sealed partial class RoundsPopulationCustodyPlanner
             return new RoundsPopulationCustodyResult { Verdict = BuildingRuntimePackage.FieldUnavailable("custody") };
         }
 
-        var identityCtx = BoundaryPackage.Identity(state.Snapshot);
+        var identityCtx = Boundary.Identity(state.Snapshot);
         var (emergency, _) = native.ReadEmergency(call, identityCtx);
         try
         {
-            BoundaryPackage.Context(emergency.Context, state.Snapshot);
+            Boundary.Context(emergency.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -140,7 +140,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
         var observed = reply.Observed ?? throw new ControlException("step: observed == nil");
         try
         {
-            BoundaryPackage.Context(observed.Context, state.Snapshot);
+            Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -158,7 +158,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
         var squad = new List<ShrineDefenderFacts>();
         var performers = new List<RescuerFacts>();
         var profiles = new List<PawnProfile>();
-        Observations.PawnState? patient = null;
+        O.PawnState? patient = null;
         var seen = new HashSet<string>();
         foreach (var row in observed.Pawns)
         {

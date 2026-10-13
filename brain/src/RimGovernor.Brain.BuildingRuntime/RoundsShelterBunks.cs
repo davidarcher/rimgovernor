@@ -426,7 +426,7 @@ public sealed partial class RoundsBuildingPlanner
             actions.Add(DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-{i}")), b, BuildTier.Survive));
         }
         s.Check();
-        var previews = new List<Bridge.BuildingPreview>();
+        var previews = new List<BuildingPreview>();
         if (Native is IShellBatchPreviewer batch)
         {
             previews = [.. (batch.PreviewBuildings(call, actions, snapshot)).Previews];

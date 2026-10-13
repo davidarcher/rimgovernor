@@ -17,7 +17,7 @@ public sealed class RoundsClearanceResult
 }
 
 /// <summary>Clears the home obstructions: roof, furniture, doors, walls and floors in the way of the planned ground.</summary>
-public sealed class RoundsClearancePlanner
+public sealed partial class RoundsClearancePlanner
 {
     private readonly Rounder _reviewer;
     private readonly IRoundsClearanceSource _native;
@@ -70,7 +70,7 @@ public sealed class RoundsClearancePlanner
         foreach (var method in goal.Methods)
         {
             var plan0 = p.Journal.LoadPlan(method.Plan, call);
-            if (StoreApi.PlanOpen(plan0))
+            if (StorePackage.PlanOpen(plan0))
             {
                 return new RoundsClearanceResult { Verdict = BuildingReasonExistingWork };
             }
@@ -90,7 +90,7 @@ public sealed class RoundsClearancePlanner
             return new RoundsClearanceResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "clearance_census_unknown") };
         }
         var (others, player) = PolicyApi.SplitGroundRows(census.Targets);
-        var step = RecoveryStep(call, BoundaryApi.Identity(state.Snapshot), review.RecoveryQueue, others, colony.Projection);
+        var step = RecoveryStep(call, Boundary.Identity(state.Snapshot), review.RecoveryQueue, others, colony.Projection);
         var id = PlanIds.MintPlanId();
         string prefix;
         IReadOnlyList<DomainAction> actions;

@@ -116,11 +116,11 @@ internal sealed class ExportMemory
 /// <summary>The native surface the export declaration reads beyond the review's projection.</summary>
 public interface IExportSource : Observation.IDefinitionSource
 {
-    (ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result) ReadTradeAcquisition(CancellationToken ct, CommonPb.Identity identity, OperationsPb.FormCaravanIntent? intent);
+    (ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result) ReadTradeAcquisition(CancellationToken ct, C.Identity identity, OperationsPb.FormCaravanIntent? intent);
 
-    (WorldProgressionRead Read, BridgeResult Result) ReadWorldProgression(CancellationToken ct, CommonPb.Identity identity, bool full);
+    (WorldProgressionRead Read, BridgeResult Result) ReadWorldProgression(CancellationToken ct, C.Identity identity, bool full);
 
-    (Bridge.WorldRead Read, BridgeResult Result) ReadWorld(CancellationToken ct, CommonPb.Identity identity, int tile, double radius);
+    (WorldRead Read, BridgeResult Result) ReadWorld(CancellationToken ct, C.Identity identity, int tile, double radius);
 }
 
 public sealed partial class Rounder
@@ -236,7 +236,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         {
             return Pol.PolicyFunctions.Abstaining(Pol.Cause.UnreadNativeRead);
         }
-        var identity = BoundaryApi.Identity(snapshot);
+        var identity = Boundary.Identity(snapshot);
         Bridge.DefinitionCatalog? catalog;
         try
         {
@@ -321,7 +321,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
     }
 
     /// <summary>Counts the packed sculptures no owed room reserves.</summary>
-    private Fact<long> PackedArt(CancellationToken ct, GenerationSnapshot snapshot, CommonPb.Identity identity, Observation.ColonyProjection projection)
+    private Fact<long> PackedArt(CancellationToken ct, GenerationSnapshot snapshot, C.Identity identity, Observation.ColonyProjection projection)
     {
         if (_reviewer.Native is not IPackedSource native)
         {
@@ -336,7 +336,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
     }
 
     /// <summary>The trader kinds the colony can reach: the orbital and caravan requests the comms consoles offer and the known settlements'.</summary>
-    private (List<string> Kinds, bool Known) TraderKinds(CancellationToken ct, IExportSource native, GenerationSnapshot snapshot, CommonPb.Identity identity)
+    private (List<string> Kinds, bool Known) TraderKinds(CancellationToken ct, IExportSource native, GenerationSnapshot snapshot, C.Identity identity)
     {
         ObservationsPb.TradeAcquisition? facts;
         try
@@ -382,7 +382,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         }
         if (home >= 0)
         {
-            Bridge.WorldRead world;
+            WorldRead world;
             try
             {
                 (world, _) = native.ReadWorld(ct, identity, home, AllSettlementsRadius);

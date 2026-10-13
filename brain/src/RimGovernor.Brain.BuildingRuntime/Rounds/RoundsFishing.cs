@@ -29,11 +29,11 @@ internal static partial class BuildingRuntimePackage
         var (work, reason) = PolicyFunctions.StudyWork(p.Facts.Containment);
         if (!work.IsKnown)
         {
-            TelemetryPackage.Decide(ct, new Decision
+            Tel.Decide(ct, new Decision
             {
                 Kind = "routine_skip",
                 Component = "routine-work",
-                Level = LogLevel.Warning,
+                Level = TelemetryLevel.Warn,
                 Verdict = "waiting",
                 Reason = "entity_study_unread",
                 Target = "entity_study",
@@ -153,16 +153,16 @@ public sealed partial class RoundsFieldPlanner
                 var zone = ZoneCreate.NewFishingZone(region.ProposedCells);
                 var id = PlanIds.MintPlanId();
                 var action = DomainAction.NewZoneCreateAction(new ActionId(id.Value + "-0"), zone);
-                var (reply, refused) = PreviewZone(call, Native, BoundaryPackage.Identity(state.Snapshot), zone);
+                var (reply, refused) = PreviewZone(call, Native, Boundary.Identity(state.Snapshot), zone);
                 if (refused.Length != 0)
                 {
                     continue;
                 }
 
-                BoundaryPackage.Context(reply.Evaluated.Context, state.Snapshot);
+                Boundary.Context(reply.Evaluated.Context, state.Snapshot);
                 var spec = PlanSpec.NewPlan(id, new PlanRevision(1), [action]);
                 Reviewer.Player.Current(call, epoch);
-                Common.Identity actual;
+                C.Identity actual;
                 try
                 {
                     actual = StepScope(call, Reviewer.Native);

@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsClearancePlanner
 {
-    internal GroundStep RecoveryStep(CancellationToken call, Common.Identity identity, RecoveryQueue? queue, IReadOnlyList<ClearanceTarget> rows, ColonyProjection colony)
+    internal GroundStep RecoveryStep(CancellationToken call, C.Identity identity, RecoveryQueue? queue, IReadOnlyList<ClearanceTarget> rows, ColonyProjection colony)
     {
         if (queue is null)
         {
@@ -22,12 +22,12 @@ public sealed partial class RoundsClearancePlanner
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            TelemetryPackage.Decide(call, RecoveryBatchFailed(targets.Count, e));
+            Tel.Decide(call, RecoveryBatchFailed(targets.Count, e));
             return default;
         }
 
         var batch = PolicyFunctions.PlanRecoveryBatch(new RecoveryBatchRequest { Grid = ColonyRoofGrid(colony), Rules = roofs, Targets = targets });
-        TelemetryPackage.Decide(call, RecoveryBatchDecision(targets.Count, batch));
+        Tel.Decide(call, RecoveryBatchDecision(targets.Count, batch));
         switch (batch.Stage)
         {
             case RecoveryBatchStage.Roof:
@@ -54,7 +54,7 @@ public sealed partial class RoundsClearancePlanner
         return (BuildingRuntimePackage.BatchPrefix("deconstruct", step.Targets[0].EntityId, step.Targets.Count), actions);
     }
 
-    internal RoofRules RoofRulesOf(CancellationToken call, Common.Identity identity)
+    internal RoofRules RoofRulesOf(CancellationToken call, C.Identity identity)
     {
         if (Native is not IDefinitionSource definitions)
         {

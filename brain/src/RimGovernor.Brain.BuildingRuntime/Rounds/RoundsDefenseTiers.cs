@@ -21,7 +21,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal (DefenseRequest Request, Verdict Held, bool Ok) DefenseCensusRequest(CancellationToken call, ControlState state, RoundsReading read, DefenseKillbox killbox, BridgeCellRect region, Cell home)
     {
         var projection = read.Projection;
-        var identity = BoundaryApi.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var site = DefenseSite(call, identity, projection, region);
         var request = DefenseTurretRequest(read);
         var mortar = DefenseMortarRequest(read);
@@ -220,7 +220,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         TiersLogged = key;
         foreach (var d in tiers.Decisions)
         {
-            TelemetryApi.Decide(call, new Decision
+            Tel.Decide(call, new Decision
             {
                 Kind = "layout_plan",
                 Component = "layout",
@@ -244,7 +244,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         DefinitionCatalog? catalog;
         try
         {
-            catalog = PawnCatalog(call, _native, BoundaryApi.Identity(state.Snapshot));
+            catalog = PawnCatalog(call, _native, Boundary.Identity(state.Snapshot));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -281,7 +281,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         BlocksLogged = key;
         foreach (var d in decisions)
         {
-            TelemetryApi.Decide(call, new Decision
+            Tel.Decide(call, new Decision
             {
                 Kind = "layout_plan",
                 Component = "layout",

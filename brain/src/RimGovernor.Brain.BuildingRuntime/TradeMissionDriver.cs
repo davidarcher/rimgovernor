@@ -2,9 +2,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface ITradeMissionNative
 {
-    (WorldProgressionRead Read, BridgeResult Result) ReadWorldProgression(CancellationToken ct, CommonPb.Identity identity, bool full);
+    (WorldProgressionRead Read, BridgeResult Result) ReadWorldProgression(CancellationToken ct, C.Identity identity, bool full);
 
-    (IReadOnlyDictionary<string, long> Cargo, BridgeResult Result) ReadPawnCargo(CancellationToken ct, CommonPb.Identity identity, IReadOnlyList<string> pawns);
+    (IReadOnlyDictionary<string, long> Cargo, BridgeResult Result) ReadPawnCargo(CancellationToken ct, C.Identity identity, IReadOnlyList<string> pawns);
 }
 
 public static partial class TradeMissions
@@ -125,7 +125,7 @@ public sealed partial class RoundsTradePlanner
         }
         var project = projects[0];
         var m = project.Standard.Mission ?? throw new DomainException("standard carries no trade mission");
-        var (world, _) = source.ReadWorldProgression(call, BoundaryApi.Identity(state.Snapshot), false);
+        var (world, _) = source.ReadWorldProgression(call, Boundary.Identity(state.Snapshot), false);
         if (!TradeMissionCurrentRead(state.Snapshot, world))
         {
             throw new ControlException("mission: world progression read is not current");
@@ -161,7 +161,7 @@ public sealed partial class RoundsTradePlanner
             if (TradeMissionCrewAtHome(m, world))
             {
                 var crew = m.Crew.Select(id => id.Value).ToList();
-                var (cargo, _) = source.ReadPawnCargo(call, BoundaryApi.Identity(state.Snapshot), crew);
+                var (cargo, _) = source.ReadPawnCargo(call, Boundary.Identity(state.Snapshot), crew);
                 if (TradeMissions.TradeMissionDelivered(m, world, cargo))
                 {
                     m = m with { Phase = TradeMissionPhase.Delivered };
@@ -211,7 +211,7 @@ public sealed partial class RoundsTradePlanner
         }
         if (m.Phase == TradeMissionPhase.Returning)
         {
-            var (session, _) = Native.ReadTradeSession(call, BoundaryApi.Identity(state.Snapshot));
+            var (session, _) = Native.ReadTradeSession(call, Boundary.Identity(state.Snapshot));
             var target = new TradeParticipant(TradeParticipantKind.Settlement, m.Settlement, caravan.Id);
             if (session.Trader == target.Key())
             {
@@ -312,7 +312,7 @@ public sealed partial class RoundsTradePlanner
     {
         var target = new TradeParticipant(TradeParticipantKind.Settlement, m.Settlement, caravan.Id);
         var trader = target.Key();
-        var (session, _) = Native.ReadTradeSession(call, BoundaryApi.Identity(state.Snapshot));
+        var (session, _) = Native.ReadTradeSession(call, Boundary.Identity(state.Snapshot));
         if (m.PurchaseCommitted)
         {
             m = m with { Phase = TradeMissionPhase.Returning };
@@ -329,7 +329,7 @@ public sealed partial class RoundsTradePlanner
                 m = m with { Phase = TradeMissionPhase.Returning };
                 return MissionRecord(call, p, m);
             }
-            var (census, _) = Native.ListTraders(call, BoundaryApi.Identity(state.Snapshot));
+            var (census, _) = Native.ListTraders(call, Boundary.Identity(state.Snapshot));
             if (!census.Traders.Any(row => row.Id == trader && row.CanTrade))
             {
                 m = m with { Phase = TradeMissionPhase.Returning };
@@ -342,7 +342,7 @@ public sealed partial class RoundsTradePlanner
         {
             return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = TradeWalkTicks }, true);
         }
-        var (sheet, _) = Native.ReadTradeSheet(call, BoundaryApi.Identity(state.Snapshot));
+        var (sheet, _) = Native.ReadTradeSheet(call, Boundary.Identity(state.Snapshot));
         IReadOnlyList<TradeLine> lines;
         IReadOnlyList<CargoItem> goods;
         try
@@ -389,8 +389,8 @@ public sealed partial class RoundsTradePlanner
     internal (IReadOnlyList<TradeLine> Lines, IReadOnlyList<CargoItem> Goods) MissionPurchases(
         CancellationToken ct, ControlState state, Sto.Rounds review, TradeMission m, TradeSheetRead sheet, CaravanJourney caravan)
     {
-        var (reply, _) = Native.ReadColonyFacts(ct, BoundaryApi.Identity(state.Snapshot), false);
-        var tables = Native.FrameTables(ct, BoundaryApi.Identity(state.Snapshot));
+        var (reply, _) = Native.ReadColonyFacts(ct, Boundary.Identity(state.Snapshot), false);
+        var tables = Native.FrameTables(ct, Boundary.Identity(state.Snapshot));
         if (tables.Catalog is null)
         {
             throw new ControlException("missionPurchases: frame tables carry no catalog");

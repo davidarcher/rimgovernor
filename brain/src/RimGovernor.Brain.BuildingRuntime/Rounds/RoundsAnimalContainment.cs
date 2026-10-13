@@ -7,7 +7,7 @@ public sealed class RoundsAnimalContainmentResult
     public PlanId Plan { get; init; }
 }
 
-public sealed class RoundsAnimalContainmentPlanner
+public sealed partial class RoundsAnimalContainmentPlanner
 {
     private readonly Rounder _reviewer;
     private readonly IRoundsBuildingSource _native;

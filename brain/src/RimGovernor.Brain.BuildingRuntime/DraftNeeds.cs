@@ -127,7 +127,7 @@ internal static class DraftNeeds
         {
             var result = reply.Results[i];
             var verdict = "applied";
-            var level = LogLevel.Information;
+            var level = TelemetryLevel.Info;
             var detail = "";
             if (result.Refused is { } refused)
             {
@@ -137,7 +137,7 @@ internal static class DraftNeeds
             else if (result.Failed is { } failed)
             {
                 verdict = "failed";
-                level = LogLevel.Warning;
+                level = TelemetryLevel.Warn;
                 detail = failed.Detail;
             }
             Defense.DefenseAction("undraft-sweep", level, verdict, "undraft", pawns[i].Value, new Dictionary<string, object?> { ["detail"] = detail });

@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.Extensions.Logging;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -247,7 +246,7 @@ internal static partial class BuildingRuntimePackage
     {
         var r = new RefusedPlacement(build.Def, build.Cell, DescribeBlockers(v.Blockers));
         var kindWord = build.Ring ? "ring" : "furniture";
-        TelemetryPackage.Event(ct, LogLevel.Information, "building-planner", "placement_refused", kindWord + " cell refused: " + r.Key() + " blocked by " + r.Blocker);
+        Tel.Event( TelemetryLevel.Info, "building-planner", "placement_refused", kindWord + " cell refused: " + r.Key() + " blocked by " + r.Blocker);
         return r;
     }
 
@@ -258,7 +257,7 @@ internal static partial class BuildingRuntimePackage
         foreach (var h in w.Holds)
         {
             var key = string.Create(CultureInfo.InvariantCulture, $"{h.Def}@{h.Cell.X},{h.Cell.Z}:{h.Reason}");
-            TelemetryPackage.Event(ct, LogLevel.Information, "building-planner", "foreign_held", "foreign thing held: " + key);
+            Tel.Event( TelemetryLevel.Info, "building-planner", "foreign_held", "foreign thing held: " + key);
             if (first == "")
             {
                 first = key;

@@ -98,7 +98,7 @@ public sealed class RoundsBillPlanner
                 }
                 continue;
             }
-            if (_purpose != PolicyApi.CookFood && StoreApi.PlanOpen(plan))
+            if (_purpose != PolicyApi.CookFood && StorePackage.PlanOpen(plan))
             {
                 return true;
             }

@@ -135,7 +135,7 @@ internal static partial class BuildingRuntimePackage
 
 public sealed partial class RoundsAnimalContainmentPlanner
 {
-    internal RoundsAnimalContainmentResult StageHerdRooms(CancellationToken call, CancellationToken epoch, ControlState state, Rounds review, StandardState goal, ObservationIdentity expected, Fact<IReadOnlyList<ConstructionClaim>> claims)
+    internal RoundsAnimalContainmentResult StageHerdRooms(CancellationToken call, CancellationToken epoch, ControlState state, Rounds review, StandardState goal, Identity expected, Fact<IReadOnlyList<ConstructionClaim>> claims)
     {
         var reading = Reviewer.ObserveRooms(call, Reviewer.Native, expected, claims, HerdDefinitions);
         var (step, known) = HerdStepOf(reading.Projection);
@@ -157,7 +157,7 @@ public sealed partial class RoundsAnimalContainmentPlanner
                 break;
             default:
                 var inner = step.Room.Region.Bounds();
-                var stock = NewPackedStock(Reviewer.Native, BoundaryPackage.Identity(state.Snapshot));
+                var stock = NewPackedStock(Reviewer.Native, Boundary.Identity(state.Snapshot));
                 result = Building.ReconcileRoom(call, epoch, state, review, goal, reading, stock, new RoomReconcile
                 {
                     Room = step.Room,
@@ -189,10 +189,10 @@ public sealed partial class RoundsAnimalContainmentPlanner
         {
         }
 
-        var (target, _) = native.ReadBedUseTarget(call, BoundaryPackage.Identity(state.Snapshot), bed);
+        var (target, _) = native.ReadBedUseTarget(call, Boundary.Identity(state.Snapshot), bed);
         try
         {
-            BoundaryPackage.Context(target.Context, state.Snapshot);
+            Boundary.Context(target.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

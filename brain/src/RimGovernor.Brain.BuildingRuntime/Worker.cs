@@ -15,7 +15,7 @@ public sealed class WorkerConfig
     /// </summary>
     public IArrivalPawns? Pawns { get; set; }
 
-    public Boundary.IActionsWriter? Moves { get; set; }
+    public IActionsWriter? Moves { get; set; }
     public bool RoundsMethods { get; set; }
     public TimeSpan StepInterval { get; set; }
     public TimeSpan MaxBackoff { get; set; }
@@ -42,7 +42,7 @@ public sealed class WorkerConfig
     /// zone whose CAS token no longer matches) asks it to resync the planning window in full on its next
     /// refresh instead of trusting a delta; null asks nothing.
     /// </summary>
-    public Facts.Store? Store { get; set; }
+    public FactStore? Store { get; set; }
 
     /// <summary>
     /// Reports the scheduler's hint that its window is running; each native call the worker issues is recorded
@@ -190,7 +190,7 @@ public sealed partial class Worker
     /// executor's refusal reasons and the error. Refusal reasons matter most -- an owned draft held before
     /// prepare otherwise leaves no trace but a bare "building execution held".
     /// </summary>
-    internal static string WorkerOutcome(ProgressView after, Executor.Result result, Exception? err)
+    internal static string WorkerOutcome(ProgressView after, ExecutorResult result, Exception? err)
     {
         var reasons = WorkerRefusedReasons(result);
         // The receipt and effect name why an attempt is unresolved: an unknown receipt is a native call that
@@ -201,7 +201,7 @@ public sealed partial class Worker
     }
 
     /// <summary>Lists the refusal reasons of a run's result: the outcome text's refused=[...] and the dispatch row's refused attr.</summary>
-    internal static List<string> WorkerRefusedReasons(Executor.Result result)
+    internal static List<string> WorkerRefusedReasons(ExecutorResult result)
     {
         var reasons = new List<string>(result.Refused.Count);
         foreach (var r in result.Refused)
@@ -383,18 +383,18 @@ public sealed partial class Worker
     /// <summary>One Worker step as a span under the scheduler's latest step (a trace root of its own when there is none).</summary>
     internal async Task Step(CancellationToken ct, DateTimeOffset now)
     {
-        using var remote = _config.Trace is { } trace ? TelemetryPackage.Remote(trace()) : null;
-        using var span = TelemetryPackage.StartSpan("buildingruntime", "worker.step");
+        using var remote = _config.Trace is { } trace ? Tel.Remote(trace()) : null;
+        using var span = Tel.StartSpan("buildingruntime", "worker.step");
         try
         {
             await RunStep(ct, now);
         }
         catch (Exception e)
         {
-            TelemetryPackage.EndSpan(span, e);
+            Tel.EndSpan(span, e);
             throw;
         }
-        TelemetryPackage.EndSpan(span, null);
+        Tel.EndSpan(span, null);
     }
 
     private async Task RunStep(CancellationToken ct, DateTimeOffset now)
@@ -619,15 +619,15 @@ public sealed partial class Worker
                 {
                     err = e;
                 }
-                var results = new Executor.Result[group.Count];
+                var results = new ExecutorResult[group.Count];
                 for (var i = 0; i < results.Length; i++)
                 {
-                    results[i] = new Executor.Result();
+                    results[i] = new ExecutorResult();
                 }
                 var resultErrs = new Exception?[group.Count];
                 var dispatchStarted = Stopwatch.StartNew();
                 var running = _config.WindowRunning is { } wr && wr();
-                using var dispatch = TelemetryPackage.StartSpan("buildingruntime", "hands.dispatch",
+                using var dispatch = Tel.StartSpan("buildingruntime", "hands.dispatch",
                     ("rimgovernor.action_kind", Wire.Name(lead.Kind)), ("rimgovernor.actions", group.Count));
                 var tally = new Bridge.ReadTally();
                 using var tallyScope = tally.Begin();
@@ -740,11 +740,11 @@ public sealed partial class Worker
                         try
                         {
                             await _player.Journal.Cancel(v.Plan, v.Action, call);
-                            TelemetryPackage.Decide(new Decision
+                            Tel.Decide(new Decision
                             {
                                 Kind = "dispatch",
                                 Component = "worker",
-                                Level = Telemetry.Level.Warn,
+                                Level = TelemetryLevel.Warn,
                                 Target = v.Action.Value,
                                 Verdict = "failed",
                                 Reason = "cancelled_settled",
@@ -817,10 +817,10 @@ public sealed partial class Worker
     /// Sends the group, one plan's candidates, as one RunBatch and returns each member's result and error in
     /// group order. A batch cancelled by its own context while the step's is live retries once, whole.
     /// </summary>
-    private async Task<(Executor.Result[] Results, Exception?[] Errors)> RunBatch(CancellationToken call, PlanId plan, List<WorkerCandidate> group)
+    private async Task<(ExecutorResult[] Results, Exception?[] Errors)> RunBatch(CancellationToken call, PlanId plan, List<WorkerCandidate> group)
     {
         var ids = group.Select(m => m.View.Action).ToList();
-        var results = new Executor.Result[group.Count];
+        var results = new ExecutorResult[group.Count];
         var errs = new Exception?[group.Count];
         for (var attempt = 0; attempt < 2; attempt++)
         {
@@ -837,7 +837,7 @@ public sealed partial class Worker
             var ownCancel = WorkerOwnCancel(call, err);
             for (var i = 0; i < group.Count; i++)
             {
-                results[i] = new Executor.Result();
+                results[i] = new ExecutorResult();
                 errs[i] = err;
                 if (i < items.Count)
                 {
@@ -879,7 +879,7 @@ public sealed partial class Worker
     /// itself, not a failure, so only another error is WARN. Stale marks a run held on stale facts so a run can
     /// count the holds the read bounds refused.
     /// </summary>
-    internal static void WorkerDispatchRow(Bridge.ReadTally tally, ProgressView before, ProgressView after, Executor.Result result, bool running, bool stale, Exception? err, bool changed, int repeats)
+    internal static void WorkerDispatchRow(Bridge.ReadTally tally, ProgressView before, ProgressView after, ExecutorResult result, bool running, bool stale, Exception? err, bool changed, int repeats)
     {
         var refused = WorkerRefusedReasons(result);
         var d = new Decision
@@ -929,12 +929,12 @@ public sealed partial class Worker
             d.Attrs["error"] = err.Message;
             if (err is not DependencyException)
             {
-                d.Level = Telemetry.Level.Warn;
+                d.Level = TelemetryLevel.Warn;
             }
         }
         if (!result.NativeCalled)
         {
-            TelemetryPackage.Decide(d);
+            Tel.Decide(d);
             return;
         }
         var receipt = "-";
@@ -995,7 +995,7 @@ public sealed partial class Worker
     /// hold is expected to clear on the next observation, unlike a refusal that names a world condition (stock,
     /// geometry, an unavailable pawn).
     /// </summary>
-    internal static bool WorkerHeldStale(ProgressView after, Executor.Result result, Exception? err)
+    internal static bool WorkerHeldStale(ProgressView after, ExecutorResult result, Exception? err)
     {
         if (err is not Executor.HeldException || after.Unresolved || after.Stage is not (Stage.Pending or Stage.Prepared))
         {

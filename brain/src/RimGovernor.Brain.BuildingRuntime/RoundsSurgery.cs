@@ -207,5 +207,4 @@ public sealed class RoundsSurgeryPlanner
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>The first 16 bytes of the SHA-256 of the text as lowercase hex (Go's "%x" of hash.Sum(nil)[:16]).</summary>
-    internal static string HashHex16(string text) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)).AsSpan(0, 16));
 }

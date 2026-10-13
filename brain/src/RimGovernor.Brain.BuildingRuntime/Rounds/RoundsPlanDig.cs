@@ -34,7 +34,7 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("roof rules: the native source serves no definitions");
         }
 
-        var catalog = source.DefinitionCatalog(ct, BoundaryPackage.Identity(snapshot));
+        var catalog = source.DefinitionCatalog(ct, Boundary.Identity(snapshot));
         return catalog.RoofRules();
     }
 

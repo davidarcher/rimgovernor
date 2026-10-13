@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>Cancels repair actions that have not started once the standard is met.</summary>
-    internal static void CancelSettledRepairMethods(CancellationToken ct, Store journal, StandardState goal)
+    internal static void CancelSettledRepairMethods(CancellationToken ct, StoreJournal journal, StandardState goal)
     {
         if (goal.Standard.Finding != Finding.Met)
         {

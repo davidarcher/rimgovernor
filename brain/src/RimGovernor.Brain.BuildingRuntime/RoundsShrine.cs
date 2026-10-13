@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public interface IRoundsShrineSource : Observation.IColonySource, Observation.IShrineSource, IShrineReadinessNative
 {
-    (Bridge.ClaimBuildingTarget Target, BridgeResult Result) ReadClaimBuildingTarget(CancellationToken ct, CommonPb.Identity identity, string entity);
+    (ClaimBuildingTarget Target, BridgeResult Result) ReadClaimBuildingTarget(CancellationToken ct, C.Identity identity, string entity);
 }
 
 public sealed record RoundsShrineResult
@@ -168,7 +168,7 @@ public sealed class RoundsShrinePlanner
         if (opens.Count > 0)
         {
             var needed = PlannedDrafts(call, p.Journal);
-            var squad = ShrineSquad(call, _native, BoundaryApi.Identity(state.Snapshot), null, needed);
+            var squad = ShrineSquad(call, _native, Boundary.Identity(state.Snapshot), null, needed);
             SnapshotPackage.NoteShrineSquad(squad);
             foreach (var shrine in candidates)
             {
@@ -189,7 +189,7 @@ public sealed class RoundsShrinePlanner
         {
             return new RoundsShrineResult { Verdict = BuildingNoLayoutPlan };
         }
-        var reports = ShrineReadiness(call, _native, BoundaryApi.Identity(state.Snapshot), candidates, null, colony.Projection.Threat.RaidPoints, center, colony.Projection.Bounds);
+        var reports = ShrineReadiness(call, _native, Boundary.Identity(state.Snapshot), candidates, null, colony.Projection.Threat.RaidPoints, center, colony.Projection.Bounds);
         for (var i = 0; i < reports.Count; i++)
         {
             var shrine = candidates[i];
@@ -220,7 +220,7 @@ public sealed class RoundsShrinePlanner
             return new RoundsShrineResult { Verdict = verdict, Shrine = shrine.Id };
         }
         var id = PlanIds.MintPlanId();
-        var identity = BoundaryApi.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var actions = new List<DomainAction>();
         foreach (var casket in caskets)
         {

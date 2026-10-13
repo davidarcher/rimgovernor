@@ -20,7 +20,7 @@ public interface IFieldNative
 }
 
 /// <summary>Opens and grows the colony's fields, retargets the grower crops and keeps the other resources' fields in step with the food plan.</summary>
-public sealed class RoundsFieldPlanner
+public sealed partial class RoundsFieldPlanner
 {
     internal const double FieldLampGrowthRadius = 5.8;
     internal const int FieldCandidateAttempts = 3;
@@ -148,7 +148,7 @@ public sealed class RoundsFieldPlanner
         {
             return PlaceOthers(wait, FieldUnavailable("field_plan"));
         }
-        TelemetryApi.Decide(call, FieldsSelectDecision(selection));
+        Tel.Decide(call, FieldsSelectDecision(selection));
         var attempts = 0;
         foreach (var candidate in selection.Candidates)
         {
@@ -193,7 +193,7 @@ public sealed class RoundsFieldPlanner
             foreach (var method in goal.Methods)
             {
                 var plan = p.Journal.LoadPlan(method.Plan, call);
-                if (StoreApi.PlanOpen(plan))
+                if (StorePackage.PlanOpen(plan))
                 {
                     return (goal, false);
                 }
@@ -341,7 +341,7 @@ public sealed class RoundsFieldPlanner
                 }
                 var value = DomainApi.NewZoneCreate(ZoneKind.Growing, crop.Name, cells);
                 var action = DomainAction.NewZoneCreateAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), value);
-                var (reply, refused) = PreviewZone(call, _native, BoundaryApi.Identity(snapshot), value);
+                var (reply, refused) = PreviewZone(call, _native, Boundary.Identity(snapshot), value);
                 if (refused != "")
                 {
                     FieldEdit(call, "refused", "preview_refused", crop.Name, new Dictionary<string, object?> { ["detail"] = refused });
@@ -350,7 +350,7 @@ public sealed class RoundsFieldPlanner
                 var ev = reply.Evaluated;
                 try
                 {
-                    BoundaryApi.Context(ev.Context, snapshot);
+                    Boundary.Context(ev.Context, snapshot);
                 }
                 catch (ControlException)
                 {
@@ -466,7 +466,7 @@ public sealed class RoundsFieldPlanner
         }
         var create = DomainApi.NewZoneCreate(ZoneKind.Growing, edit.Crop, edit.Cells);
         var action = DomainAction.NewZoneCreateAction(new ActionId($"{id}-0"), create);
-        var (reply, refused) = PreviewZone(call, _native, BoundaryApi.Identity(snapshot), create);
+        var (reply, refused) = PreviewZone(call, _native, Boundary.Identity(snapshot), create);
         if (refused != "")
         {
             FieldEdit(call, "refused", "preview_refused", edit.Crop, new Dictionary<string, object?> { ["detail"] = refused });
@@ -475,7 +475,7 @@ public sealed class RoundsFieldPlanner
         var v = reply.Evaluated;
         try
         {
-            BoundaryApi.Context(v.Context, snapshot);
+            Boundary.Context(v.Context, snapshot);
         }
         catch (ControlException)
         {
@@ -507,10 +507,10 @@ public sealed class RoundsFieldPlanner
         {
             // Not yet used: recrop.
         }
-        var (target, _) = native.ReadGrowerCropTarget(BoundaryApi.Identity(state.Snapshot), choice.Grower, call);
+        var (target, _) = native.ReadGrowerCropTarget(Boundary.Identity(state.Snapshot), choice.Grower, call);
         try
         {
-            BoundaryApi.Context(target.Context, state.Snapshot);
+            Boundary.Context(target.Context, state.Snapshot);
         }
         catch (ControlException)
         {
@@ -647,7 +647,7 @@ public sealed class RoundsFieldPlanner
     internal static void FieldEdit(CancellationToken ct, string verdict, string reason, string target, Dictionary<string, object?> attrs)
     {
         attrs["family"] = "field";
-        TelemetryApi.Decide(ct, new Decision { Kind = "layout_edit", Component = "clock-scheduler", Verdict = verdict, Reason = reason, Target = target, Attrs = attrs });
+        Tel.Decide(ct, new Decision { Kind = "layout_edit", Component = "clock-scheduler", Verdict = verdict, Reason = reason, Target = target, Attrs = attrs });
     }
 }
 

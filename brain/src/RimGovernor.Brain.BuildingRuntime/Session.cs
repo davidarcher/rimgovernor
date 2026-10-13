@@ -6,7 +6,7 @@ public sealed class SessionConfig
     public required ControlConfig Control { get; set; }
     public Executor.Limits Executor { get; set; } = new();
     public ClockCapabilities? Clock { get; set; }
-    public Haul.HaulCapabilities? Haul { get; set; }
+    public HaulCapabilities? Haul { get; set; }
     public MovementCapabilities? Movement { get; set; }
     public TradeCapabilities? Trade { get; set; }
 }
@@ -21,11 +21,11 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
     private readonly bool _roundsMethods;
     private readonly Control _control;
     private readonly Executor.Executor _executor;
-    private readonly Store.Store _journal;
+    private readonly StoreJournal _journal;
     private readonly ClockCoordinator? _clock;
     private readonly ClockWorkerSlot _clockWorkers;
 
-    private Session(bool roundsMethods, Control control, Executor.Executor executor, Store.Store journal, ClockCoordinator? clock, ClockWorkerSlot clockWorkers)
+    private Session(bool roundsMethods, Control control, Executor.Executor executor, StoreJournal journal, ClockCoordinator? clock, ClockWorkerSlot clockWorkers)
     {
         _roundsMethods = roundsMethods;
         _control = control;
@@ -37,10 +37,10 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
 
     public static async Task<Session> CreateAsync(
         SessionConfig config,
-        Store.Store journal,
-        Boundary.INative native,
+        StoreJournal journal,
+        IBoundaryNative native,
         INativeAuthority authority,
-        Boundary.IBuildingWriter writer,
+        IActionsWriter writer,
         Executor.IClock clock,
         CancellationToken ct)
     {
@@ -84,11 +84,11 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
             {
                 sink.Control = control;
             }
-            var place = Boundary.Boundary.Create(native, writer, new SessionBuildingLeases(control, journal, config.RoundsMethods, config.Executor.JournalTimeout), clock, ns.ToString());
+            var place = new BuildingBoundary(native, writer, clock, ns.Value);
             MovementBoundary? moves = null;
             if (config.Movement is not null)
             {
-                moves = new MovementBoundary(place, config.Movement.Writer);
+                moves = new MovementBoundary(config.Movement.Writer);
             }
             if (config.Haul is { } haulCaps && (haulCaps.Native is null || haulCaps.Writer is null))
             {
@@ -98,24 +98,25 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
             {
                 throw new ControlException("NewSession: config.Trade != nil && (config.Trade.Native == nil || config.Trade.Writer == nil)");
             }
-            var routine = new Executor.IRoundsScope[] { new PlanAuthorizer(journal, config.RoundsMethods) };
+            var routine = new PlanAuthorizer(journal, config.RoundsMethods);
+            var executorJournal = new ExecutorJournal(journal);
             var worker = moves is not null
-                ? Executor.Executor.NewWithMovement(journal, place, moves, clock, config.Executor, routine)
-                : Executor.Executor.Create(journal, place, clock, config.Executor, routine);
+                ? Executor.Executor.NewWithMovement(executorJournal, place, moves, clock, config.Executor, routine)
+                : new Executor.Executor(executorJournal, place, clock, config.Executor, routine);
             // Each optional capability is wired directly onto worker with its own typed boundary value, never
             // discovered by a type test on a composed boundary.
             if (config.Trade is { } trade)
             {
+                var tradeBoundary = new TradeBoundary(clock, trade);
                 if (trade.Requests is not null)
                 {
-                    worker.EnableCommsTradeRequests(new TradeBoundary(place, trade));
+                    worker.EnableCommsTradeRequests(tradeBoundary);
                 }
-                worker.EnableTrade(new TradeBoundary(place, trade));
+                worker.EnableTrade(tradeBoundary);
             }
             if (config.Haul is { } haul)
             {
-                var haulBoundary = Haul.HaulBoundary.Create(haul.Native, haul.Writer, new SessionBuildingLeases(control, journal, config.RoundsMethods, config.Executor.JournalTimeout), clock);
-                worker.EnableHaul(haulBoundary);
+                worker.EnableHaul(new HaulBoundary(haul.Native, haul.Writer, clock));
             }
             ClockCoordinator? coordinator = null;
             if (config.Clock is { } clockCaps)
@@ -146,7 +147,7 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
     /// <summary>Binds explicit intent to the exact durable plan revision. A proposal without a stored plan cannot obtain a write lease.</summary>
     public async Task<GenerationSnapshot> AcquireAsync(GenerationSnapshot requested, CancellationToken ct, NativeGeneration? handoff = null)
     {
-        var state = await _journal.LoadPlan(requested.Plan, ct);
+        var state = await _journal.LoadPlanAsync(requested.Plan, ct);
         if (state.Spec.Revision != requested.Revision)
         {
             throw new Executor.AuthorityException();
@@ -154,7 +155,7 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
         return await _control.AcquireAsync(requested, ct, handoff);
     }
 
-    internal Store.Store Journal => _journal;
+    internal StoreJournal Journal => _journal;
 
     public ControlState State() => _control.State();
 
@@ -165,7 +166,7 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
     /// <summary>Attaches only read reconciliation to a durable plan. It cannot obtain a lease, even if native status reports an active owner for this namespace.</summary>
     public async Task ObserveTargetAsync(GenerationSnapshot requested, CancellationToken ct)
     {
-        var state = await _journal.LoadPlan(requested.Plan, ct);
+        var state = await _journal.LoadPlanAsync(requested.Plan, ct);
         if (state.Spec.Revision != requested.Revision)
         {
             throw new Executor.AuthorityException();
@@ -183,14 +184,14 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
 
     /// <summary>Dispatches a plan's actions in one native Apply.</summary>
     public Task<IReadOnlyList<Executor.BatchItem>> RunBatchAsync(PlanId plan, IReadOnlyList<ActionId> actions, CancellationToken ct) =>
-        _executor.RunBatch(plan, actions, BuildingRuntimePackage.WithPlanIntent(ct, _journal, plan));
+        _executor.RunBatchAsync(plan, actions, BuildingRuntimePackage.WithPlanIntent(ct, _journal, plan));
 
     public Task CloseAsync(CancellationToken ct) => _control.CloseAsync(ct);
 
     public bool RoundsMethodsEnabled() => _roundsMethods;
 }
 
-/// <summary>Relays authority changes and construction-time leases between the control and the executor/clock it is wired to.</summary>
+/// <summary>Relays authority changes between the control and the executor/clock it is wired to.</summary>
 internal sealed partial class SessionSink
 {
     internal readonly object Mu = new();
@@ -242,21 +243,6 @@ internal sealed partial class SessionSink
         }
     }
 
-    /// <summary>A construction-time relay; native calls never occur under Mu.</summary>
-    public string Lease(GenerationSnapshot snapshot)
-    {
-        Control? control;
-        lock (Mu)
-        {
-            control = Control;
-        }
-        if (control is null)
-        {
-            throw new ControlException("Lease: control == nil");
-        }
-        return control.Lease(snapshot);
-    }
-
     internal async Task Stop(CancellationToken ct)
     {
         var workerStopped = await ClockWorkers.Stop(ct);
@@ -274,7 +260,7 @@ internal sealed partial class SessionSink
         var errors = new List<Exception>();
         try
         {
-            await e.Stop(ct);
+            await e.StopAsync(ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -319,24 +305,5 @@ internal sealed partial class SessionSink
             Executor = worker;
             Clock = clock;
         }
-    }
-}
-
-internal sealed class SessionBuildingLeases(Control control, Store.Store journal, bool routine, TimeSpan timeout) : Boundary.IBuildingLeases
-{
-    public string Lease(GenerationSnapshot target)
-    {
-        var root = control.State();
-        if (root.Snapshot == target)
-        {
-            return control.Lease(target);
-        }
-        if (!root.Enabled || !root.ObservationKnown)
-        {
-            throw new ControlException("Lease: !root.Enabled || !root.ObservationKnown");
-        }
-        using var cts = new CancellationTokenSource(timeout);
-        new PlanAuthorizer(journal, routine).AuthorizeRoundsPlan(root.Snapshot, target, cts.Token).GetAwaiter().GetResult();
-        return control.Lease(root.Snapshot);
     }
 }

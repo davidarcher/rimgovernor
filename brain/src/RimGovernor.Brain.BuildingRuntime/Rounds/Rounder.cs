@@ -32,16 +32,13 @@ public sealed partial class Rounder
     /// Receives each review's decoded sections; the scheduler that steps this reviewer sets it, a standalone
     /// reviewer files nowhere.
     /// </summary>
-    internal FactsStore? Store;
+    internal FactStore? Store;
 
     /// <summary>The latest review's derived resource demand (derived state, empty until the first review after a restart).</summary>
     internal ResourceDemandMemory Demand = new();
 
     /// <summary>The per-world first-seen record of humanlike pawns: derived, in memory only, empty after a restart.</summary>
     internal FirstSeenRecord FirstSeen = new();
-
-    /// <summary>The work ledger's memory: declarers, orphan counters and the latest reconcile plan.</summary>
-    internal WorkLedger Ledger = new();
 
     /// <summary>Since when each room has had unfinished blueprints or frames; see noteStall.</summary>
     internal Dictionary<string, RoomStall> RoomStalls = [];
@@ -52,26 +49,14 @@ public sealed partial class Rounder
     /// <summary>The last tech tier logged: the OTLP log ring records a change once, not every review.</summary>
     internal Fact<TechTier> TechTierLogged;
 
-    /// <summary>Since when each owned stockpile sat mostly empty; see stockpileMemory.</summary>
-    internal StockpileMemory Stockpiles = new();
-
-    /// <summary>The buried-ore corridor each resource last sited until a stage is admitted under it.</summary>
-    internal TunnelMemory Tunnels = new();
-
     /// <summary>The realized-consumption ledger of the current load, in memory only.</summary>
     internal ConsumptionMemory Consumption = new();
-
-    /// <summary>The sale path's view of MaintainTrade's and the armory's declarations.</summary>
-    internal ExportMemory Exports = new();
 
     /// <summary>MaintainShelter's Safe area memory.</summary>
     internal SafeAreaMemory SafeArea = new();
 
     /// <summary>MaintainFirebreak's review memory, set when its planner is composed.</summary>
     internal FirebreakMemory? Firebreak;
-
-    /// <summary>MaintainPsylink's review memory, set when its planner is composed.</summary>
-    internal PsylinkMemory? Psylink;
 
     /// <summary>ManageCreepJoiners's review memory, set when its planner is composed.</summary>
     internal CreepJoinerMemory? CreepJoiners;
@@ -99,11 +84,6 @@ public sealed partial class Rounder
 
     /// <summary>The formation hunts the plan opened, in memory only.</summary>
     internal HuntAdmission HuntAdmission;
-
-    /// <summary>The caravans' priced offers the supply plan reads as trade candidates, in memory only.</summary>
-    internal TradeOfferBook TradeOffers = new();
-
-    internal TradeAcquisitionMemory TradeAcquisition = new();
 
     /// <summary>The tick of the last layout survey this process read; see reviewLayoutPlan.</summary>
     internal Tick PlanChecked;
@@ -162,7 +142,7 @@ public sealed partial class Rounder
         {
             return default;
         }
-        var catalog = source.DefinitionCatalog(BoundaryApi.Identity(snapshot), ct);
+        var catalog = source.DefinitionCatalog(Boundary.Identity(snapshot), ct);
         return catalog.ItemFacts();
     }
 
@@ -247,7 +227,7 @@ public sealed partial class Rounder
         {
             return;
         }
-        TelemetryApi.Decide(ct, QuestSkipDecision(skip));
+        Tel.Decide(ct, QuestSkipDecision(skip));
     }
 
     /// <summary>
@@ -260,7 +240,7 @@ public sealed partial class Rounder
     /// Puts the review frame's colony facts, pawn and things tables into the colony mirror, which recordings and
     /// planners serve. A section the frame lacks keeps the table the mirror holds, and its tick.
     /// </summary>
-    internal void PublishFrame(ObservationIdentity expected, RoundsFrame frame)
+    internal void PublishFrame(Identity expected, RoundsFrame frame)
     {
         var seenAt = expected with { Tick = new Tick(frame.Context.Tick) };
         FirstSeen.Observe(seenAt, frame.Tables.Pawns);
@@ -270,7 +250,7 @@ public sealed partial class Rounder
             return;
         }
         expected.NativeGeneration.TryGetValue(out var generation);
-        var scope = new FactsScope(expected.Load.Value, expected.Map.Value, generation.Value);
+        var scope = new FactScope(expected.Load.Value, expected.Map.Value, generation.Value);
         PublishPawns(Store, scope, frame.Tables.Pawns, frame.Context.Tick);
         PublishThings(Store, scope, frame.Tables.Things, frame.Context.Tick);
         if (frame.Colony is not null)
@@ -336,7 +316,7 @@ public sealed partial class Rounder
     internal RoundsResult Step(CancellationToken ct, CancellationToken epoch, StepArbiter arbiter, bool isPartial)
     {
         var timer = Stopwatch.StartNew();
-        var (spanCt, span) = TelemetryApi.StartSpan(ct, "buildingruntime", "rounds.review");
+        var (spanCt, span) = Tel.StartSpan(ct, "buildingruntime", "rounds.review");
         Exception? failure = null;
         try
         {
@@ -349,8 +329,8 @@ public sealed partial class Rounder
         }
         finally
         {
-            TelemetryApi.Decide(spanCt, RoundsStepDecision(failure, timer.Elapsed, isPartial));
-            TelemetryApi.EndSpan(span, failure);
+            Tel.Decide(spanCt, RoundsStepDecision(failure, timer.Elapsed, isPartial));
+            Tel.EndSpan(span, failure);
         }
     }
 
@@ -490,8 +470,8 @@ public sealed partial class Rounder
             reading.Projection.Facts.SculptureRoomsOwed = SculptureRoomsOwed(reading.Projection, Stage);
         }
         reading.Projection.Facts.ExportProducts = Exports.Products(state.Snapshot);
-        reading.Projection.Facts.SaleArt = ReviewSaleArt(Native, BoundaryApi.Identity(state.Snapshot), reading.Projection, ct);
-        var (parts, benches) = SurgeryPartDemand(Native, BoundaryApi.Identity(state.Snapshot), reading.Projection.Facts.MedicalPawns, reading.Projection.SurgeryContext(), ct);
+        reading.Projection.Facts.SaleArt = ReviewSaleArt(Native, Boundary.Identity(state.Snapshot), reading.Projection, ct);
+        var (parts, benches) = SurgeryPartDemand(Native, Boundary.Identity(state.Snapshot), reading.Projection.Facts.MedicalPawns, reading.Projection.SurgeryContext(), ct);
         if (parts.Count > 0)
         {
             reading.Projection.Facts.FabricableParts = PolicyApi.FabricableParts(benches);
@@ -519,12 +499,12 @@ public sealed partial class Rounder
         }
         if (Firebreak is not null)
         {
-            reading.Projection.Facts.FirebreakOwed = Firebreak.Review(BoundaryApi.Identity(state.Snapshot), state.Snapshot, reading.Projection, Stage, FirebreakBusy(plans, state.Snapshot, playerPlans), ct);
+            reading.Projection.Facts.FirebreakOwed = Firebreak.Review(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, Stage, FirebreakBusy(plans, state.Snapshot, playerPlans), ct);
         }
         Fact<IReadOnlyList<PawnId>> psylinkCandidates = default;
         if (Psylink is not null)
         {
-            (psylinkCandidates, reading.Projection.Facts.PsylinkOwed) = Psylink.Review(BoundaryApi.Identity(state.Snapshot), state.Snapshot, reading.Projection, ct);
+            (psylinkCandidates, reading.Projection.Facts.PsylinkOwed) = Psylink.Review(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, ct);
         }
         if (CreepJoiners is not null)
         {
@@ -553,7 +533,7 @@ public sealed partial class Rounder
         reading.Sections.Colony.Value.Facts.FoodPlan = reading.Projection.Facts.FoodPlan;
         reading.Sections.Colony.Value.Facts.FoodReserve = reading.Projection.Facts.FoodReserve;
         Census.Retain(reading, RoomsEnabled(), claims);
-        var filedScope = new FactsScope(expected.Load.Value, expected.Map.Value, native.Value);
+        var filedScope = new FactScope(expected.Load.Value, expected.Map.Value, native.Value);
         reading.Sections.File(Store, filedScope);
         // A served native section may have gained a fresh derived food review.
         if (Store is not null && reading.Sections.Colony.Source != "")
@@ -670,7 +650,7 @@ public sealed partial class Rounder
         }
         if (MethodEnabled(PolicyApi.MaintainMechs))
         {
-            if (MechGestation(Native, BoundaryApi.Identity(state.Snapshot), reading.Projection, ct) is { } gestation)
+            if (MechGestation(Native, Boundary.Identity(state.Snapshot), reading.Projection, ct) is { } gestation)
             {
                 reading.Projection.Facts.MechGestationOwed = PolicyApi.MechGestationOwed(gestation);
             }
@@ -752,7 +732,7 @@ public sealed partial class Rounder
     {
         foreach (var pawn in pawns)
         {
-            TelemetryApi.Decide(ct, new Decision
+            Tel.Decide(ct, new Decision
             {
                 Kind = "gear_search",
                 Component = "equipment",
@@ -904,7 +884,7 @@ internal static partial class BuildingRuntimePackage
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    TelemetryApi.Decide(ct, SnapshotSkipDecision("routine", "colony", ex, tick));
+                    Tel.Decide(ct, SnapshotSkipDecision("routine", "colony", ex, tick));
                 }
             }
         });

@@ -88,8 +88,8 @@ public sealed partial class RoundsTradePlanner
                     throw new ControlException("request: native lacks the comms trade request read");
                 }
                 var recovery = DomainAction.NewCommsTradeRequestAction(new ActionId("request-recovery"), record.Request);
-                var reader = new TradeBoundary(new Boundary.Boundary { Clock = Reviewer.Clock }, new TradeCapabilities { Requests = source });
-                var read = reader.InspectCommsTradeRequest(call, new Executor.Target { Action = recovery, Snapshot = state.Snapshot });
+                var reader = new TradeBoundary(Reviewer.Clock, new TradeCapabilities { Requests = source });
+                var read = reader.InspectCommsTradeRequest(call, new Target(recovery, state.Snapshot));
                 if (RequestRecordPending(record, read))
                 {
                     return (new RoundsTradeResult(), false);

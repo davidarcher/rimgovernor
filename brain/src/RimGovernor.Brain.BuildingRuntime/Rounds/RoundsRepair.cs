@@ -2,9 +2,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsRepairSource : IColonySource
 {
-    (EmergencyObservation Emergency, BridgeResult Result) ReadEmergency(CancellationToken ct, Common.Identity identity);
+    (EmergencyObservation Emergency, BridgeResult Result) ReadEmergency(CancellationToken ct, C.Identity identity);
 
-    (Observations.ListPawnsReply Reply, BridgeResult Result) ReadTendPawns(CancellationToken ct, Common.Identity identity, IReadOnlyList<string> ids);
+    (O.ListPawnsReply Reply, BridgeResult Result) ReadTendPawns(CancellationToken ct, C.Identity identity, IReadOnlyList<string> ids);
 }
 
 /// <summary>Composes MaintainEssentialRepairs: pairs a worn structure with a colonist who can repair it.</summary>
@@ -112,11 +112,11 @@ public sealed class RoundsRepairPlanner
             structures = structures.GetRange(0, 8);
         }
 
-        var identityRef = BoundaryPackage.Identity(state.Snapshot);
+        var identityRef = Boundary.Identity(state.Snapshot);
         var (emergency, _) = native.ReadEmergency(call, identityRef);
         try
         {
-            BoundaryPackage.Context(emergency.Context, state.Snapshot);
+            Boundary.Context(emergency.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -138,7 +138,7 @@ public sealed class RoundsRepairPlanner
         var observed = reply.Observed ?? throw new ControlException("step: observed == null");
         try
         {
-            BoundaryPackage.Context(observed.Context, state.Snapshot);
+            Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -196,27 +196,27 @@ public sealed class RoundsRepairPlanner
         return new RoundsRepairResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
     }
 
-    internal static RepairCandidateFacts RepairCandidateFactsOf(PawnId pawn, Observations.PawnState row)
+    internal static RepairCandidateFacts RepairCandidateFactsOf(PawnId pawn, O.PawnState row)
     {
         var facts = new RepairCandidateFacts
         {
             Pawn = pawn,
-            Dead = BoundaryPackage.FactBool(row.Dead),
-            Downed = BoundaryPackage.FactBool(row.Downed),
-            Drafted = BoundaryPackage.FactBool(row.Drafted),
-            MentalState = BoundaryPackage.FactPresence(row.MentalState, row.Issues, "mental_state"),
+            Dead = Boundary.FactBool(row.Dead),
+            Downed = Boundary.FactBool(row.Downed),
+            Drafted = Boundary.FactBool(row.Drafted),
+            MentalState = Boundary.FactPresence(row.MentalState, row.Issues, "mental_state"),
         };
-        if (row.Job is not null && !BoundaryPackage.IssueField(row.Job.Issues, "player_forced"))
+        if (row.Job is not null && !Boundary.IssueField(row.Job.Issues, "player_forced"))
         {
-            facts = facts with { PlayerForced = BoundaryPackage.FactBool(row.Job.PlayerForced) };
+            facts = facts with { PlayerForced = Boundary.FactBool(row.Job.PlayerForced) };
         }
 
-        if (row.Health is { } health && !BoundaryPackage.IssueField(health.Issues, "health"))
+        if (row.Health is { } health && !Boundary.IssueField(health.Issues, "health"))
         {
-            facts = facts with { NeedsTend = BoundaryPackage.FactBool(health.NeedsTend), Bleeding = BoundaryPackage.FactBool(health.Bleeding) };
+            facts = facts with { NeedsTend = Boundary.FactBool(health.NeedsTend), Bleeding = Boundary.FactBool(health.Bleeding) };
         }
 
-        if (row.Settings is { } settings && !BoundaryPackage.IssueField(settings.Issues, "work"))
+        if (row.Settings is { } settings && !Boundary.IssueField(settings.Issues, "work"))
         {
             facts = facts with { ConstructionEnabled = ConstructionWorkEnabled(settings.Work) };
         }
@@ -224,7 +224,7 @@ public sealed class RoundsRepairPlanner
         return facts;
     }
 
-    internal static Fact<bool> ConstructionWorkEnabled(IReadOnlyList<Observations.WorkSetting> work)
+    internal static Fact<bool> ConstructionWorkEnabled(IReadOnlyList<O.WorkSetting> work)
     {
         foreach (var w in work)
         {

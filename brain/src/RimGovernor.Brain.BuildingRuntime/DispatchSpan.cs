@@ -7,7 +7,7 @@ internal static class DispatchSpans
     /// the game or the executor declined (no error, the write was not applied) marks it refused with the reasons,
     /// and anything else leaves it ok.
     /// </summary>
-    public static void EndDispatchSpan(TelemetrySpan span, IReadOnlyList<ExecutorResult> results, IReadOnlyList<Exception> errors)
+    public static void EndDispatchSpan(System.Diagnostics.Activity? span, IReadOnlyList<ExecutorResult> results, IReadOnlyList<Exception> errors)
     {
         if (ErrorJoin.Of([.. errors]) is { } error)
         {

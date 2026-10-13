@@ -443,7 +443,7 @@ public sealed partial class Rounder
         catch (Exception e) when (e is not OperationCanceledException)
         {
             decision.Dur = DateTimeOffset.UtcNow - start;
-            decision.Level = LogLevel.Warning;
+            decision.Level = TelemetryLevel.Warn;
             decision.Verdict = "failed";
             decision.Reason = "tile_error";
             decision.Attrs = new Dictionary<string, object?> { ["error"] = e };

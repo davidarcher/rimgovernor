@@ -24,7 +24,7 @@ internal static partial class BuildingRuntimePackage
         {
             return default;
         }
-        var catalog = source.DefinitionCatalog(BoundaryApi.Identity(snapshot), ct);
+        var catalog = source.DefinitionCatalog(Boundary.Identity(snapshot), ct);
         return catalog.MortarShells(PolicyApi.MortarSafeRadius);
     }
 

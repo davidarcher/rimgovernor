@@ -4,13 +4,13 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsSupplySource
 {
-    (Bridge.SupplyRead Read, BridgeResult Result) ReadAllowSupplies(CancellationToken ct, CommonPb.Identity identity, Cell cell);
+    (SupplyRead Read, BridgeResult Result) ReadAllowSupplies(CancellationToken ct, C.Identity identity, Cell cell);
 }
 
 /// <summary>The forbid variant of the supply read, offered by a source that can forbid as well as allow.</summary>
 public interface IRoundsSupplyForbidSource
 {
-    (Bridge.SupplyRead Read, BridgeResult Result) ReadForbidSupplies(CancellationToken ct, CommonPb.Identity identity, Cell cell);
+    (SupplyRead Read, BridgeResult Result) ReadForbidSupplies(CancellationToken ct, C.Identity identity, Cell cell);
 }
 
 public sealed class RoundsSupplyResult
@@ -116,7 +116,7 @@ public sealed class RoundsSupplyPlanner
         cells = [.. cells.OrderBy(c => c.Z).ThenBy(c => c.X).Distinct()];
         // Forbid unsafe items before releasing safe items.
         var forbidBatch = cohort.Any(row => row.Forbid);
-        Func<CancellationToken, CommonPb.Identity, Cell, (Bridge.SupplyRead Read, BridgeResult Result)> readSupply = _native.ReadAllowSupplies;
+        Func<CancellationToken, C.Identity, Cell, (SupplyRead Read, BridgeResult Result)> readSupply = _native.ReadAllowSupplies;
         if (forbidBatch)
         {
             if (_native is not IRoundsSupplyForbidSource forbidSource)
@@ -128,10 +128,10 @@ public sealed class RoundsSupplyPlanner
         var targets = new List<SupplyAllow>();
         foreach (var cell in cells)
         {
-            var (read, _) = readSupply(call, BoundaryApi.Identity(state.Snapshot), cell);
+            var (read, _) = readSupply(call, Boundary.Identity(state.Snapshot), cell);
             try
             {
-                BoundaryApi.Context(read.Context, state.Snapshot);
+                Boundary.Context(read.Context, state.Snapshot);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {

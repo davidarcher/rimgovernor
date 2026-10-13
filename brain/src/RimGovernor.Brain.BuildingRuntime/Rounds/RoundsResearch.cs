@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsResearchSource
 {
-    (ResearchRead Read, BridgeResult Result) ReadResearch(CancellationToken ct, Common.Identity identity);
+    (ResearchRead Read, BridgeResult Result) ReadResearch(CancellationToken ct, C.Identity identity);
 }
 
 /// <summary>Composes EnsureResearch: picks the next project, builds the bench it needs, or waits on the current one.</summary>
@@ -96,11 +96,11 @@ public sealed class RoundsResearchPlanner
             }
         }
 
-        var identity = BoundaryPackage.Identity(state.Snapshot);
+        var identity = Boundary.Identity(state.Snapshot);
         var (read, _) = native.ReadResearch(call, identity);
         try
         {
-            BoundaryPackage.Context(read.Context, state.Snapshot);
+            Boundary.Context(read.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

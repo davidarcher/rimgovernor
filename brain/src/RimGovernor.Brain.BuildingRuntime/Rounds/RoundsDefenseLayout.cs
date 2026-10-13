@@ -260,7 +260,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 return new RoundsDefenseLayoutResult { Verdict = held };
             }
             var (killbox, digest, _) = PolicyApi.KillboxNode(cut.Plan);
-            record = StoreApi.NewDefenseLayoutRecord(world, goal.Standard.Id, goal.Standard.Episode, layout, entrances, killbox, digest);
+            record = StorePackage.NewDefenseLayoutRecord(world, goal.Standard.Id, goal.Standard.Episode, layout, entrances, killbox, digest);
             DefenseRecutPerimeter(record, cut);
             p.Journal.SaveDefenseLayout(record, call);
         }

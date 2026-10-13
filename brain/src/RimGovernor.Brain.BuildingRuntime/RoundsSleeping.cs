@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native reads a building planner needs: the colony reads plus the native placement preview.</summary>
 public interface IRoundsBuildingSource : Observation.IColonySource
 {
-    (Bridge.BuildingPreview Preview, BridgeResult Result) PreviewBuilding(CancellationToken ct, DomainAction action, GenerationSnapshot snapshot);
+    (BuildingPreview Preview, BridgeResult Result) PreviewBuilding(CancellationToken ct, DomainAction action, GenerationSnapshot snapshot);
 }
 
 public sealed record RoundsBuildingResult
@@ -267,7 +267,7 @@ public sealed partial class RoundsBuildingPlanner
         if (r.Phase == ComfortRanked || r.Phase == ComfortBasic)
         {
             IReadOnlyList<string> joy;
-            (furniture, joy) = RecreationDefinitions(call, r.Native, BoundaryApi.Identity(state.Snapshot));
+            (furniture, joy) = RecreationDefinitions(call, r.Native, Boundary.Identity(state.Snapshot));
             var names = furniture.Definitions().ToList();
             if (r.Phase != ComfortBasic)
             {
@@ -1626,7 +1626,7 @@ public sealed partial class RoundsBuildingPlanner
 internal sealed class PlacementChoice
 {
     public Pol.Preview Choice { get; init; } = null!;
-    public Bridge.BuildingPreview Preview { get; init; } = null!;
+    public BuildingPreview Preview { get; init; } = null!;
     public Pol.PlacementScore Score { get; init; } = null!;
 }
 

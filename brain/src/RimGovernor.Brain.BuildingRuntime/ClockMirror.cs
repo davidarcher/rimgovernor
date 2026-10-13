@@ -37,7 +37,7 @@ internal static class ClockMirror
     /// Reads the gear bench census (each bench's bill stack and recipe catalog) and publishes it as the bench
     /// section keyed by bench thing id, stamped with the step's tick.
     /// </summary>
-    public static async Task<FactTable<string, GearBenchRead>> PublishBenchesAsync(FactStore m, FactScope scope, IRoundsWorkBenchSource native, PbCommon.Identity id, long tick, CancellationToken ct)
+    public static async Task<Table<string, GearBenchRead>> PublishBenchesAsync(FactStore m, FactScope scope, IRoundsWorkBenchSource native, PbCommon.Identity id, long tick, CancellationToken ct)
     {
         var census = await native.ReadGearBenchesAsync(id, ct).ConfigureAwait(false);
         var rows = new Dictionary<string, GearBenchRead>(census.Count, StringComparer.Ordinal);

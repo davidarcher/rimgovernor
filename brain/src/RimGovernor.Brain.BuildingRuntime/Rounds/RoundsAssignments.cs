@@ -67,7 +67,7 @@ public sealed class RoundsWorkPlanner
         foreach (var method in goal.Methods)
         {
             var plan = p.Journal.LoadPlan(method.Plan, call);
-            if (StoreApi.PlanOpen(plan))
+            if (StorePackage.PlanOpen(plan))
             {
                 open.Add(plan);
             }
@@ -218,7 +218,7 @@ public sealed class RoundsWorkPlanner
         foreach (var openPlan in open)
         {
             CancelStaleWorkActions(p.Journal, openPlan, work, settings, call);
-            if (StoreApi.PlanOpen(p.Journal.LoadPlan(openPlan.Spec.Id, call)))
+            if (StorePackage.PlanOpen(p.Journal.LoadPlan(openPlan.Spec.Id, call)))
             {
                 return new RoundsWorkResult { Verdict = BuildingReasonExistingWork };
             }
@@ -309,7 +309,7 @@ public sealed class RoundsWorkPlanner
         {
             if (s.EatTrigger is { } level)
             {
-                TelemetryApi.Decide(call, EatTriggerDecision(s.Pawn, level, runway));
+                Tel.Decide(call, EatTriggerDecision(s.Pawn, level, runway));
             }
         }
         return new RoundsWorkResult { Verdict = BuildingReasonAdmitted, Plan = id };
