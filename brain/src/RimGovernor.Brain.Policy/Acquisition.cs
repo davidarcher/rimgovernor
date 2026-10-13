@@ -131,7 +131,7 @@ public static partial class PolicyFunctions
         return SelectAcquisitionCore(sources, deficit, pending, Accept, held);
     }
 
-    private static List<AcquisitionSource> SelectAcquisitionCore(
+    internal static List<AcquisitionSource> SelectAcquisitionCore(
         Fact<EquatableArray<AcquisitionSource>> sources,
         Fact<double> deficit,
         Fact<double> pending,

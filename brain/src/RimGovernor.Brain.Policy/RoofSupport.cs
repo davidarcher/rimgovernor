@@ -36,7 +36,7 @@ public sealed record RoofSupportGrid
 
     private static readonly (int X, int Z)[] CardinalSteps = [(1, 0), (-1, 0), (0, 1), (0, -1)];
 
-    private bool InBounds(Cell c)
+    internal bool InBounds(Cell c)
     {
         var b = Bounds;
         return c.X >= b.X && c.X < b.X + b.Width && c.Z >= b.Z && c.Z < b.Z + b.Height;
@@ -80,7 +80,7 @@ public sealed record RoofSupportGrid
         return ok && t.Has(ThingFlags.HoldsRoof);
     }
 
-    private bool Within(Cell a, Cell b)
+    internal bool Within(Cell a, Cell b)
     {
         double dx = a.X - b.X, dz = a.Z - b.Z;
         return (dx * dx) + (dz * dz) <= Radius * Radius;

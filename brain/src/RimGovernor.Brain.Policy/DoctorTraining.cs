@@ -89,7 +89,7 @@ public static partial class PolicyFunctions
         }
         foreach (var want in wants)
         {
-            if (want.Reason == SurgeryReason.NoDoctor && c.Medicine.Count > 0)
+            if (want.Reason == SurgeryWantReason.NoDoctor && c.Medicine.Count > 0)
             {
                 return (TrainingCapXPValue, MaxSlotCycles);
             }

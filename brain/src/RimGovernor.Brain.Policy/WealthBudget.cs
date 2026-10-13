@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 public static partial class PolicyFunctions
 {
     /// <summary>The storyteller's raid-point floor (vanilla minimum, 35): a tiny reading never makes the budget divide by a vanishing threat.</summary>
-    private const double WealthBudgetMinRaidPoints = 35.0;
+    internal const double WealthBudgetMinRaidPoints = 35.0;
 
     /// <summary>
     /// The wealth headroom the colony's defense affords. Raid points scale with wealth, so the wealth the defense

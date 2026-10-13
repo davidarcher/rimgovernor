@@ -91,7 +91,7 @@ public static partial class PolicyFunctions
 /// </summary>
 public sealed class BurialOwner : IStoreOwner
 {
-    public Department Department() => Policy.Department.People;
+    public Department Department => Policy.Department.People;
 
     public IReadOnlyList<Store> Stores(StoreView v)
     {

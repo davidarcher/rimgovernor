@@ -52,7 +52,7 @@ public sealed record SquadThreatFacts
 /// Describes one candidate defender. Health/NeedsTend mirror combat_health_hold: a defender who needs tending
 /// or is below the native combat-health threshold is never assigned.
 /// </summary>
-public sealed record SquadDefenderFacts
+public record SquadDefenderFacts
 {
     public PawnId Id { get; init; }
 

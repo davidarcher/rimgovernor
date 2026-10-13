@@ -29,7 +29,7 @@ internal sealed class HerdUnit
 public static partial class PolicyConstants
 {
     /// <summary>The smallest herd the misc unit is sized for, before the plan has a target.</summary>
-    internal const int PenAnimalsFloor = HerdUnplannedFloor;
+    internal const int PenAnimalsFloor = (int)HerdUnplannedFloor;
 }
 
 public static partial class PolicyFunctions

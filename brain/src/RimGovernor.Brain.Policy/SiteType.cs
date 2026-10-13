@@ -25,6 +25,10 @@ public enum SiteKind
     /// <summary>Unlit roofed indoor soil for a crop that grows without light.</summary>
     [WireName("dark-room")]
     DarkRoom,
+
+    /// <summary>Nutrient-paste dispenser site (paste_site.go).</summary>
+    [WireName("nutrient-paste")]
+    Paste,
 }
 
 /// <summary>
@@ -156,6 +160,9 @@ public sealed record SiteTypePlan
 
 public static partial class PolicyFunctions
 {
+    /// <summary>The construction material a building's cost is counted in.</summary>
+    public static readonly Resource SiteSteelUnit = new("Steel");
+
     internal static string KindName(SiteKind kind) => kind switch
     {
         SiteKind.Outdoor => "outdoor",
