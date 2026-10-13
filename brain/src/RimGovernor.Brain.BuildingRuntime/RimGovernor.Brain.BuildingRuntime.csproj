@@ -31,8 +31,9 @@
     <Using Include="RimGovernor.Brain.Telemetry.Telemetry" Alias="Tel" />
     <Using Include="RimGovernor.Brain.Bridge.Bridge" Alias="BridgeApi" />
     <Using Include="RimGovernor.Brain.Facts.Facts" Alias="FactsApi" />
-    <Using Include="RimGovernor.Brain.Observation.Observation" Alias="ObservationApi" />
-    <Using Include="RimGovernor.Brain.Snapshot.Snapshot" Alias="Snap" />
+    <Using Include="RimGovernor.Brain.Observation.ObservationPackage" Alias="ObservationApi" />
+    <Using Include="RimGovernor.Brain.Snapshot.SnapshotPackage" Alias="Snap" />
+    <Using Include="RimGovernor.Brain.Snapshot.SnapshotPackage" Alias="SnapshotApi" />
     <Using Include="RimGovernor.Brain.Store.Store" Alias="JournalStore" />
     <Using Include="RimGovernor.Brain.Facts.Store" Alias="FactStore" />
     <!-- Go's wire package aliases (a, c, k, n, o, r). -->

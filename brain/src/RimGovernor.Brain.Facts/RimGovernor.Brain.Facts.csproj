@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Brain.Facts</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.Facts</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Bridge.Contracts/RimGovernor.Brain.Bridge.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="RimGovernor.Brain.Domain" />
+    <Using Include="RimGovernor.Brain.Policy" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts" />
+  </ItemGroup>
+</Project>

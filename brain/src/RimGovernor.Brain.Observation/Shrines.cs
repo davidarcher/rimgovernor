@@ -1,0 +1,118 @@
+namespace RimGovernor.Brain.Observation;
+
+public interface IShrineSource
+{
+    Task<(O.AncientShrinesReply Reply, Result Receipt)> ReadAncientShrinesAsync(C.Identity identity, CancellationToken cancellationToken);
+}
+
+public static partial class ObservationPackage
+{
+    /// <summary>
+    /// Tolerates an explicit unavailable native stub as unknown, distinct from a complete census with no
+    /// shrines. Transport, malformed-contract and identity errors remain errors.
+    /// </summary>
+    public static async Task<Fact<IReadOnlyList<AncientShrine>>> ObserveShrines(IShrineSource? source, Identity expected, CancellationToken cancellationToken)
+    {
+        var unknown = Unknown<IReadOnlyList<AncientShrine>>();
+        if (source is null || !SameColonyContext(expected, expected))
+        {
+            throw new ObservationContractException("missing shrine source or expected identity");
+        }
+        expected.Validate();
+        var id = new C.Identity { ColonyId = expected.Colony.Value, LoadToken = expected.Load.Value, MapId = expected.Map.Value };
+        O.AncientShrinesReply? reply;
+        try
+        {
+            (reply, _) = await source.ReadAncientShrinesAsync(id, cancellationToken).ConfigureAwait(false);
+        }
+        catch (BridgeUnavailableException)
+        {
+            return unknown;
+        }
+        if (reply is null)
+        {
+            throw new ObservationContractException("missing ancient shrines reply");
+        }
+        if (reply.Unavailable is { } u)
+        {
+            if (u.Reason == C.UnavailableReason.Unspecified || !Enum.IsDefined(u.Reason))
+            {
+                throw new ObservationContractException("unavailable reply without a reason");
+            }
+            return unknown;
+        }
+        var v = reply.Observed ?? throw new ObservationContractException("missing ancient shrines");
+        ValidateAncientShrines(v, id);
+        var actual = ContextIdentity(v.Context);
+        if (!SameColonyContext(actual, expected))
+        {
+            throw new ObservationChangedException();
+        }
+        var rows = new List<AncientShrine>(v.Shrines.Count);
+        foreach (var row in v.Shrines)
+        {
+            var caskets = new List<ShrineCasket>(row.Caskets.Count);
+            foreach (var casket in row.Caskets)
+            {
+                caskets.Add(new ShrineCasket
+                {
+                    EntityId = casket.EntityId,
+                    Cell = CellOf(casket.Cell),
+                    InteractionCell = CellOf(casket.InteractionCell),
+                    HitPoints = casket.HitPoints,
+                    HasContents = casket.HasContents,
+                    PlayerClaimed = casket.PlayerClaimed,
+                });
+            }
+            var guards = new List<ShrineGuard>(row.Guards.Count);
+            foreach (var guard in row.Guards)
+            {
+                guards.Add(new ShrineGuard { EntityId = guard.EntityId, Kind = GuardKind(guard.Kind), Downed = guard.Downed, Dead = guard.Dead });
+            }
+            var walls = new List<ShrineBreachWall>(row.BreachWalls.Count);
+            foreach (var wall in row.BreachWalls)
+            {
+                walls.Add(new ShrineBreachWall { EntityId = wall.EntityId, DefName = wall.DefName, Cell = CellOf(wall.Cell), Outside = CellOf(wall.Outside) });
+            }
+            var occupants = new List<ShrineOccupant>(row.Occupants.Count);
+            foreach (var occupant in row.Occupants)
+            {
+                occupants.Add(new ShrineOccupant
+                {
+                    EntityId = occupant.EntityId,
+                    Hostile = occupant.Hostile,
+                    Downed = occupant.Downed,
+                    Dead = occupant.Dead,
+                    Prisoner = occupant.Prisoner,
+                    Faction = occupant.Faction,
+                });
+            }
+            rows.Add(new AncientShrine
+            {
+                Id = row.ShrineId,
+                Minimum = CellOf(row.Room?.Minimum),
+                Maximum = CellOf(row.Room?.Maximum),
+                Sealed = row.Sealed,
+                InHome = row.InHome,
+                GuardsKnown = row.GuardsKnown,
+                Caskets = EquatableArray.From(caskets),
+                Guards = EquatableArray.From(guards),
+                BreachWalls = EquatableArray.From(walls),
+                Occupants = EquatableArray.From(occupants),
+            });
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        return Known<IReadOnlyList<AncientShrine>>(rows);
+    }
+
+    private static string GuardKind(O.ShrineGuardKind kind) => kind switch
+    {
+        O.ShrineGuardKind.Mechanoid => PolicyFunctions.ShrineGuardMechanoid,
+        O.ShrineGuardKind.Insectoid => PolicyFunctions.ShrineGuardInsectoid,
+        O.ShrineGuardKind.Fleshbeast => PolicyFunctions.ShrineGuardFleshbeast,
+        O.ShrineGuardKind.Human => PolicyFunctions.ShrineGuardHuman,
+        O.ShrineGuardKind.Hive => PolicyFunctions.ShrineGuardHive,
+        O.ShrineGuardKind.Other => PolicyFunctions.ShrineGuardOther,
+        _ => "",
+    };
+}

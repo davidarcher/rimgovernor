@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Brain.Snapshot</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.Snapshot</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Facts/RimGovernor.Brain.Facts.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Bridge.Contracts/RimGovernor.Brain.Bridge.Contracts.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Observation/RimGovernor.Brain.Observation.csproj" />
+    <!-- Awaiting #3053: the journal store (Rounds, RoundsResult, DefenseLayoutRecord). -->
+    <ProjectReference Include="../RimGovernor.Brain.Store/RimGovernor.Brain.Store.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="RimGovernor.Brain.Domain" />
+    <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
+    <Using Include="RimGovernor.Brain.Policy" />
+    <Using Include="RimGovernor.Brain.Facts" />
+    <Using Include="RimGovernor.Brain.Observation" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts" />
+    <Using Include="RimGovernor.Protocol.Observations" Alias="O" />
+    <Using Include="RimGovernor.Brain.Domain.Cell" Alias="Cell" />
+  </ItemGroup>
+</Project>
