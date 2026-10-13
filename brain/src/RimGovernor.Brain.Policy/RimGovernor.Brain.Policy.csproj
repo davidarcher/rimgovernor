@@ -2,6 +2,8 @@
   <PropertyGroup>
     <RootNamespace>RimGovernor.Brain.Policy</RootNamespace>
     <AssemblyName>RimGovernor.Brain.Policy</AssemblyName>
+    <!-- tools/rg publishes win-x64 ReadyToRun and restores this project with that RID; declaring it keeps the lock file stable. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />

@@ -15,4 +15,14 @@
   <ItemGroup>
     <ProjectReference Include="..\RimGovernor.Brain.Telemetry\RimGovernor.Brain.Telemetry.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RimGovernor.Brain.Contracts\RimGovernor.Brain.Contracts.csproj" />
+    <ProjectReference Include="..\RimGovernor.Brain.Domain\RimGovernor.Brain.Domain.csproj" />
+    <ProjectReference Include="..\RimGovernor.Brain.Policy\RimGovernor.Brain.Policy.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" />
+    <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" />
+    <PackageReference Include="SourceGear.sqlite3" />
+  </ItemGroup>
 </Project>

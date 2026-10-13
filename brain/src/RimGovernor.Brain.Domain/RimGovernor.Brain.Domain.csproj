@@ -2,6 +2,8 @@
   <PropertyGroup>
     <RootNamespace>RimGovernor.Brain.Domain</RootNamespace>
     <AssemblyName>RimGovernor.Brain.Domain</AssemblyName>
+    <!-- tools/rg publishes win-x64 ReadyToRun and restores this project with that RID; declaring it keeps the lock file stable. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
     <!-- Go's Known(v) / Unknown[T]() read the same in C#: Known(v), Unknown<T>(). -->

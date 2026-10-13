@@ -4,15 +4,18 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// The <c>acceptance</c> command (Go <c>cmd/acceptance</c>): <c>RimGovernor.cmd acceptance &lt;subcommand&gt;</c>.
-/// The tool host passes the populated case registry; subcommands land slice by slice (#3087).
+/// The tool host passes the populated case registry; the remaining subcommands (run, why, ...) land with slice 4 (#3087).
 /// </summary>
 public static class AcceptanceCommand
 {
     private const string Usage = """
         usage: RimGovernor.cmd acceptance <subcommand> [flags] [args]
 
-          acceptance list [<case>|<area>/...]...
+          acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [-tier nightly|smoke] [<case>|<area>/...]...
           acceptance stop -root <dir> [-game <id>]
+          acceptance setup ... (acceptance setup -help)
+          acceptance doctor -root <dir> [-output <dir> -game <id> -worktree <dir> -heal]
+          acceptance prune -output <dir> [-keep n -dry-run]
         """;
 
     /// <summary>Runs one subcommand and returns the process exit code (2 usage, 1 failure).</summary>
@@ -40,6 +43,12 @@ public static class AcceptanceCommand
                 return await ListAsync(rest, registry, stdout, stderr).ConfigureAwait(false);
             case "stop":
                 return await StopAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
+            case "setup":
+                return await new AcceptanceSetup().RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
+            case "doctor":
+                return await AcceptanceDoctor.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
+            case "prune":
+                return await AcceptancePrune.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
             default:
                 await stderr.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"unknown subcommand \"{args[0]}\"\n\n{Usage}")).ConfigureAwait(false);
                 return 2;
@@ -47,27 +56,62 @@ public static class AcceptanceCommand
     }
 
     /// <summary>
-    /// Prints the registry, or the named cases and areas (<c>&lt;area&gt;/...</c>), one per line with its scope.
-    /// <c>-cost</c> and <c>-tier</c> arrive with the cost and tier tables.
+    /// Prints the registry, the named cases and areas (<c>&lt;area&gt;/...</c>) or a tier (<c>-tier</c>), one per line
+    /// with its scope. <c>-cost</c> adds each case's baseline wall and boot time and a total for the set; without a
+    /// baseline row a case is "untimed".
     /// </summary>
     private static async Task<int> ListAsync(IReadOnlyList<string> args, CaseRegistry registry, TextWriter stdout, TextWriter stderr)
     {
         var names = new List<string>();
-        foreach (string arg in args)
+        bool withCost = false;
+        string baseline = "";
+        string tier = "";
+        for (int i = 0; i < args.Count; i++)
         {
-            if (arg.StartsWith('-'))
+            string arg = args[i].TrimStart('-');
+            if (!args[i].StartsWith('-'))
             {
-                await stderr.WriteLineAsync($"list: flag {arg} is not ported yet (-cost and -tier arrive with the cost and tier tables)").ConfigureAwait(false);
+                names.Add(args[i]);
+            }
+            else if (arg == "cost")
+            {
+                withCost = true;
+            }
+            else if (arg is "baseline" or "tier" && i + 1 < args.Count)
+            {
+                if (arg == "baseline")
+                {
+                    baseline = args[++i];
+                }
+                else
+                {
+                    tier = args[++i];
+                }
+            }
+            else
+            {
+                await stderr.WriteLineAsync($"list: unknown flag {args[i]}").ConfigureAwait(false);
                 return 2;
             }
-
-            names.Add(arg);
         }
 
         IReadOnlyList<AcceptanceCase> selected;
         try
         {
-            selected = registry.Select(names);
+            if (tier.Length > 0)
+            {
+                if (names.Count > 0)
+                {
+                    await stderr.WriteLineAsync("-tier takes no case names").ConfigureAwait(false);
+                    return 2;
+                }
+
+                selected = Tiers.CasesOf(registry, tier);
+            }
+            else
+            {
+                selected = registry.Select(names);
+            }
         }
         catch (AcceptanceException e)
         {
@@ -75,11 +119,46 @@ public static class AcceptanceCommand
             return 2;
         }
 
-        foreach (AcceptanceCase c in selected)
+        if (!withCost)
         {
-            await stdout.WriteLineAsync($"{c.Name}\t{c.Scope}").ConfigureAwait(false);
+            foreach (AcceptanceCase c in selected)
+            {
+                await stdout.WriteLineAsync($"{c.Name}\t{c.Scope}").ConfigureAwait(false);
+            }
+
+            return 0;
         }
 
+        CostTable? table = null;
+        if (baseline.Length > 0)
+        {
+            try
+            {
+                table = CostTable.Load(baseline);
+            }
+            catch (AcceptanceException e)
+            {
+                await stderr.WriteLineAsync(e.Message).ConfigureAwait(false);
+                return 2;
+            }
+        }
+
+        await stdout.WriteLineAsync("case\twall\tboot\tscope").ConfigureAwait(false);
+        foreach (AcceptanceCase c in selected)
+        {
+            string wall = "untimed";
+            string boot = "";
+            if (CostTable.Of(table, c.Name, out CostRow row))
+            {
+                wall = CostTable.Format(row.Wall);
+                boot = CostTable.Format(row.Boot);
+            }
+
+            await stdout.WriteLineAsync($"{c.Name}\t{wall}\t{boot}\t{c.Scope}").ConfigureAwait(false);
+        }
+
+        CostSummary summary = CostTable.Summarize(table, selected.Select(c => c.Name));
+        await stdout.WriteLineAsync(table is null ? $"total: {summary} (no -baseline given)" : $"total: {summary} (baseline {table.Path})").ConfigureAwait(false);
         return 0;
     }
 
@@ -117,7 +196,7 @@ public static class AcceptanceCommand
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromMinutes(2));
-            bool stopped = await GameProcess.StopAsync(Path.GetFullPath(root), game, timeout.Token).ConfigureAwait(false);
+            bool stopped = await Game.StopGameAsync(Path.GetFullPath(root), game, timeout.Token).ConfigureAwait(false);
             await stdout.WriteLineAsync(stopped ? $"stopped {game}" : $"nothing running for {game}").ConfigureAwait(false);
             return 0;
         }
