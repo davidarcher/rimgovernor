@@ -17,8 +17,6 @@ tasks:
       - '{{.REPO}}/integrations/rimgovernor-host/**/*'
       - 'About/**/*'
       - 'Notices/**/*'
-      - '{{.REPO}}/contracts/proto/**/*'
-      - '{{.REPO}}/contracts/generated/protobuf/csharp/**/*'
       - '{{.REPO}}/scripts/build_native_mod.ps1'
       - '{{.RIMWORLD_DIR}}/*.dll'
       - '{{.HARMONY_ASSEMBLY}}'

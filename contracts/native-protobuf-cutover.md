@@ -1,169 +1,26 @@
-# Current native Protobuf capabilities
+# Native Protobuf cutover (history)
 
-The current native source exports these fixed Protobuf capabilities. Each takes
-one `request` ProtoJSON string through the SDK's raw object parameter and returns
-one `payload` ProtoJSON string plus host operation metadata.
+The native mod once exported fixed Protobuf capabilities: each tool took one `request` ProtoJSON string through the
+SDK's raw object parameter and returned one `payload` ProtoJSON string, and the tools and Go acceptance cases shared
+one generated wire format (`contracts/proto`, with C# and Go bindings).
 
-| Native capability | Canonical method | Production source |
-|---|---|---|
-| rimgovernor/lifecycle_read_identity | rimgovernor.lifecycle.v1.Lifecycle/ReadIdentity | Protocol/ProtoIdentityTools.cs |
-| rimgovernor/lifecycle_read_tick | rimgovernor.lifecycle.v1.Lifecycle/ReadTick | Protocol/ProtoIdentityTools.cs |
-| rimgovernor/lifecycle_read_governor_state | rimgovernor.lifecycle.v1.Lifecycle/ReadGovernorState | Protocol/ProtoGovernorStateTools.cs |
-| rimgovernor/lifecycle_put_governor_state_batch | rimgovernor.lifecycle.v1.Lifecycle/PutGovernorStateBatch | Protocol/ProtoGovernorStateTools.cs |
-| rimgovernor/lifecycle_wait_save_signal | rimgovernor.lifecycle.v1.Lifecycle/WaitSaveSignal | Protocol/ProtoLifecycleSaveSignalTools.cs |
-| rimgovernor/lifecycle_flush_done | rimgovernor.lifecycle.v1.Lifecycle/FlushDone | Protocol/ProtoLifecycleSaveSignalTools.cs |
-| rimgovernor/authority_read_status | rimgovernor.authority.v1.Authority/ReadStatus | Protocol/NativeAuthorityTools.cs |
-| rimgovernor/placement_preview | rimgovernor.placement.v1.Placement/Preview | PlacementPreviewsTool.cs, Protocol/PlacementProtocol.cs, PlacementPreviewOperation.cs |
-| rimgovernor/authority_control | rimgovernor.authority.v1.Authority/Control | Protocol/NativeAuthorityControlTools.cs |
-| rimgovernor/observations_read_status | rimgovernor.observations.v1.Observations/ReadStatus | Protocol/NativeObservationTools.cs |
-| rimgovernor/observations_read_colony_facts | rimgovernor.observations.v1.Observations/ReadColonyFacts | Protocol/NativeColonyObservationTools.cs |
-| rimgovernor/observations_get_cells | rimgovernor.observations.v1.Observations/GetCells | Protocol/NativeObservationTools.cs |
-| rimgovernor/observations_list_buildings | rimgovernor.observations.v1.Observations/ListBuildings | Protocol/NativeBuildingObservationTools.cs |
-| rimgovernor/observations_list_pawns | rimgovernor.observations.v1.Observations/ListPawns | Protocol/NativePawnObservationTools.cs |
-| rimgovernor/observations_list_supplies | rimgovernor.observations.v1.Observations/ListSupplies | Protocol/NativeSuppliesObservationTools.cs |
-| rimgovernor/observations_list_rooms | rimgovernor.observations.v1.Observations/ListRooms | Protocol/NativeRoomObservationTools.cs |
-| rimgovernor/observations_read_research | rimgovernor.observations.v1.Observations/ReadResearch | Protocol/NativeResearchObservationTools.cs |
-| rimgovernor/observations_read_definition_catalog | rimgovernor.observations.v1.Observations/ReadDefinitionCatalog | Protocol/NativeDefinitionCatalogTool.cs |
-| rimgovernor/observations_read_bills | rimgovernor.observations.v1.Observations/ReadBills | Protocol/NativeBillsObservationTools.cs |
-| rimgovernor/observations_read_recipes | rimgovernor.observations.v1.Observations/ReadRecipes | Protocol/NativeBillsObservationTools.cs |
-| rimgovernor/zones_preview | rimgovernor.operations.v1.Zones/Preview | Protocol/NativeOperationTools.cs |
-| rimgovernor/operations_apply | rimgovernor.operations.v1.Actions/Apply | Protocol/NativeActionDispatch.cs |
-| rimgovernor/rules_attach | rimgovernor.operations.v1.Rules/Attach | Protocol/NativeRuleTools.cs |
-| rimgovernor/rules_clear | rimgovernor.operations.v1.Rules/Clear | Protocol/NativeRuleTools.cs |
-| rimgovernor/rules_read_status | rimgovernor.operations.v1.Rules/ReadStatus | Protocol/NativeRuleTools.cs |
-| rimgovernor/receipts_lookup | rimgovernor.receipts.v1.Attempts/Lookup | Protocol/NativeOperationTools.cs |
-| rimgovernor/clock_start | rimgovernor.clock.v1.Clock/Start | Protocol/NativeClockTools.cs |
-| rimgovernor/clock_renew | rimgovernor.clock.v1.Clock/Renew | Protocol/NativeClockTools.cs |
-| rimgovernor/clock_change_speed | rimgovernor.clock.v1.Clock/ChangeSpeed | Protocol/NativeClockTools.cs |
-| rimgovernor/clock_pause | rimgovernor.clock.v1.Clock/Pause | Protocol/NativeClockTools.cs |
-| rimgovernor/clock_read_status | rimgovernor.clock.v1.Clock/ReadStatus | Protocol/NativeClockTools.cs |
-| rimgovernor/clock_read_events | rimgovernor.clock.v1.Clock/ReadEvents | Protocol/NativeClockTools.cs |
-| rimgovernor/clock_read_attempt | rimgovernor.clock.v1.Clock/ReadAttempt | Protocol/NativeClockTools.cs |
-| rimgovernor/presentation_camera | rimgovernor.presentation.v1.PresentationReads/Camera | Protocol/NativePresentationReadTools.cs |
-| rimgovernor/presentation_selection | rimgovernor.presentation.v1.PresentationReads/Selection | Protocol/NativePresentationReadTools.cs |
-| rimgovernor/presentation_colonists | rimgovernor.presentation.v1.PresentationReads/Colonists | Protocol/NativePresentationReadTools.cs |
+#3100 collapsed that into plain C# records. What changed and what did not:
 
-Paths are under `integrations/rimgovernor-native/src/Bridge`. The shared
-`Protocol/ProtoBoundary.cs` validates original outer arguments and uses official
-Protobuf parsing/formatting. Generated compile inputs come from
-`contracts/generated/protobuf/csharp`.
+- The wire shapes are `sealed record`s in `brain/src/RimGovernor.Brain.Contracts`
+  (namespace `RimGovernor.Contracts.Wire`), serialized by source-generated `System.Text.Json`. The shape rules are in
+  [schema-generation.md](schema-generation.md).
+- Tool names and `/native/<tool>` HTTP routes are unchanged; the request and reply bodies are JSON with the same
+  field names, enums as their proto value names, int64 as numbers and choices as `type`-discriminated objects.
+- Every tool now has a typed core (`Handle<Name>(request)` returning the reply record) and a matching
+  `INativeFacade` method, so the in-process brain calls the same code without serializing. See
+  [Native facade](../docs/developers/architecture/native-facade.md) and
+  [HTTP channel](../docs/developers/architecture/http-channel.md).
+- `Brain.Wire` and the link-compile of the generated protobuf C# are gone. The `.proto` files, the Go bindings,
+  `tools/protobuf` and `go/internal/protobufgen` stay only until #3102 retires the Go side; the Go acceptance
+  cases that decode the fixture grid as protobuf bytes (`grid_things`, `grid_delta`) cannot run against the C# mod
+  until then.
+- Reserved-field, field-number and old-wire compatibility rules no longer exist: current game state is disposable.
 
-`Zones/Preview` is the zone siting read; every write is an
-`Actions/Apply` intent. The presence of intent arms does not advertise the
-entire operations schema as implemented. `Protocol/NativeConstruction.cs`
-owns native placement and tracked construction transitions;
-`Protocol/NativeConstructionCausality.cs` checks exact factory/spawn attribution.
-`Protocol/NativeConstructionHookSet.cs` verifies each required live patch before
-admission. Receipts finalize through the attempt ledger without a size check.
-`Protocol/NativeAttemptLedger.cs` owns the unsaved per-load attempt ledger, replay
-and uncertainty. Receipt admission is distinct from observed pawn completion.
-
-Authority control belongs to the authenticated host's explicit player-control
-capability. A direction value does not authenticate its caller. The runtime's
-`Runtime/Control/NativeAuthorityHooks.cs` verifies native invalidation hooks and
-initializes `Runtime/Persistence/NativeControlAuthority.cs` on the game thread;
-no hook acquires authority, and ordinary pause does not imply Manual. These two
-paths are relative to `integrations/rimgovernor-native/src`, outside Bridge.
-
-The private `scripts/fixtures/GuardedConstructionFixture.cs` supplies
-`test/guarded_construction_prepare` under the fixture compile condition. It
-requires exclusion from production discovery.
-
-`Observations/ListBuildings` returns complete bounded building, blueprint and frame
-rows, including individual walls and construction work/resources. Entity CAS,
-settings, bills, inspect detail and network/service/thermal facts remain explicitly
-unsupported or incomplete. Collection and geometry limits refuse incomplete facts.
-
-`Observations/ListSupplies` defaults to haulable stock, definitions with usable
-colony units, and held stock included. Every returned definition retains its full
-filtered units and ownership buckets, including fogged and other-faction stock.
-Exact definition/region filters and complete bounded item, holder and corpse lists
-replace samples. Worn gear, orbital stock and delivered construction materials are
-excluded. Disabling held stock leaves held counters unknown with explicit issues.
-No CAS snapshots or frozen pages are issued; oversized or unreadable traversals
-return unavailable.
-Typed clock controls use the shared per-load attempt ledger and capture the original
-authority grant, epoch owner and observation context before the initial safety probe.
-Leases use monotonic time. Exact-owner pause remains available for cleanup after
-revocation. Event reads expose immutable observed context and explicit history gaps;
-missing evidence never becomes an empty successful observation.
-Presentation reads expose native graphical camera/selection facts and spawned
-colonists on loaded maps. Camera and selection are explicitly unavailable in
-headless mode. Selection does not enumerate gizmos or inspect tabs, issue captured
-target fingerprints, move the camera or grant input permission. Optional facts
-remain absent when not observed. Bounded collection/reply overflow refuses the read.
-
-`Observations/ListPawns` provides a complete bounded map pawn census with exact
-intersecting filters and explicit optional-false semantics. Core, needs, health,
-equipment, biography, settings and animal details use native facts. Social,
-gear ownership/protection and additional animal management fields carry explicit
-issues. Requested detail sections never become fabricated empty tracker data.
-Readable idle job trackers report explicit `playerForced=false` and the actual
-queued-job count, with absent current-job identity. Missing trackers remain
-unavailable; an absent current job never hides queued orders.
-
-`Observations/ReadResearch` returns bounded project, progress and prerequisite
-facts without initializing saved progress dictionaries or category slots. Optional
-unlocks and map-local bench/researcher rows retain unknown optional fields. Native
-selection eligibility uses colony-wide bench requirements, which ignore power.
-Oversized collections refuse rather than truncate; no frozen paging or CAS token
-is issued.
-`Observations/ListRooms` returns complete bounded native room geometry, statistics
-and memberships. Exact room/region filters and optional cells/boundary contents
-preserve unknown optional facts through issues; oversized results refuse without
-truncation. Room IDs identify the current graph, with no frozen pages or CAS.
-Headless and rendered acceptance cross-check populated indoor structures against
-native reads and preserve paused context. Populated bed, pawn and stockpile
-memberships remain acceptance gaps.
-
-Live current-map pawns expose opaque control snapshots. Drafts are plan-owned:
-native keeps no draft claim, and the controller's undraft sweep undrafts
-every drafted colonist no live plan needs. Animals without draft controllers
-expose target snapshots and remain ineligible for drafting. Tokens cover
-identity, draft and successful ordered-job revisions, position, eligibility and
-current/queued job facts; they are not health or settings CAS. Registration
-installs hooks; reads do not install hooks or allocate authority. The
-`DraftIntent` sets or clears a draft under Auto; drafting an already-drafted
-pawn applies without another setter.
-
-A move is the `MoveIntent` arm of `Actions/Apply`: native requires an alive,
-spawned, drafted pawn and a standable, reachable cell, and applies an order
-that already matches as a no-op. Arrival is not reported.
-
-A `CombatOrders` attack requires exact attacker and target snapshots, a drafted
-attacker, and ordinary native violence, reach and verb eligibility.
-Requested hostility, standing and colony-health predicates are checked before
-dispatch. Melee and ordinary native direct-bullet ranged attacks are supported;
-Auto resolves through the native weapon choice. Explosive, overhead, beam and
-custom projectile/verb paths remain Unsupported. A receipt certifies
-the issued job. Completion requires positive native damage from that exact melee
-attack to cause death, or downing when a standing target was required. Unrelated
-death is unsuccessful; a vanished job without causal evidence remains unknown.
-Fresh headless acceptance verifies actual melee death, player-order interruption,
-fresh owned recovery, immutable replay and completed-before-Manual retention.
-Compiled checks cover unrelated/nested damage refusal and repair of each required
-live hook; their callback states do not replace game acceptance of those cases.
-
-Direct bullets retain exact projectile and originating attack identity at each
-native launch. Only the native direct damage calls in `Bullet.Impact` acquire
-attribution; notification callbacks, shields, misses and other targets do not.
-Impact requires the original control/claim state, while ordinary job completion
-after launch does not erase the projectile identity. Late hits after Manual do
-not acquire completion evidence. Lost tracking is explicit uncertainty; later
-independently tracked hits can still prove terminal outcomes. Headless native
-acceptance verifies an ordinary assault rifle's attributed target death, player
-override, fresh owned recovery and completed-before-Manual cleanup. Native shield,
-callback side-damage, tracking-capacity and late-flight interruption scenarios
-remain separate acceptance work; compiled tests cover their attribution guards.
-The same package also passes native melee death and ownership recovery.
-Source declarations do not establish gameplay acceptance. Actual installed
-discovery must match the private build and prove fixture exclusion. Generated
-compile inputs are checked by `task protobuf:build` (`.github/workflows/ci.yml`); identity,
-authority readback, placement and wire acceptance through these fixed Protobuf
-capabilities is Go native acceptance tracked in
-[issue #38](https://github.com/davidarcher/rimgovernor/issues/38). No saved-game
-compatibility acceptance is required.
-
-## In-process path (#3080)
-
-Every capability above is also a typed call on `INativeFacade` (`RimGovernor.Brain.NativeFacade`), run by the same core as the tool without ProtoJSON. See [Native facade](../docs/developers/architecture/native-facade.md).
+Acceptance of identity, authority readback, placement and wire behavior through the tools remains the native
+acceptance tracked in [issue #38](https://github.com/davidarcher/rimgovernor/issues/38) and the C# harness work
+(#3085, #3087, #3090, #3093).

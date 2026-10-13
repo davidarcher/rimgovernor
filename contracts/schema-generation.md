@@ -1,50 +1,39 @@
-# Generated wire contracts
+# Wire contracts
 
-The shared native boundary is defined in [Protocol Buffers](proto/README.md).
-N01 owns the canonical package; Go reviews its consumer coverage. Complete the
-shared package before expanding native or Go adapters. Source/consumer coverage
-and semantic constraints live beside the `.proto` files.
+The native boundary between the brain and the native mod is a set of plain C# records in
+`brain/src/RimGovernor.Brain.Contracts` (namespace `RimGovernor.Contracts.Wire`: `Common`, `Lifecycle`,
+`Authority`, `Observations`, `Operations`, `Placement`, `Receipts`, `Clock`, `Presentation`, `Mirror`, `Defs`).
+They are hand-owned (they began as a one-time conversion of the `.proto` files, #3100) and are the only
+definition of the shapes: the in-process facade passes them as objects, and the HTTP channel serializes the same
+records with source-generated `System.Text.Json` (`WireJson`, `WireJsonContext`). Every tool is a `POST
+/native/<tool>` with a JSON request body (empty means `{}`) and a JSON reply body.
 
-Use official generators and runtimes:
+JSON shape rules:
 
-| Language | Compiler/plugin | Runtime | Generated source |
-| --- | --- | --- | --- |
-| C# net10.0 | protoc30.0 from Grpc.Tools2.72.0 | Google.Protobuf3.31.1 | `generated/protobuf/csharp` |
-| Go | protoc30.0 and protoc-gen-go1.36.11 | google.golang.org/protobuf1.36.11 | `generated/protobuf/go` |
+- Members are camelCase (`expectedIdentity`, `sinceHour`). A member the reader does not know is refused.
+- Enums are strings named by their `[WireName]` attribute (the proto enum value names, such as `FAILURE_CODE_INVALID_REQUEST`); an undefined value does not serialize or parse.
+- `int64` and every other number is a JSON number (not a string); numbers are never read from strings.
+- An optional field is a nullable member; an absent member is unknown, not zero. Complete empty arrays differ
+  from an unavailable or partial read.
+- A repeated field is a JSON array (`EquatableArray<T>` in C#); a map is an array of entry objects.
+- A choice (`oneof` in the old schema) is an object with a `type` discriminator naming the case and the case
+  payload under `value`: `{"outcome": {"type": "loaded", "value": {...}}}`, `{"outcome": {"type": "failure",
+  "value": {"code": "FAILURE_CODE_INVALID_REQUEST", "detail": "..."}}}`. A reply's outcome is its loaded payload, an
+  `unavailable` reason or a `failure`; a refusal is a 200 with the failure case.
+- `Fact`/`Unknown` stay explicit value types in the brain; they are not wire shapes.
 
-The repository scripts invoke official tools, restore pinned packages, compare
-generated output and run proofs. They do not interpret schema syntax or emit
-language source; the one exception is the [def mirror](#def-mirror), which emits
-`.proto`, never Go or C#. See [C# commands](../tools/protobuf/README.md) and
-[Go commands](../tools/protobuf/go/README.md). Keep private build outputs in fresh
-ignored `.rimgovernor/` directories; commit official generated bindings with their
-schemas, except `generated/protobuf/csharp/Defs.cs` (57 MB): it is gitignored and
-generated from `defs.proto` by `generatecsharp` (the pinned Grpc.Tools protoc) at the
-start of `scripts/build_native_mod.ps1`; run
-`go -C go run ./internal/protobufgen/cmd/generatecsharp` to produce it for an IDE.
-`--check` does not compare it; `defs.proto` itself is checked by `defmirror:build`.
-The Go binding `defspb/defs.pb.go` stays committed (generating it takes minutes). Review generation drift for the complete file set.
+Boundary validators additionally require field presence, supported enum cases, valid IDs, collection bounds and
+native invariants. Receipt admission and later observed pawn outcomes are separate. Current game state is
+disposable: there is no saved-game or old-wire compatibility, and no reserved-field rules.
 
-Use official ProtoJSON for the MCP payload string. Each advertised method has a
-fixed generated request/reply type; SDK reflection must not serialize generated
-CLR properties. No generic tool-name/argument bag enters the authoritative
-protocol. Service descriptors describe the method boundary without requiring a
-new gRPC server.
-
-Protobuf enforces field types and exclusive oneof representation. Ordinary
-boundary validators additionally require field presence, supported enum cases,
-valid IDs, collection bounds and native invariants. Optional scalars distinguish
-unknown from zero/false. Complete empty collections differ from unavailable or
-partial scans. Receipt admission and later observed pawn outcomes are separate.
-Do not reproduce historical numeric spelling, UTF-16 parser limits or old-save
-wire behavior; current game state is disposable.
-
-Cross-language proofs retain independent C# and Go origins, parse both binary and
-ProtoJSON with official runtimes, and re-emit separate echoes. Their scope is
-serialization, generated compilation and platform runtime support. Fresh game
-acceptance remains necessary when adapters are integrated.
+History: the wire was Protocol Buffers until #3100 (see [the cutover note](native-protobuf-cutover.md)). The
+`.proto` files under `proto/`, the Go bindings under `generated/protobuf/go`, `tools/protobuf` and
+`go/internal/protobufgen` remain only for the Go side until #3102 deletes it; the C# no longer compiles or
+references any of them except through the def mirror below, which still emits `proto/defs.proto` for the Go side.
 
 ## Def mirror
+
+Status after #3100: the C# records no longer carry the def mirror (the catalog replies omit `defs`, `thing_defs`, `terrain_defs` and `game_constants`; the omissions are marked `TODO(#3100): defs` in `NativeDefinitionCatalogTool`). This section describes the `defs.proto` schema the Go side still consumes until #3102 and the def catalog's replacement are decided.
 
 `tools/defmirror` (C#, locked restore) reflects the game's managed assemblies
 and emits [`proto/defs.proto`](proto/defs.proto): typed messages mirroring every

@@ -32,22 +32,11 @@ type nativeSourceInput struct {
 var (
 	buildOutputDir = regexp.MustCompile(`(^|/)(obj|bin)(/|$)`)
 	nativeBuildDir = regexp.MustCompile(`(^|/)(obj|bin|Assemblies|BridgeTools)(/|$)`)
-	binaryExt      = map[string]bool{".dll": true, ".pdb": true, ".exe": true}
 )
 
 func notNativeBuildOutput(relative string) bool { return !nativeBuildDir.MatchString(relative) }
 
 func notBuildOutput(relative string) bool { return !buildOutputDir.MatchString(relative) }
-
-func contractSource(relative string) bool {
-	return !buildOutputDir.MatchString(relative) && !binaryExt[strings.ToLower(filepath.Ext(relative))]
-}
-
-// committedBinding keeps contractSource files except the build-generated
-// Defs.cs, which the build writes into its copy after hashing.
-func committedBinding(relative string) bool {
-	return contractSource(relative) && relative != "Defs.cs"
-}
 
 func fixtureSource(relative string) bool {
 	ext := strings.ToLower(filepath.Ext(relative))
@@ -72,11 +61,7 @@ var nativeSourceInputs = []nativeSourceInput{
 	{repo: "brain/src/RimGovernor.Brain.NativeFacade", copy: "brain/src/RimGovernor.Brain.NativeFacade", keep: notBuildOutput},
 	{repo: "brain/src/RimGovernor.Brain.HttpChannel", copy: "brain/src/RimGovernor.Brain.HttpChannel", keep: notBuildOutput},
 	{repo: "brain/src/RimGovernor.Brain.Telemetry", copy: "brain/src/RimGovernor.Brain.Telemetry", keep: notBuildOutput},
-	{repo: "contracts/proto", copy: "contracts/proto", keep: contractSource},
-	{repo: "contracts/generated/protobuf/csharp", copy: "contracts/generated/protobuf/csharp", keep: committedBinding},
-	{repo: "tools/protobuf", copy: "tools/protobuf", keep: contractSource},
 	{repo: "scripts/build_native_mod.ps1", copy: "scripts/build_native_mod.ps1"},
-	{repo: "go/internal/protobufgen/cmd/generatecsharp/main.go", copy: "scripts/generate_protobuf.go"},
 	{repo: "scripts/fixtures", copy: "scripts/fixtures", keep: fixtureSource},
 	{repo: "THIRD_PARTY.md", copy: "THIRD_PARTY.md"},
 }

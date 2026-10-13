@@ -1,18 +1,18 @@
 # Native facade, frame handoff and game-thread stat service (#3080)
 
-The in-process brain reaches the native mod without GABP or ProtoJSON. This page is the contract for
-that path; the capability list it replaces is `contracts/native-protobuf-cutover.md`.
+The in-process brain reaches the native mod without GABP or JSON. This page is the contract for
+that path; the history of the wire it replaces is `contracts/native-protobuf-cutover.md`.
 
 ## Assemblies
 
-One set of protobuf types and one build graph. The native mod (`RimGovernor.Bridge`) references the brain
-assemblies `RimGovernor.Brain.Domain`, `RimGovernor.Brain.Wire` and `RimGovernor.Brain.NativeFacade`
-by project reference and no longer compiles the generated protobuf C# itself; Wire link-compiles
-`contracts/generated/protobuf/csharp` (including the gitignored `Defs.cs`, generated into the build copy).
+One set of wire records and one build graph. The native mod (`RimGovernor.Bridge`) references the brain
+assemblies `RimGovernor.Brain.Domain`, `RimGovernor.Brain.Contracts` and `RimGovernor.Brain.NativeFacade`
+by project reference. Contracts holds the plain C# records (`RimGovernor.Contracts.Wire`) and the
+source-generated `System.Text.Json` context; nothing is generated at build time.
 
 | Assembly | Holds | Depends on |
 | --- | --- | --- |
-| `RimGovernor.Brain.NativeFacade` | `INativeFacade`, `NativeFrame`, `FrameHandoff`, `NativeFacadeRegistry` | Domain (`IStatSource`), Wire |
+| `RimGovernor.Brain.NativeFacade` | `INativeFacade`, `NativeFrame`, `FrameHandoff`, `NativeFacadeRegistry` | Domain (`IStatSource`), Contracts |
 | `RimGovernor.Bridge` (mod) | `InProcessNativeFacade`, `GameThreadStatService`, the tools | all three, plus the game |
 
 `scripts/build_native_mod.ps1` copies `brain/Directory.Build.props`, `brain/Directory.Packages.props` and the
@@ -29,10 +29,10 @@ collectible context (#3084) has to keep these three in the default context. Not 
 
 ## `INativeFacade`
 
-Every capability in the cutover table (36) is one `...Async(request, CancellationToken)` call taking and
-returning the same protobuf message the tool did. Nothing is serialized or parsed. A tool and the facade call the
+Every native tool is one `...Async(request, CancellationToken)` call taking and returning the same record the
+tool's JSON body carries. Nothing is serialized or parsed. A tool and the facade call the
 same typed core (`internal static Handle*` on the tool class), so validation, refusals and replies are identical;
-the tool only parses ProtoJSON before and encodes after.
+the tool only parses JSON before and encodes after.
 
 - A call that touches game state runs on the game thread through `ProtoBoundary.OnGameThread`, which uses the
   tool path's admission class (`control` for writes, `observation` for reads), per-frame allowance, watchdog line

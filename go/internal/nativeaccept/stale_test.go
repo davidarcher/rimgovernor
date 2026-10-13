@@ -48,13 +48,7 @@ func writeNativeInputs(t *testing.T, repo string) {
 		"integrations/rimgovernor-native/Notices/headless/LICENSE":                 "MIT",
 		"integrations/rimgovernor-native/README.md":                                "readme",
 		"integrations/rimgovernor-native/Textures/UI/Portrait.png":                 "png",
-		"contracts/proto/clock.proto":                                              "syntax = \"proto3\";",
-		"contracts/generated/protobuf/csharp/Clock.cs":                             "generated",
-		"contracts/generated/protobuf/csharp/obj/Clock.cs":                         "ignored",
-		"tools/protobuf/go/main.go":                                                "package main",
-		"tools/protobuf/protoc.exe":                                                "ignored binary",
 		"scripts/build_native_mod.ps1":                                             "param()",
-		"go/internal/protobufgen/cmd/generatecsharp/main.go":                       "package main // generator",
 		"scripts/fixtures/QuietStorytellerFixture.cs":                              "class Quiet {}",
 		"scripts/fixtures/Fixtures.csproj":                                         "<Project/>",
 		"scripts/fixtures/obj/QuietStorytellerFixture.cs":                          "ignored",
@@ -88,8 +82,6 @@ func TestSourceTreeHashMatchesTheBuildScriptsFormula(t *testing.T) {
 		"brain/src/RimGovernor.Brain.HttpChannel/Server.cs\t" + sha("class Server {}"),
 		"brain/src/RimGovernor.Brain.NativeFacade/INativeFacade.cs\t" + sha("interface INativeFacade {}"),
 		"brain/src/RimGovernor.Brain.Telemetry/Emitter.cs\t" + sha("class Emitter {}"),
-		"contracts/generated/protobuf/csharp/Clock.cs\t" + sha("generated"),
-		"contracts/proto/clock.proto\t" + sha("syntax = \"proto3\";"),
 		"integrations/rimgovernor-host/Directory.Build.props\t" + sha("<Project/>"),
 		"integrations/rimgovernor-host/src/Host/Host.cs\t" + sha("class Host {}"),
 		"integrations/rimgovernor-native/About/About.xml\t" + sha("<ModMetaData/>"),
@@ -101,8 +93,6 @@ func TestSourceTreeHashMatchesTheBuildScriptsFormula(t *testing.T) {
 		"scripts/build_native_mod.ps1\t" + sha("param()"),
 		"scripts/fixtures/Fixtures.csproj\t" + sha("<Project/>"),
 		"scripts/fixtures/QuietStorytellerFixture.cs\t" + sha("class Quiet {}"),
-		"scripts/generate_protobuf.go\t" + sha("package main // generator"),
-		"tools/protobuf/go/main.go\t" + sha("package main"),
 	}
 	want := sha(strings.Join(lines, "\n") + "\n")
 	if got != want {
@@ -122,11 +112,11 @@ func TestSourceTreeHashMatchesTheBuildScriptsFormula(t *testing.T) {
 func TestSourceTreeHashRequiresEveryInput(t *testing.T) {
 	repo := t.TempDir()
 	writeNativeInputs(t, repo)
-	if err := os.RemoveAll(filepath.Join(repo, "contracts", "proto")); err != nil {
+	if err := os.RemoveAll(filepath.Join(repo, "brain", "src", "RimGovernor.Brain.Contracts")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := SourceTreeHash(repo); err == nil || !strings.Contains(err.Error(), "contracts/proto") {
-		t.Fatalf("expected a missing-input error naming contracts/proto, got %v", err)
+	if _, err := SourceTreeHash(repo); err == nil || !strings.Contains(err.Error(), "RimGovernor.Brain.Contracts") {
+		t.Fatalf("expected a missing-input error naming RimGovernor.Brain.Contracts, got %v", err)
 	}
 }
 

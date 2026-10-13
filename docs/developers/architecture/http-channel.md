@@ -16,9 +16,9 @@ listener (`HttpListener`) the mod hosts, with route modules the brain publishes 
   POST must be `application/json`. Every reply carries `Cache-Control: no-store`, `nosniff` and a `default-src
   'none'` CSP. (Go refused only `cross-site`; `same-site` is refused here too.)
 - **Routes.** `POST /native/<tool>` mirrors the GABP tool names without the `rimgovernor/` prefix. The body is the
-  tool's ProtoJSON request (empty means `{}`), the reply body is the ProtoJSON payload, and the tool's timing
+  tool's JSON request record (empty means `{}`), the reply body is the JSON reply record (`WireJson`), and the tool's timing
   comes back in `X-RimGovernor-Timing`. Optional `X-RimGovernor-Class` and `X-RimGovernor-Trace` request headers are
-  the `class` and `trace` arguments. A tool failure inside the proto reply is a 200 with the failure arm, as over
+  the `class` and `trace` arguments. A tool failure inside the reply (its failure case) is a 200 with the failure arm, as over
   GABP; an exception is a 500 `tool_failed`; an unknown tool is a 404. Only tools whose sole argument is `request`
   have a route. Frame and clock-event streaming stays on GABP and the ring (#3102); nothing streams over HTTP.
 - **Failure shape.** `{"code","detail"}`. Bodies are bounded per route (8 MiB for `/native`, 8192 bytes for the

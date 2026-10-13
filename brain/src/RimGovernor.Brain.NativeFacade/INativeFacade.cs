@@ -14,9 +14,9 @@ namespace RimGovernor.Brain.NativeFacade;
 
 /// <summary>
 /// The brain's direct, in-memory call path to the native mod: the capabilities Go reached over GABP and
-/// ProtoJSON (<c>contracts/native-protobuf-cutover.md</c>) as typed calls. A call carries the same request and
-/// reply messages as the capability, so the protobuf shapes stay at this boundary until #3100 replaces them with
-/// plain records; no call is serialized, and nothing is parsed from text.
+/// JSON (<c>contracts/native-protobuf-cutover.md</c>) as typed calls. A call carries the same request and
+/// reply records as the tool's JSON bodies (<c>RimGovernor.Contracts.Wire</c>); no call is serialized, and nothing
+/// is parsed from text.
 /// </summary>
 /// <remarks>
 /// <para>

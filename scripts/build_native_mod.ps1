@@ -83,25 +83,10 @@ foreach ($taskBrainItem in @('brain/Directory.Build.props', 'brain/Directory.Pac
         New-Item -ItemType Directory -Path (Split-Path $taskTo -Parent) -Force | Out-Null
         Copy-Item -LiteralPath $taskFile.FullName -Destination $taskTo
     }
-}# Canonical Protobuf sources and official generator inputs travel with the build.
-# No experimental JSON generator or second contract tree participates.
-foreach ($taskContractDirectory in @('contracts/proto', 'contracts/generated/protobuf/csharp', 'tools/protobuf')) {
-    $taskFrom = Join-Path $taskRepo $taskContractDirectory
-    foreach ($taskFile in Get-ChildItem -LiteralPath $taskFrom -Recurse -File | Where-Object {
-        $_.FullName -notmatch '[\\/](obj|bin)[\\/]' -and $_.Extension -notin @('.dll', '.pdb', '.exe') -and
-        $_.FullName -notmatch '[\\/]csharp[\\/]Defs\.cs$'
-    }) {
-        $taskRelative = $taskFile.FullName.Substring($taskRepo.Length + 1)
-        $taskTo = Join-Path $taskCopyRoot $taskRelative
-        New-Item -ItemType Directory -Path (Split-Path $taskTo -Parent) -Force | Out-Null
-        Copy-Item -LiteralPath $taskFile.FullName -Destination $taskTo
-    }
 }
 $taskScripts = Join-Path $taskCopyRoot 'scripts'
 New-Item -ItemType Directory -Path $taskScripts -Force | Out-Null
 Copy-Item -LiteralPath $PSCommandPath -Destination $taskScripts
-# The C# generator is a self-contained stdlib Go program: `go run scripts/generate_protobuf.go`.
-Copy-Item -LiteralPath (Join-Path $taskRepo 'go/internal/protobufgen/cmd/generatecsharp/main.go') -Destination (Join-Path $taskScripts 'generate_protobuf.go')
 $taskFixtureSource = Join-Path $taskRepo 'scripts/fixtures'
 foreach ($taskFile in Get-ChildItem -LiteralPath $taskFixtureSource -Recurse -File | Where-Object {
     $_.Extension -in @('.cs', '.csproj') -and $_.FullName -notmatch '[\\/](obj|bin)[\\/]'
@@ -126,13 +111,6 @@ $taskSourceLines.Sort([System.StringComparer]::Ordinal)
 $taskSourceHasher = [System.Security.Cryptography.SHA256]::Create()
 $taskSourceTree = [BitConverter]::ToString($taskSourceHasher.ComputeHash([System.Text.Encoding]::UTF8.GetBytes(-join $taskSourceLines))).Replace('-', '').ToLowerInvariant()
 $taskSourceHasher.Dispose()
-# Defs.cs (49 MB) is not committed: generate it into the private copy with the
-# bundled generator (pinned Grpc.Tools protoc) after the source hash is taken.
-Push-Location $taskCopyRoot
-try {
-    & go run (Join-Path $taskScripts 'generate_protobuf.go') -root $taskCopyRoot -dotnet $taskCompiler -output (Join-Path $taskBuild 'protobuf') *> (Join-Path $taskBuild 'generate.log')
-    if ($LASTEXITCODE) { throw "Defs.cs generation failed; inspect $taskBuild/generate.log" }
-} finally { Pop-Location }
 $taskHostCompiled = Join-Path $taskBuild 'host-compiled'
 $taskHostArgs = @('build', (Join-Path $taskCopyHost 'src/Host/RimGovernor.Host.csproj'),
     '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskHostCompiled/",
@@ -178,7 +156,7 @@ $taskRuntimeDependencies = @()
 foreach ($taskLine in Get-Content -LiteralPath (Join-Path $taskCompiled 'runtime-dependencies.tsv')) {
     $taskFields = $taskLine.Split('|')
     if ($taskFields.Count -ne 3 -or -not $taskFields[0]) { throw "Unidentified runtime dependency: $taskLine" }
-    $taskNotice = Join-Path $taskCopyNative ('Notices/protobuf/' + $taskFields[0].ToLowerInvariant() + '/' + $taskFields[1])
+    $taskNotice = Join-Path $taskCopyNative ('Notices/bridge/' + $taskFields[0].ToLowerInvariant() + '/' + $taskFields[1])
     if (-not (Test-Path -LiteralPath (Join-Path $taskNotice 'LICENSE'))) { throw "Missing runtime dependency notice: $taskLine" }
     $taskDll = Join-Path $taskCompiled $taskFields[2]
     Copy-Item -LiteralPath $taskDll -Destination (Join-Path $taskPackage 'BridgeTools/RimGovernor')

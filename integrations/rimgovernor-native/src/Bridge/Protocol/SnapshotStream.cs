@@ -41,7 +41,7 @@ namespace HomeBridge.BridgeTools
     ///     20 uint32 capture microseconds (game thread)
     ///     24 uint32 encode microseconds  28 uint32 write microseconds
     ///     32 reserved
-    ///     40 payload: BundleSnapshot binary
+    ///     40 payload: BundleSnapshot WireJson UTF-8 bytes
     /// The ready event (Windows only; a Linux reader polls) is name + "-ready",
     /// a manual-reset event set after each commit.
     ///

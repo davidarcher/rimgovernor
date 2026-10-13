@@ -55,7 +55,8 @@ edit the main checkout. Details: [landing](docs/developers/development-process.m
   Amend that table before adding a store or second copy. Game intent lives in the
   save, the session journal in SQLite, derived state in memory, telemetry in
   the OTLP files.
-- Protobuf changes regenerate Go and C# together. Delete removed fields outright:
+- Wire changes edit the records in `brain/src/RimGovernor.Brain.Contracts` (the C# source of truth since #3100);
+  the `.proto` files and Go bindings are frozen until #3102. Delete removed fields outright:
   no `reserved` fields/names and no compatibility shims.
 - Use current vocabulary: Rounds inspect Concerns in Departments; Types are
   Standard, Project and Incident. Safeguards veto admission. See the

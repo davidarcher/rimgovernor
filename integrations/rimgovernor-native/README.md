@@ -33,26 +33,22 @@ The native entry assemblies are `Assemblies/RimGovernor.Runtime.dll` and
 its Core/Contracts/Abstractions/Sdk/Gab assemblies, Newtonsoft.Json and Gabp.Runtime
 (notices under `Notices/host`). Source and retained notices are
 included under `Source` and `Notices`; game and Harmony DLLs are not
-bundled. The Bridge bundle also contains the locked Google.Protobuf 3.31.1 runtime
-and its four NuGet runtime dependencies, with notices under `Notices/protobuf`.
-MSBuild supplies the resolved runtime file list; the builder requires a retained
-license for each package/version and records each DLL hash in the manifest.
-Protobuf dependencies remain beside `RimGovernor.Bridge.dll` for the host's scoped
-assembly resolver. Do not move them into the mod's general `Assemblies` directory.
+bundled. The Bridge bundle ships the brain assemblies it shares with the in-process brain
+(`RimGovernor.Brain.Contracts` holds the wire records) and no NuGet runtime beyond what the
+host provides. MSBuild supplies the resolved runtime file list; the builder requires a retained
+license for each package/version and records each DLL hash in the manifest. Runtime
+dependencies stay beside `RimGovernor.Bridge.dll` for the host's scoped assembly resolver.
 
-The private build and bundled source include canonical `contracts/proto`, official
-C# outputs, and `scripts/generate_protobuf.go` with its pinned tool project/lock.
-Native compilation consumes those checked-in official outputs directly; it does
-not invoke an experimental JSON generator. Regenerate/check with the included
-Go program (`go run scripts/generate_protobuf.go`) and pinned .NET tooling, then rebuild using the included native
+The private build and bundled source include the brain projects the mod compiles against
+(`brain/src/RimGovernor.Brain.Contracts` and friends). Rebuild using the included native
 script and your installed game/Harmony dependencies. Native restore is locked.
 Installed game loading and round trips require the fresh native acceptance run.
 
-The implemented [fixed Protobuf methods](../../contracts/native-protobuf-cutover.md)
+The implemented [fixed methods](../../contracts/native-protobuf-cutover.md)
 cover identity, authority, clock control, bounded observations, placement previews
 and guarded construction/draft/melee operations with receipt lookup and
 progress. The method map states each implemented subset. Each accepts one `request`
-ProtoJSON string and returns one `payload` ProtoJSON string inside the SDK envelope.
+JSON string and returns one `payload` JSON string inside the SDK envelope.
 Reads do not initialize game components or authority. Native lifecycle hooks
 initialize inactive authority; only the trusted host's explicit control path can
 acquire it. Model interpretation receives no control or execution capability.

@@ -5,18 +5,8 @@
 version: '3'
 
 tasks:
-  wire-defs:
-    desc: Generate the gitignored Defs.cs that Brain.Wire link-compiles (temporary, until protobuf collapses in #3100)
-    sources:
-      - ../contracts/proto/defs.proto
-    generates:
-      - ../contracts/generated/protobuf/csharp/Defs.cs
-    cmds:
-      - go -C ../go run ./internal/protobufgen/cmd/generatecsharp
-
   build:
     desc: Brain solution with nullable and warnings as errors, restored in locked mode
-    deps: [wire-defs]
     sources:
       - '**/*.cs'
       - '**/*.csproj'
