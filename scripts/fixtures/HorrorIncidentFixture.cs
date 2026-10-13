@@ -100,7 +100,7 @@ namespace HomeBridge.BridgeTools
         private static bool MeleeEntity(Pawn pawn)
         {
             var a = NativeAnomalyFacts.Pawn(pawn);
-            return a != null && ((a.HasEntity && a.Entity) || (a.HasMutant && a.Mutant)) && a.HasMeleeOnly && a.MeleeOnly && !(a.HasHiddenFromPlayer && a.HiddenFromPlayer);
+            return a != null && (a.Entity == true || a.Mutant == true) && a.MeleeOnly == true && a.HiddenFromPlayer != true;
         }
 
         private static IEnumerable<string> SplitIds(string ids) =>
