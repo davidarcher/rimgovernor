@@ -19,10 +19,30 @@
     <Using Include="RimGovernor.Brain.Bridge" />
     <Using Include="RimGovernor.Brain.Telemetry" />
     <Using Include="RimGovernor.Brain.Snapshot" />
+    <Using Include="RimGovernor.Brain.Executor" />
+    <Using Include="RimGovernor.Brain.Facts" />
     <Using Include="RimGovernor.Brain.BuildingRuntime.Boundary" />
     <Using Include="RimGovernor.Protocol" />
     <!-- Go package-level functions with no owning type live on one static partial class per package. -->
     <Using Include="RimGovernor.Brain.BuildingRuntime.BuildingRuntimePackage" Static="true" />
     <Using Include="RimGovernor.Brain.Policy.PolicyConstants" Static="true" />
+    <Using Include="RimGovernor.Brain.Policy.PolicyFunctions" Static="true" />
+    <!-- Namespace and class share a name in the unported packages, so the namespace shadows the class; these name the class. -->
+    <Using Include="RimGovernor.Brain.Telemetry.Telemetry" Alias="Tel" />
+    <Using Include="RimGovernor.Brain.Bridge.Bridge" Alias="BridgeApi" />
+    <Using Include="RimGovernor.Brain.Facts.Facts" Alias="FactsApi" />
+    <Using Include="RimGovernor.Brain.Observation.Observation" Alias="ObservationApi" />
+    <Using Include="RimGovernor.Brain.Snapshot.Snapshot" Alias="Snap" />
+    <Using Include="RimGovernor.Brain.Store.Store" Alias="JournalStore" />
+    <Using Include="RimGovernor.Brain.Facts.Store" Alias="FactStore" />
+    <!-- Go's wire package aliases (a, c, k, n, o, r). -->
+    <Using Include="RimGovernor.Protocol.Authority" Alias="PbAuthority" />
+    <Using Include="RimGovernor.Protocol.Common" Alias="PbCommon" />
+    <Using Include="RimGovernor.Protocol.Clock" Alias="PbClock" />
+    <Using Include="RimGovernor.Protocol.Observations" Alias="PbObservations" />
+    <Using Include="RimGovernor.Protocol.Operations" Alias="PbOperations" />
+    <Using Include="RimGovernor.Protocol.Receipts" Alias="PbReceipts" />
+    <Using Include="RimGovernor.Protocol.Presentation" Alias="PbPresentation" />
+    <Using Include="RimGovernor.Protocol.Lifecycle" Alias="PbLifecycle" />
   </ItemGroup>
 </Project>
