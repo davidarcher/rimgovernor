@@ -47,7 +47,7 @@ public sealed class DenseCore
         return true;
     }
 
-    private static int CoreHalf => CoreHalf;
+    private static int CoreHalf => PolicyConstants.CoreHalf;
 }
 
 /// <summary>The map's size, its impassable cells and every cell's walking distance from the nearest open edge cell, shared by every candidate's wall and edge score.</summary>

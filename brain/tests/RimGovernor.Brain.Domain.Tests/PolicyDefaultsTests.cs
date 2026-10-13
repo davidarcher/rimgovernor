@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -19,5 +20,19 @@ public sealed class PolicyDefaultsTests
         Assert.NotNull(f.ResourceNeeds);
         var demand = PolicyFunctions.ResourceDemandOf(f, PolicyFunctions.DefaultRoundsPolicy(), new RoundsLatches());
         Assert.NotNull(demand.Needs);
+    }
+
+    [Fact]
+    public void DenseCoreColumnDoesNotRecurseOnItsHalfHeight()
+    {
+        var cells = new List<Cell>();
+        for (var x = 0; x < 3; x++)
+        {
+            for (var z = 0; z < 25; z++)
+            {
+                cells.Add(new Cell(x, z));
+            }
+        }
+        Assert.True(new DenseCore(cells).Column(1, 12));
     }
 }
