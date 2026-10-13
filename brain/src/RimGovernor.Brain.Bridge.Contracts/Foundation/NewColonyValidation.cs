@@ -112,23 +112,6 @@ public static partial class BridgeFunctions
         }
     }
 
-    /// <summary>Go's <c>ValidateIdeoligionDesign</c>: shape only. Native owns compatibility, faction restrictions, required issues and the game's selection limits.</summary>
-    public static void ValidateIdeoligionDesign(RimGovernor.Protocol.Common.IdeoligionDesign? design)
-    {
-        if (design is null || !design.HasFluid || design.Memes.Count == 0 || design.Memes.Count > 5 || design.Precepts.Count > 256)
-        {
-            throw Contract("invalid ideoligion design");
-        }
-
-        foreach (var names in new[] { design.Memes, design.Precepts })
-        {
-            if (!ValidIds(names))
-            {
-                throw Contract("invalid or duplicate ideoligion selection");
-            }
-        }
-    }
-
     private static void ValidateNewColonyParts(NewColonySpec spec)
     {
         foreach (var n in new[]

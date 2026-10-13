@@ -20,6 +20,7 @@
         "dependencies": {
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )",
+          "RimGovernor.Brain.Telemetry": "[1.0.0, )",
           "RimGovernor.Brain.Wire": "[1.0.0, )"
         }
       },
@@ -87,9 +88,15 @@
       "rimgovernor.brain.playerapi": {
         "type": "Project",
         "dependencies": {
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.BuildingRuntime": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Facts": "[1.0.0, )",
           "RimGovernor.Brain.HttpChannel": "[1.0.0, )",
-          "RimGovernor.Brain.Store": "[1.0.0, )"
+          "RimGovernor.Brain.Observation": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )",
+          "RimGovernor.Brain.Store": "[1.0.0, )",
+          "RimGovernor.Brain.Wire": "[1.0.0, )"
         }
       },
       "rimgovernor.brain.policy": {
