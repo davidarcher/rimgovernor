@@ -22,9 +22,9 @@ public sealed partial class RoundsDefensePlanner
                 continue;
             }
             var current = state.Snapshot with { Plan = plan.Spec.Id, Revision = plan.Spec.Revision };
-            var observation = new Observation(p.Action.Id, p.View.Attempt, current, view.Tick, Effect.Completed);
+            var observation = new Domain.Observation(p.Action.Id, p.View.Attempt, current, view.Tick, Effect.Completed);
             await journal.ObserveAsync(plan.Spec.Id, observation, current, ct).ConfigureAwait(false);
-            await journal.RetireCombatBatchAsync(plan.Spec.Id, ct).ConfigureAwait(false);
+            journal.RetireCombatBatch(plan.Spec.Id, ct);
         }
     }
 }

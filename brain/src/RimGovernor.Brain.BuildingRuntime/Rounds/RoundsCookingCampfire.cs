@@ -5,23 +5,23 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>Commits the auto-refuel switch of a heat campfire as one owner method.</summary>
-    internal RoundsBuildingResult CommitCampfireRefuel(CancellationToken call, StandardState goal, Action check)
+    internal RoundsBuildingResult CommitCampfireRefuel(StandardState goal, Action check, CancellationToken call)
     {
         var p = Reviewer.Player;
         var proposal = Temperature;
-        if (proposal is null || (proposal.Method != PolicyApi.TemperatureRefuelOff && proposal.Method != PolicyApi.TemperatureRefuelOn))
+        if (proposal is null || (proposal.Method != Pol.TemperatureMethod.RefuelOff && proposal.Method != Pol.TemperatureMethod.RefuelOn))
         {
             throw new ControlException("commitCampfireRefuel: not a refuel proposal");
         }
         try
         {
             p.Journal.LoadOwnerMethod(goal, proposal.Key, call);
-            return new RoundsBuildingResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "campfire_refuel_method") };
+            return new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "campfire_refuel_method") };
         }
         catch (NotFoundException)
         {
         }
-        var value = new AutoRefuel(proposal.Thing, proposal.Method == PolicyApi.TemperatureRefuelOn);
+        var value = new AutoRefuel(proposal.Thing, proposal.Method == Pol.TemperatureMethod.RefuelOn);
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewAutoRefuelAction(new ActionId($"{id}-0"), value);
         var spec = new PlanSpec(id, new PlanRevision(1), [action]);
@@ -30,18 +30,18 @@ public sealed partial class RoundsBuildingPlanner
         return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted };
     }
 
-    internal RoundsBuildingResult RetireCampfire(CancellationToken call, CancellationToken epoch, ControlState state, RoundsReview review, StandardState goal, ColonyReading reading, CurrentBuilding campfire) =>
-        RetireBuilding(call, epoch, state, review, goal, reading, campfire.Id, campfire.Building.Definition, campfire.Cells[0], "campfire-retire", "building_retire_method");
+    internal async Task<RoundsBuildingResult> RetireCampfireAsync(ControlState state, RoundsReview review, StandardState goal, ColonyReading reading, CurrentBuilding campfire, CancellationToken call, CancellationToken epoch) =>
+        await RetireBuildingAsync(state, review, goal, reading, campfire.Id, (campfire.Building ?? throw new ControlException("campfire retire: current building carries no building")).Definition, campfire.Cells[0], "campfire-retire", "building_retire_method", call, epoch).ConfigureAwait(false);
 
     /// <summary>Deconstructs one standing building through an excavation-style admission, once per building.</summary>
-    internal RoundsBuildingResult RetireBuilding(CancellationToken call, CancellationToken epoch, ControlState state, RoundsReview review, StandardState goal, ColonyReading reading, string id, string def, Cell cell, string prefix, string reason)
+    internal async Task<RoundsBuildingResult> RetireBuildingAsync(ControlState state, RoundsReview review, StandardState goal, ColonyReading reading, string id, string def, Cell cell, string prefix, string reason, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var method = RetireMethodId(prefix, id);
         try
         {
             p.Journal.LoadOwnerMethod(goal, method, call);
-            return new RoundsBuildingResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, reason) };
+            return new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, reason) };
         }
         catch (NotFoundException)
         {
@@ -61,7 +61,7 @@ public sealed partial class RoundsBuildingPlanner
         var value = new Deconstruction(id, def, cell);
         var action = DomainAction.NewDeconstructionAction(new ActionId($"{snapshot.Plan}-0"), value);
         var spec = new PlanSpec(snapshot.Plan, new PlanRevision(1), [action]);
-        Tel.Decide(call, new Decision
+        Tel.Decide(new Decision
         {
             Kind = "layout_edit",
             Component = "building",
@@ -71,7 +71,7 @@ public sealed partial class RoundsBuildingPlanner
             Attrs = new Dictionary<string, object?> { ["family"] = "building", ["owner"] = goal.Standard.Id.Value, ["x"] = cell.X, ["z"] = cell.Z },
         });
         var facts = reading.Projection;
-        return AdmitExcavation(call, epoch, new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts, Read = reading }, snapshot, method, spec, null, new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick }, Check);
+        return await AdmitExcavationAsync(new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts, Read = reading }, snapshot, method, spec, null, new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick }, Check, call, epoch).ConfigureAwait(false);
     }
 }
 
@@ -97,10 +97,10 @@ internal static partial class BuildingRuntimePackage
             }
             var uk = bench.Usable.TryGetValue(out var usable);
             var ik = bench.Room.TryGetValue(out var id);
-            var (room, found) = rooms!.Room(id);
+            var (room, found) = ik && id is not null ? rooms!.Room(id) : (new Pol.Room(), false);
             var ok = found && room.Role.TryGetValue(out var role);
             role = ok ? room.Role.TryGetValue(out var r2) ? r2 : default : default;
-            stove = stove || (uk && usable && ik && found && ok && role == PolicyApi.RoomRoleKitchen);
+            stove = stove || (uk && usable && ik && found && ok && role == Pol.RoomRole.Kitchen);
         }
         foreach (var bench in benches)
         {
@@ -124,7 +124,7 @@ internal static partial class BuildingRuntimePackage
         var heat = new HashSet<Cell>();
         foreach (var claim in claims)
         {
-            if (claim.Concern == PolicyApi.EnsureTemperatureSafety && claim.Building.Definition == "Campfire")
+            if (claim.Concern == PolicyApi.EnsureTemperatureSafety && claim.Building?.Definition == "Campfire")
             {
                 foreach (var c in claim.Cells)
                 {
@@ -140,7 +140,7 @@ internal static partial class BuildingRuntimePackage
         facts.Facts.ConstructionClaims.TryGetValue(out var claims);
         var bk = facts.CookingBenches.TryGetValue(out var benches);
         var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
-        var heat = HeatCampfireCells(claims ?? []);
+        var heat = HeatCampfireCells(claims);
         if (!bk || !ck || heat.Count == 0)
         {
             return [];
@@ -173,6 +173,6 @@ internal static partial class BuildingRuntimePackage
         {
             return Unknown<bool>();
         }
-        return Known(CampfireRetirement(facts, claims ?? []).Retire);
+        return Known(CampfireRetirement(facts, claims).Retire);
     }
 }

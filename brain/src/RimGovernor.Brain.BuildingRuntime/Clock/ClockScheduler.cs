@@ -59,9 +59,13 @@ public sealed partial class ClockScheduler
     private long _lastTick;
     private bool _lastTickKnown;
     private DateTimeOffset _lastFull;
-    private bool _noWork;
-    private int _idleRefusals;
+    // Set by the window decision (Go clock_scheduler.go: s.noWork / s.idleRefusals after EvaluateClockWindow), which this step does not run yet.
+    private bool NoWork { get; set; }
+    private int IdleRefusals { get; set; }
     private ReadValidity? _validity;
+
+    // The latest step's clock-status context: its identity and scope are what the planner wave's section refreshes read under.
+    private PbCommon.ObservationContext? _stepContext;
     private volatile bool _running;
 
     public ClockScheduler(Player player, IClockWindowNative native, ClockSchedulerConfig config, IClock clock)
@@ -92,7 +96,7 @@ public sealed partial class ClockScheduler
         {
             rounds.Store = _facts.Store;
             rounds.FoodGapZero = config.Faults.FoodGapZero;
-            rounds.StockDemand = config.Faults.StockDemand;
+            rounds.StockDemand = new Dictionary<Resource, long>(config.Faults.StockDemand);
         }
     }
 
@@ -171,10 +175,10 @@ public sealed partial class ClockScheduler
         }
         // The sleeping, comfort and expansion building planners are also checked for their phase; every other
         // planner (defense, tend, ...) validates its own reviewer when it is built.
-        if (c.Sleeping is { } s && s.Phase != HousingPhase.Shelter
-            || c.Expansion is { } e && e.Phase != HousingPhase.Expansion
-            || c.Comfort is { } k && k.Phase != ComfortPhase.Ranked
-            || c.BasicComfort is { } b && b.Phase != ComfortPhase.Basic)
+        if (c.Sleeping is { } s && s.Phase != Policy.Phase.HousingShelter
+            || c.Expansion is { } e && e.Phase != Policy.Phase.HousingExpansion
+            || c.Comfort is { } k && k.Phase != Policy.Phase.ComfortRanked
+            || c.BasicComfort is { } b && b.Phase != Policy.Phase.ComfortBasic)
         {
             throw new ControlException("NewClockScheduler: a building planner is built for another phase");
         }
@@ -209,7 +213,7 @@ public sealed partial class ClockScheduler
 
     /// <summary>The ticks to wait when any isolated planner failure of the step is a native refusal; zero otherwise.</summary>
     internal static uint PlannerRefusalWait(IEnumerable<Exception> failures) =>
-        failures.Any(f => BridgeApi.IsRefused(f)) ? RoundsSleeping.StockWaitTicks : 0;
+        failures.Any(f => f is BridgeRefusedException) ? StockWaitTicks : 0;
 
     private bool StepReviews(StepReason reason) =>
         Config.Rounds is not null && PreviewSelection(reason).Planners;
@@ -230,7 +234,7 @@ public sealed partial class ClockScheduler
     // releases its planner at the next step.
     private async Task<PlannerSelectionResult> SelectPlannersAsync(StepReason reason, long tick, CancellationToken ct)
     {
-        if (_noWork && !reason.TickAdvanced)
+        if (NoWork && !reason.TickAdvanced)
         {
             _queue.Stalled();
         }
@@ -257,7 +261,7 @@ public sealed partial class ClockScheduler
         var result = new ClockSchedulerResult();
         using var span = Tel.StartSpan("buildingruntime", "scheduler.step", ("rimgovernor.step_cause", Wire.Name(reason.Cause)));
         var entered = Stopwatch.GetTimestamp();
-        using var entry = await _player.EnterAsync(ct, "clock_step", false).ConfigureAwait(false);
+        using var entry = await _player.EnterAsync("clock_step", false, ct).ConfigureAwait(false);
         var call = entry.Call;
         var epoch = entry.Epoch;
         var gateWait = Stopwatch.GetElapsedTime(entered);
@@ -271,14 +275,14 @@ public sealed partial class ClockScheduler
             }
             using var reads = BridgeApi.WithReadTally();
             var reviews = StepReviews(reason);
-            var zones = new ZoneRefresher(_native, _facts.Store, default, 0, reviews);
+            var zones = new ZoneRefresher(_native, _facts.Store);
             using var zoneScope = ObservationApi.WithZones(zones);
             var window = new PlanningWindow(_native, _facts.Store);
             using var windowScope = ObservationApi.WithPlanningWindow(window);
             var loaded = await _native.ReadStepAsync(new BridgeApi.StepRequest { ClockStatus = true, Emergency = true }, call).ConfigureAwait(false)
                 ?? throw new HeldException("step read returned nothing");
             BridgeApi.ValidateContext(loaded.Context);
-            if (await _player.ExpeditionIncomingHandoffAsync(call, epoch, loaded).ConfigureAwait(false))
+            if (await _player.ExpeditionIncomingHandoffAsync(loaded, call, epoch).ConfigureAwait(false))
             {
                 result.Deferred = true;
                 return result;
@@ -291,6 +295,7 @@ public sealed partial class ClockScheduler
             }
             var scope = FactScope(loaded.Context);
             window.Scope = scope;
+            (zones.Scope, zones.Tick) = (scope, (long)loaded.Context.Tick);
             var id = loaded.Context.Identity;
             var tick = new Tick((long)loaded.Context.Tick);
             var state = _player.State();
@@ -308,6 +313,7 @@ public sealed partial class ClockScheduler
                     : await _player.Journal.LayoutPlanAsync(world, tick, c).ConfigureAwait(false);
             };
             var status = loaded.ClockStatus;
+            _stepContext = status.Context;
             BridgeApi.ValidateClockStatus(status, id);
             if ((long)status.Context.Tick < (long)loaded.Context.Tick)
             {
@@ -337,7 +343,7 @@ public sealed partial class ClockScheduler
             {
                 try
                 {
-                    result.Planners = await RunPlannerWaveAsync(call, epoch, result, sel, (long)status.Context.Tick, false).ConfigureAwait(false);
+                    result.Planners = await RunPlannerWaveAsync(result, sel, (long)status.Context.Tick, false, call, epoch).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
@@ -412,7 +418,7 @@ public sealed partial class ClockScheduler
         }
         // A planner that failed on a native refusal produced neither work nor a wait; one window lets the world move.
         ticks = Math.Max(ticks, PlannerRefusalWait(r.PlannerFailures));
-        if (ticks == 0 && Config.RoundsMethods && _idleRefusals >= IdleLendAfter && r.HeldBy.Count == 0)
+        if (ticks == 0 && Config.RoundsMethods && IdleRefusals >= IdleLendAfter && r.HeldBy.Count == 0)
         {
             ticks = Math.Min(IdleLendTicks, NativeWorkBudget());
         }
@@ -464,7 +470,7 @@ public sealed partial class ClockScheduler
     /// still evaluating at that cutoff are cancelled, recorded on MissedCutoff and their results discarded. The
     /// coordinator then arbitrates the proposals that made the cutoff, and any carried from an earlier step.
     /// </summary>
-    internal async Task<List<string>> RunPlannerWaveAsync(CancellationToken call, CancellationToken epoch, ClockSchedulerResult output, PlannerSelectionResult sel, long tick, bool immediate)
+    internal async Task<List<string>> RunPlannerWaveAsync(ClockSchedulerResult output, PlannerSelectionResult sel, long tick, bool immediate, CancellationToken call, CancellationToken epoch)
     {
         using var immediateScope = ReviewScope.BeginImmediate(immediate);
         var arbiter = new StepArbiter(_late);
@@ -476,13 +482,21 @@ public sealed partial class ClockScheduler
             {
                 // Ordinary section refreshes belong after protective execution too. Failed reads retain the
                 // existing explicit stale/unknown evidence.
-                await ClockEntities.RefreshEntitySectionsAsync(_native, _facts, call).ConfigureAwait(false);
-                _ = await ObservationApi.ReadZoneSectionAsync(_native, call).ConfigureAwait(false);
+                var stepContext = _stepContext ?? throw new HeldException("planner wave ran before the step read its status");
+                await ClockEntities.RefreshEntitySectionsAsync(_native, _facts, stepContext.Identity, FactScope(stepContext), call).ConfigureAwait(false);
+                try
+                {
+                    _ = await ObservationApi.ReadZoneSection(_native, stepContext.Identity, call).ConfigureAwait(false);
+                }
+                catch (Exception e) when (e is not OperationCanceledException)
+                {
+                    // A failed zone read keeps the held census: planners ask again and judge its staleness.
+                }
             }
             List<string> planners;
             try
             {
-                planners = await StepPlannersAsync(call, epoch, output, wave, arbiter, sel.Pick, immediate).ConfigureAwait(false);
+                planners = await StepPlannersAsync(output, wave, arbiter, sel.Pick, immediate, call, epoch).ConfigureAwait(false);
             }
             catch
             {
@@ -594,7 +608,7 @@ public sealed partial class ClockScheduler
     // the arbiter, returning the queued names without waiting. The rounder's own error aborts before anything is
     // queued; an error from a queued planner is isolated by the wave. The colony stage's foothold hold promotes the
     // startup planners into the critical cycle for the step.
-    private async Task<List<string>> StepPlannersAsync(CancellationToken call, CancellationToken epoch, ClockSchedulerResult output, PlannerWave wave, StepArbiter arbiter, Func<PlannerEntry, bool>? pick, bool immediate)
+    private async Task<List<string>> StepPlannersAsync(ClockSchedulerResult output, PlannerWave wave, StepArbiter arbiter, Func<PlannerEntry, bool>? pick, bool immediate, CancellationToken call, CancellationToken epoch)
     {
         var startup = false;
         RoundsResult? held = null;
@@ -605,7 +619,7 @@ public sealed partial class ClockScheduler
             {
                 review = immediate
                     ? await rounds.ImmediateStepAsync(call, epoch).ConfigureAwait(false)
-                    : await rounds.StepAsync(call, epoch, arbiter, pick is not null).ConfigureAwait(false);
+                    : await rounds.StepAsync(arbiter, pick is not null, call, epoch).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -630,6 +644,6 @@ public sealed partial class ClockScheduler
                 startup = true;
             }
         }
-        return QueuePlanners(call, epoch, wave, arbiter, pick, startup, held);
+        return QueuePlanners(wave, arbiter, pick, startup, held, call, epoch);
     }
 }

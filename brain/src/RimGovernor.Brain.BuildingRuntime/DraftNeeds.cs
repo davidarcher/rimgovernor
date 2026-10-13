@@ -1,12 +1,6 @@
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The undraft intents' sink (the bridge client's Apply).</summary>
-public interface IUndraftWriter
-{
-    Task<PbOperations.ApplyReply> ApplyAsync(PbCommon.Identity identity, IReadOnlyList<PbOperations.Action> actions, CancellationToken ct);
-}
-
 // Drafts are plan-owned: a plan drafts the pawns it needs, and the undraft sweep undrafts every drafted colonist
 // no live plan needs. There is no native claim; the journal's plans and fights are the record.
 internal static class DraftNeeds
@@ -24,29 +18,29 @@ internal static class DraftNeeds
         var needed = new HashSet<PawnId>();
         foreach (var plan in plans)
         {
-            var open = JournalStore.PlanOpen(plan);
+            var open = StorePackage.PlanOpen(plan);
             foreach (var progress in plan.Progress)
             {
                 var v = progress.View;
                 if (progress.Action.OwnedDraft is { } draft)
                 {
                     if (v.Unresolved || v.Stage is Stage.Pending or Stage.Prepared or Stage.Dispatched or Stage.AwaitingObservation
-                        || Worker.PlanHoldsDraft(plan, v))
+                        || Worker.WorkerPlanHoldsDraft(plan, v))
                     {
-                        needed.Add(draft.Pawn);
+                        needed.Add((PawnId)draft.Pawn);
                     }
                 }
                 if (progress.Action.Capture is { } capture && open)
                 {
-                    needed.Add(capture.Capturer);
+                    needed.Add((PawnId)capture.Capturer);
                 }
             }
         }
-        foreach (var fight in await journal.OpenCombatFightsAsync(ct).ConfigureAwait(false))
+        foreach (var fight in journal.OpenCombatFights(ct).Values)
         {
-            foreach (var pawn in fight.Roster.Keys)
+            foreach (var pawn in fight.Roster)
             {
-                needed.Add(pawn);
+                needed.Add((PawnId)pawn);
             }
         }
         return needed;
@@ -95,7 +89,7 @@ internal static class DraftNeeds
         }
         foreach (var threat in emergency.Threats)
         {
-            if (PolicyFunctions.ThreatHolds(threat))
+            if (threat.Holds())
             {
                 return [];
             }
@@ -115,13 +109,13 @@ internal static class DraftNeeds
     /// Sends one Draft intent per pawn, drafted false, keyed by tick. A refusal (the pawn died or left) is logged
     /// and retried by the next review's sweep if it still stands.
     /// </summary>
-    public static async Task UndraftAsync(IUndraftWriter writer, PbCommon.Identity identity, Tick tick, IReadOnlyList<PawnId> pawns, CancellationToken ct)
+    public static async Task UndraftAsync(IActionsWriter writer, PbCommon.Identity identity, Tick tick, IReadOnlyList<PawnId> pawns, CancellationToken ct)
     {
         if (pawns.Count == 0)
         {
             return;
         }
-        var actions = pawns.Select(pawn => BridgeApi.UndraftAction($"undraft-{pawn.Value}-{tick.Value}", pawn)).ToList();
+        var actions = pawns.Select(pawn => BridgeApi.UndraftAction($"undraft-{pawn.Value}-{tick.Value}", new Domain.PawnId(pawn.Value))).ToList();
         var reply = await writer.ApplyAsync(identity, actions, ct).ConfigureAwait(false);
         for (var i = 0; i < reply.Results.Count; i++)
         {
@@ -140,7 +134,7 @@ internal static class DraftNeeds
                 level = TelemetryLevel.Warn;
                 detail = failed.Detail;
             }
-            Defense.DefenseAction("undraft-sweep", level, verdict, "undraft", pawns[i].Value, new Dictionary<string, object?> { ["detail"] = detail });
+            BuildingRuntimePackage.DefenseAction("undraft-sweep", level, verdict, "undraft", pawns[i].Value, new Dictionary<string, object?> { ["detail"] = detail }, ct);
         }
     }
 }
@@ -152,11 +146,11 @@ public sealed partial class Rounder
     /// step's other planners and sends the Draft intents directly: an undraft owns no plan. A reviewer without
     /// an actions writer never undrafts.
     /// </summary>
-    internal async Task SweepDraftsAsync(CancellationToken ct, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task SweepDraftsAsync(StepArbiter arbiter, CancellationToken ct, CancellationToken epoch)
     {
-        var p = _player;
+        var p = Player;
         var state = p.State();
-        if (_undraft is null || !state.Enabled)
+        if (Undraft is null || !state.Enabled)
         {
             return;
         }
@@ -172,8 +166,8 @@ public sealed partial class Rounder
         {
             throw new ControlException("sweepDrafts: invalid snapshot");
         }
-        var started = _clock.Now();
-        var frame = await _native.ReadRoundsFrameAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
+        var started = Clock.Now();
+        var frame = await Native.ReadRoundsFrameAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
         try
         {
             Boundary.Context(frame.Context, state.Snapshot);
@@ -189,11 +183,11 @@ public sealed partial class Rounder
             return;
         }
         p.Current(ct, epoch);
-        var elapsed = _clock.Now() - started;
-        if (p.State() != state || elapsed < TimeSpan.Zero || elapsed > _maxAge)
+        var elapsed = Clock.Now() - started;
+        if (p.State() != state || elapsed < TimeSpan.Zero || elapsed > MaxAge)
         {
             throw new ControlException("sweepDrafts: session changed or read too old");
         }
-        await DraftNeeds.UndraftAsync(_undraft, Boundary.Identity(state.Snapshot), new Tick((long)frame.Context.Tick), pawns, ct).ConfigureAwait(false);
+        await DraftNeeds.UndraftAsync(Undraft, Boundary.Identity(state.Snapshot), new Tick((long)(frame.Context?.Tick ?? 0)), pawns, ct).ConfigureAwait(false);
     }
 }

@@ -147,7 +147,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var taken = DefenseTaken(record.Tiers);
         foreach (var t in record.Tiers)
         {
-            if (t.NodeBacked() && !t.Remove)
+            if (t.NodeBacked && !t.Remove)
             {
                 t.Buildings = DefenseResolve(t, sections, taken);
             }
@@ -156,15 +156,16 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var cuts = new Dictionary<string, List<PerimeterSection>>(StringComparer.Ordinal);
         foreach (var t in record.Tiers)
         {
-            if (t.NodeBacked() && t.Remove)
+            if (t.NodeBacked && t.Remove)
             {
                 var key = t.Bridge + "/" + string.Join(",", t.Nodes);
-                if (!cuts.ContainsKey(key))
+                if (!cuts.TryGetValue(key, out var cutSections))
                 {
                     var (r2, f2, p2) = DefenseNodeSections(cut.Plan.SiteView(t.Nodes), t.Bridge, cut.Transmitters);
-                    cuts[key] = r2.Concat(f2).Concat(p2).ToList();
+                    cutSections = r2.Concat(f2).Concat(p2).ToList();
+                    cuts[key] = cutSections;
                 }
-                t.Buildings = DefenseResolveRemoval(t, cuts[key], taken, wanted, building);
+                t.Buildings = DefenseResolveRemoval(t, cutSections, taken, wanted, building);
             }
         }
     }
@@ -225,7 +226,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             }
             foreach (var id in t.Nodes)
             {
-                if (cut.Plan.Site(id, out var site) && site.Kind == NodeKind.Pump)
+                if (cut.Plan.Site(id) is { Kind: NodeKind.Pump } site)
                 {
                     have.Add(site.Origin);
                 }
@@ -251,7 +252,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var spare = cut.Spare;
         for (var i = 0; i < pumps.Count; i++)
         {
-            if (cut.Plan.Site(pumps[i].Nodes[0], out var site) && have.Contains(site.Origin))
+            if (cut.Plan.Site(pumps[i].Nodes[0]) is { } site && have.Contains(site.Origin))
             {
                 continue;
             }
@@ -313,7 +314,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         record.PerimeterKey = key;
         record.PerimeterBridge = cut.Bridge;
         record.PerimeterRevision++;
-        var prefix = string.Create(CultureInfo.InvariantCulture, $"{PolicyApi.TierPerimeterPrefix}r{record.PerimeterRevision}-");
+        var prefix = string.Create(CultureInfo.InvariantCulture, $"{PolicyConstants.TierPerimeterPrefix}r{record.PerimeterRevision}-");
         var wanted = new HashSet<string>(StringComparer.Ordinal);
         var building = new HashSet<Cell>();
         foreach (var t in fresh)
@@ -348,7 +349,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var ids = new List<string>();
         foreach (var t in old)
         {
-            if (t.Remove && t.NodeBacked())
+            if (t.Remove && t.NodeBacked)
             {
                 Stage(t);
             }
@@ -360,7 +361,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                     Stage(t);
                 }
             }
-            else if (t.NodeBacked())
+            else if (t.NodeBacked)
             {
                 foreach (var id in t.Nodes)
                 {
@@ -396,7 +397,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                     {
                         if (split[after, lift].Count > 0)
                         {
-                            Stage(new DefenseTierRecord { Name = Name(Letter(lift)), Buildings = split[after, lift], Remove = true, Before = after == 0, Foundation = lift == 1 });
+                            Stage(new DefenseTierRecord { Name = new DefenseTierName(Name(Letter(lift))), Buildings = split[after, lift], Remove = true, Before = after == 0, Foundation = lift == 1 });
                         }
                     }
                 }
@@ -408,13 +409,14 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 for (var lift = 0; lift < 2; lift++)
                 {
-                    Stage(new DefenseTierRecord { Name = Name(Letter(lift)), Nodes = ids, Bridge = previous, Remove = true, Before = after == 0, Foundation = lift == 1 });
+                    Stage(new DefenseTierRecord { Name = new DefenseTierName(Name(Letter(lift))), Nodes = ids, Bridge = previous, Remove = true, Before = after == 0, Foundation = lift == 1 });
                 }
             }
         }
         foreach (var f in fresh)
         {
-            f.Name = prefix + (f.Name.StartsWith(PolicyApi.TierPerimeterPrefix, StringComparison.Ordinal) ? f.Name[PolicyApi.TierPerimeterPrefix.Length..] : f.Name);
+            var fresh0 = f.Name.Value;
+            f.Name = new DefenseTierName(prefix + (fresh0.StartsWith(PolicyConstants.TierPerimeterPrefix, StringComparison.Ordinal) ? fresh0[PolicyConstants.TierPerimeterPrefix.Length..] : fresh0));
         }
         var tiers = new List<DefenseTierRecord>(kept);
         tiers.AddRange(removals[0, 0]);
@@ -425,13 +427,13 @@ public sealed partial class RoundsDefenseLayoutPlanner
         record.Tiers = tiers;
         record.Complete = false;
         DefenseHydrate(record, cut);
-        record.Tiers.RemoveAll(t => t.Remove && t.NodeBacked() && t.Buildings.Count == 0);
+        record.Tiers.RemoveAll(t => t.Remove && t.NodeBacked && t.Buildings.Count == 0);
         record.Validate();
         return true;
     }
 
     internal static bool DefenseFoundation(string definition) =>
-        definition == PolicyApi.PerimeterBridge || definition == PolicyApi.PerimeterHeavyBridge;
+        definition == PolicyConstants.PerimeterBridge || definition == PolicyConstants.PerimeterHeavyBridge;
 
     internal static bool DefenseRemovalGone(DefenseTierRecord tier, DefenseCensus census)
     {
@@ -445,7 +447,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return true;
     }
 
-    internal RoundsDefenseLayoutResult Remove(CancellationToken call, CancellationToken epoch, StandardState goal, ControlState state, RoundsReading read, DefenseLayoutRecord record, DefenseTierRecord tier, DefenseCensus? census)
+    internal RoundsDefenseLayoutResult Remove(StandardState goal, ControlState state, RoundsReading read, DefenseLayoutRecord record, DefenseTierRecord tier, DefenseCensus? census, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var key = DefenseTierMethodId(tier);
@@ -455,16 +457,16 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             tier.Buildings = tier.Buildings.Where(b => !lost.Contains(b.Cell)).ToList();
             record.SetTier(tier);
-            DefenseAction(call, "defense-layout", LogLevel.Info, "refused", "nothing_removable", tier.Name, new Dictionary<string, object?> { ["cells"] = lost.Count });
+            DefenseAction("defense-layout", TelemetryLevel.Info, "refused", "nothing_removable", tier.Name.Value, new Dictionary<string, object?> { ["cells"] = lost.Count }, call);
             p.Journal.SaveDefenseLayout(record, call);
         }
         if (actions.Count == 0)
         {
             if (pending)
             {
-                return new RoundsDefenseLayoutResult { Verdict = FieldUnavailable("perimeter_preview"), Tier = tier.Name, NativeWorkTicks = DefenseNativeWorkTicks };
+                return new RoundsDefenseLayoutResult { Verdict = FieldUnavailable("perimeter_preview"), Tier = tier.Name.Value, NativeWorkTicks = DefenseNativeWorkTicks };
             }
-            return new RoundsDefenseLayoutResult { Verdict = NoSpace("perimeter_section"), Tier = tier.Name };
+            return new RoundsDefenseLayoutResult { Verdict = NoSpace("perimeter_section"), Tier = tier.Name.Value };
         }
         var plan = new PlanSpec(id, new PlanRevision(1), actions);
         p.Current(call, epoch);
@@ -473,12 +475,12 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             throw DefenseControlErr(1);
         }
-        p.Journal.CommitMethodReason(call, goal.Standard.Id, goal.Revision, key, "", plan);
+        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, key, "", plan, call);
         tier.Attempts++;
         record.SetTier(tier);
         p.Journal.SaveDefenseLayout(record, call);
-        DefenseAction(call, "defense-layout", LogLevel.Info, "applied", "removals", tier.Name, new Dictionary<string, object?> { ["removals"] = actions.Count, ["method"] = key.Value });
-        return new RoundsDefenseLayoutResult { Verdict = BuildingReasonAdmitted, Plan = id, Tier = tier.Name };
+        DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "removals", tier.Name.Value, new Dictionary<string, object?> { ["removals"] = actions.Count, ["method"] = key.Value }, call);
+        return new RoundsDefenseLayoutResult { Verdict = BuildingReasonAdmitted, Plan = id, Tier = tier.Name.Value };
     }
 
     internal static (List<DomainAction> Actions, bool Pending, HashSet<Cell> Lost) DefenseRemovalActions(PlanId id, DefenseTierRecord tier, DefenseCensus census)
@@ -501,7 +503,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                     pending = true;
                     continue;
                 }
-                action = DomainAction.NewFoundationRemovalAction(actionId, DomainApi.NewFoundationRemoval(b.Definition, b.Cell));
+                action = DomainAction.NewFoundationRemovalAction(actionId, new FoundationRemoval(b.Definition, b.Cell));
             }
             else
             {
@@ -511,12 +513,12 @@ public sealed partial class RoundsDefenseLayoutPlanner
                     pending = true;
                     continue;
                 }
-                if (cover is null || cover.DefName != b.Definition || cover.Designation() != CoverClearanceKind.Deconstruct)
+                if (cover is null || cover.DefName != b.Definition || cover.Designation != CoverClearanceDesignation.Deconstruct)
                 {
                     lost.Add(b.Cell);
                     continue;
                 }
-                action = DomainAction.NewCoverClearanceAction(actionId, DomainApi.NewCoverClearance(cover.ThingId, cover.DefName, CoverClearanceKind.Deconstruct, b.Cell));
+                action = DomainAction.NewCoverClearanceAction(actionId, new CoverClearance(cover.ThingId, cover.DefName, CoverClearanceDesignation.Deconstruct, b.Cell));
             }
             actions.Add(action);
         }

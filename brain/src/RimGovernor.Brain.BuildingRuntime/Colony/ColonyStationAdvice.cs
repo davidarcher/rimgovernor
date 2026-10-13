@@ -5,8 +5,8 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class Rounder
 {
     /// <summary>
-    /// Runs the station chain over the live colony at a layout review and keeps its advice (<c>_stationLast</c>,
-    /// held when the chain made one) and the facts it read (<c>_stationFacts</c>), which the replan tiles. The
+    /// Runs the station chain over the live colony at a layout review and keeps its advice (<c>StationLast</c>,
+    /// held when the chain made one) and the facts it read (<c>StationFacts</c>), which the replan tiles. The
     /// chain is skipped, and the last advice kept, while its inputs are unchanged: the facts' key and the survey,
     /// as for the replan. A run records one layout_stations decision.
     /// </summary>
@@ -18,13 +18,13 @@ public sealed partial class Rounder
             ThroneArea = Known(growth.ThroneArea),
             RetireShelter = growth.RetireShelter,
             Demand = demand,
-            Child = PolicyFunctions.ChildRoomShapes(ChildNeeds.ChildRoomNeeds(projection), FurnitureDefinitions.Of(projection)),
+            Child = PolicyFunctions.ChildRoomShapes(BuildingRuntimePackage.ChildRoomNeeds(projection), BuildingRuntimePackage.FurnitureDefinitions(projection)),
             Crops = FieldCrops.Of(projection),
             FoodReserveDays = Seasonal(projection.Facts).FoodTargetDays,
-            Suites = SuiteWishes.Of(projection, plan, _stage),
+            Suites = BuildingRuntimePackage.SuiteWishesOf(projection, plan, Stage) is { } wishes ? [.. wishes] : [],
         };
-        var inputs = new LayoutInputs(default, string.Create(CultureInfo.InvariantCulture, $"{snapshot.Load.Value}|{f.InputsKey()}"), survey.Bounds, survey.Cells);
-        if (inputs.Same(_stationInputs))
+        var inputs = new LayoutInputs(default, string.Create(CultureInfo.InvariantCulture, $"{snapshot.Load.Value}|{f.InputsKey()}"), survey.Bounds, [.. survey.Cells]);
+        if (inputs.Same(StationInputs))
         {
             return;
         }
@@ -40,16 +40,16 @@ public sealed partial class Rounder
             error = e;
         }
         var (decision, advice, ok) = StationAdviceLog.StationDecision(facts, error);
-        decision.Dur = DateTimeOffset.UtcNow - start;
+        decision = decision with { Dur = DateTimeOffset.UtcNow - start };
         Tel.Decide(decision);
         foreach (var d in advice.Regroup)
         {
             Tel.Decide(StationAdviceLog.RegroupDecision(d));
         }
-        _stationInputs = inputs;
-        _stationLast = advice;
-        _stationHeld = ok;
-        _stationFacts = facts;
+        StationInputs = inputs;
+        StationLast = advice;
+        StationHeld = ok;
+        StationFacts = facts;
     }
 }
 
@@ -70,9 +70,9 @@ internal static class StationAdviceLog
                 ["reason"] = d.Reason,
                 ["built"] = d.Built,
             };
-            if (d.Short > 0)
+            if (d.ShortBy > 0)
             {
-                row["short"] = d.Short;
+                row["short"] = d.ShortBy;
             }
             rooms.Add(row);
         }
@@ -81,10 +81,10 @@ internal static class StationAdviceLog
             .ToList();
         return new Dictionary<string, object?>
         {
-            ["same"] = diff.Count(TileDiffVerdict.Same),
-            ["moved"] = diff.Count(TileDiffVerdict.Moved),
-            ["new"] = diff.Count(TileDiffVerdict.New),
-            ["dropped"] = diff.Count(TileDiffVerdict.Dropped),
+            ["same"] = diff.Count(PolicyFunctions.TileDiffSame),
+            ["moved"] = diff.Count(PolicyFunctions.TileDiffMoved),
+            ["new"] = diff.Count(PolicyFunctions.TileDiffNew),
+            ["dropped"] = diff.Count(PolicyFunctions.TileDiffDropped),
             ["rooms"] = rooms,
             ["unmatched_built"] = unmatched,
             ["built"] = built,
@@ -139,20 +139,20 @@ internal static class StationAdviceLog
         switch (error)
         {
             case StationFactsException:
-                decision.Verdict = "skipped";
-                decision.Reason = "facts_unknown";
-                decision.Attrs = new Dictionary<string, object?> { ["fact"] = error.Message };
+                decision = decision with { Verdict = "skipped" };
+                decision = decision with { Reason = "facts_unknown" };
+                decision = decision with { Attrs = new Dictionary<string, object?> { ["fact"] = error.Message } };
                 break;
             case not null:
-                decision.Level = TelemetryLevel.Warn;
-                decision.Verdict = "failed";
-                decision.Reason = "chain_error";
-                decision.Attrs = new Dictionary<string, object?> { ["error"] = error };
+                decision = decision with { Level = TelemetryLevel.Warn };
+                decision = decision with { Verdict = "failed" };
+                decision = decision with { Reason = "chain_error" };
+                decision = decision with { Attrs = new Dictionary<string, object?> { ["error"] = error } };
                 break;
             default:
-                decision.Verdict = "advised";
-                decision.Reason = "station_chain";
-                decision.Attrs = StationAdviceAttrs(advice);
+                decision = decision with { Verdict = "advised" };
+                decision = decision with { Reason = "station_chain" };
+                decision = decision with { Attrs = StationAdviceAttrs(advice) };
                 return (decision, advice, true);
         }
         return (decision, new StationAdvice(), false);
@@ -219,13 +219,13 @@ internal static class StationAdviceLog
         }
         foreach (var d in a.Embedding.Decisions)
         {
-            if (d.Verdict is PolicyFunctions.EmbedKeep or PolicyFunctions.EmbedMove)
+            if (d.Verdict is PolicyConstants.EmbedKeep or PolicyConstants.EmbedMove)
             {
                 built.Add(new Dictionary<string, object?> { ["group"] = d.Group, ["room"] = d.Room, ["verdict"] = d.Verdict, ["reason"] = d.Reason });
             }
-            else if (d.Verdict != PolicyFunctions.EmbedPlace)
+            else if (d.Verdict != PolicyConstants.EmbedPlace)
             {
-                issues.Add(new Dictionary<string, object?> { ["group"] = d.Group, ["other"] = d.Other, ["verdict"] = d.Verdict, ["reason"] = d.Reason, ["requirement"] = Wire.Name(d.Requirement), ["field"] = d.Field });
+                issues.Add(new Dictionary<string, object?> { ["group"] = d.Group, ["other"] = d.Other, ["verdict"] = d.Verdict, ["reason"] = d.Reason, ["requirement"] = d.Requirement is { } requirement ? Wire.Name(requirement) : "", ["field"] = d.Field });
             }
         }
         var sites = new List<Dictionary<string, object?>>();
@@ -236,7 +236,7 @@ internal static class StationAdviceLog
             {
                 if (l.Wind)
                 {
-                    row["rotation"] = Wire.Name(p.Rotation);
+                    row["rotation"] = p.Rotation is { } rotation ? Wire.Name(rotation) : "";
                     row["blocked"] = l.Blocked;
                     row["output"] = l.WindOutput();
                 }
@@ -244,7 +244,7 @@ internal static class StationAdviceLog
             sites.Add(row);
         }
         var siteIssues = a.Sites.Decisions
-            .Where(d => d.Verdict != PolicyFunctions.EmbedPlace)
+            .Where(d => d.Verdict != PolicyConstants.EmbedPlace)
             .Select(d => new Dictionary<string, object?> { ["node"] = d.Node, ["verdict"] = d.Verdict, ["reason"] = d.Reason })
             .ToList();
         var fields = a.Embedding.Fields.Select(f => new Dictionary<string, object?>
@@ -254,7 +254,7 @@ internal static class StationAdviceLog
             ["z"] = f.Interior.Z,
             ["width"] = f.Interior.Width,
             ["height"] = f.Interior.Height,
-            ["reason"] = PolicyFunctions.ReasonEmbedFieldPlaced,
+            ["reason"] = PolicyConstants.ReasonEmbedFieldPlaced,
         }).ToList();
         // The tiled plan's vents and why a room has none.
         var vents = new List<Dictionary<string, object?>>();
@@ -263,7 +263,7 @@ internal static class StationAdviceLog
         {
             foreach (var v in a.Tiled.Plan.LiveSites(PolicyFunctions.NodeVent))
             {
-                vents.Add(new Dictionary<string, object?> { ["x"] = v.Origin.X, ["z"] = v.Origin.Z, ["rotation"] = Wire.Name(v.Rotation), ["reason"] = v.Reason });
+                vents.Add(new Dictionary<string, object?> { ["x"] = v.Origin.X, ["z"] = v.Origin.Z, ["rotation"] = v.Rotation is { } ventRotation ? Wire.Name(ventRotation) : "", ["reason"] = v.Reason });
             }
             foreach (var d in a.Tiled.Decisions)
             {
@@ -350,7 +350,7 @@ internal static class StationFactsBuilder
             Pasture = projection.Facts.Pasture,
             WorkPawns = projection.WorkPawns,
             Food = projection.FoodSupply,
-            Orders = Unknown<IReadOnlyList<OrderSpec>>(),
+            Orders = Unknown<EquatableArray<OrderSpec>>(),
             Stock = Unknown<IReadOnlyDictionary<Resource, long>>(),
             RoofDistance = projection.RoofSupport,
             Plan = plan,
@@ -363,7 +363,7 @@ internal static class StationFactsBuilder
         try
         {
             // an unread or inconsistent census leaves the guard off
-            f = f with { Mismatches = Roles.RoleMismatches(projection) };
+            f = f with { Mismatches = BuildingRuntimePackage.RoleMismatches(projection) };
         }
         catch (DomainException)
         {
@@ -372,13 +372,13 @@ internal static class StationFactsBuilder
         {
             f = f with { Dining = rooms.Dining };
         }
-        if (ColonyGround.TryOf(projection, out var ground))
+        if (BuildingRuntimePackage.ColonyGround(projection) is (var ground, true))
         {
             f = f with { Built = PolicyFunctions.BuiltRooms(plan, ground) };
         }
         if (projection.Facts.Prisoners.TryGetValue(out var prisoners))
         {
-            f = f with { Prisoners = Known(Prisoners.HeldPrisoners(prisoners)) };
+            f = f with { Prisoners = Known(RoundsPrisonerInteractionPlanner.HeldPrisoners(prisoners)) };
         }
         if (needs.Count > 0)
         {
@@ -386,19 +386,19 @@ internal static class StationFactsBuilder
         }
         // An inactive ledger (no planner declares into it) wants no order: a known empty list, where an
         // unreviewed or unread one is unknown.
-        if (ledger.Status is LedgerViewStatus.Reconciled or LedgerViewStatus.Inactive)
+        if (ledger.Status is PolicyFunctions.LedgerViewReconciled or PolicyFunctions.LedgerViewInactive)
         {
             var orders = ledger.Orders.Select(o => new OrderSpec
             {
                 Recipe = o.Recipe,
-                Ingredients = o.Ingredients,
+                Ingredients = [.. o.Ingredients],
                 Worker = o.Worker,
-                Mode = (BillMode)o.Mode,
+                Mode = Wire.TryParse<BillMode>(o.Mode, out var mode) ? mode : default,
                 Target = o.Target,
                 BenchKind = o.BenchKind,
                 Product = new Resource(o.Product),
             }).ToList();
-            f = f with { Orders = Known<IReadOnlyList<OrderSpec>>(orders) };
+            f = f with { Orders = Known(new EquatableArray<OrderSpec>([.. orders])) };
         }
         return f;
     }
@@ -412,7 +412,7 @@ internal static class StationFactsBuilder
     public static StationFacts FirstPlanFacts(ColonyProjection projection, MapSurvey survey, IReadOnlyDictionary<Resource, long> needs, LedgerView ledger)
     {
         var f = StationFactsOf(projection, new LayoutPlan(), survey, needs, ledger) with { Derive = true };
-        var (need, owed) = Throne.ThroneNeed(projection);
+        var (need, owed) = BuildingRuntimePackage.ThroneNeed(projection);
         return f with { ThroneArea = Known(PolicyFunctions.ThroneAreaOwed(new LayoutPlan(), need, owed)) };
     }
 
@@ -421,7 +421,7 @@ internal static class StationFactsBuilder
     /// current one: the mood price's baseline. Unknown while any colonist has neither, so the comfort tiers go
     /// unpriced rather than priced on part of the colony.
     /// </summary>
-    public static Fact<double> ExpectedMood(Fact<IReadOnlyList<MoodPawn>> pawns)
+    public static Fact<double> ExpectedMood(Fact<EquatableArray<MoodPawn>> pawns)
     {
         if (!pawns.TryGetValue(out var rows) || rows.Count == 0)
         {
@@ -453,7 +453,7 @@ internal static class FieldCrops
                 sown.Add(farm.Crop);
             }
         }
-        return Fields.CropChoices(projection).Where(choice => sown.Contains(choice.Name)).ToList();
+        return BuildingRuntimePackage.CropChoices(projection).Where(choice => sown.Contains(choice.Name)).ToList();
     }
 
     /// <summary>
@@ -468,6 +468,6 @@ internal static class FieldCrops
         {
             return sown;
         }
-        return PolicyFunctions.DefaultFieldCrop(Fields.CropChoices(projection)) is { } crop ? [crop] : [];
+        return PolicyFunctions.DefaultFieldCrop(BuildingRuntimePackage.CropChoices(projection)) is ({ } crop, true) ? [crop] : [];
     }
 }

@@ -13,7 +13,7 @@ internal sealed class TradeAcquisitionMemory
 /// <summary>The native read the acquisition options need beyond the definition catalog.</summary>
 public interface ITradeAcquisitionSource : Observation.IDefinitionSource
 {
-    (ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result) ReadTradeAcquisition(CancellationToken ct, C.Identity identity, OperationsPb.FormCaravanIntent? intent);
+    Task<(ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result)> ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct);
 }
 
 public sealed partial class Rounder
@@ -48,7 +48,7 @@ public sealed partial class Rounder
         lock (m.Mu)
         {
             m.Proposals.TryGetValue(owner, out var plan);
-            if (plan?.Proposal is null || plan.Proposal.Option.Id != id || m.Active.Count != 0)
+            if (plan?.Proposal is null || plan.Proposal.Option.ID != id || m.Active.Count != 0)
             {
                 return false;
             }
@@ -69,7 +69,7 @@ public sealed partial class Rounder
         }
     }
 
-    internal void PlanFoodAcquisition(CancellationToken ct, GenerationSnapshot world, Observation.ColonyProjection p)
+    internal async Task PlanFoodAcquisitionAsync(GenerationSnapshot world, Observation.ColonyProjection p, CancellationToken ct)
     {
         var demands = new List<Pol.SupplyDemandResult>();
         if (p.Facts.FoodPlan.TryGetValue(out var plan))
@@ -78,21 +78,21 @@ public sealed partial class Rounder
             try
             {
                 var d = Pol.PolicyFunctions.NutritionDemand(new Pol.NutritionDemandInput { Forecast = plan.Forecast, MinDays = thresholds.FoodMinDays, TargetDays = thresholds.FoodTargetDays });
-                demands.Add(new Pol.SupplyDemandResult { Demand = d, Gap = plan.GapPerDay, Delivered = plan.DeliveredPerDay });
+                demands.Add(new Pol.SupplyDemandResult(d, plan.DeliveredPerDay, plan.GapPerDay));
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
                 // A demand the forecast cannot price is left out, as an error leaves it out in Go.
             }
         }
-        PlanTradeAcquisition(ct, world, "food", p, demands, null);
+        await PlanTradeAcquisitionAsync(world, "food", p, demands, null, ct).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Runs inside the existing supply owner. Trips are exact native pack/crew options supplied by the mission
     /// planner, not guessed crews.
     /// </summary>
-    internal void PlanTradeAcquisition(CancellationToken ct, GenerationSnapshot world, string owner, Observation.ColonyProjection p, IReadOnlyList<Pol.SupplyDemandResult> demands, IReadOnlyList<Pol.TradeAcquisitionOption>? trips)
+    internal async Task PlanTradeAcquisitionAsync(GenerationSnapshot world, string owner, Observation.ColonyProjection p, IReadOnlyList<Pol.SupplyDemandResult> demands, IReadOnlyList<Pol.TradeAcquisitionOption>? trips, CancellationToken ct)
     {
         var m = TradeAcquisition;
         string active = "";
@@ -119,7 +119,7 @@ public sealed partial class Rounder
             ObservationsPb.TradeAcquisition? facts = null;
             try
             {
-                (facts, _) = source.ReadTradeAcquisition(ct, identity, null);
+                (facts, _) = await source.ReadTradeAcquisitionAsync(identity, null, ct).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -134,7 +134,7 @@ public sealed partial class Rounder
                 Bridge.DefinitionCatalog? catalog = null;
                 try
                 {
-                    catalog = source.DefinitionCatalog(ct, identity);
+                    catalog = await source.DefinitionCatalogAsync(identity, ct).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
@@ -143,13 +143,13 @@ public sealed partial class Rounder
                 if (catalog is not null)
                 {
                     options.AddRange(RequestAcquisitionOptions(facts, catalog, demands));
-                    options.AddRange(SettlementAcquisitionOptions(ct, world, owner, p, demands, catalog));
+                    options.AddRange(await SettlementAcquisitionOptionsAsync(world, owner, p, demands, catalog, ct).ConfigureAwait(false));
                 }
             }
         }
-        var known = Pol.PolicyFunctions.TradeSilverReserve(p.Facts.Colonists).TryGetValue(out var reserve);
+        var (reserve, known) = Pol.PolicyFunctions.TradeSilverReserve(p.Facts.Colonists);
         var rf = known ? Known(reserve) : Unknown<long>();
-        var plan = Pol.PolicyFunctions.PlanTradeAcquisition(new Pol.TradeAcquisitionRequest { Demands = demands, Options = options, Silver = p.Facts.Silver(), Reserve = rf, ActiveId = active });
+        var plan = Pol.PolicyFunctions.PlanTradeAcquisition(new Pol.TradeAcquisitionRequest { Demands = demands, Options = options, Silver = p.Facts.Silver(), Reserve = rf, ActiveID = active });
         lock (m.Mu)
         {
             m.Proposals[owner] = plan;
@@ -167,37 +167,37 @@ internal static partial class BuildingRuntimePackage
         {
             var option = new Pol.TradeAcquisitionOption
             {
-                Id = row.FactionId + "/" + Wire.ProtoName(row.Kind) + "/" + row.TraderKind,
+                ID = row.FactionId + "/" + ProtoNames.Of(row.Kind) + "/" + row.TraderKind,
                 Faction = row.FactionId,
                 TraderKind = row.TraderKind,
                 LastRequestTick = row.LastRequestTick,
                 PassingShips = facts.PassingShips.Count,
                 LaborTicks = Known(0.0),
-                Kind = row.Kind == CommonPb.TradeRequestKind.Orbital ? Pol.TradeAcquireKind.Orbital : Pol.TradeAcquireKind.Caravan,
+                Kind = row.Kind == CommonPb.TradeRequestKind.Orbital ? Pol.TradeAcquisitionKind.Orbital : Pol.TradeAcquisitionKind.Caravan,
             };
             if (row.HasEligible)
             {
-                option.Eligible = Known(row.Eligible);
+                option = option with { Eligible = Known(row.Eligible) };
             }
             if (row.HasArrivalMaxTicks)
             {
-                option.LeadDays = Known((double)row.ArrivalMaxTicks / GameTime.TicksPerDay);
+                option = option with { LeadDays = Known((double)row.ArrivalMaxTicks / GameTime.TicksPerDay) };
             }
             if (row.HasGoodwillCost)
             {
-                option.GoodwillCost = Known(row.GoodwillCost);
+                option = option with { GoodwillCost = Known(row.GoodwillCost) };
             }
             if (row.HasRelationAfterPayment)
             {
-                option.RelationAfterPayment = Known(row.RelationAfterPayment);
+                option = option with { RelationAfterPayment = Known(row.RelationAfterPayment) };
             }
             if (row.HasCooldownRemainingTicks)
             {
-                option.CooldownTicks = Known(row.CooldownRemainingTicks);
+                option = option with { CooldownTicks = Known(row.CooldownRemainingTicks) };
             }
             if (facts.HasOrbitalAvailable)
             {
-                option.OrbitalAvailable = Known(facts.OrbitalAvailable);
+                option = option with { OrbitalAvailable = Known(facts.OrbitalAvailable) };
             }
             var negotiators = row.NegotiatorIds.OrderBy(n => n, StringComparer.Ordinal).ToList();
             foreach (var console in consoles)
@@ -206,8 +206,8 @@ internal static partial class BuildingRuntimePackage
                 {
                     if (console.NegotiatorIds.Contains(pawn))
                     {
-                        option.Console = console.Id;
-                        option.Negotiator = pawn;
+                        option = option with { Console = console.Id };
+                        option = option with { Negotiator = pawn };
                         break;
                     }
                 }
@@ -220,17 +220,17 @@ internal static partial class BuildingRuntimePackage
             {
                 if (queued.FactionId == row.FactionId && queued.Kind == row.Kind)
                 {
-                    option.Eligible = Known(false);
+                    option = option with { Eligible = Known(false) };
                 }
             }
             foreach (var work in facts.CommsWork)
             {
                 if (work.FactionId == row.FactionId)
                 {
-                    option.Eligible = Known(false);
+                    option = option with { Eligible = Known(false) };
                 }
             }
-            var compatible = new List<Pol.Resource>();
+            var compatible = new List<Pol.ResourceKey>();
             foreach (var demand in demands)
             {
                 if (catalog.TraderKindCanSupply(option.TraderKind, demand.Demand.Good).TryGetValue(out var can) && can)
@@ -238,7 +238,7 @@ internal static partial class BuildingRuntimePackage
                     compatible.Add(demand.Demand.Good);
                 }
             }
-            option.Compatible = compatible;
+            option = option with { Compatible = [.. compatible] };
             options.Add(option);
         }
         return options;

@@ -4,7 +4,7 @@ public sealed partial class RoundsBuildingPlanner
 {
     public static RoundsBuildingPlanner NewRoundsLightingPlanner(Rounder reviewer, IRoundsBuildingSource native)
     {
-        if (reviewer is null || native is null || !reviewer.MethodEnabled(ConcernId.MaintainLighting))
+        if (reviewer is null || native is null || !reviewer.MethodEnabled(PolicyFunctions.MaintainLighting))
         {
             throw new ControlException("NewRoundsLightingPlanner: reviewer, native or method disabled");
         }
@@ -14,10 +14,10 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("NewRoundsLightingPlanner: native is not a rounds source");
         }
 
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = ConcernId.MaintainLighting, Definition = "TorchLamp" };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyFunctions.MaintainLighting, Definition = "TorchLamp" };
     }
 
-    internal static Fact<IReadOnlyList<int>> PlanLitRooms(ColonyProjection facts) =>
+    internal static Fact<EquatableArray<int>> PlanLitRooms(ColonyProjection facts) =>
         PolicyFunctions.PlanLitRooms(facts.LayoutPlan, facts.Rooms, facts.Facts.Upkeep.Lighting, PoweredSource(facts));
 
     internal IReadOnlyList<string> LightingDefinitions()
@@ -85,7 +85,7 @@ public sealed partial class RoundsBuildingPlanner
         }
     }
 
-    internal (IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict) PreviewLighting(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewLightingAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         if (Lighting is null || Lighting.Method != LightingMethod.Build)
@@ -96,8 +96,8 @@ public sealed partial class RoundsBuildingPlanner
         var guarded = protectedCells.ToHashSet();
         foreach (var lamp in Lighting.Planned)
         {
-            var rotation = lamp.Facing == Rotation.None ? Rotation.North : lamp.Facing;
-            var (previews, planned, reason) = PreviewWallBuilding(ct, snapshot, facts, protectedCells, check, lamp.Def, lamp.Cell, rotation, false);
+            var rotation = lamp.Facing;
+            var (previews, planned, reason) = await PreviewWallBuildingAsync(snapshot, facts, protectedCells, check, lamp.Def, lamp.Cell, rotation, false, ct).ConfigureAwait(false);
             if (reason.IsZero)
             {
                 return (previews, planned, default);
@@ -112,9 +112,9 @@ public sealed partial class RoundsBuildingPlanner
                 continue;
             }
 
-            var building = Building.NewBuilding(Lighting.Definition, cell, Rotation.North, "");
+            var building = new Building(Lighting.Definition, cell, Rotation.North, "");
             var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-0"), building, PolicyFunctions.PlannerTier(Concern, Phase));
-            var (preview, _) = Native.PreviewBuilding(ct, action, snapshot);
+            var (preview, _) = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
             var p = preview.Preview;
             var fk = p.Footprint.TryGetValue(out var footprint);
             var mk = p.MadeFromStuff.TryGetValue(out var made);
@@ -131,7 +131,7 @@ public sealed partial class RoundsBuildingPlanner
                 continue;
             }
 
-            MergeRoundsStock(ref stock, preview.Stock, true);
+            stock = MergeRoundsStock(stock, preview.Stock, true);
             return ([p], stock, default);
         }
 

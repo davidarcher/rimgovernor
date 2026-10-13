@@ -8,7 +8,7 @@ internal static partial class BuildingRuntimePackage
         var output = new List<LanceUser>();
         foreach (var row in rows)
         {
-            var facts = SquadDefenderFacts(row, null, Unknown<bool>());
+            var facts = SquadDefenderFacts(row, new HashSet<Domain.PawnId>(), Unknown<bool>());
             var dk = facts.Dead.TryGetValue(out var dead);
             var wk = facts.Downed.TryGetValue(out var downed);
             var mk = facts.MentalState.TryGetValue(out var mental);
@@ -20,9 +20,9 @@ internal static partial class BuildingRuntimePackage
 
             foreach (var item in row.Equipment?.Apparel ?? [])
             {
-                if (PolicyFunctions.LanceDefs.Contains(new Resource(GearDef(things, item.Thing))) && item.Thing.Id != "")
+                if (PolicyConstants.LanceDefs.ContainsKey(new Resource(GearDef(things, item.Thing))) && item.Thing.Id != "")
                 {
-                    output.Add(new LanceUser { Pawn = new PawnId(row.Pawn.Id), Item = item.Thing.Id });
+                    output.Add(new LanceUser(new PawnId(row.Pawn.Id), item.Thing.Id));
                     break;
                 }
             }
@@ -35,10 +35,10 @@ internal static partial class BuildingRuntimePackage
 public sealed partial class RoundsPopulationCustodyPlanner
 {
     /// <summary>Uses a lance on the target when a colonist wears one; not handled when no colonist can.</summary>
-    internal (RoundsPopulationCustodyResult Result, bool Handled) StepLance(CancellationToken call, CancellationToken epoch, Player p, ControlState state, DateTimeOffset started, StandardState goal, Tick reviewTick, PawnId target, StepArbiter arbiter)
+    internal async Task<(RoundsPopulationCustodyResult Result, bool Handled)> StepLanceAsync(Player p, ControlState state, DateTimeOffset started, StandardState goal, Tick reviewTick, PawnId target, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var identityCtx = Boundary.Identity(state.Snapshot);
-        var (emergency, _) = native.ReadEmergency(call, identityCtx);
+        var (emergency, _) = await native.ReadEmergencyAsync(identityCtx, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(emergency.Context, state.Snapshot);
@@ -48,7 +48,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
             throw new ControlException("stepLance: emergency context", e);
         }
 
-        if (emergency.Context.Tick < reviewTick.Value)
+        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick < reviewTick.Value)
         {
             throw new ControlException("stepLance: emergency context");
         }
@@ -64,7 +64,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
             return (default, false);
         }
 
-        var (reply, _) = native.ReadCombatPawns(call, identityCtx, ids);
+        var (reply, _) = await native.ReadCombatPawnsAsync(identityCtx, ids, call).ConfigureAwait(false);
         var observed = reply.Observed ?? throw new ControlException("stepLance: observed == nil");
         try
         {
@@ -83,23 +83,22 @@ public sealed partial class RoundsPopulationCustodyPlanner
             }
         }
 
-        var things = BuildingRuntimePackage.FrameThings(call, native, identityCtx);
-        var (choice, ok) = PolicyFunctions.SelectLanceUse(target, BuildingRuntimePackage.LanceUsers(observed.Pawns, things));
-        if (!ok || !arbiter.TryClaim([choice.User, choice.Target]))
+        var things = await BuildingRuntimePackage.FrameThingsOfAsync(native, identityCtx, call).ConfigureAwait(false);
+        if (PolicyFunctions.SelectLanceUse(target, BuildingRuntimePackage.LanceUsers(observed.Pawns, things)) is not { } choice || !arbiter.TryClaim([choice.User, choice.Target]))
         {
             return (default, false);
         }
 
         var prefix = $"population-lance-{choice.Target}-";
-        var (method, _, admitted) = BuildingRuntimePackage.AdmitStandardMethod(call, p.Journal, goal, prefix, state.Snapshot);
+        var (method, _, admitted) = BuildingRuntimePackage.AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
         if (!admitted)
         {
             return (default, false);
         }
 
-        var use = UseItem.NewUseItem(choice.User, choice.Item, choice.Target);
+        var use = new UseItem(new Domain.PawnId(choice.User.Value), choice.Item, new Domain.PawnId(choice.Target.Value));
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewUseItemAction(new ActionId($"{id}-0"), use);
-        return (Commit(call, epoch, p, state, started, goal, method, id, action), true);
+        return (Commit(p, state, started, goal, method, id, action, call, epoch), true);
     }
 }

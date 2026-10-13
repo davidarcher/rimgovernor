@@ -1,15 +1,17 @@
+using System.Globalization;
+
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsBuildingPlanner
 {
-    private static readonly HashSet<RoomRole> FacilityFurnishingRoles =
+    private static readonly HashSet<Pol.RoomRole> FacilityFurnishingRoles =
     [
-        RoomRole.DiningRoom, RoomRole.RecRoom, RoomRole.Hospital, RoomRole.Laboratory, RoomRole.Workshop,
+        Pol.RoomRole.DiningRoom, Pol.RoomRole.RecRoom, Pol.RoomRole.Hospital, Pol.RoomRole.Laboratory, Pol.RoomRole.Workshop,
     ];
 
     internal (PlannedRole Role, bool Ok) PlannedRoomModule()
     {
-        if (Concern == ConcernId.EnsureCooking && Paste.Count == 0)
+        if (Concern == PolicyFunctions.EnsureCooking && Paste.Count == 0)
         {
             return (PlannedRole.Kitchen, true);
         }
@@ -19,7 +21,7 @@ public sealed partial class RoundsBuildingPlanner
             return (PlannedRole.Butchery, true);
         }
 
-        if (Concern == ConcernId.MaintainRefrigeration && Refrigeration is not null && Refrigeration.Method == RefrigerationMethod.Build)
+        if (Concern == PolicyFunctions.MaintainRefrigeration && Refrigeration is not null && Refrigeration.Method == RefrigerationMethod.Build)
         {
             return (PlannedRole.Freezer, true);
         }
@@ -28,22 +30,22 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     /// <summary>Furnishes a planned facility room: reconciles its shell first when owed, then resolves to the interior cells.</summary>
-    internal (RoundsBuildingPlanner? Planner, RoundsBuildingResult Result, bool Done) PlannedFacilityFurnishing(CancellationToken call, CancellationToken epoch, ControlState state, Rounds review, StandardState goal, ColonyReading reading, ColonyProjection facts)
+    internal async Task<(RoundsBuildingPlanner? Planner, RoundsBuildingResult Result, bool Done)> PlannedFacilityFurnishingAsync(ControlState state, Rounds review, StandardState goal, ColonyReading reading, ColonyProjection facts, CancellationToken call, CancellationToken epoch)
     {
         if (Facility is null || Cells is not null || !FacilityFurnishingRoles.Contains(Facility.Role))
         {
-            return (this, default, false);
+            return (this, new RoundsBuildingResult(), false);
         }
 
-        if (Facility.Role == RoomRole.Laboratory && !AdvancedLab && BuildingRuntimePackage.ResearchHostRooms(facts).Count > 0)
+        if (Facility.Role == Pol.RoomRole.Laboratory && !AdvancedLab && BuildingRuntimePackage.ResearchHostRooms(facts).Count > 0)
         {
-            return (this, default, false);
+            return (this, new RoundsBuildingResult(), false);
         }
 
         var (module, ok) = RoomModule();
         if (!ok)
         {
-            return (this, default, false);
+            return (this, new RoundsBuildingResult(), false);
         }
 
         var (room, owed) = BuildingRuntimePackage.PlannedRoomOwed(facts, module);
@@ -52,17 +54,17 @@ public sealed partial class RoundsBuildingPlanner
             var cells = BuildingRuntimePackage.PlannedRoomCells(facts, module);
             if (cells is null)
             {
-                return (this, default, false);
+                return (this, new RoundsBuildingResult(), false);
             }
 
             var furnish = Copy();
             furnish.Facility = null;
             furnish.Cells = cells;
-            return (furnish, default, false);
+            return (furnish, new RoundsBuildingResult(), false);
         }
 
-        var result = ReconcileRoom(call, epoch, state, review, goal, new RoundsReading(reading), null, new RoomReconcile { RingOnly = true, Room = room, Name = BuildingRuntimePackage.PlannedRoomMethod(room).Value });
-        if (!result.Verdict.SkipsToPlacement())
+        var result = await ReconcileRoomAsync(state, review, goal, new RoundsReading { Reading = reading, Emergency = new EmergencyFacts(), Frame = new BridgeRoundsFrame() }, null, new RoomReconcile { RingOnly = true, Room = room, Name = BuildingRuntimePackage.PlannedRoomMethod(room).Value }, call, epoch).ConfigureAwait(false);
+        if (!result.Verdict.SkipsToPlacement)
         {
             return (null, result, true);
         }
@@ -71,7 +73,7 @@ public sealed partial class RoundsBuildingPlanner
         placed.Facility = null;
         placed.Cells = BuildingRuntimePackage.PlannedRoomInterior(room);
         placed.Environment = PlacementEnvironment.Anywhere;
-        return (placed, default, false);
+        return (placed, new RoundsBuildingResult(), false);
     }
 
     internal bool TakesShelterSlot(ColonyProjection facts)
@@ -79,7 +81,7 @@ public sealed partial class RoundsBuildingPlanner
         var known = facts.LayoutPlan.TryGetValue(out var plan);
         if (Facility is not null)
         {
-            return Facility.Role == RoomRole.Laboratory && !AdvancedLab && PolicyFunctions.ShelterHosts(Capability.Research);
+            return Facility.Role == Pol.RoomRole.Laboratory && !AdvancedLab && PolicyFunctions.ShelterHosts(Capability.Research);
         }
 
         if (CraftingSpot)
@@ -87,13 +89,13 @@ public sealed partial class RoundsBuildingPlanner
             return PolicyFunctions.ShelterHosts(Capability.Craft);
         }
 
-        if (Definition == PolicyFunctions.ShelterHeatDef)
+        if (Definition == PolicyConstants.ShelterHeatDef)
         {
-            var cooking = Concern == ConcernId.EnsureCooking && Paste.Count == 0;
+            var cooking = Concern == PolicyFunctions.EnsureCooking && Paste.Count == 0;
             return known && plan!.Cold && PolicyFunctions.ShelterHosts(Capability.Heat) && (cooking || (Temperature is not null && Temperature.Method == TemperatureMethod.Heat));
         }
 
-        if (Definition == PolicyFunctions.ShelterCoolDef)
+        if (Definition == PolicyConstants.ShelterCoolDef)
         {
             return known && plan!.Hot && Temperature is not null && Temperature.Method == TemperatureMethod.Cool;
         }
@@ -125,7 +127,7 @@ internal static partial class BuildingRuntimePackage
             return (default!, false);
         }
 
-        return plan!.NextPlannedRoom(module, ground);
+        return plan!.NextPlannedRoom(module, ground) is { } next ? (next, true) : (default!, false);
     }
 
     internal static (GroundCensus Ground, bool Known) ColonyGround(ColonyProjection facts)
@@ -201,7 +203,7 @@ internal static partial class BuildingRuntimePackage
     }
 
     internal static MethodId PlannedRoomMethod(PlannedRoom room) =>
-        new($"{room.Role}-shell-{room.Region.Bounds().X}-{room.Region.Bounds().Z}");
+        new($"{Wire.Name(room.Role)}-shell-{room.Region.Bounds().X}-{room.Region.Bounds().Z}");
 
     internal static int ShelterCampfires(ColonyProjection facts) => PolicyFunctions.ShelterCampfires(facts.LayoutPlan.TryGetValue(out var plan) && plan.Cold);
 
@@ -245,7 +247,7 @@ internal static partial class BuildingRuntimePackage
             }
 
             var (room, ok) = PolicyFunctions.InteriorRoomFromLayout(planned, facts.Shapes);
-            if (!ok)
+            if (!ok || room is null)
             {
                 continue;
             }
@@ -302,7 +304,7 @@ internal static partial class BuildingRuntimePackage
         return PolicyFunctions.GuardNativeRoles(facts.Stations, plan, rooms, contents);
     }
 
-    internal static void RecordRoleMismatches(CancellationToken ct, ColonyProjection facts)
+    internal static void RecordRoleMismatches(ColonyProjection facts, CancellationToken ct)
     {
         IReadOnlyList<RoleMismatch> mismatches;
         try
@@ -311,30 +313,30 @@ internal static partial class BuildingRuntimePackage
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            Tel.Decide(ct, new Decision
+            Tel.Decide(new Decision
             {
                 Kind = "layout_role_guard",
                 Component = "layout",
-                Level = DecisionLevel.Warn,
+                Level = TelemetryLevel.Warn,
                 Verdict = "failed",
                 Reason = "guard_error",
                 Target = "rooms",
-                Attrs = { ["error"] = e },
+                Attrs = new Dictionary<string, object?> { ["error"] = e },
             });
             return;
         }
 
         foreach (var m in mismatches)
         {
-            var scores = m.Scores.ToDictionary(kv => kv.Key.Value, kv => kv.Value);
-            Tel.Decide(ct, new Decision
+            var scores = m.Scores.ToDictionary(kv => Wire.Name(kv.Key), kv => kv.Value);
+            Tel.Decide(new Decision
             {
                 Kind = "layout_role_guard",
                 Component = "layout",
                 Verdict = "mismatch",
                 Reason = PolicyFunctions.RoleMismatchReason,
-                Target = m.Room.ToString(),
-                Attrs = { ["native"] = m.Native.Value, ["predicted"] = m.Predicted.Value, ["scores"] = scores },
+                Target = m.Room.ToString(CultureInfo.InvariantCulture),
+                Attrs = new Dictionary<string, object?> { ["native"] = Wire.Name(m.Native), ["predicted"] = Wire.Name(m.Predicted), ["scores"] = scores },
             });
         }
     }

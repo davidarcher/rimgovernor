@@ -14,7 +14,7 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("NewRoundsPowerPlanner: native is not a rounds source");
         }
 
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = ConcernId.EnsureBasicPower };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyFunctions.EnsureBasicPower };
     }
 
     /// <summary>The planner resolved to the power method the policy picked, or the verdict that says why none applies.</summary>
@@ -32,8 +32,8 @@ public sealed partial class RoundsBuildingPlanner
             Sources = facts.PowerSources,
             Battery = facts.PowerBattery,
             Light = facts.LightTerrains,
-            BatteryAvailable = facts.DefinitionAvailable(PolicyFunctions.BatteryDefinition),
-            GeothermalAvailable = facts.DefinitionAvailable(PolicyFunctions.GeothermalDefinition),
+            BatteryAvailable = facts.DefinitionAvailable(PolicyConstants.BatteryDefinition),
+            GeothermalAvailable = facts.DefinitionAvailable(PolicyConstants.GeothermalDefinition),
             PendingDemandW = BuildingRuntimePackage.PendingDemand(facts, pendingConsumers),
         };
         if (facts.LayoutPlan.TryGetValue(out var plan))
@@ -41,7 +41,7 @@ public sealed partial class RoundsBuildingPlanner
             planning = planning with { Net = PolicyFunctions.PlannedNetOf(plan) };
         }
 
-        var proposal = PolicyFunctions.SelectPowerMethod(facts.PowerPlanning, facts.Bounds, facts.Cells, null, planning);
+        var proposal = PolicyFunctions.SelectPowerMethod(facts.PowerPlanning, facts.Bounds, facts.Cells, [], planning);
         switch (proposal.Method)
         {
             case PowerMethod.Unknown:
@@ -72,7 +72,7 @@ public sealed partial class RoundsBuildingPlanner
 
         var resolved = Copy();
         resolved.Power = proposal;
-        resolved.Definition = proposal.Method.WireName();
+        resolved.Definition = Wire.Name(proposal.Method);
         resolved.Environment = PlacementEnvironment.Anywhere;
         switch (proposal.Method)
         {
@@ -93,20 +93,20 @@ public sealed partial class RoundsBuildingPlanner
         return (resolved, default);
     }
 
-    internal (IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict) PreviewPowerShelter(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPowerShelterAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
-        var (wall, wok) = BuildingRuntimePackage.AnimalContainmentDefinition(facts.Definitions, "Wall");
-        var (door, dok) = BuildingRuntimePackage.AnimalContainmentDefinition(facts.Definitions, "Door");
-        if (!wok || !dok)
+        var wall = BuildingRuntimePackage.AnimalContainmentDefinition(facts.Definitions, "Wall");
+        var door = BuildingRuntimePackage.AnimalContainmentDefinition(facts.Definitions, "Door");
+        if (wall is null || door is null)
         {
-            return (null!, stock, FieldUnavailable("wall_door_definitions"));
+            return ([], stock, FieldUnavailable("wall_door_definitions"));
         }
 
-        var (stuff, known) = BuildingRuntimePackage.ShellSharedStuff(facts, wall, door);
-        if (!known)
+        var stuff = BuildingRuntimePackage.ShellSharedStuff(facts, wall, door);
+        if (stuff is null)
         {
-            return (null!, stock, FieldUnavailable("wall_door_stuff"));
+            return ([], stock, FieldUnavailable("wall_door_stuff"));
         }
 
         var room = Power!.Room;
@@ -131,14 +131,14 @@ public sealed partial class RoundsBuildingPlanner
             var c = perimeter[i];
             if (blocked.Contains(c))
             {
-                return (null!, stock, BuildingReasonExistingWork);
+                return ([], stock, BuildingReasonExistingWork);
             }
 
             check();
             var name = i == 0 ? "Door" : "Wall";
-            var b = Building.NewBuilding(name, c, Rotation.North, stuff);
+            var b = new Building(name, c, Rotation.North, stuff);
             var a = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{i}"), b, PolicyFunctions.PlannerTier(Concern, Phase));
-            var (p, _) = Native.PreviewBuilding(ct, a, snapshot);
+            var (p, _) = await Native.PreviewBuildingAsync(a, snapshot, ct).ConfigureAwait(false);
             var v = p.Preview;
             var fk = v.Footprint.TryGetValue(out var footprint);
             var ck = v.CanPlace.TryGetValue(out var can);
@@ -146,22 +146,22 @@ public sealed partial class RoundsBuildingPlanner
             var mk = v.MadeFromStuff.TryGetValue(out var made);
             if (!fk || !ck || !sk || !mk)
             {
-                return (null!, stock, FieldUnavailable("power_preview"));
+                return ([], stock, FieldUnavailable("power_preview"));
             }
 
             if (footprint!.Count != 1 || footprint[0] != c || !can || !safe || made != (stuff != ""))
             {
-                return (null!, stock, NoSpace("power_shelter_cell"));
+                return ([], stock, NoSpace("power_shelter_cell"));
             }
 
-            MergeRoundsStock(ref stock, p.Stock, i == 0);
+            stock = MergeRoundsStock(stock, p.Stock, i == 0);
             selected.Add(v);
         }
 
         return (selected, stock, default);
     }
 
-    internal (IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict) PreviewPowerSite(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPowerSiteAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         if (Power is null || !Power.FixedSite())
@@ -170,9 +170,9 @@ public sealed partial class RoundsBuildingPlanner
         }
 
         check();
-        var building = Building.NewBuilding(Definition, Power.Center, Rotation.North, "");
+        var building = new Building(Definition, Power.Center, Rotation.North, "");
         var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-0"), building, PolicyFunctions.PlannerTier(Concern, Phase));
-        var (preview, _) = Native.PreviewBuilding(ct, action, snapshot);
+        var (preview, _) = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
         var p = preview.Preview;
         var fk = p.Footprint.TryGetValue(out var footprint);
         var mk = p.MadeFromStuff.TryGetValue(out var made);
@@ -180,7 +180,7 @@ public sealed partial class RoundsBuildingPlanner
         var sk = p.SafeToPlace.TryGetValue(out var safe);
         if (!fk || !mk || !lk || !sk)
         {
-            return (null!, stock, FieldUnavailable("power_preview"));
+            return ([], stock, FieldUnavailable("power_preview"));
         }
 
         var blocked = protectedCells.ToHashSet();
@@ -188,47 +188,48 @@ public sealed partial class RoundsBuildingPlanner
         {
             if (blocked.Contains(c))
             {
-                return (null!, stock, BuildingReasonExistingWork);
+                return ([], stock, BuildingReasonExistingWork);
             }
         }
 
         if (made || footprint.Count == 0 || !legal || !safe)
         {
-            return (null!, stock, NoSpace("geyser_site"));
+            return ([], stock, NoSpace("geyser_site"));
         }
 
-        MergeRoundsStock(ref stock, preview.Stock, true);
+        stock = MergeRoundsStock(stock, preview.Stock, true);
         return ([p], stock, default);
     }
 
-    internal (IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict) PreviewPowerOrSearch(CancellationToken call, GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, long missing, Action check)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPowerOrSearchAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, long missing, Action check, CancellationToken call)
     {
         if (Power is not null && Power.Method is PowerMethod.Generate or PowerMethod.Store)
         {
-            var (selected, stock, ok) = PreviewPlannedPower(call, snapshot, facts, protectedCells, missing, check);
+            var (selected, stock, ok) = await PreviewPlannedPowerAsync(snapshot, facts, protectedCells, missing, check, call).ConfigureAwait(false);
             if (ok)
             {
                 return (selected, stock, default);
             }
         }
 
-        return PreviewSearch(call, snapshot, facts, protectedCells, missing, check);
+        var (found, searched, verdict) = await PreviewSearchAsync(snapshot, facts, protectedCells, missing, check, call).ConfigureAwait(false);
+        return (found ?? [], searched, verdict);
     }
 
-    internal (IReadOnlyList<Preview> Previews, StockObservation Stock, bool Ok) PreviewPlannedPower(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, long missing, Action check)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, bool Ok)> PreviewPlannedPowerAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, long missing, Action check, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         var planned = facts.LayoutPlan.TryGetValue(out var plan);
         var tk = facts.TechTier.TryGetValue(out var tier);
         if (!planned || !tk || tier < TechTier.Masonry || missing < 1)
         {
-            return (null!, stock, false);
+            return ([], stock, false);
         }
 
         var sites = PolicyFunctions.PlannedPowerSites(plan!, Definition);
         if (sites.Count == 0)
         {
-            return (null!, stock, false);
+            return ([], stock, false);
         }
 
         var blocked = protectedCells.ToHashSet();
@@ -259,7 +260,7 @@ public sealed partial class RoundsBuildingPlanner
         }
 
         var wallStuff = "";
-        var style = BuildingRuntimePackage.ShellStyle(facts).WallStuff;
+        var style = BuildingRuntimePackage.ShellStyleOf(facts).WallStuff;
         if (style != "")
         {
             wallStuff = style;
@@ -267,14 +268,14 @@ public sealed partial class RoundsBuildingPlanner
 
         var n = 0;
         var merged = 0;
-
-        (Preview Preview, bool Ok) PreviewOne(string name, Cell c, Rotation rot, string stuff, Rectangle area)
+async 
+        Task<(Preview Preview, bool Ok)> PreviewOneAsync(string name, Cell c, Rotation rot, string stuff, Rectangle area)
         {
             check();
-            var b = Building.NewBuilding(name, c, rot, stuff);
+            var b = new Building(name, c, rot, stuff);
             var a = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{n}"), b, PolicyFunctions.PlannerTier(Concern, Phase));
             n++;
-            var (p, _) = Native.PreviewBuilding(ct, a, snapshot);
+            var (p, _) = await Native.PreviewBuildingAsync(a, snapshot, ct).ConfigureAwait(false);
             var v = p.Preview;
             var fk = v.Footprint.TryGetValue(out var footprint);
             var ck = v.CanPlace.TryGetValue(out var can);
@@ -285,12 +286,12 @@ public sealed partial class RoundsBuildingPlanner
                 return (default!, false);
             }
 
-            if (name == PolicyFunctions.WindTurbineDefinition && (!v.WindBlockedCells.TryGetValue(out var w) || w > 0))
+            if (name == PolicyConstants.WindTurbineDefinition && (!v.WindBlockedCells.TryGetValue(out var w) || w > 0))
             {
                 return (default!, false);
             }
 
-            MergeRoundsStock(ref stock, p.Stock, merged == 0);
+            stock = MergeRoundsStock(stock, p.Stock, merged == 0);
             merged++;
             return (v, true);
         }
@@ -308,7 +309,7 @@ public sealed partial class RoundsBuildingPlanner
             var free = true;
             foreach (var c in cells)
             {
-                free = free && !blocked.Contains(c) && !built.Contains(c) && (Definition != PolicyFunctions.BatteryDefinition || roofed.Contains(c));
+                free = free && !blocked.Contains(c) && !built.Contains(c) && (Definition != PolicyConstants.BatteryDefinition || roofed.Contains(c));
             }
 
             if (!free)
@@ -316,7 +317,7 @@ public sealed partial class RoundsBuildingPlanner
                 continue;
             }
 
-            var (v, ok) = PreviewOne(Definition, s.Cell, s.Rotation, Stuff, s.Area);
+            var (v, ok) = await PreviewOneAsync(Definition, s.Cell, s.Rotation, Stuff, s.Area).ConfigureAwait(false);
             if (!ok)
             {
                 continue;
@@ -331,7 +332,7 @@ public sealed partial class RoundsBuildingPlanner
                     continue;
                 }
 
-                var (w, wok) = PreviewOne("Wall", c, Rotation.North, wallStuff, new Rectangle(c.X, c.Z, 1, 1));
+                var (w, wok) = await PreviewOneAsync("Wall", c, Rotation.North, wallStuff, new Rectangle(c.X, c.Z, 1, 1)).ConfigureAwait(false);
                 if (wok)
                 {
                     selected.Add(w);
@@ -341,13 +342,13 @@ public sealed partial class RoundsBuildingPlanner
 
         if (placed < missing)
         {
-            return (null!, stock, false);
+            return ([], stock, false);
         }
 
         return (selected, stock, true);
     }
 
-    internal (IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict) PreviewPowerRoute(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPowerRouteAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         if (Power is null || Power.Method != PowerMethod.Connect || Power.Cells.Count < 1)
@@ -362,13 +363,13 @@ public sealed partial class RoundsBuildingPlanner
             var cell = Power.Cells[i];
             if (blocked.Contains(cell))
             {
-                return (null!, stock, BuildingReasonExistingWork);
+                return ([], stock, BuildingReasonExistingWork);
             }
 
             check();
-            var building = Building.NewBuilding(PowerMethod.Connect.WireName(), cell, Rotation.North, "");
+            var building = new Building(Wire.Name(PowerMethod.Connect), cell, Rotation.North, "");
             var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{i}"), building, PolicyFunctions.PlannerTier(Concern, Phase));
-            var (preview, _) = Native.PreviewBuilding(ct, action, snapshot);
+            var (preview, _) = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
             var p = preview.Preview;
             var fk = p.Footprint.TryGetValue(out var footprint);
             var mk = p.MadeFromStuff.TryGetValue(out var made);
@@ -376,16 +377,16 @@ public sealed partial class RoundsBuildingPlanner
             var sk = p.SafeToPlace.TryGetValue(out var safe);
             if (!fk || !mk || !lk || !sk)
             {
-                return (null!, stock, FieldUnavailable("power_preview"));
+                return ([], stock, FieldUnavailable("power_preview"));
             }
 
             if (made || footprint!.Count != 1 || footprint[0] != cell || !legal || !safe)
             {
-                return (null!, stock, NoSpace("power_route_cell"));
+                return ([], stock, NoSpace("power_route_cell"));
             }
 
             selected.Add(p);
-            MergeRoundsStock(ref stock, preview.Stock, i == 0);
+            stock = MergeRoundsStock(stock, preview.Stock, i == 0);
         }
 
         return (selected, stock, default);
@@ -399,7 +400,7 @@ internal static partial class BuildingRuntimePackage
         var output = new List<string>();
         foreach (var h in held)
         {
-            if (!h.Progress.Action.TryBuilding(out var b) || !PendingWork(h.Progress) || PolicyFunctions.PowerFamilyDefinitions().Contains(b.Definition))
+            if (h.Progress.Action.Building is not { } b || !PendingWork(h.Progress) || PolicyFunctions.PowerFamilyDefinitions().Contains(b.Definition))
             {
                 continue;
             }
@@ -445,7 +446,7 @@ internal static partial class BuildingRuntimePackage
 
         var seen = new HashSet<string>();
         var required = new List<string>();
-        foreach (var name in PolicyFunctions.GeneratorDefinitions)
+        foreach (var name in PolicyConstants.GeneratorDefinitions)
         {
             if (!definitions.TryGetValue(name, out var d))
             {
@@ -469,13 +470,13 @@ internal static partial class BuildingRuntimePackage
         return required;
     }
 
-    internal static uint PowerOutputAllowance(CancellationToken ct, StoreJournal journal, StandardState goal, GenerationSnapshot current, Tick tick)
+    internal static uint PowerOutputAllowance(StoreJournal journal, StandardState goal, GenerationSnapshot current, Tick tick, CancellationToken ct)
     {
-        var methods = journal.LoadOwnerMethods(ct, goal);
+        var methods = journal.LoadOwnerMethods(goal, ct);
         uint allowance = 0;
         foreach (var m in methods)
         {
-            var plan = journal.LoadPlan(ct, m.Plan);
+            var plan = journal.LoadPlan(m.Plan, ct);
             allowance = Math.Max(allowance, PowerNativeWorkTicks(plan, current, tick));
             var actions = plan.Spec.Actions;
             if (actions.Count > 0)
@@ -483,7 +484,7 @@ internal static partial class BuildingRuntimePackage
                 var walls = true;
                 foreach (var a in actions)
                 {
-                    walls = walls && a.TryBuilding(out var b) && (b.Definition == "Wall" || b.Definition == "Door");
+                    walls = walls && a.Building is { } b && (b.Definition == "Wall" || b.Definition == "Door");
                 }
 
                 if (walls)
@@ -510,14 +511,13 @@ internal static partial class BuildingRuntimePackage
         long completed = 0;
         foreach (var p in plan.Progress)
         {
-            if (!p.Action.TryBuilding(out var b) || !PowerDefinition(b.Definition))
+            if (p.Action.Building is not { } b || !PowerDefinition(b.Definition))
             {
                 return 0;
             }
 
             var v = p.View;
-            var known = v.Effect.TryGetValue(out var effect);
-            if (v.Stage != ProgressStage.Completed || v.Unresolved || !known || effect != ProgressEffect.Completed || !v.Snapshot.Matches(current) || tick.Value < v.Tick.Value)
+            if (v.Stage != Stage.Completed || v.Unresolved || !v.Effect.TryGetValue(out var effect) || effect != Effect.Completed || !v.Snapshot.Matches(current) || tick.Value < v.Tick.Value)
             {
                 return 0;
             }
@@ -558,7 +558,7 @@ internal static partial class BuildingRuntimePackage
         var onPorch = false;
         foreach (var v in a.Selected)
         {
-            if (v.Action.TryBuilding(out var b) && b.Definition == PolicyFunctions.BatteryDefinition && porch.Contains(b.Cell))
+            if (v.Action.Building is { } b && b.Definition == PolicyConstants.BatteryDefinition && porch.Contains(b.Cell))
             {
                 onPorch = true;
             }
@@ -569,7 +569,7 @@ internal static partial class BuildingRuntimePackage
             return (default!, false);
         }
 
-        var roof = BuildRoof.NewBuildRoof(PolicyFunctions.PorchRoofCells(plan));
+        var roof = new BuildRoof(PolicyFunctions.PorchRoofCells(plan));
         var action = DomainAction.NewBuildRoofAction(new ActionId($"{a.Snapshot.Plan}-{ordinal}"), roof);
         return (action, true);
     }

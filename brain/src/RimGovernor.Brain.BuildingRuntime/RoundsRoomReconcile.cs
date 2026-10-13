@@ -242,7 +242,7 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>Records a refused furniture or ring cell in the service log and returns it for the wait key; a ring cell (wall, door) reads as one.</summary>
-    internal static RefusedPlacement ReportRefused(CancellationToken ct, RoomBuild build, Pol.Preview v)
+    internal static RefusedPlacement ReportRefused(RoomBuild build, Pol.Preview v, CancellationToken ct)
     {
         var r = new RefusedPlacement(build.Def, build.Cell, DescribeBlockers(v.Blockers));
         var kindWord = build.Ring ? "ring" : "furniture";
@@ -251,7 +251,7 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>Names the first held foreign thing for a wait key and logs every one: the blocker rides in the wait, not a new enum.</summary>
-    internal static string HoldKey(CancellationToken ct, RoomWork w)
+    internal static string HoldKey(RoomWork w, CancellationToken ct)
     {
         var first = "";
         foreach (var h in w.Holds)
@@ -267,11 +267,13 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>RoomWaiting with the first held foreign thing named.</summary>
-    internal static RoundsBuildingResult WaitingHeld(CancellationToken ct, string name, RoomWork w, params RefusedPlacement[] refused)
+    internal static RoundsBuildingResult WaitingHeld(string name, RoomWork w, CancellationToken ct) => WaitingHeld(name, w, [], ct);
+
+    internal static RoundsBuildingResult WaitingHeld(string name, RoomWork w, IReadOnlyList<RefusedPlacement> refused, CancellationToken ct)
     {
-        var result = RoomWaiting(name, refused);
-        var hold = HoldKey(ct, w);
-        if (refused.Length > 0)
+        var result = RoomWaiting(name, [.. refused]);
+        var hold = HoldKey(w, ct);
+        if (refused.Count > 0)
         {
             return result;
         }
@@ -316,7 +318,7 @@ internal static partial class BuildingRuntimePackage
         {
             return DomainAction.NewClaimBuildingAction(id, new ClaimBuilding(t.EntityId));
         }
-        var mode = kind == Pol.OpKind.Cut ? CoverClearanceMode.CutPlant : CoverClearanceMode.Haul;
+        var mode = kind == Pol.OpKind.Cut ? CoverClearanceDesignation.CutPlant : CoverClearanceDesignation.Haul;
         return DomainAction.NewCoverClearanceAction(id, new CoverClearance(t.EntityId, t.DefName, mode, t.Minimum));
     }
 
@@ -326,9 +328,9 @@ internal static partial class BuildingRuntimePackage
     /// </summary>
     internal static (string WallStuff, string DoorStuff, Verdict Refusal, bool Ok) ShellMaterials(Observation.ColonyProjection facts, string wall, string door, ShellStuff? choose)
     {
-        var (wallDef, wok) = AnimalContainmentDefinition(facts.Definitions, wall);
-        var (doorDef, dok) = AnimalContainmentDefinition(facts.Definitions, door);
-        if (!wok || !dok)
+        var wallDef = AnimalContainmentDefinition(facts.Definitions, wall);
+        var doorDef = AnimalContainmentDefinition(facts.Definitions, door);
+        if (wallDef is null || doorDef is null)
         {
             return ("", "", FieldUnavailable("wall_door_definitions"), false);
         }
@@ -354,18 +356,17 @@ internal static partial class BuildingRuntimePackage
     /// </summary>
     internal static bool UnstockedUntilKitAllowed(Observation.ColonyProjection facts, params string[] stuffs)
     {
-        var (stock, known) = facts.Stock();
-        if (!known)
+        if (!facts.TryStock(out var stock))
         {
             return false;
         }
-        if (!ForbiddenSupplies(facts.Facts.EventLoot).TryGetValue(out var forbidden) || !forbidden)
+        if (!facts.Facts.EventLoot.TryGetValue(out var loot) || !loot.Any(row => row.SafetyKnown && row.SafeToHaul && row.Forbidden))
         {
             return false;
         }
         foreach (var stuff in stuffs)
         {
-            if (stuff != "" && stock.GetValueOrDefault(Pol.Resource.Of(stuff)) <= 0)
+            if (stuff != "" && stock.GetValueOrDefault(new Pol.Resource(stuff)) <= 0)
             {
                 return true;
             }
@@ -404,7 +405,7 @@ public sealed partial class Rounder
             (throne, _) = plan.ThroneRoomFor(need.MinArea);
             tags = need.FloorTags;
         }
-        return FlooringRoomFloors(room => room.Same(throne) ? tags : [], FlooringFactsOf(facts), Pol.Policy.Flooring);
+        return FlooringRoomFloors(room => room.Same(throne) ? tags : [], FlooringFactsOf(facts), Policy.Flooring);
     }
 }
 
@@ -414,7 +415,7 @@ public sealed partial class RoundsBuildingPlanner
     /// Reconciles one owner's room: it is diffed, then the next wave is committed: foreign obstructions,
     /// removals, installs from packed stock, then the on-site builds (CommitBuilds).
     /// </summary>
-    internal RoundsBuildingResult ReconcileRoom(CancellationToken call, CancellationToken epoch, ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, PackedStock stock, RoomReconcile rr)
+    internal async Task<RoundsBuildingResult> ReconcileRoomAsync(ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, PackedStock? stock, RoomReconcile rr, CancellationToken call, CancellationToken epoch)
     {
         var facts = reading.Projection;
         if (!facts.LayoutPlan.TryGetValue(out var plan))
@@ -434,7 +435,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
             }
-            var read = ObservationPackage.ObserveClearanceCensusOnGround(call, source, facts.Identity, false, [rr.Room.RoomGround()]);
+            var read = await ObservationPackage.ObserveClearanceCensusOnGround(source, facts.Identity, false, [rr.Room.RoomGround()], call).ConfigureAwait(false);
             if (!read.TryGetValue(out var census))
             {
                 return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
@@ -451,8 +452,8 @@ public sealed partial class RoundsBuildingPlanner
                 var (wanted, kept) = FlooringRoomFloors(_ => rr.Tags, FlooringFactsOf(facts), Reviewer.Policy.Flooring)(rr.Room);
                 input = input with { WantedFloor = wanted, FloorKept = kept };
             }
-            var (items, readable) = stock.Items(call, PackedFurnitureDefinition);
-            if (readable)
+            var items = stock is null ? null : await stock.ItemsAsync(PackedFurnitureDefinition, call).ConfigureAwait(false);
+            if (items is not null)
             {
                 left = new Dictionary<string, int>(StringComparer.Ordinal);
                 foreach (var item in items)
@@ -474,10 +475,10 @@ public sealed partial class RoundsBuildingPlanner
             standing = RoomSites(census2.Sites, rr.Room.RoomGround());
         }
         var obstructed = RoomObstructions(ops);
-        Reviewer.NoteStall(call, rr.Name, facts.Identity.Tick, standing, obstructed);
+        Reviewer.NoteStall(rr.Name, facts.Identity.Tick, standing, obstructed);
         var w = new RoomWork { Rr = rr, Ops = ops, Holds = holds, Awaiting = AwaitingKey(standing), Obstructed = obstructed };
         // Foreign obstructions first (claim, cut, haul), then removals, then installs from stock, then what is built on site.
-        var (obstruction, done) = CommitObstructions(call, epoch, state, goal, w);
+        var (obstruction, done) = CommitObstructions(state, goal, w, call, epoch);
         if (done)
         {
             return obstruction;
@@ -488,7 +489,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 if (op.Kind == kind)
                 {
-                    return CommitRemoval(call, epoch, state, goal, rr, op);
+                    return CommitRemoval(state, goal, rr, op, call, epoch);
                 }
             }
         }
@@ -502,18 +503,18 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (installs.Count > 0)
         {
-            var (installed, installDone) = CommitInstalls(call, epoch, state, goal, stock, rr, installs);
+            var (installed, installDone) = await CommitInstallsAsync(state, goal, stock, rr, installs, call, epoch).ConfigureAwait(false);
             if (installDone)
             {
                 return installed;
             }
         }
-        var (roof, roofDone) = CommitRoof(call, epoch, state, goal, w);
+        var (roof, roofDone) = CommitRoof(state, goal, w, call, epoch);
         if (roofDone)
         {
             return roof;
         }
-        return CommitBuilds(call, epoch, state, review, goal, reading, plan, w);
+        return await CommitBuildsAsync(state, review, goal, reading, plan, w, call, epoch).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -521,7 +522,7 @@ public sealed partial class RoundsBuildingPlanner
     /// stands (OpRoofIn), one method per cell set so a designation pawns have not finished is not repeated
     /// (#2962). done is false when nothing is owed or the set was designated before.
     /// </summary>
-    internal (RoundsBuildingResult Result, bool Done) CommitRoof(CancellationToken call, CancellationToken epoch, ControlState state, Sto.StandardState goal, RoomWork w)
+    internal (RoundsBuildingResult Result, bool Done) CommitRoof(ControlState state, Sto.StandardState goal, RoomWork w, CancellationToken call, CancellationToken epoch)
     {
         IReadOnlyList<Cell> cells = [];
         foreach (var op in w.Ops)
@@ -541,20 +542,20 @@ public sealed partial class RoundsBuildingPlanner
         // Go prints the cell slice with fmt.Sprint: [{x z} {x z}].
         var printed = "[" + string.Join(" ", roof.Cells.Select(c => string.Create(CultureInfo.InvariantCulture, $"{{{c.X} {c.Z}}}"))) + "]";
         var method = new MethodId($"{w.Rr.Name}-roof-{DigestHex(printed, 8)}");
-        if (!MethodOnce(call, goal, method))
+        if (!MethodOnce(goal, method, call))
         {
             return (new RoundsBuildingResult(), false);
         }
-        var result = CommitOwnerActions(call, epoch, state, goal, method, id, [action]);
+        var result = CommitOwnerActions(state, goal, method, id, [action], call, epoch);
         return (result, true);
     }
 
     /// <summary>True when the owner has not committed method yet.</summary>
-    internal bool MethodOnce(CancellationToken call, Sto.StandardState goal, MethodId method)
+    internal bool MethodOnce(Sto.StandardState goal, MethodId method, CancellationToken call)
     {
         try
         {
-            Reviewer.Player.Journal.LoadOwnerMethod(call, goal, method);
+            Reviewer.Player.Journal.LoadOwnerMethod(goal, method, call);
             return false;
         }
         catch (Sto.NotFoundException)
@@ -564,7 +565,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     /// <summary>Commits actions as one owner method.</summary>
-    internal RoundsBuildingResult CommitOwnerActions(CancellationToken call, CancellationToken epoch, ControlState state, Sto.StandardState goal, MethodId method, PlanId id, IReadOnlyList<DomainAction> actions)
+    internal RoundsBuildingResult CommitOwnerActions(ControlState state, Sto.StandardState goal, MethodId method, PlanId id, IReadOnlyList<DomainAction> actions, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var plan = new PlanSpec(id, new PlanRevision(1), actions);
@@ -573,7 +574,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("commitOwnerActions: p.session.State() != state");
         }
-        p.Journal.CommitOwnerMethod(call, goal, method, "", plan);
+        p.Journal.CommitOwnerMethod(goal, method, "", plan, call);
         return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted };
     }
 
@@ -581,9 +582,9 @@ public sealed partial class RoundsBuildingPlanner
     /// Takes down what the room holds that it should not: packable buildings are packed (uninstalled), the
     /// rest deconstructed one at a time, the wrong floors removed, one method per wave.
     /// </summary>
-    internal RoundsBuildingResult CommitRemoval(CancellationToken call, CancellationToken epoch, ControlState state, Sto.StandardState goal, RoomReconcile rr, Pol.Operation op)
+    internal RoundsBuildingResult CommitRemoval(ControlState state, Sto.StandardState goal, RoomReconcile rr, Pol.Operation op, CancellationToken call, CancellationToken epoch)
     {
-        var step = new Pol.GroundStep { Phase = op.Label, Targets = op.Targets, Floors = op.Floors };
+        var step = new Pol.GroundStep { Phase = op.Label, Targets = [.. op.Targets], Floors = [.. op.Floors] };
         if (op.Kind == Pol.OpKind.FurnitureOut)
         {
             step = step with { Targets = [.. step.Targets.Take(1)] };
@@ -591,11 +592,11 @@ public sealed partial class RoundsBuildingPlanner
         var id = PlanIds.MintPlanId();
         var (prefix, actions) = GroundStepMethod(id, step);
         var method = new MethodId(rr.Name + "-" + prefix.TrimEnd('-'));
-        if (!MethodOnce(call, goal, method))
+        if (!MethodOnce(goal, method, call))
         {
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, rr.Name + "_removal") };
         }
-        return CommitOwnerActions(call, epoch, state, goal, method, id, actions);
+        return CommitOwnerActions(state, goal, method, id, actions, call, epoch);
     }
 
     /// <summary>
@@ -605,7 +606,7 @@ public sealed partial class RoundsBuildingPlanner
     /// the room's own. A wave already committed is skipped, not waited on: the cells it covers are blocked in
     /// the diff, so the rest of the room proceeds. done is false when nothing was committed.
     /// </summary>
-    internal (RoundsBuildingResult Result, bool Done) CommitObstructions(CancellationToken call, CancellationToken epoch, ControlState state, Sto.StandardState goal, RoomWork w)
+    internal (RoundsBuildingResult Result, bool Done) CommitObstructions(ControlState state, Sto.StandardState goal, RoomWork w, CancellationToken call, CancellationToken epoch)
     {
         foreach (var kind in ObstructionKinds)
         {
@@ -630,7 +631,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 continue;
             }
-            var (result, done) = CommitObstructionWave(call, epoch, state, goal, w.Rr.Name, kind, targets);
+            var (result, done) = CommitObstructionWave(state, goal, w.Rr.Name, kind, targets, call, epoch);
             if (done)
             {
                 return (result, true);
@@ -640,7 +641,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     /// <summary>Commits one wave of kind over targets as an owner method named for them; done is false when that wave was committed before.</summary>
-    internal (RoundsBuildingResult Result, bool Done) CommitObstructionWave(CancellationToken call, CancellationToken epoch, ControlState state, Sto.StandardState goal, string name, Pol.OpKind kind, IReadOnlyList<Pol.ClearanceTarget> targets)
+    internal (RoundsBuildingResult Result, bool Done) CommitObstructionWave(ControlState state, Sto.StandardState goal, string name, Pol.OpKind kind, IReadOnlyList<Pol.ClearanceTarget> targets, CancellationToken call, CancellationToken epoch)
     {
         var id = PlanIds.MintPlanId();
         var actions = new List<DomainAction>();
@@ -651,24 +652,24 @@ public sealed partial class RoundsBuildingPlanner
             key.Append(CultureInfo.InvariantCulture, $"{t.EntityId}@{t.Minimum.X},{t.Minimum.Z};");
         }
         var method = new MethodId($"{name}-{Wire.Name(kind)}-{DigestHex(key.ToString(), 8)}");
-        if (!MethodOnce(call, goal, method))
+        if (!MethodOnce(goal, method, call))
         {
             return (new RoundsBuildingResult(), false);
         }
-        var result = CommitOwnerActions(call, epoch, state, goal, method, id, actions);
+        var result = CommitOwnerActions(state, goal, method, id, actions, call, epoch);
         return (result, true);
     }
 
     /// <summary>Moves the pieces the packed stock holds to their slots; done is false when none is stored after all, so the pieces are built on site.</summary>
-    internal (RoundsBuildingResult Result, bool Done) CommitInstalls(CancellationToken call, CancellationToken epoch, ControlState state, Sto.StandardState goal, PackedStock stock, RoomReconcile rr, IReadOnlyList<Pol.WantedPiece> pieces)
+    internal async Task<(RoundsBuildingResult Result, bool Done)> CommitInstallsAsync(ControlState state, Sto.StandardState goal, PackedStock? stock, RoomReconcile rr, IReadOnlyList<Pol.WantedPiece> pieces, CancellationToken call, CancellationToken epoch)
     {
         var actions = new List<DomainAction>();
         var key = new StringBuilder();
         var id = PlanIds.MintPlanId();
         foreach (var piece in pieces)
         {
-            var (move, stored) = stock.Install(call, PackedFurnitureDefinition, piece.DefName, piece.Anchor(), piece.Rot);
-            if (!stored)
+            var move = stock is null ? null : await stock.InstallAsync(PackedFurnitureDefinition, piece.DefName, piece.Anchor(), piece.Rot, call).ConfigureAwait(false);
+            if (move is null)
             {
                 continue;
             }
@@ -680,11 +681,11 @@ public sealed partial class RoundsBuildingPlanner
             return (new RoundsBuildingResult(), false);
         }
         var method = new MethodId($"{rr.Name}-install-{DigestHex(key.ToString(), 8)}");
-        if (!MethodOnce(call, goal, method))
+        if (!MethodOnce(goal, method, call))
         {
             return (new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, rr.Name + "_install") }, true);
         }
-        var result = CommitOwnerActions(call, epoch, state, goal, method, id, actions);
+        var result = CommitOwnerActions(state, goal, method, id, actions, call, epoch);
         return (result, true);
     }
 
@@ -693,7 +694,7 @@ public sealed partial class RoundsBuildingPlanner
     /// as one method; a refused placement is left for a later pass. There is no cap on cells and no funding
     /// limit: the native tier gate orders material delivery.
     /// </summary>
-    internal RoundsBuildingResult CommitBuilds(CancellationToken call, CancellationToken epoch, ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.LayoutPlan plan, RoomWork w)
+    internal async Task<RoundsBuildingResult> CommitBuildsAsync(ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.LayoutPlan plan, RoomWork w, CancellationToken call, CancellationToken epoch)
     {
         var facts = reading.Projection;
         var rr = w.Rr;
@@ -777,7 +778,7 @@ public sealed partial class RoundsBuildingPlanner
                 // Nothing of the ring is ready (a door awaits the clear side's wall removal): the owner goes on to its own placement.
                 return new RoundsBuildingResult { Verdict = NoSpace("room_ring") };
             }
-            return WaitingHeld(call, rr.Name, w);
+            return WaitingHeld(rr.Name, w, call);
         }
         var p = Reviewer.Player;
         var snapshot = state.Snapshot with { Plan = PlanIds.MintPlanId(), Revision = new PlanRevision(1) };
@@ -792,7 +793,7 @@ public sealed partial class RoundsBuildingPlanner
         // A room planned into rock is mined out before its ring.
         if (wantWalls && rr.Room.Dug)
         {
-            var (dug, handled) = DigPlannedRoom(call, epoch, new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts, Read = reading.ColonyReading }, plan, rr.Room, Check);
+            var (dug, handled) = await DigPlannedRoomAsync(new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts, Read = reading.Reading }, plan, rr.Room, Check, call, epoch).ConfigureAwait(false);
             if (handled)
             {
                 return dug;
@@ -810,7 +811,7 @@ public sealed partial class RoundsBuildingPlanner
             Check();
             var building = new Domain.Building(build.Def, build.Cell, build.Rot, build.Stuff);
             var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-{selected.Count}")), building, RoomTier(rr.Room.Role));
-            var (preview, _) = ((IRoundsBuildingSource)Native).PreviewBuilding(call, action, snapshot);
+            var (preview, _) = await ((IRoundsBuildingSource)Native).PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var v = preview.Preview;
             var ck = v.CanPlace.TryGetValue(out var can);
             var sk = v.SafeToPlace.TryGetValue(out var safe);
@@ -826,7 +827,7 @@ public sealed partial class RoundsBuildingPlanner
                             // Our own blueprint already stands on the cell: it is placed.
                             continue;
                         }
-                        v = v with { Blockers = rest };
+                        v = v with { Blockers = [.. rest] };
                     }
                 }
                 if (build.Ring && !build.Vent && (rr.Room.Outdoor || rr.RingOnly))
@@ -834,7 +835,7 @@ public sealed partial class RoundsBuildingPlanner
                     // The planner sited this ring: a cell the native refuses is reported and left to the plan's replan, never moved to another site.
                     return new RoundsBuildingResult { Verdict = NoSpace("pen_enclosure") };
                 }
-                var r = ReportRefused(call, build, v);
+                var r = ReportRefused(build, v, call);
                 if (refused.Count == 0)
                 {
                     refused.Add(r);
@@ -853,14 +854,14 @@ public sealed partial class RoundsBuildingPlanner
                 // Only vents are owed and the native refused them: the owner goes on to its own placement.
                 return new RoundsBuildingResult { Verdict = NoSpace("room_ring") };
             }
-            return WaitingHeld(call, rr.Name, w, [.. refused]);
+            return WaitingHeld(rr.Name, w, [.. refused], call);
         }
         var method = new MethodId($"{rr.Name}-build-{DigestHex(key.ToString(), 8)}");
-        if (!MethodOnce(call, goal, method))
+        if (!MethodOnce(goal, method, call))
         {
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, rr.Name + "_build") };
         }
-        return AdmitPreviews(call, epoch, new RoundsAdmission
+        return await AdmitPreviewsAsync(new RoundsAdmission
         {
             State = state,
             Review = review,
@@ -872,6 +873,6 @@ public sealed partial class RoundsBuildingPlanner
             Selected = selected,
             Stock = stock,
             Purpose = Pol.Purpose.Shelter,
-        });
+        }, call, epoch).ConfigureAwait(false);
     }
 }

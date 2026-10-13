@@ -37,7 +37,7 @@ internal sealed class PlanAuthorizer(JournalStore journal, bool routine) : IRoun
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            throw new ConflictException(e.Message, e);
+            throw new ConflictException(e);
         }
     }
 }

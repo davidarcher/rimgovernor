@@ -199,13 +199,13 @@ internal static class LayoutFieldPlanning
     /// <summary>The crops a new field block may take: the candidate first, then every other plantable outdoor soil candidate in score order.</summary>
     public static List<FieldBlockOption> FieldBlockOptions(SiteTypeCandidate candidate, IEnumerable<SiteTypeCandidate> all)
     {
-        var options = new List<FieldBlockOption> { new() { Crop = candidate.Crop, Needed = candidate.Needed } };
+        var options = new List<FieldBlockOption> { new(candidate.Crop, candidate.Needed) };
         var seen = new HashSet<string>(StringComparer.Ordinal) { candidate.Crop.Name };
         foreach (var c in all)
         {
             if (c.Kind == SiteKind.Outdoor && c.Buildings.Count == 0 && c.Cells > 0 && seen.Add(c.Crop.Name))
             {
-                options.Add(new FieldBlockOption { Crop = c.Crop, Needed = c.Needed });
+                options.Add(new FieldBlockOption(c.Crop, c.Needed));
             }
         }
         return options;

@@ -66,7 +66,7 @@ public sealed record ColonyStatusReport
     public ColonyThreat Threat { get; init; } = new();
 
     /// <summary>The ancient shrine census; unknown under a native build that does not serve it.</summary>
-    public Fact<IReadOnlyList<AncientShrine>> Shrines { get; init; }
+    public Fact<EquatableArray<AncientShrine>> Shrines { get; init; }
 
     /// <summary>Each shrine's breach judgement, one per Shrines row; empty while the census or its inputs are unknown.</summary>
     public IReadOnlyList<ShrineReadinessReport> ShrineReadiness { get; init; } = [];
@@ -78,7 +78,7 @@ public sealed record ColonyStatusReport
     public Fact<TechTier> TechTier { get; init; }
 
     /// <summary>Counts the owned stockpile zones by role kind as the last rounds read them.</summary>
-    public Fact<IReadOnlyList<StockpileRoleCount>> Stockpiles { get; init; }
+    public Fact<EquatableArray<StockpileRoleCount>> Stockpiles { get; init; }
 
     /// <summary>Whether the loot census held a safe stack forbidden at the last rounds.</summary>
     public Fact<bool> ForbiddenSupplies { get; init; }
@@ -98,8 +98,8 @@ public sealed record ColonyStatusReport
 /// </summary>
 public sealed class ColonyStatus
 {
-    private readonly Player _player;
-    private readonly IColonyStatusNative _native;
+    private readonly Player Player;
+    private readonly IColonyStatusNative Native;
     private readonly FactStore? _food;
 
     /// <summary>Builds a ColonyStatus boundary.</summary>
@@ -107,8 +107,8 @@ public sealed class ColonyStatus
     {
         ArgumentNullException.ThrowIfNull(player);
         ArgumentNullException.ThrowIfNull(native);
-        _player = player;
-        _native = native;
+        Player = player;
+        Native = native;
         _food = food;
     }
 
@@ -119,14 +119,14 @@ public sealed class ColonyStatus
     /// </summary>
     public async Task<ColonyStatusReport> ReadAsync(CancellationToken ct)
     {
-        var (call, done) = _player.Observe(ct);
-        using var _ = done;
-        var identityReply = await _native.IdentityAsync(call).ConfigureAwait(false);
+        using var done = Player.Observe(ct);
+        var call = done.Token;
+        var identityReply = await Native.IdentityAsync(call).ConfigureAwait(false);
         var decoded = ObservationApi.DecodeIdentity(identityReply);
         var identity = new PbCommon.Identity { ColonyId = decoded.Colony.Value, LoadToken = decoded.Load.Value, MapId = decoded.Map.Value };
-        var colony = await _native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
+        var colony = await Native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
         var observed = colony.Observed ?? throw new ControlException("Read: observed == nil");
-        var roster = await _native.ReadHomeColonistsAsync(identity, call).ConfigureAwait(false);
+        var roster = await Native.ReadHomeColonistsAsync(identity, call).ConfigureAwait(false);
         var pawns = roster.Observed ?? throw new ControlException("Read: pawns == nil");
         var report = new ColonyStatusReport
         {
@@ -139,19 +139,19 @@ public sealed class ColonyStatus
             FoodRunwayDays = OptionalFact(observed.HasFoodRunwayDays, observed.FoodRunwayDays),
             PendingFoodNutrition = OptionalFact(observed.HasPendingFoodNutrition, observed.PendingFoodNutrition),
             Threat = BridgeApi.ProjectColonyThreat(observed),
-            Shrines = Unknown<IReadOnlyList<AncientShrine>>(),
+            Shrines = Unknown<EquatableArray<AncientShrine>>(),
             PlayerTechLevel = observed.HasPlayerTechLevel ? Known(observed.PlayerTechLevel) : Unknown<string>(),
             TechTier = Unknown<TechTier>(),
-            Stockpiles = Unknown<IReadOnlyList<StockpileRoleCount>>(),
+            Stockpiles = Unknown<EquatableArray<StockpileRoleCount>>(),
             ForbiddenSupplies = Unknown<bool>(),
             MoodLedger = Unknown<MoodLedger>(),
         };
-        if (_native is IShrineSource source)
+        if (Native is IShrineSource source)
         {
-            report = report with { Shrines = await ObservationApi.ObserveShrinesAsync(call, source, decoded).ConfigureAwait(false) };
+            report = report with { Shrines = await ObservationApi.ObserveShrines(source, decoded, call).ConfigureAwait(false) };
         }
         IReadOnlyDictionary<PawnId, PersonalShare>? shares = null;
-        if (_food is not null && FactsApi.TryGet<ColonyProjection>(_food, FactSection.Colony, out var held))
+        if (_food is not null && FactStore.TryGet<ColonyProjection>(_food, FactSection.Colony, out var held))
         {
             var id = held.Value.Identity;
             if (id.SameContext(decoded) && id.Tick <= decoded.Tick
@@ -200,12 +200,12 @@ public sealed class ColonyStatus
             rows.Add(pawn);
         }
         report = report with { Pawns = rows };
-        if (report.Shrines.TryGetValue(out var shrines) && shrines.Count > 0 && _native is IShrineReadinessNative readiness)
+        if (report.Shrines.TryGetValue(out var shrines) && shrines.Count > 0 && Native is IShrineReadinessNative readiness)
         {
             var colonists = rows.Select(pawn => pawn.Id.Value).ToList();
             var bounds = new Bounds((int)(observed.MapSize?.Width ?? 0), (int)(observed.MapSize?.Height ?? 0));
             var center = new Cell(observed.Center?.X ?? 0, observed.Center?.Z ?? 0);
-            report = report with { ShrineReadiness = await ShrineReadinessProbe.ShrineReadinessAsync(call, readiness, identity, shrines, colonists, report.Threat.RaidPoints, center, bounds).ConfigureAwait(false) };
+            report = report with { ShrineReadiness = await ShrineReadinessAsync(readiness, identity, shrines, colonists, report.Threat.RaidPoints, center, bounds, call).ConfigureAwait(false) };
         }
         return report;
     }
@@ -217,7 +217,7 @@ public sealed class ColonyStatus
     private static Fact<bool> OptionalFact(bool has, bool value) => has ? Known(value) : Unknown<bool>();
 
     /// <summary>Whether the loot census lists a safe stack still forbidden, the stack ManageSupplySafety releases.</summary>
-    internal static Fact<bool> ForbiddenSupplies(Fact<IReadOnlyList<LootItem>> census)
+    internal static Fact<bool> ForbiddenSupplies(Fact<EquatableArray<LootItem>> census)
     {
         if (!census.TryGetValue(out var rows))
         {

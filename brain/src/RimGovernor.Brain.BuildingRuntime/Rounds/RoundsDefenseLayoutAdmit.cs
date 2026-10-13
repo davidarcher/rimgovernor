@@ -7,12 +7,12 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal const long DefenseWallStone = 5;
     internal const long DefenseDoorStone = 25;
 
-    internal RoundsDefenseLayoutResult Admit(CancellationToken call, CancellationToken epoch, StandardState goal, ControlState state, RoundsReading read, DefenseLayoutRecord record, DefenseTierRecord tier, List<Building> buildings, MethodId key, DefensePipeline pipe)
+    internal async Task<RoundsDefenseLayoutResult> AdmitAsync(StandardState goal, ControlState state, RoundsReading read, DefenseLayoutRecord record, DefenseTierRecord tier, List<Building> buildings, MethodId key, DefensePipeline pipe, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var projection = read.Projection;
         var id = PlanIds.MintPlanId();
-        var snapshot = state.Snapshot with { Plan = id, Revision = 1 };
+        var snapshot = state.Snapshot with { Plan = id, Revision = new PlanRevision(1) };
         var actions = new List<DomainAction>();
         var previews = new List<Preview>();
         var stock = new StockObservation { Snapshot = snapshot, Tick = projection.Identity.Tick };
@@ -28,7 +28,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         IReadOnlyList<BridgeBuildingPreview> evaluated = [];
         if (candidates.Count > 0)
         {
-            (evaluated, _) = _native.PreviewBuildings(candidates, snapshot, call);
+            (evaluated, _) = await _native.PreviewBuildingsAsync(candidates, snapshot, call).ConfigureAwait(false);
         }
         for (var i = 0; i < buildings.Count; i++)
         {
@@ -42,9 +42,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
                     placed++;
                     continue;
                 }
-                return new RoundsDefenseLayoutResult { Verdict = BuildingReasonExistingWork, Tier = tier.Name, NativeWorkTicks = DefenseNativeWorkTicks };
+                return new RoundsDefenseLayoutResult { Verdict = BuildingReasonExistingWork, Tier = tier.Name.Value, NativeWorkTicks = DefenseNativeWorkTicks };
             }
-            if (!ok && ((tier.Name == PolicyApi.TierFiringLine && building.Definition == DefenseDefinitionNames.Floor) || PolicyApi.IsPerimeterTier(tier.Name) || tier.Name == PolicyApi.TierIeds))
+            if (!ok && ((tier.Name == PolicyApi.TierFiringLine && building.Definition == DefenseDefinitionNames.Floor) || PolicyApi.IsPerimeterTier(tier.Name) || tier.Name == PolicyApi.TierIEDs))
             {
                 unfloorable.Add(building.Cell);
                 continue;
@@ -52,8 +52,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
             if (!ok)
             {
                 var cell = building.Cell;
-                DefenseAction(call, "defense-layout", LogLevel.Warn, "refused", "placement_preview_refused", tier.Name, new Dictionary<string, object?> { ["definition"] = building.Definition, ["x"] = cell.X, ["z"] = cell.Z, ["native_reason"] = evaluated[i].Reason });
-                return new RoundsDefenseLayoutResult { Verdict = FieldUnavailable("placement_preview"), Tier = tier.Name };
+                DefenseAction("defense-layout", TelemetryLevel.Warn, "refused", "placement_preview_refused", tier.Name.Value, new Dictionary<string, object?> { ["definition"] = building.Definition, ["x"] = cell.X, ["z"] = cell.Z, ["native_reason"] = evaluated[i].Reason }, call);
+                return new RoundsDefenseLayoutResult { Verdict = FieldUnavailable("placement_preview"), Tier = tier.Name.Value };
             }
             actions.Add(action);
             previews.Add(preview.Preview);
@@ -61,17 +61,17 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         if (actions.Count == 0 && placed > 0 && unfloorable.Count == 0)
         {
-            return new RoundsDefenseLayoutResult { Verdict = BuildingReasonExistingWork, Tier = tier.Name, NativeWorkTicks = DefenseNativeWorkTicks };
+            return new RoundsDefenseLayoutResult { Verdict = BuildingReasonExistingWork, Tier = tier.Name.Value, NativeWorkTicks = DefenseNativeWorkTicks };
         }
         if (unfloorable.Count > 0)
         {
-            tier.Buildings = DefenseWithoutFloors(tier.Buildings, unfloorable, PolicyApi.IsPerimeterTier(tier.Name) || tier.Name == PolicyApi.TierIeds);
+            tier.Buildings = DefenseWithoutFloors(tier.Buildings, unfloorable, PolicyApi.IsPerimeterTier(tier.Name) || tier.Name == PolicyApi.TierIEDs);
             record.SetTier(tier);
-            DefenseAction(call, "defense-layout", LogLevel.Info, "refused", "placement_refused_natively", tier.Name, new Dictionary<string, object?> { ["cells"] = unfloorable.Count });
+            DefenseAction("defense-layout", TelemetryLevel.Info, "refused", "placement_refused_natively", tier.Name.Value, new Dictionary<string, object?> { ["cells"] = unfloorable.Count }, call);
             p.Journal.SaveDefenseLayout(record, call);
             if (actions.Count == 0)
             {
-                return new RoundsDefenseLayoutResult { Verdict = NoSpace("defense_tier"), Tier = tier.Name };
+                return new RoundsDefenseLayoutResult { Verdict = NoSpace("defense_tier"), Tier = tier.Name.Value };
             }
         }
         var blocked = new HashSet<Cell>();
@@ -95,31 +95,31 @@ public sealed partial class RoundsDefenseLayoutPlanner
             var (killbox, _, _, kok) = DefenseKillbox(projection);
             if (!kok)
             {
-                return new RoundsDefenseLayoutResult { Verdict = AwaitingPlan("layout_plan", "killbox"), Tier = tier.Name };
+                return new RoundsDefenseLayoutResult { Verdict = AwaitingPlan("layout_plan", "killbox"), Tier = tier.Name.Value };
             }
             var targets = new List<Cell> { killbox.Entry };
             targets.AddRange(record.Entrances);
             BridgeSpatialAccess access;
             try
             {
-                (access, _) = _native.ReadSpatialAccess(Boundary.Identity(state.Snapshot), blockedCells, targets, null, call);
+                (access, _) = await _native.ReadSpatialAccessAsync(Boundary.Identity(state.Snapshot), blockedCells, targets, [], call).ConfigureAwait(false);
             }
             catch (NativeUnavailableException)
             {
-                return new RoundsDefenseLayoutResult { Verdict = FieldUnavailable("spatial_access"), Tier = tier.Name };
+                return new RoundsDefenseLayoutResult { Verdict = FieldUnavailable("spatial_access"), Tier = tier.Name.Value };
             }
             SameTick(access.Context, state, projection.Identity.Tick);
             var (skippedId, skipped) = access.Skipped();
             if (skipped)
             {
-                DefenseAction(call, "defense-layout", LogLevel.Info, "unavailable", "access_audit", tier.Name, new Dictionary<string, object?> { ["blocked_cells"] = blockedCells.Count, ["skipped_pawn"] = skippedId });
-                return new RoundsDefenseLayoutResult { Verdict = FieldUnavailable("spatial_access_skipped"), Tier = tier.Name };
+                DefenseAction("defense-layout", TelemetryLevel.Info, "unavailable", "access_audit", tier.Name.Value, new Dictionary<string, object?> { ["blocked_cells"] = blockedCells.Count, ["skipped_pawn"] = skippedId }, call);
+                return new RoundsDefenseLayoutResult { Verdict = FieldUnavailable("spatial_access_skipped"), Tier = tier.Name.Value };
             }
             var refusal = access.Refusal();
             if (refusal != "")
             {
-                DefenseAction(call, "defense-layout", LogLevel.Info, "refused", "access_audit", tier.Name, new Dictionary<string, object?> { ["blocked_cells"] = blockedCells.Count, ["detail"] = refusal });
-                return new RoundsDefenseLayoutResult { Verdict = NoSpace("walkable_layout"), Tier = tier.Name };
+                DefenseAction("defense-layout", TelemetryLevel.Info, "refused", "access_audit", tier.Name.Value, new Dictionary<string, object?> { ["blocked_cells"] = blockedCells.Count, ["detail"] = refusal }, call);
+                return new RoundsDefenseLayoutResult { Verdict = NoSpace("walkable_layout"), Tier = tier.Name.Value };
             }
         }
         var plan = new PlanSpec(id, new PlanRevision(1), actions);
@@ -132,7 +132,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             try
             {
-                pipe.Scope = StepScope(call, _reviewer.Native);
+                pipe.Scope = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
             }
             catch (ControlException)
             {
@@ -148,9 +148,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var now = _reviewer.Clock.Now();
         if (now < read.StartedAt || now - read.StartedAt > _reviewer.MaxAge)
         {
-            throw new StaleObservationException();
+            throw new Observation.ObservationStaleException();
         }
-        var decision = AdmitMethod(call, p.Journal, new BuildingMethodRequest
+        var decision = await AdmissionLog.AdmitMethodAsync(p.Journal, new BuildingMethodRequest
         {
             Owner = goal,
             Method = key,
@@ -160,9 +160,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
             Bounds = Known(projection.Bounds),
             Stock = stock,
             Previews = previews,
-            Purpose = PolicyApi.Defense,
-        });
-        var reason = AdmissionRefused(decision);
+            Purpose = Pol.Purpose.Defense,
+        }, call).ConfigureAwait(false);
+        var reason = AdmissionLog.AdmissionRefused(decision);
         if (decision.Admitted)
         {
             reason = BuildingReasonAdmitted;
@@ -171,14 +171,14 @@ public sealed partial class RoundsDefenseLayoutPlanner
             pipe.Admitted++;
             foreach (var action in actions)
             {
-                if (action.Building(out var b))
+                if (action.Building is { } b)
                 {
                     pipe.Cells.Add(b.Cell);
                 }
             }
             p.Journal.SaveDefenseLayout(record, call);
         }
-        return new RoundsDefenseLayoutResult { Verdict = reason, Plan = id, Tier = tier.Name };
+        return new RoundsDefenseLayoutResult { Verdict = reason, Plan = id, Tier = tier.Name.Value };
     }
 
     internal static List<DefenseBuilding> DefenseWithoutFloors(IReadOnlyList<DefenseBuilding> buildings, ISet<Cell> cells, bool perimeter)
@@ -197,12 +197,12 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal static ControlException DefenseControlErr(int line) =>
         new(string.Create(CultureInfo.InvariantCulture, $"control error (defense-layout:{line})"));
 
-    internal void SameTick(C.ObservationContext observed, ControlState state, Tick tick)
+    internal static void SameTick(C.ObservationContext? observed, ControlState state, Tick tick)
     {
         try
         {
             var current = Boundary.Context(observed, state.Snapshot);
-            if (current.Native != state.Snapshot.Native || new Tick(observed.Tick) < tick)
+            if (current.Native != state.Snapshot.Native || new Tick(observed?.Tick ?? 0) < tick)
             {
                 throw DefenseControlErr(388);
             }
@@ -213,9 +213,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
     }
 
-    internal (BridgeBuildingPreview Preview, bool Ok) Preview(CancellationToken ct, DomainAction action, GenerationSnapshot snapshot, Tick _, Cell cell)
+    internal async Task<(BridgeBuildingPreview Preview, bool Ok)> PreviewAsync(DomainAction action, GenerationSnapshot snapshot, Tick _, Cell cell, CancellationToken ct)
     {
-        var (previews, _) = _native.PreviewBuildings([action], snapshot, ct);
+        var (previews, _) = await _native.PreviewBuildingsAsync([action], snapshot, ct).ConfigureAwait(false);
         return ClassifyDefensePreview(previews[0], cell);
     }
 
@@ -228,7 +228,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var mk = v.MadeFromStuff.IsKnown;
         if (!fk || !mk || !lk || !sk)
         {
-            return (new BridgeBuildingPreview(), false);
+            return (preview with { NativeWorkPending = false, Reason = "" }, false);
         }
         if (footprint!.Count != 1 || footprint[0] != cell || !legal || !safe)
         {
@@ -239,11 +239,11 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static string DefensePerimeterBridge(ColonyProjection projection)
     {
-        if (projection.Facts.Research.TryGetValue(out var research) && research.Finished.Contains(new ResearchProjectId(PolicyApi.PerimeterHeavyResearch)))
+        if (projection.Facts.Research.TryGetValue(out var research) && research.Finished.Contains(new ResearchProjectId(PolicyConstants.PerimeterHeavyResearch)))
         {
-            return PolicyApi.PerimeterHeavyBridge;
+            return PolicyConstants.PerimeterHeavyBridge;
         }
-        return PolicyApi.PerimeterBridge;
+        return PolicyConstants.PerimeterBridge;
     }
 
     internal static bool DefenseStoneBuilding(Building b) =>
@@ -262,7 +262,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     }
 
     internal static bool DefenseTerrain(string definition) =>
-        definition == DefenseDefinitionNames.Floor || definition == PolicyApi.PerimeterBridge || definition == PolicyApi.PerimeterHeavyBridge;
+        definition == DefenseDefinitionNames.Floor || definition == PolicyConstants.PerimeterBridge || definition == PolicyConstants.PerimeterHeavyBridge;
 
     /// <summary>The stone block resource with the most stock, when it covers the stone the buildings need.</summary>
     internal static (string Stuff, bool Ok) DefensePerimeterStone(ColonyProjection projection, IReadOnlyList<Building> buildings)
@@ -315,7 +315,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var max = baseRegion.Max;
         foreach (var tier in record.Tiers)
         {
-            if (section != "" && tier.Name == section && tier.Buildings.Count > 0)
+            if (section != "" && tier.Name.Value == section && tier.Buildings.Count > 0)
             {
                 min = tier.Buildings[0].Cell;
                 max = tier.Buildings[0].Cell;
@@ -323,7 +323,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         foreach (var tier in record.Tiers)
         {
-            if (tier.Name != section && (section != "" || PolicyApi.IsPerimeterTier(tier.Name)))
+            if (tier.Name.Value != section && (section != "" || PolicyApi.IsPerimeterTier(tier.Name)))
             {
                 continue;
             }
@@ -350,7 +350,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 continue;
             }
-            var r = DefenseRecordRegion(record, bounds, baseRegion, tier.Name);
+            var r = DefenseRecordRegion(record, bounds, baseRegion, tier.Name.Value);
             output = new BridgeCellRect
             {
                 Min = new Cell(Math.Min(output.Min.X, r.Min.X), Math.Min(output.Min.Z, r.Min.Z)),
@@ -367,16 +367,16 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return output;
         }
-        output.Walkable = Known(cell.Walkable);
-        output.Passable = Known(cell.Passable);
-        output.PlayerOwned = Known(cell.PlayerOwned);
-        output.NaturalRock = Known(cell.NaturalRock);
-        output.EdgeReachable = Known(cell.EdgeReachable);
-        output.Door = Known(cell.Door);
-        output.CoverFill = Known(cell.CoverFill);
-        output.Edifice = cell.EdificeDefName;
-        output.Roofed = Known(cell.Roofed);
-        output.Cover = DefenseCover(cell);
+        output = output with { Walkable = Known(cell.Walkable) };
+        output = output with { Passable = Known(cell.Passable) };
+        output = output with { PlayerOwned = Known(cell.PlayerOwned) };
+        output = output with { NaturalRock = Known(cell.NaturalRock) };
+        output = output with { EdgeReachable = Known(cell.EdgeReachable) };
+        output = output with { Door = Known(cell.Door) };
+        output = output with { CoverFill = Known(cell.CoverFill) };
+        output = output with { Edifice = cell.EdificeDefName };
+        output = output with { Roofed = Known(cell.Roofed) };
+        output = output with { Cover = DefenseCover(cell) };
         return output;
     }
 
@@ -406,11 +406,12 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return (count, Known(shortest));
     }
 
-    internal static void DefenseIedRequest(RoundsReading read, DefenseRequest request)
+    internal static DefenseRequest DefenseIedRequest(RoundsReading read, DefenseRequest request)
     {
         var projection = read.Projection;
-        request.IedMax = PolicyApi.IedBudget(projection.Facts.RaidPoints);
-        request.IedStock = projection.Resources;
+        request = request with { IEDMax = PolicyApi.IEDBudget(projection.Facts.RaidPoints), IEDStock = projection.Resources };
+        var ieds = new List<DefenseIED>();
+        var unitCosts = new Dictionary<string, EquatableArray<Amount>>(request.UnitCosts, StringComparer.Ordinal);
         foreach (var d in projection.Definitions)
         {
             if (d.Name != DefenseIedHighExplosive && d.Name != DefenseIedIncendiary)
@@ -421,20 +422,21 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 continue;
             }
-            request.Ieds.Add(new DefenseIed { Definition = d.Name, Radius = radius, Incendiary = d.Name == DefenseIedIncendiary });
+            ieds.Add(new DefenseIED(d.Name, radius, d.Name == DefenseIedIncendiary));
             var (price, ok) = DefenseUnitPrice(projection, d);
             if (ok)
             {
-                request.UnitCosts[d.Name] = price.Costs;
+                unitCosts[d.Name] = [.. price.Costs];
             }
         }
-        request.Ieds.Sort((a, b) => string.CompareOrdinal(a.Definition, b.Definition));
-        if (!projection.Zones.Complete)
+        ieds.Sort((a, b) => string.CompareOrdinal(a.Definition, b.Definition));
+        request = request with { IEDs = [.. ieds], UnitCosts = unitCosts };
+        if (projection.Zones is not { Complete: true } zones)
         {
-            return;
+            return request;
         }
         var stockpiles = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var row in projection.Zones.Value.Rows)
+        foreach (var row in zones.Value.Rows)
         {
             if (row.Type == "stockpile")
             {
@@ -449,10 +451,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 storage.Add(cell.Cell);
             }
         }
-        request.FlammableStorage = Known<IReadOnlyList<Cell>>(storage);
+        return request with { FlammableStorage = Known<EquatableArray<Cell>>([.. storage]) };
     }
 
-    internal void LogUnbuiltTiers(CancellationToken ct, DefenseLayoutRecord record, DefenseCensus census)
+    internal void LogUnbuiltTiers(DefenseLayoutRecord record, DefenseCensus census, CancellationToken ct)
     {
         foreach (var tier in record.Tiers)
         {
@@ -478,18 +480,18 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 }
             }
             var summary = "map[" + string.Join(' ', counts.Select(kv => $"{kv.Key}:{kv.Value}")) + "]";
-            if (Unbuilt.TryGetValue(tier.Name, out var was) && was == summary)
+            if (Unbuilt.TryGetValue(tier.Name.Value, out var was) && was == summary)
             {
                 continue;
             }
-            Unbuilt[tier.Name] = summary;
-            DefenseAction(ct, "defense-layout", LogLevel.Info, "waiting", "tier_unbuilt", tier.Name, new Dictionary<string, object?> { ["buildings"] = tier.Buildings.Count, ["census"] = summary });
+            Unbuilt[tier.Name.Value] = summary;
+            DefenseAction("defense-layout", TelemetryLevel.Info, "waiting", "tier_unbuilt", tier.Name.Value, new Dictionary<string, object?> { ["buildings"] = tier.Buildings.Count, ["census"] = summary }, ct);
         }
     }
 
-    internal BridgeDefenseSite DefenseSite(CancellationToken call, C.Identity identity, ColonyProjection projection, BridgeCellRect region)
+    internal async Task<BridgeDefenseSite> DefenseSiteAsync(C.Identity identity, ColonyProjection projection, BridgeCellRect region, CancellationToken call)
     {
-        var catalog = PawnCatalog(call, _native, identity);
-        return BridgeApi.DefenseSiteFromCells(projection.Cells, projection.Bounds, region, catalog);
+        var catalog = await PawnCatalogAsync(_native, identity, call).ConfigureAwait(false) ?? throw new ControlException("defense site: no definition catalog");
+        return catalog.DefenseSiteFromCells(projection.Cells, projection.Bounds, region);
     }
 }

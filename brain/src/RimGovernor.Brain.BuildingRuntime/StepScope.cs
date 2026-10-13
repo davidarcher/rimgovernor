@@ -1,11 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>The bare scope read every routine source offers.</summary>
-internal interface IStepScopeSource
-{
-    (LifecyclePb.TickReply Reply, BridgeResult Result) Tick(CancellationToken ct);
-}
-
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>
@@ -13,9 +8,9 @@ internal static partial class BuildingRuntimePackage
     /// its reads against through lifecycle_read_tick, which the scheduler step's bundle seeds into the step read
     /// cache, so a review after a stop costs no identity round trip.
     /// </summary>
-    internal static Observation.Identity StepScope(CancellationToken ct, IStepScopeSource native)
+    internal static async Task<Observation.Identity> StepScopeAsync(Observation.ISource native, CancellationToken ct)
     {
-        var (reply, _) = native.Tick(ct);
-        return Observation.Identity.DecodeTick(reply);
+        var (reply, _) = await native.TickAsync(ct).ConfigureAwait(false);
+        return ObservationApi.DecodeTick(reply);
     }
 }

@@ -12,31 +12,36 @@ public sealed partial class Rounder
     /// catalog and remembers the read for the planners. A colony without Royalty owes no throne room; a failed
     /// read leaves royalty unknown.
     /// </summary>
-    internal void ReviewRoyalty(GenerationSnapshot snapshot, Observation.RoundsReading reading)
+    internal Observation.RoundsReading ReviewRoyalty(GenerationSnapshot snapshot, Observation.RoundsReading reading, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         var projection = reading.Projection;
         if (!MethodEnabled(MaintainHousing) && !MethodEnabled(MaintainPsylink) && !MoodCasts)
         {
-            return;
+            return reading;
+        }
+        if (reading.Catalog is not { } catalog)
+        {
+            return reading;
         }
         // The colony section gates Royalty; the ladder and permits come from the def mirror and the colonists'
         // own holdings from their pawn rows. A read that cannot be used leaves royalty unknown.
         Fact<Pol.RoyaltyFacts> royalty;
         try
         {
-            royalty = projection.RoyaltyOf(reading.Frame.Pawns, reading.Frame.Catalog);
+            royalty = projection.RoyaltyOf(reading.Frame.Pawns, catalog);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return;
+            return reading;
         }
         if (!royalty.TryGetValue(out var facts))
         {
-            return;
+            return reading;
         }
-        projection.Royalty = royalty;
-        projection.AddDefinitions(reading.Frame, [.. ThroneThings(facts), .. ThroneFloorTerrains(reading.Frame.Catalog, facts)]);
+        projection = (projection with { Royalty = royalty }).AddDefinitions(reading.Frame, catalog, [.. ThroneThings(facts), .. ThroneFloorTerrains(catalog, facts)]);
         Census.RememberRoyalty(projection.Identity, projection.Royalty);
+        return reading with { Reading = reading.Reading with { Projection = projection } };
     }
 
     /// <summary>The throne definitions a planner's read names beside its own: the ladder's, from the review's royalty read.</summary>
@@ -72,8 +77,7 @@ internal static partial class BuildingRuntimePackage
         {
             return (new Pol.ThroneNeed(), false);
         }
-        var (ceremony, ok) = CeremonyThroneNeed(royalty);
-        if (ok)
+        if (CeremonyThroneNeed(royalty) is { } ceremony)
         {
             return (ceremony, true);
         }
@@ -146,7 +150,7 @@ internal static partial class BuildingRuntimePackage
         }
         facts.Royalty.TryGetValue(out var royalty);
         var step = NextThroneStep(plan!, rooms!, plan!.GroundWithRock(ground, NaturalRock(facts)), census.Buildings, need, defs, royalty!.Thrones);
-        if (step.Kind != Pol.ThroneKind.None)
+        if (step.Kind != Pol.ThroneStepKind.None)
         {
             return step;
         }
@@ -187,20 +191,18 @@ internal static partial class BuildingRuntimePackage
     internal static Pol.FlooringObservation WithThroneFloor(Observation.ColonyProjection facts, Pol.FlooringObservation v)
     {
         var (need, owed) = ThroneNeed(facts);
-        var pk = facts.LayoutPlan.TryGetValue(out var plan);
-        var rk = facts.Rooms.TryGetValue(out var rooms);
-        if (!owed || !pk || !rk || need.FloorTags.Count == 0)
+        if (!owed || !facts.LayoutPlan.TryGetValue(out var plan) || !facts.Rooms.TryGetValue(out var rooms) || need.FloorTags.Count == 0)
         {
             return v;
         }
-        var (room, ok) = plan!.ThroneRoomFor(need.MinArea);
+        var (room, ok) = plan.ThroneRoomFor(need.MinArea);
         if (!ok)
         {
             return v;
         }
         // Census: the floor requirement is keyed by the room's id.
-        var (standing, found) = CensusRoomIn(room, rooms!);
-        if (!found)
+        var (standing, found) = CensusRoomIn(room, rooms);
+        if (!found || standing is null)
         {
             return v;
         }
@@ -235,13 +237,13 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// furniture the template and the plan still owe, installed from packed stock first), the assignment, the
     /// refuel. Furnishing beyond the template follows through the room upgrade.
     /// </summary>
-    internal RoundsBuildingResult StageThrone(CancellationToken call, CancellationToken epoch, StepArbiter arbiter, PackedStock stock, ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.ThroneStep step)
+    internal async Task<RoundsBuildingResult> StageThroneAsync(StepArbiter arbiter, PackedStock stock, ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.ThroneStep step, CancellationToken call, CancellationToken epoch)
     {
         switch (step.Kind)
         {
-            case Pol.ThroneKind.Reconcile:
+            case Pol.ThroneStepKind.Reconcile:
                 var inside = step.Room.Region.Bounds();
-                return Building.ReconcileRoom(call, epoch, state, review, goal, reading, stock, new RoomReconcile
+                return await Building.ReconcileRoomAsync(state, review, goal, reading, stock, new RoomReconcile
                 {
                     Room = step.Room,
                     Template = step.Template,
@@ -249,11 +251,11 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                     Tags = step.Need.FloorTags,
                     Name = string.Create(CultureInfo.InvariantCulture, $"throne-{inside.X}-{inside.Z}"),
                     Reason = "throne room",
-                });
-            case Pol.ThroneKind.Refuel:
-                return RefuelThrone(call, epoch, arbiter, state, review, goal, reading, step);
-            case Pol.ThroneKind.Assign:
-                return AssignThrone(call, epoch, state, review, goal, step);
+                }, call, epoch).ConfigureAwait(false);
+            case Pol.ThroneStepKind.Refuel:
+                return RefuelThrone(arbiter, state, review, goal, reading, step, call, epoch);
+            case Pol.ThroneStepKind.Assign:
+                return AssignThrone(state, review, goal, step, call, epoch);
         }
         return new RoundsBuildingResult { Verdict = FieldUnavailable("throne_step") };
     }
@@ -263,10 +265,10 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// (refused attempts retry within AssignMethod's bound). The royalty read refreshes on its own cadence, so
     /// a throne assigned this epoch reads unowned until then and the method is used.
     /// </summary>
-    internal RoundsBuildingResult AssignThrone(CancellationToken call, CancellationToken epoch, ControlState state, Sto.Rounds review, Sto.StandardState goal, Pol.ThroneStep step)
+    internal RoundsBuildingResult AssignThrone(ControlState state, Sto.Rounds review, Sto.StandardState goal, Pol.ThroneStep step, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
-        var (method, barred) = AssignMethod(call, goal, $"throne-assign-{step.Need.Holder}-{step.Throne}", state.Snapshot);
+        var (method, barred) = AssignMethod(goal, $"throne-assign-{step.Need.Holder}-{step.Throne}", state.Snapshot, call);
         if (!barred.IsZero)
         {
             return new RoundsBuildingResult { Verdict = barred };
@@ -275,8 +277,8 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "throne_assignment") };
         }
-        var previous = step.PreviousThrone != "" ? PreviousAssignment.Known(step.PreviousThrone) : PreviousAssignment.Clear();
-        var assign = new Domain.Assign(new PawnId(step.Need.Holder), step.Throne, previous);
+        var previous = step.PreviousThrone != "" ? PreviousAssignment.KnownPrevious(step.PreviousThrone) : PreviousAssignment.ClearPrevious();
+        var assign = new Domain.Assign(new Domain.PawnId(step.Need.Holder.Value), step.Throne, previous);
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewAssignAction(new ActionId($"{id}-0"), assign);
         var plan = new PlanSpec(id, new PlanRevision(1), [action]);
@@ -290,7 +292,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             throw new ControlException("assignThrone: latest.Revision != review.Revision || !latest.Enabled");
         }
-        p.Journal.CommitOwnerMethod(call, goal, method, "", plan);
+        p.Journal.CommitOwnerMethod(goal, method, "", plan, call);
         return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted };
     }
 }

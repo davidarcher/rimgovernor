@@ -14,6 +14,18 @@ public sealed record RoundsReading
     /// <summary>The colony reading the frame decoded to (Go embeds it).</summary>
     public ColonyReading Reading { get; init; } = new();
 
+    /// <summary>The embedded reading's projection (Go's promoted field).</summary>
+    public ColonyProjection Projection => Reading.Projection;
+
+    /// <summary>When the embedded reading began (Go's promoted field).</summary>
+    public DateTimeOffset StartedAt => Reading.StartedAt;
+
+    /// <summary>When the embedded reading finished (Go's promoted field).</summary>
+    public DateTimeOffset ObservedAt => Reading.ObservedAt;
+
+    /// <summary>The embedded reading's receipt (Go's promoted field).</summary>
+    public Result? Receipt => Reading.Receipt;
+
     public required EmergencyFacts Emergency { get; init; }
 
     /// <summary>The reading's decoded census, per section with the tick each reply described, for the step's fact store.</summary>

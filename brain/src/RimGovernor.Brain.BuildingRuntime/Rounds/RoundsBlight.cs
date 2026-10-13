@@ -7,7 +7,7 @@ public interface IRoundsBlightSource : IColonySource
 {
 }
 
-public sealed class RoundsBlightResult
+public sealed class RoundsBlightResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 
@@ -18,6 +18,7 @@ public sealed class RoundsBlightResult
 public sealed class RoundsBlightPlanner
 {
     private readonly Rounder _reviewer;
+    internal Rounder Reviewer => _reviewer;
     private readonly IRoundsBlightSource _native;
 
     public RoundsBlightPlanner(Rounder reviewer, IRoundsBlightSource native)
@@ -30,7 +31,7 @@ public sealed class RoundsBlightPlanner
         _native = native;
     }
 
-    internal RoundsBlightResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsBlightResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -48,7 +49,7 @@ public sealed class RoundsBlightPlanner
             return new RoundsBlightResult { Verdict = BuildingReasonNoReview };
         }
         var (goal, workable) = p.Journal.Workable(review, PolicyApi.RemoveBlight, call);
-        if (!workable)
+        if (goal is null || !workable)
         {
             return new RoundsBlightResult { Verdict = BuildingReasonNoDeficit };
         }
@@ -69,13 +70,13 @@ public sealed class RoundsBlightPlanner
             }
         }
         var started = _reviewer.Clock.Now();
-        var identity = _native.Identity(call).Identity;
+        var identity = (await _native.IdentityAsync(call).ConfigureAwait(false)).Reply;
         var expected = ObservationApi.DecodeIdentity(identity);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
-        var reading = _reviewer.ObserveColony(call, _native, expected, null);
+        var reading = await _reviewer.ObserveColonyAsync(_native, expected, null, call).ConfigureAwait(false);
         if (!reading.Projection.Facts.Blight.TryGetValue(out var census))
         {
             return new RoundsBlightResult { Verdict = FieldUnavailable("blighted_plants") };
@@ -83,24 +84,24 @@ public sealed class RoundsBlightPlanner
         var byId = new Dictionary<string, CutPlant>(StringComparer.Ordinal);
         foreach (var plant in census)
         {
-            byId[plant.Id] = new CutPlant(plant.Id, plant.Definition, plant.Cell);
+            byId[plant.ID] = new CutPlant(plant.ID, plant.Definition, plant.Cell);
         }
         var targets = PolicyApi.SelectBlightCuts(census, claimed, 8);
         if (targets.Count == 0)
         {
-            return new RoundsBlightResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "blight_cut_targets") };
+            return new RoundsBlightResult { Verdict = WaitFor(Cause.MethodUsed, "blight_cut_targets") };
         }
         var hash = new StringBuilder();
         foreach (var plant in targets)
         {
-            hash.Append(CultureInfo.InvariantCulture, $"{plant.Id}/{plant.Definition}/{plant.Cell.X}/{plant.Cell.Z}\n");
+            hash.Append(CultureInfo.InvariantCulture, $"{plant.ID}/{plant.Definition}/{plant.Cell.X}/{plant.Cell.Z}\n");
         }
         var methodId = new MethodId("cut-" + HashHex16(hash.ToString()));
         var id = PlanIds.MintPlanId();
         var actions = new List<DomainAction>();
         for (var i = 0; i < targets.Count; i++)
         {
-            actions.Add(DomainAction.NewCutPlantAction(new ActionId($"{id}-{i}"), byId[targets[i].Id]));
+            actions.Add(DomainAction.NewCutPlantAction(new ActionId($"{id}-{i}"), byId[targets[i].ID]));
         }
         var spec = new PlanSpec(id, new PlanRevision(1), actions);
         p.Current(call, epoch);

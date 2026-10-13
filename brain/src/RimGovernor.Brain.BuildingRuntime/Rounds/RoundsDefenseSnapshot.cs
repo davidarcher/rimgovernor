@@ -19,24 +19,24 @@ internal sealed class DefenseRecorder : IRoundsDefenseSource
     public (M.CombatGeometry Geometry, BridgeResult Result) CombatGeometry(M.CombatGeometryRequest request, CancellationToken ct) =>
         _inner.CombatGeometry(request, ct);
 
-    public (BridgeDefenseSite Site, BridgeResult Result) ReadDefenseSite(C.Identity identity, BridgeCellRect region, CancellationToken ct) =>
-        _inner.ReadDefenseSite(identity, region, ct);
+    public async Task<(BridgeDefenseSite Site, BridgeResult Result)> ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct) =>
+        await _inner.ReadDefenseSiteAsync(identity, region, ct).ConfigureAwait(false);
 
-    public BridgeCombat ReadCombat(C.Identity identity, CancellationToken ct)
+    public async Task<BridgeCombat> ReadCombatAsync(C.Identity identity, CancellationToken ct)
     {
-        var v = _inner.ReadCombat(identity, ct);
+        var v = await _inner.ReadCombatAsync(identity, ct).ConfigureAwait(false);
         if (v.Emergency.Context is null)
         {
             return v;
         }
         Emergency = v.Emergency;
-        if (v.Frame.Pawns is { } detail)
+        if (v.Frame?.Pawns is { } detail)
         {
             Pawns = new O.ListPawnsReply { Observed = detail };
         }
-        if (v.Frame.CombatLinesOfFire is { } lines)
+        if (v.Frame?.CombatLinesOfFire is { } lines)
         {
-            Lines = new BridgeLinesOfFire { Context = lines.Context, Lines = v.Lines };
+            Lines = new BridgeLinesOfFire(lines.Context, v.Lines, false);
         }
         return v;
     }
@@ -44,32 +44,32 @@ internal sealed class DefenseRecorder : IRoundsDefenseSource
 
 public sealed partial class RoundsDefensePlanner
 {
-    internal RoundsDefenseResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsDefenseResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var dir = Environment.GetEnvironmentVariable(SnapshotApi.DirEnv) ?? "";
         if (dir == "")
         {
-            return Decide(call, epoch, arbiter);
+            return await DecideAsync(arbiter, call, epoch).ConfigureAwait(false);
         }
         var recorder = new DefenseRecorder(_native);
         var planner = new RoundsDefensePlanner(_reviewer, recorder, _hands).WithCombatTuning(_tuning);
-        var result = planner.Decide(call, epoch, arbiter);
+        var result = await planner.DecideAsync(arbiter, call, epoch).ConfigureAwait(false);
         if (recorder.Emergency is not null)
         {
             try
             {
-                var d = DefenseSnapshot(call, recorder, result);
+                var d = DefenseSnapshot(recorder, result, call);
                 SnapshotApi.RecordDefense(dir, d);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                DefenseSnapshotSkip(call, "defense", "defense", ex);
+                DefenseSnapshotSkip("defense", "defense", ex, call);
             }
         }
         return result;
     }
 
-    internal SnapshotDefense DefenseSnapshot(CancellationToken ct, DefenseRecorder rec, RoundsDefenseResult result)
+    internal SnapshotDefense DefenseSnapshot(DefenseRecorder rec, RoundsDefenseResult result, CancellationToken ct)
     {
         var p = _reviewer.Player;
         var current = p.Session.State().Snapshot;
@@ -93,23 +93,26 @@ public sealed partial class RoundsDefensePlanner
             d.Lines = rec.Lines.Lines;
             d.LinesContext = JsonFormatter.Default.Format(rec.Lines.Context);
         }
-        var (layout, ok) = p.Journal.LoadDefenseLayout(new StoreWorld { Colony = current.Colony, Load = current.Load, Map = current.Map }, ct);
-        if (ok)
+        var layout = p.Journal.LoadDefenseLayout(new StoreWorld { Colony = current.Colony, Load = current.Load, Map = current.Map }, ct);
+        if (layout is not null)
         {
             d.Layout = layout;
-            var (recorded, found) = p.Journal.LayoutPlan(current, tick, ct);
-            var opening = PolicyApi.KillboxOpening(recorded.Plan);
-            if (found && opening.Found)
+            var recorded = p.Journal.LayoutPlan(current, tick, ct);
+            if (recorded?.Plan is { } plan)
             {
-                d.Toward = opening.Opening.Toward;
+                var (killbox, opening) = PolicyApi.KillboxOpening(plan);
+                if (opening)
+                {
+                    d.Toward = killbox.Toward;
+                }
             }
         }
-        if (result.Plan.IsZero)
+        if (result.Plan.IsEmpty)
         {
             return d;
         }
         var review = p.Journal.LoadRounds(ct);
-        var (incident, _, hit) = RoundsIncident(ct, p.Journal, review, PolicyApi.ActiveCombat);
+        var (incident, _, hit) = RoundsIncident(p.Journal, review, PolicyApi.ActiveCombat, ct);
         if (!hit)
         {
             return d;
@@ -128,7 +131,7 @@ public sealed partial class RoundsDefensePlanner
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>Records the layout request and record for the snapshot replay tests when the snapshot directory is set; a failed record only logs.</summary>
-    internal static void RecordLayoutSnapshot(CancellationToken ct, GenerationSnapshot current, Tick tick, SnapshotLayout l)
+    internal static void RecordLayoutSnapshot(GenerationSnapshot current, Tick tick, SnapshotLayout l, CancellationToken ct)
     {
         var dir = Environment.GetEnvironmentVariable(SnapshotApi.DirEnv) ?? "";
         if (dir == "")
@@ -144,7 +147,7 @@ internal static partial class BuildingRuntimePackage
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            DefenseSnapshotSkip(ct, "defense-layout", "layout", ex);
+            DefenseSnapshotSkip("defense-layout", "layout", ex, ct);
         }
     }
 }

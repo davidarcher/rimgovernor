@@ -10,11 +10,11 @@ internal static partial class BuildingRuntimePackage
         var helped = previous.Roster?.Help;
         if (previous.Snapshot.Colony != current.Colony || previous.Snapshot.Load != current.Load || previous.Snapshot.Map != current.Map || facts.Identity.Tick < previous.Tick)
         {
-            history = null;
+            history = [];
             helped = null;
         }
-        demand.Help = PolicyApi.ConstructionHelpDemand(previous.ReadyWork, current, facts.Identity.Tick, HelpDefinitions(definitions, facts.Definitions), helped, facts.Facts.CurrentConstruction);
-        demand.Resting = PolicyApi.ReviewDiseaseRest(facts.Facts.MedicalPawns, history);
+        demand = demand with { Help = PolicyApi.ConstructionHelpDemand(previous.ReadyWork, current, facts.Identity.Tick, HelpDefinitions(definitions, facts.Definitions), helped, facts.Facts.CurrentConstruction) };
+        demand = demand with { Resting = PolicyApi.ReviewDiseaseRest(facts.Facts.MedicalPawns, history) };
         return demand;
     }
 

@@ -20,7 +20,7 @@ internal static class ColonyMirror
         var versions = new Dictionary<string, ulong>(split.Count, StringComparer.Ordinal);
         foreach (var name in BridgeApi.ColonySections())
         {
-            versions[name] = FactsApi.PutTable(m, scope, name, split[name], FactsApi.At(tick)).Version;
+            versions[name] = StoreTables.PutTable(m, scope, name, split[name], Watermark.At(tick)).Version;
         }
         return versions;
     }
@@ -31,7 +31,7 @@ internal static class ColonyMirror
         var tables = new Dictionary<string, IReadOnlyDictionary<string, ColonyRow>>(versions.Count, StringComparer.Ordinal);
         foreach (var (name, version) in versions)
         {
-            if (!FactsApi.TryGetTable<string, ColonyRow>(m, scope, name, out var table) || table.Version != version)
+            if (!StoreTables.TryGetTable<string, ColonyRow>(m, scope, name, out var table) || table.Version != version)
             {
                 return null;
             }
@@ -58,7 +58,7 @@ public sealed partial class Rounder
     /// </summary>
     internal Task<PbObservations.ColonyFactsReply> ColonyFactsAsync(IColonyFactsReader native, PbCommon.Identity identity, bool planning, CancellationToken ct)
     {
-        if (!SameNativeSource(native, _native))
+        if (!SameNativeSource(native, Native))
         {
             return native.ReadColonyFactsAsync(identity, planning, ct);
         }
@@ -81,25 +81,25 @@ public sealed partial class Rounder
 
     private async Task<PbObservations.ColonyFactsSnapshot?> MirroredColonyAsync(PbCommon.Identity identity, CancellationToken ct)
     {
-        if (_store is null)
+        if (Store is null)
         {
             return null;
         }
-        CensusReading? census;
+        RoundsCensus? census;
         ulong generation;
-        lock (_census.Gate)
+        lock (Census.Mu)
         {
-            census = _census.Latest;
-            generation = _census.Generation;
+            census = Census.Latest;
+            generation = Census.Generation;
         }
         if (census is null || census.Colony is null || census.Generation != generation)
         {
             return null;
         }
-        GenerationSnapshot expected;
+        Identity expected;
         try
         {
-            expected = await StepScopeAsync(_native, ct).ConfigureAwait(false);
+            expected = await StepScopeAsync(Native, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -113,8 +113,9 @@ public sealed partial class Rounder
         {
             return null;
         }
-        var scope = new FactScope(expected.Load.Value, expected.Map.Value, expected.Native.Value);
-        return ColonyTables(_store, scope, census.Colony);
+        expected.NativeGeneration.TryGetValue(out var nativeGeneration);
+        var scope = new FactScope(expected.Load.Value, expected.Map.Value, (ulong)nativeGeneration.Value);
+        return ColonyTables(Store, scope, census.Colony);
     }
 
     private static PbObservations.ColonyFactsSnapshot? ColonyTables(FactStore store, FactScope scope, IReadOnlyDictionary<string, ulong> versions) =>

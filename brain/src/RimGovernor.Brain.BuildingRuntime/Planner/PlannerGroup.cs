@@ -79,7 +79,7 @@ internal sealed class PlannerGroup
     private int _criticalLeft;
     private bool _started;
 
-    public PlannerGroup(CancellationToken ctx, int width)
+    public PlannerGroup(int width, CancellationToken ctx)
     {
         _ctx = ctx;
         _width = Math.Max(1, width);
@@ -126,7 +126,7 @@ internal sealed class PlannerGroup
             _all.TrySetResult();
             return;
         }
-        _ = Task.Run(() => RunQueueAsync(ordered));
+        _ = Task.Run(async () => await RunQueueAsync(ordered).ConfigureAwait(false));
     }
 
     private async Task RunQueueAsync(List<QueuedPlanner> ordered)

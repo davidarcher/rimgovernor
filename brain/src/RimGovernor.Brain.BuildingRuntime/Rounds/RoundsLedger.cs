@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IOrderDeclarer
 {
-    Declared DeclareOrders(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches);
+    Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct);
 }
 
 internal readonly record struct PurposeReport
@@ -14,7 +14,7 @@ internal readonly record struct PurposeReport
 
     public uint WorkTicks { get; init; }
 
-    public Func<CancellationToken, StoreJournal, StandardState, bool>? OpenWork { get; init; }
+    public Func<StoreJournal, StandardState, CancellationToken, bool>? OpenWork { get; init; }
 }
 
 internal interface IPurposeReporter : IOrderDeclarer
@@ -49,7 +49,7 @@ internal sealed class WorkLedger
 
     public GenerationSnapshot World { get; set; }
 
-    public Dictionary<string, int>? Orphans { get; set; }
+    public IReadOnlyDictionary<string, int>? Orphans { get; set; }
 
     public LedgerPending? Pending { get; set; }
 
@@ -84,7 +84,7 @@ internal sealed class WorkLedger
 
             foreach (var o in d.Orders)
             {
-                if (o.Mode == GearMode.Batch && seen.Add(o.Key()))
+                if (o.Mode == BillMode.GearBatch && seen.Add(o.Key()))
                 {
                     batches.Add(o);
                 }
@@ -167,7 +167,7 @@ public sealed partial class Rounder
         }
     }
 
-    internal Fact<bool> ReviewLedger(CancellationToken call, GenerationSnapshot snapshot, Identity expected, ColonyProjection projection)
+    internal async Task<Fact<bool>> ReviewLedgerAsync(GenerationSnapshot snapshot, Identity expected, ColonyProjection projection, CancellationToken call)
     {
         var l = Ledger;
         List<IOrderDeclarer> declarers;
@@ -192,7 +192,7 @@ public sealed partial class Rounder
             l.Unmet = [];
             l.Colonists = 0;
             l.BenchKinds = null;
-            l.View = LedgerView.New(LedgerViewStatus.Inactive, projection.Identity.Tick);
+            l.View = PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewInactive, projection.Identity.Tick.Value);
         }
 
         if (declarers.Count == 0 || Native is not IRoundsWorkBenchSource native)
@@ -200,17 +200,17 @@ public sealed partial class Rounder
             return Unknown<bool>();
         }
 
-        IReadOnlyList<BenchRead> reads;
+        IReadOnlyList<GearBenchRead> reads;
         try
         {
-            (reads, _) = BenchSource(native, expected, false).ReadGearBenches(call, Boundary.Identity(snapshot));
+            (reads, _) = await BenchSource(native, expected, false).ReadGearBenchesAsync(Boundary.Identity(snapshot), call).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             call.ThrowIfCancellationRequested();
             lock (l.Mu)
             {
-                l.View = LedgerView.New(LedgerViewStatus.Unread, projection.Identity.Tick);
+                l.View = PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewUnread, projection.Identity.Tick.Value);
                 foreach (var d in declarers)
                 {
                     var (purpose, ok) = PurposeOf(d, true);
@@ -224,13 +224,12 @@ public sealed partial class Rounder
             return Unknown<bool>();
         }
 
-        var benches = reads.Select(read => read.Bench).ToList();
-        var declared = new List<Declared>();
+        var benches = reads.Select(read => read.Bench).ToList();        var declared = new List<Declared>();
         var named = new List<NamedDeclared>();
         var purposes = new List<LedgerPurpose>();
         foreach (var d in declarers)
         {
-            var one = d.DeclareOrders(call, snapshot, projection, benches);
+            var one = await d.DeclareOrdersAsync(snapshot, projection, benches, call).ConfigureAwait(false);
             declared.Add(one);
             named.Add(new NamedDeclared(DeclarerName(d), one));
             var (purpose, ok) = PurposeOf(d, false);
@@ -248,18 +247,15 @@ public sealed partial class Rounder
             l.NoteBatches(declared);
             if (!known)
             {
-                l.View = LedgerView.New(LedgerViewStatus.Unread, projection.Identity.Tick);
-                foreach (var d in named)
-                {
-                    l.View.Declarers.Add(PolicyFunctions.DeclarerView(d.Name, d.Declared));
-                }
+                l.View = PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewUnread, projection.Identity.Tick.Value);
+                l.View = l.View with { Declarers = [.. named.Select(d => PolicyFunctions.DeclarerView(d.Name, d.Declared))] };
 
                 return Unknown<bool>();
             }
 
-            IReadOnlyList<WorkPawn> pawns = projection.WorkPawns.TryGetValue(out var rows) ? rows : [];
-            var (copies, dispatched) = l.Dispatch.Dispatch(new DispatchInputs { Declared = declared, Benches = benches, Pawns = pawns, Stock = projection.Resources, Tick = projection.Identity.Tick });
-            var plan = PolicyFunctions.ReconcileLedger(declared, actual, l.Orphans, copies);
+            EquatableArray<WorkPawn> pawns = projection.WorkPawns.TryGetValue(out var rows) ? rows : [];
+            var (copies, dispatched) = l.Dispatch.Dispatch(new DispatchInputs { Declared = declared, Benches = benches, Pawns = pawns, Stock = projection.Resources, Tick = projection.Identity.Tick.Value });
+            var plan = PolicyFunctions.ReconcileLedger(declared, actual, l.Orphans ?? new Dictionary<string, int>(), copies);
             l.Orphans = plan.Orphans;
             var (placed, unplaced) = PolicyFunctions.PlaceLedgerOrders(plan.Place, benches);
             var (wanted, _) = PolicyFunctions.WantedOrders(declared);
@@ -267,7 +263,7 @@ public sealed partial class Rounder
             l.Colonists = pawns.Count;
             l.View = PolicyFunctions.BuildLedgerView(new LedgerViewInput
             {
-                Tick = projection.Identity.Tick,
+                Tick = projection.Identity.Tick.Value,
                 Declarers = named,
                 Plan = plan,
                 Placed = placed,
@@ -294,6 +290,7 @@ public sealed partial class Rounder
 public sealed class RoundsLedgerPlanner
 {
     private readonly Rounder reviewer;
+    internal Rounder Reviewer => reviewer;
 
     private RoundsLedgerPlanner(Rounder reviewer) => this.reviewer = reviewer;
 
@@ -307,7 +304,7 @@ public sealed class RoundsLedgerPlanner
         return new RoundsLedgerPlanner(reviewer);
     }
 
-    internal RoundsLedgerResult Step(CancellationToken call, CancellationToken epoch, StepArbiter? arbiter)
+    internal async Task<RoundsLedgerResult> StepAsync(StepArbiter? arbiter, CancellationToken call, CancellationToken epoch)
     {
         var r = reviewer;
         var p = r.Player;
@@ -322,18 +319,18 @@ public sealed class RoundsLedgerPlanner
             throw new ControlException("step: !state.ObservationKnown");
         }
 
-        var review = p.Journal.LoadRounds(call);
+        var review = await p.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
         if (!review.Enabled || review.Snapshot != state.Snapshot)
         {
             return new RoundsLedgerResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
         }
 
-        var (reports, ticks) = PurposeReports(call, state.Snapshot, review);
-        var result = Commit(call, epoch, arbiter, state, review);
+        var (reports, ticks) = PurposeReports(state.Snapshot, review, call);
+        var result = await CommitAsync(arbiter, state, review, call, epoch).ConfigureAwait(false);
         return result with { Reports = reports, NativeWorkTicks = ticks };
     }
 
-    private (IReadOnlyList<LedgerReport> Reports, uint Ticks) PurposeReports(CancellationToken call, GenerationSnapshot snapshot, Rounds review)
+    private (IReadOnlyList<LedgerReport> Reports, uint Ticks) PurposeReports(GenerationSnapshot snapshot, Rounds review, CancellationToken call)
     {
         List<LedgerPurpose> purposes;
         lock (reviewer.Ledger.Mu)
@@ -345,7 +342,7 @@ public sealed class RoundsLedgerPlanner
         uint ticks = 0;
         foreach (var purpose in purposes)
         {
-            var (verdict, lent) = PurposeVerdict(call, review, purpose);
+            var (verdict, lent) = PurposeVerdict(review, purpose, call);
             reports.Add(new LedgerReport(purpose.Key, verdict));
             ticks = Math.Max(ticks, lent);
         }
@@ -353,21 +350,21 @@ public sealed class RoundsLedgerPlanner
         return (reports, ticks);
     }
 
-    private (Verdict Verdict, uint Ticks) PurposeVerdict(CancellationToken call, Rounds review, LedgerPurpose purpose)
+    private (Verdict Verdict, uint Ticks) PurposeVerdict(Rounds review, LedgerPurpose purpose, CancellationToken call)
     {
         var journal = reviewer.Player.Journal;
-        StandardState owner;
+        StandardState? owner;
         bool workable;
         try
         {
-            (owner, workable) = journal.Workable(call, review, purpose.Need);
+            (owner, workable) = journal.Workable(review, purpose.Need, call);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return (BuildingRuntimePackage.FieldUnavailable("purpose_owner"), 0);
+            return (Verdict.FieldUnavailable("purpose_owner"), 0);
         }
 
-        if (!workable)
+        if (!workable || owner is null)
         {
             return (BuildingRuntimePackage.BuildingReasonNoDeficit, 0);
         }
@@ -377,11 +374,11 @@ public sealed class RoundsLedgerPlanner
             bool open;
             try
             {
-                open = openWork(call, journal, owner);
+                open = openWork(journal, owner, call);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                return (BuildingRuntimePackage.FieldUnavailable("purpose_plans"), 0);
+                return (Verdict.FieldUnavailable("purpose_plans"), 0);
             }
 
             if (open)
@@ -393,19 +390,19 @@ public sealed class RoundsLedgerPlanner
         return (purpose.Report.Order, purpose.Report.WorkTicks);
     }
 
-    private RoundsLedgerResult Commit(CancellationToken call, CancellationToken epoch, StepArbiter? arbiter, ControlState state, Rounds review)
+    private async Task<RoundsLedgerResult> CommitAsync(StepArbiter? arbiter, ControlState state, Rounds review, CancellationToken call, CancellationToken epoch)
     {
         var r = reviewer;
         var p = r.Player;
-        var (owner, workable) = p.Journal.Workable(call, review, ConcernId.MaintainWorkLedger);
-        if (!workable)
+        var (owner, workable) = await p.Journal.WorkableAsync(review, PolicyFunctions.MaintainWorkLedger, call).ConfigureAwait(false);
+        if (!workable || owner is null)
         {
             return new RoundsLedgerResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
         }
 
         foreach (var method in owner.Methods)
         {
-            var plan0 = p.Journal.LoadPlan(call, method.Plan);
+            var plan0 = await p.Journal.LoadPlanAsync(method.Plan, call).ConfigureAwait(false);
             if (StorePackage.PlanOpen(plan0))
             {
                 return new RoundsLedgerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
@@ -425,24 +422,24 @@ public sealed class RoundsLedgerPlanner
 
         if (pending.Actions() == 0)
         {
-            return new RoundsLedgerResult { Verdict = BuildingRuntimePackage.AwaitingPlan("ledger_bench", "") };
+            return new RoundsLedgerResult { Verdict = Verdict.AwaitingPlan("ledger_bench", "") };
         }
 
         var id = PlanIds.MintPlanId();
         var (actions, claims, key) = LedgerActions(id, pending);
         if (arbiter is not null && !arbiter.TryClaim([], [.. claims]))
         {
-            return new RoundsLedgerResult { Verdict = BuildingRuntimePackage.ClaimHeld("bench") };
+            return new RoundsLedgerResult { Verdict = Verdict.ClaimHeld("bench") };
         }
 
-        var plan = PlanSpec.NewPlan(id, new PlanRevision(1), actions);
+        var plan = new PlanSpec(id, new PlanRevision(1), actions);
         p.Current(call, epoch);
         if (p.Session.State() != state)
         {
             throw new ControlException("step: p.session.State() != state");
         }
 
-        p.Journal.CommitOwnerMethod(call, owner, LedgerMethod(owner, key), "", plan);
+        await p.Journal.CommitMethodReasonAsync(owner.Standard.Id, owner.Revision, LedgerMethod(owner, key), "", plan, call).ConfigureAwait(false);
         lock (r.Ledger.Mu)
         {
             r.Ledger.Pending = null;
@@ -450,7 +447,7 @@ public sealed class RoundsLedgerPlanner
 
         foreach (var action in actions)
         {
-            r.NotePlacement(id, action, default);
+            r.NotePlacement(id, action, new ProgressView());
         }
 
         return new RoundsLedgerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
@@ -477,7 +474,7 @@ public sealed class RoundsLedgerPlanner
                 break;
             }
 
-            var removal = RemoveProductionBill.NewRemoveProductionBill(b.Bench, b.Id);
+            var removal = new RemoveProductionBill(b.Bench, b.Id);
             actions.Add(DomainAction.NewRemoveProductionBillAction(new ActionId($"{plan}-{actions.Count}"), removal));
             Claim("bench:" + b.Bench);
             Claim("remove-bill:" + b.Id);
@@ -511,18 +508,18 @@ public sealed class RoundsLedgerPlanner
     internal static ProductionBill LedgerBill(LedgerPlacement p)
     {
         var s = p.Spec;
-        if (s.Mode == GearMode.HumanButcherForever)
+        if (s.Mode == BillMode.HumanButcherForever)
         {
             return ProductionBill.NewHumanButcherBill(p.Bench, s.Recipe, s.Worker);
         }
 
-        var bill = ProductionBill.NewProductionBill(p.Bench, s.Recipe, s.Mode, s.Target, [.. s.Ingredients]);
+        var bill = new ProductionBill(p.Bench, s.Recipe, s.Mode, s.Target, [.. s.Ingredients]);
         return s.Worker != "" ? bill.PinWorker(s.Worker) : bill;
     }
 
     internal static MethodId LedgerMethod(StandardState owner, string key)
     {
-        var tried = owner.History.Select(m => m.Method).ToHashSet();
+        var tried = owner.History.Select(m => m.MethodId).ToHashSet();
         for (var attempt = 0; ; attempt++)
         {
             var digest = SHA256.HashData(Encoding.UTF8.GetBytes($"ledger/{key}/{attempt}"));
@@ -535,7 +532,7 @@ public sealed class RoundsLedgerPlanner
     }
 }
 
-public readonly record struct RoundsLedgerResult
+public readonly record struct RoundsLedgerResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 

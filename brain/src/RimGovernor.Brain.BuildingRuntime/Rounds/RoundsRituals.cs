@@ -2,21 +2,21 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class Rounder
 {
-    internal RoundsReading ReviewRituals(RoundsReading reading, GenerationSnapshot snapshot)
+    internal static RoundsReading ReviewRituals(RoundsReading reading, GenerationSnapshot snapshot)
     {
         var facts = reading.Projection.Facts;
         var tick = reading.Projection.Identity.Tick;
         facts = facts with { RitualPlans = PolicyFunctions.PlanRituals(facts.Ideology, reading.Projection.WorkPawns, facts.RitualSites, tick, RoundsCalm(reading, snapshot)) };
         facts = facts with { RitualsOwed = PolicyFunctions.RitualsOwed(facts.RitualPlans) };
-        return reading with { Projection = reading.Projection with { Facts = facts } };
+        return reading.WithFacts(_ => facts);
     }
 
-    internal Fact<bool> RoundsCalm(RoundsReading reading, GenerationSnapshot snapshot)
+    internal static Fact<bool> RoundsCalm(RoundsReading reading, GenerationSnapshot snapshot)
     {
         var tick = reading.Projection.Identity.Tick;
         try
         {
-            var emergency = PolicyFunctions.NewEmergencySnapshot(snapshot, tick, reading.Emergency);
+            var emergency = EmergencySnapshot.New(snapshot, tick, reading.Emergency);
             var (hostiles, patients) = PolicyFunctions.EmergencyNeeds(emergency, snapshot, tick);
             return PolicyFunctions.RitualCalm(hostiles, patients);
         }
@@ -36,7 +36,7 @@ public sealed class RoundsRitualsPlanner
 
     public static RoundsRitualsPlanner NewRoundsRitualsPlanner(Rounder reviewer)
     {
-        if (reviewer is null || !reviewer.MethodEnabled(ConcernId.MaintainRituals))
+        if (reviewer is null || !reviewer.MethodEnabled(PolicyFunctions.MaintainRituals))
         {
             throw new ControlException("NewRoundsRitualsPlanner: reviewer null or method disabled");
         }
@@ -44,7 +44,7 @@ public sealed class RoundsRitualsPlanner
         return new RoundsRitualsPlanner(reviewer);
     }
 
-    internal RoundsRitualsResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsRitualsResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         var state = p.Session.State();
@@ -64,32 +64,32 @@ public sealed class RoundsRitualsPlanner
             return new RoundsRitualsResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
         }
 
-        var (goal, workable) = p.Journal.Workable(call, review, ConcernId.MaintainRituals);
-        if (!workable)
+        var (goal, workable) = p.Journal.Workable(review, PolicyFunctions.MaintainRituals, call);
+        if (!workable || goal is null)
         {
             return new RoundsRitualsResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
         }
 
         foreach (var method0 in goal.Methods)
         {
-            var open = p.Journal.LoadPlan(call, method0.Plan);
+            var open = p.Journal.LoadPlan(method0.Plan, call);
             if (StorePackage.PlanOpen(open))
             {
                 return new RoundsRitualsResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
             }
         }
 
-        var expected = BuildingRuntimePackage.StepScope(call, reviewer.Native);
+        var expected = await BuildingRuntimePackage.StepScopeAsync(reviewer.Native, call).ConfigureAwait(false);
         if (!BuildingRuntimePackage.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: boundary moved");
         }
 
         var started = reviewer.Clock.Now();
-        var read = reviewer.ObserveOwned(call, reviewer.Native, expected, Unknown<IReadOnlyList<ConstructionClaim>>());
+        var read = await reviewer.ObserveOwnedAsync(reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
         if (!read.Projection.Facts.RitualPlans.TryGetValue(out var plans) || plans.Count == 0)
         {
-            return new RoundsRitualsResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "ritual_plans") };
+            return new RoundsRitualsResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "ritual_plans") };
         }
 
         Verdict held = default;
@@ -99,7 +99,7 @@ public sealed class RoundsRitualsPlanner
             foreach (var site in plan.Sites)
             {
                 var prefix = $"ritual-{plan.Ritual}-{site.X}-{site.Z}-";
-                var (method, verdict, ok) = BuildingRuntimePackage.AdmitStandardMethod(call, p.Journal, goal, prefix, state.Snapshot);
+                var (method, verdict, ok) = BuildingRuntimePackage.AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
                 if (!ok)
                 {
                     held = verdict;
@@ -107,18 +107,18 @@ public sealed class RoundsRitualsPlanner
                     continue;
                 }
 
-                var attendees = plan.Attendees().Select(pawn => new PawnId(pawn)).ToList();
+                var attendees = plan.Attendees();
                 if (!arbiter.TryClaim(attendees))
                 {
-                    return new RoundsRitualsResult { Verdict = BuildingRuntimePackage.ClaimHeld("attendees") };
+                    return new RoundsRitualsResult { Verdict = Verdict.ClaimHeld("attendees") };
                 }
 
-                var slots = plan.Slots.Select(slot => new RitualSlot { Slot = slot.Slot, Pawns = slot.Pawns.Select(pawn => new PawnId(pawn)).ToList() }).ToList();
-                var spectators = plan.Spectators.Select(pawn => new PawnId(pawn)).ToList();
-                var ritual = RitualBegin.NewRitualBegin(new PawnId(plan.Organizer), plan.Ritual, site, slots, spectators);
+                var slots = plan.Slots.Select(slot => new RitualSlot(slot.Slot, [.. slot.Pawns.Select(pawn => (Domain.PawnId)pawn)])).ToList();
+                var spectators = plan.Spectators.Select(pawn => (Domain.PawnId)pawn).ToList();
+                var ritual = Ritual.NewRitualBegin((Domain.PawnId)plan.Organizer, plan.Ritual, site, slots, spectators);
                 var id = PlanIds.MintPlanId();
                 var action = DomainAction.NewRitualAction(new ActionId($"{id}-0"), ritual);
-                var spec = PlanSpec.NewPlan(id, new PlanRevision(1), [action]);
+                var spec = new PlanSpec(id, new PlanRevision(1), [action]);
                 p.Current(call, epoch);
                 var elapsed = reviewer.Clock.Now() - started;
                 if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
@@ -126,8 +126,8 @@ public sealed class RoundsRitualsPlanner
                     throw new ControlException("step: session state changed or the read took too long");
                 }
 
-                var reason = $"ideology: {plan.Organizer} leads {plan.Def} at ({site.X},{site.Z}) with {attendees.Count} attending";
-                p.Journal.CommitMethodReason(call, goal.Standard.Id, goal.Revision, method, reason, spec);
+                var reason = $"ideology: {plan.Organizer.Value} leads {plan.Def} at ({site.X},{site.Z}) with {attendees.Count} attending";
+                p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, reason, spec, call);
                 return new RoundsRitualsResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
             }
         }
@@ -137,11 +137,11 @@ public sealed class RoundsRitualsPlanner
             return new RoundsRitualsResult { Verdict = held };
         }
 
-        return new RoundsRitualsResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "ritual_sites") };
+        return new RoundsRitualsResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "ritual_sites") };
     }
 }
 
-public readonly record struct RoundsRitualsResult
+public readonly record struct RoundsRitualsResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 

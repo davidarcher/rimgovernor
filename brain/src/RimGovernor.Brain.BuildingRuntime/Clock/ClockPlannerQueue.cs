@@ -119,7 +119,7 @@ internal sealed class PlannerQueue
             families.Add(family);
             if (reason.Sections.Count == 0)
             {
-                foreach (var section in FactsApi.FamilySections(family))
+                foreach (var section in FactStore.FamilySections(family))
                 {
                     sections.Add(section);
                 }
@@ -136,7 +136,7 @@ internal sealed class PlannerQueue
             {
                 // Protective waits describe the prior safety facts. A relevant observation must reconsider
                 // them even while issued work is open; family policy decides whether that work should continue.
-                if (ClockPlannerCatalog.ImmediatePlanner(entry))
+                if (ImmediatePlanner(entry))
                 {
                     _waits.Remove(entry.Name);
                 }
@@ -247,7 +247,7 @@ internal sealed class PlannerQueue
         foreach (var name in names)
         {
             var entry = entries[name];
-            _due[name] = tick + entry.ReviewEvery();
+            _due[name] = tick + entry.ReviewEvery().Value;
             if (_dirty.TryGetValue(name, out var mark) && mark <= sel.Began)
             {
                 _dirty.Remove(name);

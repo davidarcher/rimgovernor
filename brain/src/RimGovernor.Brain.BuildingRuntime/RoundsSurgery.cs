@@ -3,9 +3,9 @@ using System.Text;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public sealed class RoundsSurgeryResult
+public sealed class RoundsSurgeryResult : IPlannerMethod
 {
-    public Verdict Verdict { get; set; } = new();
+    public Verdict Verdict { get; set; }
     public PlanId Plan { get; set; }
     public IReadOnlyList<Pol.SurgeryWant> Wants { get; set; } = [];
 
@@ -40,7 +40,7 @@ public sealed class RoundsSurgeryPlanner
         return new RoundsSurgeryPlanner(reviewer);
     }
 
-    internal RoundsSurgeryResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsSurgeryResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -48,7 +48,7 @@ public sealed class RoundsSurgeryPlanner
         {
             return new RoundsSurgeryResult { Verdict = BuildingReasonDisabled };
         }
-        if (!state.ObservationKnown || !state.Snapshot.IsValid())
+        if (!state.ObservationKnown || !state.Snapshot.IsValid)
         {
             throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil");
         }
@@ -60,7 +60,7 @@ public sealed class RoundsSurgeryPlanner
         Observation.Identity expected;
         try
         {
-            expected = StepScope(call, _reviewer.Native);
+            expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -70,28 +70,28 @@ public sealed class RoundsSurgeryPlanner
         {
             throw new ControlException("step: err != nil || !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
-        var claims = p.Journal.ConstructionClaims(call, state.Snapshot, expected.Tick);
-        var read = _reviewer.ObserveOwned(call, _reviewer.Native, expected, claims);
+        var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
+        var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, call).ConfigureAwait(false);
         // A queued bill is clock work whether or not the goal still stands: an elective's bill settles its goal before the operation.
         uint ticks = 0;
         if (SurgeryBillsQueued(read.Projection.Facts.MedicalPawns, read.Projection.Facts.Prisoners))
         {
             ticks = SurgeryNativeWorkTicks;
         }
-        var (goal, workable) = p.Journal.Workable(call, review, MaintainSurgery);
-        if (!workable)
+        var (goal, workable) = p.Journal.Workable(review, MaintainSurgery, call);
+        if (!workable || goal is null)
         {
             return new RoundsSurgeryResult { Verdict = BuildingReasonNoDeficit, NativeWorkTicks = ticks };
         }
-        var inFlight = new HashSet<PawnId>();
+        var inFlight = new Dictionary<PawnId, bool>();
         foreach (var method in goal.Methods)
         {
-            var plan = p.Journal.LoadPlan(call, method.Plan);
+            var plan = p.Journal.LoadPlan(method.Plan, call);
             foreach (var progress in plan.Progress)
             {
                 if (progress.Action.Surgery is { } s && Standard.WorkOpen([progress]))
                 {
-                    inFlight.Add(s.Pawn);
+                    inFlight[new PawnId(s.Pawn.Value)] = true;
                 }
             }
         }
@@ -100,7 +100,7 @@ public sealed class RoundsSurgeryPlanner
             return new RoundsSurgeryResult { Verdict = FieldUnavailable("medical_pawns"), NativeWorkTicks = ticks };
         }
         var surgery = read.Projection.SurgeryContext();
-        var selection = SelectSurgery(read.Projection.Facts.MedicalPawns, inFlight, surgery);
+        var selection = SelectSurgery(read.Projection.Facts.MedicalPawns, inFlight.Keys.ToHashSet(), surgery);
         var result = new RoundsSurgeryResult { Wants = selection.Wants, NativeWorkTicks = ticks };
         var queue = new List<Pol.SurgeryChoice>();
         foreach (var choice in selection.Queue)
@@ -122,21 +122,21 @@ public sealed class RoundsSurgeryPlanner
         }
         RoundsSilverShort(read.Projection.Facts, _reviewer.Policy, review.Latches.MedicalReserve).TryGetValue(out var shortfall);
         var needs = OrganNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, shortfall, stock, read.Projection.Facts.Recipes);
-        var (harvest, harvesting) = SelectOrganHarvest(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, needs, inFlight);
-        if (!harvesting)
+        var harvest = SelectOrganHarvest(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, needs, inFlight);
+        if (harvest is null)
         {
             // Artificial part recovery: the same one-at-a-time slot.
             var parts = PartRecoveryNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, read.Projection.Facts.Recipes);
-            (harvest, harvesting) = SelectPartRecovery(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, parts, inFlight, read.Projection.Facts.Recipes);
+            harvest = SelectPartRecovery(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, parts, inFlight, read.Projection.Facts.Recipes);
         }
         // Prisoners stay on herbal: a cut only better medicine could serve is refused; the review asks for herbal instead.
-        if (!harvesting)
+        if (harvest is null)
         {
             // Peg-leg cycling: training, control or a reinstall.
             var facts = read.Projection.Facts;
-            (harvest, harvesting) = SelectPegCycle(facts.Prisoners, facts.PrisonerColony, facts.FoodDays, _reviewer.Policy.Prisoners(), selection.Wants, facts.Recipes, inFlight);
+            harvest = SelectPegCycle(facts.Prisoners, facts.PrisonerColony, facts.FoodDays, _reviewer.Policy.Prisoners(), selection.Wants, facts.Recipes, inFlight);
         }
-        harvesting = harvesting && arbiter.TryClaim([harvest.Prisoner]);
+        var harvesting = harvest is not null && arbiter.TryClaim([new PawnId(harvest.Prisoner.Value)]);
         result.Harvest = harvesting;
         if (queue.Count == 0 && !harvesting)
         {
@@ -161,7 +161,7 @@ public sealed class RoundsSurgeryPlanner
         {
             text.Append(CultureInfo.InvariantCulture, $"{choice.Pawn}/{choice.Recipe}/{choice.Part}\n");
         }
-        if (harvesting)
+        if (harvest is not null && harvesting)
         {
             text.Append(CultureInfo.InvariantCulture, $"harvest/{harvest.Prisoner}/{harvest.Recipe}/{harvest.Part}/{harvest.Surgeon}\n");
         }
@@ -179,15 +179,15 @@ public sealed class RoundsSurgeryPlanner
         for (var i = 0; i < queue.Count; i++)
         {
             var choice = queue[i];
-            var s = new Surgery(choice.Pawn, choice.Recipe, choice.Part, false);
+            var s = new Surgery(new Domain.PawnId(choice.Pawn.Value), choice.Recipe, choice.Part, false);
             actions.Add(DomainAction.NewSurgeryAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), s));
         }
-        if (harvesting)
+        if (harvest is not null && harvesting)
         {
             var cut = new Surgery(harvest.Prisoner, harvest.Recipe, harvest.Part, harvest.Violation);
-            if (harvest.Surgeon != "")
+            if (!harvest.Surgeon.IsEmpty)
             {
-                cut = cut.WithSurgeon(new PawnId(harvest.Surgeon)); // peg-leg training's doctor
+                cut = cut.WithSurgeon(harvest.Surgeon); // peg-leg training's doctor
             }
             actions.Add(DomainAction.NewSurgeryAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{actions.Count}")), cut));
         }
@@ -197,7 +197,7 @@ public sealed class RoundsSurgeryPlanner
         {
             throw new ControlException("step: p.session.State() != state");
         }
-        p.Journal.CommitMethod(call, goal.Standard.Id, goal.Revision, method2, spec);
+        p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method2, spec, call);
         result.Verdict = BuildingReasonAdmitted;
         result.Plan = id;
         return result;

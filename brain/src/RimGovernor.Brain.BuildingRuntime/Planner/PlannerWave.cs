@@ -55,7 +55,7 @@ internal sealed class PlannerWave : IDisposable
     public PlannerWave(CancellationToken call)
     {
         _optional = CancellationTokenSource.CreateLinkedTokenSource(call);
-        Group = new PlannerGroup(call, PlannerGroup.PlannerWidth);
+        Group = new PlannerGroup(PlannerGroup.PlannerWidth, call);
         Call = call;
     }
 
@@ -64,7 +64,7 @@ internal sealed class PlannerWave : IDisposable
     private CancellationToken Call { get; }
 
     /// <summary>Queues <paramref name="entry"/>'s run on the wave: a critical planner under the step token, an optional one under the wave's cancellable token.</summary>
-    public void Queue(ClockScheduler s, CancellationToken epoch, StepArbiter arbiter, PlannerEntry entry)
+    public void Queue(ClockScheduler s, StepArbiter arbiter, PlannerEntry entry, CancellationToken epoch)
     {
         var priv = new ClockSchedulerResult();
         lock (_mu)
@@ -88,10 +88,10 @@ internal sealed class PlannerWave : IDisposable
             Exception? error = null;
             try
             {
-                await s.Config.Faults.PlannerFault(entry.Name, ct, async () =>
+                await s.Config.Faults.PlannerFault(entry.Name, async () =>
                 {
                     reason = await entry.Run(s, ct, epoch, priv, arbiter).ConfigureAwait(false);
-                }).Invoke().ConfigureAwait(false);
+                }, ct).Invoke().ConfigureAwait(false);
             }
             catch (StaleOwnerException)
             {
@@ -117,17 +117,20 @@ internal sealed class PlannerWave : IDisposable
             var decision = StepDecision(entry, reason, error, took, late);
             if (ReviewScope.Immediate)
             {
-                decision.Attrs["scope"] = "immediate";
+                var attrs = new Dictionary<string, object?>(decision.Attrs) { ["scope"] = "immediate" };
                 if (ReadValidityScope.TryGet(out var validity))
                 {
-                    decision.Attrs["decision_tick"] = (long)validity.Tick.Value;
+                    attrs["decision_tick"] = (long)validity.Tick.Value;
                 }
+                decision = decision with { Attrs = attrs };
             }
             Tel.Decide(decision);
-            span.SetVerdict(decision.Verdict, decision.Reason, late);
+            span?.SetTag("rimgovernor.verdict", decision.Verdict);
+            span?.SetTag("rimgovernor.reason", decision.Reason);
+            span?.SetTag("rimgovernor.late", late);
             if (decision.Verdict == "failed")
             {
-                span.Fail(error);
+                Tel.EndSpan(span, error);
             }
             if (error is not null)
             {
@@ -154,49 +157,49 @@ internal sealed class PlannerWave : IDisposable
             v = Verdict.AwaitingPlan("planner", "cutoff");
             err = null;
         }
+        var attrs = new Dictionary<string, object?>
+        {
+            ["concern"] = entry.Concern.Value,
+            ["class"] = entry.Class.ToString().ToLowerInvariant(),
+        };
         var d = new Decision
         {
             Kind = "planner_step",
             Component = "clock-scheduler",
             Target = entry.Name,
             Dur = took,
-            Attrs = new Dictionary<string, object?>
-            {
-                ["concern"] = entry.Concern.Value,
-                ["class"] = entry.Class.ToString().ToLowerInvariant(),
-            },
         };
         if (err is not null)
         {
-            d.Level = TelemetryLevel.Warn;
-            d.Verdict = "failed";
-            d.Reason = "error";
-            d.Attrs["error"] = err;
+            d = d with { Level = TelemetryLevel.Warn };
+            d = d with { Verdict = "failed" };
+            d = d with { Reason = "error" };
+            attrs["error"] = err;
         }
         else if (v.IsZero)
         {
-            d.Verdict = "ok";
-            d.Reason = "no_verdict";
+            d = d with { Verdict = "ok" };
+            d = d with { Reason = "no_verdict" };
         }
         else if (v.Outcome is Outcome.Admitted or Outcome.Waiting or Outcome.Refused)
         {
-            d.Verdict = Wire.Name(v.Outcome);
-            d.Reason = v.Outcome == Outcome.Admitted ? "plan_admitted" : Wire.Name(v.Refusal.Kind);
+            d = d with { Verdict = Wire.Name(v.Outcome) };
+            d = d with { Reason = v.Outcome == Outcome.Admitted ? "plan_admitted" : v.Refusal.Kind.Value };
         }
         else
         {
-            d.Verdict = "ok";
-            d.Reason = Wire.Name(v.Outcome);
+            d = d with { Verdict = "ok" };
+            d = d with { Reason = Wire.Name(v.Outcome) };
         }
         if (v.Refusal.Subject != "")
         {
-            d.Attrs["subject"] = v.Refusal.Subject;
+            attrs["subject"] = v.Refusal.Subject;
         }
         if (late)
         {
-            d.Attrs["late"] = true;
+            attrs["late"] = true;
         }
-        return d;
+        return d with { Attrs = attrs };
     }
 
     /// <summary>

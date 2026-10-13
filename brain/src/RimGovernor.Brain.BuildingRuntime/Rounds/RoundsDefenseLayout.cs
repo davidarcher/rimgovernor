@@ -5,16 +5,16 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native reads of the defense layout planner.</summary>
 public interface IRoundsDefenseLayoutSource
 {
-    (BridgeDefenseSite Site, BridgeResult Result) ReadDefenseSite(C.Identity identity, BridgeCellRect region, CancellationToken ct);
+    Task<(BridgeDefenseSite Site, BridgeResult Result)> ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct);
 
-    (BridgeSpatialAccess Access, BridgeResult Result) ReadSpatialAccess(C.Identity identity, IReadOnlyList<Cell> from, IReadOnlyList<Cell> to, IReadOnlyList<string> kinds, CancellationToken ct);
+    Task<(BridgeSpatialAccess Access, BridgeResult Result)> ReadSpatialAccessAsync(C.Identity identity, IReadOnlyList<Cell> from, IReadOnlyList<Cell> toCells, IReadOnlyList<string> kinds, CancellationToken ct);
 
-    (O.ListPawnsReply Reply, BridgeResult Result) ReadCombatPawns(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
+    Task<(O.ListPawnsReply Reply, BridgeResult Result)> ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
 
-    (IReadOnlyList<BridgeBuildingPreview> Previews, BridgeResult Result) PreviewBuildings(IReadOnlyList<DomainAction> actions, GenerationSnapshot snapshot, CancellationToken ct);
+    Task<(IReadOnlyList<BridgeBuildingPreview> Previews, BridgeResult Result)> PreviewBuildingsAsync(IReadOnlyList<DomainAction> actions, GenerationSnapshot snapshot, CancellationToken ct);
 }
 
-public sealed class RoundsDefenseLayoutResult
+public sealed class RoundsDefenseLayoutResult : IPlannerMethod
 {
     public Verdict Verdict { get; set; }
 
@@ -47,10 +47,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
         PolicyApi.DefenseSandbags, PolicyApi.DefenseEmbrasure, DefenseIedHighExplosive, DefenseIedIncendiary,
     ];
 
-    internal static readonly string[] DefenseTierOrder =
+    internal static readonly DefenseTierName[] DefenseTierOrder =
     [
         PolicyApi.TierChokepoint, PolicyApi.TierFiringLine, PolicyApi.TierFunnel, PolicyApi.TierTrapCorridor,
-        PolicyApi.TierTurrets, PolicyApi.TierMortars, PolicyApi.TierBait, PolicyApi.TierIeds,
+        PolicyApi.TierTurrets, PolicyApi.TierMortars, PolicyApi.TierBait, PolicyApi.TierIEDs,
     ];
 
     private readonly Rounder _reviewer;
@@ -115,10 +115,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
     }
 
     /// <summary>The order in which the tiers are considered: the perimeter ring first when roamers are owned, then the fixed order, perimeter tiers and turret replacements.</summary>
-    internal static List<string> DefenseTierSequence(DefenseLayoutRecord record, bool roamerOwned)
+    internal static List<DefenseTierName> DefenseTierSequence(DefenseLayoutRecord record, bool roamerOwned)
     {
-        var order = new List<string>(DefenseTierOrder);
-        var ring = new List<string>();
+        var order = new List<DefenseTierName>(DefenseTierOrder);
+        var ring = new List<DefenseTierName>();
         foreach (var t in record.Tiers)
         {
             if (PolicyApi.IsPerimeterTier(t.Name))
@@ -132,7 +132,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                     order.Add(t.Name);
                 }
             }
-            if (t.Name.StartsWith(DefenseTurretReplacePrefix, StringComparison.Ordinal))
+            if (t.Name.Value.StartsWith(DefenseTurretReplacePrefix, StringComparison.Ordinal))
             {
                 order.Insert(order.IndexOf(PolicyApi.TierTurrets), t.Name);
             }
@@ -145,24 +145,24 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static MethodId DefenseTierMethodId(DefenseTierRecord tier) =>
         tier.Reopened == 0
-            ? new MethodId(string.Create(CultureInfo.InvariantCulture, $"{DefenseTierPrefix(tier.Name)}{tier.Attempts}"))
-            : new MethodId(string.Create(CultureInfo.InvariantCulture, $"{DefenseTierPrefix(tier.Name)}r{tier.Reopened}-{tier.Attempts}"));
+            ? new MethodId(string.Create(CultureInfo.InvariantCulture, $"{DefenseTierPrefix(tier.Name.Value)}{tier.Attempts}"))
+            : new MethodId(string.Create(CultureInfo.InvariantCulture, $"{DefenseTierPrefix(tier.Name.Value)}r{tier.Reopened}-{tier.Attempts}"));
 
     internal static string DefenseTierSubject(DefenseTierRecord tier) =>
         tier.Reopened == 0
-            ? DefenseTierPrefix(tier.Name)
-            : string.Create(CultureInfo.InvariantCulture, $"{DefenseTierPrefix(tier.Name)}r{tier.Reopened}-");
+            ? DefenseTierPrefix(tier.Name.Value)
+            : string.Create(CultureInfo.InvariantCulture, $"{DefenseTierPrefix(tier.Name.Value)}r{tier.Reopened}-");
 
-    internal static (StandardState Project, bool Found) DefenseLayoutProject(CancellationToken ct, Player p, RoundsReview review)
+    internal static StandardState? DefenseLayoutProject(Player p, RoundsReview review, CancellationToken ct)
     {
         if (review.StandardFor(PolicyApi.EnsureDefensiveLayout, out var id))
         {
-            return (p.Journal.LoadStandard(id, ct), true);
+            return p.Journal.LoadStandard(id, ct);
         }
-        return (new StandardState(), false);
+        return null;
     }
 
-    internal RoundsDefenseLayoutResult Step(CancellationToken call, CancellationToken epoch, StepArbiter? arbiter)
+    internal async Task<RoundsDefenseLayoutResult> StepAsync(StepArbiter? arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -180,12 +180,11 @@ public sealed partial class RoundsDefenseLayoutPlanner
             return new RoundsDefenseLayoutResult { Verdict = BuildingReasonNoReview };
         }
         var world = new StoreWorld { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map };
-        var (goal, found) = DefenseLayoutProject(call, p, review);
-        if (!found || goal.Standard.Status != StandardStatus.Open)
+        if (DefenseLayoutProject(p, review, call) is not { } goal || goal.Standard.Status != StandardStatus.Open)
         {
             return new RoundsDefenseLayoutResult { Verdict = BuildingReasonNoDeficit };
         }
-        var wait = DefenseWaitingFight(call, p.Journal, world);
+        var wait = DefenseWaitingFight(p.Journal, world, call);
         if (wait is null && (goal.Standard.Finding != Finding.Unmet || review.Veto(goal.Standard) != ""))
         {
             return new RoundsDefenseLayoutResult { Verdict = BuildingReasonNoDeficit };
@@ -197,15 +196,15 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         if (wait is not null)
         {
-            return Fight(call, epoch, goal, state, wait);
+            return await FightAsync(goal, state, wait, call, epoch).ConfigureAwait(false);
         }
-        var combat = DefenseCombatKey(call, p, review);
+        var combat = DefenseCombatKey(p, review, call);
         if (combat == "")
         {
-            return new RoundsDefenseLayoutResult { Verdict = BuildingThreatPending };
+            return new RoundsDefenseLayoutResult { Verdict = BuildingReasonThreatPending };
         }
-        var (record, stored) = p.Journal.LoadDefenseLayout(world, call);
-        stored = stored && record.Killbox != "";
+        var record = p.Journal.LoadDefenseLayout(world, call) ?? new DefenseLayoutRecord();
+        var stored = record.Killbox != "";
         if (stored && record.World != world)
         {
             record.World = world;
@@ -229,20 +228,20 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return new RoundsDefenseLayoutResult { Verdict = BuildingReasonNoDeficit };
         }
-        var expected = StepScope(call, _reviewer.Native);
+        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw DefenseControlErr(168);
         }
-        var claims = p.Journal.ConstructionClaims(call, state.Snapshot, expected.Tick);
-        IReadOnlyList<string> definitions = [];
+        var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
+        string[] definitions = [];
         var siteDue = DefenseSitingDue(record, expected.Tick);
         var replaceDue = DefenseReplaceDue(record, expected.Tick);
         if (!stored || siteDue || replaceDue)
         {
             definitions = DefenseExtraDefinitions;
         }
-        var read = _reviewer.ObserveOwned(call, _reviewer.Native, expected, claims, definitions);
+        var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false);
         var (cut, planned) = DefensePerimeterCut(read);
         if (!planned)
         {
@@ -250,7 +249,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         if (!stored)
         {
-            var (layout, entrances, held, ok) = Propose(call, epoch, goal, review, state, read);
+            var (layout, entrances, held, ok) = await ProposeAsync(goal, review, state, read, call, epoch).ConfigureAwait(false);
             if (!ok)
             {
                 if (held.IsZero)
@@ -260,29 +259,29 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 return new RoundsDefenseLayoutResult { Verdict = held };
             }
             var (killbox, digest, _) = PolicyApi.KillboxNode(cut.Plan);
-            record = StorePackage.NewDefenseLayoutRecord(world, goal.Standard.Id, goal.Standard.Episode, layout, entrances, killbox, digest);
+            record = DefenseLayoutRecord.From(world, goal.Standard.Id, goal.Standard.Episode, layout, entrances, killbox, digest);
             DefenseRecutPerimeter(record, cut);
             p.Journal.SaveDefenseLayout(record, call);
         }
         else if (DefenseRecutPerimeter(record, cut))
         {
-            DefenseAction(call, "defense-layout", LogLevel.Info, "applied", "perimeter_recut", "perimeter", new Dictionary<string, object?> { ["revision"] = record.PerimeterRevision });
+            DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "perimeter_recut", "perimeter", new Dictionary<string, object?> { ["revision"] = record.PerimeterRevision }, call);
             p.Journal.SaveDefenseLayout(record, call);
         }
-        var census = ObserveTiers(call, state, read, record);
+        var census = await ObserveTiersAsync(state, read, record, call).ConfigureAwait(false);
         var tick = read.Projection.Identity.Tick;
         pipe.Settle(census);
-        if (!pipe.Piped() && definitions.Count > 0 && stored && siteDue)
+        if (!pipe.Piped() && definitions.Length > 0 && stored && siteDue)
         {
             record.TurretsProbedTick = tick;
-            SiteTiers(call, state, read, record, census);
+            await SiteTiersAsync(state, read, record, census, call).ConfigureAwait(false);
             p.Journal.SaveDefenseLayout(record, call);
         }
-        if (!pipe.Piped() && definitions.Count > 0 && stored && replaceDue)
+        if (!pipe.Piped() && definitions.Length > 0 && stored && replaceDue)
         {
-            ReplaceTurret(call, state, read, record);
+            await ReplaceTurretAsync(state, read, record, call).ConfigureAwait(false);
         }
-        var (retierResult, retierDone) = Retier(call, epoch, goal, state, read, record);
+        var (retierResult, retierDone) = Retier(goal, state, read, record, call, epoch);
         if (retierDone)
         {
             return retierResult;
@@ -292,7 +291,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         foreach (var name in order)
         {
             var (tier, buildings, tok) = record.Tier(name);
-            if (!tok || buildings.Count == 0 || tier.Built || DefenseTierOpen(pipe.Open, name))
+            if (!tok || buildings.Count == 0 || tier.Built || DefenseTierOpen(pipe.Open, name.Value))
             {
                 continue;
             }
@@ -300,7 +299,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 break;
             }
-            var (spent, ok) = AdmitStandardSubject(call, p.Journal, goal, DefenseTierSubject(tier), state.Snapshot);
+            var (spent, ok) = AdmitStandardSubject(p.Journal, goal, DefenseTierSubject(tier), state.Snapshot, call);
             if (!ok && pipe.Piped())
             {
                 continue;
@@ -310,11 +309,11 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 record.VerifiedTick = tick;
                 record.VerifiedCombat = combat;
                 p.Journal.SaveDefenseLayout(record, call);
-                return new RoundsDefenseLayoutResult { Verdict = spent, Tier = name };
+                return new RoundsDefenseLayoutResult { Verdict = spent, Tier = name.Value };
             }
             if (tier.Remove)
             {
-                return Remove(call, epoch, goal, state, read, record, tier, census);
+                return Remove(goal, state, read, record, tier, census, call, epoch);
             }
             buildings = DefenseMissingBuildings(buildings, census);
             if (buildings.Count == 0)
@@ -323,7 +322,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 {
                     continue;
                 }
-                return new RoundsDefenseLayoutResult { Verdict = FieldUnavailable("fogged_defense_cells"), Tier = name };
+                return new RoundsDefenseLayoutResult { Verdict = FieldUnavailable("fogged_defense_cells"), Tier = name.Value };
             }
             if (pipe.Piped() && pipe.Overlaps(buildings))
             {
@@ -341,9 +340,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
                     var gate = PolicyApi.ResearchGate([PolicyApi.StoneShellResearch], read.Projection.Facts.Research);
                     if (gate != "")
                     {
-                        return new RoundsDefenseLayoutResult { Verdict = ResearchWait(gate), Tier = name };
+                        return new RoundsDefenseLayoutResult { Verdict = ResearchWait(gate), Tier = name.Value };
                     }
-                    return new RoundsDefenseLayoutResult { Verdict = DefensePerimeterNoStone, Tier = name };
+                    return new RoundsDefenseLayoutResult { Verdict = BuildingReasonDefensePerimeterNoStone, Tier = name.Value };
                 }
                 for (var i = 0; i < buildings.Count; i++)
                 {
@@ -352,10 +351,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
                     {
                         continue;
                     }
-                    buildings[i] = DomainApi.NewBuilding(b.Definition, b.Cell, b.Rotation, stuff);
+                    buildings[i] = new Building(b.Definition, b.Cell, b.Rotation, stuff);
                 }
             }
-            var result = Admit(call, epoch, goal, state, read, record, tier, buildings, DefenseTierMethodId(tier), pipe);
+            var result = await AdmitAsync(goal, state, read, record, tier, buildings, DefenseTierMethodId(tier), pipe, call, epoch).ConfigureAwait(false);
             if (result.Verdict != BuildingReasonAdmitted)
             {
                 if (admitted is not null)
@@ -369,9 +368,15 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 return result;
             }
             admitted = result;
-            (record, _) = p.Journal.LoadDefenseLayout(world, call);
+            if (p.Journal.LoadDefenseLayout(world, call) is { } reloaded)
+            {
+                record = reloaded;
+            }
             DefenseHydrate(record, cut);
-            (goal, _) = DefenseLayoutProject(call, p, review);
+            if (DefenseLayoutProject(p, review, call) is { } reproject)
+            {
+                goal = reproject;
+            }
         }
         if (admitted is not null)
         {
@@ -389,14 +394,14 @@ public sealed partial class RoundsDefenseLayoutPlanner
         p.Journal.SaveDefenseLayout(record, call);
         if (upkeep.Rearm.Count > 0)
         {
-            return Rearm(call, epoch, goal, review, state, read, upkeep.Rearm[0], arbiter);
+            return Rearm(goal, review, state, read, upkeep.Rearm[0], arbiter, call, epoch);
         }
         if (upkeep.Unpowered.Count > 0 || upkeep.Empty.Count > 0)
         {
             var subject = upkeep.Unpowered.Count > 0 ? "turret_power" : "turret_fuel";
-            return new RoundsDefenseLayoutResult { Verdict = AwaitingPlan(subject, ""), Tier = PolicyApi.TierTurrets };
+            return new RoundsDefenseLayoutResult { Verdict = AwaitingPlan(subject, ""), Tier = PolicyApi.TierTurrets.Value };
         }
-        var (cover, handled) = ClearCover(call, epoch, goal, review, state, read, record);
+        var (cover, handled) = await ClearCoverAsync(goal, review, state, read, record, call, epoch).ConfigureAwait(false);
         if (handled)
         {
             return cover;
@@ -406,22 +411,22 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static string DefenseRearmPrefix(string turret) => "defense-rearm-" + turret + "-";
 
-    internal RoundsDefenseLayoutResult Rearm(CancellationToken call, CancellationToken epoch, StandardState goal, RoundsReview review, ControlState state, RoundsReading read, DefenseRearm order, StepArbiter? arbiter)
+    internal RoundsDefenseLayoutResult Rearm(StandardState goal, RoundsReview review, ControlState state, RoundsReading read, DefenseRearm order, StepArbiter? arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var tick = read.Projection.Identity.Tick;
-        var (verdict, ok) = AdmitStandardSubject(call, p.Journal, goal, DefenseRearmPrefix(order.Turret), state.Snapshot);
+        var (verdict, ok) = AdmitStandardSubject(p.Journal, goal, DefenseRearmPrefix(order.Turret), state.Snapshot, call);
         if (!ok)
         {
-            return new RoundsDefenseLayoutResult { Verdict = verdict, Tier = PolicyApi.TierTurrets };
+            return new RoundsDefenseLayoutResult { Verdict = verdict, Tier = PolicyApi.TierTurrets.Value };
         }
-        if (arbiter is null || !arbiter.TryClaim([new PawnId(order.Pawn)], "defense-rearm:" + order.Turret))
+        if (arbiter is null || !arbiter.TryClaim([order.Pawn], "defense-rearm:" + order.Turret))
         {
-            return new RoundsDefenseLayoutResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "defense_rearm_claim"), Tier = PolicyApi.TierTurrets };
+            return new RoundsDefenseLayoutResult { Verdict = WaitFor(Cause.MethodUsed, "defense_rearm_claim"), Tier = PolicyApi.TierTurrets.Value };
         }
         var method = new MethodId(string.Create(CultureInfo.InvariantCulture, $"{DefenseRearmPrefix(order.Turret)}{tick.Value}"));
         var id = PlanIds.MintPlanId();
-        var service = DomainApi.NewRecoveryService(new PawnId(order.Pawn), order.Turret, RecoveryServiceKind.Refuel);
+        var service = new RecoveryService((Domain.PawnId)order.Pawn, order.Turret, Domain.RecoveryMethod.Refuel);
         var action = DomainAction.NewRecoveryServiceAction(new ActionId($"{id}-0"), service);
         var plan = new PlanSpec(id, new PlanRevision(1), [action]);
         p.Current(call, epoch);
@@ -430,9 +435,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             throw DefenseControlErr(360);
         }
-        p.Journal.CommitMethodReason(call, goal.Standard.Id, goal.Revision, method, "", plan);
-        DefenseAction(call, "defense-layout", LogLevel.Info, "applied", "rearm", order.Turret, new Dictionary<string, object?> { ["pawn"] = order.Pawn, ["fuel"] = order.Fuel, ["x"] = order.Cell.X, ["z"] = order.Cell.Z, ["method"] = method.Value });
-        return new RoundsDefenseLayoutResult { Verdict = BuildingReasonAdmitted, Plan = id, Tier = PolicyApi.TierTurrets };
+        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, "", plan, call);
+        DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "rearm", order.Turret, new Dictionary<string, object?> { ["pawn"] = order.Pawn, ["fuel"] = order.Fuel, ["x"] = order.Cell.X, ["z"] = order.Cell.Z, ["method"] = method.Value }, call);
+        return new RoundsDefenseLayoutResult { Verdict = BuildingReasonAdmitted, Plan = id, Tier = PolicyApi.TierTurrets.Value };
     }
 
     internal static List<DefenseTurretFacts> DefenseTurretFactsOf(DefenseLayoutRecord record, DefenseCensus? census)
@@ -457,15 +462,12 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 var facts = new DefenseTurretFacts { Cell = b.Cell };
                 if (census.Consumers.TryGetValue(b.Cell, out var site))
                 {
-                    facts.Definition = site.Definition;
-                    facts.Dps = site.TurretDps;
-                    facts.Id = site.Id;
-                    facts.Powered = site.Powered;
-                    facts.OutOfFuel = site.OutOfFuel;
-                    foreach (var d in site.FuelDefinitions)
-                    {
-                        facts.FuelDefinitions.Add(new Resource(d));
-                    }
+                    facts = facts with { Definition = site.Definition };
+                    facts = facts with { Dps = site.TurretDps };
+                    facts = facts with { Id = site.Id };
+                    facts = facts with { Powered = site.Powered };
+                    facts = facts with { OutOfFuel = site.OutOfFuel };
+                    facts = facts with { FuelDefinitions = [.. site.FuelDefinitions.Select(d => new Resource(d))] };
                 }
                 output.Add(facts);
             }
@@ -479,8 +481,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal static DefenseRequest DefenseMortarRequest(RoundsReading read)
     {
         var projection = read.Projection;
-        var request = new DefenseRequest { Definitions = DefenseDefinitionNames, UnitCosts = new Dictionary<string, IReadOnlyList<Amount>>(StringComparer.Ordinal) };
-        request.Mortar = new DefenseMortarRequest
+        var request = new DefenseRequest { Definitions = DefenseDefinitionNames };
+        var unitCosts = new Dictionary<string, EquatableArray<Amount>>(StringComparer.Ordinal);
+        var mortar = new DefenseMortarRequest
         {
             Definition = DefenseMortarDefinition,
             Stock = projection.Resources,
@@ -496,45 +499,47 @@ public sealed partial class RoundsDefenseLayoutPlanner
             var (price, ok) = DefenseUnitPrice(projection, d);
             if (ok)
             {
-                request.UnitCosts[d.Name] = price.Costs;
-                request.Mortar.Stuff = price.Stuff;
+                unitCosts[d.Name] = [.. price.Costs];
+                mortar = mortar with { Stuff = price.Stuff };
             }
         }
-        return request;
+        return request with { Mortar = mortar, UnitCosts = unitCosts };
     }
 
     internal static (StuffPrice Price, bool Ok) DefenseUnitPrice(ColonyProjection projection, PlanningDefinition d)
     {
-        var (stock, _) = projection.Stock();
+        var stock = projection.Resources.TryGetValue(out var known) ? known : null;
         try
         {
-            return (d.StuffChoice(ObservationApi.MaxHitPointsPerCost, stock), true);
+            return (d.StuffChoice(StuffCriterion.MaxHitPointsPerCost, stock), true);
         }
         catch (DomainException)
         {
-            return (new StuffPrice(), false);
+            return (new StuffPrice("", []), false);
         }
     }
 
     internal static DefenseRequest DefenseTurretRequest(RoundsReading read)
     {
         var projection = read.Projection;
-        var request = new DefenseRequest { Definitions = DefenseDefinitionNames, UnitCosts = new Dictionary<string, IReadOnlyList<Amount>>(StringComparer.Ordinal) };
-        request.Turret = new DefenseTurretRequest { Definition = DefenseTurretRung(read), Conduit = DefenseConduitDefinition, Stock = projection.Resources, Max = PolicyApi.TurretBudget(projection.Facts.RaidPoints) };
+        var request = new DefenseRequest { Definitions = DefenseDefinitionNames };
+        var unitCosts = new Dictionary<string, EquatableArray<Amount>>(StringComparer.Ordinal);
+        var turret = new DefenseTurretRequest { Definition = DefenseTurretRung(read), Conduit = DefenseConduitDefinition, Stock = projection.Resources, Max = PolicyApi.TurretBudget(projection.Facts.RaidPoints) };
+        DefenseRequest Done() => request with { Turret = turret, UnitCosts = unitCosts };
         var rk = projection.Facts.Research.TryGetValue(out var research);
         var finished = new HashSet<ResearchProjectId>(research?.Finished ?? []);
         foreach (var d in projection.Definitions)
         {
-            if (d.Name != request.Turret.Definition && d.Name != DefenseConduitDefinition)
+            if (d.Name != turret.Definition && d.Name != DefenseConduitDefinition)
             {
                 continue;
             }
             var (price, priced) = DefenseUnitPrice(projection, d);
             if (priced)
             {
-                request.UnitCosts[d.Name] = price.Costs;
+                unitCosts[d.Name] = [.. price.Costs];
             }
-            if (d.Name != request.Turret.Definition)
+            if (d.Name != turret.Definition)
             {
                 continue;
             }
@@ -551,23 +556,23 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 available = Unknown<bool>();
             }
-            request.Turret.Available = available;
+            turret = turret with { Available = available };
             if (priced)
             {
-                request.Turret.Stuff = price.Stuff;
+                turret = turret with { Stuff = price.Stuff };
             }
             if (d.PowerW.TryGetValue(out var w) && w >= 0)
             {
-                request.Turret.DrawW = Known(w);
+                turret = turret with { DrawW = Known(w) };
             }
             if (d.Size.TryGetValue(out var size))
             {
-                request.Turret.Size = size;
+                turret = turret with { Size = size };
             }
         }
         if (!projection.PowerPlanning.TryGetValue(out var topology))
         {
-            return request;
+            return Done();
         }
         var best = "";
         var spare = 0.0;
@@ -583,11 +588,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         if (best == "")
         {
-            return request;
+            return Done();
         }
-        request.Turret.SpareW = Known(spare);
-        request.Turret.Transmitters = DefenseNetworkConduits(topology, best);
-        return request;
+        turret = turret with { SpareW = Known(spare), Transmitters = [.. DefenseNetworkConduits(topology, best)] };
+        return Done();
     }
 }
 
@@ -608,7 +612,7 @@ internal sealed class DefenseCensus
         {
             return Conduits.GetValueOrDefault(cell);
         }
-        if (BuildingRuntimePackage.DefenseTerrain(definition))
+        if (RoundsDefenseLayoutPlanner.DefenseTerrain(definition))
         {
             return Terrain.GetValueOrDefault(cell) == definition;
         }

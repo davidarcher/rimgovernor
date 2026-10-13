@@ -10,14 +10,14 @@ internal static partial class BuildingRuntimePackage
     {
         // A piece is priced in the stuff UpgradeBedroom would build it in; the item facts carry no row for a stuff-made def.
         Func<string, (double Price, bool Ok)> piecePrice = def =>
-            facts.BedPrice is null ? (0, false) : facts.BedPrice(Pol.Resource.Of(def), Pol.Resource.Of(PieceStuff(facts, def)));
+            facts.BedPrice is null ? (0, false) : facts.BedPrice(new Pol.Resource(def), new Pol.Resource(PieceStuff(facts, def)));
         var gate = new Pol.RoomGate { Stage = stage, Shares = facts.PersonalShareOf, Items = facts.Facts.Items, BedPrice = facts.BedPrice, PiecePrice = piecePrice };
         // A suite is furnished with the bed the furnish step stages and the template pieces the closer fills, priced in their stuffs.
         var definitions = facts.Definitions.Select(d => new Pol.BenchDefinition { Name = d.Name, Available = d.Available }).ToList();
         var (bed, method) = SleepingDefinition(facts.Shapes.Furniture, definitions, null, false, true);
         if (method == Pol.SleepingMethod.Build)
         {
-            gate = gate with { SuiteBed = Pol.Resource.Of(bed), SuiteBedStuff = Pol.Resource.Of(PieceStuff(facts, bed)) };
+            gate = gate with { SuiteBed = new Pol.Resource(bed), SuiteBedStuff = new Pol.Resource(PieceStuff(facts, bed)) };
         }
         var pieces = new List<string>();
         foreach (var def in facts.Shapes.Furniture.BedroomUpgradePieces())
@@ -27,20 +27,19 @@ internal static partial class BuildingRuntimePackage
                 pieces.Add(def);
             }
         }
-        return gate with { SuitePieces = pieces };
+        return gate with { SuitePieces = [.. pieces] };
     }
 
     /// <summary>The stuff a bedroom upgrade piece is built in: the allowed stocked one with the best rest effectiveness, else the ordinary placement stuff.</summary>
     internal static string PieceStuff(Observation.ColonyProjection facts, string def)
     {
         var stuff = facts.BuildStuff(def);
-        var (d, found) = facts.Definition(def);
-        if (found)
+        if (facts.TryDefinition(def, out var d))
         {
-            var (stock, _) = facts.Stock();
+            facts.TryStock(out var stock);
             try
             {
-                stuff = d.StuffChoice(ObservationPackage.MaxRestEffectiveness, stock).Stuff;
+                stuff = d.StuffChoice(Observation.StuffCriterion.MaxRestEffectiveness, stock).Stuff;
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -86,7 +85,7 @@ internal static partial class BuildingRuntimePackage
         }
         facts.TechTier.TryGetValue(out var tier);
         var cost = new Dictionary<Pol.Resource, long>();
-        facts.Resources.TryGetValue(out var stock);
+        var stock = facts.Resources.TryGetValue(out var known) ? known : new Dictionary<Pol.Resource, long>();
         var materials = new Pol.BedMaterials { Cost = cost, Items = facts.Facts.Items, Gate = BedroomGate(facts, stage), Stock = stock };
         foreach (var d in facts.Definitions)
         {
@@ -94,7 +93,7 @@ internal static partial class BuildingRuntimePackage
             Observation.StuffPrice price;
             try
             {
-                price = d.StuffChoice(ObservationPackage.MaxRestEffectiveness, stock);
+                price = d.StuffChoice(Observation.StuffCriterion.MaxRestEffectiveness, stock);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -106,9 +105,9 @@ internal static partial class BuildingRuntimePackage
             }
             foreach (var c in price.Costs)
             {
-                if (c.Resource == Pol.Resource.Of(price.Stuff))
+                if (c.Resource == new Pol.Resource(price.Stuff))
                 {
-                    cost[Pol.Resource.Of(d.Name)] = c.Count;
+                    cost[new Pol.Resource(d.Name)] = c.Count;
                 }
             }
         }
@@ -139,10 +138,13 @@ internal static partial class BuildingRuntimePackage
         {
             return (new Pol.RoomUpgrade(), false);
         }
-        var (d, found) = AnimalContainmentDefinition(facts.Definitions, facts.Shapes.Furniture.AnimalSpot);
+        if (AnimalContainmentDefinition(facts.Definitions, facts.Shapes.Furniture.AnimalSpot) is not { } d)
+        {
+            return (new Pol.RoomUpgrade(), false);
+        }
         var sizeKnown = d.Size.TryGetValue(out var size);
         var availableKnown = d.Available.TryGetValue(out var available);
-        if (!found || !sizeKnown || !availableKnown || size.Width < 1 || size.Height < 1)
+        if (!sizeKnown || !availableKnown || size.Width < 1 || size.Height < 1)
         {
             return (new Pol.RoomUpgrade(), false);
         }
@@ -175,13 +177,13 @@ internal static partial class BuildingRuntimePackage
 public sealed partial class RoundsSleepingUpkeepPlanner
 {
     /// <summary>Deconstructs a replaced bed, once per bed per Episode.</summary>
-    internal RoundsBuildingResult RemoveOldBed(CancellationToken call, CancellationToken epoch, ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.BedReplacement rep)
+    internal async Task<RoundsBuildingResult> RemoveOldBedAsync(ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.BedReplacement rep, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var method = new MethodId("bedroom-replace-remove-" + DigestHex(rep.Bed, 8));
         try
         {
-            p.Journal.LoadOwnerMethod(call, goal, method);
+            p.Journal.LoadOwnerMethod(goal, method, call);
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "old_bed_removal") };
         }
         catch (Sto.NotFoundException)
@@ -193,21 +195,21 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             var value = new MoveBuilding(rep.Bed, rep.Def, rep.Cell, Rotation.South);
             var id = PlanIds.MintPlanId();
             var action = DomainAction.NewUninstallBuildingAction(new ActionId($"{id}-0"), value);
-            var (result, _) = CommitCouple(call, epoch, state, goal, method, id, [action]);
+            var (result, _) = CommitCouple(state, goal, method, id, [action], call, epoch);
             return result;
         }
-        return Building.RetireBuilding(call, epoch, state, review, goal, reading.ColonyReading, rep.Bed, rep.Def, rep.Cell, "bedroom-replace-remove", "old_bed_removal");
+        return await Building.RetireBuildingAsync(state, review, goal, reading.Reading, rep.Bed, rep.Def, rep.Cell, "bedroom-replace-remove", "old_bed_removal", call, epoch).ConfigureAwait(false);
     }
 
     /// <summary>Previews and admits one upgrade piece, once per room and slot per Episode.</summary>
-    internal RoundsBuildingResult UpgradeBedroom(CancellationToken call, CancellationToken epoch, ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.RoomUpgrade u)
+    internal async Task<RoundsBuildingResult> UpgradeBedroomAsync(ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.RoomUpgrade u, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var facts = reading.Projection;
         var method = new MethodId($"bedroom-upgrade-{u.Slot}-{DigestHex(u.Room, 8)}");
         try
         {
-            p.Journal.LoadOwnerMethod(call, goal, method);
+            p.Journal.LoadOwnerMethod(goal, method, call);
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "bedroom_upgrade") };
         }
         catch (Sto.NotFoundException)
@@ -224,14 +226,14 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             }
         }
         Check();
-        IReadOnlyList<Cell> cells = u.Cells.Count == 0 ? [u.Anchor] : u.Cells;
+        EquatableArray<Cell> cells = u.Cells.Count == 0 ? [u.Anchor] : u.Cells;
         var stock = new Pol.StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         var selected = new List<Pol.Preview>();
         for (var i = 0; i < cells.Count; i++)
         {
             var building = new Domain.Building(u.Def, cells[i], u.Rot, stuff);
-            var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-{i}")), building, BuildTier.Sustain);
-            var (preview, _) = Native.PreviewBuilding(call, action, snapshot);
+            var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-{i}")), building, ConstructionTier.Sustain);
+            var (preview, _) = await Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var v = preview.Preview;
             var ck = v.CanPlace.TryGetValue(out var can);
             var sk = v.SafeToPlace.TryGetValue(out var safe);
@@ -246,6 +248,6 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return new RoundsBuildingResult { Verdict = NoSpace("bedroom_upgrade_site") };
         }
-        return Building.AdmitPreviews(call, epoch, new RoundsAdmission { State = state, Review = review, Owner = goal, Facts = facts, Method = method, Snapshot = snapshot, Selected = selected, Stock = stock, Purpose = Pol.Purpose.Shelter });
+        return await Building.AdmitPreviewsAsync(new RoundsAdmission { State = state, Review = review, Owner = goal, Facts = facts, Method = method, Snapshot = snapshot, Selected = selected, Stock = stock, Purpose = Pol.Purpose.Shelter }, call, epoch).ConfigureAwait(false);
     }
 }

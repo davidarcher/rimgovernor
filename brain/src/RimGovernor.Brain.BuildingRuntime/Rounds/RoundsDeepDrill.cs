@@ -3,11 +3,10 @@ using System.Globalization;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>The native reads of the deep drill planner: the building census and the research read on top of the building source.</summary>
-internal interface IDeepDrillBuildingSource : IRoundsBuildingSource
+internal interface IDeepDrillBuildingSource : IRoundsBuildingSource, Observation.IResearchSource
 {
-    (EntityRows<O.BuildingState> Rows, BridgeResult Result) ReadBuildings(C.Identity identity, CancellationToken ct);
+    Task<(EntityRows<O.BuildingState> Rows, BridgeResult Result)> ReadBuildingsAsync(C.Identity identity, CancellationToken ct);
 
-    (ResearchRead Read, BridgeResult Result) ReadResearch(C.Identity identity, CancellationToken ct);
 }
 
 /// <summary>One deep drill site the colony could build on: the preview and the plan that would place it.</summary>
@@ -16,7 +15,7 @@ internal sealed class DeepDrillPlacement
     public string Id = "";
     public DeepResourceLump Site = null!;
     public double Distance;
-    public GenerationSnapshot Snapshot = null!;
+    public GenerationSnapshot Snapshot;
     public PlanSpec Plan = null!;
     public BuildingPreview Preview = null!;
 }
@@ -48,7 +47,7 @@ internal sealed class DeepDrillReading
 public sealed partial class RoundsResourcePlanner
 {
     /// <summary>Deconstructs the first exhausted, undesignated deep drill that has no method yet.</summary>
-    internal (RoundsResourceResult Result, bool Handled) RemoveExhaustedDrill(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, ColonyProjection f, DateTimeOffset started)
+    internal (RoundsResourceResult Result, bool Handled) RemoveExhaustedDrill(ControlState state, StandardState goal, ColonyProjection f, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         if (!f.DeepResources.TryGetValue(out var deep))
         {
@@ -56,20 +55,20 @@ public sealed partial class RoundsResourcePlanner
         }
         foreach (var drill in ExhaustedDrills(deep))
         {
-            var prefix = $"deconstruct-drill-{drill.Id}-";
-            var (_, ok) = AdmitSubject(call, _reviewer.Player.Journal, prefix, StandardMethodPlans(goal.History, goal.Standard.Episode), state.Snapshot);
+            var prefix = $"deconstruct-drill-{drill.ID}-";
+            var (_, ok) = AdmitSubject(reviewer.Player.Journal, prefix, StandardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot, call);
             if (!ok)
             {
                 continue;
             }
             var method = NextMethodId(prefix, HistoryMethodIds(goal.History, goal.Standard.Episode));
             var planId = PlanIds.MintPlanId();
-            var action = DomainAction.NewDeconstructionAction(new ActionId(planId.Value + "-0"), new Deconstruction(drill.Id, drill.Definition, drill.Position));
+            var action = DomainAction.NewDeconstructionAction(new ActionId(planId.Value + "-0"), new Deconstruction(drill.ID, drill.Definition, drill.Position));
             var spec = new PlanSpec(planId, new PlanRevision(1), [action]);
-            var player = _reviewer.Player;
+            var player = reviewer.Player;
             player.Current(call, epoch);
-            var elapsed = _reviewer.Clock.Now() - started;
-            if (player.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
+            var elapsed = reviewer.Clock.Now() - started;
+            if (player.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
             {
                 throw new ControlException("removeExhaustedDrill: player.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
             }
@@ -80,18 +79,18 @@ public sealed partial class RoundsResourcePlanner
     }
 
     /// <summary>Reads the deep drill facts of a review; null when no deep drilling research is owed or the native cannot read buildings.</summary>
-    internal DeepDrillReading? ReadDeepDrill(CancellationToken call, ControlState state, RoundsReview review)
+    internal async Task<DeepDrillReading?> ReadDeepDrillAsync(ControlState state, RoundsReview review, CancellationToken call)
     {
-        var items = _reviewer.ItemFacts(call, state.Snapshot);
-        if (PolicyApi.DeepDrillingResearch(null, review.ResourceRunwayState(), items).Count == 0)
+        var items = await reviewer.ItemFactsAsync(state.Snapshot, call).ConfigureAwait(false);
+        if (PolicyApi.DeepDrillingResearch([], review.ResourceRunwayState(), items).Count == 0)
         {
             return null;
         }
-        if (_native is not IDeepDrillBuildingSource native)
+        if (this.native is not IDeepDrillBuildingSource deepNative)
         {
             return null;
         }
-        var id = native.Identity(call).Identity;
+        var id = (await deepNative.IdentityAsync(call).ConfigureAwait(false)).Reply;
         Identity expected;
         try
         {
@@ -105,9 +104,9 @@ public sealed partial class RoundsResourcePlanner
         {
             throw new ControlException("deepDrillReading: err != nil || !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
-        var reading = _reviewer.ObserveColony(call, native, expected, ["DeepDrill"]);
+        var reading = await reviewer.ObserveColonyAsync(deepNative, expected, ["DeepDrill"], call).ConfigureAwait(false);
         var f = reading.Projection;
-        var research = native.ReadResearch(Boundary.Identity(state.Snapshot), call).Read;
+        var research = (await deepNative.ReadResearchAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false)).Read;
         try
         {
             Boundary.Context(research.Context, state.Snapshot);
@@ -116,24 +115,24 @@ public sealed partial class RoundsResourcePlanner
         {
             throw new ControlException("deepDrillReading: stale research context");
         }
-        if (!RoundsCachedFresh(BridgeApi.FactResearch, new Tick(research.Context.Tick), f.Identity.Tick))
+        if (!RoundsCachedFresh(FactFamily.Research, new Tick(research.Context?.Tick ?? 0), f.Identity.Tick))
         {
             throw new ControlException("deepDrillReading: err != nil || !roundsCachedFresh(bridge.FactResearch, domain.Tick(research.Context.GetTick()), f.Identity");
         }
-        var finished = new ResearchFacts();
+        var finishedNames = new List<ResearchProjectId>();
         foreach (var name in research.Finished)
         {
-            finished.Finished.Add(new ResearchProjectId(name));
+            finishedNames.Add(new ResearchProjectId(name));
         }
-        f.Facts.Research = Known(finished);
-        RecordStepRead("deepdrill", PolicyApi.MaintainResource, state.Snapshot, f);
-        var output = new DeepDrillReading { Native = native, F = f };
+        f = f with { Facts = f.Facts with { Research = Known(new ResearchFacts { Finished = [.. finishedNames] }) } };
+        PlannerSnapshot.RecordStepRead("deepdrill", PolicyApi.MaintainResource, state.Snapshot, f);
+        var output = new DeepDrillReading { Native = deepNative, F = f };
         output.Sites = DeepDrillSites(f, review.ResourceRunwayState(), items);
         if (output.Sites.Count == 0)
         {
             return output;
         }
-        var buildings = native.ReadBuildings(Boundary.Identity(state.Snapshot), call).Rows;
+        var buildings = (await deepNative.ReadBuildingsAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false)).Rows;
         try
         {
             Boundary.Context(buildings.Context, state.Snapshot);
@@ -142,11 +141,11 @@ public sealed partial class RoundsResourcePlanner
         {
             throw new ControlException("deepDrillReading: stale buildings context");
         }
-        if (!RoundsCachedFresh(BridgeApi.FactColony, new Tick(buildings.AsOf()), f.Identity.Tick))
+        if (!RoundsCachedFresh(FactFamily.Colony, new Tick(buildings.AsOf()), f.Identity.Tick))
         {
             throw new ControlException("deepDrillReading: err != nil || !roundsCachedFresh(bridge.FactColony, domain.Tick(buildings.AsOf()), f.Identity.Tick)");
         }
-        foreach (var row in buildings.Rows.Values)
+        foreach (var row in buildings.Rows.Values())
         {
             if (row.Building?.DefName == "DeepDrill" || row.BuildDefName == "DeepDrill")
             {
@@ -158,7 +157,7 @@ public sealed partial class RoundsResourcePlanner
         foreach (var site in output.Sites)
         {
             var distance = Math.Sqrt(Math.Pow(site.Centre.X - center.X, 2) + Math.Pow(site.Centre.Z - center.Z, 2));
-            var (placement, ok) = ReadDeepDrillPlacement(call, native, state, f, site, distance);
+            var (placement, ok) = await ReadDeepDrillPlacementAsync(deepNative, state, f, site, distance, call).ConfigureAwait(false);
             if (ok)
             {
                 output.Placeable.Add(placement!);
@@ -167,13 +166,13 @@ public sealed partial class RoundsResourcePlanner
         return output;
     }
 
-    internal (DeepDrillPlacement? Placement, bool Ok) ReadDeepDrillPlacement(CancellationToken call, IDeepDrillBuildingSource native, ControlState state, ColonyProjection f, DeepResourceLump site, double distance)
+    internal static async Task<(DeepDrillPlacement? Placement, bool Ok)> ReadDeepDrillPlacementAsync(IDeepDrillBuildingSource native, ControlState state, ColonyProjection f, DeepResourceLump site, double distance, CancellationToken call)
     {
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
         var building = new Building("DeepDrill", site.Centre, Rotation.North, "");
-        var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, PolicyApi.PlannerTier(PolicyApi.MaintainResource, ""));
-        var preview = native.PreviewBuilding(action, snapshot, call).Preview;
+        var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, PolicyApi.PlannerTier(PolicyApi.MaintainResource, Pol.Phase.None));
+        var preview = (await native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false)).Preview;
         var p = preview.Preview;
         var fk = p.Footprint.TryGetValue(out var footprint);
         var lk = p.CanPlace.TryGetValue(out var legal);
@@ -196,20 +195,20 @@ public sealed partial class RoundsResourcePlanner
     }
 
     /// <summary>Admits the deep drill placement the supply plan opens, once per site; handled when the planner settled the step.</summary>
-    internal (RoundsResourceResult Result, bool Handled) DeepDrill(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, RoundsReview review, DateTimeOffset started)
+    internal async Task<(RoundsResourceResult Result, bool Handled)> DeepDrillAsync(ControlState state, StandardState goal, RoundsReview review, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
-        var items = _reviewer.ItemFacts(call, state.Snapshot);
-        if (PolicyApi.DeepDrillingResearch(null, review.ResourceRunwayState(), items).Count == 0)
+        var items = await reviewer.ItemFactsAsync(state.Snapshot, call).ConfigureAwait(false);
+        if (PolicyApi.DeepDrillingResearch([], review.ResourceRunwayState(), items).Count == 0)
         {
             return (new RoundsResourceResult(), false);
         }
-        var supply = _reviewer.ResourceSupply(call, state, review, goal);
+        var supply = await reviewer.ResourceSupplyAsync(state, review, goal, call).ConfigureAwait(false);
         var drill = supply.Drill;
         if (drill is null)
         {
             return (new RoundsResourceResult(), false);
         }
-        var (removed, handled) = RemoveExhaustedDrill(call, epoch, state, goal, drill.F, started);
+        var (removed, handled) = RemoveExhaustedDrill(state, goal, drill.F, started, call, epoch);
         if (handled)
         {
             return (removed, handled);
@@ -224,7 +223,7 @@ public sealed partial class RoundsResourcePlanner
         }
         foreach (var e in supply.Plan.Plan.Portfolio)
         {
-            if (e.Candidate.Kind != PolicyApi.CandidateDeepDrill || e.Decision != PolicyApi.SupplyOpen)
+            if (e.Candidate.Kind != Pol.CandidateKind.DeepDrill || e.Decision != Pol.SupplyDecision.Open)
             {
                 continue;
             }
@@ -234,20 +233,20 @@ public sealed partial class RoundsResourcePlanner
             }
             try
             {
-                _reviewer.Player.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, new MethodId(place.Id), call);
-                return (new RoundsResourceResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "deep_drill_method") }, true);
+                reviewer.Player.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, new MethodId(place.Id), call);
+                return (new RoundsResourceResult { Verdict = WaitFor(Cause.MethodUsed, "deep_drill_method") }, true);
             }
             catch (NotFoundException)
             {
             }
-            var player = _reviewer.Player;
+            var player = reviewer.Player;
             player.Current(call, epoch);
-            var elapsed = _reviewer.Clock.Now() - started;
-            if (player.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
+            var elapsed = reviewer.Clock.Now() - started;
+            if (player.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
             {
                 throw new ControlException("deepDrill: player.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
             }
-            var decision = AdmitMethod(call, player.Journal, new BuildingMethodRequest
+            var decision = await AdmissionLog.AdmitMethodAsync(player.Journal, new BuildingMethodRequest
             {
                 Owner = goal,
                 Method = new MethodId(place.Id),
@@ -257,11 +256,11 @@ public sealed partial class RoundsResourcePlanner
                 Bounds = Known(drill.F.Bounds),
                 Stock = place.Preview.Stock,
                 Previews = [place.Preview.Preview],
-                Purpose = PolicyApi.Rounds,
-            });
+                Purpose = Pol.Purpose.Rounds,
+            }, call).ConfigureAwait(false);
             if (!decision.Admitted)
             {
-                return (new RoundsResourceResult { Verdict = AdmissionRefused(decision) }, true);
+                return (new RoundsResourceResult { Verdict = AdmissionLog.AdmissionRefused(decision) }, true);
             }
             return (new RoundsResourceResult { Verdict = BuildingReasonAdmitted, Plan = place.Plan.Id }, true);
         }
@@ -342,7 +341,7 @@ internal static partial class BuildingRuntimePackage
                 output.Add(drill);
             }
         }
-        output.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id));
+        output.Sort((a, b) => string.CompareOrdinal(a.ID, b.ID));
         return output;
     }
 

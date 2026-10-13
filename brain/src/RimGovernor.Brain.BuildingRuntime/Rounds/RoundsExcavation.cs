@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native read of an excavation site.</summary>
 public interface IRoundsExcavationSource
 {
-    (BridgeExcavationSite Site, BridgeResult Result) ReadExcavationSite(C.Identity identity, IReadOnlyList<Cell> cells, Cell access, CancellationToken ct);
+    Task<(BridgeExcavationSite Site, BridgeResult Result)> ReadExcavationSiteAsync(C.Identity identity, IReadOnlyList<Cell> cells, Cell access, CancellationToken ct);
 }
 
 /// <summary>The state one excavation step works from.</summary>
@@ -13,7 +13,7 @@ internal sealed class ExcavationStep
 {
     public ControlState State;
     public RoundsReview Review = new();
-    public StandardState Owner = new();
+    public required StandardState Owner;
     public ColonyProjection Facts = new();
     public ColonyReading Read = new();
     public ExcavationTarget Target = new();
@@ -26,22 +26,22 @@ public sealed partial class RoundsBuildingPlanner
     internal const long ExcavationStallTicks = GameTime.TicksPerHour;
     internal const int ExcavationCandidates = 4;
 
-    internal ExcavationTarget? ExcavationProject(CancellationToken call, StandardState goal)
+    internal ExcavationTarget? ExcavationProject(StandardState goal, CancellationToken call)
     {
-        var methods = Reviewer.Player.Journal.LoadOwnerMethods(call, goal);
+        var methods = Reviewer.Player.Journal.LoadOwnerMethods(goal, call);
         var (latest, _) = ExcavationProgress(methods);
         return latest;
     }
 
-    internal BridgeExcavationSite ReadExcavationSite(CancellationToken call, GenerationSnapshot snapshot, Tick tick, string purpose, ExcavationTarget target, IReadOnlyList<Cell> cells, Cell access, Action check)
+    internal async Task<BridgeExcavationSite> ReadExcavationSiteAsync(GenerationSnapshot snapshot, Tick tick, string purpose, ExcavationTarget target, IReadOnlyList<Cell> cells, Cell access, Action check, CancellationToken call)
     {
         check();
-        var (site, _) = Excavation!.ReadExcavationSite(Boundary.Identity(snapshot), cells, access, call);
+        var (site, _) = await Excavation!.ReadExcavationSiteAsync(Boundary.Identity(snapshot), cells, access, call).ConfigureAwait(false);
         check();
         try
         {
             var current = Boundary.Context(site.Context, snapshot);
-            if (current.Native != snapshot.Native || new Tick(site.Context.Tick) < tick)
+            if (current.Native != snapshot.Native || new Tick(site.Context?.Tick ?? 0) < tick)
             {
                 throw new ControlException("readExcavationSite: err != nil || current.Native != snapshot.Native || domain.Tick(site.Context.GetTick()) < tick");
             }
@@ -54,17 +54,17 @@ public sealed partial class RoundsBuildingPlanner
         return site;
     }
 
-    internal bool VerifyExcavation(CancellationToken call, GenerationSnapshot snapshot, Tick tick, ExcavationTarget target, Action check)
+    internal async Task<bool> VerifyExcavationAsync(GenerationSnapshot snapshot, Tick tick, ExcavationTarget target, Action check, CancellationToken call)
     {
-        var site = ReadExcavationSite(call, snapshot, tick, "verify", target, target.Cells(), target.Access, check);
+        var site = await ReadExcavationSiteAsync(snapshot, tick, "verify", target, target.Cells(), target.Access, check, call).ConfigureAwait(false);
         return ExcavationVerified(target, site);
     }
 
-    internal RoundsBuildingResult StepExcavation(CancellationToken call, CancellationToken epoch, ExcavationStep s)
+    internal async Task<RoundsBuildingResult> StepExcavationAsync(ExcavationStep s, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var journal = p.Journal;
-        var methods = journal.LoadOwnerMethods(call, s.Owner);
+        var methods = journal.LoadOwnerMethods(s.Owner, call);
         var (_, stage) = ExcavationProgress(methods);
         void Check()
         {
@@ -74,8 +74,8 @@ public sealed partial class RoundsBuildingPlanner
                 throw new ControlException("stepExcavation: p.session.State() != s.state");
             }
         }
-        var snapshot = s.State.Snapshot with { Revision = 1 };
-        var site = ReadExcavationSite(call, snapshot, s.Facts.Identity.Tick, "stage", s.Target, s.Target.Cells(), s.Target.Access, Check);
+        var snapshot = s.State.Snapshot with { Revision = new PlanRevision(1) };
+        var site = await ReadExcavationSiteAsync(snapshot, s.Facts.Identity.Tick, "stage", s.Target, s.Target.Cells(), s.Target.Access, Check, call).ConfigureAwait(false);
         var definitions = new Dictionary<Cell, string>();
         foreach (var cell in site.Cells)
         {
@@ -84,7 +84,7 @@ public sealed partial class RoundsBuildingPlanner
         var (review, reason, door) = ExcavationNext(s.Target, site);
         if (door)
         {
-            return new RoundsBuildingResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "excavation_door") };
+            return new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "excavation_door") };
         }
         if (!reason.IsZero)
         {
@@ -93,7 +93,7 @@ public sealed partial class RoundsBuildingPlanner
         var next = review.Stage;
         if (site.Support != ExcavationSupport.Supported)
         {
-            var stageSite = ReadExcavationSite(call, snapshot, s.Facts.Identity.Tick, "stage-support", s.Target, next, s.Target.Access, Check);
+            var stageSite = await ReadExcavationSiteAsync(snapshot, s.Facts.Identity.Tick, "stage-support", s.Target, next, s.Target.Access, Check, call).ConfigureAwait(false);
             switch (stageSite.Support)
             {
                 case ExcavationSupport.Supported:
@@ -118,17 +118,17 @@ public sealed partial class RoundsBuildingPlanner
         {
             var cell = next[i];
             definitions.TryGetValue(cell, out var def);
-            var excavation = DomainApi.NewExcavation(cell, def ?? "");
+            var excavation = new Excavation(cell, def ?? "");
             actions.Add(DomainAction.NewExcavationAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-{i}")), excavation));
         }
         var plan = new PlanSpec(snapshot.Plan, new PlanRevision(1), actions);
-        return AdmitExcavation(call, epoch, s, snapshot, ExcavationStageMethod(stage, s.Target), plan, null, new StockObservation { Snapshot = snapshot, Tick = s.Facts.Identity.Tick }, Check);
+        return await AdmitExcavationAsync(s, snapshot, ExcavationStageMethod(stage, s.Target), plan, null, new StockObservation { Snapshot = snapshot, Tick = s.Facts.Identity.Tick }, Check, call, epoch).ConfigureAwait(false);
     }
 
-    internal RoundsBuildingResult AdmitExcavation(CancellationToken call, CancellationToken epoch, ExcavationStep s, GenerationSnapshot snapshot, MethodId method, PlanSpec plan, IReadOnlyList<Preview>? previews, StockObservation stock, Action check)
+    internal async Task<RoundsBuildingResult> AdmitExcavationAsync(ExcavationStep s, GenerationSnapshot snapshot, MethodId method, PlanSpec plan, IReadOnlyList<Preview>? previews, StockObservation stock, Action check, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
-        var (last, _) = Reviewer.Native.Identity(call);
+        var (last, _) = await Reviewer.Native.IdentityAsync(call).ConfigureAwait(false);
         Identity actual;
         try
         {
@@ -145,7 +145,7 @@ public sealed partial class RoundsBuildingPlanner
         var now = Reviewer.Clock.Now();
         if (now < s.Read.StartedAt || now - s.Read.StartedAt > Reviewer.MaxAge)
         {
-            throw new StaleObservationException();
+            throw new ObservationStaleException();
         }
         check();
         var latest = p.Journal.LoadRounds(call);
@@ -153,7 +153,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("admitExcavation: latest.Revision != s.review.Revision || !latest.Enabled");
         }
-        var decision = AdmitMethod(call, p.Journal, new BuildingMethodRequest
+        var decision = await AdmissionLog.AdmitMethodAsync(p.Journal, new BuildingMethodRequest
         {
             Owner = s.Owner,
             Method = method,
@@ -163,9 +163,9 @@ public sealed partial class RoundsBuildingPlanner
             Bounds = Known(s.Facts.Bounds),
             Stock = stock,
             Previews = previews ?? [],
-            Purpose = PolicyApi.Rounds,
-        });
-        var reason = AdmissionRefused(decision);
+            Purpose = Purpose.Rounds,
+        }, call).ConfigureAwait(false);
+        var reason = AdmissionLog.AdmissionRefused(decision);
         if (decision.Admitted)
         {
             reason = BuildingReasonAdmitted;
@@ -214,7 +214,7 @@ public sealed partial class RoundsBuildingPlanner
         var next = 0;
         foreach (var m in methods)
         {
-            var (stage, target, ok) = ExcavationMethod(m.Method);
+            var (stage, target, ok) = ExcavationMethod(m.MethodId);
             if (ok && stage >= next)
             {
                 next = stage + 1;
@@ -290,11 +290,11 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>Cancels the pending excavation actions held for an hour or more by an unsupported roof, a changed geometry or a not-ready hold.</summary>
-    internal static void CancelStalledExcavation(CancellationToken ct, StoreJournal journal, StandardState goal, Tick now)
+    internal static void CancelStalledExcavation(StoreJournal journal, StandardState goal, Tick now, CancellationToken ct)
     {
         foreach (var method in goal.Methods)
         {
-            if (!RoundsBuildingPlanner.IsExcavationMethod(method.Method))
+            if (!RoundsBuildingPlanner.IsExcavationMethod(method.MethodId))
             {
                 continue;
             }
@@ -310,7 +310,7 @@ internal static partial class BuildingRuntimePackage
                 {
                     continue;
                 }
-                if (!v.FreshHold(out var hold) || now.Value - hold.Since.Value < RoundsBuildingPlanner.ExcavationStallTicks)
+                if (!v.TryGetFreshHold(out var hold) || now.Value - hold.Since.Value < RoundsBuildingPlanner.ExcavationStallTicks)
                 {
                     continue;
                 }

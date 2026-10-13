@@ -2,9 +2,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsRepairSource : IColonySource
 {
-    (EmergencyObservation Emergency, BridgeResult Result) ReadEmergency(CancellationToken ct, C.Identity identity);
+    Task<(EmergencyObservation Emergency, BridgeResult Result)> ReadEmergencyAsync(C.Identity identity, CancellationToken ct);
 
-    (O.ListPawnsReply Reply, BridgeResult Result) ReadTendPawns(CancellationToken ct, C.Identity identity, IReadOnlyList<string> ids);
+    Task<(O.ListPawnsReply Reply, BridgeResult Result)> ReadTendPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
 }
 
 /// <summary>Composes MaintainEssentialRepairs: pairs a worn structure with a colonist who can repair it.</summary>
@@ -29,7 +29,7 @@ public sealed class RoundsRepairPlanner
         return new RoundsRepairPlanner(reviewer, native);
     }
 
-    internal RoundsRepairResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsRepairResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         var state = p.Session.State();
@@ -38,7 +38,7 @@ public sealed class RoundsRepairPlanner
             return new RoundsRepairResult { Verdict = BuildingRuntimePackage.BuildingReasonDisabled };
         }
 
-        if (!state.ObservationKnown || !state.Snapshot.IsValid || state.Snapshot.Native == 0)
+        if (!state.ObservationKnown || !state.Snapshot.IsValid || state.Snapshot.Native.Value == 0)
         {
             throw new ControlException("step: observation unknown, snapshot invalid or native unset");
         }
@@ -49,23 +49,27 @@ public sealed class RoundsRepairPlanner
             return new RoundsRepairResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
         }
 
-        var (goal, workable) = p.Journal.Workable(call, review, ConcernId.MaintainEssentialRepairs);
-        BuildingRuntimePackage.CancelSettledRepairMethods(call, p.Journal, goal);
-        if (!workable)
+        var (goal, workable) = p.Journal.Workable(review, PolicyFunctions.MaintainEssentialRepairs, call);
+        if (goal is not null)
+        {
+            BuildingRuntimePackage.CancelSettledRepairMethods(p.Journal, goal, call);
+        }
+
+        if (!workable || goal is null)
         {
             return new RoundsRepairResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
         }
 
         foreach (var method0 in goal.Methods)
         {
-            var open = p.Journal.LoadPlan(call, method0.Plan);
+            var open = p.Journal.LoadPlan(method0.Plan, call);
             if (StorePackage.PlanOpen(open))
             {
                 return new RoundsRepairResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
             }
         }
 
-        var (identity, _) = native.Identity(call);
+        var (identity, _) = await native.IdentityAsync(call).ConfigureAwait(false);
         var expected = ObservationPackage.DecodeIdentity(identity);
         if (!BuildingRuntimePackage.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
@@ -73,12 +77,12 @@ public sealed class RoundsRepairPlanner
         }
 
         var started = reviewer.Clock.Now();
-        var reading = reviewer.ObserveColony(call, native, expected, null);
+        var reading = await reviewer.ObserveColonyAsync(native, expected, null, call).ConfigureAwait(false);
         var upkeepReview = PolicyFunctions.ReviewUpkeep(reading.Projection.Facts.Upkeep, new UpkeepHistory(), null);
-        IReadOnlyList<string> targetIds = [];
+        EquatableArray<string> targetIds = [];
         foreach (var need in upkeepReview.Needs)
         {
-            if (need.Concern == ConcernId.MaintainEssentialRepairs && need.Targets.TryGetValue(out var targets))
+            if (need.Concern == PolicyFunctions.MaintainEssentialRepairs && need.Targets.TryGetValue(out var targets))
             {
                 targetIds = targets;
             }
@@ -86,7 +90,7 @@ public sealed class RoundsRepairPlanner
 
         if (targetIds.Count == 0)
         {
-            return new RoundsRepairResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "essential_repairs") };
+            return new RoundsRepairResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "essential_repairs") };
         }
 
         var byId = new Dictionary<string, UpkeepStructure>();
@@ -113,7 +117,7 @@ public sealed class RoundsRepairPlanner
         }
 
         var identityRef = Boundary.Identity(state.Snapshot);
-        var (emergency, _) = native.ReadEmergency(call, identityRef);
+        var (emergency, _) = await native.ReadEmergencyAsync(identityRef, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(emergency.Context, state.Snapshot);
@@ -123,18 +127,18 @@ public sealed class RoundsRepairPlanner
             throw new ControlException("step: emergency context", e);
         }
 
-        if (emergency.Context.Tick < review.Tick.Value)
+        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick < review.Tick.Value)
         {
             throw new ControlException("step: emergency read older than the review");
         }
 
         if (!emergency.Facts.ColonistsComplete.TryGetValue(out var complete) || !complete || emergency.Facts.Colonists.Count == 0)
         {
-            return new RoundsRepairResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "colonist_census") };
+            return new RoundsRepairResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "colonist_census") };
         }
 
-        var ids = emergency.Facts.Colonists.Select(c => c.Id).ToList();
-        var (reply, _) = native.ReadTendPawns(call, identityRef, ids);
+        var ids = emergency.Facts.Colonists.Select(c => c.Id.Value).ToList();
+        var (reply, _) = await native.ReadTendPawnsAsync(identityRef, ids, call).ConfigureAwait(false);
         var observed = reply.Observed ?? throw new ControlException("step: observed == null");
         try
         {
@@ -170,12 +174,12 @@ public sealed class RoundsRepairPlanner
 
         if (!ok)
         {
-            return new RoundsRepairResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "repair_pairing") };
+            return new RoundsRepairResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "repair_pairing") };
         }
 
-        var repair = Repair.NewRepair(pawn, structure.Id, structure.Cell);
+        var repair = new Repair((Domain.PawnId)pawn, structure.Id, structure.Cell);
         var prefix = $"repair-{structure.Id}-";
-        var (verdict, admitted) = BuildingRuntimePackage.AdmitSubject(call, p.Journal, prefix, BuildingRuntimePackage.StandardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot);
+        var (verdict, admitted) = BuildingRuntimePackage.AdmitSubject(p.Journal, prefix, BuildingRuntimePackage.StandardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot, call);
         if (!admitted)
         {
             return new RoundsRepairResult { Verdict = verdict };
@@ -184,7 +188,7 @@ public sealed class RoundsRepairPlanner
         var method = BuildingRuntimePackage.NextMethodId(prefix, BuildingRuntimePackage.HistoryMethodIds(goal.History, goal.Standard.Episode));
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewRepairAction(new ActionId($"{id}-0"), repair);
-        var plan = PlanSpec.NewPlan(id, new PlanRevision(1), [action]);
+        var plan = new PlanSpec(id, new PlanRevision(1), [action]);
         p.Current(call, epoch);
         var elapsed = reviewer.Clock.Now() - started;
         if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
@@ -192,7 +196,7 @@ public sealed class RoundsRepairPlanner
             throw new ControlException("step: session state changed or the read took too long");
         }
 
-        p.Journal.CommitMethod(call, goal.Standard.Id, goal.Revision, method, plan);
+        p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
         return new RoundsRepairResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
     }
 
@@ -201,19 +205,19 @@ public sealed class RoundsRepairPlanner
         var facts = new RepairCandidateFacts
         {
             Pawn = pawn,
-            Dead = Boundary.FactBool(row.Dead),
-            Downed = Boundary.FactBool(row.Downed),
-            Drafted = Boundary.FactBool(row.Drafted),
-            MentalState = Boundary.FactPresence(row.MentalState, row.Issues, "mental_state"),
+            Dead = Boundary.FactBool(row.HasDead, row.Dead),
+            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
+            Drafted = Boundary.FactBool(row.HasDrafted, row.Drafted),
+            MentalState = Boundary.FactPresence(row.HasMentalState, row.Issues, "mental_state"),
         };
         if (row.Job is not null && !Boundary.IssueField(row.Job.Issues, "player_forced"))
         {
-            facts = facts with { PlayerForced = Boundary.FactBool(row.Job.PlayerForced) };
+            facts = facts with { PlayerForced = Boundary.FactBool(row.Job.HasPlayerForced, row.Job.PlayerForced) };
         }
 
         if (row.Health is { } health && !Boundary.IssueField(health.Issues, "health"))
         {
-            facts = facts with { NeedsTend = Boundary.FactBool(health.NeedsTend), Bleeding = Boundary.FactBool(health.Bleeding) };
+            facts = facts with { NeedsTend = Boundary.FactBool(health.HasNeedsTend, health.NeedsTend), Bleeding = Boundary.FactBool(health.HasBleeding, health.Bleeding) };
         }
 
         if (row.Settings is { } settings && !Boundary.IssueField(settings.Issues, "work"))
@@ -233,19 +237,20 @@ public sealed class RoundsRepairPlanner
                 continue;
             }
 
-            if (w.Disabled is null || w.Priority is null)
+            if (!w.HasDisabled || !w.HasPriority)
             {
                 return Unknown<bool>();
             }
 
-            return Known(!w.Disabled.Value && w.Priority.Value > 0);
+            return Known(!w.Disabled && w.Priority > 0);
+
         }
 
         return Unknown<bool>();
     }
 }
 
-public readonly record struct RoundsRepairResult
+public readonly record struct RoundsRepairResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 

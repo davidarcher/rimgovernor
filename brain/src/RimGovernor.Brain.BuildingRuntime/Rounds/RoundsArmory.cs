@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public sealed class RoundsArmoryResult
+public sealed class RoundsArmoryResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 
@@ -10,6 +10,7 @@ public sealed class RoundsArmoryResult
 public sealed partial class RoundsArmoryPlanner
 {
     private readonly Rounder _reviewer;
+    internal Rounder Reviewer => _reviewer;
     private readonly IRoundsGearSource _native;
 
     /// <summary>Places the crafting spot; null when the native source cannot build.</summary>
@@ -29,7 +30,7 @@ public sealed partial class RoundsArmoryPlanner
         _spot = NewCraftingSpotPlanner(reviewer, native);
     }
 
-    internal RoundsArmoryResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsArmoryResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -51,20 +52,20 @@ public sealed partial class RoundsArmoryPlanner
         {
             return new RoundsArmoryResult { Verdict = BuildingReasonNoDeficit };
         }
-        return PlaceCraftingSpot(call, epoch, arbiter);
+        return await PlaceCraftingSpotAsync(arbiter, call, epoch).ConfigureAwait(false);
     }
 }
 
 public sealed partial class Rounder
 {
     /// <summary>Whether the crafting spot stands with a usable bench elsewhere, so the spot is owed its retirement.</summary>
-    internal Fact<bool> CraftingSpotRetireOwed(GenerationSnapshot snapshot, ColonyProjection facts, CancellationToken ct)
+    internal async Task<Fact<bool>> CraftingSpotRetireOwedAsync(GenerationSnapshot snapshot, ColonyProjection facts, CancellationToken ct)
     {
         if (!facts.Facts.CurrentConstruction.TryGetValue(out var census))
         {
             return Unknown<bool>();
         }
-        var standing = census.Buildings.Any(b => b.Building.Definition == PolicyApi.CraftingSpotDefinition);
+        var standing = census.Buildings.Any(b => b.Building?.Definition == PolicyApi.CraftingSpotDefinition);
         if (!standing)
         {
             return Known(false);
@@ -73,7 +74,7 @@ public sealed partial class Rounder
         {
             return Unknown<bool>();
         }
-        var reads = source.ReadGearBenches(Boundary.Identity(snapshot), ct).Reads;
+        var reads = (await source.ReadGearBenchesAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false)).Reads;
         foreach (var read in reads)
         {
             read.Bench.Usable.TryGetValue(out var usable);

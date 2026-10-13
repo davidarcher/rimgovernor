@@ -47,10 +47,10 @@ internal sealed class StockpileMemory
 /// <summary>The loose-weapon read the weapons role counts from.</summary>
 public interface IWeaponCensus
 {
-    (EquipRead Read, BridgeResult Result) ReadEquipWeapons(CancellationToken ct, C.Identity identity, Cell from, Cell to);
+    Task<(EquipRead Read, BridgeResult Result)> ReadEquipWeaponsAsync(C.Identity identity, Cell from, Cell toCell, CancellationToken ct);
 }
 
-public sealed class RoundsStockpileResult
+public sealed class RoundsStockpileResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
     public PlanId Plan { get; init; }
@@ -79,21 +79,22 @@ internal static partial class BuildingRuntimePackage
                 rooms.Add(module);
             }
         }
-        request.Rooms = rooms;
-        request.Zones = OwnedStockpileZones(projection, owned, patches);
+        request = request with { Rooms = rooms };
+        request = request with { Zones = OwnedStockpileZones(projection, owned, patches) };
         var storage = StoreView(projection, request.Protected);
-        storage.Gear = gear;
-        storage.Zones = request.Zones;
-        storage.Incinerator = StandingIncinerator(projection);
-        storage.BenchInputs = inputs;
-        storage.Benches = benches;
-        storage.Burial = BurialCensus(projection);
-        (storage.TrainingStands, storage.TrainingRings) = TrainingDemand(projection);
-        storage.AnimalFeed = feed;
+        storage = storage with { Gear = gear };
+        storage = storage with { Zones = request.Zones };
+        storage = storage with { Incinerator = StandingIncinerator(projection) };
+        storage = storage with { BenchInputs = inputs };
+        storage = storage with { Benches = benches };
+        storage = storage with { Burial = BurialCensus(projection) };
+        var (stands, rings) = RoundsTrainingPlanner.TrainingDemand(projection);
+        storage = storage with { TrainingStands = stands, TrainingRings = rings };
+        storage = storage with { AnimalFeed = feed };
         var declared = Pol.PolicyFunctions.DeclareStores(storage);
-        request.Stores = declared.Stores;
-        request.RoomDemand = declared.Apply(new Pol.RoomDemand());
-        request.SiteErr = declared.Err;
+        request = request with { Stores = declared.Stores };
+        request = request with { RoomDemand = declared.Apply(new Pol.RoomDemand()) };
+        request = request with { SiteErr = declared.Err };
         return request;
     }
 
@@ -131,48 +132,50 @@ public sealed partial class Rounder
     internal StockpileMemory Stockpiles { get; } = new();
 
     /// <summary>Files the owned zones per role kind on the projection, whether or not the stockpile method is served.</summary>
-    internal void CensusStockpileZones(CancellationToken ct, GenerationSnapshot snapshot, Observation.ColonyProjection projection)
+    internal Observation.ColonyProjection CensusStockpileZones(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
     {
-        projection.Facts.StockpileZones = Unknown<IReadOnlyList<Pol.StockpileRoleCount>>();
-        var claims = Player.Journal.ZoneClaims(ct, snapshot, projection.Identity.Tick);
+        projection = projection with { Facts = projection.Facts with { StockpileZones = Unknown<EquatableArray<Pol.StockpileRoleCount>>() } };
+        var claims = Player.Journal.ZoneClaims(snapshot, projection.Identity.Tick, ct);
         if (!claims.TryGetValue(out var owned) || projection.Cells.Count == 0)
         {
-            return;
+            return projection;
         }
-        projection.Facts.StockpileZones = Known(Pol.PolicyFunctions.StockpileRoleCounts(OwnedStockpileZones(projection, owned, null)));
+        return projection with { Facts = projection.Facts with { StockpileZones = Known<EquatableArray<Pol.StockpileRoleCount>>([.. Pol.PolicyFunctions.StockpileRoleCounts(OwnedStockpileZones(projection, owned, null))]) } };
     }
 
     /// <summary>
     /// Serves the MaintainStockpiles review on the projection when the method is served; otherwise the fact stays
     /// unknown and the goal is never assessed active.
     /// </summary>
-    internal void ReviewStockpiles(CancellationToken ct, GenerationSnapshot snapshot, Observation.ColonyProjection projection)
+    internal async Task<Observation.ColonyProjection> ReviewStockpilesAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
     {
-        projection.Facts.Stockpiles = Unknown<Pol.StockpileReview>();
+        projection = projection with { Facts = projection.Facts with { Stockpiles = Unknown<Pol.StockpileReview>() } };
         if (!MethodEnabled(MaintainStockpiles))
         {
-            return;
+            return projection;
         }
-        var (request, missing) = StockpileRequest(ct, snapshot, projection);
+        var (request, missing) = await StockpileRequestAsync(snapshot, projection, ct).ConfigureAwait(false);
         if (missing != "")
         {
-            return;
+            return projection;
         }
         Stockpiles.SetDemand(StockpileWorld(snapshot), request.RoomDemand);
         Stockpiles.SiteErrChanged(request.SiteErr);
         var review = Pol.PolicyFunctions.PlanStockpileMaintenance(request);
-        projection.Facts.Stockpiles = Known(review);
+        projection = projection with { Facts = projection.Facts with { Stockpiles = Known(review) } };
         foreach (var e in review.Edits)
         {
-            Tel.Decide(ct, StockpileEditDecision("proposed", "", e.Zone, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["detail"] = e.Explanation }));
+            ct.ThrowIfCancellationRequested();
+            Tel.Decide(StockpileEditDecision("proposed", "", e.Zone, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["detail"] = e.Explanation }));
         }
+        return projection;
     }
 
     /// <summary>Assembles the maintenance request; the string names the fact still unread (empty when the request is whole).</summary>
-    internal (Pol.StockpileRequest Request, string Missing) StockpileRequest(CancellationToken ct, GenerationSnapshot snapshot, Observation.ColonyProjection projection)
+    internal async Task<(Pol.StockpileRequest Request, string Missing)> StockpileRequestAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
     {
         var tick = projection.Identity.Tick;
-        var claims = Player.Journal.ZoneClaims(ct, snapshot, tick);
+        var claims = Player.Journal.ZoneClaims(snapshot, tick, ct);
         if (!claims.TryGetValue(out var owned))
         {
             return (new Pol.StockpileRequest(), "zone_claims");
@@ -181,8 +184,8 @@ public sealed partial class Rounder
         {
             return (new Pol.StockpileRequest(), "site_cells");
         }
-        var patches = Player.Journal.StockpilePatches(ct, snapshot, tick);
-        var census = BenchCensus(ct, snapshot, projection.Identity);
+        var patches = Player.Journal.StockpilePatches(snapshot, tick, ct);
+        var census = await BenchCensusAsync(snapshot, projection.Identity, ct).ConfigureAwait(false);
         var benches = new Dictionary<string, bool>(census.Count);
         foreach (var row in census)
         {
@@ -193,19 +196,19 @@ public sealed partial class Rounder
         {
             zoneGoal[z.Id] = z.Owner;
         }
-        var gear = GearStore(ct, snapshot, projection);
-        var protectedCells = ReservedGround(ct, snapshot, projection);
+        var gear = await GearStoreAsync(snapshot, projection, ct).ConfigureAwait(false);
+        var protectedCells = ReservedGround(snapshot, projection, ct);
         var request = BuildingRuntimePackage.StockpileRequest(projection, owned, patches, Known<IReadOnlyDictionary<string, bool>>(benches), BenchInputs(census, projection), gear, protectedCells, AnimalFeedStore(projection));
         var canBuild = Native is IRoundsBuildingSource;
-        request.ShelfAvailable = canBuild && ShelfAvailable(projection);
-        request.ShelfSpent = new Dictionary<string, bool>();
+        request = request with { ShelfAvailable = canBuild && ShelfAvailable(projection) };
+        var shelfSpent = new Dictionary<string, bool>();
         var shelfRecords = new List<Pol.ShelfRecord>();
         var shelfRows = new List<Pol.StockpileShelf>();
         foreach (var z in request.Zones)
         {
-            var (shelves, next) = ZoneShelves(ct, Player.Journal, zoneGoal.GetValueOrDefault(z.Id), z.Id, projection.Facts.CurrentConstruction);
+            var (shelves, next) = ZoneShelves(Player.Journal, zoneGoal.GetValueOrDefault(z.Id), z.Id, projection.Facts.CurrentConstruction, ct);
             shelfRecords.AddRange(shelves);
-            request.ShelfSpent[z.Id] = next >= MaxShelvesPerZone;
+            shelfSpent[z.Id] = next >= MaxShelvesPerZone;
             foreach (var s in shelves)
             {
                 if (s.Building == "" || s.Open)
@@ -213,17 +216,18 @@ public sealed partial class Rounder
                     continue;
                 }
                 var shelf = new Pol.StockpileShelf { Building = s.Building, Zone = z.Id, Cells = s.Cells.Count };
-                if (patches.TryGetValue(s.Building, out var applied) && applied.Kind == StorageTargetKind.StorageBuildingTarget)
+                if (patches.TryGetValue(s.Building, out var applied) && applied.Kind == StorageTargetKind.Building)
                 {
-                    shelf.Patched = true;
-                    shelf.Filter = applied.Filter;
-                    shelf.Priority = applied.Priority;
+                    shelf = shelf with { Patched = true };
+                    shelf = shelf with { Filter = applied.Filter };
+                    shelf = shelf with { Priority = applied.Priority };
                 }
                 shelfRows.Add(shelf);
             }
         }
-        request.ShelfRecords = shelfRecords;
-        request.Shelves = shelfRows;
+        request = request with { ShelfSpent = shelfSpent };
+        request = request with { ShelfRecords = shelfRecords };
+        request = request with { Shelves = shelfRows };
         return (request, "");
     }
 
@@ -232,15 +236,15 @@ public sealed partial class Rounder
     /// inside a shell's wall ring, which belongs to the shell's own furniture until a roof stands. Every sited
     /// role reads it as the planner's protected set.
     /// </summary>
-    internal List<Cell> ReservedGround(CancellationToken ct, GenerationSnapshot snapshot, Observation.ColonyProjection projection)
+    internal List<Cell> ReservedGround(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
     {
-        var held = Player.Journal.BuildingReservations(ct, snapshot);
+        var held = Player.Journal.BuildingReservations(snapshot, ct);
         var protectedCells = new List<Cell>();
         foreach (var h in held)
         {
             protectedCells.AddRange(h.Footprint);
         }
-        var claims = Player.Journal.ConstructionClaims(ct, snapshot, projection.Identity.Tick);
+        var claims = Player.Journal.ConstructionClaims(snapshot, projection.Identity.Tick, ct);
         claims.TryGetValue(out var rows);
         var unroofed = new HashSet<Cell>();
         foreach (var c in projection.Cells)
@@ -250,7 +254,7 @@ public sealed partial class Rounder
                 unroofed.Add(c.Cell);
             }
         }
-        foreach (var cell in ShellInteriors([], rows ?? []))
+        foreach (var cell in ShellInteriors([], rows))
         {
             if (unroofed.Contains(cell))
             {
@@ -266,7 +270,7 @@ public sealed partial class Rounder
     /// The weapons read is skipped once layout plans the armory, which no longer needs the count. A catalog
     /// naming no armor fails with <see cref="Pol.NoArmorDefsException"/>; an unknown stored census counts nothing.
     /// </summary>
-    internal Pol.GearStore GearStore(CancellationToken ct, GenerationSnapshot snapshot, Observation.ColonyProjection projection)
+    internal async Task<Pol.GearStore> GearStoreAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
     {
         if (projection.Facts.Items.Armor.Count == 0)
         {
@@ -275,34 +279,34 @@ public sealed partial class Rounder
         var weapons = 0;
         if (!projection.LayoutPlan.TryGetValue(out var plan) || Pol.PolicyFunctions.GearRoomsOwed(plan, new Pol.RoomDemand { Armory = true }).Count > 0)
         {
-            weapons = LooseWeapons(ct, snapshot, projection.Bounds);
+            weapons = await LooseWeaponsAsync(snapshot, projection.Bounds, ct).ConfigureAwait(false);
         }
         IReadOnlyList<Pol.GearStock> stored = [];
         if (projection.Facts.Gear.TryGetValue(out var gear))
         {
             gear.Stored.TryGetValue(out var known);
-            stored = known ?? [];
+            stored = known;
         }
-        return Pol.GearStore.New(projection.Facts.Items, stored, weapons);
+        return Pol.GearStore.NewGearStore(projection.Facts.Items, stored, weapons);
     }
 
     /// <summary>Counts the unbiocoded weapons by trade lying on the map; a source without the read counts none.</summary>
-    internal int LooseWeapons(CancellationToken ct, GenerationSnapshot snapshot, Pol.Bounds bounds)
+    internal async Task<int> LooseWeaponsAsync(GenerationSnapshot snapshot, Pol.Bounds bounds, CancellationToken ct)
     {
         if (Native is not IWeaponCensus source || bounds.Width <= 0 || bounds.Height <= 0)
         {
             return 0;
         }
-        var (read, _) = source.ReadEquipWeapons(ct, Boundary.Identity(snapshot), default, new Cell(bounds.Width - 1, bounds.Height - 1));
+        var (read, _) = await source.ReadEquipWeaponsAsync(Boundary.Identity(snapshot), default, new Cell(bounds.Width - 1, bounds.Height - 1), ct).ConfigureAwait(false);
         try
         {
             Boundary.Context(read.Context, snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            throw new ControlException("looseWeapons: err != nil", e);
+            throw new ControlException("looseWeapons: " + e.Message);
         }
-        var catalog = PawnCatalog(ct, Native, Boundary.Identity(snapshot));
+        var catalog = await PawnCatalogAsync(Native, Boundary.Identity(snapshot), ct).ConfigureAwait(false);
         var count = 0;
         foreach (var w in read.Targets)
         {
@@ -310,7 +314,7 @@ public sealed partial class Rounder
             {
                 continue;
             }
-            var facts = catalog.WeaponOf(w.Definition);
+            var facts = catalog?.WeaponOf(w.Definition) ?? new Pol.WeaponDef();
             if (Pol.PolicyFunctions.ClassifyWeapon(facts.ByTrade, facts.Ranged, facts.Melee) != Pol.WeaponClass.Makeshift)
             {
                 count++;
@@ -320,13 +324,13 @@ public sealed partial class Rounder
     }
 
     /// <summary>The bench census (bills and recipes per bench).</summary>
-    internal IReadOnlyList<GearBenchRead> BenchCensus(CancellationToken ct, GenerationSnapshot snapshot, Observation.Identity expected)
+    internal async Task<IReadOnlyList<GearBenchRead>> BenchCensusAsync(GenerationSnapshot snapshot, Observation.Identity expected, CancellationToken ct)
     {
         if (Native is not IRoundsWorkBenchSource native)
         {
             throw new ControlException("benchCensus: native lacks the bench census");
         }
-        var (rows, _) = BenchSource(native, expected, false).ReadGearBenches(ct, Boundary.Identity(snapshot));
+        var (rows, _) = await BenchSource(native, expected, false).ReadGearBenchesAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
         return rows;
     }
 
@@ -334,7 +338,7 @@ public sealed partial class Rounder
     /// The herds' feed and the barn's sleeping spot shape the People animal store declares the barn feed
     /// stockpiles from; null while the animal census, the race catalog or the spot's size is unread.
     /// </summary>
-    internal Pol.AnimalFeedStore? AnimalFeedStore(Observation.ColonyProjection projection)
+    internal static Pol.AnimalFeedStore? AnimalFeedStore(Observation.ColonyProjection projection)
     {
         var upkeep = projection.Facts.AnimalUpkeep;
         if (!upkeep.Animals.TryGetValue(out var animals))
@@ -401,7 +405,7 @@ public sealed partial class RoundsStockpilePlanner
     /// a fact is missing). Zoning is instant and needs no builder, so a room waiting on its shell never holds the
     /// stores' zones back.
     /// </summary>
-    private (RoundsStockpileResult Result, bool Handled) RaiseRoom(CancellationToken call, CancellationToken epoch, ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading read, Pol.PlannedRole module)
+    private async Task<(RoundsStockpileResult Result, bool Handled)> RaiseRoomAsync(ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading read, Pol.PlannedRole module, CancellationToken call, CancellationToken epoch)
     {
         if (_building is null)
         {
@@ -412,27 +416,27 @@ public sealed partial class RoundsStockpilePlanner
         {
             return (new RoundsStockpileResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "stockpile_room_built") }, false);
         }
-        var result = _building.ReconcileRoom(call, epoch, state, review, goal, new Observation.RoundsReading { ColonyReading = read.ColonyReading }, null, new RoomReconcile { RingOnly = true, Room = room, Name = PlannedRoomMethod(room).Value, Reason = "storage-planner room" });
-        Tel.Decide(call, StockpileEditDecision("proposed", result.Verdict.ToString() ?? "", Wire.Name(module), new Dictionary<string, object?> { ["kind"] = "room" }));
+        var result = await _building.ReconcileRoomAsync(state, review, goal, read, null, new RoomReconcile { RingOnly = true, Room = room, Name = PlannedRoomMethod(room).Value, Reason = "storage-planner room" }, call, epoch).ConfigureAwait(false);
+        Tel.Decide(StockpileEditDecision("proposed", result.Verdict.ToString() ?? "", Wire.Name(module), new Dictionary<string, object?> { ["kind"] = "room" }));
         return (new RoundsStockpileResult { Verdict = result.Verdict }, result.Verdict == BuildingReasonAdmitted);
     }
 
     /// <summary>Whether the initial shelter is owed under review, the reading the priority gate holds planners on.</summary>
-    private bool ShelterOwedUnder(CancellationToken call, Sto.Rounds review)
+    private bool ShelterOwedUnder(Sto.Rounds review, CancellationToken call)
     {
-        var result = new Sto.RoundsResult { Review = review };
+        var standards = new List<Sto.StandardState>();
         foreach (var binding in review.Standards)
         {
             if (binding.Concern != MaintainHousing)
             {
                 continue;
             }
-            result.Standards.Add(_reviewer.Player.Journal.LoadStandard(call, binding.Standard));
+            standards.Add(_reviewer.Player.Journal.LoadStandard(binding.Standard, call));
         }
-        return ShelterOwed(result);
+        return ClockPlannerCatalog.ShelterOwed(new Sto.RoundsResult { Review = review, Standards = standards });
     }
 
-    internal RoundsStockpileResult Step(CancellationToken call, CancellationToken epoch, StepArbiter? _)
+    internal async Task<RoundsStockpileResult> StepAsync(StepArbiter? _, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -449,29 +453,29 @@ public sealed partial class RoundsStockpilePlanner
         {
             return new RoundsStockpileResult { Verdict = BuildingReasonNoReview };
         }
-        var (goal, workable) = p.Journal.Workable(call, review, MaintainStockpiles);
-        if (!workable)
+        var (goal, workable) = p.Journal.Workable(review, MaintainStockpiles, call);
+        if (!workable || goal is null)
         {
             return new RoundsStockpileResult { Verdict = BuildingReasonNoDeficit };
         }
-        if (OpenEditPlan(call, p.Journal, goal))
+        if (OpenEditPlan(p.Journal, goal, call))
         {
             return new RoundsStockpileResult { Verdict = BuildingReasonExistingWork };
         }
-        var expected = StepScope(call, _reviewer.Native);
+        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
-        var claims = p.Journal.ConstructionClaims(call, state.Snapshot, expected.Tick);
+        var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         // The medicine store reads the medical beds, so the census carries them. The gear rooms are shelled from
         // the same reading, so the census carries the wall and door definitions.
         string[] definitions = [ShellWallDefinition, ShellDoorDefinition, PenFenceDefinition, PenGateDefinition, ShelfDefinition];
         var read = _reviewer.RoomsEnabled()
-            ? _reviewer.ObserveRooms(call, (Observation.IRoundsSource)_reviewer.Native, expected, claims, definitions)
-            : _reviewer.ObserveOwned(call, (Observation.IRoundsSource)_reviewer.Native, expected, claims, definitions);
+            ? await _reviewer.ObserveRoomsAsync((Observation.IRoundsSource)_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false)
+            : await _reviewer.ObserveOwnedAsync((Observation.IRoundsSource)_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false);
         var projection = read.Projection;
-        var (request, missing) = _reviewer.StockpileRequest(call, state.Snapshot, projection);
+        var (request, missing) = await _reviewer.StockpileRequestAsync(state.Snapshot, projection, call).ConfigureAwait(false);
         if (missing != "")
         {
             return new RoundsStockpileResult { Verdict = FieldUnavailable(missing) };
@@ -484,16 +488,16 @@ public sealed partial class RoundsStockpilePlanner
         // While the initial shelter is owed the builders are its: zone edits are instant and go on, but no storage
         // shell or shelf is raised.
         Verdict waiting = default;
-        if (ShelterOwedUnder(call, review))
+        if (ShelterOwedUnder(review, call))
         {
             proposal = WithoutBuilds(proposal);
-            waiting = BuildingShelterPending;
+            waiting = BuildingReasonShelterPending;
         }
         // A planned room not yet standing is raised first; while its shell waits (already tried, no space,
         // refused) the zone edits go on.
         if (proposal.Rooms.Count > 0)
         {
-            var (roomResult, handled) = RaiseRoom(call, epoch, state, review, goal, read, proposal.Rooms[0]);
+            var (roomResult, handled) = await RaiseRoomAsync(state, review, goal, read, proposal.Rooms[0], call, epoch).ConfigureAwait(false);
             if (handled)
             {
                 return roomResult;
@@ -504,7 +508,7 @@ public sealed partial class RoundsStockpilePlanner
         {
             if (proposal.Shelf.Kind == Pol.ShelfStepKind.Build)
             {
-                return Shelve(call, epoch, state, review, goal, read, proposal.Shelf);
+                return await ShelveAsync(state, review, goal, read, proposal.Shelf, call, epoch).ConfigureAwait(false);
             }
             return new RoundsStockpileResult { Verdict = waiting };
         }
@@ -513,7 +517,7 @@ public sealed partial class RoundsStockpilePlanner
         var id = PlanIds.MintPlanId();
         try
         {
-            p.Journal.LoadMethod(call, goal.Standard.Id, goal.Standard.Episode, method);
+            p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
             return new RoundsStockpileResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "stockpile_edits") };
         }
         catch (Sto.NotFoundException)
@@ -529,7 +533,7 @@ public sealed partial class RoundsStockpilePlanner
                 creates.Add(e);
                 continue;
             }
-            if (!_zones.EditTargetPresent(call, identity, e))
+            if (!await _zones.EditTargetPresentAsync(identity, e, call).ConfigureAwait(false))
             {
                 continue;
             }
@@ -540,7 +544,7 @@ public sealed partial class RoundsStockpilePlanner
             }
             catch (Exception err) when (err is not OperationCanceledException)
             {
-                Tel.Decide(call, StockpileEditDecision("refused", "action_invalid", e.Zone, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["error"] = err }));
+                Tel.Decide(StockpileEditDecision("refused", "action_invalid", e.Zone, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["error"] = err }));
                 continue;
             }
             actions.Add(action);
@@ -548,7 +552,7 @@ public sealed partial class RoundsStockpilePlanner
         if (actions.Count == 0 && creates.Count > 0)
         {
             // The new zones are admitted together, previewed, once the edits of standing zones are done.
-            return _zones.Create(call, epoch, state, goal, projection, read.StartedAt, creates);
+            return await _zones.CreateAsync(state, goal, projection, read.StartedAt, creates, call, epoch).ConfigureAwait(false);
         }
         if (actions.Count == 0)
         {
@@ -561,14 +565,14 @@ public sealed partial class RoundsStockpilePlanner
         {
             throw new ControlException("step: p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge");
         }
-        p.Journal.CommitMethod(call, goal.Standard.Id, goal.Revision, method, plan);
+        p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
         foreach (var e in proposal.Edits)
         {
             if (e.Kind == Pol.StockpileEditKind.Create)
             {
                 continue;
             }
-            Tel.Decide(call, StockpileEditDecision("admitted", "", e.Zone, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["role"] = e.Role, ["plan"] = id.ToString(), ["detail"] = e.Explanation }));
+            Tel.Decide(StockpileEditDecision("admitted", "", e.Zone, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["role"] = e.Role, ["plan"] = id.ToString(), ["detail"] = e.Explanation }));
         }
         return new RoundsStockpileResult { Verdict = BuildingReasonAdmitted, Plan = id, Edits = actions.Count };
     }

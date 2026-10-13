@@ -10,28 +10,28 @@ internal static partial class BuildingRuntimePackage
         {
             return 0;
         }
-        var tier = record.Tier(PolicyApi.TierMortars);
-        if (tier is null || !tier.Built)
+        var (_, buildings, found) = record.Tier(PolicyApi.TierMortars);
+        if (!found)
         {
             return 0;
         }
-        return tier.Buildings.Count;
+        return buildings.Count;
     }
 
-    internal static MortarShells LoadMortarShells(object native, GenerationSnapshot snapshot, CancellationToken ct)
+    internal static async Task<MortarShells> LoadMortarShellsAsync(object native, GenerationSnapshot snapshot, CancellationToken ct)
     {
         if (native is not IDefinitionSource source)
         {
-            return default;
+            return new MortarShells();
         }
-        var catalog = source.DefinitionCatalog(Boundary.Identity(snapshot), ct);
+        var catalog = await source.DefinitionCatalogAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false) ?? throw new InvalidOperationException("native served no definition catalog");
         return catalog.MortarShells(PolicyApi.MortarSafeRadius);
     }
 
-    internal static IReadOnlyList<Amount> ShellTargets(object native, StoreJournal journal, GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
+    internal static async Task<IReadOnlyList<Amount>> ShellTargetsAsync(object native, StoreJournal journal, GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
     {
         var mortars = MortarsBuilt(journal, snapshot, ct);
-        var shells = LoadMortarShells(native, snapshot, ct);
+        var shells = await LoadMortarShellsAsync(native, snapshot, ct).ConfigureAwait(false);
         return PolicyApi.MortarShellTargets(mortars, PolicyApi.AssessArmory(projection.Facts.RaidPoints, projection.Facts.Research), shells);
     }
 }

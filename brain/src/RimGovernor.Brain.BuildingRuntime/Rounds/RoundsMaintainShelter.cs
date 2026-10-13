@@ -72,7 +72,7 @@ public sealed class SafeAreaMemory
 
             if (isolation.Count > 0)
             {
-                Plan(PolicyFunctions.IsolationAreaKey, isolation);
+                Plan(PolicyConstants.IsolationAreaKey, isolation);
             }
 
             if (projection.Facts.HomeCoverage.TryGetValue(out var census) && census.Home.TryGetValue(out var home) && home.Count > 0)
@@ -140,8 +140,8 @@ public sealed class SafeAreaMemory
 
 internal static partial class BuildingRuntimePackage
 {
-    internal static Fact<IReadOnlyList<Cell>> DangerSeedFact(Fact<long> hostiles, IReadOnlyList<EmergencyThreat> threats) =>
-        hostiles.IsKnown ? Known(PolicyFunctions.DangerSeeds(threats)) : Unknown<IReadOnlyList<Cell>>();
+    internal static Fact<EquatableArray<Cell>> DangerSeedFact(Fact<long> hostiles, IReadOnlyList<EmergencyThreat> threats) =>
+        hostiles.IsKnown ? Known<EquatableArray<Cell>>([.. PolicyFunctions.DangerSeeds(threats)]) : Unknown<EquatableArray<Cell>>();
 
     internal static IReadOnlyList<Cell> SortedSeeds(HashSet<Cell>? set) =>
         set is null ? [] : [.. set.OrderBy(c => c.Z).ThenBy(c => c.X)];
@@ -155,7 +155,7 @@ public sealed class MaintainShelterPlanner
 
     public static MaintainShelterPlanner NewMaintainShelterPlanner(Rounder reviewer)
     {
-        if (reviewer is null || !reviewer.MethodEnabled(ConcernId.MaintainShelter))
+        if (reviewer is null || !reviewer.MethodEnabled(PolicyFunctions.MaintainShelter))
         {
             throw new ControlException("NewMaintainShelterPlanner: reviewer missing or method disabled");
         }
@@ -163,7 +163,7 @@ public sealed class MaintainShelterPlanner
         return new MaintainShelterPlanner(reviewer);
     }
 
-    internal MaintainShelterResult Step(CancellationToken call, CancellationToken epoch, StepArbiter? arbiter)
+    internal async Task<MaintainShelterResult> StepAsync(StepArbiter? arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         var state = p.Session.State();
@@ -177,21 +177,21 @@ public sealed class MaintainShelterPlanner
             throw new ControlException("step: observation unknown or snapshot invalid");
         }
 
-        var review = p.Journal.LoadRounds(call);
+        var review = await p.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
         if (!review.Enabled || review.Snapshot != state.Snapshot)
         {
             return new MaintainShelterResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
         }
 
-        var (goal, workable) = p.Journal.Workable(call, review, ConcernId.MaintainShelter);
-        if (!workable)
+        var (goal, workable) = await p.Journal.WorkableAsync(review, PolicyFunctions.MaintainShelter, call).ConfigureAwait(false);
+        if (!workable || goal is null)
         {
             return new MaintainShelterResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
         }
 
         foreach (var method0 in goal.Methods)
         {
-            var open = p.Journal.LoadPlan(call, method0.Plan);
+            var open = await p.Journal.LoadPlanAsync(method0.Plan, call).ConfigureAwait(false);
             if (StorePackage.PlanOpen(open))
             {
                 return new MaintainShelterResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
@@ -202,7 +202,7 @@ public sealed class MaintainShelterPlanner
         var edits = reviewer.SafeArea.Take(world);
         if (edits.Count == 0)
         {
-            return new MaintainShelterResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "safe_area_edits") };
+            return new MaintainShelterResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "safe_area_edits") };
         }
 
         var id = PlanIds.MintPlanId();
@@ -212,7 +212,7 @@ public sealed class MaintainShelterPlanner
             actions.Add(DomainAction.NewAreaAction(new ActionId($"{id}-{i}"), edits[i]));
         }
 
-        var plan = PlanSpec.NewPlan(id, new PlanRevision(1), actions);
+        var plan = new PlanSpec(id, new PlanRevision(1), actions);
         p.Current(call, epoch);
         if (p.Session.State() != state)
         {
@@ -220,13 +220,13 @@ public sealed class MaintainShelterPlanner
         }
 
         var method = new MethodId($"safe-area-{id}");
-        p.Journal.CommitMethodReason(call, goal.Standard.Id, goal.Revision, method, $"bot areas {edits.Count} edits", plan);
+        await p.Journal.CommitMethodReasonAsync(goal.Standard.Id, goal.Revision, method, $"bot areas {edits.Count} edits", plan, call).ConfigureAwait(false);
         reviewer.SafeArea.Commit(world);
         return new MaintainShelterResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
     }
 }
 
-public readonly record struct MaintainShelterResult
+public readonly record struct MaintainShelterResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 

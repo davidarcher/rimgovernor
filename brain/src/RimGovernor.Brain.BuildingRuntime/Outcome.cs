@@ -131,7 +131,7 @@ public readonly record struct Verdict(Outcome Outcome, Refusal Refusal = default
                 DomainException.Require(Refusal == default, $"{Wire.Name(Outcome)} verdict carries a refusal: {Refusal}");
                 break;
             case Outcome.Waiting:
-                DomainException.Require(PolicyFunctions.WaitCauses.Contains(Refusal.Kind), $"wait without a known kind: {Refusal}");
+                DomainException.Require(Cause.WaitCauses.Contains(Refusal.Kind), $"wait without a known kind: {Refusal}");
                 DomainException.Require(Refusal.Kind != Cause.MethodUsed || Refusal.Subject.Length != 0, $"method-used wait without the work it names: {Refusal}");
                 break;
             case Outcome.Refused:
@@ -161,7 +161,7 @@ public readonly record struct Verdict(Outcome Outcome, Refusal Refusal = default
         {
             return Wire.Name(Outcome);
         }
-        var parts = new List<string> { Wire.Name(Refusal.Kind) };
+        var parts = new List<string> { Refusal.Kind.Value };
         if (Refusal.Subject.Length != 0)
         {
             parts.Add(Refusal.Subject);

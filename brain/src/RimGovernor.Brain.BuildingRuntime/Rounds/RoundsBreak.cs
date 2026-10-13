@@ -11,7 +11,7 @@ public sealed partial class RoundsDefensePlanner
     /// Settles an open subdue fight of the incident: keeps it while the subdued colonist is still breaking, otherwise
     /// cancels the open work, stops the owned drafts and closes the fight once the stop is confirmed.
     /// </summary>
-    internal (RoundsDefenseResult Result, bool Handled) ReconcileSubdueFight(CancellationToken call, CancellationToken epoch, IncidentState incident, ControlState state)
+    internal async Task<(RoundsDefenseResult Result, bool Handled)> ReconcileSubdueFightAsync(IncidentState incident, ControlState state, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         foreach (var method in incident.Methods)
@@ -20,18 +20,14 @@ public sealed partial class RoundsDefensePlanner
             {
                 continue;
             }
-            var (fight, found) = p.Journal.LoadCombatFight(method.Plan, call);
-            if (!found || !fight.Open)
+            var fight = p.Journal.LoadCombatFight(method.Plan, call);
+            if (fight is null || !fight.Open)
             {
                 continue;
             }
             var plan = p.Journal.LoadPlan(method.Plan, call);
-            var combat = _native.ReadCombat(Boundary.Identity(state.Snapshot), call);
-            try
-            {
-                Boundary.Context(combat.Context, state.Snapshot);
-            }
-            catch (ControlException)
+            var combat = await _native.ReadCombatAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
+            if (combat.Context is not { } combatContext || !BuildingRuntimePackage.ContextMatches(combatContext, state.Snapshot))
             {
                 throw new ControlException("subdue needs a complete current census");
             }
@@ -39,7 +35,7 @@ public sealed partial class RoundsDefensePlanner
             {
                 throw new ControlException("subdue needs a complete current census");
             }
-            var participants = new HashSet<PawnId>();
+            var participants = new HashSet<Domain.PawnId>();
             var active = false;
             foreach (var progress in plan.Progress)
             {
@@ -51,7 +47,7 @@ public sealed partial class RoundsDefensePlanner
                     {
                         foreach (var pawn in combat.Emergency.Facts.Colonists)
                         {
-                            active = active || (new PawnId(pawn.Id) == subdue.Target && PolicyApi.AggressiveBreak(pawn));
+                            active = active || (new Domain.PawnId(pawn.Id.Value) == subdue.Target && PolicyApi.AggressiveBreak(pawn));
                         }
                     }
                 }
@@ -60,7 +56,7 @@ public sealed partial class RoundsDefensePlanner
             foreach (var ev in combat.Events)
             {
                 var stopKind = ev.Stop;
-                if (ev.At.Tick > (long)fight.Memory.Tick && participants.Contains(new PawnId(ev.ThingId))
+                if (ev.At.Tick > fight.Memory.Tick.Value && participants.Contains(new Domain.PawnId(ev.ThingId))
                     && (stopKind == K.CombatEvent.SeriousInjury || stopKind == K.CombatEvent.Downed))
                 {
                     stop = new StopEvent { Kind = new CombatStopKind(stopKind == K.CombatEvent.SeriousInjury ? "serious_injury" : "downed"), Pawn = new PawnId(ev.ThingId) };
@@ -100,17 +96,18 @@ public sealed partial class RoundsDefensePlanner
             {
                 if (action.OwnedDraft is { } draft && fight.Roster.Contains(draft.Pawn))
                 {
-                    orders.Add(new CombatOrder { Pawn = draft.Pawn, Kind = PolicyApi.OrderStop });
+                    orders.Add(new CombatOrder { Pawn = new PawnId(draft.Pawn.Value), Kind = CombatOrderKind.Stop });
                 }
             }
-            var batchLabel = $"{method.Plan}-subdue-stop-{combat.Context.Tick.ToString(CultureInfo.InvariantCulture)}";
-            var batch = CombatBatchPlan(method.Plan, batchLabel, null, orders);
-            var (results, _) = SendCombatBatch(call, state, method.Plan, batchLabel, null, orders);
+            var batchLabel = $"{method.Plan}-subdue-stop-{combatContext.Tick.ToString(CultureInfo.InvariantCulture)}";
+            var batch = CombatBatchPlan(method.Plan, batchLabel, [], orders);
+            var (results, _) = await SendCombatBatchAsync(state, method.Plan, batchLabel, [], orders, call).ConfigureAwait(false);
             var confirmed = results is not null;
             if (results is null)
             {
-                var fresh = _native.ReadCombat(Boundary.Identity(state.Snapshot), call);
-                Boundary.Context(fresh.Context, state.Snapshot);
+                var fresh = await _native.ReadCombatAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
+                var freshContext = fresh.Context ?? throw new AuthorityException();
+                Boundary.Context(freshContext, state.Snapshot);
                 confirmed = true;
                 foreach (var order in orders)
                 {
@@ -125,33 +122,33 @@ public sealed partial class RoundsDefensePlanner
                     if (v.Unresolved)
                     {
                         var scope = state.Snapshot with { Plan = batch.Id, Revision = batch.Revision };
-                        p.Journal.Observe(batch.Id, new Observation
-                        {
-                            Action = v.Action,
-                            Attempt = v.Attempt,
-                            Snapshot = scope,
-                            Tick = new Tick(fresh.Context.Tick),
-                            Effect = Effect.Completed,
-                            Causality = Causality.AfterDispatch,
-                        }, scope, call);
+                        p.Journal.Observe(batch.Id, new Domain.Observation(
+                            v.Action,
+                            v.Attempt,
+                            scope,
+                            new Tick(freshContext.Tick),
+                            Effect.Completed,
+                            ObservationCausality.AfterDispatch), scope, call);
                         p.Journal.RetireCombatBatch(batch.Id, call);
                     }
                 }
             }
-            var record = new CombatStopRecord { Tick = new Tick(combat.Context.Tick), Stop = stop, Batch = batch.Id };
+            var entries = new List<CombatOrderRecord>();
             for (var i = 0; i < orders.Count; i++)
             {
-                var entry = new CombatOrderRecord { CombatOrder = orders[i], Uncertain = results is null };
+                var applied = false;
+                var refusal = "";
                 if (results is not null)
                 {
-                    entry.Applied = results[i].Applied;
-                    entry.Refusal = results[i].Refusal;
-                    confirmed = confirmed && (entry.Applied || entry.Refusal == BridgeApi.CombatRefusalNotDrafted || entry.Refusal == BridgeApi.CombatRefusalNotFound);
+                    applied = results[i].Applied;
+                    refusal = results[i].Refusal;
+                    confirmed = confirmed && (applied || refusal == BridgeConstants.CombatRefusalNotDrafted || refusal == BridgeConstants.CombatRefusalNotFound);
                 }
-                record.Orders.Add(entry);
+                entries.Add(new CombatOrderRecord(orders[i], applied, results is null, refusal));
             }
-            if (record.Orders.Count > 0)
+            if (entries.Count > 0)
             {
+                var record = new CombatStopRecord(batch.Id, new Tick(combatContext.Tick), stop, [.. entries]);
                 p.Journal.RecordCombatStop(method.Plan, record, fight.Memory, call);
             }
             if (confirmed && !unresolved)
@@ -187,7 +184,7 @@ public sealed partial class RoundsDefensePlanner
     }
 
     /// <summary>Admits a subdue plan for the first aggressive breaking colonist a squad can answer.</summary>
-    internal RoundsDefenseResult PlanBreak(CancellationToken call, CancellationToken epoch, IncidentState incident, ControlState state, DateTimeOffset started, StepArbiter arbiter, Tick tick, EmergencyFacts f, IReadOnlyDictionary<string, O.PawnState> rows)
+    internal async Task<RoundsDefenseResult> PlanBreakAsync(IncidentState incident, ControlState state, DateTimeOffset started, StepArbiter arbiter, Tick tick, EmergencyFacts f, IReadOnlyDictionary<string, O.PawnState> rows, CancellationToken call, CancellationToken epoch)
     {
         var interrupted = new HashSet<PawnId>();
         foreach (var method in incident.Methods)
@@ -201,7 +198,7 @@ public sealed partial class RoundsDefensePlanner
             {
                 if (progress.Action.Subdue is { } subdue && (progress.View.Stage == Stage.Cancelled || progress.View.Stage == Stage.Unsuccessful))
                 {
-                    interrupted.Add(subdue.Target);
+                    interrupted.Add(new PawnId(subdue.Target.Value));
                 }
             }
         }
@@ -218,22 +215,22 @@ public sealed partial class RoundsDefensePlanner
             return new RoundsDefenseResult();
         }
         targets.Sort((a, b) => string.CompareOrdinal(a.Id.Value, b.Id.Value));
-        var needed = PlannedDrafts(call, _reviewer.Player.Journal);
+        var needed = await DraftNeeds.PlannedDraftsAsync(_reviewer.Player.Journal, call).ConfigureAwait(false);
         var responders = new List<BreakResponder>();
-        var arms = ReadArmament(call, _native, Boundary.Identity(state.Snapshot));
+        var arms = await ReadArmamentAsync(_native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         foreach (var p0 in f.Colonists)
         {
             var row = rows[p0.Id.Value];
             var ranged = RangedWeaponEquipped(row.Equipment, arms);
-            var d = SquadDefenderFacts(row, needed, ranged);
-            d.MeleeEquipped = BreakMelee(row, arms);
-            responders.Add(new BreakResponder { SquadDefenderFacts = d, Cell = BreakCell(row) });
+            var d = SquadDefenderFacts(row, needed.Select(n => new Domain.PawnId(n.Value)).ToHashSet(), ranged);
+            d = d with { MeleeEquipped = BreakMelee(row, arms) };
+            responders.Add(new BreakResponder { SquadDefenderFacts = d, Cell = BreakDispatch.BreakCell(row) });
         }
-        IReadOnlyList<PawnId> chosen = [];
+        List<PawnId> chosen = [];
         PawnId victim = default;
         foreach (var target in targets)
         {
-            chosen = PolicyApi.SelectBreakSquad(target, BreakCell(rows[target.Id.Value]), responders);
+            chosen = PolicyApi.SelectBreakSquad(target, BreakDispatch.BreakCell(rows[target.Id.Value]), responders);
             if (chosen.Count > 0)
             {
                 victim = target.Id;
@@ -248,7 +245,7 @@ public sealed partial class RoundsDefensePlanner
         claim.Add(victim);
         if (!arbiter.TryClaim(claim))
         {
-            return new RoundsDefenseResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "break_pawn_claim") };
+            return new RoundsDefenseResult { Verdict = WaitFor(Cause.MethodUsed, "break_pawn_claim") };
         }
         var h = new StringBuilder();
         h.Append(victim.Value).Append('/').Append('[').Append(string.Join(' ', chosen.Select(c => c.Value))).Append(']');
@@ -259,8 +256,8 @@ public sealed partial class RoundsDefensePlanner
         {
             var pawn = chosen[i];
             var draftId = new ActionId($"{id}-d{i}");
-            var da = DomainAction.NewOwnedDraftAction(draftId, new OwnedDraft(pawn));
-            var ma = DomainAction.NewSubdueAction(new ActionId($"{id}-s{i}"), new Subdue(pawn, victim, draftId));
+            var da = DomainAction.NewOwnedDraftAction(draftId, new OwnedDraft(new Domain.PawnId(pawn.Value)));
+            var ma = DomainAction.NewSubdueAction(new ActionId($"{id}-s{i}"), new Subdue(new Domain.PawnId(pawn.Value), new Domain.PawnId(victim.Value), draftId));
             actions.Add(da);
             actions.Add(ma);
         }
@@ -272,7 +269,7 @@ public sealed partial class RoundsDefensePlanner
         {
             throw new ControlException("planBreak: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
         }
-        pl.Journal.CommitCombatFight(incident.Incident.Id, methodId, spec, NewFightMemory(tick), PlayerWorld(state.Snapshot), chosen, call);
+        pl.Journal.CommitCombatFight(incident.Incident.Id, methodId, spec, NewFightMemory(tick), Player.PlayerWorld(state.Snapshot), [.. chosen.Select(c => new Domain.PawnId(c.Value))], call);
         return new RoundsDefenseResult { Verdict = BuildingReasonAdmitted, Plan = id };
     }
 }

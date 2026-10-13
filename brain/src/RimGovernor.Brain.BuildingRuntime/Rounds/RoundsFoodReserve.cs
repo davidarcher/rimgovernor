@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native read of the food-reserve supplies (Go's anonymous interface on the planner source).</summary>
 internal interface IFoodReserveSupplyReader
 {
-    (SupplyRead Read, BridgeResult Result) ReadFoodReserveSupplies(CancellationToken ct, C.Identity identity, bool forbid);
+    Task<(SupplyRead Read, BridgeResult Result)> ReadFoodReserveSuppliesAsync(C.Identity identity, bool forbid, CancellationToken ct);
 }
 
 public sealed partial class Rounder
@@ -32,11 +32,11 @@ public sealed partial class Rounder
 
 internal static partial class BuildingRuntimePackage
 {
-    internal static Fact<IReadOnlyList<double>> FoodDeliveryDays(Fact<FoodPlan> f)
+    internal static Fact<EquatableArray<double>> FoodDeliveryDays(Fact<FoodPlan> f)
     {
         if (!f.TryGetValue(out var plan) || plan.Unknown.Count > 0)
         {
-            return Unknown<IReadOnlyList<double>>();
+            return Unknown<EquatableArray<double>>();
         }
 
         var days = new List<double>();
@@ -49,20 +49,20 @@ internal static partial class BuildingRuntimePackage
 
             if (!row.Channel.LeadDays.TryGetValue(out var lead))
             {
-                return Unknown<IReadOnlyList<double>>();
+                return Unknown<EquatableArray<double>>();
             }
 
             days.Add(lead);
         }
 
-        return Known<IReadOnlyList<double>>(days);
+        return Known(EquatableArray.From(days));
     }
 }
 
 public sealed partial class RoundsFoodStorageUpkeepPlanner
 {
     /// <summary>Holds or releases the reserved food supplies: one plan of supply-allow actions, at most eight, committed under the reviewed goal.</summary>
-    internal RoundsFoodStorageUpkeepResult AdmitReserve(CancellationToken ct, CancellationToken epoch, StandardState goal, O.ColonyFactsSnapshot observed, FoodReserveReview reserve)
+    internal async Task<RoundsFoodStorageUpkeepResult> AdmitReserveAsync(StandardState goal, O.ColonyFactsSnapshot observed, FoodReserveReview reserve, CancellationToken ct, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var state = p.Session.State();
@@ -93,7 +93,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
                 continue;
             }
 
-            var (read, _) = native.ReadFoodReserveSupplies(ct, Boundary.Identity(state.Snapshot), forbid);
+            var (read, _) = await native.ReadFoodReserveSuppliesAsync(Boundary.Identity(state.Snapshot), forbid, ct).ConfigureAwait(false);
             try
             {
                 Boundary.Context(read.Context, state.Snapshot);
@@ -103,7 +103,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
                 throw new ControlException("admitReserve: read context", e);
             }
 
-            if (read.Context.Tick < observed.Context.Tick)
+            if ((read.Context?.Tick ?? 0) < (observed.Context?.Tick ?? 0))
             {
                 throw new ControlException("admitReserve: read older than the observed facts");
             }
@@ -133,7 +133,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
             return new RoundsFoodStorageUpkeepResult { Verdict = FieldUnavailable("food_reserve_supplies") };
         }
 
-        var plan = PlanSpec.NewPlan(planId, new PlanRevision(1), actions);
+        var plan = new PlanSpec(planId, new PlanRevision(1), actions);
         p.Current(ct, epoch);
         var elapsed = Reviewer.Clock.Now() - started;
         if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > Reviewer.MaxAge)
@@ -141,7 +141,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
             throw new ControlException("admitReserve: session state changed or the read took too long");
         }
 
-        p.Journal.CommitMethod(ct, goal.Standard.Id, goal.Revision, method, plan);
+        p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, ct);
         return new RoundsFoodStorageUpkeepResult { Verdict = BuildingReasonAdmitted, Plan = planId };
     }
 }

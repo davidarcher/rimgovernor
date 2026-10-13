@@ -6,21 +6,21 @@ public sealed partial class RoundsArmoryPlanner
     /// Reads the combat pawns and the map's loose weapons and prices the armory's weapon demand: fighters and
     /// hunters short of a weapon, and the unarmed fighters.
     /// </summary>
-    internal (IReadOnlyList<Amount> Fighters, IReadOnlyList<Amount> Hunters, int Unarmed) WeaponDemand(GenerationSnapshot snapshot, IReadOnlyList<string> ids, long minTick, IReadOnlyList<GearBench> benches, ArmoryTier tier, CancellationToken ct)
+    internal async Task<(IReadOnlyList<Amount> Fighters, IReadOnlyList<Amount> Hunters, int Unarmed)> WeaponDemandAsync(GenerationSnapshot snapshot, IReadOnlyList<string> ids, long minTick, IReadOnlyList<GearBench> benches, ArmoryTier tier, CancellationToken ct)
     {
         if (_native is not IRoundsEquipSource source)
         {
             return ([], [], 0);
         }
         var identity = Boundary.Identity(snapshot);
-        var things = FrameThings(_native, identity, ct);
-        var reply = source.ReadCombatPawns(identity, ids, ct).Reply;
+        var things = await FrameThingsOfAsync(_native, identity, ct).ConfigureAwait(false);
+        var reply = (await source.ReadCombatPawnsAsync(identity, ids, ct).ConfigureAwait(false)).Reply;
         var observed = reply.Observed;
         if (observed is null)
         {
             throw new ControlException("weaponDemand: observed == nil");
         }
-        if (!Boundary.TryContext(observed.Context, snapshot) || observed.Context.Tick < minTick)
+        if (!ContextMatches(observed.Context, snapshot) || observed.Context.Tick < minTick)
         {
             throw new ControlException("weaponDemand: err != nil || observed.Context.GetTick() < minTick");
         }
@@ -29,30 +29,30 @@ public sealed partial class RoundsArmoryPlanner
             throw new ControlException("weaponDemand: len(observed.Pawns) != len(ids)");
         }
         var pawns = new List<EquipCandidatePawn>();
-        var primaries = new Dictionary<PawnId, ArmoryPrimary>();
-        var catalog = source.DefinitionCatalog(identity, ct);
+        var primaries = new Dictionary<Domain.PawnId, ArmoryPrimary>();
+        var catalog = await source.DefinitionCatalogAsync(identity, ct).ConfigureAwait(false) ?? throw new InvalidOperationException("native served no definition catalog");
         foreach (var p in observed.Pawns)
         {
-            pawns.Add(EquipCandidatePawnFacts(p, catalog, things));
+            pawns.Add(RoundsEquipPlanner.EquipCandidatePawnFacts(p, catalog, things));
             if (ArmoryPrimaryOf(p, things, catalog) is { } primary)
             {
-                primaries[new PawnId(p.Pawn.Id)] = primary;
+                primaries[new Domain.PawnId(p.Pawn.Id)] = primary;
             }
         }
-        var bounds = source.ReadMapBounds(identity, default(Cell), ct).Reply;
-        if (!Boundary.TryContext(bounds.Context, snapshot) || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0)
+        var (bounds, _) = await source.ReadMapBoundsAsync(identity, default(Cell), ct).ConfigureAwait(false);
+        if (!ContextMatches(bounds.Context, snapshot) || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0)
         {
             throw new ControlException("weaponDemand: err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0");
         }
-        var weapons = source.ReadEquipWeapons(identity, default(Cell), new Cell((int)bounds.Bounds.Width - 1, (int)bounds.Bounds.Height - 1), ct).Reply;
-        if (!Boundary.TryContext(weapons.Context, snapshot))
+        var (weapons, _) = await source.ReadEquipWeaponsAsync(identity, default(Cell), new Cell((int)bounds.Bounds.Width - 1, (int)bounds.Bounds.Height - 1), ct).ConfigureAwait(false);
+        if (!ContextMatches(weapons.Context, snapshot))
         {
             throw new ControlException("weaponDemand: err != nil");
         }
         var candidates = new List<EquipCandidateWeapon>();
         foreach (var w in weapons.Targets)
         {
-            candidates.Add(EquipCandidateWeaponOf(catalog, w));
+            candidates.Add(RoundsEquipPlanner.EquipCandidateWeaponOf(catalog, w));
         }
         var recipes = new List<GearRecipe>();
         var products = new Dictionary<Resource, WeaponDef>();
@@ -81,13 +81,13 @@ public sealed partial class RoundsArmoryPlanner
     }
 
     /// <summary>Places the crafting spot through the building planner; the verdict names a missing weapon bench.</summary>
-    internal RoundsArmoryResult PlaceCraftingSpot(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsArmoryResult> PlaceCraftingSpotAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         if (_spot is null)
         {
-            return new RoundsArmoryResult { Verdict = BuildingNoWeaponBench };
+            return new RoundsArmoryResult { Verdict = BuildingReasonNoWeaponBench };
         }
-        var result = _spot.Step(call, epoch, arbiter);
+        var result = await _spot.StepAsync(arbiter, call, epoch).ConfigureAwait(false);
         if (result.Decision.Admitted)
         {
             return new RoundsArmoryResult { Verdict = BuildingReasonAdmitted };
@@ -98,6 +98,20 @@ public sealed partial class RoundsArmoryPlanner
 
 internal static partial class BuildingRuntimePackage
 {
+    /// <summary>Whether the observation context belongs to the snapshot's world: Go tested <c>boundary.Context</c> for an error, and its only errors are an invalid context and a foreign generation.</summary>
+    internal static bool ContextMatches(PbCommon.ObservationContext? context, GenerationSnapshot snapshot)
+    {
+        try
+        {
+            Boundary.Context(context, snapshot);
+            return true;
+        }
+        catch (Exception ex) when (ex is BridgeContractException or AuthorityException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>Sums two amount lists per resource, sorted by resource.</summary>
     internal static IReadOnlyList<Amount> MergeAmounts(IReadOnlyList<Amount> a, IReadOnlyList<Amount> b)
     {
@@ -118,14 +132,18 @@ internal static partial class BuildingRuntimePackage
     {
         var equipment = row.Equipment;
         var id = equipment?.PrimaryId ?? "";
-        if (id == "")
+        if (equipment is null || id == "")
         {
             return null;
         }
-        foreach (var item in equipment!.Equipped)
+        foreach (var item in equipment.Equipped)
         {
-            var def = GearDef(things, item.Thing);
-            if (item.Thing?.Id != id || def == "")
+            if (item.Thing is not { } thing || thing.Id != id)
+            {
+                continue;
+            }
+            var def = GearDef(things, thing);
+            if (def == "")
             {
                 continue;
             }
@@ -146,7 +164,7 @@ internal static partial class BuildingRuntimePackage
         foreach (var b in benches)
         {
             b.Recipes.TryGetValue(out var rows);
-            foreach (var recipe in rows ?? [])
+            foreach (var recipe in rows)
             {
                 if (PolicyApi.WeaponRecipe(recipe))
                 {

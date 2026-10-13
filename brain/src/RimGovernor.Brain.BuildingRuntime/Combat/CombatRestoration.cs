@@ -16,21 +16,19 @@ public sealed partial class RoundsDefensePlanner
     /// </summary>
     internal async Task<IReadOnlyList<CombatOrder>> CaptureCombatSettingsAsync(ControlState state, PlanId fight, IReadOnlyList<CombatOrder> orders, CancellationToken ct)
     {
-        if (!orders.Any(o => o.Kind is OrderKind.Door or OrderKind.AnimalArea))
+        if (!orders.Any(o => o.Kind is CombatOrderKind.Door or CombatOrderKind.AnimalArea))
         {
             return orders;
         }
         var journal = _reviewer.Player.Journal;
-        var (kept, exists) = await journal.LoadCombatRestorationAsync(ct).ConfigureAwait(false);
+        var loaded = journal.LoadCombatRestoration(ct);
+        var exists = loaded is not null;
         var world = new World(state.Snapshot.Colony, state.Snapshot.Load, state.Snapshot.Map);
-        if (exists && (kept.Owner != fight || kept.World != world))
+        if (loaded is not null && (loaded.Owner != fight || loaded.World != world))
         {
             throw new ControlException("prior combat restoration pending");
         }
-        if (!exists)
-        {
-            kept = new CombatRestoration { World = world, Owner = fight };
-        }
+        var kept = loaded ?? new CombatRestoration(world, fight, [], []);
         var combat = await _native.ReadCombatAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
         var known = combat.DoorStates.TryGetValue(out var doors);
         var sendable = new List<CombatOrder>(orders.Count);
@@ -38,7 +36,7 @@ public sealed partial class RoundsDefensePlanner
         var keptAnimals = kept.Animals.ToList();
         foreach (var o in orders)
         {
-            if (o.Kind == OrderKind.Door && !keptDoors.Any(d => d.Cell == o.Cell))
+            if (o.Kind == CombatOrderKind.Door && !keptDoors.Any(d => d.Cell == o.Cell))
             {
                 var i = known ? doors!.ToList().FindIndex(d => d.Cell == o.Cell) : -1;
                 if (i < 0)
@@ -51,14 +49,14 @@ public sealed partial class RoundsDefensePlanner
                 }
                 keptDoors.Add(new CombatDoorRestoration(o.Cell, hold, forbidden));
             }
-            else if (o.Kind == OrderKind.AnimalArea && !keptAnimals.Any(a => a.Pawn == o.Pawn))
+            else if (o.Kind == CombatOrderKind.AnimalArea && !keptAnimals.Any(a => a.Pawn == (Domain.PawnId)o.Pawn))
             {
-                if (!combat.Detail.TryGet(o.Pawn.Value, out var p) || p?.AnimalState is not { } animal || !animal.HasSupportsAllowedAreas
+                if (!combat.Detail.TryGetValue(o.Pawn.Value, out var p) || p.AnimalState is not { } animal || !animal.HasSupportsAllowedAreas
                     || animal.Issues.Any(issue => issue.Field == "allowed_area"))
                 {
                     continue;
                 }
-                keptAnimals.Add(new CombatAnimalRestoration(o.Pawn, animal.AllowedAreaId));
+                keptAnimals.Add(new CombatAnimalRestoration((Domain.PawnId)o.Pawn, animal.AllowedAreaId));
             }
             sendable.Add(o);
         }
@@ -66,7 +64,7 @@ public sealed partial class RoundsDefensePlanner
         {
             return sendable;
         }
-        await journal.SaveCombatRestorationAsync(kept with { Doors = keptDoors, Animals = keptAnimals }, ct).ConfigureAwait(false);
+        journal.SaveCombatRestoration(kept with { Doors = [.. keptDoors], Animals = [.. keptAnimals] }, ct);
         return sendable;
     }
 
@@ -79,35 +77,35 @@ public sealed partial class RoundsDefensePlanner
         }
         var journal = _reviewer.Player.Journal;
         var combat = await _native.ReadCombatAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
-        var tick = new Tick((long)combat.Context.Tick);
-        var incident = await journal.OpenIncidentAsync(new IncidentAssessment { Kind = IncidentKind.ActiveCombat, Trigger = "restore_combat_settings", Snapshot = state.Snapshot, Tick = tick }, ct).ConfigureAwait(false);
-        var payload = JsonSerializer.SerializeToUtf8Bytes(kept);
+        var tick = new Tick((long)(combat.Context?.Tick ?? 0));
+        var incident = await journal.OpenIncidentAsync(new IncidentAssessment(PolicyApi.ActiveCombat, default, "restore_combat_settings", 0, state.Snapshot, tick, []), ct).ConfigureAwait(false);
+        var payload = Encoding.UTF8.GetBytes(global::RimGovernor.Brain.Store.Codec.StoreJson.Serialize(kept));
         var prefix = Encoding.UTF8.GetBytes($"{kept.Owner.Value}/{state.Snapshot.Load.Value}/{tick.Value}/");
         var sum = SHA256.HashData([.. prefix, .. payload]);
         var id = new PlanId("restore-" + Convert.ToHexStringLower(sum));
-        var actions = CombatRestorationActions.Of(kept, id);
+        var actions = JournalStore.CombatRestorationActions(kept, id);
         var plan = new PlanSpec(id, new PlanRevision(1), actions);
-        await journal.CommitCombatRestorationAsync(incident.Incident.Id, plan, ct).ConfigureAwait(false);
+        journal.CommitCombatRestoration(incident.Incident.Id, plan, ct);
         var ids = actions.Select(a => a.Id).ToList();
-        IReadOnlyList<DispatchItem> items;
+        IReadOnlyList<BatchItem> items;
         try
         {
-            items = await _hands.RunBatchAsync(id, ids, ct).ConfigureAwait(false);
+            items = _hands.RunBatch(id, ids, ct);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             // The batch may have dispatched part of it; the items report what did.
-            RecordCombatDispatch(e is IBatchFailure failure ? failure.Items : []);
+            RecordCombatDispatch(e is BatchFailureException failure ? failure.Items : [], ct);
             throw;
         }
-        RecordCombatDispatch(items);
+        RecordCombatDispatch(items, ct);
         if (items.Count != actions.Count)
         {
             throw new ControlException("combat restoration batch incomplete");
         }
         try
         {
-            await journal.FinishCombatRestorationAsync(kept.Owner, id, ct).ConfigureAwait(false);
+            journal.FinishCombatRestoration(kept.Owner, id, ct);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -118,13 +116,13 @@ public sealed partial class RoundsDefensePlanner
     internal async Task RestoreReloadedCombatAsync(ControlState state, CancellationToken ct)
     {
         var journal = _reviewer.Player.Journal;
-        var (kept, ok) = await journal.LoadCombatRestorationAsync(ct).ConfigureAwait(false);
-        if (!ok)
+        var kept = journal.LoadCombatRestoration(ct);
+        if (kept is null)
         {
             return;
         }
-        var (fight, found) = await journal.LoadCombatFightAsync(kept.Owner, ct).ConfigureAwait(false);
-        if (kept.World.Load == state.Snapshot.Load && found && fight.Open)
+        var fight = journal.LoadCombatFight(kept.Owner, ct);
+        if (kept.World.Load == state.Snapshot.Load && fight is { Open: true })
         {
             return;
         }

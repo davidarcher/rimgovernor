@@ -59,10 +59,10 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
         }
         if (config.Clock is null)
         {
-            await BuildingRuntimePackage.RequireNoClockObligations(journal, ct);
+            await BuildingRuntimePackage.RequireNoClockObligationsAsync(journal, ct).ConfigureAwait(false);
         }
         var sink = new SessionSink { ClockWorkers = new ClockWorkerSlot() };
-        var ns = await journal.IdentityAsync(ct);
+        var ns = await journal.IdentityAsync(ct).ConfigureAwait(false);
         var controlConfig = config.Control with
         {
             StopWrites = sink.Stop,
@@ -70,12 +70,12 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
             ResumeWrites = sink.Resume,
             Worlds = config.Control.Worlds ?? (config.Clock is not null ? new ClockWorldSource(config.Clock.Native) : null),
         };
-        var control = await Control.CreateAsync(controlConfig, journal, authority, sink, ct);
+        var control = await Control.CreateAsync(controlConfig, new StoreSessionIdentity(journal), authority, sink, ct).ConfigureAwait(false);
 
         async Task Cleanup()
         {
             using var shutdown = new CancellationTokenSource(config.Control.CallTimeout);
-            await control.CloseAsync(shutdown.Token);
+            await control.CloseAsync(shutdown.Token).ConfigureAwait(false);
         }
 
         try
@@ -131,7 +131,7 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
             {
                 if (coordinator is not null)
                 {
-                    await coordinator.Stop(CancellationToken.None);
+                    await coordinator.Stop(CancellationToken.None).ConfigureAwait(false);
                 }
                 throw;
             }
@@ -139,7 +139,7 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
         }
         catch
         {
-            await Cleanup();
+            await Cleanup().ConfigureAwait(false);
             throw;
         }
     }
@@ -147,12 +147,12 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
     /// <summary>Binds explicit intent to the exact durable plan revision. A proposal without a stored plan cannot obtain a write lease.</summary>
     public async Task<GenerationSnapshot> AcquireAsync(GenerationSnapshot requested, CancellationToken ct, NativeGeneration? handoff = null)
     {
-        var state = await _journal.LoadPlanAsync(requested.Plan, ct);
+        var state = await _journal.LoadPlanAsync(requested.Plan, ct).ConfigureAwait(false);
         if (state.Spec.Revision != requested.Revision)
         {
             throw new Executor.AuthorityException();
         }
-        return await _control.AcquireAsync(requested, ct, handoff);
+        return await _control.AcquireAsync(requested, ct, handoff).ConfigureAwait(false);
     }
 
     internal StoreJournal Journal => _journal;
@@ -166,12 +166,12 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
     /// <summary>Attaches only read reconciliation to a durable plan. It cannot obtain a lease, even if native status reports an active owner for this namespace.</summary>
     public async Task ObserveTargetAsync(GenerationSnapshot requested, CancellationToken ct)
     {
-        var state = await _journal.LoadPlanAsync(requested.Plan, ct);
+        var state = await _journal.LoadPlanAsync(requested.Plan, ct).ConfigureAwait(false);
         if (state.Spec.Revision != requested.Revision)
         {
             throw new Executor.AuthorityException();
         }
-        await _control.ObserveTargetAsync(requested, ct);
+        await _control.ObserveTargetAsync(requested, ct).ConfigureAwait(false);
     }
 
     public Task RefreshAsync(CancellationToken ct) => _control.RefreshAsync(ct);
@@ -183,8 +183,12 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
     public Task ManualForResumeAsync(CancellationToken ct) => _control.ManualForResumeAsync(ct);
 
     /// <summary>Dispatches a plan's actions in one native Apply.</summary>
-    public Task<IReadOnlyList<Executor.BatchItem>> RunBatchAsync(PlanId plan, IReadOnlyList<ActionId> actions, CancellationToken ct) =>
-        _executor.RunBatchAsync(plan, actions, BuildingRuntimePackage.WithPlanIntent(ct, _journal, plan));
+    public async Task<IReadOnlyList<Executor.BatchItem>> RunBatchAsync(PlanId plan, IReadOnlyList<ActionId> actions, CancellationToken ct)
+    {
+        // The plan's method intent rides with the writes the dispatch issues (Go withPlanIntent).
+        using var intent = OperationIntentScope.Begin(await BuildingRuntimePackage.PlanIntentAsync(_journal, plan, ct).ConfigureAwait(false));
+        return await _executor.RunBatchAsync(plan, actions, ct).ConfigureAwait(false);
+    }
 
     public Task CloseAsync(CancellationToken ct) => _control.CloseAsync(ct);
 
@@ -192,7 +196,7 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
 }
 
 /// <summary>Relays authority changes between the control and the executor/clock it is wired to.</summary>
-internal sealed partial class SessionSink
+internal sealed partial class SessionSink : IAuthoritySink
 {
     internal readonly object Mu = new();
     internal Executor.Executor? Executor;
@@ -245,7 +249,7 @@ internal sealed partial class SessionSink
 
     internal async Task Stop(CancellationToken ct)
     {
-        var workerStopped = await ClockWorkers.Stop(ct);
+        var workerStopped = await ClockWorkers.Stop(ct).ConfigureAwait(false);
         Executor.Executor? e;
         ClockCoordinator? clock;
         lock (Mu)
@@ -260,7 +264,7 @@ internal sealed partial class SessionSink
         var errors = new List<Exception>();
         try
         {
-            await e.StopAsync(ct);
+            await e.StopAsync(ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -270,7 +274,7 @@ internal sealed partial class SessionSink
         {
             try
             {
-                await clock.Stop(ct);
+                await clock.Stop(ct).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -287,11 +291,31 @@ internal sealed partial class SessionSink
         }
         if (clock is not null && !workerStopped)
         {
-            await clock.Cleanup(ct);
+            await clock.Cleanup(ct).ConfigureAwait(false);
         }
     }
 
-    // Cleanup and Resume (Go sessionSink.cleanup/.resume) are defined with the clock coordinator in another slice: awaiting.
+    /// <summary>
+    /// Joins the owed clock commands: an explicit Manual, a checkpoint save and shutdown. Drafted pawns stay drafted;
+    /// with authority inactive the game's own auto-undraft applies again (Go sessionSink.cleanup).
+    /// </summary>
+    internal Task Cleanup(CancellationToken ct) => DrainAsync(ct);
+
+    /// <summary>Cleanup before a resume in the same world (Go sessionSink.resume).</summary>
+    internal Task Resume(CancellationToken ct) => DrainAsync(ct);
+
+    private async Task DrainAsync(CancellationToken ct)
+    {
+        ClockCoordinator? clock;
+        lock (Mu)
+        {
+            clock = Clock;
+        }
+        if (clock is not null)
+        {
+            await clock.Cleanup(ct).ConfigureAwait(false);
+        }
+    }
 
     /// <summary>
     /// Publish only after the final fallible construction check. Until publication, failure cleanup releases the
@@ -304,6 +328,81 @@ internal sealed partial class SessionSink
             ct.ThrowIfCancellationRequested();
             Executor = worker;
             Clock = clock;
+        }
+    }
+}
+
+/// <summary>Adapts the journal's controller session id read to the control's identity source.</summary>
+internal sealed class StoreSessionIdentity(StoreJournal store) : ISessionIdentity
+{
+    public async Task<ControllerSessionId> IdentityAsync(CancellationToken ct) => new((await store.IdentityAsync(ct).ConfigureAwait(false)).Value);
+}
+
+/// <summary>
+/// The intent text the writes of one dispatch carry (Go <c>bridge.WithOperationIntent</c>): it is stamped as the
+/// purpose of every action that has none. The scope follows the async flow like a Go context value.
+/// </summary>
+internal static class OperationIntentScope
+{
+    private static readonly AsyncLocal<string?> s_current = new();
+
+    /// <summary>The intent of the dispatch in flight, empty when none was set (Go <c>OperationIntentFrom</c>).</summary>
+    internal static string Current => s_current.Value ?? "";
+
+    /// <summary>Names why the writes under the scope are issued; an empty intent leaves the scope as it was.</summary>
+    internal static IDisposable Begin(string intent)
+    {
+        var previous = s_current.Value;
+        if (intent.Length != 0)
+        {
+            s_current.Value = intent;
+        }
+        return new Restore(previous);
+    }
+
+    private sealed class Restore(string? previous) : IDisposable
+    {
+        public void Dispose() => s_current.Value = previous;
+    }
+}
+
+internal static partial class BuildingRuntimePackage
+{
+    /// <summary>
+    /// The method intent of a plan's writes; a plan no goal admitted, or a failed lookup, dispatches without one
+    /// (Go <c>withPlanIntent</c>).
+    /// </summary>
+    internal static async Task<string> PlanIntentAsync(StoreJournal journal, PlanId plan, CancellationToken ct)
+    {
+        try
+        {
+            var method = await journal.PlanMethodAsync(plan, ct).ConfigureAwait(false);
+            return method is null ? "" : OperationIntent.Of(method);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return "";
+        }
+    }
+
+    /// <summary>Refuses a session without the clock capability while the journal still owes a clock command or cleanup (Go <c>requireNoClockObligations</c>).</summary>
+    internal static async Task RequireNoClockObligationsAsync(StoreJournal journal, CancellationToken ct)
+    {
+        var attempts = await journal.LoadClockAttemptsAsync(4096, ct).ConfigureAwait(false);
+        foreach (var v in attempts)
+        {
+            if (v.SupersededAt is null && v.Intent.Command.Start is not null && v.Phase is ClockPhase.Dispatched or ClockPhase.Uncertain)
+            {
+                throw new InvalidOperationException("clock recovery capability required for pending start");
+            }
+        }
+        var epochs = await journal.LoadClockEpochsAsync(4096, ct).ConfigureAwait(false);
+        foreach (var v in epochs)
+        {
+            if (v.Stage is not (ClockEpochStage.Paused or ClockEpochStage.Retired or ClockEpochStage.Superseded))
+            {
+                throw new InvalidOperationException("clock cleanup capability required for owned epoch");
+            }
         }
     }
 }

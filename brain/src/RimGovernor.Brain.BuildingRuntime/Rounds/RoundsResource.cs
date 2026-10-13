@@ -1,18 +1,16 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface IRoundsResourceSource : IColonySource
+public interface IRoundsResourceSource : IColonySource, IFieldNative
 {
-    (IReadOnlyList<GearBenchRead> Benches, BridgeResult Result) ReadGearBenches(CancellationToken ct, C.Identity identity);
+    Task<(IReadOnlyList<GearBenchRead> Benches, BridgeResult Result)> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
 
-    (IReadOnlyList<Stock> Stock, BridgeResult Result) ReadSupplyStock(CancellationToken ct, C.Identity identity, IReadOnlyList<string> names);
+    Task<(IReadOnlyList<Stock> Stock, BridgeResult Result)> ReadSupplyStockAsync(C.Identity identity, IReadOnlyList<string> names, CancellationToken ct);
 
-    (IReadOnlyList<ResourceSource> Sources, ResourceStorage Storage, BridgeResult Result) ReadResourceSources(CancellationToken ct, C.Identity identity, string resource);
-
-    (OP.ZonePreviewReply Reply, BridgeResult Result) PreviewZone(CancellationToken ct, C.Identity identity, ZoneCreate zone);
+    Task<(IReadOnlyList<ResourceSource> Sources, ResourceStorage Storage, BridgeResult Result)> ReadResourceSourcesAsync(C.Identity identity, string resource, CancellationToken ct);
 }
 
 /// <summary>What the resource planner decided: a plan, a wait, or the sources it settled on.</summary>
-public readonly record struct RoundsResourceResult
+public readonly record struct RoundsResourceResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 
@@ -66,30 +64,30 @@ public sealed partial class RoundsResourcePlanner
         return new RoundsResourcePlanner(reviewer, native);
     }
 
-    internal static Fact<IReadOnlyList<Amount>> ResourceStockFacts(O.ColonyFactsSnapshot v)
+    internal static Fact<EquatableArray<Amount>> ResourceStockFacts(O.ColonyFactsSnapshot v)
     {
         if (BuildingRuntimePackage.MedicalIssue(v.Issues, "resources"))
         {
-            return Unknown<IReadOnlyList<Amount>>();
+            return Unknown<EquatableArray<Amount>>();
         }
 
         var rows = new List<Amount>();
         foreach (var q in v.Resources)
         {
-            if (q.Units is null)
+            if (!q.HasUnits)
             {
-                return Unknown<IReadOnlyList<Amount>>();
+                return Unknown<EquatableArray<Amount>>();
             }
 
-            rows.Add(new Amount(new Resource(q.DefName), q.Units.Value));
+            rows.Add(new Amount(new Resource(q.DefName), (long)q.Units));
         }
 
-        return Known<IReadOnlyList<Amount>>(rows);
+        return Known<EquatableArray<Amount>>([.. rows]);
     }
 
-    internal static Verdict NoResourceSource(Resource resource) => BuildingRuntimePackage.AwaitingPlan(ResourceSourceSubject, resource.Value);
+    internal static Verdict NoResourceSource(Resource resource) => Verdict.AwaitingPlan(ResourceSourceSubject, resource.Value);
 
-    internal RoundsResourceResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsResourceResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         var state = p.Session.State();
@@ -115,19 +113,30 @@ public sealed partial class RoundsResourcePlanner
             return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
         }
 
-        var (recordedCall, recorded) = BuildingRuntimePackage.RecordPlannerStep(call, ConcernId.MaintainResource, state.Snapshot, review.Tick);
-        call = recordedCall;
-        using var recordedScope = recorded;
-        var (goal, workable) = p.Journal.Workable(call, review, ConcernId.MaintainResource);
-        if (!workable)
+        using var recorded = PlannerSnapshot.RecordPlannerStep(PolicyFunctions.MaintainResource, state.Snapshot, review.Tick);
+        try
+        {
+            return await StepRecordedAsync(state, review, call, epoch).ConfigureAwait(false);
+        }
+        finally
+        {
+            recorded.Finish();
+        }
+    }
+
+    private async Task<RoundsResourceResult> StepRecordedAsync(ControlState state, RoundsReview review, CancellationToken call, CancellationToken epoch)
+    {
+        var p = reviewer.Player;
+        var (goal, workable) = p.Journal.Workable(review, PolicyFunctions.MaintainResource, call);
+        if (!workable || goal is null)
         {
             return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
         }
 
-        BuildingRuntimePackage.CancelStalledExcavation(call, p.Journal, goal, review.Tick);
+        BuildingRuntimePackage.CancelStalledExcavation(p.Journal, goal, review.Tick, call);
         foreach (var method in goal.Methods)
         {
-            var plan = p.Journal.LoadPlan(call, method.Plan);
+            var plan = p.Journal.LoadPlan(method.Plan, call);
             if (!StorePackage.PlanOpen(plan))
             {
                 continue;
@@ -149,11 +158,11 @@ public sealed partial class RoundsResourcePlanner
 
         var started = reviewer.Clock.Now();
         var identity = Boundary.Identity(state.Snapshot);
-        var (reply, _) = native.ReadColonyFacts(call, identity, false);
+        var (reply, _) = await native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
         var observed = reply.Observed ?? throw new ControlException("step: observed == null");
         try
         {
-            BridgePackage.ValidateColonyFacts(observed, identity);
+            BridgeApi.ValidateColonyFacts(observed, identity);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -175,16 +184,16 @@ public sealed partial class RoundsResourcePlanner
         }
 
         var stock = ResourceStockFacts(observed);
-        var (drillResult, drillHandled) = DeepDrill(call, epoch, state, goal, review, started);
+        var (drillResult, drillHandled) = await DeepDrillAsync(state, goal, review, started, call, epoch).ConfigureAwait(false);
         if (drillHandled)
         {
             return drillResult;
         }
 
-        targets = reviewer.ResourceTargets(state.Snapshot);
-        var supply = reviewer.ResourceSupply(call, state, review, goal);
+        var targets = reviewer.ResourceTargets(state.Snapshot);
+        var supply = await reviewer.ResourceSupplyAsync(state, review, goal, call).ConfigureAwait(false);
         var ranked = PolicyFunctions.RankResourceTargets(PolicyFunctions.ResourceConcernTargets(targets, supply.Derived), stock);
-        var have = new StockReader { Resources = stock };
+        var have = new StockReader(stock, Unknown<long>());
         RoundsResourceResult? first = null;
         var sourceless = new List<Resource>();
         foreach (var row in ranked)
@@ -192,7 +201,7 @@ public sealed partial class RoundsResourcePlanner
             RoundsResourceResult result;
             if (row.Resource.Value == "Beer")
             {
-                result = DispatchResourceConcern(call, epoch, state, goal, review.Tick, identity, row.Resource, row.Target, stock, started);
+                result = await DispatchResourceConcernAsync(state, goal, review.Tick, identity, row.Resource, row.Target, stock, started, call, epoch).ConfigureAwait(false);
             }
             else if (have.Units(row.Resource) >= row.Target)
             {
@@ -200,7 +209,7 @@ public sealed partial class RoundsResourcePlanner
             }
             else
             {
-                result = DispatchSupplied(call, epoch, state, goal, review.Tick, identity, supply, row.Resource, stock, started);
+                result = await DispatchSuppliedAsync(state, goal, review.Tick, identity, supply, row.Resource, stock, started, call, epoch).ConfigureAwait(false);
             }
 
             if (!result.Undispatched() || result.Plan != default || result.NativeWorkTicks != 0)
@@ -224,33 +233,33 @@ public sealed partial class RoundsResourcePlanner
         var chosen = first.Value;
         if (sourceless.Count > 0)
         {
-            chosen = chosen with { Verdict = BuildingRuntimePackage.NoSource([.. sourceless]) };
+            chosen = chosen with { Verdict = Verdict.NoSource([.. sourceless]) };
         }
 
         return chosen;
     }
 
-    internal (ResourceMethod Choice, IReadOnlyList<Stock> Supply) MethodChoice(CancellationToken call, C.Identity identity, Resource resource, long target)
+    internal async Task<(ResourceMethod Choice, IReadOnlyList<Stock> Supply)> MethodChoiceAsync(C.Identity identity, Resource resource, long target, CancellationToken call)
     {
-        var (census, _) = native.ReadGearBenches(call, identity);
+        var (census, _) = await native.ReadGearBenchesAsync(identity, call).ConfigureAwait(false);
         var benches = census.Select(row => row.Bench).ToList();
         IReadOnlyList<Stock> supply = [];
         var names = RecipeIngredientNames(census, resource);
         if (names.Count > 0)
         {
-            (supply, _) = native.ReadSupplyStock(call, identity, names);
+            (supply, _) = await native.ReadSupplyStockAsync(identity, names, call).ConfigureAwait(false);
         }
 
-        var request = new ResourceMethodRequest { Resource = resource, Target = target, Benches = Known<IReadOnlyList<GearBench>>(benches), Stock = supply };
+        var request = new ResourceMethodRequest { Resource = resource, Target = target, Benches = Known<EquatableArray<GearBench>>([.. benches]), Stock = [.. supply] };
         SnapshotPackage.NoteResourceMethod(request);
         return (PolicyFunctions.SelectResourceMethod(request), supply);
     }
 
-    internal RoundsResourceResult DispatchResourceConcern(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, Tick reviewTick, C.Identity identity, Resource resource, long target, Fact<IReadOnlyList<Amount>> stock, DateTimeOffset started)
+    internal async Task<RoundsResourceResult> DispatchResourceConcernAsync(ControlState state, StandardState goal, Tick reviewTick, C.Identity identity, Resource resource, long target, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         if (resource.Value == "Beer")
         {
-            var items = reviewer.ItemFacts(call, state.Snapshot);
+            var items = await reviewer.ItemFactsAsync(state.Snapshot, call).ConfigureAwait(false);
             if (items.Wort.Value == "")
             {
                 throw new ControlException("dispatchResourceConcern: the catalog names no wort def");
@@ -259,7 +268,7 @@ public sealed partial class RoundsResourcePlanner
             resource = items.Wort;
         }
 
-        var (choice, _) = MethodChoice(call, identity, resource, target);
+        var (choice, _) = await MethodChoiceAsync(identity, resource, target, call).ConfigureAwait(false);
         switch (choice.Kind)
         {
             case ResourceMethodKind.Produce:
@@ -267,11 +276,11 @@ public sealed partial class RoundsResourcePlanner
                 return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks };
         }
 
-        var (result, _) = AcquireFromSources(call, epoch, state, goal, reviewTick, identity, resource, target, stock, started, null);
+        var (result, _) = await AcquireFromSourcesAsync(state, goal, reviewTick, identity, resource, target, stock, started, null, call, epoch).ConfigureAwait(false);
         return result;
     }
 
-    internal RoundsResourceResult DispatchSupplied(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, Tick reviewTick, C.Identity identity, ResourceSupplyState supply, Resource resource, Fact<IReadOnlyList<Amount>> stock, DateTimeOffset started)
+    internal async Task<RoundsResourceResult> DispatchSuppliedAsync(ControlState state, StandardState goal, Tick reviewTick, C.Identity identity, ResourceSupplyState supply, Resource resource, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         if (!supply.Rows.TryGetValue(resource, out var row) || row is null)
         {
@@ -283,7 +292,7 @@ public sealed partial class RoundsResourcePlanner
             return new RoundsResourceResult { Verdict = NoResourceSource(resource) };
         }
 
-        var mines = supply.Plan.OpenedIds(resource, CandidateKind.Mining);
+        var mines = supply.Plan.OpenedIDs(resource, CandidateKind.Mining);
         foreach (var e in supply.Plan.Opened(resource))
         {
             switch (e.Candidate.Kind)
@@ -294,7 +303,7 @@ public sealed partial class RoundsResourcePlanner
                 {
                     var selection = row.Sel;
                     selection.Selected = row.Sel.Selected.Where(source => mines.Contains(source.ThingId)).ToList();
-                    var (result0, dispatched) = AcquireFromSources(call, epoch, state, goal, reviewTick, identity, resource, row.Target, stock, started, selection);
+                    var (result0, dispatched) = await AcquireFromSourcesAsync(state, goal, reviewTick, identity, resource, row.Target, stock, started, selection, call, epoch).ConfigureAwait(false);
                     if (dispatched)
                     {
                         return result0;
@@ -305,9 +314,9 @@ public sealed partial class RoundsResourcePlanner
             }
         }
 
-        if (supply.Acquisitions(resource).Count > 0 || supply.Plan.OpenedIds(resource, CandidateKind.Trade).Count > 0)
+        if (supply.Acquisitions(resource).Count > 0 || supply.Plan.OpenedIDs(resource, CandidateKind.Trade).Count > 0)
         {
-            return new RoundsResourceResult { Verdict = BuildingRuntimePackage.ClaimHeld(resource.Value) };
+            return new RoundsResourceResult { Verdict = Verdict.ClaimHeld(resource.Value) };
         }
 
         if (row.Busy)
@@ -317,16 +326,16 @@ public sealed partial class RoundsResourcePlanner
 
         var tail = row.Sel;
         tail.Selected = [];
-        var (result, _) = AcquireFromSources(call, epoch, state, goal, reviewTick, identity, resource, row.Target, stock, started, tail);
+        var (result, _) = await AcquireFromSourcesAsync(state, goal, reviewTick, identity, resource, row.Target, stock, started, tail, call, epoch).ConfigureAwait(false);
         return result;
     }
 
-    internal (RoundsResourceResult Result, bool Dispatched) AcquireFromSources(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, Tick reviewTick, C.Identity identity, Resource resource, long target, Fact<IReadOnlyList<Amount>> stock, DateTimeOffset started, SourceSelection? pre)
+    internal async Task<(RoundsResourceResult Result, bool Dispatched)> AcquireFromSourcesAsync(ControlState state, StandardState goal, Tick reviewTick, C.Identity identity, Resource resource, long target, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, SourceSelection? pre, CancellationToken call, CancellationToken epoch)
     {
         if (pre is null)
         {
-            var remote = MiningReach(call, state, reviewTick);
-            var (sel, ok) = SourcesForDeficit(call, identity, resource, target, stock, remote);
+            var remote = await MiningReachAsync(state, reviewTick, call).ConfigureAwait(false);
+            var (sel, ok) = await SourcesForDeficitAsync(identity, resource, target, stock, remote, call).ConfigureAwait(false);
             if (!ok)
             {
                 return (new RoundsResourceResult { Verdict = NoResourceSource(resource) }, false);
@@ -343,10 +352,10 @@ public sealed partial class RoundsResourcePlanner
             return (zoneResult with { Sources = selected }, true);
         }
 
-        var (result, dispatched) = DispatchMineSource(call, epoch, state, goal, resource, selected, started);
+        var (result, dispatched) = DispatchMineSource(state, goal, resource, selected, started, call, epoch);
         if (!dispatched)
         {
-            (result, dispatched) = TunnelToBuriedOre(call, epoch, state, goal, reviewTick, identity, resource);
+            (result, dispatched) = await TunnelToBuriedOreAsync(state, goal, reviewTick, identity, resource, call, epoch).ConfigureAwait(false);
         }
 
         if (dispatched)
@@ -361,13 +370,13 @@ public sealed partial class RoundsResourcePlanner
 
         if (selection.None)
         {
-            return (new RoundsResourceResult { Verdict = BuildingRuntimePackage.NoSource(resource) }, false);
+            return (new RoundsResourceResult { Verdict = Verdict.NoSource(resource) }, false);
         }
 
         return (new RoundsResourceResult { Verdict = NoResourceSource(resource), Sources = selected }, false);
     }
 
-    internal (SourceSelection Selection, bool Ok) SourcesForDeficit(CancellationToken ct, C.Identity identity, Resource resource, long target, Fact<IReadOnlyList<Amount>> stock, RemoteWorkRequest remote)
+    internal async Task<(SourceSelection Selection, bool Ok)> SourcesForDeficitAsync(C.Identity identity, Resource resource, long target, Fact<EquatableArray<Amount>> stock, RemoteWorkRequest remote, CancellationToken ct)
     {
         if (!stock.TryGetValue(out var rows))
         {
@@ -393,7 +402,7 @@ public sealed partial class RoundsResourcePlanner
         ResourceStorage storage;
         try
         {
-            (sources, storage, _) = native.ReadResourceSources(ct, identity, resource.Value);
+            (sources, storage, _) = await native.ReadResourceSourcesAsync(identity, resource.Value, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -410,25 +419,25 @@ public sealed partial class RoundsResourcePlanner
         return (output, true);
     }
 
-    internal RemoteWorkRequest MiningReach(CancellationToken ct, ControlState state, Tick tick)
+    internal async Task<RemoteWorkRequest> MiningReachAsync(ControlState state, Tick tick, CancellationToken ct)
     {
-        var (last, _) = reviewer.Native.Identity(ct);
+        var (last, _) = await reviewer.Native.IdentityAsync(ct).ConfigureAwait(false);
         var expected = ObservationPackage.DecodeIdentity(last);
         if (!BuildingRuntimePackage.RoundsBuildingBoundary(expected, state.Snapshot, tick))
         {
             throw new ControlException("miningReach: boundary moved");
         }
 
-        var reading = reviewer.ObserveOwned(ct, reviewer.Native, expected, Unknown<IReadOnlyList<ConstructionClaim>>());
+        var reading = await reviewer.ObserveOwnedAsync(reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), ct).ConfigureAwait(false);
         var f = reading.Projection.Facts;
-        f = f with { ConstructionClaims = reviewer.Player.Journal.ConstructionClaims(ct, state.Snapshot, expected.Tick) };
-        var emergency = PolicyFunctions.NewEmergencySnapshot(state.Snapshot, expected.Tick, reading.Emergency);
+        f = f with { ConstructionClaims = reviewer.Player.Journal.ConstructionClaims(state.Snapshot, expected.Tick, ct) };
+        var emergency = EmergencySnapshot.New(state.Snapshot, expected.Tick, reading.Emergency);
         f = f with { Hostiles = PolicyFunctions.EmergencyNeeds(emergency, state.Snapshot, expected.Tick).Hostiles };
         f = f with { UrgentPatients = PolicyFunctions.UrgentPatients(emergency, state.Snapshot, expected.Tick) };
-        f = f with { UrgentPatients = PolicyFunctions.AmputationNeeds(emergency, f.MedicalPawns, Unknown<long>(), f.UrgentPatients).UrgentPatients };
+        f = f with { UrgentPatients = PolicyFunctions.AmputationNeeds(emergency, f.MedicalPawns, Unknown<long>(), f.UrgentPatients).Urgent };
         var extent = PolicyFunctions.DeriveColonyExtent(new ColonyExtentRequest { Bounds = f.MapBounds, Construction = f.CurrentConstruction, Claims = f.ConstructionClaims, Home = f.HomeCoverage });
         var request = new RemoteWorkRequest { Safety = PolicyFunctions.LootSafety(f), Extent = extent, Competition = PolicyFunctions.RemoteCompetition(f) };
-        var (layout, ok) = reviewer.LayoutPlan(ct, state.Snapshot, expected.Tick);
+        var (layout, ok) = await reviewer.LayoutPlanAsync(state.Snapshot, expected.Tick, ct).ConfigureAwait(false);
         if (ok)
         {
             request = request with { Plan = Known(layout.Plan) };
@@ -445,10 +454,10 @@ public sealed partial class RoundsResourcePlanner
             return (default, false);
         }
 
-        return (new RoundsResourceResult { Verdict = BuildingRuntimePackage.NoSpace("material_storage") }, true);
+        return (new RoundsResourceResult { Verdict = Verdict.NoSpace("material_storage") }, true);
     }
 
-    internal (RoundsResourceResult Result, bool Dispatched) DispatchMineSource(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, Resource resource, IReadOnlyList<ResourceSource> sources, DateTimeOffset started)
+    internal (RoundsResourceResult Result, bool Dispatched) DispatchMineSource(ControlState state, StandardState goal, Resource resource, IReadOnlyList<ResourceSource> sources, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         foreach (var source in sources)
         {
@@ -458,12 +467,12 @@ public sealed partial class RoundsResourcePlanner
             }
 
             var p = reviewer.Player;
-            var acquisitionValue = Acquisition.NewAcquisition(source.ThingId, resource.Value, source.Cell);
+            var acquisitionValue = new Acquisition(source.ThingId, resource.Value, source.Cell);
             var baseKey = $"{goal.Standard.Id}/{goal.Standard.Episode}/mine/{source.ThingId}/{source.Cell.X}/{source.Cell.Z}";
             MethodId MineMethod(int attempt)
             {
                 var key = attempt > 0 ? $"{baseKey}/{attempt}" : baseKey;
-                var digest = SHA256.HashData(Encoding.UTF8.GetBytes(key));
+                var digest = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(key));
                 return new MethodId("resource-mine-" + Convert.ToHexStringLower(digest.AsSpan(0, 16)));
             }
 
@@ -472,7 +481,7 @@ public sealed partial class RoundsResourcePlanner
             {
                 if (m.Episode == goal.Standard.Episode)
                 {
-                    plansByMethod[m.Method] = m.Plan;
+                    plansByMethod[m.MethodId] = m.Plan;
                 }
             }
 
@@ -484,7 +493,7 @@ public sealed partial class RoundsResourcePlanner
                 attempt++;
             }
 
-            var (_, admitted) = BuildingRuntimePackage.AdmitSubject(call, p.Journal, baseKey, earlier, state.Snapshot);
+            var (_, admitted) = BuildingRuntimePackage.AdmitSubject(p.Journal, baseKey, earlier, state.Snapshot, call);
             if (!admitted)
             {
                 continue;
@@ -493,7 +502,7 @@ public sealed partial class RoundsResourcePlanner
             var id = PlanIds.MintPlanId();
             var methodId = MineMethod(attempt);
             var action = DomainAction.NewMineAcquisitionAction(new ActionId($"{id}-0"), acquisitionValue);
-            var plan = PlanSpec.NewPlan(id, new PlanRevision(1), [action]);
+            var plan = new PlanSpec(id, new PlanRevision(1), [action]);
             p.Current(call, epoch);
             var elapsed = reviewer.Clock.Now() - started;
             if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
@@ -503,7 +512,7 @@ public sealed partial class RoundsResourcePlanner
 
             try
             {
-                p.Journal.CommitMethod(call, goal.Standard.Id, goal.Revision, methodId, plan);
+                p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, methodId, plan, call);
             }
             catch (MethodBoundException)
             {

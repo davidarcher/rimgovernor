@@ -2,25 +2,26 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IResourceRunwaySource
 {
-    (IReadOnlyList<ResourceSource> Sources, ResourceStorage Storage, BridgeResult Result) ReadResourceSources(CancellationToken ct, C.Identity identity, string resource);
+    Task<(IReadOnlyList<ResourceSource> Sources, ResourceStorage Storage, BridgeResult Result)> ReadResourceSourcesAsync(C.Identity identity, string resource, CancellationToken ct);
 }
 
 public interface IConsumptionSource
 {
-    ConsumptionPage ReadConsumption(CancellationToken ct, int sinceHour);
+    Task<ConsumptionPage> ReadConsumptionAsync(int sinceHour, CancellationToken ct);
 }
 
 /// <summary>Accumulates the consumption ledger per colony and load.</summary>
-internal sealed class ConsumptionMemory
+internal sealed class ConsumptionMemory : IDisposable
 {
-    private readonly object mu = new();
+    private readonly SemaphoreSlim mu = new(1, 1);
     private ColonyId colony;
     private LoadId load;
     private ConsumptionLedger ledger = new();
 
-    public Fact<ResourceConsumption> Window(CancellationToken ct, IConsumptionSource reader, GenerationSnapshot snapshot)
+    public async Task<Fact<ResourceConsumption>> WindowAsync(IConsumptionSource reader, GenerationSnapshot snapshot, CancellationToken ct)
     {
-        lock (mu)
+        await mu.WaitAsync(ct).ConfigureAwait(false);
+        try
         {
             if (colony != snapshot.Colony || load != snapshot.Load)
             {
@@ -30,7 +31,7 @@ internal sealed class ConsumptionMemory
             ConsumptionPage page;
             try
             {
-                page = reader.ReadConsumption(ct, ledger.Since);
+                page = await reader.ReadConsumptionAsync(ledger.Since(), ct).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -40,17 +41,26 @@ internal sealed class ConsumptionMemory
             ledger.Merge(page);
             return ledger.Window(PolicyFunctions.ResourceRateWindowDays);
         }
+        finally
+        {
+            mu.Release();
+        }
     }
+
+    public void Dispose() => mu.Dispose();
 }
 
-public sealed partial class Rounder
+public sealed partial class Rounder : IDisposable
 {
     private readonly ConsumptionMemory consumption = new();
 
-    internal Fact<ResourceConsumption> ResourceConsumption(CancellationToken ct, GenerationSnapshot snapshot) =>
-        Native is IConsumptionSource reader ? consumption.Window(ct, reader, snapshot) : Unknown<ResourceConsumption>();
+    /// <summary>Releases the consumption ledger's lock.</summary>
+    public void Dispose() => consumption.Dispose();
 
-    internal IReadOnlyDictionary<Resource, Fact<long>> ResourceSurfaceOre(CancellationToken ct, GenerationSnapshot snapshot, ItemFacts items, Fact<ResourceConsumption> consumptionFact)
+    internal async Task<Fact<ResourceConsumption>> ResourceConsumptionAsync(GenerationSnapshot snapshot, CancellationToken ct) =>
+        Native is IConsumptionSource reader ? await consumption.WindowAsync(reader, snapshot, ct).ConfigureAwait(false) : Unknown<ResourceConsumption>();
+
+    internal async Task<IReadOnlyDictionary<Resource, Fact<long>>> ResourceSurfaceOreAsync(GenerationSnapshot snapshot, ItemFacts items, Fact<ResourceConsumption> consumptionFact, CancellationToken ct)
     {
         var output = new Dictionary<Resource, Fact<long>>();
         if (Native is not IResourceRunwaySource reader)
@@ -62,7 +72,7 @@ public sealed partial class Rounder
         {
             try
             {
-                var (rows, _, _) = reader.ReadResourceSources(ct, Boundary.Identity(snapshot), resource.Value);
+                var (rows, _, _) = await reader.ReadResourceSourcesAsync(Boundary.Identity(snapshot), resource.Value, ct).ConfigureAwait(false);
                 output[resource] = PolicyFunctions.SurfaceOre(rows);
             }
             catch (Exception e) when (e is not OperationCanceledException)

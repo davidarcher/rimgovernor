@@ -6,12 +6,18 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public interface IRoundsShrineSource : Observation.IColonySource, Observation.IShrineSource, IShrineReadinessNative
 {
-    (ClaimBuildingTarget Target, BridgeResult Result) ReadClaimBuildingTarget(CancellationToken ct, C.Identity identity, string entity);
+    Task<(ClaimBuildingTarget Target, BridgeResult Result)> ReadClaimBuildingTargetAsync(C.Identity identity, string entity, CancellationToken ct);
 }
 
-public sealed record RoundsShrineResult
+/// <summary>The candidates a shrine step collects as it plans (Go's out-pointer to the held result).</summary>
+internal sealed class ShrineHeld
 {
-    public Verdict Verdict { get; init; } = new();
+    public RoundsShrineResult Value { get; set; } = new();
+}
+
+public sealed record RoundsShrineResult : IPlannerMethod
+{
+    public Verdict Verdict { get; init; }
     public PlanId Plan { get; init; }
 
     /// <summary>The readiness reason the planner held on (BuildingReasonHeld).</summary>
@@ -45,6 +51,7 @@ public sealed record RoundsShrineResult
 public sealed class RoundsShrinePlanner
 {
     private readonly Rounder _reviewer;
+    internal Rounder Reviewer => _reviewer;
     private readonly IRoundsShrineSource _native;
 
     private RoundsShrinePlanner(Rounder reviewer, IRoundsShrineSource native)
@@ -62,7 +69,7 @@ public sealed class RoundsShrinePlanner
         return new RoundsShrinePlanner(reviewer, native);
     }
 
-    internal RoundsShrineResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsShrineResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -70,7 +77,7 @@ public sealed class RoundsShrinePlanner
         {
             return new RoundsShrineResult { Verdict = BuildingReasonDisabled };
         }
-        if (!state.ObservationKnown || !state.Snapshot.IsValid())
+        if (!state.ObservationKnown || !state.Snapshot.IsValid)
         {
             throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil");
         }
@@ -79,15 +86,25 @@ public sealed class RoundsShrinePlanner
         {
             return new RoundsShrineResult { Verdict = BuildingReasonNoReview };
         }
-        var (recordedCall, recordedStep) = RecordPlannerStep(call, ClearAncientShrine, state.Snapshot, review.Tick);
-        call = recordedCall;
-        using var recorded = recordedStep;
+        using var recorded = PlannerSnapshot.RecordPlannerStep(ClearAncientShrine, state.Snapshot, review.Tick);
+        try
+        {
+            return await StepRecordedAsync(arbiter, p, state, review, call, epoch).ConfigureAwait(false);
+        }
+        finally
+        {
+            recorded.Finish();
+        }
+    }
+
+    private async Task<RoundsShrineResult> StepRecordedAsync(StepArbiter arbiter, Player p, ControlState state, Sto.Rounds review, CancellationToken call, CancellationToken epoch)
+    {
         // The step's own answer goes on the review it planned under, so the journal names the shrine it held
         // on rather than leaving the advisory ShrineHolds, in identity order, to read as the cause. A review
         // filed since is the newer answer; the record yields to it. held collects the candidates the step
         // passed over; a step that went on to act on a later shrine names every one of them skipped.
-        var held = new System.Runtime.CompilerServices.StrongBox<RoundsShrineResult>(new RoundsShrineResult());
-        var result = Plan(call, epoch, arbiter, p, state, review, held);
+        var held = new ShrineHeld();
+        var result = await PlanAsync(arbiter, p, state, review, held, call, epoch).ConfigureAwait(false);
         if (result.Verdict.IsZero)
         {
             return result;
@@ -102,10 +119,10 @@ public sealed class RoundsShrinePlanner
             }
             result = result with { Skipped = skipped };
         }
-        var step = new Sto.RoundsShrineStep { Tick = review.Tick, Reason = result.Verdict.ToString(), Shrine = result.Shrine, Hold = result.Hold, Plan = result.Plan, Skipped = result.Skipped };
+        var step = new Sto.RoundsShrineStep { Tick = review.Tick, Reason = result.Verdict.ToString(), Shrine = result.Shrine, Hold = result.Hold, Plan = result.Plan, Skipped = [.. result.Skipped] };
         try
         {
-            p.Journal.RecordShrineStep(call, review.Revision, step);
+            p.Journal.RecordShrineStep(review.Revision, step, call);
         }
         catch (Sto.ConflictException)
         {
@@ -113,35 +130,35 @@ public sealed class RoundsShrinePlanner
         return result;
     }
 
-    private RoundsShrineResult Plan(CancellationToken call, CancellationToken epoch, StepArbiter arbiter, Player p, ControlState state, Sto.Rounds review, System.Runtime.CompilerServices.StrongBox<RoundsShrineResult> held)
+    private async Task<RoundsShrineResult> PlanAsync(StepArbiter arbiter, Player p, ControlState state, Sto.Rounds review, ShrineHeld held, CancellationToken call, CancellationToken epoch)
     {
         // A pause or authority change between the draft and the move releases the draft; the moves riding on
         // it and the open waiting on them can then never dispatch, and while they stay open the goal never
         // re-plans and the clock holds on work that cannot run. Settle every shrine plan so orphaned,
         // including those of a goal a reload invalidated, before the active goal is read.
         SettleOrphanedPlans(call);
-        var (goal, workable) = p.Journal.Workable(call, review, ClearAncientShrine);
-        if (!workable)
+        var (goal, workable) = p.Journal.Workable(review, ClearAncientShrine, call);
+        if (!workable || goal is null)
         {
             return new RoundsShrineResult { Verdict = BuildingReasonNoDeficit };
         }
         foreach (var method in goal.Methods)
         {
-            var plan = p.Journal.LoadPlan(call, method.Plan);
-            if (Sto.PlanState.PlanOpen(plan))
+            var plan = p.Journal.LoadPlan(method.Plan, call);
+            if (StorePackage.PlanOpen(plan))
             {
                 return new RoundsShrineResult { Verdict = BuildingReasonExistingWork };
             }
         }
         var started = _reviewer.Clock.Now();
-        var (identity, _) = _native.Identity(call);
+        var (identity, _) = await _native.IdentityAsync(call).ConfigureAwait(false);
         var expected = ObservationPackage.DecodeIdentity(identity);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
-        var colony = _reviewer.ObserveColony(call, _native, expected, null);
-        var read = ObservationPackage.ObserveShrines(call, _native, expected);
+        var colony = await _reviewer.ObserveColonyAsync(_native, expected, null, call).ConfigureAwait(false);
+        var read = await ObservationPackage.ObserveShrines(_native, expected, call).ConfigureAwait(false);
         if (!read.TryGetValue(out var shrines))
         {
             return new RoundsShrineResult { Verdict = FieldUnavailable("shrines") };
@@ -160,15 +177,15 @@ public sealed class RoundsShrinePlanner
         {
             if (claims.TryGetValue(shrine.Id, out var caskets) && caskets.Count > 0)
             {
-                return Claim(call, epoch, state, goal, shrine, caskets, started);
+                return await ClaimAsync(state, goal, shrine, caskets, started, call, epoch).ConfigureAwait(false);
             }
         }
         held.Value = new RoundsShrineResult { Verdict = BuildingReasonHeld };
         var opens = ShrineOpenTargets(candidates, opening);
         if (opens.Count > 0)
         {
-            var needed = PlannedDrafts(call, p.Journal);
-            var squad = ShrineSquad(call, _native, Boundary.Identity(state.Snapshot), null, needed);
+            var needed = await DraftNeeds.PlannedDraftsAsync(p.Journal, call).ConfigureAwait(false);
+            var squad = await ShrineSquadAsync(_native, Boundary.Identity(state.Snapshot), null, needed.Select(n => (Domain.PawnId)n).ToHashSet(), call).ConfigureAwait(false);
             SnapshotPackage.NoteShrineSquad(squad);
             foreach (var shrine in candidates)
             {
@@ -182,14 +199,14 @@ public sealed class RoundsShrinePlanner
                     held.Value = held.Value.Pass(shrine.Id, lockRow.Reason);
                     continue;
                 }
-                return Open(call, epoch, state, goal, shrine, caskets, lockRow, started, arbiter);
+                return Open(state, goal, shrine, caskets, lockRow, started, arbiter, call, epoch);
             }
         }
         if (!colony.Projection.Center().TryGetValue(out var center))
         {
-            return new RoundsShrineResult { Verdict = BuildingNoLayoutPlan };
+            return new RoundsShrineResult { Verdict = BuildingReasonNoLayoutPlan };
         }
-        var reports = ShrineReadiness(call, _native, Boundary.Identity(state.Snapshot), candidates, null, colony.Projection.Threat.RaidPoints, center, colony.Projection.Bounds);
+        var reports = await ShrineReadinessAsync(_native, Boundary.Identity(state.Snapshot), candidates, null, colony.Projection.Threat.RaidPoints, center, colony.Projection.Bounds, call).ConfigureAwait(false);
         for (var i = 0; i < reports.Count; i++)
         {
             var shrine = candidates[i];
@@ -199,7 +216,7 @@ public sealed class RoundsShrinePlanner
                 held.Value = held.Value.Pass(shrine.Id, reason);
                 continue;
             }
-            return Breach(call, epoch, state, goal, shrine, reports[i], colony.Projection, started, arbiter);
+            return Breach(state, goal, shrine, reports[i], colony.Projection, started, arbiter, call, epoch);
         }
         return held.Value;
     }
@@ -210,11 +227,11 @@ public sealed class RoundsShrinePlanner
     /// the player's (a census a tick behind) is skipped; a claim refused natively surfaces as the action's own
     /// unsuccessful outcome.
     /// </summary>
-    private RoundsShrineResult Claim(CancellationToken call, CancellationToken epoch, ControlState state, Sto.StandardState goal, Pol.AncientShrine shrine, IReadOnlyList<Pol.ShrineCasket> caskets, DateTimeOffset started)
+    private async Task<RoundsShrineResult> ClaimAsync(ControlState state, Sto.StandardState goal, Pol.AncientShrine shrine, IReadOnlyList<Pol.ShrineCasket> caskets, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var prefix = $"claim-{shrine.Id}-";
-        var (method, verdict, ok) = AdmitStandardMethod(call, p.Journal, goal, prefix, state.Snapshot);
+        var (method, verdict, ok) = AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
         if (!ok)
         {
             return new RoundsShrineResult { Verdict = verdict, Shrine = shrine.Id };
@@ -224,7 +241,7 @@ public sealed class RoundsShrinePlanner
         var actions = new List<DomainAction>();
         foreach (var casket in caskets)
         {
-            var (target, _) = _native.ReadClaimBuildingTarget(call, identity, casket.EntityId);
+            var (target, _) = await _native.ReadClaimBuildingTargetAsync(identity, casket.EntityId, call).ConfigureAwait(false);
             if (target.PlayerOwned)
             {
                 continue;
@@ -242,7 +259,7 @@ public sealed class RoundsShrinePlanner
         {
             throw new ControlException("claim: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
         }
-        p.Journal.CommitMethodReason(call, goal.Standard.Id, goal.Revision, method, "", plan);
+        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, "", plan, call);
         return new RoundsShrineResult { Verdict = BuildingReasonAdmitted, Plan = id, Shrine = shrine.Id };
     }
 
@@ -251,7 +268,7 @@ public sealed class RoundsShrinePlanner
     /// for each drafted defender, and the breach deconstruction of the chosen wall. One colonist is always left
     /// undrafted for the deconstruct job. The shared refusal budget decides whether the wall may be tried again.
     /// </summary>
-    private RoundsShrineResult Breach(CancellationToken call, CancellationToken epoch, ControlState state, Sto.StandardState goal, Pol.AncientShrine shrine, ShrineReadinessReport report, Observation.ColonyProjection projection, DateTimeOffset started, StepArbiter arbiter)
+    private RoundsShrineResult Breach(ControlState state, Sto.StandardState goal, Pol.AncientShrine shrine, ShrineReadinessReport report, Observation.ColonyProjection projection, DateTimeOffset started, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var wall = report.Readiness.Wall;
@@ -260,13 +277,13 @@ public sealed class RoundsShrinePlanner
             return new RoundsShrineResult { Verdict = FieldUnavailable("colonists") };
         }
         var drafted = ShrineBreachDrafts(report.Readiness.Squad, (int)colonists);
-        if (!arbiter.TryClaim(drafted))
+        if (!arbiter.TryClaim([.. drafted.Select(d => (PawnId)d)]))
         {
             return new RoundsShrineResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "breach_defenders") };
         }
         var positions = ShrineBreachPositions(wall, drafted, report.Standing, report.Traps);
         var prefix = $"breach-{shrine.Id}-{wall.EntityId}-";
-        var (method, verdict, ok) = AdmitStandardMethod(call, p.Journal, goal, prefix, state.Snapshot);
+        var (method, verdict, ok) = AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
         if (!ok)
         {
             return new RoundsShrineResult { Verdict = verdict, Shrine = shrine.Id };
@@ -296,7 +313,7 @@ public sealed class RoundsShrinePlanner
         {
             throw new ControlException("breach: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
         }
-        p.Journal.CommitMethodReason(call, goal.Standard.Id, goal.Revision, method, "", plan);
+        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, "", plan, call);
         return new RoundsShrineResult { Verdict = BuildingReasonAdmitted, Plan = id, Shrine = shrine.Id };
     }
 
@@ -307,16 +324,16 @@ public sealed class RoundsShrinePlanner
     /// hostile; the plan has no further work, so the worker keeps the drafts until the opening resolves and
     /// ActiveCombat and the custody planner take the occupants from there.
     /// </summary>
-    private RoundsShrineResult Open(CancellationToken call, CancellationToken epoch, ControlState state, Sto.StandardState goal, Pol.AncientShrine shrine, IReadOnlyList<Pol.ShrineCasket> caskets, Pol.ShrineLock lockRow, DateTimeOffset started, StepArbiter arbiter)
+    private RoundsShrineResult Open(ControlState state, Sto.StandardState goal, Pol.AncientShrine shrine, IReadOnlyList<Pol.ShrineCasket> caskets, Pol.ShrineLock lockRow, DateTimeOffset started, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var lockers = caskets.Select(c => lockRow.Lockers[c.EntityId]).ToList();
-        if (!arbiter.TryClaim(lockers))
+        if (!arbiter.TryClaim([.. lockers.Select(d => (PawnId)d)]))
         {
             return new RoundsShrineResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "casket_lockers") };
         }
         var prefix = $"open-{shrine.Id}-";
-        var (method, verdict, ok) = AdmitStandardMethod(call, p.Journal, goal, prefix, state.Snapshot);
+        var (method, verdict, ok) = AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
         if (!ok)
         {
             return new RoundsShrineResult { Verdict = verdict, Shrine = shrine.Id };
@@ -351,7 +368,7 @@ public sealed class RoundsShrinePlanner
         {
             throw new ControlException("open: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
         }
-        p.Journal.CommitMethodReason(call, goal.Standard.Id, goal.Revision, method, "", plan);
+        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, "", plan, call);
         return new RoundsShrineResult { Verdict = BuildingReasonAdmitted, Plan = id, Shrine = shrine.Id };
     }
 
@@ -387,7 +404,7 @@ public sealed class RoundsShrinePlanner
                 var v = progress.View;
                 if (v.Stage == Stage.Pending || v.Stage == Stage.Prepared)
                 {
-                    p.Journal.Cancel(call, plan.Spec.Id, v.Action);
+                    p.Journal.Cancel(plan.Spec.Id, v.Action, call);
                 }
             }
         }

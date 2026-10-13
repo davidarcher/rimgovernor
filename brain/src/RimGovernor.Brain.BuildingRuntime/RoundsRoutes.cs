@@ -41,7 +41,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             if (d.Name == p.Door)
             {
-                routes.DoorAvailable = d.Available;
+                routes = routes with { DoorAvailable = d.Available };
             }
         }
         var proposal = SelectRoutesMethod(review, routes, p);
@@ -74,8 +74,7 @@ public sealed partial class RoundsBuildingPlanner
     /// one-cell footprint on the wall cell; one door is enough to open the room, so the batch is a single
     /// action. A door rotates with its wall, so both orientations are tried.
     /// </summary>
-    internal (IReadOnlyList<Pol.Preview>? Previews, Pol.StockObservation Stock, Verdict Verdict) PreviewRoutes(
-        CancellationToken ct, GenerationSnapshot snapshot, Observation.ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check)
+    internal async Task<(IReadOnlyList<Pol.Preview>? Previews, Pol.StockObservation Stock, Verdict Verdict)> PreviewRoutesAsync(GenerationSnapshot snapshot, Observation.ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
     {
         var stock = new Pol.StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         if (Routes is not { Method: Pol.RoutesMethod.Build } routes)
@@ -94,7 +93,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 var building = new Building(routes.Definition, cell, rotation, routes.Stuff);
                 var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-0"), building, PlannerTier(Concern, Phase));
-                var (preview, _) = Native.PreviewBuilding(ct, action, snapshot);
+                var (preview, _) = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
                 var p = preview.Preview;
                 var fk = p.Footprint.TryGetValue(out var footprint);
                 var mk = p.MadeFromStuff.TryGetValue(out var made);

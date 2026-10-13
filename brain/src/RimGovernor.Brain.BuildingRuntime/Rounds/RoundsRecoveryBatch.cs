@@ -2,32 +2,32 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsClearancePlanner
 {
-    internal GroundStep RecoveryStep(CancellationToken call, C.Identity identity, RecoveryQueue? queue, IReadOnlyList<ClearanceTarget> rows, ColonyProjection colony)
+    internal async Task<GroundStep> RecoveryStepAsync(C.Identity identity, RecoveryQueue? queue, IReadOnlyList<ClearanceTarget> rows, ColonyProjection colony, CancellationToken call)
     {
         if (queue is null)
         {
-            return default;
+            return new GroundStep();
         }
 
         var targets = PolicyFunctions.RecoveryBatchTargets(queue, rows);
         if (targets.Count == 0)
         {
-            return default;
+            return new GroundStep();
         }
 
         RoofRules roofs;
         try
         {
-            roofs = RoofRulesOf(call, identity);
+            roofs = await RoofRulesOfAsync(identity, call).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            Tel.Decide(call, RecoveryBatchFailed(targets.Count, e));
-            return default;
+            Tel.Decide(RecoveryBatchFailed(targets.Count, e));
+            return new GroundStep();
         }
 
         var batch = PolicyFunctions.PlanRecoveryBatch(new RecoveryBatchRequest { Grid = ColonyRoofGrid(colony), Rules = roofs, Targets = targets });
-        Tel.Decide(call, RecoveryBatchDecision(targets.Count, batch));
+        Tel.Decide(RecoveryBatchDecision(targets.Count, batch));
         switch (batch.Stage)
         {
             case RecoveryBatchStage.Roof:
@@ -35,12 +35,12 @@ public sealed partial class RoundsClearancePlanner
             case RecoveryBatchStage.Removal:
             {
                 var byId = rows.ToDictionary(r => r.EntityId);
-                var step = new GroundStep { Phase = GroundPhase.Furniture, Targets = batch.Batch.Select(id => byId[id]).ToList() };
+                var step = new GroundStep { Phase = GroundPhase.Furniture, Targets = [.. batch.Batch.Select(id => byId[id])] };
                 return step;
             }
         }
 
-        return default;
+        return new GroundStep();
     }
 
     internal static (string Method, IReadOnlyList<DomainAction> Actions) RecoveryStepMethod(PlanId id, GroundStep step)
@@ -54,14 +54,15 @@ public sealed partial class RoundsClearancePlanner
         return (BuildingRuntimePackage.BatchPrefix("deconstruct", step.Targets[0].EntityId, step.Targets.Count), actions);
     }
 
-    internal RoofRules RoofRulesOf(CancellationToken call, C.Identity identity)
+    internal async Task<RoofRules> RoofRulesOfAsync(C.Identity identity, CancellationToken call)
     {
-        if (Native is not IDefinitionSource definitions)
+        if (_native is not IDefinitionSource definitions)
         {
             throw new InvalidOperationException("roof rules: the native source serves no definitions");
         }
 
-        return definitions.DefinitionCatalog(call, identity).RoofRules();
+        var catalog = await definitions.DefinitionCatalogAsync(identity, call).ConfigureAwait(false);
+        return (catalog ?? throw new InvalidOperationException("roof rules: no definition catalog")).RoofRules();
     }
 
     internal static RoofSupportGrid ColonyRoofGrid(ColonyProjection colony)
@@ -69,7 +70,7 @@ public sealed partial class RoundsClearancePlanner
         var cells = colony.Cells.ToDictionary(c => c.Cell);
         return new RoofSupportGrid
         {
-            Cell = cell => cells.TryGetValue(cell, out var row) ? (row, true) : (default, false),
+            Cell = cell => cells.TryGetValue(cell, out var row) ? row : null,
             Bounds = new Rectangle(0, 0, colony.Bounds.Width, colony.Bounds.Height),
             Radius = colony.RoofSupport,
         };
@@ -77,7 +78,8 @@ public sealed partial class RoundsClearancePlanner
 
     internal static Decision RecoveryBatchDecision(int targets, RecoveryBatch batch)
     {
-        var held = batch.Held.Select(h => new Dictionary<string, object?> { ["id"] = h.Id, ["reason"] = h.Reason }).ToList();
+        var held = batch.Held.Select(h => new Dictionary<string, object?> { ["id"] = h.ID,
+ ["reason"] = h.Reason }).ToList();
         var verdict = batch.Stage == RecoveryBatchStage.None ? "held" : "planned";
         return new Decision
         {

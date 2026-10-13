@@ -5,9 +5,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native reads of the pre-fight loadout: the map bounds and the weapons lying on the map.</summary>
 internal interface ILoadoutWeaponSource
 {
-    (MapBounds Bounds, BridgeResult Result) ReadMapBounds(C.Identity identity, Cell origin, CancellationToken ct);
+    Task<(MapBounds Bounds, BridgeResult Result)> ReadMapBoundsAsync(C.Identity identity, Cell origin, CancellationToken ct);
 
-    (EquipRead Read, BridgeResult Result) ReadEquipWeapons(C.Identity identity, Cell from, Cell to, CancellationToken ct);
+    Task<(EquipRead Read, BridgeResult Result)> ReadEquipWeaponsAsync(C.Identity identity, Cell from, Cell to, CancellationToken ct);
 }
 
 public sealed partial class RoundsDefensePlanner
@@ -15,7 +15,7 @@ public sealed partial class RoundsDefensePlanner
     internal const string ShieldBeltDef = "Apparel_ShieldBelt";
 
     /// <summary>The equip and wear orders that arm the squad before the fight: threat weapons from the map and shield belts from the colony.</summary>
-    internal List<LoadoutOrder> FightLoadout(CancellationToken call, ControlState state, CombatView view, IReadOnlyDictionary<string, O.PawnState> rows, IReadOnlyList<PawnId> pawns, DefinitionCatalog catalog)
+    internal async Task<List<LoadoutOrder>> FightLoadoutAsync(ControlState state, CombatView view, IReadOnlyDictionary<string, O.PawnState> rows, IReadOnlyList<PawnId> pawns, DefinitionCatalog catalog, CancellationToken call)
     {
         var threat = PolicyApi.ClassifyLoadoutThreat(view, false);
         var live = new Dictionary<PawnId, CombatPawnState>();
@@ -23,7 +23,7 @@ public sealed partial class RoundsDefensePlanner
         {
             live[p.Id] = p;
         }
-        FrameThings(call, _native, Boundary.Identity(state.Snapshot), out var things);
+        var things = await FrameThingsOfAsync(_native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         var defenders = new List<LoadoutDefender>();
         var beltless = false;
         foreach (var pawn in pawns)
@@ -35,29 +35,29 @@ public sealed partial class RoundsDefensePlanner
             EquipCandidatePawn facts;
             try
             {
-                facts = EquipCandidatePawnFacts(row, catalog, things);
+                facts = RoundsEquipPlanner.EquipCandidatePawnFacts(row, catalog, things);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                DefenseAction(call, "routine-defense", LogLevel.Warn, "failed", "loadout_pawn", pawn.Value, new Dictionary<string, object?> { ["error"] = ex });
+                DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", "loadout_pawn", pawn.Value, new Dictionary<string, object?> { ["error"] = ex }, call);
                 return [];
             }
-            var d = new LoadoutDefender { EquipCandidatePawn = facts, Primary = PrimaryDef(row, things) };
+            var d = new LoadoutDefender { Candidate = facts, Primary = PrimaryDef(row, things) };
             if (live.TryGetValue(pawn, out var lp))
             {
-                d.ShieldBelt = lp.ShieldBelt;
+                d = d with { ShieldBelt = lp.ShieldBelt };
                 if (lp.Weapon != "")
                 {
-                    d.Primary = lp.Weapon;
+                    d = d with { Primary = lp.Weapon };
                 }
             }
             try
             {
-                d.PrimaryFacts = catalog.WeaponOf(d.Primary);
+                d = d with { PrimaryFacts = catalog.WeaponOf(d.Primary) };
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                DefenseAction(call, "routine-defense", LogLevel.Warn, "failed", "loadout_primary", pawn.Value, new Dictionary<string, object?> { ["error"] = ex });
+                DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", "loadout_primary", pawn.Value, new Dictionary<string, object?> { ["error"] = ex }, call);
                 return [];
             }
             beltless = beltless || !d.ShieldBelt;
@@ -69,15 +69,15 @@ public sealed partial class RoundsDefensePlanner
         }
         var identity = Boundary.Identity(state.Snapshot);
         IReadOnlyList<EquipCandidateWeapon> weapons = [];
-        if (_native is ILoadoutWeaponSource source && threat != PolicyApi.LoadoutNone)
+        if (_native is ILoadoutWeaponSource source && threat != Pol.LoadoutThreat.None)
         {
             try
             {
-                weapons = LoadoutWeapons(call, source, identity, state, catalog);
+                weapons = await LoadoutWeaponsAsync(source, identity, state, catalog, call).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                DefenseAction(call, "routine-defense", LogLevel.Warn, "failed", "loadout_weapons", "", new Dictionary<string, object?> { ["error"] = ex });
+                DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", "loadout_weapons", "", new Dictionary<string, object?> { ["error"] = ex }, call);
             }
         }
         IReadOnlyList<LoadoutApparel> belts = [];
@@ -85,19 +85,19 @@ public sealed partial class RoundsDefensePlanner
         {
             try
             {
-                belts = LoadoutBelts(call, facts2, identity, state);
+                belts = await LoadoutBeltsAsync(facts2, identity, state, call).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                DefenseAction(call, "routine-defense", LogLevel.Warn, "failed", "loadout_belts", "", new Dictionary<string, object?> { ["error"] = ex });
+                DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", "loadout_belts", "", new Dictionary<string, object?> { ["error"] = ex }, call);
             }
         }
         return PolicyApi.ThreatLoadout(threat, defenders, weapons, belts);
     }
 
-    internal static List<EquipCandidateWeapon> LoadoutWeapons(CancellationToken call, ILoadoutWeaponSource source, C.Identity identity, ControlState state, DefinitionCatalog catalog)
+    internal static async Task<List<EquipCandidateWeapon>> LoadoutWeaponsAsync(ILoadoutWeaponSource source, C.Identity identity, ControlState state, DefinitionCatalog catalog, CancellationToken call)
     {
-        var bounds = source.ReadMapBounds(identity, default, call).Bounds;
+        var bounds = (await source.ReadMapBoundsAsync(identity, default, call).ConfigureAwait(false)).Bounds;
         try
         {
             Boundary.Context(bounds.Context, state.Snapshot);
@@ -110,7 +110,7 @@ public sealed partial class RoundsDefensePlanner
         {
             throw new ControlException("loadoutWeapons: bounds");
         }
-        var read = source.ReadEquipWeapons(identity, default, new Cell(bounds.Bounds.Width - 1, bounds.Bounds.Height - 1), call).Read;
+        var read = (await source.ReadEquipWeaponsAsync(identity, default, new Cell(bounds.Bounds.Width - 1, bounds.Bounds.Height - 1), call).ConfigureAwait(false)).Read;
         try
         {
             Boundary.Context(read.Context, state.Snapshot);
@@ -122,14 +122,14 @@ public sealed partial class RoundsDefensePlanner
         var output = new List<EquipCandidateWeapon>(read.Targets.Count);
         foreach (var w in read.Targets)
         {
-            output.Add(EquipCandidateWeapon(catalog, w));
+            output.Add(RoundsEquipPlanner.EquipCandidateWeaponOf(catalog, w));
         }
         return output;
     }
 
-    internal List<LoadoutApparel> LoadoutBelts(CancellationToken call, IColonyFactsReader source, C.Identity identity, ControlState state)
+    internal async Task<List<LoadoutApparel>> LoadoutBeltsAsync(IColonyFactsReader source, C.Identity identity, ControlState state, CancellationToken call)
     {
-        var reply = _reviewer.ColonyFacts(call, source, identity, true).Reply;
+        var reply = await _reviewer.ColonyFactsAsync(source, identity, true, call).ConfigureAwait(false);
         var observed = reply.Observed ?? throw new ControlException("loadoutBelts: observed == nil");
         try
         {
@@ -139,10 +139,7 @@ public sealed partial class RoundsDefensePlanner
         {
             throw new ControlException("loadoutBelts: context");
         }
-        if (!FrameThings(call, source, identity, out var things))
-        {
-            throw new ControlException("loadoutBelts: things");
-        }
+        var things = await FrameThingsOfAsync(source, identity, call).ConfigureAwait(false);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var output = new List<LoadoutApparel>();
         foreach (var pawn in observed.Planning?.Observed?.Gear?.Pawns ?? [])
@@ -154,17 +151,13 @@ public sealed partial class RoundsDefensePlanner
                 {
                     continue;
                 }
-                things.Row(thing, out var row);
-                if (row?.Thing?.DefName != ShieldBeltDef || thing.Id == "" || !seen.Add(thing.Id))
+                things.TryRow(thing, out var row);
+                if (row?.Thing_?.DefName != ShieldBeltDef || thing.Id == "" || !seen.Add(thing.Id))
                 {
                     continue;
                 }
-                var item = new LoadoutApparel { Thing = thing.Id, Definition = ShieldBeltDef };
-                if (row.Thing.Position is { } at)
-                {
-                    item.Cell = new Cell(at.X, at.Z);
-                }
-                output.Add(item);
+                var cell = row.Thing_.Position is { } at ? new Cell(at.X, at.Z) : default;
+                output.Add(new LoadoutApparel(thing.Id, ShieldBeltDef, cell));
             }
         }
         output.Sort((a, b) => string.CompareOrdinal(a.Thing, b.Thing));
@@ -204,11 +197,11 @@ internal static partial class BuildingRuntimePackage
             DomainAction action;
             if (order.Wear)
             {
-                action = DomainAction.NewGearReplaceAction(id, new GearReplace(order.Pawn, order.Thing, order.Definition));
+                action = DomainAction.NewGearReplaceAction(id, new GearReplace((Domain.PawnId)order.Pawn, order.Thing, order.Definition));
             }
             else
             {
-                action = DomainAction.NewEquipAction(id, new Equip(order.Pawn, order.Thing, order.Definition, order.Cell));
+                action = DomainAction.NewEquipAction(id, new Equip((Domain.PawnId)order.Pawn, order.Thing, order.Definition, order.Cell));
             }
             held.Add(order.Pawn);
             actions.Add(action);
@@ -222,17 +215,17 @@ internal static partial class BuildingRuntimePackage
         var output = new HashSet<PawnId>();
         foreach (var progress in plan.Progress)
         {
-            if (!DomainApi.StandardWorkOpen([progress]))
+            if (!Standard.WorkOpen([progress]))
             {
                 continue;
             }
             if (progress.Action.Equip is { } equip)
             {
-                output.Add(equip.Pawn);
+                output.Add((PawnId)equip.Pawn);
             }
             else if (progress.Action.GearReplace is { } wear)
             {
-                output.Add(wear.Pawn);
+                output.Add((PawnId)wear.Pawn);
             }
         }
         return output;

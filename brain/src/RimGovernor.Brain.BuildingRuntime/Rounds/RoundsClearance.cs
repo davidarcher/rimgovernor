@@ -6,7 +6,7 @@ public interface IRoundsClearanceSource : IColonySource, IClearanceSource, IFiel
 {
 }
 
-public sealed class RoundsClearanceResult
+public sealed class RoundsClearanceResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 
@@ -20,6 +20,7 @@ public sealed class RoundsClearanceResult
 public sealed partial class RoundsClearancePlanner
 {
     private readonly Rounder _reviewer;
+    internal Rounder Reviewer => _reviewer;
     private readonly IRoundsClearanceSource _native;
 
     public RoundsClearancePlanner(Rounder reviewer, IRoundsClearanceSource native)
@@ -32,7 +33,7 @@ public sealed partial class RoundsClearancePlanner
         _native = native;
     }
 
-    internal RoundsClearanceResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsClearanceResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -49,21 +50,21 @@ public sealed partial class RoundsClearancePlanner
         {
             return new RoundsClearanceResult { Verdict = BuildingReasonNoReview };
         }
-        var (stepCall, recorded) = RecordPlannerStep(call, PolicyApi.ClearHomeObstructions, state.Snapshot, review.Tick);
+        using var recorded = PlannerSnapshot.RecordPlannerStep(PolicyApi.ClearHomeObstructions, state.Snapshot, review.Tick);
         try
         {
-            return StepRecorded(stepCall, epoch, p, state, review);
+            return await StepRecordedAsync(p, state, review, call, epoch).ConfigureAwait(false);
         }
         finally
         {
-            recorded();
+            recorded.Finish();
         }
     }
 
-    private RoundsClearanceResult StepRecorded(CancellationToken call, CancellationToken epoch, Player p, ControlState state, RoundsReview review)
+    private async Task<RoundsClearanceResult> StepRecordedAsync(Player p, ControlState state, RoundsReview review, CancellationToken call, CancellationToken epoch)
     {
         var (goal, workable) = p.Journal.Workable(review, PolicyApi.ClearHomeObstructions, call);
-        if (!workable)
+        if (goal is null || !workable)
         {
             return new RoundsClearanceResult { Verdict = BuildingReasonNoDeficit };
         }
@@ -76,21 +77,21 @@ public sealed partial class RoundsClearancePlanner
             }
         }
         var started = _reviewer.Clock.Now();
-        var identity = _native.Identity(call).Identity;
+        var identity = (await _native.IdentityAsync(call).ConfigureAwait(false)).Reply;
         var expected = ObservationApi.DecodeIdentity(identity);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
-        var colony = _reviewer.ObserveColony(call, _native, expected, null);
+        var colony = await _reviewer.ObserveColonyAsync(_native, expected, null, call).ConfigureAwait(false);
         var ground = PlannedGround(colony.Projection);
-        var read = ObservationApi.ObserveClearanceCensusOnGround(call, _native, expected, true, ground);
+        var read = await ObservationApi.ObserveClearanceCensusOnGround(_native, expected, true, ground, call).ConfigureAwait(false);
         if (!read.TryGetValue(out var census))
         {
-            return new RoundsClearanceResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "clearance_census_unknown") };
+            return new RoundsClearanceResult { Verdict = WaitFor(Cause.MethodUsed, "clearance_census_unknown") };
         }
         var (others, player) = PolicyApi.SplitGroundRows(census.Targets);
-        var step = RecoveryStep(call, Boundary.Identity(state.Snapshot), review.RecoveryQueue, others, colony.Projection);
+        var step = await RecoveryStepAsync(Boundary.Identity(state.Snapshot), review.RecoveryQueue, others, colony.Projection, call).ConfigureAwait(false);
         var id = PlanIds.MintPlanId();
         string prefix;
         IReadOnlyList<DomainAction> actions;
@@ -117,7 +118,7 @@ public sealed partial class RoundsClearancePlanner
             }
             (prefix, actions) = GroundStepMethod(id, step);
         }
-        var (verdict, admitted) = AdmitSubject(call, p.Journal, prefix, StandardMethodPlans(goal.History, goal.Standard.Episode), state.Snapshot);
+        var (verdict, admitted) = AdmitSubject(p.Journal, prefix, StandardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot, call);
         if (!admitted)
         {
             return new RoundsClearanceResult { Verdict = verdict };
@@ -134,11 +135,11 @@ public sealed partial class RoundsClearancePlanner
         return new RoundsClearanceResult { Verdict = BuildingReasonAdmitted, Plan = id };
     }
 
-    private RoundsClearanceResult Dump(ClearanceCensus census)
+    private static RoundsClearanceResult Dump(ClearanceCensus census)
     {
         if (PolicyApi.PendingChunks(census.Chunks).Count == 0)
         {
-            return new RoundsClearanceResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "chunk_haul_chunks") };
+            return new RoundsClearanceResult { Verdict = WaitFor(Cause.MethodUsed, "chunk_haul_chunks") };
         }
         return new RoundsClearanceResult { Verdict = NoSpace("chunk_dump_site") };
     }
@@ -150,22 +151,23 @@ internal static partial class BuildingRuntimePackage
     internal static GroundStep PendingClearanceStep(GroundStep step) =>
         step with
         {
-            Targets = step.Targets.Where(t => !t.Designated).ToList(),
-            Floors = step.Floors.Where(f => !f.Designated).ToList(),
+            Targets = [.. step.Targets.Where(t => !t.Designated)],
+            Floors = [.. step.Floors.Where(f => !f.Designated)],
         };
 
     internal static (GroundStep Step, bool Ok) PlannedGroundStep(ColonyProjection colony, IReadOnlyList<ClearanceTarget> player, IReadOnlyList<ClearanceFloor> floors, RoomFloors wants)
     {
         if (!colony.LayoutPlan.TryGetValue(out var plan))
         {
-            return (default!, false);
+            return (new GroundStep(), false);
         }
         var (ground, known) = ColonyGround(colony);
         if (!known)
         {
-            return (default!, false);
+            return (new GroundStep(), false);
         }
-        return PolicyApi.PlannedGroundStep(plan, ground, player, floors, ColonyRooms(colony), RetiredGround(colony), wants);
+        var planned = PolicyApi.PlannedGroundStep(plan, ground, player, floors, ColonyRooms(colony), RetiredGroundOfColony(colony), wants);
+        return planned is null ? (new GroundStep(), false) : (planned, true);
     }
 
     internal static IReadOnlyList<string> PlannedGroundWork(ColonyProjection colony, IReadOnlyList<ClearanceTarget> player, IReadOnlyList<ClearanceFloor> floors, RoomFloors wants)
@@ -179,7 +181,7 @@ internal static partial class BuildingRuntimePackage
         {
             return [];
         }
-        return PolicyApi.PlannedGroundWork(plan, ground, player, floors, ColonyRooms(colony), RetiredGround(colony), wants);
+        return PolicyApi.PlannedGroundWork(plan, ground, player, floors, ColonyRooms(colony), RetiredGroundOfColony(colony), wants);
     }
 
     /// <summary>Stamps the packable flag and the in-use flag (a bed with owners or a bench with an active bill) onto the rows.</summary>
@@ -211,7 +213,7 @@ internal static partial class BuildingRuntimePackage
         {
             output.Add(row with
             {
-                Packable = colony.Packable.TryGetValue(row.DefName, out var packable) && packable,
+                Packable = colony.Packable.Contains(row.DefName),
                 InUse = inUse.TryGetValue(row.EntityId, out var used) && used,
             });
         }
@@ -227,25 +229,25 @@ internal static partial class BuildingRuntimePackage
     internal static (string Prefix, IReadOnlyList<DomainAction> Actions) GroundStepMethod(PlanId id, GroundStep step)
     {
         string prefix;
-        if (step.Phase == PolicyApi.GroundFurniture)
+        if (step.Phase == GroundPhase.Furniture)
         {
             prefix = $"deconstruct-{step.Targets[0].EntityId}-";
         }
-        else if (step.Phase == PolicyApi.GroundPack)
+        else if (step.Phase == GroundPhase.Pack)
         {
             prefix = BatchPrefix("pack", step.Targets[0].EntityId, step.Targets.Count);
         }
-        else if (step.Phase == PolicyApi.GroundDoors)
+        else if (step.Phase == GroundPhase.Doors)
         {
             prefix = $"swap-door-{step.Targets[0].EntityId}-";
         }
-        else if (step.Phase == PolicyApi.GroundWalls)
+        else if (step.Phase == GroundPhase.Walls)
         {
             if (step.Roof.Count > 0 && step.Targets.Count == 0)
             {
                 prefix = string.Create(CultureInfo.InvariantCulture, $"roof-off-{step.Roof[0].X}-{step.Roof[0].Z}-x{step.Roof.Count}-");
             }
-            else if (!step.Ground.IsEmpty)
+            else if (!step.Ground.Empty())
             {
                 var b = step.Ground.Bounds();
                 prefix = string.Create(CultureInfo.InvariantCulture, $"ground-walls-{b.X}-{b.Z}-");
@@ -276,14 +278,14 @@ internal static partial class BuildingRuntimePackage
         }
         foreach (var target in step.Targets)
         {
-            if (step.Phase == PolicyApi.GroundPack)
+            if (step.Phase == GroundPhase.Pack)
             {
                 var move = new MoveBuilding(target.EntityId, target.DefName, target.Minimum, Rotation.South);
                 actions.Add(DomainAction.NewUninstallBuildingAction(Next(), move));
                 continue;
             }
             var value = new Deconstruction(target.EntityId, target.DefName, target.Minimum);
-            if (step.Phase == PolicyApi.GroundDoors)
+            if (step.Phase == GroundPhase.Doors)
             {
                 value = value.WithWallReplacement();
             }

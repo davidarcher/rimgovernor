@@ -32,22 +32,22 @@ internal static partial class BuildingRuntimePackage
         var facts = new CleanCandidateFacts
         {
             Pawn = pawn,
-            Dead = FactBool(row.Dead),
-            Downed = FactBool(row.Downed),
-            Drafted = FactBool(row.Drafted),
-            MentalState = FactPresence(row.MentalState, row.Issues, "mental_state"),
+            Dead = Boundary.FactBool(row.HasDead, row.Dead),
+            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
+            Drafted = Boundary.FactBool(row.HasDrafted, row.Drafted),
+            MentalState = Boundary.FactPresence(row.HasMentalState, row.Issues, "mental_state"),
         };
-        if (row.Job is not null && !IssueField(row.Job.Issues, "player_forced"))
+        if (row.Job is not null && !Boundary.IssueField(row.Job.Issues, "player_forced"))
         {
-            facts = facts with { PlayerForced = FactBool(row.Job.PlayerForced) };
+            facts = facts with { PlayerForced = Boundary.FactBool(row.Job.HasPlayerForced, row.Job.PlayerForced) };
         }
 
-        if (row.Health is { } health && !IssueField(health.Issues, "health"))
+        if (row.Health is { } health && !Boundary.IssueField(health.Issues, "health"))
         {
-            facts = facts with { NeedsTend = FactBool(health.NeedsTend), Bleeding = FactBool(health.Bleeding) };
+            facts = facts with { NeedsTend = Boundary.FactBool(health.HasNeedsTend, health.NeedsTend), Bleeding = Boundary.FactBool(health.HasBleeding, health.Bleeding) };
         }
 
-        if (row.Settings is { } settings && !IssueField(settings.Issues, "work"))
+        if (row.Settings is { } settings && !Boundary.IssueField(settings.Issues, "work"))
         {
             facts = facts with { CleaningEnabled = CleaningWorkEnabled(settings.Work) };
         }
@@ -64,12 +64,12 @@ internal static partial class BuildingRuntimePackage
                 continue;
             }
 
-            if (w.Disabled is null || w.Priority is null)
+            if (!w.HasDisabled || !w.HasPriority)
             {
                 return Unknown<bool>();
             }
 
-            return Known(!w.Disabled.Value);
+            return Known(!w.Disabled);
         }
 
         return Unknown<bool>();
@@ -79,7 +79,7 @@ internal static partial class BuildingRuntimePackage
 public sealed partial class RoundsIncinerationPlanner
 {
     /// <summary>Burns the standing incinerator's waste or cleans its ash; not handled when neither is due.</summary>
-    internal (RoundsIncinerationResult Result, bool Handled) StageBurn(CancellationToken call, CancellationToken epoch, ControlState state, Rounds review, StandardState goal, StepArbiter arbiter, RoundsReading reading)
+    internal async Task<(RoundsIncinerationResult Result, bool Handled)> StageBurnAsync(ControlState state, Rounds review, StandardState goal, StepArbiter arbiter, RoundsReading reading, CancellationToken call, CancellationToken epoch)
     {
         var room = StandingIncinerator(reading.Projection);
         if (room is null)
@@ -88,7 +88,7 @@ public sealed partial class RoundsIncinerationPlanner
         }
 
         reading.Projection.Facts.Upkeep.Filth.TryGetValue(out var filth);
-        var ash = PolicyFunctions.IncineratorAsh(filth ?? [], room.Region.Bounds());
+        var ash = PolicyFunctions.IncineratorAsh(filth, room.Region.Bounds());
         var burning = FireBurning(reading.Projection);
         var stored = IncineratorStored(reading.Projection, room.Region.Bounds());
         var cleaning = ash.Count > 0 && !burning;
@@ -97,7 +97,7 @@ public sealed partial class RoundsIncinerationPlanner
             return (default, false);
         }
 
-        var (rows, ok) = ColonistRows(call, Native, state, review);
+        var (rows, ok) = await ColonistRowsAsync(Native, state, review, call).ConfigureAwait(false);
         if (!ok)
         {
             return (new RoundsIncinerationResult { Verdict = WaitFor(Cause.MethodUsed, "colonist_rows") }, true);
@@ -105,13 +105,13 @@ public sealed partial class RoundsIncinerationPlanner
 
         if (cleaning)
         {
-            return CleanAsh(call, epoch, state, goal, arbiter, ash, rows);
+            return CleanAsh(state, goal, arbiter, ash, rows, call, epoch);
         }
 
-        return BurnRoom(call, epoch, state, goal, arbiter, room, stored, rows);
+        return await BurnRoomAsync(state, goal, arbiter, room, stored, rows, call, epoch).ConfigureAwait(false);
     }
 
-    internal (RoundsIncinerationResult Result, bool Handled) CleanAsh(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, StepArbiter arbiter, IReadOnlyList<UpkeepFilth> ash, IReadOnlyList<O.PawnState> rows)
+    internal (RoundsIncinerationResult Result, bool Handled) CleanAsh(ControlState state, StandardState goal, StepArbiter arbiter, IReadOnlyList<UpkeepFilth> ash, IReadOnlyList<O.PawnState> rows, CancellationToken call, CancellationToken epoch)
     {
         var pawns = new List<CleanCandidateFacts>();
         foreach (var row in rows)
@@ -124,7 +124,9 @@ public sealed partial class RoundsIncinerationPlanner
             pawns.Add(CleanCandidateFactsOf(new PawnId(row.Pawn.Id), row));
         }
 
-        var (target, pawn, ok) = PolicyFunctions.SelectClean(ash, pawns);
+        var selected = PolicyFunctions.SelectClean(ash, pawns);
+        var ok = selected is not null;
+        var (target, pawn) = selected ?? default;
         if (ok && !arbiter.TryClaim([pawn], "clean-target:" + target.Id))
         {
             ok = false;
@@ -135,9 +137,9 @@ public sealed partial class RoundsIncinerationPlanner
             return (new RoundsIncinerationResult { Verdict = WaitFor(Cause.MethodUsed, "clean_target") }, true);
         }
 
-        var clean = Clean.NewClean(pawn, target.Id, target.Cell);
+        var clean = new Clean(new Domain.PawnId(pawn.Value), target.Id, target.Cell);
         var prefix = $"burn-ash-{target.Id}-";
-        var (verdict, admitted) = AdmitSubject(call, Reviewer.Player.Journal, prefix, StandardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot);
+        var (verdict, admitted) = AdmitSubject(Reviewer.Player.Journal, prefix, StandardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot, call);
         if (!admitted)
         {
             return (new RoundsIncinerationResult { Verdict = verdict }, true);
@@ -145,14 +147,14 @@ public sealed partial class RoundsIncinerationPlanner
 
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewCleanAction(new ActionId($"{id}-0"), clean);
-        return CommitBurnPlan(call, epoch, state, goal, NextMethodId(prefix, HistoryMethodIds(goal.History, goal.Standard.Episode)), id, [action], []);
+        return CommitBurnPlan(state, goal, NextMethodId(prefix, HistoryMethodIds(goal.History, goal.Standard.Episode)), id, [action], [], call, epoch);
     }
 
-    internal (RoundsIncinerationResult Result, bool Handled) BurnRoom(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, StepArbiter arbiter, PlannedRoom room, int stored, IReadOnlyList<O.PawnState> rows)
+    internal async Task<(RoundsIncinerationResult Result, bool Handled)> BurnRoomAsync(ControlState state, StandardState goal, StepArbiter arbiter, PlannedRoom room, int stored, IReadOnlyList<O.PawnState> rows, CancellationToken call, CancellationToken epoch)
     {
         var identity = Boundary.Identity(state.Snapshot);
-        var things = FrameThingsOf(call, Native, identity);
-        var catalog = PawnCatalog(call, Native, identity);
+        var things = await FrameThingsOfAsync(Native, identity, call).ConfigureAwait(false);
+        var catalog = await PawnCatalogAsync(Native, identity, call).ConfigureAwait(false) ?? throw new ControlException("burn room: no definition catalog");
         var candidates = new List<BurnCandidate>();
         foreach (var row in rows)
         {
@@ -162,14 +164,14 @@ public sealed partial class RoundsIncinerationPlanner
             }
 
             var pawn = new PawnId(row.Pawn.Id);
-            var arm = EquipCandidatePawnFacts(row, catalog, things);
-            candidates.Add(new BurnCandidate { Arm = arm, Fire = FireSafetyPawnFacts(pawn, row), Holds = PrimaryDef(row, things) == PolicyFunctions.MolotovDef });
+            var arm = RoundsEquipPlanner.EquipCandidatePawnFacts(row, catalog, things);
+            candidates.Add(new BurnCandidate { Arm = arm, Fire = FireSafetyPawnFactsOf(new Domain.PawnId(pawn.Value), row), Holds = PrimaryDef(row, things) == PolicyFunctions.MolotovDef });
         }
 
-        var request = new BurnRequest { Interior = room.Region.Bounds(), Stored = stored, Pawns = candidates };
+        var request = new BurnRequest { Interior = room.Region.Bounds(), Stored = stored, Pawns = [.. candidates] };
         if (Native is ILoadoutWeaponSource source)
         {
-            var (bounds, _) = source.ReadMapBounds(call, identity, default);
+            var (bounds, _) = await source.ReadMapBoundsAsync(identity, default, call).ConfigureAwait(false);
             try
             {
                 Boundary.Context(bounds.Context, state.Snapshot);
@@ -184,7 +186,7 @@ public sealed partial class RoundsIncinerationPlanner
                 throw new ControlException("burnRoom: bounds");
             }
 
-            var (read, _) = source.ReadEquipWeapons(call, identity, default, new Cell(bounds.Bounds.Width - 1, bounds.Bounds.Height - 1));
+            var (read, _) = await source.ReadEquipWeaponsAsync(identity, default, new Cell(bounds.Bounds.Width - 1, bounds.Bounds.Height - 1), call).ConfigureAwait(false);
             try
             {
                 Boundary.Context(read.Context, state.Snapshot);
@@ -194,13 +196,13 @@ public sealed partial class RoundsIncinerationPlanner
                 throw new ControlException("burnRoom: context", e);
             }
 
-            request = request with { Molotovs = Molotovs(read.Targets) };
+            request = request with { Molotovs = [.. Molotovs(read.Targets)] };
         }
 
         var (order, verdictKind) = PolicyFunctions.PlanBurn(request);
         if (verdictKind != BurnVerdict.Ready)
         {
-            return (new RoundsIncinerationResult { Verdict = Refuse(Cause.NoWorker, "incinerator_" + verdictKind.WireName(), "") }, true);
+            return (new RoundsIncinerationResult { Verdict = Refuse(Cause.NoWorker, "incinerator_" + Wire.Name(verdictKind), "") }, true);
         }
 
         var claims = new List<string>();
@@ -209,7 +211,7 @@ public sealed partial class RoundsIncinerationPlanner
             claims.Add("equip-weapon:" + order.Molotov.Thing);
         }
 
-        if (!arbiter.TryClaim([order.Burner], [.. claims]))
+        if (!arbiter.TryClaim([new PawnId(order.Burner.Value)], [.. claims]))
         {
             return (new RoundsIncinerationResult { Verdict = WaitFor(Cause.MethodUsed, "burn_claim") }, true);
         }
@@ -232,28 +234,28 @@ public sealed partial class RoundsIncinerationPlanner
 
         if (order.Molotov is not null)
         {
-            var equip = Equip.NewEquip(order.Burner, order.Molotov.Thing, order.Molotov.Definition, order.Molotov.Cell);
+            var equip = new Equip(order.Burner, order.Molotov.Thing, order.Molotov.Definition, order.Molotov.Cell);
             Chain(DomainAction.NewEquipAction(new ActionId($"{id}-equip"), equip));
         }
 
-        var draft = OwnedDraft.NewOwnedDraft(order.Burner);
+        var draft = new OwnedDraft(order.Burner);
         Chain(DomainAction.NewOwnedDraftAction(new ActionId($"{id}-draft"), draft));
-        var ignite = Ignite.NewIgnite(order.Burner, order.Target);
+        var ignite = new Ignite(order.Burner, order.Target);
         Chain(DomainAction.NewIgniteAction(new ActionId($"{id}-ignite"), ignite));
-        return CommitBurnPlan(call, epoch, state, goal, NextWaveMethod(goal, "burn-wave-"), id, actions, dependencies);
+        return CommitBurnPlan(state, goal, NextWaveMethod(goal, "burn-wave-"), id, actions, dependencies, call, epoch);
     }
 
-    internal (RoundsIncinerationResult Result, bool Handled) CommitBurnPlan(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, MethodId method, PlanId id, IReadOnlyList<DomainAction> actions, IReadOnlyList<ActionDependency> dependencies)
+    internal (RoundsIncinerationResult Result, bool Handled) CommitBurnPlan(ControlState state, StandardState goal, MethodId method, PlanId id, IReadOnlyList<DomainAction> actions, IReadOnlyList<ActionDependency> dependencies, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
-        var plan = PlanSpec.NewPlan(id, new PlanRevision(1), actions, [.. dependencies]);
+        var plan = new PlanSpec(id, new PlanRevision(1), actions, [.. dependencies]);
         p.Current(call, epoch);
         if (p.Session.State() != state)
         {
             throw new ControlException("commitBurnPlan: session state changed");
         }
 
-        p.Journal.CommitMethod(call, goal.Standard.Id, goal.Revision, method, plan);
+        p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
         return (new RoundsIncinerationResult { Verdict = BuildingReasonAdmitted, Plan = id }, true);
     }
 }

@@ -39,28 +39,26 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// eligibility Hands re-check at dispatch.
     /// </summary>
     internal RoundsBuildingResult RefuelThrone(
-        CancellationToken call,
-        CancellationToken epoch,
         StepArbiter? arbiter,
         ControlState state,
         Store.Rounds review,
         Store.StandardState goal,
         Observation.RoundsReading reading,
-        Pol.ThroneStep step)
+        Pol.ThroneStep step, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var tick = reading.Projection.Identity.Tick;
-        var history = p.Journal.LoadOwnerMethods(call, goal);
+        var history = p.Journal.LoadOwnerMethods(goal, call);
         if (ThroneRefuelRecent(history, step.Lamp, tick))
         {
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "throne_refuel") };
         }
-        if (arbiter is null || !arbiter.TryClaim([new PawnId(step.Pawn)], "throne-refuel:" + step.Lamp))
+        if (arbiter is null || !arbiter.TryClaim([step.Pawn], "throne-refuel:" + step.Lamp))
         {
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "throne_refuel_claim") };
         }
         var method = new MethodId(string.Create(CultureInfo.InvariantCulture, $"{ThroneRefuelPrefix(step.Lamp)}{tick.Value}"));
-        var service = new RecoveryService(new PawnId(step.Pawn), step.Lamp, RecoveryMethod.Refuel);
+        var service = new RecoveryService(new Domain.PawnId(step.Pawn.Value), step.Lamp, Domain.RecoveryMethod.Refuel);
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewRecoveryServiceAction(new ActionId($"{id}-0"), service);
         var plan = new PlanSpec(id, new PlanRevision(1), [action]);
@@ -74,7 +72,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             throw new ControlException("refuelThrone: latest.Revision != review.Revision || !latest.Enabled");
         }
-        p.Journal.CommitOwnerMethod(call, goal, method, "", plan);
+        p.Journal.CommitOwnerMethod(goal, method, "", plan, call);
         return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted };
     }
 }

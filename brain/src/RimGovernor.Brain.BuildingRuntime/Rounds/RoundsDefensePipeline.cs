@@ -7,7 +7,7 @@ internal sealed class DefensePipeline
     public HashSet<Cell> Cells = [];
     public List<Building> Unbuilt = [];
     public int Admitted;
-    public Identity Scope;
+    public Identity Scope = new();
     public bool Scoped;
 
     public bool Piped() => Open.Count > 0 || Admitted > 0;
@@ -74,45 +74,45 @@ internal static partial class BuildingRuntimePackage
             {
                 continue;
             }
-            if (!method.Method.Value.StartsWith("defense-" + PolicyApi.TierPerimeterPrefix, StringComparison.Ordinal))
+            if (!method.MethodId.Value.StartsWith("defense-" + PolicyConstants.TierPerimeterPrefix, StringComparison.Ordinal))
             {
                 return (new DefensePipeline(), false);
             }
             foreach (var action in plan.Spec.Actions)
             {
-                if (!action.Building(out var b))
+                if (action.Building is not { } b)
                 {
                     return (new DefensePipeline(), false);
                 }
                 pipe.Cells.Add(b.Cell);
                 pipe.Unbuilt.Add(b);
             }
-            pipe.Open.Add(method.Method);
+            pipe.Open.Add(method.MethodId);
         }
         return (pipe, true);
     }
 
-    internal static void DefenseAction(CancellationToken ct, string component, TelemetryLevel level, string verdict, string reason, string target, IReadOnlyDictionary<string, object?>? attrs)
+    internal static void DefenseAction(string component, TelemetryLevel level, string verdict, string reason, string target, IReadOnlyDictionary<string, object?>? attrs, CancellationToken ct)
     {
-        Tel.Decide(ct, new Decision { Kind = "defense_action", Component = component, Level = level, Verdict = verdict, Reason = reason, Target = target, Attrs = attrs });
+        Tel.Decide(new Decision { Kind = "defense_action", Component = component, Level = level, Verdict = verdict, Reason = reason, Target = target, Attrs = attrs ?? new Dictionary<string, object?>() });
     }
 
-    internal static void DefenseTierGated(CancellationToken ct, string tier, string gate)
+    internal static void DefenseTierGated(string tier, string gate, CancellationToken ct)
     {
         if (gate == "")
         {
             return;
         }
-        DefenseAction(ct, "defense-layout", LogLevel.Info, "refused", gate, tier, null);
+        DefenseAction("defense-layout", TelemetryLevel.Info, "refused", gate, tier, null, ct);
     }
 
-    internal static void DefenseSnapshotSkip(CancellationToken ct, string component, string target, Exception error)
+    internal static void DefenseSnapshotSkip(string component, string target, Exception error, CancellationToken ct)
     {
-        Tel.Decide(ct, new Decision
+        Tel.Decide(new Decision
         {
             Kind = "snapshot_skip",
             Component = component,
-            Level = LogLevel.Warn,
+            Level = TelemetryLevel.Warn,
             Verdict = "skipped",
             Reason = "not_recorded",
             Target = target,

@@ -4,8 +4,6 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsBuildingPlanner
 {
-    internal RoundsBuildingPlanner ShallowCopy() => (RoundsBuildingPlanner)MemberwiseClone();
-
     public static RoundsBuildingPlanner NewRoundsComfortPlanner(Rounder reviewer, IRoundsBuildingSource native)
     {
         if (reviewer is null || native is null)
@@ -16,7 +14,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsComfortPlanner: !ok");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyApi.EnsureComfort, Phase = PolicyApi.ComfortRanked };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyApi.EnsureComfort, Phase = Pol.Phase.ComfortRanked };
     }
 
     public static RoundsBuildingPlanner NewRoundsBasicComfortPlanner(Rounder reviewer, IRoundsBuildingSource native)
@@ -29,7 +27,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsBasicComfortPlanner: !ok");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyApi.EnsureComfort, Phase = PolicyApi.ComfortBasic };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyApi.EnsureComfort, Phase = Pol.Phase.ComfortBasic };
     }
 
     /// <summary>The planner resolved to the comfort furniture the ranked review selects, or the verdict that explains why none is wanted.</summary>
@@ -41,34 +39,35 @@ public sealed partial class RoundsBuildingPlanner
         }
         var review = PolicyApi.ReviewComfort(facts.Facts.Comfort, history, facts.Identity.Tick);
         var method = PolicyApi.SelectComfortMethod(v, review);
-        if (method == PolicyApi.ComfortNoMethod)
+        if (method == Pol.ComfortMethod.NoMethod)
         {
             return (null, BuildingReasonNoDeficit);
         }
-        if (method == PolicyApi.ComfortWait)
+        if (method == Pol.ComfortMethod.Wait)
         {
-            return (null, BuildingComfortWait);
+            return (null, BuildingReasonComfortWait);
         }
-        if (method == PolicyApi.ComfortAccessBlocked)
+        if (method == Pol.ComfortMethod.AccessBlocked)
         {
             return (null, ComfortAccessWait(review.Dining));
         }
-        var resolved = ShallowCopy();
+        var resolved = Copy();
         resolved.Definition = method.Value;
-        resolved.Environment = PolicyApi.PlacementIndoors;
-        var role = PolicyApi.RoomRoleDiningRoom;
+        resolved.Environment = Pol.PlacementEnvironment.Indoors;
+        var role = Pol.RoomRole.DiningRoom;
         if (v.IsFoothold(method))
         {
-            role = PolicyApi.RoomRoleRecRoom;
+            role = Pol.RoomRole.RecRoom;
         }
         resolved.Facility = PolicyApi.Facility(role);
         if (v.Furniture.IsChair(method.Value))
         {
-            resolved.Adjacent = [.. Adjacent];
+            var adjacent = new List<Cell>(Adjacent);
             foreach (var s in v.Surfaces)
             {
-                resolved.Adjacent.AddRange(s.Adjacent);
+                adjacent.AddRange(s.Adjacent);
             }
+            resolved.Adjacent = adjacent;
         }
         resolved.Stuff = facts.BuildStuff(resolved.Definition);
         return (resolved, default);
@@ -83,11 +82,11 @@ public sealed partial class RoundsBuildingPlanner
         }
         var review = PolicyApi.ReviewBasicComfort(facts.Facts.BasicComfort);
         var method = PolicyApi.SelectBasicComfortMethod(v, review);
-        if (method == PolicyApi.ComfortNoMethod && !review.VarietyKnown)
+        if (method == Pol.ComfortMethod.NoMethod && !review.VarietyKnown)
         {
             return (null, FieldUnavailable("comfort_variety"));
         }
-        if (method == PolicyApi.ComfortNoMethod && review.MissingVariety > 0)
+        if (method == Pol.ComfortMethod.NoMethod && review.MissingVariety > 0)
         {
             method = PolicyApi.SelectRecreationVariety(v, m =>
             {
@@ -106,15 +105,15 @@ public sealed partial class RoundsBuildingPlanner
                 return ComfortBuilderAvailable(facts, m.Definition);
             });
         }
-        if (method == PolicyApi.ComfortNoMethod)
+        if (method == Pol.ComfortMethod.NoMethod)
         {
             return (null, BuildingReasonNoDeficit);
         }
-        if (method == PolicyApi.ComfortAccessBlocked)
+        if (method == Pol.ComfortMethod.AccessBlocked)
         {
             return (null, ComfortAccessWait(review.Dining));
         }
-        var resolved = ShallowCopy();
+        var resolved = Copy();
         resolved.Definition = method.Value;
         if (v.Joy is not null)
         {
@@ -126,18 +125,19 @@ public sealed partial class RoundsBuildingPlanner
                 }
             }
         }
-        resolved.Environment = PolicyApi.PlacementIndoors;
+        resolved.Environment = Pol.PlacementEnvironment.Indoors;
         if (v.IsFoothold(method))
         {
-            resolved.Environment = PolicyApi.PlacementAnywhere;
+            resolved.Environment = Pol.PlacementEnvironment.Anywhere;
         }
         if (v.Furniture.IsChair(method.Value))
         {
-            resolved.Adjacent = [.. Adjacent];
+            var adjacent = new List<Cell>(Adjacent);
             foreach (var s in v.Surfaces)
             {
-                resolved.Adjacent.AddRange(s.Adjacent);
+                adjacent.AddRange(s.Adjacent);
             }
+            resolved.Adjacent = adjacent;
         }
         resolved.Stuff = facts.BuildStuff(resolved.Definition);
         return (resolved, default);
@@ -147,7 +147,7 @@ public sealed partial class RoundsBuildingPlanner
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>The native work ticks the comfort furniture just built still need before the next comfort pick; the longest across the furniture.</summary>
-    internal static uint ComfortUseAllowance(CancellationToken ct, StoreJournal journal, StandardState goal, GenerationSnapshot current, Tick tick, DiningFurniture furniture)
+    internal static uint ComfortUseAllowance(StoreJournal journal, StandardState goal, GenerationSnapshot current, Tick tick, DiningFurniture furniture, CancellationToken ct)
     {
         uint ticks = 0;
         foreach (var definition in furniture.Definitions())
@@ -211,11 +211,11 @@ internal static partial class BuildingRuntimePackage
         {
             need = string.Create(CultureInfo.InvariantCulture, $"construction_skill_{minimum}");
         }
-        return Refuse(PolicyApi.CauseNoWorker, "builder_for_" + definition, need);
+        return Refuse(Cause.NoWorker, "builder_for_" + definition, need);
     }
 
     internal static Verdict ComfortAccessWait(ComfortNeed dining) =>
-        dining == PolicyApi.ComfortCapacity ? WaitFor(PolicyApi.CauseFacilityAccess, "dining") : WaitFor(PolicyApi.CauseFacilityAccess, "recreation");
+        dining == Pol.ComfortNeed.Capacity ? WaitFor(Cause.FacilityAccess, "dining") : WaitFor(Cause.FacilityAccess, "recreation");
 
     /// <summary>The ticks (at most 120) a completed comfort building of this plan keeps the comfort review waiting, within 10000 ticks of the completion.</summary>
     internal static uint ComfortNativeWorkTicks(PlanState plan, GenerationSnapshot current, Tick tick, DiningFurniture furniture)
@@ -232,11 +232,11 @@ internal static partial class BuildingRuntimePackage
         current = current with { Plan = plan.Spec.Id, Revision = plan.Spec.Revision };
         var v = p.View;
         var known = v.Effect.TryGetValue(out var effect);
-        if (v.Stage != Stage.Completed || v.Unresolved || !known || effect != Effect.Completed || !v.Snapshot.Matches(current) || tick < v.Tick || (long)tick - (long)v.Tick >= 10000)
+        if (v.Stage != Stage.Completed || v.Unresolved || !known || effect != Effect.Completed || !v.Snapshot.Matches(current) || tick < v.Tick || tick.Value - v.Tick.Value >= 10000)
         {
             return 0;
         }
-        return Math.Min(120u, (uint)(10000 - ((long)tick - (long)v.Tick)));
+        return Math.Min(120u, (uint)(10000 - (tick.Value - v.Tick.Value)));
     }
 
     internal static bool BuilderAvailable(IReadOnlyList<WorkPawn> pawns, int minimum)
@@ -272,7 +272,7 @@ internal static partial class BuildingRuntimePackage
             }
             foreach (var setting in settings)
             {
-                if (setting.Work == "Construction" && !setting.Disabled && setting.Priority > 0)
+                if (setting.Work == Pol.WorkType.Construction && !setting.Disabled && setting.Priority > 0)
                 {
                     return true;
                 }

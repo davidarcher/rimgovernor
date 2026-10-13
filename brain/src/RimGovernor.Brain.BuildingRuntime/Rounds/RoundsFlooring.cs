@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native defense-site read (Go's anonymous interface on the building source).</summary>
 internal interface IDefenseSiteReader
 {
-    (DefenseSite Site, BridgeResult Result) ReadDefenseSite(CancellationToken ct, C.Identity identity, CellRect region);
+    Task<(DefenseSite Site, BridgeResult Result)> ReadDefenseSiteAsync(C.Identity identity, CellRect region, CancellationToken ct);
 }
 
 public sealed partial class RoundsBuildingPlanner
@@ -15,7 +15,7 @@ public sealed partial class RoundsBuildingPlanner
     /// </summary>
     public static RoundsBuildingPlanner NewRoundsFlooringPlanner(Rounder reviewer, IRoundsBuildingSource native)
     {
-        if (reviewer is null || native is null || !reviewer.MethodEnabled(ConcernId.MaintainFlooring))
+        if (reviewer is null || native is null || !reviewer.MethodEnabled(PolicyFunctions.MaintainFlooring))
         {
             throw new ControlException("NewRoundsFlooringPlanner: reviewer, native or method disabled");
         }
@@ -25,7 +25,7 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("NewRoundsFlooringPlanner: native is not a rounds source");
         }
 
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = ConcernId.MaintainFlooring, Definition = "WoodPlankFloor" };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyFunctions.MaintainFlooring, Definition = "WoodPlankFloor" };
     }
 
     /// <summary>
@@ -39,7 +39,7 @@ public sealed partial class RoundsBuildingPlanner
     /// rooms, so the nine cells come from one defense-site read. Empty when no incinerator stands, the source
     /// cannot read a site, or a cell is fogged or stands on terrain the catalog does not price.
     /// </summary>
-    internal IReadOnlyList<FloorCell> IncineratorFloor(CancellationToken call, GenerationSnapshot current, ColonyProjection facts, IReadOnlyDictionary<string, FloorTerrain> terrains)
+    internal async Task<IReadOnlyList<FloorCell>> IncineratorFloorAsync(GenerationSnapshot current, ColonyProjection facts, IReadOnlyDictionary<string, FloorTerrain> terrains, CancellationToken call)
     {
         var room = StandingIncinerator(facts);
         if (room is null || Native is not IDefenseSiteReader reader)
@@ -49,7 +49,7 @@ public sealed partial class RoundsBuildingPlanner
 
         var inner = room.Region.Bounds();
         var region = new CellRect(new Cell(inner.X, inner.Z), new Cell(inner.X + inner.Width - 1, inner.Z + inner.Height - 1));
-        var (site, _) = reader.ReadDefenseSite(call, Boundary.Identity(current), region);
+        var (site, _) = await reader.ReadDefenseSiteAsync(Boundary.Identity(current), region, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(site.Context, current);
@@ -59,7 +59,7 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("incinerator floor: defense site context", e);
         }
 
-        if (new Tick(site.Context.Tick) < facts.Identity.Tick)
+        if (new Tick(site.Context?.Tick ?? 0) < facts.Identity.Tick)
         {
             throw new ControlException("incinerator floor: defense site context");
         }
@@ -85,7 +85,7 @@ public sealed partial class RoundsBuildingPlanner
     /// Re-reviews the fresh census under the review's latch and maps the policy outcome onto the planner: a
     /// build resolves the floor definition and its cells, everything else is a reason.
     /// </summary>
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectFlooring(CancellationToken call, GenerationSnapshot current, ColonyProjection facts, RoundsLatches latches)
+    internal async Task<(RoundsBuildingPlanner? Planner, Verdict Verdict)> SelectFlooringAsync(GenerationSnapshot current, ColonyProjection facts, RoundsLatches latches, CancellationToken call)
     {
         var p = Reviewer.Policy.Flooring;
         var census = TrafficFlooringFacts(facts, p);
@@ -96,7 +96,7 @@ public sealed partial class RoundsBuildingPlanner
                 v = v with { Firebreak = FirebreakPave() };
             }
 
-            v = v with { Incinerator = IncineratorFloor(call, current, facts, v.Terrains) };
+            v = v with { Incinerator = await IncineratorFloorAsync(current, facts, v.Terrains, call).ConfigureAwait(false) };
             census = Known(v);
         }
 
@@ -112,7 +112,7 @@ public sealed partial class RoundsBuildingPlanner
             return (null, FieldUnavailable("flooring"));
         }
 
-        var proposal = PolicyFunctions.SelectFlooringMethod(review, FlooringFacts(facts), p);
+        var proposal = PolicyFunctions.SelectFlooringMethod(review, FlooringFactsOf(facts), p);
         switch (proposal.Method)
         {
             case FlooringMethod.Build:
@@ -125,7 +125,7 @@ public sealed partial class RoundsBuildingPlanner
             case FlooringMethod.NoMethod:
                 return (null, BuildingReasonNoDeficit);
             default:
-                return (null, AwaitingMethod(proposal.Method.ToString()));
+                return (null, AwaitingMethod(proposal.Method));
         }
     }
 
@@ -134,7 +134,7 @@ public sealed partial class RoundsBuildingPlanner
     /// no rotation and a one-cell footprint. Cells native refuses (a wall, an identical floor laid meanwhile)
     /// are skipped; the batch is the cells that remain.
     /// </summary>
-    internal (IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict) PreviewFlooring(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewFlooringAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         if (Flooring is null || Flooring.Method != FlooringMethod.Build)
@@ -180,9 +180,9 @@ public sealed partial class RoundsBuildingPlanner
                 continue;
             }
 
-            var building = Building.NewBuilding(Flooring.Definition, cell, Rotation.North, "");
+            var building = new Building(Flooring.Definition, cell, Rotation.North, "");
             var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{selected.Count}"), building, PolicyFunctions.PlannerTier(Concern, Phase));
-            var (preview, _) = Native.PreviewBuilding(ct, action, snapshot);
+            var (preview, _) = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
             var p = preview.Preview;
             var fk = p.Footprint.TryGetValue(out var footprint);
             var mk = p.MadeFromStuff.TryGetValue(out var made);
@@ -199,7 +199,7 @@ public sealed partial class RoundsBuildingPlanner
                 continue;
             }
 
-            MergeRoundsStock(ref stock, preview.Stock, selected.Count == 0);
+            MergeRoundsStock(stock, preview.Stock, selected.Count == 0);
             selected.Add(p);
         }
 
@@ -246,7 +246,7 @@ internal static partial class BuildingRuntimePackage
             return;
         }
 
-        Tel.Decide(CancellationToken.None, new Decision
+        Tel.Decide(new Decision
         {
             Kind = "routine_skip",
             Component = "routine-flooring",

@@ -3,15 +3,14 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>What <see cref="Rounder.SettlementAcquisitionOptions"/> needs of the native source beyond the mission pack source.</summary>
 internal interface ISettlementOptionsSource : ITradeMissionPackSource
 {
-    (WorldProgressionRead Read, BridgeResult Result) ReadWorldProgression(CancellationToken ct, C.Identity identity, bool full);
+    Task<(WorldProgressionRead Read, BridgeResult Result)> ReadWorldProgressionAsync(C.Identity identity, bool full, CancellationToken ct);
 
-    (WorldRead Read, BridgeResult Result) ReadWorld(CancellationToken ct, C.Identity identity, int home, double radius);
+    Task<(WorldRead Read, BridgeResult Result)> ReadWorldAsync(C.Identity identity, int home, double radius, CancellationToken ct);
 }
 
 public sealed partial class Rounder
 {
-    internal IReadOnlyList<Pol.TradeAcquisitionOption> SettlementAcquisitionOptions(
-        CancellationToken ct, GenerationSnapshot world, string owner, Observation.ColonyProjection p, IReadOnlyList<Pol.SupplyDemandResult> demands, Bridge.DefinitionCatalog catalog)
+    internal async Task<IReadOnlyList<Pol.TradeAcquisitionOption>> SettlementAcquisitionOptionsAsync(GenerationSnapshot world, string owner, Observation.ColonyProjection p, IReadOnlyList<Pol.SupplyDemandResult> demands, Bridge.DefinitionCatalog catalog, CancellationToken ct)
     {
         lock (Census.Mu)
         {
@@ -39,7 +38,7 @@ public sealed partial class Rounder
         }
         try
         {
-            var projects = Player.Journal.OpenStandards(ct, Concerns.TradeMission);
+            var projects = Player.Journal.OpenStandards(Concerns.TradeMission, ct);
             if (projects.Count != 0)
             {
                 return [];
@@ -53,7 +52,7 @@ public sealed partial class Rounder
         WorldProgressionRead progress;
         try
         {
-            (progress, _) = source.ReadWorldProgression(ct, id, false);
+            (progress, _) = await source.ReadWorldProgressionAsync(id, false, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -76,13 +75,13 @@ public sealed partial class Rounder
         WorldRead destinations;
         try
         {
-            (destinations, _) = source.ReadWorld(ct, id, home, double.MaxValue);
+            (destinations, _) = await source.ReadWorldAsync(id, home, double.MaxValue, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             return [];
         }
-        if (!Pol.TradeMission.TradeMissionBudget(p.Facts.Silver(), p.Facts.Colonists).TryGetValue(out var budget) || budget <= 0)
+        if (!Pol.PolicyFunctions.TradeMissionBudget(p.Facts.Silver(), p.Facts.Colonists).TryGetValue(out var budget) || budget <= 0)
         {
             return [];
         }
@@ -95,15 +94,16 @@ public sealed partial class Rounder
                 compatibleFacts[d.Demand.Good] = catalog.TraderKindCanSupply(settlement.TraderKind, d.Demand.Good);
             }
             var definitions = new List<Pol.MissionSupplyDefinition>();
-            if (compatibleFacts.ContainsKey(Pol.ResourceKey.NutritionKey))
+            if (compatibleFacts.ContainsKey(Pol.PolicyFunctions.NutritionKey))
             {
                 foreach (var name in catalog.ThingDefs.Keys.Order(StringComparer.Ordinal))
                 {
-                    Bridge.TradeFood food = default;
+                    Pol.TradeFoodGood? food = null;
                     var known = false;
                     try
                     {
-                        (food, known) = catalog.TradeFood(name);
+                        food = catalog.TradeFood(name);
+                        known = food is not null;
                     }
                     catch (Exception e) when (e is not OperationCanceledException)
                     {
@@ -112,13 +112,13 @@ public sealed partial class Rounder
                     definitions.Add(new Pol.MissionSupplyDefinition
                     {
                         Definition = name,
-                        Prepared = MissionOptional(food.Prepared, known),
-                        Nutrition = MissionCatalogStat(catalog, name, Bridge.Stat.Nutrition),
+                        Prepared = MissionOptional(food?.Prepared ?? false, known),
+                        Nutrition = MissionCatalogStat(catalog, name, Bridge.StatNames.Nutrition),
                         CanSupply = catalog.TraderKindCanSupply(settlement.TraderKind, new Pol.ResourceKey { Def = new Pol.Resource(name) }),
                     });
                 }
             }
-            var (cargo, compatible) = Pol.TradeMission.TradeMissionCargo(demands, compatibleFacts, definitions, Pol.FoodTargetDays);
+            var (cargo, compatible) = Pol.PolicyFunctions.TradeMissionCargo(demands, compatibleFacts, definitions, Policy.FoodTargetDays);
             if (cargo.Count == 0)
             {
                 continue;
@@ -127,16 +127,16 @@ public sealed partial class Rounder
             Pol.TradeAcquisitionOption option;
             try
             {
-                (mission, option) = TradeMissions.PrepareTradeMission(ct, source, world, home, settlement, p.Facts, Seasonal(p.Facts), budget, cargo, null);
+                (mission, option) = await TradeMissions.PrepareTradeMissionAsync(source, world, home, settlement, p.Facts, Seasonal(p.Facts), budget, cargo, null, ct).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
                 continue;
             }
-            option = option with { Compatible = compatible, Id = owner + ":" + option.Id };
+            option = option with { Compatible = [.. compatible], ID = owner + ":" + option.ID };
             lock (TradeAcquisition.Mu)
             {
-                TradeAcquisition.Missions[option.Id] = mission;
+                TradeAcquisition.Missions[option.ID] = mission;
             }
             output.Add(option);
         }

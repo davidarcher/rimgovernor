@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsPopulationJoinerPlanner
 {
     /// <summary>Works a quest site on the current map: survey relief, mining, help, recruiting or the return trip.</summary>
-    internal (RoundsPopulationJoinerResult Result, bool Handled) AdmitSiteWork(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, RoundsReading read, StepArbiter arbiter, DateTimeOffset started)
+    internal (RoundsPopulationJoinerResult Result, bool Handled) AdmitSiteWork(ControlState state, StandardState goal, RoundsReading read, StepArbiter arbiter, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         var f = read.Projection.Facts;
         if (!f.QuestSites.TryGetValue(out var siteRows) || !f.QuestOffers.TryGetValue(out var offers))
@@ -40,7 +40,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
                 var id = PlanIds.MintPlanId();
                 var actionId = new ActionId(id.Value + "-0");
                 DomainAction? action = null;
-                IReadOnlyList<PawnId> crew = [];
+                List<PawnId> crew = [];
                 var kind = "";
                 var target = site.Id;
                 var returning = false;
@@ -49,13 +49,13 @@ public sealed partial class RoundsPopulationJoinerPlanner
                     var work = PolicyFunctions.SurveyWork(offer, site, f, f.AnimalUpkeep.Food, reviewer.Policy);
                     if (work.Reason != "")
                     {
-                        reviewer.LogQuestSkip(call, new QuestSkip { Quest = offer.Quest, Reason = work.Reason });
+                        reviewer.LogQuestSkip(new QuestSkip(offer.Quest, "", work.Reason, ""), call);
                     }
 
                     if (work.Departure is not null)
                     {
                         action = DomainAction.NewCaravanDepartureAction(actionId, work.Departure);
-                        crew = work.Departure.Crew;
+                        crew = work.Departure.Crew.ToPolicyIds();
                         kind = "relief";
                     }
                     else if (work.Return)
@@ -72,26 +72,29 @@ public sealed partial class RoundsPopulationJoinerPlanner
                     var work = PolicyFunctions.PlanCoreSiteWork(offer, site, f, current);
                     if (work.Reason != "")
                     {
-                        reviewer.LogQuestSkip(call, new QuestSkip { Quest = offer.Quest, Reason = new QuestSkipReason(work.Reason) });
+                        reviewer.LogQuestSkip(new QuestSkip(offer.Quest, "", new QuestSkipReason(work.Reason), ""), call);
                     }
 
                     switch (work.Kind)
                     {
                         case "mine":
-                            action = DomainAction.NewMineAcquisitionAction(actionId, work.Mine);
+                            var mine = work.Mine ?? throw new ControlException("questSiteWork: mine work without an acquisition");
+                            action = DomainAction.NewMineAcquisitionAction(actionId, mine);
                             kind = "mine";
-                            target = work.Mine.Thing;
+                            target = mine.Thing;
                             break;
                         case "help":
-                            action = DomainAction.NewRecoveryServiceAction(actionId, work.Help);
-                            crew = [work.Help.Pawn];
+                            var help = work.Help ?? throw new ControlException("questSiteWork: help work without a service");
+                            action = DomainAction.NewRecoveryServiceAction(actionId, help);
+                            crew = [(PawnId)help.Pawn];
                             kind = "help";
-                            target = work.Help.Thing;
+                            target = help.Thing;
                             break;
                         case "recruit":
-                            action = DomainAction.NewPrisonerInteractionAction(actionId, work.Recruit);
+                            var recruit = work.Recruit ?? throw new ControlException("questSiteWork: recruit work without an interaction");
+                            action = DomainAction.NewPrisonerInteractionAction(actionId, recruit);
                             kind = "recruit";
-                            target = work.Recruit.Pawn.Value;
+                            target = recruit.Pawn.Value;
                             break;
                         case "return":
                             returning = true;
@@ -117,25 +120,25 @@ public sealed partial class RoundsPopulationJoinerPlanner
                     {
                         if (work.Reason != "")
                         {
-                            reviewer.LogQuestSkip(call, new QuestSkip { Quest = offer.Quest, Reason = work.Reason });
+                            reviewer.LogQuestSkip(new QuestSkip(offer.Quest, "", work.Reason, ""), call);
                         }
 
                         continue;
                     }
 
                     action = DomainAction.NewCaravanDepartureAction(actionId, work.Departure);
-                    crew = work.Departure.Crew;
+                    crew = work.Departure.Crew.ToPolicyIds();
                     kind = "return";
                 }
 
                 if (crew.Count > 0 && !arbiter.TryClaim(crew, "quest:" + offer.Quest))
                 {
-                    return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.Claim, "quest_site") }, true);
+                    return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.Claim, "quest_site") }, true);
                 }
 
-                var plan = PlanSpec.NewPlan(id, new PlanRevision(1), [action!]);
+                var plan = new PlanSpec(id, new PlanRevision(1), [action!]);
                 var prefix = $"quest-site-{offer.Quest}-{site.Id}-{kind}-{target}-";
-                var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(call, reviewer.Player.Journal, goal, prefix, state.Snapshot);
+                var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(reviewer.Player.Journal, goal, prefix, state.Snapshot, call);
                 if (!admitted)
                 {
                     return (new RoundsPopulationJoinerResult { Verdict = verdict }, true);
@@ -148,7 +151,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
                     throw new ControlException("admitSiteWork: session state changed or the read took too long");
                 }
 
-                reviewer.Player.Journal.CommitMethod(call, goal.Standard.Id, goal.Revision, method, plan);
+                reviewer.Player.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
                 return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, true);
             }
         }

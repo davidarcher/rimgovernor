@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsPopulationJoinerPlanner
 {
     /// <summary>Works a royal decree quest: plant a harvest field or hunt animals; not handled when no decree is owed.</summary>
-    internal (RoundsPopulationJoinerResult Result, bool Handled) AdmitDecree(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, Rounds review, RoundsReading read, StepArbiter arbiter, DateTimeOffset started)
+    internal async Task<(RoundsPopulationJoinerResult Result, bool Handled)> AdmitDecreeAsync(ControlState state, StandardState goal, Rounds review, RoundsReading read, StepArbiter arbiter, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         var f = read.Projection.Facts;
         if (!f.QuestOffers.TryGetValue(out var known))
@@ -11,25 +11,25 @@ public sealed partial class RoundsPopulationJoinerPlanner
             return (default, false);
         }
 
-        var offers = known.OrderBy(o => o.Quest, StringComparer.Ordinal).ToList();
+        var offers = known.OrderBy(o => o.Quest.Value, StringComparer.Ordinal).ToList();
         var lending = false;
         foreach (var offer in offers)
         {
             var (objective, remaining, owed) = PolicyFunctions.DecreeObjective(offer);
-            if (!owed)
+            if (!owed || objective is null)
             {
                 continue;
             }
 
             if (!offer.AskerFactionPlayer.TryGetValue(out var player) || !player)
             {
-                DecreeSkip(call, offer, "asker_faction");
+                DecreeSkip(offer, "asker_faction", call);
                 continue;
             }
 
             if (objective.DeadlineTicks.TryGetValue(out var deadline) && deadline <= read.Projection.Identity.Tick.Value)
             {
-                DecreeSkip(call, offer, "deadline");
+                DecreeSkip(offer, "deadline", call);
                 continue;
             }
 
@@ -48,7 +48,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
             {
                 case O.QuestObjectiveKind.HarvestPlant:
                 {
-                    var field = reviewer.NewResourceFieldPlanner(call, state, review, read.Projection.Identity, read.Projection);
+                    var field = reviewer.NewResourceFieldPlanner(state, review, read.Projection.Identity, read.Projection, call);
                     var (site, sited) = field.SiteOf();
                     if (!sited)
                     {
@@ -72,6 +72,11 @@ public sealed partial class RoundsPopulationJoinerPlanner
                         break;
                     }
 
+                    if (plan0 is null)
+                    {
+                        throw new ControlException("decree harvest: the plan is missing without a reason");
+                    }
+
                     if (reviewer.ResourceNative is null)
                     {
                         reason = "plant_site_unknown";
@@ -90,15 +95,15 @@ public sealed partial class RoundsPopulationJoinerPlanner
                             }
                         }
 
-                        var zone = ZoneCreate.NewZoneCreate(ZoneKind.Growing, objective.Def, cells);
-                        var (reply, zoneWhy) = BuildingRuntimePackage.PreviewZone(call, reviewer.ResourceNative, Boundary.Identity(snapshot), zone);
+                        var zone = new ZoneCreate(Domain.ZoneKind.Growing, objective.Def, cells);
+                        var (reply, zoneWhy) = await BuildingRuntimePackage.PreviewZoneAsync(reviewer.ResourceNative, Boundary.Identity(snapshot), zone, call).ConfigureAwait(false);
                         if (zoneWhy != "")
                         {
                             reason = "plant_site_refused";
                             break;
                         }
 
-                        Boundary.Context(reply.Evaluated?.Context, snapshot);
+                        Boundary.Context(reply?.Evaluated?.Context, snapshot);
                         var action = DomainAction.NewZoneCreateAction(new ActionId($"{id}-{i}"), zone);
                         actions.Add(action);
                         previews.Add(new Preview
@@ -110,8 +115,8 @@ public sealed partial class RoundsPopulationJoinerPlanner
                             SafeToPlace = Known(true),
                             MadeFromStuff = Known(false),
                             WatchCellsAccessible = Known(true),
-                            Footprint = Known<IReadOnlyList<Cell>>(cells),
-                            Costs = Known<IReadOnlyList<Amount>>([]),
+                            Footprint = Known<EquatableArray<Cell>>([.. cells]),
+                            Costs = Known<EquatableArray<Amount>>([]),
                         });
                     }
 
@@ -125,7 +130,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
                     for (var i = 0; i < prey.Count; i++)
                     {
                         var source = prey[i];
-                        var acquire = Acquisition.NewAcquisition(source.Id, source.Resource, source.Cell);
+                        var acquire = new Acquisition(source.Id, source.Resource, source.Cell);
                         actions.Add(DomainAction.NewAcquisitionAction(new ActionId($"{id}-{i}"), acquire));
                     }
 
@@ -140,7 +145,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
 
             if (reason != "")
             {
-                DecreeSkip(call, offer, reason);
+                DecreeSkip(offer, reason, call);
                 continue;
             }
 
@@ -150,7 +155,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
             }
 
             var prefix = $"decree-{offer.Quest}-{(int)objective.Kind}-{remaining}-";
-            var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(call, reviewer.Player.Journal, goal, prefix, state.Snapshot);
+            var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(reviewer.Player.Journal, goal, prefix, state.Snapshot, call);
             if (!admitted)
             {
                 return (new RoundsPopulationJoinerResult { Verdict = verdict }, true);
@@ -159,12 +164,12 @@ public sealed partial class RoundsPopulationJoinerPlanner
             var claims = new List<string>();
             foreach (var action in actions)
             {
-                if (action.TryProductionBill(out var bill))
+                if (action.ProductionBill is { } bill)
                 {
                     claims.Add("bench:" + bill.Bench);
                 }
 
-                if (action.TryAcquisition(out var acquisition))
+                if (action.Acquisition is { } acquisition)
                 {
                     claims.Add("source:" + acquisition.Thing);
                 }
@@ -172,10 +177,10 @@ public sealed partial class RoundsPopulationJoinerPlanner
 
             if (!arbiter.TryClaim([], [.. claims]))
             {
-                return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.Claim, "decree_work") }, true);
+                return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.Claim, "decree_work") }, true);
             }
 
-            var plan = PlanSpec.NewPlan(id, new PlanRevision(1), actions);
+            var plan = new PlanSpec(id, new PlanRevision(1), actions);
             reviewer.Player.Current(call, epoch);
             var elapsed = reviewer.Clock.Now() - started;
             if (reviewer.Player.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
@@ -185,7 +190,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
 
             if (previews.Count > 0)
             {
-                var decision = BuildingRuntimePackage.AdmitMethod(call, reviewer.Player.Journal, new BuildingMethodRequest
+                var decision = await AdmissionLog.AdmitMethodAsync(reviewer.Player.Journal, new BuildingMethodRequest
                 {
                     Owner = goal,
                     Method = method,
@@ -196,15 +201,15 @@ public sealed partial class RoundsPopulationJoinerPlanner
                     Stock = new StockObservation { Snapshot = snapshot, Tick = read.Projection.Identity.Tick },
                     Previews = previews,
                     Purpose = Purpose.Rounds,
-                });
+                }, call).ConfigureAwait(false);
                 if (!decision.Admitted)
                 {
-                    return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.AdmissionRefused(decision) }, true);
+                    return (new RoundsPopulationJoinerResult { Verdict = AdmissionLog.AdmissionRefused(decision) }, true);
                 }
             }
             else
             {
-                reviewer.Player.Journal.CommitMethod(call, goal.Standard.Id, goal.Revision, method, plan);
+                reviewer.Player.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
             }
 
             return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, true);
@@ -218,8 +223,8 @@ public sealed partial class RoundsPopulationJoinerPlanner
         return (default, false);
     }
 
-    private void DecreeSkip(CancellationToken ct, JoinerOffer offer, string reason) =>
-        reviewer.LogQuestSkip(ct, new QuestSkip { Quest = offer.Quest, ScriptDef = offer.ScriptDef, Reason = new QuestSkipReason(reason) });
+    private void DecreeSkip(JoinerOffer offer, string reason, CancellationToken ct) =>
+        reviewer.LogQuestSkip(new QuestSkip(offer.Quest, offer.ScriptDef, new QuestSkipReason(reason), ""), ct);
 }
 
 internal static partial class BuildingRuntimePackage

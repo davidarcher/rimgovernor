@@ -48,8 +48,8 @@ public static class StepReasons
 /// <summary>
 /// The evidence one step acts on. The host fills <see cref="Cause"/> and the wake fields; the scheduler fills
 /// <see cref="TickAdvanced"/> from its status read and reports the reason it actually applied on
-/// <see cref="ClockSchedulerResult.Reason"/>. The wake's clock-stop fields (Stopped, StopAt) are dropped with the
-/// native clock supervision: the clock stays in the mod.
+/// <see cref="ClockSchedulerResult.Reason"/>. A wake that followed a clock stop carries it in
+/// <see cref="Stopped"/> and <see cref="StopAt"/>.
 /// </summary>
 public sealed record StepReason
 {
@@ -71,6 +71,12 @@ public sealed record StepReason
 
     /// <summary>Whether the game tick moved since the previous step's status read (true on the first step).</summary>
     public bool TickAdvanced { get; init; }
+
+    /// <summary>Set when the wake followed a clock stop; the step reports it in its telemetry.</summary>
+    public bool Stopped { get; init; }
+
+    /// <summary>When the clock stopped, for the stop-to-step latency; null when unknown.</summary>
+    public DateTimeOffset? StopAt { get; init; }
 
     public override string ToString()
     {

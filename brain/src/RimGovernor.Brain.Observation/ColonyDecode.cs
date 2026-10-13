@@ -90,6 +90,7 @@ public static partial class ObservationPackage
             throw new BridgeRefusedException();
         }
         var v = reply.Observed ?? throw new ObservationContractException("missing colony facts");
+        BridgeFunctions.ValidateColonyFacts(v, new C.Identity { ColonyId = expected.Colony.Value, LoadToken = expected.Load.Value, MapId = expected.Map.Value });
         var identity = ContextIdentity(v.Context);
         // The colony facts row may come from the step's fact cache at any earlier tick; only another generation
         // changes its world.

@@ -29,7 +29,7 @@ public sealed partial class RoundsBuildingPlanner
 
         if (channels.PasteDispenser.Count > 0)
         {
-            return (this, BuildingExistingFacility);
+            return (this, BuildingReasonExistingFacility);
         }
 
         var request = new PasteSiteRequest { Meals = meals, Benches = p.ProductionBenches, Power = p.PowerPlanning };
@@ -48,7 +48,7 @@ public sealed partial class RoundsBuildingPlanner
 
         if (!p.Center().TryGetValue(out var anchor))
         {
-            return (this, BuildingNoLayoutPlan);
+            return (this, BuildingReasonNoLayoutPlan);
         }
 
         var (site, ok) = PolicyFunctions.PlanSiteType(new SiteTypeRequest { Paste = request, Field = new FieldRequest { Site = new FarmSiteRequest { Cells = p.Cells, Bounds = p.Bounds, Anchor = anchor } } });
@@ -63,7 +63,7 @@ public sealed partial class RoundsBuildingPlanner
         return (result, default);
     }
 
-    internal (IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict) PreviewPaste(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection p, IReadOnlyList<Cell> protectedCells, Action check)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPasteAsync(GenerationSnapshot snapshot, ColonyProjection p, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = p.Identity.Tick };
         var blocked = protectedCells.ToHashSet();
@@ -71,34 +71,34 @@ public sealed partial class RoundsBuildingPlanner
         for (var i = 0; i < Paste.Count; i++)
         {
             var site = Paste[i];
-            var building = Building.NewBuilding(site.Definition, site.Cell, site.Rotation, "");
+            var building = new Building(site.Definition, site.Cell, site.Rotation, "");
             var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{i}"), building, PolicyFunctions.PlannerTier(Concern, Phase));
-            var (read, _) = Native.PreviewBuilding(ct, action, snapshot);
+            var (read, _) = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
             var v = read.Preview;
             var lk = v.CanPlace.TryGetValue(out var legal);
             var sk = v.SafeToPlace.TryGetValue(out var safe);
             var ck = v.Footprint.TryGetValue(out var cells);
             if (!lk || !sk || !ck || !legal || !safe || cells!.Count == 0)
             {
-                return (null!, stock, SiteBlocked("paste_dispenser_site", "preview_refused"));
+                return ([], stock, SiteBlocked("paste_dispenser_site", "preview_refused"));
             }
 
             foreach (var cell in cells)
             {
                 if (!blocked.Add(cell))
                 {
-                    return (null!, stock, SiteBlocked("paste_dispenser_site", "footprints_overlap"));
+                    return ([], stock, SiteBlocked("paste_dispenser_site", "footprints_overlap"));
                 }
             }
 
-            MergeRoundsStock(ref stock, read.Stock, true);
+            stock = MergeRoundsStock(stock, read.Stock, true);
             output.Add(v);
         }
 
         return (output, stock, default);
     }
 
-    internal (RoundsBuildingResult Result, bool Handled) DigPaste(CancellationToken call, CancellationToken epoch, ExcavationStep s, IReadOnlyList<Cell> protectedCells, Action check)
+    internal async Task<(RoundsBuildingResult Result, bool Handled)> DigPasteAsync(ExcavationStep s, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken call, CancellationToken epoch)
     {
         var planned = new List<RoleCell>();
         var buildings = new List<Building>();
@@ -109,14 +109,14 @@ public sealed partial class RoundsBuildingPlanner
                 return (new RoundsBuildingResult { Verdict = BuildingReasonExistingWork }, true);
             }
 
-            buildings.Add(Building.NewBuilding(site.Definition, site.Cell, site.Rotation, ""));
+            buildings.Add(new Building(site.Definition, site.Cell, site.Rotation, ""));
             planned.Add(new RoleCell { Cell = site.Cell, Role = RockRole.NeedsFloor });
         }
 
         var dig = PolicyFunctions.RockStep(planned, s.Facts.Cells).Dig;
         if (dig.Count == 0)
         {
-            return (default, false);
+            return (new RoundsBuildingResult(), false);
         }
 
         var (access, ok) = PolicyFunctions.RockAccess(dig, s.Facts.Cells);
@@ -126,6 +126,6 @@ public sealed partial class RoundsBuildingPlanner
         }
 
         var method = new MethodId($"plan-dig-paste-{dig[0].X}-{dig[0].Z}");
-        return AdmitRockStep(call, epoch, s, planned, access, method, buildings, check);
+        return await AdmitRockStepAsync(s, planned, access, method, buildings, check, call, epoch).ConfigureAwait(false);
     }
 }

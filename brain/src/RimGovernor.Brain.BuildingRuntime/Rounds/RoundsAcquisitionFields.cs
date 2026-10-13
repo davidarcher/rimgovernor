@@ -8,7 +8,7 @@ internal static partial class BuildingRuntimePackage
     /// plant acquisition inside a growing zone, and the census can predate a zone the fields plan just created.
     /// Hunts move and are kept.
     /// </summary>
-    internal static Fact<IReadOnlyList<AcquisitionSource>> WithoutFieldSources(Fact<IReadOnlyList<AcquisitionSource>> sources, ColonyProjection projection, IReadOnlyList<PlanState> plans, GenerationSnapshot current)
+    internal static Fact<EquatableArray<AcquisitionSource>> WithoutFieldSources(Fact<EquatableArray<AcquisitionSource>> sources, ColonyProjection projection, IReadOnlyList<PlanState> plans, GenerationSnapshot current)
     {
         if (!sources.TryGetValue(out var rows))
         {
@@ -28,7 +28,7 @@ internal static partial class BuildingRuntimePackage
             }
             kept.Add(row);
         }
-        return Known<IReadOnlyList<AcquisitionSource>>(kept);
+        return Known<EquatableArray<AcquisitionSource>>([.. kept]);
     }
 
     internal static HashSet<Cell> FieldCells(ColonyProjection projection, IReadOnlyList<PlanState> plans, GenerationSnapshot current)
@@ -48,7 +48,7 @@ internal static partial class BuildingRuntimePackage
             {
                 var zone = progress.Action.ZoneCreate;
                 var v = progress.View;
-                if (zone is null || zone.Kind != ZoneKind.Growing || v.Stage == Stage.Cancelled || v.Stage == Stage.Unsuccessful || (v.Snapshot != default && !v.Snapshot.SameWorld(current)))
+                if (zone is null || zone.Kind != Domain.ZoneKind.Growing || v.Stage == Stage.Cancelled || v.Stage == Stage.Unsuccessful || (v.Snapshot != default && !v.Snapshot.SameWorld(current)))
                 {
                     continue;
                 }

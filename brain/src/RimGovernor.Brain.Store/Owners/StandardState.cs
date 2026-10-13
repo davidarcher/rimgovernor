@@ -320,6 +320,36 @@ public sealed partial class Store
         SaveStandard(tx, state, state.Standard with { Mission = mission });
 
     /// <summary>
+    /// Replaces the standard's planner record text at <paramref name="revision"/> (Go <c>RecordStandard</c> for the
+    /// goals whose record is their own JSON: creep-joiner, ideoligion reform, trade requests). Empty clears it.
+    /// </summary>
+    public StandardState RecordStandard(StandardId id, ulong revision, string record, CancellationToken cancellationToken) =>
+        Run(
+            tx =>
+            {
+                var state = LoadStandard(tx, id);
+                return state.Revision != revision ? throw new ConflictException() : WriteStandardRecordText(tx, state, record);
+            },
+            cancellationToken
+        );
+
+    public Task<StandardState> RecordStandardAsync(StandardId id, ulong revision, string record, CancellationToken cancellationToken) =>
+        Task.Run(() => RecordStandard(id, revision, record, cancellationToken), cancellationToken);
+
+    /// <summary>The planner-record form of <see cref="CommitMethodRecord(StandardId, ulong, MethodId, string, PlanSpec, TradeMission?, CancellationToken)"/>.</summary>
+    public StandardState CommitMethodRecord(StandardId id, ulong revision, MethodId method, string reason, PlanSpec plan, string record, CancellationToken cancellationToken)
+    {
+        plan.Validate();
+        return Run(tx => WriteStandardRecordText(tx, CommitMethodIn(tx, id, revision, method, reason, plan), record), cancellationToken);
+    }
+
+    public Task<StandardState> CommitMethodRecordAsync(StandardId id, ulong revision, MethodId method, string reason, PlanSpec plan, string record, CancellationToken cancellationToken) =>
+        Task.Run(() => CommitMethodRecord(id, revision, method, reason, plan, record, cancellationToken), cancellationToken);
+
+    private static StandardState WriteStandardRecordText(StoreTransaction tx, StandardState state, string record) =>
+        SaveStandard(tx, state, state.Standard with { Record = record.Length == 0 ? null : record });
+
+    /// <summary>
     /// Reviews a standard against the observed <paramref name="need"/>: voids it on a world change, cancels a
     /// voided standard's methods, and files the new finding and episode (Go <c>ReviewStandard</c>).
     /// </summary>

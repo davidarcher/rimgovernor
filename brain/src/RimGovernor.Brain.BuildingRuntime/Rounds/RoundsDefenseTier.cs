@@ -9,7 +9,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal const string DefenseRetierTier = "retier";
 
     /// <summary>Re-tiers the standing colony buildings that the layout promotes to survive tier, once per site set.</summary>
-    internal (RoundsDefenseLayoutResult Result, bool Done) Retier(CancellationToken call, CancellationToken epoch, StandardState goal, ControlState state, RoundsReading read, DefenseLayoutRecord record)
+    internal (RoundsDefenseLayoutResult Result, bool Done) Retier(StandardState goal, ControlState state, RoundsReading read, DefenseLayoutRecord record, CancellationToken call, CancellationToken epoch)
     {
         if (!DefensePromoted(read.Projection))
         {
@@ -43,7 +43,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var method = new MethodId($"defense-{DefenseRetierTier}-{Convert.ToHexStringLower(sum.AsSpan(0, 8))}");
         try
         {
-            p.Journal.LoadOwnerMethod(call, goal, method);
+            p.Journal.LoadOwnerMethod(goal, method, call);
             return (new RoundsDefenseLayoutResult(), false);
         }
         catch (NotFoundException)
@@ -54,8 +54,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var actions = new List<DomainAction>(sites.Count);
         for (var i = 0; i < sites.Count; i++)
         {
-            var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), sites[i].Building, BuildTier.Survive);
-            actions.Add(action.WithTier(BuildTier.Survive, sites[i].Id));
+            var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), sites[i].Building ?? throw new ControlException("defense tier: site carries no building"), ConstructionTier.Survive);
+            actions.Add(action.WithTier(ConstructionTier.Survive, sites[i].Id));
         }
         var plan = new PlanSpec(id, new PlanRevision(1), actions);
         p.Current(call, epoch);
@@ -63,8 +63,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             throw DefenseControlErr(119);
         }
-        p.Journal.CommitMethodReason(call, goal.Standard.Id, goal.Revision, method, "", plan);
-        DefenseAction(call, "defense-layout", LogLevel.Info, "applied", "retier", DefenseRetierTier, new Dictionary<string, object?> { ["sites"] = sites.Count, ["method"] = method.Value });
+        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, "", plan, call);
+        DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "retier", DefenseRetierTier, new Dictionary<string, object?> { ["sites"] = sites.Count, ["method"] = method.Value }, call);
         return (new RoundsDefenseLayoutResult { Verdict = BuildingReasonAdmitted, Plan = id, Tier = DefenseRetierTier }, true);
     }
 }

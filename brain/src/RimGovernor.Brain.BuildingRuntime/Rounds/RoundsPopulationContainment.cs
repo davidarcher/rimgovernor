@@ -2,27 +2,29 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsCustodySource : IRoundsRescueSource, IRoundsTendSource
 {
+    /// <summary>The emergency census; one read serves both the rescue and tend halves, so the inherited twins are hidden.</summary>
+    new Task<(EmergencyObservation Emergency, BridgeResult Result)> ReadEmergencyAsync(C.Identity identity, CancellationToken ct);
 }
 
 public sealed partial class RoundsPopulationCustodyPlanner
 {
     /// <summary>Containment upkeep: close doors, enable bioferrite harvest, advance the monolith, then tend the held entity.</summary>
-    internal RoundsPopulationCustodyResult StepContainment(CancellationToken call, CancellationToken epoch, Player p, ControlState state, DateTimeOffset started, StandardState goal, RoundsFacts facts, StepArbiter arbiter)
+    internal async Task<RoundsPopulationCustodyResult> StepContainmentAsync(Player p, ControlState state, DateTimeOffset started, StandardState goal, RoundsFacts facts, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var containment = facts.Containment;
         var research = facts.Research;
         var upkeep = PolicyFunctions.ContainmentDoorUpkeep(containment);
         foreach (var issue in upkeep.Issues)
         {
-            BuildingRuntimePackage.DefenseAction(call, "routine-population-custody", DecisionLevel.Warn, "refused", "containment_upkeep_issue", $"{issue.Cell.X},{issue.Cell.Z}", new Dictionary<string, object?> { ["x"] = issue.Cell.X, ["z"] = issue.Cell.Z, ["detail"] = issue.Reason });
+            BuildingRuntimePackage.DefenseAction("routine-population-custody", TelemetryLevel.Warn, "refused", "containment_upkeep_issue", $"{issue.Cell.X},{issue.Cell.Z}", new Dictionary<string, object?> { ["x"] = issue.Cell.X, ["z"] = issue.Cell.Z, ["detail"] = issue.Reason }, call);
         }
 
         if (upkeep.CloseDoors.Count > 0)
         {
             var cell = upkeep.CloseDoors[0];
-            var door = DoorControl.NewDoorControl(cell, false);
+            var door = new DoorControl(cell, false);
             var prefix = $"population-door-{cell.X}-{cell.Z}-";
-            var (method, verdict, ok) = BuildingRuntimePackage.AdmitStandardMethod(call, p.Journal, goal, prefix, state.Snapshot);
+            var (method, verdict, ok) = BuildingRuntimePackage.AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
             if (!ok)
             {
                 return new RoundsPopulationCustodyResult { Verdict = verdict };
@@ -30,46 +32,45 @@ public sealed partial class RoundsPopulationCustodyPlanner
 
             var id = PlanIds.MintPlanId();
             var action = DomainAction.NewDoorControlAction(new ActionId($"{id}-0"), door);
-            return Commit(call, epoch, p, state, started, goal, method, id, action);
+            return Commit(p, state, started, goal, method, id, action, call, epoch);
         }
 
         var harvest = PolicyFunctions.BioferriteHarvestOwed(containment, research);
         foreach (var reason in harvest.Issues)
         {
-            BuildingRuntimePackage.DefenseAction(call, "routine-population-custody", DecisionLevel.Warn, "refused", "bioferrite_harvest_unread", "bioferrite", new Dictionary<string, object?> { ["detail"] = reason });
+            BuildingRuntimePackage.DefenseAction("routine-population-custody", TelemetryLevel.Warn, "refused", "bioferrite_harvest_unread", "bioferrite", new Dictionary<string, object?> { ["detail"] = reason }, call);
         }
 
         if (harvest.Enable.Count > 0)
         {
             var entity = harvest.Enable[0];
             var prefix = $"population-bioferrite-{entity}-";
-            var (method, verdict, ok) = BuildingRuntimePackage.AdmitStandardMethod(call, p.Journal, goal, prefix, state.Snapshot);
+            var (method, verdict, ok) = BuildingRuntimePackage.AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
             if (!ok)
             {
                 return new RoundsPopulationCustodyResult { Verdict = verdict };
             }
 
-            var setting = PawnSetting.NewExtractBioferriteSetting(entity, true);
+            var setting = PawnSettings.NewExtractBioferriteSetting(entity, true);
             var id = PlanIds.MintPlanId();
             var action = DomainAction.NewPawnSettingsAction(new ActionId($"{id}-0"), setting);
-            return Commit(call, epoch, p, state, started, goal, method, id, action);
+            return Commit(p, state, started, goal, method, id, action, call, epoch);
         }
 
-        var (monolith, handled) = StepMonolith(call, epoch, p, state, started, goal, facts, arbiter);
+        var (monolith, handled) = await StepMonolithAsync(p, state, started, goal, facts, arbiter, call, epoch).ConfigureAwait(false);
         if (handled)
         {
             return monolith;
         }
 
-        var (patient, found) = PolicyFunctions.EntityTendTarget(containment);
-        if (!found)
+        if (PolicyFunctions.EntityTendTarget(containment) is not { } patient)
         {
-            return new RoundsPopulationCustodyResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "entity_tend_target") };
+            return new RoundsPopulationCustodyResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "entity_tend_target") };
         }
 
         var review = p.Journal.LoadRounds(call);
         var identity = Boundary.Identity(state.Snapshot);
-        var (emergency, _) = native.ReadEmergency(call, identity);
+        var (emergency, _) = await native.ReadEmergencyAsync(identity, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(emergency.Context, state.Snapshot);
@@ -79,27 +80,27 @@ public sealed partial class RoundsPopulationCustodyPlanner
             throw new ControlException("stepContainment: emergency read outside the review", e);
         }
 
-        if (emergency.Context.Tick < review.Tick.Value)
+        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick < review.Tick.Value)
         {
             throw new ControlException("stepContainment: emergency read outside the review");
         }
 
         if (!emergency.Facts.ColonistsComplete.TryGetValue(out var complete) || !complete || emergency.Facts.Colonists.Count == 0)
         {
-            return new RoundsPopulationCustodyResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "colonists_complete") };
+            return new RoundsPopulationCustodyResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "colonists_complete") };
         }
 
         var ids = new List<string>(emergency.Facts.Colonists.Count + 1);
         foreach (var pawn in emergency.Facts.Colonists)
         {
-            if (new PawnId(pawn.Id.Value) != patient)
+            if (pawn.Id.Value != patient.Value)
             {
                 ids.Add(pawn.Id.Value);
             }
         }
 
         ids.Add(patient.Value);
-        var (reply, _) = native.ReadTendPawns(call, identity, ids);
+        var (reply, _) = await native.ReadTendPawnsAsync(identity, ids, call).ConfigureAwait(false);
         var observed = reply.Observed ?? throw new ControlException("stepContainment: observed == nil");
         try
         {
@@ -126,7 +127,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
             }
 
             var pawn = new PawnId(row.Pawn.Id);
-            if (pawn == patient)
+            if (pawn == (PawnId)patient)
             {
                 patients.Add(TendFacts.NewTendPatientFacts(pawn, row, ""));
                 continue;
@@ -135,21 +136,21 @@ public sealed partial class RoundsPopulationCustodyPlanner
             doctors.Add(TendFacts.NewTendDoctorFacts(pawn, row, ""));
         }
 
-        var (doctor, target, ok2) = PolicyFunctions.SelectTend(doctors, patients, TendFacts.TendReachability(observed.Pawns));
+        var (doctor, target, ok2) = PolicyFunctions.SelectTend(doctors, patients, TendFacts.TendReachabilityOf(observed.Pawns));
         if (ok2 && !arbiter.TryClaim([doctor, target]))
         {
-            return new RoundsPopulationCustodyResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "pawn_claim") };
+            return new RoundsPopulationCustodyResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "pawn_claim") };
         }
 
         if (!ok2)
         {
-            BuildingRuntimePackage.DefenseAction(call, "routine-population-custody", DecisionLevel.Warn, "waiting", "entity_tend_unavailable", patient.Value, null);
-            return new RoundsPopulationCustodyResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "entity_tend_doctor") };
+            BuildingRuntimePackage.DefenseAction("routine-population-custody", TelemetryLevel.Warn, "waiting", "entity_tend_unavailable", patient.Value, null, call);
+            return new RoundsPopulationCustodyResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "entity_tend_doctor") };
         }
 
-        var value = Tend.NewTend(doctor, target);
+        var value = new Domain.Tend(new Domain.PawnId(doctor.Value), new Domain.PawnId(target.Value));
         var tendPrefix = $"population-tend-{target}-";
-        var (tendMethod, tendVerdict, tendOk) = BuildingRuntimePackage.AdmitStandardMethod(call, p.Journal, goal, tendPrefix, state.Snapshot);
+        var (tendMethod, tendVerdict, tendOk) = BuildingRuntimePackage.AdmitStandardMethod(p.Journal, goal, tendPrefix, state.Snapshot, call);
         if (!tendOk)
         {
             return new RoundsPopulationCustodyResult { Verdict = tendVerdict };
@@ -157,6 +158,6 @@ public sealed partial class RoundsPopulationCustodyPlanner
 
         var tendId = PlanIds.MintPlanId();
         var tendAction = DomainAction.NewTendAction(new ActionId($"{tendId}-0"), value);
-        return Commit(call, epoch, p, state, started, goal, tendMethod, tendId, tendAction);
+        return Commit(p, state, started, goal, tendMethod, tendId, tendAction, call, epoch);
     }
 }

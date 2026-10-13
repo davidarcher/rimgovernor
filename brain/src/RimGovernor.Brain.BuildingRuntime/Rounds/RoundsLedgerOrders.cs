@@ -45,10 +45,10 @@ public sealed partial class Rounder
 
         if (view is null || view.Status == "")
         {
-            view = LedgerView.New(LedgerViewStatus.None, 0);
+            view = PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewNone, 0);
         }
 
-        view.Export = Exports.View(world);
+        view = view with { Export = Exports.View(world) };
         return view;
     }
 
@@ -61,7 +61,7 @@ public sealed partial class Rounder
 
     internal void NotePlacement(PlanId plan, DomainAction action, ProgressView v)
     {
-        if (!action.TryProductionBill(out var bill))
+        if (action.ProductionBill is not { } bill)
         {
             return;
         }
@@ -117,18 +117,18 @@ public sealed partial class Rounder
         }
 
         var journal = Player.Journal;
-        StandardState owner;
+        StandardState? owner;
         try
         {
             var review = journal.LoadRounds(ct);
-            (owner, _) = journal.Workable(ct, review, ConcernId.MaintainWorkLedger);
+            (owner, _) = journal.Workable(review, PolicyFunctions.MaintainWorkLedger, ct);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             return false;
         }
 
-        if (owner.Standard.Id.Value == "")
+        if (owner is null || owner.Standard.Id.Value == "")
         {
             return false;
         }
@@ -136,15 +136,15 @@ public sealed partial class Rounder
         var found = new Dictionary<string, PlacementEntry>();
         foreach (var method in owner.History)
         {
-            if (!method.Method.Value.StartsWith(LedgerMethodPrefix, StringComparison.Ordinal))
+            if (!method.MethodId.Value.StartsWith(LedgerMethodPrefix, StringComparison.Ordinal))
             {
                 continue;
             }
 
-            Plan plan;
+            PlanState plan;
             try
             {
-                plan = journal.LoadPlan(ct, method.Plan);
+                plan = journal.LoadPlan(method.Plan, ct);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -153,7 +153,7 @@ public sealed partial class Rounder
 
             foreach (var progress in plan.Progress)
             {
-                if (progress.Action.TryProductionBill(out var bill))
+                if (progress.Action.ProductionBill is { } bill)
                 {
                     var (key, e) = PlacementEntryOf(method.Plan.Value, bill, AttemptOf(progress.View));
                     if (!found.TryGetValue(key, out var held) || e.Attempt.Tick >= held.Attempt.Tick)
@@ -179,7 +179,7 @@ public sealed partial class Rounder
 
     internal static PlacementAttempt AttemptOf(ProgressView v)
     {
-        var a = new PlacementAttempt { Tick = v.Tick, Outcome = AttemptOutcome.Pending };
+        var a = new PlacementAttempt { Tick = v.Tick.Value, Outcome = PolicyFunctions.AttemptPending };
         if (!v.Receipt.TryGetValue(out var receipt))
         {
             return a;
@@ -187,11 +187,11 @@ public sealed partial class Rounder
 
         switch (receipt)
         {
-            case Receipt.Accepted:
-                a = a with { Outcome = AttemptOutcome.Accepted };
+            case Domain.Receipt.Accepted:
+                a = a with { Outcome = PolicyFunctions.AttemptAccepted };
                 break;
-            case Receipt.Refused:
-                a = a with { Outcome = AttemptOutcome.Refused };
+            case Domain.Receipt.Refused:
+                a = a with { Outcome = PolicyFunctions.AttemptRefused };
                 if (v.Refusal.TryGetValue(out var refusal))
                 {
                     a = a with { Code = refusal.Code, Reason = refusal.Reason };
@@ -199,7 +199,7 @@ public sealed partial class Rounder
 
                 break;
             default:
-                a = a with { Outcome = AttemptOutcome.Unconfirmed };
+                a = a with { Outcome = PolicyFunctions.AttemptUnconfirmed };
                 break;
         }
 

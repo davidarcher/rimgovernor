@@ -11,19 +11,19 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>Refreshes one zone's presence and CAS token for each edit.</summary>
 public interface IRoundsStockpileSource
 {
-    (ZoneDeleteTarget Target, BridgeResult Result) ReadZoneDeleteTarget(CancellationToken ct, C.Identity identity, string zone);
+    Task<(ZoneDeleteTarget Target, BridgeResult Result)> ReadZoneDeleteTargetAsync(C.Identity identity, string zone, CancellationToken ct);
 }
 
 /// <summary>Reads a shelf's storage settings CAS token.</summary>
 public interface IShelfTargetSource
 {
-    (StorageBuildingTarget Target, BridgeResult Result) ReadStorageBuildingTarget(CancellationToken ct, C.Identity identity, string building);
+    Task<(StorageBuildingTarget Target, BridgeResult Result)> ReadStorageBuildingTargetAsync(C.Identity identity, string building, CancellationToken ct);
 }
 
 /// <summary>Previews a zone creation natively.</summary>
 public interface IZonePreviewSource
 {
-    (OperationsPb.ZonePreviewReply Reply, BridgeResult Result) PreviewZone(CancellationToken ct, C.Identity identity, ZoneCreate zone);
+    Task<(OperationsPb.ZonePreviewReply Reply, BridgeResult Result)> PreviewZoneAsync(C.Identity identity, ZoneCreate zone, CancellationToken ct);
 }
 
 /// <summary>Applies zone edits for any owning concern.</summary>
@@ -33,7 +33,7 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
     /// Whether the edit's target (the stockpile zone, or the shelf for a shelf patch) is still there; false when
     /// the source cannot read it.
     /// </summary>
-    public bool EditTargetPresent(CancellationToken ct, C.Identity identity, Pol.StockpileEdit e)
+    public async Task<bool> EditTargetPresentAsync(C.Identity identity, Pol.StockpileEdit e, CancellationToken ct)
     {
         if (e.Kind == Pol.StockpileEditKind.ShelfPatch)
         {
@@ -41,10 +41,10 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
             {
                 return false;
             }
-            var (shelf, _) = source.ReadStorageBuildingTarget(ct, identity, e.Zone);
+            var (shelf, _) = await source.ReadStorageBuildingTargetAsync(identity, e.Zone, ct).ConfigureAwait(false);
             return shelf.Present;
         }
-        var (target, _) = native.ReadZoneDeleteTarget(ct, identity, e.Zone);
+        var (target, _) = await native.ReadZoneDeleteTargetAsync(identity, e.Zone, ct).ConfigureAwait(false);
         return target.Present && target.Type == "stockpile";
     }
 
@@ -54,7 +54,7 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
     /// reserved, like every routine zone. Zoning is instant and needs no worker, so a fresh colony's zones land
     /// in one step.
     /// </summary>
-    public RoundsStockpileResult Create(CancellationToken call, CancellationToken epoch, ControlState state, Sto.StandardState owner, Observation.ColonyProjection projection, DateTimeOffset started, IReadOnlyList<Pol.StockpileEdit> edits)
+    public async Task<RoundsStockpileResult> CreateAsync(ControlState state, Sto.StandardState owner, Observation.ColonyProjection projection, DateTimeOffset started, IReadOnlyList<Pol.StockpileEdit> edits, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         if (native is not IZonePreviewSource preview)
@@ -68,7 +68,7 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
         var method = new MethodId("stockpile-create-" + Convert.ToHexString(digest, 0, 8).ToLowerInvariant());
         try
         {
-            p.Journal.LoadMethod(call, owner.Standard.Id, owner.Standard.Episode, method);
+            p.Journal.LoadMethod(owner.Standard.Id, owner.Standard.Episode, method, call);
             return new RoundsStockpileResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "stockpile_create") };
         }
         catch (Sto.NotFoundException)
@@ -80,24 +80,25 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
         var admitted = new List<Pol.StockpileEdit>();
         foreach (var e in edits)
         {
+            var createFilter = e.Filter ?? throw new InvalidOperationException("a stockpile create edit names its filter");
             ZoneCreate value = e.CellList.Count > 0
-                ? ZoneCreate.NewFilteredStockpileCellsZone(e.Filter, e.Priority, e.CellList)
-                : ZoneCreate.NewFilteredStockpileZone(e.Filter, e.Priority, new GroundRect(new Cell(e.Rectangle.X, e.Rectangle.Z), e.Rectangle.Width, e.Rectangle.Height));
+                ? ZoneCreate.NewFilteredStockpileCellsZone(createFilter, e.Priority, e.CellList)
+                : ZoneCreate.NewFilteredStockpileZone(createFilter, e.Priority, new GroundRect(new Cell(e.Rectangle.X, e.Rectangle.Z), e.Rectangle.Width, e.Rectangle.Height));
             value = value.WithRole(e.Role);
             OperationsPb.ZonePreviewReply reply;
             try
             {
-                (reply, _) = preview.PreviewZone(call, Boundary.Identity(snapshot), value);
+                (reply, _) = await preview.PreviewZoneAsync(Boundary.Identity(snapshot), value, call).ConfigureAwait(false);
             }
-            catch (Bridge.NativeFailure refused)
+            catch (NativeFailureException refused)
             {
-                Tel.Decide(call, StockpileEditDecision("refused", refused.Value.Code.ToString(), e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = refused.Value.Detail }));
+                Tel.Decide(StockpileEditDecision("refused", refused.Value.Code.ToString(), e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = refused.Value.Detail }));
                 continue;
             }
             var v = reply.Evaluated;
             if (v is null || !v.Accepted)
             {
-                Tel.Decide(call, StockpileEditDecision("refused", "preview_not_accepted", e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = v?.Reason ?? "" }));
+                Tel.Decide(StockpileEditDecision("refused", "preview_not_accepted", e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = v?.Reason ?? "" }));
                 continue;
             }
             try
@@ -114,7 +115,7 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
             }
             var action = DomainAction.NewZoneCreateAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{actions.Count}")), value);
             actions.Add(action);
-            previews.Add(new Pol.Preview { Action = action, Snapshot = snapshot, Tick = tick, CanPlace = Known(true), SafeToPlace = Known(true), MadeFromStuff = Known(false), WatchCellsAccessible = Known(true), Footprint = Known(value.Cells()), Costs = Known<IReadOnlyList<Pol.Amount>>([]) });
+            previews.Add(new Pol.Preview { Action = action, Snapshot = snapshot, Tick = tick, CanPlace = Known(true), SafeToPlace = Known(true), MadeFromStuff = Known(false), WatchCellsAccessible = Known(true), Footprint = Known(value.Cells), Costs = Known<EquatableArray<Pol.Amount>>([]) });
             admitted.Add(e);
         }
         if (actions.Count == 0)
@@ -128,7 +129,7 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
         {
             throw new ControlException("create: p.session.State() != state || now.Before(started) || now.Sub(started) > z.reviewer.maxAge");
         }
-        var decision = AdmitMethod(call, p.Journal, new Sto.BuildingMethodRequest
+        var decision = await AdmissionLog.AdmitMethodAsync(p.Journal, new Sto.BuildingMethodRequest
         {
             Owner = owner,
             Method = method,
@@ -139,14 +140,14 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
             Stock = new Pol.StockObservation { Snapshot = snapshot, Tick = tick },
             Previews = previews,
             Purpose = Pol.Purpose.Rounds,
-        });
+        }, call).ConfigureAwait(false);
         if (!decision.Admitted)
         {
-            return new RoundsStockpileResult { Verdict = AdmissionRefused(decision) };
+            return new RoundsStockpileResult { Verdict = AdmissionLog.AdmissionRefused(decision) };
         }
         foreach (var e in admitted)
         {
-            Tel.Decide(call, StockpileEditDecision("admitted", "", e.Role, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["role"] = e.Role, ["cells"] = e.Cells().Count, ["plan"] = id.ToString(), ["detail"] = e.Explanation }));
+            Tel.Decide(StockpileEditDecision("admitted", "", e.Role, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["role"] = e.Role, ["cells"] = e.Cells().Count, ["plan"] = id.ToString(), ["detail"] = e.Explanation }));
         }
         return new RoundsStockpileResult { Verdict = BuildingReasonAdmitted, Plan = id, Edits = actions.Count };
     }
@@ -182,18 +183,18 @@ internal static partial class BuildingRuntimePackage
         var zones = new List<Pol.StockpileZone>();
         foreach (var z in owned)
         {
-            if (z.Kind != ZoneKind.StockpileZone || !byZone.TryGetValue(z.Id, out var entry))
+            if (z.Kind != Domain.ZoneKind.Stockpile || !byZone.TryGetValue(z.Id, out var entry) || z.Filter is not { } zoneFilter)
             {
                 continue;
             }
-            var zone = new Pol.StockpileZone { Id = z.Id, Role = z.Role, Cells = entry.All, Stored = entry.Stored, Filter = z.Filter, Priority = z.Priority };
-            if (patches is not null && patches.TryGetValue(z.Id, out var patch) && patch.Kind == StorageTargetKind.StorageZoneTarget)
+            var zone = new Pol.StockpileZone { Id = z.Id, Role = z.Role, Cells = entry.All, Stored = entry.Stored, Filter = zoneFilter, Priority = z.Priority ?? default };
+            if (patches is not null && patches.TryGetValue(z.Id, out var patch) && patch.Kind == StorageTargetKind.Zone)
             {
-                zone.Filter = patch.Filter;
-                zone.Priority = patch.Priority;
+                zone = zone with { Filter = patch.Filter };
+                zone = zone with { Priority = patch.Priority };
                 if (patch.Role != "")
                 {
-                    zone.Role = patch.Role;
+                    zone = zone with { Role = patch.Role };
                 }
             }
             zones.Add(zone);
@@ -211,10 +212,10 @@ internal static partial class BuildingRuntimePackage
         {
             switch (a.Kind)
             {
-                case ActionKind.ZoneCreateAction:
-                case ActionKind.ZoneDeleteAction:
-                case ActionKind.ZoneCellEditAction:
-                case ActionKind.StockpilePatchAction:
+                case ActionKind.ZoneCreate:
+                case ActionKind.ZoneDelete:
+                case ActionKind.ZoneCellEdit:
+                case ActionKind.StockpilePatch:
                     return true;
             }
         }
@@ -225,11 +226,11 @@ internal static partial class BuildingRuntimePackage
     /// Reports whether one of the owner's methods holds a zone-edit plan still open. A room shell is building
     /// work that takes days; zoning is instant, so only an open zone-edit plan holds the next edits.
     /// </summary>
-    internal static bool OpenEditPlan(CancellationToken ct, StoreJournal journal, Sto.StandardState owner)
+    internal static bool OpenEditPlan(StoreJournal journal, Sto.StandardState owner, CancellationToken ct)
     {
         foreach (var method in owner.Methods)
         {
-            var plan = journal.LoadPlan(ct, method.Plan);
+            var plan = journal.LoadPlan(method.Plan, ct);
             if (IsStockpileEditPlan(plan.Spec) && StorePackage.PlanOpen(plan))
             {
                 return true;
@@ -244,13 +245,13 @@ internal static partial class BuildingRuntimePackage
         switch (e.Kind)
         {
             case Pol.StockpileEditKind.Grow:
-                return DomainAction.NewZoneCellEditAction(id, new ZoneCellEdit(e.Zone, ZoneCellEditKind.AddZoneCells, e.AddedCells));
+                return DomainAction.NewZoneCellEditAction(id, new ZoneCellEdit(e.Zone, CellEditMode.Add, e.AddedCells));
             case Pol.StockpileEditKind.Shrink:
-                return DomainAction.NewZoneCellEditAction(id, new ZoneCellEdit(e.Zone, ZoneCellEditKind.RemoveZoneCells, e.RemovedCells));
+                return DomainAction.NewZoneCellEditAction(id, new ZoneCellEdit(e.Zone, CellEditMode.Remove, e.RemovedCells));
             case Pol.StockpileEditKind.Retarget:
-                return DomainAction.NewStockpilePatchAction(id, new StockpilePatch(StorageTargetKind.StorageZoneTarget, e.Zone, e.Filter, e.Priority, e.Role));
+                return DomainAction.NewStockpilePatchAction(id, new StockpilePatch(StorageTargetKind.Zone, e.Zone, e.Filter ?? throw new InvalidOperationException("a retarget edit names its filter"), e.Priority, e.Role));
             case Pol.StockpileEditKind.ShelfPatch:
-                return DomainAction.NewStockpilePatchAction(id, new StockpilePatch(StorageTargetKind.StorageBuildingTarget, e.Zone, e.Filter, e.Priority, e.Role));
+                return DomainAction.NewStockpilePatchAction(id, new StockpilePatch(StorageTargetKind.Building, e.Zone, e.Filter ?? throw new InvalidOperationException("a shelf patch edit names its filter"), e.Priority, e.Role));
             case Pol.StockpileEditKind.Delete:
                 return DomainAction.NewZoneDeleteAction(id, new ZoneDelete(e.Zone));
         }

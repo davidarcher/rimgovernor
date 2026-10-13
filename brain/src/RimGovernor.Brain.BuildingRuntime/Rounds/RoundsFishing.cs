@@ -11,7 +11,7 @@ internal static partial class BuildingRuntimePackage
 
         foreach (var row in plan.Portfolio)
         {
-            if (row.Channel.Kind == CandidateKind.Fishing && row.Decision != FoodPlanDecision.Close && row.Selected())
+            if (row.Channel.Kind == CandidateKind.Fishing && row.Decision != FoodPlanDecision.Close && row.Selected)
             {
                 return [new WorkRequirement { Work = WorkType.Fishing }];
             }
@@ -24,12 +24,12 @@ internal static partial class BuildingRuntimePackage
     /// The DarkStudy owner the held entities owe; an unread held or studiable fact is logged loudly and
     /// leaves the requirement unknown, so the work planner waits.
     /// </summary>
-    internal static Fact<IReadOnlyList<WorkRequirement>> StudyWork(CancellationToken ct, ColonyProjection p)
+    internal static Fact<EquatableArray<WorkRequirement>> StudyWork(ColonyProjection p, CancellationToken ct)
     {
         var (work, reason) = PolicyFunctions.StudyWork(p.Facts.Containment);
         if (!work.IsKnown)
         {
-            Tel.Decide(ct, new Decision
+            Tel.Decide(new Decision
             {
                 Kind = "routine_skip",
                 Component = "routine-work",
@@ -60,7 +60,7 @@ public sealed partial class Rounder
 
             var p = census.Reading.Projection;
             var state = Player.Session.State();
-            if (!RoundsBuildingBoundary(p.Identity, state.Snapshot, 0))
+            if (!RoundsBuildingBoundary(p.Identity, state.Snapshot, new Tick(0)))
             {
                 return needs;
             }
@@ -101,7 +101,7 @@ public sealed partial class RoundsFieldPlanner
     /// Fishing uses the shared food goal and the ordinary zone Hands handler. The footprint offers access;
     /// native population-floor settings govern catches.
     /// </summary>
-    internal (RoundsFieldResult Result, bool Handled) Fishing(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, RoundsReading read)
+    internal async Task<(RoundsFieldResult Result, bool Handled)> FishingAsync(ControlState state, StandardState goal, RoundsReading read, CancellationToken call, CancellationToken epoch)
     {
         var p = read.Projection;
         var pk = p.Facts.FoodPlan.TryGetValue(out var plan);
@@ -109,12 +109,12 @@ public sealed partial class RoundsFieldPlanner
         if (!pk || !ck || !census!.FishableWater.TryGetValue(out var water)
             || !water.FishingResearched.TryGetValue(out var researched) || !researched)
         {
-            return (default, false);
+            return (new RoundsFieldResult(), false);
         }
 
         foreach (var entry in plan!.Portfolio)
         {
-            if (entry.Channel.Kind != CandidateKind.Fishing || entry.Decision == FoodPlanDecision.Close || !entry.Selected())
+            if (entry.Channel.Kind != CandidateKind.Fishing || entry.Decision == FoodPlanDecision.Close || !entry.Selected)
             {
                 continue;
             }
@@ -140,10 +140,10 @@ public sealed partial class RoundsFieldPlanner
                 }
 
                 var method = new MethodId("fishing-" + entry.Channel.Id);
-                var journal = Reviewer.Player.Journal;
+                var journal = _reviewer.Player.Journal;
                 try
                 {
-                    journal.LoadMethod(call, goal.Standard.Id, goal.Standard.Episode, method);
+                    journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
                     continue;
                 }
                 catch (NotFoundException)
@@ -153,34 +153,34 @@ public sealed partial class RoundsFieldPlanner
                 var zone = ZoneCreate.NewFishingZone(region.ProposedCells);
                 var id = PlanIds.MintPlanId();
                 var action = DomainAction.NewZoneCreateAction(new ActionId(id.Value + "-0"), zone);
-                var (reply, refused) = PreviewZone(call, Native, Boundary.Identity(state.Snapshot), zone);
+                var (reply, refused) = await PreviewZoneAsync(_native, Boundary.Identity(state.Snapshot), zone, call).ConfigureAwait(false);
                 if (refused.Length != 0)
                 {
                     continue;
                 }
 
-                Boundary.Context(reply.Evaluated.Context, state.Snapshot);
-                var spec = PlanSpec.NewPlan(id, new PlanRevision(1), [action]);
-                Reviewer.Player.Current(call, epoch);
-                C.Identity actual;
+                Boundary.Context(reply?.Evaluated?.Context, state.Snapshot);
+                var spec = new PlanSpec(id, new PlanRevision(1), [action]);
+                _reviewer.Player.Current(call, epoch);
+                Identity actual;
                 try
                 {
-                    actual = StepScope(call, Reviewer.Native);
+                    actual = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
                     throw new ControlException("fishing: step scope unreadable", e);
                 }
 
-                if (!RoundsBuildingBoundary(actual, state.Snapshot, p.Identity.Tick) || Reviewer.Player.Session.State() != state)
+                if (!RoundsBuildingBoundary(actual, state.Snapshot, p.Identity.Tick) || _reviewer.Player.Session.State() != state)
                 {
                     throw new ControlException("fishing: boundary moved or session state changed");
                 }
 
-                var now = Reviewer.Clock.Now();
-                if (now < read.StartedAt || now - read.StartedAt > Reviewer.MaxAge)
+                var now = _reviewer.Clock.Now();
+                if (now < read.StartedAt || now - read.StartedAt > _reviewer.MaxAge)
                 {
-                    throw new StaleException();
+                    throw new ObservationStaleException();
                 }
 
                 var snapshot = state.Snapshot with { Plan = id, Revision = new PlanRevision(1) };
@@ -194,9 +194,9 @@ public sealed partial class RoundsFieldPlanner
                     MadeFromStuff = Known(false),
                     WatchCellsAccessible = Known(true),
                     Footprint = Known(zone.Cells),
-                    Costs = Known<IReadOnlyList<Amount>>([]),
+                    Costs = Known<EquatableArray<Amount>>([]),
                 };
-                var decision = AdmitMethod(call, journal, new BuildingMethodRequest
+                var decision = await AdmissionLog.AdmitMethodAsync(journal, new BuildingMethodRequest
                 {
                     Owner = goal,
                     Method = method,
@@ -207,16 +207,16 @@ public sealed partial class RoundsFieldPlanner
                     Stock = new StockObservation { Snapshot = snapshot, Tick = p.Identity.Tick },
                     Previews = [preview],
                     Purpose = Purpose.Rounds,
-                });
+                }, call).ConfigureAwait(false);
                 if (!decision.Admitted)
                 {
-                    return (new RoundsFieldResult { Verdict = AdmissionRefused(decision) }, true);
+                    return (new RoundsFieldResult { Verdict = AdmissionLog.AdmissionRefused(decision) }, true);
                 }
 
                 return (new RoundsFieldResult { Verdict = BuildingReasonAdmitted, Plan = id }, true);
             }
         }
 
-        return (default, false);
+        return (new RoundsFieldResult(), false);
     }
 }

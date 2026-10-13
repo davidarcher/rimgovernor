@@ -71,7 +71,7 @@ public sealed partial class RoundsBuildingPlanner
             case Pol.TemperatureMethod.NoMethod:
                 return (null, BuildingReasonNoDeficit);
             case Pol.TemperatureMethod.Wait:
-                return (null, BuildingTemperatureWait);
+                return (null, BuildingReasonTemperatureWait);
             case Pol.TemperatureMethod.ShelterNeeded:
                 return (null, AwaitingPlan("enclosed_sleeping_room", ""));
             default:
@@ -135,20 +135,20 @@ internal static partial class BuildingRuntimePackage
             }
         }
         // Campfires burn wood: a finite stock unless a tree species can be sown.
-        return cooling with { HeatFuelFinite = !ResourceGrowable(CropChoices(facts), BurnFuelStuff, facts.CropClimate.Biome, GrowerSkill(facts.WorkPawns)) };
+        return cooling with { HeatFuelFinite = !ResourceGrowable(CropChoices(facts), new Pol.Resource(BurnFuelStuff), facts.CropClimate.Biome, GrowerSkill(facts.WorkPawns)) };
     }
 
     /// <summary>The planning definitions the temperature planner reads: every method it can place, so availability and draw are known before one is chosen.</summary>
     internal static readonly string[] TemperatureDefinitions = ["Campfire", "PassiveCooler", "Cooler"];
 
     /// <summary>Completed construction lends bounded ordinary refueling and heat-exchange time. Neither the construction receipt nor this allowance establishes safety.</summary>
-    internal static uint TemperatureOutputAllowance(CancellationToken ct, string heater, StoreJournal journal, Sto.StandardState goal, GenerationSnapshot current, Tick tick)
+    internal static uint TemperatureOutputAllowance(string heater, StoreJournal journal, Sto.StandardState goal, GenerationSnapshot current, Tick tick, CancellationToken ct)
     {
-        var methods = journal.LoadOwnerMethods(ct, goal);
+        var methods = journal.LoadOwnerMethods(goal, ct);
         uint allowance = 0;
         foreach (var method in methods)
         {
-            var plan = journal.LoadPlan(ct, method.Plan);
+            var plan = journal.LoadPlan(method.Plan, ct);
             allowance = Math.Max(allowance, TemperatureNativeWorkTicks(heater, plan, current, tick));
         }
         return allowance;

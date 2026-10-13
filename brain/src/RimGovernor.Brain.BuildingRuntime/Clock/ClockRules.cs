@@ -12,7 +12,7 @@ public sealed partial class ClockScheduler
         {
             return maxTicks;
         }
-        var plans = await _player.Journal.PlanHistoryWithMethodsAsync(1, "rules-*", ct).ConfigureAwait(false);
+        var plans = await Task.Run(() => _player.Journal.PlanHistoryWithMethods(1, ["rules-*"], ct), ct).ConfigureAwait(false);
         var lease = Unknown<RuleLease>();
         if (plans.Count == 1)
         {
@@ -21,7 +21,7 @@ public sealed partial class ClockScheduler
                 var attach = progress.Action.RulesAttach;
                 var view = progress.View;
                 if (attach is not null && attach.Rules.Count > 0 && view.Stage == Stage.Completed
-                    && view.Receipt.TryGetValue(out var receipt) && receipt == Receipt.Accepted
+                    && view.Receipt.TryGetValue(out var receipt) && receipt == Domain.Receipt.Accepted
                     && view.Snapshot.SameWorld(current) && view.Snapshot.Native == current.Native)
                 {
                     lease = Known(new RuleLease { Dispatched = view.Tick, Ticks = attach.LeaseTicks });

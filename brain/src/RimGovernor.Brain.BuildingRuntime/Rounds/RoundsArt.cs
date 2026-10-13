@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public sealed class RoundsArtPlanner
+public sealed class RoundsArtPlanner : IPurposeReporter
 {
     /// <summary>The native work ticks one sculpture takes at a bench.</summary>
     internal const int ArtNativeWorkTicks = 2500;
@@ -21,10 +21,8 @@ public sealed class RoundsArtPlanner
     }
 
     /// <summary>Declares the art orders of this review and returns the MaintainArt share.</summary>
-    public Declared DeclareOrders(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
-    {
-        return DeclareOrdersAll(snapshot, projection, benches, ct).For(PolicyApi.MaintainArt);
-    }
+    public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+        Task.FromResult(DeclareOrdersAll(snapshot, projection, benches, ct).For(PolicyApi.MaintainArt));
 
     internal Declared DeclareOrdersAll(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
@@ -34,22 +32,27 @@ public sealed class RoundsArtPlanner
         }
         var request = new ArtOrderRequest
         {
-            Benches = benches,
+            Benches = [.. benches],
+            Demand = new ArtDemand(),
             Colonists = projection.Facts.Colonists,
             Items = projection.Facts.Items,
             RoomsOwed = projection.Facts.SculptureRoomsOwed,
-            Profiles = Unknown<IReadOnlyList<PawnProfile>>(),
+            Profiles = Unknown<EquatableArray<PawnProfile>>(),
         };
         if (projection.WorkPawns.TryGetValue(out var pawns))
         {
             var profiles = PolicyApi.Profiles(pawns);
-            request.Profiles = Known(profiles);
-            request.Demand = ArtDemand(projection, profiles);
+            request = request with { Profiles = Known<EquatableArray<PawnProfile>>([.. profiles]) };
+            request = request with { Demand = ArtDemand(projection, profiles) };
         }
         return PolicyApi.DeclareArtOrders(request);
     }
 
-    internal (ConcernId Key, ConcernId Need) ReportTarget() => (PolicyApi.MaintainArt, PolicyApi.MaintainArt);
+    (ConcernId Key, ConcernId Need) IPurposeReporter.ReportTarget() => ReportTarget();
+
+    PurposeReport IPurposeReporter.Report() => Report();
+
+    internal static (ConcernId Key, ConcernId Need) ReportTarget() => (PolicyApi.MaintainArt, PolicyApi.MaintainArt);
 
     internal PurposeReport Report()
     {
@@ -59,22 +62,19 @@ public sealed class RoundsArtPlanner
             {
                 return new PurposeReport { Order = BuildingReasonNoDeficit };
             }
-            return new PurposeReport { Order = WaitFor(PolicyApi.CauseExistingWork, "sculpture"), WorkTicks = ArtNativeWorkTicks };
+            return new PurposeReport { Order = WaitFor(Cause.ExistingWork, "sculpture"), WorkTicks = ArtNativeWorkTicks };
         }
     }
 
     internal static ArtDemand ArtDemand(ColonyProjection facts, IReadOnlyList<PawnProfile> profiles)
     {
-        facts.Resources.TryGetValue(out var stock);
-        var rk = facts.Rooms.TryGetValue(out var rooms);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
-        var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
-        var traits = SleepingTraits(facts);
-        if (!rk || !ck || !sk || !census!.Colony || traits is null)
+        facts.Resources.TryGetValue(out var known);
+        IReadOnlyDictionary<Resource, long> stock = known ?? new Dictionary<Resource, long>();
+        if (!facts.Rooms.TryGetValue(out var rooms) || !facts.Facts.CurrentConstruction.TryGetValue(out var census) || !facts.Facts.Sleeping.TryGetValue(out var obs) || !census.Colony || SleepingTraits(facts) is not { } traits)
         {
-            return PolicyApi.NewArtDemand(Unknown<SleepingObservation>(), [], [], stock, profiles, facts.Facts.Items);
+            return PolicyApi.NewArtDemand(Unknown<SleepingObservation>(), new Dictionary<string, RoomTarget>(), [], stock, profiles, facts.Facts.Items);
         }
         facts.TechTier.TryGetValue(out var tier);
-        return PolicyApi.NewArtDemand(facts.Facts.Sleeping, PolicyApi.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness), PolicyApi.FurnitureRooms(rooms!, census, facts.Cells), stock, profiles, facts.Facts.Items);
+        return PolicyApi.NewArtDemand(facts.Facts.Sleeping, PolicyApi.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), PolicyApi.FurnitureRooms(rooms, census, facts.Cells), stock, profiles, facts.Facts.Items);
     }
 }

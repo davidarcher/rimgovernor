@@ -29,7 +29,7 @@ internal sealed class ShelterSite
 {
     public ControlState State { get; init; }
     public Sto.Rounds Review { get; init; } = new();
-    public Sto.StandardState Owner { get; init; } = new();
+    public required Sto.StandardState Owner { get; init; }
     public Observation.ColonyProjection Facts { get; init; } = new();
     public Observation.ColonyReading Read { get; init; } = new();
     public Action Check { get; init; } = () => { };
@@ -82,8 +82,11 @@ internal static partial class BuildingRuntimePackage
     internal static List<ShelterBunk> ShelterBunkSlots(Pol.PlannedRoom room, Observation.ColonyProjection facts, int occupants)
     {
         var output = new List<ShelterBunk>();
-        facts.LayoutPlan.TryGetValue(out var plan);
-        foreach (var p in PlanShelterBunks(room, plan!.RoomRock(room, facts.Cells).Dig, facts.Shapes, occupants, ShelterCampfires(facts), ShelterCoolers(facts), null))
+        if (!facts.LayoutPlan.TryGetValue(out var plan))
+        {
+            return output;
+        }
+        foreach (var p in PlanShelterBunks(room, plan.RoomRock(room, facts.Cells).Dig, facts.Shapes, occupants, ShelterCampfires(facts), ShelterCoolers(facts), []))
         {
             output.Add(new ShelterBunk(p.Anchor(), p.Rot));
         }
@@ -103,10 +106,9 @@ internal static partial class BuildingRuntimePackage
         facts.DefinitionAvailable(SleepingBedrollDefinition).TryGetValue(out var bedroll);
         if (bedroll)
         {
-            var (_, count, ok) = facts.StockedStuff(SleepingBedrollDefinition);
-            if (ok)
+            if (facts.StockedStuff(SleepingBedrollDefinition) is { } stocked)
             {
-                return (SleepingBedrollDefinition, slots.Take((int)Math.Min(slots.Count, count)).ToList());
+                return (SleepingBedrollDefinition, slots.Take((int)Math.Min(slots.Count, stocked.Count)).ToList());
             }
         }
         return (ShelterBedDefinition, slots);
@@ -160,22 +162,22 @@ internal static partial class BuildingRuntimePackage
 public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>Reads the bunk methods bound under the goal's epoch.</summary>
-    internal ShelterBunkRecord ShelterBunks(CancellationToken call, Sto.StandardState goal, Fact<Pol.CurrentConstruction> census)
+    internal ShelterBunkRecord ShelterBunks(Sto.StandardState goal, Fact<Pol.CurrentConstruction> census, CancellationToken call)
     {
         var journal = Reviewer.Player.Journal;
         var record = new ShelterBunkRecord();
         foreach (var method in new[] { ShelterSpotsMethodId, ShelterBedrollsMethodId, ShelterBedsMethodId, ShelterClearBedrollsMethodId, ShelterClearBedsMethodId })
         {
-            Sto.MethodState m;
+            Method m;
             try
             {
-                m = journal.LoadOwnerMethod(call, goal, method);
+                m = journal.LoadOwnerMethod(goal, method, call);
             }
             catch (Sto.NotFoundException)
             {
                 continue;
             }
-            var plan = journal.LoadPlan(call, m.Plan);
+            var plan = journal.LoadPlan(m.Plan, call);
             var bunks = new List<ShelterBunk>();
             foreach (var action in plan.Spec.Actions)
             {
@@ -185,7 +187,7 @@ public sealed partial class RoundsBuildingPlanner
                 }
             }
             record.Placed[method] = bunks;
-            record.Open[method] = Sto.PlanState.PlanWorkOpen(plan, census);
+            record.Open[method] = StorePackage.PlanWorkOpen(plan, census);
         }
         return record;
     }
@@ -197,7 +199,7 @@ public sealed partial class RoundsBuildingPlanner
     /// its roof: the window the completed wave lends, else the earlier-shell wait. roofingOnly is an indoor
     /// furnishing still waiting on its roof, which holds the rungs and the ring alike.
     /// </summary>
-    internal RoundsBuildingResult StepShelterRoom(CancellationToken call, CancellationToken epoch, ShelterSite s, bool roofingOnly)
+    internal async Task<RoundsBuildingResult> StepShelterRoomAsync(ShelterSite s, bool roofingOnly, CancellationToken call, CancellationToken epoch)
     {
         if (!s.Facts.LayoutPlan.TryGetValue(out var plan))
         {
@@ -217,19 +219,19 @@ public sealed partial class RoundsBuildingPlanner
             return new RoundsBuildingResult { Verdict = NoSpace("planned_shell_room") };
         }
         var name = PlannedRoomMethod(room).ToString();
-        var ring = ShelterRingMethods(call, s.Owner, name);
+        var ring = ShelterRingMethods(s.Owner, name, call);
         if (!PlannedRoomOwed(s.Facts, Pol.PlannedRole.Shelter).Owed)
         {
             // The ring stands: nothing to raise while it waits on its roof.
             if (ring.Count == 0)
             {
-                return new RoundsBuildingResult { Verdict = BuildingShellBlocked };
+                return new RoundsBuildingResult { Verdict = BuildingReasonShellBlocked };
             }
             // The bunk ladder goes on up its rungs (spots deleted, beds placed) under the same reconcile; an
             // admitted rung ends the review, a hold does not displace the roof wait.
-            if (!roofingOnly && Phase == HousingPhase.Shelter && plan.RoomRock(room, s.Facts.Cells).Dig.Count == 0)
+            if (!roofingOnly && Phase == Pol.Phase.HousingShelter && plan.RoomRock(room, s.Facts.Cells).Dig.Count == 0)
             {
-                var (result, handled) = StepShelterBunks(call, epoch, s, room);
+                var (result, handled) = await StepShelterBunksAsync(s, room, call, epoch).ConfigureAwait(false);
                 if (handled && result.Verdict == BuildingReasonAdmitted)
                 {
                     return result;
@@ -252,22 +254,22 @@ public sealed partial class RoundsBuildingPlanner
         // stand on the room once its rock is dug (the ring's reconcile mines it before any wall).
         var owner = s.Owner;
         var bunks = new RoundsBuildingResult();
-        if (Phase == HousingPhase.Shelter && plan.RoomRock(room, s.Facts.Cells).Dig.Count == 0)
+        if (Phase == Pol.Phase.HousingShelter && plan.RoomRock(room, s.Facts.Cells).Dig.Count == 0)
         {
-            var (result, handled) = StepShelterBunks(call, epoch, s, room);
+            var (result, handled) = await StepShelterBunksAsync(s, room, call, epoch).ConfigureAwait(false);
             if (handled && result.Verdict == BuildingReasonAdmitted)
             {
                 // The admission moved the goal's revision: the ring is admitted under the goal as it now stands.
                 bunks = result;
-                var (renewed, workable) = Reviewer.Player.Journal.Workable(call, s.Review, Concern);
-                if (!workable)
+                var (renewed, workable) = Reviewer.Player.Journal.Workable(s.Review, Concern, call);
+                if (!workable || renewed is null)
                 {
                     return result;
                 }
                 owner = renewed;
             }
         }
-        if (ring.Any(Sto.PlanState.PlanOpen))
+        if (ring.Any(StorePackage.PlanOpen))
         {
             // The ring's wave is open: existing work, nothing to preview or admit.
             if (bunks.Verdict == BuildingReasonAdmitted)
@@ -276,7 +278,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             return new RoundsBuildingResult { Verdict = BuildingReasonExistingWork };
         }
-        var reconciled = ReconcileRoom(call, epoch, s.State, s.Review, owner, new Observation.RoundsReading { ColonyReading = s.Read }, null!, new RoomReconcile { RingOnly = true, Room = room, Name = name, Reason = "starter shelter" });
+        var reconciled = await ReconcileRoomAsync(s.State, s.Review, owner, new Observation.RoundsReading { Reading = s.Read, Frame = new BridgeRoundsFrame(), Emergency = new EmergencyFacts() }, null, new RoomReconcile { RingOnly = true, Room = room, Name = name, Reason = "starter shelter" }, call, epoch).ConfigureAwait(false);
         if (reconciled.Verdict != BuildingReasonAdmitted && bunks.Verdict == BuildingReasonAdmitted)
         {
             return bunks;
@@ -285,7 +287,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     /// <summary>The plans of the ring's build waves bound under the goal's epoch, retired ones included: the record of a ring begun.</summary>
-    internal List<Sto.PlanState> ShelterRingMethods(CancellationToken call, Sto.StandardState goal, string name)
+    internal List<Sto.PlanState> ShelterRingMethods(Sto.StandardState goal, string name, CancellationToken call)
     {
         var ring = new List<Sto.PlanState>();
         var seen = new HashSet<PlanId>();
@@ -295,15 +297,15 @@ public sealed partial class RoundsBuildingPlanner
             {
                 continue;
             }
-            ring.Add(Reviewer.Player.Journal.LoadPlan(call, m.Plan));
+            ring.Add(Reviewer.Player.Journal.LoadPlan(m.Plan, call));
         }
         return ring;
     }
 
     /// <summary>Places the initial shelter's bunk rungs on the planned room's slots. handled is false when the rungs have nothing more to place, so the ring is raised this review.</summary>
-    internal (RoundsBuildingResult Result, bool Handled) StepShelterBunks(CancellationToken call, CancellationToken epoch, ShelterSite s, Pol.PlannedRoom room)
+    internal async Task<(RoundsBuildingResult Result, bool Handled)> StepShelterBunksAsync(ShelterSite s, Pol.PlannedRoom room, CancellationToken call, CancellationToken epoch)
     {
-        var record = ShelterBunks(call, s.Owner, s.Facts.Facts.CurrentConstruction);
+        var record = ShelterBunks(s.Owner, s.Facts.Facts.CurrentConstruction, call);
         var indoor = Copy();
         indoor.Shelter = false;
         indoor.Definition = "SleepingSpot";
@@ -317,7 +319,7 @@ public sealed partial class RoundsBuildingPlanner
         if (!record.AnyBound())
         {
             slots = ShelterBunkSlots(room, s.Facts, (int)owed);
-            var (spots, admitted) = AdmitBunks(call, epoch, s, ShelterSpotsMethodId, "SleepingSpot", slots);
+            var (spots, admitted) = await AdmitBunksAsync(s, ShelterSpotsMethodId, "SleepingSpot", slots, call, epoch).ConfigureAwait(false);
             if (admitted)
             {
                 return (spots, true);
@@ -327,7 +329,7 @@ public sealed partial class RoundsBuildingPlanner
         var (definition, bunks) = ShelterBeds(s.Facts, slots);
         if (!record.Bound(ShelterRung(definition).Place))
         {
-            var result = UpgradeBunks(call, epoch, s, record, definition, bunks);
+            var result = await UpgradeBunksAsync(s, record, definition, bunks, call, epoch).ConfigureAwait(false);
             if (result is not null)
             {
                 return (result, true);
@@ -344,7 +346,7 @@ public sealed partial class RoundsBuildingPlanner
     /// not take), or the handled result: the clearing or the bunks admitted, or a hold while a lower rung or
     /// the clearing is still open.
     /// </summary>
-    internal RoundsBuildingResult? UpgradeBunks(CancellationToken call, CancellationToken epoch, ShelterSite s, ShelterBunkRecord record, string definition, List<ShelterBunk> bunks)
+    internal async Task<RoundsBuildingResult?> UpgradeBunksAsync(ShelterSite s, ShelterBunkRecord record, string definition, List<ShelterBunk> bunks, CancellationToken call, CancellationToken epoch)
     {
         var (place, clear) = ShelterRung(definition);
         if (bunks.Count == 0 || !DefinitionsGate(s.Facts, [definition], false).IsZero)
@@ -355,7 +357,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             if (open && m != place)
             {
-                return new RoundsBuildingResult { Verdict = BuildingBunksOpen };
+                return new RoundsBuildingResult { Verdict = BuildingReasonBunksOpen };
             }
         }
         if (!s.Facts.Facts.Sleeping.TryGetValue(out var obs))
@@ -365,14 +367,14 @@ public sealed partial class RoundsBuildingPlanner
         var standing = new List<Pol.SleepingBed>();
         foreach (var b in obs.Beds)
         {
-            if ((b.Definition == SleepingSpotDefinition || b.Definition == SleepingBedrollDefinition) && BunkRank(b.Definition.ToString()) < BunkRank(definition) && OnBunkSlot(b.Cell, bunks))
+            if ((b.Definition.Value == SleepingSpotDefinition || b.Definition.Value == SleepingBedrollDefinition) && BunkRank(b.Definition.ToString()) < BunkRank(definition) && OnBunkSlot(b.Cell, bunks))
             {
                 standing.Add(b);
             }
         }
         if (standing.Count == 0)
         {
-            var (result, admitted) = AdmitBunks(call, epoch, s, place, definition, bunks);
+            var (result, admitted) = await AdmitBunksAsync(s, place, definition, bunks, call, epoch).ConfigureAwait(false);
             return admitted ? result : null;
         }
         if (record.Bound(clear))
@@ -386,7 +388,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             var b = standing[i];
             var id = new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-{i}"));
-            if (b.Definition == SleepingSpotDefinition)
+            if (b.Definition.Value == SleepingSpotDefinition)
             {
                 actions.Add(DomainAction.NewDeconstructionAction(id, new Deconstruction(b.Id, b.Definition.ToString(), b.Cell)));
             }
@@ -397,7 +399,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         var plan = new PlanSpec(snapshot.Plan, new PlanRevision(1), actions);
         var step = new ExcavationStep { State = s.State, Review = s.Review, Owner = s.Owner, Facts = s.Facts, Read = s.Read };
-        var admittedResult = AdmitExcavation(call, epoch, step, snapshot, clear, plan, null, new Pol.StockObservation { Snapshot = snapshot, Tick = s.Facts.Identity.Tick }, s.Check);
+        var admittedResult = await AdmitExcavationAsync(step, snapshot, clear, plan, null, new Pol.StockObservation { Snapshot = snapshot, Tick = s.Facts.Identity.Tick }, s.Check, call, epoch).ConfigureAwait(false);
         return admittedResult.Verdict != BuildingReasonAdmitted ? null : admittedResult;
     }
 
@@ -406,7 +408,7 @@ public sealed partial class RoundsBuildingPlanner
     /// admitted=false, without error, when the rung has nothing to place (no candidate, definition
     /// unavailable, none placeable, or the method refused whole), so the next rung is tried in the same review.
     /// </summary>
-    internal (RoundsBuildingResult Result, bool Admitted) AdmitBunks(CancellationToken call, CancellationToken epoch, ShelterSite s, MethodId method, string definition, List<ShelterBunk> bunks)
+    internal async Task<(RoundsBuildingResult Result, bool Admitted)> AdmitBunksAsync(ShelterSite s, MethodId method, string definition, List<ShelterBunk> bunks, CancellationToken call, CancellationToken epoch)
     {
         var none = (new RoundsBuildingResult(), false);
         if (bunks.Count == 0)
@@ -423,19 +425,19 @@ public sealed partial class RoundsBuildingPlanner
         for (var i = 0; i < bunks.Count; i++)
         {
             var b = new Domain.Building(definition, bunks[i].Anchor, bunks[i].Rot, stuff);
-            actions.Add(DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-{i}")), b, BuildTier.Survive));
+            actions.Add(DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-{i}")), b, ConstructionTier.Survive));
         }
         s.Check();
         var previews = new List<BuildingPreview>();
         if (Native is IShellBatchPreviewer batch)
         {
-            previews = [.. (batch.PreviewBuildings(call, actions, snapshot)).Previews];
+            previews = [.. (await batch.PreviewBuildingsAsync(actions, snapshot, call).ConfigureAwait(false)).Previews];
         }
         else
         {
             foreach (var action in actions)
             {
-                var (preview, _) = ((IRoundsBuildingSource)Native).PreviewBuilding(call, action, snapshot);
+                var (preview, _) = await ((IRoundsBuildingSource)Native).PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
                 previews.Add(preview);
             }
         }
@@ -466,7 +468,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             return none;
         }
-        var result = AdmitPreviews(call, epoch, new RoundsAdmission
+        var result = await AdmitPreviewsAsync(new RoundsAdmission
         {
             State = s.State,
             Review = s.Review,
@@ -477,7 +479,7 @@ public sealed partial class RoundsBuildingPlanner
             Selected = selected,
             Stock = stock,
             Purpose = Pol.Purpose.Rounds,
-        });
+        }, call, epoch).ConfigureAwait(false);
         return (result, result.Verdict == BuildingReasonAdmitted);
     }
 }

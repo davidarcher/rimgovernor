@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsPsylinkSource
 {
-    (IReadOnlyList<string> Items, BridgeResult Result) ReadNeuroformerItems(CancellationToken ct, C.Identity identity, string neuroformer);
+    Task<(IReadOnlyList<string> Items, BridgeResult Result)> ReadNeuroformerItemsAsync(C.Identity identity, string neuroformer, CancellationToken ct);
 }
 
 /// <summary>Remembers the last review's psylink candidates so the planner step acts on what the review saw.</summary>
@@ -12,32 +12,32 @@ internal sealed class PsylinkMemory
     private readonly object mu = new();
     private string world = "";
     private Tick tick;
-    private Fact<IReadOnlyList<PawnId>> who = Unknown<IReadOnlyList<PawnId>>();
+    private Fact<EquatableArray<PawnId>> who = Unknown<EquatableArray<PawnId>>();
     private List<PawnId> up = [];
     private List<string> items = [];
 
     public PsylinkMemory(IRoundsPsylinkSource native) => this.native = native;
 
-    public (Fact<IReadOnlyList<PawnId>> Candidates, Fact<bool> Owed) Review(CancellationToken ct, C.Identity identity, GenerationSnapshot current, ColonyProjection projection)
+    public async Task<(Fact<EquatableArray<PawnId>> Candidates, Fact<bool> Owed)> ReviewAsync(C.Identity identity, GenerationSnapshot current, ColonyProjection projection, CancellationToken ct)
     {
         var candidates = PolicyFunctions.PsylinkCandidates(projection.Royalty, projection.WorkPawns);
         var levelUps = PolicyFunctions.PsylinkLevelUps(projection.Royalty, projection.WorkPawns);
-        var psylinkItems = Unknown<IReadOnlyList<string>>();
+        var psylinkItems = Unknown<EquatableArray<string>>();
         var ok1 = candidates.TryGetValue(out var first);
         var ok2 = levelUps.TryGetValue(out var upList);
         if (ok1 && ok2 && first!.Count + upList!.Count > 0)
         {
             projection.Royalty.TryGetValue(out var royalty);
-            if (royalty!.Neuroformers.TryGetValue(PolicyFunctions.PsylinkNeuroformer, out var nf) && nf.Held.TryGetValue(out var held) && held == 0)
+            if (royalty!.Neuroformers.TryGetValue(PolicyConstants.PsylinkNeuroformer, out var nf) && nf.Held.TryGetValue(out var held) && held == 0)
             {
-                psylinkItems = Known<IReadOnlyList<string>>([]);
+                psylinkItems = Known<EquatableArray<string>>([]);
             }
-            else if (royalty.Neuroformers.ContainsKey(PolicyFunctions.PsylinkNeuroformer))
+            else if (royalty.Neuroformers.ContainsKey(PolicyConstants.PsylinkNeuroformer))
             {
                 try
                 {
-                    var (read, _) = native.ReadNeuroformerItems(ct, identity, PolicyFunctions.PsylinkNeuroformer);
-                    psylinkItems = Known(read);
+                    var (read, _) = await native.ReadNeuroformerItemsAsync(identity, PolicyConstants.PsylinkNeuroformer, ct).ConfigureAwait(false);
+                    psylinkItems = Known<EquatableArray<string>>([.. read]);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
@@ -52,8 +52,8 @@ internal sealed class PsylinkMemory
             world = BuildingRuntimePackage.StockpileWorld(current);
             tick = projection.Identity.Tick;
             who = candidates;
-            up = [.. upList ?? []];
-            items = [.. heldItems ?? []];
+            up = [.. upList];
+            items = [.. heldItems];
         }
 
         return (candidates, PolicyFunctions.PsylinkOwed(candidates, levelUps, psylinkItems));
@@ -69,7 +69,7 @@ internal sealed class PsylinkMemory
                 return ([], [], [], false);
             }
 
-            return ([.. list!], [.. up], [.. items], true);
+            return ([.. list], [.. up], [.. items], true);
         }
     }
 }
@@ -95,7 +95,7 @@ public sealed class RoundsPsylinkPlanner
 
     public static RoundsPsylinkPlanner NewRoundsPsylinkPlanner(Rounder reviewer, IRoundsPsylinkSource native)
     {
-        if (reviewer is null || native is null || !reviewer.MethodEnabled(ConcernId.MaintainPsylink))
+        if (reviewer is null || native is null || !reviewer.MethodEnabled(PolicyConstants.MaintainPsylink))
         {
             throw new ControlException("NewRoundsPsylinkPlanner: reviewer, native or method disabled");
         }
@@ -104,7 +104,7 @@ public sealed class RoundsPsylinkPlanner
         return new RoundsPsylinkPlanner(reviewer, reviewer.Psylink);
     }
 
-    internal RoundsPsylinkResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsPsylinkResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         var state = p.Session.State();
@@ -118,21 +118,21 @@ public sealed class RoundsPsylinkPlanner
             throw new ControlException("step: observation unknown or snapshot invalid");
         }
 
-        var review = p.Journal.LoadRounds(call);
+        var review = await p.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
         if (!review.Enabled || review.Snapshot != state.Snapshot)
         {
             return new RoundsPsylinkResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
         }
 
-        var (goal, workable) = p.Journal.Workable(call, review, ConcernId.MaintainPsylink);
-        if (!workable)
+        var (goal, workable) = await p.Journal.WorkableAsync(review, PolicyConstants.MaintainPsylink, call).ConfigureAwait(false);
+        if (!workable || goal is null)
         {
             return new RoundsPsylinkResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
         }
 
         foreach (var method0 in goal.Methods)
         {
-            var open = p.Journal.LoadPlan(call, method0.Plan);
+            var open = await p.Journal.LoadPlanAsync(method0.Plan, call).ConfigureAwait(false);
             if (StorePackage.PlanOpen(open))
             {
                 return new RoundsPsylinkResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
@@ -151,8 +151,8 @@ public sealed class RoundsPsylinkPlanner
             var output = new List<PawnId>();
             foreach (var pawn in who)
             {
-                var willingPrefix = $"{PsylinkPrefix}{pawn}-";
-                var (verdict, admitted) = BuildingRuntimePackage.AdmitSubject(call, p.Journal, willingPrefix, BuildingRuntimePackage.StandardMethodPlans(goal.History, goal.Standard.Episode, willingPrefix), state.Snapshot);
+                var willingPrefix = $"{PsylinkPrefix}{pawn.Value}-";
+                var (verdict, admitted) = BuildingRuntimePackage.AdmitSubject(p.Journal, willingPrefix, BuildingRuntimePackage.StandardMethodPlans(goal.History, goal.Standard.Episode, willingPrefix), state.Snapshot, call);
                 if (admitted)
                 {
                     output.Add(pawn);
@@ -166,27 +166,27 @@ public sealed class RoundsPsylinkPlanner
             return output;
         }
 
-        var (choice, owed) = PolicyFunctions.NextPsylinkUse(WillingOf(candidates), WillingOf(levelUps), items);
-        if (!owed)
+        var choice = PolicyFunctions.NextPsylinkUse(WillingOf(candidates), WillingOf(levelUps), items);
+        if (choice is null)
         {
             if (barred != default)
             {
                 return new RoundsPsylinkResult { Verdict = barred };
             }
 
-            return new RoundsPsylinkResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "psylink_item") };
+            return new RoundsPsylinkResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "psylink_item") };
         }
 
-        if (!arbiter.TryClaim([new PawnId(choice.Pawn)]))
+        if (!arbiter.TryClaim([choice.Pawn]))
         {
-            return new RoundsPsylinkResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "psylink_pawn_claim") };
+            return new RoundsPsylinkResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "psylink_pawn_claim") };
         }
 
-        var prefix = $"{PsylinkPrefix}{choice.Pawn}-";
-        var use = UseItem.NewUseItem(new PawnId(choice.Pawn), choice.Item, new PawnId(choice.Pawn));
+        var prefix = $"{PsylinkPrefix}{choice.Pawn.Value}-";
+        var use = new UseItem((Domain.PawnId)choice.Pawn, choice.Item, (Domain.PawnId)choice.Pawn);
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewUseItemAction(new ActionId($"{id}-0"), use);
-        var plan = PlanSpec.NewPlan(id, new PlanRevision(1), [action]);
+        var plan = new PlanSpec(id, new PlanRevision(1), [action]);
         p.Current(call, epoch);
         if (p.Session.State() != state)
         {
@@ -194,12 +194,12 @@ public sealed class RoundsPsylinkPlanner
         }
 
         var method = BuildingRuntimePackage.NextMethodId(prefix, BuildingRuntimePackage.HistoryMethodIds(goal.History, goal.Standard.Episode));
-        p.Journal.CommitMethodReason(call, goal.Standard.Id, goal.Revision, method, $"psylink: {choice.Pawn} uses neuroformer {choice.Item}", plan);
+        await p.Journal.CommitMethodReasonAsync(goal.Standard.Id, goal.Revision, method, $"psylink: {choice.Pawn.Value} uses neuroformer {choice.Item}", plan, call).ConfigureAwait(false);
         return new RoundsPsylinkResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
     }
 }
 
-public readonly record struct RoundsPsylinkResult
+public readonly record struct RoundsPsylinkResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 

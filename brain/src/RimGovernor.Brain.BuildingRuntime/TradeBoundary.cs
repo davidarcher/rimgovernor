@@ -9,14 +9,14 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public interface ITradeNative
 {
-    (TradeSessionRead Read, BridgeResult Result) ReadTradeSession(CancellationToken ct, C.Identity identity);
+    Task<(TradeSessionRead Read, BridgeResult Result)> ReadTradeSessionAsync(C.Identity identity, CancellationToken ct);
 }
 
 public interface ICommsTradeRequestNative
 {
-    (ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result) ReadTradeAcquisition(CancellationToken ct, C.Identity identity, OperationsPb.FormCaravanIntent? intent);
+    Task<(ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result)> ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct);
 
-    (TradersRead Read, BridgeResult Result) ListTraders(CancellationToken ct, C.Identity identity);
+    Task<(TradersRead Read, BridgeResult Result)> ListTradersAsync(C.Identity identity, CancellationToken ct);
 }
 
 public sealed class TradeCapabilities
@@ -30,8 +30,8 @@ public sealed class TradeCapabilities
 
 /// <summary>
 /// The trade inspections and writes of the executor. Go embedded the building boundary pointer and used only its
-/// clock and its intent dispatch, so this takes the clock directly. The natives it reads are the planner's
-/// synchronous census reads, so the inspections complete inline and the tasks they return are already finished.
+/// clock and its intent dispatch, so this takes the clock directly. The natives it reads are asynchronous
+/// bridge reads.
 /// </summary>
 internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITradeBoundary, ICommsTradeBoundary
 {
@@ -39,14 +39,8 @@ internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITr
 
     private TradeCapabilities Trade { get; } = trade;
 
-    public Task<TradeInspection> InspectTradeAsync(Target target, CancellationToken ct) =>
-        Task.FromResult(InspectTrade(ct, target));
-
     public Task<Receipt> WriteTradeAsync(Placement placement, CancellationToken ct) =>
         Boundary.DispatchIntentAsync(placement, Trade.Writer!, ct);
-
-    public Task<CommsTradeInspection> InspectCommsTradeRequestAsync(Target target, CancellationToken ct) =>
-        Task.FromResult(InspectCommsTradeRequest(ct, target));
 
     public Task<Receipt> WriteCommsTradeRequestAsync(Placement placement, CancellationToken ct) =>
         Boundary.DispatchIntentAsync(placement, Trade.Writer!, ct);
@@ -55,7 +49,7 @@ internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITr
     /// Anchors the dispatch to a fresh native read. It does not preview: native judges the intent when it
     /// applies, and a refusal there is the intent's terminal receipt, where a refused preview would only hold it.
     /// </summary>
-    public TradeInspection InspectTrade(CancellationToken ct, Target target)
+    public async Task<TradeInspection> InspectTradeAsync(Target target, CancellationToken ct)
     {
         var output = new TradeInspection { StartedAt = Clock.Now() };
         try
@@ -66,7 +60,7 @@ internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITr
         {
             throw new EvidenceException(e);
         }
-        var (session, _) = Trade.Native!.ReadTradeSession(ct, Boundary.Identity(target.Snapshot));
+        var (session, _) = await Trade.Native!.ReadTradeSessionAsync(Boundary.Identity(target.Snapshot), ct).ConfigureAwait(false);
         var observed = Boundary.Context(session.Context, target.Snapshot);
         output = output with
         {
@@ -77,14 +71,14 @@ internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITr
         return output;
     }
 
-    public CommsTradeInspection InspectCommsTradeRequest(CancellationToken ct, Target target)
+    public async Task<CommsTradeInspection> InspectCommsTradeRequestAsync(Target target, CancellationToken ct)
     {
         var output = new CommsTradeInspection { StartedAt = Clock.Now() };
         if (target.Action.CommsTradeRequest is not { } request)
         {
             throw new EvidenceException();
         }
-        var (facts, _) = Trade.Requests!.ReadTradeAcquisition(ct, Boundary.Identity(target.Snapshot), null);
+        var (facts, _) = await Trade.Requests!.ReadTradeAcquisitionAsync(Boundary.Identity(target.Snapshot), null, ct).ConfigureAwait(false);
         if (facts is null || facts.Context is null)
         {
             throw new EvidenceException();
@@ -122,7 +116,7 @@ internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITr
                 output = output with { MatchingArrival = true };
             }
         }
-        var (sellers, _) = Trade.Requests.ListTraders(ct, Boundary.Identity(target.Snapshot));
+        var (sellers, _) = await Trade.Requests.ListTradersAsync(Boundary.Identity(target.Snapshot), ct).ConfigureAwait(false);
         try
         {
             Boundary.Context(sellers.Context, target.Snapshot);
@@ -145,4 +139,10 @@ internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITr
         }
         return output with { ObservedAt = Clock.Now() };
     }
+}
+
+/// <summary>Presents the rounds reviewer's observation clock as the executor's clock; both read the same instant source.</summary>
+internal sealed class ExecutorClockOf(Observation.IClock inner) : IClock
+{
+    public DateTimeOffset Now() => inner.Now();
 }

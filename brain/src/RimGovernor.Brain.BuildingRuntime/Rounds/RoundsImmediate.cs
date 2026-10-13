@@ -44,14 +44,14 @@ public sealed partial class Rounder
     /// The immediate (protection) review: observes only what the protection planners need, files the frame,
     /// and reviews rounds with the immediate flag so ordinary concerns wait for the full review.
     /// </summary>
-    internal RoundsResult ImmediateStep(CancellationToken ct, CancellationToken epoch)
+    internal async Task<RoundsResult> ImmediateStepAsync(CancellationToken ct, CancellationToken epoch)
     {
         var began = Stopwatch.GetTimestamp();
-        RoundsResult result = default;
+        RoundsResult? result = null;
         Exception? error = null;
         try
         {
-            result = ImmediateStepCore(ct, epoch);
+            result = await ImmediateStepCoreAsync(ct, epoch).ConfigureAwait(false);
             return result;
         }
         catch (Exception e)
@@ -62,23 +62,23 @@ public sealed partial class Rounder
         finally
         {
             var d = RoundsStepDecision(error, Stopwatch.GetElapsedTime(began), true);
-            d.Attrs["scope"] = "immediate";
-            if (error is null && result.Review.Enabled)
+            var attrs = new Dictionary<string, object?>(d.Attrs) { ["scope"] = "immediate" };
+            if (error is null && result is not null && result.Review.Enabled)
             {
-                d.Attrs["observation_tick"] = result.Review.Tick.Value;
+                attrs["observation_tick"] = result.Review.Tick.Value;
             }
 
-            Tel.Decide(ct, d);
+            Tel.Decide(d with { Attrs = attrs });
         }
     }
 
-    private RoundsResult ImmediateStepCore(CancellationToken ctx, CancellationToken epoch)
+    private async Task<RoundsResult> ImmediateStepCoreAsync(CancellationToken ctx, CancellationToken epoch)
     {
         var p = Player;
         var state = p.Session.State();
         if (!state.Enabled)
         {
-            return p.StopRounds(ctx);
+            return await p.StopRoundsAsync(ctx).ConfigureAwait(false);
         }
 
         if (!state.ObservationKnown || !state.Snapshot.IsValid || state.Snapshot.Native.Value == 0)
@@ -87,46 +87,51 @@ public sealed partial class Rounder
         }
 
         var previous = p.Journal.LoadRounds(ctx);
-        Stage = Stage.Foothold;
+        Stage = ColonyStage.Foothold;
         if (previous.Stage is not null)
         {
             Stage = previous.Stage.Stage;
         }
 
-        var expected = StepScope(ctx, Native);
+        var expected = await StepScopeAsync(Native, ctx).ConfigureAwait(false);
         if (expected.Colony != state.Snapshot.Colony || expected.Load != state.Snapshot.Load || expected.Map != state.Snapshot.Map
             || !expected.NativeGeneration.TryGetValue(out var native) || native != state.Snapshot.Native)
         {
             throw new ControlException("immediate review: the observed world is not the session's");
         }
 
-        var reading = ObservationPackage.ObserveRoundsProtection(ctx, Native, Clock, expected, MaxAge);
+        var reading = await ObservationPackage.ObserveRoundsProtection(Native, Clock, expected, MaxAge, ctx).ConfigureAwait(false);
         PublishFrame(expected, reading.Frame);
-        var handed = p.ExpeditionHandoff(ctx, epoch, state, reading);
+        var handed = await p.ExpeditionHandoffAsync(state, reading, ctx, epoch).ConfigureAwait(false);
         if (handed)
         {
-            return p.StopRounds(ctx);
+            return await p.StopRoundsAsync(ctx).ConfigureAwait(false);
         }
 
         var f = reading.Projection.Facts;
-        var (layout, haveLayout) = LayoutPlanOf(ctx, state.Snapshot, expected.Tick);
-        var projection = reading.Projection;
-        if (haveLayout)
+        var layout = await p.Journal.LayoutPlanAsync(state.Snapshot, expected.Tick, ctx).ConfigureAwait(false);
+        if (layout is { Invalid: true } && !LayoutInvalidLogged)
         {
-            projection = projection with { LayoutPlan = Known(layout.Plan) };
+            LayoutInvalidLogged = true;
+        }
+
+        var projection = reading.Projection;
+        if (layout is { Plan: { } layoutPlan })
+        {
+            projection = projection with { LayoutPlan = Known(layoutPlan) };
             if (projection.Rooms.TryGetValue(out var rooms))
             {
-                projection = projection with { Rooms = Known(PolicyFunctions.MarkEnemyDoors(rooms, layout.Plan.KillboxCells())) };
+                projection = projection with { Rooms = Known(PolicyFunctions.MarkEnemyDoors(rooms, layoutPlan.KillboxCells())) };
             }
         }
 
-        if (MethodEnabled(ConcernId.MaintainShelter))
+        if (MethodEnabled(PolicyFunctions.MaintainShelter))
         {
             f = f with { SafeAreaOwed = SafeArea.Review(StockpileWorld(state.Snapshot), projection) };
         }
 
-        f = f with { ShelterCombatants = ShelterCombatantsOf(ctx, p.Journal, PlayerWorld(state.Snapshot)) };
-        var emergency = PolicyFunctions.NewEmergencySnapshot(state.Snapshot, expected.Tick, reading.Emergency);
+        f = f with { ShelterCombatants = RoundsRecoveryPlanner.ShelterCombatants(p.Journal, Player.PlayerWorld(state.Snapshot), ctx) };
+        var emergency = EmergencySnapshot.New(state.Snapshot, expected.Tick, reading.Emergency);
         var (hostiles, critical) = PolicyFunctions.EmergencyNeeds(emergency, state.Snapshot, expected.Tick);
         var urgent = PolicyFunctions.UrgentPatients(emergency, state.Snapshot, expected.Tick);
         (critical, urgent) = PolicyFunctions.AmputationNeeds(emergency, f.MedicalPawns, critical, urgent);
@@ -137,20 +142,20 @@ public sealed partial class Rounder
         f = f with { DangerHaulers = PolicyFunctions.DangerHaulers(projection.WorkPawns) };
         f = f with { Tick = expected.Tick };
         f = f with { Dash = PolicyFunctions.ReviewDash(previous.Latches.Dash, f, projection.WorkPawns, expected.Tick, PolicyFunctions.PublishedHypothermiaTuning) };
-        var needed = PlannedDrafts(ctx, p.Journal);
-        var stray = IdleDrafts(state, reading.Emergency, reading.Frame.Pawns, needed);
+        var needed = await DraftNeeds.PlannedDraftsAsync(p.Journal, ctx).ConfigureAwait(false);
+        var stray = DraftNeeds.IdleDrafts(state, reading.Emergency, reading.Frame.Pawns, needed);
         f = f with { CleanupPawns = Known(stray.Count > 0), AvailableMethods = Methods };
         projection = projection with { Facts = f };
-        reading = reading with { Projection = projection };
+        reading = reading with { Reading = reading.Reading with { Projection = projection } };
         p.Current(ctx, epoch);
         if (p.Session.State() != state)
         {
             throw new ControlException("immediate review authority changed");
         }
 
-        Census.Retain(reading, true, Unknown<IReadOnlyList<ConstructionClaim>>());
+        Census.Retain(reading, true, Unknown<EquatableArray<ConstructionClaim>>());
         reading.Sections.File(Store, new FactScope { Load = expected.Load.Value, Map = expected.Map.Value, Generation = native.Value });
-        var result = p.Journal.ReviewRounds(ctx, new RoundsRequest
+        var result = p.Journal.ReviewRounds(new RoundsRequest
         {
             Revision = previous.Revision,
             Current = state.Snapshot,
@@ -159,8 +164,8 @@ public sealed partial class Rounder
             Immediate = true,
             Policy = Policy,
             Facts = f,
-        });
-        RecordRoundsSnapshot(ctx, state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection);
+        }, ctx);
+        RecordRoundsSnapshot(state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection, ctx);
         return result;
     }
 }
@@ -190,7 +195,7 @@ internal static partial class BuildingRuntimePackage
     internal static bool ProtectionNeedsTicks(ClockSchedulerResult result) =>
         (result.Defense is not null && (result.Defense.Plan.Value.Length != 0 || result.Defense.Verdict == BuildingReasonExistingWork))
         || (result.Tend is not null && result.Tend.NativeWorkTicks > 0)
-        || (result.Rescue is not null && result.Rescue.NativeWorkTicks > 0)
+        || (result.Rescue is { } rescue && rescue.NativeWorkTicks > 0)
         || (result.FireSafety is not null && result.FireSafety.NativeWorkTicks > 0)
         || PositiveFact(ClockShelterHeld(result.Rounds));
 }
@@ -207,11 +212,11 @@ public sealed partial class ClockScheduler
     /// Runs the planner waves: the immediate (protection) planners first when any is due, then the ordinary
     /// ones unless a protection plan is still pending or native has work that needs ticks to advance.
     /// </summary>
-    internal IReadOnlyList<string> RunPlanners(CancellationToken call, CancellationToken epoch, ClockSchedulerResult result, PlannerSelectionResult sel, K.Status status)
+    internal async Task<IReadOnlyList<string>> RunPlannersAsync(ClockSchedulerResult result, PlannerSelectionResult sel, K.Status status, CancellationToken call, CancellationToken epoch)
     {
         if (!ImmediateConfigured())
         {
-            return RunPlannerWave(call, epoch, result, sel, status, false);
+            return await RunPlannerWaveAsync(result, sel, (long)status.Context.Tick, false, call, epoch).ConfigureAwait(false);
         }
 
         bool Selected(PlannerEntry e) => sel.Pick is null || sel.Pick(e);
@@ -225,7 +230,7 @@ public sealed partial class ClockScheduler
         if (immediate)
         {
             var urgent = sel with { Pick = e => Selected(e) && ImmediatePlanner(e) };
-            names.AddRange(RunPlannerWave(call, epoch, result, urgent, status, true));
+            names.AddRange(await RunPlannerWaveAsync(result, urgent, (long)status.Context.Tick, true, call, epoch).ConfigureAwait(false));
             Queue.All = false;
             foreach (var e in Queue.Entries())
             {
@@ -272,7 +277,7 @@ public sealed partial class ClockScheduler
         result.Immediate = false;
         try
         {
-            names.AddRange(RunPlannerWave(call, epoch, result, ordinary, status, false));
+            names.AddRange(await RunPlannerWaveAsync(result, ordinary, (long)status.Context.Tick, false, call, epoch).ConfigureAwait(false));
         }
         catch (OperationCanceledException e) when (!call.IsCancellationRequested)
         {
@@ -294,7 +299,7 @@ public sealed partial class ClockScheduler
                 continue;
             }
 
-            var state = Player.Journal.LoadIncident(ct, binding.Incident);
+            var state = Player.Journal.LoadIncident(binding.Incident, ct);
             foreach (var method in state.Methods)
             {
                 plans.Add(method.Plan);
@@ -308,7 +313,7 @@ public sealed partial class ClockScheduler
                 continue;
             }
 
-            var state = Player.Journal.LoadStandard(ct, binding.Standard);
+            var state = Player.Journal.LoadStandard(binding.Standard, ct);
             foreach (var method in state.Methods)
             {
                 plans.Add(method.Plan);
@@ -336,7 +341,7 @@ public sealed partial class ClockScheduler
         // Plans are visited in id order so the result does not depend on set iteration.
         foreach (var id in plans.OrderBy(i => i))
         {
-            var plan = Player.Journal.LoadPlan(ct, id);
+            var plan = Player.Journal.LoadPlan(id, ct);
             foreach (var p in plan.Progress)
             {
                 var v = p.View;
@@ -383,12 +388,12 @@ public sealed partial class ClockScheduler
 
                 if (v.Stage == Stage.Pending || v.Stage == Stage.Prepared)
                 {
-                    if (!v.FreshHold(out _))
+                    if (!v.TryGetFreshHold(out _))
                     {
                         pending = true;
                     }
                 }
-                else if (v.Attempt != 0 && v.Stage != Stage.Cancelled && v.Stage != Stage.Unsuccessful)
+                else if (v.Attempt.Value != 0 && v.Stage != Stage.Cancelled && v.Stage != Stage.Unsuccessful)
                 {
                     advance = true;
                 }

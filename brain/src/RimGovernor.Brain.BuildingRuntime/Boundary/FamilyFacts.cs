@@ -72,7 +72,7 @@ public static class RescueFacts
         }
         if (row.Health is { } health && !Boundary.IssueField(health.Issues, "health") && health.HasBedId)
         {
-            facts = facts with { BedId = Known(health.BedId) };
+            facts = facts with { BedID = Known(health.BedId) };
         }
         return facts;
     }

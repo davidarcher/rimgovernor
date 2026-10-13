@@ -9,21 +9,21 @@ internal static class ColonyPlanCut
     /// </summary>
     public static PerimeterWall PerimeterWallOf(ColonyProjection projection)
     {
-        var output = new PerimeterWall { HP = Unknown<double>(), LightHP = Unknown<double>() };
+        var output = new PerimeterWall(Unknown<double>(), Unknown<double>());
         foreach (var d in projection.Definitions)
         {
             if (d.Name != PolicyFunctions.PerimeterDefs().WallDef)
             {
                 continue;
             }
-            var (price, priced) = Defense.DefenseUnitPrice(projection, d);
+            var (price, priced) = RoundsDefenseLayoutPlanner.DefenseUnitPrice(projection, d);
             foreach (var option in d.StuffOptions)
             {
-                if (!option.Stats.TryGetValue(BridgeApi.StatMaxHitPoints, out var hp))
+                if (!option.Stats.TryGetValue(BridgeConstants.StatMaxHitPoints, out var hp))
                 {
                     continue;
                 }
-                if (option.Stuff == PolicyFunctions.PerimeterLightStuff)
+                if (option.Stuff == PolicyConstants.PerimeterLightStuff)
                 {
                     output = output with { LightHP = Known(hp) };
                 }

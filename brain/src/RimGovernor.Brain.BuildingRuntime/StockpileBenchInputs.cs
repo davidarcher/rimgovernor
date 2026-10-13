@@ -17,18 +17,21 @@ internal static partial class BuildingRuntimePackage
         var at = new Dictionary<string, Cell>(built.Buildings.Count, StringComparer.Ordinal);
         foreach (var b in built.Buildings)
         {
-            at[b.Id] = b.Building.Cell;
+            if (b.Building is { } placed)
+            {
+                at[b.Id] = placed.Cell;
+            }
         }
-        var excluded = new HashSet<string>(StringComparer.Ordinal);
+        var excluded = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var b in food)
         {
-            excluded.Add(b.Id);
+            excluded[b.Id] = true;
         }
         var benches = new List<Pol.GearBench>(census.Count);
         foreach (var row in census)
         {
             benches.Add(row.Bench);
         }
-        return Pol.BenchInput.Derive(benches, at, excluded);
+        return Pol.PolicyFunctions.DeriveBenchInputs(benches, at, excluded);
     }
 }

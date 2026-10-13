@@ -14,7 +14,7 @@ internal static class FieldsSelectLog
         {
             var row = new Dictionary<string, object?>
             {
-                ["kind"] = PolicyFunctions.KindName(c.Kind),
+                ["kind"] = Wire.Name(c.Kind),
                 ["crop"] = c.Crop.Name,
                 ["needed"] = c.Needed,
                 ["cells"] = c.Cells,
@@ -41,7 +41,7 @@ internal static class FieldsSelectLog
             Kind = "fields_select",
             Component = "clock-scheduler",
             Verdict = "selected",
-            Reason = PolicyFunctions.KindName(selection.Kind),
+            Reason = Wire.Name(selection.Kind),
             Target = selection.Crop.Name,
             Attrs = new Dictionary<string, object?>
             {

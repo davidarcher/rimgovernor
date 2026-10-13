@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsFirebreakSource
 {
-    BridgeDefenseSite ReadDefenseSite(C.Identity identity, BridgeCellRect rect, CancellationToken ct);
+    Task<BridgeDefenseSite> ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect rect, CancellationToken ct);
 }
 
 /// <summary>Remembers the firebreak review of the tick so the step can act on it.</summary>
@@ -12,7 +12,7 @@ internal sealed class FirebreakMemory
 {
     private readonly object _mu = new();
     private string _world = "";
-    private Dictionary<Cell, Tick>? _dwell;
+    private IReadOnlyDictionary<Cell, Tick>? _dwell;
     private Tick _tick;
     private FirebreakWork _work = new();
     private Dictionary<Cell, CoverClearance>? _ruins;
@@ -57,7 +57,7 @@ internal sealed class FirebreakMemory
         }
     }
 
-    internal Fact<bool> Review(CancellationToken ct, C.Identity identity, GenerationSnapshot current, ColonyProjection projection, ColonyStage stage, IReadOnlySet<Cell> busy)
+    internal async Task<Fact<bool>> ReviewAsync(C.Identity identity, GenerationSnapshot current, ColonyProjection projection, ColonyStage stage, IReadOnlySet<Cell> busy, CancellationToken ct)
     {
         if (stage == ColonyStage.Foothold)
         {
@@ -76,18 +76,18 @@ internal sealed class FirebreakMemory
         {
             stage = (ColonyStage)Math.Min((int)stage, (int)ColonyStage.Stable);
         }
-        request.Stage = Known(stage);
+        request = request with { Stage = Known(stage) };
         var style = FloorStyle(projection);
         if (style is not null)
         {
-            request.Floor = style(RoomRole.None).Floor;
+            request = request with { Floor = style(RoomRole.None).Floor };
         }
-        request.Stock = projection.Resources;
-        request.Claimed = Known(FirebreakClaimed(projection));
-        request.Floors = new Dictionary<string, FloorDefinition>(StringComparer.Ordinal);
+        request = request with { Stock = projection.Resources };
+        request = request with { Claimed = Known<IReadOnlyDictionary<Resource, long>>(FirebreakClaimed(projection)) };
+        var floors = new Dictionary<string, FloorDefinition>(StringComparer.Ordinal);
         foreach (var d in projection.Definitions)
         {
-            request.Floors[d.Name] = new FloorDefinition
+            floors[d.Name] = new FloorDefinition
             {
                 Available = d.Available,
                 Terrain = d.Terrain,
@@ -99,7 +99,8 @@ internal sealed class FirebreakMemory
                 WorkToBuild = d.WorkToBuild,
             };
         }
-        request.Ground = new Dictionary<Cell, Fact<FirebreakGround>>();
+        request = request with { Floors = floors };
+        var ground = new Dictionary<Cell, Fact<FirebreakGround>>();
         var site = new Dictionary<Cell, BridgeDefenseCell>();
         foreach (var tile in FirebreakTiles(cells))
         {
@@ -107,7 +108,7 @@ internal sealed class FirebreakMemory
             {
                 Max = new Cell(Math.Min(tile.Min.X + BuildingRuntimePackage.FirebreakTile, projection.Bounds.Width) - 1, Math.Min(tile.Min.Z + BuildingRuntimePackage.FirebreakTile, projection.Bounds.Height) - 1),
             };
-            var read = Native.ReadDefenseSite(identity, rect, ct);
+            var read = await Native.ReadDefenseSiteAsync(identity, rect, ct).ConfigureAwait(false);
             try
             {
                 Boundary.Context(read.Context, current);
@@ -116,21 +117,22 @@ internal sealed class FirebreakMemory
             {
                 throw new ControlException("firebreak review: defense site context");
             }
-            if (new Tick(read.Context.Tick) < tick)
+            if (new Tick(read.Context?.Tick ?? 0) < tick)
             {
                 throw new ControlException("firebreak review: defense site context");
             }
             foreach (var cell in read.Cells)
             {
                 site[cell.Cell] = cell;
-                request.Ground[cell.Cell] = Known(FirebreakGroundOf(cell));
+                ground[cell.Cell] = Known(FirebreakGroundOf(cell));
             }
         }
-        Dictionary<Cell, Tick>? dwell;
+        request = request with { Ground = ground };
+        IReadOnlyDictionary<Cell, Tick> dwell;
         lock (_mu)
         {
             Enter(world);
-            dwell = _dwell;
+            dwell = _dwell ?? new Dictionary<Cell, Tick>();
         }
         var (fact, next) = PolicyApi.PlanFirebreak(request, dwell);
         if (!fact.TryGetValue(out var plan))
@@ -144,17 +146,17 @@ internal sealed class FirebreakMemory
         foreach (var cell in plan.Deconstruct)
         {
             var cover = site.TryGetValue(cell, out var sc) ? sc.Cover : null;
-            if (cover is null || cover.Designated || cover.Designation() != CoverClearanceKind.Deconstruct)
+            if (cover is null || cover.Designated || cover.Designation != CoverClearanceDesignation.Deconstruct)
             {
                 continue;
             }
-            var clearance = DomainApi.NewCoverClearance(cover.ThingId, cover.DefName, cover.Designation(), cell);
+            var clearance = new CoverClearance(cover.ThingId, cover.DefName, CoverClearanceDesignation.Deconstruct, cell);
             open.Add(cell);
             ruins[cell] = clearance;
         }
         var work = PolicyApi.FirebreakOwed(plan, standing, open);
         var pave = new List<Cell>();
-        if (flooringKnown)
+        if (flooringKnown && flooring is not null)
         {
             foreach (var cell in plan.Cells)
             {
@@ -171,7 +173,7 @@ internal sealed class FirebreakMemory
         if (!string.IsNullOrEmpty(dir))
         {
             var f = SnapshotApi.NewFirebreak(request, dwell, MapCells(standing), MapCells(open));
-            f.Recorded = string.Create(CultureInfo.InvariantCulture, $"colony {current.Colony} load {current.Load} map {current.Map} tick {tick}");
+            f.Recorded = string.Create(CultureInfo.InvariantCulture, $"colony {current.Colony} load {current.Load} map {current.Map} tick {tick.Value}");
             f.Snapshot = current;
             try
             {
@@ -179,7 +181,7 @@ internal sealed class FirebreakMemory
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                ClockEvent(ct, "firebreak", "snapshot", "firebreak snapshot not recorded: " + e.Message);
+                ClockEvents.Event("firebreak", "snapshot", "firebreak snapshot not recorded: " + e.Message);
             }
         }
         lock (_mu)
@@ -191,7 +193,7 @@ internal sealed class FirebreakMemory
             _ruins = ruins;
             _pave = pave;
         }
-        return Known(work.Owed());
+        return Known(work.Owed);
     }
 
     private static HashSet<Cell> StandingPlants(IReadOnlyList<SiteCell> cells, IReadOnlyList<Cell> cut)
@@ -206,7 +208,7 @@ internal sealed class FirebreakMemory
             }
             foreach (var thing in cell.Things)
             {
-                if (thing.Category == ThingCategory.Plant && !thing.Has(ThingFlag.Designated))
+                if (thing.Category == ThingCategory.Plant && !thing.Has(ThingMarks.Designated))
                 {
                     standing.Add(cell.Cell);
                     break;
@@ -235,19 +237,22 @@ internal sealed class FirebreakMemory
     private static Dictionary<Resource, long> FirebreakClaimed(ColonyProjection projection)
     {
         var claimed = new Dictionary<Resource, long>();
-        projection.Facts.ConstructionClaims.TryGetValue(out var claims);
-        foreach (var claim in claims ?? [])
+        if (!projection.Facts.ConstructionClaims.TryGetValue(out var claims))
         {
-            if (!projection.Definition(claim.Building.Definition, out var d))
+            return claimed;
+        }
+        foreach (var claim in claims)
+        {
+            if (claim.Building is null || !projection.TryDefinition(claim.Building.Definition, out var d))
             {
                 continue;
             }
             IReadOnlyList<Amount> costs;
-            if (!d.CostsMadeOf(claim.Building.Stuff, out costs))
+            if (!d.TryCostsMadeOf(claim.Building.Stuff, out costs))
             {
                 try
                 {
-                    costs = d.UnstockedStuffChoice(ObservationApi.LowestFlammability).Costs;
+                    costs = d.UnstockedStuffChoice(StuffCriterion.LowestFlammability).Costs;
                 }
                 catch (DomainException)
                 {
@@ -294,7 +299,7 @@ internal sealed class FirebreakMemory
     private static Func<RoomRole, (string Floor, bool Ok)>? FloorStyle(ColonyProjection projection) => BuildingRuntimePackage.FloorStyle(projection);
 }
 
-public sealed class RoundsFirebreakResult
+public sealed class RoundsFirebreakResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 
@@ -320,7 +325,7 @@ public sealed class RoundsFirebreakPlanner
 
     public List<Cell> Pave() => _memory.Pave();
 
-    internal RoundsFirebreakResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsFirebreakResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -332,19 +337,19 @@ public sealed class RoundsFirebreakPlanner
         {
             throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil");
         }
-        var review = p.Journal.LoadRounds(call);
+        var review = await p.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
         if (!review.Enabled || review.Snapshot != state.Snapshot)
         {
             return new RoundsFirebreakResult { Verdict = BuildingReasonNoReview };
         }
-        var (goal, workable) = p.Journal.Workable(review, PolicyApi.MaintainFirebreak, call);
-        if (!workable)
+        var (goal, workable) = await p.Journal.WorkableAsync(review, PolicyApi.MaintainFirebreak, call).ConfigureAwait(false);
+        if (!workable || goal is null)
         {
             return new RoundsFirebreakResult { Verdict = BuildingReasonNoDeficit };
         }
         foreach (var method in goal.Methods)
         {
-            var plan0 = p.Journal.LoadPlan(method.Plan, call);
+            var plan0 = await p.Journal.LoadPlanAsync(method.Plan, call).ConfigureAwait(false);
             if (StorePackage.PlanOpen(plan0))
             {
                 return new RoundsFirebreakResult { Verdict = BuildingReasonExistingWork };
@@ -355,24 +360,24 @@ public sealed class RoundsFirebreakPlanner
         {
             return new RoundsFirebreakResult { Verdict = BuildingReasonNoReview };
         }
-        if (!work.Owed())
+        if (!work.Owed)
         {
-            return new RoundsFirebreakResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "firebreak_work") };
+            return new RoundsFirebreakResult { Verdict = WaitFor(Cause.MethodUsed, "firebreak_work") };
         }
-        var (verdict, admitted) = AdmitSubject(call, p.Journal, FirebreakPrefix, StandardMethodPlans(goal.History, goal.Standard.Episode, FirebreakPrefix), state.Snapshot);
+        var (verdict, admitted) = AdmitSubject(p.Journal, FirebreakPrefix, StandardMethodPlans(goal.History, goal.Standard.Episode, FirebreakPrefix), state.Snapshot, call);
         if (!admitted)
         {
             return new RoundsFirebreakResult { Verdict = verdict };
         }
         var actions = FirebreakActions(PlanIds.MintPlanId(), work, ruins ?? []);
-        var plan = DomainApi.NewPlan(actions.Id, 1, actions.Actions);
+        var plan = new PlanSpec(actions.Id, new PlanRevision(1), actions.Actions);
         p.Current(call, epoch);
         if (p.Session.State() != state)
         {
             throw new ControlException("step: p.session.State() != state");
         }
         var methodId = NextMethodId(FirebreakPrefix, HistoryMethodIds(goal.History, goal.Standard.Episode));
-        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, methodId, string.Create(CultureInfo.InvariantCulture, $"firebreak cut {actions.Cut} cells, deconstruct {actions.Ruins} ruins"), plan, call);
+        await p.Journal.CommitMethodReasonAsync(goal.Standard.Id, goal.Revision, methodId, string.Create(CultureInfo.InvariantCulture, $"firebreak cut {actions.Cut} cells, deconstruct {actions.Ruins} ruins"), plan, call).ConfigureAwait(false);
         return new RoundsFirebreakResult { Verdict = BuildingReasonAdmitted, Plan = actions.Id };
     }
 }
@@ -411,15 +416,15 @@ internal static partial class BuildingRuntimePackage
             Construction = f.CurrentConstruction,
             Claims = f.ConstructionClaims,
             Home = f.HomeCoverage,
-            GrowingZones = Known<IReadOnlyList<Cell>>(zones),
+            GrowingZones = Known(EquatableArray.From(zones)),
             Now = projection.Identity.Tick,
         };
-        IReadOnlyList<Cell> planned = [];
+        var planned = new List<Cell>();
         if (projection.LayoutPlan.TryGetValue(out var plan))
         {
             planned = LayoutFootprint(plan);
         }
-        r.Planned = Known(planned);
+        r = r with { Planned = Known(EquatableArray.From(planned)) };
         return r;
     }
 
@@ -445,7 +450,7 @@ internal static partial class BuildingRuntimePackage
         var busy = new HashSet<Cell>();
         RoundsOpenActions(plans, current, player, a =>
         {
-            if (a.Building(out var b))
+            if (a.Building is { } b)
             {
                 busy.Add(b.Cell);
             }
@@ -458,13 +463,13 @@ internal static partial class BuildingRuntimePackage
         var output = new FirebreakPlan { Id = id };
         if (work.Cut.Count > 0)
         {
-            var cut = DomainApi.NewAreaPlantCut(work.Cut);
+            var cut = new AreaPlantCut(work.Cut);
             output.Actions.Add(DomainAction.NewAreaPlantCutAction(new ActionId($"{id}-cut"), cut));
             output.Cut = work.Cut.Count;
         }
         for (var i = 0; i < work.Deconstruct.Count; i++)
         {
-            if (output.Ruins == MaxDefenseCoverBatch)
+            if (output.Ruins == RoundsDefenseLayoutPlanner.MaxDefenseCoverBatch)
             {
                 break;
             }

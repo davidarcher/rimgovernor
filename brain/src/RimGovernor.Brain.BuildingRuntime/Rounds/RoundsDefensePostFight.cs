@@ -5,10 +5,10 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsDefensePlanner
 {
     /// <summary>After the fight: strips the downed raiders of their apparel one at a time, finishes the rest and settles the entities; held while any of that is pending.</summary>
-    internal (RoundsDefenseResult Result, bool Held) PostFight(CancellationToken call, CancellationToken epoch, IncidentState incident, ControlState state, Tick tick, StepArbiter arbiter)
+    internal async Task<(RoundsDefenseResult Result, bool Held)> PostFightAsync(IncidentState incident, ControlState state, Tick tick, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
-        CombatFight fight = new();
+        CombatFight? fight = null;
         PlanId fightPlan = default;
         var strips = new Dictionary<PawnId, PlanId>();
         foreach (var method in incident.Methods)
@@ -22,18 +22,18 @@ public sealed partial class RoundsDefensePlanner
             {
                 continue;
             }
-            var (record, ok) = p.Journal.LoadCombatFight(method.Plan, call);
-            if (ok && record.Open)
+            var record = p.Journal.LoadCombatFight(method.Plan, call);
+            if (record is { Open: true })
             {
                 fight = record;
                 fightPlan = method.Plan;
             }
         }
-        if (fightPlan.IsZero)
+        if (fight is null || fightPlan.IsEmpty)
         {
             return (new RoundsDefenseResult(), false);
         }
-        var combat = _native.ReadCombat(Boundary.Identity(state.Snapshot), call);
+        var combat = await _native.ReadCombatAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         try
         {
             Boundary.Context(combat.Context, state.Snapshot);
@@ -45,32 +45,32 @@ public sealed partial class RoundsDefensePlanner
         foreach (var raider in DownedRaiders(combat))
         {
             var id = new PawnId(raider.Id);
-            var strip = StripState.None;
+            var strip = StripState.StripNone;
             if (strips.TryGetValue(id, out var plan))
             {
-                strip = StripStateOf(call, p.Journal, plan);
+                strip = StripStateOf(p.Journal, plan, call);
             }
-            switch (PolicyApi.PostFightNext(ApparelWorn(combat.Detail.At(id.Value)), strip))
+            switch (PolicyApi.PostFightNext(ApparelWorn(combat.Detail.TryGetValue(id.Value, out var worn) ? worn : null), strip))
             {
                 case PostFightStep.Wait:
                     return (new RoundsDefenseResult { Verdict = BuildingReasonExistingWork, Plan = fightPlan }, true);
                 case PostFightStep.Strip:
-                    return (CommitStrip(call, epoch, incident, id), true);
+                    return (CommitStrip(incident, id, call, epoch), true);
             }
             if (PolicyApi.CaptureWorthy(new CombatPawnState { Luciferium = raider.LuciferiumAddicted }))
             {
                 continue; // stripped; the custody capture takes it
             }
-            return (FinishRaider(call, epoch, state, fightPlan, fight.Memory, combat, raider, arbiter), true);
+            return (await FinishRaiderAsync(state, fightPlan, fight.Memory, combat, raider, arbiter, call, epoch).ConfigureAwait(false), true);
         }
-        return PostFightEntities(call, epoch, state, tick, fightPlan, fight.Memory, combat, arbiter);
+        return await PostFightEntitiesAsync(state, tick, fightPlan, fight.Memory, combat, arbiter, call, epoch).ConfigureAwait(false);
     }
 
-    internal RoundsDefenseResult CommitStrip(CancellationToken call, CancellationToken epoch, IncidentState incident, PawnId raider)
+    internal RoundsDefenseResult CommitStrip(IncidentState incident, PawnId raider, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var id = PlanIds.MintPlanId();
-        var value = DomainApi.NewStrip(raider.Value);
+        var value = new Strip(raider.Value);
         var action = DomainAction.NewStripAction(new ActionId($"{id}-0"), value);
         var plan = new PlanSpec(id, new PlanRevision(1), [action]);
         p.Current(call, epoch);
@@ -79,7 +79,7 @@ public sealed partial class RoundsDefensePlanner
     }
 
     /// <summary>Finishes a downed raider: sends the nearest free colonist (or the one already targeting it) to attack.</summary>
-    internal RoundsDefenseResult FinishRaider(CancellationToken call, CancellationToken epoch, ControlState state, PlanId fightPlan, CombatMemory memory, BridgeCombat combat, M.CombatPawn raider, StepArbiter arbiter)
+    internal async Task<RoundsDefenseResult> FinishRaiderAsync(ControlState state, PlanId fightPlan, CombatMemory memory, BridgeCombat combat, M.CombatPawn raider, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var waiting = new RoundsDefenseResult { Verdict = BuildingReasonExistingWork, Plan = fightPlan };
@@ -94,15 +94,15 @@ public sealed partial class RoundsDefensePlanner
             return waiting;
         }
         IReadOnlyList<PawnId> drafts = pawn.Drafted ? [] : [id];
-        IReadOnlyList<CombatOrder> orders = [new CombatOrder { Pawn = id, Kind = OrderKind.Attack, Target = new PawnId(raider.Id), Reason = CombatReason.Finish }];
+        IReadOnlyList<CombatOrder> orders = [new CombatOrder { Pawn = id, Kind = CombatOrderKind.Attack, Target = new PawnId(raider.Id), Reason = CombatOrderReason.Finish }];
         p.Current(call, epoch);
-        var tick = new Tick(combat.Context.Tick);
+        var tick = new Tick(combat.Context?.Tick ?? 0);
         var label = string.Create(CultureInfo.InvariantCulture, $"{fightPlan}-finish-{raider.Id}-{tick.Value}");
         var batch = CombatBatchPlan(fightPlan, label, drafts, orders);
-        var (results, sent) = SendCombatBatch(call, state, fightPlan, label, drafts, orders);
-        (results, memory) = RecordDrafts(call, fightPlan, drafts, results, memory);
+        var (results, sent) = await SendCombatBatchAsync(state, fightPlan, label, drafts, orders, call).ConfigureAwait(false);
+        (results, memory) = RecordDrafts(fightPlan, drafts, results, memory, call);
         var (record, next) = CombatStopRecord(new CombatView { Tick = tick }, sent, results, memory);
-        record.Batch = batch.Id;
+        record = record with { Batch = batch.Id };
         if (record.Orders.Count > 0)
         {
             p.Journal.RecordCombatStop(fightPlan, record, next, call);
@@ -145,21 +145,21 @@ internal static partial class BuildingRuntimePackage
         return Known(row.Equipment.Apparel.Count > 0);
     }
 
-    internal static StripState StripStateOf(CancellationToken call, StoreJournal journal, PlanId id)
+    internal static StripState StripStateOf(StoreJournal journal, PlanId id, CancellationToken call)
     {
         var plan = journal.LoadPlan(id, call);
         if (StorePackage.PlanOpen(plan))
         {
-            return StripState.Open;
+            return StripState.StripOpen;
         }
         foreach (var progress in plan.Progress)
         {
             if (progress.View.Stage == Stage.Completed)
             {
-                return StripState.Placed;
+                return StripState.StripPlaced;
             }
         }
-        return StripState.Refused;
+        return StripState.StripRefused;
     }
 
     /// <summary>The colonist to finish a raider: the one already targeting it, else the nearest standing one (ties by ordinal id).</summary>

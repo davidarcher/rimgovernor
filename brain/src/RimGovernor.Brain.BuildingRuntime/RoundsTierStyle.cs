@@ -13,7 +13,7 @@ internal static partial class BuildingRuntimePackage
 
     /// <summary>The stock census the rules read; an unknown census holds nothing, and the rules then fall back to their lowest rung.</summary>
     internal static Pol.TierStyleStock StyleStock(Observation.ColonyProjection facts) =>
-        facts.Resources.TryGetValue(out var stock) ? new Pol.TierStyleStock(stock) : new Pol.TierStyleStock([]);
+        facts.Resources.TryGetValue(out var stock) ? new Pol.TierStyleStock(stock) : new Pol.TierStyleStock(new Dictionary<Pol.Resource, long>());
 
     /// <summary>Whether one ResearchProjectDef is finished; an unknown census reads as unfinished.</summary>
     internal static bool StyleResearchFinished(Observation.ColonyProjection facts, string project) =>
@@ -48,7 +48,7 @@ internal static partial class BuildingRuntimePackage
         var style = new ShellStyle { WallDef = "Wall", DoorDef = "Door", DoorStuff = "WoodLog" };
         if (PoweredSource(facts).TryGetValue(out var powered) && powered && StyleResearchFinished(facts, "Autodoors") && RoundsDefinitionsAvailable(facts, ["Autodoor"], true))
         {
-            var (stuff, ok) = facts.StockedBuildStuff("Autodoor");
+            var ok = facts.TryStockedBuildStuff("Autodoor", out var stuff);
             if (ok)
             {
                 style = style with { DoorDef = "Autodoor", DoorStuff = stuff };

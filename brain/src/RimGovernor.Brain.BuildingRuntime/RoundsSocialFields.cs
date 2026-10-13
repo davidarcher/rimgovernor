@@ -23,7 +23,7 @@ internal static partial class BuildingRuntimePackage
                     RequiresCleanSoil = d.RequiresCleanSoil,
                 },
                 d);
-            if (Pol.CropChoice.IsSocialCrop(crop))
+            if (PolicyFunctions.IsSocialCrop(crop))
             {
                 output.Add(crop);
             }
@@ -53,10 +53,10 @@ internal static partial class BuildingRuntimePackage
                     cells += (int)n;
                 }
             }
-            var needed = Pol.CropChoice.PlanSocialCrop(crop, projection.CropClimate, cells);
+            var needed = PolicyFunctions.PlanSocialCrop(crop, projection.CropClimate, cells);
             if (needed > 0)
             {
-                output.Add(new Pol.FieldBlockOption { Crop = crop, Needed = needed });
+                output.Add(new Pol.FieldBlockOption(crop, needed));
             }
         }
         return (output, true);

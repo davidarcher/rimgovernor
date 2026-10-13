@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public sealed class RoundsEnvelopeResult
+public sealed class RoundsEnvelopeResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 }
@@ -24,7 +24,7 @@ public sealed class RoundsEnvelopePlanner
         }
     }
 
-    internal RoundsEnvelopeResult Step(CancellationToken call, CancellationToken epoch, StepArbiter? arbiter)
+    internal async Task<RoundsEnvelopeResult> StepAsync(StepArbiter? arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -32,9 +32,9 @@ public sealed class RoundsEnvelopePlanner
         {
             return new RoundsEnvelopeResult { Verdict = BuildingReasonDisabled };
         }
-        if (!state.ObservationKnown || !state.Snapshot.IsValid || state.Snapshot.Native == 0)
+        if (!state.ObservationKnown || !state.Snapshot.IsValid || state.Snapshot.Native.Value == 0)
         {
-            throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0");
+            throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native.Value == 0");
         }
         var review = p.Journal.LoadRounds(call);
         if (!review.Enabled || !review.Snapshot.Matches(state.Snapshot))
@@ -42,7 +42,7 @@ public sealed class RoundsEnvelopePlanner
             return new RoundsEnvelopeResult { Verdict = BuildingReasonNoReview };
         }
         var (goal, workable) = p.Journal.Workable(review, PolicyApi.MaintainClimateEnvelope, call);
-        if (!workable)
+        if (!workable || goal is null)
         {
             return new RoundsEnvelopeResult { Verdict = BuildingReasonNoDeficit };
         }
@@ -58,12 +58,12 @@ public sealed class RoundsEnvelopePlanner
         {
             return new RoundsEnvelopeResult { Verdict = FieldUnavailable("building_source") };
         }
-        var expected = StepScope(call, _reviewer.Native);
+        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
-        var reading = _reviewer.ObserveRooms(call, _reviewer.Native, expected, Unknown<IReadOnlyList<ConstructionClaim>>(), PolicyApi.ClimateDefs().VentDef);
+        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), [PolicyApi.ClimateDefs().VentDef], call).ConfigureAwait(false);
         var (rooms, known) = EnvelopeWork(reading.Projection);
         if (!known)
         {
@@ -72,8 +72,8 @@ public sealed class RoundsEnvelopePlanner
         var verdict = BuildingReasonNoDeficit;
         foreach (var room in rooms)
         {
-            var rr = new RoomReconcile { Room = room, Name = RoomName("envelope", room), Reason = "envelope", RingOnly = true, ClimateOnly = true };
-            var result = _building.ReconcileRoom(call, epoch, state, review, goal, reading, null, rr);
+            var rr = new RoomReconcile { Room = room, Name = RoundsBurialPlanner.RoomName("envelope", room), Reason = "envelope", RingOnly = true, ClimateOnly = true };
+            var result = await _building.ReconcileRoomAsync(state, review, goal, reading, null, rr, call, epoch).ConfigureAwait(false);
             verdict = result.Verdict;
             if (verdict.Outcome == Outcome.Admitted)
             {

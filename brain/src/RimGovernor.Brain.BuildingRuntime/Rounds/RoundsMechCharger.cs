@@ -4,6 +4,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed class RoundsMechChargerPlanner
 {
     private readonly Rounder reviewer;
+    internal Rounder Reviewer => reviewer;
     private readonly IRoundsBuildingSource native;
 
     private RoundsMechChargerPlanner(Rounder reviewer, IRoundsBuildingSource native)
@@ -14,7 +15,7 @@ public sealed class RoundsMechChargerPlanner
 
     public static RoundsMechChargerPlanner NewRoundsMechChargerPlanner(Rounder reviewer, IRoundsBuildingSource native)
     {
-        if (reviewer is null || native is null || !reviewer.MethodEnabled(ConcernId.EnsureMechCharger))
+        if (reviewer is null || native is null || !reviewer.MethodEnabled(PolicyFunctions.EnsureMechCharger))
         {
             throw new ControlException("NewRoundsMechChargerPlanner: reviewer, native or method disabled");
         }
@@ -27,7 +28,7 @@ public sealed class RoundsMechChargerPlanner
         return new RoundsMechChargerPlanner(reviewer, native);
     }
 
-    internal RoundsBuildingResult Step(CancellationToken call, CancellationToken epoch, StepArbiter? arbiter)
+    internal async Task<RoundsBuildingResult> StepAsync(StepArbiter? arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         var state = p.Session.State();
@@ -47,15 +48,15 @@ public sealed class RoundsMechChargerPlanner
             return new RoundsBuildingResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
         }
 
-        var (goal, workable) = p.Journal.Workable(call, review, ConcernId.EnsureMechCharger);
-        if (!workable)
+        var (goal, workable) = p.Journal.Workable(review, PolicyFunctions.EnsureMechCharger, call);
+        if (!workable || goal is null)
         {
             return new RoundsBuildingResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
         }
 
         foreach (var method0 in goal.Methods)
         {
-            var open = p.Journal.LoadPlan(call, method0.Plan);
+            var open = p.Journal.LoadPlan(method0.Plan, call);
             if (StorePackage.PlanOpen(open))
             {
                 return new RoundsBuildingResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
@@ -63,18 +64,18 @@ public sealed class RoundsMechChargerPlanner
         }
 
         var started = reviewer.Clock.Now();
-        var expected = BuildingRuntimePackage.StepScope(call, native);
+        var expected = await BuildingRuntimePackage.StepScopeAsync(native, call).ConfigureAwait(false);
         if (!BuildingRuntimePackage.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: boundary moved");
         }
 
-        var claims = p.Journal.ConstructionClaims(call, state.Snapshot, expected.Tick);
-        var read = reviewer.ObserveRooms(call, (IRoundsSource)native, expected, claims);
+        var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
+        var read = await reviewer.ObserveRoomsAsync((IRoundsSource)native, expected, claims, call).ConfigureAwait(false);
         var f = read.Projection;
         if (!f.Facts.MechChargerOwed.TryGetValue(out var owed))
         {
-            return new RoundsBuildingResult { Verdict = BuildingRuntimePackage.FieldUnavailable("mech_chargers") };
+            return new RoundsBuildingResult { Verdict = Verdict.FieldUnavailable("mech_chargers") };
         }
 
         if (!owed)
@@ -84,14 +85,14 @@ public sealed class RoundsMechChargerPlanner
 
         if (!f.Biotech.TryGetValue(out var biotech))
         {
-            return new RoundsBuildingResult { Verdict = BuildingRuntimePackage.FieldUnavailable("biotech") };
+            return new RoundsBuildingResult { Verdict = Verdict.FieldUnavailable("biotech") };
         }
 
         var defs = BuildingRuntimePackage.MechChargerDefinitions(ref read);
         f = read.Projection;
         if (defs.Count == 0)
         {
-            return new RoundsBuildingResult { Verdict = BuildingRuntimePackage.FieldUnavailable("mech_charger_definition") };
+            return new RoundsBuildingResult { Verdict = Verdict.FieldUnavailable("mech_charger_definition") };
         }
 
         var definition = defs[0].Name;
@@ -103,8 +104,8 @@ public sealed class RoundsMechChargerPlanner
         var method = new MethodId($"mech-charger-{definition}-{biotech.Chargers.Count}");
         try
         {
-            p.Journal.LoadMethod(call, goal.Standard.Id, goal.Standard.Episode, method);
-            return new RoundsBuildingResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "mech_charger_method") };
+            p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
+            return new RoundsBuildingResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "mech_charger_method") };
         }
         catch (NotFoundException)
         {
@@ -112,28 +113,29 @@ public sealed class RoundsMechChargerPlanner
 
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
-
-        (Preview Preview, StockObservation Stock, DomainAction Action) PreviewAt(Cell anchor)
+        async Task<(Preview Preview, StockObservation Stock, DomainAction Action)> PreviewAtAsync(Cell anchor)
         {
-            var building = Building.NewBuilding(definition, anchor, Rotation.North, "");
+            var building = new Building(definition, anchor, Rotation.North, "");
             var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, ConstructionTier.Expand);
-            var (got, _) = native.PreviewBuilding(call, action, snapshot);
+            var (got, _) = await native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             return (got.Preview, got.Stock, action);
         }
 
         if (!defs[0].Size.TryGetValue(out var size) || size.Width <= 0 || size.Height <= 0)
         {
-            return new RoundsBuildingResult { Verdict = BuildingRuntimePackage.FieldUnavailable("mech_charger_size") };
+            return new RoundsBuildingResult { Verdict = Verdict.FieldUnavailable("mech_charger_size") };
         }
 
-        var siteFacts = new MechChargerSiteFacts { Bounds = f.Bounds, Cells = f.Cells, FieldZones = new HashSet<string>(), Rooms = f.Rooms };
+        var fieldZones = new Dictionary<string, bool>();
         if (f.FoodFields.TryGetValue(out var fields))
         {
             foreach (var field in fields)
             {
-                siteFacts.FieldZones.Add(field.Id);
+                fieldZones[field.Id] = true;
             }
         }
+
+        var siteFacts = new MechChargerSiteFacts { Bounds = f.Bounds, Cells = f.Cells, FieldZones = fieldZones, Rooms = f.Rooms };
 
         var disposal = new List<Cell>();
         foreach (var atomizer in biotech.Atomizers)
@@ -147,7 +149,7 @@ public sealed class RoundsMechChargerPlanner
         foreach (var site in sites)
         {
             var anchor = PolicyFunctions.AnchorForRect(site.Site, new Cell(size.Width, size.Height), Rotation.North);
-            var (pv, stock, action) = PreviewAt(anchor);
+            var (pv, stock, action) = await PreviewAtAsync(anchor).ConfigureAwait(false);
             var fk = pv.Footprint.TryGetValue(out var footprint);
             var mk = pv.MadeFromStuff.TryGetValue(out var made);
             var lk = pv.CanPlace.TryGetValue(out var legal);
@@ -164,7 +166,7 @@ public sealed class RoundsMechChargerPlanner
                 continue;
             }
 
-            var plan = PlanSpec.NewPlan(planId, new PlanRevision(1), [action]);
+            var plan = new PlanSpec(planId, new PlanRevision(1), [action]);
             p.Current(call, epoch);
             var elapsed = reviewer.Clock.Now() - started;
             if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
@@ -172,7 +174,7 @@ public sealed class RoundsMechChargerPlanner
                 throw new ControlException("step: session state changed or the read took too long");
             }
 
-            var decision = BuildingRuntimePackage.AdmitMethod(call, p.Journal, new BuildingMethodRequest
+            var decision = await AdmissionLog.AdmitMethodAsync(p.Journal, new BuildingMethodRequest
             {
                 Owner = goal,
                 Method = method,
@@ -183,10 +185,10 @@ public sealed class RoundsMechChargerPlanner
                 Stock = stock,
                 Previews = [pv],
                 Purpose = Purpose.Rounds,
-            });
+            }, call).ConfigureAwait(false);
             if (!decision.Admitted)
             {
-                return new RoundsBuildingResult { Verdict = BuildingRuntimePackage.AdmissionRefused(decision), Decision = decision };
+                return new RoundsBuildingResult { Verdict = AdmissionLog.AdmissionRefused(decision), Decision = decision };
             }
 
             return new RoundsBuildingResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Decision = decision };
@@ -194,10 +196,10 @@ public sealed class RoundsMechChargerPlanner
 
         if (unknown)
         {
-            return new RoundsBuildingResult { Verdict = BuildingRuntimePackage.FieldUnavailable("mech_charger_preview") };
+            return new RoundsBuildingResult { Verdict = Verdict.FieldUnavailable("mech_charger_preview") };
         }
 
-        return new RoundsBuildingResult { Verdict = BuildingRuntimePackage.NoSpace("charger_cell") };
+        return new RoundsBuildingResult { Verdict = Verdict.NoSpace("charger_cell") };
     }
 }
 
@@ -205,13 +207,13 @@ internal static partial class BuildingRuntimePackage
 {
     internal static IReadOnlyList<PlanningDefinition> MechChargerDefinitions(ref RoundsReading read)
     {
-        if (read.Frame.Catalog is null)
+        if (read.Catalog is not { } catalog)
         {
             return [];
         }
 
-        var names = read.Frame.Catalog.MechChargers();
-        read = read with { Projection = read.Projection.AddDefinitions(read.Frame, names) };
+        var names = catalog.MechChargers();
+        read = read with { Reading = read.Reading with { Projection = read.Projection.AddDefinitions(read.Frame, catalog, names) } };
         var output = new List<PlanningDefinition>();
         foreach (var d in ObservationPackage.MechChargerDefs(read.Projection.Definitions))
         {
@@ -242,7 +244,7 @@ internal static partial class BuildingRuntimePackage
         return true;
     }
 
-    internal static bool DefinitionIntentStanding(IReadOnlyList<PlanningDefinition> defs, Fact<IReadOnlyList<ConstructionClaim>> claims, Fact<CurrentConstruction> observed)
+    internal static bool DefinitionIntentStanding(IReadOnlyList<PlanningDefinition> defs, Fact<EquatableArray<ConstructionClaim>> claims, Fact<CurrentConstruction> observed)
     {
         if (!observed.TryGetValue(out var census) || !census.Colony)
         {
@@ -250,10 +252,14 @@ internal static partial class BuildingRuntimePackage
         }
 
         var charger = defs.Select(d => d.Name).ToHashSet();
-        claims.TryGetValue(out var history);
-        foreach (var claim in history ?? [])
+        if (!claims.TryGetValue(out var history))
         {
-            if (charger.Contains(claim.Building.Definition) && PolicyFunctions.WorkOpen(claim.Building, observed) == BuildingWorkState.Open)
+            return false;
+        }
+
+        foreach (var claim in history)
+        {
+            if (claim.Building is { } building && charger.Contains(building.Definition) && PolicyFunctions.WorkOpen(building, observed) == BuildingWork.BuildingOpen)
             {
                 return true;
             }

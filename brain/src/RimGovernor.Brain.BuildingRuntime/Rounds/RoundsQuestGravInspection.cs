@@ -3,17 +3,17 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsPopulationJoinerPlanner
 {
     /// <summary>Services a quest's grav inspection; the result carries wait ticks even when not handled.</summary>
-    internal (RoundsPopulationJoinerResult Result, bool Handled) AdmitGravInspection(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, RoundsReading read, StepArbiter arbiter, DateTimeOffset started)
+    internal (RoundsPopulationJoinerResult Result, bool Handled) AdmitGravInspection(ControlState state, StandardState goal, RoundsReading read, StepArbiter arbiter, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         var work = PolicyFunctions.SelectQuestGravInspection(read.Projection.Facts, read.Projection.Identity.Map);
-        if (work.Quest == "")
+        if (work.Quest.IsEmpty)
         {
             return (default, false);
         }
 
         if (work.Reason != "")
         {
-            reviewer.LogQuestSkip(call, new QuestSkip { Quest = work.Quest, Reason = work.Reason });
+            reviewer.LogQuestSkip(new QuestSkip(work.Quest, "", work.Reason, ""), call);
         }
 
         if (work.Waiting)
@@ -22,16 +22,16 @@ public sealed partial class RoundsPopulationJoinerPlanner
         }
 
         var service = work.Service!;
-        if (!arbiter.TryClaim([service.Pawn], $"service:{service.Thing}"))
+        if (!arbiter.TryClaim([(PawnId)service.Pawn], $"service:{service.Thing}"))
         {
-            return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.Claim, "grav_inspection") }, true);
+            return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.Claim, "grav_inspection") }, true);
         }
 
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewRecoveryServiceAction(new ActionId(id.Value + "-0"), service);
-        var plan = PlanSpec.NewPlan(id, new PlanRevision(1), [action]);
+        var plan = new PlanSpec(id, new PlanRevision(1), [action]);
         var prefix = $"grav-inspection-{work.Quest}-{service.Thing}-";
-        var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(call, reviewer.Player.Journal, goal, prefix, state.Snapshot);
+        var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(reviewer.Player.Journal, goal, prefix, state.Snapshot, call);
         if (!admitted)
         {
             return (new RoundsPopulationJoinerResult { Verdict = verdict }, true);
@@ -44,7 +44,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
             throw new ControlException("admitGravInspection: session state changed or the read took too long");
         }
 
-        reviewer.Player.Journal.CommitMethod(call, goal.Standard.Id, goal.Revision, method, plan);
+        reviewer.Player.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
         return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, true);
     }
 }

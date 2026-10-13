@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>Cancels repair actions that have not started once the standard is met.</summary>
-    internal static void CancelSettledRepairMethods(CancellationToken ct, StoreJournal journal, StandardState goal)
+    internal static void CancelSettledRepairMethods(StoreJournal journal, StandardState goal, CancellationToken ct)
     {
         if (goal.Standard.Finding != Finding.Met)
         {
@@ -12,7 +12,7 @@ internal static partial class BuildingRuntimePackage
 
         foreach (var method in goal.Methods)
         {
-            var plan = journal.LoadPlan(ct, method.Plan);
+            var plan = journal.LoadPlan(method.Plan, ct);
             if (!StorePackage.PlanOpen(plan))
             {
                 continue;
@@ -21,7 +21,7 @@ internal static partial class BuildingRuntimePackage
             var repairs = new HashSet<ActionId>();
             foreach (var action in plan.Spec.Actions)
             {
-                if (action.TryRepair(out _))
+                if (action.Repair is not null)
                 {
                     repairs.Add(action.Id);
                 }
@@ -29,13 +29,13 @@ internal static partial class BuildingRuntimePackage
 
             foreach (var progress in plan.Progress)
             {
-                var v = progress.View();
-                if (!repairs.Contains(v.Action) || (v.Stage != ProgressStage.Pending && v.Stage != ProgressStage.Prepared))
+                var v = progress.View;
+                if (!repairs.Contains(v.Action) || (v.Stage != Stage.Pending && v.Stage != Stage.Prepared))
                 {
                     continue;
                 }
 
-                journal.Cancel(ct, method.Plan, v.Action);
+                journal.Cancel(method.Plan, v.Action, ct);
             }
         }
     }

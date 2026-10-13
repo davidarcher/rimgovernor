@@ -114,7 +114,7 @@ internal static partial class BuildingRuntimePackage
         }
 
         facts.Facts.Upkeep.Filth.TryGetValue(out var filth);
-        return Known(PolicyFunctions.IncineratorAsh(filth ?? [], room.Region.Bounds()).Count > 0 || IncineratorStored(facts, room.Region.Bounds()) >= PolicyFunctions.BurnStoredCells);
+        return Known(PolicyFunctions.IncineratorAsh(filth, room.Region.Bounds()).Count > 0 || IncineratorStored(facts, room.Region.Bounds()) >= PolicyFunctions.BurnStoredCells);
     }
 
     internal static MethodId IncineratorMethod(PlannedRoom room) =>
@@ -124,9 +124,9 @@ internal static partial class BuildingRuntimePackage
 public sealed partial class RoundsIncinerationPlanner
 {
     /// <summary>The burn first, then the shell ring reconcile; not handled when neither is due.</summary>
-    internal (RoundsIncinerationResult Result, bool Handled) StageDisposal(CancellationToken call, CancellationToken epoch, ControlState state, Rounds review, StandardState goal, StepArbiter arbiter, RoundsReading reading)
+    internal async Task<(RoundsIncinerationResult Result, bool Handled)> StageDisposalAsync(ControlState state, Rounds review, StandardState goal, StepArbiter arbiter, RoundsReading reading, CancellationToken call, CancellationToken epoch)
     {
-        var (burn, handledBurn) = StageBurn(call, epoch, state, review, goal, arbiter, reading);
+        var (burn, handledBurn) = await StageBurnAsync(state, review, goal, arbiter, reading, call, epoch).ConfigureAwait(false);
         if (handledBurn)
         {
             return (burn, true);
@@ -144,7 +144,7 @@ public sealed partial class RoundsIncinerationPlanner
         }
 
         var rc = new RoomReconcile { RingOnly = true, Room = room!, Name = IncineratorMethod(room!).Value, Reason = "burn waste", Stuff = FireproofShellStuff };
-        var result = Building.ReconcileRoom(call, epoch, state, review, goal, new RoundsReading(reading.ColonyReading), null, rc);
+        var result = await Building.ReconcileRoomAsync(state, review, goal, new RoundsReading { Reading = reading.Reading, Emergency = new EmergencyFacts(), Frame = new BridgeRoundsFrame() }, null, rc, call, epoch).ConfigureAwait(false);
         return (new RoundsIncinerationResult { Verdict = result.Verdict }, true);
     }
 }

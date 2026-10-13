@@ -30,7 +30,7 @@ public sealed partial class Rounder
     /// holding threats' reach, the raid edge and the vetoed loot, sent when they change or an hour passed, and
     /// cleared once when nothing holds. Output only: a failure is dropped, never fatal.
     /// </summary>
-    internal void DrawSafetyOverlay(CancellationToken ct, GenerationSnapshot snapshot, Observation.ColonyProjection projection, Pol.EmergencyFacts emergency)
+    internal async Task DrawSafetyOverlayAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, Pol.EmergencyFacts emergency, CancellationToken ct)
     {
         if (Native is not ILayoutOverlayNative native)
         {
@@ -40,7 +40,7 @@ public sealed partial class Rounder
         if (LayoutOverlay)
         {
             projection.Facts.EventLoot.TryGetValue(out var loot);
-            layer = Pol.LayoutOverlay.SafetyOverlay(emergency.Threats, loot, projection.Bounds);
+            layer = Pol.PolicyFunctions.SafetyOverlay(emergency.Threats, loot, projection.Bounds);
         }
         var tick = projection.Identity.Tick;
         if (layer.Layers.Count == 0)
@@ -49,7 +49,7 @@ public sealed partial class Rounder
             {
                 try
                 {
-                    native.DrawOverlay(ct, ControlIdentity(snapshot), Pol.LayoutOverlay.SafetyLayer, new Pol.LayoutOverlay(), false);
+                    await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.PolicyFunctions.SafetyLayer, new Pol.LayoutOverlay(), false, ct).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
@@ -65,7 +65,7 @@ public sealed partial class Rounder
         }
         try
         {
-            native.DrawOverlay(ct, ControlIdentity(snapshot), Pol.LayoutOverlay.SafetyLayer, layer, true);
+            await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.PolicyFunctions.SafetyLayer, layer, true, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

@@ -78,7 +78,11 @@ internal static partial class Occupancy
         }
         foreach (var s in census.Sites)
         {
-            foreach (var c in Footprint(s.Building))
+            if (s.Building is not { } site)
+            {
+                continue;
+            }
+            foreach (var c in Footprint(site))
             {
                 built.Add(c);
             }
@@ -126,7 +130,7 @@ public sealed partial class Rounder
         IReadOnlyList<PlanState> plans;
         try
         {
-            plans = await _player.Journal.LoadPlansAsync(ct).ConfigureAwait(false);
+            plans = await Player.Journal.LoadPlansAsync(ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

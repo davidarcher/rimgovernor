@@ -3,11 +3,11 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The gear-bench census read of the art, surgery and bill planners.</summary>
 public interface IArtBenchSource
 {
-    (IReadOnlyList<GearBenchRead> Reads, BridgeResult Result) ReadGearBenches(C.Identity identity, CancellationToken ct);
+    Task<(IReadOnlyList<GearBenchRead> Reads, BridgeResult Result)> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
 }
 
 /// <summary>Plans the food bills of one purpose (cook, preserve, butcher, cook ahead) through the ledger.</summary>
-public sealed class RoundsBillPlanner
+public sealed class RoundsBillPlanner : IPurposeReporter
 {
     internal static readonly ConcernId CookingBillsKey = new("cookingBills");
     internal static readonly ConcernId PreservationBillsKey = new("preservationBills");
@@ -22,20 +22,20 @@ public sealed class RoundsBillPlanner
 
     public RoundsBillPlanner(Rounder reviewer, BillPurpose purpose)
     {
-        if (reviewer is null || (purpose != PolicyApi.CookFood && purpose != PolicyApi.PreserveFood && purpose != PolicyApi.ButcherFood && purpose != PolicyApi.CookAheadFood))
+        if (reviewer is null || (purpose != PolicyConstants.CookFood && purpose != PolicyConstants.PreserveFood && purpose != PolicyConstants.ButcherFood && purpose != PolicyConstants.CookAheadFood))
         {
             throw new ControlException("NewRoundsBillPlanner: reviewer == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood)");
         }
         var need = PolicyApi.EnsureFoodSupply;
-        if (purpose == PolicyApi.CookFood)
+        if (purpose == PolicyConstants.CookFood)
         {
             need = PolicyApi.EnsureCooking;
         }
-        else if (purpose == PolicyApi.PreserveFood)
+        else if (purpose == PolicyConstants.PreserveFood)
         {
             need = PolicyApi.MaintainFoodStorage;
         }
-        else if (purpose == PolicyApi.CookAheadFood)
+        else if (purpose == PolicyConstants.CookAheadFood)
         {
             need = PolicyApi.MaintainRefrigeration;
         }
@@ -44,17 +44,21 @@ public sealed class RoundsBillPlanner
         _need = need;
     }
 
+    (ConcernId Key, ConcernId Need) IPurposeReporter.ReportTarget() => ReportTarget();
+
+    PurposeReport IPurposeReporter.Report() => Report();
+
     internal (ConcernId Key, ConcernId Need) ReportTarget()
     {
-        if (_purpose == PolicyApi.CookFood)
+        if (_purpose == PolicyConstants.CookFood)
         {
             return (CookingBillsKey, _need);
         }
-        if (_purpose == PolicyApi.PreserveFood)
+        if (_purpose == PolicyConstants.PreserveFood)
         {
             return (PreservationBillsKey, _need);
         }
-        if (_purpose == PolicyApi.CookAheadFood)
+        if (_purpose == PolicyConstants.CookAheadFood)
         {
             return (CookAheadBillsKey, _need);
         }
@@ -87,9 +91,9 @@ public sealed class RoundsBillPlanner
             {
                 foreach (var progress in plan.Progress)
                 {
-                    if (progress.Action.Kind == ActionKind.ProductionBill && DomainApi.StandardWorkOpen([progress]))
+                    if (progress.Action.Kind == ActionKind.ProductionBill && Standard.WorkOpen([progress]))
                     {
-                        if (progress.Action.ProductionBill is { } b && _purpose == PolicyApi.ButcherFood && b.Mode == ButcherMode.Forever)
+                        if (progress.Action.ProductionBill is { } b && _purpose == PolicyConstants.ButcherFood && b.Mode == BillMode.ButcherForever)
                         {
                             continue;
                         }
@@ -98,7 +102,7 @@ public sealed class RoundsBillPlanner
                 }
                 continue;
             }
-            if (_purpose != PolicyApi.CookFood && StorePackage.PlanOpen(plan))
+            if (_purpose != PolicyConstants.CookFood && StorePackage.PlanOpen(plan))
             {
                 return true;
             }
@@ -113,24 +117,24 @@ public sealed class RoundsBillPlanner
         switch (order.Gap)
         {
             case FoodOrderGap.Plan:
-                report.Order = AwaitingFoodPlan(order.Subject);
+                report = report with { Order = AwaitingFoodPlan(order.Subject) };
                 return report;
             case FoodOrderGap.Field:
-                report.Order = FieldUnavailable(order.Subject);
+                report = report with { Order = FieldUnavailable(order.Subject) };
                 return report;
             case FoodOrderGap.NoDeficit:
-                report.Order = BuildingReasonNoDeficit;
+                report = report with { Order = BuildingReasonNoDeficit };
                 return report;
             case FoodOrderGap.NoBill:
-                report.Order = NoBill(projection.ProductionBenches, projection.Facts.Colonists);
+                report = report with { Order = NoBill(projection.ProductionBenches, projection.Facts.Colonists) };
                 break;
             default:
-                report.Order = WaitFor(PolicyApi.CauseMethodUsed, "ledger_bill");
+                report = report with { Order = WaitFor(Cause.MethodUsed, "ledger_bill") };
                 break;
         }
         if (order.ReserveRunning)
         {
-            report.WorkTicks = ReserveBillWorkTicks;
+            report = report with { WorkTicks = ReserveBillWorkTicks };
         }
         return report;
     }
@@ -148,20 +152,20 @@ public sealed class RoundsBillPlanner
             TargetDays = seasonal.FoodTargetDays,
             Warm = Unknown<double>(),
         };
-        if (_purpose == PolicyApi.CookFood)
+        if (_purpose == PolicyConstants.CookFood)
         {
-            request.Meals = projection.MealRequest(seasonal.FoodMinDays, seasonal.FoodTargetDays);
+            request = request with { Meals = projection.MealRequest(seasonal.FoodMinDays, seasonal.FoodTargetDays) };
         }
-        else if (_purpose == PolicyApi.CookAheadFood)
+        else if (_purpose == PolicyConstants.CookAheadFood)
         {
             var refrigeration = PolicyApi.ReviewRefrigeration(projection.Facts.FoodStorageUpkeep, review.Latches.Refrigeration, _reviewer.Policy.FoodStorage);
-            request.Warm = refrigeration.WarmNutrition;
+            request = request with { Warm = refrigeration.WarmNutrition };
         }
         return request;
     }
 
-    public Declared DeclareOrders(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        DeclareOrdersAll(snapshot, projection, benches, ct).For(_need);
+    public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+        Task.FromResult(DeclareOrdersAll(snapshot, projection, benches, ct).For(_need));
 
     internal Declared DeclareOrdersAll(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
@@ -173,23 +177,23 @@ public sealed class RoundsBillPlanner
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Note(new PurposeReport { Order = FieldUnavailable("review") });
-            return AbstainOnRead(ct, PolicyApi.CauseUnreadReview);
+            return AbstainOnRead(Cause.UnreadReview, ex, ct);
         }
         FoodOrderRequest request;
         try
         {
             request = FoodRequest(projection, review);
         }
-        catch (DomainException)
+        catch (DomainException ex)
         {
             Note(new PurposeReport { Order = FieldUnavailable("food_facts") });
-            return AbstainOnRead(ct, PolicyApi.CauseUnreadFoodFacts);
+            return AbstainOnRead(Cause.UnreadFoodFacts, ex, ct);
         }
         Note(FoodReport(request, projection));
         return PolicyApi.DeclareFoodOrders(request, benches);
     }
 
-    internal Verdict NoBill(Fact<IReadOnlyList<ProductionBench>> benches, Fact<long> colonists)
+    internal Verdict NoBill(Fact<EquatableArray<ProductionBench>> benches, Fact<long> colonists)
     {
         if (!benches.TryGetValue(out var rows))
         {
@@ -199,7 +203,7 @@ public sealed class RoundsBillPlanner
         {
             return FieldUnavailable("colonists");
         }
-        var butcher = _purpose == PolicyApi.ButcherFood;
+        var butcher = _purpose == PolicyConstants.ButcherFood;
         foreach (var bench in rows)
         {
             if (bench.Usable.TryGetValue(out var usable) && usable && bench.Butcher == butcher)
@@ -219,7 +223,7 @@ internal static partial class BuildingRuntimePackage
     internal static Verdict BillGapVerdict(BillGap gap, string subject) => gap switch
     {
         BillGap.NothingWanted => BuildingReasonNoDeficit,
-        BillGap.InProduction => WaitFor(PolicyApi.CauseExistingWork, subject),
+        BillGap.InProduction => WaitFor(Cause.ExistingWork, subject),
         BillGap.NoRecipe => AwaitingPlan(subject, Wire.Name(gap)),
         BillGap.BenchFull => AwaitingPlan(subject, Wire.Name(gap)),
         BillGap.Waste => AwaitingPlan("mech_waste", ""),

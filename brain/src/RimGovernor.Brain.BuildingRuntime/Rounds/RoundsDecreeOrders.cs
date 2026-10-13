@@ -1,69 +1,80 @@
-using RecipeDef = global::RimGovernor.Protocol.Defs.RecipeDef;
-using ThingDef = global::RimGovernor.Protocol.Defs.ThingDef;
+using RecipeDef = global::Verse.RecipeDef;
+using ThingDef = global::Verse.ThingDef;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsPopulationJoinerPlanner
 {
-    public Declared DeclareOrders(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        DeclareOrdersInner(snapshot, projection, benches, ct).For(PolicyApi.MaintainPopulation);
+    public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+        (await DeclareOrdersInnerAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(PolicyConstants.MaintainPopulation);
 
-    private Declared DeclareOrdersInner(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
+    /// <summary>
+    /// Declares the production batches of the open produce-item decrees (OrderDeclarer) and notes whether one is
+    /// declared, for the clock's game time (decreeLending). Harvest and hunt decrees stay admitStandardMethod's.
+    /// Go reads the definition catalog lazily from inside the policy's recipes callback; the callback is
+    /// synchronous here, so a first pass finds out whether the policy asks for recipes at all and the catalog is
+    /// read (once) only then, before the declaration runs again with it.
+    /// </summary>
+    private async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
-        DefinitionCatalog? catalog = null;
-        Exception? catalogErr = null;
-
-        IReadOnlyList<DecreeRecipe> Recipes(QuestObjective objective)
-        {
-            if (catalog is null && catalogErr is null)
-            {
-                if (_reviewer.Native is IDefinitionSource source)
-                {
-                    try
-                    {
-                        catalog = source.DefinitionCatalog(Boundary.Identity(snapshot), ct);
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        catalogErr = ex;
-                    }
-                }
-                else
-                {
-                    catalogErr = new InvalidOperationException("decree recipes: the native source serves no definitions");
-                }
-            }
-            if (catalogErr is not null)
-            {
-                return [];
-            }
-            return DecreeRecipes(benches, catalog!, objective);
-        }
-
-        var declared = PolicyApi.DeclareDecreeOrders(new DecreeOrderRequest
+        var asked = false;
+        var request = new DecreeOrderRequest
         {
             Offers = projection.Facts.QuestOffers,
-            Now = (long)projection.Identity.Tick,
+            Now = projection.Identity.Tick.Value,
             Stock = projection.Facts.Resources,
-            Recipes = Recipes,
-        });
+            Recipes = _ =>
+            {
+                asked = true;
+                return [];
+            },
+        };
+        var declared = PolicyApi.DeclareDecreeOrders(request);
+        Exception? catalogErr = null;
+        if (asked)
+        {
+            DefinitionCatalog? catalog = null;
+            if (reviewer.Native is IDefinitionSource source)
+            {
+                try
+                {
+                    catalog = await source.DefinitionCatalogAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    catalogErr = ex;
+                }
+            }
+            else
+            {
+                catalogErr = new InvalidOperationException("decree recipes: the native source serves no definitions");
+            }
+            if (catalog is null)
+            {
+                catalogErr ??= new InvalidOperationException("decree recipes: the native source serves no definitions");
+            }
+            else if (catalogErr is null)
+            {
+                declared = PolicyApi.DeclareDecreeOrders(request with { Recipes = objective => DecreeRecipes(benches, catalog, objective) });
+            }
+        }
         if (catalogErr is not null)
         {
             ct.ThrowIfCancellationRequested();
-            declared.Unread(PolicyApi.CauseUnreadDefinitions);
+            declared.Unread(Cause.UnreadDefinitions);
         }
-        lock (_mu)
+        lock (mu)
         {
-            _decreeWork = declared.Orders.Count > 0;
+            decreeWork = declared.Orders.Count > 0;
         }
         return declared;
     }
 
     internal bool DecreeLending()
     {
-        lock (_mu)
+        lock (mu)
         {
-            return _decreeWork;
+            return decreeWork;
         }
     }
 }
@@ -81,7 +92,6 @@ internal static partial class BuildingRuntimePackage
                 continue;
             }
             bench.Bills.TryGetValue(out var bills);
-            bills ??= [];
             foreach (var recipe in recipes)
             {
                 var row = catalog.DefRow<RecipeDef>(recipe.Definition);
@@ -90,11 +100,11 @@ internal static partial class BuildingRuntimePackage
                     continue;
                 }
                 long units = 0;
-                foreach (var product in row.Products)
+                foreach (var product in row.products ?? [])
                 {
-                    if (product.Value.ThingDef == objective.Def)
+                    if (product.thingDef?.defName == objective.Def)
                     {
-                        units += product.Value.Count;
+                        units += product.count;
                     }
                 }
                 if (units <= 0)
@@ -111,21 +121,22 @@ internal static partial class BuildingRuntimePackage
                     Product = new Resource(objective.Def),
                     Units = units,
                     Ingredients = recipe.Ingredients,
-                    Stuff = new Dictionary<Resource, bool>(),
                 };
+                var stuff = new Dictionary<Resource, bool>();
+                var standing = new List<OrderSpec>();
                 if (ak && ok)
                 {
-                    candidate.Available = Known(available && on);
+                    candidate = candidate with { Available = Known(available && on) };
                 }
                 recipe.Ingredients.TryGetValue(out var groups);
-                foreach (var group in groups ?? [])
+                foreach (var group in groups)
                 {
                     foreach (var alternative in group)
                     {
                         var def = catalog.DefRow<ThingDef>(alternative.Resource.Value);
-                        if (def is not null && def.StuffProps is not null && row.ProductHasIngredientStuff)
+                        if (def is not null && def.stuffProps is not null && row.productHasIngredientStuff)
                         {
-                            candidate.Stuff[alternative.Resource] = true;
+                            stuff[alternative.Resource] = true;
                         }
                     }
                 }
@@ -137,24 +148,24 @@ internal static partial class BuildingRuntimePackage
                     }
                     if (!bill.Active.TryGetValue(out var active))
                     {
-                        candidate.Available = Unknown<bool>();
+                        candidate = candidate with { Available = Unknown<bool>() };
                         continue;
                     }
                     if (!active)
                     {
                         continue;
                     }
-                    if (bill.Spec.TryGetValue(out var spec) && spec.Mode == GearMode.Batch && (objective.Stuff == "" || spec.Ingredients.Contains(objective.Stuff)))
+                    if (bill.Spec.TryGetValue(out var spec) && spec.Mode == BillMode.GearBatch && (objective.Stuff == "" || spec.Ingredients.Contains(objective.Stuff)))
                     {
-                        candidate.Existing = true;
-                        candidate.Standing.Add(spec);
+                        candidate = candidate with { Existing = true };
+                        standing.Add(spec);
                     }
                     else
                     {
-                        candidate.Available = Known(false);
+                        candidate = candidate with { Available = Known(false) };
                     }
                 }
-                output.Add(candidate);
+                output.Add(candidate with { Stuff = stuff, Standing = standing });
             }
         }
         return output;

@@ -1,8 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface IRoundsResearchSource
+public interface IRoundsResearchSource : Observation.IResearchSource
 {
-    (ResearchRead Read, BridgeResult Result) ReadResearch(CancellationToken ct, C.Identity identity);
 }
 
 /// <summary>Composes EnsureResearch: picks the next project, builds the bench it needs, or waits on the current one.</summary>
@@ -31,26 +30,26 @@ public sealed class RoundsResearchPlanner
         RoundsBuildingPlanner? building = null;
         if (native is IRoundsBuildingSource source && native is IRoundsSource)
         {
-            building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = source, Concern = ConcernId.EnsureResearch };
+            building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = source, Concern = PolicyFunctions.EnsureResearch };
         }
 
         return new RoundsResearchPlanner(reviewer, native, building);
     }
 
-    internal RoundsResearchResult Bench(CancellationToken call, CancellationToken epoch, StepArbiter arbiter, bool advanced)
+    internal async Task<RoundsResearchResult> BenchAsync(StepArbiter arbiter, bool advanced, CancellationToken call, CancellationToken epoch)
     {
         if (building is null)
         {
-            return new RoundsResearchResult { Verdict = BuildingRuntimePackage.BuildingResearchBench };
+            return new RoundsResearchResult { Verdict = BuildingRuntimePackage.BuildingReasonResearchBench };
         }
 
         var copy = building.Copy();
         copy.AdvancedLab = advanced;
-        var result = copy.Step(call, epoch, arbiter);
+        var result = await copy.StepAsync(arbiter, call, epoch).ConfigureAwait(false);
         return new RoundsResearchResult { Verdict = result.Verdict, NativeWorkTicks = result.NativeWorkTicks };
     }
 
-    internal RoundsResearchResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsResearchResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         var state = p.Session.State();
@@ -70,12 +69,22 @@ public sealed class RoundsResearchPlanner
             return new RoundsResearchResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
         }
 
-        var (recordedCall, recorded) = BuildingRuntimePackage.RecordPlannerStep(call, ConcernId.EnsureResearch, state.Snapshot, review.Tick);
-        call = recordedCall;
-        using var recordedScope = recorded;
+        using var recorded = PlannerSnapshot.RecordPlannerStep(PolicyFunctions.EnsureResearch, state.Snapshot, review.Tick);
+        try
+        {
+            return await StepRecordedAsync(arbiter, p, state, review, call, epoch).ConfigureAwait(false);
+        }
+        finally
+        {
+            recorded.Finish();
+        }
+    }
+
+    private async Task<RoundsResearchResult> StepRecordedAsync(StepArbiter arbiter, Player p, ControlState state, Sto.Rounds review, CancellationToken call, CancellationToken epoch)
+    {
         var staged = reviewer.Staged();
-        var items = reviewer.ItemFacts(call, state.Snapshot);
-        var needs = BuildingRuntimePackage.RoundsResearchNeeds(call, p.Journal, staged, items, state.Snapshot);
+        var items = await reviewer.ItemFactsAsync(state.Snapshot, call).ConfigureAwait(false);
+        var needs = BuildingRuntimePackage.RoundsResearchNeeds(p.Journal, staged, items, state.Snapshot, call);
         needs = reviewer.CensusResearchNeeds(needs);
         needs = PolicyFunctions.DeepDrillingResearch(needs, review.ResourceRunwayState(), items);
         if (needs.Count == 0 && staged.ResearchLadder.Count == 0)
@@ -83,12 +92,12 @@ public sealed class RoundsResearchPlanner
             return new RoundsResearchResult { Verdict = BuildingRuntimePackage.BuildingReasonDisabled };
         }
 
-        var (goal, deficit) = p.Journal.Workable(call, review, ConcernId.EnsureResearch);
-        if (deficit)
+        var (goal, deficit) = p.Journal.Workable(review, PolicyFunctions.EnsureResearch, call);
+        if (deficit && goal is not null)
         {
             foreach (var method in goal.Methods)
             {
-                var plan = p.Journal.LoadPlan(call, method.Plan);
+                var plan = p.Journal.LoadPlan(method.Plan, call);
                 if (StorePackage.PlanOpen(plan))
                 {
                     return new RoundsResearchResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
@@ -97,7 +106,7 @@ public sealed class RoundsResearchPlanner
         }
 
         var identity = Boundary.Identity(state.Snapshot);
-        var (read, _) = native.ReadResearch(call, identity);
+        var (read, _) = await native.ReadResearchAsync(identity, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(read.Context, state.Snapshot);
@@ -107,13 +116,13 @@ public sealed class RoundsResearchPlanner
             throw new ControlException("step: research context", e);
         }
 
-        if (read.Context.Tick < review.Tick.Value)
+        if ((read.Context?.Tick ?? 0) < review.Tick.Value)
         {
             throw new ControlException("step: research read older than the review");
         }
 
-        var inputs = new ResearchCall { Policy = PolicyFunctions.ResearchPolicy(staged, review.Latches.Soldiers, review.Latches.FoodFirst), Needs = needs, Read = read };
-        if (deficit)
+        var inputs = new ResearchCall(PolicyFunctions.ResearchPolicy(staged, review.Latches.Soldiers, review.Latches.FoodFirst), needs, read);
+        if (deficit && goal is not null)
         {
             SnapshotPackage.NoteResearch(inputs);
             var (knowledge, reason) = ResearchKnowledgeNext(inputs);
@@ -124,7 +133,7 @@ public sealed class RoundsResearchPlanner
 
             if (knowledge != "")
             {
-                return Admit(call, epoch, state, goal, knowledge);
+                return Admit(state, goal, knowledge, call, epoch);
             }
         }
 
@@ -132,34 +141,34 @@ public sealed class RoundsResearchPlanner
         {
             if (deficit && PolicyFunctions.ResearchBenchNeeded(read.Projects[read.CurrentProject]))
             {
-                var (ahead, admittedAhead) = BuildAhead(call, epoch, arbiter);
+                var (ahead, admittedAhead) = await BuildAheadAsync(arbiter, call, epoch).ConfigureAwait(false);
                 if (admittedAhead)
                 {
                     return ahead;
                 }
 
-                return Bench(call, epoch, arbiter, false);
+                return await BenchAsync(arbiter, false, call, epoch).ConfigureAwait(false);
             }
 
             if (deficit && building is not null)
             {
-                var benchResult = Bench(call, epoch, arbiter, false);
+                var benchResult = await BenchAsync(arbiter, false, call, epoch).ConfigureAwait(false);
                 if (benchResult.Verdict != BuildingRuntimePackage.BuildingReasonNoDeficit)
                 {
                     return benchResult;
                 }
 
-                var (ahead, admittedAhead) = BuildAhead(call, epoch, arbiter);
+                var (ahead, admittedAhead) = await BuildAheadAsync(arbiter, call, epoch).ConfigureAwait(false);
                 if (admittedAhead)
                 {
                     return ahead;
                 }
             }
 
-            return new RoundsResearchResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "current_research_project"), NativeWorkTicks = ResearchNativeWorkTicks };
+            return new RoundsResearchResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "current_research_project"), NativeWorkTicks = ResearchNativeWorkTicks };
         }
 
-        if (!deficit)
+        if (!deficit || goal is null)
         {
             return new RoundsResearchResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
         }
@@ -172,60 +181,60 @@ public sealed class RoundsResearchPlanner
 
         if (PolicyFunctions.ResearchBenchNeeded(read.Projects[next]))
         {
-            var (ahead, admittedAhead) = BuildAhead(call, epoch, arbiter);
+            var (ahead, admittedAhead) = await BuildAheadAsync(arbiter, call, epoch).ConfigureAwait(false);
             if (admittedAhead)
             {
                 return ahead;
             }
 
-            return Bench(call, epoch, arbiter, false);
+            return await BenchAsync(arbiter, false, call, epoch).ConfigureAwait(false);
         }
 
-        var (last, admittedLast) = BuildAhead(call, epoch, arbiter);
+        var (last, admittedLast) = await BuildAheadAsync(arbiter, call, epoch).ConfigureAwait(false);
         if (admittedLast)
         {
             return last;
         }
 
-        return Admit(call, epoch, state, goal, next);
+        return Admit(state, goal, next, call, epoch);
     }
 
-    internal (RoundsResearchResult Result, bool Admitted) BuildAhead(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<(RoundsResearchResult Result, bool Admitted)> BuildAheadAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         if (building is null)
         {
             return (default, false);
         }
 
-        var result = Bench(call, epoch, arbiter, true);
+        var result = await BenchAsync(arbiter, true, call, epoch).ConfigureAwait(false);
         return (result, result.Verdict == BuildingRuntimePackage.BuildingReasonAdmitted);
     }
 
-    internal RoundsResearchResult Admit(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, string next)
+    internal RoundsResearchResult Admit(ControlState state, StandardState goal, string next, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
-        var digestNext = SHA256.HashData(Encoding.UTF8.GetBytes(next));
+        var digestNext = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(next));
         var method = new MethodId("research-" + Convert.ToHexStringLower(digestNext.AsSpan(0, 16)));
         try
         {
-            p.Journal.LoadOwnerMethod(call, goal, method);
-            return new RoundsResearchResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "research_selection") };
+            p.Journal.LoadOwnerMethod(goal, method, call);
+            return new RoundsResearchResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "research_selection") };
         }
         catch (NotFoundException)
         {
         }
 
         var id = PlanIds.MintPlanId();
-        var value = ResearchSelect.NewResearchSelect(next);
+        var value = new ResearchSelect(next);
         var action = DomainAction.NewResearchSelectAction(new ActionId($"{id}-0"), value);
-        var plan = PlanSpec.NewPlan(id, new PlanRevision(1), [action]);
+        var plan = new PlanSpec(id, new PlanRevision(1), [action]);
         p.Current(call, epoch);
         if (p.Session.State() != state)
         {
             throw new ControlException("step: session state changed");
         }
 
-        p.Journal.CommitMethodReason(call, goal.Standard.Id, goal.Revision, method, "", plan);
+        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, "", plan, call);
         return new RoundsResearchResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
     }
 
@@ -245,20 +254,20 @@ public sealed class RoundsResearchPlanner
                         continue;
                     }
 
-                    if (slot.Current != "")
+                    if (!slot.Current.IsEmpty)
                     {
-                        return ("", BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "knowledge_slot"));
+                        return ("", Verdict.WaitFor(Cause.MethodUsed, "knowledge_slot"));
                     }
 
                     if (!row.Census || row.LockReasons.Count != 0)
                     {
-                        return ("", BuildingRuntimePackage.FieldUnavailable("research_knowledge_project"));
+                        return ("", Verdict.FieldUnavailable("research_knowledge_project"));
                     }
 
                     return (head, default);
                 }
 
-                return ("", BuildingRuntimePackage.FieldUnavailable("research_knowledge_slot"));
+                return ("", Verdict.FieldUnavailable("research_knowledge_slot"));
             }
         }
 
@@ -272,8 +281,8 @@ public sealed class RoundsResearchPlanner
         var facts = new ResearchFacts
         {
             Current = new ResearchProjectId(read.CurrentProject),
-            Finished = finished,
-            Projects = read.Projects.Keys.Select(name => new ResearchProjectId(name)).ToList(),
+            Finished = [.. finished],
+            Projects = [.. read.Projects.Keys.Select(name => new ResearchProjectId(name))],
         };
         var (target, _) = PolicyFunctions.ResearchConcern(input.Policy, input.Needs, Known(facts));
         if (target == "")
@@ -283,7 +292,7 @@ public sealed class RoundsResearchPlanner
 
         if (!read.Projects.ContainsKey(target))
         {
-            return ("", BuildingRuntimePackage.FieldUnavailable("research_project"));
+            return ("", Verdict.FieldUnavailable("research_project"));
         }
 
         var projects = read.Projects.ToDictionary(kv => new ResearchProjectId(kv.Key), kv => kv.Value);
@@ -294,12 +303,12 @@ public sealed class RoundsResearchPlanner
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return ("", BuildingRuntimePackage.FieldUnavailable("research_prerequisites"));
+            return ("", Verdict.FieldUnavailable("research_prerequisites"));
         }
 
         if (queue.Count == 0)
         {
-            return ("", BuildingRuntimePackage.FieldUnavailable("research_prerequisites"));
+            return ("", Verdict.FieldUnavailable("research_prerequisites"));
         }
 
         return (queue[0].Value, default);
@@ -310,7 +319,7 @@ public sealed partial class RoundsBuildingPlanner
 {
     internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectResearchBench(ColonyProjection facts)
     {
-        var bench = facts.Shapes.Furniture.BenchFor(RoomRole.Laboratory);
+        var bench = facts.Shapes.Furniture.BenchFor(Pol.RoomRole.Laboratory);
         if (AdvancedLab)
         {
             var (owed, ok) = AdvancedLabOwed(facts);
@@ -343,10 +352,10 @@ public sealed partial class RoundsBuildingPlanner
 
         if (!available)
         {
-            return (null, BuildingResearchBenchUnavailable);
+            return (null, BuildingReasonResearchBenchUnavailable);
         }
 
-        var facility = PolicyFunctions.Facility(RoomRole.Laboratory);
+        var facility = PolicyFunctions.Facility(Pol.RoomRole.Laboratory);
         var resolved = Copy();
         resolved.Definition = bench;
         resolved.Environment = PlacementEnvironment.Indoors;
@@ -401,7 +410,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 }
 
-public readonly record struct RoundsResearchResult
+public readonly record struct RoundsResearchResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 

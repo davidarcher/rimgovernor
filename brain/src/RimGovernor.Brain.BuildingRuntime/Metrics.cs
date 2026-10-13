@@ -8,14 +8,14 @@ internal static class Metrics
 
     // Every policy Reason; a test keeps it equal to the constants declared in package policy.
     private static readonly Vocabulary RefusalReasonVocabulary = Vocabulary.Words(
-        Wire.Name(Reason.NotReady), Wire.Name(Reason.AlreadyReserved), Wire.Name(Reason.UnknownFacts), Wire.Name(Reason.StaleFacts),
-        Wire.Name(Reason.UnsafePlacement), Wire.Name(Reason.UnsafeThreat), Wire.Name(Reason.CriticalMedical), Wire.Name(Reason.MaterialRequired),
-        Wire.Name(Reason.DependencyBlocked), Wire.Name(Reason.GeometryBlocked), Wire.Name(Reason.InvalidHeld),
+        Reason.NotReady.Value, Reason.AlreadyReserved.Value, Reason.UnknownFacts.Value, Reason.StaleFacts.Value,
+        Reason.UnsafePlacement.Value, Reason.UnsafeThreat.Value, Reason.CriticalMedical.Value, Reason.MaterialRequired.Value,
+        Reason.DependencyBlocked.Value, Reason.GeometryBlocked.Value, Reason.InvalidHeld.Value,
         "unsafe_route", "roof_support_risk", "missing_storage", "urgent_competing_work");
 
     // The kinds the Worker may dispatch.
     private static readonly Vocabulary ActionKindVocabulary = Vocabulary.Where(kind =>
-        Wire.TryParse<ActionKind>(kind, out var parsed) && Rounds.ExecutableKind(parsed));
+        Wire.TryParse<ActionKind>(kind, out var parsed) && Worker.RoundsExecutableKind(parsed));
 
     public static double MillisOf(TimeSpan d) => d.TotalMilliseconds;
 
@@ -34,7 +34,7 @@ internal static class Metrics
         }
         foreach (var f in refused)
         {
-            Tel.Admission("refused", RefusalReasonVocabulary.Label(Wire.Name(f.Reason)));
+            Tel.Admission("refused", RefusalReasonVocabulary.Label(f.Reason.Value));
         }
     }
 
@@ -50,7 +50,7 @@ internal static class Metrics
         {
             foreach (var r in result.Refused)
             {
-                Tel.ActionOutcome(label, "refused", RefusalReasonVocabulary.Label(Wire.Name(r.Reason)));
+                Tel.ActionOutcome(label, "refused", RefusalReasonVocabulary.Label(r.Reason.Value));
             }
         }
         else

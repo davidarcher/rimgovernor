@@ -21,7 +21,7 @@ internal static class AdmissionLog
             Metrics.RecordAdmission(decision.Admitted, decision.Refused);
             if (!decision.Admitted)
             {
-                Tel.Refuse(span, decision.Refused.Select(f => Wire.Name(f.Reason)).ToArray());
+                Tel.Refuse(span, decision.Refused.Select(f => f.Reason.Value).ToArray());
             }
             Tel.EndSpan(span, null);
             return decision;
@@ -39,6 +39,7 @@ internal static class AdmissionLog
     /// </summary>
     internal static Decision MethodAdmissionDecision(BuildingMethodRequest r, BuildingMethodDecision decision)
     {
+        var attrs = new Dictionary<string, object?> { ["concern"] = r.Owner.Standard.Id.Value };
         var d = new Decision
         {
             Kind = "admission",
@@ -46,19 +47,21 @@ internal static class AdmissionLog
             Verdict = "admitted",
             Reason = "method_committed",
             Target = r.Method.Value,
-            Attrs = new Dictionary<string, object?> { ["concern"] = r.Owner.Standard.Id.Value },
         };
         if (!decision.Admitted)
         {
-            d.Verdict = "refused";
-            d.Reason = decision.Refused.Count > 0 ? Wire.Name(decision.Refused[0].Reason) : "unspecified";
-            d.Attrs["refused"] = RefusalSummary(decision.Refused);
+            attrs["refused"] = RefusalSummary(decision.Refused);
+            d = d with
+            {
+                Verdict = "refused",
+                Reason = decision.Refused.Count > 0 ? decision.Refused[0].Reason.Value : "unspecified",
+            };
         }
-        return d;
+        return d with { Attrs = attrs };
     }
 
     /// <summary>Reads each refusal as reason[/resource]@action.</summary>
-    internal static string RefusalSummary(IReadOnlyList<Refusal> refused)
+    internal static string RefusalSummary(IReadOnlyList<Policy.Refusal> refused)
     {
         if (refused.Count == 0)
         {
@@ -66,7 +69,7 @@ internal static class AdmissionLog
         }
         var parts = refused.Select(f =>
         {
-            var s = Wire.Name(f.Reason);
+            var s = f.Reason.Value;
             if (f.Resource.Value.Length != 0)
             {
                 s += "/" + f.Resource.Value;
@@ -93,6 +96,6 @@ internal static class AdmissionLog
             return Verdict.Refuse(Cause.SharedAdmission, "candidates_left_unadmitted", "");
         }
         var first = decision.Refused[0];
-        return Verdict.Refuse(Cause.SharedAdmission, Wire.Name(first.Reason), first.Resource.Value);
+        return Verdict.Refuse(Cause.SharedAdmission, first.Reason.Value, first.Resource.Value);
     }
 }

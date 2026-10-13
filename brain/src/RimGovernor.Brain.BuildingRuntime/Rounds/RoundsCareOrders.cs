@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>Declares the surgery, baby feeding and mech bills of the care purposes through the rounds review.</summary>
-public sealed class RoundsCareBillDeclarer
+public sealed class RoundsCareBillDeclarer : IOrderDeclarer
 {
     private readonly Rounder _reviewer;
     private readonly object _native;
@@ -36,7 +36,7 @@ public sealed class RoundsCareBillDeclarer
         return output;
     }
 
-    public Declared DeclareOrders(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
+    public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var journal = _reviewer.Player.Journal;
         var review = journal.LoadRounds(ct);
@@ -45,12 +45,12 @@ public sealed class RoundsCareBillDeclarer
         {
             foreach (var c in Concerns())
             {
-                output.Merge(PolicyApi.Abstaining(PolicyApi.CauseUnreadReview).For(c));
+                output.Merge(PolicyApi.Abstaining(Cause.UnreadReview).For(c));
             }
             return output;
         }
 
-        void Collect(ConcernId need, bool enabled, Func<Declared> declare)
+        async Task Collect(ConcernId need, bool enabled, Func<Task<Declared>> declare)
         {
             if (!enabled)
             {
@@ -61,43 +61,43 @@ public sealed class RoundsCareBillDeclarer
             {
                 return;
             }
-            var one = declare();
+            var one = await declare().ConfigureAwait(false);
             output.Merge(one.For(need));
         }
 
-        Collect(PolicyApi.MaintainSurgery, _surgery, () =>
+        await Collect(PolicyApi.MaintainSurgery, _surgery, () =>
         {
             var (parts, productions) = SurgeryPartsOn(projection.Facts.MedicalPawns, projection.SurgeryContext(), benches);
             var (selected, gap) = PolicyApi.SelectSurgeryPartBill(productions, parts);
-            return PolicyApi.DeclareSelection(selected, gap == default, benches);
-        });
-        Collect(PolicyApi.MaintainBabyFeeding, _baby, () =>
+            return Task.FromResult(PolicyApi.DeclareSelection(selected, gap == default, benches));
+        }).ConfigureAwait(false);
+        await Collect(PolicyApi.MaintainBabyFeeding, _baby, () =>
         {
             if (!projection.Facts.BabyFeeding.TryGetValue(out var babies))
             {
-                return PolicyApi.Abstaining(PolicyApi.CauseUnreadBabyFeeding);
+                return Task.FromResult(PolicyApi.Abstaining(Cause.UnreadBabyFeeding));
             }
             var (selected, ok) = PolicyApi.SelectProductionBill(PolicyApi.BabyFoodBill, projection.ProductionBenches, projection.Facts.Colonists, default(Fact<double>), default(Fact<double>), 1, new ProductionBillContext { BabyFeeding = babies });
-            return PolicyApi.DeclareSelection(selected, ok, benches);
-        });
-        Collect(PolicyApi.MaintainMechs, _mech, () =>
+            return Task.FromResult(PolicyApi.DeclareSelection(selected, ok, benches));
+        }).ConfigureAwait(false);
+        await Collect(PolicyApi.MaintainMechs, _mech, async () =>
         {
             MechGestation? gestation;
             try
             {
-                gestation = MechGestation(_native, Boundary.Identity(snapshot), projection, ct);
+                gestation = await MechGestationAsync(_native, Boundary.Identity(snapshot), projection, ct).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                return AbstainOnRead(ct, PolicyApi.CauseUnreadMechs);
+                return AbstainOnRead(Cause.UnreadMechs, ex, ct);
             }
             if (gestation is null)
             {
-                return PolicyApi.Abstaining(PolicyApi.CauseUnreadMechs);
+                return PolicyApi.Abstaining(Cause.UnreadMechs);
             }
             var (selected, gap) = PolicyApi.SelectMechGestationBill(MechBenches(benches), gestation);
             return PolicyApi.DeclareSelection(selected, gap == default, benches);
-        });
+        }).ConfigureAwait(false);
         return output;
     }
 }

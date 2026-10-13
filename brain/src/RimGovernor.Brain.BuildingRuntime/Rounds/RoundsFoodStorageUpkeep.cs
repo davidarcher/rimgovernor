@@ -1,14 +1,11 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface IRoundsFoodStorageUpkeepSource
+public interface IRoundsFoodStorageUpkeepSource : Observation.IColonySource, Observation.IDefinitionSource, IColonyFactsReader
 {
-    (O.ColonyFactsReply Reply, BridgeResult Result) ReadColonyFacts(CancellationToken ct, C.Identity identity, bool full);
+    Task<(IReadOnlyList<ResourceSource> Rows, ResourceStorage Storage, BridgeResult Result)> ReadResourceSourcesAsync(C.Identity identity, string definition, CancellationToken ct);
 
-    (IReadOnlyList<ResourceSource> Rows, ResourceStorage Storage, BridgeResult Result) ReadResourceSources(CancellationToken ct, C.Identity identity, string definition);
+    Task<(IReadOnlyList<GearBenchRead> Benches, BridgeResult Result)> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
 
-    (IReadOnlyList<GearBenchRead> Benches, BridgeResult Result) ReadGearBenches(CancellationToken ct, C.Identity identity);
-
-    Tables FrameTables(CancellationToken ct, C.Identity identity);
 }
 
 /// <summary>Composes MaintainFoodStorage's rounds step: reserve holds, corpse larders and the meal order that stores food.</summary>
@@ -29,7 +26,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
     }
 }
 
-public readonly record struct RoundsFoodStorageUpkeepResult
+public readonly record struct RoundsFoodStorageUpkeepResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 
@@ -42,7 +39,7 @@ internal static partial class BuildingRuntimePackage
 
     internal const int FoodStorageSiteLimit = 16;
 
-    internal static FoodStorageObservation FoodStorageObservationFacts(CancellationToken ct, IRoundsFoodStorageUpkeepSource native, O.ColonyFactsSnapshot v)
+    internal static async Task<FoodStorageObservation> FoodStorageObservationFactsAsync(IRoundsFoodStorageUpkeepSource native, O.ColonyFactsSnapshot v, CancellationToken ct)
     {
         var food = v.FoodSupply?.Observed;
         if (food is null)
@@ -52,14 +49,15 @@ internal static partial class BuildingRuntimePackage
 
         try
         {
-            var tables = native.FrameTables(ct, v.Context?.Identity!);
-            var (supply, known) = ObservationPackage.DecodeFoodSupply(food, tables.Things, tables.Catalog);
-            if (!known)
+            var tables = await native.FrameTablesAsync(v.Context?.Identity!, ct).ConfigureAwait(false);
+            var catalog = await native.DefinitionCatalogAsync(v.Context?.Identity!, ct).ConfigureAwait(false);
+            var supply = ObservationPackage.DecodeFoodSupply(food, tables.Things, catalog);
+            if (supply is null || catalog is null)
             {
                 return new FoodStorageObservation();
             }
 
-            return PolicyFunctions.FoodStorageStocks(supply, tables.Catalog.Derived.FullRotRateC);
+            return PolicyFunctions.FoodStorageStocks(supply, catalog.Derived.FullRotRateC);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -92,7 +90,7 @@ internal static partial class BuildingRuntimePackage
         return names.OrderBy(n => n, StringComparer.Ordinal).Take(FoodStorageSiteLimit).ToList();
     }
 
-    internal static Verdict FoodNotStoredVerdict(FoodStuckReason reason) => AwaitingPlan("food_not_stored", reason.WireName());
+    internal static Verdict FoodNotStoredVerdict(FoodStuckReason reason) => AwaitingPlan("food_not_stored", Wire.Name(reason));
 
     internal static Verdict FoodStorageChoiceVerdict(FoodStorageMethodKind kind)
     {
@@ -110,7 +108,7 @@ internal static partial class BuildingRuntimePackage
 
 public sealed partial class RoundsFoodStorageUpkeepPlanner
 {
-    internal RoundsFoodStorageUpkeepResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsFoodStorageUpkeepResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var state = p.Session.State();
@@ -130,24 +128,24 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
             return new RoundsFoodStorageUpkeepResult { Verdict = BuildingReasonNoReview };
         }
 
-        var (goal, workable) = p.Journal.Workable(call, review, ConcernId.MaintainFoodStorage);
-        if (!workable)
+        var (goal, workable) = p.Journal.Workable(review, PolicyFunctions.MaintainFoodStorage, call);
+        if (!workable || goal is null)
         {
             return new RoundsFoodStorageUpkeepResult { Verdict = BuildingReasonNoDeficit };
         }
 
         foreach (var method in goal.Methods)
         {
-            var plan = p.Journal.LoadPlan(call, method.Plan);
+            var plan = p.Journal.LoadPlan(method.Plan, call);
             var pending = plan.Progress.Where(progress => progress.Action.Kind != ActionKind.ProductionBill).ToList();
-            if (Standard.StandardWorkOpen(pending))
+            if (Standard.WorkOpen(pending))
             {
                 return new RoundsFoodStorageUpkeepResult { Verdict = BuildingReasonExistingWork };
             }
         }
 
         var identity = Boundary.Identity(state.Snapshot);
-        var (reply, _) = Reviewer.ColonyFacts(call, Native, identity, false);
+        var reply = await Reviewer.ColonyFactsAsync(Native, identity, false, call).ConfigureAwait(false);
         var observed = reply.Observed;
         if (observed is null)
         {
@@ -156,15 +154,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
 
         try
         {
-            BridgePackage.ValidateColonyFacts(observed, identity);
-        }
-        catch (DomainException e)
-        {
-            throw new ControlException("step: colony facts invalid", e);
-        }
-
-        try
-        {
+            BridgeApi.ValidateColonyFacts(observed, identity);
             Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
@@ -177,7 +167,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
             throw new ControlException("step: observed facts older than the review");
         }
 
-        var facts = FoodStorageObservationFacts(call, Native, observed);
+        var facts = await FoodStorageObservationFactsAsync(Native, observed, call).ConfigureAwait(false);
         var expected = new Identity
         {
             Colony = state.Snapshot.Colony,
@@ -186,7 +176,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
             Tick = new Tick(observed.Context.Tick),
             NativeGeneration = Known(state.Snapshot.Native),
         };
-        var reading = Reviewer.ObserveOwned(call, Reviewer.Native, expected, Unknown<IReadOnlyList<ConstructionClaim>>());
+        var reading = await Reviewer.ObserveOwnedAsync(Reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
         if (!FoodPlanSupportOf(reading.Projection.Facts.FoodPlan, CandidateKind.Reserve, "stock-protection"))
         {
             return new RoundsFoodStorageUpkeepResult { Verdict = AwaitingFoodPlan("stock-protection") };
@@ -199,13 +189,13 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
                 return new RoundsFoodStorageUpkeepResult { Verdict = FieldUnavailable("food_reserve") };
             }
 
-            return AdmitReserve(call, epoch, goal, observed, reserve);
+            return await AdmitReserveAsync(goal, observed, reserve, call, epoch).ConfigureAwait(false);
         }
 
         var larder = PolicyFunctions.SelectCorpseLarder(facts);
         if (larder.Kind.Length != 0)
         {
-            return AdmitCorpseLarder(call, epoch, arbiter, goal, observed, larder);
+            return AdmitCorpseLarder(arbiter, goal, observed, larder, call, epoch);
         }
 
         var foodReview = PolicyFunctions.ReviewFoodStorage(facts, review.Latches.FoodStorage, Reviewer.Policy.FoodStorage);
@@ -214,7 +204,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
             return new RoundsFoodStorageUpkeepResult { Verdict = BuildingReasonNoDeficit };
         }
 
-        var choice = StorageChoice(call, identity, facts, foodReview);
+        var choice = await StorageChoiceAsync(identity, facts, foodReview, call).ConfigureAwait(false);
         if (choice.Kind == FoodStorageMethodKind.Stuck)
         {
             return new RoundsFoodStorageUpkeepResult
@@ -228,7 +218,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
             return new RoundsFoodStorageUpkeepResult { Verdict = FoodStorageChoiceVerdict(choice.Kind) };
         }
 
-        var benches = GearBenches(call, identity);
+        var benches = await GearBenchesAsync(identity, call).ConfigureAwait(false);
         var (_, kind, ok) = PolicyFunctions.FoodStorageMealOrder(choice, benches);
         if (!ok)
         {
@@ -238,13 +228,13 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
         return new RoundsFoodStorageUpkeepResult { Verdict = WaitFor(Cause.MethodUsed, "ledger_bill") };
     }
 
-    internal IReadOnlyList<GearBench> GearBenches(CancellationToken ct, C.Identity identity)
+    internal async Task<IReadOnlyList<GearBench>> GearBenchesAsync(C.Identity identity, CancellationToken ct)
     {
-        var (census, _) = Native.ReadGearBenches(ct, identity);
+        var (census, _) = await Native.ReadGearBenchesAsync(identity, ct).ConfigureAwait(false);
         return census.Select(row => row.Bench).ToList();
     }
 
-    internal FoodStorageMethod StorageChoice(CancellationToken ct, C.Identity identity, FoodStorageObservation facts, FoodStorageReview review)
+    internal async Task<FoodStorageMethod> StorageChoiceAsync(C.Identity identity, FoodStorageObservation facts, FoodStorageReview review, CancellationToken ct)
     {
         var names = FoodStorageDefNames(facts, Reviewer.Policy.FoodStorage);
         var sites = new List<FoodStorageSite>(names.Count);
@@ -253,7 +243,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
             ResourceStorage storage;
             try
             {
-                (_, storage, _) = Native.ReadResourceSources(ct, identity, name);
+                (_, storage, _) = await Native.ReadResourceSourcesAsync(identity, name, ct).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -265,15 +255,15 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
             sites.Add(new FoodStorageSite { Id = name, Capacity = Known(spare) });
         }
 
-        return PolicyFunctions.SelectFoodStorageMethod(new FoodStoragePlanningRequest { Review = review, Sites = Known<IReadOnlyList<FoodStorageSite>>(sites), Resource = FoodStorageResourceDefinition });
+        return PolicyFunctions.SelectFoodStorageMethod(new FoodStoragePlanningRequest { Review = review, Sites = Known(EquatableArray.From(sites)), Resource = FoodStorageResourceDefinition });
     }
 
-    public Declared DeclareOrders(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches)
+    public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
-        return DeclareOrdersInner(ct, snapshot, projection, benches).For(ConcernId.MaintainFoodStorage);
+        return (await DeclareOrdersInnerAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(PolicyFunctions.MaintainFoodStorage);
     }
 
-    internal Declared DeclareOrdersInner(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches)
+    internal async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var f = projection.Facts;
         if (!PolicyFunctions.FoodPlanSupport(f.FoodPlan, CandidateKind.Reserve, "stock-protection"))
@@ -287,7 +277,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
             return standing;
         }
 
-        FoodStorageMethod larder;
+        CorpseLarderMethod larder;
         try
         {
             larder = PolicyFunctions.SelectCorpseLarder(f.FoodStorageUpkeep);
@@ -302,14 +292,14 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
             return standing;
         }
 
-        Review review;
+        Rounds review;
         try
         {
             review = Reviewer.Player.Journal.LoadRounds(ct);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return AbstainOnRead(ct, Cause.UnreadReview, e);
+            return AbstainOnRead(Cause.UnreadReview, e, ct);
         }
 
         FoodStorageReview foodReview;
@@ -324,13 +314,13 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
 
         if (!foodReview.Active)
         {
-            return default;
+            return new Declared();
         }
 
         FoodStorageMethod choice;
         try
         {
-            choice = StorageChoice(ct, Boundary.Identity(snapshot), f.FoodStorageUpkeep, foodReview);
+            choice = await StorageChoiceAsync(Boundary.Identity(snapshot), f.FoodStorageUpkeep, foodReview, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -367,6 +357,6 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
                 break;
         }
 
-        return default;
+        return new Declared();
     }
 }

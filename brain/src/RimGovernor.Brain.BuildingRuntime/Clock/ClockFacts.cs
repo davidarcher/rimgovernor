@@ -15,7 +15,7 @@ internal sealed class ClockFacts
     public ClockFacts(FactStore? store)
     {
         Store = store ?? new FactStore();
-        FactsApi.RecordTables(Store);
+        PlannerSnapshot.RecordTables(Store);
     }
 
     public FactStore Store { get; }

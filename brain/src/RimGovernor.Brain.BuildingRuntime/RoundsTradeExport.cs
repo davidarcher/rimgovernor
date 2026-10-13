@@ -93,11 +93,11 @@ internal sealed class ExportMemory
             var output = new Pol.GearSurplus();
             if (_apparelKnown)
             {
-                output.Apparel = [.. _apparel];
+                output = output with { Apparel = [.. _apparel] };
             }
             if (_weaponsKnown)
             {
-                output.Weapons = new Dictionary<Pol.Resource, int>(_weapons!);
+                output = output with { Weapons = new Dictionary<Pol.Resource, int>(_weapons!) };
             }
             return (output, true);
         }
@@ -116,11 +116,11 @@ internal sealed class ExportMemory
 /// <summary>The native surface the export declaration reads beyond the review's projection.</summary>
 public interface IExportSource : Observation.IDefinitionSource
 {
-    (ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result) ReadTradeAcquisition(CancellationToken ct, C.Identity identity, OperationsPb.FormCaravanIntent? intent);
+    Task<(ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result)> ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct);
 
-    (WorldProgressionRead Read, BridgeResult Result) ReadWorldProgression(CancellationToken ct, C.Identity identity, bool full);
+    Task<(WorldProgressionRead Read, BridgeResult Result)> ReadWorldProgressionAsync(C.Identity identity, bool full, CancellationToken ct);
 
-    (WorldRead Read, BridgeResult Result) ReadWorld(CancellationToken ct, C.Identity identity, int tile, double radius);
+    Task<(WorldRead Read, BridgeResult Result)> ReadWorldAsync(C.Identity identity, int tile, double radius, CancellationToken ct);
 }
 
 public sealed partial class Rounder
@@ -165,11 +165,11 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
     }
 
     /// <summary>The declaration owned by MaintainTrade.</summary>
-    public Declared DeclareOrders(CancellationToken ct, GenerationSnapshot snapshot, Observation.ColonyProjection projection, IReadOnlyList<Pol.GearBench> benches) =>
-        DeclareOrdersInner(ct, snapshot, projection, benches).For(MaintainTrade);
+    public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, IReadOnlyList<Pol.GearBench> benches, CancellationToken ct) =>
+        (await DeclareOrdersInnerAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(MaintainTrade);
 
     /// <summary>Declares the export batches (OrderDeclarer) and files the sale path's inputs. Any unread input abstains: the ledger removes nothing.</summary>
-    private Declared DeclareOrdersInner(CancellationToken ct, GenerationSnapshot snapshot, Observation.ColonyProjection projection, IReadOnlyList<Pol.GearBench> benches)
+    private async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, IReadOnlyList<Pol.GearBench> benches, CancellationToken ct)
     {
         SetWorking(false);
         var rd = _reviewer;
@@ -180,14 +180,15 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return AbstainOnRead(ct, Pol.Cause.UnreadReview, e);
+            return AbstainOnRead(Pol.Cause.UnreadReview, e, ct);
         }
         var f = projection.Facts;
         var (gap, demand) = Pol.PolicyFunctions.RoundsSilverGap(f, rd.Policy, review.Latches.MedicalReserve);
+        var candidateSources = new Dictionary<Pol.Resource, IReadOnlyList<Pol.SupplyCandidate>>();
         var request = new Pol.ExportRequest
         {
             Benches = benches,
-            Profiles = Unknown<IReadOnlyList<Pol.PawnProfile>>(),
+            Profiles = Unknown<EquatableArray<Pol.PawnProfile>>(),
             Items = f.Items,
             Gap = gap,
             Demand = demand,
@@ -195,28 +196,27 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             Packed = Unknown<long>(),
             Buys = new Dictionary<Pol.Resource, Fact<bool>>(),
             CashCap = Unknown<long>(),
-            Sources = new Dictionary<Pol.Resource, IReadOnlyList<Pol.SupplyCandidate>>(),
+            Sources = candidateSources,
         };
         if (projection.WorkPawns.TryGetValue(out var pawns))
         {
-            request.Profiles = Known(Pol.PolicyFunctions.Profiles(pawns));
+            request = request with { Profiles = Known<EquatableArray<Pol.PawnProfile>>([.. Pol.PolicyFunctions.Profiles(pawns)]) };
         }
         var (stock, stockKnown) = ExportStock(f);
-        request.Stock = stock;
+        request = request with { Stock = stock ?? new Dictionary<Pol.Resource, long>() };
         if (review.Enabled && review.Snapshot == snapshot)
         {
-            request.Runways = review.ResourceRunwayState();
+            request = request with { Runways = review.ResourceRunwayState() };
         }
         var (apparel, apparelKnown) = Pol.PolicyFunctions.ApparelSurplus(new Pol.ClothingDemandInput { Garments = f.Garments, Categories = f.Items.StuffCategories, Gear = f.Gear, Stock = new Pol.StockReader { Resources = f.Resources, Wood = f.Wood } });
         if (apparelKnown)
         {
-            request.Surplus.Apparel = apparel;
+            request = request with { Surplus = request.Surplus with { Apparel = apparel } };
         }
         var (weapons, weaponsOk) = rd.Exports.Surplus(snapshot);
         if (weaponsOk && rd.Exports.Known(snapshot))
         {
-            request.Surplus.Weapons = weapons.Weapons;
-            request.SurplusKnown = apparelKnown;
+            request = request with { Surplus = request.Surplus with { Weapons = weapons.Weapons }, SurplusKnown = apparelKnown };
         }
         // The sale path learns the rankable goods even when this Round abstains.
         var ranked = Pol.PolicyFunctions.DeclareExportOrders(request);
@@ -240,34 +240,36 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         Bridge.DefinitionCatalog? catalog;
         try
         {
-            catalog = native.DefinitionCatalog(ct, identity);
+            catalog = await native.DefinitionCatalogAsync(identity, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return AbstainOnRead(ct, Pol.Cause.UnreadDefinitions, e);
+            return AbstainOnRead(Pol.Cause.UnreadDefinitions, e, ct);
         }
         if (catalog is null)
         {
-            return AbstainOnRead(ct, Pol.Cause.UnreadDefinitions);
+            return AbstainOnRead(Pol.Cause.UnreadDefinitions, null, ct);
         }
-        var (kinds, known) = TraderKinds(ct, native, snapshot, identity);
+        var (kinds, known) = await TraderKindsAsync(native, snapshot, identity, ct).ConfigureAwait(false);
         if (!known)
         {
-            return AbstainOnRead(ct, Pol.Cause.UnreadBuyers);
+            return AbstainOnRead(Pol.Cause.UnreadBuyers, null, ct);
         }
-        (request.CashCap, request.Buys) = ExportBuyers(catalog, kinds, ranked.Products);
-        request.WorkFor = ExportWorkFor(catalog);
+        var (cashCap, buys) = ExportBuyers(catalog, kinds, ranked.Products);
+        request = request with { CashCap = cashCap, Buys = buys };
+        request = request with { WorkFor = ExportWorkFor(catalog) };
         var names = Pol.PolicyFunctions.ExportIngredients(request);
         var strs = names.Select(n => n.Value).ToList();
         if (strs.Count > 0)
         {
             try
             {
-                (request.Supply, _) = resource.ReadSupplyStock(ct, identity, strs);
+                var (supply, _) = await resource.ReadSupplyStockAsync(identity, strs, ct).ConfigureAwait(false);
+                request = request with { Supply = supply };
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                return AbstainOnRead(ct, Pol.Cause.UnreadSupply, e);
+                return AbstainOnRead(Pol.Cause.UnreadSupply, e, ct);
             }
         }
         var centered = projection.Center().TryGetValue(out var center);
@@ -277,11 +279,11 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             IReadOnlyList<Pol.ResourceSource> rows;
             try
             {
-                (rows, _, _) = resource.ReadResourceSources(ct, identity, name.Value);
+                (rows, _, _) = await resource.ReadResourceSourcesAsync(identity, name.Value, ct).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                return AbstainOnRead(ct, Pol.Cause.UnreadSources, e);
+                return AbstainOnRead(Pol.Cause.UnreadSources, e, ct);
             }
             var mines = new List<Pol.ResourceSource>();
             foreach (var row in rows)
@@ -295,7 +297,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             if (centered)
             {
                 var hand = new List<Pol.AcquisitionSource>();
-                foreach (var s in acquisition ?? [])
+                foreach (var s in acquisition)
                 {
                     if (new Pol.Resource(s.Resource) == name)
                     {
@@ -304,11 +306,11 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
                 }
                 sources.AddRange(Pol.PolicyFunctions.AcquisitionSourceCandidates(name, hand, center, Unknown<long>()));
             }
-            request.Sources[name] = sources;
+            candidateSources[name] = sources;
         }
         try
         {
-            request.Packed = PackedArt(ct, snapshot, identity, projection);
+            request = request with { Packed = await PackedArtAsync(snapshot, identity, projection, ct).ConfigureAwait(false) };
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -321,7 +323,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
     }
 
     /// <summary>Counts the packed sculptures no owed room reserves.</summary>
-    private Fact<long> PackedArt(CancellationToken ct, GenerationSnapshot snapshot, C.Identity identity, Observation.ColonyProjection projection)
+    private async Task<Fact<long>> PackedArtAsync(GenerationSnapshot snapshot, C.Identity identity, Observation.ColonyProjection projection, CancellationToken ct)
     {
         if (_reviewer.Native is not IPackedSource native)
         {
@@ -331,17 +333,17 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         {
             return Unknown<long>();
         }
-        var sale = SaleSculpturesOf(ct, native, identity, projection);
+        var sale = await SaleSculpturesOfAsync(native, identity, projection, ct).ConfigureAwait(false);
         return sale is null ? Unknown<long>() : Known((long)sale.Count);
     }
 
     /// <summary>The trader kinds the colony can reach: the orbital and caravan requests the comms consoles offer and the known settlements'.</summary>
-    private (List<string> Kinds, bool Known) TraderKinds(CancellationToken ct, IExportSource native, GenerationSnapshot snapshot, C.Identity identity)
+    private static async Task<(List<string> Kinds, bool Known)> TraderKindsAsync(IExportSource native, GenerationSnapshot snapshot, C.Identity identity, CancellationToken ct)
     {
         ObservationsPb.TradeAcquisition? facts;
         try
         {
-            (facts, _) = native.ReadTradeAcquisition(ct, identity, null);
+            (facts, _) = await native.ReadTradeAcquisitionAsync(identity, null, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -366,7 +368,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         WorldProgressionRead progress;
         try
         {
-            (progress, _) = native.ReadWorldProgression(ct, identity, false);
+            (progress, _) = await native.ReadWorldProgressionAsync(identity, false, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -385,7 +387,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             WorldRead world;
             try
             {
-                (world, _) = native.ReadWorld(ct, identity, home, AllSettlementsRadius);
+                (world, _) = await native.ReadWorldAsync(identity, home, AllSettlementsRadius, ct).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {

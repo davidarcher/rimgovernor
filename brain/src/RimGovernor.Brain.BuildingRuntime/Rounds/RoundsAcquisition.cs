@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public sealed class RoundsAcquisitionResult
+public sealed class RoundsAcquisitionResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 
@@ -18,6 +18,7 @@ public sealed class RoundsAcquisitionResult
 public sealed class RoundsAcquisitionPlanner
 {
     private readonly Rounder _reviewer;
+    internal Rounder Reviewer => _reviewer;
     private readonly ConcernId _need;
 
     public RoundsAcquisitionPlanner(Rounder reviewer, ConcernId need)
@@ -30,7 +31,7 @@ public sealed class RoundsAcquisitionPlanner
         _need = need;
     }
 
-    internal RoundsAcquisitionResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsAcquisitionResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -48,16 +49,16 @@ public sealed class RoundsAcquisitionPlanner
             return new RoundsAcquisitionResult { Verdict = BuildingReasonNoReview };
         }
         var (goal, workable) = p.Journal.Workable(review, _need, call);
-        if (!workable)
+        if (goal is null || !workable)
         {
             return new RoundsAcquisitionResult { Verdict = BuildingReasonNoDeficit };
         }
 
-        var (expected, projection) = _reviewer.AcquisitionReading(call, state, review);
+        var (expected, projection) = await _reviewer.AcquisitionReadingAsync(state, review, call).ConfigureAwait(false);
         // An outdoor hazard holds chop, hunt and forage like it holds remote work.
         if (PolicyApi.OutdoorAcquisitionHeld(projection.Facts))
         {
-            return new RoundsAcquisitionResult { Verdict = WaitFor(PolicyApi.CauseRoomTemperature, PolicyApi.RemoteHoldHazard) };
+            return new RoundsAcquisitionResult { Verdict = WaitFor(Cause.RoomTemperature, PolicyConstants.RemoteHoldHazard) };
         }
         var pest = _need == PolicyApi.ClearPests;
         var stockGoal = _need == PolicyApi.MaintainResource;
@@ -143,7 +144,7 @@ public sealed class RoundsAcquisitionPlanner
                 }
             }
         }
-        var held = new HashSet<string>(StringComparer.Ordinal);
+        var held = new Dictionary<string, bool>(StringComparer.Ordinal);
         if (!pest)
         {
             held = CooledSources(projection.Acquisition, _reviewer.ChopMinGrowth(projection), id => cooled.Contains(id) || AcquisitionCooled(progress, _reviewer.Policy, id, expected.Tick));
@@ -178,16 +179,18 @@ public sealed class RoundsAcquisitionPlanner
                 return new RoundsAcquisitionResult { Verdict = FieldUnavailable("food_plan") };
             }
             runway = foodPlan.Forecast.RunwayDays;
-            (projection.Acquisition, deficit) = FoodPlanAcquisition(foodPlan, projection.Acquisition);
+            var (foodSources, foodDeficit) = FoodPlanAcquisition(foodPlan, projection.Acquisition);
+            projection = projection with { Acquisition = foodSources };
+            deficit = foodDeficit;
         }
-        var (slots, noHunter) = HuntSlots(projection);
+        var (slots, noHunter) = RoundsResourcePlanner.HuntSlots(projection);
         IReadOnlyList<AcquisitionSource> selected;
         var existing = false;
         try
         {
             if (stockGoal)
             {
-                var supply = _reviewer.ResourceSupply(call, state, review, goal);
+                var supply = await _reviewer.ResourceSupplyAsync(state, review, goal, call).ConfigureAwait(false);
                 (selected, existing) = ResourceSelection(supply, busy);
             }
             else if (pest)
@@ -237,7 +240,7 @@ public sealed class RoundsAcquisitionPlanner
         try
         {
             p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, methodId, call);
-            return new RoundsAcquisitionResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "acquisition_method") };
+            return new RoundsAcquisitionResult { Verdict = WaitFor(Cause.MethodUsed, "acquisition_method") };
         }
         catch (NotFoundException)
         {
@@ -268,7 +271,7 @@ internal static partial class BuildingRuntimePackage
     /// for the first floor (worst covered first) that has some and no designated work in flight. existing
     /// reports a floor passed over for its designated work (busy).
     /// </summary>
-    internal static (IReadOnlyList<AcquisitionSource> Selected, bool Existing) ResourceSelection(ResourceSupply supply, HashSet<string> busy)
+    internal static (IReadOnlyList<AcquisitionSource> Selected, bool Existing) ResourceSelection(ResourceSupplyState supply, HashSet<string> busy)
     {
         var existing = false;
         foreach (var resource in supply.Order)
@@ -293,11 +296,11 @@ internal static partial class BuildingRuntimePackage
     /// Only admitted sources can start new work. Pending designations retain their native credit in
     /// SelectAcquisition; the ledger never calls them delivered.
     /// </summary>
-    internal static (Fact<IReadOnlyList<AcquisitionSource>> Sources, Fact<double> Deficit) FoodPlanAcquisition(FoodPlan plan, Fact<IReadOnlyList<AcquisitionSource>> sources)
+    internal static (Fact<EquatableArray<AcquisitionSource>> Sources, Fact<double> Deficit) FoodPlanAcquisition(FoodPlan plan, Fact<EquatableArray<AcquisitionSource>> sources)
     {
         if (!sources.TryGetValue(out var rows))
         {
-            return (Unknown<IReadOnlyList<AcquisitionSource>>(), Unknown<double>());
+            return (Unknown<EquatableArray<AcquisitionSource>>(), Unknown<double>());
         }
         var open = new HashSet<string>(StringComparer.Ordinal);
         foreach (var entry in plan.Portfolio)
@@ -318,7 +321,7 @@ internal static partial class BuildingRuntimePackage
                 nutrition += row.NutritionYield;
             }
         }
-        return (Known<IReadOnlyList<AcquisitionSource>>(selected), Known(nutrition));
+        return (Known<EquatableArray<AcquisitionSource>>([.. selected]), Known(nutrition));
     }
 
     /// <summary>
@@ -327,7 +330,7 @@ internal static partial class BuildingRuntimePackage
     /// pack is gone. A pest that is merely ineligible this step (no free hunter) or has wandered off its planned
     /// cell keeps its row in the wild census and its hunt, which follows it.
     /// </summary>
-    internal static List<ActionId> GonePestHunts(IReadOnlyList<Progress> progress, Fact<IReadOnlyList<UpkeepAnimal>> wild)
+    internal static List<ActionId> GonePestHunts(IReadOnlyList<Progress> progress, Fact<EquatableArray<UpkeepAnimal>> wild)
     {
         var gone = new List<ActionId>();
         if (!wild.TryGetValue(out var animals))
@@ -352,13 +355,13 @@ internal static partial class BuildingRuntimePackage
     /// ones: block when a designated row is one the goal would plan, except that for food a designated plant
     /// harvest only restricts the goal to hunts (plants). The wood goal counts designated trees yielding wood.
     /// </summary>
-    internal static (bool Block, bool Plants) CensusBlocking(Fact<IReadOnlyList<AcquisitionSource>> sources, bool food, HashSet<string> held, HashSet<string> undispatched)
+    internal static (bool Block, bool Plants) CensusBlocking(Fact<EquatableArray<AcquisitionSource>> sources, bool food, Dictionary<string, bool> held, HashSet<string> undispatched)
     {
         sources.TryGetValue(out var rows);
         var plants = false;
-        foreach (var row in rows ?? [])
+        foreach (var row in rows)
         {
-            if (!(row.Designated || undispatched.Contains(row.Id)) || held.Contains(row.Id))
+            if (!(row.Designated || undispatched.Contains(row.Id)) || held.ContainsKey(row.Id))
             {
                 continue;
             }
@@ -391,16 +394,16 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>Reports whether a source sits under a stall cooldown of either contract.</summary>
-    internal static bool AcquisitionCooled(ConcernProgress progress, RoundsPolicy p, string thing, Tick tick) =>
-        progress.Cooled(PolicyApi.CooldownKey(p.HuntProgress().Method, thing), tick) || progress.Cooled(PolicyApi.CooldownKey(p.AcquisitionProgress().Method, thing), tick);
+    internal static bool AcquisitionCooled(ConcernProgress? progress, RoundsPolicy p, string thing, Tick tick) =>
+        progress is not null && (progress.Cooled(PolicyApi.CooldownKey(p.HuntProgress().Method, thing), tick) || progress.Cooled(PolicyApi.CooldownKey(p.AcquisitionProgress().Method, thing), tick));
 
     /// <summary>
     /// The census rows cooled reports: passed over like held ones, the cooldown lifting by itself at its bound,
     /// never a permanent ban.
     /// </summary>
-    internal static HashSet<string> CooledSources(Fact<IReadOnlyList<AcquisitionSource>> sources, double minGrowth, Func<string, bool> cooled)
+    internal static Dictionary<string, bool> CooledSources(Fact<EquatableArray<AcquisitionSource>> sources, double minGrowth, Func<string, bool> cooled)
     {
-        var held = new HashSet<string>(StringComparer.Ordinal);
+        var held = new Dictionary<string, bool>(StringComparer.Ordinal);
         if (sources.TryGetValue(out var rows))
         {
             foreach (var row in rows)
@@ -408,7 +411,7 @@ internal static partial class BuildingRuntimePackage
                 // An undesignated plantation tree under the chop gate is not offered.
                 if (cooled(row.Id) || (!row.Designated && row.BelowChopGate(minGrowth)))
                 {
-                    held.Add(row.Id);
+                    held[row.Id] = true;
                 }
             }
         }
@@ -419,7 +422,7 @@ internal static partial class BuildingRuntimePackage
     /// Holds, in held, every designated or undispatched source, and returns the resources with such work not on
     /// cooldown: those are busy.
     /// </summary>
-    internal static HashSet<string> HoldWorked(Fact<IReadOnlyList<AcquisitionSource>> sources, HashSet<string> undispatched, HashSet<string> held)
+    internal static HashSet<string> HoldWorked(Fact<EquatableArray<AcquisitionSource>> sources, HashSet<string> undispatched, Dictionary<string, bool> held)
     {
         var busyState = new Dictionary<string, bool>(StringComparer.Ordinal);
         if (sources.TryGetValue(out var rows))
@@ -428,26 +431,26 @@ internal static partial class BuildingRuntimePackage
             {
                 if (row.Designated || undispatched.Contains(row.Id))
                 {
-                    busyState[row.Resource] = (busyState.TryGetValue(row.Resource, out var b) && b) || !held.Contains(row.Id);
-                    held.Add(row.Id);
+                    busyState[row.Resource] = (busyState.TryGetValue(row.Resource, out var b) && b) || !held.ContainsKey(row.Id);
+                    held[row.Id] = true;
                 }
             }
         }
         foreach (var thing in undispatched)
         {
-            held.Add(thing);
+            held[thing] = true;
         }
         return [.. busyState.Where(kv => kv.Value).Select(kv => kv.Key)];
     }
 
     /// <summary>Keeps the census's hunt rows.</summary>
-    internal static Fact<IReadOnlyList<AcquisitionSource>> HuntRows(Fact<IReadOnlyList<AcquisitionSource>> sources)
+    internal static Fact<EquatableArray<AcquisitionSource>> HuntRows(Fact<EquatableArray<AcquisitionSource>> sources)
     {
         if (!sources.TryGetValue(out var rows))
         {
             return sources;
         }
-        return Known<IReadOnlyList<AcquisitionSource>>([.. rows.Where(row => row.Hunt)]);
+        return Known<EquatableArray<AcquisitionSource>>([.. rows.Where(row => row.Hunt)]);
     }
 
     /// <summary>
@@ -458,10 +461,14 @@ internal static partial class BuildingRuntimePackage
     /// stalled. Harvests run on RoundsPolicy.AcquisitionProgress, hunts on HuntProgress. A contract without a
     /// deadline, or an unknown census, stalls nothing.
     /// </summary>
-    internal static List<AcquisitionSource> StalledDesignations(Fact<IReadOnlyList<AcquisitionSource>> sources, bool hunt, Tick now, ProgressContract contract, Func<AcquisitionSource, bool> mine)
+    internal static List<AcquisitionSource> StalledDesignations(Fact<EquatableArray<AcquisitionSource>> sources, bool hunt, Tick now, ProgressContract contract, Func<AcquisitionSource, bool> mine)
     {
         var stalled = new List<AcquisitionSource>();
-        if (contract.Deadline <= 0 || !sources.TryGetValue(out var rows))
+        if (contract.Deadline.Value <= 0)
+        {
+            return stalled;
+        }
+        if (!sources.TryGetValue(out var rows))
         {
             return stalled;
         }
@@ -494,7 +501,7 @@ internal static partial class BuildingRuntimePackage
     /// yield otherwise): a designation nobody took still counts there, and without this the re-plan would see
     /// its own stalled yield as covering the deficit and propose nothing.
     /// </summary>
-    internal static Fact<double> WithoutStalled(Fact<double> pending, Fact<IReadOnlyList<AcquisitionSource>> sources, HashSet<string> stalled, bool food)
+    internal static Fact<double> WithoutStalled(Fact<double> pending, Fact<EquatableArray<AcquisitionSource>> sources, HashSet<string> stalled, bool food)
     {
         var known = sources.TryGetValue(out var rows);
         var pk = pending.TryGetValue(out var outstanding);
@@ -558,7 +565,7 @@ internal static partial class BuildingRuntimePackage
     /// by a deficit) the deficit and the pending yield. A census that is read but holds an unusable row reads as
     /// the census.
     /// </summary>
-    internal static string UnreadAcquisitionFact(Fact<IReadOnlyList<AcquisitionSource>> sources, Fact<double> deficit, Fact<double> pending, bool withoutDeficit)
+    internal static string UnreadAcquisitionFact(Fact<EquatableArray<AcquisitionSource>> sources, Fact<double> deficit, Fact<double> pending, bool withoutDeficit)
     {
         if (!sources.IsKnown)
         {
@@ -586,23 +593,23 @@ internal static partial class BuildingRuntimePackage
 public sealed partial class Rounder
 {
     /// <summary>The owned review reading an acquisition step plans on, its census without the sources a field plan reserves.</summary>
-    internal (Identity Expected, ColonyProjection Projection) AcquisitionReading(CancellationToken call, ControlState state, RoundsReview review)
+    internal async Task<(Identity Expected, ColonyProjection Projection)> AcquisitionReadingAsync(ControlState state, RoundsReview review, CancellationToken call)
     {
         var p = Player;
         var plans = p.Journal.LoadPlans(call);
-        var playerPlans = p.Journal.PlayerPlans(PlayerWorld(state.Snapshot), call);
+        var playerPlans = p.Journal.PlayerPlans(Player.PlayerWorld(state.Snapshot), call);
         var definitions = RoundsProjectDefinitions(plans, state.Snapshot, playerPlans);
-        var crops = SowableCrops(call, state.Snapshot);
-        definitions = UniqueFieldDefinitions([.. definitions, .. crops]);
-        var expected = StepScope(call, Native);
+        var crops = await SowableCropsAsync(state.Snapshot, call).ConfigureAwait(false);
+        var unique = RoundsFieldPlanner.UniqueFieldDefinitions([.. definitions, .. crops]);
+        var expected = await StepScopeAsync(Native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("acquisitionReading: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
-        var read = ObserveOwned(call, Native, expected, claims, definitions);
+        var read = await ObserveOwnedAsync(Native, expected, claims, unique, call).ConfigureAwait(false);
         var projection = read.Projection;
-        projection.Acquisition = WithoutFieldSources(projection.Acquisition, projection, plans, state.Snapshot);
+        projection = projection with { Acquisition = WithoutFieldSources(projection.Acquisition, projection, plans, state.Snapshot) };
         return (expected, projection);
     }
 }

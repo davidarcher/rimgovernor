@@ -7,26 +7,26 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal const int MaxDefenseCoverBatch = 8;
     internal const string DefenseCoverPrefix = "defense-cover-";
 
-    internal (int Defenders, Fact<double> MinRange, bool Ok) DefenderRange(CancellationToken call, ControlState state, RoundsReading read)
+    internal async Task<(int Defenders, Fact<double> MinRange, bool Ok)> DefenderRangeAsync(ControlState state, RoundsReading read, CancellationToken call)
     {
         if (!read.Emergency.ColonistsComplete.TryGetValue(out var complete) || !complete || read.Emergency.Colonists.Count == 0)
         {
             return (0, Unknown<double>(), false);
         }
         var ids = read.Emergency.Colonists.Select(p => p.Id.Value).ToList();
-        var (reply, _) = _native.ReadCombatPawns(call, Boundary.Identity(state.Snapshot), ids);
+        var (reply, _) = await _native.ReadCombatPawnsAsync(Boundary.Identity(state.Snapshot), ids, call).ConfigureAwait(false);
         var observed = reply.Observed;
         if (observed is null || observed.Pawns.Count != ids.Count)
         {
             throw DefenseControlErr(248);
         }
         SameTick(observed.Context, state, read.Projection.Identity.Tick);
-        var arms = ReadArmament(call, _native, Boundary.Identity(state.Snapshot));
+        var arms = await ReadArmamentAsync(_native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         var (defenders, minRange) = DefenderRangeOf(observed.Pawns, arms);
         return (defenders, minRange, defenders > 0);
     }
 
-    internal (RoundsDefenseLayoutResult Result, bool Done) ClearCover(CancellationToken call, CancellationToken epoch, StandardState goal, RoundsReview review, ControlState state, RoundsReading read, DefenseLayoutRecord record)
+    internal async Task<(RoundsDefenseLayoutResult Result, bool Done)> ClearCoverAsync(StandardState goal, RoundsReview review, ControlState state, RoundsReading read, DefenseLayoutRecord record, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var projection = read.Projection;
@@ -37,35 +37,38 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return (new RoundsDefenseLayoutResult(), false);
         }
-        var site = DefenseSite(call, identity, projection, region);
+        var site = await DefenseSiteAsync(identity, projection, region, call).ConfigureAwait(false);
         var request = DefenseTurretRequest(read);
-        request.Bounds = projection.Bounds;
-        request.Home = home;
-        request.Tick = tick;
-        request.Killbox = killbox;
-        request.Region = new Rectangle(region.Min.X, region.Min.Z, region.Max.X - region.Min.X + 1, region.Max.Z - region.Min.Z + 1);
+        request = request with { Bounds = projection.Bounds };
+        request = request with { Home = home };
+        request = request with { Tick = tick };
+        request = request with { Killbox = killbox };
+        request = request with { Region = new Rectangle(region.Min.X, region.Min.Z, region.Max.X - region.Min.X + 1, region.Max.Z - region.Min.Z + 1) };
         var byCell = new Dictionary<Cell, BridgeDefenseCell>();
+        var requestCells = new List<DefenseCell>();
+        var entrances = new List<Cell>();
         foreach (var cell in site.Cells)
         {
             byCell[cell.Cell] = cell;
-            request.Cells.Add(DefenseCellFacts(cell));
+            requestCells.Add(DefenseCellFacts(cell));
             if (!cell.Fogged && cell.Door && cell.PlayerOwned)
             {
-                request.Entrances.Add(cell.Cell);
+                entrances.Add(cell.Cell);
             }
         }
+        request = request with { Cells = [.. requestCells], Entrances = [.. entrances] };
         const double defenseCoverFillThreshold = 0.0;
-        request.Arrivals = DefenseArrivals(projection.Raids, region);
-        request.CoverThreshold = Known(defenseCoverFillThreshold);
-        var (defenders, minRange, haveRange) = DefenderRange(call, state, read);
+        request = request with { Arrivals = [.. DefenseArrivals(projection.Raids, region)] };
+        request = request with { CoverThreshold = Known(defenseCoverFillThreshold) };
+        var (defenders, minRange, haveRange) = await DefenderRangeAsync(state, read, call).ConfigureAwait(false);
         if (!haveRange)
         {
             return (new RoundsDefenseLayoutResult(), false);
         }
-        request.Defenders = defenders;
-        request.MinRange = minRange;
+        request = request with { Defenders = defenders };
+        request = request with { MinRange = minRange };
         var layout = DefenseRecordLayout(record, killbox);
-        RecordLayoutSnapshot(call, state.Snapshot, tick, new SnapshotLayout { Point = SnapshotApi.LayoutCover, Request = request, Record = record, Site = site.Cells });
+        RecordLayoutSnapshot(state.Snapshot, tick, new SnapshotLayout { Point = SnapshotApi.LayoutCover, Request = request, Record = record, Site = site.Cells }, call);
         DefenseApproaches approaches;
         try
         {
@@ -73,12 +76,12 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         catch (DomainException ex)
         {
-            DefenseAction(call, "defense-layout", LogLevel.Info, "refused", "cover_census", "cover", new Dictionary<string, object?> { ["error"] = ex });
+            DefenseAction("defense-layout", TelemetryLevel.Info, "refused", "cover_census", "cover", new Dictionary<string, object?> { ["error"] = ex }, call);
             return (new RoundsDefenseLayoutResult(), false);
         }
         if (approaches.Hold != "")
         {
-            DefenseAction(call, "defense-layout", LogLevel.Info, "waiting", "cover_held", "cover", new Dictionary<string, object?> { ["detail"] = approaches.Hold });
+            DefenseAction("defense-layout", TelemetryLevel.Info, "waiting", "cover_held", "cover", new Dictionary<string, object?> { ["detail"] = approaches.Hold }, call);
             return (new RoundsDefenseLayoutResult(), false);
         }
         var (clearances, _) = DefenseCoverSelection(approaches, byCell);
@@ -90,7 +93,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             clearances = clearances.GetRange(0, MaxDefenseCoverBatch);
         }
-        var (verdict, admitted) = AdmitStandardSubject(call, p.Journal, goal, DefenseCoverPrefix, state.Snapshot);
+        var (verdict, admitted) = AdmitStandardSubject(p.Journal, goal, DefenseCoverPrefix, state.Snapshot, call);
         if (!admitted)
         {
             return (new RoundsDefenseLayoutResult { Verdict = verdict }, true);
@@ -109,8 +112,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             throw DefenseControlErr(360);
         }
-        p.Journal.CommitMethodReason(call, goal.Standard.Id, goal.Revision, method, "", plan);
-        DefenseAction(call, "defense-layout", LogLevel.Info, "applied", "cover_clearance", method.Value, new Dictionary<string, object?> { ["things"] = clearances.Count });
+        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, "", plan, call);
+        DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "cover_clearance", method.Value, new Dictionary<string, object?> { ["things"] = clearances.Count }, call);
         return (new RoundsDefenseLayoutResult { Verdict = BuildingReasonAdmitted, Plan = id }, true);
     }
 }
@@ -120,23 +123,32 @@ internal static partial class BuildingRuntimePackage
     /// <summary>The policy layout of a stored defense record: its firing positions, trap lane and the tier buildings.</summary>
     internal static DefenseLayout DefenseRecordLayout(DefenseLayoutRecord record, DefenseKillbox killbox)
     {
-        var l = new DefenseLayout { Toward = killbox.Toward, Width = (int)killbox.Width, Entry = killbox.Entry, TrapLane = record.TrapLane.ToList() };
+        var firing = new List<FiringPosition>();
         for (var i = 0; i < record.Firing.Count; i++)
         {
             var cell = record.Firing[i];
             var retreat = record.Retreat.Count == record.Firing.Count ? record.Retreat[i] : cell;
-            l.Firing.Add(new FiringPosition { Cell = cell, Cover = cell, Retreat = retreat });
+            firing.Add(new FiringPosition(cell, cell, retreat));
         }
+        var tiers = new List<DefenseTier>();
         foreach (var tier in record.Tiers)
         {
-            var t = new DefenseTier { Name = tier.Name, Reserved = tier.Reserved.ToList() };
+            var buildings = new List<Building>();
             foreach (var b in tier.Buildings)
             {
-                t.Buildings.Add(DomainApi.NewBuilding(b.Definition, b.Cell, b.Rotation, b.Stuff));
+                buildings.Add(new Building(b.Definition, b.Cell, b.Rotation, b.Stuff));
             }
-            l.Tiers.Add(t);
+            tiers.Add(new DefenseTier { Name = tier.Name, Reserved = [.. tier.Reserved], Buildings = [.. buildings] });
         }
-        return l;
+        return new DefenseLayout
+        {
+            Toward = killbox.Toward,
+            Width = (int)killbox.Width,
+            Entry = killbox.Entry,
+            TrapLane = [.. record.TrapLane],
+            Firing = [.. firing],
+            Tiers = [.. tiers],
+        };
     }
 
     /// <summary>The ground raids whose spawn or trail enters the region, with the crossing cell.</summary>
@@ -163,7 +175,7 @@ internal static partial class BuildingRuntimePackage
             }
             if (found)
             {
-                output.Add(new DefenseArrival { Id = raid.LordId, Edge = crossing, Tick = raid.SpawnTick });
+                output.Add(new DefenseArrival(raid.LordId, crossing, raid.SpawnTick));
             }
         }
         return output;
@@ -195,13 +207,13 @@ internal static partial class BuildingRuntimePackage
             {
                 Hold("structure");
             }
-            else if (cell.Cover.Designation() == "")
+            else if (cell.Cover.Designation is not { } designation)
             {
                 Hold("unknown_kind");
             }
             else
             {
-                clearances.Add(DomainApi.NewCoverClearance(cell.Cover.ThingId, cell.Cover.DefName, cell.Cover.Designation(), cover.Cell));
+                clearances.Add(new CoverClearance(cell.Cover.ThingId, cell.Cover.DefName, designation, cover.Cell));
             }
         }
         return (clearances, held);

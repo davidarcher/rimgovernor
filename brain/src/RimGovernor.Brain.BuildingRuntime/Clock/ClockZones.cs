@@ -5,27 +5,33 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// a review step asks it once up front. A review step reads the census whole once; any other ask serves the held
 /// census until an invalidation marks it.
 /// </summary>
-internal sealed class ZoneRefresher(IZonesNative native, FactStore store, FactScope scope, long tick, bool review)
+internal sealed class ZoneRefresher(IZonesNative native, FactStore store) : IZonesSource
 {
     // Set once a review step has refreshed the census.
     private bool _refreshed;
 
-    public long Tick { get; } = tick;
+    /// <summary>The store scope the step fixed once its bundle was read.</summary>
+    public FactScope Scope { get; set; }
+
+    public long Tick { get; set; }
+
+    /// <summary>Whether the step reviews: a review step reads the census whole once.</summary>
+    public bool Review { get; set; }
 
     public async Task<Held<ZonesRead>> ZonesAsync(PbCommon.Identity id, CancellationToken ct)
     {
-        var ok = FactsApi.TryRead<ZonesRead>(store, FactSection.Zones, out var held);
-        ok = ok && store.Scope == scope
+        var ok = FactStore.Read<ZonesRead>(store, FactSection.Zones, out var held);
+        ok = ok && store.Scope == Scope
             && held.Value.Context?.Identity?.ColonyId == id.ColonyId
             && held.Value.Context?.Identity?.MapId == id.MapId;
-        if (ok && (_refreshed || !review))
+        if (ok && (_refreshed || !Review))
         {
             return held;
         }
-        var read = await native.ReadZoneSectionAsync(id, ct).ConfigureAwait(false);
-        _refreshed = review;
-        var output = new Held<ZonesRead>(read, read.AsOf, true, "rimgovernor/observations_list_zones");
-        FactsApi.Put(store, scope, FactSection.Zones, output);
+        var (read, _) = await native.ReadZoneSectionAsync(id, ct).ConfigureAwait(false);
+        _refreshed = Review;
+        var output = new Held<ZonesRead> { Value = read, AsOf = read.AsOf, Complete = true, Source = "rimgovernor/observations_list_zones" };
+        FactStore.Put(store, Scope, FactSection.Zones, output);
         return output;
     }
 }

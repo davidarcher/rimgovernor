@@ -3,20 +3,20 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class Rounder
 {
     /// <summary>Reads the stranger tomb facts into the projection: the live buried stacks and whether the sarcophagus stuff is funded.</summary>
-    internal void ReviewStrangers(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection projection)
+    internal ColonyProjection ReviewStrangers(GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
     {
-        projection.Strangers = new StrangerTomb();
-        if (!PolicyApi.KnowBuriedStacks(projection.Facts.MoodPawns, out var live))
+        projection = projection with { Strangers = new StrangerTomb() };
+        var (live, ok) = PolicyApi.KnowBuriedStacks(projection.Facts.MoodPawns);
+        if (!ok)
         {
-            return;
+            return projection;
         }
         if (live >= PolicyApi.StrangerTombStackCap)
         {
-            projection.Strangers = new StrangerTomb { Live = live };
-            return;
+            return projection with { Strangers = new StrangerTomb { Live = live } };
         }
         var targets = ResourceTargets(snapshot);
-        projection.Strangers = new StrangerTomb { Live = live, Funded = projection.StuffFunded(projection.Shapes.Furniture.Sarcophagus, targets) };
+        return projection with { Strangers = new StrangerTomb { Live = live, Funded = projection.StuffFunded(projection.Shapes.Furniture.Sarcophagus, targets) } };
     }
 }
 
@@ -34,7 +34,7 @@ internal static partial class BuildingRuntimePackage
         facts.LayoutPlan.TryGetValue(out var plan);
         facts.Facts.Waste.TryGetValue(out var waste);
         facts.Facts.CurrentConstruction.TryGetValue(out var built);
-        return PolicyApi.NextTombStep(plan, waste, built?.Buildings ?? [], facts.Shapes, available, facts.Strangers);
+        return PolicyApi.NextTombStep(plan ?? new LayoutPlan(), waste, built?.Buildings ?? [], facts.Shapes, available, facts.Strangers);
     }
 
     internal static Fact<bool> TombOwed(ColonyProjection facts) =>
@@ -64,9 +64,10 @@ internal static partial class BuildingRuntimePackage
         var (ground, gk) = ColonyGround(facts);
         if (!pk || !wk || !gk)
         {
-            return (default!, false);
+            return (new PlannedRoom(), false);
         }
-        return PolicyApi.MorgueRoomOwed(plan!, plan!.GroundWithRock(ground, NaturalRock(facts)), waste!);
+        var room = PolicyApi.MorgueRoomOwed(plan!, plan!.GroundWithRock(ground, NaturalRock(facts)), waste!);
+        return room is null ? (new PlannedRoom(), false) : (room, true);
     }
 
     internal static Fact<bool> BurialOwed(ColonyProjection facts)
@@ -96,20 +97,20 @@ internal static partial class BuildingRuntimePackage
         var ak = facts.DefinitionAvailable("Cooler").TryGetValue(out var available);
         if (ak && !available)
         {
-            return (default!, Known(false));
+            return (new PlannedRoom(), Known(false));
         }
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var rk = facts.Rooms.TryGetValue(out var rooms);
         if (!ak || !pk || !rk)
         {
-            return (default!, Unknown<bool>());
+            return (new PlannedRoom(), Unknown<bool>());
         }
         var (room, owed) = plan!.MealClosetOwed(rooms!);
-        return (room, Known(owed));
+        return (room ?? new PlannedRoom(), Known(owed));
     }
 
     internal static Fact<bool> MealClosetOwed(ColonyProjection facts) => PlannedMealCloset(facts).Owed;
 
-    internal static Fact<IReadOnlyList<string>> WarmCoolingRooms(ColonyProjection facts) =>
+    internal static Fact<EquatableArray<string>> WarmCoolingRooms(ColonyProjection facts) =>
         PolicyApi.WarmCoolingRooms(facts.DefinitionAvailable("Cooler"), facts.LayoutPlan, facts.Rooms);
 }

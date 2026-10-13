@@ -34,7 +34,7 @@ internal static partial class BuildingRuntimePackage
         {
             return null;
         }
-        var retired = new Pol.MealStore { Dining = dining[0].Region.Bounds(), Retired = true };
+        var retired = new Pol.MealStore { Dining = dining[0].Region.Bounds(), Filter = new StockpileFilter(FilterBase.Nothing), Retired = true };
         Pol.PlannedRoom room = default!;
         IReadOnlyList<Cell>? adjacent = null;
         foreach (var planned in dining)
@@ -62,7 +62,7 @@ internal static partial class BuildingRuntimePackage
             return null;
         }
         // The meal is what the active bills cook; none cooked, no warm spot.
-        var (meal, nutrition, cooked) = Pol.MealStore.ObservedMeal(benches);
+        var (meal, nutrition, cooked) = Pol.PolicyFunctions.ObservedMeal(benches);
         if (!cooked)
         {
             return retired;

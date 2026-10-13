@@ -14,7 +14,7 @@ internal interface IPlayerMapFocusConfirmation
 
 public sealed partial class Player
 {
-    internal async Task<bool> ExpeditionIncomingHandoffAsync(CancellationToken call, CancellationToken epoch, PbObservations.BundleSnapshot? loaded)
+    internal async Task<bool> ExpeditionIncomingHandoffAsync(PbObservations.BundleSnapshot? loaded, CancellationToken call, CancellationToken epoch)
     {
         var state = _session.State();
         if (!state.ObservationKnown || loaded?.Context?.Identity is null || loaded.WorldProgression is null)
@@ -32,7 +32,7 @@ public sealed partial class Player
             return false;
         }
         var world = BridgeApi.DecodeWorldProgressionSnapshot(loaded.WorldProgression, identity);
-        var plans = await _journal.PlanHistoryWithMethodsAsync(256, ["quest-expedition-*", "quest-site-*-return-*"], call).ConfigureAwait(false);
+        var plans = await Task.Run(() => _journal.PlanHistoryWithMethods(256, ["quest-expedition-*", "quest-site-*-return-*"], call), call).ConfigureAwait(false);
         if (!ExpeditionHandoffTarget(state.Snapshot, world, plans).TryGetValue(out var target) || target.Map != new MapId(identity.MapId))
         {
             return false;
@@ -44,14 +44,14 @@ public sealed partial class Player
         var generation = new NativeGeneration(loaded.Context.NativeGeneration);
         _session.Disable();
         await confirm.ConfirmMapFocusAsync(state.Snapshot, target, generation, call).ConfigureAwait(false);
-        return await HandoffHeldAsync(call, epoch, state, target, generation).ConfigureAwait(false);
+        return await HandoffHeldAsync(state, target, generation, call, epoch).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Runs under the caller's player gate. Durable departure evidence authorizes only its exact physical
     /// destination and observed crew.
     /// </summary>
-    internal async Task<bool> ExpeditionHandoffAsync(CancellationToken call, CancellationToken epoch, ControlState state, RoundsReading read)
+    internal async Task<bool> ExpeditionHandoffAsync(ControlState state, RoundsReading read, CancellationToken call, CancellationToken epoch)
     {
         if (!state.Enabled || !state.ObservationKnown || read.Frame.Quests is null)
         {
@@ -62,27 +62,25 @@ public sealed partial class Player
         {
             return false;
         }
-        var plans = await _journal.PlanHistoryWithMethodsAsync(256, ["quest-expedition-*", "quest-site-*-return-*"], call).ConfigureAwait(false);
+        var plans = await Task.Run(() => _journal.PlanHistoryWithMethods(256, ["quest-expedition-*", "quest-site-*-return-*"], call), call).ConfigureAwait(false);
         if (!ExpeditionHandoffTarget(state.Snapshot, read.Frame.Quests, plans).TryGetValue(out var target))
         {
             return false;
         }
-        return await HandoffHeldAsync(call, epoch, state, target, null).ConfigureAwait(false);
+        return await HandoffHeldAsync(state, target, null, call, epoch).ConfigureAwait(false);
     }
 
-    private async Task<bool> HandoffHeldAsync(CancellationToken call, CancellationToken epoch, ControlState state, GenerationSnapshot target, NativeGeneration? alreadyFocused)
+    private async Task<bool> HandoffHeldAsync(ControlState state, GenerationSnapshot target, NativeGeneration? alreadyFocused, CancellationToken call, CancellationToken epoch)
     {
         if (_session is not IPlayerMapFocus focus)
         {
             return false;
         }
         Current(call, epoch);
-        var request = new ControlRequest
-        {
-            RequestId = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"expedition-focus-{state.Snapshot.Colony.Value}-{state.Snapshot.Load.Value}-{target.Map.Value}-{state.Snapshot.Native.Value}"),
-            Kind = ControlKind.Resume,
-            World = PlayerWorld(target),
-        };
+        var request = new ControlRequest(
+            string.Create(System.Globalization.CultureInfo.InvariantCulture, $"expedition-focus-{state.Snapshot.Colony.Value}-{state.Snapshot.Load.Value}-{target.Map.Value}-{state.Snapshot.Native.Value}"),
+            ControlKind.Resume,
+            PlayerWorld(target));
         var (record, created) = await _journal.BeginControlAsync(request, call).ConfigureAwait(false);
         if (!created)
         {
@@ -104,7 +102,7 @@ public sealed partial class Player
             await UncertainAsync(record, e).ConfigureAwait(false);
             throw;
         }
-        _ = await CompleteResumeHeldAsync(call, epoch, record, generation).ConfigureAwait(false);
+        _ = await CompleteResumeHeldAsync(record, generation, call, epoch).ConfigureAwait(false);
         return true;
     }
 
@@ -127,7 +125,7 @@ public sealed partial class Player
                         break;
                     }
                 }
-                if (!proof.Receipt.TryGetValue(out var receipt) || receipt != Receipt.Accepted || proof.Snapshot.Colony != current.Colony || proof.Snapshot.Load != current.Load || proof.Snapshot.Map != current.Map)
+                if (!proof.Receipt.TryGetValue(out var receipt) || receipt != Domain.Receipt.Accepted || proof.Snapshot.Colony != current.Colony || proof.Snapshot.Load != current.Load || proof.Snapshot.Map != current.Map)
                 {
                     continue;
                 }
@@ -171,7 +169,7 @@ public sealed partial class Player
         return Unknown<GenerationSnapshot>();
     }
 
-    private static bool AllExpeditionCrewPresent(IReadOnlyList<PawnId> crew, IReadOnlyList<string> present)
+    private static bool AllExpeditionCrewPresent(IReadOnlyList<Domain.PawnId> crew, IReadOnlyList<string> present)
     {
         foreach (var pawn in crew)
         {

@@ -3,13 +3,9 @@ using System.Text;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface IRoundsMedicalSource
+public interface IRoundsMedicalSource : Observation.IColonySource, IColonyFactsReader
 {
-    (O.ColonyFactsReply Reply, BridgeResult Result) ReadColonyFacts(CancellationToken ct, C.Identity identity, bool full);
-
-    Tables FrameTables(CancellationToken ct, C.Identity identity);
-
-    (IReadOnlyList<GearBenchRead> Reads, BridgeResult Result) ReadGearBenches(CancellationToken ct, C.Identity identity);
+    Task<(IReadOnlyList<GearBenchRead> Reads, BridgeResult Result)> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
 }
 
 /// <summary>Composes MaintainMedicalReserves and the critical-medicine amputation method.</summary>
@@ -34,7 +30,7 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         return new RoundsMedicalPlanner(reviewer, native);
     }
 
-    internal RoundsMedicalResult Step(CancellationToken call, CancellationToken epoch, StepArbiter? arbiter)
+    internal async Task<RoundsMedicalResult> StepAsync(StepArbiter? arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         var state = p.Session.State();
@@ -54,25 +50,25 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
             return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
         }
 
-        var amputation = PlanAmputation(call, epoch, state, review);
+        var amputation = await PlanAmputationAsync(state, review, call, epoch).ConfigureAwait(false);
         if (amputation.Plan.Value != "")
         {
             return amputation;
         }
 
-        var (goal, workable) = p.Journal.Workable(call, review, ConcernId.MaintainMedicalReserves);
-        if (!workable || !review.Latches.Medical.Restocks())
+        var (goal, workable) = p.Journal.Workable(review, PolicyFunctions.MaintainMedicalReserves, call);
+        if (!workable || goal is null || !review.Latches.Medical.Restocks())
         {
             return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
         }
 
         var started = reviewer.Clock.Now();
         var identity = Boundary.Identity(state.Snapshot);
-        var (reply, _) = reviewer.ColonyFacts(call, native, identity, false);
+        var reply = await reviewer.ColonyFactsAsync(native, identity, false, call).ConfigureAwait(false);
         var observed = reply.Observed ?? throw new ControlException("step: observed == nil");
         try
         {
-            BridgePackage.ValidateColonyFacts(observed, identity);
+            BridgeApi.ValidateColonyFacts(observed, identity);
             Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
@@ -85,8 +81,8 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
             throw new ControlException("step: observed context older than the review");
         }
 
-        var tables = native.FrameTables(call, identity);
-        var items = reviewer.ItemFacts(call, state.Snapshot);
+        var tables = await native.FrameTablesAsync(identity, call).ConfigureAwait(false);
+        var items = await reviewer.ItemFactsAsync(state.Snapshot, call).ConfigureAwait(false);
         Resource medicineResource;
         try
         {
@@ -94,10 +90,10 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         }
         catch (DomainException)
         {
-            return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.FieldUnavailable("medicine_catalog") };
+            return new RoundsMedicalResult { Verdict = Verdict.FieldUnavailable("medicine_catalog") };
         }
 
-        var sources = ObservationPackage.ColonyAcquisition(observed, tables);
+        var sources = ObservationPackage.ColonyAcquisition(observed, tables, await CatalogAsync(identity, call).ConfigureAwait(false));
         var stalledSources = new HashSet<string>();
         bool Medicine(AcquisitionSource row) => new Resource(row.Resource) == medicineResource;
         foreach (var row in BuildingRuntimePackage.StalledDesignations(sources, false, new Tick(observed.Context.Tick), reviewer.Policy.AcquisitionProgress(), Medicine))
@@ -106,7 +102,7 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
             var (stallMethod, stallPlan) = BuildingRuntimePackage.StallWithdraw(row);
             try
             {
-                p.Journal.LoadMethod(call, goal.Standard.Id, goal.Standard.Episode, stallMethod);
+                p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, stallMethod, call);
                 continue;
             }
             catch (NotFoundException)
@@ -119,33 +115,33 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
                 throw new ControlException("step: session state changed");
             }
 
-            p.Journal.CommitMethod(call, goal.Standard.Id, goal.Revision, stallMethod, stallPlan);
+            p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, stallMethod, stallPlan, call);
             return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = stallPlan.Id };
         }
 
         foreach (var method0 in goal.Methods)
         {
-            var open = p.Journal.LoadPlan(call, method0.Plan);
+            var open = p.Journal.LoadPlan(method0.Plan, call);
             if (StorePackage.PlanOpen(open))
             {
                 return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
             }
         }
 
-        var facts = ObservationPackage.ColonyMedicalReserve(observed, tables) with { Catalog = items };
+        var facts = ObservationPackage.ColonyMedicalReserve(observed, tables, await CatalogAsync(identity, call).ConfigureAwait(false)) with { Catalog = items };
         var medicalReview = PolicyFunctions.ReviewMedicalReserve(facts, review.Latches.MedicalReserve, reviewer.Policy.MedicalReserve);
         if (!medicalReview.Active)
         {
             return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
         }
 
-        var seen = goal.Methods.Select(m => m.Method).ToList();
-        var (census, _) = native.ReadGearBenches(call, identity);
+        var seen = goal.Methods.Select(m => m.MethodId).ToList();
+        var (census, _) = await native.ReadGearBenchesAsync(identity, call).ConfigureAwait(false);
         var benches = census.Select(row => row.Bench).ToList();
-        var choice = PolicyFunctions.SelectMedicineMethod(new MedicinePlanningRequest { Review = medicalReview, Resource = medicineResource, Seen = seen, Benches = Known<IReadOnlyList<GearBench>>(benches) });
+        var choice = PolicyFunctions.SelectMedicineMethod(new MedicinePlanningRequest { Review = medicalReview, Resource = medicineResource, Seen = seen, Benches = Known<EquatableArray<GearBench>>([.. benches]) });
         if (choice.Kind == MedicineMethodKind.Blocked)
         {
-            return HarvestMedicine(call, epoch, state, goal, observed, tables, medicalReview, facts, medicineResource, stalledSources, started);
+            return await HarvestMedicineAsync(state, goal, observed, tables, medicalReview, facts, medicineResource, stalledSources, started, call, epoch).ConfigureAwait(false);
         }
 
         if (choice.Kind != MedicineMethodKind.Produce)
@@ -153,35 +149,51 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
             return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.MedicineChoiceVerdict(choice.Kind, medicineResource) };
         }
 
-        return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "medicine_bill") };
+        return new RoundsMedicalResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "medicine_bill") };
     }
 
-    public Declared DeclareOrders(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches)
+    /// <summary>The load's definition catalog (Go carried it on the frame tables); none when the native serves no definitions.</summary>
+    private async Task<DefinitionCatalog?> CatalogAsync(C.Identity identity, CancellationToken ct)
     {
-        var declared = DeclareOrdersInner(ct, snapshot, projection, benches);
-        return declared.For(ConcernId.MaintainMedicalReserves);
+        if (native is IDefinitionSource source)
+        {
+            return await source.DefinitionCatalogAsync(identity, ct).ConfigureAwait(false);
+        }
+
+        if (reviewer.Native is IDefinitionSource shared)
+        {
+            return await shared.DefinitionCatalogAsync(identity, ct).ConfigureAwait(false);
+        }
+
+        return null;
     }
 
-    private Declared DeclareOrdersInner(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches)
+    public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
+    {
+        var declared = DeclareOrdersInner(snapshot, projection, benches, ct);
+        return Task.FromResult(declared.For(PolicyFunctions.MaintainMedicalReserves));
+    }
+
+    private Declared DeclareOrdersInner(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var journal = reviewer.Player.Journal;
         var review = journal.LoadRounds(ct);
         if (!review.Enabled || review.Snapshot != snapshot)
         {
-            return Declared.Abstaining(Cause.UnreadReview);
+            return PolicyFunctions.Abstaining(Cause.UnreadReview);
         }
 
-        var (_, workable) = journal.Workable(ct, review, ConcernId.MaintainMedicalReserves);
+        var (_, workable) = journal.Workable(review, PolicyFunctions.MaintainMedicalReserves, ct);
         if (!workable || !review.Latches.Medical.Restocks())
         {
-            return default;
+            return new Declared();
         }
 
         var facts = projection.Facts.MedicalReserve;
         var medicalReview = PolicyFunctions.ReviewMedicalReserve(facts, review.Latches.MedicalReserve, reviewer.Policy.MedicalReserve);
         if (!medicalReview.Active)
         {
-            return default;
+            return new Declared();
         }
 
         Resource medicine;
@@ -191,19 +203,19 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         }
         catch (DomainException)
         {
-            return Declared.Abstaining(Cause.UnreadMedicine);
+            return PolicyFunctions.Abstaining(Cause.UnreadMedicine);
         }
 
-        var choice = PolicyFunctions.SelectMedicineMethod(new MedicinePlanningRequest { Review = medicalReview, Resource = medicine, Benches = Known(benches) });
+        var choice = PolicyFunctions.SelectMedicineMethod(new MedicinePlanningRequest { Review = medicalReview, Resource = medicine, Benches = Known<EquatableArray<GearBench>>([.. benches]) });
         return PolicyFunctions.DeclareMedicine(choice, benches);
     }
 
-    private RoundsMedicalResult HarvestMedicine(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, O.ColonyFactsSnapshot observed, Tables tables, MedicalReserveReview medicalReview, MedicalReserveObservation facts, Resource medicineResource, HashSet<string> stalledSources, DateTimeOffset started)
+    private async Task<RoundsMedicalResult> HarvestMedicineAsync(ControlState state, StandardState goal, O.ColonyFactsSnapshot observed, Tables tables, MedicalReserveReview medicalReview, MedicalReserveObservation facts, Resource medicineResource, HashSet<string> stalledSources, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         if (!medicalReview.Replenish.TryGetValue(out var replenish))
         {
-            return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.FieldUnavailable(BuildingRuntimePackage.UnreadMedicalFact(facts)) };
+            return new RoundsMedicalResult { Verdict = Verdict.FieldUnavailable(BuildingRuntimePackage.UnreadMedicalFact(facts)) };
         }
 
         if (replenish <= 0)
@@ -212,20 +224,20 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         }
 
         var review = p.Journal.LoadRounds(call);
-        var (supplyGoal, workable) = p.Journal.Workable(call, review, ConcernId.MaintainResource);
-        if (workable)
+        var (supplyGoal, workable) = p.Journal.Workable(review, PolicyFunctions.MaintainResource, call);
+        if (workable && supplyGoal is not null)
         {
-            var supply = reviewer.ResourceSupply(call, state, review, supplyGoal);
+            var supply = await reviewer.ResourceSupplyAsync(state, review, supplyGoal, call).ConfigureAwait(false);
             if (supply.FieldRoute(medicineResource))
             {
-                return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "medicine_field") };
+                return new RoundsMedicalResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "medicine_field") };
             }
         }
 
-        var sources = ObservationPackage.ColonyAcquisition(observed, tables);
+        var sources = ObservationPackage.ColonyAcquisition(observed, tables, await CatalogAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false));
         if (!sources.TryGetValue(out var rows))
         {
-            return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.FieldUnavailable("acquisition_sources") };
+            return new RoundsMedicalResult { Verdict = Verdict.FieldUnavailable("acquisition_sources") };
         }
 
         var pending = 0.0;
@@ -238,14 +250,14 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         }
 
         var plans = p.Journal.LoadPlans(call);
-        var held = new HashSet<string>();
+        var held = new Dictionary<string, bool>();
         foreach (var plan0 in plans)
         {
             foreach (var progress in plan0.Progress)
             {
-                if (progress.Action.TryAcquisition(out var acquisition) && PlanPackage.StandardWorkOpen([progress]))
+                if (progress.Action.Acquisition is { } acquisition && Standard.WorkOpen([progress]))
                 {
-                    held.Add(acquisition.Thing);
+                    held[acquisition.Thing] = true;
                 }
             }
         }
@@ -257,7 +269,7 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         }
         catch (DomainException)
         {
-            return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.FieldUnavailable("acquisition_sources") };
+            return new RoundsMedicalResult { Verdict = Verdict.FieldUnavailable("acquisition_sources") };
         }
 
         if (selected.Count == 0)
@@ -267,7 +279,7 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
                 return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
             }
 
-            return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.AwaitingPlan("medicine_source", "") };
+            return new RoundsMedicalResult { Verdict = Verdict.AwaitingPlan("medicine_source", "") };
         }
 
         var text = new StringBuilder();
@@ -280,8 +292,8 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         var method = new MethodId("acquire-" + Convert.ToHexStringLower(digest.AsSpan(0, 16)));
         try
         {
-            p.Journal.LoadMethod(call, goal.Standard.Id, goal.Standard.Episode, method);
-            return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "acquire_method") };
+            p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
+            return new RoundsMedicalResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "acquire_method") };
         }
         catch (NotFoundException)
         {
@@ -292,11 +304,11 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         for (var i = 0; i < selected.Count; i++)
         {
             var row = selected[i];
-            var value = Acquisition.NewAcquisition(row.Id, row.Resource, row.Cell);
+            var value = new Acquisition(row.Id, row.Resource, row.Cell);
             actions.Add(DomainAction.NewAcquisitionAction(new ActionId($"{id}-{i}"), value));
         }
 
-        var plan = PlanSpec.NewPlan(id, new PlanRevision(1), actions);
+        var plan = new PlanSpec(id, new PlanRevision(1), actions);
         p.Current(call, epoch);
         var elapsed = reviewer.Clock.Now() - started;
         if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
@@ -304,30 +316,34 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
             throw new ControlException("harvestMedicine: session state changed or the read took too long");
         }
 
-        p.Journal.CommitMethod(call, goal.Standard.Id, goal.Revision, method, plan);
+        p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
         return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
     }
 
-    private RoundsMedicalResult PlanAmputation(CancellationToken call, CancellationToken epoch, ControlState state, Rounds review)
+    private async Task<RoundsMedicalResult> PlanAmputationAsync(ControlState state, Rounds review, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
-        var (incident, found) = BuildingRuntimePackage.IncidentDeficit(call, p.Journal, review, ConcernId.CriticalMedicine);
+        var (incident, found) = BuildingRuntimePackage.IncidentDeficit(p.Journal, review, PolicyFunctions.CriticalMedicine, call);
         if (!found)
         {
             return default;
         }
 
-        var expected = BuildingRuntimePackage.StepScope(call, reviewer.Native);
+        var expected = await BuildingRuntimePackage.StepScopeAsync(reviewer.Native, call).ConfigureAwait(false);
         if (!BuildingRuntimePackage.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("planAmputation: boundary moved");
         }
 
-        var claims = p.Journal.ConstructionClaims(call, state.Snapshot, expected.Tick);
-        var read = reviewer.ObserveOwned(call, reviewer.Native, expected, claims);
-        read.Projection.Facts.MedicalPawns.TryGetValue(out var pawns);
+        var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
+        var read = await reviewer.ObserveOwnedAsync(reviewer.Native, expected, claims, call).ConfigureAwait(false);
         var window = expected.Tick.Value / BuildingRuntimePackage.AmputationRequeueTicks;
-        foreach (var pawn in pawns ?? [])
+        if (!read.Projection.Facts.MedicalPawns.TryGetValue(out var pawns))
+        {
+            return default;
+        }
+
+        foreach (var pawn in pawns)
         {
             foreach (var surgery in PolicyFunctions.LifeSavingAmputations(pawn))
             {
@@ -339,14 +355,14 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
 
                 var id = PlanIds.MintPlanId();
                 var action = DomainAction.NewSurgeryAction(new ActionId($"{id}-0"), surgery);
-                var plan = PlanSpec.NewPlan(id, new PlanRevision(1), [action]);
+                var plan = new PlanSpec(id, new PlanRevision(1), [action]);
                 p.Current(call, epoch);
                 if (p.Session.State() != state)
                 {
                     throw new ControlException("planAmputation: session state changed");
                 }
 
-                p.Journal.CommitIncidentMethod(call, incident.Incident.Id, method, "", plan);
+                p.Journal.CommitIncidentMethod(incident.Incident.Id, method, "", plan, call);
                 return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
             }
         }
@@ -355,7 +371,7 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
     }
 }
 
-public readonly record struct RoundsMedicalResult
+public readonly record struct RoundsMedicalResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 

@@ -42,7 +42,7 @@ internal static partial class BuildingRuntimePackage
             return ("", 0, false);
         }
 
-        var (plan, planned) = PolicyFunctions.PlanHayField(Known(need), crop, p.CropClimate);
+        var planned = PolicyFunctions.PlanHayField(Known(need), crop, p.CropClimate, out var plan);
         return (crop.Name, plan.Needed, planned && plan.Needed > 0);
     }
 
@@ -82,12 +82,12 @@ internal static partial class BuildingRuntimePackage
             return (default!, false);
         }
 
-        var (plan, planned) = PolicyFunctions.PlanHayField(Known(need), crop, p.CropClimate);
+        var planned = PolicyFunctions.PlanHayField(Known(need), crop, p.CropClimate, out var plan);
         if (!planned || plan.Needed <= 0)
         {
             return (default!, false);
         }
 
-        return (new FieldBlockOption { Crop = plan.Crop, Needed = plan.Needed }, true);
+        return (new FieldBlockOption(plan.Crop, plan.Needed), true);
     }
 }

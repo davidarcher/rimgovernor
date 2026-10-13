@@ -1,8 +1,8 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public sealed class RoundsRulesResult
+public sealed class RoundsRulesResult : IPlannerMethod
 {
-    public Verdict Verdict { get; init; } = new();
+    public Verdict Verdict { get; init; }
     public PlanId Plan { get; init; }
 }
 
@@ -19,6 +19,7 @@ public sealed class RoundsRulesPlanner
     private const string RulesMethodPrefix = "rules-";
 
     private readonly Rounder _reviewer;
+    internal Rounder Reviewer => _reviewer;
 
     private RoundsRulesPlanner(Rounder reviewer) => _reviewer = reviewer;
 
@@ -31,7 +32,7 @@ public sealed class RoundsRulesPlanner
         return new RoundsRulesPlanner(reviewer);
     }
 
-    internal RoundsRulesResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsRulesResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -39,7 +40,7 @@ public sealed class RoundsRulesPlanner
         {
             return new RoundsRulesResult { Verdict = BuildingReasonDisabled };
         }
-        if (!state.ObservationKnown || !state.Snapshot.IsValid())
+        if (!state.ObservationKnown || !state.Snapshot.IsValid)
         {
             throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil");
         }
@@ -48,39 +49,39 @@ public sealed class RoundsRulesPlanner
         {
             return new RoundsRulesResult { Verdict = BuildingReasonNoReview };
         }
-        var (goal, workable) = p.Journal.Workable(call, review, EnsureFoodSupply);
-        if (!workable)
+        var (goal, workable) = p.Journal.Workable(review, EnsureFoodSupply, call);
+        if (!workable || goal is null)
         {
             return new RoundsRulesResult { Verdict = BuildingReasonNoDeficit };
         }
-        var expected = StepScope(call, _reviewer.Native);
+        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
         // Hunters come from the pawn frame, not colony facts alone. After a census invalidation the fresh read
         // must populate both inputs too.
-        var read = _reviewer.ObserveOwned(call, _reviewer.Native, expected, Unknown<IReadOnlyList<Pol.ConstructionClaim>>());
-        var hunters = Unknown<IReadOnlyList<Pol.PawnProfile>>();
+        var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), call).ConfigureAwait(false);
+        var hunters = Unknown<EquatableArray<Pol.PawnProfile>>();
         if (read.Projection.WorkPawns.TryGetValue(out var pawns))
         {
-            hunters = Known<IReadOnlyList<Pol.PawnProfile>>(Profiles(pawns));
+            hunters = Known<EquatableArray<Pol.PawnProfile>>([.. Profiles(pawns)]);
         }
         var (set, known) = HuntChainRules(read.Projection.Acquisition, hunters, read.Projection.HuntHolds);
         if (!known)
         {
             return new RoundsRulesResult { Verdict = FieldUnavailable("hunt_census") };
         }
-        return Attach(call, epoch, state, goal, expected.Tick, set);
+        return Attach(state, goal, expected.Tick, set, call, epoch);
     }
 
     /// <summary>Commits one rules_attach method for the set at tick: a renewal when the set stands, a clear when it is empty and an earlier Round attached rules.</summary>
-    private RoundsRulesResult Attach(CancellationToken call, CancellationToken epoch, ControlState state, Sto.StandardState goal, Tick tick, Pol.RuleSet set)
+    private RoundsRulesResult Attach(ControlState state, Sto.StandardState goal, Tick tick, Pol.RuleSet set, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         if (set.Rules.Count == 0)
         {
-            var attached = Attached(call, goal);
+            var attached = Attached(goal, call);
             if (!attached)
             {
                 return new RoundsRulesResult { Verdict = BuildingReasonNoDeficit };
@@ -89,7 +90,7 @@ public sealed class RoundsRulesPlanner
         var method = new MethodId(string.Create(CultureInfo.InvariantCulture, $"{RulesMethodPrefix}{tick.Value:D12}"));
         try
         {
-            p.Journal.LoadMethod(call, goal.Standard.Id, goal.Standard.Episode, method);
+            p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
             return new RoundsRulesResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "rules_method") };
         }
         catch (Sto.NotFoundException)
@@ -105,12 +106,12 @@ public sealed class RoundsRulesPlanner
             throw new ControlException("attach: p.session.State() != state");
         }
         var reason = set.Rules.Count == 0 ? "clear native rules" : "attach native rules";
-        p.Journal.CommitMethodReason(call, goal.Standard.Id, goal.Revision, method, reason, plan);
+        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, reason, plan, call);
         return new RoundsRulesResult { Verdict = BuildingReasonAdmitted, Plan = id };
     }
 
     /// <summary>Whether the goal's latest rules method attached any rule, so an empty set is committed only to clear what an earlier Round left.</summary>
-    private bool Attached(CancellationToken call, Sto.StandardState goal)
+    private bool Attached(Sto.StandardState goal, CancellationToken call)
     {
         Method? latest = null;
         foreach (var method in goal.History)
@@ -124,7 +125,7 @@ public sealed class RoundsRulesPlanner
         {
             return false;
         }
-        var plan = _reviewer.Player.Journal.LoadPlan(call, latest.Plan);
+        var plan = _reviewer.Player.Journal.LoadPlan(latest.Plan, call);
         foreach (var progress in plan.Progress)
         {
             if (progress.Action.RulesAttach is { } attach && attach.Rules.Count > 0)

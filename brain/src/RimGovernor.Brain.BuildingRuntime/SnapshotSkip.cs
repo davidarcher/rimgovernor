@@ -11,7 +11,7 @@ internal static partial class BuildingRuntimePackage
         {
             Kind = "snapshot_skip",
             Component = component,
-            Level = DecisionLevel.Warn,
+            Level = TelemetryLevel.Warn,
             Verdict = "skipped",
             Reason = "not_recorded",
             Target = target,

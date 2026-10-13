@@ -11,13 +11,13 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public interface IRoundsStoneShellSource
 {
-    (WallUpgradeSites Sites, BridgeResult Result) ReadWallUpgradeSites(CancellationToken ct, C.Identity identity, string wall);
-    (BuildingPreview Preview, BridgeResult Result) PreviewBuilding(CancellationToken ct, DomainAction action, GenerationSnapshot snapshot);
+    Task<(WallUpgradeSites Sites, BridgeResult Result)> ReadWallUpgradeSitesAsync(C.Identity identity, string wall, CancellationToken ct);
+    Task<(BuildingPreview Preview, BridgeResult Result)> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
 }
 
-public sealed class RoundsStoneShellResult
+public sealed class RoundsStoneShellResult : IPlannerMethod
 {
-    public Verdict Verdict { get; init; } = new();
+    public Verdict Verdict { get; init; }
     public PlanId Plan { get; init; }
 }
 
@@ -54,7 +54,7 @@ public sealed class RoundsStoneShellPlanner
         return new MethodId("wall-" + Convert.ToHexString(sum, 0, 16).ToLowerInvariant());
     }
 
-    internal RoundsStoneShellResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsStoneShellResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -71,26 +71,26 @@ public sealed class RoundsStoneShellPlanner
         {
             return new RoundsStoneShellResult { Verdict = BuildingReasonNoReview };
         }
-        var (goal, workable) = p.Journal.Workable(call, review, MaintainStoneShell);
-        if (!workable)
+        var (goal, workable) = p.Journal.Workable(review, MaintainStoneShell, call);
+        if (!workable || goal is null)
         {
             return new RoundsStoneShellResult { Verdict = BuildingReasonNoDeficit };
         }
         foreach (var method in goal.Methods)
         {
-            var plan = p.Journal.LoadPlan(call, method.Plan);
-            if (Sto.PlanState.PlanOpen(plan))
+            var plan = p.Journal.LoadPlan(method.Plan, call);
+            if (StorePackage.PlanOpen(plan))
             {
                 return new RoundsStoneShellResult { Verdict = BuildingReasonExistingWork };
             }
         }
-        var expected = StepScope(call, _reviewer.Native);
+        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
-        var claims = p.Journal.ConstructionClaims(call, state.Snapshot, expected.Tick);
-        var read = _reviewer.ObserveOwned(call, _reviewer.Native, expected, claims);
+        var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
+        var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, call).ConfigureAwait(false);
         var projection = read.Projection;
         var owned = OwnedConstructions(claims, projection.Facts.CurrentConstruction);
         var targets = ReviewStoneShell(owned, projection.Facts.StoneStructures);
@@ -120,12 +120,12 @@ public sealed class RoundsStoneShellPlanner
         var unstocked = false;
         foreach (var wall in candidates)
         {
-            var (result, ok) = Propose(call, epoch, goal, state, read, wall);
+            var (result, ok) = await ProposeAsync(goal, state, read, wall, call, epoch).ConfigureAwait(false);
             if (ok)
             {
                 return result;
             }
-            unstocked = unstocked || result.Verdict == StoneShellUnstocked;
+            unstocked = unstocked || result.Verdict == BuildingReasonStoneShellUnstocked;
         }
         // A site with no replacement material while Stonecutting is unfinished waits on that research:
         // nothing cuts the blocks a stone wall needs.
@@ -145,7 +145,7 @@ public sealed class RoundsStoneShellPlanner
     {
         foreach (var c in material.Costs)
         {
-            if (budget.GetValueOrDefault(Pol.Resource.Of(c.Resource)) < c.Units * walls)
+            if (budget.GetValueOrDefault(new Pol.Resource(c.Resource)) < c.Units * walls)
             {
                 return false;
             }
@@ -158,12 +158,12 @@ public sealed class RoundsStoneShellPlanner
     /// the next candidate (no site, no material, unsupported backup geometry); any other outcome, admitted or
     /// refused, is this tick's final result: the first candidate whose bundle fully builds wins.
     /// </summary>
-    private (RoundsStoneShellResult Result, bool Ok) Propose(CancellationToken call, CancellationToken epoch, Sto.StandardState goal, ControlState state, Observation.RoundsReading read, string wall)
+    private async Task<(RoundsStoneShellResult Result, bool Ok)> ProposeAsync(Sto.StandardState goal, ControlState state, Observation.RoundsReading read, string wall, CancellationToken call, CancellationToken epoch)
     {
         var none = (new RoundsStoneShellResult(), false);
         var p = _reviewer.Player;
         var projection = read.Projection;
-        var (sites, _) = _native.ReadWallUpgradeSites(call, Boundary.Identity(state.Snapshot), wall);
+        var (sites, _) = await _native.ReadWallUpgradeSitesAsync(Boundary.Identity(state.Snapshot), wall, call).ConfigureAwait(false);
         GenerationSnapshot current;
         try
         {
@@ -173,7 +173,7 @@ public sealed class RoundsStoneShellPlanner
         {
             throw new ControlException("propose: err != nil || current.Native != state.Snapshot.Native || domain.Tick(sites.Context.GetTick()) < projection");
         }
-        if (current.Native != state.Snapshot.Native || new Tick(sites.Context.Tick) < projection.Identity.Tick)
+        if (current.Native != state.Snapshot.Native || new Tick(sites.Context?.Tick ?? 0) < projection.Identity.Tick)
         {
             throw new ControlException("propose: err != nil || current.Native != state.Snapshot.Native || domain.Tick(sites.Context.GetTick()) < projection");
         }
@@ -186,7 +186,7 @@ public sealed class RoundsStoneShellPlanner
         {
             return none;
         }
-        var catalog = PawnCatalog(call, _native, Boundary.Identity(state.Snapshot));
+        var catalog = await PawnCatalogAsync(_native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         if (catalog is null)
         {
             throw new ControlException("propose: the source serves no definition catalog");
@@ -195,7 +195,7 @@ public sealed class RoundsStoneShellPlanner
         var materials = catalog.StuffMaterials("Wall", "Stony");
         if (materials.Count == 0)
         {
-            return (new RoundsStoneShellResult { Verdict = StoneShellUnstocked }, false);
+            return (new RoundsStoneShellResult { Verdict = BuildingReasonStoneShellUnstocked }, false);
         }
         var backupCount = site.BackupCells.Count;
         if (backupCount != 0 && backupCount != 3)
@@ -206,7 +206,7 @@ public sealed class RoundsStoneShellPlanner
         // the first stone the budget covers. Without a stock census the first stone is proposed.
         var material = materials[0];
         var funded = true;
-        if (MaterialBudget(projection.Facts.Resources, projection.Facts.ConstructionDeficit, projection.Facts.BillReservations, "").TryGetValue(out var budget))
+        if (MaterialBudget(projection.Facts.Resources, projection.Facts.ConstructionDeficit, projection.Facts.BillReservations, default(PawnId)).TryGetValue(out var budget))
         {
             funded = false;
             foreach (var option in materials)
@@ -221,9 +221,9 @@ public sealed class RoundsStoneShellPlanner
         }
         if (!funded)
         {
-            return (new RoundsStoneShellResult { Verdict = StoneShellUnstocked }, false);
+            return (new RoundsStoneShellResult { Verdict = BuildingReasonStoneShellUnstocked }, false);
         }
-        var costs = material.Costs.Select(c => new Pol.Amount { Resource = Pol.Resource.Of(c.Resource), Count = c.Units }).ToList();
+        var costs = material.Costs.Select(c => new Pol.Amount { Resource = new Pol.Resource(c.Resource), Count = c.Units }).ToList();
         var key = StoneShellMethodId(wall);
         var id = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = id, Revision = new PlanRevision(1) };
@@ -237,9 +237,8 @@ public sealed class RoundsStoneShellPlanner
             var cell = site.BackupCells[i];
             var building = new Building("Wall", cell, Rotation.North, material.Stuff);
             var actionId = new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-backup-{i}"));
-            var action = DomainAction.NewBuildingAction(actionId, building, BuildTier.Survive);
-            var (preview, ok) = PreviewWall(call, action, snapshot, cell);
-            if (!ok)
+            var action = DomainAction.NewBuildingAction(actionId, building, ConstructionTier.Survive);
+            if (await PreviewWallAsync(action, snapshot, cell, call).ConfigureAwait(false) is not { } preview)
             {
                 return none;
             }
@@ -256,9 +255,8 @@ public sealed class RoundsStoneShellPlanner
         actions.Add(demolish);
         var permanentBuilding = new Building("Wall", siteCell, Rotation.North, material.Stuff);
         var permanentId = new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-replace"));
-        var permanent = DomainAction.NewBuildingAction(permanentId, permanentBuilding, BuildTier.Survive);
-        var (permanentPreview, pok) = PreviewWall(call, permanent, snapshot, siteCell);
-        if (!pok)
+        var permanent = DomainAction.NewBuildingAction(permanentId, permanentBuilding, ConstructionTier.Survive);
+        if (await PreviewWallAsync(permanent, snapshot, siteCell, call).ConfigureAwait(false) is not { } permanentPreview)
         {
             return none;
         }
@@ -284,17 +282,17 @@ public sealed class RoundsStoneShellPlanner
         // permanent replacement), so admission's stock check runs against the combined bundle, not a per-action share.
         for (var i = 0; i < previews.Count; i++)
         {
-            previews[i] = previews[i] with { Costs = Known<IReadOnlyList<Pol.Amount>>(costs) };
+            previews[i] = previews[i] with { Costs = Known<EquatableArray<Pol.Amount>>([.. costs]) };
         }
         p.Current(call, epoch);
         if (p.Session.State() != state)
         {
             throw new ControlException("propose: p.session.State() != state");
         }
-        ScopeSnapshot actual;
+        Observation.Identity actual;
         try
         {
-            actual = StepScope(call, _reviewer.Native);
+            actual = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -307,21 +305,21 @@ public sealed class RoundsStoneShellPlanner
         var now = _reviewer.Clock.Now();
         if (now < read.StartedAt || now - read.StartedAt > _reviewer.MaxAge)
         {
-            throw new Observation.StaleException();
+            throw new Observation.ObservationStaleException();
         }
-        var decision = AdmitMethod(call, p.Journal, new Sto.BuildingMethodRequest
+        var decision = await AdmissionLog.AdmitMethodAsync(p.Journal, new Sto.BuildingMethodRequest
         {
             Owner = goal,
             Method = key,
             Plan = plan,
             Current = snapshot,
             Tick = projection.Identity.Tick,
-            Bounds = Known<Pol.Rectangle>(projection.Bounds),
+            Bounds = Known(projection.Bounds),
             Stock = stock,
             Previews = previews,
             Purpose = Pol.Purpose.Rounds,
-        });
-        var reason = AdmissionRefused(decision);
+        }, call).ConfigureAwait(false);
+        var reason = AdmissionLog.AdmissionRefused(decision);
         if (decision.Admitted)
         {
             reason = BuildingReasonAdmitted;
@@ -329,9 +327,9 @@ public sealed class RoundsStoneShellPlanner
         return (new RoundsStoneShellResult { Verdict = reason, Plan = id }, true);
     }
 
-    private (BuildingPreview Preview, bool Ok) PreviewWall(CancellationToken ct, DomainAction action, GenerationSnapshot snapshot, Cell cell)
+    private async Task<BuildingPreview?> PreviewWallAsync(DomainAction action, GenerationSnapshot snapshot, Cell cell, CancellationToken ct)
     {
-        var (preview, _) = _native.PreviewBuilding(ct, action, snapshot);
+        var (preview, _) = await _native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
         var v = preview.Preview;
         var fk = v.Footprint.TryGetValue(out var footprint);
         var mk = v.MadeFromStuff.TryGetValue(out var made);
@@ -339,14 +337,14 @@ public sealed class RoundsStoneShellPlanner
         var sk = v.SafeToPlace.TryGetValue(out var safe);
         if (!fk || !mk || !lk || !sk)
         {
-            return (new BuildingPreview(), false);
+            return null;
         }
         // A Wall is a stuffed building: the preview of one that is not made from stuff is a contract
         // mismatch, not a placeable site.
         if (!made || footprint!.Count != 1 || footprint[0] != cell || !legal || !safe)
         {
-            return (new BuildingPreview(), false);
+            return null;
         }
-        return (preview, true);
+        return preview;
     }
 }

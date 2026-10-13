@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IOverRockPreviewer
 {
-    (BuildingPreview Preview, BridgeResult Result) PreviewBuildingOverRock(CancellationToken ct, DomainAction action, GenerationSnapshot snapshot);
+    Task<(BuildingPreview Preview, BridgeResult Result)> PreviewBuildingOverRockAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
 }
 
 public sealed partial class RoundsBuildingPlanner
@@ -10,19 +10,19 @@ public sealed partial class RoundsBuildingPlanner
     internal const int DigWaves = 64;
     internal const string RoomDigMethodPrefix = "plan-dig-room-";
 
-    internal (RoundsBuildingResult Result, bool Handled) AdmitRockStep(CancellationToken call, CancellationToken epoch, ExcavationStep s, IReadOnlyList<RoleCell> planned, Cell access, MethodId method, IReadOnlyList<Building> buildings, Action check)
+    internal async Task<(RoundsBuildingResult Result, bool Handled)> AdmitRockStepAsync(ExcavationStep s, IReadOnlyList<RoleCell> planned, Cell access, MethodId method, IReadOnlyList<Building> buildings, Action check, CancellationToken call, CancellationToken epoch)
     {
-        var roofs = RoofRulesFor(call, s.State.Snapshot, planned);
+        var roofs = await RoofRulesForAsync(s.State.Snapshot, planned, call).ConfigureAwait(false);
         var step = PolicyFunctions.RockStepRoofs(planned, s.Facts.Cells, roofs);
         if (step.Unfit.Count > 0)
         {
             return (new RoundsBuildingResult { Verdict = RockNotDug(method.Value, $"{step.Unfit.Count}_cells_thick_or_unseen_roof") }, true);
         }
 
-        return DigPlannedSky(call, epoch, s, step.Dig, step.Unroof, access, method, buildings, check);
+        return await DigPlannedSkyAsync(s, step.Dig, step.Unroof, access, method, buildings, check, call, epoch).ConfigureAwait(false);
     }
 
-    internal RoofRules? RoofRulesFor(CancellationToken ct, GenerationSnapshot snapshot, IReadOnlyList<RoleCell> planned)
+    internal async Task<RoofRules?> RoofRulesForAsync(GenerationSnapshot snapshot, IReadOnlyList<RoleCell> planned, CancellationToken ct)
     {
         if (!planned.Any(c => c.Role == RockRole.NeedsSky))
         {
@@ -34,18 +34,18 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("roof rules: the native source serves no definitions");
         }
 
-        var catalog = source.DefinitionCatalog(ct, Boundary.Identity(snapshot));
-        return catalog.RoofRules();
+        var catalog = await source.DefinitionCatalogAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
+        return (catalog ?? throw new ControlException("roof rules: no definition catalog")).RoofRules();
     }
 
-    internal (RoundsBuildingResult Result, bool Handled) DigPlanned(CancellationToken call, CancellationToken epoch, ExcavationStep s, IReadOnlyList<Cell> rock, Cell access, MethodId method, IReadOnlyList<Building> buildings, Action check) =>
-        DigPlannedSky(call, epoch, s, rock, [], access, method, buildings, check);
+    internal async Task<(RoundsBuildingResult Result, bool Handled)> DigPlannedAsync(ExcavationStep s, IReadOnlyList<Cell> rock, Cell access, MethodId method, IReadOnlyList<Building> buildings, Action check, CancellationToken call, CancellationToken epoch) =>
+        await DigPlannedSkyAsync(s, rock, [], access, method, buildings, check, call, epoch).ConfigureAwait(false);
 
-    internal (RoundsBuildingResult Result, bool Handled) DigPlannedSky(CancellationToken call, CancellationToken epoch, ExcavationStep s, IReadOnlyList<Cell> rock, IReadOnlyList<Cell> unroof, Cell access, MethodId method, IReadOnlyList<Building> buildings, Action check)
+    internal async Task<(RoundsBuildingResult Result, bool Handled)> DigPlannedSkyAsync(ExcavationStep s, IReadOnlyList<Cell> rock, IReadOnlyList<Cell> unroof, Cell access, MethodId method, IReadOnlyList<Building> buildings, Action check, CancellationToken call, CancellationToken epoch)
     {
         if (rock.Count == 0 && unroof.Count == 0)
         {
-            return (default, false);
+            return (new RoundsBuildingResult(), false);
         }
 
         var dig = Copy();
@@ -53,7 +53,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             if (Native is not IRoundsExcavationSource source)
             {
-                return (default, false);
+                return (new RoundsBuildingResult(), false);
             }
 
             dig.Excavation = source;
@@ -64,7 +64,7 @@ public sealed partial class RoundsBuildingPlanner
         var designated = false;
         if (rock.Count > 0)
         {
-            var site = dig.ReadExcavationSite(call, snapshot, s.Facts.Identity.Tick, "plan-dig", new ExcavationTarget(), rock, access, check);
+            var site = await dig.ReadExcavationSiteAsync(snapshot, s.Facts.Identity.Tick, "plan-dig", new ExcavationTarget(), rock, access, check, call).ConfigureAwait(false);
             foreach (var cell in site.Cells)
             {
                 designated = designated || cell.MineDesignated;
@@ -73,7 +73,7 @@ public sealed partial class RoundsBuildingPlanner
                     continue;
                 }
 
-                excavations.Add(Excavation.NewExcavation(cell.Cell, cell.Definition));
+                excavations.Add(new Excavation(cell.Cell, cell.Definition));
             }
 
             if (buildings.Count == 0)
@@ -88,7 +88,7 @@ public sealed partial class RoundsBuildingPlanner
                     return (new RoundsBuildingResult { Verdict = BuildingReasonExistingWork }, true);
                 }
 
-                return (default, false);
+                return (new RoundsBuildingResult(), false);
             }
 
             if (site.CollapsePending || site.Support == ExcavationSupport.Unsupported || !site.WorkerAvailable)
@@ -110,18 +110,18 @@ public sealed partial class RoundsBuildingPlanner
         var admitted = method;
         for (var wave = 0; ; wave++)
         {
-            IncidentMethodRecord prior;
+            Method prior;
             try
             {
-                prior = Reviewer.Player.Journal.LoadOwnerMethod(call, s.Owner, admitted);
+                prior = Reviewer.Player.Journal.LoadOwnerMethod(s.Owner, admitted, call);
             }
             catch (NotFoundException)
             {
                 break;
             }
 
-            var plan0 = Reviewer.Player.Journal.LoadPlan(call, prior.Plan);
-            if (PlanPackage.StandardWorkOpen(plan0.Progress))
+            var plan0 = Reviewer.Player.Journal.LoadPlan(prior.Plan, call);
+            if (Standard.WorkOpen(plan0.Progress))
             {
                 return (new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "dig_plan") }, true);
             }
@@ -153,13 +153,13 @@ public sealed partial class RoundsBuildingPlanner
                 return (new RoundsBuildingResult { Verdict = FieldUnavailable("over_rock_preview") }, true);
             }
 
-            var (preview, next, reason) = PreviewPlannedBuilding(call, snapshot, s.Facts, building, i, overRock, !digging.Contains(building.Cell));
+            var (preview, next, reason) = await PreviewPlannedBuildingAsync(snapshot, s.Facts, building, i, overRock, !digging.Contains(building.Cell), call).ConfigureAwait(false);
             if (!reason.IsZero)
             {
                 return (new RoundsBuildingResult { Verdict = reason }, true);
             }
 
-            MergeRoundsStock(ref stock, next, i == 0);
+            stock = MergeRoundsStock(stock, next, i == 0);
             previews.AddRange(preview);
             actions.Add(preview[0].Action);
         }
@@ -181,7 +181,7 @@ public sealed partial class RoundsBuildingPlanner
 
         if (unroof.Count > 0)
         {
-            var roof = RemoveRoof.NewRemoveRoof(unroof);
+            var roof = new RemoveRoof(unroof);
             var action = DomainAction.NewRemoveRoofAction(new ActionId($"{snapshot.Plan}-{actions.Count}"), roof);
             foreach (var id in dug)
             {
@@ -196,48 +196,46 @@ public sealed partial class RoundsBuildingPlanner
             actions.Add(action);
         }
 
-        var plan = PlanSpec.NewPlan(snapshot.Plan, new PlanRevision(1), actions, [.. dependencies]);
-        var result = dig.AdmitExcavation(call, epoch, s, snapshot, admitted, plan, previews, stock, check);
+        var plan = new PlanSpec(snapshot.Plan, new PlanRevision(1), actions, [.. dependencies]);
+        var result = await dig.AdmitExcavationAsync(s, snapshot, admitted, plan, previews, stock, check, call, epoch).ConfigureAwait(false);
         return (result, true);
     }
 
     internal static bool IsRoomDigMethod(MethodId method) => method.Value.StartsWith(RoomDigMethodPrefix, StringComparison.Ordinal);
 
-    internal (RoundsBuildingResult Result, bool Handled) DigPlannedRoom(CancellationToken call, CancellationToken epoch, ExcavationStep s, LayoutPlan plan, PlannedRoom room, Action check)
+    internal async Task<(RoundsBuildingResult Result, bool Handled)> DigPlannedRoomAsync(ExcavationStep s, LayoutPlan plan, PlannedRoom room, Action check, CancellationToken call, CancellationToken epoch)
     {
-        Footprint shell;
+        RoomFootprint shell;
         try
         {
             shell = room.Footprint();
         }
         catch (DomainException)
         {
-            return (default, false);
+            return (new RoundsBuildingResult(), false);
         }
 
-        return DigPlanned(call, epoch, s, plan.RoomRock(room, s.Facts.Cells).Dig, shell.Threshold(), BuildingRuntimePackage.DigMethod("room", room), [], check);
+        return await DigPlannedAsync(s, plan.RoomRock(room, s.Facts.Cells).Dig, shell.Threshold, BuildingRuntimePackage.DigMethod("room", room), [], check, call, epoch).ConfigureAwait(false);
     }
 
-    internal (RoundsBuildingResult Result, bool Handled) DigExhaust(CancellationToken call, CancellationToken epoch, ExcavationStep s, Action check)
+    internal async Task<(RoundsBuildingResult Result, bool Handled)> DigExhaustAsync(ExcavationStep s, Action check, CancellationToken call, CancellationToken epoch)
     {
-        var pk = s.Facts.LayoutPlan.TryGetValue(out var plan);
-        var rk = s.Facts.Rooms.TryGetValue(out var rooms);
-        var tk = s.Facts.TechTier.TryGetValue(out var tier);
-        if (!pk || !rk || !tk || tier < TechTier.Masonry)
+        if (!s.Facts.LayoutPlan.TryGetValue(out var plan) || !s.Facts.Rooms.TryGetValue(out var rooms) || !s.Facts.TechTier.TryGetValue(out var tier) || tier < TechTier.Masonry)
         {
-            return (default, false);
+            return (new RoundsBuildingResult(), false);
         }
 
-        foreach (var room in plan!.Rooms)
+        foreach (var room in plan.Rooms)
         {
-            var (site, _, ok) = plan.CoolerExhaust(room);
-            if (!ok)
+            if (plan.CoolerExhaust(room) is not { } exhaust)
             {
                 continue;
             }
 
-            var (standing, found) = PolicyFunctions.CensusRoomIn(room, rooms!);
-            if (!found || standing.Id != Refrigeration.Room)
+            var site = exhaust.Site;
+
+            var (standing, found) = PolicyFunctions.CensusRoomIn(room, rooms);
+            if (!found || standing is null || standing.Id != Refrigeration?.Room)
             {
                 continue;
             }
@@ -250,16 +248,16 @@ public sealed partial class RoundsBuildingPlanner
             {
                 if (Native is not IOverRockPreviewer)
                 {
-                    return (default, false);
+                    return (new RoundsBuildingResult(), false);
                 }
 
-                place.Add(Building.NewBuilding("Cooler", site.Cell, site.Rotation, ""));
+                place.Add(new Building("Cooler", site.Cell, site.Rotation, ""));
             }
 
-            return DigPlanned(call, epoch, s, rock, cooler.Cold(), BuildingRuntimePackage.DigMethod("exhaust", room), place, check);
+            return await DigPlannedAsync(s, rock, cooler.Cold(), BuildingRuntimePackage.DigMethod("exhaust", room), place, check, call, epoch).ConfigureAwait(false);
         }
 
-        return (default, false);
+        return (new RoundsBuildingResult(), false);
     }
 }
 

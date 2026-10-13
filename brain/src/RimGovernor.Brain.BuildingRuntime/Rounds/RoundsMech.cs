@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal static partial class BuildingRuntimePackage
 {
     internal static MechCatalog MechCatalogOf(DefinitionCatalog? catalog) =>
-        catalog is null ? new MechCatalog() : catalog.Biotech.MechCatalog();
+        catalog?.Biotech is { } biotech ? biotech.MechCatalog() : new MechCatalog();
 
     internal static IReadOnlyList<PawnSettings> RoundsMechSettings(RoundsReading read)
     {
@@ -21,12 +21,12 @@ internal static partial class BuildingRuntimePackage
         }
 
         var chargerReady = read.Projection.Biotech.TryGetValue(out var biotech) && PolicyFunctions.MechChargerReady(biotech.MechChargerRows());
-        return PolicyFunctions.PlanMechControl(MechCatalogOf(read.Frame.Catalog), fleet.Mechanitors, fleet.Mechs, hostile, chargerReady);
+        return PolicyFunctions.PlanMechControl(MechCatalogOf(read.Catalog), fleet.Mechanitors, fleet.Mechs, hostile, chargerReady);
     }
 
     internal static MechGuardPlan CombatMechGuards(Combat combat, IReadOnlyList<string> hostileIds, IReadOnlyDictionary<string, O.PawnState> rows)
     {
-        var fleet = ObservationPackage.MechFleet(combat.Detail.Values());
+        var fleet = ObservationPackage.MechFleetOf(combat.Detail.Table.Values());
         if (fleet.Mechanitors.Count == 0 || fleet.Mechs.Count == 0)
         {
             return new MechGuardPlan();
@@ -40,7 +40,7 @@ internal static partial class BuildingRuntimePackage
                 continue;
             }
 
-            if (ObservationPackage.RowCell(row).TryGetValue(out var cell))
+            if (ObservationPackage.RowCellOf(row).TryGetValue(out var cell))
             {
                 hostiles.Add(new MechHostile { Id = new PawnId(id), Cell = cell });
             }

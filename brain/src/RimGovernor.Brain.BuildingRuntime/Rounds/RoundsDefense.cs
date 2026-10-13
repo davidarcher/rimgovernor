@@ -9,16 +9,16 @@ public interface IRoundsDefenseSource : IBurnFuelSource
 {
     (M.CombatGeometry Geometry, BridgeResult Result) CombatGeometry(M.CombatGeometryRequest request, CancellationToken ct);
 
-    BridgeCombat ReadCombat(C.Identity identity, CancellationToken ct);
+    Task<BridgeCombat> ReadCombatAsync(C.Identity identity, CancellationToken ct);
 }
 
 /// <summary>Runs combat batch actions through the executor.</summary>
 public interface ICombatHands
 {
-    IReadOnlyList<BatchItem> RunBatch(CancellationToken ct, PlanId plan, IReadOnlyList<ActionId> actions);
+    IReadOnlyList<BatchItem> RunBatch(PlanId plan, IReadOnlyList<ActionId> actions, CancellationToken ct);
 }
 
-public sealed class RoundsDefenseResult
+public sealed class RoundsDefenseResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 
@@ -61,7 +61,7 @@ public sealed partial class RoundsDefensePlanner
         return m;
     }
 
-    internal RoundsDefenseResult Decide(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsDefenseResult> DecideAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -75,11 +75,11 @@ public sealed partial class RoundsDefensePlanner
         }
         try
         {
-            RestoreReloadedCombat(call, state);
+            await RestoreReloadedCombatAsync(state, call).ConfigureAwait(false);
         }
         catch (CombatRestorationPendingException ex)
         {
-            Tel.Decide(call, new Decision
+            Tel.Decide(new Decision
             {
                 Kind = "admission",
                 Component = "routine-defense",
@@ -93,10 +93,10 @@ public sealed partial class RoundsDefensePlanner
         {
             return new RoundsDefenseResult { Verdict = BuildingReasonNoReview };
         }
-        var (incident, need, found) = RoundsIncident(call, p.Journal, review, PolicyApi.ActiveCombat);
+        var (incident, need, found) = RoundsIncident(p.Journal, review, PolicyApi.ActiveCombat, call);
         if (found)
         {
-            var (subdued, handled) = ReconcileSubdueFight(call, epoch, incident!, state);
+            var (subdued, handled) = await ReconcileSubdueFightAsync(incident!, state, call, epoch).ConfigureAwait(false);
             if (handled)
             {
                 return subdued;
@@ -104,8 +104,8 @@ public sealed partial class RoundsDefensePlanner
         }
         if (found && need == Situation.Clear)
         {
-            SettleUnissuedWork(call, incident!);
-            var (post, held0) = PostFight(call, epoch, incident!, state, review.Tick, arbiter);
+            SettleUnissuedWork(incident!, call);
+            var (post, held0) = await PostFightAsync(incident!, state, review.Tick, arbiter, call, epoch).ConfigureAwait(false);
             if (held0)
             {
                 return post;
@@ -114,7 +114,7 @@ public sealed partial class RoundsDefensePlanner
             {
                 if (method.Method.Value.StartsWith(CombatMethodPrefix, StringComparison.Ordinal))
                 {
-                    ClearFightDoors(call, state, method.Plan);
+                    await ClearFightDoorsAsync(state, method.Plan, call).ConfigureAwait(false);
                     p.Journal.CloseCombatFight(method.Plan, call);
                 }
             }
@@ -130,8 +130,7 @@ public sealed partial class RoundsDefensePlanner
         {
             if (method.Method.Value.StartsWith(CombatMethodPrefix, StringComparison.Ordinal))
             {
-                var (record, ok) = p.Journal.LoadCombatFight(method.Plan, call);
-                if (!ok || !record.Open)
+                if (p.Journal.LoadCombatFight(method.Plan, call) is not { Open: true } record)
                 {
                     continue;
                 }
@@ -155,7 +154,7 @@ public sealed partial class RoundsDefensePlanner
         }
         var started = _reviewer.Clock.Now();
         var identity = Boundary.Identity(state.Snapshot);
-        var combat = _native.ReadCombat(identity, call);
+        var combat = await _native.ReadCombatAsync(identity, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(combat.Context, state.Snapshot);
@@ -164,20 +163,20 @@ public sealed partial class RoundsDefensePlanner
         {
             throw new ControlException("decide: err != nil || combat.Emergency.Context == nil || combat.Context.GetTick() < int64(review.Tick)");
         }
-        if (combat.Emergency.Context is null || combat.Context.Tick < (long)review.Tick)
+        if (combat.Context is null || combat.Emergency.Context is null || combat.Context.Tick < review.Tick.Value)
         {
             throw new ControlException("decide: err != nil || combat.Emergency.Context == nil || combat.Context.GetTick() < int64(review.Tick)");
         }
-        var (inputs, reason) = CombatFrameInputs(combat, StorePackage.HuntPrey(incident.Incident));
+        var (inputs, reason) = CombatFrameInputs(combat, [.. incident.Incident.HuntPrey]);
         if (inputs is null || !reason.IsZero)
         {
             return new RoundsDefenseResult { Verdict = reason };
         }
         var inp = inputs;
-        inp.Needed = PlannedDrafts(call, p.Journal);
+        inp.Needed = await DraftNeeds.PlannedDraftsAsync(p.Journal, call).ConfigureAwait(false);
         var emergency = combat.Emergency;
         var rows = inp.Rows;
-        var broke = PlanBreak(call, epoch, incident, state, started, arbiter, new Tick(combat.Context.Tick), emergency.Facts, rows);
+        var broke = await PlanBreakAsync(incident, state, started, arbiter, new Tick(combat.Context?.Tick ?? 0), emergency.Facts, rows, call, epoch).ConfigureAwait(false);
         if (!broke.Verdict.IsZero)
         {
             return broke;
@@ -189,48 +188,50 @@ public sealed partial class RoundsDefensePlanner
             memory = fight.Memory;
             orderable = FightOrderable(fight, rows);
         }
-        var (layout, lok) = p.Journal.LoadDefenseLayout(new StoreWorld { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map }, call);
+        var layout = p.Journal.LoadDefenseLayout(new StoreWorld { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map }, call);
         var held = Unknown<CombatLayout>();
-        if (lok && layout.Complete)
+        if (layout is { Complete: true })
         {
-            var (rec, planned) = p.Journal.LayoutPlan(state.Snapshot, new Tick(combat.Context.Tick), call);
-            var opening = PolicyApi.KillboxOpening(rec.Plan);
-            if (planned && opening.Found)
+            if (p.Journal.LayoutPlan(state.Snapshot, new Tick(combat.Context?.Tick ?? 0), call) is { Plan: { } layoutPlan })
             {
-                var combatLayout = new CombatLayout { Firing = layout.Firing, Retreat = layout.Retreat, Toward = opening.Opening.Toward };
-                if (layout.TrapLane.Count > 0)
+                var opening = PolicyApi.KillboxOpening(layoutPlan);
+                if (opening.Ok)
                 {
-                    combatLayout.Choke = Known(layout.TrapLane[^1]);
+                    var combatLayout = new CombatLayout { Firing = [.. layout.Firing], Retreat = [.. layout.Retreat], Toward = opening.Killbox.Toward };
+                    if (layout.TrapLane.Count > 0)
+                    {
+                        combatLayout = combatLayout with { Choke = Known(layout.TrapLane[^1]) };
+                    }
+                    held = Known(combatLayout);
                 }
-                held = Known(combatLayout);
             }
         }
-        var items = _reviewer.ItemFacts(call, state.Snapshot);
-        var burn = CombatBurnSite(call, _native, identity, memory, combat.Context.Tick, items);
-        var drug = _reviewer.CombatDrugs(call, state.Snapshot);
+        var items = await _reviewer.ItemFactsAsync(state.Snapshot, call).ConfigureAwait(false);
+        var burn = await CombatBurnSiteAsync(_native, identity, memory, combat.Context?.Tick ?? 0, items, call).ConfigureAwait(false);
+        var drug = await _reviewer.CombatDrugsAsync(state.Snapshot, call).ConfigureAwait(false);
         var view = CombatView(combat, inp, orderable, held);
-        view.Burn = burn;
-        view.Royalty = _reviewer.Census.Remembered();
-        view.Drugs = drug;
+        view = view with { Burn = burn };
+        view = view with { Royalty = _reviewer.Census.Remembered() };
+        view = view with { Drugs = [.. drug] };
         var tick = view.Tick;
         var stop = CombatStop(combat, memory.Tick);
-        ReconcileCombatBatches(call, state, incident, view);
+        await ReconcileCombatBatchesAsync(state, incident, view, call).ConfigureAwait(false);
         var (orders, ask, next) = PolicyApi.DecideCombat(view, new GeometryReply(), stop, memory);
-        var recorded = new SnapshotCombatStop { Tick = tick, Stop = stop, Orderable = orderable, Ask = ask, MemoryIn = memory };
+        var recorded = new SnapshotCombatStop { Tick = tick, Stop = stop, Orderable = [.. orderable.Select(o => (Domain.PawnId)o)], Ask = ask, MemoryIn = memory };
         if (held.TryGetValue(out var layoutKnown))
         {
             recorded.Layout = layoutKnown;
         }
         if (ask is not null)
         {
-            recorded.Reply = AnswerGeometry(call, Boundary.Identity(state.Snapshot), ask);
+            recorded.Reply = AnswerGeometry(Boundary.Identity(state.Snapshot), ask, call);
             (orders, _, next) = PolicyApi.DecideCombat(view, recorded.Reply, stop, memory);
         }
         recorded.MemoryOut = next;
         var reconsider = PolicyApi.ShelterReconsider(view, memory);
         if (reconsider != "")
         {
-            Tel.Decide(call, new Decision
+            Tel.Decide(new Decision
             {
                 Kind = "admission",
                 Component = "routine-defense",
@@ -240,17 +241,17 @@ public sealed partial class RoundsDefensePlanner
                 Attrs = new Dictionary<string, object?> { ["combat_plan"] = fightPlan, ["tactic"] = next.Tactic },
             });
         }
-        if (next.Formed == tick && next.Refusal != "" && next.Tactic != PolicyApi.TacticHold)
+        if (next.Formed == tick && next.Refusal != "" && next.Tactic != CombatTactic.Hold)
         {
-            DefenseAction(call, "routine-defense", LogLevel.Info, "refused", "hold_refused", incident.Incident.Id.Value, new Dictionary<string, object?> { ["incident"] = incident.Incident.Id.Value, ["gate"] = next.Refusal });
+            DefenseAction("routine-defense", TelemetryLevel.Info, "refused", "hold_refused", incident.Incident.Id.Value, new Dictionary<string, object?> { ["incident"] = incident.Incident.Id.Value, ["gate"] = next.Refusal }, call);
         }
         if (fight is null)
         {
-            var result = AdmitFight(call, epoch, incident, state, started, arbiter, new FightAdmission { Combat = combat, In = inp, Held = held, Reply = recorded.Reply ?? new GeometryReply(), Stop = stop, Memory = next });
+            var result = await AdmitFightAsync(incident, state, started, arbiter, new FightAdmission { Combat = combat, In = inp, Held = held, Reply = recorded.Reply ?? new GeometryReply(), Stop = stop, Memory = next }, call, epoch).ConfigureAwait(false);
             if (result.Verdict == BuildingReasonAdmitted)
             {
                 recorded.Plan = result.Plan;
-                RecordCombatStop(call, combat, recorded);
+                RecordCombatStop(combat, recorded, call);
             }
             return result;
         }
@@ -270,18 +271,18 @@ public sealed partial class RoundsDefensePlanner
             var withDrafts = orderable.ToList();
             withDrafts.AddRange(drafts);
             withDrafts.Sort((a, b) => string.CompareOrdinal(a.Value, b.Value));
-            recorded.Orderable = withDrafts;
-            view = CombatView(combat, inp, recorded.Orderable, held);
-            view.Burn = burn;
-            view.Royalty = _reviewer.Census.Remembered();
-            view.Drugs = drug;
+            recorded.Orderable = [.. withDrafts.Select(o => (Domain.PawnId)o)];
+            view = CombatView(combat, inp, withDrafts, held);
+            view = view with { Burn = burn };
+            view = view with { Royalty = _reviewer.Census.Remembered() };
+            view = view with { Drugs = [.. drug] };
             var (o2, more, n2) = PolicyApi.DecideCombat(view, recorded.Reply ?? new GeometryReply(), stop, memory);
             orders = o2;
             next = n2;
             if (more is not null && recorded.Ask is null)
             {
                 recorded.Ask = more;
-                recorded.Reply = AnswerGeometry(call, Boundary.Identity(state.Snapshot), more);
+                recorded.Reply = AnswerGeometry(Boundary.Identity(state.Snapshot), more, call);
                 (orders, more, next) = PolicyApi.DecideCombat(view, recorded.Reply, stop, memory);
             }
             if (more is not null)
@@ -292,15 +293,15 @@ public sealed partial class RoundsDefensePlanner
             recorded.MemoryOut = next;
         }
         var (rest, permits) = SplitPermitCalls(orders);
-        CommitPermitCalls(call, epoch, incident, permits);
+        CommitPermitCalls(incident, permits, call, epoch);
         var guards = CombatMechGuards(combat, inp.HostileIds, inp.Rows);
-        drafts.AddRange(guards.Drafts);
+        drafts.AddRange(guards.Drafts.Select(d => (PawnId)d));
         var allOrders = rest.ToList();
         allOrders.AddRange(guards.Orders);
         if (allOrders.Count + drafts.Count == 0 && permits.Count > 0)
         {
             p.Journal.SaveCombatMemory(id, next, call);
-            RecordCombatStop(call, combat, recorded);
+            RecordCombatStop(combat, recorded, call);
             return new RoundsDefenseResult { Verdict = BuildingReasonAdmitted, Plan = id };
         }
         if (allOrders.Count + drafts.Count == 0)
@@ -308,8 +309,8 @@ public sealed partial class RoundsDefensePlanner
             if (next.Formed != memory.Formed || next.Tactic != memory.Tactic || !next.Roles.SequenceEqual(memory.Roles))
             {
                 p.Journal.SaveCombatMemory(id, next, call);
-                RecordCombatStop(call, combat, recorded);
-                if (memory.Tactic == PolicyApi.TacticHold && next.Tactic != PolicyApi.TacticHold)
+                RecordCombatStop(combat, recorded, call);
+                if (memory.Tactic == CombatTactic.Hold && next.Tactic != CombatTactic.Hold)
                 {
                     return new RoundsDefenseResult { Verdict = BuildingReasonHoldFallback, Plan = id };
                 }
@@ -317,11 +318,11 @@ public sealed partial class RoundsDefensePlanner
             return new RoundsDefenseResult { Verdict = BuildingReasonExistingWork, Plan = id };
         }
         p.Current(call, epoch);
-        var (stopRecord, next3) = IssueCombatOrders(call, state, id, view, drafts, allOrders, next);
-        stopRecord.Stop = stop;
+        var (stopRecord, next3) = await IssueCombatOrdersAsync(state, id, view, drafts, allOrders, next, call).ConfigureAwait(false);
+        stopRecord = stopRecord with { Stop = stop };
         p.Journal.RecordCombatStop(id, stopRecord, next3, call);
         recorded.Evidence = true;
-        RecordCombatStop(call, combat, recorded);
+        RecordCombatStop(combat, recorded, call);
         return new RoundsDefenseResult { Verdict = BuildingReasonCombatOrders, Plan = id };
     }
 
@@ -331,9 +332,9 @@ public sealed partial class RoundsDefensePlanner
         var orderable = new List<PawnId>();
         foreach (var pawn in fight.Roster)
         {
-            if (rows.TryGetValue(pawn.Value, out var row) && row is not null && Boundary.FactBool(row.HasDrafted ? row.Drafted : null) == Known(true))
+            if (rows.TryGetValue(pawn.Value, out var row) && row is not null && Boundary.FactBool(row.HasDrafted, row.Drafted) == Known(true))
             {
-                orderable.Add(pawn);
+                orderable.Add((PawnId)pawn);
             }
         }
         orderable.Sort((a, b) => string.CompareOrdinal(a.Value, b.Value));
@@ -341,7 +342,7 @@ public sealed partial class RoundsDefensePlanner
     }
 
     /// <summary>Cancels the pending and prepared work of the incident's methods, other than the post-fight strip, before the incident closes.</summary>
-    internal void SettleUnissuedWork(CancellationToken call, IncidentState incident)
+    internal void SettleUnissuedWork(IncidentState incident, CancellationToken call)
     {
         var p = _reviewer.Player;
         foreach (var method in incident.Methods)
@@ -400,32 +401,30 @@ internal sealed class CombatInputs
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>The inputs of the combat step; a null inputs value carries the wait verdict when the census is incomplete or there is no fight.</summary>
-    internal static (CombatInputs? Inputs, Verdict Reason) CombatFrameInputs(BridgeCombat combat, IReadOnlyList<PawnId> huntPrey)
+    internal static (CombatInputs? Inputs, Verdict Reason) CombatFrameInputs(BridgeCombat combat, IReadOnlyList<Domain.PawnId> huntPrey)
     {
         var facts = combat.Emergency.Facts;
+        var catalog = combat.Catalog ?? throw new ControlException("combatFrameInputs: no definition catalog");
         if (!facts.ColonistsComplete.TryGetValue(out var colonistsComplete) || !colonistsComplete)
         {
-            return (null, WaitFor(PolicyApi.CauseMethodUsed, "colonist_census_incomplete"));
+            return (null, WaitFor(Cause.MethodUsed, "colonist_census_incomplete"));
         }
         var inp = new CombatInputs();
         (inp.HostileIds, inp.Hunting, inp.Buildings) = DefenseTargets(facts.Threats);
-        foreach (var building in inp.Buildings)
-        {
-            building.Mortar = combat.Catalog.IsMortar(building.Definition);
-        }
-        if (inp.HostileIds.Count + inp.Buildings.Count == 0 && !HasAggressiveBreak(facts) && facts.PodsOpen == 0)
+        inp.Buildings = [.. inp.Buildings.Select(building => building with { Mortar = catalog.IsMortar(building.Definition) })];
+        if (inp.HostileIds.Count + inp.Buildings.Count == 0 && !RoundsDefensePlanner.HasAggressiveBreak(facts) && facts.PodsOpen.Value == 0)
         {
             foreach (var id in huntPrey)
             {
-                if (combat.Detail.TryGetValue(id.Value, out var row) && row is not null && Boundary.FactBool(row.HasDead ? row.Dead : null) != Known(true))
+                if (combat.Detail.TryGetValue(id.Value, out var row) && row is not null && Boundary.FactBool(row.HasDead, row.Dead) != Known(true))
                 {
                     inp.Prey.Add(id.Value);
                 }
             }
         }
-        if (facts.Colonists.Count == 0 || (inp.HostileIds.Count + inp.Buildings.Count + inp.Prey.Count == 0 && !HasAggressiveBreak(facts) && facts.PodsOpen == 0))
+        if (facts.Colonists.Count == 0 || (inp.HostileIds.Count + inp.Buildings.Count + inp.Prey.Count == 0 && !RoundsDefensePlanner.HasAggressiveBreak(facts) && facts.PodsOpen.Value == 0))
         {
-            return (null, WaitFor(PolicyApi.CauseMethodUsed, "no_fight"));
+            return (null, WaitFor(Cause.MethodUsed, "no_fight"));
         }
         foreach (var pawn in facts.Colonists)
         {
@@ -444,7 +443,7 @@ internal static partial class BuildingRuntimePackage
                 throw new ControlException("combatFrameInputs: row == nil");
             }
         }
-        var arms = new Armament { Catalog = combat.Catalog, Things = combat.Things };
+        var arms = new Armament { Catalog = catalog, Things = combat.Things };
         inp.ResolveProfiles(facts.Colonists, arms);
         foreach (var (id, row) in inp.Rows)
         {
@@ -466,7 +465,7 @@ internal static partial class BuildingRuntimePackage
             {
                 continue;
             }
-            inp.Weapons[def] = combat.Catalog.WeaponOf(def);
+            inp.Weapons[def] = catalog.WeaponOf(def);
         }
         return (inp, default);
     }
@@ -474,6 +473,8 @@ internal static partial class BuildingRuntimePackage
     /// <summary>The policy view of the fight: the defenders, the threats, the structures and the combat read's rooms, doors and mortars.</summary>
     internal static CombatView CombatView(BridgeCombat combat, CombatInputs inp, IReadOnlyList<PawnId> orderable, Fact<CombatLayout> layout)
     {
+        var catalog = combat.Catalog ?? throw new ControlException("combatView: no definition catalog");
+        var needed = inp.Needed.Select(n => (Domain.PawnId)n).ToHashSet();
         var owned = new HashSet<PawnId>(orderable);
         var armor = new Dictionary<PawnId, double>();
         var melee = new Dictionary<PawnId, Fact<double>>();
@@ -494,15 +495,15 @@ internal static partial class BuildingRuntimePackage
         {
             var row = inp.Rows[pawn.Id.Value];
             inp.Ranged.TryGetValue(pawn.Id.Value, out var ranged);
-            var d = SquadDefenderFacts(row, inp.Needed, ranged);
+            var d = SquadDefenderFacts(row, needed, ranged);
             if (armor.TryGetValue(d.Id, out var a))
             {
-                d.Armor = Known(a);
+                d = d with { Armor = Known(a) };
             }
-            d.MeleePower = melee.TryGetValue(d.Id, out var mp) ? mp : default;
+            d = d with { MeleePower = melee.TryGetValue(d.Id, out var mp) ? mp : default };
             if (owned.Contains(d.Id))
             {
-                d.DraftOwned = Known(false);
+                d = d with { DraftOwned = Known(false) };
             }
             defenders.Add(d);
             // Go assigns the warden capability to its local copy after the append, so it never reaches the defender row; ported as is.
@@ -510,21 +511,18 @@ internal static partial class BuildingRuntimePackage
             profiles.Add(profile);
         }
         var (front, _) = PolicyApi.FrontLine(profiles);
-        var holds = new HashSet<PawnId>(front.Select(f => new PawnId(f)));
-        foreach (var d in defenders)
-        {
-            d.FrontLine = holds.Contains(d.Id);
-        }
+        var holds = new HashSet<PawnId>(front);
+        defenders = [.. defenders.Select(d => d with { FrontLine = holds.Contains(d.Id) })];
         var threats = new List<SquadThreatFacts>();
-        combat.Catalog.AnimalRaces(out var races);
+        var races = catalog.AnimalRaces();
         var positional = new List<DefensiveThreatFacts>(inp.HostileIds.Count);
         foreach (var id in inp.HostileIds)
         {
             var row = inp.Rows[id];
             inp.Ranged.TryGetValue(id, out var ranged);
             var facts = SquadThreatFacts(row, races, ranged);
-            facts.Hunting = Known(inp.Hunting.Contains(id));
-            facts.MeleePower = melee.TryGetValue(new PawnId(id), out var mp) ? mp : default;
+            facts = facts with { Hunting = Known(inp.Hunting.Contains(id)) };
+            facts = facts with { MeleePower = melee.TryGetValue(new PawnId(id), out var mp) ? mp : default };
             threats.Add(facts);
             positional.Add(DefensiveThreatFacts(row));
         }
@@ -537,7 +535,7 @@ internal static partial class BuildingRuntimePackage
         foreach (var building in inp.Buildings)
         {
             lines.TryGetValue(building.Id, out var linesOfFire);
-            threats.Add(new SquadThreatFacts { Id = building.Id, Dead = building.Dead, Building = true, LinesOfFire = linesOfFire ?? [] });
+            threats.Add(new SquadThreatFacts { Id = building.Id, Dead = building.Dead, Building = true, LinesOfFire = linesOfFire?.ToDictionary(shooter => shooter, _ => true) ?? new Dictionary<PawnId, bool>() });
         }
         var structures = new List<HostileStructure>();
         foreach (var b in inp.Buildings)
@@ -554,25 +552,25 @@ internal static partial class BuildingRuntimePackage
         }
         return new CombatView
         {
-            SiteExit = ObservationApi.CombatSiteExit(combat.World, new MapId(combat.Context.Identity?.MapId ?? 0)),
+            SiteExit = ObservationApi.CombatSiteExitOf(combat.World, new MapId(combat.Context?.Identity?.MapId ?? 0)),
             Hunt = inp.Prey.Count > 0,
-            Tick = new Tick(combat.Context.Tick),
-            Pawns = PreyStates(CombatPawnStates(combat, inp.Rows, inp.Weapons), inp, combat.Catalog),
-            Defenders = defenders,
-            Threats = threats,
-            Positional = positional,
-            Orderable = orderable,
+            Tick = new Tick(combat.Context?.Tick ?? 0),
+            Pawns = [.. PreyStates(CombatPawnStates(combat, inp.Rows, inp.Weapons), inp, catalog)],
+            Defenders = [.. defenders],
+            Threats = [.. threats],
+            Positional = [.. positional],
+            Orderable = [.. orderable],
             Layout = layout,
             Pods = PodArrival(combat),
-            Rooms = combat.Rooms,
+            Rooms = [.. combat.Rooms],
             DoorStates = combat.DoorStates,
-            DamagedDoors = damaged,
-            Mortars = combat.Mortars,
+            DamagedDoors = [.. damaged],
+            Mortars = [.. combat.Mortars],
             Shells = combat.Shells,
-            Structures = structures,
+            Structures = [.. structures],
             OutdoorTemperatureC = combat.OutdoorTemperatureC,
             HiveTemperatureC = combat.HiveTemperatureC,
-            Population = Known((long)combat.Emergency.Facts.Colonists.Count),
+            Population = Known(combat.Emergency.Facts.Colonists.Count),
         };
     }
 
@@ -590,7 +588,7 @@ internal static partial class BuildingRuntimePackage
             var s = new CombatPawnState { Id = new PawnId(id), Downed = row.Downed, Dead = row.Dead, Wild = true };
             if (row.Pawn?.Position is { HasX: true, HasZ: true } position)
             {
-                s.Cell = Known(new Cell(position.X, position.Z));
+                s = s with { Cell = Known(new Cell(position.X, position.Z)) };
             }
             states.Add(ThreatFacts(s, row, catalog));
         }
@@ -612,12 +610,12 @@ internal static partial class BuildingRuntimePackage
         {
             return Unknown<PodArrival>();
         }
-        var pods = new PodArrival { Open = new Tick(newest.OpenTick) };
+        var landing = new List<Cell>();
         foreach (var c in newest.LandingCells)
         {
-            pods.Landing.Add(new Cell(c.X, c.Z));
+            landing.Add(new Cell(c.X, c.Z));
         }
-        return Known(pods);
+        return Known(new PodArrival { Open = new Tick(newest.OpenTick), Landing = [.. landing] });
     }
 
     /// <summary>The shooters with a line of fire to each threatening building: for every known line within the weapon reach, the shooters standing at its origin.</summary>
@@ -682,28 +680,28 @@ internal static partial class BuildingRuntimePackage
         var facts = new DefensiveThreatFacts
         {
             Id = new PawnId(row.Pawn?.Id ?? ""),
-            Dead = Boundary.FactBool(row.HasDead ? row.Dead : null),
-            Downed = Boundary.FactBool(row.HasDowned ? row.Downed : null),
+            Dead = Boundary.FactBool(row.HasDead, row.Dead),
+            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
         };
         if (row.HasHumanlike)
         {
-            facts.Humanlike = Known(row.Humanlike);
+            facts = facts with { Humanlike = Known(row.Humanlike) };
         }
         if (row.HasLordJobClass && !Boundary.IssueField(row.Issues, "lord_job_class"))
         {
-            facts.LordJobClass = Known(row.LordJobClass);
+            facts = facts with { LordJobClass = Known(row.LordJobClass) };
         }
         if (row.HasLordToilClass && !Boundary.IssueField(row.Issues, "lord_toil_class"))
         {
-            facts.LordToilClass = Known(row.LordToilClass);
+            facts = facts with { LordToilClass = Known(row.LordToilClass) };
         }
         if (row.HasNearestColonistDistance && !Boundary.IssueField(row.Issues, "nearest_colonist_distance"))
         {
-            facts.NearestColonistDistance = Known(row.NearestColonistDistance);
+            facts = facts with { NearestColonistDistance = Known(row.NearestColonistDistance) };
         }
         if (row.Pawn?.Position is { HasX: true, HasZ: true } position)
         {
-            facts.Position = Known(new Cell(position.X, position.Z));
+            facts = facts with { Position = Known(new Cell(position.X, position.Z)) };
         }
         return facts;
     }
@@ -770,22 +768,22 @@ internal static partial class BuildingRuntimePackage
         var hunting = new HashSet<string>(StringComparer.Ordinal);
         foreach (var threat in threats)
         {
-            if (!threat.Engaging())
+            if (!threat.Engaging)
             {
                 continue;
             }
-            if (threat.IsBuilding())
+            if (threat.Building)
             {
                 if (threat.Dead.TryGetValue(out var dead) && !dead)
                 {
                     buildings.Add(threat);
                 }
             }
-            else if (threat.Kind == PolicyApi.Hostile)
+            else if (threat.Kind == ThreatKind.Hostile)
             {
                 ids.Add(threat.Id.Value);
             }
-            else if (threat.Kind == PolicyApi.HuntingPredator && !threat.DistantThreat())
+            else if (threat.Kind == ThreatKind.HuntingPredator && !threat.DistantThreat)
             {
                 ids.Add(threat.Id.Value);
                 hunting.Add(threat.Id.Value);

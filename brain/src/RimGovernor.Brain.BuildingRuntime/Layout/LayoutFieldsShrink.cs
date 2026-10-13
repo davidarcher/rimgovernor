@@ -38,11 +38,12 @@ internal static class LayoutFieldShrink
                 output[crop.Name] = Math.Max(output.GetValueOrDefault(crop.Name), capacity);
             }
         }
-        if (Fields.HayTarget(projection) is { } hay)
+        var (hayName, hayNeeded, hayFound) = HayTarget(projection);
+        if (hayFound)
         {
-            output[hay.Name] = hay.Cells;
+            output[hayName] = hayNeeded;
         }
-        foreach (var crop in Fields.SocialCrops(projection))
+        foreach (var crop in SocialCrops(projection))
         {
             output[crop.Name] = PolicyFunctions.SocialCropCells;
         }
@@ -162,7 +163,7 @@ internal static class LayoutFieldShrink
 public sealed partial class RoundsFieldPlanner
 {
     /// <summary>Gives up one surplus zone's bare cells with remove-cells, committed directly like a grow. Returns null when nothing was shrunk (no surplus, no bare cell, the method already committed).</summary>
-    internal async Task<RoundsFieldResult?> ShrinkAsync(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, ColonyProjection projection, RoundsReading read, FieldRequest field)
+    internal async Task<RoundsFieldResult?> ShrinkAsync(ControlState state, StandardState goal, ColonyProjection projection, RoundsReading read, FieldRequest field, CancellationToken call, CancellationToken epoch)
     {
         if (LayoutFieldShrink.PlanFieldShrink(projection, LayoutFieldShrink.FieldTargets(projection, field)) is not { } plan)
         {
@@ -194,7 +195,7 @@ public sealed partial class RoundsFieldPlanner
         {
             throw new ControlException("shrink: stale state or read");
         }
-        await p.Journal.CommitMethodAsync(goal.Standard.Id, goal.Revision, method, committed, call).ConfigureAwait(false);
+        await p.Journal.CommitMethodReasonAsync(goal.Standard.Id, goal.Revision, method, "", committed, call).ConfigureAwait(false);
         ClockEvents.Event("layout", "fields", "field block shrunk", ("zone", plan.Id), ("crop", plan.Crop), ("cells", cells.Count), ("plan", id.Value));
         return new RoundsFieldResult { Verdict = BuildingReasonAdmitted, Plan = id };
     }

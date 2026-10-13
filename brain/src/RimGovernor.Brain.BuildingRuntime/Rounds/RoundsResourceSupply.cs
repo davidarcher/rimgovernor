@@ -13,7 +13,7 @@ internal sealed class ResourceSupplyRow
 
     public bool SelKnown { get; set; }
 
-    public ResourceMethod Choice { get; set; }
+    public ResourceMethod Choice { get; set; } = new();
 
     public List<AcquisitionSource> Open { get; } = [];
 
@@ -27,7 +27,7 @@ internal sealed class ResourceSupplyRow
 /// <summary>The resource supply plan with its per-resource rows, built once per review and cached.</summary>
 internal sealed class ResourceSupplyState
 {
-    public ResourceSupply Plan { get; set; }
+    public ResourceSupply Plan { get; set; } = new();
 
     public List<Resource> Order { get; } = [];
 
@@ -129,7 +129,7 @@ internal sealed class ResourceSupplyState
         {
             foreach (var e in Plan.Opened(resource))
             {
-                if (e.Candidate.Kind != CandidateKind.Trade || e.Candidate.Id != PolicyFunctions.TradeCandidateId(trader, resource))
+                if (e.Candidate.Kind != CandidateKind.Trade || e.Candidate.Id != PolicyFunctions.TradeCandidateID(trader, resource))
                 {
                     continue;
                 }
@@ -170,8 +170,7 @@ internal static class DeepDrillReadingExtensions
                 continue;
             }
 
-            var (c, ok) = PolicyFunctions.DeepDrillCandidate(resource, place.Id, Math.Min(place.Site.Count, deficit), place.Distance, headroom);
-            if (ok)
+            if (PolicyFunctions.DeepDrillCandidate(resource, place.Id, Math.Min(place.Site.Count, deficit), place.Distance, headroom, out var c))
             {
                 output.Add(c);
             }
@@ -183,7 +182,7 @@ internal static class DeepDrillReadingExtensions
 
 public sealed partial class Rounder
 {
-    internal ResourceSupplyState ResourceSupply(CancellationToken call, ControlState state, Rounds review, StandardState goal)
+    internal async Task<ResourceSupplyState> ResourceSupplyAsync(ControlState state, Rounds review, StandardState goal, CancellationToken call)
     {
         var s = Census;
         var key = new ResourceSupplyKey(state.Snapshot, review.Tick, 0, review.Revision, goal.Revision, TradeOffers.Version());
@@ -196,7 +195,7 @@ public sealed partial class Rounder
             }
         }
 
-        var built = BuildResourceSupply(call, state, review, goal);
+        var built = await BuildResourceSupplyAsync(state, review, goal, call).ConfigureAwait(false);
         lock (s.Mu)
         {
             s.Supply = built;
@@ -206,9 +205,9 @@ public sealed partial class Rounder
         return built;
     }
 
-    internal ResourceSupplyState BuildResourceSupply(CancellationToken call, ControlState state, Rounds review, StandardState goal)
+    internal async Task<ResourceSupplyState> BuildResourceSupplyAsync(ControlState state, Rounds review, StandardState goal, CancellationToken call)
     {
-        var (expected, projection) = AcquisitionReading(call, state, review);
+        var (expected, projection) = await AcquisitionReadingAsync(state, review, call).ConfigureAwait(false);
         var stock = projection.Facts.Resources;
         var targets = ResourceTargets(state.Snapshot);
         var ranked = PolicyFunctions.RankResourceTargets(targets, stock).ToList();
@@ -219,14 +218,14 @@ public sealed partial class Rounder
         var undispatched = new HashSet<string>();
         foreach (var method in goal.Methods)
         {
-            var plan = Player.Journal.LoadPlan(call, method.Plan);
+            var plan = Player.Journal.LoadPlan(method.Plan, call);
             foreach (var thing in BuildingRuntimePackage.UndispatchedAcquisitions(plan.Progress))
             {
                 undispatched.Add(thing);
             }
         }
 
-        var progress = review.ConcernProgress(ConcernId.MaintainResource);
+        var progress = review.ConcernProgress(PolicyFunctions.MaintainResource);
         var held = BuildingRuntimePackage.CooledSources(projection.Acquisition, ChopMinGrowth(projection), id => BuildingRuntimePackage.AcquisitionCooled(progress, Policy, id, expected.Tick));
         var busy = BuildingRuntimePackage.HoldWorked(projection.Acquisition, undispatched, held);
         var (slots, _) = RoundsResourcePlanner.HuntSlots(projection);
@@ -234,7 +233,6 @@ public sealed partial class Rounder
         output.Hunts = hunts;
         var centered = projection.Center().TryGetValue(out var center);
         projection.Acquisition.TryGetValue(out var rows);
-        rows ??= [];
         IReadOnlyList<TradeOffers> offers = [];
         long spendable = 0;
         long reserve = 0;
@@ -252,16 +250,16 @@ public sealed partial class Rounder
 
         if (planner is not null)
         {
-            output.Drill = planner.DeepDrillReading(call, state, review);
+            output.Drill = await planner.ReadDeepDrillAsync(state, review, call).ConfigureAwait(false);
         }
 
-        RemoteWorkRequest reach = default;
+        var reach = new RemoteWorkRequest();
         var reachRead = false;
-        var fieldPlanner = NewResourceFieldPlanner(call, state, review, expected, projection);
+        var fieldPlanner = NewResourceFieldPlanner(state, review, expected, projection, call);
         IReadOnlyList<ResourceRunway> runways = review.Enabled && review.Snapshot == state.Snapshot ? review.ResourceRunwayState() : [];
         var inputs = new List<ResourceSupplyInput>();
         var queued = new HashSet<Resource>(ranked.Select(t => t.Resource));
-        var reader = new StockReader { Resources = stock };
+        var reader = new StockReader(stock, Unknown<long>());
         for (var i = 0; i < ranked.Count; i++)
         {
             var target = ranked[i];
@@ -279,28 +277,27 @@ public sealed partial class Rounder
             var candidates = new List<SupplyCandidate>();
             if (serves.TryGetValue(resource, out var servedBy) && servedBy == resource)
             {
-                input.HorizonDays = PolicyFunctions.ClothingHorizonDays;
+                input = input with { HorizonDays = PolicyFunctions.ClothingHorizonDays };
             }
 
             if (planner is not null)
             {
                 if (!reachRead)
                 {
-                    reach = planner.MiningReach(call, state, review.Tick);
+                    reach = await planner.MiningReachAsync(state, review.Tick, call).ConfigureAwait(false);
                     reachRead = true;
                 }
 
-                var (choice, ingredients) = planner.MethodChoice(call, identity, resource, target.Target);
+                var (choice, ingredients) = await planner.MethodChoiceAsync(identity, resource, target.Target, call).ConfigureAwait(false);
                 row.Choice = choice;
-                input.Usable = PolicyFunctions.UsableIngredients(runways, ingredients);
-                (row.Sel, row.SelKnown) = planner.SourcesForDeficit(call, identity, resource, target.Target, stock, reach);
+                input = input with { Usable = [.. PolicyFunctions.UsableIngredients(runways, ingredients)] };
+                (row.Sel, row.SelKnown) = await planner.SourcesForDeficitAsync(identity, resource, target.Target, stock, reach, call).ConfigureAwait(false);
                 if (row.SelKnown)
                 {
                     candidates.AddRange(PolicyFunctions.MineCandidates(resource, row.Sel.Selected ?? [], Known(row.Sel.Storage.Capacity)));
                 }
 
-                var (produce, found) = PolicyFunctions.ProduceCandidate(row.Choice, deficit);
-                if (found)
+                if (PolicyFunctions.ProduceCandidate(row.Choice, deficit, out var produce))
                 {
                     candidates.Add(produce);
                     foreach (var cost in produce.UpfrontCost.Resources)
@@ -329,8 +326,8 @@ public sealed partial class Rounder
             var priced = new List<AcquisitionSource>();
             foreach (var source in rows)
             {
-                var (offered, serving) = PolicyFunctions.ResourceSourceFor(source, resource, serves);
-                if (!serving)
+                var offered = PolicyFunctions.ResourceSourceFor(source, resource, serves);
+                if (offered is null)
                 {
                     continue;
                 }
@@ -339,7 +336,7 @@ public sealed partial class Rounder
                 {
                     need -= (long)Math.Round(offered.Yield, MidpointRounding.AwayFromZero);
                 }
-                else if (!held.Contains(source.Id) && !(source.Hunt && output.Hunts <= 0))
+                else if (!(held.TryGetValue(source.Id, out var isHeld) && isHeld) && !(source.Hunt && output.Hunts <= 0))
                 {
                     row.Open.Add(source);
                     priced.Add(offered);
@@ -358,12 +355,12 @@ public sealed partial class Rounder
                     candidate.LeadDays.TryGetValue(out var lead);
                     if (lead > input.HorizonDays)
                     {
-                        input.HorizonDays = lead;
+                        input = input with { HorizonDays = lead };
                     }
                 }
             }
 
-            input.Deficit = Math.Max(need, 0);
+            input = input with { Deficit = Math.Max(need, 0) };
             if (centered)
             {
                 candidates.AddRange(PolicyFunctions.AcquisitionSourceCandidates(resource, priced, center, Known(need)));
@@ -371,7 +368,7 @@ public sealed partial class Rounder
 
             candidates.AddRange(output.Drill.Candidates(resource, deficit, row));
             candidates.AddRange(PolicyFunctions.TradeOfferCandidates(resource, offers, deficit, spendable, reserve));
-            input.Candidates = candidates;
+            input = input with { Candidates = [.. candidates] };
             inputs.Add(input);
         }
 
@@ -385,7 +382,7 @@ public sealed partial class Rounder
             throw new ControlException("buildResourceSupply", e);
         }
 
-        PlanTradeAcquisition(call, state.Snapshot, "resources", projection, output.Plan.Plan.Demands, null);
+        await PlanTradeAcquisitionAsync(state.Snapshot, "resources", projection, output.Plan.Plan.Demands, null, call).ConfigureAwait(false);
         return output;
     }
 }
@@ -410,8 +407,7 @@ public sealed partial class RoundsResourcePlanner
         if (projection.WorkPawns.TryGetValue(out var pawns))
         {
             var profiles = PolicyFunctions.Profiles(pawns);
-            var (_, ok) = PolicyFunctions.HunterFor(profiles);
-            if (!ok)
+            if (PolicyFunctions.HunterFor(profiles) is null)
             {
                 return (Known(0), true);
             }

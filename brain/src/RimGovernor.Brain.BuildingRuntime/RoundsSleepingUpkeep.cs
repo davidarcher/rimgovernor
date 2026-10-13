@@ -31,7 +31,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             throw new ControlException("NewRoundsSleepingUpkeepPlanner: !ok");
         }
-        var building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = MaintainHousing, Phase = HousingPhase.Sleeping };
+        var building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = MaintainHousing, Phase = Pol.Phase.HousingSleeping };
         return new RoundsSleepingUpkeepPlanner(reviewer, native, building);
     }
 
@@ -66,7 +66,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         return Math.Min((uint)SleepingObservationSlice, (uint)(SleepingObservationBudget - (tick.Value - v.Tick.Value)));
     }
 
-    internal RoundsBuildingResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsBuildingResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var state = p.Session.State();
@@ -74,7 +74,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return new RoundsBuildingResult { Verdict = BuildingReasonDisabled };
         }
-        if (!state.ObservationKnown || !state.Snapshot.IsValid() || state.Snapshot.Native.Value == 0)
+        if (!state.ObservationKnown || !state.Snapshot.IsValid || state.Snapshot.Native.Value == 0)
         {
             throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0");
         }
@@ -83,15 +83,15 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return new RoundsBuildingResult { Verdict = BuildingReasonNoReview };
         }
-        var (goal, workable) = p.Journal.Workable(call, review, MaintainHousing);
-        if (!workable || review.Latches.Housing != HousingPhase.Sleeping)
+        var (goal, workable) = p.Journal.Workable(review, MaintainHousing, call);
+        if (!workable || goal is null || review.Latches.Phase(MaintainHousing) != Pol.Phase.HousingSleeping)
         {
             return new RoundsBuildingResult { Verdict = BuildingReasonNoDeficit };
         }
         foreach (var m in goal.Methods)
         {
-            var plan = p.Journal.LoadPlan(call, m.Plan);
-            if (Sto.PlanState.PlanOpen(plan))
+            var plan = p.Journal.LoadPlan(m.Plan, call);
+            if (StorePackage.PlanOpen(plan))
             {
                 return new RoundsBuildingResult { Verdict = BuildingReasonExistingWork };
             }
@@ -99,7 +99,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         // A completed assignment is retired from the goal's active methods once its epoch is cleaned, so the
         // epoch's full method history is what still earns the observation window.
         uint observe = 0;
-        var methods = p.Journal.LoadOwnerMethods(call, goal);
+        var methods = p.Journal.LoadOwnerMethods(goal, call);
         foreach (var m in methods)
         {
             // Only a bed assignment is followed by observed sleep.
@@ -107,10 +107,10 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             {
                 continue;
             }
-            var plan = p.Journal.LoadPlan(call, m.Plan);
+            var plan = p.Journal.LoadPlan(m.Plan, call);
             observe = Math.Max(observe, SleepingNativeWorkTicks(plan, state.Snapshot, review.Tick));
         }
-        var result = Decide(call, epoch, arbiter, state, review, goal);
+        var result = await DecideAsync(arbiter, state, review, goal, call, epoch).ConfigureAwait(false);
         if (result.Verdict != BuildingReasonAdmitted && result.NativeWorkTicks == 0)
         {
             result = result with { NativeWorkTicks = observe };
@@ -118,21 +118,21 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         return result;
     }
 
-    private RoundsBuildingResult Decide(CancellationToken call, CancellationToken epoch, StepArbiter arbiter, ControlState state, Sto.Rounds review, Sto.StandardState goal)
+    private async Task<RoundsBuildingResult> DecideAsync(StepArbiter arbiter, ControlState state, Sto.Rounds review, Sto.StandardState goal, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var started = Reviewer.Clock.Now();
-        var (identity, _) = Native.Identity(call);
+        var (identity, _) = await Native.IdentityAsync(call).ConfigureAwait(false);
         var expected = ObservationPackage.DecodeIdentity(identity);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("decide: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
         List<string> definitions = ["Wall", "Door", .. RoomBeautyDefinitions(), .. Reviewer.RememberedThrones(), .. Reviewer.Census.RememberedWorship()];
-        var reading = Reviewer.ObserveRooms(call, (Observation.IRoundsSource)Native, expected, Unknown<IReadOnlyList<Pol.ConstructionClaim>>(), [.. definitions]);
+        var reading = await Reviewer.ObserveRoomsAsync((Observation.IRoundsSource)Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), [.. definitions], call).ConfigureAwait(false);
         var facts = reading.Projection;
         // One packed read per pass, shared by every owner of stored pieces.
-        var stock = PackedStock.Create(Native, Boundary.Identity(state.Snapshot));
+        var stock = new PackedStock(Native, Boundary.Identity(state.Snapshot));
         var request = SleepingRequest(facts, review);
         var choice = SelectSleepingMethod(request);
         // swapping flags a bedroom swap: native evicts the bed's owner.
@@ -140,13 +140,13 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         // A couple's double bed comes before any other bed change.
         if (choice.Method != Pol.SleepingMethod.Unknown)
         {
-            var (couple, due) = CoupleBed(call, epoch, stock, state, review, goal, reading);
+            var (couple, due) = await CoupleBedAsync(stock, state, review, goal, reading, call, epoch).ConfigureAwait(false);
             if (due)
             {
                 return couple;
             }
         }
-        if (BedroomsFirst(choice.Method) && BedroomStepOf(facts, Reviewer.Stage).Kind != Pol.BedroomKind.None)
+        if (BedroomsFirst(choice.Method) && BedroomStepOf(facts, Reviewer.Stage).Kind != Pol.BedroomStepKind.None)
         {
             choice = choice with { Method = Pol.SleepingMethod.NoDemand };
         }
@@ -158,41 +158,41 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             {
                 // A bed replacement under way finishes first: its new bed stands unowned until the owner moves.
                 var (rep, repDue) = BedReplacementOf(facts, Reviewer.Stage);
-                if (repDue && rep.Step == Pol.BedReplaceStep.Assign)
+                if (repDue && rep.Step == Pol.BedReplacementStep.Assign)
                 {
                     choice = new Pol.SleepingChoice { Method = Pol.SleepingMethod.Assign, Pawn = rep.Pawn, Bed = rep.Bed, PreviousBed = rep.PreviousBed };
                     break;
                 }
-                if (repDue && rep.Step == Pol.BedReplaceStep.Remove)
+                if (repDue && rep.Step == Pol.BedReplacementStep.Remove)
                 {
-                    return RemoveOldBed(call, epoch, state, review, goal, reading, rep);
+                    return await RemoveOldBedAsync(state, review, goal, reading, rep, call, epoch).ConfigureAwait(false);
                 }
                 // Everyone owns a bed: walk them into planned bedrooms.
                 var step = BedroomStepOf(facts, Reviewer.Stage);
-                if (step.Kind == Pol.BedroomKind.None)
+                if (step.Kind == Pol.BedroomStepKind.None)
                 {
                     // Then pawns leave a Retiring wing, one per step.
                     step = MigrateStep(facts);
                 }
                 switch (step.Kind)
                 {
-                    case Pol.BedroomKind.Move:
+                    case Pol.BedroomStepKind.Move:
                         choice = new Pol.SleepingChoice { Method = Pol.SleepingMethod.Assign, Pawn = step.Pawn, Bed = step.Bed, PreviousBed = step.PreviousBed };
                         break;
-                    case Pol.BedroomKind.Reconcile:
+                    case Pol.BedroomStepKind.Reconcile:
                         // The room's ring, floor and bed through the shared build side; a bed left empty in the starter shell is packed and reinstalled rather than built again.
-                        return ReconcileBedroom(call, epoch, stock, state, review, goal, reading, step);
-                    case Pol.BedroomKind.Clear:
-                        return RemoveOldBed(call, epoch, state, review, goal, reading, new Pol.BedReplacement { Room = "shell", Bed = step.Bed, Def = SleepingSpotDefinition.ToString(), Cell = step.Cells[0] });
+                        return await ReconcileBedroomAsync(stock, state, review, goal, reading, step, call, epoch).ConfigureAwait(false);
+                    case Pol.BedroomStepKind.Clear:
+                        return await RemoveOldBedAsync(state, review, goal, reading, new Pol.BedReplacement { Room = "shell", Bed = step.Bed, Def = SleepingSpotDefinition.ToString(), Cell = step.Cells[0] }, call, epoch).ConfigureAwait(false);
                     default:
                     {
                         // The title's throne room: reconciled to the plan and its template, then furnished through the room upgrade below.
                         var throne = ThroneStepOf(facts);
-                        if (throne.Owed())
+                        if (throne.Owed)
                         {
-                            return StageThrone(call, epoch, arbiter, stock, state, review, goal, reading, throne);
+                            return await StageThroneAsync(arbiter, stock, state, review, goal, reading, throne, call, epoch).ConfigureAwait(false);
                         }
-                        if (throne.Failed())
+                        if (throne.Failed)
                         {
                             // A requirement without an available definition is a named failure; forbidden buildings are packed.
                             return new RoundsBuildingResult { Verdict = SiteBlocked("throne room", throne.Detail()) };
@@ -201,7 +201,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                         var child = ChildRoomStep(facts);
                         if (child.Owed())
                         {
-                            return StageChildRoom(call, epoch, stock, state, review, goal, reading, child);
+                            return await StageChildRoomAsync(stock, state, review, goal, reading, child, call, epoch).ConfigureAwait(false);
                         }
                         var (swap, ok) = BedroomSwapOf(facts);
                         if (!ok)
@@ -209,34 +209,34 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                             var (title, titleDue) = TitleFurniture(facts);
                             if (titleDue)
                             {
-                                return UpgradeBedroom(call, epoch, state, review, goal, reading, title);
+                                return await UpgradeBedroomAsync(state, review, goal, reading, title, call, epoch).ConfigureAwait(false);
                             }
                             var (companion, companionDue) = CompanionBed(facts);
                             if (companionDue)
                             {
-                                return UpgradeBedroom(call, epoch, state, review, goal, reading, companion);
+                                return await UpgradeBedroomAsync(state, review, goal, reading, companion, call, epoch).ConfigureAwait(false);
                             }
                             var (upgrade, upgradeDue) = RoomUpgradeOf(facts, Reviewer.Stage);
                             if (upgradeDue)
                             {
-                                return UpgradeBedroom(call, epoch, state, review, goal, reading, upgrade);
+                                return await UpgradeBedroomAsync(state, review, goal, reading, upgrade, call, epoch).ConfigureAwait(false);
                             }
                             var (replacement, replacementDue) = BedReplacementOf(facts, Reviewer.Stage);
-                            if (replacementDue && replacement.Step == Pol.BedReplaceStep.Build)
+                            if (replacementDue && replacement.Step == Pol.BedReplacementStep.Build)
                             {
-                                return UpgradeBedroom(call, epoch, state, review, goal, reading, new Pol.RoomUpgrade { Room = replacement.Room, Slot = "bed", Def = replacement.Def, Stuff = replacement.Stuff, Anchor = replacement.Cell, Rot = replacement.Rot });
+                                return await UpgradeBedroomAsync(state, review, goal, reading, new Pol.RoomUpgrade { Room = replacement.Room, Slot = "bed", Def = replacement.Def, Stuff = replacement.Stuff, Anchor = replacement.Cell, Rot = replacement.Rot }, call, epoch).ConfigureAwait(false);
                             }
                             var (beauty, beautyDue) = BeautyUpgrade(facts, Reviewer.Stage);
                             if (beautyDue)
                             {
-                                return UpgradeBedroom(call, epoch, state, review, goal, reading, beauty);
+                                return await UpgradeBedroomAsync(state, review, goal, reading, beauty, call, epoch).ConfigureAwait(false);
                             }
-                            var (sculpted, sculptDue) = SculptBedroom(call, epoch, stock, state, goal, reading);
+                            var (sculpted, sculptDue) = await SculptBedroomAsync(stock, state, goal, reading, call, epoch).ConfigureAwait(false);
                             if (sculptDue)
                             {
                                 return sculpted;
                             }
-                            return new RoundsBuildingResult { Verdict = BuildingSleepingUseNeeded };
+                            return new RoundsBuildingResult { Verdict = BuildingReasonSleepingUseNeeded };
                         }
                         choice = new Pol.SleepingChoice { Method = Pol.SleepingMethod.Assign, Pawn = swap.Pawn, Bed = swap.Bed, PreviousBed = swap.PreviousBed };
                         swapping = true;
@@ -246,24 +246,24 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                 break;
             }
             case Pol.SleepingMethod.Unavailable:
-                return new RoundsBuildingResult { Verdict = BuildingSleepingUnavailable };
+                return new RoundsBuildingResult { Verdict = BuildingReasonSleepingUnavailable };
             case Pol.SleepingMethod.MarkSlaves:
-                return MarkSlaveBed(call, epoch, state, goal, choice.Bed);
+                return MarkSlaveBed(state, goal, choice.Bed, call, epoch);
             case Pol.SleepingMethod.Build:
             {
                 // A stored bed is reinstalled before a new one is built.
-                var (reinstalled, due) = ReinstallStoredBed(call, epoch, stock, state, goal, reading, choice);
+                var (reinstalled, due) = await ReinstallStoredBedAsync(stock, state, goal, reading, choice, call, epoch).ConfigureAwait(false);
                 if (due)
                 {
                     return reinstalled;
                 }
-                return Building.Step(call, epoch, arbiter);
+                return await Building.StepAsync(arbiter, call, epoch).ConfigureAwait(false);
             }
         }
         // Assign: one pawn, one bed, once per Episode. A method that already ran this epoch (the native side
         // refused it, or the player undid it) is not retried; the next epoch reconsiders. The one exception is
         // an intent native refused: that leaves no effect behind, so a bounded number of fresh attempts follow.
-        var (method, barred) = AssignMethod(call, goal, $"sleeping-assign-{choice.Pawn}-{choice.Bed}", state.Snapshot);
+        var (method, barred) = AssignMethod(goal, $"sleeping-assign-{choice.Pawn}-{choice.Bed}", state.Snapshot, call);
         if (!barred.IsZero)
         {
             return new RoundsBuildingResult { Verdict = barred };
@@ -272,13 +272,13 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "bed_assignment") };
         }
-        var previous = choice.PreviousBed != "" ? PreviousAssignment.Known(choice.PreviousBed) : PreviousAssignment.Clear();
-        var assign = new Domain.Assign(new PawnId(choice.Pawn), choice.Bed, previous);
+        var previous = choice.PreviousBed != "" ? PreviousAssignment.KnownPrevious(choice.PreviousBed) : PreviousAssignment.ClearPrevious();
+        var assign = new Domain.Assign(new Domain.PawnId(choice.Pawn.Value), choice.Bed, previous);
         if (swapping)
         {
             assign = assign.AsSwap();
         }
-        if (!arbiter.TryClaim(null, "bed:" + choice.Bed))
+        if (!arbiter.TryClaim([], "bed:" + choice.Bed))
         {
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "bed_claim") };
         }
@@ -296,7 +296,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             throw new ControlException("decide: latest.Revision != review.Revision || !latest.Enabled");
         }
-        p.Journal.CommitOwnerMethod(call, goal, method, "", spec);
+        p.Journal.CommitOwnerMethod(goal, method, "", spec, call);
         return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted };
     }
 
@@ -304,28 +304,28 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// The method ID for the next assignment attempt of this epoch under base, or "" when the pair was already
     /// applied, or the shared refusal budget bars another attempt (the verdict then says why).
     /// </summary>
-    internal (MethodId Method, Verdict Verdict) AssignMethod(CancellationToken call, Sto.StandardState goal, string baseName, GenerationSnapshot world)
+    internal (MethodId Method, Verdict Verdict) AssignMethod(Sto.StandardState goal, string baseName, GenerationSnapshot world, CancellationToken call)
     {
         var p = Reviewer.Player;
         var refused = new List<PlanId>();
         for (var attempt = 0; ; attempt++)
         {
             var method = new MethodId(attempt > 0 ? string.Create(CultureInfo.InvariantCulture, $"{baseName}-retry{attempt}") : baseName);
-            Sto.MethodState existing;
+            Method existing;
             try
             {
-                existing = p.Journal.LoadOwnerMethod(call, goal, method);
+                existing = p.Journal.LoadOwnerMethod(goal, method, call);
             }
             catch (Sto.NotFoundException)
             {
-                var (verdict, ok) = AdmitSubject(call, p.Journal, baseName, refused, world);
+                var (verdict, ok) = AdmitSubject(p.Journal, baseName, refused, world, call);
                 if (!ok)
                 {
                     return (new MethodId(""), verdict);
                 }
                 return (method, new Verdict());
             }
-            var plan = p.Journal.LoadPlan(call, existing.Plan);
+            var plan = p.Journal.LoadPlan(existing.Plan, call);
             if (!SleepingAssignUnadmitted(plan.Progress))
             {
                 return (new MethodId(""), new Verdict());
@@ -352,13 +352,13 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     }
 
     /// <summary>Commits one patch setting bed for slaves, once per bed per Episode; the next review assigns the waiting slave to it.</summary>
-    internal RoundsBuildingResult MarkSlaveBed(CancellationToken call, CancellationToken epoch, ControlState state, Sto.StandardState goal, string bed)
+    internal RoundsBuildingResult MarkSlaveBed(ControlState state, Sto.StandardState goal, string bed, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var method = new MethodId("sleeping-slave-bed-" + bed);
         try
         {
-            p.Journal.LoadOwnerMethod(call, goal, method);
+            p.Journal.LoadOwnerMethod(goal, method, call);
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "slave_bed_marking") };
         }
         catch (Sto.NotFoundException)
@@ -373,7 +373,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             throw new ControlException("markSlaveBed: p.session.State() != state");
         }
-        p.Journal.CommitOwnerMethod(call, goal, method, "", plan);
+        p.Journal.CommitOwnerMethod(goal, method, "", plan, call);
         return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted };
     }
 }
@@ -393,11 +393,11 @@ public sealed partial class RoundsBuildingPlanner
             case Pol.SleepingMethod.Unknown:
                 return (null, FieldUnavailable(choice.Missing));
             case Pol.SleepingMethod.NoDemand:
-                return (null, BuildingSleepingUseNeeded);
+                return (null, BuildingReasonSleepingUseNeeded);
             case Pol.SleepingMethod.Assign:
                 return (null, AwaitingPlan("bed_assignment", ""));
             case Pol.SleepingMethod.Unavailable:
-                return (null, BuildingSleepingUnavailable);
+                return (null, BuildingReasonSleepingUnavailable);
         }
         return ResolveSleeping(facts, choice);
     }
@@ -430,11 +430,14 @@ internal static partial class BuildingRuntimePackage
     internal static Pol.SleepingRequest SleepingRequest(Observation.ColonyProjection facts, Sto.Rounds review)
     {
         var sleeping = ReviewSleeping(facts.Facts.Sleeping, review.Sleeping, facts.Identity.Tick);
-        var definitions = facts.Definitions.Select(d => new Pol.BenchDefinition { Name = d.Name, Available = d.Available, NeedsPower = d.NeedsPower, ConstructionSkill = d.ConstructionSkill }).ToList();
-        var stocked = new Dictionary<string, bool>(StringComparer.Ordinal);
+        EquatableArray<Pol.BenchDefinition> definitions = [.. facts.Definitions.Select(d => new Pol.BenchDefinition { Name = d.Name, Available = d.Available, NeedsPower = d.NeedsPower, ConstructionSkill = d.ConstructionSkill })];
+        var stocked = new HashSet<string>(StringComparer.Ordinal);
         foreach (var name in new[] { SleepingBedrollDefinition, SleepingCoupleBedrollDefinition })
         {
-            stocked[name] = facts.StockedStuff(name).Ok;
+            if (facts.StockedStuff(name).HasValue)
+            {
+                stocked.Add(name);
+            }
         }
         var request = new Pol.SleepingRequest
         {
@@ -449,7 +452,7 @@ internal static partial class BuildingRuntimePackage
         if (facts.Facts.Sleeping.TryGetValue(out var obs))
         {
             facts.TechTier.TryGetValue(out var tier);
-            request = request with { RoomTargets = RoomQualityTargets(obs, request.Traits, tier, facts.Impressiveness) };
+            request = request with { RoomTargets = RoomQualityTargets(obs, request.Traits ?? new Dictionary<Pol.PawnId, Pol.TraitEffects>(), tier, facts.Impressiveness) };
         }
         return request;
     }
@@ -478,8 +481,10 @@ internal static partial class BuildingRuntimePackage
         {
             return (new Pol.BedroomSwap(), false);
         }
-        facts.LayoutPlan.TryGetValue(out var plan);
-        facts.Rooms.TryGetValue(out var rooms);
+        if (!facts.LayoutPlan.TryGetValue(out var plan) || !facts.Rooms.TryGetValue(out var rooms))
+        {
+            return (new Pol.BedroomSwap(), false);
+        }
         return NextBedroomSwap(obs!, traits, SuiteRoomIds(plan, rooms));
     }
 
@@ -496,10 +501,9 @@ internal static partial class BuildingRuntimePackage
     {
         if (definition == SleepingBedrollDefinition || definition == SleepingCoupleBedrollDefinition)
         {
-            var (stuff, _, ok) = facts.StockedStuff(definition);
-            if (ok)
+            if (facts.StockedStuff(definition) is { } stocked)
             {
-                return stuff;
+                return stocked.Stuff;
             }
         }
         return facts.BuildStuff(definition);

@@ -24,14 +24,14 @@ internal static class ClockMirror
 
     /// <summary>Publishes the review frame's things table as the things section keyed by thing id.</summary>
     public static void PublishThings(FactStore m, FactScope scope, Things things, long tick) =>
-        FactsApi.PutKeyed(m, scope, BridgeApi.ThingsSection, things.Table, FactsApi.At(tick));
+        StoreTables.PutKeyed(m, scope, Things.Section, new KeyedTableRows<PbObservations.Thing>(things.Table), Watermark.At(tick));
 
     /// <summary>
     /// Publishes the review frame's pawn table as the pawn section keyed by pawn id; the recording keeps only the
     /// rows that changed.
     /// </summary>
     public static void PublishPawns(FactStore m, FactScope scope, Pawns pawns, long tick) =>
-        FactsApi.PutKeyed(m, scope, PawnSectionName, pawns.Table, FactsApi.At(tick));
+        StoreTables.PutKeyed(m, scope, PawnSectionName, new KeyedTableRows<PbObservations.PawnState>(pawns.Table), Watermark.At(tick));
 
     /// <summary>
     /// Reads the gear bench census (each bench's bill stack and recipe catalog) and publishes it as the bench
@@ -39,13 +39,13 @@ internal static class ClockMirror
     /// </summary>
     public static async Task<Table<string, GearBenchRead>> PublishBenchesAsync(FactStore m, FactScope scope, IRoundsWorkBenchSource native, PbCommon.Identity id, long tick, CancellationToken ct)
     {
-        var census = await native.ReadGearBenchesAsync(id, ct).ConfigureAwait(false);
+        var census = (await native.ReadGearBenchesAsync(id, ct).ConfigureAwait(false)).Reads;
         var rows = new Dictionary<string, GearBenchRead>(census.Count, StringComparer.Ordinal);
         foreach (var row in census)
         {
             rows[row.Bench.Id] = row;
         }
-        return FactsApi.PutTable(m, scope, BenchSectionName, rows, FactsApi.At(tick));
+        return StoreTables.PutTable(m, scope, BenchSectionName, rows, Watermark.At(tick));
     }
 
     /// <summary>A bench table in bench id order, as the gear bench census lists it.</summary>

@@ -17,7 +17,7 @@ public sealed partial class RoundsMoodReliefPlanner
         return new RoundsMoodReliefPlanner(reviewer);
     }
 
-    internal RoundsMoodReliefResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsMoodReliefResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         var sessionState = p.Session.State();
@@ -31,7 +31,7 @@ public sealed partial class RoundsMoodReliefPlanner
             throw new ControlException("step: observation unknown, snapshot invalid or native generation unset");
         }
 
-        var review = p.Journal.LoadRounds(call);
+        var review = await p.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
         if (!review.Enabled || !review.Snapshot.Matches(sessionState.Snapshot))
         {
             return new RoundsMoodReliefResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
@@ -39,13 +39,13 @@ public sealed partial class RoundsMoodReliefPlanner
 
         if (review.Mood is null || review.Mood.States.Count == 0)
         {
-            return new RoundsMoodReliefResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "mood_states") };
+            return new RoundsMoodReliefResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "mood_states") };
         }
 
         var statesByPawn = new Dictionary<PawnId, RoundsMoodState>();
         foreach (var s in review.Mood.States)
         {
-            statesByPawn[new PawnId(s.Pawn.Id)] = s;
+            statesByPawn[s.Pawn.Id] = s;
         }
 
         var activeOwner = new Dictionary<ConcernId, bool>();
@@ -56,36 +56,36 @@ public sealed partial class RoundsMoodReliefPlanner
                 continue;
             }
 
-            var goal = p.Journal.LoadStandard(call, binding.Standard);
-            activeOwner[binding.Concern] = goal.Standard.Status == StandardStatus.Open && goal.Standard.Finding == StandardFinding.Unmet;
+            var goal = await p.Journal.LoadStandardAsync(binding.Standard, call).ConfigureAwait(false);
+            activeOwner[binding.Concern] = goal.Standard.Status == StandardStatus.Open && goal.Standard.Finding == Finding.Unmet;
         }
 
         var started = reviewer.Clock.Now();
-        foreach (var binding in review.SubjectIncidents(ConcernId.EnsureMood))
+        foreach (var binding in review.SubjectIncidents(PolicyFunctions.EnsureMood))
         {
             if (binding.Situation != Situation.Active)
             {
                 continue;
             }
 
-            var incident = p.Journal.LoadIncident(call, binding.Incident);
+            var incident = await p.Journal.LoadIncidentAsync(binding.Incident, call).ConfigureAwait(false);
             if (review.VetoIncident(incident.Incident) != "")
             {
                 continue;
             }
 
-            if (BuildingRuntimePackage.IncidentOpenWork(call, p.Journal, incident))
+            if (BuildingRuntimePackage.IncidentOpenWork(p.Journal, incident, call))
             {
                 return new RoundsMoodReliefResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
             }
 
-            if (!statesByPawn.TryGetValue(binding.Subject, out var moodState))
+            if (!statesByPawn.TryGetValue((PawnId)binding.Subject, out var moodState))
             {
                 continue;
             }
 
             var policyState = MoodReliefPolicyState(moodState);
-            var used = MoodReliefUsedNeeds(call, p.Journal, incident.Methods, new PawnId(moodState.Pawn.Id), sessionState.Snapshot);
+            var used = MoodReliefUsedNeeds(p.Journal, incident.Methods, moodState.Pawn.Id, sessionState.Snapshot, call);
             var proposal = PolicyFunctions.SelectMoodMethod(policyState, used);
             var provisioning = false;
             foreach (var owner in policyState.Provision)
@@ -102,7 +102,7 @@ public sealed partial class RoundsMoodReliefPlanner
             {
                 if (BuildingRuntimePackage.MoodCastReason(proposal.Reason))
                 {
-                    var (castId, cast) = CastMoodRelief(call, epoch, arbiter, incident, new PawnId(moodState.Pawn.Id), sessionState.Snapshot);
+                    var (castId, cast) = CastMoodRelief(arbiter, incident, moodState.Pawn.Id, sessionState.Snapshot, call, epoch);
                     if (cast)
                     {
                         return new RoundsMoodReliefResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = castId };
@@ -118,17 +118,17 @@ public sealed partial class RoundsMoodReliefPlanner
                 throw new ControlException("step: unmapped mood need");
             }
 
-            var prefix = $"mood-{proposal.Need}-{moodState.Pawn.Id}-";
-            if (!arbiter.TryClaim([new PawnId(moodState.Pawn.Id)]))
+            var prefix = $"mood-{Wire.Name(proposal.Need)}-{moodState.Pawn.Id}-";
+            if (!arbiter.TryClaim([moodState.Pawn.Id]))
             {
                 continue;
             }
 
-            var relief = MoodRelief.NewMoodRelief(new PawnId(moodState.Pawn.Id), need);
+            var relief = new MoodRelief((Domain.PawnId)moodState.Pawn.Id, need);
             var method = BuildingRuntimePackage.NextMethodId(prefix, BuildingRuntimePackage.IncidentMethodIds(incident.Methods));
             var id = PlanIds.MintPlanId();
             var action = DomainAction.NewMoodReliefAction(new ActionId($"{id}-0"), relief);
-            var plan = PlanSpec.NewPlan(id, new PlanRevision(1), [action]);
+            var plan = new PlanSpec(id, new PlanRevision(1), [action]);
             p.Current(call, epoch);
             var elapsed = reviewer.Clock.Now() - started;
             if (p.Session.State() != sessionState || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
@@ -136,11 +136,11 @@ public sealed partial class RoundsMoodReliefPlanner
                 throw new ControlException("step: session state changed or the read took too long");
             }
 
-            p.Journal.CommitIncidentMethod(call, incident.Incident.Id, method, "", plan);
+            await p.Journal.CommitIncidentMethodAsync(incident.Incident.Id, method, "", plan, call).ConfigureAwait(false);
             return new RoundsMoodReliefResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
         }
 
-        return new RoundsMoodReliefResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "mood_relief_method") };
+        return new RoundsMoodReliefResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "mood_relief_method") };
     }
 
     internal static Fact<T> MoodReliefValue<T>(T? v)
@@ -184,13 +184,13 @@ public sealed partial class RoundsMoodReliefPlanner
         _ => (default, false),
     };
 
-    internal static IReadOnlyList<MoodNeed> MoodReliefUsedNeeds(CancellationToken ct, StoreJournal journal, IReadOnlyList<IncidentMethod> methods, PawnId pawn, GenerationSnapshot world)
+    internal static IReadOnlyList<MoodNeed> MoodReliefUsedNeeds(StoreJournal journal, IReadOnlyList<IncidentMethod> methods, PawnId pawn, GenerationSnapshot world, CancellationToken ct)
     {
         var used = new List<MoodNeed>();
         foreach (var need in new[] { MoodNeed.Food, MoodNeed.Rest, MoodNeed.Joy })
         {
-            var prefix = $"mood-{need}-{pawn}-";
-            var (_, ok) = BuildingRuntimePackage.AdmitSubject(ct, journal, prefix, BuildingRuntimePackage.IncidentPlans(methods, prefix), world);
+            var prefix = $"mood-{Wire.Name(need)}-{pawn}-";
+            var (_, ok) = BuildingRuntimePackage.AdmitSubject(journal, prefix, BuildingRuntimePackage.IncidentPlans(methods, prefix), world, ct);
             if (!ok)
             {
                 used.Add(need);
@@ -201,7 +201,7 @@ public sealed partial class RoundsMoodReliefPlanner
     }
 }
 
-public readonly record struct RoundsMoodReliefResult
+public readonly record struct RoundsMoodReliefResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 

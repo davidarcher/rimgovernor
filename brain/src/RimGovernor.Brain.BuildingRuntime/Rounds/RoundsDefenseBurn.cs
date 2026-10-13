@@ -3,21 +3,21 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native read of the defense site, which the burn survey needs.</summary>
 public interface IBurnFuelSource
 {
-    (BridgeDefenseSite Site, BridgeResult Result) ReadDefenseSite(C.Identity identity, BridgeCellRect region, CancellationToken ct);
+    Task<(BridgeDefenseSite Site, BridgeResult Result)> ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct);
 }
 
 public sealed partial class RoundsDefenseLayoutPlanner
 {
     internal const string DefenseFuelTier = "fuel";
 
-    internal RoundsDefenseLayoutResult Fuel(CancellationToken call, CancellationToken epoch, StandardState goal, ControlState state, CombatBurn burn)
+    internal async Task<RoundsDefenseLayoutResult> FuelAsync(StandardState goal, ControlState state, CombatBurn burn, CancellationToken call, CancellationToken epoch)
     {
-        var (read, census) = FightCensus(call, state, BurnRegion(burn.Hive));
+        var (read, census) = await FightCensusAsync(state, BurnRegion(burn.Hive), call).ConfigureAwait(false);
         if (!PolicyApi.BurnRoofed(burn.Hive, census))
         {
             return new RoundsDefenseLayoutResult { Verdict = BuildingReasonNoDeficit, Tier = DefenseFuelTier };
         }
-        var items = _reviewer.ItemFacts(call, state.Snapshot);
+        var items = await _reviewer.ItemFactsAsync(state.Snapshot, call).ConfigureAwait(false);
         read.Projection.Resources.TryGetValue(out var stock);
         var stone = items.StoneBlock(stock);
         var buildings = PolicyApi.BurnBuilds(burn, census, stone.Value, items);
@@ -25,7 +25,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return new RoundsDefenseLayoutResult { Verdict = BuildingReasonNoDeficit, Tier = DefenseFuelTier };
         }
-        return AdmitFightBuilds(call, epoch, goal, state, read, buildings, DefenseFuelTier);
+        return await AdmitFightBuildsAsync(goal, state, read, buildings, DefenseFuelTier, call, epoch).ConfigureAwait(false);
     }
 
     internal static BridgeCellRect BurnRegion(Cell hive)
@@ -38,14 +38,14 @@ public sealed partial class RoundsDefenseLayoutPlanner
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>The burn site survey of the active burn; unknown while no burn is active or the site read is older than the tick.</summary>
-    internal static Fact<BurnSite> CombatBurnSite(CancellationToken ct, IBurnFuelSource native, C.Identity identity, CombatMemory m, long tick, ItemFacts items)
+    internal static async Task<Fact<BurnSite>> CombatBurnSiteAsync(IBurnFuelSource native, C.Identity identity, CombatMemory m, long tick, ItemFacts items, CancellationToken ct)
     {
         if (m.Burn is null || !m.Burn.Active())
         {
             return Unknown<BurnSite>();
         }
-        var (site, _) = native.ReadDefenseSite(identity, RoundsDefenseLayoutPlanner.BurnRegion(m.Burn.Hive), ct);
-        if (site.Context.Tick < tick)
+        var (site, _) = await native.ReadDefenseSiteAsync(identity, RoundsDefenseLayoutPlanner.BurnRegion(m.Burn.Hive), ct).ConfigureAwait(false);
+        if ((site.Context?.Tick ?? 0) < tick)
         {
             return Unknown<BurnSite>();
         }

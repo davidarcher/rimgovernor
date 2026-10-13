@@ -7,23 +7,24 @@ public sealed partial class RoundsStockpilePlanner
     /// stands. NextShelfStep picked the step (one open shelf at a time, a third of the footprint at most);
     /// MaintainStockpiles configures every built shelf like its zone (StockpileShelfPatch, role shelf:buildingId).
     /// </summary>
-    private RoundsStockpileResult Shelve(CancellationToken call, CancellationToken epoch, ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.ShelfStep step)
+    private async Task<RoundsStockpileResult> ShelveAsync(ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.ShelfStep step, CancellationToken call, CancellationToken epoch)
     {
         if (_building is null)
         {
             return new RoundsStockpileResult { Verdict = FieldUnavailable("building_source") };
         }
-        var (_, index) = ZoneShelves(call, _reviewer.Player.Journal, goal.Standard.Id, step.Zone.Zone, reading.Projection.Facts.CurrentConstruction);
+        var (_, index) = ZoneShelves(_reviewer.Player.Journal, goal.Standard.Id, step.Zone?.Zone ?? throw new InvalidOperationException("a shelf step names the zone it shelves"), reading.Projection.Facts.CurrentConstruction, call);
         if (index >= MaxShelvesPerZone)
         {
             return new RoundsStockpileResult { Verdict = Refuse(Pol.Cause.RetriesSpent, "maxShelvesPerZone", "") };
         }
-        return BuildShelf(call, epoch, state, review, goal, reading, step, index);
+        return await BuildShelfAsync(state, review, goal, reading, step, index, call, epoch).ConfigureAwait(false);
     }
 
     /// <summary>Previews the step's candidate sites in turn and admits the first native accepts as the zone's next shelf.</summary>
-    private RoundsStockpileResult BuildShelf(CancellationToken call, CancellationToken epoch, ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.ShelfStep step, int index)
+    private async Task<RoundsStockpileResult> BuildShelfAsync(ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.ShelfStep step, int index, CancellationToken call, CancellationToken epoch)
     {
+        var shelfZone = step.Zone?.Zone ?? throw new InvalidOperationException("a shelf step names the zone it shelves");
         var p = _reviewer.Player;
         var facts = reading.Projection;
         var stuff = facts.BuildStuff(ShelfDefinition);
@@ -47,7 +48,7 @@ public sealed partial class RoundsStockpilePlanner
             {
                 for (var z = piece.Rect.Z; z < piece.Rect.Z + piece.Rect.Height; z++)
                 {
-                    planned.Add(new Pol.RoleCell { Cell = new Cell(x, z), Role = Pol.RoleKind.RockNeedsFloor });
+                    planned.Add(new Pol.RoleCell { Cell = new Cell(x, z), Role = Pol.RockRole.NeedsFloor });
                 }
             }
             var dig = Pol.PolicyFunctions.RockStep(planned, facts.Cells).Dig;
@@ -58,15 +59,15 @@ public sealed partial class RoundsStockpilePlanner
                 {
                     return new RoundsStockpileResult { Verdict = RockNotDug(ShelfDefinition, "no_open_cell_beside_footprint") };
                 }
-                var rockMethod = ShelfMethod(step.Zone.Zone, index);
-                var (dug, handled) = building.AdmitRockStep(call, epoch, new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts, Read = reading.ColonyReading }, planned, access, rockMethod, [value], Check);
+                var rockMethod = ShelfMethod(shelfZone, index);
+                var (dug, handled) = await building.AdmitRockStepAsync(new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts, Read = reading.Reading }, planned, access, rockMethod, [value], Check, call, epoch).ConfigureAwait(false);
                 if (handled)
                 {
                     var outcome = new RoundsStockpileResult { Verdict = dug.Verdict };
                     PlanId plan = default;
                     foreach (var m in dug.Decision.Standard.Methods)
                     {
-                        if (m.Method == rockMethod)
+                        if (m.MethodId == rockMethod)
                         {
                             plan = m.Plan;
                         }
@@ -74,8 +75,8 @@ public sealed partial class RoundsStockpilePlanner
                     return new RoundsStockpileResult { Verdict = outcome.Verdict, Plan = plan };
                 }
             }
-            var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-0")), value, Tier.Sustain);
-            var (preview, _) = _building.Native.PreviewBuilding(call, action, snapshot);
+            var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-0")), value, ConstructionTier.Sustain);
+            var (preview, _) = await _building.Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var v = preview.Preview;
             var ck = v.CanPlace.TryGetValue(out var can);
             var sk = v.SafeToPlace.TryGetValue(out var safe);
@@ -85,8 +86,8 @@ public sealed partial class RoundsStockpilePlanner
             }
             var stock = new Pol.StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
             stock = MergeRoundsStock(stock, preview.Stock, true);
-            var method = ShelfMethod(step.Zone.Zone, index);
-            var result = building.AdmitPreviews(call, epoch, new RoundsAdmission { State = state, Review = review, Owner = goal, Facts = facts, Method = method, Reason = "shelf for zone " + step.Zone.Zone, Snapshot = snapshot, Selected = [v], Stock = stock, Purpose = Pol.Purpose.Rounds });
+            var method = ShelfMethod(shelfZone, index);
+            var result = await building.AdmitPreviewsAsync(new RoundsAdmission { State = state, Review = review, Owner = goal, Facts = facts, Method = method, Reason = "shelf for zone " + shelfZone, Snapshot = snapshot, Selected = [v], Stock = stock, Purpose = Pol.Purpose.Rounds }, call, epoch).ConfigureAwait(false);
             if (result.Verdict != BuildingReasonAdmitted)
             {
                 return new RoundsStockpileResult { Verdict = result.Verdict };
@@ -107,7 +108,7 @@ internal static partial class BuildingRuntimePackage
         new(string.Create(CultureInfo.InvariantCulture, $"storage-shelf-{zone}-{index}"));
 
     /// <summary>Reads back the zone's shelf plans in index order: the shelves built or in flight, and the next free index.</summary>
-    internal static (List<Pol.ShelfRecord> Shelves, int Next) ZoneShelves(CancellationToken ct, StoreJournal journal, StandardId goal, string zone, Fact<Pol.CurrentConstruction> census)
+    internal static (List<Pol.ShelfRecord> Shelves, int Next) ZoneShelves(StoreJournal journal, StandardId goal, string zone, Fact<Pol.CurrentConstruction> census, CancellationToken ct)
     {
         var output = new List<Pol.ShelfRecord>();
         for (var index = 0; index < MaxShelvesPerZone; index++)
@@ -115,17 +116,17 @@ internal static partial class BuildingRuntimePackage
             PlanId id;
             try
             {
-                id = journal.LatestMethodPlan(ct, goal, ShelfMethod(zone, index));
+                id = journal.LatestMethodPlan(goal, ShelfMethod(zone, index), ct);
             }
             catch (Sto.NotFoundException)
             {
                 return (output, index);
             }
-            var plan = journal.LoadPlan(ct, id);
+            var plan = journal.LoadPlan(id, ct);
             var record = new Pol.ShelfRecord { Zone = zone };
             foreach (var progress in plan.Progress)
             {
-                if (!progress.Action.TryBuilding(out var b))
+                if (progress.Action.Building is not { } b)
                 {
                     continue;
                 }
@@ -138,11 +139,11 @@ internal static partial class BuildingRuntimePackage
                         cells.Add(new Cell(x, z));
                     }
                 }
-                record.Cells = cells;
+                record = record with { Cells = cells };
             }
             if (StorePackage.PlanWorkOpen(plan, census))
             {
-                record.Open = true;
+                record = record with { Open = true };
                 output.Add(record);
                 continue;
             }
@@ -153,9 +154,9 @@ internal static partial class BuildingRuntimePackage
             census.TryGetValue(out var current);
             foreach (var progress in plan.Progress)
             {
-                if (progress.Action.TryBuilding(out var b) && current is not null && current.Built(b, out var builtId))
+                if (progress.Action.Building is { } b && current is not null && current.Built(b) is { } builtId)
                 {
-                    record.Building = builtId;
+                    record = record with { Building = builtId };
                 }
             }
             if (record.Building == "")

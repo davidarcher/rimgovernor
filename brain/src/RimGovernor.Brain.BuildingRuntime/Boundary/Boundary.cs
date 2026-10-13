@@ -59,7 +59,7 @@ public sealed class BuildingBoundary : IBoundary
         var anchor = target.Action.Building?.Cell ?? default;
         var bounds = await _native.ReadMapBoundsAsync(Boundary.Identity(target.Snapshot), anchor, ct).ConfigureAwait(false);
         var current = Boundary.Context(bounds.Context, target.Snapshot);
-        var tick = new Tick(bounds.Context.Tick);
+        var tick = new Tick(bounds.Context?.Tick ?? 0);
         var observed = _clock.Now();
         ct.ThrowIfCancellationRequested();
         return new IntentInspection { StartedAt = started, Current = current, Tick = tick, ObservedAt = observed };
@@ -86,6 +86,23 @@ public static class Boundary
     /// </summary>
     public static bool ValidId(string? s) =>
         s is not null && !string.IsNullOrWhiteSpace(s) && Encoding.UTF8.GetByteCount(s) <= 256 && !s.Contains('\0', StringComparison.Ordinal);
+
+    /// <summary>
+    /// Writes one combat_order decision row per order result (Go <c>bridge.RecordCombatOrder</c>): applied (reason empty,
+    /// attrs job) or refused (reason the refusal).
+    /// </summary>
+    private static void RecordCombatOrder(CombatOrderResult res) =>
+        Tel.Decide(new Decision
+        {
+            Kind = "combat_order",
+            Component = "combat-orders",
+            Target = res.PawnId,
+            Verdict = res.Applied ? "applied" : "refused",
+            Reason = res.Applied ? "" : res.Refusal,
+            Attrs = res.Applied
+                ? new Dictionary<string, object?> { ["index"] = res.Index, ["job"] = res.JobDef }
+                : new Dictionary<string, object?> { ["index"] = res.Index },
+        });
 
     public static PbCommon.Identity Identity(GenerationSnapshot s) =>
         new() { ColonyId = s.Colony.Value, LoadToken = s.Load.Value, MapId = s.Map.Value };
@@ -236,7 +253,7 @@ public static class Boundary
         {
             return batch.Key;
         }
-        if (p.Action.ZoneCreate is { } z && z.Kind == ZoneKind.Stockpile)
+        if (p.Action.ZoneCreate is { } z && z.Kind == Domain.ZoneKind.Stockpile)
         {
             return p.Action.Id.Value;
         }
@@ -292,7 +309,7 @@ public static class Boundary
                 {
                     foreach (var r in BridgeApi.CombatOrderResults(result.Applied!, actions[i].CombatOrders))
                     {
-                        BridgeApi.RecordCombatOrder(r);
+                        RecordCombatOrder(r);
                         output[i].Combat.Add(new CombatResult { Index = r.Index, PawnId = r.PawnId, Applied = r.Applied, Refusal = r.Refusal, JobDef = r.JobDef });
                     }
                 }
@@ -300,7 +317,7 @@ public static class Boundary
                 {
                     var effect = applied.Observed?.Zone;
                     var zone = placements[i].Action.ZoneCreate!;
-                    if (zone.Kind == ZoneKind.Stockpile)
+                    if (zone.Kind == Domain.ZoneKind.Stockpile)
                     {
                         foreach (var row in effect?.Created ?? [])
                         {

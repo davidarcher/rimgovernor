@@ -16,7 +16,7 @@ public sealed partial class RoundsHomeCoveragePlanner
     }
 }
 
-public readonly record struct RoundsHomeCoverageResult
+public readonly record struct RoundsHomeCoverageResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 
@@ -25,7 +25,7 @@ public readonly record struct RoundsHomeCoverageResult
 
 public sealed partial class RoundsHomeCoveragePlanner
 {
-    internal RoundsHomeCoverageResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsHomeCoverageResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var state = p.Session.State();
@@ -45,15 +45,15 @@ public sealed partial class RoundsHomeCoveragePlanner
             return new RoundsHomeCoverageResult { Verdict = BuildingReasonNoReview };
         }
 
-        var (goal, workable) = p.Journal.Workable(call, review, ConcernId.MaintainHomeCoverage);
-        if (!workable)
+        var (goal, workable) = p.Journal.Workable(review, PolicyFunctions.MaintainHomeCoverage, call);
+        if (!workable || goal is null)
         {
             return new RoundsHomeCoverageResult { Verdict = BuildingReasonNoDeficit };
         }
 
         foreach (var m in goal.Methods)
         {
-            var open = p.Journal.LoadPlan(call, m.Plan);
+            var open = p.Journal.LoadPlan(m.Plan, call);
             if (StorePackage.PlanOpen(open))
             {
                 return new RoundsHomeCoverageResult { Verdict = BuildingReasonExistingWork };
@@ -61,14 +61,14 @@ public sealed partial class RoundsHomeCoveragePlanner
         }
 
         var started = Reviewer.Clock.Now();
-        var expected = StepScope(call, Reviewer.Native);
+        var expected = await StepScopeAsync(Reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: boundary moved");
         }
 
-        var claims = p.Journal.ConstructionClaims(call, state.Snapshot, expected.Tick);
-        var read = Reviewer.ObserveOwned(call, Reviewer.Native, expected, claims);
+        var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
+        var read = await Reviewer.ObserveOwnedAsync(Reviewer.Native, expected, claims, call).ConfigureAwait(false);
         var f = read.Projection.Facts;
         var planned = PolicyFunctions.PlanHomeArea(f.MapBounds, f.CurrentConstruction, claims, f.HomeCoverage);
         if (!planned.TryGetValue(out var diff))
@@ -84,7 +84,7 @@ public sealed partial class RoundsHomeCoveragePlanner
         var method = diff.MethodId();
         foreach (var seen in goal.Methods)
         {
-            if (seen.Method == method)
+            if (seen.MethodId == method)
             {
                 return new RoundsHomeCoverageResult { Verdict = WaitFor(Cause.MethodUsed, "home_coverage_method") };
             }
@@ -106,11 +106,11 @@ public sealed partial class RoundsHomeCoveragePlanner
                 continue;
             }
 
-            var area = Area.NewArea(edit.Op, "", edit.Cells);
+            var area = new Area(edit.Op, "", edit.Cells);
             actions.Add(DomainAction.NewAreaAction(Next(), area));
         }
 
-        var plan = PlanSpec.NewPlan(id, new PlanRevision(1), actions);
+        var plan = new PlanSpec(id, new PlanRevision(1), actions);
         p.Current(call, epoch);
         var elapsed = Reviewer.Clock.Now() - started;
         if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > Reviewer.MaxAge)
@@ -118,7 +118,7 @@ public sealed partial class RoundsHomeCoveragePlanner
             throw new ControlException("step: session state changed or the read took too long");
         }
 
-        p.Journal.CommitMethod(call, goal.Standard.Id, goal.Revision, method, plan);
+        p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
         return new RoundsHomeCoverageResult { Verdict = BuildingReasonAdmitted, Plan = id };
     }
 }

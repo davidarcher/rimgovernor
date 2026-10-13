@@ -49,7 +49,7 @@ internal sealed class TradeOfferBook
             var present = new Dictionary<string, Pol.TraderFacts>();
             foreach (var t in traders)
             {
-                present[t.Id] = t;
+                present[t.ID] = t;
             }
             var output = new List<Pol.TradeOffers>();
             foreach (var (id, record) in _records.ToList())
@@ -102,15 +102,17 @@ public sealed partial class RoundsTradePlanner
     /// with the colony's silver and the trader's goods stacks the record's freshness is judged against. The plan
     /// reads it from the next plan build on (the book's revision keys the cache).
     /// </summary>
-    private void RecordOffers(CancellationToken call, ControlState state, TradeSheetRead sheet, long stacks)
+    private async Task RecordOffersAsync(ControlState state, TradeSheetRead sheet, long stacks, CancellationToken call)
     {
         var (silver, _, silverKnown) = TradeSheetSilver(sheet.Rows);
         if (!silverKnown)
         {
             return;
         }
-        var tables = Native.FrameTables(call, Boundary.Identity(state.Snapshot));
-        if (tables.Catalog is null)
+        var catalog = Native is Observation.IDefinitionSource definitions
+            ? await definitions.DefinitionCatalogAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false)
+            : null;
+        if (catalog is null)
         {
             throw new ControlException("recordOffers: no definition catalog");
         }
@@ -121,22 +123,22 @@ public sealed partial class RoundsTradePlanner
             {
                 continue;
             }
-            var food = TradeFoodFact(row, tables.Catalog);
+            var food = TradeFoodFact(row, catalog);
             rows.Add(new Pol.TradeOffer { Def = row.DefName, Count = row.TraderCount, Price = row.BuyPrice, Pawn = row.PawnKnown && row.Pawn, Gender = row.PawnGender, Food = food });
         }
-        var offers = new Pol.TradeOffers { Participant = BridgePackage.TradeParticipantOf(sheet.Target), Trader = sheet.Trader, Negotiator = sheet.Negotiator, Tick = new Tick(sheet.Context.Tick), Silver = silver, GoodsStacks = stacks, Rows = rows };
+        var offers = new Pol.TradeOffers { Participant = TradeParticipantOf(sheet.Target), Trader = sheet.Trader, Negotiator = sheet.Negotiator, Tick = new Tick(sheet.Context?.Tick ?? 0), Silver = silver, GoodsStacks = stacks, Rows = rows };
         Reviewer.TradeOffers.Record(state.Snapshot, offers);
     }
 
     /// <summary>The units of each resource the Round's supply plan opened to buy from trader, empty when MaintainResource has no work.</summary>
-    private IReadOnlyDictionary<Pol.Resource, long> PlannedPurchases(CancellationToken call, ControlState state, Sto.Rounds review, string trader)
+    private async Task<IReadOnlyDictionary<Pol.Resource, long>> PlannedPurchasesAsync(ControlState state, Sto.Rounds review, string trader, CancellationToken call)
     {
-        var (goal, workable) = Reviewer.Player.Journal.Workable(call, review, MaintainResource);
-        if (!workable)
+        var (goal, workable) = Reviewer.Player.Journal.Workable(review, MaintainResource, call);
+        if (!workable || goal is null)
         {
             return new Dictionary<Pol.Resource, long>();
         }
-        var supply = Reviewer.ResourceSupply(call, state, review, goal);
+        var supply = await Reviewer.ResourceSupplyAsync(state, review, goal, call).ConfigureAwait(false);
         return supply.TradeLines(trader);
     }
 }
@@ -163,7 +165,7 @@ internal static partial class BuildingRuntimePackage
         {
             Food = need.Food with { Nutrition = food },
             Shortfall = kept,
-            ComponentShortfall = Math.Min(need.ComponentShortfall, planned.GetValueOrDefault(Pol.PolicyConstants.ComponentResource)),
+            ComponentShortfall = Math.Min(need.ComponentShortfall, planned.GetValueOrDefault(Pol.PolicyFunctions.ComponentResource)),
         };
     }
 }

@@ -2,11 +2,11 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class Rounder
 {
-    internal void ReviewGathering(ref RoundsReading reading, GenerationSnapshot snapshot)
+    internal static RoundsReading ReviewGathering(RoundsReading reading, GenerationSnapshot snapshot)
     {
         var facts = reading.Projection.Facts;
         var benefit = Unknown<double>();
-        var catalog = reading.Frame.Catalog;
+        var catalog = reading.Catalog;
         if (catalog is not null && catalog.ThoughtFacts(PolicyFunctions.PartyThought) is { } thought && thought.WorstOffset > 0)
         {
             benefit = Known(thought.WorstOffset);
@@ -21,7 +21,7 @@ public sealed partial class Rounder
             Census = facts.CurrentConstruction,
         });
         facts = facts with { GatheringPlan = plan, GatheringOwed = PolicyFunctions.GatheringOwed(plan) };
-        reading = reading with { Projection = reading.Projection with { Facts = facts } };
+        return reading with { Reading = reading.Reading with { Projection = reading.Projection with { Facts = facts } } };
     }
 }
 
@@ -32,7 +32,7 @@ public sealed partial class RoundsGatheringPlanner
 
     public static RoundsGatheringPlanner NewRoundsGatheringPlanner(Rounder reviewer)
     {
-        if (reviewer is null || !reviewer.MethodEnabled(ConcernId.HoldGatherings))
+        if (reviewer is null || !reviewer.MethodEnabled(PolicyFunctions.HoldGatherings))
         {
             throw new ControlException("NewRoundsGatheringPlanner: reviewer is missing or the method is disabled");
         }
@@ -41,7 +41,7 @@ public sealed partial class RoundsGatheringPlanner
     }
 }
 
-public readonly record struct RoundsGatheringResult
+public readonly record struct RoundsGatheringResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 
@@ -55,7 +55,7 @@ internal static partial class BuildingRuntimePackage
 
 public sealed partial class RoundsGatheringPlanner
 {
-    internal RoundsGatheringResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsGatheringResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var state = p.Session.State();
@@ -75,8 +75,8 @@ public sealed partial class RoundsGatheringPlanner
             return new RoundsGatheringResult { Verdict = BuildingReasonNoReview };
         }
 
-        var (goal, workable) = p.Journal.Workable(call, review, ConcernId.HoldGatherings);
-        if (!workable)
+        var (goal, workable) = p.Journal.Workable(review, PolicyFunctions.HoldGatherings, call);
+        if (!workable || goal is null)
         {
             return new RoundsGatheringResult { Verdict = BuildingReasonNoDeficit };
         }
@@ -84,7 +84,7 @@ public sealed partial class RoundsGatheringPlanner
         var lastStart = new Tick(-1);
         foreach (var method in goal.History)
         {
-            var plan = p.Journal.LoadPlan(call, method.Plan);
+            var plan = p.Journal.LoadPlan(method.Plan, call);
             if (StorePackage.PlanOpen(plan))
             {
                 return new RoundsGatheringResult { Verdict = BuildingReasonExistingWork };
@@ -105,34 +105,34 @@ public sealed partial class RoundsGatheringPlanner
             return new RoundsGatheringResult { Verdict = WaitFor(Cause.MethodUsed, "gathering_running") };
         }
 
-        var expected = StepScope(call, Reviewer.Native);
+        var expected = await StepScopeAsync(Reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: boundary moved");
         }
 
         var started = Reviewer.Clock.Now();
-        var read = Reviewer.ObserveOwned(call, Reviewer.Native, expected, Unknown<IReadOnlyList<ConstructionClaim>>());
-        if (!read.Projection.Facts.GatheringPlan.TryGetValue(out var party) || party.Organizer.Length == 0)
+        var read = await Reviewer.ObserveOwnedAsync(Reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
+        if (!read.Projection.Facts.GatheringPlan.TryGetValue(out var party) || party.Organizer.IsEmpty)
         {
             return new RoundsGatheringResult { Verdict = WaitFor(Cause.MethodUsed, "gathering_plan") };
         }
 
-        var (method2, verdict, ok) = AdmitStandardMethod(call, p.Journal, goal, GatheringMethodPrefix, state.Snapshot);
+        var (method2, verdict, ok) = AdmitStandardMethod(p.Journal, goal, GatheringMethodPrefix, state.Snapshot, call);
         if (!ok)
         {
             return new RoundsGatheringResult { Verdict = verdict };
         }
 
-        if (!arbiter.TryClaim([new PawnId(party.Organizer)]))
+        if (!arbiter.TryClaim([party.Organizer]))
         {
             return new RoundsGatheringResult { Verdict = ClaimHeld("organizer") };
         }
 
-        var gathering = Gathering.NewGathering(party.Def, new PawnId(party.Organizer));
+        var gathering = new Gathering(party.Def, (Domain.PawnId)party.Organizer);
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewGatheringAction(new ActionId($"{id}-0"), gathering);
-        var spec = PlanSpec.NewPlan(id, new PlanRevision(1), [action]);
+        var spec = new PlanSpec(id, new PlanRevision(1), [action]);
         p.Current(call, epoch);
         var elapsed = Reviewer.Clock.Now() - started;
         if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > Reviewer.MaxAge)
@@ -141,7 +141,7 @@ public sealed partial class RoundsGatheringPlanner
         }
 
         var reason = $"gathering: {party.Organizer} organizes a {party.Def} on a colony-wide mood dip";
-        p.Journal.CommitMethodReason(call, goal.Standard.Id, goal.Revision, method2, reason, spec);
+        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method2, reason, spec, call);
         return new RoundsGatheringResult { Verdict = BuildingReasonAdmitted, Plan = id };
     }
 }

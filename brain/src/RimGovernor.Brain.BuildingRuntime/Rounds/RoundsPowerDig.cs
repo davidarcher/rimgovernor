@@ -3,21 +3,21 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>Digs the rock under a geothermal generator's fixed site; not handled when the footprint is already open.</summary>
-    internal (RoundsBuildingResult Result, bool Handled) DigGeothermal(CancellationToken call, CancellationToken epoch, ExcavationStep s, IReadOnlyList<Cell> protectedCells, Action check)
+    internal async Task<(RoundsBuildingResult Result, bool Handled)> DigGeothermalAsync(ExcavationStep s, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken call, CancellationToken epoch)
     {
         if (Power is null || !Power.FixedSite())
         {
-            return (default, false);
+            return (new RoundsBuildingResult(), false);
         }
 
         check();
-        var building = Building.NewBuilding(Definition, Power.Center, Rotation.North, "");
+        var building = new Building(Definition, Power.Center, Rotation.North, "");
         var probe = s.State.Snapshot with { Plan = PlanIds.MintPlanId(), Revision = new PlanRevision(1) };
         var action = DomainAction.NewBuildingAction(new ActionId($"{probe.Plan}-0"), building, PolicyFunctions.PlannerTier(Concern, Phase));
-        var (preview, _) = Native.PreviewBuilding(call, action, probe);
+        var (preview, _) = await Native.PreviewBuildingAsync(action, probe, call).ConfigureAwait(false);
         if (!preview.Preview.Footprint.TryGetValue(out var footprint) || footprint.Count == 0)
         {
-            return (default, false);
+            return (new RoundsBuildingResult(), false);
         }
 
         var planned = new List<RoleCell>(footprint.Count);
@@ -33,7 +33,7 @@ public sealed partial class RoundsBuildingPlanner
 
         if (PolicyFunctions.RockStep(planned, s.Facts.Cells).Dig.Count == 0)
         {
-            return (default, false);
+            return (new RoundsBuildingResult(), false);
         }
 
         var (access, ok) = PolicyFunctions.RockAccess(footprint, s.Facts.Cells);
@@ -43,22 +43,22 @@ public sealed partial class RoundsBuildingPlanner
         }
 
         var method = new MethodId($"plan-dig-geothermal-{Power.Center.X}-{Power.Center.Z}");
-        return AdmitRockStep(call, epoch, s, planned, access, method, [], check);
+        return await AdmitRockStepAsync(s, planned, access, method, [], check, call, epoch).ConfigureAwait(false);
     }
 
     /// <summary>Clears roofs and rock above a wind turbine or solar site; not handled when no planned site needs it.</summary>
-    internal (RoundsBuildingResult Result, bool Handled) DigSky(CancellationToken call, CancellationToken epoch, ExcavationStep s, IReadOnlyList<Cell> protectedCells, Action check)
+    internal async Task<(RoundsBuildingResult Result, bool Handled)> DigSkyAsync(ExcavationStep s, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken call, CancellationToken epoch)
     {
-        if (Power is null || Power.Method != PowerMethod.Generate || (Definition != PolicyFunctions.WindTurbineDefinition && Definition != PolicyFunctions.SolarDefinition))
+        if (Power is null || Power.Method != PowerMethod.Generate || (Definition != PolicyConstants.WindTurbineDefinition && Definition != PolicyFunctions.SolarDefinition))
         {
-            return (default, false);
+            return (new RoundsBuildingResult(), false);
         }
 
         var planned = s.Facts.LayoutPlan.TryGetValue(out var plan);
         var tk = s.Facts.TechTier.TryGetValue(out var tier);
         if (!planned || !tk || tier < TechTier.Masonry)
         {
-            return (default, false);
+            return (new RoundsBuildingResult(), false);
         }
 
         var taken = protectedCells.ToHashSet();
@@ -73,7 +73,7 @@ public sealed partial class RoundsBuildingPlanner
             }
         }
 
-        var roofs = RoofRulesFor(call, s.State.Snapshot, [new RoleCell { Role = RockRole.NeedsSky }]);
+        var roofs = await RoofRulesForAsync(s.State.Snapshot, [new RoleCell { Role = RockRole.NeedsSky }], call).ConfigureAwait(false);
         PlannedPowerSite? pick = null;
         List<RoleCell> pickCells = [];
         foreach (var site in PolicyFunctions.PlannedPowerSites(plan!, Definition))
@@ -91,7 +91,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 if (step.Unroof.Count > 0)
                 {
-                    var stalled = RoofStalled(call, s, BuildingRuntimePackage.SkyMethod(Definition, site.Area));
+                    var stalled = RoofStalled(s, BuildingRuntimePackage.SkyMethod(Definition, site.Area), call);
                     if (stalled)
                     {
                         return (new RoundsBuildingResult { Verdict = RockNotDug(Definition, $"roof_standing_{step.Unroof.Count}_cells_after_stall") }, true);
@@ -103,7 +103,7 @@ public sealed partial class RoundsBuildingPlanner
 
             if (step.Dig.Count == 0 && step.Unroof.Count == 0 && step.Unfit.Count == 0)
             {
-                return (default, false);
+                return (new RoundsBuildingResult(), false);
             }
 
             if (pick is null && step.Unfit.Count == 0)
@@ -115,7 +115,7 @@ public sealed partial class RoundsBuildingPlanner
 
         if (pick is null)
         {
-            return (default, false);
+            return (new RoundsBuildingResult(), false);
         }
 
         check();
@@ -126,32 +126,32 @@ public sealed partial class RoundsBuildingPlanner
             return (new RoundsBuildingResult { Verdict = RockNotDug(Definition, "no_open_cell_beside_site") }, true);
         }
 
-        return AdmitRockStep(call, epoch, s, pickCells, access, BuildingRuntimePackage.SkyMethod(Definition, pick.Area), [], check);
+        return await AdmitRockStepAsync(s, pickCells, access, BuildingRuntimePackage.SkyMethod(Definition, pick.Area), [], check, call, epoch).ConfigureAwait(false);
     }
 
-    internal bool RoofStalled(CancellationToken call, ExcavationStep s, MethodId method)
+    internal bool RoofStalled(ExcavationStep s, MethodId method, CancellationToken call)
     {
         var journal = Reviewer.Player.Journal;
-        IncidentMethodRecord prior;
+        Method prior;
         try
         {
-            prior = journal.LoadOwnerMethod(call, s.Owner, method);
+            prior = journal.LoadOwnerMethod(s.Owner, method, call);
         }
         catch (NotFoundException)
         {
             return false;
         }
 
-        var plan = journal.LoadPlan(call, prior.Plan);
+        var plan = journal.LoadPlan(prior.Plan, call);
         foreach (var progress in plan.Progress)
         {
-            if (!progress.Action.TryRemoveRoof(out _))
+            if (progress.Action.RemoveRoof is null)
             {
                 continue;
             }
 
             var v = progress.View;
-            if (v.Stage == ProgressStage.Completed && s.Facts.Identity.Tick.Value - v.Tick.Value >= BuildingRuntimePackage.ExcavationStallTicks)
+            if (v.Stage == Stage.Completed && s.Facts.Identity.Tick.Value - v.Tick.Value >= ExcavationStallTicks)
             {
                 return true;
             }

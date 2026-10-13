@@ -22,7 +22,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
         return new RoundsPopulationCustodyPlanner(reviewer, native);
     }
 
-    internal RoundsPopulationCustodyResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsPopulationCustodyResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         var state = p.Session.State();
@@ -42,41 +42,40 @@ public sealed partial class RoundsPopulationCustodyPlanner
             return new RoundsPopulationCustodyResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
         }
 
-        var (goal, workable) = p.Journal.Workable(call, review, ConcernId.MaintainPopulation);
-        if (!workable)
+        var (goal, workable) = p.Journal.Workable(review, PolicyConstants.MaintainPopulation, call);
+        if (!workable || goal is null)
         {
             return new RoundsPopulationCustodyResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
         }
 
         foreach (var method0 in goal.Methods)
         {
-            var open = p.Journal.LoadPlan(call, method0.Plan);
+            var open = p.Journal.LoadPlan(method0.Plan, call);
             if (StorePackage.PlanOpen(open))
             {
                 return new RoundsPopulationCustodyResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
             }
         }
 
-        var expected = BuildingRuntimePackage.StepScope(call, reviewer.Native);
+        var expected = await BuildingRuntimePackage.StepScopeAsync(reviewer.Native, call).ConfigureAwait(false);
         if (!BuildingRuntimePackage.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: boundary moved");
         }
 
         var started = reviewer.Clock.Now();
-        var read = reviewer.ObserveOwned(call, reviewer.Native, expected, Unknown<IReadOnlyList<ConstructionClaim>>());
+        var read = await reviewer.ObserveOwnedAsync(reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
         var choice = PolicyFunctions.SelectCustodyMethod(read.Projection.Facts.Custody);
         var arrestTarget = PolicyFunctions.ShrineArrestTarget(read.Projection.Facts);
         if (arrestTarget.Value != "")
         {
-            choice = new CustodyChoice { Pawn = arrestTarget };
+            choice = new CustodyChoice { Pawn = (PawnId)arrestTarget };
         }
         else
         {
-            var lanceTarget = PolicyFunctions.LanceCandidate(read.Projection.Facts);
-            if (lanceTarget.Value != "")
+            if (PolicyFunctions.LanceCandidate(read.Projection.Facts) is { } lanceTarget && lanceTarget.Value != "")
             {
-                var (lance, handled) = StepLance(call, epoch, p, state, started, goal, review.Tick, lanceTarget, arbiter);
+                var (lance, handled) = await StepLanceAsync(p, state, started, goal, review.Tick, lanceTarget, arbiter, call, epoch).ConfigureAwait(false);
                 if (handled)
                 {
                     return lance;
@@ -84,27 +83,26 @@ public sealed partial class RoundsPopulationCustodyPlanner
             }
         }
 
-        if (choice.Reason == CustodyReason.NoDeficit)
+        if (choice.Reason == CustodyPlanReason.NoDeficit)
         {
-            var (entity, ok) = PolicyFunctions.EntityCaptureTarget(read.Projection.Facts.Containment);
-            if (ok)
+            if (PolicyFunctions.EntityCaptureTarget(read.Projection.Facts.Containment) is { } entity)
             {
-                choice = new CustodyChoice { Pawn = entity, Decision = CustodyDecision.Capture };
+                choice = new CustodyChoice { Pawn = (PawnId)entity, Decision = CustodyDecision.Capture };
             }
         }
 
-        if (choice.Reason == CustodyReason.NoDeficit)
+        if (choice.Reason == CustodyPlanReason.NoDeficit)
         {
-            return StepContainment(call, epoch, p, state, started, goal, read.Projection.Facts, arbiter);
+            return await StepContainmentAsync(p, state, started, goal, read.Projection.Facts, arbiter, call, epoch).ConfigureAwait(false);
         }
 
-        if (choice.Reason == CustodyReason.Unknown)
+        if (choice.Reason == CustodyPlanReason.Unknown)
         {
-            return new RoundsPopulationCustodyResult { Verdict = BuildingRuntimePackage.FieldUnavailable("custody") };
+            return new RoundsPopulationCustodyResult { Verdict = Verdict.FieldUnavailable("custody") };
         }
 
         var identityCtx = Boundary.Identity(state.Snapshot);
-        var (emergency, _) = native.ReadEmergency(call, identityCtx);
+        var (emergency, _) = await native.ReadEmergencyAsync(identityCtx, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(emergency.Context, state.Snapshot);
@@ -114,14 +112,14 @@ public sealed partial class RoundsPopulationCustodyPlanner
             throw new ControlException("step: emergency context", e);
         }
 
-        if (emergency.Context.Tick < review.Tick.Value)
+        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick < review.Tick.Value)
         {
             throw new ControlException("step: emergency read older than the review");
         }
 
         if (!emergency.Facts.ColonistsComplete.TryGetValue(out var complete) || !complete || emergency.Facts.Colonists.Count == 0)
         {
-            return new RoundsPopulationCustodyResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "colonists_complete") };
+            return new RoundsPopulationCustodyResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "colonists_complete") };
         }
 
         var ids = new List<string>(emergency.Facts.Colonists.Count + 1);
@@ -136,7 +134,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
         }
 
         ids.Add(choice.Pawn.Value);
-        var (reply, _) = native.ReadCombatPawns(call, identityCtx, ids);
+        var (reply, _) = await native.ReadCombatPawnsAsync(identityCtx, ids, call).ConfigureAwait(false);
         var observed = reply.Observed ?? throw new ControlException("step: observed == nil");
         try
         {
@@ -152,8 +150,8 @@ public sealed partial class RoundsPopulationCustodyPlanner
             throw new ControlException("step: pawn count differs from the requested ids");
         }
 
-        var needed = BuildingRuntimePackage.PlannedDrafts(call, p.Journal);
-        var arms = BuildingRuntimePackage.ReadArmament(call, native, identityCtx);
+        var needed = (await DraftNeeds.PlannedDraftsAsync(p.Journal, call).ConfigureAwait(false)).Select(id => new Domain.PawnId(id.Value)).ToHashSet();
+        var arms = await BuildingRuntimePackage.ReadArmamentAsync(native, identityCtx, call).ConfigureAwait(false);
         var catalog = arms.Catalog;
         var squad = new List<ShrineDefenderFacts>();
         var performers = new List<RescuerFacts>();
@@ -175,7 +173,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
             }
 
             var ranged = BuildingRuntimePackage.RangedWeaponEquipped(row.Equipment, arms);
-            squad.Add(new ShrineDefenderFacts { Defender = BuildingRuntimePackage.SquadDefenderFacts(row, needed, ranged) });
+            squad.Add((ShrineDefenderFacts)BuildingRuntimePackage.SquadDefenderFactsFrom(new ShrineDefenderFacts(), row, needed, ranged));
             performers.Add(RescueFacts.NewRescuerFacts(pawn, row, ""));
             var work = ObservationPackage.WorkPawnRow(row, catalog, arms.Things);
             profiles.Add(PolicyFunctions.BuildProfile(work));
@@ -188,7 +186,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
 
         if (arrestTarget.Value != "")
         {
-            return CommitArrest(call, epoch, p, state, started, goal, read.Projection.Facts, squad, arrestTarget, arbiter);
+            return CommitArrest(p, state, started, goal, read.Projection.Facts, squad, arrestTarget, arbiter, call, epoch);
         }
 
         switch (choice.Decision)
@@ -204,12 +202,12 @@ public sealed partial class RoundsPopulationCustodyPlanner
 
                 if (!ok)
                 {
-                    return new RoundsPopulationCustodyResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "rescue_claim") };
+                    return new RoundsPopulationCustodyResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "rescue_claim") };
                 }
 
-                var value = Rescue.NewRescue(performer, target);
+                var value = new Domain.Rescue(new Domain.PawnId(performer.Value), new Domain.PawnId(target.Value));
                 var prefix = $"population-rescue-{target}-";
-                var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(call, p.Journal, goal, prefix, state.Snapshot);
+                var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
                 if (!admitted)
                 {
                     return new RoundsPopulationCustodyResult { Verdict = verdict };
@@ -217,27 +215,23 @@ public sealed partial class RoundsPopulationCustodyPlanner
 
                 var id = PlanIds.MintPlanId();
                 var action = DomainAction.NewRescueAction(new ActionId($"{id}-0"), value);
-                return Commit(call, epoch, p, state, started, goal, method, id, action);
+                return Commit(p, state, started, goal, method, id, action, call, epoch);
             }
 
             case CustodyDecision.Capture:
             {
                 var patients = new List<CapturePatientFacts> { CaptureFacts.NewCapturePatientFacts(choice.Pawn, patient, "") };
-                var (warden, _) = PolicyFunctions.WardenFor(profiles, false);
-                var (performer, target, ok) = PolicyFunctions.SelectCapture(performers, patients, new PawnId(warden));
-                if (ok && !arbiter.TryClaim([performer, target]))
+                var warden = PolicyFunctions.WardenFor(profiles, false) ?? default;
+                if (PolicyFunctions.SelectCapture(performers, patients, warden) is not { } pair || !arbiter.TryClaim([pair.Capturer, pair.Patient]))
                 {
-                    ok = false;
+                    return new RoundsPopulationCustodyResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "capture_claim") };
                 }
 
-                if (!ok)
-                {
-                    return new RoundsPopulationCustodyResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "capture_claim") };
-                }
+                var (performer, target) = pair;
 
-                var value = Capture.NewCapture(performer, target);
+                var value = new Domain.Capture(new Domain.PawnId(performer.Value), new Domain.PawnId(target.Value));
                 var prefix = $"population-capture-{target}-";
-                var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(call, p.Journal, goal, prefix, state.Snapshot);
+                var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
                 if (!admitted)
                 {
                     return new RoundsPopulationCustodyResult { Verdict = verdict };
@@ -245,7 +239,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
 
                 var id = PlanIds.MintPlanId();
                 var action = DomainAction.NewCaptureAction(new ActionId($"{id}-0"), value);
-                return Commit(call, epoch, p, state, started, goal, method, id, action);
+                return Commit(p, state, started, goal, method, id, action, call, epoch);
             }
 
             default:
@@ -253,9 +247,9 @@ public sealed partial class RoundsPopulationCustodyPlanner
         }
     }
 
-    internal RoundsPopulationCustodyResult Commit(CancellationToken call, CancellationToken epoch, Player p, ControlState state, DateTimeOffset started, StandardState goal, MethodId method, PlanId id, DomainAction action)
+    internal RoundsPopulationCustodyResult Commit(Player p, ControlState state, DateTimeOffset started, StandardState goal, MethodId method, PlanId id, DomainAction action, CancellationToken call, CancellationToken epoch)
     {
-        var plan = PlanSpec.NewPlan(id, new PlanRevision(1), [action]);
+        var plan = new PlanSpec(id, new PlanRevision(1), [action]);
         p.Current(call, epoch);
         var elapsed = reviewer.Clock.Now() - started;
         if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
@@ -263,12 +257,12 @@ public sealed partial class RoundsPopulationCustodyPlanner
             throw new ControlException("commit: session state changed or the read took too long");
         }
 
-        p.Journal.CommitMethod(call, goal.Standard.Id, goal.Revision, method, plan);
+        p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
         return new RoundsPopulationCustodyResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
     }
 }
 
-public readonly record struct RoundsPopulationCustodyResult
+public readonly record struct RoundsPopulationCustodyResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 

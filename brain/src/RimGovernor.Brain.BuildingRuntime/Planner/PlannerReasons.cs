@@ -164,11 +164,11 @@ internal static class PlannerReasons
                 Tick = tick,
                 Concern = t.Concern.Value,
                 Verdict = Wire.Name(t.Filing.Outcome),
-                Cause = Wire.Name(t.Filing.Note.Cause),
+                Cause = t.Filing.Note.Cause.Value,
                 Subject = t.Filing.Note.Subject,
                 Method = methods.GetValueOrDefault(t.Concern, ""),
                 PreviousKnown = t.HadPrevious,
-                Previous = Wire.Name(t.Previous),
+                Previous = t.Previous.Value,
                 Held = t.Held,
             });
         }

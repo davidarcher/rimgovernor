@@ -19,21 +19,21 @@ internal static partial class BuildingRuntimePackage
     /// <summary>Whether a party-spot retire or place method was already spent on the id.</summary>
     internal static Func<bool, string, bool> PartySpotSpent(IReadOnlyList<Method> methods)
     {
-        var used = methods.Select(m => m.Method).ToHashSet();
+        var used = methods.Select(m => m.MethodId).ToHashSet();
         return (retire, id) => retire ? used.Contains(RetireMethodId(PartySpotRetirePrefix, id)) : used.Contains(PartySpotPlaceMethod(id));
     }
 
     internal static Fact<PartySpotNeed> PartySpotReview(ColonyProjection facts, Func<bool, string, bool>? spent)
     {
-        facts.Facts.Sleeping.TryGetValue(out var sleeping);
+        var qualities = facts.Facts.Sleeping.TryGetValue(out var sleeping) ? sleeping.Rooms : Unknown<EquatableArray<UpkeepRoom>>();
         return PolicyFunctions.ReviewPartySpot(new PartySpotInput
         {
             Rooms = facts.Rooms,
-            Qualities = sleeping?.Rooms ?? [],
+            Qualities = qualities,
             Levels = facts.Impressiveness,
             Census = facts.Facts.CurrentConstruction,
             Cells = facts.Cells,
-            Placeable = ComfortBuilderAvailable(facts, PolicyFunctions.PartySpotDefinition),
+            Placeable = ComfortBuilderAvailable(facts, PolicyConstants.PartySpotDefinition),
             Spent = spent,
         });
     }
@@ -42,18 +42,18 @@ internal static partial class BuildingRuntimePackage
 public sealed partial class Rounder
 {
     /// <summary>Whether a party spot must be placed or retired, read against the previous review's comfort methods.</summary>
-    internal Fact<bool> PartySpotOwed(CancellationToken ct, Rounds previous, ColonyProjection facts)
+    internal Fact<bool> PartySpotOwed(Rounds previous, ColonyProjection facts, CancellationToken ct)
     {
         Func<bool, string, bool>? spent = null;
         foreach (var binding in previous.Standards)
         {
-            if (binding.Concern != ConcernId.EnsureComfort)
+            if (binding.Concern != PolicyFunctions.EnsureComfort)
             {
                 continue;
             }
 
-            var state = Player.Journal.LoadStandard(ct, binding.Standard);
-            if (state.Standard.Finding == StandardFinding.Unmet)
+            var state = Player.Journal.LoadStandard(binding.Standard, ct);
+            if (state.Standard.Finding == Finding.Unmet)
             {
                 spent = BuildingRuntimePackage.PartySpotSpent(state.Methods);
             }
@@ -64,30 +64,30 @@ public sealed partial class Rounder
             return Unknown<bool>();
         }
 
-        return Known(need.Owed());
+        return Known(need.Owed);
     }
 }
 
 public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>Retires a stale party spot, or resolves the planner to place a new one; the planner is null when the step is already decided.</summary>
-    internal (RoundsBuildingResult Result, RoundsBuildingPlanner? Placing) PartySpotStep(CancellationToken call, CancellationToken epoch, ControlState state, Rounds review, StandardState goal, ColonyReading reading)
+    internal async Task<(RoundsBuildingResult Result, RoundsBuildingPlanner? Placing)> PartySpotStepAsync(ControlState state, Rounds review, StandardState goal, ColonyReading reading, CancellationToken call, CancellationToken epoch)
     {
-        if (!BuildingRuntimePackage.PartySpotReview(reading.Projection, BuildingRuntimePackage.PartySpotSpent(goal.Methods)).TryGetValue(out var need) || !need.Owed())
+        if (!BuildingRuntimePackage.PartySpotReview(reading.Projection, BuildingRuntimePackage.PartySpotSpent(goal.Methods)).TryGetValue(out var need) || !need.Owed)
         {
             return (new RoundsBuildingResult { Verdict = BuildingReasonNoDeficit }, null);
         }
 
-        if (need.HasRetire)
+        if (need.Retire is { } b)
         {
-            var b = need.Retire;
-            var result = RetireBuilding(call, epoch, state, review, goal, reading, b.Id, b.Building.Definition, b.Cells[0], BuildingRuntimePackage.PartySpotRetirePrefix, "party_spot_retire_method");
+            var retiring = b.Building ?? throw new InvalidOperationException("party spot retire: the retired building carries no building");
+            var result = await RetireBuildingAsync(state, review, goal, reading, b.Id, retiring.Definition, b.Cells[0], BuildingRuntimePackage.PartySpotRetirePrefix, "party_spot_retire_method", call, epoch).ConfigureAwait(false);
             return (result, null);
         }
 
         var placing = Copy();
         placing.Cells = need.Cells;
         placing.PartySpotRoom = need.Room;
-        return (default, placing);
+        return (new RoundsBuildingResult(), placing);
     }
 }

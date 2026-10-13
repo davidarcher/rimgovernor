@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The batched preview a native source may offer: one call for every placement of a wave instead of one hop per cell.</summary>
 internal interface IShellBatchPreviewer
 {
-    (IReadOnlyList<BuildingPreview> Previews, BridgeResult Result) PreviewBuildings(CancellationToken ct, IReadOnlyList<DomainAction> actions, GenerationSnapshot snapshot);
+    Task<(IReadOnlyList<BuildingPreview> Previews, BridgeResult Result)> PreviewBuildingsAsync(IReadOnlyList<DomainAction> actions, GenerationSnapshot snapshot, CancellationToken ct);
 }
 
 public sealed partial class RoundsBuildingPlanner
@@ -18,7 +18,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsShelterPlanner: reviewer == nil || native == nil");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = MaintainHousing, Phase = HousingPhase.Shelter, Definition = "Wall", Shelter = true };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = MaintainHousing, Phase = Pol.Phase.HousingShelter, Definition = "Wall", Shelter = true };
     }
 
     /// <summary>Reuses the same furnishing and ring path to keep one spare indoor sleeping place beyond the observed population.</summary>
@@ -28,7 +28,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsExpansionPlanner: reviewer == nil || native == nil");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = MaintainHousing, Phase = HousingPhase.Expansion, Definition = "Wall", Shelter = true };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = MaintainHousing, Phase = Pol.Phase.HousingExpansion, Definition = "Wall", Shelter = true };
     }
 
     /// <summary>The layout module this planner furnishes: a facility ladder's room role names it, the shelter and expansion planners raise the shelter.</summary>
@@ -48,7 +48,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             return true;
         }
-        return Phase == HousingPhase.Sleeping || Phase == HousingPhase.ComfortRanked;
+        return Phase == Pol.Phase.HousingSleeping || Phase == Pol.Phase.ComfortRanked;
     }
 }
 

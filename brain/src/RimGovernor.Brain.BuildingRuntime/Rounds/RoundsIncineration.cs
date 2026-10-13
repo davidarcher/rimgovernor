@@ -2,9 +2,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsIncinerationSource : IColonySource
 {
-    (EmergencyObservation Emergency, BridgeResult Result) ReadEmergency(CancellationToken ct, C.Identity identity);
+    Task<(EmergencyObservation Emergency, BridgeResult Result)> ReadEmergencyAsync(C.Identity identity, CancellationToken ct);
 
-    (O.ListPawnsReply Reply, BridgeResult Result) ReadTendPawns(CancellationToken ct, C.Identity identity, IReadOnlyList<string> pawns);
+    Task<(O.ListPawnsReply Reply, BridgeResult Result)> ReadTendPawnsAsync(C.Identity identity, IReadOnlyList<string> pawns, CancellationToken ct);
 }
 
 /// <summary>Composes MaintainIncineration: the fireproof incinerator shell, then the burn and the ash cleanup.</summary>
@@ -26,14 +26,14 @@ public sealed partial class RoundsIncinerationPlanner
         RoundsBuildingPlanner? building = null;
         if (native is IRoundsBuildingSource source)
         {
-            building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = source, Concern = ConcernId.MaintainIncineration };
+            building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = source, Concern = PolicyConstants.MaintainIncineration };
         }
 
         return new RoundsIncinerationPlanner { Reviewer = reviewer, Native = native, Building = building };
     }
 }
 
-public readonly record struct RoundsIncinerationResult
+public readonly record struct RoundsIncinerationResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 
@@ -45,10 +45,10 @@ internal static partial class BuildingRuntimePackage
     internal static readonly string[] IncinerationDefinitions = ["Wall", "Door"];
 
     /// <summary>The colonists' pawn rows when the emergency read lists them completely; none when the roster is unknown or incomplete.</summary>
-    internal static (IReadOnlyList<O.PawnState> Rows, bool Complete) ColonistRows(CancellationToken call, IRoundsIncinerationSource native, ControlState state, Rounds review)
+    internal static async Task<(IReadOnlyList<O.PawnState> Rows, bool Complete)> ColonistRowsAsync(IRoundsIncinerationSource native, ControlState state, Rounds review, CancellationToken call)
     {
         var identityRef = Boundary.Identity(state.Snapshot);
-        var (emergency, _) = native.ReadEmergency(call, identityRef);
+        var (emergency, _) = await native.ReadEmergencyAsync(identityRef, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(emergency.Context, state.Snapshot);
@@ -58,7 +58,7 @@ internal static partial class BuildingRuntimePackage
             throw new ControlException("colonistRows: emergency context", e);
         }
 
-        if (emergency.Context.Tick < review.Tick.Value)
+        if ((emergency.Context?.Tick ?? 0) < review.Tick.Value)
         {
             throw new ControlException("colonistRows: emergency read older than the review");
         }
@@ -69,7 +69,7 @@ internal static partial class BuildingRuntimePackage
         }
 
         var ids = emergency.Facts.Colonists.Select(pawn => pawn.Id.Value).ToList();
-        var (reply, _) = native.ReadTendPawns(call, identityRef, ids);
+        var (reply, _) = await native.ReadTendPawnsAsync(identityRef, ids, call).ConfigureAwait(false);
         var observed = reply.Observed;
         if (observed is null)
         {
@@ -96,7 +96,7 @@ internal static partial class BuildingRuntimePackage
 
 public sealed partial class RoundsIncinerationPlanner
 {
-    internal RoundsIncinerationResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsIncinerationResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var state = p.Session.State();
@@ -116,15 +116,15 @@ public sealed partial class RoundsIncinerationPlanner
             return new RoundsIncinerationResult { Verdict = BuildingReasonNoReview };
         }
 
-        var (goal, workable) = p.Journal.Workable(call, review, ConcernId.MaintainIncineration);
-        if (!workable)
+        var (goal, workable) = p.Journal.Workable(review, PolicyConstants.MaintainIncineration, call);
+        if (!workable || goal is null)
         {
             return new RoundsIncinerationResult { Verdict = BuildingReasonNoDeficit };
         }
 
         foreach (var m in goal.Methods)
         {
-            var open = p.Journal.LoadPlan(call, m.Plan);
+            var open = p.Journal.LoadPlan(m.Plan, call);
             if (StorePackage.PlanOpen(open))
             {
                 return new RoundsIncinerationResult { Verdict = BuildingReasonExistingWork };
@@ -136,15 +136,15 @@ public sealed partial class RoundsIncinerationPlanner
             return new RoundsIncinerationResult { Verdict = BuildingReasonNoDeficit };
         }
 
-        var (identity, _) = Native.Identity(call);
+        var (identity, _) = await Native.IdentityAsync(call).ConfigureAwait(false);
         var expected = ObservationPackage.DecodeIdentity(identity);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: boundary moved");
         }
 
-        var reading = Reviewer.ObserveRooms(call, source, expected, Unknown<IReadOnlyList<ConstructionClaim>>(), IncinerationDefinitions);
-        var (result, handled) = StageDisposal(call, epoch, state, review, goal, arbiter, reading);
+        var reading = await Reviewer.ObserveRoomsAsync(source, expected, Unknown<EquatableArray<ConstructionClaim>>(), IncinerationDefinitions, call).ConfigureAwait(false);
+        var (result, handled) = await StageDisposalAsync(state, review, goal, arbiter, reading, call, epoch).ConfigureAwait(false);
         if (handled)
         {
             return result;

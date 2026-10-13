@@ -12,14 +12,12 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// Episode; Due is false when bed is not a Bed, one is stored already, or there is none to carry over, so the
     /// reconcile goes on.
     /// </summary>
-    internal (RoundsBuildingResult Result, bool Due) PackShellBed(
-        CancellationToken call,
-        CancellationToken epoch,
+    internal async Task<(RoundsBuildingResult Result, bool Due)> PackShellBedAsync(
         PackedStock stock,
         ControlState state,
         Store.StandardState goal,
         Observation.RoundsReading reading,
-        string bed)
+        string bed, CancellationToken call, CancellationToken epoch)
     {
         const string shellBed = "Bed";
         var facts = reading.Projection;
@@ -30,7 +28,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return (new RoundsBuildingResult(), false);
         }
-        var (items, _) = stock.Items(call, Pol.PackedFurniture.PackedFurnitureDefinition);
+        var items = await stock.ItemsAsync(PackedFurnitureDefinition, call).ConfigureAwait(false) ?? [];
         foreach (var item in items)
         {
             if (item.InnerDef == shellBed)
@@ -40,10 +38,10 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         }
         var p = Reviewer.Player;
         facts.LayoutPlan.TryGetValue(out var plan);
-        var shell = Pol.SleepingBed.ShellBedIds(plan, rooms!);
+        var shell = ShellBedIds(plan!, rooms!);
         // empty beds first, then an owner's
         var vacant = obs!.Beds
-            .Where(b => shell.Contains(b.Id) && b.Definition == shellBed)
+            .Where(b => shell.Contains(b.Id) && b.Definition.Value == shellBed)
             .OrderBy(b => b.Owners.Count == 0 ? 0 : 1)
             .ThenBy(b => b.Id, StringComparer.Ordinal)
             .ToList();
@@ -54,7 +52,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             Method? existing;
             try
             {
-                existing = p.Journal.LoadOwnerMethod(call, goal, method);
+                existing = p.Journal.LoadOwnerMethod(goal, method, call);
             }
             catch (Store.NotFoundException)
             {
@@ -65,7 +63,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                 // Packing is under way: wait for it rather than build a second bed.
                 try
                 {
-                    var prior = p.Journal.LoadPlan(call, existing.Plan);
+                    var prior = p.Journal.LoadPlan(existing.Plan, call);
                     if (Standard.WorkOpen(prior.Progress))
                     {
                         return (new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "shell_bed_pack") }, true);
@@ -80,7 +78,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             var value = new MoveBuilding(b.Id, shellBed, b.Cell, Rotation.South);
             var id = PlanIds.MintPlanId();
             var action = DomainAction.NewUninstallBuildingAction(new ActionId($"{id}-0"), value);
-            return CommitCouple(call, epoch, state, goal, method, id, [action]);
+            return CommitCouple(state, goal, method, id, [action], call, epoch);
         }
         return (new RoundsBuildingResult(), false);
     }

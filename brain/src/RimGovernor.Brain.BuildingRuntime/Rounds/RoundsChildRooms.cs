@@ -4,27 +4,32 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsSleepingUpkeepPlanner
 {
-    internal RoundsBuildingResult StageChildRoom(CancellationToken call, CancellationToken epoch, PackedStock stock, ControlState state, RoundsReview review, StandardState goal, RoundsReading reading, ChildRoomStep step)
+    internal async Task<RoundsBuildingResult> StageChildRoomAsync(PackedStock stock, ControlState state, RoundsReview review, StandardState goal, RoundsReading reading, ChildRoomStep step, CancellationToken call, CancellationToken epoch)
     {
-        var bounds = step.Room.Region.Bounds();
-        return Building.ReconcileRoom(call, epoch, state, review, goal, reading, stock, new RoomReconcile
+        if (step.Room is not { } room || step.Need is not { } need)
         {
-            Room = step.Room,
+            throw new ControlException("stageChildRoom: the step carries no room or need");
+        }
+        var bounds = room.Region.Bounds();
+        return await Building.ReconcileRoomAsync(state, review, goal, reading, stock, new RoomReconcile
+        {
+            Room = room,
             Template = step.Template,
             Name = string.Create(CultureInfo.InvariantCulture, $"child-room-{bounds.X}-{bounds.Z}"),
-            Reason = step.Need.Role.Value,
-        });
+            Reason = Wire.Name(need.Role),
+        }, call, epoch).ConfigureAwait(false);
     }
 }
 
 public sealed partial class Rounder
 {
     /// <summary>Adds the worship and containment definitions the child rooms need to the reading's catalog.</summary>
-    internal void ReviewChildRooms(RoundsReading reading)
+    internal RoundsReading ReviewChildRooms(RoundsReading reading)
     {
         var worship = WorshipDefinitions(reading.Projection);
-        reading.Projection.AddDefinitions(reading.Frame, [.. worship, .. ContainmentDefinitions(reading.Projection)]);
+        var projection = reading.Projection.AddDefinitions(reading.Frame, reading.Catalog, [.. worship, .. ContainmentDefinitions(reading.Projection)]);
         Census.RememberWorship(worship);
+        return reading.WithProjection(projection);
     }
 }
 
@@ -53,8 +58,8 @@ internal static partial class BuildingRuntimePackage
         return [];
     }
 
-    internal static (ChildRoomNeed Need, ContainmentVerdict Verdict) ContainmentCellNeed(ColonyProjection facts) =>
-        PolicyApi.ContainmentCellNeed(facts.Facts.Containment, FurnitureDefinitions(facts), FlooringFacts(facts));
+    internal static (ChildRoomNeed? Need, ContainmentVerdict Verdict) ContainmentCellNeed(ColonyProjection facts) =>
+        PolicyApi.ContainmentCellNeed(facts.Facts.Containment, FurnitureDefinitions(facts), FlooringFactsOf(facts));
 
     internal static (ChildRoomNeed Need, bool Owed) IsolationRoomNeed(ColonyProjection facts) =>
         PolicyApi.IsolationRoomNeed(facts.Isolation, FurnitureDefinitions(facts));
@@ -75,7 +80,7 @@ internal static partial class BuildingRuntimePackage
             }
         }
         var (cell, verdict) = ContainmentCellNeed(facts);
-        if (verdict.Owed)
+        if (verdict.Owed && cell is not null)
         {
             needs.Add(cell);
         }

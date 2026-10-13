@@ -2,12 +2,12 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsFireSafetySource : IColonySource
 {
-    BridgeEmergencyObservation ReadEmergency(C.Identity identity, CancellationToken ct);
+    Task<BridgeEmergencyObservation> ReadEmergencyAsync(C.Identity identity, CancellationToken ct);
 
-    O.ListPawnsReply ReadTendPawns(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
+    Task<O.ListPawnsReply> ReadTendPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
 }
 
-public sealed class RoundsFireSafetyResult
+public sealed class RoundsFireSafetyResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 
@@ -34,7 +34,7 @@ public sealed class RoundsFireSafetyPlanner
         _native = native;
     }
 
-    internal RoundsFireSafetyResult Step(CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsFireSafetyResult> StepAsync(CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -42,9 +42,9 @@ public sealed class RoundsFireSafetyPlanner
         {
             return new RoundsFireSafetyResult { Verdict = BuildingReasonDisabled };
         }
-        if (!state.ObservationKnown || !state.Snapshot.IsValid || state.Snapshot.Native == 0)
+        if (!state.ObservationKnown || !state.Snapshot.IsValid || state.Snapshot.Native.Value == 0)
         {
-            throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0");
+            throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native.Value == 0");
         }
         var review = p.Journal.LoadRounds(call);
         if (!review.Enabled || !review.Snapshot.Matches(state.Snapshot))
@@ -56,12 +56,12 @@ public sealed class RoundsFireSafetyPlanner
         {
             return new RoundsFireSafetyResult { Verdict = BuildingReasonNoDeficit, Outcome = FireSafetyOutcome.Recovered };
         }
-        var expected = StepScope(call, _native);
+        var expected = await StepScopeAsync(_native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
-        var reading = _reviewer.ObserveColony(call, _native, expected, null);
+        var reading = await _reviewer.ObserveColonyAsync(_native, expected, null, call).ConfigureAwait(false);
         var upkeepReview = PolicyApi.ReviewUpkeep(reading.Projection.Facts.Upkeep, new UpkeepHistory(), null);
         var active = false;
         var known = false;
@@ -78,7 +78,7 @@ public sealed class RoundsFireSafetyPlanner
             return new RoundsFireSafetyResult { Verdict = BuildingReasonNoDeficit, Outcome = FireSafetyOutcome.Recovered };
         }
         var identityRef = Boundary.Identity(state.Snapshot);
-        var emergency = _native.ReadEmergency(identityRef, call);
+        var emergency = await _native.ReadEmergencyAsync(identityRef, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(emergency.Context, state.Snapshot);
@@ -87,7 +87,7 @@ public sealed class RoundsFireSafetyPlanner
         {
             throw new ControlException("step: err != nil || emergency.Context.GetTick() < int64(review.Tick)");
         }
-        if (emergency.Context.Tick < (long)review.Tick)
+        if ((emergency.Context?.Tick ?? 0) < review.Tick.Value)
         {
             throw new ControlException("step: err != nil || emergency.Context.GetTick() < int64(review.Tick)");
         }
@@ -96,8 +96,8 @@ public sealed class RoundsFireSafetyPlanner
             return new RoundsFireSafetyResult { Verdict = FieldUnavailable("colonists_complete"), Outcome = FireSafetyOutcome.Unknown };
         }
         var ids = emergency.Facts.Colonists.Select(pawn => pawn.Id.Value).ToList();
-        var reply = _native.ReadTendPawns(identityRef, ids, call);
-        if (!reply.HasObserved)
+        var reply = await _native.ReadTendPawnsAsync(identityRef, ids, call).ConfigureAwait(false);
+        if (reply.Observed is null)
         {
             throw new ControlException("step: observed == nil");
         }
@@ -122,7 +122,7 @@ public sealed class RoundsFireSafetyPlanner
             {
                 throw new ControlException("step: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]");
             }
-            pawns.Add(FireSafetyPawnFactsOf(new PawnId(row.Pawn.Id), row));
+            pawns.Add(FireSafetyPawnFactsOf(new Domain.PawnId(row.Pawn.Id), row));
         }
         p.Current(call, epoch);
         if (p.Session.State() != state)
@@ -148,30 +148,30 @@ public sealed class RoundsFireSafetyPlanner
 
 internal static partial class BuildingRuntimePackage
 {
-    internal static FireSafetyPawnFacts FireSafetyPawnFactsOf(PawnId pawn, O.PawnState row)
+    internal static FireSafetyPawnFacts FireSafetyPawnFactsOf(Domain.PawnId pawn, O.PawnState row)
     {
         var facts = new FireSafetyPawnFacts
         {
             Pawn = pawn,
-            Dead = Boundary.FactBool(row.Dead),
-            Downed = Boundary.FactBool(row.Downed),
-            Drafted = Boundary.FactBool(row.Drafted),
-            MentalState = Boundary.FactPresence(row.MentalState, row.Issues, "mental_state"),
+            Dead = Boundary.FactBool(row.HasDead, row.Dead),
+            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
+            Drafted = Boundary.FactBool(row.HasDrafted, row.Drafted),
+            MentalState = Boundary.FactPresence(row.HasMentalState, row.Issues, "mental_state"),
         };
         if (row.Job is not null && !Boundary.IssueField(row.Job.Issues, "player_forced"))
         {
-            facts.PlayerForced = Boundary.FactBool(row.Job.PlayerForced);
+            facts = facts with { PlayerForced = Boundary.FactBool(row.Job.HasPlayerForced, row.Job.PlayerForced) };
         }
         var health = row.Health;
         if (health is not null && !Boundary.IssueField(health.Issues, "health"))
         {
-            facts.NeedsTend = Boundary.FactBool(health.NeedsTend);
-            facts.Bleeding = Boundary.FactBool(health.Bleeding);
+            facts = facts with { NeedsTend = Boundary.FactBool(health.HasNeedsTend, health.NeedsTend) };
+            facts = facts with { Bleeding = Boundary.FactBool(health.HasBleeding, health.Bleeding) };
         }
         var settings = row.Settings;
         if (settings is not null && !Boundary.IssueField(settings.Issues, "work"))
         {
-            facts.FirefightingEnabled = WorkTypeEnabled(settings.Work, "Firefighter");
+            facts = facts with { FirefightingEnabled = WorkTypeEnabled(settings.Work, "Firefighter") };
         }
         return facts;
     }

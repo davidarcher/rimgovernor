@@ -5,21 +5,21 @@ internal static partial class BuildingRuntimePackage
     internal static GenerationSnapshot BudgetWorld(GenerationSnapshot s) => s with { Plan = default, Revision = default };
 
     internal static IReadOnlyList<PlanId> StandardMethodPlans(IReadOnlyList<Method> history, ulong episode, string prefix) =>
-        history.Where(m => m.Episode == episode && m.Method.Value.StartsWith(prefix, StringComparison.Ordinal)).Select(m => m.Plan).ToList();
+        history.Where(m => m.Episode == episode && m.MethodId.Value.StartsWith(prefix, StringComparison.Ordinal)).Select(m => m.Plan).ToList();
 
     internal static IReadOnlyList<PlanId> IncidentPlans(IReadOnlyList<IncidentMethod> methods, string prefix) =>
         methods.Where(m => m.Method.Value.StartsWith(prefix, StringComparison.Ordinal)).Select(m => m.Plan).ToList();
 
-    internal static RefusalBudget RefusalLedger(CancellationToken ct, StoreJournal journal, IReadOnlyList<PlanId> plans, Func<Progress, string> subjectOf)
+    internal static RefusalBudget RefusalLedger(StoreJournal journal, IReadOnlyList<PlanId> plans, Func<Progress, string> subjectOf, CancellationToken ct)
     {
-        var budget = default(RefusalBudget);
+        var budget = new RefusalBudget();
         foreach (var id in plans)
         {
-            var plan = journal.LoadPlan(ct, id);
+            var plan = journal.LoadPlan(id, ct);
             foreach (var progress in plan.Progress)
             {
-                var view = progress.View();
-                if (!view.Receipt.TryGetValue(out var receipt) || receipt != ReceiptKind.Refused)
+                var view = progress.View;
+                if (!view.Receipt.TryGetValue(out var receipt) || receipt != Domain.Receipt.Refused)
                 {
                     continue;
                 }
@@ -32,7 +32,7 @@ internal static partial class BuildingRuntimePackage
 
                 if (!view.Refusal.TryGetValue(out var refusal))
                 {
-                    refusal = new Refusal { Reason = "refused", Class = RefusalClass.Unknown };
+                    refusal = new NativeRefusal("", "refused", RefusalClass.Unknown);
                 }
 
                 budget = budget.Record(subject, refusal.Reason, refusal.Class, BudgetWorld(view.Snapshot));
@@ -50,7 +50,7 @@ internal static partial class BuildingRuntimePackage
             return (default, true);
         }
 
-        if (why.Code == BudgetCode.Waiting)
+        if (why.Code == PolicyFunctions.BudgetWaiting)
         {
             return (RetryBudgetWait(subject, ReasonToken(why.Reason)), false);
         }
@@ -60,10 +60,10 @@ internal static partial class BuildingRuntimePackage
 
     internal static string ReasonToken(string reason) => string.Join('_', reason.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
-    internal static (Verdict Verdict, bool Admitted) AdmitSubject(CancellationToken ct, StoreJournal journal, string subject, IReadOnlyList<PlanId> plans, GenerationSnapshot world)
+    internal static (Verdict Verdict, bool Admitted) AdmitSubject(StoreJournal journal, string subject, IReadOnlyList<PlanId> plans, GenerationSnapshot world, CancellationToken ct)
     {
         subject = subject.EndsWith('-') ? subject[..^1] : subject;
-        var budget = RefusalLedger(ct, journal, plans, _ => subject);
+        var budget = RefusalLedger(journal, plans, _ => subject, ct);
         return BudgetVerdict(budget, subject, world);
     }
 
@@ -80,9 +80,9 @@ internal static partial class BuildingRuntimePackage
         }
     }
 
-    internal static (MethodId Method, Verdict Verdict, bool Admitted) AdmitStandardMethod(CancellationToken ct, StoreJournal journal, StandardState goal, string prefix, GenerationSnapshot world)
+    internal static (MethodId Method, Verdict Verdict, bool Admitted) AdmitStandardMethod(StoreJournal journal, StandardState goal, string prefix, GenerationSnapshot world, CancellationToken ct)
     {
-        var (verdict, ok) = AdmitStandardSubject(ct, journal, goal, prefix, world);
+        var (verdict, ok) = AdmitStandardSubject(journal, goal, prefix, world, ct);
         if (!ok)
         {
             return (default, verdict, false);
@@ -91,11 +91,11 @@ internal static partial class BuildingRuntimePackage
         return (NextMethodId(prefix, HistoryMethodIds(goal.History, goal.Standard.Episode)), default, true);
     }
 
-    internal static (Verdict Verdict, bool Admitted) AdmitStandardSubject(CancellationToken ct, StoreJournal journal, StandardState goal, string prefix, GenerationSnapshot world) =>
-        AdmitSubject(ct, journal, prefix, StandardMethodPlans(goal.History, goal.Standard.Episode, prefix), world);
+    internal static (Verdict Verdict, bool Admitted) AdmitStandardSubject(StoreJournal journal, StandardState goal, string prefix, GenerationSnapshot world, CancellationToken ct) =>
+        AdmitSubject(journal, prefix, StandardMethodPlans(goal.History, goal.Standard.Episode, prefix), world, ct);
 
     internal static IReadOnlyList<MethodId> HistoryMethodIds(IReadOnlyList<Method> history, ulong episode) =>
-        history.Where(m => m.Episode == episode).Select(m => m.Method).ToList();
+        history.Where(m => m.Episode == episode).Select(m => m.MethodId).ToList();
 
     internal static IReadOnlyList<MethodId> IncidentMethodIds(IReadOnlyList<IncidentMethod> methods) =>
         methods.Select(m => m.Method).ToList();

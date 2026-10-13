@@ -50,6 +50,9 @@ public static partial class DomainConstants
     /// and food gates allow, so in practice the target rises with the colony's means.
     /// </summary>
     public const int PopulationTarget = 100;
+
+    /// <summary>Go <c>MaxStandardRecord</c>: bounds <see cref="Standard.Record"/> in UTF-8 bytes.</summary>
+    public const int MaxStandardRecord = 4096;
 }
 
 /// <summary>
@@ -88,6 +91,14 @@ public sealed partial record Standard
     /// </summary>
     public TradeMission? Mission { get; init; }
 
+    /// <summary>
+    /// The goal's own durable intent as JSON text (Go <c>Standard.Record</c>), written and read by the goal's planner:
+    /// what the world cannot show (a creep-joiner, ideoligion-reform or trade-request record). Null or empty for most
+    /// goals; a trade-mission Standard uses the typed <see cref="Mission"/> instead. Bounded by
+    /// <see cref="DomainConstants.MaxStandardRecord"/> bytes.
+    /// </summary>
+    public string? Record { get; init; }
+
     /// <summary>A new open, unclear Standard (Go <c>NewStandard</c>); throws when invalid.</summary>
     public static Standard NewStandard(StandardId id, ConcernId kind, int priority, GenerationSnapshot snapshot)
     {
@@ -107,6 +118,7 @@ public sealed partial record Standard
     public void Validate()
     {
         DomainException.Require(Id.IsValid && Kind.IsValid && Priority >= 0 && Priority <= DomainConstants.MaxPriority && Snapshot.IsValid, "invalid standard");
+        DomainException.Require(Record is null || System.Text.Encoding.UTF8.GetByteCount(Record) <= DomainConstants.MaxStandardRecord, "standard record exceeds bound");
         if (Kind == Concerns.TradeMission)
         {
             DomainException.Require(Mission is not null && Once && Mission.HomeColony == Snapshot.Colony && Mission.HomeMap == Snapshot.Map, "invalid trade mission standard record");

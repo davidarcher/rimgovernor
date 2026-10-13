@@ -41,7 +41,7 @@ internal readonly record struct GateWait(TimeSpan Wait, string Holder, TimeSpan 
 /// Coordinates explicit trusted player requests. HTTP authentication and admission belong to its caller. It
 /// never runs plans, renews leases or resumes time.
 /// </summary>
-public sealed partial class Player
+public sealed partial class Player : IDisposable
 {
     private readonly object _mu = new();
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -113,7 +113,7 @@ public sealed partial class Player
     public ControlState State() => _session.State();
 
     /// <summary>One caller's passage through the player gate: the call token, the epoch it ran under and the release.</summary>
-    internal sealed class Entry(Player player, CancellationTokenSource call, CancellationToken epoch, GateWait waited) : IDisposable
+    internal sealed class Entry(Player player, CancellationTokenSource call, GateWait waited, CancellationToken epoch) : IDisposable
     {
         public CancellationToken Call => call.Token;
 
@@ -134,7 +134,7 @@ public sealed partial class Player
     }
 
     /// <summary>Takes the player gate for a caller named by <paramref name="label"/> (clock_step, rounds_review, submit, manual, ...).</summary>
-    internal async Task<Entry> EnterAsync(CancellationToken ct, string label, bool manual)
+    internal async Task<Entry> EnterAsync(string label, bool manual, CancellationToken ct)
     {
         CancellationToken epoch;
         string holder;
@@ -174,7 +174,7 @@ public sealed partial class Player
         }
         var call = CancellationTokenSource.CreateLinkedTokenSource(ct, epoch);
         call.CancelAfter(_config.CallTimeout);
-        var entry = new Entry(this, call, epoch, waited);
+        var entry = new Entry(this, call, waited, epoch);
         try
         {
             Current(call.Token, epoch);
@@ -289,14 +289,29 @@ public sealed partial class Player
     private Task<ControlRecord> UncertainAsync(ControlRecord record, Exception cause) =>
         FinishAsync(record, ControlPhase.Uncertain, new NativeGeneration(0), ErrorJoin.Of(cause, DisableCaptured()));
 
+    /// <summary>
+    /// Caller holds the player gate. Invalidating existing work needs no native read, including when a stale
+    /// browser request stops a different observed world.
+    /// </summary>
+    internal async Task<RoundsResult> StopRoundsAsync(CancellationToken ct)
+    {
+        var previous = await _journal.LoadRoundsAsync(ct).ConfigureAwait(false);
+        if (previous.Revision == 0 || !previous.Enabled)
+        {
+            return new RoundsResult { Review = previous };
+        }
+        return await _journal.ReviewRoundsAsync(
+            new RoundsRequest { Revision = previous.Revision, Current = previous.Snapshot, Tick = previous.Tick, Enabled = false }, ct).ConfigureAwait(false);
+    }
+
     /// <summary>Enables autonomous play for the requested world under its root plan.</summary>
     public async Task<ControlRecord> ResumeAsync(ControlRequest request, CancellationToken ct)
     {
-        using var entry = await EnterAsync(ct, "resume", false).ConfigureAwait(false);
-        return await ResumeHeldAsync(entry.Call, entry.Epoch, request).ConfigureAwait(false);
+        using var entry = await EnterAsync("resume", false, ct).ConfigureAwait(false);
+        return await ResumeHeldAsync(request, entry.Call, entry.Epoch).ConfigureAwait(false);
     }
 
-    private async Task<ControlRecord> ResumeHeldAsync(CancellationToken call, CancellationToken epoch, ControlRequest request)
+    private async Task<ControlRecord> ResumeHeldAsync(ControlRequest request, CancellationToken call, CancellationToken epoch)
     {
         if (request.Kind != ControlKind.Resume)
         {
@@ -315,10 +330,10 @@ public sealed partial class Player
         {
             return record;
         }
-        return await CompleteResumeHeldAsync(call, epoch, record).ConfigureAwait(false);
+        return await CompleteResumeHeldAsync(record, null, call, epoch).ConfigureAwait(false);
     }
 
-    private async Task<ControlRecord> CompleteResumeHeldAsync(CancellationToken call, CancellationToken epoch, ControlRecord record, NativeGeneration? handoff = null)
+    private async Task<ControlRecord> CompleteResumeHeldAsync(ControlRecord record, NativeGeneration? handoff = null, CancellationToken call = default, CancellationToken epoch = default)
     {
         var request = record.Request;
         GenerationSnapshot snapshot;
@@ -373,7 +388,7 @@ public sealed partial class Player
     /// </summary>
     public async Task<ControlRecord> PauseAsync(ControlRequest request, CancellationToken ct)
     {
-        using var entry = await EnterAsync(ct, "manual", true).ConfigureAwait(false);
+        using var entry = await EnterAsync("manual", true, ct).ConfigureAwait(false);
         var call = entry.Call;
         var epoch = entry.Epoch;
         _ = await StopRoundsAsync(call).ConfigureAwait(false);
@@ -415,6 +430,13 @@ public sealed partial class Player
             return await UncertainAsync(record, e).ConfigureAwait(false);
         }
         return await FinishAsync(record, ControlPhase.Paused, new NativeGeneration(0), null).ConfigureAwait(false);
+    }
+
+    /// <summary>Releases the player gate. Call it after <see cref="CloseAsync"/> succeeded, when no caller can still wait on the gate.</summary>
+    public void Dispose()
+    {
+        _stopLifetime.Dispose();
+        _gate.Dispose();
     }
 
     /// <summary>

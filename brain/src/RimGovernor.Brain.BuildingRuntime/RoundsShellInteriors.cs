@@ -42,7 +42,10 @@ internal static partial class BuildingRuntimePackage
         }
         foreach (var claim in claims)
         {
-            Extend(claim.Plan, claim.Building);
+            if (claim.Building is { } claimBuilding)
+            {
+                Extend(claim.Plan, claimBuilding);
+            }
         }
         var cells = new List<Cell>();
         foreach (var id in byPlan.Keys.Order())

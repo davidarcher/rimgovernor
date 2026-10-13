@@ -33,7 +33,6 @@ public sealed class WakeSignal
     // whether a stop is pending. No admission waits for a stop: every kind the Worker dispatches is validated
     // natively at apply time and dispatches under a running window as readily as between windows.
     private ulong _stops;
-    private ulong _stopsTaken;
 
     /// <summary>Merges outcomes into the pending set and signals without blocking.</summary>
     public void Notify(IReadOnlyList<WakeOutcome> outcomes, bool authority) =>
@@ -97,10 +96,10 @@ public sealed class WakeSignal
     {
         if (signal is null)
         {
-            await Task.Delay(Timeout.Infinite, ct);
+            await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
             return;
         }
-        await signal._ch.Reader.ReadAsync(ct);
+        await signal._ch.Reader.ReadAsync(ct).ConfigureAwait(false);
     }
 
     /// <summary>Drains the pending outcomes and the authority flag; the invalidated families are left for <see cref="TakeInvalidated"/>.</summary>
@@ -128,15 +127,11 @@ public sealed class WakeSignal
                 Families = [.. _families.Order()],
                 Sections = [.. _sections.Order()],
                 Authority = _authority,
-                Stopped = _stops > _stopsTaken,
-                StopAt = _stopAt,
             };
             _pending = [];
             _families.Clear();
             _sections.Clear();
             _authority = false;
-            _stopsTaken = _stops;
-            _stopAt = null;
             return reason;
         }
     }
@@ -168,7 +163,7 @@ internal static partial class Pkg
                     outcomes.Add(WakeOutcomeOf(@event.OperationOutcome));
                     break;
                 case ClockPb.Event.EventOneofCase.Stopped:
-                    if (Sto.Clock.ClockEvents.OtherWorld(@event, page))
+                    if (Sto.ClockJournal.OtherWorld(@event, page))
                     {
                         continue; // a previous load's stop
                     }
@@ -192,7 +187,7 @@ internal static partial class Pkg
                 case ClockPb.Event.EventOneofCase.ObservationInvalidated:
                     foreach (var wire in @event.ObservationInvalidated.Families)
                     {
-                        if (!Bridge.FactFamilies.TryFromWire(wire, out var family))
+                        if (!BridgeApi.FactFamilyFromWire(wire, out var family))
                         {
                             // An unknown family can be anything: an authority-sized wake.
                             authority = true;

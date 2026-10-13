@@ -83,7 +83,47 @@ public static class OperationIntent
         {
             why += ", " + reason;
         }
-        return BridgeApi.FormatOperationIntent(ConcernLabel(method.Concern), why);
+        return FormatOperationIntent(ConcernLabel(method.Concern), why);
+    }
+
+    private const int MaxOperationIntent = 80;
+
+    /// <summary>Renders "label: reason" as printable ASCII, whitespace collapsed and capped at 80 characters (bridge.FormatOperationIntent).</summary>
+    private static string FormatOperationIntent(string label, string reason)
+    {
+        label = AsciiLine(label);
+        reason = AsciiLine(reason);
+        var output = label;
+        if (label.Length != 0 && reason.Length != 0)
+        {
+            output = label + ": " + reason;
+        }
+        else if (reason.Length != 0)
+        {
+            output = reason;
+        }
+        if (output.Length > MaxOperationIntent)
+        {
+            output = output[..MaxOperationIntent].TrimEnd(' ', ':');
+        }
+        return output;
+    }
+
+    private static string AsciiLine(string s)
+    {
+        var b = new StringBuilder();
+        foreach (var r in s)
+        {
+            if (r is '\t' or '\n' or '\r')
+            {
+                b.Append(' ');
+            }
+            else if (r >= 0x20 && r < 0x7f)
+            {
+                b.Append(r);
+            }
+        }
+        return string.Join(' ', b.ToString().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
     }
 
     private static string SplitWords(string s)

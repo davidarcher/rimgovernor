@@ -137,7 +137,7 @@ public sealed record Faults
     /// Wraps <paramref name="run"/> with the fault configured for the named planner, if any: a failing planner
     /// throws at once, a hanging one waits out <paramref name="ct"/>.
     /// </summary>
-    public Func<Task> PlannerFault(string name, CancellationToken ct, Func<Task> run)
+    public Func<Task> PlannerFault(string name, Func<Task> run, CancellationToken ct)
     {
         if (FailPlanners.Contains(name))
         {

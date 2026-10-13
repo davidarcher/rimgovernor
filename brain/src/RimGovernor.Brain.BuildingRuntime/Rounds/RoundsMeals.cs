@@ -44,7 +44,7 @@ public sealed partial class Rounder
         var ready = false;
         foreach (var choice in review.Recipes)
         {
-            foreach (var bench in benches ?? [])
+            foreach (var bench in benches)
             {
                 if (bench.Id != choice.Bench)
                 {

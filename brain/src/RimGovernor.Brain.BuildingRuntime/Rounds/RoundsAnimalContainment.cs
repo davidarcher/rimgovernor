@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public sealed class RoundsAnimalContainmentResult
+public sealed class RoundsAnimalContainmentResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 
@@ -24,7 +24,7 @@ public sealed partial class RoundsAnimalContainmentPlanner
         _building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyApi.MaintainAnimalContainment };
     }
 
-    internal RoundsAnimalContainmentResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsAnimalContainmentResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -42,17 +42,17 @@ public sealed partial class RoundsAnimalContainmentPlanner
             return new RoundsAnimalContainmentResult { Verdict = BuildingReasonNoReview };
         }
         var (goal, workable) = p.Journal.Workable(review, PolicyApi.MaintainAnimalContainment, call);
-        if (!workable)
+        if (goal is null || !workable)
         {
             return new RoundsAnimalContainmentResult { Verdict = BuildingReasonNoDeficit };
         }
-        var expected = StepScope(call, _reviewer.Native);
+        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
-        var read = _reviewer.ObserveOwned(call, _reviewer.Native, expected, claims);
+        var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, call).ConfigureAwait(false);
         var facts = read.Projection;
         if (!facts.Facts.AnimalUpkeep.Animals.TryGetValue(out var animals))
         {
@@ -67,7 +67,7 @@ public sealed partial class RoundsAnimalContainmentPlanner
         {
             return new RoundsAnimalContainmentResult { Verdict = FieldUnavailable("animal_handler") };
         }
-        var built = _reviewer.StageHerdRooms(call, epoch, state, review, goal, expected, claims);
+        var built = await StageHerdRoomsAsync(state, review, goal, expected, claims, call, epoch).ConfigureAwait(false);
         if (built.Verdict != BuildingReasonNoDeficit)
         {
             return built;
@@ -109,7 +109,7 @@ internal static partial class BuildingRuntimePackage
             }
             foreach (var w in work)
             {
-                if (w.Work == "Handling" && !w.Disabled && w.Priority > 0)
+                if (Wire.Name(w.Work) == "Handling" && !w.Disabled && w.Priority > 0)
                 {
                     available = true;
                 }
@@ -130,21 +130,21 @@ internal static partial class BuildingRuntimePackage
         return null;
     }
 
-    internal static string? AnimalContainmentStuff(PlanningDefinition a, PlanningDefinition b) => ObservationApi.SharedStuff(a, b);
+    internal static string? AnimalContainmentStuff(PlanningDefinition a, PlanningDefinition b) => ObservationApi.SharedStuff(a, b, out var stuff) ? stuff : null;
 
     /// <summary>The stuff both shell definitions are made of: the shell style's wall stuff, then the cheapest in stock, then any shared.</summary>
     internal static string? ShellSharedStuff(ColonyProjection facts, PlanningDefinition a, PlanningDefinition b)
     {
-        var want = ShellStyle(facts).WallStuff;
+        var want = ShellStyleOf(facts).WallStuff;
         if (want != "" && a.StuffOptions.Count > 0 && a.MakeableFrom(want) && b.MakeableFrom(want))
         {
             return want;
         }
-        if (facts.Stock() is { } stock)
+        if (facts.TryStock(out var stock))
         {
             try
             {
-                var price = a.StuffChoice(StuffPreference.Cheapest, stock);
+                var price = a.StuffChoice(StuffCriterion.CheapestStuff, stock);
                 if (b.MakeableFrom(price.Stuff))
                 {
                     return price.Stuff;
@@ -171,11 +171,11 @@ internal static partial class BuildingRuntimePackage
     {
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
-        var gk = ColonyGround(facts).TryGetValue(out var ground);
+        var (ground, gk) = ColonyGround(facts);
         if (!pk || !ck || !gk)
         {
             return false;
         }
-        return PolicyApi.PensStand(plan!, plan!.GroundWithRock(ground!, NaturalRock(facts)), census!.Buildings);
+        return PolicyApi.PensStand(plan!, plan!.GroundWithRock(ground, NaturalRock(facts)), census!.Buildings);
     }
 }

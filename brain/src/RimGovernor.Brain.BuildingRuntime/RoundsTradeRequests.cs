@@ -1,12 +1,10 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>The saved record of a comms trade request attempt.</summary>
 internal sealed record CommsTradeRequestRecord
 {
-    [JsonPropertyName("comms_trade_request")]
     public CommsTradeRequest Request { get; init; } = null!;
 }
 
@@ -14,9 +12,12 @@ internal static partial class BuildingRuntimePackage
 {
     internal static CommsTradeRequestRecord RequestRecord(string record)
     {
-        var output = JsonSerializer.Deserialize<CommsTradeRequestRecord>(record) ?? throw new JsonException("request record is null");
-        output.Request.Validate();
-        return output;
+        using var doc = JsonDocument.Parse(record);
+        if (doc.RootElement.ValueKind != JsonValueKind.Object || !doc.RootElement.TryGetProperty("comms_trade_request", out var inner))
+        {
+            throw new JsonException("request record is null");
+        }
+        return new CommsTradeRequestRecord { Request = global::RimGovernor.Brain.Store.Codec.StoreJson.Deserialize<CommsTradeRequest>(inner.GetRawText()) };
     }
 
     internal static bool RequestRecordPending(CommsTradeRequestRecord record, Executor.CommsTradeInspection read)
@@ -34,7 +35,7 @@ internal static partial class BuildingRuntimePackage
             return false;
         }
         long expiry = 360000;
-        if (record.Request.Kind == TradeRequestKind.TradeRequestOrbital)
+        if (record.Request.Kind == TradeRequestKind.Orbital)
         {
             expiry = 5001;
         }
@@ -49,7 +50,7 @@ public sealed partial class RoundsTradePlanner
     /// the ordinary trader census and is browsed by the existing shared trade phases; request intent never
     /// supplies stock.
     /// </summary>
-    internal (RoundsTradeResult Result, bool Handled) Request(CancellationToken call, CancellationToken epoch, ControlState state, Sto.Rounds review)
+    internal async Task<(RoundsTradeResult Result, bool Handled)> RequestAsync(ControlState state, Sto.Rounds review, CancellationToken call, CancellationToken epoch)
     {
         var journal = Reviewer.Player.Journal;
         (string Name, ConcernId Concern)[] owners = [("food", EnsureFoodSupply), ("resources", MaintainResource)];
@@ -58,13 +59,18 @@ public sealed partial class RoundsTradePlanner
         var settled = new List<(string Owner, string Id)>();
         foreach (var owner in owners)
         {
-            var (goal, _) = journal.Workable(call, review, owner.Concern);
+            var (goal, _) = journal.Workable(review, owner.Concern, call);
+            if (goal is null)
+            {
+                continue;
+            }
             foreach (var method in goal.History)
             {
-                var plan = journal.LoadPlan(call, method.Plan);
+                var plan = journal.LoadPlan(method.Plan, call);
                 foreach (var progress in plan.Progress)
                 {
-                    if (!progress.Action.TryCommsTradeRequest(out var request))
+                    var request = progress.Action.CommsTradeRequest;
+                    if (request is null)
                     {
                         continue;
                     }
@@ -73,14 +79,14 @@ public sealed partial class RoundsTradePlanner
                         return (new RoundsTradeResult(), false);
                     }
                     var kind = "TRADE_REQUEST_KIND_CARAVAN";
-                    if (request.Kind == TradeRequestKind.TradeRequestOrbital)
+                    if (request.Kind == TradeRequestKind.Orbital)
                     {
                         kind = "TRADE_REQUEST_KIND_ORBITAL";
                     }
                     settled.Add((owner.Name, request.Faction + "/" + kind + "/" + request.TraderKind));
                 }
             }
-            if (goal.Standard.Record != "")
+            if (!string.IsNullOrEmpty(goal.Standard.Record))
             {
                 var record = RequestRecord(goal.Standard.Record);
                 if (Native is not ICommsTradeRequestNative source)
@@ -88,13 +94,13 @@ public sealed partial class RoundsTradePlanner
                     throw new ControlException("request: native lacks the comms trade request read");
                 }
                 var recovery = DomainAction.NewCommsTradeRequestAction(new ActionId("request-recovery"), record.Request);
-                var reader = new TradeBoundary(Reviewer.Clock, new TradeCapabilities { Requests = source });
-                var read = reader.InspectCommsTradeRequest(call, new Target(recovery, state.Snapshot));
+                var reader = new TradeBoundary(new ExecutorClockOf(Reviewer.Clock), new TradeCapabilities { Requests = source });
+                var read = await reader.InspectCommsTradeRequestAsync(new Target(recovery, state.Snapshot), call).ConfigureAwait(false);
                 if (RequestRecordPending(record, read))
                 {
                     return (new RoundsTradeResult(), false);
                 }
-                journal.RecordStandard(call, goal.Standard.Id, goal.Revision, "");
+                journal.RecordStandard(goal.Standard.Id, goal.Revision, "", call);
             }
         }
         foreach (var request in settled)
@@ -104,19 +110,19 @@ public sealed partial class RoundsTradePlanner
         foreach (var owner in owners)
         {
             var proposal = Reviewer.TradeAcquisitionPlan(owner.Name).Proposal;
-            if (proposal is null || proposal.Option.Kind == Pol.TradeAcquireKind.Settlement)
+            if (proposal is null || proposal.Option.Kind == Pol.TradeAcquisitionKind.Settlement)
             {
                 continue;
             }
-            var (goal, workable) = journal.Workable(call, review, owner.Concern);
-            if (!workable)
+            var (goal, workable) = journal.Workable(review, owner.Concern, call);
+            if (!workable || goal is null)
             {
                 continue;
             }
             var open = false;
             foreach (var method in goal.Methods)
             {
-                if (StorePackage.PlanOpen(journal.LoadPlan(call, method.Plan)))
+                if (StorePackage.PlanOpen(journal.LoadPlan(method.Plan, call)))
                 {
                     open = true;
                 }
@@ -126,15 +132,15 @@ public sealed partial class RoundsTradePlanner
                 continue;
             }
             var option = proposal.Option;
-            if (!Reviewer.ClaimTradeAcquisition(owner.Name, option.Id))
+            if (!Reviewer.ClaimTradeAcquisition(owner.Name, option.ID))
             {
                 continue;
             }
-            void Release() => Reviewer.ReleaseTradeAcquisition(owner.Name, option.Id);
+            void Release() => Reviewer.ReleaseTradeAcquisition(owner.Name, option.ID);
             try
             {
-                var kind = option.Kind == Pol.TradeAcquireKind.Orbital ? TradeRequestKind.TradeRequestOrbital : TradeRequestKind.TradeRequestCaravan;
-                var request = new CommsTradeRequest { Kind = kind, Faction = option.Faction, TraderKind = option.TraderKind, Console = option.Console, Negotiator = option.Negotiator, ExpectedLastRequestTick = option.LastRequestTick };
+                var kind = option.Kind == Pol.TradeAcquisitionKind.Orbital ? TradeRequestKind.Orbital : TradeRequestKind.Caravan;
+                var request = new CommsTradeRequest(kind, option.Faction, option.TraderKind, option.Console, option.Negotiator, option.LastRequestTick);
                 var id = PlanIds.MintPlanId();
                 var action = DomainAction.NewCommsTradeRequestAction(new ActionId(id + "-request"), request);
                 var plan = new PlanSpec(id, new PlanRevision(1), [action]);
@@ -144,8 +150,8 @@ public sealed partial class RoundsTradePlanner
                     throw new ControlException("request: session moved");
                 }
                 var method = new MethodId(string.Create(CultureInfo.InvariantCulture, $"trade-request-{goal.Admitted}"));
-                var record = JsonSerializer.Serialize(new CommsTradeRequestRecord { Request = request });
-                journal.CommitMethodRecord(call, goal.Standard.Id, goal.Revision, method, "", plan, record);
+                var record = "{\"comms_trade_request\":" + global::RimGovernor.Brain.Store.Codec.StoreJson.Serialize(request) + "}";
+                journal.CommitMethodRecord(goal.Standard.Id, goal.Revision, method, "", plan, record, call);
                 // Keep the derived admission claim until this shared method reconciles. The saved method and native
                 // facts own recovery after restart.
                 return (new RoundsTradeResult { Verdict = BuildingReasonAdmitted, Plan = id, NativeWorkTicks = TradeWalkTicks }, true);

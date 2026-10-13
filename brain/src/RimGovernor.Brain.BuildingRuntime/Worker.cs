@@ -133,7 +133,7 @@ public sealed partial class Worker
         _stopContext = lifetime.Token.Register(() => { try { Stop(); } catch (Exception) { /* the Go AfterFunc discards the error */ } });
         _done = Task.Run(async () =>
         {
-            await Steps();
+            await Steps().ConfigureAwait(false);
             try { Stop(); } catch (Exception) { /* discarded as in Go */ }
         });
     }
@@ -168,7 +168,7 @@ public sealed partial class Worker
     private sealed record WorkerWait
     {
         public ProgressView? View { get; init; }
-        public ControlState Scope { get; init; } = new();
+        public ControlState Scope { get; init; }
         public TimeSpan Delay { get; init; }
         public DateTimeOffset Until { get; init; }
 
@@ -206,7 +206,7 @@ public sealed partial class Worker
         var reasons = new List<string>(result.Refused.Count);
         foreach (var r in result.Refused)
         {
-            reasons.Add(Wire.Name(r.Reason));
+            reasons.Add(r.Reason.Value);
         }
         return reasons;
     }
@@ -273,7 +273,7 @@ public sealed partial class Worker
         }
         try
         {
-            await _done.WaitAsync(ct);
+            await _done.WaitAsync(ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException oce)
         {
@@ -285,7 +285,7 @@ public sealed partial class Worker
         Exception? closeErr = null;
         try
         {
-            await _player.CloseAsync(ct);
+            await _player.CloseAsync(ct).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -321,7 +321,7 @@ public sealed partial class Worker
             }
             try
             {
-                await Step(ct, DateTimeOffset.UtcNow);
+                await Step(DateTimeOffset.UtcNow, ct).ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -340,7 +340,7 @@ public sealed partial class Worker
             using var wait = CancellationTokenSource.CreateLinkedTokenSource(ct);
             try
             {
-                await Task.WhenAny(Task.Delay(_config.StepInterval, wait.Token), WakeSignal.Wait(_config.Wake, wait.Token));
+                await Task.WhenAny(Task.Delay(_config.StepInterval, wait.Token), WakeSignal.Wait(_config.Wake, wait.Token)).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -381,13 +381,13 @@ public sealed partial class Worker
     private bool FocusNamed(ActionId id) => _focus.ContainsKey(id);
 
     /// <summary>One Worker step as a span under the scheduler's latest step (a trace root of its own when there is none).</summary>
-    internal async Task Step(CancellationToken ct, DateTimeOffset now)
+    internal async Task Step(DateTimeOffset now, CancellationToken ct)
     {
-        using var remote = _config.Trace is { } trace ? Tel.Remote(trace()) : null;
-        using var span = Tel.StartSpan("buildingruntime", "worker.step");
+        var parent = _config.Trace is { } trace ? trace() : default;
+        using var span = Tel.StartSpan("buildingruntime", "worker.step", parent);
         try
         {
-            await RunStep(ct, now);
+            await RunStep(now, ct).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -397,30 +397,30 @@ public sealed partial class Worker
         Tel.EndSpan(span, null);
     }
 
-    private async Task RunStep(CancellationToken ct, DateTimeOffset now)
+    private async Task RunStep(DateTimeOffset now, CancellationToken ct)
     {
         _advanced = false;
         TakeWake();
         // StepTimeout budgets the dispatches, not the wait for the player gate: a scheduler step holds the gate
         // for its whole planner wave, and a budget that started before the wait left the step 0-3 s for its
         // actions and killed the last one at the deadline.
-        using var gate = await _player.EnterAsync(ct, "worker", false);
+        using var gate = await _player.EnterAsync("worker", false, ct).ConfigureAwait(false);
         var epoch = gate.Epoch;
         using var budget = CancellationTokenSource.CreateLinkedTokenSource(gate.Call);
         budget.CancelAfter(_config.StepTimeout);
         var call = budget.Token;
         var deadline = DateTimeOffset.UtcNow + _config.StepTimeout;
         IDisposable? validityScope = null;
-        if (_config.Validity is { } validityFn && validityFn() is { Ok: true } v)
+        if (_config.Validity is { } validityFn && validityFn() is { Ok: true } validityRead)
         {
-            validityScope = ReadValidityScope.With(v.Validity);
+            validityScope = ReadValidityScope.With(validityRead.Validity);
         }
         using var _validity = validityScope;
         World world = default;
         Exception? worldErr = null;
         try
         {
-            world = await _player.Worlds.ReadWorldAsync(call);
+            world = await _player.Worlds.ReadWorldAsync(call).ConfigureAwait(false);
             world.Validate();
         }
         catch (Exception e)
@@ -432,7 +432,7 @@ public sealed partial class Worker
             // A read that ran out of the step's budget (a scheduler step held the gate for most of it) or
             // failed in transport says nothing about the world: the step fails and the next one reads again.
             // Only a world that reads back unavailable or different is evidence against the authority.
-            if (call.IsCancellationRequested || worldErr is OperationCanceledException or TimeoutException or Bridge.TransportException)
+            if (call.IsCancellationRequested || worldErr is OperationCanceledException or TimeoutException or System.Net.Http.HttpRequestException or System.IO.IOException)
             {
                 ExceptionDispatchInfo.Capture(worldErr).Throw();
             }
@@ -455,14 +455,14 @@ public sealed partial class Worker
             _session.Disable();
             scope = _session.State();
         }
-        var plans = await _player.Journal.LoadPlans(call);
+        var plans = await _player.Journal.LoadPlansAsync(call).ConfigureAwait(false);
         var breakHeld = new HashSet<ActionId>();
         if (scope.Enabled && scope.ObservationKnown)
         {
-            breakHeld = await BreakDispatchHolds(call, scope.Snapshot, plans);
+            breakHeld = await BreakDispatchHoldsAsync(scope.Snapshot, plans, call).ConfigureAwait(false);
             if (_config.Pawns is not null)
             {
-                foreach (var id in await ArrivalHolds(call, scope.Snapshot, plans))
+                foreach (var id in await ArrivalHoldsAsync(scope.Snapshot, plans, call).ConfigureAwait(false))
                 {
                     breakHeld.Add(id);
                 }
@@ -480,7 +480,7 @@ public sealed partial class Worker
                 var target = scope.Snapshot with { Plan = plan.Spec.Id, Revision = plan.Spec.Revision };
                 try
                 {
-                    await new PlanAuthorizer(_player.Journal, _config.RoundsMethods).AuthorizeRoundsPlan(scope.Snapshot, target, call);
+                    await new PlanAuthorizer(_player.Journal, _config.RoundsMethods).AuthorizeRoundsPlanAsync(scope.Snapshot, target, call).ConfigureAwait(false);
                     planSnapshot = target;
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
@@ -611,7 +611,7 @@ public sealed partial class Worker
                 {
                     if (!scope.Enabled)
                     {
-                        await _session.ObserveTargetAsync(lead.View.Snapshot, call);
+                        await _session.ObserveTargetAsync(lead.View.Snapshot, call).ConfigureAwait(false);
                     }
                     _player.Current(call, epoch);
                 }
@@ -643,16 +643,16 @@ public sealed partial class Worker
                     IDisposable? deferred = null;
                     if (_config.Flush is not null)
                     {
-                        deferred = Bridge.DeferredSnapshot.Begin();
+                        deferred = DeferredSnapshotScope.Begin();
                         sent = true;
                     }
                     using var _deferred = deferred;
-                    (results, resultErrs) = await RunBatch(call, lead.View.Plan, group);
+                    (results, resultErrs) = await RunBatch(lead.View.Plan, group, call).ConfigureAwait(false);
                 }
-                BuildingRuntimePackage.EndDispatchSpan(dispatch, results, resultErrs);
+                DispatchSpans.EndDispatchSpan(dispatch, results, resultErrs);
                 for (var i = 0; i < group.Count; i++)
                 {
-                    BuildingRuntimePackage.RecordDispatchOutcome(group[i].Kind, results[i], resultErrs[i]);
+                    Metrics.RecordDispatchOutcome(group[i].Kind, results[i], resultErrs[i]);
                 }
                 if (dispatchStarted.Elapsed > longest)
                 {
@@ -671,7 +671,7 @@ public sealed partial class Worker
                         }
                         else
                         {
-                            _config.Store?.InvalidateFamily(families);
+                            _config.Store?.InvalidateFamily([.. families]);
                         }
                         break;
                     }
@@ -686,9 +686,9 @@ public sealed partial class Worker
                     var result = results[i];
                     var rerr = resultErrs[i];
                     var after = v;
-                    if (result.Progress.View.Action == v.Action)
+                    if (result.Progress is { } resultProgress && resultProgress.View.Action == v.Action)
                     {
-                        after = result.Progress.View;
+                        after = resultProgress.View;
                     }
                     _config.Placement?.Invoke(candidate.Plan, candidate.Action, after);
                     var stale = WorkerHeldStale(after, result, rerr);
@@ -724,7 +724,7 @@ public sealed partial class Worker
                     }
                     repeats = changed ? 0 : repeats + 1;
                     var cancelled = 0;
-                    var own = WorkerOwnCancel(call, rerr) && after.Attempt == v.Attempt && after.Stage is Stage.Pending or Stage.Prepared;
+                    var own = WorkerOwnCancel(rerr, call) && after.Attempt == v.Attempt && after.Stage is Stage.Pending or Stage.Prepared;
                     if (own)
                     {
                         cancelled = 1;
@@ -739,7 +739,7 @@ public sealed partial class Worker
                     {
                         try
                         {
-                            await _player.Journal.Cancel(v.Plan, v.Action, call);
+                            await _player.Journal.CancelAsync(v.Plan, v.Action, call).ConfigureAwait(false);
                             Tel.Decide(new Decision
                             {
                                 Kind = "dispatch",
@@ -765,7 +765,7 @@ public sealed partial class Worker
                         errs.Add(rerr);
                         // A step that ran out of budget or lost its transport says nothing about the next
                         // candidate either; one dispatch cancelled by its own context says nothing about its siblings.
-                        if (!own && (call.IsCancellationRequested || rerr is OperationCanceledException or TimeoutException or Bridge.TransportException))
+                        if (!own && (call.IsCancellationRequested || rerr is OperationCanceledException or TimeoutException or System.Net.Http.HttpRequestException or System.IO.IOException))
                         {
                             stop = true;
                         }
@@ -785,7 +785,7 @@ public sealed partial class Worker
         {
             if (sent)
             {
-                await Flush();
+                await Flush().ConfigureAwait(false);
             }
         }
         var all = new List<Exception?> { worldErr };
@@ -803,7 +803,7 @@ public sealed partial class Worker
         using var cts = new CancellationTokenSource(FlushTimeout);
         try
         {
-            await _config.Flush!(cts.Token);
+            await _config.Flush!(cts.Token).ConfigureAwait(false);
         }
         catch (Exception)
         {
@@ -817,7 +817,7 @@ public sealed partial class Worker
     /// Sends the group, one plan's candidates, as one RunBatch and returns each member's result and error in
     /// group order. A batch cancelled by its own context while the step's is live retries once, whole.
     /// </summary>
-    private async Task<(ExecutorResult[] Results, Exception?[] Errors)> RunBatch(CancellationToken call, PlanId plan, List<WorkerCandidate> group)
+    private async Task<(ExecutorResult[] Results, Exception?[] Errors)> RunBatch(PlanId plan, List<WorkerCandidate> group, CancellationToken call)
     {
         var ids = group.Select(m => m.View.Action).ToList();
         var results = new ExecutorResult[group.Count];
@@ -828,13 +828,13 @@ public sealed partial class Worker
             Exception? err = null;
             try
             {
-                items = await _session.RunBatchAsync(plan, ids, call);
+                items = await _session.RunBatchAsync(plan, ids, call).ConfigureAwait(false);
             }
             catch (Exception e)
             {
                 err = e;
             }
-            var ownCancel = WorkerOwnCancel(call, err);
+            var ownCancel = WorkerOwnCancel(err, call);
             for (var i = 0; i < group.Count; i++)
             {
                 results[i] = new ExecutorResult();
@@ -842,12 +842,12 @@ public sealed partial class Worker
                 if (i < items.Count)
                 {
                     results[i] = items[i].Result;
-                    if (items[i].Err is { } itemErr)
+                    if (items[i].Error is { } itemErr)
                     {
                         errs[i] = itemErr;
                     }
                 }
-                ownCancel = ownCancel || WorkerOwnCancel(call, errs[i]);
+                ownCancel = ownCancel || WorkerOwnCancel(errs[i], call);
             }
             if (!ownCancel)
             {
@@ -858,7 +858,7 @@ public sealed partial class Worker
     }
 
     /// <summary>Whether err is the dispatch's own cancellation while the step's context is still live.</summary>
-    private static bool WorkerOwnCancel(CancellationToken call, Exception? err) =>
+    private static bool WorkerOwnCancel(Exception? err, CancellationToken call) =>
         err is OperationCanceledException && !call.IsCancellationRequested;
 
     /// <summary>Whether the candidate waits out a backoff from an earlier step's identical outcome; a woken action never does.</summary>
@@ -882,6 +882,16 @@ public sealed partial class Worker
     internal static void WorkerDispatchRow(Bridge.ReadTally tally, ProgressView before, ProgressView after, ExecutorResult result, bool running, bool stale, Exception? err, bool changed, int repeats)
     {
         var refused = WorkerRefusedReasons(result);
+        var attrs = new Dictionary<string, object?>
+        {
+            ["attempt"] = (long)after.Attempt.Value,
+            ["stage"] = Wire.Name(before.Stage),
+            ["stage_after"] = Wire.Name(after.Stage),
+            ["refused"] = refused,
+            ["stale"] = stale,
+            ["changed"] = changed,
+            ["repeated"] = repeats,
+        };
         var d = new Decision
         {
             Kind = "dispatch",
@@ -889,47 +899,38 @@ public sealed partial class Worker
             Target = before.Action.Value,
             Verdict = "waiting",
             Reason = Wire.Name(after.Stage),
-            Attrs = new Dictionary<string, object?>
-            {
-                ["attempt"] = (long)after.Attempt.Value,
-                ["stage"] = Wire.Name(before.Stage),
-                ["stage_after"] = Wire.Name(after.Stage),
-                ["refused"] = refused,
-                ["stale"] = stale,
-                ["changed"] = changed,
-                ["repeated"] = repeats,
-            },
+            Attrs = attrs,
         };
         if (err is DependencyException)
         {
-            d.Reason = "dependency";
+            d = d with { Reason = "dependency" };
         }
         else if (err is not null && stale)
         {
-            d.Verdict = "held";
-            d.Reason = "stale";
+            d = d with { Verdict = "held" };
+            d = d with { Reason = "stale" };
         }
         else if (err is not null)
         {
-            d.Verdict = "failed";
-            d.Reason = "error";
+            d = d with { Verdict = "failed" };
+            d = d with { Reason = "error" };
         }
         else if (refused.Count > 0)
         {
-            d.Verdict = "refused";
-            d.Reason = refused[0];
+            d = d with { Verdict = "refused" };
+            d = d with { Reason = refused[0] };
         }
         else if (after.Stage == Stage.Completed)
         {
-            d.Verdict = "completed";
-            d.Reason = "completed";
+            d = d with { Verdict = "completed" };
+            d = d with { Reason = "completed" };
         }
         if (err is not null)
         {
-            d.Attrs["error"] = err.Message;
+            attrs["error"] = err.Message;
             if (err is not DependencyException)
             {
-                d.Level = TelemetryLevel.Warn;
+                d = d with { Level = TelemetryLevel.Warn };
             }
         }
         if (!result.NativeCalled)
@@ -942,16 +943,16 @@ public sealed partial class Worker
         {
             receipt = Wire.Name(rv);
         }
-        d.Attrs["receipt"] = receipt;
-        d.Attrs["running"] = running;
-        if (after.Refusal.TryGetValue(out var refusal) && receipt == Wire.Name(Receipt.Refused))
+        attrs["receipt"] = receipt;
+        attrs["running"] = running;
+        if (after.Refusal.TryGetValue(out var refusal) && receipt == Wire.Name(Domain.Receipt.Refused))
         {
-            d.Attrs["refusal_class"] = Wire.Name(refusal.Class);
-            d.Attrs["refusal_reason"] = refusal.Reason;
+            attrs["refusal_class"] = Wire.Name(refusal.Class);
+            attrs["refusal_reason"] = refusal.Reason;
         }
         if (before.Stage is Stage.Pending or Stage.Prepared && after.Attempt.Value != 0 && after.Stage is not (Stage.Pending or Stage.Prepared))
         {
-            d.Attrs["dispatch_tick"] = after.Tick.Value;
+            attrs["dispatch_tick"] = after.Tick.Value;
         }
         tally.Publish(d);
     }
@@ -1021,7 +1022,7 @@ public sealed partial class Worker
 
     internal static bool WorkerEligible(Store.PlanState plan, ProgressView v, ControlState scope, World world)
     {
-        if (!plan.Spec.TryAction(v.Action, out var action) || !RoundsExecutableKind(action.Kind))
+        if (plan.Spec.Action(v.Action) is not { } action || !RoundsExecutableKind(action.Kind))
         {
             return false;
         }
@@ -1059,7 +1060,7 @@ public sealed partial class Worker
         // An intent whose Apply receipt came back unknown is back at Pending for a resend. Like a refusal, only
         // a later resume (a newer native generation) resends it; native answers applied if the first write
         // landed, so the resend cannot duplicate the building.
-        if (known && receipt == Receipt.Unknown && v.Stage == Stage.Pending)
+        if (known && receipt == Domain.Receipt.Unknown && v.Stage == Stage.Pending)
         {
             return Player.PlayerWorld(v.Snapshot) == world && scope.Snapshot.Native > v.Snapshot.Native;
         }
@@ -1070,7 +1071,7 @@ public sealed partial class Worker
         }
         // A refused attempt already re-prepared carries the newer generation that authorized it, so it stays
         // eligible until it dispatches.
-        return receipt == Receipt.Unsent || (receipt == Receipt.Refused && (v.Stage == Stage.Prepared || scope.Snapshot.Native > v.Snapshot.Native));
+        return receipt == Domain.Receipt.Unsent || (receipt == Domain.Receipt.Refused && (v.Stage == Stage.Prepared || scope.Snapshot.Native > v.Snapshot.Native));
     }
 
     /// <summary>Read reconciliation may rotate plan targets without changing world authority. That rotation must not reset a paused attempt's cooldown.</summary>

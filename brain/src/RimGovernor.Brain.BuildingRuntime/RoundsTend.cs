@@ -2,14 +2,14 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsTendSource
 {
-    (EmergencyObservation Observation, BridgeResult Result) ReadEmergency(CancellationToken ct, C.Identity identity);
+    Task<(EmergencyObservation Observation, BridgeResult Result)> ReadEmergencyAsync(C.Identity identity, CancellationToken ct);
 
-    (ObservationsPb.ListPawnsReply Reply, BridgeResult Result) ReadTendPawns(CancellationToken ct, C.Identity identity, IReadOnlyList<string> ids);
+    Task<(ObservationsPb.ListPawnsReply Reply, BridgeResult Result)> ReadTendPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
 }
 
-public sealed class RoundsTendResult
+public sealed class RoundsTendResult : IPlannerMethod
 {
-    public Verdict Verdict { get; init; } = new();
+    public Verdict Verdict { get; init; }
     public PlanId Plan { get; init; }
 
     /// <summary>A bounded window the step may lend when the CriticalMedical deficit stands but no tend method can run (MedicalWaitTicks).</summary>
@@ -36,7 +36,7 @@ public sealed class RoundsTendPlanner
         return new RoundsTendPlanner(reviewer, native);
     }
 
-    internal RoundsTendResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsTendResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -44,7 +44,7 @@ public sealed class RoundsTendPlanner
         {
             return new RoundsTendResult { Verdict = BuildingReasonDisabled };
         }
-        if (!state.ObservationKnown || !state.Snapshot.IsValid())
+        if (!state.ObservationKnown || !state.Snapshot.IsValid)
         {
             throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil");
         }
@@ -53,18 +53,18 @@ public sealed class RoundsTendPlanner
         {
             return new RoundsTendResult { Verdict = BuildingReasonNoReview };
         }
-        var (incident, found) = IncidentDeficit(call, p.Journal, review, CriticalMedicine);
+        var (incident, found) = IncidentDeficit(p.Journal, review, CriticalMedicine, call);
         if (!found)
         {
             return new RoundsTendResult { Verdict = BuildingReasonNoDeficit };
         }
-        if (IncidentOpenWork(call, p.Journal, incident!))
+        if (IncidentOpenWork(p.Journal, incident!, call))
         {
             return new RoundsTendResult { Verdict = BuildingReasonExistingWork };
         }
         var started = _reviewer.Clock.Now();
         var identity = Boundary.Identity(state.Snapshot);
-        var (emergency, _) = _native.ReadEmergency(call, identity);
+        var (emergency, _) = await _native.ReadEmergencyAsync(identity, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(emergency.Context, state.Snapshot);
@@ -73,7 +73,7 @@ public sealed class RoundsTendPlanner
         {
             throw new ControlException("step: err != nil || emergency.Context.GetTick() < int64(review.Tick)");
         }
-        if (emergency.Context.Tick < review.Tick.Value)
+        if ((emergency.Context?.Tick ?? 0) < review.Tick.Value)
         {
             throw new ControlException("step: err != nil || emergency.Context.GetTick() < int64(review.Tick)");
         }
@@ -82,7 +82,7 @@ public sealed class RoundsTendPlanner
             return new RoundsTendResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "colonist_census") };
         }
         var ids = emergency.Facts.Colonists.Select(pawn => pawn.Id.Value).ToList();
-        var (reply, _) = _native.ReadTendPawns(call, identity, ids);
+        var (reply, _) = await _native.ReadTendPawnsAsync(identity, ids, call).ConfigureAwait(false);
         var observed = reply.Observed;
         if (observed is null)
         {
@@ -111,11 +111,11 @@ public sealed class RoundsTendPlanner
                 throw new ControlException("step: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]");
             }
             var pawn = new PawnId(row.Pawn.Id);
-            doctors.Add(Tend.TendFacts.NewTendDoctorFacts(pawn, row, ""));
-            var patientFacts = Tend.TendFacts.NewTendPatientFacts(pawn, row, "") with { Threatened = threatened.GetValueOrDefault(pawn) };
+            doctors.Add(TendFacts.NewTendDoctorFacts(pawn, row, ""));
+            var patientFacts = TendFacts.NewTendPatientFacts(pawn, row, "") with { Threatened = threatened.Contains(pawn) };
             patients.Add(patientFacts);
         }
-        var (doctor, patient, ok) = SelectTend(doctors, patients, Tend.TendFacts.TendReachability(observed.Pawns));
+        var (doctor, patient, ok) = SelectTend(doctors, patients, TendFacts.TendReachabilityOf(observed.Pawns));
         if (ok && !arbiter.TryClaim([doctor, patient]))
         {
             ok = false;
@@ -125,18 +125,18 @@ public sealed class RoundsTendPlanner
             // No pair to order: the patient is up and out of bed, or every doctor is ineligible, busy or walled
             // off from the patients. Only game time changes that, so the step lends a window rather than
             // reporting no work.
-            return new RoundsTendResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "medical_pair"), NativeWorkTicks = MedicalWaitTicks };
+            return new RoundsTendResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "medical_pair"), NativeWorkTicks = checked((uint)MedicalWaitTicks) };
         }
-        var tend = new Domain.Tend(doctor, patient);
+        var tend = new Domain.Tend(new Domain.PawnId(doctor.Value), new Domain.PawnId(patient.Value));
         // Keyed by patient and attempt count, not doctor: a fresh attempt after an interrupted or failed try
         // picks whichever doctor is currently best, which is how doctor replacement happens across cycles.
         var prefix = $"tend-{patient.Value}-";
-        var (verdict, admitted) = AdmitSubject(call, p.Journal, prefix, IncidentPlans(incident!.Methods, prefix), state.Snapshot);
+        var (verdict, admitted) = AdmitSubject(p.Journal, prefix, IncidentPlans(incident!.Methods, prefix), state.Snapshot, call);
         if (!admitted)
         {
             // Native refused this patient's treatment and the refusal still stands; the deficit stays visible
             // and the clock must still advance under it.
-            return new RoundsTendResult { Verdict = verdict, NativeWorkTicks = MedicalWaitTicks };
+            return new RoundsTendResult { Verdict = verdict, NativeWorkTicks = checked((uint)MedicalWaitTicks) };
         }
         var method = NextMethodId(prefix, IncidentMethodIds(incident.Methods));
         var id = PlanIds.MintPlanId();
@@ -148,7 +148,7 @@ public sealed class RoundsTendPlanner
         {
             throw new ControlException("step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
         }
-        p.Journal.CommitIncidentMethod(call, incident.Incident.Id, method, "", plan);
+        p.Journal.CommitIncidentMethod(incident.Incident.Id, method, "", plan, call);
         return new RoundsTendResult { Verdict = BuildingReasonAdmitted, Plan = id };
     }
 }

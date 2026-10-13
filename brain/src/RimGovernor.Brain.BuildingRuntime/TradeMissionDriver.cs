@@ -2,9 +2,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface ITradeMissionNative
 {
-    (WorldProgressionRead Read, BridgeResult Result) ReadWorldProgression(CancellationToken ct, C.Identity identity, bool full);
+    Task<(WorldProgressionRead Read, BridgeResult Result)> ReadWorldProgressionAsync(C.Identity identity, bool full, CancellationToken ct);
 
-    (IReadOnlyDictionary<string, long> Cargo, BridgeResult Result) ReadPawnCargo(CancellationToken ct, C.Identity identity, IReadOnlyList<string> pawns);
+    Task<(IReadOnlyDictionary<string, long> Cargo, BridgeResult Result)> ReadPawnCargoAsync(C.Identity identity, IReadOnlyList<string> pawns, CancellationToken ct);
 }
 
 public static partial class TradeMissions
@@ -62,7 +62,7 @@ public static partial class TradeMissions
                 break;
             }
         }
-        return Pol.TradeMissionFacts.TradeMissionReturnSafe(input);
+        return Pol.PolicyFunctions.TradeMissionReturnSafe(input);
     }
 }
 
@@ -92,8 +92,12 @@ internal static partial class BuildingRuntimePackage
 
     internal static Fact<T> MissionOptional<T>(T v, bool known) => known ? Fact.Known(v) : Fact.Unknown<T>();
 
-    internal static Fact<double> MissionCatalogStat(Bridge.DefinitionCatalog catalog, string def, string stat)
+    internal static Fact<double> MissionCatalogStat(Bridge.DefinitionCatalog? catalog, string def, string stat)
     {
+        if (catalog is null)
+        {
+            return Fact.Unknown<double>();
+        }
         try
         {
             return Fact.Known((double)catalog.StatValue(def, "", stat));
@@ -107,7 +111,7 @@ internal static partial class BuildingRuntimePackage
 
 public sealed partial class RoundsTradePlanner
 {
-    internal (RoundsTradeResult Result, bool Handled) Mission(CancellationToken call, CancellationToken epoch, ControlState state, Sto.Rounds review, StepArbiter arbiter)
+    internal async Task<(RoundsTradeResult Result, bool Handled)> MissionAsync(ControlState state, Sto.Rounds review, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         if (!state.Enabled)
         {
@@ -118,25 +122,25 @@ public sealed partial class RoundsTradePlanner
             return (new RoundsTradeResult(), false);
         }
         var player = Reviewer.Player;
-        var projects = player.Journal.OpenStandards(call, Concerns.TradeMission);
+        var projects = player.Journal.OpenStandards(Concerns.TradeMission, call);
         if (projects.Count == 0)
         {
-            return CreateMission(call, state, review);
+            return CreateMission(state, review, call);
         }
         var project = projects[0];
         var m = project.Standard.Mission ?? throw new DomainException("standard carries no trade mission");
-        var (world, _) = source.ReadWorldProgression(call, Boundary.Identity(state.Snapshot), false);
+        var (world, _) = await source.ReadWorldProgressionAsync(Boundary.Identity(state.Snapshot), false, call).ConfigureAwait(false);
         if (!TradeMissionCurrentRead(state.Snapshot, world))
         {
             throw new ControlException("mission: world progression read is not current");
         }
-        project = player.Journal.ReviewStandard(call, project.Standard.Id, project.Revision, state.Snapshot, new Tick(world.Context?.Tick ?? 0), Finding.Unmet);
+        project = player.Journal.ReviewStandard(project.Standard.Id, project.Revision, state.Snapshot, Finding.Unmet, call);
         // Shared Hands owns dispatch and uncertain work. Never create a second formation or purchase while its
         // method remains live.
         foreach (var method in project.Methods)
         {
-            var plan = player.Journal.LoadPlan(call, method.Plan);
-            if (Sto.PlanState.PlanOpen(plan))
+            var plan = player.Journal.LoadPlan(method.Plan, call);
+            if (StorePackage.PlanOpen(plan))
             {
                 return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = TradeWalkTicks }, true);
             }
@@ -144,7 +148,7 @@ public sealed partial class RoundsTradePlanner
         var caravan = MissionCaravan(m, world);
         if (m.Phase == TradeMissionPhase.Planned)
         {
-            var id = Reviewer.AdmitTradeMissionDeparture(call, epoch, state, project, world, arbiter);
+            var id = Reviewer.AdmitTradeMissionDeparture(state, project, world, arbiter, call, epoch);
             return (new RoundsTradeResult { Verdict = BuildingReasonAdmitted, Plan = id, NativeWorkTicks = TradeWalkTicks }, true);
         }
         if (m.Phase is TradeMissionPhase.Departing or TradeMissionPhase.Outbound)
@@ -153,7 +157,7 @@ public sealed partial class RoundsTradePlanner
             if (known && phase != m.Phase)
             {
                 m = m with { Phase = phase };
-                return MissionRecord(call, project, m);
+                return MissionRecord(project, m, call);
             }
         }
         if (caravan is null)
@@ -161,7 +165,7 @@ public sealed partial class RoundsTradePlanner
             if (TradeMissionCrewAtHome(m, world))
             {
                 var crew = m.Crew.Select(id => id.Value).ToList();
-                var (cargo, _) = source.ReadPawnCargo(call, Boundary.Identity(state.Snapshot), crew);
+                var (cargo, _) = await source.ReadPawnCargoAsync(Boundary.Identity(state.Snapshot), crew, call).ConfigureAwait(false);
                 if (TradeMissions.TradeMissionDelivered(m, world, cargo))
                 {
                     m = m with { Phase = TradeMissionPhase.Delivered };
@@ -176,9 +180,9 @@ public sealed partial class RoundsTradePlanner
                     // remains unknown; loose stock is no substitute.
                     return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
                 }
-                var (recorded, _) = MissionRecord(call, project, m);
-                var saved = player.Journal.LoadStandard(call, project.Standard.Id);
-                player.Journal.ReviewStandard(call, saved.Standard.Id, saved.Revision, state.Snapshot, new Tick(world.Context?.Tick ?? 0), Finding.Met);
+                var (recorded, _) = MissionRecord(project, m, call);
+                var saved = player.Journal.LoadStandard(project.Standard.Id, call);
+                player.Journal.ReviewStandard(saved.Standard.Id, saved.Revision, state.Snapshot, Finding.Met, call);
                 return (recorded, true);
             }
             // Crew explicitly dead or absent everywhere ends without delivery.
@@ -198,20 +202,20 @@ public sealed partial class RoundsTradePlanner
             if (!visible)
             {
                 m = m with { Phase = TradeMissionPhase.Ended };
-                var (recorded, _) = MissionRecord(call, project, m);
-                var saved = player.Journal.LoadStandard(call, project.Standard.Id);
-                player.Journal.ReviewStandard(call, saved.Standard.Id, saved.Revision, state.Snapshot, new Tick(world.Context?.Tick ?? 0), Finding.Met);
+                var (recorded, _) = MissionRecord(project, m, call);
+                var saved = player.Journal.LoadStandard(project.Standard.Id, call);
+                player.Journal.ReviewStandard(saved.Standard.Id, saved.Revision, state.Snapshot, Finding.Met, call);
                 return (recorded, true);
             }
             return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = TradeWalkTicks }, true);
         }
         if (m.Phase == TradeMissionPhase.Buying)
         {
-            return MissionTrade(call, epoch, state, review, project, m, caravan);
+            return await MissionTradeAsync(state, review, project, m, caravan, call, epoch).ConfigureAwait(false);
         }
         if (m.Phase == TradeMissionPhase.Returning)
         {
-            var (session, _) = Native.ReadTradeSession(call, Boundary.Identity(state.Snapshot));
+            var (session, _) = await Native.ReadTradeSessionAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
             var target = new TradeParticipant(TradeParticipantKind.Settlement, m.Settlement, caravan.Id);
             if (session.Trader == target.Key())
             {
@@ -220,7 +224,7 @@ public sealed partial class RoundsTradePlanner
                     return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
                 }
                 var value = Trade.NewTradeEnd(target.Key(), m.Negotiator, TradeEndKind.Cancel, false).WithParticipant(target);
-                return MissionTradeCommit(call, epoch, state, project, m, value);
+                return MissionTradeCommit(state, project, m, value, call, epoch);
             }
             if (caravan.Moving && caravan.Destination == m.HomeTile)
             {
@@ -252,14 +256,14 @@ public sealed partial class RoundsTradePlanner
             }
             var id = PlanIds.MintPlanId();
             var action = DomainAction.NewCaravanDepartureAction(new ActionId(id.Value + "-home"), departure!);
-            return MissionCommit(call, epoch, state, project, m, id, action, "trade-return");
+            return MissionCommit(state, project, m, id, action, "trade-return", call, epoch);
         }
         return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = TradeWalkTicks }, true);
     }
 
-    internal (RoundsTradeResult Result, bool Handled) MissionRecord(CancellationToken ct, Sto.StandardState p, TradeMission m)
+    internal (RoundsTradeResult Result, bool Handled) MissionRecord(Sto.StandardState p, TradeMission m, CancellationToken ct)
     {
-        Reviewer.Player.Journal.RecordStandard(ct, p.Standard.Id, p.Revision, m);
+        Reviewer.Player.Journal.RecordStandard(p.Standard.Id, p.Revision, m, ct);
         if (m.Phase is TradeMissionPhase.Delivered or TradeMissionPhase.Ended)
         {
             var memory = Reviewer.TradeAcquisition;
@@ -275,14 +279,12 @@ public sealed partial class RoundsTradePlanner
     }
 
     internal (RoundsTradeResult Result, bool Handled) MissionCommit(
-        CancellationToken call,
-        CancellationToken epoch,
         ControlState state,
         Sto.StandardState p,
         TradeMission m,
         PlanId id,
         DomainAction a,
-        string method)
+        string method, CancellationToken call, CancellationToken epoch)
     {
         var plan = new PlanSpec(id, new PlanRevision(1), [a]);
         Reviewer.Player.Current(call, epoch);
@@ -290,33 +292,31 @@ public sealed partial class RoundsTradePlanner
         {
             throw new ControlException("missionCommit: session state changed");
         }
-        Reviewer.Player.Journal.CommitMethodRecord(call, p.Standard.Id, p.Revision, new MethodId(string.Create(CultureInfo.InvariantCulture, $"{method}-{p.Admitted}")), "", plan, m);
+        Reviewer.Player.Journal.CommitMethodRecord(p.Standard.Id, p.Revision, new MethodId(string.Create(CultureInfo.InvariantCulture, $"{method}-{p.Admitted}")), "", plan, m, call);
         return (new RoundsTradeResult { Verdict = BuildingReasonAdmitted, Plan = id, NativeWorkTicks = TradeWalkTicks }, true);
     }
 
-    internal (RoundsTradeResult Result, bool Handled) MissionTradeCommit(CancellationToken call, CancellationToken epoch, ControlState state, Sto.StandardState p, TradeMission m, Trade value)
+    internal (RoundsTradeResult Result, bool Handled) MissionTradeCommit(ControlState state, Sto.StandardState p, TradeMission m, Trade value, CancellationToken call, CancellationToken epoch)
     {
         var id = PlanIds.MintPlanId();
         var a = DomainAction.NewTradeAction(new ActionId(id.Value + "-trade"), value);
-        return MissionCommit(call, epoch, state, p, m, id, a, "trade-" + Wire.Name(value.Kind));
+        return MissionCommit(state, p, m, id, a, "trade-" + Wire.Name(value.Kind), call, epoch);
     }
 
-    internal (RoundsTradeResult Result, bool Handled) MissionTrade(
-        CancellationToken call,
-        CancellationToken epoch,
+    internal async Task<(RoundsTradeResult Result, bool Handled)> MissionTradeAsync(
         ControlState state,
         Sto.Rounds review,
         Sto.StandardState p,
         TradeMission m,
-        CaravanJourney caravan)
+        CaravanJourney caravan, CancellationToken call, CancellationToken epoch)
     {
         var target = new TradeParticipant(TradeParticipantKind.Settlement, m.Settlement, caravan.Id);
         var trader = target.Key();
-        var (session, _) = Native.ReadTradeSession(call, Boundary.Identity(state.Snapshot));
+        var (session, _) = await Native.ReadTradeSessionAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         if (m.PurchaseCommitted)
         {
             m = m with { Phase = TradeMissionPhase.Returning };
-            return MissionRecord(call, p, m);
+            return MissionRecord(p, m, call);
         }
         if (session.Trader.Length != 0 && session.Trader != trader)
         {
@@ -327,27 +327,27 @@ public sealed partial class RoundsTradePlanner
             if (MissionAttempted(p, "trade-open"))
             {
                 m = m with { Phase = TradeMissionPhase.Returning };
-                return MissionRecord(call, p, m);
+                return MissionRecord(p, m, call);
             }
-            var (census, _) = Native.ListTraders(call, Boundary.Identity(state.Snapshot));
+            var (census, _) = await Native.ListTradersAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
             if (!census.Traders.Any(row => row.Id == trader && row.CanTrade))
             {
                 m = m with { Phase = TradeMissionPhase.Returning };
-                return MissionRecord(call, p, m);
+                return MissionRecord(p, m, call);
             }
             var open = Trade.NewTradeOpen(trader, m.Negotiator, false).WithParticipant(target);
-            return MissionTradeCommit(call, epoch, state, p, m, open);
+            return MissionTradeCommit(state, p, m, open, call, epoch);
         }
         if (!session.Open)
         {
             return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = TradeWalkTicks }, true);
         }
-        var (sheet, _) = Native.ReadTradeSheet(call, Boundary.Identity(state.Snapshot));
+        var (sheet, _) = await Native.ReadTradeSheetAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         IReadOnlyList<TradeLine> lines;
         IReadOnlyList<CargoItem> goods;
         try
         {
-            (lines, goods) = MissionPurchases(call, state, review, m, sheet, caravan);
+            (lines, goods) = await MissionPurchasesAsync(state, review, m, sheet, caravan, call).ConfigureAwait(false);
         }
         catch (Pol.TradeMissionFoodDemandUnknownException)
         {
@@ -356,29 +356,29 @@ public sealed partial class RoundsTradePlanner
         if (sheet.Trader != trader || !sheet.CanTradeNow || lines.Count == 0)
         {
             m = m with { Phase = TradeMissionPhase.Returning };
-            return MissionRecord(call, p, m);
+            return MissionRecord(p, m, call);
         }
         if (TradeStagedLines(sheet).Count == 0)
         {
             if (MissionAttempted(p, "trade-set_lines"))
             {
                 m = m with { Phase = TradeMissionPhase.Returning };
-                return MissionRecord(call, p, m);
+                return MissionRecord(p, m, call);
             }
             var set = Trade.NewTradeSetLines(trader, m.Negotiator, lines, false).WithParticipant(target);
-            return MissionTradeCommit(call, epoch, state, p, m, set);
+            return MissionTradeCommit(state, p, m, set, call, epoch);
         }
         var (silver, _, known) = TradeSheetSilver(sheet.Rows);
         if (!SameTradeLines(lines, TradeStagedLines(sheet)) || !sheet.ColonyCanAfford
-            || !Pol.TradeMissionFacts.TradeMissionPaymentSafe(m.SilverBudget, MissionOptional(silver, known), MissionOptional(sheet.Balance, sheet.BalanceKnown))
+            || !Pol.PolicyFunctions.TradeMissionPaymentSafe(m.SilverBudget, MissionOptional(silver, known), MissionOptional(sheet.Balance, sheet.BalanceKnown))
             || sheet.DealSignature.Length == 0)
         {
             m = m with { Phase = TradeMissionPhase.Returning };
-            return MissionRecord(call, p, m);
+            return MissionRecord(p, m, call);
         }
         m = m with { ReturnGoods = EquatableArray.From(goods), PurchaseCommitted = true };
         var accept = Trade.NewTradeAccept(trader, m.Negotiator, sheet.DealSignature, false, false).WithParticipant(target);
-        return MissionTradeCommit(call, epoch, state, p, m, accept);
+        return MissionTradeCommit(state, p, m, accept, call, epoch);
     }
 
     /// <summary>
@@ -386,16 +386,16 @@ public sealed partial class RoundsTradePlanner
     /// food/resource plans, bounded by saved authorization. It does not publish away goods into home supply
     /// candidates.
     /// </summary>
-    internal (IReadOnlyList<TradeLine> Lines, IReadOnlyList<CargoItem> Goods) MissionPurchases(
-        CancellationToken ct, ControlState state, Sto.Rounds review, TradeMission m, TradeSheetRead sheet, CaravanJourney caravan)
+    internal async Task<(IReadOnlyList<TradeLine> Lines, IReadOnlyList<CargoItem> Goods)> MissionPurchasesAsync(ControlState state, Sto.Rounds review, TradeMission m, TradeSheetRead sheet, CaravanJourney caravan, CancellationToken ct)
     {
-        var (reply, _) = Native.ReadColonyFacts(ct, Boundary.Identity(state.Snapshot), false);
-        var tables = Native.FrameTables(ct, Boundary.Identity(state.Snapshot));
-        if (tables.Catalog is null)
+        var (reply, _) = await Native.ReadColonyFactsAsync(Boundary.Identity(state.Snapshot), false, ct).ConfigureAwait(false);
+        var tables = await Native.FrameTablesAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
+        if (Native is not IDefinitionSource definitions)
         {
             throw new ControlException("missionPurchases: frame tables carry no catalog");
         }
-        var projection = Observation.ColonyProjection.DecodeColony(
+        var catalog = await definitions.DefinitionCatalogAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
+        var projection = ObservationApi.DecodeColony(
             reply,
             new Observation.Identity
             {
@@ -404,31 +404,32 @@ public sealed partial class RoundsTradePlanner
                 Map = state.Snapshot.Map,
                 Tick = new Tick(reply.Observed?.Context?.Tick ?? 0),
             },
-            tables);
-        Reviewer.PlanFood(projection);
+            tables,
+            catalog);
+        Reviewer.PlanFood(ref projection);
         var targets = Reviewer.ResourceTargets(state.Snapshot);
         var nutrition = new Dictionary<string, Fact<double>>(StringComparer.Ordinal);
         foreach (var item in m.Demand)
         {
-            nutrition[item.Definition] = MissionCatalogStat(tables.Catalog, item.Definition, "Nutrition");
+            nutrition[item.Definition] = MissionCatalogStat(catalog, item.Definition, "Nutrition");
         }
         var rows = new List<Pol.MissionPurchaseRow>();
         foreach (var row in sheet.Rows)
         {
             rows.Add(new Pol.MissionPurchaseRow
             {
-                LineId = row.LineId,
+                LineID = row.LineId,
                 DefName = row.DefName,
                 TraderCount = row.TraderCount,
                 Pawn = row.Pawn,
                 Currency = row.Currency,
                 BuyPrice = MissionOptional(row.BuyPrice, row.BuyPriceKnown),
                 WillTrade = MissionOptional(row.TraderWillTrade, row.TraderWillTradeKnown),
-                UnitMass = MissionCatalogStat(tables.Catalog, row.DefName, "Mass"),
+                UnitMass = MissionCatalogStat(catalog, row.DefName, "Mass"),
             });
         }
         var (silver, _, known) = TradeSheetSilver(sheet.Rows);
-        return Pol.TradeMissionFacts.PlanTradeMissionPurchases(new Pol.MissionPurchaseRequest
+        return Pol.PolicyFunctions.PlanTradeMissionPurchases(new Pol.MissionPurchaseRequest
         {
             Mission = m,
             Targets = targets,
@@ -443,7 +444,7 @@ public sealed partial class RoundsTradePlanner
         });
     }
 
-    internal (RoundsTradeResult Result, bool Handled) CreateMission(CancellationToken ct, ControlState state, Sto.Rounds review)
+    internal (RoundsTradeResult Result, bool Handled) CreateMission(ControlState state, Sto.Rounds review, CancellationToken ct)
     {
         foreach (var owner in new[] { "food", "resources" })
         {
@@ -455,15 +456,15 @@ public sealed partial class RoundsTradePlanner
             TradeMission? m;
             lock (Reviewer.TradeAcquisition.Mu)
             {
-                Reviewer.TradeAcquisition.Missions.TryGetValue(proposal.Option.Id, out m);
+                Reviewer.TradeAcquisition.Missions.TryGetValue(proposal.Option.ID, out m);
             }
-            if (m is null || !Reviewer.ClaimTradeAcquisition(owner, proposal.Option.Id))
+            if (m is null || !Reviewer.ClaimTradeAcquisition(owner, proposal.Option.ID))
             {
                 continue;
             }
             var id = new StandardId("trade-mission-" + PlanIds.MintPlanId().Value);
             var standard = Standard.NewTradeMissionStandard(id, 1, state.Snapshot, m);
-            Reviewer.Player.Journal.SeedStandard(ct, standard);
+            Reviewer.Player.Journal.SeedStandard(standard, ct);
             return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = TradeWalkTicks }, true);
         }
         return (new RoundsTradeResult(), false);

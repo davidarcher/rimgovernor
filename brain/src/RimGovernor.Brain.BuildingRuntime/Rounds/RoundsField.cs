@@ -4,7 +4,7 @@ using System.Text;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public sealed class RoundsFieldResult
+public sealed class RoundsFieldResult : IPlannerMethod
 {
     public uint NativeWorkTicks { get; init; }
 
@@ -16,7 +16,7 @@ public sealed class RoundsFieldResult
 /// <summary>The native zone preview of the field planner.</summary>
 public interface IFieldNative
 {
-    (OP.ZonePreviewReply Reply, BridgeResult Result) PreviewZone(C.Identity identity, ZoneCreate zone, CancellationToken ct);
+    Task<(OP.ZonePreviewReply Reply, BridgeResult Result)> PreviewZoneAsync(C.Identity identity, ZoneCreate zone, CancellationToken ct);
 }
 
 /// <summary>Opens and grows the colony's fields, retargets the grower crops and keeps the other resources' fields in step with the food plan.</summary>
@@ -27,6 +27,7 @@ public sealed partial class RoundsFieldPlanner
     internal const int FieldBatchPatches = 6;
 
     private readonly Rounder _reviewer;
+    internal Rounder Reviewer => _reviewer;
     private readonly IFieldNative _native;
 
     public RoundsFieldPlanner(Rounder reviewer, IFieldNative native)
@@ -39,7 +40,7 @@ public sealed partial class RoundsFieldPlanner
         _native = native;
     }
 
-    internal RoundsFieldResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsFieldResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -59,37 +60,36 @@ public sealed partial class RoundsFieldPlanner
         var (goal, workable) = p.Journal.Workable(review, PolicyApi.EnsureFoodSupply, call);
         var idle = BuildingReasonNoDeficit;
         var blocked = false;
-        foreach (var method in goal.Methods)
+        foreach (var method in goal?.Methods ?? [])
         {
             var plan0 = p.Journal.LoadPlan(method.Plan, call);
-            blocked = blocked || FieldBlockingWork(method.Method, plan0.Progress);
+            blocked = blocked || FieldBlockingWork(method.MethodId, plan0.Progress);
         }
         var plans = p.Journal.LoadPlans(call);
-        var playerPlans = p.Journal.PlayerPlans(PlayerWorld(state.Snapshot), call);
-        var crops = _reviewer.SowableCrops(call, state.Snapshot);
+        var playerPlans = p.Journal.PlayerPlans(Player.PlayerWorld(state.Snapshot), call);
+        var crops = await _reviewer.SowableCropsAsync(state.Snapshot, call).ConfigureAwait(false);
         var definitions = RoundsProjectDefinitions(plans, state.Snapshot, playerPlans).Concat(crops).ToList();
         definitions.AddRange(["SunLamp", "HydroponicsBasin", "Heater"]);
         definitions = UniqueFieldDefinitions(definitions);
-        var expected = StepScope(call, _reviewer.Native);
+        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
-        var claims = p.Journal.ConstructionClaims(call, state.Snapshot, expected.Tick);
-        var read = _reviewer.ObserveOwned(call, _reviewer.Native, expected, claims, definitions);
+        var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
+        var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false);
         var projection = read.Projection;
-        RecordStepRead("field", PolicyApi.EnsureFoodSupply, state.Snapshot, projection);
-        var protectedCells = _reviewer.FieldProtected(call, state, review, projection, claims);
-        var others = OtherFieldShortfalls(call, state, review, projection);
-        var (anchor, planned) = FieldAnchor(projection);
-        if (!planned)
+        PlannerSnapshot.RecordStepRead("field", PolicyApi.EnsureFoodSupply, state.Snapshot, projection);
+        var protectedCells = _reviewer.FieldProtected(state, review, projection, claims, call);
+        var others = await OtherFieldShortfallsAsync(state, review, projection, call).ConfigureAwait(false);
+        if (LayoutProtected.FieldAnchor(projection) is not { } anchor)
         {
-            return new RoundsFieldResult { Verdict = BuildingNoLayoutPlan };
+            return new RoundsFieldResult { Verdict = BuildingReasonNoLayoutPlan };
         }
 
-        RoundsFieldResult PlaceOthers(uint wait0, Verdict reason)
+        async Task<RoundsFieldResult> PlaceOthersAsync(uint wait0, Verdict reason)
         {
-            var (result0, tried0) = PlaceLedger(call, epoch, state, projection, read, wait0, others, anchor, protectedCells);
+            var (result0, tried0) = await PlaceLedgerAsync(state, projection, read, wait0, others, anchor, protectedCells, call, epoch).ConfigureAwait(false);
             if (tried0)
             {
                 return result0;
@@ -97,11 +97,11 @@ public sealed partial class RoundsFieldPlanner
             return new RoundsFieldResult { Verdict = reason, NativeWorkTicks = wait0 };
         }
 
-        if (!workable)
+        if (!workable || goal is null)
         {
-            return PlaceOthers(0, idle);
+            return await PlaceOthersAsync(0, idle).ConfigureAwait(false);
         }
-        var (fished, handled) = Fishing(call, epoch, state, goal, read);
+        var (fished, handled) = await FishingAsync(state, goal, read, call, epoch).ConfigureAwait(false);
         if (handled)
         {
             return fished;
@@ -115,7 +115,7 @@ public sealed partial class RoundsFieldPlanner
             }
             blocked = !FoodPlanFieldRoom(projection, openPlans);
         }
-        var wait = FieldAllowance(call, goal.Standard, state.Snapshot, projection);
+        var wait = FieldAllowance(goal.Standard, state.Snapshot, projection, call);
         var reserveDays = _reviewer.Seasonal(projection.Facts).FoodTargetDays;
         var (request, choices) = FieldSiteRequest(projection, protectedCells, reserveDays);
         var (selection, known) = PolicyApi.PlanSiteType(request);
@@ -124,7 +124,7 @@ public sealed partial class RoundsFieldPlanner
             var recrops = PolicyApi.PlanGrowerCrops(new GrowerCropRequest { Choices = choices, Growers = env.Growers, Urgent = selection.Urgent, Field = request.Field });
             foreach (var recropChoice in recrops)
             {
-                var (result1, tried1) = Recrop(call, epoch, state, goal, projection, read, wait, recropChoice, arbiter);
+                var (result1, tried1) = await RecropAsync(state, goal, projection, read, wait, recropChoice, arbiter, call, epoch).ConfigureAwait(false);
                 if (tried1)
                 {
                     return result1;
@@ -133,22 +133,22 @@ public sealed partial class RoundsFieldPlanner
         }
         if (blocked)
         {
-            return PlaceOthers(wait, BuildingReasonExistingWork);
+            return await PlaceOthersAsync(wait, BuildingReasonExistingWork).ConfigureAwait(false);
         }
-        var (shrunk, shrinkHandled) = Shrink(call, epoch, state, goal, projection, read, request.Field);
-        if (shrinkHandled)
+        var shrunk = await ShrinkAsync(state, goal, projection, read, request.Field, call, epoch).ConfigureAwait(false);
+        if (shrunk is not null)
         {
             return shrunk;
         }
         if (!(projection.Facts.FoodPlan.TryGetValue(out var foodPlan) && FoodPlanOpensField(foodPlan)))
         {
-            return PlaceOthers(wait, AwaitingFoodPlan("new-field"));
+            return await PlaceOthersAsync(wait, AwaitingFoodPlan("new-field")).ConfigureAwait(false);
         }
         if (!known)
         {
-            return PlaceOthers(wait, FieldUnavailable("field_plan"));
+            return await PlaceOthersAsync(wait, FieldUnavailable("field_plan")).ConfigureAwait(false);
         }
-        Tel.Decide(call, FieldsSelectDecision(selection));
+        Tel.Decide(FieldsSelectLog.FieldsSelectDecision(selection));
         var attempts = 0;
         foreach (var candidate in selection.Candidates)
         {
@@ -161,32 +161,32 @@ public sealed partial class RoundsFieldPlanner
             bool tried;
             if (candidate.Kind == SiteKind.Outdoor && candidate.Buildings.Count == 0)
             {
-                var food = new FieldShortfall { Standard = goal, Options = FieldBlockOptions(candidate, selection.Candidates), What = "food" };
+                var food = new FieldShortfall(goal, LayoutFieldPlanning.FieldBlockOptions(candidate, selection.Candidates), "food");
                 var ledger = new List<FieldShortfall> { food };
                 ledger.AddRange(others);
-                (result, tried) = PlaceLedger(call, epoch, state, projection, read, wait, ledger, request.Field.Site.Anchor, protectedCells);
+                (result, tried) = await PlaceLedgerAsync(state, projection, read, wait, ledger, request.Field.Site.Anchor, protectedCells, call, epoch).ConfigureAwait(false);
                 others = [];
             }
             else
             {
-                (result, tried) = Enact(call, epoch, state, goal, projection, read, wait, candidate);
+                (result, tried) = await EnactAsync(state, goal, projection, read, wait, candidate, call, epoch).ConfigureAwait(false);
             }
             if (tried)
             {
                 return result;
             }
-            FieldEdit(call, "refused", "candidate_refused", candidate.Crop.Name, new Dictionary<string, object?> { ["kind"] = candidate.Kind, ["cells"] = candidate.Cells, ["refusal"] = result.Verdict });
+            FieldEdit("refused", "candidate_refused", candidate.Crop.Name, new Dictionary<string, object?> { ["kind"] = candidate.Kind, ["cells"] = candidate.Cells, ["refusal"] = result.Verdict }, call);
         }
-        return PlaceOthers(wait, NoSpace("field_candidates"));
+        return await PlaceOthersAsync(wait, NoSpace("field_candidates")).ConfigureAwait(false);
     }
 
-    internal List<FieldShortfall> OtherFieldShortfalls(CancellationToken call, ControlState state, RoundsReview review, ColonyProjection projection)
+    internal async Task<List<FieldShortfall>> OtherFieldShortfallsAsync(ControlState state, RoundsReview review, ColonyProjection projection, CancellationToken call)
     {
         var p = _reviewer.Player;
-        (StandardState Goal, bool Ready) Ready(string kind)
+        (StandardState? Goal, bool Ready) Ready(ConcernId kind)
         {
             var (goal, workable) = p.Journal.Workable(review, kind, call);
-            if (!workable)
+            if (!workable || goal is null)
             {
                 return (goal, false);
             }
@@ -205,9 +205,9 @@ public sealed partial class RoundsFieldPlanner
         if (hayOk)
         {
             var (goal, ready) = Ready(PolicyApi.MaintainResource);
-            if (ready)
+            if (ready && goal is not null)
             {
-                output.Add(new FieldShortfall { Standard = goal, Options = [hay], What = "hay" });
+                output.Add(new FieldShortfall(goal, [hay], "hay"));
             }
         }
         if (review.BrewingFinished && PolicyApi.BrewingFinished(projection.Facts.Research))
@@ -218,30 +218,30 @@ public sealed partial class RoundsFieldPlanner
                 var (goal, ready) = Ready(PolicyApi.MaintainResource);
                 foreach (var opt in opts)
                 {
-                    if (ready)
+                    if (ready && goal is not null)
                     {
-                        output.Add(new FieldShortfall { Standard = goal, Options = [opt], What = "social" });
+                        output.Add(new FieldShortfall(goal, [opt], "social"));
                     }
                 }
             }
         }
         var (rgoal, workable) = Ready(PolicyApi.MaintainResource);
-        if (!workable)
+        if (!workable || rgoal is null)
         {
             return output;
         }
-        var supply = _reviewer.ResourceSupply(call, state, review, rgoal);
+        var supply = await _reviewer.ResourceSupplyAsync(state, review, rgoal, call).ConfigureAwait(false);
         foreach (var plan in supply.OpenedFields())
         {
-            output.Add(new FieldShortfall { Standard = rgoal, Options = [new FieldBlockOption { Crop = plan.Crop, Needed = plan.Needed }], What = "resource" });
+            output.Add(new FieldShortfall(rgoal, [new FieldBlockOption(plan.Crop, plan.Needed)], "resource"));
         }
         return output;
     }
 
-    internal (RoundsFieldResult Result, bool Tried) PlaceLedger(CancellationToken call, CancellationToken epoch, ControlState state, ColonyProjection projection, RoundsReading read, uint wait, IReadOnlyList<FieldShortfall> ledger, Cell anchor, IReadOnlyList<Cell> protectedCells)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> PlaceLedgerAsync(ControlState state, ColonyProjection projection, RoundsReading read, uint wait, IReadOnlyList<FieldShortfall> ledger, Cell anchor, IReadOnlyList<Cell> protectedCells, CancellationToken call, CancellationToken epoch)
     {
         var result = new RoundsFieldResult { Verdict = BuildingReasonNoDeficit, NativeWorkTicks = wait };
-        foreach (var s in RankFieldShortfalls(ledger))
+        foreach (var s in LayoutFieldPlanning.RankFieldShortfalls(ledger))
         {
             if (s.Options.Count == 0)
             {
@@ -249,7 +249,7 @@ public sealed partial class RoundsFieldPlanner
             }
             var lead = s.Options[0];
             bool tried;
-            (result, tried) = EnactBlock(call, epoch, state, s.Standard, projection, read, wait, new SiteTypeCandidate { Kind = SiteKind.Outdoor, Crop = lead.Crop, Needed = lead.Needed }, s.Options, anchor, protectedCells);
+            (result, tried) = await EnactBlockAsync(state, s.Standard, projection, read, wait, new SiteTypeCandidate { Kind = SiteKind.Outdoor, Crop = lead.Crop, Needed = lead.Needed }, s.Options, anchor, protectedCells, call, epoch).ConfigureAwait(false);
             if (tried)
             {
                 return (result, tried);
@@ -258,7 +258,7 @@ public sealed partial class RoundsFieldPlanner
         return (result, false);
     }
 
-    internal (RoundsFieldResult Result, bool Tried) Enact(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, ColonyProjection projection, RoundsReading read, uint wait, SiteTypeCandidate candidate)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> EnactAsync(ControlState state, StandardState goal, ColonyProjection projection, RoundsReading read, uint wait, SiteTypeCandidate candidate, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var crop = candidate.Crop;
@@ -266,15 +266,15 @@ public sealed partial class RoundsFieldPlanner
         var method = new MethodId("fields-" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)).AsSpan(0, 16)));
         try
         {
-            p.Journal.LoadMethod(call, goal.Standard.Id, goal.Standard.Episode, method);
-            return (new RoundsFieldResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "field_method"), NativeWorkTicks = wait }, true);
+            p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
+            return (new RoundsFieldResult { Verdict = WaitFor(Cause.MethodUsed, "field_method"), NativeWorkTicks = wait }, true);
         }
         catch (NotFoundException)
         {
             // Not yet used: enact it.
         }
         var id = PlanIds.MintPlanId();
-        var snapshot = state.Snapshot with { Plan = id, Revision = 1 };
+        var snapshot = state.Snapshot with { Plan = id, Revision = new PlanRevision(1) };
         var stock = new StockObservation { Snapshot = snapshot, Tick = projection.Identity.Tick };
         var actions = new List<DomainAction>();
         var previews = new List<Preview>();
@@ -284,7 +284,7 @@ public sealed partial class RoundsFieldPlanner
             {
                 return (new RoundsFieldResult { Verdict = FieldUnavailable("building_preview"), NativeWorkTicks = wait }, false);
             }
-            IEnumerable<FieldBuilding> buildings = candidate.Buildings;
+            IEnumerable<SiteBuilding> buildings = candidate.Buildings;
             if (candidate.Buildings.Count > FieldBatchPatches)
             {
                 buildings = candidate.Buildings.Take(FieldBatchPatches);
@@ -293,9 +293,9 @@ public sealed partial class RoundsFieldPlanner
             var i = 0;
             foreach (var b in buildings)
             {
-                var building = DomainApi.NewBuilding(b.Definition, b.Cell, b.Rotation, "");
-                var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), building, BuildTier.Sustain);
-                var (preview, _) = native.PreviewBuilding(action, snapshot, call);
+                var building = new Building(b.Definition, b.Cell, b.Rotation, "");
+                var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), building, ConstructionTier.Sustain);
+                var (preview, _) = await native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
                 var v = preview.Preview;
                 var lk = v.CanPlace.TryGetValue(out var legal);
                 var sk = v.SafeToPlace.TryGetValue(out var safe);
@@ -323,7 +323,7 @@ public sealed partial class RoundsFieldPlanner
         }
         else
         {
-            IEnumerable<Patch> patches = candidate.Sites.Patches;
+            IEnumerable<Rectangle> patches = candidate.Sites.Patches;
             if (candidate.Sites.Patches.Count > FieldBatchPatches)
             {
                 patches = candidate.Sites.Patches.Take(FieldBatchPatches);
@@ -339,15 +339,15 @@ public sealed partial class RoundsFieldPlanner
                         cells.Add(new Cell(x, z));
                     }
                 }
-                var value = DomainApi.NewZoneCreate(ZoneKind.Growing, crop.Name, cells);
+                var value = new ZoneCreate(Domain.ZoneKind.Growing, crop.Name, cells);
                 var action = DomainAction.NewZoneCreateAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), value);
-                var (reply, refused) = PreviewZone(call, _native, Boundary.Identity(snapshot), value);
+                var (reply, refused) = await PreviewZoneAsync(_native, Boundary.Identity(snapshot), value, call).ConfigureAwait(false);
                 if (refused != "")
                 {
-                    FieldEdit(call, "refused", "preview_refused", crop.Name, new Dictionary<string, object?> { ["detail"] = refused });
+                    FieldEdit("refused", "preview_refused", crop.Name, new Dictionary<string, object?> { ["detail"] = refused }, call);
                     return (new RoundsFieldResult { Verdict = SiteBlocked("field_zone", "preview_refused"), NativeWorkTicks = wait }, false);
                 }
-                var ev = reply.Evaluated;
+                var ev = reply?.Evaluated ?? throw new ControlException("enact: accepted preview carries no evaluation");
                 try
                 {
                     Boundary.Context(ev.Context, snapshot);
@@ -356,7 +356,7 @@ public sealed partial class RoundsFieldPlanner
                 {
                     throw new ControlException("enact: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick");
                 }
-                if (new Tick(ev.Context.Tick) < projection.Identity.Tick)
+                if (new Tick(ev.Context?.Tick ?? 0) < projection.Identity.Tick)
                 {
                     throw new ControlException("enact: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick");
                 }
@@ -365,7 +365,7 @@ public sealed partial class RoundsFieldPlanner
                 i++;
             }
         }
-        return Admit(call, epoch, state, goal, projection, read, wait, method, id, snapshot, stock, actions, previews, candidate.Kind + " " + crop.Name);
+        return await AdmitAsync(state, goal, projection, read, wait, method, id, snapshot, stock, actions, previews, candidate.Kind + " " + crop.Name, call, epoch).ConfigureAwait(false);
     }
 
     internal static Preview ZonePreview(DomainAction action, GenerationSnapshot snapshot, Tick tick, IReadOnlyList<Cell> cells) => new()
@@ -377,11 +377,11 @@ public sealed partial class RoundsFieldPlanner
         SafeToPlace = Known(true),
         MadeFromStuff = Known(false),
         WatchCellsAccessible = Known(true),
-        Footprint = Known(cells),
-        Costs = Known<IReadOnlyList<Amount>>([]),
+        Footprint = Known(EquatableArray.From(cells)),
+        Costs = Known(EquatableArray.From(new List<Amount>())),
     };
 
-    internal (RoundsFieldResult Result, bool Tried) Admit(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, ColonyProjection projection, RoundsReading read, uint wait, MethodId method, PlanId id, GenerationSnapshot snapshot, StockObservation stock, IReadOnlyList<DomainAction> actions, IReadOnlyList<Preview> previews, string what)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> AdmitAsync(ControlState state, StandardState goal, ColonyProjection projection, RoundsReading read, uint wait, MethodId method, PlanId id, GenerationSnapshot snapshot, StockObservation stock, IReadOnlyList<DomainAction> actions, IReadOnlyList<Preview> previews, string what, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var plan = new PlanSpec(id, new PlanRevision(1), actions);
@@ -393,7 +393,7 @@ public sealed partial class RoundsFieldPlanner
         Identity actual;
         try
         {
-            actual = StepScope(call, _reviewer.Native);
+            actual = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         }
         catch (ControlException)
         {
@@ -406,9 +406,9 @@ public sealed partial class RoundsFieldPlanner
         var now = _reviewer.Clock.Now();
         if (now < read.StartedAt || now - read.StartedAt > _reviewer.MaxAge)
         {
-            throw new StaleObservationException();
+            throw new ObservationStaleException();
         }
-        var decision = AdmitMethod(call, p.Journal, new BuildingMethodRequest
+        var decision = await AdmissionLog.AdmitMethodAsync(p.Journal, new BuildingMethodRequest
         {
             Owner = goal,
             Method = method,
@@ -418,40 +418,40 @@ public sealed partial class RoundsFieldPlanner
             Bounds = Known(projection.Bounds),
             Stock = stock,
             Previews = previews,
-            Purpose = PolicyApi.Rounds,
-        });
+            Purpose = Purpose.Rounds,
+        }, call).ConfigureAwait(false);
         if (!decision.Admitted)
         {
-            return (new RoundsFieldResult { Verdict = AdmissionRefused(decision), NativeWorkTicks = wait }, false);
+            return (new RoundsFieldResult { Verdict = AdmissionLog.AdmissionRefused(decision), NativeWorkTicks = wait }, false);
         }
         return (new RoundsFieldResult { Verdict = BuildingReasonAdmitted, Plan = id }, true);
     }
 
-    internal (RoundsFieldResult Result, bool Tried) EnactBlock(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, ColonyProjection projection, RoundsReading read, uint wait, SiteTypeCandidate candidate, IReadOnlyList<FieldBlockOption> options, Cell anchor, IReadOnlyList<Cell> protectedCells)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> EnactBlockAsync(ControlState state, StandardState goal, ColonyProjection projection, RoundsReading read, uint wait, SiteTypeCandidate candidate, IReadOnlyList<FieldBlockOption> options, Cell anchor, IReadOnlyList<Cell> protectedCells, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
-        var (edit, reason, ok) = PlanFieldBlock(projection, anchor, options, protectedCells);
-        if (!ok)
+        var (planned, reason) = LayoutFieldPlanning.PlanFieldBlock(projection, anchor, options, protectedCells);
+        if (planned is not { } edit)
         {
-            ClockEvent(call, "layout", "fields", "outdoor field refused: " + reason, "crop", candidate.Crop.Name);
+            ClockEvents.Event("layout", "fields", "outdoor field refused: " + reason, ("crop", candidate.Crop.Name));
             return (new RoundsFieldResult { Verdict = NoSpace("field_block"), NativeWorkTicks = wait }, false);
         }
         var text = string.Create(CultureInfo.InvariantCulture, $"block/{edit.Zone}/{edit.Crop}/{string.Join(";", edit.Cells)}");
         var method = new MethodId("fields-" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)).AsSpan(0, 16)));
         try
         {
-            p.Journal.LoadMethod(call, goal.Standard.Id, goal.Standard.Episode, method);
-            return (new RoundsFieldResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "field_block_method"), NativeWorkTicks = wait }, true);
+            p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
+            return (new RoundsFieldResult { Verdict = WaitFor(Cause.MethodUsed, "field_block_method"), NativeWorkTicks = wait }, true);
         }
         catch (NotFoundException)
         {
             // Not yet used: grow the block.
         }
         var id = PlanIds.MintPlanId();
-        var snapshot = state.Snapshot with { Plan = id, Revision = 1 };
+        var snapshot = state.Snapshot with { Plan = id, Revision = new PlanRevision(1) };
         if (edit.Zone != "")
         {
-            var value = DomainApi.NewZoneCellEdit(edit.Zone, ZoneEditKind.Add, edit.Cells);
+            var value = new ZoneCellEdit(edit.Zone, CellEditMode.Add, edit.Cells);
             var action0 = DomainAction.NewZoneCellEditAction(new ActionId($"{id}-0"), value);
             var plan0 = new PlanSpec(id, new PlanRevision(1), [action0]);
             p.Current(call, epoch);
@@ -461,18 +461,18 @@ public sealed partial class RoundsFieldPlanner
                 throw new ControlException("enactBlock: p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge");
             }
             p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan0, call);
-            ClockEvent(call, "layout", "fields", "field block grown", "zone", edit.Zone, "crop", edit.Crop, "cells", edit.Cells.Count, "plan", id.Value);
+            ClockEvents.Event("layout", "fields", "field block grown", ("zone", edit.Zone), ("crop", edit.Crop), ("cells", edit.Cells.Count), ("plan", id.Value));
             return (new RoundsFieldResult { Verdict = BuildingReasonAdmitted, Plan = id }, true);
         }
-        var create = DomainApi.NewZoneCreate(ZoneKind.Growing, edit.Crop, edit.Cells);
+        var create = new ZoneCreate(Domain.ZoneKind.Growing, edit.Crop, edit.Cells);
         var action = DomainAction.NewZoneCreateAction(new ActionId($"{id}-0"), create);
-        var (reply, refused) = PreviewZone(call, _native, Boundary.Identity(snapshot), create);
+        var (reply, refused) = await PreviewZoneAsync(_native, Boundary.Identity(snapshot), create, call).ConfigureAwait(false);
         if (refused != "")
         {
-            FieldEdit(call, "refused", "preview_refused", edit.Crop, new Dictionary<string, object?> { ["detail"] = refused });
+            FieldEdit("refused", "preview_refused", edit.Crop, new Dictionary<string, object?> { ["detail"] = refused }, call);
             return (new RoundsFieldResult { Verdict = SiteBlocked("field_zone", "preview_refused"), NativeWorkTicks = wait }, false);
         }
-        var v = reply.Evaluated;
+        var v = reply?.Evaluated ?? throw new ControlException("enactBlock: accepted preview carries no evaluation");
         try
         {
             Boundary.Context(v.Context, snapshot);
@@ -481,16 +481,16 @@ public sealed partial class RoundsFieldPlanner
         {
             throw new ControlException("enactBlock: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick");
         }
-        if (new Tick(v.Context.Tick) < projection.Identity.Tick)
+        if (new Tick(v.Context?.Tick ?? 0) < projection.Identity.Tick)
         {
             throw new ControlException("enactBlock: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick");
         }
         var stock = new StockObservation { Snapshot = snapshot, Tick = projection.Identity.Tick };
         var preview = ZonePreview(action, snapshot, projection.Identity.Tick, edit.Cells);
-        return Admit(call, epoch, state, goal, projection, read, wait, method, id, snapshot, stock, [action], [preview], "block " + edit.Crop);
+        return await AdmitAsync(state, goal, projection, read, wait, method, id, snapshot, stock, [action], [preview], "block " + edit.Crop, call, epoch).ConfigureAwait(false);
     }
 
-    internal (RoundsFieldResult Result, bool Tried) Recrop(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, ColonyProjection projection, RoundsReading read, uint wait, GrowerCropChoice choice, StepArbiter arbiter)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> RecropAsync(ControlState state, StandardState goal, ColonyProjection projection, RoundsReading read, uint wait, GrowerCropChoice choice, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         if (_native is not IFieldGrowerCrop native)
         {
@@ -500,14 +500,14 @@ public sealed partial class RoundsFieldPlanner
         var method = new MethodId("fields-recrop-" + choice.Grower);
         try
         {
-            p.Journal.LoadMethod(call, goal.Standard.Id, goal.Standard.Episode, method);
-            return (new RoundsFieldResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "recrop_method"), NativeWorkTicks = wait }, false);
+            p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
+            return (new RoundsFieldResult { Verdict = WaitFor(Cause.MethodUsed, "recrop_method"), NativeWorkTicks = wait }, false);
         }
         catch (NotFoundException)
         {
             // Not yet used: recrop.
         }
-        var (target, _) = native.ReadGrowerCropTarget(Boundary.Identity(state.Snapshot), choice.Grower, call);
+        var (target, _) = await native.ReadGrowerCropTargetAsync(Boundary.Identity(state.Snapshot), choice.Grower, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(target.Context, state.Snapshot);
@@ -516,7 +516,7 @@ public sealed partial class RoundsFieldPlanner
         {
             throw new ControlException("recrop: err != nil || target.Context.GetTick() < int64(projection.Identity.Tick)");
         }
-        if (target.Context.Tick < (long)projection.Identity.Tick)
+        if ((target.Context?.Tick ?? 0) < projection.Identity.Tick.Value)
         {
             throw new ControlException("recrop: err != nil || target.Context.GetTick() < int64(projection.Identity.Tick)");
         }
@@ -524,10 +524,10 @@ public sealed partial class RoundsFieldPlanner
         {
             return (new RoundsFieldResult { Verdict = FieldUnavailable("grower_crop"), NativeWorkTicks = wait }, false);
         }
-        var patch = DomainApi.NewGrowerCrop(choice.Grower, choice.Crop.Name);
+        var patch = new GrowerCrop(choice.Grower, choice.Crop.Name);
         if (!arbiter.TryClaim([], "grower:" + choice.Grower))
         {
-            return (new RoundsFieldResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "grower_claim"), NativeWorkTicks = wait }, false);
+            return (new RoundsFieldResult { Verdict = WaitFor(Cause.MethodUsed, "grower_claim"), NativeWorkTicks = wait }, false);
         }
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewGrowerCropAction(new ActionId($"{id}-0"), patch);
@@ -538,13 +538,13 @@ public sealed partial class RoundsFieldPlanner
         {
             throw new ControlException("recrop: p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge");
         }
-        FieldEdit(call, "admitted", "recrop", choice.Grower, new Dictionary<string, object?> { ["from"] = choice.Current, ["to"] = choice.Crop.Name, ["detail"] = choice.Reason });
+        FieldEdit("admitted", "recrop", choice.Grower, new Dictionary<string, object?> { ["from"] = choice.Current, ["to"] = choice.Crop.Name, ["detail"] = choice.Reason }, call);
         p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
         return (new RoundsFieldResult { Verdict = BuildingReasonAdmitted, Plan = id }, true);
     }
 
     /// <summary>The wait, in ticks, until the newest growing zone of the standard should have produced: its crop's grow time with margin.</summary>
-    internal uint FieldAllowance(CancellationToken ct, Standard goal, GenerationSnapshot current, ColonyProjection facts)
+    internal uint FieldAllowance(Standard goal, GenerationSnapshot current, ColonyProjection facts, CancellationToken ct)
     {
         var journal = _reviewer.Player.Journal;
         var methods = journal.LoadMethods(goal.Id, goal.Episode, ct);
@@ -556,9 +556,9 @@ public sealed partial class RoundsFieldPlanner
             foreach (var progress in plan.Progress)
             {
                 var v = progress.View;
-                var ok = progress.Action.ZoneCreate(out var zone);
+                var zone = progress.Action.ZoneCreate;
                 var created = v.Zone.TryGetValue(out var id);
-                if (!ok || !created || v.Stage != Stage.Completed || v.Unresolved || !v.Snapshot.Matches(snapshot) || v.Tick > facts.Identity.Tick)
+                if (zone is null || !created || v.Stage != Stage.Completed || v.Unresolved || !v.Snapshot.Matches(snapshot) || v.Tick > facts.Identity.Tick)
                 {
                     continue;
                 }
@@ -610,15 +610,16 @@ public sealed partial class RoundsFieldPlanner
 
     internal static bool FieldBlockingWork(MethodId method, IReadOnlyList<Progress> progress)
     {
-        if (RoundsBuildingPlanner.IsShellMethod(method))
+        if (StorePackage.IsRoomShellMethod(method))
         {
             return false;
         }
         foreach (var p in progress)
         {
-            var zone = p.Action.ZoneCreate(out _) || p.Action.ZoneCellEdit(out _);
-            var isBuilding = p.Action.Building(out var building);
-            if (isBuilding && ButcherBenchDefinition(building.Definition))
+            var zone = p.Action.ZoneCreate is not null || p.Action.ZoneCellEdit is not null;
+            var building = p.Action.Building;
+            var isBuilding = building is not null;
+            if (building is not null && ButcherBenchDefinition(building.Definition))
             {
                 continue;
             }
@@ -644,23 +645,23 @@ public sealed partial class RoundsFieldPlanner
         return output;
     }
 
-    internal static void FieldEdit(CancellationToken ct, string verdict, string reason, string target, Dictionary<string, object?> attrs)
+    internal static void FieldEdit(string verdict, string reason, string target, Dictionary<string, object?> attrs, CancellationToken ct)
     {
         attrs["family"] = "field";
-        Tel.Decide(ct, new Decision { Kind = "layout_edit", Component = "clock-scheduler", Verdict = verdict, Reason = reason, Target = target, Attrs = attrs });
+        Tel.Decide(new Decision { Kind = "layout_edit", Component = "clock-scheduler", Verdict = verdict, Reason = reason, Target = target, Attrs = attrs });
     }
 }
 
 /// <summary>A field native that also previews a building.</summary>
 public interface IFieldBuildingPreview
 {
-    (BridgeBuildingPreview Preview, BridgeResult Result) PreviewBuilding(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
+    Task<(BridgeBuildingPreview Preview, BridgeResult Result)> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
 }
 
 /// <summary>A field native that reads a grower's crop target.</summary>
 public interface IFieldGrowerCrop
 {
-    (BridgeGrowerCropTarget Target, BridgeResult Result) ReadGrowerCropTarget(C.Identity identity, string grower, CancellationToken ct);
+    Task<(BridgeGrowerCropTarget Target, BridgeResult Result)> ReadGrowerCropTargetAsync(C.Identity identity, string grower, CancellationToken ct);
 }
 
 internal static partial class BuildingRuntimePackage
@@ -710,7 +711,7 @@ internal static partial class BuildingRuntimePackage
             Cooks = cooks,
             Calendar = projection.Facts.Calendar,
             Conditions = projection.Facts.DisasterConditions,
-            Choices = choices,
+            Choices = [.. choices],
             Climate = projection.CropClimate,
             Runway = projection.Facts.FoodDays,
             Colonists = projection.Facts.Colonists,
@@ -722,13 +723,13 @@ internal static partial class BuildingRuntimePackage
     internal static (SiteTypeRequest Request, List<CropChoice> Choices) FieldSiteRequest(ColonyProjection projection, IReadOnlyList<Cell> protectedCells, double reserveDays)
     {
         var (field, choices) = FieldRequestOf(projection, reserveDays);
-        var (anchor, _) = FieldAnchor(projection);
-        field.Site = new FarmSiteRequest { Bounds = projection.Bounds, Anchor = anchor, Cells = projection.Cells, Protected = protectedCells };
-        var (fields, ok) = LayoutFieldCells(projection);
-        if (ok)
+        var anchor = LayoutProtected.FieldAnchor(projection) ?? default;
+        var site = new FarmSiteRequest { Bounds = projection.Bounds, Anchor = anchor, Cells = projection.Cells, Protected = protectedCells };
+        if (LayoutFieldPlanning.LayoutFieldCells(projection) is { } fields)
         {
-            field.Site.Fields = fields;
+            site = site with { Fields = fields };
         }
+        field = field with { Site = site };
         var request = new SiteTypeRequest { Field = field, Environment = projection.Environment, LampGrowthRadius = RoundsFieldPlanner.FieldLampGrowthRadius, Items = projection.Facts.Items, Stock = projection.Resources };
         foreach (var d in projection.Definitions)
         {
@@ -736,13 +737,13 @@ internal static partial class BuildingRuntimePackage
             switch (d.Name)
             {
                 case "SunLamp":
-                    request.Lamp = infrastructure;
+                    request = request with { Lamp = infrastructure };
                     break;
                 case "HydroponicsBasin":
-                    request.Basin = infrastructure;
+                    request = request with { Basin = infrastructure };
                     break;
                 case "Heater":
-                    request.Heater = infrastructure;
+                    request = request with { Heater = infrastructure };
                     break;
             }
         }
@@ -752,24 +753,23 @@ internal static partial class BuildingRuntimePackage
     internal static List<Cell> FirebreakRing(ColonyProjection projection)
     {
         var ring = PolicyApi.FirebreakRing(FirebreakRequest(projection));
-        ring.TryGetValue(out var cells);
-        return cells?.ToList() ?? [];
+        return ring.TryGetValue(out var cells) ? cells.ToList() : [];
     }
 
     internal static CropChoice WithHarvestFacts(CropChoice crop, PlanningDefinition d)
     {
         if (d.HarvestedThingDef.TryGetValue(out var name))
         {
-            crop.Harvests = Known(new Resource(name));
+            crop = crop with { Harvests = Known(new Resource(name)) };
         }
-        crop.UnitsPerCell = d.HarvestYield;
-        crop.SowMinSkill = d.SowMinSkill;
-        crop.HarvestDestroys = d.HarvestDestroysPlant;
-        crop.BlockAdjacentSow = d.BlockAdjacentSow;
-        crop.MustBeWildToSow = d.MustBeWildToSow;
-        crop.HarvestMinGrowth = d.HarvestMinGrowth;
-        crop.SowWork = d.SowWork;
-        crop.WildBiomes = d.WildBiomes;
+        crop = crop with { UnitsPerCell = d.HarvestYield };
+        crop = crop with { SowMinSkill = d.SowMinSkill };
+        crop = crop with { HarvestDestroys = d.HarvestDestroysPlant };
+        crop = crop with { BlockAdjacentSow = d.BlockAdjacentSow };
+        crop = crop with { MustBeWildToSow = d.MustBeWildToSow };
+        crop = crop with { HarvestMinGrowth = d.HarvestMinGrowth };
+        crop = crop with { SowWork = d.SowWork };
+        crop = crop with { WildBiomes = d.WildBiomes };
         return crop;
     }
 }

@@ -15,7 +15,7 @@ public sealed class CheckpointException : Exception
 /// <summary>The trusted single-save native capability, held separately from ordinary reads the same way INativeAuthority is.</summary>
 public interface ILifecycleSaver
 {
-    (LifecyclePb.SaveReply Reply, BridgeResult Result) Save(CancellationToken ct, LifecyclePb.SaveRequest request);
+    Task<(LifecyclePb.SaveReply Reply, BridgeResult Result)> SaveAsync(LifecyclePb.SaveRequest request, CancellationToken ct);
 }
 
 /// <summary>
@@ -29,28 +29,31 @@ public sealed record CheckpointResult(GenerationSnapshot Snapshot, Tick Tick, st
 
 public sealed partial class Control
 {
+    /// <summary>The fixed player_direction the controller sends on lifecycle requests (Go <c>bridge.LifecycleDirection</c>, lifecycle_save.go).</summary>
+    private const ulong LifecycleDirection = 1;
+
     /// <summary>
     /// Drains owned writers under the control gate, refuses a foreign colony/load/map, requests one native save
     /// and validates the reply before returning success. Authority is never revoked and the profile lock is never
     /// released: play continues in Manual after a checkpoint. An uncertain native outcome is always reported as
     /// a refusal (<see cref="CheckpointException"/>), never silently accepted.
     /// </summary>
-    public CheckpointResult Checkpoint(CancellationToken ct, ILifecycleSaver? save, CheckpointRequest request)
+    public async Task<CheckpointResult> CheckpointAsync(ILifecycleSaver? save, CheckpointRequest request, CancellationToken ct)
     {
-        if (save is null || !request.Expected.IsValid() || !Boundary.ValidId(request.SaveName))
+        if (save is null || !request.Expected.IsValid || !Boundary.ValidId(request.SaveName))
         {
             throw new CheckpointException();
         }
         GenerationSnapshot current;
-        ulong epoch;
-        lock (Mu)
+        CancellationToken epoch;
+        lock (_mu)
         {
-            if (Closing || !LiveLocked())
+            if (_closing || !LiveLocked())
             {
                 throw new CheckpointException();
             }
-            current = Snapshot;
-            epoch = Epoch;
+            current = _snapshot;
+            epoch = _epoch;
         }
         if (!Boundary.World(current, request.Expected))
         {
@@ -58,11 +61,11 @@ public sealed partial class Control
         }
         try
         {
-            var (call, done) = Enter(ct, epoch);
-            using var _ = done;
+            using var entry = await EnterAsync(ct, epoch).ConfigureAwait(false);
+            var call = entry.Token;
             if (Config.CleanupWrites is { } cleanup)
             {
-                cleanup(call);
+                await cleanup(call).ConfigureAwait(false);
             }
             call.ThrowIfCancellationRequested();
             var req = new LifecyclePb.SaveRequest
@@ -70,8 +73,8 @@ public sealed partial class Control
                 Player = new LifecyclePb.PlayerLifecycleContext
                 {
                     Identity = ControlIdentity(current),
-                    PlayerDirection = Bridge.Lifecycle.Direction,
-                    RequestId = string.Create(CultureInfo.InvariantCulture, $"checkpoint-{Namespace}-{DateTimeOffset.UtcNow.Ticks * 100}"),
+                    PlayerDirection = LifecycleDirection,
+                    RequestId = string.Create(CultureInfo.InvariantCulture, $"checkpoint-{Namespace.Value}-{(DateTime.UtcNow - DateTime.UnixEpoch).Ticks * 100}"),
                 },
                 SaveName = request.SaveName,
             };
@@ -79,7 +82,7 @@ public sealed partial class Control
             {
                 req.ExpectedTick = (long)request.ExpectedTick.Value;
             }
-            var (reply, _) = save.Save(call, req);
+            var (reply, _) = await save.SaveAsync(req, call).ConfigureAwait(false);
             var completed = reply.Completed;
             if (completed is null)
             {

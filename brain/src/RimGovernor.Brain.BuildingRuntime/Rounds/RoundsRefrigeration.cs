@@ -7,7 +7,7 @@ public sealed partial class RoundsBuildingPlanner
 
     public static RoundsBuildingPlanner NewRoundsRefrigerationPlanner(Rounder reviewer, IRoundsBuildingSource native)
     {
-        if (reviewer is null || native is null || !reviewer.MethodEnabled(ConcernId.MaintainRefrigeration))
+        if (reviewer is null || native is null || !reviewer.MethodEnabled(PolicyFunctions.MaintainRefrigeration))
         {
             throw new ControlException("NewRoundsRefrigerationPlanner: reviewer, native or method disabled");
         }
@@ -17,10 +17,10 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("NewRoundsRefrigerationPlanner: native lacks the rounds or refrigeration source");
         }
 
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = ConcernId.MaintainRefrigeration, Definition = "Cooler" };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyFunctions.MaintainRefrigeration, Definition = "Cooler" };
     }
 
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectRefrigeration(CancellationToken ct, ColonyProjection facts, RoundsLatches latches, bool allowance)
+    internal async Task<(RoundsBuildingPlanner? Planner, Verdict Verdict)> SelectRefrigerationAsync(ColonyProjection facts, RoundsLatches latches, bool allowance, CancellationToken ct)
     {
         var review = PolicyFunctions.ReviewRefrigeration(facts.Facts.FoodStorageUpkeep, latches.Refrigeration, Reviewer.Policy.FoodStorage);
         review = review.WithWarmRooms(WarmCoolingRooms(facts));
@@ -29,7 +29,7 @@ public sealed partial class RoundsBuildingPlanner
             return (null, BuildingReasonNoDeficit);
         }
 
-        var (coolers, _) = ObservationPackage.ReadRefrigerationCoolers(ct, (IRefrigerationSource)Native, facts.Identity, facts.PowerPlanning);
+        var (coolers, _) = await ObservationPackage.ReadRefrigerationCoolers((IRefrigerationSource)Native, facts.Identity, facts.PowerPlanning, ct).ConfigureAwait(false);
         var fact = ObservationPackage.RefrigerationFacts(facts, coolers);
         var proposal = PolicyFunctions.SelectRefrigerationMethod(review, fact, Reviewer.Policy.FoodStorage, allowance);
         switch (proposal.Method)
@@ -49,9 +49,9 @@ public sealed partial class RoundsBuildingPlanner
         }
     }
 
-    internal static (uint Allowance, bool Exhausted, bool Lent) RefrigerationOutputAllowance(CancellationToken ct, StoreJournal journal, StandardState goal, GenerationSnapshot current, Tick tick, Tick since)
+    internal static (uint Allowance, bool Exhausted, bool Lent) RefrigerationOutputAllowance(StoreJournal journal, StandardState goal, GenerationSnapshot current, Tick tick, Tick since, CancellationToken ct)
     {
-        var methods = journal.LoadOwnerMethods(ct, goal);
+        var methods = journal.LoadOwnerMethods(goal, ct);
         if (methods.Count == 0)
         {
             var (latchAllowance, latchExhausted) = RefrigerationLatchAllowance(since, tick);
@@ -62,7 +62,7 @@ public sealed partial class RoundsBuildingPlanner
         var exhausted = false;
         foreach (var method in methods)
         {
-            var plan = journal.LoadPlan(ct, method.Plan);
+            var plan = journal.LoadPlan(method.Plan, ct);
             var (remaining, completed) = RefrigerationNativeWorkTicks(plan, current, tick);
             allowance = Math.Max(allowance, remaining);
             exhausted = exhausted || (completed && remaining == 0);
@@ -95,22 +95,22 @@ public sealed partial class RoundsBuildingPlanner
 
         var progress = plan.Progress[0];
         var action = progress.Action;
-        if (action.TryBuilding(out var building))
+        if (action.Building is { } building)
         {
-            if (building!.Definition != "Cooler")
+            if (building.Definition != "Cooler")
             {
                 return (0, false);
             }
         }
-        else if (!action.TryBuildingTemperature(out _))
+        else if (action.BuildingTemperature is null)
         {
             return (0, false);
         }
 
         current = current with { Plan = plan.Spec.Id, Revision = plan.Spec.Revision };
-        var v = progress.View();
+        var v = progress.View;
         current = current with { Native = v.Snapshot.Native };
-        if (v.Stage != ProgressStage.Completed || v.Unresolved || !v.Effect.TryGetValue(out var effect) || effect != EffectKind.Completed || !v.Snapshot.Matches(current) || tick < v.Tick)
+        if (v.Stage != Stage.Completed || v.Unresolved || !v.Effect.TryGetValue(out var effect) || effect != Effect.Completed || !v.Snapshot.Matches(current) || tick < v.Tick)
         {
             return (0, false);
         }
@@ -123,17 +123,17 @@ public sealed partial class RoundsBuildingPlanner
         return (Math.Min(RefrigerationCoolingWindowTicks, (uint)(RefrigerationCoolingTicks - (tick.Value - v.Tick.Value))), true);
     }
 
-    internal (IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict) PreviewRefrigeration(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewRefrigerationAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
     {
         if (Refrigeration is null || Refrigeration.Method != RefrigerationMethod.Build)
         {
             throw new ControlException("previewRefrigeration: no refrigeration build proposal");
         }
 
-        return PreviewWallBuilding(ct, snapshot, facts, protectedCells, check, "Build", Refrigeration.Cell, Refrigeration.Rotation, false);
+        return await PreviewWallBuildingAsync(snapshot, facts, protectedCells, check, "Build", Refrigeration.Cell, Refrigeration.Rotation, false, ct).ConfigureAwait(false);
     }
 
-    internal (IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict) PreviewWallBuilding(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, string def, Cell cell, Rotation rotation, bool overRock)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewWallBuildingAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, string def, Cell cell, Rotation rotation, bool overRock, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         if (protectedCells.Contains(cell))
@@ -146,15 +146,15 @@ public sealed partial class RoundsBuildingPlanner
             return (null!, stock, FieldUnavailable(def + "_research"));
         }
 
-        var building = Building.NewBuilding(def, cell, rotation, "");
-        var (previews, planned, reason) = PreviewPlannedBuilding(ct, snapshot, facts, building, 0, overRock, false);
+        var building = new Building(def, cell, rotation, "");
+        var (previews, planned, reason) = await PreviewPlannedBuildingAsync(snapshot, facts, building, 0, overRock, false, ct).ConfigureAwait(false);
         if (!reason.IsZero)
         {
             return (null!, planned, reason);
         }
 
         previews[0].Footprint.TryGetValue(out var footprint);
-        if (footprint is null || footprint.Count != 1 || footprint[0] != cell)
+        if (footprint.Count != 1 || footprint[0] != cell)
         {
             return (null!, planned, NoSpace(def + "_wall_footprint"));
         }
@@ -162,7 +162,7 @@ public sealed partial class RoundsBuildingPlanner
         return (previews, planned, default);
     }
 
-    internal (IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict) PreviewPlannedBuilding(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection facts, Building building, int index, bool overRock, bool goOpen)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPlannedBuildingAsync(GenerationSnapshot snapshot, ColonyProjection facts, Building building, int index, bool overRock, bool goOpen, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{index}"), building, PolicyFunctions.PlannerTier(Concern, Phase));
@@ -174,11 +174,11 @@ public sealed partial class RoundsBuildingPlanner
                 return (null!, stock, FieldUnavailable("over_rock_preview"));
             }
 
-            (preview, _) = source.PreviewBuildingOverRock(ct, action, snapshot);
+            (preview, _) = await source.PreviewBuildingOverRockAsync(action, snapshot, ct).ConfigureAwait(false);
         }
         else
         {
-            (preview, _) = Native.PreviewBuilding(ct, action, snapshot);
+            (preview, _) = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
         }
 
         var p = preview.Preview;
@@ -201,11 +201,11 @@ public sealed partial class RoundsBuildingPlanner
             return (null!, stock, NoSpace("refrigeration_site"));
         }
 
-        MergeRoundsStock(ref stock, preview.Stock, true);
+        stock = MergeRoundsStock(stock, preview.Stock, true);
         return ([p], stock, default);
     }
 
-    internal RoundsBuildingResult CommitRefrigerationTarget(CancellationToken call, StandardState goal, Action check)
+    internal RoundsBuildingResult CommitRefrigerationTarget(StandardState goal, Action check, CancellationToken call)
     {
         var p = Reviewer.Player;
         var proposal = Refrigeration;
@@ -217,19 +217,19 @@ public sealed partial class RoundsBuildingPlanner
         var method = proposal.Key;
         try
         {
-            p.Journal.LoadOwnerMethod(call, goal, method);
+            p.Journal.LoadOwnerMethod(goal, method, call);
             return new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "refrigeration_target") };
         }
         catch (NotFoundException)
         {
         }
 
-        var patch = BuildingTemperature.NewBuildingTemperature(proposal.Cooler, proposal.TargetC);
+        var patch = new BuildingTemperature(proposal.Cooler, proposal.TargetC);
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewBuildingTemperatureAction(new ActionId($"{id}-0"), patch);
-        var plan = PlanSpec.NewPlan(id, new PlanRevision(1), [action]);
+        var plan = new PlanSpec(id, new PlanRevision(1), [action]);
         check();
-        p.Journal.CommitOwnerMethod(call, goal, method, "", plan);
+        p.Journal.CommitOwnerMethod(goal, method, "", plan, call);
         return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted };
     }
 }

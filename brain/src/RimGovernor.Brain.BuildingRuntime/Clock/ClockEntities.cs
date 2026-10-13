@@ -21,8 +21,8 @@ internal static class ClockEntities
     {
         // The zone census is the policy zone refresher's, typed differently under the zones section; this
         // refresher never reads zones.
-        await RefreshEntitySectionAsync(f, scope, FactSection.Buildings, "rimgovernor/observations_list_buildings", () => native.ReadBuildingsAsync(identity, ct)).ConfigureAwait(false);
-        await RefreshEntitySectionAsync(f, scope, FactSection.Bills, "rimgovernor/observations_read_bills", () => native.ReadBillStacksAsync(identity, ct)).ConfigureAwait(false);
+        await RefreshEntitySectionAsync(f, scope, FactSection.Buildings, "rimgovernor/observations_list_buildings", async () => await native.ReadBuildingsAsync(identity, ct).ConfigureAwait(false)).ConfigureAwait(false);
+        await RefreshEntitySectionAsync(f, scope, FactSection.Bills, "rimgovernor/observations_read_bills", async () => await native.ReadBillStacksAsync(identity, ct).ConfigureAwait(false)).ConfigureAwait(false);
     }
 
     private static async Task RefreshEntitySectionAsync<T>(ClockFacts f, FactScope scope, FactSection section, string source, Func<Task<EntityRows<T>>> read)
@@ -37,7 +37,7 @@ internal static class ClockEntities
         {
             return;
         }
-        FactsApi.PutKeyed(f.Store, scope, Wire.Name(section), full.Rows, FactsApi.At(full.AsOf));
-        FactsApi.Put(f.Store, scope, section, new Held<Table<T>>(full.Rows, full.AsOf, true, source));
+        StoreTables.PutKeyed(f.Store, scope, Wire.Name(section), new KeyedTableRows<T>(full.Rows), Watermark.At(full.AsOf()));
+        FactStore.Put(f.Store, scope, section, new Held<Table<T>> { Value = full.Rows, AsOf = full.AsOf(), Complete = true, Source = source });
     }
 }

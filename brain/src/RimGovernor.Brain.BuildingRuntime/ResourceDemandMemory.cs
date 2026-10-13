@@ -33,7 +33,7 @@ internal sealed class ResourceDemandMemory
 public sealed partial class Rounder
 {
     /// <summary>The stock targets every resource planner dispatches on: the review's demand.</summary>
-    internal IReadOnlyDictionary<Resource, long> ResourceTargets(GenerationSnapshot snapshot) => _demand.Get(snapshot).Needs;
+    internal IReadOnlyDictionary<Resource, long> ResourceTargets(GenerationSnapshot snapshot) => Demand.Get(snapshot).Needs;
 
     /// <summary>
     /// The stock the station chain sizes the colony's rooms for: the review's demand, each resource of the
@@ -42,13 +42,13 @@ public sealed partial class Rounder
     /// </summary>
     internal IReadOnlyDictionary<Resource, long> StationNeeds(GenerationSnapshot snapshot)
     {
-        var needs = _demand.Get(snapshot).Needs;
-        if (_stockDemand.Count == 0)
+        var needs = Demand.Get(snapshot).Needs;
+        if (StockDemand is not { Count: > 0 } stockDemand)
         {
             return needs;
         }
         var result = new Dictionary<Resource, long>(needs);
-        foreach (var (resource, count) in _stockDemand)
+        foreach (var (resource, count) in stockDemand)
         {
             result[resource] = Math.Max(result.GetValueOrDefault(resource), count);
         }

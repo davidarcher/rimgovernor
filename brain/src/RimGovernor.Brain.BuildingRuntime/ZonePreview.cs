@@ -8,14 +8,14 @@ internal static partial class BuildingRuntimePackage
     /// with an unplaceable preview; every other error still fails the step. The native detail names the refusing
     /// condition. Reply is null when the site is refused; Detail then says why.
     /// </summary>
-    internal static (OperationsPb.ZonePreviewReply? Reply, string Detail) PreviewZone(CancellationToken ct, IFieldNative native, C.Identity identity, ZoneCreate target)
+    internal static async Task<(OperationsPb.ZonePreviewReply? Reply, string Detail)> PreviewZoneAsync(IFieldNative native, C.Identity identity, ZoneCreate target, CancellationToken ct)
     {
         OperationsPb.ZonePreviewReply reply;
         try
         {
-            (reply, _) = native.PreviewZone(ct, identity, target);
+            (reply, _) = await native.PreviewZoneAsync(identity, target, ct).ConfigureAwait(false);
         }
-        catch (Bridge.NativeFailure refusal)
+        catch (NativeFailureException refusal)
         {
             var detail = refusal.Value.Detail;
             if (detail.Length == 0)

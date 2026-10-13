@@ -36,16 +36,16 @@ public sealed partial class Rounder
         {
             var seasonal = Seasonal(p.Facts);
             var trade = FoodTradeOf(p);
-            if (s.FoodPlan.IsKnown && s.FoodGeneration == s.Generation && s.FoodOffers == trade.Revision
+            if (s.FoodPlanFact.IsKnown && s.FoodGeneration == s.Generation && s.FoodOffers == trade.Revision
                 && s.FoodMin == seasonal.FoodMinDays && s.FoodTarget == seasonal.FoodTargetDays && SameObservedIdentity(s.FoodIdentity, p.Identity))
             {
-                return s.FoodPlan;
+                return s.FoodPlanFact;
             }
 
             var plan = ReviewFoodPlan(p, Policy, FoodCredit, HuntAdmission, trade);
             if (plan.TryGetValue(out var v))
             {
-                HuntAdmission.Admit(PolicyFunctions.HuntRequest(Known(v)));
+                HuntAdmission.Admit(PolicyFunctions.HuntRequest(Known(v)).Select(id => (Domain.PawnId)id));
             }
 
             LogFoodCredit(FoodCredit.Drain());
@@ -57,7 +57,7 @@ public sealed partial class Rounder
             if (plan.IsKnown)
             {
                 s.FoodIdentity = p.Identity;
-                s.FoodPlan = plan;
+                s.FoodPlanFact = plan;
                 s.FoodGeneration = s.Generation;
                 s.FoodMin = seasonal.FoodMinDays;
                 s.FoodTarget = seasonal.FoodTargetDays;
@@ -72,7 +72,7 @@ public sealed partial class Rounder
     {
         var tk = p.Facts.Traders.TryGetValue(out var traders);
         var sk = p.Facts.Silver().TryGetValue(out var silver);
-        var rk = PolicyFunctions.TradeSilverReserve(p.Facts.Colonists).TryGetValue(out var reserve);
+        var (reserve, rk) = PolicyFunctions.TradeSilverReserve(p.Facts.Colonists);
         var output = new FoodTrade { Revision = TradeOffers.Version() };
         if (tk && sk && rk)
         {
@@ -98,8 +98,8 @@ public sealed partial class Rounder
             priced.Add(o.Trader);
         }
 
-        var marked = traders.Select(t => t with { Unpriced = t.CanTrade && !priced.Contains(t.Id) }).ToList();
-        p = p with { Facts = p.Facts with { Traders = Known<IReadOnlyList<Trader>>(marked) } };
+        var marked = traders.Select(t => t with { Unpriced = t.CanTrade && !priced.Contains(t.ID) }).ToList();
+        p = p with { Facts = p.Facts with { Traders = Known(EquatableArray.From(marked)) } };
     }
 }
 
@@ -162,7 +162,8 @@ internal static partial class BuildingRuntimePackage
         if (p.ProductionBenches.TryGetValue(out var benches) && p.FoodSupply.TryGetValue(out human))
         {
             var ids = human.Consumers.Select(c => c.Id).ToList();
-            if (PolicyFunctions.HumanFoodChannel(benches, supply, ids, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays, p.Facts.IdeologyRead()) is { } channel)
+            var (channel, channelOk) = PolicyFunctions.HumanFoodChannel(benches, supply, ids, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays, p.Facts.IdeologyRead());
+            if (channelOk)
             {
                 channels.Add(channel);
             }
@@ -210,7 +211,7 @@ internal static partial class BuildingRuntimePackage
                 new CropSeason { Calendar = p.Facts.Calendar, Conditions = p.Facts.DisasterConditions }));
         }
 
-        var (field, _) = FieldRequest(p, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays);
+        var (field, _) = FieldRequestOf(p, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays);
         channels.AddRange(PolicyFunctions.NewFieldChannels(field, new CropKitchen { Benches = p.ProductionBenches, Cooks = Known((double)workers) }));
         (CandidateKind Kind, string Id)[] supports = [(CandidateKind.Cook, "cooking-capacity"), (CandidateKind.Reserve, "stock-protection")];
         foreach (var support in supports)
@@ -230,7 +231,7 @@ internal static partial class BuildingRuntimePackage
                 MinDays = seasonal.FoodMinDays,
                 TargetDays = seasonal.FoodTargetDays,
                 EmergencyDays = seasonal.FootholdFoodDays,
-                Channels = Known<IReadOnlyList<SupplyCandidate>>(channels),
+                Channels = Known(EquatableArray.From(channels)),
                 Labor = Known(workers * 20000.0),
             });
         }
@@ -245,7 +246,7 @@ internal static partial class BuildingRuntimePackage
             var offers = new List<SupplyCandidate>();
             if (p.FoodChannels.TryGetValue(out animals))
             {
-                offers.AddRange(PolicyFunctions.SlaughterFoodChannels(animals.Slaughter, p.Facts.AnimalUpkeep.Animals, HerdPolicyOf(p.Facts, plan)));
+                offers.AddRange(PolicyFunctions.SlaughterFoodChannels(animals.Slaughter, p.Facts.AnimalUpkeep.Animals, HerdPlans.HerdPolicyOf(p.Facts, plan)));
             }
 
             offers.AddRange(PolicyFunctions.TradeFoodChannels(trade.Offers, trade.Silver, trade.Reserve, plan.GapPerDay * plan.HorizonDays));
@@ -254,7 +255,7 @@ internal static partial class BuildingRuntimePackage
                 Races = p.Facts.AnimalUpkeep.AnimalRaces,
                 Owned = p.Facts.AnimalUpkeep.Animals,
                 Wild = p.Facts.AnimalUpkeep.WildAnimals,
-                Herd = HerdPolicyOf(p.Facts, plan),
+                Herd = HerdPlans.HerdPolicyOf(p.Facts, plan),
                 Handlers = p.Facts.WorkProfiles,
             };
             offers.AddRange(PolicyFunctions.TameFoodChannels(acquire));
@@ -270,7 +271,7 @@ internal static partial class BuildingRuntimePackage
                         MinDays = seasonal.FoodMinDays,
                         TargetDays = seasonal.FoodTargetDays,
                         EmergencyDays = seasonal.FootholdFoodDays,
-                        Channels = Known<IReadOnlyList<SupplyCandidate>>(channels),
+                        Channels = Known(EquatableArray.From(channels)),
                         Labor = Known(workers * 20000.0),
                     });
                 }
@@ -281,7 +282,7 @@ internal static partial class BuildingRuntimePackage
             }
         }
 
-        var herd = HerdPolicyOf(p.Facts, plan);
+        var herd = HerdPlans.HerdPolicyOf(p.Facts, plan);
         var portfolio = plan.Portfolio.Select(e =>
         {
             if (e.Channel.Kind != CandidateKind.AnimalProduct)
@@ -292,7 +293,7 @@ internal static partial class BuildingRuntimePackage
             herd.PopulationMin.TryGetValue(new Resource(e.Channel.Id), out var floor);
             return e with
             {
-                Terms = [.. e.Terms, new CandidateTerm { Name = "effective_herd_floor", Value = floor }],
+                Terms = [.. e.Terms, new CandidateTerm("effective_herd_floor", floor)],
                 Reason = e.Reason + $"; MaintainHerd-{e.Channel.Id} floor {floor}",
             };
         }).ToList();
@@ -308,8 +309,8 @@ internal static partial class BuildingRuntimePackage
 
         return new HuntInput
         {
-            Kills = ledger.Kills.Select(k => new HuntKill { CorpseId = k.CorpseId, Potential = k.PotentialNutrition, Tick = k.Tick }).ToList(),
-            Butchers = ledger.Butchers.Select(b => new HuntButcher { CorpseId = b.CorpseId, MeatNutrition = b.MeatNutrition }).ToList(),
+            Kills = ledger.Kills.Select(k => new HuntKill(k.CorpseID, k.PotentialNutrition, k.Tick)).ToList(),
+            Butchers = ledger.Butchers.Select(b => new HuntButcher(b.CorpseID, b.MeatNutrition)).ToList(),
         };
     }
 
@@ -325,7 +326,7 @@ internal static partial class BuildingRuntimePackage
         var delivered = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var (key, count) in ledger!.Counts)
         {
-            var k = key.Kind.WireName() + ":" + key.SourceId;
+            var k = Wire.Name(key.Kind) + ":" + key.SourceID;
             delivered[k] = delivered.GetValueOrDefault(k) + count.Nutrition;
         }
 
@@ -345,7 +346,7 @@ internal static partial class BuildingRuntimePackage
     {
         foreach (var c in changes)
         {
-            Tel.Decide(CancellationToken.None, FoodCreditDecision(c));
+            Tel.Decide(FoodCreditDecision(c));
         }
     }
 
@@ -381,7 +382,7 @@ internal static partial class BuildingRuntimePackage
         {
             foreach (var progress in existing.Progress)
             {
-                if (!Standard.StandardWorkOpen([progress]))
+                if (!Standard.WorkOpen([progress]))
                 {
                     continue;
                 }
@@ -393,7 +394,7 @@ internal static partial class BuildingRuntimePackage
                     crop = zone.Crop;
                     cells = zone.Cells.Count;
                 }
-                else if (progress.Action.ZoneCellEdit is { } edit && edit.Mode == ZoneCellEditMode.AddZoneCells)
+                else if (progress.Action.ZoneCellEdit is { } edit && edit.Mode == CellEditMode.Add)
                 {
                     crop = "";
                     foreach (var farm in p.Farms)

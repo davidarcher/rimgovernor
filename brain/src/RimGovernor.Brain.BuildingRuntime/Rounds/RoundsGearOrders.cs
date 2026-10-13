@@ -5,12 +5,12 @@ internal static partial class BuildingRuntimePackage
     internal static GearPlanningRequest GearRequest(ColonyProjection projection, IReadOnlyList<GearBench> benches) => new()
     {
         Observation = projection.Facts.Gear,
-        Benches = Known(benches),
+        Benches = Known(EquatableArray.From(benches)),
         StuffCategories = projection.Facts.Items.StuffCategories,
     };
 
     /// <summary>A failed read abstains from declaring, but a cancelled one is the caller's cancellation and propagates.</summary>
-    internal static Declared AbstainOnRead(CancellationToken ct, Cause fact, Exception? cause = null)
+    internal static Declared AbstainOnRead(Cause fact, Exception? cause = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         return PolicyFunctions.Abstaining(fact);
@@ -19,24 +19,24 @@ internal static partial class BuildingRuntimePackage
 
 public sealed partial class RoundsGearPlanner
 {
-    public Declared DeclareOrders(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches) =>
-        DeclareOrdersInner(ct, snapshot, projection, benches).For(ConcernId.MaintainEquipment);
+    public static Declared DeclareOrders(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+        DeclareOrdersInner(snapshot, projection, benches, ct).For(PolicyFunctions.MaintainEquipment);
 
-    internal Declared DeclareOrdersInner(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches) =>
+    internal static Declared DeclareOrdersInner(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         PolicyFunctions.DeclareGearOrders(GearRequest(projection, benches));
 }
 
 public sealed partial class RoundsArmoryPlanner
 {
-    public Declared DeclareOrders(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches) =>
-        DeclareOrdersInner(ct, snapshot, projection, benches).For(ConcernId.MaintainEquipment);
+    public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+        (await DeclareOrdersInnerAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(PolicyFunctions.MaintainEquipment);
 
-    internal Declared DeclareOrdersInner(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches)
+    internal async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         SetSpotNeeded(false);
         var tier = PolicyFunctions.AssessArmory(projection.Facts.RaidPoints, projection.Facts.Research).Tier;
         var known = projection.Facts.Gear.TryGetValue(out var census);
-        if (Native is not IRoundsEquipSource)
+        if (_native is not IRoundsEquipSource)
         {
             return PolicyFunctions.Abstaining(Cause.UnreadNativeRead);
         }
@@ -52,21 +52,21 @@ public sealed partial class RoundsArmoryPlanner
         int unarmed;
         try
         {
-            (fighters, hunters, unarmed) = WeaponDemand(ct, snapshot, ids, projection.Identity.Tick.Value, benches, tier);
+            (fighters, hunters, unarmed) = await WeaponDemandAsync(snapshot, ids, projection.Identity.Tick.Value, benches, tier, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return AbstainOnRead(ct, Cause.UnreadWeapons, e);
+            return AbstainOnRead(Cause.UnreadWeapons, e, ct);
         }
 
-        IReadOnlyList<ShellTarget> shells;
+        IReadOnlyList<Amount> shells;
         try
         {
-            shells = ShellTargets(ct, Native, Reviewer.Player.Journal, snapshot, projection);
+            shells = await ShellTargetsAsync(_native, _reviewer.Player.Journal, snapshot, projection, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return AbstainOnRead(ct, Cause.UnreadShells, e);
+            return AbstainOnRead(Cause.UnreadShells, e, ct);
         }
 
         SetSpotNeeded((unarmed > 0 && !WeaponBenchHosted(benches)) || PositiveFact(projection.Facts.CraftingSpotRetireOwed));
@@ -75,17 +75,17 @@ public sealed partial class RoundsArmoryPlanner
 
     internal void SetSpotNeeded(bool v)
     {
-        lock (Mu)
+        lock (_mu)
         {
-            SpotNeeded = v;
+            _spotNeeded = v;
         }
     }
 
     internal bool SpotWanted()
     {
-        lock (Mu)
+        lock (_mu)
         {
-            return SpotNeeded;
+            return _spotNeeded;
         }
     }
 }

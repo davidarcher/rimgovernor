@@ -7,22 +7,22 @@ internal static class DispatchSpans
     /// the game or the executor declined (no error, the write was not applied) marks it refused with the reasons,
     /// and anything else leaves it ok.
     /// </summary>
-    public static void EndDispatchSpan(System.Diagnostics.Activity? span, IReadOnlyList<ExecutorResult> results, IReadOnlyList<Exception> errors)
+    public static void EndDispatchSpan(System.Diagnostics.Activity? span, IReadOnlyList<ExecutorResult> results, IReadOnlyList<Exception?> errors)
     {
         if (ErrorJoin.Of([.. errors]) is { } error)
         {
-            span.Fail(error);
+            Tel.EndSpan(span, error);
             return;
         }
         var reasons = new List<string>();
         foreach (var result in results)
         {
-            reasons.AddRange(Worker.RefusedReasons(result));
+            reasons.AddRange(Worker.WorkerRefusedReasons(result));
         }
         if (reasons.Count > 0)
         {
-            span.Refuse([.. reasons]);
+            Tel.Refuse(span, [.. reasons]);
         }
-        span.Dispose();
+        span?.Dispose();
     }
 }

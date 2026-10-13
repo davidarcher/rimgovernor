@@ -8,6 +8,9 @@ public sealed class ControlException : Exception
 
     public ControlException(string detail)
         : base($"planner read stale or control unavailable: {detail}") { }
+
+    public ControlException(string detail, Exception inner)
+        : base($"planner read stale or control unavailable: {detail}", inner) { }
 }
 
 /// <summary>Go <c>errors.Join</c>: null when nothing failed, the error itself when one did, else an aggregate.</summary>
@@ -85,7 +88,7 @@ public sealed record ControlConfig
 /// The profile lock (Go <c>ProfileOwner</c>) is dropped: the brain runs in the mod process, which is the only
 /// owner of the profile.
 /// </summary>
-public sealed partial class Control
+public sealed partial class Control : IDisposable
 {
     private readonly object _mu = new();
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -154,6 +157,7 @@ public sealed partial class Control
         {
             control._epochSource.Cancel();
             control._stopLifetime.Dispose();
+            control._gate.Dispose();
             throw;
         }
         return control;
@@ -226,7 +230,7 @@ public sealed partial class Control
                 }
                 catch (Exception e) when (e is not OperationCanceledException || !ct.IsCancellationRequested)
                 {
-                    throw FailedObservation(epoch, e);
+                    throw FailedObservation(e, epoch);
                 }
                 var revoked = result.Revoked;
                 if (revoked is null || !ContextValid(revoked.Context) || !revoked.Context.Identity.Equals(ControlIdentity(requested)) || !revoked.Context.HasNativeGeneration || revoked.Context.NativeGeneration != generation + 1 || generation + 1 == ulong.MaxValue)
@@ -262,7 +266,7 @@ public sealed partial class Control
             _ = await _native.RevokeAsync(new PbAuthority.Revoke { Identity = ControlIdentity(requested), ExpectedGeneration = requested.Native.Value, Reason = PbAuthority.RevocationReason.Manual }, write).ConfigureAwait(false);
             throw new EpochReplacedException();
         }
-        AcceptGrant(write, epoch, reply, requested);
+        AcceptGrant(reply, requested, write, epoch);
         return requested;
     }
 
@@ -303,7 +307,7 @@ public sealed partial class Control
     /// <summary>Bounds how often ObserveForAcquire starts over after its epoch was invalidated underneath the status read.</summary>
     private const int AcquireObservationRetries = 3;
 
-    private sealed record AcquireObservation(Entry Entry, CancellationToken Epoch, bool EverTargeted, PbAuthority.StatusReply Status);
+    private sealed record AcquireObservation(Entry Entry, bool EverTargeted, PbAuthority.StatusReply Status, CancellationToken Epoch);
 
     /// <summary>
     /// Acquire's read phase: a fresh epoch, the gate, owned cleanup and the authority status read, before any
@@ -359,10 +363,10 @@ public sealed partial class Control
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
-                    throw FailedObservation(epoch, e);
+                    throw FailedObservation(e, epoch);
                 }
                 call.ThrowIfCancellationRequested();
-                return new AcquireObservation(entry, epoch, everTargeted, status);
+                return new AcquireObservation(entry, everTargeted, status, epoch);
             }
             catch (Exception e)
             {
@@ -428,7 +432,7 @@ public sealed partial class Control
         }
         using (entry)
         {
-            err = ErrorJoin.Of(err, await Capture(() => RevokeAsync(entry.Token, PbAuthority.RevocationReason.Manual)).ConfigureAwait(false));
+            err = ErrorJoin.Of(err, await Capture(async () => await RevokeAsync(PbAuthority.RevocationReason.Manual, entry.Token).ConfigureAwait(false)).ConfigureAwait(false));
             if (resume && _config.ResumeWrites is { } drain)
             {
                 err = ErrorJoin.Of(err, await Capture(() => drain(entry.Token)).ConfigureAwait(false));
@@ -455,6 +459,13 @@ public sealed partial class Control
         {
             return e;
         }
+    }
+
+    /// <summary>Releases the control gate. Call it after <see cref="CloseAsync"/> succeeded (or never started), when no caller can still wait on the gate.</summary>
+    public void Dispose()
+    {
+        _stopLifetime.Dispose();
+        _gate.Dispose();
     }
 
     /// <summary>
@@ -503,7 +514,7 @@ public sealed partial class Control
             {
                 throw ErrorJoin.Of(err, drainErr)!;
             }
-            var revokeErr = await Capture(() => ShutdownTargetAsync(call)).ConfigureAwait(false);
+            var revokeErr = await Capture(async () => await ShutdownTargetAsync(call).ConfigureAwait(false)).ConfigureAwait(false);
             lock (_mu)
             {
                 if (err is not null || revokeErr is not null)
@@ -544,7 +555,7 @@ public sealed partial class Control
                 return;
             }
         }
-        await RevokeAsync(ct, PbAuthority.RevocationReason.Shutdown).ConfigureAwait(false);
+        await RevokeAsync(PbAuthority.RevocationReason.Shutdown, ct).ConfigureAwait(false);
     }
 
     private Exception? InvalidateLocked()
@@ -557,7 +568,7 @@ public sealed partial class Control
         var value = new Authority();
         if (_observationKnown)
         {
-            value.Snapshot = _snapshot;
+            value = value with { Snapshot = _snapshot };
         }
         return Capture(() => _sink.UpdateAuthority(value));
     }
@@ -579,7 +590,7 @@ public sealed partial class Control
     /// A cleanup identity is not current observation authority. Keep it for revoke and refresh retries while
     /// cancelling reconciliation until a fresh read succeeds. Returns the error to throw.
     /// </summary>
-    private Exception FailedObservation(CancellationToken epoch, Exception cause)
+    private Exception FailedObservation(Exception cause, CancellationToken epoch)
     {
         lock (_mu)
         {
@@ -669,7 +680,7 @@ public sealed partial class Control
         return new Entry(_gate, source);
     }
 
-    private void AcceptGrant(CancellationToken call, CancellationToken epoch, PbAuthority.ControlReply reply, GenerationSnapshot snapshot)
+    private void AcceptGrant(PbAuthority.ControlReply reply, GenerationSnapshot snapshot, CancellationToken call, CancellationToken epoch)
     {
         var grant = reply.Granted;
         if (grant is null || !ContextValid(grant.Context) || !grant.Context.Identity.Equals(ControlIdentity(snapshot)) || !grant.Context.HasNativeGeneration || grant.Context.NativeGeneration != snapshot.Native.Value || grant.Authority is null || grant.Authority.Mode != PbAuthority.Mode.Auto)
@@ -698,7 +709,7 @@ public sealed partial class Control
         }
     }
 
-    private async Task RevokeAsync(CancellationToken ct, PbAuthority.RevocationReason reason)
+    private async Task RevokeAsync(PbAuthority.RevocationReason reason, CancellationToken ct)
     {
         GenerationSnapshot snapshot;
         bool known;
@@ -721,13 +732,13 @@ public sealed partial class Control
         }
         catch (Exception e)
         {
-            throw FailedObservation(epoch, e);
+            throw FailedObservation(e, epoch);
         }
         ct.ThrowIfCancellationRequested();
         var status = reply.Status;
         if (status.Inactive is not null)
         {
-            PublishDisabled(ct, snapshot, status.Context.NativeGeneration);
+            PublishDisabled(snapshot, status.Context.NativeGeneration, ct);
             return;
         }
         var active = status.Active;
@@ -746,10 +757,10 @@ public sealed partial class Control
         {
             throw new ControlException("revoke: revoked == nil || bridge.ValidateContext(revoked.Context) != nil || !proto.Equal(revoked.Context.Identity, ...");
         }
-        PublishDisabled(ct, snapshot, revoked.Context.NativeGeneration);
+        PublishDisabled(snapshot, revoked.Context.NativeGeneration, ct);
     }
 
-    private void PublishDisabled(CancellationToken ct, GenerationSnapshot expected, ulong generation)
+    private void PublishDisabled(GenerationSnapshot expected, ulong generation, CancellationToken ct)
     {
         lock (_mu)
         {

@@ -58,6 +58,7 @@ public sealed class StandardConverter : ObjectCodec<Standard>
             RecoveryObserved = e.BoolOr("RecoveryObserved"),
             Once = e.BoolOr("Once"),
             Mission = e.GetOr<TradeMission?>("Mission", null, o),
+            Record = e.StrOr("Record") is { Length: > 0 } record ? record : null,
         };
 
     protected override void WriteFields(Utf8JsonWriter w, Standard v, Codecs o)
@@ -74,6 +75,10 @@ public sealed class StandardConverter : ObjectCodec<Standard>
         if (v.Mission is { } mission)
         {
             w.Put("Mission", mission, o);
+        }
+        if (!string.IsNullOrEmpty(v.Record))
+        {
+            w.WriteString("Record", v.Record);
         }
     }
 }

@@ -4,18 +4,18 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsSupplySource
 {
-    (SupplyRead Read, BridgeResult Result) ReadAllowSupplies(CancellationToken ct, C.Identity identity, Cell cell);
+    Task<(SupplyRead Read, BridgeResult Result)> ReadAllowSuppliesAsync(C.Identity identity, Cell cell, CancellationToken ct);
 }
 
 /// <summary>The forbid variant of the supply read, offered by a source that can forbid as well as allow.</summary>
 public interface IRoundsSupplyForbidSource
 {
-    (SupplyRead Read, BridgeResult Result) ReadForbidSupplies(CancellationToken ct, C.Identity identity, Cell cell);
+    Task<(SupplyRead Read, BridgeResult Result)> ReadForbidSuppliesAsync(C.Identity identity, Cell cell, CancellationToken ct);
 }
 
-public sealed class RoundsSupplyResult
+public sealed class RoundsSupplyResult : IPlannerMethod
 {
-    public Verdict Verdict { get; init; } = new();
+    public Verdict Verdict { get; init; }
     public PlanId Plan { get; init; }
 }
 
@@ -39,7 +39,9 @@ public sealed class RoundsSupplyPlanner
         return new RoundsSupplyPlanner(reviewer, native);
     }
 
-    internal RoundsSupplyResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal Rounder Reviewer => _reviewer;
+
+    internal async Task<RoundsSupplyResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -47,7 +49,7 @@ public sealed class RoundsSupplyPlanner
         {
             return new RoundsSupplyResult { Verdict = BuildingReasonDisabled };
         }
-        if (!state.ObservationKnown || !state.Snapshot.IsValid())
+        if (!state.ObservationKnown || !state.Snapshot.IsValid)
         {
             throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil");
         }
@@ -56,7 +58,7 @@ public sealed class RoundsSupplyPlanner
         {
             return new RoundsSupplyResult { Verdict = BuildingReasonNoReview };
         }
-        Sto.StandardState goal = new();
+        Sto.StandardState? goal = null;
         IReadOnlyList<Pol.StartingSupply> cohort = [];
         foreach (var binding in review.Standards)
         {
@@ -64,24 +66,25 @@ public sealed class RoundsSupplyPlanner
             {
                 continue;
             }
-            var safety = p.Journal.LoadStandard(call, binding.Standard);
+            var safety = p.Journal.LoadStandard(binding.Standard, call);
             goal = safety;
-            if (safety.Deficit())
+            if (safety.Deficit)
             {
                 cohort = review.EventLoot.Pending;
                 break;
             }
         }
-        if (goal.Standard.Id.Value == "" || !goal.Deficit() || review.Veto(goal.Standard) != "")
+        if (goal is null || goal.Standard.Id.Value == "" || !goal.Deficit || review.Veto(goal.Standard) != "")
         {
             return new RoundsSupplyResult { Verdict = BuildingReasonNoDeficit };
         }
         foreach (var method in goal.Methods)
         {
-            var plan = p.Journal.LoadPlan(call, method.Plan);
-            for (var i = 0; i < plan.Progress.Count; i++)
+            var plan = p.Journal.LoadPlan(method.Plan, call);
+            var rows = plan.Progress.ToList();
+            for (var i = 0; i < rows.Count; i++)
             {
-                var progress = plan.Progress[i];
+                var progress = rows[i];
                 var v = progress.View;
                 if (v.Unresolved || v.Stage is not (Stage.Pending or Stage.Prepared))
                 {
@@ -94,11 +97,12 @@ public sealed class RoundsSupplyPlanner
                 var keep = cohort.Any(row => row.Thing == target.Thing && row.Definition == target.Definition && row.Cell == target.Cell && row.Forbid == target.Forbidden);
                 if (!keep)
                 {
-                    var cancelled = p.Journal.Cancel(call, plan.Spec.Id, progress.Action.Id);
-                    plan.Progress[i] = cancelled;
+                    var cancelled = p.Journal.Cancel(plan.Spec.Id, progress.Action.Id, call);
+                    rows[i] = cancelled;
                 }
             }
-            if (Sto.PlanState.PlanOpen(plan))
+            plan = plan with { Progress = [.. rows] };
+            if (StorePackage.PlanOpen(plan))
             {
                 return new RoundsSupplyResult { Verdict = BuildingReasonExistingWork };
             }
@@ -116,19 +120,19 @@ public sealed class RoundsSupplyPlanner
         cells = [.. cells.OrderBy(c => c.Z).ThenBy(c => c.X).Distinct()];
         // Forbid unsafe items before releasing safe items.
         var forbidBatch = cohort.Any(row => row.Forbid);
-        Func<CancellationToken, C.Identity, Cell, (SupplyRead Read, BridgeResult Result)> readSupply = _native.ReadAllowSupplies;
+        Func<C.Identity, Cell, CancellationToken, Task<(SupplyRead Read, BridgeResult Result)>> readSupply = _native.ReadAllowSuppliesAsync;
         if (forbidBatch)
         {
             if (_native is not IRoundsSupplyForbidSource forbidSource)
             {
                 throw new ControlException("step: !ok");
             }
-            readSupply = forbidSource.ReadForbidSupplies;
+            readSupply = forbidSource.ReadForbidSuppliesAsync;
         }
         var targets = new List<SupplyAllow>();
         foreach (var cell in cells)
         {
-            var (read, _) = readSupply(call, Boundary.Identity(state.Snapshot), cell);
+            var (read, _) = await readSupply(Boundary.Identity(state.Snapshot), cell, call).ConfigureAwait(false);
             try
             {
                 Boundary.Context(read.Context, state.Snapshot);
@@ -137,7 +141,7 @@ public sealed class RoundsSupplyPlanner
             {
                 throw new ControlException("step: err != nil || read.Context.GetTick() < int64(review.Tick)");
             }
-            if (read.Context.Tick < review.Tick.Value)
+            if ((read.Context?.Tick ?? 0) < review.Tick.Value)
             {
                 throw new ControlException("step: err != nil || read.Context.GetTick() < int64(review.Tick)");
             }
@@ -163,7 +167,7 @@ public sealed class RoundsSupplyPlanner
         {
             text.Append(CultureInfo.InvariantCulture, $"{supply.Thing}/{supply.Definition}/{supply.Cell.X}/{supply.Cell.Z}/{(supply.Forbidden ? "true" : "false")}\n");
         }
-        var method2 = new MethodId(string.Create(CultureInfo.InvariantCulture, $"supply-{HashHex16(text.ToString())}-{review.Revision.Value}"));
+        var method2 = new MethodId(string.Create(CultureInfo.InvariantCulture, $"supply-{HashHex16(text.ToString())}-{review.Revision}"));
         var id = PlanIds.MintPlanId();
         var actions = new List<DomainAction>();
         for (var i = 0; i < targets.Count; i++)
@@ -177,7 +181,7 @@ public sealed class RoundsSupplyPlanner
         {
             throw new ControlException("step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
         }
-        p.Journal.CommitOwnerMethod(call, goal, method2, "", spec);
+        p.Journal.CommitOwnerMethod(goal, method2, "", spec, call);
         return new RoundsSupplyResult { Verdict = BuildingReasonAdmitted, Plan = id };
     }
 }

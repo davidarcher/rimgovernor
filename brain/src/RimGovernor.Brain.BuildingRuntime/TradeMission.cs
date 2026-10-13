@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface ITradeMissionPackSource
 {
-    (ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result) ReadTradeAcquisition(CancellationToken ct, C.Identity identity, OperationsPb.FormCaravanIntent? intent);
+    Task<(ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result)> ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct);
 }
 
 internal static partial class BuildingRuntimePackage
@@ -31,8 +31,7 @@ public static partial class TradeMissions
     /// installed. Throws <see cref="DomainException"/> with the Go failure reason when the mission cannot be
     /// prepared.
     /// </summary>
-    public static (TradeMission Mission, Pol.TradeAcquisitionOption Option) PrepareTradeMission(
-        CancellationToken ct, ITradeMissionPackSource source, GenerationSnapshot world, int homeTile, SettlementFact settlement, Pol.RoundsFacts facts, Pol.RoundsPolicy thresholds, long silverBudget, IReadOnlyList<CargoItem> demand, IReadOnlyList<Pol.PawnId>? claimed)
+    public static async Task<(TradeMission Mission, Pol.TradeAcquisitionOption Option)> PrepareTradeMissionAsync(ITradeMissionPackSource source, GenerationSnapshot world, int homeTile, SettlementFact settlement, Pol.RoundsFacts facts, Pol.RoundsPolicy thresholds, long silverBudget, IReadOnlyList<CargoItem> demand, IReadOnlyList<Pol.PawnId>? claimed, CancellationToken ct)
     {
         if (!world.IsValid || homeTile < 0 || settlement.Tile == homeTile || settlement.Player || settlement.TraderKind.Length == 0)
         {
@@ -43,34 +42,36 @@ public static partial class TradeMissions
             throw new DomainException("settlement_unavailable");
         }
         var sk = facts.Silver().TryGetValue(out var silver);
-        var rk = Pol.TradeMissionFacts.TradeSilverReserve(facts.Colonists, out var reserve);
+        var (reserve, rk) = Pol.PolicyFunctions.TradeSilverReserve(facts.Colonists);
         if (!sk || !rk || silverBudget <= 0 || silverBudget > int.MaxValue || silver < reserve || silverBudget > silver - reserve)
         {
             throw new DomainException("insufficient_silver");
         }
-        var (crew, reason) = Pol.TradeMissionFacts.TradeMissionCrew(facts, claimed);
-        if (reason.Length != 0)
+        var (crew, crewSkip) = Pol.PolicyFunctions.TradeMissionCrew(facts, claimed ?? []);
+        if (!crewSkip.IsNone)
         {
-            throw new DomainException(reason);
+            throw new DomainException(crewSkip.Value);
         }
-        if (!Pol.TradeMissionFacts.TradeMissionCarryCapacity(facts, crew, out var capacity))
+        var domainCrew = crew.Select(p => new Domain.PawnId(p.Value)).ToList();
+        var (capacity, capacityKnown) = Pol.PolicyFunctions.TradeMissionCarryCapacity(facts, crew);
+        if (!capacityKnown)
         {
             throw new DomainException("mass_unknown");
         }
         // Native packing requires a day of food before it returns route estimates. Seed with that legal minimum;
         // native measures silver mass rather than Go inventing a unit weight for modded definitions.
-        var (seedFood, seedReason) = Pol.TradeMissionFacts.TradeMissionFood(facts, crew, 1, capacity, thresholds);
-        if (seedReason.Length != 0)
+        var (seedFood, seedSkip) = Pol.PolicyFunctions.TradeMissionFood(facts, crew, 1, capacity, thresholds);
+        if (!seedSkip.IsNone)
         {
-            throw new DomainException(seedReason);
+            throw new DomainException(seedSkip.Value);
         }
         var seedCargo = new List<CargoItem>(seedFood) { new("Silver", (ulong)silverBudget) };
-        if (!CaravanDeparture.TryCreate(crew, seedCargo, settlement.Tile, out var departure))
+        if (!CaravanDeparture.TryCreate(domainCrew, seedCargo, settlement.Tile, out var departure))
         {
             throw new DomainException("invalid_trade_pack");
         }
-
-        ObservationsPb.TradePackEstimate Preview(CaravanDeparture d)
+async 
+        Task<ObservationsPb.TradePackEstimate> PreviewAsync(CaravanDeparture d)
         {
             var pack = new OperationsPb.FormCaravanIntent { DestinationTile = d.DestinationTile };
             foreach (var id in d.Crew)
@@ -81,12 +82,12 @@ public static partial class TradeMissions
             {
                 pack.Cargo.Add(new OperationsPb.DefCount { DefName = item.Definition, Count = (int)item.Count });
             }
-            var (read, _) = source.ReadTradeAcquisition(ct, Boundary.Identity(world), pack);
+            var (read, _) = await source.ReadTradeAcquisitionAsync(Boundary.Identity(world), pack, ct).ConfigureAwait(false);
             return read?.Pack ?? throw new DomainException("pack_unknown");
         }
 
-        var seed = Preview(departure);
-        var daysKnown = Pol.TradeMissionFacts.TradeMissionRouteDays(seed, homeTile, settlement.Tile, out var days);
+        var seed = await PreviewAsync(departure).ConfigureAwait(false);
+        var (days, daysKnown) = Pol.PolicyFunctions.TradeMissionRouteDays(seed, homeTile, settlement.Tile);
         if (!daysKnown || !seed.HasMassUsage || !seed.HasMassCapacity
             || double.IsNaN(seed.MassUsage) || double.IsNaN(seed.MassCapacity)
             || double.IsInfinity(seed.MassUsage) || double.IsInfinity(seed.MassCapacity) || seed.MassUsage < 0)
@@ -113,23 +114,23 @@ public static partial class TradeMissions
             }
             seedFoodMass += mass * item.Count;
         }
-        var (food, foodReason) = Pol.TradeMissionFacts.TradeMissionFood(facts, crew, days, seed.MassCapacity - seed.MassUsage + seedFoodMass, thresholds);
-        if (foodReason.Length != 0)
+        var (food, foodSkip) = Pol.PolicyFunctions.TradeMissionFood(facts, crew, days, seed.MassCapacity - seed.MassUsage + seedFoodMass, thresholds);
+        if (!foodSkip.IsNone)
         {
-            throw new DomainException(foodReason);
+            throw new DomainException(foodSkip.Value);
         }
         var cargo = new List<CargoItem>(food) { new("Silver", (ulong)silverBudget) };
-        if (!CaravanDeparture.TryCreate(crew, cargo, settlement.Tile, out departure))
+        if (!CaravanDeparture.TryCreate(domainCrew, cargo, settlement.Tile, out departure))
         {
             throw new DomainException("invalid_trade_pack");
         }
-        var final = Preview(departure);
-        if (!Pol.TradeMissionFacts.SafeTradeMissionPack(final, homeTile, settlement.Tile))
+        var final = await PreviewAsync(departure).ConfigureAwait(false);
+        if (!Pol.PolicyFunctions.SafeTradeMissionPack(final, homeTile, settlement.Tile))
         {
             throw new DomainException("unsafe_trade_pack");
         }
         // Demand is canonicalized through the same definition/count contract.
-        if (!CaravanDeparture.TryCreate(crew, demand, settlement.Tile, out var canonicalDemand))
+        if (!CaravanDeparture.TryCreate(domainCrew, demand, settlement.Tile, out var canonicalDemand))
         {
             throw new DomainException("invalid_trade_demand");
         }
@@ -141,7 +142,7 @@ public static partial class TradeMissions
             Settlement = settlement.Id,
             SettlementTile = settlement.Tile,
             Crew = departure.Crew,
-            Negotiator = crew[0],
+            Negotiator = domainCrew[0],
             SilverBudget = silverBudget,
             Demand = canonicalDemand.Cargo,
             Pack = departure.Cargo,
@@ -149,10 +150,10 @@ public static partial class TradeMissions
             ReturnHome = true,
         };
         m.Validate();
-        Pol.TradeMissionFacts.TradeMissionRouteDays(final, homeTile, settlement.Tile, out days);
+        (days, _) = Pol.PolicyFunctions.TradeMissionRouteDays(final, homeTile, settlement.Tile);
         var option = new Pol.TradeAcquisitionOption
         {
-            Id = "settlement:" + settlement.Id,
+            ID = "settlement:" + settlement.Id,
             Kind = Pol.TradeAcquisitionKind.Settlement,
             Participant = new TradeParticipant(TradeParticipantKind.Settlement, settlement.Id),
             TraderKind = settlement.TraderKind,
@@ -267,12 +268,10 @@ public sealed partial class Rounder
     /// planned Project. Returns the departure plan's id, empty when only the mission's phase was recorded.
     /// </summary>
     public PlanId AdmitTradeMissionDeparture(
-        CancellationToken call,
-        CancellationToken epoch,
         ControlState state,
         Sto.StandardState project,
         WorldProgressionRead read,
-        StepArbiter arbiter)
+        StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var m = project.Standard.Mission ?? throw new DomainException("standard carries no trade mission");
         if (!state.Enabled || !state.ObservationKnown || !project.Standard.Snapshot.SameWorld(state.Snapshot)
@@ -293,14 +292,14 @@ public sealed partial class Rounder
         if (observed)
         {
             m = m with { Phase = phase };
-            Player.Journal.RecordStandard(call, project.Standard.Id, project.Revision, m);
+            Player.Journal.RecordStandard(project.Standard.Id, project.Revision, m, call);
             return default;
         }
         if (!TradeMissionCrewAtHome(m, read))
         {
             throw new ControlException("AdmitTradeMissionDeparture: crew not at home");
         }
-        if (!arbiter.TryClaim(m.Crew, "trade-mission:" + m.Settlement))
+        if (!arbiter.TryClaim([.. m.Crew.Select(id => new Pol.PawnId(id.Value))], "trade-mission:" + m.Settlement))
         {
             throw new InvalidOperationException("trade mission crew claimed");
         }
@@ -309,7 +308,7 @@ public sealed partial class Rounder
         var a = DomainAction.NewCaravanDepartureAction(new ActionId(id.Value + "-0"), d);
         var plan = new PlanSpec(id, new PlanRevision(1), [a]);
         m = m with { Phase = TradeMissionPhase.Departing };
-        Player.Journal.CommitMethodRecord(call, project.Standard.Id, project.Revision, new MethodId("trade-departure"), $"settlement:{m.Settlement}", plan, m);
+        Player.Journal.CommitMethodRecord(project.Standard.Id, project.Revision, new MethodId("trade-departure"), $"settlement:{m.Settlement}", plan, m, call);
         return id;
     }
 }

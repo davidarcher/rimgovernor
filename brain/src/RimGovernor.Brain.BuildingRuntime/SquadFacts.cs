@@ -8,13 +8,13 @@ internal sealed partial class Armament
 {
     internal Bridge.DefinitionCatalog? Catalog { get; init; }
 
-    internal Things Things { get; init; } = null!;
+    internal Things Things { get; init; }
 
     /// <summary>
     /// The newest frame's things table and the load's catalog from native; a source that serves neither (a
     /// test double) leaves every armed pawn's weapon unknown.
     /// </summary>
-    internal static Armament Read(CancellationToken ct, object native, C.Identity identity) => ReadArmament(ct, native, identity);
+    internal static async Task<Armament> ReadAsync(object native, C.Identity identity, CancellationToken ct) => await ReadArmamentAsync(native, identity, ct).ConfigureAwait(false);
 
     /// <summary>
     /// The weapon facts of the equipment's primary (Known false until the equipment and the things table say
@@ -22,19 +22,53 @@ internal sealed partial class Armament
     /// </summary>
     internal (Pol.WeaponDef Weapon, bool Known) Primary(ObservationsPb.PawnEquipment? equipment)
     {
-        if (equipment is null || IssueField(equipment.Issues, "equipped") || IssueField(equipment.Issues, "armed"))
+        if (equipment is null || Boundary.IssueField(equipment.Issues, "equipped") || Boundary.IssueField(equipment.Issues, "armed"))
         {
             return (new Pol.WeaponDef(), false);
         }
-        return Catalog!.PrimaryWeapon(equipment, Things);
+        return PrimaryWeapon(equipment);
+    }
+
+    /// <summary>
+    /// Go's DefinitionCatalog.PrimaryWeapon: false while the equipment does not say (no armed flag, no primary id), the
+    /// primary is not among the equipped items, or the things table does not hold its row yet; an unarmed pawn is the
+    /// known empty weapon.
+    /// </summary>
+    private (Pol.WeaponDef Weapon, bool Known) PrimaryWeapon(ObservationsPb.PawnEquipment equipment)
+    {
+        if (!equipment.HasArmed)
+        {
+            return (new Pol.WeaponDef(), false);
+        }
+        if (!equipment.Armed)
+        {
+            return (new Pol.WeaponDef(), true);
+        }
+        if (!equipment.HasPrimaryId || Catalog is null)
+        {
+            return (new Pol.WeaponDef(), false);
+        }
+        foreach (var item in equipment.Equipped)
+        {
+            if ((item.Thing?.Id ?? "") != equipment.PrimaryId)
+            {
+                continue;
+            }
+            if (item.Thing is null || !Things.TryRow(item.Thing, out var row) || (row.Thing_?.DefName ?? "").Length == 0)
+            {
+                return (new Pol.WeaponDef(), false);
+            }
+            return (Catalog.WeaponOf(row.Thing_?.DefName ?? ""), true);
+        }
+        return (new Pol.WeaponDef(), false);
     }
 }
 
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>The armament Go's readArmament reads: the newest frame's things table and the load's catalog.</summary>
-    internal static Armament ReadArmament(CancellationToken ct, object native, C.Identity identity) =>
-        new() { Things = FrameThings(ct, native, identity), Catalog = PawnCatalog(ct, native, identity) };
+    internal static async Task<Armament> ReadArmamentAsync(object native, C.Identity identity, CancellationToken ct) =>
+        new() { Things = await FrameThingsOfAsync(native, identity, ct).ConfigureAwait(false), Catalog = await PawnCatalogAsync(native, identity, ct).ConfigureAwait(false) };
 
     /// <summary>Requires the pawn's primary equipped weapon to be found. Unarmed is a known false, never unknown.</summary>
     internal static Fact<bool> RangedWeaponEquipped(ObservationsPb.PawnEquipment? equipment, Armament arms)
@@ -49,7 +83,7 @@ internal static partial class BuildingRuntimePackage
     /// </summary>
     internal static Fact<bool> MeleeCapable(ObservationsPb.PawnEquipment? equipment)
     {
-        if (equipment is null || !equipment.HasArmed || IssueField(equipment.Issues, "equipped") || IssueField(equipment.Issues, "armed"))
+        if (equipment is null || !equipment.HasArmed || Boundary.IssueField(equipment.Issues, "equipped") || Boundary.IssueField(equipment.Issues, "armed"))
         {
             return Fact.Unknown<bool>();
         }
@@ -76,8 +110,8 @@ internal static partial class BuildingRuntimePackage
         var facts = new Pol.SquadThreatFacts
         {
             Id = new PawnId(row.Pawn?.Id ?? ""),
-            Dead = FactBool(row.Dead),
-            Downed = FactBool(row.Downed),
+            Dead = Boundary.FactBool(row.HasDead, row.Dead),
+            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
         };
         if (row.HasHumanlike)
         {
@@ -87,15 +121,15 @@ internal static partial class BuildingRuntimePackage
         {
             facts = facts with { Animal = Fact.Known(row.Animal) };
         }
-        facts = facts with { Anomaly = Bridge.Pawns.PawnAnomaly(row.Anomaly), RangedEquipped = ranged };
+        facts = facts with { Anomaly = BridgeApi.PawnAnomaly(row.Anomaly), RangedEquipped = ranged };
         // A wild animal has no equipment tracker (the equipped field reads as a missing native component); it
         // carries no ranged weapon either way, and neither does an entity whose attack native read as melee only.
-        if (!facts.RangedEquipped.IsKnown && (facts.Animal == Fact.Known(true) || Pol.SquadThreatFacts.MeleeEntity(facts)))
+        if (!facts.RangedEquipped.IsKnown && (facts.Animal == Fact.Known(true) || Pol.PolicyFunctions.MeleeEntity(facts)))
         {
             facts = facts with { RangedEquipped = Fact.Known(false) };
         }
         facts = facts with { Manhunter = ManhunterFact(row.HasMentalState ? row.MentalState : null, row.Issues) };
-        if (races.Race(new Pol.Resource(row.Pawn?.DefName ?? "")) is { } race)
+        if (races.Race(new Pol.Resource(row.Pawn?.DefName ?? ""), out var race))
         {
             facts = facts with { BodySize = race.BodySize };
         }
@@ -126,40 +160,47 @@ internal static partial class BuildingRuntimePackage
     /// Reads row's defender facts. <paramref name="needed"/> is plannedDrafts: a drafted pawn a live plan needs
     /// is spoken for (DraftOwned); any other drafted pawn is free to take.
     /// </summary>
-    internal static Pol.SquadDefenderFacts SquadDefenderFacts(ObservationsPb.PawnState row, IReadOnlySet<Domain.PawnId> needed, Fact<bool> ranged)
+    internal static Pol.SquadDefenderFacts SquadDefenderFacts(ObservationsPb.PawnState row, IReadOnlySet<Domain.PawnId> needed, Fact<bool> ranged) =>
+        SquadDefenderFactsFrom(new Pol.SquadDefenderFacts(), row, needed, ranged);
+
+    /// <summary>
+    /// SquadDefenderFacts over a seed: a derived record (the shrine defender) stays its own type through the copies,
+    /// which stands in for Go embedding the squad facts in it.
+    /// </summary>
+    internal static Pol.SquadDefenderFacts SquadDefenderFactsFrom(Pol.SquadDefenderFacts seed, ObservationsPb.PawnState row, IReadOnlySet<Domain.PawnId> needed, Fact<bool> ranged)
     {
-        var facts = new Pol.SquadDefenderFacts
+        var facts = seed with
         {
             Id = new PawnId(row.Pawn?.Id ?? ""),
-            Dead = FactBool(row.Dead),
-            Downed = FactBool(row.Downed),
-            Drafted = FactBool(row.Drafted),
-            MentalState = FactPresence(row.MentalState, row.Issues, "mental_state"),
+            Dead = Boundary.FactBool(row.HasDead, row.Dead),
+            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
+            Drafted = Boundary.FactBool(row.HasDrafted, row.Drafted),
+            MentalState = Boundary.FactPresence(row.HasMentalState, row.Issues, "mental_state"),
         };
-        facts = facts with { DraftOwned = Fact.Known(needed.Contains(facts.Id)) };
-        if (Bridge.Pawns.PawnBiotech(row.Biotech).TryGetValue(out var bt))
+        facts = facts with { DraftOwned = Fact.Known(needed.Contains(new Domain.PawnId(facts.Id.Value))) };
+        if (BridgeApi.PawnBiotech(row.Biotech).TryGetValue(out var bt))
         {
             facts = facts with { Deathresting = bt.IsDeathresting() };
         }
-        if (row.Job is { } job && !IssueField(job.Issues, "player_forced") && !IssueField(job.Issues, "queued_jobs"))
+        if (row.Job is { } job && !Boundary.IssueField(job.Issues, "player_forced") && !Boundary.IssueField(job.Issues, "queued_jobs"))
         {
-            facts = facts with { PlayerForced = FactBool(job.PlayerForced), QueuedJobs = FactUint(job.QueuedJobs) };
+            facts = facts with { PlayerForced = Boundary.FactBool(job.HasPlayerForced, job.PlayerForced), QueuedJobs = Boundary.FactUint(job.HasQueuedJobs, job.QueuedJobs) };
         }
-        if (row.Health is { } health && !IssueField(health.Issues, "health"))
+        if (row.Health is { } health && !Boundary.IssueField(health.Issues, "health"))
         {
-            facts = facts with { NeedsTend = FactBool(health.NeedsTend) };
+            facts = facts with { NeedsTend = Boundary.FactBool(health.HasNeedsTend, health.NeedsTend) };
             if (health.HasSummaryFraction)
             {
                 facts = facts with { HealthFraction = Fact.Known(health.SummaryFraction) };
             }
         }
-        if (row.Biography is { } biography && !IssueField(biography.Issues, "disabled_work_tags"))
+        if (row.Biography is { } biography && !Boundary.IssueField(biography.Issues, "disabled_work_tags"))
         {
             var capable = !biography.DisabledWorkTags.Contains("Violent");
             facts = facts with { ViolenceCapable = Fact.Known(capable) };
         }
         facts = facts with { RangedEquipped = ranged, MeleeEquipped = MeleeCapable(row.Equipment) };
-        if (row.Equipment is { } equipment && equipment.HasArmed && !IssueField(equipment.Issues, "armed"))
+        if (row.Equipment is { } equipment && equipment.HasArmed && !Boundary.IssueField(equipment.Issues, "armed"))
         {
             facts = facts with { Armed = Fact.Known(equipment.Armed) };
         }

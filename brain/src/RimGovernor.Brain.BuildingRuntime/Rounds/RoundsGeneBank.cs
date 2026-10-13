@@ -9,7 +9,7 @@ public sealed partial class RoundsGeneBankPlanner
 
     public static RoundsGeneBankPlanner NewRoundsGeneBankPlanner(Rounder reviewer, IRoundsBuildingSource native)
     {
-        if (reviewer is null || native is null || !reviewer.MethodEnabled(ConcernId.MaintainGeneBank))
+        if (reviewer is null || native is null || !reviewer.MethodEnabled(PolicyFunctions.MaintainGeneBank))
         {
             throw new ControlException("NewRoundsGeneBankPlanner: reviewer, native or method disabled");
         }
@@ -27,15 +27,15 @@ internal static partial class BuildingRuntimePackage
 {
     internal const int GeneBankSiteTries = 8;
 
-    internal static IReadOnlyList<PlanningDefinition> GeneBankDefinitions(ref RoundsReading read)
+    internal static (IReadOnlyList<PlanningDefinition> Defs, RoundsReading Read) GeneBankDefinitions(RoundsReading read)
     {
-        if (read.Frame.Catalog is null)
+        if (read.Catalog is null)
         {
-            return [];
+            return ([], read);
         }
 
-        var names = read.Frame.Catalog.GeneBanks();
-        read = read with { Projection = read.Projection.AddDefinitions(read.Frame, names) };
+        var names = read.Catalog.GeneBanks();
+        read = read.WithProjection(read.Projection.AddDefinitions(read.Frame, read.Catalog, names));
         var output = new List<PlanningDefinition>();
         foreach (var d in read.Projection.Definitions)
         {
@@ -45,7 +45,7 @@ internal static partial class BuildingRuntimePackage
             }
         }
 
-        return output;
+        return (output, read);
     }
 
     internal static (Cell Anchor, bool Found) GeneBankAnchor(ColonyProjection facts, BiotechColony biotech)
@@ -65,13 +65,13 @@ internal static partial class BuildingRuntimePackage
             return (default, false);
         }
 
-        return RoomAnchor(facts, PlannedRole.Workshop, center);
+        return LayoutProtected.RoomAnchor(facts, PlannedRole.Workshop, center) is { } anchor ? (anchor, true) : (default, false);
     }
 }
 
 public sealed partial class RoundsGeneBankPlanner
 {
-    internal RoundsBuildingResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsBuildingResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var state = p.Session.State();
@@ -91,15 +91,15 @@ public sealed partial class RoundsGeneBankPlanner
             return new RoundsBuildingResult { Verdict = BuildingReasonNoReview };
         }
 
-        var (goal, workable) = p.Journal.Workable(call, review, ConcernId.MaintainGeneBank);
-        if (!workable)
+        var (goal, workable) = p.Journal.Workable(review, PolicyFunctions.MaintainGeneBank, call);
+        if (!workable || goal is null)
         {
             return new RoundsBuildingResult { Verdict = BuildingReasonNoDeficit };
         }
 
         foreach (var method0 in goal.Methods)
         {
-            var plan0 = p.Journal.LoadPlan(call, method0.Plan);
+            var plan0 = p.Journal.LoadPlan(method0.Plan, call);
             if (StorePackage.PlanOpen(plan0))
             {
                 return new RoundsBuildingResult { Verdict = BuildingReasonExistingWork };
@@ -107,14 +107,14 @@ public sealed partial class RoundsGeneBankPlanner
         }
 
         var started = Reviewer.Clock.Now();
-        var expected = StepScope(call, Native);
+        var expected = await StepScopeAsync(Native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: boundary moved");
         }
 
-        var claims = p.Journal.ConstructionClaims(call, state.Snapshot, expected.Tick);
-        var read = Reviewer.ObserveRooms(call, (IRoundsSource)Native, expected, claims);
+        var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
+        var read = await Reviewer.ObserveRoomsAsync((IRoundsSource)Native, expected, claims, call).ConfigureAwait(false);
         var f = read.Projection;
         if (!f.Facts.GeneBankOwed.TryGetValue(out var owed))
         {
@@ -131,7 +131,8 @@ public sealed partial class RoundsGeneBankPlanner
             return new RoundsBuildingResult { Verdict = FieldUnavailable("biotech") };
         }
 
-        var defs = GeneBankDefinitions(ref read);
+        var (defs, withDefs) = GeneBankDefinitions(read);
+        read = withDefs;
         f = read.Projection;
         if (defs.Count == 0)
         {
@@ -147,7 +148,7 @@ public sealed partial class RoundsGeneBankPlanner
         var method = new MethodId($"gene-bank-{definition}-{biotech.GeneBanks.Count}");
         try
         {
-            p.Journal.LoadMethod(call, goal.Standard.Id, goal.Standard.Episode, method);
+            p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
             return new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "gene_bank_method") };
         }
         catch (NotFoundException)
@@ -161,19 +162,19 @@ public sealed partial class RoundsGeneBankPlanner
 
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
-
-        (Preview Preview, StockObservation Stock, DomainAction Action) PreviewAt(Cell at)
+async 
+        Task<(Preview Preview, StockObservation Stock, DomainAction Action)> PreviewAtAsync(Cell at)
         {
-            var building = Building.NewBuilding(definition, at, Rotation.North, "");
+            var building = new Building(definition, at, Rotation.North, "");
             var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, ConstructionTier.Expand);
-            var (got, _) = Native.PreviewBuilding(call, action, snapshot);
+            var (got, _) = await Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             return (got.Preview, got.Stock, action);
         }
 
         var (anchor, planned) = GeneBankAnchor(f, biotech);
         if (!planned)
         {
-            return new RoundsBuildingResult { Verdict = BuildingNoLayoutPlan };
+            return new RoundsBuildingResult { Verdict = BuildingReasonNoLayoutPlan };
         }
 
         var sites = PolicyFunctions.FreeSites(new FreeSiteRequest { Bounds = f.Bounds, Anchor = anchor, Cells = f.Cells, Light = f.LightTerrains }, size.Width, size.Height);
@@ -187,7 +188,7 @@ public sealed partial class RoundsGeneBankPlanner
 
             var site = sites[i];
             var at = PolicyFunctions.AnchorForRect(site, new Cell(size.Width, size.Height), Rotation.North);
-            var (pv, stock, action) = PreviewAt(at);
+            var (pv, stock, action) = await PreviewAtAsync(at).ConfigureAwait(false);
             var fk = pv.Footprint.TryGetValue(out var footprint);
             var mk = pv.MadeFromStuff.TryGetValue(out var made);
             var lk = pv.CanPlace.TryGetValue(out var legal);
@@ -204,7 +205,7 @@ public sealed partial class RoundsGeneBankPlanner
                 continue;
             }
 
-            var plan = PlanSpec.NewPlan(planId, new PlanRevision(1), [action]);
+            var plan = new PlanSpec(planId, new PlanRevision(1), [action]);
             p.Current(call, epoch);
             var elapsed = Reviewer.Clock.Now() - started;
             if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > Reviewer.MaxAge)
@@ -212,7 +213,7 @@ public sealed partial class RoundsGeneBankPlanner
                 throw new ControlException("step: session state changed or the read took too long");
             }
 
-            var decision = AdmitMethod(call, p.Journal, new BuildingMethodRequest
+            var decision = await AdmissionLog.AdmitMethodAsync(p.Journal, new BuildingMethodRequest
             {
                 Owner = goal,
                 Method = method,
@@ -223,10 +224,10 @@ public sealed partial class RoundsGeneBankPlanner
                 Stock = stock,
                 Previews = [pv],
                 Purpose = Purpose.Rounds,
-            });
+            }, call).ConfigureAwait(false);
             if (!decision.Admitted)
             {
-                return new RoundsBuildingResult { Verdict = AdmissionRefused(decision), Decision = decision };
+                return new RoundsBuildingResult { Verdict = AdmissionLog.AdmissionRefused(decision), Decision = decision };
             }
 
             return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted, Decision = decision };

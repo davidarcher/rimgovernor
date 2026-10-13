@@ -8,6 +8,8 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed class StepArbiter
 {
     private readonly Lock _mu = new();
+
+    internal Lock Mu => _mu;
     private readonly List<ProposalArrival> _arrivals = [];
     private bool _closed;
 

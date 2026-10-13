@@ -11,7 +11,7 @@ public interface IPlanningWindowNative
 /// planning colony read in the step whose reply carries no cells asks it. Each ask cuts the window from the newest
 /// snapshot frame's grid and files it; a failed read serves the held window of the same region.
 /// </summary>
-internal sealed class PlanningWindow(IPlanningWindowNative native, FactStore store)
+internal sealed class PlanningWindow(IPlanningWindowNative native, FactStore store) : IPlanExtentSource
 {
     public FactScope Scope { get; set; }
 
@@ -25,24 +25,24 @@ internal sealed class PlanningWindow(IPlanningWindowNative native, FactStore sto
         {
             return default;
         }
-        return record.Plan.Extent(out var extent) ? extent : default;
+        return record.Plan?.Extent() ?? default;
     }
 
-    public async Task<Held<PlanningCells>> WindowAsync(PbCommon.Identity identity, Rectangle region, CancellationToken ct)
+    public async Task<Held<PlanningCells>> PlanningWindowAsync(PbCommon.Identity identity, Rectangle region, CancellationToken ct)
     {
         try
         {
             var window = await native.ReadPlanningWindowAsync(identity, region, ct).ConfigureAwait(false);
-            return Put(window.Region, window.Cells, window.Context.Tick);
+            return Put(window.Region, window.Cells, window.Context?.Tick ?? 0);
         }
-        catch (Exception) when (FactsApi.TryRead<PlanningCells>(store, FactSection.PlanningCells, out var held) && held.Value.Region == region)
+        catch (Exception) when (FactStore.Read<PlanningCells>(store, FactSection.PlanningCells, out var held) && held.Value.Region == region)
         {
             return held;
         }
     }
 
     private Held<PlanningCells> Put(Rectangle region, IReadOnlyList<SiteCell> cells, long tick) =>
-        File(new Held<PlanningCells>(new PlanningCells(region, cells), tick, true, "rimgovernor/observations_get_cells") { Region = ClockPlanning.RegionRect(region) });
+        File(new Held<PlanningCells> { Value = new PlanningCells { Region = region, Cells = [.. cells] }, AsOf = tick, Complete = true, Source = "rimgovernor/observations_get_cells", Region = ClockPlanning.RegionRect(region) });
 
     /// <summary>
     /// Puts the window in the store and publishes its rows as the planning_cells table, however it was read, so a
@@ -50,11 +50,11 @@ internal sealed class PlanningWindow(IPlanningWindowNative native, FactStore sto
     /// </summary>
     private Held<PlanningCells> File(Held<PlanningCells> output)
     {
-        FactsApi.Put(store, Scope, FactSection.PlanningCells, output);
-        if (!FactsApi.TryGetTable<Cell, SiteCell>(store, Scope, FactSection.PlanningCells.Name, out var table)
-            || table.AsOf != FactsApi.At(output.AsOf) || !ClockPlanning.SameRows(table.Rows, output.Value.Cells))
+        FactStore.Put(store, Scope, FactSection.PlanningCells, output);
+        if (!StoreTables.TryGetTable<Cell, SiteCell>(store, Scope, Wire.Name(FactSection.PlanningCells), out var table)
+            || table.AsOf != Watermark.At(output.AsOf) || !ClockPlanning.SameRows(table.Rows, output.Value.Cells))
         {
-            FactsApi.PutTable(store, Scope, FactSection.PlanningCells.Name, FactsApi.CellRows(output.Value.Cells), FactsApi.At(output.AsOf));
+            StoreTables.PutTable(store, Scope, Wire.Name(FactSection.PlanningCells), ClockMirror.CellRows(output.Value.Cells), Watermark.At(output.AsOf));
         }
         return output;
     }
@@ -95,12 +95,12 @@ internal static class ClockPlanning
 }
 
 /// <summary>Reads the planning window natively on every ask.</summary>
-internal sealed class DirectWindow(IPlanningWindowNative native)
+internal sealed class DirectWindow(IPlanningWindowNative native) : IPlanningWindowSource
 {
-    public async Task<Held<PlanningCells>> WindowAsync(PbCommon.Identity identity, Rectangle region, CancellationToken ct)
+    public async Task<Held<PlanningCells>> PlanningWindowAsync(PbCommon.Identity identity, Rectangle region, CancellationToken ct)
     {
         var window = await native.ReadPlanningWindowAsync(identity, region, ct).ConfigureAwait(false);
-        return new Held<PlanningCells>(new PlanningCells(window.Region, window.Cells), window.Context.Tick, true, "rimgovernor/observations_get_cells") { Region = RegionRect(window.Region) };
+        return new Held<PlanningCells> { Value = new PlanningCells { Region = window.Region, Cells = [.. window.Cells] }, AsOf = window.Context?.Tick ?? 0, Complete = true, Source = "rimgovernor/observations_get_cells", Region = RegionRect(window.Region) };
     }
 
     private static FactRect RegionRect(Rectangle region) => ClockPlanning.RegionRect(region);

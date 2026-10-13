@@ -1,8 +1,8 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public sealed class RoundsTrainingResult
+public sealed class RoundsTrainingResult : IPlannerMethod
 {
-    public Verdict Verdict { get; init; } = new();
+    public Verdict Verdict { get; init; }
 }
 
 /// <summary>
@@ -43,9 +43,9 @@ public sealed class RoundsTrainingPlanner
     }
 
     /// <summary>The definitions the range step reads availability and stuff for: the range's own buildings.</summary>
-    internal static readonly string[] TrainingDefinitions = [RangeDefNames[RangePiece.Stand], RangeDefNames[RangePiece.Dummy], RingMarkerDef];
+    internal static readonly string[] TrainingDefinitions = [RangeDefNames[RangePieceKind.Stand], RangeDefNames[RangePieceKind.Dummy], RingMarkerDef];
 
-    internal RoundsTrainingResult Step(CancellationToken call, CancellationToken epoch, StepArbiter _)
+    internal async Task<RoundsTrainingResult> StepAsync(StepArbiter _, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -53,7 +53,7 @@ public sealed class RoundsTrainingPlanner
         {
             return new RoundsTrainingResult { Verdict = BuildingReasonDisabled };
         }
-        if (!state.ObservationKnown || !state.Snapshot.IsValid() || state.Snapshot.Native.Value == 0)
+        if (!state.ObservationKnown || !state.Snapshot.IsValid || state.Snapshot.Native.Value == 0)
         {
             throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0");
         }
@@ -62,15 +62,15 @@ public sealed class RoundsTrainingPlanner
         {
             return new RoundsTrainingResult { Verdict = BuildingReasonNoReview };
         }
-        var (goal, workable) = p.Journal.Workable(call, review, MaintainTraining);
-        if (!workable)
+        var (goal, workable) = p.Journal.Workable(review, MaintainTraining, call);
+        if (!workable || goal is null)
         {
             return new RoundsTrainingResult { Verdict = BuildingReasonNoDeficit };
         }
         foreach (var method in goal.Methods)
         {
-            var plan = p.Journal.LoadPlan(call, method.Plan);
-            if (Sto.PlanState.PlanOpen(plan))
+            var plan = p.Journal.LoadPlan(method.Plan, call);
+            if (StorePackage.PlanOpen(plan))
             {
                 return new RoundsTrainingResult { Verdict = BuildingReasonExistingWork };
             }
@@ -79,12 +79,12 @@ public sealed class RoundsTrainingPlanner
         {
             return new RoundsTrainingResult { Verdict = FieldUnavailable("building_source") };
         }
-        var expected = StepScope(call, _reviewer.Native);
+        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
-        var reading = _reviewer.ObserveRooms(call, _reviewer.Native, expected, Unknown<IReadOnlyList<Pol.ConstructionClaim>>(), TrainingDefinitions);
+        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), TrainingDefinitions, call).ConfigureAwait(false);
         if (!reading.Projection.LayoutPlan.TryGetValue(out var layout))
         {
             return new RoundsTrainingResult { Verdict = FieldUnavailable("layout_plan") };
@@ -94,24 +94,24 @@ public sealed class RoundsTrainingPlanner
         if (ranges.Count > 0)
         {
             var room = ranges[0];
-            rooms.Add(new RoomReconcile { Room = room, Template = RangeTemplate(room), Name = RoomName("range", room), Reason = "range" });
+            rooms.Add(new RoomReconcile { Room = room, Template = RangeTemplate(room), Name = RoundsBurialPlanner.RoomName("range", room), Reason = "range" });
         }
         var rings = layout.RingRooms();
         if (rings.Count > 0)
         {
             var room = rings[0];
-            rooms.Add(new RoomReconcile { Room = room, Template = RingTemplate(room), Name = RoomName("ring", room), Reason = "ring" });
+            rooms.Add(new RoomReconcile { Room = room, Template = RingTemplate(room), Name = RoundsBurialPlanner.RoomName("ring", room), Reason = "ring" });
         }
         if (rooms.Count == 0)
         {
             // The layout review grows the range and ring from RoomDemand.
             return new RoundsTrainingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "range_room") };
         }
-        var stock = PackedStock.Create(_reviewer.Native, Boundary.Identity(state.Snapshot));
+        var stock = new PackedStock(_reviewer.Native, Boundary.Identity(state.Snapshot));
         var verdict = new Verdict();
         foreach (var rr in rooms)
         {
-            var result = _building.ReconcileRoom(call, epoch, state, review, goal, reading, stock, rr);
+            var result = await _building.ReconcileRoomAsync(state, review, goal, reading, stock, rr, call, epoch).ConfigureAwait(false);
             verdict = result.Verdict;
             // A room with nothing ready (finished, or waiting on its builders) leaves the next one its turn; work staged ends the step.
             if (!verdict.Is(Pol.Cause.ExistingWork))
@@ -129,7 +129,7 @@ public sealed class RoundsTrainingPlanner
         {
             return (Unknown<int>(), Unknown<int>());
         }
-        var profiles = Known<IReadOnlyList<Pol.PawnProfile>>(Profiles(pawns));
+        var profiles = Known<EquatableArray<Pol.PawnProfile>>([.. Profiles(pawns)]);
         return (TrainingStands(profiles, facts.Facts.Research), TrainingRings(profiles, facts.Facts.Research));
     }
 }

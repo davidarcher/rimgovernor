@@ -3,37 +3,39 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsFoodStorageUpkeepPlanner
 {
     /// <summary>Admits the allow, forbid or haul action of the corpse larder choice as one method.</summary>
-    internal RoundsFoodStorageUpkeepResult AdmitCorpseLarder(CancellationToken ct, CancellationToken epoch, StepArbiter arbiter, StandardState goal, O.ColonyFactsSnapshot observed, CorpseLarderMethod choice)
+    internal RoundsFoodStorageUpkeepResult AdmitCorpseLarder(StepArbiter arbiter, StandardState goal, O.ColonyFactsSnapshot observed, CorpseLarderMethod choice, CancellationToken ct, CancellationToken epoch)
     {
-        var p = _reviewer.Player;
+        var p = Reviewer.Player;
         var state = p.Session.State();
-        var started = _reviewer.Clock.Now();
-        var method = new MethodId($"corpse-larder-{choice.Kind}-{choice.Stock.Id}-{goal.Revision}");
+        var started = Reviewer.Clock.Now();
+        var stock = choice.Stock ?? throw new ControlException("admitCorpseLarder: choice carries no stock");
+        var handling = choice.Handling ?? throw new ControlException("admitCorpseLarder: choice carries no handling");
+        var method = new MethodId($"corpse-larder-{choice.Kind}-{stock.Id}-{goal.Revision}");
         var id = PlanIds.MintPlanId();
         var actionId = new ActionId($"{id}-0");
         DomainAction action;
         switch (choice.Kind)
         {
             case "allow":
-                action = DomainAction.NewSupplyAllowAction(actionId, new SupplyAllow(choice.Stock.Id, choice.Stock.DefName.Value, choice.Handling.Cell));
+                action = DomainAction.NewSupplyAllowAction(actionId, new SupplyAllow(stock.Id, stock.DefName.Value, handling.Cell));
                 break;
             case "forbid":
-                action = DomainAction.NewSupplyAllowAction(actionId, SupplyAllow.NewSupplyForbid(choice.Stock.Id, choice.Stock.DefName.Value, choice.Handling.Cell));
+                action = DomainAction.NewSupplyAllowAction(actionId, SupplyAllow.NewSupplyForbid(stock.Id, stock.DefName.Value, handling.Cell));
                 break;
             case "haul":
-                if (!arbiter.TryClaim([choice.Handling.Hauler], "haul-item:" + choice.Stock.Id))
+                if (!arbiter.TryClaim([handling.Hauler], "haul-item:" + stock.Id))
                 {
-                    return new RoundsFoodStorageUpkeepResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "haul_item_claim") };
+                    return new RoundsFoodStorageUpkeepResult { Verdict = WaitFor(Cause.MethodUsed, "haul_item_claim") };
                 }
-                action = DomainAction.NewHaulAction(actionId, new Haul(choice.Handling.Hauler, choice.Stock.Id, choice.Stock.DefName.Value, choice.Handling.Cell));
+                action = DomainAction.NewHaulAction(actionId, new Haul((Domain.PawnId)handling.Hauler, stock.Id, stock.DefName.Value, handling.Cell));
                 break;
             default:
                 throw new ControlException($"admitCorpseLarder: kind \"{choice.Kind}\"");
         }
         var spec = new PlanSpec(id, new PlanRevision(1), [action]);
         p.Current(ct, epoch);
-        var elapsed = _reviewer.Clock.Now() - started;
-        if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
+        var elapsed = Reviewer.Clock.Now() - started;
+        if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > Reviewer.MaxAge)
         {
             throw new ControlException("admitCorpseLarder: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
         }

@@ -15,7 +15,7 @@ internal sealed class TunnelMemory
         {
             if (world != newWorld || sited is null || !sited.TryGetValue(resource, out var t) || t.Ore != ore)
             {
-                return (default, false);
+                return (new ExcavationTarget(), false);
             }
 
             return (t.Target, true);
@@ -55,7 +55,7 @@ public sealed partial class RoundsResourcePlanner
     internal const int TunnelMaxCorridor = 16;
 
     /// <summary>Digs a corridor to ore the surface sources cannot reach; dispatched when an excavation method was driven.</summary>
-    internal (RoundsResourceResult Result, bool Dispatched) TunnelToBuriedOre(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, Tick reviewTick, C.Identity identity, Resource resource)
+    internal async Task<(RoundsResourceResult Result, bool Dispatched)> TunnelToBuriedOreAsync(ControlState state, StandardState goal, Tick reviewTick, C.Identity identity, Resource resource, CancellationToken call, CancellationToken epoch)
     {
         if (native is not IRoundsExcavationSource source)
         {
@@ -63,9 +63,9 @@ public sealed partial class RoundsResourcePlanner
         }
 
         var p = reviewer.Player;
-        var dig = new RoundsBuildingPlanner { Reviewer = reviewer, Concern = ConcernId.MaintainResource, Excavation = source };
+        var dig = new RoundsBuildingPlanner { Reviewer = reviewer, Concern = PolicyFunctions.MaintainResource, Excavation = source };
         var review = p.Journal.LoadRounds(call);
-        var (last, _) = native.Identity(call);
+        var (last, _) = await native.IdentityAsync(call).ConfigureAwait(false);
         Identity expected;
         try
         {
@@ -81,7 +81,7 @@ public sealed partial class RoundsResourcePlanner
             throw new ControlException("tunnelToBuriedOre: boundary");
         }
 
-        var reading = reviewer.ObserveColony(call, native, expected, null);
+        var reading = await reviewer.ObserveColonyAsync(native, expected, null, call).ConfigureAwait(false);
         var step = new ExcavationStep { State = state, Review = review, Owner = goal, Facts = reading.Projection, Read = reading };
 
         (RoundsResourceResult Result, bool Dispatched) Finish(RoundsBuildingResult result)
@@ -89,7 +89,7 @@ public sealed partial class RoundsResourcePlanner
             var output = new RoundsResourceResult { Verdict = result.Verdict };
             foreach (var m in result.Decision.Standard.Methods)
             {
-                if (BuildingRuntimePackage.IsExcavationMethod(m.Method))
+                if (RoundsBuildingPlanner.IsExcavationMethod(m.MethodId))
                 {
                     output = output with { Plan = m.Plan };
                 }
@@ -97,18 +97,17 @@ public sealed partial class RoundsResourcePlanner
 
             return (output, true);
         }
-
-        (RoundsBuildingResult Result, bool Done) Resume(ExcavationTarget target)
+        async Task<(RoundsBuildingResult Result, bool Done)> ResumeAsync(ExcavationTarget target)
         {
-            step = step with { Target = target };
-            var result = dig.StepExcavation(call, epoch, step);
+            step = new ExcavationStep { State = step.State, Review = step.Review, Owner = step.Owner, Facts = step.Facts, Read = step.Read, Target = target };
+            var result = await dig.StepExcavationAsync(step, call, epoch).ConfigureAwait(false);
             return (result, result.Verdict.Is(Cause.MethodUsed) || result.Verdict.Is(Cause.SiteBlocked));
         }
 
-        var project = dig.ExcavationProject(call, goal);
+        var project = dig.ExcavationProject(goal, call);
         if (project is not null)
         {
-            var (result, done) = Resume(project.Value);
+            var (result, done) = await ResumeAsync(project).ConfigureAwait(false);
             if (!done)
             {
                 return Finish(result);
@@ -120,14 +119,14 @@ public sealed partial class RoundsResourcePlanner
         IReadOnlyList<ResourceSource> rows;
         try
         {
-            (rows, _, _) = native.ReadResourceSources(call, identity, resource.Value);
+            (rows, _, _) = await native.ReadResourceSourcesAsync(identity, resource.Value, call).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             return (default, false);
         }
 
-        var remote = MiningReach(call, state, reviewTick);
+        var remote = await MiningReachAsync(state, reviewTick, call).ConfigureAwait(false);
         var (ore, ok) = PolicyFunctions.BuriedResourceSource(rows, remote);
         if (!ok)
         {
@@ -138,7 +137,7 @@ public sealed partial class RoundsResourcePlanner
         var (sited, haveSited) = reviewer.Tunnels.Get(world, resource, ore.Cell);
         if (haveSited && project is null)
         {
-            var (result, done) = Resume(sited);
+            var (result, done) = await ResumeAsync(sited).ConfigureAwait(false);
             if (!done)
             {
                 return Finish(result);
@@ -156,7 +155,7 @@ public sealed partial class RoundsResourcePlanner
             }
         }
 
-        var held = p.Journal.BuildingReservations(call, state.Snapshot);
+        var held = p.Journal.BuildingReservations(state.Snapshot, call);
         var protectedCells = held.SelectMany(h => h.Footprint).ToList();
         var facts = reading.Projection;
         if (native is not IDefinitionSource definitions)
@@ -164,10 +163,12 @@ public sealed partial class RoundsResourcePlanner
             throw new InvalidOperationException("roof rules: the native source serves no definitions");
         }
 
-        var roofs = definitions.DefinitionCatalog(call, identity).RoofRules();
+        var catalog = await definitions.DefinitionCatalogAsync(identity, call).ConfigureAwait(false)
+            ?? throw new InvalidOperationException("roof rules: the native source returned no definition catalog");
+        var roofs = catalog.RoofRules();
         if (!facts.Center().TryGetValue(out var anchor))
         {
-            return (new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingNoLayoutPlan }, false);
+            return (new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonNoLayoutPlan }, false);
         }
 
         var request = new ExcavationSiteRequest
@@ -175,8 +176,8 @@ public sealed partial class RoundsResourcePlanner
             Bounds = facts.Bounds,
             Region = facts.Region,
             Anchor = anchor,
-            Cells = facts.Cells,
-            Protected = protectedCells,
+            Cells = [.. facts.Cells],
+            Protected = [.. protectedCells],
             MinCorridor = 1,
             MaxCorridor = TunnelMaxCorridor,
             RoofSupport = facts.RoofSupport,
@@ -187,19 +188,19 @@ public sealed partial class RoundsResourcePlanner
         var snapshot = state.Snapshot with { Revision = new PlanRevision(1) };
         for (var i = 0; i < targets.Count; i++)
         {
-            if (i >= BuildingRuntimePackage.ExcavationCandidates)
+            if (i >= RoundsBuildingPlanner.ExcavationCandidates)
             {
                 break;
             }
 
             var target = targets[i];
-            if (!dig.VerifyExcavation(call, snapshot, facts.Identity.Tick, target, Check))
+            if (!await dig.VerifyExcavationAsync(snapshot, facts.Identity.Tick, target, Check, call).ConfigureAwait(false))
             {
                 continue;
             }
 
             reviewer.Tunnels.Set(world, resource, ore.Cell, target);
-            var (result, _) = Resume(target);
+            var (result, _) = await ResumeAsync(target).ConfigureAwait(false);
             return Finish(result);
         }
 

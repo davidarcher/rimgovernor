@@ -97,7 +97,7 @@ internal sealed record PlannerEntry
         }
         var declared = Declared();
         var name = Name;
-        return BridgeApi.WithReadNote((family, source) =>
+        return ReadNoteScope.With((family, source) =>
         {
             if (!declared.Contains(family))
             {
@@ -110,10 +110,10 @@ internal sealed record PlannerEntry
     public Func<ClockScheduler, CancellationToken, CancellationToken, ClockSchedulerResult, StepArbiter, Task<Verdict>> Awaiting(Verdict v)
     {
         var held = Held;
-        return (s, _, _, output, _) =>
+        return async (s, _, _, output, _) =>
         {
             held?.Invoke(s, v, output);
-            return Task.FromResult(v);
+            return await Task.FromResult(v).ConfigureAwait(false);
         };
     }
 }
@@ -127,8 +127,8 @@ internal static class ClockPlannerCatalog
     // Review cadences, in game ticks (2500 an hour): how long a planner's last evaluation stands before the due
     // queue re-runs it without evidence. Evidence (an outcome of its kinds, a dirty section it declares) re-runs
     // it sooner.
-    public static readonly Tick ReviewEveryUrgent = Tick.TicksPerHour;
-    public static readonly Tick ReviewEveryRounds = Tick.TicksPerHour;
+    public static readonly Tick ReviewEveryUrgent = new(GameTime.TicksPerHour);
+    public static readonly Tick ReviewEveryRounds = new(GameTime.TicksPerHour);
     public static readonly Tick ReviewEveryComfort = new(15000);
 
     /// <summary>Called for every fact family a catalog planner reads that its entry does not declare. Only a test host installs one; production reads unaudited.</summary>
@@ -210,152 +210,152 @@ internal static class ClockPlannerCatalog
             Configured = c => c.Rounds is not null,
             Run = async (s, ct, epoch, _, arbiter) =>
             {
-                await s.Config.Rounds!.SweepDraftsAsync(ct, epoch, arbiter).ConfigureAwait(false);
+                await s.Config.Rounds!.SweepDraftsAsync(arbiter, ct, epoch).ConfigureAwait(false);
                 return default;
             },
         },
         E("work", O, PlannerPriority.Foothold, [ActionKind.WorkAssignment, ActionKind.PawnSettings, ActionKind.ReadingPolicy, ActionKind.DrugPolicy, ActionKind.FoodPolicy, ActionKind.Building], SectionsWork,
-            c => c.Work is not null, (s, ct, e, a) => s.Config.Work!.StepAsync(ct, e, a), (o, m) => o.Work = m, EnsureWorkAssignments),
+            c => c.Work is not null, (s, ct, e, a) => s.Config.Work!.StepAsync(a, ct, e), (o, m) => o.Work = m, EnsureWorkAssignments),
         E("fields", O, PlannerPriority.Foothold, [ActionKind.Building, ActionKind.ZoneCreate], SectionsBuilding,
-            c => c.Fields is not null, (s, ct, e, a) => s.Config.Fields!.StepAsync(ct, e, a), (o, m) => o.Fields = m),
+            c => c.Fields is not null, (s, ct, e, a) => s.Config.Fields!.StepAsync(a, ct, e), (o, m) => o.Fields = m),
         E("foodAcquisition", O, PlannerPriority.Foothold, [ActionKind.Acquisition, ActionKind.AcquisitionWithdraw], SectionsColony,
-            c => c.FoodAcquisition is not null, (s, ct, e, a) => s.Config.FoodAcquisition!.StepAsync(ct, e, a), (o, m) => o.FoodAcquisition = m, EnsureFoodSupply),
+            c => c.FoodAcquisition is not null, (s, ct, e, a) => s.Config.FoodAcquisition!.StepAsync(a, ct, e), (o, m) => o.FoodAcquisition = m, EnsureFoodSupply),
         E("pestAcquisition", O, PlannerPriority.Foothold, [ActionKind.Acquisition, ActionKind.AcquisitionWithdraw], SectionsColony,
-            c => c.PestAcquisition is not null, (s, ct, e, a) => s.Config.PestAcquisition!.StepAsync(ct, e, a), (o, m) => o.PestAcquisition = m, ClearPests),
+            c => c.PestAcquisition is not null, (s, ct, e, a) => s.Config.PestAcquisition!.StepAsync(a, ct, e), (o, m) => o.PestAcquisition = m, ClearPests),
         E("resourceAcquisition", O, PlannerPriority.Maintenance, [ActionKind.Acquisition, ActionKind.AcquisitionWithdraw], SectionsColony,
-            c => c.ResourceAcquisition is not null, (s, ct, e, a) => s.Config.ResourceAcquisition!.StepAsync(ct, e, a), (o, m) => o.ResourceAcquisition = m, MaintainResource),
+            c => c.ResourceAcquisition is not null, (s, ct, e, a) => s.Config.ResourceAcquisition!.StepAsync(a, ct, e), (o, m) => o.ResourceAcquisition = m, MaintainResource),
         E("supplies", C, PlannerPriority.Critical, [ActionKind.SupplyAllow, ActionKind.SupplyForbid], SectionsColony,
-            c => c.Supplies is not null, (s, ct, e, a) => s.Config.Supplies!.StepAsync(ct, e, a), (o, m) => o.Supplies = m),
+            c => c.Supplies is not null, (s, ct, e, a) => s.Config.Supplies!.StepAsync(a, ct, e), (o, m) => o.Supplies = m),
         E("sleeping", O, PlannerPriority.Foothold, [ActionKind.Building, ActionKind.Deconstruction], SectionsBuilding,
-            c => c.Sleeping is not null, (s, ct, e, a) => s.Config.Sleeping!.StepAsync(ct, e, a), (o, m) => o.Sleeping = m, MaintainHousing, startup: true),
+            c => c.Sleeping is not null, (s, ct, e, a) => s.Config.Sleeping!.StepAsync(a, ct, e), (o, m) => o.Sleeping = m, MaintainHousing, startup: true),
         E("power", O, PlannerPriority.Foothold, [ActionKind.Building], SectionsBuilding,
-            c => c.Power is not null, (s, ct, e, a) => s.Config.Power!.StepAsync(ct, e, a), (o, m) => o.Power = m, EnsureBasicPower),
+            c => c.Power is not null, (s, ct, e, a) => s.Config.Power!.StepAsync(a, ct, e), (o, m) => o.Power = m, EnsureBasicPower),
         E("temperature", O, PlannerPriority.Foothold, [ActionKind.Building, ActionKind.DoorControl, ActionKind.OwnedDraft, ActionKind.Movement], SectionsBuilding,
-            c => c.Temperature is not null, (s, ct, e, a) => s.Config.Temperature!.StepAsync(ct, e, a), (o, m) => o.Temperature = m, EnsureTemperatureSafety),
+            c => c.Temperature is not null, (s, ct, e, a) => s.Config.Temperature!.StepAsync(a, ct, e), (o, m) => o.Temperature = m, EnsureTemperatureSafety),
         E("refrigeration", O, PlannerPriority.Maintenance, [ActionKind.Building, ActionKind.BuildingTemperature], SectionsBuilding,
-            c => c.Refrigeration is not null, (s, ct, e, a) => s.Config.Refrigeration!.StepAsync(ct, e, a), (o, m) => o.Refrigeration = m, MaintainRefrigeration),
+            c => c.Refrigeration is not null, (s, ct, e, a) => s.Config.Refrigeration!.StepAsync(a, ct, e), (o, m) => o.Refrigeration = m, MaintainRefrigeration),
         E("lighting", O, PlannerPriority.Maintenance, [ActionKind.Building], SectionsBuilding,
-            c => c.Lighting is not null, (s, ct, e, a) => s.Config.Lighting!.StepAsync(ct, e, a), (o, m) => o.Lighting = m, MaintainLighting),
+            c => c.Lighting is not null, (s, ct, e, a) => s.Config.Lighting!.StepAsync(a, ct, e), (o, m) => o.Lighting = m, MaintainLighting),
         E("flooring", O, PlannerPriority.Maintenance, [ActionKind.Building], SectionsBuilding,
-            c => c.Flooring is not null, (s, ct, e, a) => s.Config.Flooring!.StepAsync(ct, e, a), (o, m) => o.Flooring = m, MaintainFlooring),
+            c => c.Flooring is not null, (s, ct, e, a) => s.Config.Flooring!.StepAsync(a, ct, e), (o, m) => o.Flooring = m, MaintainFlooring),
         E("routes", O, PlannerPriority.Maintenance, [ActionKind.Building, ActionKind.DoorControl, ActionKind.OwnedDraft, ActionKind.Movement], SectionsBuilding,
-            c => c.Routes is not null, (s, ct, e, a) => s.Config.Routes!.StepAsync(ct, e, a), (o, m) => o.Routes = m, MaintainRoutes),
+            c => c.Routes is not null, (s, ct, e, a) => s.Config.Routes!.StepAsync(a, ct, e), (o, m) => o.Routes = m, MaintainRoutes),
         E("cooking", O, PlannerPriority.Foothold, [ActionKind.Building], SectionsBuilding,
-            c => c.Cooking is not null, (s, ct, e, a) => s.Config.Cooking!.StepAsync(ct, e, a), (o, m) => o.Cooking = m, EnsureCooking),
+            c => c.Cooking is not null, (s, ct, e, a) => s.Config.Cooking!.StepAsync(a, ct, e), (o, m) => o.Cooking = m, EnsureCooking),
         E("butcher", O, PlannerPriority.Foothold, [ActionKind.Building], SectionsBuilding,
-            c => c.Butcher is not null, (s, ct, e, a) => s.Config.Butcher!.StepAsync(ct, e, a), (o, m) => o.Butcher = m, EnsureFoodSupply),
+            c => c.Butcher is not null, (s, ct, e, a) => s.Config.Butcher!.StepAsync(a, ct, e), (o, m) => o.Butcher = m, EnsureFoodSupply),
         E("basicComfort", O, PlannerPriority.Foothold, [ActionKind.Building], SectionsBuilding,
-            c => c.BasicComfort is not null, (s, ct, e, a) => s.Config.BasicComfort!.StepAsync(ct, e, a), (o, m) => o.BasicComfort = m, EnsureComfort),
+            c => c.BasicComfort is not null, (s, ct, e, a) => s.Config.BasicComfort!.StepAsync(a, ct, e), (o, m) => o.BasicComfort = m, EnsureComfort),
         E("comfort", O, PlannerPriority.Comfort, [ActionKind.Building], SectionsBuilding,
-            c => c.Comfort is not null, (s, ct, e, a) => s.Config.Comfort!.StepAsync(ct, e, a), (o, m) => o.Comfort = m, EnsureComfort),
+            c => c.Comfort is not null, (s, ct, e, a) => s.Config.Comfort!.StepAsync(a, ct, e), (o, m) => o.Comfort = m, EnsureComfort),
         E("workshop", O, PlannerPriority.Maintenance, [ActionKind.Building], SectionsBuilding,
-            c => c.Workshop is not null, (s, ct, e, a) => s.Config.Workshop!.StepWorkshopsAsync(ct, e, a), (o, m) => o.Workshop = m),
+            c => c.Workshop is not null, (s, ct, e, a) => s.Config.Workshop!.StepWorkshopsAsync(a, ct, e), (o, m) => o.Workshop = m),
         E("hospital", C, PlannerPriority.Critical, [ActionKind.Building, ActionKind.BedUse], SectionsBuilding,
-            c => c.Hospital is not null, (s, ct, e, a) => s.Config.Hospital!.StepAsync(ct, e, a), (o, m) => o.Hospital = m),
+            c => c.Hospital is not null, (s, ct, e, a) => s.Config.Hospital!.StepAsync(a, ct, e), (o, m) => o.Hospital = m),
         E("sleepingUpkeep", C, PlannerPriority.Critical, [ActionKind.Building, ActionKind.Assign, ActionKind.MoveBuilding, ActionKind.UninstallBuilding, ActionKind.RecoveryService], SectionsThrone,
-            c => c.SleepingUpkeep is not null, (s, ct, e, a) => s.Config.SleepingUpkeep!.StepAsync(ct, e, a), (o, m) => o.SleepingUpkeep = m, MaintainHousing),
+            c => c.SleepingUpkeep is not null, (s, ct, e, a) => s.Config.SleepingUpkeep!.StepAsync(a, ct, e), (o, m) => o.SleepingUpkeep = m, MaintainHousing),
         E("expansion", O, PlannerPriority.Comfort, [ActionKind.Building, ActionKind.Excavation], SectionsBuilding,
-            c => c.Expansion is not null, (s, ct, e, a) => s.Config.Expansion!.StepAsync(ct, e, a), (o, m) => o.Expansion = m, MaintainHousing),
-        E(PlannerQueue.DefensePlanner, C, PlannerPriority.Preempt, [ActionKind.OwnedDraft, ActionKind.Subdue, ActionKind.Ability], SectionsThreat,
-            c => c.Defense is not null, (s, ct, e, a) => s.Config.Defense!.StepAsync(ct, e, a), (o, m) => o.Defense = m),
+            c => c.Expansion is not null, (s, ct, e, a) => s.Config.Expansion!.StepAsync(a, ct, e), (o, m) => o.Expansion = m, MaintainHousing),
+        E(DefensePlanner, C, PlannerPriority.Preempt, [ActionKind.OwnedDraft, ActionKind.Subdue, ActionKind.Ability], SectionsThreat,
+            c => c.Defense is not null, (s, ct, e, a) => s.Config.Defense!.StepAsync(a, ct, e), (o, m) => o.Defense = m),
         E("medical", C, PlannerPriority.Critical, [ActionKind.Acquisition], SectionsMedical,
-            c => c.Medical is not null, (s, ct, e, a) => s.Config.Medical!.StepAsync(ct, e, a), (o, m) => o.Medical = m, MaintainMedicalReserves),
+            c => c.Medical is not null, (s, ct, e, a) => s.Config.Medical!.StepAsync(a, ct, e), (o, m) => o.Medical = m, MaintainMedicalReserves),
         E("surgery", C, PlannerPriority.Critical, [ActionKind.Surgery], SectionsMedical,
-            c => c.Surgery is not null, (s, ct, e, a) => s.Config.Surgery!.StepAsync(ct, e, a), (o, m) => o.Surgery = m, MaintainSurgery),
+            c => c.Surgery is not null, (s, ct, e, a) => s.Config.Surgery!.StepAsync(a, ct, e), (o, m) => o.Surgery = m, MaintainSurgery),
         E("tend", C, PlannerPriority.Critical, [ActionKind.Tend], SectionsThreat,
-            c => c.Tend is not null, (s, ct, e, a) => s.Config.Tend!.StepAsync(ct, e, a), (o, m) => o.Tend = m),
+            c => c.Tend is not null, (s, ct, e, a) => s.Config.Tend!.StepAsync(a, ct, e), (o, m) => o.Tend = m),
         E("rescue", C, PlannerPriority.Critical, [ActionKind.Rescue], SectionsThreat,
-            c => c.Rescue is not null, (s, ct, e, a) => s.Config.Rescue!.StepAsync(ct, e, a), (o, m) => o.Rescue = m),
+            c => c.Rescue is not null, (s, ct, e, a) => s.Config.Rescue!.StepAsync(a, ct, e), (o, m) => o.Rescue = m),
         E("equip", O, PlannerPriority.Maintenance, [ActionKind.Equip], SectionsMedical,
-            c => c.Equip is not null, (s, ct, e, a) => s.Config.Equip!.StepAsync(ct, e, a), (o, m) => o.Equip = m, EnsureBasicDefense, families: FamiliesEmergency),
+            c => c.Equip is not null, (s, ct, e, a) => s.Config.Equip!.StepAsync(a, ct, e), (o, m) => o.Equip = m, EnsureBasicDefense, families: FamiliesEmergency),
         E("repair", O, PlannerPriority.Maintenance, [ActionKind.Repair], SectionsBuilding,
-            c => c.Repair is not null, (s, ct, e, a) => s.Config.Repair!.StepAsync(ct, e, a), (o, m) => o.Repair = m, MaintainEssentialRepairs, families: FamiliesEmergency),
+            c => c.Repair is not null, (s, ct, e, a) => s.Config.Repair!.StepAsync(a, ct, e), (o, m) => o.Repair = m, MaintainEssentialRepairs, families: FamiliesEmergency),
         // fireSafety takes no arbiter: it dispatches no plan of its own.
         E("fireSafety", C, PlannerPriority.Foothold, [], SectionsFire,
             c => c.FireSafety is not null, (s, ct, e, _) => s.Config.FireSafety!.StepAsync(ct, e), (o, m) => o.FireSafety = m, MaintainFireSafety),
         E("clearance", O, PlannerPriority.Maintenance, [ActionKind.Deconstruction], SectionsColony,
-            c => c.Clearance is not null, (s, ct, e, a) => s.Config.Clearance!.StepAsync(ct, e, a), (o, m) => o.Clearance = m, ClearHomeObstructions),
+            c => c.Clearance is not null, (s, ct, e, a) => s.Config.Clearance!.StepAsync(a, ct, e), (o, m) => o.Clearance = m, ClearHomeObstructions),
         E("shrine", O, PlannerPriority.Maintenance, [ActionKind.OwnedDraft, ActionKind.Movement, ActionKind.Deconstruction], SectionsColony,
-            c => c.Shrine is not null, (s, ct, e, a) => s.Config.Shrine!.StepAsync(ct, e, a), (o, m) => o.Shrine = m, ClearAncientShrine),
+            c => c.Shrine is not null, (s, ct, e, a) => s.Config.Shrine!.StepAsync(a, ct, e), (o, m) => o.Shrine = m, ClearAncientShrine),
         E("pollution", O, PlannerPriority.Maintenance, [ActionKind.Area, ActionKind.SupplyAllow, ActionKind.WastepackHaul], SectionsBuilding,
-            c => c.Pollution is not null, (s, ct, e, a) => s.Config.Pollution!.StepAsync(ct, e, a), (o, m) => o.Pollution = m, ManagePollution),
+            c => c.Pollution is not null, (s, ct, e, a) => s.Config.Pollution!.StepAsync(a, ct, e), (o, m) => o.Pollution = m, ManagePollution),
         E("mechcharger", O, PlannerPriority.Maintenance, [ActionKind.Building], SectionsBuilding,
-            c => c.MechCharger is not null, (s, ct, e, a) => s.Config.MechCharger!.StepAsync(ct, e, a), (o, m) => o.MechCharger = m, EnsureMechCharger),
+            c => c.MechCharger is not null, (s, ct, e, a) => s.Config.MechCharger!.StepAsync(a, ct, e), (o, m) => o.MechCharger = m, EnsureMechCharger),
         E("genebank", O, PlannerPriority.Maintenance, [ActionKind.Building], SectionsBuilding,
-            c => c.GeneBank is not null, (s, ct, e, a) => s.Config.GeneBank!.StepAsync(ct, e, a), (o, m) => o.GeneBank = m, MaintainGeneBank),
+            c => c.GeneBank is not null, (s, ct, e, a) => s.Config.GeneBank!.StepAsync(a, ct, e), (o, m) => o.GeneBank = m, MaintainGeneBank),
         // workLedger also files the verdicts of the bill purposes (RoundsLedgerResult.Reports): when a priority
         // gate holds it, it holds them with it.
         E("workLedger", O, PlannerPriority.Maintenance, [ActionKind.ProductionBill, ActionKind.RemoveProductionBill], SectionsBills,
-            c => c.Ledger is not null, (s, ct, e, a) => s.Config.Ledger!.StepAsync(ct, e, a), (o, m) => o.Ledger = m, MaintainWorkLedger,
+            c => c.Ledger is not null, (s, ct, e, a) => s.Config.Ledger!.StepAsync(a, ct, e), (o, m) => o.Ledger = m, MaintainWorkLedger,
             held: (s, v, o) => o.Ledger = new RoundsLedgerResult { Verdict = v, Reports = s.Config.Ledger!.Reviewer.HeldReports(v) }),
         E("blight", O, PlannerPriority.Maintenance, [ActionKind.CutPlant], SectionsColony,
-            c => c.Blight is not null, (s, ct, e, a) => s.Config.Blight!.StepAsync(ct, e, a), (o, m) => o.Blight = m, RemoveBlight),
+            c => c.Blight is not null, (s, ct, e, a) => s.Config.Blight!.StepAsync(a, ct, e), (o, m) => o.Blight = m, RemoveBlight),
         E("armory", O, PlannerPriority.Maintenance, [ActionKind.Building], SectionsArmory,
-            c => c.Armory is not null, (s, ct, e, a) => s.Config.Armory!.StepAsync(ct, e, a), (o, m) => o.Armory = m),
+            c => c.Armory is not null, (s, ct, e, a) => s.Config.Armory!.StepAsync(a, ct, e), (o, m) => o.Armory = m),
         E("burial", O, PlannerPriority.Maintenance, [ActionKind.Building], SectionsBuilding,
-            c => c.Burial is not null, (s, ct, e, a) => s.Config.Burial!.StepAsync(ct, e, a), (o, m) => o.Burial = m, MaintainBurial),
+            c => c.Burial is not null, (s, ct, e, a) => s.Config.Burial!.StepAsync(a, ct, e), (o, m) => o.Burial = m, MaintainBurial),
         E("training", O, PlannerPriority.Maintenance, [ActionKind.Building], SectionsBuilding,
-            c => c.Training is not null, (s, ct, e, a) => s.Config.Training!.StepAsync(ct, e, a), (o, m) => o.Training = m, MaintainTraining),
+            c => c.Training is not null, (s, ct, e, a) => s.Config.Training!.StepAsync(a, ct, e), (o, m) => o.Training = m, MaintainTraining),
         E("envelope", O, PlannerPriority.Maintenance, [ActionKind.Building, ActionKind.BuildRoof], SectionsBuilding,
-            c => c.Envelope is not null, (s, ct, e, a) => s.Config.Envelope!.StepAsync(ct, e, a), (o, m) => o.Envelope = m, MaintainClimateEnvelope),
+            c => c.Envelope is not null, (s, ct, e, a) => s.Config.Envelope!.StepAsync(a, ct, e), (o, m) => o.Envelope = m, MaintainClimateEnvelope),
         E("incineration", O, PlannerPriority.Maintenance, [ActionKind.Building, ActionKind.Equip, ActionKind.OwnedDraft, ActionKind.Ignite, ActionKind.Clean], SectionsBuilding,
-            c => c.Incineration is not null, (s, ct, e, a) => s.Config.Incineration!.StepAsync(ct, e, a), (o, m) => o.Incineration = m, MaintainIncineration, families: FamiliesEmergency),
+            c => c.Incineration is not null, (s, ct, e, a) => s.Config.Incineration!.StepAsync(a, ct, e), (o, m) => o.Incineration = m, MaintainIncineration, families: FamiliesEmergency),
         E("moodRelief", O, PlannerPriority.Maintenance, [ActionKind.MoodRelief, ActionKind.Ability], SectionsPawns,
-            c => c.MoodRelief is not null, (s, ct, e, a) => s.Config.MoodRelief!.StepAsync(ct, e, a), (o, m) => o.MoodRelief = m),
+            c => c.MoodRelief is not null, (s, ct, e, a) => s.Config.MoodRelief!.StepAsync(a, ct, e), (o, m) => o.MoodRelief = m),
         E("gear", O, PlannerPriority.Maintenance, [ActionKind.GearReplace, ActionKind.ApparelPolicy, ActionKind.PolicyPrune], SectionsMedical,
-            c => c.Gear is not null, (s, ct, e, a) => s.Config.Gear!.StepAsync(ct, e, a), (o, m) => o.Gear = m, MaintainEquipment),
+            c => c.Gear is not null, (s, ct, e, a) => s.Config.Gear!.StepAsync(a, ct, e), (o, m) => o.Gear = m, MaintainEquipment),
         E("foodStorageUpkeep", O, PlannerPriority.Foothold, [ActionKind.Haul, ActionKind.SupplyAllow, ActionKind.SupplyForbid], SectionsZones,
-            c => c.FoodStorageUpkeep is not null, (s, ct, e, a) => s.Config.FoodStorageUpkeep!.StepAsync(ct, e, a), (o, m) => o.FoodStorageUpkeep = m, MaintainFoodStorage),
+            c => c.FoodStorageUpkeep is not null, (s, ct, e, a) => s.Config.FoodStorageUpkeep!.StepAsync(a, ct, e), (o, m) => o.FoodStorageUpkeep = m, MaintainFoodStorage),
         E("animalContainment", O, PlannerPriority.Maintenance, [ActionKind.Building], SectionsBuilding,
-            c => c.AnimalContainment is not null, (s, ct, e, a) => s.Config.AnimalContainment!.StepAsync(ct, e, a), (o, m) => o.AnimalContainment = m, MaintainAnimalContainment),
+            c => c.AnimalContainment is not null, (s, ct, e, a) => s.Config.AnimalContainment!.StepAsync(a, ct, e), (o, m) => o.AnimalContainment = m, MaintainAnimalContainment),
         E("recovery", C, PlannerPriority.Critical, [ActionKind.RecoveryService, ActionKind.WorkAssignment, ActionKind.Husbandry], SectionsRecovery,
-            c => c.Recovery is not null, (s, ct, e, a) => s.Config.Recovery!.StepAsync(ct, e, a), (o, m) => o.Recovery = m),
+            c => c.Recovery is not null, (s, ct, e, a) => s.Config.Recovery!.StepAsync(a, ct, e), (o, m) => o.Recovery = m),
         E("rules", O, PlannerPriority.Maintenance, [ActionKind.RulesAttach], SectionsWork,
-            c => c.Rules is not null, (s, ct, e, a) => s.Config.Rules!.StepAsync(ct, e, a), (o, m) => o.Rules = m, EnsureFoodSupply, every: new Tick(ReviewEveryRounds.Value / 2)),
+            c => c.Rules is not null, (s, ct, e, a) => s.Config.Rules!.StepAsync(a, ct, e), (o, m) => o.Rules = m, EnsureFoodSupply, every: new Tick(ReviewEveryRounds.Value / 2)),
         E("husbandry", O, PlannerPriority.Maintenance, [ActionKind.Husbandry], [FactSection.Pawns, FactSection.Colony],
-            c => c.Husbandry is not null, (s, ct, e, a) => s.Config.Husbandry!.StepAsync(ct, e, a), (o, m) => o.Husbandry = m),
+            c => c.Husbandry is not null, (s, ct, e, a) => s.Config.Husbandry!.StepAsync(a, ct, e), (o, m) => o.Husbandry = m),
         E("prisonerInteraction", O, PlannerPriority.Maintenance, [ActionKind.PrisonerInteraction], [FactSection.Population, FactSection.Pawns],
-            c => c.PrisonerInteraction is not null, (s, ct, e, a) => s.Config.PrisonerInteraction!.StepAsync(ct, e, a), (o, m) => o.PrisonerInteraction = m),
+            c => c.PrisonerInteraction is not null, (s, ct, e, a) => s.Config.PrisonerInteraction!.StepAsync(a, ct, e), (o, m) => o.PrisonerInteraction = m),
         E("populationCustody", C, PlannerPriority.Preempt, [ActionKind.Capture, ActionKind.UseItem, ActionKind.Rescue, ActionKind.Tend, ActionKind.DoorControl, ActionKind.RecoveryService], SectionsCustody,
-            c => c.PopulationCustody is not null, (s, ct, e, a) => s.Config.PopulationCustody!.StepAsync(ct, e, a), (o, m) => o.PopulationCustody = m),
+            c => c.PopulationCustody is not null, (s, ct, e, a) => s.Config.PopulationCustody!.StepAsync(a, ct, e), (o, m) => o.PopulationCustody = m),
         E("populationJoiner", O, PlannerPriority.Maintenance,
             [ActionKind.Tend, ActionKind.RecoveryService, ActionKind.QuestAccept, ActionKind.QuestShuttle, ActionKind.HackDesignation, ActionKind.GiveItem, ActionKind.Ritual, ActionKind.DialogAnswer, ActionKind.ZoneCreate, ActionKind.Acquisition, ActionKind.MineAcquisition, ActionKind.PrisonerInteraction, ActionKind.Building, ActionKind.MoveBuilding, ActionKind.Haul, ActionKind.CaravanDeparture],
             SectionsMedical,
-            c => c.PopulationJoiner is not null, (s, ct, e, a) => s.Config.PopulationJoiner!.StepAsync(ct, e, a), (o, m) => o.PopulationJoiner = m),
+            c => c.PopulationJoiner is not null, (s, ct, e, a) => s.Config.PopulationJoiner!.StepAsync(a, ct, e), (o, m) => o.PopulationJoiner = m),
         E("research", O, PlannerPriority.Maintenance, [ActionKind.ResearchSelect, ActionKind.Building], SectionsResearch,
-            c => c.Research is not null, (s, ct, e, a) => s.Config.Research!.StepAsync(ct, e, a), (o, m) => o.Research = m, EnsureResearch),
+            c => c.Research is not null, (s, ct, e, a) => s.Config.Research!.StepAsync(a, ct, e), (o, m) => o.Research = m, EnsureResearch),
         E("dialog", C, PlannerPriority.Preempt, [ActionKind.DialogAnswer], SectionsColony,
-            c => c.Dialog is not null, (s, ct, e, a) => s.Config.Dialog!.StepAsync(ct, e, a), (o, m) => o.Dialog = m),
+            c => c.Dialog is not null, (s, ct, e, a) => s.Config.Dialog!.StepAsync(a, ct, e), (o, m) => o.Dialog = m),
         E("trade", O, PlannerPriority.Foothold, [ActionKind.Trade, ActionKind.CommsTradeRequest], SectionsColony,
-            c => c.Trade is not null, (s, ct, e, a) => s.Config.Trade!.StepAsync(ct, e, a), (o, m) => o.Trade = m, families: FamiliesWorld),
+            c => c.Trade is not null, (s, ct, e, a) => s.Config.Trade!.StepAsync(a, ct, e), (o, m) => o.Trade = m, families: FamiliesWorld),
         E("resource", O, PlannerPriority.Maintenance, [ActionKind.MineAcquisition, ActionKind.Building, ActionKind.Deconstruction], SectionsResource,
-            c => c.Resource is not null, (s, ct, e, a) => s.Config.Resource!.StepAsync(ct, e, a), (o, m) => o.Resource = m, MaintainResource),
+            c => c.Resource is not null, (s, ct, e, a) => s.Config.Resource!.StepAsync(a, ct, e), (o, m) => o.Resource = m, MaintainResource),
         E("maintainShelter", O, PlannerPriority.Comfort, [ActionKind.Area], SectionsBuilding,
-            c => c.MaintainShelter is not null, (s, ct, e, a) => s.Config.MaintainShelter!.StepAsync(ct, e, a), (o, m) => o.MaintainShelter = m, MaintainShelter),
+            c => c.MaintainShelter is not null, (s, ct, e, a) => s.Config.MaintainShelter!.StepAsync(a, ct, e), (o, m) => o.MaintainShelter = m, MaintainShelter),
         E("firebreak", O, PlannerPriority.Maintenance, [ActionKind.AreaPlantCut, ActionKind.CoverClearance], SectionsBuilding,
-            c => c.Firebreak is not null, (s, ct, e, a) => s.Config.Firebreak!.StepAsync(ct, e, a), (o, m) => o.Firebreak = m, MaintainFirebreak),
+            c => c.Firebreak is not null, (s, ct, e, a) => s.Config.Firebreak!.StepAsync(a, ct, e), (o, m) => o.Firebreak = m, MaintainFirebreak),
         E("psylink", O, PlannerPriority.Maintenance, [ActionKind.UseItem], SectionsBuilding,
-            c => c.Psylink is not null, (s, ct, e, a) => s.Config.Psylink!.StepAsync(ct, e, a), (o, m) => o.Psylink = m, MaintainPsylink),
+            c => c.Psylink is not null, (s, ct, e, a) => s.Config.Psylink!.StepAsync(a, ct, e), (o, m) => o.Psylink = m, MaintainPsylink),
         E("creepJoiners", O, PlannerPriority.Maintenance, [ActionKind.DropEquipment, ActionKind.Surgery, ActionKind.WorkAssignment], SectionsMedical,
-            c => c.CreepJoiners is not null, (s, ct, e, a) => s.Config.CreepJoiners!.StepAsync(ct, e, a), (o, m) => o.CreepJoiners = m, ManageCreepJoiners),
+            c => c.CreepJoiners is not null, (s, ct, e, a) => s.Config.CreepJoiners!.StepAsync(a, ct, e), (o, m) => o.CreepJoiners = m, ManageCreepJoiners),
         E("ideoRoles", O, PlannerPriority.Maintenance, [ActionKind.Assign], SectionsBuilding,
-            c => c.IdeoRoles is not null, (s, ct, e, a) => s.Config.IdeoRoles!.StepAsync(ct, e, a), (o, m) => o.IdeoRoles = m, MaintainIdeoRoles),
+            c => c.IdeoRoles is not null, (s, ct, e, a) => s.Config.IdeoRoles!.StepAsync(a, ct, e), (o, m) => o.IdeoRoles = m, MaintainIdeoRoles),
         E("rituals", O, PlannerPriority.Maintenance, [ActionKind.Ritual], SectionsRituals,
-            c => c.Rituals is not null, (s, ct, e, a) => s.Config.Rituals!.StepAsync(ct, e, a), (o, m) => o.Rituals = m, MaintainRituals),
+            c => c.Rituals is not null, (s, ct, e, a) => s.Config.Rituals!.StepAsync(a, ct, e), (o, m) => o.Rituals = m, MaintainRituals),
         E("gathering", O, PlannerPriority.Maintenance, [ActionKind.Gathering], SectionsRituals,
-            c => c.Gathering is not null, (s, ct, e, a) => s.Config.Gathering!.StepAsync(ct, e, a), (o, m) => o.Gathering = m, HoldGatherings),
+            c => c.Gathering is not null, (s, ct, e, a) => s.Config.Gathering!.StepAsync(a, ct, e), (o, m) => o.Gathering = m, HoldGatherings),
         E("ideoligion", O, PlannerPriority.Maintenance, [ActionKind.IdeoligionReform], SectionsRituals,
-            c => c.Ideoligion is not null, (s, ct, e, a) => s.Config.Ideoligion!.StepAsync(ct, e, a), (o, m) => o.Ideoligion = m, ImproveIdeoligion),
+            c => c.Ideoligion is not null, (s, ct, e, a) => s.Config.Ideoligion!.StepAsync(a, ct, e), (o, m) => o.Ideoligion = m, ImproveIdeoligion),
         E("permits", O, PlannerPriority.Maintenance, [ActionKind.PawnSettings], SectionsBuilding,
-            c => c.Permits is not null, (s, ct, e, a) => s.Config.Permits!.StepAsync(ct, e, a), (o, m) => o.Permits = m, MaintainPermits),
+            c => c.Permits is not null, (s, ct, e, a) => s.Config.Permits!.StepAsync(a, ct, e), (o, m) => o.Permits = m, MaintainPermits),
         E("homeCoverage", O, PlannerPriority.Comfort, [ActionKind.Area], SectionsBuilding,
-            c => c.HomeCoverage is not null, (s, ct, e, a) => s.Config.HomeCoverage!.StepAsync(ct, e, a), (o, m) => o.HomeCoverage = m, MaintainHomeCoverage),
+            c => c.HomeCoverage is not null, (s, ct, e, a) => s.Config.HomeCoverage!.StepAsync(a, ct, e), (o, m) => o.HomeCoverage = m, MaintainHomeCoverage),
         E("stoneShell", O, PlannerPriority.Comfort, [ActionKind.Building, ActionKind.WallRemoval], SectionsBuilding,
-            c => c.StoneShell is not null, (s, ct, e, a) => s.Config.StoneShell!.StepAsync(ct, e, a), (o, m) => o.StoneShell = m, MaintainStoneShell),
+            c => c.StoneShell is not null, (s, ct, e, a) => s.Config.StoneShell!.StepAsync(a, ct, e), (o, m) => o.StoneShell = m, MaintainStoneShell),
         E("stockpiles", O, PlannerPriority.Foothold, [ActionKind.ZoneCellEdit, ActionKind.StockpilePatch, ActionKind.ZoneDelete, ActionKind.ZoneCreate, ActionKind.Building], SectionsBuilding,
-            c => c.Stockpiles is not null, (s, ct, e, a) => s.Config.Stockpiles!.StepAsync(ct, e, a), (o, m) => o.Stockpiles = m, MaintainStockpiles),
+            c => c.Stockpiles is not null, (s, ct, e, a) => s.Config.Stockpiles!.StepAsync(a, ct, e), (o, m) => o.Stockpiles = m, MaintainStockpiles),
         E("defenseLayout", O, PlannerPriority.Maintenance, [ActionKind.Building, ActionKind.RecoveryService, ActionKind.CoverClearance, ActionKind.FoundationRemoval], SectionsBuilding,
-            c => c.DefenseLayout is not null, (s, ct, e, a) => s.Config.DefenseLayout!.StepAsync(ct, e, a), (o, m) => o.DefenseLayout = m, EnsureDefensiveLayout),
+            c => c.DefenseLayout is not null, (s, ct, e, a) => s.Config.DefenseLayout!.StepAsync(a, ct, e), (o, m) => o.DefenseLayout = m, EnsureDefensiveLayout),
     ];
 
     /// <summary>
@@ -369,13 +369,13 @@ internal static class ClockPlannerCatalog
     {
         "undraft", "work", "supplies", "sleeping", "sleepingUpkeep",
         "hospital", "tend", "rescue", "recovery", "populationCustody",
-        "fireSafety", "dialog", PlannerQueue.DefensePlanner, "stockpiles",
+        "fireSafety", "dialog", DefensePlanner, "stockpiles",
     };
 
     /// <summary>Reports whether the review binds an active MaintainHousing goal still in deficit on its starter-shelter phase.</summary>
     public static bool ShelterOwed(RoundsResult review)
     {
-        if (review.Review.Latches.Housing != HousingLatch.Shelter)
+        if (review.Review.Latches.Housing != Policy.Phase.HousingShelter)
         {
             return false;
         }
@@ -434,7 +434,7 @@ public sealed partial class ClockScheduler
     /// every planner outside its allowlist is queued as a hold, so its cadence and filing stay those of a planner
     /// that ran and refused.
     /// </summary>
-    internal List<string> QueuePlanners(CancellationToken ct, CancellationToken epoch, PlannerWave wave, StepArbiter arbiter, Func<PlannerEntry, bool>? pick, bool startup, RoundsResult? review)
+    internal List<string> QueuePlanners(PlannerWave wave, StepArbiter arbiter, Func<PlannerEntry, bool>? pick, bool startup, RoundsResult? review, CancellationToken ct, CancellationToken epoch)
     {
         var queued = new List<string>();
         foreach (var catalogEntry in _catalog)
@@ -453,7 +453,7 @@ public sealed partial class ClockScheduler
                 entry = entry with { Class = PlannerClass.Critical };
             }
             queued.Add(entry.Name);
-            wave.Queue(this, epoch, arbiter, entry);
+            wave.Queue(this, arbiter, entry, epoch);
         }
         return queued;
     }

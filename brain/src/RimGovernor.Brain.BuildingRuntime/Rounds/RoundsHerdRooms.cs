@@ -18,8 +18,8 @@ internal static partial class BuildingRuntimePackage
         var usable = true;
         foreach (var name in new[] { facts.Shapes.Furniture.AnimalSpot, facts.Shapes.Furniture.AnimalBed })
         {
-            var (d, found) = AnimalContainmentDefinition(facts.Definitions, name);
-            if (!found)
+            var d = AnimalContainmentDefinition(facts.Definitions, name);
+            if (d is null)
             {
                 throw new ControlException($"herdFurniture: {name} was not read from the native catalog");
             }
@@ -51,8 +51,8 @@ internal static partial class BuildingRuntimePackage
         var heater = facts.Shapes.Furniture.Heater;
         if (heater.Length != 0)
         {
-            var (d, found) = AnimalContainmentDefinition(facts.Definitions, heater);
-            if (!found)
+            var d = AnimalContainmentDefinition(facts.Definitions, heater);
+            if (d is null)
             {
                 throw new ControlException($"herdFurniture: {heater} was not read from the native catalog");
             }
@@ -64,8 +64,8 @@ internal static partial class BuildingRuntimePackage
             }
         }
 
-        var (marker, markerFound) = AnimalContainmentDefinition(facts.Definitions, PolicyFunctions.PenMarkerDefinition);
-        if (markerFound)
+        var marker = AnimalContainmentDefinition(facts.Definitions, PolicyFunctions.PenMarkerDefinition);
+        if (marker is not null)
         {
             var sizeKnown = marker.Size.TryGetValue(out var size);
             if (marker.Available.TryGetValue(out var available) && available && sizeKnown && size.Width >= 1 && size.Height >= 1)
@@ -135,9 +135,9 @@ internal static partial class BuildingRuntimePackage
 
 public sealed partial class RoundsAnimalContainmentPlanner
 {
-    internal RoundsAnimalContainmentResult StageHerdRooms(CancellationToken call, CancellationToken epoch, ControlState state, Rounds review, StandardState goal, Identity expected, Fact<IReadOnlyList<ConstructionClaim>> claims)
+    internal async Task<RoundsAnimalContainmentResult> StageHerdRoomsAsync(ControlState state, Rounds review, StandardState goal, Identity expected, Fact<EquatableArray<ConstructionClaim>> claims, CancellationToken call, CancellationToken epoch)
     {
-        var reading = Reviewer.ObserveRooms(call, Reviewer.Native, expected, claims, HerdDefinitions);
+        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, claims, HerdDefinitions, call).ConfigureAwait(false);
         var (step, known) = HerdStepOf(reading.Projection);
         if (!known)
         {
@@ -153,28 +153,28 @@ public sealed partial class RoundsAnimalContainmentPlanner
         switch (step.Kind)
         {
             case HerdStepKind.Medical:
-                result = MarkHerdBedMedical(call, epoch, state, goal, reading.Projection, step.Bed);
+                result = await MarkHerdBedMedicalAsync(state, goal, reading.Projection, step.Bed, call, epoch).ConfigureAwait(false);
                 break;
             default:
                 var inner = step.Room.Region.Bounds();
-                var stock = NewPackedStock(Reviewer.Native, Boundary.Identity(state.Snapshot));
-                result = Building.ReconcileRoom(call, epoch, state, review, goal, reading, stock, new RoomReconcile
+                var stock = new PackedStock(_reviewer.Native, Boundary.Identity(state.Snapshot));
+                result = await _building.ReconcileRoomAsync(state, review, goal, reading, stock, new RoomReconcile
                 {
                     Room = step.Room,
                     Template = step.Template,
                     Name = $"herd-{inner.X}-{inner.Z}",
-                    Reason = step.Role.WireName(),
-                });
+                    Reason = Wire.Name(step.Role),
+                }, call, epoch).ConfigureAwait(false);
                 break;
         }
 
         return new RoundsAnimalContainmentResult { Verdict = result.Verdict };
     }
 
-    internal RoundsBuildingResult MarkHerdBedMedical(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, ColonyProjection facts, string bed)
+    internal async Task<RoundsBuildingResult> MarkHerdBedMedicalAsync(ControlState state, StandardState goal, ColonyProjection facts, string bed, CancellationToken call, CancellationToken epoch)
     {
-        var p = Reviewer.Player;
-        if (Reviewer.Native is not IRoundsHospitalSource native)
+        var p = _reviewer.Player;
+        if (_reviewer.Native is not IRoundsHospitalSource native)
         {
             throw new ControlException("markHerdBedMedical: the native source cannot read bed use");
         }
@@ -182,14 +182,14 @@ public sealed partial class RoundsAnimalContainmentPlanner
         var method = new MethodId("herd-medical-" + bed);
         try
         {
-            p.Journal.LoadMethod(call, goal.Standard.Id, goal.Standard.Episode, method);
+            p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
             return new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "herd_bed_medical_method") };
         }
         catch (NotFoundException)
         {
         }
 
-        var (target, _) = native.ReadBedUseTarget(call, Boundary.Identity(state.Snapshot), bed);
+        var (target, _) = await native.ReadBedUseTargetAsync(Boundary.Identity(state.Snapshot), bed, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(target.Context, state.Snapshot);
@@ -199,7 +199,7 @@ public sealed partial class RoundsAnimalContainmentPlanner
             throw new ControlException("markHerdBedMedical: stale bed read", e);
         }
 
-        if (target.Context.Tick < facts.Identity.Tick.Value)
+        if ((target.Context?.Tick ?? 0) < facts.Identity.Tick.Value)
         {
             throw new ControlException("markHerdBedMedical: stale bed read");
         }
@@ -210,7 +210,7 @@ public sealed partial class RoundsAnimalContainmentPlanner
         }
 
         var patch = BedUse.NewBedMedical(bed, true);
-        p.CommitBedPatch(call, epoch, state, goal, method, patch, null);
+        p.CommitBedPatch(state, goal, method, patch, null, call, epoch);
         return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted };
     }
 }

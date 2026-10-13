@@ -23,7 +23,7 @@ internal static partial class BuildingRuntimePackage
         var output = new List<Pol.PackedSculpture>();
         foreach (var item in items)
         {
-            if (!facts.SculptureSize(item.InnerDef).Ok)
+            if (!facts.SculptureSize(item.InnerDef, out _))
             {
                 continue;
             }
@@ -34,7 +34,7 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>SaleSculptures over a routine projection and the packed items read; null when a room input is unknown.</summary>
-    internal static HashSet<string>? SaleSculpturesOf(CancellationToken ct, IPackedSource native, C.Identity identity, Observation.ColonyProjection facts)
+    internal static async Task<HashSet<string>?> SaleSculpturesOfAsync(IPackedSource native, C.Identity identity, Observation.ColonyProjection facts, CancellationToken ct)
     {
         var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
         var rk = facts.Rooms.TryGetValue(out var rooms);
@@ -44,7 +44,7 @@ internal static partial class BuildingRuntimePackage
         {
             return null;
         }
-        var (items, _) = native.ReadPackedItems(ct, identity, PackedSculptureDefinition);
+        var items = await native.ReadPackedItemsAsync(identity, PackedSculptureDefinition, ct).ConfigureAwait(false);
         facts.TechTier.TryGetValue(out var tier);
         return SaleSculptures(obs!, RoomQualityTargets(obs!, traits, tier, facts.Impressiveness), FurnitureRooms(rooms!, census, facts.Cells), PackedSculptures(items, facts.Facts.Items), facts.Facts.Items);
     }
@@ -53,7 +53,7 @@ internal static partial class BuildingRuntimePackage
     /// The review's shed_art input: the unreserved packed art count, read only while the wealth headroom is
     /// known and negative (unknown otherwise, so the need adds nothing).
     /// </summary>
-    internal static Fact<long> ReviewSaleArt(CancellationToken ct, object source, C.Identity identity, Observation.ColonyProjection facts)
+    internal static async Task<Fact<long>> ReviewSaleArtAsync(object source, C.Identity identity, Observation.ColonyProjection facts, CancellationToken ct)
     {
         var native = source as IPackedSource;
         var hk = facts.Facts.WealthBudget().TryGetValue(out var h);
@@ -65,7 +65,7 @@ internal static partial class BuildingRuntimePackage
         {
             return Unknown<long>();
         }
-        var sale = SaleSculpturesOf(ct, native, identity, facts);
+        var sale = await SaleSculpturesOfAsync(native, identity, facts, ct).ConfigureAwait(false);
         if (sale is null)
         {
             return Unknown<long>();
@@ -81,7 +81,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// installed (a RelocateIntent on the packed item's inner building) on free floor in the room, once per
     /// Episode. due is false when the lever has nothing to do.
     /// </summary>
-    internal (RoundsBuildingResult Result, bool Due) SculptBedroom(CancellationToken call, CancellationToken epoch, PackedStock stock, ControlState state, Sto.StandardState goal, Observation.RoundsReading reading)
+    internal async Task<(RoundsBuildingResult Result, bool Due)> SculptBedroomAsync(PackedStock stock, ControlState state, Sto.StandardState goal, Observation.RoundsReading reading, CancellationToken call, CancellationToken epoch)
     {
         var none = (new RoundsBuildingResult(), false);
         var facts = reading.Projection;
@@ -94,8 +94,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             return none;
         }
         facts.TechTier.TryGetValue(out var tier);
-        var (items, ok) = stock.Items(call, PackedSculptureDefinition);
-        if (!ok)
+        if (await stock.ItemsAsync(PackedSculptureDefinition, call).ConfigureAwait(false) is not { } items)
         {
             return none;
         }
@@ -114,7 +113,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         var method = new MethodId("bedroom-sculpture-install-" + DigestHex(step.Packed, 8));
         try
         {
-            p.Journal.LoadOwnerMethod(call, goal, method);
+            p.Journal.LoadOwnerMethod(goal, method, call);
             return (new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "sculpture_install") }, true);
         }
         catch (Sto.NotFoundException)
@@ -130,7 +129,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             throw new ControlException("sculptBedroom: p.session.State() != state");
         }
-        p.Journal.CommitOwnerMethod(call, goal, method, "", plan);
+        p.Journal.CommitOwnerMethod(goal, method, "", plan, call);
         return (new RoundsBuildingResult { Verdict = BuildingReasonAdmitted }, true);
     }
 }
@@ -143,15 +142,15 @@ public sealed partial class RoundsTradePlanner
     /// room inputs come from the routine read the install lever uses. Null (no art sale) when the source
     /// cannot read packed items or a room input is unknown.
     /// </summary>
-    internal HashSet<string>? SaleArt(CancellationToken call, C.Identity identity, GenerationSnapshot snapshot)
+    internal async Task<HashSet<string>?> SaleArtAsync(C.Identity identity, GenerationSnapshot snapshot, CancellationToken call)
     {
         if (Native is not IPackedSource native)
         {
             return null;
         }
-        var expected = StepScope(call, Reviewer.Native);
-        var claims = Reviewer.Player.Journal.ConstructionClaims(call, snapshot, expected.Tick);
-        var read = Reviewer.ObserveRooms(call, Reviewer.Native, expected, claims);
-        return SaleSculpturesOf(call, native, identity, read.Projection);
+        var expected = await StepScopeAsync(Reviewer.Native, call).ConfigureAwait(false);
+        var claims = Reviewer.Player.Journal.ConstructionClaims(snapshot, expected.Tick, call);
+        var read = await Reviewer.ObserveRoomsAsync(Reviewer.Native, expected, claims, call).ConfigureAwait(false);
+        return await SaleSculpturesOfAsync(native, identity, read.Projection, call).ConfigureAwait(false);
     }
 }

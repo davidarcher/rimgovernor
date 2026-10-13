@@ -189,3 +189,15 @@ public static partial class BridgeFunctions
         return tracks;
     }
 }
+
+public static partial class BridgeFunctions
+{
+    /// <summary>Go's <c>validateDefenseRegion</c>: whether <paramref name="region"/> is a non-inverted rectangle on the defense map.</summary>
+    public static bool IsValidDefenseRegion(CellRect region) =>
+        region.Min.X >= 0
+        && region.Min.Z >= 0
+        && region.Max.X >= region.Min.X
+        && region.Max.Z >= region.Min.Z
+        && region.Max.X < MaxDefenseSiteExtent
+        && region.Max.Z < MaxDefenseSiteExtent;
+}

@@ -9,22 +9,18 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// medicine and resource stock the need is re-measured from, and the session-scoped sheet each decision is made
 /// from. A phase is not previewed: native judges it when it applies, and a refusal fails its method.
 /// </summary>
-public interface IRoundsTradeSource
+public interface IRoundsTradeSource : Observation.IColonySource
 {
-    (ConstructionDeficitRead Read, BridgeResult Result) ReadConstructionDeficits(CancellationToken ct, C.Identity identity);
+    Task<(ConstructionDeficitRead Read, BridgeResult Result)> ReadConstructionDeficitsAsync(C.Identity identity, CancellationToken ct);
 
-    (ObservationsPb.ColonyFactsReply Reply, BridgeResult Result) ReadColonyFacts(CancellationToken ct, C.Identity identity, bool full);
+    Task<(TradersRead Read, BridgeResult Result)> ListTradersAsync(C.Identity identity, CancellationToken ct);
 
-    Tables FrameTables(CancellationToken ct, C.Identity identity);
+    Task<(TradeSessionRead Read, BridgeResult Result)> ReadTradeSessionAsync(C.Identity identity, CancellationToken ct);
 
-    (TradersRead Read, BridgeResult Result) ListTraders(CancellationToken ct, C.Identity identity);
-
-    (TradeSessionRead Read, BridgeResult Result) ReadTradeSession(CancellationToken ct, C.Identity identity);
-
-    (TradeSheetRead Read, BridgeResult Result) ReadTradeSheet(CancellationToken ct, C.Identity identity);
+    Task<(TradeSheetRead Read, BridgeResult Result)> ReadTradeSheetAsync(C.Identity identity, CancellationToken ct);
 }
 
-public sealed class RoundsTradeResult
+public sealed class RoundsTradeResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 
@@ -85,7 +81,7 @@ public sealed partial class RoundsTradePlanner
 
     private static bool Failed(TradePhase p) => p.Found && !p.Open && !p.Completed;
 
-    private TradePhase Phase(CancellationToken ct, Sto.IncidentState incident, TradeOperationKind kind, string trader)
+    private TradePhase Phase(Sto.IncidentState incident, TradeOperationKind kind, string trader, CancellationToken ct)
     {
         var output = new TradePhase(false, false, false, 0, []);
         var plans = new List<PlanId>();
@@ -98,11 +94,11 @@ public sealed partial class RoundsTradePlanner
                 return output with { Plans = plans };
             }
             plans.Add(method.Plan);
-            var plan = Reviewer.Player.Journal.LoadPlan(ct, method.Plan);
+            var plan = Reviewer.Player.Journal.LoadPlan(method.Plan, ct);
             var found = false;
             foreach (var progress in plan.Progress)
             {
-                if (progress.Action.IsTrade)
+                if (progress.Action.Trade is not null)
                 {
                     output = new TradePhase(true, StorePackage.PlanOpen(plan), progress.View.Stage == Stage.Completed, attempt, plans.ToArray());
                     found = true;
@@ -120,29 +116,29 @@ public sealed partial class RoundsTradePlanner
     /// walk left and the refusal budget bars another, its accept applied or was refused, or an end phase exists
     /// and is no longer open. Engaged is whether native holds a walk or session with the trader.
     /// </summary>
-    private bool TradeSettled(CancellationToken ct, Sto.IncidentState incident, string trader, bool engaged, GenerationSnapshot world)
+    private bool TradeSettled(Sto.IncidentState incident, string trader, bool engaged, GenerationSnapshot world, CancellationToken ct)
     {
-        var open = Phase(ct, incident, TradeOperationKind.TradeOpen, trader);
+        var open = Phase(incident, TradeOperationKind.Open, trader, ct);
         if (TradeOpenSpent(open, engaged))
         {
             // An open that ended is walked again until native's refusals bar it: a permanent one for good, a
             // transient one until the world changes.
-            var (_, ok) = AdmitSubject(ct, Reviewer.Player.Journal, TradeOpenSubject(trader), open.Plans, world);
+            var (_, ok) = AdmitSubject(Reviewer.Player.Journal, TradeOpenSubject(trader), open.Plans, world, ct);
             if (!ok)
             {
                 return true;
             }
         }
-        var accept = Phase(ct, incident, TradeOperationKind.TradeAccept, trader);
+        var accept = Phase(incident, TradeOperationKind.Accept, trader, ct);
         if (TradeAcceptSpent(accept))
         {
             return true;
         }
-        var end = Phase(ct, incident, TradeOperationKind.TradeEnd, trader);
+        var end = Phase(incident, TradeOperationKind.End, trader, ct);
         return end.Found && !end.Open;
     }
 
-    internal RoundsTradeResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsTradeResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var state = p.Session.State();
@@ -159,50 +155,50 @@ public sealed partial class RoundsTradePlanner
         {
             return new RoundsTradeResult { Verdict = BuildingReasonNoReview };
         }
-        var (missionResult, missionHandled) = Mission(call, epoch, state, review, arbiter);
+        var (missionResult, missionHandled) = await MissionAsync(state, review, arbiter, call, epoch).ConfigureAwait(false);
         if (missionHandled)
         {
             return missionResult;
         }
-        var (requestResult, requestHandled) = Request(call, epoch, state, review);
+        var (requestResult, requestHandled) = await RequestAsync(state, review, call, epoch).ConfigureAwait(false);
         if (requestHandled)
         {
             return requestResult;
         }
-        var (incident, found) = IncidentDeficit(call, p.Journal, review, TradeWithCaravan);
+        var (incident, found) = IncidentDeficit(p.Journal, review, TradeWithCaravan, call);
         if (!found)
         {
             return new RoundsTradeResult { Verdict = BuildingReasonNoDeficit };
         }
-        if (IncidentOpenWork(call, p.Journal, incident))
+        if (IncidentOpenWork(p.Journal, incident, call))
         {
             return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
         }
         var started = Reviewer.Clock.Now();
         var identity = Boundary.Identity(state.Snapshot);
-        var (census, _) = Native.ListTraders(call, identity);
+        var (census, _) = await Native.ListTradersAsync(identity, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(census.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            throw new ControlException("step: err != nil || census.Context.GetTick() < int64(review.Tick)", e);
+            throw new ControlException($"step: err != nil || census.Context.GetTick() < int64(review.Tick): {e.Message}");
         }
-        if (census.Context.Tick < (long)review.Tick.Value)
+        if ((census.Context?.Tick ?? 0) < (long)review.Tick.Value)
         {
             throw new ControlException("step: err != nil || census.Context.GetTick() < int64(review.Tick)");
         }
-        var (session, _) = Native.ReadTradeSession(call, identity);
+        var (session, _) = await Native.ReadTradeSessionAsync(identity, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(session.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            throw new ControlException("step: err != nil || session.Context.GetTick() < int64(review.Tick)", e);
+            throw new ControlException($"step: err != nil || session.Context.GetTick() < int64(review.Tick): {e.Message}");
         }
-        if (session.Context.Tick < (long)review.Tick.Value)
+        if ((session.Context?.Tick ?? 0) < (long)review.Tick.Value)
         {
             throw new ControlException("step: err != nil || session.Context.GetTick() < int64(review.Tick)");
         }
@@ -211,7 +207,7 @@ public sealed partial class RoundsTradePlanner
         var traders = new List<Pol.TraderFacts>(census.Traders.Count);
         foreach (var row in census.Traders)
         {
-            traders.Add(new Pol.TraderFacts { Participant = row.Participant, Id = row.Id, Kind = row.Kind, Faction = row.Faction, CanTrade = row.CanTrade, Travelling = row.Travelling, GoodsStacks = row.GoodsStacks });
+            traders.Add(new Pol.TraderFacts { Participant = row.Participant, ID = row.Id, Kind = row.Kind, Faction = row.Faction, CanTrade = row.CanTrade, Travelling = row.Travelling, GoodsStacks = row.GoodsStacks });
         }
         var arriving = false;
         foreach (var row in census.Traders)
@@ -221,23 +217,27 @@ public sealed partial class RoundsTradePlanner
             {
                 continue;
             }
-            if (TradeSettled(call, incident, row.Id, true, state.Snapshot))
+            if (TradeSettled(incident, row.Id, true, state.Snapshot, call))
             {
                 continue;
             }
             if (!session.Open)
             {
-                return new RoundsTradeResult { Verdict = BuildingReasonExistingWork, Trader = row.Id, Phase = TradeOperationKind.TradeOpen, NativeWorkTicks = TradeWalkTicks };
+                return new RoundsTradeResult { Verdict = BuildingReasonExistingWork, Trader = row.Id, Phase = TradeOperationKind.Open, NativeWorkTicks = TradeWalkTicks };
             }
-            return Drive(call, epoch, state, incident, review, row.Id, traders, new Domain.PawnId(session.Negotiator), started);
+            return await DriveAsync(state, incident, review, row.Id, traders, new Domain.PawnId(session.Negotiator), started, call, epoch).ConfigureAwait(false);
         }
-        var settled = new Dictionary<string, bool>();
+        var settled = new HashSet<string>();
         var waiting = arriving;
         foreach (var row in census.Traders)
         {
-            settled[row.Id] = TradeSettled(call, incident, row.Id, row.Id == session.Trader, state.Snapshot);
+            var over = TradeSettled(incident, row.Id, row.Id == session.Trader, state.Snapshot, call);
+            if (over)
+            {
+                settled.Add(row.Id);
+            }
             // A settled caravan is waited out: the occurrence closes when it leaves, and only game time takes it away.
-            waiting = waiting || (settled[row.Id] && row.CanTrade);
+            waiting = waiting || (over && row.CanTrade);
         }
         var (trader, ok) = Pol.PolicyFunctions.SelectTrader(traders, settled);
         if (!ok)
@@ -252,10 +252,10 @@ public sealed partial class RoundsTradePlanner
         {
             return new RoundsTradeResult { Verdict = NoWorker("negotiator") };
         }
-        var negotiator = Negotiator(call, state, review, census.Negotiators);
-        var open = Phase(call, incident, TradeOperationKind.TradeOpen, trader.Id);
+        var negotiator = await NegotiatorAsync(state, review, census.Negotiators, call).ConfigureAwait(false);
+        var open = Phase(incident, TradeOperationKind.Open, trader.ID, call);
         var attempt = open.Found ? open.Attempt + 1 : 0;
-        return Open(call, epoch, state, incident, trader.Id, negotiator, attempt, arbiter, started, trader.Participant);
+        return await OpenAsync(state, incident, trader.ID, negotiator, attempt, arbiter, started, trader.Participant, call, epoch).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -263,21 +263,20 @@ public sealed partial class RoundsTradePlanner
     /// as eligible (alive, undrafted, able to talk). Native's own first row (best trade price improvement) stands
     /// when the roster is unknown or no profile qualifies -- native has already vetted every listed row.
     /// </summary>
-    private NegotiatorRead Negotiator(CancellationToken call, ControlState state, Sto.Rounds review, IReadOnlyList<NegotiatorRead> eligible)
+    private async Task<NegotiatorRead> NegotiatorAsync(ControlState state, Sto.Rounds review, IReadOnlyList<NegotiatorRead> eligible, CancellationToken call)
     {
-        var expected = StepScope(call, Reviewer.Native);
+        var expected = await StepScopeAsync(Reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("negotiator: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
-        var read = Reviewer.ObserveOwned(call, (Observation.IRoundsSource)Reviewer.Native, expected, Unknown<IReadOnlyList<Pol.ConstructionClaim>>());
+        var read = await Reviewer.ObserveOwnedAsync((Observation.IRoundsSource)Reviewer.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), call).ConfigureAwait(false);
         if (!read.Projection.WorkPawns.TryGetValue(out var pawns))
         {
             return eligible[0];
         }
         var ids = eligible.Select(row => new Pol.PawnId(row.Id)).ToList();
-        var (chosen, ok) = Pol.PolicyFunctions.TraderFor(Pol.PolicyFunctions.Among(Pol.PolicyFunctions.Profiles(pawns), ids));
-        if (!ok)
+        if (Pol.PolicyFunctions.TraderFor(Pol.PolicyFunctions.Among(Pol.PolicyFunctions.Profiles(pawns), ids)) is not { } chosen)
         {
             return eligible[0];
         }
@@ -295,58 +294,55 @@ public sealed partial class RoundsTradePlanner
     /// Commits the Open phase: the census already vetted the negotiator's eligibility and the trader's
     /// tradeability, and native checks reachability when the open applies and walks the negotiator over.
     /// </summary>
-    private RoundsTradeResult Open(CancellationToken call, CancellationToken epoch, ControlState state, Sto.IncidentState incident, string trader, NegotiatorRead negotiator, int attempt, StepArbiter arbiter, DateTimeOffset started, TradeParticipant participant)
+    private async Task<RoundsTradeResult> OpenAsync(ControlState state, Sto.IncidentState incident, string trader, NegotiatorRead negotiator, int attempt, StepArbiter arbiter, DateTimeOffset started, TradeParticipant participant, CancellationToken call, CancellationToken epoch)
     {
-        if (!arbiter.TryClaim(null, "pawn:" + negotiator.Id))
+        if (!arbiter.TryClaim([], "pawn:" + negotiator.Id))
         {
             return new RoundsTradeResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "negotiator_claim") };
         }
         var value = Trade.NewTradeOpen(trader, new Domain.PawnId(negotiator.Id), false);
-        if (participant.Kind != "")
-        {
-            value = value.WithParticipant(participant);
-        }
-        return Commit(call, epoch, state, incident, TradeOperationKind.TradeOpen, attempt, trader, value, started);
+        value = value.WithParticipant(participant);
+        return await CommitAsync(state, incident, TradeOperationKind.Open, attempt, trader, value, started, call, epoch).ConfigureAwait(false);
     }
 
     /// <summary>Advances one caravan's open session: stage the selected lines from its sheet, confirm and accept them, or cancel.</summary>
-    private RoundsTradeResult Drive(CancellationToken call, CancellationToken epoch, ControlState state, Sto.IncidentState incident, Sto.Rounds review, string trader, IReadOnlyList<Pol.TraderFacts> traders, Domain.PawnId negotiator, DateTimeOffset started)
+    private async Task<RoundsTradeResult> DriveAsync(ControlState state, Sto.IncidentState incident, Sto.Rounds review, string trader, IReadOnlyList<Pol.TraderFacts> traders, Domain.PawnId negotiator, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
-        var lines = Phase(call, incident, TradeOperationKind.TradeSetLines, trader);
-        var end = Phase(call, incident, TradeOperationKind.TradeEnd, trader);
+        var lines = Phase(incident, TradeOperationKind.SetLines, trader, call);
+        var end = Phase(incident, TradeOperationKind.End, trader, call);
         if (end.Found)
         {
             // An end that failed leaves native holding the session; there is nothing further to propose, and
             // TradeSettled already reads it as over.
-            return new RoundsTradeResult { Verdict = Refuse(Pol.Cause.RetriesSpent, "trade_end", ""), Trader = trader, Phase = TradeOperationKind.TradeEnd };
+            return new RoundsTradeResult { Verdict = Refuse(Pol.Cause.RetriesSpent, "trade_end", ""), Trader = trader, Phase = TradeOperationKind.End };
         }
-        var accept = Phase(call, incident, TradeOperationKind.TradeAccept, trader);
+        var accept = Phase(incident, TradeOperationKind.Accept, trader, call);
         if (Failed(accept))
         {
-            return Cancel(call, epoch, state, incident, trader, negotiator, started);
+            return await CancelAsync(state, incident, trader, negotiator, started, call, epoch).ConfigureAwait(false);
         }
         var identity = Boundary.Identity(state.Snapshot);
-        var (sheet, _) = Native.ReadTradeSheet(call, identity);
+        var (sheet, _) = await Native.ReadTradeSheetAsync(identity, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(sheet.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            throw new ControlException("drive: err != nil", e);
+            throw new ControlException($"drive: err != nil: {e.Message}");
         }
         if (sheet.Trader != trader || sheet.Negotiator != negotiator.Value || sheet.GiftMode || !sheet.CanTradeNow)
         {
-            return Cancel(call, epoch, state, incident, trader, negotiator, started);
+            return await CancelAsync(state, incident, trader, negotiator, started, call, epoch).ConfigureAwait(false);
         }
-        RecordOffers(call, state, sheet, TraderStacks(traders, trader));
+        await RecordOffersAsync(state, sheet, TraderStacks(traders, trader), call).ConfigureAwait(false);
         var staged = TradeStagedLines(sheet);
         var phase = TradeSessionPhase(lines, staged.Count);
-        if (phase == TradeOperationKind.TradeEnd)
+        if (phase == TradeOperationKind.End)
         {
-            return Cancel(call, epoch, state, incident, trader, negotiator, started);
+            return await CancelAsync(state, incident, trader, negotiator, started, call, epoch).ConfigureAwait(false);
         }
-        var (economic, facts, capacity) = Selection(call, state, review, sheet, trader, traders);
+        var (economic, facts, capacity) = await SelectionAsync(state, review, sheet, trader, traders, call).ConfigureAwait(false);
         Pol.TradeSelection selection;
         if (facts.Favor)
         {
@@ -369,54 +365,54 @@ public sealed partial class RoundsTradePlanner
             var (pawn, pawnOk) = Pol.PolicyFunctions.SelectPawnPurchase(capacity, facts.Rows, facts.ColonySilver, selection.SilverReserve, selection.Selected);
             if (pawnOk)
             {
-                selection.Selected = [.. selection.Selected, pawn];
+                selection = selection with { Selected = [.. selection.Selected, pawn] };
             }
             // A wanted animal is a second purchase line under the same reserve; native needs no allow_pawns to buy a pawn row.
             var (animal, animalOk) = Pol.PolicyFunctions.SelectAnimalPurchase(facts.HerdWants, facts.Rows, facts.ColonySilver, selection.SilverReserve, selection.Selected);
             if (animalOk)
             {
-                selection.Selected = [.. selection.Selected, animal];
+                selection = selection with { Selected = [.. selection.Selected, animal] };
             }
         }
-        if (phase == TradeOperationKind.TradeSetLines)
+        if (phase == TradeOperationKind.SetLines)
         {
             if (selection.Refused || selection.Selected.Count == 0)
             {
-                return Cancel(call, epoch, state, incident, trader, negotiator, started);
+                return await CancelAsync(state, incident, trader, negotiator, started, call, epoch).ConfigureAwait(false);
             }
             // Selling an animal is a pawn give-away native refuses without allow_pawns; only a selected pawn sale asks for it.
             var pawnRows = new Dictionary<string, bool>();
             foreach (var row in facts.Rows)
             {
-                pawnRows[row.LineId] = row.PawnKnown && row.Pawn;
+                pawnRows[row.LineID] = row.PawnKnown && row.Pawn;
             }
             var sellsPawn = false;
             foreach (var line in selection.Selected)
             {
-                sellsPawn = sellsPawn || (line.Count < 0 && pawnRows.GetValueOrDefault(line.LineId));
+                sellsPawn = sellsPawn || (line.Count < 0 && pawnRows.GetValueOrDefault(line.LineID));
             }
             var setLines = Trade.NewTradeSetLines(trader, negotiator, TradeLinesOf(selection), sellsPawn);
-            return Commit(call, epoch, state, incident, TradeOperationKind.TradeSetLines, 0, trader, setLines, started);
+            return await CommitAsync(state, incident, TradeOperationKind.SetLines, 0, trader, setLines, started, call, epoch).ConfigureAwait(false);
         }
         // Lines are staged: re-run the same selection over the live sheet and require an exact match, then
         // native's affordability and the silver reserve, before accepting. Any drift cancels.
         if (selection.Refused || !SameTradeLines(TradeLinesOf(selection), staged) || !sheet.ColonyCanAfford || !sheet.TraderHasSilver || sheet.DealSignature == "" || (!facts.Favor && !sheet.BalanceKnown))
         {
-            return Cancel(call, epoch, state, incident, trader, negotiator, started);
+            return await CancelAsync(state, incident, trader, negotiator, started, call, epoch).ConfigureAwait(false);
         }
         if (!facts.Favor && (double)facts.ColonySilver + sheet.Balance < (double)selection.SilverReserve)
         {
-            return Cancel(call, epoch, state, incident, trader, negotiator, started);
+            return await CancelAsync(state, incident, trader, negotiator, started, call, epoch).ConfigureAwait(false);
         }
         var value = Trade.NewTradeAccept(trader, negotiator, sheet.DealSignature, false, false);
-        return Commit(call, epoch, state, incident, TradeOperationKind.TradeAccept, 0, trader, value, started);
+        return await CommitAsync(state, incident, TradeOperationKind.Accept, 0, trader, value, started, call, epoch).ConfigureAwait(false);
     }
 
     /// <summary>Re-measures the need from a fresh colony read and turns it, with the live sheet, into SelectTrade's inputs.</summary>
-    private (TradeEconomicPolicy Economic, Pol.TradeSelectionFacts Facts, bool Capacity) Selection(CancellationToken call, ControlState state, Sto.Rounds review, TradeSheetRead sheet, string trader, IReadOnlyList<Pol.TraderFacts> traders)
+    private async Task<(TradeEconomicPolicy Economic, Pol.TradeSelectionFacts Facts, bool Capacity)> SelectionAsync(ControlState state, Sto.Rounds review, TradeSheetRead sheet, string trader, IReadOnlyList<Pol.TraderFacts> traders, CancellationToken call)
     {
         var identity = Boundary.Identity(state.Snapshot);
-        var (reply, _) = Native.ReadColonyFacts(call, identity, false);
+        var (reply, _) = await Native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
         var observed = reply.Observed;
         if (observed is null)
         {
@@ -424,36 +420,39 @@ public sealed partial class RoundsTradePlanner
         }
         try
         {
-            BridgePackage.ValidateColonyFacts(observed, identity);
+            BridgeApi.ValidateColonyFacts(observed, identity);
             Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            throw new ControlException("selection: err != nil", e);
+            throw new ControlException($"selection: err != nil: {e.Message}");
         }
         // Refresh through the same projection and per-tick plan owner used by goal review; a staged trade never
         // relies on a previous tick's need.
-        var tables = Native.FrameTables(call, identity);
-        var items = Reviewer.ItemFacts(call, state.Snapshot);
-        var medicalFacts = ObservationPackage.ColonyMedicalReserve(observed, tables);
-        medicalFacts.Catalog = items;
+        var tables = await Native.FrameTablesAsync(identity, call).ConfigureAwait(false);
+        var items = await Reviewer.ItemFactsAsync(state.Snapshot, call).ConfigureAwait(false);
+        var catalog = Native is Observation.IDefinitionSource definitions
+            ? await definitions.DefinitionCatalogAsync(identity, call).ConfigureAwait(false)
+            : null;
+        var medicalFacts = ObservationPackage.ColonyMedicalReserve(observed, tables, catalog);
+        medicalFacts = medicalFacts with { Catalog = items };
         var medical = Pol.PolicyFunctions.ReviewMedicalReserve(medicalFacts, review.Latches.MedicalReserve, Reviewer.Policy.MedicalReserve);
-        var projection = ObservationPackage.DecodeColony(reply, new Observation.Identity { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map, Tick = new Tick(observed.Context.Tick) }, tables);
-        projection.Facts.Items = items;
+        var projection = ObservationPackage.DecodeColony(reply, new Observation.Identity { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map, Tick = new Tick(observed.Context.Tick) }, tables, catalog);
+        projection = projection with { Facts = projection.Facts with { Items = items } };
         var zoneNative = Native as Observation.IZonesNative;
-        ObservationPackage.FillZones(call, zoneNative, observed.Context.Identity, projection.Identity, projection);
+        projection = await ObservationPackage.FillZones(zoneNative, observed.Context.Identity, projection.Identity, projection, call).ConfigureAwait(false);
         // The food plan reads the caravans on the census as present, the session's priced by the offers just recorded from this sheet.
-        projection.Facts.Traders = Known(traders);
+        projection = projection with { Facts = projection.Facts with { Traders = Known<EquatableArray<Pol.TraderFacts>>([.. traders]) } };
         Reviewer.PlanFood(ref projection);
         var seasonal = Reviewer.Seasonal(projection.Facts);
-        var (construction, _) = Native.ReadConstructionDeficits(call, identity);
+        var (construction, _) = await Native.ReadConstructionDeficitsAsync(identity, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(construction.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            throw new ControlException("selection: err != nil", e);
+            throw new ControlException($"selection: err != nil: {e.Message}");
         }
         var floors = Pol.PolicyFunctions.RoundsTradeFloors(seasonal, construction.StillNeed);
         // MaintainResource's floors (the wood floor, shortfall edges) are the catalog's trade demand: a caravan selling one buys it.
@@ -461,9 +460,11 @@ public sealed partial class RoundsTradePlanner
         // A wealth-driven sale keeps what the review's demand retains: the stock the trade detector held the sale to.
         var retained = Reviewer.Demand.Get(state.Snapshot).Retained;
         // Restore parts no bench can fabricate are bought.
-        var (parts, benches) = SurgeryPartDemand(call, Native, identity, projection.Facts.MedicalPawns, projection.SurgeryContext());
+        var partDemand = await SurgeryPartDemandAsync(Native, identity, projection.Facts.MedicalPawns, projection.SurgeryContext(), call).ConfigureAwait(false);
+        var parts = partDemand.Parts;
+        var benches = partDemand.Benches;
         // A harvested organ sells while the silver runway is short.
-        var saleArt = SaleArt(call, identity, state.Snapshot);
+        var saleArt = await SaleArtAsync(identity, state.Snapshot, call).ConfigureAwait(false);
         // Unreserved art under negative wealth headroom is shed_art.
         var headroom = projection.Facts.WealthBudget();
         var artCount = Unknown<long>();
@@ -473,14 +474,14 @@ public sealed partial class RoundsTradePlanner
         }
         // Surplus animals sell while the silver runway is short; the race catalog is the herd plan's, the
         // catalog's race rows the projection decoded.
-        if (tables.Catalog is null)
+        if (catalog is null)
         {
             throw new ControlException("selection: no definition catalog");
         }
-        var rows = TradeSheetRowFacts(sheet.Rows, tables.Catalog);
+        var rows = TradeSheetRowFacts(sheet.Rows, catalog);
         // The plan counts the animals this trader offers as obtainable, so its wants (bought below) and its surplus (sold) agree.
         var planInput = projection.Facts.HerdPlanInput();
-        planInput.Offers = Pol.PolicyFunctions.HerdOffers(rows, projection.Facts.AnimalUpkeep.AnimalRaces);
+        planInput = planInput with { Offers = Pol.PolicyFunctions.HerdOffers(rows, projection.Facts.AnimalUpkeep.AnimalRaces) };
         var herd = Pol.PolicyFunctions.PlanHerd(planInput);
         var saleAnimals = Pol.PolicyFunctions.HerdSaleAnimals(projection.Facts.AnimalUpkeep.Animals, herd.Policy);
         var food = Pol.PolicyFunctions.RoundsTradeFood(projection.Facts, seasonal);
@@ -495,31 +496,31 @@ public sealed partial class RoundsTradePlanner
             throw new ControlException("selection: !known");
         }
         // A resource is bought only as far as the supply plan opened this trader's offer for it.
-        var planned = PlannedPurchases(call, state, review, trader);
+        var planned = await PlannedPurchasesAsync(state, review, trader, call).ConfigureAwait(false);
         need = RestrictToPlan(need, planned, Pol.PolicyFunctions.PlannedTradeNutrition(projection.Facts.FoodPlan, trader));
         var economic = Pol.PolicyFunctions.RoundsTradeTargets(projection.Facts.Items, need, rows, targets, projection.Facts.Colonists);
-        var facts = new Pol.TradeSelectionFacts { Complete = true, Rows = rows, Floors = floors, CropSurplusFloors = Pol.PolicyFunctions.CropSurplusFloors(need) };
-        (facts.ColonySilver, facts.TraderSilver, facts.SilverKnown) = TradeSheetSilver(sheet.Rows);
-        facts.MaxSilverSpend = Math.Max(0, facts.ColonySilver);
-        facts.Favor = sheet.FavorCurrency;
-        facts.FavorKeep = Pol.PolicyFunctions.FavorGoldKeep(targets, floors, retained);
-        facts.SaleArt = saleArt ?? [];
+        var (colonySilver, traderSilver, silverKnown) = TradeSheetSilver(sheet.Rows);
+        var facts = new Pol.TradeSelectionFacts { Complete = true, Rows = rows, Floors = floors, CropSurplusFloors = Pol.PolicyFunctions.CropSurplusFloors(need), ColonySilver = colonySilver, TraderSilver = traderSilver, SilverKnown = silverKnown };
+        facts = facts with { MaxSilverSpend = Math.Max(0, facts.ColonySilver) };
+        facts = facts with { Favor = sheet.FavorCurrency };
+        facts = facts with { FavorKeep = Pol.PolicyFunctions.FavorGoldKeep(targets, floors, retained) };
+        facts = facts with { SaleArt = saleArt ?? [] };
         if (facts.Favor)
         {
-            facts.FavorPrisoners = FavorPrisoners(call, state, review);
+            facts = facts with { FavorPrisoners = await FavorPrisonersAsync(state, review, call).ConfigureAwait(false) };
         }
         // Warehouse gear below the keep floors sells.
-        var claims = Reviewer.Player.Journal.ZoneClaims(call, state.Snapshot, projection.Identity.Tick);
+        var claims = Reviewer.Player.Journal.ZoneClaims(state.Snapshot, projection.Identity.Tick, call);
         var warehouses = new HashSet<string>();
         claims.TryGetValue(out var owned);
-        foreach (var z in owned ?? [])
+        foreach (var z in owned)
         {
-            if (z.Role == GeneralRole || z.Role.StartsWith(GeneralRole + ":", StringComparison.Ordinal))
+            if (z.Role == DomainConstants.GeneralRole || z.Role.StartsWith(DomainConstants.GeneralRole + ":", StringComparison.Ordinal))
             {
                 warehouses.Add(z.Id);
             }
         }
-        facts.SaleGear = Pol.PolicyFunctions.SaleGear(rows, warehouses);
+        var saleGear = Pol.PolicyFunctions.SaleGear(rows, warehouses);
         // While the silver gap is open, gear above demand sells too, cheapest first until the prices cover the
         // gap (MaintainTrade's sale path).
         if (Pol.PolicyFunctions.SilverGap(projection.Facts.Items, Known(need), projection.Facts.Silver(), projection.Facts.Colonists).TryGetValue(out var gap) && gap > 0)
@@ -529,17 +530,18 @@ public sealed partial class RoundsTradePlanner
             {
                 foreach (var id in Pol.PolicyFunctions.SaleGearSurplus(rows, warehouses, surplus, gap))
                 {
-                    facts.SaleGear.Add(id);
+                    saleGear.Add(id);
                 }
             }
         }
-        facts.HerdWants = [.. Pol.PolicyFunctions.HerdWants(herd), .. Pol.PolicyFunctions.PlannedAnimalPurchases(projection.Facts.FoodPlan, trader)];
+        facts = facts with { SaleGear = saleGear };
+        facts = facts with { HerdWants = [.. Pol.PolicyFunctions.HerdWants(herd), .. Pol.PolicyFunctions.PlannedAnimalPurchases(projection.Facts.FoodPlan, trader)] };
         if (need.SurplusAnimals > 0)
         {
-            facts.SaleAnimals = new HashSet<string>(saleAnimals.Select(id => id.Value));
+            facts = facts with { SaleAnimals = saleAnimals };
         }
         var hk = headroom.TryGetValue(out var h);
-        facts.ArtFirst = hk && h < 0;
+        facts = facts with { ArtFirst = hk && h < 0 };
         Pol.PolicyFunctions.JoinerCapacity(projection.Facts.JoinerCapacity()).TryGetValue(out var capacity);
         return (economic, facts, capacity);
     }
@@ -548,37 +550,37 @@ public sealed partial class RoundsTradePlanner
     /// Reads the prisoner census through the routine reading (the one the negotiator choice uses) and returns the
     /// surplus prisoners a favor session sells.
     /// </summary>
-    private HashSet<string> FavorPrisoners(CancellationToken call, ControlState state, Sto.Rounds review)
+    private async Task<IReadOnlySet<Pol.PawnId>> FavorPrisonersAsync(ControlState state, Sto.Rounds review, CancellationToken call)
     {
-        var expected = StepScope(call, Reviewer.Native);
+        var expected = await StepScopeAsync(Reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("favorPrisoners: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
-        var read = Reviewer.ObserveOwned(call, (Observation.IRoundsSource)Reviewer.Native, expected, Unknown<IReadOnlyList<Pol.ConstructionClaim>>());
+        var read = await Reviewer.ObserveOwnedAsync((Observation.IRoundsSource)Reviewer.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), call).ConfigureAwait(false);
         Pol.PolicyFunctions.RoundsSilverShort(read.Projection.Facts, Reviewer.Policy, review.Latches.MedicalReserve).TryGetValue(out var shortage);
         return read.Projection.Facts.SurplusPrisoners(shortage);
     }
 
-    private RoundsTradeResult Cancel(CancellationToken call, CancellationToken epoch, ControlState state, Sto.IncidentState incident, string trader, Domain.PawnId negotiator, DateTimeOffset started)
+    private async Task<RoundsTradeResult> CancelAsync(ControlState state, Sto.IncidentState incident, string trader, Domain.PawnId negotiator, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
-        var value = Trade.NewTradeEnd(trader, negotiator, TradeEndMode.TradeEndCancel, false);
-        return Commit(call, epoch, state, incident, TradeOperationKind.TradeEnd, 0, trader, value, started);
+        var value = Trade.NewTradeEnd(trader, negotiator, TradeEndKind.Cancel, false);
+        return await CommitAsync(state, incident, TradeOperationKind.End, 0, trader, value, started, call, epoch).ConfigureAwait(false);
     }
 
     /// <summary>Records one phase as the caravan's fixed incident method: a plan of the trade action alone.</summary>
-    private RoundsTradeResult Commit(CancellationToken call, CancellationToken epoch, ControlState state, Sto.IncidentState incident, TradeOperationKind kind, int attempt, string trader, Trade value, DateTimeOffset started)
+    private async Task<RoundsTradeResult> CommitAsync(ControlState state, Sto.IncidentState incident, TradeOperationKind kind, int attempt, string trader, Trade value, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var method = TradeMethod(kind, trader, attempt);
         var id = PlanIds.MintPlanId();
         var tradeId = new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-trade"));
-        if (kind != TradeOperationKind.TradeOpen)
+        if (kind != TradeOperationKind.Open)
         {
-            var (session, _) = Native.ReadTradeSession(call, Boundary.Identity(state.Snapshot));
+            var (session, _) = await Native.ReadTradeSessionAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
             if (session.Trader == trader && session.Target is not null)
             {
-                value = value.WithParticipant(BridgePackage.TradeParticipantOf(session.Target));
+                value = value.WithParticipant(TradeParticipantOf(session.Target));
             }
         }
         var action = DomainAction.NewTradeAction(tradeId, value);
@@ -589,14 +591,14 @@ public sealed partial class RoundsTradePlanner
         {
             throw new ControlException("commit: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
         }
-        p.Journal.CommitIncidentMethod(call, incident.Incident.Id, method, "", plan);
+        p.Journal.CommitIncidentMethod(incident.Incident.Id, method, "", plan, call);
         // An accept or end settles the caravan: its offers no longer describe a session the plan can use.
-        if (kind == TradeOperationKind.TradeAccept || kind == TradeOperationKind.TradeEnd)
+        if (kind == TradeOperationKind.Accept || kind == TradeOperationKind.End)
         {
             Reviewer.TradeOffers.Drop(trader);
         }
         // The next phase lands in the stop after this window: a session left open under a full window outlasts the caravan's visit.
-        var ticks = kind != TradeOperationKind.TradeEnd ? TradeArrivalTicks : 0u;
+        var ticks = kind != TradeOperationKind.End ? TradeArrivalTicks : 0u;
         return new RoundsTradeResult { Verdict = BuildingReasonAdmitted, Plan = id, Trader = trader, Phase = kind, NativeWorkTicks = ticks };
     }
 }
@@ -640,7 +642,7 @@ internal static partial class BuildingRuntimePackage
     {
         foreach (var t in traders)
         {
-            if (t.Id == id)
+            if (t.ID == id)
             {
                 return t.GoodsStacks;
             }
@@ -657,13 +659,13 @@ internal static partial class BuildingRuntimePackage
     {
         if (lines.Found && !lines.Open && !lines.Completed)
         {
-            return TradeOperationKind.TradeEnd;
+            return TradeOperationKind.End;
         }
         if (staged > 0 || lines.Completed)
         {
-            return TradeOperationKind.TradeAccept;
+            return TradeOperationKind.Accept;
         }
-        return TradeOperationKind.TradeSetLines;
+        return TradeOperationKind.SetLines;
     }
 
     /// <summary>Classifies a food line from the catalog's rows and the evaluated Nutrition stat; a pawn or currency line is never food.</summary>
@@ -673,8 +675,7 @@ internal static partial class BuildingRuntimePackage
         {
             return Unknown<Pol.TradeFoodGood>();
         }
-        var (good, ok) = catalog.TradeFood(row.DefName);
-        return ok ? Known(good) : Unknown<Pol.TradeFoodGood>();
+        return catalog.TradeFood(row.DefName) is { } good ? Known(good) : Unknown<Pol.TradeFoodGood>();
     }
 
     internal static List<Pol.TradeSheetRowFact> TradeSheetRowFacts(IReadOnlyList<TradeSheetRow> rows, Bridge.DefinitionCatalog catalog)
@@ -685,7 +686,7 @@ internal static partial class BuildingRuntimePackage
             output.Add(new Pol.TradeSheetRowFact
             {
                 Food = TradeFoodFact(row, catalog),
-                LineId = row.LineId,
+                LineID = row.LineId,
                 DefName = row.DefName,
                 ColonyCount = row.ColonyCount,
                 TraderCount = row.TraderCount,
@@ -699,14 +700,14 @@ internal static partial class BuildingRuntimePackage
                 CurrencyKnown = row.CurrencyKnown,
                 Pawn = row.Pawn,
                 PawnKnown = row.PawnKnown,
-                ThingId = row.ThingId,
+                ThingID = row.ThingId,
                 Stuff = row.Stuff,
                 HitPoints = row.HitPoints,
                 HitPointsKnown = row.HitPointsKnown,
                 Quality = row.Quality,
                 QualityKnown = row.QualityKnown,
-                ZoneId = row.ZoneId,
-                PawnId = row.PawnId,
+                ZoneID = row.ZoneId,
+                PawnID = row.PawnId,
                 PawnGender = row.PawnGender,
                 Skills = TradePawnSkills(row.Skills),
                 ViolenceCapable = row.ViolenceCapable,
@@ -751,7 +752,7 @@ internal static partial class BuildingRuntimePackage
         var output = new List<TradeLine>(selection.Selected.Count);
         foreach (var line in selection.Selected)
         {
-            output.Add(new TradeLine { LineId = line.LineId, AbsoluteCount = (int)line.Count });
+            output.Add(new TradeLine { LineId = line.LineID, AbsoluteCount = (int)line.Count });
         }
         return output;
     }

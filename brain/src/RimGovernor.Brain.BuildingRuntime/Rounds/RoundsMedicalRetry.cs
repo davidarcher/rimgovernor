@@ -10,12 +10,12 @@ internal static partial class BuildingRuntimePackage
         var bound = new HashSet<MethodId>();
         foreach (var m in goal.History)
         {
-            bound.Add(m.Method);
+            bound.Add(m.MethodId);
         }
 
         foreach (var m in goal.Methods)
         {
-            bound.Add(m.Method);
+            bound.Add(m.MethodId);
         }
 
         for (var i = 0; ; i++)

@@ -15,7 +15,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsCookingPlanner: reviewer == nil || native == nil");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyApi.EnsureCooking, Definition = "Campfire", Environment = PolicyApi.PlacementAnywhere };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyApi.EnsureCooking, Definition = "Campfire", Environment = PlacementEnvironment.Anywhere };
     }
 
     public static RoundsBuildingPlanner NewRoundsButcherPlanner(Rounder reviewer, IRoundsBuildingSource native)
@@ -28,7 +28,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsButcherPlanner: !ok");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyApi.EnsureFoodSupply, Definition = "TableButcher", Environment = PolicyApi.PlacementAnywhere };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyApi.EnsureFoodSupply, Definition = "TableButcher", Environment = PlacementEnvironment.Anywhere };
     }
 
     /// <summary>The count the concern wants built, the method that builds it, or the verdict that explains why none is wanted.</summary>
@@ -61,7 +61,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (1, new MethodId("butcher-table"), default);
             }
-            return (0, default, BuildingExistingFacility);
+            return (0, default, BuildingReasonExistingFacility);
         }
         if (c == PolicyApi.EnsureTemperatureSafety)
         {
@@ -73,7 +73,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (c == PolicyApi.MaintainRefrigeration)
         {
-            if (Refrigeration is null || Refrigeration.Method != PolicyApi.RefrigerationBuild)
+            if (Refrigeration is null || Refrigeration.Method != RefrigerationMethod.Build)
             {
                 return (0, default, FieldUnavailable("refrigeration_proposal"));
             }
@@ -81,7 +81,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (c == PolicyApi.MaintainLighting)
         {
-            if (Lighting is null || Lighting.Method != PolicyApi.LightingBuild)
+            if (Lighting is null || Lighting.Method != LightingMethod.Build)
             {
                 return (0, default, FieldUnavailable("lighting_proposal"));
             }
@@ -89,7 +89,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (c == PolicyApi.MaintainFlooring)
         {
-            if (Flooring is null || Flooring.Method != PolicyApi.FlooringBuild)
+            if (Flooring is null || Flooring.Method != FlooringMethod.Build)
             {
                 return (0, default, FieldUnavailable("flooring_proposal"));
             }
@@ -97,7 +97,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (c == PolicyApi.MaintainRoutes)
         {
-            if (Routes is null || Routes.Method != PolicyApi.RoutesBuild)
+            if (Routes is null || Routes.Method != RoutesMethod.Build)
             {
                 return (0, default, FieldUnavailable("routes_proposal"));
             }
@@ -109,15 +109,15 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (0, default, FieldUnavailable("power_proposal"));
             }
-            if (Power.Method == PolicyApi.PowerConnect)
+            if (Power.Method == PowerMethod.Connect)
             {
                 return (Power.Cells.Count, Power.Key, default);
             }
-            if (Power.Method == PolicyApi.PowerGenerate || Power.Method == PolicyApi.PowerStore)
+            if (Power.Method == PowerMethod.Generate || Power.Method == PowerMethod.Store)
             {
                 return (1, Power.Key, default);
             }
-            if (Power.Method == PolicyApi.PowerShelter)
+            if (Power.Method == PowerMethod.Shelter)
             {
                 return (2L * Power.Room.Width + 2L * Power.Room.Height - 4, Power.Key, default);
             }
@@ -125,11 +125,11 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (c == PolicyApi.EnsureComfort)
         {
-            if (Phase == PolicyApi.ComfortSpot)
+            if (Phase == Phase.ComfortSpot)
             {
                 return (1, PartySpotPlaceMethod(PartySpotRoom), default);
             }
-            if (Phase == PolicyApi.ComfortBasic)
+            if (Phase == Phase.ComfortBasic)
             {
                 return (1, new MethodId("basic-comfort-" + Definition), default);
             }
@@ -161,7 +161,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (c == PolicyApi.MaintainHousing)
         {
-            if (Phase == PolicyApi.HousingSleeping)
+            if (Phase == Phase.HousingSleeping)
             {
                 if (Sleeping is null)
                 {
@@ -174,7 +174,7 @@ public sealed partial class RoundsBuildingPlanner
                 return (0, default, FieldUnavailable("indoor_capacity"));
             }
             var prefix = "";
-            if (Phase == PolicyApi.HousingExpansion)
+            if (Phase == Phase.HousingExpansion)
             {
                 if (facts.Facts.FoodPlan.TryGetValue(out var foodPlan) && foodPlan.GapPerDay > 0)
                 {
@@ -212,7 +212,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (Paste.Count, new MethodId("nutrient-paste"), default);
             }
-            if (!FoodPlanSupport(facts.Facts.FoodPlan, PolicyApi.CandidateCook, "cooking-capacity"))
+            if (!FoodPlanSupportOf(facts.Facts.FoodPlan, CandidateKind.Cook, "cooking-capacity"))
             {
                 return (0, default, AwaitingFoodPlan("cooking-capacity"));
             }
@@ -234,7 +234,7 @@ public sealed partial class RoundsBuildingPlanner
                 var known = bench.Usable.TryGetValue(out var usable);
                 if (bench.Definition == "Campfire" || (known && usable))
                 {
-                    return (0, default, BuildingExistingFacility);
+                    return (0, default, BuildingReasonExistingFacility);
                 }
                 unknown = unknown || !known;
             }
@@ -244,7 +244,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             if (CampfireIntentStanding(facts.Facts.ConstructionClaims, facts.Facts.CurrentConstruction))
             {
-                return (0, default, BuildingExistingFacility);
+                return (0, default, BuildingReasonExistingFacility);
             }
             return (1, new MethodId("campfire"), default);
         }
@@ -280,25 +280,24 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>Whether a campfire intent already stands: an unheated campfire in the census or an open campfire claim.</summary>
-    internal static bool CampfireIntentStanding(Fact<IReadOnlyList<ConstructionClaim>> claims, Fact<CurrentConstruction> observed)
+    internal static bool CampfireIntentStanding(Fact<EquatableArray<ConstructionClaim>> claims, Fact<CurrentConstruction> observed)
     {
         if (!observed.TryGetValue(out var census) || !census.Colony)
         {
             return false;
         }
         claims.TryGetValue(out var history);
-        history ??= [];
         var heat = HeatCampfireCells(history);
         foreach (var b in census.Buildings)
         {
-            if (b.Building.Definition == "Campfire" && b.Cells.Count > 0 && !heat.Contains(b.Cells[0]))
+            if (b.Building is { Definition: "Campfire" } && b.Cells.Count > 0 && !heat.Contains(b.Cells[0]))
             {
                 return true;
             }
         }
         foreach (var claim in history)
         {
-            if (claim.Building.Definition == "Campfire" && PolicyApi.WorkOpen(claim.Building, observed) == PolicyApi.BuildingOpen)
+            if (claim.Building is { Definition: "Campfire" } campfire && PolicyApi.WorkOpen(campfire, observed) == BuildingWork.BuildingOpen)
             {
                 return true;
             }
@@ -328,16 +327,16 @@ internal static partial class BuildingRuntimePackage
     {
         if (!facts.ButcheringBenches.TryGetValue(out var benches) || !facts.Facts.CurrentConstruction.TryGetValue(out var census))
         {
-            return (default!, false);
+            return (new CurrentBuilding(), false);
         }
         var table = false;
         foreach (var bench in benches)
         {
-            table = table || bench.Definition == PolicyApi.ButcherTableDefinition;
+            table = table || bench.Definition == PolicyConstants.ButcherTableDefinition;
         }
         if (!table)
         {
-            return (default!, false);
+            return (new CurrentBuilding(), false);
         }
         foreach (var bench in benches)
         {
@@ -353,25 +352,25 @@ internal static partial class BuildingRuntimePackage
                 }
             }
         }
-        return (default!, false);
+        return (new CurrentBuilding(), false);
     }
 
     internal static bool ButcherBenchDefinition(string definition) =>
-        definition == PolicyApi.ButcherTableDefinition || definition == PolicyApi.ButcherSpotDefinition;
+        definition == PolicyConstants.ButcherTableDefinition || definition == PolicyApi.ButcherSpotDefinition;
 
     internal static (CurrentBuilding Building, bool Retire) StandingCraftingSpot(ColonyProjection facts)
     {
         if (!facts.Facts.CurrentConstruction.TryGetValue(out var census) || !PositiveFact(facts.Facts.CraftingSpotRetireOwed))
         {
-            return (default!, false);
+            return (new CurrentBuilding(), false);
         }
         foreach (var b in census.Buildings)
         {
-            if (b.Building.Definition == PolicyApi.CraftingSpotDefinition && b.Cells.Count > 0)
+            if (b.Building?.Definition == PolicyApi.CraftingSpotDefinition && b.Cells.Count > 0)
             {
                 return (b, true);
             }
         }
-        return (default!, false);
+        return (new CurrentBuilding(), false);
     }
 }

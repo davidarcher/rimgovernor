@@ -13,10 +13,10 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
 {
     /// <summary>
     /// The <c>PRAGMA user_version</c> <see cref="Open"/> requires; a database from another version is not
-    /// migrated (see <see cref="OpenOrReplace"/>). Version 2 is the C# journal: JSON payloads written by the
-    /// hand-written codecs, with no per-kind column checks.
+    /// migrated (see <see cref="OpenOrReplace"/>). Version 3 is the C# journal: JSON payloads written by the
+    /// hand-written codecs, with no per-kind column checks; the Standard payload gained the planner's Record text.
     /// </summary>
-    public const int SchemaVersion = 2;
+    public const int SchemaVersion = 3;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

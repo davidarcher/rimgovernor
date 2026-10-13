@@ -38,6 +38,7 @@
     <Using Include="RimGovernor.Brain.BuildingRuntime.BuildingRuntimePackage" Static="true" />
     <Using Include="RimGovernor.Brain.Policy.PolicyConstants" Static="true" />
     <Using Include="RimGovernor.Brain.Policy.PolicyFunctions" Static="true" />
+    <Using Include="RimGovernor.Brain.BuildingRuntime.Verdict" Static="true" />
     <!-- Namespace and class share a name in the unported packages, so the namespace shadows the class; these name the class. -->
     <Using Include="RimGovernor.Brain.Observation.ObservationPackage" Alias="ObservationApi" />
     <Using Include="RimGovernor.Brain.Snapshot.SnapshotPackage" Alias="Snap" />

@@ -3,10 +3,10 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsResourcePlanner
 {
     /// <summary>Declares the production orders the resource targets owe, scoped to MaintainResource.</summary>
-    public Declared DeclareOrders(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches) =>
-        InternalDeclareOrders(ct, snapshot, projection, benches).For(ConcernId.MaintainResource);
+    public Declared DeclareOrders(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+        InternalDeclareOrders(snapshot, projection, benches, ct).For(PolicyFunctions.MaintainResource);
 
-    private Declared InternalDeclareOrders(CancellationToken ct, GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches)
+    private Declared InternalDeclareOrders(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var floors = new List<ResourceFloor>();
         foreach (var (resource, target) in reviewer.ResourceTargets(snapshot))
@@ -26,6 +26,6 @@ public sealed partial class RoundsResourcePlanner
             floors.Add(new ResourceFloor { Resource = resource, Target = target });
         }
 
-        return PolicyFunctions.DeclareResourceOrders(new ResourceOrderRequest { Floors = floors, Stock = projection.Resources, Benches = Known(benches) });
+        return PolicyFunctions.DeclareResourceOrders(new ResourceOrderRequest { Floors = [.. floors], Stock = projection.Resources, Benches = Known<EquatableArray<GearBench>>([.. benches]) });
     }
 }

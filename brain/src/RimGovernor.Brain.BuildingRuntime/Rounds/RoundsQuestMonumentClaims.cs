@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>Cells that open monument-install moves will occupy once the quest marker is placed.</summary>
-    internal static IReadOnlyList<Cell> PendingMonumentCells(IReadOnlyList<PlanState> plans, Fact<IReadOnlyList<JoinerOffer>> offers)
+    internal static IReadOnlyList<Cell> PendingMonumentCells(IReadOnlyList<PlanState> plans, Fact<EquatableArray<JoinerOffer>> offers)
     {
         if (!offers.TryGetValue(out var rows))
         {
@@ -47,7 +47,7 @@ internal static partial class BuildingRuntimePackage
                     continue;
                 }
 
-                if (!progress.Action.TryMoveBuilding(out var move) || !markers.TryGetValue(move.Thing, out var marker))
+                if (progress.Action.MoveBuilding is not { } move || !markers.TryGetValue(move.Thing, out var marker))
                 {
                     continue;
                 }

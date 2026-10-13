@@ -17,7 +17,11 @@ internal static partial class BuildingRuntimePackage
         var output = new List<Pol.ConstructionSite>();
         foreach (var s in sites)
         {
-            var c = s.Building.Cell;
+            if (s.Building is not { } building)
+            {
+                continue;
+            }
+            var c = building.Cell;
             if (c.X >= ground.X && c.X < ground.X + ground.Width && c.Z >= ground.Z && c.Z < ground.Z + ground.Height)
             {
                 output.Add(s);
@@ -113,7 +117,7 @@ internal static partial class BuildingRuntimePackage
         var output = new List<string>();
         foreach (var op in ops)
         {
-            if (op.Kind != Pol.OperationKind.Claim && op.Kind != Pol.OperationKind.Cut && op.Kind != Pol.OperationKind.HaulOut)
+            if (op.Kind != Pol.OpKind.Claim && op.Kind != Pol.OpKind.Cut && op.Kind != Pol.OpKind.HaulOut)
             {
                 continue;
             }
@@ -174,7 +178,9 @@ public sealed partial class Rounder
             }
         }
         var names = sites
-            .Select(s => string.Create(CultureInfo.InvariantCulture, $"{s.Building.Definition}@{s.Building.Cell.X},{s.Building.Cell.Z}"))
+            .Select(s => s.Building)
+            .OfType<Domain.Building>()
+            .Select(b => string.Create(CultureInfo.InvariantCulture, $"{b.Definition}@{b.Cell.X},{b.Cell.Z}"))
             .Order(StringComparer.Ordinal)
             .Take(8)
             .ToList();

@@ -173,7 +173,7 @@ internal static partial class BuildingRuntimePackage
         {
             return Known<IReadOnlyList<Pol.WorkRequirement>>([]);
         }
-        return Known<IReadOnlyList<Pol.WorkRequirement>>([new Pol.WorkRequirement { Work = "Construction", Minimum = minimum }]);
+        return Known<IReadOnlyList<Pol.WorkRequirement>>([new Pol.WorkRequirement { Work = WorkType.Construction, Minimum = minimum }]);
     }
 
     /// <summary>
@@ -203,7 +203,7 @@ internal static partial class BuildingRuntimePackage
                 var produces = false;
                 foreach (var product in recipe.Products)
                 {
-                    if (product == wort && targets.GetValueOrDefault(Pol.Resource.Of("Beer")) > 0)
+                    if (product == wort && targets.GetValueOrDefault(new Pol.Resource("Beer")) > 0)
                     {
                         produces = true;
                     }
@@ -258,7 +258,7 @@ internal static partial class BuildingRuntimePackage
     /// produce it (RoundsDeficitWork). One census read serves both; no bill and no deficit reads nothing. The
     /// review needs the same rows so EnsureWorkAssignments assesses a deficit the planner will then cover.
     /// </summary>
-    internal static Fact<IReadOnlyList<Pol.WorkRequirement>> RoundsBenchWork(CancellationToken ct, IRoundsWorkBenchSource? benches, GenerationSnapshot snapshot, IReadOnlyList<Sto.PlanState> plans, IReadOnlyDictionary<PlanId, ulong> player, IReadOnlyDictionary<Pol.Resource, long> targets, bool deficit, Pol.Resource wort)
+    internal static async Task<Fact<IReadOnlyList<Pol.WorkRequirement>>> RoundsBenchWorkAsync(IRoundsWorkBenchSource? benches, GenerationSnapshot snapshot, IReadOnlyList<Sto.PlanState> plans, IReadOnlyDictionary<PlanId, ulong> player, IReadOnlyDictionary<Pol.Resource, long> targets, bool deficit, Pol.Resource wort, CancellationToken ct)
     {
         var none = Known<IReadOnlyList<Pol.WorkRequirement>>([]);
         if (benches is null)
@@ -271,7 +271,7 @@ internal static partial class BuildingRuntimePackage
         {
             return none;
         }
-        var (census, _) = benches.ReadGearBenches(ct, Boundary.Identity(snapshot));
+        var (census, _) = await benches.ReadGearBenchesAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
         if (!RoundsBillWork(bills, census).TryGetValue(out var output))
         {
             return Unknown<IReadOnlyList<Pol.WorkRequirement>>();
@@ -292,10 +292,10 @@ internal static partial class BuildingRuntimePackage
     /// The research the workshop ladder recorded as gating a bench for a still-targeted resource or active
     /// equipment deficit, the derived EnsureResearch target when no operator target is configured.
     /// </summary>
-    internal static IReadOnlyList<string> RoundsResearchNeeds(CancellationToken ct, StoreJournal journal, Pol.RoundsPolicy p, Pol.ItemFacts items, GenerationSnapshot snapshot)
+    internal static IReadOnlyList<string> RoundsResearchNeeds(StoreJournal journal, Pol.RoundsPolicy p, Pol.ItemFacts items, GenerationSnapshot snapshot, CancellationToken ct)
     {
-        var (ladder, ok) = journal.LoadProductionLadder(ct, new Sto.World(snapshot.Colony, snapshot.Load, snapshot.Map));
-        if (!ok)
+        var ladder = journal.LoadProductionLadder(new Sto.World(snapshot.Colony, snapshot.Load, snapshot.Map), ct);
+        if (ladder is null)
         {
             return [];
         }
@@ -310,8 +310,8 @@ internal static partial class BuildingRuntimePackage
             {
                 if (binding.Concern == MaintainEquipment)
                 {
-                    var goal = journal.LoadStandard(ct, binding.Standard);
-                    if (goal.Standard.Status == StandardStatus.Open && goal.Standard.Finding == StandardFinding.Unmet)
+                    var goal = journal.LoadStandard(binding.Standard, ct);
+                    if (goal.Standard.Status == StandardStatus.Open && goal.Standard.Finding == Finding.Unmet)
                     {
                         return ladder.Research;
                     }

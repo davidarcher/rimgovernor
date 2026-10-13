@@ -7,7 +7,7 @@ public sealed partial class Rounder
     /// spot, butcher table and crafting spot, which the layout plan does not hold, drawn from the construction
     /// census. Output only: a failure is dropped and the next review draws again.
     /// </summary>
-    internal void DrawSpotOverlay(CancellationToken ct, GenerationSnapshot snapshot, Observation.ColonyProjection projection)
+    internal async Task DrawSpotOverlayAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
     {
         if (Native is not ILayoutOverlayNative native)
         {
@@ -16,7 +16,7 @@ public sealed partial class Rounder
         var layer = new Pol.LayoutOverlay();
         if (projection.Facts.CurrentConstruction.TryGetValue(out var census) && LayoutOverlay)
         {
-            layer = Pol.LayoutOverlay.SpotOverlay(census, projection.Bounds);
+            layer = Pol.PolicyFunctions.SpotOverlay(census, projection.Bounds);
         }
         var tick = projection.Identity.Tick;
         if (layer.Layers.Count == 0)
@@ -25,7 +25,7 @@ public sealed partial class Rounder
             {
                 try
                 {
-                    native.DrawOverlay(ct, ControlIdentity(snapshot), Pol.LayoutOverlay.SpotLayer, new Pol.LayoutOverlay(), false);
+                    await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.PolicyFunctions.SpotLayer, new Pol.LayoutOverlay(), false, ct).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
@@ -41,7 +41,7 @@ public sealed partial class Rounder
         }
         try
         {
-            native.DrawOverlay(ct, ControlIdentity(snapshot), Pol.LayoutOverlay.SpotLayer, layer, true);
+            await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.PolicyFunctions.SpotLayer, layer, true, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

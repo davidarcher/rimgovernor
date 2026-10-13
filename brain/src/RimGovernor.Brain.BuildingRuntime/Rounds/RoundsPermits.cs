@@ -9,7 +9,7 @@ public sealed class RoundsPermitsPlanner
 
     public static RoundsPermitsPlanner NewRoundsPermitsPlanner(Rounder reviewer)
     {
-        if (reviewer is null || !reviewer.MethodEnabled(ConcernId.MaintainPermits))
+        if (reviewer is null || !reviewer.MethodEnabled(PolicyConstants.MaintainPermits))
         {
             throw new ControlException("NewRoundsPermitsPlanner: reviewer missing or method disabled");
         }
@@ -17,7 +17,7 @@ public sealed class RoundsPermitsPlanner
         return new RoundsPermitsPlanner(reviewer);
     }
 
-    internal RoundsPermitsResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsPermitsResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         var state = p.Session.State();
@@ -37,46 +37,46 @@ public sealed class RoundsPermitsPlanner
             return new RoundsPermitsResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
         }
 
-        var (goal, workable) = p.Journal.Workable(call, review, ConcernId.MaintainPermits);
-        if (!workable)
+        var (goal, workable) = p.Journal.Workable(review, PolicyConstants.MaintainPermits, call);
+        if (!workable || goal is null)
         {
             return new RoundsPermitsResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
         }
 
         foreach (var method0 in goal.Methods)
         {
-            var open = p.Journal.LoadPlan(call, method0.Plan);
+            var open = p.Journal.LoadPlan(method0.Plan, call);
             if (StorePackage.PlanOpen(open))
             {
                 return new RoundsPermitsResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
             }
         }
 
-        var expected = BuildingRuntimePackage.StepScope(call, reviewer.Native);
+        var expected = await BuildingRuntimePackage.StepScopeAsync(reviewer.Native, call).ConfigureAwait(false);
         if (!BuildingRuntimePackage.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: boundary moved");
         }
 
         var started = reviewer.Clock.Now();
-        var read = reviewer.ObserveOwned(call, reviewer.Native, expected, Unknown<IReadOnlyList<ConstructionClaim>>());
-        var (choice, ok) = PolicyFunctions.NextPermitOf(read.Projection.Facts.Royalty);
-        if (!ok)
+        var read = await reviewer.ObserveOwnedAsync(reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
+        var chosen = PolicyFunctions.NextPermitOf(read.Projection.Facts.Royalty);
+        if (chosen is not { } choice)
         {
-            return new RoundsPermitsResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "permit") };
+            return new RoundsPermitsResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "permit") };
         }
 
         var intent = choice.Intent();
-        var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(call, p.Journal, goal, PermitMethodPrefix(intent), state.Snapshot);
+        var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(p.Journal, goal, PermitMethodPrefix(intent), state.Snapshot, call);
         if (!admitted)
         {
             return new RoundsPermitsResult { Verdict = verdict };
         }
 
         var plan = PermitPlan(intent);
-        if (!arbiter.TryClaim([new PawnId(intent.Holder)]))
+        if (!arbiter.TryClaim([intent.Holder]))
         {
-            return new RoundsPermitsResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "pawn_claim") };
+            return new RoundsPermitsResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "pawn_claim") };
         }
 
         p.Current(call, epoch);
@@ -86,7 +86,7 @@ public sealed class RoundsPermitsPlanner
             throw new ControlException("step: session state changed or the read took too long");
         }
 
-        p.Journal.CommitMethodReason(call, goal.Standard.Id, goal.Revision, method, $"permits: {intent.Holder} takes {intent.Permit} with {intent.Faction}", plan);
+        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, $"permits: {intent.Holder} takes {intent.Permit} with {intent.Faction}", plan, call);
         return new RoundsPermitsResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = plan.Id };
     }
 
@@ -97,11 +97,11 @@ public sealed class RoundsPermitsPlanner
         var setting = intent.Setting();
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewPawnSettingsAction(new ActionId($"{id}-0"), setting);
-        return PlanSpec.NewPlan(id, new PlanRevision(1), [action]);
+        return new PlanSpec(id, new PlanRevision(1), [action]);
     }
 }
 
-public readonly record struct RoundsPermitsResult
+public readonly record struct RoundsPermitsResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 

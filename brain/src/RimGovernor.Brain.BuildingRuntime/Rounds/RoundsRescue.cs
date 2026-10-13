@@ -2,9 +2,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsRescueSource
 {
-    (EmergencyObservation Emergency, BridgeResult Result) ReadEmergency(CancellationToken ct, C.Identity identity);
+    Task<(EmergencyObservation Emergency, BridgeResult Result)> ReadEmergencyAsync(C.Identity identity, CancellationToken ct);
 
-    (O.ListPawnsReply Reply, BridgeResult Result) ReadCombatPawns(CancellationToken ct, C.Identity identity, IReadOnlyList<string> ids);
+    Task<(O.ListPawnsReply Reply, BridgeResult Result)> ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
 }
 
 /// <summary>Composes CriticalMedicine's rescue: pairs a downed colonist with a capable rescuer.</summary>
@@ -29,7 +29,7 @@ public sealed class RoundsRescuePlanner
         return new RoundsRescuePlanner(reviewer, native);
     }
 
-    internal RoundsRescueResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsRescueResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         var state = p.Session.State();
@@ -49,20 +49,20 @@ public sealed class RoundsRescuePlanner
             return new RoundsRescueResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
         }
 
-        var (incident, found) = BuildingRuntimePackage.IncidentDeficit(call, p.Journal, review, ConcernId.CriticalMedicine);
+        var (incident, found) = BuildingRuntimePackage.IncidentDeficit(p.Journal, review, PolicyFunctions.CriticalMedicine, call);
         if (!found)
         {
             return new RoundsRescueResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
         }
 
-        if (BuildingRuntimePackage.IncidentOpenWork(call, p.Journal, incident))
+        if (BuildingRuntimePackage.IncidentOpenWork(p.Journal, incident, call))
         {
             return new RoundsRescueResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
         }
 
         var started = reviewer.Clock.Now();
         var identity = Boundary.Identity(state.Snapshot);
-        var (emergency, _) = native.ReadEmergency(call, identity);
+        var (emergency, _) = await native.ReadEmergencyAsync(identity, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(emergency.Context, state.Snapshot);
@@ -72,18 +72,18 @@ public sealed class RoundsRescuePlanner
             throw new ControlException("step: emergency context", e);
         }
 
-        if (emergency.Context.Tick < review.Tick.Value)
+        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick < review.Tick.Value)
         {
             throw new ControlException("step: emergency read older than the review");
         }
 
         if (!emergency.Facts.ColonistsComplete.TryGetValue(out var complete) || !complete || emergency.Facts.Colonists.Count == 0)
         {
-            return new RoundsRescueResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "colonist_census") };
+            return new RoundsRescueResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "colonist_census") };
         }
 
-        var ids = emergency.Facts.Colonists.Select(c => c.Id).ToList();
-        var (reply, _) = native.ReadCombatPawns(call, identity, ids);
+        var ids = emergency.Facts.Colonists.Select(c => c.Id.Value).ToList();
+        var (reply, _) = await native.ReadCombatPawnsAsync(identity, ids, call).ConfigureAwait(false);
         var observed = reply.Observed ?? throw new ControlException("step: observed == null");
         try
         {
@@ -122,21 +122,21 @@ public sealed class RoundsRescuePlanner
 
         if (!ok)
         {
-            return new RoundsRescueResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.MethodUsed, "rescue_pairing"), NativeWorkTicks = BuildingRuntimePackage.MedicalWaitTicks };
+            return new RoundsRescueResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "rescue_pairing"), NativeWorkTicks = (uint)BuildingRuntimePackage.MedicalWaitTicks };
         }
 
-        var rescue = Rescue.NewRescue(rescuer, patient);
-        var prefix = $"rescue-{patient}-";
-        var (verdict, admitted) = BuildingRuntimePackage.AdmitSubject(call, p.Journal, prefix, BuildingRuntimePackage.IncidentPlans(incident.Methods, prefix), state.Snapshot);
+        var rescue = new Rescue((Domain.PawnId)rescuer, (Domain.PawnId)patient);
+        var prefix = $"rescue-{patient.Value}-";
+        var (verdict, admitted) = BuildingRuntimePackage.AdmitSubject(p.Journal, prefix, BuildingRuntimePackage.IncidentPlans(incident.Methods, prefix), state.Snapshot, call);
         if (!admitted)
         {
-            return new RoundsRescueResult { Verdict = verdict, NativeWorkTicks = BuildingRuntimePackage.MedicalWaitTicks };
+            return new RoundsRescueResult { Verdict = verdict, NativeWorkTicks = (uint)BuildingRuntimePackage.MedicalWaitTicks };
         }
 
         var method = BuildingRuntimePackage.NextMethodId(prefix, BuildingRuntimePackage.IncidentMethodIds(incident.Methods));
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewRescueAction(new ActionId($"{id}-0"), rescue);
-        var plan = PlanSpec.NewPlan(id, new PlanRevision(1), [action]);
+        var plan = new PlanSpec(id, new PlanRevision(1), [action]);
         p.Current(call, epoch);
         var elapsed = reviewer.Clock.Now() - started;
         if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
@@ -144,12 +144,12 @@ public sealed class RoundsRescuePlanner
             throw new ControlException("step: session state changed or the read took too long");
         }
 
-        p.Journal.CommitIncidentMethod(call, incident.Incident.Id, method, "", plan);
+        p.Journal.CommitIncidentMethod(incident.Incident.Id, method, "", plan, call);
         return new RoundsRescueResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
     }
 }
 
-public readonly record struct RoundsRescueResult
+public readonly record struct RoundsRescueResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 

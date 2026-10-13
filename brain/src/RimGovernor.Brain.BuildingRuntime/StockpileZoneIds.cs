@@ -8,12 +8,12 @@ internal static partial class BuildingRuntimePackage
     /// </summary>
     internal static HashSet<string>? StockpileZoneIds(Observation.ColonyProjection projection)
     {
-        if (!projection.Zones.Complete)
+        if (projection.Zones is not { Complete: true } zones)
         {
             return null;
         }
         var ids = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var row in projection.Zones.Value.Rows)
+        foreach (var row in zones.Value.Rows)
         {
             if (row.Type == "stockpile")
             {

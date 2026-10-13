@@ -5,12 +5,11 @@ using System.Text;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>The native read of the open dialog window.</summary>
-public interface IRoundsDialogSource
+public interface IRoundsDialogSource : IColonyFactsReader
 {
-    (O.ColonyFactsReply Reply, BridgeResult Result) ReadColonyFacts(C.Identity identity, bool full, CancellationToken ct);
 }
 
-public sealed class RoundsDialogResult
+public sealed class RoundsDialogResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 
@@ -37,7 +36,7 @@ public sealed class RoundsDialogPlanner
         _policy = answer;
     }
 
-    internal RoundsDialogResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsDialogResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -54,17 +53,17 @@ public sealed class RoundsDialogPlanner
         {
             return new RoundsDialogResult { Verdict = BuildingReasonNoReview };
         }
-        var (incident, found) = IncidentDeficit(call, p.Journal, review, PolicyApi.AnswerDialog);
+        var (incident, found) = IncidentDeficit(p.Journal, review, PolicyApi.AnswerDialog, call);
         if (!found)
         {
             return new RoundsDialogResult { Verdict = BuildingReasonNoDeficit };
         }
-        if (IncidentOpenWork(call, p.Journal, incident!))
+        if (IncidentOpenWork(p.Journal, incident!, call))
         {
             return new RoundsDialogResult { Verdict = BuildingReasonExistingWork };
         }
         var identity = Boundary.Identity(state.Snapshot);
-        var (reply, _) = _reviewer.ColonyFacts(call, _native, identity, false);
+        var reply = await _reviewer.ColonyFactsAsync(_native, identity, false, call).ConfigureAwait(false);
         var observed = reply.Observed;
         if (observed is null)
         {
@@ -78,7 +77,7 @@ public sealed class RoundsDialogPlanner
         {
             throw new ControlException("step: err != nil || observed.Context.GetTick() < int64(review.Tick)");
         }
-        if (observed.Context.Tick < (long)review.Tick)
+        if (observed.Context.Tick < review.Tick.Value)
         {
             throw new ControlException("step: err != nil || observed.Context.GetTick() < int64(review.Tick)");
         }
@@ -94,26 +93,26 @@ public sealed class RoundsDialogPlanner
         var options = new List<DialogOption>(dialog.Options.Count);
         foreach (var option in dialog.Options)
         {
-            options.Add(new DialogOption { Index = option.Index, Label = option.Label, Keys = option.Keys, Selectable = option.Selectable, Resolves = option.Resolves });
+            options.Add(new DialogOption { Index = option.Index, Label = option.Label, Keys = [.. option.Keys], Selectable = option.Selectable, Resolves = option.Resolves });
         }
         if (PolicyApi.VoidNodeDisruptAbsent(options))
         {
-            DefenseAction(call, "routine-dialog", TelemetryLevel.Error, "refused", "void_node_disrupt_absent", "void_node", new Dictionary<string, object?> { ["window"] = dialog.WindowId });
+            DefenseAction("routine-dialog", TelemetryLevel.Error, "refused", "void_node_disrupt_absent", "void_node", new Dictionary<string, object?> { ["window"] = dialog.WindowId }, call);
         }
-        var (chosen, ok) = PolicyApi.ChooseDialogOption(options, _policy);
-        if (!ok)
+        var chosen = PolicyApi.ChooseDialogOption(options, _policy);
+        if (chosen is null)
         {
-            return new RoundsDialogResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "no_selectable_dialog_option") };
+            return new RoundsDialogResult { Verdict = WaitFor(Cause.MethodUsed, "no_selectable_dialog_option") };
         }
         var windowId = dialog.WindowId;
         var digest = SHA256.HashData(Encoding.UTF8.GetBytes(string.Create(CultureInfo.InvariantCulture, $"{windowId}/{chosen.Index}/{chosen.Label}")));
         var method = new MethodId("dialog-" + Convert.ToHexStringLower(digest.AsSpan(0, 16)));
         if (incident!.Methods.Any(m => m.Method == method))
         {
-            return new RoundsDialogResult { Verdict = WaitFor(PolicyApi.CauseMethodUsed, "dialog_method") };
+            return new RoundsDialogResult { Verdict = WaitFor(Cause.MethodUsed, "dialog_method") };
         }
         var id = PlanIds.MintPlanId();
-        var value = DomainApi.NewDialogAnswer(windowId, chosen.Index, chosen.Label);
+        var value = new DialogAnswer(windowId, chosen.Index, chosen.Label);
         var action = DomainAction.NewDialogAnswerAction(new ActionId($"{id}-0"), value);
         var plan = new PlanSpec(id, new PlanRevision(1), [action]);
         p.Current(call, epoch);

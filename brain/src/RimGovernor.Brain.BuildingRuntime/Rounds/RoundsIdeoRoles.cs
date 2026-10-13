@@ -7,7 +7,7 @@ public sealed partial class RoundsIdeoRolesPlanner
 
     public static RoundsIdeoRolesPlanner NewRoundsIdeoRolesPlanner(Rounder reviewer)
     {
-        if (reviewer is null || !reviewer.MethodEnabled(ConcernId.MaintainIdeoRoles))
+        if (reviewer is null || !reviewer.MethodEnabled(PolicyConstants.MaintainIdeoRoles))
         {
             throw new ControlException("NewRoundsIdeoRolesPlanner: reviewer is missing or the method is disabled");
         }
@@ -16,7 +16,7 @@ public sealed partial class RoundsIdeoRolesPlanner
     }
 }
 
-public readonly record struct RoundsIdeoRolesResult
+public readonly record struct RoundsIdeoRolesResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 
@@ -25,7 +25,7 @@ public readonly record struct RoundsIdeoRolesResult
 
 public sealed partial class RoundsIdeoRolesPlanner
 {
-    internal RoundsIdeoRolesResult Step(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsIdeoRolesResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var state = p.Session.State();
@@ -45,29 +45,29 @@ public sealed partial class RoundsIdeoRolesPlanner
             return new RoundsIdeoRolesResult { Verdict = BuildingReasonNoReview };
         }
 
-        var (goal, workable) = p.Journal.Workable(call, review, ConcernId.MaintainIdeoRoles);
-        if (!workable)
+        var (goal, workable) = p.Journal.Workable(review, PolicyConstants.MaintainIdeoRoles, call);
+        if (!workable || goal is null)
         {
             return new RoundsIdeoRolesResult { Verdict = BuildingReasonNoDeficit };
         }
 
         foreach (var m in goal.Methods)
         {
-            var open = p.Journal.LoadPlan(call, m.Plan);
+            var open = p.Journal.LoadPlan(m.Plan, call);
             if (StorePackage.PlanOpen(open))
             {
                 return new RoundsIdeoRolesResult { Verdict = BuildingReasonExistingWork };
             }
         }
 
-        var expected = StepScope(call, Reviewer.Native);
+        var expected = await StepScopeAsync(Reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: boundary moved");
         }
 
         var started = Reviewer.Clock.Now();
-        var read = Reviewer.ObserveOwned(call, Reviewer.Native, expected, Unknown<IReadOnlyList<ConstructionClaim>>());
+        var read = await Reviewer.ObserveOwnedAsync(Reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
         if (!PolicyFunctions.RoleAssignments(read.Projection.Facts.Ideology, read.Projection.WorkPawns).TryGetValue(out var owed) || owed.Count == 0)
         {
             return new RoundsIdeoRolesResult { Verdict = WaitFor(Cause.MethodUsed, "ideology_roles") };
@@ -77,7 +77,7 @@ public sealed partial class RoundsIdeoRolesPlanner
         foreach (var choice in owed)
         {
             var prefix = $"ideorole-{choice.Pawn}-{choice.Role}-";
-            var (method, verdict, ok) = AdmitStandardMethod(call, p.Journal, goal, prefix, state.Snapshot);
+            var (method, verdict, ok) = AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
             if (!ok)
             {
                 held = verdict;
@@ -89,10 +89,10 @@ public sealed partial class RoundsIdeoRolesPlanner
                 return new RoundsIdeoRolesResult { Verdict = WaitFor(Cause.MethodUsed, "pawn_claim") };
             }
 
-            var assign = Assign.NewAssign(new PawnId(choice.Pawn.Value), choice.Role, Assign.ClearPrevious());
+            var assign = new Assign(new Domain.PawnId(choice.Pawn.Value), choice.Role, PreviousAssignment.ClearPrevious());
             var id = PlanIds.MintPlanId();
             var action = DomainAction.NewAssignAction(new ActionId($"{id}-0"), assign);
-            var plan = PlanSpec.NewPlan(id, new PlanRevision(1), [action]);
+            var plan = new PlanSpec(id, new PlanRevision(1), [action]);
             p.Current(call, epoch);
             var elapsed = Reviewer.Clock.Now() - started;
             if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > Reviewer.MaxAge)
@@ -100,7 +100,7 @@ public sealed partial class RoundsIdeoRolesPlanner
                 throw new ControlException("step: session state changed or the read took too long");
             }
 
-            p.Journal.CommitMethodReason(call, goal.Standard.Id, goal.Revision, method, $"ideology: {choice.Pawn} takes role {choice.Def} ({choice.Role})", plan);
+            p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, $"ideology: {choice.Pawn} takes role {choice.Def} ({choice.Role})", plan, call);
             return new RoundsIdeoRolesResult { Verdict = BuildingReasonAdmitted, Plan = id };
         }
 

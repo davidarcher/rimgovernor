@@ -2,6 +2,14 @@
   "version": 2,
   "dependencies": {
     "net10.0": {
+      "rimgovernor.brain.bridge.contracts": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )",
+          "RimGovernor.Brain.Wire": "[1.0.0, )"
+        }
+      },
       "rimgovernor.brain.domain": {
         "type": "Project"
       },

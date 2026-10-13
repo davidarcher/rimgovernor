@@ -8,29 +8,30 @@ public sealed partial class Rounder
     /// runway, sent when it changes or an hour passed, and cleared once with the flag off or no stockpile.
     /// Output only: a failure is dropped and the next review draws again.
     /// </summary>
-    internal void DrawStockOverlay(CancellationToken ct, GenerationSnapshot snapshot, Observation.ColonyProjection projection, Sto.RoundsResult result)
+    internal async Task DrawStockOverlayAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, Sto.RoundsResult result, CancellationToken ct)
     {
         if (Native is not ILayoutOverlayNative native)
         {
             return;
         }
         var layer = new Pol.LayoutOverlay();
-        if (LayoutOverlay && projection.Zones.Complete)
+        if (LayoutOverlay && projection.Zones is { Complete: true })
         {
             IReadOnlyList<Pol.StockZone> zones;
             try
             {
-                zones = StockZones(ct, snapshot, projection);
+                zones = StockZones(snapshot, projection, ct);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
                 return;
             }
             var f = projection.Facts;
+            var stockByResource = new Dictionary<Pol.Resource, long>();
             var levels = new Pol.StockLevels
             {
                 Targets = result.Needs.ResourceDemand.Needs,
-                Stock = new Dictionary<Pol.Resource, long>(),
+                Stock = stockByResource,
                 FoodDays = f.FoodDays,
                 FoodTargetDays = Seasonal(f).FoodTargetDays,
             };
@@ -39,10 +40,10 @@ public sealed partial class Rounder
             {
                 foreach (var row in rows)
                 {
-                    levels.Stock[row.Resource] = levels.Stock.GetValueOrDefault(row.Resource) + row.Count;
+                    stockByResource[row.Resource] = stockByResource.GetValueOrDefault(row.Resource) + row.Count;
                 }
             }
-            layer = Pol.LayoutOverlay.StockOverlay(zones, levels, projection.Bounds);
+            layer = Pol.PolicyFunctions.StockOverlay(zones, levels, projection.Bounds);
         }
         var on = layer.Layers.Count > 0 || layer.Labels.Count > 0;
         var tick = projection.Identity.Tick;
@@ -52,7 +53,7 @@ public sealed partial class Rounder
             {
                 try
                 {
-                    native.DrawOverlay(ct, ControlIdentity(snapshot), Pol.LayoutOverlay.StockLayer, new Pol.LayoutOverlay(), false);
+                    await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.PolicyFunctions.StockLayer, new Pol.LayoutOverlay(), false, ct).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
@@ -68,7 +69,7 @@ public sealed partial class Rounder
         }
         try
         {
-            native.DrawOverlay(ct, ControlIdentity(snapshot), Pol.LayoutOverlay.StockLayer, layer, true);
+            await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.PolicyFunctions.StockLayer, layer, true, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -82,11 +83,11 @@ public sealed partial class Rounder
     /// bounds), with the colony's claim role and settings, the latest patch superseding them, when the colony
     /// created it.
     /// </summary>
-    internal IReadOnlyList<Pol.StockZone> StockZones(CancellationToken ct, GenerationSnapshot snapshot, Observation.ColonyProjection projection)
+    internal IReadOnlyList<Pol.StockZone> StockZones(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
     {
         var tick = projection.Identity.Tick;
-        var claims = Player.Journal.ZoneClaims(ct, snapshot, tick);
-        var patches = Player.Journal.StockpilePatches(ct, snapshot, tick);
+        var claims = Player.Journal.ZoneClaims(snapshot, tick, ct);
+        var patches = Player.Journal.StockpilePatches(snapshot, tick, ct);
         var owned = new Dictionary<string, Sto.OwnedZone>(StringComparer.Ordinal);
         if (claims.TryGetValue(out var claimRows))
         {
@@ -108,7 +109,7 @@ public sealed partial class Rounder
             }
         }
         var output = new List<Pol.StockZone>();
-        foreach (var row in projection.Zones.Value.Rows)
+        foreach (var row in projection.Zones?.Value.Rows ?? [])
         {
             if (row.Type != "stockpile")
             {
@@ -121,9 +122,13 @@ public sealed partial class Rounder
                 FoodStorage = row.FoodStorage,
                 Cells = cells.TryGetValue(row.Id, out var own) ? [.. own] : [],
             };
-            if (owned.TryGetValue(z.Id, out var claim) && claim.Kind == ZoneKind.Stockpile)
+            if (owned.TryGetValue(z.Id, out var claim) && claim.Kind == Domain.ZoneKind.Stockpile)
             {
-                z = z with { Role = claim.Role, Filter = Fact.Known(claim.Filter) };
+                z = z with { Role = claim.Role };
+                if (claim.Filter is { } claimFilter)
+                {
+                    z = z with { Filter = Fact.Known(claimFilter) };
+                }
                 if (patches.TryGetValue(z.Id, out var patch) && patch.Kind == StorageTargetKind.Zone)
                 {
                     z = z with { Filter = Fact.Known(patch.Filter) };

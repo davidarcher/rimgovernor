@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>Adds the fresh bench and recipe-catalog reads the workshop planner needs on top of the building source.</summary>
 public interface IRoundsWorkshopSource : IRoundsBuildingSource
 {
-    (IReadOnlyList<GearBenchRead> Benches, BridgeResult Result) ReadGearBenches(CancellationToken ct, C.Identity identity);
+    Task<(IReadOnlyList<GearBenchRead> Benches, BridgeResult Result)> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
 }
 
 /// <summary>One product the workshop ladder considers, with the bench kinds that host a recipe for it.</summary>
@@ -38,16 +38,16 @@ public sealed partial class RoundsBuildingPlanner
     /// Shares the facility ladder between replacement gear and resource targets. An admitted project or
     /// research prerequisite owns this step.
     /// </summary>
-    internal RoundsBuildingResult StepWorkshops(CancellationToken call, CancellationToken epoch, StepArbiter arbiter)
+    internal async Task<RoundsBuildingResult> StepWorkshopsAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var gear = Copy();
         gear.Concern = MaintainEquipment;
-        var result = gear.Step(call, epoch, arbiter);
-        if (result.Decision.Admitted || result.NativeWorkTicks > 0 || result.Verdict == BuildingWorkshopResearch)
+        var result = await gear.StepAsync(arbiter, call, epoch).ConfigureAwait(false);
+        if (result.Decision.Admitted || result.NativeWorkTicks > 0 || result.Verdict == BuildingReasonWorkshopResearch)
         {
             return result;
         }
-        var resource = Step(call, epoch, arbiter);
+        var resource = await StepAsync(arbiter, call, epoch).ConfigureAwait(false);
         if (resource.Verdict == BuildingReasonNoDeficit || resource.Verdict == BuildingReasonDisabled)
         {
             return result;
@@ -86,7 +86,7 @@ public sealed partial class RoundsBuildingPlanner
     /// is requested, so the census can describe exactly the candidate bench definitions. A non-zero verdict ends
     /// the step.
     /// </summary>
-    internal (WorkshopSelection? Selection, Verdict Verdict) PrepareWorkshop(CancellationToken call, ControlState state, Sto.Rounds review)
+    internal async Task<(WorkshopSelection? Selection, Verdict Verdict)> PrepareWorkshopAsync(ControlState state, Sto.Rounds review, CancellationToken call)
     {
         if (Concern != MaintainEquipment)
         {
@@ -101,11 +101,19 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("prepareWorkshop: !ok");
         }
         var identity = Boundary.Identity(state.Snapshot);
-        var (reply, _) = source.ReadColonyFacts(call, identity, Concern == MaintainEquipment);
+        var (reply, _) = await source.ReadColonyFactsAsync(identity, Concern == MaintainEquipment, call).ConfigureAwait(false);
         var observed = reply.Observed;
-        if (observed is null || !BridgePackage.ColonyFactsValid(observed, identity))
+        if (observed is null)
         {
             throw new ControlException("prepareWorkshop: observed == nil || bridge.ValidateColonyFacts(observed, identity) != nil");
+        }
+        try
+        {
+            BridgeApi.ValidateColonyFacts(observed, identity);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new ControlException("prepareWorkshop: observed == nil || bridge.ValidateColonyFacts(observed, identity) != nil", e);
         }
         try
         {
@@ -119,7 +127,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("prepareWorkshop: err != nil || observed.Context.GetTick() < int64(review.Tick)");
         }
-        var defs = GearDefinitions(call, Native, identity);
+        var defs = await GearDefinitionsOfAsync(Native, identity, call).ConfigureAwait(false);
         if (defs.Catalog is null || !defs.Finished.TryGetValue(out var finished))
         {
             throw new ControlException("prepareWorkshop: the recipe hosts need the definition catalog and the finished research");
@@ -133,8 +141,9 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (null, FieldUnavailable("gear_census"));
             }
-            var things = FrameThings(call, Native, identity);
-            if (!GearObservationFacts(observed, new Tables { Things = things }, defs).TryGetValue(out var facts))
+            var things = await FrameThingsOfAsync(Native, identity, call).ConfigureAwait(false);
+            var (facts, factsKnown) = GearObservationFacts(observed, new Tables(Buildings.Of(), Pawns.Of(), things), defs);
+            if (!factsKnown)
             {
                 return (null, FieldUnavailable("gear_census"));
             }
@@ -155,7 +164,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         else
         {
-            var stock = ResourceStockFacts(observed);
+            var stock = RoundsResourcePlanner.ResourceStockFacts(observed);
             var wanted = Reviewer.ResourceTargets(state.Snapshot);
             var (picked, _, found) = SelectResourceTarget(wanted, stock);
             if (!found)
@@ -165,10 +174,10 @@ public sealed partial class RoundsBuildingPlanner
             resource = picked;
         }
         // The Go source holds the read error until after the Beer branch; a failed census read surfaces there.
-        var census = (source.ReadGearBenches(call, identity)).Benches;
+        var census = (await source.ReadGearBenchesAsync(identity, call).ConfigureAwait(false)).Benches;
         if (resource.ToString() == "Beer")
         {
-            if (observed.FermentingBarrels is null)
+            if (!observed.HasFermentingBarrels)
             {
                 return (null, FieldUnavailable("fermenting_barrels"));
             }
@@ -177,7 +186,7 @@ public sealed partial class RoundsBuildingPlanner
                 var barrel = new WorkshopSelection { Barrel = true, Resource = resource, Candidates = ["FermentingBarrel"] };
                 return (barrel, new Verdict());
             }
-            var items = Reviewer.ItemFacts(call, state.Snapshot);
+            var items = await Reviewer.ItemFactsAsync(state.Snapshot, call).ConfigureAwait(false);
             if (items.Wort.ToString() == "")
             {
                 throw new ControlException("prepareWorkshop: the catalog names no wort def");
@@ -194,13 +203,13 @@ public sealed partial class RoundsBuildingPlanner
         foreach (var product in products)
         {
             var hosts = defs.Catalog.RecipeHosts(product.ToString(), finished);
-            var request = new Pol.WorkshopRequest { Resource = product, Benches = Known<IReadOnlyList<Pol.GearBench>>(benches), Hosts = hosts, Further = selection.Further };
+            var request = new Pol.WorkshopRequest { Resource = product, Benches = Known<EquatableArray<Pol.GearBench>>([.. benches]), Hosts = hosts, Further = selection.Further };
             SnapshotPackage.NoteWorkshop(request);
             var choice = SelectWorkshopBench(request);
             if (choice.Method == Pol.WorkshopMethod.Existing)
             {
-                RecordWorkshopLadder(call, state, review, product, choice);
-                return (null, BuildingExistingFacility);
+                RecordWorkshopLadder(state, review, product, choice, call);
+                return (null, BuildingReasonExistingFacility);
             }
             var candidatesFor = WorkshopResearchCandidates(product, hosts);
             if (candidatesFor.Count == 0)
@@ -223,7 +232,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (selection.Resource.ToString() == "")
         {
-            return (null, BuildingWorkshopUnavailable);
+            return (null, BuildingReasonWorkshopUnavailable);
         }
         selection.Candidates = [.. gated.OrderBy(n => n, StringComparer.Ordinal)];
         selection.Candidates.AddRange(GeneratorDefinitions);
@@ -234,7 +243,7 @@ public sealed partial class RoundsBuildingPlanner
     /// Persists the rung the workshop settled on so the next rounds can raise EnsureResearch for a
     /// research-gated bench, or clear that need once the bench is buildable or standing.
     /// </summary>
-    internal void RecordWorkshopLadder(CancellationToken call, ControlState state, Sto.Rounds review, Pol.Resource resource, Pol.WorkshopChoice choice)
+    internal void RecordWorkshopLadder(ControlState state, Sto.Rounds review, Pol.Resource resource, Pol.WorkshopChoice choice, CancellationToken call)
     {
         var record = new Sto.ProductionLadderRecord
         {
@@ -249,14 +258,14 @@ public sealed partial class RoundsBuildingPlanner
         {
             record = record with { Research = choice.Research };
         }
-        Reviewer.Player.Journal.SaveProductionLadder(call, record);
+        Reviewer.Player.Journal.SaveProductionLadder(record, call);
     }
 
     /// <summary>
     /// Resolves the prepared candidates against the planning census the same way SelectComfort resolves a
     /// comfort method: the chosen bench becomes the definition, placed indoors in a Workshop-hosting room.
     /// </summary>
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectWorkshop(CancellationToken call, ControlState state, Sto.Rounds review, Observation.ColonyProjection facts)
+    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectWorkshop(ControlState state, Sto.Rounds review, Observation.ColonyProjection facts, CancellationToken call)
     {
         if (Workshop is null)
         {
@@ -266,7 +275,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             if (!facts.DefinitionAvailable("FermentingBarrel").TryGetValue(out var barrelAvailable) || !barrelAvailable)
             {
-                return (null, BuildingWorkshopUnavailable);
+                return (null, BuildingReasonWorkshopUnavailable);
             }
             var barrelFacility = Facility(Pol.RoomRole.Workshop);
             var barrel = Copy();
@@ -292,7 +301,7 @@ public sealed partial class RoundsBuildingPlanner
             var request = new Pol.WorkshopRequest
             {
                 Resource = product.Resource,
-                Benches = Known<IReadOnlyList<Pol.GearBench>>(Workshop.Benches),
+                Benches = Known<EquatableArray<Pol.GearBench>>([.. Workshop.Benches]),
                 Hosts = product.Hosts,
                 Definitions = definitions,
                 Power = GeneratorAvailable(available),
@@ -315,18 +324,18 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (choice.Method != Pol.WorkshopMethod.Unknown)
         {
-            RecordWorkshopLadder(call, state, review, resource, choice);
+            RecordWorkshopLadder(state, review, resource, choice, call);
         }
         switch (choice.Method)
         {
             case Pol.WorkshopMethod.Unknown:
                 return (null, FieldUnavailable("workshop"));
             case Pol.WorkshopMethod.Existing:
-                return (null, BuildingExistingFacility);
+                return (null, BuildingReasonExistingFacility);
             case Pol.WorkshopMethod.Research:
-                return (null, BuildingWorkshopResearch);
+                return (null, BuildingReasonWorkshopResearch);
             case Pol.WorkshopMethod.Unavailable:
-                return (null, BuildingWorkshopUnavailable);
+                return (null, BuildingReasonWorkshopUnavailable);
         }
         var facility = Facility(Pol.RoomRole.Workshop);
         var resolved = Copy();

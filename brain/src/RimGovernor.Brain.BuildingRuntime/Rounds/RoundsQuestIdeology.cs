@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsPopulationJoinerPlanner
 {
     /// <summary>Hacks a quest target or gifts a quest item; not handled when neither is owed.</summary>
-    internal (RoundsPopulationJoinerResult Result, bool Handled) AdmitIdeologyQuestWork(CancellationToken call, CancellationToken epoch, ControlState state, StandardState goal, RoundsReading read, StepArbiter arbiter, DateTimeOffset started)
+    internal (RoundsPopulationJoinerResult Result, bool Handled) AdmitIdeologyQuestWork(ControlState state, StandardState goal, RoundsReading read, StepArbiter arbiter, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         var f = read.Projection.Facts;
         var hack = PolicyFunctions.SelectQuestHack(f, read.Projection.Identity.Map);
@@ -11,18 +11,18 @@ public sealed partial class RoundsPopulationJoinerPlanner
         var id = PlanIds.MintPlanId();
         var actionId = new ActionId(id.Value + "-0");
         DomainAction action;
-        string quest;
+        QuestId quest;
         string target;
         string kind;
         IReadOnlyList<PawnId> crew = [];
         if (hack.Reason != "")
         {
-            reviewer.LogQuestSkip(call, new QuestSkip { Quest = hack.Quest, Reason = hack.Reason });
+            reviewer.LogQuestSkip(new QuestSkip(hack.Quest, "", hack.Reason, ""), call);
         }
 
         if (gift.Reason != "")
         {
-            reviewer.LogQuestSkip(call, new QuestSkip { Quest = gift.Quest, Reason = gift.Reason });
+            reviewer.LogQuestSkip(new QuestSkip(gift.Quest, "", gift.Reason, ""), call);
         }
 
         if (hack.Hack is not null)
@@ -34,7 +34,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
         {
             action = DomainAction.NewGiveItemAction(actionId, gift.Gift);
             (quest, target, kind) = (gift.Quest, gift.Gift.Recipient.Value, "gift");
-            crew = [gift.Gift.Hauler];
+            crew = [(PawnId)gift.Gift.Hauler];
         }
         else
         {
@@ -43,12 +43,12 @@ public sealed partial class RoundsPopulationJoinerPlanner
 
         if (crew.Count > 0 && !arbiter.TryClaim(crew, "quest:" + quest))
         {
-            return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.WaitFor(Cause.Claim, "quest_ideology") }, true);
+            return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.Claim, "quest_ideology") }, true);
         }
 
-        var plan = PlanSpec.NewPlan(id, new PlanRevision(1), [action]);
+        var plan = new PlanSpec(id, new PlanRevision(1), [action]);
         var prefix = $"quest-{kind}-{quest}-{target}-";
-        var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(call, reviewer.Player.Journal, goal, prefix, state.Snapshot);
+        var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(reviewer.Player.Journal, goal, prefix, state.Snapshot, call);
         if (!admitted)
         {
             return (new RoundsPopulationJoinerResult { Verdict = verdict }, true);
@@ -61,7 +61,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
             throw new ControlException("admitIdeologyQuestWork: session state changed or the read took too long");
         }
 
-        reviewer.Player.Journal.CommitMethod(call, goal.Standard.Id, goal.Revision, method, plan);
+        reviewer.Player.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
         return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, true);
     }
 }

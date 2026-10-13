@@ -60,13 +60,13 @@ internal static partial class BuildingRuntimePackage
         {
             return null;
         }
-        var targets = BedroomTargets(facts);
-        var claims = SuiteClaims(plan, rooms!, sleeping!, targets, traits, SuitePressure(facts), BedroomGate(facts, stage));
+        var targets = BedroomTargets(facts) ?? new Dictionary<string, Pol.RoomTarget>();
+        var claims = SuiteClaims(plan, rooms!, sleeping!, targets, traits, SuitePressure(facts) ?? new Dictionary<Pol.PawnId, double>(), BedroomGate(facts, stage));
         return SuiteWishes(plan, rooms!, sleeping!, targets, claims);
     }
 
     /// <summary>Excludes pawns awaiting a suite; their current rooms receive no in-place quality upgrade.</summary>
-    internal static Dictionary<string, Pol.RoomTarget>? UpgradeTargetsOf(Observation.ColonyProjection facts, Dictionary<string, Pol.RoomTarget>? targets, Pol.ColonyStage stage)
+    internal static IReadOnlyDictionary<string, Pol.RoomTarget> UpgradeTargetsOf(Observation.ColonyProjection facts, IReadOnlyDictionary<string, Pol.RoomTarget>? targets, Pol.ColonyStage stage)
     {
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var rk = facts.Rooms.TryGetValue(out var rooms);
@@ -74,10 +74,10 @@ internal static partial class BuildingRuntimePackage
         var traits = SleepingTraits(facts);
         if (!pk || !rk || !sk || traits is null)
         {
-            return targets;
+            return targets ?? new Dictionary<string, Pol.RoomTarget>();
         }
-        var claims = SuiteClaims(plan!, rooms!, sleeping!, BedroomTargets(facts), traits, SuitePressure(facts), BedroomGate(facts, stage));
-        return UpgradeTargets(targets, sleeping!, claims);
+        var claims = SuiteClaims(plan!, rooms!, sleeping!, BedroomTargets(facts) ?? new Dictionary<string, Pol.RoomTarget>(), traits, SuitePressure(facts) ?? new Dictionary<Pol.PawnId, double>(), BedroomGate(facts, stage));
+        return UpgradeTargets(targets ?? new Dictionary<string, Pol.RoomTarget>(), sleeping!, claims);
     }
 
     /// <summary>
@@ -93,7 +93,7 @@ internal static partial class BuildingRuntimePackage
             {
                 return Known<bool>(true);
             }
-            if (MigrateStep(facts).Kind != Pol.BedroomKind.None)
+            if (MigrateStep(facts).Kind != Pol.BedroomStepKind.None)
             {
                 return Known<bool>(true);
             }
@@ -105,7 +105,7 @@ internal static partial class BuildingRuntimePackage
             {
                 return Known<bool>(true);
             }
-            if (ThroneStepOf(facts).Owed() || ChildRoomStep(facts).Owed())
+            if (ThroneStepOf(facts).Owed || ChildRoomStep(facts).Owed())
             {
                 return Known<bool>(true);
             }
@@ -130,8 +130,7 @@ internal static partial class BuildingRuntimePackage
     /// <summary>Builds both from the one stuff the colony can raise a shell from (ShellSharedStuff).</summary>
     internal static (string WallStuff, string DoorStuff, Verdict Refusal, bool Ok) SharedShellStuff(Observation.ColonyProjection facts, Observation.PlanningDefinition wall, Observation.PlanningDefinition door)
     {
-        var (stuff, known) = ShellSharedStuff(facts, wall, door);
-        if (!known)
+        if (ShellSharedStuff(facts, wall, door) is not { } stuff)
         {
             return ("", "", FieldUnavailable("wall_door_stuff"), false);
         }
@@ -140,7 +139,7 @@ internal static partial class BuildingRuntimePackage
 
     /// <summary>Orders the suite queue by the pawns' current bedroom, space and jealousy thoughts; null (pawn-id order) while the mood census is unknown.</summary>
     internal static Dictionary<Pol.PawnId, double>? SuitePressure(Observation.ColonyProjection facts) =>
-        facts.Facts.MoodPawns.TryGetValue(out var pawns) ? SuitePressureOf(pawns) : null;
+        facts.Facts.MoodPawns.TryGetValue(out var pawns) ? PolicyFunctions.SuitePressure(pawns) : null;
 }
 
 public sealed partial class RoundsSleepingUpkeepPlanner
@@ -151,17 +150,17 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// on site only when none is stored. A vacant bed left in the starter shell is packed to become that stock;
     /// a placement native refuses means wait.
     /// </summary>
-    internal RoundsBuildingResult ReconcileBedroom(CancellationToken call, CancellationToken epoch, PackedStock stock, ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.BedroomStep step)
+    internal async Task<RoundsBuildingResult> ReconcileBedroomAsync(PackedStock stock, ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.BedroomStep step, CancellationToken call, CancellationToken epoch)
     {
         var facts = reading.Projection;
         // A suite is only started with its whole ring in stock.
         if (step.Room.Role == Pol.PlannedRole.Suite)
         {
             var inside = step.Room.Region.Bounds();
-            var (_, walls, _) = facts.StockedStuff("Wall");
+            var walls = facts.StockedStuff("Wall")?.Count ?? 0;
             if (walls < 2 * (inside.Width + inside.Height) + 4)
             {
-                return new RoundsBuildingResult { Verdict = BuildingSuiteStock };
+                return new RoundsBuildingResult { Verdict = BuildingReasonSuiteStock };
             }
         }
         var request = SleepingRequest(facts, review);
@@ -172,26 +171,25 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         }
         if (method != Pol.SleepingMethod.Build)
         {
-            return new RoundsBuildingResult { Verdict = BuildingSleepingUnavailable };
+            return new RoundsBuildingResult { Verdict = BuildingReasonSleepingUnavailable };
         }
         if (!facts.Rooms.TryGetValue(out var rooms))
         {
             return new RoundsBuildingResult { Verdict = FieldUnavailable("room_census") };
         }
-        var (template, ok) = BedroomTemplate(step.Room, rooms.Shapes, bed);
-        if (!ok)
+        if (BedroomTemplate(step.Room, rooms.Shapes, bed) is not { } template)
         {
             return new RoundsBuildingResult { Verdict = NoSpace("bedroom_template") };
         }
         // Only once the room stands: until then the shelter's bed keeps its sleeper.
-        if (CensusRoomIn(step.Room, rooms).Found)
+        if (CensusRoomIn(step.Room, rooms).Ok)
         {
-            var (packed, due) = PackShellBed(call, epoch, stock, state, goal, reading, bed);
+            var (packed, due) = await PackShellBedAsync(stock, state, goal, reading, bed, call, epoch).ConfigureAwait(false);
             if (due)
             {
                 return packed;
             }
         }
-        return Building.ReconcileRoom(call, epoch, state, review, goal, reading, stock, new RoomReconcile { Room = step.Room, Template = template, Name = BedroomReconcileName(step.Room), Reason = BedroomShellReason(step) });
+        return await Building.ReconcileRoomAsync(state, review, goal, reading, stock, new RoomReconcile { Room = step.Room, Template = template, Name = BedroomReconcileName(step.Room), Reason = BedroomShellReason(step) }, call, epoch).ConfigureAwait(false);
     }
 }

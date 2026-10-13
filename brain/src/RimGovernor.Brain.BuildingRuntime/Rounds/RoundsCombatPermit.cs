@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsDefensePlanner
 {
     /// <summary>Commits the permit and psycast calls of a combat step as one incident method.</summary>
-    internal void CommitPermitCalls(CancellationToken call, CancellationToken epoch, IncidentState incident, IReadOnlyList<CombatOrder> calls)
+    internal void CommitPermitCalls(IncidentState incident, IReadOnlyList<CombatOrder> calls, CancellationToken call, CancellationToken epoch)
     {
         if (calls.Count == 0)
         {
@@ -36,7 +36,7 @@ internal static partial class BuildingRuntimePackage
         var calls = new List<CombatOrder>();
         foreach (var order in orders)
         {
-            if (order.Kind == PolicyApi.OrderPermit || order.Kind == PolicyApi.OrderCast)
+            if (order.Kind == Pol.CombatOrderKind.Permit || order.Kind == Pol.CombatOrderKind.Cast)
             {
                 calls.Add(order);
             }
@@ -54,7 +54,7 @@ internal static partial class BuildingRuntimePackage
         for (var i = 0; i < calls.Count; i++)
         {
             var (source, target) = CallAbility(calls[i]);
-            var ability = new Ability(calls[i].Pawn, source, target);
+            var ability = new Ability((Domain.PawnId)calls[i].Pawn, source, target);
             actions.Add(DomainAction.NewAbilityAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{plan}-p{i}")), ability));
         }
         return actions;
@@ -62,20 +62,20 @@ internal static partial class BuildingRuntimePackage
 
     internal static (AbilitySource Source, AbilityTarget Target) CallAbility(CombatOrder call)
     {
-        if (call.Kind != PolicyApi.OrderCast)
+        if (call.Kind != Pol.CombatOrderKind.Cast)
         {
             return (AbilitySource.PermitSource(call.Faction, call.Permit), AbilityTarget.AbilityCellTarget(call.Cell));
         }
         var source = AbilitySource.PsycastSource(call.Permit);
-        if (call.Arm == PolicyApi.PsycastTargetSelf)
+        if (call.Arm == Pol.PsycastTarget.Self)
         {
             return (source, AbilityTarget.NoAbilityTarget());
         }
-        if (call.Arm == PolicyApi.PsycastTargetPawn)
+        if (call.Arm == Pol.PsycastTarget.Pawn)
         {
-            return (source, AbilityTarget.AbilityPawnTarget(call.Target));
+            return (source, AbilityTarget.AbilityPawnTarget((Domain.PawnId)call.Target));
         }
-        if (call.Arm == PolicyApi.PsycastTargetCell)
+        if (call.Arm == Pol.PsycastTarget.Cell)
         {
             return (source, AbilityTarget.AbilityCellTarget(call.Cell));
         }

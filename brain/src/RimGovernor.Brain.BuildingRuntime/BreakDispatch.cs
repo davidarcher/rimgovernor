@@ -33,7 +33,7 @@ internal static class BreakDispatch
         var aggressive = new HashSet<PawnId>();
         foreach (var p in f.Colonists)
         {
-            if (EmergencyFacts.AggressiveBreak(p))
+            if (PolicyFunctions.AggressiveBreak(p))
             {
                 aggressive.Add(new PawnId(p.Id.Value));
             }
@@ -57,14 +57,14 @@ internal static class BreakDispatch
             foreach (var p in plan.Progress)
             {
                 var v = p.View;
-                if (p.Action.Subdue is { } m && colonistsKnown && complete && !aggressive.Contains(m.Target) && !v.Unresolved
+                if (p.Action.Subdue is { } m && colonistsKnown && complete && !aggressive.Contains((PawnId)m.Target) && !v.Unresolved
                     && v.Stage is Stage.Pending or Stage.Prepared or Stage.Completed)
                 {
                     await journal.CancelAsync(plan.Spec.Id, v.Action, ct).ConfigureAwait(false);
                     continue;
                 }
                 var worker = sites.TryGetValue(v.Action, out var site) ? site.Worker : default;
-                if (!broken.Contains(worker) || v.Stage is Stage.Completed or Stage.Cancelled or Stage.Unsuccessful)
+                if (!broken.Contains((PawnId)worker) || v.Stage is Stage.Completed or Stage.Cancelled or Stage.Unsuccessful)
                 {
                     continue;
                 }
@@ -107,7 +107,7 @@ public sealed partial class Worker
             {
                 broken.Add(new PawnId(p.Id.Value));
             }
-            if (EmergencyFacts.AggressiveBreak(p))
+            if (PolicyFunctions.AggressiveBreak(p))
             {
                 aggressive.Add(new PawnId(p.Id.Value));
             }
@@ -145,7 +145,7 @@ public sealed partial class Worker
             foreach (var action in plan.Spec.Actions)
             {
                 var site = sites.TryGetValue(action.Id, out var s) ? s : default;
-                if (broken.Contains(site.Worker))
+                if (broken.Contains((PawnId)site.Worker))
                 {
                     held.Add(action.Id);
                     continue;
@@ -182,7 +182,7 @@ public sealed partial class Worker
                         if (cell.TryGetValue(out var p))
                         {
                             located = true;
-                            if (EmergencyFacts.InBreakRadius(p, at))
+                            if (PolicyFunctions.InBreakRadius(p, at))
                             {
                                 held.Add(action.Id);
                             }
