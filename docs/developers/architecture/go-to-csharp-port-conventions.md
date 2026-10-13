@@ -190,3 +190,28 @@ its generated-code relaxations (nullable annotations, no analyzers, warnings not
 are scoped to that project. `brain:build` first generates the gitignored `Defs.cs`. It
 goes away when protobuf collapses to plain records (#3100). `RimGovernor.Brain.Policy`
 (Domain + Wire) hosts the policy ports.
+
+## Stat reads and the game assemblies (A1b, #3056)
+
+`IStatSource` (`RimGovernor.Brain.Domain`, `Stats/`) is the brain's only way to read computed
+stat values. It replaces Go `internal/bridge/stateval`, which is not ported; `FakeStatSource`
+serves tests and simulation with recorded values, and the production implementation is the
+game-thread stat service (#3080).
+
+**Bare-host answer (checked 2026-10-12): yes.** The game ships on .NET 10 with managed
+`Assembly-CSharp.dll` (the isolated copy under `.rimgovernor/native-rimworld/`; the Steam default
+path of `RimWorldDir` does not exist on every machine). A plain `net10.0` console project that
+references only `Assembly-CSharp.dll` (the other game DLLs are copied beside it) runs, with no
+engine started:
+
+- `new ThingDef { ... }`, `new StatDef { ... }`, `StatModifier` and `StuffProperties` construct.
+- `statDef.Worker.GetValueAbstract(thingDef, stuff)` returns the real `StatWorker` result: the
+  `statBases` value (42) and the stuff factor (84 with a factor-2 stuff); `ShouldShowFor` runs.
+- Anything that reads `Find.*` statics sees null, not a crash at load: `Find.Scenario` is null,
+  and `ThingDef.CostListAdjusted` threw `NullReferenceException` from `CostListCalculator` on a
+  hand-built def with no cost list or game. Parts that read scenario, difficulty, mods, maps or
+  pawns therefore need real game state, which is exactly what `StatContext` facts and the
+  game-thread service (#3080) supply.
+
+So derivations can read real `Def` objects built from the game's own types without a running
+engine, but stat values that depend on world state must still come through `IStatSource`.
