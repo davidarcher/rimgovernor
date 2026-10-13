@@ -8,10 +8,10 @@
     <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Go's domain.Known / domain.Unknown, and the package-level consts and functions with no owner type. -->
     <Using Include="RimGovernor.Brain.Domain" />
-    <!-- Go's Known(v) / Unknown[T]() read the same in C#: Known(v), Unknown<T>(). -->
     <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
-    <!-- Go package-level functions and constants with no owning type live on PolicyFunctions (a part per Go file). -->
+    <Using Include="RimGovernor.Brain.Policy.PolicyConstants" Static="true" />
     <Using Include="RimGovernor.Brain.Policy.PolicyFunctions" Static="true" />
   </ItemGroup>
 </Project>
