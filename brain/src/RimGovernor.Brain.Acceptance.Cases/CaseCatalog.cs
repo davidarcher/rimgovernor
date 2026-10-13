@@ -18,6 +18,7 @@ public static class CaseCatalog
         DraftCases.Register(registry);
         LetterCases.Register(registry);
         NeedsCases.Register(registry);
+        QuestCases.Register(registry);
         RecoveryCases.Register(registry);
         ResearchCases.Register(registry);
         RoomsCases.Register(registry);
@@ -25,6 +26,7 @@ public static class CaseCatalog
         StorageCases.Register(registry);
         SuppliesCases.Register(registry);
         TickbudgetCases.Register(registry);
+        TradeCases.Register(registry);
         WallCases.Register(registry);
         WasteCases.Register(registry);
         ZoneCases.Register(registry);
