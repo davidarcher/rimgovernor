@@ -76,7 +76,7 @@ solution is turned off once, in `brain/.editorconfig`, with a one-line reason.
 | `validID(string(x))` | `x.IsValid` / `Identity.IsValidText(s)` |
 | slice | `IReadOnlyList<T>` / `ImmutableArray<T>` in signatures; a slice field in a record Go compares with `==` is `EquatableArray<T>`; never copy defensively, values are immutable |
 | `append([]T(nil), s...)` copy | not needed; `EquatableArray.From(s)` only to snapshot a mutable caller list |
-| comparable struct holding JSON in a `string` so it stays comparable | the typed value (`EquatableArray<T>`); JSON is kept only where it is a real persisted text (a `Standard.Record`, an incident payload) and then uses `System.Text.Json` with the Go field names |
+| comparable struct holding JSON in a `string` so it stays comparable | the typed value (`EquatableArray<T>`); JSON is kept only where it is a real persisted text (a `Standard.Record`, an incident payload) and then uses source-generated `System.Text.Json` (`JsonSerializerContext`, never reflection; see [hot reload feasibility](brain-hot-reload-feasibility.md#root-cause-of-the-json-pin)) with the Go field names |
 | `map[K]V` | `Dictionary<K,V>`; **never depend on iteration order** (Go randomises it): sort explicitly |
 | `sort.Slice`, `slices.Sort` | `OrderBy(...).ThenBy(...)` (stable) with ordinal comparers |
 | string `<`, `==`, `strings.Compare` | `StringComparison.Ordinal` / `string.CompareOrdinal`; ids already do this. Never culture compare |
@@ -92,7 +92,7 @@ solution is turned off once, in `brain/.editorconfig`, with a one-line reason.
 | methods on a defined string type | extension methods on the enum |
 | build tags | `#if` only for genuine platform splits; none exist in `domain` |
 | struct comparison `a == b` | record value equality; sequence fields use `EquatableArray<T>` |
-| JSON tags | dropped; serialization is a boundary concern until #3100 |
+| JSON tags | dropped; serialization is a boundary concern until #3100. Whatever it becomes, brain assemblies must not use reflection-based `System.Text.Json` (it pins a collectible load context): source generation or protobuf only |
 
 ### Naming
 
