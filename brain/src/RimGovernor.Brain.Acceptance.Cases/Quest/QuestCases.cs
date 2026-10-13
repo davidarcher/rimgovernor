@@ -11,5 +11,14 @@ public static class QuestCases
         registry.Register(QuestGiveItem.Case());
         registry.Register(QuestHack.Case());
         registry.Register(QuestShuttle.Case());
+        registry.Register(QuestDecree.Case());
+        foreach (var expedition in QuestExpedition.Cases())
+        {
+            registry.Register(expedition);
+        }
+
+        registry.Register(QuestHospitality.Case());
+        registry.Register(QuestJoiner.Case());
+        registry.Register(QuestTitle.Case());
     }
 }
