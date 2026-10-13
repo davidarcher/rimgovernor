@@ -14,7 +14,7 @@ public interface ICommsTradeRequestNative
 {
     (ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result) ReadTradeAcquisition(CancellationToken ct, CommonPb.Identity identity, OperationsPb.FormCaravanIntent? intent);
 
-    (Bridge.TradersRead Read, BridgeResult Result) ListTraders(CancellationToken ct, CommonPb.Identity identity);
+    (TradersRead Read, BridgeResult Result) ListTraders(CancellationToken ct, CommonPb.Identity identity);
 }
 
 public sealed class TradeCapabilities

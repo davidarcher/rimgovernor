@@ -1,5 +1,5 @@
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Domain;
-using Defs = RimGovernor.Protocol.Defs;
 
 namespace RimGovernor.Brain.Simulation.Combat.Import;
 
@@ -9,8 +9,6 @@ internal sealed partial class Importer
     private const string StatCooldown = "RangedWeapon_Cooldown";
     private const string StatDamageMult = "RangedWeapon_DamageMultiplier";
     private const string StatPenetrationMult = "RangedWeapon_ArmorPenetrationMultiplier";
-    private const string ShootVerbClass = "Verse.Verb_Shoot";
-    private const string MeleeVerbClass = "RimWorld.Verb_MeleeAttack";
 
     // ProjectileProperties.GetArmorPenetration's fallback for a projectile that states none, per point of damage.
     private const double PenetrationPerDamage = 0.015;
@@ -104,14 +102,13 @@ internal sealed partial class Importer
     // from its row (A27).
     private WeaponDef RangedWeapon(string pawn, string def, string stuff)
     {
-        var row = cat.ThingDef(def) ?? throw Unsupported($"catalog has no weapon def \"{def}\"");
-        Defs.VerbProperties? verb = null;
-        foreach (var entry in row.Verbs)
+        var row = cat.FindThing(def) ?? throw Unsupported($"catalog has no weapon def \"{def}\"");
+        Verse.VerbProperties? verb = null;
+        foreach (var entry in row.Verbs ?? [])
         {
-            var cls = entry.Value?.VerbClass ?? "";
-            if (!ClassIsA(cls, MeleeVerbClass, $"weapon \"{def}\" verb class"))
+            if (entry.verbClass is null || !ClassIsA(entry.verbClass, typeof(RimWorld.Verb_MeleeAttack)))
             {
-                verb = entry.Value;
+                verb = entry;
                 break;
             }
         }
@@ -119,22 +116,25 @@ internal sealed partial class Importer
         {
             throw Unsupported($"weapon \"{def}\" has no ranged verb");
         }
-        if (!ClassIsA(verb.VerbClass, ShootVerbClass, $"weapon \"{def}\" verb class"))
+        if (verb.verbClass is null || !ClassIsA(verb.verbClass, typeof(Verse.Verb_Shoot)))
         {
-            throw Unsupported($"weapon \"{def}\" verb \"{verb.VerbClass}\" is not Verb_Shoot");
+            throw Unsupported($"weapon \"{def}\" verb \"{verb.verbClass}\" is not Verb_Shoot");
         }
-        if (verb.RangeStat.Length != 0)
+        if (verb.rangeStat is not null)
         {
-            throw Unsupported($"weapon \"{def}\" verb range comes from pawn stat \"{verb.RangeStat}\"");
+            throw Unsupported($"weapon \"{def}\" verb range comes from pawn stat \"{verb.rangeStat.defName}\"");
         }
-        var props = cat.ThingDef(verb.DefaultProjectile)?.Projectile
-            ?? throw Unsupported($"weapon \"{def}\" has no projectile def \"{verb.DefaultProjectile}\"");
-        var dd = cat.DefRow<Defs.DamageDef>(props.DamageDef) ?? throw Unsupported($"catalog has no damage def \"{props.DamageDef}\"");
-        SettleDamage(props.DamageDef, dd);
+        var props = verb.defaultProjectile?.projectile
+            ?? throw Unsupported($"weapon \"{def}\" has no projectile def \"{verb.defaultProjectile?.defName}\"");
+        var dd = props.damageDef ?? throw Unsupported($"weapon \"{def}\" projectile has no damage def");
+        var damageName = dd.defName;
+        var damageAmountBase = GameMembers.DamageAmountBase(props);
+        var armorPenetrationBase = GameMembers.ArmorPenetrationBase(props);
+        SettleDamage(damageName, dd);
 
         double Stat(string name) => ThingStat(name, def, stuff, $"weapon \"{def}\" stat {name}");
 
-        var range = (double)verb.Range;
+        var range = (double)verb.range;
         if (_weatherCap >= 0)
         {
             range = Math.Min(range, _weatherCap);
@@ -147,22 +147,22 @@ internal sealed partial class Importer
 
         // ProjectileProperties.GetDamageAmount: the stated amount or the damage def's default, times the weapon's
         // damage multiplier, rounded.
-        double amount = props.DamageAmountBase;
-        if (props.DamageAmountBase == -1)
+        double amount = damageAmountBase;
+        if (damageAmountBase == -1)
         {
-            amount = dd.DefaultDamage;
+            amount = dd.defaultDamage;
         }
         var mult = Stat(StatDamageMult);
         var damageAmount = (int)Math.Round(amount * mult, MidpointRounding.ToEven);
 
         // ProjectileProperties.GetArmorPenetration.
         var armorPenetration = 0.0;
-        if (dd.ArmorCategory.Length != 0)
+        if (dd.armorCategory is not null)
         {
-            double ap = props.ArmorPenetrationBase;
-            if (props.DamageAmountBase == -1 && props.ArmorPenetrationBase < 0)
+            double ap = armorPenetrationBase;
+            if (damageAmountBase == -1 && armorPenetrationBase < 0)
             {
-                ap = dd.DefaultArmorPenetration;
+                ap = dd.defaultArmorPenetration;
             }
             if (ap < 0)
             {
@@ -172,7 +172,7 @@ internal sealed partial class Importer
         }
 
         var src = "ThingDef " + def;
-        var proj = "ThingDef " + verb.DefaultProjectile;
+        var proj = "ThingDef " + verb.defaultProjectile.defName;
         foreach (var (field, source) in new (string, string)[]
         {
             ("Weapon.Range", src + " verb range, WeatherDef maxRangeCap"),
@@ -186,8 +186,8 @@ internal sealed partial class Importer
             ("Weapon.AccuracyMedium", "stat AccuracyMedium"),
             ("Weapon.AccuracyLong", "stat AccuracyLong"),
             ("Weapon.ProjectileSpeed", proj + " projectile speed"),
-            ("Weapon.DamageAmount", proj + " damageAmountBase or DamageDef " + props.DamageDef + " defaultDamage, stat " + StatDamageMult),
-            ("Weapon.ArmorPenetration", proj + " armorPenetrationBase or DamageDef " + props.DamageDef + " defaultArmorPenetration, stat " + StatPenetrationMult),
+            ("Weapon.DamageAmount", proj + " damageAmountBase or DamageDef " + damageName + " defaultDamage, stat " + StatDamageMult),
+            ("Weapon.ArmorPenetration", proj + " armorPenetrationBase or DamageDef " + damageName + " defaultArmorPenetration, stat " + StatPenetrationMult),
             ("Weapon.ForcedMissRadius", src + " verb forcedMissRadius"),
         })
         {
@@ -197,24 +197,24 @@ internal sealed partial class Importer
         {
             Name = def,
             Range = range,
-            MinRange = verb.MinRange,
-            WarmupSeconds = verb.WarmupTime,
+            MinRange = verb.minRange,
+            WarmupSeconds = verb.warmupTime,
             CooldownSeconds = cooldown,
-            BurstShotCount = verb.BurstShotCount,
-            TicksBetweenBurstShots = verb.TicksBetweenBurstShots,
+            BurstShotCount = verb.burstShotCount,
+            TicksBetweenBurstShots = verb.ticksBetweenBurstShots,
             AccuracyTouch = touch,
             AccuracyShort = near,
             AccuracyMedium = medium,
             AccuracyLong = far,
-            ProjectileSpeed = props.Speed / ProjectileSpeedUnit,
+            ProjectileSpeed = props.speed / ProjectileSpeedUnit,
             DamageAmount = damageAmount,
             ArmorPenetration = armorPenetration,
-            ForcedMissRadius = verb.ForcedMissRadius,
+            ForcedMissRadius = GameMembers.ForcedMissRadius(verb),
         };
     }
 
     // Records the Spec's damage def and reads the pain it causes, or fails when a second, different damage def appears.
-    private void SettleDamage(string name, Defs.DamageDef dd)
+    private void SettleDamage(string name, Verse.DamageDef dd)
     {
         if (_dmg is not null)
         {
@@ -224,38 +224,39 @@ internal sealed partial class Importer
             }
             return;
         }
-        if (dd.Hediff.Length == 0)
+        var hediffName = dd.hediff?.defName ?? "";
+        if (hediffName.Length == 0)
         {
             throw Unsupported($"damage def \"{name}\" applies no hediff");
         }
-        var hediff = cat.DefRow<Defs.HediffDef>(dd.Hediff);
-        if (hediff?.InjuryProps is null)
+        var hediff = cat.DefRow<Verse.HediffDef>(hediffName);
+        if (hediff?.injuryProps is null)
         {
-            throw Unsupported($"catalog has no injury hediff \"{dd.Hediff}\" for damage def \"{name}\"");
+            throw Unsupported($"catalog has no injury hediff \"{hediffName}\" for damage def \"{name}\"");
         }
-        if (!(hediff.InjuryProps.PainPerSeverity > 0))
+        if (!(hediff.injuryProps.painPerSeverity > 0))
         {
-            throw Unsupported($"hediff \"{dd.Hediff}\" causes no pain per severity");
+            throw Unsupported($"hediff \"{hediffName}\" causes no pain per severity");
         }
-        var overkill = dd.OverkillPctToDestroyPart;
+        var overkill = dd.overkillPctToDestroyPart;
         var armorStat = "";
-        if (dd.ArmorCategory.Length != 0)
+        var armorCategory = dd.armorCategory?.defName ?? "";
+        if (dd.armorCategory is not null)
         {
-            var category = cat.DefRow<Defs.DamageArmorCategoryDef>(dd.ArmorCategory);
-            if (category is null || category.ArmorRatingStat.Length == 0)
+            if (dd.armorCategory.armorRatingStat is not { } ratingStat)
             {
-                throw Unsupported($"catalog has no armor category \"{dd.ArmorCategory}\" for damage def \"{name}\"");
+                throw Unsupported($"catalog has no armor category \"{armorCategory}\" for damage def \"{name}\"");
             }
-            armorStat = category.ArmorRatingStat;
+            armorStat = ratingStat.defName;
         }
         _dmg = new DamageInfo
         {
             Def = name,
-            ArmorCategory = dd.ArmorCategory,
-            Hediff = dd.Hediff,
-            HarmAllLayers = dd.HarmAllLayersUntilOutside,
-            OverkillLow = overkill?.Min ?? 0,
-            OverkillHigh = overkill?.Max ?? 0,
+            ArmorCategory = armorCategory,
+            Hediff = hediffName,
+            HarmAllLayers = dd.harmAllLayersUntilOutside,
+            OverkillLow = overkill.min,
+            OverkillHigh = overkill.max,
             ArmorStat = armorStat,
         };
     }

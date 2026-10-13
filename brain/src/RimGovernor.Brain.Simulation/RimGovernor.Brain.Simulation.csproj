@@ -3,9 +3,11 @@
     <RootNamespace>RimGovernor.Brain.Simulation</RootNamespace>
     <AssemblyName>RimGovernor.Brain.Simulation</AssemblyName>
   </PropertyGroup>
+  <Import Project="../../Game.props" />
   <ItemGroup>
     <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Bridge.Contracts/RimGovernor.Brain.Bridge.Contracts.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Bridge/RimGovernor.Brain.Bridge.csproj" />
   </ItemGroup>
 </Project>

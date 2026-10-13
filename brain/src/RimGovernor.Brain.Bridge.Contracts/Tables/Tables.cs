@@ -202,15 +202,11 @@ public readonly record struct Things(Table<Thing> Table)
 /// <param name="Buildings">The building table.</param>
 /// <param name="Pawns">The pawn table.</param>
 /// <param name="Things">The things table.</param>
-/// <param name="Catalog">
-/// The load's definition catalog, which resolves a row's def name to what the def says; null where none is held,
-/// and the facts that need it stay unknown.
-/// </param>
 /// <param name="FinishedResearch">
 /// The finished research projects of the frame's research census; unknown where the frame carries none. Power rows
 /// read it for the def's finished upgrades.
 /// </param>
-public sealed record Tables(Buildings Buildings, Pawns Pawns, Things Things, DefinitionCatalog? Catalog = null, Fact<EquatableArray<string>> FinishedResearch = default)
+public sealed record Tables(Buildings Buildings, Pawns Pawns, Things Things, Fact<EquatableArray<string>> FinishedResearch = default)
 {
     /// <summary>
     /// The head (def, label, position) of the row <paramref name="reference"/> points at in any of the tables, null

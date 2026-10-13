@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Simulation.CombatMetrics;
-using RimGovernor.Brain.Bridge.Contracts;
-using Defs = RimGovernor.Protocol.Defs;
+using RimGovernor.Brain.Bridge;
 
 namespace RimGovernor.Brain.Simulation.Combat.Import;
 
@@ -89,10 +88,8 @@ internal sealed partial class Importer(DefinitionCatalog cat, IStatSource stats)
         {
             return cfg;
         }
-        var constants = Constants();
-        var span = constants.LordJobAssaultColony?.AssaultTimeBeforeGiveUp
-            ?? throw Unsupported("catalog has no LordJob_AssaultColony.AssaultTimeBeforeGiveUp");
-        cfg = cfg with { GiveUpMinTicks = span.Min, GiveUpMaxTicks = span.Max };
+        var span = GameMembers.AssaultTimeBeforeGiveUp(null);
+        cfg = cfg with { GiveUpMinTicks = span.min, GiveUpMaxTicks = span.max };
         Trace("raid", "GiveUpTicks", "game constant LordJob_AssaultColony.AssaultTimeBeforeGiveUp");
 
         // WealthWatcher.HealthTotal: the hit points of every player-owned artificial building plus 100 per free
@@ -107,8 +104,8 @@ internal sealed partial class Importer(DefinitionCatalog cat, IStatSource stats)
         }
         foreach (var t in spec.Things)
         {
-            var row = cat.ThingDef(t.Def);
-            if (row?.Category != Defs.ThingCategory.Building || row.Building?.IsNaturalRock == true)
+            var row = cat.FindThing(t.Def);
+            if (row?.category != Verse.ThingCategory.Building || row.building?.isNaturalRock == true)
             {
                 continue;
             }
@@ -118,17 +115,6 @@ internal sealed partial class Importer(DefinitionCatalog cat, IStatSource stats)
         return cfg with { ColonyHealthTotal = Fact.Known(total) };
     }
 
-    private Defs.GameConstants Constants()
-    {
-        try
-        {
-            return cat.GameConstants ?? throw new DomainException("catalog has no game constants");
-        }
-        catch (DomainException e)
-        {
-            throw Unsupported("game constants: " + e.Message);
-        }
-    }
 
     // Reads a stat of a ThingDef, turning a source failure into an unsupported scenario that names the context.
     private double ThingStat(string stat, string def, string stuff, string context)
@@ -146,14 +132,14 @@ internal sealed partial class Importer(DefinitionCatalog cat, IStatSource stats)
     // Fills the map: terrain palette, thing palette and grid, weather and the friendly fire factor.
     private Scenario World(Spec spec)
     {
-        var terrain = cat.TerrainDef(spec.Terrain) ?? throw Unsupported($"catalog has no terrain def \"{spec.Terrain}\"");
+        var terrain = cat.FindTerrain(spec.Terrain) ?? throw Unsupported($"catalog has no terrain def \"{spec.Terrain}\"");
         var terrains = new List<TerrainDef>
         {
             new()
             {
                 Name = spec.Terrain,
-                PathCost = terrain.PathCost,
-                Passable = terrain.Passability != Defs.Traversability.Impassable,
+                PathCost = terrain.pathCost,
+                Passable = terrain.passability != Verse.Traversability.Impassable,
             },
         };
         Trace("map", "Terrain", "TerrainDef " + spec.Terrain + " pathCost, passability");
@@ -190,9 +176,9 @@ internal sealed partial class Importer(DefinitionCatalog cat, IStatSource stats)
             thingIds[at] = id;
         }
 
-        var weather = cat.DefRow<Defs.WeatherDef>(spec.Weather) ?? throw Unsupported($"catalog has no weather def \"{spec.Weather}\"");
-        _weatherCap = weather.MaxRangeCap;
-        if (weather.MaxRangeCap >= 0)
+        var weather = cat.DefRow<Verse.WeatherDef>(spec.Weather) ?? throw Unsupported($"catalog has no weather def \"{spec.Weather}\"");
+        _weatherCap = weather.maxRangeCap;
+        if (weather.maxRangeCap >= 0)
         {
             // A range cap would shorten every weapon; the weapons derivation reads it.
             Trace("map", "WeatherRangeCap", "WeatherDef " + spec.Weather + " maxRangeCap");
@@ -211,8 +197,8 @@ internal sealed partial class Importer(DefinitionCatalog cat, IStatSource stats)
             Terrain = terrains,
             Things = things,
             ThingIds = thingIds,
-            WeatherMoveSpeed = Fact.Known((double)weather.MoveSpeedMultiplier),
-            WeatherAccuracy = Fact.Known((double)weather.AccuracyMultiplier),
+            WeatherMoveSpeed = Fact.Known((double)weather.moveSpeedMultiplier),
+            WeatherAccuracy = Fact.Known((double)weather.accuracyMultiplier),
             FriendlyFireChanceFactor = spec.FriendlyFireChanceFactor,
         };
     }
@@ -230,43 +216,30 @@ internal sealed partial class Importer(DefinitionCatalog cat, IStatSource stats)
     // Reads the values the sim wants of a thing def.
     private ThingDef ThingDefOf(string name)
     {
-        var row = cat.ThingDef(name) ?? throw Unsupported($"catalog has no thing def \"{name}\"");
-        if (!string.IsNullOrEmpty(row.Building?.TurretGunDef))
+        var row = cat.FindThing(name) ?? throw Unsupported($"catalog has no thing def \"{name}\"");
+        if (row.building?.turretGunDef is not null)
         {
             throw Unsupported($"thing \"{name}\" is a turret, which the sim does not fire");
         }
-        var passability = row.Passability switch
+        var passability = row.passability switch
         {
-            Defs.Traversability.Standable => Passability.Standable,
-            Defs.Traversability.PassThroughOnly => Passability.PassThroughOnly,
-            Defs.Traversability.Impassable => Passability.Impassable,
-            _ => throw Unsupported($"thing \"{name}\" has passability {row.Passability}"),
+            Verse.Traversability.Standable => Passability.Standable,
+            Verse.Traversability.PassThroughOnly => Passability.PassThroughOnly,
+            Verse.Traversability.Impassable => Passability.Impassable,
+            _ => throw Unsupported($"thing \"{name}\" has passability {row.passability}"),
         };
-        var door = false;
-        if (!string.IsNullOrEmpty(row.ThingClass))
-        {
-            door = ClassIsA(row.ThingClass, "RimWorld.Building_Door", $"thing \"{name}\" class \"{row.ThingClass}\"");
-        }
+        var door = row.thingClass is not null && ClassIsA(row.thingClass, typeof(RimWorld.Building_Door));
         return new ThingDef
         {
             Name = name,
-            Fillage = Fillage(row.FillPercent),
-            FillPercent = row.FillPercent,
-            PathCost = row.PathCost,
+            Fillage = Fillage(row.fillPercent),
+            FillPercent = row.fillPercent,
+            PathCost = row.pathCost,
             Passability = passability,
             Door = door,
         };
     }
 
-    private bool ClassIsA(string cls, string ancestor, string context)
-    {
-        try
-        {
-            return cat.ClassIsA(cls, ancestor);
-        }
-        catch (DomainException e)
-        {
-            throw Unsupported($"{context}: {e.Message}");
-        }
-    }
+    // A class test is the game's own: the class is the ancestor or derives from it.
+    private static bool ClassIsA(Type cls, Type ancestor) => ancestor.IsAssignableFrom(cls);
 }

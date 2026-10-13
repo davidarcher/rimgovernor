@@ -1,0 +1,23 @@
+<Project>
+  <!-- Imported by every brain project that reads the game's own Def types (Bridge and the projects over it).
+       Compiles against Assembly-CSharp, UnityStubs and Waylith from RimWorldDir (Directory.Build.props).
+       Where RimWorldDir has no Assembly-CSharp.dll the project is `unavailable`: it builds as an empty assembly
+       (only Properties/Unavailable.cs) and says so, the way the native build and defmirror do. A project that
+       imports this file must have a Properties/Unavailable.cs. -->
+  <PropertyGroup>
+    <GameAssembly>$(RimWorldDir)/Assembly-CSharp.dll</GameAssembly>
+    <GameAvailable Condition="Exists('$(GameAssembly)')">true</GameAvailable>
+    <EnableDefaultCompileItems Condition="'$(GameAvailable)' != 'true'">false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(GameAvailable)' == 'true'">
+    <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldDir)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityStubs"><HintPath>$(RimWorldDir)/UnityStubs.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Waylith"><HintPath>$(RimWorldDir)/Waylith.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+  <ItemGroup Condition="'$(GameAvailable)' != 'true'">
+    <Compile Include="Properties/Unavailable.cs" />
+  </ItemGroup>
+  <Target Name="ReportGameUnavailable" BeforeTargets="CoreCompile" Condition="'$(GameAvailable)' != 'true'">
+    <Message Importance="high" Text="$(MSBuildProjectName): unavailable (missing $(GameAssembly)); built empty, set RimWorldDir to a game install." />
+  </Target>
+</Project>

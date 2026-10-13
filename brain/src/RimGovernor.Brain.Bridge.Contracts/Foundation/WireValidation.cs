@@ -24,7 +24,7 @@ public static partial class BridgeFunctions
     }
 
     /// <summary>Whether <see cref="ValidId"/> accepts <paramref name="value"/>.</summary>
-    internal static bool IsValidId(string value)
+    public static bool IsValidId(string value)
     {
         return !string.IsNullOrWhiteSpace(value) && Encoding.UTF8.GetByteCount(value) <= 256 && !value.Contains('\0', StringComparison.Ordinal);
     }

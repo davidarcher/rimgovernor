@@ -83,7 +83,7 @@ public static partial class ObservationPackage
     // rounds_sections.go: the reading's sections, every one has the frame's tick, except the room census read beside it.
     internal static RoundsSections BuildRoundsSections(RoundsFrame frame, ColonyProjection projection, O.RoomsSnapshot? rooms)
     {
-        var tick = frame.Context.Tick;
+        var tick = frame.Context?.Tick ?? 0;
         var output = new RoundsSections
         {
             Colony = new Held<ColonyProjection> { Value = projection, AsOf = tick, Complete = true, Source = "rimgovernor/observations_read_colony_facts" },
@@ -105,7 +105,7 @@ public static partial class ObservationPackage
             {
                 Pawns = new Held<RoundsPawns>
                 {
-                    Value = new RoundsPawns { Work = EquatableArray.From(work), Medical = EquatableArray.From(medical ?? []), Mood = EquatableArray.From(mood ?? []), Armed = armed },
+                    Value = new RoundsPawns { Work = EquatableArray.From(work), Medical = medical, Mood = mood, Armed = armed },
                     AsOf = tick,
                     Complete = true,
                     Source = "rimgovernor/observations_list_pawns",
@@ -141,9 +141,9 @@ public static partial class ObservationPackage
 
     // rounds_mood.go
 
-    private static Fact<IReadOnlyList<MoodPawn>> RoundsMood(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot)
+    private static Fact<EquatableArray<MoodPawn>> RoundsMood(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot)
     {
-        var unknown = Unknown<IReadOnlyList<MoodPawn>>();
+        var unknown = Unknown<EquatableArray<MoodPawn>>();
         if (!emergency.ColonistsComplete.TryGetValue(out var complete) || !complete || colony is null || !colony.HasColonistCount || snapshot is null
             || colony.ColonistCount != emergency.Colonists.Count)
         {
@@ -170,7 +170,7 @@ public static partial class ObservationPackage
         foreach (var pawn in emergency.Colonists)
         {
             // Exact missing IDs preserve prior active history.
-            if (!byId.TryGetValue(pawn.ID.Value, out var r))
+            if (!byId.TryGetValue(pawn.Id.Value, out var r))
             {
                 continue;
             }
@@ -183,7 +183,7 @@ public static partial class ObservationPackage
             var p = new MoodPawn
             {
                 Break = pawn.MentalState,
-                ID = pawn.ID,
+                Id = pawn.Id,
                 Dead = Optional(r.HasDead, r.Dead),
                 Downed = Optional(r.HasDowned, r.Downed),
                 Drafted = Optional(r.HasDrafted, r.Drafted),
@@ -204,7 +204,7 @@ public static partial class ObservationPackage
                     Joy = Optional(n.HasJoy, n.Joy),
                 };
             }
-            if (forecasts.TryGetValue(pawn.ID.Value, out var f) && !HasIssue(f.Issues, "mood_target"))
+            if (forecasts.TryGetValue(pawn.Id.Value, out var f) && !HasIssue(f.Issues, "mood_target"))
             {
                 p = p with { Target = Optional(f.HasMoodTarget, f.MoodTarget) };
             }
@@ -215,7 +215,7 @@ public static partial class ObservationPackage
             }
             rows.Add(p);
         }
-        return Known<IReadOnlyList<MoodPawn>>(rows);
+        return Known(EquatableArray.From(rows));
     }
 
     /// <summary>
@@ -224,9 +224,9 @@ public static partial class ObservationPackage
     /// (KnowBuriedInSarcophagus) last. A skipped or unreadable social block, or a missing memories/situational
     /// list, leaves the thoughts unknown rather than empty.
     /// </summary>
-    public static Fact<IReadOnlyList<MoodThought>> MoodThoughts(O.PawnState r)
+    public static Fact<EquatableArray<MoodThought>> MoodThoughts(O.PawnState r)
     {
-        var unknown = Unknown<IReadOnlyList<MoodThought>>();
+        var unknown = Unknown<EquatableArray<MoodThought>>();
         var social = r.Social;
         if (social is null || HasIssue(r.Issues, "social") || HasIssue(social.Issues, "memories") || HasIssue(social.Issues, "situational"))
         {
@@ -249,11 +249,11 @@ public static partial class ObservationPackage
         {
             if (offset != 0)
             {
-                result.Add(new MoodThought { Def = def, Offset = offset });
+                result.Add(new MoodThought(def, offset));
             }
         }
         result.Sort((a, b) => a.Offset != b.Offset ? a.Offset.CompareTo(b.Offset) : string.CompareOrdinal(a.Def, b.Def));
-        return Known<IReadOnlyList<MoodThought>>(result);
+        return Known(EquatableArray.From(result));
     }
 
     // rounds_mood_ledger.go
@@ -264,7 +264,7 @@ public static partial class ObservationPackage
     /// unread biography, policy or social block) stays unknown, so MinExpectation thoughts of such a pawn stay
     /// unverified.
     /// </summary>
-    private static Fact<MoodLedger> RoundsMoodLedger(Fact<IReadOnlyList<MoodPawn>> census, O.PawnSnapshot? snapshot, IReadOnlyDictionary<string, ThoughtFacts> facts)
+    private static Fact<MoodLedger> RoundsMoodLedger(Fact<EquatableArray<MoodPawn>> census, O.PawnSnapshot? snapshot, IReadOnlyDictionary<string, ThoughtFacts> facts)
     {
         if (!census.TryGetValue(out var moods))
         {
@@ -283,17 +283,17 @@ public static partial class ObservationPackage
         {
             var pawn = new MoodLedgerPawn
             {
-                ID = m.ID,
+                Id = m.Id,
                 Thoughts = m.Thoughts,
-                Traits = Unknown<IReadOnlyList<string>>(),
-                Precepts = Unknown<IReadOnlyList<string>>(),
+                Traits = Unknown<EquatableArray<string>>(),
+                Precepts = Unknown<EquatableArray<string>>(),
                 Expectation = Unknown<string>(),
             };
-            if (byId.TryGetValue(m.ID.Value, out var r))
+            if (byId.TryGetValue(m.Id.Value, out var r))
             {
                 if (r.Biography is { } b && !HasIssue(b.Issues, "traits"))
                 {
-                    pawn = pawn with { Traits = Known<IReadOnlyList<string>>([.. b.Traits.Select(t => t.DefName)]) };
+                    pawn = pawn with { Traits = Known<EquatableArray<string>>([.. b.Traits.Select(t => t.DefName)]) };
                 }
                 if (r.Social is { } s && !HasIssue(r.Issues, "social") && s.HasExpectationDefName)
                 {
@@ -301,7 +301,7 @@ public static partial class ObservationPackage
                 }
                 if (r.Settings is { } settings && !HasIssue(settings.Issues, "policy_inputs") && PawnPolicyInputs(settings.PolicyInputs).TryGetValue(out var inputs))
                 {
-                    pawn = pawn with { Precepts = Known<IReadOnlyList<string>>([.. inputs.Precepts]) };
+                    pawn = pawn with { Precepts = Known<EquatableArray<string>>([.. inputs.Precepts]) };
                 }
             }
             pawns.Add(pawn);
@@ -334,7 +334,7 @@ public static partial class ObservationPackage
         var unarmedKnown = true;
         foreach (var pawn in emergency.Colonists)
         {
-            byId.TryGetValue(pawn.ID.Value, out var row);
+            byId.TryGetValue(pawn.Id.Value, out var row);
             var dk = pawn.Dead.TryGetValue(out var dead);
             var nk = pawn.Downed.TryGetValue(out var downed);
             if (row is null || !dk || !nk || !row.HasDead || !row.HasDowned || row.Dead != dead || row.Downed != downed || !row.HasColonist || !row.Colonist)
@@ -384,9 +384,9 @@ public static partial class ObservationPackage
     /// MeleeDPS times summary health and the observed ranged DPS. A row the census does not match leaves the
     /// roster unknown; a missing stat leaves that fact unknown.
     /// </summary>
-    private static Fact<IReadOnlyList<SquadDefenderFacts>> RoundsDefenders(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot pawns)
+    private static Fact<EquatableArray<SquadDefenderFacts>> RoundsDefenders(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot pawns)
     {
-        var unknown = Unknown<IReadOnlyList<SquadDefenderFacts>>();
+        var unknown = Unknown<EquatableArray<SquadDefenderFacts>>();
         if (colony is null || !colony.HasColonistCount || colony.ColonistCount != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
         {
             return unknown;
@@ -399,11 +399,11 @@ public static partial class ObservationPackage
         var output = new List<SquadDefenderFacts>(emergency.Colonists.Count);
         foreach (var pawn in emergency.Colonists)
         {
-            if (!byId.TryGetValue(pawn.ID.Value, out var row))
+            if (!byId.TryGetValue(pawn.Id.Value, out var row))
             {
                 return unknown;
             }
-            var d = new SquadDefenderFacts { ID = new RimGovernor.Brain.Domain.PawnId(pawn.ID.Value), Dead = pawn.Dead, Downed = pawn.Downed };
+            var d = new SquadDefenderFacts { Id = new PawnId(pawn.Id.Value), Dead = pawn.Dead, Downed = pawn.Downed };
             if (PawnBiotech(row.Biotech).TryGetValue(out var bt))
             {
                 d = d with { Deathresting = bt.IsDeathresting() };
@@ -427,6 +427,6 @@ public static partial class ObservationPackage
             }
             output.Add(d);
         }
-        return Known<IReadOnlyList<SquadDefenderFacts>>(output);
+        return Known(EquatableArray.From(output));
     }
 }

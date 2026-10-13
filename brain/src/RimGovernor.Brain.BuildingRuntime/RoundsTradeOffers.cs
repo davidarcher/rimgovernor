@@ -102,7 +102,7 @@ public sealed partial class RoundsTradePlanner
     /// with the colony's silver and the trader's goods stacks the record's freshness is judged against. The plan
     /// reads it from the next plan build on (the book's revision keys the cache).
     /// </summary>
-    private void RecordOffers(CancellationToken call, ControlState state, Bridge.TradeSheetRead sheet, long stacks)
+    private void RecordOffers(CancellationToken call, ControlState state, TradeSheetRead sheet, long stacks)
     {
         var (silver, _, silverKnown) = TradeSheetSilver(sheet.Rows);
         if (!silverKnown)

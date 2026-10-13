@@ -175,7 +175,7 @@ public static partial class TradeMissions
     /// Never authorizes a fresh formation after the planned phase. Lost receipts are resolved from exact native
     /// crew, and partial or conflicting crew evidence holds the mission instead of sending replacements.
     /// </summary>
-    public static (TradeMissionPhase Phase, Bridge.CaravanJourney? Journey, bool Observed) TradeMissionDepartureEvidence(TradeMission m, Bridge.WorldProgressionRead? read)
+    public static (TradeMissionPhase Phase, CaravanJourney? Journey, bool Observed) TradeMissionDepartureEvidence(TradeMission m, WorldProgressionRead? read)
     {
         if (!TradeMissionValid(m)
             || (m.Phase != TradeMissionPhase.Planned && m.Phase != TradeMissionPhase.Departing && m.Phase != TradeMissionPhase.Outbound)
@@ -186,7 +186,7 @@ public static partial class TradeMissions
         }
         bool Exact(IReadOnlyList<string> ids) => ids.Count == m.Crew.Count && m.Crew.All(id => ids.Contains(id.Value));
         bool Overlaps(IReadOnlyList<string> ids) => m.Crew.Any(id => ids.Contains(id.Value));
-        Bridge.CaravanJourney? found = null;
+        CaravanJourney? found = null;
         foreach (var row in read.Caravans)
         {
             if (Overlaps(row.PawnIds))
@@ -223,7 +223,7 @@ public static partial class TradeMissions
 
 internal static partial class BuildingRuntimePackage
 {
-    internal static bool TradeMissionCurrentRead(GenerationSnapshot world, Bridge.WorldProgressionRead? read)
+    internal static bool TradeMissionCurrentRead(GenerationSnapshot world, WorldProgressionRead? read)
     {
         if (read?.Context?.Identity is not { } id)
         {
@@ -233,7 +233,7 @@ internal static partial class BuildingRuntimePackage
             && new NativeGeneration(read.Context.NativeGeneration) == world.Native;
     }
 
-    internal static bool TradeMissionCrewAtHome(TradeMission m, Bridge.WorldProgressionRead read)
+    internal static bool TradeMissionCrewAtHome(TradeMission m, WorldProgressionRead read)
     {
         foreach (var caravan in read.Caravans)
         {
@@ -271,7 +271,7 @@ public sealed partial class Rounder
         CancellationToken epoch,
         ControlState state,
         Sto.StandardState project,
-        Bridge.WorldProgressionRead read,
+        WorldProgressionRead read,
         StepArbiter arbiter)
     {
         var m = project.Standard.Mission ?? throw new DomainException("standard carries no trade mission");

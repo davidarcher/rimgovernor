@@ -187,7 +187,7 @@ public sealed partial class DefinitionCatalog
     /// upgrade whose research is finished applied in order, as the game's <c>CompProperties_Power.PowerConsumption</c>
     /// does. A def with upgrades and no finished-research census yields an unknown fact; a def with no power comp is an error.
     /// </summary>
-    public Fact<double> PowerBaseW(string name, Fact<IReadOnlyList<string>> finished)
+    public Fact<double> PowerBaseW(string name, Fact<EquatableArray<string>> finished)
     {
         var comp = ThingRow(name).GetCompProperties<CompProperties_Power>() ?? throw new CatalogException($"def {name} has no power comp");
         var draw = GameMembers.BasePowerConsumption(comp);

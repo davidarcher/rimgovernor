@@ -179,7 +179,7 @@ public sealed partial record PlanningDefinition
         if (StuffOptions.Count == 0)
         {
             var known = Costs.TryGetValue(out var list);
-            costs = list is null ? [] : [.. list];
+            costs = [.. list];
             return known && !Stuffed && stuff == "";
         }
         foreach (var option in StuffOptions)

@@ -134,7 +134,7 @@ public sealed partial class RoundsBuildingPlanner
                 return (null, FieldUnavailable("gear_census"));
             }
             var things = FrameThings(call, Native, identity);
-            if (!GearObservationFacts(observed, new Bridge.Tables { Things = things }, defs).TryGetValue(out var facts))
+            if (!GearObservationFacts(observed, new Tables { Things = things }, defs).TryGetValue(out var facts))
             {
                 return (null, FieldUnavailable("gear_census"));
             }
@@ -195,7 +195,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             var hosts = defs.Catalog.RecipeHosts(product.ToString(), finished);
             var request = new Pol.WorkshopRequest { Resource = product, Benches = Known<IReadOnlyList<Pol.GearBench>>(benches), Hosts = hosts, Further = selection.Further };
-            SnapshotPackage.NoteWorkshop(call, request);
+            SnapshotPackage.NoteWorkshop(request);
             var choice = SelectWorkshopBench(request);
             if (choice.Method == Pol.WorkshopMethod.Existing)
             {
@@ -299,7 +299,7 @@ public sealed partial class RoundsBuildingPlanner
                 BuilderSkill = BuilderSkill(facts.WorkPawns),
                 Further = Workshop.Further,
             };
-            SnapshotPackage.NoteWorkshop(call, request);
+            SnapshotPackage.NoteWorkshop(request);
             var candidate = SelectWorkshopBench(request);
             if (candidate.Method == Pol.WorkshopMethod.Build || candidate.Method == Pol.WorkshopMethod.Existing)
             {

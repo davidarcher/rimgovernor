@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface ITradeMissionNative
 {
-    (Bridge.WorldProgressionRead Read, BridgeResult Result) ReadWorldProgression(CancellationToken ct, CommonPb.Identity identity, bool full);
+    (WorldProgressionRead Read, BridgeResult Result) ReadWorldProgression(CancellationToken ct, CommonPb.Identity identity, bool full);
 
     (IReadOnlyDictionary<string, long> Cargo, BridgeResult Result) ReadPawnCargo(CancellationToken ct, CommonPb.Identity identity, IReadOnlyList<string> pawns);
 }
@@ -13,7 +13,7 @@ public static partial class TradeMissions
     /// Requires actual cargo held by the returned native crew. An accept receipt, caravan disappearance, or
     /// existing home stock proves none.
     /// </summary>
-    public static bool TradeMissionDelivered(TradeMission m, Bridge.WorldProgressionRead world, IReadOnlyDictionary<string, long> cargo)
+    public static bool TradeMissionDelivered(TradeMission m, WorldProgressionRead world, IReadOnlyDictionary<string, long> cargo)
     {
         if (!TradeMissionValid(m) || !m.PurchaseCommitted || m.ReturnGoods.Count == 0 || !TradeMissionCrewAtHome(m, world))
         {
@@ -41,7 +41,7 @@ public static partial class TradeMissions
     /// Refreshes asymmetric home routes, current food/rot and capacity after trading. Unknown facts hold an
     /// order, never admit a trip.
     /// </summary>
-    public static bool TradeMissionReturnSafe(TradeMission m, Bridge.CaravanJourney? caravan)
+    public static bool TradeMissionReturnSafe(TradeMission m, CaravanJourney? caravan)
     {
         if (caravan is null)
         {
@@ -68,9 +68,9 @@ public static partial class TradeMissions
 
 internal static partial class BuildingRuntimePackage
 {
-    internal static Bridge.CaravanJourney? MissionCaravan(TradeMission m, Bridge.WorldProgressionRead world)
+    internal static CaravanJourney? MissionCaravan(TradeMission m, WorldProgressionRead world)
     {
-        Bridge.CaravanJourney? found = null;
+        CaravanJourney? found = null;
         foreach (var row in world.Caravans)
         {
             var overlap = m.Crew.Any(id => row.PawnIds.Contains(id.Value));
@@ -308,7 +308,7 @@ public sealed partial class RoundsTradePlanner
         Sto.Rounds review,
         Sto.StandardState p,
         TradeMission m,
-        Bridge.CaravanJourney caravan)
+        CaravanJourney caravan)
     {
         var target = new TradeParticipant(TradeParticipantKind.Settlement, m.Settlement, caravan.Id);
         var trader = target.Key();
@@ -387,7 +387,7 @@ public sealed partial class RoundsTradePlanner
     /// candidates.
     /// </summary>
     internal (IReadOnlyList<TradeLine> Lines, IReadOnlyList<CargoItem> Goods) MissionPurchases(
-        CancellationToken ct, ControlState state, Sto.Rounds review, TradeMission m, Bridge.TradeSheetRead sheet, Bridge.CaravanJourney caravan)
+        CancellationToken ct, ControlState state, Sto.Rounds review, TradeMission m, TradeSheetRead sheet, CaravanJourney caravan)
     {
         var (reply, _) = Native.ReadColonyFacts(ct, BoundaryApi.Identity(state.Snapshot), false);
         var tables = Native.FrameTables(ct, BoundaryApi.Identity(state.Snapshot));

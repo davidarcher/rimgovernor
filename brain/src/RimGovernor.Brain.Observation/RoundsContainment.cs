@@ -6,24 +6,24 @@ public static partial class ObservationPackage
     /// The containment cell's inputs from the frame: the entities' demand from the pawn table, the standing holders
     /// from the building table and the prediction's def inputs from the catalog. All stay unknown without Anomaly.
     /// </summary>
-    internal static ContainmentPlanning ContainmentPlanningOf(RoundsFrame frame, IReadOnlyList<PlanningDefinition> definitions)
+    internal static ContainmentPlanning ContainmentPlanningOf(RoundsFrame frame, DefinitionCatalog? catalog, IReadOnlyList<PlanningDefinition> definitions)
     {
         var output = new ContainmentPlanning
         {
             Demand = Unknown<ContainmentDemand>(),
-            Holders = Unknown<IReadOnlyList<BuiltHolder>>(),
+            Holders = Unknown<EquatableArray<BuiltHolder>>(),
             Defs = Unknown<ContainmentDefs>(),
-            Entities = Unknown<IReadOnlyList<CapturableEntity>>(),
+            Entities = Unknown<EquatableArray<CapturableEntity>>(),
         };
-        if (!frame.Catalog.HasAnomaly())
+        if (!RequireCatalog(catalog).HasAnomaly())
         {
             return output;
         }
         output = output with
         {
-            Demand = ContainmentDemandOf(frame.Tables.Pawns.Values()),
-            Holders = BuiltHolders(frame.Tables.Buildings.Values()),
-            Entities = CapturableEntities(frame.Tables.Pawns.Values()),
+            Demand = ContainmentDemandOf(frame.Tables.Pawns.Table.Values()),
+            Holders = BuiltHolders(frame.Tables.Buildings.Table.Values()),
+            Entities = CapturableEntities(frame.Tables.Pawns.Table.Values()),
         };
         static (PlanningDefinition? Def, string Reason) Definition(IReadOnlyList<PlanningDefinition> all, string name)
         {
@@ -37,11 +37,11 @@ public static partial class ObservationPackage
             return (null, name + " is not among the planning definitions");
         }
         var reason = "";
-        var (wall, wallReason) = Definition(definitions, PolicyConstants.ShellWallDefinition);
+        var (wall, wallReason) = Definition(definitions, ShellWallDefinition);
         reason = wallReason;
         if (reason == "")
         {
-            var (door, doorReason) = Definition(definitions, PolicyConstants.ShellDoorDefinition);
+            var (door, doorReason) = Definition(definitions, ShellDoorDefinition);
             reason = doorReason;
             if (reason == "")
             {
@@ -57,7 +57,7 @@ public static partial class ObservationPackage
                     {
                         output = output with
                         {
-                            Defs = Known(frame.Catalog.ContainmentDefs(PolicyConstants.ShellWallDefinition, stuff, PolicyConstants.ShellDoorDefinition, stuff)),
+                            Defs = Known(catalog!.ContainmentDefs(ShellWallDefinition, stuff, ShellDoorDefinition, stuff)),
                         };
                     }
                     catch (DomainException e)
@@ -121,7 +121,7 @@ public static partial class ObservationPackage
     }
 
     /// <summary>The standing holding platforms' native strength and availability; a holder whose facts are unread makes the list unknown.</summary>
-    private static Fact<IReadOnlyList<BuiltHolder>> BuiltHolders(IEnumerable<O.BuildingState> rows)
+    private static Fact<EquatableArray<BuiltHolder>> BuiltHolders(IEnumerable<O.BuildingState> rows)
     {
         var holders = new List<BuiltHolder>();
         foreach (var row in rows)
@@ -132,7 +132,7 @@ public static partial class ObservationPackage
             }
             if (!b.Holder.TryGetValue(out var holder))
             {
-                return Unknown<IReadOnlyList<BuiltHolder>>();
+                return Unknown<EquatableArray<BuiltHolder>>();
             }
             if (holder is null)
             {
@@ -142,11 +142,11 @@ public static partial class ObservationPackage
             var ak = holder.Available.TryGetValue(out var available);
             if (!sk || !ak)
             {
-                return Unknown<IReadOnlyList<BuiltHolder>>();
+                return Unknown<EquatableArray<BuiltHolder>>();
             }
             holders.Add(new BuiltHolder { Strength = strength, Available = available, HeldPawn = holder.HeldPawn, Doors = holder.Doors });
         }
-        return Known<IReadOnlyList<BuiltHolder>>(holders);
+        return Known(EquatableArray.From(holders));
     }
 
     // rounds_entities.go
@@ -156,7 +156,7 @@ public static partial class ObservationPackage
     /// unread, with the facts the rule reads. A pawn with no holding-platform target block is one the colony
     /// cannot capture, a known absence.
     /// </summary>
-    private static Fact<IReadOnlyList<CapturableEntity>> CapturableEntities(IEnumerable<O.PawnState> rows)
+    private static Fact<EquatableArray<CapturableEntity>> CapturableEntities(IEnumerable<O.PawnState> rows)
     {
         var output = new List<CapturableEntity>();
         foreach (var row in rows)
@@ -219,7 +219,7 @@ public static partial class ObservationPackage
             }
             output.Add(e);
         }
-        return Known<IReadOnlyList<CapturableEntity>>(output);
+        return Known(EquatableArray.From(output));
     }
 
     // rounds_mech.go
@@ -247,11 +247,11 @@ public static partial class ObservationPackage
             var cell = RowCell(row.Pawn?.Position);
             if (bt.Mechanitor.TryGetValue(out var m) && m is not null && row.Colonist)
             {
-                mechanitors.Add(new MechanitorInput { ID = id, PawnMechanitor = m, Cell = cell });
+                mechanitors.Add(new MechanitorInput { Id = id, Mechanitor = m, Cell = cell });
             }
             if (bt.Mech.TryGetValue(out var mm) && mm is not null && row.Mechanoid)
             {
-                var mech = new MechInput { ID = id, Kind = row.KindDefName, PawnMech = mm, Cell = cell, Downed = row.Downed, Drafted = row.Drafted };
+                var mech = new MechInput { Id = id, Kind = row.KindDefName, Mech = mm, Cell = cell, Downed = row.Downed, Drafted = row.Drafted };
                 if (row.Job?.TargetA?.Entity is { } target)
                 {
                     mech = mech with { Target = new PawnId(target.Id) };
@@ -267,9 +267,10 @@ public static partial class ObservationPackage
 
     // rounds_medical.go
 
-    private static Fact<IReadOnlyList<CarePawn>> RoundsMedical(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot, DefinitionCatalog catalog)
+    private static Fact<EquatableArray<CarePawn>> RoundsMedical(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot, DefinitionCatalog catalog)
     {
-        var unknown = Unknown<IReadOnlyList<CarePawn>>();
+        var unknown = Unknown<EquatableArray<CarePawn>>();
+        var parts = new DefinitionPartCatalog(catalog);
         if (!emergency.ColonistsComplete.TryGetValue(out var complete) || !complete || colony is null || !colony.HasColonistCount || snapshot is null
             || colony.ColonistCount != emergency.Colonists.Count || snapshot.Pawns.Count != emergency.Colonists.Count)
         {
@@ -287,25 +288,25 @@ public static partial class ObservationPackage
         var rows = new List<CarePawn>(snapshot.Pawns.Count);
         foreach (var pawn in emergency.Colonists)
         {
-            byId.TryGetValue(pawn.ID.Value, out var row);
+            byId.TryGetValue(pawn.Id.Value, out var row);
             var dk = pawn.Dead.TryGetValue(out var dead);
             var nk = pawn.Downed.TryGetValue(out var downed);
             if (row is null || !dk || !nk || !row.HasDead || !row.HasDowned || row.Dead != dead || row.Downed != downed || !row.HasColonist || !row.Colonist)
             {
                 return unknown;
             }
-            var p = new CarePawn { ID = pawn.ID, Dead = Known(dead) };
+            var p = new CarePawn { Id = pawn.Id, Dead = Known(dead) };
             if (row.Settings is { } settings)
             {
                 p = p with { Care = CareName(settings.MedicalCare) };
             }
             if (row.Health is { } h && !HasIssue(row.Issues, "health"))
             {
-                var (missing, operations) = SurgeryFacts(h, catalog);
+                var (missing, operations) = SurgeryFacts(h, parts);
                 p = p with { MissingParts = missing, Operations = operations, QueuedSurgeries = QueuedSurgeries(h) };
-                p = p with { InstalledParts = InstalledParts(h, catalog) };
-                var recipes = QueuedSurgeryRecipes(h);
-                p = p with { QueuedRecipes = recipes, QueuedItems = QueuedSurgeryItems(recipes, catalog) };
+                p = p with { InstalledParts = InstalledParts(h, parts) };
+                var recipes = QueuedSurgeryRecipes(h) ?? [];
+                p = p with { QueuedRecipes = recipes, QueuedItems = QueuedSurgeryItems(recipes, parts) };
                 var (conditions, lifeThreatening) = CareConditions(h);
                 p = p with
                 {
@@ -343,6 +344,6 @@ public static partial class ObservationPackage
             }
             rows.Add(p);
         }
-        return Known<IReadOnlyList<CarePawn>>(rows);
+        return Known(EquatableArray.From(rows));
     }
 }

@@ -102,6 +102,7 @@ public sealed partial class DefinitionCatalog
         _disarm = new(BuildCreepJoinerDisarm);
         _spawnForbidden = new(BuildSpawnForbiddenProducts);
         _research = new(BuildResearchFacts);
+        _biotech = new(BuildBiotech);
     }
 
     /// <summary>The stat source every stat read goes through.</summary>

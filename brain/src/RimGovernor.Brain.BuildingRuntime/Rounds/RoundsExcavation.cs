@@ -50,7 +50,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("readExcavationSite: err != nil || current.Native != snapshot.Native || domain.Tick(site.Context.GetTick()) < tick");
         }
-        SnapshotApi.NoteSite(call, purpose, target, cells, site);
+        SnapshotApi.NoteSite(purpose, target, cells, site);
         return site;
     }
 

@@ -83,7 +83,6 @@ public static partial class ObservationPackage
             return unknown;
         }
         var v = reply.Observed ?? throw new ObservationContractException("missing clearance targets");
-        ValidateClearanceTargets(v, id);
         var actual = ContextIdentity(v.Context);
         if (!SameColonyContext(actual, expected))
         {
@@ -94,7 +93,7 @@ public static partial class ObservationPackage
         {
             var target = new ClearanceTarget
             {
-                EntityID = row.EntityId,
+                EntityId = row.EntityId,
                 DefName = row.DefName,
                 Class = ClearanceClassName(row.Class),
                 Minimum = CellOf(row.Occupied?.Minimum),
@@ -125,7 +124,7 @@ public static partial class ObservationPackage
         {
             chunks.Add(new ClearanceChunk
             {
-                EntityID = row.EntityId,
+                EntityId = row.EntityId,
                 DefName = row.DefName,
                 Cell = CellOf(row.Cell),
                 Forbidden = row.Forbidden,

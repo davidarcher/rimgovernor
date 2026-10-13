@@ -22,7 +22,7 @@ public static partial class ObservationPackage
         }
         if (!HasIssue(u.Issues, "home_cells"))
         {
-            r = r with { Home = Known<IReadOnlyList<Cell>>(CellsOf(u.HomeCells)) };
+            r = r with { Home = Known(EquatableArray.From(CellsOf(u.HomeCells))) };
         }
         foreach (var row in h.Targets)
         {
@@ -84,9 +84,9 @@ public static partial class ObservationPackage
             }
             catch (DomainException e)
             {
-                throw new BridgeContractException($"stone structure {r.Building.Id}: {e.Message}");
+                throw new BridgeContractException($"stone structure {r.Building?.Id}: {e.Message}");
             }
-            rows.Add(new StoneStructure { Id = r.Building.Id, Definition = new Resource(head.DefName), Flammability = Known((double)(float)flammability) });
+            rows.Add(new StoneStructure { Id = r.Building?.Id ?? "", Definition = new Resource(head.DefName), Flammability = Known((double)(float)flammability) });
         }
         return Known(EquatableArray.From(rows));
     }

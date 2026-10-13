@@ -118,7 +118,7 @@ public interface IExportSource : Observation.IDefinitionSource
 {
     (ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result) ReadTradeAcquisition(CancellationToken ct, CommonPb.Identity identity, OperationsPb.FormCaravanIntent? intent);
 
-    (Bridge.WorldProgressionRead Read, BridgeResult Result) ReadWorldProgression(CancellationToken ct, CommonPb.Identity identity, bool full);
+    (WorldProgressionRead Read, BridgeResult Result) ReadWorldProgression(CancellationToken ct, CommonPb.Identity identity, bool full);
 
     (Bridge.WorldRead Read, BridgeResult Result) ReadWorld(CancellationToken ct, CommonPb.Identity identity, int tile, double radius);
 }
@@ -363,7 +363,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
                 seen.Add(row.TraderKind);
             }
         }
-        Bridge.WorldProgressionRead progress;
+        WorldProgressionRead progress;
         try
         {
             (progress, _) = native.ReadWorldProgression(ct, identity, false);

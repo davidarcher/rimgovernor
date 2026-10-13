@@ -182,7 +182,7 @@ public sealed partial class RoundsResourcePlanner
             RoofSupport = facts.RoofSupport,
             Roofs = roofs,
         };
-        SnapshotPackage.NoteExcavation(call, request);
+        SnapshotPackage.NoteExcavation(request);
         var targets = PolicyFunctions.CorridorExcavationSites(request, ore.Cell);
         var snapshot = state.Snapshot with { Revision = new PlanRevision(1) };
         for (var i = 0; i < targets.Count; i++)

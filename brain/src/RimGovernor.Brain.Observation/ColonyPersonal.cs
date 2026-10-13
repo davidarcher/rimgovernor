@@ -8,7 +8,7 @@ public sealed partial record ColonyProjection
     /// unread roster, a slave or prisoner) gets UnknownPersonalShare: necessities only.
     /// </summary>
     public PersonalShare PersonalShareOf(PawnId pawn) =>
-        Facts.PersonalShares is { } shares && shares.TryGetValue(pawn, out var s) ? s : PolicyFunctions.UnknownPersonalShare();
+        Facts.PersonalShares is { } shares && shares.TryGetValue(pawn, out var s) ? s : PersonalShare.UnknownPersonalShare();
 
     /// <summary>
     /// The surgery ranking context over the projection: the hospital bed, the elective gate (PersonalShareOf) and
@@ -37,7 +37,7 @@ public static partial class ObservationPackage
     /// sleeping census is, and for a colonist whose worn gear or equipped weapon was not read. Nothing here calls
     /// native.
     /// </summary>
-    internal static ColonyProjection PersonalShares(ColonyProjection p, RoundsFrame frame, O.PawnSnapshot? pawns)
+    internal static ColonyProjection PersonalShares(ColonyProjection p, RoundsFrame frame, DefinitionCatalog? catalog, O.PawnSnapshot? pawns)
     {
         // A live reading always sets the map, so an empty one gates every colonist.
         p = p with { Facts = p.Facts with { PersonalShares = new Dictionary<PawnId, PersonalShare>() } };
@@ -71,7 +71,7 @@ public static partial class ObservationPackage
         }
         var sleepingKnown = p.Facts.Sleeping.TryGetValue(out var sleeping);
         var slaves = new HashSet<PawnId>();
-        if (sleepingKnown)
+        if (sleeping is not null)
         {
             foreach (var s in sleeping.Slaves)
             {
@@ -100,7 +100,7 @@ public static partial class ObservationPackage
             if (worn.TryGetValue(profile.Id, out var wornFact) && wornFact.TryGetValue(out var items))
             {
                 rows.TryGetValue(profile.Id.Value, out var pawnRow);
-                if (EquippedWeapon(pawnRow, frame.Tables, frame.Catalog, out var weapon, out var has))
+                if (EquippedWeapon(pawnRow, frame.Tables, catalog, out var weapon, out var has))
                 {
                     var all = new List<PersonalItem>(items);
                     if (has)
@@ -110,13 +110,14 @@ public static partial class ObservationPackage
                     pawnGear = Known(EquatableArray.From(all));
                 }
             }
-            var partsRead = parts.TryGetValue(profile.Id, out var partsFact) && partsFact.TryGetValue(out var installed);
+            parts.TryGetValue(profile.Id, out var partsFact);
+            var partsRead = partsFact.TryGetValue(out var installed);
             spendPawns.Add(new PersonalSpendPawn { Id = profile.Id, Free = free, Gear = pawnGear, Parts = partsRead ? installed : default, PartsUnread = !partsRead });
-            members.Add(new ShareMember { Profile = profile, Free = free, Soldier = soldiers.GetValueOrDefault(profile.Id), Doctor = doctors.Contains(profile.Id), Spent = Unknown<double>() });
+            members.Add(new ShareMember { Profile = profile, Free = free, Soldier = soldiers.GetValueOrDefault(profile.Id), Doctor = doctors.GetValueOrDefault(profile.Id), Spent = Unknown<double>() });
         }
-        if (sleepingKnown)
+        if (sleeping is not null)
         {
-            var spent = PolicyFunctions.PersonalSpent(new PersonalSpendInput { Sleeping = sleeping, BedPrice = MarketBedPrice(frame.Catalog), PartPrice = PartPrice(p.Facts.Items), Pawns = spendPawns });
+            var spent = PolicyFunctions.PersonalSpent(new PersonalSpendInput { Sleeping = sleeping, BedPrice = MarketBedPrice(catalog), PartPrice = PartPrice(p.Facts.Items), Pawns = spendPawns });
             for (var i = 0; i < members.Count; i++)
             {
                 if (spent.TryGetValue(members[i].Profile.Id, out var s))
@@ -125,7 +126,7 @@ public static partial class ObservationPackage
                 }
             }
         }
-        return p with { Facts = p.Facts with { PersonalShares = PolicyFunctions.PersonalShares(p.Facts.PersonalPool(), members) } };
+        return p with { Facts = p.Facts with { PersonalShares = PolicyFunctions.PersonalShares(p.Facts.PersonalPoolOf(), members) } };
     }
 
     /// <summary>Adapts ItemFacts.MarketValue to the (price, priced) lookup PersonalSpent takes for installed part items; a def with no catalog value is unpriced.</summary>
@@ -143,7 +144,7 @@ public static partial class ObservationPackage
         };
 
     /// <summary>Prices a bed by (def, stuff) from the catalog's MarketValue stat rows; null without a catalog, which leaves every bed unpriced.</summary>
-    private static Func<Resource, Resource, (double Price, bool Priced)>? MarketBedPrice(DefinitionCatalog? catalog)
+    private static BedPrice? MarketBedPrice(DefinitionCatalog? catalog)
     {
         if (catalog is null)
         {
@@ -192,7 +193,7 @@ public static partial class ObservationPackage
                 continue;
             }
             var ok = tables.Things.TryGetRow(g.Thing, out var thing);
-            var def = thing?.Thing?.DefName ?? "";
+            var def = thing?.Thing_?.DefName ?? "";
             if (!ok || def.Length == 0 || !g.HasConditionFraction)
             {
                 return false;

@@ -27,7 +27,19 @@ public static partial class PolicyFunctions
 
     // The dispatch-time mirrors (Go: UnsafeRoute, RoofSupportRisk, StorageMissing, UrgentCompetingWork of type
     // Reason): a pending remote action's inspection refuses with these and the executor records them as the
-    // action's hold reason. They are members of the Reason enum, which belongs to the admission slice.
+    // action's hold reason.
+
+    /// <summary>Go <c>UnsafeRoute</c>.</summary>
+    public static readonly Reason UnsafeRoute = new("unsafe_route");
+
+    /// <summary>Go <c>RoofSupportRisk</c>.</summary>
+    public static readonly Reason RoofSupportRisk = new("roof_support_risk");
+
+    /// <summary>Go <c>StorageMissing</c>.</summary>
+    public static readonly Reason StorageMissing = new("missing_storage");
+
+    /// <summary>Go <c>UrgentCompetingWork</c>.</summary>
+    public static readonly Reason UrgentCompetingWork = new("urgent_competing_work");
 
     /// <summary>UrgentWorkPriority outranks every demand priority (1-100) so urgent work holds acquisition whatever the shortage.</summary>
     public const int UrgentWorkPriority = 100;

@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public interface IShrineReadinessNative
 {
     (ObservationsPb.ListPawnsReply Reply, BridgeResult Result) ReadCombatPawns(CancellationToken ct, CommonPb.Identity identity, IReadOnlyList<string> pawns);
-    (Bridge.DefenseSite Site, BridgeResult Result) ReadDefenseSite(CancellationToken ct, CommonPb.Identity identity, Bridge.CellRect region);
+    (DefenseSite Site, BridgeResult Result) ReadDefenseSite(CancellationToken ct, CommonPb.Identity identity, CellRect region);
     (Bridge.EmergencyObservation Observed, BridgeResult Result) ReadEmergency(CancellationToken ct, CommonPb.Identity identity);
 }
 
@@ -104,7 +104,7 @@ internal static partial class BuildingRuntimePackage
                 {
                     maxZ = bounds.Height - 1;
                 }
-                var region = new Bridge.CellRect(new Cell(minX, minZ), new Cell(maxX, maxZ));
+                var region = new CellRect(new Cell(minX, minZ), new Cell(maxX, maxZ));
                 var (site, _) = native.ReadDefenseSite(ct, identity, region);
                 foreach (var cell in site.Cells)
                 {
@@ -122,7 +122,7 @@ internal static partial class BuildingRuntimePackage
                 }
                 request = request with { Traps = traps };
             }
-            SnapshotPackage.NoteShrineReadiness(ct, request);
+            SnapshotPackage.NoteShrineReadiness(request);
             output.Add(new ShrineReadinessReport { Shrine = shrine.Id, Standing = standing, Traps = traps, Readiness = ShrineBreachReadiness(request) });
         }
         ct.ThrowIfCancellationRequested();

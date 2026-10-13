@@ -131,7 +131,7 @@ public static partial class ObservationPackage
             Spawned = Unknown<bool>(),
             AmbientHorror = Unknown<bool>(),
             Level = Unknown<int>(),
-            ID = Unknown<string>(),
+            Id = Unknown<string>(),
             CanActivate = Unknown<bool>(),
             NextLevel = Unknown<string>(),
             CodexShortfall = Unknown<uint>(),
@@ -145,14 +145,14 @@ public static partial class ObservationPackage
         {
             output = output with
             {
-                ID = m.MonolithID,
+                Id = m.MonolithID,
                 CanActivate = m.CanActivate,
                 NextLevel = m.NextLevelDef,
                 CodexShortfall = m.CodexShortfall,
                 Blocking = m.BlockingConditions,
                 Gleaming = m.GleamingInteractionAvailable,
                 PendingStructures = m.PendingVoidStructureIDs,
-                NodeID = m.VoidNodeID,
+                NodeId = m.VoidNodeID,
                 NodePawns = m.VoidNodePawnIDs,
             };
         }

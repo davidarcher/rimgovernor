@@ -25,7 +25,7 @@ public sealed record MealFacts
 
     public Fact<double> WorkPerNutrition { get; init; }
 
-    public Fact<IReadOnlyList<P.FoodIngredientSlot>> IngredientClasses { get; init; }
+    public Fact<EquatableArray<P.FoodIngredientSlot>> IngredientClasses { get; init; }
 
     public Fact<int> CookSkillFloor { get; init; }
 }
@@ -66,15 +66,15 @@ public sealed partial class DefinitionCatalog
     /// <c>IngredientCount.CountRequiredOfFor</c>, which the recipe's value getter scales). Unknown when a slot allows no def
     /// or takes none of one.
     /// </summary>
-    public Fact<IReadOnlyList<IReadOnlyList<P.Amount>>> RecipeIngredients(string name)
+    public Fact<EquatableArray<EquatableArray<P.Amount>>> RecipeIngredients(string name)
     {
         var slots = RecipeSlotsOf(name);
-        var slotAmounts = new List<IReadOnlyList<P.Amount>>(slots.Length);
+        var slotAmounts = new List<EquatableArray<P.Amount>>(slots.Length);
         foreach (var slot in slots)
         {
             if (slot.Allowed.Count == 0)
             {
-                return Unknown<IReadOnlyList<IReadOnlyList<P.Amount>>>();
+                return Unknown<EquatableArray<EquatableArray<P.Amount>>>();
             }
 
             var amounts = new List<P.Amount>(slot.Allowed.Count);
@@ -82,16 +82,16 @@ public sealed partial class DefinitionCatalog
             {
                 if (slot.Counts[i] <= 0)
                 {
-                    return Unknown<IReadOnlyList<IReadOnlyList<P.Amount>>>();
+                    return Unknown<EquatableArray<EquatableArray<P.Amount>>>();
                 }
 
                 amounts.Add(new P.Amount(new P.Resource(slot.Allowed[i]), slot.Counts[i]));
             }
 
-            slotAmounts.Add(amounts);
+            slotAmounts.Add(EquatableArray.From(amounts));
         }
 
-        return Known<IReadOnlyList<IReadOnlyList<P.Amount>>>(slotAmounts);
+        return Known(EquatableArray.From(slotAmounts));
     }
 
     // RecipeSlotsOf resolves every slot of the recipe, once per catalog.
@@ -162,12 +162,12 @@ public sealed partial class DefinitionCatalog
     /// giver serving the bench together with the recipe's own work skill and the highest minimum level over its skill
     /// requirements. Unknown when no giver serves the bench.
     /// </summary>
-    public Fact<IReadOnlyList<P.WorkRequirement>> RecipeWork(string name, string bench)
+    public Fact<EquatableArray<P.WorkRequirement>> RecipeWork(string name, string bench)
     {
         var row = Recipe(name);
         if (BillWorkType(row, bench) is not { } work)
         {
-            return Unknown<IReadOnlyList<P.WorkRequirement>>();
+            return Unknown<EquatableArray<P.WorkRequirement>>();
         }
 
         var minimum = 0;
@@ -175,15 +175,15 @@ public sealed partial class DefinitionCatalog
         {
             if (skill.minLevel < 0)
             {
-                return Unknown<IReadOnlyList<P.WorkRequirement>>();
+                return Unknown<EquatableArray<P.WorkRequirement>>();
             }
 
             minimum = Math.Max(minimum, skill.minLevel);
         }
 
         return TryWorkType(work, out var type)
-            ? Known<IReadOnlyList<P.WorkRequirement>>([new P.WorkRequirement { Work = type, Skill = row.workSkill?.defName ?? string.Empty, Minimum = minimum }])
-            : Unknown<IReadOnlyList<P.WorkRequirement>>();
+            ? Known<EquatableArray<P.WorkRequirement>>([new P.WorkRequirement { Work = type, Skill = row.workSkill?.defName ?? string.Empty, Minimum = minimum }])
+            : Unknown<EquatableArray<P.WorkRequirement>>();
     }
 
     /// <summary>
@@ -294,7 +294,7 @@ public sealed partial class DefinitionCatalog
     /// project it requires is finished; one gated by ideology (a meme, a faction tag, a building precept) is left out, as
     /// nothing but the game can say it is available.
     /// </summary>
-    public IReadOnlyList<P.RecipeHost> RecipeHosts(string product, ISet<string>? finished)
+    public IReadOnlyList<P.RecipeHost> RecipeHosts(string product, IReadOnlySet<string>? finished)
     {
         var result = new List<P.RecipeHost>();
         foreach (var row in Rows<RecipeDef>().Values.OrderBy(r => r.defName, StringComparer.Ordinal))
@@ -325,7 +325,7 @@ public sealed partial class DefinitionCatalog
             }
 
             research.Sort(StringComparer.Ordinal);
-            var requiredWork = Unknown<IReadOnlyList<P.WorkRequirement>>();
+            var requiredWork = Unknown<EquatableArray<P.WorkRequirement>>();
             foreach (var bench in benches)
             {
                 requiredWork = RecipeWork(row.defName, bench);
@@ -477,7 +477,7 @@ public sealed partial class DefinitionCatalog
             return facts;
         }
 
-        facts = facts with { IngredientClasses = Known<IReadOnlyList<P.FoodIngredientSlot>>(slots), NutrientEfficiency = Known(nutrition / input) };
+        facts = facts with { IngredientClasses = Known(EquatableArray.From(slots)), NutrientEfficiency = Known(nutrition / input) };
         var floor = 0;
         foreach (var skill in row.skillRequirements.Seq())
         {

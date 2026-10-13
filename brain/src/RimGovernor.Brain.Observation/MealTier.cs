@@ -73,7 +73,7 @@ public sealed partial record ColonyProjection
                         {
                             if (s.Name == "Cooking" && !s.Disabled)
                             {
-                                cooks.Add(new MealCook { Pawn = pawn.ID, Skill = s.Level });
+                                cooks.Add(new MealCook { Pawn = pawn.Id, Skill = s.Level });
                             }
                         }
                     }
@@ -81,7 +81,7 @@ public sealed partial record ColonyProjection
             }
             if (complete)
             {
-                r = r with { Cooks = Known<IReadOnlyList<MealCook>>(cooks), CookLaborConstrained = Known(cooks.Count == 0) };
+                r = r with { Cooks = Known(EquatableArray.From(cooks)), CookLaborConstrained = Known(cooks.Count == 0) };
             }
         }
         if (Facts.MoodPawns.TryGetValue(out var moodPawns))

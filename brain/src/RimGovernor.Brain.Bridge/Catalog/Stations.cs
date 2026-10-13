@@ -419,7 +419,7 @@ public sealed partial class DefinitionCatalog
                     .ToList();
                 flows[work.Recipe] = new P.RecipeFlow
                 {
-                    Ingredients = RecipeIngredients(work.Recipe).TryGetValue(out var slots) ? slots : [],
+                    Ingredients = RecipeIngredients(work.Recipe).TryGetValue(out var slots) ? [.. slots.Select(slot => (IReadOnlyList<P.Amount>)slot)] : [],
                     Products = products,
                     Butchery = row.specialProducts.Seq().Contains(SpecialProductType.Butchery),
                     Food = MakesHumanFood(row),

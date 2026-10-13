@@ -15,13 +15,13 @@ public interface IRoundsTradeSource
 
     (ObservationsPb.ColonyFactsReply Reply, BridgeResult Result) ReadColonyFacts(CancellationToken ct, CommonPb.Identity identity, bool full);
 
-    Bridge.Tables FrameTables(CancellationToken ct, CommonPb.Identity identity);
+    Tables FrameTables(CancellationToken ct, CommonPb.Identity identity);
 
-    (Bridge.TradersRead Read, BridgeResult Result) ListTraders(CancellationToken ct, CommonPb.Identity identity);
+    (TradersRead Read, BridgeResult Result) ListTraders(CancellationToken ct, CommonPb.Identity identity);
 
     (Bridge.TradeSessionRead Read, BridgeResult Result) ReadTradeSession(CancellationToken ct, CommonPb.Identity identity);
 
-    (Bridge.TradeSheetRead Read, BridgeResult Result) ReadTradeSheet(CancellationToken ct, CommonPb.Identity identity);
+    (TradeSheetRead Read, BridgeResult Result) ReadTradeSheet(CancellationToken ct, CommonPb.Identity identity);
 }
 
 public sealed class RoundsTradeResult
@@ -263,7 +263,7 @@ public sealed partial class RoundsTradePlanner
     /// as eligible (alive, undrafted, able to talk). Native's own first row (best trade price improvement) stands
     /// when the roster is unknown or no profile qualifies -- native has already vetted every listed row.
     /// </summary>
-    private Bridge.NegotiatorRead Negotiator(CancellationToken call, ControlState state, Sto.Rounds review, IReadOnlyList<Bridge.NegotiatorRead> eligible)
+    private NegotiatorRead Negotiator(CancellationToken call, ControlState state, Sto.Rounds review, IReadOnlyList<NegotiatorRead> eligible)
     {
         var expected = StepScope(call, Reviewer.Native);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
@@ -295,7 +295,7 @@ public sealed partial class RoundsTradePlanner
     /// Commits the Open phase: the census already vetted the negotiator's eligibility and the trader's
     /// tradeability, and native checks reachability when the open applies and walks the negotiator over.
     /// </summary>
-    private RoundsTradeResult Open(CancellationToken call, CancellationToken epoch, ControlState state, Sto.IncidentState incident, string trader, Bridge.NegotiatorRead negotiator, int attempt, StepArbiter arbiter, DateTimeOffset started, TradeParticipant participant)
+    private RoundsTradeResult Open(CancellationToken call, CancellationToken epoch, ControlState state, Sto.IncidentState incident, string trader, NegotiatorRead negotiator, int attempt, StepArbiter arbiter, DateTimeOffset started, TradeParticipant participant)
     {
         if (!arbiter.TryClaim(null, "pawn:" + negotiator.Id))
         {
@@ -413,7 +413,7 @@ public sealed partial class RoundsTradePlanner
     }
 
     /// <summary>Re-measures the need from a fresh colony read and turns it, with the live sheet, into SelectTrade's inputs.</summary>
-    private (TradeEconomicPolicy Economic, Pol.TradeSelectionFacts Facts, bool Capacity) Selection(CancellationToken call, ControlState state, Sto.Rounds review, Bridge.TradeSheetRead sheet, string trader, IReadOnlyList<Pol.TraderFacts> traders)
+    private (TradeEconomicPolicy Economic, Pol.TradeSelectionFacts Facts, bool Capacity) Selection(CancellationToken call, ControlState state, Sto.Rounds review, TradeSheetRead sheet, string trader, IReadOnlyList<Pol.TraderFacts> traders)
     {
         var identity = BoundaryApi.Identity(state.Snapshot);
         var (reply, _) = Native.ReadColonyFacts(call, identity, false);
@@ -667,7 +667,7 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>Classifies a food line from the catalog's rows and the evaluated Nutrition stat; a pawn or currency line is never food.</summary>
-    internal static Fact<Pol.TradeFoodGood> TradeFoodFact(Bridge.TradeSheetRow row, Bridge.DefinitionCatalog catalog)
+    internal static Fact<Pol.TradeFoodGood> TradeFoodFact(TradeSheetRow row, Bridge.DefinitionCatalog catalog)
     {
         if (row.Pawn || row.Currency || row.DefName == "")
         {
@@ -677,7 +677,7 @@ internal static partial class BuildingRuntimePackage
         return ok ? Known(good) : Unknown<Pol.TradeFoodGood>();
     }
 
-    internal static List<Pol.TradeSheetRowFact> TradeSheetRowFacts(IReadOnlyList<Bridge.TradeSheetRow> rows, Bridge.DefinitionCatalog catalog)
+    internal static List<Pol.TradeSheetRowFact> TradeSheetRowFacts(IReadOnlyList<TradeSheetRow> rows, Bridge.DefinitionCatalog catalog)
     {
         var output = new List<Pol.TradeSheetRowFact>(rows.Count);
         foreach (var row in rows)
@@ -723,7 +723,7 @@ internal static partial class BuildingRuntimePackage
         return output;
     }
 
-    internal static List<Pol.ProfileSkill> TradePawnSkills(IReadOnlyList<Bridge.TradeSheetSkill> skills)
+    internal static List<Pol.ProfileSkill> TradePawnSkills(IReadOnlyList<TradeSheetSkill> skills)
     {
         var output = new List<Pol.ProfileSkill>();
         foreach (var skill in skills)
@@ -734,7 +734,7 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>Reads both sides' current silver from the sheet's own currency row.</summary>
-    internal static (long Colony, long Trader, bool Known) TradeSheetSilver(IReadOnlyList<Bridge.TradeSheetRow> rows)
+    internal static (long Colony, long Trader, bool Known) TradeSheetSilver(IReadOnlyList<TradeSheetRow> rows)
     {
         foreach (var row in rows)
         {
@@ -757,7 +757,7 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>Reads the non-currency rows the live sheet has staged, in sheet order, for comparison against a fresh selection.</summary>
-    internal static List<TradeLine> TradeStagedLines(Bridge.TradeSheetRead sheet)
+    internal static List<TradeLine> TradeStagedLines(TradeSheetRead sheet)
     {
         var output = new List<TradeLine>();
         foreach (var row in sheet.Rows)

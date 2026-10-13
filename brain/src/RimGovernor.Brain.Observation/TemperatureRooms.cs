@@ -47,7 +47,7 @@ public static partial class ObservationPackage
             {
                 contents.Add(new Amount(new Resource(q.DefName), q.Units));
             }
-            var doors = new List<RoomDoor>(room.Doors.Count);
+            var doors = new List<Policy.RoomDoor>(room.Doors.Count);
             foreach (var door in room.Doors)
             {
                 doors.Add(RoomDoorFacts(door));
@@ -70,7 +70,7 @@ public static partial class ObservationPackage
                 Doors = EquatableArray.From(doors),
             });
         }
-        return Known(PolicyFunctions.MarkEnemyDoors(result with { Rooms = EquatableArray.From(output) }, null));
+        return Known(PolicyFunctions.MarkEnemyDoors(result with { Rooms = EquatableArray.From(output) }, []));
     }
 
     /// <summary>Reads one named native room stat; a missing or unavailable stat is unknown, never zero.</summary>

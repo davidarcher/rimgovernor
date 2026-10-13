@@ -275,7 +275,7 @@ public sealed partial class Executor
         for (var j = 0; j < live.Count; j++)
         {
             var v = items[live[j]].Progress.View;
-            attempts[j] = new BatchAttempt { Plan = v.Plan, Action = v.Action, Snapshot = expected, Tick = v.Tick > inspection.Tick ? v.Tick : inspection.Tick };
+            attempts[j] = new BatchAttempt(v.Plan, v.Action, expected, v.Tick > inspection.Tick ? v.Tick : inspection.Tick);
         }
         IReadOnlyList<BatchResult> prepared;
         try
@@ -337,10 +337,15 @@ public sealed partial class Executor
                 errors[i] = dispatchError;
                 continue;
             }
-            results[i] = results[i] with { Progress = r.Progress };
+            if (r.Progress is not { } sentProgress)
+            {
+                errors[i] = new InvalidOperationException("dispatch batch returned neither a progress nor an error");
+                continue;
+            }
+            results[i] = results[i] with { Progress = sentProgress };
             sent.Add(i);
-            nexts.Add(r.Progress);
-            placements.Add(new Placement(items[i].Action, r.Progress.View.Attempt, expected, a.Tick));
+            nexts.Add(sentProgress);
+            placements.Add(new Placement(items[i].Action, sentProgress.View.Attempt, expected, a.Tick));
         }
         if (sent.Count == 0)
         {
@@ -488,7 +493,7 @@ public sealed partial class Executor
                 await RecordOwnAsync(i, () => _journal.RecordBillReceiptAsync(plan, p.Action.Id, p.Attempt, bills[j], ct)).ConfigureAwait(false);
                 continue;
             }
-            receipts.Add(new BatchReceipt { Plan = plan, Action = p.Action.Id, Attempt = p.Attempt, Receipt = kinds[j], Combat = combat[j], Refusal = refusals[j] });
+            receipts.Add(new BatchReceipt(plan, p.Action.Id, p.Attempt, kinds[j]) { Combat = EquatableArray.From(combat[j]), Refusal = refusals[j] });
             at.Add(i);
         }
         IReadOnlyList<BatchResult>? recorded = null;

@@ -11,9 +11,9 @@ public static partial class ObservationPackage
     /// Tolerates an explicit unavailable native stub as unknown, distinct from a complete census with no
     /// shrines. Transport, malformed-contract and identity errors remain errors.
     /// </summary>
-    public static async Task<Fact<IReadOnlyList<AncientShrine>>> ObserveShrines(IShrineSource? source, Identity expected, CancellationToken cancellationToken)
+    public static async Task<Fact<EquatableArray<AncientShrine>>> ObserveShrines(IShrineSource? source, Identity expected, CancellationToken cancellationToken)
     {
-        var unknown = Unknown<IReadOnlyList<AncientShrine>>();
+        var unknown = Unknown<EquatableArray<AncientShrine>>();
         if (source is null || !SameColonyContext(expected, expected))
         {
             throw new ObservationContractException("missing shrine source or expected identity");
@@ -42,7 +42,6 @@ public static partial class ObservationPackage
             return unknown;
         }
         var v = reply.Observed ?? throw new ObservationContractException("missing ancient shrines");
-        ValidateAncientShrines(v, id);
         var actual = ContextIdentity(v.Context);
         if (!SameColonyContext(actual, expected))
         {
@@ -102,7 +101,7 @@ public static partial class ObservationPackage
             });
         }
         cancellationToken.ThrowIfCancellationRequested();
-        return Known<IReadOnlyList<AncientShrine>>(rows);
+        return Known(EquatableArray.From(rows));
     }
 
     private static string GuardKind(O.ShrineGuardKind kind) => kind switch

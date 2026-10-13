@@ -6,16 +6,16 @@ public static partial class ObservationPackage
     /// Decodes the native-approved harvest/hunt source census of one colony facts read; unknown when the
     /// acquisition section failed. Hunt rows <c>HuntGate</c> holds are left out (<c>ColonyProjection.HuntHolds</c>).
     /// </summary>
-    public static Fact<IReadOnlyList<AcquisitionSource>> ColonyAcquisition(O.ColonyFactsSnapshot v, Tables tables) =>
-        DecodeAcquisition(v, tables).Sources;
+    public static Fact<EquatableArray<AcquisitionSource>> ColonyAcquisition(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog) =>
+        DecodeAcquisition(v, tables, catalog).Sources;
 
     /// <summary>
     /// Maps the census rows. A native read carries the raw hunt census, and every hunt row passes the hunt gate:
     /// a held row is not a source but a hold.
     /// </summary>
-    internal static (Fact<IReadOnlyList<AcquisitionSource>> Sources, IReadOnlyList<HuntHold> Holds) DecodeAcquisition(O.ColonyFactsSnapshot v, Tables tables)
+    internal static (Fact<EquatableArray<AcquisitionSource>> Sources, IReadOnlyList<HuntHold> Holds) DecodeAcquisition(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? definitions)
     {
-        var unknown = (Unknown<IReadOnlyList<AcquisitionSource>>(), (IReadOnlyList<HuntHold>)[]);
+        var unknown = (Unknown<EquatableArray<AcquisitionSource>>(), (IReadOnlyList<HuntHold>)[]);
         if (HasIssue(v.Issues, "acquisition") || !Headed(tables, v.Acquisition, row => row.Source))
         {
             return unknown;
@@ -25,7 +25,7 @@ public static partial class ObservationPackage
         DefinitionCatalog catalog;
         try
         {
-            catalog = RequireCatalog(tables.Catalog);
+            catalog = RequireCatalog(definitions);
             races = catalog.AnimalRaces();
             census = HuntCensusOf(v.HuntCensus, catalog);
         }
@@ -41,7 +41,7 @@ public static partial class ObservationPackage
             races.Race(new Resource(source?.DefName ?? ""), out var race);
             var offered = new AcquisitionSource
             {
-                ID = row.Source?.Id ?? "",
+                Id = row.Source?.Id ?? "",
                 Resource = row.Resource,
                 Token = row.SourceSnapshot?.Token ?? "",
                 Definition = source?.DefName ?? "",
@@ -113,7 +113,7 @@ public static partial class ObservationPackage
             }
             rows.Add(offered);
         }
-        return (Known<IReadOnlyList<AcquisitionSource>>(rows), holds);
+        return (Known(EquatableArray.From(rows)), holds);
     }
 
     /// <summary>
@@ -230,9 +230,9 @@ public static partial class ObservationPackage
 
     internal static HashSet<string> Set(IEnumerable<string> values) => new(values, StringComparer.Ordinal);
 
-    private static void ApplyAcquisition(O.ColonyFactsSnapshot v, Tables tables, ref ColonyProjection r)
+    private static void ApplyAcquisition(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog, ref ColonyProjection r)
     {
-        var (sources, holds) = DecodeAcquisition(v, tables);
+        var (sources, holds) = DecodeAcquisition(v, tables, catalog);
         r = r with { Acquisition = sources, HuntHolds = holds };
         if (!HasIssue(v.Issues, "pending_food_nutrition"))
         {

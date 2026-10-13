@@ -1,4 +1,3 @@
-using Defs = RimGovernor.Protocol.Defs;
 
 namespace RimGovernor.Brain.Simulation.Combat.Import;
 
@@ -54,12 +53,12 @@ internal sealed partial class Importer
     // Derives the per-part injury model of a pawn kind's race from the catalog (A39): the body def's parts with
     // their health, coverage and capacity tags, and the scalars from the pawn's stats and the damage def. It
     // fails on anything the ported rules do not cover.
-    private Body BodyOf(Defs.RaceProperties race, double healthScale, double shock, double incoming, bool ignoresPainShock)
+    private Body BodyOf(Verse.RaceProperties race, double healthScale, double shock, double incoming, bool ignoresPainShock)
     {
-        var dmg = _dmg!;
-        var bodyName = race.Body;
-        var def = cat.DefRow<Defs.BodyDef>(bodyName);
-        if (def?.CorePart is null)
+        var dmg = _dmg ?? throw Unsupported("no damage def settled before the pawns are derived");
+        var def = race.body;
+        var bodyName = def?.defName ?? "";
+        if (def?.corePart is null)
         {
             throw Unsupported($"catalog has no body def \"{bodyName}\"");
         }
@@ -72,56 +71,55 @@ internal sealed partial class Importer
         var (bleed, missingBleed, merge) = BleedRates();
 
         // Pawn_HealthTracker.CanBleed: a blood def, a flesh race, a positive factor.
-        var canBleed = race.BloodDef.Length != 0 && race.BleedRateFactor > 0;
-        var fleshName = race.FleshType.Length == 0 ? "Normal" : race.FleshType; // a race with none is Normal
-        var flesh = cat.DefRow<Defs.FleshTypeDef>(fleshName);
-        if (flesh is null || !flesh.IsOrganic)
+        var canBleed = race.BloodDef is not null && race.bleedRateFactor > 0;
+        var flesh = race.FleshType; // a race with none is Normal
+        if (flesh is null || !flesh.isOrganic)
         {
             canBleed = false;
         }
-        var constants = Constants();
-        var moving = cat.DefRow<Defs.PawnCapacityDef>(CapMoving)
+        var moving = cat.DefRow<Verse.PawnCapacityDef>(CapMoving)
             ?? throw Unsupported($"catalog has no pawn capacity \"{CapMoving}\"");
 
         var parts = new List<BodyPart>();
         var tags = new List<IReadOnlyList<string>>();
-        Walk(def.CorePart, -1, 1);
+        Walk(def.corePart, -1, 1);
 
-        void Walk(Defs.BodyPartRecord part, int parent, double parentAbs)
+        void Walk(Verse.BodyPartRecord part, int parent, double parentAbs)
         {
-            var partDef = cat.DefRow<Defs.BodyPartDef>(part.Def)
-                ?? throw Unsupported($"catalog has no body part def \"{part.Def}\"");
+            var partDef = part.def ?? throw Unsupported("a body part of body def \"" + bodyName + "\" has no def");
             bool inside;
-            switch (part.Depth)
+            switch (part.depth)
             {
-                case Defs.BodyPartDepth.Inside:
+                case Verse.BodyPartDepth.Inside:
                     inside = true;
                     break;
-                case Defs.BodyPartDepth.Outside:
+                case Verse.BodyPartDepth.Outside:
                     inside = false;
                     break;
                 default:
-                    throw Unsupported($"body part \"{part.Def}\" has no depth");
+                    throw Unsupported($"body part \"{partDef.defName}\" has no depth");
             }
 
             // BodyDef.ResolveReferences: coverageAbs is the part's share of the body less its children's.
             var abs = 1.0;
             if (parent >= 0)
             {
-                abs = parentAbs * part.Coverage;
+                abs = parentAbs * part.coverage;
             }
             var own = abs;
-            foreach (var c in part.Parts)
+            var children = part.parts ?? [];
+            foreach (var c in children)
             {
-                own -= abs * c.Value.Coverage;
+                own -= abs * c.coverage;
             }
             var weight = own * HitChanceFactor(partDef, dmg.Def);
-            if (partDef.Conceptual || !(weight > 0))
+            if (partDef.conceptual || !(weight > 0))
             {
                 weight = 0;
             }
-            var maxHealth = Math.Ceiling((double)((float)partDef.HitPoints * (float)healthScale)); // BodyPartDef.GetMaxHealth
+            var maxHealth = Math.Ceiling((double)((float)partDef.hitPoints * (float)healthScale)); // BodyPartDef.GetMaxHealth
             var idx = parts.Count;
+            var partTags = (partDef.tags ?? []).Select(t => t.defName).ToList();
             parts.Add(new BodyPart
             {
                 Parent = parent,
@@ -129,17 +127,17 @@ internal sealed partial class Importer
                 Coverage = own,
                 HitWeight = weight,
                 MaxHealth = maxHealth,
-                Solid = partDef.Solid,
-                Destroyable = partDef.DestroyableByDamage,
-                HitPoints = partDef.HitPoints,
-                BleedRate = partDef.BleedRate,
-                Tagged = partDef.Tags.Count > 0,
-                HasChildren = part.Parts.Count > 0,
+                Solid = partDef.IsSolidInDefinition_Debug,
+                Destroyable = partDef.destroyableByDamage,
+                HitPoints = partDef.hitPoints,
+                BleedRate = partDef.bleedRate,
+                Tagged = partTags.Count > 0,
+                HasChildren = children.Count > 0,
             });
-            tags.Add([.. partDef.Tags]);
-            foreach (var c in part.Parts)
+            tags.Add(partTags);
+            foreach (var c in children)
             {
-                Walk(c.Value, idx, abs);
+                Walk(c, idx, abs);
             }
         }
 
@@ -220,9 +218,9 @@ internal sealed partial class Importer
             BleedPerSeverity = bleed,
             MissingBleedPerSeverity = missingBleed,
             MergeInjuries = merge,
-            BleedFactor = canBleed ? race.BleedRateFactor : 0,
-            LethalDamage = constants.HealthTuning.BaseTotalDamageLethalThreshold * healthScale,
-            MovingMinForCapable = moving.MinForCapable,
+            BleedFactor = canBleed ? race.bleedRateFactor : 0,
+            LethalDamage = Verse.HealthTuning.BaseTotalDamageLethalThreshold * healthScale,
+            MovingMinForCapable = moving.minForCapable,
             Consciousness = WithTag(TagConsciousness),
             BloodPumping = WithTag(TagBloodPumping),
             BreathingSource = WithTag(TagBreathingSource),
@@ -245,23 +243,23 @@ internal sealed partial class Importer
     {
         foreach (var name in CapacityNames())
         {
-            var c = cat.DefRow<Defs.PawnCapacityDef>(name) ?? throw Unsupported($"catalog has no pawn capacity \"{name}\"");
+            var c = cat.DefRow<Verse.PawnCapacityDef>(name) ?? throw Unsupported($"catalog has no pawn capacity \"{name}\"");
             var ported = s_lethalCapacities.TryGetValue(name, out var worker);
             var isLimb = s_limbCapacities.TryGetValue(name, out var limb);
             if (ported || isLimb)
             {
                 var want = worker + limb;
-                var cls = c.WorkerClass;
-                if (!string.Equals(cls, want, StringComparison.Ordinal) && !cls.EndsWith("." + want, StringComparison.Ordinal))
+                var cls = c.workerClass?.Name ?? "";
+                if (!string.Equals(cls, want, StringComparison.Ordinal))
                 {
-                    throw Unsupported($"pawn capacity \"{name}\" worker \"{c.WorkerClass}\" is not the ported \"{want}\"");
+                    throw Unsupported($"pawn capacity \"{name}\" worker \"{c.workerClass}\" is not the ported \"{want}\"");
                 }
-                if (ported && (!c.LethalFlesh || c.MinForCapable != 0))
+                if (ported && (!c.lethalFlesh || c.minForCapable != 0))
                 {
                     throw Unsupported($"pawn capacity \"{name}\" is not lethal below 0");
                 }
             }
-            else if (c.LethalFlesh)
+            else if (c.lethalFlesh)
             {
                 throw Unsupported($"pawn capacity \"{name}\" is lethal to flesh and not ported");
             }
@@ -271,7 +269,7 @@ internal sealed partial class Importer
     // The catalog's pawn capacity def names in ordinal order (Go ranged a map; the order only picks which failure is reported first).
     private List<string> CapacityNames()
     {
-        var names = new List<string>(cat.Rows(Defs.PawnCapacityDef.Descriptor.FullName).Keys);
+        var names = new List<string>(cat.Rows<Verse.PawnCapacityDef>().Keys);
         names.Sort(StringComparer.Ordinal);
         return names;
     }
@@ -280,43 +278,50 @@ internal sealed partial class Importer
     // injury hediff has anything the per-part model leaves out (stages, lethal severity, painless chance).
     private (double Injury, double Missing) PainRates()
     {
-        var dmg = _dmg!;
-        var h = cat.DefRow<Defs.HediffDef>(dmg.Hediff);
-        if (h?.InjuryProps is null)
+        var (h, m) = InjuryHediffs();
+        return (h.injuryProps.painPerSeverity, m.injuryProps.painPerSeverity);
+    }
+
+    // The damage's injury hediff and the missing-part hediff, refusing an injury hediff with anything the per-part
+    // model leaves out (stages, lethal severity, painless chance).
+    private (Verse.HediffDef Injury, Verse.HediffDef Missing) InjuryHediffs()
+    {
+        var dmg = _dmg ?? throw Unsupported("no damage def settled before the injury hediffs");
+        var h = cat.DefRow<Verse.HediffDef>(dmg.Hediff);
+        if (h?.injuryProps is null)
         {
             throw Unsupported($"catalog has no injury hediff \"{dmg.Hediff}\"");
         }
-        if (h.HediffClass != InjuryHediffClass && !h.HediffClass.EndsWith("." + InjuryHediffClass, StringComparison.Ordinal))
+        if (h.hediffClass != typeof(Verse.Hediff_Injury))
         {
-            throw Unsupported($"hediff \"{dmg.Hediff}\" class \"{h.HediffClass}\" is not {InjuryHediffClass}");
+            throw Unsupported($"hediff \"{dmg.Hediff}\" class \"{h.hediffClass}\" is not {InjuryHediffClass}");
         }
-        if (h.Stages.Count > 0 || h.LethalSeverity > 0 || h.ChanceToCauseNoPain > 0)
+        if (h.stages is { Count: > 0 } || h.lethalSeverity > 0 || h.chanceToCauseNoPain > 0)
         {
             throw Unsupported($"hediff \"{dmg.Hediff}\" has stages, a lethal severity or a painless chance, which the per-part model leaves out");
         }
-        var m = cat.DefRow<Defs.HediffDef>(MissingPartHediff);
-        if (m?.InjuryProps is null)
+        var m = cat.DefRow<Verse.HediffDef>(MissingPartHediff);
+        if (m?.injuryProps is null)
         {
             throw Unsupported($"catalog has no hediff \"{MissingPartHediff}\"");
         }
-        return (h.InjuryProps.PainPerSeverity, m.InjuryProps.PainPerSeverity);
+        return (h, m);
     }
 
     // Reads the bleed rate per severity of the damage's injury hediff and of the missing-part hediff, and whether
     // the injury hediff merges (injuryProps.canMerge). PainRates has already checked both hediffs exist.
     private (double Injury, double Missing, bool Merge) BleedRates()
     {
-        var h = cat.DefRow<Defs.HediffDef>(_dmg!.Hediff)!;
-        var m = cat.DefRow<Defs.HediffDef>(MissingPartHediff)!;
-        return (h.InjuryProps.BleedRate, m.InjuryProps.BleedRate, h.InjuryProps.CanMerge);
+        var (h, m) = InjuryHediffs();
+        return (h.injuryProps.bleedRate, m.injuryProps.bleedRate, h.injuryProps.canMerge);
     }
 
     // BodyPartDef.GetHitChanceFactorFor.
-    private static double HitChanceFactor(Defs.BodyPartDef part, string damageDef)
+    private static double HitChanceFactor(Verse.BodyPartDef part, string damageDef)
     {
-        foreach (var e in part.HitChanceFactors)
+        foreach (var e in part.hitChanceFactors ?? [])
         {
-            if (string.Equals(e.Key, damageDef, StringComparison.Ordinal))
+            if (string.Equals(e.Key.defName, damageDef, StringComparison.Ordinal))
             {
                 return e.Value;
             }

@@ -186,13 +186,13 @@ public sealed partial record ColonyProjection
     /// <summary>The catalog's station table (DefinitionCatalog.StationCatalog), set on a rounds reading; the zero value without one.</summary>
     public StationCatalog Stations { get; init; } = new();
 
-    public Fact<IReadOnlyList<FoodField>> FoodFields { get; init; }
+    public Fact<EquatableArray<FoodField>> FoodFields { get; init; }
 
     public Fact<FoodChannels> FoodChannels { get; init; }
 
-    public Fact<IReadOnlyList<ProductionBench>> ProductionBenches { get; init; }
+    public Fact<EquatableArray<ProductionBench>> ProductionBenches { get; init; }
 
-    public Fact<IReadOnlyList<CookingBench>> ButcheringBenches { get; init; }
+    public Fact<EquatableArray<CookingBench>> ButcheringBenches { get; init; }
 
     public Fact<double> FoodAtRiskNutrition { get; init; }
 
@@ -205,7 +205,7 @@ public sealed partial record ColonyProjection
     public Fact<bool> HotMap { get; init; }
 
     /// <summary>The twelve seasonal means themselves (C).</summary>
-    public Fact<IReadOnlyList<double>> OutdoorCurve { get; init; }
+    public Fact<EquatableArray<double>> OutdoorCurve { get; init; }
 
     /// <summary>The catalog's full-rot temperature, which the climate advice reads.</summary>
     public double FullRotRateC { get; init; }
@@ -215,7 +215,7 @@ public sealed partial record ColonyProjection
     /// <summary>Native's cumulative delivery counters; unknown when the census is missing or malformed.</summary>
     public Fact<DeliveryLedger> DeliveryLedger { get; init; }
 
-    public Fact<IReadOnlyList<AcquisitionSource>> Acquisition { get; init; }
+    public Fact<EquatableArray<AcquisitionSource>> Acquisition { get; init; }
 
     /// <summary>The hunt rows HuntGate holds, with the gate that failed.</summary>
     public IReadOnlyList<HuntHold> HuntHolds { get; init; } = [];
@@ -224,7 +224,7 @@ public sealed partial record ColonyProjection
 
     public Fact<double> PendingWoodUnits { get; init; }
 
-    public Fact<IReadOnlyList<WorkPawn>> WorkPawns { get; init; }
+    public Fact<EquatableArray<WorkPawn>> WorkPawns { get; init; }
 
     /// <summary>The Biotech catalog's mech kinds; the zero value without Biotech.</summary>
     public MechCatalog MechCatalog { get; init; } = new();
@@ -235,18 +235,18 @@ public sealed partial record ColonyProjection
     /// <summary>Meditate TimeAssignmentDef exists.</summary>
     public Fact<bool> MeditateAvailable { get; init; }
 
-    public Fact<IReadOnlyList<FieldCrop>> FieldCrops { get; init; }
+    public Fact<EquatableArray<FieldCrop>> FieldCrops { get; init; }
 
-    public Fact<IReadOnlyList<FieldCrop>> FieldCapacityCrops { get; init; }
+    public Fact<EquatableArray<FieldCrop>> FieldCapacityCrops { get; init; }
 
-    public Fact<IReadOnlyList<CookingBench>> CookingBenches { get; init; }
+    public Fact<EquatableArray<CookingBench>> CookingBenches { get; init; }
 
     public Fact<PowerTopology> PowerPlanning { get; init; }
 
     /// <summary>The catalog's producer delivery profiles and the storage of its battery def (DefinitionCatalog.PowerSources, PowerBattery); the power planner refuses a projection without them.</summary>
     public IReadOnlyDictionary<string, PowerSourceProfile> PowerSources { get; init; } = new Dictionary<string, PowerSourceProfile>();
 
-    public PowerBattery PowerBattery { get; init; } = new();
+    public PowerBattery PowerBattery { get; init; }
 
     /// <summary>The catalog rows of the ranked generator definitions (DefinitionCatalog.GeneratorRow).</summary>
     public IReadOnlyDictionary<string, GeneratorRow> GeneratorRows { get; init; } = new Dictionary<string, GeneratorRow>();
@@ -264,7 +264,7 @@ public sealed partial record ColonyProjection
     public ImpressivenessLevels Impressiveness { get; init; } = new();
 
     /// <summary>Every built turret gun in the power census with its observed damage per second.</summary>
-    public Fact<IReadOnlyList<DefenseTurretFacts>> DefenseTurrets { get; init; }
+    public Fact<EquatableArray<DefenseTurretFacts>> DefenseTurrets { get; init; }
 
     public Fact<RoomObservation> Rooms { get; init; }
 

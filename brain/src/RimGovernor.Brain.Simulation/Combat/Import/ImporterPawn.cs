@@ -1,7 +1,6 @@
 using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Simulation.CombatMetrics;
-using Defs = RimGovernor.Protocol.Defs;
 
 namespace RimGovernor.Brain.Simulation.Combat.Import;
 
@@ -28,7 +27,7 @@ internal sealed partial class Importer
     {
         public string Name { get; init; } = "";
 
-        public Defs.ThingDef Def { get; init; } = new();
+        public required Verse.ThingDef Def { get; init; }
 
         public string LifeStage { get; init; } = "";
 
@@ -41,29 +40,29 @@ internal sealed partial class Importer
 
     private Race RaceOf(string kind)
     {
-        var kd = cat.DefRow<Defs.PawnKindDef>(kind) ?? throw Unsupported($"catalog has no pawn kind \"{kind}\"");
-        var name = kd.Race;
-        var def = cat.ThingDef(name);
-        var props = def?.Race;
-        if (def is null || props is null || props.Intelligence != Defs.Intelligence.Humanlike)
+        var kd = cat.DefRow<Verse.PawnKindDef>(kind) ?? throw Unsupported($"catalog has no pawn kind \"{kind}\"");
+        var def = kd.race;
+        var name = def?.defName ?? "";
+        var props = def?.race;
+        if (def is null || props is null || props.intelligence != Verse.Intelligence.Humanlike)
         {
             throw Unsupported($"pawn kind \"{kind}\" race \"{name}\" is not a humanlike race, which is all the sim's pawn baseline covers");
         }
-        var stages = props.LifeStageAges;
-        if (stages.Count == 0)
+        var stages = props.lifeStageAges;
+        if (stages is null || stages.Count == 0)
         {
             throw Unsupported($"race \"{name}\" has no life stages");
         }
-        var adult = stages[^1].Value;
-        var stage = cat.DefRow<Defs.LifeStageDef>(adult.Def) ?? throw Unsupported($"catalog has no life stage \"{adult.Def}\"");
+        var adult = stages[^1];
+        var stage = adult.def ?? throw Unsupported($"race \"{name}\" has a life stage with no def");
         return new Race
         {
             Name = name,
             Def = def,
-            LifeStage = adult.Def,
-            AgeTicks = (long)((double)adult.MinAge * (double)GameTime.TicksPerYear),
-            BodySize = (double)props.BaseBodySize * (double)stage.BodySizeFactor,
-            HealthSize = (double)props.BaseHealthScale * (double)stage.HealthScaleFactor,
+            LifeStage = stage.defName,
+            AgeTicks = (long)((double)adult.minAge * (double)GameTime.TicksPerYear),
+            BodySize = (double)props.baseBodySize * (double)stage.bodySizeFactor,
+            HealthSize = (double)props.baseHealthScale * (double)stage.healthScaleFactor,
         };
     }
 
@@ -112,14 +111,14 @@ internal sealed partial class Importer
     // the difficulty's enemyDeathOnDownedChanceFactor. The returned string is the trace source.
     private (double Chance, string Source) DeathOnDownedOf(Spec spec, string kind)
     {
-        var kd = cat.DefRow<Defs.PawnKindDef>(kind) ?? throw Unsupported($"catalog has no pawn kind \"{kind}\"");
-        if (kd.ForceDeathOnDowned)
+        var kd = cat.DefRow<Verse.PawnKindDef>(kind) ?? throw Unsupported($"catalog has no pawn kind \"{kind}\"");
+        if (kd.forceDeathOnDowned)
         {
             return (1, "PawnKindDef " + kind + " forceDeathOnDowned");
         }
-        if (kd.HasOverrideDeathOnDownedChance)
+        if (kd.overrideDeathOnDownedChance is { } overrideChance)
         {
-            return (kd.OverrideDeathOnDownedChance, "PawnKindDef " + kind + " overrideDeathOnDownedChance");
+            return (overrideChance, "PawnKindDef " + kind + " overrideDeathOnDownedChance");
         }
         if (!spec.DeathOnDowned.TryGetValue(out var input))
         {
@@ -129,12 +128,11 @@ internal sealed partial class Importer
         {
             throw Unsupported($"enemyDeathOnDownedChanceFactor {input.EnemyDeathOnDownedChanceFactor.ToString(CultureInfo.InvariantCulture)} is negative");
         }
-        var tuning = Constants().HealthTuning;
-        var curve = tuning.DeathOnDownedChanceNonColonyHumanlikeFromPopulationIntentCurveWaveringPrisoners;
+        var curve = Verse.HealthTuning.DeathOnDownedChance_NonColonyHumanlikeFromPopulationIntentCurve_WaveringPrisoners;
         var name = "..._WaveringPrisoners";
         if (input.UnwaveringPrisoners)
         {
-            curve = tuning.DeathOnDownedChanceNonColonyHumanlikeFromPopulationIntentCurve;
+            curve = Verse.HealthTuning.DeathOnDownedChance_NonColonyHumanlikeFromPopulationIntentCurve;
             name = "";
         }
         var v = EvaluateCurve(curve, (float)input.PopulationIntent);
@@ -143,19 +141,19 @@ internal sealed partial class Importer
     }
 
     // SimpleCurve.Evaluate in float32 (stateval.EvaluateCurve): clamps to the end values, interpolates in between.
-    private static float EvaluateCurve(Defs.SimpleCurve? curve, float x)
+    private static float EvaluateCurve(Verse.SimpleCurve? curve, float x)
     {
         var points = curve?.Points;
         if (points is null || points.Count == 0)
         {
             throw Unsupported("HealthTuning death-on-downed curve: evaluating a curve with no points");
         }
-        var (x0, y0) = (points[0].Loc.X, points[0].Loc.Y);
+        var (x0, y0) = (points[0].Loc.x, points[0].Loc.y);
         if (x <= x0)
         {
             return y0;
         }
-        var (xl, yl) = (points[^1].Loc.X, points[^1].Loc.Y);
+        var (xl, yl) = (points[^1].Loc.x, points[^1].Loc.y);
         if (x >= xl)
         {
             return yl;
@@ -164,13 +162,13 @@ internal sealed partial class Importer
         var (bx, by) = (xl, yl);
         for (var i = 0; i < points.Count; i++)
         {
-            var (px, py) = (points[i].Loc.X, points[i].Loc.Y);
+            var (px, py) = (points[i].Loc.x, points[i].Loc.y);
             if (x <= px)
             {
                 (bx, by) = (px, py);
                 if (i > 0)
                 {
-                    (ax, ay) = (points[i - 1].Loc.X, points[i - 1].Loc.Y);
+                    (ax, ay) = (points[i - 1].Loc.x, points[i - 1].Loc.y);
                 }
                 break;
             }
@@ -258,9 +256,9 @@ internal sealed partial class Importer
                 throw Unsupported($"pawn \"{id}\": allowInstantKillChance {chance.ToString(CultureInfo.InvariantCulture)} protects colonists from instant kills, which the sim does not model");
             }
         }
-        var kd = cat.DefRow<Defs.PawnKindDef>(p.Kind)!;
-        var body = BodyOf(r.Def.Race, r.HealthSize, shock, incoming, kd.IgnoresPainShock);
-        var dmg = _dmg!;
+        var kd = cat.DefRow<Verse.PawnKindDef>(p.Kind) ?? throw Unsupported($"catalog has no pawn kind \"{p.Kind}\"");
+        var body = BodyOf(r.Def.race, r.HealthSize, shock, incoming, kd.ignoresPainShock);
+        var dmg = _dmg ?? throw Unsupported("no damage def settled before the pawns are derived");
         var deathOnDowned = 0.0;
         if (p.Side == Sides.Hostile)
         {
@@ -274,7 +272,7 @@ internal sealed partial class Importer
         }
         Trace(id, "BodySize", "race " + r.Name + " baseBodySize * LifeStageDef " + r.LifeStage + " bodySizeFactor");
         Trace(id, "CanBenefitFromCover", "ThingDef " + r.Name + " category");
-        Trace(id, "Body", "BodyDef " + r.Def.Race.Body + " parts, coverage, depth and tags, BodyPartDef hitPoints, hitChanceFactors, solid and destroyableByDamage * healthScale of race " + r.Name
+        Trace(id, "Body", "BodyDef " + r.Def.race.body?.defName + " parts, coverage, depth and tags, BodyPartDef hitPoints, hitChanceFactors, solid and destroyableByDamage * healthScale of race " + r.Name
             + "; DamageDef " + dmg.Def + " harmAllLayersUntilOutside and overkillPctToDestroyPart; HediffDef " + dmg.Hediff + " and " + MissingPartHediff + " injuryProps.painPerSeverity; PawnCapacityDef workers; stat "
             + StatPainShock + " and " + StatIncomingDamage + "; " + LethalSeverityScale + " * healthScale");
 
@@ -324,7 +322,7 @@ internal sealed partial class Importer
         var combat = new CombatSpec
         {
             BodySize = Fact.Known(r.BodySize),
-            CanBenefitFromCover = r.Def.Category == Defs.ThingCategory.Pawn,
+            CanBenefitFromCover = r.Def.category == Verse.ThingCategory.Pawn,
             Body = body,
             DeathOnDownedChance = deathOnDowned,
             Armor = Fact.Known<IReadOnlyList<double>>(layers),

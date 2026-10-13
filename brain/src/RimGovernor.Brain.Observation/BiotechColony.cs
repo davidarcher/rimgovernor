@@ -486,8 +486,8 @@ public static partial class ObservationPackage
     }
 
     /// <summary>The section's chargers as a fact, unknown with the section.</summary>
-    internal static Fact<IReadOnlyList<MechCharger>> MechChargerFact(Fact<BiotechColony> section) =>
-        section.TryGetValue(out var b) ? Known(b.MechChargerRows()) : Unknown<IReadOnlyList<MechCharger>>();
+    internal static Fact<EquatableArray<MechCharger>> MechChargerFact(Fact<BiotechColony> section) =>
+        section.TryGetValue(out var b) ? Known(EquatableArray.From(b.MechChargerRows())) : Unknown<EquatableArray<MechCharger>>();
 
     /// <summary>The catalog definitions that are mech chargers (PlanningDefinition.MechCharger, from the game's Building_MechCharger class), in catalog order; the build planner picks among them.</summary>
     public static IReadOnlyList<PlanningDefinition> MechChargerDefs(IEnumerable<PlanningDefinition> defs)

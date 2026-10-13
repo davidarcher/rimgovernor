@@ -395,9 +395,9 @@ public static partial class ObservationPackage
     }
 
     /// <summary>Reads every bill row's live bill-job reservations. Unknown without the bill census or when any row is malformed.</summary>
-    public static Fact<IReadOnlyList<IngredientReservation>> BillReservations(O.BillsSnapshot? v)
+    public static Fact<EquatableArray<IngredientReservation>> BillReservations(O.BillsSnapshot? v)
     {
-        var unknown = Unknown<IReadOnlyList<IngredientReservation>>();
+        var unknown = Unknown<EquatableArray<IngredientReservation>>();
         if (v is null)
         {
             return unknown;
@@ -426,6 +426,6 @@ public static partial class ObservationPackage
                 }
             }
         }
-        return Known<IReadOnlyList<IngredientReservation>>(output);
+        return Known(EquatableArray.From(output));
     }
 }

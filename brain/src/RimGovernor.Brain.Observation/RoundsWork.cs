@@ -2,6 +2,43 @@ namespace RimGovernor.Brain.Observation;
 
 public static partial class ObservationPackage
 {
+    /// <summary>
+    /// Go's <c>DefinitionCatalog.PrimaryWeapon</c>: the def facts of the primary weapon a pawn's equipment names. A gear
+    /// reference carries no def name, so the weapon resolves through the frame's things table; false while the
+    /// equipment does not say (no armed flag, no primary id), the primary is not among the equipped items, or the
+    /// table does not hold its row yet. An unarmed pawn is known with the empty weapon.
+    /// </summary>
+    private static bool PrimaryWeapon(DefinitionCatalog catalog, O.PawnEquipment equipment, Things things, out WeaponDef weapon)
+    {
+        weapon = new WeaponDef();
+        if (!equipment.HasArmed)
+        {
+            return false;
+        }
+        if (!equipment.Armed)
+        {
+            return true;
+        }
+        if (!equipment.HasPrimaryId)
+        {
+            return false;
+        }
+        foreach (var item in equipment.Equipped)
+        {
+            if ((item.Thing?.Id ?? "") != equipment.PrimaryId)
+            {
+                continue;
+            }
+            if (item.Thing is null || !things.TryRow(item.Thing, out var row) || (row.Thing_?.DefName ?? "").Length == 0)
+            {
+                return false;
+            }
+            weapon = catalog.WeaponOf(row.Thing_?.DefName ?? "");
+            return true;
+        }
+        return false;
+    }
+
     internal static Fact<EquatableArray<WorkPawn>> RoundsWork(
         O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot snapshot, DefinitionCatalog? catalog, Things things)
     {
@@ -27,7 +64,7 @@ public static partial class ObservationPackage
             var w = WorkPawnRow(row, catalog, things);
             if (w.Biotech.TryGetValue(out var bt))
             {
-                if (bt.IsChild().TryGetValue(out var child) && child)
+                if (bt.IsChild() is (true, true))
                 {
                     var ages = RequireBiotech(biotech).WorkMinAges(row.Pawn?.DefName ?? "");
                     bt = bt with { WorkMinAges = Known(ages) };
@@ -67,7 +104,7 @@ public static partial class ObservationPackage
         }
         if (row.Equipment is { } e)
         {
-            if (RequireCatalog(catalog).PrimaryWeapon(e, things, out var weapon))
+            if (PrimaryWeapon(RequireCatalog(catalog), e, things, out var weapon))
             {
                 w = w with { Ranged = Known(weapon.Ranged), Hunts = Known(weapon.Hunts()) };
             }
@@ -249,9 +286,9 @@ public static partial class ObservationPackage
         {
             w = w with { Available = Known(false) };
         }
-        if (row.Settings is { } hs && hs.HasHostilityResponse && !HasIssue(hs.Issues, "hostility_response"))
+        if (row.Settings is { } hs && hs.HasHostilityResponse && !HasIssue(hs.Issues, "hostility_response") && HostilityName(hs.HostilityResponse) is { } hostility)
         {
-            w = w with { Hostility = Known(HostilityName(hs.HostilityResponse)) };
+            w = w with { Hostility = Known(hostility) };
         }
         if (row.Settings is { } ts && ts.HasSelfTend && !HasIssue(ts.Issues, "self_tend"))
         {

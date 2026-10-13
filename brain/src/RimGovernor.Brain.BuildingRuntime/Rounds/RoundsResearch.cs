@@ -115,7 +115,7 @@ public sealed class RoundsResearchPlanner
         var inputs = new ResearchCall { Policy = PolicyFunctions.ResearchPolicy(staged, review.Latches.Soldiers, review.Latches.FoodFirst), Needs = needs, Read = read };
         if (deficit)
         {
-            SnapshotPackage.NoteResearch(call, inputs);
+            SnapshotPackage.NoteResearch(inputs);
             var (knowledge, reason) = ResearchKnowledgeNext(inputs);
             if (!reason.IsZero)
             {

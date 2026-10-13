@@ -7,11 +7,11 @@ public static partial class ObservationPackage
     /// cells the game offers the begin command at. The required defs are the catalog's ritual defs, never a list
     /// here. Unknown without the ideoligion or the building table.
     /// </summary>
-    internal static Fact<IReadOnlyList<RitualSite>> RitualSitesOf(BuildingCensus? census, Fact<Ideoligion> ideology)
+    internal static Fact<EquatableArray<RitualSite>> RitualSitesOf(BuildingCensus? census, Fact<Ideoligion> ideology)
     {
         if (!ideology.TryGetValue(out var ideo) || census is null)
         {
-            return Unknown<IReadOnlyList<RitualSite>>();
+            return Unknown<EquatableArray<RitualSite>>();
         }
         var wanted = new List<string>();
         foreach (var held in ideo.Facts.Rituals)
@@ -24,7 +24,7 @@ public static partial class ObservationPackage
         var output = new List<RitualSite>();
         if (wanted.Count == 0)
         {
-            return Known<IReadOnlyList<RitualSite>>(output);
+            return Known(EquatableArray.From(output));
         }
         foreach (var row in census.Rows.Table.Values())
         {
@@ -35,11 +35,11 @@ public static partial class ObservationPackage
             }
             if (!RowCell(row.Building?.Position).TryGetValue(out var cell))
             {
-                return Unknown<IReadOnlyList<RitualSite>>();
+                return Unknown<EquatableArray<RitualSite>>();
             }
             output.Add(new RitualSite { Id = row.Building?.Id ?? "", Def = def, Cell = cell });
         }
-        return Known<IReadOnlyList<RitualSite>>(output);
+        return Known(EquatableArray.From(output));
     }
 
     /// <summary>A cell fact: unknown unless both coordinates are present.</summary>

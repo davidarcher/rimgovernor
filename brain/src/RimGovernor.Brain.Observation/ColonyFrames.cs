@@ -8,7 +8,7 @@ public static partial class ObservationPackage
     /// The frame's active game conditions, each with what its def row says (a condition the catalog has no row
     /// for throws); known is false when the frame could not read the environment.
     /// </summary>
-    internal static (IReadOnlyList<DisasterCondition> Conditions, bool Known) ColonyConditions(O.ColonyFactsSnapshot v, DefinitionCatalog? catalog)
+    internal static (EquatableArray<DisasterCondition> Conditions, bool Known) ColonyConditions(O.ColonyFactsSnapshot v, DefinitionCatalog? catalog)
     {
         if (HasIssue(v.Issues, "environment"))
         {
@@ -30,7 +30,7 @@ public static partial class ObservationPackage
             }
             conditions.Add(condition);
         }
-        return (conditions, true);
+        return (EquatableArray.From(conditions), true);
     }
 
     /// <summary>
@@ -42,16 +42,16 @@ public static partial class ObservationPackage
     {
         if (!v.HasBiome)
         {
-            throw new OutdoorsDarkUnknownException("the colony frame carried no biome");
+            throw new OutdoorsDarkUnknownException();
         }
         if (catalog is null)
         {
-            throw new OutdoorsDarkUnknownException("no definition catalog was loaded");
+            throw new OutdoorsDarkUnknownException();
         }
         return Known(catalog.OutdoorsPermanentlyDark(v.Biome));
     }
 
-    internal static RoundsFacts ColonyDisaster(O.ColonyFactsSnapshot v, RoundsFacts facts, Buildings buildings, DefinitionCatalog? catalog, IReadOnlyList<DisasterCondition> conditions, bool conditionsKnown)
+    internal static RoundsFacts ColonyDisaster(O.ColonyFactsSnapshot v, RoundsFacts facts, Buildings buildings, DefinitionCatalog? catalog, EquatableArray<DisasterCondition> conditions, bool conditionsKnown)
     {
         if (conditionsKnown)
         {
@@ -71,12 +71,15 @@ public static partial class ObservationPackage
         var rows = new List<RecoveryBuilding>(recovery.Buildings.Count);
         foreach (var reference in recovery.Buildings)
         {
-            buildings.TryGetRow(reference, out var row);
+            if (!buildings.TryGetRow(reference, out var row) || row is null)
+            {
+                throw new BridgeContractException($"recovery building {reference.Id}: the frame holds no row for it");
+            }
             if (catalog is null)
             {
                 throw new DomainException($"recovery building {reference.Id}: no definition catalog was loaded");
             }
-            var usesHitPoints = catalog.UsesHitPoints(row!.Building?.DefName ?? "");
+            var usesHitPoints = catalog.UsesHitPoints(row.Building?.DefName ?? "");
             var s = row.Service;
             var b = new RecoveryBuilding
             {
@@ -109,21 +112,21 @@ public static partial class ObservationPackage
             }
             rows.Add(b);
         }
-        return facts with { RecoveryBuildings = Known<IReadOnlyList<RecoveryBuilding>>(rows) };
+        return facts with { RecoveryBuildings = Known(EquatableArray.From(rows)) };
     }
 
-    internal static Fact<IReadOnlyList<RecoveryWorker>> RecoveryWorkers(Fact<IReadOnlyList<MoodPawn>> pawns)
+    internal static Fact<EquatableArray<RecoveryWorker>> RecoveryWorkers(Fact<EquatableArray<MoodPawn>> pawns)
     {
         if (!pawns.TryGetValue(out var rows))
         {
-            return Unknown<IReadOnlyList<RecoveryWorker>>();
+            return Unknown<EquatableArray<RecoveryWorker>>();
         }
         var workers = new List<RecoveryWorker>(rows.Count);
         foreach (var p in rows)
         {
             workers.Add(new RecoveryWorker { Pawn = p.Id, Dead = p.Dead, Downed = p.Downed, Drafted = p.Drafted, Mental = p.Mental, PlayerForced = p.PlayerForced });
         }
-        return Known<IReadOnlyList<RecoveryWorker>>(workers);
+        return Known(EquatableArray.From(workers));
     }
 
     private static EquatableArray<PawnId> PawnIdArray(IEnumerable<string> values)
@@ -157,8 +160,8 @@ public static partial class ObservationPackage
                     Id = f.Id,
                     RoomId = f.Room?.Id ?? "",
                     Kind = f.Kind,
-                    AccessibleTo = PawnIdArray(RefIDs(f.AccessibleTo)),
-                    Users = PawnIdArray(RefIDs(f.Users)),
+                    AccessibleTo = PawnIdArray(RefIds(f.AccessibleTo)),
+                    Users = PawnIdArray(RefIds(f.Users)),
                 });
             }
             return EquatableArray.From(rows);
@@ -174,9 +177,9 @@ public static partial class ObservationPackage
                 {
                     pawns.Add(new JoyTolerance { Pawn = new PawnId(p.Pawn), Tolerance = EquatableArray.From(p.Tolerance), Bored = EquatableArray.From(p.Bored) });
                 }
-                r = r with { Joy = new RecreationCensus { Kinds = EquatableArray.From(j.Kinds), Pawns = EquatableArray.From(pawns), Methods = required.JoyBuildings() } };
+                r = r with { Joy = new RecreationCensus { Kinds = EquatableArray.From(j.Kinds), Pawns = EquatableArray.From(pawns), Methods = EquatableArray.From(required.JoyBuildings()) } };
             }
-            r = r with { RecreationFoothold = required.RecreationFoothold(), WatchBuildings = required.WatchBuildings(), Furniture = required.DiningFurniture() };
+            r = r with { RecreationFoothold = required.RecreationFoothold(), WatchBuildings = EquatableArray.From(required.WatchBuildings()), Furniture = required.DiningFurniture() };
         }
         catch (DomainException e)
         {
@@ -230,12 +233,12 @@ public static partial class ObservationPackage
     /// missing eligibility/state is treated as not-pending (a truthy eligible check) rather than failing the
     /// whole census over one partial row.
     /// </summary>
-    internal static Fact<IReadOnlyList<WasteItem>> ColonyWaste(O.ColonyFactsSnapshot v, Tables tables)
+    internal static Fact<EquatableArray<WasteItem>> ColonyWaste(O.ColonyFactsSnapshot v, Tables tables)
     {
         var snapshot = v.Waste?.Observed;
         if (snapshot is null || !Headed(tables, snapshot.Items, row => row.Thing))
         {
-            return Unknown<IReadOnlyList<WasteItem>>();
+            return Unknown<EquatableArray<WasteItem>>();
         }
         var items = new List<WasteItem>(snapshot.Items.Count);
         foreach (var row in snapshot.Items)
@@ -263,7 +266,7 @@ public static partial class ObservationPackage
                 EverBuriedInSarcophagus = row.EverBuriedInSarcophagus,
             });
         }
-        return Known<IReadOnlyList<WasteItem>>(items);
+        return Known(EquatableArray.From(items));
     }
 
     /// <summary>
@@ -271,21 +274,21 @@ public static partial class ObservationPackage
     /// blighted state on a growing zone or the home area. It is unknown (never "no blight") until the window and
     /// the zone section are both held. A cell the window does not hold (fogged) has no plant to see.
     /// </summary>
-    internal static Fact<IReadOnlyList<BlightedPlant>> BlightCensus(ColonyProjection p)
+    internal static Fact<EquatableArray<BlightedPlant>> BlightCensus(ColonyProjection p)
     {
-        if (p.Region == default || !p.Zones.Complete)
+        if (p.Region == default || p.Zones is not { Complete: true })
         {
-            return Unknown<IReadOnlyList<BlightedPlant>>();
+            return Unknown<EquatableArray<BlightedPlant>>();
         }
         var farms = new HashSet<string>(StringComparer.Ordinal);
         foreach (var farm in p.Farms)
         {
-            farms.Add(farm.ID);
+            farms.Add(farm.Id);
         }
         var plants = new List<BlightedPlant>();
         foreach (var cell in p.Cells)
         {
-            _ = cell.ZoneID.TryGetValue(out var zone);
+            _ = cell.ZoneId.TryGetValue(out var zone);
             zone ??= "";
             if (!farms.Contains(zone))
             {
@@ -298,21 +301,21 @@ public static partial class ObservationPackage
             }
             foreach (var thing in cell.Things)
             {
-                if (thing.Category != ThingCategory.Plant || !thing.Plant.Blighted || thing.ID == 0)
+                if (thing.Category != ThingCategory.Plant || !thing.Plant.Blighted || thing.Id == 0)
                 {
                     continue;
                 }
-                plants.Add(new BlightedPlant { ID = thing.LoadID(), Definition = thing.Def, Cell = cell.Cell, Zone = zone, Designated = thing.Has(ThingFlags.Designated), Eligible = true });
+                plants.Add(new BlightedPlant { ID = thing.LoadId(), Definition = thing.Def, Cell = cell.Cell, Zone = zone, Designated = thing.Has(ThingMarks.Designated), Eligible = true });
             }
         }
-        return Known<IReadOnlyList<BlightedPlant>>(plants);
+        return Known(EquatableArray.From(plants));
     }
 
     /// <summary>
     /// Decodes the medicine-reserve facts of one colony read. A stocked def the catalog has no row for throws
     /// naming the def, never an unknown census.
     /// </summary>
-    public static MedicalReserveObservation ColonyMedicalReserve(O.ColonyFactsSnapshot v, Tables tables)
+    public static MedicalReserveObservation ColonyMedicalReserve(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog)
     {
         var r = new MedicalReserveObservation { Colonists = CountFact(v.HasColonistCount, v.ColonistCount) };
         if (!HasIssue(v.Issues, "resources"))
@@ -345,7 +348,7 @@ public static partial class ObservationPackage
             bool medicine;
             try
             {
-                medicine = RequireCatalog(tables.Catalog).Medicine(tables.Entity(item.Item)?.DefName ?? "");
+                medicine = RequireCatalog(catalog).Medicine(tables.Entity(item.Item)?.DefName ?? "");
             }
             catch (DomainException e)
             {
@@ -369,6 +372,6 @@ public static partial class ObservationPackage
                 RotTicks = Optional(item.HasRotTicks, item.RotTicks),
             });
         }
-        return r with { Items = Known<IReadOnlyList<MedicineStackRow>>(stacks) };
+        return r with { Items = Known(EquatableArray.From(stacks)) };
     }
 }

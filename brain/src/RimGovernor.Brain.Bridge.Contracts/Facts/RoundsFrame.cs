@@ -52,8 +52,6 @@ public sealed record RoundsFrame
 
     public ZonesRead? Zones { get; init; }
 
-    /// <summary>The load's definition catalog, which the research section and the planning definitions resolve against.</summary>
-    public DefinitionCatalog? Catalog { get; init; }
 
     /// <summary>The indoor room census.</summary>
     public RoomsSnapshot? Rooms { get; init; }

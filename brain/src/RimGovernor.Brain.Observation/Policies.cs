@@ -83,17 +83,7 @@ public static partial class ObservationPackage
                 var drugs = new List<DrugPolicyEntry>();
                 foreach (var d in row.DrugEntries)
                 {
-                    drugs.Add(new DrugPolicyEntry
-                    {
-                        Drug = d.DrugDef,
-                        Joy = d.AllowedForJoy,
-                        Addiction = d.AllowedForAddiction,
-                        Scheduled = d.AllowScheduled,
-                        DaysFrequency = d.DaysFrequency,
-                        OnlyIfMoodBelow = d.OnlyIfMoodBelow,
-                        OnlyIfJoyBelow = d.OnlyIfJoyBelow,
-                        TakeToInventory = (int)d.TakeToInventory,
-                    });
+                    drugs.Add(new DrugPolicyEntry(d.DrugDef, d.AllowedForJoy, d.AllowedForAddiction, d.AllowScheduled, d.DaysFrequency, d.OnlyIfMoodBelow, d.OnlyIfJoyBelow, (int)d.TakeToInventory));
                 }
                 result.Add(new PolicyEntry { ID = row.Id, Label = row.Label, Pawns = PawnIds(row.PawnIds), Default = row.Default, Allowed = [.. row.AllowedDefs], Drugs = drugs });
             }
@@ -136,7 +126,7 @@ public static partial class ObservationPackage
             e = e with { Traits = traits };
             if (e.Animal)
             {
-                if (!pawns.TryGet(e.Pawn.Value, out var row) || row is null)
+                if (!pawns.TryGetValue(e.Pawn.Value, out var row) || row is null)
                 {
                     continue;
                 }
@@ -152,7 +142,7 @@ public static partial class ObservationPackage
     }
 
     /// <summary>The Safe allowed area's load id, "" when the map has none.</summary>
-    internal static Fact<string> ShelterArea(Fact<Policies> p) => AllowedAreaID(p, PolicyConstants.SafeAreaLabel);
+    internal static Fact<string> ShelterArea(Fact<Policies> p) => AllowedAreaID(p, SafeAreaLabel);
 
     /// <summary>The load id of the allowed area labelled <paramref name="label"/>, "" when the map has none.</summary>
     internal static Fact<string> AllowedAreaID(Fact<Policies> p, string label)

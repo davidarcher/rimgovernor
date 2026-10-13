@@ -6,7 +6,7 @@ public static partial class ObservationPackage
     /// Decodes the upkeep censuses. A census whose frame lacks a field is unknown; one that needs a def the
     /// catalog cannot answer for throws naming the census and the def, never an unknown.
     /// </summary>
-    internal static UpkeepObservation ColonyUpkeep(O.ColonyFactsSnapshot v, Tables tables)
+    internal static UpkeepObservation ColonyUpkeep(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog)
     {
         var buildings = tables.Buildings;
         var r = new UpkeepObservation();
@@ -31,14 +31,14 @@ public static partial class ObservationPackage
                     known = false;
                     break;
                 }
-                if (tables.Catalog is null)
+                if (catalog is null)
                 {
                     throw new DomainException("upkeep structures: no definition catalog was loaded");
                 }
-                RepairPriority priority;
+                int priority;
                 try
                 {
-                    priority = tables.Catalog.RepairPriority(b.Building?.DefName ?? "", medical.GetValueOrDefault(item.Building?.Id ?? ""));
+                    priority = catalog.RepairPriority(b.Building?.DefName ?? "", medical.GetValueOrDefault(item.Building?.Id ?? ""));
                 }
                 catch (DomainException e)
                 {
@@ -57,7 +57,7 @@ public static partial class ObservationPackage
             }
             if (known)
             {
-                r = r with { Structures = Known<IReadOnlyList<UpkeepStructure>>(rows) };
+                r = r with { Structures = Known(EquatableArray.From(rows)) };
             }
         }
         if (!HasIssue(u.Issues, "fires"))
@@ -75,7 +75,7 @@ public static partial class ObservationPackage
             }
             if (known)
             {
-                r = r with { Fires = Known<IReadOnlyList<UpkeepFire>>(rows) };
+                r = r with { Fires = Known(EquatableArray.From(rows)) };
             }
         }
         if (!HasIssue(u.Issues, "filth") && Headed(tables, u.Filth, f => f.Filth))
@@ -103,12 +103,12 @@ public static partial class ObservationPackage
             }
             if (known)
             {
-                r = r with { Filth = Known<IReadOnlyList<UpkeepFilth>>(rows) };
+                r = r with { Filth = Known(EquatableArray.From(rows)) };
             }
         }
         if (!HasIssue(u.Issues, "lighting"))
         {
-            r = r with { Lighting = ColonyLighting(u.Lighting, buildings, tables.Catalog) };
+            r = r with { Lighting = ColonyLighting(u.Lighting, buildings, catalog) };
         }
         if (!HasIssue(u.Issues, "routes"))
         {
@@ -121,7 +121,7 @@ public static partial class ObservationPackage
             var routes = HasIssue(u.Issues, "routes") ? new O.RoutesSection() : u.Routes;
             try
             {
-                r = r with { Flooring = ColonyFlooring(u.Flooring, routes, tables.Catalog) };
+                r = r with { Flooring = ColonyFlooring(u.Flooring, routes, catalog) };
             }
             catch (DomainException e)
             {
@@ -165,7 +165,7 @@ public static partial class ObservationPackage
                     kept.Add(t);
                 }
             }
-            r = r with { Traffic = kept };
+            r = r with { Traffic = [.. kept] };
         }
         var rooms = new List<FloorRoom>();
         foreach (var room in f.Rooms)
@@ -188,7 +188,7 @@ public static partial class ObservationPackage
                 }
                 cells.Add(new FloorCell { Cell = CellOf(cell.Cell), Terrain = cell.Terrain, Pending = cell.Pending });
             }
-            rooms.Add(output with { Cells = cells });
+            rooms.Add(output with { Cells = [.. cells] });
         }
         return Known(r with { Rooms = rooms });
     }
@@ -241,7 +241,7 @@ public static partial class ObservationPackage
             {
                 breaches.Add(new RouteBreach { Cell = CellOf(b.Cell), Edifice = b.Edifice, Pending = b.Pending, Distance = b.Distance });
             }
-            facilities.Add(output with { Travel = travels, Breaches = breaches });
+            facilities.Add(output with { Travel = [.. travels], Breaches = [.. breaches] });
         }
         foreach (var t in f.Traffic)
         {
@@ -251,7 +251,7 @@ public static partial class ObservationPackage
             }
             traffic.Add(new TrafficCell { Cell = CellOf(t.Cell), Layer = layer, Samples = t.Samples, Terrain = t.Terrain, Home = t.Home, Pending = t.Pending });
         }
-        return Known(r with { Facilities = facilities, Traffic = traffic });
+        return Known(r with { Facilities = [.. facilities], Traffic = [.. traffic] });
     }
 
     private static bool TrafficLayerOf(O.TrafficLayer wire, out TrafficLayer layer)
@@ -321,11 +321,8 @@ public static partial class ObservationPackage
                 return default;
             }
             var reference = b.Building;
-            var (radius, glows) = RequireCatalog(catalog).GlowRadius(reference?.DefName ?? "");
-            if (!glows)
-            {
-                throw new DomainException($"lamp {reference?.Id}: def {reference?.DefName} has no glower comp");
-            }
+            var radius = RequireCatalog(catalog).GlowRadius(reference?.DefName ?? "")
+                ?? throw new DomainException($"lamp {reference?.Id}: def {reference?.DefName} has no glower comp");
             var s = b.Service;
             lamps.Add(new Lamp
             {

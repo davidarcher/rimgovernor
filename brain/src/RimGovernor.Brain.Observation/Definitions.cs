@@ -129,7 +129,7 @@ public static partial class ObservationPackage
 
     private static Fact<IReadOnlySet<string>> FinishedSet(IEnumerable<string> names) => Known<IReadOnlySet<string>>(new HashSet<string>(names, StringComparer.Ordinal));
 
-    private static IReadOnlyDictionary<string, O.EdibleCrop> CropRows(O.PlanningFacts? planning)
+    private static Dictionary<string, O.EdibleCrop> CropRows(O.PlanningFacts? planning)
     {
         var rows = new Dictionary<string, O.EdibleCrop>(StringComparer.Ordinal);
         if (planning is not null)

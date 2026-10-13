@@ -3,10 +3,20 @@
     <RootNamespace>RimGovernor.Brain.BuildingRuntime</RootNamespace>
     <AssemblyName>RimGovernor.Brain.BuildingRuntime</AssemblyName>
   </PropertyGroup>
+  <Import Project="../../Game.props" />
   <ItemGroup>
     <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Bridge.Contracts/RimGovernor.Brain.Bridge.Contracts.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Bridge/RimGovernor.Brain.Bridge.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Facts/RimGovernor.Brain.Facts.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Observation/RimGovernor.Brain.Observation.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Store/RimGovernor.Brain.Store.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Snapshot/RimGovernor.Brain.Snapshot.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Executor/RimGovernor.Brain.Executor.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Simulation/RimGovernor.Brain.Simulation.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- Go's domain.Known / domain.Unknown read the same in C#. -->
@@ -19,6 +29,8 @@
     <Using Include="RimGovernor.Brain.Bridge" />
     <Using Include="RimGovernor.Brain.Telemetry" />
     <Using Include="RimGovernor.Brain.Snapshot" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.Result" Alias="BridgeResult" />
     <Using Include="RimGovernor.Brain.Executor" />
     <Using Include="RimGovernor.Brain.Facts" />
     <Using Include="RimGovernor.Brain.BuildingRuntime.Boundary" />
@@ -28,14 +40,10 @@
     <Using Include="RimGovernor.Brain.Policy.PolicyConstants" Static="true" />
     <Using Include="RimGovernor.Brain.Policy.PolicyFunctions" Static="true" />
     <!-- Namespace and class share a name in the unported packages, so the namespace shadows the class; these name the class. -->
-    <Using Include="RimGovernor.Brain.Telemetry.Telemetry" Alias="Tel" />
-    <Using Include="RimGovernor.Brain.Bridge.Bridge" Alias="BridgeApi" />
-    <Using Include="RimGovernor.Brain.Facts.Facts" Alias="FactsApi" />
     <Using Include="RimGovernor.Brain.Observation.ObservationPackage" Alias="ObservationApi" />
     <Using Include="RimGovernor.Brain.Snapshot.SnapshotPackage" Alias="Snap" />
     <Using Include="RimGovernor.Brain.Snapshot.SnapshotPackage" Alias="SnapshotApi" />
     <Using Include="RimGovernor.Brain.Store.Store" Alias="JournalStore" />
-    <Using Include="RimGovernor.Brain.Facts.Store" Alias="FactStore" />
     <!-- Go's wire package aliases (a, c, k, n, o, r). -->
     <Using Include="RimGovernor.Protocol.Authority" Alias="PbAuthority" />
     <Using Include="RimGovernor.Protocol.Common" Alias="PbCommon" />
@@ -45,5 +53,13 @@
     <Using Include="RimGovernor.Protocol.Receipts" Alias="PbReceipts" />
     <Using Include="RimGovernor.Protocol.Presentation" Alias="PbPresentation" />
     <Using Include="RimGovernor.Protocol.Lifecycle" Alias="PbLifecycle" />
+    <!-- Names two imported namespaces both declare: Policy and Telemetry/Executor shapes win (issue #3111). -->
+    <Using Include="RimGovernor.Brain.Policy.PawnId" Alias="PawnId" />
+    <Using Include="RimGovernor.Brain.Policy.Amount" Alias="Amount" />
+    <Using Include="RimGovernor.Brain.Telemetry.Decision" Alias="Decision" />
+    <Using Include="RimGovernor.Brain.Executor.IClock" Alias="IClock" />
+    <Using Include="RimGovernor.Brain.Domain.ControllerSessionId" Alias="ControllerSessionId" />
+    <Using Include="RimGovernor.Brain.Observation.Identity" Alias="Identity" />
+    <Using Include="RimGovernor.Brain.Policy.RecoveryMethod" Alias="RecoveryMethod" />
   </ItemGroup>
 </Project>

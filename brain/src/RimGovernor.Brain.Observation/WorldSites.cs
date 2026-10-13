@@ -2,11 +2,11 @@ namespace RimGovernor.Brain.Observation;
 
 public static partial class ObservationPackage
 {
-    internal static Fact<IReadOnlyList<WorldSite>> FrameWorldSites(WorldProgressionRead? read)
+    internal static Fact<EquatableArray<WorldSite>> FrameWorldSites(WorldProgressionRead? read)
     {
         if (read is null)
         {
-            return Unknown<IReadOnlyList<WorldSite>>();
+            return Unknown<EquatableArray<WorldSite>>();
         }
         var rows = new List<WorldSite>(read.Sites.Count);
         foreach (var site in read.Sites)
@@ -34,10 +34,10 @@ public static partial class ObservationPackage
             {
                 questIds.Add(new QuestId(id));
             }
-            var routePawns = new List<RimGovernor.Brain.Domain.PawnId>(site.RoutePawnIds.Count);
+            var routePawns = new List<PawnId>(site.RoutePawnIds.Count);
             foreach (var id in site.RoutePawnIds)
             {
-                routePawns.Add(new RimGovernor.Brain.Domain.PawnId(id));
+                routePawns.Add(new PawnId(id));
             }
             row = row with { QuestIds = questIds, RoutePawnIds = routePawns };
             if (site.Security is { } s)
@@ -72,10 +72,10 @@ public static partial class ObservationPackage
             }
             if (site.Extraction is { } e)
             {
-                var crew = new List<RimGovernor.Brain.Domain.PawnId>(e.CrewIds.Count);
+                var crew = new List<PawnId>(e.CrewIds.Count);
                 foreach (var id in e.CrewIds)
                 {
-                    crew.Add(new RimGovernor.Brain.Domain.PawnId(id));
+                    crew.Add(new PawnId(id));
                 }
                 var cargo = new List<SiteCargo>(e.Cargo.Count);
                 foreach (var c in e.Cargo)
@@ -132,7 +132,7 @@ public static partial class ObservationPackage
             }
             rows.Add(row with { MiningTargets = mining });
         }
-        return Known<IReadOnlyList<WorldSite>>(rows);
+        return Known(EquatableArray.From(rows));
     }
 
     internal static Fact<QuestSurveyScanner> QuestSurveyScannerOf(O.QuestSurveyScanner? scanner) =>
@@ -155,15 +155,15 @@ public static partial class ObservationPackage
         {
             return Unknown<QuestGravEngine>();
         }
-        var eligible = new List<RimGovernor.Brain.Domain.PawnId>(engine.EligiblePawnIds.Count);
+        var eligible = new List<PawnId>(engine.EligiblePawnIds.Count);
         foreach (var id in engine.EligiblePawnIds)
         {
-            eligible.Add(new RimGovernor.Brain.Domain.PawnId(id));
+            eligible.Add(new PawnId(id));
         }
-        var inspecting = new List<RimGovernor.Brain.Domain.PawnId>(engine.InspectingPawnIds.Count);
+        var inspecting = new List<PawnId>(engine.InspectingPawnIds.Count);
         foreach (var id in engine.InspectingPawnIds)
         {
-            inspecting.Add(new RimGovernor.Brain.Domain.PawnId(id));
+            inspecting.Add(new PawnId(id));
         }
         return Known(new QuestGravEngine
         {

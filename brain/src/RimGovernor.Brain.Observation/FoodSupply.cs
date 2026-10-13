@@ -15,7 +15,7 @@ public static partial class ObservationPackage
     /// </summary>
     public static FoodSupply? DecodeFoodSupply(O.FoodSupplyFacts? v, Things things, DefinitionCatalog? catalog)
     {
-        if (v is null || !JoinFoodSupply(v, things, out var rows) || catalog is null)
+        if (v is null || BridgeFunctions.JoinFoodSupply(v, things) is not { } rows || catalog is null)
         {
             return null;
         }
@@ -68,7 +68,7 @@ public static partial class ObservationPackage
         {
             rows.TryGetValue(s.Item?.Id ?? "", out var row);
             row ??= new O.Thing();
-            var def = row.Thing?.DefName ?? "";
+            var def = row.Thing_?.DefName ?? "";
             var defFacts = FoodDefFactsOf(catalog, def, row.Corpse);
             // A thing rots exactly while it has a rot deadline.
             var stock = new FoodStock

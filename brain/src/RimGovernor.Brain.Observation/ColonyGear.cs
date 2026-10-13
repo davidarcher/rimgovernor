@@ -71,7 +71,7 @@ public static partial class ObservationPackage
         {
             throw new DomainException("the producer sent no loadout model");
         }
-        if (!known)
+        if (!known || role is null)
         {
             throw new DomainException("apparel policy facts unavailable (wearer inputs or definition catalog)");
         }
@@ -145,8 +145,8 @@ public static partial class ObservationPackage
         {
             throw new DomainException($"gear option {x.Id}: no apparel row for def {x.DefName}");
         }
-        var layers = Distinct(apparel.Layers);
-        var groups = Distinct(apparel.BodyPartGroups);
+        var layers = Distinct((apparel.layers ?? []).Select(l => l.defName));
+        var groups = Distinct((apparel.bodyPartGroups ?? []).Select(g => g.defName));
         if (!GearSlotOf(layers, groups, out var slot))
         {
             return null;
@@ -162,10 +162,10 @@ public static partial class ObservationPackage
             Groups = groups,
             Source = WireParse<GearSource>(x.Source),
             Condition = x.Condition,
-            WearPerDay = apparel.WearPerDay,
+            WearPerDay = apparel.wearPerDay,
             MoveSpeed = StatOffset(row, StatMoveSpeed),
             Tainted = x.Tainted,
-            SlaveOnly = apparel.SlaveApparel,
+            SlaveOnly = apparel.slaveApparel,
             Locked = x.Locked,
             Shield = HasShield(row),
             Psychic = StatOffset(row, StatPsychic) < 0,
@@ -173,8 +173,7 @@ public static partial class ObservationPackage
         };
         if (option.Source == GearSource.Bill)
         {
-            var (research, ingredients, found) = catalog.ApparelBill(x.DefName, x.Stuff);
-            if (!found)
+            if (catalog.ApparelBill(x.DefName, x.Stuff) is not var (research, ingredients))
             {
                 throw new DomainException($"gear option {x.Id}: no recipe makes {x.DefName}");
             }
@@ -237,18 +236,18 @@ public static partial class ObservationPackage
     }
 
     /// <summary>The stored apparel stock; unknown when the producer sent none.</summary>
-    public static Fact<IReadOnlyList<GearStock>> GearStorageFacts(O.GearSnapshot gear)
+    public static Fact<EquatableArray<GearStock>> GearStorageFacts(O.GearSnapshot gear)
     {
         if (gear.StoredApparel is null)
         {
-            return Unknown<IReadOnlyList<GearStock>>();
+            return Unknown<EquatableArray<GearStock>>();
         }
         var rows = new List<GearStock>();
         foreach (var row in gear.StoredApparel.Rows)
         {
             rows.Add(new GearStock { Definition = new Resource(row.DefName), Stuff = new Resource(row.Stuff), Quality = (int)row.Quality, HPBand = (int)row.HpBand, Count = (int)row.Count });
         }
-        return Known<IReadOnlyList<GearStock>>(rows);
+        return Known(EquatableArray.From(rows));
     }
 
     /// <summary>Maps a validated optional seasonal observation. Older producers omit the entire group, preserving ambient-only policy.</summary>
@@ -278,16 +277,16 @@ public static partial class ObservationPackage
     /// its development slot for the run. A candidate whose things table row the frame lacks, or whose def the
     /// catalog lacks, leaves them unknown.
     /// </summary>
-    public static Fact<IReadOnlyList<GearCandidate>> GearCandidateFacts(O.GearLoadout p, Tables tables, DefinitionCatalog catalog)
+    public static Fact<EquatableArray<GearCandidate>> GearCandidateFacts(O.GearLoadout p, Tables tables, DefinitionCatalog catalog)
     {
         var candidates = new List<GearCandidate>();
         foreach (var c in p.Candidates)
         {
             var item = c.Item;
             var head = tables.Entity(item?.Thing);
-            if (head is null || catalog.ThingDef(head.DefName) is null)
+            if (head is null || catalog.FindThing(head.DefName) is null)
             {
-                return Unknown<IReadOnlyList<GearCandidate>>();
+                return Unknown<EquatableArray<GearCandidate>>();
             }
             if (ApparelRow(catalog, head.DefName).Apparel is null)
             {
@@ -295,7 +294,7 @@ public static partial class ObservationPackage
             }
             candidates.Add(new GearCandidate(item?.Thing?.Id ?? "", c.Gain, new Resource(head.DefName)));
         }
-        return Known<IReadOnlyList<GearCandidate>>(candidates);
+        return Known(EquatableArray.From(candidates));
     }
 
     /// <summary>
@@ -303,15 +302,15 @@ public static partial class ObservationPackage
     /// could not be read (the equipment carries an "apparel" issue), otherwise each garment's definition, condition
     /// fraction (1 without hit points) and body-part groups.
     /// </summary>
-    public static Fact<IReadOnlyList<GearApparel>> GearApparelFacts(O.PawnEquipment? equipment, Tables tables, DefinitionCatalog catalog)
+    public static Fact<EquatableArray<GearApparel>> GearApparelFacts(O.PawnEquipment? equipment, Tables tables, DefinitionCatalog catalog)
     {
         if (equipment is null || !Headed(tables, equipment.Apparel, item => item.Thing))
         {
-            return Unknown<IReadOnlyList<GearApparel>>();
+            return Unknown<EquatableArray<GearApparel>>();
         }
         if (HasIssue(equipment.Issues, "apparel"))
         {
-            return Unknown<IReadOnlyList<GearApparel>>();
+            return Unknown<EquatableArray<GearApparel>>();
         }
         var apparel = new List<GearApparel>();
         foreach (var item in equipment.Apparel)
@@ -320,11 +319,11 @@ public static partial class ObservationPackage
             var worn = ApparelRow(catalog, def).Apparel;
             if (worn is null)
             {
-                return Unknown<IReadOnlyList<GearApparel>>();
+                return Unknown<EquatableArray<GearApparel>>();
             }
-            apparel.Add(new GearApparel { Definition = new Resource(def), Condition = item.HasConditionFraction ? item.ConditionFraction : 1, Groups = Distinct(worn.BodyPartGroups) });
+            apparel.Add(new GearApparel { Definition = new Resource(def), Condition = item.HasConditionFraction ? item.ConditionFraction : 1, Groups = Distinct((worn.bodyPartGroups ?? []).Select(g => g.defName)) });
         }
-        return Known<IReadOnlyList<GearApparel>>(apparel);
+        return Known(EquatableArray.From(apparel));
     }
 
     internal static Fact<GearObservation> RoundsGear(Fact<GearObservation> v, EmergencyFacts emergency)
@@ -352,18 +351,18 @@ public static partial class ObservationPackage
     }
 
     /// <summary>Every outfit policy's load id; unknown with the policy section.</summary>
-    public static Fact<IReadOnlyList<string>> OutfitIds(Fact<Policies> f)
+    public static Fact<EquatableArray<string>> OutfitIds(Fact<Policies> f)
     {
         if (!f.TryGetValue(out var p))
         {
-            return Unknown<IReadOnlyList<string>>();
+            return Unknown<EquatableArray<string>>();
         }
         var ids = new List<string>();
         foreach (var row in p.Outfit)
         {
-            ids.Add(row.Id);
+            ids.Add(row.ID);
         }
-        return Known<IReadOnlyList<string>>(ids);
+        return Known(EquatableArray.From(ids));
     }
 
     internal static ColonyProjection StampGearCreepjoinersOn(ColonyProjection p, O.PawnSnapshot? pawns, CreepJoinerDownsides downsides) =>
@@ -506,7 +505,7 @@ public static partial class ObservationPackage
         foreach (var name in allowed)
         {
             var apparel = ApparelRow(catalog, name).Apparel;
-            var groups = apparel?.BodyPartGroups ?? [];
+            var groups = (apparel?.bodyPartGroups ?? []).Select(group => group.defName).ToList();
             if (!GearCoreGroups.Any(groups.Contains))
             {
                 continue;

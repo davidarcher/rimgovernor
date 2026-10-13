@@ -146,32 +146,32 @@ public static partial class SnapshotPackage
     private static void Add(Action<SnapshotPlanner> f) => Current.Value?.Add(f);
 
     /// <summary>Records a tunnel corridor search's request.</summary>
-    public static void NoteExcavation(CancellationToken _, ExcavationSiteRequest r) => Add(p => p.Excavation.Add(r));
+    public static void NoteExcavation(ExcavationSiteRequest r) => Add(p => p.Excavation.Add(r));
 
     /// <summary>Records a native excavation site read.</summary>
-    public static void NoteSite(CancellationToken _, string purpose, ExcavationTarget target, IReadOnlyList<Cell> cells, ExcavationSite site)
+    public static void NoteSite(string purpose, ExcavationTarget target, IReadOnlyList<Cell> cells, ExcavationSite site)
     {
         site = site with { Context = null };
         Add(p => p.Sites.Add(new ExcavationRead(purpose, target, [.. cells], site)));
     }
 
     /// <summary>Records a shrine defender read.</summary>
-    public static void NoteShrineSquad(CancellationToken _, IReadOnlyList<ShrineDefenderFacts> squad) => Add(p => p.ShrineSquads.Add(squad));
+    public static void NoteShrineSquad(IReadOnlyList<ShrineDefenderFacts> squad) => Add(p => p.ShrineSquads.Add(squad));
 
     /// <summary>Records a shrine breach readiness request.</summary>
-    public static void NoteShrineReadiness(CancellationToken _, ShrineReadinessRequest r) => Add(p => p.ShrineReadiness.Add(r));
+    public static void NoteShrineReadiness(ShrineReadinessRequest r) => Add(p => p.ShrineReadiness.Add(r));
 
     /// <summary>Records a production bill selection's request.</summary>
-    public static void NoteResourceMethod(CancellationToken _, ResourceMethodRequest r) => Add(p => p.ResourceMethods.Add(r));
+    public static void NoteResourceMethod(ResourceMethodRequest r) => Add(p => p.ResourceMethods.Add(r));
 
     /// <summary>Records a workshop bench selection's request.</summary>
-    public static void NoteWorkshop(CancellationToken _, WorkshopRequest r) => Add(p => p.Workshops.Add(r));
+    public static void NoteWorkshop(WorkshopRequest r) => Add(p => p.Workshops.Add(r));
 
     /// <summary>Records a gear method selection's request.</summary>
-    public static void NoteGearMethod(CancellationToken _, GearPlanningRequest r) => Add(p => p.GearMethods.Add(r));
+    public static void NoteGearMethod(GearPlanningRequest r) => Add(p => p.GearMethods.Add(r));
 
     /// <summary>Records a research selection's inputs.</summary>
-    public static void NoteResearch(CancellationToken _, ResearchCall c)
+    public static void NoteResearch(ResearchCall c)
     {
         c = c with { Read = c.Read with { Context = null } };
         Add(p => p.Research.Add(c));

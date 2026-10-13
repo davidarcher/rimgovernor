@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>What <see cref="Rounder.SettlementAcquisitionOptions"/> needs of the native source beyond the mission pack source.</summary>
 internal interface ISettlementOptionsSource : ITradeMissionPackSource
 {
-    (Bridge.WorldProgressionRead Read, BridgeResult Result) ReadWorldProgression(CancellationToken ct, CommonPb.Identity identity, bool full);
+    (WorldProgressionRead Read, BridgeResult Result) ReadWorldProgression(CancellationToken ct, CommonPb.Identity identity, bool full);
 
     (Bridge.WorldRead Read, BridgeResult Result) ReadWorld(CancellationToken ct, CommonPb.Identity identity, int home, double radius);
 }
@@ -50,7 +50,7 @@ public sealed partial class Rounder
             return [];
         }
         var id = BoundaryApi.Identity(world);
-        Bridge.WorldProgressionRead progress;
+        WorldProgressionRead progress;
         try
         {
             (progress, _) = source.ReadWorldProgression(ct, id, false);

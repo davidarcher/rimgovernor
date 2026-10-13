@@ -7,6 +7,13 @@
         "resolved": "2.1.11",
         "contentHash": "PK0GLFkfhZzLQeR3PJf71FmhtHox+U3vcY6ZtswoMjrefkB9k6ErNJEnwXqc5KgXDSjige2XXrezqS39gkpQKA=="
       },
+      "rimgovernor.brain.bridge": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )"
+        }
+      },
       "rimgovernor.brain.bridge.contracts": {
         "type": "Project",
         "dependencies": {
@@ -30,6 +37,7 @@
       "rimgovernor.brain.observation": {
         "type": "Project",
         "dependencies": {
+          "RimGovernor.Brain.Bridge": "[1.0.0, )",
           "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Facts": "[1.0.0, )",

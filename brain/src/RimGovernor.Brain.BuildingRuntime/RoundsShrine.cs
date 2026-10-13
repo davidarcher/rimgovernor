@@ -169,7 +169,7 @@ public sealed class RoundsShrinePlanner
         {
             var needed = PlannedDrafts(call, p.Journal);
             var squad = ShrineSquad(call, _native, BoundaryApi.Identity(state.Snapshot), null, needed);
-            SnapshotPackage.NoteShrineSquad(call, squad);
+            SnapshotPackage.NoteShrineSquad(squad);
             foreach (var shrine in candidates)
             {
                 if (!opens.TryGetValue(shrine.Id, out var caskets) || caskets.Count == 0)

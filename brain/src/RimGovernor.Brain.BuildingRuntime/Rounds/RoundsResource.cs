@@ -242,7 +242,7 @@ public sealed partial class RoundsResourcePlanner
         }
 
         var request = new ResourceMethodRequest { Resource = resource, Target = target, Benches = Known<IReadOnlyList<GearBench>>(benches), Stock = supply };
-        SnapshotPackage.NoteResourceMethod(call, request);
+        SnapshotPackage.NoteResourceMethod(request);
         return (PolicyFunctions.SelectResourceMethod(request), supply);
     }
 

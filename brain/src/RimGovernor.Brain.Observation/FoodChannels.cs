@@ -18,9 +18,9 @@ public sealed record FoodChannels
 
     public IReadOnlyList<ForagePlant> Forage { get; init; } = [];
 
-    public IReadOnlyList<PenGrazing> Grazing { get; init; } = [];
+    public EquatableArray<PenGrazing> Grazing { get; init; }
 
-    public PastureTable? Pasture { get; init; }
+    public PastureTable Pasture { get; init; } = new(new Dictionary<string, double>());
 
     public IReadOnlyList<SlaughterFoodAnimal> Slaughter { get; init; } = [];
 
@@ -225,8 +225,8 @@ public static partial class ObservationPackage
         var channels = new FoodChannels
         {
             PollutedCells = Optional(v.HasPollutedCells, v.PollutedCells),
-            Grazing = grazing,
-            Pasture = pasture is null ? null : new PastureTable(pasture),
+            Grazing = [.. grazing],
+            Pasture = new PastureTable(pasture ?? new Dictionary<string, double>()),
             Slaughter = slaughter,
             Gatherable = gatherable,
             EggLayer = eggs,
@@ -284,7 +284,7 @@ public static partial class ObservationPackage
     private static bool StageFeedPerDay(AnimalRace race, Pawns pawns, string id, out double feed)
     {
         feed = 0;
-        if (!race.AdultFeedPerDay.TryGetValue(out var adult) || !pawns.TryGet(id, out var row) || row?.AnimalState is not { HasLifeStageIndex: true } state)
+        if (!race.AdultFeedPerDay.TryGetValue(out var adult) || !pawns.TryGetValue(id, out var row) || row?.AnimalState is not { HasLifeStageIndex: true } state)
         {
             return false;
         }

@@ -1645,13 +1645,13 @@ internal static partial class BuildingRuntimePackage
     /// Accepts an identity read the step's fact cache may serve: seeded at the tick the step opened on, it sits
     /// behind the review's colony anchor under a running window and is not a changed world.
     /// </summary>
-    internal static bool RoundsBuildingFresh(Tick actual, Tick anchor) => RoundsCachedFresh(Bridge.FactFamily.Identity, actual, anchor);
+    internal static bool RoundsBuildingFresh(Tick actual, Tick anchor) => RoundsCachedFresh(FactFamily.Identity, actual, anchor);
 
     /// <summary>
     /// Accepts any observation the step's fact cache may have served: a read's tick never makes it stale, only
     /// another world does, and that is checked beside it.
     /// </summary>
-    internal static bool RoundsCachedFresh(Bridge.FactFamily family, Tick actual, Tick anchor) => true;
+    internal static bool RoundsCachedFresh(FactFamily family, Tick actual, Tick anchor) => true;
 
     /// <summary>One clock window lent to a method refused for insufficient stock. The census counts what lies on the map, and a stack a pawn is carrying to a stockpile, a bench is about to finish or a hauler is about to unforbid is invisible to it; without ticks the haul never lands and the refusal repeats until the clock parks on no_work. The next step re-reads the census, so the wait is the window, not a belief about stock.</summary>
     internal const uint StockWaitTicks = GameTime.TicksPerHour;

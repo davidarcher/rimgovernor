@@ -19,19 +19,20 @@ internal sealed record GearWearer(D.Gender Gender, D.DevelopmentalStage Stage, I
     /// developmental stage filter (PawnCanWear) and a present part in one of the garment's body part groups
     /// (ApparelUtility.HasPartsToWear).
     /// </summary>
-    public bool CanWear(D.ApparelProperties a)
+    public bool CanWear(RimWorld.ApparelProperties a)
     {
-        if (a.Gender != D.Gender.None && Gender != D.Gender.None && a.Gender != Gender)
+        // The wire and game gender and stage enums carry the same values (none/male/female; newborn/baby/child/adult flags).
+        if ((int)a.gender != (int)D.Gender.None && Gender != D.Gender.None && (int)a.gender != (int)Gender)
         {
             return false;
         }
-        if (((int)a.DevelopmentalStageFilter & (int)Stage) == 0)
+        if (((int)a.developmentalStageFilter & (int)Stage) == 0)
         {
             return false;
         }
-        foreach (var g in a.BodyPartGroups)
+        foreach (var g in a.bodyPartGroups ?? [])
         {
-            if (Groups.Contains(g))
+            if (Groups.Contains(g.defName))
             {
                 return true;
             }
@@ -79,19 +80,20 @@ public static partial class ObservationPackage
         var output = new List<ApparelDefinition>();
         foreach (var (name, row) in catalog.ThingDefs)
         {
-            var a = row.Apparel;
+            var a = row.apparel;
             if (a is null || !w.CanWear(a))
             {
                 continue;
             }
-            var stage = (int)a.DevelopmentalStageFilter;
+            var stage = (int)a.developmentalStageFilter;
+            var groups = (a.bodyPartGroups ?? []).Select(group => group.defName).ToList();
             output.Add(new ApparelDefinition
             {
                 Name = name,
-                Armor = ApparelIsArmor(a),
+                Armor = DefinitionCatalog.ApparelIsArmor(a),
                 Child = (stage & (int)D.DevelopmentalStage.Child) != 0,
                 Adult = (stage & (int)D.DevelopmentalStage.Adult) != 0,
-                CoversBody = a.BodyPartGroups.Contains("Torso") || a.BodyPartGroups.Contains("Legs"),
+                CoversBody = groups.Contains("Torso") || groups.Contains("Legs"),
             });
         }
         output.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
@@ -99,10 +101,10 @@ public static partial class ObservationPackage
     }
 
     /// <summary>The def's apparel properties; the apparel is null when the catalog has no such row or it is not apparel.</summary>
-    internal static (D.ThingDef? Row, D.ApparelProperties? Apparel) ApparelRow(DefinitionCatalog catalog, string def)
+    internal static (Verse.ThingDef? Row, RimWorld.ApparelProperties? Apparel) ApparelRow(DefinitionCatalog catalog, string def)
     {
-        var row = catalog.ThingDef(def);
-        return (row, row?.Apparel);
+        var row = catalog.FindThing(def);
+        return (row, row?.apparel);
     }
 
     /// <summary>Values without repeats, in order.</summary>
@@ -120,39 +122,26 @@ public static partial class ObservationPackage
     }
 
     /// <summary>The sum of a def's equipped stat offsets for <paramref name="stat"/>.</summary>
-    internal static float StatOffset(D.ThingDef? row, string stat)
+    internal static float StatOffset(Verse.ThingDef? row, string stat)
     {
         float sum = 0;
         if (row is null)
         {
             return sum;
         }
-        foreach (var entry in row.EquippedStatOffsets)
+        foreach (var m in row.equippedStatOffsets ?? [])
         {
-            if (entry.Value is { } m && m.Stat == stat)
+            if (m.stat.defName == stat)
             {
-                sum += m.Value;
+                sum += m.value;
             }
         }
         return sum;
     }
 
     /// <summary>Reports a def with the shield comp.</summary>
-    internal static bool HasShield(D.ThingDef? row)
-    {
-        if (row is null)
-        {
-            return false;
-        }
-        foreach (var c in row.Comps)
-        {
-            if (c.Value?.CompPropertiesShield is not null)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
+    internal static bool HasShield(Verse.ThingDef? row) =>
+        row is not null && DefinitionCatalog.HasComp<RimWorld.CompProperties_Shield>(row);
 
     /// <summary>
     /// One stat of the option's (def, stuff) at Normal quality before condition, never negative. A stat the game

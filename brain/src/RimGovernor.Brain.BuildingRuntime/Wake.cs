@@ -18,7 +18,7 @@ public sealed class WakeSignal
     private readonly object _mu = new();
     private readonly Channel<bool> _ch = Channel.CreateBounded<bool>(new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite });
     private Dictionary<ActionId, WakeOutcome> _pending = [];
-    private readonly HashSet<Bridge.FactFamily> _families = [];
+    private readonly HashSet<FactFamily> _families = [];
 
     // The store sections the pages' invalidations made stale, as narrowed as native attributed them; the
     // families stay the byte cache's whole-family view of the same events.
@@ -40,15 +40,15 @@ public sealed class WakeSignal
         NotifyInvalidated(outcomes, [], authority);
 
     /// <summary>Notify carrying the fact families the committed page's ObservationInvalidated events named as well.</summary>
-    public void NotifyInvalidated(IReadOnlyList<WakeOutcome> outcomes, IReadOnlyList<Bridge.FactFamily> families, bool authority) =>
+    public void NotifyInvalidated(IReadOnlyList<WakeOutcome> outcomes, IReadOnlyList<FactFamily> families, bool authority) =>
         NotifyStopped(outcomes, families, authority, false);
 
     /// <summary>NotifyInvalidated that also records whether the page stopped the clock.</summary>
-    public void NotifyStopped(IReadOnlyList<WakeOutcome> outcomes, IReadOnlyList<Bridge.FactFamily> families, bool authority, bool stopped) =>
+    public void NotifyStopped(IReadOnlyList<WakeOutcome> outcomes, IReadOnlyList<FactFamily> families, bool authority, bool stopped) =>
         NotifyStopAt(outcomes, families, authority, stopped, null);
 
     /// <summary>NotifyStopped carrying the native stamp of the stop (the Stopped event's observed_at), null when unknown.</summary>
-    public void NotifyStopAt(IReadOnlyList<WakeOutcome> outcomes, IReadOnlyList<Bridge.FactFamily> families, bool authority, bool stopped, DateTimeOffset? stopAt) =>
+    public void NotifyStopAt(IReadOnlyList<WakeOutcome> outcomes, IReadOnlyList<FactFamily> families, bool authority, bool stopped, DateTimeOffset? stopAt) =>
         NotifySections(outcomes, families, [], authority, stopped, stopAt);
 
     /// <summary>
@@ -56,7 +56,7 @@ public sealed class WakeSignal
     /// Invalidations coalesce into one set; a terminal outcome is never replaced by a later non-terminal one of
     /// the same attempt, and authority stays set until taken.
     /// </summary>
-    public void NotifySections(IReadOnlyList<WakeOutcome> outcomes, IReadOnlyList<Bridge.FactFamily> families, IReadOnlyList<Facts.Section> sections, bool authority, bool stopped, DateTimeOffset? stopAt)
+    public void NotifySections(IReadOnlyList<WakeOutcome> outcomes, IReadOnlyList<FactFamily> families, IReadOnlyList<Facts.Section> sections, bool authority, bool stopped, DateTimeOffset? stopAt)
     {
         lock (_mu)
         {
@@ -143,7 +143,7 @@ public sealed class WakeSignal
 }
 
 /// <summary>What one committed clock page says that should wake the step loop (Go's five return values of clockPageWakeStopped).</summary>
-internal sealed record ClockPageWake(IReadOnlyList<WakeOutcome> Outcomes, IReadOnlyList<Bridge.FactFamily> Families, bool Authority, bool Stopped, DateTimeOffset? StopAt);
+internal sealed record ClockPageWake(IReadOnlyList<WakeOutcome> Outcomes, IReadOnlyList<FactFamily> Families, bool Authority, bool Stopped, DateTimeOffset? StopAt);
 
 internal static partial class Pkg
 {
@@ -155,8 +155,8 @@ internal static partial class Pkg
     internal static ClockPageWake ClockPageWakeStopped(ClockPb.EventsPage page)
     {
         var outcomes = new List<WakeOutcome>();
-        var families = new List<Bridge.FactFamily>();
-        var seen = new HashSet<Bridge.FactFamily>();
+        var families = new List<FactFamily>();
+        var seen = new HashSet<FactFamily>();
         var authority = false;
         var stopped = false;
         DateTimeOffset? stopAt = null;

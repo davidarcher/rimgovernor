@@ -309,7 +309,7 @@ public sealed partial class RoundsGearPlanner
 
         var seen = goal.Methods.Select(m => m.Method).ToList();
         var request = new GearPlanningRequest { Observation = Known(census), Seen = seen, Benches = Unknown<IReadOnlyList<GearBench>>() };
-        SnapshotPackage.NoteGearMethod(call, request);
+        SnapshotPackage.NoteGearMethod(request);
         var choice = PolicyFunctions.SelectGearMethod(request);
         var planId = PlanIds.MintPlanId();
         DomainAction action2;

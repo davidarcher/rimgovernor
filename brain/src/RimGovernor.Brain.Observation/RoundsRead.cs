@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Observation;
 /// The routine census: one decoded frame per reading (the bridge client's ReadRoundsFrame) with the load's
 /// definition catalog, whose race rows are the herd plan's race catalog (DefinitionCatalog.AnimalRaces).
 /// </summary>
-public interface IRoundsSource : IColonySource
+public interface IRoundsSource : IColonySource, IDefinitionSource
 {
     Task<RoundsFrame> ReadRoundsFrameAsync(C.Identity identity, CancellationToken cancellationToken);
 }
@@ -14,13 +14,16 @@ public sealed record RoundsReading
     /// <summary>The colony reading the frame decoded to (Go embeds it).</summary>
     public ColonyReading Reading { get; init; } = new();
 
-    public EmergencyFacts Emergency { get; init; }
+    public required EmergencyFacts Emergency { get; init; }
 
     /// <summary>The reading's decoded census, per section with the tick each reply described, for the step's fact store.</summary>
     public RoundsSections Sections { get; init; } = new();
 
     /// <summary>The frame the reading decoded.</summary>
-    public RoundsFrame Frame { get; init; }
+    public required RoundsFrame Frame { get; init; }
+
+    /// <summary>The load's definition catalog the reading decoded against, null for a source without one.</summary>
+    public DefinitionCatalog? Catalog { get; init; }
 }
 
 /// <summary>Answers ObserveColony's colony facts and zone reads from the frame.</summary>
@@ -39,7 +42,7 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
         // A power row's wattage includes the upgrades the frame's research census says are finished.
         if (frame.Research is { } research)
         {
-            tables = tables with { FinishedResearch = Known<IReadOnlyList<string>>([.. research.Finished]) };
+            tables = tables with { FinishedResearch = Known<EquatableArray<string>>([.. research.Finished]) };
         }
         return Task.FromResult(tables);
     }
@@ -59,8 +62,8 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
         return new Held<ZonesRead> { Value = read, AsOf = read.AsOf, Complete = true, Source = "native_frame" };
     }
 
-    /// <summary>The frame's catalog, null for a frame without one.</summary>
-    public Task<DefinitionCatalog?> DefinitionCatalogAsync(C.Identity id, CancellationToken cancellationToken) => Task.FromResult(frame.Catalog);
+    /// <summary>The load's catalog, null for a source without one.</summary>
+    public Task<DefinitionCatalog?> DefinitionCatalogAsync(C.Identity id, CancellationToken cancellationToken) => inner.DefinitionCatalogAsync(id, cancellationToken);
 
     /// <summary>The frame's research section.</summary>
     public Task<(ResearchRead Read, Result Receipt)> ReadResearchAsync(C.Identity id, CancellationToken cancellationToken)
@@ -75,7 +78,7 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
 
 public static partial class ObservationPackage
 {
-    public static Task<RoundsReading> ObserveRoundsOwned(IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, Fact<IReadOnlyList<ConstructionClaim>> claims, IReadOnlyList<string> definitions, CancellationToken cancellationToken) =>
+    public static Task<RoundsReading> ObserveRoundsOwned(IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, Fact<EquatableArray<ConstructionClaim>> claims, IReadOnlyList<string> definitions, CancellationToken cancellationToken) =>
         ObserveRounds(source, clock, expected, maxAge, claims, false, true, definitions, cancellationToken);
 
     /// <summary>
@@ -83,19 +86,19 @@ public static partial class ObservationPackage
     /// each facility's hosting room role: without the census no comfort facility can be certified as hosted, so
     /// comfort becomes unknown.
     /// </summary>
-    public static Task<RoundsReading> ObserveRoundsRooms(IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, Fact<IReadOnlyList<ConstructionClaim>> claims, IReadOnlyList<string> definitions, CancellationToken cancellationToken) =>
+    public static Task<RoundsReading> ObserveRoundsRooms(IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, Fact<EquatableArray<ConstructionClaim>> claims, IReadOnlyList<string> definitions, CancellationToken cancellationToken) =>
         ObserveRounds(source, clock, expected, maxAge, claims, true, true, definitions, cancellationToken);
 
     /// <summary>Decodes the same native frame and room observations without fetching the development planning window or its definition reads.</summary>
     public static Task<RoundsReading> ObserveRoundsProtection(IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, CancellationToken cancellationToken) =>
-        ObserveRounds(source, clock, expected, maxAge, Unknown<IReadOnlyList<ConstructionClaim>>(), true, false, [], cancellationToken);
+        ObserveRounds(source, clock, expected, maxAge, Unknown<EquatableArray<ConstructionClaim>>(), true, false, [], cancellationToken);
 
     /// <summary>
     /// Decodes one frame. ObserveColony checks the frame's colony context against expected; every other section of
     /// the frame shares that context and tick, so none is checked against another.
     /// </summary>
     private static async Task<RoundsReading> ObserveRounds(
-        IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, Fact<IReadOnlyList<ConstructionClaim>> claims,
+        IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, Fact<EquatableArray<ConstructionClaim>> claims,
         bool rooms, bool planning, IReadOnlyList<string> definitions, CancellationToken cancellationToken)
     {
         if (source is null)
@@ -105,6 +108,7 @@ public static partial class ObservationPackage
         var id = new C.Identity { ColonyId = expected.Colony.Value, LoadToken = expected.Load.Value, MapId = expected.Map.Value };
         var started = clock.Now();
         var frame = await source.ReadRoundsFrameAsync(id, cancellationToken).ConfigureAwait(false);
+        var catalog = await source.DefinitionCatalogAsync(id, cancellationToken).ConfigureAwait(false);
         if (frame.Colony is null || frame.Emergency.Context is null)
         {
             throw new ObservationContractException("rounds frame lacks colony or emergency context");
@@ -117,14 +121,14 @@ public static partial class ObservationPackage
         var p = reading.Projection;
         var colony = frame.Colony;
         var emergency = frame.Emergency.Facts;
-        if (frame.Catalog is { } catalog)
+        if (catalog is not null)
         {
             // Room-role furniture rides every routine reading: the catalog names which definitions the planners
             // furnish rooms from.
             var roleRows = catalog.RoomRoleRows();
             p = p with { Shapes = catalog.PieceShapes(), Stations = catalog.StationCatalog() };
             var names = definitions.Concat(roleRows).Concat(p.Shapes.Furniture.Definitions());
-            p = p with { Definitions = FrameDefinitionFacts(frame).AppendDefinitions([.. p.Definitions], names) };
+            p = p with { Definitions = FrameDefinitionFacts(frame, catalog).AppendDefinitions([.. p.Definitions], names) };
             p = p with
             {
                 Facts = p.Facts with { Items = catalog.ItemFacts() },
@@ -138,7 +142,7 @@ public static partial class ObservationPackage
                 },
             };
         }
-        p = p with { Facts = p.Facts with { Containment = ContainmentPlanningOf(frame, p.Definitions) } };
+        p = p with { Facts = p.Facts with { Containment = ContainmentPlanningOf(frame, catalog, p.Definitions) } };
         if (p.Facts.Sleeping.TryGetValue(out var sleeping))
         {
             sleeping = sleeping with { BedBuildable = p.DefinitionAvailable(p.Shapes.Furniture.PrimaryBed()) };
@@ -168,7 +172,7 @@ public static partial class ObservationPackage
         };
         if (pawns is not null)
         {
-            var (armed, unarmed) = RoundsArmed(colony, emergency, pawns, frame.Catalog!.CreepJoinerDownsides());
+            var (armed, unarmed) = RoundsArmed(colony, emergency, pawns, RequireCatalog(catalog).CreepJoinerDownsides());
             p = p with
             {
                 Facts = p.Facts with
@@ -177,13 +181,13 @@ public static partial class ObservationPackage
                     Unarmed = unarmed,
                     DefenseCapacity = PolicyFunctions.DefenseCapacity(RoundsDefenders(colony, emergency, pawns), p.DefenseTurrets),
                 },
-                MechCatalog = frame.Catalog?.Biotech.MechCatalog() ?? default,
-                WorkPawns = RoundsWork(colony, emergency, pawns, frame.Catalog, frame.Tables.Things),
+                MechCatalog = catalog?.Biotech?.MechCatalog() ?? new(),
+                WorkPawns = RoundsWork(colony, emergency, pawns, catalog, frame.Tables.Things),
                 MeditateAvailable = Optional(pawns.HasMeditateAssignmentAvailable, pawns.MeditateAssignmentAvailable),
             };
-            p = p with { Facts = p.Facts with { MedicalPawns = RoundsMedical(colony, emergency, pawns, frame.Catalog!) } };
+            p = p with { Facts = p.Facts with { MedicalPawns = RoundsMedical(colony, emergency, pawns, RequireCatalog(catalog)) } };
             p = p with { Facts = p.Facts with { MoodPawns = RoundsMood(colony, emergency, pawns) } };
-            var thoughtFacts = frame.Catalog?.AllThoughtFacts() ?? new Dictionary<string, ThoughtFacts>();
+            var thoughtFacts = catalog?.AllThoughtFacts() ?? new Dictionary<string, ThoughtFacts>();
             p = p with { Facts = p.Facts with { MoodLedger = RoundsMoodLedger(p.Facts.MoodPawns, pawns, thoughtFacts) } };
         }
         else if (emergency.ColonistsComplete.TryGetValue(out var complete) && complete && emergency.Colonists.Count == 0 && colony.HasColonistCount && colony.ColonistCount == 0)
@@ -192,12 +196,12 @@ public static partial class ObservationPackage
             {
                 Facts = p.Facts with
                 {
-                    MoodPawns = Known<IReadOnlyList<MoodPawn>>([]),
+                    MoodPawns = Known<EquatableArray<MoodPawn>>([]),
                     MoodLedger = Known(PolicyFunctions.BuildMoodLedger([], new Dictionary<string, ThoughtFacts>())),
                 },
             };
         }
-        p = p with { Mechs = frame.Tables.Pawns.Len > 0 ? Known(MechFleetOf(frame.Tables.Pawns.Values())) : Unknown<MechFleet>() };
+        p = p with { Mechs = frame.Tables.Pawns.Count > 0 ? Known(MechFleetOf(frame.Tables.Pawns.Table.Values())) : Unknown<MechFleet>() };
         p = p with
         {
             Facts = p.Facts with
@@ -215,7 +219,7 @@ public static partial class ObservationPackage
             Facts = p.Facts with
             {
                 Traders = FrameTraders(frame.Traders),
-                QuestOffers = FrameQuests(frame.Quests, expected.Map, frame.Catalog),
+                QuestOffers = FrameQuests(frame.Quests, expected.Map, catalog),
                 QuestSites = FrameWorldSites(frame.Quests),
                 QuestExpeditionTrips = FrameExpeditionTrips(frame.Quests, expected.Map),
                 QuestWorkers = p.WorkPawns,
@@ -241,7 +245,7 @@ public static partial class ObservationPackage
             },
         };
         p = p with { Facts = p.Facts with { RitualSites = RitualSitesOf(frame.Buildings, p.Facts.Ideology) } };
-        var ideologyDefs = frame.Catalog!.IdeologyDefs();
+        var ideologyDefs = RequireCatalog(catalog).IdeologyDefs();
         p = p with
         {
             Facts = p.Facts with
@@ -254,7 +258,7 @@ public static partial class ObservationPackage
         Fact<RoyaltyFacts> royalty;
         try
         {
-            royalty = p.RoyaltyOf(pawns, frame.Catalog);
+            royalty = p.RoyaltyOf(pawns, RequireCatalog(catalog));
         }
         catch (DomainException)
         {
@@ -268,7 +272,7 @@ public static partial class ObservationPackage
                 Prisoners = default,
                 Custody = default,
                 PrisonerColony = default,
-                Outlook = default,
+                Outlook = new(),
                 OwnedNames = default,
                 Guests = default,
             },
@@ -296,7 +300,6 @@ public static partial class ObservationPackage
         // sections only when asked.
         if (frame.Rooms is { } frameRooms)
         {
-            ValidateTemperatureRooms(frameRooms, frame.RoomCells, id);
             if (p.Facts.Sleeping.TryGetValue(out var bedded))
             {
                 bedded = bedded with { Rooms = UpkeepRooms(frameRooms, bedded.Beds) };
@@ -311,9 +314,9 @@ public static partial class ObservationPackage
             if (roomCensus is not null)
             {
                 temperature = TemperatureRooms(roomCensus, frame.RoomCells, p.Facts.Sleeping);
-                if (temperature.TryGetValue(out var planned) && frame.Catalog is not null)
+                if (temperature.TryGetValue(out var planned) && catalog is not null)
                 {
-                    planned = planned with { Dining = frame.Catalog.DiningFurniture(), Shapes = p.Shapes };
+                    planned = planned with { Dining = catalog.DiningFurniture(), Shapes = p.Shapes };
                     temperature = Known(planned);
                 }
             }
@@ -331,9 +334,9 @@ public static partial class ObservationPackage
             throw new ObservationStaleException();
         }
         cancellationToken.ThrowIfCancellationRequested();
-        p = PersonalShares(p, frame, pawns);
+        p = PersonalShares(p, frame, catalog, pawns);
         p = StampGearShares(p);
-        p = StampGearCreepjoinersOn(p, pawns, frame.Catalog!.CreepJoinerDownsides());
+        p = StampGearCreepjoinersOn(p, pawns, RequireCatalog(catalog).CreepJoinerDownsides());
         p = p with { Facts = StampQuestGuestProtection(p.Facts) };
         p = p with { Facts = StampQuestRefugees(p.Facts) };
         return new RoundsReading
@@ -342,6 +345,7 @@ public static partial class ObservationPackage
             Emergency = emergency,
             Sections = BuildRoundsSections(frame, p, roomCensus),
             Frame = frame,
+            Catalog = catalog,
         };
     }
 
@@ -359,17 +363,16 @@ public static partial class ObservationPackage
         var ids = new List<string>(facts.Colonists.Count);
         foreach (var pawn in facts.Colonists)
         {
-            ids.Add(pawn.ID.Value);
+            ids.Add(pawn.Id.Value);
         }
-        ValidateRoundsPawnSnapshot(frame.Pawns, id, ids);
         return frame.Pawns;
     }
 
     /// <summary>Resolves definitions against the frame's catalog, research and crop rows.</summary>
-    internal static DefinitionFacts FrameDefinitionFacts(RoundsFrame frame) =>
+    internal static DefinitionFacts FrameDefinitionFacts(RoundsFrame frame, DefinitionCatalog catalog) =>
         new()
         {
-            Catalog = frame.Catalog!,
+            Catalog = catalog,
             Crops = CropRows(frame.Colony?.Planning?.Observed),
             Finished = frame.Research is { } research ? FinishedSet(research.Finished) : default,
         };
@@ -379,31 +382,31 @@ public static partial class ObservationPackage
     /// ship-only class of its quest root (QuestClass), unknown without a catalog or when the catalog cannot
     /// classify the root.
     /// </summary>
-    internal static Fact<IReadOnlyList<JoinerOffer>> FrameQuests(WorldProgressionRead? read, MapId home, DefinitionCatalog? catalog)
+    internal static Fact<EquatableArray<JoinerOffer>> FrameQuests(WorldProgressionRead? read, MapId home, DefinitionCatalog? catalog)
     {
         if (read is null)
         {
-            return Unknown<IReadOnlyList<JoinerOffer>>();
+            return Unknown<EquatableArray<JoinerOffer>>();
         }
         var hostile = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var faction in read.Factions)
         {
-            hostile[faction.ID] = faction.Hostile;
+            hostile[faction.Id] = faction.Hostile;
         }
         var offers = new List<JoinerOffer>(read.Quests.Count);
         foreach (var quest in read.Quests)
         {
             var offer = new JoinerOffer
             {
-                Quest = new QuestId(quest.ID),
+                Quest = new QuestId(quest.Id),
                 ScriptDef = quest.ScriptDef,
                 State = quest.State,
                 CanAccept = quest.CanAccept,
                 RequiresAccepter = quest.RequiresAccepter,
                 ChoiceCount = quest.ChoiceCount,
-                FactionID = quest.FactionID,
+                FactionId = quest.FactionId,
                 FactionHostile = Unknown<bool>(),
-                OnMap = quest.MapKnown && new MapId(quest.MapID) == home,
+                OnMap = quest.MapKnown && new MapId(quest.MapId) == home,
                 Class = Unknown<QuestClass>(),
             };
             if (catalog is not null)
@@ -425,16 +428,16 @@ public static partial class ObservationPackage
                     offer = offer with { ClassError = e.Message };
                 }
             }
-            if (quest.FactionID != "" && hostile.TryGetValue(quest.FactionID, out var value))
+            if (quest.FactionId != "" && hostile.TryGetValue(quest.FactionId, out var value))
             {
                 offer = offer with { FactionHostile = Known(value) };
             }
             offer = offer with
             {
-                Favor = [.. quest.Favor.Select(f => new QuestFavor { Choice = f.Choice, Favor = f.Favor })],
+                Favor = [.. quest.Favor.Select(f => new QuestFavor(f.Choice, f.Favor))],
                 RewardChoiceParts = quest.RewardChoiceParts is { } parts ? Known(parts) : default,
-                Asker = new RimGovernor.Brain.Domain.PawnId(quest.Asker),
-                DeparturePawnIDs = [.. quest.DeparturePawnIDs.Select(i => new RimGovernor.Brain.Domain.PawnId(i))],
+                Asker = new PawnId(quest.Asker),
+                DeparturePawnIds = [.. quest.DeparturePawnIds.Select(i => new PawnId(i))],
                 AskerFactionPlayer = quest.AskerFactionPlayer is { } player ? Known(player) : default,
                 ViolentQuestsAllowed = quest.ViolentQuestsAllowed is { } violent ? Known(violent) : default,
                 ThreatPoints = Optional(quest.ThreatPoints.HasValue, quest.ThreatPoints.GetValueOrDefault()),
@@ -450,14 +453,14 @@ public static partial class ObservationPackage
                     PermitPoints = reward.PermitPoints,
                     Permits = [.. reward.Permits],
                     TitleDef = reward.TitleDef,
-                    FactionID = reward.FactionID,
+                    FactionId = reward.FactionId,
                     Items = [.. reward.Items.Select(item => new Amount(new Resource(item.Def), item.Count))],
                 });
             }
             offer = offer with
             {
                 Rewards = rewards,
-                EligiblePawnIDs = [.. quest.EligiblePawnIDs.Select(i => new RimGovernor.Brain.Domain.PawnId(i))],
+                EligiblePawnIds = [.. quest.EligiblePawnIds.Select(i => new PawnId(i))],
                 ExpiresInTicks = quest.ExpiresInTicks is { } expires ? Known(expires) : default,
             };
             var objectives = new List<QuestObjective>();
@@ -475,12 +478,12 @@ public static partial class ObservationPackage
                     SurveyScanner = QuestSurveyScannerOf(objective.SurveyScanner),
                     DurationTicks = Optional(objective.DurationTicks.HasValue, objective.DurationTicks.GetValueOrDefault()),
                     Workload = QuestWorkloadOf(objective.Workload, objective.Kind, catalog),
-                    LodgerMoods = [.. objective.LodgerMoods.Select(m => new QuestLodgerMood { Pawn = new RimGovernor.Brain.Domain.PawnId(m.PawnID), Mood = Optional(m.Mood.HasValue, m.Mood.GetValueOrDefault()) })],
+                    LodgerMoods = [.. objective.LodgerMoods.Select(m => new QuestLodgerMood(new PawnId(m.PawnId), Optional(m.Mood.HasValue, m.Mood.GetValueOrDefault())))],
                     Count = objective.Count is { } count ? Known(count) : default,
                     Active = objective.Active is { } active ? Known(active) : default,
                     Produced = objective.Produced is { } produced ? Known(produced) : default,
                     DeadlineTicks = objective.DeadlineTicks is { } deadline ? Known(deadline) : default,
-                    PawnIDs = [.. objective.PawnIDs.Select(i => new RimGovernor.Brain.Domain.PawnId(i))],
+                    PawnIds = [.. objective.PawnIds.Select(i => new PawnId(i))],
                 };
                 objectives.Add(QuestHackGift(objective, row));
             }
@@ -489,21 +492,21 @@ public static partial class ObservationPackage
             {
                 shuttles.Add(new QuestShuttleState
                 {
-                    ID = shuttle.ID,
+                    Id = shuttle.Id,
                     AutoloadAvailable = Optional(shuttle.AutoloadAvailable.HasValue, shuttle.AutoloadAvailable.GetValueOrDefault()),
                     Autoload = Optional(shuttle.Autoload.HasValue, shuttle.Autoload.GetValueOrDefault()),
                     Loading = Optional(shuttle.Loading.HasValue, shuttle.Loading.GetValueOrDefault()),
                     AllRequiredLoaded = Optional(shuttle.AllRequiredLoaded.HasValue, shuttle.AllRequiredLoaded.GetValueOrDefault()),
                     ManualLaunchAvailable = Optional(shuttle.ManualLaunchAvailable.HasValue, shuttle.ManualLaunchAvailable.GetValueOrDefault()),
                     RequiredColonistCount = Optional(shuttle.RequiredColonistCount.HasValue, shuttle.RequiredColonistCount.GetValueOrDefault()),
-                    PawnIDs = [.. shuttle.PawnIDs.Select(i => new RimGovernor.Brain.Domain.PawnId(i))],
-                    LoadedPawnIDs = [.. shuttle.LoadedPawnIDs.Select(i => new RimGovernor.Brain.Domain.PawnId(i))],
-                    PendingPawnIDs = [.. shuttle.PendingPawnIDs.Select(i => new RimGovernor.Brain.Domain.PawnId(i))],
+                    PawnIds = [.. shuttle.PawnIds.Select(i => new PawnId(i))],
+                    LoadedPawnIds = [.. shuttle.LoadedPawnIds.Select(i => new PawnId(i))],
+                    PendingPawnIds = [.. shuttle.PendingPawnIds.Select(i => new PawnId(i))],
                 });
             }
             offers.Add(offer with { Objectives = objectives, Shuttles = shuttles });
         }
-        return Known<IReadOnlyList<JoinerOffer>>(offers);
+        return Known(EquatableArray.From(offers));
     }
 
     /// <summary>The research census; unknown when the frame carries none.</summary>
@@ -516,13 +519,13 @@ public static partial class ObservationPackage
         var facts = new ResearchFacts { Current = new ResearchProjectId(read.CurrentProject) };
         if (read.CurrentProject != "")
         {
-            facts = facts with { CurrentBenchMissing = PolicyFunctions.ResearchBenchNeeded(read.Projects.GetValueOrDefault(read.CurrentProject)) };
+            facts = facts with { CurrentBenchMissing = PolicyFunctions.ResearchBenchNeeded(read.Projects.GetValueOrDefault(read.CurrentProject) ?? new ResearchProjectFacts()) };
         }
         var projects = read.Projects.Keys.Select(name => new ResearchProjectId(name)).ToList();
         projects.Sort((a, b) => string.CompareOrdinal(a.Value, b.Value));
         facts = facts with
         {
-            Projects = projects,
+            Projects = EquatableArray.From(projects),
             Finished = [.. read.Finished.Select(name => new ResearchProjectId(name))],
             KnowledgePick = new ResearchProjectId(PolicyFunctions.KnowledgePick(read.Projects, read.Finished, read.Knowledge)),
         };
@@ -533,11 +536,11 @@ public static partial class ObservationPackage
     internal static Fact<Ideoligion> FrameIdeology(Ideoligion? read) => read is null ? Unknown<Ideoligion>() : Known(read);
 
     /// <summary>The trader census; unknown when the frame carries none.</summary>
-    internal static Fact<IReadOnlyList<TraderFacts>> FrameTraders(TradersRead? read)
+    internal static Fact<EquatableArray<TraderFacts>> FrameTraders(TradersRead? read)
     {
         if (read is null)
         {
-            return Unknown<IReadOnlyList<TraderFacts>>();
+            return Unknown<EquatableArray<TraderFacts>>();
         }
         var rows = new List<TraderFacts>(read.Traders.Count);
         foreach (var row in read.Traders)
@@ -545,7 +548,7 @@ public static partial class ObservationPackage
             rows.Add(new TraderFacts
             {
                 Participant = row.Participant,
-                ID = row.ID,
+                ID = row.Id,
                 Kind = row.Kind,
                 Faction = row.Faction,
                 CanTrade = row.CanTrade,
@@ -553,7 +556,7 @@ public static partial class ObservationPackage
                 GoodsStacks = row.GoodsStacks,
             });
         }
-        return Known<IReadOnlyList<TraderFacts>>(rows);
+        return Known(EquatableArray.From(rows));
     }
 
     private static Fact<ComfortObservation> HostedComfort(Fact<ComfortObservation> comfort, Fact<RoomObservation> rooms)
@@ -573,8 +576,8 @@ public static partial class ObservationPackage
     }
 
     /// <summary>The finished project list of a known research census, the input TechTier is selected from.</summary>
-    public static Fact<IReadOnlyList<ResearchProjectId>> FinishedResearch(Fact<ResearchFacts> research) =>
-        research.TryGetValue(out var facts) ? Known<IReadOnlyList<ResearchProjectId>>(facts.Finished) : Unknown<IReadOnlyList<ResearchProjectId>>();
+    public static Fact<EquatableArray<ResearchProjectId>> FinishedResearch(Fact<ResearchFacts> research) =>
+        research.TryGetValue(out var facts) ? Known(facts.Finished) : Unknown<EquatableArray<ResearchProjectId>>();
 }
 
 public sealed partial record ColonyProjection
@@ -583,8 +586,8 @@ public sealed partial record ColonyProjection
     /// Appends the planning rows of names the frame's catalog describes and the projection does not hold yet (a
     /// definition only a later read names, such as a title's throne).
     /// </summary>
-    public ColonyProjection AddDefinitions(RoundsFrame frame, IEnumerable<string> names) =>
-        frame.Catalog is null
+    public ColonyProjection AddDefinitions(RoundsFrame frame, DefinitionCatalog? catalog, IEnumerable<string> names) =>
+        catalog is null
             ? this
-            : this with { Definitions = ObservationPackage.FrameDefinitionFacts(frame).AppendDefinitions([.. Definitions], names) };
+            : this with { Definitions = ObservationPackage.FrameDefinitionFacts(frame, catalog).AppendDefinitions([.. Definitions], names) };
 }

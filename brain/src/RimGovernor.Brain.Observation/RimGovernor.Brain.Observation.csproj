@@ -3,22 +3,27 @@
     <RootNamespace>RimGovernor.Brain.Observation</RootNamespace>
     <AssemblyName>RimGovernor.Brain.Observation</AssemblyName>
   </PropertyGroup>
+  <Import Project="../../Game.props" />
   <ItemGroup>
     <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Facts/RimGovernor.Brain.Facts.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Bridge.Contracts/RimGovernor.Brain.Bridge.Contracts.csproj" />
-    <!-- Awaiting #3056: the catalog derivations (RepairPriority, TraitEffects, ...) extend DefinitionCatalog from
-         RimGovernor.Brain.Bridge; reference it here once it exists on main. -->
+    <ProjectReference Include="../RimGovernor.Brain.Bridge/RimGovernor.Brain.Bridge.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- Go's domain.Known / domain.Unknown read the same in C#. -->
     <Using Include="RimGovernor.Brain.Domain" />
     <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
     <Using Include="RimGovernor.Brain.Policy" />
+    <!-- Go package-level policy functions and constants live on two static partial classes. -->
+    <Using Include="RimGovernor.Brain.Policy.PolicyFunctions" Static="true" />
+    <Using Include="RimGovernor.Brain.Policy.PolicyConstants" Static="true" />
     <Using Include="RimGovernor.Brain.Facts" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts" />
+    <Using Include="RimGovernor.Brain.Bridge.DefinitionCatalog" Alias="DefinitionCatalog" />
+    <Using Include="RimGovernor.Brain.Bridge.BiotechCatalog" Alias="BiotechCatalog" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.BridgeConstants" Static="true" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.BridgeFunctions" Static="true" />
     <!-- Wire namespaces under the short names the Go imports used (c, d, o, l, operationspb). -->

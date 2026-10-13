@@ -43,7 +43,7 @@ public static partial class ObservationPackage
             {
                 SupportsAreas = Optional(state.HasSupportsAllowedAreas, state.SupportsAllowedAreas),
                 AllowedArea = area,
-                ID = new PawnId(pawn.Pawn?.Id ?? ""),
+                Id = new PawnId(pawn.Pawn?.Id ?? ""),
                 Label = pawn.Pawn?.Label ?? "",
                 Gender = state.Gender,
                 Definition = new Resource(pawn.Pawn?.DefName ?? ""),
@@ -104,7 +104,7 @@ public static partial class ObservationPackage
             var race = RaceOf(pawn, races);
             rows.Add(new UpkeepAnimal
             {
-                ID = new PawnId(pawn.Pawn?.Id ?? ""),
+                Id = new PawnId(pawn.Pawn?.Id ?? ""),
                 Definition = new Resource(pawn.Pawn?.DefName ?? ""),
                 RequiresPen = Known(false),
                 Contained = Known(false),
@@ -124,7 +124,7 @@ public static partial class ObservationPackage
     }
 
     /// <summary>Resolves each feed row's animal against the pawn table, false when one is missing or carries no animal state.</summary>
-    private static bool AnimalRows(IReadOnlyList<O.AnimalFeed> feed, Pawns pawns, out List<O.PawnState> output)
+    private static bool AnimalRows(Google.Protobuf.Collections.RepeatedField<O.AnimalFeed> feed, Pawns pawns, out List<O.PawnState> output)
     {
         output = new List<O.PawnState>(feed.Count);
         foreach (var a in feed)
@@ -196,11 +196,11 @@ public static partial class ObservationPackage
         foreach (var a in rows)
         {
             var herd = a.Herd;
-            if (slaughter.TryGetValue(a.ID, out var s))
+            if (slaughter.TryGetValue(a.Id, out var s))
             {
                 herd = herd with { MeatNutrition = s.MeatNutrition, FeedPerDay = s.FeedPerDay };
             }
-            output.Add(a with { Herd = herd with { Product = product.Contains(a.ID) } });
+            output.Add(a with { Herd = herd with { Product = product.Contains(a.Id) } });
         }
         return Known(EquatableArray.From(output));
     }

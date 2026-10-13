@@ -1,4 +1,4 @@
-using DomainPawnId = RimGovernor.Brain.Domain.PawnId;
+
 
 namespace RimGovernor.Brain.Observation;
 
@@ -15,22 +15,22 @@ public static partial class ObservationPackage
         var away = new HashSet<string>(StringComparer.Ordinal);
         foreach (var caravan in read.Caravans)
         {
-            foreach (var id in caravan.PawnIDs)
+            foreach (var id in caravan.PawnIds)
             {
                 away.Add(id);
             }
         }
         foreach (var row in read.Maps)
         {
-            if (new MapId(row.ID) != home || !row.Home)
+            if (new MapId(row.Id) != home || !row.Home)
             {
                 continue;
             }
-            var present = new HashSet<string>(row.PawnIDs, StringComparer.Ordinal);
+            var present = new HashSet<string>(row.PawnIds, StringComparer.Ordinal);
             var n = 0;
             foreach (var pawn in emergency.Colonists)
             {
-                if (!present.Contains(pawn.ID.Value) || away.Contains(pawn.ID.Value))
+                if (!present.Contains(pawn.Id.Value) || away.Contains(pawn.Id.Value))
                 {
                     continue;
                 }
@@ -67,26 +67,26 @@ public static partial class ObservationPackage
             {
                 return Unknown<CombatSiteExit>();
             }
-            return Known(new CombatSiteExit { Crew = extraction.Crew, Cells = extraction.ExitCells });
+            return Known(new CombatSiteExit { Crew = EquatableArray.From(extraction.Crew), Cells = EquatableArray.From(extraction.ExitCells) });
         }
         return Unknown<CombatSiteExit>();
     }
 
     // quest_departure.go
 
-    internal static Fact<IReadOnlyList<QuestDeparturePawn>> ProjectDepartureStrength(Fact<IReadOnlyList<QuestDeparturePawn>> candidates, Fact<IReadOnlyList<SquadDefenderFacts>> defenders)
+    internal static Fact<EquatableArray<QuestDeparturePawn>> ProjectDepartureStrength(Fact<EquatableArray<QuestDeparturePawn>> candidates, Fact<EquatableArray<SquadDefenderFacts>> defenders)
     {
         if (!candidates.TryGetValue(out var candidateRows))
         {
-            return Unknown<IReadOnlyList<QuestDeparturePawn>>();
+            return Unknown<EquatableArray<QuestDeparturePawn>>();
         }
         var rows = new List<QuestDeparturePawn>(candidateRows);
-        var byId = new Dictionary<DomainPawnId, SquadDefenderFacts>();
+        var byId = new Dictionary<PawnId, SquadDefenderFacts>();
         if (defenders.TryGetValue(out var fighters))
         {
             foreach (var pawn in fighters)
             {
-                byId[pawn.ID] = pawn;
+                byId[pawn.Id] = pawn;
             }
         }
         for (var i = 0; i < rows.Count; i++)
@@ -96,33 +96,33 @@ public static partial class ObservationPackage
                 rows[i] = rows[i] with { DefensePoints = Known(0.0) };
                 continue;
             }
-            if (!byId.TryGetValue(new DomainPawnId(rows[i].ID.Value), out var pawn))
+            if (!byId.TryGetValue(new PawnId(rows[i].Id.Value), out var pawn))
             {
                 continue;
             }
             if (pawn.MeleePower.TryGetValue(out var melee) && pawn.RangedDPS.TryGetValue(out var ranged))
             {
-                rows[i] = rows[i] with { DefensePoints = Known((melee + ranged) * PolicyFunctions.DefensePointsPerDPS) };
+                rows[i] = rows[i] with { DefensePoints = Known((melee + ranged) * PolicyFunctions.DefensePointsPerDps) };
             }
         }
-        return Known<IReadOnlyList<QuestDeparturePawn>>(rows);
+        return Known(EquatableArray.From(rows));
     }
 
     // quest_expedition.go
 
-    internal static Fact<IReadOnlyList<ExpeditionTrip>> FrameExpeditionTrips(WorldProgressionRead? read, MapId home)
+    internal static Fact<EquatableArray<ExpeditionTrip>> FrameExpeditionTrips(WorldProgressionRead? read, MapId home)
     {
         if (read is null)
         {
-            return Unknown<IReadOnlyList<ExpeditionTrip>>();
+            return Unknown<EquatableArray<ExpeditionTrip>>();
         }
         var rows = new List<ExpeditionTrip>();
         foreach (var caravan in read.Caravans)
         {
-            var pawns = new List<DomainPawnId>();
-            foreach (var id in caravan.PawnIDs)
+            var pawns = new List<PawnId>();
+            foreach (var id in caravan.PawnIds)
             {
-                pawns.Add(new DomainPawnId(id));
+                pawns.Add(new PawnId(id));
             }
             var routes = new List<SiteHomeRoute>();
             foreach (var route in caravan.HomeRoutes)
@@ -137,25 +137,25 @@ public static partial class ObservationPackage
             rows.Add(new ExpeditionTrip
             {
                 Tile = Known(caravan.Tile),
-                Destination = Optional(caravan.HasDestination, caravan.Destination),
-                PawnIDs = pawns,
+                Destination = caravan.Destination is { } destination ? Known(destination) : Unknown<int>(),
+                PawnIds = pawns,
                 HomeRoutes = routes,
             });
         }
         foreach (var assembly in read.Assemblies)
         {
-            if (new MapId(assembly.MapID) != home)
+            if (new MapId(assembly.MapId) != home)
             {
                 continue;
             }
-            var pawns = new List<DomainPawnId>();
-            foreach (var id in assembly.PawnIDs)
+            var pawns = new List<PawnId>();
+            foreach (var id in assembly.PawnIds)
             {
-                pawns.Add(new DomainPawnId(id));
+                pawns.Add(new PawnId(id));
             }
-            rows.Add(new ExpeditionTrip { Forming = true, PawnIDs = pawns });
+            rows.Add(new ExpeditionTrip { Forming = true, PawnIds = pawns });
         }
-        return Known<IReadOnlyList<ExpeditionTrip>>(rows);
+        return Known(EquatableArray.From(rows));
     }
 
     // quest_guest_protection.go
@@ -163,10 +163,10 @@ public static partial class ObservationPackage
     /// <summary>Derives the open meeting's protection on each read; rescue and ordinary tending stay available when operations are excluded.</summary>
     internal static RoundsFacts StampQuestGuestProtection(RoundsFacts f)
     {
-        var ids = PolicyFunctions.ProtectedQuestGuestIDs(f.QuestOffers);
+        var ids = PolicyFunctions.ProtectedQuestGuestIds(f.QuestOffers);
         if (f.Custody.TryGetValue(out var custody))
         {
-            var rows = new List<CustodyPawn>(custody.Count);
+            var rows = new List<CustodyFacts>(custody.Count);
             foreach (var row in custody)
             {
                 rows.Add(row with { QuestProtected = ids.Contains(row.Pawn) });
@@ -175,10 +175,10 @@ public static partial class ObservationPackage
         }
         if (f.MedicalPawns.TryGetValue(out var medical))
         {
-            var rows = new List<MedicalPawn>(medical.Count);
+            var rows = new List<CarePawn>(medical.Count);
             foreach (var row in medical)
             {
-                rows.Add(row with { QuestProtected = ids.Contains(new DomainPawnId(row.ID.Value)) });
+                rows.Add(row with { QuestProtected = ids.Contains(row.Id) });
             }
             f = f with { MedicalPawns = Known(EquatableArray.From(rows)) };
         }
@@ -189,13 +189,13 @@ public static partial class ObservationPackage
 
     internal static RoundsFacts StampQuestRefugees(RoundsFacts f)
     {
-        var refugees = PolicyFunctions.QuestRefugeeIDs(f.QuestOffers);
+        var refugees = PolicyFunctions.QuestRefugeeIds(f.QuestOffers);
         if (f.Custody.TryGetValue(out var custody))
         {
-            var rows = new List<CustodyPawn>(custody.Count);
+            var rows = new List<CustodyFacts>(custody.Count);
             foreach (var row in custody)
             {
-                rows.Add(row with { QuestRefugee = refugees.GetValueOrDefault(row.Pawn, "") != "" });
+                rows.Add(row with { QuestRefugee = refugees.TryGetValue(row.Pawn, out var refugeeQuest) && refugeeQuest.Value != "" });
             }
             f = f with { Custody = Known(EquatableArray.From(rows)) };
         }
@@ -209,10 +209,10 @@ public static partial class ObservationPackage
         var targets = new List<QuestHackTarget>();
         foreach (var t in source.HackTargets)
         {
-            var eligible = new List<DomainPawnId>(t.EligiblePawnIds.Count);
+            var eligible = new List<PawnId>(t.EligiblePawnIds.Count);
             foreach (var id in t.EligiblePawnIds)
             {
-                eligible.Add(new DomainPawnId(id));
+                eligible.Add(new PawnId(id));
             }
             targets.Add(new QuestHackTarget
             {
@@ -242,13 +242,13 @@ public static partial class ObservationPackage
             }
             var gift = new QuestGiftRequest
             {
-                Recipient = new DomainPawnId(g.RecipientId),
+                Recipient = new PawnId(g.RecipientId),
                 Def = g.Def,
                 Remaining = Optional(g.HasRemaining, (long)g.Remaining),
                 Map = new MapId(g.MapId),
-                PawnIds = [.. g.PawnIds.Select(id => new DomainPawnId(id))],
-                HaulingPawnIds = [.. g.HaulingPawnIds.Select(id => new DomainPawnId(id))],
-                EligiblePawnIds = [.. g.EligiblePawnIds.Select(id => new DomainPawnId(id))],
+                PawnIds = [.. g.PawnIds.Select(id => new PawnId(id))],
+                HaulingPawnIds = [.. g.HaulingPawnIds.Select(id => new PawnId(id))],
+                EligiblePawnIds = [.. g.EligiblePawnIds.Select(id => new PawnId(id))],
             };
             row = row with { Gift = Known(gift) };
         }
@@ -307,7 +307,7 @@ public static partial class ObservationPackage
                 Def = r.DefName,
                 Cell = CellOf(r.Cell),
                 InStorage = Optional(r.HasInStorage, r.InStorage),
-                Haulers = [.. r.EligibleHaulers.Select(pawn => new DomainPawnId(pawn))],
+                Haulers = [.. r.EligibleHaulers.Select(pawn => new PawnId(pawn))],
             });
         }
         var supplied = new List<Amount>(m.SuppliedResources.Count);
@@ -353,13 +353,13 @@ public static partial class ObservationPackage
     /// </summary>
     private static (List<string> Allowed, List<QuestMonumentBuildOption> Options) MonumentPieceOptions(DefinitionCatalog catalog, string def, string stuff)
     {
-        var thing = catalog.ThingDef(def);
-        var terrain = catalog.DefRow<D.TerrainDef>(def);
+        var thing = catalog.FindThing(def);
+        var terrain = catalog.FindTerrain(def);
         if ((thing is null) == (terrain is null))
         {
             throw new DomainException($"monument piece {def} is not exactly one of a thing def and a terrain def");
         }
-        var madeFromStuff = thing is not null ? thing.StuffCategories.Count > 0 : terrain!.StuffCategories.Count > 0;
+        var madeFromStuff = thing is not null ? (thing.stuffCategories?.Count ?? 0) > 0 : (terrain?.stuffCategories?.Count ?? 0) > 0;
         IReadOnlyList<string> stuffs = [""];
         var allowed = new List<string>();
         if (madeFromStuff)
@@ -379,7 +379,7 @@ public static partial class ObservationPackage
         foreach (var s in stuffs)
         {
             var option = new QuestMonumentBuildOption { Stuff = s };
-            IReadOnlyList<O.Quantity> costs;
+            IReadOnlyList<StatCost> costs;
             if (thing is not null)
             {
                 option = option with { Work = (float)catalog.StatValue(def, s, StatWorkToBuild) };
@@ -393,7 +393,7 @@ public static partial class ObservationPackage
             var amounts = new List<Amount>(costs.Count);
             foreach (var cost in costs)
             {
-                amounts.Add(new Amount(new Resource(cost.DefName), cost.Units));
+                amounts.Add(new Amount(new Resource(cost.Def), cost.Units));
             }
             options.Add(option with { Costs = amounts });
         }
@@ -402,26 +402,26 @@ public static partial class ObservationPackage
 
     // quest_work_capacity.go
 
-    internal static (Fact<IReadOnlyList<QuestWorkCapacity>> Capacity, Fact<IReadOnlyList<QuestDeparturePawn>> Departures) FrameQuestWorkerCapacity(WorldProgressionRead? read, MapId current)
+    internal static (Fact<EquatableArray<QuestWorkCapacity>> Capacity, Fact<EquatableArray<QuestDeparturePawn>> Departures) FrameQuestWorkerCapacity(WorldProgressionRead? read, MapId current)
     {
-        var unknown = (Unknown<IReadOnlyList<QuestWorkCapacity>>(), Unknown<IReadOnlyList<QuestDeparturePawn>>());
+        var unknown = (Unknown<EquatableArray<QuestWorkCapacity>>(), Unknown<EquatableArray<QuestDeparturePawn>>());
         if (read is null)
         {
             return unknown;
         }
         foreach (var m in read.Maps)
         {
-            if (new MapId(m.ID) != current)
+            if (new MapId(m.Id) != current)
             {
                 continue;
             }
-            if (m.QuestWorkers.Count != m.PawnIDs.Count)
+            if (m.QuestWorkers.Count != m.PawnIds.Count)
             {
                 return unknown;
             }
             var capacity = new List<QuestWorkCapacity>();
             var departures = new List<QuestDeparturePawn>();
-            var present = new HashSet<string>(m.PawnIDs, StringComparer.Ordinal);
+            var present = new HashSet<string>(m.PawnIds, StringComparer.Ordinal);
             foreach (var p in m.QuestWorkers)
             {
                 if (!present.Contains(p.PawnId))
@@ -437,7 +437,7 @@ public static partial class ObservationPackage
                 capacity.Add(row);
                 departures.Add(new QuestDeparturePawn
                 {
-                    ID = row.Pawn,
+                    Id = row.Pawn,
                     HealthyAdult = row.HealthyAdult,
                     CanFight = Optional(p.HasCanFight, p.CanFight),
                     CarryCapacity = Optional(p.HasCarryCapacity, p.CarryCapacity),
@@ -447,7 +447,7 @@ public static partial class ObservationPackage
                     NegotiationAbility = Optional(p.HasNegotiationAbility, p.NegotiationAbility),
                 });
             }
-            return (Known<IReadOnlyList<QuestWorkCapacity>>(capacity), Known<IReadOnlyList<QuestDeparturePawn>>(departures));
+            return (Known(EquatableArray.From(capacity)), Known(EquatableArray.From(departures)));
         }
         return unknown;
     }
@@ -468,7 +468,9 @@ public static partial class ObservationPackage
             try
             {
                 var facts = catalog.RecipeFacts();
-                if (!facts.BillWorkOf(w.Recipe, out work))
+                var (billWork, billKnown) = facts.BillWorkOf(w.Recipe);
+                work = billWork;
+                if (!billKnown)
                 {
                     return Unknown<QuestWorkload>();
                 }

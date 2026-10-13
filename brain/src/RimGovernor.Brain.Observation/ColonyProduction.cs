@@ -3,10 +3,10 @@ namespace RimGovernor.Brain.Observation;
 public static partial class ObservationPackage
 {
     /// <summary>The bill's allowed defs; a butcher bill's filter is the corpse selection, not an ingredient list, so it stays unknown.</summary>
-    private static Fact<IReadOnlyList<string>> BillIngredients(O.BillState b, RecipeRole role) =>
+    private static Fact<EquatableArray<string>> BillIngredients(O.BillState b, RecipeRole role) =>
         b.IngredientFilter is null || role == RecipeRole.ButcherFlesh
-            ? Unknown<IReadOnlyList<string>>()
-            : Known<IReadOnlyList<string>>([.. b.IngredientFilter.AllowedDefNames]);
+            ? Unknown<EquatableArray<string>>()
+            : Known<EquatableArray<string>>([.. b.IngredientFilter.AllowedDefNames]);
 
     private static Fact<bool> BillForever(bool has, Ops.RepeatMode mode) => has ? Known(mode == Ops.RepeatMode.Forever) : Unknown<bool>();
 
@@ -20,21 +20,20 @@ public static partial class ObservationPackage
         var total = 0.0;
         foreach (var m in meat)
         {
-            double per;
-            bool ok;
+            double? per;
             try
             {
-                (per, ok) = RequireCatalog(catalog).RaceMeatNutrition(m.Race);
+                per = RequireCatalog(catalog).RaceMeatNutrition(m.Race);
             }
             catch (DomainException)
             {
                 return Unknown<double>();
             }
-            if (!ok)
+            if (per is not { } nutrition)
             {
                 return Unknown<double>();
             }
-            total += m.MeatAmount * per;
+            total += m.MeatAmount * nutrition;
         }
         return Known(total);
     }
@@ -70,11 +69,11 @@ public static partial class ObservationPackage
     /// delivery of edible stock. Exposure reads each zone's roofs from the planning window's cells (unknown
     /// without the window or with an unread roof) and its blight from the zone's planted and blighted counts.
     /// </summary>
-    internal static Fact<IReadOnlyList<FoodField>> ColonyFoodFields(IReadOnlyList<O.FarmFacts>? farms, IReadOnlyList<PlanningDefinition> definitions, Fact<Calendar> calendar, IReadOnlyList<SiteCell> cells)
+    internal static Fact<EquatableArray<FoodField>> ColonyFoodFields(IReadOnlyList<O.FarmFacts>? farms, IReadOnlyList<PlanningDefinition> definitions, Fact<Calendar> calendar, IReadOnlyList<SiteCell> cells)
     {
         if (farms is null)
         {
-            return Unknown<IReadOnlyList<FoodField>>();
+            return Unknown<EquatableArray<FoodField>>();
         }
         var zones = ZoneRoofs(cells);
         var rows = new List<FoodField>();
@@ -83,7 +82,7 @@ public static partial class ObservationPackage
             var growth = FarmGrowth(farm, definitions);
             if (farm.Zone is null || !growth.GrowingCells().TryGetValue(out var growing))
             {
-                return Unknown<IReadOnlyList<FoodField>>();
+                return Unknown<EquatableArray<FoodField>>();
             }
             var crop = new CropChoice { Name = farm.Crop, Edible = Optional(farm.HasEdibleCrop, farm.EdibleCrop) };
             var work = Unknown<double>();
@@ -122,7 +121,7 @@ public static partial class ObservationPackage
                 },
             });
         }
-        return Known<IReadOnlyList<FoodField>>(rows);
+        return Known(EquatableArray.From(rows));
     }
 
     /// <summary>Counts a zone's held cells and those under open sky.</summary>
@@ -142,7 +141,7 @@ public static partial class ObservationPackage
             {
                 continue;
             }
-            if (!cell.ZoneID.TryGetValue(out var id))
+            if (!cell.ZoneId.TryGetValue(out var id))
             {
                 continue;
             }
@@ -169,11 +168,11 @@ public static partial class ObservationPackage
         return output;
     }
 
-    internal static Fact<IReadOnlyList<FieldCrop>> ColonyFieldCrops(IReadOnlyList<O.FarmFacts>? farms, IReadOnlyList<PlanningDefinition> definitions, bool usable = false)
+    internal static Fact<EquatableArray<FieldCrop>> ColonyFieldCrops(IReadOnlyList<O.FarmFacts>? farms, IReadOnlyList<PlanningDefinition> definitions, bool usable = false)
     {
         if (farms is null)
         {
-            return Unknown<IReadOnlyList<FieldCrop>>();
+            return Unknown<EquatableArray<FieldCrop>>();
         }
         var rows = new List<FieldCrop>(farms.Count);
         foreach (var farm in farms)
@@ -193,7 +192,7 @@ public static partial class ObservationPackage
             }
             rows.Add(row);
         }
-        return Known<IReadOnlyList<FieldCrop>>(rows);
+        return Known(EquatableArray.From(rows));
     }
 
     internal static RoundsFacts ColonyProduction(O.ColonyFactsSnapshot v, RoundsFacts facts)
@@ -258,13 +257,13 @@ public static partial class ObservationPackage
         {
             return row;
         }
-        var (days, perishable) = catalog.RotDays(name);
-        row = row with { Perishable = Known(perishable) };
-        if (perishable)
+        var rot = catalog.RotDays(name);
+        row = row with { Perishable = Known(rot is not null) };
+        if (rot is { } days)
         {
             row = row with { RotDays = Known(days) };
         }
-        row = row with { BabyEdible = Known(catalog.BabyEdible(name)), Kind = catalog.FoodKindOf(name) };
+        row = row with { BabyEdible = Known(catalog.BabyEdible(name)), Kind = catalog.FoodKindOf(name) ?? FoodKind.None };
         try
         {
             row = row with { Nutrition = Known((double)catalog.StatValue(name, "", BridgeConstants.StatNutrition)) };
@@ -279,18 +278,18 @@ public static partial class ObservationPackage
     /// <summary>The pawn's own ideoligion and precepts from its row's policy inputs; unknown while the table lacks the row or the inputs.</summary>
     private static Fact<HeldPrecepts> HeldPreceptsOf(Pawns pawns, string id)
     {
-        if (!pawns.TryGet(id, out var row) || row?.Settings?.PolicyInputs is not { } p)
+        if (!pawns.TryGetValue(id, out var row) || row?.Settings?.PolicyInputs is not { } p)
         {
             return Unknown<HeldPrecepts>();
         }
         return Known(new HeldPrecepts { Ideo = p.IdeoId, Defs = [.. p.Precepts] });
     }
 
-    internal static Fact<IReadOnlyList<ProductionBench>> ColonyProductionBenches(O.ColonyFactsSnapshot v, Buildings buildings, Pawns pawns, DefinitionCatalog? catalog)
+    internal static Fact<EquatableArray<ProductionBench>> ColonyProductionBenches(O.ColonyFactsSnapshot v, Buildings buildings, Pawns pawns, DefinitionCatalog? catalog)
     {
         if (HasIssue(v.Issues, "cooking") || HasIssue(v.Issues, "butchering") || !Headed(buildings, v.Cooking, b => b.Bench) || !Headed(buildings, v.Butchering, b => b.Bench))
         {
-            return Unknown<IReadOnlyList<ProductionBench>>();
+            return Unknown<EquatableArray<ProductionBench>>();
         }
         var rows = new List<ProductionBench>();
         ProductionBench Add(C.Ref? bench, O.SnapshotRef? snapshot, Fact<bool> usable, IEnumerable<O.RecipeState> recipes, IEnumerable<O.BillState> bills, IEnumerable<O.FoodProduction> production, bool butcher, C.Ref? room)
@@ -304,8 +303,8 @@ public static partial class ObservationPackage
             foreach (var r in recipes)
             {
                 var name = r.Recipe?.DefName ?? "";
-                var recipe = new ProductionRecipe { Name = name, Role = RequireCatalog(catalog).RecipeRole(name), Bulk = catalog!.RecipeBulk(name) };
-                var meal = catalog.RecipeMealFacts(name, row.Definition);
+                var recipe = new ProductionRecipe { Name = name, Role = RequireCatalog(catalog).RecipeRoleOf(name), Bulk = RequireCatalog(catalog).RecipeBulk(name) };
+                var meal = RequireCatalog(catalog).RecipeMealFacts(name, row.Definition);
                 recipe = recipe with
                 {
                     Mood = meal.Mood,
@@ -340,7 +339,7 @@ public static partial class ObservationPackage
             var billRows = new List<ExistingProductionBill>();
             foreach (var b in bills)
             {
-                var role = RequireCatalog(catalog).RecipeRole(b.Recipe?.DefName ?? "");
+                var role = RequireCatalog(catalog).RecipeRoleOf(b.Recipe?.DefName ?? "");
                 billRows.Add(new ExistingProductionBill
                 {
                     Role = role,
@@ -377,15 +376,15 @@ public static partial class ObservationPackage
                 }
                 butchers.Add(new HumanButcherCandidate
                 {
-                    Id = new PawnId(candidate.PawnId),
-                    Traits = Known<IReadOnlyList<PawnTrait>>(traits),
+                    ID = new PawnId(candidate.PawnId),
+                    Traits = Known(EquatableArray.From(traits)),
                     Held = HeldPreceptsOf(pawns, candidate.PawnId),
                     CanWork = Optional(candidate.HasCanWork, candidate.CanWork),
                 });
             }
             rows.Add(row with { HumanCorpseNutrition = HumanCorpseNutrition(b.HumanCorpseMeat, catalog), HumanButchers = butchers });
         }
-        return Known<IReadOnlyList<ProductionBench>>(rows);
+        return Known(EquatableArray.From(rows));
     }
 
     /// <summary>

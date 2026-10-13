@@ -68,7 +68,10 @@ public static partial class ObservationPackage
         var id = new C.Identity { ColonyId = expected.Colony.Value, LoadToken = expected.Load.Value, MapId = expected.Map.Value };
         var (reply, receipt) = await source.ReadColonyFactsAsync(id, planning, cancellationToken).ConfigureAwait(false);
         var tables = await source.FrameTablesAsync(id, cancellationToken).ConfigureAwait(false);
-        var projection = DecodeColony(reply, expected, tables);
+        var catalog = source is IDefinitionSource definitionSource
+            ? await definitionSource.DefinitionCatalogAsync(id, cancellationToken).ConfigureAwait(false)
+            : null;
+        var projection = DecodeColony(reply, expected, tables, catalog);
         if (planning)
         {
             projection = await FillPlanningWindow(reply, id, projection, cancellationToken).ConfigureAwait(false);
@@ -89,7 +92,7 @@ public static partial class ObservationPackage
                 {
                     Definitions = definitions,
                     Shapes = shapes,
-                    Facts = projection.Facts with { Gear = gear, Garments = ClothingGarments(gearDefs, gear) },
+                    Facts = projection.Facts with { Gear = gear, Garments = EquatableArray.From(ClothingGarments(gearDefs, gear)) },
                 };
             }
         }
