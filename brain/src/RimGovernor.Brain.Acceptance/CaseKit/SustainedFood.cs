@@ -104,6 +104,30 @@ public interface IWatchStore
     /// <see cref="AcceptanceException"/> on a read failure.
     /// </summary>
     Task<JsonObject> SampleStandardAsync(string concern, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The newest <paramref name="limit"/> plans whose method name matches <paramref name="methodGlob"/> (a <c>*</c>
+    /// wildcard; Go <c>Store.PlanHistoryWithMethods</c>), each <c>{plan, method, progress}</c> where progress is an array
+    /// of <c>{kind, stage, ...}</c> action rows in the wire spellings the sample uses: <c>stage</c> is the action's stage
+    /// (<c>completed</c> once it finished), a <c>production_bill</c> row also carries <c>mode</c> (<c>gear_batch</c>...)
+    /// and a <c>policy_prune</c> row its <c>database</c> (<c>outfit</c>...). Throws <see cref="AcceptanceException"/> on a
+    /// read failure.
+    /// </summary>
+    Task<IReadOnlyList<JsonObject>> PlanHistoryAsync(int limit, string methodGlob, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The journal's record of the goal or project bound to <paramref name="concern"/> in the persisted Rounds record (Go
+    /// <c>LoadRounds</c> then <c>LoadStandard</c>): <c>{status, need, methods}</c>, null when the concern was never bound.
+    /// Throws <see cref="AcceptanceException"/> on a read failure.
+    /// </summary>
+    Task<JsonObject?> StandardSummaryAsync(string concern, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The production ladder the journal recorded for the review's world (Go <c>LoadProductionLadder</c>):
+    /// <c>{recorded, resource, bench, recipe, research}</c>; <c>recorded</c> is false (the rest empty) when none was
+    /// recorded. Throws <see cref="AcceptanceException"/> on a read failure.
+    /// </summary>
+    Task<JsonObject> ProductionLadderAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>

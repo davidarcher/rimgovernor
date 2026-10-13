@@ -10,5 +10,10 @@ public static class FarmCases
         registry.Register(FarmCalendar.Case());
         registry.Register(FarmLattice.Case());
         registry.Register(FarmPlantation.Case());
+        registry.Register(FarmSelectHydroponics.Case());
+        foreach (var nonFood in FarmNonFood.Cases())
+        {
+            registry.Register(nonFood);
+        }
     }
 }
