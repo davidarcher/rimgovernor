@@ -3,7 +3,8 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Protocol.Defs;
 using RimGovernor.Protocol.Observations;
 using DefsTerrainDef = RimGovernor.Protocol.Defs.TerrainDef;
-using DefsThingDef = RimGovernor.Protocol.Defs.ThingDef;
+using DefsThingCategory = RimGovernor.Protocol.Defs.ThingCategory;
+using DefsThingDef =RimGovernor.Protocol.Defs.ThingDef;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -75,7 +76,7 @@ public sealed class DefinitionCatalog
         var packable = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (name, def) in ThingDefs)
         {
-            if (def.Category == ThingCategory.Building && def.MinifiedDef.Length != 0)
+            if (def.Category == DefsThingCategory.Building && def.MinifiedDef.Length != 0)
             {
                 packable.Add(name);
             }
