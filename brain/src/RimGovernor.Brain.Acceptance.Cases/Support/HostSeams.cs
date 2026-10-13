@@ -7,10 +7,10 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// at launch, so every reader opens the file the game writes (<see cref="ServiceJournal.PathOf"/>).
 /// </summary>
 /// <remarks>
-/// The seams that need the game's own data stay unwired and fail with their "no reader wired" messages:
-/// <c>StarterSite.Planner</c>, <c>LayoutSiteHost.Surveyor</c>, <c>ColonyFactsSource.Reader</c>,
-/// <c>GameCatalogReader.ImpressivenessReader</c>/<c>AnimalRacesReader</c> and <c>StarterSiteHost.BlightReader</c> read Defs,
-/// the native facade or typed observations, which only exist inside the game process (a mod route would be needed).
+/// The seams that need the game's own data (<c>StarterSite.Planner</c>, <c>LayoutSiteHost.Surveyor</c>,
+/// <c>ColonyFactsSource.Reader</c>, <c>GameCatalogReader.ImpressivenessReader</c>/<c>AnimalRacesReader</c> and
+/// <c>StarterSiteHost.BlightReader</c>) call the mod's read-only <c>rimgovernor/acceptance_read_*</c> tools through the
+/// generic native route (<see cref="HostReads"/>); the decode runs in the game process (<c>AcceptanceReads</c>).
 /// </remarks>
 internal static class HostSeams
 {
@@ -20,5 +20,15 @@ internal static class HostSeams
         ObservedSession.StoreOpener = async (config, ct) => await CaseStore.OpenAsync(config, ct).ConfigureAwait(false);
         ObservedSession.LayoutPlanReader = CaseStore.ReadLayoutPlanAsync;
         CombatLabResume.JournalOpener = CaseStore.OpenCombatFightsAsync;
+
+        // The game-side reads: the mod's rimgovernor/acceptance_read_* tools over the generic native route.
+        var planner = new HostReads.StarterSiteReader();
+        StarterSite.Planner = planner;
+        StarterSiteHost.Planner = planner;
+        StarterSiteHost.BlightReader = HostReads.BlightAsync;
+        LayoutSiteHost.Surveyor = HostReads.SurveyAsync;
+        ColonyFactsSource.Reader = HostReads.ColonyFactsAsync;
+        GameCatalogReader.ImpressivenessReader = HostReads.ImpressivenessAsync;
+        GameCatalogReader.AnimalRacesReader = HostReads.AnimalRacesAsync;
     }
 }

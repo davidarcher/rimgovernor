@@ -50,7 +50,7 @@ internal static class ProductionArt
         }
 
         var (a, _) = Rooms(prepared);
-        var levels = await GameCatalogReader.ImpressivenessLevelsAsync(s.Identity, cancellationToken).ConfigureAwait(false);
+        var levels = await GameCatalogReader.ImpressivenessLevelsAsync(s.Harness, s.Identity, cancellationToken).ConfigureAwait(false);
         var target = Target(prepared, levels);
         report["target"] = target;
         if (target <= 0 || a["impressiveness"].AsNumber() >= target)

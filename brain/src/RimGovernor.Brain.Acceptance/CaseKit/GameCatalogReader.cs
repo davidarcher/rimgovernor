@@ -16,30 +16,32 @@ public static class GameCatalogReader
     /// Reads the Impressiveness room stat's score stages of the loaded game (Go <c>Catalog.ImpressivenessLevels</c>):
     /// the minimum scores of the named stages the planners aim at, for the game identified by <c>identity</c>.
     /// </summary>
-    public static Func<JsonObject, CancellationToken, Task<ImpressivenessLevels>>? ImpressivenessReader { get; set; }
+    public static Func<Harness, JsonObject, CancellationToken, Task<ImpressivenessLevels>>? ImpressivenessReader { get; set; }
 
     /// <summary>
     /// Reads the animal race rows of the loaded game's definition catalog (Go <c>Catalog.AnimalRaces</c>): one row per race
     /// defName, for the game identified by <c>identity</c>.
     /// </summary>
-    public static Func<JsonObject, CancellationToken, Task<IReadOnlyList<AnimalRaceRow>>>? AnimalRacesReader { get; set; }
+    public static Func<Harness, JsonObject, CancellationToken, Task<IReadOnlyList<AnimalRaceRow>>>? AnimalRacesReader { get; set; }
 
     /// <summary>The animal race rows of the game identified by <paramref name="identity"/>.</summary>
-    public static Task<IReadOnlyList<AnimalRaceRow>> AnimalRacesAsync(JsonObject identity, CancellationToken cancellationToken)
+    public static Task<IReadOnlyList<AnimalRaceRow>> AnimalRacesAsync(Harness harness, JsonObject identity, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(harness);
         ArgumentNullException.ThrowIfNull(identity);
         var read = AnimalRacesReader
             ?? throw new AcceptanceException("no catalog reader is wired for the animal races (GameCatalogReader.AnimalRacesReader): the case cannot read the race catalog");
-        return read(identity, cancellationToken);
+        return read(harness, identity, cancellationToken);
     }
 
     /// <summary>The Impressiveness stage scores of the game identified by <paramref name="identity"/>.</summary>
-    public static Task<ImpressivenessLevels> ImpressivenessLevelsAsync(JsonObject identity, CancellationToken cancellationToken)
+    public static Task<ImpressivenessLevels> ImpressivenessLevelsAsync(Harness harness, JsonObject identity, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(harness);
         ArgumentNullException.ThrowIfNull(identity);
         var read = ImpressivenessReader
             ?? throw new AcceptanceException("no catalog reader is wired for the Impressiveness room stat (GameCatalogReader.ImpressivenessReader): the case cannot compute a room's tier target");
-        return read(identity, cancellationToken);
+        return read(harness, identity, cancellationToken);
     }
 }
 

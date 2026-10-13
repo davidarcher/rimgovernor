@@ -378,7 +378,7 @@ internal static class HusbandryPlan
         }
 
         // 1. The race catalog, then the old race it names.
-        var rows = await GameCatalogReader.AnimalRacesAsync(s.Identity, cancellationToken).ConfigureAwait(false);
+        var rows = await GameCatalogReader.AnimalRacesAsync(s.Harness, s.Identity, cancellationToken).ConfigureAwait(false);
         var oldRace = CheckCatalog(rows, report);
 
         // 2. The herd: a lone cow, four old animals of the old race, and feed and wood in the open. (Unconfirmed: a

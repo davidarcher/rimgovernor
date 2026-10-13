@@ -119,8 +119,13 @@ Decided (user, 2026-10-13):
   kept game launched without a case's flags is relaunched (reason `env`); the state path never forces a relaunch, and a
   kept game's readers follow the recorded path. `HostSeams.Install()` (called from `CaseCatalog.Register`) wires the
   store-backed case readers over that file. Readers that need the game's own data (`StarterSite.Planner`,
-  `LayoutSiteHost.Surveyor`, `ColonyFactsSource.Reader`, the catalog and blight readers) stay unwired until a mod route
-  or in-mod publication exists.
+  `LayoutSiteHost.Surveyor`, `ColonyFactsSource.Reader`, the catalog and blight readers) call the mod's read-only
+  `rimgovernor/acceptance_read_*` tools (`colony_facts`, `blight`, `starter_site`, `impressiveness`, `animal_races`;
+  `AcceptanceReadTools`) through the generic native route. The tools run `AcceptanceReads` in the Host project: the
+  observation layer's colony read with a standalone planning window and the load's definition catalog over the published
+  facade, returning JSON in `payload`; they record nothing and need no running brain. The first layout plan is derived
+  as the Go starter site did (no ledger, no stock) and returned in the store codec, so it can differ from the plan a
+  running service records.
 - **Catalog.** `BrainCompositionOptions.CatalogFactory` is `NativeCatalogFactory.Create` and `StartingIdeoligion` is
   `NativeCatalogFactory.StartingIdeoligion`; both run on the brain's threads, never the game thread.
 - **Clock native.** Nothing to build: `FacadeNativeClient` already implements `IClockDriverNative`.
