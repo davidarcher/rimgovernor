@@ -13,5 +13,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\RimGovernor.Brain.Acceptance\RimGovernor.Brain.Acceptance.csproj" />
+    <!-- The cases that assert on the controller journal (upkeep, defense) open its service.sqlite, as the Go cases opened the store. -->
+    <ProjectReference Include="..\RimGovernor.Brain.Store\RimGovernor.Brain.Store.csproj" />
   </ItemGroup>
 </Project>

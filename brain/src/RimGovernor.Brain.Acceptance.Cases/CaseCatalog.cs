@@ -26,6 +26,7 @@ public static class CaseCatalog
         CombatCases.Register(registry);
         CombatLabCases.Register(registry);
         CustodyCases.Register(registry);
+        DefenseCases.Register(registry);
         DialogCases.Register(registry);
         DraftCases.Register(registry);
         ExplainCases.Register(registry);
@@ -60,6 +61,7 @@ public static class CaseCatalog
         TickbudgetCases.Register(registry);
         ToolsCases.Register(registry);
         TradeCases.Register(registry);
+        UpkeepCases.Register(registry);
         WallCases.Register(registry);
         WasteCases.Register(registry);
         ZoneCases.Register(registry);

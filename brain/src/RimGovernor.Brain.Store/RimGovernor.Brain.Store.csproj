@@ -2,6 +2,8 @@
   <PropertyGroup>
     <RootNamespace>RimGovernor.Brain.Store</RootNamespace>
     <AssemblyName>RimGovernor.Brain.Store</AssemblyName>
+    <!-- The acceptance cases (published win-x64) open the journal through this project; declaring the RID keeps its lock file stable. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../RimGovernor.Brain.Bridge.Contracts/RimGovernor.Brain.Bridge.Contracts.csproj" />
