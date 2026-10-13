@@ -17,12 +17,21 @@
       "rimgovernor.brain.domain": {
         "type": "Project"
       },
+      "rimgovernor.brain.httpchannel": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Telemetry": "[1.0.0, )"
+        }
+      },
       "rimgovernor.brain.nativefacade": {
         "type": "Project",
         "dependencies": {
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Wire": "[1.0.0, )"
         }
+      },
+      "rimgovernor.brain.telemetry": {
+        "type": "Project"
       },
       "rimgovernor.brain.wire": {
         "type": "Project",

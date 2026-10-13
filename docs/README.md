@@ -31,6 +31,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Judge whether the in-process C# brain can reload in a running game | [Brain hot reload feasibility](developers/architecture/brain-hot-reload-feasibility.md) |
 | Port a Go package into the C# brain (layout, settings, idiom map, per-package checklist) | [Port conventions](developers/architecture/go-to-csharp-port-conventions.md) |
 | Call the native mod from the in-process brain (facade, frame handoff, game-thread stat service and its time budget) | [Native facade](developers/architecture/native-facade.md) |
+| Reach the mod over local HTTP (endpoint file, host/origin checks, `/native/<tool>`, player routes) | [HTTP channel](developers/architecture/http-channel.md) |
 | Weigh the cost of the def mirror (sizes, native fill, decode) | [Mirror measurements](developers/architecture/mirror-measurements.md) |
 | Measure performance | [Throughput](developers/testing/measure-throughput.md), [hazard bounds](developers/architecture/hazard-detection-bounds.md) |
 | Improve expert play | [Architecture roadmap](developers/architecture/expert-play-assessment.md) |

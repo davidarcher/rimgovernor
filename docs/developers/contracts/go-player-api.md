@@ -2,6 +2,10 @@
 
 [Subsystem contracts](README.md)
 
+This page describes the Go service. The C# port serves the session, control and clock routes without the
+process token (host and origin checks only) from `RimGovernor.Brain.PlayerApi`; see the
+[HTTP channel](../architecture/http-channel.md).
+
 The gated player service uses one Player, session, writer and current-control coordinator. The surface
 is guidance: building placement and research selection are the only typed plan submissions; the rest is
 colony configuration and control. There is no per-pawn order surface (draft, tend, rescue, movement,

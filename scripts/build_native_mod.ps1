@@ -71,8 +71,9 @@ foreach ($taskFile in @(Get-ChildItem -LiteralPath (Join-Path $taskHostSource 's
     Copy-Item -LiteralPath $taskFile.FullName -Destination $taskTo
 }
 # The brain assemblies the mod shares with the in-process brain (#3080): Domain, Wire (link-compiles the
-# generated protobuf below) and NativeFacade, with the shared build props and package versions.
-foreach ($taskBrainItem in @('brain/Directory.Build.props', 'brain/Directory.Packages.props', 'brain/src/RimGovernor.Brain.Domain', 'brain/src/RimGovernor.Brain.Wire', 'brain/src/RimGovernor.Brain.NativeFacade')) {
+# generated protobuf below), NativeFacade and HttpChannel (the local control channel, #3083) with the Telemetry
+# it reports access rows through, with the shared build props and package versions.
+foreach ($taskBrainItem in @('brain/Directory.Build.props', 'brain/Directory.Packages.props', 'brain/src/RimGovernor.Brain.Domain', 'brain/src/RimGovernor.Brain.Wire', 'brain/src/RimGovernor.Brain.NativeFacade', 'brain/src/RimGovernor.Brain.HttpChannel', 'brain/src/RimGovernor.Brain.Telemetry')) {
     $taskBrainFrom = Get-Item -LiteralPath (Join-Path $taskRepo $taskBrainItem)
     $taskBrainFiles = if ($taskBrainFrom.PSIsContainer) {
         @(Get-ChildItem -LiteralPath $taskBrainFrom.FullName -Recurse -File | Where-Object { $_.FullName -notmatch '[\\/](obj|bin)[\\/]' })
@@ -187,7 +188,7 @@ foreach ($taskLine in Get-Content -LiteralPath (Join-Path $taskCompiled 'runtime
 foreach ($taskDll in Get-ChildItem -LiteralPath $taskCompiled -Filter 'RimGovernor.Brain.*.dll' -File) {
     Copy-Item -LiteralPath $taskDll.FullName -Destination (Join-Path $taskPackage 'BridgeTools/RimGovernor')
 }
-foreach ($taskBrain in @('RimGovernor.Brain.Domain.dll', 'RimGovernor.Brain.Wire.dll', 'RimGovernor.Brain.NativeFacade.dll')) {
+foreach ($taskBrain in @('RimGovernor.Brain.Domain.dll', 'RimGovernor.Brain.Wire.dll', 'RimGovernor.Brain.NativeFacade.dll', 'RimGovernor.Brain.HttpChannel.dll', 'RimGovernor.Brain.Telemetry.dll')) {
     if (-not (Test-Path -LiteralPath (Join-Path $taskPackage "BridgeTools/RimGovernor/$taskBrain") -PathType Leaf)) { throw "Expected brain output missing: $taskBrain" }
 }Copy-Item -LiteralPath (Join-Path $taskCopyNative 'About'), (Join-Path $taskCopyNative 'Defs'), (Join-Path $taskCopyNative 'Textures'), (Join-Path $taskCopyNative 'Notices') -Destination $taskPackage -Recurse
 Copy-Item -LiteralPath (Join-Path $taskCopyNative 'README.md') -Destination $taskPackage

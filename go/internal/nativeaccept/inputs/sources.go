@@ -70,6 +70,8 @@ var nativeSourceInputs = []nativeSourceInput{
 	{repo: "brain/src/RimGovernor.Brain.Domain", copy: "brain/src/RimGovernor.Brain.Domain", keep: notBuildOutput},
 	{repo: "brain/src/RimGovernor.Brain.Wire", copy: "brain/src/RimGovernor.Brain.Wire", keep: notBuildOutput},
 	{repo: "brain/src/RimGovernor.Brain.NativeFacade", copy: "brain/src/RimGovernor.Brain.NativeFacade", keep: notBuildOutput},
+	{repo: "brain/src/RimGovernor.Brain.HttpChannel", copy: "brain/src/RimGovernor.Brain.HttpChannel", keep: notBuildOutput},
+	{repo: "brain/src/RimGovernor.Brain.Telemetry", copy: "brain/src/RimGovernor.Brain.Telemetry", keep: notBuildOutput},
 	{repo: "contracts/proto", copy: "contracts/proto", keep: contractSource},
 	{repo: "contracts/generated/protobuf/csharp", copy: "contracts/generated/protobuf/csharp", keep: committedBinding},
 	{repo: "tools/protobuf", copy: "tools/protobuf", keep: contractSource},

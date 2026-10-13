@@ -27,6 +27,9 @@
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.NativeFacade/RimGovernor.Brain.NativeFacade.csproj" />
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.HttpChannel/RimGovernor.Brain.HttpChannel.csproj" />
+    <!-- HttpChannel reports access rows through Telemetry; a direct reference keeps it a project output, not a recorded NuGet runtime dependency. -->
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
     <Compile Include="../../../../scripts/fixtures/ThroughputFixture.cs" Condition="'$(ThroughputFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/WasteFixture.cs" Condition="'$(WasteFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BurnableFilterFixture.cs" Condition="'$(BurnableFilterFixture)' == 'true'" />

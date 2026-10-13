@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Brain.HttpChannel</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.HttpChannel</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RimGovernor.Brain.Telemetry\RimGovernor.Brain.Telemetry.csproj" />
+  </ItemGroup>
+</Project>
