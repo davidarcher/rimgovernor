@@ -7,6 +7,7 @@ public static class FarmCases
     public static void Register(CaseRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
+        registry.Register(FarmBlight.Case());
         registry.Register(FarmCalendar.Case());
         registry.Register(FarmLattice.Case());
         registry.Register(FarmPlantation.Case());

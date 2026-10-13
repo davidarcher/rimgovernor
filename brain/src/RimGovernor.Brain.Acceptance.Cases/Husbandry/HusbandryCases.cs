@@ -8,5 +8,6 @@ public static class HusbandryCases
     {
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(HusbandryDispatch.Case());
+        registry.Register(HusbandryPlan.Case());
     }
 }

@@ -110,8 +110,11 @@ public interface IWatchStore
     /// wildcard; Go <c>Store.PlanHistoryWithMethods</c>), each <c>{plan, method, progress}</c> where progress is an array
     /// of <c>{kind, stage, ...}</c> action rows in the wire spellings the sample uses: <c>stage</c> is the action's stage
     /// (<c>completed</c> once it finished), a <c>production_bill</c> row also carries <c>mode</c> (<c>gear_batch</c>...)
-    /// and a <c>policy_prune</c> row its <c>database</c> (<c>outfit</c>...). Throws <see cref="AcceptanceException"/> on a
-    /// read failure.
+    /// a <c>policy_prune</c> row its <c>database</c> (<c>outfit</c>...) and a <c>husbandry</c> row its <c>method</c>
+    /// (<c>tame</c>, <c>sterilize</c>...), <c>animal</c>, <c>argument</c> and the <c>tick</c> of its latest progress; a
+    /// <c>cut_plant</c> row carries the <c>plant</c> id and the <c>receipt</c> (empty until applied), a <c>zone_create</c> row
+    /// only its stage. A <paramref name="methodGlob"/> of <c>*</c> lists every plan. Plans
+    /// are newest first, as the Go store lists them. Throws <see cref="AcceptanceException"/> on a read failure.
     /// </summary>
     Task<IReadOnlyList<JsonObject>> PlanHistoryAsync(int limit, string methodGlob, CancellationToken cancellationToken);
 

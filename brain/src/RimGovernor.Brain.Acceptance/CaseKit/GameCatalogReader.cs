@@ -18,6 +18,21 @@ public static class GameCatalogReader
     /// </summary>
     public static Func<JsonObject, CancellationToken, Task<ImpressivenessLevels>>? ImpressivenessReader { get; set; }
 
+    /// <summary>
+    /// Reads the animal race rows of the loaded game's definition catalog (Go <c>Catalog.AnimalRaces</c>): one row per race
+    /// defName, for the game identified by <c>identity</c>.
+    /// </summary>
+    public static Func<JsonObject, CancellationToken, Task<IReadOnlyList<AnimalRaceRow>>>? AnimalRacesReader { get; set; }
+
+    /// <summary>The animal race rows of the game identified by <paramref name="identity"/>.</summary>
+    public static Task<IReadOnlyList<AnimalRaceRow>> AnimalRacesAsync(JsonObject identity, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+        var read = AnimalRacesReader
+            ?? throw new AcceptanceException("no catalog reader is wired for the animal races (GameCatalogReader.AnimalRacesReader): the case cannot read the race catalog");
+        return read(identity, cancellationToken);
+    }
+
     /// <summary>The Impressiveness stage scores of the game identified by <paramref name="identity"/>.</summary>
     public static Task<ImpressivenessLevels> ImpressivenessLevelsAsync(JsonObject identity, CancellationToken cancellationToken)
     {
@@ -27,3 +42,12 @@ public static class GameCatalogReader
         return read(identity, cancellationToken);
     }
 }
+
+/// <summary>The milk product of an animal race: the amount per production interval (Go: the race's <c>milk</c> product with a known amount and a positive interval).</summary>
+public sealed record AnimalMilk(double Amount, double IntervalDays);
+
+/// <summary>
+/// One animal race of the definition catalog (Go <c>catalog.AnimalRaces</c> row): every fact is null when the catalog did
+/// not read it, and <see cref="Milk"/> is null when the race has no usable milk product.
+/// </summary>
+public sealed record AnimalRaceRow(string Def, double? Wildness, double? BodySize, int? MinimumHandlingSkill, AnimalMilk? Milk);
