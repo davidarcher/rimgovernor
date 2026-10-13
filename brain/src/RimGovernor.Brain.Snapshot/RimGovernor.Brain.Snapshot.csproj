@@ -23,4 +23,8 @@
     <Using Include="RimGovernor.Contracts.Wire.Observations" Alias="O" />
     <Using Include="RimGovernor.Brain.Domain.Cell" Alias="Cell" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The host's native client (#3113) reads the frames this assembly decodes. -->
+    <InternalsVisibleTo Include="RimGovernor.Brain.Host" />
+  </ItemGroup>
 </Project>

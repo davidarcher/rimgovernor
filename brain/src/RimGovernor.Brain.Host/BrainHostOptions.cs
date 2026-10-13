@@ -125,8 +125,8 @@ public sealed record BrainTimings
 }
 
 /// <summary>
-/// What the watchdog tolerates before it acts. There are no defaults: the numbers are an open question of epic #3043
-/// (#3082 does not settle them), so the launcher that hosts the brain must choose them.
+/// What the watchdog tolerates before it acts. No property has a default; <see cref="Standard"/> is the starting set
+/// (#3113), which the launcher that hosts the brain may tune once measured against a live game.
 /// </summary>
 public sealed record BrainWatchdog
 {
@@ -147,6 +147,22 @@ public sealed record BrainWatchdog
 
     /// <summary>Consecutive steps a planner may miss the wave cutoff before the host reports it stalled.</summary>
     public required int PlannerMissLimit { get; init; }
+
+    /// <summary>
+    /// The thresholds a launcher should start from. Go had no watchdog (a stuck step blocked <c>ClockWorker</c> until
+    /// its step timeout), so these are chosen, not ported: a step may use its whole <see cref="BrainTimings.StepTimeout"/>
+    /// (1 min) plus half again before it is a stall; a step that ignores its token is abandoned 30 s after that; five
+    /// consecutive faults is a pattern rather than a blip; the backoff matches the worker's maximum idle delay (10 s) at
+    /// half; a planner that misses three consecutive wave cutoffs is reported. See <c>brain-host.md</c>, Watchdog.
+    /// </summary>
+    public static BrainWatchdog Standard() => new()
+    {
+        StallAfter = TimeSpan.FromSeconds(90),
+        AbandonAfter = TimeSpan.FromSeconds(30),
+        FaultLimit = 5,
+        FaultBackoff = TimeSpan.FromSeconds(5),
+        PlannerMissLimit = 3,
+    };
 
     internal void Validate()
     {

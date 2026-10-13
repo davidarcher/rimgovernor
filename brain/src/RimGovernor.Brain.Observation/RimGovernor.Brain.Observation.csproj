@@ -42,4 +42,8 @@
     <!-- Go package-level functions with no owning type live on one static partial class per package. -->
     <Using Include="RimGovernor.Brain.Observation.ObservationPackage" Static="true" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The host's native client (#3113) implements this assembly's source interfaces. -->
+    <InternalsVisibleTo Include="RimGovernor.Brain.Host" />
+  </ItemGroup>
 </Project>

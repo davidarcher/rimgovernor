@@ -30,20 +30,47 @@ stops waiting and the brain is wedged. `FaultLimit` consecutive faults or any st
 stay native and never wait on a planner. Planners that miss the wave cutoff `PlannerMissLimit` times in a row are
 reported in `BrainHost.Status()`.
 
-## Seams (awaiting other work)
+## Native client and composition (#3113)
 
-- `IBrainComposition`: the native client over the facade (the ~40 Native/Source interfaces Go's `bridge.Client`
-  implemented) and the planner composition (`startServiceClock`/`roundsCapabilities`). Nobody owns it yet.
-- `IClockWindowDriver`: the window side of the clock. `BuildingRuntime.ClockWindowDriver` (#3108) implements it
-  (`ClockWindowHostDriver` hands it to the loop): after each planning step it admits and starts the window, settles
-  owed epochs, re-takes the clock from the player and polls the native journal. The composition builds it with
-  `ClockWindowDriver.CreateAsync` over a `ClockCapabilities` session and an `IClockDriverNative` (the journal page,
-  the step read and the emergency census), and returns it as `PlannerParts.Windows`.
-- `SessionParts.Orphans`: the trade orphan sweep.
+`FacadeNativeClient` (`Client/`) is what Go's `bridge.Client` was to the planners, minus the transport (GABP, the ring,
+leases, reconnect, blind ticks): one class over `INativeFacade` that implements the ~70 Native/Source interfaces the
+planners are written against. Each Go `Client.ReadX` is one `ReadXAsync` core method (request, facade call, outcome
+unwrap, the Go reply validators); the interfaces are bound to them in `FacadeNativeClient.Interfaces*.cs`, with
+explicit implementations where the interface shape differs from the core method's. A failure or unavailable arm throws
+`NativeFailureException` / `NativeUnavailableException`; a malformed reply throws the contract exception. Writes go
+through `FacadeActionsWriter` (`IActionsWriter`) and `FacadeClockWriter` (`IClockWriter`). `CountingNativeFacade` wraps
+the facade so every native round trip is counted into the attached `ReadTally` (`BridgeFunctions.CountNativeRead`, under
+Go's `rimgovernor/*` tool names), which is how a scheduler step reports its reads.
+
+`ClockWindowDriver` (#3108) is the window side of the clock: after each planning step it admits and starts the window,
+settles owed epochs, re-takes the clock from the player and polls the native journal. The composition builds it with
+`ClockWindowDriver.CreateAsync` over a `ClockCapabilities` session and an `IClockDriverNative`, wraps it in
+`ClockWindowHostDriver` and returns it as `PlannerParts.Windows`. The composition (`startServiceClock` and
+`roundsCapabilities`) is `IBrainComposition`; its family flags are all on by default and
+`RIMGOVERNOR_ROUTINE_FAMILIES` narrows them, as in Go.
+
+Not in the client: the providers, Save/Load/NewColony and autosave (#3114), the mod-side hosting (#3115), and the
+catalog's Def-backed factory and facade label checks (#3116). The catalog reads need `CatalogFactory`, which supplies the
+game's Defs and stat source; until the mod host installs it they throw.
+
+## Watchdog thresholds
+
+Go had no watchdog (a stuck step held `ClockWorker` until its step timeout), so `BrainWatchdog.Standard()` is a chosen
+starting point, not a port:
+
+| Threshold | Value | Why |
+| --- | --- | --- |
+| `StallAfter` | 90 s | A step may use its whole 1 min `StepTimeout` plus half again before it counts as a stall. |
+| `AbandonAfter` | 30 s | A step that ignores its cancellation token this long after the stall is abandoned and authority suspended. |
+| `FaultLimit` | 5 | Consecutive faulted or stalled steps before authority is suspended; five is a pattern, not a blip. |
+| `FaultBackoff` | 5 s | Half the worker's maximum idle delay (10 s), so a fault does not spin and recovery stays prompt. |
+| `PlannerMissLimit` | 3 | Consecutive missed wave cutoffs before a planner is reported stalled in `BrainHost.Status()`. |
+
+They are unmeasured against a live game; tune them from the clock-step telemetry once the acceptance run (#3085) exists.
 
 ## Open decisions
 
-Watchdog numbers (`BrainWatchdog` has no defaults); what a suspended planner reports (today the whole brain is
+What a suspended planner reports (today the whole brain is
 suspended, since `ClockScheduler` cannot drop one planner); how the host is loaded in the game and whether it sits in a
 collectible load context; the shared-assembly binding assumption from #3080; the profile/state path settings; how the
 Bridge hands its `RouteTable` to the host.

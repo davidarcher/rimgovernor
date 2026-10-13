@@ -94,4 +94,8 @@
     <!-- Go's package qualifiers for functions with no owning type. -->
     <Using Include="RimGovernor.Brain.Bridge.Contracts.BridgeFunctions" Alias="BridgeApi" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The host's native client (#3113) implements this assembly's internal source interfaces. -->
+    <InternalsVisibleTo Include="RimGovernor.Brain.Host" />
+  </ItemGroup>
 </Project>
