@@ -36,17 +36,6 @@ public readonly record struct FurnitureRole(string Value)
     public override string ToString() => Value;
 }
 
-/// <summary>The child rooms' plan roles (the nursery, playroom, classroom and deathrest chamber).</summary>
-public readonly partial record struct PlannedRole
-{
-    public static readonly PlannedRole Nursery = new("nursery");
-    public static readonly PlannedRole Playroom = new("playroom");
-    public static readonly PlannedRole Classroom = new("classroom");
-
-    /// <summary>The deathrest chamber's plan role.</summary>
-    public static readonly PlannedRole DeathrestChamber = new("deathrest-chamber");
-}
-
 /// <summary>
 /// <see cref="Count"/> pieces of a role's furniture, each any one definition the catalog gives
 /// <see cref="Role"/>, or any of <see cref="Defs"/> (the first available with a known footprint, by name, is

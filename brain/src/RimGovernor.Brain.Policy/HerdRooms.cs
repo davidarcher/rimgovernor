@@ -85,7 +85,7 @@ public sealed partial record LayoutPlan
     internal IReadOnlyList<PlannedRoom> RoomsWithHerd() => [.. Rooms, .. HerdRooms(PolicyFunctions.PlannedBarn)];
 
     /// <summary>The room a barn reservation holds: the door in the middle of the wall facing the colony core (the barn's centre when the plan has no core).</summary>
-    private PlannedRoom HerdRoom(Rectangle area, PlannedRole role)
+    internal PlannedRoom HerdRoom(Rectangle area, PlannedRole role)
     {
         var inner = new Rectangle { X = area.X + 1, Z = area.Z + 1, Width = area.Width - 2, Height = area.Height - 2 };
         var room = new PlannedRoom
@@ -194,10 +194,10 @@ public sealed partial record LayoutPlan
 public static partial class PolicyFunctions
 {
     /// <summary>The barn's plan role.</summary>
-    public static PlannedRole PlannedBarn => new("barn");
+    public static PlannedRole PlannedBarn => PlannedRole.Barn;
 
     /// <summary>The plan role of a pen reservation: an outdoor room, a fence and a gate round grazing ground, its barn's wall on the shared side.</summary>
-    public static PlannedRole PlannedPen => new("pen");
+    public static PlannedRole PlannedPen => PlannedRole.Pen;
 
     /// <summary>The fewest animals a barn is sized for.</summary>
     internal const int HerdBarnMinBeds = 8;
@@ -255,7 +255,7 @@ public static partial class PolicyFunctions
         {
             return (PlannedPen, true);
         }
-        return (new PlannedRole(""), false);
+        return (PlannedRole.None, false);
     }
 
     /// <summary>The beds def's template holds in room.</summary>

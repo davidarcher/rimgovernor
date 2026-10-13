@@ -77,29 +77,29 @@ public sealed record DefenseTiers
 public static partial class PolicyFunctions
 {
     /// <summary>The passage raiders walk from the opening to the kill row.</summary>
-    public static readonly NodeKind NodeDefCorridor = new("defense_corridor");
+    public static NodeKind NodeDefCorridor => NodeKind.DefCorridor;
 
     /// <summary>The ordered snake path inside the corridor.</summary>
-    public static readonly NodeKind NodeDefLane = new("defense_trap_lane");
+    public static NodeKind NodeDefLane => NodeKind.DefLane;
 
-    public static readonly NodeKind NodeDefFunnel = new("defense_funnel");
+    public static NodeKind NodeDefFunnel => NodeKind.DefFunnel;
 
     /// <summary>The fence bar across the kill zone.</summary>
-    public static readonly NodeKind NodeDefFence = new("defense_kill_fence");
+    public static NodeKind NodeDefFence => NodeKind.DefFence;
 
     /// <summary>The spike traps on the lane's turns.</summary>
-    public static readonly NodeKind NodeDefTraps = new("defense_spike_traps");
+    public static NodeKind NodeDefTraps => NodeKind.DefTraps;
 
     /// <summary>The cover of the firing line.</summary>
-    public static readonly NodeKind NodeDefFiring = new("defense_firing_line");
+    public static NodeKind NodeDefFiring => NodeKind.DefFiring;
 
     /// <summary>The floor under each shooter.</summary>
-    public static readonly NodeKind NodeDefShooter = new("defense_shooter_floor");
+    public static NodeKind NodeDefShooter => NodeKind.DefShooter;
 
-    public static readonly NodeKind NodeDefTurrets = new("defense_turrets");
-    public static readonly NodeKind NodeDefMortars = new("defense_mortars");
-    public static readonly NodeKind NodeDefIEDs = new("defense_ieds");
-    public static readonly NodeKind NodeDefBait = new("defense_bait");
+    public static NodeKind NodeDefTurrets => NodeKind.DefTurrets;
+    public static NodeKind NodeDefMortars => NodeKind.DefMortars;
+    public static NodeKind NodeDefIEDs => NodeKind.DefIEDs;
+    public static NodeKind NodeDefBait => NodeKind.DefBait;
 
     // Why a tier node stands where it does; the caller journals them as layout_plan rows (target defense_tiers).
 

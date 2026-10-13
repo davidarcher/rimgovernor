@@ -655,7 +655,7 @@ public static partial class PolicyFunctions
                     Tier = tier.Value,
                     Role = role,
                     Tags = tier == FloorTier.Throne ? room.RequiredTags : [],
-                    Cells = SortCells(cells),
+                    Cells = SortedCells(cells),
                     Pending = pending,
                 }
             );
@@ -679,7 +679,7 @@ public static partial class PolicyFunctions
             }
             if (cells.Count > 0)
             {
-                deficits.Add(new FloorDeficit { Key = FirebreakKey, Tier = FloorTier.Firebreak, Cells = SortCells(cells) });
+                deficits.Add(new FloorDeficit { Key = FirebreakKey, Tier = FloorTier.Firebreak, Cells = SortedCells(cells) });
                 latched.Add(FirebreakKey);
             }
         }
@@ -703,7 +703,7 @@ public static partial class PolicyFunctions
             }
             if (cells.Count > 0 || pending > 0)
             {
-                deficits.Add(new FloorDeficit { Key = IncineratorKey, Tier = FloorTier.Incinerator, Cells = SortCells(cells), Pending = pending });
+                deficits.Add(new FloorDeficit { Key = IncineratorKey, Tier = FloorTier.Incinerator, Cells = SortedCells(cells), Pending = pending });
                 latched.Add(IncineratorKey);
             }
         }
@@ -712,7 +712,7 @@ public static partial class PolicyFunctions
         return new FlooringReview { Known = true, Active = ordered.Count > 0, Deficits = ordered, Latched = latched };
     }
 
-    private static List<Cell> SortCells(List<Cell> cells)
+    private static List<Cell> SortedCells(List<Cell> cells)
     {
         cells.Sort((a, b) => CellLess(a, b) ? -1 : CellLess(b, a) ? 1 : 0);
         return cells;

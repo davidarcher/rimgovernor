@@ -91,6 +91,10 @@ public enum RoomRole
     /// <summary>A plan role only, no game RoomRoleDef: the game scores the furnished room a bedroom, so it has no facility row.</summary>
     [WireName("IsolationRoom")]
     IsolationRoom,
+
+    /// <summary>A plan role only: RimWorld has no Suite RoomRoleDef, so the native census reports a furnished suite as a Bedroom.</summary>
+    [WireName("Suite")]
+    Suite,
 }
 
 /// <summary>
