@@ -11,10 +11,10 @@ internal static class CombatLabMirror
     internal const int StepTicks = 60;
 
     // mirrorFightTicks bounds the lab-ranged firefight until a pawn goes down (the case budget is 5,000 ticks).
-    private const int FightTicks = 4800;
+    internal const int FightTicks = 4800;
 
     // geometryBudgetMs is the main-thread budget of one geometry read at the caps.
-    private const double GeometryBudgetMs = 50.0;
+    internal const double GeometryBudgetMs = 50.0;
 
     internal static AcceptanceCase Case() => new()
     {

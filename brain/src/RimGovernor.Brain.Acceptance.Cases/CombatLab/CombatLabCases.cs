@@ -29,6 +29,16 @@ public static class CombatLabCases
         registry.Register(CombatLabEmp.Case());
         registry.Register(CombatLabHiveTemperature.Case());
         registry.Register(CombatLabHoldFire.Case());
+        registry.Register(CombatLabHunt.SquadCase());
+        registry.Register(CombatLabHunt.DoorCase());
+        registry.Register(CombatLabLance.Case());
+        registry.Register(CombatLabMortar.Case());
+        registry.Register(CombatLabMortarShell.Case());
+        registry.Register(CombatLabNativeHold.Case());
+        registry.Register(CombatLabRescue.Case());
+        registry.Register(CombatLabStrip.Case());
+        registry.Register(CombatLabStun.Case());
+        registry.Register(CombatLabWild.Case());
     }
 
     /// <summary>An array of the strings.</summary>

@@ -306,7 +306,7 @@ internal static class CombatFixtures
         "lab-ranged-shield", "lab-mech-line", "lab-base", "lab-split-ranged",
     ];
 
-    private const int MechStunTicks = 600;
+    internal const int MechStunTicks = 600;
     internal const int BreachHalf = 5;
     private const int BreachRaid = 15;
     private const int BaseHalf = 9;
@@ -315,8 +315,8 @@ internal static class CombatFixtures
     private const int PodsHalf = 6;
     private const int PodsSafe = -13;
     private const int PodsSafeHalf = 3;
-    private const int SiegeOurMortar = -15;
-    private const int SiegeCampMortar = 20;
+    internal const int SiegeOurMortar = -15;
+    internal const int SiegeCampMortar = 20;
     private const double SiegePoints = 500;
     private const int InfestRoom = 10;
     private const int InfestHalf = 5;
@@ -597,7 +597,7 @@ internal static class CombatFixtures
     }
 
     // walledRoom is a granite wall ring of half edge half around (x, z) with a wooden door at door.
-    private static List<FixtureThing> WalledRoom(int x, int z, int half, LabCell door)
+    internal static List<FixtureThing> WalledRoom(int x, int z, int half, LabCell door)
     {
         var output = new List<FixtureThing>();
         for (var wx = x - half; wx <= x + half; wx++)

@@ -43,7 +43,7 @@ internal sealed class StagedFixture
     /// <summary>The staged mechanoids' load ids, spec order.</summary>
     internal List<string> Mechs() => Ids(CombatFixtures.Mech);
 
-    private List<string> Ids(string side)
+    internal List<string> Ids(string side)
     {
         var output = new List<string>();
         for (var i = 0; i < Fixture.Pawns.Count; i++)
