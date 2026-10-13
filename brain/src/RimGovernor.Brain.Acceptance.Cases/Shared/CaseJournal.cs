@@ -15,7 +15,7 @@ public interface ICaseJournal : IWatchStore, IDisposable
     /// <summary>
     /// The most recent <paramref name="limit"/> plans whose method id matches any of <paramref name="methodPatterns"/>
     /// (<c>prefix*</c> or exact), newest first (Go <c>PlanHistoryWithMethods</c>). Each row is
-    /// <c>{plan, method, steps}</c>; a step is <c>{kind, stage, action}</c> with <c>kind</c> the action's wire name
+    /// <c>{plan, method, steps}</c>; a step is <c>{id, kind, stage, action}</c> with <c>id</c> the action id and <c>kind</c> the action's wire name
     /// (<c>Wire.Name(ActionKind)</c>), <c>stage</c> its current stage in the wire spelling (<c>completed</c>,
     /// <c>unsuccessful</c>, <c>cancelled</c>...), and <c>action</c> its payload in camelCase fields.
     /// </summary>
@@ -28,6 +28,20 @@ public interface ICaseJournal : IWatchStore, IDisposable
     /// the review binds the concern at all.
     /// </summary>
     Task<(bool Bound, IReadOnlyList<JsonObject> Plans)> ConcernPlansAsync(string concern, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The recovery queue's row for <paramref name="id"/> in the latest persisted review (Go <c>LoadRounds</c> then
+    /// <c>RecoveryQueue.Entries</c>): <c>{id, status, tier, short, reason}</c> with <c>status</c> and <c>tier</c> the
+    /// lower-case enum names (<c>held</c>, <c>rest</c>...) and <c>short</c> an array. Null when the review has no queue or
+    /// no such row.
+    /// </summary>
+    Task<JsonObject?> RecoveryEntryAsync(string id, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The latest persisted review's shrine holds, each as <c>shrine:reason:occupant</c> (Go <c>review.ShrineHolds</c>);
+    /// empty when there is no review or no hold.
+    /// </summary>
+    Task<IReadOnlyList<string>> ShrineHoldsAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>Opens and reads the case journal.</summary>

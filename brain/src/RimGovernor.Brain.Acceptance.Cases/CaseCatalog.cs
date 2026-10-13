@@ -22,6 +22,7 @@ public static class CaseCatalog
         CaravanCases.Register(registry);
         ChildCases.Register(registry);
         CleanCases.Register(registry);
+        ClearanceCases.Register(registry);
         CombatCases.Register(registry);
         CombatLabCases.Register(registry);
         CustodyCases.Register(registry);
