@@ -24,21 +24,26 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadResearch(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ResearchRequest string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ResearchRequest.Parser, out var parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ResearchReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                    return ProtoBoundary.Encode(new Obs.ResearchReply { Failure = error });
-                try
-                {
-                    var manager = Find.ResearchManager;
-                    var player = Faction.OfPlayerSilentFail;
-                    if (manager == null || player?.def == null)
-                        return ProtoBoundary.Encode(new Obs.ResearchReply { Unavailable = Missing(Common.UnavailableReason.NativeComponentMissing, "Research manager or player faction is unavailable.") });
-                    return ProtoBoundary.Encode(new Obs.ResearchReply { Observed = Read(parsed, context, map, manager, player) });
-                }
-                catch (Exception thrown) { ModLog.Error("observe", "Research read failed: " + thrown); return ProtoBoundary.Encode(new Obs.ResearchReply { Unavailable = Missing(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Research state or required native eligibility facts could not be read completely: " + thrown.GetType().Name + ": " + thrown.Message)) }); }
-            }, cancellationToken).ConfigureAwait(false);
+            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ResearchRequest.Parser, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.ResearchReply { Failure = failure });
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadResearch(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Obs.ResearchReply HandleReadResearch(Obs.ResearchRequest parsed)
+        {
+            if (!Validate(parsed, out var invalidRequest)) return new Obs.ResearchReply { Failure = invalidRequest };
+            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
+                return new Obs.ResearchReply { Failure = error };
+            try
+            {
+                var manager = Find.ResearchManager;
+                var player = Faction.OfPlayerSilentFail;
+                if (manager == null || player?.def == null)
+                    return new Obs.ResearchReply { Unavailable = Missing(Common.UnavailableReason.NativeComponentMissing, "Research manager or player faction is unavailable.") };
+                return new Obs.ResearchReply { Observed = Read(parsed, context, map, manager, player) };
+            }
+            catch (Exception thrown) { ModLog.Error("observe", "Research read failed: " + thrown); return new Obs.ResearchReply { Unavailable = Missing(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Research state or required native eligibility facts could not be read completely: " + thrown.GetType().Name + ": " + thrown.Message)) }; }
         }
 
         // The research state as a frame section: a read that throws fails the frame.

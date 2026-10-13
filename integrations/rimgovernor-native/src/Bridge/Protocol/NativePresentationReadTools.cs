@@ -23,31 +23,36 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Camera(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ReadRequest string in raw transport value.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_camera", request, Presentation.ReadRequest.Parser, out var parsed, out var failure)
-                || !ValidateRead(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.CameraReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateViewedIdentity(parsed.Identity, out var context, out var error))
-                    return ProtoBoundary.Encode(new Presentation.CameraReply { Failure = error });
-                try
-                {
-                    var driver = Find.CameraDriver;
-                    if (HeadlessRim.HeadlessMode.Active || Find.Camera == null || driver?.config == null)
-                        return ProtoBoundary.Encode(new Presentation.CameraReply { Failure = Unavailable("Graphical map camera unavailable.") });
-                    var position = driver.MapPosition;
-                    var size = driver.config.sizeRange;
-                    var rect = driver.CurrentViewRect;
-                    var state = new Presentation.CameraState { Context = context,
-                        MapPosition = new Presentation.MapPoint { X = Finite(position.x), Z = Finite(position.z) },
-                        RootSize = Positive(driver.RootSize), ZoomRootSize = Positive(driver.ZoomRootSize),
-                        MinimumRootSize = Positive(size.min), MaximumRootSize = Positive(size.max),
-                        NativeZoomRange = Id(driver.CurrentZoom.ToString()), ZoomExtensionEnabled = false,
-                        ViewRect = new Presentation.MapRect { MinX = rect.minX, MinZ = rect.minZ, MaxX = rect.maxX, MaxZ = rect.maxZ } };
-                    if (state.MaximumRootSize < state.MinimumRootSize || rect.maxX < rect.minX || rect.maxZ < rect.minZ)
-                        throw new InvalidOperationException("Native camera bounds invalid.");
-                    return Encode(new Presentation.CameraReply { Camera = state });
-                }
-                catch (Exception errorRead) { return ProtoBoundary.Encode(new Presentation.CameraReply { Failure = ReadFailure(errorRead) }); }
-            }, cancellationToken).ConfigureAwait(false);
+            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_camera", request, Presentation.ReadRequest.Parser, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Presentation.CameraReply { Failure = failure });
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleCamera(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Presentation.CameraReply HandleCamera(Presentation.ReadRequest parsed)
+        {
+            if (!ValidateRead(parsed, out var invalidRequest)) return new Presentation.CameraReply { Failure = invalidRequest };
+            if (!ProtoBoundary.ValidateViewedIdentity(parsed.Identity, out var context, out var error))
+                return new Presentation.CameraReply { Failure = error };
+            try
+            {
+                var driver = Find.CameraDriver;
+                if (HeadlessRim.HeadlessMode.Active || Find.Camera == null || driver?.config == null)
+                    return new Presentation.CameraReply { Failure = Unavailable("Graphical map camera unavailable.") };
+                var position = driver.MapPosition;
+                var size = driver.config.sizeRange;
+                var rect = driver.CurrentViewRect;
+                var state = new Presentation.CameraState { Context = context,
+                    MapPosition = new Presentation.MapPoint { X = Finite(position.x), Z = Finite(position.z) },
+                    RootSize = Positive(driver.RootSize), ZoomRootSize = Positive(driver.ZoomRootSize),
+                    MinimumRootSize = Positive(size.min), MaximumRootSize = Positive(size.max),
+                    NativeZoomRange = Id(driver.CurrentZoom.ToString()), ZoomExtensionEnabled = false,
+                    ViewRect = new Presentation.MapRect { MinX = rect.minX, MinZ = rect.minZ, MaxX = rect.maxX, MaxZ = rect.maxZ } };
+                if (state.MaximumRootSize < state.MinimumRootSize || rect.maxX < rect.minX || rect.maxZ < rect.minZ)
+                    throw new InvalidOperationException("Native camera bounds invalid.");
+                return new Presentation.CameraReply { Camera = state };
+            }
+            catch (Exception errorRead) { return new Presentation.CameraReply { Failure = ReadFailure(errorRead) }; }
         }
 
         [Tool("rimgovernor/presentation_selection", Title = "Read native selection", Description = "Complete bounded graphical selection IDs from native things, zones and plans. No inspect strings, gizmo enumeration, selection changes or capture authority.")]
@@ -55,25 +60,30 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Selection(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ReadRequest string in raw transport value.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_selection", request, Presentation.ReadRequest.Parser, out var parsed, out var failure)
-                || !ValidateRead(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.SelectionReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                var map = Find.CurrentMap;
-                if (!ProtoBoundary.ValidateViewedIdentity(parsed.Identity, out var context, out var error))
-                    return ProtoBoundary.Encode(new Presentation.SelectionReply { Failure = error });
-                try
-                {
-                    if (HeadlessRim.HeadlessMode.Active || Find.Selector == null)
-                        return ProtoBoundary.Encode(new Presentation.SelectionReply { Failure = Unavailable("Graphical native selection unavailable.") });
-                    var objects = Find.Selector.SelectedObjectsListForReading.ToList();
-                    var snapshot = new Presentation.SelectionSnapshot { Context = context, Listing = Listing(objects.Count) };
-                    foreach (var value in objects) snapshot.SelectedObjects.Add(Selected(value, map));
-                    if (snapshot.SelectedObjects.Select(s => s.Id).Distinct(StringComparer.Ordinal).Count() != snapshot.SelectedObjects.Count)
-                        throw new InvalidOperationException("Selected native IDs are not unique.");
-                    return Encode(new Presentation.SelectionReply { Selection = snapshot });
-                }
-                catch (Exception errorRead) { return ProtoBoundary.Encode(new Presentation.SelectionReply { Failure = ReadFailure(errorRead) }); }
-            }, cancellationToken).ConfigureAwait(false);
+            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_selection", request, Presentation.ReadRequest.Parser, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Presentation.SelectionReply { Failure = failure });
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleSelection(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Presentation.SelectionReply HandleSelection(Presentation.ReadRequest parsed)
+        {
+            if (!ValidateRead(parsed, out var invalidRequest)) return new Presentation.SelectionReply { Failure = invalidRequest };
+            var map = Find.CurrentMap;
+            if (!ProtoBoundary.ValidateViewedIdentity(parsed.Identity, out var context, out var error))
+                return new Presentation.SelectionReply { Failure = error };
+            try
+            {
+                if (HeadlessRim.HeadlessMode.Active || Find.Selector == null)
+                    return new Presentation.SelectionReply { Failure = Unavailable("Graphical native selection unavailable.") };
+                var objects = Find.Selector.SelectedObjectsListForReading.ToList();
+                var snapshot = new Presentation.SelectionSnapshot { Context = context, Listing = Listing(objects.Count) };
+                foreach (var value in objects) snapshot.SelectedObjects.Add(Selected(value, map));
+                if (snapshot.SelectedObjects.Select(s => s.Id).Distinct(StringComparer.Ordinal).Count() != snapshot.SelectedObjects.Count)
+                    throw new InvalidOperationException("Selected native IDs are not unique.");
+                return new Presentation.SelectionReply { Selection = snapshot };
+            }
+            catch (Exception errorRead) { return new Presentation.SelectionReply { Failure = ReadFailure(errorRead) }; }
         }
 
         [Tool("rimgovernor/presentation_colonists", Title = "Read native colonist roster", Description = "Complete bounded FreeColonistsSpawned roster. Default includes all loaded maps; currentMapOnly narrows it; the controller joins includeDossier from its bundle pawn table. No world caravan, prisoner, slave or unspawned-pawn claim.")]
@@ -81,30 +91,35 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Colonists(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ColonistRosterRequest string in raw transport value.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_colonists", request, Presentation.ColonistRosterRequest.Parser, out var parsed, out var failure)
-                || !ValidateColonists(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.ColonistRosterReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var error))
-                    return ProtoBoundary.Encode(new Presentation.ColonistRosterReply { Failure = error });
-                try
+            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_colonists", request, Presentation.ColonistRosterRequest.Parser, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Presentation.ColonistRosterReply { Failure = failure });
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleColonists(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Presentation.ColonistRosterReply HandleColonists(Presentation.ColonistRosterRequest parsed)
+        {
+            if (!ValidateColonists(parsed, out var invalidRequest)) return new Presentation.ColonistRosterReply { Failure = invalidRequest };
+            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var error))
+                return new Presentation.ColonistRosterReply { Failure = error };
+            try
+            {
+                var maps = parsed.CurrentMapOnly ? new[] { ProtoBoundary.LoadedMap(context) } : Find.Maps.ToArray();
+                var pawns = maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned).Distinct().OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
+                var roster = new Presentation.ColonistRoster { Context = context, Listing = Listing(pawns.Count) };
+                foreach (var pawn in pawns)
                 {
-                    var maps = parsed.CurrentMapOnly ? new[] { ProtoBoundary.LoadedMap(context) } : Find.Maps.ToArray();
-                    var pawns = maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned).Distinct().OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
-                    var roster = new Presentation.ColonistRoster { Context = context, Listing = Listing(pawns.Count) };
-                    foreach (var pawn in pawns)
-                    {
-                        if (!pawn.Spawned || pawn.Map == null || !pawn.Position.InBounds(pawn.Map)) throw new InvalidOperationException("Spawned colonist context unavailable.");
-                        var reference = new Presentation.ColonistReference { PawnId = Id(pawn.GetUniqueLoadID()),
-                            Name = Diagnostic(pawn.Name?.ToStringShort ?? pawn.LabelShort), MapId = pawn.Map.uniqueID,
-                            Spawned = true, Position = Cell(pawn.Position) };
-                        roster.Colonists.Add(reference);
-                    }
-                    if (roster.Colonists.Select(p => p.PawnId).Distinct(StringComparer.Ordinal).Count() != roster.Colonists.Count)
-                        throw new InvalidOperationException("Native colonist IDs are not unique.");
-                    return Encode(new Presentation.ColonistRosterReply { Roster = roster });
+                    if (!pawn.Spawned || pawn.Map == null || !pawn.Position.InBounds(pawn.Map)) throw new InvalidOperationException("Spawned colonist context unavailable.");
+                    var reference = new Presentation.ColonistReference { PawnId = Id(pawn.GetUniqueLoadID()),
+                        Name = Diagnostic(pawn.Name?.ToStringShort ?? pawn.LabelShort), MapId = pawn.Map.uniqueID,
+                        Spawned = true, Position = Cell(pawn.Position) };
+                    roster.Colonists.Add(reference);
                 }
-                catch (Exception errorRead) { return ProtoBoundary.Encode(new Presentation.ColonistRosterReply { Failure = ReadFailure(errorRead) }); }
-            }, cancellationToken).ConfigureAwait(false);
+                if (roster.Colonists.Select(p => p.PawnId).Distinct(StringComparer.Ordinal).Count() != roster.Colonists.Count)
+                    throw new InvalidOperationException("Native colonist IDs are not unique.");
+                return new Presentation.ColonistRosterReply { Roster = roster };
+            }
+            catch (Exception errorRead) { return new Presentation.ColonistRosterReply { Failure = ReadFailure(errorRead) }; }
         }
 
         internal static bool ValidateRead(Presentation.ReadRequest request, out Common.Failure failure)

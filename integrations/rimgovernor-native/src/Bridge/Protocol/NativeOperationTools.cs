@@ -47,15 +47,18 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/zones_preview", request, Operations.ZonePreviewRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Operations.ZonePreviewReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () =>
-            {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
-                    return ProtoBoundary.Encode(new Operations.ZonePreviewReply { Failure = invalid });
-                if (parsed.Zone == null)
-                    return ProtoBoundary.Encode(new Operations.ZonePreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A zone is required.") });
-                return ProtoBoundary.Encode(parsed.Zone.Kind == Operations.ZoneType.Stockpile
-                    ? StockpilePlacementActionHandler.Preview(parsed.Zone, context) : NativeZoneCreation.Preview(parsed.Zone, context));
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandlePreviewZone(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Operations.ZonePreviewReply HandlePreviewZone(Operations.ZonePreviewRequest parsed)
+        {
+            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
+                return new Operations.ZonePreviewReply { Failure = invalid };
+            if (parsed.Zone == null)
+                return new Operations.ZonePreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A zone is required.") };
+            return parsed.Zone.Kind == Operations.ZoneType.Stockpile
+                ? StockpilePlacementActionHandler.Preview(parsed.Zone, context) : NativeZoneCreation.Preview(parsed.Zone, context);
         }
 
         [Tool("rimgovernor/receipts_lookup", Title = "Look up admitted attempt", Description = "Read original admitted receipt without requiring current authority.")]
@@ -65,15 +68,18 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/receipts_lookup", request, Receipts.LookupRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Receipts.LookupReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () =>
-            {
-                if (!ValidAttempt(parsed.Attempt)) return ProtoBoundary.Encode(new Receipts.LookupReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A complete attempt is required.") });
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
-                    return ProtoBoundary.Encode(new Receipts.LookupReply { Failure = invalid });
-                return ProtoBoundary.Encode(NativeOperationState.TryGet(context.Identity, out var state)
-                    ? state.Ledger.Lookup(parsed.Attempt, context)
-                    : new Receipts.LookupReply { Unknown = new Receipts.UnknownAttempt { Context = context } });
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleLookup(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Receipts.LookupReply HandleLookup(Receipts.LookupRequest parsed)
+        {
+            if (!ValidAttempt(parsed.Attempt)) return new Receipts.LookupReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A complete attempt is required.") };
+            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
+                return new Receipts.LookupReply { Failure = invalid };
+            return NativeOperationState.TryGet(context.Identity, out var state)
+                ? state.Ledger.Lookup(parsed.Attempt, context)
+                : new Receipts.LookupReply { Unknown = new Receipts.UnknownAttempt { Context = context } };
         }
 
         private static bool ValidAttempt([NotNullWhen(true)] Common.AttemptKey? value) => value != null && value.HasControllerSessionId

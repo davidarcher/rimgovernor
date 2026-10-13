@@ -196,7 +196,7 @@ goes away when protobuf collapses to plain records (#3100). `RimGovernor.Brain.P
 `IStatSource` (`RimGovernor.Brain.Domain`, `Stats/`) is the brain's only way to read computed
 stat values. It replaces Go `internal/bridge/stateval`, which is not ported; `FakeStatSource`
 serves tests and simulation with recorded values, and the production implementation is the
-game-thread stat service (#3080).
+game-thread stat service (#3080; [native facade](native-facade.md)).
 
 **Bare-host answer (checked 2026-10-12): yes.** The game ships on .NET 10 with managed
 `Assembly-CSharp.dll` (the isolated copy under `.rimgovernor/native-rimworld/`; the Steam default

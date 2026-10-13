@@ -70,7 +70,19 @@ foreach ($taskFile in @(Get-ChildItem -LiteralPath (Join-Path $taskHostSource 's
     New-Item -ItemType Directory -Path (Split-Path $taskTo -Parent) -Force | Out-Null
     Copy-Item -LiteralPath $taskFile.FullName -Destination $taskTo
 }
-# Canonical Protobuf sources and official generator inputs travel with the build.
+# The brain assemblies the mod shares with the in-process brain (#3080): Domain, Wire (link-compiles the
+# generated protobuf below) and NativeFacade, with the shared build props and package versions.
+foreach ($taskBrainItem in @('brain/Directory.Build.props', 'brain/Directory.Packages.props', 'brain/src/RimGovernor.Brain.Domain', 'brain/src/RimGovernor.Brain.Wire', 'brain/src/RimGovernor.Brain.NativeFacade')) {
+    $taskBrainFrom = Get-Item -LiteralPath (Join-Path $taskRepo $taskBrainItem)
+    $taskBrainFiles = if ($taskBrainFrom.PSIsContainer) {
+        @(Get-ChildItem -LiteralPath $taskBrainFrom.FullName -Recurse -File | Where-Object { $_.FullName -notmatch '[\\/](obj|bin)[\\/]' })
+    } else { @($taskBrainFrom) }
+    foreach ($taskFile in $taskBrainFiles) {
+        $taskTo = Join-Path $taskCopyRoot $taskFile.FullName.Substring($taskRepo.Length + 1)
+        New-Item -ItemType Directory -Path (Split-Path $taskTo -Parent) -Force | Out-Null
+        Copy-Item -LiteralPath $taskFile.FullName -Destination $taskTo
+    }
+}# Canonical Protobuf sources and official generator inputs travel with the build.
 # No experimental JSON generator or second contract tree participates.
 foreach ($taskContractDirectory in @('contracts/proto', 'contracts/generated/protobuf/csharp', 'tools/protobuf')) {
     $taskFrom = Join-Path $taskRepo $taskContractDirectory
@@ -171,7 +183,13 @@ foreach ($taskLine in Get-Content -LiteralPath (Join-Path $taskCompiled 'runtime
     Copy-Item -LiteralPath $taskDll -Destination (Join-Path $taskPackage 'BridgeTools/RimGovernor')
     $taskRuntimeDependencies += [ordered]@{ package = $taskFields[0]; version = $taskFields[1]; file = $taskFields[2] }
 }
-Copy-Item -LiteralPath (Join-Path $taskCopyNative 'About'), (Join-Path $taskCopyNative 'Defs'), (Join-Path $taskCopyNative 'Textures'), (Join-Path $taskCopyNative 'Notices') -Destination $taskPackage -Recurse
+# The brain assemblies ride beside the Bridge: the host resolves a Bridge reference by simple name from this directory.
+foreach ($taskDll in Get-ChildItem -LiteralPath $taskCompiled -Filter 'RimGovernor.Brain.*.dll' -File) {
+    Copy-Item -LiteralPath $taskDll.FullName -Destination (Join-Path $taskPackage 'BridgeTools/RimGovernor')
+}
+foreach ($taskBrain in @('RimGovernor.Brain.Domain.dll', 'RimGovernor.Brain.Wire.dll', 'RimGovernor.Brain.NativeFacade.dll')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $taskPackage "BridgeTools/RimGovernor/$taskBrain") -PathType Leaf)) { throw "Expected brain output missing: $taskBrain" }
+}Copy-Item -LiteralPath (Join-Path $taskCopyNative 'About'), (Join-Path $taskCopyNative 'Defs'), (Join-Path $taskCopyNative 'Textures'), (Join-Path $taskCopyNative 'Notices') -Destination $taskPackage -Recurse
 Copy-Item -LiteralPath (Join-Path $taskCopyNative 'README.md') -Destination $taskPackage
 $taskSnapshot = Join-Path $taskPackage 'Source'
 New-Item -ItemType Directory -Path $taskSnapshot -Force | Out-Null

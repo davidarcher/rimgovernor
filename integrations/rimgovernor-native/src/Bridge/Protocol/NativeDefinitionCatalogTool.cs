@@ -30,39 +30,43 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request!, Obs.DefinitionCatalogRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Failure = failure });
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadDefinitionCatalog(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Obs.DefinitionCatalogReply HandleReadDefinitionCatalog(Obs.DefinitionCatalogRequest parsed)
+        {
             if (!parsed.Creation && parsed.Scope?.ExpectedIdentity == null)
-                return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity required.") });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (parsed.Creation)
+                return new Obs.DefinitionCatalogReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity required.") };
+            if (parsed.Creation)
+            {
+                if (parsed.Scope != null || Current.ProgramState != ProgramState.Entry || Current.Game != null || LongEventHandler.AnyEventNowOrWaiting)
+                    return new Obs.DefinitionCatalogReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Creation catalog requires a fresh main menu and no map scope.") };
+                try
                 {
-                    if (parsed.Scope != null || Current.ProgramState != ProgramState.Entry || Current.Game != null || LongEventHandler.AnyEventNowOrWaiting)
-                        return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Creation catalog requires a fresh main menu and no map scope.") });
-                    try
-                    {
-                        var mirror = new DefMirrorFill();
-                        var creation = new Obs.CreationDefinitionCatalog { Defs = DefSets(mirror) };
-                        foreach (var chain in mirror.ClassChains()) { var row = new Obs.ClassChain { Name = chain.Key }; row.Bases.AddRange(chain.Value); creation.ClassChains.Add(row); }
-                        creation.GameConstants = mirror.BuildStatics<Defs.GameConstants>();
-                        return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Creation = creation });
-                    }
-                    catch (Exception ex)
-                    {
-                        ObservationWork.Failed("definitionCatalog", ex);
-                        return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic("Creation defs could not be read completely: " + ex.GetType().Name + ": " + ex.Message) } });
-                    }
+                    var mirror = new DefMirrorFill();
+                    var creation = new Obs.CreationDefinitionCatalog { Defs = DefSets(mirror) };
+                    foreach (var chain in mirror.ClassChains()) { var row = new Obs.ClassChain { Name = chain.Key }; row.Bases.AddRange(chain.Value); creation.ClassChains.Add(row); }
+                    creation.GameConstants = mirror.BuildStatics<Defs.GameConstants>();
+                    return new Obs.DefinitionCatalogReply { Creation = creation };
                 }
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope!.ExpectedIdentity, out _, out var context, out var error))
-                    return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Failure = error });
-                var player = Faction.OfPlayerSilentFail;
-                if (player?.def == null)
-                    return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NativeComponentMissing, Detail = "Player faction is unavailable." } });
-                try { return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Observed = Read(context, parsed.HeldFingerprint) }); }
                 catch (Exception ex)
                 {
                     ObservationWork.Failed("definitionCatalog", ex);
-                    return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic("The definition catalog could not be read completely: " + ex.GetType().Name + ": " + ex.Message) } });
+                    return new Obs.DefinitionCatalogReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic("Creation defs could not be read completely: " + ex.GetType().Name + ": " + ex.Message) } };
                 }
-            }, cancellationToken).ConfigureAwait(false);
+            }
+            if (!ProtoBoundary.ValidateIdentity(parsed.Scope!.ExpectedIdentity, out _, out var context, out var error))
+                return new Obs.DefinitionCatalogReply { Failure = error };
+            var player = Faction.OfPlayerSilentFail;
+            if (player?.def == null)
+                return new Obs.DefinitionCatalogReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NativeComponentMissing, Detail = "Player faction is unavailable." } };
+            try { return new Obs.DefinitionCatalogReply { Observed = Read(context, parsed.HeldFingerprint) }; }
+            catch (Exception ex)
+            {
+                ObservationWork.Failed("definitionCatalog", ex);
+                return new Obs.DefinitionCatalogReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic("The definition catalog could not be read completely: " + ex.GetType().Name + ": " + ex.Message) } };
+            }
         }
 
         private static Obs.DefinitionCatalog Read(Common.ObservationContext context, string heldFingerprint)

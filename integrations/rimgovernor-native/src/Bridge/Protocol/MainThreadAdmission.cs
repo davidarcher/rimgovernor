@@ -58,7 +58,7 @@ namespace HomeBridge.BridgeTools
         // task completes with the body's reply (or its exception), or
         // cancelled when token fires before the hop runs. queueDepth is how
         // many hops were pending when this one was queued.
-        internal static Task<object> Enqueue(IRimBridgeContext ctx, int rank, Func<object> body, CancellationToken token, out int queueDepth)
+        internal static Task<object> Enqueue(IRimBridgeMainThread mainThread, int rank, Func<object> body, CancellationToken token, out int queueDepth)
         {
             Hop hop;
             lock (Gate)
@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
             Task<object> pump;
             try
             {
-                pump = ctx.MainThread.InvokeAsync<object>(Pump, CancellationToken.None);
+                pump = mainThread.InvokeAsync<object>(Pump, CancellationToken.None);
             }
             catch (Exception e)
             {

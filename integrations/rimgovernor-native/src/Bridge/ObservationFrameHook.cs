@@ -104,6 +104,15 @@ namespace HomeBridge.BridgeTools
             {
                 // A failed confirmation leaves the dialog for the next frame.
             }
+            // Stat requests the planner worker queued are answered here, within the drain's own game-thread budget.
+            try
+            {
+                GameThreadStatService.Instance.Drain();
+            }
+            catch (Exception)
+            {
+                // A failed drain leaves the rest queued for the next frame.
+            }
             // Clearance salvage evidence refreshes over frames.
             try
             {

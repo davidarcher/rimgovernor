@@ -23,8 +23,8 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ListPawns(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a ListPawnsRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_list_pawns", request!, Obs.ListPawnsRequest.Parser, out var parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ListPawnsReply { Failure = failure });
+            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_list_pawns", request!, Obs.ListPawnsRequest.Parser, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.ListPawnsReply { Failure = failure });
             // Read on the game thread; delta and format on an encoder
             // worker, since the delta digests the whole reply.
             var lease = await ReplyEncoder.Reserve(cancellationToken).ConfigureAwait(false);
@@ -32,17 +32,22 @@ namespace HomeBridge.BridgeTools
                 "Pawn reply encoders stayed saturated for " + ReplyEncoder.ReserveTimeoutMs + " ms; nothing was read.") });
             try
             {
-                var captured = await ProtoBoundary.CaptureOnMainThread(ctx, () => {
-                    if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var invalid))
-                        return new Obs.ListPawnsReply { Failure = invalid };
-                    try { return new Obs.ListPawnsReply { Observed = Read(map, parsed, context) }; }
-                    catch (Exception error) { ModLog.Error("observe", "Pawn facts read failed: " + error); return new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed,
-                        PlacementPreviewOperation.Diagnostic("Pawn facts could not be read completely: "+error)) }; }
-                }, cancellationToken).ConfigureAwait(false);
+                var captured = await ProtoBoundary.CaptureOnMainThread(ctx, () => HandleListPawns(parsed), cancellationToken).ConfigureAwait(false);
                 var owned = lease; lease = null;
                 return await ProtoBoundary.EncodeDetached(captured, owned, reply => EncodePawns(reply, parsed), cancellationToken).ConfigureAwait(false);
             }
             finally { lease?.Dispose(); }
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Obs.ListPawnsReply HandleListPawns(Obs.ListPawnsRequest parsed)
+        {
+            if (!Validate(parsed, out var invalidRequest)) return new Obs.ListPawnsReply { Failure = invalidRequest };
+            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var invalid))
+                return new Obs.ListPawnsReply { Failure = invalid };
+            try { return new Obs.ListPawnsReply { Observed = Read(map, parsed, context) }; }
+            catch (Exception error) { ModLog.Error("observe", "Pawn facts read failed: " + error); return new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed,
+                PlacementPreviewOperation.Diagnostic("Pawn facts could not be read completely: "+error)) }; }
         }
 
         private static Dictionary<string, object?> EncodePawns(Obs.ListPawnsReply reply, Obs.ListPawnsRequest parsed)

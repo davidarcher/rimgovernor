@@ -22,43 +22,48 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ListSupplies(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ListSuppliesRequest string in raw transport value.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ListSuppliesRequest.Parser, out var parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ListSuppliesReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                    return ProtoBoundary.Encode(new Obs.ListSuppliesReply { Failure = error });
-                try
+            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ListSuppliesRequest.Parser, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.ListSuppliesReply { Failure = failure });
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleListSupplies(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Obs.ListSuppliesReply HandleListSupplies(Obs.ListSuppliesRequest parsed)
+        {
+            if (!Validate(parsed, out var invalidRequest)) return new Obs.ListSuppliesReply { Failure = invalidRequest };
+            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
+                return new Obs.ListSuppliesReply { Failure = error };
+            try
+            {
+                var filter = parsed.Filter ?? new Obs.StockFilter();
+                var player = Faction.OfPlayerSilentFail;
+                if (player == null || map.areaManager?.Home == null || map.zoneManager == null || map.reservationManager == null || map.fogGrid == null)
+                    return new Obs.ListSuppliesReply { Unavailable = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Stock ownership/read trackers are unavailable.") };
+                if (filter.Region != null && (!NativeCell(filter.Region.Minimum).InBounds(map) || !NativeCell(filter.Region.Maximum).InBounds(map)))
+                    return new Obs.ListSuppliesReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region must be inside the current map.") };
+                var entries = new Census(map, player, filter).Read();
+                var reserved = new HashSet<Thing>(map.reservationManager.AllReservedThings());
+                var groups = entries.GroupBy(e => Id(e.Thing.def.defName), StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
+                var selected = groups.Where(g => Ownership(filter) == Obs.StockOwnership.All || g.Any(e => e.Ours)).ToList();
+                var snapshot = new Obs.SuppliesSnapshot { Context = context, Completeness = Complete(selected.Count) };
+                foreach (var group in selected)
                 {
-                    var filter = parsed.Filter ?? new Obs.StockFilter();
-                    var player = Faction.OfPlayerSilentFail;
-                    if (player == null || map.areaManager?.Home == null || map.zoneManager == null || map.reservationManager == null || map.fogGrid == null)
-                        return ProtoBoundary.Encode(new Obs.ListSuppliesReply { Unavailable = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Stock ownership/read trackers are unavailable.") });
-                    if (filter.Region != null && (!NativeCell(filter.Region.Minimum).InBounds(map) || !NativeCell(filter.Region.Maximum).InBounds(map)))
-                        return ProtoBoundary.Encode(new Obs.ListSuppliesReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region must be inside the current map.") });
-                    var entries = new Census(map, player, filter).Read();
-                    var reserved = new HashSet<Thing>(map.reservationManager.AllReservedThings());
-                    var groups = entries.GroupBy(e => Id(e.Thing.def.defName), StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
-                    var selected = groups.Where(g => Ownership(filter) == Obs.StockOwnership.All || g.Any(e => e.Ours)).ToList();
-                    var snapshot = new Obs.SuppliesSnapshot { Context = context, Completeness = Complete(selected.Count) };
-                    foreach (var group in selected)
+                    var entriesForDefinition = group.ToList();
+                    var row = Project(entriesForDefinition, reserved, IncludeHeld(filter));
+                    for (var index = 0; index < row.Items.Count; index++)
                     {
-                        var entriesForDefinition = group.ToList();
-                        var row = Project(entriesForDefinition, reserved, IncludeHeld(filter));
-                        for (var index = 0; index < row.Items.Count; index++)
-                        {
-                            var entry = entriesForDefinition[index];
-                            row.Items[index].Snapshot = entry.Holder == null
-                                ? NativeSupplyAllow.Snapshot(entry.Thing, context)
-                                : HeldSnapshot(entry, context);
-                        }
-                        if (row.Items.All(item => item.Snapshot != null))
-                            row.Issues.Remove(row.Issues.Single(issue => issue.Field == "items.snapshot"));
-                        snapshot.Stocks.Add(row);
+                        var entry = entriesForDefinition[index];
+                        row.Items[index].Snapshot = entry.Holder == null
+                            ? NativeSupplyAllow.Snapshot(entry.Thing, context)
+                            : HeldSnapshot(entry, context);
                     }
-                    return ProtoBoundary.Encode(new Obs.ListSuppliesReply { Observed = snapshot });
+                    if (row.Items.All(item => item.Snapshot != null))
+                        row.Issues.Remove(row.Issues.Single(issue => issue.Field == "items.snapshot"));
+                    snapshot.Stocks.Add(row);
                 }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.ListSuppliesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Stock or holder facts could not be read completely.") }); }
-            }, cancellationToken).ConfigureAwait(false);
+                return new Obs.ListSuppliesReply { Observed = snapshot };
+            }
+            catch (Exception) { return new Obs.ListSuppliesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Stock or holder facts could not be read completely.") }; }
         }
 
         internal static bool Validate(Obs.ListSuppliesRequest request, out Common.Failure failure)

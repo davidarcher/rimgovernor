@@ -22,33 +22,36 @@ namespace HomeBridge.BridgeTools
                 out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Authority.StatusReply { Failure = failure });
 
-            return await ProtoBoundary.OnMainThread(ctx, () =>
-            {
-                // The game this identity names has exited or been unloaded: its
-                // retained final authority is the only thing left to report,
-                // and is how a controller sees REVOCATION_REASON_SHUTDOWN.
-                if (Current.Game == null && ProtoBoundary.Complete(parsed.Identity)
-                    && NativeControlAuthority.LastShutdown is NativeControlShutdown shutdown
-                    && shutdown.Matches(parsed.Identity.ColonyId, parsed.Identity.LoadToken, parsed.Identity.MapId))
-                    return ProtoBoundary.Encode(new Authority.StatusReply { Status = ProjectShutdown(shutdown, parsed.Identity) });
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
-                    return ProtoBoundary.Encode(new Authority.StatusReply { Failure = invalid });
-                var game = Current.Game;
-                if (game == null)
-                    return ProtoBoundary.Encode(new Authority.StatusReply { Failure = new Common.Failure
-                    {
-                        Code = Common.FailureCode.Unavailable, Detail = "No game is loaded."
-                    } });
-                if (!NativeControlAuthority.TryGetForGame(game, out var state) || state == null)
-                    return ProtoBoundary.Encode(new Authority.StatusReply { Status = new Authority.Status
-                    {
-                        Context = context,
-                        Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved,
-                            Detail = "Native control hooks and trusted admission have not been initialized." }
-                    } });
-                var snapshot = state.Status();
-                return ProtoBoundary.Encode(new Authority.StatusReply { Status = Project(snapshot, context) });
-            }, cancellationToken);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadStatus(parsed), cancellationToken);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Authority.StatusReply HandleReadStatus(Authority.StatusRequest parsed)
+        {
+            // The game this identity names has exited or been unloaded: its
+            // retained final authority is the only thing left to report,
+            // and is how a controller sees REVOCATION_REASON_SHUTDOWN.
+            if (Current.Game == null && ProtoBoundary.Complete(parsed.Identity)
+                && NativeControlAuthority.LastShutdown is NativeControlShutdown shutdown
+                && shutdown.Matches(parsed.Identity.ColonyId, parsed.Identity.LoadToken, parsed.Identity.MapId))
+                return new Authority.StatusReply { Status = ProjectShutdown(shutdown, parsed.Identity) };
+            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
+                return new Authority.StatusReply { Failure = invalid };
+            var game = Current.Game;
+            if (game == null)
+                return new Authority.StatusReply { Failure = new Common.Failure
+                {
+                    Code = Common.FailureCode.Unavailable, Detail = "No game is loaded."
+                } };
+            if (!NativeControlAuthority.TryGetForGame(game, out var state) || state == null)
+                return new Authority.StatusReply { Status = new Authority.Status
+                {
+                    Context = context,
+                    Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved,
+                        Detail = "Native control hooks and trusted admission have not been initialized." }
+                } };
+            var snapshot = state.Status();
+            return new Authority.StatusReply { Status = Project(snapshot, context) };
         }
 
         // This projection does not initialize hooks or grant authority.

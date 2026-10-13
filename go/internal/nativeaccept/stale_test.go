@@ -27,6 +27,13 @@ func writeFile(t *testing.T, root, relative, content string) {
 func writeNativeInputs(t *testing.T, repo string) {
 	t.Helper()
 	for relative, content := range map[string]string{
+		"brain/Directory.Build.props":                                    "<Project/>",
+		"brain/Directory.Packages.props":                                 "<Project/>",
+		"brain/src/RimGovernor.Brain.Domain/Fact.cs":                     "class Fact {}",
+		"brain/src/RimGovernor.Brain.Domain/obj/Fact.cs":                 "ignored build output",
+		"brain/src/RimGovernor.Brain.NativeFacade/INativeFacade.cs":      "interface INativeFacade {}",
+		"brain/src/RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj": "<Project/>",
+		"brain/src/RimGovernor.Brain.Wire/bin/Wire.dll":                  "ignored binary",
 		"integrations/rimgovernor-host/Directory.Build.props":            "<Project/>",
 		"integrations/rimgovernor-host/src/Host/Host.cs":                 "class Host {}",
 		"integrations/rimgovernor-host/src/Host/obj/Host.cs":             "ignored build output",
@@ -72,6 +79,11 @@ func TestSourceTreeHashMatchesTheBuildScriptsFormula(t *testing.T) {
 	// exactly what build_native_mod.ps1 hashes over build/source.
 	lines := []string{
 		"THIRD_PARTY.md\t" + sha("notices"),
+		"brain/Directory.Build.props\t" + sha("<Project/>"),
+		"brain/Directory.Packages.props\t" + sha("<Project/>"),
+		"brain/src/RimGovernor.Brain.Domain/Fact.cs\t" + sha("class Fact {}"),
+		"brain/src/RimGovernor.Brain.NativeFacade/INativeFacade.cs\t" + sha("interface INativeFacade {}"),
+		"brain/src/RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj\t" + sha("<Project/>"),
 		"contracts/generated/protobuf/csharp/Clock.cs\t" + sha("generated"),
 		"contracts/proto/clock.proto\t" + sha("syntax = \"proto3\";"),
 		"integrations/rimgovernor-host/Directory.Build.props\t" + sha("<Project/>"),

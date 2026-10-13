@@ -13,7 +13,10 @@ public class RimGovernorHostMod : Mod
             using (RimBridgeStartupTiming.Phase("mod-constructor.total"))
             {
                 using (RimBridgeStartupTiming.Phase("main-thread.initialize"))
+                {
                     RimBridgeMainThread.Initialize();
+                    RimGovernor.Host.Sdk.RimBridgeMainThreadAccess.Current = new RimBridgeMainThreadClient();
+                }
                 using (RimBridgeStartupTiming.Phase("harmony.startup-patches"))
                     RimBridgePatches.Apply();
                 using (RimBridgeStartupTiming.Phase("startup.on-mod-constructed"))

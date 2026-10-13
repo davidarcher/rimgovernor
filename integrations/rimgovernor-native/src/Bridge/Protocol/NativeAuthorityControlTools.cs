@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request, Authority.ControlRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Authority.ControlReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => ProtoBoundary.Encode(Apply(parsed)), cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => Apply(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         internal static Authority.ControlReply Apply(Authority.ControlRequest request)

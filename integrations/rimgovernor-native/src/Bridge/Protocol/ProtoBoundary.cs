@@ -336,15 +336,46 @@ namespace HomeBridge.BridgeTools
             return task;
         }
 
+        /// <summary>
+        /// Who asks for a game-thread hop: a tool invocation (everything its context carries) or the in-process
+        /// facade (no context: the host's game-thread access, the operation name and the admission class).
+        /// </summary>
+        internal sealed class HopOrigin
+        {
+            internal readonly IRimBridgeMainThread MainThread;
+            internal readonly string Operation;
+            internal readonly string? Trace, Class;
+            internal readonly ReplyForm Form;
+            private HopOrigin(IRimBridgeMainThread mainThread, string operation, string? trace, string? cls, ReplyForm form)
+            { MainThread = mainThread; Operation = operation; Trace = trace; Class = cls; Form = form; }
+
+            internal static HopOrigin Of(IRimBridgeContext ctx) => new HopOrigin(ctx.MainThread, OperationOf(ctx), TraceOf(ctx), ClassOf(ctx), FormOf(ctx));
+
+            internal static HopOrigin Facade(string operation, string? cls)
+                => new HopOrigin(RimBridgeMainThreadAccess.Current ?? throw new InvalidOperationException("The host's game-thread access is not available."),
+                    operation, null, cls, ReplyForm.Payload);
+        }
+
+        /// <summary>
+        /// A typed game-thread hop for a caller without a tool context (the native facade): body runs on the game
+        /// thread under the same admission class, per-frame allowance, watchdog and observation account as a
+        /// tool's hop, and its reply is returned as built, never encoded.
+        /// </summary>
+        internal static async Task<T> OnGameThread<T>(string operation, Func<T> body, CancellationToken cancellationToken, string? cls = null) where T : class
+            => (T)await RunHop(HopOrigin.Facade(operation, cls), () => body(), (value, hop) => value, cancellationToken).ConfigureAwait(false);
+
         private static Task<object> RunHop(IRimBridgeContext ctx, Func<object> body, Func<object, HopTiming, object> complete, CancellationToken cancellationToken, bool defer = false)
+            => RunHop(HopOrigin.Of(ctx), body, complete, cancellationToken, defer);
+
+        private static Task<object> RunHop(HopOrigin origin, Func<object> body, Func<object, HopTiming, object> complete, CancellationToken cancellationToken, bool defer = false)
         {
             var queued = Stopwatch.GetTimestamp();
-            var trace = TraceOf(ctx);
-            var wanted = FormOf(ctx);
-            var rank = MainThreadAdmission.RankOf(ClassOf(ctx));
-            var hop = MainThreadWatchdog.Enqueue(OperationOf(ctx), trace);
+            var trace = origin.Trace;
+            var wanted = origin.Form;
+            var rank = MainThreadAdmission.RankOf(origin.Class);
+            var hop = MainThreadWatchdog.Enqueue(origin.Operation, trace);
             int depth = 0;
-            var task = MainThreadAdmission.Enqueue(ctx, rank, () =>
+            var task = MainThreadAdmission.Enqueue(origin.MainThread, rank, () =>
             {
                 MainThreadWatchdog.Start(hop);
 #if !NATIVE_CONTRACT_PROBES

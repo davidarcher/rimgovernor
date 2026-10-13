@@ -18,24 +18,28 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request!, PlacementRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new PlacementReply { Failure = failure });
-            if (!PlacementProtocol.Validate(parsed, out failure))
-                return ProtoBoundary.Encode(new PlacementReply { Failure = failure });
 
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => {
-                var map = Find.CurrentMap;
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, map, out var context, out var identityFailure))
-                    return new PlacementReply { Failure = identityFailure };
-                var batch = new PlacementBatch { Context = context };
-                foreach (var candidate in parsed.Placements)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var query = new PlacementQuery(candidate.DefName, candidate.X, candidate.Z,
-                        PlacementProtocol.RotationName(candidate.Rotation), candidate.HasStuff ? candidate.Stuff : null,
-                        candidate.HasIgnoreNaturalRock && candidate.IgnoreNaturalRock);
-                    batch.Results.Add(PlacementProtocol.Map(PlacementPreviewOperation.Evaluate(map, query), context));
-                }
-                return new PlacementReply { Batch = batch };
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandlePreview(parsed, cancellationToken), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static PlacementReply HandlePreview(PlacementRequest parsed, CancellationToken cancellationToken)
+        {
+            if (!PlacementProtocol.Validate(parsed, out var invalidRequest))
+                return new PlacementReply { Failure = invalidRequest };
+            var map = Find.CurrentMap;
+            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, map, out var context, out var identityFailure))
+                return new PlacementReply { Failure = identityFailure };
+            var batch = new PlacementBatch { Context = context };
+            foreach (var candidate in parsed.Placements)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var query = new PlacementQuery(candidate.DefName, candidate.X, candidate.Z,
+                    PlacementProtocol.RotationName(candidate.Rotation), candidate.HasStuff ? candidate.Stuff : null,
+                    candidate.HasIgnoreNaturalRock && candidate.IgnoreNaturalRock);
+                batch.Results.Add(PlacementProtocol.Map(PlacementPreviewOperation.Evaluate(map, query), context));
+            }
+            return new PlacementReply { Batch = batch };
         }
     }
 }

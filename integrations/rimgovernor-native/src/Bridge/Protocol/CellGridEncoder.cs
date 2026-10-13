@@ -245,6 +245,18 @@ namespace HomeBridge.BridgeTools
             frame.SkyGlow = read.SkyGlow;
         }
 
+        private static ulong wholeSeq;
+
+        /// On the encoder worker: adds read to frame as a keyframe for the in-process subscriber, leaving the
+        /// ring's held keyframe alone. A null read adds nothing.
+        internal static void AttachWhole(Obs.BundleSnapshot frame, GridRead? read)
+        {
+            if (read == null) return;
+            frame.Grid = Encode(read, null)!;
+            frame.KeyframeSeq = ++wholeSeq;
+            frame.SkyGlow = read.SkyGlow;
+        }
+
         /// read as a CellGrid: every array over the sentinel array when
         /// against is null (a keyframe), else only the arrays that differ
         /// from against's; null when that would be every array.

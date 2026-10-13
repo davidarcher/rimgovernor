@@ -308,7 +308,13 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/operations_apply", request, Operations.ApplyRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Operations.ApplyReply { BatchFailure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => { try { return ProtoBoundary.Encode(NativeActionDispatch.Apply(parsed)); } finally { SnapshotStream.NoteWrite(parsed.DeferSnapshot); } }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleApply(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Operations.ApplyReply HandleApply(Operations.ApplyRequest parsed)
+        {
+            try { return NativeActionDispatch.Apply(parsed); } finally { SnapshotStream.NoteWrite(parsed.DeferSnapshot); }
         }
     }
 }

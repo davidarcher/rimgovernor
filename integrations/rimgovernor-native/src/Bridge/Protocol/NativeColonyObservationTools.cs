@@ -25,8 +25,8 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadColonyFacts(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw ColonyFactsRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request!, Obs.ColonyFactsRequest.Parser, out var parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Failure = failure });
+            if (!ProtoBoundary.TryParse(ctx, ToolName, request!, Obs.ColonyFactsRequest.Parser, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Failure = failure });
             // Read on the game thread; delta and format on an
             // encoder worker, since the delta digests the whole reply.
             var lease = await ReplyEncoder.Reserve(cancellationToken).ConfigureAwait(false);
@@ -34,16 +34,21 @@ namespace HomeBridge.BridgeTools
                 "Colony facts reply encoders stayed saturated for " + ReplyEncoder.ReserveTimeoutMs + " ms; nothing was read.") });
             try
             {
-                var captured = await ProtoBoundary.CaptureOnMainThread(ctx, () => {
-                    if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var invalid))
-                        return new Obs.ColonyFactsReply { Failure = invalid };
-                    try { return new Obs.ColonyFactsReply { Observed = Read(map, parsed, context) }; }
-                    catch (Exception error) { ModLog.Error("observe", "Colony facts read failed: " + error); return new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Native colony facts could not be read completely: " + error.GetType().Name + ": " + error.Message)) }; }
-                }, cancellationToken).ConfigureAwait(false);
+                var captured = await ProtoBoundary.CaptureOnMainThread(ctx, () => HandleReadColonyFacts(parsed), cancellationToken).ConfigureAwait(false);
                 var owned = lease; lease = null;
                 return await ProtoBoundary.EncodeDetached(captured, owned, reply => EncodeFacts(reply, parsed), cancellationToken).ConfigureAwait(false);
             }
             finally { lease?.Dispose(); }
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Obs.ColonyFactsReply HandleReadColonyFacts(Obs.ColonyFactsRequest parsed)
+        {
+            if (!Validate(parsed, out var invalidRequest)) return new Obs.ColonyFactsReply { Failure = invalidRequest };
+            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var invalid))
+                return new Obs.ColonyFactsReply { Failure = invalid };
+            try { return new Obs.ColonyFactsReply { Observed = Read(map, parsed, context) }; }
+            catch (Exception error) { ModLog.Error("observe", "Colony facts read failed: " + error); return new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Native colony facts could not be read completely: " + error.GetType().Name + ": " + error.Message)) }; }
         }
 
         private static Dictionary<string, object?> EncodeFacts(Obs.ColonyFactsReply reply, Obs.ColonyFactsRequest parsed)

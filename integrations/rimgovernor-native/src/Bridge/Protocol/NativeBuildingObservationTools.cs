@@ -24,13 +24,18 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ListBuildings(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ListBuildingsRequest string in raw transport value.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ListBuildingsRequest.Parser, out var parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                    return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Failure = error });
-                return ProtoBoundary.Encode(Read(map, parsed, context));
-            }, cancellationToken).ConfigureAwait(false);
+            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ListBuildingsRequest.Parser, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Failure = failure });
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleListBuildings(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Obs.ListBuildingsReply HandleListBuildings(Obs.ListBuildingsRequest parsed)
+        {
+            if (!Validate(parsed, out var invalidRequest)) return new Obs.ListBuildingsReply { Failure = invalidRequest };
+            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
+                return new Obs.ListBuildingsReply { Failure = error };
+            return Read(map, parsed, context);
         }
 
         // Read is the list on the main thread under a validated identity: the

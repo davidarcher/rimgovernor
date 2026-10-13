@@ -23,16 +23,19 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, AttachName, request, Operations.RulesAttachRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Operations.RulesAttachReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () =>
-            {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
-                    return ProtoBoundary.Encode(new Operations.RulesAttachReply { Failure = invalid });
-                if (!parsed.HasExpiresAtTick || parsed.ExpiresAtTick <= context.Tick)
-                    return ProtoBoundary.Encode(new Operations.RulesAttachReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The rules lease must end after the current tick.") });
-                if (!NativeRuleRuntime.EnsureHooks())
-                    return ProtoBoundary.Encode(new Operations.RulesAttachReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native rule hooks are unavailable.") });
-                return ProtoBoundary.Encode(new Operations.RulesAttachReply { Attached = NativeRuleRuntime.Attach(context, parsed.Rules, parsed.ExpiresAtTick) });
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleAttach(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Operations.RulesAttachReply HandleAttach(Operations.RulesAttachRequest parsed)
+        {
+            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
+                return new Operations.RulesAttachReply { Failure = invalid };
+            if (!parsed.HasExpiresAtTick || parsed.ExpiresAtTick <= context.Tick)
+                return new Operations.RulesAttachReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The rules lease must end after the current tick.") };
+            if (!NativeRuleRuntime.EnsureHooks())
+                return new Operations.RulesAttachReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native rule hooks are unavailable.") };
+            return new Operations.RulesAttachReply { Attached = NativeRuleRuntime.Attach(context, parsed.Rules, parsed.ExpiresAtTick) };
         }
 
         [Tool(ClearName, Title = "Clear native rules", Description = "Deactivate every attached native rule. Needs no authority.")]
@@ -42,12 +45,15 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, ClearName, request, Operations.RulesClearRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Operations.RulesClearReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () =>
-            {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
-                    return ProtoBoundary.Encode(new Operations.RulesClearReply { Failure = invalid });
-                return ProtoBoundary.Encode(new Operations.RulesClearReply { Cleared = new Operations.RulesCleared { Context = context, Cleared = NativeRuleRuntime.Clear(Current.Game) } });
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleClear(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Operations.RulesClearReply HandleClear(Operations.RulesClearRequest parsed)
+        {
+            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
+                return new Operations.RulesClearReply { Failure = invalid };
+            return new Operations.RulesClearReply { Cleared = new Operations.RulesCleared { Context = context, Cleared = NativeRuleRuntime.Clear(Current.Game) } };
         }
 
         [Tool(StatusName, Title = "Read native rules", Description = "Read the active native rules: lease remaining, each rule's firing count and last firing.")]
@@ -57,12 +63,15 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, StatusName, request, Operations.RulesStatusRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Operations.RulesStatusReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () =>
-            {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
-                    return ProtoBoundary.Encode(new Operations.RulesStatusReply { Failure = invalid });
-                return ProtoBoundary.Encode(new Operations.RulesStatusReply { Status = NativeRuleRuntime.Status(context, Current.Game) });
-            }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadStatus(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Operations.RulesStatusReply HandleReadStatus(Operations.RulesStatusRequest parsed)
+        {
+            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
+                return new Operations.RulesStatusReply { Failure = invalid };
+            return new Operations.RulesStatusReply { Status = NativeRuleRuntime.Status(context, Current.Game) };
         }
     }
 }

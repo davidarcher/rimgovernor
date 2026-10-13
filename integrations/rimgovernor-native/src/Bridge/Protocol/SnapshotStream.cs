@@ -95,6 +95,10 @@ namespace HomeBridge.BridgeTools
 
         private static readonly object Gate = new object();
         private static Ring? ring;
+
+        /// The in-process subscriber's slot (the native facade's frame channel): latest wins, whole frames. It
+        /// is fed alongside the ring while a subscriber is attached; the ring stays until #3102.
+        internal static readonly RimGovernor.Brain.NativeFacade.FrameHandoff Handoff = new RimGovernor.Brain.NativeFacade.FrameHandoff();
         private static Obs.SnapshotStreamRequest subscription = new Obs.SnapshotStreamRequest();
 
         /// The shape the stream captures now (the default request until a
@@ -141,14 +145,24 @@ namespace HomeBridge.BridgeTools
                 if (Interlocked.CompareExchange(ref due, value, seen) == seen) return;
         }
 
-        internal static Obs.SnapshotStreamReply Open(Obs.SnapshotStreamRequest request)
+        internal static Obs.SnapshotStreamReply Open(Obs.SnapshotStreamRequest request) => Open(request, inProcess: false);
+
+        /// Opens (or resubscribes) the stream for the in-process subscriber: frames go to Handoff and no
+        /// shared-memory ring is created for it.
+        internal static Obs.SnapshotStreamReply OpenInProcess(Obs.SnapshotStreamRequest request) => Open(request, inProcess: true);
+
+        private static Obs.SnapshotStreamReply Open(Obs.SnapshotStreamRequest request, bool inProcess)
         {
             lock (Gate)
             {
                 // Frames are captured from the supervised-play frame hook; a
                 // stream opened before any clock start (a lab case)
                 // installs it itself.
-                try { Supervisor.EnsurePatched(); ring ??= new Ring(); }
+                try
+                {
+                    Supervisor.EnsurePatched();
+                    if (inProcess) Handoff.Attach(); else ring ??= new Ring();
+                }
                 catch (Exception e)
                 {
                     return new Obs.SnapshotStreamReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "Snapshot ring could not be created: " + e.Message } };
@@ -158,7 +172,8 @@ namespace HomeBridge.BridgeTools
                 if (!request.Keyframe) subscription = request.Clone();
                 Interlocked.Exchange(ref keyframeDue, 1);
                 capturedWrites = -1; // the new subscription publishes at once
-                return new Obs.SnapshotStreamReply { Opened = new Obs.SnapshotStreamOpened { Name = ring.Name, Slots = Slots, SlotBytes = SlotBytes } };
+                if (inProcess) return new Obs.SnapshotStreamReply { Opened = new Obs.SnapshotStreamOpened { Name = "in-process" } };
+                return new Obs.SnapshotStreamReply { Opened = new Obs.SnapshotStreamOpened { Name = ring!.Name, Slots = Slots, SlotBytes = SlotBytes } };
             }
         }
 
@@ -166,7 +181,7 @@ namespace HomeBridge.BridgeTools
         internal static void OnFrame()
         {
             var r = ring;
-            if (r == null) return;
+            if (r == null && !Handoff.Attached) return;
             var tm = Find.TickManager;
             var map = Find.CurrentMap;
             if (tm == null || map == null) return;
@@ -226,8 +241,22 @@ namespace HomeBridge.BridgeTools
             {
                 try
                 {
-                    if (!failed) { SnapshotSections.Elide(frame, keyframe); CellGridEncoder.Attach(frame, grid, keyframe); }
-                    r.Publish(frame, w, captureMicros);
+                    // The in-process subscriber gets the whole frame: taken before the ring path elides sections
+                    // from it (a clone only while both are attached), with a keyframe grid that leaves the ring's
+                    // delta baseline alone.
+                    RimGovernor.Brain.NativeFacade.NativeFrame? whole = null;
+                    if (Handoff.Attached)
+                    {
+                        var copy = r != null ? frame.Clone() : frame;
+                        if (!failed) CellGridEncoder.AttachWhole(copy, grid);
+                        whole = new RimGovernor.Brain.NativeFacade.NativeFrame(copy, w, captureMicros);
+                    }
+                    if (r != null)
+                    {
+                        if (!failed) { SnapshotSections.Elide(frame, keyframe); CellGridEncoder.Attach(frame, grid, keyframe); }
+                        r.Publish(frame, w, captureMicros);
+                    }
+                    if (whole != null) Handoff.Publish(whole);
                 }
                 catch (Exception e) { ModLog.Warn("snapshot", "frame publish failed: " + e.Message); }
                 finally { Interlocked.Exchange(ref pending, 0); }

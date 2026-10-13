@@ -23,13 +23,18 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ListRooms(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ListRoomsRequest string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ListRoomsRequest.Parser, out var parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ListRoomsReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                    return ProtoBoundary.Encode(new Obs.ListRoomsReply { Failure = error });
-                return ProtoBoundary.Encode(Read(map, parsed, context));
-            }, cancellationToken).ConfigureAwait(false);
+            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ListRoomsRequest.Parser, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.ListRoomsReply { Failure = failure });
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleListRooms(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Obs.ListRoomsReply HandleListRooms(Obs.ListRoomsRequest parsed)
+        {
+            if (!Validate(parsed, out var invalidRequest)) return new Obs.ListRoomsReply { Failure = invalidRequest };
+            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
+                return new Obs.ListRoomsReply { Failure = error };
+            return Read(map, parsed, context);
         }
         // On the main thread: the room census for a validated request.
         internal static Obs.ListRoomsReply Read(Map map, Obs.ListRoomsRequest parsed, Common.ObservationContext context)

@@ -20,27 +20,28 @@ namespace HomeBridge.BridgeTools
         public Task<object> ReadStatus(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official clock StatusRequest ProtoJSON string.")] object? request = null)
             => Dispatch(ctx, cancellationToken, "rimgovernor/clock_read_status", request, Clock.StatusRequest.Parser,
-                failure => new Clock.StatusReply { Failure = failure }, parsed => {
-                    if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var failure)) return new Clock.StatusReply { Failure = failure };
-                    return new Clock.StatusReply { Status = Read(context) };
-                });
+                failure => new Clock.StatusReply { Failure = failure }, HandleReadStatus);
+
+        // The typed cores below run on the game thread; the tools and the in-process facade share them.
+        internal static Clock.StatusReply HandleReadStatus(Clock.StatusRequest parsed)
+        {
+            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var failure)) return new Clock.StatusReply { Failure = failure };
+            return new Clock.StatusReply { Status = Read(context) };
+        }
 
         [Tool("rimgovernor/clock_read_events", Title = "Read owned clock events", Description = "Read immutable event ownership/context using an explicit nonnegative cursor and limit1..128, never held; advances are announced on the rimgovernor.clock channel; legacy or incomplete history is unavailable.")]
         [ToolResponse("payload", "string", "Official clock EventsReply ProtoJSON.", Always = true)]
-        public async Task<object> ReadEvents(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public Task<object> ReadEvents(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official clock EventsRequest ProtoJSON string.")] object? request = null)
+            => Dispatch(ctx, cancellationToken, "rimgovernor/clock_read_events", request, Clock.EventsRequest.Parser,
+                failure => new Clock.EventsReply { Failure = failure }, HandleReadEvents);
+
+        internal static Clock.EventsReply HandleReadEvents(Clock.EventsRequest parsed)
         {
-            const string tool = "rimgovernor/clock_read_events";
-            if (!ProtoBoundary.TryParse(ctx, tool, request, Clock.EventsRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Clock.EventsReply { Failure = failure });
             if (!parsed.HasAfterCursor || parsed.AfterCursor < 0 || !parsed.HasLimit || parsed.Limit < 1 || parsed.Limit > 128)
-                return ProtoBoundary.Encode(new Clock.EventsReply { Failure = Invalid("Event reads require explicit cursor>=0 and limit1..128 (subscribe to rimgovernor.clock).") });
-            return await ProtoBoundary.OnMainThread(ctx, () => Events(parsed), cancellationToken).ConfigureAwait(false);
-        }
-        private static object Events(Clock.EventsRequest parsed)
-        {
-            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var failure)) return ProtoBoundary.Encode(new Clock.EventsReply { Failure = failure });
-            return ProtoBoundary.Encode(Supervisor.TypedEvents(parsed, context));
+                return new Clock.EventsReply { Failure = Invalid("Event reads require explicit cursor>=0 and limit1..128 (subscribe to rimgovernor.clock).") };
+            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var failure)) return new Clock.EventsReply { Failure = failure };
+            return Supervisor.TypedEvents(parsed, context);
         }
 
         [Tool("rimgovernor/clock_start", Title = "Start guarded owned clock", Description = "Admit one ordinary supervised epoch under current authority, a bounded tick budget and monotonic lease. Exact attempts replay; never reacquires authority.")]
@@ -48,51 +49,66 @@ namespace HomeBridge.BridgeTools
         public Task<object> Start(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official clock StartRequest ProtoJSON string.")] object? request = null)
             => Dispatch(ctx, cancellationToken, "rimgovernor/clock_start", request, Clock.StartRequest.Parser,
-                failure => new Clock.ControlReply { Failure = failure }, parsed => Control("Start", parsed, parsed.Authority, null,
-                    () => Supervisor.ValidateTypedStart(parsed), context => Supervisor.TypedStart(parsed, context)));
+                failure => new Clock.ControlReply { Failure = failure }, HandleStart);
+
+        internal static Clock.ControlReply HandleStart(Clock.StartRequest parsed)
+            => Control("Start", parsed, parsed.Authority, null,
+                () => Supervisor.ValidateTypedStart(parsed), context => Supervisor.TypedStart(parsed, context));
 
         [Tool("rimgovernor/clock_renew", Title = "Renew owned clock lease", Description = "Renew only a live exact owned epoch under current authority; retain original tick deadline and replay admitted attempts.")]
         [ToolResponse("payload", "string", "Official clock ControlReply ProtoJSON.", Always = true)]
         public Task<object> Renew(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official clock RenewRequest ProtoJSON string.")] object? request = null)
             => Dispatch(ctx, cancellationToken, "rimgovernor/clock_renew", request, Clock.RenewRequest.Parser,
-                failure => new Clock.ControlReply { Failure = failure }, parsed => Control("Renew", parsed, parsed.Authority, parsed.Epoch,
-                    () => parsed.HasLeaseMs && parsed.LeaseMs >= 1000 && parsed.LeaseMs <= 30000 ? null : Invalid("Clock lease must be1000..30000ms."),
-                    context => Supervisor.TypedRenew(parsed, context)));
+                failure => new Clock.ControlReply { Failure = failure }, HandleRenew);
+
+        internal static Clock.ControlReply HandleRenew(Clock.RenewRequest parsed)
+            => Control("Renew", parsed, parsed.Authority, parsed.Epoch,
+                () => parsed.HasLeaseMs && parsed.LeaseMs >= 1000 && parsed.LeaseMs <= 30000 ? null : Invalid("Clock lease must be1000..30000ms."),
+                context => Supervisor.TypedRenew(parsed, context));
 
         [Tool("rimgovernor/clock_change_speed", Title = "Change owned clock speed", Description = "Change one live owned epoch to an ordinary speed under current authority without extending its tick budget.")]
         [ToolResponse("payload", "string", "Official clock ControlReply ProtoJSON.", Always = true)]
         public Task<object> ChangeSpeed(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official clock SpeedRequest ProtoJSON string.")] object? request = null)
             => Dispatch(ctx, cancellationToken, "rimgovernor/clock_change_speed", request, Clock.SpeedRequest.Parser,
-                failure => new Clock.ControlReply { Failure = failure }, parsed => Control("ChangeSpeed", parsed, parsed.Authority, parsed.Epoch,
-                    () => !parsed.HasSpeed || !Supervisor.OrdinarySpeed(parsed.Speed) ? Invalid("Clock speed must be normal, fast, superfast or ultrafast.") : Supervisor.ValidateTypedSpeedChange(parsed),
-                    context => Supervisor.TypedSpeed(parsed, context)));
+                failure => new Clock.ControlReply { Failure = failure }, HandleChangeSpeed);
+
+        internal static Clock.ControlReply HandleChangeSpeed(Clock.SpeedRequest parsed)
+            => Control("ChangeSpeed", parsed, parsed.Authority, parsed.Epoch,
+                () => !parsed.HasSpeed || !Supervisor.OrdinarySpeed(parsed.Speed) ? Invalid("Clock speed must be normal, fast, superfast or ultrafast.") : Supervisor.ValidateTypedSpeedChange(parsed),
+                context => Supervisor.TypedSpeed(parsed, context));
 
         [Tool("rimgovernor/clock_pause", Title = "Pause exact owned clock", Description = "Safe cleanup of the exact current identity/controller/epoch, including after authority revocation. Never pauses a replacement epoch.")]
         [ToolResponse("payload", "string", "Official clock StatusReply ProtoJSON.", Always = true)]
         public Task<object> Pause(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official clock OwnedRequest ProtoJSON string.")] object? request = null)
             => Dispatch(ctx, cancellationToken, "rimgovernor/clock_pause", request, Clock.OwnedRequest.Parser,
-                failure => new Clock.StatusReply { Failure = failure }, parsed => {
-                    if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var failure)) return new Clock.StatusReply { Failure = failure };
-                    var refused = Supervisor.ValidateTypedOwner(parsed, false);
-                    if (refused != null) return new Clock.StatusReply { Failure = refused };
-                    try { Supervisor.TypedPause(context); return new Clock.StatusReply { Status = Read(context) }; }
-                    catch (Exception) { return new Clock.StatusReply { Status = Read(context) }; }
-                });
+                failure => new Clock.StatusReply { Failure = failure }, HandlePause);
+
+        internal static Clock.StatusReply HandlePause(Clock.OwnedRequest parsed)
+        {
+            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var failure)) return new Clock.StatusReply { Failure = failure };
+            var refused = Supervisor.ValidateTypedOwner(parsed, false);
+            if (refused != null) return new Clock.StatusReply { Failure = refused };
+            try { Supervisor.TypedPause(context); return new Clock.StatusReply { Status = Read(context) }; }
+            catch (Exception) { return new Clock.StatusReply { Status = Read(context) }; }
+        }
 
         [Tool("rimgovernor/clock_read_attempt", Title = "Read admitted clock attempt", Description = "Read original clock admission after revocation without granting authority; unknown does not prove no effect.")]
         [ToolResponse("payload", "string", "Official clock AttemptReply ProtoJSON.", Always = true)]
         public Task<object> ReadAttempt(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official clock AttemptRequest ProtoJSON string.")] object? request = null)
             => Dispatch(ctx, cancellationToken, "rimgovernor/clock_read_attempt", request, Clock.AttemptRequest.Parser,
-                failure => new Clock.AttemptReply { Failure = failure }, parsed => {
-                    if (!ValidAttempt(parsed.Attempt)) return new Clock.AttemptReply { Failure = Invalid("A complete positive attempt key is required.") };
-                    if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var failure)) return new Clock.AttemptReply { Failure = failure };
-                    return NativeOperationState.TryGet(context.Identity, out var state) ? state.Ledger.LookupClock(parsed.Attempt, context)
-                        : new Clock.AttemptReply { Unknown = new Clock.AttemptUnknown() };
-                });
+                failure => new Clock.AttemptReply { Failure = failure }, HandleReadAttempt);
+
+        internal static Clock.AttemptReply HandleReadAttempt(Clock.AttemptRequest parsed)
+        {
+            if (!ValidAttempt(parsed.Attempt)) return new Clock.AttemptReply { Failure = Invalid("A complete positive attempt key is required.") };
+            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var failure)) return new Clock.AttemptReply { Failure = failure };
+            return NativeOperationState.TryGet(context.Identity, out var state) ? state.Ledger.LookupClock(parsed.Attempt, context)
+                : new Clock.AttemptReply { Unknown = new Clock.AttemptUnknown() };
+        }
 
         private static async Task<object> Dispatch<T>(IRimBridgeContext ctx, CancellationToken token, string tool, object? request,
             MessageParser<T> parser, Func<Common.Failure, IMessage> refused, Func<T, IMessage> apply) where T : class, IMessage<T>

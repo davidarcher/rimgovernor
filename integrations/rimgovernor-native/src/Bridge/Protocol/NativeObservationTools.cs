@@ -25,14 +25,19 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ReadStatus(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a StatusRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_status", request!, Obs.StatusRequest.Parser, out var parsed, out var failure)
-                || !ValidateStatus(parsed, out failure)) return ProtoBoundary.Encode(new Obs.StatusReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.StatusReply { Failure = failure });
-                try { return ProtoBoundary.Encode(new Obs.StatusReply { Observed = Status(map, parsed, context) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.StatusReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native status facts could not be read completely.") }); }
-            }, cancellationToken).ConfigureAwait(false);
+            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_status", request!, Obs.StatusRequest.Parser, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.StatusReply { Failure = failure });
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadStatus(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Obs.StatusReply HandleReadStatus(Obs.StatusRequest parsed)
+        {
+            if (!ValidateStatus(parsed, out var invalidRequest)) return new Obs.StatusReply { Failure = invalidRequest };
+            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
+                return new Obs.StatusReply { Failure = failure };
+            try { return new Obs.StatusReply { Observed = Status(map, parsed, context) }; }
+            catch (Exception) { return new Obs.StatusReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native status facts could not be read completely.") }; }
         }
 
         [Tool("rimgovernor/observations_get_cells", Title = "Read map cells",
@@ -41,13 +46,18 @@ namespace HomeBridge.BridgeTools
         public async Task<object> GetCells(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a GetCellsRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_get_cells", request!, Obs.GetCellsRequest.Parser, out var parsed, out var failure)
-                || !ValidateCells(parsed, out failure)) return ProtoBoundary.Encode(new Obs.GetCellsReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.GetCellsReply { Failure = failure });
-                return ProtoBoundary.Encode(ReadCells(map, parsed, context));
-            }, cancellationToken).ConfigureAwait(false);
+            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_get_cells", request!, Obs.GetCellsRequest.Parser, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.GetCellsReply { Failure = failure });
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleGetCells(parsed), cancellationToken).ConfigureAwait(false);
+        }
+
+        // On the game thread: the typed core of the tool, shared with the in-process facade.
+        internal static Obs.GetCellsReply HandleGetCells(Obs.GetCellsRequest parsed)
+        {
+            if (!ValidateCells(parsed, out var invalidRequest)) return new Obs.GetCellsReply { Failure = invalidRequest };
+            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
+                return new Obs.GetCellsReply { Failure = failure };
+            return ReadCells(map, parsed, context);
         }
 
         // ReadCells is the read on the main thread under a validated
@@ -76,7 +86,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_excavation_site", request!, Obs.ExcavationSiteRequest.Parser, out var parsed, out var failure)
                 || !NativeExcavationSite.Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
                     return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Failure = failure });
                 try { return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Observed = NativeExcavationSite.Read(map, parsed, context) }); }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native excavation site facts could not be read completely.") }); }

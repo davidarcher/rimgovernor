@@ -22,8 +22,11 @@
     <Compile Include="../../../../scripts/fixtures/DefenseFixture.cs" Condition="'$(DefenseFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HazardFixture.cs" Condition="'$(HazardFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ShelterFixture.cs" Condition="'$(ShelterFixture)' == 'true'" />
-    <Compile Include="../../../../contracts/generated/protobuf/csharp/*.cs" />
+    <!-- The protobuf messages come from the brain assemblies the mod shares with the in-process brain (#3080): one set of types, one build graph. Wire link-compiles contracts/generated/protobuf/csharp. -->
     <PackageReference Include="Google.Protobuf" Version="3.31.1" />
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.NativeFacade/RimGovernor.Brain.NativeFacade.csproj" />
     <Compile Include="../../../../scripts/fixtures/ThroughputFixture.cs" Condition="'$(ThroughputFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/WasteFixture.cs" Condition="'$(WasteFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BurnableFilterFixture.cs" Condition="'$(BurnableFilterFixture)' == 'true'" />
@@ -112,7 +115,7 @@
   </ItemGroup>
   <Target Name="RecordNativeRuntimeDependencies" AfterTargets="Build">
     <WriteLinesToFile File="$(OutputPath)runtime-dependencies.tsv"
-      Lines="@(ReferenceCopyLocalPaths->WithMetadataValue('Extension', '.dll')->'%(NuGetPackageId)|%(NuGetPackageVersion)|%(Filename)%(Extension)')"
+      Lines="@(ReferenceCopyLocalPaths->HasMetadata('NuGetPackageId')->WithMetadataValue('Extension', '.dll')->'%(NuGetPackageId)|%(NuGetPackageVersion)|%(Filename)%(Extension)')"
       Overwrite="true" />
   </Target>
 </Project>

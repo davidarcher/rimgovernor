@@ -163,3 +163,7 @@ authority readback, placement and wire acceptance through these fixed Protobuf
 capabilities is Go native acceptance tracked in
 [issue #38](https://github.com/davidarcher/rimgovernor/issues/38). No saved-game
 compatibility acceptance is required.
+
+## In-process path (#3080)
+
+Every capability above is also a typed call on `INativeFacade` (`RimGovernor.Brain.NativeFacade`), run by the same core as the tool without ProtoJSON. See [Native facade](../docs/developers/architecture/native-facade.md).
