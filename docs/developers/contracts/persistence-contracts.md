@@ -9,6 +9,16 @@ Finding strings are `unclear`/`unmet`/`met` (Incident bindings
 store `unclear`/`active`/`clear`); journal schema 216, governor-state blobs version 6. Databases and saves from other versions are refused;
 there is no adoption path.
 
+The C# brain's journal (`RimGovernor.Brain.Store`, Microsoft.Data.Sqlite on the SourceGear `e_sqlite3` provider)
+keeps the same ownership rules in its own file format: `PRAGMA user_version` 2 and the same `application_id`.
+Domain payloads (actions, admissions, transitions, Standards, Incidents, Rounds and the family records) are
+JSON text written by hand-written codecs under `Codec/` with fixed Go-style field names and no reflection
+serializer; the clock records stay protobuf blobs. The per-kind column checks Go kept in SQL `CHECK`
+constraints live in the C# domain constructors a payload is rebuilt through. The journal is disposable on
+upgrade: a file of another version is moved aside to `<path>.v<old>.bak` by `Store.OpenOrReplace` and a new one
+is created, so there are no migrations. Go's custom `database/sql` driver has no counterpart; the online backup
+behind the observe snapshot is `SqliteConnection.BackupDatabase`.
+
 Every fact has exactly one home, chosen by what must happen to it when a save is reloaded. A second
 copy of a fact is a bug, not a cache.
 

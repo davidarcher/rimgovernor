@@ -33,7 +33,7 @@ public static partial class BridgeFunctions
         if (!failed.Contains("genes") && biotech.HasXenotypeName)
         {
             // Genes exist only on a pawn with a gene tracker; the xenotype name is read with them.
-            IReadOnlyList<PolicyPawnGene> genes =
+            EquatableArray<PolicyPawnGene> genes =
             [
                 .. biotech.Genes.Select(gene => new PolicyPawnGene { Name = gene.DefName, Xenogene = Known(gene.Xenogene), Active = Known(gene.Active) }),
             ];

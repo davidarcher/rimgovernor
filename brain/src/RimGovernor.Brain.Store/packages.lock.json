@@ -31,8 +31,35 @@
         "resolved": "2.1.11",
         "contentHash": "PK0GLFkfhZzLQeR3PJf71FmhtHox+U3vcY6ZtswoMjrefkB9k6ErNJEnwXqc5KgXDSjige2XXrezqS39gkpQKA=="
       },
+      "rimgovernor.brain.bridge.contracts": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )",
+          "RimGovernor.Brain.Wire": "[1.0.0, )"
+        }
+      },
       "rimgovernor.brain.domain": {
         "type": "Project"
+      },
+      "rimgovernor.brain.policy": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Wire": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.wire": {
+        "type": "Project",
+        "dependencies": {
+          "Google.Protobuf": "[3.31.1, )"
+        }
+      },
+      "Google.Protobuf": {
+        "type": "CentralTransitive",
+        "requested": "[3.31.1, )",
+        "resolved": "3.31.1",
+        "contentHash": "gSnJbUmGiOTdWddPhqzrEscHq9Ls6sqRDPB9WptckyjTUyx70JOOAaDLkFff8gManZNN3hllQ4aQInnQyq/Z/A=="
       }
     }
   }

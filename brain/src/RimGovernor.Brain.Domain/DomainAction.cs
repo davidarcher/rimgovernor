@@ -88,7 +88,8 @@ public sealed partial record DomainAction
 
     public ActionKind Kind { get; }
 
-    internal IActionPayload Payload { get; }
+    /// <summary>The family payload; the journal's hand-written converters write it, and read it back through the factories.</summary>
+    public IActionPayload Payload { get; }
 
     /// <summary>Builds an action of <paramref name="kind"/>; the family factories call this after validating the payload.</summary>
     internal static DomainAction Create(ActionId id, ActionKind kind, IActionPayload payload)
