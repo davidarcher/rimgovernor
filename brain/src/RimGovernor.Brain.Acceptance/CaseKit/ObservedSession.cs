@@ -36,6 +36,17 @@ public sealed class ObservedSession : IObservedSession
         return new ObservedSession(session);
     }
 
+    /// <summary>
+    /// The watch view of a service the case launched itself (<see cref="ISession.ServeAsync"/>), for a case that drives
+    /// <see cref="SustainedFood.WatchAsync"/> phase by phase and stops the service between them.
+    /// </summary>
+    public static IWatchedService Watched(ISession session, ServiceProcess process)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(process);
+        return new WatchedService(process, session.Config);
+    }
+
     /// <summary>Opens the journal reader of the run <paramref name="config"/> describes.</summary>
     public static Task<IWatchStore> OpenStoreAsync(Config config, CancellationToken cancellationToken)
     {

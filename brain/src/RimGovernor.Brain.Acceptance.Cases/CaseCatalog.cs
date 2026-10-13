@@ -17,6 +17,7 @@ public static class CaseCatalog
         AuthorityCases.Register(registry);
         BedCases.Register(registry);
         BillsCases.Register(registry);
+        CampaignCases.Register(registry);
         CaravanCases.Register(registry);
         CleanCases.Register(registry);
         CombatCases.Register(registry);
