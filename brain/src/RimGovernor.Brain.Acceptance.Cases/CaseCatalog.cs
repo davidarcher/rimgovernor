@@ -43,6 +43,7 @@ public static class CaseCatalog
         LightCases.Register(registry);
         MapscopeCases.Register(registry);
         MedicalCases.Register(registry);
+        MoodCases.Register(registry);
         MovementCases.Register(registry);
         NeedsCases.Register(registry);
         OdysseyCases.Register(registry);
@@ -65,8 +66,8 @@ public static class CaseCatalog
         SpeedmatrixCases.Register(registry);
         StartupCases.Register(registry);
         StorageCases.Register(registry);
-        SustainedCases.Register(registry);
         SuppliesCases.Register(registry);
+        SustainedCases.Register(registry);
         TemperatureCases.Register(registry);
         TickbudgetCases.Register(registry);
         ToolsCases.Register(registry);
