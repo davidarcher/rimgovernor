@@ -17,6 +17,7 @@ public static class CaseCatalog
         CleanCases.Register(registry);
         DraftCases.Register(registry);
         LetterCases.Register(registry);
+        LifecycleCases.Register(registry);
         NeedsCases.Register(registry);
         QuestCases.Register(registry);
         RecoveryCases.Register(registry);
