@@ -8,6 +8,10 @@
     <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The mood audit table is the Go package's file, embedded unchanged so one copy serves both until cutover. -->
+    <EmbeddedResource Include="../../../go/internal/policy/thought_triggers.tsv" LogicalName="thought_triggers.tsv" Link="thought_triggers.tsv" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- Go's domain.Known / domain.Unknown, and the package-level consts and functions with no owner type. -->
     <Using Include="RimGovernor.Brain.Domain" />
     <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />

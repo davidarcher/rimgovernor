@@ -44,7 +44,7 @@ public static partial class PolicyFunctions
         return Known(new DiseaseProjection(Days(s, sr), Days(i, ir)));
     }
 
-    private static void ValidateDiseaseRest(IReadOnlyList<DiseaseRest> rows)
+    internal static void ValidateDiseaseRest(IReadOnlyList<DiseaseRest> rows)
     {
         for (var i = 0; i < rows.Count; i++)
         {
